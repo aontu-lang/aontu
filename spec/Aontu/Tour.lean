@@ -5,6 +5,7 @@ import Aontu.Check
 import Aontu.Meet
 import Aontu.Output
 import Aontu.Verdict
+import Aontu.Paths
 
 /-!
 # The tour's examples
@@ -627,50 +628,26 @@ example : ¬ Instance .empty (.map [("x", false, .alias "U")] none false) (.map 
 /-- `{x: $.y, y: integer}`. -/
 abbrev refDoc (y : Val) : Val := .map [("x", false, .path [.key "y"]), ("y", false, y)] none false
 
-/-- It admits `{"x": 1, "y": 1}`. -/
-example : Instance .empty (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 1)]) := by
-  refine ⟨by decide, ?_⟩
-  refine .map ?_ ?_ (fun _ h => nomatch h) (fun h => nomatch h)
-  · intro k o v x hm hx
-    simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
-    rcases hm with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩
-    · cases hx; exact .path rfl .num
-    · cases hx; exact .integer
-  · intro k o v hm hx
-    simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
-    rcases hm with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ <;> nomatch hx
+/-- `$.y` is declared as what the document holds at `y`: under
+`{"x": 1, "y": 1}` that is `integer & 1`, and the document is valid. -/
+example : vetP {} [] (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 1)]) = .valid := by decide
 
-/-- It refuses `{"x": 1, "y": 2}`. -/
-example : ¬ Instance .empty (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 2)]) := by
-  rintro ⟨-, h⟩
-  cases h with
-  | map hp _ _ _ =>
-    cases hp "x" false (.path [.key "y"]) (.integer 1) (by simp) rfl with
-    | path hat hs =>
-      cases hat
-      cases hs
+/-- Under `{"x": 1, "y": 2}` it is `2`, which `x: 1` refuses. -/
+example : vetP {} [] (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 2)]) = .invalid := by decide
 
 /-- `{x: $.y, y: any}` admits `{"x": {"a": 1, "b": 2}, "y": {"b": 2, "a": 1}}`:
-the two objects have the same members, so they are one value. -/
-example : Instance .empty (refDoc .any)
-    (.map [("x", .map [("a", .integer 1), ("b", .integer 2)]), ("y", .map [("b", .integer 2), ("a", .integer 1)])]) := by
-  refine ⟨by decide, ?_⟩
-  refine .map ?_ ?_ (fun _ h => nomatch h) (fun h => nomatch h)
-  · intro k o v x hm hx
-    simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
-    rcases hm with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩
-    · cases hx
-      refine .path rfl (.map (fun k => ?_) (fun k x y hx hy => ?_))
-      · by_cases ha : k = "a" <;> by_cases hb : k = "b" <;> simp_all [lookup]
-      · by_cases ha : k = "a"
-        · subst ha; simp [lookup] at hx hy; subst hx; subst hy; exact .num
-        · by_cases hb : k = "b"
-          · subst hb; simp [lookup] at hx hy; subst hx; subst hy; exact .num
-          · simp [lookup, ha, hb] at hx
-    · cases hx; exact .any
-  · intro k o v hm hx
-    simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
-    rcases hm with ⟨rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl⟩ <;> nomatch hx
+the two maps have the same members. -/
+example : vetP {} [] (refDoc .any)
+    (.map [("x", .map [("a", .integer 1), ("b", .integer 2)]), ("y", .map [("b", .integer 2), ("a", .integer 1)])]) =
+      .valid := by decide
+
+/-- A path to nothing is an error: `{x: $.z, y: integer}`. -/
+example : vetP {} [] (.map [("x", false, .path [.key "z"]), ("y", false, .integer)] none false)
+    (.map [("x", .integer 1), ("y", .integer 1)]) = .error := by decide
+
+/-- A document that reads only by its own paths is an error: `{a: $.b, b: $.a}`. -/
+example : vetP {} [] (.map [("a", false, .path [.key "b"]), ("b", false, .path [.key "a"])] none false)
+    (.map [("a", .integer 1), ("b", .integer 1)]) = .error := by decide
 
 /-! ## The graph of names -/
 

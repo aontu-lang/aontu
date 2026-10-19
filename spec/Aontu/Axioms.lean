@@ -6,6 +6,7 @@ import Aontu.Meet
 import Aontu.Output
 import Aontu.Alias
 import Aontu.Verdict
+import Aontu.Paths
 
 /-!
 # The axioms
@@ -28,6 +29,10 @@ line each comment states.
 /-- info: 'Aontu.Data.same_iff' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.Data.same_iff
+
+/-- info: 'Aontu.vetP_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.vetP_iff
 
 /-- info: 'Aontu.Data.wf_iff' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in

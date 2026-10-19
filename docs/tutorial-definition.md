@@ -113,9 +113,10 @@ one rule for each form. Its first line:
 inductive Admits (env : Env) (root : Data) : Val → Data → Prop
 ```
 
-`Admits env root v j` says the data `j`, found inside the whole value
-`root`, is an instance of the term `v`, with the aliases `env`
-declares. The result type `Prop` is a statement, true or false, that
+`Admits env root v j` says the data `j` is an instance of the term
+`v`, with the aliases `env` declares; `root` is the whole value `j` is
+found inside, which no rule reads, since a path reads by declaration,
+as step 9 shows. The result type `Prop` is a statement, true or false, that
 Lean establishes by proof and never by running anything. Each
 constructor is a rule of inference: when its premises hold, its
 conclusion, after the last `→`, holds. A term admits a value when a
@@ -2445,42 +2446,122 @@ inductive Seg where
   | idx (i : ℕ)
 ```
 
-`Data.at`, beside it in the file, follows the steps down a value. A
-path term admits what the whole value holds at its path:
+A path in a document reads as what the document holds at that position,
+the data unified in: `x: $.y` with `y: integer & 1` makes `x` the value
+`1`. `spec/Aontu/Paths.lean` reads it by declaration. Each path a
+document writes becomes a name, declared as the term at the path in the
+root, the normal form of the schema met with the data, and the document
+refers to the name in its place, so that the expansion, the residuals,
+the checker and the alias-cycle rule of step 8 carry paths as they
+carry names. The term at a path is found through maps by key and lists
+by index, and through nothing else: not a disjunction, and not a
+reference left as a residual.
 
-<!-- test: quote spec/Aontu/Admits.lean -->
+<!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-  /-- A path admits what the whole value holds at the path: the same
-  value, compared as values. -/
-  | path {p : List Seg} {j' j : Data} :
-      root.at p = some j' → j'.Same j → Admits env root (.path p) j
+/-- The term at a path in a term: through maps by key and lists by
+index, and through nothing else. -/
+def Val.at : Val → List Seg → Option Val
+  | v, [] => some v
+  | .map fs _ _, .key k :: p =>
+    match fs.find? (fun f => f.1 == k) with
+    | some f => f.2.2.at p
+    | none => none
+  | .list items _ _, .idx i :: p =>
+    match items[i]? with
+    | some w => w.at p
+    | none => none
+  | _, _ => none
 ```
 
-The rule compares the two as values:
+A path resolves in the schema's own tree, before any data: a key the
+data alone supplies is no position, and a path to nothing is an
+`error`. The term it reads is then taken from the root, data and all:
 
-<!-- test: quote spec/Aontu/Data.lean -->
+<!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- `j` and `j'` are one value: the same scalar, lists alike element by
-element, and maps with the same members, in whatever order Lean lists
-them. -/
-inductive Data.Same : Data → Data → Prop
-  | num {x : Number} : Same (.num x) (.num x)
-  | str {s : String} : Same (.str s) (.str s)
-  | bool {b : Bool} : Same (.bool b) (.bool b)
-  | null : Same .null .null
-  | map {fs gs : List (String × Data)} :
-      (∀ k, (lookup k fs).isSome = (lookup k gs).isSome) →
-      (∀ k x y, lookup k fs = some x → lookup k gs = some y → Same x y) →
-      Same (.map fs) (.map gs)
-  | list {xs ys : List Data} :
-      xs.length = ys.length →
-      (∀ (i : ℕ) (x y : Data), xs[i]? = some x → ys[i]? = some y → Same x y) →
-      Same (.list xs) (.list ys)
+/-- Every path of the document resolves in the schema's own tree. -/
+def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
+  ∀ p, p ∈ ds.docPaths S → ((normaliseD ds (ds.read S)).at p).isSome = true
 ```
 
-`Same` is a relation of its own, with a rule for each kind of value.
-A scalar is the same as itself, and two maps are the same when they
-give each key the same value, whatever order their lists take:
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The declarations a document's paths make: each path's name, declared
+as the term at the path in the root, with that term's own paths read as
+names too. A path to nothing declares nothing. -/
+def Decls.ofPaths (root : Val) (ps : List (List Seg)) : Decls :=
+  ps.filterMap fun p => (root.at p).map fun w => (pathName p, w.pathsToAliases)
+```
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The document with its paths read as names from a root: each path is
+declared as the term at it, and the bodies and the schema refer to the
+names. -/
+def Decls.withPathsFrom (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
+  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ Decls.ofPaths root (ds.docPaths S), S.pathsToAliases)
+```
+
+Two roots serve: the schema alone, for the error class, and the schema
+met with the data, for the rest. A contradiction the data brings, `a: 1`
+met with `"a": 2` where `b: $.a` reads it, is the data's fault, invalid,
+and not an ill-formed schema:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The document with its paths read as names from the schema alone:
+the root is the normal form of the schema as read, before any data,
+which is what the error class is judged on. -/
+def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
+  ds.withPathsFrom S (normaliseD ds (ds.read S))
+```
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The document with its paths read as names from the data too: the
+root is the normal form of the schema met with the data, which is what
+the other classes are judged on. -/
+def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
+  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.read S) j.term))
+```
+
+The verdict of a document with paths is then the verdict of step 14 on
+the document with its paths read as names:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The verdict of a document with paths. It is an `error` where a path
+does not resolve in the schema's own tree, or where the document is an
+error with its paths read from the schema alone: a name declared
+nowhere, a cycle, a `nil` in the schema. Otherwise the paths read from
+the data too, and the document is `invalid` where that reading is dead
+or an error, since the data made it so, and `valid` or `incomplete` as
+that reading is. -/
+def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
+  | .error => ¬ ds.Resolves S ∨ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error
+  | .invalid =>
+    ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
+      (Vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j .invalid ∨
+        Vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j .error)
+  | v =>
+    ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
+      Vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j v
+```
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- `vetP` computes `VetP` on every document whose bodies and schema
+read no pattern and no format. -/
+theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v := by
+```
+
+A recursive position, `then?: $.schema.Step` inside `Step`, is a name
+that refers to itself through a key, a residual that expands against
+the data as far as the data goes, exactly as a recursive alias does. A
+document that refers only to itself through its paths, `{a: $.b, b: $.a}`,
+breaks the alias-cycle rule and is an `error`.
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
@@ -2490,23 +2571,45 @@ abbrev refDoc (y : Val) : Val := .map [("x", false, .path [.key "y"]), ("y", fal
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
-/-- It admits `{"x": 1, "y": 1}`. -/
-example : Instance .empty (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 1)]) := by
+/-- `$.y` is declared as what the document holds at `y`: under
+`{"x": 1, "y": 1}` that is `integer & 1`, and the document is valid. -/
+example : vetP {} [] (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 1)]) = .valid := by decide
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
-/-- It refuses `{"x": 1, "y": 2}`. -/
-example : ¬ Instance .empty (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 2)]) := by
+/-- Under `{"x": 1, "y": 2}` it is `2`, which `x: 1` refuses. -/
+example : vetP {} [] (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 2)]) = .invalid := by decide
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `{x: $.y, y: any}` admits `{"x": {"a": 1, "b": 2}, "y": {"b": 2, "a": 1}}`:
-the two objects have the same members, so they are one value. -/
-example : Instance .empty (refDoc .any)
-    (.map [("x", .map [("a", .integer 1), ("b", .integer 2)]), ("y", .map [("b", .integer 2), ("a", .integer 1)])]) := by
+the two maps have the same members. -/
+example : vetP {} [] (refDoc .any)
+    (.map [("x", .map [("a", .integer 1), ("b", .integer 2)]), ("y", .map [("b", .integer 2), ("a", .integer 1)])]) =
+      .valid := by decide
 ```
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- A path to nothing is an error: `{x: $.z, y: integer}`. -/
+example : vetP {} [] (.map [("x", false, .path [.key "z"]), ("y", false, .integer)] none false)
+    (.map [("x", .integer 1), ("y", .integer 1)]) = .error := by decide
+```
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- A document that reads only by its own paths is an error: `{a: $.b, b: $.a}`. -/
+example : vetP {} [] (.map [("a", false, .path [.key "b"]), ("b", false, .path [.key "a"])] none false)
+    (.map [("a", .integer 1), ("b", .integer 1)]) = .error := by decide
+```
+
+The seventh generated fragment,
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv), runs documents
+with paths in the three modes, a path into a list, through an alias,
+against a default, a spread of a path, a recursive position and its
+cycles among them.
 
 Write `refs.aontu`:
 

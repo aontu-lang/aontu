@@ -316,11 +316,12 @@ inductive Val.Checkable : Val → Prop
   | or {arms : List (ℕ × Val)} : (∀ r a, (r, a) ∈ arms → Checkable a) → Checkable (.or arms)
   | pref {r : ℕ} {x : Val} : Checkable x → Checkable (.pref r x)
   | meet {a b : Val} : Checkable a → Checkable b → Checkable (.meet a b)
+  | path {p : List Seg} : Checkable (.path p)
 
 mutual
 /-- Whether a value is checkable, computed. -/
 def Val.checkableB : Val → Bool
-  | .alias _ | .path _ | .re _ | .format _ => false
+  | .alias _ | .re _ | .format _ => false
   | .len c => c.checkableB
   | .map fs spread _ => fieldsCheckable fs && spreadCheckable spread
   | .list items spread _ => itemsCheckable items && spreadCheckable spread
@@ -369,7 +370,7 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .re _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .format _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .alias _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | .path _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .path _ => ⟨fun _ => .path, fun _ => rfl⟩
   | .len c => by
     simp only [Val.checkableB]
     rw [Val.checkableB_iff c]
@@ -712,11 +713,12 @@ inductive Val.CheckableA : Val → Prop
   | pref {r : ℕ} {x : Val} : CheckableA x → CheckableA (.pref r x)
   | meet {a b : Val} : CheckableA a → CheckableA b → CheckableA (.meet a b)
   | alias {n : String} : CheckableA (.alias n)
+  | path {p : List Seg} : CheckableA (.path p)
 
 mutual
 /-- Whether a value is checkable given a hook, computed. -/
 def Val.checkableAB : Val → Bool
-  | .path _ | .re _ | .format _ => false
+  | .re _ | .format _ => false
   | .len c => c.checkableAB
   | .map fs spread _ => fieldsCheckableA fs && spreadCheckableA spread
   | .list items spread _ => itemsCheckableA items && spreadCheckableA spread
@@ -765,7 +767,7 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .alias _ => ⟨fun _ => .alias, fun _ => rfl⟩
   | .re _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .format _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | .path _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .path _ => ⟨fun _ => .path, fun _ => rfl⟩
   | .len c => by
     simp only [Val.checkableAB]
     rw [Val.checkableAB_iff c]
@@ -861,6 +863,7 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | or _ ih => exact .or ih
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
+  | path => exact .path
 
 /-- A value the checker can read given a hook, which refers to no name,
 is checkable with none. -/
@@ -1559,6 +1562,10 @@ theorem checkSuperWith_iff {v : Val} (h : v.CheckableA) :
     intro j hu
     simp only [checkSuperWith, Val.super]
     exact hu.alias
+  | path =>
+    intro j _
+    simp only [checkSuperWith, Val.super]
+    exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | @meet a b ha hb iha ihb =>
     intro j hu
     cases hka : a.isKind <;> cases hkb : b.isKind <;>
@@ -1803,6 +1810,7 @@ theorem checkWith_iff {v : Val} (h : v.CheckableA) :
     intro j hu
     simp only [checkWith]
     exact hu.alias
+  | path => intro j _; exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | @map fs spread closed _ _ ihfs ihsp =>
     intro j hu
     cases j with

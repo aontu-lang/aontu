@@ -2,7 +2,7 @@
 # generated row (test/spec/def-fragment.tsv and the fragments beside it) the
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, and the cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 51.
+# A listed case that comes to agree fails the run. Bounded at 60.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -55,3 +55,12 @@ a107	%U = %U\nv: %U	1	error	invalid	ports	decision 1 (section 7): a name declare
 a207	%T = (%T) | (1)\nv: %T	1	error	valid	ports	decision 2 (section 7): the alias-cycle rule refuses a name that refers to itself with nothing between, here through |, where the ports run it and the second arm admits 1 (#354)
 a208	%T = (%T) | (1)\nv: %T	1	error	valid	ports	decision 2 (section 7): the alias-cycle rule refuses a name that refers to itself with nothing between, here through |, where the ports run it and the second arm admits 1 (#354)
 a209	%T = (%T) | (1)\nv: %T	1	error	valid	ports	decision 2 (section 7): the alias-cycle rule refuses a name that refers to itself with nothing between, here through |, where the ports run it and the second arm admits 1 (#354)
+p48	"a": $.a	{"a": 1}	error	invalid	ports	decision 7 (section 7): a position that reads only by itself falls under the alias-cycle rule, an error, where the ports answer unify_cycle by running out of steps (#357)
+p49	"a": $.a	{"a": 1}	error	invalid	ports	decision 7 (section 7): a position that reads only by itself falls under the alias-cycle rule, an error, where the ports answer unify_cycle by running out of steps (#357)
+p50	"a": $.a	{"a": 1}	error	invalid	ports	decision 7 (section 7): a position that reads only by itself falls under the alias-cycle rule, an error, where the ports answer unify_cycle by running out of steps (#357)
+p138	"a": {"x": $.a.x}	{"a": {"x": 1}}	error	invalid	ports	decision 7 (section 7): a position that reads only by itself falls under the alias-cycle rule, an error, where the ports answer unify_cycle by running out of steps (#357)
+p139	"a": {"x": $.a.x}	{"a": {"x": 1}}	error	invalid	ports	decision 7 (section 7): a position that reads only by itself falls under the alias-cycle rule, an error, where the ports answer unify_cycle by running out of steps (#357)
+p140	"a": {"x": $.a.x}	{"a": {"x": 1}}	error	invalid	ports	decision 7 (section 7): a position that reads only by itself falls under the alias-cycle rule, an error, where the ports answer unify_cycle by running out of steps (#357)
+p144	"a": {"b": {"c"?: $.a.b}}	{"a": {"b": {"c": {}}}}	incomplete	invalid	ports	decision 7 (section 7): a recursive position met with data in its own place is a name that refers to itself through a key, which the definition expands as it does a copy, where the ports answer unify_cycle (#357)
+p145	"a": {"b": {"c"?: $.a.b}}	{"a": {"b": {"c": {}}}}	incomplete	invalid	ports	decision 7 (section 7): a recursive position met with data in its own place is a name that refers to itself through a key, which the definition expands as it does a copy, where the ports answer unify_cycle (#357)
+p146	"a": {"b": {"c"?: $.a.b}}	{"a": {"b": {"c": {}}}}	valid	invalid	ports	decision 7 (section 7): a recursive position met with data in its own place is a name that refers to itself through a key, which the definition expands as it does a copy, where the ports answer unify_cycle (#357)
