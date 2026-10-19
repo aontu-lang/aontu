@@ -4,6 +4,7 @@ import Aontu.Admits
 import Aontu.Order
 import Aontu.Meet
 import Aontu.Output
+import Aontu.Verdict
 import Aontu.Trial
 import Aontu.Check
 import Aontu.Tour

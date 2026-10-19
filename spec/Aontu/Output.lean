@@ -16,9 +16,9 @@ or, where the left generates nothing, the other way about. A kind, a
 bound, `any`, `nil`, an alias and a path generate nothing. `Output env
 root v j` reads `Gen` off the normal form `normalise v`, where every
 meet is computed and every dead arm dropped, which is the shape the
-engines evaluate. `output_admits` is ADR-007: what evaluation singles
-out is an instance; `output_unique` says it is one value; and `gen`
-computes it, admitted by `gen_iff`.
+engines evaluate. `output_admits` says what evaluation singles out is
+an instance; `output_unique` that it is one value; and `gen` computes
+it, admitted by `gen_iff`.
 -/
 
 namespace Aontu
@@ -460,7 +460,7 @@ theorem arms_admits : ∀ arms : List (ℕ × Val), ∀ r a, (r, a) ∈ arms →
     · exact arms_admits arms r a hm' j hg
 end
 
-/-- ADR-007: what evaluation singles out is an instance. -/
+/-- What evaluation singles out is an instance. -/
 theorem output_admits (v : Val) (j : Data) (h : Output env root v j) : Admits env root v j :=
   (admits_normalise v j).mp (gen_admits _ j h)
 

@@ -1,5 +1,6 @@
 import Aontu.Check
 import Aontu.Output
+import Aontu.Verdict
 import Oracle.Print
 
 /-!
@@ -328,6 +329,90 @@ def genRows (tag : String) (vals : List Val) : IO Unit := do
       IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ "\t{\"v\":" ++ json ++ "}")
     i := i + 1
 
+/-! ## The verdicts -/
+
+/-- The cases of the `verdict` fragment, each a schema and a document of
+data, run in the three modes of `vet`. No case writes `nil` or a
+contradiction under an optional key, where the engines answer `error`
+for what the definition reads as a key that must be absent, none a
+preference clash the engines find only once the data meets it, and
+none a sealed list met with a spread (#346), which waits on the
+ledger. -/
+def vetCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let key (k : String) (o : Bool) (v : Val) : Val := .map [(k, o, v)] none false
+  let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
+  let max (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .max (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let xy : Val := .or [(0, key "x" false (int 1)), (0, key "y" false (int 2))]
+  [(.meet (min 5) (max 3), j 1), (key "x" false (.meet (int 1) (int 2)), .map [("x", j 1)]),
+    (.integer, .str "a"), (.integer, j 1), (key "x" false .integer, .map []),
+    (key "x" false .integer, .map [("x", j 1)]), (key "x" true (.pref 1 (int 1)), .map []),
+    (key "x" false (.pref 1 (int 1)), .map []), (key "x" false (.pref 1 (int 1)), .map [("x", j 2)]),
+    (key "x" false (.pref 1 (int 1)), .map [("x", .str "a")]),
+    (xy, .map [("x", j 1)]), (xy, .map [("x", j 1), ("y", j 2)]), (xy, .map [("z", j 3)]),
+    (.or [(1, int 1), (1, int 2)], j 1), (.or [(0, int 1), (0, int 2)], j 3),
+    (.or [(0, int 1), (0, int 2)], j 1), (.list [] (some .integer) false, .list [j 1, .str "a"]),
+    (.list [] (some .integer) false, .list []), (key "x" true .integer, .map []),
+    (key "x" true .integer, .map [("x", .str "a")]),
+    (.map [("x", false, .integer), ("y", false, .pref 1 (int 1))] none false, .map []),
+    (.any, .map [("a", .list [j 1])]), (.string, .str ""), (.pref 1 (int 1), j 2),
+    (.pref 1 (int 1), .num (.float (.dyadic 3 (-1)))),
+    (key "x" false (key "y" false .integer), .map [("x", .map [])]),
+    (key "x" false (key "y" false .integer), .map []),
+    (.list [.integer] none false, .list []), (.list [.integer] none false, .list [j 1]),
+    (.list [int 1] none false, .list [j 1, j 2]), (.list [int 1] none true, .list [j 1, j 2]),
+    (key "x" false (int 1), .map [("x", j 1), ("y", j 2)]),
+    (key "x" false (.or [(1, int 1), (0, int 2)]), .map []),
+    (key "x" false (.or [(0, int 1), (0, int 2)]), .map []),
+    (key "x" false (.or [(1, int 1), (1, int 2)]), .map []),
+    (.meet .integer (min 3), j 2), (key "x" false .integer, j 1), (.list [int 1] none false, .map [("x", j 1)]),
+    (.or [(0, key "x" false (.pref 1 (int 1))), (0, key "y" false (.pref 1 (int 2)))], .map []),
+    (.or [(1, int 1), (1, .integer)], j 1), (.or [(1, int 1), (1, int 2), (0, int 3)], j 3),
+    (.pref 1 (.or [(0, int 1), (0, int 2)]), j 1), (.pref 1 (.or [(0, int 1), (0, int 2)]), j 3),
+    (.map [] (some (.meet (int 1) (int 2))) false, .map []),
+    (key "x" false (.or [(1, int 1), (1, int 1)]), .map []),
+    (.meet (key "x" true (.pref 1 (int 1))) (key "x" true (.pref 1 (int 2))), .map []),
+    (.or [(0, .nil), (0, int 1)], j 1), (.or [(0, .nil), (0, int 1)], j 2),
+    (.map [("a", false, .pref 1 (int 1)), ("b", false, .integer)] none false, .map []),
+    (.map [("a", false, .pref 1 (int 1)), ("b", false, .integer)] none false, .map [("b", j 2)]),
+    (.list [.pref 1 (int 1)] none false, .list []), (.list [.pref 1 (int 1)] none false, .list [j 2]),
+    (str "a", .str "a"), (str "a", .str "b"), (.lit .null, .null), (.lit (.bool true), .bool false)]
+
+/-- The schema and data of a case, each under the key `v`, as the rows
+write them. -/
+def vetDoc (c : Val × Data) : Val × Data := (.map [("v", false, c.1)] none false, .map [("v", c.2)])
+
+/-- Every case's schema and meet normalise to checkable terms, so `vet`
+is `Vet` on it, by `vet_iff`. -/
+theorem vetCases_checkable : ∀ c ∈ vetCases,
+    (vetDoc c).1.Checkable ∧ (normalise (meet (vetDoc c).1 (vetDoc c).2.term)).Checkable := by decide
+
+theorem vet_verdict_exact : ∀ c ∈ vetCases, ∀ (m : Mode) (env : Env) (v : Verdict),
+    vet m (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m env (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ _ v => vet_iff (vetCases_checkable c hc).1 (vetCases_checkable c hc).2 v
+
+def verdictName : Verdict → String
+  | .valid => "valid"
+  | .invalid => "invalid"
+  | .incomplete => "incomplete"
+  | .error => "error"
+
+/-- The `verdict` rows: each case in the default mode, without the fill
+and under `--partial`, with the one class `vet` gives. -/
+def verdictRows (tag : String) : IO Unit := do
+  let mut i := 0
+  for c in vetCases do
+    let some ssrc := c.1.src | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.src | throw (IO.userError "a document of the fragment has no text")
+    let (S, D) := vetDoc c
+    for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
+        (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
+      IO.println (tag ++ toString i ++ "\tverdict\tv: " ++ ssrc ++ "\tv: " ++ dsrc ++ "\t{\"verdict\":\""
+        ++ verdictName (vet m S D) ++ "\"" ++ opts ++ "}")
+      i := i + 1
+
 /-- The rows of one fragment: each value against each instance of each
 block, numbered from zero under `tag`. -/
 def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit := do
@@ -394,6 +479,19 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
     genRows "g" genVals
     return 0
+  | ["verdict"] =>
+    IO.println "# Generated by `lake exe oracle verdict` (spec/Oracle.lean) from the definition"
+    IO.println "# in spec/Aontu: the verdicts of vet, each case a schema and a document under"
+    IO.println "# the key v, run in the default mode, without the fill (noFill) and under"
+    IO.println "# --partial (partial), as `verdict` rows whose expectation is the one class"
+    IO.println "# `vet` gives, which `vet_iff` makes the definition's own: error where the"
+    IO.println "# schema does not stand, invalid where the meet is dead, valid where it"
+    IO.println "# singles out a value (and the data is an instance, without the fill), and"
+    IO.println "# incomplete otherwise."
+    IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
+    IO.println "# not yet answer this way are listed in spec/ledger.tsv."
+    verdictRows "e"
+    return 0
   | _ =>
-    IO.eprintln "usage: oracle [bounds | choice | gen]"
+    IO.eprintln "usage: oracle [bounds | choice | gen | verdict]"
     return 2

@@ -1638,8 +1638,8 @@ end
 the steps do. -/
 def meet (a b : Val) : Val := meetF (2 ^ (a.size + b.size)) a b
 
-/-- The meet admits what both of its sides admit: ADR-007 for the
-computed meet, and what admits `meet` into the definition. -/
+/-- The meet admits what both of its sides admit, which is what admits
+`meet` into the definition. -/
 theorem admits_meet {env : Env} {root : Data} (a b : Val) (j : Data) :
     Admits env root (meet a b) j ↔ Admits env root a j ∧ Admits env root b j :=
   admits_meetF _ a b j

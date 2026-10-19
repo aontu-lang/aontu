@@ -3,6 +3,7 @@ import Aontu.Trial
 import Aontu.Check
 import Aontu.Meet
 import Aontu.Output
+import Aontu.Verdict
 
 /-!
 # The tour's examples
@@ -773,6 +774,50 @@ example : output (.meet (.or [(0, .map [("x", false, .lit (.num (.integer (.of 1
 admits `8080`, and the output of `{x?: *1}` is one of its instances. -/
 example : Instance .empty port (.integer 8080) :=
   ⟨by decide, output_admits port _ ((output_iff (by decide) _).mp rfl)⟩
+
+/-! ## The verdicts -/
+
+/-- `{x: *1}` against `{}`: `valid` with the fill, the default `1`
+supplied, and `incomplete` without it, since `{}` is no instance as
+written. -/
+example : vet {} (.map [("x", false, .pref 1 (.lit (.num (.integer (.of 1)))))] none false) (.map []) =
+      .valid ∧
+    vet { fill := false } (.map [("x", false, .pref 1 (.lit (.num (.integer (.of 1)))))] none false)
+      (.map []) = .incomplete := by decide
+
+/-- `{x?: *1}` against `{}` is `valid` either way: `{}` is an instance
+as written. -/
+example : vet { fill := false } (.map [("x", true, .pref 1 (.lit (.num (.integer (.of 1)))))] none false)
+    (.map []) = .valid := by decide
+
+/-- `{x: 1} | {y: 2}` against `{x: 1}` is `incomplete`: the meet is
+alive and singles out nothing, step 12's question. -/
+example : vet {} (.or [(0, .map [("x", false, .lit (.num (.integer (.of 1))))] none false),
+      (0, .map [("y", false, .lit (.num (.integer (.of 2))))] none false)])
+    (.map [("x", .integer 1)]) = .incomplete := by decide
+
+/-- `integer` against `"a"` is `invalid`: the meet is dead. -/
+example : vet {} .integer (.str "a") = .invalid := by decide
+
+/-- `min(5) & max(3)` is `error` against anything: the schema does not
+stand. So is `*1 | *2`, two preferred arms of one rank that single out
+different values, where `*1 | *integer` stands. -/
+example : vet {} (.meet (.min (.num (.integer (.of 5)))) (.max (.num (.integer (.of 3))))) (.integer 1) =
+      .error ∧
+    vet {} (.or [(1, .lit (.num (.integer (.of 1)))), (1, .lit (.num (.integer (.of 2))))]) (.integer 1) =
+      .error ∧
+    vet {} (.or [(1, .lit (.num (.integer (.of 1)))), (1, .integer)]) (.integer 1) = .valid := by decide
+
+/-- `{x: integer}` against `{}` is `incomplete`, and `valid` under
+`--partial`. -/
+example : vet {} (.map [("x", false, .integer)] none false) (.map []) = .incomplete ∧
+    vet { lax := true } (.map [("x", false, .integer)] none false) (.map []) = .valid := by decide
+
+/-- Without the fill, `valid` is `Instance`: `[*1]` against `[2]`. -/
+example : Instance .empty (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false)
+    (.list [.integer 2]) :=
+  vet_strict_valid_instance (m := { fill := false }) rfl rfl (by decide)
+    ((vet_iff (m := { fill := false }) (by decide) (by decide) .valid).mp (by decide))
 
 /-! ## Two declarations of one key -/
 

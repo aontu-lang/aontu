@@ -3,6 +3,7 @@ import Aontu.Trial
 import Aontu.Check
 import Aontu.Meet
 import Aontu.Output
+import Aontu.Verdict
 
 /-!
 # The axioms
@@ -85,3 +86,19 @@ line each comment states.
 /-- info: 'Aontu.gen_iff' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.gen_iff
+
+/-- info: 'Aontu.vet_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.vet_iff
+
+/-- info: 'Aontu.vet_strict_valid_instance' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.vet_strict_valid_instance
+
+/-- info: 'Aontu.vet_valid_filled' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.vet_valid_filled
+
+/-- info: 'Aontu.vet_invalid_not_instance' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.vet_invalid_not_instance
