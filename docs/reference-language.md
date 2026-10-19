@@ -182,6 +182,8 @@ each node carries a count of the values that landed there.
 This ordering is why unification is order-independent and idempotent:
 `a & b` equals `b & a`, and `a & a` equals `a`.
 
+The definition states the order as `⊑` and the meet as its greatest lower bound in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean), and `admits_meet` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean) is the guarantee on the computed meet: the term it computes admits a value exactly when both sides do.
+
 ## Scalars
 
 | Form        | Example source | Generates |
@@ -199,6 +201,8 @@ This ordering is why unification is order-independent and idempotent:
 Two scalars unify only if they are of the same kind *and* equal
 (`1 & 1` → `1`, `foo & foo` → `"foo"`); otherwise the result is a
 conflict (`1 & 2` → error, and so is `1 & 1.0`).
+
+In the definition a scalar literal admits exactly its own value, `admits_lit_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and two literals of different values meet in `nil`.
 
 ## Scalar kinds (types)
 
@@ -250,6 +254,8 @@ and decides at generation. The answer is the same whichever order the
 terms meet in, including across statements and through references. One
 consequence is that a refused `""` is not pruned from a disjunction:
 `string & "" | "z"` does not generate, where `"z"` alone would.
+
+The definition reads `string & empty()` as a term of its own, `anyString` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), which admits every string where `string` refuses `""`: `no_meet_with_string_admits_empty` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean), and `re_not_le_string` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), where the subsumption table overstates `string`.
 
 ### The type of constraints: `constraint`
 
@@ -379,6 +385,8 @@ Edge cases:
   float-kind literal `9223372036854775808` and stays float kind. Write
   it `-0d9223372036854775808` to hold it exactly, as a biginteger.
 
+The definition holds the four leaves as types in [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean): `Integer` with the proof that the leaf holds it, `Float` as its binary64 fields with the decimal it shows, `BigInteger` and `BigDecimal`, and `Number` as the four together.
+
 ### Exact or refused: lossy literals
 
 An integer literal is stored only if the double format holds it
@@ -503,6 +511,8 @@ suffix and the `0d` marker are stated in
 [the four numeric leaves](#the-four-numeric-leaves) and
 [Canonical form](#canonical-form).
 
+The definition holds the kinds as rules of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), one per kind over the leaves of [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean), and two kinds meet by `Kind.meet` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean); the order between them is `leaf_le_leaf_iff` and `number_not_le_leaf` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean).
+
 ## Maps
 
 A map is an unordered set of key/value pairs. Braces are optional at the
@@ -529,6 +539,8 @@ a: e: 3
 
 Maps are **open** by default (extra keys may be unified in) until sealed
 with [`close`](#closed-values-close--open).
+
+The definition's rule for a map is `admits_map_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): each declared key holds its value, a key the data leaves out is optional, every member is held to the spread where there is one, and under a seal every member is a declared key.
 
 ## Lists
 
@@ -557,6 +569,8 @@ routes: [get:"/health" post:"/orders"]
 ```json
 { "routes": [ { "get": "/health" }, { "post": "/orders" } ] }
 ```
+
+The definition's rule for a list is `admits_list_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): each position holds its item, every member is held to the spread where there is one, and a sealed list with no spread has exactly its positions.
 
 ## Container kinds: `map` and `list`
 
@@ -598,6 +612,8 @@ explicitly supplied empty map satisfies the kind), and subsume their
 containers (`map` subsumes `{a:1}`). Pinned by
 [`test/spec/containerkind.tsv`](../test/spec/containerkind.tsv).
 
+The words `map` and `list` are no terms of the definition yet. Whether they enter as kinds, which admit by kind and are not singled out, beside `{}` and `[]`, which are singled out as themselves, is an open decision of the definition.
+
 ## Conjunction `&`
 
 `a & b` is the explicit unification of `a` and `b`: the same operation
@@ -618,6 +634,8 @@ canons as `integer` and does not generate on its own.
 
 Conjunction is commutative, associative, and idempotent. It **distributes
 over disjunction**: `x & (a|b)` tries `x` against each alternative.
+
+In the definition `a & b` admits what both admit, the `meet` rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), and the computed meet keeps that, `admits_meet` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean); with `admits_or_iff` the distribution follows, since `x & (a|b)` admits a value exactly when `x` does and one arm does.
 
 ## Disjunction `|`
 
@@ -665,6 +683,8 @@ then the children).
 
 An optional key whose value is an unresolved disjunction is dropped
 rather than reported, as every other unresolved optional is.
+
+The definition's rule is `admits_or_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a disjunction admits what any arm admits, whatever the arms' ranks. What it generates is the rank rule of `Gen` in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean), and a disjunction left unresolved generates nothing, which `output_admits` and `Vet` read alike.
 
 ## Preference / default `*`
 
@@ -814,6 +834,8 @@ spelling when you mean "a map whose `x` defaults to 1", and it is what
 `pref({x:1})` produces. Pinned by the `pref-struct-*` rows in
 [`test/spec/pref.tsv`](../test/spec/pref.tsv).
 
+In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, and the rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
+
 ## Optional keys `?`
 
 A key suffixed with `?` is optional. If it never receives a concrete
@@ -882,6 +904,8 @@ x?: *b: 1                → [aontu/pref_implicit_bag] at $.x
 x?: {y: 1, z: *b: 1}     → [aontu/pref_implicit_bag] at $.x.z
 ```
 
+The definition reads an optional key in `admits_map_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a key the data leaves out is admitted only where every declaration of it is optional, and two declarations of one key meet as `merge_exact` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) says, optional only where both are.
+
 ## Spreads `&:`
 
 A `&:` entry is a **template** unified into every other entry of its map
@@ -946,6 +970,8 @@ w: y: {p:2, r:6}
 ```json
 {"w":{"x":{"p":1,"r":5},"y":{"p":2,"r":6}}}
 ```
+
+A spread is the `spread` of a map or list term in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), and `admits_map_iff` and `admits_list_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean) hold every member to it, the declared keys and positions included; the computed meet folds it into them by `foldSpread`.
 
 ## Generating children: `pack` and `each`
 
@@ -1211,6 +1237,8 @@ schema would accept every document it was asked about. The call stands
 unresolved instead, and a `vet` run says so. Inside a generator's
 template the hole is the source child, the scrutinee is a value by the
 time the match runs, and the form works as documented above.
+
+The definition makes the selections once a document is read: `selectArm` and `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), with `selectArm_first`, `selectArm_next` and `selectArm_default` for `match`, and `resolveD_filter_list` and `resolveD_filter_scalar` for `filter`.
 
 ## The placeholder `_`
 
@@ -1576,6 +1604,8 @@ For the recipe form see
 live version, with its checks, is
 [use-cases/13-recursive-schema](../use-cases/13-recursive-schema/).
 
+The definition reads a recursive name as the least fixpoint, a residual that expands against the data as far as the data goes: `expand` and `meetD` in [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean), under the alias-cycle rule `Guarded` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean), which refuses a name that reaches itself with no key and no element between.
+
 ## Variables `$name`
 
 `$name` (a bare name with no leading dot) is never resolved from the
@@ -1792,6 +1822,8 @@ table: { &: %row a: { kind:user id:1 } b: { kind:user id:2 } }
 { "table": { "a": { "kind": "user", "id": 1 },
              "b": { "kind": "user", "id": 2 } } }
 ```
+
+An alias is a declaration of `Decls` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean), and a document reads under its declarations by `Decls.readR` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean); a name with no declaration refuses every value, which `Vet` reports as an `error`.
 
 ### What a finding says about a name
 
@@ -4207,6 +4239,8 @@ value taken by reference is an instance, and adds nothing at any depth,
 while the type's own statements still extend it. See [Marks: `type` and
 `hide`](#marks-type-and-hide).
 
+A seal is the `closed` flag of a map or list term in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean): `admits_map_iff` and `admits_list_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean) refuse a member no key or position declares, `meetKey` drops an optional key a seal does not declare and holds a required one to `nil`, and `map_le` and `list_le` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carry the seal into the order.
+
 ## Source loading `@"…"`
 
 `@"path"` loads and parses another source file, then unifies the result
@@ -4919,6 +4953,8 @@ the plain family neither is numeric kind. Between the exact leaves it
 *is* significant, as the `1000` / `1000.0` pair shows, which is why the
 shared suite pins those cases byte for byte rather than structurally.
 
+What evaluation singles out is `Output` in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean), `Gen` of the normal form, with `output_admits`, that the output is an instance, and `output_unique`. The fourth generated fragment, [`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv), holds both engines to it.
+
 ## Subsumption
 
 `A ⊒ B` ("A subsumes B") holds when **every instance the specific
@@ -4938,6 +4974,8 @@ pinned by `test/spec/subsume.tsv` in both engines.
 answer folds toward `does_not_subsume` or `undecided`, never toward
 "compatible": a gate that wrongly reports "breaking" costs a second
 look, one that wrongly reports "compatible" ships the break.
+
+The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`, both still open decisions of the definition.
 
 ### Profiles
 
@@ -4991,6 +5029,8 @@ in its own document, which the other document may define differently,
 so the walk compares the definitions instead
 ([Recursive positions](#recursive-positions)).
 
+These rows are theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean): the ends (`le_nil_iff`, `any_le_iff`), the kinds (`leaf_le_leaf_iff`, `number_not_le_leaf`), the literals (`lit_le_lit_iff`), disjunction (`or_le_iff`), preference (`pref_le_or`, `or_le_pref`) and the meet (`le_meet_iff`). Where the table says `string` covers a bound or a pattern, `re_not_le_string` and `max_str_not_le_string` say it does not, since each may admit `""`, which `string` refuses.
+
 ### Maps, lists, closedness, optionality, spreads
 
 - Every **required** key of the general side must be present and
@@ -5017,6 +5057,8 @@ so the walk compares the definitions instead
 The `at` option anchors both documents at one path before comparing
 (the validation verb's `--at`); a path missing from either side is an
 `error` verdict.
+
+The rows for containers are `map_le`, `list_le` and `not_le_map_required` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), the members' order carried to the root they are judged under by `admits_of_le`; a spread on the general side is not yet stated.
 
 ### Recursive positions
 
@@ -5538,6 +5580,8 @@ String bounds (`min("a")`) use lexical code-point order and imply
 `string`. Mixing domains in one meet (`min(0) & min("a")`) is empty
 and yields nil.
 
+The definition's rules for the bounds are those of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), over the order of `Number` in [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean) and code-point order on strings; `multiple` reads the decimal a float shows; and the strict bounds sit under their closed ones, `above_le_min` and `beneath_le_max` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean).
+
 ### The meet
 
 `atom & atom` (same domain) is symbolic: decided at
@@ -5558,6 +5602,8 @@ schema-composition time, before any data arrives:
 Meets are commutative and idempotent by construction (normalisation,
 not term order, defines the result) so the lattice guarantee is
 preserved.
+
+The computed meet is `meet` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), two atoms that share no value meeting in `nil` (`admits_residual`), and `admits_meet` is the guarantee: the term it computes admits a value exactly when both sides do, whatever the term order.
 
 ### Emptiness
 
@@ -5584,6 +5630,8 @@ guessed where it is not:
 - A Band B atom is never declared empty: `must`, `nof`, `when` and
   `contains` are decided against data, where `nof(3, string, number)`
   refuses every value.
+
+In the definition a bound interval with nothing in it is `nil` at the meet, `emptyBounds` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and a trial schema is never empty there: `nof`, `must`, `when` and `contains` are rules of `Judge` decided against a datum, and `Vet` tries a container with its trials once it has its members.
 
 ### Subsumption
 
@@ -5645,6 +5693,8 @@ over the *normalised* residual, so two spellings of one constraint
 subsume each other in both directions. `min(0)&max(10)` and `max(10)&min(0)`
 normalise identically, and the canonical atom order below is what makes
 that true by construction rather than by a special case.
+
+The algebra's own table is theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean): an interval below one that contains it (`min_le_min_iff`, `max_le_max_iff`, `min_le_above_iff`, `max_le_beneath_iff`, `above_le_min_of_le`, `beneath_le_max_of_le`, and `min_str_le_min_iff` and `max_str_le_max_iff` for strings), a concrete number below the bounds that admit it (`lit_le_min_iff` and the rest), `neq_le_neq` and `len_le_len`. `leDecF` decides them with its proof, and `not_le_of_witness` refutes with one instance.
 
 ### Endpoint tightening: lazy endpoints, eager emptiness
 
@@ -5850,6 +5900,8 @@ atom's own arithmetic: `len(min(5) & max(3))` is empty at composition
 time whatever map it meets, because the inner interval is empty on its
 own.
 
+`len(c)` is a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), judging a string, a list or a map as `c` judges its size, an integer, and refusing a scalar, which has no size; `len_le_len` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carries the order of `c` to it, and a size against a container literal at the meet is an open decision of the definition.
+
 ### Sizing atoms fold last
 
 There is one more rule the sizing atoms need, and it is not shared with
@@ -5980,6 +6032,8 @@ needs the same key on the specific side (distinctness on `port` says
 nothing about distinctness on `name`) while a specific that adds a
 key still subsumes, because more distinctness is narrower.
 
+`unique()` and `unique(k)` are rules of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), comparing members, or the values under `k`, as values by `Data.Same` in [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean), and refusing a scalar, which has no members.
+
 ### Cross-field bounds and residuation
 
 An atom whose argument contains an unresolved reference, or whose
@@ -6081,6 +6135,8 @@ can retract it. On failure the author's message is attached to the nil
 subsumption, and any report including one states that the check was
 evaluate-only: the channel for domain rules beyond the algebra.
 
+`must(c, m)` asks what `nof(1, c)` asks: `judge_must_iff_nof` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean).
+
 ### Band B: `nof`
 
 `nof(n, ...c)` counts the trial schemas `c` that admit the settled
@@ -6122,6 +6178,8 @@ It is how the applicators of JSON Schema cross into aontu: `anyOf` is
 the exporter writes those counts back as those keywords, with `allOf`
 for a count of every branch.
 
+`nof(n, c₁, …)` counts the branches that admit the datum and judges the count as `n` judges it, a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) that reads refusal as the second answer of the one relation, so `nof(0, c)` is the complement of `c`: `judge_nof_zero` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean). The eighth generated fragment, [`test/spec/def-trial.tsv`](../test/spec/def-trial.tsv), holds both engines to the trial schemas.
+
 ### Band B: `when`
 
 `when(c, t, e?)` holds the settled value to the branch its condition
@@ -6147,6 +6205,8 @@ It is how the conditionals of JSON Schema cross into aontu: `if`, `then` and
 `when({k: any}, {a: any, b: any})`, and the exporter writes each shape
 back.
 
+`when(c, t, e)` holds the datum to the branch its condition picks, an `else` not written reading as `any`: `judge_when_iff` and `when_nil_refuses` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean).
+
 ### Band B: `contains`
 
 `contains(c, n?)` counts the members of a list or map that the trial
@@ -6170,6 +6230,8 @@ count back as those keywords. `uniqueItems` is `unique()`, which
 compares members as aontu values: read through `vet --exact-numbers`,
 `1.0` in the data is `1`, so a list of both is refused as JSON Schema
 refuses it.
+
+`contains(c, n)` counts the members `c` admits and judges the count as `n` judges it: `judge_contains_empty` and `contains_refuses_scalar` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean).
 
 ### Band B: `rest`
 
@@ -6209,6 +6271,8 @@ a cover under its condition, and where no cover depends on the value
 writes the keyword as the guarded spread `additionalProperties` would
 be. The exporter writes `rest` back as an `allOf` member whose own
 keywords evaluate what its covers do.
+
+`rest(t, c₁, …)` holds each member no cover evaluates to `t`: `rest_admits_scalar` and `rest_nil_closes` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean).
 
 ### Errors
 
