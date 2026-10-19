@@ -31,6 +31,17 @@
 # suppresses that so workflows cannot trigger themselves), so the tag job
 # cannot be replaced by "tag, and let the publisher fire on the v* push".
 #
+# RELEASES COME FROM THE release BRANCH. Pull requests merge into main,
+# which runs the standard checks (build.yml: the happy path and one
+# sampled group of the tests, Linux only). A release fast-forwards
+# release to main's commit (`make publish`, or `git push origin
+# main:release` by hand) and dispatches this workflow ON release. The
+# daily workflow runs the whole matrix on every push to release, so the
+# commit a release is cut from gets the full suites on three operating
+# systems, and the publish job below runs both suites against it once
+# more before anything is published. The guards below refuse a dispatch
+# from any other ref, and a release that carries a commit main does not.
+#
 # TWO WAYS IN:
 #
 #   workflow_dispatch  the normal path. Publishes what is missing, then tags.
@@ -78,7 +89,7 @@ on:
         type: boolean
         default: true
       expect_sha:
-        description: 'Optional: refuse unless main is still at this commit (set by `make publish`)'
+        description: 'Optional: refuse unless release is still at this commit (set by `make publish`)'
         type: string
         default: ''
 
@@ -124,31 +135,47 @@ jobs:
           echo "npm: $NPM_VERSION -> v$NPM_VERSION"
           echo "go:  $GO_VERSION -> go/v$GO_VERSION"
 
-      # RELEASES COME FROM main, INCLUDING FROM THE BUTTON. `gh workflow run
-      # --ref` accepts any branch or tag, and the Makefile's `main` guard only
-      # binds callers who went through `make publish` — so without this the
-      # Actions UI or a stray API call could publish and tag a feature branch,
-      # irreversibly.
-      - name: Dispatches must come from main
+      # RELEASES COME FROM release, INCLUDING FROM THE BUTTON. `gh workflow
+      # run --ref` accepts any branch or tag, and the Makefile's guards only
+      # bind callers who went through `make publish` — so without this the
+      # Actions UI or a stray API call could publish and tag a feature
+      # branch, or main itself, irreversibly.
+      - name: Dispatches must come from release
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           set -euo pipefail
-          if [ "$GITHUB_REF_NAME" != "main" ]; then
-            echo "::error::dispatch ref is $GITHUB_REF_NAME; releases must come from main"
+          if [ "$GITHUB_REF_NAME" != "release" ]; then
+            echo "::error::dispatch ref is $GITHUB_REF_NAME; releases must come from release"
             exit 1
           fi
 
-      # `--ref main` names a MUTABLE branch, so between `make publish` pushing
-      # the release commit and this run resolving, another commit can land and
-      # be released under the version just bumped.
-      - name: main must still be the commit we intended to release
+      # AND release IS A FAST-FORWARD OF main: every commit on it is on
+      # main, so what is released is what the pull requests merged and the
+      # checks ran on. A release that has commits of its own was patched
+      # beside main, and is refused until main carries them too.
+      - name: release carries nothing main does not
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin main
+          EXTRA="$(git rev-list --count origin/main..HEAD)"
+          if [ "$EXTRA" != "0" ]; then
+            echo "::error::release has $EXTRA commit(s) main does not; merge release into main first, then fast-forward release to main"
+            git log --oneline origin/main..HEAD | head -20
+            exit 1
+          fi
+
+      # `--ref release` names a MUTABLE branch, so between `make publish`
+      # pushing the release commit and this run resolving, another push can
+      # land and be released under the version just bumped.
+      - name: release must still be the commit we intended to release
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.expect_sha != '' }}
         env:
           EXPECT_SHA: ${{ inputs.expect_sha }}
         run: |
           set -euo pipefail
           if [ "$GITHUB_SHA" != "$EXPECT_SHA" ]; then
-            echo "::error::main has moved: expected $EXPECT_SHA, got $GITHUB_SHA"
+            echo "::error::release has moved: expected $EXPECT_SHA, got $GITHUB_SHA"
             exit 1
           fi
 
@@ -217,7 +244,8 @@ jobs:
           npm run build
           npm test
 
-      # build.yml already runs the Go matrix on every push and PR, so main is
+      # build.yml runs the Go suite on every push and PR, and daily.yml the
+      # Go matrix nightly and on every push to release, so the commit is
       # covered. This re-runs it against the EXACT commit being released,
       # which is the one that becomes an immutable module version — a cheap
       # gate on the half of the release that cannot be taken back.
@@ -255,10 +283,10 @@ jobs:
           fi
 
       # SKIPPING THE PUBLISH ASSUMES "SAME VERSION MEANS SAME CODE". That holds
-      # only if main has not moved. Publish succeeds at commit A, the tag job
-      # fails, main advances to B, someone re-dispatches: the version is still
-      # on npm, so the publish is skipped and B gets tagged — while the
-      # registry artifact was built from A.
+      # only if release has not moved. Publish succeeds at commit A, the tag
+      # job fails, release advances to B, someone re-dispatches: the version
+      # is still on npm, so the publish is skipped and B gets tagged — while
+      # the registry artifact was built from A.
       #
       # npm records the source commit as `gitHead`, so this is checkable.
       # Absent gitHead cannot be verified, so warn rather than block: refusing

@@ -366,7 +366,9 @@ suite tests.
   `make spec` runs the same locally. The job is `build.yml`'s `spec`,
   written as `spec/ci.patch` and applied by hand (ruled 2026-10-16) on
   2026-10-18, since a workflow edit needs the `workflow` scope a push
-  from an agent session may lack.
+  from an agent session may lack. Since ADR-070 it is `spec.yml`, run
+  in the standard CI when `spec/` or its rows change and in the daily
+  run always, with the Lake build directory cached between runs.
 
 The one trusted piece is the oracle's printer, and from P1 the reader
 beside it: it is the only place the abstract syntax meets aontu text,

@@ -20,7 +20,8 @@ the suites assert byte identity, and `make build-ts` runs it for you.
 
 **The two prose gates share their inputs.** `ts/test/docs.test.ts` runs
 inside `make test`; `make prose` runs Vale over the same pages for
-spelling, Google's conventions and the banned list, and CI runs it in
+spelling, Google's conventions and the banned list, and the daily run
+(`.github/workflows/daily.yml`) runs it through
 `.github/workflows/docs.yml`. They read ONE file list
 (`ts/scripts/gated-docs.cjs`) and ONE banned list
 (`.vale/styles/config/vocabularies/Aontu/reject.txt`), so neither can
@@ -109,6 +110,39 @@ both runners assert set equality against their `codeClasses` table in
 given source raises (TS `errs()[0].why`, Go `AontuError.Code`). Codes
 are append-only and never renamed; a class change is breaking. New
 engine codes must land with a registry row in the same change.
+
+## The standard run and the sampled groups
+
+CI is two workflows (ADR-070). `build.yml`, the standard run, runs on
+every push and pull request, on Linux, in about three minutes: the
+happy path (both builds, a tree that does not change under `make
+build-ts`, the comment gate, Go's whole suite) and ONE group of the
+TypeScript suite. `daily.yml`, the full run, runs nightly on `main` and
+on every push to `release`: the TypeScript and Go suites whole on three
+operating systems, the coverage gate, the use cases, the system, the
+definition (`spec.yml`, which the standard run also runs when `spec/`
+or its rows change) and the prose gate (`docs.yml`). What the sample
+misses, the daily finds, the next morning.
+
+The groups are `ts/test/groups.tsv`, one row per test file, and
+`ts/scripts/test-group.cjs` runs them: `make test-group G=3` runs group
+3 as CI would, `G=all` every group, and `--check` asks that every test
+file is in exactly one group, which `ts/test/groups.test.ts` asks inside
+every full run, so a new test file has to be given a group. Group 0 is
+the gate group the happy path runs on every push; the standard run
+samples one of the others, (run number + attempt) modulo their count,
+so consecutive runs walk them all and a pull request's push and
+pull_request runs sample two.
+
+A group is sized to run in about two minutes on the hosted runner, and
+three files were split to fit: the shared-spec rows run in six shares
+(`spec.test.ts`, `spec-share-2.test.ts` through `spec-share-6.test.ts`),
+the executed documentation pages in three shards (`docs.test.ts`,
+`docs-shard-2.test.ts` and `docs-shard-3.test.ts`, by `AONTU_DOCS_SHARD`),
+and the JSON Schema corpora by dialect (`jsonschema-suite.test.ts`,
+`jsonschema-suite-2019.test.ts` and `jsonschema-suite-earlier.test.ts`,
+sharing `suite-corpus.ts`). When a file outgrows its group, split it the
+same way rather than letting the group run long.
 
 ## Adding a behaviour
 

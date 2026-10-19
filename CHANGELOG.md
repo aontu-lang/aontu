@@ -8,6 +8,43 @@ each change affects.
 
 ## Unreleased
 
+### CI runs a happy path and a sample; the full run is daily; releases come from `release`
+
+Process and test layout; no engine changes
+([ADR-070](ADR.md#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release)).
+The run on `main` took twenty-three minutes wall clock over sixteen
+jobs, its critical path the coverage gate at twenty, and every pull
+request push ran it twice.
+
+- `.github/workflows/build.yml` is the standard run, on every push and
+  pull request, Linux only, about three minutes: `happy` (both ports
+  build, the tree does not change under `make build-ts`, the comment
+  gate, Go's build and vet, the gate group of the TypeScript suite),
+  `go` (the Go suite whole) and `sample` (one group of the TypeScript
+  suite, chosen by the run number; `workflow_dispatch` takes a group or
+  `all`). A push supersedes the running build of its branch.
+- `.github/workflows/daily.yml` is the full run, nightly on `main` and
+  on every push to `release`: the TypeScript and Go matrices over three
+  operating systems, the coverage gate, the use cases, the system, the
+  definition and the prose gate, as `build.yml` ran them before.
+- `.github/workflows/spec.yml` holds the definition's job, run in the
+  standard CI when `spec/` or its rows change and in the daily run
+  always, with `spec/.lake` cached between runs; `docs.yml` keeps the
+  prose gate and runs only from the daily run and by hand.
+- `ts/test/groups.tsv` names the groups, `ts/scripts/test-group.cjs`
+  runs them (`make test-group G=n`), and `ts/test/groups.test.ts` holds
+  every test file to exactly one group. Three files were split to fit a
+  group: the shared-spec rows run in six shares (`SHARES`), the
+  executed documentation pages in three shards (`docs-shard-2.test.ts`,
+  `docs-shard-3.test.ts`, by `AONTU_DOCS_SHARD`), and the JSON Schema
+  corpora by dialect (`jsonschema-suite-2019.test.ts`,
+  `jsonschema-suite-earlier.test.ts`, sharing `suite-corpus.ts`).
+- Releases come from the `release` branch, a fast-forward of `main`:
+  `make publish` bumps on `main`, moves `release` and dispatches
+  `publish.yml` there, and the workflow refuses a dispatch from any
+  other ref or a `release` that carries a commit `main` does not.
+  `docs/release-and-tag.md`, "Two branches".
+
 ### The definition holds `match` and `filter` inside a value
 
 Definition, generated rows, and documentation; no engine changes. This

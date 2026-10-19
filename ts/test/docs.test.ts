@@ -15,12 +15,24 @@ import { includeFormat } from '../dist/lang'
 const DOCS_DIR = Path.join(__dirname, '..', '..', 'docs')
 const CLI = Path.join(__dirname, '..', 'bin', 'aontu.js')
 
+// SHARDS shards of the executed pages, one per test file, as the
+// shared-spec shares are (spec.test.ts): this file takes the first, and
+// docs-shard-2.test.ts and docs-shard-3.test.ts, which set
+// AONTU_DOCS_SHARD before loading it, take theirs, so that a shard fits
+// a sampled group (groups.tsv). A DOCS_PAGES run names its own pages.
+export const SHARDS = 3
+const SHARD = Number(process.env.AONTU_DOCS_SHARD ?? 1) - 1
+const sharded = (files: string[]) => files.filter((_, i) => SHARD === i % SHARDS)
+// A corpus-wide floor, as this shard's share of it.
+const floor = (n: number) => Math.ceil(n / SHARDS)
+
 function narrowed(): string[] | undefined {
   const v = process.env.DOCS_PAGES
   return null == v || '' === v ? undefined : v.split(',')
 }
 
-function execPages(): string[] {
+// Every executed page, whatever the shard.
+function allExecPages(): string[] {
   const only = narrowed()
   if (only) {
     return only.filter((f) => Fs.existsSync(Path.join(DOCS_DIR, f)))
@@ -54,6 +66,11 @@ function execPages(): string[] {
   const mono = Fs.existsSync(Path.join(DOCS_DIR, 'how-to.md'))
     ? ['how-to.md'] : []
   return [...fixed, ...mono, ...howto]
+}
+
+// This shard's pages; a DOCS_PAGES run names its own and is not sharded.
+function execPages(): string[] {
+  return undefined === narrowed() ? sharded(allExecPages()) : allExecPages()
 }
 
 // The style-gated page set: every Diátaxis page plus the reference
@@ -310,6 +327,18 @@ function runStep(file: string, dir: string, cache: string, step: Step):
 
 describe('docs', () => {
 
+  if (0 === SHARD) {
+    test('every-shard-has-its-file', () => {
+      const files = Fs.readdirSync(__dirname)
+        .filter((f) => /^docs(-shard-\d+)?\.test\.js$/.test(f)).sort()
+      const want = ['docs.test.js']
+      for (let k = 2; k <= SHARDS; k++) {
+        want.push(`docs-shard-${k}.test.js`)
+      }
+      Assert.deepStrictEqual(files, want.sort())
+    })
+  }
+
   // A parse failure in a documented example is never the lesson.
   test('every-documented-example-parses', () => {
     let checked = 0
@@ -330,7 +359,7 @@ describe('docs', () => {
     // assertion above vacuous, so the count is asserted too. Floors
     // are corpus-wide claims; a DOCS_PAGES run suspends them.
     if (undefined === narrowed()) {
-      Assert.ok(30 < checked, `too few examples extracted: ${checked}`)
+      Assert.ok(floor(30) < checked, `too few examples extracted: ${checked}`)
     }
   })
 
@@ -356,7 +385,7 @@ describe('docs', () => {
       })
     }
     if (undefined === narrowed()) {
-      Assert.ok(5 < checked, `too few stated results extracted: ${checked}`)
+      Assert.ok(floor(5) < checked, `too few stated results extracted: ${checked}`)
     }
   })
 
@@ -458,8 +487,8 @@ describe('docs', () => {
     // Floors, per the vacuity-guard precedent above. Tuned to the
     // rewritten set; raise them as the corpus grows.
     if (undefined === narrowed()) {
-      Assert.ok(4 <= scenarios, `too few scenarios extracted: ${scenarios}`)
-      Assert.ok(10 <= commands, `too few transcript commands: ${commands}`)
+      Assert.ok(floor(4) <= scenarios, `too few scenarios extracted: ${scenarios}`)
+      Assert.ok(floor(10) <= commands, `too few transcript commands: ${commands}`)
     }
   })
 
@@ -488,7 +517,9 @@ describe('docs', () => {
         quotes++
       }
     }
-    if (undefined === narrowed()) {
+    // The quotes are in tutorial-definition.md, so only its shard can
+    // vouch that any were extracted.
+    if (undefined === narrowed() && execPages().includes('tutorial-definition.md')) {
       Assert.ok(0 < quotes, 'no quotes extracted')
     }
   })
@@ -561,8 +592,13 @@ describe('docs', () => {
       `fences not in the agreed form (run aontu fmt over the body, or ` +
       `mark <!-- fmt: keep <reason> -->): ${failures.join(', ')}`)
     if (undefined === narrowed()) {
-      Assert.ok(200 <= checked, `too few fences checked: ${checked}`)
-      Assert.ok(kept <= 20, `too many fences keep their spelling: ${kept}`)
+      Assert.ok(floor(200) <= checked, `too few fences checked: ${checked}`)
+      // The cap is on the corpus, not the shard, so it counts every page.
+      const keptAll = allExecPages().reduce((n, file) => n + extract(file,
+        lf(Fs.readFileSync(Path.join(DOCS_DIR, file), 'utf8')))
+        .filter((x: any) => 'block' === x.kind && undefined !== x.block.keep).length, 0)
+      Assert.ok(keptAll <= 20,
+        `too many fences keep their spelling: ${keptAll} (${kept} in this shard)`)
     }
   })
 
@@ -871,7 +907,13 @@ function stylePaths(): { file: string, abs: string }[] {
 }
 
 
-describe('docs-style', () => {
+// The page suite above is what a shard runs; the corpus-wide checks
+// below run once, in the primary file, so a sampled shard does not
+// repeat them.
+const corpusDescribe = 0 === SHARD ? describe : describe.skip
+const corpusTest = 0 === SHARD ? test : test.skip
+
+corpusDescribe('docs-style', () => {
 
   test('the-gated-set-covers-more-than-docs', () => {
     if (narrowed()) {
@@ -1356,7 +1398,7 @@ describe('docs-style', () => {
 
 
 // A function added to the language must remain discoverable in its reference.
-test('the-functions-index-lists-every-declared-builtin-once', () => {
+corpusTest('the-functions-index-lists-every-declared-builtin-once', () => {
   const source = Fs.readFileSync(Path.join(DOCS_DIR, 'reference-language.md'), 'utf8')
   const section = source.split('## Functions\n')[1].split('\n## ')[0]
   const declared = Fs.readFileSync(
@@ -1384,7 +1426,7 @@ function section(text: string, heading: string): string {
 }
 
 
-test('the-call-surface-lists-every-declared-builtin-once', () => {
+corpusTest('the-call-surface-lists-every-declared-builtin-once', () => {
   const rows = Array.from(
     section(docsText('reference-functions.md'), '## The call surface')
       .matchAll(/^\| `([a-z]+)\(/gm), (m) => m[1])
@@ -1396,7 +1438,7 @@ test('the-call-surface-lists-every-declared-builtin-once', () => {
 })
 
 
-test('the-error-catalogue-is-the-registry', () => {
+corpusTest('the-error-catalogue-is-the-registry', () => {
   const registered = new Map<string, string>()
   for (const line of Fs.readFileSync(
     Path.join(REPO, 'test', 'spec', 'errcodes.tsv'), 'utf8').split('\n')) {
@@ -1437,7 +1479,7 @@ test('the-error-catalogue-is-the-registry', () => {
 // totals above do. The page's own list is the subject: every extension
 // it names must be read by an include, and the stated count must be how
 // many it names.
-test('the-stated-extension-count-counts-the-page', () => {
+corpusTest('the-stated-extension-count-counts-the-page', () => {
   const text = docsText('trust.md')
   const sentence = /([a-z]+) extensions are read at all \(([^)]*)\)/s.exec(text)
   if (null == sentence) {
@@ -1461,7 +1503,7 @@ test('the-stated-extension-count-counts-the-page', () => {
 // Separate from the catalogue check above, which proves the set of codes
 // matches and says nothing about the summary numbers: the class table and
 // the totals stated in prose are hand-written, so nothing re-measures them.
-test('the-class-table-and-the-totals-count-the-registry', () => {
+corpusTest('the-class-table-and-the-totals-count-the-registry', () => {
   const byClass = new Map<string, number>()
   for (const line of Fs.readFileSync(
     Path.join(REPO, 'test', 'spec', 'errcodes.tsv'), 'utf8').split('\n')) {
@@ -1520,7 +1562,7 @@ const CMP_CALL: Record<string, string> = {
 }
 
 
-test('the-component-table-is-the-engines', () => {
+corpusTest('the-component-table-is-the-engines', () => {
   const gen = (src: string): any => {
     try {
       return new Aontu().generate('x: ' + src)
@@ -1576,7 +1618,7 @@ function refusalCodes(): string[] {
 }
 
 
-test('the-package-refusals-are-the-sources', () => {
+corpusTest('the-package-refusals-are-the-sources', () => {
   const raised = refusalCodes()
   Assert.ok(20 < raised.length, 'no refusal codes read from the source')
   const rows = Array.from(
@@ -1587,7 +1629,7 @@ test('the-package-refusals-are-the-sources', () => {
 })
 
 
-test('the-package-caps-are-the-engines', () => {
+corpusTest('the-package-caps-are-the-engines', () => {
   const src = (f: string): string =>
     Fs.readFileSync(Path.join(REPO, 'ts', 'src', f), 'utf8')
   const num = (text: string, re: RegExp): string => {
@@ -1636,7 +1678,7 @@ function abnfRule(name: string): string {
 }
 
 
-test('the-teaching-topics-are-the-binarys', () => {
+corpusTest('the-teaching-topics-are-the-binarys', () => {
   const carried = JSON.parse(execFileSync(
     process.execPath, [CLI, 'help', '--format', 'json'],
     { encoding: 'utf8' })).topics.map((t: any) => t.topic)
@@ -1717,7 +1759,7 @@ function rowNaming(table: string, marker: string, verb: string): void {
 }
 
 
-test('the-machine-answer-shapes-are-the-clis', () => {
+corpusTest('the-machine-answer-shapes-are-the-clis', () => {
   const shapes = section(docsText('reference-agents.md'), '## The machine answer')
   const fixtures = jsonVerbFixtures()
   const SHAPE: Record<string, string> = {
@@ -1758,7 +1800,7 @@ test('the-machine-answer-shapes-are-the-clis', () => {
 })
 
 
-test('the-grammar-rule-index-is-the-published-file', () => {
+corpusTest('the-grammar-rule-index-is-the-published-file', () => {
   const defined = [...abnfRules().keys()]
   Assert.ok(20 < defined.length, 'no rules read from the grammar')
   const rows = Array.from(
@@ -1769,7 +1811,7 @@ test('the-grammar-rule-index-is-the-published-file', () => {
 })
 
 
-test('the-shared-grammar-rules-are-shared', () => {
+corpusTest('the-shared-grammar-rules-are-shared', () => {
   const names = (file: string, re: RegExp): Set<string> =>
     new Set(Array.from(
       Fs.readFileSync(Path.join(REPO, 'grammar', file), 'utf8')
@@ -1794,7 +1836,7 @@ test('the-shared-grammar-rules-are-shared', () => {
 })
 
 
-test('the-grammar-orderings-are-the-files', () => {
+corpusTest('the-grammar-orderings-are-the-files', () => {
   const names = Array.from(abnfRule('name').matchAll(/%s"([^"]+)"/g), (m) => m[1])
   Assert.ok(20 < names.length, 'no names read from the name rule')
   const pairs: string[][] = []
@@ -1818,7 +1860,7 @@ test('the-grammar-orderings-are-the-files', () => {
 })
 
 
-test('the-tolerated-spellings-mean-what-the-page-says', () => {
+corpusTest('the-tolerated-spellings-mean-what-the-page-says', () => {
   const rows = Array.from(
     section(docsText('reference-grammar.md'), '## What the parser also accepts')
       .matchAll(/^\| [^|]+ \| `([^`]+)` \| `([^`]+)` \|/gm), (m) => [m[1], m[2]])
@@ -1832,7 +1874,7 @@ test('the-tolerated-spellings-mean-what-the-page-says', () => {
 })
 
 
-test('the-archive-allowlist-is-the-sources', () => {
+corpusTest('the-archive-allowlist-is-the-sources', () => {
   const pkg = Fs.readFileSync(
     Path.join(REPO, 'ts', 'src', 'pkg.ts'), 'utf8')
   const list = (name: string): string[] => {
@@ -1893,7 +1935,7 @@ function markdownFiles(): string[] {
 }
 
 
-test('every-internal-link-resolves', () => {
+corpusTest('every-internal-link-resolves', () => {
   const cache = new Map<string, Set<string> | null>()
   const anchorsOf = (abs: string): Set<string> | null => {
     if (!cache.has(abs)) {
@@ -1952,7 +1994,7 @@ const FROZEN_DIRS = ['docs/design/', 'docs/capability-review/']
 const FROZEN_EXEMPT = ['docs/capability-review/progress.md']
 
 
-test('a-working-document-naming-a-retired-builtin-says-so', () => {
+corpusTest('a-working-document-naming-a-retired-builtin-says-so', () => {
   const bare: string[] = []
 
   for (const file of markdownFiles()) {

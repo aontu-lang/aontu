@@ -1,258 +1,136 @@
-# Dual-language build: a TypeScript matrix and a Go job.
+# THE STANDARD RUN: what a pull request waits for, about three minutes
+# on Linux, and nothing more (ADR-070). Three jobs, side by side:
+#
+#   happy    both ports build; the committed TypeScript build and every
+#            generated copy are what the sources say; the comment gate;
+#            the gate group of the TypeScript suite (ts/test/groups.tsv,
+#            group 0: the word cap, the version literals, the inlined
+#            copies, the groups themselves).
+#   go       the Go suite, whole. One port runs every shared-spec row on
+#            every push, and Go is the one that does it in two minutes.
+#   sample   ONE group of the TypeScript suite, chosen by the run number
+#            (ts/scripts/test-group.cjs), so consecutive runs walk every
+#            group and a pull request's push and pull_request runs
+#            sample two different ones. `workflow_dispatch` takes a
+#            group, or "all".
+#
+# Everything else -- the three operating systems, the TypeScript suite
+# whole, the coverage gate, the use cases, the system, the prose gate --
+# is daily.yml, nightly on main and on every push to release. The
+# definition (spec/) is spec.yml, which runs here when spec/ or its
+# rows change and in the daily run always. What the sample does not
+# catch, the daily does, the next morning: that is the trade.
+#
+# Both triggers, as before: this repository's pull_request events do not
+# fire reliably on a synchronize (docs.yml's history), so push runs too.
+# A push supersedes the running build of the same branch; main and
+# release are never cancelled.
 
 name: build
 
-on: ['push', 'pull_request']
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      group:
+        description: 'TypeScript test group to run: a number from ts/test/groups.tsv, or "all"'
+        type: string
+        default: ''
+
+concurrency:
+  group: build-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/release' }}
 
 jobs:
-  build-ts:
-    name: TypeScript
-    # Twelve, not six: `npm install` resolves the tree on every run
-    # (package-lock.json is not committed) and has taken three to five
-    # minutes on a slow registry hour, which left the six-minute budget
-    # no room for the tests they were still passing. The npm cache
-    # below keeps the downloads across runs; the budget keeps a slow
-    # hour from reading as a failure.
-    timeout-minutes: 12
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: [24.x, latest]
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: ts
+  happy:
+    name: Happy path
+    timeout-minutes: 6
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 24.x
           cache: npm
           cache-dependency-path: ts/package.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: go/go.sum
       - run: npm install
-      - run: npm run build
-      - run: npm test
+        working-directory: ts
 
-  build-go:
+      # BUILD, THEN REQUIRE A CLEAN TREE. `make build-ts` regenerates
+      # every inlined copy (the signature declaration, the teaching
+      # pack, the built-in models, the format grammars, the
+      # vocabularies, the meta-schemas), rebuilds ts/dist and
+      # ts/dist-test and draws the figures, and all of it is committed:
+      # a tree that changes under it was carrying a copy its sources no
+      # longer say. This is the coverage job's "committed build is up
+      # to date" check, widened to every generated file and run where
+      # every pull request sees it, in a minute.
+      - run: make build-ts
+      - name: The committed build and generated copies are current
+        run: |
+          if ! git diff --quiet; then
+            echo "the tree changed under 'make build-ts' -- run it and commit:"
+            git diff --stat
+            exit 1
+          fi
+
+      - run: make comments
+      - run: go build ./... && go vet ./...
+        working-directory: go
+
+      # The gate group, and that the groups cover the suite: a test
+      # file in no group is never sampled, and only this says so.
+      - run: node scripts/test-group.cjs --check
+        working-directory: ts
+      - run: node scripts/test-group.cjs --run 0
+        working-directory: ts
+
+  go:
     name: Go
     timeout-minutes: 6
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: ['1.24', 'stable']
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: go
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: stable
+          cache-dependency-path: go/go.sum
       - run: go build ./...
       - run: go vet ./...
       - run: go test ./...
 
-  # ADR-002 requires 100% coverage in BOTH ports, and until now that
-  # floor was enforced only on a contributor's machine: CI ran the
-  # suites but never the gate, so a drop reached main unremarked. One
-  # job, on ubuntu -- the gate is a property of the code, not of the
-  # platform the suites already cover above.
-  coverage:
-    name: Coverage gate (ADR-002)
-    # THIRTY, NOT FIFTEEN. `make cov` runs cov-ts and cov-go side by
-    # side, and cov-ts is test/covrun.js, which runs the TypeScript
-    # suite under coverage up to three times (V8's merge drops
-    # observations about one run in six, so the driver retries). A pass
-    # is about five minutes on the hosted runner. Fifteen minutes held
-    # the first pass and cancelled a job that had reached 100% on its
-    # retry (#160 on main, and #162 twice); the Makefile has since shed
-    # the separate table pass, and this budget holds the third pass the
-    # driver is written to make, with margin.
-    timeout-minutes: 30
+  sample:
+    name: Sample (one TypeScript group)
+    # Eight, not six: `npm install` resolves the tree on every run
+    # (package-lock.json is not committed) and has taken minutes on a
+    # slow registry hour; the npm cache keeps the downloads, the budget
+    # keeps a slow hour from reading as a failure.
+    timeout-minutes: 8
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ts
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24.x
-      - uses: actions/setup-go@v5
-        with:
-          go-version: 'stable'
+          cache: npm
+          cache-dependency-path: ts/package.json
       - run: npm install
-        working-directory: ts
-      # BUILD BEFORE MEASURING. `make cov` runs the COMMITTED
-      # dist-test/**, so a job that does not build measures whatever
-      # compiled artifacts the branch happens to carry -- and a change
-      # to ts/src that forgot to rebuild would be graded against the old
-      # code and keep its old 100%. The build matrix above builds
-      # because it must run the suite; this job has to say so itself.
       - run: npm run build
-        working-directory: ts
-      # AND THE COMMITTED BUILD MUST BE THE BUILD. ts/dist and
-      # ts/dist-test are checked in (AGENTS.md), so if the step above
-      # changed anything, the tree's artifacts were stale: the suites
-      # everywhere else in CI just tested code that is not what this
-      # branch ships. Fail loudly rather than measure the right thing
-      # while the repository holds the wrong one.
-      #
-      # Nothing is excluded from the comparison: tsc's incremental
-      # cache used to land in ts/dist and had to be, because its bytes
-      # record how the build was reached rather than what it produced
-      # -- a clean build and an incremental one emit identical .js,
-      # .d.ts and .map and different buildinfo. tsBuildInfoFile now
-      # writes it to ts/.tsbuild/, which is ignored, so ts/dist holds
-      # only what ships.
-      - name: Committed build is up to date
-        run: |
-          if ! git diff --quiet -- ts/dist ts/dist-test; then
-            echo "ts/dist or ts/dist-test is stale -- run 'make build-ts' and commit:"
-            git diff --stat -- ts/dist ts/dist-test
-            exit 1
-          fi
-      - run: make cov
-
-  # THE USE CASES ARE A GATE NOW, AND THIS IS WHY.
-  #
-  # `use-cases/run-all.sh` drives the real CLI end to end over sixteen
-  # worked models -- the only check here that exercises the engine the
-  # way a user does, through files, includes, data merges and exit
-  # codes, rather than through a spec row. It is therefore the only one
-  # that can notice a removed language feature still being used by a
-  # model.
-  #
-  # It ran on contributors' machines and nowhere else, and the cost
-  # arrived: ADR-014 (#102) removed id() with every suite green and
-  # every gate passing, and left four use cases broken on main -- 01,
-  # 05, 10 and 12. Nothing in CI evaluated a model that used the feature
-  # it removed, so the corpus stayed red across four merges until #107
-  # and #109 repaired it. The engine was right; the corpus was never
-  # asked.
-  #
-  # One job, on ubuntu: like the coverage gate, this is a property of
-  # the code rather than of the platform the matrix above covers.
-  # python3 is preinstalled and is what the JSON and SQLite assertions
-  # use (sqlite3 through the stdlib module, not the CLI).
-  use-cases:
-    name: Use cases
-    timeout-minutes: 15
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.x
-      - run: npm install
-        working-directory: ts
-      # The checks run ts/bin/aontu.js, which loads the COMMITTED
-      # ts/dist. Build first for the same reason the coverage gate does:
-      # an unbuilt tree would grade this branch's models against the
-      # previous branch's engine. Whether the committed build is itself
-      # current is the coverage gate's assertion, not this job's -- one
-      # check, one owner.
-      - run: npm run build
-        working-directory: ts
-
-      - run: ./run-all.sh
-        working-directory: use-cases
-
-  # THE SYSTEM THAT BOOTS.
-  #
-  # `use-cases/run-all.sh` above already reaches test/system/rb-solar,
-  # and on a runner with no Ruby bundle it runs the six checks that do
-  # not need one: the generators parse and round-trip, the tree they
-  # must reproduce byte for byte, the pinned diagrams, the agreed form
-  # and this patch. The three it skips are the ones that make the system
-  # a system -- the app boots and the reference's own twenty validation
-  # tests pass against it over HTTP, its Ruby SDK drives it, and the
-  # human pages answer.
-  #
-  # Those need Ruby, a bundle and the reference checkout, which is a
-  # different shape of job from the use-case one and would slow it for
-  # every model it drives. Hence a job of its own; check.sh is the same
-  # script either way and reports which legs it ran.
-  system-rb-solar:
-    name: System (rb-solar)
-    timeout-minutes: 20
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # NODE 24 IS NOT INCIDENTAL. The reference's validate.ts is
-      # TypeScript run by node directly; type stripping arrives in
-      # 22.18, and check.sh skips that leg with the version in the note
-      # on anything older rather than dying in the parser.
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.x
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.3'
-          bundler-cache: true
-          working-directory: test/system/rb-solar/app
-
-      # The engine the check drives: $AONTU defaults to ts/bin/aontu.js,
-      # which loads the committed ts/dist. Build for the same reason the
-      # use-case job does -- an unbuilt tree grades this branch's model
-      # against the previous branch's engine.
-      - run: npm install
-        working-directory: ts
-      - run: npm run build
-        working-directory: ts
-
-      # The reference repository, for the SDK leg only. Public, shallow,
-      # and read once: ref/ already carries the OpenAPI description, the
-      # validation script and the seed data at a pinned commit. Without
-      # this clone that one leg skips with a note and the other nine
-      # still run.
-      # AT THE REVISION ref/ WAS VENDORED FROM, which
-      # test/system/rb-solar/ref/README.md records. `--depth 1` shallows
-      # a clone; it does not pin one, so a plain clone follows the
-      # remote's HEAD and this leg would silently start testing the app
-      # against a contract the repository never vendored -- going red,
-      # or worse green, with no change here. Fetching the SHA keeps the
-      # SDK and the vendored openapi.yaml, validate.ts and seed data one
-      # consistent reference.
-      - name: Fetch the reference SDK
+      - name: One group, by the run number
         env:
-          SDK_REF: 5b8eae968637ebe507c915fe804131d60ef16e15
+          AONTU_TEST_GROUP: ${{ inputs.group }}
         run: |
-          git init -q "$RUNNER_TEMP/solardemo"
-          git -C "$RUNNER_TEMP/solardemo" remote add origin \
-            https://github.com/voxgig-sdk/voxgig-solardemo-sdk.git
-          git -C "$RUNNER_TEMP/solardemo" fetch --depth 1 origin "$SDK_REF"
-          git -C "$RUNNER_TEMP/solardemo" checkout -q FETCH_HEAD
-
-      - name: rb-solar
-        working-directory: test/system/rb-solar
-        env:
-          RB_SOLAR_SDK: ${{ runner.temp }}/solardemo/rb
-        run: ./check.sh
-
-  # THE DEFINITION (spec/, docs/design/DEFINITION.0.md). Every proof is
-  # checked, the rows the definition writes into test/spec/ are
-  # regenerated, and the committed copy must be the fresh one, as the
-  # coverage job holds ts/dist to its build; the ports' own jobs above
-  # run the rows. The Lean release is fetched by hash rather than
-  # through elan, whose self-update check does not pass every proxy.
-  spec:
-    name: The definition (spec/)
-    timeout-minutes: 15
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Fetch Lean 4.15.0
-        env:
-          LEAN_URL: https://github.com/leanprover/lean4/releases/download/v4.15.0/lean-4.15.0-linux.zip
-          LEAN_SHA256: 8eceac177fe2e2828f71add0d458e6a91187ce6d4f67d0f0364061b9e3dca59b
-        run: |
-          curl -sSL -o "$RUNNER_TEMP/lean.zip" "$LEAN_URL"
-          echo "$LEAN_SHA256  $RUNNER_TEMP/lean.zip" | sha256sum -c -
-          unzip -q "$RUNNER_TEMP/lean.zip" -d "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/lean-4.15.0-linux/bin" >> "$GITHUB_PATH"
-      - run: make spec
+          G="$(node scripts/test-group.cjs --pick)"
+          echo "sampled TypeScript group $G of $(node scripts/test-group.cjs --list | grep -c '^group ')" >> "$GITHUB_STEP_SUMMARY"
+          node scripts/test-group.cjs --run "$G"

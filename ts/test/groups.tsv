@@ -1,0 +1,91 @@
+# The sampled groups of the TypeScript suite (scripts/test-group.cjs,
+# ADR-070): group<TAB>file. Group 0 is the gate group the happy path
+# runs on every push; the standard CI samples one of the others per
+# run, and `npm test` runs every file regardless. A group is sized to
+# finish in about two minutes on the hosted runner, so a file longer
+# than that is split first (the shared-spec shares, the docs shards,
+# the JSON Schema dialects). Every test file is in exactly one group,
+# or --check and groups.test.ts refuse.
+0	agents-guide.test.ts
+0	aontumodel.test.ts
+0	capability-review.test.ts
+0	comments.test.ts
+0	covcheck.test.ts
+0	formatgrammar.test.ts
+0	groups.test.ts
+0	imports.test.ts
+0	metaschemas.test.ts
+0	parity.test.ts
+0	sig.test.ts
+0	sourcemap.test.ts
+0	template.test.ts
+0	version.test.ts
+0	vocabularies.test.ts
+1	spec.test.ts
+1	spec-share-2.test.ts
+1	spec-share-3.test.ts
+1	val-basic.test.ts
+1	val-conjunct.test.ts
+1	val-disjunct.test.ts
+1	val-pref.test.ts
+1	val-ref.test.ts
+1	op.test.ts
+1	scalar.test.ts
+1	cmp.test.ts
+1	nom.test.ts
+2	spec-share-4.test.ts
+2	spec-share-5.test.ts
+2	spec-share-6.test.ts
+2	lang.test.ts
+2	unify.test.ts
+2	grammar.test.ts
+2	func.test.ts
+2	bignum.test.ts
+2	exactjson.test.ts
+2	error.test.ts
+2	mod.test.ts
+2	query.test.ts
+3	jsonschema-suite.test.ts
+3	jsonschema-suite-2019.test.ts
+3	jsonschema-annotations.test.ts
+3	jsonschema-output.test.ts
+3	jsonschema-import.test.ts
+3	match-corpus.test.ts
+3	regex.test.ts
+3	regex-corpus.test.ts
+3	regex-vectors.test.ts
+3	uri-corpus.test.ts
+3	format-corpus.test.ts
+4	jsonschema-roundtrip.test.ts
+4	jsonschema-suite-earlier.test.ts
+4	jsonschema-schemastore.test.ts
+4	format.test.ts
+4	render-matrix.test.ts
+4	diff.test.ts
+4	patch.test.ts
+5	docs.test.ts
+5	docs-shard-2.test.ts
+5	docs-shard-3.test.ts
+5	helpdoc.test.ts
+5	constraint-laws.test.ts
+5	example.test.ts
+5	skill.test.ts
+5	view.test.ts
+5	translate.test.ts
+5	trace.test.ts
+6	cli.test.ts
+6	pkgnet.test.ts
+6	trust.test.ts
+6	pkg.test.ts
+6	mcp.test.ts
+6	lsp.test.ts
+6	vet.test.ts
+6	veteval.test.ts
+6	allow.test.ts
+6	aontu.test.ts
+6	coverage.test.ts
+6	coverage2.test.ts
+6	coverage3.test.ts
+6	profile.test.ts
+6	sarif.test.ts
+6	jsonschema-forms.test.ts

@@ -25,6 +25,33 @@ enough that the rationale stays beside the commands.
 > `publish.yml`: that was the open question after the repository move,
 > and the green run answers it.
 
+## Two branches: `main` and `release`
+
+Pull requests merge into `main`, and every push to it runs the standard
+checks, `build.yml`: the happy path and one sampled group of the tests,
+on Linux, in about three minutes. A release does not come from `main`.
+It comes from `release`, a branch that is always a fast-forward of
+`main`: `make publish` moves it to the commit it has just pushed, and
+the publish workflow refuses a dispatch from any other ref, and a
+`release` that carries a commit `main` does not.
+
+The full run, `daily.yml` (three operating systems, both suites whole,
+the coverage gate, the use cases, the system, the definition and the
+prose gate), runs nightly on `main` and on every push to `release`, so
+the commit a release is cut from has the whole of it run beside the
+publish run, which runs both suites once more itself.
+
+To create the branch, or to move it by hand:
+
+```
+git fetch origin main
+git push origin origin/main:release   # a fast-forward, or it refuses
+```
+
+A `release` that does not fast-forward has commits of its own. Merge
+`release` into `main` first, in a pull request like any other, and then
+move it again.
+
 ## The normal path
 
 ```
@@ -33,8 +60,9 @@ make publish V=0.71.0 GOV=0.71.0   # the only shape there is
 
 Bumps whichever versions you give (`V` for `ts/package.json`, `GOV` for
 `go/aontu.go`) runs `make all` (both builds, both suites), commits, pushes
-`main`, and dispatches the publish workflow with matching inputs, which
-publishes to npm and writes `v<V>` and `go/v<GOV>`.
+`main`, fast-forwards `release` to the same commit, and dispatches the
+publish workflow on `release` with matching inputs, which publishes to
+npm and writes `v<V>` and `go/v<GOV>`.
 
 **Two inputs, one number**: the series are shared, so `V` and `GOV` are
 both required and must be equal. Comparing only a stated pair would leave
@@ -45,21 +73,24 @@ same split by omission. See
 Every guard runs **before** anything is written, because half of this is
 irreversible: npm never allows republishing a version, and
 `proxy.golang.org` caches a Go module version immutably. It refuses unless
-you are on `main`, with a clean tree, not behind `origin/main`, with neither
-tag already taken (asked of **origin**, since the clone's tag list can be
-stale), and with the Go module path matching the major version.
+you are on `main`, with a clean tree, not behind `origin/main`, with
+`release` carrying no commit `main` does not (so that it fast-forwards),
+with neither tag already taken (asked of **origin**, since the clone's tag
+list can be stale), and with the Go module path matching the major version.
 
 ### Or drive the workflow directly
 
-**Actions → publish → Run workflow**, on `main`, leaving `go` ticked unless
-only the npm package changed. That single run publishes to npm and pushes
+Move `release` to `main` first (the section above), then **Actions →
+publish → Run workflow**, on `release`, leaving `go` ticked unless only
+the npm package changed. That single run publishes to npm and pushes
 both tags.
 
 The equivalent from a shell:
 
 ```
-gh workflow run publish.yml --ref main -f go=true \
-  -f expect_sha=$(git rev-parse origin/main)
+git push origin origin/main:release
+gh workflow run publish.yml --ref release -f go=true \
+  -f expect_sha=$(git rev-parse origin/release)
 ```
 
 **There is no version input, deliberately.** The dispatch releases whatever
@@ -95,9 +126,10 @@ guard, and it refuses **before** it bumps anything, so nothing is left
 half-done. Run what it would have run:
 
 1. **Its guards, all of them, first.** On `main`, clean tree, not behind
-   `origin/main`, and neither tag already taken, asked of **origin**,
-   because a clone's tag list is stale exactly when it matters.
-   Everything after them is irreversible.
+   `origin/main`, `release` carrying no commit `main` does not, and
+   neither tag already taken, asked of **origin**, because a clone's tag
+   list is stale exactly when it matters. Everything after them is
+   irreversible.
 2. `cd ts && npm version --no-git-tag-version <V>`, which also rewrites
    `ts/src/aontu.ts`'s `VERSION` through the `version` lifecycle script,
    and the `perl` rewrite of `const VERSION` in `go/aontu.go`.
@@ -107,16 +139,17 @@ half-done. Run what it would have run:
    paths, not one**: the source constant and the committed build move
    with the manifest, and `ts/test/version.test.ts` catches it in the
    publish job if they do not, which is after the tag push.
-5. Commit `release: npm <V> go <GOV>`, and push `main`.
-6. Dispatch `publish.yml` on `main` with `npm`, `go` and
-   `expect_sha=<the commit main now resolves to>`, through
+5. Commit `release: npm <V> go <GOV>`, push `main`, and fast-forward
+   `release` to it: `git push origin main:release`.
+6. Dispatch `publish.yml` on `release` with `npm`, `go` and
+   `expect_sha=<the commit release now resolves to>`, through
    `POST /repos/{owner}/{repo}/actions/workflows/publish.yml/dispatches`
    or any client for it.
 
-`expect_sha` is the step to not skip. `--ref main` names a moving
-branch, and the guard exists so that a commit landing between the push
+`expect_sha` is the step to not skip. `--ref release` names a moving
+branch, and the guard exists so that a push landing between yours
 and the run cannot be released under the version just bumped. For the
-same reason, **do not push to `main` while a publish run is in flight**:
+same reason, **do not push to `release` while a publish run is in flight**:
 the run resolves the ref more than once, and the tag it writes should be
 the commit it tested.
 
@@ -306,30 +339,36 @@ publisher fire on the `v*` tag" publishes **nothing, silently**.
 
 Guards that fail closed, in the order they run:
 
-1. **A dispatch from any ref but `main`.** `gh workflow run --ref` accepts
-   any branch, and the Makefile's guard only binds callers who went through
-   `make publish`, so without this the Actions UI could release a feature
-   branch, irreversibly.
-2. **`main` having moved since the bump**, when `expect_sha` is given (as
-   `make publish` does). `--ref main` names a mutable branch: between the
-   release commit being pushed and the run resolving, another commit can
-   land and be released under the version just bumped.
-3. **A tag that already exists *on a different commit*.** Means the version
+1. **A dispatch from any ref but `release`.** `gh workflow run --ref`
+   accepts any branch, and the Makefile's guards only bind callers who went
+   through `make publish`, so without this the Actions UI could release a
+   feature branch, or `main` itself, irreversibly.
+2. **A `release` that carries a commit `main` does not.** Every commit on
+   `release` is on `main`, so what is released is what the pull requests
+   merged and the checks ran on; a `release` patched beside `main` is
+   refused until `main` carries the patch too.
+3. **`release` having moved since the bump**, when `expect_sha` is given
+   (as `make publish` does). `--ref release` names a mutable branch:
+   between the release commit being pushed and the run resolving, another
+   push can land and be released under the version just bumped.
+4. **A tag that already exists *on a different commit*.** Means the version
    was not bumped, and moving it would rewrite a published release. A tag
    already pointing at **this** commit is the idempotent case (nothing to
    create, not an error) which is what makes re-dispatching after a partial
    release safe.
-4. **A pushed tag that disagrees with the package version.** On the manual
+5. **A pushed tag that disagrees with the package version.** On the manual
    `v*` path only: pushing `v0.55.0` while `ts/package.json` still says
    `0.54.0` would resolve 0.54.0, find it already published, skip the
    publish and go green: leaving a tag with no release behind it.
-5. **A failing build or test**, in both ports. `build.yml` already runs the
-   Go matrix on every push and PR, so `main` is covered; the release re-runs
-   it against the exact commit that becomes an immutable module version.
+6. **A failing build or test**, in both ports. `build.yml` runs the Go
+   suite on every push and pull request, and `daily.yml` the full matrix
+   on every push to `release`, so the commit is covered; the release
+   re-runs both against the exact commit that becomes an immutable module
+   version.
 
 And one guard that fails *open*, on purpose:
 
-6. **A version already on npm** is checked, not assumed. The registry is the
+7. **A version already on npm** is checked, not assumed. The registry is the
    source of truth for "is this released", not the tag: a run can publish and
    then fail before tagging, leaving a version on npm with nothing pointing
    at it. Without this check that state is unrecoverable: the publish step
@@ -339,7 +378,7 @@ And one guard that fails *open*, on purpose:
    half-finished release.
 
 Skipping a publish assumes "same version means same code", which holds only
-if `main` has not moved, so when the version is already present, the run
+if `release` has not moved, so when the version is already present, the run
 compares npm's recorded `gitHead` with the commit being released and refuses
 a mismatch. An absent `gitHead` warns rather than blocks, because refusing
 would make legitimate recovery impossible.
@@ -393,7 +432,7 @@ refuses unless you are on `main`, with a clean tree, not behind
 `origin/main`.
 
 Prefer the dispatch anyway: it runs the tests and the guards, and it never
-commits.
+commits. Neither manual path moves `release`.
 
 Neither path can double-publish: npm refuses an existing version, which is a
 safe way to fail.

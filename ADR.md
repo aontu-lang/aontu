@@ -105,6 +105,8 @@ thereafter stated and changed in the definition, not here.
 | [ADR-066](#adr-066--a-vet-report-answers-json-schemas-output-units-through-the-importers-source-map) | A vet report answers JSON Schema's output units through the importer's source map | Accepted |
 | [ADR-067](#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names) | Subsumption reads a recursion as the definition it names | Moved to the definition in part |
 | [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) | An import comes back from its own export | Accepted |
+| [ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it) | The language is defined in Lean, and the ports implement it | Accepted |
+| [ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release) | The standard CI run samples, the daily run decides, and releases come from `release` | Accepted |
 
 ---
 
@@ -6558,3 +6560,92 @@ answer ([docs/design/DEFINITION.0.md](docs/design/DEFINITION.0.md)).
   arms of `ts/test/spec.test.ts` and `go/spec_test.go`,
   `spec/ledger.tsv`, and the proofs under `spec/`, which `lake build`
   checks.
+
+## ADR-070 — The standard CI run samples, the daily run decides, and releases come from `release`
+
+**Date:** 2026-10-19
+**Status:** Accepted
+
+### Context
+
+`build.yml` ran sixteen jobs on every push and every pull request: the
+TypeScript suite on three operating systems and two Node lines, the Go
+suite on three and two Go lines, the coverage gate, the use cases, the
+system and the definition, with the prose gate in a workflow of its
+own. Measured on the merge of #370 (run 2132), the run took 23 minutes
+wall clock; its critical path was the coverage gate at 20 minutes 19
+seconds, then the TypeScript jobs at 7 to 11 minutes each (Windows the
+slowest), the definition at 3 minutes, the use cases at 3, the Go jobs
+at 2 to 4, the system at 40 seconds. Because the push and pull_request
+triggers both fire, every pull request push ran all of it twice, and
+with the run on `main` beside them the jobs queued up to ten minutes
+for a runner. Caching was not the cost: `npm install` took 4 to 12
+seconds behind the npm cache, Go's setup 1 to 23 seconds, Lean's
+download 10. The cost was running every gate on every push, and
+running it on three operating systems.
+
+The TypeScript suite itself was 33 CPU-minutes locally and is bound by
+its longest files: the JSON Schema corpora at 6 minutes in one file,
+the executed documentation pages at 4 and a half, each shared-spec share
+at 4. No arrangement of whole files reached a two-minute group.
+
+Releases came from `main`, the branch every pull request lands on, so
+the commit a release was cut from was whatever `main` held at the
+moment of the dispatch.
+
+### Decision
+
+1. **The standard run is a happy path and a sample, on Linux, in about
+   three minutes.** `build.yml` runs on every push and pull request
+   three jobs side by side: `happy` (both ports build; the tree does not
+   change under `make build-ts`, which holds every committed build and
+   generated copy to its source; the comment gate; Go's build and vet;
+   the gate group of the TypeScript suite), `go` (the Go suite whole,
+   so one port runs every shared-spec row on every push) and `sample`
+   (one group of the TypeScript suite). A push supersedes the running
+   build of its branch; `main` and `release` are never cancelled.
+2. **The TypeScript suite is partitioned into groups by an explicit
+   manifest**, `ts/test/groups.tsv`, which `ts/scripts/test-group.cjs`
+   runs and `ts/test/groups.test.ts` holds to the suite: every test
+   file in exactly one group, or the full run fails. Group 0 is the
+   gate group the happy path runs every time; the sample is drawn from
+   the others by (run number + attempt) modulo their count, so
+   consecutive runs walk them all and a pull request's two runs sample
+   two. A group is sized to about two minutes on the hosted runner,
+   and a file longer than that is split: the shared-spec rows run in
+   six shares, the executed pages in three shards, the JSON Schema
+   corpora by dialect.
+3. **The daily run is the gate.** `daily.yml` runs nightly on `main`
+   and on every push to `release` what `build.yml` ran before, as it
+   ran it: both matrices over three operating systems, the coverage
+   gate, the use cases, the system, the definition (`spec.yml`) and
+   the prose gate (`docs.yml`). What the sample does not catch, the
+   daily does, the next morning.
+4. **The definition's job is path-triggered.** `spec.yml` runs in the
+   standard CI when `spec/` or its rows change, and in the daily run
+   always; its Lake build directory is cached between runs.
+5. **Releases come from `release`, a fast-forward of `main`.** Pull
+   requests merge into `main`. `make publish` bumps on `main`, moves
+   `release` to the same commit and dispatches `publish.yml` there; the
+   workflow refuses a dispatch from any other ref and a `release` that
+   carries a commit `main` does not. The daily run on every push to
+   `release` gives the commit the whole suite beside the publish run.
+
+### Consequences
+
+- A defect the sample does not cover can merge. It is found by the
+  daily run or by the next sample that covers its group, and the fix
+  is a pull request like any other. The Go suite still runs whole on
+  every push, so a shared-spec row never goes unrun in both ports.
+- A regression on Windows or macOS is found daily, not per pull
+  request.
+- The prose gate is daily too: `make prose` runs it locally, which is
+  where a word is cheapest to change.
+- A new test file has to be given a group, and a file that outgrows its
+  group is split rather than left to run long.
+- `publish.yml`'s guards name `release` where they named `main`; the
+  trusted-publisher registration on npmjs.com is unchanged, since it
+  binds the workflow file, not the branch.
+- Enforced by `ts/test/groups.test.ts` and `test-group.cjs --check`,
+  by the guards in `publish.yml` and the `publish` target, and by the
+  workflow headers, which cite this entry.

@@ -4,6 +4,7 @@
 
 [![npm version](https://img.shields.io/npm/v/aontu.svg)](https://npmjs.com/package/aontu)
 [![build](https://github.com/aontu-lang/aontu/actions/workflows/build.yml/badge.svg)](https://github.com/aontu-lang/aontu/actions/workflows/build.yml)
+[![daily](https://github.com/aontu-lang/aontu/actions/workflows/daily.yml/badge.svg)](https://github.com/aontu-lang/aontu/actions/workflows/daily.yml)
 
 | ![Voxgig](https://www.voxgig.com/res/img/vgt01r.png) | This open source module is sponsored and supported by [Voxgig](https://www.voxgig.com). |
 |---|---|

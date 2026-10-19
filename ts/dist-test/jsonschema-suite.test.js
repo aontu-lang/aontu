@@ -34,111 +34,15 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// The vendored JSON Schema corpora through the importer and `vet
-// --no-fill --exact-numbers`, each against its own skip ledger, as
-// test/vectors/README.md describes.
+// The current dialect's corpus, Ajv's extra tests and JSONTestSuite;
+// the earlier dialects are jsonschema-suite-2019.test.ts and
+// jsonschema-suite-earlier.test.ts. The runner is suite-corpus.ts.
 const node_test_1 = require("node:test");
-const Assert = __importStar(require("node:assert"));
-const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
-const aontu_1 = require("../dist/aontu");
-const jsonschema_import_1 = require("../dist/jsonschema-import");
-const vet_1 = require("../dist/vet");
-const admit_1 = require("../dist/admit");
 const suite_1 = require("./suite");
-function readSkips(ledger) {
-    return (0, suite_1.rows)(ledger).map(([file, group, name, construct]) => ({ file, group, test: name, construct, used: false }));
-}
-// The whole file, the whole group, or the one test, in that order.
-function listed(skips, file, group, name) {
-    return skips.find((s) => s.file === file && '*' === s.group) ??
-        skips.find((s) => s.file === file && s.group === group && '*' === s.test) ??
-        skips.find((s) => s.file === file && s.group === group && s.test === name);
-}
-// JSONTestSuite's shape: one JSON text per file, read as an instance of
-// `true`; an implementation-defined file takes the answer pinned for it.
-function parsingGroups(dir) {
-    const decided = new Map((0, suite_1.rows)(Path.join(dir, 'decisions.tsv'))
-        .map(([file, valid]) => [file, 'true' === valid]));
-    const cases = Path.join(dir, 'test_parsing');
-    return Fs.readdirSync(cases).sort().map((file) => {
-        const want = 'y' === file[0] || ('n' !== file[0] && true === decided.get(file));
-        Assert.ok('i' !== file[0] || decided.has(file), file + ' has no answer in decisions.tsv');
-        return {
-            file, group: file[0], schema: 'true',
-            cases: [{ test: 'parse', data: Fs.readFileSync(Path.join(cases, file), 'utf8'), want }],
-        };
-    });
-}
-function runCorpus(name, bound, groups, documents) {
-    const skips = readSkips(Path.join(suite_1.VECTORS, name));
-    Assert.ok(skips.length <= bound, `the ${name} ledger holds ${skips.length} rows, past its bound of ${bound}`);
-    const problems = [];
-    let total = 0;
-    let passed = 0;
-    let skipped = 0;
-    const aontu = new aontu_1.Aontu();
-    for (const g of groups) {
-        // The suite's optional/format/ asks for format assertion (ADR-059).
-        const report = (0, jsonschema_import_1.importJsonSchema)(g.schema, {
-            path: g.file, documents, formatAssertion: g.file.startsWith('optional/format/'),
-            dialect: g.dialect,
-        });
-        for (const c of g.cases) {
-            total++;
-            let got = false;
-            if ('error' !== report.verdict) {
-                got = 'valid' === (0, vet_1.vet)(report.aontu, c.data, { noFill: true, exactNumbers: true }).verdict;
-                // The differential: the admission trial of the imported schema
-                // over the exact instance answers as vet does.
-                const sctx = aontu.ctx({ collect: true });
-                const sval = aontu.parse(report.aontu, {}, sctx);
-                const dctx = aontu.ctx({ collect: true });
-                const dval = aontu.parse(c.data, { exactNumbers: true }, dctx);
-                if (0 === sctx.err.length && 0 === dctx.err.length && null != sval && null != dval) {
-                    const admitted = (0, admit_1.admits)(aontu, sval, dval);
-                    if (admitted !== got) {
-                        problems.push(`${g.file} | ${g.group} | ${c.test}: vet says ${got}, ` +
-                            `the admission trial says ${admitted}`);
-                    }
-                }
-            }
-            const skip = listed(skips, g.file, g.group, c.test);
-            if (got === c.want) {
-                passed++;
-                if (null != skip && '*' !== skip.test) {
-                    problems.push(`${g.file} | ${g.group} | ${c.test}: listed as a skip ` +
-                        `(${skip.construct}) and passes; delete its row`);
-                }
-            }
-            else if (null == skip) {
-                problems.push(`${g.file} | ${g.group} | ${c.test}: wanted valid=${c.want} ` +
-                    `and got valid=${got}, with no skip listed`);
-            }
-            else {
-                skip.used = true;
-                skipped++;
-            }
-        }
-    }
-    for (const s of skips) {
-        if (!s.used) {
-            problems.push(`${s.file} | ${s.group} | ${s.test}: listed as a skip (${s.construct}) ` +
-                'and nothing under it fails; delete its row');
-        }
-    }
-    console.log(`${name}: ${total} tests, ${passed} pass, ${skipped} skipped, ` +
-        `${skips.length} ledger rows`);
-    Assert.deepStrictEqual(problems, [], problems.join('\n'));
-}
+const suite_corpus_1 = require("./suite-corpus");
 // Each ledger may not grow past its bound; the register tightens them.
-(0, node_test_1.test)('the-json-schema-test-suite-runs-under-import-and-vet', () => runCorpus('jsonschema/skips.tsv', 13, (0, suite_1.suiteGroups)(Path.join(suite_1.VECTORS, 'jsonschema', 'tests', 'draft2020-12')), (0, suite_1.remotes)()));
-// The earlier dialects' directories, each the default dialect of its own
-// run and each with its own ledger.
-for (const [dir, dialect, bound] of [['draft2019-09', '2019-09', 21], ['draft7', 'draft-07', 14],
-    ['draft6', 'draft-06', 4], ['draft4', 'draft-04', 4]]) {
-    (0, node_test_1.test)(`the-json-schema-test-suite-${dir}-runs-under-import-and-vet`, () => runCorpus(`jsonschema/skips-${dir}.tsv`, bound, (0, suite_1.suiteGroups)(Path.join(suite_1.VECTORS, 'jsonschema', 'tests', dir), dialect), (0, suite_1.remotes)()));
-}
-(0, node_test_1.test)('ajvs-extra-tests-run-under-import-and-vet', () => runCorpus('ajv-extras/skips.tsv', 0, (0, suite_1.suiteGroups)(Path.join(suite_1.VECTORS, 'ajv-extras', 'tests'))));
-(0, node_test_1.test)('jsontestsuite-runs-as-instances-under-vet', () => runCorpus('jsontestsuite/skips.tsv', 87, parsingGroups(Path.join(suite_1.VECTORS, 'jsontestsuite'))));
+(0, node_test_1.test)('the-json-schema-test-suite-runs-under-import-and-vet', () => (0, suite_corpus_1.runCorpus)('jsonschema/skips.tsv', 13, (0, suite_1.suiteGroups)(Path.join(suite_1.VECTORS, 'jsonschema', 'tests', 'draft2020-12')), (0, suite_1.remotes)()));
+(0, node_test_1.test)('ajvs-extra-tests-run-under-import-and-vet', () => (0, suite_corpus_1.runCorpus)('ajv-extras/skips.tsv', 0, (0, suite_1.suiteGroups)(Path.join(suite_1.VECTORS, 'ajv-extras', 'tests'))));
+(0, node_test_1.test)('jsontestsuite-runs-as-instances-under-vet', () => (0, suite_corpus_1.runCorpus)('jsontestsuite/skips.tsv', 87, (0, suite_corpus_1.parsingGroups)(Path.join(suite_1.VECTORS, 'jsontestsuite'))));
 //# sourceMappingURL=jsonschema-suite.test.js.map

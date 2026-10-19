@@ -96,22 +96,30 @@ runs the comment gate. It is a convenience, not the enforcement: the gate
 that decides is `ts/test/comments.test.ts`, inside `npm test` and so
 inside CI on every push. A hook is skippable (`--no-verify`); CI is not.
 
-Two failures are found in CI rather than locally: a `ts/dist` that was
-not rebuilt (the coverage job diffs the committed build against a fresh
-one), and a use case broken by a language change.
+Two failures are found in CI rather than locally: a generated copy or
+`ts/dist` not rebuilt (the happy path refuses a tree `make build-ts`
+changes), and a use case broken by a language change.
 
-CI is [`.github/workflows/build.yml`](.github/workflows/build.yml).
-Editing anything under `.github/workflows/` needs the GitHub `workflow`
-OAuth scope, so such a push must come from an account that has it.
+CI is two workflows (ADR-070).
+[`build.yml`](.github/workflows/build.yml), on every push and pull
+request, Linux only, about three minutes: the happy path and **one
+sampled group** of the TypeScript suite from
+[`ts/test/groups.tsv`](ts/test/groups.tsv).
+[`daily.yml`](.github/workflows/daily.yml), nightly on `main` and on
+every push to `release`, runs the rest: three operating systems, both
+suites whole, coverage, use cases, the system, the definition, prose.
+Editing `.github/workflows/` needs the GitHub `workflow` OAuth scope,
+so such a push must come from an account that has it.
 
 ## Releasing
 
-A release publishes over OIDC, by dispatching `publish.yml` — never a
-local token publish, which bypasses the OIDC exchange entirely. `make
-publish [V=x.y.z] [GOV=x.y.z]` dispatches it and refuses to run without
-the `gh` CLI; without `gh`, see
-[docs/release-and-tag.md](docs/release-and-tag.md), "Releasing without
-`gh`".
+Pull requests merge into `main`; releases come from `release`, a
+fast-forward of `main`. A release publishes over OIDC, by dispatching
+`publish.yml` on `release` — never a local token publish, which
+bypasses the OIDC exchange entirely. `make publish V=x.y.z GOV=x.y.z`
+bumps on `main`, moves `release` and dispatches; without the `gh` CLI,
+see [docs/release-and-tag.md](docs/release-and-tag.md), "Releasing
+without `gh`".
 
 ## The rules that are easy to get wrong
 
