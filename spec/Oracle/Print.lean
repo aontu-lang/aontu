@@ -9,7 +9,7 @@ is no part of the definition, which says nothing about text: that an
 engine reads this text as this value is a claim about its reader, which
 the rows test and no theorem makes. It prints the forms the oracle
 writes, data as well as terms in aontu's own syntax, and answers `none`
-for a sealed map, a list term, an alias, and a path.
+for a sealed map, an alias, and a path.
 -/
 
 namespace Aontu
@@ -99,7 +99,13 @@ def Val.src : Val → Option String
     let rest ← spreadSrc spread
     pure ("{" ++ ", ".intercalate (entries ++ rest) ++ "}")
   | .map _ _ true => none
-  | .list _ _ => none
+  | .list items spread closed => do
+    let entries ← itemsSrc items
+    let rest ← spreadSrc spread
+    let body := "[" ++ ", ".intercalate (entries ++ rest) ++ "]"
+    pure (if closed then s!"close({body})" else body)
+  | .or arms => do pure (" | ".intercalate (← armsSrc arms))
+  | .pref r x => do pure (String.mk (List.replicate r '*') ++ s!"({← x.src})")
   | .meet a b => do pure s!"({← a.src}) & ({← b.src})"
   | .alias _ => none
   | .path _ => none
@@ -114,6 +120,16 @@ def fieldsSrc : List (String × Bool × Val) → Option (List String)
 def spreadSrc : Option Val → Option (List String)
   | none => some []
   | some s => do pure ["&: " ++ (← s.src)]
+
+def itemsSrc : List Val → Option (List String)
+  | [] => some []
+  | v :: vs => do pure ((← v.src) :: (← itemsSrc vs))
+
+/-- Each arm in parentheses, a preferred one behind its stars. -/
+def armsSrc : List (ℕ × Val) → Option (List String)
+  | [] => some []
+  | (r, a) :: arms => do
+    pure ((String.mk (List.replicate r '*') ++ s!"({← a.src})") :: (← armsSrc arms))
 end
 
 mutual

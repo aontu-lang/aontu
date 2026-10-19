@@ -25,7 +25,7 @@ a term admits, and none declares its own.
 | File | Holds |
 |---|---|
 | [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean) | the data, scalars first: numbers in the four leaves, integers, floats, big integers, and big decimals, then strings, then maps and lists, and paths into a value |
-| [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) | the terms of the language, one constructor for each construct |
+| [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) | the terms of the language, one constructor for each construct, and `super`, the parent type of a term |
 | [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) | what each term admits, one rule for each form |
 | [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) | the order between terms, the meet, the strict bounds under their closed ones, two declarations of one key, and the contract any `subsume` must meet |
 | [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean) | the trial schemas `nof` and `when` |
@@ -747,8 +747,7 @@ example : Instance .empty (.lit .null) .null := ⟨by decide, .null⟩
 example : ¬ Instance .empty (.lit .null) (.bool false) := fun ⟨_, h⟩ => nomatch h
 ```
 
-The four refusals after the first example borrow the checker of step
-14 to compute the answer. Write `literals.aontu`:
+The four refusals after the first example borrow the checker of step 15 to compute the answer. Write `literals.aontu`:
 
 <!-- test: scenario literals -->
 <!-- test: file literals.aontu -->
@@ -1444,7 +1443,7 @@ example : ¬ Instance .empty (.unique (some "p"))
   fun ⟨_, h⟩ => absurd ((check_iff .unique _).mpr h) (by decide)
 ```
 
-These examples borrow the checker of step 14, which computes whether
+These examples borrow the checker of step 15, which computes whether
 two values are one. Write `unique.aontu`:
 
 <!-- test: scenario unique -->
@@ -1944,24 +1943,27 @@ holds each map's seal in its own `closed` flag.
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
   /-- A list: each of its positions is present and holds its value;
-  later elements are allowed; the spread holds every element. -/
-  | list {items : List Val} {spread : Option Val} {xs : List Data} :
+  later elements are allowed, but in a sealed list without a spread,
+  whose length is its positions'; the spread holds every element. -/
+  | list {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data} :
       items.length ≤ xs.length →
+      (closed = true → spread = none → xs.length = items.length) →
       (∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
         Admits env root v x) →
       (∀ s, spread = some s → ∀ x, x ∈ xs → Admits env root s x) →
-      Admits env root (.list items spread) (.list xs)
+      Admits env root (.list items spread closed) (.list xs)
 ```
 
-`items[i]?` is the item at position `i`, or `none` past the end. So
-`[integer, string]` needs two elements, and allows more:
+`items[i]?` is the item at position `i`, or `none` past the end, and
+`closed` is the list's seal, which step 12 takes up. So
+`[integer, string]`, unsealed, needs two elements and allows more:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `[integer, string]` admits `[1, "a", true]`: the list stays open. -/
-example : Instance .empty (.list [.integer, .string] none) (.list [.integer 1, .str "a", .bool true]) := by
+example : Instance .empty (.list [.integer, .string] none false) (.list [.integer 1, .str "a", .bool true]) := by
   refine ⟨by decide, ?_⟩
-  refine .list (by decide) ?_ (fun _ h => nomatch h)
+  refine .list (by decide) (fun h => nomatch h) ?_ (fun _ h => nomatch h)
   intro i v x hv hx
   rcases i with _ | _ | i
   · cases hv; cases hx; exact .integer
@@ -1969,13 +1971,13 @@ example : Instance .empty (.list [.integer, .string] none) (.list [.integer 1, .
   · simp at hv
 
 /-- `[integer, string]` refuses `[1]`: its second position is missing. -/
-example : ¬ Instance .empty (.list [.integer, .string] none) (.list [.integer 1]) := by
+example : ¬ Instance .empty (.list [.integer, .string] none false) (.list [.integer 1]) := by
   rintro ⟨-, h⟩
   cases h with
-  | list hlen _ _ => exact absurd hlen (by decide)
+  | list hlen _ _ _ => exact absurd hlen (by decide)
 
 /-- `[&: integer]` refuses `[1, "a"]`: the spread holds every element. -/
-example : ¬ Instance .empty (.list [] (some .integer)) (.list [.integer 1, .str "a"]) := by
+example : ¬ Instance .empty (.list [] (some .integer) false) (.list [.integer 1, .str "a"]) := by
 ```
 
 The formatter separates list elements with spaces. Write
@@ -2367,10 +2369,351 @@ $ aontu -c merge.aontu
 One side makes `x` optional and the other required, and the required
 one wins: `-c` writes the merged key with no `?`.
 
-## 12. Where the definition and the engines differ
+## 12. Disjunction and preference
 
-Both engines' test suites run rows the definition generates, as step
-14 shows, and on a few of them the engines don't answer as the
+`a | b` admits what either arm admits, and `*x` marks a default:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+  | or (arms : List (ℕ × Val))              -- `a | *b | **c`: each arm with its rank, `0` for none
+  | pref (r : ℕ) (x : Val)                  -- `*x` alone, which is `x | super(x)`; `**x` has rank 2
+```
+
+An arm carries a rank: `0` for an arm written plainly, `1` for one
+written `*a`, `2` for `**a`. The rank picks the output, which step 17
+leaves to a later phase, and admission ignores it:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- A disjunction admits what any arm admits, whatever the arm's
+  rank: a rank picks the output, which is no part of admission. -/
+  | or {arms : List (ℕ × Val)} {r : ℕ} {a : Val} {j : Data} :
+      (r, a) ∈ arms → Admits env root a j → Admits env root (.or arms) j
+```
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `1 | 2`, as a term: two arms, neither preferred. -/
+abbrev oneOrTwo : Val := .or [(0, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 2))))]
+
+/-- `1 | 2` admits `2`, by its second arm. -/
+example : Instance .empty oneOrTwo (.integer 2) := ⟨by decide, .or (r := 0) (by simp [Integer.of]) .num⟩
+
+/-- `1 | 2` refuses `3`. -/
+example : ¬ Instance .empty oneOrTwo (.integer 3) :=
+  fun ⟨_, h⟩ => absurd ((check_iff (checkable_or₂ .lit .lit) _).mpr h) (by decide)
+
+/-- `*1 | 2`: the first arm preferred, which admission ignores. -/
+abbrev prefOneOrTwo : Val := .or [(1, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 2))))]
+
+/-- `*1 | 2` admits `2`, and refuses `3`: a preferred arm admits its own
+value, as any arm does. -/
+example : Instance .empty prefOneOrTwo (.integer 2) ∧ ¬ Instance .empty prefOneOrTwo (.integer 3) :=
+  ⟨⟨by decide, .or (r := 0) (by simp [Integer.of]) .num⟩,
+    fun ⟨_, h⟩ => absurd ((check_iff (checkable_or₂ .lit .lit) _).mpr h) (by decide)⟩
+```
+
+`abbrev` names a term for the examples that follow. Write
+`choice.aontu`:
+
+<!-- test: scenario choice -->
+<!-- test: file choice.aontu -->
+```aontu
+enum: ("a"|"b"|"c") & "b"
+kind: (integer|string) & "a"
+override: (*1|integer) & 3
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c choice.aontu
+{"enum":"b","kind":"a","override":3}
+```
+
+Each meet selects the arm that admits the value. At `override`, `3` is
+no `1`, and the `integer` arm admits it. A value no arm admits is
+refused. Write `choice-schema.aontu`:
+
+<!-- test: file choice-schema.aontu -->
+```aontu
+v: *1|2
+```
+
+and `choice-data.aontu`:
+
+<!-- test: file choice-data.aontu -->
+```aontu
+v: 3
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet choice-schema.aontu choice-data.aontu
+verdict: invalid
+
+$.v: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.v
+  data: choice-data.aontu:1:4 (3)
+  schema: choice-schema.aontu:1:4 (*1|2)
+$.v: pref_not_instance [compat]
+  the default 1 is not an instance of any remaining alternative of *1|2
+  schema: choice-schema.aontu:1:5 (1)
+$ echo $?
+1
+```
+
+The first finding is the refusal: no arm is left. The second is a note
+on the default, which admission doesn't read.
+
+### How a disjunction reads its arms
+
+The language reads `|` and `*` by position, and the reader carries the
+reading into the terms:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+/-! The language reads `|` and `*` by position, and the reader, not a
+rule, carries the reading into the terms: an arm of a disjunction, and
+the value of a `*` alone, which is a disjunction too, reads every list
+literal beneath it as its own length, a sealed list, and `*x` as an arm
+reads as the arm `x` of rank one. So `*1 | 2` is
+`or [(1, lit 1), (0, lit 2)]`, and `*[1]` is `pref 1 (list [lit 1] none true)`. -/
+```
+
+A list is sealed by its third field, which `close()` sets too, and a
+sealed list without a spread has its positions' length:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- A list: each of its positions is present and holds its value;
+  later elements are allowed, but in a sealed list without a spread,
+  whose length is its positions'; the spread holds every element. -/
+  | list {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data} :
+      items.length ≤ xs.length →
+      (closed = true → spread = none → xs.length = items.length) →
+```
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `[integer] | [string]`: the arms sealed, as a disjunction reads a list. -/
+abbrev listArms : Val := .or [(0, .list [.integer] none true), (0, .list [.string] none true)]
+```
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `[integer] | [string]` admits `[1]`… -/
+example : Instance .empty listArms (.list [.integer 1]) :=
+  ⟨by decide, (check_iff listArms_checkable _).mp (by decide)⟩
+
+/-- …and refuses `[1, 2]`: neither arm has a second position. -/
+example : ¬ Instance .empty listArms (.list [.integer 1, .integer 2]) :=
+  fun ⟨_, h⟩ => absurd ((check_iff listArms_checkable _).mpr h) (by decide)
+
+/-- A sealed list without a spread has its positions' length:
+`close([integer])` refuses `[1, 2]`. -/
+example : ¬ Instance .empty (.list [.integer] none true) (.list [.integer 1, .integer 2]) := by
+  rintro ⟨-, h⟩
+  cases h with
+  | list _ hseal _ _ => exact absurd (hseal rfl rfl) (by decide)
+```
+
+So `[integer]` alone admits `[1 2]`, open past its one position, as
+step 6 showed, and the same list as an arm admits one element and no
+more. Write `arm-schema.aontu`:
+
+<!-- test: file arm-schema.aontu -->
+```aontu
+v: [integer]|[string]
+```
+
+and `arm-data.aontu`:
+
+<!-- test: file arm-data.aontu -->
+```aontu
+v: [1 2]
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet arm-schema.aontu arm-data.aontu
+verdict: invalid
+
+$.v: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.v
+  data: arm-data.aontu:1:4 ([1,2])
+  schema: arm-schema.aontu:1:4 ([integer]|[string])
+$ echo $?
+1
+```
+
+### A preference alone
+
+`*x` outside a disjunction is a default its type can override: it
+admits what `x` admits, and what the parent type of `x` admits:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- A preference alone admits its value, and what its value's parent
+  type admits: `*1` admits `2`, and refuses `1.5` and `"a"`. -/
+  | pref {r : ℕ} {x : Val} {j : Data} : Admits env root x j → Admits env root (.pref r x) j
+  | prefSuper {r : ℕ} {x : Val} {j : Data} :
+      Admits env root x.super j → Admits env root (.pref r x) j
+```
+
+`super` is a function on terms, in `spec/Aontu/Syntax.lean`: a
+scalar's kind, a kind's parent, a container of its members' parents,
+and a constraint's domain. Its first cases:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+/-- The immediate parent type. A meet that holds a kind has that kind
+for its parent, as `integer & min(3)` is a constraint on integers; a
+meet of two kinds has the lower kind's parent; any other meet lifts
+each side. A reference lifts as itself, a residual the engines keep
+symbolic too. -/
+def Val.super : Val → Val
+  | .integer | .float | .biginteger | .bigdecimal => .number
+  | .number | .string | .anyString | .boolean | .any => .any
+  | .nil => .nil
+  | .lit (.num x) => x.leaf.kind
+  | .lit (.str s) => if s = "" then .anyString else .string
+  | .lit (.bool _) => .boolean
+  | .lit .null => .lit .null
+```
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- The parent type of `1` is `integer`, of `integer` is `number`, and of
+`{x: 1}` is `{x: integer}`. -/
+example : Val.super (.lit (.num (.integer (.of 1)))) = .integer ∧ Val.super .integer = .number ∧
+    Val.super (.map [("x", false, .lit (.num (.integer (.of 1))))] none false) =
+      .map [("x", false, .integer)] none false :=
+  ⟨rfl, rfl, rfl⟩
+
+/-- The parent type of `integer & min(3)` is `integer`, the kind the
+constraint holds. -/
+example : Val.super (.meet .integer (.min (.num (.integer (.of 3))))) = .integer := rfl
+
+/-- `*1` admits `1`, and `2`, which its parent type `integer` admits… -/
+example : Instance .empty (.pref 1 (.lit (.num (.integer (.of 1))))) (.integer 1) ∧
+    Instance .empty (.pref 1 (.lit (.num (.integer (.of 1))))) (.integer 2) :=
+  ⟨⟨by decide, .pref .num⟩, ⟨by decide, .prefSuper .integer⟩⟩
+
+/-- …and refuses the float `1.5`, which `integer` refuses. -/
+example : ¬ Instance .empty (.pref 1 (.lit (.num (.integer (.of 1))))) (.num (.float (.dyadic 3 (-1)))) :=
+  fun ⟨_, h⟩ => absurd ((check_iff (.pref .lit) _).mpr h) (by decide)
+```
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `*8080 & min(1024)` admits `2048`, and refuses `80`: the preference
+widens to `integer`, and the bound still holds. -/
+example : Instance .empty port (.integer 2048) ∧ ¬ Instance .empty port (.integer 80) :=
+  ⟨⟨by decide, .meet (.prefSuper .integer) (.min (by decide))⟩,
+    fun ⟨_, h⟩ => absurd ((check_iff (.meet (.pref .lit) .min) _).mpr h) (by decide)⟩
+```
+
+Write `pref.aontu`:
+
+<!-- test: scenario pref -->
+<!-- test: file pref.aontu -->
+```aontu
+default: *1
+override: *1 & 2
+list: *[1] & [2]
+port: *8080 & min(1024) & 2048
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c pref.aontu
+{"default":*1,"list":[2],"override":2,"port":2048}
+```
+
+`-c` keeps the default at `default`, a claim about the value when
+nothing else arrives, and the three overrides stand: `2` is an integer,
+`[2]` a one-element list of integers, and `2048` an integer of at least
+`1024`. A float is no integer. Write `pref-schema.aontu`:
+
+<!-- test: file pref-schema.aontu -->
+```aontu
+v: *1
+```
+
+and `pref-data.aontu`:
+
+<!-- test: file pref-data.aontu -->
+```aontu
+v: 1.5
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet pref-schema.aontu pref-data.aontu
+verdict: invalid
+
+$.v: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.v
+  data: pref-data.aontu:1:4 (1.5)
+  schema: pref-schema.aontu:1:4 (*1)
+$ echo $?
+1
+```
+
+### The question the engines ask
+
+Two maps in two arms admit a map that one of them admits, by the rule
+above, and the engines answer `incomplete`. Write `open-schema.aontu`:
+
+<!-- test: file open-schema.aontu -->
+```aontu
+v: { x:1 }|{ y:2 }
+```
+
+and `open-data.aontu`:
+
+<!-- test: file open-data.aontu -->
+```aontu
+v: x: 1
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet open-schema.aontu open-data.aontu
+verdict: incomplete
+
+$.v: disjunct_no_gen [incomplete]
+  [aontu/disjunct_no_gen]: Cannot resolve value at path $.v
+  schema: open-schema.aontu:1:4 ({"x":1}|{"x":1,"y":2})
+$ echo $?
+3
+```
+
+The engine asks the evaluator's question: met with the data, each arm
+is still consistent with it, since a map is open and `{y: 2}` could
+gain `x`, so two alternatives remain and no value is settled. The same
+question fills a default the data lacks: `{x: *1}` met with `{}` is
+valid, by the default `1`. Admission asks whether the data, as it
+stands, is an instance, and `{x: 1}` is one. Both questions are the
+definition's to state. The second is `Output`, what evaluation singles
+out, which step 17 leaves to a later phase, and the test rows of step
+15 stay where the two agree.
+
+## 13. Where the definition and the engines differ
+
+Both engines' test suites run rows the definition generates, as step 15 shows, and on a few of them the engines don't answer as the
 definition does. [`spec/ledger.tsv`](../spec/ledger.tsv) lists each such case,
 with the answer each side gives, which side changes, and why.
 
@@ -2462,7 +2805,7 @@ they can't use. For this kind the ledger names the definition as
 the side that changes, since it has no ill-formed terms, which is what
 `error` reports.
 
-## 13. Trial schemas
+## 14. Trial schemas
 
 `nof` and `when` ask whether a schema refuses a value, and a rule
 can't depend on the negation of the relation it defines. Lean refuses
@@ -2582,7 +2925,7 @@ $ aontu -c when.aontu
 `"a"` is a string, so it must be `"a"`, and `5` isn't, so it must be at
 least zero.
 
-## 14. A checker, admitted by a proof
+## 15. A checker, admitted by a proof
 
 `Admits` is a statement, so Lean can't run it. Running needs an
 algorithm, and `spec/Aontu/Check.lean` holds one, for every term that
@@ -2616,9 +2959,11 @@ inductive Val.Checkable : Val → Prop
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
       (∀ k o v, (k, o, v) ∈ fs → Checkable v) → (∀ s, spread = some s → Checkable s) →
       Checkable (.map fs spread closed)
-  | list {items : List Val} {spread : Option Val} :
+  | list {items : List Val} {spread : Option Val} {closed : Bool} :
       (∀ v, v ∈ items → Checkable v) → (∀ s, spread = some s → Checkable s) →
-      Checkable (.list items spread)
+      Checkable (.list items spread closed)
+  | or {arms : List (ℕ × Val)} : (∀ r a, (r, a) ∈ arms → Checkable a) → Checkable (.or arms)
+  | pref {r : ℕ} {x : Val} : Checkable x → Checkable (.pref r x)
   | meet {a b : Val} : Checkable a → Checkable b → Checkable (.meet a b)
 ```
 
@@ -2788,8 +3133,23 @@ b243	verdict	v: neq(1.0)	v: 1	{"verdict":"valid"}
 b246	verdict	v: neq(1.0)	v: 1.0	{"verdict":["invalid","incomplete","error"]}
 ```
 
-Both engines answer every row of both files as the definition does,
-but for the cases step 12 lists.
+A third, `lake exe oracle choice`, takes the disjunctions and
+preferences of step 12 over scalars, kinds, bounds, and sealed lists,
+each alone and under an optional key: 52 terms against 22 values, the
+1,144 rows of [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv).
+Two of them:
+
+<!-- test: quote test/spec/def-choice.tsv -->
+```tsv
+d48	verdict	v: *(1) | (2)	v: 2	{"verdict":"valid"}
+d49	verdict	v: *(1) | (2)	v: 3	{"verdict":["invalid","incomplete","error"]}
+```
+
+The oracle writes each arm in parentheses, behind its stars, and a
+sealed list as `close([…])`, which both engines read as the term.
+
+Both engines answer every row of the three files as the definition
+does, but for the cases step 13 lists.
 
 The schema and the value are text, which `spec/Oracle/Print.lean`
 writes. The printer is the oracle's and no part of the definition, and
@@ -2797,7 +3157,7 @@ no proof checks it: that an engine reads `v: 0d9007199254740993` as that
 big integer is a claim about the engine's reader, which these rows
 test.
 
-## 15. What any `subsume` must answer
+## 16. What any `subsume` must answer
 
 `⊑` quantifies over every value, of which there are infinitely many,
 so no program computes it in general. The definition states instead
@@ -2887,7 +3247,7 @@ The engine answers `does_not_subsume` where `subsumeWrong` answered
 `subsumes`, and its finding gives the same reason: `{x?: any}` admits
 instances without the key.
 
-## 16. What the definition doesn't say yet
+## 17. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -2910,60 +3270,11 @@ The language needs only the power to represent a JSON Schema: what
 `aontu jsonschema import` writes is aontu terms, such as
 `number & multiple(1)`, and the definition says what those mean.
 
-Two constructs the definition leaves out on purpose: `|` and `*`. The
-language reads each by where it stands, so a rule for each form alone
-would be wrong. Write `position.aontu`:
-
-<!-- test: scenario position -->
-<!-- test: file position.aontu -->
-```aontu
-alone: *1 & 2
-list: [integer] & [1 2]
-```
-
-and run it:
-
-<!-- test: run -->
-```sh
-$ aontu -c position.aontu
-{"alone":2,"list":[1,2]}
-```
-
-A preference alone is a default its type can override, so `*1` admits
-`2`, as the [reference](reference-language.md#preference--default-)
-says, and `[integer]` admits `[1 2]`, open past its one position. In a
-disjunction the same list admits only its own length. Write
-`arm.aontu`:
-
-<!-- test: file arm.aontu -->
-```aontu
-v: [integer]|[string]
-```
-
-and `arm-data.aontu`:
-
-<!-- test: file arm-data.aontu -->
-```aontu
-v: [1 2]
-```
-
-Now vet the data against the schema:
-
-<!-- test: run -->
-```sh
-$ aontu vet arm.aontu arm-data.aontu
-verdict: invalid
-
-$.v: empty [conflict]
-  [aontu/empty]: Cannot unify values at path $.v
-  data: arm-data.aontu:1:4 ([1,2])
-  schema: arm.aontu:1:4 ([integer]|[string])
-$ echo $?
-1
-```
-
-Neither arm admits two elements, so the disjunction admits nothing,
-and the engine reports it `empty`.
+Nor does it say what evaluation outputs: which arm a disjunction
+settles on, which default fills a key the data lacks, and so which
+data the engines call `valid` where admission alone says less, as the
+end of step 12 shows. That is `Output`, what evaluation singles out,
+and a later phase states it.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
