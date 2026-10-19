@@ -43,33 +43,17 @@ const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
 const suite_1 = require("./suite");
-const STORE = Path.join(suite_1.VECTORS, 'jsonschema', 'schemastore');
-// The subset is its own document set: each file under the hosts
-// SchemaStore serves it from, and under its own $id.
-function documents(names) {
-    const out = {};
-    for (const name of names) {
-        const text = Fs.readFileSync(Path.join(STORE, 'schemas', name), 'utf8');
-        out['https://json.schemastore.org/' + name] = text;
-        out['https://www.schemastore.org/' + name] = text;
-        const id = JSON.parse(text).$id;
-        if ('string' === typeof id && undefined === out[id]) {
-            out[id] = text;
-        }
-    }
-    return out;
-}
 // The ledger may not grow past its bound; the register tightens it.
 (0, node_test_1.test)('the-schemastore-subset-round-trips', () => {
-    const ledger = (0, suite_1.rows)(Path.join(STORE, 'roundtrip.tsv'));
+    const ledger = (0, suite_1.rows)(Path.join(suite_1.STORE, 'roundtrip.tsv'));
     Assert.ok(ledger.length <= 6, `the SchemaStore ledger holds ${ledger.length} rows, past its bound`);
     const listed = new Map(ledger.map(([file, construct]) => [file, construct]));
-    const names = Fs.readdirSync(Path.join(STORE, 'schemas')).filter((f) => f.endsWith('.json')).sort();
-    const docs = documents(names);
+    const names = Fs.readdirSync(Path.join(suite_1.STORE, 'schemas')).filter((f) => f.endsWith('.json')).sort();
+    const docs = (0, suite_1.storeDocuments)(names);
     const problems = [];
     const start = Date.now();
     for (const name of names) {
-        const schema = Fs.readFileSync(Path.join(STORE, 'schemas', name), 'utf8');
+        const schema = Fs.readFileSync(Path.join(suite_1.STORE, 'schemas', name), 'utf8');
         const why = (0, suite_1.roundTrip)(schema, { documents: docs, path: name });
         if (undefined === why && listed.has(name)) {
             problems.push(`${name}: listed (${listed.get(name)}) and round-trips; delete its row`);

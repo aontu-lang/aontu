@@ -34,10 +34,11 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.VECTORS = void 0;
+exports.STORE = exports.VECTORS = void 0;
 exports.rows = rows;
 exports.files = files;
 exports.remotes = remotes;
+exports.storeDocuments = storeDocuments;
 exports.suiteGroups = suiteGroups;
 exports.roundTrip = roundTrip;
 // The vendored JSON Schema corpora as the harnesses read them: each
@@ -55,6 +56,8 @@ const exactjson_1 = require("../dist/exactjson");
 const utility_1 = require("../dist/utility");
 const VECTORS = Path.join(__dirname, '..', '..', 'test', 'vectors');
 exports.VECTORS = VECTORS;
+const STORE = Path.join(VECTORS, 'jsonschema', 'schemastore');
+exports.STORE = STORE;
 function rows(file) {
     return Fs.readFileSync(file, 'utf8').split('\n')
         .filter((line) => '' !== line.trim() && !line.startsWith('#'))
@@ -84,6 +87,21 @@ function remotes() {
     }
     for (const [, text] of all) {
         const id = JSON.parse(text)?.$id;
+        if ('string' === typeof id && undefined === out[id]) {
+            out[id] = text;
+        }
+    }
+    return out;
+}
+// The SchemaStore subset as its own document set: each file under the
+// hosts SchemaStore serves it from, and under its own $id.
+function storeDocuments(names) {
+    const out = {};
+    for (const name of names) {
+        const text = Fs.readFileSync(Path.join(STORE, 'schemas', name), 'utf8');
+        out['https://json.schemastore.org/' + name] = text;
+        out['https://www.schemastore.org/' + name] = text;
+        const id = JSON.parse(text).$id;
         if ('string' === typeof id && undefined === out[id]) {
             out[id] = text;
         }

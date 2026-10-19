@@ -148,6 +148,30 @@ Definition, generated rows and documentation; no engine changes.
   row as the contract allows but the three #346 rows, renumbered again
   in the ledger.
 
+### The importer's forms are checked against the definition
+
+Definition, a generated file, two tests and documentation; no engine
+changes. The first step of P6 (`docs/design/DEFINITION.0.md`, §6).
+
+- `spec/Oracle.lean`: `oracle forms` writes `spec/forms.tsv`, every form
+  of `Aontu/Syntax.lean` with its spelling as the oracle's printer
+  writes it, a word, the name of a call, or a mark of the grammar, each
+  call's spelling held to the printer first; `make spec` regenerates it.
+- `ts/test/jsonschema-forms.test.ts` and `go/jsonschema_forms_test.go`:
+  the importer's output over every schema of the suite in its five
+  dialects, of Ajv's extras and of the SchemaStore subset, with and
+  without defaults, 3,504 imports, strings removed, is read for its
+  calls and words, 21 and 9, each a row of `spec/forms.tsv` or of
+  `spec/forms-outside.tsv`, the six forms the definition lacks, each on
+  a decision of the design note's §7: `key` (decision 13), `meta`,
+  `deprecate` and `ident` (14), and the words `map` and `list` (15). A
+  row of the outside file the importer stops writing fails the check,
+  so a form that enters the definition leaves the file.
+- The tutorial's step 19 reads the two files and an import that writes
+  all six; the design note's P6 row is partial with the three decisions
+  open, and `spec/README.md` and the testing page list the files and the
+  check.
+
 ### The definition holds `rest` inside a value
 
 Definition, generated rows, and documentation; no engine changes.

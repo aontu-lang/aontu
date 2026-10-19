@@ -21,6 +21,8 @@ import { canonRiders } from '../dist/utility'
 
 const VECTORS = Path.join(__dirname, '..', '..', 'test', 'vectors')
 
+const STORE = Path.join(VECTORS, 'jsonschema', 'schemastore')
+
 
 type Group = {
   file: string, group: string, schema: string, dialect?: string,
@@ -61,6 +63,23 @@ function remotes(): Record<string, string> {
   }
   for (const [, text] of all) {
     const id = (JSON.parse(text) as any)?.$id
+    if ('string' === typeof id && undefined === out[id]) {
+      out[id] = text
+    }
+  }
+  return out
+}
+
+
+// The SchemaStore subset as its own document set: each file under the
+// hosts SchemaStore serves it from, and under its own $id.
+function storeDocuments(names: string[]): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const name of names) {
+    const text = Fs.readFileSync(Path.join(STORE, 'schemas', name), 'utf8')
+    out['https://json.schemastore.org/' + name] = text
+    out['https://www.schemastore.org/' + name] = text
+    const id = JSON.parse(text).$id
     if ('string' === typeof id && undefined === out[id]) {
       out[id] = text
     }
@@ -161,9 +180,11 @@ export type { Group }
 
 export {
   VECTORS,
+  STORE,
   rows,
   files,
   remotes,
+  storeDocuments,
   suiteGroups,
   roundTrip,
 }

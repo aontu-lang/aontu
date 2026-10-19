@@ -3185,7 +3185,7 @@ one wins: `-c` writes the merged key with no `?`.
 ```
 
 An arm carries a rank: `0` for an arm written plainly, `1` for one
-written `*a`, `2` for `**a`. The rank picks the output, which step 19
+written `*a`, `2` for `**a`. The rank picks the output, which step 20
 leaves to a later phase, and admission ignores it:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
@@ -3521,7 +3521,7 @@ question fills a default the data lacks: `{x: *1}` met with `{}` is
 valid, by the default `1`. Admission asks whether the data, as it
 stands, is an instance, and `{x: 1}` is one. Both questions are the
 definition's to state. The second is `Output`, what evaluation singles
-out, which step 19 leaves to a later phase, and the test rows of step
+out, which step 20 leaves to a later phase, and the test rows of step
 15 stay where the two agree.
 
 ## 13. What evaluation singles out
@@ -5159,7 +5159,101 @@ The engine answers `does_not_subsume` where `subsumeWrong` answered
 `subsumes`, and its finding gives the same reason: `{x?: any}` admits
 instances without the key.
 
-## 19. What the definition doesn't say yet
+## 19. The forms the importer writes
+
+The definition names no JSON Schema keyword. What `aontu jsonschema
+import` writes is an aontu document, so the question is whether every
+form it writes is one the definition reads. The oracle answers the
+first half: `lake exe oracle forms` lists every constructor of `Val`
+with the spelling the printer gives it, into `spec/forms.tsv`:
+
+<!-- test: quote spec/forms.tsv -->
+```tsv
+min	call	min
+max	call	max
+above	call	above
+beneath	call	below
+neq	call	neq
+```
+
+A row is the constructor, whether it is spelled as a word, as a call
+or as a mark of the grammar, and the spelling; `beneath` prints as
+`below`, since Lean keeps `below` for its own use. Before it prints the
+rows, the oracle holds each call's spelling to the printer, so the file
+cannot drift from the text the engines read.
+
+A test in each port, `ts/test/jsonschema-forms.test.ts` and
+`go/jsonschema_forms_test.go`, answers the second half. Each imports
+every schema of the JSON Schema test suite in its five dialects, of
+Ajv's extra tests and of the SchemaStore subset, with and without
+defaults, removes the strings from the output, and reads every call and
+every word left. Each must be a row of `spec/forms.tsv`, or of a second
+file, the forms the importer writes that the definition lacks:
+
+<!-- test: quote spec/forms-outside.tsv -->
+```tsv
+key	call	13	the key of the member a spread holds, as `match(key(0), …)` for `patternProperties` and `propertyNames`
+ident	call	14	the identity a schema gave an alias's value, its `$id`, its anchors and its `$defs` key, riding the declaration
+meta	call	14	the annotation keywords, and the keywords the dialect does not define, riding a value
+deprecate	call	14	`deprecated: true`, riding a value
+map	word	15	`type: object` with no other keyword: every map, which evaluation does not single out, where `{}` is singled out as itself
+list	word	15	`type: array` with no other keyword: every list, which evaluation does not single out, where `[]` is singled out as itself
+```
+
+Six forms, each on a decision of the design note, and the test requires
+each still written, so a form that enters the definition leaves the
+file. One schema writes all six. Write `shape.json`:
+
+<!-- test: scenario forms -->
+<!-- test: file shape.json -->
+```json
+{
+  "$id": "https://example.com/shape.json",
+  "title": "Shape",
+  "type": "object",
+  "properties": {
+    "kind": {"type": "string", "deprecated": true},
+    "sides": {"type": "array"},
+    "style": {"$ref": "#/$defs/style"}
+  },
+  "propertyNames": {"pattern": "^[a-z]+$"},
+  "$defs": {
+    "style": {"$anchor": "style", "type": "object"}
+  }
+}
+```
+
+and import it:
+
+<!-- test: run -->
+```sh
+$ aontu jsonschema import shape.json
+meta(
+  {
+    %a_style = ident(map, { anchor:"style" defs:"style" })
+    kind?: deprecate(empty())
+    sides?: list
+    style?: %a_style
+    &: match(key(0), empty() & re("^[a-z]+$"), any, nil)
+  },
+  { title:"Shape" }
+)
+```
+
+`meta`, `deprecate` and `ident` ride a value and change nothing it
+admits, which is why the definition says nothing about them yet (step
+20); decision 14 asks whether they enter the syntax as forms whose
+judgement is their value's own. `key(0)` is the key of the member the
+spread is tried on, which no rule of the definition reads; decision 13
+asks for the one rule. `map` and `list` admit every map and every
+list, as `{}` and `[]` do, and both engines refuse to generate them
+where `{}` generates `{}`; decision 15 asks whether they are kinds,
+beside `string` and `number`. Everything else the import wrote,
+`empty()`, `re`, `match`, `any`, `nil`, the optional keys and the
+spread, is a row of `spec/forms.tsv`, and so is everything the importer
+writes over the three corpora.
+
+## 20. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -5180,7 +5274,8 @@ answer.
 Nor does it name JSON Schema, which isn't a concept of the language.
 The language needs only the power to represent a JSON Schema: what
 `aontu jsonschema import` writes is aontu terms, such as
-`number & multiple(1)`, and the definition says what those mean.
+`number & multiple(1)`, and the definition says what those mean. Step
+19 checks that it does, but for the six forms that step lists.
 
 Nor does it hold the subsumption table as theorems, nor a contract
 for each profile of `subsume` beyond `values`, which step 18 states;
