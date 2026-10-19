@@ -20,8 +20,8 @@ jobs:
     permissions:
       security-events: write   # only for the SARIF upload
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -42,7 +42,7 @@ jobs:
           data: deploy.json staging.json
           format: sarif
           output-file: vet.sarif
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: vet.sarif
       - if: steps.vet.outputs.exit-code != '0'
