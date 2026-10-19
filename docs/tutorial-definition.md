@@ -105,22 +105,51 @@ inductive Val where
 These eight are the kinds of the scalars. Literals, bounds, and the
 rest of the terms come with their rules in later steps.
 
-What a term admits is one relation, in `spec/Aontu/Admits.lean`, with
-one rule for each form. Its first line:
+What a term admits, and what it refuses, is one relation, in
+`spec/Aontu/Admits.lean`, with one rule for each form and each answer.
+Its first line:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-inductive Admits (env : Env) (root : Data) : Val → Data → Prop
+inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
 ```
 
-`Admits env root v j` says the data `j` is an instance of the term
-`v`, with the aliases `env` declares; `root` is the whole value `j` is
-found inside, which no rule reads, since a path reads by declaration,
-as step 9 shows. The result type `Prop` is a statement, true or false, that
-Lean establishes by proof and never by running anything. Each
-constructor is a rule of inference: when its premises hold, its
-conclusion, after the last `→`, holds. A term admits a value when a
-finite tree of these rules proves it.
+`Judge env root b v j` says the trial of the term `v` on the data `j`
+comes out `b`, with the aliases `env` declares: `true` where `j` is an
+instance of `v`, `false` where `v` rules it out. `root` is the whole
+value `j` is found inside, which no rule reads, since a path reads by
+declaration, as step 9 shows. The result type `Prop` is a statement,
+true or false, that Lean establishes by proof and never by running
+anything. Each constructor is a rule of inference: when its premises
+hold, its conclusion, after the last `→`, holds. A term admits a value
+when a finite tree of these rules proves the trial comes out `true`,
+and refuses it when one proves it comes out `false`. The two answers
+have their own names:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+/-- `j` is an instance of `v`: the trial comes out `true`. -/
+abbrev Admits (env : Env) (root : Data) : Val → Data → Prop := Judge env root true
+
+/-- `v` rules `j` out: the trial comes out `false`. -/
+abbrev Refuses (env : Env) (root : Data) : Val → Data → Prop := Judge env root false
+```
+
+The two answers are one relation so that a rule can read a refusal
+where it needs one: a trial schema, in step 16, counts the branches
+that refuse a value as well as those that admit it, which a rule of
+admission alone could not say, since Lean refuses a rule that mentions
+its own negation. Refusal is the complement of admission, rule for
+rule, and one theorem says a term never gives both answers to one
+value:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+/-- A value judges a datum one way at most: no value both admits and
+refuses it. A judgement that holds is therefore the judgement. -/
+theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
+    (h : Judge env root b v j) : ∀ {b' : Bool}, Judge env root b' v j → b = b' := by
+```
 
 The examples ask about a whole value, which is its own root:
 
@@ -197,12 +226,13 @@ example : ¬ IntegerLeaf 9223372036854775808 := by decide
 
 `example` states a claim, and what follows `:=` is its proof, which the
 build checks. `by decide` proves a statement by computing its yes or no
-answer, and `¬` reads *not*. The rule for `integer` admits every number
-of the leaf:
+answer, and `¬` reads *not*. The rules for `integer` admit every number
+of the leaf, and refuse every other value:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | integer {x : Integer} : Admits env root .integer (.num (.integer x))
+  | integer {x : Integer} : Judge env root true .integer (.num (.integer x))
+  | integerNot {j : Data} : (∀ x : Integer, j ≠ .num (.integer x)) → Judge env root false .integer j
 ```
 
 An argument in braces, such as `{x : Integer}`, is one Lean works out
@@ -323,11 +353,12 @@ def Float.dyadic (m : ℕ) (e : ℤ)
     (h₂ : (Float.fieldsOf m e).2 < 2 ^ 52 := by decide) : Float :=
 ```
 
-`float` admits every float:
+`float` admits every float, and refuses the rest:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | float {x : Float} : Admits env root .float (.num (.float x))
+  | float {x : Float} : Judge env root true .float (.num (.float x))
+  | floatNot {j : Data} : (∀ x : Float, j ≠ .num (.float x)) → Judge env root false .float j
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -439,8 +470,12 @@ one value: scale is presentation, not identity. Each leaf has its kind:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | biginteger {x : BigInteger} : Admits env root .biginteger (.num (.biginteger x))
-  | bigdecimal {x : BigDecimal} : Admits env root .bigdecimal (.num (.bigdecimal x))
+  | biginteger {x : BigInteger} : Judge env root true .biginteger (.num (.biginteger x))
+  | bigintegerNot {j : Data} :
+      (∀ x : BigInteger, j ≠ .num (.biginteger x)) → Judge env root false .biginteger j
+  | bigdecimal {x : BigDecimal} : Judge env root true .bigdecimal (.num (.bigdecimal x))
+  | bigdecimalNot {j : Data} :
+      (∀ x : BigDecimal, j ≠ .num (.bigdecimal x)) → Judge env root false .bigdecimal j
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -479,11 +514,12 @@ though whole, where `0d3` would be a big integer.
 
 ### The `number` kind
 
-`number` admits a number of every leaf:
+`number` admits a number of every leaf, and refuses what is no number:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | number {x : Number} : Admits env root .number (.num x)
+  | number {x : Number} : Judge env root true .number (.num x)
+  | numberNot {j : Data} : (∀ x : Number, j ≠ .num x) → Judge env root false .number j
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -587,8 +623,10 @@ admits that one too:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | string {s : String} : s ≠ "" → Admits env root .string (.str s)
-  | anyString {s : String} : Admits env root .anyString (.str s)
+  | string {s : String} : s ≠ "" → Judge env root true .string (.str s)
+  | stringNot {j : Data} : (∀ s, j = .str s → s = "") → Judge env root false .string j
+  | anyString {s : String} : Judge env root true .anyString (.str s)
+  | anyStringNot {j : Data} : (∀ s, j ≠ .str s) → Judge env root false .anyString j
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -667,7 +705,8 @@ that.
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | boolean {b : Bool} : Admits env root .boolean (.bool b)
+  | boolean {b : Bool} : Judge env root true .boolean (.bool b)
+  | booleanNot {j : Data} : (∀ b, j ≠ .bool b) → Judge env root false .boolean j
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -713,11 +752,13 @@ inductive Scalar where
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  /-- A literal admits its own value alone, of its own leaf. -/
-  | num {x : Number} : Admits env root (.lit (.num x)) (.num x)
-  | str {s : String} : Admits env root (.lit (.str s)) (.str s)
-  | bool {b : Bool} : Admits env root (.lit (.bool b)) (.bool b)
-  | null : Admits env root (.lit .null) .null
+  /-- A literal admits its own value alone, of its own leaf, and refuses
+  every other. -/
+  | num {x : Number} : Judge env root true (.lit (.num x)) (.num x)
+  | str {s : String} : Judge env root true (.lit (.str s)) (.str s)
+  | bool {b : Bool} : Judge env root true (.lit (.bool b)) (.bool b)
+  | null : Judge env root true (.lit .null) .null
+  | litNot {s : Scalar} {j : Data} : j ≠ s.data → Judge env root false (.lit s) j
 ```
 
 A number literal admits its own number in its own leaf: `3` the integer
@@ -817,19 +858,26 @@ inductive Bound where
   | str (s : String)
 ```
 
-Each of the four bounds has one rule for each kind of end. `min` and
-`max` first:
+Each of the four bounds has one rule for each kind of end, and one
+refusal for both. `min` and `max` first:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
   /-- A bound with a number at its end admits a number, by exact value,
   and one with a string at its end a string, in code-point order; the
   bound's domain is its end's, so `min(0)` admits no string and
-  `max("b")` no number. -/
-  | min {n x : Number} : n.le x → Admits env root (.min (.num n)) (.num x)
-  | minStr {b s : String} : b ≤ s → Admits env root (.min (.str b)) (.str s)
-  | max {n x : Number} : x.le n → Admits env root (.max (.num n)) (.num x)
-  | maxStr {b s : String} : s ≤ b → Admits env root (.max (.str b)) (.str s)
+  `max("b")` no number. It refuses a value of its domain that falls
+  outside it, and every value outside its domain. -/
+  | min {n x : Number} : n.le x → Judge env root true (.min (.num n)) (.num x)
+  | minStr {b s : String} : b ≤ s → Judge env root true (.min (.str b)) (.str s)
+  | minNot {b : Bound} {j : Data} :
+      (∀ n x, b = .num n → j = .num x → ¬ n.le x) → (∀ t s, b = .str t → j = .str s → ¬ t ≤ s) →
+      Judge env root false (.min b) j
+  | max {n x : Number} : x.le n → Judge env root true (.max (.num n)) (.num x)
+  | maxStr {b s : String} : s ≤ b → Judge env root true (.max (.str b)) (.str s)
+  | maxNot {b : Bound} {j : Data} :
+      (∀ n x, b = .num n → j = .num x → ¬ x.le n) → (∀ t s, b = .str t → j = .str s → ¬ s ≤ t) →
+      Judge env root false (.max b) j
 ```
 
 ### Numbers
@@ -888,7 +936,10 @@ asks for a positive divisor, so `multiple(0)` admits nothing:
   /-- `multiple` reads the value a number shows, which for a float is
   its shortest decimal; `multiple(0)` and a negative divisor admit
   nothing. -/
-  | multiple {d x : Number} : d.Positive → x.multipleOf d → Admits env root (.multiple d) (.num x)
+  | multiple {d x : Number} :
+      d.Positive → x.multipleOf d → Judge env root true (.multiple d) (.num x)
+  | multipleNot {d : Number} {j : Data} :
+      (∀ x, j = .num x → d.Positive → ¬ x.multipleOf d) → Judge env root false (.multiple d) j
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -1029,10 +1080,16 @@ $ echo $?
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | above {n x : Number} : n.lt x → Admits env root (.above (.num n)) (.num x)
-  | aboveStr {b s : String} : b < s → Admits env root (.above (.str b)) (.str s)
-  | beneath {n x : Number} : x.lt n → Admits env root (.beneath (.num n)) (.num x)
-  | beneathStr {b s : String} : s < b → Admits env root (.beneath (.str b)) (.str s)
+  | above {n x : Number} : n.lt x → Judge env root true (.above (.num n)) (.num x)
+  | aboveStr {b s : String} : b < s → Judge env root true (.above (.str b)) (.str s)
+  | aboveNot {b : Bound} {j : Data} :
+      (∀ n x, b = .num n → j = .num x → ¬ n.lt x) → (∀ t s, b = .str t → j = .str s → ¬ t < s) →
+      Judge env root false (.above b) j
+  | beneath {n x : Number} : x.lt n → Judge env root true (.beneath (.num n)) (.num x)
+  | beneathStr {b s : String} : s < b → Judge env root true (.beneath (.str b)) (.str s)
+  | beneathNot {b : Bound} {j : Data} :
+      (∀ n x, b = .num n → j = .num x → ¬ x.lt n) → (∀ t s, b = .str t → j = .str s → ¬ s < t) →
+      Judge env root false (.beneath b) j
 ```
 
 `below(n)` is the constructor `beneath`, since Lean keeps the name
@@ -1173,11 +1230,16 @@ bound is a claim about order, and says nothing about emptiness.
   /-- `neq` excludes each of its ends by identity, a number by leaf and
   value, so `neq(1)` admits the float `1.0`; its domain is its ends',
   so a list of numbers admits no string, a list of strings no number,
-  and a list of both nothing. -/
+  and a list of both nothing. It refuses a value that is one of its
+  ends, or outside its domain. -/
   | neq {vs : List Bound} {x : Number} :
-      (∀ v, v ∈ vs → ∃ n, v = .num n ∧ n ≠ x) → Admits env root (.neq vs) (.num x)
+      (∀ v, v ∈ vs → ∃ n, v = .num n ∧ n ≠ x) → Judge env root true (.neq vs) (.num x)
   | neqStr {vs : List Bound} {s : String} :
-      (∀ v, v ∈ vs → ∃ t, v = .str t ∧ t ≠ s) → Admits env root (.neq vs) (.str s)
+      (∀ v, v ∈ vs → ∃ t, v = .str t ∧ t ≠ s) → Judge env root true (.neq vs) (.str s)
+  | neqNot {vs : List Bound} {j : Data} :
+      (∀ x, j = .num x → ∃ v, v ∈ vs ∧ ∀ n, v = .num n → n = x) →
+      (∀ s, j = .str s → ∃ v, v ∈ vs ∧ ∀ t, v = .str t → t = s) →
+      Judge env root false (.neq vs) j
 ```
 
 The first rule admits a number when every listed end is a number other
@@ -1267,10 +1329,14 @@ $ echo $?
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  /-- `len(c)` admits a string, a list, or a map whose size, an
-  integer, `c` admits; `len(0)` admits `""`, and a scalar has no size. -/
-  | len {c : Val} {j : Data} {n : ℕ} (h : IntegerLeaf n) :
-      j.size = some n → Admits env root c (.num (.integer ⟨n, h⟩)) → Admits env root (.len c) j
+  /-- `len(c)` judges a string, a list, or a map as `c` judges its size,
+  an integer; `len(0)` admits `""`, and a scalar has no size, so `len`
+  refuses it, as it refuses a size no integer leaf holds. -/
+  | len {b : Bool} {c : Val} {j : Data} {n : ℕ} (h : IntegerLeaf n) :
+      j.size = some n → Judge env root b c (.num (.integer ⟨n, h⟩)) → Judge env root b (.len c) j
+  | lenNone {c : Val} {j : Data} : j.size = none → Judge env root false (.len c) j
+  | lenBig {c : Val} {j : Data} {n : ℕ} :
+      j.size = some n → ¬ IntegerLeaf n → Judge env root false (.len c) j
 ```
 
 The size is the value's own:
@@ -1380,13 +1446,22 @@ an integer, which the rule's `IntegerLeaf n` says too.
   /-- `unique()` admits a list or a map whose members are pairwise
   distinct as values, and `unique("k")` one whose members each give
   `k` a value and whose values at `k` are; a member that is no map, or
-  lacks the key, is a distinctness the container cannot show. -/
+  lacks the key, is a distinctness the container cannot show, so
+  `unique` refuses it, as it refuses a scalar and two members alike. -/
   | unique {k : Option String} {j : Data} {ms : List Data} :
       j.members = some ms →
       (∀ x, x ∈ ms → (x.project k).isSome) →
       ms.Pairwise (fun x y => ∀ x' y', x.project k = some x' → y.project k = some y' →
         ¬ x'.Same y') →
-      Admits env root (.unique k) j
+      Judge env root true (.unique k) j
+  | uniqueNone {k : Option String} {j : Data} : j.members = none → Judge env root false (.unique k) j
+  | uniqueBare {k : Option String} {j : Data} {ms : List Data} {x : Data} :
+      j.members = some ms → x ∈ ms → x.project k = none → Judge env root false (.unique k) j
+  | uniqueDup {k : Option String} {j : Data} {ms : List Data} :
+      j.members = some ms →
+      ¬ ms.Pairwise (fun x y => ∀ x' y', x.project k = some x' → y.project k = some y' →
+        ¬ x'.Same y') →
+      Judge env root false (.unique k) j
 ```
 
 `Pairwise` says the relation holds between every two members, and the
@@ -1532,10 +1607,14 @@ The two rules read it:
 ```lean
   /-- `re(p)` admits the strings the pattern matches, and `format(g)`
   the strings the format reads, by the host's predicates; each admits
-  `""` exactly where its predicate holds of it, and admits no other
-  kind of value. -/
-  | re {p s : String} : host.pattern p s → Admits env root (.re p) (.str s)
-  | format {g s : String} : host.format g s → Admits env root (.format g) (.str s)
+  `""` exactly where its predicate holds of it, admits no other kind of
+  value, and refuses whatever it does not admit. -/
+  | re {p s : String} : host.pattern p s → Judge env root true (.re p) (.str s)
+  | reNot {p : String} {j : Data} :
+      (∀ s, j = .str s → ¬ host.pattern p s) → Judge env root false (.re p) j
+  | format {g s : String} : host.format g s → Judge env root true (.format g) (.str s)
+  | formatNot {g : String} {j : Data} :
+      (∀ s, j = .str s → ¬ host.format g s) → Judge env root false (.format g) j
 ```
 
 So the definition says what the rules say and no more: a pattern
@@ -1612,13 +1691,14 @@ $ echo $?
 
 ## 5. The two ends: `any` and `nil`
 
-`any` admits every value, by its one rule, and `nil` has no rule, so it
-admits none. They're the [top](unification.md) and the
+`any` admits every value and refuses none, and `nil` refuses every
+value and admits none, each by its one rule. They're the [top](unification.md) and the
 [bottom](unification.md) of the [lattice](unification.md):
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  | any {j : Data} : Admits env root .any j
+  | any {j : Data} : Judge env root true .any j
+  | nil {j : Data} : Judge env root false .nil j
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -1724,14 +1804,15 @@ A map's rule has four premises:
   /-- A map: every declared key that is present holds its value, and
   holds every declaration of it; a key that is absent is optional in
   every declaration; the spread holds every member, declared or not;
-  a sealed map holds no key it does not declare. -/
+  a sealed map holds no key it does not declare. It refuses a value
+  that is no map, and a map that breaks any one of those. -/
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool}
       {jfs : List (String × Data)} :
-      (∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Admits env root v x) →
+      (∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Judge env root true v x) →
       (∀ k o v, (k, o, v) ∈ fs → lookup k jfs = none → o = true) →
-      (∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Admits env root s x) →
+      (∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Judge env root true s x) →
       (closed = true → ∀ k x, (k, x) ∈ jfs → ∃ o v, (k, o, v) ∈ fs) →
-      Admits env root (.map fs spread closed) (.map jfs)
+      Judge env root true (.map fs spread closed) (.map jfs)
 ```
 
 Read `∀ k o v x` as "for all `k`, `o`, `v`, and `x`" and `∈` as "is a
@@ -1750,6 +1831,30 @@ A map holds its keys as triples: the name, whether the key is optional,
 and its term. The first premise holds a present key to its term, and the
 second lets a key be absent only where every declaration makes it
 optional. The last two are the spread and the seal, which follow below.
+A map refuses a value that is no map, and a map that breaks any one of
+the four:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  | mapNot {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} {j : Data} :
+      (∀ jfs, j ≠ .map jfs) → Judge env root false (.map fs spread closed) j
+  | mapField {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool}
+      {jfs : List (String × Data)} {k : String} {o : Bool} {v : Val} {x : Data} :
+      (k, o, v) ∈ fs → lookup k jfs = some x → Judge env root false v x →
+      Judge env root false (.map fs spread closed) (.map jfs)
+  | mapMissing {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool}
+      {jfs : List (String × Data)} {k : String} {o : Bool} {v : Val} :
+      (k, o, v) ∈ fs → lookup k jfs = none → o = false →
+      Judge env root false (.map fs spread closed) (.map jfs)
+  | mapSpread {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool}
+      {jfs : List (String × Data)} {s : Val} {k : String} {x : Data} :
+      spread = some s → (k, x) ∈ jfs → Judge env root false s x →
+      Judge env root false (.map fs spread closed) (.map jfs)
+  | mapClosed {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool}
+      {jfs : List (String × Data)} {k : String} {x : Data} :
+      closed = true → (k, x) ∈ jfs → (∀ o v, (k, o, v) ∉ fs) →
+      Judge env root false (.map fs spread closed) (.map jfs)
+```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
@@ -1945,19 +2050,42 @@ holds each map's seal in its own `closed` flag.
 ```lean
   /-- A list: each of its positions is present and holds its value;
   later elements are allowed, but in a sealed list without a spread,
-  whose length is its positions'; the spread holds every element. -/
+  whose length is its positions'; the spread holds every element. It
+  refuses a value that is no list, and a list that breaks any one of
+  those. -/
   | list {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data} :
       items.length ≤ xs.length →
       (closed = true → spread = none → xs.length = items.length) →
       (∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
-        Admits env root v x) →
-      (∀ s, spread = some s → ∀ x, x ∈ xs → Admits env root s x) →
-      Admits env root (.list items spread closed) (.list xs)
+        Judge env root true v x) →
+      (∀ s, spread = some s → ∀ x, x ∈ xs → Judge env root true s x) →
+      Judge env root true (.list items spread closed) (.list xs)
 ```
 
 `items[i]?` is the item at position `i`, or `none` past the end, and
-`closed` is the list's seal, which step 12 takes up. So
-`[integer, string]`, unsealed, needs two elements and allows more:
+`closed` is the list's seal, which step 12 takes up. A list refuses a
+value that is no list, and a list that breaks any one of the four:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  | listNot {items : List Val} {spread : Option Val} {closed : Bool} {j : Data} :
+      (∀ xs, j ≠ .list xs) → Judge env root false (.list items spread closed) j
+  | listShort {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data} :
+      xs.length < items.length → Judge env root false (.list items spread closed) (.list xs)
+  | listLong {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data} :
+      closed = true → spread = none → xs.length ≠ items.length →
+      Judge env root false (.list items spread closed) (.list xs)
+  | listItem {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data}
+      {i : ℕ} {v : Val} {x : Data} :
+      items[i]? = some v → xs[i]? = some x → Judge env root false v x →
+      Judge env root false (.list items spread closed) (.list xs)
+  | listSpread {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data}
+      {s : Val} {x : Data} :
+      spread = some s → x ∈ xs → Judge env root false s x →
+      Judge env root false (.list items spread closed) (.list xs)
+```
+
+So `[integer, string]`, unsealed, needs two elements and allows more:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
@@ -2006,8 +2134,12 @@ spread holds every element, and stays, as a map's does.
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
+  /-- A meet admits what both sides admit, and refuses what either
+  refuses. -/
   | meet {a b : Val} {j : Data} :
-      Admits env root a j → Admits env root b j → Admits env root (.meet a b) j
+      Judge env root true a j → Judge env root true b j → Judge env root true (.meet a b) j
+  | meetLeft {a b : Val} {j : Data} : Judge env root false a j → Judge env root false (.meet a b) j
+  | meetRight {a b : Val} {j : Data} : Judge env root false b j → Judge env root false (.meet a b) j
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -2059,10 +2191,16 @@ def Env.empty : Env := fun _ => none
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  /-- An alias admits what its declaration admits; an undeclared one
-  admits nothing. -/
-  | alias {n : String} {v : Val} {j : Data} :
-      env n = some v → Admits env root v j → Admits env root (.alias n) j
+  /-- An alias judges as its declaration judges. A name with no
+  declaration, and a path left unread, refuse every value: the answer
+  for a reading the definition was not given, which no verdict reaches,
+  since `Vet` refuses a document with an undeclared name as an `error`
+  and `VetP` reads every path, in `spec/Aontu/Paths.lean`, before it
+  judges. -/
+  | alias {b : Bool} {n : String} {v : Val} {j : Data} :
+      env n = some v → Judge env root b v j → Judge env root b (.alias n) j
+  | aliasNone {n : String} {j : Data} : env n = none → Judge env root false (.alias n) j
+  | path {p : List Seg} {j : Data} : Judge env root false (.path p) j
 ```
 
 An alias admits what its term admits, and that's the whole of
@@ -2254,15 +2392,16 @@ example : ¬ Admits (Decls.env [("U", .alias "U")]) .null (.alias "U") (.integer
 ```
 
 The second is a theorem about any environment, not a computation: a
-derivation of what `%U` admits would have to begin with a derivation
-of the same, so none is finite.
+derivation of what `%U` admits, or of what it refuses, would have to
+begin with a derivation of the same, so none is finite.
 
 <!-- test: quote spec/Aontu/Names.lean -->
 ```lean
-/-- A name declared as itself alone admits nothing: a derivation of what
-it admits would have to begin with another, so none is finite. -/
-theorem alias_self_admits_nothing {env : Env} {root : Data} {n : String} {j : Data}
-    (h : env n = some (.alias n)) : ¬ Admits env root (.alias n) j := by
+/-- A name declared as itself alone judges nothing, so it admits nothing
+and refuses nothing: a derivation of either would have to begin with
+another, so none is finite. -/
+theorem alias_self_judges_nothing {env : Env} {root : Data} {b : Bool} {n : String} {j : Data}
+    (h : env n = some (.alias n)) : ¬ Judge env root b (.alias n) j := by
 ```
 
 `%T = %T | 1` breaks the rule too, though its second arm admits `1`:
@@ -2943,9 +3082,12 @@ leaves to a later phase, and admission ignores it:
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
   /-- A disjunction admits what any arm admits, whatever the arm's
-  rank: a rank picks the output, which is no part of admission. -/
+  rank: a rank picks the output, which is no part of admission. It
+  refuses what every arm refuses. -/
   | or {arms : List (ℕ × Val)} {r : ℕ} {a : Val} {j : Data} :
-      (r, a) ∈ arms → Admits env root a j → Admits env root (.or arms) j
+      (r, a) ∈ arms → Judge env root true a j → Judge env root true (.or arms) j
+  | orNone {arms : List (ℕ × Val)} {j : Data} :
+      (∀ r a, (r, a) ∈ arms → Judge env root false a j) → Judge env root false (.or arms) j
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -3048,7 +3190,9 @@ sealed list without a spread has its positions' length:
 ```lean
   /-- A list: each of its positions is present and holds its value;
   later elements are allowed, but in a sealed list without a spread,
-  whose length is its positions'; the spread holds every element. -/
+  whose length is its positions'; the spread holds every element. It
+  refuses a value that is no list, and a list that breaks any one of
+  those. -/
   | list {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data} :
       items.length ≤ xs.length →
       (closed = true → spread = none → xs.length = items.length) →
@@ -3117,10 +3261,13 @@ admits what `x` admits, and what the parent type of `x` admits:
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
   /-- A preference alone admits its value, and what its value's parent
-  type admits: `*1` admits `2`, and refuses `1.5` and `"a"`. -/
-  | pref {r : ℕ} {x : Val} {j : Data} : Admits env root x j → Admits env root (.pref r x) j
+  type admits: `*1` admits `2`, and refuses `1.5` and `"a"`, which
+  both refuse. -/
+  | pref {r : ℕ} {x : Val} {j : Data} : Judge env root true x j → Judge env root true (.pref r x) j
   | prefSuper {r : ℕ} {x : Val} {j : Data} :
-      Admits env root x.super j → Admits env root (.pref r x) j
+      Judge env root true x.super j → Judge env root true (.pref r x) j
+  | prefNone {r : ℕ} {x : Val} {j : Data} :
+      Judge env root false x j → Judge env root false x.super j → Judge env root false (.pref r x) j
 ```
 
 `super` is a function on terms, in `spec/Aontu/Syntax.lean`: a
@@ -4078,8 +4225,9 @@ inductive Val.Checkable : Val → Prop
 A pattern's predicate is opaque, so no algorithm can run it, and `re`
 and `format` are outside the checker's reach as an alias is.
 
-`check` returns `true` or `false`, where `Admits` is a statement. It
-is `checkWith` with a hook that admits no name, whose first cases are:
+`check` returns `true` or `false`, where `Judge` is a statement. It
+is `checkWith` with a hook that answers `false` for every name, whose
+first cases are:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
@@ -4106,12 +4254,15 @@ def checkWith (u : String → Data → Bool) : Val → Data → Bool
 
 The rest of it takes one case for each form in the same way, and a
 name goes to the hook. Nothing in the code says that `check` and
-`Admits` agree. One theorem does:
+`Judge` agree. One theorem does: the `Bool` the checker computes is the
+judgement, so its `true` is admission and its `false` refusal, for
+either `b`:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
-/-- `check` decides admission for every checkable value. -/
-theorem check_iff {v : Val} (h : v.Checkable) : ∀ j, check v j = true ↔ Admits env root v j :=
+/-- `check` decides admission, and refusal, for every checkable value. -/
+theorem check_iff {v : Val} (h : v.Checkable) (j : Data) {b : Bool} :
+    check v j = b ↔ Judge env root b v j :=
 ```
 
 `unique` asks whether two members are one value, which `Same` states
@@ -4274,15 +4425,17 @@ no element between, which is where the checker asks:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
-/-- What the hook decides rightly, at a term and a datum. -/
+/-- What the hook answers rightly, at a term and a datum: for a name it
+is asked about, its answer is the judgement. -/
 def HookOk (unfold : String → Data → Bool) (env : Env) (root : Data) (v : Val) (j : Data) : Prop :=
   ∀ k j', ((j'.weight < j.weight ∧ k ∈ v.refs) ∨ (j'.weight = j.weight ∧ k ∈ v.unguardedRefs)) →
-    (unfold k j' = true ↔ Admits env root (.alias k) j')
+    Judge env root (unfold k j') (.alias k) j'
 ```
 
-With such a hook the checker decides every value that reads no path,
-no pattern and no format, names included, and `check_iff` is the case
-of the hook that admits none:
+With such a hook the checker judges every value that reads no path,
+no pattern and no format, names included, as the definition does, and
+`check_iff` is the case of the hook that answers `false` for every
+name:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
@@ -4293,10 +4446,20 @@ inductive Val.CheckableA : Val → Prop
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
-/-- The checker decides admission for every value it can check, given a
-hook that is right where it is asked. -/
-theorem checkWith_iff {v : Val} (h : v.CheckableA) :
-    ∀ j, HookOk u env root v j → (checkWith u v j = true ↔ Admits env root v j) := by
+/-- The checker judges every value it can check as the definition does,
+given a hook that is right where it is asked: its `true` is admission
+and its `false` refusal. -/
+theorem checkWith_judge {v : Val} (h : v.CheckableA) :
+    ∀ j, HookOk u env root v j → Judge env root (checkWith u v j) v j := by
+```
+
+<!-- test: quote spec/Aontu/Check.lean -->
+```lean
+/-- The checker decides admission, and refusal, for every value it can
+check, given a hook that is right where it is asked. -/
+theorem checkWith_iff {v : Val} (h : v.CheckableA) (j : Data) (hu : HookOk u env root v j) {b : Bool} :
+    checkWith u v j = b ↔ Judge env root b v j :=
+  (checkWith_judge h j hu).toIff
 ```
 
 Under the declarations of step 8 the hook unfolds a name to its
@@ -4335,10 +4498,11 @@ def Decls.budget (ds : Decls) (j : Data) (stack : List String) : ℕ :=
 
 <!-- test: quote spec/Aontu/Alias.lean -->
 ```lean
-/-- The checker under the declarations decides admission for every value
-it can check, wherever the names keep the alias-cycle rule. -/
+/-- The checker under the declarations decides admission, and refusal,
+for every value it can check, wherever the names keep the alias-cycle
+rule. -/
 theorem checkR_iff {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    {v : Val} (hv : v.CheckableA) (j : Data) : checkR ds v j = true ↔ Admits ds.envE root v j :=
+    {v : Val} (hv : v.CheckableA) (j : Data) {b : Bool} : checkR ds v j = b ↔ Judge ds.envE root b v j :=
 ```
 
 The meet keeps a term the checker can read, since it builds its answer

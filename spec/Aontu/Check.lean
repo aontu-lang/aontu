@@ -590,12 +590,15 @@ The checker recurses on the term, and where it meets a name it asks a
 hook, `unfold`, which a checker that reads declarations supplies. The
 hook is answerable for a name at a datum no heavier than the one in
 hand, and at one as heavy only where the name stands with no key and no
-element between: that is where the checker asks. -/
+element between: that is where the checker asks. Its answer is a `Bool`,
+and a `Bool` the definition agrees with is a judgement: `true` where the
+name admits the datum, `false` where it refuses it. -/
 
-/-- What the hook decides rightly, at a term and a datum. -/
+/-- What the hook answers rightly, at a term and a datum: for a name it
+is asked about, its answer is the judgement. -/
 def HookOk (unfold : String → Data → Bool) (env : Env) (root : Data) (v : Val) (j : Data) : Prop :=
   ∀ k j', ((j'.weight < j.weight ∧ k ∈ v.refs) ∨ (j'.weight = j.weight ∧ k ∈ v.unguardedRefs)) →
-    (unfold k j' = true ↔ Admits env root (.alias k) j')
+    Judge env root (unfold k j') (.alias k) j'
 
 section
 variable {u : String → Data → Bool} {env : Env} {root : Data}
@@ -676,7 +679,7 @@ theorem HookOk.len {c : Val} {j : Data} {n : Number} (h : HookOk u env root (.le
     (fun _ k hk => by simpa [Val.unguardedRefs] using hk)
 
 theorem HookOk.alias {k : String} {j : Data} (h : HookOk u env root (.alias k) j) :
-    u k j = true ↔ Admits env root (.alias k) j :=
+    Judge env root (u k j) (.alias k) j :=
   h k j (.inr ⟨rfl, by simp [Val.unguardedRefs]⟩)
 
 end
@@ -1378,185 +1381,445 @@ theorem checkSuperArmsWith_iff {arms : List (ℕ × Val)} {j : Data}
       · exact Or.inl h
       · exact Or.inr ⟨r', a', hm, h⟩
 
-/-- `check` decides admission for a kind. -/
-theorem check_kind_iff {v : Val} (hk : v.isKind = true) (j : Data) :
-    checkWith u v j = true ↔ Admits env root v j := by
-  cases v <;> simp [Val.isKind] at hk <;> cases j <;> (try simp only [checkWith]) <;>
+/-! ## The checker's answer is the judgement
+
+Each lemma below reads the checker's `Bool` as the judgement it is:
+`true` where the definition admits, `false` where it refuses. The list
+lemmas say what a `false` over a container's members witnesses. -/
+
+/-- A `Bool` is a judgement when each of its values would be. -/
+theorem judge_of_bool {c : Bool} {v : Val} {j : Data} (ht : c = true → Judge env root true v j)
+    (hf : c = false → Judge env root false v j) : Judge env root c v j := by
+  cases c
+  · exact hf rfl
+  · exact ht rfl
+
+/-- A judgement, read through an equation on its answer. -/
+theorem Judge.of_eq {c b : Bool} {v : Val} {j : Data} (h : Judge env root c v j) (e : c = b) :
+    Judge env root b v j := e ▸ h
+
+/-- A `false` over a list has a member that answers `false`. -/
+theorem all_false_mem {α : Type} {p : α → Bool} : ∀ {l : List α}, l.all p = false → ∃ x, x ∈ l ∧ p x = false
+  | [], h => nomatch h
+  | x :: l, h => by
+    simp only [List.all_cons, Bool.and_eq_false_iff] at h
+    rcases h with h | h
+    · exact ⟨x, List.mem_cons_self _ _, h⟩
+    · obtain ⟨y, hy, hp⟩ := all_false_mem h
+      exact ⟨y, List.mem_cons_of_mem _ hy, hp⟩
+
+theorem checkSpreadWith_false {spread : Option Val} {x : Data}
+    (ih : ∀ s, spread = some s → Judge env root (checkWith u s x) s x) :
+    checkSpreadWith u spread x = false → ∃ s, spread = some s ∧ Judge env root false s x := by
+  cases spread with
+  | none => intro h; exact nomatch h
+  | some s => intro h; exact ⟨s, rfl, (ih s rfl).of_eq h⟩
+
+theorem checkFieldsWith_false {fs : List (String × Bool × Val)} {jfs : List (String × Data)}
+    (ih : ∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Judge env root (checkWith u v x) v x) :
+    checkFieldsWith u fs jfs = false →
+      (∃ k o v x, (k, o, v) ∈ fs ∧ lookup k jfs = some x ∧ Judge env root false v x) ∨
+        (∃ k o v, (k, o, v) ∈ fs ∧ lookup k jfs = none ∧ o = false) := by
+  induction fs with
+  | nil => intro h; exact nomatch h
+  | cons f fs ihfs =>
+    obtain ⟨k, o, v⟩ := f
+    intro h
+    simp only [checkFieldsWith] at h
+    rcases Bool.and_eq_false_iff.mp h with h | h
+    · cases hl : lookup k jfs with
+      | none =>
+        rw [hl] at h
+        exact .inr ⟨k, o, v, List.mem_cons_self _ _, hl, h⟩
+      | some x =>
+        rw [hl] at h
+        exact .inl ⟨k, o, v, x, List.mem_cons_self _ _, hl,
+          (ih k o v x (List.mem_cons_self _ _) hl).of_eq h⟩
+    · rcases ihfs (fun k o v x hm hx => ih k o v x (List.mem_cons_of_mem _ hm) hx) h with
+        ⟨k', o', v', x, hm, hx, hr⟩ | ⟨k', o', v', hm, hx, ho⟩
+      · exact .inl ⟨k', o', v', x, List.mem_cons_of_mem _ hm, hx, hr⟩
+      · exact .inr ⟨k', o', v', List.mem_cons_of_mem _ hm, hx, ho⟩
+
+theorem checkItemsWith_false {items : List Val} {xs : List Data}
+    (ih : ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
+      Judge env root (checkWith u v x) v x) :
+    checkItemsWith u items xs = false →
+      ∃ (i : ℕ) (v : Val) (x : Data), items[i]? = some v ∧ xs[i]? = some x ∧ Judge env root false v x := by
+  induction items generalizing xs with
+  | nil => intro h; exact nomatch h
+  | cons v vs ihvs =>
+    cases xs with
+    | nil => intro h; exact nomatch h
+    | cons x xs =>
+      intro h
+      simp only [checkItemsWith] at h
+      rcases Bool.and_eq_false_iff.mp h with h | h
+      · exact ⟨0, v, x, List.getElem?_cons_zero, List.getElem?_cons_zero,
+          (ih 0 v x List.getElem?_cons_zero List.getElem?_cons_zero).of_eq h⟩
+      · obtain ⟨i, w, y, hw, hy, hr⟩ := ihvs (fun i w y hw hy => ih (i + 1) w y
+          (by rw [List.getElem?_cons_succ]; exact hw) (by rw [List.getElem?_cons_succ]; exact hy)) h
+        exact ⟨i + 1, w, y, by rw [List.getElem?_cons_succ]; exact hw,
+          by rw [List.getElem?_cons_succ]; exact hy, hr⟩
+
+theorem checkClosed_false (fs : List (String × Bool × Val)) (closed : Bool)
+    (jfs : List (String × Data)) :
+    (!closed || jfs.all fun m => fs.any fun f => decide (f.1 = m.1)) = false →
+      closed = true ∧ ∃ k x, (k, x) ∈ jfs ∧ ∀ o v, (k, o, v) ∉ fs := by
+  cases closed with
+  | false => intro h; exact nomatch h
+  | true =>
+    intro h
+    simp only [Bool.not_true, Bool.false_or] at h
+    obtain ⟨m, hm, hn⟩ := all_false_mem h
+    refine ⟨rfl, m.1, m.2, hm, fun o v hv => ?_⟩
+    rw [List.any_eq_true.mpr ⟨(m.1, o, v), hv, decide_eq_true rfl⟩] at hn
+    exact nomatch hn
+
+theorem checkSealed_false (closed : Bool) (spread : Option Val) (items : List Val) (xs : List Data) :
+    (!closed || spread.isSome || decide (xs.length = items.length)) = false →
+      closed = true ∧ spread = none ∧ xs.length ≠ items.length := by
+  cases closed <;> cases spread <;> simp
+
+theorem checkArmsWith_false {arms : List (ℕ × Val)} {j : Data}
+    (ih : ∀ r a, (r, a) ∈ arms → Judge env root (checkWith u a j) a j) :
+    checkArmsWith u arms j = false → ∀ r a, (r, a) ∈ arms → Judge env root false a j := by
+  induction arms with
+  | nil => intro _ r a hm; exact absurd hm (List.not_mem_nil _)
+  | cons p arms iharms =>
+    obtain ⟨r, a⟩ := p
+    intro h r' a' hm
+    simp only [checkArmsWith] at h
+    obtain ⟨ha, hrest⟩ := Bool.or_eq_false_iff.mp h
+    rcases List.mem_cons.mp hm with he | hm'
+    · cases he
+      exact (ih r a (List.mem_cons_self _ _)).of_eq ha
+    · exact iharms (fun r a hm => ih r a (List.mem_cons_of_mem _ hm)) hrest r' a' hm'
+
+theorem checkSuperSpreadWith_false {spread : Option Val} {x : Data}
+    (ih : ∀ s, spread = some s → Judge env root (checkSuperWith u s x) s.super x) :
+    checkSuperSpreadWith u spread x = false → ∃ s, spread = some s ∧ Judge env root false s.super x := by
+  cases spread with
+  | none => intro h; exact nomatch h
+  | some s => intro h; exact ⟨s, rfl, (ih s rfl).of_eq h⟩
+
+theorem checkSuperFieldsWith_false {fs : List (String × Bool × Val)} {jfs : List (String × Data)}
+    (ih : ∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x →
+      Judge env root (checkSuperWith u v x) v.super x) :
+    checkSuperFieldsWith u fs jfs = false →
+      (∃ k o v x, (k, o, v) ∈ fs ∧ lookup k jfs = some x ∧ Judge env root false v.super x) ∨
+        (∃ k o v, (k, o, v) ∈ fs ∧ lookup k jfs = none ∧ o = false) := by
+  induction fs with
+  | nil => intro h; exact nomatch h
+  | cons f fs ihfs =>
+    obtain ⟨k, o, v⟩ := f
+    intro h
+    simp only [checkSuperFieldsWith] at h
+    rcases Bool.and_eq_false_iff.mp h with h | h
+    · cases hl : lookup k jfs with
+      | none =>
+        rw [hl] at h
+        exact .inr ⟨k, o, v, List.mem_cons_self _ _, hl, h⟩
+      | some x =>
+        rw [hl] at h
+        exact .inl ⟨k, o, v, x, List.mem_cons_self _ _, hl,
+          (ih k o v x (List.mem_cons_self _ _) hl).of_eq h⟩
+    · rcases ihfs (fun k o v x hm hx => ih k o v x (List.mem_cons_of_mem _ hm) hx) h with
+        ⟨k', o', v', x, hm, hx, hr⟩ | ⟨k', o', v', hm, hx, ho⟩
+      · exact .inl ⟨k', o', v', x, List.mem_cons_of_mem _ hm, hx, hr⟩
+      · exact .inr ⟨k', o', v', List.mem_cons_of_mem _ hm, hx, ho⟩
+
+theorem checkSuperItemsWith_false {items : List Val} {xs : List Data}
+    (ih : ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
+      Judge env root (checkSuperWith u v x) v.super x) :
+    checkSuperItemsWith u items xs = false →
+      ∃ (i : ℕ) (v : Val) (x : Data), items[i]? = some v ∧ xs[i]? = some x ∧
+        Judge env root false v.super x := by
+  induction items generalizing xs with
+  | nil => intro h; exact nomatch h
+  | cons v vs ihvs =>
+    cases xs with
+    | nil => intro h; exact nomatch h
+    | cons x xs =>
+      intro h
+      simp only [checkSuperItemsWith] at h
+      rcases Bool.and_eq_false_iff.mp h with h | h
+      · exact ⟨0, v, x, List.getElem?_cons_zero, List.getElem?_cons_zero,
+          (ih 0 v x List.getElem?_cons_zero List.getElem?_cons_zero).of_eq h⟩
+      · obtain ⟨i, w, y, hw, hy, hr⟩ := ihvs (fun i w y hw hy => ih (i + 1) w y
+          (by rw [List.getElem?_cons_succ]; exact hw) (by rw [List.getElem?_cons_succ]; exact hy)) h
+        exact ⟨i + 1, w, y, by rw [List.getElem?_cons_succ]; exact hw,
+          by rw [List.getElem?_cons_succ]; exact hy, hr⟩
+
+theorem checkSuperArmsWith_false {arms : List (ℕ × Val)} {j : Data}
+    (ih : ∀ r a, (r, a) ∈ arms → Judge env root (checkSuperWith u a j) a.super j) :
+    checkSuperArmsWith u arms j = false → ∀ r a, (r, a) ∈ arms → Judge env root false a.super j := by
+  induction arms with
+  | nil => intro _ r a hm; exact absurd hm (List.not_mem_nil _)
+  | cons p arms iharms =>
+    obtain ⟨r, a⟩ := p
+    intro h r' a' hm
+    simp only [checkSuperArmsWith] at h
+    obtain ⟨ha, hrest⟩ := Bool.or_eq_false_iff.mp h
+    rcases List.mem_cons.mp hm with he | hm'
+    · cases he
+      exact (ih r a (List.mem_cons_self _ _)).of_eq ha
+    · exact iharms (fun r a hm => ih r a (List.mem_cons_of_mem _ hm)) hrest r' a' hm'
+
+/-- The domain of a bound, judged as the checker judges it. -/
+theorem checkDomain_judge (b : Bound) (j : Data) : Judge env root (checkDomain b j) b.domain j := by
+  cases b with
+  | num n =>
+    cases j with
+    | num x => exact .number
+    | _ => exact .numberNot fun _ h => nomatch h
+  | str b =>
+    cases j with
+    | str t =>
+      simp only [checkDomain, Bound.domain]
+      refine judge_of_bool (fun h => .string (of_decide_eq_true h)) (fun h => .stringNot fun s hs => ?_)
+      cases hs
+      exact Decidable.of_not_not (of_decide_eq_false h)
+    | _ => exact .stringNot fun _ h => nomatch h
+
+/-- A leaf's kind refuses a number of another leaf. -/
+theorem leaf_kind_refuses (l : Leaf) (y : Number) (h : l ≠ y.leaf) :
+    Judge env root false l.kind (.num y) := by
+  cases l <;> cases y <;>
     first
-    | exact ⟨fun _ => .number, fun _ => trivial⟩
-    | exact ⟨fun _ => .anyString, fun _ => trivial⟩
-    | exact ⟨fun _ => .boolean, fun _ => trivial⟩
-    | exact ⟨fun _ => .number, fun _ => rfl⟩
-    | exact ⟨fun _ => .anyString, fun _ => rfl⟩
-    | exact ⟨fun _ => .boolean, fun _ => rfl⟩
-    | (simp only [decide_eq_true_eq]; exact ⟨fun h => .string h, fun h => by cases h; assumption⟩)
-    | (rename_i x; cases x <;>
-        first
-        | exact ⟨fun _ => .integer, fun _ => rfl⟩
-        | exact ⟨fun _ => .float, fun _ => rfl⟩
-        | exact ⟨fun _ => .biginteger, fun _ => rfl⟩
-        | exact ⟨fun _ => .bigdecimal, fun _ => rfl⟩
-        | exact ⟨fun _ => .integer, fun _ => trivial⟩
-        | exact ⟨fun _ => .float, fun _ => trivial⟩
-        | exact ⟨fun _ => .biginteger, fun _ => trivial⟩
-        | exact ⟨fun _ => .bigdecimal, fun _ => trivial⟩
-        | exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩)
-    | exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+    | exact absurd rfl h
+    | exact .integerNot fun _ h => nomatch h
+    | exact .floatNot fun _ h => nomatch h
+    | exact .bigintegerNot fun _ h => nomatch h
+    | exact .bigdecimalNot fun _ h => nomatch h
+
+/-- A leaf's kind refuses what is no number. -/
+theorem leaf_kind_refuses_nonnum (l : Leaf) (j : Data) (h : ∀ y, j ≠ .num y) :
+    Judge env root false l.kind j := by
+  cases l
+  · exact .integerNot fun x hx => h _ hx
+  · exact .floatNot fun x hx => h _ hx
+  · exact .bigintegerNot fun x hx => h _ hx
+  · exact .bigdecimalNot fun x hx => h _ hx
+
+theorem judge_integer (j : Data) : Judge env root (checkWith u .integer j) .integer j := by
+  cases j with
+  | num x => cases x with
+    | integer _ => exact .integer
+    | _ => exact .integerNot fun _ h => nomatch h
+  | _ => exact .integerNot fun _ h => nomatch h
+
+theorem judge_float (j : Data) : Judge env root (checkWith u .float j) .float j := by
+  cases j with
+  | num x => cases x with
+    | float _ => exact .float
+    | _ => exact .floatNot fun _ h => nomatch h
+  | _ => exact .floatNot fun _ h => nomatch h
+
+theorem judge_biginteger (j : Data) : Judge env root (checkWith u .biginteger j) .biginteger j := by
+  cases j with
+  | num x => cases x with
+    | biginteger _ => exact .biginteger
+    | _ => exact .bigintegerNot fun _ h => nomatch h
+  | _ => exact .bigintegerNot fun _ h => nomatch h
+
+theorem judge_bigdecimal (j : Data) : Judge env root (checkWith u .bigdecimal j) .bigdecimal j := by
+  cases j with
+  | num x => cases x with
+    | bigdecimal _ => exact .bigdecimal
+    | _ => exact .bigdecimalNot fun _ h => nomatch h
+  | _ => exact .bigdecimalNot fun _ h => nomatch h
+
+theorem judge_number (j : Data) : Judge env root (checkWith u .number j) .number j := by
+  cases j with
+  | num x => exact .number
+  | _ => exact .numberNot fun _ h => nomatch h
+
+theorem judge_string (j : Data) : Judge env root (checkWith u .string j) .string j := by
+  cases j with
+  | str s =>
+    simp only [checkWith]
+    refine judge_of_bool (fun h => .string (of_decide_eq_true h)) (fun h => .stringNot fun s' hs => ?_)
+    cases hs
+    exact Decidable.of_not_not (of_decide_eq_false h)
+  | _ => exact .stringNot fun _ h => nomatch h
+
+theorem judge_anyString (j : Data) : Judge env root (checkWith u .anyString j) .anyString j := by
+  cases j with
+  | str s => exact .anyString
+  | _ => exact .anyStringNot fun _ h => nomatch h
+
+theorem judge_boolean (j : Data) : Judge env root (checkWith u .boolean j) .boolean j := by
+  cases j with
+  | bool b => exact .boolean
+  | _ => exact .booleanNot fun _ h => nomatch h
+
+/-- The checker judges a kind as the definition does. -/
+theorem check_kind_judge {v : Val} (hk : v.isKind = true) (j : Data) :
+    Judge env root (checkWith u v j) v j := by
+  cases v <;> simp [Val.isKind] at hk <;>
+    first
+    | exact judge_integer j
+    | exact judge_float j
+    | exact judge_biginteger j
+    | exact judge_bigdecimal j
+    | exact judge_number j
+    | exact judge_string j
+    | exact judge_anyString j
+    | exact judge_boolean j
 
 set_option linter.unusedVariables false in
-/-- The checker by the parent type decides admission by it, for every
-value it can check, given a hook that is right where it is asked. -/
-theorem checkSuperWith_iff {v : Val} (h : v.CheckableA) :
-    ∀ j, HookOk u env root v j → (checkSuperWith u v j = true ↔ Admits env root v.super j) := by
+/-- The checker by the parent type judges by it, for every value it can
+check, given a hook that is right where it is asked. -/
+theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
+    ∀ j, HookOk u env root v j → Judge env root (checkSuperWith u v j) v.super j := by
   induction h with
   | integer | float | biginteger | bigdecimal =>
-    intro j hu
+    intro j _
     cases j with
-    | num x => exact ⟨fun _ => .number, fun _ => rfl⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | number | string | anyString | boolean | any =>
-    intro j _; exact ⟨fun _ => .any, fun _ => rfl⟩
-  | nil => intro j _; exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+    | num x => exact .number
+    | _ => exact .numberNot fun _ h => nomatch h
+  | number | string | anyString | boolean | any => intro j _; exact .any
+  | nil => intro j _; exact .nil
   | @lit s =>
-    intro j hu
+    intro j _
     cases s with
     | num x =>
       cases j with
       | num y =>
-        simp only [checkSuperWith, Val.super, decide_eq_true_eq]
-        exact ⟨fun h => h ▸ admits_leaf_kind y, fun h => leaf_kind_eq _ _ h⟩
-      | _ =>
-        exact ⟨(fun h => nomatch h), (fun h => by
-          obtain ⟨y, hy⟩ := leaf_kind_num x.leaf _ h
-          cases hy)⟩
+        simp only [checkSuperWith, Val.super]
+        refine judge_of_bool (fun h => ?_) (fun h => leaf_kind_refuses _ _ (of_decide_eq_false h))
+        rw [of_decide_eq_true h]
+        exact admits_leaf_kind y
+      | _ => exact leaf_kind_refuses_nonnum _ _ fun _ h => nomatch h
     | str s =>
       cases j with
       | str t =>
         by_cases hs : s = ""
         · subst hs
           simp only [checkSuperWith, Val.super, if_true, decide_true, Bool.true_or]
-          exact ⟨fun _ => .anyString, fun _ => trivial⟩
-        · simp only [checkSuperWith, Val.super, hs, if_false, decide_false, Bool.false_or, decide_eq_true_eq]
-          exact ⟨fun h => .string h, fun h => by cases h; assumption⟩
+          exact .anyString
+        · simp only [checkSuperWith, Val.super, hs, if_false, decide_false, Bool.false_or]
+          refine judge_of_bool (fun h => .string (of_decide_eq_true h))
+            (fun h => .stringNot fun s' hs' => ?_)
+          cases hs'
+          exact Decidable.of_not_not (of_decide_eq_false h)
       | _ =>
-        refine ⟨(fun h => nomatch h), (fun h => ?_)⟩
-        unfold Val.super at h
-        split at h <;> nomatch h
+        unfold Val.super
+        split
+        · exact .anyStringNot fun _ h => nomatch h
+        · exact .stringNot fun _ h => nomatch h
     | bool b =>
       cases j with
-      | bool c => exact ⟨fun _ => .boolean, fun _ => rfl⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+      | bool c => exact .boolean
+      | _ => exact .booleanNot fun _ h => nomatch h
     | null =>
       cases j with
-      | null => exact ⟨fun _ => .null, fun _ => rfl⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | @min b | @max b | @above b | @beneath b => intro j _; exact checkDomain_iff b j
+      | null => exact .null
+      | _ => exact .litNot fun h => nomatch h
+  | @min b | @max b | @above b | @beneath b => intro j _; exact checkDomain_judge b j
   | @neq vs =>
-    intro j hu
+    intro j _
     cases vs with
-    | nil => exact ⟨fun _ => .any, fun _ => rfl⟩
-    | cons v vs => exact checkDomain_iff v j
+    | nil => exact .any
+    | cons v vs => exact checkDomain_judge v j
   | @multiple d =>
-    intro j hu
+    intro j _
     cases j with
-    | num x => exact ⟨fun _ => .number, fun _ => rfl⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | @len c _ _ | @unique k => intro j _; exact ⟨fun _ => .any, fun _ => rfl⟩
+    | num x => exact .number
+    | _ => exact .numberNot fun _ h => nomatch h
+  | @len c _ _ | @unique k => intro j _; exact .any
   | @map fs spread closed _ _ ihfs ihsp =>
     intro j hu
     cases j with
     | map jfs =>
-      have hs : (jfs.all fun m => checkSuperSpreadWith u spread m.2) = true ↔
-          ∀ t, superSpread spread = some t → ∀ k x, (k, x) ∈ jfs → Admits env root t x := by
-        rw [List.all_eq_true]
-        constructor
-        · intro h t ht k x hm
+      simp only [checkSuperWith, Val.super]
+      have ihf : ∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x →
+          Judge env root (checkSuperWith u v x) v.super x :=
+        fun k o v x hm hx => ihfs k o v hm x (hu.field hm hx)
+      refine judge_of_bool (fun h => ?_) (fun h => ?_)
+      · simp only [Bool.and_eq_true] at h
+        obtain ⟨⟨h1, h2⟩, h3⟩ := h
+        obtain ⟨hf1, hf2⟩ :=
+          (checkSuperFieldsWith_iff fun k o v x hm hx => (ihf k o v x hm hx).toIff).mp h1
+        have hs : ∀ t, superSpread spread = some t → ∀ k x, (k, x) ∈ jfs → Admits env root t x := by
+          intro t ht k x hm
           obtain ⟨s, hs, rfl⟩ := superSpread_eq.mp ht
-          exact (checkSuperSpreadWith_iff fun s' hs' => ihsp s' hs' x (hu.mapSpread hs' hm)).mp
-            (h (k, x) hm) s hs
-        · intro h m hm
-          exact (checkSuperSpreadWith_iff fun s hs => ihsp s hs m.2 (hu.mapSpread hs hm)).mpr fun s hs =>
-            h s.super (superSpread_eq.mpr ⟨s, hs, rfl⟩) m.1 m.2 hm
-      simp only [checkSuperWith, Val.super, Bool.and_eq_true]
-      rw [checkSuperFieldsWith_iff fun k o v x hm hx => ihfs k o v hm x (hu.field hm hx),
-        checkClosed_iff, hs]
-      constructor
-      · rintro ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
-        refine .map ?_ ?_ h3 ?_
+          have := List.all_eq_true.mp h2 (k, x) hm
+          exact (ihsp s hs x (hu.mapSpread hs hm)).of_eq (by simpa [checkSuperSpreadWith, hs] using this)
+        have h4 := (checkClosed_iff fs closed jfs).mp h3
+        refine .map ?_ ?_ hs ?_
         · intro k o w x hm hx
           obtain ⟨v, hv, rfl⟩ := mem_superFields.mp hm
-          exact h1 k o v x hv hx
+          exact hf1 k o v x hv hx
         · intro k o w hm hx
           obtain ⟨v, hv, rfl⟩ := mem_superFields.mp hm
-          exact h2 k o v hv hx
+          exact hf2 k o v hv hx
         · intro hc k x hm
           obtain ⟨o, v, hv⟩ := h4 hc k x hm
           exact ⟨o, v.super, mem_superFields.mpr ⟨v, hv, rfl⟩⟩
-      · intro h
-        cases h with
-        | map h1 h2 h3 h4 =>
-          refine ⟨⟨⟨?_, ?_⟩, h3⟩, ?_⟩
-          · intro k o v x hv hx
-            exact h1 k o v.super x (mem_superFields.mpr ⟨v, hv, rfl⟩) hx
-          · intro k o v hv hx
-            exact h2 k o v.super (mem_superFields.mpr ⟨v, hv, rfl⟩) hx
-          · intro hc k x hm
-            obtain ⟨o, w, hw⟩ := h4 hc k x hm
-            obtain ⟨v, hv, -⟩ := mem_superFields.mp hw
-            exact ⟨o, v, hv⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+      · rcases Bool.and_eq_false_iff.mp h with h12 | h3
+        · rcases Bool.and_eq_false_iff.mp h12 with h1 | h2
+          · rcases checkSuperFieldsWith_false ihf h1 with ⟨k, o, v, x, hm, hx, hr⟩ | ⟨k, o, v, hm, hx, ho⟩
+            · exact .mapField (mem_superFields.mpr ⟨v, hm, rfl⟩) hx hr
+            · exact .mapMissing (mem_superFields.mpr ⟨v, hm, rfl⟩) hx ho
+          · obtain ⟨⟨k, x⟩, hm, hn⟩ := all_false_mem h2
+            obtain ⟨s, hs, hr⟩ := checkSuperSpreadWith_false
+              (fun s hs => ihsp s hs x (hu.mapSpread hs hm)) hn
+            exact .mapSpread (superSpread_eq.mpr ⟨s, hs, rfl⟩) hm hr
+        · obtain ⟨hc, k, x, hm, hn⟩ := checkClosed_false fs closed jfs h3
+          refine .mapClosed hc hm fun o w hw => ?_
+          obtain ⟨v, hv, -⟩ := mem_superFields.mp hw
+          exact hn o v hv
+    | _ => exact .mapNot fun _ h => nomatch h
   | @list items spread closed _ _ ihitems ihsp =>
     intro j hu
     cases j with
     | list xs =>
-      have hs : (xs.all fun x => checkSuperSpreadWith u spread x) = true ↔
-          ∀ t, superSpread spread = some t → ∀ x, x ∈ xs → Admits env root t x := by
-        rw [List.all_eq_true]
-        constructor
-        · intro h t ht x hm
-          obtain ⟨s, hs, rfl⟩ := superSpread_eq.mp ht
-          exact (checkSuperSpreadWith_iff fun s' hs' => ihsp s' hs' x (hu.listSpread hs' hm)).mp
-            (h x hm) s hs
-        · intro h x hm
-          exact (checkSuperSpreadWith_iff fun s hs => ihsp s hs x (hu.listSpread hs hm)).mpr fun s hs =>
-            h s.super (superSpread_eq.mpr ⟨s, hs, rfl⟩) x hm
-      have hi : checkSuperItemsWith u items xs = true ↔
-          ∀ (i : ℕ) (w : Val) (x : Data), (superItems items)[i]? = some w → xs[i]? = some x →
-            Admits env root w x := by
-        rw [checkSuperItemsWith_iff fun i v x hv hx =>
-          ihitems v (List.mem_of_getElem? hv) x (hu.item hv hx)]
-        constructor
-        · intro h i w x hw hx
-          rw [superItems_getElem?] at hw
+      simp only [checkSuperWith, Val.super]
+      have ihi : ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
+          Judge env root (checkSuperWith u v x) v.super x :=
+        fun i v x hv hx => ihitems v (List.mem_of_getElem? hv) x (hu.item hv hx)
+      refine judge_of_bool (fun h => ?_) (fun h => ?_)
+      · simp only [Bool.and_eq_true, decide_eq_true_eq] at h
+        obtain ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩ := h
+        have hi := (checkSuperItemsWith_iff fun i v x hv hx => (ihi i v x hv hx).toIff).mp h3
+        refine .list (by rw [superItems_length]; exact h1)
+          (by
+            rw [superItems_length]
+            intro hc ht
+            exact (checkSealed_iff closed spread items xs).mp h2 hc (superSpread_none.mp ht))
+          (fun i w x hw hx => ?_) (fun t ht x hm => ?_)
+        · rw [superItems_getElem?] at hw
           cases hv : items[i]? with
           | none => rw [hv] at hw; cases hw
-          | some v => rw [hv] at hw; cases hw; exact h i v x hv hx
-        · intro h i v x hv hx
-          exact h i v.super x (by rw [superItems_getElem?, hv]; rfl) hx
-      simp only [checkSuperWith, Val.super, Bool.and_eq_true, decide_eq_true_eq]
-      rw [checkSealed_iff, hi, hs]
-      constructor
-      · rintro ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
-        exact .list (by rw [superItems_length]; exact h1)
-          (by rw [superItems_length]; intro hc ht; exact h2 hc (superSpread_none.mp ht)) h3 h4
-      · intro h
-        cases h with
-        | list h1 h2 h3 h4 =>
-          rw [superItems_length] at h1 h2
-          exact ⟨⟨⟨h1, fun hc ht => h2 hc (superSpread_none.mpr ht)⟩, h3⟩, h4⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+          | some v => rw [hv] at hw; cases hw; exact hi i v x hv hx
+        · obtain ⟨s, hs, rfl⟩ := superSpread_eq.mp ht
+          have := List.all_eq_true.mp h4 x hm
+          exact (ihsp s hs x (hu.listSpread hs hm)).of_eq (by simpa [checkSuperSpreadWith, hs] using this)
+      · rcases Bool.and_eq_false_iff.mp h with h123 | h4
+        · rcases Bool.and_eq_false_iff.mp h123 with h12 | h3
+          · rcases Bool.and_eq_false_iff.mp h12 with h1 | h2
+            · exact .listShort (by rw [superItems_length]; exact Nat.lt_of_not_le (of_decide_eq_false h1))
+            · obtain ⟨hc, hsn, hne⟩ := checkSealed_false closed spread items xs h2
+              exact .listLong hc (superSpread_none.mpr hsn) (by rw [superItems_length]; exact hne)
+          · obtain ⟨i, v, x, hv, hx, hr⟩ := checkSuperItemsWith_false ihi h3
+            exact .listItem (by rw [superItems_getElem?, hv]; rfl) hx hr
+        · obtain ⟨x, hm, hn⟩ := all_false_mem h4
+          obtain ⟨s, hs, hr⟩ := checkSuperSpreadWith_false
+            (fun s hs => ihsp s hs x (hu.listSpread hs hm)) hn
+          exact .listSpread (superSpread_eq.mpr ⟨s, hs, rfl⟩) hm hr
+    | _ => exact .listNot fun _ h => nomatch h
   | @or arms _ iharms =>
     intro j hu
     simp only [checkSuperWith, Val.super]
-    rw [checkSuperArmsWith_iff fun r a hm => iharms r a hm j (hu.arm hm)]
-    constructor
-    · rintro ⟨r, a, hm, h⟩
-      exact .or (mem_superArms.mpr ⟨a, hm, rfl⟩) h
-    · intro h
-      cases h with
-      | or hm h =>
-        obtain ⟨a', hm', rfl⟩ := mem_superArms.mp hm
-        exact ⟨_, a', hm', h⟩
+    have iha : ∀ r a, (r, a) ∈ arms → Judge env root (checkSuperWith u a j) a.super j :=
+      fun r a hm => iharms r a hm j (hu.arm hm)
+    refine judge_of_bool (fun h => ?_) (fun h => ?_)
+    · obtain ⟨r, a, hm, ha⟩ := (checkSuperArmsWith_iff fun r a hm => (iha r a hm).toIff).mp h
+      exact .or (mem_superArms.mpr ⟨a, hm, rfl⟩) ha
+    · refine .orNone fun r b hm => ?_
+      obtain ⟨a, hm', rfl⟩ := mem_superArms.mp hm
+      exact checkSuperArmsWith_false iha h r a hm'
   | @pref r x _ ihx => intro j hu; exact ihx j hu.pref
   | @alias k =>
     intro j hu
@@ -1565,322 +1828,328 @@ theorem checkSuperWith_iff {v : Val} (h : v.CheckableA) :
   | path =>
     intro j _
     simp only [checkSuperWith, Val.super]
-    exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+    exact .path
   | @meet a b ha hb iha ihb =>
     intro j hu
     cases hka : a.isKind <;> cases hkb : b.isKind <;>
-      simp only [checkSuperWith, Val.super, hka, hkb, Bool.false_eq_true, if_false, if_true,
-        Bool.and_eq_true]
-    · rw [iha j hu.meetLeft, ihb j hu.meetRight]
-      exact ⟨fun ⟨h1, h2⟩ => .meet h1 h2, fun h => by cases h with | meet h1 h2 => exact ⟨h1, h2⟩⟩
-    · exact check_kind_iff hkb j
-    · exact check_kind_iff hka j
+      simp only [checkSuperWith, Val.super, hka, hkb, Bool.false_eq_true, if_false, if_true]
+    · have h1 := iha j hu.meetLeft
+      have h2 := ihb j hu.meetRight
+      refine judge_of_bool (fun h => ?_) (fun h => ?_)
+      · simp only [Bool.and_eq_true] at h
+        exact .meet (h1.of_eq h.1) (h2.of_eq h.2)
+      · rcases Bool.and_eq_false_iff.mp h with e1 | e2
+        · exact .meetLeft (h1.of_eq e1)
+        · exact .meetRight (h2.of_eq e2)
+    · exact check_kind_judge hkb j
+    · exact check_kind_judge hka j
     · cases a.isLeaf
       · simp only [Bool.false_eq_true, if_false]; exact ihb j hu.meetRight
       · simp only [if_true]; exact iha j hu.meetLeft
 
+/-- The checker by the parent type decides admission, and refusal, by
+it. -/
+theorem checkSuperWith_iff {v : Val} (h : v.CheckableA) (j : Data) (hu : HookOk u env root v j)
+    {b : Bool} : checkSuperWith u v j = b ↔ Judge env root b v.super j :=
+  (checkSuperWith_judge h j hu).toIff
+
 set_option linter.unusedVariables false in
-/-- The checker decides admission for every value it can check, given a
-hook that is right where it is asked. -/
-theorem checkWith_iff {v : Val} (h : v.CheckableA) :
-    ∀ j, HookOk u env root v j → (checkWith u v j = true ↔ Admits env root v j) := by
+/-- The checker judges every value it can check as the definition does,
+given a hook that is right where it is asked: its `true` is admission
+and its `false` refusal. -/
+theorem checkWith_judge {v : Val} (h : v.CheckableA) :
+    ∀ j, HookOk u env root v j → Judge env root (checkWith u v j) v j := by
   induction h with
-  | any => intro j _; exact ⟨fun _ => .any, fun _ => rfl⟩
-  | nil => intro j _; exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | boolean =>
-    intro j hu
-    cases j with
-    | bool b => exact ⟨fun _ => .boolean, fun _ => rfl⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | number =>
-    intro j hu
-    cases j with
-    | num x => exact ⟨fun _ => .number, fun _ => rfl⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | integer =>
-    intro j hu
-    cases j with
-    | num x =>
-      cases x with
-      | integer y => exact ⟨fun _ => .integer, fun _ => rfl⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | float =>
-    intro j hu
-    cases j with
-    | num x =>
-      cases x with
-      | float y => exact ⟨fun _ => .float, fun _ => rfl⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | biginteger =>
-    intro j hu
-    cases j with
-    | num x =>
-      cases x with
-      | biginteger y => exact ⟨fun _ => .biginteger, fun _ => rfl⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | bigdecimal =>
-    intro j hu
-    cases j with
-    | num x =>
-      cases x with
-      | bigdecimal y => exact ⟨fun _ => .bigdecimal, fun _ => rfl⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | string =>
-    intro j hu
-    cases j with
-    | str s =>
-      simp only [checkWith, decide_eq_true_eq]
-      exact ⟨fun h => .string h, fun h => by cases h; assumption⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | anyString =>
-    intro j hu
-    cases j with
-    | str s => exact ⟨fun _ => .anyString, fun _ => rfl⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | any => intro j _; exact .any
+  | nil => intro j _; exact .nil
+  | integer => intro j _; exact judge_integer j
+  | float => intro j _; exact judge_float j
+  | biginteger => intro j _; exact judge_biginteger j
+  | bigdecimal => intro j _; exact judge_bigdecimal j
+  | number => intro j _; exact judge_number j
+  | string => intro j _; exact judge_string j
+  | anyString => intro j _; exact judge_anyString j
+  | boolean => intro j _; exact judge_boolean j
   | @lit s =>
-    intro j hu
+    intro j _
     cases s with
     | null =>
       cases j with
-      | null => exact ⟨fun _ => .null, fun _ => rfl⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+      | null => exact .null
+      | _ => exact .litNot fun h => nomatch h
     | bool b =>
       cases j with
       | bool b' =>
-        simp only [checkWith, decide_eq_true_eq]
-        exact ⟨fun h => by subst h; exact .bool, fun h => by cases h; rfl⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+        simp only [checkWith]
+        refine judge_of_bool (fun h => ?_) (fun h => .litNot fun e => ?_)
+        · cases of_decide_eq_true h; exact .bool
+        · exact of_decide_eq_false h (by cases e; rfl)
+      | _ => exact .litNot fun h => nomatch h
     | num x =>
       cases j with
       | num y =>
-        simp only [checkWith, decide_eq_true_eq]
-        exact ⟨fun h => by subst h; exact .num, fun h => by cases h; rfl⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+        simp only [checkWith]
+        refine judge_of_bool (fun h => ?_) (fun h => .litNot fun e => ?_)
+        · cases of_decide_eq_true h; exact .num
+        · exact of_decide_eq_false h (by cases e; rfl)
+      | _ => exact .litNot fun h => nomatch h
     | str s =>
       cases j with
       | str s' =>
-        simp only [checkWith, decide_eq_true_eq]
-        exact ⟨fun h => by subst h; exact .str, fun h => by cases h; rfl⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+        simp only [checkWith]
+        refine judge_of_bool (fun h => ?_) (fun h => .litNot fun e => ?_)
+        · cases of_decide_eq_true h; exact .str
+        · exact of_decide_eq_false h (by cases e; rfl)
+      | _ => exact .litNot fun h => nomatch h
   | @min b =>
-    intro j hu
+    intro j _
     cases b with
     | num n =>
       cases j with
       | num x =>
-        simp only [checkWith, decide_eq_true_eq]
-        exact ⟨fun h => .min h, fun h => by cases h; assumption⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .min (of_decide_eq_true h))
+          (fun h => .minNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+        cases hn; cases hx; exact of_decide_eq_false h
+      | _ => exact .minNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
-        simp only [checkWith, decide_eq_true_eq]
-        exact ⟨fun h => .minStr h, fun h => by cases h; assumption⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .minStr (of_decide_eq_true h))
+          (fun h => .minNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+        cases hb; cases hs; exact of_decide_eq_false h
+      | _ => exact .minNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @max b =>
-    intro j hu
+    intro j _
     cases b with
     | num n =>
       cases j with
       | num x =>
-        simp only [checkWith, decide_eq_true_eq]
-        exact ⟨fun h => .max h, fun h => by cases h; assumption⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .max (of_decide_eq_true h))
+          (fun h => .maxNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+        cases hn; cases hx; exact of_decide_eq_false h
+      | _ => exact .maxNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
-        simp only [checkWith, decide_eq_true_eq]
-        exact ⟨fun h => .maxStr h, fun h => by cases h; assumption⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .maxStr (of_decide_eq_true h))
+          (fun h => .maxNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+        cases hb; cases hs; exact of_decide_eq_false h
+      | _ => exact .maxNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @above b =>
-    intro j hu
+    intro j _
     cases b with
     | num n =>
       cases j with
       | num x =>
-        simp only [checkWith, decide_eq_true_eq]
-        exact ⟨fun h => .above h, fun h => by cases h; assumption⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .above (of_decide_eq_true h))
+          (fun h => .aboveNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+        cases hn; cases hx; exact of_decide_eq_false h
+      | _ => exact .aboveNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
-        simp only [checkWith, decide_eq_true_eq]
-        exact ⟨fun h => .aboveStr h, fun h => by cases h; assumption⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .aboveStr (of_decide_eq_true h))
+          (fun h => .aboveNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+        cases hb; cases hs; exact of_decide_eq_false h
+      | _ => exact .aboveNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @beneath b =>
-    intro j hu
+    intro j _
     cases b with
     | num n =>
       cases j with
       | num x =>
-        simp only [checkWith, decide_eq_true_eq]
-        exact ⟨fun h => .beneath h, fun h => by cases h; assumption⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .beneath (of_decide_eq_true h))
+          (fun h => .beneathNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+        cases hn; cases hx; exact of_decide_eq_false h
+      | _ => exact .beneathNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
-        simp only [checkWith, decide_eq_true_eq]
-        exact ⟨fun h => .beneathStr h, fun h => by cases h; assumption⟩
-      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .beneathStr (of_decide_eq_true h))
+          (fun h => .beneathNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+        cases hb; cases hs; exact of_decide_eq_false h
+      | _ => exact .beneathNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @neq vs =>
-    intro j hu
+    intro j _
     cases j with
     | num x =>
-      simp only [checkWith, List.all_eq_true]
-      constructor
-      · intro h
-        refine .neq fun v hv => ?_
-        have hv := h v hv
+      simp only [checkWith]
+      refine judge_of_bool (fun ha => ?_) (fun ha => ?_)
+      · refine .neq fun v hv => ?_
+        have hv := List.all_eq_true.mp ha v hv
         cases v with
         | num n => exact ⟨n, rfl, by simpa using hv⟩
         | str _ => simp at hv
-      · intro h v hv
-        cases h with
-        | neq h =>
-          obtain ⟨n, rfl, hn⟩ := h v hv
-          simpa using hn
+      · refine .neqNot (fun x' hx => ?_) (fun _ h => nomatch h)
+        cases hx
+        obtain ⟨v, hv, hnv⟩ := all_false_mem ha
+        refine ⟨v, hv, fun n hn => ?_⟩
+        subst hn
+        change decide (n ≠ x) = false at hnv
+        exact Decidable.of_not_not (of_decide_eq_false hnv)
     | str s =>
-      simp only [checkWith, List.all_eq_true]
-      constructor
-      · intro h
-        refine .neqStr fun v hv => ?_
-        have hv := h v hv
+      simp only [checkWith]
+      refine judge_of_bool (fun ha => ?_) (fun ha => ?_)
+      · refine .neqStr fun v hv => ?_
+        have hv := List.all_eq_true.mp ha v hv
         cases v with
         | str t => exact ⟨t, rfl, by simpa using hv⟩
         | num _ => simp at hv
-      · intro h v hv
-        cases h with
-        | neqStr h =>
-          obtain ⟨t, rfl, ht⟩ := h v hv
-          simpa using ht
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+      · refine .neqNot (fun _ h => nomatch h) (fun s' hs => ?_)
+        cases hs
+        obtain ⟨v, hv, hnv⟩ := all_false_mem ha
+        refine ⟨v, hv, fun t ht => ?_⟩
+        subst ht
+        change decide (t ≠ s) = false at hnv
+        exact Decidable.of_not_not (of_decide_eq_false hnv)
+    | _ => exact .neqNot (fun _ h => nomatch h) (fun _ h => nomatch h)
   | @multiple d =>
-    intro j hu
+    intro j _
     cases j with
     | num x =>
-      simp only [checkWith, decide_eq_true_eq, Bool.and_eq_true]
-      exact ⟨fun ⟨hd, hm⟩ => .multiple hd hm, fun h => by cases h; exact ⟨‹_›, ‹_›⟩⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+      simp only [checkWith]
+      refine judge_of_bool (fun h => ?_) (fun h => .multipleNot fun x' hx hp hm => ?_)
+      · simp only [Bool.and_eq_true, decide_eq_true_eq] at h
+        exact .multiple h.1 h.2
+      · cases hx
+        rcases Bool.and_eq_false_iff.mp h with h | h
+        · exact of_decide_eq_false h hp
+        · exact of_decide_eq_false h hm
+    | _ => exact .multipleNot fun _ h => nomatch h
   | @len c _ ihc =>
     intro j hu
     simp only [checkWith]
     cases hs : j.size with
-    | none =>
-      simp only [Bool.false_eq_true, false_iff]
-      intro h
-      cases h with
-      | len _ hs' _ => rw [hs] at hs'; cases hs'
+    | none => exact .lenNone hs
     | some n =>
-      simp only
+      show Judge env root (if h : IntegerLeaf n then checkWith u c (.num (.integer ⟨n, h⟩)) else false) (.len c) j
       split
       · rename_i h
-        rw [ihc _ hu.len]
-        constructor
-        · intro ha; exact .len h hs ha
-        · intro ha
-          cases ha with
-          | len h' hs' ha' => rw [hs] at hs'; cases hs'; exact ha'
+        exact .len h hs (ihc _ hu.len)
       · rename_i h
-        simp only [Bool.false_eq_true, false_iff]
-        intro ha
-        cases ha with
-        | len h' hs' _ => rw [hs] at hs'; cases hs'; exact absurd h' h
+        exact .lenBig hs h
   | @unique k =>
-    intro j hu
+    intro j _
     simp only [checkWith]
     cases hm : j.members with
-    | none =>
-      simp only [Bool.false_eq_true, false_iff]
-      intro h
-      cases h with
-      | unique hm' _ _ => rw [hm] at hm'; cases hm'
+    | none => exact .uniqueNone hm
     | some ms =>
-      simp only [Bool.and_eq_true, List.all_eq_true, distinct_iff]
-      constructor
-      · rintro ⟨h1, h2⟩
-        exact .unique hm (fun x hx => h1 x hx) h2
-      · intro h
-        cases h with
-        | unique hm' h1 h2 => rw [hm] at hm'; cases hm'; exact ⟨fun x hx => h1 x hx, h2⟩
+      refine judge_of_bool (fun h => ?_) (fun h => ?_)
+      · simp only [Bool.and_eq_true, List.all_eq_true, distinct_iff] at h
+        exact .unique hm (fun x hx => h.1 x hx) h.2
+      · rcases Bool.and_eq_false_iff.mp h with h | h
+        · obtain ⟨x, hx, hp⟩ := all_false_mem h
+          refine .uniqueBare hm hx ?_
+          cases hq : x.project k with
+          | none => rfl
+          | some _ => rw [hq] at hp; exact nomatch hp
+        · refine .uniqueDup hm fun hp => ?_
+          rw [(distinct_iff k ms).mpr hp] at h
+          exact nomatch h
   | @alias k =>
     intro j hu
     simp only [checkWith]
     exact hu.alias
-  | path => intro j _; exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | path => intro j _; exact .path
   | @map fs spread closed _ _ ihfs ihsp =>
     intro j hu
     cases j with
     | map jfs =>
-      have hs : (jfs.all fun m => checkSpreadWith u spread m.2) = true ↔
-          ∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Admits env root s x := by
-        rw [List.all_eq_true]
-        constructor
-        · intro h s hs k x hm
-          exact (checkSpreadWith_iff fun s' hs' => ihsp s' hs' x (hu.mapSpread hs' hm)).mp (h (k, x) hm) s hs
-        · intro h m hm
-          exact (checkSpreadWith_iff fun s hs => ihsp s hs m.2 (hu.mapSpread hs hm)).mpr
-            fun s hs => h s hs m.1 m.2 hm
-      simp only [checkWith, Bool.and_eq_true]
-      rw [checkFieldsWith_iff fun k o v x hm hx => ihfs k o v hm x (hu.field hm hx), checkClosed_iff, hs]
-      constructor
-      · rintro ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
-        exact .map h1 h2 h3 h4
-      · intro h
-        cases h with
-        | map h1 h2 h3 h4 => exact ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+      simp only [checkWith]
+      have ihf : ∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x →
+          Judge env root (checkWith u v x) v x :=
+        fun k o v x hm hx => ihfs k o v hm x (hu.field hm hx)
+      refine judge_of_bool (fun h => ?_) (fun h => ?_)
+      · simp only [Bool.and_eq_true] at h
+        obtain ⟨⟨h1, h2⟩, h3⟩ := h
+        obtain ⟨hf1, hf2⟩ := (checkFieldsWith_iff fun k o v x hm hx => (ihf k o v x hm hx).toIff).mp h1
+        refine .map hf1 hf2 (fun s hs k x hm => ?_) ((checkClosed_iff fs closed jfs).mp h3)
+        have := List.all_eq_true.mp h2 (k, x) hm
+        exact (ihsp s hs x (hu.mapSpread hs hm)).of_eq (by simpa [checkSpreadWith, hs] using this)
+      · rcases Bool.and_eq_false_iff.mp h with h12 | h3
+        · rcases Bool.and_eq_false_iff.mp h12 with h1 | h2
+          · rcases checkFieldsWith_false ihf h1 with ⟨k, o, v, x, hm, hx, hr⟩ | ⟨k, o, v, hm, hx, ho⟩
+            · exact .mapField hm hx hr
+            · exact .mapMissing hm hx ho
+          · obtain ⟨⟨k, x⟩, hm, hn⟩ := all_false_mem h2
+            obtain ⟨s, hs, hr⟩ := checkSpreadWith_false
+              (fun s hs => ihsp s hs x (hu.mapSpread hs hm)) hn
+            exact .mapSpread hs hm hr
+        · obtain ⟨hc, k, x, hm, hn⟩ := checkClosed_false fs closed jfs h3
+          exact .mapClosed hc hm hn
+    | _ => exact .mapNot fun _ h => nomatch h
   | @list items spread closed _ _ ihitems ihsp =>
     intro j hu
     cases j with
     | list xs =>
-      have hs : (xs.all fun x => checkSpreadWith u spread x) = true ↔
-          ∀ s, spread = some s → ∀ x, x ∈ xs → Admits env root s x := by
-        rw [List.all_eq_true]
-        constructor
-        · intro h s hs x hm
-          exact (checkSpreadWith_iff fun s' hs' => ihsp s' hs' x (hu.listSpread hs' hm)).mp (h x hm) s hs
-        · intro h x hm
-          exact (checkSpreadWith_iff fun s hs => ihsp s hs x (hu.listSpread hs hm)).mpr fun s hs => h s hs x hm
-      simp only [checkWith, Bool.and_eq_true, decide_eq_true_eq]
-      rw [checkSealed_iff, checkItemsWith_iff fun i v x hv hx =>
-        ihitems v (List.mem_of_getElem? hv) x (hu.item hv hx), hs]
-      constructor
-      · rintro ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
-        exact .list h1 h2 h3 h4
-      · intro h
-        cases h with
-        | list h1 h2 h3 h4 => exact ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+      simp only [checkWith]
+      have ihi : ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
+          Judge env root (checkWith u v x) v x :=
+        fun i v x hv hx => ihitems v (List.mem_of_getElem? hv) x (hu.item hv hx)
+      refine judge_of_bool (fun h => ?_) (fun h => ?_)
+      · simp only [Bool.and_eq_true, decide_eq_true_eq] at h
+        obtain ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩ := h
+        refine .list h1 ((checkSealed_iff closed spread items xs).mp h2)
+          ((checkItemsWith_iff fun i v x hv hx => (ihi i v x hv hx).toIff).mp h3) (fun s hs x hm => ?_)
+        have := List.all_eq_true.mp h4 x hm
+        exact (ihsp s hs x (hu.listSpread hs hm)).of_eq (by simpa [checkSpreadWith, hs] using this)
+      · rcases Bool.and_eq_false_iff.mp h with h123 | h4
+        · rcases Bool.and_eq_false_iff.mp h123 with h12 | h3
+          · rcases Bool.and_eq_false_iff.mp h12 with h1 | h2
+            · exact .listShort (Nat.lt_of_not_le (of_decide_eq_false h1))
+            · obtain ⟨hc, hsn, hne⟩ := checkSealed_false closed spread items xs h2
+              exact .listLong hc hsn hne
+          · obtain ⟨i, v, x, hv, hx, hr⟩ := checkItemsWith_false ihi h3
+            exact .listItem hv hx hr
+        · obtain ⟨x, hm, hn⟩ := all_false_mem h4
+          obtain ⟨s, hs, hr⟩ := checkSpreadWith_false
+            (fun s hs => ihsp s hs x (hu.listSpread hs hm)) hn
+          exact .listSpread hs hm hr
+    | _ => exact .listNot fun _ h => nomatch h
   | @or arms _ iharms =>
     intro j hu
     simp only [checkWith]
-    rw [checkArmsWith_iff fun r a hm => iharms r a hm j (hu.arm hm)]
-    constructor
-    · rintro ⟨r, a, hm, h⟩
-      exact .or hm h
-    · intro h
-      cases h with
-      | or hm h => exact ⟨_, _, hm, h⟩
+    have iha : ∀ r a, (r, a) ∈ arms → Judge env root (checkWith u a j) a j :=
+      fun r a hm => iharms r a hm j (hu.arm hm)
+    refine judge_of_bool (fun h => ?_) (fun h => .orNone (checkArmsWith_false iha h))
+    obtain ⟨r, a, hm, ha⟩ := (checkArmsWith_iff fun r a hm => (iha r a hm).toIff).mp h
+    exact .or hm ha
   | @pref r x hx ihx =>
     intro j hu
-    simp only [checkWith, Bool.or_eq_true]
-    rw [ihx j hu.pref, checkSuperWith_iff hx j hu.pref]
-    constructor
-    · rintro (h | h)
-      · exact .pref h
-      · exact .prefSuper h
-    · intro h
-      cases h with
-      | pref h => exact Or.inl h
-      | prefSuper h => exact Or.inr h
+    simp only [checkWith]
+    have h1 := ihx j hu.pref
+    have h2 := checkSuperWith_judge hx j hu.pref
+    refine judge_of_bool (fun h => ?_) (fun h => ?_)
+    · rcases Bool.or_eq_true_iff.mp h with h | h
+      · exact .pref (h1.of_eq h)
+      · exact .prefSuper (h2.of_eq h)
+    · obtain ⟨ha, hb⟩ := Bool.or_eq_false_iff.mp h
+      exact .prefNone (h1.of_eq ha) (h2.of_eq hb)
   | meet _ _ iha ihb =>
     intro j hu
-    simp only [checkWith, Bool.and_eq_true, iha j hu.meetLeft, ihb j hu.meetRight]
-    exact ⟨fun ⟨h1, h2⟩ => .meet h1 h2, fun h => by cases h with | meet h1 h2 => exact ⟨h1, h2⟩⟩
+    simp only [checkWith]
+    have ha := iha j hu.meetLeft
+    have hb := ihb j hu.meetRight
+    refine judge_of_bool (fun h => ?_) (fun h => ?_)
+    · simp only [Bool.and_eq_true] at h
+      exact .meet (ha.of_eq h.1) (hb.of_eq h.2)
+    · rcases Bool.and_eq_false_iff.mp h with h1 | h2
+      · exact .meetLeft (ha.of_eq h1)
+      · exact .meetRight (hb.of_eq h2)
+
+/-- The checker decides admission, and refusal, for every value it can
+check, given a hook that is right where it is asked. -/
+theorem checkWith_iff {v : Val} (h : v.CheckableA) (j : Data) (hu : HookOk u env root v j) {b : Bool} :
+    checkWith u v j = b ↔ Judge env root b v j :=
+  (checkWith_judge h j hu).toIff
 
 end
 
@@ -1895,15 +2164,24 @@ abbrev checkSuper : Val → Data → Bool := checkSuperWith fun _ _ => false
 section
 variable {env : Env} {root : Data}
 
-/-- `check` decides admission for every checkable value. -/
-theorem check_iff {v : Val} (h : v.Checkable) : ∀ j, check v j = true ↔ Admits env root v j :=
-  fun j => checkWith_iff h.toA j fun k _ hk =>
+/-- `check` judges every checkable value as the definition does. -/
+theorem check_judge {v : Val} (h : v.Checkable) (j : Data) : Judge env root (check v j) v j :=
+  checkWith_judge h.toA j fun k _ hk =>
     absurd (hk.elim (fun h' => h'.2) fun h' => unguardedRefs_sub_refs _ _ h'.2) (h.no_refs k)
 
-theorem checkSuper_iff {v : Val} (h : v.Checkable) :
-    ∀ j, checkSuper v j = true ↔ Admits env root v.super j :=
-  fun j => checkSuperWith_iff h.toA j fun k _ hk =>
+/-- `check` decides admission, and refusal, for every checkable value. -/
+theorem check_iff {v : Val} (h : v.Checkable) (j : Data) {b : Bool} :
+    check v j = b ↔ Judge env root b v j :=
+  (check_judge h j).toIff
+
+theorem checkSuper_judge {v : Val} (h : v.Checkable) (j : Data) :
+    Judge env root (checkSuper v j) v.super j :=
+  checkSuperWith_judge h.toA j fun k _ hk =>
     absurd (hk.elim (fun h' => h'.2) fun h' => unguardedRefs_sub_refs _ _ h'.2) (h.no_refs k)
+
+theorem checkSuper_iff {v : Val} (h : v.Checkable) (j : Data) {b : Bool} :
+    checkSuper v j = b ↔ Judge env root b v.super j :=
+  (checkSuper_judge h j).toIff
 
 theorem checkSpread_iff {spread : Option Val}
     (ih : ∀ s, spread = some s → ∀ j, check s j = true ↔ Admits env root s j) (x : Data) :
