@@ -3293,9 +3293,11 @@ example : Instance .empty (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none
 The fifth generated fragment, `test/spec/def-verdict.tsv`, runs the
 cases of `vetCases` in `spec/Oracle.lean` in all three modes, each
 with the one class `vet` gives, which `vet_iff` makes the definition's
-own. Both engines agree with the definition on every row. The rows
-keep away from two corners the next step records: a `nil` written in
-a schema, and a contradiction under an optional key.
+own. Both engines agree with the definition on every row but three,
+which the ledger names. The rows keep away from two corners. The next
+step records the three rows and the two corners: a seal met with a
+spread, a `nil` written in a schema, and a contradiction under an
+optional key.
 
 ## 15. Where the definition and the engines differ
 
@@ -3417,7 +3419,11 @@ Both engines admit it: the open side's spread joins the sealed list,
 and a sealed list with a spread has no fixed length, so the meet admits
 what one of its sides refuses, which no meet can. Step 10's `meetList`
 keeps the length and takes the spread into each position instead.
-Issue #346 tracks it, and the engines are the side that changes.
+Issue #346 tracks it, and the engines are the side that changes. The
+last three rows of
+[`test/spec/def-verdict.tsv`](../test/spec/def-verdict.tsv) carry the
+case, `invalid` in every mode, and the ledger names them, so the run
+fails the day an engine comes to agree and the rows still stand there.
 
 In others, two optional declarations of one key can't both hold:
 

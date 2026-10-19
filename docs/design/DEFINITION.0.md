@@ -272,9 +272,11 @@ answer as the definition does goes in `spec/ledger.tsv`, one row per
 case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
-causes are fixed. The prototype's ledger holds 42 rows under two
-causes, decisions 3 and 4 of §2; under the first the ports move, under
-the second the definition does. Exhaustive enumeration of small values
+causes are fixed and rises only for a case the definition finds. The
+ledger holds 45 rows under three causes: decisions 3 and 4 of §2, under
+the first of which the ports move and under the second the definition,
+and #346, the sealed list met with a spread, where the ports move.
+Exhaustive enumeration of small values
 over a small instance set is bounded per phase (600 values and 16
 instances in the prototype: 9,600 cases, 109 s through both CLIs on
 four cores), and random generation of larger ones is seeded, so a
