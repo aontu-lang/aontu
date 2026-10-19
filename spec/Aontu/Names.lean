@@ -48,6 +48,7 @@ def Val.refs : Val → List String
   | .meet a b => a.refs ++ b.refs
   | .nof n cs => n.refs ++ refsItems cs
   | .must c _ => c.refs
+  | .when c t e => c.refs ++ t.refs ++ refsSpread e
   | _ => []
 
 def refsFields : List (String × Bool × Val) → List String
@@ -80,6 +81,7 @@ def Val.unguardedRefs : Val → List String
   | .meet a b => a.unguardedRefs ++ b.unguardedRefs
   | .nof n cs => n.unguardedRefs ++ unguardedItems cs
   | .must c _ => c.unguardedRefs
+  | .when c t e => c.unguardedRefs ++ t.unguardedRefs ++ unguardedSpread e
   | _ => []
 
 def unguardedArms : List (ℕ × Val) → List String
@@ -89,6 +91,10 @@ def unguardedArms : List (ℕ × Val) → List String
 def unguardedItems : List Val → List String
   | [] => []
   | v :: vs => v.unguardedRefs ++ unguardedItems vs
+
+def unguardedSpread : Option Val → List String
+  | none => []
+  | some s => s.unguardedRefs
 end
 
 namespace Decls
@@ -389,11 +395,23 @@ theorem unguardedRefs_sub_refs : ∀ (v : Val) (n : String), n ∈ v.unguardedRe
     exact h.elim (fun h => .inl (unguardedRefs_sub_refs c n h))
       (fun h => .inr (unguardedItems_sub_refsItems cs n h))
   | .must c _, n, h => unguardedRefs_sub_refs c n h
+  | .when c t e, n, h => by
+    simp only [Val.unguardedRefs, List.mem_append] at h
+    simp only [Val.refs, List.mem_append]
+    rcases h with (h | h) | h
+    · exact .inl (.inl (unguardedRefs_sub_refs c n h))
+    · exact .inl (.inr (unguardedRefs_sub_refs t n h))
+    · exact .inr (unguardedSpread_sub_refsSpread e n h)
   | .integer, _, h | .float, _, h | .biginteger, _, h | .bigdecimal, _, h | .number, _, h
   | .string, _, h | .anyString, _, h | .boolean, _, h | .lit _, _, h | .min _, _, h
   | .max _, _, h | .above _, _, h | .beneath _, _, h | .neq _, _, h | .multiple _, _, h
   | .unique _, _, h | .re _, _, h | .format _, _, h | .any, _, h | .nil, _, h
   | .map _ _ _, _, h | .list _ _ _, _, h | .path _, _, h => nomatch h
+
+theorem unguardedSpread_sub_refsSpread : ∀ (s : Option Val) (n : String),
+    n ∈ unguardedSpread s → n ∈ refsSpread s
+  | none, _, h => nomatch h
+  | some s, n, h => unguardedRefs_sub_refs s n h
 
 theorem unguardedArms_sub_refsArms : ∀ (arms : List (ℕ × Val)) (n : String),
     n ∈ unguardedArms arms → n ∈ refsArms arms
@@ -561,6 +579,7 @@ def Val.paths : Val → List (List Seg)
   | .meet a b => a.paths ++ b.paths
   | .nof n cs => n.paths ++ pathsItems cs
   | .must c _ => c.paths
+  | .when c t e => c.paths ++ t.paths ++ pathsSpread e
   | _ => []
 
 def pathsFields : List (String × Bool × Val) → List (List Seg)

@@ -2,7 +2,7 @@
 # generated row (test/spec/def-fragment.tsv and the fragments beside it) the
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, and the cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 78.
+# A listed case that comes to agree fails the run. Bounded at 89.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -82,3 +82,14 @@ t185	"a": must((1) & (2), "m")	{"a": 1}	invalid	error	ports	a branch that admits
 t189	"a": must((min(3)) & (max(1)), "m")	{"a": 2}	invalid	error	ports	a branch that admits nothing counts as none, so must(c, m) refuses as nof(1, c) does, where the ports refuse the conflict at the meet as an error of the schema (#361)
 t190	"a": must((min(3)) & (max(1)), "m")	{"a": 2}	invalid	error	ports	a branch that admits nothing counts as none, so must(c, m) refuses as nof(1, c) does, where the ports refuse the conflict at the meet as an error of the schema (#361)
 t191	"a": must((min(3)) & (max(1)), "m")	{"a": 2}	invalid	error	ports	a branch that admits nothing counts as none, so must(c, m) refuses as nof(1, c) does, where the ports refuse the conflict at the meet as an error of the schema (#361)
+t288	%T = when(%T, 1)\n"t": %T	{"t": 1}	error	valid	ports	decision 2 (section 7): a name that refers to itself through a trial alone, with no key and no element between, breaks the alias-cycle rule, an error, where the ports decide the trial by exhausting the budget (#361)
+t289	%T = when(%T, 1)\n"t": %T	{"t": 1}	error	valid	ports	decision 2 (section 7): a name that refers to itself through a trial alone, with no key and no element between, breaks the alias-cycle rule, an error, where the ports decide the trial by exhausting the budget (#361)
+t290	%T = when(%T, 1)\n"t": %T	{"t": 1}	error	valid	ports	decision 2 (section 7): a name that refers to itself through a trial alone, with no key and no element between, breaks the alias-cycle rule, an error, where the ports decide the trial by exhausting the budget (#361)
+t291	%T = when(string, %T)\n"t": %T	{"t": 1}	error	valid	ports	decision 2 (section 7): a name that refers to itself through a trial alone, with no key and no element between, breaks the alias-cycle rule, an error, where the ports decide the trial by exhausting the budget (#361)
+t292	%T = when(string, %T)\n"t": %T	{"t": 1}	error	valid	ports	decision 2 (section 7): a name that refers to itself through a trial alone, with no key and no element between, breaks the alias-cycle rule, an error, where the ports decide the trial by exhausting the budget (#361)
+t293	%T = when(string, %T)\n"t": %T	{"t": 1}	error	valid	ports	decision 2 (section 7): a name that refers to itself through a trial alone, with no key and no element between, breaks the alias-cycle rule, an error, where the ports decide the trial by exhausting the budget (#361)
+t294	%T = when(string, 1, %T)\n"t": %T	{"t": 1}	error	invalid	ports	decision 2 (section 7): a name that refers to itself through a trial alone, with no key and no element between, breaks the alias-cycle rule, an error, where the ports decide the trial by exhausting the budget (#361)
+t295	%T = when(string, 1, %T)\n"t": %T	{"t": 1}	error	invalid	ports	decision 2 (section 7): a name that refers to itself through a trial alone, with no key and no element between, breaks the alias-cycle rule, an error, where the ports decide the trial by exhausting the budget (#361)
+t296	%T = when(string, 1, %T)\n"t": %T	{"t": 1}	error	invalid	ports	decision 2 (section 7): a name that refers to itself through a trial alone, with no key and no element between, breaks the alias-cycle rule, an error, where the ports decide the trial by exhausting the budget (#361)
+t348	"a": (nof(1, 1, 2)) & (*(3) | (2))	{}	valid	incomplete	ports	a default a trial refuses is a dead arm, and the disjunction falls to its live arms, so the meet singles out the other arm and the document is valid, where the ports leave the disjunction generating nothing (#365)
+t351	"a": (when(string, "a")) & (*("b") | ("a"))	{}	valid	incomplete	ports	a default a trial refuses is a dead arm, and the disjunction falls to its live arms, so the meet singles out the other arm and the document is valid, where the ports leave the disjunction generating nothing (#365)

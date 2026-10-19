@@ -260,6 +260,15 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       Judge env root false (.nof n cs) j
   | must {b : Bool} {c : Val} {m : String} {j : Data} :
       Judge env root b c j → Judge env root b (.must c m) j
+  /-- A conditional holds the value to the branch its condition picks:
+  where `c` admits the value, `when(c, t, e)` judges it as `t` does;
+  where `c` refuses it, as `e` does; and an `e` not written admits it. -/
+  | whenThen {b : Bool} {c t : Val} {e : Option Val} {j : Data} :
+      Judge env root true c j → Judge env root b t j → Judge env root b (.when c t e) j
+  | whenElse {b : Bool} {c t e : Val} {j : Data} :
+      Judge env root false c j → Judge env root b e j → Judge env root b (.when c t (some e)) j
+  | whenPass {c t : Val} {j : Data} :
+      Judge env root false c j → Judge env root true (.when c t none) j
 
 /-- `j` is an instance of `v`: the trial comes out `true`. -/
 abbrev Admits (env : Env) (root : Data) : Val → Data → Prop := Judge env root true
@@ -588,6 +597,16 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | nofBig _ _ _ => rfl
   | must _ ih => intro b' h'; cases h' with
     | must h => exact ih h
+  | whenThen _ _ ihc iht => intro b' h'; cases h' with
+    | whenThen _ ht' => exact iht ht'
+    | whenElse hc' _ => exact nomatch ihc hc'
+    | whenPass hc' => exact nomatch ihc hc'
+  | whenElse _ _ ihc ihe => intro b' h'; cases h' with
+    | whenThen hc' _ => exact nomatch ihc hc'
+    | whenElse _ he' => exact ihe he'
+  | whenPass _ ihc => intro b' h'; cases h' with
+    | whenThen hc' _ => exact nomatch ihc hc'
+    | whenPass _ => rfl
 
 /-- The judgement a term's trial comes out: the computed answer `c` is the
 judgement `b` exactly when the two agree. -/

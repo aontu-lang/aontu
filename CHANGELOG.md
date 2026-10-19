@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `when` inside a value
+
+Definition, generated rows, and documentation; no engine changes.
+
+- `spec/Aontu/Syntax.lean`: the form `when(c, t)` and `when(c, t, e)`,
+  its `else` an `Option Val`; `spec/Aontu/Admits.lean`: its three rules
+  of `Judge`, `whenThen`, `whenElse` and `whenPass`, the condition's
+  answer picking the branch and an `else` not written admitting; the
+  checker, the walkers over names, paths and expansions, the normal
+  form's domains and equality, generation (none), the parent type
+  (`any`) and `Val.untried` (`any`) each take the form.
+- `spec/Aontu/Trial.lean`: ADR-050 as theorems, `judge_when_iff`, a
+  conditional holds the value to the branch its condition picks, an
+  `else` not written reading as `any`, and `when_nil_refuses`,
+  `when(c, nil)` refuses every value `c` admits.
+- `test/spec/def-trial.tsv` gains 159 rows, 53 documents in the three
+  modes: `when` inside values, and a trial beside a disjunction whose
+  preferred arm it refuses. Both ports answer every row as the
+  definition does but eleven: the nine of a name recursive through a
+  conditional alone, which join `spec/ledger.tsv` under the alias-cycle
+  rule (#361), and the two of the refused default, where the definition
+  lets the disjunction fall to its live arm and the ports leave it
+  generating nothing (#365); the bound rises from 78 to 89.
+- The tutorial's step 16 reads the rules, the theorems, the checker's
+  case and a tour example; the design note's P4 row records the step.
+
 ### A container a trial refuses is invalid
 
 Definition, generated rows, and documentation; no engine changes.

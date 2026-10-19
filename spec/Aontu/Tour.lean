@@ -944,6 +944,21 @@ example : check (.meet .integer (.min (.num (.integer (.of 3))))) (.integer 7) =
 /-- …and `{x: integer}` refuses `{}`. -/
 example : check (.map [("x", false, .integer)] none false) (.map []) = false := by decide
 
+/-- `{a: when(string, "a")}`: a conditional inside a value. -/
+abbrev ifThen : Val := .map [("a", false, .when .string (.lit (.str "a")) none)] none false
+
+set_option maxRecDepth 8192 in
+/-- `5` is no string, so the conditional, with no `else`, passes it. -/
+example : vet {} [] ifThen (.map [("a", .integer 5)]) = .valid := by decide
+
+set_option maxRecDepth 8192 in
+/-- `"b"` is a string, and the `then` branch refuses it. -/
+example : vet {} [] ifThen (.map [("a", .str "b")]) = .invalid := by decide
+
+/-- The condition refuses `5`, and an `else` not written reads as `any`. -/
+example : Admits .empty .null (.when .string (.lit (.str "a")) none) (.integer 5) :=
+  judge_when_iff.mpr (.inr ⟨.stringNot (fun _ h => nomatch h), .any⟩)
+
 /-! ## What a `subsume` must answer -/
 
 /-- One implementation: never commit. Correct, and useless. -/

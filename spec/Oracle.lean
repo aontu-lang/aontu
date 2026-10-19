@@ -664,8 +664,12 @@ def pathRows (tag : String) : IO Unit := do
 declarations, a map as the schema, and a map as the document, run in
 the three modes. `nof` with each kind of count, over kinds, literals,
 maps, lists and names; beside literals, defaults and disjunctions;
-nested; through a recursive name; and `must`, with a conflicting branch
-among them. -/
+nested; through a recursive name; `must`, with a conflicting branch
+among them; and `when`, with and without an `else`, over scalars, maps
+and lists, with `nil` and a conflict in each position, nested, in a
+spread and a list, beside a literal, a default, a disjunction and
+`nof`, and through a name, guarded and not; and a trial beside a
+disjunction whose preferred arm it refuses. -/
 def trialCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -678,6 +682,7 @@ def trialCases : List (Decls × Val × Data) :=
   let da (x : Data) : Data := .map [("a", x)]
   let nof (n : Val) (cs : List Val) : Val := .nof n cs
   let must (c : Val) : Val := .must c "m"
+  let whn (c t : Val) (e : Option Val := none) : Val := .when c t e
   let T : Val := .alias "T"
   [([], a (nof (int 1) [.string, .number]), da (.str "x")),
     ([], a (nof (int 1) [.string, .number]), da (j 1)),
@@ -744,7 +749,60 @@ def trialCases : List (Decls × Val × Data) :=
     ([], a (must (.meet (int 1) (int 2))), da (j 1)),
     ([], a (must .nil), da (j 1)),
     ([], a (must (.meet (min 3) (max 1))), da (j 2)),
-    ([], a (nof (int 1) [must .string, .number]), da (.str "x"))]
+    ([], a (nof (int 1) [must .string, .number]), da (.str "x")),
+    ([], a (whn .string (str "a")), da (.str "a")),
+    ([], a (whn .string (str "a")), da (.str "b")),
+    ([], a (whn .string (str "a")), da (j 5)),
+    ([], a (whn .string (str "a") (some (min 0))), da (j 5)),
+    ([], a (whn .string (str "a") (some (min 0))), da (j (-1))),
+    ([], a (whn .nil .string (some .number)), da (j 5)),
+    ([], a (whn .any .number), da (.str "s")),
+    ([], a (whn .string .nil), da (.str "s")),
+    ([], a (whn .string .nil), da (j 1)),
+    ([], a (whn (m [("k", .any)]) (m [("n", .any)])), da (.map [("k", j 1), ("n", j 2)])),
+    ([], a (whn (m [("k", .any)]) (m [("n", .any)])), da (.map [("k", j 1)])),
+    ([], a (whn (m [("k", .any)]) (m [("n", .any)])), da (.map [])),
+    ([], a (whn (m [("k", .any)]) (m [("n", .number)])), da (.map [("k", j 1), ("n", .str "s")])),
+    ([], a (whn (mo [("x", true, .number)]) (mo [("x", true, max 5)])), da (.map [("x", j 3)])),
+    ([], a (whn (mo [("x", true, .number)]) (mo [("x", true, max 5)])), da (.map [("x", j 7)])),
+    ([], a (whn (.list [] (some .number) false) (.len (max 2))), da (.list [j 1, j 2])),
+    ([], a (whn (.list [] (some .number) false) (.len (max 2))), da (.list [j 1, j 2, j 3])),
+    ([], a (.map [] (some (whn .string (str "x"))) false), da (.map [("p", .str "x"), ("q", j 2)])),
+    ([], a (.map [] (some (whn .string (str "x"))) false), da (.map [("p", .str "y")])),
+    ([], a (whn (m [("b", .string)]) (m [("b", whn .string (str "s"))])), da (.map [("b", .str "s")])),
+    ([], a (whn (m [("b", .string)]) (m [("b", whn .string (str "s"))])), da (.map [("b", .str "t")])),
+    ([], a (.meet (nof (int 1) [.string, .number]) (whn .string (str "a"))), da (.str "a")),
+    ([], a (.meet (nof (int 1) [.string, .number]) (whn .string (str "a"))), da (.str "b")),
+    ([], a (.meet (whn .string (str "a")) (str "a")), .map []),
+    ([], a (.meet (whn .string (str "a")) (str "b")), .map []),
+    ([], a (.meet (whn .string (str "a")) (.pref 1 (str "b"))), .map []),
+    ([], a (.meet (whn .string (str "a")) (.pref 1 (str "a"))), .map []),
+    ([], a (.or [(0, whn .string (str "a")), (0, .number)]), da (.str "b")),
+    ([], a (.or [(0, whn .string (str "a")), (0, .number)]), da (.str "a")),
+    ([("T", mo [("a", true, whn T (int 1))])], m [("t", T)], .map [("t", .map [("a", j 1)])]),
+    ([("T", mo [("a", true, whn T (int 1))])], m [("t", T)], .map [("t", .map [("a", .map [])])]),
+    ([("T", whn T (int 1))], m [("t", T)], .map [("t", j 1)]),
+    ([("T", whn .string T)], m [("t", T)], .map [("t", j 1)]),
+    ([("T", whn .string (int 1) (some T))], m [("t", T)], .map [("t", j 1)]),
+    ([], a (whn .string (str "a") (some .nil)), da (j 5)),
+    ([], a (whn (.meet (int 1) (int 2)) .string (some .number)), da (j 5)),
+    ([], a (whn .string (.meet (int 1) (int 2))), da (.str "s")),
+    ([], a (whn (nof (int 0) [.string]) (int 1)), da (j 1)),
+    ([], a (whn (nof (int 0) [.string]) (int 1)), da (j 2)),
+    ([], a (whn (nof (int 0) [.string]) (int 1)), da (.str "s")),
+    ([], a (whn .string (must (str "a"))), da (.str "b")),
+    ([], a (.meet (whn .string (str "a")) (whn .number (int 1))), da (j 2)),
+    ([], a (.list [whn .string (str "a")] none false), da (.list [.str "b"])),
+    ([], a (whn .string (str "a")), .map []),
+    ([], a (.meet (whn (m [("k", .any)]) (m [("n", .any)])) (m [("k", int 1)])), .map []),
+    ([], a (.meet (whn (m [("k", .any)]) (m [("n", .any)])) (m [("k", int 1), ("n", int 2)])), .map []),
+    ([], a (whn (m [("k", .any)]) (m [("n", .pref 1 (int 2))])), da (.map [("k", j 1)])),
+    ([], a (whn (whn .string (str "a")) (int 1)), da (.str "a")),
+    ([], a (whn (whn .string (str "a")) (int 1)), da (.str "b")),
+    ([], a (whn (min 3) (max 5)), da (j 6)),
+    ([], a (whn (min 3) (max 5)), da (j 1)),
+    ([], a (.meet (nof (int 1) [int 1, int 2]) (.or [(1, int 3), (0, int 2)])), .map []),
+    ([], a (.meet (whn .string (str "a")) (.or [(1, str "b"), (0, str "a")])), .map [])]
 
 /-- Every case's bodies and schema hold no path, no pattern and no
 format, so `vet` is `Vet` on it, by `vet_iff`. -/
@@ -888,8 +946,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# as `verdict` rows whose expectation is the one class `vet` gives, which"
     IO.println "# `vet_iff` makes the definition's own. nof(n, ...) counts the branches that"
     IO.println "# admit the value and judges as n judges the count; must(c, m) asks what"
-    IO.println "# nof(1, c) asks; a branch that admits nothing counts as none; a container a"
-    IO.println "# trial refuses once its members have all arrived is invalid; and a name that"
+    IO.println "# nof(1, c) asks; when(c, t, e) holds the value to the branch c picks, an e"
+    IO.println "# not written passing; a branch that admits nothing counts as none; a container"
+    IO.println "# a trial refuses once its members have all arrived is invalid; and a name that"
     IO.println "# refers to itself through a trial alone breaks the alias-cycle rule, an"
     IO.println "# error. Regenerate with `make spec`; never edit by hand. The cases the ports"
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
