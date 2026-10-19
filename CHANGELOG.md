@@ -8,12 +8,12 @@ each change affects.
 
 ## Unreleased
 
-### A commit is checked in two minutes, a pull request in five
+### A push is checked in two minutes, a pull request in five
 
 Process; no engine changes
-([ADR-071](ADR.md#adr-071--a-commit-is-checked-in-two-minutes-and-a-pull-request-in-five)).
+([ADR-071](ADR.md#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five)).
 
-- `make quick` is the check before a commit: the comment gate, both
+- `make quick` is the check before a push: the comment gate, both
   builds, the gate group and the Go suite, 89 seconds with a cold Go
   test cache.
 - Every `build.yml` job carries `timeout-minutes: 5`.

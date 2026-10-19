@@ -77,11 +77,12 @@ twice — for DeepScan this is excluded in its dashboard settings
 or a routine that answers on only some paths fails the build rather than
 reaching an analyser. The test project is not gated the same way.
 
-### Before you commit
+### Before you push
 
 `make quick` (ADR-071): the comment gate, both builds, the gate group
-and the Go suite, inside two minutes. The rest is CI's, run by hand when
-a change reaches it: `make test`, `make cov`, `make prose`, `make spec`,
+and the Go suite, inside two minutes. A commit may be broken; a push
+should not be. The rest is CI's, run by hand when a change reaches it:
+`make test`, `make cov`, `make prose`, `make spec`,
 `(cd use-cases && ./run-all.sh)`.
 
 `make hooks` points git at [`.githooks/`](.githooks), whose `pre-push`

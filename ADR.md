@@ -106,8 +106,8 @@ thereafter stated and changed in the definition, not here.
 | [ADR-067](#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names) | Subsumption reads a recursion as the definition it names | Moved to the definition in part |
 | [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) | An import comes back from its own export | Accepted |
 | [ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it) | The language is defined in Lean, and the ports implement it | Accepted |
-| [ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release) | The standard CI run samples, the daily run decides, and releases come from `release` | Amended by [ADR-071](#adr-071--a-commit-is-checked-in-two-minutes-and-a-pull-request-in-five) |
-| [ADR-071](#adr-071--a-commit-is-checked-in-two-minutes-and-a-pull-request-in-five) | A commit is checked in two minutes and a pull request in five | Accepted |
+| [ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release) | The standard CI run samples, the daily run decides, and releases come from `release` | Amended by [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) |
+| [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) | A push is checked in two minutes and a pull request in five | Accepted |
 
 ---
 
@@ -6565,7 +6565,7 @@ answer ([docs/design/DEFINITION.0.md](docs/design/DEFINITION.0.md)).
 ## ADR-070 — The standard CI run samples, the daily run decides, and releases come from `release`
 
 **Date:** 2026-10-19
-**Status:** Amended by [ADR-071](#adr-071--a-commit-is-checked-in-two-minutes-and-a-pull-request-in-five)
+**Status:** Amended by [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five)
 
 ### Context
 
@@ -6651,7 +6651,7 @@ moment of the dispatch.
   by the guards in `publish.yml` and the `publish` target, and by the
   workflow headers, which cite this entry.
 
-## ADR-071 — A commit is checked in two minutes and a pull request in five
+## ADR-071 — A push is checked in two minutes and a pull request in five
 
 **Date:** 2026-10-19
 **Status:** Accepted
@@ -6659,8 +6659,7 @@ moment of the dispatch.
 ### Context
 
 ADR-070 brought the standard run to about three minutes, but set no
-ceiling, and named no check to run before a commit. The list under
-"Before you push" in `AGENTS.md` (both suites whole, the coverage gate,
+ceiling, and the list under "Before you push" in `AGENTS.md` (both suites whole, the coverage gate,
 the prose gate, the use cases) took tens of minutes, so it was either
 skipped or it held the work up. The definition's job, which ADR-070
 ran in the standard CI when `spec/` or its rows changed, took 56 to
@@ -6674,9 +6673,10 @@ the sample 105 to 152 s.
 
 ### Decision
 
-1. **Before a commit, `make quick`, inside two minutes.** It runs the
+1. **Before a push, `make quick`, inside two minutes.** It runs the
    comment gate, `make build-ts`, Go's build and vet, the gate group
-   and the Go suite: 89 seconds with a cold Go test cache, 12 warm. No
+   and the Go suite: 89 seconds with a cold Go test cache, 12 warm. A
+   commit may carry broken code; the push is where the check runs. No
    hook runs it; the `pre-push` hook stays the comment gate alone.
 2. **A pull request's CI finishes inside five minutes.** Every job a
    push or a pull request starts carries `timeout-minutes: 5`, so a

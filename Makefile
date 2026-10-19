@@ -196,7 +196,7 @@ test-ts:
 test-group:
 	cd ts && node scripts/test-group.cjs --run $(G)
 
-# The check before a commit, inside two minutes (ADR-071): the comment
+# The check before a push, inside two minutes (ADR-071): the comment
 # gate, both builds, the gate group and the Go suite. The other groups,
 # the other operating systems, the prose gate and the definition are
 # CI's: make test-group, make prose and make spec run them by hand.

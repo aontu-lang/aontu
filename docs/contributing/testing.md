@@ -113,7 +113,7 @@ engine codes must land with a registry row in the same change.
 
 ## The standard run and the sampled groups
 
-Before a commit, `make quick` runs the comment gate, both builds, the
+Before a push, `make quick` runs the comment gate, both builds, the
 gate group and the Go suite, inside two minutes (ADR-071); the rest
 below is CI's, and runs by hand when a change reaches it.
 
