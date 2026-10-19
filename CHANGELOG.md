@@ -8,6 +8,48 @@ each change affects.
 
 ## Unreleased
 
+### The definition's checker reads the names
+
+Definition, generated rows, and documentation; no engine changes.
+
+- `check` is now `checkWith` with a hook for names, in
+  `spec/Aontu/Check.lean`: where the checker meets a name it asks the
+  hook, and `checkWith_iff` makes its answers the definition's on every
+  value that reads no path, no pattern and no format (`CheckableA`),
+  given a hook that is right where it is asked, `HookOk`: at a datum no
+  heavier than the one in hand, and at one as heavy only where the name
+  stands with no key and no element between. `check_iff` is the case of
+  the hook that admits no name.
+- `checkD` and `checkR` in `spec/Aontu/Alias.lean`: the hook under the
+  declarations unfolds a name to its expanded body, against a lighter
+  datum afresh and against one as heavy only while the name is not
+  already being unfolded there, which a stack records; the alias-cycle
+  rule is what bounds the stack, and `Decls.budget` counts the turns a
+  datum needs. `checkR_iff` holds the checker to `Admits` wherever the
+  names keep the rule.
+- The generator takes the checker, `genWith`, and `gen_iff` is derived;
+  the meet keeps a term the checker can read, `normaliseD_checkableA`,
+  so `vet_iff` asks only that the bodies and the schema read no path,
+  no pattern and no format, which `decide` settles from their text.
+- The meet's second splitting rule, `a & (b₁ & b₂)`, is `meetRight`:
+  `a` meets `b₁`, and where the two had nothing to say to each other,
+  `a` meets `b₂` instead, so each atom is tried against each other once
+  and the two splitting rules never take a pair up in another
+  association, which they did until the budget ran out. Two references
+  to one name meet in that name, `aliasMeet`, so a spread of a name
+  into itself no longer doubles at each level of the data.
+- The meet takes the meet of a literal with a term as a parameter,
+  `lm`; under the declarations it is `litMeetD`, which decides the
+  literal by the checker that reads the names wherever the alias-cycle
+  rule holds, so a recursive map met with a scalar is `nil`, and
+  `invalid`, as both ports answer, where the pair left as written was
+  `incomplete`.
+- The alias fragment, `test/spec/def-alias.tsv`, gains 34 documents
+  with recursive names, a linked list, a tree, a spread of itself, a
+  pair declared as each other, 210 rows in all; both ports agree with
+  the definition on every row but `%U = %U` and `%T = %T | 1`, which
+  the ledger carries (#354), its bound raised from 48 to 51.
+
 ### The definition reads a document under its declarations
 
 Definition, generated rows, and documentation; no engine changes.

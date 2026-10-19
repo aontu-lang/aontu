@@ -36,9 +36,14 @@ in `spec/Aontu/Alias.lean`, a reference to a recursive name a residual
 that expands against concrete structure alone, with `vet` an `error`
 for a name declared nowhere or an unguarded cycle, run as the sixth
 generated fragment, `test/spec/def-alias.tsv`, on which both ports
-agree with the definition on every row but `%U = %U`, which the ledger
-carries under decision 1 of §7; a recursive name met with data in the
-checker, and path references, remain. P4, P6 and P7 not started. The
+agree with the definition on every row but `%U = %U` and `%T = %T | 1`,
+which the ledger carries under decisions 1 and 2 of §7; the same day
+the checker gained a hook for names, `checkWith` in
+`spec/Aontu/Check.lean` and `checkR` in `spec/Aontu/Alias.lean`, which
+unfolds a residual against the data with a stack the alias-cycle rule
+bounds, so recursive names have rows, 210 in the fragment; path
+references read against the filled document remain. P4, P6 and P7 not
+started. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them.
 Date: 2026-10-16
@@ -283,9 +288,10 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 45 rows under three causes: decisions 3 and 4 of §2, under
-the first of which the ports move and under the second the definition,
-and #346, the sealed list met with a spread, where the ports move.
+ledger holds 51 rows under four causes: decisions 3 and 4 of §2, under
+the first of which the ports move and under the second the definition;
+#346, the sealed list met with a spread, where the ports move; and the
+alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354).
 Exhaustive enumeration of small values
 over a small instance set is bounded per phase (600 values and 16
 instances in the prototype: 9,600 cases, 109 s through both CLIs on

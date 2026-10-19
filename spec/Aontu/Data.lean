@@ -334,6 +334,7 @@ def Data.project (k : Option String) (x : Data) : Option Data :=
 inductive Seg where
   | key (k : String)
   | idx (i : ℕ)
+  deriving DecidableEq
 
 /-- The part of a value a path names. -/
 def Data.at (j : Data) : List Seg → Option Data

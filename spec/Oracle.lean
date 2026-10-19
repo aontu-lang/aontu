@@ -385,16 +385,13 @@ def vetCases : List (Val × Data) :=
 write them. -/
 def vetDoc (c : Val × Data) : Val × Data := (.map [("v", false, c.1)] none false, .map [("v", c.2)])
 
-/-- Every case's schema and meet normalise to checkable terms, so `vet`
+/-- Every case's schema holds no path, no pattern and no format, so `vet`
 is `Vet` on it, by `vet_iff`. -/
-theorem vetCases_checkable : ∀ c ∈ vetCases,
-    (Decls.read [] (vetDoc c).1).Checkable ∧
-      (normaliseD [] (meetD [] (Decls.read [] (vetDoc c).1) (vetDoc c).2.term)).Checkable := by decide
+theorem vetCases_checkable : ∀ c ∈ vetCases, (vetDoc c).1.CheckableA := by decide
 
 theorem vet_verdict_exact : ∀ c ∈ vetCases, ∀ (m : Mode) (v : Verdict),
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
-  fun c hc _ v =>
-    vet_iff (fun _ _ => (vetCases_checkable c hc).1) (fun _ _ => (vetCases_checkable c hc).2) v
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil _)) (vetCases_checkable c hc) v
 
 def verdictName : Verdict → String
   | .valid => "valid"
@@ -417,11 +414,12 @@ def verdictRows (tag : String) : IO Unit := do
       i := i + 1
 
 /-- The cases of the `alias` fragment: declarations, a schema and a
-document, the last two under the key `v`. The names are not recursive,
-so the schema as read has no residual and `vet` is `Vet` on every case
-by `vet_iff`; a recursive name waits on a checker that reads one. The
-cases that break the alias-cycle rule or refer to a name declared
-nowhere are errors before anything else is asked. -/
+document, the last two under the key `v`: names that are not recursive,
+replaced as the document reads, and recursive ones, left as residuals
+that the data expands, a linked list, a tree, a spread of itself, a
+pair that refer to each other. The cases that break the alias-cycle
+rule or refer to a name declared nowhere are errors before anything
+else is asked, and `%T = %T | 1`, which the engines run, is one. -/
 def aliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -457,22 +455,77 @@ def aliasCases : List (Decls × Val × Data) :=
     ([("p", int 1)], .pref 1 p, j 2), ([("p", int 1)], .pref 1 p, .str "a"),
     ([], .alias "nosuch", j 1), ([("A", .alias "B"), ("B", .alias "A")], .alias "A", j 1),
     ([("T", .meet (.alias "T") .integer)], .alias "T", j 1), ([("a", .alias "zz")], int 1, j 1),
-    ([("U", .alias "U")], .alias "U", j 1)]
+    ([("U", .alias "U")], .alias "U", j 1),
+    ([("N", .map [("n", false, .integer), ("next", true, .alias "N")] none false)], .alias "N",
+      .map [("n", j 1), ("next", .map [("n", j 2)])]),
+    ([("N", .map [("n", false, .integer), ("next", true, .alias "N")] none false)], .alias "N",
+      .map [("n", j 1), ("next", .map [("n", .str "a")])]),
+    ([("N", .map [("n", false, .integer), ("next", true, .alias "N")] none false)], .alias "N",
+      .map [("n", j 1), ("next", .map [])]),
+    ([("N", .map [("n", false, .integer), ("next", false, .alias "N")] none false)], .alias "N",
+      .map [("n", j 1)]),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)], .alias "T", .map []),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)], .alias "T",
+      .map [("x", .map [])]),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)],
+      key "a" true (.alias "T"), .map []),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)],
+      key "a" false (.alias "T"), .map [("a", .map [])]),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)], .alias "T",
+      .map [("y", j 1)]),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)], .alias "T", j 1),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)], .alias "T",
+      .map [("x", j 1)]),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)], .alias "T",
+      .map [("x", .map [("x", .map [("y", j 5)])])]),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)],
+      .list [.alias "T"] none false, .list [.map []]),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)],
+      .list [] (some (.alias "T")) false, .list [.map [], .map [("x", .map [])]]),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)],
+      .map [] (some (.alias "T")) false, .map [("a", .map [])]),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .pref 1 (int 1))] none false)],
+      .or [(0, .alias "T"), (0, int 2)], .map []),
+    ([("T", key "x" true (.alias "T"))], .alias "T", .map []),
+    ([("T", key "x" true (.alias "T"))], .alias "T", .map [("x", .map [("x", .map [])])]),
+    ([("T", .map [] (some (.alias "T")) false)], .alias "T", .map [("a", .map [("b", .map [])])]),
+    ([("T", .map [] (some (.alias "T")) false)], .alias "T", .map [("a", j 1)]),
+    ([("T", .list [] (some (.alias "T")) false)], .alias "T", .list [.list [], .list [.list []]]),
+    ([("T", .or [(1, .lit .null), (0, .map [("n", false, .integer), ("next", false, .alias "T")] none false)])],
+      .alias "T", .map [("n", j 1), ("next", .map [("n", j 2)])]),
+    ([("L", .map [("n", false, .integer), ("next", true, .alias "L")] none false), ("W", key "list" false (.alias "L"))],
+      .alias "W", .map [("list", .map [("n", j 1), ("next", .map [("n", j 2)])])]),
+    ([("A", key "b" true (.alias "B")), ("B", key "a" true (.alias "A"))], .alias "A",
+      .map [("b", .map [("a", .map [("b", .map [])])])]),
+    ([("A", key "b" true (.alias "B")), ("B", key "a" true (.alias "A"))], .alias "A",
+      .map [("b", .map [("a", j 1)])]),
+    ([("A", key "b" true (.alias "B")), ("B", key "a" true (.alias "A"))], .alias "B", .map [("a", .map [])]),
+    ([("T", .map [("n", false, .integer), ("next", true, .alias "T")] none false)], .alias "T",
+      .map [("n", j 1), ("next", .map [("n", j 2), ("extra", j 1)])]),
+    ([("T", .map [("n", false, .pref 1 (int 0)), ("next", true, .alias "T")] none false)], .alias "T",
+      .map [("next", .map [("next", .map [])])]),
+    ([("T", .map [("n", false, .integer), ("next", true, .alias "T")] none false)],
+      .map [("a", false, .alias "T"), ("b", false, .alias "T")] none false,
+      .map [("a", .map [("n", j 1)]), ("b", .map [("n", j 2), ("next", .map [("n", j 3)])])]),
+    ([("T", .map [("n", false, .integer), ("next", true, .alias "T")] none false)],
+      .meet (.alias "T") (key "n" false (int 1)), .map []),
+    ([("T", .map [("n", false, .integer), ("next", true, .alias "T")] none false)],
+      .meet (.alias "T") (key "n" false (int 1)), .map [("next", .map [("n", j 2)])]),
+    ([("T", .map [("n", false, .integer), ("next", true, .alias "T")] none false), ("T", key "m" false (.pref 1 (int 0)))],
+      .alias "T", .map [("n", j 1)]),
+    ([("T", .map [("n", false, .integer), ("next", true, .alias "T")] none false)], .alias "T",
+      .map [("n", j 1), ("next", .map [("n", j 2), ("next", .map [("n", j 3), ("next", .map [("n", j 4)])])])]),
+    ([("T", .or [(0, .alias "T"), (0, int 1)])], .alias "T", j 1)]
 
 /-- The schema and data of a case, each under the key `v`, as the rows
 write them. -/
 def aliasDoc (c : Decls × Val × Data) : Val × Data :=
   (.map [("v", false, c.2.1)] none false, .map [("v", c.2.2)])
 
-set_option maxRecDepth 100000 in
-/-- Every case whose names are in order reads as a checkable schema
-whose meet with the data normalises to a checkable term, so `vet` is
-`Vet` on it, by `vet_iff`. -/
+/-- Every case's bodies and schema hold no path, no pattern and no
+format, so `vet` is `Vet` on it, by `vet_iff`. -/
 theorem aliasCases_checkable : ∀ c ∈ aliasCases,
-    (c.1.Declares (aliasDoc c).1 → c.1.Guarded → (Decls.read c.1 (aliasDoc c).1).Checkable) ∧
-      (c.1.Declares (aliasDoc c).1 → c.1.Guarded →
-        (normaliseD c.1 (meetD c.1 (Decls.read c.1 (aliasDoc c).1) (aliasDoc c).2.term)).Checkable) := by
-  decide
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
 
 theorem alias_verdict_exact : ∀ c ∈ aliasCases, ∀ (m : Mode) (v : Verdict),
     vet m c.1 (aliasDoc c).1 (aliasDoc c).2 = v ↔ Vet m c.1 (aliasDoc c).1 (aliasDoc c).2 v :=
@@ -583,8 +636,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# default mode, without the fill (noFill) and under --partial (partial), as"
     IO.println "# `verdict` rows whose expectation is the one class `vet` gives, which `vet_iff`"
     IO.println "# makes the definition's own. A document reads as its expansion; a name declared"
-    IO.println "# nowhere, or names that break the alias-cycle rule, are an error. No name here"
-    IO.println "# is recursive."
+    IO.println "# nowhere, or names that break the alias-cycle rule, are an error. A recursive"
+    IO.println "# name is a residual that expands against the data, as far as it goes."
     IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
     aliasRows "a"
