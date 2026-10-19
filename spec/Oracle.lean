@@ -1,6 +1,7 @@
 import Aontu.Check
 import Aontu.Output
 import Aontu.Verdict
+import Aontu.Paths
 import Oracle.Print
 
 /-!
@@ -550,6 +551,113 @@ def aliasRows (tag : String) : IO Unit := do
         ++ verdictName (vet m c.1 S D) ++ "\"" ++ opts ++ "}")
       i := i + 1
 
+/-! ## The seventh fragment: paths -/
+
+/-- Documents with paths: each case its declarations, a schema that is
+a map with paths in it, and a document, run in the three modes. -/
+def pathCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let pa : Val := .path [.key "a"]
+  let pb : Val := .path [.key "b"]
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let step (o : Bool) : Val := m [("schema", m [("Step", mo [("label", false, .string), ("then", o, p ["schema", "Step"])])]), ("doc", p ["schema", "Step"])]
+  [([], m [("a", int 1), ("b", pa)], .map [("a", j 1), ("b", j 1)]),
+    ([], m [("a", int 1), ("b", pa)], .map [("a", j 1), ("b", j 2)]),
+    ([], m [("a", int 1), ("b", pa)], .map [("a", j 1)]),
+    ([], m [("a", int 1), ("b", pa)], .map [("b", j 1)]),
+    ([], m [("a", int 1), ("b", pa)], .map []),
+    ([], m [("a", int 1), ("b", pa)], .map [("a", j 2), ("b", j 2)]),
+    ([], m [("a", .integer), ("b", pa)], .map [("a", j 1), ("b", j 1)]),
+    ([], m [("a", .integer), ("b", pa)], .map [("a", j 1), ("b", j 2)]),
+    ([], m [("a", .integer), ("b", pa)], .map [("a", j 1)]),
+    ([], m [("a", .integer), ("b", pa)], .map [("b", j 1)]),
+    ([], m [("a", .integer), ("b", pa)], .map [("a", j 1), ("b", .num (.float (.dyadic 3 (-1))))]),
+    ([], m [("a", .integer), ("b", .meet pa (min 2))], .map [("a", j 1), ("b", j 1)]),
+    ([], m [("a", .integer), ("b", .meet pa (min 2))], .map [("a", j 3), ("b", j 3)]),
+    ([], m [("b", pa)], .map [("a", j 5), ("b", j 5)]),
+    ([], m [("b", pa)], .map [("b", j 5)]),
+    ([], m [("a", pb), ("b", pa)], .map [("a", j 1), ("b", j 1)]),
+    ([], m [("a", pa)], .map [("a", j 1)]),
+    ([], m [("a", p ["nope"])], .map [("a", j 1)]),
+    ([], m [("a", .list [int 1, int 2] none false), ("b", .path [.key "a", .idx 1])], .map [("b", j 2)]),
+    ([], m [("a", .list [int 1, int 2] none false), ("b", .path [.key "a", .idx 5])], .map [("b", j 1)]),
+    ([], m [("a", m [("x", int 1)]), ("b", pa)], .map [("b", .map [("x", j 1)])]),
+    ([], m [("a", m [("x", int 1)]), ("b", pa)], .map [("b", .map [("x", j 1), ("y", j 2)])]),
+    ([], m [("a", m [("x", .integer)]), ("b", p ["a", "x"])], .map [("a", .map [("x", j 7)]), ("b", j 7)]),
+    ([], m [("a", m [("x", .integer)]), ("b", p ["a", "x"])], .map [("b", j 7)]),
+    ([], mo [("a", true, int 1), ("b", false, pa)], .map [("b", j 1)]),
+    ([], mo [("a", true, int 1), ("b", false, pa)], .map [("a", j 1), ("b", j 1)]),
+    ([], mo [("a", true, .integer), ("b", false, pa)], .map [("b", j 1)]),
+    ([], m [("a", .pref 1 (int 1)), ("b", pa)], .map [("b", j 2)]),
+    ([], m [("a", .pref 1 (int 1)), ("b", pa)], .map [("b", j 1)]),
+    ([], m [("a", .pref 1 (int 1)), ("b", pa)], .map [("a", j 2), ("b", j 2)]),
+    ([], m [("a", pb), ("b", int 1)], .map [("a", j 1)]),
+    ([], m [("a", pb), ("b", p ["c"]), ("c", int 1)], .map [("a", j 1), ("b", j 1), ("c", j 1)]),
+    ([], m [("a", m [("x", int 1)]), ("b", p ["a", "y"])], .map [("b", j 1)]),
+    ([], m [("a", m [("b", p ["c"])]), ("c", int 3)], .map [("a", .map [("b", j 3)])]),
+    ([], m [("a", int 1), ("b", .map [] (some pa) false)], .map [("b", .map [("p", j 1), ("q", j 1)])]),
+    ([], m [("a", int 1), ("b", .map [] (some pa) false)], .map [("b", .map [("p", j 1), ("q", j 2)])]),
+    ([], m [("a", int 1), ("b", .list [] (some pa) false)], .map [("b", .list [j 1, j 1])]),
+    ([], m [("a", .integer), ("b", .or [(0, pa), (0, .string)])], .map [("a", j 1), ("b", .str "s")]),
+    ([], m [("a", .integer), ("b", .or [(0, pa), (0, .string)])], .map [("a", j 1), ("b", j 2)]),
+    ([], m [("a", m [("x", .integer)]), ("b", .meet pa (m [("y", int 1)]))],
+      .map [("a", .map [("x", j 1)]), ("b", .map [("x", j 1), ("y", j 1)])]),
+    ([], m [("a", m [("x", .integer)]), ("b", .meet pa (m [("y", int 1)]))],
+      .map [("a", .map [("x", j 1)]), ("b", .map [("x", j 2), ("y", j 1)])]),
+    ([], m [("a", m [("x", .integer)]), ("b", pa)], .map [("a", .map [("x", j 1), ("z", j 2)]), ("b", .map [("x", j 1)])]),
+    ([], m [("a", .or [(0, int 1), (0, int 2)]), ("b", pa)], .map [("b", j 2)]),
+    ([], m [("a", .or [(0, int 1), (0, int 2)]), ("b", pa)], .map [("a", j 1), ("b", j 2)]),
+    ([], m [("a", .or [(0, int 1), (0, int 2)]), ("b", pa)], .map [("b", j 3)]),
+    ([], m [("a", .integer), ("b", pa), ("c", pb)], .map [("a", j 1), ("c", j 2)]),
+    ([], m [("a", m [("x", p ["a", "x"])])], .map [("a", .map [("x", j 1)])]),
+    ([], m [("a", m [("b", mo [("c", true, p ["a", "b"])])])], .map [("a", .map [("b", .map [])])]),
+    ([], m [("a", m [("b", mo [("c", true, p ["a", "b"])])])], .map [("a", .map [("b", .map [("c", .map [])])])]),
+    ([], m [("a", .meet pa .integer)], .map [("a", j 1)]),
+    ([("T", m [("v", p ["c"])])], m [("c", int 7), ("a", .alias "T")], .map [("a", .map [("v", j 7)])]),
+    ([("T", m [("v", p ["c"])])], m [("c", int 7), ("a", .alias "T")], .map [("a", .map [("v", j 8)])]),
+    ([("T", m [("v", int 1)])], m [("a", .alias "T"), ("b", p ["a", "v"])], .map [("b", j 1)]),
+    ([("N", mo [("n", false, .integer), ("next", true, .alias "N")])], m [("a", .alias "N"), ("b", p ["a", "n"])],
+      .map [("a", .map [("n", j 1)]), ("b", j 1)]),
+    ([], step true, .map [("doc", .map [("label", .str "a"), ("then", .map [("label", .str "b")])])]),
+    ([], step true, .map [("doc", .map [("label", .str "a"), ("then", .map [("label", j 1)])])]),
+    ([], step false, .map [("doc", .map [("label", .str "a")])]),
+    ([], m [("a", .meet (m [("x", int 1)]) (m [("y", int 2)])), ("b", p ["a", "y"])], .map [("b", j 2)]),
+    ([], m [("a", .or [(0, m [("v", int 1)]), (0, m [("v", int 2)])]), ("b", p ["a", "v"])], .map [("a", .map [("v", j 1)]), ("b", j 1)]),
+    ([], m [("a", m [("x", int 1), ("y", int 2)]), ("b", .meet pa (m [("x", int 2)]))], .map [("b", .map [("x", j 2), ("y", j 2)])])]
+
+/-- Every case's bodies and schema hold no pattern and no format, so
+`vetP` is `VetP` on it, by `vetP_iff`. -/
+theorem pathCases_checkable : ∀ c ∈ pathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem path_verdict_exact : ∀ c ∈ pathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (pathCases_checkable c hc).1 (pathCases_checkable c hc).2 v
+
+/-- The `paths` rows: each case's declarations and schema as one
+document, the schema's braces dropped since neither CLI reads a braced
+map after a declaration, in the three modes, with the one class `vetP`
+gives. -/
+def pathRows (tag : String) : IO Unit := do
+  let mut i := 0
+  for c in pathCases do
+    let mut lines : List String := []
+    for d in c.1 do
+      let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+      lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
+    let some ssrc := c.2.1.src | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.2.src | throw (IO.userError "a document of the fragment has no text")
+    let src := "\\n".intercalate (lines ++ [(ssrc.drop 1).dropRight 1])
+    for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
+        (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
+      IO.println (tag ++ toString i ++ "\tverdict\t" ++ src ++ "\t" ++ dsrc ++ "\t{\"verdict\":\""
+        ++ verdictName (vetP m c.1 c.2.1 c.2.2) ++ "\"" ++ opts ++ "}")
+      i := i + 1
+
 /-- The rows of one fragment: each value against each instance of each
 block, numbered from zero under `tag`. -/
 def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit := do
@@ -642,6 +750,20 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
     aliasRows "a"
     return 0
+  | ["paths"] =>
+    IO.println "# Generated by `lake exe oracle paths` (spec/Oracle.lean) from the definition"
+    IO.println "# in spec/Aontu: documents with paths, each case its declarations and a map"
+    IO.println "# as the schema against a map as the document, run in the default mode,"
+    IO.println "# without the fill (noFill) and under --partial (partial), as `verdict` rows"
+    IO.println "# whose expectation is the one class `vet` gives the document with its paths"
+    IO.println "# read as names, which `vetP_iff` makes the definition's own. A path resolves"
+    IO.println "# in the schema's own tree, through maps and lists and through nothing else,"
+    IO.println "# and reads as the term at its position in the schema met with the data; a"
+    IO.println "# path to nothing is an error, as is a document that reads only by its own"
+    IO.println "# paths. Regenerate with `make spec`; never edit by hand. The cases the ports"
+    IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
+    pathRows "p"
+    return 0
   | _ =>
-    IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias]"
+    IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths]"
     return 2

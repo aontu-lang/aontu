@@ -3,9 +3,11 @@ import Aontu.Syntax
 /-!
 # What a value admits
 
-`Admits env root v j`: the data `j`, found inside the whole value
-`root`, is an instance of the value `v`, where `env` holds the alias
-declarations. Each rule is one constructor, and `Admits` holds exactly
+`Admits env root v j`: the data `j` is an instance of the value `v`,
+where `env` holds the alias declarations and `root` is the whole value
+`j` is found inside. No rule reads `root`: a path reads by declaration,
+in `spec/Aontu/Paths.lean`, and `root` rides the relation for the
+profiles of subsumption to come. Each rule is one constructor, and `Admits` holds exactly
 when a finite derivation of it exists, so recursion through an alias
 follows the data down and stops where the data stops. `nil` has no
 rule: it admits nothing.
@@ -123,10 +125,6 @@ inductive Admits (env : Env) (root : Data) : Val → Data → Prop
   admits nothing. -/
   | alias {n : String} {v : Val} {j : Data} :
       env n = some v → Admits env root v j → Admits env root (.alias n) j
-  /-- A path admits what the whole value holds at the path: the same
-  value, compared as values. -/
-  | path {p : List Seg} {j' j : Data} :
-      root.at p = some j' → j'.Same j → Admits env root (.path p) j
 
 /-- `j` is an instance of `v` under the declarations `env`: `j` is a
 value, taken whole, so that it is its own root. This is the question

@@ -866,7 +866,7 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
     ∀ j, genWith chk v = some j ↔ Gen env root v j := by
   induction h with
   | integer | float | biginteger | bigdecimal | number | string | anyString | boolean
-  | min | max | above | beneath | neq | multiple | unique | any | nil | alias =>
+  | min | max | above | beneath | neq | multiple | unique | any | nil | alias | path =>
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩

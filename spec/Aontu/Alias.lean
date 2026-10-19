@@ -385,10 +385,11 @@ theorem Decls.bodiesCheckableB_iff {ds : Decls} :
 /-- A literal met with a term under the declarations: the literal where
 the term admits its value and `nil` where it refuses it, decided by the
 checker that reads the names wherever the names keep the alias-cycle
-rule and the bodies and the term read no path, no pattern and no
-format; and the pair where that cannot be computed. -/
+rule and the bodies and the term read no pattern and no format; and the
+pair where that cannot be computed, or where the term writes a path,
+which is read by declaration later and until then is left as written. -/
 def litMeetD (ds : Decls) (s : Scalar) (b : Val) : Val :=
-  if ds.guardedB && ds.bodiesCheckableB && b.checkableAB then
+  if ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty then
     (if checkR ds b s.data then .lit s else .nil)
   else .meet (.lit s) b
 
@@ -396,10 +397,10 @@ theorem admits_litMeetD {ds : Decls} {root : Data} (s : Scalar) (b : Val) (j : D
     Admits ds.envE root (litMeetD ds s b) j ↔
       Admits ds.envE root (.lit s) j ∧ Admits ds.envE root b j := by
   unfold litMeetD
-  by_cases hc : (ds.guardedB && ds.bodiesCheckableB && b.checkableAB) = true
+  by_cases hc : (ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty) = true
   · rw [if_pos hc]
     simp only [Bool.and_eq_true] at hc
-    obtain ⟨⟨hg, hb⟩, hcb⟩ := hc
+    obtain ⟨⟨⟨hg, hb⟩, hcb⟩, -⟩ := hc
     have hg' := Decls.guardedB_iff.mp hg
     have hb' := Decls.bodiesCheckableB_iff.mp hb
     have hcb' := (Val.checkableAB_iff b).mp hcb
@@ -642,6 +643,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
   | integer | float | biginteger | bigdecimal => exact .number
   | number | string | anyString | boolean | any => exact .any
   | nil => exact .nil
+  | path => exact .path
   | @lit s =>
     cases s with
     | num x =>

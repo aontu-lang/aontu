@@ -77,6 +77,14 @@ def prefSrc (r : ℕ) (s : String) : String :=
   let stars := String.mk (List.replicate r '*')
   if s.startsWith "{" || s.startsWith "[" then stars ++ s else stars ++ s!"({s})"
 
+/-- A step of a path as the grammar spells it: a key that is a plain
+name, or a position; a key that needs quoting has no text here. -/
+def segSrc : Seg → Option String
+  | .key k =>
+    if k.length > 0 && k.all (fun c => c.isAlphanum || c == '_') && !k.front.isDigit
+    then some ("." ++ k) else none
+  | .idx i => some ("." ++ toString i)
+
 mutual
 def Val.src : Val → Option String
   | .integer => some "integer"
@@ -115,7 +123,7 @@ def Val.src : Val → Option String
   | .pref r x => do pure (prefSrc r (← x.src))
   | .meet a b => do pure s!"({← a.src}) & ({← b.src})"
   | .alias n => some ("%" ++ n)
-  | .path _ => none
+  | .path p => do pure ("$" ++ String.join (← p.mapM segSrc))
 
 def fieldsSrc : List (String × Bool × Val) → Option (List String)
   | [] => some []

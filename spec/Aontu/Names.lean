@@ -512,4 +512,38 @@ theorem Decls.alias_self_admits_nothing {root : Data} {n : String} {j : Data} :
     ¬ Admits (Decls.env [(n, .alias n)]) root (.alias n) j :=
   Aontu.alias_self_admits_nothing (by simp [Decls.env, Decls.bodies, List.filter_cons])
 
+/-! ## The paths a term writes -/
+
+mutual
+/-- The paths a term writes. -/
+def Val.paths : Val → List (List Seg)
+  | .path p => [p]
+  | .len c => c.paths
+  | .map fs spread _ => pathsFields fs ++ pathsSpread spread
+  | .list items spread _ => pathsItems items ++ pathsSpread spread
+  | .or arms => pathsArms arms
+  | .pref _ x => x.paths
+  | .meet a b => a.paths ++ b.paths
+  | _ => []
+
+def pathsFields : List (String × Bool × Val) → List (List Seg)
+  | [] => []
+  | (_, _, v) :: fs => v.paths ++ pathsFields fs
+
+def pathsItems : List Val → List (List Seg)
+  | [] => []
+  | v :: vs => v.paths ++ pathsItems vs
+
+def pathsSpread : Option Val → List (List Seg)
+  | none => []
+  | some s => s.paths
+
+def pathsArms : List (ℕ × Val) → List (List Seg)
+  | [] => []
+  | (_, a) :: as => a.paths ++ pathsArms as
+end
+
+/-- The paths the bodies write. -/
+def Decls.paths (ds : Decls) : List (List Seg) := ds.foldl (fun acc d => acc ++ d.2.paths) []
+
 end Aontu
