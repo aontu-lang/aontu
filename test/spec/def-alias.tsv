@@ -4,8 +4,8 @@
 # default mode, without the fill (noFill) and under --partial (partial), as
 # `verdict` rows whose expectation is the one class `vet` gives, which `vet_iff`
 # makes the definition's own. A document reads as its expansion; a name declared
-# nowhere, or names that break the alias-cycle rule, are an error. No name here
-# is recursive.
+# nowhere, or names that break the alias-cycle rule, are an error. A recursive
+# name is a residual that expands against the data, as far as it goes.
 # Regenerate with `make spec`; never edit by hand. The cases the ports do
 # not yet answer this way are listed in spec/ledger.tsv.
 a0	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid"}
@@ -116,3 +116,105 @@ a104	verdict	%a = %zz\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
 a105	verdict	%U = %U\nv: %U	v: 1	{"verdict":"error"}
 a106	verdict	%U = %U\nv: %U	v: 1	{"verdict":"error","opts":{"noFill":true}}
 a107	verdict	%U = %U\nv: %U	v: 1	{"verdict":"error","opts":{"partial":true}}
+a108	verdict	%N = {"n": integer, "next"?: %N}\nv: %N	v: {"n": 1, "next": {"n": 2}}	{"verdict":"valid"}
+a109	verdict	%N = {"n": integer, "next"?: %N}\nv: %N	v: {"n": 1, "next": {"n": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+a110	verdict	%N = {"n": integer, "next"?: %N}\nv: %N	v: {"n": 1, "next": {"n": 2}}	{"verdict":"valid","opts":{"partial":true}}
+a111	verdict	%N = {"n": integer, "next"?: %N}\nv: %N	v: {"n": 1, "next": {"n": "a"}}	{"verdict":"invalid"}
+a112	verdict	%N = {"n": integer, "next"?: %N}\nv: %N	v: {"n": 1, "next": {"n": "a"}}	{"verdict":"invalid","opts":{"noFill":true}}
+a113	verdict	%N = {"n": integer, "next"?: %N}\nv: %N	v: {"n": 1, "next": {"n": "a"}}	{"verdict":"invalid","opts":{"partial":true}}
+a114	verdict	%N = {"n": integer, "next"?: %N}\nv: %N	v: {"n": 1, "next": {}}	{"verdict":"incomplete"}
+a115	verdict	%N = {"n": integer, "next"?: %N}\nv: %N	v: {"n": 1, "next": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+a116	verdict	%N = {"n": integer, "next"?: %N}\nv: %N	v: {"n": 1, "next": {}}	{"verdict":"valid","opts":{"partial":true}}
+a117	verdict	%N = {"n": integer, "next": %N}\nv: %N	v: {"n": 1}	{"verdict":"incomplete"}
+a118	verdict	%N = {"n": integer, "next": %N}\nv: %N	v: {"n": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+a119	verdict	%N = {"n": integer, "next": %N}\nv: %N	v: {"n": 1}	{"verdict":"valid","opts":{"partial":true}}
+a120	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {}	{"verdict":"valid"}
+a121	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+a122	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {}	{"verdict":"valid","opts":{"partial":true}}
+a123	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"x": {}}	{"verdict":"valid"}
+a124	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"x": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+a125	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"x": {}}	{"verdict":"valid","opts":{"partial":true}}
+a126	verdict	%T = {"x"?: %T, "y": *(1)}\nv: {"a"?: %T}	v: {}	{"verdict":"valid"}
+a127	verdict	%T = {"x"?: %T, "y": *(1)}\nv: {"a"?: %T}	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+a128	verdict	%T = {"x"?: %T, "y": *(1)}\nv: {"a"?: %T}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+a129	verdict	%T = {"x"?: %T, "y": *(1)}\nv: {"a": %T}	v: {"a": {}}	{"verdict":"valid"}
+a130	verdict	%T = {"x"?: %T, "y": *(1)}\nv: {"a": %T}	v: {"a": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+a131	verdict	%T = {"x"?: %T, "y": *(1)}\nv: {"a": %T}	v: {"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+a132	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"y": 1}	{"verdict":"valid"}
+a133	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"y": 1}	{"verdict":"valid","opts":{"noFill":true}}
+a134	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"y": 1}	{"verdict":"valid","opts":{"partial":true}}
+a135	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: 1	{"verdict":"invalid"}
+a136	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: 1	{"verdict":"invalid","opts":{"noFill":true}}
+a137	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: 1	{"verdict":"invalid","opts":{"partial":true}}
+a138	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"x": 1}	{"verdict":"invalid"}
+a139	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+a140	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+a141	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"x": {"x": {"y": 5}}}	{"verdict":"valid"}
+a142	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"x": {"x": {"y": 5}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+a143	verdict	%T = {"x"?: %T, "y": *(1)}\nv: %T	v: {"x": {"x": {"y": 5}}}	{"verdict":"valid","opts":{"partial":true}}
+a144	verdict	%T = {"x"?: %T, "y": *(1)}\nv: [%T]	v: [{}]	{"verdict":"valid"}
+a145	verdict	%T = {"x"?: %T, "y": *(1)}\nv: [%T]	v: [{}]	{"verdict":"incomplete","opts":{"noFill":true}}
+a146	verdict	%T = {"x"?: %T, "y": *(1)}\nv: [%T]	v: [{}]	{"verdict":"valid","opts":{"partial":true}}
+a147	verdict	%T = {"x"?: %T, "y": *(1)}\nv: [&: %T]	v: [{}, {"x": {}}]	{"verdict":"valid"}
+a148	verdict	%T = {"x"?: %T, "y": *(1)}\nv: [&: %T]	v: [{}, {"x": {}}]	{"verdict":"incomplete","opts":{"noFill":true}}
+a149	verdict	%T = {"x"?: %T, "y": *(1)}\nv: [&: %T]	v: [{}, {"x": {}}]	{"verdict":"valid","opts":{"partial":true}}
+a150	verdict	%T = {"x"?: %T, "y": *(1)}\nv: {&: %T}	v: {"a": {}}	{"verdict":"valid"}
+a151	verdict	%T = {"x"?: %T, "y": *(1)}\nv: {&: %T}	v: {"a": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+a152	verdict	%T = {"x"?: %T, "y": *(1)}\nv: {&: %T}	v: {"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+a153	verdict	%T = {"x"?: %T, "y": *(1)}\nv: (%T) | (2)	v: {}	{"verdict":"valid"}
+a154	verdict	%T = {"x"?: %T, "y": *(1)}\nv: (%T) | (2)	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+a155	verdict	%T = {"x"?: %T, "y": *(1)}\nv: (%T) | (2)	v: {}	{"verdict":"valid","opts":{"partial":true}}
+a156	verdict	%T = {"x"?: %T}\nv: %T	v: {}	{"verdict":"valid"}
+a157	verdict	%T = {"x"?: %T}\nv: %T	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+a158	verdict	%T = {"x"?: %T}\nv: %T	v: {}	{"verdict":"valid","opts":{"partial":true}}
+a159	verdict	%T = {"x"?: %T}\nv: %T	v: {"x": {"x": {}}}	{"verdict":"valid"}
+a160	verdict	%T = {"x"?: %T}\nv: %T	v: {"x": {"x": {}}}	{"verdict":"valid","opts":{"noFill":true}}
+a161	verdict	%T = {"x"?: %T}\nv: %T	v: {"x": {"x": {}}}	{"verdict":"valid","opts":{"partial":true}}
+a162	verdict	%T = {&: %T}\nv: %T	v: {"a": {"b": {}}}	{"verdict":"valid"}
+a163	verdict	%T = {&: %T}\nv: %T	v: {"a": {"b": {}}}	{"verdict":"valid","opts":{"noFill":true}}
+a164	verdict	%T = {&: %T}\nv: %T	v: {"a": {"b": {}}}	{"verdict":"valid","opts":{"partial":true}}
+a165	verdict	%T = {&: %T}\nv: %T	v: {"a": 1}	{"verdict":"invalid"}
+a166	verdict	%T = {&: %T}\nv: %T	v: {"a": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+a167	verdict	%T = {&: %T}\nv: %T	v: {"a": 1}	{"verdict":"invalid","opts":{"partial":true}}
+a168	verdict	%T = [&: %T]\nv: %T	v: [[], [[]]]	{"verdict":"valid"}
+a169	verdict	%T = [&: %T]\nv: %T	v: [[], [[]]]	{"verdict":"valid","opts":{"noFill":true}}
+a170	verdict	%T = [&: %T]\nv: %T	v: [[], [[]]]	{"verdict":"valid","opts":{"partial":true}}
+a171	verdict	%T = *(null) | ({"n": integer, "next": %T})\nv: %T	v: {"n": 1, "next": {"n": 2}}	{"verdict":"incomplete"}
+a172	verdict	%T = *(null) | ({"n": integer, "next": %T})\nv: %T	v: {"n": 1, "next": {"n": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+a173	verdict	%T = *(null) | ({"n": integer, "next": %T})\nv: %T	v: {"n": 1, "next": {"n": 2}}	{"verdict":"valid","opts":{"partial":true}}
+a174	verdict	%L = {"n": integer, "next"?: %L}\n%W = {"list": %L}\nv: %W	v: {"list": {"n": 1, "next": {"n": 2}}}	{"verdict":"valid"}
+a175	verdict	%L = {"n": integer, "next"?: %L}\n%W = {"list": %L}\nv: %W	v: {"list": {"n": 1, "next": {"n": 2}}}	{"verdict":"valid","opts":{"noFill":true}}
+a176	verdict	%L = {"n": integer, "next"?: %L}\n%W = {"list": %L}\nv: %W	v: {"list": {"n": 1, "next": {"n": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+a177	verdict	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	v: {"b": {"a": {"b": {}}}}	{"verdict":"valid"}
+a178	verdict	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	v: {"b": {"a": {"b": {}}}}	{"verdict":"valid","opts":{"noFill":true}}
+a179	verdict	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	v: {"b": {"a": {"b": {}}}}	{"verdict":"valid","opts":{"partial":true}}
+a180	verdict	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	v: {"b": {"a": 1}}	{"verdict":"invalid"}
+a181	verdict	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	v: {"b": {"a": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+a182	verdict	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %A	v: {"b": {"a": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+a183	verdict	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	v: {"a": {}}	{"verdict":"valid"}
+a184	verdict	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	v: {"a": {}}	{"verdict":"valid","opts":{"noFill":true}}
+a185	verdict	%A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	v: {"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+a186	verdict	%T = {"n": integer, "next"?: %T}\nv: %T	v: {"n": 1, "next": {"n": 2, "extra": 1}}	{"verdict":"valid"}
+a187	verdict	%T = {"n": integer, "next"?: %T}\nv: %T	v: {"n": 1, "next": {"n": 2, "extra": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+a188	verdict	%T = {"n": integer, "next"?: %T}\nv: %T	v: {"n": 1, "next": {"n": 2, "extra": 1}}	{"verdict":"valid","opts":{"partial":true}}
+a189	verdict	%T = {"n": *(0), "next"?: %T}\nv: %T	v: {"next": {"next": {}}}	{"verdict":"valid"}
+a190	verdict	%T = {"n": *(0), "next"?: %T}\nv: %T	v: {"next": {"next": {}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+a191	verdict	%T = {"n": *(0), "next"?: %T}\nv: %T	v: {"next": {"next": {}}}	{"verdict":"valid","opts":{"partial":true}}
+a192	verdict	%T = {"n": integer, "next"?: %T}\nv: {"a": %T, "b": %T}	v: {"a": {"n": 1}, "b": {"n": 2, "next": {"n": 3}}}	{"verdict":"valid"}
+a193	verdict	%T = {"n": integer, "next"?: %T}\nv: {"a": %T, "b": %T}	v: {"a": {"n": 1}, "b": {"n": 2, "next": {"n": 3}}}	{"verdict":"valid","opts":{"noFill":true}}
+a194	verdict	%T = {"n": integer, "next"?: %T}\nv: {"a": %T, "b": %T}	v: {"a": {"n": 1}, "b": {"n": 2, "next": {"n": 3}}}	{"verdict":"valid","opts":{"partial":true}}
+a195	verdict	%T = {"n": integer, "next"?: %T}\nv: (%T) & ({"n": 1})	v: {}	{"verdict":"valid"}
+a196	verdict	%T = {"n": integer, "next"?: %T}\nv: (%T) & ({"n": 1})	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+a197	verdict	%T = {"n": integer, "next"?: %T}\nv: (%T) & ({"n": 1})	v: {}	{"verdict":"valid","opts":{"partial":true}}
+a198	verdict	%T = {"n": integer, "next"?: %T}\nv: (%T) & ({"n": 1})	v: {"next": {"n": 2}}	{"verdict":"valid"}
+a199	verdict	%T = {"n": integer, "next"?: %T}\nv: (%T) & ({"n": 1})	v: {"next": {"n": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+a200	verdict	%T = {"n": integer, "next"?: %T}\nv: (%T) & ({"n": 1})	v: {"next": {"n": 2}}	{"verdict":"valid","opts":{"partial":true}}
+a201	verdict	%T = {"n": integer, "next"?: %T}\n%T = {"m": *(0)}\nv: %T	v: {"n": 1}	{"verdict":"valid"}
+a202	verdict	%T = {"n": integer, "next"?: %T}\n%T = {"m": *(0)}\nv: %T	v: {"n": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+a203	verdict	%T = {"n": integer, "next"?: %T}\n%T = {"m": *(0)}\nv: %T	v: {"n": 1}	{"verdict":"valid","opts":{"partial":true}}
+a204	verdict	%T = {"n": integer, "next"?: %T}\nv: %T	v: {"n": 1, "next": {"n": 2, "next": {"n": 3, "next": {"n": 4}}}}	{"verdict":"valid"}
+a205	verdict	%T = {"n": integer, "next"?: %T}\nv: %T	v: {"n": 1, "next": {"n": 2, "next": {"n": 3, "next": {"n": 4}}}}	{"verdict":"valid","opts":{"noFill":true}}
+a206	verdict	%T = {"n": integer, "next"?: %T}\nv: %T	v: {"n": 1, "next": {"n": 2, "next": {"n": 3, "next": {"n": 4}}}}	{"verdict":"valid","opts":{"partial":true}}
+a207	verdict	%T = (%T) | (1)\nv: %T	v: 1	{"verdict":"error"}
+a208	verdict	%T = (%T) | (1)\nv: %T	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a209	verdict	%T = (%T) | (1)\nv: %T	v: 1	{"verdict":"error","opts":{"partial":true}}

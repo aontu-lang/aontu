@@ -32,6 +32,7 @@ or a string, which bounds strings in code-point order. -/
 inductive Bound where
   | num (n : Number)
   | str (s : String)
+  deriving DecidableEq
 
 /-- A value, each constructor beside the construct it is. A map has
 keys, each required or optional, a spread that holds every member, and

@@ -573,24 +573,30 @@ end
 
 /-! ## Generation, computed -/
 
+/-- Whether a spread, where there is one, admits a member, by the checker
+given. -/
+def spreadOk (chk : Val → Data → Bool) : Option Val → Data → Bool
+  | none, _ => true
+  | some s, x => chk s x
+
 mutual
 /-- What `v` generates, computed. -/
-def gen : Val → Option Data
+def genWith (chk : Val → Data → Bool) : Val → Option Data
   | .lit s => some s.data
   | .map fs spread _ =>
-    if keysDistinct fs then (genFieldsF spread fs).map fun ms => .map (sortMembers ms) else none
-  | .list items spread _ => (genItemsF spread items).map .list
+    if keysDistinct fs then (genFieldsWith chk spread fs).map fun ms => .map (sortMembers ms) else none
+  | .list items spread _ => (genItemsWith chk spread items).map .list
   | .or arms =>
-    match genArmsF arms arms none with
+    match genArmsWith chk arms arms none with
     | some (some j) => some j
     | _ => none
-  | .pref _ x => gen x
+  | .pref _ x => genWith chk x
   | .meet a b =>
-    match gen a with
-    | some x => if check b x then some x else none
+    match genWith chk a with
+    | some x => if chk b x then some x else none
     | none =>
-      match gen b with
-      | some y => if check a y then some y else none
+      match genWith chk b with
+      | some y => if chk a y then some y else none
       | none => none
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
   | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .multiple _ | .len _ | .unique _
@@ -598,57 +604,68 @@ def gen : Val → Option Data
 
 /-- The members the declarations generate, or `none` where a required
 key's value generates none the spread admits. -/
-def genFieldsF (spread : Option Val) : List (String × Bool × Val) → Option (List (String × Data))
+def genFieldsWith (chk : Val → Data → Bool) (spread : Option Val) : List (String × Bool × Val) → Option (List (String × Data))
   | [] => some []
   | (k, o, v) :: fs =>
-    match gen v with
+    match genWith chk v with
     | some x =>
-      if checkSpread spread x then (genFieldsF spread fs).map ((k, x) :: ·)
-      else if o then genFieldsF spread fs else none
-    | none => if o then genFieldsF spread fs else none
+      if spreadOk chk spread x then (genFieldsWith chk spread fs).map ((k, x) :: ·)
+      else if o then genFieldsWith chk spread fs else none
+    | none => if o then genFieldsWith chk spread fs else none
 
-def genItemsF (spread : Option Val) : List Val → Option (List Data)
+def genItemsWith (chk : Val → Data → Bool) (spread : Option Val) : List Val → Option (List Data)
   | [] => some []
   | v :: vs =>
-    match gen v with
-    | some x => if checkSpread spread x then (genItemsF spread vs).map (x :: ·) else none
+    match genWith chk v with
+    | some x => if spreadOk chk spread x then (genItemsWith chk spread vs).map (x :: ·) else none
     | none => none
 
 /-- The one value the picked arms generate: `some (some j)` where every
 picked arm generates `j`, `some acc` where none is picked, and `none`
 where one generates nothing or two generate differently. -/
-def genArmsF (arms₀ : List (ℕ × Val)) : List (ℕ × Val) → Option Data → Option (Option Data)
+def genArmsWith (chk : Val → Data → Bool) (arms₀ : List (ℕ × Val)) : List (ℕ × Val) → Option Data → Option (Option Data)
   | [], acc => some acc
   | p :: arms, acc =>
     if picked arms₀ p then
-      match gen p.2 with
+      match genWith chk p.2 with
       | none => none
       | some x =>
         match acc with
-        | none => genArmsF arms₀ arms (some x)
-        | some y => if x = y then genArmsF arms₀ arms acc else none
-    else genArmsF arms₀ arms acc
+        | none => genArmsWith chk arms₀ arms (some x)
+        | some y => if x = y then genArmsWith chk arms₀ arms acc else none
+    else genArmsWith chk arms₀ arms acc
 end
+
+/-- The generator with no hook for names: the checker of values that read
+none. -/
+abbrev gen : Val → Option Data := genWith check
 
 /-- What evaluation singles out, computed: `gen` of the normal form. -/
 def output (v : Val) : Option Data := gen (normalise v)
 
 section
-variable {env : Env} {root : Data}
+variable {chk : Val → Data → Bool} {env : Env} {root : Data}
 
-theorem genFieldsF_iff {spread : Option Val}
-    (hs : ∀ s, spread = some s → ∀ j, check s j = true ↔ Admits env root s j) :
+theorem spreadOk_iff {spread : Option Val}
+    (ih : ∀ s, spread = some s → ∀ j, chk s j = true ↔ Admits env root s j) (x : Data) :
+    spreadOk chk spread x = true ↔ ∀ s, spread = some s → Admits env root s x := by
+  cases spread with
+  | none => simp [spreadOk]
+  | some s => simp [spreadOk, ih s rfl]
+
+theorem genFieldsWith_iff {spread : Option Val}
+    (hs : ∀ s, spread = some s → ∀ j, chk s j = true ↔ Admits env root s j) :
     ∀ {fs : List (String × Bool × Val)},
-      (∀ k o v, (k, o, v) ∈ fs → ∀ j, gen v = some j ↔ Gen env root v j) →
-      ∀ ms, genFieldsF spread fs = some ms ↔ genFields env root spread fs ms
+      (∀ k o v, (k, o, v) ∈ fs → ∀ j, genWith chk v = some j ↔ Gen env root v j) →
+      ∀ ms, genFieldsWith chk spread fs = some ms ↔ genFields env root spread fs ms
   | [], _, ms => by
-    rw [genFieldsF, genFields, Option.some.injEq]
+    rw [genFieldsWith, genFields, Option.some.injEq]
     exact eq_comm
   | (k, o, v) :: fs, ih, ms => by
     have ihv := ih k o v (List.mem_cons_self _ _)
-    have ihfs := genFieldsF_iff hs (fun k o v hm => ih k o v (List.mem_cons_of_mem _ hm))
-    rw [genFieldsF, genFields]
-    cases hg : gen v with
+    have ihfs := genFieldsWith_iff hs (fun k o v hm => ih k o v (List.mem_cons_of_mem _ hm))
+    rw [genFieldsWith, genFields]
+    cases hg : genWith chk v with
     | none =>
       dsimp only
       have hnone : ∀ x, ¬ Gen env root v x := fun x hx => by
@@ -677,9 +694,9 @@ theorem genFieldsF_iff {spread : Option Val}
       have hgen : Gen env root v x := (ihv x).mp hg
       have huniq : ∀ y, Gen env root v y → x = y := fun y hy =>
         Option.some.inj (hg.symm.trans ((ihv y).mpr hy))
-      cases hsp : checkSpread spread x with
+      cases hsp : spreadOk chk spread x with
       | true =>
-        have hspOK : ∀ s, spread = some s → Admits env root s x := (checkSpread_iff hs x).mp hsp
+        have hspOK : ∀ s, spread = some s → Admits env root s x := (spreadOk_iff hs x).mp hsp
         rw [if_pos rfl]
         constructor
         · intro h
@@ -691,7 +708,7 @@ theorem genFieldsF_iff {spread : Option Val}
           · exact absurd hspOK (hno x hgen)
       | false =>
         have hspNo : ¬ ∀ s, spread = some s → Admits env root s x := fun h => by
-          have := (checkSpread_iff hs x).mpr h
+          have := (spreadOk_iff hs x).mpr h
           rw [hsp] at this
           exact nomatch this
         rw [if_neg Bool.false_ne_true]
@@ -717,18 +734,18 @@ theorem genFieldsF_iff {spread : Option Val}
               exact absurd hsp' hspNo
             · exact nomatch h
 
-theorem genItemsF_iff {spread : Option Val}
-    (hs : ∀ s, spread = some s → ∀ j, check s j = true ↔ Admits env root s j) :
-    ∀ {items : List Val}, (∀ v, v ∈ items → ∀ j, gen v = some j ↔ Gen env root v j) →
-      ∀ xs, genItemsF spread items = some xs ↔ genItems env root spread items xs
+theorem genItemsWith_iff {spread : Option Val}
+    (hs : ∀ s, spread = some s → ∀ j, chk s j = true ↔ Admits env root s j) :
+    ∀ {items : List Val}, (∀ v, v ∈ items → ∀ j, genWith chk v = some j ↔ Gen env root v j) →
+      ∀ xs, genItemsWith chk spread items = some xs ↔ genItems env root spread items xs
   | [], _, xs => by
-    rw [genItemsF, genItems, Option.some.injEq]
+    rw [genItemsWith, genItems, Option.some.injEq]
     exact eq_comm
   | v :: vs, ih, xs => by
     have ihv := ih v (List.mem_cons_self _ _)
-    have ihvs := genItemsF_iff hs (fun v hm => ih v (List.mem_cons_of_mem _ hm))
-    rw [genItemsF, genItems]
-    cases hg : gen v with
+    have ihvs := genItemsWith_iff hs (fun v hm => ih v (List.mem_cons_of_mem _ hm))
+    rw [genItemsWith, genItems]
+    cases hg : genWith chk v with
     | none =>
       dsimp only
       have hnone : ∀ x, ¬ Gen env root v x := fun x hx => by
@@ -745,9 +762,9 @@ theorem genItemsF_iff {spread : Option Val}
       have hgen : Gen env root v x := (ihv x).mp hg
       have huniq : ∀ y, Gen env root v y → x = y := fun y hy =>
         Option.some.inj (hg.symm.trans ((ihv y).mpr hy))
-      cases hsp : checkSpread spread x with
+      cases hsp : spreadOk chk spread x with
       | true =>
-        have hspOK : ∀ s, spread = some s → Admits env root s x := (checkSpread_iff hs x).mp hsp
+        have hspOK : ∀ s, spread = some s → Admits env root s x := (spreadOk_iff hs x).mp hsp
         rw [if_pos rfl]
         constructor
         · intro h
@@ -758,7 +775,7 @@ theorem genItemsF_iff {spread : Option Val}
           exact Option.map_eq_some'.mpr ⟨rest, (ihvs rest).mpr hrest, rfl⟩
       | false =>
         have hspNo : ¬ ∀ s, spread = some s → Admits env root s x := fun h => by
-          have := (checkSpread_iff hs x).mpr h
+          have := (spreadOk_iff hs x).mpr h
           rw [hsp] at this
           exact nomatch this
         rw [if_neg Bool.false_ne_true]
@@ -769,22 +786,22 @@ theorem genItemsF_iff {spread : Option Val}
           obtain rfl := huniq x' hx'
           exact absurd hsp' hspNo
 
-theorem genArmsF_iff {arms₀ : List (ℕ × Val)}
-    (ih : ∀ r a, (r, a) ∈ arms₀ → ∀ j, gen a = some j ↔ Gen env root a j) :
+theorem genArmsWith_iff {arms₀ : List (ℕ × Val)}
+    (ih : ∀ r a, (r, a) ∈ arms₀ → ∀ j, genWith chk a = some j ↔ Gen env root a j) :
     ∀ {arms : List (ℕ × Val)}, (∀ p, p ∈ arms → p ∈ arms₀) → ∀ (acc : Option Data) (j : Data),
-      genArmsF arms₀ arms acc = some (some j) ↔
+      genArmsWith chk arms₀ arms acc = some (some j) ↔
         genArms env root arms₀ arms j ∧ (acc = some j ∨ (acc = none ∧ arms.any (picked arms₀) = true))
   | [], _, acc, j => by
-    rw [genArmsF, genArms]
+    rw [genArmsWith, genArms]
     simp
   | ⟨r, a⟩ :: arms, hsub, acc, j => by
     have iha := ih r a (hsub _ (List.mem_cons_self _ _))
-    have ihrest := genArmsF_iff ih (fun p hp => hsub p (List.mem_cons_of_mem _ hp))
-    rw [genArmsF, genArms, List.any_cons]
+    have ihrest := genArmsWith_iff ih (fun p hp => hsub p (List.mem_cons_of_mem _ hp))
+    rw [genArmsWith, genArms, List.any_cons]
     by_cases hp : picked arms₀ (r, a) = true
     · rw [if_pos hp, hp, Bool.true_or]
       simp only [true_implies]
-      cases hg : gen a with
+      cases hg : genWith chk a with
       | none =>
         dsimp only
         have hnone : ∀ x, ¬ Gen env root a x := fun x hx => by
@@ -840,53 +857,66 @@ theorem genArmsF_iff {arms₀ : List (ℕ × Val)}
       · rintro ⟨⟨-, hrest⟩, hacc⟩
         exact ⟨hrest, hacc⟩
 
-/-- `gen` computes `Gen` on every checkable value. -/
-theorem gen_iff {v : Val} (h : v.Checkable) : ∀ j, gen v = some j ↔ Gen env root v j := by
+/-- The generator computes `Gen` on every value it can read, given a
+checker that is right on the values the term holds, which is where it
+asks. -/
+theorem genWith_iff {v : Val} (h : v.CheckableA)
+    (hchk : ∀ w j, w.CheckableA → (∀ n, n ∈ w.refs → n ∈ v.refs) →
+      (chk w j = true ↔ Admits env root w j)) :
+    ∀ j, genWith chk v = some j ↔ Gen env root v j := by
   induction h with
   | integer | float | biginteger | bigdecimal | number | string | anyString | boolean
-  | min | max | above | beneath | neq | multiple | unique | any | nil =>
+  | min | max | above | beneath | neq | multiple | unique | any | nil | alias =>
     intro j
-    rw [gen, Gen]
+    rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩
   | len _ _ =>
     intro j
-    rw [gen, Gen]
+    rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩
   | lit =>
     intro j
-    rw [gen, Gen]
+    rw [genWith, Gen]
     exact ⟨fun h => (Option.some.inj h).symm, fun h => by rw [h]⟩
   | @map fs spread closed hf hs ihf _ =>
     intro j
-    rw [gen, Gen]
-    have hsp : ∀ s, spread = some s → ∀ j, check s j = true ↔ Admits env root s j :=
-      fun s h => check_iff (hs s h)
+    rw [genWith, Gen]
+    have hsp : ∀ s, spread = some s → ∀ j, chk s j = true ↔ Admits env root s j :=
+      fun s h j => hchk s j (hs s h) fun n hn => by
+        simp only [Val.refs, List.mem_append, h, refsSpread]; exact .inr hn
+    have ihf := fun k o v hm => ihf k o v hm fun w j hw hsub => hchk w j hw fun n hn => by
+      simp only [Val.refs, List.mem_append]; exact .inl (mem_refsFields.mpr ⟨k, o, v, hm, hsub n hn⟩)
     by_cases hd : keysDistinct fs = true
     · rw [if_pos hd]
       constructor
       · intro h
         obtain ⟨ms, hms, rfl⟩ := Option.map_eq_some'.mp h
-        exact ⟨hd, ms, (genFieldsF_iff hsp ihf ms).mp hms, rfl⟩
+        exact ⟨hd, ms, (genFieldsWith_iff hsp ihf ms).mp hms, rfl⟩
       · rintro ⟨-, ms, hg, rfl⟩
-        exact Option.map_eq_some'.mpr ⟨ms, (genFieldsF_iff hsp ihf ms).mpr hg, rfl⟩
+        exact Option.map_eq_some'.mpr ⟨ms, (genFieldsWith_iff hsp ihf ms).mpr hg, rfl⟩
     · rw [if_neg hd]
       exact ⟨(fun h => nomatch h), fun h => absurd h.1 hd⟩
   | @list items spread closed hi hs ihi _ =>
     intro j
-    rw [gen, Gen]
-    have hsp : ∀ s, spread = some s → ∀ j, check s j = true ↔ Admits env root s j :=
-      fun s h => check_iff (hs s h)
+    rw [genWith, Gen]
+    have hsp : ∀ s, spread = some s → ∀ j, chk s j = true ↔ Admits env root s j :=
+      fun s h j => hchk s j (hs s h) fun n hn => by
+        simp only [Val.refs, List.mem_append, h, refsSpread]; exact .inr hn
+    have ihi := fun v hm => ihi v hm fun w j hw hsub => hchk w j hw fun n hn => by
+      simp only [Val.refs, List.mem_append]; exact .inl (mem_refsItems.mpr ⟨v, hm, hsub n hn⟩)
     constructor
     · intro h
       obtain ⟨xs, hxs, rfl⟩ := Option.map_eq_some'.mp h
-      exact ⟨xs, (genItemsF_iff hsp ihi xs).mp hxs, rfl⟩
+      exact ⟨xs, (genItemsWith_iff hsp ihi xs).mp hxs, rfl⟩
     · rintro ⟨xs, hg, rfl⟩
-      exact Option.map_eq_some'.mpr ⟨xs, (genItemsF_iff hsp ihi xs).mpr hg, rfl⟩
+      exact Option.map_eq_some'.mpr ⟨xs, (genItemsWith_iff hsp ihi xs).mpr hg, rfl⟩
   | @or arms ha iha =>
     intro j
-    rw [gen, Gen]
-    have key := genArmsF_iff iha (fun p hp => hp) none j
-    cases hg : genArmsF arms arms none with
+    rw [genWith, Gen]
+    have iha := fun r a hm => iha r a hm fun w j hw hsub => hchk w j hw fun n hn => by
+      simp only [Val.refs]; exact mem_refsArms.mpr ⟨r, a, hm, hsub n hn⟩
+    have key := genArmsWith_iff iha (fun p hp => hp) none j
+    cases hg : genArmsWith chk arms arms none with
     | none =>
       dsimp only
       rw [hg] at key
@@ -912,20 +942,28 @@ theorem gen_iff {v : Val} (h : v.Checkable) : ∀ j, gen v = some j ↔ Gen env 
           rw [this]
   | @pref r x _ ih =>
     intro j
-    rw [gen, Gen]
-    exact ih j
+    rw [genWith, Gen]
+    exact ih (fun w j hw hsub => hchk w j hw fun n hn => by simpa [Val.refs] using hsub n hn) j
   | @meet a b ha hb iha ihb =>
     intro j
-    rw [gen, Gen]
-    cases hga : gen a with
+    rw [genWith, Gen]
+    have iha := iha fun w j hw hsub => hchk w j hw fun n hn => by
+      simp only [Val.refs, List.mem_append]; exact .inl (hsub n hn)
+    have ihb := ihb fun w j hw hsub => hchk w j hw fun n hn => by
+      simp only [Val.refs, List.mem_append]; exact .inr (hsub n hn)
+    have hcb : ∀ x, chk b x = true ↔ Admits env root b x := fun x => hchk b x hb fun n hn => by
+      simp only [Val.refs, List.mem_append]; exact .inr hn
+    have hca : ∀ y, chk a y = true ↔ Admits env root a y := fun y => hchk a y ha fun n hn => by
+      simp only [Val.refs, List.mem_append]; exact .inl hn
+    cases hga : genWith chk a with
     | some x =>
       dsimp only
       have hgen : Gen env root a x := (iha x).mp hga
       have huniq : ∀ y, Gen env root a y → x = y := fun y hy =>
         Option.some.inj (hga.symm.trans ((iha y).mpr hy))
-      by_cases hc : check b x = true
+      by_cases hc : chk b x = true
       · rw [if_pos hc]
-        have hadm : Admits env root b x := (check_iff hb x).mp hc
+        have hadm : Admits env root b x := (hcb x).mp hc
         constructor
         · intro h
           obtain rfl := Option.some.inj h
@@ -940,7 +978,7 @@ theorem gen_iff {v : Val} (h : v.Checkable) : ∀ j, gen v = some j ↔ Gen env 
           exact nomatch h
         · rintro (⟨hj, hadm⟩ | ⟨hna, -, -⟩)
           · obtain rfl := huniq j hj
-            exact absurd ((check_iff hb x).mpr hadm) hc
+            exact absurd ((hcb x).mpr hadm) hc
           · exact absurd hgen (hna x)
     | none =>
       dsimp only
@@ -948,15 +986,15 @@ theorem gen_iff {v : Val} (h : v.Checkable) : ∀ j, gen v = some j ↔ Gen env 
         have := (iha x).mpr hx
         rw [hga] at this
         exact nomatch this
-      cases hgb : gen b with
+      cases hgb : genWith chk b with
       | some y =>
         dsimp only
         have hgen : Gen env root b y := (ihb y).mp hgb
         have huniq : ∀ y', Gen env root b y' → y = y' := fun y' hy =>
           Option.some.inj (hgb.symm.trans ((ihb y').mpr hy))
-        by_cases hc : check a y = true
+        by_cases hc : chk a y = true
         · rw [if_pos hc]
-          have hadm : Admits env root a y := (check_iff ha y).mp hc
+          have hadm : Admits env root a y := (hca y).mp hc
           constructor
           · intro h
             obtain rfl := Option.some.inj h
@@ -972,7 +1010,7 @@ theorem gen_iff {v : Val} (h : v.Checkable) : ∀ j, gen v = some j ↔ Gen env 
           · rintro (⟨hj, -⟩ | ⟨-, hj, hadm⟩)
             · exact absurd hj (hnone j)
             · obtain rfl := huniq j hj
-              exact absurd ((check_iff ha y).mpr hadm) hc
+              exact absurd ((hca y).mpr hadm) hc
       | none =>
         dsimp only
         have hnoneb : ∀ y, ¬ Gen env root b y := fun y hy => by
@@ -985,6 +1023,11 @@ theorem gen_iff {v : Val} (h : v.Checkable) : ∀ j, gen v = some j ↔ Gen env 
         · rintro (⟨hj, -⟩ | ⟨-, hj, -⟩)
           · exact absurd hj (hnone j)
           · exact absurd hj (hnoneb j)
+
+/-- `gen` computes `Gen` on every checkable value. -/
+theorem gen_iff {v : Val} (h : v.Checkable) : ∀ j, gen v = some j ↔ Gen env root v j :=
+  genWith_iff h.toA fun _ j hw hsub =>
+    check_iff (hw.toChecked fun n hn => h.no_refs n (hsub n hn)) j
 
 /-- `output` computes `Output` wherever the normal form is checkable,
 which `decide` settles for any closed term. -/

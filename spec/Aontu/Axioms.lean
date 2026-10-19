@@ -136,3 +136,19 @@ line each comment states.
 /-- info: 'Aontu.outputD_iff' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.outputD_iff
+
+/-- info: 'Aontu.checkWith_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.checkWith_iff
+
+/-- info: 'Aontu.checkR_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.checkR_iff
+
+/-- info: 'Aontu.genWith_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.genWith_iff
+
+/-- info: 'Aontu.normaliseD_checkableA' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.normaliseD_checkableA

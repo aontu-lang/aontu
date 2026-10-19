@@ -2,7 +2,7 @@
 # generated row (test/spec/def-fragment.tsv and the fragments beside it) the
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, and the cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 48.
+# A listed case that comes to agree fails the run. Bounded at 51.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -52,3 +52,6 @@ e170	(close([1, 2])) & ([&: integer])	[1, 2, 3]	invalid	valid	ports	#346: a seal
 a105	%U = %U\nv: %U	1	error	invalid	ports	decision 1 (section 7): a name declared as itself alone is ill-formed, an error, where the ports answer unify_cycle by running out of steps
 a106	%U = %U\nv: %U	1	error	invalid	ports	decision 1 (section 7): a name declared as itself alone is ill-formed, an error, where the ports answer unify_cycle by running out of steps
 a107	%U = %U\nv: %U	1	error	invalid	ports	decision 1 (section 7): a name declared as itself alone is ill-formed, an error, where the ports answer unify_cycle by running out of steps
+a207	%T = (%T) | (1)\nv: %T	1	error	valid	ports	decision 2 (section 7): the alias-cycle rule refuses a name that refers to itself with nothing between, here through |, where the ports run it and the second arm admits 1 (#354)
+a208	%T = (%T) | (1)\nv: %T	1	error	valid	ports	decision 2 (section 7): the alias-cycle rule refuses a name that refers to itself with nothing between, here through |, where the ports run it and the second arm admits 1 (#354)
+a209	%T = (%T) | (1)\nv: %T	1	error	valid	ports	decision 2 (section 7): the alias-cycle rule refuses a name that refers to itself with nothing between, here through |, where the ports run it and the second arm admits 1 (#354)

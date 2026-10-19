@@ -388,13 +388,29 @@ theorem emptyBounds_sound {a b : Val} {j : Data} (ha : Admits env root a j)
 
 /-! ## Atoms and literals -/
 
-/-- The meet of two atoms: two kinds by `Kind.meet`; otherwise `nil`
-where they share no domain or bound an empty interval, and the pair
-itself, irreducible, where they may share a value. -/
+/-- The name a term refers to, where it is a reference. -/
+def Val.alias? : Val → Option String
+  | .alias n => some n
+  | _ => none
+
+theorem Val.alias?_some {v : Val} {n : String} : v.alias? = some n ↔ v = .alias n := by
+  cases v <;> simp [Val.alias?]
+
+/-- The meet of two atoms that are not two kinds: two references to one
+name are that name; otherwise `nil` where they share no domain or bound
+an empty interval, and the pair itself, irreducible, where they may
+share a value. -/
+def aliasMeet (a b : Val) : Val :=
+  match a.alias?, b.alias? with
+  | some n, some m => if n = m then a else .meet a b
+  | _, _ => if domsMeet a b && !emptyBounds a b then .meet a b else .nil
+
+/-- The meet of two atoms: two kinds by `Kind.meet`, and the rest by
+`aliasMeet`. -/
 def atomMeet (a b : Val) : Val :=
   match a.kind?, b.kind? with
   | some ka, some kb => ka.meet kb
-  | _, _ => if domsMeet a b && !emptyBounds a b then .meet a b else .nil
+  | _, _ => aliasMeet a b
 
 theorem admits_residual (a b : Val) (j : Data) :
     Admits env root (if domsMeet a b && !emptyBounds a b then .meet a b else .nil) j ↔
@@ -407,6 +423,26 @@ theorem admits_residual (a b : Val) (j : Data) :
     · rintro ⟨ha, hb⟩
       exact (h (by simp [domsMeet_of_admits ha hb, emptyBounds_sound ha hb])).elim
 
+theorem admits_aliasMeet (a b : Val) (j : Data) :
+    Admits env root (aliasMeet a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+  unfold aliasMeet
+  cases ha : a.alias? with
+  | some n =>
+    cases hb : b.alias? with
+    | some m =>
+      simp only
+      by_cases hnm : n = m
+      · rw [if_pos hnm, Val.alias?_some.mp ha, Val.alias?_some.mp hb, hnm]
+        exact ⟨fun h => ⟨h, h⟩, fun h => h.1⟩
+      · rw [if_neg hnm]
+        exact admits_meet_iff
+    | none =>
+      simp only
+      exact admits_residual a b j
+  | none =>
+    simp only
+    exact admits_residual a b j
+
 theorem admits_atomMeet (a b : Val) (j : Data) :
     Admits env root (atomMeet a b) j ↔ Admits env root a j ∧ Admits env root b j := by
   unfold atomMeet
@@ -416,8 +452,8 @@ theorem admits_atomMeet (a b : Val) (j : Data) :
     | some kb =>
       rw [kind?_eq hka, kind?_eq hkb]
       exact admits_kind_meet ka kb j
-    | none => exact admits_residual a b j
-  | none => exact admits_residual a b j
+    | none => exact admits_aliasMeet a b j
+  | none => exact admits_aliasMeet a b j
 
 /-- A literal met with a term: the literal where the term admits its
 value, `nil` where it refuses it, and the pair where that cannot be
@@ -464,17 +500,19 @@ theorem isAny_eq {v : Val} (h : v.isAny = true) : v = .any := by
 
 /-- The meet of two terms neither of which is `nil`, a meet, a
 disjunction, or a preference, and that are not two containers or a
-container with `any`: `any` is the unit, a literal meets what admits it,
-and atoms meet by `atomMeet`. -/
-def meetBase (a b : Val) : Val :=
+container with `any`: `any` is the unit, a literal meets what admits it
+by `lm`, the literal meet given, and atoms meet by `atomMeet`. -/
+def meetBase (lm : Scalar → Val → Val) (a b : Val) : Val :=
   if a.isAny then b else if b.isAny then a else
   match a.lit?, b.lit? with
-  | some s, _ => litMeet s b
-  | none, some t => litMeet t a
+  | some s, _ => lm s b
+  | none, some t => lm t a
   | none, none => atomMeet a b
 
-theorem admits_meetBase (a b : Val) (j : Data) :
-    Admits env root (meetBase a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+theorem admits_meetBase {lm : Scalar → Val → Val}
+    (hl : ∀ s b j, Admits env root (lm s b) j ↔ Admits env root (.lit s) j ∧ Admits env root b j)
+    (a b : Val) (j : Data) :
+    Admits env root (meetBase lm a b) j ↔ Admits env root a j ∧ Admits env root b j := by
   unfold meetBase
   by_cases ha : a.isAny = true
   · rw [if_pos ha, isAny_eq ha]
@@ -487,12 +525,12 @@ theorem admits_meetBase (a b : Val) (j : Data) :
       cases hla : a.lit? with
       | some s =>
         rw [lit?_eq hla]
-        exact admits_litMeet s b j
+        exact hl s b j
       | none =>
         cases hlb : b.lit? with
         | some t =>
           rw [lit?_eq hlb, and_comm]
-          exact admits_litMeet t a j
+          exact hl t a j
         | none => exact admits_atomMeet a b j
 
 /-! ## Dead terms -/
@@ -1571,16 +1609,85 @@ end
 
 /-! ## The meet -/
 
-/-- One step of the meet, given the meet `rec` of smaller terms: `nil`
-is the zero, a meet on either side is met one side at a time, a
-disjunction distributes over its arms, a preference alone is
-`x | super(x)`, two maps and two lists merge, `any` is the unit of each
-container, and what remains is `meetBase`. -/
-def meetStep (rec : Val → Val → Val) (a b : Val) : Val :=
+/-! ## Terms written alike -/
+
+mutual
+/-- Whether two terms are written alike, letter for letter. -/
+def Val.beq : Val → Val → Bool
+  | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
+  | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean
+  | .any, .any | .nil, .nil => true
+  | .lit s, .lit t => decide (s = t)
+  | .min a, .min b => decide (a = b)
+  | .max a, .max b => decide (a = b)
+  | .above a, .above b => decide (a = b)
+  | .beneath a, .beneath b => decide (a = b)
+  | .neq a, .neq b => decide (a = b)
+  | .multiple a, .multiple b => decide (a = b)
+  | .len c, .len d => c.beq d
+  | .unique a, .unique b => decide (a = b)
+  | .re a, .re b => decide (a = b)
+  | .format a, .format b => decide (a = b)
+  | .map fs s c, .map fs' s' c' => beqFields fs fs' && beqSpread s s' && decide (c = c')
+  | .list is s c, .list is' s' c' => beqItems is is' && beqSpread s s' && decide (c = c')
+  | .or as, .or bs => beqArms as bs
+  | .pref r x, .pref r' y => decide (r = r') && x.beq y
+  | .meet a b, .meet c d => a.beq c && b.beq d
+  | .alias n, .alias m => decide (n = m)
+  | .path p, .path q => decide (p = q)
+  | _, _ => false
+termination_by structural a _ => a
+
+def beqFields : List (String × Bool × Val) → List (String × Bool × Val) → Bool
+  | [], [] => true
+  | (k, o, v) :: fs, (k', o', v') :: fs' => decide (k = k') && decide (o = o') && v.beq v' && beqFields fs fs'
+  | _, _ => false
+termination_by structural fs _ => fs
+
+def beqItems : List Val → List Val → Bool
+  | [], [] => true
+  | v :: vs, w :: ws => v.beq w && beqItems vs ws
+  | _, _ => false
+termination_by structural vs _ => vs
+
+def beqSpread : Option Val → Option Val → Bool
+  | none, none => true
+  | some s, some t => s.beq t
+  | _, _ => false
+termination_by structural s _ => s
+
+def beqArms : List (ℕ × Val) → List (ℕ × Val) → Bool
+  | [], [] => true
+  | (r, a) :: as, (r', b) :: bs => decide (r = r') && a.beq b && beqArms as bs
+  | _, _ => false
+termination_by structural as _ => as
+end
+
+/-- A term met with a meet, `a & (b₁ & b₂)`: `a` meets `b₁`, and where
+that combined or refused something, the result meets `b₂`. Where it
+left the pair as written, two atoms with nothing to say to each other,
+`a` meets `b₂` instead, and `b₁` meets what that gives where it gave
+anything; where `a` has nothing to say to either, the three stay as
+written. So each atom is tried against each other once, and the two
+splitting rules never take a pair up in another association, which
+they would otherwise do until the budget ran out. -/
+def meetRight (rec : Val → Val → Val) (a b₁ b₂ : Val) : Val :=
+  let x := rec a b₁
+  if x.beq (.meet a b₁) then
+    let y := rec a b₂
+    if y.beq (.meet a b₂) then .meet a (.meet b₁ b₂) else rec b₁ y
+  else rec x b₂
+
+/-- One step of the meet, given the meet `lm` of a literal with a term
+and the meet `rec` of smaller terms: `nil` is the zero, a meet on either
+side is met one side at a time, a disjunction distributes over its arms,
+a preference alone is `x | super(x)`, two maps and two lists merge,
+`any` is the unit of each container, and what remains is `meetBase`. -/
+def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Val) : Val :=
   match a, b with
   | .nil, _ | _, .nil => .nil
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
-  | a, .meet b₁ b₂ => rec (rec a b₁) b₂
+  | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
   | .or arms, b => mkOr (arms.map fun p => (p.1, rec p.2 b))
   | a, .or arms => mkOr (arms.map fun p => (p.1, rec a p.2))
   | .pref r x, b => mkOr [(r, rec x b), (0, rec x.super b)]
@@ -1591,27 +1698,43 @@ def meetStep (rec : Val → Val → Val) (a b : Val) : Val :=
   | .list is₁ s₁ c₁, .list is₂ s₂ c₂ => meetList rec is₁ s₁ c₁ is₂ s₂ c₂
   | .any, .list items s c => meetList rec [] none false items s c
   | .list items s c, .any => meetList rec items s c [] none false
-  | a, b => meetBase a b
+  | a, b => meetBase lm a b
 
 /-- The meet of two terms, within a budget of steps. A budget run out
 leaves the pair as it was written, which admits what both sides admit
 all the same. -/
 def meetF : ℕ → Val → Val → Val
   | 0, a, b => .meet a b
-  | n + 1, a, b => meetStep (meetF n) a b
+  | n + 1, a, b => meetStep litMeet (meetF n) a b
 
 section
 variable {env : Env} {root : Data}
 
+theorem admits_meetRight {rec : Val → Val → Val}
+    (hr : ∀ a b j, Admits env root (rec a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a b₁ b₂ : Val) (j : Data) :
+    Admits env root (meetRight rec a b₁ b₂) j ↔
+      Admits env root a j ∧ Admits env root (.meet b₁ b₂) j := by
+  simp only [meetRight]
+  split
+  · split
+    · exact admits_meet_iff
+    · simp only [hr, admits_meet_iff]
+      constructor
+      · intro ⟨h₁, ha, h₂⟩; exact ⟨ha, h₁, h₂⟩
+      · intro ⟨ha, h₁, h₂⟩; exact ⟨h₁, ha, h₂⟩
+  · simp only [hr, admits_meet_iff, and_assoc]
+
 set_option maxHeartbeats 4000000 in
 /-- A step of the meet admits what both of its sides admit, given that
 the meets it is built from do. -/
-theorem admits_meetStep {rec : Val → Val → Val}
+theorem admits_meetStep {lm : Scalar → Val → Val} {rec : Val → Val → Val}
+    (hl : ∀ s b j, Admits env root (lm s b) j ↔ Admits env root (.lit s) j ∧ Admits env root b j)
     (hr : ∀ a b j, Admits env root (rec a b) j ↔ Admits env root a j ∧ Admits env root b j)
     (a b : Val) (j : Data) :
-    Admits env root (meetStep rec a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+    Admits env root (meetStep lm rec a b) j ↔ Admits env root a j ∧ Admits env root b j := by
   cases a <;> cases b <;> simp only [meetStep] <;> first
-    | exact admits_meetBase ..
+    | exact admits_meetBase hl ..
     | exact admits_nil_left ..
     | exact admits_nil_right ..
     | exact admits_meetMap hr ..
@@ -1624,13 +1747,14 @@ theorem admits_meetStep {rec : Val → Val → Val}
     | exact admits_or_right hr ..
     | exact admits_pref_left hr ..
     | exact admits_pref_right hr ..
+    | exact admits_meetRight hr ..
     | (simp only [hr, admits_meet_iff, and_assoc, iff_self]; done)
 
 /-- Whatever the budget, the meet admits what both of its sides admit. -/
 theorem admits_meetF : ∀ (n : ℕ) (a b : Val) (j : Data),
     Admits env root (meetF n a b) j ↔ Admits env root a j ∧ Admits env root b j
   | 0, _, _, _ => by simp only [meetF]; exact admits_meet_iff
-  | n + 1, a, b, j => by simp only [meetF]; exact admits_meetStep (admits_meetF n) a b j
+  | n + 1, a, b, j => by simp only [meetF]; exact admits_meetStep admits_litMeet (admits_meetF n) a b j
 
 end
 

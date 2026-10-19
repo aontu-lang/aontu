@@ -142,7 +142,7 @@ def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
   else if m.lax then .valid
   else
     match outputD ds (meetD ds (ds.read S) j.term) with
-    | some _ => if m.fill || check (ds.read S) j then .valid else .incomplete
+    | some _ => if m.fill || checkR ds (ds.read S) j then .valid else .incomplete
     | none => .incomplete
 
 section
@@ -229,6 +229,35 @@ theorem elems_admit_self : ∀ xs : List Data, (∀ x, x ∈ xs → x.WellFormed
     · exact elems_admit_self xs (fun x hm => hw x (List.mem_cons_of_mem _ hm)) x hm'
 end
 
+/-! ## The data as a term can be read -/
+
+mutual
+theorem Data.term_checkableA : ∀ j : Data, j.term.CheckableA
+  | .num _ => .lit
+  | .str _ => .lit
+  | .bool _ => .lit
+  | .null => .lit
+  | .map fs => .map (termMembers_checkableA fs) (fun _ h => nomatch h)
+  | .list xs => .list (termElems_checkableA xs) (fun _ h => nomatch h)
+
+theorem termMembers_checkableA : ∀ fs : List (String × Data), ∀ k o v, (k, o, v) ∈ termMembers fs →
+    v.CheckableA
+  | [], _, _, _, h => absurd h (List.not_mem_nil _)
+  | (_, x) :: fs, k, o, v, h => by
+    rcases List.mem_cons.mp h with h | h
+    · simp only [Prod.mk.injEq] at h
+      obtain ⟨-, -, rfl⟩ := h
+      exact Data.term_checkableA x
+    · exact termMembers_checkableA fs k o v h
+
+theorem termElems_checkableA : ∀ xs : List Data, ∀ v, v ∈ termElems xs → v.CheckableA
+  | [], _, h => absurd h (List.not_mem_nil _)
+  | x :: xs, v, h => by
+    rcases List.mem_cons.mp h with rfl | h
+    · exact Data.term_checkableA x
+    · exact termElems_checkableA xs v h
+end
+
 /-! ## One verdict, and the computed one -/
 
 /-- The four answers exclude one another. -/
@@ -260,12 +289,10 @@ theorem vet_unique {m : Mode} {ds : Decls} {S : Val} {j : Data} {v v' : Verdict}
     · exact absurd hex h.2.2.2.2.2
 
 /-- The computed verdict is a verdict: `vet` answers as `Vet` says,
-wherever the schema as read and the meet are checkable once the names
-are in order, which `decide` settles for any closed document. -/
-theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data}
-    (hS : ds.Declares S → ds.Guarded → (ds.read S).Checkable)
-    (hM : ds.Declares S → ds.Guarded → (normaliseD ds (meetD ds (ds.read S) j.term)).Checkable) :
-    Vet m ds S j (vet m ds S j) := by
+wherever the bodies and the schema hold no path, no pattern and no
+format, which `decide` settles for any closed document. -/
+theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) : Vet m ds S j (vet m ds S j) := by
   unfold vet
   cases hok : (ds.declaresB S && ds.guardedB) with
   | false =>
@@ -279,8 +306,8 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data}
     obtain ⟨hdB, hgB⟩ := hok
     have hD := Decls.declaresB_iff.mp hdB
     have hG := Decls.guardedB_iff.mp hgB
-    have hS' := hS hD hG
-    have hM' := hM hD hG
+    have hS' : (ds.read S).CheckableA := expand_checkableA hb hS
+    have hM' := normaliseD_checkableA hb (meetD_checkableA hb hS' (Data.term_checkableA j))
     cases hi : (normaliseD ds (ds.read S)).illFormed with
     | true => exact .inr (.inr hi)
     | false =>
@@ -295,34 +322,32 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data}
           rw [if_neg Bool.false_ne_true]
           cases ho : outputD ds (meetD ds (ds.read S) j.term) with
           | some j' =>
-            have hout : OutputD ds j (meetD ds (ds.read S) j.term) j' := (outputD_iff hM' j').mp ho
-            cases hc : (m.fill || check (ds.read S) j) with
+            have hout : OutputD ds j (meetD ds (ds.read S) j.term) j' := (outputD_iff hG hb hM' j').mp ho
+            cases hc : (m.fill || checkR ds (ds.read S) j) with
             | true =>
               rw [if_pos rfl]
               refine ⟨hD, hG, hi, hd, .inr ⟨j', hout, ?_⟩⟩
               rcases Bool.or_eq_true_iff.mp hc with hf | hk
               · exact .inl hf
-              · exact .inr ((check_iff hS' j).mp hk)
+              · exact .inr ((checkR_iff hG hb hS' j).mp hk)
             | false =>
               rw [if_neg Bool.false_ne_true]
               refine ⟨hD, hG, hi, hd, hp, ?_⟩
               rintro ⟨j'', -, hf | hA⟩
               · rw [hf] at hc
                 exact nomatch hc
-              · rw [(check_iff hS' j).mpr hA, Bool.or_true] at hc
+              · rw [(checkR_iff hG hb hS' j).mpr hA, Bool.or_true] at hc
                 exact nomatch hc
           | none =>
             refine ⟨hD, hG, hi, hd, hp, ?_⟩
             rintro ⟨j', hout, -⟩
-            rw [(outputD_iff hM' j').mpr hout] at ho
+            rw [(outputD_iff hG hb hM' j').mpr hout] at ho
             exact nomatch ho
 
 /-- `vet` computes `Vet`. -/
-theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data}
-    (hS : ds.Declares S → ds.Guarded → (ds.read S).Checkable)
-    (hM : ds.Declares S → ds.Guarded → (normaliseD ds (meetD ds (ds.read S) j.term)).Checkable)
-    (v : Verdict) : vet m ds S j = v ↔ Vet m ds S j v :=
-  ⟨fun h => h ▸ vet_sound hS hM, fun h => vet_unique (vet_sound hS hM) h⟩
+theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (v : Verdict) : vet m ds S j = v ↔ Vet m ds S j v :=
+  ⟨fun h => h ▸ vet_sound hb hS, fun h => vet_unique (vet_sound hb hS) h⟩
 
 /-! ## What the verdicts say -/
 
