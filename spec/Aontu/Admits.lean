@@ -245,6 +245,21 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       env n = some v → Judge env root b v j → Judge env root b (.alias n) j
   | aliasNone {n : String} {j : Data} : env n = none → Judge env root false (.alias n) j
   | path {p : List Seg} {j : Data} : Judge env root false (.path p) j
+  /-- A trial schema tries each branch on the value, as a term is tried,
+  and counts those that admit it: `nof(n, c₁, …)` judges as `n` judges
+  the count, an integer, and `must(c, m)` as `c` judges the value, which
+  is what `nof(1, c)` asks. Each branch judges the value one way or the
+  other, so a branch that judges it neither way, a name declared as
+  itself alone, leaves the trial unjudged; a count no integer leaf holds
+  is refused. -/
+  | nof {b : Bool} {n : Val} {cs : List Val} {j : Data} {f : Val → Bool} {k : ℕ} (h : IntegerLeaf k) :
+      (∀ c, c ∈ cs → Judge env root (f c) c j) → cs.countP f = k →
+      Judge env root b n (.num (.integer ⟨k, h⟩)) → Judge env root b (.nof n cs) j
+  | nofBig {n : Val} {cs : List Val} {j : Data} {f : Val → Bool} {k : ℕ} :
+      (∀ c, c ∈ cs → Judge env root (f c) c j) → cs.countP f = k → ¬ IntegerLeaf k →
+      Judge env root false (.nof n cs) j
+  | must {b : Bool} {c : Val} {m : String} {j : Data} :
+      Judge env root b c j → Judge env root b (.must c m) j
 
 /-- `j` is an instance of `v`: the trial comes out `true`. -/
 abbrev Admits (env : Env) (root : Data) : Val → Data → Prop := Judge env root true
@@ -257,6 +272,14 @@ value, taken whole, so that it is its own root. This is the question
 `aontu vet` answers. A Lean `Data` that is no value, a map that gives
 one key twice, is no instance of anything, so it is never a witness. -/
 abbrev Instance (env : Env) (v : Val) (j : Data) : Prop := j.WellFormed ∧ Admits env j v j
+
+/-- Two predicates that agree on a list count alike. -/
+theorem countP_congr {α : Type} {p q : α → Bool} :
+    ∀ {l : List α}, (∀ x, x ∈ l → p x = q x) → l.countP p = l.countP q
+  | [], _ => rfl
+  | x :: l, h => by
+    simp only [List.countP_cons, h x (List.mem_cons_self x l),
+      countP_congr fun y hy => h y (List.mem_cons_of_mem x hy)]
 
 /-- A value judges a datum one way at most: no value both admits and
 refuses it. A judgement that holds is therefore the judgement. -/
@@ -548,6 +571,23 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | aliasNone _ => rfl
   | path => intro b' h'; cases h' with
     | path => rfl
+  | @nof _ _ cs _ f k h _ hk _ ihf ihn => intro b' h'; cases h' with
+    | @nof _ _ _ _ f' k' h' hf' hk' hn' =>
+      have hkk : k = k' := by rw [← hk, ← hk']; exact countP_congr fun c hc => ihf c hc (hf' c hc)
+      subst hkk
+      exact ihn hn'
+    | @nofBig _ _ _ f' k' hf' hk' hbig =>
+      have hkk : k = k' := by rw [← hk, ← hk']; exact countP_congr fun c hc => ihf c hc (hf' c hc)
+      subst hkk
+      exact absurd h hbig
+  | @nofBig _ cs _ f k _ hk hbig ihf => intro b' h'; cases h' with
+    | @nof _ _ _ _ f' k' h' hf' hk' _ =>
+      have hkk : k = k' := by rw [← hk, ← hk']; exact countP_congr fun c hc => ihf c hc (hf' c hc)
+      subst hkk
+      exact absurd h' hbig
+    | nofBig _ _ _ => rfl
+  | must _ ih => intro b' h'; cases h' with
+    | must h => exact ih h
 
 /-- The judgement a term's trial comes out: the computed answer `c` is the
 judgement `b` exactly when the two agree. -/

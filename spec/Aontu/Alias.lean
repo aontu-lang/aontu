@@ -42,6 +42,8 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .or arms => .or (arms.map fun p => (p.1, expandF ds k p.2))
     | .pref r x => .pref r (expandF ds k x)
     | .meet a b => .meet (expandF ds k a) (expandF ds k b)
+    | .nof n cs => .nof (expandF ds k n) (cs.map (expandF ds k))
+    | .must c m => .must (expandF ds k c) m
     | v => v
 
 /-- The expansion of a term: enough turns for every chain of names that
@@ -207,6 +209,20 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
       · rcases unguardedRefs_expandF f b h with h' | ⟨m, hm, hmn⟩
         · exact .inl (.inr h')
         · exact .inr ⟨m, .inr hm, hmn⟩
+    | nof c cs =>
+      simp only [expandF, Val.unguardedRefs, List.mem_append] at h ⊢
+      rcases h with h | h
+      · rcases unguardedRefs_expandF f c h with h' | ⟨m, hm, hmn⟩
+        · exact .inl (.inl h')
+        · exact .inr ⟨m, .inl hm, hmn⟩
+      · obtain ⟨a', hm, hn⟩ := mem_unguardedItems.mp h
+        obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hm
+        rcases unguardedRefs_expandF f a hn with h' | ⟨m, hm', hmn⟩
+        · exact .inl (.inr (mem_unguardedItems.mpr ⟨a, ha, h'⟩))
+        · exact .inr ⟨m, .inr (mem_unguardedItems.mpr ⟨a, ha, hm'⟩), hmn⟩
+    | must c _ =>
+      simp only [expandF, Val.unguardedRefs] at h ⊢
+      exact unguardedRefs_expandF f c h
     | map _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | list _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | _ => exact .inl (by simpa [expandF] using h)
@@ -295,6 +311,12 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       exact expandF_checkableA hb f a (ha r' a ha')
     | pref hx => exact .pref (expandF_checkableA hb f _ hx)
     | meet ha hb' => exact .meet (expandF_checkableA hb f _ ha) (expandF_checkableA hb f _ hb')
+    | nof hn hcs =>
+      refine .nof (expandF_checkableA hb f _ hn) ?_
+      intro c' hm
+      obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hm
+      exact expandF_checkableA hb f c (hcs c hc)
+    | must hc => exact .must (expandF_checkableA hb f _ hc)
     | _ => (try simp only [expandF]); constructor
 
 theorem expand_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
@@ -651,6 +673,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
   | number | string | anyString | boolean | any => exact .any
   | nil => exact .nil
   | path => exact .path
+  | nof _ _ _ _ | must _ _ => exact .any
   | @lit s =>
     cases s with
     | num x =>
@@ -900,6 +923,7 @@ theorem meetList_of_checkableA {is₁ is₂ : List Val} {s₁ s₂ : Option Val}
     cases hb with
     | list hi₂ hs₂ => exact meetList_checkableA hr hi₁ hs₁ hi₂ hs₂
 
+set_option maxHeartbeats 2000000 in
 /-- A step of the meet keeps a term the checker can read. -/
 theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.CheckableA → (lm s b).CheckableA)
     {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) : (meetStep lm rec a b).CheckableA := by

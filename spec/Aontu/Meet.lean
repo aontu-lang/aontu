@@ -139,7 +139,7 @@ def Val.doms : Val → List Dom
   | .map _ _ _ => [.map]
   | .list _ _ _ => [.list]
   | .nil => []
-  | .neq [] | .any | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ =>
+  | .neq [] | .any | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _ | .must _ _ =>
     [.num, .str, .bool, .null, .map, .list]
 
 /-- The domain a value is in. -/
@@ -1635,6 +1635,8 @@ def Val.beq : Val → Val → Bool
   | .meet a b, .meet c d => a.beq c && b.beq d
   | .alias n, .alias m => decide (n = m)
   | .path p, .path q => decide (p = q)
+  | .nof n cs, .nof n' cs' => n.beq n' && beqItems cs cs'
+  | .must c m, .must c' m' => c.beq c' && decide (m = m')
   | _, _ => false
 termination_by structural a _ => a
 

@@ -910,33 +910,31 @@ example : Instance .empty
 
 /-! ## Trial schemas -/
 
-/-- `nof(1, integer, min(0))` admits `-1`, which one trial admits. -/
-example : Holds .empty (.integer (-1)) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.num (.integer (.of 0))))])
-    (.integer (-1)) := by
-  refine ⟨1, .inl ⟨.integer, 0, rfl, .inr ⟨fun h => ?_, rfl⟩⟩, by decide, .num⟩
-  cases h with | min h => exact absurd h (by decide)
+/-- `{a: nof(1, integer, min(0))}`: a trial inside a value. -/
+abbrev oneOf : Val :=
+  .map [("a", false, .nof (.lit (.num (.integer (.of 1)))) [.integer, .min (.num (.integer (.of 0)))])] none false
 
-/-- …and refuses `3`, which both admit. -/
-example : ¬ Holds .empty (.integer 3) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.num (.integer (.of 0))))])
-    (.integer 3) := by
-  rintro ⟨k, hc, hn⟩
-  have h₂ : Count .empty (.integer 3) [.is .integer, .is (.min (.num (.integer (.of 0))))] (.integer 3) 2 :=
-    .inl ⟨.integer, 1, rfl, .inl ⟨.min (by decide), 0, rfl, rfl⟩⟩
-  cases Count.unique hc h₂
-  obtain ⟨_, hn⟩ := hn
-  cases hn
+set_option maxRecDepth 8192 in
+/-- `-1` is an integer and not at least `0`: one branch admits it, and the
+document is valid. -/
+example : vet {} [] oneOf (.map [("a", .integer (-1))]) = .valid := by decide
 
-/-- `when(string, "a", min(0))` admits `5`: not a string, and at least 0. -/
-example : Holds .empty (.integer 5)
-    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.num (.integer (.of 0)))))) (.integer 5) :=
-  .inr ⟨(fun h => nomatch h), .min (by decide)⟩
+set_option maxRecDepth 8192 in
+/-- `3` is both, so two branches admit it, and the document is invalid. -/
+example : vet {} [] oneOf (.map [("a", .integer 3)]) = .invalid := by decide
 
-/-- …and refuses `"b"`: a string, and not `"a"`. -/
-example : ¬ Holds .empty (.str "b")
-    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.num (.integer (.of 0)))))) (.str "b") := by
-  rintro (⟨_, h⟩ | ⟨h, _⟩)
-  · exact absurd ((check_iff .lit _).mpr h) (by decide)
-  · exact h (.string (by decide))
+/-- `nof(0, string)` admits what `string` refuses: `1`. -/
+example : Admits .empty .null (.nof (.lit (.num (.integer (.of 0)))) [.string]) (.integer 1) :=
+  judge_nof_zero.mpr (.stringNot fun _ h => nomatch h)
+
+/-- `must(min(3), "m")` refuses `2`, as `min(3)` does… -/
+example : Refuses .empty .null (.must (.min (.num (.integer (.of 3)))) "m") (.integer 2) :=
+  .must (.minNot (fun _ _ hn hx => by cases hn; cases hx; decide) (fun _ _ h => nomatch h))
+
+set_option maxRecDepth 8192 in
+/-- …and the document holding it is invalid. -/
+example : vet {} [] (.map [("a", false, .must (.min (.num (.integer (.of 3)))) "m")] none false)
+    (.map [("a", .integer 2)]) = .invalid := by decide
 
 /-! ## A checker, run -/
 

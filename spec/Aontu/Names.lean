@@ -46,6 +46,8 @@ def Val.refs : Val → List String
   | .or arms => refsArms arms
   | .pref _ x => x.refs
   | .meet a b => a.refs ++ b.refs
+  | .nof n cs => n.refs ++ refsItems cs
+  | .must c _ => c.refs
   | _ => []
 
 def refsFields : List (String × Bool × Val) → List String
@@ -67,19 +69,26 @@ end
 
 mutual
 /-- The names a value refers to with no key and no element between:
-through `&`, `|`, `*` and `len`, which hold the whole of a value, and
-never through a container's members or spread. -/
+through `&`, `|`, `*` and `len`, and through the count and the
+branches of a trial, which hold the whole of a value, and never through
+a container's members or spread. -/
 def Val.unguardedRefs : Val → List String
   | .alias n => [n]
   | .len c => c.unguardedRefs
   | .or arms => unguardedArms arms
   | .pref _ x => x.unguardedRefs
   | .meet a b => a.unguardedRefs ++ b.unguardedRefs
+  | .nof n cs => n.unguardedRefs ++ unguardedItems cs
+  | .must c _ => c.unguardedRefs
   | _ => []
 
 def unguardedArms : List (ℕ × Val) → List String
   | [] => []
   | (_, a) :: arms => a.unguardedRefs ++ unguardedArms arms
+
+def unguardedItems : List Val → List String
+  | [] => []
+  | v :: vs => v.unguardedRefs ++ unguardedItems vs
 end
 
 namespace Decls
@@ -374,6 +383,12 @@ theorem unguardedRefs_sub_refs : ∀ (v : Val) (n : String), n ∈ v.unguardedRe
     simp only [Val.refs, List.mem_append]
     exact h.elim (fun h => .inl (unguardedRefs_sub_refs a n h))
       (fun h => .inr (unguardedRefs_sub_refs b n h))
+  | .nof c cs, n, h => by
+    simp only [Val.unguardedRefs, List.mem_append] at h
+    simp only [Val.refs, List.mem_append]
+    exact h.elim (fun h => .inl (unguardedRefs_sub_refs c n h))
+      (fun h => .inr (unguardedItems_sub_refsItems cs n h))
+  | .must c _, n, h => unguardedRefs_sub_refs c n h
   | .integer, _, h | .float, _, h | .biginteger, _, h | .bigdecimal, _, h | .number, _, h
   | .string, _, h | .anyString, _, h | .boolean, _, h | .lit _, _, h | .min _, _, h
   | .max _, _, h | .above _, _, h | .beneath _, _, h | .neq _, _, h | .multiple _, _, h
@@ -388,6 +403,15 @@ theorem unguardedArms_sub_refsArms : ∀ (arms : List (ℕ × Val)) (n : String)
     simp only [refsArms, List.mem_append]
     exact h.elim (fun h => .inl (unguardedRefs_sub_refs a n h))
       (fun h => .inr (unguardedArms_sub_refsArms arms n h))
+
+theorem unguardedItems_sub_refsItems : ∀ (vs : List Val) (n : String),
+    n ∈ unguardedItems vs → n ∈ refsItems vs
+  | [], _, h => nomatch h
+  | v :: vs, n, h => by
+    simp only [unguardedItems, List.mem_append] at h
+    simp only [refsItems, List.mem_append]
+    exact h.elim (fun h => .inl (unguardedRefs_sub_refs v n h))
+      (fun h => .inr (unguardedItems_sub_refsItems vs n h))
 end
 
 namespace Decls
@@ -535,6 +559,8 @@ def Val.paths : Val → List (List Seg)
   | .or arms => pathsArms arms
   | .pref _ x => x.paths
   | .meet a b => a.paths ++ b.paths
+  | .nof n cs => n.paths ++ pathsItems cs
+  | .must c _ => c.paths
   | _ => []
 
 def pathsFields : List (String × Bool × Val) → List (List Seg)
