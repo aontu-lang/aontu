@@ -3082,7 +3082,7 @@ the definition yet, so they enter its contract as a predicate, as the
 patterns enter `Admits` through `host`.
 
 The order has rows of its own, `test/spec/def-subsume.tsv`: every pair
-of fifty values, the general first, with the answers the `values`
+of fifty-eight values, the general first, with the answers the `values`
 contract allows. `leDecF` decides the order with its proof where the
 scalars and the connectives decide it, so its answer is the
 definition's own, and an instance that one value admits and the other
@@ -3119,6 +3119,31 @@ The members are judged under the root of the whole document, and
 a judgement under one root is a judgement under any. `list_le` does the
 same for lists, position by position, and `leDecF` decides both.
 
+A spread on the general side holds every member the specific side can
+have. So the specific side's declared values must each be below it,
+and its other members must be covered: refused by a seal, or held by
+its own spread, which must itself be below the general one. A specific
+side that is open with no spread admits any member, so it is below only
+a spread that admits any:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem map_le_spread {fsg fss : List (String × Bool × Val)} {sps : Option Val} {sg : Val}
+    {cs cg : Bool}
+    (hk : ∀ k og vg, (k, og, vg) ∈ fsg →
+      ∃ os vs, (k, os, vs) ∈ fss ∧ vs ⊑[env] vg ∧ (og = false → os = false))
+    (hc : cg = true → cs = true ∧ ∀ k os vs, (k, os, vs) ∈ fss → ∃ og vg, (k, og, vg) ∈ fsg)
+    (hv : ∀ k os vs, (k, os, vs) ∈ fss → vs ⊑[env] sg)
+    (ho : cs = true ∨ ∃ ss, sps = some ss ∧ ss ⊑[env] sg) :
+    .map fss sps cs ⊑[env] .map fsg (some sg) cg := by
+```
+
+Its rows found a false negative in both engines: `{&: integer}` is
+above `close({"x": integer})`, whose only instances are maps holding
+one integer under `x`, and both engines answer `does_not_subsume`,
+comparing the sealed side's missing spread as `any`. Those rows sit in
+the ledger with the engines as the side that moves.
+
 The constraints have a table of their own in the reference, and its
 rows are theorems too: an interval is below another that contains it,
 `neq` of fewer values is above `neq` of more, `len` follows its count,
@@ -3127,6 +3152,15 @@ and a concrete number is below exactly the bounds that admit it:
 <!-- test: quote spec/Aontu/Subsume.lean -->
 ```lean
 theorem min_le_min_iff (n m : Number) : .min (.num n) ⊑[env] .min (.num m) ↔ m.le n := by
+```
+
+`multiple(a)` is below `multiple(b)` where `a` is itself a multiple of
+`b`, since every multiple of `a` is then one of `b`:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem multiple_le_multiple {a b : Number} (hb : b.Positive) (hab : a.multipleOf b) :
+    .multiple a ⊑[env] .multiple b := by
 ```
 
 ## 11. Two declarations of one key
@@ -5185,7 +5219,7 @@ cannot drift from the text the engines read.
 A test in each port, `ts/test/jsonschema-forms.test.ts` and
 `go/jsonschema_forms_test.go`, answers the second half. Each imports
 every schema of the JSON Schema test suite in its five dialects, of
-Ajv's extra tests and of the SchemaStore subset, with and without
+the Ajv extra tests and of the SchemaStore subset, with and without
 defaults, removes the strings from the output, and reads every call and
 every word left. Each must be a row of `spec/forms.tsv`, or of a second
 file, the forms the importer writes that the definition lacks:

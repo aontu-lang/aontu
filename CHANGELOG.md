@@ -148,6 +148,29 @@ Definition, generated rows and documentation; no engine changes.
   row as the contract allows but the three #346 rows, renumbered again
   in the ledger.
 
+### The definition holds a spread on the general side and `multiple` under the order
+
+Definition, generated rows, the ledger and documentation; no engine
+changes. A P5 step (`docs/design/DEFINITION.0.md`, §6).
+
+- `spec/Aontu/Subsume.lean`: `map_le_spread` and `list_le_spread`, the
+  table's rule for a spread on the general side, which holds every
+  member of the specific side: each value it declares is below the
+  spread, and its other members are refused by a seal or held by its
+  own spread, itself below; `Number.multipleOf_trans` and
+  `multiple_le_multiple`, `multiple(a)` below `multiple(b)` where `a` is
+  a multiple of `b`. `leDecF` decides the three.
+- `spec/Oracle.lean`: eight more values, maps and lists with a spread or
+  a seal and two divisors, so `test/spec/def-subsume.tsv` grows to 3,254
+  rows over 58 values; the printer spells a sealed map as `close({…})`
+  where no open container sits beneath it.
+- `spec/ledger.tsv`: the three #346 rows under their new numbers, five
+  rows under #377 (an optional key of the general side against a spread
+  on the specific side, which both ports put below it) and nine under
+  #384, a false negative the rows found: a spread on the general side
+  against a sealed specific side, which both ports answer
+  `does_not_subsume` where the order holds. The bound rises to 106.
+
 ### Thirteen language decisions read as moved to the definition
 
 Documentation only; the first step of P7 (`docs/design/DEFINITION.0.md`,

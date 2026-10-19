@@ -5058,7 +5058,7 @@ The `at` option anchors both documents at one path before comparing
 (the validation verb's `--at`); a path missing from either side is an
 `error` verdict.
 
-The rows for containers are `map_le`, `list_le` and `not_le_map_required` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), the members' order carried to the root they are judged under by `admits_of_le`; a spread on the general side is not yet stated.
+The rows for containers are `map_le`, `list_le` and `not_le_map_required` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), the members' order carried to the root they are judged under by `admits_of_le`, and `map_le_spread` and `list_le_spread` for a spread on the general side, which holds every member of the specific side: its declared values, and the rest through a seal or its own spread.
 
 ### Recursive positions
 

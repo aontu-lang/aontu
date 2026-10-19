@@ -85,6 +85,51 @@ def segSrc : Seg → Option String
     then some ("." ++ k) else none
   | .idx i => some ("." ++ toString i)
 
+/-! `close()` seals every level, so a sealed container prints as
+`close(…)` only where no open container sits beneath it; a term the
+spelling cannot carry has no text. -/
+mutual
+def openBelow : Val → Bool
+  | .map fs spread closed => !closed || openFields fs || openSpread spread
+  | .list items spread closed => !closed || openItems items || openSpread spread
+  | .or arms => openArms arms
+  | .pref _ x => openBelow x
+  | .meet a b => openBelow a || openBelow b
+  | .len c => openBelow c
+  | .nof n cs => openBelow n || openItems cs
+  | .must c _ => openBelow c
+  | .when c t e => openBelow c || openBelow t || openSpread e
+  | .contains c n => openBelow c || openBelow n
+  | .rest t cs => openBelow t || openCovers cs
+  | .select s arms d => openBelow s || openPairs arms || openSpread d
+  | .filter s c => openBelow s || openBelow c
+  | _ => false
+
+def openFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => openBelow v || openFields fs
+
+def openItems : List Val → Bool
+  | [] => false
+  | v :: vs => openBelow v || openItems vs
+
+def openSpread : Option Val → Bool
+  | none => false
+  | some s => openBelow s
+
+def openArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => openBelow a || openArms arms
+
+def openPairs : List (Val × Val) → Bool
+  | [] => false
+  | (p, r) :: ps => openBelow p || openBelow r || openPairs ps
+
+def openCovers : List Cover → Bool
+  | [] => false
+  | (c, k, m) :: cs => openSpread c || openSpread k || openSpread m || openCovers cs
+end
+
 mutual
 def Val.src : Val → Option String
   | .integer => some "integer"
@@ -109,16 +154,20 @@ def Val.src : Val → Option String
   | .format g => some s!"format({quote g})"
   | .any => some "any"
   | .nil => some "nil"
-  | .map fs spread false => do
+  | .map fs spread closed => do
     let entries ← fieldsSrc fs
     let rest ← spreadSrc spread
-    pure ("{" ++ ", ".intercalate (entries ++ rest) ++ "}")
-  | .map _ _ true => none
+    let body := "{" ++ ", ".intercalate (entries ++ rest) ++ "}"
+    if closed then
+      if openFields fs || openSpread spread then none else pure s!"close({body})"
+    else pure body
   | .list items spread closed => do
     let entries ← itemsSrc items
     let rest ← spreadSrc spread
     let body := "[" ++ ", ".intercalate (entries ++ rest) ++ "]"
-    pure (if closed then s!"close({body})" else body)
+    if closed then
+      if openItems items || openSpread spread then none else pure s!"close({body})"
+    else pure body
   | .or arms => do pure (" | ".intercalate (← armsSrc arms))
   | .pref r x => do pure (prefSrc r (← x.src))
   | .meet a b => do pure s!"({← a.src}) & ({← b.src})"
