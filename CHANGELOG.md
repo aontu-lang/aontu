@@ -43,6 +43,37 @@ the language is in the definition.
   of the tutorial's trial steps that the prose gate refused are
   reworded, and the gate passes again.
 
+### The definition holds the profiles of `subsume`
+
+Definition and documentation; no engine changes. The first half of
+P5's remaining work (`docs/design/DEFINITION.0.md`, §6).
+
+- `spec/Aontu/Subsume.lean`: `Profile`, the three profiles `aontu
+  subsume` answers under, and one contract per profile,
+  `ProfileCorrect`: `values` asks `Le`, so its contract is
+  `SubsumeCorrect`; `defaults` asks `DefaultsLe`, `Le` and that at
+  every position where the specific side's normal form singles out a
+  value, the general side's singles out the same, so a default survives
+  into the general side unchanged, and one the general side adds is no
+  obligation; `gen` asks `GenLe`, `DefaultsLe` and that the marks
+  agree, which are not yet terms of the definition and enter as a
+  predicate (decision 10 of §7). `defaults_sees_the_default` proves
+  the reference's `compat_default_changed` case: `*2 | number` is
+  below `*1 | number` in the order and not under `defaults`.
+- The reference's table of rules, "Rules, by value former", as theorems
+  of `Le`: the ends (`le_nil_iff`, `any_le_iff`), the kinds
+  (`leaf_le_number`, `leaf_le_leaf_iff`, `number_not_le_leaf`,
+  `string_le_anyString`, `anyString_not_le_string`), the literals
+  (`lit_le_lit_iff`, `lit_num_le_leaf`, `lit_str_le_string`), the
+  bounds, `multiple`, patterns and formats under the kinds that cover
+  their domains, disjunction (`arm_le_or`, `or_le_iff`,
+  `le_or_of_mem`), preference (`le_pref`, `pref_le_or`, `or_le_pref`)
+  and the meet (`le_meet_iff`). One row the table overstates:
+  `string` refuses `""`, so it is not above a pattern that matches it
+  (`re_not_le_string`) nor above `max("b")` (`max_str_not_le_string`);
+  `string & empty()` is.
+- The tutorial's step 10, `spec/README.md` and the design note follow.
+
 ### The definition holds `rest` inside a value
 
 Definition, generated rows, and documentation; no engine changes.

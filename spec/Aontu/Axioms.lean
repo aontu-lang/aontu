@@ -7,6 +7,7 @@ import Aontu.Output
 import Aontu.Alias
 import Aontu.Verdict
 import Aontu.Paths
+import Aontu.Subsume
 
 /-!
 # The axioms
@@ -229,3 +230,39 @@ line each comment states.
 /-- info: 'Aontu.normaliseD_checkableA' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.normaliseD_checkableA
+
+/-- info: 'Aontu.le_nil_iff' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.le_nil_iff
+
+/-- info: 'Aontu.leaf_le_leaf_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.leaf_le_leaf_iff
+
+/-- info: 'Aontu.lit_le_lit_iff' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.lit_le_lit_iff
+
+/-- info: 'Aontu.re_not_le_string' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.re_not_le_string
+
+/-- info: 'Aontu.or_le_iff' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.or_le_iff
+
+/-- info: 'Aontu.pref_le_or' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.pref_le_or
+
+/-- info: 'Aontu.or_le_pref' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.or_le_pref
+
+/-- info: 'Aontu.values_correct_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.values_correct_iff
+
+/-- info: 'Aontu.defaults_sees_the_default' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.defaults_sees_the_default
