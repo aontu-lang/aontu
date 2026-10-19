@@ -2324,6 +2324,143 @@ $ echo $?
 proves: `integer` admits a value, such as `2`, that `integer & min(3)`
 refuses.
 
+### The meet, computed
+
+The three theorems say what `a & b` admits and nothing about its
+shape, and the engines give a shape back: `{x: 1} & {y: 2}` comes back
+as `{x: 1, y: 2}`, and `(min(5) & max(3)) | 1` as `1`.
+`spec/Aontu/Meet.lean` computes that shape too, one step at a time,
+with `rec` the meet of the smaller terms:
+
+<!-- test: quote spec/Aontu/Meet.lean -->
+```lean
+def meetStep (rec : Val → Val → Val) (a b : Val) : Val :=
+  match a, b with
+  | .nil, _ | _, .nil => .nil
+  | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
+  | a, .meet b₁ b₂ => rec (rec a b₁) b₂
+  | .or arms, b => mkOr (arms.map fun p => (p.1, rec p.2 b))
+  | a, .or arms => mkOr (arms.map fun p => (p.1, rec a p.2))
+  | .pref r x, b => mkOr [(r, rec x b), (0, rec x.super b)]
+  | a, .pref r y => mkOr [(r, rec a y), (0, rec a y.super)]
+  | .map fs₁ s₁ c₁, .map fs₂ s₂ c₂ => meetMap rec fs₁ s₁ c₁ fs₂ s₂ c₂
+  | .any, .map fs s c => meetMap rec [] none false fs s c
+  | .map fs s c, .any => meetMap rec fs s c [] none false
+  | .list is₁ s₁ c₁, .list is₂ s₂ c₂ => meetList rec is₁ s₁ c₁ is₂ s₂ c₂
+  | .any, .list items s c => meetList rec [] none false items s c
+  | .list items s c, .any => meetList rec items s c [] none false
+  | a, b => meetBase a b
+```
+
+Read each row as *these two shapes meet in this one*. `nil` is the
+zero: it admits nothing, so nor does any meet with it. A meet on either
+side is met one side at a time. A disjunction meets a peer arm by arm,
+and `mkOr` keeps the arms that are live: an arm that admits nothing on
+its face, such as `min(5) & max(3)` once computed to `nil`, drops, and
+a disjunction with no live arm is `nil`. A preference alone is
+`x | super(x)`, as step 12 reads it, so `*8080 & min(1024)` is
+`*8080 | (integer & min(1024))`. Two maps merge key by key in
+`meetMap`: a key both declare holds the meet of the two values and is
+optional only where both say so; a key one side declares alone is met
+with the other side's spread; and where the other side is sealed the
+key cannot appear, so an optional one drops and a required one holds
+`nil`. Two lists merge position by position in `meetList`, and a side
+sealed without a spread fixes the length. `any` is the unit of each
+container, and what remains, two scalars or constraints, is
+`meetBase`: a literal met with a term that admits it is the literal,
+and with one that refuses it `nil`; two kinds meet in the lower; two
+atoms that can share no value, by their domains or because their
+bounds enclose nothing, meet in `nil`; and anything else stays as
+written.
+
+A theorem admits the function into the definition:
+
+<!-- test: quote spec/Aontu/Meet.lean -->
+```lean
+/-- The meet admits what both of its sides admit: ADR-007 for the
+computed meet, and what admits `meet` into the definition. -/
+theorem admits_meet {env : Env} {root : Data} (a b : Val) (j : Data) :
+    Admits env root (meet a b) j ↔ Admits env root a j ∧ Admits env root b j :=
+  admits_meetF _ a b j
+```
+
+So whatever shape `meet` computes, it admits exactly what the three
+theorems settle. The shape is for generation to read, which a later
+step states, and admission never depends on it. The proof is by
+induction on the budget of steps, one case for each row of `meetStep`,
+and the two containers' rows are the long ones.
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `{x: 1} & {y: 2}` is `{x: 1, y: 2}`. -/
+example : meet (.map [("x", false, .lit (.num (.integer (.of 1))))] none false)
+    (.map [("y", false, .lit (.num (.integer (.of 2))))] none false) =
+    .map [("x", false, .lit (.num (.integer (.of 1)))), ("y", false, .lit (.num (.integer (.of 2))))]
+      none false := rfl
+
+/-- `(min(5) & max(3)) | 1` is `1`: the first arm admits nothing, so it
+drops. -/
+example : meet (.or [(0, .meet (.min (.num (.integer (.of 5)))) (.max (.num (.integer (.of 3))))),
+    (0, .lit (.num (.integer (.of 1))))]) .any = .or [(0, .lit (.num (.integer (.of 1))))] := rfl
+
+/-- `*8080 & min(1024)` is `*8080 | (integer & min(1024))`: the preference
+widens to its parent type, and each arm meets the bound. -/
+example : meet (.pref 1 (.lit (.num (.integer (.of 8080))))) (.min (.num (.integer (.of 1024)))) =
+    .or [(1, .lit (.num (.integer (.of 8080)))),
+      (0, .meet .integer (.min (.num (.integer (.of 1024)))))] := rfl
+
+/-- `close([1, 2]) & [&: integer]` is `close([1, 2])`: the seal fixes the
+length, and each position takes the spread. -/
+example : meet (.list [.lit (.num (.integer (.of 1))), .lit (.num (.integer (.of 2)))] none true)
+    (.list [] (some .integer) false) =
+    .list [.lit (.num (.integer (.of 1))), .lit (.num (.integer (.of 2)))] none true := rfl
+
+/-- `min(5) & max(3)` is `nil`, and so is `min("b") & max("a")`: no value
+lies in either interval. -/
+example : meet (.min (.num (.integer (.of 5)))) (.max (.num (.integer (.of 3)))) = .nil ∧
+    meet (.min (.str "b")) (.max (.str "a")) = .nil := ⟨rfl, rfl⟩
+
+/-- `string & (string & empty())` is `string`: the lower of the two kinds. -/
+example : meet .string .anyString = .string := rfl
+
+/-- The computed meet admits what the written one admits, `admits_meet`:
+`*8080 & min(1024)`, computed, still admits `2048` and refuses `80`. -/
+example : Instance .empty (meet (.pref 1 (.lit (.num (.integer (.of 8080)))))
+      (.min (.num (.integer (.of 1024))))) (.integer 2048) ∧
+    ¬ Instance .empty (meet (.pref 1 (.lit (.num (.integer (.of 8080)))))
+      (.min (.num (.integer (.of 1024))))) (.integer 80) :=
+  ⟨⟨by decide, (admits_meet _ _ _).mpr ⟨.prefSuper .integer, .min (by decide)⟩⟩,
+    fun ⟨_, h⟩ => by
+      cases ((admits_meet _ _ _).mp h).2 with
+      | min h => exact absurd h (by decide)⟩
+```
+
+Write `meets.aontu`:
+
+<!-- test: scenario meet -->
+<!-- test: file meets.aontu -->
+```aontu
+a: { x:1 } & { y:2 }
+b: (min(5) & max(3))|1
+c: *8080 & min(1024)
+e: { &: { x: *1 } } & { k:y:2 }
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c meets.aontu
+{"a":{"x":1,"y":2},"b":1,"c":*8080,"e":{&:{"x":*1},"k":{"x":*1,"y":2}}}
+```
+
+Each key comes back as the meet computes it: `b` as `1`, its dead arm
+dropped, and `e` with the spread's default `{x: *1}` met into `k`. The
+engines keep `c` as written, `*8080`, where the definition writes its
+two arms out; both single out `8080`, as step 12's `port` says. A meet
+that is `nil` outright, such as `min(5) & max(3)` alone, comes back as
+an error, a schema with no value, of the kind step 13 shows.
+
 ## 11. Two declarations of one key
 
 When a document declares one key twice, the engine merges the two
@@ -2758,6 +2895,52 @@ $ aontu -c waiver.aontu
 Both engines give `""` back: they let the `empty()` beside `string`
 widen the conjunction, which a greatest lower bound can't do. For this
 kind, the ledger names the engines as the side that changes.
+
+A seal survives a meet, which the engines lose. `close([1, 2])` refuses
+`[1, 2, 3]`, so no meet with it admits `[1, 2, 3]`:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `close([1, 2]) & [&: integer]` refuses `[1, 2, 3]`, which both engines
+admit: a seal fixes the length, and no meet admits what a side refuses. -/
+example : ¬ Instance .empty
+    (.meet (.list [.lit (.num (.integer (.of 1))), .lit (.num (.integer (.of 2)))] none true)
+      (.list [] (some .integer) false))
+    (.list [.integer 1, .integer 2, .integer 3]) := by
+  rintro ⟨-, h⟩
+  cases h with
+  | meet h _ => cases h with | list _ hseal _ _ => exact absurd (hseal rfl rfl) (by decide)
+```
+
+Write `sealed.aontu`:
+
+<!-- test: file sealed.aontu -->
+```aontu
+v: close([1 2]) & [&: integer]
+```
+
+and `three.aontu`:
+
+<!-- test: file three.aontu -->
+```aontu
+v: [1 2 3]
+```
+
+Now vet it:
+
+<!-- test: run -->
+```sh
+$ aontu vet sealed.aontu three.aontu
+verdict: valid
+$ echo $?
+0
+```
+
+Both engines admit it: the open side's spread joins the sealed list,
+and a sealed list with a spread has no fixed length, so the meet admits
+what one of its sides refuses, which no meet can. Step 10's `meetList`
+keeps the length and takes the spread into each position instead.
+Issue #346 tracks it, and the engines are the side that changes.
 
 In others, two optional declarations of one key can't both hold:
 
@@ -3270,11 +3453,12 @@ The language needs only the power to represent a JSON Schema: what
 `aontu jsonschema import` writes is aontu terms, such as
 `number & multiple(1)`, and the definition says what those mean.
 
-Nor does it say what evaluation outputs: which arm a disjunction
-settles on, which default fills a key the data lacks, and so which
-data the engines call `valid` where admission alone says less, as the
-end of step 12 shows. That is `Output`, what evaluation singles out,
-and a later phase states it.
+Nor does it say what evaluation outputs. Step 10 computes the meet,
+the shape the engines give back, but not which arm of a disjunction
+evaluation settles on, nor which default fills a key the data lacks,
+and so not which data the engines call `valid` where admission alone
+says less, as the end of step 12 shows. That is `Output`, what
+evaluation singles out, and a later phase states it.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
