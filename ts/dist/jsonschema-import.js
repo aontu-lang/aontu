@@ -1214,7 +1214,7 @@ function kindsOf(e) {
         case 'call':
             return 'empty' === e.name || 're' === e.name ? ['string'] :
                 'close' === e.name || rider(e) ? kindsOf(e.args[0]) :
-                    ['min', 'max', 'above', 'below', 'multiple'].includes(e.name) ? ['number'] :
+                    ['min', 'max', 'above', 'below', 'mulof'].includes(e.name) ? ['number'] :
                         ALL_KINDS;
         case 'list':
             return ['array'];
@@ -1645,7 +1645,7 @@ function jsonKind(n) {
 // A literal says its kind, which a type that adds nothing to it repeats.
 function says(lit, kind, branch) {
     return jsonKind(lit) === kind && (BARE[kind] === print(branch, '') || ('number' === lit.t &&
-        /^-?[0-9]+$/.test(lit.text) && 'number & multiple(1)' === print(branch, '')));
+        /^-?[0-9]+$/.test(lit.text) && 'number & mulof(1)' === print(branch, '')));
 }
 // A JSON value as aontu data, or undefined where a number in it is past
 // the exactness budget, which drops the annotation with a loss.
@@ -1837,12 +1837,12 @@ function branch(ctx, node, ptr, kind, integral, typed, excluded) {
     if ('number' === kind) {
         // An integer is a number with no fraction, whatever its spelling.
         const parts = [kindOf(raw('number')),
-            ...(integral ? [mark(ctx, call('multiple', raw('1')), at('type'), node)] : [])];
+            ...(integral ? [mark(ctx, call('mulof', raw('1')), at('type'), node)] : [])];
         for (const [k, fn] of [['minimum', 'min'], ['maximum', 'max'],
-            ['exclusiveMinimum', 'above'], ['exclusiveMaximum', 'below'], ['multipleOf', 'multiple']]) {
+            ['exclusiveMinimum', 'above'], ['exclusiveMaximum', 'below'], ['multipleOf', 'mulof']]) {
             const v = get(k);
             const text = null == v ? undefined : number(ctx, at(k), k, v);
-            if ('multiple' === fn && undefined !== text && (text.startsWith('-') || '0' === text)) {
+            if ('mulof' === fn && undefined !== text && (text.startsWith('-') || '0' === text)) {
                 wrongType(ctx, at(k), k, 'a number greater than 0', v);
             }
             else if (undefined !== text) {

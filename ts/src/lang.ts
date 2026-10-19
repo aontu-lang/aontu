@@ -168,7 +168,7 @@ import {
   AboveConstraintVal,
   BelowConstraintVal,
   NeqConstraintVal,
-  MultipleConstraintVal,
+  MulofConstraintVal,
   ReConstraintVal,
   LenConstraintVal,
   UniqueConstraintVal,
@@ -840,7 +840,7 @@ help isolate the syntax error.`,
     above: AboveConstraintVal,
     below: BelowConstraintVal,
     neq: NeqConstraintVal,
-    multiple: MultipleConstraintVal,
+    mulof: MulofConstraintVal,
 
     // G1 phase 2: pattern membership, read and matched by aontu's own
     // engine (ADR-060).

@@ -220,7 +220,7 @@ func schemaLoseLeafKind(sc *schemaCtx, path []string, k Kind) {
 		sc.lose(path, "integer",
 			"JSON Schema reads a number by its value, so its integer also admits "+
 				"1.0 and whole numbers past the integer leaf, which this kind refuses; "+
-				"number & multiple(1) is the integer it means")
+				"number & mulof(1) is the integer it means")
 	case KindFloat:
 		sc.lose(path, "float",
 			"JSON Schema has no float: its number also admits the integer leaf, "+
@@ -2041,7 +2041,7 @@ func schemaSpreadTerms(v Val) []Val {
 var schemaIsolableFuncs = map[string]bool{
 	"above": true, "below": true, "close": true, "contains": true, "deprecate": true,
 	"empty": true, "format": true, "len": true, "lower": true, "match": true, "max": true, "meta": true,
-	"min": true, "multiple": true, "must": true, "neq": true, "nof": true, "open": true,
+	"min": true, "mulof": true, "must": true, "neq": true, "nof": true, "open": true,
 	"pref": true, "re": true, "unique": true, "upper": true, "when": true,
 }
 

@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RestConstraintVal = exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.FormatConstraintVal = exports.ReConstraintVal = exports.MultipleConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
+exports.RestConstraintVal = exports.ContainsConstraintVal = exports.WhenConstraintVal = exports.NofConstraintVal = exports.MustConstraintVal = exports.UniqueConstraintVal = exports.LenConstraintVal = exports.FormatConstraintVal = exports.ReConstraintVal = exports.MulofConstraintVal = exports.NeqConstraintVal = exports.BelowConstraintVal = exports.AboveConstraintVal = exports.MaxConstraintVal = exports.MinConstraintVal = exports.ConstraintVal = void 0;
 exports.normaliseRe = normaliseRe;
 exports.nofCounts = nofCounts;
 exports.pendingNof = pendingNof;
@@ -523,7 +523,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             return bad('arg');
         }
         const a = args[0];
-        if ('multiple' === atom) {
+        if ('mulof' === atom) {
             if (!numericLeaf(a) || (0, numcmp_1.scaledOfShown)(a).unscaled <= 0n) {
                 return bad('invalid-arg');
             }
@@ -1417,7 +1417,7 @@ function canonState(s) {
         parts.push('neq(' + s.neqs.map((n) => n.canon).join(',') + ')');
     }
     for (const m of multsOf(s)) {
-        parts.push('multiple(' + m.canon + ')');
+        parts.push('mulof(' + m.canon + ')');
     }
     for (const r of s.res) {
         parts.push('re(' + r.v.canon + ')');
@@ -1876,12 +1876,12 @@ class NeqConstraintVal extends ConstraintVal {
     }
 }
 exports.NeqConstraintVal = NeqConstraintVal;
-class MultipleConstraintVal extends ConstraintVal {
+class MulofConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
-        super({ ...spec, atom: 'multiple' }, ctx);
+        super({ ...spec, atom: 'mulof' }, ctx);
     }
 }
-exports.MultipleConstraintVal = MultipleConstraintVal;
+exports.MulofConstraintVal = MulofConstraintVal;
 class ReConstraintVal extends ConstraintVal {
     constructor(spec, ctx) {
         super({ ...spec, atom: 're' }, ctx);

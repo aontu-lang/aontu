@@ -459,7 +459,7 @@ const BUILTIN_FUNCS = [
     'file', 'filter', 'folder', 'format', 'fragment', 'greatest',
     'hide', 'ident', 'inject', 'inverse', 'join', 'key', 'least', 'len', 'line',
     'listitems', 'lower',
-    'match', 'max', 'maybe', 'meta', 'min', 'mod', 'move', 'mul', 'multiple', 'must', 'neq',
+    'match', 'max', 'maybe', 'meta', 'min', 'mod', 'move', 'mul', 'mulof', 'must', 'neq',
     'nof', 'nom', 'open',
     'pack', 'parse', 'path', 'pick',
     'pref', 'project', 're', 'refer', 'rel', 'rem', 'rep', 'rest', 'slot', 'sort',

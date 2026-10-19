@@ -776,7 +776,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Fs.writeFileSync(file, 'spec: {\n' +
             '  name: string & re("^[a-z]+$")\n' +
             '  tier: *"internal" | "critical"\n' +
-            '  port?: number & multiple(1) & min(1024)\n' +
+            '  port?: number & mulof(1) & min(1024)\n' +
             '}\n');
         // THE SCHEMA GOES TO STDOUT so `aontu jsonschema x.aontu > s.json`
         // writes a usable file, and --at names the subtree as vet's does.
@@ -792,7 +792,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.equal(r.err, '');
         // A LOSS IS NEVER SILENT -- and lands on the OTHER stream, so a
         // redirect keeps the schema clean and the warning visible.
-        Fs.writeFileSync(file, 'a: number & multiple(1) & must(min(2), "two")\n');
+        Fs.writeFileSync(file, 'a: number & mulof(1) & must(min(2), "two")\n');
         const lossy = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)([file]), 0));
         Assert.match(lossy.out, /"type": "integer"/);
         Assert.match(lossy.err, /^lossy: \$\.a must:/);
@@ -842,7 +842,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const vetWith = 'vet with: aontu vet --no-fill --exact-numbers <document> <data>\n';
         Fs.writeFileSync(file, '{"type": "object", "properties": {"n": {"type": "integer"}}}');
         const ok = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', file]), 0));
-        Assert.equal(ok.out, 'n?: number & multiple(1)\n');
+        Assert.equal(ok.out, 'n?: number & mulof(1)\n');
         Assert.equal(ok.err, vetWith);
         Fs.writeFileSync(file, '{"type": "string", "$dynamicAnchor": "a"}');
         const lossy = vetCapture(() => Assert.equal((0, cli_1.runJsonSchema)(['import', file]), 0));

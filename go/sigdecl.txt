@@ -40,7 +40,7 @@ empty() : constraint
 key(up?: integer|biginteger) : string
 unique(projector k?: string) : constraint
 neq(...vals: number|string) : constraint
-multiple(n: number) : constraint
+mulof(n: number) : constraint
 must(trial c: any, text msg: string) : constraint
 nof(n: number|constraint, ...c: (trial any)) : constraint
 when(trial c: any, trial t: any, trial e?: any) : constraint
