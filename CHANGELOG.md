@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `contains` inside a value
+
+Definition, generated rows, and documentation; no engine changes.
+
+- `spec/Aontu/Syntax.lean`: the form `contains(c, n)`, `contains(c)`
+  read as `contains(c, min(1))`, as the canon writes it;
+  `spec/Aontu/Admits.lean`: its rules of `Judge`, `contains`,
+  `containsNone` and `containsBig`, each member tried alone by `c` and
+  the number admitted judged by `n`, a scalar refused; the checker, the
+  walkers over names (the term `c` guarded, as a spread is, the count
+  not), paths and expansions, the normal form's domains and equality,
+  generation (none), the parent type (`any`) and `Val.untried` (`any`)
+  each take the form.
+- `spec/Aontu/Trial.lean`: ADR-051 as theorems, `judge_contains_empty`,
+  a count over an empty list judges as `n` judges `0`, and
+  `contains_refuses_scalar`.
+- `test/spec/def-trial.tsv` gains 159 rows, 53 documents with
+  `contains` inside values in the three modes; both ports answer every
+  row as the definition does, and the ledger is unchanged.
+- The tutorial's step 16 reads the rules, the theorems, the checker's
+  case and a tour example; the design note's P4 row records the step.
+
 ### The definition holds `when` inside a value
 
 Definition, generated rows, and documentation; no engine changes.

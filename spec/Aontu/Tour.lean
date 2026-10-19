@@ -959,6 +959,18 @@ example : vet {} [] ifThen (.map [("a", .str "b")]) = .invalid := by decide
 example : Admits .empty .null (.when .string (.lit (.str "a")) none) (.integer 5) :=
   judge_when_iff.mpr (.inr ⟨.stringNot (fun _ h => nomatch h), .any⟩)
 
+/-- `{a: contains(number)}`: a count over the members of a value. -/
+abbrev someNumber : Val :=
+  .map [("a", false, .contains .number (.min (.num (.integer (.of 1)))))] none false
+
+set_option maxRecDepth 8192 in
+/-- One member is a number, and the document is valid. -/
+example : vet {} [] someNumber (.map [("a", .list [.integer 1, .str "x"])]) = .valid := by decide
+
+set_option maxRecDepth 8192 in
+/-- No member is, and the document is invalid. -/
+example : vet {} [] someNumber (.map [("a", .list [.str "x"])]) = .invalid := by decide
+
 /-! ## What a `subsume` must answer -/
 
 /-- One implementation: never commit. Correct, and useless. -/

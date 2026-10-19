@@ -45,6 +45,7 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .nof n cs => .nof (expandF ds k n) (cs.map (expandF ds k))
     | .must c m => .must (expandF ds k c) m
     | .when c t e => .when (expandF ds k c) (expandF ds k t) (e.map (expandF ds k))
+    | .contains c n => .contains (expandF ds k c) (expandF ds k n)
     | v => v
 
 /-- The expansion of a term: enough turns for every chain of names that
@@ -240,6 +241,9 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
           rcases unguardedRefs_expandF f e' h with h' | ⟨m, hm, hmn⟩
           · exact .inl (.inr h')
           · exact .inr ⟨m, .inr hm, hmn⟩
+    | contains c n' =>
+      simp only [expandF, Val.unguardedRefs] at h ⊢
+      exact unguardedRefs_expandF f n' h
     | map _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | list _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | _ => exact .inl (by simpa [expandF] using h)
@@ -339,6 +343,7 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       intro e' he'
       obtain ⟨e'', he'', rfl⟩ := Option.map_eq_some'.mp he'
       exact expandF_checkableA hb f e'' (he e'' he'')
+    | contains hc hn => exact .contains (expandF_checkableA hb f _ hc) (expandF_checkableA hb f _ hn)
     | _ => (try simp only [expandF]); constructor
 
 theorem expand_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
@@ -695,7 +700,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
   | number | string | anyString | boolean | any => exact .any
   | nil => exact .nil
   | path => exact .path
-  | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ => exact .any
+  | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ => exact .any
   | @lit s =>
     cases s with
     | num x =>
