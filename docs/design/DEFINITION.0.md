@@ -30,9 +30,15 @@ which both ports agree with the definition on every row; the
 subsumption table and the profile contracts remain. P3 PARTIAL: the
 graph of names landed 2026-10-19, `Decls`, `Recursive` and `Guarded`,
 the alias-cycle rule, in `spec/Aontu/Names.lean`, with the closure
-`close` admitted by `recursiveB_iff` and `guardedB_iff`; `vet` over
-declarations, the residual reading of a recursive alias, and path
-references remain. P4, P6 and P7 not started. The
+`close` admitted by `recursiveB_iff` and `guardedB_iff`; and the same
+day a document's reading under its declarations, `expand` and `meetD`
+in `spec/Aontu/Alias.lean`, a reference to a recursive name a residual
+that expands against concrete structure alone, with `vet` an `error`
+for a name declared nowhere or an unguarded cycle, run as the sixth
+generated fragment, `test/spec/def-alias.tsv`, on which both ports
+agree with the definition on every row but `%U = %U`, which the ledger
+carries under decision 1 of §7; a recursive name met with data in the
+checker, and path references, remain. P4, P6 and P7 not started. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them.
 Date: 2026-10-16
