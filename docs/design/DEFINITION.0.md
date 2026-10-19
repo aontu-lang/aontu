@@ -21,7 +21,14 @@ which holds it to what both sides admit, and `Output` on 2026-10-19:
 `Gen` in `spec/Aontu/Output.lean`, with `output_admits` (ADR-007) and
 `output_unique`, run as the fourth generated fragment,
 `test/spec/def-gen.tsv`, on which both ports agree with the definition
-on every row; `open()`, and ADR-046 and 053 as theorems remain. P3 to P7 not started. The
+on every row; `open()`, and ADR-046 and 053 as theorems remain. P5
+PARTIAL: the verdicts landed 2026-10-19, `Vet` in
+`spec/Aontu/Verdict.lean` with the fill and `--partial` as the mode's
+two switches, held to `Instance` and `Output` by three theorems and
+run as the fifth generated fragment, `test/spec/def-verdict.tsv`, on
+which both ports agree with the definition on every row; the
+subsumption table and the profile contracts remain. P3, P4, P6 and P7
+not started. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them.
 Date: 2026-10-16

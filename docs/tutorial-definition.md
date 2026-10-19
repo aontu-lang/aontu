@@ -747,7 +747,7 @@ example : Instance .empty (.lit .null) .null := ⟨by decide, .null⟩
 example : ¬ Instance .empty (.lit .null) (.bool false) := fun ⟨_, h⟩ => nomatch h
 ```
 
-The four refusals after the first example borrow the checker of step 16 to compute the answer. Write `literals.aontu`:
+The four refusals after the first example borrow the checker of step 17 to compute the answer. Write `literals.aontu`:
 
 <!-- test: scenario literals -->
 <!-- test: file literals.aontu -->
@@ -1443,7 +1443,7 @@ example : ¬ Instance .empty (.unique (some "p"))
   fun ⟨_, h⟩ => absurd ((check_iff .unique _).mpr h) (by decide)
 ```
 
-These examples borrow the checker of step 16, which computes whether
+These examples borrow the checker of step 17, which computes whether
 two values are one. Write `unique.aontu`:
 
 <!-- test: scenario unique -->
@@ -2377,8 +2377,8 @@ A theorem admits the function into the definition:
 
 <!-- test: quote spec/Aontu/Meet.lean -->
 ```lean
-/-- The meet admits what both of its sides admit: ADR-007 for the
-computed meet, and what admits `meet` into the definition. -/
+/-- The meet admits what both of its sides admit, which is what admits
+`meet` into the definition. -/
 theorem admits_meet {env : Env} {root : Data} (a b : Val) (j : Data) :
     Admits env root (meet a b) j ↔ Admits env root a j ∧ Admits env root b j :=
   admits_meetF _ a b j
@@ -2459,7 +2459,7 @@ dropped, and `e` with the spread's default `{x: *1}` met into `k`. The
 engines keep `c` as written, `*8080`, where the definition writes its
 two arms out; both single out `8080`, as step 12's `port` says. A meet
 that is `nil` outright, such as `min(5) & max(3)` alone, comes back as
-an error, a schema with no value, of the kind step 14 shows.
+an error, a schema with no value, of the kind step 15 shows.
 
 ## 11. Two declarations of one key
 
@@ -2517,7 +2517,7 @@ one wins: `-c` writes the merged key with no `?`.
 ```
 
 An arm carries a rank: `0` for an arm written plainly, `1` for one
-written `*a`, `2` for `**a`. The rank picks the output, which step 18
+written `*a`, `2` for `**a`. The rank picks the output, which step 19
 leaves to a later phase, and admission ignores it:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
@@ -2845,7 +2845,7 @@ question fills a default the data lacks: `{x: *1}` met with `{}` is
 valid, by the default `1`. Admission asks whether the data, as it
 stands, is an instance, and `{x: 1}` is one. Both questions are the
 definition's to state. The second is `Output`, what evaluation singles
-out, which step 18 leaves to a later phase, and the test rows of step
+out, which step 19 leaves to a later phase, and the test rows of step
 15 stay where the two agree.
 
 ## 13. What evaluation singles out
@@ -2944,7 +2944,7 @@ Two theorems say what that output is:
 
 <!-- test: quote spec/Aontu/Output.lean -->
 ```lean
-/-- ADR-007: what evaluation singles out is an instance. -/
+/-- What evaluation singles out is an instance. -/
 theorem output_admits (v : Val) (j : Data) (h : Output env root v j) : Admits env root v j :=
   (admits_normalise v j).mp (gen_admits _ j h)
 ```
@@ -2957,11 +2957,10 @@ theorem output_unique (v : Val) (j j' : Data) (h : Output env root v j) (h' : Ou
   gen_unique _ j j' h h'
 ```
 
-`output_admits` is [ADR-007](../ADR.md): what evaluation singles out
-is an instance of the term, so a filled default never writes a value
-the schema refuses. `output_unique` says there is at most one. A
+`output_admits` says what evaluation singles out is an instance of
+the term, so a filled default never writes a value the schema refuses. `output_unique` says there is at most one. A
 function `gen` computes it, and `gen_iff` admits the function on every
-checkable value, as `check_iff` admits `check` in step 16:
+checkable value, as `check_iff` admits `check` in step 17:
 
 <!-- test: quote spec/Aontu/Output.lean -->
 ```lean
@@ -3068,9 +3067,239 @@ singles out, which the tour shows is `{x: 1}`, and answers `valid`.
 The classes `valid`, `invalid`, `incomplete` and `error`, defined from
 `Admits` and `Output` together, are the next phase's.
 
-## 14. Where the definition and the engines differ
+## 14. The verdicts
 
-Both engines' test suites run rows the definition generates, as step 16 shows, and on a few of them the engines don't answer as the
+`aontu vet` answers one of four words, and each is now defined from
+`Admits` and `Output`. Write `required-schema.aontu`:
+
+<!-- test: scenario verdicts -->
+<!-- test: file required-schema.aontu -->
+```aontu
+v: x: integer
+```
+
+and `required-data.aontu`:
+
+<!-- test: file required-data.aontu -->
+```aontu
+v: {}
+```
+
+and `dead-schema.aontu`:
+
+<!-- test: file dead-schema.aontu -->
+```aontu
+v: min(5) & max(3)
+```
+
+Now vet, three ways:
+
+<!-- test: run -->
+```sh
+$ aontu vet required-schema.aontu required-data.aontu
+verdict: incomplete
+
+$.v.x: mapval_no_gen [incomplete]
+  [aontu/mapval_no_gen]: Cannot resolve value at path $.v.x
+  schema: required-schema.aontu:1:7 (integer)
+$ echo $?
+3
+$ aontu vet --partial required-schema.aontu required-data.aontu
+verdict: valid
+
+$.v.x: mapval_no_gen [incomplete]
+  [aontu/mapval_no_gen]: Cannot resolve value at path $.v.x
+  schema: required-schema.aontu:1:7 (integer)
+$ aontu vet dead-schema.aontu required-data.aontu
+verdict: error
+
+$.v: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.v
+  expected: min(5)
+  actual:   max(3)
+  schema: dead-schema.aontu:1:13 (max(3))
+  schema: dead-schema.aontu:1:4 (min(5))
+$ echo $?
+4
+```
+
+The first run is `incomplete`: `{}` meets `{x: integer}` in a map
+that is alive, `x` could still be any integer, and singles out
+nothing. `--partial` lets that pass. The third is `error`: the schema
+does not stand on its own, so the data is never blamed for it.
+`spec/Aontu/Verdict.lean` reads the modes as two switches:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- The modes of `vet`: whether the schema fills the data, the default,
+and whether what is left unresolved passes, which is `--partial`,
+`lax` here since Lean keeps the word. -/
+structure Mode where
+  fill : Bool := true
+  lax : Bool := false
+```
+
+and the verdict as a relation on the four answers:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- The verdict `vet` gives the data `j` against the schema `S` under
+the mode `m`: `error` where the schema's normal form does not stand;
+`invalid` where the meet of the schema with the data is dead; `valid`
+where the meet singles out a value, and without the fill where the data
+as written is an instance too, or where `--partial` lets the unresolved
+pass; and `incomplete` otherwise. -/
+def Vet (m : Mode) (env : Env) (S : Val) (j : Data) : Verdict → Prop
+  | .error => (normalise S).illFormed = true
+  | .invalid => (normalise S).illFormed = false ∧ (normalise (meet S j.term)).dead = true
+  | .valid =>
+    (normalise S).illFormed = false ∧ (normalise (meet S j.term)).dead = false ∧
+      (m.lax = true ∨
+        ∃ j', Output env j (meet S j.term) j' ∧ (m.fill = true ∨ Admits env j S j))
+  | .incomplete =>
+    (normalise S).illFormed = false ∧ (normalise (meet S j.term)).dead = false ∧
+      m.lax = false ∧
+      ¬ ∃ j', Output env j (meet S j.term) j' ∧ (m.fill = true ∨ Admits env j S j)
+```
+
+Read the four in order. `error` is a schema whose normal form does not
+stand, `illFormed`: a `nil` anywhere but in a spread, which the engines
+read only against a member, or a preference clash:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- Whether the arms the rank rule picks single out two different
+values: a preference clash, where a positive rank is picked. -/
+def clash (arms : List (ℕ × Val)) : Bool :=
+  match pickRank arms with
+  | none => false
+  | some _ =>
+    match (arms.filter (picked arms)).filterMap fun p => gen p.2 with
+    | [] => false
+    | x :: rest => rest.any fun y => decide (y ≠ x)
+
+mutual
+/-- Whether a term in normal form does not stand: a `nil` anywhere but
+in a spread, which the engines read only against a member, or a
+preference clash. -/
+def Val.illFormed : Val → Bool
+  | .nil => true
+  | .map fs _ _ => illFields fs
+  | .list items _ _ => illItems items
+  | .or arms => clash arms || illArms arms
+  | .pref _ x => x.illFormed
+  | .meet a b => a.illFormed || b.illFormed
+  | _ => false
+```
+
+`invalid` is a schema that stands met with the data as a term,
+`Data.term`, in a meet that is dead: nothing could be the data.
+`valid` is a meet alive that singles out a value, step 13's `Output`,
+and without the fill only where the data as written is an instance of
+the schema too; `--partial` makes any live meet `valid`. `incomplete`
+is what remains: a live meet that singles out nothing, or a fill the
+data lacks. `vet` computes the verdict, and `vet_iff` admits it on
+checkable terms, as `check_iff` and `gen_iff` do for theirs.
+
+Three theorems say what the words mean:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- Without the fill, `valid` is `Instance`: the data as written is an
+instance of the schema. -/
+theorem vet_strict_valid_instance {m : Mode} {S : Val} {j : Data} (hf : m.fill = false)
+    (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m env S j .valid) : Instance env S j := by
+  obtain ⟨-, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
+  · rw [hp] at hp'
+    exact nomatch hp'
+  · rw [hf] at hf'
+    exact nomatch hf'
+  · exact ⟨hj, hA⟩
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- With the fill, `valid` singles out a value, the data filled, which
+is an instance of the schema. -/
+theorem vet_valid_filled {m : Mode} {S : Val} {j : Data} (hp : m.lax = false)
+    (h : Vet m env S j .valid) : ∃ j', Output env j (meet S j.term) j' ∧ Admits env j S j' := by
+  obtain ⟨-, -, hp' | ⟨j', hout, -⟩⟩ := h
+  · rw [hp] at hp'
+    exact nomatch hp'
+  · exact ⟨j', hout, ((admits_meet _ _ _).mp (output_admits _ _ hout)).1⟩
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- `invalid` refuses the data: it is no instance of the schema. -/
+theorem vet_invalid_not_instance {m : Mode} {S : Val} {j : Data} (hj : j.WellFormed)
+    (h : Vet m env S j .invalid) : ¬ Admits env j S j := by
+  obtain ⟨-, hd⟩ := h
+  intro hA
+  exact dead_sound _ hd j ((admits_normalise _ _).mpr
+    ((admits_meet _ _ _).mpr ⟨hA, term_admits_self j hj⟩))
+```
+
+So `vet --no-fill` answers `valid` exactly for an instance, step 2's
+question; `vet` answers it for a filled value that is an instance of
+the schema; and `invalid` is never an instance. The tour runs the verdicts of this step and the last by
+`decide`:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `{x: *1}` against `{}`: `valid` with the fill, the default `1`
+supplied, and `incomplete` without it, since `{}` is no instance as
+written. -/
+example : vet {} (.map [("x", false, .pref 1 (.lit (.num (.integer (.of 1)))))] none false) (.map []) =
+      .valid ∧
+    vet { fill := false } (.map [("x", false, .pref 1 (.lit (.num (.integer (.of 1)))))] none false)
+      (.map []) = .incomplete := by decide
+
+/-- `{x?: *1}` against `{}` is `valid` either way: `{}` is an instance
+as written. -/
+example : vet { fill := false } (.map [("x", true, .pref 1 (.lit (.num (.integer (.of 1)))))] none false)
+    (.map []) = .valid := by decide
+
+/-- `{x: 1} | {y: 2}` against `{x: 1}` is `incomplete`: the meet is
+alive and singles out nothing, step 12's question. -/
+example : vet {} (.or [(0, .map [("x", false, .lit (.num (.integer (.of 1))))] none false),
+      (0, .map [("y", false, .lit (.num (.integer (.of 2))))] none false)])
+    (.map [("x", .integer 1)]) = .incomplete := by decide
+
+/-- `integer` against `"a"` is `invalid`: the meet is dead. -/
+example : vet {} .integer (.str "a") = .invalid := by decide
+
+/-- `min(5) & max(3)` is `error` against anything: the schema does not
+stand. So is `*1 | *2`, two preferred arms of one rank that single out
+different values, where `*1 | *integer` stands. -/
+example : vet {} (.meet (.min (.num (.integer (.of 5)))) (.max (.num (.integer (.of 3))))) (.integer 1) =
+      .error ∧
+    vet {} (.or [(1, .lit (.num (.integer (.of 1)))), (1, .lit (.num (.integer (.of 2))))]) (.integer 1) =
+      .error ∧
+    vet {} (.or [(1, .lit (.num (.integer (.of 1)))), (1, .integer)]) (.integer 1) = .valid := by decide
+
+/-- `{x: integer}` against `{}` is `incomplete`, and `valid` under
+`--partial`. -/
+example : vet {} (.map [("x", false, .integer)] none false) (.map []) = .incomplete ∧
+    vet { lax := true } (.map [("x", false, .integer)] none false) (.map []) = .valid := by decide
+
+/-- Without the fill, `valid` is `Instance`: `[*1]` against `[2]`. -/
+example : Instance .empty (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false)
+    (.list [.integer 2]) :=
+  vet_strict_valid_instance (m := { fill := false }) rfl rfl (by decide)
+    ((vet_iff (m := { fill := false }) (by decide) (by decide) .valid).mp (by decide))
+```
+
+The fifth generated fragment, `test/spec/def-verdict.tsv`, runs the
+cases of `vetCases` in `spec/Oracle.lean` in all three modes, each
+with the one class `vet` gives, which `vet_iff` makes the definition's
+own. Both engines agree with the definition on every row. The rows
+keep away from two corners the next step records: a `nil` written in
+a schema, and a contradiction under an optional key.
+
+## 15. Where the definition and the engines differ
+
+Both engines' test suites run rows the definition generates, as step 17 shows, and on a few of them the engines don't answer as the
 definition does. [`spec/ledger.tsv`](../spec/ledger.tsv) lists each such case,
 with the answer each side gives, which side changes, and why.
 
@@ -3132,6 +3361,17 @@ Go answers so, and TypeScript answers `disjunct_no_gen`, collapsing
 arms alike as written and not arms alike in what they single out.
 Issue #348 tracks it, and `genVals` keeps such a value out of the
 rows until the ports agree.
+
+The definition cannot tell a `nil` written from a `nil` computed, and
+the engines answer them apart. A schema `{x: nil}` is `invalid` in both
+engines and a schema `{x: 1 & 2}` is `error`, where step 14's
+`illFormed` finds a `nil` in each and answers `error` for both. Under
+an optional key, `{x?: 1 & 2}` is `error` in both engines, a
+contradiction, where the definition reads a key that nothing can
+satisfy as a key that must be absent, so `{x?: 1 & 2}` against `{}` is
+`valid`, as `{x?: nil}` against `{}` is in both engines. The ledger's
+cause for the second kind is that a contradictory value is an error,
+and no generated row carries either corner.
 
 A seal survives a meet, which the engines lose. `close([1, 2])` refuses
 `[1, 2, 3]`, so no meet with it admits `[1, 2, 3]`:
@@ -3225,7 +3465,7 @@ they can't use. For this kind the ledger names the definition as
 the side that changes, since it has no ill-formed terms, which is what
 `error` reports.
 
-## 15. Trial schemas
+## 16. Trial schemas
 
 `nof` and `when` ask whether a schema refuses a value, and a rule
 can't depend on the negation of the relation it defines. Lean refuses
@@ -3345,7 +3585,7 @@ $ aontu -c when.aontu
 `"a"` is a string, so it must be `"a"`, and `5` isn't, so it must be at
 least zero.
 
-## 16. A checker, admitted by a proof
+## 17. A checker, admitted by a proof
 
 `Admits` is a statement, so Lean can't run it. Running needs an
 algorithm, and `spec/Aontu/Check.lean` holds one, for every term that
@@ -3569,7 +3809,7 @@ The oracle writes each arm in parentheses, behind its stars, and a
 sealed list as `close([…])`, which both engines read as the term.
 
 Both engines answer every row of the three files as the definition
-does, but for the cases step 14 lists.
+does, but for the cases step 15 lists.
 
 The schema and the value are text, which `spec/Oracle/Print.lean`
 writes. The printer is the oracle's and no part of the definition, and
@@ -3577,7 +3817,7 @@ no proof checks it: that an engine reads `v: 0d9007199254740993` as that
 big integer is a claim about the engine's reader, which these rows
 test.
 
-## 17. What any `subsume` must answer
+## 18. What any `subsume` must answer
 
 `⊑` quantifies over every value, of which there are infinitely many,
 so no program computes it in general. The definition states instead
@@ -3667,7 +3907,7 @@ The engine answers `does_not_subsume` where `subsumeWrong` answered
 `subsumes`, and its finding gives the same reason: `{x?: any}` admits
 instances without the key.
 
-## 18. What the definition doesn't say yet
+## 19. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -3690,12 +3930,11 @@ The language needs only the power to represent a JSON Schema: what
 `aontu jsonschema import` writes is aontu terms, such as
 `number & multiple(1)`, and the definition says what those mean.
 
-Nor does it say what evaluation outputs. Step 10 computes the meet,
-the shape the engines give back, but not which arm of a disjunction
-evaluation settles on, nor which default fills a key the data lacks,
-and so not which data the engines call `valid` where admission alone
-says less, as the end of step 12 shows. That is `Output`, what
-evaluation singles out, and a later phase states it.
+Nor does it hold the subsumption table as theorems, nor a contract
+for each profile of `subsume` beyond `values`, which step 18 states;
+nor the trials inside a value, `contains`, `must` and `rest`; nor an
+alias that refers to itself with nothing between, which the engines
+refuse. Those are later phases.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
