@@ -2124,6 +2124,261 @@ example : ¬ Instance .empty (.map [("x", false, .alias "U")] none false) (.map 
 The engine can't resolve such an alias at all, and refuses the whole
 document as a schema it can't use.
 
+### The graph of names
+
+A document declares its aliases in the order written, and
+`spec/Aontu/Names.lean` reads the declarations as a list whose
+environment is the `env` the rules take:
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+/-- The declarations of a document: `%T = v` is the pair `("T", v)`, in
+the order written. A name declared twice is declared as the meet of its
+declarations. -/
+abbrev Decls := List (String × Val)
+```
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+/-- The environment the declarations make: a name's value is the meet
+of its bodies, and an undeclared name has none. -/
+def env (ds : Decls) : Env := fun n =>
+  match ds.bodies n with
+  | [] => none
+  | v :: vs => some (vs.foldl .meet v)
+```
+
+The declarations make a graph, where a name refers to every name in
+its bodies, and a recursive name is one that refers to itself through
+any number of declarations:
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+/-- `a` refers to `b`: `b` stands somewhere in a body declared for `a`. -/
+def Refers (ds : Decls) (a b : String) : Prop := ∃ v, v ∈ ds.bodies a ∧ b ∈ v.refs
+```
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+/-- A recursive name refers to itself, through any number of
+declarations: `%N = {n: integer, next?: %N}` declares one, and so do
+`%A = {b?: %B}` and `%B = {a?: %A}` each other. -/
+def Recursive (ds : Decls) (n : String) : Prop := Relation.TransGen ds.Refers n n
+```
+
+`%T` above is recursive through the key `n`, so every turn of the
+recursion consumes a level of the data, which is why its derivations
+stop where the data stops. A name can also refer to itself with
+nothing between: `%U = %U` does, and so do `%T = %T & integer` through
+`&` and `%T = %T | 1` through `|`. The alias-cycle rule refuses these.
+It reads the names a value reaches without passing through a key or an
+element:
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+/-- The names a value refers to with no key and no element between:
+through `&`, `|`, `*` and `len`, which hold the whole of a value, and
+never through a container's members or spread. -/
+def Val.unguardedRefs : Val → List String
+```
+
+and asks that no name reach itself that way:
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+/-- The alias-cycle rule: no name refers to itself with no key and no
+element between, so that every recursion consumes data. `%U = %U`,
+`%T = %T & integer` and `%T = %T | 1` break it; `%N = {n: integer,
+next?: %N}` keeps it. -/
+def Guarded (ds : Decls) : Prop := ∀ n, ¬ Relation.TransGen ds.RefersUnguarded n n
+```
+
+Both relations are transitive closures, and `close` computes them by
+rounds, each round adding every name reached from a name it holds,
+until a round adds nothing:
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+/-- The closure of `seen` under `succ`, in at most `k` rounds. -/
+def close (succ : String → List String) : ℕ → List String → List String
+  | 0, seen => seen
+  | k + 1, seen =>
+    if closeStep succ seen = seen then seen else close succ k (closeStep succ seen)
+```
+
+With more rounds than there are names, a round that adds nothing must
+come, since a list of distinct names is no longer than the list of all
+names, which is the pigeonhole `length_le_of_nodup` proves. So the
+computed answers are the relations' own:
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+theorem recursiveB_iff {ds : Decls} {n : String} : ds.recursiveB n = true ↔ ds.Recursive n := by
+```
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+theorem guardedB_iff {ds : Decls} : ds.guardedB = true ↔ ds.Guarded := by
+```
+
+The tour decides the examples with them. `%N = {n: integer, next?:
+%N}` is recursive and keeps the rule:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `%N = {n: integer, next?: %N}`, as a document declares it. -/
+abbrev declsN : Decls := [("N", .map [("n", false, .integer), ("next", true, .alias "N")] none false)]
+
+/-- `N` refers to itself, so it is recursive… -/
+example : declsN.Recursive "N" := Decls.recursiveB_iff.mp (by decide)
+
+/-- …through the key `next`, so the declarations keep the alias-cycle
+rule: every cycle of names passes through a key or an element. -/
+example : declsN.Guarded := Decls.guardedB_iff.mp (by decide)
+```
+
+`%U = %U` breaks it, and admits nothing:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `%U = %U` refers to itself with nothing between, which the rule
+refuses… -/
+example : ¬ Decls.Guarded [("U", .alias "U")] := fun h =>
+  nomatch (by decide : Decls.guardedB [("U", .alias "U")] = false).symm.trans (Decls.guardedB_iff.mpr h)
+
+/-- …and it admits nothing: a derivation would have to begin with
+another. -/
+example : ¬ Admits (Decls.env [("U", .alias "U")]) .null (.alias "U") (.integer 1) :=
+  Decls.alias_self_admits_nothing
+```
+
+The second is a theorem about any environment, not a computation: a
+derivation of what `%U` admits would have to begin with a derivation
+of the same, so none is finite.
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+/-- A name declared as itself alone admits nothing: a derivation of what
+it admits would have to begin with another, so none is finite. -/
+theorem alias_self_admits_nothing {env : Env} {root : Data} {n : String} {j : Data}
+    (h : env n = some (.alias n)) : ¬ Admits env root (.alias n) j := by
+```
+
+`%T = %T | 1` breaks the rule too, though its second arm admits `1`:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `%T = %T | 1` breaks the rule too, through `|`… -/
+abbrev declsT : Decls := [("T", .or [(0, .alias "T"), (0, .lit (.num (.integer (.of 1))))])]
+
+example : ¬ declsT.Guarded := fun h =>
+  nomatch (by decide : declsT.guardedB = false).symm.trans (Decls.guardedB_iff.mpr h)
+
+/-- …though it admits `1`, by its second arm: the engines run it, and
+the rule refuses it. -/
+example : Admits declsT.env .null (.alias "T") (.integer 1) :=
+  .alias rfl (.or (List.mem_cons_of_mem _ (List.mem_singleton.mpr rfl)) .num)
+```
+
+Now the engines. Write `list-schema.aontu`:
+
+<!-- test: scenario names -->
+<!-- test: file list-schema.aontu -->
+```aontu
+%N = { n:integer next?:%N }
+v: %N
+```
+
+with `list-data.aontu`, three levels deep:
+
+<!-- test: file list-data.aontu -->
+```aontu
+v: { n:1 next: { n:2 next:n:3 } }
+```
+
+and `list-bad.aontu`, wrong at the second:
+
+<!-- test: file list-bad.aontu -->
+```aontu
+v: { n:1 next:n:"x" }
+```
+
+Then one document for each way of breaking the rule, `self-schema.aontu`:
+
+<!-- test: file self-schema.aontu -->
+```aontu
+%U = %U
+v: %U
+```
+
+`pair-schema.aontu`:
+
+<!-- test: file pair-schema.aontu -->
+```aontu
+%A = %B
+%B = %A
+v: %A
+```
+
+and `arm-schema.aontu`:
+
+<!-- test: file arm-schema.aontu -->
+```aontu
+%T = %T|1
+v: %T
+```
+
+with `one.aontu` to vet them against:
+
+<!-- test: file one.aontu -->
+```aontu
+v: 1
+```
+
+Run them:
+
+<!-- test: run -->
+```sh
+$ aontu vet list-schema.aontu list-data.aontu
+verdict: valid
+$ aontu vet list-schema.aontu list-bad.aontu
+verdict: invalid
+
+$.v.next.n: no_scalar_unify [conflict]
+  [aontu/no_scalar_unify]: Cannot unify values at path $.v.next.n
+  data: list-bad.aontu:1:17 ("x")
+  schema: list-schema.aontu:1:10 (integer)
+$ echo $?
+1
+$ aontu vet self-schema.aontu one.aontu
+verdict: invalid
+
+$.v: unify_cycle [budget]
+  [aontu/unify_cycle]: Cannot unify values at path $.v
+  data: one.aontu:1:4 (1)
+  schema: self-schema.aontu:1:6 (%U)
+$ echo $?
+1
+$ aontu vet pair-schema.aontu one.aontu
+verdict: error
+
+$.%A: path_cycle [reference]
+  [aontu/path_cycle]: Cannot resolve value at path $.%A
+  schema: pair-schema.aontu:1:6 (nil)
+$ echo $?
+4
+$ aontu vet arm-schema.aontu one.aontu
+verdict: valid
+```
+
+Both engines check the recursive list at every level. `%U = %U` they
+refuse by running out of steps, and the pair as a cycle of references,
+where the rule reads both as the same ill-formed document. `%T = %T |
+1` they run, and `1` passes by its second arm, where the rule refuses
+the document. The definition's `vet` doesn't read declarations yet: a
+later step brings the names into the meet and the verdicts, and the
+rows where the engines and the rule part go to the ledger of step 15.
+
 ## 9. Path references
 
 A path names a part of a value, step by step:
@@ -3938,9 +4193,9 @@ The language needs only the power to represent a JSON Schema: what
 
 Nor does it hold the subsumption table as theorems, nor a contract
 for each profile of `subsume` beyond `values`, which step 18 states;
-nor the trials inside a value, `contains`, `must` and `rest`; nor an
-alias that refers to itself with nothing between, which the engines
-refuse. Those are later phases.
+nor the trials inside a value, `contains`, `must` and `rest`; nor
+`vet` over a document's declarations, where the alias-cycle rule of
+step 8 makes `%U = %U` an error. Those are later phases.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

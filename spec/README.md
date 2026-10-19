@@ -41,6 +41,7 @@ to the JSON Schema suite.
 | `Aontu/Data.lean` | the data, scalars first: the four leaves, each a type named as aontu names it and holding exactly its leaf's numbers: `Integer`, a whole number with the proof that the `integer` leaf holds it (`IntegerLeaf`); `Float`, a float as its binary64 fields, with the decimal it shows; `BigInteger`; `BigDecimal`; then `Number`, the four together; strings; then `Data`, with maps and lists, `Same`, which compares two values as values, paths into a value, and `WellFormed` (no key twice in a map). `ℤ` and `ℕ` are Lean's `Int` and `Nat` |
 | `Aontu/Syntax.lean` | the values, one constructor per construct, scalars first: the kinds, the four number kinds among them, `string & empty()`, scalar literals, numbers of every leaf among them, the bounds `min`, `max`, `above`, and `below` (the constructor `beneath`, since Lean keeps `below`), each with a number or a string at its end (`Bound`), `neq`, `multiple`, `len`, `unique`, `re`, and `format`, maps with optional keys, a spread and a seal, lists with a spread and a seal, `\|` with each arm's rank, `*` alone, `&`, aliases, and paths; `Env`, the alias declarations; and `super`, the parent type of a term, which `*x` alone widens to |
 | `Aontu/Admits.lean` | `Host`, the two predicates the definition leaves to the engines, which strings a pattern matches and which a format reads, as the opaque constant `host`; `Admits`, what a value admits, one inference rule per form; and `Instance`, the question `aontu vet` answers, which only a value can satisfy |
+| `Aontu/Names.lean` | `Decls`, a document's alias declarations and the environment they make; `Val.refs` and `Val.unguardedRefs`, the names a value refers to, and those it reaches with no key and no element between; `Recursive`, a name that refers to itself through any number of declarations; `Guarded`, the alias-cycle rule, that no name does so with nothing between; `close`, the closure computed by rounds and admitted by `recursiveB_iff` and `guardedB_iff`; and `alias_self_admits_nothing`, that a name declared as itself admits nothing |
 | `Aontu/Order.lean` | the order `⊑`, its ends, the meet as its greatest lower bound, the strict bounds under their closed ones (`above_le_min`, `beneath_le_max`), ADR-045's merge as a theorem, and `SubsumeCorrect`, the contract any `subsume` must meet |
 | `Aontu/Meet.lean` | `meet`, the meet computed as the engines compute it, one step at a time: `nil` the zero and `any` the unit, a disjunction met arm by arm with its dead arms dropped, a preference alone as `x \| super(x)`, two maps merged key by key and two lists position by position, a literal met with what admits it, and two atoms that share no value met in `nil`; beside `admits_meet`, the theorem that the term it computes admits a value exactly when both sides do, and `normalise`, a term met with `any` |
 | `Aontu/Output.lean` | `Gen`, what a term generates, by recursion on the term: a literal its value, a map its declared keys that generate, a list its positions, a disjunction what the arms the rank rule picks all generate, a meet left as written what one side generates and the other admits; `Output`, `Gen` of the normal form; `output_admits`, ADR-007; `output_unique`; and `gen`, which computes it, beside `gen_iff` |
@@ -72,8 +73,9 @@ so the definition says nothing about it:
 
 - each read mode's reading of a number, and the exactness budget of a
   big decimal (P1);
-- a trial inside a value (P3 and P4), and an alias that refers to
-  itself with nothing between, which the engines refuse (P3);
+- a trial inside a value (P3 and P4), and `vet` over a document's
+  declarations, where the alias-cycle rule, stated, makes `%U = %U` an
+  error (P3);
 - the subsumption table as theorems, and a contract for each `subsume`
   profile beyond `values` (P5).
 

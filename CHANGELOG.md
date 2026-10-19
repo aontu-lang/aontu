@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads the graph of names
+
+Definition and documentation; no engine changes, no new rows.
+
+- `spec/Aontu/Names.lean`: `Decls`, a document's alias declarations in
+  the order written, and `Decls.env`, the environment they make, a name
+  declared twice the meet of its bodies; `Val.refs`, the names a value
+  refers to, and `Val.unguardedRefs`, those it reaches through `&`,
+  `|`, `*` and `len` alone, with no key and no element between.
+- `Recursive`, a name that refers to itself through any number of
+  declarations, and `Guarded`, the alias-cycle rule: no name refers to
+  itself with nothing between, so that every recursion consumes data.
+  `%N = {n: integer, next?: %N}` keeps the rule; `%U = %U`, `%T = %T &
+  integer` and `%T = %T | 1` break it, the last of which the engines
+  run.
+- `close` computes the closure by rounds and stops when a round adds
+  nothing; `recursiveB_iff` and `guardedB_iff` admit it, by the
+  pigeonhole `length_le_of_nodup`, constructively.
+- `alias_self_admits_nothing`: a name declared as itself admits
+  nothing, since a derivation would have to begin with another.
+- `vet` does not yet read declarations: the names reach the meet and
+  the verdicts in a later change. The tutorial's step 8 gains the graph
+  of names, and the tour its examples.
+
 ### The definition states the verdicts of vet
 
 Definition, generated rows, and documentation; no engine changes.
