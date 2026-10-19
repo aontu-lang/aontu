@@ -83,23 +83,23 @@ example : Instance .empty .number (.integer 3) ∧
 /-- `number` refuses the string `"1"`. -/
 example : ¬ Instance .empty .number (.str "1") := fun ⟨_, h⟩ => nomatch h
 
-/-- `number & multiple(1)` admits the biginteger `9007199254740993`. -/
-example : Instance .empty (.meet .number (.multiple (.integer (.of 1)))) (.num (.biginteger ⟨9007199254740993⟩)) :=
-  ⟨by decide, .meet .number (.multiple (by decide) (by decide))⟩
+/-- `number & mulof(1)` admits the biginteger `9007199254740993`. -/
+example : Instance .empty (.meet .number (.mulof (.integer (.of 1)))) (.num (.biginteger ⟨9007199254740993⟩)) :=
+  ⟨by decide, .meet .number (.mulof (by decide) (by decide))⟩
 
-/-- `number & multiple(1)` admits exactly the numbers that show a whole
+/-- `number & mulof(1)` admits exactly the numbers that show a whole
 number, of every leaf. -/
 example (env : Env) (root j : Data) :
-    Admits env root (.meet .number (.multiple (.integer (.of 1)))) j ↔ ∃ x, j = .num x ∧ x.Whole := by
+    Admits env root (.meet .number (.mulof (.integer (.of 1)))) j ↔ ∃ x, j = .num x ∧ x.Whole := by
   constructor
   · intro h
     cases h with
     | meet hn hm =>
       cases hn
       cases hm with
-      | multiple _ hd => exact ⟨_, rfl, (Number.multipleOf_one _).mp hd⟩
+      | mulof _ hd => exact ⟨_, rfl, (Number.multipleOf_one _).mp hd⟩
   · rintro ⟨x, rfl, hx⟩
-    exact .meet .number (.multiple (by decide) ((Number.multipleOf_one x).mpr hx))
+    exact .meet .number (.mulof (by decide) ((Number.multipleOf_one x).mpr hx))
 
 /-! ## Strings -/
 
@@ -182,27 +182,27 @@ example : ¬ Instance .empty (.max (.num (.bigdecimal (.of 1 1))))
   cases h with
   | max h => exact absurd h (by decide)
 
-/-- `multiple(0.5)` admits one and a half. -/
-example : Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 15 1))) :=
-  ⟨by decide, .multiple (by decide) (by decide)⟩
+/-- `mulof(0.5)` admits one and a half. -/
+example : Instance .empty (.mulof (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 15 1))) :=
+  ⟨by decide, .mulof (by decide) (by decide)⟩
 
-/-- `multiple(0.5)` refuses `1.25`. -/
-example : ¬ Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 125 2))) := by
+/-- `mulof(0.5)` refuses `1.25`. -/
+example : ¬ Instance .empty (.mulof (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 125 2))) := by
   rintro ⟨-, h⟩
   cases h with
-  | multiple _ h => exact absurd h (by decide)
+  | mulof _ h => exact absurd h (by decide)
 
-/-- `multiple(0.1)` admits the float `0.3`: it reads the decimal each
+/-- `mulof(0.1)` admits the float `0.3`: it reads the decimal each
 float shows, where their exact values are no multiple. -/
-example : Instance .empty (.multiple (.float (.dyadic 3602879701896397 (-55))))
+example : Instance .empty (.mulof (.float (.dyadic 3602879701896397 (-55))))
     (.num (.float (.dyadic 5404319552844595 (-54)))) :=
-  ⟨by decide, .multiple (by decide) (by decide)⟩
+  ⟨by decide, .mulof (by decide) (by decide)⟩
 
-/-- `multiple(0)` refuses `0`, and everything else. -/
-example : ¬ Instance .empty (.multiple (.integer (.of 0))) (.integer 0) := by
+/-- `mulof(0)` refuses `0`, and everything else. -/
+example : ¬ Instance .empty (.mulof (.integer (.of 0))) (.integer 0) := by
   rintro ⟨-, h⟩
   cases h with
-  | multiple h _ => exact absurd h (by decide)
+  | mulof h _ => exact absurd h (by decide)
 
 /-! ## The strict bounds -/
 

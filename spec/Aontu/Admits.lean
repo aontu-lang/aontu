@@ -173,13 +173,13 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       (∀ x, j = .num x → ∃ v, v ∈ vs ∧ ∀ n, v = .num n → n = x) →
       (∀ s, j = .str s → ∃ v, v ∈ vs ∧ ∀ t, v = .str t → t = s) →
       Judge env root false (.neq vs) j
-  /-- `multiple` reads the value a number shows, which for a float is
-  its shortest decimal; `multiple(0)` and a negative divisor admit
+  /-- `mulof` reads the value a number shows, which for a float is
+  its shortest decimal; `mulof(0)` and a negative divisor admit
   nothing. -/
-  | multiple {d x : Number} :
-      d.Positive → x.multipleOf d → Judge env root true (.multiple d) (.num x)
-  | multipleNot {d : Number} {j : Data} :
-      (∀ x, j = .num x → d.Positive → ¬ x.multipleOf d) → Judge env root false (.multiple d) j
+  | mulof {d x : Number} :
+      d.Positive → x.multipleOf d → Judge env root true (.mulof d) (.num x)
+  | mulofNot {d : Number} {j : Data} :
+      (∀ x, j = .num x → d.Positive → ¬ x.multipleOf d) → Judge env root false (.mulof d) j
   /-- `len(c)` judges a string, a list, or a map as `c` judges its size,
   an integer; `len(0)` admits `""`, and a scalar has no size, so `len`
   refuses it, as it refuses a size no integer leaf holds. -/
@@ -508,12 +508,12 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
       obtain ⟨t, rfl, hts⟩ := h v hv
       exact absurd (hvt t rfl) hts
     | neqNot _ _ => rfl
-  | multiple hp hm => intro b' h'; cases h' with
-    | multiple _ _ => rfl
-    | multipleNot hn => exact absurd hm (hn _ rfl hp)
-  | multipleNot hn => intro b' h'; cases h' with
-    | multiple hp hm => exact absurd hm (hn _ rfl hp)
-    | multipleNot _ => rfl
+  | mulof hp hm => intro b' h'; cases h' with
+    | mulof _ _ => rfl
+    | mulofNot hn => exact absurd hm (hn _ rfl hp)
+  | mulofNot hn => intro b' h'; cases h' with
+    | mulof hp hm => exact absurd hm (hn _ rfl hp)
+    | mulofNot _ => rfl
   | len h hs _ ih => intro b' h'; cases h' with
     | len h' hs' hc' => rw [hs] at hs'; cases hs'; exact ih hc'
     | lenNone hs' => rw [hs] at hs'; cases hs'
@@ -775,8 +775,8 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.neq <;> assumption)
     | (apply Judge.neqStr <;> assumption)
     | (apply Judge.neqNot <;> assumption)
-    | (apply Judge.multiple <;> assumption)
-    | (apply Judge.multipleNot <;> assumption)
+    | (apply Judge.mulof <;> assumption)
+    | (apply Judge.mulofNot <;> assumption)
     | (apply Judge.len <;> assumption)
     | (apply Judge.lenNone <;> assumption)
     | (apply Judge.lenBig <;> assumption)

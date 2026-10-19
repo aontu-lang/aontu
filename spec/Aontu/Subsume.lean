@@ -150,7 +150,7 @@ theorem lit_bool_le_boolean (b : Bool) : .lit (.bool b) ⊑[env] .boolean := by
 /-! ## The table: a kind over a residual
 
 A kind covers a residual whose domain it admits whole: `number` every
-bound with a number at its end and every `multiple`, and
+bound with a number at its end and every `mulof`, and
 `string & empty()` every bound with a string at its end, every pattern
 and every format. `string` covers none of the last three, since each
 may admit `""`. -/
@@ -171,9 +171,9 @@ theorem beneath_num_le_number (n : Number) : .beneath (.num n) ⊑[env] .number 
   intro j ⟨hw, h⟩
   cases h with | beneath _ => exact ⟨hw, .number⟩
 
-theorem multiple_le_number (d : Number) : .multiple d ⊑[env] .number := by
+theorem mulof_le_number (d : Number) : .mulof d ⊑[env] .number := by
   intro j ⟨hw, h⟩
-  cases h with | multiple _ _ => exact ⟨hw, .number⟩
+  cases h with | mulof _ _ => exact ⟨hw, .number⟩
 
 /-- The denominator a number shows is positive, as its value's is. -/
 theorem Number.shown_den_pos (x : Number) : 0 < x.shown.2 := by
@@ -208,13 +208,13 @@ theorem Number.multipleOf_trans {x a b : Number} (hxa : x.multipleOf a) (hab : a
     _ = ((b.shown.1 * a.shown.2) * q) * (x.shown.2 * p) := by rw [hq]
     _ = (a.shown.2 : ℤ) * ((b.shown.1 * x.shown.2) * (p * q)) := by ac_rfl
 
-/-- `multiple(a)` sits below `multiple(b)` where `a` is a multiple of `b`:
+/-- `mulof(a)` sits below `mulof(b)` where `a` is a multiple of `b`:
 every multiple of `a` is one of `b`. -/
-theorem multiple_le_multiple {a b : Number} (hb : b.Positive) (hab : a.multipleOf b) :
-    .multiple a ⊑[env] .multiple b := by
+theorem mulof_le_mulof {a b : Number} (hb : b.Positive) (hab : a.multipleOf b) :
+    .mulof a ⊑[env] .mulof b := by
   intro j ⟨hw, hj⟩
   cases hj with
-  | multiple _ hx => exact ⟨hw, .multiple hb (Number.multipleOf_trans hx hab)⟩
+  | mulof _ hx => exact ⟨hw, .mulof hb (Number.multipleOf_trans hx hab)⟩
 
 theorem min_str_le_anyString (t : String) : .min (.str t) ⊑[env] .anyString := by
   intro j ⟨hw, h⟩
@@ -1028,9 +1028,9 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
     | .max (.num k), .number => some ⟨max_num_le_number k⟩
     | .above (.num k), .number => some ⟨above_num_le_number k⟩
     | .beneath (.num k), .number => some ⟨beneath_num_le_number k⟩
-    | .multiple d, .number => some ⟨multiple_le_number d⟩
-    | .multiple a, .multiple b =>
-      if h : b.Positive ∧ a.multipleOf b then some ⟨multiple_le_multiple h.1 h.2⟩ else none
+    | .mulof d, .number => some ⟨mulof_le_number d⟩
+    | .mulof a, .mulof b =>
+      if h : b.Positive ∧ a.multipleOf b then some ⟨mulof_le_mulof h.1 h.2⟩ else none
     | .min (.str t), .anyString => some ⟨min_str_le_anyString t⟩
     | .max (.str t), .anyString => some ⟨max_str_le_anyString t⟩
     | .above (.str t), .anyString => some ⟨above_str_le_anyString t⟩

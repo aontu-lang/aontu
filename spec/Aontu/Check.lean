@@ -302,7 +302,7 @@ inductive Val.Checkable : Val → Prop
   | above {b : Bound} : Checkable (.above b)
   | beneath {b : Bound} : Checkable (.beneath b)
   | neq {vs : List Bound} : Checkable (.neq vs)
-  | multiple {d : Number} : Checkable (.multiple d)
+  | mulof {d : Number} : Checkable (.mulof d)
   | len {c : Val} : Checkable c → Checkable (.len c)
   | unique {k : Option String} : Checkable (.unique k)
   | any : Checkable .any
@@ -382,7 +382,7 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .above _ => ⟨fun _ => .above, fun _ => rfl⟩
   | .beneath _ => ⟨fun _ => .beneath, fun _ => rfl⟩
   | .neq _ => ⟨fun _ => .neq, fun _ => rfl⟩
-  | .multiple _ => ⟨fun _ => .multiple, fun _ => rfl⟩
+  | .mulof _ => ⟨fun _ => .mulof, fun _ => rfl⟩
   | .unique _ => ⟨fun _ => .unique, fun _ => rfl⟩
   | .any => ⟨fun _ => .any, fun _ => rfl⟩
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
@@ -932,7 +932,7 @@ inductive Val.CheckableA : Val → Prop
   | above {b : Bound} : CheckableA (.above b)
   | beneath {b : Bound} : CheckableA (.beneath b)
   | neq {vs : List Bound} : CheckableA (.neq vs)
-  | multiple {d : Number} : CheckableA (.multiple d)
+  | mulof {d : Number} : CheckableA (.mulof d)
   | len {c : Val} : CheckableA c → CheckableA (.len c)
   | unique {k : Option String} : CheckableA (.unique k)
   | any : CheckableA .any
@@ -1013,7 +1013,7 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .above _ => ⟨fun _ => .above, fun _ => rfl⟩
   | .beneath _ => ⟨fun _ => .beneath, fun _ => rfl⟩
   | .neq _ => ⟨fun _ => .neq, fun _ => rfl⟩
-  | .multiple _ => ⟨fun _ => .multiple, fun _ => rfl⟩
+  | .mulof _ => ⟨fun _ => .mulof, fun _ => rfl⟩
   | .unique _ => ⟨fun _ => .unique, fun _ => rfl⟩
   | .any => ⟨fun _ => .any, fun _ => rfl⟩
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
@@ -1139,7 +1139,7 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | above => exact .above
   | beneath => exact .beneath
   | neq => exact .neq
-  | multiple => exact .multiple
+  | mulof => exact .mulof
   | len _ ih => exact .len ih
   | unique => exact .unique
   | any => exact .any
@@ -1336,7 +1336,7 @@ def checkWith (u : String → Data → Bool) : Val → Data → Bool
       | .str t => decide (t ≠ s)
       | .num _ => false
     | _ => false
-  | .multiple d, j => match j with
+  | .mulof d, j => match j with
     | .num x => decide d.Positive && decide (x.multipleOf d)
     | _ => false
   | .len c, j => match j.size with
@@ -1441,7 +1441,7 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
   | .min b, j | .max b, j | .above b, j | .beneath b, j => checkDomain b j
   | .neq (v :: _), j => checkDomain v j
   | .neq [], _ => true
-  | .multiple _, j => match j with
+  | .mulof _, j => match j with
     | .num _ => true
     | _ => false
   | .len _, _ | .unique _, _ => true
@@ -2133,7 +2133,7 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     cases vs with
     | nil => exact .any
     | cons v vs => exact checkDomain_judge v j
-  | @multiple d =>
+  | @mulof d =>
     intro j _
     cases j with
     | num x => exact .number
@@ -2423,19 +2423,19 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
         change decide (t ≠ s) = false at hnv
         exact Decidable.of_not_not (of_decide_eq_false hnv)
     | _ => exact .neqNot (fun _ h => nomatch h) (fun _ h => nomatch h)
-  | @multiple d =>
+  | @mulof d =>
     intro j _
     cases j with
     | num x =>
       simp only [checkWith]
-      refine judge_of_bool (fun h => ?_) (fun h => .multipleNot fun x' hx hp hm => ?_)
+      refine judge_of_bool (fun h => ?_) (fun h => .mulofNot fun x' hx hp hm => ?_)
       · simp only [Bool.and_eq_true, decide_eq_true_eq] at h
-        exact .multiple h.1 h.2
+        exact .mulof h.1 h.2
       · cases hx
         rcases Bool.and_eq_false_iff.mp h with h | h
         · exact of_decide_eq_false h hp
         · exact of_decide_eq_false h hm
-    | _ => exact .multipleNot fun _ h => nomatch h
+    | _ => exact .mulofNot fun _ h => nomatch h
   | @len c _ ihc =>
     intro j hu
     simp only [checkWith]

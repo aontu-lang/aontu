@@ -299,9 +299,9 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.list_le_spread
 
-/-- info: 'Aontu.multiple_le_multiple' depends on axioms: [propext, Quot.sound] -/
+/-- info: 'Aontu.mulof_le_mulof' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
-#print axioms Aontu.multiple_le_multiple
+#print axioms Aontu.mulof_le_mulof
 
 /-- info: 'Aontu.leD_of_le' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
