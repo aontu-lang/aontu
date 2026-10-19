@@ -56,7 +56,7 @@ function loseLeafKind(ctx, path, name, t) {
     else if ('Integer' === name) {
         lose(ctx, path, 'integer', 'JSON Schema reads a number by its value, so its integer also admits ' +
             '1.0 and whole numbers past the integer leaf, which this kind refuses; ' +
-            'number & multiple(1) is the integer it means');
+            'number & mulof(1) is the integer it means');
     }
     else if ('Float' === name) {
         lose(ctx, path, 'float', 'JSON Schema has no float: its number also admits the integer leaf, ' +
@@ -1056,7 +1056,7 @@ function spreadTerms(v) {
 // The functions whose meaning does not depend on where they sit.
 const ISOLABLE_FUNCS = [
     'above', 'below', 'close', 'contains', 'deprecate', 'empty', 'format', 'len',
-    'lower', 'match', 'max', 'meta', 'min', 'multiple', 'must', 'neq', 'nof',
+    'lower', 'match', 'max', 'meta', 'min', 'mulof', 'must', 'neq', 'nof',
     'open', 'pref', 're', 'unique', 'upper', 'when',
 ];
 // The level key() reads; undefined where its argument is not one.

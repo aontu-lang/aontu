@@ -34,7 +34,7 @@ func jsonSchemaFile(t *testing.T, src string) string {
 const schemaContract = `spec: {
   name: string & re("^[a-z]+$")
   tier: *"internal" | "critical"
-  port?: number & multiple(1) & min(1024)
+  port?: number & mulof(1) & min(1024)
 }
 `
 
@@ -178,7 +178,7 @@ func TestJsonSchemaImportWritesAontuAndNamesWhatItCannotCarry(t *testing.T) {
 	const vetWith = "vet with: aontu vet --no-fill --exact-numbers <document> <data>\n"
 	write(`{"type": "object", "properties": {"n": {"type": "integer"}}}`)
 	out, errw, code := jsonSchemaRun("import", file)
-	if 0 != code || "n?: number & multiple(1)\n" != out || vetWith != errw {
+	if 0 != code || "n?: number & mulof(1)\n" != out || vetWith != errw {
 		t.Fatalf("clean import: %d %q %q", code, out, errw)
 	}
 

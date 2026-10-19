@@ -1,0 +1,73 @@
+# MULOF -- `mulof(n)` (G12 phase 4): a number whose value is a whole
+# multiple of n, which must be a positive number. Divisibility reads the
+# value a number shows: an exact leaf as it is, and a float through its
+# shortest round-trip rendering, since binary rounding moves a multiple
+# off its divisor. Several divisors accumulate; no least common multiple
+# is synthesised. A whole divisor makes the residual integral, so the
+# integral gap applies. Every expectation is both engines' agreed answer.
+#
+# --- canon: the residual -----------------------------------------------
+mulof-canon	canon	a: mulof(2)	{"a":mulof(2)}
+mulof-canon-divisors-sort	canon	a: mulof(3) & mulof(2)	{"a":mulof(2)&mulof(3)}
+mulof-canon-one-value-once	canon	a: mulof(2) & mulof(2.0) & mulof(0d2)	{"a":mulof(2)}
+mulof-canon-beside-bounds	canon	a: mulof(2) & above(2) & below(10)	{"a":above(2)&below(10)&mulof(2)}
+mulof-canon-number-kind-says-nothing	canon	a: number & mulof(1)	{"a":mulof(1)}
+mulof-canon-keeps-a-leaf-kind	canon	a: integer & mulof(5)	{"a":integer&mulof(5)}
+mulof-canon-in-a-count	canon	a: [1, 2] & len(mulof(2))	{"a":[1,2]&len(integer&min(0)&mulof(2))}
+#
+# --- gens: what it admits ----------------------------------------------
+mulof-admits-a-multiple	gens	a: mulof(2) & 4	{"a":4}
+mulof-float-reads-its-shown-value	gens	a: mulof(0.1) & 0.3	{"a":0.3}
+mulof-exact-decimal	gens	a: mulof(0d0.1) & 0d0.3	{"a":0.3}
+mulof-float-divisor-exact-peer	gens	a: mulof(0.1) & 0d0.3	{"a":0.3}
+mulof-one-admits-a-whole-float	gens	a: mulof(1) & 1.0	{"a":1}
+mulof-half-admits-an-integer	gens	a: mulof(0.5) & 2	{"a":2}
+mulof-large-float	gens	a: mulof(2) & 1e21	{"a":1e+21}
+mulof-big-integer	gens	a: mulof(3) & 0d123456789012345678901234567890	{"a":123456789012345678901234567890}
+mulof-beside-a-leaf-kind	gens	a: integer & mulof(2) & 6	{"a":6}
+mulof-count-even-list	gens	a: [1, 2] & len(mulof(2))	{"a":[1,2]}
+mulof-count-even-string	gens	a: "abcd" & len(mulof(2))	{"a":"abcd"}
+#
+# --- errc: what it refuses ---------------------------------------------
+mulof-refuses-a-non-multiple	errc	a: mulof(2) & 3	constraint
+mulof-refuses-a-fraction	errc	a: mulof(1) & 1.5	constraint
+mulof-refuses-a-big-non-multiple	errc	a: mulof(4) & 0d123456789012345678901234567890	constraint
+mulof-refuses-a-string	errc	a: mulof(2) & "x"	constraint
+mulof-refuses-the-string-kind	errc	a: mulof(2) & string	constraint
+mulof-zero-is-invalid	errc	a: mulof(0) & 4	invalid-arg
+mulof-negative-is-invalid	errc	a: mulof(-2) & 4	invalid-arg
+mulof-string-argument-is-invalid	errc	a: mulof("x") & 4	invalid-arg
+mulof-two-arguments	errc	a: mulof(2, 3)	func_arity
+mulof-no-argument	errc	a: mulof()	func_arity
+mulof-alone-does-not-generate	errc	a: mulof(2)	mapval_no_gen
+mulof-whole-gap-is-empty	errc	a: mulof(1) & above(1) & below(2)	constraint
+mulof-whole-divisor-gap-is-empty	errc	a: mulof(2) & above(4) & below(5)	constraint
+mulof-count-odd-list	errc	a: [1, 2, 3] & len(mulof(2))	constraint
+mulof-count-odd-string	errc	a: "abc" & len(mulof(2))	constraint
+#
+# --- subsume: a divisor is more general than its multiples --------------
+mulof-subsumes-its-multiple	subsume	a: mulof(2)	a: mulof(4)	{"findings":[],"verdict":"subsumes"}
+mulof-does-not-subsume-another-divisor	subsume	a: mulof(2)	a: mulof(3)	{"findings":[{"actual":"mulof(3)","class":"compat","code":"compat_narrowed","expected":"mulof(2)","message":"the general residual does not contain the specific residual","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":5,"role":"general","row":1,"src":"mulof","value":"mulof(2)"},{"col":4,"file":"specific","len":5,"role":"specific","row":1,"src":"mulof","value":"mulof(3)"}]}],"verdict":"does_not_subsume"}
+mulof-one-subsumes-a-whole-divisor	subsume	a: mulof(1)	a: mulof(3)	{"findings":[],"verdict":"subsumes"}
+mulof-half-subsumes-the-integer-kind	subsume	a: mulof(0.5)	a: integer	{"findings":[],"verdict":"subsumes"}
+mulof-two-does-not-subsume-the-integer-kind	subsume	a: mulof(2)	a: integer	{"findings":[{"actual":"integer","class":"compat","code":"compat_narrowed","expected":"mulof(2)","message":"the general residual constrains a domain the specific value is not in","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":5,"role":"general","row":1,"src":"mulof","value":"mulof(2)"},{"col":4,"file":"specific","len":7,"role":"specific","row":1,"src":"integer","value":"integer"}]}],"verdict":"does_not_subsume"}
+mulof-does-not-subsume-the-string-kind	subsume	a: mulof(2)	a: string	{"findings":[{"actual":"string","class":"compat","code":"compat_narrowed","expected":"mulof(2)","message":"the general residual constrains a domain the specific value is not in","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":5,"role":"general","row":1,"src":"mulof","value":"mulof(2)"},{"col":4,"file":"specific","len":6,"role":"specific","row":1,"src":"string","value":"string"}]}],"verdict":"does_not_subsume"}
+mulof-does-not-subsume-the-number-kind	subsume	a: mulof(1)	a: number	{"findings":[{"actual":"number","class":"compat","code":"compat_narrowed","expected":"mulof(1)","message":"the general residual constrains a domain the specific value is not in","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":5,"role":"general","row":1,"src":"mulof","value":"mulof(1)"},{"col":4,"file":"specific","len":6,"role":"specific","row":1,"src":"number","value":"number"}]}],"verdict":"does_not_subsume"}
+mulof-subsumes-a-literal-multiple	subsume	a: mulof(2)	a: 4	{"findings":[],"verdict":"subsumes"}
+mulof-does-not-subsume-another-literal	subsume	a: mulof(2)	a: 3	{"findings":[{"actual":"3","class":"compat","code":"compat_narrowed","expected":"mulof(2)","message":"the general residual does not admit the specific scalar","path":"$.a","severity":"error","sites":[{"col":4,"file":"general","len":5,"role":"general","row":1,"src":"mulof","value":"mulof(2)"},{"col":4,"file":"specific","len":1,"role":"specific","row":1,"src":"3","value":"3"}]}],"verdict":"does_not_subsume"}
+#
+# --- vet ----------------------------------------------------------------
+vet-mulof-cents	vet	a: mulof(0.01)	{"a": 19.99}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-mulof-not-cents	vet	a: mulof(0.01)	{"a": 19.999}	{"findings":[{"actual":"19.999","class":"conflict","code":"constraint","expected":"mulof(0.01)","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":7,"file":"data","len":6,"role":"data","row":1,"src":"19.999","value":"19.999"},{"col":4,"file":"schema","len":5,"role":"schema","row":1,"src":"mulof","value":"mulof(0.01)"}]}],"truncated":false,"verdict":"invalid"}
+vet-mulof-one-admits-a-whole-float	vet	a: number & mulof(1)	{"a": 1.0}	{"findings":[],"truncated":false,"verdict":"valid"}
+vet-mulof-one-exact-numbers	vet	a: number & mulof(1)	{"a": 1.0}	{"findings":[],"opts":{"exactNumbers":true},"truncated":false,"verdict":"valid"}
+#
+# --- jsonschema: multipleOf, and the integer it means --------------------
+js-mulof	jsonschema	a: mulof(2)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":2,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-mulof-two-divisors	jsonschema	a: mulof(2) & mulof(3)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"allOf":[{"multipleOf":2},{"multipleOf":3}],"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-mulof-one-is-the-integer	jsonschema	a: number & mulof(1)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-mulof-one-beside-a-divisor	jsonschema	a: number & mulof(1) & mulof(3)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":3,"type":"integer"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-mulof-beside-the-integer-kind	jsonschema	a: integer & mulof(2)	{"lossy":[{"construct":"integer","path":"$.a","reason":"JSON Schema reads a number by its value, so its integer also admits 1.0 and whole numbers past the integer leaf, which this kind refuses; number & mulof(1) is the integer it means"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":2,"type":"integer"}},"required":["a"],"type":"object"},"verdict":"lossy"}
+js-mulof-exact-divisor-keeps-its-digits	jsonschema	a: mulof(0d0.1)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":0.1,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-mulof-divisor-past-binary64-keeps-its-digits	jsonschema	a: mulof(0d1e400)	{"lossy":[],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"multipleOf":10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0,"type":"number"}},"required":["a"],"type":"object"},"verdict":"ok"}
+js-mulof-in-a-count-is-lost	jsonschema	a: [1, 2] & len(mulof(2))	{"lossy":[{"construct":"len","path":"$.a","reason":"JSON Schema has no keyword for a divisor of a count, so it is DROPPED and the schema admits lengths the model refuses"}],"schema":{"$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"a":{"minItems":2,"prefixItems":[{"const":1,"type":"integer"},{"const":2,"type":"integer"}],"type":"array"}},"required":["a"],"type":"object"},"verdict":"lossy"}

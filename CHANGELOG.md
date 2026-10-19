@@ -8,6 +8,19 @@ each change affects.
 
 ## Unreleased
 
+### `multiple(n)` is renamed `mulof(n)`
+
+Breaking, both implementations. The divisibility atom is spelled
+`mulof(n)`: the engines, the grammars (`mulof` listed before `mul`, as
+`multiple` was), the language servers' completions and hover, the
+JSON Schema importer (`multipleOf` and `type: "integer"` import as
+`mulof`), the definition (`Val.mulof`, `Judge.mulof`,
+`mulof_le_mulof`) and the shared rows (`test/spec/constraint-mulof.tsv`,
+every `def-*.tsv` row that carries one). A document that still spells
+`multiple(n)` fails with `unknown_function`, as any unknown name does.
+The exporter is unchanged: `mulof(n)` crosses to `multipleOf`, and
+`number & mulof(1)` to `type: integer`.
+
 ### A push is checked in two minutes, a pull request in five
 
 Process; no engine changes

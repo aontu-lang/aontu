@@ -620,7 +620,7 @@ help isolate the syntax error.`,
         above: ConstraintVal_1.AboveConstraintVal,
         below: ConstraintVal_1.BelowConstraintVal,
         neq: ConstraintVal_1.NeqConstraintVal,
-        multiple: ConstraintVal_1.MultipleConstraintVal,
+        mulof: ConstraintVal_1.MulofConstraintVal,
         // G1 phase 2: pattern membership, read and matched by aontu's own
         // engine (ADR-060).
         re: ConstraintVal_1.ReConstraintVal,

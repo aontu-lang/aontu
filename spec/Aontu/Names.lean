@@ -451,7 +451,7 @@ theorem unguardedRefs_sub_refs : ∀ (v : Val) (n : String), n ∈ v.unguardedRe
     exact h.elim (fun h => .inl (unguardedRefs_sub_refs s n h)) (fun h => .inr (unguardedRefs_sub_refs c n h))
   | .integer, _, h | .float, _, h | .biginteger, _, h | .bigdecimal, _, h | .number, _, h
   | .string, _, h | .anyString, _, h | .boolean, _, h | .lit _, _, h | .min _, _, h
-  | .max _, _, h | .above _, _, h | .beneath _, _, h | .neq _, _, h | .multiple _, _, h
+  | .max _, _, h | .above _, _, h | .beneath _, _, h | .neq _, _, h | .mulof _, _, h
   | .unique _, _, h | .re _, _, h | .format _, _, h | .any, _, h | .nil, _, h
   | .map _ _ _, _, h | .list _ _ _, _, h | .path _, _, h => nomatch h
 

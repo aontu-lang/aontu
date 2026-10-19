@@ -267,9 +267,9 @@ Every carrier is in both ports.
 | Keyword | Today | Class | Carrier |
 |---|---|---|---|
 | `type` | the kinds | lossy | the kind split: `null`, `boolean`, `number`, `empty()`, `map`, `list` ([2](#2-the-kind-split)) |
-| `type: "integer"` | the `integer` leaf, which refuses `1.0` | lossy | `number & multiple(1)` ([4](#4-numbers-and-equality)) |
+| `type: "integer"` | the `integer` leaf, which refuses `1.0` | lossy | `number & mulof(1)` ([4](#4-numbers-and-equality)) |
 | `enum`, `const` | literals and `\|` | lossy | literals, with numbers read and written by value under `--exact-numbers` |
-| `multipleOf` | none | absent | `multiple(n)` |
+| `multipleOf` | none | absent | `mulof(n)` |
 | `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | the bounds | lossy | the bounds, with an exact endpoint rule on export |
 | `minLength`, `maxLength` | `len` | exact | `len`; the export's open-bound defect is fixed |
 | `pattern` | `re` over the portable subset | lossy | a rewrite table, then an aontu-owned matcher ([5](#5-strings-patterns-and-formats)) |
@@ -294,7 +294,7 @@ Every carrier is in both ports.
 
 | Aspect | Today | Class | Carrier |
 |---|---|---|---|
-| JSON number model | disjoint leaves; wire literals beyond binary64 refused | divergent | `multiple(1)` for integrality; `vet --exact-numbers` reads wire numbers by exact value |
+| JSON number model | disjoint leaves; wire literals beyond binary64 refused | divergent | `mulof(1)` for integrality; `vet --exact-numbers` reads wire numbers by exact value |
 | JSON data-model equality | leaf and value | divergent | numbers normalised by value on both sides; export deduplicates |
 | remote references | none | absent | a document set handed to the importer; nothing is fetched |
 | draft detection, draft-04 to 2019-09 | none | absent | an upgrade stage inside the importer ([13](#13-dialects-vocabularies-and-the-meta-schema)) |
@@ -397,7 +397,7 @@ logic and conditional applicators, `$ref`, annotations). Each `Bk` is
 the kind's aontu spelling met with the keywords scoped to it: `null`,
 `boolean`, `number`, `empty()` for strings (never `string`, which
 refuses `""`), `map` and `list`. `type` removes the branches it
-excludes; `type: "integer"` adds `multiple(1)` to the number branch.
+excludes; `type: "integer"` adds `mulof(1)` to the number branch.
 A branch with no scoped keywords is the bare kind, and when all six are
 bare and `type` is absent the disjunction is `any` and is not written.
 A container literal from `enum` or `const` is closed, and still meets
@@ -474,21 +474,21 @@ its report, and the `jsonschema-import` rows pin the pairing.
 
 ### 4. Numbers and equality
 
-**`multiple(n) : constraint`** is a Band A atom in the numeric domain,
+**`mulof(n) : constraint`** is a Band A atom in the numeric domain,
 named rather than an operator (ADR-008). It admits a number whose exact
 value is an integer multiple of `n`, which must be positive. Integer
 and `0d` leaves use their exact values; a `float` peer is read through
 its shortest round-trip rendering, because divisibility, unlike order,
 does not survive binary rounding (the double nearest 0.3 is not a
 multiple of 0.1, and every JSON reader writes it as 0.3). Both ports
-already render floats byte-identically. Several `multiple` atoms
+already render floats byte-identically. Several `mulof` atoms
 accumulate without synthesising an lcm, the rule `re` follows, and
-a whole divisor, `multiple(1)` among them, enables the integral-gap
+a whole divisor, `mulof(1)` among them, enables the integral-gap
 emptiness rule that keys on the `integer` leaf, since every multiple of
-a whole number is whole. The grammar's `name` rule lists `multiple` before
+a whole number is whole. The grammar's `name` rule lists `mulof` before
 `mul`, since one prefixes the other.
 
-**`type: "integer"`** imports as `number & multiple(1)`, which admits
+**`type: "integer"`** imports as `number & mulof(1)`, which admits
 `1`, `1.0`, `-0.0` and `1e21` as 2020-12 does, and leaves the `integer`
 leaf untouched. The exporter reports `integer` and `float` kinds as
 losses, since their schemas admit a leaf the kind refuses.
@@ -515,7 +515,7 @@ today. Goal 1 is stated with it, and the harness passes it to `vet`
 and to evaluation alike, so the vet-equals-eval differential reads the
 data one way. An integral value takes the `integer` leaf's path and
 costs what it costs today; a decimal allocates an exact value, and
-`multiple(n)` divides exactly, so a numeric-heavy instance pays a
+`mulof(n)` divides exactly, so a numeric-heavy instance pays a
 constant factor the register records rather than this document
 promises.
 
@@ -1051,7 +1051,7 @@ named. `--output basic` requires a map, since 2020-12 requires
 The exporter keeps its contract and gains an arm for every construct
 above, each the inverse of the importer's: the kind split folds to
 `type`, the guarded spreads to their keywords, `nof`, `when`,
-`contains`, `rest`, `multiple` and `format` to theirs, aliases to
+`contains`, `rest`, `mulof` and `format` to theirs, aliases to
 `$defs` and `$ref`, `meta` records to annotations. Before any of that,
 the defects the measurement found are fixed, and numbers follow the
 exact-value rule of section 4: an exact literal, member or endpoint is
@@ -1134,7 +1134,7 @@ when a triple's `valid`, the two engines and this design disagree.
 
 | Kind | Items |
 |---|---|
-| New builtins | `multiple(n)`, `nof(n, ...c)`, `when(c, t, e?)`, `contains(c, n?)`, `rest(t, ...cover)`, `format(g)`, `meta(v, ...r)`, and the declaration-only identity builtin of section 10 |
+| New builtins | `mulof(n)`, `nof(n, ...c)`, `when(c, t, e?)`, `contains(c, n?)`, `rest(t, ...cover)`, `format(g)`, `meta(v, ...r)`, and the declaration-only identity builtin of section 10 |
 | New options | `vet --no-fill`, `--exact-numbers` on `vet` and on evaluation, `vet --output flag\|basic`, `vet --source-map`, the import mode of `jsonschema` |
 | New engine codes | `nof`, `when`, `format_unknown` (class `conflict`); `format_grammar` (`parse`); `vet_filled` (`incomplete`); `trial_budget` (`budget`) |
 | New import codes | `jsonschema_schema` (`parse`); `jsonschema_ref`, `jsonschema_dialect`, `jsonschema_vocabulary`, `jsonschema_duplicate` (`reference`); `jsonschema_budget` (`budget`) |
@@ -1294,10 +1294,10 @@ vendored suite, with Ajv's extras and JSONTestSuite beside it under
 `test/vectors/` as section 16 vendors them, both runners and
 `skips.tsv`, which lists everything later phases carry.
 
-**Phase 4: numbers (M).** `multiple(n)` with its grammar entry,
-`type: "integer"` as `number & multiple(1)`, the integral-gap rule on
-`multiple(1)`, and losses on the `integer` and `float` kinds' export.
-A new `test/spec/constraint-multiple.tsv`.
+**Phase 4: numbers (M).** `mulof(n)` with its grammar entry,
+`type: "integer"` as `number & mulof(1)`, the integral-gap rule on
+`mulof(1)`, and losses on the `integer` and `float` kinds' export.
+A new `test/spec/constraint-mulof.tsv`.
 
 **Phase 5: the logic atom (L).** `nof(n, ...c)` with the `nof` code;
 the `anyOf`, `oneOf` and `not` carriers and the typed `neq` special

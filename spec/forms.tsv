@@ -22,7 +22,7 @@ max	call	max
 above	call	above
 beneath	call	below
 neq	call	neq
-multiple	call	multiple
+mulof	call	mulof
 len	call	len
 unique	call	unique
 re	call	re

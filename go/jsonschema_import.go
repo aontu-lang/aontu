@@ -1896,7 +1896,7 @@ func kindsOf(e *ixpr) []string {
 			return []string{"string"}
 		case "close", "meta", "deprecate":
 			return kindsOf(e.items[0])
-		case "min", "max", "above", "below", "multiple":
+		case "min", "max", "above", "below", "mulof":
 			return []string{"number"}
 		}
 		return importKinds
@@ -2623,7 +2623,7 @@ func jsonKindOf(n *jnode) string {
 func importSays(lit *jnode, kind string, branch *ixpr) bool {
 	return jsonKindOf(lit) == kind && (importBare[kind] == iprint(branch, "") ||
 		("number" == lit.t && importIntegerText.MatchString(lit.s) &&
-			"number & multiple(1)" == iprint(branch, "")))
+			"number & mulof(1)" == iprint(branch, "")))
 }
 
 // data writes a JSON value as aontu data; ok is false where a number in
@@ -2918,15 +2918,15 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral, typed bool
 		// An integer is a number with no fraction, whatever its spelling.
 		parts := []*ixpr{kindOf(iraw("number"))}
 		if integral {
-			parts = append(parts, ctx.mark(icall("multiple", iraw("1")), at("type"), node, imark{}))
+			parts = append(parts, ctx.mark(icall("mulof", iraw("1")), at("type"), node, imark{}))
 		}
 		for _, kf := range [][2]string{{"minimum", "min"}, {"maximum", "max"},
 			{"exclusiveMinimum", "above"}, {"exclusiveMaximum", "below"},
-			{"multipleOf", "multiple"}} {
+			{"multipleOf", "mulof"}} {
 			if v := get(kf[0]); nil != v {
 				text, ok := ctx.number(at(kf[0]), kf[0], v)
 				switch {
-				case ok && "multiple" == kf[1] && (strings.HasPrefix(text, "-") || "0" == text):
+				case ok && "mulof" == kf[1] && (strings.HasPrefix(text, "-") || "0" == text):
 					ctx.wrongType(at(kf[0]), kf[0], "a number greater than 0", v)
 				case ok:
 					parts = append(parts, ctx.mark(icall(kf[1], iraw(text)), at(kf[0]), node, imark{}))

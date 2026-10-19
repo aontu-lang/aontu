@@ -53,7 +53,7 @@ inductive Val where
   | above (b : Bound)                       -- `above(b)`
   | beneath (b : Bound)                     -- `below(b)`; Lean keeps `below` for every inductive type's own use
   | neq (vs : List Bound)                   -- `neq(v, …)`, numbers or strings, never both
-  | multiple (d : Number)                   -- `multiple(d)`
+  | mulof (d : Number)                   -- `mulof(d)`
   | len (c : Val)                           -- `len(c)`
   | unique (k : Option String)              -- `unique()`, or `unique("k")`
   | re (p : String)                         -- `re(p)`, the strings the pattern matches
@@ -102,7 +102,7 @@ of two terms never runs past. -/
 
 mutual
 def Val.size : Val → ℕ
-  | .lit _ | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .multiple _ | .unique _
+  | .lit _ | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .mulof _ | .unique _
   | .re _ | .format _ | .alias _ | .path _ => 1
   | .len c => c.size + 1
   | .map fs spread _ => sizeFields fs + sizeSpread spread + 1
@@ -205,7 +205,7 @@ def Val.super : Val → Val
   | .min b | .max b | .above b | .beneath b => b.domain
   | .neq (v :: _) => v.domain
   | .neq [] => .any
-  | .multiple _ => .number
+  | .mulof _ => .number
   | .len _ | .unique _ => .any
   | .re _ | .format _ => .string
   | .map fs spread closed => .map (superFields fs) (superSpread spread) closed

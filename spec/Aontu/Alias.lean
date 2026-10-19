@@ -781,7 +781,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
     cases vs with
     | nil => exact .any
     | cons v _ => cases v <;> constructor
-  | multiple => exact .number
+  | mulof => exact .number
   | len _ _ | unique => exact .any
   | @map fs spread closed _ _ ihf ihs =>
     refine .map ?_ ?_

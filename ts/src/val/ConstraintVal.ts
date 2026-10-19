@@ -120,7 +120,7 @@ type ConstraintState = {
   lo?: Bound
   hi?: Bound
   neqs: any[]     // excluded scalars, identity per leaf+value
-  mults?: any[]   // divisors, each a positive number (multiple())
+  mults?: any[]   // divisors, each a positive number (mulof())
   res: ReAtom[]   // accumulated patterns, sorted by source (never simplified)
   fmts?: FormatAtom[] // formats, sorted by source, each once
   count?: ConstraintState  // the COUNT residual (len()), itself a residual
@@ -725,7 +725,7 @@ class ConstraintVal extends FeatureVal {
     }
     const a = args[0]
 
-    if ('multiple' === atom) {
+    if ('mulof' === atom) {
       if (!numericLeaf(a) || scaledOfShown(a).unscaled <= 0n) {
         return bad('invalid-arg')
       }
@@ -1755,7 +1755,7 @@ function canonState(s: ConstraintState): string {
     parts.push('neq(' + s.neqs.map((n: any) => n.canon).join(',') + ')')
   }
   for (const m of multsOf(s)) {
-    parts.push('multiple(' + m.canon + ')')
+    parts.push('mulof(' + m.canon + ')')
   }
   for (const r of s.res) {
     parts.push('re(' + r.v.canon + ')')
@@ -2302,9 +2302,9 @@ class NeqConstraintVal extends ConstraintVal {
   }
 }
 
-class MultipleConstraintVal extends ConstraintVal {
+class MulofConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
-    super({ ...spec, atom: 'multiple' }, ctx)
+    super({ ...spec, atom: 'mulof' }, ctx)
   }
 }
 
@@ -2391,7 +2391,7 @@ export {
   AboveConstraintVal,
   BelowConstraintVal,
   NeqConstraintVal,
-  MultipleConstraintVal,
+  MulofConstraintVal,
   ReConstraintVal,
   FormatConstraintVal,
   LenConstraintVal,
