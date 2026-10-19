@@ -27,12 +27,44 @@ inductive Admits (env : Env) (root : Data) : Val → Data → Prop
   | str {s : String} : Admits env root (.lit (.str s)) (.str s)
   | bool {b : Bool} : Admits env root (.lit (.bool b)) (.bool b)
   | null : Admits env root (.lit .null) .null
-  /-- The bounds read a number's exact value, and `multiple` the value
-  it shows, which for a float is its shortest decimal. -/
-  | min {n x : Number} : n.le x → Admits env root (.min n) (.num x)
-  | max {n x : Number} : x.le n → Admits env root (.max n) (.num x)
-  /-- `multiple(0)` and a negative divisor admit nothing. -/
+  /-- A bound with a number at its end admits a number, by exact value,
+  and one with a string at its end a string, in code-point order; the
+  bound's domain is its end's, so `min(0)` admits no string and
+  `max("b")` no number. -/
+  | min {n x : Number} : n.le x → Admits env root (.min (.num n)) (.num x)
+  | minStr {b s : String} : b ≤ s → Admits env root (.min (.str b)) (.str s)
+  | max {n x : Number} : x.le n → Admits env root (.max (.num n)) (.num x)
+  | maxStr {b s : String} : s ≤ b → Admits env root (.max (.str b)) (.str s)
+  | above {n x : Number} : n.lt x → Admits env root (.above (.num n)) (.num x)
+  | aboveStr {b s : String} : b < s → Admits env root (.above (.str b)) (.str s)
+  | beneath {n x : Number} : x.lt n → Admits env root (.beneath (.num n)) (.num x)
+  | beneathStr {b s : String} : s < b → Admits env root (.beneath (.str b)) (.str s)
+  /-- `neq` excludes each of its ends by identity, a number by leaf and
+  value, so `neq(1)` admits the float `1.0`; its domain is its ends',
+  so a list of numbers admits no string, a list of strings no number,
+  and a list of both nothing. -/
+  | neq {vs : List Bound} {x : Number} :
+      (∀ v, v ∈ vs → ∃ n, v = .num n ∧ n ≠ x) → Admits env root (.neq vs) (.num x)
+  | neqStr {vs : List Bound} {s : String} :
+      (∀ v, v ∈ vs → ∃ t, v = .str t ∧ t ≠ s) → Admits env root (.neq vs) (.str s)
+  /-- `multiple` reads the value a number shows, which for a float is
+  its shortest decimal; `multiple(0)` and a negative divisor admit
+  nothing. -/
   | multiple {d x : Number} : d.Positive → x.multipleOf d → Admits env root (.multiple d) (.num x)
+  /-- `len(c)` admits a string, a list, or a map whose size, an
+  integer, `c` admits; `len(0)` admits `""`, and a scalar has no size. -/
+  | len {c : Val} {j : Data} {n : ℕ} (h : IntegerLeaf n) :
+      j.size = some n → Admits env root c (.num (.integer ⟨n, h⟩)) → Admits env root (.len c) j
+  /-- `unique()` admits a list or a map whose members are pairwise
+  distinct as values, and `unique("k")` one whose members each give
+  `k` a value and whose values at `k` are; a member that is no map, or
+  lacks the key, is a distinctness the container cannot show. -/
+  | unique {k : Option String} {j : Data} {ms : List Data} :
+      j.members = some ms →
+      (∀ x, x ∈ ms → (x.project k).isSome) →
+      ms.Pairwise (fun x y => ∀ x' y', x.project k = some x' → y.project k = some y' →
+        ¬ x'.Same y') →
+      Admits env root (.unique k) j
   | any {j : Data} : Admits env root .any j
   /-- A map: every declared key that is present holds its value, and
   holds every declaration of it; a key that is absent is optional in

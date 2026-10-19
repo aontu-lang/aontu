@@ -221,6 +221,9 @@ def Number.shown : Number → ℤ × ℕ
 /-- `x` is at most `y`, by exact value. -/
 def Number.le (x y : Number) : Prop := x.value.1 * y.value.2 ≤ y.value.1 * x.value.2
 
+/-- `x` is below `y`, by exact value. -/
+def Number.lt (x y : Number) : Prop := x.value.1 * y.value.2 < y.value.1 * x.value.2
+
 /-- `d` shows a positive number. -/
 def Number.Positive (d : Number) : Prop := 0 < d.shown.1
 
@@ -233,6 +236,7 @@ def Number.multipleOf (x d : Number) : Prop :=
 def Number.Whole (x : Number) : Prop := x.shown.1 % x.shown.2 = 0
 
 instance (x y : Number) : Decidable (x.le y) := inferInstanceAs (Decidable (_ ≤ _))
+instance (x y : Number) : Decidable (x.lt y) := inferInstanceAs (Decidable (_ < _))
 instance (d : Number) : Decidable d.Positive := inferInstanceAs (Decidable (_ < _))
 instance (x d : Number) : Decidable (x.multipleOf d) := inferInstanceAs (Decidable (_ = _))
 instance (x : Number) : Decidable x.Whole := inferInstanceAs (Decidable (_ = _))
@@ -246,7 +250,9 @@ theorem Number.multipleOf_one (x : Number) : x.multipleOf (.integer (.of 1)) ↔
 A string is a Lean `String`: its sequence of characters, the Unicode
 scalar values. So a string that holds a lone surrogate, as `"\ud800"`
 escapes one, is no value here: both engines accept it, and they differ
-on what it is (`test/spec/divergent.tsv`). -/
+on what it is (`test/spec/divergent.tsv`). Two strings are ordered as
+Lean orders them, character by character by code point, and a string
+is below any longer string it begins: `"b" < "ba"`. -/
 
 /-! ## The data -/
 
@@ -298,6 +304,31 @@ inductive Data.WellFormed : Data → Prop
   | map {fs : List (String × Data)} :
       (fs.map Prod.fst).Nodup → (∀ k x, (k, x) ∈ fs → WellFormed x) → WellFormed (.map fs)
   | list {xs : List Data} : (∀ x, x ∈ xs → WellFormed x) → WellFormed (.list xs)
+
+/-- The size `len` counts: a string's characters, a list's elements,
+a map's members. A scalar has no size. -/
+def Data.size : Data → Option ℕ
+  | .str s => some s.length
+  | .list xs => some xs.length
+  | .map fs => some fs.length
+  | _ => none
+
+/-- The members `unique` compares: a list's elements, or a map's
+values. A scalar has no members. -/
+def Data.members : Data → Option (List Data)
+  | .list xs => some xs
+  | .map fs => some (fs.map Prod.snd)
+  | _ => none
+
+/-- What `unique` compares of a member: the member itself, or under a
+key, the value the member gives that key, which a member that is no
+map, or lacks the key, has not. -/
+def Data.project (k : Option String) (x : Data) : Option Data :=
+  match k with
+  | none => some x
+  | some k => match x with
+    | .map fs => lookup k fs
+    | _ => none
 
 /-- A step of a path: a member's key, or a position in a list. -/
 inductive Seg where

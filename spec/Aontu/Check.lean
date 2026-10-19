@@ -70,6 +70,215 @@ end
 
 instance (j : Data) : Decidable j.WellFormed := decidable_of_iff _ (Data.wf_iff j)
 
+/-! ## Sameness, computed -/
+
+mutual
+/-- Whether `j` and `j'` are one value, computed: `Data.Same` decided. -/
+def Data.same : Data → Data → Bool
+  | .num x, .num y => decide (x = y)
+  | .str s, .str t => decide (s = t)
+  | .bool b, .bool c => decide (b = c)
+  | .null, .null => true
+  | .map fs, .map gs => Data.sameMembers gs [] fs && gs.all fun m => (lookup m.1 fs).isSome
+  | .list xs, .list ys => Data.sameElems xs ys
+  | _, _ => false
+
+/-- Each key of `fs` not yet seen gives, in `gs`, the same value it
+gives in `fs`; a key seen before is a duplicate, whose value `lookup`
+never reaches. -/
+def Data.sameMembers (gs : List (String × Data)) : List String → List (String × Data) → Bool
+  | _, [] => true
+  | seen, (k, x) :: fs =>
+    (if k ∈ seen then true else
+      match lookup k gs with
+      | some y => x.same y
+      | none => false) && Data.sameMembers gs (k :: seen) fs
+
+def Data.sameElems : List Data → List Data → Bool
+  | [], [] => true
+  | x :: xs, y :: ys => x.same y && Data.sameElems xs ys
+  | _, _ => false
+end
+
+/-- A key found by `lookup` is a key of the list. -/
+theorem lookup_isSome_iff (k : String) (fs : List (String × Data)) :
+    (lookup k fs).isSome = true ↔ ∃ x, (k, x) ∈ fs := by
+  induction fs with
+  | nil => simp [lookup]
+  | cons f fs ih =>
+    obtain ⟨k', x⟩ := f
+    by_cases h : k = k'
+    · subst h; simp [lookup]
+    · simp [lookup, h, ih, Ne.symm h]
+
+mutual
+theorem Data.same_iff : ∀ j j' : Data, j.same j' = true ↔ j.Same j'
+  | .num x, j' => by
+    cases j' with
+    | num y =>
+      simp only [Data.same, decide_eq_true_eq]
+      exact ⟨fun h => by subst h; exact .num, fun h => by cases h; rfl⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .str s, j' => by
+    cases j' with
+    | str t =>
+      simp only [Data.same, decide_eq_true_eq]
+      exact ⟨fun h => by subst h; exact .str, fun h => by cases h; rfl⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .bool b, j' => by
+    cases j' with
+    | bool c =>
+      simp only [Data.same, decide_eq_true_eq]
+      exact ⟨fun h => by subst h; exact .bool, fun h => by cases h; rfl⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .null, j' => by
+    cases j' with
+    | null => exact ⟨fun _ => .null, fun _ => rfl⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .map fs, j' => by
+    cases j' with
+    | map gs =>
+      simp only [Data.same, Bool.and_eq_true, List.all_eq_true]
+      rw [Data.sameMembers_iff gs [] fs]
+      constructor
+      · rintro ⟨h1, h2⟩
+        refine .map (fun k => ?_) (fun k x y hx hy => ?_)
+        · cases hf : lookup k fs with
+          | none =>
+            cases hg : lookup k gs with
+            | none => rfl
+            | some y =>
+              obtain ⟨x, hx⟩ := (lookup_isSome_iff k gs).mp (by simp [hg])
+              have := h2 (k, x) hx
+              simp [hf] at this
+          | some x =>
+            obtain ⟨y, hy, -⟩ := h1 k x (by simp) hf
+            simp [hf, hy]
+        · obtain ⟨y', hy', hs⟩ := h1 k x (by simp) hx
+          rw [hy] at hy'
+          cases hy'
+          exact hs
+      · intro h
+        cases h with
+        | map h1 h2 =>
+          refine ⟨fun k x _ hx => ?_, fun m hm => ?_⟩
+          · have hg := h1 k
+            rw [hx] at hg
+            cases hgs : lookup k gs with
+            | none => simp [hgs] at hg
+            | some y => exact ⟨y, rfl, h2 k x y hx hgs⟩
+          · have hg := h1 m.1
+            have : (lookup m.1 gs).isSome = true := (lookup_isSome_iff m.1 gs).mpr ⟨m.2, hm⟩
+            rw [this] at hg
+            exact hg
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .list xs, j' => by
+    cases j' with
+    | list ys =>
+      simp only [Data.same]
+      rw [Data.sameElems_iff xs ys]
+      exact ⟨fun ⟨h1, h2⟩ => .list h1 h2, fun h => by cases h; exact ⟨‹_›, ‹_›⟩⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+
+theorem Data.sameMembers_iff (gs : List (String × Data)) :
+    ∀ (seen : List String) (fs : List (String × Data)),
+      Data.sameMembers gs seen fs = true ↔
+        ∀ k x, k ∉ seen → lookup k fs = some x → ∃ y, lookup k gs = some y ∧ x.Same y
+  | _, [] => by simp [Data.sameMembers, lookup]
+  | seen, (k, x) :: fs => by
+    simp only [Data.sameMembers, Bool.and_eq_true]
+    rw [Data.sameMembers_iff gs (k :: seen) fs]
+    constructor
+    · rintro ⟨hh, ht⟩ k' x' hseen hl
+      by_cases hk : k' = k
+      · subst hk
+        simp only [lookup, if_true, Option.some.injEq] at hl
+        subst hl
+        rw [if_neg hseen] at hh
+        cases hg : lookup k' gs with
+        | none => simp [hg] at hh
+        | some y => simp only [hg] at hh; exact ⟨y, rfl, (Data.same_iff _ _).mp hh⟩
+      · simp only [lookup, hk, if_false] at hl
+        exact ht k' x' (by simp [hseen, hk]) hl
+    · intro h
+      constructor
+      · by_cases hseen : k ∈ seen
+        · simp [hseen]
+        · rw [if_neg hseen]
+          obtain ⟨y, hy, hs⟩ := h k x hseen (by simp [lookup])
+          rw [hy]
+          exact (Data.same_iff x y).mpr hs
+      · intro k' x' hseen hl
+        have hk : k' ≠ k := fun hk => hseen (hk ▸ List.mem_cons_self _ _)
+        have hseen' : k' ∉ seen := fun hm => hseen (List.mem_cons_of_mem _ hm)
+        refine h k' x' hseen' ?_
+        simp only [lookup, hk, if_false]
+        exact hl
+
+theorem Data.sameElems_iff : ∀ xs ys : List Data,
+    Data.sameElems xs ys = true ↔
+      xs.length = ys.length ∧
+        ∀ (i : ℕ) (x y : Data), xs[i]? = some x → ys[i]? = some y → x.Same y
+  | [], [] => by simp [Data.sameElems]
+  | [], _ :: _ => by simp [Data.sameElems]
+  | _ :: _, [] => by simp [Data.sameElems]
+  | x :: xs, y :: ys => by
+    simp only [Data.sameElems, Bool.and_eq_true, List.length_cons]
+    rw [Data.sameElems_iff xs ys, Data.same_iff x y]
+    constructor
+    · rintro ⟨hx, hlen, ht⟩
+      refine ⟨by omega, fun i x' y' hx' hy' => ?_⟩
+      cases i with
+      | zero =>
+        simp only [List.getElem?_cons_zero, Option.some.injEq] at hx' hy'
+        subst hx'; subst hy'; exact hx
+      | succ i =>
+        simp only [List.getElem?_cons_succ] at hx' hy'
+        exact ht i x' y' hx' hy'
+    · rintro ⟨hlen, h⟩
+      refine ⟨h 0 x y List.getElem?_cons_zero List.getElem?_cons_zero, by omega,
+        fun i x' y' hx' hy' => ?_⟩
+      exact h (i + 1) x' y' (by rw [List.getElem?_cons_succ]; exact hx')
+        (by rw [List.getElem?_cons_succ]; exact hy')
+end
+
+instance (j j' : Data) : Decidable (j.Same j') := decidable_of_iff _ (Data.same_iff j j')
+
+/-- Whether no two of `ms` project, under `k`, to one value. -/
+def distinct (k : Option String) : List Data → Bool
+  | [] => true
+  | x :: ms =>
+    ms.all (fun y => match x.project k, y.project k with
+      | some x', some y' => !x'.same y'
+      | _, _ => true) && distinct k ms
+
+theorem distinct_iff (k : Option String) (ms : List Data) :
+    distinct k ms = true ↔
+      ms.Pairwise (fun x y => ∀ x' y', x.project k = some x' → y.project k = some y' →
+        ¬ x'.Same y') := by
+  induction ms with
+  | nil => simp [distinct]
+  | cons x ms ih =>
+    simp only [distinct, Bool.and_eq_true, List.all_eq_true, ih, List.pairwise_cons]
+    constructor
+    · rintro ⟨h1, h2⟩
+      refine ⟨fun y hy x' y' hx hy' => ?_, h2⟩
+      have := h1 y hy
+      simp only [hx, hy', Bool.not_eq_true'] at this
+      exact fun hs => by rw [(Data.same_iff x' y').mpr hs] at this; cases this
+    · rintro ⟨h1, h2⟩
+      refine ⟨fun y hy => ?_, h2⟩
+      cases hx : x.project k with
+      | none => rfl
+      | some x' =>
+        cases hy' : y.project k with
+        | none => rfl
+        | some y' =>
+          simp only [Bool.not_eq_true']
+          cases hs : x'.same y' with
+          | false => rfl
+          | true => exact absurd ((Data.same_iff x' y').mp hs) (h1 y hy x' y' hx hy')
+
 /-- The values that read neither an alias nor a path, so that what they
 admit depends on no declaration and no root. -/
 inductive Val.RefFree : Val → Prop
@@ -82,9 +291,14 @@ inductive Val.RefFree : Val → Prop
   | anyString : RefFree .anyString
   | boolean : RefFree .boolean
   | lit {s : Scalar} : RefFree (.lit s)
-  | min {n : Number} : RefFree (.min n)
-  | max {n : Number} : RefFree (.max n)
+  | min {b : Bound} : RefFree (.min b)
+  | max {b : Bound} : RefFree (.max b)
+  | above {b : Bound} : RefFree (.above b)
+  | beneath {b : Bound} : RefFree (.beneath b)
+  | neq {vs : List Bound} : RefFree (.neq vs)
   | multiple {d : Number} : RefFree (.multiple d)
+  | len {c : Val} : RefFree c → RefFree (.len c)
+  | unique {k : Option String} : RefFree (.unique k)
   | any : RefFree .any
   | nil : RefFree .nil
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
@@ -128,15 +342,39 @@ def check : Val → Data → Bool
     | .bool b, .bool b' => decide (b = b')
     | .null, .null => true
     | _, _ => false
-  | .min n, j => match j with
-    | .num x => decide (n.le x)
-    | _ => false
-  | .max n, j => match j with
-    | .num x => decide (x.le n)
+  | .min b, j => match b, j with
+    | .num n, .num x => decide (n.le x)
+    | .str b, .str s => decide (b ≤ s)
+    | _, _ => false
+  | .max b, j => match b, j with
+    | .num n, .num x => decide (x.le n)
+    | .str b, .str s => decide (s ≤ b)
+    | _, _ => false
+  | .above b, j => match b, j with
+    | .num n, .num x => decide (n.lt x)
+    | .str b, .str s => decide (b < s)
+    | _, _ => false
+  | .beneath b, j => match b, j with
+    | .num n, .num x => decide (x.lt n)
+    | .str b, .str s => decide (s < b)
+    | _, _ => false
+  | .neq vs, j => match j with
+    | .num x => vs.all fun v => match v with
+      | .num n => decide (n ≠ x)
+      | .str _ => false
+    | .str s => vs.all fun v => match v with
+      | .str t => decide (t ≠ s)
+      | .num _ => false
     | _ => false
   | .multiple d, j => match j with
     | .num x => decide d.Positive && decide (x.multipleOf d)
     | _ => false
+  | .len c, j => match j.size with
+    | some n => if h : IntegerLeaf n then check c (.num (.integer ⟨n, h⟩)) else false
+    | none => false
+  | .unique k, j => match j.members with
+    | some ms => ms.all (fun x => (x.project k).isSome) && distinct k ms
+    | none => false
   | .any, _ => true
   | .nil, _ => false
   | .map fs spread closed, j => match j with
@@ -341,19 +579,97 @@ theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits
         simp only [check, decide_eq_true_eq]
         exact ⟨fun h => by subst h; exact .str, fun h => by cases h; rfl⟩
       | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | @min n =>
+  | @min b =>
+    intro j
+    cases b with
+    | num n =>
+      cases j with
+      | num x =>
+        simp only [check, decide_eq_true_eq]
+        exact ⟨fun h => .min h, fun h => by cases h; assumption⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+    | str b =>
+      cases j with
+      | str s =>
+        simp only [check, decide_eq_true_eq]
+        exact ⟨fun h => .minStr h, fun h => by cases h; assumption⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | @max b =>
+    intro j
+    cases b with
+    | num n =>
+      cases j with
+      | num x =>
+        simp only [check, decide_eq_true_eq]
+        exact ⟨fun h => .max h, fun h => by cases h; assumption⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+    | str b =>
+      cases j with
+      | str s =>
+        simp only [check, decide_eq_true_eq]
+        exact ⟨fun h => .maxStr h, fun h => by cases h; assumption⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | @above b =>
+    intro j
+    cases b with
+    | num n =>
+      cases j with
+      | num x =>
+        simp only [check, decide_eq_true_eq]
+        exact ⟨fun h => .above h, fun h => by cases h; assumption⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+    | str b =>
+      cases j with
+      | str s =>
+        simp only [check, decide_eq_true_eq]
+        exact ⟨fun h => .aboveStr h, fun h => by cases h; assumption⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | @beneath b =>
+    intro j
+    cases b with
+    | num n =>
+      cases j with
+      | num x =>
+        simp only [check, decide_eq_true_eq]
+        exact ⟨fun h => .beneath h, fun h => by cases h; assumption⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+    | str b =>
+      cases j with
+      | str s =>
+        simp only [check, decide_eq_true_eq]
+        exact ⟨fun h => .beneathStr h, fun h => by cases h; assumption⟩
+      | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | @neq vs =>
     intro j
     cases j with
     | num x =>
-      simp only [check, decide_eq_true_eq]
-      exact ⟨fun h => .min h, fun h => by cases h; assumption⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | @max n =>
-    intro j
-    cases j with
-    | num x =>
-      simp only [check, decide_eq_true_eq]
-      exact ⟨fun h => .max h, fun h => by cases h; assumption⟩
+      simp only [check, List.all_eq_true]
+      constructor
+      · intro h
+        refine .neq fun v hv => ?_
+        have hv := h v hv
+        cases v with
+        | num n => exact ⟨n, rfl, by simpa using hv⟩
+        | str _ => simp at hv
+      · intro h v hv
+        cases h with
+        | neq h =>
+          obtain ⟨n, rfl, hn⟩ := h v hv
+          simpa using hn
+    | str s =>
+      simp only [check, List.all_eq_true]
+      constructor
+      · intro h
+        refine .neqStr fun v hv => ?_
+        have hv := h v hv
+        cases v with
+        | str t => exact ⟨t, rfl, by simpa using hv⟩
+        | num _ => simp at hv
+      · intro h v hv
+        cases h with
+        | neqStr h =>
+          obtain ⟨t, rfl, ht⟩ := h v hv
+          simpa using ht
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | @multiple d =>
     intro j
@@ -362,6 +678,47 @@ theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits
       simp only [check, decide_eq_true_eq, Bool.and_eq_true]
       exact ⟨fun ⟨hd, hm⟩ => .multiple hd hm, fun h => by cases h; exact ⟨‹_›, ‹_›⟩⟩
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | @len c _ ihc =>
+    intro j
+    simp only [check]
+    cases hs : j.size with
+    | none =>
+      simp only [Bool.false_eq_true, false_iff]
+      intro h
+      cases h with
+      | len _ hs' _ => rw [hs] at hs'; cases hs'
+    | some n =>
+      simp only
+      split
+      · rename_i h
+        rw [ihc]
+        constructor
+        · intro ha; exact .len h hs ha
+        · intro ha
+          cases ha with
+          | len h' hs' ha' => rw [hs] at hs'; cases hs'; exact ha'
+      · rename_i h
+        simp only [Bool.false_eq_true, false_iff]
+        intro ha
+        cases ha with
+        | len h' hs' _ => rw [hs] at hs'; cases hs'; exact absurd h' h
+  | @unique k =>
+    intro j
+    simp only [check]
+    cases hm : j.members with
+    | none =>
+      simp only [Bool.false_eq_true, false_iff]
+      intro h
+      cases h with
+      | unique hm' _ _ => rw [hm] at hm'; cases hm'
+    | some ms =>
+      simp only [Bool.and_eq_true, List.all_eq_true, distinct_iff]
+      constructor
+      · rintro ⟨h1, h2⟩
+        exact .unique hm (fun x hx => h1 x hx) h2
+      · intro h
+        cases h with
+        | unique hm' h1 h2 => rw [hm] at hm'; cases hm'; exact ⟨fun x hx => h1 x hx, h2⟩
   | @map fs spread closed _ _ ihfs ihsp =>
     intro j
     cases j with

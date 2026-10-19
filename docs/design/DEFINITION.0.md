@@ -2,10 +2,14 @@
 
 Status: P0 LANDED 2026-10-16 (ADR-069); P1 PARTIAL: the data model,
 the integer leaf, `string` and `string & empty()`, scalar literals, and
-`min`, `max`, and `multiple` landed 2026-10-17, and the other three
+`min`, `max`, and `multiple` landed 2026-10-17, the other three
 numeric leaves 2026-10-18, with the prototype
 folded into the one definition §3 lays out, made semantic only on
-2026-10-18 (§3); P2 to P7 not started. The
+2026-10-18 (§3), and the bounds `above`, `below`, `neq`, `len`, and
+`unique`, with `min` and `max` on strings, 2026-10-18, as the second
+generated fragment, `test/spec/def-bounds.tsv`, on which both ports
+agree with the definition on every row; `re` and `format` remain. P2
+to P7 not started. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them.
 Date: 2026-10-16

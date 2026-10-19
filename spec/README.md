@@ -39,20 +39,21 @@ to the JSON Schema suite.
 | Path | Holds |
 |---|---|
 | `Aontu/Data.lean` | the data, scalars first: the four leaves, each a type named as aontu names it and holding exactly its leaf's numbers: `Integer`, a whole number with the proof that the `integer` leaf holds it (`IntegerLeaf`); `Float`, a float as its binary64 fields, with the decimal it shows; `BigInteger`; `BigDecimal`; then `Number`, the four together; strings; then `Data`, with maps and lists, `Same`, which compares two values as values, paths into a value, and `WellFormed` (no key twice in a map). `ℤ` and `ℕ` are Lean's `Int` and `Nat` |
-| `Aontu/Syntax.lean` | the values, one constructor per construct, scalars first: the kinds, the four number kinds among them, `string & empty()`, scalar literals, numbers of every leaf among them, `min`, `max`, and `multiple`, maps with optional keys, a spread and a seal, lists with a spread, `&`, aliases, and paths; `Env`, the alias declarations |
+| `Aontu/Syntax.lean` | the values, one constructor per construct, scalars first: the kinds, the four number kinds among them, `string & empty()`, scalar literals, numbers of every leaf among them, the bounds `min`, `max`, `above`, and `below` (the constructor `beneath`, since Lean keeps `below`), each with a number or a string at its end (`Bound`), `neq`, `multiple`, `len`, and `unique`, maps with optional keys, a spread and a seal, lists with a spread, `&`, aliases, and paths; `Env`, the alias declarations |
 | `Aontu/Admits.lean` | `Admits`, what a value admits, one inference rule per form, and `Instance`, the question `aontu vet` answers, which only a value can satisfy |
-| `Aontu/Order.lean` | the order `⊑`, its ends, the meet as its greatest lower bound, ADR-045's merge as a theorem, and `SubsumeCorrect`, the contract any `subsume` must meet |
+| `Aontu/Order.lean` | the order `⊑`, its ends, the meet as its greatest lower bound, the strict bounds under their closed ones (`above_le_min`, `beneath_le_max`), ADR-045's merge as a theorem, and `SubsumeCorrect`, the contract any `subsume` must meet |
 | `Aontu/Trial.lean` | the trial schemas `nof` and `when`, where negation lives, above `Admits` |
-| `Aontu/Check.lean` | `check`, an algorithm, beside `check_iff`, the theorem that makes its answers the definition's on every value that reads no alias and no path; and `Data.wf`, which decides that a Lean `Data` is a value, beside `Data.wf_iff` |
+| `Aontu/Check.lean` | `check`, an algorithm, beside `check_iff`, the theorem that makes its answers the definition's on every value that reads no alias and no path; `Data.wf`, which decides that a Lean `Data` is a value, beside `Data.wf_iff`; and `Data.same`, which decides `Data.Same`, beside `Data.same_iff` |
 | `Aontu/Tour.lean` | the examples [`docs/tutorial-definition.md`](../docs/tutorial-definition.md) walks through, each proved, and each a transcript on that page too |
 | `Oracle/Print.lean` | the oracle's printer, from values and data to the text both CLIs read; no part of the definition |
-| `Oracle.lean` | the executable: every value of the fragment up to one meet (600) against 24 instances, 14,400 `verdict` rows, each with the verdict `check` gives, which `verdict_exact` makes the definition's |
+| `Oracle.lean` | the executable: every value of the fragment up to one meet (600) against 24 instances, 14,400 `verdict` rows, each with the verdict `check` gives, which `verdict_exact` makes the definition's; and, as `oracle bounds`, the second fragment, the bounds beyond `min`, `max`, and `multiple` (115 values) against 30 instances, 3,450 rows, which `bound_verdict_exact` makes the definition's |
 | `ledger.tsv` | the rows the ports do not answer as the definition does, each with its cause and which side moves; both runners read it by name |
 | `tools/differential.py` | runs the rows through both CLIs and writes every disagreement by name, the material of the ledger |
 
-The rows live in `test/spec/def-fragment.tsv`, under the `verdict` mode
-of the shared format, where both ports' spec runners run them as they
-run every row; nothing here is needed at test time. Each row runs plain
+The rows live in `test/spec/def-fragment.tsv` and
+`test/spec/def-bounds.tsv`, under the `verdict` mode of the shared
+format, where both ports' spec runners run them as they run every row;
+nothing here is needed at test time. Each row runs plain
 `aontu vet` on data written in aontu, whose literals name their leaf,
 so the default reading gives each number the leaf the oracle means:
 `0d1.5` is a big decimal, and `1.5` would be a float. No term the
@@ -66,7 +67,7 @@ Each of these is a later phase of the plan, and none has a rule here,
 so the definition says nothing about it:
 
 - each read mode's reading of a number, the exactness budget of a big
-  decimal, and the bounds beyond `min`, `max`, and `multiple` (P1);
+  decimal, and the patterns `re` and formats `format` (P1);
 - `|` and `*`, which the language reads by position (an arm of a
   disjunction reads a list as its own length and `*x` as `x`, and
   elsewhere `*x` is `x | super(x)`), what evaluation outputs, and a
@@ -83,6 +84,7 @@ from that release on `PATH`:
 make spec                                   # every proof, the rows regenerated, the committed copy diffed
 cd spec && lake build                       # the proofs alone
 cd spec && lake exe oracle > ../test/spec/def-fragment.tsv
+cd spec && lake exe oracle bounds > ../test/spec/def-bounds.tsv
 python3 -I tools/differential.py ../test/spec/def-fragment.tsv <workdir> <go-cli> <ts-cli-js>
 ```
 

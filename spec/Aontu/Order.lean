@@ -27,6 +27,37 @@ theorem le_any (env : Env) (a : Val) : a ⊑[env] .any := fun _ h => ⟨h.1, .an
 
 theorem nil_le (env : Env) (a : Val) : .nil ⊑[env] a := fun _ h => nomatch h.2
 
+/-! ## The strict bounds -/
+
+/-- Two strings are never below each other both: the order on strings,
+character by character, is asymmetric. -/
+theorem lt_asymm_chars : ∀ {l₁ l₂ : List Char}, l₁ < l₂ → ¬ l₂ < l₁
+  | _, _, .nil _ _ => fun h => nomatch h
+  | _, _, .head _ _ hab => fun h => by
+    cases h with
+    | head _ _ hba => exact Char.lt_asymm hab hba
+    | tail _ hab' _ => exact hab' hab
+  | _, _, .tail hab hba h => fun h' => by
+    cases h' with
+    | head _ _ hba' => exact hba hba'
+    | tail _ _ h'' => exact lt_asymm_chars h h''
+
+/-- Whatever is above `b` is at least `b`: a strict bound is below its
+closed one, for numbers and for strings. -/
+theorem above_le_min (env : Env) (b : Bound) : .above b ⊑[env] .min b := by
+  intro j ⟨hw, h⟩
+  refine ⟨hw, ?_⟩
+  cases h with
+  | above h => exact .min (Int.le_of_lt h)
+  | aboveStr h => exact .minStr (lt_asymm_chars h)
+
+theorem beneath_le_max (env : Env) (b : Bound) : .beneath b ⊑[env] .max b := by
+  intro j ⟨hw, h⟩
+  refine ⟨hw, ?_⟩
+  cases h with
+  | beneath h => exact .max (Int.le_of_lt h)
+  | beneathStr h => exact .maxStr (lt_asymm_chars h)
+
 /-! ## The meet is the greatest lower bound -/
 
 theorem meet_le_left (env : Env) (a b : Val) : .meet a b ⊑[env] a := by

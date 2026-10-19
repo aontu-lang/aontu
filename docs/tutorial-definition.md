@@ -27,7 +27,7 @@ a term admits, and none declares its own.
 | [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean) | the data, scalars first: numbers in the four leaves, integers, floats, big integers, and big decimals, then strings, then maps and lists, and paths into a value |
 | [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) | the terms of the language, one constructor for each construct |
 | [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) | what each term admits, one rule for each form |
-| [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) | the order between terms, the meet, two declarations of one key, and the contract any `subsume` must meet |
+| [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) | the order between terms, the meet, the strict bounds under their closed ones, two declarations of one key, and the contract any `subsume` must meet |
 | [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean) | the trial schemas `nof` and `when` |
 | [`spec/Aontu/Check.lean`](../spec/Aontu/Check.lean) | a checker, and the theorem that makes its answers the definition's |
 | [`spec/Aontu/Tour.lean`](../spec/Aontu/Tour.lean) | the examples this page walks through |
@@ -576,7 +576,9 @@ value a number shows, not its leaf. Step 4 covers `multiple`.
 A string is a Lean `String`: its sequence of characters, the Unicode
 scalar values. So a string that holds a lone surrogate, as `"\ud800"`
 escapes one, is no value here: both engines accept it, and they differ
-on what it is (`test/spec/divergent.tsv`). -/
+on what it is (`test/spec/divergent.tsv`). Two strings are ordered as
+Lean orders them, character by character by code point, and a string
+is below any longer string it begins: `"b" < "ba"`. -/
 ```
 
 `string` admits every string but the empty one, and `string & empty()`
@@ -802,15 +804,35 @@ The engine calls a value of another leaf than the literal's a
 
 ## 4. Bounds
 
+A bound holds a value to one side of an end, and the end decides the
+domain: a number at the end bounds numbers, and a string bounds
+strings.
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+/-- The end of a bound: a number, which bounds numbers by exact value,
+or a string, which bounds strings in code-point order. -/
+inductive Bound where
+  | num (n : Number)
+  | str (s : String)
+```
+
+Each of the four bounds has one rule for each kind of end. `min` and
+`max` first:
+
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  /-- The bounds read a number's exact value, and `multiple` the value
-  it shows, which for a float is its shortest decimal. -/
-  | min {n x : Number} : n.le x → Admits env root (.min n) (.num x)
-  | max {n x : Number} : x.le n → Admits env root (.max n) (.num x)
-  /-- `multiple(0)` and a negative divisor admit nothing. -/
-  | multiple {d x : Number} : d.Positive → x.multipleOf d → Admits env root (.multiple d) (.num x)
+  /-- A bound with a number at its end admits a number, by exact value,
+  and one with a string at its end a string, in code-point order; the
+  bound's domain is its end's, so `min(0)` admits no string and
+  `max("b")` no number. -/
+  | min {n x : Number} : n.le x → Admits env root (.min (.num n)) (.num x)
+  | minStr {b s : String} : b ≤ s → Admits env root (.min (.str b)) (.str s)
+  | max {n x : Number} : x.le n → Admits env root (.max (.num n)) (.num x)
+  | maxStr {b s : String} : s ≤ b → Admits env root (.max (.str b)) (.str s)
 ```
+
+### Numbers
 
 A bound compares numbers of any leaf by their exact values:
 
@@ -844,6 +866,9 @@ def Number.shown : Number → ℤ × ℕ
 /-- `x` is at most `y`, by exact value. -/
 def Number.le (x y : Number) : Prop := x.value.1 * y.value.2 ≤ y.value.1 * x.value.2
 
+/-- `x` is below `y`, by exact value. -/
+def Number.lt (x y : Number) : Prop := x.value.1 * y.value.2 < y.value.1 * x.value.2
+
 /-- `d` shows a positive number. -/
 def Number.Positive (d : Number) : Prop := 0 < d.shown.1
 
@@ -858,34 +883,42 @@ puts the two over one denominator: one and a half is three times a
 half, and `1.25` is no whole multiple of it. The rule for `multiple`
 asks for a positive divisor, so `multiple(0)` admits nothing:
 
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- `multiple` reads the value a number shows, which for a float is
+  its shortest decimal; `multiple(0)` and a negative divisor admit
+  nothing. -/
+  | multiple {d x : Number} : d.Positive → x.multipleOf d → Admits env root (.multiple d) (.num x)
+```
+
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `min(3)` admits `3`. -/
-example : Instance .empty (.min (.integer (.of 3))) (.integer 3) := ⟨by decide, .min (by decide)⟩
+example : Instance .empty (.min (.num (.integer (.of 3)))) (.integer 3) := ⟨by decide, .min (by decide)⟩
 
 /-- `min(3)` refuses `2`. -/
-example : ¬ Instance .empty (.min (.integer (.of 3))) (.integer 2) := by
+example : ¬ Instance .empty (.min (.num (.integer (.of 3)))) (.integer 2) := by
   rintro ⟨-, h⟩
   cases h with
   | min h => exact absurd h (by decide)
 
 /-- `min(3)` admits the bigdecimal three and a half. -/
-example : Instance .empty (.min (.integer (.of 3))) (.num (.bigdecimal (.of 35 1))) := ⟨by decide, .min (by decide)⟩
+example : Instance .empty (.min (.num (.integer (.of 3)))) (.num (.bigdecimal (.of 35 1))) := ⟨by decide, .min (by decide)⟩
 
 /-- `max(2.5)`, whose bound is a float, admits the bigdecimal `2.5`: a
 bound compares exact values, whatever their leaves. -/
-example : Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdecimal (.of 25 1))) :=
+example : Instance .empty (.max (.num (.float (.dyadic 5 (-1))))) (.num (.bigdecimal (.of 25 1))) :=
   ⟨by decide, .max (by decide)⟩
 
 /-- `max(2.5)` refuses `2.6`. -/
-example : ¬ Instance .empty (.max (.float (.dyadic 5 (-1)))) (.num (.bigdecimal (.of 26 1))) := by
+example : ¬ Instance .empty (.max (.num (.float (.dyadic 5 (-1))))) (.num (.bigdecimal (.of 26 1))) := by
   rintro ⟨-, h⟩
   cases h with
   | max h => exact absurd h (by decide)
 
 /-- `max(0d0.1)` refuses the float `0.1`, whose exact value is above
 one tenth. -/
-example : ¬ Instance .empty (.max (.bigdecimal (.of 1 1)))
+example : ¬ Instance .empty (.max (.num (.bigdecimal (.of 1 1))))
     (.num (.float (.dyadic 3602879701896397 (-55)))) := by
   rintro ⟨-, h⟩
   cases h with
@@ -989,6 +1022,483 @@ $ echo $?
 
 `max(0d0.1)` admits the big decimal `0d0.1`, and refuses the float
 `0.1`, whose exact value exceeds it.
+
+### Strict bounds
+
+`above(n)` and `below(n)` leave the end out:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  | above {n x : Number} : n.lt x → Admits env root (.above (.num n)) (.num x)
+  | aboveStr {b s : String} : b < s → Admits env root (.above (.str b)) (.str s)
+  | beneath {n x : Number} : x.lt n → Admits env root (.beneath (.num n)) (.num x)
+  | beneathStr {b s : String} : s < b → Admits env root (.beneath (.str b)) (.str s)
+```
+
+`below(n)` is the constructor `beneath`, since Lean keeps the name
+`below` for every inductive type's own use. The term means what the
+function means:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `above(1)` refuses `1`… -/
+example : ¬ Instance .empty (.above (.num (.integer (.of 1)))) (.integer 1) := by
+  rintro ⟨-, h⟩
+  cases h with
+  | above h => exact absurd h (by decide)
+
+/-- …and admits the bigdecimal `1.5`. -/
+example : Instance .empty (.above (.num (.integer (.of 1)))) (.num (.bigdecimal (.of 15 1))) :=
+  ⟨by decide, .above (by decide)⟩
+
+/-- `below(1)` admits `0`. -/
+example : Instance .empty (.beneath (.num (.integer (.of 1)))) (.integer 0) :=
+  ⟨by decide, .beneath (by decide)⟩
+```
+
+Whatever is above an end is at least that end, for a number and for a
+string alike. `spec/Aontu/Order.lean` proves it as a law of the order
+step 10 defines:
+
+<!-- test: quote spec/Aontu/Order.lean -->
+```lean
+/-- Whatever is above `b` is at least `b`: a strict bound is below its
+closed one, for numbers and for strings. -/
+theorem above_le_min (env : Env) (b : Bound) : .above b ⊑[env] .min b := by
+```
+
+Write `strict.aontu`:
+
+<!-- test: scenario strict -->
+<!-- test: file strict.aontu -->
+```aontu
+above: above(1) & 0d1.5
+below: below(1) & 0
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c strict.aontu
+{"above":0d1.5,"below":0}
+```
+
+`above(1)` admits the big decimal `0d1.5`, and `below(1)` admits `0`.
+Neither admits its own end. Write `strict-schema.aontu`:
+
+<!-- test: file strict-schema.aontu -->
+```aontu
+v: above(1)
+```
+
+and `strict-data.aontu`:
+
+<!-- test: file strict-data.aontu -->
+```aontu
+v: 1
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet strict-schema.aontu strict-data.aontu
+verdict: invalid
+
+$.v: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.v
+  expected: above(1)
+  actual:   1
+  data: strict-data.aontu:1:4 (1)
+  schema: strict-schema.aontu:1:4 (above(1))
+$ echo $?
+1
+```
+
+The engine reports a bound's refusal as `constraint`, whichever bound
+it is.
+
+### Strings
+
+A bound with a string at its end orders strings character by
+character, by code point, and a string comes before every longer
+string it begins:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `min("b")` admits `"ba"`: a string comes before every longer string
+it begins. -/
+example : Instance .empty (.min (.str "b")) (.str "ba") := ⟨by decide, .minStr (by decide)⟩
+
+/-- `min("b")` refuses `""`, which comes before every other string. -/
+example : ¬ Instance .empty (.min (.str "b")) (.str "") := by
+  rintro ⟨-, h⟩
+  cases h with
+  | minStr h => exact absurd h (by decide)
+
+/-- `max("b")` admits `""`: a string bound says nothing about emptiness. -/
+example : Instance .empty (.max (.str "b")) (.str "") := ⟨by decide, .maxStr (by decide)⟩
+
+/-- `max("b")` refuses `1`: a bound's domain is its end's. -/
+example : ¬ Instance .empty (.max (.str "b")) (.integer 1) := fun ⟨_, h⟩ => nomatch h
+```
+
+Write `strbounds.aontu`:
+
+<!-- test: scenario strbounds -->
+<!-- test: file strbounds.aontu -->
+```aontu
+longer: min("b") & "ba"
+empty: max("b") & ""
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c strbounds.aontu
+{"empty":"","longer":"ba"}
+```
+
+`max("b")` admits the empty string, which `string` alone refuses: a
+bound is a claim about order, and says nothing about emptiness.
+
+### Exclusions
+
+`neq` lists the values it refuses:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- `neq` excludes each of its ends by identity, a number by leaf and
+  value, so `neq(1)` admits the float `1.0`; its domain is its ends',
+  so a list of numbers admits no string, a list of strings no number,
+  and a list of both nothing. -/
+  | neq {vs : List Bound} {x : Number} :
+      (∀ v, v ∈ vs → ∃ n, v = .num n ∧ n ≠ x) → Admits env root (.neq vs) (.num x)
+  | neqStr {vs : List Bound} {s : String} :
+      (∀ v, v ∈ vs → ∃ t, v = .str t ∧ t ≠ s) → Admits env root (.neq vs) (.str s)
+```
+
+The first rule admits a number when every listed end is a number other
+than it, and the second admits a string the same way. A list that mixes
+the two satisfies neither rule, so it admits nothing:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `neq(1)` refuses the integer `1`… -/
+example : ¬ Instance .empty (.neq [.num (.integer (.of 1))]) (.integer 1) := by
+  rintro ⟨-, h⟩
+  cases h with
+  | neq h =>
+    obtain ⟨_, he, hne⟩ := h _ (List.mem_singleton.mpr rfl)
+    cases he
+    exact hne rfl
+
+/-- …and admits the float `1.0`, a value of another leaf. -/
+example : Instance .empty (.neq [.num (.integer (.of 1))]) (.num (.float (.dyadic 1 0))) :=
+  ⟨by decide, .neq fun _ hv => by cases List.mem_singleton.mp hv; exact ⟨_, rfl, by decide⟩⟩
+
+/-- `neq(1)` refuses `"a"`: its domain is the numbers. -/
+example : ¬ Instance .empty (.neq [.num (.integer (.of 1))]) (.str "a") := by
+  rintro ⟨-, h⟩
+  cases h with
+  | neqStr h =>
+    obtain ⟨_, he, -⟩ := h _ (List.mem_singleton.mpr rfl)
+    cases he
+
+/-- `neq(1, "a")` admits nothing: no value is in both domains. -/
+example (j : Data) : ¬ Instance .empty (.neq [.num (.integer (.of 1)), .str "a"]) j := by
+```
+
+Write `neq.aontu`:
+
+<!-- test: scenario neq -->
+<!-- test: file neq.aontu -->
+```aontu
+float: neq(1) & 1.0
+other: neq(1) & 2
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c neq.aontu
+{"float":1.0,"other":2}
+```
+
+`neq(1)` excludes the integer `1` and nothing else, so the float `1.0`
+passes: the leaves are disjoint, and the two are two values. A string
+is outside its domain. Write `neq-schema.aontu`:
+
+<!-- test: file neq-schema.aontu -->
+```aontu
+v: neq(1)
+```
+
+and `neq-data.aontu`:
+
+<!-- test: file neq-data.aontu -->
+```aontu
+v: "a"
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet neq-schema.aontu neq-data.aontu
+verdict: invalid
+
+$.v: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.v
+  expected: neq(1)
+  actual:   "a"
+  data: neq-data.aontu:1:4 ("a")
+  schema: neq-schema.aontu:1:4 (neq(1))
+$ echo $?
+1
+```
+
+### Sizes
+
+`len(c)` holds a size to the term `c`:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- `len(c)` admits a string, a list, or a map whose size, an
+  integer, `c` admits; `len(0)` admits `""`, and a scalar has no size. -/
+  | len {c : Val} {j : Data} {n : ℕ} (h : IntegerLeaf n) :
+      j.size = some n → Admits env root c (.num (.integer ⟨n, h⟩)) → Admits env root (.len c) j
+```
+
+The size is the value's own:
+
+<!-- test: quote spec/Aontu/Data.lean -->
+```lean
+/-- The size `len` counts: a string's characters, a list's elements,
+a map's members. A scalar has no size. -/
+def Data.size : Data → Option ℕ
+  | .str s => some s.length
+  | .list xs => some xs.length
+  | .map fs => some fs.length
+  | _ => none
+```
+
+A string's size is its characters, not its bytes, so `len(1)` admits
+`"𝄞"`, one character in four bytes. The rule hands the size to `c` as
+an integer, so `c` is any term over the integers: a literal, a bound,
+or a kind such as `number`:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `len(1)` admits `"𝄞"`, one character in four bytes. -/
+example : Instance .empty (.len (.lit (.num (.integer (.of 1))))) (.str "𝄞") :=
+  ⟨by decide, .len (n := 1) (by decide) (by decide) .num⟩
+
+/-- `len(0)` admits `""`, which `string` refuses. -/
+example : Instance .empty (.len (.lit (.num (.integer (.of 0))))) (.str "") :=
+  ⟨by decide, .len (n := 0) (by decide) (by decide) .num⟩
+
+/-- `len(min(2))` admits `{"x": 1, "y": 2}`… -/
+example : Instance .empty (.len (.min (.num (.integer (.of 2)))))
+    (.map [("x", .integer 1), ("y", .integer 2)]) :=
+  ⟨by decide, .len (n := 2) (by decide) (by decide) (.min (by decide))⟩
+
+/-- …and refuses `[1]`. -/
+example : ¬ Instance .empty (.len (.min (.num (.integer (.of 2))))) (.list [.integer 1]) :=
+  fun ⟨_, h⟩ => absurd ((check_iff (.len .min) _).mpr h) (by decide)
+
+/-- `len(1)` refuses `5`: a number has no size. -/
+example : ¬ Instance .empty (.len (.lit (.num (.integer (.of 1))))) (.integer 5) := by
+  rintro ⟨-, h⟩
+  cases h with
+  | len _ hs _ => cases hs
+```
+
+`(n := 1)` names the size for Lean, which the rule otherwise reads off
+the data. Write `len.aontu`:
+
+<!-- test: scenario len -->
+<!-- test: file len.aontu -->
+```aontu
+clef: len(1) & "𝄞"
+empty: len(0) & ""
+pair: len(min(2)) & { x:1 y:2 }
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c len.aontu
+{"clef":"𝄞","empty":"","pair":{"x":1,"y":2}}
+```
+
+Each size passes, the one character of `"𝄞"` among them. Write
+`len-schema.aontu`:
+
+<!-- test: file len-schema.aontu -->
+```aontu
+v: len(min(2))
+```
+
+and `len-data.aontu`:
+
+<!-- test: file len-data.aontu -->
+```aontu
+v: [1]
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet len-schema.aontu len-data.aontu
+verdict: invalid
+
+$.v: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.v
+  expected: len(integer&min(2))
+  actual:   [1]
+  data: len-data.aontu:1:4 ([1])
+  schema: len-schema.aontu:1:4 (len(integer&min(2)))
+$ echo $?
+1
+```
+
+The engine writes the count's term in full, `integer&min(2)`: a size is
+an integer, which the rule's `IntegerLeaf n` says too.
+
+### Distinct members
+
+`unique()` holds the members of a list or a map apart:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- `unique()` admits a list or a map whose members are pairwise
+  distinct as values, and `unique("k")` one whose members each give
+  `k` a value and whose values at `k` are; a member that is no map, or
+  lacks the key, is a distinctness the container cannot show. -/
+  | unique {k : Option String} {j : Data} {ms : List Data} :
+      j.members = some ms →
+      (∀ x, x ∈ ms → (x.project k).isSome) →
+      ms.Pairwise (fun x y => ∀ x' y', x.project k = some x' → y.project k = some y' →
+        ¬ x'.Same y') →
+      Admits env root (.unique k) j
+```
+
+`Pairwise` says the relation holds between every two members, and the
+relation is that they aren't one value, compared as step 9 compares
+two values, after a projection:
+
+<!-- test: quote spec/Aontu/Data.lean -->
+```lean
+/-- The members `unique` compares: a list's elements, or a map's
+values. A scalar has no members. -/
+def Data.members : Data → Option (List Data)
+  | .list xs => some xs
+  | .map fs => some (fs.map Prod.snd)
+  | _ => none
+
+/-- What `unique` compares of a member: the member itself, or under a
+key, the value the member gives that key, which a member that is no
+map, or lacks the key, has not. -/
+def Data.project (k : Option String) (x : Data) : Option Data :=
+  match k with
+  | none => some x
+  | some k => match x with
+    | .map fs => lookup k fs
+    | _ => none
+```
+
+With no key, each member is compared whole. With one, the value each
+member gives the key is compared, and a member that gives it none
+fails the second premise:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `unique()` admits `[1, 1.0]`: two values, of two leaves. -/
+example : Instance .empty (.unique none) (.list [.integer 1, .num (.float (.dyadic 1 0))]) :=
+  ⟨by decide, (check_iff .unique _).mp (by decide)⟩
+
+/-- `unique()` refuses `[{"x": 1, "y": 2}, {"y": 2, "x": 1}]`: two maps
+with the same members are one value. -/
+example : ¬ Instance .empty (.unique none)
+    (.list [.map [("x", .integer 1), ("y", .integer 2)], .map [("y", .integer 2), ("x", .integer 1)]]) :=
+  fun ⟨_, h⟩ => absurd ((check_iff .unique _).mpr h) (by decide)
+```
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `unique("p")` admits `[{"p": 1}, {"p": 2}]`… -/
+example : Instance .empty (.unique (some "p"))
+    (.list [.map [("p", .integer 1)], .map [("p", .integer 2)]]) :=
+  ⟨by decide, (check_iff .unique _).mp (by decide)⟩
+
+/-- …and refuses `[{"p": 1}, {"q": 1}]`: a member without the key is a
+distinctness the list cannot show. -/
+example : ¬ Instance .empty (.unique (some "p"))
+    (.list [.map [("p", .integer 1)], .map [("q", .integer 1)]]) :=
+  fun ⟨_, h⟩ => absurd ((check_iff .unique _).mpr h) (by decide)
+```
+
+These examples borrow the checker of step 14, which computes whether
+two values are one. Write `unique.aontu`:
+
+<!-- test: scenario unique -->
+<!-- test: file unique.aontu -->
+```aontu
+leaves: unique() & [1 1.0]
+keyed: unique("p") & [p:1 p:2]
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c unique.aontu
+{"keyed":[{"p":1},{"p":2}]&unique("p"),"leaves":[1,1.0]&unique()}
+```
+
+Both lists pass, and `-c` shows each atom still on its list: a member
+could arrive later, so the engine keeps the claim until nothing more
+can. `[1 1.0]` is two values, as the first example proves. Two maps
+with the same members are one value, in whatever order they list them.
+Write `unique-schema.aontu`:
+
+<!-- test: file unique-schema.aontu -->
+```aontu
+v: unique()
+```
+
+and `unique-data.aontu`:
+
+<!-- test: file unique-data.aontu -->
+```aontu
+v: [{ x:1 y:2 } { y:2 x:1 }]
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet unique-schema.aontu unique-data.aontu
+verdict: invalid
+
+$.v: constraint [conflict]
+  [aontu/constraint]: Cannot unify values at path $.v
+  expected: unique()
+  actual:   [{"x":1,"y":2},{"x":1,"y":2}]
+  data: unique-data.aontu:1:4 ([{"x":1,"y":2},{"x":1,"y":2}])
+  schema: unique-schema.aontu:1:4 (unique())
+$ echo $?
+1
+```
+
+The engine prints both members with their keys in one order, which is
+what makes them one value.
 
 ## 5. The two ends: `any` and `nil`
 
@@ -1390,11 +1900,11 @@ spread holds every element, and stays, as a map's does.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `integer & min(3)` admits `7`. -/
-example : Instance .empty (.meet .integer (.min (.integer (.of 3)))) (.integer 7) :=
+example : Instance .empty (.meet .integer (.min (.num (.integer (.of 3))))) (.integer 7) :=
   ⟨by decide, .meet (.integer) (.min (by decide))⟩
 
 /-- `integer & min(3)` refuses `2`. -/
-example : ¬ Instance .empty (.meet .integer (.min (.integer (.of 3)))) (.integer 2) := by
+example : ¬ Instance .empty (.meet .integer (.min (.num (.integer (.of 3))))) (.integer 2) := by
   rintro ⟨-, h⟩
   cases h with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
@@ -1653,11 +2163,11 @@ premise is that `a` admits it.
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `integer` is above `integer & min(3)`. -/
-example : .meet .integer (.min (.integer (.of 3))) ⊑[.empty] .integer := meet_le_left _ _ _
+example : .meet .integer (.min (.num (.integer (.of 3)))) ⊑[.empty] .integer := meet_le_left _ _ _
 
 /-- `integer & min(3)` is not above `integer`: `2` is the instance that
 shows it. -/
-example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.integer (.of 3)))) := by
+example : ¬ (.integer ⊑[.empty] .meet .integer (.min (.num (.integer (.of 3))))) := by
   intro h
   cases (h (.integer 2) ⟨by decide, .integer⟩).2 with
   | meet _ h => cases h with | min h => exact absurd h (by decide)
@@ -1884,14 +2394,14 @@ count, as an integer, so `nof(1, …)` asks for exactly one:
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `nof(1, integer, min(0))` admits `-1`, which one trial admits. -/
-example : Holds .empty (.integer (-1)) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.integer (.of 0)))])
+example : Holds .empty (.integer (-1)) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.num (.integer (.of 0))))])
     (.integer (-1)) := by
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- …and refuses `3`, which both admit. -/
-example : ¬ Holds .empty (.integer 3) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.integer (.of 0)))])
+example : ¬ Holds .empty (.integer 3) (.nof (.lit (.num (.integer (.of 1)))) [.is .integer, .is (.min (.num (.integer (.of 0))))])
     (.integer 3) := by
 ```
 
@@ -1934,12 +2444,12 @@ where it doesn't:
 ```lean
 /-- `when(string, "a", min(0))` admits `5`: not a string, and at least 0. -/
 example : Holds .empty (.integer 5)
-    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.integer (.of 0))))) (.integer 5) :=
+    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.num (.integer (.of 0)))))) (.integer 5) :=
   .inr ⟨(fun h => nomatch h), .min (by decide)⟩
 
 /-- …and refuses `"b"`: a string, and not `"a"`. -/
 example : ¬ Holds .empty (.str "b")
-    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.integer (.of 0))))) (.str "b") := by
+    (.when (.is .string) (.is (.lit (.str "a"))) (.is (.min (.num (.integer (.of 0)))))) (.str "b") := by
 ```
 
 Write `when.aontu`:
@@ -1982,9 +2492,14 @@ inductive Val.RefFree : Val → Prop
   | anyString : RefFree .anyString
   | boolean : RefFree .boolean
   | lit {s : Scalar} : RefFree (.lit s)
-  | min {n : Number} : RefFree (.min n)
-  | max {n : Number} : RefFree (.max n)
+  | min {b : Bound} : RefFree (.min b)
+  | max {b : Bound} : RefFree (.max b)
+  | above {b : Bound} : RefFree (.above b)
+  | beneath {b : Bound} : RefFree (.beneath b)
+  | neq {vs : List Bound} : RefFree (.neq vs)
   | multiple {d : Number} : RefFree (.multiple d)
+  | len {c : Val} : RefFree c → RefFree (.len c)
+  | unique {k : Option String} : RefFree (.unique k)
   | any : RefFree .any
   | nil : RefFree .nil
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
@@ -2031,13 +2546,22 @@ the code says that `check` and `Admits` agree. One theorem does:
 theorem check_iff {v : Val} (h : v.RefFree) : ∀ j, check v j = true ↔ Admits env root v j := by
 ```
 
+`unique` asks whether two members are one value, which `Same` states
+and `check` has to compute. `Data.same` computes it, beside its own
+theorem:
+
+<!-- test: quote spec/Aontu/Check.lean -->
+```lean
+theorem Data.same_iff : ∀ j j' : Data, j.same j' = true ↔ j.Same j'
+```
+
 With `check_iff` proved, an answer `check` computes is the definition's
 answer:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `check` computes: `integer & min(3)` admits `7`. -/
-example : check (.meet .integer (.min (.integer (.of 3)))) (.integer 7) = true := by decide
+example : check (.meet .integer (.min (.num (.integer (.of 3))))) (.integer 7) = true := by decide
 
 /-- …and `{x: integer}` refuses `{}`. -/
 example : check (.map [("x", false, .integer)] none false) (.map []) = false := by decide
@@ -2051,7 +2575,7 @@ to try each against:
 ```lean
 def bases : List Val :=
   [.any, .nil, .integer, .meet .number (.multiple (.integer (.of 1))), .string, .anyString,
-    .min (.integer (.of 0)), .min (.integer (.of 3))]
+    .min (.num (.integer (.of 0))), .min (.num (.integer (.of 3)))]
 
 /-- `{"x": v}`, or `{"x"?: v}`. -/
 def field (opt : Bool) (v : Val) : Val := .map [("x", opt, v)] none false
@@ -2120,6 +2644,38 @@ c9618	verdict	v: integer	v: 0d9007199254740993	{"verdict":["invalid","incomplete
 ```tsv
 c9626	verdict	v: (number) & (multiple(1))	v: 0d9007199254740993	{"verdict":"valid"}
 ```
+
+A second fragment, written by `lake exe oracle bounds`, takes the
+bounds of step 4: each alone, each under a key, and eight of them met
+pairwise, 115 terms against 30 values, as the 3,450 rows of
+[`test/spec/def-bounds.tsv`](../test/spec/def-bounds.tsv):
+
+<!-- test: quote spec/Oracle.lean -->
+```lean
+def boundBases : List Val :=
+  [.above (.num one), .beneath (.num (.integer (.of 3))),
+    .min (.str "b"), .max (.str "b"), .above (.str "b"), .beneath (.str "b"),
+    .neq [.num one], .neq [.num one, .num (.integer (.of 3))], .neq [.num (.float (.dyadic 1 0))],
+    .neq [.str "a"],
+    .len (.lit (.num one)), .len (.min (.num one)), .len (.max (.num one)), .len .number,
+    .len .float,
+    .unique none, .unique (some "p")]
+```
+
+Two of its rows tell `neq(1.0)`, which excludes a float, from `neq(1)`:
+
+<!-- test: quote test/spec/def-bounds.tsv -->
+```tsv
+b243	verdict	v: neq(1.0)	v: 1	{"verdict":"valid"}
+```
+
+<!-- test: quote test/spec/def-bounds.tsv -->
+```tsv
+b246	verdict	v: neq(1.0)	v: 1.0	{"verdict":["invalid","incomplete","error"]}
+```
+
+Both engines answer every row of both files as the definition does,
+but for the cases step 12 lists.
 
 The schema and the value are text, which `spec/Oracle/Print.lean`
 writes. The printer is the oracle's and no part of the definition, and
@@ -2223,9 +2779,9 @@ The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between, the
-bounds beyond `min`, `max` and `multiple`, most built-in functions, generation with
-`each`, `pack` and `emit`, formats, and marks such as `hide()` and
-`type()`. [`aontu vet`](reference-api.md#aontu-vet) states which
+patterns of `re` and the formats of `format`, most built-in functions,
+generation with `each`, `pack` and `emit`, and marks such as `hide()`
+and `type()`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 
