@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### A container a trial refuses is invalid
+
+Definition, generated rows, and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `invalid` also where the meet of the
+  schema with the data, read whole, refuses the value it gives with its
+  trials and sizes unread, each `nof`, `must`, `len` and `unique` as
+  `any` (`Val.untried`, `RefusedAt`, computed as `refusedAt` beside
+  `refusedAt_iff`). Both ports try a container once its members have
+  all arrived, so a default inside a container is tried with it, where
+  a scalar default a trial refuses yields at the meet; the definition
+  now reads both as the ports do. `vet_invalid_not_instance` gives way
+  to `vet_invalid_refuses`: `invalid` refuses the data as written or as
+  filled, since a fill a trial refuses is `invalid` in both ports though
+  the data as written may be an instance. `dead_refuses` proves a dead
+  term refuses every value.
+- Twenty-one rows of `test/spec/def-trial.tsv` move from `incomplete`,
+  or `valid` under `--partial`, to `invalid`, as both ports answer, and
+  leave the ledger, whose bound falls from 99 to 78; no other fragment
+  changes.
+- The tutorial's step 14 reads the new clause and the restated theorem;
+  the design note rules decision 8.
+
 ### The definition holds `nof` and `must` inside a value
 
 Definition, generated rows, and documentation; no engine changes.

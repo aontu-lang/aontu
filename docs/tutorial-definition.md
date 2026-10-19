@@ -3717,24 +3717,28 @@ the declarations `ds` and the mode `m`, the schema read as its
 expansion: `error` where the document refers to a name it does not
 declare, where its names break the alias-cycle rule, or where the
 schema's normal form does not stand; `invalid` where the meet of the
-schema with the data as a term is dead; `valid` where the meet singles
-out a value, and without the fill where the data as written is an
-instance too, or where `--partial` lets the unresolved pass; and
+schema with the data as a term is dead, or refuses, read whole, the
+value it gives with its trials and sizes unread; `valid` where the meet
+singles out a value, and without the fill where the data as written is
+an instance too, or where `--partial` lets the unresolved pass; and
 `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ (normaliseD ds (ds.read S)).illFormed = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
-      (normaliseD ds (meetD ds (ds.read S) j.term)).dead = true
+      ((normaliseD ds (meetD ds (ds.read S) j.term)).dead = true ∨
+        RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
       (normaliseD ds (meetD ds (ds.read S) j.term)).dead = false ∧
+      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) ∧
       (m.lax = true ∨
         ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧
           (m.fill = true ∨ Admits ds.envE j (ds.read S) j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
       (normaliseD ds (meetD ds (ds.read S) j.term)).dead = false ∧
+      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) ∧
       m.lax = false ∧
       ¬ ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧
         (m.fill = true ∨ Admits ds.envE j (ds.read S) j)
@@ -3773,7 +3777,35 @@ def Val.illFormed : Val → Bool
 ```
 
 `invalid` is a schema that stands met with the data as a term,
-`Data.term`, in a meet that is dead: nothing could be the data.
+`Data.term`, in a meet that is dead, so that nothing could be the data,
+or in a meet alive that refuses, read whole, the value it gives with
+its trials and sizes unread. Both engines try a container once its
+members have all arrived, after the fills, where a scalar they try at
+the meet, and the definition reads that moment as the value the meet
+would single out with each `nof`, `must`, `len` and `unique` as `any`:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- A term with its trials and sizes unread: each `nof`, `must`, `len`
+and `unique` as `any`. -/
+def Val.untried : Val → Val
+  | .nof _ _ | .must _ _ | .len _ | .unique _ => .any
+  | .map fs spread closed => .map (untriedFields fs) (untriedSpread spread) closed
+  | .list items spread closed => .list (untriedItems items) (untriedSpread spread) closed
+  | .or arms => .or (untriedArms arms)
+  | .pref r x => .pref r x.untried
+  | .meet a b => .meet a.untried b.untried
+  | v => v
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- A refusal at generation: with its trials and sizes unread, the term
+singles out a value that it, read whole, refuses. -/
+def RefusedAt (ds : Decls) (root : Data) (v : Val) : Prop :=
+  ∃ c, Gen ds.envE root v.untried c ∧ Refuses ds.envE root v c
+```
+
 `valid` is a meet alive that singles out a value, step 13's `Output`,
 and without the fill only where the data as written is an instance of
 the schema too; `--partial` makes any live meet `valid`. `incomplete`
@@ -3790,7 +3822,7 @@ instance of the schema as read. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
     Instance ds.envE (ds.read S) j := by
-  obtain ⟨-, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
+  obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
   · rw [hf] at hf'
@@ -3805,7 +3837,7 @@ is an instance of the schema as read. -/
 theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
     (h : Vet m ds S j .valid) :
     ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧ Admits ds.envE j (ds.read S) j' := by
-  obtain ⟨-, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
+  obtain ⟨-, -, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
   · exact ⟨j', hout, ((admits_meetD _ _ _).mp (outputD_admits _ _ hout)).1⟩
@@ -3813,18 +3845,23 @@ theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.la
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- `invalid` refuses the data: it is no instance of the schema as read. -/
-theorem vet_invalid_not_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hj : j.WellFormed)
-    (h : Vet m ds S j .invalid) : ¬ Admits ds.envE j (ds.read S) j := by
-  obtain ⟨-, -, -, hd⟩ := h
-  intro hA
-  exact dead_sound _ hd j ((admits_normaliseD _ _).mpr
-    ((admits_meetD _ _ _).mpr ⟨hA, term_admits_self j hj⟩))
+/-- `invalid` refuses: the normal form of the schema met with the data
+refuses the data as written, or, its trials and sizes unread, the value
+it would single out. -/
+theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
+    Refuses ds.envE j (normaliseD ds (meetD ds (ds.read S) j.term)) j ∨
+      RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) := by
+  obtain ⟨-, -, -, hd | hr⟩ := h
+  · exact .inl (dead_refuses _ hd j)
+  · exact .inr hr
 ```
 
 So `vet --no-fill` answers `valid` exactly for an instance, step 2's
 question; `vet` answers it for a filled value that is an instance of
-the schema; and `invalid` is never an instance. The tour runs the
+the schema; and `invalid` refuses the data as written or as filled,
+where a fill a trial refuses is `invalid` though the data as written
+may be an instance, as `{a?: 1} & nof(0, {a: 1})` against `{}` shows.
+The tour runs the
 verdicts of this step and the last by `decide`, under no declaration,
 where a document reads as itself:
 
@@ -4071,15 +4108,6 @@ documents, and the ledger names the engines as the side that changes.
 In the same file, `must(1 & 2, "m")` refuses `1` as `nof(1, 1 & 2)`
 does, a branch that admits nothing counting as none, where both
 engines answer `error`: six rows, the engines the side that changes.
-
-In the other direction, a container a trial refuses is `invalid` in
-both engines, which try a container once its members have all arrived,
-where the definition answers `incomplete`: it meets the data as a term,
-the meet stands, and no value is singled out, so
-`{a: nof(min(1), {x: 1}, {y: 2})}` against `{"a": {"z": 1}}` is
-`incomplete` in the default mode. Twenty-one rows carry seven such
-documents, and the ledger names the definition as the side that
-changes, under decision 8 of the design note.
 
 ## 16. Trial schemas
 
@@ -4704,9 +4732,8 @@ The language needs only the power to represent a JSON Schema: what
 
 Nor does it hold the subsumption table as theorems, nor a contract
 for each profile of `subsume` beyond `values`, which step 18 states;
-nor the trials `when`, `contains` and `rest`, nor a trial's refusal of
-a container at generation; nor a path of step 9 read against the
-document as filled. Those are later phases.
+nor the trials `when`, `contains` and `rest`; nor a path of step 9
+read against the document as filled. Those are later phases.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

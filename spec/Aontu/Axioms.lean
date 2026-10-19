@@ -126,9 +126,13 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.vet_valid_filled
 
-/-- info: 'Aontu.vet_invalid_not_instance' depends on axioms: [propext, Quot.sound] -/
+/-- info: 'Aontu.vet_invalid_refuses' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
-#print axioms Aontu.vet_invalid_not_instance
+#print axioms Aontu.vet_invalid_refuses
+
+/-- info: 'Aontu.dead_refuses' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.dead_refuses
 
 /-- info: 'Aontu.Decls.recursiveB_iff' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in

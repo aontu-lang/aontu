@@ -55,9 +55,9 @@ in `test/spec/recursion.tsv`, a `subsume` row the ports answer. P4 IN
 PROGRESS: refusal beside admission as the two answers of one relation,
 `Judge`, with the checker's `false` proved refusal, landed 2026-10-19
 (§3), and `nof` and `must` inside values the same day, as the eighth
-generated fragment, `test/spec/def-trial.tsv`; `when`, `contains`,
-`rest`, `match` and `filter` come next, and decision 8 of §7, refusal
-at generation, is open. P6 and P7 not started. The
+generated fragment, `test/spec/def-trial.tsv`, and refusal at
+generation, decision 8 of §7, the same day; `when`, `contains`, `rest`,
+`match` and `filter` come next. P6 and P7 not started. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them.
 Date: 2026-10-16
@@ -307,14 +307,13 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 99 rows under seven causes: decisions 3 and 4 of §2, under
+ledger holds 78 rows under six causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
 and through a trial #361); the cycles through paths of decision 7 of
-§7, where the ports move (#357); `must` refusing a conflicting branch
-as an error of the schema, where the ports move (#361); and refusal at
-generation, decision 8 of §7, where the definition moves.
+§7, where the ports move (#357); and `must` refusing a conflicting
+branch as an error of the schema, where the ports move (#361).
 Exhaustive enumeration of small values
 over a small instance set is bounded per phase (600 values and 16
 instances in the prototype: 9,600 cases, 109 s through both CLIs on
@@ -377,7 +376,7 @@ documents only.
 | **P1**: data and scalars (M) | the data model (**LANDED 2026-10-17** as `spec/Aontu/Data.lean`; on 2026-10-18 aontu's own data: numbers in the four leaves, strings, maps and lists with unique keys, paths), and the two read modes, which stay parameters (§7, decision 5): the data holds every leaf either mode reads, and stating each mode's reading remains; the four numeric leaves (`integer` **LANDED 2026-10-17**: a double, of magnitude below `2^63`; `float`, `biginteger`, and `bigdecimal` **LANDED 2026-10-18**, as kinds and literals); `string` and `string & empty()` (**LANDED**); literals (scalars **LANDED**, numbers of every leaf **LANDED 2026-10-18**); the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `multiple`, `unique` (`min`, `max`, and `multiple` **LANDED**); `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states (**done** 2026-10-17) |
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers, read by position as the language reads them (an arm of a disjunction reads a list literal as its own length and `*x` as `x`, and elsewhere `*x` is `x \| super(x)`, so `*1` alone admits `2`: both engines, 2026-10-17); `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | **LANDED 2026-10-19**: aliases as the least fixpoint, path references read by declaration from the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule, which refuses no model, no use case and three documents of the suite | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
-| **P4**: trial schemas (L) | **IN PROGRESS**: refusal beside admission as the two answers of one relation, `Judge`, with the checker's `false` proved refusal (`checkWith_judge`, `checkR_judge`), **landed 2026-10-19**; `nof` and `must` inside values, with ADR-055 and ADR-049's `not` as theorems, as the eighth generated fragment, `test/spec/def-trial.tsv`, **landed 2026-10-19**; still to land, `when`, `contains`, `rest`, `match` and `filter`, ADR-050, 051 and 058 as theorems, and decision 8 of §7 | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
+| **P4**: trial schemas (L) | **IN PROGRESS**: refusal beside admission as the two answers of one relation, `Judge`, with the checker's `false` proved refusal (`checkWith_judge`, `checkR_judge`), **landed 2026-10-19**; `nof` and `must` inside values, with ADR-055 and ADR-049's `not` as theorems, as the eighth generated fragment, `test/spec/def-trial.tsv`, **landed 2026-10-19**; refusal at generation, decision 8 of §7, **landed 2026-10-19**; still to land, `when`, `contains`, `rest`, `match` and `filter`, and ADR-050, 051 and 058 as theorems | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
 | **P5**: order and verdicts (M) | one contract per `subsume` profile (§1), the subsumption table as theorems, `incomplete` against `invalid` against `error` defined, the `vet` modes as parameters, ADR-007 as a theorem | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
 | **P6**: the power to represent JSON Schema (M) | every value the importer writes for a keyword it carries is a form of the definition, defined on its own terms; the definition names no JSON Schema keyword (decision 2 of §2, ruled 2026-10-17, which retired this phase's first plan: `valid` for the 2020-12 keywords, the import's modes as contracts, and the export's round trip, all of which put JSON Schema in the definition) | the importer's output over the suite's schemas uses only forms the definition holds |
 | **P7**: the migration (M, ongoing) | the language ADRs moved as §4 says; the reference cites the rules; the language-change record settled | no ADR after P7 defines a rule the definition holds |
@@ -467,18 +466,23 @@ encodes it lands.
    and as both ports read it through a copy, `doc: $.schema.Step`. Met
    with data in its own place the ports answer `unify_cycle` where the
    definition expands it, which the ledger carries and #357 records.
-8. **Refusal at generation.** Open, raised 2026-10-19 by the trial rows
-   of P4. Both ports try a container once its members have all arrived
-   and answer `invalid` where the trial refuses it,
-   `nof(min(1), {x: 1}, {y: 2})` against `{"z": 1}`, where the
-   definition meets the data as a term, the meet stands, no value is
-   singled out, and the answer is `incomplete`; a scalar the two decide
-   alike, at the meet. The proposal: `Vet` gains a clause, `invalid`
-   where the meet singles out no value and the value the literals alone
-   would give, data and fills, is one the normal form refuses, with
-   `vet_invalid_not_instance` restated for what a refused fill means.
-   Until it is encoded the ledger carries the twenty-one rows with the
-   definition as the side that moves.
+8. **Refusal at generation.** Raised 2026-10-19 by the trial rows of
+   P4 and ruled the same day. Both ports try a container once its
+   members have all arrived and answer `invalid` where the trial refuses
+   it, `nof(min(1), {x: 1}, {y: 2})` against `{"z": 1}`, where the
+   definition met the data as a term, the meet stood, no value was
+   singled out, and the answer was `incomplete`; a scalar the two decide
+   alike, at the meet. Ruled: `invalid` also where the meet, read whole,
+   refuses the value it gives with its trials and sizes unread, each
+   `nof`, `must`, `len` and `unique` as `any` (`Val.untried`,
+   `RefusedAt`), which reads a default inside a container as the ports
+   do, tried with the container, and a scalar default a trial refuses
+   as yielding at the meet. `vet_invalid_not_instance` gave way to
+   `vet_invalid_refuses`: `invalid` refuses the data as written or as
+   filled, since a fill a trial refuses is `invalid` in both ports
+   though the data as written may be an instance, as
+   `{a?: 1} & nof(0, {a: 1})` against `{}` shows. The twenty-one ledger
+   rows retired.
 
 ## 8. Risks
 

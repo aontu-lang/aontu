@@ -101,6 +101,149 @@ def illArms : List (ℕ × Val) → Bool
   | (_, a) :: arms => a.illFormed || illArms arms
 end
 
+/-! ## The value a document gives with its trials unread
+
+Both ports try a container when no member can still arrive, so a trial
+or a size refuses a container at generation, after the fills, where a
+scalar it refuses at the meet. The definition reads that moment as the
+value the normal form would single out with every trial and size unread,
+each `nof`, `must`, `len` and `unique` as `any`, and asks whether the
+normal form, read whole, refuses it. -/
+
+mutual
+/-- A term with its trials and sizes unread: each `nof`, `must`, `len`
+and `unique` as `any`. -/
+def Val.untried : Val → Val
+  | .nof _ _ | .must _ _ | .len _ | .unique _ => .any
+  | .map fs spread closed => .map (untriedFields fs) (untriedSpread spread) closed
+  | .list items spread closed => .list (untriedItems items) (untriedSpread spread) closed
+  | .or arms => .or (untriedArms arms)
+  | .pref r x => .pref r x.untried
+  | .meet a b => .meet a.untried b.untried
+  | v => v
+
+def untriedFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.untried) :: untriedFields fs
+
+def untriedItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.untried :: untriedItems vs
+
+def untriedSpread : Option Val → Option Val
+  | none => none
+  | some s => some s.untried
+
+def untriedArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.untried) :: untriedArms as
+end
+
+theorem mem_untriedFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+    (k, o, w) ∈ untriedFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.untried := by
+  induction fs with
+  | nil => simp [untriedFields]
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    simp only [untriedFields, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
+      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
+      · exact ⟨v, Or.inr hm, rfl⟩
+    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl, rfl⟩
+      · exact Or.inr ⟨v, hm, rfl⟩
+
+theorem mem_untriedItems {items : List Val} {w : Val} :
+    w ∈ untriedItems items ↔ ∃ v, v ∈ items ∧ w = v.untried := by
+  induction items with
+  | nil => simp [untriedItems]
+  | cons v vs ih =>
+    simp only [untriedItems, List.mem_cons, ih]
+    constructor
+    · rintro (rfl | ⟨v', hm, rfl⟩)
+      · exact ⟨v, Or.inl rfl, rfl⟩
+      · exact ⟨v', Or.inr hm, rfl⟩
+    · rintro ⟨v', rfl | hm, rfl⟩
+      · exact Or.inl rfl
+      · exact Or.inr ⟨v', hm, rfl⟩
+
+theorem untriedSpread_eq {spread : Option Val} {t : Val} :
+    untriedSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.untried := by
+  cases spread <;> simp [untriedSpread, eq_comm]
+
+theorem mem_untriedArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
+    (r, b) ∈ untriedArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.untried := by
+  induction arms with
+  | nil => simp [untriedArms]
+  | cons p arms ih =>
+    obtain ⟨r', a'⟩ := p
+    simp only [untriedArms, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
+      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
+      · exact ⟨a, Or.inr hm, rfl⟩
+    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨a, hm, rfl⟩
+
+/-- A term the checker can read stays one with its trials unread. -/
+theorem untried_checkableA {v : Val} (h : v.CheckableA) : v.untried.CheckableA := by
+  induction h with
+  | len _ _ | unique | nof _ _ _ _ | must _ _ => exact .any
+  | @map fs spread closed _ _ ihf ihs =>
+    refine .map ?_ ?_
+    · intro k o w hm
+      obtain ⟨v, hv, rfl⟩ := mem_untriedFields.mp hm
+      exact ihf k o v hv
+    · intro t ht
+      obtain ⟨s, hs, rfl⟩ := untriedSpread_eq.mp ht
+      exact ihs s hs
+  | @list items spread closed _ _ ihi ihs =>
+    refine .list ?_ ?_
+    · intro w hm
+      obtain ⟨v, hv, rfl⟩ := mem_untriedItems.mp hm
+      exact ihi v hv
+    · intro t ht
+      obtain ⟨s, hs, rfl⟩ := untriedSpread_eq.mp ht
+      exact ihs s hs
+  | @or arms _ ih =>
+    refine .or fun r b hm => ?_
+    obtain ⟨a, ha, rfl⟩ := mem_untriedArms.mp hm
+    exact ih r a ha
+  | pref _ ih => exact .pref ih
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | _ => simp only [Val.untried]; constructor
+
+/-- A refusal at generation: with its trials and sizes unread, the term
+singles out a value that it, read whole, refuses. -/
+def RefusedAt (ds : Decls) (root : Data) (v : Val) : Prop :=
+  ∃ c, Gen ds.envE root v.untried c ∧ Refuses ds.envE root v c
+
+/-- Whether a term refuses the value it gives with its trials unread,
+computed. -/
+def refusedAt (ds : Decls) (v : Val) : Bool :=
+  match genD ds v.untried with
+  | some c => !checkR ds v c
+  | none => false
+
+theorem refusedAt_iff {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    {v : Val} (hv : v.CheckableA) : refusedAt ds v = true ↔ RefusedAt ds root v := by
+  have hgen : ∀ c, genD ds v.untried = some c ↔ Gen ds.envE root v.untried c :=
+    fun c => genWith_iff (untried_checkableA hv) (fun _ j hw _ => checkR_iff hg hb hw j) c
+  unfold refusedAt
+  constructor
+  · intro h
+    split at h
+    · rename_i c hc
+      exact ⟨c, (hgen c).mp hc, (checkR_iff hg hb hv c).mp (by simpa using h)⟩
+    · exact nomatch h
+  · rintro ⟨c, hc, hr⟩
+    rw [(hgen c).mpr hc]
+    simp only
+    rw [(checkR_iff hg hb hv c).mpr hr]
+    rfl
+
 /-! ## The verdict -/
 
 instance (ds : Decls) (S : Val) : Decidable (ds.Declares S) := decidable_of_iff _ Decls.declaresB_iff
@@ -112,24 +255,28 @@ the declarations `ds` and the mode `m`, the schema read as its
 expansion: `error` where the document refers to a name it does not
 declare, where its names break the alias-cycle rule, or where the
 schema's normal form does not stand; `invalid` where the meet of the
-schema with the data as a term is dead; `valid` where the meet singles
-out a value, and without the fill where the data as written is an
-instance too, or where `--partial` lets the unresolved pass; and
+schema with the data as a term is dead, or refuses, read whole, the
+value it gives with its trials and sizes unread; `valid` where the meet
+singles out a value, and without the fill where the data as written is
+an instance too, or where `--partial` lets the unresolved pass; and
 `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ (normaliseD ds (ds.read S)).illFormed = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
-      (normaliseD ds (meetD ds (ds.read S) j.term)).dead = true
+      ((normaliseD ds (meetD ds (ds.read S) j.term)).dead = true ∨
+        RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
       (normaliseD ds (meetD ds (ds.read S) j.term)).dead = false ∧
+      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) ∧
       (m.lax = true ∨
         ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧
           (m.fill = true ∨ Admits ds.envE j (ds.read S) j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.read S)).illFormed = false ∧
       (normaliseD ds (meetD ds (ds.read S) j.term)).dead = false ∧
+      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) ∧
       m.lax = false ∧
       ¬ ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧
         (m.fill = true ∨ Admits ds.envE j (ds.read S) j)
@@ -139,6 +286,7 @@ def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
   if !(ds.declaresB S && ds.guardedB) then .error
   else if (normaliseD ds (ds.read S)).illFormed then .error
   else if (normaliseD ds (meetD ds (ds.read S) j.term)).dead then .invalid
+  else if refusedAt ds (normaliseD ds (meetD ds (ds.read S) j.term)) then .invalid
   else if m.lax then .valid
   else
     match outputD ds (meetD ds (ds.read S) j.term) with
@@ -276,17 +424,21 @@ theorem vet_unique {m : Mode} {ds : Decls} {S : Val} {j : Data} {v v' : Verdict}
     · exact absurd h.2.1 hG
     · exact absurd (h.2.2.1.symm.trans hi) Bool.false_ne_true
   case invalid.valid | invalid.incomplete =>
-    exact absurd (h'.2.2.2.1.symm.trans h.2.2.2) Bool.false_ne_true
+    rcases h.2.2.2 with hd | hr
+    · exact absurd (h'.2.2.2.1.symm.trans hd) Bool.false_ne_true
+    · exact absurd hr h'.2.2.2.2.1
   case valid.invalid | incomplete.invalid =>
-    exact absurd (h.2.2.2.1.symm.trans h'.2.2.2) Bool.false_ne_true
+    rcases h'.2.2.2 with hd | hr
+    · exact absurd (h.2.2.2.1.symm.trans hd) Bool.false_ne_true
+    · exact absurd hr h.2.2.2.2.1
   case valid.incomplete =>
-    rcases h.2.2.2.2 with hp | hex
-    · exact absurd (h'.2.2.2.2.1.symm.trans hp) Bool.false_ne_true
-    · exact absurd hex h'.2.2.2.2.2
+    rcases h.2.2.2.2.2 with hp | hex
+    · exact absurd (h'.2.2.2.2.2.1.symm.trans hp) Bool.false_ne_true
+    · exact absurd hex h'.2.2.2.2.2.2
   case incomplete.valid =>
-    rcases h'.2.2.2.2 with hp | hex
-    · exact absurd (h.2.2.2.2.1.symm.trans hp) Bool.false_ne_true
-    · exact absurd hex h.2.2.2.2.2
+    rcases h'.2.2.2.2.2 with hp | hex
+    · exact absurd (h.2.2.2.2.2.1.symm.trans hp) Bool.false_ne_true
+    · exact absurd hex h.2.2.2.2.2.2
 
 /-- The computed verdict is a verdict: `vet` answers as `Vet` says,
 wherever the bodies and the schema hold no path, no pattern and no
@@ -313,36 +465,44 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
     | false =>
       rw [if_neg Bool.false_ne_true]
       cases hd : (normaliseD ds (meetD ds (ds.read S) j.term)).dead with
-      | true => exact ⟨hD, hG, hi, hd⟩
+      | true => exact ⟨hD, hG, hi, .inl hd⟩
       | false =>
         rw [if_neg Bool.false_ne_true]
-        cases hp : m.lax with
-        | true => exact ⟨hD, hG, hi, hd, .inl hp⟩
+        cases hr : refusedAt ds (normaliseD ds (meetD ds (ds.read S) j.term)) with
+        | true => exact ⟨hD, hG, hi, .inr ((refusedAt_iff hG hb hM').mp hr)⟩
         | false =>
           rw [if_neg Bool.false_ne_true]
-          cases ho : outputD ds (meetD ds (ds.read S) j.term) with
-          | some j' =>
-            have hout : OutputD ds j (meetD ds (ds.read S) j.term) j' := (outputD_iff hG hb hM' j').mp ho
-            cases hc : (m.fill || checkR ds (ds.read S) j) with
-            | true =>
-              rw [if_pos rfl]
-              refine ⟨hD, hG, hi, hd, .inr ⟨j', hout, ?_⟩⟩
-              rcases Bool.or_eq_true_iff.mp hc with hf | hk
-              · exact .inl hf
-              · exact .inr ((checkR_iff hG hb hS' j).mp hk)
-            | false =>
-              rw [if_neg Bool.false_ne_true]
-              refine ⟨hD, hG, hi, hd, hp, ?_⟩
-              rintro ⟨j'', -, hf | hA⟩
-              · rw [hf] at hc
-                exact nomatch hc
-              · rw [(checkR_iff hG hb hS' j).mpr hA, Bool.or_true] at hc
-                exact nomatch hc
-          | none =>
-            refine ⟨hD, hG, hi, hd, hp, ?_⟩
-            rintro ⟨j', hout, -⟩
-            rw [(outputD_iff hG hb hM' j').mpr hout] at ho
-            exact nomatch ho
+          have hnr : ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) := fun h => by
+            rw [(refusedAt_iff hG hb hM').mpr h] at hr
+            exact nomatch hr
+          cases hp : m.lax with
+          | true => exact ⟨hD, hG, hi, hd, hnr, .inl hp⟩
+          | false =>
+            rw [if_neg Bool.false_ne_true]
+            cases ho : outputD ds (meetD ds (ds.read S) j.term) with
+            | some j' =>
+              have hout : OutputD ds j (meetD ds (ds.read S) j.term) j' :=
+                (outputD_iff hG hb hM' j').mp ho
+              cases hc : (m.fill || checkR ds (ds.read S) j) with
+              | true =>
+                rw [if_pos rfl]
+                refine ⟨hD, hG, hi, hd, hnr, .inr ⟨j', hout, ?_⟩⟩
+                rcases Bool.or_eq_true_iff.mp hc with hf | hk
+                · exact .inl hf
+                · exact .inr ((checkR_iff hG hb hS' j).mp hk)
+              | false =>
+                rw [if_neg Bool.false_ne_true]
+                refine ⟨hD, hG, hi, hd, hnr, hp, ?_⟩
+                rintro ⟨j'', -, hf | hA⟩
+                · rw [hf] at hc
+                  exact nomatch hc
+                · rw [(checkR_iff hG hb hS' j).mpr hA, Bool.or_true] at hc
+                  exact nomatch hc
+            | none =>
+              refine ⟨hD, hG, hi, hd, hnr, hp, ?_⟩
+              rintro ⟨j', hout, -⟩
+              rw [(outputD_iff hG hb hM' j').mpr hout] at ho
+              exact nomatch ho
 
 /-- `vet` computes `Vet`. -/
 theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
@@ -356,7 +516,7 @@ instance of the schema as read. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
     Instance ds.envE (ds.read S) j := by
-  obtain ⟨-, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
+  obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
   · rw [hf] at hf'
@@ -368,18 +528,20 @@ is an instance of the schema as read. -/
 theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
     (h : Vet m ds S j .valid) :
     ∃ j', OutputD ds j (meetD ds (ds.read S) j.term) j' ∧ Admits ds.envE j (ds.read S) j' := by
-  obtain ⟨-, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
+  obtain ⟨-, -, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
   · exact ⟨j', hout, ((admits_meetD _ _ _).mp (outputD_admits _ _ hout)).1⟩
 
-/-- `invalid` refuses the data: it is no instance of the schema as read. -/
-theorem vet_invalid_not_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hj : j.WellFormed)
-    (h : Vet m ds S j .invalid) : ¬ Admits ds.envE j (ds.read S) j := by
-  obtain ⟨-, -, -, hd⟩ := h
-  intro hA
-  exact dead_sound _ hd j ((admits_normaliseD _ _).mpr
-    ((admits_meetD _ _ _).mpr ⟨hA, term_admits_self j hj⟩))
+/-- `invalid` refuses: the normal form of the schema met with the data
+refuses the data as written, or, its trials and sizes unread, the value
+it would single out. -/
+theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
+    Refuses ds.envE j (normaliseD ds (meetD ds (ds.read S) j.term)) j ∨
+      RefusedAt ds j (normaliseD ds (meetD ds (ds.read S) j.term)) := by
+  obtain ⟨-, -, -, hd | hr⟩ := h
+  · exact .inl (dead_refuses _ hd j)
+  · exact .inr hr
 
 end
 

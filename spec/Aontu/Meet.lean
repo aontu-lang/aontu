@@ -628,6 +628,86 @@ theorem allDead_sound : ∀ arms : List (ℕ × Val), allDead arms = true →
     · exact allDead_sound arms h₂ r a hm'
 end
 
+mutual
+/-- A dead term refuses every value. -/
+theorem dead_refuses : ∀ v : Val, v.dead = true → ∀ j, Refuses env root v j
+  | .nil, _, _ => .nil
+  | .map fs sp c, hd, j => match j with
+    | .map jfs => deadField_refuses fs fs (fun _ h => h) hd sp c jfs
+    | .num _ => .mapNot fun _ h => nomatch h
+    | .str _ => .mapNot fun _ h => nomatch h
+    | .bool _ => .mapNot fun _ h => nomatch h
+    | .null => .mapNot fun _ h => nomatch h
+    | .list _ => .mapNot fun _ h => nomatch h
+  | .list items sp c, hd, j => match j with
+    | .list xs => deadItem_refuses items items 0 (fun _ _ h => by rw [Nat.zero_add]; exact h) hd sp c xs
+    | .num _ => .listNot fun _ h => nomatch h
+    | .str _ => .listNot fun _ h => nomatch h
+    | .bool _ => .listNot fun _ h => nomatch h
+    | .null => .listNot fun _ h => nomatch h
+    | .map _ => .listNot fun _ h => nomatch h
+  | .or arms, hd, j => .orNone fun r a hm => allDead_refuses arms hd r a hm j
+  | .meet a b, hd, j => by
+    rcases Bool.or_eq_true_iff.mp hd with hda | hdb
+    · exact .meetLeft (dead_refuses a hda j)
+    · exact .meetRight (dead_refuses b hdb j)
+  | .integer, hd, _ | .float, hd, _ | .biginteger, hd, _ | .bigdecimal, hd, _
+  | .number, hd, _ | .string, hd, _ | .anyString, hd, _ | .boolean, hd, _
+  | .lit _, hd, _ | .min _, hd, _ | .max _, hd, _ | .above _, hd, _
+  | .beneath _, hd, _ | .neq _, hd, _ | .multiple _, hd, _ | .len _, hd, _
+  | .unique _, hd, _ | .re _, hd, _ | .format _, hd, _ | .any, hd, _
+  | .pref _ _, hd, _ | .alias _, hd, _ | .path _, hd, _ | .nof _ _, hd, _
+  | .must _ _, hd, _ => nomatch hd
+
+/-- A dead required key, among the keys `fs₀` of a map, refuses every
+map: absent, it is a key the map must have; present, its value is
+refused. -/
+theorem deadField_refuses : ∀ (fs₀ fs : List (String × Bool × Val)), (∀ f, f ∈ fs → f ∈ fs₀) →
+    deadField fs = true → ∀ (sp : Option Val) (c : Bool) (jfs : List (String × Data)),
+      Refuses env root (.map fs₀ sp c) (.map jfs)
+  | _, [], _, h, _, _, _ => nomatch h
+  | fs₀, (k, o, v) :: fs, hsub, h, sp, c, jfs => by
+    rcases Bool.or_eq_true_iff.mp h with h₁ | h₂
+    · obtain ⟨ho, hv⟩ := Bool.and_eq_true_iff.mp h₁
+      cases o with
+      | true => exact nomatch ho
+      | false =>
+        cases hl : lookup k jfs with
+        | none => exact .mapMissing (hsub _ (List.mem_cons_self _ _)) hl rfl
+        | some x => exact .mapField (hsub _ (List.mem_cons_self _ _)) hl (dead_refuses v hv x)
+    · exact deadField_refuses fs₀ fs (fun f hf => hsub f (List.mem_cons_of_mem _ hf)) h₂ sp c jfs
+
+/-- A dead position, among the positions `items₀` of a list, refuses
+every list: too short to reach it, or refused there. -/
+theorem deadItem_refuses : ∀ (items₀ items : List Val) (off : ℕ),
+    (∀ (i : ℕ) (v : Val), items[i]? = some v → items₀[off + i]? = some v) →
+    deadItem items = true → ∀ (sp : Option Val) (c : Bool) (xs : List Data),
+      Refuses env root (.list items₀ sp c) (.list xs)
+  | _, [], _, _, h, _, _, _ => nomatch h
+  | items₀, v :: vs, off, hidx, h, sp, c, xs => by
+    rcases Bool.or_eq_true_iff.mp h with h₁ | h₂
+    · have hv : items₀[off + 0]? = some v := hidx 0 v (by simp)
+      cases hx : xs[off + 0]? with
+      | some x => exact .listItem hv hx (dead_refuses v h₁ x)
+      | none =>
+        exact .listShort (Nat.lt_of_le_of_lt (List.getElem?_eq_none_iff.mp hx)
+          (List.getElem?_eq_some_iff.mp hv).1)
+    · exact deadItem_refuses items₀ vs (off + 1)
+        (fun i v' hi => by
+          rw [show off + 1 + i = off + (i + 1) by omega]
+          exact hidx (i + 1) v' (by simpa using hi)) h₂ sp c xs
+
+theorem allDead_refuses : ∀ arms : List (ℕ × Val), allDead arms = true →
+    ∀ r a, (r, a) ∈ arms → ∀ j, Refuses env root a j
+  | [], _, _, _, h, _ => absurd h (List.not_mem_nil _)
+  | (_, a') :: arms, h, r, a, hm, j => by
+    obtain ⟨h₁, h₂⟩ := Bool.and_eq_true_iff.mp h
+    rcases List.mem_cons.mp hm with he | hm'
+    · cases he
+      exact dead_refuses _ h₁ j
+    · exact allDead_refuses arms h₂ r a hm' j
+end
+
 /-- An arm, as the arms it stands for: an arm of rank `0` that is itself
 a disjunction brings its own arms, so `(*1 | 2) | 3` has the arms of
 `*1 | 2 | 3`. -/
