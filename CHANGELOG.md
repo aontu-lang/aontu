@@ -41,6 +41,10 @@ Definition, generated rows, and documentation; no engine changes.
   ledger carries them with the ports as the side that moves (#357), its
   bound raised from 51 to 60.
 - The oracle's printer writes a path as the grammar spells it.
+- The measure decision 2 of the design note asks of P3: the alias-cycle
+  rule refuses no bundled model and no use case, and in the suite three
+  documents, `%a = %a` and `%a = %b, %b = %a`, which both ports refuse
+  already in other classes, and `%A = %A | 1`, a `subsume` row.
 
 ### The definition's checker reads the names
 
