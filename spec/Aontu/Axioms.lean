@@ -78,6 +78,30 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.rest_nil_closes
 
+/-- info: 'Aontu.readR_checkableA' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.readR_checkableA
+
+/-- info: 'Aontu.selectArm_first' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.selectArm_first
+
+/-- info: 'Aontu.selectArm_next' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.selectArm_next
+
+/-- info: 'Aontu.selectArm_default' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.selectArm_default
+
+/-- info: 'Aontu.resolveD_filter_list' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.resolveD_filter_list
+
+/-- info: 'Aontu.resolveD_filter_scalar' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.resolveD_filter_scalar
+
 /-- info: 'Aontu.Data.wf_iff' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.Data.wf_iff

@@ -140,7 +140,7 @@ def Val.doms : Val → List Dom
   | .list _ _ _ => [.list]
   | .nil => []
   | .neq [] | .any | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _ | .must _ _
-  | .when _ _ _ | .rest _ _ =>
+  | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ =>
     [.num, .str, .bool, .null, .map, .list]
 
 /-- The domain a value is in. -/
@@ -659,7 +659,8 @@ theorem dead_refuses : ∀ v : Val, v.dead = true → ∀ j, Refuses env root v 
   | .beneath _, hd, _ | .neq _, hd, _ | .multiple _, hd, _ | .len _, hd, _
   | .unique _, hd, _ | .re _, hd, _ | .format _, hd, _ | .any, hd, _
   | .pref _ _, hd, _ | .alias _, hd, _ | .path _, hd, _ | .nof _ _, hd, _
-  | .must _ _, hd, _ | .when _ _ _, hd, _ | .contains _ _, hd, _ | .rest _ _, hd, _ => nomatch hd
+  | .must _ _, hd, _ | .when _ _ _, hd, _ | .contains _ _, hd, _ | .rest _ _, hd, _
+  | .select _ _ _, hd, _ | .filter _ _, hd, _ => nomatch hd
 
 /-- A dead required key, among the keys `fs₀` of a map, refuses every
 map: absent, it is a key the map must have; present, its value is
@@ -1722,6 +1723,8 @@ def Val.beq : Val → Val → Bool
   | .when c t e, .when c' t' e' => c.beq c' && t.beq t' && beqSpread e e'
   | .contains c n, .contains c' n' => c.beq c' && n.beq n'
   | .rest t cs, .rest t' cs' => t.beq t' && beqCovers cs cs'
+  | .select s as d, .select s' as' d' => s.beq s' && beqPairs as as' && beqSpread d d'
+  | .filter s c, .filter s' c' => s.beq s' && c.beq c'
   | _, _ => false
 termination_by structural a _ => a
 
@@ -1742,6 +1745,12 @@ def beqSpread : Option Val → Option Val → Bool
   | some s, some t => s.beq t
   | _, _ => false
 termination_by structural s _ => s
+
+def beqPairs : List (Val × Val) → List (Val × Val) → Bool
+  | [], [] => true
+  | (p, r) :: ps, (p', r') :: ps' => p.beq p' && r.beq r' && beqPairs ps ps'
+  | _, _ => false
+termination_by structural ps _ => ps
 
 def beqCovers : List Cover → List Cover → Bool
   | [], [] => true

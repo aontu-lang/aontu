@@ -49,6 +49,9 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .rest t cs =>
       .rest (expandF ds k t)
         (cs.map fun c => (c.1.map (expandF ds k), c.2.1.map (expandF ds k), c.2.2.map (expandF ds k)))
+    | .select s arms d =>
+      .select (expandF ds k s) (arms.map fun a => (expandF ds k a.1, expandF ds k a.2)) (d.map (expandF ds k))
+    | .filter s c => .filter (expandF ds k s) (expandF ds k c)
     | v => v
 
 /-- The expansion of a term: enough turns for every chain of names that
@@ -258,6 +261,39 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
         rcases unguardedRefs_expandF f v hn with h' | ⟨m, hm, hmn⟩
         · exact .inl (mem_unguardedCovers.mpr ⟨c, hc, by rw [hcond]; exact h'⟩)
         · exact .inr ⟨m, mem_unguardedCovers.mpr ⟨c, hc, by rw [hcond]; exact hm⟩, hmn⟩
+    | select s arms d =>
+      simp only [expandF, Val.unguardedRefs, List.mem_append] at h ⊢
+      rcases h with (h | h) | h
+      · rcases unguardedRefs_expandF f s h with h' | ⟨m, hm, hmn⟩
+        · exact .inl (.inl (.inl h'))
+        · exact .inr ⟨m, .inl (.inl hm), hmn⟩
+      · obtain ⟨p', r', hm, hn⟩ := mem_unguardedPairs.mp h
+        obtain ⟨⟨p, r⟩, ha, he⟩ := List.mem_map.mp hm
+        simp only [Prod.mk.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        rcases hn with hn | hn
+        · rcases unguardedRefs_expandF f p hn with h' | ⟨m, hm', hmn⟩
+          · exact .inl (.inl (.inr (mem_unguardedPairs.mpr ⟨p, r, ha, .inl h'⟩)))
+          · exact .inr ⟨m, .inl (.inr (mem_unguardedPairs.mpr ⟨p, r, ha, .inl hm'⟩)), hmn⟩
+        · rcases unguardedRefs_expandF f r hn with h' | ⟨m, hm', hmn⟩
+          · exact .inl (.inl (.inr (mem_unguardedPairs.mpr ⟨p, r, ha, .inr h'⟩)))
+          · exact .inr ⟨m, .inl (.inr (mem_unguardedPairs.mpr ⟨p, r, ha, .inr hm'⟩)), hmn⟩
+      · cases d with
+        | none => exact absurd h (List.not_mem_nil _)
+        | some e' =>
+          simp only [Option.map, unguardedSpread] at h
+          rcases unguardedRefs_expandF f e' h with h' | ⟨m, hm, hmn⟩
+          · exact .inl (.inr h')
+          · exact .inr ⟨m, .inr hm, hmn⟩
+    | filter s c =>
+      simp only [expandF, Val.unguardedRefs, List.mem_append] at h ⊢
+      rcases h with h | h
+      · rcases unguardedRefs_expandF f s h with h' | ⟨m, hm, hmn⟩
+        · exact .inl (.inl h')
+        · exact .inr ⟨m, .inl hm, hmn⟩
+      · rcases unguardedRefs_expandF f c h with h' | ⟨m, hm, hmn⟩
+        · exact .inl (.inr h')
+        · exact .inr ⟨m, .inr hm, hmn⟩
     | map _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | list _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | _ => exact .inl (by simpa [expandF] using h)

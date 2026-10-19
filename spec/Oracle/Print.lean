@@ -132,6 +132,8 @@ def Val.src : Val → Option String
     let ns ← n.src
     pure (if ns = "min(1)" then s!"contains({cs})" else s!"contains({cs}, {ns})")
   | .rest t cs => do pure s!"rest({", ".intercalate ([← t.src] ++ (← coversSrc cs))})"
+  | .select s arms d => do pure s!"match({", ".intercalate ([← s.src] ++ (← pairsSrc arms) ++ (← elseSrc d))})"
+  | .filter s c => do pure s!"filter({← s.src}, {← c.src})"
 
 def fieldsSrc : List (String × Bool × Val) → Option (List String)
   | [] => some []
@@ -152,6 +154,11 @@ def elseSrc : Option Val → Option (List String)
 def coverFieldSrc (name : String) : Option Val → Option (List String)
   | none => some []
   | some v => do pure [quote name ++ ": " ++ (← v.src)]
+
+/-- A match's arms, each pattern before its result. -/
+def pairsSrc : List (Val × Val) → Option (List String)
+  | [] => some []
+  | (p, r) :: ps => do pure ((← p.src) :: (← r.src) :: (← pairsSrc ps))
 
 /-- Each cover as the map literal the language reads it from. -/
 def coversSrc : List Cover → Option (List String)

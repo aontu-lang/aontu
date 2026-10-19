@@ -10,7 +10,10 @@
 # as n judges the count, at least one where n is not written, a scalar having
 # none; rest(t, c, ...) holds each member no cover c evaluates to t, a cover
 # applying where its if admits the whole and evaluating the members its keys
-# or members admits; a branch that admits nothing counts as none; a container
+# or members admits; match(s, p, r, ...) is the first r whose p admits the value
+# of s, else its default, and an error with none, and filter(s, c) is the members
+# of the value of s that c admits, each made once the document is read; a
+# branch that admits nothing counts as none; a container
 # a trial refuses once its members have all arrived is invalid; and a name that
 # refers to itself through a trial alone breaks the alias-cycle rule, an
 # error. Regenerate with `make spec`; never edit by hand. The cases the ports
@@ -705,3 +708,111 @@ t686	verdict	"a": rest(nil, {"members": {"x": 1}})	{"a": {"p": {"x": 1}, "q": {"
 t687	verdict	"a": rest(nil, {"members": {"x"?: *(1) | (number)}})	{"a": {"p": {}}}	{"verdict":"valid"}
 t688	verdict	"a": rest(nil, {"members": {"x"?: *(1) | (number)}})	{"a": {"p": {}}}	{"verdict":"valid","opts":{"noFill":true}}
 t689	verdict	"a": rest(nil, {"members": {"x"?: *(1) | (number)}})	{"a": {"p": {}}}	{"verdict":"valid","opts":{"partial":true}}
+t690	verdict	"z": match(1, integer, "small", string, "big")	{"z": "small"}	{"verdict":"valid"}
+t691	verdict	"z": match(1, integer, "small", string, "big")	{"z": "small"}	{"verdict":"valid","opts":{"noFill":true}}
+t692	verdict	"z": match(1, integer, "small", string, "big")	{"z": "small"}	{"verdict":"valid","opts":{"partial":true}}
+t693	verdict	"z": match(1, integer, "small", string, "big")	{"z": "big"}	{"verdict":"invalid"}
+t694	verdict	"z": match(1, integer, "small", string, "big")	{"z": "big"}	{"verdict":"invalid","opts":{"noFill":true}}
+t695	verdict	"z": match(1, integer, "small", string, "big")	{"z": "big"}	{"verdict":"invalid","opts":{"partial":true}}
+t696	verdict	"z": match("x", integer, "small", string, "big")	{"z": "big"}	{"verdict":"valid"}
+t697	verdict	"z": match("x", integer, "small", string, "big")	{"z": "big"}	{"verdict":"valid","opts":{"noFill":true}}
+t698	verdict	"z": match("x", integer, "small", string, "big")	{"z": "big"}	{"verdict":"valid","opts":{"partial":true}}
+t699	verdict	"z": match(1, string, "a")	{"z": "a"}	{"verdict":"error"}
+t700	verdict	"z": match(1, string, "a")	{"z": "a"}	{"verdict":"error","opts":{"noFill":true}}
+t701	verdict	"z": match(1, string, "a")	{"z": "a"}	{"verdict":"error","opts":{"partial":true}}
+t702	verdict	"z": match(1, string, "a")	{}	{"verdict":"error"}
+t703	verdict	"z": match(1, string, "a")	{}	{"verdict":"error","opts":{"noFill":true}}
+t704	verdict	"z": match(1, string, "a")	{}	{"verdict":"error","opts":{"partial":true}}
+t705	verdict	"z": match(1, min(0), "ok", integer, "no")	{"z": "ok"}	{"verdict":"valid"}
+t706	verdict	"z": match(1, min(0), "ok", integer, "no")	{"z": "ok"}	{"verdict":"valid","opts":{"noFill":true}}
+t707	verdict	"z": match(1, min(0), "ok", integer, "no")	{"z": "ok"}	{"verdict":"valid","opts":{"partial":true}}
+t708	verdict	"z": match({"a": 1}, {"a": integer}, "yes", "other")	{"z": "yes"}	{"verdict":"valid"}
+t709	verdict	"z": match({"a": 1}, {"a": integer}, "yes", "other")	{"z": "yes"}	{"verdict":"valid","opts":{"noFill":true}}
+t710	verdict	"z": match({"a": 1}, {"a": integer}, "yes", "other")	{"z": "yes"}	{"verdict":"valid","opts":{"partial":true}}
+t711	verdict	"z": match({"a": 1}, {"b": integer}, "yes", "other")	{"z": "other"}	{"verdict":"valid"}
+t712	verdict	"z": match({"a": 1}, {"b": integer}, "yes", "other")	{"z": "other"}	{"verdict":"valid","opts":{"noFill":true}}
+t713	verdict	"z": match({"a": 1}, {"b": integer}, "yes", "other")	{"z": "other"}	{"verdict":"valid","opts":{"partial":true}}
+t714	verdict	"z": match(1, integer, integer)	{"z": 5}	{"verdict":"valid"}
+t715	verdict	"z": match(1, integer, integer)	{"z": 5}	{"verdict":"valid","opts":{"noFill":true}}
+t716	verdict	"z": match(1, integer, integer)	{"z": 5}	{"verdict":"valid","opts":{"partial":true}}
+t717	verdict	"z": match(1, integer, integer)	{"z": "s"}	{"verdict":"invalid"}
+t718	verdict	"z": match(1, integer, integer)	{"z": "s"}	{"verdict":"invalid","opts":{"noFill":true}}
+t719	verdict	"z": match(1, integer, integer)	{"z": "s"}	{"verdict":"invalid","opts":{"partial":true}}
+t720	verdict	"z": match(1, integer, integer)	{}	{"verdict":"incomplete"}
+t721	verdict	"z": match(1, integer, integer)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t722	verdict	"z": match(1, integer, integer)	{}	{"verdict":"valid","opts":{"partial":true}}
+t723	verdict	"z": match(1, integer, {"k": 1})	{"z": {"k": 1}}	{"verdict":"valid"}
+t724	verdict	"z": match(1, integer, {"k": 1})	{"z": {"k": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+t725	verdict	"z": match(1, integer, {"k": 1})	{"z": {"k": 1}}	{"verdict":"valid","opts":{"partial":true}}
+t726	verdict	"z": match(1, integer, {"k": 1})	{"z": {}}	{"verdict":"valid"}
+t727	verdict	"z": match(1, integer, {"k": 1})	{"z": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+t728	verdict	"z": match(1, integer, {"k": 1})	{"z": {}}	{"verdict":"valid","opts":{"partial":true}}
+t729	verdict	"z": match(1, integer, {"k": 1})	{}	{"verdict":"valid"}
+t730	verdict	"z": match(1, integer, {"k": 1})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t731	verdict	"z": match(1, integer, {"k": 1})	{}	{"verdict":"valid","opts":{"partial":true}}
+t732	verdict	"z": (match(1, integer, 5)) & (5)	{}	{"verdict":"valid"}
+t733	verdict	"z": (match(1, integer, 5)) & (5)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t734	verdict	"z": (match(1, integer, 5)) & (5)	{}	{"verdict":"valid","opts":{"partial":true}}
+t735	verdict	"z": (match(1, integer, 5)) & (6)	{}	{"verdict":"error"}
+t736	verdict	"z": (match(1, integer, 5)) & (6)	{}	{"verdict":"error","opts":{"noFill":true}}
+t737	verdict	"z": (match(1, integer, 5)) & (6)	{}	{"verdict":"error","opts":{"partial":true}}
+t738	verdict	"z": (match(1, integer, 5)) & (integer)	{}	{"verdict":"valid"}
+t739	verdict	"z": (match(1, integer, 5)) & (integer)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t740	verdict	"z": (match(1, integer, 5)) & (integer)	{}	{"verdict":"valid","opts":{"partial":true}}
+t741	verdict	"z": (match(1, integer, 5)) | (string)	{"z": "s"}	{"verdict":"valid"}
+t742	verdict	"z": (match(1, integer, 5)) | (string)	{"z": "s"}	{"verdict":"valid","opts":{"noFill":true}}
+t743	verdict	"z": (match(1, integer, 5)) | (string)	{"z": "s"}	{"verdict":"valid","opts":{"partial":true}}
+t744	verdict	"z": (match(1, integer, 5)) | (string)	{"z": 5}	{"verdict":"valid"}
+t745	verdict	"z": (match(1, integer, 5)) | (string)	{"z": 5}	{"verdict":"valid","opts":{"noFill":true}}
+t746	verdict	"z": (match(1, integer, 5)) | (string)	{"z": 5}	{"verdict":"valid","opts":{"partial":true}}
+t747	verdict	"z": {"k": match(1, integer, 5)}	{"z": {"k": 5}}	{"verdict":"valid"}
+t748	verdict	"z": {"k": match(1, integer, 5)}	{"z": {"k": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+t749	verdict	"z": {"k": match(1, integer, 5)}	{"z": {"k": 5}}	{"verdict":"valid","opts":{"partial":true}}
+t750	verdict	"z": {"k": match(1, integer, 5)}	{"z": {}}	{"verdict":"valid"}
+t751	verdict	"z": {"k": match(1, integer, 5)}	{"z": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+t752	verdict	"z": {"k": match(1, integer, 5)}	{"z": {}}	{"verdict":"valid","opts":{"partial":true}}
+t753	verdict	"z": [match(1, integer, 5)]	{"z": [5]}	{"verdict":"valid"}
+t754	verdict	"z": [match(1, integer, 5)]	{"z": [5]}	{"verdict":"valid","opts":{"noFill":true}}
+t755	verdict	"z": [match(1, integer, 5)]	{"z": [5]}	{"verdict":"valid","opts":{"partial":true}}
+t756	verdict	"z": match(match(1, integer, "a"), "a", 1, 2)	{"z": 1}	{"verdict":"valid"}
+t757	verdict	"z": match(match(1, integer, "a"), "a", 1, 2)	{"z": 1}	{"verdict":"valid","opts":{"noFill":true}}
+t758	verdict	"z": match(match(1, integer, "a"), "a", 1, 2)	{"z": 1}	{"verdict":"valid","opts":{"partial":true}}
+t759	verdict	"d": filter([1, 2, 3, "x"], integer)	{"d": [1, 2, 3]}	{"verdict":"valid"}
+t760	verdict	"d": filter([1, 2, 3, "x"], integer)	{"d": [1, 2, 3]}	{"verdict":"valid","opts":{"noFill":true}}
+t761	verdict	"d": filter([1, 2, 3, "x"], integer)	{"d": [1, 2, 3]}	{"verdict":"valid","opts":{"partial":true}}
+t762	verdict	"d": filter([1, 2, 3, "x"], integer)	{"d": [1, 2]}	{"verdict":"valid"}
+t763	verdict	"d": filter([1, 2, 3, "x"], integer)	{"d": [1, 2]}	{"verdict":"incomplete","opts":{"noFill":true}}
+t764	verdict	"d": filter([1, 2, 3, "x"], integer)	{"d": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+t765	verdict	"d": filter([1, 2, 3, "x"], integer)	{}	{"verdict":"valid"}
+t766	verdict	"d": filter([1, 2, 3, "x"], integer)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t767	verdict	"d": filter([1, 2, 3, "x"], integer)	{}	{"verdict":"valid","opts":{"partial":true}}
+t768	verdict	"d": filter({"a": 1, "b": "x", "c": 2}, integer)	{"d": {"a": 1, "c": 2}}	{"verdict":"valid"}
+t769	verdict	"d": filter({"a": 1, "b": "x", "c": 2}, integer)	{"d": {"a": 1, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+t770	verdict	"d": filter({"a": 1, "b": "x", "c": 2}, integer)	{"d": {"a": 1, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+t771	verdict	"d": filter({"a": 1, "b": "x", "c": 2}, integer)	{}	{"verdict":"valid"}
+t772	verdict	"d": filter({"a": 1, "b": "x", "c": 2}, integer)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t773	verdict	"d": filter({"a": 1, "b": "x", "c": 2}, integer)	{}	{"verdict":"valid","opts":{"partial":true}}
+t774	verdict	"d": filter([1, 2, 3], min(2))	{"d": [2, 3]}	{"verdict":"valid"}
+t775	verdict	"d": filter([1, 2, 3], min(2))	{"d": [2, 3]}	{"verdict":"valid","opts":{"noFill":true}}
+t776	verdict	"d": filter([1, 2, 3], min(2))	{"d": [2, 3]}	{"verdict":"valid","opts":{"partial":true}}
+t777	verdict	"d": filter([], integer)	{"d": []}	{"verdict":"valid"}
+t778	verdict	"d": filter([], integer)	{"d": []}	{"verdict":"valid","opts":{"noFill":true}}
+t779	verdict	"d": filter([], integer)	{"d": []}	{"verdict":"valid","opts":{"partial":true}}
+t780	verdict	"d": filter([1, 2], string)	{"d": []}	{"verdict":"valid"}
+t781	verdict	"d": filter([1, 2], string)	{"d": []}	{"verdict":"valid","opts":{"noFill":true}}
+t782	verdict	"d": filter([1, 2], string)	{"d": []}	{"verdict":"valid","opts":{"partial":true}}
+t783	verdict	"d": filter([1, 2], (1) & (2))	{"d": []}	{"verdict":"valid"}
+t784	verdict	"d": filter([1, 2], (1) & (2))	{"d": []}	{"verdict":"valid","opts":{"noFill":true}}
+t785	verdict	"d": filter([1, 2], (1) & (2))	{"d": []}	{"verdict":"valid","opts":{"partial":true}}
+t786	verdict	"d": filter(1, integer)	{"d": 1}	{"verdict":"error"}
+t787	verdict	"d": filter(1, integer)	{"d": 1}	{"verdict":"error","opts":{"noFill":true}}
+t788	verdict	"d": filter(1, integer)	{"d": 1}	{"verdict":"error","opts":{"partial":true}}
+t789	verdict	"d": filter(1, integer)	{}	{"verdict":"error"}
+t790	verdict	"d": filter(1, integer)	{}	{"verdict":"error","opts":{"noFill":true}}
+t791	verdict	"d": filter(1, integer)	{}	{"verdict":"error","opts":{"partial":true}}
+t792	verdict	"d": (filter([1, 2], integer)) & ([1, 2])	{}	{"verdict":"valid"}
+t793	verdict	"d": (filter([1, 2], integer)) & ([1, 2])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t794	verdict	"d": (filter([1, 2], integer)) & ([1, 2])	{}	{"verdict":"valid","opts":{"partial":true}}
+t795	verdict	"d": (filter([1, 2], integer)) & ([1])	{}	{"verdict":"valid"}
+t796	verdict	"d": (filter([1, 2], integer)) & ([1])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+t797	verdict	"d": (filter([1, 2], integer)) & ([1])	{}	{"verdict":"valid","opts":{"partial":true}}

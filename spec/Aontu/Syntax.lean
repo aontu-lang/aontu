@@ -74,6 +74,8 @@ inductive Val where
   | when (c t : Val) (e : Option Val)       -- `when(c, t)` or `when(c, t, e)`: `t` where `c` admits, else `e`, or nothing
   | contains (c n : Val)                    -- `contains(c, n)`, the members `c` admits counted by `n`; `contains(c)` is `n = min(1)`
   | rest (t : Val) (cs : List (Option Val × Option Val × Option Val))  -- `rest(t, c₁, …)`: each member no cover evaluates held to `t`
+  | select (s : Val) (arms : List (Val × Val)) (d : Option Val)  -- `match(s, p₁, r₁, …, d?)`, the first `rᵢ` whose `pᵢ` admits the value of `s`, else `d`; Lean keeps `match`
+  | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
 
 /-! The language reads `|` and `*` by position, and the reader, not a
 rule, carries the reading into the terms: an arm of a disjunction, and
@@ -113,7 +115,13 @@ def Val.size : Val → ℕ
   | .when c t e => c.size + t.size + sizeSpread e + 1
   | .contains c n => c.size + n.size + 1
   | .rest t cs => t.size + sizeCovers cs + 1
+  | .select s arms d => s.size + sizePairs arms + sizeSpread d + 1
+  | .filter s c => s.size + c.size + 1
   | _ => 1
+
+def sizePairs : List (Val × Val) → ℕ
+  | [] => 0
+  | (p, r) :: ps => p.size + r.size + sizePairs ps
 
 def sizeCovers : List Cover → ℕ
   | [] => 0
@@ -209,7 +217,7 @@ def Val.super : Val → Val
     else if b.isKind then b else .meet a.super b.super
   | .alias n => .alias n
   | .path p => .path p
-  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ => .any
+  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ => .any
 
 def superFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []

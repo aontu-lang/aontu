@@ -8,6 +8,41 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `match` and `filter` inside a value
+
+Definition, generated rows, and documentation; no engine changes. This
+lands P4 of the definition's plan: every trial schema and selection of
+the language is in the definition.
+
+- `spec/Aontu/Syntax.lean`: the forms `match(s, p₁, r₁, …, d?)`, as
+  `select` since Lean keeps `match`, and `filter(s, c)`;
+  `spec/Aontu/Verdict.lean`: `selectArm`, the first result whose
+  pattern admits the value, the default, or `nil` with none; `resolveD`,
+  a term with its selections made, each `match` whose scrutinee
+  generates a value its selected result and each `filter` whose source
+  generates a container the members its condition admits, a scalar
+  source `nil`, and one whose scrutinee or source generates nothing left
+  standing; `Decls.readR`, how a document reads, its expansion with its
+  selections made, which `Vet`, `vet` and the path readings now use.
+  Neither form is tried on a value, so neither is checkable, and the
+  walkers over names (every argument unguarded), paths, expansions,
+  domains and equality take both.
+- `vet_iff` and `vet_sound` now assume the schema as read, not as
+  written, is one the checker can read, which `readR_checkableA` gives
+  for a schema without selections, and `decide` settles for one with.
+- Theorems: `selectArm_first`, `selectArm_next`, `selectArm_default`,
+  `resolveD_filter_list` and `resolveD_filter_scalar`, the language's
+  rules for the two forms.
+- `test/spec/def-trial.tsv` gains 108 rows, 36 documents with `match`
+  and `filter` inside values in the three modes, scrutinees and sources
+  literal; both ports answer every row as the definition does, and the
+  ledger is unchanged. A selection inside a recursive name's body is
+  read by the checker unmade, so such documents stay out of the rows.
+- The tutorial's steps 14 and 16 read the forms, the pass and the
+  theorems; the design note's P4 row records the landing. Three words
+  of the tutorial's trial steps that the prose gate refused are
+  reworded, and the gate passes again.
+
 ### The definition holds `rest` inside a value
 
 Definition, generated rows, and documentation; no engine changes.

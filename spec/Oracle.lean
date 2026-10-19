@@ -392,7 +392,8 @@ theorem vetCases_checkable : ∀ c ∈ vetCases, (vetDoc c).1.CheckableA := by d
 
 theorem vet_verdict_exact : ∀ c ∈ vetCases, ∀ (m : Mode) (v : Verdict),
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
-  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil _)) (vetCases_checkable c hc) v
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil _))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil _)) (vetCases_checkable c hc)) v
 
 def verdictName : Verdict → String
   | .valid => "valid"
@@ -530,7 +531,8 @@ theorem aliasCases_checkable : ∀ c ∈ aliasCases,
 
 theorem alias_verdict_exact : ∀ c ∈ aliasCases, ∀ (m : Mode) (v : Verdict),
     vet m c.1 (aliasDoc c).1 (aliasDoc c).2 = v ↔ Vet m c.1 (aliasDoc c).1 (aliasDoc c).2 v :=
-  fun c hc _ v => vet_iff (aliasCases_checkable c hc).1 (aliasCases_checkable c hc).2 v
+  fun c hc _ v => vet_iff (aliasCases_checkable c hc).1
+    (readR_checkableA (aliasCases_checkable c hc).1 (aliasCases_checkable c hc).2) v
 
 /-- The `alias` rows: each case's declarations and schema as one
 document, in the three modes, with the one class `vet` gives. -/
@@ -936,14 +938,82 @@ theorem trialCases_checkable : ∀ c ∈ trialCases,
 
 theorem trial_verdict_exact : ∀ c ∈ trialCases, ∀ (m : Mode) (v : Verdict),
     vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vet_iff (trialCases_checkable c hc).1 (trialCases_checkable c hc).2 v
+  fun c hc _ v => vet_iff (trialCases_checkable c hc).1
+    (readR_checkableA (trialCases_checkable c hc).1 (trialCases_checkable c hc).2) v
+
+/-- Documents with `match` and `filter` inside values, each scrutinee
+and source a literal: the first arm, a later arm, the default, no arm
+and no default, a result that generates nothing, a result that is a map,
+a selection beside a literal, a kind and a disjunction, inside a map and
+a list, and nested; and `filter` over a list and a map,
+with a kind, a bound and a conflict as the condition, over an empty
+container and over a scalar, and beside a literal. -/
+def selectCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let sel (s : Val) (arms : List (Val × Val)) (d : Option Val := none) : Val := .select s arms d
+  let flt (s c : Val) : Val := .filter s c
+  let z (v : Val) : Val := m [("z", v)]
+  let dz (x : Data) : Data := .map [("z", x)]
+  let dd (x : Data) : Data := .map [("d", x)]
+  let lst (vs : List Val) : Val := .list vs none false
+  [([], z (sel (int 1) [(.integer, str "small"), (.string, str "big")]), dz (.str "small")),
+    ([], z (sel (int 1) [(.integer, str "small"), (.string, str "big")]), dz (.str "big")),
+    ([], z (sel (str "x") [(.integer, str "small"), (.string, str "big")]), dz (.str "big")),
+    ([], z (sel (int 1) [(.string, str "a")]), dz (.str "a")),
+    ([], z (sel (int 1) [(.string, str "a")]), .map []),
+    ([], z (sel (int 1) [(min 0, str "ok"), (.integer, str "no")]), dz (.str "ok")),
+    ([], z (sel (m [("a", int 1)]) [(m [("a", .integer)], str "yes")] (some (str "other"))), dz (.str "yes")),
+    ([], z (sel (m [("a", int 1)]) [(m [("b", .integer)], str "yes")] (some (str "other"))), dz (.str "other")),
+    ([], z (sel (int 1) [(.integer, .integer)]), dz (j 5)),
+    ([], z (sel (int 1) [(.integer, .integer)]), dz (.str "s")),
+    ([], z (sel (int 1) [(.integer, .integer)]), .map []),
+    ([], z (sel (int 1) [(.integer, m [("k", int 1)])]), dz (.map [("k", j 1)])),
+    ([], z (sel (int 1) [(.integer, m [("k", int 1)])]), dz (.map [])),
+    ([], z (sel (int 1) [(.integer, m [("k", int 1)])]), .map []),
+    ([], z (.meet (sel (int 1) [(.integer, int 5)]) (int 5)), .map []),
+    ([], z (.meet (sel (int 1) [(.integer, int 5)]) (int 6)), .map []),
+    ([], z (.meet (sel (int 1) [(.integer, int 5)]) .integer), .map []),
+    ([], z (.or [(0, sel (int 1) [(.integer, int 5)]), (0, .string)]), dz (.str "s")),
+    ([], z (.or [(0, sel (int 1) [(.integer, int 5)]), (0, .string)]), dz (j 5)),
+    ([], z (m [("k", sel (int 1) [(.integer, int 5)])]), dz (.map [("k", j 5)])),
+    ([], z (m [("k", sel (int 1) [(.integer, int 5)])]), dz (.map [])),
+    ([], z (lst [sel (int 1) [(.integer, int 5)]]), dz (.list [j 5])),
+    ([], z (sel (sel (int 1) [(.integer, str "a")]) [(str "a", int 1)] (some (int 2))), dz (j 1)),
+    ([], m [("d", flt (lst [int 1, int 2, int 3, str "x"]) .integer)], dd (.list [j 1, j 2, j 3])),
+    ([], m [("d", flt (lst [int 1, int 2, int 3, str "x"]) .integer)], dd (.list [j 1, j 2])),
+    ([], m [("d", flt (lst [int 1, int 2, int 3, str "x"]) .integer)], .map []),
+    ([], m [("d", flt (m [("a", int 1), ("b", str "x"), ("c", int 2)]) .integer)], dd (.map [("a", j 1), ("c", j 2)])),
+    ([], m [("d", flt (m [("a", int 1), ("b", str "x"), ("c", int 2)]) .integer)], .map []),
+    ([], m [("d", flt (lst [int 1, int 2, int 3]) (min 2))], dd (.list [j 2, j 3])),
+    ([], m [("d", flt (lst []) .integer)], dd (.list [])),
+    ([], m [("d", flt (lst [int 1, int 2]) .string)], dd (.list [])),
+    ([], m [("d", flt (lst [int 1, int 2]) (.meet (int 1) (int 2)))], dd (.list [])),
+    ([], m [("d", flt (int 1) .integer)], dd (j 1)),
+    ([], m [("d", flt (int 1) .integer)], .map []),
+    ([], m [("d", .meet (flt (lst [int 1, int 2]) .integer) (lst [int 1, int 2]))], .map []),
+    ([], m [("d", .meet (flt (lst [int 1, int 2]) .integer) (lst [int 1]))], .map [])]
+
+set_option maxRecDepth 8192 in
+/-- Every case's bodies hold no path, no pattern and no format, and its
+schema, read with its selections made, holds none and no selection a
+value has not settled, so `vet` is `Vet` on it, by `vet_iff`. -/
+theorem selectCases_checkable : ∀ c ∈ selectCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem select_verdict_exact : ∀ c ∈ selectCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (selectCases_checkable c hc).1 (selectCases_checkable c hc).2 v
 
 /-- The `trials` rows: each case's declarations and schema as one
 document, the schema a map written without its braces, in the three
 modes, with the one class `vet` gives. -/
 def trialRows (tag : String) : IO Unit := do
   let mut i := 0
-  for c in trialCases do
+  for c in trialCases ++ selectCases do
     let mut lines : List String := []
     for d in c.1 do
       let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
@@ -1076,7 +1146,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# as n judges the count, at least one where n is not written, a scalar having"
     IO.println "# none; rest(t, c, ...) holds each member no cover c evaluates to t, a cover"
     IO.println "# applying where its if admits the whole and evaluating the members its keys"
-    IO.println "# or members admits; a branch that admits nothing counts as none; a container"
+    IO.println "# or members admits; match(s, p, r, ...) is the first r whose p admits the value"
+    IO.println "# of s, else its default, and an error with none, and filter(s, c) is the members"
+    IO.println "# of the value of s that c admits, each made once the document is read; a"
+    IO.println "# branch that admits nothing counts as none; a container"
     IO.println "# a trial refuses once its members have all arrived is invalid; and a name that"
     IO.println "# refers to itself through a trial alone breaks the alias-cycle rule, an"
     IO.println "# error. Regenerate with `make spec`; never edit by hand. The cases the ports"

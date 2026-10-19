@@ -51,7 +51,13 @@ def Val.refs : Val → List String
   | .when c t e => c.refs ++ t.refs ++ refsSpread e
   | .contains c n => c.refs ++ n.refs
   | .rest t cs => t.refs ++ refsCovers cs
+  | .select s arms d => s.refs ++ refsPairs arms ++ refsSpread d
+  | .filter s c => s.refs ++ c.refs
   | _ => []
+
+def refsPairs : List (Val × Val) → List String
+  | [] => []
+  | (p, r) :: ps => p.refs ++ r.refs ++ refsPairs ps
 
 def refsCovers : List Cover → List String
   | [] => []
@@ -81,7 +87,8 @@ branches of a trial, which hold the whole of a value, and never through
 a container's members or spread, nor through the term `contains` tries
 on each member, nor through a cover's `keys` or `members` or the term
 `rest` holds the rest to, though through a cover's `if`, tried on the
-whole. -/
+whole, and through every argument of `match` and `filter`, which select
+by a value. -/
 def Val.unguardedRefs : Val → List String
   | .alias n => [n]
   | .len c => c.unguardedRefs
@@ -93,7 +100,13 @@ def Val.unguardedRefs : Val → List String
   | .when c t e => c.unguardedRefs ++ t.unguardedRefs ++ unguardedSpread e
   | .contains _ n => n.unguardedRefs
   | .rest _ cs => unguardedCovers cs
+  | .select s arms d => s.unguardedRefs ++ unguardedPairs arms ++ unguardedSpread d
+  | .filter s c => s.unguardedRefs ++ c.unguardedRefs
   | _ => []
+
+def unguardedPairs : List (Val × Val) → List String
+  | [] => []
+  | (p, r) :: ps => p.unguardedRefs ++ r.unguardedRefs ++ unguardedPairs ps
 
 def unguardedCovers : List Cover → List String
   | [] => []
@@ -425,6 +438,17 @@ theorem unguardedRefs_sub_refs : ∀ (v : Val) (n : String), n ∈ v.unguardedRe
     simp only [Val.unguardedRefs] at h
     simp only [Val.refs, List.mem_append]
     exact .inr (unguardedCovers_sub_refsCovers cs n h)
+  | .select s arms d, n, h => by
+    simp only [Val.unguardedRefs, List.mem_append] at h
+    simp only [Val.refs, List.mem_append]
+    rcases h with (h | h) | h
+    · exact .inl (.inl (unguardedRefs_sub_refs s n h))
+    · exact .inl (.inr (unguardedPairs_sub_refsPairs arms n h))
+    · exact .inr (unguardedSpread_sub_refsSpread d n h)
+  | .filter s c, n, h => by
+    simp only [Val.unguardedRefs, List.mem_append] at h
+    simp only [Val.refs, List.mem_append]
+    exact h.elim (fun h => .inl (unguardedRefs_sub_refs s n h)) (fun h => .inr (unguardedRefs_sub_refs c n h))
   | .integer, _, h | .float, _, h | .biginteger, _, h | .bigdecimal, _, h | .number, _, h
   | .string, _, h | .anyString, _, h | .boolean, _, h | .lit _, _, h | .min _, _, h
   | .max _, _, h | .above _, _, h | .beneath _, _, h | .neq _, _, h | .multiple _, _, h
@@ -435,6 +459,17 @@ theorem unguardedSpread_sub_refsSpread : ∀ (s : Option Val) (n : String),
     n ∈ unguardedSpread s → n ∈ refsSpread s
   | none, _, h => nomatch h
   | some s, n, h => unguardedRefs_sub_refs s n h
+
+theorem unguardedPairs_sub_refsPairs : ∀ (ps : List (Val × Val)) (n : String),
+    n ∈ unguardedPairs ps → n ∈ refsPairs ps
+  | [], _, h => nomatch h
+  | (p, r) :: ps, n, h => by
+    simp only [unguardedPairs, List.mem_append] at h
+    simp only [refsPairs, List.mem_append]
+    rcases h with (h | h) | h
+    · exact .inl (.inl (unguardedRefs_sub_refs p n h))
+    · exact .inl (.inr (unguardedRefs_sub_refs r n h))
+    · exact .inr (unguardedPairs_sub_refsPairs ps n h)
 
 theorem unguardedCovers_sub_refsCovers : ∀ (cs : List Cover) (n : String),
     n ∈ unguardedCovers cs → n ∈ refsCovers cs
@@ -615,7 +650,13 @@ def Val.paths : Val → List (List Seg)
   | .when c t e => c.paths ++ t.paths ++ pathsSpread e
   | .contains c n => c.paths ++ n.paths
   | .rest t cs => t.paths ++ pathsCovers cs
+  | .select s arms d => s.paths ++ pathsPairs arms ++ pathsSpread d
+  | .filter s c => s.paths ++ c.paths
   | _ => []
+
+def pathsPairs : List (Val × Val) → List (List Seg)
+  | [] => []
+  | (p, r) :: ps => p.paths ++ r.paths ++ pathsPairs ps
 
 def pathsCovers : List Cover → List (List Seg)
   | [] => []

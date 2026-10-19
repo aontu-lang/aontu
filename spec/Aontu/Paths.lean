@@ -59,7 +59,13 @@ def Val.pathsToAliases : Val → Val
   | .when c t e => .when c.pathsToAliases t.pathsToAliases (ptaSpread e)
   | .contains c n => .contains c.pathsToAliases n.pathsToAliases
   | .rest t cs => .rest t.pathsToAliases (ptaCovers cs)
+  | .select s arms d => .select s.pathsToAliases (ptaPairs arms) (ptaSpread d)
+  | .filter s c => .filter s.pathsToAliases c.pathsToAliases
   | v => v
+
+def ptaPairs : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.pathsToAliases, r.pathsToAliases) :: ptaPairs ps
 
 def ptaCovers : List Cover → List Cover
   | [] => []
@@ -114,13 +120,13 @@ def Decls.withPathsFrom (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
 the root is the normal form of the schema as read, before any data,
 which is what the error class is judged on. -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (ds.read S))
+  ds.withPathsFrom S (normaliseD ds (ds.readR S))
 
 /-- The document with its paths read as names from the data too: the
 root is the normal form of the schema met with the data, which is what
 the other classes are judged on. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.read S) j.term))
+  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.readR S) j.term))
 
 /-! ## The verdict with paths -/
 
@@ -323,13 +329,13 @@ theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {root : Val
 read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v := by
-  have hvS := vet_iff (m := m) (ds := (ds.withPathsS S).1) (S := (ds.withPathsS S).2) (j := j)
-    (Decls.withPathsFrom_bodies_checkableA hb (normaliseD_checkableA hb (expand_checkableA hb hS)))
-    (pathsToAliases_checkableA hS)
-  have hvP := vet_iff (m := m) (ds := (ds.withPaths S j).1) (S := (ds.withPaths S j).2) (j := j)
-    (Decls.withPathsFrom_bodies_checkableA hb
-      (normaliseD_checkableA hb (meetD_checkableA hb (expand_checkableA hb hS) (Data.term_checkableA j))))
-    (pathsToAliases_checkableA hS)
+  have hbS := Decls.withPathsFrom_bodies_checkableA (S := S) hb (normaliseD_checkableA hb (readR_checkableA hb hS))
+  have hvS := vet_iff (m := m) (ds := (ds.withPathsS S).1) (S := (ds.withPathsS S).2) (j := j) hbS
+    (readR_checkableA hbS (pathsToAliases_checkableA hS))
+  have hbP := Decls.withPathsFrom_bodies_checkableA (S := S) hb
+    (normaliseD_checkableA hb (meetD_checkableA hb (readR_checkableA hb hS) (Data.term_checkableA j)))
+  have hvP := vet_iff (m := m) (ds := (ds.withPaths S j).1) (S := (ds.withPaths S j).2) (j := j) hbP
+    (readR_checkableA hbP (pathsToAliases_checkableA hS))
   unfold vetP
   by_cases hr : ds.resolvesB S = true
   · rw [if_pos hr]
