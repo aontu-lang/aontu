@@ -291,6 +291,18 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.list_le
 
+/-- info: 'Aontu.map_le_spread' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.map_le_spread
+
+/-- info: 'Aontu.list_le_spread' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.list_le_spread
+
+/-- info: 'Aontu.multiple_le_multiple' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.multiple_le_multiple
+
 /-- info: 'Aontu.not_le_map_required' does not depend on any axioms -/
 #guard_msgs in
 #print axioms Aontu.not_le_map_required

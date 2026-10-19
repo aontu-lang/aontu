@@ -175,6 +175,47 @@ theorem multiple_le_number (d : Number) : .multiple d ⊑[env] .number := by
   intro j ⟨hw, h⟩
   cases h with | multiple _ _ => exact ⟨hw, .number⟩
 
+/-- The denominator a number shows is positive, as its value's is. -/
+theorem Number.shown_den_pos (x : Number) : 0 < x.shown.2 := by
+  cases x with
+  | float f =>
+    show 0 < (match f.shortest with
+      | (c, k) => if 0 ≤ k then (c * 10 ^ k.toNat, 1) else (c, 10 ^ (-k).toNat)).2
+    rcases f.shortest with ⟨c, k⟩
+    dsimp only
+    split
+    · exact Nat.one_pos
+    · exact Nat.pos_pow_of_pos _ (by decide)
+  | integer x => exact Number.den_pos _
+  | biginteger x => exact Number.den_pos _
+  | bigdecimal x => exact Number.den_pos _
+
+/-- A multiple of a multiple of `b` is a multiple of `b`. -/
+theorem Number.multipleOf_trans {x a b : Number} (hxa : x.multipleOf a) (hab : a.multipleOf b) :
+    x.multipleOf b := by
+  unfold Number.multipleOf at *
+  have hd : (a.shown.2 : ℤ) ≠ 0 := by
+    have := a.shown_den_pos
+    omega
+  obtain ⟨p, hp⟩ := Int.dvd_of_emod_eq_zero hxa
+  obtain ⟨q, hq⟩ := Int.dvd_of_emod_eq_zero hab
+  apply Int.emod_eq_zero_of_dvd
+  refine ⟨p * q, ?_⟩
+  apply Int.eq_of_mul_eq_mul_left hd
+  calc (a.shown.2 : ℤ) * (x.shown.1 * b.shown.2) = (x.shown.1 * a.shown.2) * b.shown.2 := by ac_rfl
+    _ = ((a.shown.1 * x.shown.2) * p) * b.shown.2 := by rw [hp]
+    _ = (a.shown.1 * b.shown.2) * (x.shown.2 * p) := by ac_rfl
+    _ = ((b.shown.1 * a.shown.2) * q) * (x.shown.2 * p) := by rw [hq]
+    _ = (a.shown.2 : ℤ) * ((b.shown.1 * x.shown.2) * (p * q)) := by ac_rfl
+
+/-- `multiple(a)` sits below `multiple(b)` where `a` is a multiple of `b`:
+every multiple of `a` is one of `b`. -/
+theorem multiple_le_multiple {a b : Number} (hb : b.Positive) (hab : a.multipleOf b) :
+    .multiple a ⊑[env] .multiple b := by
+  intro j ⟨hw, hj⟩
+  cases hj with
+  | multiple _ hx => exact ⟨hw, .multiple hb (Number.multipleOf_trans hx hab)⟩
+
 theorem min_str_le_anyString (t : String) : .min (.str t) ⊑[env] .anyString := by
   intro j ⟨hw, h⟩
   cases h with | minStr _ => exact ⟨hw, .anyString⟩
@@ -447,6 +488,101 @@ theorem list_le {ig is : List Val} {sps : Option Val} {cs cg : Bool}
           cases hw with | list hm => exact hm x (List.mem_of_getElem? hx)
         exact admits_of_le (hi i vg vs hig his) hwx (hp i vs x his hx)
 
+/-- A map on the general side with a spread is above a map on the
+specific side as `map_le` says of its keys, and when the spread holds
+every member the specific side can have: each value the specific side
+declares is below the spread, and its other members are refused by a
+seal or held by its own spread, itself below the general one. A specific
+side open with no spread admits any member, so it is below only a
+spread that admits any. -/
+theorem map_le_spread {fsg fss : List (String × Bool × Val)} {sps : Option Val} {sg : Val}
+    {cs cg : Bool}
+    (hk : ∀ k og vg, (k, og, vg) ∈ fsg →
+      ∃ os vs, (k, os, vs) ∈ fss ∧ vs ⊑[env] vg ∧ (og = false → os = false))
+    (hc : cg = true → cs = true ∧ ∀ k os vs, (k, os, vs) ∈ fss → ∃ og vg, (k, og, vg) ∈ fsg)
+    (hv : ∀ k os vs, (k, os, vs) ∈ fss → vs ⊑[env] sg)
+    (ho : cs = true ∨ ∃ ss, sps = some ss ∧ ss ⊑[env] sg) :
+    .map fss sps cs ⊑[env] .map fsg (some sg) cg := by
+  intro j ⟨hw, hj⟩
+  cases hj with
+  | map hp ha hs hcl =>
+    cases hw with
+    | map hn hm =>
+      refine ⟨.map hn hm, .map ?_ ?_ ?_ ?_⟩
+      · intro k og vg x hm' hx
+        obtain ⟨os, vs, hms, hle, _⟩ := hk k og vg hm'
+        exact admits_of_le hle (hm k x (lookup_mem hx)) (hp k os vs x hms hx)
+      · intro k og vg hm' hx
+        obtain ⟨os, vs, hms, _, hreq⟩ := hk k og vg hm'
+        cases og with
+        | true => rfl
+        | false =>
+          have hos := ha k os vs hms hx
+          rw [hreq rfl] at hos
+          exact nomatch hos
+      · intro s hs' k x hmem
+        cases hs'
+        cases hd : declared k fss with
+        | true =>
+          obtain ⟨os, vs, hms⟩ := declared_iff.1 hd
+          exact admits_of_le (hv k os vs hms) (hm k x hmem)
+            (hp k os vs x hms (lookup_eq_some_of_nodup hn hmem))
+        | false =>
+          rcases ho with hcs | ⟨ss, hsps, hle⟩
+          · obtain ⟨o, v, hm'⟩ := hcl hcs k x hmem
+            have hd' := declared_iff.2 ⟨o, v, hm'⟩
+            rw [hd] at hd'
+            exact nomatch hd'
+          · exact admits_of_le hle (hm k x hmem) (hs ss hsps k x hmem)
+      · intro hcg k x hkx
+        obtain ⟨hcs, hkeys⟩ := hc hcg
+        obtain ⟨os, vs, hms⟩ := hcl hcs k x hkx
+        exact hkeys k os vs hms
+
+/-- A list on the general side with a spread is above a list on the
+specific side as `list_le` says of its positions, and when the spread
+holds every member the specific side can have: each of its items is
+below the spread, and the members past its positions are refused by a
+seal with no spread or held by its own spread, itself below the general
+one. -/
+theorem list_le_spread {ig is : List Val} {sps : Option Val} {sg : Val} {cs cg : Bool}
+    (hn : ig.length ≤ is.length)
+    (hi : ∀ (i : ℕ) (vg vs : Val), ig[i]? = some vg → is[i]? = some vs → vs ⊑[env] vg)
+    (hc : cg = true → cs = true ∧ sps = none ∧ is.length = ig.length)
+    (hv : ∀ v, v ∈ is → v ⊑[env] sg)
+    (ho : (cs = true ∧ sps = none) ∨ ∃ ss, sps = some ss ∧ ss ⊑[env] sg) :
+    .list is sps cs ⊑[env] .list ig (some sg) cg := by
+  intro j ⟨hw, hj⟩
+  cases hj with
+  | list hlen hcl hp hs =>
+    cases hw with
+    | list hm =>
+      refine ⟨.list hm, .list (Nat.le_trans hn hlen) ?_ ?_ ?_⟩
+      · intro hcg _
+        obtain ⟨hcs, hsp, heq⟩ := hc hcg
+        rw [hcl hcs hsp, heq]
+      · intro i vg x hig hx
+        cases his : is[i]? with
+        | none =>
+          have hlt : ¬ ig.length ≤ i := fun hle => by
+            rw [List.getElem?_eq_none_iff.2 hle] at hig
+            exact nomatch hig
+          exact absurd (Nat.le_trans hn (List.getElem?_eq_none_iff.1 his)) hlt
+        | some vs =>
+          exact admits_of_le (hi i vg vs hig his) (hm x (List.mem_of_getElem? hx)) (hp i vs x his hx)
+      · intro s hs' x hx
+        cases hs'
+        rcases ho with ⟨hcs, hsp⟩ | ⟨ss, hsps, hle⟩
+        · obtain ⟨i, hi'⟩ := List.mem_iff_getElem?.1 hx
+          cases his : is[i]? with
+          | none =>
+            have hle := List.getElem?_eq_none_iff.1 his
+            rw [List.getElem?_eq_none_iff.2 (hcl hcs hsp ▸ hle)] at hi'
+            exact nomatch hi'
+          | some vs =>
+            exact admits_of_le (hv vs (List.mem_of_getElem? his)) (hm x hx) (hp i vs x his hi')
+        · exact admits_of_le hle (hm x hx) (hs ss hsps x hx)
+
 /-! ## The table: the constraint algebra
 
 The reference's second table, "Subsumption" under the constraints,
@@ -709,6 +845,47 @@ def itemsDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) :
         | succ i => exact hs i vg' vs' (by simpa using hig) (by simpa using his)⟩
     | _, _ => none
 
+/-- Every declared value of a map below one term, found value by value. -/
+def valuesDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (sg : Val) :
+    (fss : List (String × Bool × Val)) →
+      Option (PLift (∀ k os vs, (k, os, vs) ∈ fss → vs ⊑[env] sg))
+  | [] => some ⟨fun _ _ _ h => absurd h (List.not_mem_nil _)⟩
+  | (_, _, vs) :: rest =>
+    match dec vs sg, valuesDec dec sg rest with
+    | some ⟨h⟩, some ⟨hs⟩ => some ⟨fun k₁ o₁ v₁ hm => by
+        rcases List.mem_cons.1 hm with h' | h'
+        · cases h'
+          exact h
+        · exact hs k₁ o₁ v₁ h'⟩
+    | _, _ => none
+
+/-- Every item of a list below one term, found item by item. -/
+def itemsAllDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (sg : Val) :
+    (is : List Val) → Option (PLift (∀ v, v ∈ is → v ⊑[env] sg))
+  | [] => some ⟨fun _ h => absurd h (List.not_mem_nil _)⟩
+  | v :: rest =>
+    match dec v sg, itemsAllDec dec sg rest with
+    | some ⟨h⟩, some ⟨hs⟩ => some ⟨fun v' hm => by
+        rcases List.mem_cons.1 hm with h' | h'
+        · subst h'
+          exact h
+        · exact hs v' h'⟩
+    | _, _ => none
+
+/-- Whether the specific side's other members are covered: a seal refuses
+them, or its own spread holds them and sits below the general spread. -/
+def coverDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (sg : Val) (sps : Option Val)
+    (cs : Bool) : Option (PLift (cs = true ∨ ∃ ss, sps = some ss ∧ ss ⊑[env] sg)) :=
+  match cs with
+  | true => some ⟨.inl rfl⟩
+  | false =>
+    match sps with
+    | none => none
+    | some ss =>
+      match dec ss sg with
+      | some ⟨h⟩ => some ⟨.inr ⟨ss, rfl, h⟩⟩
+      | none => none
+
 /-- `a` below `b`, with the proof, where the forms decide it in `n`
 steps; the connectives first, the right side's meet and disjunction
 before the left side's, since below a meet is below both sides and
@@ -767,6 +944,20 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
             match keysDec fsg fss with
             | some ⟨hkeys⟩ => some ⟨map_le hk fun _ => ⟨rfl, hkeys⟩⟩
             | none => none
+    | .map fss sps cs, .map fsg (some sg) cg =>
+      match fieldsDec (leDecF env n) fss fsg, valuesDec (leDecF env n) sg fss,
+          coverDec (leDecF env n) sg sps cs with
+      | some ⟨hk⟩, some ⟨hv⟩, some ⟨ho⟩ =>
+        match cg with
+        | false => some ⟨map_le_spread hk (fun h => nomatch h) hv ho⟩
+        | true =>
+          match cs with
+          | false => none
+          | true =>
+            match keysDec fsg fss with
+            | some ⟨hkeys⟩ => some ⟨map_le_spread hk (fun _ => ⟨rfl, hkeys⟩) hv ho⟩
+            | none => none
+      | _, _, _ => none
     | .list is sps cs, .list ig none cg =>
       if hn : ig.length ≤ is.length then
         match itemsDec (leDecF env n) ig is with
@@ -780,6 +971,26 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
               if heq : is.length = ig.length then some ⟨list_le hn hi fun _ => ⟨rfl, rfl, heq⟩⟩
               else none
             | _, _ => none
+      else none
+    | .list is sps cs, .list ig (some sg) cg =>
+      if hn : ig.length ≤ is.length then
+        match itemsDec (leDecF env n) ig is, itemsAllDec (leDecF env n) sg is with
+        | some ⟨hi⟩, some ⟨hv⟩ =>
+          match cs, sps with
+          | true, none =>
+            match cg with
+            | false => some ⟨list_le_spread hn hi (fun h => nomatch h) hv (.inl ⟨rfl, rfl⟩)⟩
+            | true =>
+              if heq : is.length = ig.length then
+                some ⟨list_le_spread hn hi (fun _ => ⟨rfl, rfl, heq⟩) hv (.inl ⟨rfl, rfl⟩)⟩
+              else none
+          | cs', some ss =>
+            match cg, leDecF env n ss sg with
+            | false, some ⟨hle⟩ =>
+              some ⟨list_le_spread hn hi (fun h => nomatch h) hv (.inr ⟨ss, rfl, hle⟩)⟩
+            | _, _ => none
+          | false, none => none
+        | _, _ => none
       else none
     | .min (.num k), .min (.num m) => if h : m.le k then some ⟨(min_le_min_iff k m).2 h⟩ else none
     | .max (.num k), .max (.num m) => if h : k.le m then some ⟨(max_le_max_iff k m).2 h⟩ else none
@@ -825,6 +1036,8 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
     | .above (.num k), .number => some ⟨above_num_le_number k⟩
     | .beneath (.num k), .number => some ⟨beneath_num_le_number k⟩
     | .multiple d, .number => some ⟨multiple_le_number d⟩
+    | .multiple a, .multiple b =>
+      if h : b.Positive ∧ a.multipleOf b then some ⟨multiple_le_multiple h.1 h.2⟩ else none
     | .min (.str t), .anyString => some ⟨min_str_le_anyString t⟩
     | .max (.str t), .anyString => some ⟨max_str_le_anyString t⟩
     | .above (.str t), .anyString => some ⟨above_str_le_anyString t⟩

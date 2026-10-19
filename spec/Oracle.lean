@@ -1030,11 +1030,24 @@ def trialRows (tag : String) : IO Unit := do
 
 /-! ## The ninth fragment: the order -/
 
+/-- Maps and lists with a spread or a seal, and two divisors, for the
+rows of `map_le_spread`, `list_le_spread` and `multiple_le_multiple`. -/
+def spreadBases : List Val :=
+  [.map [] (some .integer) false, .map [("x", false, .integer)] (some .integer) false,
+    .map [("x", false, .integer)] none true, .map [("x", true, .integer)] (some .integer) true,
+    .list [] (some .integer) false, .list [.integer] (some .integer) false,
+    .multiple two, .multiple (.integer (.of 4))]
+
+theorem spreadBases_checkable : ∀ v ∈ spreadBases, v.Checkable := by
+  intro v hv
+  simp only [spreadBases, List.mem_cons, List.mem_nil_iff, or_false] at hv
+  rcases hv with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> checkable
+
 /-- The values the `subsumption` rows compare pairwise: the first
 fragment's level, the bases and each under a key, and the third
 fragment's bases, `|` and `*` over scalars, kinds, bounds and sealed
 lists. -/
-def subVals : List Val := level1 ++ choiceBases
+def subVals : List Val := level1 ++ choiceBases ++ spreadBases
 
 /-- The instances that may tell a pair apart. -/
 def subInstances : List Data := instances ++ choiceInstances
@@ -1042,8 +1055,10 @@ def subInstances : List Data := instances ++ choiceInstances
 theorem subVals_checkable : ∀ v ∈ subVals, v.Checkable := by
   intro v hv
   rcases List.mem_append.1 hv with h | h
-  · exact level1_checkable v h
-  · exact choiceBases_checkable v h
+  · rcases List.mem_append.1 h with h | h
+    · exact level1_checkable v h
+    · exact choiceBases_checkable v h
+  · exact spreadBases_checkable v h
 
 theorem subInstances_wellFormed : ∀ j ∈ subInstances, j.WellFormed := by
   intro j hj

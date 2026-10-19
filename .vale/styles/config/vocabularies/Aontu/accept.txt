@@ -35,6 +35,7 @@
 # vocabulary into Vale.Terms, which then enforces ONE spelling over the
 [Aa]cyclicity
 [Aa]ontu
+Ajv
 [Bb]ooleans
 [Cc]losedness
 [Ee]num
