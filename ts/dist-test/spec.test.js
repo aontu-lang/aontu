@@ -65,7 +65,7 @@ const SPEC_DIR = Path.join(__dirname, '..', '..', 'test', 'spec');
 // as string escapes (\t -> tab, \a -> a, ...) and corrupt the path.
 const FIXTURES_DIR = Path.join(SPEC_DIR, 'files').replaceAll('\\', '/');
 const LEDGER = Path.join(SPEC_DIR, '..', '..', 'spec', 'ledger.tsv');
-const LEDGER_BOUND = 45;
+const LEDGER_BOUND = 48;
 function loadLedger() {
     const names = new Set();
     if (!Fs.existsSync(LEDGER)) {

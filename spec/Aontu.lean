@@ -2,6 +2,7 @@ import Aontu.Data
 import Aontu.Syntax
 import Aontu.Admits
 import Aontu.Names
+import Aontu.Alias
 import Aontu.Order
 import Aontu.Meet
 import Aontu.Output

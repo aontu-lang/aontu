@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a document under its declarations
+
+Definition, generated rows, and documentation; no engine changes.
+
+- `spec/Aontu/Alias.lean`: a document reads as its expansion, `expand`,
+  each reference to a name that is not recursive replaced by the meet
+  of its bodies, read the same way, and a reference to a recursive name
+  left as written, a residual. `meetD` is the meet in which a residual
+  expands by one level against concrete structure, a scalar, a kind, a
+  bound, a literal, a map or a list, and never against `any`, a
+  reference or a connective, so a recursion unfolds as far as the data
+  goes; `admits_meetD` holds it to what both sides admit under
+  `Decls.envE`, the environment of expanded bodies. `normaliseD` and
+  `OutputD` follow, with `outputD_admits` and `outputD_iff`.
+- `Vet` and `vet` in `spec/Aontu/Verdict.lean` take the declarations: a
+  document that refers to a name it does not declare, or whose names
+  break the alias-cycle rule, is an `error` before anything else is
+  asked, and the schema reads as its expansion. The three theorems on
+  the verdicts hold of the schema as read.
+- The sixth generated fragment, `test/spec/def-alias.tsv`: 36 documents
+  with declarations in the three modes, 108 rows. Both ports agree with
+  the definition on every row but `%U = %U`, rows `a105` to `a107`,
+  where the definition answers `error`, as ruled, and both ports
+  `invalid` by `unify_cycle`; the ledger carries them, its bound raised
+  from 45 to 48, and #354 asks the ports to move.
+- No name in the fragment is recursive: a recursive name met with data
+  waits on a checker that reads a residual.
+
 ### The definition reads the graph of names
 
 Definition and documentation; no engine changes, no new rows.

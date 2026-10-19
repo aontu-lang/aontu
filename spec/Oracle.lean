@@ -388,11 +388,13 @@ def vetDoc (c : Val × Data) : Val × Data := (.map [("v", false, c.1)] none fal
 /-- Every case's schema and meet normalise to checkable terms, so `vet`
 is `Vet` on it, by `vet_iff`. -/
 theorem vetCases_checkable : ∀ c ∈ vetCases,
-    (vetDoc c).1.Checkable ∧ (normalise (meet (vetDoc c).1 (vetDoc c).2.term)).Checkable := by decide
+    (Decls.read [] (vetDoc c).1).Checkable ∧
+      (normaliseD [] (meetD [] (Decls.read [] (vetDoc c).1) (vetDoc c).2.term)).Checkable := by decide
 
-theorem vet_verdict_exact : ∀ c ∈ vetCases, ∀ (m : Mode) (env : Env) (v : Verdict),
-    vet m (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m env (vetDoc c).1 (vetDoc c).2 v :=
-  fun c hc _ _ v => vet_iff (vetCases_checkable c hc).1 (vetCases_checkable c hc).2 v
+theorem vet_verdict_exact : ∀ c ∈ vetCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v =>
+    vet_iff (fun _ _ => (vetCases_checkable c hc).1) (fun _ _ => (vetCases_checkable c hc).2) v
 
 def verdictName : Verdict → String
   | .valid => "valid"
@@ -411,7 +413,88 @@ def verdictRows (tag : String) : IO Unit := do
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
         (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
       IO.println (tag ++ toString i ++ "\tverdict\tv: " ++ ssrc ++ "\tv: " ++ dsrc ++ "\t{\"verdict\":\""
-        ++ verdictName (vet m S D) ++ "\"" ++ opts ++ "}")
+        ++ verdictName (vet m [] S D) ++ "\"" ++ opts ++ "}")
+      i := i + 1
+
+/-- The cases of the `alias` fragment: declarations, a schema and a
+document, the last two under the key `v`. The names are not recursive,
+so the schema as read has no residual and `vet` is `Vet` on every case
+by `vet_iff`; a recursive name waits on a checker that reads one. The
+cases that break the alias-cycle rule or refer to a name declared
+nowhere are errors before anything else is asked. -/
+def aliasCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let key (k : String) (o : Bool) (v : Val) : Val := .map [(k, o, v)] none false
+  let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p : Val := .alias "p"
+  [([("p", .meet .integer (min 1))], p, j 5), ([("p", .meet .integer (min 1))], p, j 0),
+    ([("p", .meet .integer (min 1))], p, .str "a"),
+    ([("p", .pref 1 (int 1))], key "x" false p, .map []),
+    ([("a", .alias "b"), ("b", .pref 1 (int 1))], key "x" false (.alias "a"), .map []),
+    ([("p", .integer)], .map [] (some p) false, .map [("a", j 1), ("b", .str "x")]),
+    ([("p", .integer)], .map [] (some p) false, .map [("a", j 1)]),
+    ([("p", .integer)], .list [p, p] none false, .list [j 1, j 2]),
+    ([("p", .integer)], .list [p, p] none false, .list [j 1, .str "a"]),
+    ([("T", .integer)], .alias "T", .num (.float (.dyadic 3 (-1)))),
+    ([("T", .integer)], int 1, j 1),
+    ([("A", .integer), ("B", .alias "A")], .alias "B", j 1),
+    ([("A", .integer), ("B", .alias "A")], .alias "B", .str "a"),
+    ([("p", key "x" false (int 1))], p, .map []),
+    ([("p", key "x" false (int 1))], .meet p (key "y" false (int 2)), .map []),
+    ([("p", .or [(0, int 1), (0, int 2)])], p, j 2), ([("p", .or [(0, int 1), (0, int 2)])], p, j 3),
+    ([("p", .or [(1, int 1), (0, int 2)])], key "x" false p, .map []),
+    ([("p", .integer), ("p", min 1)], p, j 0), ([("p", .integer), ("p", min 1)], p, j 5),
+    ([("p", .integer)], .map [("a", false, p), ("b", true, p)] none false, .map [("a", j 1), ("b", .str "x")]),
+    ([("p", .integer)], .map [("a", false, p), ("b", true, p)] none false, .map [("a", j 1)]),
+    ([("p", .list [int 1, int 2] none false)], p, .list [j 1, j 2, j 3]),
+    ([("q", .meet p (min 1)), ("p", .integer)], .alias "q", j 0),
+    ([("q", .meet p (min 1)), ("p", .integer)], .alias "q", j 3),
+    ([("p", int 1)], .list [p] (some p) false, .list [j 1, j 1, j 1]),
+    ([("p", int 1)], .list [p] (some p) false, .list [j 1, j 2]),
+    ([("p", .string)], p, .str ""), ([("p", .len (int 2))], p, .str "ab"),
+    ([("p", int 1)], .pref 1 p, j 2), ([("p", int 1)], .pref 1 p, .str "a"),
+    ([], .alias "nosuch", j 1), ([("A", .alias "B"), ("B", .alias "A")], .alias "A", j 1),
+    ([("T", .meet (.alias "T") .integer)], .alias "T", j 1), ([("a", .alias "zz")], int 1, j 1),
+    ([("U", .alias "U")], .alias "U", j 1)]
+
+/-- The schema and data of a case, each under the key `v`, as the rows
+write them. -/
+def aliasDoc (c : Decls × Val × Data) : Val × Data :=
+  (.map [("v", false, c.2.1)] none false, .map [("v", c.2.2)])
+
+set_option maxRecDepth 100000 in
+/-- Every case whose names are in order reads as a checkable schema
+whose meet with the data normalises to a checkable term, so `vet` is
+`Vet` on it, by `vet_iff`. -/
+theorem aliasCases_checkable : ∀ c ∈ aliasCases,
+    (c.1.Declares (aliasDoc c).1 → c.1.Guarded → (Decls.read c.1 (aliasDoc c).1).Checkable) ∧
+      (c.1.Declares (aliasDoc c).1 → c.1.Guarded →
+        (normaliseD c.1 (meetD c.1 (Decls.read c.1 (aliasDoc c).1) (aliasDoc c).2.term)).Checkable) := by
+  decide
+
+theorem alias_verdict_exact : ∀ c ∈ aliasCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 (aliasDoc c).1 (aliasDoc c).2 = v ↔ Vet m c.1 (aliasDoc c).1 (aliasDoc c).2 v :=
+  fun c hc _ v => vet_iff (aliasCases_checkable c hc).1 (aliasCases_checkable c hc).2 v
+
+/-- The `alias` rows: each case's declarations and schema as one
+document, in the three modes, with the one class `vet` gives. -/
+def aliasRows (tag : String) : IO Unit := do
+  let mut i := 0
+  for c in aliasCases do
+    let mut lines : List String := []
+    for d in c.1 do
+      let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+      lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
+    let some ssrc := c.2.1.src | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.2.src | throw (IO.userError "a document of the fragment has no text")
+    let src := "\\n".intercalate (lines ++ ["v: " ++ ssrc])
+    let (S, D) := aliasDoc c
+    for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
+        (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
+      IO.println (tag ++ toString i ++ "\tverdict\t" ++ src ++ "\tv: " ++ dsrc ++ "\t{\"verdict\":\""
+        ++ verdictName (vet m c.1 S D) ++ "\"" ++ opts ++ "}")
       i := i + 1
 
 /-- The rows of one fragment: each value against each instance of each
@@ -493,6 +576,19 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
     verdictRows "e"
     return 0
+  | ["alias"] =>
+    IO.println "# Generated by `lake exe oracle alias` (spec/Oracle.lean) from the definition"
+    IO.println "# in spec/Aontu: documents with alias declarations, each case its declarations"
+    IO.println "# and a schema under the key v against a document under the key v, run in the"
+    IO.println "# default mode, without the fill (noFill) and under --partial (partial), as"
+    IO.println "# `verdict` rows whose expectation is the one class `vet` gives, which `vet_iff`"
+    IO.println "# makes the definition's own. A document reads as its expansion; a name declared"
+    IO.println "# nowhere, or names that break the alias-cycle rule, are an error. No name here"
+    IO.println "# is recursive."
+    IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
+    IO.println "# not yet answer this way are listed in spec/ledger.tsv."
+    aliasRows "a"
+    return 0
   | _ =>
-    IO.eprintln "usage: oracle [bounds | choice | gen | verdict]"
+    IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias]"
     return 2
