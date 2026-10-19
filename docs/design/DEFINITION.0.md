@@ -17,8 +17,11 @@ lists landed 2026-10-18, probed against both ports first and run as the
 third generated fragment, `test/spec/def-choice.tsv`, on which both
 agree with the definition on every row, and the meet computed as
 `meet` in `spec/Aontu/Meet.lean` on 2026-10-19, beside `admits_meet`,
-which holds it to what both sides admit; `Output`, `open()`, and ADR-046
-and 053 as theorems remain. P3 to P7 not started. The
+which holds it to what both sides admit, and `Output` on 2026-10-19:
+`Gen` in `spec/Aontu/Output.lean`, with `output_admits` (ADR-007) and
+`output_unique`, run as the fourth generated fragment,
+`test/spec/def-gen.tsv`, on which both ports agree with the definition
+on every row; `open()`, and ADR-046 and 053 as theorems remain. P3 to P7 not started. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them.
 Date: 2026-10-16

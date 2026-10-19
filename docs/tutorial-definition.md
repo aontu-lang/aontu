@@ -747,7 +747,7 @@ example : Instance .empty (.lit .null) .null := ⟨by decide, .null⟩
 example : ¬ Instance .empty (.lit .null) (.bool false) := fun ⟨_, h⟩ => nomatch h
 ```
 
-The four refusals after the first example borrow the checker of step 15 to compute the answer. Write `literals.aontu`:
+The four refusals after the first example borrow the checker of step 16 to compute the answer. Write `literals.aontu`:
 
 <!-- test: scenario literals -->
 <!-- test: file literals.aontu -->
@@ -1443,7 +1443,7 @@ example : ¬ Instance .empty (.unique (some "p"))
   fun ⟨_, h⟩ => absurd ((check_iff .unique _).mpr h) (by decide)
 ```
 
-These examples borrow the checker of step 15, which computes whether
+These examples borrow the checker of step 16, which computes whether
 two values are one. Write `unique.aontu`:
 
 <!-- test: scenario unique -->
@@ -2459,7 +2459,7 @@ dropped, and `e` with the spread's default `{x: *1}` met into `k`. The
 engines keep `c` as written, `*8080`, where the definition writes its
 two arms out; both single out `8080`, as step 12's `port` says. A meet
 that is `nil` outright, such as `min(5) & max(3)` alone, comes back as
-an error, a schema with no value, of the kind step 13 shows.
+an error, a schema with no value, of the kind step 14 shows.
 
 ## 11. Two declarations of one key
 
@@ -2517,7 +2517,7 @@ one wins: `-c` writes the merged key with no `?`.
 ```
 
 An arm carries a rank: `0` for an arm written plainly, `1` for one
-written `*a`, `2` for `**a`. The rank picks the output, which step 17
+written `*a`, `2` for `**a`. The rank picks the output, which step 18
 leaves to a later phase, and admission ignores it:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
@@ -2845,12 +2845,232 @@ question fills a default the data lacks: `{x: *1}` met with `{}` is
 valid, by the default `1`. Admission asks whether the data, as it
 stands, is an instance, and `{x: 1}` is one. Both questions are the
 definition's to state. The second is `Output`, what evaluation singles
-out, which step 17 leaves to a later phase, and the test rows of step
+out, which step 18 leaves to a later phase, and the test rows of step
 15 stay where the two agree.
 
-## 13. Where the definition and the engines differ
+## 13. What evaluation singles out
 
-Both engines' test suites run rows the definition generates, as step 15 shows, and on a few of them the engines don't answer as the
+Admission says which values a term admits. Evaluation picks one of
+them, or none, and that one is what the engines write out and what
+`vet` fills a default from. Write `singles.aontu`:
+
+<!-- test: scenario output -->
+<!-- test: file singles.aontu -->
+```aontu
+a: *1|2
+b: (*1|2)|3
+c: { x?: *1 y?:integer }
+d: { x: *1 } & {}
+e: [&: integer *1]
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu singles.aontu
+{
+  "a": 1,
+  "b": 1,
+  "c": {
+    "x": 1
+  },
+  "d": {
+    "x": 1
+  },
+  "e": [
+    1
+  ]
+}
+```
+
+`a` singles out its preferred arm. `b` singles out `1` too: an arm
+that is itself a disjunction of rank `0` brings its own arms, so the
+preference inside it counts. `c` writes the optional key whose value
+singles out something and leaves out the one whose value does not. `d`
+is the fill of the data `{}` by the schema `{x: *1}`, which is how
+`vet` reads a default, as the end of step 12 says. `e` meets its
+position with the spread.
+
+`spec/Aontu/Output.lean` states this as `Gen`, a relation by recursion
+on the term:
+
+<!-- test: quote spec/Aontu/Output.lean -->
+```lean
+/-- `v` generates `j`. -/
+def Gen (env : Env) (root : Data) : Val → Data → Prop
+  | .lit s, j => j = s.data
+  | .map fs spread _, j =>
+    keysDistinct fs = true ∧ ∃ ms, genFields env root spread fs ms ∧ j = .map (sortMembers ms)
+  | .list items spread _, j => ∃ xs, genItems env root spread items xs ∧ j = .list xs
+  | .or arms, j => arms.any (picked arms) = true ∧ genArms env root arms arms j
+  | .pref _ x, j => Gen env root x j
+  | .meet a b, j =>
+    (Gen env root a j ∧ Admits env root b j) ∨
+      ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
+  | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _
+  | .anyString, _ | .boolean, _ | .min _, _ | .max _, _ | .above _, _ | .beneath _, _
+  | .neq _, _ | .multiple _, _ | .len _, _ | .unique _, _ | .re _, _ | .format _, _
+  | .any, _ | .nil, _ | .alias _, _ | .path _, _ => False
+```
+
+Read `Gen env root v j` as *`v` generates `j`*. A literal generates
+its value. A map generates a map whose members `genFields` lists, in
+declaration order and then in key order: a key whose value generates a
+value the spread admits is written with it, an optional key whose value
+generates none such is left out, and a required key whose value
+generates none such leaves the map with no output at all. A list
+generates each position, `genItems`. A disjunction generates what the
+arms the rank rule picks all generate, `genArms` over `picked`: of the
+live arms, those of the lowest positive rank, or every live arm where
+none has one. So `*1 | 2` generates `1`, `1 | 1` generates `1`, and
+`1 | 2` and `*1 | *2` generate nothing. A preference generates what its
+value generates. A meet left as written, two atoms or a container with
+a constraint, generates what its left side generates and its right
+admits, or the other way about where the left generates nothing. A
+kind, a bound, `any`, `nil`, an alias and a path generate nothing.
+
+`Output` reads `Gen` off the normal form of step 10, where every meet
+is computed and every dead arm dropped:
+
+<!-- test: quote spec/Aontu/Output.lean -->
+```lean
+/-- What evaluation singles out for `v`: what the normal form of `v`,
+every meet computed and every dead arm dropped, generates. -/
+def Output (env : Env) (root : Data) (v : Val) (j : Data) : Prop := Gen env root (normalise v) j
+```
+
+Two theorems say what that output is:
+
+<!-- test: quote spec/Aontu/Output.lean -->
+```lean
+/-- ADR-007: what evaluation singles out is an instance. -/
+theorem output_admits (v : Val) (j : Data) (h : Output env root v j) : Admits env root v j :=
+  (admits_normalise v j).mp (gen_admits _ j h)
+```
+
+<!-- test: quote spec/Aontu/Output.lean -->
+```lean
+/-- Evaluation singles out one value. -/
+theorem output_unique (v : Val) (j j' : Data) (h : Output env root v j) (h' : Output env root v j') :
+    j = j' :=
+  gen_unique _ j j' h h'
+```
+
+`output_admits` is [ADR-007](../ADR.md): what evaluation singles out
+is an instance of the term, so a filled default never writes a value
+the schema refuses. `output_unique` says there is at most one. A
+function `gen` computes it, and `gen_iff` admits the function on every
+checkable value, as `check_iff` admits `check` in step 16:
+
+<!-- test: quote spec/Aontu/Output.lean -->
+```lean
+/-- `gen` computes `Gen` on every checkable value. -/
+theorem gen_iff {v : Val} (h : v.Checkable) : ∀ j, gen v = some j ↔ Gen env root v j := by
+```
+
+Each example of `singles.aontu` is a theorem of the tour, by `rfl`,
+which runs `output` inside the proof:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `*1 | 2` singles out `1`: the arm of the lowest positive rank. -/
+example : output (.or [(1, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 2))))]) =
+    some (.integer 1) := rfl
+
+/-- `1 | 2` singles out nothing: two arms, neither preferred, that
+generate differently. `1 | 1` singles out `1`. -/
+example : output (.or [(0, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 2))))]) = none ∧
+    output (.or [(0, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 1))))]) =
+      some (.integer 1) := ⟨rfl, rfl⟩
+
+/-- `(*1 | 2) | 3` singles out `1`: an arm that is itself a disjunction
+of rank `0` brings its arms, so the preference counts. -/
+example : output (.or [(0, .or [(1, .lit (.num (.integer (.of 1)))), (0, .lit (.num (.integer (.of 2))))]),
+    (0, .lit (.num (.integer (.of 3))))]) = some (.integer 1) := rfl
+
+/-- `*8080 & min(1024)` singles out `8080`. -/
+example : output port = some (.integer 8080) := rfl
+
+/-- `{x?: *1}` singles out `{x: 1}`, and `{x?: integer}` singles out `{}`:
+an optional key is written where its value generates. -/
+example : output (.map [("x", true, .pref 1 (.lit (.num (.integer (.of 1)))))] none false) =
+      some (.map [("x", .integer 1)]) ∧
+    output (.map [("x", true, .integer)] none false) = some (.map []) := ⟨rfl, rfl⟩
+
+/-- `{x: integer}` singles out nothing: a required key whose value
+generates nothing. -/
+example : output (.map [("x", false, .integer)] none false) = none := rfl
+
+/-- `{x: *1} & {}` singles out `{x: 1}`: the fill of the data `{}` by the
+schema `{x: *1}`, which is how `vet` reads a default. -/
+example : output (.meet (.map [("x", false, .pref 1 (.lit (.num (.integer (.of 1)))))] none false)
+    (.map [] none false)) = some (.map [("x", .integer 1)]) := rfl
+
+/-- `({x: 1} | {y: 2}) & {x: 1}` singles out nothing, where `{x: 1}` is
+an instance of it: each arm, met with the data, is still consistent
+with it, so two alternatives remain, which is the engines' `incomplete`
+at the end of step 12. -/
+example : output (.meet (.or [(0, .map [("x", false, .lit (.num (.integer (.of 1))))] none false),
+      (0, .map [("y", false, .lit (.num (.integer (.of 2))))] none false)])
+    (.map [("x", false, .lit (.num (.integer (.of 1))))] none false)) = none := rfl
+
+/-- What is singled out is an instance, `output_admits`: `*8080 & min(1024)`
+admits `8080`, and the output of `{x?: *1}` is one of its instances. -/
+example : Instance .empty port (.integer 8080) :=
+  ⟨by decide, output_admits port _ ((output_iff (by decide) _).mp rfl)⟩
+```
+
+The last example is `output_admits` at work: `8080` is what
+`*8080 & min(1024)` singles out, so it is an instance.
+
+The fourth generated fragment, `test/spec/def-gen.tsv`, holds `gens`
+rows for the values of `genVals` in `spec/Oracle.lean`: each value
+under the key `v` that singles out something, with the JSON both
+engines must write for it, which `output` gives and `gen_iff` makes
+the definition's own. A value that singles out nothing has no row
+until the verdict classes name what the engines report for it.
+
+That question is the one `vet` asks in its default mode. Write
+`fill-schema.aontu`:
+
+<!-- test: file fill-schema.aontu -->
+```aontu
+v: x: *1
+```
+
+and `fill-data.aontu`:
+
+<!-- test: file fill-data.aontu -->
+```aontu
+v: {}
+```
+
+Now vet the data, with and without the fill:
+
+<!-- test: run -->
+```sh
+$ aontu vet fill-schema.aontu fill-data.aontu
+verdict: valid
+$ aontu vet --no-fill fill-schema.aontu fill-data.aontu
+verdict: incomplete
+
+$.v.x: vet_filled [incomplete]
+  The schema supplies this member, and the data does not carry it.
+  schema: fill-schema.aontu:1:7 (*1)
+$ echo $?
+3
+```
+
+`{}` is no instance of `{x: *1}`, since `x` is required, and
+`--no-fill` says so. The default mode asks what `{x: *1} & {}`
+singles out, which the tour shows is `{x: 1}`, and answers `valid`.
+The classes `valid`, `invalid`, `incomplete` and `error`, defined from
+`Admits` and `Output` together, are the next phase's.
+
+## 14. Where the definition and the engines differ
+
+Both engines' test suites run rows the definition generates, as step 16 shows, and on a few of them the engines don't answer as the
 definition does. [`spec/ledger.tsv`](../spec/ledger.tsv) lists each such case,
 with the answer each side gives, which side changes, and why.
 
@@ -2895,6 +3115,23 @@ $ aontu -c waiver.aontu
 Both engines give `""` back: they let the `empty()` beside `string`
 widen the conjunction, which a greatest lower bound can't do. For this
 kind, the ledger names the engines as the side that changes.
+
+Where the two engines differ from each other, the definition decides
+which changes. `[*1] | [1]` has two arms that single out `[1]`, and
+neither is preferred, so the disjunction singles out `[1]`:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `[*1] | [1]` singles out `[1]`, as Go answers and TypeScript does not:
+both arms generate `[1]`, and neither is preferred. -/
+example : output (.or [(0, .list [.pref 1 (.lit (.num (.integer (.of 1))))] none true),
+    (0, .list [.lit (.num (.integer (.of 1)))] none true)]) = some (.list [.integer 1]) := rfl
+```
+
+Go answers so, and TypeScript answers `disjunct_no_gen`, collapsing
+arms alike as written and not arms alike in what they single out.
+Issue #348 tracks it, and `genVals` keeps such a value out of the
+rows until the ports agree.
 
 A seal survives a meet, which the engines lose. `close([1, 2])` refuses
 `[1, 2, 3]`, so no meet with it admits `[1, 2, 3]`:
@@ -2988,7 +3225,7 @@ they can't use. For this kind the ledger names the definition as
 the side that changes, since it has no ill-formed terms, which is what
 `error` reports.
 
-## 14. Trial schemas
+## 15. Trial schemas
 
 `nof` and `when` ask whether a schema refuses a value, and a rule
 can't depend on the negation of the relation it defines. Lean refuses
@@ -3108,7 +3345,7 @@ $ aontu -c when.aontu
 `"a"` is a string, so it must be `"a"`, and `5` isn't, so it must be at
 least zero.
 
-## 15. A checker, admitted by a proof
+## 16. A checker, admitted by a proof
 
 `Admits` is a statement, so Lean can't run it. Running needs an
 algorithm, and `spec/Aontu/Check.lean` holds one, for every term that
@@ -3332,7 +3569,7 @@ The oracle writes each arm in parentheses, behind its stars, and a
 sealed list as `close([…])`, which both engines read as the term.
 
 Both engines answer every row of the three files as the definition
-does, but for the cases step 13 lists.
+does, but for the cases step 14 lists.
 
 The schema and the value are text, which `spec/Oracle/Print.lean`
 writes. The printer is the oracle's and no part of the definition, and
@@ -3340,7 +3577,7 @@ no proof checks it: that an engine reads `v: 0d9007199254740993` as that
 big integer is a claim about the engine's reader, which these rows
 test.
 
-## 16. What any `subsume` must answer
+## 17. What any `subsume` must answer
 
 `⊑` quantifies over every value, of which there are infinitely many,
 so no program computes it in general. The definition states instead
@@ -3430,7 +3667,7 @@ The engine answers `does_not_subsume` where `subsumeWrong` answered
 `subsumes`, and its finding gives the same reason: `{x?: any}` admits
 instances without the key.
 
-## 17. What the definition doesn't say yet
+## 18. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
