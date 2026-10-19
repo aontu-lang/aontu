@@ -5081,6 +5081,8 @@ it does anywhere else. It compares a recursion with no structure to
 unfold, as `a: $.a` has none, as residue: identical ones subsume, and
 any other pair is `undecided`.
 
+The definition states the order on documents as `LeD` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), each side read under its own declarations as `vet` reads it, with `SubsumeCorrectD` the contract on an answer; a recursion and its unrolling are below each other, `alias_le_unroll` and `unroll_le_alias`, and two readings that read no name are ordered as under the empty environment, `leD_of_le`. Two recursions of one shape under different names it leaves undecided.
+
 ### Default validity
 
 The relation also powers an advisory lint: the validation verb reports a

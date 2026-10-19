@@ -148,6 +148,37 @@ Definition, generated rows and documentation; no engine changes.
   row as the contract allows but the three #346 rows, renumbered again
   in the ledger.
 
+### The definition holds the order on documents
+
+Definition, generated rows, the ledger and documentation; no engine
+changes. A P5 step (`docs/design/DEFINITION.0.md`, §6), for the
+reference's row on recursive positions.
+
+- `spec/Aontu/Subsume.lean`: `InstanceD` and `LeD`, the order on two
+  documents each read under its own declarations as `vet` reads it, with
+  `SubsumeCorrectD` its contract; `instance_of_checkable` and
+  `leD_of_le`, that two readings that read no name are ordered as under
+  the empty environment; `alias_le_unroll` and `unroll_le_alias`, that a
+  recursion and its unrolling are below each other; `not_leD_of_witness`,
+  refuting by `checkR`; and `leDecD`, the order decided where both
+  readings read no name.
+- `spec/Oracle.lean`: the tenth fragment, `oracle subsumedocs`, 12
+  documents with declarations compared pairwise, 122 `subsumption` rows
+  in `test/spec/def-subsume-docs.tsv`; `make spec` regenerates it.
+- `spec/ledger.tsv`: five rows under #377, a recursive general side with
+  an optional key against an open specific side, which both ports put
+  below it; the bound rises to 111.
+- `ADR.md`: ADR-067 reads as moved to the definition in part, the
+  recursion as the definition it names held by `LeD` and the unrolling
+  theorems, the renaming of a recursion still open.
+- Two review findings on the previous step: `list_le_spread` asks
+  nothing of the general list's seal, which fixes no length beside a
+  spread, so `leDecF` decides eleven more pairs and the ninth fragment
+  has 3,265 rows, two of them #346 rows (an open list with the spread of
+  a sealed one, which the ports put outside it) and the ledger at 113;
+  and the printer counts a reference or a path as an open container
+  beneath `close()`, since either may stand for one.
+
 ### The definition holds a spread on the general side and `multiple` under the order
 
 Definition, generated rows, the ledger and documentation; no engine
