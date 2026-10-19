@@ -148,6 +148,18 @@ Definition, generated rows and documentation; no engine changes.
   row as the contract allows but the three #346 rows, renumbered again
   in the ledger.
 
+### Thirteen language decisions read as moved to the definition
+
+Documentation only; the first step of P7 (`docs/design/DEFINITION.0.md`,
+§4 and §6).
+
+- `ADR.md`: ADR-004, 007, 011, 045, 046, 048, 049, 050, 051, 053, 055
+  and 058, and ADR-034 in part, carry the status "Moved to the
+  definition", each naming the module and the theorems that hold its
+  rule, in the index and in the record; the text of each stays as its
+  history. An ADR whose construct the definition does not yet hold keeps
+  its status, and the design note's P7 row says which and why.
+
 ### The importer's forms are checked against the definition
 
 Definition, a generated file, two tests and documentation; no engine
