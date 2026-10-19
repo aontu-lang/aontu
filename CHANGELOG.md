@@ -27,7 +27,10 @@ Definition, generated rows, and documentation; no engine changes.
 - The fifth generated fragment, `test/spec/def-verdict.tsv`: the cases
   of `vetCases` in the default mode, without the fill and under
   `--partial`, each with the one class `vet` gives. Both ports agree
-  with the definition on every row.
+  with the definition on every row but the three of the sealed list
+  met with a spread (#346), rows `e168` to `e170`, which the ledger
+  carries: the definition answers `invalid` in every mode and both
+  ports `valid`. The ledger's bound rises from 42 to 45 for them.
 - The tutorial gains step 14, the verdicts, and step 15 records the
   two corners the rows keep away from: a `nil` written, which the
   engines answer `invalid`, and a contradiction under an optional key,

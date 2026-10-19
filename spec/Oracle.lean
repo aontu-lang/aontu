@@ -334,10 +334,10 @@ def genRows (tag : String) (vals : List Val) : IO Unit := do
 /-- The cases of the `verdict` fragment, each a schema and a document of
 data, run in the three modes of `vet`. No case writes `nil` or a
 contradiction under an optional key, where the engines answer `error`
-for what the definition reads as a key that must be absent, none a
-preference clash the engines find only once the data meets it, and
-none a sealed list met with a spread (#346), which waits on the
-ledger. -/
+for what the definition reads as a key that must be absent, and none a
+preference clash the engines find only once the data meets it. The
+last case is the sealed list met with a spread (#346), which the
+ledger carries. -/
 def vetCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -378,7 +378,8 @@ def vetCases : List (Val × Data) :=
     (.map [("a", false, .pref 1 (int 1)), ("b", false, .integer)] none false, .map []),
     (.map [("a", false, .pref 1 (int 1)), ("b", false, .integer)] none false, .map [("b", j 2)]),
     (.list [.pref 1 (int 1)] none false, .list []), (.list [.pref 1 (int 1)] none false, .list [j 2]),
-    (str "a", .str "a"), (str "a", .str "b"), (.lit .null, .null), (.lit (.bool true), .bool false)]
+    (str "a", .str "a"), (str "a", .str "b"), (.lit .null, .null), (.lit (.bool true), .bool false),
+    (.meet (.list [int 1, int 2] none true) (.list [] (some .integer) false), .list [j 1, j 2, j 3])]
 
 /-- The schema and data of a case, each under the key `v`, as the rows
 write them. -/
