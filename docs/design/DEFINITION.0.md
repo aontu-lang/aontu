@@ -46,10 +46,13 @@ same day a path read by declaration, `spec/Aontu/Paths.lean`, each
 path a name declared as the term at it in the root, run as the seventh
 fragment, `test/spec/def-path.tsv`, 180 rows, on which both ports agree
 with the definition on every row but the cycles through paths of
-decision 7 of §7, which the ledger carries; the measure of what the
-alias-cycle rule refuses among the bundled models, the use cases and
-the suite, which decision 2 of §7 asks of P3, is still to report. P4,
-P6 and P7 not started. The
+decision 7 of §7, which the ledger carries. The measure decision 2 of §7
+asks of P3 is taken: the alias-cycle rule refuses no bundled model and
+no use case, and in the suite three documents, `%a = %a` and
+`%a = %b, %b = %a` in `test/spec/alias.tsv`, which the ports refuse
+already as `recursion_unexpanded` and `path_cycle`, and `%A = %A | 1`
+in `test/spec/recursion.tsv`, a `subsume` row the ports answer. P4, P6
+and P7 not started. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them.
 Date: 2026-10-16
@@ -365,7 +368,7 @@ documents only.
 | **P0**: the seed (S) | **LANDED 2026-10-16**, [ADR-069](../../ADR.md#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it): `spec/` as a Lake project holding the prototype; the `verdict` mode and the ledger read in both runners; the 9,600 cases as `test/spec/def-fragment.tsv`; `make spec`; the CI job, `build.yml`'s `spec`, applied 2026-10-18 from `spec/ci.patch` | every generated row passes in both ports or is in the ledger, which holds only the cases decisions 3 and 4 of §2 own, 10 and 32; the TypeScript runner takes about two minutes over the rows and the Go runner three seconds, the first figure of §5's bound |
 | **P1**: data and scalars (M) | the data model (**LANDED 2026-10-17** as `spec/Aontu/Data.lean`; on 2026-10-18 aontu's own data: numbers in the four leaves, strings, maps and lists with unique keys, paths), and the two read modes, which stay parameters (§7, decision 5): the data holds every leaf either mode reads, and stating each mode's reading remains; the four numeric leaves (`integer` **LANDED 2026-10-17**: a double, of magnitude below `2^63`; `float`, `biginteger`, and `bigdecimal` **LANDED 2026-10-18**, as kinds and literals); `string` and `string & empty()` (**LANDED**); literals (scalars **LANDED**, numbers of every leaf **LANDED 2026-10-18**); the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `multiple`, `unique` (`min`, `max`, and `multiple` **LANDED**); `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states (**done** 2026-10-17) |
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers, read by position as the language reads them (an arm of a disjunction reads a list literal as its own length and `*x` as `x`, and elsewhere `*x` is `x \| super(x)`, so `*1` alone admits `2`: both engines, 2026-10-17); `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
-| **P3**: references (L) | **LANDED 2026-10-19**: aliases as the least fixpoint, path references read by declaration from the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule; the measure of what the rule refuses among the models, the use cases and the suite still to report | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
+| **P3**: references (L) | **LANDED 2026-10-19**: aliases as the least fixpoint, path references read by declaration from the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule, which refuses no model, no use case and three documents of the suite | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
 | **P4**: trial schemas (L) | the admission trial as a definition; `nof`, `when`, `contains`, `must`, `rest`, `match` and `filter`; the layer allowed inside a value under P3's rule; ADR-049 to 051, 055 and 058 as theorems | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
 | **P5**: order and verdicts (M) | one contract per `subsume` profile (§1), the subsumption table as theorems, `incomplete` against `invalid` against `error` defined, the `vet` modes as parameters, ADR-007 as a theorem | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
 | **P6**: the power to represent JSON Schema (M) | every value the importer writes for a keyword it carries is a form of the definition, defined on its own terms; the definition names no JSON Schema keyword (decision 2 of §2, ruled 2026-10-17, which retired this phase's first plan: `valid` for the 2020-12 keywords, the import's modes as contracts, and the export's round trip, all of which put JSON Schema in the definition) | the importer's output over the suite's schemas uses only forms the definition holds |
@@ -406,7 +409,14 @@ encodes it lands.
    recursion consumes data": it makes `%T = not(%T)` ill-formed and
    lets the trial layer nest. If the rule fits aontu, Lean fits all of
    aontu; if P3 finds a document it must refuse that the language
-   cannot do without, the ruling is reopened there.
+   cannot do without, the ruling is reopened there. Measured
+   2026-10-19 over every `.aontu` file of `aontu/` and `use-cases/` and
+   every row of `test/spec/`: the rule refuses no model and no use
+   case, and three documents of the suite, `%a = %a` and
+   `%a = %b, %b = %a` in `test/spec/alias.tsv`, which the ports refuse
+   already as `recursion_unexpanded` and `path_cycle`, and `%A = %A | 1`
+   in `test/spec/recursion.tsv`, which the ports run as the second arm
+   and `subsume` answers; the ruling stands.
 3. **Error codes.** The codes are append-only and the ports agree on
    them row by row. In the definition they would be a function from a
    refusal's shape to a code, which is a large table to prove anything
