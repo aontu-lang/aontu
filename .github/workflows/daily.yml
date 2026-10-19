@@ -33,8 +33,9 @@ jobs:
     # minutes on a slow registry hour, which left the six-minute budget
     # no room for the tests they were still passing. The npm cache
     # below keeps the downloads across runs; the budget keeps a slow
-    # hour from reading as a failure.
-    timeout-minutes: 12
+    # hour from reading as a failure. Twenty since Windows passed twelve
+    # (run 39280595195): the daily run has no time budget (ADR-071).
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
