@@ -267,7 +267,7 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.defaults_sees_the_default
 
-/-- info: 'Aontu.leDecF_sound' depends on axioms: [propext] -/
+/-- info: 'Aontu.leDecF_sound' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.leDecF_sound
 
@@ -294,3 +294,27 @@ line each comment states.
 /-- info: 'Aontu.not_le_map_required' does not depend on any axioms -/
 #guard_msgs in
 #print axioms Aontu.not_le_map_required
+
+/-- info: 'Aontu.min_le_min_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.min_le_min_iff
+
+/-- info: 'Aontu.min_le_above_iff' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.min_le_above_iff
+
+/-- info: 'Aontu.lit_le_min_iff' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.lit_le_min_iff
+
+/-- info: 'Aontu.min_str_le_min_iff' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.min_str_le_min_iff
+
+/-- info: 'Aontu.neq_le_neq' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.neq_le_neq
+
+/-- info: 'Aontu.len_le_len' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.len_le_len

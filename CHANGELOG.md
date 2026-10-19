@@ -128,6 +128,26 @@ Definition, generated rows and documentation; no engine changes.
   every row as the contract allows but the three #346 rows, renumbered
   in the ledger.
 
+### The definition holds the constraint algebra's order
+
+Definition, generated rows and documentation; no engine changes.
+
+- `spec/Aontu/Subsume.lean`: the reference's second subsumption table,
+  the one under the constraints, as theorems: an interval below one that
+  contains it (`min_le_min_iff`, `max_le_max_iff`,
+  `above_le_above_of_le`, `beneath_le_beneath_of_le`, `min_le_above_iff`,
+  `max_le_beneath_iff`, `above_le_min_of_le`, `beneath_le_max_of_le`,
+  and `min_str_le_min_iff` and `max_str_le_max_iff` for strings), a
+  concrete number below exactly the bounds that admit it
+  (`lit_le_min_iff`, `lit_le_max_iff`, `lit_le_above_iff`,
+  `lit_le_beneath_iff`), `neq` of fewer values above `neq` of more
+  (`neq_le_neq`) and `len` following its count (`len_le_len`), with
+  `String.le_trans` beside them.
+- `leDecF` decides these rows, so `test/spec/def-subsume.tsv` grows to
+  2,430 rows, 30 more pairs proven below, and both ports answer every
+  row as the contract allows but the three #346 rows, renumbered again
+  in the ledger.
+
 ### The definition holds `rest` inside a value
 
 Definition, generated rows, and documentation; no engine changes.

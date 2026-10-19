@@ -3119,6 +3119,16 @@ The members are judged under the root of the whole document, and
 a judgement under one root is a judgement under any. `list_le` does the
 same for lists, position by position, and `leDecF` decides both.
 
+The constraints have a table of their own in the reference, and its
+rows are theorems too: an interval is below another that contains it,
+`neq` of fewer values is above `neq` of more, `len` follows its count,
+and a concrete number is below exactly the bounds that admit it:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem min_le_min_iff (n m : Number) : .min (.num n) ⊑[env] .min (.num m) ↔ m.le n := by
+```
+
 ## 11. Two declarations of one key
 
 When a document declares one key twice, the engine merges the two
