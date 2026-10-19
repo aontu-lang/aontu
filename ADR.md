@@ -103,7 +103,7 @@ thereafter stated and changed in the definition, not here.
 | [ADR-064](#adr-064--the-published-meta-schemas-ship-with-the-importer) | The published meta-schemas ship with the importer | Accepted |
 | [ADR-065](#adr-065--an-input-that-imports-is-checked-against-its-meta-schema) | An input that imports is checked against its meta-schema | Accepted |
 | [ADR-066](#adr-066--a-vet-report-answers-json-schemas-output-units-through-the-importers-source-map) | A vet report answers JSON Schema's output units through the importer's source map | Accepted |
-| [ADR-067](#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names) | Subsumption reads a recursion as the definition it names | Accepted |
+| [ADR-067](#adr-067--subsumption-reads-a-recursion-as-the-definition-it-names) | Subsumption reads a recursion as the definition it names | Moved to the definition in part |
 | [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) | An import comes back from its own export | Accepted |
 
 ---
@@ -6221,7 +6221,7 @@ text by its hash.
 ## ADR-067 — Subsumption reads a recursion as the definition it names
 
 **Date:** 2026-10-10
-**Status:** Accepted
+**Status:** Moved to the definition in part (2026-10-19): [`spec/Aontu/Subsume.lean`](spec/Aontu/Subsume.lean) `LeD`, the order on two documents each read under its own declarations, with `alias_le_unroll` and `unroll_le_alias`, a recursion below its unrolling and above it; two recursions of one shape under different names the definition leaves undecided.
 
 ### Context
 

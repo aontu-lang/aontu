@@ -5193,6 +5193,42 @@ The engine answers `does_not_subsume` where `subsumeWrong` answered
 `subsumes`, and its finding gives the same reason: `{x?: any}` admits
 instances without the key.
 
+`aontu subsume` compares two documents, each with its own declarations,
+so the order on documents reads each side as `vet` does, its term
+expanded under the environment of its expanded bodies:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+def InstanceD (ds : Decls) (S : Val) (j : Data) : Prop := Instance ds.envE (ds.readR S) j
+
+/-- The order on documents: every instance of the specific document is
+one of the general document, each read under its own declarations. -/
+def LeD (dg : Decls) (g : Val) (ds : Decls) (s : Val) : Prop :=
+  ∀ j, InstanceD ds s j → InstanceD dg g j
+```
+
+A recursion and its unrolling are below each other, which is the
+reference's row for recursive positions. A reference to a name admits
+what the expansion of its body admits, so each is below the other:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem alias_le_unroll {ds : Decls} {n : String} {body : Val} (h : ds.env n = some body) :
+    .alias n ⊑[ds.envE] expand ds body :=
+```
+
+Two documents whose readings read no name are ordered as their readings
+are under the empty environment, so `leDecD` decides them with
+`leDecF`, and the checker that reads the names, `checkR` of step 17,
+refutes a pair with one instance. The tenth fragment,
+`test/spec/def-subsume-docs.tsv`, compares twelve documents pairwise,
+a recursive list of nodes, its unrolling and the plain nodes among them,
+and both engines answer as the contract allows but for five rows: a
+recursive general side with an optional key against an open specific
+side, where both answer `subsumes` and `{"n": 1, "next": 5}` is an
+instance of the specific side alone, the same cause as the false
+positive above.
+
 ## 19. The forms the importer writes
 
 The definition names no JSON Schema keyword. What `aontu jsonschema

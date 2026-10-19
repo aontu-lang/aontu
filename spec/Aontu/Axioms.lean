@@ -303,6 +303,18 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.multiple_le_multiple
 
+/-- info: 'Aontu.leD_of_le' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.leD_of_le
+
+/-- info: 'Aontu.alias_le_unroll' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.alias_le_unroll
+
+/-- info: 'Aontu.not_leD_of_witness' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.not_leD_of_witness
+
 /-- info: 'Aontu.not_le_map_required' does not depend on any axioms -/
 #guard_msgs in
 #print axioms Aontu.not_le_map_required

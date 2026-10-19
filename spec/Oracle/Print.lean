@@ -86,8 +86,9 @@ def segSrc : Seg → Option String
   | .idx i => some ("." ++ toString i)
 
 /-! `close()` seals every level, so a sealed container prints as
-`close(…)` only where no open container sits beneath it; a term the
-spelling cannot carry has no text. -/
+`close(…)` only where no open container sits beneath it, and a reference
+or a path, which may stand for one, counts as open; a term the spelling
+cannot carry has no text. -/
 mutual
 def openBelow : Val → Bool
   | .map fs spread closed => !closed || openFields fs || openSpread spread
@@ -103,6 +104,7 @@ def openBelow : Val → Bool
   | .rest t cs => openBelow t || openCovers cs
   | .select s arms d => openBelow s || openPairs arms || openSpread d
   | .filter s c => openBelow s || openBelow c
+  | .alias _ | .path _ => true
   | _ => false
 
 def openFields : List (String × Bool × Val) → Bool

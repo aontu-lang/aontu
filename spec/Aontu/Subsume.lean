@@ -544,11 +544,12 @@ specific side as `list_le` says of its positions, and when the spread
 holds every member the specific side can have: each of its items is
 below the spread, and the members past its positions are refused by a
 seal with no spread or held by its own spread, itself below the general
-one. -/
+one. The general side's own seal asks nothing here: beside a spread it
+fixes no length, so `close([integer, &: integer])` and
+`[integer, &: integer]` admit the same lists. -/
 theorem list_le_spread {ig is : List Val} {sps : Option Val} {sg : Val} {cs cg : Bool}
     (hn : ig.length ≤ is.length)
     (hi : ∀ (i : ℕ) (vg vs : Val), ig[i]? = some vg → is[i]? = some vs → vs ⊑[env] vg)
-    (hc : cg = true → cs = true ∧ sps = none ∧ is.length = ig.length)
     (hv : ∀ v, v ∈ is → v ⊑[env] sg)
     (ho : (cs = true ∧ sps = none) ∨ ∃ ss, sps = some ss ∧ ss ⊑[env] sg) :
     .list is sps cs ⊑[env] .list ig (some sg) cg := by
@@ -558,9 +559,8 @@ theorem list_le_spread {ig is : List Val} {sps : Option Val} {sg : Val} {cs cg :
     cases hw with
     | list hm =>
       refine ⟨.list hm, .list (Nat.le_trans hn hlen) ?_ ?_ ?_⟩
-      · intro hcg _
-        obtain ⟨hcs, hsp, heq⟩ := hc hcg
-        rw [hcl hcs hsp, heq]
+      · intro _ h
+        exact nomatch h
       · intro i vg x hig hx
         cases his : is[i]? with
         | none =>
@@ -972,23 +972,16 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
               else none
             | _, _ => none
       else none
-    | .list is sps cs, .list ig (some sg) cg =>
+    | .list is sps cs, .list ig (some sg) _ =>
       if hn : ig.length ≤ is.length then
         match itemsDec (leDecF env n) ig is, itemsAllDec (leDecF env n) sg is with
         | some ⟨hi⟩, some ⟨hv⟩ =>
           match cs, sps with
-          | true, none =>
-            match cg with
-            | false => some ⟨list_le_spread hn hi (fun h => nomatch h) hv (.inl ⟨rfl, rfl⟩)⟩
-            | true =>
-              if heq : is.length = ig.length then
-                some ⟨list_le_spread hn hi (fun _ => ⟨rfl, rfl, heq⟩) hv (.inl ⟨rfl, rfl⟩)⟩
-              else none
-          | cs', some ss =>
-            match cg, leDecF env n ss sg with
-            | false, some ⟨hle⟩ =>
-              some ⟨list_le_spread hn hi (fun h => nomatch h) hv (.inr ⟨ss, rfl, hle⟩)⟩
-            | _, _ => none
+          | true, none => some ⟨list_le_spread hn hi hv (.inl ⟨rfl, rfl⟩)⟩
+          | _, some ss =>
+            match leDecF env n ss sg with
+            | some ⟨hle⟩ => some ⟨list_le_spread hn hi hv (.inr ⟨ss, rfl, hle⟩)⟩
+            | none => none
           | false, none => none
         | _, _ => none
       else none
@@ -1061,5 +1054,83 @@ theorem not_le_of_witness {s g : Val} {j : Data} (hs : s.Checkable) (hg : g.Chec
   exact nomatch judge_unique hg' ((check_iff hg j).1 h2)
 
 end
+
+/-! ## The order on documents
+
+`aontu subsume` compares two documents, each read under its own
+declarations, so the order on documents reads each side as `vet` does:
+its term expanded and its selections made, under the environment of its
+expanded bodies. The reference's row for recursive positions, that a
+recursion and its unrolling subsume each other, is a fact of `Le` under
+that environment, and a document whose reading reads no name decides as
+its reading does under the empty environment. -/
+
+/-- An instance of a document: of its term as read under its declarations. -/
+def InstanceD (ds : Decls) (S : Val) (j : Data) : Prop := Instance ds.envE (ds.readR S) j
+
+/-- The order on documents: every instance of the specific document is
+one of the general document, each read under its own declarations. -/
+def LeD (dg : Decls) (g : Val) (ds : Decls) (s : Val) : Prop :=
+  ∀ j, InstanceD ds s j → InstanceD dg g j
+
+theorem LeD.refl (ds : Decls) (S : Val) : LeD ds S ds S := fun _ h => h
+
+/-- The contract on `aontu subsume` over documents: `subsumes` only where
+the order holds, `doesNotSubsume` only where it fails, and `undecided`
+anywhere. -/
+def SubsumeCorrectD (subsume : Decls → Val → Decls → Val → Subsumption) : Prop :=
+  ∀ dg g ds s,
+    (subsume dg g ds s = .subsumes → LeD dg g ds s) ∧
+    (subsume dg g ds s = .doesNotSubsume → ¬ LeD dg g ds s)
+
+/-- A term that reads no name, no path, no pattern and no format has the
+same instances under every environment: the checker reads none of them. -/
+theorem instance_of_checkable {env env' : Env} {v : Val} (hv : v.Checkable) {j : Data}
+    (h : Instance env v j) : Instance env' v j :=
+  ⟨h.1, (check_iff (env := env') (root := j) hv j).1 ((check_iff (env := env) (root := j) hv j).2 h.2)⟩
+
+/-- Two documents whose readings read no name are ordered as their
+readings are under the empty environment. -/
+theorem leD_of_le {dg ds : Decls} {g s : Val} (hg : (dg.readR g).Checkable)
+    (hs : (ds.readR s).Checkable) (h : ds.readR s ⊑[.empty] dg.readR g) : LeD dg g ds s :=
+  fun j hj => instance_of_checkable hg (h j (instance_of_checkable hs hj))
+
+/-- A recursion and its unrolling subsume each other: a reference to a
+name is below the expansion of the name's body, under the document's
+environment. -/
+theorem alias_le_unroll {ds : Decls} {n : String} {body : Val} (h : ds.env n = some body) :
+    .alias n ⊑[ds.envE] expand ds body :=
+  fun _ ⟨hw, hj⟩ => ⟨hw, (admits_alias_iff h).1 hj⟩
+
+/-- And above it. -/
+theorem unroll_le_alias {ds : Decls} {n : String} {body : Val} (h : ds.env n = some body) :
+    expand ds body ⊑[ds.envE] .alias n :=
+  fun _ ⟨hw, hj⟩ => ⟨hw, (admits_alias_iff h).2 hj⟩
+
+/-- An instance of the specific document the general one refuses puts the
+specific outside the order; `checkR` reads each side under its own
+declarations, so a witness is found by running it. -/
+theorem not_leD_of_witness {dg ds : Decls} {g s : Val} {j : Data}
+    (hgg : dg.Guarded) (hgb : ∀ d, d ∈ dg → d.2.CheckableA) (hgv : (dg.readR g).CheckableA)
+    (hsg : ds.Guarded) (hsb : ∀ d, d ∈ ds → d.2.CheckableA) (hsv : (ds.readR s).CheckableA)
+    (hj : j.WellFormed) (h1 : checkR ds (ds.readR s) j = true)
+    (h2 : checkR dg (dg.readR g) j = false) : ¬ LeD dg g ds s := by
+  intro hle
+  have hi : InstanceD ds s j := ⟨hj, (checkR_iff (root := j) hsg hsb hsv j).1 h1⟩
+  have hg' := (checkR_iff (root := j) hgg hgb hgv j).2 (hle j hi).2
+  rw [h2] at hg'
+  exact nomatch hg'
+
+/-- The order on documents decided where both readings read no name:
+`leDecF` under the empty environment, with its proof. -/
+def leDecD (n : ℕ) (dg : Decls) (g : Val) (ds : Decls) (s : Val) : Option (PLift (LeD dg g ds s)) :=
+  if hg : (dg.readR g).checkableB = true then
+    if hs : (ds.readR s).checkableB = true then
+      match leDecF .empty n (ds.readR s) (dg.readR g) with
+      | some ⟨h⟩ =>
+        some ⟨leD_of_le ((Val.checkableB_iff _).1 hg) ((Val.checkableB_iff _).1 hs) h⟩
+      | none => none
+    else none
+  else none
 
 end Aontu

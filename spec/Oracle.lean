@@ -1096,6 +1096,91 @@ def subsumeRows (tag : String) : IO Unit := do
           ++ "\t{\"verdict\":" ++ want ++ ",\"opts\":{\"profile\":\"values\"}}")
         i := i + 1
 
+/-! ## The tenth fragment: the order on documents -/
+
+/-- Documents with declarations, each its declarations and its term, which
+the rows put under `v` and compare pairwise, each read under its own
+declarations: a recursive list of nodes, its unrolling, a node with any
+tail, a node whose head is `1`, the plain nodes, a non-recursive name,
+the scalars it expands to, and a map holding a node. -/
+def docCases : List (Decls × Val) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let node (n next : Val) : Val := .map [("n", false, n), ("next", true, next)] none false
+  let T : Decls := [("T", node .integer (.alias "T"))]
+  let p : Decls := [("p", .meet .integer (.min (.num one)))]
+  [(T, .alias "T"), (T, node .integer (.alias "T")), ([], node .integer .any),
+    (T, node (int 1) (.alias "T")), ([], .map [("n", false, .integer)] none false),
+    ([], .map [("n", false, int 1)] none false), (p, .alias "p"), ([], .integer),
+    ([], .min (.num one)), ([], .meet .integer (.min (.num one))),
+    (T, .map [("a", false, .alias "T")] none false),
+    ([], .map [("a", false, .map [("n", false, .integer)] none false)] none false)]
+
+/-- The instances that may tell two documents apart, each put under `v`. -/
+def docInstances : List Data :=
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let node (n : Data) (rest : List (String × Data)) : Data := .map (("n", n) :: rest)
+  [node (j 1) [], node (j 1) [("next", node (j 2) [])],
+    node (j 1) [("next", node (j 2) [("next", node (j 3) [])])],
+    node (.str "a") [], node (j 2) [], .map [], j 0, j 1, j 2, .str "a",
+    node (j 1) [("next", j 5)], node (j 1) [("m", j 1)],
+    .map [("a", node (j 1) [])], .map [("a", node (j 1) [("next", node (j 2) [])])],
+    .map [("a", node (.str "a") [])]]
+
+/-- A case's term under the key `v`, as the rows write it. -/
+def docOf (v : Val) : Val := .map [("v", false, v)] none false
+
+/-- An instance under the key `v`. -/
+def docData (j : Data) : Data := .map [("v", j)]
+
+theorem docCases_ok : ∀ c ∈ docCases, c.1.guardedB = true ∧ c.1.bodiesCheckableB = true ∧
+    (docOf c.2).checkableAB = true := by decide
+
+theorem docInstances_wf : ∀ j ∈ docInstances, (docData j).wf = true := by decide
+
+/-- A witness among the instances refutes the order on two documents of
+the fragment: `not_leD_of_witness`, its side conditions decided. -/
+theorem subsume_doc_rows_exact : ∀ g ∈ docCases, ∀ s ∈ docCases, ∀ j ∈ docInstances,
+    checkR s.1 (s.1.readR (docOf s.2)) (docData j) = true →
+    checkR g.1 (g.1.readR (docOf g.2)) (docData j) = false →
+    ¬ LeD g.1 (docOf g.2) s.1 (docOf s.2) := by
+  intro g hg s hs j hj h1 h2
+  obtain ⟨hgg, hgb, hgv⟩ := docCases_ok g hg
+  obtain ⟨hsg, hsb, hsv⟩ := docCases_ok s hs
+  exact not_leD_of_witness (Decls.guardedB_iff.1 hgg) (Decls.bodiesCheckableB_iff.1 hgb)
+    (readR_checkableA (Decls.bodiesCheckableB_iff.1 hgb) ((Val.checkableAB_iff _).1 hgv))
+    (Decls.guardedB_iff.1 hsg) (Decls.bodiesCheckableB_iff.1 hsb)
+    (readR_checkableA (Decls.bodiesCheckableB_iff.1 hsb) ((Val.checkableAB_iff _).1 hsv))
+    ((Data.wf_iff _).1 (docInstances_wf j hj)) h1 h2
+
+/-- A document's text: its declarations, one to a line, and its term under
+`v`. -/
+def docSrc (c : Decls × Val) : IO String := do
+  let mut lines : List String := []
+  for d in c.1 do
+    let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+    lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
+  let some tsrc := c.2.src | throw (IO.userError "a term of the fragment has no text")
+  pure ("\\n".intercalate (lines ++ ["v: " ++ tsrc]))
+
+/-- The rows of the tenth fragment: each pair of documents, the general
+first, where `leDecD` decides the order or an instance refutes it. -/
+def subsumeDocRows (tag : String) : IO Unit := do
+  let mut i := 0
+  for g in docCases do
+    let gsrc ← docSrc g
+    for s in docCases do
+      let ssrc ← docSrc s
+      let want? : Option String :=
+        if (leDecD 64 g.1 (docOf g.2) s.1 (docOf s.2)).isSome then some "[\"subsumes\",\"undecided\"]"
+        else if docInstances.any (fun j => checkR s.1 (s.1.readR (docOf s.2)) (docData j)
+            && !(checkR g.1 (g.1.readR (docOf g.2)) (docData j))) then
+          some "[\"does_not_subsume\",\"undecided\"]"
+        else none
+      if let some want := want? then
+        IO.println (tag ++ toString i ++ "\tsubsumption\t" ++ gsrc ++ "\t" ++ ssrc
+          ++ "\t{\"verdict\":" ++ want ++ ",\"opts\":{\"profile\":\"values\"}}")
+        i := i + 1
+
 /-! ## The forms
 
 The spellings of the definition's forms, as the printer writes them, for
@@ -1260,6 +1345,17 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# Regenerate with `make spec`; never edit by hand."
     IO.println "# form\tkind\ttext"
     formRows
+    return 0
+  | ["subsumedocs"] =>
+    IO.println "# Generated by `lake exe oracle subsumedocs` (spec/Oracle.lean) from the definition"
+    IO.println "# in spec/Aontu: documents with alias declarations compared pairwise under the"
+    IO.println "# values profile, each read under its own declarations (LeD), the general first."
+    IO.println "# A row's expectation is the answers the contract SubsumeCorrectD allows: subsumes"
+    IO.println "# where leDecD decides the order on two readings that read no name, with its"
+    IO.println "# proof, and does_not_subsume where an instance under v admits the specific"
+    IO.println "# document and refuses the general, which subsume_doc_rows_exact makes the"
+    IO.println "# definition's own; a pair the definition leaves undecided has no row."
+    subsumeDocRows "u"
     return 0
   | ["subsume"] =>
     IO.println "# Generated by `lake exe oracle subsume` (spec/Oracle.lean) from the definition"
