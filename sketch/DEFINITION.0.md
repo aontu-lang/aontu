@@ -404,10 +404,10 @@ canon and hash obligation of §1.
 
 ## 7. Decisions: ruled and open
 
-Each changes a rule. The first five were ruled on 2026-10-16 and the
-next three on 2026-10-19; the rest are open, each raised by the phase
-that found it, and each stands here until the phase that encodes it
-lands.
+Each changes a rule. The first five were ruled on 2026-10-16, the
+next three on 2026-10-19 and the last seven on 2026-10-20, each raised
+by the phase that found it, and each stands here until the phase that
+encodes it lands.
 
 1. **The meaning of `%U = %U`.** Ruled 2026-10-16: ill-formed, an
    `error`. An alias admitted only through itself
@@ -497,7 +497,7 @@ lands.
    though the data as written may be an instance, as
    `{a?: 1} & nof(0, {a: 1})` against `{}` shows. The twenty-one ledger
    rows retired.
-9. **A size against a container literal at the meet.** Open, raised
+9. **A size against a container literal at the meet.** Raised
    2026-10-19 (#366). Both ports answer `error` for
    `len(max(1)) & {x: 1, y: 2}`, a literal too long for its size, and
    `invalid` for `len(2) & [1]`, one too short; the definition, which
@@ -507,8 +507,17 @@ lands.
    however it grows, is a conflict of the schema, since members only
    accumulate. If that is the rule, the definition gains it at the meet
    and the page that states it; if not, the ports move. No generated
-   row carries the case until it is ruled.
-10. **The marks in the definition.** Open, raised 2026-10-19 by P5.
+   row carries the case until it is ruled. **Ruled 2026-10-20: that is
+   the rule.** A literal longer than its size allows is a conflict of
+   the schema, an `error` at the meet, since members only accumulate; a
+   literal short of its size is tried at generation and is `invalid`
+   (decision 8). The definition gains the rule at the meet and the
+   reference states it; the ports stand. A sealed literal short of its
+   size, which cannot grow either, is a short literal under the same
+   rule, `invalid`, as both ports answer (`len(2) & close([1])` and
+   `len(3) & close({x: 1})`, measured 2026-10-20): the rule reads the
+   length against the size, not whether the literal may grow.
+10. **The marks in the definition.** Raised 2026-10-19 by P5.
    `type()` and `hide()` are no terms of the definition, which holds
    semantics only (§1), yet the `gen` profile of `subsume` compares
    them, so its contract, `GenLe`, takes their agreement as a
@@ -516,8 +525,11 @@ lands.
    through `host`. Either the marks enter the syntax, with what each
    decides stated, which the hash form's obligation in §1 asks for
    anyway, or the predicate stays, and the `gen` profile is held to
-   the definition only through `defaults`.
-11. **The effective default under `defaults`.** Open, raised 2026-10-19
+   the definition only through `defaults`. **Ruled 2026-10-20: the
+   marks enter the syntax**, each a term with what it decides stated,
+   entering as the riders do (decision 14), so that `GenLe` reads them
+   from the terms and `gen` is held to the definition directly.
+11. **The effective default under `defaults`.** Raised 2026-10-19
    by P5. `DefaultsLe` (`spec/Aontu/Subsume.lean`) holds the general
    side to every value the specific side singles out at a position, a
    literal's own value included, since replacing `{a: 1}` by
@@ -529,8 +541,14 @@ lands.
    answers `subsumes` for `integer` over `1` under the default profile,
    which `ProfileCorrect .defaults` refuses. Either the contract narrows
    to the terms that declare a default, or the ports and the page move.
-   The generated rows run under `values` until it is ruled.
-12. **A `does_not_subsume` with no witness.** Open, raised 2026-10-19
+   The generated rows run under `values` until it is ruled. **Ruled
+   2026-10-20: the contract narrows.** Only a term that declares a
+   default counts, as the reference's definition and both ports read
+   it: `DefaultsLe` holds the general side to the default the specific
+   side declares at a position, a literal's own value is no default,
+   and `integer` over `1` subsumes under `defaults`, as
+   `kind-over-scalar` answers.
+12. **A `does_not_subsume` with no witness.** Raised 2026-10-19
    (#375). Both ports answer `does_not_subsume` for `string` over
    `min("a")`, `above("")` and a pattern that cannot match `""`, where
    the order holds, under the reference's "folds toward
@@ -540,7 +558,11 @@ lands.
    `undecided` where they cannot decide, or the contract weakens to the
    paragraph, under which a `subsume` that always answers
    `does_not_subsume` is correct. The definition recommends the first.
-13. **The key at a position.** Open, raised 2026-10-19 by P6. The
+   **Ruled 2026-10-20: the first.** The ports answer `undecided` where
+   they find no failing case, so that `does_not_subsume` always has a
+   witness; the contract stands, and the reference's "folds toward
+   `does_not_subsume`" changes with the ports.
+13. **The key at a position.** Raised 2026-10-19 by P6. The
    importer writes `patternProperties` and `propertyNames` as a spread
    that holds each member to its key, `&: match(key(0), p, any, nil)`:
    `key(0)` answers the key the value sits under, and no term of the
@@ -552,8 +574,10 @@ lands.
    do for a pattern over keys. The definition recommends the first,
    narrowed to the key of the member a spread is tried on and no more
    of the path, which is all the importer asks and all the reference's
-   `key(0)` answers there.
-14. **The riders.** Open, raised 2026-10-19 by P6. `meta(v, r)`,
+   `key(0)` answers there. **Ruled 2026-10-20: the first, narrowed** as
+   recommended: a term `key` that a map's spread rule reads from the
+   member it is tried on.
+14. **The riders.** Raised 2026-10-19 by P6. `meta(v, r)`,
    `deprecate(v)` and `ident(v, r)` ride a value and change no
    admission, which is why §6 defers them, yet the importer writes them
    around most of what it imports, so the check cannot read its output
@@ -569,7 +593,15 @@ lands.
    ([ADR-072](../ADR.md#adr-072--a-meta-record-is-open-metadata),
    [ADR-073](../ADR.md#adr-073--an-ident-record-is-open-declaration-metadata)),
    so the first carries a record as data and names none of its keys.
-15. **The words `map` and `list`.** Open, raised 2026-10-19 by P6. The
+   **Ruled 2026-10-20: the first.** The three riders enter the syntax as
+   transparent forms, one rule each, with `Output` passing through
+   them, and the marks of decision 10 enter the same way. `ident()`
+   keeps its place: it is a form only as the value of an alias
+   declaration, or one term of the meet that is that value, and is
+   ill-formed anywhere else, as both ports refuse it with `ident_place`
+   (`test/spec/ident.tsv`), so its rule belongs to the declaration and
+   not to a value.
+15. **The words `map` and `list`.** Raised 2026-10-19 by P6. The
    importer writes `map` for `type: object` with no other keyword and
    `list` for `type: array`. Both ports admit every map or every list
    under the word and single nothing out, `mapval_no_gen` for `a: map`
@@ -580,7 +612,9 @@ lands.
    which admit by kind and are not singled out, or the importer writes
    `{}` and `[]`, which changes what an imported `type: object`
    generates from an error to `{}`. The definition recommends the
-   first, which states what both ports do.
+   first, which states what both ports do. **Ruled 2026-10-20: the
+   first.** `map` and `list` enter the syntax as kinds beside `string`
+   and `number`, admitting by kind and singling nothing out.
 
 ## 8. Risks
 
