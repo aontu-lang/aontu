@@ -1,5 +1,5 @@
 # The jostraca component primitives -- SPIKE
-# (docs/design/JOSTRACA.0.md, ts/src/val/CmpFuncVal.ts).
+# (sketch/JOSTRACA.0.md, ts/src/val/CmpFuncVal.ts).
 #
 # Run it, and pipe it into jostraca:
 #

@@ -4,7 +4,7 @@ The formal definition of the aontu language, in Lean 4: what a value
 admits, the order between values, and what any `subsume` must answer,
 written as relations that say what the right answer is and not how to
 compute it. The plan is
-[docs/design/DEFINITION.0.md](../docs/design/DEFINITION.0.md) and the
+[sketch/DEFINITION.0.md](../sketch/DEFINITION.0.md) and the
 decision is ADR-069.
 
 It is one definition. Every module reads one model of the data, one

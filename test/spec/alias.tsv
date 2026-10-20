@@ -1,4 +1,4 @@
-# ALIASES -- P1 of docs/design/ALIASES.0.md: a file-local name for a
+# ALIASES -- P1 of sketch/ALIASES.0.md: a file-local name for a
 # value expression.
 #
 # Columns: name<TAB>mode<TAB>src<TAB>expect
@@ -7,7 +7,7 @@
 # REFERS. One lexeme, and its meaning is decided by position -- a
 # binding before the declaration operator, a use in value position.
 #
-# THE DECLARATION OPERATOR IS `=` (docs/design/ALIASES.0.md X-1, as
+# THE DECLARATION OPERATOR IS `=` (sketch/ALIASES.0.md X-1, as
 # settled 2026-09-05). The lexer reads a lone `=` after an alias name as
 # the pair's separator, so a declaration parses as a pair whose key is
 # the name; `=` is special nowhere else. The colon form that declared

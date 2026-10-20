@@ -1,5 +1,5 @@
 # The call surface: one declaration line per built-in function
-# (docs/design/SIGNATURES.0.md). THIS FILE IS THE SOURCE — both ports
+# (sketch/SIGNATURES.0.md). THIS FILE IS THE SOURCE — both ports
 # carry a build-time-inlined copy (ts/src/sigdecl.ts, go/sigdecl.txt;
 # `make sig` regenerates both, and each port's suite asserts its copy
 # is byte-identical with this file) and parse it at initialisation

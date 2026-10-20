@@ -739,7 +739,7 @@ const codeClasses = {
     rel_address: 'parse',
     refer_unresolved: 'reference',
     rel_unresolved: 'reference',
-    // The tree view (docs/design/VIEWS.0.md): a relation that draws
+    // The tree view (sketch/VIEWS.0.md): a relation that draws
     // nothing is refused rather than drawn empty. Class `reference`: a
     // name that does not resolve.
     view_relation_unknown: 'reference',
@@ -747,7 +747,7 @@ const codeClasses = {
     view_profile_unknown: 'reference',
     view_style_profile: 'reference',
     view_style_unknown: 'reference',
-    // The renderer (docs/design/RENDER.0.md D7, D8): a unit path that is
+    // The renderer (sketch/RENDER.0.md D7, D8): a unit path that is
     // not a relative descent of its own, a text escape in the wrong
     // language, a declaration with no lowering, an opaque escape under
     // strict, a unit filter that names nothing.
@@ -756,7 +756,7 @@ const codeClasses = {
     render_profile: 'parse',
     render_strict: 'conflict',
     render_unit: 'reference',
-    // The formatter's self-check (docs/design/FMT.0.md): a report-layer
+    // The formatter's self-check (sketch/FMT.0.md): a report-layer
     // code, class internal -- the formatter, not the document, is wrong.
     format_check: 'internal',
     view_rows_exceeded: 'budget',
@@ -772,7 +772,7 @@ const codeClasses = {
     view_steps_shape: 'reference',
     view_split_kind: 'reference',
     view_part_names: 'reference',
-    // First-class paths (docs/design/PATHS.0.md): text that is not a
+    // First-class paths (sketch/PATHS.0.md): text that is not a
     // tree address, met by path()'s capture or promotion. The same
     // class as refer_address, because it is the same mistake.
     path_address: 'parse',

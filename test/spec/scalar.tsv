@@ -27,7 +27,7 @@ tiny-fixed-canon	canon	a:0.000001	{"a":0.000001}
 exp-neg-canon	canon	a:1e-7	{"a":1e-7}
 number-overflow-err	err	a:1e999	Cannot resolve value
 number-neg-overflow-err	err	a:-1e999	Cannot resolve value
-# FLIPPED by the number tower's D7 (docs/design/number-tower.md): an
+# FLIPPED by the number tower's D7 (sketch/number-tower.md): an
 # integer-source literal that binary64 cannot hold EXACTLY is a located
 # error instead of a silently rounded value. 0xffffffffffffffff is
 # 2^64-1, which rounds up to 2^64, so `hex-big` and `hex-big-canon` --

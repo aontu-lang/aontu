@@ -89,7 +89,7 @@ Two cautions:
   is refused (`path_cycle`), broken at depth one (`scalar_kind` naming
   neither the recursion nor the schema), or silently vacuous (the
   spread-template spelling generates at any depth and checks nothing).
-  The design is written: `docs/design/RECURSION.0.md`.
+  The design is written: `sketch/RECURSION.0.md`.
 
 - `order/` (§62, filed 2026-08-30) is **FIXED** as of 2026-08-30:
   `bagChildren` sorts with `cmpCodePoint`, so `pick` answers in the

@@ -37,7 +37,7 @@ func TestSpec(t *testing.T) {
 	var files []string
 	for _, e := range entries {
 		// signature.tsv is the DECLARATION, not rows (its lines are the
-		// signature syntax, docs/design/SIGNATURES.0.md); its own gate
+		// signature syntax, sketch/SIGNATURES.0.md); its own gate
 		// is the round-trip in sig_test.go, as ts/test/sig.test.ts is
 		// for the TS port.
 		if strings.HasSuffix(e.Name(), ".tsv") && "signature.tsv" != e.Name() {
@@ -197,7 +197,7 @@ func TestSpec(t *testing.T) {
 							src, data, want, got)
 					}
 				case "verdict":
-					// The definition's rows (docs/design/DEFINITION.0.md):
+					// The definition's rows (sketch/DEFINITION.0.md):
 					// the golden names the verdict, or the verdicts it may
 					// be, and nothing else in the report is compared.
 					var golden map[string]any
@@ -265,7 +265,7 @@ func TestSpec(t *testing.T) {
 					}
 
 				case "fmt":
-					// The formatter (docs/design/FMT.0.md): the text is
+					// The formatter (sketch/FMT.0.md): the text is
 					// what fmt writes; the agreed form is a fixed point;
 					// and where the source evaluates, its formatted form
 					// is the same document, by canon-hash. Mirrors the

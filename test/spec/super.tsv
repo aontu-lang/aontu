@@ -1,4 +1,4 @@
-# SUPER -- docs/design/SUPER.0.md: super(x) answers the immediate
+# SUPER -- sketch/SUPER.0.md: super(x) answers the immediate
 # parent type of its argument, structurally. The scalar and kind
 # ladders are pinned where they always were (number-model.tsv,
 # number-tower.tsv, edge.tsv); this file pins the structural rules

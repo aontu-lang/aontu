@@ -132,7 +132,7 @@ describe('val-basic', function() {
 
 
   // The number tower: `number` is a pure supertype over the disjoint
-  // leaves `integer` and `float`. See docs/design/number-tower.md D1.
+  // leaves `integer` and `float`. See sketch/number-tower.md D1.
   it('scalar-kind-lattice', () => {
     let ctx = makeCtx()
     let tu = (a: any, b: any) => unite(ctx, a, b, 'kind-lattice-test')

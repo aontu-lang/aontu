@@ -311,7 +311,7 @@ func stagedDrive(ctx *Ctx, f *FuncVal, base []string) bool {
 }
 
 // emitTemplate is one entry of the rule table: the pattern to try, the
-// body to instantiate, and -- docs/design/TEMPLATE.0.md D3 and D4 --
+// body to instantiate, and -- sketch/TEMPLATE.0.md D3 and D4 --
 // the `replace` map and the `esc` convention its values take, with the
 // literal spots of the body the replacements are written into.
 type emitTemplate struct {

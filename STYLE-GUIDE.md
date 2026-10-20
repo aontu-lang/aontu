@@ -122,7 +122,7 @@ published:
 | Set | Files | Audience |
 |---|---|---|
 | Published | `index.md`, `tutorial*.md`, `unification.md`, `reference-*.md`, `trust.md`, `lsp.md`, `use-cases.md`, `how-to/*.md`, the use-case READMEs, `test/system/README.md` and each system's README and `doc/*.md` | anyone using aontu |
-| Internal | `ADR.md`, `docs/design/`, `docs/capability-review/`, `DIVERGENCE.md`, `AGENTS.md`, `use-cases/BUGS.md`, `use-cases/REVIEW.md`, `shared-spec.md`, `test-coverage.md`, `release-and-tag.md` | contributors |
+| Internal | `ADR.md`, `sketch/`, `docs/capability-review/`, `DIVERGENCE.md`, `AGENTS.md`, `use-cases/BUGS.md`, `use-cases/REVIEW.md`, `shared-spec.md`, `test-coverage.md`, `release-and-tag.md` | contributors |
 
 **A published page never cites an internal one.** Not as a link, not
 as a parenthetical, not as a bare token. `(ADR-004)` after a rule tells
@@ -507,7 +507,7 @@ generated**: declared in `ts/scripts/figures.cjs`, written to
   introducing the idea to newcomers, and then once.
 - **meet**: the operation named as order theory names it. It is a
   term of art, so its **first use on any page links to
-  [`unification.md`](unification.md)**; later uses on that page are
+  [`unification.md`](docs/unification.md)**; later uses on that page are
   plain. The same rule covers *top*, *bottom*, *lattice* and
   *residual*, which that page also defines. A page using "meet" in the
   ordinary English sense ("the truth is not met yet") links nothing.

@@ -13,7 +13,7 @@
 # is the one extension carrying an upstream default processor, which
 # returns a plain JS object where the aontu grammar produces Vals. It
 # is also the extension every published vocabulary ships as, which is
-# why docs/design/ONTOLOGY.0.md §3.1 made this a prerequisite of that
+# why sketch/ONTOLOGY.0.md §3.1 made this a prerequisite of that
 # note's phase P1 — now met.
 #
 # The durable pin is test/spec/file.tsv, load-ext-json.

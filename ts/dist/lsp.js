@@ -483,7 +483,7 @@ const LITERAL_KEYWORDS = ['_', 'true', 'false', 'null', 'any'];
 function computeCompletions(src) {
     const out = [];
     for (const f of BUILTIN_FUNCS) {
-        // The detail is the rendered SIGNATURE (docs/design/SIGNATURES.0.md)
+        // The detail is the rendered SIGNATURE (sketch/SIGNATURES.0.md)
         // -- the same renderer the hints and the docs table use, so the
         // completion list cannot drift from the declaration.
         out.push({ label: f, kind: COMPLETION_FUNCTION, detail: (0, sig_1.renderSig)(sig_1.funcSig[f]) });

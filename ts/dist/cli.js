@@ -3030,7 +3030,7 @@ function renderReachesJson(report) {
     }, 2);
 }
 // ---------------------------------------------------------------------
-// The tree view (docs/design/VIEWS.0.md, ts/src/view.ts): the drawn
+// The tree view (sketch/VIEWS.0.md, ts/src/view.ts): the drawn
 // edge set, as text a golden diff can check.
 function runView(argv) {
     const trusted = takeTrust(argv);

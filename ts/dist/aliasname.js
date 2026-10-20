@@ -8,7 +8,7 @@ exports.aliasScopedKey = aliasScopedKey;
 exports.aliasBareName = aliasBareName;
 exports.aliasPathSegment = aliasPathSegment;
 exports.aliasSetItems = aliasSetItems;
-// ONE PATTERN FOR THE ALIAS NAME. See docs/design/ALIASES.0.md
+// ONE PATTERN FOR THE ALIAS NAME. See sketch/ALIASES.0.md
 const ALIAS_NAME = '%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*';
 exports.ALIAS_NAME = ALIAS_NAME;
 const ALIAS_RE = new RegExp('^' + ALIAS_NAME);

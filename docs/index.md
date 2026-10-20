@@ -153,7 +153,7 @@ Contract:
 
 For contributors:
 
-- [The style guide](STYLE-GUIDE.md). How these pages are written:
+- [The style guide](../STYLE-GUIDE.md). How these pages are written:
   Diátaxis placement, the voice, the banned-phrase list, and the
   snippet directives under which every example runs.
 

@@ -13,7 +13,7 @@
 # actual (TypeScript):
 #   {"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"n"}}}}}
 #
-# Found by the formatter's lawful-tier check (docs/design/FMT.0.md
+# Found by the formatter's lawful-tier check (sketch/FMT.0.md
 # §7.3): merging §50's three statements into one map is a rewrite the
 # check refused in TypeScript and accepted in Go, so `aontu fmt`
 # writes that repro differently in the two ports -- the split

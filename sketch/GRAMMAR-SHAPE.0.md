@@ -14,7 +14,7 @@ not; the aontu-side review is
 
 ## 1. What aontu does today
 
-[ADR-033](../../ADR.md#adr-033--a-grammar-is-a-string-and-parsing-is-a-function)
+[ADR-033](../ADR.md#adr-033--a-grammar-is-a-string-and-parsing-is-a-function)
 gives aontu two builtins. `abnf(g)` compiles an RFC 5234 grammar and
 answers its source; `parse(g, v)` applies one and answers the tabnas
 AST. The AST is the whole of the answer:
@@ -149,7 +149,7 @@ What matters to a caller is not the notation but the guarantees:
    no closures, because a grammar that a document can write must be a
    grammar the engine can load from data.
 3. **Both ports, same bytes.** aontu holds TypeScript and Go at full
-   parity ([ADR-001](../../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)),
+   parity ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)),
    and would need the feature in both before using it.
 4. **Named fields survive.** §4.1 has to be answered for an object
    shape to mean anything — either by fixing the fold or by having the
@@ -185,7 +185,7 @@ tn.parse('1.2.30').kids.map((k) => k.rule)   // ['DIGIT','min','pat']
 aontu ships the tree and shapes it in the language: `pick` projects one
 field of every child, `filter` selects children by rule, `join` folds a
 one-element selection back to a scalar. That is documented under
-["Shaping an unannotated tree"](../reference-language.md#shaping-an-unannotated-tree)
+["Shaping an unannotated tree"](../docs/reference-language.md#shaping-an-unannotated-tree)
 and
 pinned by the `shape-*` rows in `test/spec/abnf.tsv`, including a row
 for the leading fold so the limit is recorded rather than worked around
@@ -202,7 +202,7 @@ part as an element. Values nest, and the output is pure data.
 
 Against the four guarantees §5 asked for: **opt-in** holds (an
 unannotated grammar compiles unchanged, and every row of
-[`test/spec/abnf.tsv`](../../test/spec/abnf.tsv) still passes);
+[`test/spec/abnf.tsv`](../test/spec/abnf.tsv) still passes);
 **pure data** holds (an annotated grammar converts with an empty `ref`
 map and no closures); **both ports** holds, pinned upstream by shared
 fixtures compared byte for byte; and **named fields survive** — by the

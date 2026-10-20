@@ -45,7 +45,7 @@ aliases stands alone.** Carrying a name across files is exactly what
 `export` is for, and P2 answered it rather than letting it be inherited
 by accident.
 **Origin:** Richard Rodger, 2026-08-28, as the general form behind the
-sized-integer question that [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
+sized-integer question that [ADR-008](../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators)
 left standing.
 **Method:** every claim below about what the language does *today* was
 probed against `aontu@0.53.0` and `go/v0.1.11` in-tree, and carries its
@@ -79,7 +79,7 @@ Three parts, as given:
    `export` and the destructure name what they name.
 
 The worked case is the one from
-[`docs/reference-language.md`](../reference-language.md#named-constraint-aliases):
+[`docs/reference-language.md`](../docs/reference-language.md#named-constraint-aliases):
 
 ```
 # today
@@ -209,7 +209,7 @@ than as rules:
 - **Redeclaration unifying** (§7), because that is what two statements
   for one name already do.
 - **The late-referent case**, which is the machinery
-  [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §48 exercised: an atom
+  [`use-cases/BUGS.md`](../use-cases/BUGS.md) §48 exercised: an atom
   conjoined at the point of use reaching a reference that resolves a
   pass late. Aliases inherit that path's fixes rather than needing their
   own.
@@ -731,7 +731,7 @@ preprocessor, which gets its (limited) power from arguments.
 
 Twenty declarations reach a million nodes. This is not
 non-termination — it finishes — but
-[`docs/trust.md`](../trust.md) clause 2 is about what an unattended
+[`docs/trust.md`](../docs/trust.md) clause 2 is about what an unattended
 agent can be handed, and "terminates eventually" is not the promise
 that clause makes.
 

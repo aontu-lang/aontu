@@ -317,7 +317,7 @@ describe('lsp-completion', () => {
 
   test('completion-detail-is-the-signature', () => {
     // The detail column renders from the registry
-    // (docs/design/SIGNATURES.0.md): the declaration, not a label.
+    // (sketch/SIGNATURES.0.md): the declaration, not a label.
     const c = computeCompletions('')
     const byLabel = new Map(c.map(i => [i.label, i]))
     Assert.equal(byLabel.get('upper')?.detail,

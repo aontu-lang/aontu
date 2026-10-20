@@ -13,7 +13,7 @@ and the meet ladder are BUILT (2026-09-02) as `aontu view poset` and
 `aontu view ladder`, with `WhyConjunct.rank` in both ports; the
 interval panel and the `order` verb's `--head` gate are not. This note
 is design; status belongs in the
-[progress register](../capability-review/progress.md).*
+[progress register](../docs/capability-review/progress.md).*
 
 ## Problem
 
@@ -25,7 +25,7 @@ an interval and names both operands when the meet is empty. Nothing
 shows the **shape**.
 
 **First failing example, on this repository's own data.**
-[`use-cases/04-schema-evolution/`](../../use-cases/04-schema-evolution/)
+[`use-cases/04-schema-evolution/`](../use-cases/04-schema-evolution)
 holds three released versions of a customer profile. The filenames read
 as a chain. VERIFIED, all six ordered pairs:
 
@@ -74,7 +74,7 @@ converts a documented, defensible conservative fold into a visible
 falsehood.
 
 **Fourth, and it gates everything above:
-[BUGS 64](../../use-cases/BUGS.md).** Three of the seven use-case entry
+[BUGS 64](../use-cases/BUGS.md).** Three of the seven use-case entry
 documents do not subsume **themselves** — a referenced, aliased or
 recursive spread template folds to `undecided` with `expected` and
 `actual` byte-identical, in both ports. A poset over documents that do

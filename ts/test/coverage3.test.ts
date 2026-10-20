@@ -474,7 +474,7 @@ describe('coverage3-funcs', () => {
   test('path-func-argument-shapes', () => {
     const ctx = CTX()
 
-    // No argument at all is the path KIND (docs/design/PATHS.0.md).
+    // No argument at all is the path KIND (sketch/PATHS.0.md).
     Assert.equal(
       (new PathFuncVal({ peg: [] }, ctx) as any).resolve(ctx, []).isPathKind,
       true)
@@ -1229,7 +1229,7 @@ describe('coverage3-subsume', () => {
   })
 
   // A recursion unfolds into the definition its own document holds
-  // (docs/design/RECURSION.0.md, P3); one whose document does not hold
+  // (sketch/RECURSION.0.md, P3); one whose document does not hold
   // it, which no evaluated pair produces, is undecided.
   test('subsume-recursion-without-its-definition', () => {
     const rec: any = (new Aontu().unify('T: {next?: $.T}') as any).peg.T.peg.next

@@ -1,4 +1,4 @@
-# The ledger of spec/ (docs/design/DEFINITION.0.md, section 5): one row per
+# The ledger of spec/ (sketch/DEFINITION.0.md, section 5): one row per
 # generated row (test/spec/def-fragment.tsv and the fragments beside it) the
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, and the cause. Both ports answer every listed case alike.

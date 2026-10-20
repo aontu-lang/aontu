@@ -369,7 +369,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 		return subNo
 	}
 
-	// Container kinds (docs/design/PATHS.0.md): `map()` subsumes every
+	// Container kinds (sketch/PATHS.0.md): `map()` subsumes every
 	// map and itself, `list()` every list. The unit literals already
 	// subsume through the container rules; only the kind former needs
 	// an arm. Mirrors the same arm in ts/src/subsume.ts.
@@ -497,7 +497,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 }
 
 // subsumeRecursion reads a recursion as the definition it names,
-// unfolded against its own document (docs/design/RECURSION.0.md, P3). One
+// unfolded against its own document (sketch/RECURSION.0.md, P3). One
 // met again before the walk enters a bag unfolds to no structure, and
 // answers "" to be compared as residue.
 func subsumeRecursion(st *subState, path []string, g0, s0, g, s Val) string {

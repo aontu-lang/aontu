@@ -14,7 +14,7 @@ test/vectors/isemail/** -text
 test/vectors/idna/** -text
 test/vectors/test262/** -text
 test/vectors/re2/** -text
-# The embedded copy of test/spec/signature.tsv (docs/design/
+# The embedded copy of test/spec/signature.tsv (sketch/
 # SIGNATURES.0.md): byte-compared with it by go/sig_test.go, so it
 # keeps the same line endings on every platform.
 go/sigdecl.txt text eol=lf

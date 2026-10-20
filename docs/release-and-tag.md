@@ -15,7 +15,7 @@ registry upload step: `proxy.golang.org` serves whatever a tag points at, so
 nothing to undo it.
 
 This page blends how-to and explanation on purpose, under the exception
-[STYLE-GUIDE.md](STYLE-GUIDE.md) makes for it: a release is irreversible
+[STYLE-GUIDE.md](../STYLE-GUIDE.md) makes for it: a release is irreversible
 enough that the rationale stays beside the commands.
 
 > **This path is proven.** Its first end-to-end run was 2026-08-28:

@@ -32,16 +32,16 @@ not used, except for aontu's own.
 
 | Aspect | aontu 0.76.0 |
 |---|---|
-| Implementations | TypeScript (canonical) and a Go port, held to parity by the shared suite under `test/spec/` (whose size the [register](../capability-review/progress.md#the-update-protocol) records, rule 5, and nowhere else), each port at 100 % coverage ([ADR-001](../../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec), [ADR-002](../../ADR.md#adr-002--test-coverage-stays-at-100--in-both-implementations)) |
+| Implementations | TypeScript (canonical) and a Go port, held to parity by the shared suite under `test/spec/` (whose size the [register](../docs/capability-review/progress.md#the-update-protocol) records, rule 5, and nowhere else), each port at 100 % coverage ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec), [ADR-002](../ADR.md#adr-002--test-coverage-stays-at-100--in-both-implementations)) |
 | Licence and steward | MIT, a single maintainer, sponsored by Voxgig (`README.md:8`) |
 | Adoption | Minimal. 11 GitHub stars and no forks. npm counted 11,656 downloads in the 30 days to 2026-09-29 and 28,271 in the year; in the week before, 76 % were of the two newest releases, which points to the project's own CI more than to users. Four codebases are known to consume it (podmind, todo-app, voxgig/apidef and voxgig/sdkgen, `use-cases/REVIEW.md:9-10`), and in August their use was "includes + spreads + `*default \| widetype` + references, full stop" (`use-cases/REVIEW.md:378-379`). A web search found no independent public discussion. |
-| Turing-complete | No, by design: "No Turing-completeness, no SMT solvers" (`docs/trust.md:298`). There are no user-defined functions (`docs/reference-language.md:2090-2091`), generators iterate finite bags that already exist, recursion expands only against concrete data, and every evaluation runs under event budgets of 9 passes, 999 revisits and depth 1000 (`docs/trust.md:100-110`). Two open defects are inputs that do not terminate: [BUGS.md](../../use-cases/BUGS.md) §18 and §57. |
+| Turing-complete | No, by design: "No Turing-completeness, no SMT solvers" (`docs/trust.md:298`). There are no user-defined functions (`docs/reference-language.md:2090-2091`), generators iterate finite bags that already exist, recursion expands only against concrete data, and every evaluation runs under event budgets of 9 passes, 999 revisits and depth 1000 (`docs/trust.md:100-110`). Two open defects are inputs that do not terminate: [BUGS.md](../use-cases/BUGS.md) §18 and §57. |
 | Composition | Unification `&`, commutative, associative and idempotent; disjunction `\|`; ranked defaults (`**` outranks `*`); spreads `&:`; `close()` and `open()`; references, aliases and `$name` host variables |
 | Constraints | The named atoms `min`, `max`, `above`, `below`, `neq`, `re`, `len` and `unique`, which meet as lattice values, and the evaluate-only `must` (G1, landed) |
 | Generation | `pack`, `each`, `filter`, `match` and `emit` over settled data. No comprehension keywords, no if/else, no string interpolation. |
 | Numbers | Four disjoint leaves (`integer`, `float`, `biginteger`, `bigdecimal`); `0d` literals are exact; an integer that binary64 would round is refused |
 | Verbs | `vet` (verdicts with exit classes, JSON or SARIF, a GitHub Action), `subsume` and `breaking` (three-valued, with witnesses), `why`, `get` and `set`, `hash` (`aon1-` meaning pins), `fmt`, `view` (ten kinds), `render`, `jsonschema` (export) |
-| Interchange | Reads JSON, JSON-LD, JSONC, JSON5, jsonic (`.jsonic` and `.jsc`), YAML, TOML and INI as include data ([ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)). Writes JSON and its own canonical form only. Exports JSON Schema 2020-12 with its losses reported, and at 0.76.0 imports no schema language; G12 adds the JSON Schema import, and its status is in [progress.md](../capability-review/progress.md), which counts its phases. |
+| Interchange | Reads JSON, JSON-LD, JSONC, JSON5, jsonic (`.jsonic` and `.jsc`), YAML, TOML and INI as include data ([ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)). Writes JSON and its own canonical form only. Exports JSON Schema 2020-12 with its losses reported, and at 0.76.0 imports no schema language; G12 adds the JSON Schema import, and its status is in [progress.md](../docs/capability-review/progress.md), which counts its phases. |
 | Trust | No clock, randomness, environment or network in the language; includes governed by a capability (`none`, `mem`, `root`, `system`), with the default left at `system` until the next major (G5 phase 6, `docs/capability-review/progress.md:1470`) |
 | Tooling | An LSP in both ports (diagnostics, hover, completion, go-to-definition on alias names, signature help, `docs/lsp.md:453`); an MCP server, TypeScript only; GBNF, Lark and ABNF grammars for constrained decoding; editor plugins for VS Code, Emacs and Vim |
 | Packages | Domain-shaped module paths, a lockfile with three pins, vendoring, Sigstore and OIDC publishing (G6, landed). The public repository at `pkg.aontu.dev` is not serving (`CHANGELOG.md:1273`). |
@@ -198,7 +198,7 @@ priorities (Nickel's `default`, `force` and numeric priorities against
 aontu's `*` and `**`), with a conflict at equal priority reported as an
 error, which is why this repository names Nickel as the closest
 approximation of aontu's core
-(`docs/design/AONTUCONSTRAINTS.0.md:32`). They also share contracts in
+(`sketch/AONTUCONSTRAINTS.0.md:32`). They also share contracts in
 the role of constraints, exact numbers (Nickel's are arbitrary-precision
 rationals), JSON, YAML and TOML input, an LSP, a formatter and a
 playground.
@@ -269,7 +269,7 @@ messages); a `:` union that KCL documents as idempotent and that
 refuses conflicts, the nearest thing to `&` outside CUE; a module file
 and lockfile, whose shape aontu's package system borrowed before
 dropping OCI
-([ADR-039](../../ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins));
+([ADR-039](../ADR.md#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins));
 and a formatter, linter, test runner and LSP.
 
 KCL has, and aontu lacks: Python-like syntax with lambdas, schema
@@ -431,7 +431,7 @@ JSON5, jsonic (`.jsonic` and `.jsc`), YAML, TOML and INI can be included
 as data. XML, HOCON, UCL,
 KDL, EDN, RON, plist, `.properties` and protobuf text cannot be read,
 and CSV is refused because the two ports' readers disagreed
-([DIVERGENCE.md](../../DIVERGENCE.md)). Of these formats only HOCON
+([DIVERGENCE.md](../DIVERGENCE.md)). Of these formats only HOCON
 and UCL combine documents (includes, substitutions, the later value
 winning), and neither has constraints. The schema layer most of them
 use is JSON Schema.
@@ -478,8 +478,8 @@ use is JSON Schema.
 
 | Where | Says | What the evidence shows |
 |---|---|---|
-| `docs/design/AONTUCONSTRAINTS.0.md:31-34`, `ADR.md:828-829` | only CUE shares aontu's commutative unification core; Jsonnet, Pkl, Dhall, Starlark and HCL are directional override chains | Dhall's `∧` is a symmetric recursive merge that fails on collision (only `⫽` is right-biased), and KCL documents its `:` as an idempotent union. CUE is still the only language where unification is the whole evaluation model. |
-| `docs/design/VIEWS-ORDER.0.md:175-178` | Dhall has no canonical form under which two spellings are one node | Dhall's normal form is that canonical form: its semantic integrity hash is computed over it, which `docs/capability-review/g6-distribution.md:194` relies on. |
+| `sketch/AONTUCONSTRAINTS.0.md:31-34`, `ADR.md:828-829` | only CUE shares aontu's commutative unification core; Jsonnet, Pkl, Dhall, Starlark and HCL are directional override chains | Dhall's `∧` is a symmetric recursive merge that fails on collision (only `⫽` is right-biased), and KCL documents its `:` as an idempotent union. CUE is still the only language where unification is the whole evaluation model. |
+| `sketch/VIEWS-ORDER.0.md:175-178` | Dhall has no canonical form under which two spellings are one node | Dhall's normal form is that canonical form: its semantic integrity hash is computed over it, which `docs/capability-review/g6-distribution.md:194` relies on. |
 | `docs/capability-review/index.md:119-120` | closed lists are something CUE's structs do not cover | CUE's list literals are closed already; `[...T]` is how CUE opens one. |
 | `docs/capability-review/index.md:140-142` | spreads go beyond CUE's pattern constraints in several directions | CUE's patterns also apply across declarations and through definitions. Each language reaches the other's cases: CUE scopes a pattern to matching keys directly (`[=~re]: T`), and aontu reaches it through a guarded spread (`docs/capability-review/g12-jsonschema-fidelity.md:103-108`). |
 | `docs/capability-review/g7-machine-access.md:215-216` | CUE is on its second evaluator, partly to retrofit error tracking | evalv3 has been CUE's default evaluator since v0.13 (May 2025), and speed and memory drove it as much as error tracking. |

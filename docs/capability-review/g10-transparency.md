@@ -253,7 +253,7 @@ unchanged.
 
 The successor design, with the three decisions it turns on and a
 sequence whose first phase is decision-independent, is
-[`aontu-lang/system`'s `docs/design/DISTRIBUTION.0.md`](https://github.com/aontu-lang/system/blob/main/docs/design/DISTRIBUTION.0.md).
+[`aontu-lang/system`'s `sketch/DISTRIBUTION.0.md`](https://github.com/aontu-lang/system/blob/main/sketch/DISTRIBUTION.0.md).
 **Nothing here is amended until that design is accepted**, per the
 register's protocol that a status changes in the commit that changes it.
 Two consequences are already certain and are recorded so they are not
@@ -286,7 +286,7 @@ instead reverses its founding constraint:
 [ADR-019](../../ADR.md#adr-019--the-project-stores-module-bytes-and-federates-the-log)
 stores module bytes in a project-operated repository and federates the
 log to Sigstore. The design is `REPOSITORY.0.md` in
-[`aontu-lang/system`](https://github.com/aontu-lang/system/blob/main/docs/design/REPOSITORY.0.md).
+[`aontu-lang/system`](https://github.com/aontu-lang/system/blob/main/sketch/REPOSITORY.0.md).
 Three consequences land on this document.
 
 **Phase 5 is retired rather than deferred.** The log service this gap

@@ -1,4 +1,4 @@
-# THE VIEW DOCUMENT (`aontu view --views`, docs/design/VIEWS.0.md,
+# THE VIEW DOCUMENT (`aontu view --views`, sketch/VIEWS.0.md,
 # "6. The view document"): the figures a document declares as data,
 # drawn from ONE evaluation of it, all or nothing.
 #

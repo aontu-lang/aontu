@@ -154,7 +154,7 @@ class GraphAtomVal extends FeatureVal {
 }
 
 
-// D-1 (docs/design/RELATIONS.0.md): the name grammar shared by entity
+// D-1 (sketch/RELATIONS.0.md): the name grammar shared by entity
 // names, edge predicates and inverse names.
 const GRAPH_ATOM_NAME = /^[_a-zA-Z][-_a-zA-Z0-9]*$/
 

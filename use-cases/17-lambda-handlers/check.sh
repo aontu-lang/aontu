@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check.sh --- twelve Lambda handlers and their index, rendered from one
 # model by one rule set written in the canonical form the template
-# surface desugars to (docs/design/TEMPLATE.0.md D7). What this proves:
+# surface desugars to (sketch/TEMPLATE.0.md D7). What this proves:
 # a value reaches a handler through `replace`, with no hole syntax;
 # `esc: sq` makes it safe in the single-quoted literal it lands in; a
 # line is verbatim, so two lines of two spaces survive; a dispatch over

@@ -22,11 +22,12 @@ belongs in the pages below; add it there, not here.
 
 | Page | What it carries |
 |------|-----------------|
+| [DEV-PROCESS.md](DEV-PROCESS.md) | how work is done: the prompt log, testing, docs, `sketch/` — read first |
 | [contributing/testing.md](docs/contributing/testing.md) | the shared `test/spec/*.tsv` suite and its modes, the generated-copy generators (`sig`, `helpdoc`, `aontu`), adding a behaviour, the parity probe, the vet ≡ eval differential, the JSON Schema suite, the divergence ledger |
 | [contributing/parity.md](docs/contributing/parity.md) | what the Go port covers, why the `@tabnas` pins are exact, the numeric tower |
 | [contributing/conventions.md](docs/contributing/conventions.md) | comments, what a document is for, module vs package, site attribution, provenance, colour, the mutation caveat |
 | [contributing/capability-review.md](docs/contributing/capability-review.md) | the progress register and its same-commit rule |
-| [docs/STYLE-GUIDE.md](docs/STYLE-GUIDE.md) | how documentation is written — normative, read before editing any page |
+| [STYLE-GUIDE.md](STYLE-GUIDE.md) | how documentation is written — normative, read before editing any page |
 | [docs/shared-spec.md](docs/shared-spec.md) | the shared TSV format |
 | [docs/release-and-tag.md](docs/release-and-tag.md) | releasing and tagging, including without `gh` |
 | [DIVERGENCE.md](DIVERGENCE.md) | permanent TS/Go non-parity |
@@ -39,10 +40,13 @@ belongs in the pages below; add it there, not here.
 ├── ADR.md               # architecture decision record (the fundamentals)
 ├── AGENTS.md            # this file
 ├── CLAUDE.md            # symlink to AGENTS.md
+├── DEV-PROCESS.md       # how work is done here
 ├── DIVERGENCE.md        # permanent TS/Go non-parity
+├── STYLE-GUIDE.md       # how documentation is written
 ├── Makefile             # fans out to ts/ and go/
 ├── aontu/               # the built-in aontu: models, named by their path
-├── docs/                # documentation, design notes, contributor detail
+├── docs/                # only valid, up-to-date documentation
+├── sketch/              # working files, to be ignored
 ├── editors/             # editor plugins (VS Code, Emacs, Vim) → aontu-lsp
 ├── test/spec/           # shared test cases — *.tsv (language-agnostic)
 ├── ts/                  # canonical TypeScript implementation
@@ -79,13 +83,9 @@ reaching an analyser. The test project is not gated the same way.
 
 ### Before you push
 
-`make quick` (ADR-071): the comment gate, both builds, the gate group
-and the Go suite, inside two minutes. A commit may be broken; a push
-should not be. **Local testing takes a few minutes at most**
-(ADR-075): `make quick` and the rows or tests of what changed. The
-long runs, `make test`, `make cov` and the use cases, belong to the
-daily CI: never run them locally before a push or a merge, nor wait
-on them.
+`make quick`, then the tests of what changed. **Local testing takes a
+few minutes at most**: `make test`, `make cov` and the use cases belong
+to the daily CI, never run locally ([DEV-PROCESS.md](DEV-PROCESS.md#testing)).
 
 `make hooks` points git at [`.githooks/`](.githooks), whose `pre-push`
 runs the comment gate. It is a convenience, not the enforcement: the gate
@@ -152,4 +152,5 @@ without `gh`".
   relays progress to its person at the same cadence. A silent task cannot
   be told from a hung one.
 - **Every prompt is logged** in [`sketch/PROMPT-LOG.md`](sketch/PROMPT-LOG.md),
-  secrets redacted, before the work starts (ADR-076).
+  secrets redacted, before the work starts
+  ([DEV-PROCESS.md](DEV-PROCESS.md#the-prompt-log)).

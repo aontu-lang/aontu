@@ -482,7 +482,7 @@ aontu FUNCTIONS rather than as a written vocabulary, and reason (i) —
 the verbosity of a plan spelled node by node — has no purchase on
 nodes that `each()` generates. Reasons (ii) and (iii), the vetting
 claim and re-indentation, stand. The resolution is unchanged; the
-evidence is in [JOSTRACA.0.md](../design/JOSTRACA.0.md), which also
+evidence is in [JOSTRACA.0.md](../../sketch/JOSTRACA.0.md), which also
 records that (i) was never an argument FOR the component road, only
 against it, and that the same combinators write `aontu:code` just as
 compactly while deriving what a `Content` string cannot.
@@ -717,7 +717,7 @@ code: type(close({ source?: %Source, units: [&: %Unit] }))
 
 `%Source.hash` carries the `aon1-` pin of the model the result was
 generated from — which
-[`docs/design/ONTOLOGY.0.md`](../design/ONTOLOGY.0.md) already asks
+[`sketch/ONTOLOGY.0.md`](../../sketch/ONTOLOGY.0.md) already asks
 every generated artifact to carry — and because it is a node of the
 vocabulary it is *vetted*, not a renderer flag.
 
@@ -826,7 +826,7 @@ is apply-templates, with the recursion in the engine and none in user
 space, which is exactly what D4(iii) requires.
 
 **The spelling above is superseded** by
-[EMIT.0.md](../design/EMIT.0.md), which keeps every word of the
+[EMIT.0.md](../../sketch/EMIT.0.md), which keeps every word of the
 argument that follows and changes how a rule table is written: as a
 list of `{match, body}` records, dispatched by `emit(select, table)`,
 rather than as the argument positions of a `match` call. Read the
@@ -2024,7 +2024,7 @@ than degrading.
 ### Documentation and register obligations
 
 In the landing commit of each phase, per CLAUDE.md and AGENTS.md:
-`docs/design/EMISSION.0.md` for the design note;
+`sketch/EMISSION.0.md` for the design note;
 `docs/how-to/generate-code.md` as a Diátaxis how-to with every fenced
 block tagged and executed by `ts/test/docs.test.ts`;
 `docs/reference-api.md` for the verb and the library functions;
@@ -2288,13 +2288,13 @@ Val tree to JSON, and `mapval_no_gen`/`listval_no_gen` are codes users
 meet constantly, so `aontu gen` would mean model → FILES in a tool
 where `generate()` means tree → JSON. `render` is also already the name
 of the fold it wraps. The reasoning and the flag surface are in
-[EMIT.0.md D7](../design/EMIT.0.md#d7-the-verb-is-aontu-render); the
+[EMIT.0.md D7](../../sketch/EMIT.0.md#d7-the-verb-is-aontu-render); the
 `std/gen` half of the disagreement was stale anyway, having died with
 the `aontu:` rename.
 
-**(iv) `docs/design/EMISSION.0.md` is named in the landing obligation
+**(iv) `sketch/EMISSION.0.md` is named in the landing obligation
 of every phase and does not exist.** What exists is
-[GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md), covering
+[GENERATION-FORMS.0.md](../../sketch/GENERATION-FORMS.0.md), covering
 forms (a) and (b) only. Either the obligation is corrected to name it,
 or the design note is written in phase 1 — but a phase must not land
 citing a file nobody wrote.
@@ -2311,7 +2311,7 @@ design's dependency order.
 |---|---|---|---|
 | **0a** | Bag membership: `each`/`pick`/`join` skip `hide`-marked and unfilled-optional children | S | **First, alone, and ahead of the vocabulary.** It is the only item with a consequence in shipped code (BUGS §79), it changes observable behaviour on two shipped verbs plus `join`, which landed on 2026-08-30, and nothing else in the plan depends on it — so it should not wait behind work that does. `form` inherits the rule when it arrives rather than being retrofitted. Rows pinning the CHANGED behaviour on `each` and `pick`, a CHANGELOG note, and the `hide` repro inverted into a spec row |
 | **0b** | The staged snapshot: Go defers as TypeScript's `argsnap` does | S | Closes BUGS §63 in all three spellings and makes the recommended idiom available in Go. Pin every spelling — `hide` over a staged spread, `pick` over a staged `each`, and the `pack`/`pick`/`join` chain above — in both ports |
-| **1** | The vocabulary as a bundled schema | S | **Verified ready**, and it grows by the fragment nodes of the second amendment; it needs [MODELS.0.md](../design/MODELS.0.md)'s M0 first, for the `aontu:` resolver leg. Otherwise disjoint from 0b (`std.ts`/`std.go` only), so it can go in parallel. `std-code.tsv` (canon, hash) and `ir-vet.tsv` in the existing five-column `vet` mode — no new spec mode |
+| **1** | The vocabulary as a bundled schema | S | **Verified ready**, and it grows by the fragment nodes of the second amendment; it needs [MODELS.0.md](../../sketch/MODELS.0.md)'s M0 first, for the `aontu:` resolver leg. Otherwise disjoint from 0b (`std.ts`/`std.go` only), so it can go in parallel. `std-code.tsv` (canon, hash) and `ir-vet.tsv` in the existing five-column `vet` mode — no new spec mode |
 | **3** | `form`, the order-preserving map | S/M | Unchanged. `boundArgStart` in both ports is the silent omission; the nesting rows are not optional. Inherits 0a's membership rule by construction |
 | **4** | The renderer core and the first two profiles | M | The algorithm is unchanged; the fold reads `at` instead of counting depth, and a fragment entry point plus a two-field `aontu:lang/text` profile land with it. Where the verb name (correction iii) becomes public, and the first phase whose output is bytes rather than values |
 | **5** | The reflection sidecar | M | Unchanged, and the Go accessor surface (`go/val.go` exports five methods and no fields) is its own ADR-001 item landing BEFORE the injection, not a footnote inside it |
@@ -2340,13 +2340,13 @@ transform cannot reach it. Everything VERIFIED below was run on
 
 ### 1. The vocabulary is `@"aontu:code"`
 
-[MODELS.0.md](../design/MODELS.0.md) settles the naming for every
+[MODELS.0.md](../../sketch/MODELS.0.md) settles the naming for every
 language-supplied model: the `aontu:` prefix, Node's device, a
 spelling no relative path or module path can reach, so the resolver
 routes on it before any other leg and never touches the filesystem.
 `std/code` was the old family name and had both confusions the prefix
 exists to prevent. It is renamed here, and in
-[VIEWS.0.md](../design/VIEWS.0.md) and the register; the profiles
+[VIEWS.0.md](../../sketch/VIEWS.0.md) and the register; the profiles
 become `aontu:lang/ts` and `aontu:lang/go`.
 
 Three consequences, none of them cosmetic:
@@ -2552,7 +2552,7 @@ algorithm — what changes is who can reach it.
 |---|---|
 | **0a** | Unchanged. |
 | **0b** | Unchanged. |
-| **1** | The vocabulary grows the five fragment nodes (`%inline`, `%line`, `%blank`, `%raw`, `%frag`), `%decl` gains `%frag` and `%body` becomes `%frag \| {k:"abstract"}`. `ir-vet.tsv` grows by roughly ten rows and they are the cheapest high-value rows in the phase: a valid fragment, a line whose piece carries `\n` (**invalid at the node** — the renderer invariant checked before any renderer exists), `at` below zero and above its bound, a `raw` at `reindent: false`, and a `%ref` inline. Everything else about the phase stands, including that it needs no new spec mode. Its dependency on [MODELS.0.md](../design/MODELS.0.md) M0 is the only new prerequisite in the plan. |
+| **1** | The vocabulary grows the five fragment nodes (`%inline`, `%line`, `%blank`, `%raw`, `%frag`), `%decl` gains `%frag` and `%body` becomes `%frag \| {k:"abstract"}`. `ir-vet.tsv` grows by roughly ten rows and they are the cheapest high-value rows in the phase: a valid fragment, a line whose piece carries `\n` (**invalid at the node** — the renderer invariant checked before any renderer exists), `at` below zero and above its bound, a `raw` at `reindent: false`, and a `%ref` inline. Everything else about the phase stands, including that it needs no new spec mode. Its dependency on [MODELS.0.md](../../sketch/MODELS.0.md) M0 is the only new prerequisite in the plan. |
 | **3** | Unchanged, and now better motivated: `form` over a record's fields is how a transform builds a list of `%line`s in source order. |
 | **4** | **No new renderer algorithm** — [§3](#3-the-renderer-and-the-language-profiles) is implemented as written, with one substitution: the fold reads `at` where it would have counted recursion depth, which is strictly simpler. What is added is the **entry point**: `render` accepts a unit whose `decls` are fragments and folds them directly, without a declaration lowering. Two things to pin. (i) A **fragment-only profile** — `indent` and the escape table, nothing else — rendered against a fragment unit, which is the executable form of the claim that a profile's size is proportional to how much of the declaration vocabulary a target uses; call it `aontu:lang/text` and make it the third profile rather than a fourth language. (ii) `render.tsv` rows for depth, blank runs, `raw` with and without `reindent`, and a line assembled by `join`. |
 | **5** | Unchanged. The sidecar's four facts feed the declaration lowering; a fragment transform reads the model like any other. |
@@ -2568,7 +2568,7 @@ correction is reachable in the phases as they stand.
 ### Open question added by this amendment
 
 - **Scaffolding, and whether it is Jostraca's.** Neither this design
-  nor [GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md) has a
+  nor [GENERATION-FORMS.0.md](../../sketch/GENERATION-FORMS.0.md) has a
   story for starting a project — there is no `aontu init`, in either
   CLI, and nothing creates a `mod.aon` or an `aontu_meta/`. Jostraca
   owns exactly the primitives that job wants (folder structure,
@@ -2580,7 +2580,7 @@ correction is reachable in the phases as they stand.
   **inside the engine**, as the bundled models do, has neither
   problem — it reads nothing from disk and confines its writes the way
   `render --out` does. **Answered, 2026-09-04:**
-  [INIT.0.md](../design/INIT.0.md) designs `aontu init` on exactly
+  [INIT.0.md](../../sketch/INIT.0.md) designs `aontu init` on exactly
   that footing — templates as bundled source constants, no filesystem
   read, no Jostraca, and the opposite lifecycle to `render` (it writes
   once and refuses a second run, where generation writes every time and
@@ -2761,13 +2761,13 @@ today.
 The rule layer of [§2](#2-the-rule-layer--apply-templates-in-the-engine)
 and the surface above it are now specified as mechanisms, in two design
 notes, on the pattern this document already uses for
-[GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md):
+[GENERATION-FORMS.0.md](../../sketch/GENERATION-FORMS.0.md):
 
-- **[EMIT.0.md](../design/EMIT.0.md)** — `emit(select, table)`. The
+- **[EMIT.0.md](../../sketch/EMIT.0.md)** — `emit(select, table)`. The
   table as data, the flat result, no `mode`, how a selector resolves,
   why `path()` is the wrong tool for it, and the four engine facts that
   make the dispatch a builtin rather than an idiom.
-- **[TEMPLATE.0.md](../design/TEMPLATE.0.md)** — the target-syntax
+- **[TEMPLATE.0.md](../../sketch/TEMPLATE.0.md)** — the target-syntax
   surface. The marker, `replace` in place of an inline hole, the two
   static checks, `esc`/`usc` and escape-by-default, the per-line quote,
   and whitespace control.
@@ -2800,7 +2800,7 @@ spelled.
 
 ## Amendment 2026-09-05 (fourth): the render plan
 
-[RENDER.0.md](../design/RENDER.0.md) is the plan for the remaining
+[RENDER.0.md](../../sketch/RENDER.0.md) is the plan for the remaining
 phases, with `aontu render` as the spine, on the pattern the third
 amendment set for the rule layer. It inherits [§1](#1-the-output-vocabulary--aontucode),
 [§3](#3-the-renderer-and-the-language-profiles) and [§6](#6-the-manifest-d5-iv-d7)

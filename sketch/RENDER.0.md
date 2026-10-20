@@ -2,21 +2,21 @@
 
 **Status:** PROPOSED, 2026-09-05. Design and plan; nothing below is
 built. This note is the plan for the remaining phases of
-[G9](../capability-review/g9-transformation.md), with `render` as the
+[G9](../docs/capability-review/g9-transformation.md), with `render` as the
 spine. Where it changes what the gap document's phase text says, that
 document carries the change as its fourth amendment, and the
-[progress register](../capability-review/progress.md) points here for
+[progress register](../docs/capability-review/progress.md) points here for
 the phases it names. Status lives in the register, never here.
 
 **Names here are the names of the day.** This document records what was
 decided when it was written, and it is not rewritten as the language
 moves. Two names have since changed meaning. The list generator it
 calls `form` is named `each` today
-([ADR-027](../../ADR.md#adr-027--the-list-generator-is-named-each-and-_--t-is-its-bound)),
+([ADR-027](../ADR.md#adr-027--the-list-generator-is-named-each-and-_--t-is-its-bound)),
 and the `each` it describes as the bound was retired first
-([ADR-026](../../ADR.md#adr-026--each-is-retired-form-carries-the-bound)), that
+([ADR-026](../ADR.md#adr-026--each-is-retired-form-carries-the-bound)), that
 bound now being spelled `each(d, _ & t)`. The
-[progress register](../capability-review/progress.md) carries the current status, and
+[progress register](../docs/capability-review/progress.md) carries the current status, and
 `test/spec/signature.tsv` is the call surface.
 
 **Origin:** Richard Rodger, 2026-09-05: *"Prepare a plan for the
@@ -26,9 +26,9 @@ complete the capability programme."*
 **Method:** every claim about what the engine does *today* was checked
 against the tree at `3669dfab` (`aontu@0.57.0` plus #148–#152) and is
 marked VERIFIED with what was read or run. Decisions already taken in
-G9 [§1](../capability-review/g9-transformation.md#1-the-output-vocabulary--aontucode),
-[§3](../capability-review/g9-transformation.md#3-the-renderer-and-the-language-profiles)
-and [§6](../capability-review/g9-transformation.md#6-the-manifest-d5-iv-d7),
+G9 [§1](../docs/capability-review/g9-transformation.md#1-the-output-vocabulary--aontucode),
+[§3](../docs/capability-review/g9-transformation.md#3-the-renderer-and-the-language-profiles)
+and [§6](../docs/capability-review/g9-transformation.md#6-the-manifest-d5-iv-d7),
 in [EMIT.0.md](EMIT.0.md) and in [TEMPLATE.0.md](TEMPLATE.0.md) are
 inherited and not re-argued; where this note departs from one it says
 so, with the reason, in [§3](#3-decisions) and lists every departure in
@@ -63,7 +63,7 @@ against `ts/src/cli.ts` and `go/cmd/aontu/main.go`: the verb list is
 and `std/view`, served from one table in each port; no `aontu:` name
 resolves anywhere yet, so `@"aontu:code"` cannot be served until the
 resolver has that leg. VERIFIED against `test/spec/gen-emit.tsv` and
-the reference's [Transforming: `emit`](../reference-language.md#transforming-emit):
+the reference's [Transforming: `emit`](../docs/reference-language.md#transforming-emit):
 `emit` returns a flat list whose pieces are whatever the bodies hold —
 strings in every documented example (`["listen(srv:a)", "serve(/a)"]`),
 maps where a body writes one. VERIFIED against
@@ -123,7 +123,7 @@ reference has been bound (EMIT.0.md, "What phase 6 established").
 
 `aontu render <file>` evaluates the document, takes the value at
 `--at` (default `$`, never `$.code` — G9's spelling rule 5 and
-[ADR-010](../../ADR.md#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space)),
+[ADR-010](../ADR.md#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space)),
 vets it against the bundled vocabulary, and folds `code.units`. The
 document need not include `@"aontu:code"` itself — the vet is the
 verb's, exactly as `aontu vet code.aontu result.aontu` would run it — but a
@@ -500,7 +500,7 @@ before. `gen-join.tsv` +9 rather than +4, and a row in each verb's
 file. Acceptance met: the §79 reproducer generates `"keep"` in both
 ports.*
 
-**Deliverable.** [BUGS.md §79](../../use-cases/BUGS.md): `join`,
+**Deliverable.** [BUGS.md §79](../use-cases/BUGS.md): `join`,
 `each`, `pick` and `filter` consult `hide` and unfilled optionals
 through one shared child enumeration, so a hidden value never reaches
 a string the document hands out. This is on the render path because
@@ -767,7 +767,7 @@ decisions; the recommendations are argued, not assumed.
 | **Register hygiene** (status note §5: numbering the surface phase, SUPERSEDED/RETIRED/REMOVED defined, ADR-022's entries, counts) | Do with the P0 commit | Cheap, and every later phase's row depends on the section being right. This note gives the surface phase its number and row. |
 
 **Decided 2026-09-05 (the owner).** Phases 5, 7 and 8 are **retired**,
-by [ADR-023](../../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
+by [ADR-023](../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
 — phase 5 outright rather than kept as its own note: a transform states
 its facts as data, and forms (a) and (b) stay what GENERATION-FORMS.0.md
 §2 found them to be, with DIVERGENCE.md saying so. The release is cut
@@ -850,7 +850,7 @@ touches M0.
    documentation obligations named; the verb is `render` (EMIT.0.md
    D7) and the note is named for it.
 10. **The Jostraca ADR is not ADR-012** — that number is
-    [taken](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused);
+    [taken](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused);
     the bridge, if it proceeds, takes the next free number. (Moot
     since ADR-023 retired the bridge.)
 11. **The `code` root is not `type()`-marked** (P1), departing from G9
@@ -935,7 +935,7 @@ touches M0.
     `pack(type($.schema), …)`, which lifts the marked children. And
     an optional key whose value generates nothing is not a member
     either, so the walk never sees `email?`
-    ([BUGS §86](../../use-cases/BUGS.md)); `xf-order.aontu` states
+    ([BUGS §86](../use-cases/BUGS.md)); `xf-order.aontu` states
     `optional` as data, which is what ADR-023 asks of a transform in
     any case, and the worked examples render byte-for-byte with that
     one statement added. Deriving optionality from the schema is what
@@ -1094,7 +1094,7 @@ entities, `Planet` and `Moon` nested under it; `list`/`load`/`create`/
 `update`/`remove`; the `terraform` and `forbid` actions; cascade delete;
 a `{error, message}` envelope with `NotFoundError`, `ValidationError` and
 `ConflictError`) — **and a human UI over the same data**. The
-convention for the folder is [`test/system/README.md`](../../test/system/README.md).
+convention for the folder is [`test/system/README.md`](../test/system/README.md).
 
 The shape, as decided:
 
@@ -1148,7 +1148,7 @@ the system's own README:
   only comment is `<%# … %>`; no marker an ERB file can carry is one
   ERB ignores. `views.aontu` is canonical aontu. A block marker whose
   closer is derived from its opener would close this.
-- **Two engine defects, [BUGS.md](../../use-cases/BUGS.md) §88 and
+- **Two engine defects, [BUGS.md](../use-cases/BUGS.md) §88 and
   §89**, both found by writing generators against a real API and both
   silent. §88 bit twice in two days. This is what §10 was for.
 

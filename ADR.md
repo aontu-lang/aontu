@@ -30,7 +30,7 @@ capability decision is the phase rows it governed in
 An entry that defines a rule of the language becomes **Moved to the
 definition <date>** once the definition under [`spec/`](spec/) holds
 the rule ([ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it),
-and [`docs/design/DEFINITION.0.md`](docs/design/DEFINITION.0.md), §4):
+and [`sketch/DEFINITION.0.md`](sketch/DEFINITION.0.md), §4):
 its status names the module and the theorems that hold it, its text
 stays as the record of why the rule is what it is, and the rule is
 thereafter stated and changed in the definition, not here.
@@ -848,7 +848,7 @@ divergence that only an explicit rule prevents. Pinned by
 
 ### Context
 
-[`docs/design/AONTUCONSTRAINTS.0.md`](docs/design/AONTUCONSTRAINTS.0.md)
+[`sketch/AONTUCONSTRAINTS.0.md`](sketch/AONTUCONSTRAINTS.0.md)
 proposes CUE's operator spellings for the constraint families it
 designs: `>10`, `>=10`, `<5`, `!=0` for bounds (§6), `=~"p"` and `!~"p"`
 for patterns (§7). Its §10 budgets a **lexing break** for them — bare
@@ -936,7 +936,7 @@ needs a new ADR.
   entry.** It is a name for a bounded `integer`, not an operator, so it
   is a *named* form and this decision does not bear on it. It remains
   unbuilt and undecided.
-- **`docs/design/AONTUCONSTRAINTS.0.md` §6, §7, §10 and §12 now carry
+- **`sketch/AONTUCONSTRAINTS.0.md` §6, §7, §10 and §12 now carry
   this decision inline**, because a design note that proposes a syntax
   is exactly where a future contributor will look for permission to
   build it.
@@ -1071,7 +1071,7 @@ Two boundaries, so the rule cuts where intended:
 ### Consequences
 
 - The `relations:` convention was a **standing violation**,
-  grandfathered until `docs/design/RELATIONS.0.md` P2 replaced it with
+  grandfathered until `sketch/RELATIONS.0.md` P2 replaced it with
   value-level atoms — **discharged 2026-08-29**: the engine reads no
   plain-named key anywhere, `relations:` is ordinary user data
   (pinned by `relation.tsv` `relations-key-is-user-space` /
@@ -1142,7 +1142,7 @@ the disjunction — the refusal is `empty`, at every rank and for every
 shape.
 
 Five consequences, spelled out with their reasoning in
-[docs/design/DEFAULTS.0.md](docs/design/DEFAULTS.0.md): one refusal
+[sketch/DEFAULTS.0.md](sketch/DEFAULTS.0.md): one refusal
 code (R1); equal-rank defaults that cannot agree refuse as
 `pref_rank_clash` rather than as a conflict between the values they
 hold (R2); a container default is leafwise in what it admits, so a map
@@ -1300,7 +1300,7 @@ the day the two parsers agree the row is what says so.
 
 **`.jsonld` reads as JSON**, because it is JSON: a `@context` is a key
 like any other here, and what it MEANS is the vocabulary's business,
-not the reader's. That is what `docs/design/ONTOLOGY.0.md` §3.1 needed,
+not the reader's. That is what `sketch/ONTOLOGY.0.md` §3.1 needed,
 every vocabulary its phase P1 imports being `.json` or `.jsonld` —
 schema.org ships `schemaorg-current-https.jsonld`, microformats2
 parsers emit JSON, DCMI publishes RDF serialisations.
@@ -1686,7 +1686,7 @@ inside a `type()` body cannot. `map` unmet and `refer()` unresolved
 are the same flavour of requiredness at the value and graph levels.
 
 Not done here, recorded as future work in
-`docs/design/PATHS.0.md`: the resolved-link stamp (`link`/`relkey` on
+`sketch/PATHS.0.md`: the resolved-link stamp (`link`/`relkey` on
 a `StringVal`) is not yet replaced by intrinsic path values, the
 graph still reads stamps rather than values, and the refer flow's
 effect-timing questions (disjunct-branch leaks, generation-time
@@ -1817,7 +1817,7 @@ has no place to live.
 Fifteen spec rows moved from bare `invalid-arg` to `func_arg` (the
 case family's operand, the arithmetic operands, join's separator);
 every bespoke code stays. Design and deltas:
-docs/design/SIGNATURES.0.md.
+sketch/SIGNATURES.0.md.
 
 ## ADR-018 — The pipe operator is removed
 
@@ -2540,10 +2540,10 @@ thing from the bridge this refused.
 **The other two retirements stand, on their own evidence and not on
 this entry.** Phase 5 is not built because a transform states its facts
 as data and the vocabulary vets them
-([GENERATION-FORMS.0.md](docs/design/GENERATION-FORMS.0.md) is where
+([GENERATION-FORMS.0.md](sketch/GENERATION-FORMS.0.md) is where
 the embedding surface was measured); phase 8 is not built because
 `${expr}` was measured to break on this project's own material
-([TEMPLATE.0.md](docs/design/TEMPLATE.0.md)), and `replace` carries it
+([TEMPLATE.0.md](sketch/TEMPLATE.0.md)), and `replace` carries it
 instead. The register's rows for those two phases are the record.
 
 **The parity boundary this entry drew is withdrawn with it.** It read
@@ -2882,7 +2882,7 @@ the CHANGELOG carries in its place. Both records are
 
 The engine bundled seven schemas and served them under **two** naming
 schemes. Five carried the `aontu:` prefix
-([MODELS.0.md](docs/design/MODELS.0.md) D1, RENDER.0.md P0) — `aontu:code`,
+([MODELS.0.md](sketch/MODELS.0.md) D1, RENDER.0.md P0) — `aontu:code`,
 `aontu:profile` and the three language profiles. Two did not:
 `std/system` (G4 phase 4) and `std/view`, spelled as bare paths, each
 also answering to a `.aontu` suffix.
@@ -3369,7 +3369,7 @@ itself.
   (`@object$`, `@array$`, `@key$`, `@setval$`, `@push$`). The original
   consequence here said a document could not choose the output shape
   until a builtin could be named as DATA. That is what
-  [GRAMMAR-SHAPE.0.md](docs/design/GRAMMAR-SHAPE.0.md) asked upstream
+  [GRAMMAR-SHAPE.0.md](sketch/GRAMMAR-SHAPE.0.md) asked upstream
   for and what `@tabnas/abnf` 0.4.11 delivered: the compiled grammar
   names the builders and carries no closures, so a document chooses its
   shape by writing a comment.
@@ -3868,7 +3868,7 @@ marker, and the component tree. Three of them spell one road's worth
 of capability three ways, and every one of them has to be learned,
 documented, tested in both ports and kept in parity.
 
-`docs/design/UNITS-AND-TREES.0.md` measured what a unit carries that a
+`sketch/UNITS-AND-TREES.0.md` measured what a unit carries that a
 tree does not, and found one thing: a unit's `path` is module identity,
 so moving `app/geo.ts` to `app/deep/geo.ts` rewrites a derived
 `"../lib/geo"` to `"../../lib/geo"`. `UNITS-AND-TREES.1.md` is the
@@ -3962,7 +3962,7 @@ going with the renderer that implements it.
   deletion this entry sanctions reaches the registry.
 - **The staging is not here.** What order the deletions happen in,
   what jostraca must ship first, and what the corpus migration touches
-  live in `docs/design/UNITS-AND-TREES.1.md` §10, which is a plan and
+  live in `sketch/UNITS-AND-TREES.1.md` §10, which is a plan and
   changes as plans do. This entry decides the destination only.
 
 **Enforcement.** The gate is the absence of a second road: no future
@@ -5843,7 +5843,7 @@ pointer, `p_definitions_2f_…`, and keeps the `d_` names for `$defs`.
 ### Context
 
 A reference that reaches its own definition is a recursive residual
-([docs/design/RECURSION.0.md](docs/design/RECURSION.0.md)): it expands
+([sketch/RECURSION.0.md](sketch/RECURSION.0.md)): it expands
 one level against concrete structure and otherwise waits beside
 whatever it meets. Imported, the 2020-12 meta-schema is a dialect alias
 whose value is the meet of its vocabularies' aliases, each a titled
@@ -6234,7 +6234,7 @@ text by its hash.
 ### Context
 
 A recursive residual expands only against concrete data
-([docs/design/RECURSION.0.md](docs/design/RECURSION.0.md)), and
+([sketch/RECURSION.0.md](sketch/RECURSION.0.md)), and
 subsumption compares two evaluated documents with no data on either
 side. The walk took the residual for unresolved residue: two recursions
 with the same hash form were the same value, and any other pair was
@@ -6505,7 +6505,7 @@ not what a value admits. The owner ruled on 2026-10-15 that the
 language is defined separately and not in natural language, and a
 Lean sketch of a fragment run against both ports the same day found
 one defect, one open rule and one question the definition had to
-answer ([docs/design/DEFINITION.0.md](docs/design/DEFINITION.0.md)).
+answer ([sketch/DEFINITION.0.md](sketch/DEFINITION.0.md)).
 
 ### Decision
 

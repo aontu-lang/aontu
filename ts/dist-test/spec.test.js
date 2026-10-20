@@ -290,7 +290,7 @@ function rowAontu(row) {
         ? { trust: { include: { root: FIXTURES_DIR } } }
         : {});
 }
-// The definition's rows (docs/design/DEFINITION.0.md): the golden names
+// The definition's rows (sketch/DEFINITION.0.md): the golden names
 // the verdict, or the verdicts it may be, and nothing else in the
 // report is compared.
 function runVerdict(row) {

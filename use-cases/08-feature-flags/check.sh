@@ -367,7 +367,7 @@ ok "trust none: no includes at all (hermetic)"
 # the recorder saw the meets, NOT rank order, so the renderer sorts --
 # an emitter that trusted the record would draw an arbitration that did
 # not happen. Deterministic text, pinned like any other golden
-# (docs/design/VIEWS-ORDER.0.md).
+# (sketch/VIEWS-ORDER.0.md).
 $AONTU view ladder \
   --at '$.effective.prod.megacorp.checkout_v2.rollout' \
   "$DIR/system.aontu" > "$TMP/diagram-ladder.mmd" \

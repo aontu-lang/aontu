@@ -1,4 +1,4 @@
-# TRANSFORMATION: each(data, tmpl) (G9 §4; docs/design/RENDER.0.md D11
+# TRANSFORMATION: each(data, tmpl) (G9 §4; sketch/RENDER.0.md D11
 # and P6). The order-preserving MAP: one element per child of `data`,
 # being `tmpl` instantiated at that position with `_` bound to the
 # source child. It REPLACES; it does not meet -- the construction

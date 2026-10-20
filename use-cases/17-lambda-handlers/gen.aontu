@@ -1,7 +1,7 @@
 # gen.aontu --- the handler generator, in the canonical form: one rule
 # set whose body is the handler file, line for line, with three nested
 # dispatches where the file varies per service. This is the generator
-# the template surface desugars to (docs/design/TEMPLATE.0.md D7), and
+# the template surface desugars to (sketch/TEMPLATE.0.md D7), and
 # it is the acceptance of RENDER P6: `replace` carries a value into a
 # line with no hole syntax, `esc: sq` escapes it for the single-quoted
 # literal it lands in, and two lines that are two spaces and nothing

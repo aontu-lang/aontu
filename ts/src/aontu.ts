@@ -470,7 +470,7 @@ export {
   diff,
   agentsMd,
 
-  // The role gate (docs/design/ALLOW.0.md): may a role modify a
+  // The role gate (sketch/ALLOW.0.md): may a role modify a
   // subtree, by a role model that is itself an aontu document. The
   // question an agent asks before `set`.
   allow,
@@ -493,7 +493,7 @@ export {
   resugarTemplate,
   markerFor,
 
-  // The source formatter (docs/design/FMT.0.md): the agreed form of a
+  // The source formatter (sketch/FMT.0.md): the agreed form of a
   // document, and the unified diff `aontu fmt --diff` prints.
   format,
   unifiedDiff,

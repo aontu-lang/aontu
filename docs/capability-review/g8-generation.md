@@ -461,7 +461,7 @@ into test/spec/*.tsv.
    two's-complement wrap, and never a silent degradation to
    `number`. Both of those are answers that look right and are not,
    which is the failure mode the number model exists to refuse
-   (docs/design/number-model.md). boru arrived here after shipping
+   (sketch/number-model.md). boru arrived here after shipping
    the opposite: its design/INTEGER-OVERFLOW-STRATEGY.5.md records
    three contradictory silent behaviours in one language, and
    concludes that documentation cannot be the fix for a silent wrong
@@ -482,7 +482,7 @@ into test/spec/*.tsv.
    a number-kind operand the operation follows IEEE-754 binary64,
    with the JSON-superset constraint still biting: an infinite or
    NaN result is a located error, not a value, unless and until
-   aontu gains a notation for them (docs/design/number-model.md,
+   aontu gains a notation for them (sketch/number-model.md,
    known edge 4). This is the one point where aontu must depart from
    boru, which has `inf`/`nan` literals precisely because it is not
    a JSON superset.

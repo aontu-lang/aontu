@@ -1,5 +1,5 @@
 # THE TEMPLATE SURFACE -- a generator written in the target's own
-# syntax (docs/design/TEMPLATE.0.md; RENDER.0.md P8).
+# syntax (sketch/TEMPLATE.0.md; RENDER.0.md P8).
 # Columns: name<TAB>template<TAB>src<TAB>{"ask": {marker?}, "back", "out"}
 #
 # `src` is the template file. `out` is its canonical aontu form, and

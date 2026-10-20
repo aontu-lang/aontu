@@ -1,5 +1,5 @@
 # schema.aontu --- an approval-chain vocabulary, RECURSIVE
-# (docs/design/RECURSION.0.md): a Step is a decision plus the step
+# (sketch/RECURSION.0.md): a Step is a decision plus the step
 # that follows it, and the chain ends where the data ends. `$.spec.Step`
 # written inside Step IS the fixpoint -- no marker, no annotation: the
 # prefix reference residuates, expands one level per meet with

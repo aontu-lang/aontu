@@ -204,7 +204,7 @@ ok "proposal: a dangling dependsOn address refused by rel()"
 # literature prefers past about twenty vertices (Ghoniem, Fekete and
 # Castagliola, InfoVis 2004; Sangal et al., OOPSLA 2005). Both are
 # deterministic text, so they are pinned like any other golden
-# (docs/design/VIEWS.0.md). The graph groups the services by the
+# (sketch/VIEWS.0.md). The graph groups the services by the
 # generated `owner`; the matrix is in partition order with the closure
 # marked, so an acyclic relation is a lower triangle. The loss report
 # on stderr carries nothing but the crossing count of the emitted

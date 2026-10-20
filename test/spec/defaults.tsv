@@ -1,4 +1,4 @@
-# DEFAULTS -- docs/design/DEFAULTS.0.md and ADR-011: the short form is
+# DEFAULTS -- sketch/DEFAULTS.0.md and ADR-011: the short form is
 # SUGAR and the long form is the STRUCTURE. `a: *x` means
 # `a: *x | super(x)`, and every place the two spellings disagreed is
 # resolved in favour of the long form.

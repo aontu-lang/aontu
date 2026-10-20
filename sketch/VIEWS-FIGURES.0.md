@@ -21,9 +21,9 @@ which, and four gaps kept that out of every figure:
 
 This note records how each is closed and why the shape is what it is.
 The reference is the `aontu view` section of
-[reference-api.md](../reference-api.md#aontu-view); the shared rows are
-in [`test/spec/view.tsv`](../../test/spec/view.tsv) and
-[`test/spec/views.tsv`](../../test/spec/views.tsv).
+[reference-api.md](../docs/reference-api.md#aontu-view); the shared rows are
+in [`test/spec/view.tsv`](../test/spec/view.tsv) and
+[`test/spec/views.tsv`](../test/spec/views.tsv).
 
 ## Constraints carried over from VIEWS.0
 

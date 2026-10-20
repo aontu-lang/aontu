@@ -1926,7 +1926,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         }
     });
 });
-// --- the fmt verb (docs/design/FMT.0.md P1) ---------------------------
+// --- the fmt verb (sketch/FMT.0.md P1) ---------------------------
 function fmtFiles(...srcs) {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-fmt-'));
     const files = srcs.map((src, i) => {

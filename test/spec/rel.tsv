@@ -1,4 +1,4 @@
-# RELATIONS P1 (docs/design/RELATIONS.0.md §3.2): `rel(t?)` -- the
+# RELATIONS P1 (sketch/RELATIONS.0.md §3.2): `rel(t?)` -- the
 # relation constraint, sited on the FIELD the way the sizing atoms sit
 # on containers. Its value may be one address, a LIST of addresses, or a
 # MAP whose string leaves are addresses; the container shapes are

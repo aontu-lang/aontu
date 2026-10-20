@@ -117,7 +117,7 @@ string escaping and all. Because `gen` normalises both sides through
 JSON, every number lands in a `float64` and two distinct exact integers
 above 2^53 compare *equal*; `gens` is the mode that can tell them apart,
 and the one the number tower's exact leaves are pinned with
-([`docs/design/number-tower.md`](design/number-tower.md), D10). The
+([`sketch/number-tower.md`](../sketch/number-tower.md), D10). The
 serialisation contract both runners implement is: compact (no
 indentation, no spaces), object keys in lexicographic order, and no HTML
 escaping of `<`, `>` or `&`. The key order is the EMITTER's doing, not
@@ -285,8 +285,8 @@ The kind rules themselves are pinned by
 exact leaves by
 [`test/spec/number-tower.tsv`](../test/spec/number-tower.tsv); the
 reasoning behind them is in
-[`docs/design/number-model.md`](design/number-model.md) and
-[`docs/design/number-tower.md`](design/number-tower.md).
+[`sketch/number-model.md`](../sketch/number-model.md) and
+[`sketch/number-tower.md`](../sketch/number-tower.md).
 
 ## Adding cases
 

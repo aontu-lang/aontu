@@ -264,7 +264,7 @@ say "the release history, drawn as a subsumption poset"
 # then draws the cover relation. Seven documents, six nodes: v2 is a
 # true generalisation of v1, v3 is comparable with nothing, and two
 # independently written proposals turn out to make the identical schema
-# change (docs/design/VIEWS-ORDER.0.md).
+# change (sketch/VIEWS-ORDER.0.md).
 $AONTU view poset --at '$.profile' \
   "$DIR/profile-v1.aontu" "$DIR/profile-v2.aontu" "$DIR/profile-v3.aontu" \
   "$DIR/proposals/narrow-email.aontu" "$DIR/proposals/require-loyalty.aontu" \

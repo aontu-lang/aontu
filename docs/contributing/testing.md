@@ -10,7 +10,7 @@ behaviour. Each row is one test case; both `ts/test/spec.test.ts` and
 `go/spec_test.go` load the same files and must produce identical results.
 
 One file is not rows: `test/spec/signature.tsv` is the DECLARED call
-surface of the built-in functions (docs/design/SIGNATURES.0.md,
+surface of the built-in functions (sketch/SIGNATURES.0.md,
 ADR-017), one signature line per builtin, parsed by both ports'
 tabnas grammars (`ts/src/sig.ts`, `go/sig.go`). Both runners skip it;
 its gates are the round-trip suites (`ts/test/sig.test.ts`,
@@ -26,7 +26,7 @@ spelling, Google's conventions and the banned list, and the daily run
 (`ts/scripts/gated-docs.cjs`) and ONE banned list
 (`.vale/styles/config/vocabularies/Aontu/reject.txt`), so neither can
 drift from the other, and a page absent from that list is checked by
-neither. `docs/STYLE-GUIDE.md`, "How this guide is enforced", says
+neither. `STYLE-GUIDE.md`, "How this guide is enforced", says
 which gate carries which rule. Vale needs the binary on `PATH` and one
 `vale sync` to fetch the pinned Google package. A narrowed run for one
 page: `DOCS_PAGES=tutorial-config.md node ts/dist-test/docs.test.js`,
@@ -346,7 +346,7 @@ obtained from both engines agreeing. The suite grades meaning; the rows
 pin the text both ports print.
 
 The forms the importer writes are held to the definition (P6 of
-[`docs/design/DEFINITION.0.md`](../design/DEFINITION.0.md)) by one more
+[`sketch/DEFINITION.0.md`](../../sketch/DEFINITION.0.md)) by one more
 pair of runners,
 [`ts/test/jsonschema-forms.test.ts`](../../ts/test/jsonschema-forms.test.ts)
 and [`go/jsonschema_forms_test.go`](../../go/jsonschema_forms_test.go).
@@ -392,7 +392,7 @@ everything then on that list but the Unicode table vintage into the
 ledger as OPEN debt; the entries decided since are listed there, each
 with its reason.)
 
-[`docs/design/number-model.md`](../../docs/design/number-model.md) is the
+[`sketch/number-model.md`](../../sketch/number-model.md) is the
 worked example of what this discipline catches. TypeScript classified a
 numeric literal's kind with no range condition at all, while Go used a
 `float64` → `int64` round-trip, so `a:1e21 & integer` **succeeded in

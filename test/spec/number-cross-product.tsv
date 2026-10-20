@@ -4,7 +4,7 @@
 # message contains expect
 #
 # THE WHOLE TABLE, IN ONE PLACE. `+` is aontu's only binary operator and
-# the number tower (docs/design/number-tower.md, D6) gives it four
+# the number tower (sketch/number-tower.md, D6) gives it four
 # numeric leaves to promote between, so the promotion surface is now a
 # 6x6 table: integer, float, biginteger, bigdecimal, string and boolean,
 # in BOTH operand orders. The tower's own risk register calls for pinning

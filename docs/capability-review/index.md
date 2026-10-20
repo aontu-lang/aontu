@@ -73,7 +73,7 @@ infrastructure around the lattice, not syntax on top of it.
 > had landed, and asks a question the survey did not: once a model is
 > trustworthy, how does the CODE come from it? Its companion for the
 > non-declarative forms is
-> [docs/design/GENERATION-FORMS.0.md](../design/GENERATION-FORMS.0.md).
+> [sketch/GENERATION-FORMS.0.md](../../sketch/GENERATION-FORMS.0.md).
 > [G10](g10-transparency.md) was opened the same day and asks the
 > question G6 left open: G6 made a module's meaning *pinnable*, but a
 > lockfile is a private memory — what makes the FIRST pinning of it
@@ -173,7 +173,7 @@ semantics, so int64-scale values silently lose precision; CUE
 deliberately uses arbitrary-precision decimals.
 
 A **second, independent constraint design** —
-[`docs/design/AONTUCONSTRAINTS.0.md`](../design/AONTUCONSTRAINTS.0.md),
+[`sketch/AONTUCONSTRAINTS.0.md`](../../sketch/AONTUCONSTRAINTS.0.md),
 written downstream from a boru survey and cross-checked against real
 `cue export` — arrived on 2026-08-27, after most of G1 had landed. Its
 disposition against the shipped engine is in
@@ -438,7 +438,7 @@ Checked against this repository at review time (TS v0.49.0 line).
   via a `0d` prefix, and a literal that is integer-kind but not
   exactly representable is a located `lossy_integer_literal` error
   rather than a silently rounded value. See
-  `docs/design/number-tower.md`.**
+  `sketch/number-tower.md`.**
 - Parsed/unified trees are single-use (documented mutation caveat);
   the LSP re-parses and re-unifies whole documents per change.
 
