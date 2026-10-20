@@ -88,7 +88,7 @@ thereafter stated and changed in the definition, not here.
 | [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Moved to the definition; superseded in part by [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) and [ADR-055](#adr-055--must-asks-the-admission-trial) |
 | [ADR-050](#adr-050--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Moved to the definition |
 | [ADR-051](#adr-051--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Moved to the definition |
-| [ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Accepted |
+| [ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Amended by [ADR-072](#adr-072--a-meta-record-is-open-metadata) |
 | [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Moved to the definition |
 | [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) | The admission trial is asked once, counted, and stopped when its count is decided | Accepted |
 | [ADR-055](#adr-055--must-asks-the-admission-trial) | `must` asks the admission trial | Moved to the definition |
@@ -108,6 +108,7 @@ thereafter stated and changed in the definition, not here.
 | [ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it) | The language is defined in Lean, and the ports implement it | Accepted |
 | [ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release) | The standard CI run samples, the daily run decides, and releases come from `release` | Amended by [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) |
 | [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) | A push is checked in two minutes and a pull request in five | Accepted |
+| [ADR-072](#adr-072--a-meta-record-is-open-metadata) | A `meta()` record is open metadata | Accepted |
 
 ---
 
@@ -5035,7 +5036,7 @@ distinct as JSON values, which `unique()` already asks of aontu values.
 ## ADR-052 — Annotations ride a value and meet as a union
 
 **Date:** 2026-10-01
-**Status:** Accepted
+**Status:** Amended by [ADR-072](#adr-072--a-meta-record-is-open-metadata): its first decision, the fixed record keys, is superseded
 
 ### Context
 
@@ -6702,3 +6703,84 @@ the sample 105 to 152 s.
   five minutes, and a new step in `make quick` inside two.
 - Enforced by the `timeout-minutes` in `build.yml` and by the
   `quick` target's comment, which cite this entry.
+
+## ADR-072 — A `meta()` record is open metadata
+
+**Date:** 2026-10-20
+**Status:** Accepted
+
+### Context
+
+[ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) made
+`meta(v, ...r)` a value-transparent rider whose records meet as their
+union, and fixed a record's keys to JSON Schema's annotation keywords:
+`title`, `description`, `comment`, `default`, `examples`, `readOnly`,
+`writeOnly`, `format`, the three content keywords, `x` for the keywords
+JSON Schema does not name, and, from
+[ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import),
+`dynamicRef`. Each key had a kind, and anything else refused with
+`func_arg`. The rider arrived for one job, carrying JSON Schema's
+annotations, and the key list was the shape of that job; neither G12
+nor ADR-052 gave another reason for it.
+
+The list put one interchange format's vocabulary into both engines.
+That is against the line
+[ADR-047](#adr-047--the-json-schema-importer-owns-the-meaning) draws,
+where the importer owns JSON Schema's meaning, and the one
+[ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)
+draws for target languages. `x` was defined only relative to JSON
+Schema, and `dynamicRef` annotated nothing. Inside the engine only the
+language server read a key, and only `title` and `description`. The
+definition is ruled to name no JSON Schema keyword, yet it could not
+take the rider in under its decision 14 without naming the list, to
+explain why `meta(1, {colour: "red"})` refused.
+
+### Decision
+
+1. **A record is a map of concrete data under any keys.** `meta()`
+   refuses with `func_arg` only a record that is not one: a record
+   holding a kind, a spread, an optional key or a preference anywhere.
+   The rest of ADR-052 stands: the value unifies exactly as `v`,
+   records meet as their key-wise union, canon writes them back and
+   the hash includes them. This supersedes ADR-052's first decision.
+2. **What a key means is for the reader of the record to say.** The
+   language server reads `title` and `description` for its hover, and
+   only their text. The JSON Schema exporter reads its conventions:
+   `title`, `description`, `comment` as `$comment`, `default`,
+   `examples`, `readOnly`, `writeOnly`, `format`, the three content
+   keywords, and `dynamicRef` on a reference as `$dynamicRef`. A
+   convention holding another kind of data than its keyword takes is a
+   reported loss at export, not a refusal at evaluation.
+3. **Every other key crosses under its own name.** The exporter writes
+   it as a keyword of that name, and drops one that names a JSON Schema
+   keyword with a reported loss, since it would assert where the record
+   only annotates. `x` is a key like any other.
+4. **The importer writes an unknown keyword under its own name.** A
+   keyword JSON Schema does not name, or that the schema's dialect or
+   vocabularies do not define, is a key of the record. An unknown
+   keyword named `comment` or `dynamicRef` is a reported loss, since the
+   exporter would write it back as another keyword.
+5. **A record key may be any string.** `__proto__` and `toString`
+   included: the TypeScript records, and the keyword tables either
+   verb looks a schema's names up in, are null-prototype objects
+   ([#392](https://github.com/aontu-lang/aontu/issues/392)).
+
+### Consequences
+
+- Any metadata rides a value, nested data included:
+  `meta(1, {colour: "red"})` is `meta(1,{"colour":"red"})`.
+- Breaking: an imported schema's unknown keywords leave `x`, which
+  changes its canon and hash, and a hand-written `x` now exports as a
+  keyword named `x`. A record whose convention holds the wrong kind is
+  accepted where it refused, and its export reports the loss.
+- A typo in a conventional key, such as `titel`, is accepted, and
+  exports as an extension keyword of that name. Nothing warns: a
+  warning on keys outside the exporter's conventions would carry JSON
+  Schema's vocabulary back into the language server.
+- `dynamicRef` stays a record key on a use, not a field of `ident()`,
+  which rides only a declaration.
+- The riders can enter the definition under its decision 14 without
+  naming a JSON Schema keyword: a record is data the definition carries
+  and says nothing about.
+- Pinned by `test/spec/meta.tsv`, `test/spec/jsonschema.tsv` and
+  `test/spec/jsonschema-import.tsv`, in both ports.
