@@ -149,7 +149,7 @@ theorem resolveFields_eq {ds : Decls} : ∀ {fs : List (String × Bool × Val)},
   | [], _ => rfl
   | (k, o, v) :: fs, h => by
     simp only [resolveFields]
-    rw [h k o v (List.mem_cons_self _ _),
+    rw [h k o v (List.mem_cons_self),
       resolveFields_eq fun k' o' v' hm => h k' o' v' (List.mem_cons_of_mem _ hm)]
 
 theorem resolveItems_eq {ds : Decls} : ∀ {vs : List Val},
@@ -157,7 +157,7 @@ theorem resolveItems_eq {ds : Decls} : ∀ {vs : List Val},
   | [], _ => rfl
   | v :: vs, h => by
     simp only [resolveItems]
-    rw [h v (List.mem_cons_self _ _), resolveItems_eq fun v' hm => h v' (List.mem_cons_of_mem _ hm)]
+    rw [h v (List.mem_cons_self), resolveItems_eq fun v' hm => h v' (List.mem_cons_of_mem _ hm)]
 
 theorem resolveSpread_eq {ds : Decls} : ∀ {sp : Option Val},
     (∀ s, sp = some s → resolveD ds s = s) → resolveSpread ds sp = sp
@@ -169,7 +169,7 @@ theorem resolveArms_eq {ds : Decls} : ∀ {arms : List (ℕ × Val)},
   | [], _ => rfl
   | (r, a) :: arms, h => by
     simp only [resolveArms]
-    rw [h r a (List.mem_cons_self _ _), resolveArms_eq fun r' a' hm => h r' a' (List.mem_cons_of_mem _ hm)]
+    rw [h r a (List.mem_cons_self), resolveArms_eq fun r' a' hm => h r' a' (List.mem_cons_of_mem _ hm)]
 
 theorem resolveCovers_eq {ds : Decls} : ∀ {cs : List Cover},
     (∀ c, c ∈ cs → (∀ v, c.1 = some v → resolveD ds v = v) ∧ (∀ v, c.2.1 = some v → resolveD ds v = v) ∧
@@ -178,7 +178,7 @@ theorem resolveCovers_eq {ds : Decls} : ∀ {cs : List Cover},
   | [], _ => rfl
   | (c, k, m) :: cs, h => by
     simp only [resolveCovers]
-    obtain ⟨h1, h2, h3⟩ := h (c, k, m) (List.mem_cons_self _ _)
+    obtain ⟨h1, h2, h3⟩ := h (c, k, m) (List.mem_cons_self)
     rw [resolveSpread_eq h1, resolveSpread_eq h2, resolveSpread_eq h3,
       resolveCovers_eq fun c' hm => h c' (List.mem_cons_of_mem _ hm)]
 
@@ -482,7 +482,7 @@ theorem termMembers_mem {fs : List (String × Data)} {k : String} {o : Bool} {v 
     · rintro (h | ⟨x, hm, rfl, rfl⟩)
       · simp only [Prod.mk.injEq] at h
         obtain ⟨rfl, rfl, rfl⟩ := h
-        exact ⟨x', List.mem_cons_self _ _, rfl, rfl⟩
+        exact ⟨x', List.mem_cons_self, rfl, rfl⟩
       · exact ⟨x, List.mem_cons_of_mem _ hm, rfl, rfl⟩
     · rintro ⟨x, hm, rfl, rfl⟩
       rcases List.mem_cons.mp hm with h | hm'
@@ -533,20 +533,20 @@ theorem term_admits_self : ∀ j : Data, j.WellFormed → Admits env root j.term
 
 theorem members_admit_self : ∀ fs : List (String × Data), (∀ k x, (k, x) ∈ fs → x.WellFormed) →
     ∀ k x, (k, x) ∈ fs → Admits env root x.term x
-  | [], _, _, _, hm => absurd hm (List.not_mem_nil _)
+  | [], _, _, _, hm => absurd hm (List.not_mem_nil)
   | (k', y) :: fs, hw, k, x, hm => by
     rcases List.mem_cons.mp hm with h | hm'
     · simp only [Prod.mk.injEq] at h
       obtain ⟨rfl, rfl⟩ := h
-      exact term_admits_self _ (hw _ _ (List.mem_cons_self _ _))
+      exact term_admits_self _ (hw _ _ (List.mem_cons_self))
     · exact members_admit_self fs (fun k x hm => hw k x (List.mem_cons_of_mem _ hm)) k x hm'
 
 theorem elems_admit_self : ∀ xs : List Data, (∀ x, x ∈ xs → x.WellFormed) →
     ∀ x, x ∈ xs → Admits env root x.term x
-  | [], _, _, hm => absurd hm (List.not_mem_nil _)
+  | [], _, _, hm => absurd hm (List.not_mem_nil)
   | y :: xs, hw, x, hm => by
     rcases List.mem_cons.mp hm with rfl | hm'
-    · exact term_admits_self _ (hw _ (List.mem_cons_self _ _))
+    · exact term_admits_self _ (hw _ (List.mem_cons_self))
     · exact elems_admit_self xs (fun x hm => hw x (List.mem_cons_of_mem _ hm)) x hm'
 end
 
@@ -563,7 +563,7 @@ theorem Data.term_checkableA : ∀ j : Data, j.term.CheckableA
 
 theorem termMembers_checkableA : ∀ fs : List (String × Data), ∀ k o v, (k, o, v) ∈ termMembers fs →
     v.CheckableA
-  | [], _, _, _, h => absurd h (List.not_mem_nil _)
+  | [], _, _, _, h => absurd h (List.not_mem_nil)
   | (_, x) :: fs, k, o, v, h => by
     rcases List.mem_cons.mp h with h | h
     · simp only [Prod.mk.injEq] at h
@@ -572,7 +572,7 @@ theorem termMembers_checkableA : ∀ fs : List (String × Data), ∀ k o v, (k, 
     · exact termMembers_checkableA fs k o v h
 
 theorem termElems_checkableA : ∀ xs : List Data, ∀ v, v ∈ termElems xs → v.CheckableA
-  | [], _, h => absurd h (List.not_mem_nil _)
+  | [], _, h => absurd h (List.not_mem_nil)
   | x :: xs, v, h => by
     rcases List.mem_cons.mp h with rfl | h
     · exact Data.term_checkableA x

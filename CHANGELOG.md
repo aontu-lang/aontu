@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### The definition builds on Lean 4.24.1
+
+Definition and CI; no engine changes, and no row changes
+([ADR-077](ADR.md#adr-077--the-definition-is-pinned-to-lean-4241)).
+On macOS 26 the oracle Lean 4.15.0 linked aborted at load, since its
+linker leaves `SG_READ_ONLY` off `__DATA_CONST`; 4.24.1 links with
+LLVM 19. Releases from 4.25.0 hold a string as bytes, which puts
+`Classical.choice` under every theorem about the order on strings, so
+4.24.1 is the newest the definition can take.
+
+- `spec/lean-toolchain` and `spec.yml`'s pinned download name 4.24.1.
+- The proofs follow the core library's renames and implicit
+  arguments; no statement changed, the axioms are as they were, and
+  `make spec` regenerates every row byte for byte.
+
 ### A rider's record is no export loss
 
 Both implementations

@@ -85,8 +85,10 @@ so the definition says nothing about it:
 
 ## Build and run
 
-The toolchain is pinned in `lean-toolchain`. With `lean` and `lake`
-from that release on `PATH`:
+The toolchain is pinned in `lean-toolchain`: Lean 4.24.1, the newest
+release whose oracle loads on macOS 26 and whose strings keep every
+proof constructive (ADR-077). With `lean` and `lake` from that release
+on `PATH`:
 
 ```sh
 make spec                                   # every proof, the rows regenerated, the committed copy diffed

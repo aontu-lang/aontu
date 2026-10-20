@@ -393,8 +393,8 @@ theorem vetCases_checkable : ∀ c ∈ vetCases, (vetDoc c).1.CheckableA := by d
 
 theorem vet_verdict_exact : ∀ c ∈ vetCases, ∀ (m : Mode) (v : Verdict),
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
-  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil _))
-    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil _)) (vetCases_checkable c hc)) v
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (vetCases_checkable c hc)) v
 
 def verdictName : Verdict → String
   | .valid => "valid"

@@ -26,15 +26,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Fetch Lean 4.15.0
+      - name: Fetch Lean 4.24.1
         env:
-          LEAN_URL: https://github.com/leanprover/lean4/releases/download/v4.15.0/lean-4.15.0-linux.zip
-          LEAN_SHA256: 8eceac177fe2e2828f71add0d458e6a91187ce6d4f67d0f0364061b9e3dca59b
+          LEAN_URL: https://github.com/leanprover/lean4/releases/download/v4.24.1/lean-4.24.1-linux.zip
+          LEAN_SHA256: 052cea5db561d8fd097b7b2eb93b7dbcaae821923e24eb17782d42fd42f82473
         run: |
           curl -sSL -o "$RUNNER_TEMP/lean.zip" "$LEAN_URL"
           echo "$LEAN_SHA256  $RUNNER_TEMP/lean.zip" | sha256sum -c -
           unzip -q "$RUNNER_TEMP/lean.zip" -d "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/lean-4.15.0-linux/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/lean-4.24.1-linux/bin" >> "$GITHUB_PATH"
       # Lake decides what to rebuild by the hash of each file's text,
       # not its date, so a cache from another commit is safe to restore:
       # what is unchanged is reused, what changed is rebuilt.
