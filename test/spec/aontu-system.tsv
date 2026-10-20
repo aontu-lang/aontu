@@ -1,5 +1,5 @@
 # G4 phase 4: the aontu:system VOCABULARY
-# (docs/capability-review/g4-identity-relations.md). Ports, components
+# (sketch/capability-review/g4-identity-relations.md). Ports, components
 # and relations need no syntax: they are schemas. Everything in
 # `@"aontu:system"` is ordinary unification -- conjunction, spreads,
 # marks, defaults -- so the vocabulary costs the language nothing, and

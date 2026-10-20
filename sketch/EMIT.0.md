@@ -1,7 +1,7 @@
 # `emit`: apply-templates as an engine builtin
 
 *Design note, 2026-09-04. The rule layer of
-[G9](../docs/capability-review/g9-transformation.md) — its phase 6 — spelled
+[G9](capability-review/g9-transformation.md) — its phase 6 — spelled
 out as a mechanism rather than as a plan. Companion to
 [TEMPLATE.0.md](TEMPLATE.0.md), which is the target-syntax surface that
 desugars to what this note specifies, and to
@@ -11,13 +11,13 @@ built CLIs at 0.56.0, most of them against
 [`voxgig/podmind`](https://github.com/voxgig/podmind)'s backend at
 `ab7f333` — twelve deployed Lambda handlers generated today by a Node
 library. This note is design; status lives in the
-[progress register](../docs/capability-review/progress.md).*
+[progress register](capability-review/progress.md).*
 
 ## Why: four prototypes with no apply-templates in them
 
 G9's prior art calls apply-templates the thing worth keeping from XSLT,
 and its
-[§2](../docs/capability-review/g9-transformation.md#2-the-rule-layer--apply-templates-in-the-engine)
+[§2](capability-review/g9-transformation.md#2-the-rule-layer--apply-templates-in-the-engine)
 designs it. Four successive prototypes of a generator for those twelve
 handlers were built, and **not one of them contained an
 apply-templates**. Each was a functional transformation — a `pack`
@@ -72,7 +72,7 @@ convenience.** A body nests one level wherever an `emit` appears in it;
 the builtin splices those results in and returns a flat sequence of
 pieces — `[&: string]` before the fragment algebra lands, `[&: %piece]`
 after it. G9's
-[fragment algebra](../docs/capability-review/g9-transformation.md#amendment-2026-09-04-second-aontucode-and-the-fragment-algebra)
+[fragment algebra](capability-review/g9-transformation.md#amendment-2026-09-04-second-aontucode-and-the-fragment-algebra)
 is flat because the nested spelling refuses even a valid instance in
 both ports (VERIFIED), and a dispatch returning a tree would undo that
 ruling.
@@ -220,7 +220,7 @@ GIVEN.
 ## D7. The verb is `aontu render`
 
 Decided 2026-09-04, closing
-[G9](../docs/capability-review/g9-transformation.md)'s open question (iii),
+[G9](capability-review/g9-transformation.md)'s open question (iii),
 which had this document saying `aontu render` and the register's phase
 6 row saying `aontu gen`.
 

@@ -283,7 +283,7 @@ it:
 - a listed test that passes fails the run, so the change that fixes it
   deletes its row;
 - the ledger may not hold more rows than the bound both runners carry,
-  which the [register](../capability-review/progress.md) tightens as
+  which the [register](../../sketch/capability-review/progress.md) tightens as
   each phase lands.
 
 The suite's directories for the earlier dialects, draft-04 to 2019-09,

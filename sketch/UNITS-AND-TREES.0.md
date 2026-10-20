@@ -11,7 +11,7 @@ register row, nothing proposed for building. This note exists because the questi
 been asked twice and re-derived from scratch both times, and because
 the answer is a layering rather than a preference. Status of the two
 surfaces it compares lives in the
-[progress register](../docs/capability-review/progress.md), never here.
+[progress register](capability-review/progress.md), never here.
 
 **Origin:** Richard Rodger, 2026-09-12: *"Why are we still using
 Code.units now that we have jostraca?"*
@@ -178,7 +178,7 @@ A `content` cannot do any of this. It is a string, produced for one
 target, and it knows nothing about the field it came from. Writing the
 Go spelling means writing a second tree.
 
-This is the half of [G9 Resolution 1](../docs/capability-review/g9-transformation.md#two-specialist-disagreements-resolved)
+This is the half of [G9 Resolution 1](capability-review/g9-transformation.md#two-specialist-disagreements-resolved)
 that survived the component spike, and [JOSTRACA.0.md §1](JOSTRACA.0.md#1-what-this-reverses-and-why-that-is-worth-doing)
 says so in the same words: the spike withdrew Resolution 1's first
 reason and left its second and third standing. This section is the

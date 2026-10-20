@@ -494,7 +494,7 @@ edge set is the set of checked `refer` LINKS, each stamped at
 resolution so nothing has to guess which strings are addresses; phase
 5 filters it by declared relation rather than rebuilding it. See
 `result.graph` / `Aontu.Graph` in
-[the API reference](../reference-api.md).) Impact
+[the API reference](../../docs/reference-api.md).) Impact
 analysis ("what reaches `svc_auth`?"), reachability, and
 context-window-sized entity slices become traversals over them;
 their exposure — CLI verbs, projections, the MCP tool set — is

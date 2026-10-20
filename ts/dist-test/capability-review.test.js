@@ -39,7 +39,7 @@ const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
 const REPO = Path.join(__dirname, '..', '..');
-const REVIEW = Path.join(REPO, 'docs', 'capability-review');
+const REVIEW = Path.join(REPO, 'sketch', 'capability-review');
 function read(...parts) {
     return Fs.readFileSync(Path.join(...parts), 'utf8')
         .replaceAll('\r\n', '\n').replaceAll('\r', '\n');
@@ -179,8 +179,8 @@ const INDEX = read(REVIEW, 'index.md');
         const want = `G1–G${highest}`;
         for (const file of [
             'AGENTS.md', 'CLAUDE.md',
-            'docs/capability-review/index.md',
-            'docs/capability-review/progress.md',
+            'sketch/capability-review/index.md',
+            'sketch/capability-review/progress.md',
         ]) {
             const md = read(REPO, file);
             const quoted = md.match(/G1[–-]G\d+/g) ?? [];
@@ -209,7 +209,7 @@ const INDEX = read(REVIEW, 'index.md');
                 }
                 // A link may carry an anchor; the file half is what exists.
                 const target = Path.resolve(REVIEW, href.split('#')[0]);
-                Assert.ok(Fs.existsSync(target), `docs/capability-review/${file}: broken link ${href}`);
+                Assert.ok(Fs.existsSync(target), `sketch/capability-review/${file}: broken link ${href}`);
                 checked++;
             }
         }

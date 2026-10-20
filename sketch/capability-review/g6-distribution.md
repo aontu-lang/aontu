@@ -64,7 +64,7 @@ by `test/spec/file.tsv:load-not-found`). The only cross-repository
 channel that *does* work is the package resolver — `@"pkg"` via
 `require()` — so distributing a schema today means publishing an
 npm package and having every consumer execute its code on load. The
-trust contract ([`docs/trust.md`](../trust.md)) is blunt about the
+trust contract ([`docs/trust.md`](../../docs/trust.md)) is blunt about the
 reach: treat opening an untrusted source as reading your disk — and,
 at review time, as running it. That is a supply chain without any of a supply chain's
 protections.
@@ -140,7 +140,7 @@ bones, and both fall short in specific, enumerable ways.
   (`options.resolver.mem`) is the sandbox-friendly entry point the
   review counts as an asset; the package resolver calls
   `require()`, with the consequences
-  [`docs/trust.md`](../trust.md) records. At review time the Go port wired only the
+  [`docs/trust.md`](../../docs/trust.md) records. At review time the Go port wired only the
   file leg (`go/source.go`, over `github.com/tabnas/multisource/go`);
   the landed chain in both ports is memory → module (this design's
   phase 2) → filesystem, and only the package leg remains

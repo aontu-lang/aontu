@@ -71,7 +71,7 @@ constraint: it must keep the pass loop alive, which is exactly the
 not-done property that makes `refer` hang inside `type()` bodies (G4
 phase 4); it would stop module fragments that address their
 consumer's tree from standing alone ("collected, not raised",
-`docs/capability-review/g6-distribution.md`); and it would put
+`sketch/capability-review/g6-distribution.md`); and it would put
 effects back into disjunct branches. Checking is a constraint's job
 because constraints have the machinery for deferral and timing.
 

@@ -73,7 +73,7 @@ infrastructure around the lattice, not syntax on top of it.
 > had landed, and asks a question the survey did not: once a model is
 > trustworthy, how does the CODE come from it? Its companion for the
 > non-declarative forms is
-> [sketch/GENERATION-FORMS.0.md](../../sketch/GENERATION-FORMS.0.md).
+> [sketch/GENERATION-FORMS.0.md](../GENERATION-FORMS.0.md).
 > [G10](g10-transparency.md) was opened the same day and asks the
 > question G6 left open: G6 made a module's meaning *pinnable*, but a
 > lockfile is a private memory — what makes the FIRST pinning of it
@@ -173,7 +173,7 @@ semantics, so int64-scale values silently lose precision; CUE
 deliberately uses arbitrary-precision decimals.
 
 A **second, independent constraint design** —
-[`sketch/AONTUCONSTRAINTS.0.md`](../../sketch/AONTUCONSTRAINTS.0.md),
+[`sketch/AONTUCONSTRAINTS.0.md`](../AONTUCONSTRAINTS.0.md),
 written downstream from a boru survey and cross-checked against real
 `cue export` — arrived on 2026-08-27, after most of G1 had landed. Its
 disposition against the shipped engine is in
@@ -421,7 +421,7 @@ Checked against this repository at review time (TS v0.49.0 line).
 - ~~The resolver security posture is documented in code
   (`ts/src/lang.ts`, "treat opening an untrusted source as running
   it").~~ **No such comment exists under `ts/src/` (checked
-  2026-09-29); the posture is stated in [`docs/trust.md`](../trust.md)
+  2026-09-29); the posture is stated in [`docs/trust.md`](../../docs/trust.md)
   ("Treat opening an untrusted source as reading your disk").**
 - ~~Disjunct generation has a known distribution defect, acknowledged in
   a code comment (`ts/src/val/DisjunctVal.ts`).~~ **Fixed by

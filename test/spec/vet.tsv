@@ -1,4 +1,4 @@
-# G2: the validation verb (docs/capability-review/g2-validation-verb.md).
+# G2: the validation verb (sketch/capability-review/g2-validation-verb.md).
 #
 # Columns: name<TAB>vet<TAB>schema<TAB>data<TAB>expect
 #
@@ -412,7 +412,7 @@ vet-list-spread-ref-owns-its-args	vet	E:hide(re("^g$"))\nent:{U:close({e:$.E})}\
 vet-match-hole-scrutinee-does-not-settle	vet	P:{t:x}\nE:match(_,{t:x},$.P)\n	t:x\n	{"findings":[{"class":"incomplete","code":"conjunct","path":"$.E","pointer":"/E","severity":"error","sites":[{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"match(_,{\\"t\\":\\"x\\"},$.P)&{\\"t\\":\\"x\\"}"}]}],"opts":{"at":"$.E"},"truncated":false,"verdict":"incomplete"}
 
 # G11 phase 5: THE COVERAGE ACCOUNTING
-# (docs/capability-review/g11-agent-onramp.md). What the check actually
+# (sketch/capability-review/g11-agent-onramp.md). What the check actually
 # EXAMINED, as against what it concluded -- absent from the report
 # unless the run asks for it, which is why every row above is unchanged.
 #

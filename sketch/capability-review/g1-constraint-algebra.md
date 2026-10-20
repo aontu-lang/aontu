@@ -823,7 +823,7 @@ applied to the language itself.
 
 ## Reconciliation with the 2026-08-27 constraint design note
 
-[`sketch/AONTUCONSTRAINTS.0.md`](../../sketch/AONTUCONSTRAINTS.0.md)
+[`sketch/AONTUCONSTRAINTS.0.md`](../AONTUCONSTRAINTS.0.md)
 is a second, independent constraint design, uploaded to `main` on
 2026-08-27 in commit `8d892a4` — the only content of that commit. It was
 written downstream, from an empirical survey run through boru's

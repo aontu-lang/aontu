@@ -1,7 +1,7 @@
 
 > **Where these sketches went** (marked 2026-08-24; the sketches are
 > older). Several landed via the capability review's
-> [G8](docs/capability-review/g8-generation.md), decided there
+> [G8](sketch/capability-review/g8-generation.md), decided there
 > rather than here: the placeholder `_` ships (`PlaceVal`, in both
 > ports), and `each`/`pack`/`filter`/`match` ship as total
 > combinators. The pipe `|>` ships too, but data-FIRST

@@ -170,7 +170,7 @@ store path, an npm global prefix), because that manager owns it.
 
 A text file under the project's `aontu_meta/`, the folder that holds
 everything the tools write into a project (the lockfile and the
-vendored closure live there too; `docs/capability-review/g6-distribution.md`,
+vendored closure live there too; `sketch/capability-review/g6-distribution.md`,
 the layout amendment). One pin per line, the series and the
 version separated by a space; `#` starts a comment; blank lines are
 ignored:

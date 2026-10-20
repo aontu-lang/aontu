@@ -1,5 +1,5 @@
 # THE FOLD TO A STRING: join(coll, sep?) (G9 phase 2,
-# docs/capability-review/g9-transformation.md). One string, being the
+# sketch/capability-review/g9-transformation.md). One string, being the
 # members of `coll` rendered as text with `sep` between them.
 # Columns: name<TAB>mode<TAB>src<TAB>expect
 #

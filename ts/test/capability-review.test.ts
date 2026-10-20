@@ -8,7 +8,7 @@ import * as Path from 'node:path'
 
 
 const REPO = Path.join(__dirname, '..', '..')
-const REVIEW = Path.join(REPO, 'docs', 'capability-review')
+const REVIEW = Path.join(REPO, 'sketch', 'capability-review')
 
 
 function read(...parts: string[]): string {
@@ -198,8 +198,8 @@ describe('capability-review', () => {
     const want = `G1–G${highest}`
     for (const file of [
       'AGENTS.md', 'CLAUDE.md',
-      'docs/capability-review/index.md',
-      'docs/capability-review/progress.md',
+      'sketch/capability-review/index.md',
+      'sketch/capability-review/progress.md',
     ]) {
       const md = read(REPO, file)
       const quoted: string[] = md.match(/G1[–-]G\d+/g) ?? []
@@ -232,7 +232,7 @@ describe('capability-review', () => {
         // A link may carry an anchor; the file half is what exists.
         const target = Path.resolve(REVIEW, href.split('#')[0])
         Assert.ok(Fs.existsSync(target),
-          `docs/capability-review/${file}: broken link ${href}`)
+          `sketch/capability-review/${file}: broken link ${href}`)
         checked++
       }
     }

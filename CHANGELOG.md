@@ -4109,7 +4109,7 @@ A second check, `a-working-document-naming-a-retired-builtin-says-so`,
 requires a design document that still calls the list generator `form`
 to carry a note saying so. `sketch/TEMPLATE.0.md`,
 `sketch/RENDER.0.md` and
-`docs/capability-review/g9-transformation.md` now carry it: those
+`sketch/capability-review/g9-transformation.md` now carry it: those
 documents are frozen records and are not rewritten as the language
 moves, and a reader arriving at one has no other way to learn that
 `form` is `each` today and that the `each` they describe was retired
@@ -7014,7 +7014,7 @@ uncovered on the way.
 `rem`.** The tokens `-` `*` `/` `%` stay reserved, as the design's
 boundary requires, so there is no infix arithmetic to learn beyond `+`.
 The semantics are the ones
-[G8 pre-registered](docs/capability-review/g8-generation.md#arithmetic-semantics-pre-registered):
+[G8 pre-registered](sketch/capability-review/g8-generation.md#arithmetic-semantics-pre-registered):
 the exact ladder and R5 kind contagion the number tower already had,
 integer division truncating **toward zero** (`div(-7,2)` is `-3`, not
 `-4` — stated by the language rather than inherited from whichever host
@@ -8233,7 +8233,7 @@ implementations.
 ### Fixed — the two release blockers (security, and cross-port parity)
 
 Both were found by driving the delivered surface end to end
-(`docs/capability-review/status-2026-08-21.md`) and had to be closed
+(`sketch/capability-review/status-2026-08-21.md`) and had to be closed
 before this line could be published.
 
 - **A served evaluation no longer executes caller-supplied code.**
@@ -8278,7 +8278,7 @@ site where TypeScript names the included file (row and column agree)
 
 Everything after `re()` below landed in this line too; this heading
 summarises rather than itemises, and the
-[progress register](docs/capability-review/progress.md) is the
+[progress register](sketch/capability-review/progress.md) is the
 per-phase record with pins. In both implementations unless noted:
 
 - **Constraint algebra completed** (G1 phases 3–6): `length` and

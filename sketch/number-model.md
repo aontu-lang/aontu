@@ -563,7 +563,7 @@ Three further pieces of that design are relevant here:
 boru's type system also ships **scalar refinements** — `(Integer gt
 0)`, `between 5 10 Integer` — with closed-form complements in the type
 algebra. aontu's constraint algebra is a separate question, treated in
-[`docs/capability-review/`](../docs/capability-review/index.md).
+[`sketch/capability-review/`](capability-review/index.md).
 
 **What aontu deliberately did not adopt.**
 

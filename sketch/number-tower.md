@@ -7,7 +7,7 @@ number type structure; this document works out how, and records the
 implications and the places where aontu must deviate. It builds on
 [number-model.md](number-model.md), whose six rules (R1–R6) each
 *extend* to the new leaves rather than change, and supersedes parts of
-the [G1](../docs/capability-review/g1-constraint-algebra.md) boundary.*
+the [G1](capability-review/g1-constraint-algebra.md) boundary.*
 
 *Reconciled with what landed. Where building the thing proved a
 decision wrong or incomplete, the correction appears as an
@@ -539,7 +539,7 @@ Verified: both runners currently collapse gen values through float64
 against `bigint`; Go: `jsonEqual` without `UseNumber`), so `2^100`
 and `2^100 + 3` would compare **equal** — exactness is unassertable,
 not merely awkward. The byte-exact generated-output mode already
-designed in [G5](../docs/capability-review/g5-trust-contract.md) (`gens`:
+designed in [G5](capability-review/g5-trust-contract.md) (`gens`:
 compare marshalled bytes) is therefore a hard prerequisite, and
 lands as Phase 0. Canon mode remains the kind-faithful surface — the
 number-model lesson repeating at the next scale.
@@ -578,7 +578,7 @@ pinned with baseline rows first):
    > other end is `*8080 & 3.5` — so `port: *8080 | integer`, the
    > default idiom `docs/skill/examples.md` teaches, accepted `3.5` in
    > both ports and silently widened every key written that way from
-   > `integer` to `number`. §6 of `docs/capability-review/status-2026-08-21.md`
+   > `integer` to `number`. §6 of `sketch/capability-review/status-2026-08-21.md`
    > calls that the most consequential finding of the review; it is
    > resolved by taking the tightening this note argued against.
    >
@@ -619,7 +619,7 @@ pinned with baseline rows first):
    in the set and leads the migration notes.
 5. TS `generate()` can return `bigint`/`Decimal` for opting-in
    documents (D9).
-6. Any future canon-hash pins ([G6](../docs/capability-review/g6-distribution.md))
+6. Any future canon-hash pins ([G6](capability-review/g6-distribution.md))
    made before this lands would be invalidated by the canon changes —
    an argument for sequencing the tower before G6 ships hashing.
 

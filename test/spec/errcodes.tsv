@@ -26,7 +26,7 @@
 #   class : one of conflict | incomplete | reference | parse | budget |
 #           compat |
 #           internal (see below). Classes drive report verdicts and exit
-#           classes (docs/capability-review/g2-validation-verb.md), so a
+#           classes (sketch/capability-review/g2-validation-verb.md), so a
 #           class change is a breaking change.
 #   since : the version line (TypeScript series) at which the code was
 #           first REGISTERED. Codes predating the registry all carry the
@@ -41,7 +41,7 @@
 #   reference  : a name or path that does not resolve.
 #   parse      : the source text itself is malformed or unusable.
 #   budget     : an evaluation bound was exceeded (cycles, passes,
-#                nesting depth) -- see docs/capability-review/g5.
+#                nesting depth) -- see sketch/capability-review/g5.
 #   compat     : the subsumption query's report vocabulary (G3) -- the
 #                compat_* findings and the sub_* undecided reasons.
 #   internal   : the engine reached a state it should not reach.
@@ -212,7 +212,7 @@ unify_no_res	errcode	internal	0.51.0
 unknown_op	errcode	internal	0.51.0
 #
 # compat -- the subsumption query's report vocabulary (G3,
-# docs/capability-review/g3-subsumption-evolution.md). These codes ride
+# sketch/capability-review/g3-subsumption-evolution.md). These codes ride
 # G2's finding object from the `subsume` and `breaking` surfaces; the
 # `sub_*` codes are the UNDECIDED reasons, spec-pinned so the taxonomy
 # cannot grow silently.

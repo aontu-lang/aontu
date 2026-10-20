@@ -32,7 +32,7 @@ not used, except for aontu's own.
 
 | Aspect | aontu 0.76.0 |
 |---|---|
-| Implementations | TypeScript (canonical) and a Go port, held to parity by the shared suite under `test/spec/` (whose size the [register](../docs/capability-review/progress.md#the-update-protocol) records, rule 5, and nowhere else), each port at 100 % coverage ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec), [ADR-002](../ADR.md#adr-002--test-coverage-stays-at-100--in-both-implementations)) |
+| Implementations | TypeScript (canonical) and a Go port, held to parity by the shared suite under `test/spec/` (whose size the [register](capability-review/progress.md#the-update-protocol) records, rule 5, and nowhere else), each port at 100 % coverage ([ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec), [ADR-002](../ADR.md#adr-002--test-coverage-stays-at-100--in-both-implementations)) |
 | Licence and steward | MIT, a single maintainer, sponsored by Voxgig (`README.md:8`) |
 | Adoption | Minimal. 11 GitHub stars and no forks. npm counted 11,656 downloads in the 30 days to 2026-09-29 and 28,271 in the year; in the week before, 76 % were of the two newest releases, which points to the project's own CI more than to users. Four codebases are known to consume it (podmind, todo-app, voxgig/apidef and voxgig/sdkgen, `use-cases/REVIEW.md:9-10`), and in August their use was "includes + spreads + `*default \| widetype` + references, full stop" (`use-cases/REVIEW.md:378-379`). A web search found no independent public discussion. |
 | Turing-complete | No, by design: "No Turing-completeness, no SMT solvers" (`docs/trust.md:298`). There are no user-defined functions (`docs/reference-language.md:2090-2091`), generators iterate finite bags that already exist, recursion expands only against concrete data, and every evaluation runs under event budgets of 9 passes, 999 revisits and depth 1000 (`docs/trust.md:100-110`). Two open defects are inputs that do not terminate: [BUGS.md](../use-cases/BUGS.md) §18 and §57. |
@@ -41,8 +41,8 @@ not used, except for aontu's own.
 | Generation | `pack`, `each`, `filter`, `match` and `emit` over settled data. No comprehension keywords, no if/else, no string interpolation. |
 | Numbers | Four disjoint leaves (`integer`, `float`, `biginteger`, `bigdecimal`); `0d` literals are exact; an integer that binary64 would round is refused |
 | Verbs | `vet` (verdicts with exit classes, JSON or SARIF, a GitHub Action), `subsume` and `breaking` (three-valued, with witnesses), `why`, `get` and `set`, `hash` (`aon1-` meaning pins), `fmt`, `view` (ten kinds), `render`, `jsonschema` (export) |
-| Interchange | Reads JSON, JSON-LD, JSONC, JSON5, jsonic (`.jsonic` and `.jsc`), YAML, TOML and INI as include data ([ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)). Writes JSON and its own canonical form only. Exports JSON Schema 2020-12 with its losses reported, and at 0.76.0 imports no schema language; G12 adds the JSON Schema import, and its status is in [progress.md](../docs/capability-review/progress.md), which counts its phases. |
-| Trust | No clock, randomness, environment or network in the language; includes governed by a capability (`none`, `mem`, `root`, `system`), with the default left at `system` until the next major (G5 phase 6, `docs/capability-review/progress.md:1470`) |
+| Interchange | Reads JSON, JSON-LD, JSONC, JSON5, jsonic (`.jsonic` and `.jsc`), YAML, TOML and INI as include data ([ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused)). Writes JSON and its own canonical form only. Exports JSON Schema 2020-12 with its losses reported, and at 0.76.0 imports no schema language; G12 adds the JSON Schema import, and its status is in [progress.md](capability-review/progress.md), which counts its phases. |
+| Trust | No clock, randomness, environment or network in the language; includes governed by a capability (`none`, `mem`, `root`, `system`), with the default left at `system` until the next major (G5 phase 6, `sketch/capability-review/progress.md:1470`) |
 | Tooling | An LSP in both ports (diagnostics, hover, completion, go-to-definition on alias names, signature help, `docs/lsp.md:453`); an MCP server, TypeScript only; GBNF, Lark and ABNF grammars for constrained decoding; editor plugins for VS Code, Emacs and Vim |
 | Packages | Domain-shaped module paths, a lockfile with three pins, vendoring, Sigstore and OIDC publishing (G6, landed). The public repository at `pkg.aontu.dev` is not serving (`CHANGELOG.md:1273`). |
 | Install | npm, Go binaries, `install.sh`, a container image, deb, rpm and apk packages, a Nix flake, and manifests for Homebrew, Scoop, winget and the AUR (`docs/release-and-tag.md:226`) |
@@ -106,7 +106,7 @@ ground without the syntax; a short form for key-pattern constraints
 deferred; operator spellings for bounds (`>=5`, `=~`); a serving module
 registry; `cue cmd` workflows; and familiarity, since its spellings
 are in LLM training data
-(`docs/capability-review/g1-constraint-algebra.md:214`).
+(`sketch/capability-review/g1-constraint-algebra.md:214`).
 
 aontu has, and CUE lacks: ranked defaults and a standalone soft
 default; subsumption that can answer "undecided" and names a witness,
@@ -138,7 +138,7 @@ adopters including Bellroy, Cachix, IOHK and NoRedInk.
 The two share a termination guarantee (Dhall's from its type system,
 aontu's from structure and budgets) and hashing over a normal form,
 which is the precedent for aontu's `aon1-` pins
-(`docs/capability-review/g6-distribution.md:194`).
+(`sketch/capability-review/g6-distribution.md:194`).
 
 Dhall has, and aontu lacks: static types checked before evaluation;
 total user functions with polymorphism; URL imports pinned by `sha256`
@@ -212,7 +212,7 @@ Rust.
 aontu has, and Nickel lacks: reasoning between schemas, since contracts
 are evaluate-only and "discover the contradiction only when a candidate
 value happens to arrive"
-(`docs/capability-review/g1-constraint-algebra.md:93-95`); termination;
+(`sketch/capability-review/g1-constraint-algebra.md:93-95`); termination;
 `subsume`, `breaking` and `why`; and a second native implementation.
 
 The merge model is well liked ("much more flexible than inheritance").
@@ -234,7 +234,7 @@ so it is Turing-complete in effect.
 The two share schema and data in one language; predicate constraints
 (`Int(isBetween(0, 65535))` against `min`, `max` and `must`); sandboxed
 evaluation governed by allowlists, the precedent for aontu's include
-capability (`docs/capability-review/g5-trust-contract.md:228`);
+capability (`sketch/capability-review/g5-trust-contract.md:228`);
 versioned packages with checksums; and an LSP, a formatter and code
 generation (Pkl's for Java, Kotlin, Swift and Go; aontu's `render`).
 
@@ -281,7 +281,7 @@ distribution.
 
 aontu has, and KCL lacks: constraints that meet and compare
 symbolically, where KCL's `check` blocks run only against data
-(`docs/capability-review/g1-constraint-algebra.md:93-95`); strict
+(`sketch/capability-review/g1-constraint-algebra.md:93-95`); strict
 order-independence, which KCL's `=` override and `+=` append give up;
 termination; and `subsume` and `breaking`.
 
@@ -420,7 +420,7 @@ schemas.
 | Language | Relation to aontu |
 |---|---|
 | Rego (OPA) | Datalog-style rules that refuse recursion. aontu took conftest's exit classes, GitHub Action and machine-readable output, and OPA's explanation ladder for `why`. OPA has no verb that compares two policies. |
-| CEL | Bounded cost with a static estimate, used in Kubernetes CRD validation and admission policies. It overlaps `must`; aontu has event budgets and no cost model (`docs/capability-review/g5-trust-contract.md:237-243`). |
+| CEL | Bounded cost with a static estimate, used in Kubernetes CRD validation and admission policies. It overlaps `must`; aontu has event budgets and no cost model (`sketch/capability-review/g5-trust-contract.md:237-243`). |
 | Cedar | AWS's analysable authorisation language. In aontu's RBAC use case the decision stays with the policy engine and aontu guards changes to the policy data (`use-cases/05-rbac-policy/`). |
 | Sentinel | HashiCorp's proprietary policy language; it overlaps only in validation. |
 
@@ -466,7 +466,7 @@ use is JSON Schema.
    The npm description calls aontu a "validation gate for AI-agent
    ground truth", and this repository already names "JSON Schema
    2020-12 plus prose" as the strongest competitor
-   (`docs/capability-review/index.md:331-336`). Structured output at
+   (`sketch/capability-review/index.md:331-336`). Structured output at
    the major LLM providers takes JSON Schema, and aontu can export it
    with losses reported but cannot import it.
 6. The termination claim has two open counterexamples (BUGS.md §18 and
@@ -479,12 +479,12 @@ use is JSON Schema.
 | Where | Says | What the evidence shows |
 |---|---|---|
 | `sketch/AONTUCONSTRAINTS.0.md:31-34`, `ADR.md:828-829` | only CUE shares aontu's commutative unification core; Jsonnet, Pkl, Dhall, Starlark and HCL are directional override chains | Dhall's `∧` is a symmetric recursive merge that fails on collision (only `⫽` is right-biased), and KCL documents its `:` as an idempotent union. CUE is still the only language where unification is the whole evaluation model. |
-| `sketch/VIEWS-ORDER.0.md:175-178` | Dhall has no canonical form under which two spellings are one node | Dhall's normal form is that canonical form: its semantic integrity hash is computed over it, which `docs/capability-review/g6-distribution.md:194` relies on. |
-| `docs/capability-review/index.md:119-120` | closed lists are something CUE's structs do not cover | CUE's list literals are closed already; `[...T]` is how CUE opens one. |
-| `docs/capability-review/index.md:140-142` | spreads go beyond CUE's pattern constraints in several directions | CUE's patterns also apply across declarations and through definitions. Each language reaches the other's cases: CUE scopes a pattern to matching keys directly (`[=~re]: T`), and aontu reaches it through a guarded spread (`docs/capability-review/g12-jsonschema-fidelity.md:103-108`). |
-| `docs/capability-review/g7-machine-access.md:215-216` | CUE is on its second evaluator, partly to retrofit error tracking | evalv3 has been CUE's default evaluator since v0.13 (May 2025), and speed and memory drove it as much as error tracking. |
+| `sketch/VIEWS-ORDER.0.md:175-178` | Dhall has no canonical form under which two spellings are one node | Dhall's normal form is that canonical form: its semantic integrity hash is computed over it, which `sketch/capability-review/g6-distribution.md:194` relies on. |
+| `sketch/capability-review/index.md:119-120` | closed lists are something CUE's structs do not cover | CUE's list literals are closed already; `[...T]` is how CUE opens one. |
+| `sketch/capability-review/index.md:140-142` | spreads go beyond CUE's pattern constraints in several directions | CUE's patterns also apply across declarations and through definitions. Each language reaches the other's cases: CUE scopes a pattern to matching keys directly (`[=~re]: T`), and aontu reaches it through a guarded spread (`sketch/capability-review/g12-jsonschema-fidelity.md:103-108`). |
+| `sketch/capability-review/g7-machine-access.md:215-216` | CUE is on its second evaluator, partly to retrofit error tracking | evalv3 has been CUE's default evaluator since v0.13 (May 2025), and speed and memory drove it as much as error tracking. |
 | `use-cases/REVIEW.md:92` | no other JSON-superset language refuses number corruption this way | CUE's integers and decimals are arbitrary-precision, so CUE has no rounding to refuse. |
-| `docs/capability-review/g8-generation.md:179` | Starlark has no recursion and no `while` | True of the specification's defaults; starlark-go and starlark-rust each have opt-in switches for both. |
+| `sketch/capability-review/g8-generation.md:179` | Starlark has no recursion and no `while` | True of the specification's defaults; starlark-go and starlark-rust each have opt-in switches for both. |
 
 ## Sources
 

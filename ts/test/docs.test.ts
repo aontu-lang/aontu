@@ -1147,7 +1147,7 @@ corpusDescribe('docs-style', () => {
     /\b(LANDED|PARTIAL|NOT STARTED|RETIRED|SUPERSEDED|AMENDED)\b/g
 
   const REGISTER =
-    Path.join(REPO, 'docs', 'capability-review', 'progress.md')
+    Path.join(REPO, 'sketch', 'capability-review', 'progress.md')
 
   // A status is a whole cell. One in prose is the register arguing, not
   // the column, and the bare markers above cover those.
@@ -1927,12 +1927,14 @@ function headingAnchors(md: string): Set<string> {
 
 
 // Wider than the style-gated set: working documents carry links too,
-// but not sketch/, whose files are ignored (DEV-PROCESS.md).
+// but not sketch/, whose files are ignored (DEV-PROCESS.md), save the
+// FROZEN_DIRS kept to their rule there.
 function markdownFiles(): string[] {
   return execFileSync('git', ['ls-files', '*.md'],
     { cwd: REPO, encoding: 'utf8' })
     .split('\n')
-    .filter((f) => '' !== f && !f.startsWith('sketch/'))
+    .filter((f) => '' !== f && (!f.startsWith('sketch/') ||
+      FROZEN_DIRS.some((d) => f.startsWith(d))))
 }
 
 
@@ -1991,8 +1993,8 @@ corpusTest('every-internal-link-resolves', () => {
 // `progress.md` records the retirements, so it names both spellings.
 const RETIRED_BUILTINS = ['form']
 const FROZEN_NOTE = '**Names here are the names of the day.**'
-const FROZEN_DIRS = ['docs/capability-review/']
-const FROZEN_EXEMPT = ['docs/capability-review/progress.md']
+const FROZEN_DIRS = ['sketch/capability-review/']
+const FROZEN_EXEMPT = ['sketch/capability-review/progress.md']
 
 
 corpusTest('a-working-document-naming-a-retired-builtin-says-so', () => {

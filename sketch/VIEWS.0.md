@@ -18,14 +18,14 @@ the text below, the verb and [docs/reference-api.md](../docs/reference-api.md)
 are the record. Phase 0 landed with it; see use-cases/BUGS.md 70 and
 71 for the two engine divergences it exposed. Date: 2026-08-30. This note
 is the G10 candidate for the [capability
-review](../docs/capability-review/index.md), and it reverses a refusal
-recorded there — [G7](../docs/capability-review/g7-machine-access.md) ruled
+review](capability-review/index.md), and it reverses a refusal
+recorded there — [G7](capability-review/g7-machine-access.md) ruled
 out view and diagram generation in v1, on the ground that
 model-once-render-many is "an exporter product". What has changed since
 is named in [Problem](#problem). The note proposes a `view` verb that
 draws four figures from an evaluated model: a dependency matrix, a
 node-link graph in Mermaid and Graphviz DOT, a set-intersection panel,
-and a document-layer panel. It reuses [G9](../docs/capability-review/g9-transformation.md)'s
+and a document-layer panel. It reuses [G9](capability-review/g9-transformation.md)'s
 renderer DISCIPLINE and depends on none of G9's unbuilt code. Every
 claim marked VERIFIED was run against the built TypeScript CLI at
 0.53.0 during drafting; the counts and the emitted bytes in [Worked
@@ -78,7 +78,7 @@ derives and no file records.
 
 **Second, and this is why the refusal is being reopened.** G7 declined
 this capability with a reason that was true when it was written
-([`g7-machine-access.md`](../docs/capability-review/g7-machine-access.md),
+([`g7-machine-access.md`](capability-review/g7-machine-access.md),
 Boundary):
 
 > **No view/diagram generation in v1.** Model-once-render-many is real
@@ -215,7 +215,7 @@ More than it looks like, and none of it needs new engine work.
 What is NOT there, and is not being added: any layout algorithm, any
 coordinate, any text measurement, any colour model, and any `render`
 verb — G9's `render` is designed and unbuilt, and
-[`progress.md`](../docs/capability-review/progress.md) records all nine of
+[`progress.md`](capability-review/progress.md) records all nine of
 its phases as NOT STARTED.
 
 ## Prior art
@@ -1848,7 +1848,7 @@ regress at any phase: the full shared suite, canon convergence, and the
 ADR-002 floor in both ports.
 
 Baseline for the register, re-derived 2026-08-30 per
-[protocol rule 5](../docs/capability-review/progress.md#the-update-protocol):
+[protocol rule 5](capability-review/progress.md#the-update-protocol):
 `ls test/spec/*.tsv | wc -l` = **97**,
 `awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l` = **3758**.
 
@@ -2008,7 +2008,7 @@ drawing the figures for use cases 01, 02, 05 and 12 and gating them.
 `docs/how-to/draw-a-model.md` and a reference section, both under
 [STYLE-GUIDE.md](../STYLE-GUIDE.md), with every tagged snippet
 executed by `ts/test/docs.test.ts`. The register row in
-[`progress.md`](../docs/capability-review/progress.md) moves in the same
+[`progress.md`](capability-review/progress.md) moves in the same
 commit that changes its status, per AGENTS.md.
 
 *Files:* ts/src/view.ts, ts/src/cli.ts, ts/src/mcp.ts; go/view.go,

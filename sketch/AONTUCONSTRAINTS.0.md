@@ -18,7 +18,7 @@ value containing one is ordinary text, exactly as `port: high` is
 was **retracted** on 2026-08-28, since it assumes an intent the document
 never states. Do not read §2 as current behaviour. The item-by-item
 reconciliation, re-run against both engines on 2026-08-28, is in
-[`docs/capability-review/g1-constraint-algebra.md`](../docs/capability-review/g1-constraint-algebra.md#reconciliation-with-the-2026-08-27-constraint-design-note);
+[`sketch/capability-review/g1-constraint-algebra.md`](capability-review/g1-constraint-algebra.md#reconciliation-with-the-2026-08-27-constraint-design-note);
 row 7's disposition is [`use-cases/BUGS.md`](../use-cases/BUGS.md) §45.
 **Home:** this repository (TS canonical under `ts/`, Go port under `go/`)
 **Origin:** empirical survey run from boru, which consumes the Go port

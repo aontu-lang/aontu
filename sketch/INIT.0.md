@@ -8,7 +8,7 @@ and project scaffolding. It is used for neither today, and the second
 half of the question found a real gap: the language has modules, a
 generated-state folder and a designed version manager, and no answer to
 "start a new aontu project". The gap was recorded as an open question in
-[g9-transformation.md](../docs/capability-review/g9-transformation.md); this
+[g9-transformation.md](capability-review/g9-transformation.md); this
 note answers it.
 
 **Method:** every claim about what the engine does *today* was probed
@@ -16,7 +16,7 @@ against the tree at `3598b91` and carries its probe. Claims about what
 it *should* do are argument, and are marked as such. This note leans on
 three others: [MODELS.0.md](MODELS.0.md) for how bundled text is served
 and held to the form, [ENV.0.md](ENV.0.md) for the engine pin, and
-[g9-transformation.md](../docs/capability-review/g9-transformation.md) for
+[g9-transformation.md](capability-review/g9-transformation.md) for
 the write posture a generating verb needs.
 
 ---
@@ -105,7 +105,7 @@ for the rare case is `rm` plus `init`, typed deliberately.
 
 **D3 — It never prompts.** Every input is a flag with a default. This
 is not a style preference: an agent, a CI job and a `Dockerfile` all
-run it non-interactively, and the [G9](../docs/capability-review/g9-transformation.md)
+run it non-interactively, and the [G9](capability-review/g9-transformation.md)
 mission is that an agent can drive the toolchain. An interactive
 scaffolder is one an agent has to work around.
 
@@ -128,12 +128,12 @@ This one decision carries most of the design's weight:
   no notion of a template directory. A scaffolder that read templates
   from a user-supplied directory would add a fourth input to the trust
   contract that nobody declared, which is precisely the concern
-  [G9's open questions](../docs/capability-review/g9-transformation.md)
+  [G9's open questions](capability-review/g9-transformation.md)
   raise about Jostraca's `Fragment.from` and `Copy.from`. Bundled text
   reads nothing, so there is nothing to confine.
 - **The output is reproducible and hermetic.** Two `init` runs of the
   same version produce the same bytes on any machine, with no network
-  and no cache, which is the [G5](../docs/capability-review/g5-trust-contract.md)
+  and no cache, which is the [G5](capability-review/g5-trust-contract.md)
   posture the rest of the toolchain already keeps.
 - **Parity is a hash row.** The two ports cannot drift, and the gate
   that says so costs two rows per template.
@@ -159,7 +159,7 @@ argument is that scaffolding three files needs none of that.
 cannot be wrong.
 
 The pressure to add more is real and should be resisted until there is
-evidence, for the reason [G9](../docs/capability-review/g9-transformation.md)
+evidence, for the reason [G9](capability-review/g9-transformation.md)
 gives about escapes and the OpenAPI Generator: a template set that
 grows one entry per use case becomes a directory of half-maintained
 examples that nobody runs, and the corpus under
@@ -177,7 +177,7 @@ every new user writes next. X-2 records what would justify it.
 **D7.** `init` writes only below the target directory, resolved by
 realpath; a template path that is absolute or contains `..` is a
 refusal, not a normalisation. That is the posture
-[G9 phase 6](../docs/capability-review/g9-transformation.md) specifies for
+[G9 phase 6](capability-review/g9-transformation.md) specifies for
 `render --out`, and `init` should not invent a second one.
 
 **A correction this note owes G9.** That phase says it specifies a
@@ -225,7 +225,7 @@ small files from bundled text into a directory that does not yet
 contain them, and there is no merge, no protected region and no
 previous generate to be the ancestor of anything. Taking the
 dependency for that would put a fifteen-megabyte transitive closure
-(VERIFIED in [G9's Jostraca seam](../docs/capability-review/g9-transformation.md),
+(VERIFIED in [G9's Jostraca seam](capability-review/g9-transformation.md),
 `@jsonjoy.com` alone being fourteen of it) behind the first command a
 new user runs, to do work the engine can do in twenty lines.
 

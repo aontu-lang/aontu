@@ -1,5 +1,5 @@
 # G3 phase 4: deprecate(x, m) -- the deprecation mark
-# (docs/capability-review/g3-subsumption-evolution.md). Function-form,
+# (sketch/capability-review/g3-subsumption-evolution.md). Function-form,
 # unification-TRANSPARENT: the value unifies exactly as x, and the
 # record m (keys msg/use/since, all optional, values strings; `use` is
 # a path spelled as a STRING) rides the result through meets, reference

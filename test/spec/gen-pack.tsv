@@ -1,5 +1,5 @@
 # GENERATION: pack(data, tmpl) (G8 phase 1,
-# docs/capability-review/g8-generation.md). One child of the result map
+# sketch/capability-review/g8-generation.md). One child of the result map
 # per child of `data`, each of them `tmpl` cloned at the destination.
 # Columns: name<TAB>mode<TAB>src<TAB>expect
 #

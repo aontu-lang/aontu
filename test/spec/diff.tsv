@@ -1,5 +1,5 @@
 # G7 phase 6: the path-addressed diff (the `diff` MCP tool)
-# (docs/capability-review/g7-machine-access.md). Columns:
+# (sketch/capability-review/g7-machine-access.md). Columns:
 # name<TAB>diff<TAB>left<TAB>input<TAB>expect, where input is a JSON
 # object {right, at?} and expect is {changes, same} plus `codes`
 # when a document does not stand up. Messages are excluded.

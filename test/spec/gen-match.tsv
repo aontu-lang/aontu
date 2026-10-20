@@ -1,5 +1,5 @@
 # SELECTION: match(v, p1, r1, …, d?) (G8 phase 2,
-# docs/capability-review/g8-generation.md). A bounded conditional: the
+# sketch/capability-review/g8-generation.md). A bounded conditional: the
 # first pattern IN ARGUMENT ORDER that `v` unifies with selects its
 # result, and the result is the answer. A trailing argument — the one
 # that makes the count even — is the default.

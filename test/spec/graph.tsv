@@ -1,5 +1,5 @@
 # G4 phase 3: the DERIVED STRUCTURE
-# (docs/capability-review/g4-identity-relations.md). An evaluated
+# (sketch/capability-review/g4-identity-relations.md). An evaluated
 # document has, besides its value, a GRAPH: the set of checked links,
 # each from one tree position to another.
 #

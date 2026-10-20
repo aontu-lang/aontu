@@ -81,9 +81,10 @@ before editing a page.
   stops being true is corrected or removed in the change that made it
   untrue.
 - **`sketch/` holds working files, and every file in it is to be
-  ignored**: the prompt log, design notes and drafts. None of it is
-  documentation, specification or instruction, and any of it may be out
-  of date. [`sketch/README.md`](sketch/README.md) says the same.
+  ignored**: the prompt log, design notes, drafts and the capability
+  review. None of it is documentation, specification or instruction,
+  and any of it may be out of date; the prompt log and the review's
+  progress register are kept to their rules as records. [`sketch/README.md`](sketch/README.md) says the same.
 - The decisions are [`ADR.md`](ADR.md), the permanent differences between
   the ports [`DIVERGENCE.md`](DIVERGENCE.md), and the agent guide
   [`AGENTS.md`](AGENTS.md), which `CLAUDE.md` links to.

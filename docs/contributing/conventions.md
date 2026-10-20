@@ -125,7 +125,7 @@ import/publish line the thing is on rather than trusting the ear.
   closure `aontu_meta/vendor/`, and by design the engine pin
   `aontu_meta/version`. `pkg.aontu` and the documents stay at the root.
   New tooling that writes into a project writes there
-  (docs/capability-review/g6-distribution.md, the layout amendment).
+  (sketch/capability-review/g6-distribution.md, the layout amendment).
   A vendored package keeps the manifest and proof it was acquired with
   under its own `aontu_meta/`; a package in the user cache's store also
   keeps the lock it was verified against, which the vendored copy drops

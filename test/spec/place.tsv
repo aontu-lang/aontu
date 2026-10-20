@@ -1,5 +1,5 @@
 # THE PLACEHOLDER `_` (G8 phase 3,
-# docs/capability-review/g8-generation.md): a HOLE in a call, filled by
+# sketch/capability-review/g8-generation.md): a HOLE in a call, filled by
 # whatever the call is unified with — and, inside a generator's
 # template, by the source child the generated one is made FROM.
 # Columns: name<TAB>mode<TAB>src<TAB>expect

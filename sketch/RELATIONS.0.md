@@ -3,7 +3,7 @@
 Status: PROPOSAL (nothing here is built)
 Date: 2026-08-28
 Supersedes the surface of: G4 phases 1–5 as landed
-(docs/capability-review/g4-identity-relations.md)
+(sketch/capability-review/g4-identity-relations.md)
 
 The graph capability works — 331 use-case checks lean on it — but its
 surface is not language. An edge's relation name is *inferred* from

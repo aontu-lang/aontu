@@ -1,6 +1,6 @@
 # G7 phases 1-2: the query surface -- one node of an evaluated
 # document, selected by path and rendered
-# (docs/capability-review/g7-machine-access.md). Columns:
+# (sketch/capability-review/g7-machine-access.md). Columns:
 # name<TAB>query<TAB>src<TAB>path<TAB>expect, where expect is the
 # report as a JSON object: `out` the rendered slice, `class`, `code`
 # and `note` the finding when the answer is a refusal, and the run's
