@@ -88,12 +88,12 @@ thereafter stated and changed in the definition, not here.
 | [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Moved to the definition; superseded in part by [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) and [ADR-055](#adr-055--must-asks-the-admission-trial) |
 | [ADR-050](#adr-050--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Moved to the definition |
 | [ADR-051](#adr-051--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Moved to the definition |
-| [ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Amended by [ADR-072](#adr-072--a-meta-record-is-open-metadata) |
+| [ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Amended by [ADR-072](#adr-072--a-meta-record-is-open-metadata) and [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
 | [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Moved to the definition |
 | [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) | The admission trial is asked once, counted, and stopped when its count is decided | Accepted |
 | [ADR-055](#adr-055--must-asks-the-admission-trial) | `must` asks the admission trial | Moved to the definition |
-| [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) and [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) |
-| [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Accepted |
+| [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import), [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) and [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
+| [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
 | [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Moved to the definition |
 | [ADR-059](#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself) | A format is a grammar aontu reads and runs itself | Accepted |
 | [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) | aontu matches a pattern with its own engine | Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) |
@@ -108,8 +108,9 @@ thereafter stated and changed in the definition, not here.
 | [ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it) | The language is defined in Lean, and the ports implement it | Accepted |
 | [ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release) | The standard CI run samples, the daily run decides, and releases come from `release` | Amended by [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) |
 | [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) | A push is checked in two minutes and a pull request in five | Accepted |
-| [ADR-072](#adr-072--a-meta-record-is-open-metadata) | A `meta()` record is open metadata | Accepted |
-| [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) | An `ident()` record is open declaration metadata | Accepted |
+| [ADR-072](#adr-072--a-meta-record-is-open-metadata) | A `meta()` record is open metadata | Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
+| [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) | An `ident()` record is open declaration metadata | Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
+| [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) | What a rider's record holds is no export loss | Accepted |
 
 ---
 
@@ -5037,7 +5038,7 @@ distinct as JSON values, which `unique()` already asks of aontu values.
 ## ADR-052 — Annotations ride a value and meet as a union
 
 **Date:** 2026-10-01
-**Status:** Amended by [ADR-072](#adr-072--a-meta-record-is-open-metadata): its first decision, the fixed record keys, is superseded
+**Status:** Amended by [ADR-072](#adr-072--a-meta-record-is-open-metadata): its first decision, the fixed record keys, is superseded; and by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss): a record key the exporter does not write is no loss
 
 ### Context
 
@@ -5267,7 +5268,7 @@ unifies changes its answer.
 ## ADR-056 — Identity rides the alias declaration
 
 **Date:** 2026-10-08
-**Status:** Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import), and by [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata): its first decision, the fixed record keys, is superseded
+**Status:** Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import), by [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata): its first decision, the fixed record keys, is superseded; and by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss): an identity the exporter does not write is no loss
 
 ### Context
 
@@ -5334,7 +5335,7 @@ which a copy carries wherever it goes.
 ## ADR-057 — A dynamic reference is specialised at import
 
 **Date:** 2026-10-09
-**Status:** Accepted
+**Status:** Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss): a dynamic reference written as its `$ref` is no loss
 
 ### Context
 
@@ -6708,7 +6709,7 @@ the sample 105 to 152 s.
 ## ADR-072 — A `meta()` record is open metadata
 
 **Date:** 2026-10-20
-**Status:** Accepted
+**Status:** Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss): a convention of another kind, or a key naming a keyword, is not written and is no loss
 
 ### Context
 
@@ -6789,7 +6790,7 @@ explain why `meta(1, {colour: "red"})` refused.
 ## ADR-073 — An `ident()` record is open declaration metadata
 
 **Date:** 2026-10-20
-**Status:** Accepted
+**Status:** Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss): a key the exporter does not write is no loss
 
 ### Context
 
@@ -6848,3 +6849,66 @@ a record on a declaration that stays there.
   naming a JSON Schema keyword for either record.
 - Pinned by `test/spec/ident.tsv` and the `js-ident-*` rows of
   `test/spec/jsonschema.tsv`, in both ports.
+
+## ADR-074 — What a rider's record holds is no export loss
+
+**Date:** 2026-10-20
+**Status:** Accepted
+
+### Context
+
+[ADR-072](#adr-072--a-meta-record-is-open-metadata) and
+[ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) made
+the `meta()` and `ident()` records maps of concrete data under any keys,
+from which the JSON Schema exporter reads its own conventions. The
+exporter went on reporting as a loss each part of a record it did not
+write: a convention holding another kind of data, a key naming a JSON
+Schema keyword, a key the schema writes already or the declarations gave
+several values, and the record of a definition left unwritten. So did
+the losses the resource rules of JSON Schema forced
+([ADR-056](#adr-056--identity-rides-the-alias-declaration),
+[ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import)): an
+`$id` a `$ref` inside would resolve against, an anchor its resource
+already holds, and a dynamic reference written as its `$ref`.
+
+A loss names a difference between what a value admits and what its
+schema admits, the fourth property of
+[G12](docs/capability-review/g12-jsonschema-fidelity.md). A rider
+changes nothing its value admits, and a record that is anyone's
+metadata holds keys JSON Schema has no use for. Reporting them told a
+reader the schema admitted something else when it did not, and made an
+export lossy, and `--strict` refuse it, for metadata no one asked the
+schema to carry. A dynamic reference is the same: the `$ref` written in
+its place admits what the import did, and what goes is the re-binding an
+outer scope would do.
+
+### Decision
+
+1. **Nothing a `meta()` or `ident()` record holds is an export loss.**
+   The exporter writes what it reads from a record where JSON Schema can
+   hold it, and leaves the rest unwritten without a report: a convention
+   of another kind of data, a key naming a JSON Schema keyword, a key
+   the schema writes already, a key the declarations gave several
+   values, the record of a definition whose uses are written as another,
+   an `$id` a `$ref` inside would resolve against, an anchor its
+   resource already holds, and a dynamic reference written as its
+   `$ref`. This amends the export losses of ADR-052, ADR-056, ADR-057,
+   ADR-072 and ADR-073.
+2. **What a record writes is unchanged.** Each convention, each other
+   key, each identity and each `$dynamicRef` the exporter wrote before
+   it writes now, in the same place.
+3. **The importer is unchanged.** Its losses report what of a schema
+   the import could not write, which this decision does not take up.
+
+### Consequences
+
+- An export whose only losses were in records is `ok`, with the schema
+  it had, and `--strict` passes it. Every other loss stands.
+- What a record holds that JSON Schema cannot is dropped from the
+  export without a word: a `title` holding a number, a `type` key on a
+  declaration, or an identity the export's one resource cannot place.
+  The record keeps it in aontu.
+- Pinned by the `js-meta-*` rows of `test/spec/meta.tsv` and the
+  `js-ident-*`, `js-dynamic-*` and `js-clones-*` rows of
+  `test/spec/jsonschema.tsv`, 29 re-measured from both engines, in both
+  ports.

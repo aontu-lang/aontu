@@ -1763,13 +1763,18 @@ The losses, and why each is one:
 | `format(g)` | 2020-12 asserts `format` only where a validator is asked to, and only aontu reads `x-aontu-format`, so the schema may admit a string the format refuses |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
-| a `meta()` record key named as a JSON Schema keyword | written as that keyword, it would assert where the record only annotates, so it is dropped |
-| a `meta()` record key the export reads, holding another kind of data than its keyword takes | the keyword would not hold what JSON Schema says it holds, so it is dropped |
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
 | `match(key(0), …)` with an arm testing a key other than by name or pattern | JSON Schema chooses a member's schema by its name or a pattern, so the spread is dropped |
 | `match(key(0), …)` with arms whose keys can overlap | every matching keyword applies, where `match` takes the first arm, so the spread is dropped |
 | a list's `match(key(0), …)` whose arms are not its positions in order | JSON Schema places a member by its position from the first, so the spread is dropped |
 | residue: a reference by a relative path or into a list, a waiting call, a nil the engine minted, a template that reaches its own key or a path outside itself | not a property constraint at all; guessing one would be inventing a promise |
+
+A rider's record is not on the list. A `meta()` or `ident()`
+record changes nothing its value admits, so what of one the schema
+cannot hold is left out without a report: a key named as a JSON Schema
+keyword, a key holding another kind of data than its keyword takes, an
+identity the export's one resource cannot place, and a dynamic
+reference written as its `$ref`.
 
 An exact value is not a loss. A `0d` literal, `enum` member, endpoint
 or divisor is written as its own digits, because 2020-12 compares
@@ -1797,11 +1802,11 @@ import` read it from. An alias declared with
 `$anchor` and `$dynamicAnchor` on the definition, and every other key
 of its record as a keyword of that name, or on the schema where the
 definition is the whole schema; an `$id` that a `$ref` inside the
-definition would resolve against is not written, and is reported. A
+definition would resolve against is not written. A
 use the importer read from a `$dynamicRef`, which carries the `meta`
 record's `dynamicRef`, is written as `$dynamicRef` to its anchor where
 that anchor, in the export, names the definition its `$ref` reached;
-otherwise it stays that `$ref`, and the dynamic reference is reported. A reference that
+otherwise it stays that `$ref`, which admits the same. A reference that
 reaches outside the template holding it, by a relative path or into a
 list, stays residue and is reported. Write a recursive `steps.aontu`:
 

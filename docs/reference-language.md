@@ -4121,11 +4121,12 @@ these keys as the JSON Schema keywords of the same meaning, which
 | `default`, `contentSchema` | the keyword of its name | any concrete data |
 | `dynamicRef` | `$dynamicRef` | a string |
 
-A key of the table that holds another kind of data is a reported loss.
-Any other key is written as a keyword of its own name, unless JSON
-Schema gives that name a keyword of its own, which would assert where
-the record only annotates and is a reported loss. The importer writes a
-keyword JSON Schema does not name as a key of its own name.
+A key of the table that holds another kind of data is not written. Any
+other key is written as a keyword of its own name, unless JSON Schema
+gives that name a keyword of its own, and then it is not written either.
+Neither is a loss, since a record changes nothing its value admits.
+The importer writes a keyword JSON Schema does not name as a key of
+its own name.
 `dynamicRef` annotates nothing: the importer writes it on a reference
 it read from a `$dynamicRef`, and the exporter writes that reference
 back as one where the export reads it the same.
@@ -4164,14 +4165,15 @@ one. The identity is in no canon and no hash.
 
 `aontu jsonschema` writes the identity on the alias's definition: `$id`,
 `$anchor` and `$dynamicAnchor`, and the `defs` key as the definition's
-name, or on the schema itself where the definition is the whole schema. An identifier
-is not written where a `$ref` inside the definition would resolve
-against it, and that is reported as a loss
-([JSON Schema](reference-api.md#aontu-jsonschema)). One of the four
-holding anything but a string is a reported loss. Every other key is
-written as a keyword of its own name on the definition, except a JSON
-Schema keyword, a keyword the definition writes already, and a key the
-declarations gave several values, each a reported loss.
+name, or on the schema itself where the definition is the whole schema
+([JSON Schema](reference-api.md#aontu-jsonschema)), and every other key
+as a keyword of its own name on the definition. What JSON Schema cannot
+hold is not written, and is no loss: an
+identifier a `$ref` inside the definition would resolve against, an
+anchor its resource already holds, one of the four holding anything but
+a string, a JSON Schema keyword, a
+keyword the definition writes already, and a key the declarations gave
+several values.
 
 ## Closed values: `close` / `open`
 

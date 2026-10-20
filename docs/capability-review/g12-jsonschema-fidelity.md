@@ -898,6 +898,13 @@ four identity keys are the exporter's conventions, each read where it
 holds text, and every other key is written as a keyword of its own name
 on the definition.
 
+**Amended 2026-10-20 by
+[ADR-074](../../ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss).**
+What the export cannot write of a declaration's record is no loss: an
+identifier a `$ref` inside would resolve against, an anchor its
+resource already holds, a key with several values, and the record of a
+definition whose uses are written as another.
+
 ### 11. Dynamic references
 
 `$dynamicRef` resolves against the dynamic scope, the chain of resources
@@ -936,6 +943,11 @@ the exporter writes each clone as its own entry and reports a
 `$dynamicRef` loss naming the entry point it was specialised for,
 rather than a plain `$ref` that silently changes what an overriding
 anchor would do.
+
+**Amended 2026-10-20 by
+[ADR-074](../../ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss).**
+A use written as its `$ref` is no loss: it admits what the import did,
+and what goes is the re-binding an outer scope would do.
 
 The 2020-12 meta-schema is itself written with `$dynamicRef`, so this
 section is a prerequisite for validating input against it.
@@ -985,6 +997,11 @@ above are the exporter's conventions, each read with its keyword's
 kind, a convention of another kind a reported loss. The importer
 writes an unknown keyword as a key of its own name, not under `x`,
 and `x` is a key like any other.
+
+**Amended 2026-10-20 by
+[ADR-074](../../ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss).**
+A convention of another kind, or a key naming a JSON Schema keyword, is
+not written, and is no loss.
 
 ### 13. Dialects, vocabularies and the meta-schema
 
