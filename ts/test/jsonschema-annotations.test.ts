@@ -80,9 +80,7 @@ function annotationsAt(met: any, instance: any, location: string, keyword: strin
     return nodes.some((n: any) => null != n.deprecation) ? ['true'] : []
   }
   const key = ANNOTATION_KEY[keyword]
-  const vals: any[] = nodes.flatMap((n: any) => undefined === key ?
-    (n.meta?.x ?? []).map((v: any) => v.peg?.[keyword]).filter((v: any) => null != v) :
-    n.meta?.[key] ?? [])
+  const vals: any[] = nodes.flatMap((n: any) => n.meta?.[key ?? keyword] ?? [])
   const ctx: any = new Aontu().ctx({ collect: true })
   return [...new Set(vals.map((v: any) => exactJSON(v.gen(ctx))))].sort()
 }

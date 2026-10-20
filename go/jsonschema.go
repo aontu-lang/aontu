@@ -1396,15 +1396,26 @@ func schemaEach(v any, fn func(map[string]any)) {
 	}
 }
 
-var schemaMetaKeyword = map[string]string{
-	"title": "title", "description": "description", "comment": "$comment", "default": "default",
-	"examples": "examples", "readOnly": "readOnly", "writeOnly": "writeOnly", "format": "format",
-	"contentEncoding": "contentEncoding", "contentMediaType": "contentMediaType",
-	"contentSchema": "contentSchema",
+// schemaMetaKeyword is the record keys JSON Schema reads, each as its
+// keyword and the kind of value that keyword holds. A record is open
+// (ADR-072): these are the exporter's conventions, and any other key is
+// written under its own name.
+var schemaMetaKeyword = map[string][2]string{
+	"title": {"title", "string"}, "description": {"description", "string"},
+	"comment": {"$comment", "string"}, "default": {"default", "data"},
+	"examples": {"examples", "list"}, "readOnly": {"readOnly", "boolean"},
+	"writeOnly": {"writeOnly", "boolean"}, "format": {"format", "string"},
+	"contentEncoding":  {"contentEncoding", "string"},
+	"contentMediaType": {"contentMediaType", "string"},
+	"contentSchema":    {"contentSchema", "data"}, "dynamicRef": {"$dynamicRef", "string"},
 }
 
-// schemaKeywords are the JSON Schema keywords: one held under `x` would
-// assert where the record only annotates, so it is not written.
+var schemaKindText = map[string]string{
+	"string": "a string", "boolean": "a boolean", "list": "an array",
+}
+
+// schemaKeywords are the JSON Schema keywords: a record key that names one
+// would assert where the record only annotates, so it is not written.
 var schemaKeywords = map[string]bool{}
 
 func init() {
@@ -1460,6 +1471,13 @@ func schemaAnnotate(sc *schemaCtx, path []string, obj map[string]any, v Val) {
 		sort.Strings(keys)
 		for _, k := range keys {
 			json, _ := schemaGenerated(layer[k])
+			known, isKnown := schemaMetaKeyword[k]
+			if isKnown && !schemaFitsKind(known[1], json) {
+				sc.lose(path, "meta", "the key "+k+" holds "+schemaJSONKindText(json)+
+					", where JSON Schema's "+known[0]+" holds "+schemaKindText[known[1]]+
+					", so it is DROPPED")
+				continue
+			}
 			// A $dynamicRef is no annotation: schemaFromVal reads the first
 			// beside the $ref it rides, and the meet the others reached is
 			// written already.
@@ -1476,24 +1494,15 @@ func schemaAnnotate(sc *schemaCtx, path []string, obj map[string]any, v Val) {
 			if s, ok := json.(string); ok && "format" == k && schemaWritesFormat(obj, s) {
 				continue
 			}
-			if "x" != k {
-				part[schemaMetaKeyword[k]] = json
-				continue
-			}
-			xm, _ := json.(map[string]any)
-			xkeys := make([]string, 0, len(xm))
-			for xk := range xm {
-				xkeys = append(xkeys, xk)
-			}
-			sort.Strings(xkeys)
-			for _, xk := range xkeys {
-				if schemaKeywords[xk] {
-					sc.lose(path, "meta",
-						"the unknown keyword "+xk+" is a JSON Schema keyword, which "+
-							"would assert where the record only annotates, so it is DROPPED")
-				} else {
-					part[xk] = xm[xk]
-				}
+			switch {
+			case isKnown:
+				part[known[0]] = json
+			case schemaKeywords[k]:
+				sc.lose(path, "meta",
+					"the key "+k+" is a JSON Schema keyword, which "+
+						"would assert where the record only annotates, so it is DROPPED")
+			default:
+				part[k] = json
 			}
 		}
 		free := true
@@ -1514,6 +1523,40 @@ func schemaAnnotate(sc *schemaCtx, path []string, obj map[string]any, v Val) {
 		all, _ := obj["allOf"].([]any)
 		obj["allOf"] = append(append([]any{}, all...), extra...)
 	}
+}
+
+// schemaFitsKind is whether a record value is JSON of the kind a keyword
+// holds.
+func schemaFitsKind(kind string, json any) bool {
+	switch kind {
+	case "string":
+		_, ok := json.(string)
+		return ok
+	case "boolean":
+		_, ok := json.(bool)
+		return ok
+	case "list":
+		_, ok := json.([]any)
+		return ok
+	}
+	return true
+}
+
+// schemaJSONKindText is a JSON value's kind, as a loss names it.
+func schemaJSONKindText(json any) string {
+	switch json.(type) {
+	case nil:
+		return "null"
+	case string:
+		return "a string"
+	case bool:
+		return "a boolean"
+	case []any:
+		return "an array"
+	case map[string]any:
+		return "an object"
+	}
+	return "a number"
 }
 
 // schemaWritesFormat is whether obj writes the format name, inline or as

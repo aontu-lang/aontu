@@ -17,18 +17,6 @@ import { funcSig, renderSig } from '../sig'
 import { FuncBaseVal } from './FuncBaseVal'
 
 
-// What each annotation key holds. `x` carries the keywords JSON Schema
-// does not name, as a map of their values, and `dynamicRef` the text of
-// the $dynamicRef a use was read from (ADR-057).
-const META_KEYS: Record<string, string> = {
-  title: 'string', description: 'string', comment: 'string', format: 'string',
-  contentEncoding: 'string', contentMediaType: 'string', dynamicRef: 'string',
-  readOnly: 'boolean', writeOnly: 'boolean',
-  examples: 'list', x: 'map',
-  default: 'data', contentSchema: 'data',
-}
-
-
 class MetaFuncVal extends FuncBaseVal {
   isMetaFunc = true
 
@@ -85,25 +73,16 @@ class MetaFuncVal extends FuncBaseVal {
 }
 
 
-// A record whose every key is an annotation key holding its kind of
-// concrete data, or undefined where any one does not.
+// A record: a map of concrete data, under any keys, or undefined where it
+// is not one. What a key means is for the reader of the record to say;
+// the JSON Schema exporter reads its own keys (ADR-072).
 function metaRecord(r: any): Record<string, Val[]> | undefined {
   if (true !== r?.isMap || !isData(r)) {
     return undefined
   }
-  const out: Record<string, Val[]> = {}
+  const out: Record<string, Val[]> = Object.create(null)
   for (const k of Object.keys(r.peg)) {
-    const v: any = r.peg[k]
-    const kind = META_KEYS[k]
-    const fits = 'data' === kind ||
-      ('string' === kind && 'string' === typeof v.peg && true === v.isScalar) ||
-      ('boolean' === kind && 'boolean' === typeof v.peg && true === v.isScalar) ||
-      ('list' === kind && true === v.isList) ||
-      ('map' === kind && true === v.isMap)
-    if (!fits) {
-      return undefined
-    }
-    out[k] = [v]
+    out[k] = [r.peg[k]]
   }
   return out
 }

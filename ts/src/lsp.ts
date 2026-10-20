@@ -480,11 +480,13 @@ function hoverMarkdown(val: any): string {
 }
 
 
-// A value's titles, in bold, and its descriptions, from its annotations.
+// A value's titles, in bold, and its descriptions, from its annotations:
+// the text a record holds under each key, as the Go hover reads it.
 function annotationMarkdown(val: any): string {
   const meta = val.meta ?? {}
-  return [...(meta.title ?? []).map((t: any) => '**' + t.peg + '**'),
-    ...(meta.description ?? []).map((d: any) => d.peg)]
+  const texts = (key: string): string[] =>
+    (meta[key] ?? []).map((t: any) => t.peg).filter((t: any) => 'string' === typeof t)
+  return [...texts('title').map((t) => '**' + t + '**'), ...texts('description')]
     .map((said: string) => '\n\n' + said).join('')
 }
 

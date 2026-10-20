@@ -1050,22 +1050,26 @@ function enter(ctx, node) {
 // takes it as an annotation.
 const LEGACY = 'a keyword of an earlier dialect, which 2020-12 does not define, ' +
     'so it is dropped and the position admits more than that dialect does';
-const LATER = {
+// LATER, ANNOTATED and EXPORTED_AS are null-prototype: a schema names any key.
+const LATER = Object.assign(Object.create(null), {
     dependencies: LEGACY, additionalItems: LEGACY,
     $recursiveRef: LEGACY, $recursiveAnchor: LEGACY,
-};
+});
 // Each annotation keyword's meta() key and the JSON kind it takes.
-const ANNOTATED = {
+const ANNOTATED = Object.assign(Object.create(null), {
     title: ['title', 'string'], description: ['description', 'string'],
     $comment: ['comment', 'string'], default: ['default', 'any'],
     examples: ['examples', 'array'], readOnly: ['readOnly', 'boolean'],
     writeOnly: ['writeOnly', 'boolean'], format: ['format', 'string'],
     contentEncoding: ['contentEncoding', 'string'],
     contentMediaType: ['contentMediaType', 'string'], contentSchema: ['contentSchema', 'any'],
-};
+});
 const KIND_TEXT = {
     string: 'a string', boolean: 'a boolean', array: 'an array', object: 'an object',
 };
+const EXPORTED_AS = Object.assign(Object.create(null), {
+    comment: '$comment', dynamicRef: '$dynamicRef',
+});
 const CARRIED = [
     '$schema', '$id', '$ref', '$dynamicRef', '$defs', 'definitions', '$anchor', '$dynamicAnchor',
     'type', 'deprecated',
@@ -1675,17 +1679,25 @@ function data(ctx, path, keyword, node) {
     }
 }
 // A schema object's annotations ride its value: the annotation keywords
-// and every keyword JSON Schema does not name in a meta() record, under
-// `x` for the second, and `deprecated` as deprecate().
+// and every keyword JSON Schema does not name in a meta() record, each
+// under its own name, and `deprecated` as deprecate().
 function annotate(ctx, node, ptr, e) {
     const entries = [];
-    const x = [];
+    const own = (at, key, val) => {
+        if (undefined !== EXPORTED_AS[key]) {
+            lose(ctx, at, key, 'the record key ' + key + ' is written as ' + EXPORTED_AS[key] +
+                ', so an unknown keyword of that name is dropped');
+        }
+        else {
+            entries.push({ key, optional: false, val });
+        }
+    };
     // A keyword the schema's dialect does not define is an annotation
     // (ADR-061).
     for (const en of node.unknown ?? []) {
         const val = data(ctx, child(ptr, en.key), en.key, en.val);
         if (undefined !== val) {
-            x.push({ key: en.key, optional: false, val });
+            own(child(ptr, en.key), en.key, val);
         }
     }
     for (const en of node.entries) {
@@ -1700,12 +1712,12 @@ function annotate(ctx, node, ptr, e) {
             continue;
         }
         const val = data(ctx, at, en.key, en.val);
-        if (undefined !== val) {
-            (undefined === ann ? x : entries).push({ key: ann?.[0] ?? en.key, optional: false, val });
+        if (undefined !== val && undefined === ann) {
+            own(at, en.key, val);
         }
-    }
-    if (0 < x.length) {
-        entries.push({ key: 'x', optional: false, val: { k: 'map', entries: x, spreads: [] } });
+        else if (undefined !== val) {
+            entries.push({ key: ann[0], optional: false, val });
+        }
     }
     const dep = deprecation(ctx, node, ptr, e);
     return 0 === entries.length ? dep : call('meta', dep, { k: 'map', spreads: [],

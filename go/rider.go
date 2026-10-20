@@ -204,19 +204,9 @@ func deprecationMessage(rec map[string][]string) string {
 	return msg
 }
 
-// metaKeys is what each annotation key holds; `x` carries the keywords
-// JSON Schema does not name, as a map of their values, and `dynamicRef`
-// the text of the $dynamicRef a use was read from (ADR-057).
-var metaKeys = map[string]string{
-	"title": "string", "description": "string", "comment": "string", "format": "string",
-	"contentEncoding": "string", "contentMediaType": "string", "dynamicRef": "string",
-	"readOnly": "boolean", "writeOnly": "boolean",
-	"examples": "list", "x": "map",
-	"default": "data", "contentSchema": "data",
-}
-
-// metaRecord reads a record whose every key is an annotation key holding
-// its kind of concrete data; ok is false where any one does not.
+// metaRecord reads a record: a map of concrete data, under any keys; ok
+// is false where it is not one. What a key means is for the reader of the
+// record to say; the JSON Schema exporter reads its own keys (ADR-072).
 func metaRecord(r Val) (map[string][]Val, bool) {
 	m, isMap := r.(*MapVal)
 	if !isMap || !isData(r) {
@@ -224,27 +214,7 @@ func metaRecord(r Val) (map[string][]Val, bool) {
 	}
 	out := map[string][]Val{}
 	for _, k := range m.keys {
-		v := m.peg[k]
-		sv, scalar := v.(*ScalarVal)
-		_, list := v.(*ListVal)
-		_, mapped := v.(*MapVal)
-		fits := false
-		switch metaKeys[k] {
-		case "data":
-			fits = true
-		case "string":
-			fits = scalar && (KindString == sv.kind || KindPath == sv.kind)
-		case "boolean":
-			fits = scalar && KindBoolean == sv.kind
-		case "list":
-			fits = list
-		case "map":
-			fits = mapped
-		}
-		if !fits {
-			return nil, false
-		}
-		out[k] = []Val{v}
+		out[k] = []Val{m.peg[k]}
 	}
 	return out, true
 }

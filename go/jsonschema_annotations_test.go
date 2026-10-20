@@ -135,15 +135,9 @@ func annotationsAt(t *testing.T, met Val, instance any, location, keyword string
 	out := []string{}
 	for _, n := range all {
 		rec := n.metaRec()
-		vals := []Val{}
+		vals := rec[keyword]
 		if key, ok := annotationKey[keyword]; ok {
 			vals = rec[key]
-		} else {
-			for _, x := range rec["x"] {
-				if m, ok := x.(*MapVal); ok && nil != m.peg[keyword] {
-					vals = append(vals, m.peg[keyword])
-				}
-			}
 		}
 		for _, v := range vals {
 			g, _ := v.Gen(&Ctx{collect: true})
