@@ -63,6 +63,7 @@
 4	render-matrix.test.ts
 4	diff.test.ts
 4	patch.test.ts
+4	tlog.test.ts
 5	docs.test.ts
 5	docs-shard-2.test.ts
 5	docs-shard-3.test.ts

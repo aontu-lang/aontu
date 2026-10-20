@@ -224,7 +224,8 @@ func TlogParseTree(text string, origin string) (int64, string, error) {
 	}
 
 	n, err := strconv.ParseInt(lines[1], 10, 64)
-	if nil != err || 0 > n || lines[1] != strconv.FormatInt(n, 10) {
+	if nil != err || 0 > n || tlogMaxTreeSize < n ||
+		lines[1] != strconv.FormatInt(n, 10) {
 		return 0, "", errTlogTree
 	}
 
@@ -237,3 +238,8 @@ func TlogParseTree(text string, origin string) (int64, string, error) {
 }
 
 var errTlogTree = errors.New("tlog: malformed tree note")
+
+// tlogMaxTreeSize is the largest integer a TypeScript number holds
+// exactly. A checkpoint past it is refused here as it is there, rather
+// than accepted by one port alone.
+const tlogMaxTreeSize = 1<<53 - 1

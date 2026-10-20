@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -114,6 +115,138 @@ func loadTlogVectors(t *testing.T) tlogVectors {
 		t.Fatal(err)
 	}
 	return v
+}
+
+// tlogRunGroup runs one group of the vectors through the wrappers, the
+// twin of `tlogRunGroup` in ts/test/tlog-vectors.ts: a case whose answer
+// is not the vector's is an error naming it, and a group that runs
+// answers its counts, which a row of test/spec/tlog.tsv pins.
+func tlogRunGroup(v tlogVectors, group string) (map[string]int, error) {
+	var names []string
+	var wants, gots []bool
+	judge := func(name string, want, got bool) {
+		names = append(names, name)
+		wants = append(wants, want)
+		gots = append(gots, got)
+	}
+	mismatch := func(what string, got, want any) error {
+		return fmt.Errorf("%s %s: %v, want %v", group, what, got, want)
+	}
+
+	switch group {
+	case "recordHash":
+		for _, c := range v.RecordHash {
+			data, err := base64.StdEncoding.DecodeString(c.Data)
+			if nil != err {
+				return nil, err
+			}
+			if got := TlogRecordHash(data); c.Hash != got {
+				return nil, mismatch(c.Data, got, c.Hash)
+			}
+		}
+		return map[string]int{"cases": len(v.RecordHash)}, nil
+
+	case "nodeHash":
+		for _, c := range v.NodeHash {
+			got, err := TlogNodeHash(c.Left, c.Right)
+			if nil != err || c.Hash != got {
+				return nil, mismatch(c.Left, got, c.Hash)
+			}
+		}
+		return map[string]int{"cases": len(v.NodeHash)}, nil
+
+	case "storedHashIndex":
+		for _, c := range v.StoredHashIndex {
+			if got := TlogStoredHashIndex(c.Level, c.N); c.Index != got {
+				return nil, mismatch(fmt.Sprintf("%d %d", c.Level, c.N), got, c.Index)
+			}
+		}
+		return map[string]int{"cases": len(v.StoredHashIndex)}, nil
+
+	case "storedHashCount":
+		for _, c := range v.StoredHashCount {
+			if got := TlogStoredHashCount(c.N); c.Count != got {
+				return nil, mismatch(fmt.Sprint(c.N), got, c.Count)
+			}
+		}
+		return map[string]int{"cases": len(v.StoredHashCount)}, nil
+
+	case "treeHash":
+		read := func(indexes []int64) ([]string, error) {
+			out := make([]string, 0, len(indexes))
+			for _, i := range indexes {
+				out = append(out, v.StoredHashes[i])
+			}
+			return out, nil
+		}
+		for _, c := range v.TreeHash {
+			got, err := TlogTreeHash(c.N, read)
+			if nil != err || c.Root != got {
+				return nil, mismatch(fmt.Sprint(c.N), got, c.Root)
+			}
+		}
+		return map[string]int{"cases": len(v.TreeHash)}, nil
+
+	case "tileForIndex":
+		for _, c := range v.TileForIndex {
+			got, err := TlogTileForIndex(c.H, c.Index)
+			want := TlogTile{H: c.H, L: c.L, N: c.N, W: c.W}
+			if nil != err || want != got {
+				return nil, mismatch(fmt.Sprintf("%d %d", c.H, c.Index), got, want)
+			}
+		}
+		return map[string]int{"cases": len(v.TileForIndex)}, nil
+
+	case "checkRecord":
+		for _, c := range v.CheckRecord {
+			judge(c.Name, c.Want, TlogCheckRecord(c.Proof, c.T, c.Th, c.N, c.H))
+		}
+
+	case "checkTree":
+		for _, c := range v.CheckTree {
+			judge(c.Name, c.Want, TlogCheckTree(c.Proof, c.T, c.Th, c.N, c.H))
+		}
+
+	case "note.signed":
+		for _, c := range v.Note.Signed {
+			text, signed, err := TlogOpenNote(c.Msg, []string{v.Note.VerifierKey})
+			if nil == err && (c.Text != text || 1 != len(signed) || v.Note.Name != signed[0]) {
+				return nil, mismatch(c.Name, fmt.Sprintf("%q %v", text, signed), c.Text)
+			}
+			judge(c.Name, c.Want, nil == err)
+		}
+
+	case "note.trees":
+		for _, c := range v.Note.Trees {
+			n, hash, err := TlogParseTree(c.Text, c.Origin)
+			if nil == err && (c.N != n || c.Hash != hash) {
+				return nil, mismatch(fmt.Sprintf("%q", c.Text), fmt.Sprint(n, " ", hash), c.Hash)
+			}
+			judge(fmt.Sprintf("%q", c.Text), c.Want, nil == err)
+		}
+
+	case "note.malformed":
+		for _, c := range v.Note.Malformed {
+			_, _, err := TlogOpenNote(c.Msg, []string{v.Note.VerifierKey})
+			judge(c.Name, false, nil == err)
+		}
+
+	default:
+		return nil, fmt.Errorf("no tlog vector group %q", group)
+	}
+
+	accepted := 0
+	for i, got := range gots {
+		if wants[i] != got {
+			return nil, mismatch(names[i], got, wants[i])
+		}
+		if got {
+			accepted++
+		}
+	}
+	return map[string]int{
+		"cases": len(gots), "accepted": accepted, "refused": len(gots) - accepted,
+	}, nil
 }
 
 // TestTlogVectorsAreUpstreams pins WHICH upstream produced this file.
@@ -446,6 +579,19 @@ func TestTlogParseTree(t *testing.T) {
 	// And a body with too few lines.
 	if _, _, err := TlogParseTree(ok.Origin+"\n13\n", ok.Origin); nil == err {
 		t.Fatal("parseTree accepted a truncated checkpoint")
+	}
+
+	// A size is bounded by what a TypeScript number holds exactly, so
+	// the twin in ts/test/tlog.test.ts refuses the same checkpoints.
+	largest := ok.Origin + "\n9007199254740991\n" + ok.Hash + "\n"
+	if n, _, err := TlogParseTree(largest, ok.Origin); nil != err || 9007199254740991 != n {
+		t.Fatalf("parseTree refused the largest size: %d (%v)", n, err)
+	}
+	for _, size := range []string{"9007199254740992", "9223372036854775807"} {
+		if _, _, err := TlogParseTree(
+			ok.Origin+"\n"+size+"\n"+ok.Hash+"\n", ok.Origin); nil == err {
+			t.Fatalf("parseTree accepted the size %s", size)
+		}
 	}
 
 	// A body whose SIZE is well formed but whose ROOT is not. The
