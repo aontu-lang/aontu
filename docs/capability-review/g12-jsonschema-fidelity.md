@@ -891,6 +891,13 @@ with a new code, `jsonschema_ref`. Every reached resource is imported
 into the same aontu document, so the result is hermetic and holds only
 internal references.
 
+**Amended 2026-10-20 by
+[ADR-073](../../ADR.md#adr-073--an-ident-record-is-open-declaration-metadata).**
+The declaration's record is open: any key holds concrete data, the
+four identity keys are the exporter's conventions, each read where it
+holds text, and every other key is written as a keyword of its own name
+on the definition.
+
 ### 11. Dynamic references
 
 `$dynamicRef` resolves against the dynamic scope, the chain of resources

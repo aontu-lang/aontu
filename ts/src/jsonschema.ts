@@ -10,7 +10,7 @@ import { exactNumberText, readExactNumber } from './val/numkind'
 import type { ExactNumber } from './val/numkind'
 import { cmpScaled, scaledOfShown } from './val/numcmp'
 import { nofCounts, pendingNof } from './val/ConstraintVal'
-import { recordLayers } from './rider'
+import { recordLayers, unionRecords } from './rider'
 import { cmpCodePoint } from './keyorder'
 import { exactJSON } from './exactjson'
 import { ALIAS_NAME_RE, aliasPathSegment } from './aliasname'
@@ -785,7 +785,7 @@ function defOf(ctx: Ctx, target: string[]): Def | undefined {
   }
   const path = target.map(aliasPathSegment)
   const alias = 1 === target.length && ALIAS_NAME_RE.test(path[0])
-  const declared: string[] = value.identity?.defs ?? []
+  const declared: string[] = identityTexts(value, 'defs')
   const base = 1 === declared.length ? declared[0] :
     alias ? defName(path[0].slice(1)) : path.join('.')
   let name = base
@@ -865,8 +865,8 @@ const KIND_TEXT: Record<string, string> = {
   string: 'a string', boolean: 'a boolean', list: 'an array',
 }
 
-// The JSON Schema keywords: a record key that names one would assert where
-// the record only annotates, so it is not written.
+// The JSON Schema keywords: a record key that names one is not written,
+// since its meaning there would be JSON Schema's and not the record's.
 const KEYWORDS = new Set([
   '$schema', '$id', '$ref', '$anchor', '$dynamicRef', '$dynamicAnchor', '$vocabulary',
   '$comment', '$defs', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else',
@@ -1760,13 +1760,11 @@ function withDefs(ctx: Ctx, schema: any, body: any): SchemaLoss[] {
   to.forEach((ref, from) => moved.set(from, ref))
   const dynamic = dynamicRefs(ctx, schema, kept, moved)
   // A use written as the $ref of another definition that says the same
-  // leaves this one unwritten, and with it the identity it was declared with.
+  // leaves this one unwritten, and with it the record it was declared with.
   const unwritten = [...ctx.refs.defs.values()]
     .filter((d) => true === d.reached && !d.used && !moved.has(defRef(d)))
     .sort((a, b) => cmpCodePoint(a.name, b.name))
-    .flatMap((d) => IDENTITY_KEYWORD.filter(([key]) => 0 < (d.value.identity?.[key]?.length ?? 0))
-      .map(([, construct]) => ({ path: pathText(d.path), construct,
-        reason: 'its uses are written as another definition that says the same, so it is not written' })))
+    .flatMap(unwrittenRecord)
   const gone = folded.filter((d) => ALIAS_NAME_RE.test(d.path[0])).map((d) => pathText(d.path))
   const seen = new Set<string>()
   const lossy: SchemaLoss[] = []
@@ -1781,6 +1779,20 @@ function withDefs(ctx: Ctx, schema: any, body: any): SchemaLoss[] {
 }
 
 
+const UNWRITTEN = 'its uses are written as another definition that says the same, so '
+
+function unwrittenRecord(d: Def): SchemaLoss[] {
+  const rec = d.value.identity ?? {}
+  const path = pathText(d.path)
+  return [
+    ...IDENTITY_KEYWORD.filter(([key]) => undefined !== rec[key])
+      .map(([, construct]) => ({ path, construct, reason: UNWRITTEN + 'it is not written' })),
+    ...Object.keys(rec).filter((k) => undefined === IDENTITY_KIND[k]).sort(cmpCodePoint)
+      .map((k) => ({ path, construct: 'ident', reason: UNWRITTEN + 'the key ' + k + ' is not written' })),
+  ]
+}
+
+
 // ADR-057: the declarations of one schema read in several dynamic scopes
 // are one definition where their schemas agree, the $refs of their uses
 // included, so the scopes read the same there; each $ref moved is in `moved`.
@@ -1788,7 +1800,7 @@ function unclone(schema: any, body: any, used: Def[], moved: Map<string, string>
   // Clones share the $defs key a clone's identity names.
   const twins = (u: Def, d: Def): boolean => u !== d && u.used && u.base === d.base &&
     cmpCodePoint(u.name, d.name) < 0 &&
-    [u, d].some((x) => true === x.value.identity?.defs?.includes(d.base))
+    [u, d].some((x) => identityTexts(x.value, 'defs').includes(d.base))
   const drop = (d: Def, into: Def): void => {
     d.used = false
     moved.set(defRef(d), defRef(into))
@@ -1841,7 +1853,7 @@ const IDENTITY_KEYWORD = [['id', '$id'], ['anchor', '$anchor'], ['dynamicAnchor'
 function identify(schema: any, folded: Def[], kept: Def[]): SchemaLoss[] {
   const lossy: SchemaLoss[] = []
   const one = (defs: Def[], key: string, construct: string, path: string): string | undefined => {
-    const all: string[] = [...new Set(defs.flatMap((d) => d.value.identity?.[key] ?? []))]
+    const all: string[] = [...new Set(defs.flatMap((d) => identityTexts(d.value, key)))]
     if (1 < all.length) {
       lossy.push({ construct, path, reason: 'the declaration carries more than one, so none is written' })
     }
@@ -1855,6 +1867,7 @@ function identify(schema: any, folded: Def[], kept: Def[]): SchemaLoss[] {
   const top = one(folded, 'anchor', '$anchor', '$')
   const topDynamic = one(folded, 'dynamicAnchor', '$dynamicAnchor', '$')
   Object.assign(schema, keywords(one(folded, 'id', '$id', '$'), top, topDynamic))
+  declared(folded, '$', schema, lossy)
 
   // An anchor and a dynamic anchor share one namespace in a resource.
   const anchors = new Set<string>([top, topDynamic].filter((a) => undefined !== a) as string[])
@@ -1881,12 +1894,67 @@ function identify(schema: any, folded: Def[], kept: Def[]): SchemaLoss[] {
     if (undefined === id) {
       own.forEach((a) => anchors.add(a))
     }
-    if (undefined !== id || 0 < own.size) {
+    if (undefined !== id || 0 < own.size || otherKeys(d.value)) {
       d.schema = { ...keywords(id, anchor, dynamic),
         ...('object' === typeof d.schema ? d.schema : { not: {} }) }
+      declared([d], path, d.schema, lossy)
     }
   }
   return lossy
+}
+
+
+const IDENTITY_KIND: Record<string, [string, string]> = Object.assign(Object.create(null), {
+  id: ['$id', 'JSON Schema\'s $id holds a string'],
+  anchor: ['$anchor', 'JSON Schema\'s $anchor holds a string'],
+  dynamicAnchor: ['$dynamicAnchor', 'JSON Schema\'s $dynamicAnchor holds a string'],
+  defs: ['$defs', 'a $defs key is a string'],
+})
+
+const isText = (v: any): boolean => true === v.isScalar && 'string' === typeof v.peg
+
+// The text a declaration's record holds under one key: all the exporter
+// reads an identity from (ADR-073).
+function identityTexts(value: any, key: string): string[] {
+  return (value.identity?.[key] ?? []).filter(isText).map((v: any) => v.peg)
+}
+
+function otherKeys(value: any): boolean {
+  const rec = value.identity ?? {}
+  return Object.keys(rec).some((k) =>
+    undefined === IDENTITY_KIND[k] || identityTexts(value, k).length < rec[k].length)
+}
+
+// A record's keys beyond its identity, each a keyword of its own name on
+// the schema its definitions are written as.
+function declared(defs: Def[], path: string, out: any, lossy: SchemaLoss[]): void {
+  const rec = unionRecords(defs.map((d) => d.value.identity), (v: any) => v.canon)
+  for (const k of Object.keys(rec).sort(cmpCodePoint)) {
+    const kind = IDENTITY_KIND[k]
+    const odd = rec[k].find((v: any) => !isText(v))
+    if (undefined !== kind && undefined !== odd) {
+      lossy.push({ construct: kind[0], path, reason: 'the key ' + k + ' holds ' +
+        jsonKindText(generated(odd)) + ', where ' + kind[1] + ', so it is DROPPED' })
+    }
+    else if (undefined !== kind) {
+      continue
+    }
+    else if (KEYWORDS.has(k)) {
+      lossy.push({ construct: 'ident', path, reason: 'the key ' + k + ' is a JSON Schema keyword, ' +
+        'whose meaning is JSON Schema\'s where the record only describes the declaration, so it is DROPPED' })
+    }
+    else if (1 < rec[k].length) {
+      lossy.push({ construct: 'ident', path,
+        reason: 'the declaration carries more than one ' + k + ', so none is written' })
+    }
+    else if (Object.prototype.hasOwnProperty.call(out, k)) {
+      lossy.push({ construct: 'ident', path,
+        reason: 'the definition already writes the keyword ' + k + ', so the key is DROPPED' })
+    }
+    else {
+      put(out, k, generated(rec[k][0]))
+    }
+  }
 }
 
 

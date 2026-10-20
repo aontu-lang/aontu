@@ -42,7 +42,7 @@ function ride(out, a, b) {
         out.via = (0, rider_1.unionVia)(out.via, a?.via, b?.via);
     }
     if (null != out.identity || null != a?.identity || null != b?.identity) {
-        out.identity = (0, rider_1.unionRecords)([out.identity, a?.identity, b?.identity], (s) => s);
+        out.identity = (0, rider_1.unionRecords)([out.identity, a?.identity, b?.identity], (v) => v.canon);
     }
 }
 // The meet's riders go to its result, a top's on a fresh top where they

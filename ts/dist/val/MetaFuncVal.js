@@ -2,6 +2,7 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MetaFuncVal = void 0;
+exports.isData = isData;
 const err_1 = require("../err");
 const rider_1 = require("../rider");
 const sig_1 = require("../sig");
@@ -74,5 +75,5 @@ function isData(v) {
         return false;
     }
     return Object.values(v.peg).every(isData);
-} /* node:coverage ignore next 5 */
+} /* node:coverage ignore next 6 */
 //# sourceMappingURL=MetaFuncVal.js.map
