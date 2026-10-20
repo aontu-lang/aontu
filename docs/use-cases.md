@@ -9,7 +9,7 @@ golden diffs for expected output and error-code greps for expected
 refusals. When a page in these docs shows a shape, this is where that
 shape lives, running. Run one case, or the whole suite:
 
-<!-- test: skip runs the full case suite; use-cases/run-all.sh is its own gate, run before every landing -->
+<!-- test: skip runs the full case suite; use-cases/run-all.sh is its own gate, which the daily CI runs -->
 ```sh
 $ ./use-cases/03-api-contract/check.sh   # one case
 $ ./use-cases/run-all.sh                 # all eighteen, one verdict line per case
