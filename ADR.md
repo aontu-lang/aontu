@@ -107,10 +107,11 @@ thereafter stated and changed in the definition, not here.
 | [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) | An import comes back from its own export | Accepted |
 | [ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it) | The language is defined in Lean, and the ports implement it | Accepted |
 | [ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release) | The standard CI run samples, the daily run decides, and releases come from `release` | Amended by [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) |
-| [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) | A push is checked in two minutes and a pull request in five | Accepted |
+| [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) | A push is checked in two minutes and a pull request in five | Amended by [ADR-075](#adr-075--local-testing-takes-minutes-and-the-long-runs-are-the-daily-cis) |
 | [ADR-072](#adr-072--a-meta-record-is-open-metadata) | A `meta()` record is open metadata | Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
 | [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) | An `ident()` record is open declaration metadata | Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
 | [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) | What a rider's record holds is no export loss | Accepted |
+| [ADR-075](#adr-075--local-testing-takes-minutes-and-the-long-runs-are-the-daily-cis) | Local testing takes minutes, and the long runs are the daily CI's | Accepted |
 
 ---
 
@@ -6657,7 +6658,7 @@ moment of the dispatch.
 ## ADR-071 — A push is checked in two minutes and a pull request in five
 
 **Date:** 2026-10-19
-**Status:** Accepted
+**Status:** Amended by [ADR-075](#adr-075--local-testing-takes-minutes-and-the-long-runs-are-the-daily-cis): the daily runs are not run by hand before a push or a merge
 
 ### Context
 
@@ -6912,3 +6913,42 @@ outer scope would do.
   `js-ident-*`, `js-dynamic-*` and `js-clones-*` rows of
   `test/spec/jsonschema.tsv`, 29 re-measured from both engines, in both
   ports.
+
+## ADR-075 — Local testing takes minutes, and the long runs are the daily CI's
+
+**Date:** 2026-10-20
+**Status:** Accepted
+
+### Context
+
+[ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five)
+put a push's check at two minutes and a pull request's CI at five, and
+left the prose gate, coverage, the use cases and the other test groups
+to the daily run, to be run "by hand when a change reaches them". That
+clause read as an instruction: an agent ran the coverage gate, about
+forty minutes, and the use cases before each merge, holding each change
+for most of an hour for what the daily run reports the next morning.
+
+### Decision
+
+1. **Local testing takes a few minutes at most.** Before a push:
+   `make quick`, the shared rows or the tests of what the change
+   touches, `make prose` where pages changed, and `make spec` where
+   `spec/` changed (ADR-071's third decision).
+2. **The long runs are the daily CI's.** `make test`, `make cov`, the
+   test groups past the gate group and `use-cases/run-all.sh` are not
+   run locally before a push or a merge, and nothing waits on them.
+   This replaces ADR-071's "run by hand when a change reaches them".
+3. **A pull request merges on its own CI.** Once `build.yml` is green on
+   its head and its review is answered, it merges, without waiting on a
+   local long run or on the daily one.
+
+### Consequences
+
+- A coverage gap, a use case a language change broke, or a failure in a
+  group the sample did not draw can merge, and the next daily run finds
+  it; the fix follows that report.
+- A change goes from edit to merge in the local few minutes and the
+  five of its pull request's CI.
+- Recorded where an agent reads it first: `AGENTS.md` ("Before you
+  push") and `docs/contributing/testing.md`.
