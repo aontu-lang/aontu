@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### The definition's `defaults` profile counts only a declared default
+
+Definition and documentation; no engine changes, and no row changes.
+Ruling 11 of the design note (`sketch/DEFINITION.0.md`, §7) is built.
+
+- `spec/Aontu/Subsume.lean`: `Val.declaresDefault` holds of a
+  preference, and of a disjunction whose preferred arm the rank rule
+  picks. `DefaultsLe` asks the general side for a default singling out
+  the same value only where the specific side declares one. A literal's
+  own value is no default, as the reference's effective default reads
+  it and both ports answer.
+- `DefaultsLe.of_lit`: a literal below a value in the order is below it
+  under `defaults` too, so `integer` over `1` holds, as
+  `kind-over-scalar` in `test/spec/subsume.tsv` answers.
+  `defaults_sees_the_default` stands, and `normalise_lit` in
+  `spec/Aontu/Meet.lean` states that a literal is its own normal form.
+- The definition tutorial reads the narrowed contract. The language
+  reference, `spec/README.md` and the design note say it is built, and
+  that the `defaults` rows wait on a procedure that decides it.
+
 ### The definition holds `map` and `list` as kinds
 
 Definition, generated rows, both implementations and documentation.

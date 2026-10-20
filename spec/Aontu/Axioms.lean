@@ -267,6 +267,10 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.defaults_sees_the_default
 
+/-- info: 'Aontu.DefaultsLe.of_lit' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.DefaultsLe.of_lit
+
 /-- info: 'Aontu.leDecF_sound' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.leDecF_sound
