@@ -453,6 +453,14 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 
 	// Maps.
 	if gm, ok := g.(*MapVal); ok {
+		if _, ok := s.(*MapKindVal); ok {
+			if subEveryMap(gm) {
+				return subYes
+			}
+			st.record("compat_narrowed", path, g, s,
+				"the general map refuses a map the specific kind admits")
+			return subNo
+		}
 		sm, ok := s.(*MapVal)
 		if !ok {
 			st.record("compat_narrowed", path, g, s,
@@ -476,6 +484,14 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 
 	// Lists: element-wise by position, positions as keys.
 	if gl, ok := g.(*ListVal); ok {
+		if _, ok := s.(*ListKindVal); ok {
+			if subEveryList(gl) {
+				return subYes
+			}
+			st.record("compat_narrowed", path, g, s,
+				"the general list refuses a list the specific kind admits")
+			return subNo
+		}
 		sl, ok := s.(*ListVal)
 		if !ok {
 			st.record("compat_narrowed", path, g, s,
@@ -494,6 +510,30 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	st.record("sub_unresolved", path, g, s,
 		"no subsumption rule covers this pair of value formers")
 	return subUndecided
+}
+
+// subEveryMap: a bag admits every map, or every list, where it requires
+// no member, seals none away and holds each one to `any`. Mirrors
+// everyMap and everyList in ts/src/subsume.ts.
+func subEveryMap(g *MapVal) bool {
+	if g.closed || !subTopOrNone(g.spread) {
+		return false
+	}
+	for _, k := range fieldKeys(g) {
+		if _, top := g.peg[k].(*TopVal); !top || !contains(g.optional, k) {
+			return false
+		}
+	}
+	return true
+}
+
+func subEveryList(g *ListVal) bool {
+	return 0 == len(g.peg) && subTopOrNone(g.spread) && (!g.closed || nil != g.spread)
+}
+
+func subTopOrNone(v Val) bool {
+	_, top := v.(*TopVal)
+	return nil == v || top
 }
 
 // subsumeRecursion reads a recursion as the definition it names,

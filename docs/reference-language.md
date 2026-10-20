@@ -612,7 +612,7 @@ explicitly supplied empty map satisfies the kind), and subsume their
 containers (`map` subsumes `{a:1}`). Pinned by
 [`test/spec/containerkind.tsv`](../test/spec/containerkind.tsv).
 
-The words `map` and `list` are no terms of the definition yet. They are to enter it as kinds, which admit by kind and are not singled out, beside `{}` and `[]`, which are singled out as themselves.
+In the definition the words `map` and `list` are kinds, `mapKind` and `listKind` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), each admitting by kind and never singled out. They admit what the open `{}` and `[]` admit, which are singled out as themselves: `map_le_mapKind` and `mapKind_le_open_map` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), and the same for lists.
 
 ## Conjunction `&`
 

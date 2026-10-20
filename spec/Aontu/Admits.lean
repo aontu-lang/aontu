@@ -128,6 +128,10 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   | anyStringNot {j : Data} : (∀ s, j ≠ .str s) → Judge env root false .anyString j
   | boolean {b : Bool} : Judge env root true .boolean (.bool b)
   | booleanNot {j : Data} : (∀ b, j ≠ .bool b) → Judge env root false .boolean j
+  | mapKind {fs : List (String × Data)} : Judge env root true .mapKind (.map fs)
+  | mapKindNot {j : Data} : (∀ fs, j ≠ .map fs) → Judge env root false .mapKind j
+  | listKind {xs : List Data} : Judge env root true .listKind (.list xs)
+  | listKindNot {j : Data} : (∀ xs, j ≠ .list xs) → Judge env root false .listKind j
   /-- A literal admits its own value alone, of its own leaf, and refuses
   every other. -/
   | num {x : Number} : Judge env root true (.lit (.num x)) (.num x)
@@ -431,6 +435,18 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | booleanNot hn => intro b' h'; cases h' with
     | boolean => exact absurd rfl (hn _)
     | booleanNot _ => rfl
+  | mapKind => intro b' h'; cases h' with
+    | mapKind => rfl
+    | mapKindNot hn => exact absurd rfl (hn _)
+  | mapKindNot hn => intro b' h'; cases h' with
+    | mapKind => exact absurd rfl (hn _)
+    | mapKindNot _ => rfl
+  | listKind => intro b' h'; cases h' with
+    | listKind => rfl
+    | listKindNot hn => exact absurd rfl (hn _)
+  | listKindNot hn => intro b' h'; cases h' with
+    | listKind => exact absurd rfl (hn _)
+    | listKindNot _ => rfl
   | num => intro b' h'; cases h' with
     | num => rfl
     | litNot hn => exact absurd rfl hn
@@ -755,6 +771,10 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.anyStringNot <;> assumption)
     | (apply Judge.boolean <;> assumption)
     | (apply Judge.booleanNot <;> assumption)
+    | (apply Judge.mapKind <;> assumption)
+    | (apply Judge.mapKindNot <;> assumption)
+    | (apply Judge.listKind <;> assumption)
+    | (apply Judge.listKindNot <;> assumption)
     | (apply Judge.num <;> assumption)
     | (apply Judge.str <;> assumption)
     | (apply Judge.bool <;> assumption)

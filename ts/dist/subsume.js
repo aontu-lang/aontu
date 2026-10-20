@@ -300,6 +300,13 @@ function subsumeNode(state, path, g0, s0) {
     }
     // Maps.
     if (true === g?.isMap) {
+        if (true === s?.isMapKind) {
+            if (everyMap(g)) {
+                return 'yes';
+            }
+            record(state, 'compat_narrowed', path, g, s, 'the general map refuses a map the specific kind admits');
+            return 'no';
+        }
         if (true !== s?.isMap) {
             record(state, 'compat_narrowed', path, g, s, 'the general value is a map and the specific value is not');
             return 'no';
@@ -311,6 +318,13 @@ function subsumeNode(state, path, g0, s0) {
     // Lists: element-wise by position; the same required/optional shape
     // as maps, with positions as keys.
     if (true === g?.isList) {
+        if (true === s?.isListKind) {
+            if (everyList(g)) {
+                return 'yes';
+            }
+            record(state, 'compat_narrowed', path, g, s, 'the general list refuses a list the specific kind admits');
+            return 'no';
+        }
         if (true !== s?.isList) {
             record(state, 'compat_narrowed', path, g, s, 'the general value is a list and the specific value is not');
             return 'no';
@@ -324,6 +338,19 @@ function subsumeNode(state, path, g0, s0) {
     }
     record(state, 'sub_unresolved', path, g, s, 'no subsumption rule covers this pair of value formers');
     return 'undecided';
+}
+// A bag admits every map, or every list, where it requires no member,
+// seals none away and holds each one to `any`.
+function everyMap(g) {
+    return true !== g.closed && topOrNone(g.spread?.cj) &&
+        fieldKeys(g).every((k) => g.optionalKeys.includes(k) && true === g.peg[k]?.isTop);
+}
+function everyList(g) {
+    const cj = g.spread?.cj;
+    return 0 === g.peg.length && topOrNone(cj) && (true !== g.closed || null != cj);
+}
+function topOrNone(cj) {
+    return null == cj || true === cj.isTop;
 }
 // A recursion is the definition it names, unfolded against its own
 // document (sketch/RECURSION.0.md, P3). One met again before the

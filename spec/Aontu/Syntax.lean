@@ -47,6 +47,8 @@ inductive Val where
   | string                                  -- `string`, every string but `""`
   | anyString                               -- `string & empty()`, every string
   | boolean                                 -- `boolean`
+  | mapKind                                 -- `map`, every map
+  | listKind                                -- `list`, every list
   | lit (s : Scalar)                        -- a literal: `3`, `1.5`, `0d5`, `0d1.5`, `"a"`, `true`, `null`
   | min (b : Bound)                         -- `min(b)`
   | max (b : Bound)                         -- `max(b)`
@@ -196,7 +198,7 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
-  | .number | .string | .anyString | .boolean | .any => .any
+  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .any => .any
   | .nil => .nil
   | .lit (.num x) => x.leaf.kind
   | .lit (.str s) => if s = "" then .anyString else .string

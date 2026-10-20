@@ -420,6 +420,14 @@ export function subsumeNode(
 
   // Maps.
   if (true === g?.isMap) {
+    if (true === (s as any)?.isMapKind) {
+      if (everyMap(g)) {
+        return 'yes'
+      }
+      record(state, 'compat_narrowed', path, g, s,
+        'the general map refuses a map the specific kind admits')
+      return 'no'
+    }
     if (true !== s?.isMap) {
       record(state, 'compat_narrowed', path, g, s,
         'the general value is a map and the specific value is not')
@@ -434,6 +442,14 @@ export function subsumeNode(
   // Lists: element-wise by position; the same required/optional shape
   // as maps, with positions as keys.
   if (true === g?.isList) {
+    if (true === (s as any)?.isListKind) {
+      if (everyList(g)) {
+        return 'yes'
+      }
+      record(state, 'compat_narrowed', path, g, s,
+        'the general list refuses a list the specific kind admits')
+      return 'no'
+    }
     if (true !== s?.isList) {
       record(state, 'compat_narrowed', path, g, s,
         'the general value is a list and the specific value is not')
@@ -451,6 +467,25 @@ export function subsumeNode(
   record(state, 'sub_unresolved', path, g, s,
     'no subsumption rule covers this pair of value formers')
   return 'undecided'
+}
+
+
+// A bag admits every map, or every list, where it requires no member,
+// seals none away and holds each one to `any`.
+function everyMap(g: any): boolean {
+  return true !== g.closed && topOrNone(g.spread?.cj) &&
+    fieldKeys(g).every((k: string) => g.optionalKeys.includes(k) && true === g.peg[k]?.isTop)
+}
+
+
+function everyList(g: any): boolean {
+  const cj = g.spread?.cj
+  return 0 === g.peg.length && topOrNone(cj) && (true !== g.closed || null != cj)
+}
+
+
+function topOrNone(cj: any): boolean {
+  return null == cj || true === cj.isTop
 }
 
 

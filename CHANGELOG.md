@@ -8,6 +8,37 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `map` and `list` as kinds
+
+Definition, generated rows, both implementations and documentation.
+Ruling 15 of the design note (`sketch/DEFINITION.0.md`, §7) is built.
+
+- `spec/Aontu/Syntax.lean`: the words `map` and `list` are the forms
+  `mapKind` and `listKind`. Each admits every map, or every list, and
+  refuses every other value (`spec/Aontu/Admits.lean`). Evaluation
+  singles out no instance of either (`spec/Aontu/Output.lean`), where
+  `{}` and `[]` are singled out as themselves.
+- `spec/Aontu/Subsume.lean`: every map is below `map` and every list
+  below `list` (`map_le_mapKind`, `list_le_listKind`), and the open `{}`
+  and `[]` are above them (`mapKind_le_open_map`,
+  `listKind_le_open_list`), so a kind and its empty container admit the
+  same values. `leDecF` decides these pairs.
+- `test/spec/def-fragment.tsv` grows by rows k0 on: each word alone,
+  under a key and in a few meets, against all 24 instances.
+  `test/spec/def-subsume.tsv` grows by rows m0 on: each word against
+  the containers, the ends, `string` and `integer`.
+- `spec/forms.tsv` holds the two words, so `spec/forms-outside.tsv`
+  loses them, and the importer's check is bounded at four forms.
+- Both implementations: `subsume` answers `subsumes` where the specific
+  side is `map` or `list` and the general map or list requires no
+  member, seals nothing away and holds each member to `any`. It
+  answered `does_not_subsume` (#410). Over any other map or list, the
+  finding says the general side refuses a map, or list, the kind
+  admits.
+- The definition tutorial reads the kinds at step 6 and the four forms
+  still outside at steps 19 and 20, and the language reference cites
+  the rules.
+
 ### The transparency-log client is in both implementations
 
 Both implementations (G10 phase 2).

@@ -14,6 +14,8 @@ number	word	number
 string	word	string
 anyString	call	empty
 boolean	word	boolean
+mapKind	word	map
+listKind	word	list
 lit	word	true
 lit	word	false
 lit	word	null

@@ -7,6 +7,8 @@
 # Each row runs plain `vet`, its data written in aontu, exact numbers marked `0d`.
 # Regenerate with `make spec`; never edit by hand. The cases the ports do
 # not yet answer this way are listed in spec/ledger.tsv.
+# The words `map` and `list` follow in rows k0 on: each alone, under a key,
+# and in a few meets (13 values), against all 24 instances.
 c0	verdict	v: any	v: null	{"verdict":"valid"}
 c1	verdict	v: any	v: true	{"verdict":"valid"}
 c2	verdict	v: any	v: 0	{"verdict":"valid"}
@@ -14407,3 +14409,315 @@ c14396	verdict	v: ({"x": min(3)}) & ({"x": min(3)})	v: {"x": 0d1.5}	{"verdict":[
 c14397	verdict	v: ({"x": min(3)}) & ({"x": min(3)})	v: {"x": 0d3.5}	{"verdict":"valid"}
 c14398	verdict	v: ({"x": min(3)}) & ({"x": min(3)})	v: {"x": 0d9007199254740993}	{"verdict":"valid"}
 c14399	verdict	v: ({"x": min(3)}) & ({"x": min(3)})	v: {"x": [1]}	{"verdict":["invalid","incomplete","error"]}
+k0	verdict	v: map	v: null	{"verdict":["invalid","incomplete","error"]}
+k1	verdict	v: map	v: true	{"verdict":["invalid","incomplete","error"]}
+k2	verdict	v: map	v: 0	{"verdict":["invalid","incomplete","error"]}
+k3	verdict	v: map	v: 3	{"verdict":["invalid","incomplete","error"]}
+k4	verdict	v: map	v: -1	{"verdict":["invalid","incomplete","error"]}
+k5	verdict	v: map	v: ""	{"verdict":["invalid","incomplete","error"]}
+k6	verdict	v: map	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k7	verdict	v: map	v: {}	{"verdict":"valid"}
+k8	verdict	v: map	v: {"x": null}	{"verdict":"valid"}
+k9	verdict	v: map	v: {"x": true}	{"verdict":"valid"}
+k10	verdict	v: map	v: {"x": 0}	{"verdict":"valid"}
+k11	verdict	v: map	v: {"x": 3}	{"verdict":"valid"}
+k12	verdict	v: map	v: {"x": -1}	{"verdict":"valid"}
+k13	verdict	v: map	v: {"x": ""}	{"verdict":"valid"}
+k14	verdict	v: map	v: {"x": "a"}	{"verdict":"valid"}
+k15	verdict	v: map	v: {"y": 1}	{"verdict":"valid"}
+k16	verdict	v: map	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k17	verdict	v: map	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k18	verdict	v: map	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k19	verdict	v: map	v: [1]	{"verdict":["invalid","incomplete","error"]}
+k20	verdict	v: map	v: {"x": 0d1.5}	{"verdict":"valid"}
+k21	verdict	v: map	v: {"x": 0d3.5}	{"verdict":"valid"}
+k22	verdict	v: map	v: {"x": 0d9007199254740993}	{"verdict":"valid"}
+k23	verdict	v: map	v: {"x": [1]}	{"verdict":"valid"}
+k24	verdict	v: list	v: null	{"verdict":["invalid","incomplete","error"]}
+k25	verdict	v: list	v: true	{"verdict":["invalid","incomplete","error"]}
+k26	verdict	v: list	v: 0	{"verdict":["invalid","incomplete","error"]}
+k27	verdict	v: list	v: 3	{"verdict":["invalid","incomplete","error"]}
+k28	verdict	v: list	v: -1	{"verdict":["invalid","incomplete","error"]}
+k29	verdict	v: list	v: ""	{"verdict":["invalid","incomplete","error"]}
+k30	verdict	v: list	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k31	verdict	v: list	v: {}	{"verdict":["invalid","incomplete","error"]}
+k32	verdict	v: list	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k33	verdict	v: list	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k34	verdict	v: list	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
+k35	verdict	v: list	v: {"x": 3}	{"verdict":["invalid","incomplete","error"]}
+k36	verdict	v: list	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
+k37	verdict	v: list	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k38	verdict	v: list	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k39	verdict	v: list	v: {"y": 1}	{"verdict":["invalid","incomplete","error"]}
+k40	verdict	v: list	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k41	verdict	v: list	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k42	verdict	v: list	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k43	verdict	v: list	v: [1]	{"verdict":"valid"}
+k44	verdict	v: list	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k45	verdict	v: list	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k46	verdict	v: list	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k47	verdict	v: list	v: {"x": [1]}	{"verdict":["invalid","incomplete","error"]}
+k48	verdict	v: {"x"?: map}	v: null	{"verdict":["invalid","incomplete","error"]}
+k49	verdict	v: {"x"?: map}	v: true	{"verdict":["invalid","incomplete","error"]}
+k50	verdict	v: {"x"?: map}	v: 0	{"verdict":["invalid","incomplete","error"]}
+k51	verdict	v: {"x"?: map}	v: 3	{"verdict":["invalid","incomplete","error"]}
+k52	verdict	v: {"x"?: map}	v: -1	{"verdict":["invalid","incomplete","error"]}
+k53	verdict	v: {"x"?: map}	v: ""	{"verdict":["invalid","incomplete","error"]}
+k54	verdict	v: {"x"?: map}	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k55	verdict	v: {"x"?: map}	v: {}	{"verdict":"valid"}
+k56	verdict	v: {"x"?: map}	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k57	verdict	v: {"x"?: map}	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k58	verdict	v: {"x"?: map}	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
+k59	verdict	v: {"x"?: map}	v: {"x": 3}	{"verdict":["invalid","incomplete","error"]}
+k60	verdict	v: {"x"?: map}	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
+k61	verdict	v: {"x"?: map}	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k62	verdict	v: {"x"?: map}	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k63	verdict	v: {"x"?: map}	v: {"y": 1}	{"verdict":"valid"}
+k64	verdict	v: {"x"?: map}	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k65	verdict	v: {"x"?: map}	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k66	verdict	v: {"x"?: map}	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k67	verdict	v: {"x"?: map}	v: [1]	{"verdict":["invalid","incomplete","error"]}
+k68	verdict	v: {"x"?: map}	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k69	verdict	v: {"x"?: map}	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k70	verdict	v: {"x"?: map}	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k71	verdict	v: {"x"?: map}	v: {"x": [1]}	{"verdict":["invalid","incomplete","error"]}
+k72	verdict	v: {"x": map}	v: null	{"verdict":["invalid","incomplete","error"]}
+k73	verdict	v: {"x": map}	v: true	{"verdict":["invalid","incomplete","error"]}
+k74	verdict	v: {"x": map}	v: 0	{"verdict":["invalid","incomplete","error"]}
+k75	verdict	v: {"x": map}	v: 3	{"verdict":["invalid","incomplete","error"]}
+k76	verdict	v: {"x": map}	v: -1	{"verdict":["invalid","incomplete","error"]}
+k77	verdict	v: {"x": map}	v: ""	{"verdict":["invalid","incomplete","error"]}
+k78	verdict	v: {"x": map}	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k79	verdict	v: {"x": map}	v: {}	{"verdict":["invalid","incomplete","error"]}
+k80	verdict	v: {"x": map}	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k81	verdict	v: {"x": map}	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k82	verdict	v: {"x": map}	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
+k83	verdict	v: {"x": map}	v: {"x": 3}	{"verdict":["invalid","incomplete","error"]}
+k84	verdict	v: {"x": map}	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
+k85	verdict	v: {"x": map}	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k86	verdict	v: {"x": map}	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k87	verdict	v: {"x": map}	v: {"y": 1}	{"verdict":["invalid","incomplete","error"]}
+k88	verdict	v: {"x": map}	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k89	verdict	v: {"x": map}	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k90	verdict	v: {"x": map}	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k91	verdict	v: {"x": map}	v: [1]	{"verdict":["invalid","incomplete","error"]}
+k92	verdict	v: {"x": map}	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k93	verdict	v: {"x": map}	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k94	verdict	v: {"x": map}	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k95	verdict	v: {"x": map}	v: {"x": [1]}	{"verdict":["invalid","incomplete","error"]}
+k96	verdict	v: {"x"?: list}	v: null	{"verdict":["invalid","incomplete","error"]}
+k97	verdict	v: {"x"?: list}	v: true	{"verdict":["invalid","incomplete","error"]}
+k98	verdict	v: {"x"?: list}	v: 0	{"verdict":["invalid","incomplete","error"]}
+k99	verdict	v: {"x"?: list}	v: 3	{"verdict":["invalid","incomplete","error"]}
+k100	verdict	v: {"x"?: list}	v: -1	{"verdict":["invalid","incomplete","error"]}
+k101	verdict	v: {"x"?: list}	v: ""	{"verdict":["invalid","incomplete","error"]}
+k102	verdict	v: {"x"?: list}	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k103	verdict	v: {"x"?: list}	v: {}	{"verdict":"valid"}
+k104	verdict	v: {"x"?: list}	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k105	verdict	v: {"x"?: list}	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k106	verdict	v: {"x"?: list}	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
+k107	verdict	v: {"x"?: list}	v: {"x": 3}	{"verdict":["invalid","incomplete","error"]}
+k108	verdict	v: {"x"?: list}	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
+k109	verdict	v: {"x"?: list}	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k110	verdict	v: {"x"?: list}	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k111	verdict	v: {"x"?: list}	v: {"y": 1}	{"verdict":"valid"}
+k112	verdict	v: {"x"?: list}	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k113	verdict	v: {"x"?: list}	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k114	verdict	v: {"x"?: list}	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k115	verdict	v: {"x"?: list}	v: [1]	{"verdict":["invalid","incomplete","error"]}
+k116	verdict	v: {"x"?: list}	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k117	verdict	v: {"x"?: list}	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k118	verdict	v: {"x"?: list}	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k119	verdict	v: {"x"?: list}	v: {"x": [1]}	{"verdict":"valid"}
+k120	verdict	v: {"x": list}	v: null	{"verdict":["invalid","incomplete","error"]}
+k121	verdict	v: {"x": list}	v: true	{"verdict":["invalid","incomplete","error"]}
+k122	verdict	v: {"x": list}	v: 0	{"verdict":["invalid","incomplete","error"]}
+k123	verdict	v: {"x": list}	v: 3	{"verdict":["invalid","incomplete","error"]}
+k124	verdict	v: {"x": list}	v: -1	{"verdict":["invalid","incomplete","error"]}
+k125	verdict	v: {"x": list}	v: ""	{"verdict":["invalid","incomplete","error"]}
+k126	verdict	v: {"x": list}	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k127	verdict	v: {"x": list}	v: {}	{"verdict":["invalid","incomplete","error"]}
+k128	verdict	v: {"x": list}	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k129	verdict	v: {"x": list}	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k130	verdict	v: {"x": list}	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
+k131	verdict	v: {"x": list}	v: {"x": 3}	{"verdict":["invalid","incomplete","error"]}
+k132	verdict	v: {"x": list}	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
+k133	verdict	v: {"x": list}	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k134	verdict	v: {"x": list}	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k135	verdict	v: {"x": list}	v: {"y": 1}	{"verdict":["invalid","incomplete","error"]}
+k136	verdict	v: {"x": list}	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k137	verdict	v: {"x": list}	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k138	verdict	v: {"x": list}	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k139	verdict	v: {"x": list}	v: [1]	{"verdict":["invalid","incomplete","error"]}
+k140	verdict	v: {"x": list}	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k141	verdict	v: {"x": list}	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k142	verdict	v: {"x": list}	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k143	verdict	v: {"x": list}	v: {"x": [1]}	{"verdict":"valid"}
+k144	verdict	v: (map) & ({"x": integer})	v: null	{"verdict":["invalid","incomplete","error"]}
+k145	verdict	v: (map) & ({"x": integer})	v: true	{"verdict":["invalid","incomplete","error"]}
+k146	verdict	v: (map) & ({"x": integer})	v: 0	{"verdict":["invalid","incomplete","error"]}
+k147	verdict	v: (map) & ({"x": integer})	v: 3	{"verdict":["invalid","incomplete","error"]}
+k148	verdict	v: (map) & ({"x": integer})	v: -1	{"verdict":["invalid","incomplete","error"]}
+k149	verdict	v: (map) & ({"x": integer})	v: ""	{"verdict":["invalid","incomplete","error"]}
+k150	verdict	v: (map) & ({"x": integer})	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k151	verdict	v: (map) & ({"x": integer})	v: {}	{"verdict":["invalid","incomplete","error"]}
+k152	verdict	v: (map) & ({"x": integer})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k153	verdict	v: (map) & ({"x": integer})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k154	verdict	v: (map) & ({"x": integer})	v: {"x": 0}	{"verdict":"valid"}
+k155	verdict	v: (map) & ({"x": integer})	v: {"x": 3}	{"verdict":"valid"}
+k156	verdict	v: (map) & ({"x": integer})	v: {"x": -1}	{"verdict":"valid"}
+k157	verdict	v: (map) & ({"x": integer})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k158	verdict	v: (map) & ({"x": integer})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k159	verdict	v: (map) & ({"x": integer})	v: {"y": 1}	{"verdict":["invalid","incomplete","error"]}
+k160	verdict	v: (map) & ({"x": integer})	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k161	verdict	v: (map) & ({"x": integer})	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k162	verdict	v: (map) & ({"x": integer})	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k163	verdict	v: (map) & ({"x": integer})	v: [1]	{"verdict":["invalid","incomplete","error"]}
+k164	verdict	v: (map) & ({"x": integer})	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k165	verdict	v: (map) & ({"x": integer})	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k166	verdict	v: (map) & ({"x": integer})	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k167	verdict	v: (map) & ({"x": integer})	v: {"x": [1]}	{"verdict":["invalid","incomplete","error"]}
+k168	verdict	v: (map) & ([integer])	v: null	{"verdict":["invalid","incomplete","error"]}
+k169	verdict	v: (map) & ([integer])	v: true	{"verdict":["invalid","incomplete","error"]}
+k170	verdict	v: (map) & ([integer])	v: 0	{"verdict":["invalid","incomplete","error"]}
+k171	verdict	v: (map) & ([integer])	v: 3	{"verdict":["invalid","incomplete","error"]}
+k172	verdict	v: (map) & ([integer])	v: -1	{"verdict":["invalid","incomplete","error"]}
+k173	verdict	v: (map) & ([integer])	v: ""	{"verdict":["invalid","incomplete","error"]}
+k174	verdict	v: (map) & ([integer])	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k175	verdict	v: (map) & ([integer])	v: {}	{"verdict":["invalid","incomplete","error"]}
+k176	verdict	v: (map) & ([integer])	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k177	verdict	v: (map) & ([integer])	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k178	verdict	v: (map) & ([integer])	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
+k179	verdict	v: (map) & ([integer])	v: {"x": 3}	{"verdict":["invalid","incomplete","error"]}
+k180	verdict	v: (map) & ([integer])	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
+k181	verdict	v: (map) & ([integer])	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k182	verdict	v: (map) & ([integer])	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k183	verdict	v: (map) & ([integer])	v: {"y": 1}	{"verdict":["invalid","incomplete","error"]}
+k184	verdict	v: (map) & ([integer])	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k185	verdict	v: (map) & ([integer])	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k186	verdict	v: (map) & ([integer])	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k187	verdict	v: (map) & ([integer])	v: [1]	{"verdict":["invalid","incomplete","error"]}
+k188	verdict	v: (map) & ([integer])	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k189	verdict	v: (map) & ([integer])	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k190	verdict	v: (map) & ([integer])	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k191	verdict	v: (map) & ([integer])	v: {"x": [1]}	{"verdict":["invalid","incomplete","error"]}
+k192	verdict	v: (map) & (string)	v: null	{"verdict":["invalid","incomplete","error"]}
+k193	verdict	v: (map) & (string)	v: true	{"verdict":["invalid","incomplete","error"]}
+k194	verdict	v: (map) & (string)	v: 0	{"verdict":["invalid","incomplete","error"]}
+k195	verdict	v: (map) & (string)	v: 3	{"verdict":["invalid","incomplete","error"]}
+k196	verdict	v: (map) & (string)	v: -1	{"verdict":["invalid","incomplete","error"]}
+k197	verdict	v: (map) & (string)	v: ""	{"verdict":["invalid","incomplete","error"]}
+k198	verdict	v: (map) & (string)	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k199	verdict	v: (map) & (string)	v: {}	{"verdict":["invalid","incomplete","error"]}
+k200	verdict	v: (map) & (string)	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k201	verdict	v: (map) & (string)	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k202	verdict	v: (map) & (string)	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
+k203	verdict	v: (map) & (string)	v: {"x": 3}	{"verdict":["invalid","incomplete","error"]}
+k204	verdict	v: (map) & (string)	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
+k205	verdict	v: (map) & (string)	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k206	verdict	v: (map) & (string)	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k207	verdict	v: (map) & (string)	v: {"y": 1}	{"verdict":["invalid","incomplete","error"]}
+k208	verdict	v: (map) & (string)	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k209	verdict	v: (map) & (string)	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k210	verdict	v: (map) & (string)	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k211	verdict	v: (map) & (string)	v: [1]	{"verdict":["invalid","incomplete","error"]}
+k212	verdict	v: (map) & (string)	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k213	verdict	v: (map) & (string)	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k214	verdict	v: (map) & (string)	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k215	verdict	v: (map) & (string)	v: {"x": [1]}	{"verdict":["invalid","incomplete","error"]}
+k216	verdict	v: (list) & ({"x": integer})	v: null	{"verdict":["invalid","incomplete","error"]}
+k217	verdict	v: (list) & ({"x": integer})	v: true	{"verdict":["invalid","incomplete","error"]}
+k218	verdict	v: (list) & ({"x": integer})	v: 0	{"verdict":["invalid","incomplete","error"]}
+k219	verdict	v: (list) & ({"x": integer})	v: 3	{"verdict":["invalid","incomplete","error"]}
+k220	verdict	v: (list) & ({"x": integer})	v: -1	{"verdict":["invalid","incomplete","error"]}
+k221	verdict	v: (list) & ({"x": integer})	v: ""	{"verdict":["invalid","incomplete","error"]}
+k222	verdict	v: (list) & ({"x": integer})	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k223	verdict	v: (list) & ({"x": integer})	v: {}	{"verdict":["invalid","incomplete","error"]}
+k224	verdict	v: (list) & ({"x": integer})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k225	verdict	v: (list) & ({"x": integer})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k226	verdict	v: (list) & ({"x": integer})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
+k227	verdict	v: (list) & ({"x": integer})	v: {"x": 3}	{"verdict":["invalid","incomplete","error"]}
+k228	verdict	v: (list) & ({"x": integer})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
+k229	verdict	v: (list) & ({"x": integer})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k230	verdict	v: (list) & ({"x": integer})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k231	verdict	v: (list) & ({"x": integer})	v: {"y": 1}	{"verdict":["invalid","incomplete","error"]}
+k232	verdict	v: (list) & ({"x": integer})	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k233	verdict	v: (list) & ({"x": integer})	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k234	verdict	v: (list) & ({"x": integer})	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k235	verdict	v: (list) & ({"x": integer})	v: [1]	{"verdict":["invalid","incomplete","error"]}
+k236	verdict	v: (list) & ({"x": integer})	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k237	verdict	v: (list) & ({"x": integer})	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k238	verdict	v: (list) & ({"x": integer})	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k239	verdict	v: (list) & ({"x": integer})	v: {"x": [1]}	{"verdict":["invalid","incomplete","error"]}
+k240	verdict	v: (list) & ([integer])	v: null	{"verdict":["invalid","incomplete","error"]}
+k241	verdict	v: (list) & ([integer])	v: true	{"verdict":["invalid","incomplete","error"]}
+k242	verdict	v: (list) & ([integer])	v: 0	{"verdict":["invalid","incomplete","error"]}
+k243	verdict	v: (list) & ([integer])	v: 3	{"verdict":["invalid","incomplete","error"]}
+k244	verdict	v: (list) & ([integer])	v: -1	{"verdict":["invalid","incomplete","error"]}
+k245	verdict	v: (list) & ([integer])	v: ""	{"verdict":["invalid","incomplete","error"]}
+k246	verdict	v: (list) & ([integer])	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k247	verdict	v: (list) & ([integer])	v: {}	{"verdict":["invalid","incomplete","error"]}
+k248	verdict	v: (list) & ([integer])	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k249	verdict	v: (list) & ([integer])	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k250	verdict	v: (list) & ([integer])	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
+k251	verdict	v: (list) & ([integer])	v: {"x": 3}	{"verdict":["invalid","incomplete","error"]}
+k252	verdict	v: (list) & ([integer])	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
+k253	verdict	v: (list) & ([integer])	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k254	verdict	v: (list) & ([integer])	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k255	verdict	v: (list) & ([integer])	v: {"y": 1}	{"verdict":["invalid","incomplete","error"]}
+k256	verdict	v: (list) & ([integer])	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k257	verdict	v: (list) & ([integer])	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k258	verdict	v: (list) & ([integer])	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k259	verdict	v: (list) & ([integer])	v: [1]	{"verdict":"valid"}
+k260	verdict	v: (list) & ([integer])	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k261	verdict	v: (list) & ([integer])	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k262	verdict	v: (list) & ([integer])	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k263	verdict	v: (list) & ([integer])	v: {"x": [1]}	{"verdict":["invalid","incomplete","error"]}
+k264	verdict	v: (list) & (string)	v: null	{"verdict":["invalid","incomplete","error"]}
+k265	verdict	v: (list) & (string)	v: true	{"verdict":["invalid","incomplete","error"]}
+k266	verdict	v: (list) & (string)	v: 0	{"verdict":["invalid","incomplete","error"]}
+k267	verdict	v: (list) & (string)	v: 3	{"verdict":["invalid","incomplete","error"]}
+k268	verdict	v: (list) & (string)	v: -1	{"verdict":["invalid","incomplete","error"]}
+k269	verdict	v: (list) & (string)	v: ""	{"verdict":["invalid","incomplete","error"]}
+k270	verdict	v: (list) & (string)	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k271	verdict	v: (list) & (string)	v: {}	{"verdict":["invalid","incomplete","error"]}
+k272	verdict	v: (list) & (string)	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k273	verdict	v: (list) & (string)	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k274	verdict	v: (list) & (string)	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
+k275	verdict	v: (list) & (string)	v: {"x": 3}	{"verdict":["invalid","incomplete","error"]}
+k276	verdict	v: (list) & (string)	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
+k277	verdict	v: (list) & (string)	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k278	verdict	v: (list) & (string)	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k279	verdict	v: (list) & (string)	v: {"y": 1}	{"verdict":["invalid","incomplete","error"]}
+k280	verdict	v: (list) & (string)	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k281	verdict	v: (list) & (string)	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k282	verdict	v: (list) & (string)	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k283	verdict	v: (list) & (string)	v: [1]	{"verdict":["invalid","incomplete","error"]}
+k284	verdict	v: (list) & (string)	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k285	verdict	v: (list) & (string)	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k286	verdict	v: (list) & (string)	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k287	verdict	v: (list) & (string)	v: {"x": [1]}	{"verdict":["invalid","incomplete","error"]}
+k288	verdict	v: (map) & (list)	v: null	{"verdict":["invalid","incomplete","error"]}
+k289	verdict	v: (map) & (list)	v: true	{"verdict":["invalid","incomplete","error"]}
+k290	verdict	v: (map) & (list)	v: 0	{"verdict":["invalid","incomplete","error"]}
+k291	verdict	v: (map) & (list)	v: 3	{"verdict":["invalid","incomplete","error"]}
+k292	verdict	v: (map) & (list)	v: -1	{"verdict":["invalid","incomplete","error"]}
+k293	verdict	v: (map) & (list)	v: ""	{"verdict":["invalid","incomplete","error"]}
+k294	verdict	v: (map) & (list)	v: "a"	{"verdict":["invalid","incomplete","error"]}
+k295	verdict	v: (map) & (list)	v: {}	{"verdict":["invalid","incomplete","error"]}
+k296	verdict	v: (map) & (list)	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
+k297	verdict	v: (map) & (list)	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
+k298	verdict	v: (map) & (list)	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
+k299	verdict	v: (map) & (list)	v: {"x": 3}	{"verdict":["invalid","incomplete","error"]}
+k300	verdict	v: (map) & (list)	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
+k301	verdict	v: (map) & (list)	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
+k302	verdict	v: (map) & (list)	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
+k303	verdict	v: (map) & (list)	v: {"y": 1}	{"verdict":["invalid","incomplete","error"]}
+k304	verdict	v: (map) & (list)	v: 0d1.5	{"verdict":["invalid","incomplete","error"]}
+k305	verdict	v: (map) & (list)	v: 0d3.5	{"verdict":["invalid","incomplete","error"]}
+k306	verdict	v: (map) & (list)	v: 0d9007199254740993	{"verdict":["invalid","incomplete","error"]}
+k307	verdict	v: (map) & (list)	v: [1]	{"verdict":["invalid","incomplete","error"]}
+k308	verdict	v: (map) & (list)	v: {"x": 0d1.5}	{"verdict":["invalid","incomplete","error"]}
+k309	verdict	v: (map) & (list)	v: {"x": 0d3.5}	{"verdict":["invalid","incomplete","error"]}
+k310	verdict	v: (map) & (list)	v: {"x": 0d9007199254740993}	{"verdict":["invalid","incomplete","error"]}
+k311	verdict	v: (map) & (list)	v: {"x": [1]}	{"verdict":["invalid","incomplete","error"]}

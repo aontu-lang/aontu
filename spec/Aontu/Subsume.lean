@@ -147,6 +147,35 @@ theorem lit_bool_le_boolean (b : Bool) : .lit (.bool b) ⊑[env] .boolean := by
   cases h
   exact ⟨hw, .boolean⟩
 
+/-- Every value a map admits is a map, and every value a list admits a
+list: each is below its kind. -/
+theorem map_le_mapKind (fs : List (String × Bool × Val)) (spread : Option Val) (closed : Bool) :
+    .map fs spread closed ⊑[env] .mapKind := by
+  intro j ⟨hw, h⟩
+  cases h
+  exact ⟨hw, .mapKind⟩
+
+theorem list_le_listKind (items : List Val) (spread : Option Val) (closed : Bool) :
+    .list items spread closed ⊑[env] .listKind := by
+  intro j ⟨hw, h⟩
+  cases h
+  exact ⟨hw, .listKind⟩
+
+/-- `{}` and `[]`, open and with no spread, admit every map and every
+list, so each kind is below them: the kind and its empty literal admit
+the same values, and only `Output` tells them apart. -/
+theorem mapKind_le_open_map : .mapKind ⊑[env] .map [] none false := by
+  intro j ⟨hw, h⟩
+  cases h
+  exact ⟨hw, .map (fun _ _ _ _ hm _ => nomatch hm) (fun _ _ _ hm _ => nomatch hm)
+    (fun _ hs => nomatch hs) (fun hc => nomatch hc)⟩
+
+theorem listKind_le_open_list : .listKind ⊑[env] .list [] none false := by
+  intro j ⟨hw, h⟩
+  cases h
+  exact ⟨hw, .list (Nat.zero_le _) (fun hc => nomatch hc) (fun _ _ _ hv _ => by simp at hv)
+    (fun _ hs => nomatch hs)⟩
+
 /-! ## The table: a kind over a residual
 
 A kind covers a residual whose domain it admits whole: `number` every
@@ -1008,8 +1037,13 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
       | some ⟨h⟩ => some ⟨len_le_len h⟩
       | none => none
     | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
-    | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean =>
+    | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean
+    | .mapKind, .mapKind | .listKind, .listKind =>
       some ⟨Le.refl env _⟩
+    | .map fs sp cl, .mapKind => some ⟨map_le_mapKind fs sp cl⟩
+    | .list is sp cl, .listKind => some ⟨list_le_listKind is sp cl⟩
+    | .mapKind, .map [] none false => some ⟨mapKind_le_open_map⟩
+    | .listKind, .list [] none false => some ⟨listKind_le_open_list⟩
     | .integer, .number => some ⟨leaf_le_number .integer⟩
     | .float, .number => some ⟨leaf_le_number .float⟩
     | .biginteger, .number => some ⟨leaf_le_number .biginteger⟩
