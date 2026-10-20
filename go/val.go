@@ -88,8 +88,8 @@ type Val interface {
 	setMetaRec(rec map[string][]Val)
 	viaRec() []string
 	setViaRec(via []string)
-	identRec() map[string][]string
-	setIdentRec(rec map[string][]string)
+	identRec() map[string][]Val
+	setIdentRec(rec map[string][]Val)
 	readAddr() string
 	setReadAddr(addr string)
 	emitOrig() *emitOrigin
@@ -136,8 +136,8 @@ type base struct {
 	meta    map[string][]Val
 	// vias: the aliases this value is a copy of, written back as $ref.
 	vias []string
-	// ident: a declaration's identity (ADR-056), which no copy carries.
-	ident map[string][]string
+	// ident: a declaration's record (ADR-056, ADR-073), which no copy carries.
+	ident map[string][]Val
 	origin  string
 	emitted *emitOrigin
 	link    string
@@ -224,8 +224,8 @@ func (b *base) metaRec() map[string][]Val            { return b.meta }
 func (b *base) setMetaRec(rec map[string][]Val)      { b.meta = rec }
 func (b *base) viaRec() []string                     { return b.vias }
 func (b *base) setViaRec(via []string)               { b.vias = via }
-func (b *base) identRec() map[string][]string        { return b.ident }
-func (b *base) setIdentRec(rec map[string][]string)  { b.ident = rec }
+func (b *base) identRec() map[string][]Val           { return b.ident }
+func (b *base) setIdentRec(rec map[string][]Val)     { b.ident = rec }
 
 func (b *base) readAddr() string          { return b.origin }
 func (b *base) setReadAddr(addr string)   { b.origin = addr }

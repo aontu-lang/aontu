@@ -1,4 +1,4 @@
-# CONTAINER KINDS (docs/design/PATHS.0.md): `map` and `list`.
+# CONTAINER KINDS (sketch/PATHS.0.md): `map` and `list`.
 #
 # `{}` and `[]` are the container UNITS: they admit any map (or list)
 # AND generate empty when nothing arrives. The kinds admit exactly the

@@ -48,9 +48,9 @@ Write this as `order.json`:
 ```sh
 $ aontu jsonschema import order.json
 %d_line = sku: empty() & re("^[A-Z]{3}-\\d{4}$")
-%d_line = qty: number & multiple(1) & min(1)
+%d_line = qty: number & mulof(1) & min(1)
 
-id: number & multiple(1) & min(1)
+id: number & mulof(1) & min(1)
 total: number & above(0)
 lines: [&: %d_line] & len(min(1))
 note?: empty() & len(max(200))
@@ -65,7 +65,7 @@ Each keyword lands on the construct that means it:
 - `items` is a list spread, and `minItems` a count with `len`.
 - `type: "string"` is `empty()`, because the strings of JSON Schema
   include `""` and aontu's `string` does not.
-- `type: "integer"` is `number & multiple(1)`: a number with no
+- `type: "integer"` is `number & mulof(1)`: a number with no
   fraction, however it is written, so `2.0` is one.
 - A `$defs` entry that something references is an alias, here
   `%d_line`, declared one member to a line. The import names a
@@ -79,9 +79,9 @@ Save the text above as `order.aontu`:
 <!-- test: file order.aontu -->
 ```aontu
 %d_line = sku: empty() & re("^[A-Z]{3}-\\d{4}$")
-%d_line = qty: number & multiple(1) & min(1)
+%d_line = qty: number & mulof(1) & min(1)
 
-id: number & multiple(1) & min(1)
+id: number & mulof(1) & min(1)
 total: number & above(0)
 lines: [&: %d_line] & len(min(1))
 note?: empty() & len(max(200))
@@ -279,7 +279,8 @@ The `format` and `title` in `email.json` are not lost. The annotation keywords
 of JSON Schema assert nothing, so the importer carries them on the value they
 describe, in a `meta()` record: `title`, `description`, `$comment`,
 `default`, `examples`, `readOnly`, `writeOnly`, `format` and the
-content keywords, with any keyword JSON Schema does not name under `x`.
+content keywords, with any keyword JSON Schema does not name under its own
+name.
 `deprecated` imports as `deprecate()`. A record never changes what its
 value admits, and the export writes it back.
 
@@ -296,7 +297,7 @@ assertions admit it. Write `port.json`:
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --defaults port.json
-port?: *8080|meta(number & multiple(1), {
+port?: *8080|meta(number & mulof(1), {
   default: 8080
   description: "The listen port"
 })

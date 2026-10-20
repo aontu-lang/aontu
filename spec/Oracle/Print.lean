@@ -148,7 +148,7 @@ def Val.src : Val → Option String
   | .above b => do pure s!"above({← b.src})"
   | .beneath b => do pure s!"below({← b.src})"
   | .neq vs => do pure s!"neq({", ".intercalate (← vs.mapM Bound.src)})"
-  | .multiple d => do pure s!"multiple({← d.src})"
+  | .mulof d => do pure s!"mulof({← d.src})"
   | .len c => do pure s!"len({← c.src})"
   | .unique none => some "unique()"
   | .unique (some k) => some s!"unique({quote k})"

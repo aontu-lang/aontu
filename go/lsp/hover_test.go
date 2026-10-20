@@ -133,7 +133,7 @@ func TestBuiltinFuncNamesParity(t *testing.T) {
 	// The completion function list must match the engine's recognised
 	// functions exactly (guards against drift).
 	got := aontu.BuiltinFuncNames()
-	want := []string{"abnf", "above", "acyclic", "add", "below", "close", "contains", "content", "copy", "copyfiles", "deprecate", "div", "each", "emit", "empty", "esc", "file", "filter", "folder", "format", "fragment", "greatest", "hide", "ident", "inject", "inverse", "join", "key", "least", "len", "line", "listitems", "lower", "match", "max", "maybe", "meta", "min", "mod", "move", "mul", "multiple", "must", "neq", "nof", "nom", "open", "pack", "parse", "path", "pick", "pref", "project", "re", "refer", "rel", "rem", "rep", "rest", "slot", "sort", "split", "sub", "sum", "super", "translate", "type", "unique", "upper", "usc", "when"}
+	want := []string{"abnf", "above", "acyclic", "add", "below", "close", "contains", "content", "copy", "copyfiles", "deprecate", "div", "each", "emit", "empty", "esc", "file", "filter", "folder", "format", "fragment", "greatest", "hide", "ident", "inject", "inverse", "join", "key", "least", "len", "line", "listitems", "lower", "match", "max", "maybe", "meta", "min", "mod", "move", "mul", "mulof", "must", "neq", "nof", "nom", "open", "pack", "parse", "path", "pick", "pref", "project", "re", "refer", "rel", "rem", "rep", "rest", "slot", "sort", "split", "sub", "sum", "super", "translate", "type", "unique", "upper", "usc", "when"}
 	if len(got) != len(want) {
 		t.Fatalf("BuiltinFuncNames = %v, want %v", got, want)
 	}

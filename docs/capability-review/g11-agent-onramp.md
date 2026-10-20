@@ -51,7 +51,7 @@ needs finds a different concept wearing its name.
 **The word the caller was given is a word aontu does not say.**
 `ontolog` matches nothing in either CLI (`ts/src/cli.ts`,
 `go/cmd/aontu/main.go`) and nothing in the reader-facing documentation;
-it appears only in `docs/design/ONTOLOGY.0.md` and inside this review.
+it appears only in `sketch/ONTOLOGY.0.md` and inside this review.
 The agent must guess, unaided, that its task decomposes into an entity
 map, `relations`, `reaches` and `render --check`.
 

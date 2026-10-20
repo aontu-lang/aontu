@@ -270,7 +270,7 @@ const lsp_server_1 = require("../dist/lsp-server");
     });
     (0, node_test_1.test)('completion-detail-is-the-signature', () => {
         // The detail column renders from the registry
-        // (docs/design/SIGNATURES.0.md): the declaration, not a label.
+        // (sketch/SIGNATURES.0.md): the declaration, not a label.
         const c = (0, lsp_1.computeCompletions)('');
         const byLabel = new Map(c.map(i => [i.label, i]));
         Assert.equal(byLabel.get('upper')?.detail, 'upper(s: string|number, start?: integer|biginteger, len?: integer|biginteger) : string');

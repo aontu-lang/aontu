@@ -1,4 +1,4 @@
-# THE FORMATTER (docs/design/FMT.0.md): source to its agreed form.
+# THE FORMATTER (sketch/FMT.0.md): source to its agreed form.
 # Both runners assert three things per row: the text is what fmt(src)
 # writes; fmt(expect) is expect again (a fixed point); and, where the
 # source evaluates, the canon-hash of src and of expect agree -- the
@@ -220,7 +220,7 @@ fmt-merge-in-block-then-repeat	fmt	s: { a: 1, b: [xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # [{"a":1},{"b":2}] and the written text to {"a":1,"b":2}. Refused
 # in both ports rather than written, so no file is corrupted; the
 # defect is that a document the engine reads has no agreed form.
-# Open: docs/design/FMT.0.md §9, the last boundary item.
+# Open: sketch/FMT.0.md §9, the last boundary item.
 fmt-refuse-multi-document	fmt-refuse	{a:1}\n{b:2}\n	error:format_check
 
 # THE LINT (FMT.0.md §4). Positions are 1-based, of the key or of the

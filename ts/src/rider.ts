@@ -4,16 +4,16 @@
 import { cmpCodePoint } from './keyorder'
 
 
-// A rider record holds a sorted set of distinct values under each key,
-// so records meet as their key-wise union: commutative, idempotent, and
-// never refused.
+// A rider record holds a sorted set of distinct values under each key, any
+// string (ADR-072), so each is a null-prototype object; records meet as
+// their key-wise union: commutative, idempotent, and never refused.
 type RiderRecord<T> = Record<string, T[]>
 
 
 function unionRecords<T>(
   records: (RiderRecord<T> | undefined)[], key: (v: T) => string,
 ): RiderRecord<T> {
-  const sets: Record<string, Map<string, T>> = {}
+  const sets: Record<string, Map<string, T>> = Object.create(null)
   for (const r of records) {
     if (null == r) {
       continue
@@ -27,7 +27,7 @@ function unionRecords<T>(
       }
     }
   }
-  const out: RiderRecord<T> = {}
+  const out: RiderRecord<T> = Object.create(null)
   for (const k of Object.keys(sets).sort(cmpCodePoint)) {
     const set = sets[k]
     out[k] = [...set.keys()].sort(cmpCodePoint).map((s) => set.get(s) as T)
@@ -54,7 +54,7 @@ function recordLayers<T>(rec: RiderRecord<T>): Record<string, T>[] {
   const n = keys.reduce((m, k) => Math.max(m, rec[k].length), 0)
   const out: Record<string, T>[] = []
   for (let i = 0; i < n; i++) {
-    const layer: Record<string, T> = {}
+    const layer: Record<string, T> = Object.create(null)
     for (const k of keys.filter((k) => i < rec[k].length)) {
       layer[k] = rec[k][i]
     }

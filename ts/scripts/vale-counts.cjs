@@ -7,7 +7,7 @@ const { gatedDocs } = require('./gated-docs.cjs')
 
 const REPO = Path.join(__dirname, '..', '..')
 const INI = Path.join(REPO, '.vale.ini')
-const GUIDE = Path.join(REPO, 'docs', 'STYLE-GUIDE.md')
+const GUIDE = Path.join(REPO, 'STYLE-GUIDE.md')
 const SCRATCH = Path.join(REPO, '.vale-counts.ini')
 
 const HITS = /\b(\d+)\s+hits?\b/g

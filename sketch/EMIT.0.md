@@ -1,7 +1,7 @@
 # `emit`: apply-templates as an engine builtin
 
 *Design note, 2026-09-04. The rule layer of
-[G9](../capability-review/g9-transformation.md) — its phase 6 — spelled
+[G9](../docs/capability-review/g9-transformation.md) — its phase 6 — spelled
 out as a mechanism rather than as a plan. Companion to
 [TEMPLATE.0.md](TEMPLATE.0.md), which is the target-syntax surface that
 desugars to what this note specifies, and to
@@ -11,13 +11,13 @@ built CLIs at 0.56.0, most of them against
 [`voxgig/podmind`](https://github.com/voxgig/podmind)'s backend at
 `ab7f333` — twelve deployed Lambda handlers generated today by a Node
 library. This note is design; status lives in the
-[progress register](../capability-review/progress.md).*
+[progress register](../docs/capability-review/progress.md).*
 
 ## Why: four prototypes with no apply-templates in them
 
 G9's prior art calls apply-templates the thing worth keeping from XSLT,
 and its
-[§2](../capability-review/g9-transformation.md#2-the-rule-layer--apply-templates-in-the-engine)
+[§2](../docs/capability-review/g9-transformation.md#2-the-rule-layer--apply-templates-in-the-engine)
 designs it. Four successive prototypes of a generator for those twelve
 handlers were built, and **not one of them contained an
 apply-templates**. Each was a functional transformation — a `pack`
@@ -72,7 +72,7 @@ convenience.** A body nests one level wherever an `emit` appears in it;
 the builtin splices those results in and returns a flat sequence of
 pieces — `[&: string]` before the fragment algebra lands, `[&: %piece]`
 after it. G9's
-[fragment algebra](../capability-review/g9-transformation.md#amendment-2026-09-04-second-aontucode-and-the-fragment-algebra)
+[fragment algebra](../docs/capability-review/g9-transformation.md#amendment-2026-09-04-second-aontucode-and-the-fragment-algebra)
 is flat because the nested spelling refuses even a valid instance in
 both ports (VERIFIED), and a dispatch returning a tree would undo that
 ruling.
@@ -199,7 +199,7 @@ A capture buys nothing and costs several things:
    position in the language", and its own call is the marker;
    `emit(.client, T)` would be non-strict invisibly, which is the
    reserved meaning
-   [ADR-010](../../ADR.md#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space)
+   [ADR-010](../ADR.md#adr-010--no-magic-keys-or-paths-the-tree-at-all-levels-is-user-space)
    exists to keep out.
 4. **It would defeat the descent's totality argument.** G9 §2 rests on
    links not being edges: `refer`/`rel` create no structural edge and
@@ -220,7 +220,7 @@ GIVEN.
 ## D7. The verb is `aontu render`
 
 Decided 2026-09-04, closing
-[G9](../capability-review/g9-transformation.md)'s open question (iii),
+[G9](../docs/capability-review/g9-transformation.md)'s open question (iii),
 which had this document saying `aontu render` and the register's phase
 6 row saying `aontu gen`.
 
@@ -300,7 +300,7 @@ raise it. Phase 6 either raises the default for a generation run or
 exposes the budget, and says which.
 
 Go additionally refuses the expansion outright, at `pick(..a2, "#")` —
-[`use-cases/BUGS.md` §63](../../use-cases/BUGS.md), a staged spread
+[`use-cases/BUGS.md` §63](../use-cases/BUGS.md), a staged spread
 template's reference under `hide()`. Under the builtin the idiom
 disappears, so §63 stops gating generation, but it remains an ADR-001
 break in its own right.

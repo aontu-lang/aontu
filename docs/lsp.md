@@ -75,8 +75,8 @@ values joined with `; `.
 resolves to: hovering `8080` in `port: 8080` shows `8080` with kind
 *integer*; hovering `string` in a schema shows kind *type*. Hover targets
 concrete values (scalars, kinds, references), not containers. A value
-annotated with `meta()` adds its titles, each in bold, then its
-descriptions, under the kind.
+annotated with `meta()` adds the text its `title` keys hold, each in
+bold, then the text its `description` keys hold, under the kind.
 
 **Completion** offers a context-free list (clients filter by the typed
 prefix): the built-in functions (the engine's full roster, 68 today, the

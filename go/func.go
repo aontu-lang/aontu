@@ -24,7 +24,7 @@ var funcSet = map[string]bool{
 	"maybe": true,
 	"min":   true, "max": true, "above": true, "below": true, "neq": true,
 	"re": true, "len": true, "empty": true, "unique": true, "must": true,
-	"multiple":  true,
+	"mulof":     true,
 	"nof":       true,
 	"when":      true,
 	"contains":  true,
@@ -714,7 +714,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			})
 		}
 		out := clonePath(args[0], cp(base))
-		out.setIdentRec(unionRiders(sameString, out.identRec(), rec))
+		out.setIdentRec(unionRiders(valCanon, out.identRec(), rec))
 		return out
 	case "meta":
 		if args[0].Nil() {

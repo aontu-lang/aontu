@@ -692,7 +692,7 @@ Everything the tools write into a project lives in one folder,
 `aontu_meta/`, and nothing authored does. Today that is the lockfile,
 `aontu_meta/mod-lock.aon`, and the vendored closure,
 `aontu_meta/vendor/<module-path>@<major>/`; the engine pin of
-`docs/design/ENV.0.md` joins them as `aontu_meta/version` when it is
+`sketch/ENV.0.md` joins them as `aontu_meta/version` when it is
 built. `mod.aon` stays at the root, because it is the declaration a
 person writes, as `go.mod` and `package.json` are, and the project root
 is still found by walking up to it.

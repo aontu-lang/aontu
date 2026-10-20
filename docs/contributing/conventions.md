@@ -21,7 +21,7 @@ refuse the claims a reader cannot check from the tree — issue numbers,
 dates, versions and counts. A comment that has gone stale fails the
 build, which is what keeps the surviving prose true.
 
-What a comment used to carry has homes: `docs/design/` for the why
+What a comment used to carry has homes: `sketch/` for the why
 behind a settled decision, [`ADR.md`](../../ADR.md) for a fundamental, the
 commit message for how the work went, and `git log -L` / `git blame`
 for reading any of it back.
@@ -61,7 +61,7 @@ So, when writing or revising a document:
   reader needs in order not to break it.
 
 The same rule governs `docs/` through
-[docs/STYLE-GUIDE.md](../../docs/STYLE-GUIDE.md); this section extends it to
+[STYLE-GUIDE.md](../../STYLE-GUIDE.md); this section extends it to
 the READMEs under `test/system/` and `use-cases/`, which are published
 to the website by `aontu-lang/web` and are read by people who were not
 here.
@@ -91,7 +91,7 @@ and `publish` operate on packages, as do the `aontu pkg` subcommands;
 Write "package repository", "publish a package", "the package's
 dependencies". Never "module registry" or "publish a module". The rule
 applies to code comments, identifiers, error messages, commit messages
-and documentation alike; `docs/STYLE-GUIDE.md` carries the same rule
+and documentation alike; `STYLE-GUIDE.md` carries the same rule
 for published prose.
 
 **Go uses the two words the other way round** — its module is the

@@ -1,7 +1,7 @@
 # 60: the `aon1-` canon-hash is BLIND to an alias used as a SPREAD
 # TEMPLATE. Two documents with different meanings hash the same, in
 # both ports, and neither matches its own longhand twin -- which is
-# the one property docs/design/ALIASES.0.md calls "the sharpest single
+# the one property sketch/ALIASES.0.md calls "the sharpest single
 # row in this list".
 #
 # This file is the FIRST of four; run all four and compare.

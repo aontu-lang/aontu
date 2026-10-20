@@ -3,7 +3,7 @@
 # strings, so a schema written in them produces a well-formed document
 # with no constraint in it and exit 0.
 #
-# docs/design/AONTUCONSTRAINTS.0.md §6 named exactly this in its row 7
+# sketch/AONTUCONSTRAINTS.0.md §6 named exactly this in its row 7
 # and called it "worse than unsupported, since it produces a
 # well-formed wrong config". G1 then landed the whole constraint
 # algebra under FUNCTION syntax — min/max/above/below/neq/re — which

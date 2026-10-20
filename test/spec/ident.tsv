@@ -1,8 +1,9 @@
-# IDENT -- `ident(v, r)` (G12 phase 10, ADR-056): the identity a schema
-# was declared with, carried by its alias declaration and by nothing
-# else. The value is v; r is a map whose keys are among id, anchor,
-# dynamicAnchor (phase 11, ADR-057) and defs, each a string, and
-# anything else refuses with func_arg. ident() is a declaration's value,
+# IDENT -- `ident(v, r)` (G12 phase 10, ADR-056, ADR-073): a record
+# carried by an alias declaration and by nothing else. The value is v; r
+# is a map of concrete data under any keys, the exporter reading the
+# identity a schema was declared with from id, anchor, dynamicAnchor
+# (phase 11, ADR-057) and defs, and a record that is not one refuses
+# with func_arg. ident() is a declaration's value,
 # or one term of the meet that is its value; anywhere else it refuses
 # with ident_place. A reference copies the value without the identity,
 # and the identity is in no canon and no hash: the two hash rows below
@@ -21,9 +22,12 @@ ident-dynamic-anchor	gens	%a = ident({ y: 1 }, { dynamicAnchor: "n" })\nb: %a	{"
 ident-in-a-value-position-refused	errc	b: ident(1, { id: "x" })	ident_place
 ident-in-a-value-prefix-refused	errc	x: %a = ident(1, { id: "x" })\ny: %a	ident_place
 ident-in-a-list-refused	errc	x: [ident(1, { id: "x" })]	ident_place
-ident-unknown-key-refused	errc	%a = ident(1, { nope: "x" })\nb: %a	func_arg
-ident-key-not-a-string-refused	errc	%a = ident(1, { id: 2 })\nb: %a	func_arg
-ident-dynamic-anchor-not-a-string-refused	errc	%a = ident(1, { dynamicAnchor: 2 })\nb: %a	func_arg
+ident-any-key	gens	%a = ident(1, { nope: "x" })\nb: %a	{"b":1}
+ident-an-identity-key-holds-any-data	gens	%a = ident(1, { id: 2 })\nb: %a	{"b":1}
+ident-dynamic-anchor-holds-any-data	gens	%a = ident(1, { dynamicAnchor: 2 })\nb: %a	{"b":1}
+ident-nested-data-under-any-key	gens	%a = ident({ y: 1 }, { owner: { team: "core", tags: ["a"] } })\nb: %a	{"b":{"y":1}}
+ident-prototype-names-are-keys	gens	%a = ident({ y: 1 }, { toString: "t", "__proto__": "p" })\nb: %a	{"b":{"y":1}}
+ident-record-not-data-refused	errc	%a = ident(1, { id: number })\nb: %a	func_arg
 ident-record-not-a-map-refused	errc	%a = ident(1, 2)\nb: %a	func_arg
 ident-without-a-record-refused	errc	%a = ident(1)\nb: %a	func_arity
 ident-without-arguments-refused	errc	%a = ident()\nb: %a	func_arity

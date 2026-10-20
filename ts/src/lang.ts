@@ -168,7 +168,7 @@ import {
   AboveConstraintVal,
   BelowConstraintVal,
   NeqConstraintVal,
-  MultipleConstraintVal,
+  MulofConstraintVal,
   ReConstraintVal,
   LenConstraintVal,
   UniqueConstraintVal,
@@ -840,7 +840,7 @@ help isolate the syntax error.`,
     above: AboveConstraintVal,
     below: BelowConstraintVal,
     neq: NeqConstraintVal,
-    multiple: MultipleConstraintVal,
+    mulof: MulofConstraintVal,
 
     // G1 phase 2: pattern membership, read and matched by aontu's own
     // engine (ADR-060).
@@ -870,7 +870,7 @@ help isolate the syntax error.`,
     refer: ReferFuncVal,
     rel: RelFuncVal,
 
-    // RELATIONS P2 (docs/design/RELATIONS.0.md §3.3): the graph
+    // RELATIONS P2 (sketch/RELATIONS.0.md §3.3): the graph
     // atoms, conjoined at the field whose key is the predicate they
     // govern. Lattice-inert; the verdict lands at generation.
     acyclic: AcyclicFuncVal,

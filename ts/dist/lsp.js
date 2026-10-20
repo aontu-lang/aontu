@@ -404,11 +404,12 @@ function hoverMarkdown(val) {
     return '```aontu\n' + canon + '\n```\n\n' + '*' + valKind(val) + '*' +
         annotationMarkdown(val);
 }
-// A value's titles, in bold, and its descriptions, from its annotations.
+// A value's titles, in bold, and its descriptions, from its annotations:
+// the text a record holds under each key, as the Go hover reads it.
 function annotationMarkdown(val) {
     const meta = val.meta ?? {};
-    return [...(meta.title ?? []).map((t) => '**' + t.peg + '**'),
-        ...(meta.description ?? []).map((d) => d.peg)]
+    const texts = (key) => (meta[key] ?? []).map((t) => t.peg).filter((t) => 'string' === typeof t);
+    return [...texts('title').map((t) => '**' + t + '**'), ...texts('description')]
         .map((said) => '\n\n' + said).join('');
 }
 // A short human description of a Val's kind, shown under the hover canon.
@@ -459,7 +460,7 @@ const BUILTIN_FUNCS = [
     'file', 'filter', 'folder', 'format', 'fragment', 'greatest',
     'hide', 'ident', 'inject', 'inverse', 'join', 'key', 'least', 'len', 'line',
     'listitems', 'lower',
-    'match', 'max', 'maybe', 'meta', 'min', 'mod', 'move', 'mul', 'multiple', 'must', 'neq',
+    'match', 'max', 'maybe', 'meta', 'min', 'mod', 'move', 'mul', 'mulof', 'must', 'neq',
     'nof', 'nom', 'open',
     'pack', 'parse', 'path', 'pick',
     'pref', 'project', 're', 'refer', 'rel', 'rem', 'rep', 'rest', 'slot', 'sort',
@@ -482,7 +483,7 @@ const LITERAL_KEYWORDS = ['_', 'true', 'false', 'null', 'any'];
 function computeCompletions(src) {
     const out = [];
     for (const f of BUILTIN_FUNCS) {
-        // The detail is the rendered SIGNATURE (docs/design/SIGNATURES.0.md)
+        // The detail is the rendered SIGNATURE (sketch/SIGNATURES.0.md)
         // -- the same renderer the hints and the docs table use, so the
         // completion list cannot drift from the declaration.
         out.push({ label: f, kind: COMPLETION_FUNCTION, detail: (0, sig_1.renderSig)(sig_1.funcSig[f]) });

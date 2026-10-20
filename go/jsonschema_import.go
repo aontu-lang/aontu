@@ -1896,7 +1896,7 @@ func kindsOf(e *ixpr) []string {
 			return []string{"string"}
 		case "close", "meta", "deprecate":
 			return kindsOf(e.items[0])
-		case "min", "max", "above", "below", "multiple":
+		case "min", "max", "above", "below", "mulof":
 			return []string{"number"}
 		}
 		return importKinds
@@ -2623,7 +2623,7 @@ func jsonKindOf(n *jnode) string {
 func importSays(lit *jnode, kind string, branch *ixpr) bool {
 	return jsonKindOf(lit) == kind && (importBare[kind] == iprint(branch, "") ||
 		("number" == lit.t && importIntegerText.MatchString(lit.s) &&
-			"number & multiple(1)" == iprint(branch, "")))
+			"number & mulof(1)" == iprint(branch, "")))
 }
 
 // data writes a JSON value as aontu data; ok is false where a number in
@@ -2667,16 +2667,25 @@ func (ctx *importCtx) data(path, keyword string, node *jnode) (*ixpr, bool) {
 
 // annotate lets a schema object's annotations ride its value: the
 // annotation keywords and every keyword JSON Schema does not name in a
-// meta() record, under `x` for the second, and `deprecated` as
+// meta() record, each under its own name, and `deprecated` as
 // deprecate().
 func (ctx *importCtx) annotate(node *jnode, ptr string, e *ixpr) *ixpr {
 	entries := []ientry{}
-	x := []ientry{}
+	// An unknown keyword rides under its own name, but not under a name
+	// the exporter reads as another keyword (ADR-072).
+	own := func(at, key string, val *ixpr) {
+		if as, renamed := importExportedAs[key]; renamed {
+			ctx.lose(at, key, "the record key "+key+" is written as "+as+
+				", so an unknown keyword of that name is dropped")
+			return
+		}
+		entries = append(entries, ientry{key: key, val: val})
+	}
 	// A keyword the schema's dialect does not define is an annotation
 	// (ADR-061).
 	for _, en := range node.unknown {
 		if val, ok := ctx.data(ptrChild(ptr, en.key), en.key, en.val); ok {
-			x = append(x, ientry{key: en.key, val: val})
+			own(ptrChild(ptr, en.key), en.key, val)
 		}
 	}
 	for _, en := range node.entries {
@@ -2697,11 +2706,8 @@ func (ctx *importCtx) annotate(node *jnode, ptr string, e *ixpr) *ixpr {
 		if annotated {
 			entries = append(entries, ientry{key: ann[0], val: val})
 		} else {
-			x = append(x, ientry{key: en.key, val: val})
+			own(at, en.key, val)
 		}
-	}
-	if 0 < len(x) {
-		entries = append(entries, ientry{key: "x", val: &ixpr{k: "map", entries: x}})
 	}
 	dep := ctx.deprecation(node, ptr, e)
 	if 0 == len(entries) {
@@ -2710,6 +2716,11 @@ func (ctx *importCtx) annotate(node *jnode, ptr string, e *ixpr) *ixpr {
 	sort.SliceStable(entries, func(i, j int) bool { return entries[i].key < entries[j].key })
 	return icall("meta", dep, &ixpr{k: "map", entries: entries})
 }
+
+// importExportedAs is the record keys the exporter writes as another
+// keyword: the import of an unknown keyword of one of these names is a
+// loss.
+var importExportedAs = map[string]string{"comment": "$comment", "dynamicRef": "$dynamicRef"}
 
 // content is the content keywords' record on a string branch:
 // contentSchema says nothing without contentMediaType.
@@ -2918,15 +2929,15 @@ func (ctx *importCtx) branch(node *jnode, ptr, kind string, integral, typed bool
 		// An integer is a number with no fraction, whatever its spelling.
 		parts := []*ixpr{kindOf(iraw("number"))}
 		if integral {
-			parts = append(parts, ctx.mark(icall("multiple", iraw("1")), at("type"), node, imark{}))
+			parts = append(parts, ctx.mark(icall("mulof", iraw("1")), at("type"), node, imark{}))
 		}
 		for _, kf := range [][2]string{{"minimum", "min"}, {"maximum", "max"},
 			{"exclusiveMinimum", "above"}, {"exclusiveMaximum", "below"},
-			{"multipleOf", "multiple"}} {
+			{"multipleOf", "mulof"}} {
 			if v := get(kf[0]); nil != v {
 				text, ok := ctx.number(at(kf[0]), kf[0], v)
 				switch {
-				case ok && "multiple" == kf[1] && (strings.HasPrefix(text, "-") || "0" == text):
+				case ok && "mulof" == kf[1] && (strings.HasPrefix(text, "-") || "0" == text):
 					ctx.wrongType(at(kf[0]), kf[0], "a number greater than 0", v)
 				case ok:
 					parts = append(parts, ctx.mark(icall(kf[1], iraw(text)), at(kf[0]), node, imark{}))

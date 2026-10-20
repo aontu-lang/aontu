@@ -210,7 +210,7 @@ nothing.
 ## Known limitations
 
 - **A closed role vocabulary had to declare `deny?`**, until
-  [ADR-053](../../ADR.md#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare)
+  [ADR-053](../ADR.md#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare)
   lifted the limit. The template carries `deny?: [&: string]`, and a
   `Role` written as `close({ desc: string allow: [&: string] })`
   refused it as `[aontu/closed]` for every role, so the verb answered

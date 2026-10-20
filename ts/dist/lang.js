@@ -620,7 +620,7 @@ help isolate the syntax error.`,
         above: ConstraintVal_1.AboveConstraintVal,
         below: ConstraintVal_1.BelowConstraintVal,
         neq: ConstraintVal_1.NeqConstraintVal,
-        multiple: ConstraintVal_1.MultipleConstraintVal,
+        mulof: ConstraintVal_1.MulofConstraintVal,
         // G1 phase 2: pattern membership, read and matched by aontu's own
         // engine (ADR-060).
         re: ConstraintVal_1.ReConstraintVal,
@@ -643,7 +643,7 @@ help isolate the syntax error.`,
         ident: IdentFuncVal_1.IdentFuncVal,
         refer: ReferFuncVal_1.ReferFuncVal,
         rel: ReferFuncVal_1.RelFuncVal,
-        // RELATIONS P2 (docs/design/RELATIONS.0.md §3.3): the graph
+        // RELATIONS P2 (sketch/RELATIONS.0.md §3.3): the graph
         // atoms, conjoined at the field whose key is the predicate they
         // govern. Lattice-inert; the verdict lands at generation.
         acyclic: GraphAtomVal_1.AcyclicFuncVal,

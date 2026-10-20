@@ -1,7 +1,7 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
 
-// P6 of docs/design/DEFINITION.0.md: every call and word the importer
+// P6 of sketch/DEFINITION.0.md: every call and word the importer
 // writes over the vendored corpora, strings removed, is a row of
 // spec/forms.tsv, which the oracle writes from the definition's syntax,
 // or of spec/forms-outside.tsv, the forms that wait on a decision, every

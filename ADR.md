@@ -30,7 +30,7 @@ capability decision is the phase rows it governed in
 An entry that defines a rule of the language becomes **Moved to the
 definition <date>** once the definition under [`spec/`](spec/) holds
 the rule ([ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it),
-and [`docs/design/DEFINITION.0.md`](docs/design/DEFINITION.0.md), §4):
+and [`sketch/DEFINITION.0.md`](sketch/DEFINITION.0.md), §4):
 its status names the module and the theorems that hold it, its text
 stays as the record of why the rule is what it is, and the rule is
 thereafter stated and changed in the definition, not here.
@@ -88,12 +88,12 @@ thereafter stated and changed in the definition, not here.
 | [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Moved to the definition; superseded in part by [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) and [ADR-055](#adr-055--must-asks-the-admission-trial) |
 | [ADR-050](#adr-050--a-conditional-holds-a-value-to-the-branch-its-condition-picks) | A conditional holds a value to the branch its condition picks | Moved to the definition |
 | [ADR-051](#adr-051--a-container-counts-the-members-a-trial-schema-admits) | A container counts the members a trial schema admits | Moved to the definition |
-| [ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Accepted |
+| [ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) | Annotations ride a value and meet as a union | Amended by [ADR-072](#adr-072--a-meta-record-is-open-metadata) and [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
 | [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Moved to the definition |
 | [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) | The admission trial is asked once, counted, and stopped when its count is decided | Accepted |
 | [ADR-055](#adr-055--must-asks-the-admission-trial) | `must` asks the admission trial | Moved to the definition |
-| [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) |
-| [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Accepted |
+| [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import), [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) and [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
+| [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
 | [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Moved to the definition |
 | [ADR-059](#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself) | A format is a grammar aontu reads and runs itself | Accepted |
 | [ADR-060](#adr-060--aontu-matches-a-pattern-with-its-own-engine) | aontu matches a pattern with its own engine | Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) |
@@ -107,8 +107,13 @@ thereafter stated and changed in the definition, not here.
 | [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) | An import comes back from its own export | Accepted |
 | [ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it) | The language is defined in Lean, and the ports implement it | Accepted |
 | [ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release) | The standard CI run samples, the daily run decides, and releases come from `release` | Amended by [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) |
-| [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) | A push is checked in two minutes and a pull request in five | Accepted |
-| [ADR-072](#adr-072--the-definition-is-pinned-to-lean-4241) | The definition is pinned to Lean 4.24.1 | Accepted |
+| [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) | A push is checked in two minutes and a pull request in five | Amended by [ADR-075](#adr-075--local-testing-takes-minutes-and-the-long-runs-are-the-daily-cis) |
+| [ADR-072](#adr-072--a-meta-record-is-open-metadata) | A `meta()` record is open metadata | Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
+| [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) | An `ident()` record is open declaration metadata | Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
+| [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) | What a rider's record holds is no export loss | Accepted |
+| [ADR-075](#adr-075--local-testing-takes-minutes-and-the-long-runs-are-the-daily-cis) | Local testing takes minutes, and the long runs are the daily CI's | Accepted |
+| [ADR-076](#adr-076--every-prompt-is-logged) | Every prompt is logged | Accepted |
+| [ADR-077](#adr-077--the-definition-is-pinned-to-lean-4241) | The definition is pinned to Lean 4.24.1 | Accepted |
 
 ---
 
@@ -844,7 +849,7 @@ divergence that only an explicit rule prevents. Pinned by
 
 ### Context
 
-[`docs/design/AONTUCONSTRAINTS.0.md`](docs/design/AONTUCONSTRAINTS.0.md)
+[`sketch/AONTUCONSTRAINTS.0.md`](sketch/AONTUCONSTRAINTS.0.md)
 proposes CUE's operator spellings for the constraint families it
 designs: `>10`, `>=10`, `<5`, `!=0` for bounds (§6), `=~"p"` and `!~"p"`
 for patterns (§7). Its §10 budgets a **lexing break** for them — bare
@@ -932,7 +937,7 @@ needs a new ADR.
   entry.** It is a name for a bounded `integer`, not an operator, so it
   is a *named* form and this decision does not bear on it. It remains
   unbuilt and undecided.
-- **`docs/design/AONTUCONSTRAINTS.0.md` §6, §7, §10 and §12 now carry
+- **`sketch/AONTUCONSTRAINTS.0.md` §6, §7, §10 and §12 now carry
   this decision inline**, because a design note that proposes a syntax
   is exactly where a future contributor will look for permission to
   build it.
@@ -1067,7 +1072,7 @@ Two boundaries, so the rule cuts where intended:
 ### Consequences
 
 - The `relations:` convention was a **standing violation**,
-  grandfathered until `docs/design/RELATIONS.0.md` P2 replaced it with
+  grandfathered until `sketch/RELATIONS.0.md` P2 replaced it with
   value-level atoms — **discharged 2026-08-29**: the engine reads no
   plain-named key anywhere, `relations:` is ordinary user data
   (pinned by `relation.tsv` `relations-key-is-user-space` /
@@ -1138,7 +1143,7 @@ the disjunction — the refusal is `empty`, at every rank and for every
 shape.
 
 Five consequences, spelled out with their reasoning in
-[docs/design/DEFAULTS.0.md](docs/design/DEFAULTS.0.md): one refusal
+[sketch/DEFAULTS.0.md](sketch/DEFAULTS.0.md): one refusal
 code (R1); equal-rank defaults that cannot agree refuse as
 `pref_rank_clash` rather than as a conflict between the values they
 hold (R2); a container default is leafwise in what it admits, so a map
@@ -1296,7 +1301,7 @@ the day the two parsers agree the row is what says so.
 
 **`.jsonld` reads as JSON**, because it is JSON: a `@context` is a key
 like any other here, and what it MEANS is the vocabulary's business,
-not the reader's. That is what `docs/design/ONTOLOGY.0.md` §3.1 needed,
+not the reader's. That is what `sketch/ONTOLOGY.0.md` §3.1 needed,
 every vocabulary its phase P1 imports being `.json` or `.jsonld` —
 schema.org ships `schemaorg-current-https.jsonld`, microformats2
 parsers emit JSON, DCMI publishes RDF serialisations.
@@ -1682,7 +1687,7 @@ inside a `type()` body cannot. `map` unmet and `refer()` unresolved
 are the same flavour of requiredness at the value and graph levels.
 
 Not done here, recorded as future work in
-`docs/design/PATHS.0.md`: the resolved-link stamp (`link`/`relkey` on
+`sketch/PATHS.0.md`: the resolved-link stamp (`link`/`relkey` on
 a `StringVal`) is not yet replaced by intrinsic path values, the
 graph still reads stamps rather than values, and the refer flow's
 effect-timing questions (disjunct-branch leaks, generation-time
@@ -1813,7 +1818,7 @@ has no place to live.
 Fifteen spec rows moved from bare `invalid-arg` to `func_arg` (the
 case family's operand, the arithmetic operands, join's separator);
 every bespoke code stays. Design and deltas:
-docs/design/SIGNATURES.0.md.
+sketch/SIGNATURES.0.md.
 
 ## ADR-018 — The pipe operator is removed
 
@@ -2536,10 +2541,10 @@ thing from the bridge this refused.
 **The other two retirements stand, on their own evidence and not on
 this entry.** Phase 5 is not built because a transform states its facts
 as data and the vocabulary vets them
-([GENERATION-FORMS.0.md](docs/design/GENERATION-FORMS.0.md) is where
+([GENERATION-FORMS.0.md](sketch/GENERATION-FORMS.0.md) is where
 the embedding surface was measured); phase 8 is not built because
 `${expr}` was measured to break on this project's own material
-([TEMPLATE.0.md](docs/design/TEMPLATE.0.md)), and `replace` carries it
+([TEMPLATE.0.md](sketch/TEMPLATE.0.md)), and `replace` carries it
 instead. The register's rows for those two phases are the record.
 
 **The parity boundary this entry drew is withdrawn with it.** It read
@@ -2878,7 +2883,7 @@ the CHANGELOG carries in its place. Both records are
 
 The engine bundled seven schemas and served them under **two** naming
 schemes. Five carried the `aontu:` prefix
-([MODELS.0.md](docs/design/MODELS.0.md) D1, RENDER.0.md P0) — `aontu:code`,
+([MODELS.0.md](sketch/MODELS.0.md) D1, RENDER.0.md P0) — `aontu:code`,
 `aontu:profile` and the three language profiles. Two did not:
 `std/system` (G4 phase 4) and `std/view`, spelled as bare paths, each
 also answering to a `.aontu` suffix.
@@ -3365,7 +3370,7 @@ itself.
   (`@object$`, `@array$`, `@key$`, `@setval$`, `@push$`). The original
   consequence here said a document could not choose the output shape
   until a builtin could be named as DATA. That is what
-  [GRAMMAR-SHAPE.0.md](docs/design/GRAMMAR-SHAPE.0.md) asked upstream
+  [GRAMMAR-SHAPE.0.md](sketch/GRAMMAR-SHAPE.0.md) asked upstream
   for and what `@tabnas/abnf` 0.4.11 delivered: the compiled grammar
   names the builders and carries no closures, so a document chooses its
   shape by writing a comment.
@@ -3864,7 +3869,7 @@ marker, and the component tree. Three of them spell one road's worth
 of capability three ways, and every one of them has to be learned,
 documented, tested in both ports and kept in parity.
 
-`docs/design/UNITS-AND-TREES.0.md` measured what a unit carries that a
+`sketch/UNITS-AND-TREES.0.md` measured what a unit carries that a
 tree does not, and found one thing: a unit's `path` is module identity,
 so moving `app/geo.ts` to `app/deep/geo.ts` rewrites a derived
 `"../lib/geo"` to `"../../lib/geo"`. `UNITS-AND-TREES.1.md` is the
@@ -3958,7 +3963,7 @@ going with the renderer that implements it.
   deletion this entry sanctions reaches the registry.
 - **The staging is not here.** What order the deletions happen in,
   what jostraca must ship first, and what the corpus migration touches
-  live in `docs/design/UNITS-AND-TREES.1.md` §10, which is a plan and
+  live in `sketch/UNITS-AND-TREES.1.md` §10, which is a plan and
   changes as plans do. This entry decides the destination only.
 
 **Enforcement.** The gate is the absence of a second road: no future
@@ -4802,7 +4807,7 @@ two values, and the conformance harness requires it to agree with
 ## ADR-048 — Divisibility reads the number a value shows
 
 **Date:** 2026-10-01
-**Status:** Moved to the definition (2026-10-19): the `multiple` rules of `Judge` in [`spec/Aontu/Admits.lean`](spec/Aontu/Admits.lean), over `Number.multipleOf` in [`spec/Aontu/Data.lean`](spec/Aontu/Data.lean), which reads a float as the decimal it shows.
+**Status:** Moved to the definition (2026-10-19): the `mulof` rules of `Judge` in [`spec/Aontu/Admits.lean`](spec/Aontu/Admits.lean), over `Number.multipleOf` in [`spec/Aontu/Data.lean`](spec/Aontu/Data.lean), which reads a float as the decimal it shows. Amended 2026-10-19: the atom this record spells `multiple(n)` is `mulof(n)`, in both ports, the grammars and the definition; the text below keeps the spelling it was decided under.
 
 ### Context
 
@@ -5036,7 +5041,7 @@ distinct as JSON values, which `unique()` already asks of aontu values.
 ## ADR-052 — Annotations ride a value and meet as a union
 
 **Date:** 2026-10-01
-**Status:** Accepted
+**Status:** Amended by [ADR-072](#adr-072--a-meta-record-is-open-metadata): its first decision, the fixed record keys, is superseded; and by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss): a record key the exporter does not write is no loss
 
 ### Context
 
@@ -5266,7 +5271,7 @@ unifies changes its answer.
 ## ADR-056 — Identity rides the alias declaration
 
 **Date:** 2026-10-08
-**Status:** Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import)
+**Status:** Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import), by [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata): its first decision, the fixed record keys, is superseded; and by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss): an identity the exporter does not write is no loss
 
 ### Context
 
@@ -5333,7 +5338,7 @@ which a copy carries wherever it goes.
 ## ADR-057 — A dynamic reference is specialised at import
 
 **Date:** 2026-10-09
-**Status:** Accepted
+**Status:** Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss): a dynamic reference written as its `$ref` is no loss
 
 ### Context
 
@@ -5839,7 +5844,7 @@ pointer, `p_definitions_2f_…`, and keeps the `d_` names for `$defs`.
 ### Context
 
 A reference that reaches its own definition is a recursive residual
-([docs/design/RECURSION.0.md](docs/design/RECURSION.0.md)): it expands
+([sketch/RECURSION.0.md](sketch/RECURSION.0.md)): it expands
 one level against concrete structure and otherwise waits beside
 whatever it meets. Imported, the 2020-12 meta-schema is a dialect alias
 whose value is the meet of its vocabularies' aliases, each a titled
@@ -6230,7 +6235,7 @@ text by its hash.
 ### Context
 
 A recursive residual expands only against concrete data
-([docs/design/RECURSION.0.md](docs/design/RECURSION.0.md)), and
+([sketch/RECURSION.0.md](sketch/RECURSION.0.md)), and
 subsumption compares two evaluated documents with no data on either
 side. The walk took the residual for unresolved residue: two recursions
 with the same hash form were the same value, and any other pair was
@@ -6501,7 +6506,7 @@ not what a value admits. The owner ruled on 2026-10-15 that the
 language is defined separately and not in natural language, and a
 Lean sketch of a fragment run against both ports the same day found
 one defect, one open rule and one question the definition had to
-answer ([docs/design/DEFINITION.0.md](docs/design/DEFINITION.0.md)).
+answer ([sketch/DEFINITION.0.md](sketch/DEFINITION.0.md)).
 
 ### Decision
 
@@ -6655,7 +6660,7 @@ moment of the dispatch.
 ## ADR-071 — A push is checked in two minutes and a pull request in five
 
 **Date:** 2026-10-19
-**Status:** Accepted
+**Status:** Amended by [ADR-075](#adr-075--local-testing-takes-minutes-and-the-long-runs-are-the-daily-cis): the daily runs are not run by hand before a push or a merge
 
 ### Context
 
@@ -6704,7 +6709,304 @@ the sample 105 to 152 s.
 - Enforced by the `timeout-minutes` in `build.yml` and by the
   `quick` target's comment, which cite this entry.
 
-## ADR-072 — The definition is pinned to Lean 4.24.1
+## ADR-072 — A `meta()` record is open metadata
+
+**Date:** 2026-10-20
+**Status:** Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss): a convention of another kind, or a key naming a keyword, is not written and is no loss
+
+### Context
+
+[ADR-052](#adr-052--annotations-ride-a-value-and-meet-as-a-union) made
+`meta(v, ...r)` a value-transparent rider whose records meet as their
+union, and fixed a record's keys to JSON Schema's annotation keywords:
+`title`, `description`, `comment`, `default`, `examples`, `readOnly`,
+`writeOnly`, `format`, the three content keywords, `x` for the keywords
+JSON Schema does not name, and, from
+[ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import),
+`dynamicRef`. Each key had a kind, and anything else refused with
+`func_arg`. The rider arrived for one job, carrying JSON Schema's
+annotations, and the key list was the shape of that job; neither G12
+nor ADR-052 gave another reason for it.
+
+The list put one interchange format's vocabulary into both engines.
+That is against the line
+[ADR-047](#adr-047--the-json-schema-importer-owns-the-meaning) draws,
+where the importer owns JSON Schema's meaning, and the one
+[ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages)
+draws for target languages. `x` was defined only relative to JSON
+Schema, and `dynamicRef` annotated nothing. Inside the engine only the
+language server read a key, and only `title` and `description`. The
+definition is ruled to name no JSON Schema keyword, yet it could not
+take the rider in under its decision 14 without naming the list, to
+explain why `meta(1, {colour: "red"})` refused.
+
+### Decision
+
+1. **A record is a map of concrete data under any keys.** `meta()`
+   refuses with `func_arg` only a record that is not one: a record
+   holding a kind, a spread, an optional key or a preference anywhere.
+   The rest of ADR-052 stands: the value unifies exactly as `v`,
+   records meet as their key-wise union, canon writes them back and
+   the hash includes them. This supersedes ADR-052's first decision.
+2. **What a key means is for the reader of the record to say.** The
+   language server reads `title` and `description` for its hover, and
+   only their text. The JSON Schema exporter reads its conventions:
+   `title`, `description`, `comment` as `$comment`, `default`,
+   `examples`, `readOnly`, `writeOnly`, `format`, the three content
+   keywords, and `dynamicRef` on a reference as `$dynamicRef`. A
+   convention holding another kind of data than its keyword takes is a
+   reported loss at export, not a refusal at evaluation.
+3. **Every other key crosses under its own name.** The exporter writes
+   it as a keyword of that name, and drops one that names a JSON Schema
+   keyword with a reported loss, since it would assert where the record
+   only annotates. `x` is a key like any other.
+4. **The importer writes an unknown keyword under its own name.** A
+   keyword JSON Schema does not name, or that the schema's dialect or
+   vocabularies do not define, is a key of the record. An unknown
+   keyword named `comment` or `dynamicRef` is a reported loss, since the
+   exporter would write it back as another keyword.
+5. **A record key may be any string.** `__proto__` and `toString`
+   included: the TypeScript records, and the keyword tables either
+   verb looks a schema's names up in, are null-prototype objects
+   ([#392](https://github.com/aontu-lang/aontu/issues/392)).
+
+### Consequences
+
+- Any metadata rides a value, nested data included:
+  `meta(1, {colour: "red"})` is `meta(1,{"colour":"red"})`.
+- Breaking: an imported schema's unknown keywords leave `x`, which
+  changes its canon and hash, and a hand-written `x` now exports as a
+  keyword named `x`. A record whose convention holds the wrong kind is
+  accepted where it refused, and its export reports the loss.
+- A typo in a conventional key, such as `titel`, is accepted, and
+  exports as an extension keyword of that name. Nothing warns: a
+  warning on keys outside the exporter's conventions would carry JSON
+  Schema's vocabulary back into the language server.
+- `dynamicRef` stays a record key on a use, not a field of `ident()`,
+  which rides only a declaration.
+- The riders can enter the definition under its decision 14 without
+  naming a JSON Schema keyword: a record is data the definition carries
+  and says nothing about.
+- Pinned by `test/spec/meta.tsv`, `test/spec/jsonschema.tsv` and
+  `test/spec/jsonschema-import.tsv`, in both ports.
+
+## ADR-073 — An `ident()` record is open declaration metadata
+
+**Date:** 2026-10-20
+**Status:** Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss): a key the exporter does not write is no loss
+
+### Context
+
+[ADR-072](#adr-072--a-meta-record-is-open-metadata) opened the `meta()`
+record and moved JSON Schema's annotation vocabulary into the importer
+and the exporter. `ident(v, r)`, the record only an alias declaration
+carries ([ADR-056](#adr-056--identity-rides-the-alias-declaration)),
+kept the shape `meta` had: four fixed keys, `id`, `anchor`,
+`dynamicAnchor` and `defs`, each a string, and anything else refused
+with `func_arg`. The keys are JSON Schema's identity, and the engine
+never reads them: a copy drops the record, and it is in no canon and no
+hash.
+
+Folding identity into `meta` does not work. A `meta` record travels
+with its value into every copy and meet, so every use would claim to be
+the resource, a meet of two identified aliases would hold two `$id`s,
+and the hash of every document using a schema would move with the
+schema's URL. What `ident` provides that `meta` does not is its scope:
+a record on a declaration that stays there.
+
+### Decision
+
+1. **A declaration's record is a map of concrete data under any keys.**
+   `ident()` refuses with `func_arg` only a record that is not one. The
+   rest of ADR-056 stands: only a declaration carries it, a copy drops
+   it, two declarations of one name meet their records as a union, and
+   it is in no canon and no hash. This supersedes ADR-056's first
+   decision.
+2. **The JSON Schema exporter reads the identity from its conventions.**
+   `id`, `anchor` and `dynamicAnchor` as `$id`, `$anchor` and
+   `$dynamicAnchor`, and `defs` as the definition's name under `$defs`,
+   each read only where it holds text; one holding anything else is a
+   reported loss.
+3. **Every other key crosses under its own name.** The exporter writes
+   it as a keyword of that name on the schema the definition is written
+   as, the root where the definition is the whole schema. A key naming a
+   JSON Schema keyword, a key the definition writes already, and a key
+   the declarations gave several values are each a reported loss.
+4. **The importer is unchanged.** It writes a schema's identity under
+   the four conventions, and the schema's other keywords on its value,
+   in `meta()`.
+
+### Consequences
+
+- Metadata about a definition can ride its declaration without reaching
+  its uses: an owner, a version, a source.
+- `ident(1, {nope: "x"})` and `ident(1, {id: 2})` are accepted where
+  they refused, and the second exports with a loss. No document that
+  evaluated before evaluates or exports differently.
+- A declaration's extra key exports as a keyword on its definition and
+  imports back as a `meta()` key on the value, since JSON Schema keeps
+  no metadata for a definition apart from its schema.
+- The name stays `ident`: identity is its main use, and renaming it
+  would change every imported schema for no change of meaning.
+- The riders can enter the definition under its decision 14 without
+  naming a JSON Schema keyword for either record.
+- Pinned by `test/spec/ident.tsv` and the `js-ident-*` rows of
+  `test/spec/jsonschema.tsv`, in both ports.
+
+## ADR-074 — What a rider's record holds is no export loss
+
+**Date:** 2026-10-20
+**Status:** Accepted
+
+### Context
+
+[ADR-072](#adr-072--a-meta-record-is-open-metadata) and
+[ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) made
+the `meta()` and `ident()` records maps of concrete data under any keys,
+from which the JSON Schema exporter reads its own conventions. The
+exporter went on reporting as a loss each part of a record it did not
+write: a convention holding another kind of data, a key naming a JSON
+Schema keyword, a key the schema writes already or the declarations gave
+several values, and the record of a definition left unwritten. So did
+the losses the resource rules of JSON Schema forced
+([ADR-056](#adr-056--identity-rides-the-alias-declaration),
+[ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import)): an
+`$id` a `$ref` inside would resolve against, an anchor its resource
+already holds, and a dynamic reference written as its `$ref`.
+
+A loss names a difference between what a value admits and what its
+schema admits, the fourth property of
+[G12](docs/capability-review/g12-jsonschema-fidelity.md). A rider
+changes nothing its value admits, and a record that is anyone's
+metadata holds keys JSON Schema has no use for. Reporting them told a
+reader the schema admitted something else when it did not, and made an
+export lossy, and `--strict` refuse it, for metadata no one asked the
+schema to carry. A dynamic reference is the same: the `$ref` written in
+its place admits what the import did, and what goes is the re-binding an
+outer scope would do.
+
+### Decision
+
+1. **Nothing a `meta()` or `ident()` record holds is an export loss.**
+   The exporter writes what it reads from a record where JSON Schema can
+   hold it, and leaves the rest unwritten without a report: a convention
+   of another kind of data, a key naming a JSON Schema keyword, a key
+   the schema writes already, a key the declarations gave several
+   values, the record of a definition whose uses are written as another,
+   an `$id` a `$ref` inside would resolve against, an anchor its
+   resource already holds, and a dynamic reference written as its
+   `$ref`. This amends the export losses of ADR-052, ADR-056, ADR-057,
+   ADR-072 and ADR-073.
+2. **What a record writes is unchanged.** Each convention, each other
+   key, each identity and each `$dynamicRef` the exporter wrote before
+   it writes now, in the same place.
+3. **The importer is unchanged.** Its losses report what of a schema
+   the import could not write, which this decision does not take up.
+
+### Consequences
+
+- An export whose only losses were in records is `ok`, with the schema
+  it had, and `--strict` passes it. Every other loss stands.
+- What a record holds that JSON Schema cannot is dropped from the
+  export without a word: a `title` holding a number, a `type` key on a
+  declaration, or an identity the export's one resource cannot place.
+  The record keeps it in aontu.
+- Pinned by the `js-meta-*` rows of `test/spec/meta.tsv` and the
+  `js-ident-*`, `js-dynamic-*` and `js-clones-*` rows of
+  `test/spec/jsonschema.tsv`, 29 re-measured from both engines, in both
+  ports.
+
+## ADR-075 — Local testing takes minutes, and the long runs are the daily CI's
+
+**Date:** 2026-10-20
+**Status:** Accepted
+
+### Context
+
+[ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five)
+put a push's check at two minutes and a pull request's CI at five, and
+left the prose gate, coverage, the use cases and the other test groups
+to the daily run, to be run "by hand when a change reaches them". That
+clause read as an instruction: an agent ran the coverage gate, about
+forty minutes, and the use cases before each merge, holding each change
+for most of an hour for what the daily run reports the next morning.
+
+### Decision
+
+1. **Local testing takes a few minutes at most.** Before a push:
+   `make quick`, the shared rows or the tests of what the change
+   touches, `make prose` where pages changed, and `make spec` where
+   `spec/` changed (ADR-071's third decision).
+2. **The long runs are the daily CI's.** `make test`, `make cov`, the
+   test groups past the gate group and `use-cases/run-all.sh` are not
+   run locally before a push or a merge, and nothing waits on them.
+   This replaces ADR-071's "run by hand when a change reaches them".
+3. **A pull request merges on its own CI.** Once `build.yml` is green on
+   its head and its review is answered, it merges, without waiting on a
+   local long run or on the daily one.
+
+### Consequences
+
+- A coverage gap, a use case a language change broke, or a failure in a
+  group the sample did not draw can merge, and the next daily run finds
+  it; the fix follows that report.
+- A change goes from edit to merge in the local few minutes and the
+  five of its pull request's CI.
+- Recorded where an agent reads it first: `AGENTS.md` ("Before you
+  push") and `docs/contributing/testing.md`.
+
+## ADR-076 — Every prompt is logged
+
+**Date:** 2026-10-20
+**Status:** Accepted
+
+### Context
+
+The repository records what was decided, in this file, what was built,
+in the register, what changed, in the changelog, and why each commit
+was made. It did not record what was asked. The prompts that started
+the work lived only in each agent's session, out of reach once the
+session ended, so a reader could not trace a change back to the request
+that led to it, or tell which agent took it.
+
+### Decision
+
+1. **Every prompt is logged in
+   [`sketch/PROMPT-LOG.md`](sketch/PROMPT-LOG.md)**, appended: the date
+   and time it was given, in UTC, the agent that took it, and the
+   prompt as it was written, typos included, inside a fence longer than
+   any run of backticks in it. An entry is not rewritten, except to
+   redact.
+2. **A secret is never logged.** A credential, token or key, or
+   personal data, in a prompt is written as `[redacted: what it was]`.
+   An entry found holding one is redacted where it stands, the one
+   rewrite the log allows, and a secret that reached a push is revoked
+   too, since the history keeps it.
+3. **The agent is named by its tool and its session**: the session a
+   Claude Code commit's `Claude-Session` trailer names, so the log and
+   the history find each other, or the run or task identifier another
+   tool gives, or `no session id` where it gives none.
+4. **An entry is written before the work it asks for**, and committed
+   with the first change that follows. A session that ends holding
+   entries and no change commits them on a branch of their own, so a
+   question is not lost with its checkout. A prompt given while a turn
+   is running is logged when it arrives.
+5. **Two branches' entries merge.** `.gitattributes` gives the log
+   git's `union` merge, so branches that each appended an entry merge
+   with both entries kept, in the order the merge takes them.
+
+### Consequences
+
+- The log grows with every request, questions included, and reads
+  roughly in the order the work was asked for; a union merge can set
+  two branches' entries out of time order, and their times say which
+  came first.
+- The session that began the log, from 2026-10-18, had its 23 prompts
+  written from its transcript, with the times the transcript recorded;
+  a prompt the session's restart delivered twice is logged once.
+- Recorded where an agent reads it first: the rules of `AGENTS.md`.
+
+## ADR-077 — The definition is pinned to Lean 4.24.1
 
 **Date:** 2026-10-20
 **Status:** Accepted

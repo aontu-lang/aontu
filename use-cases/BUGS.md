@@ -1015,7 +1015,7 @@ marshaller error as expected behaviour.
 
 **Status: FIXED 2026-08-27, with the arithmetic family.** A non-finite
 binary64 result is now `float_overflow`, located at the operation, in
-both ports — the number model's own rule (docs/design/number-model.md,
+both ports — the number model's own rule (sketch/number-model.md,
 rule 4: "an infinite or NaN result is a located error, not a value")
 applied where it was reachable. `PlusOpVal.operate` and its Go twin go
 through the same check the six new arithmetic functions do
@@ -1516,7 +1516,7 @@ Identical in both ports. Bare strings are a documented scalar form
 (`reference-language.md`: `bare string | a:hello | "hello"`), and a
 leading `>` does not except a value from that rule.
 
-`docs/design/AONTUCONSTRAINTS.0.md` §6 named this in its row 7 and
+`sketch/AONTUCONSTRAINTS.0.md` §6 named this in its row 7 and
 called it "worse than unsupported, since it produces a well-formed wrong
 config". G1 then landed the constraint algebra under **function** syntax
 — `min`, `max`, `above`, `below`, `neq`, `re` — which dissolved that
@@ -1579,7 +1579,7 @@ ports' CSV parsers disagree about what a CSV file is, and ADR-001 does
 not admit that.
 
 JSON reads as data because it IS data. That is what unblocks
-[`docs/design/ONTOLOGY.0.md`](../docs/design/ONTOLOGY.0.md) §3.1, which
+[`sketch/ONTOLOGY.0.md`](../sketch/ONTOLOGY.0.md) §3.1, which
 named this a prerequisite of its phase P1: schema.org ships
 `schemaorg-current-https.jsonld`, microformats2 parsers emit JSON, DCMI
 publishes RDF serialisations.
@@ -1768,7 +1768,7 @@ but here the non-application is reached FROM a schema an author would
 write in good faith, and nothing says so.
 
 **FIXED 2026-08-29**, by the landing of
-[`docs/design/RECURSION.0.md`](../docs/design/RECURSION.0.md) P0+P1 in
+[`sketch/RECURSION.0.md`](../sketch/RECURSION.0.md) P0+P1 in
 both ports — per regime:
 
 - **Regimes 1–2 (`path_cycle` on the self- and mutual reference):**
@@ -2039,7 +2039,7 @@ one hangs the CLI, the LSP, and any agent harness that evaluates
 untrusted input -- which is the case G5 exists to rule out.
 
 The recursion machinery is a week old (§52, fixed 2026-08-29 by
-[`docs/design/RECURSION.0.md`](../docs/design/RECURSION.0.md) P0+P1),
+[`sketch/RECURSION.0.md`](../sketch/RECURSION.0.md) P0+P1),
 and the shape here is regime 4's neighbour: `test/spec/recursion.tsv`
 pins `list-depth-*` for the bare spread, and no row conjoins anything
 with the recursive position inside a spread.
@@ -2436,7 +2436,7 @@ declarations on purpose, and says why
 ([`ts/src/hcanon.ts`](../ts/src/hcanon.ts), the `aliasKeys` filter):
 "`aon1-` pins MEANING, so a document written with aliases and the same
 document written longhand must hash to one string". That is
-[`docs/design/ALIASES.0.md`](../docs/design/ALIASES.0.md)\'s own
+[`sketch/ALIASES.0.md`](../sketch/ALIASES.0.md)\'s own
 sharpest requirement. The erasure is correct **wherever unification
 consumes or substitutes the alias**, and that is every case the suite
 covers:
@@ -3050,7 +3050,7 @@ careful author adds. G4's referential integrity, the `acyclic()` check
 and the `inverse()` check all read the same graph.
 
 This is the blind spot
-[`docs/design/VIEWS.0.md`](../docs/design/VIEWS.0.md) Phase 0 exists to
+[`sketch/VIEWS.0.md`](../sketch/VIEWS.0.md) Phase 0 exists to
 close; recorded here because it is a defect in shipped check verbs on
 its own, independent of whether any diagram is ever drawn.
 
@@ -3494,13 +3494,13 @@ purpose, for finding F of `use-cases/REVIEW.md` — and that reasoning
 holds for the interior, which is already agreed. It is the root, where
 the value did not come from any span of the included file, that has
 two answers. Fix: decide the root's site once, in
-`docs/design/` where the site contract lives, and hold it with a
+`sketch/` where the site contract lives, and hold it with a
 shared spec row; a repo-relative spelling would fix the absolute path
 either way.
 
 ## the formatter — what a rewrite's check exposed
 
-`aontu fmt`'s lawful tier (`docs/design/FMT.0.md` §3.4) merges
+`aontu fmt`'s lawful tier (`sketch/FMT.0.md` §3.4) merges
 adjacent statements naming one key into one map, and splits a wide
 map into repeated statements, and checks each rewrite by unifying the
 two spellings in isolation: they must come to the same canon and the

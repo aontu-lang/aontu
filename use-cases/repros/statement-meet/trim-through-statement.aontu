@@ -12,7 +12,7 @@
 #
 # actual (both ports): verdict: clean, exit 0.
 #
-# Found by the documentation gate of `aontu fmt` (docs/design/FMT.0.md
+# Found by the documentation gate of `aontu fmt` (sketch/FMT.0.md
 # P3): the `trim` how-to's example took this shape in the agreed form
 # and its transcript changed its answer, so the how-to keeps the
 # one-map spelling.

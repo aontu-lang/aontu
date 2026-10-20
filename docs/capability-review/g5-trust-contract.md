@@ -448,7 +448,7 @@ is currently empty.
 - **Canon, the typed assertion surface**: already byte-pinned per
   row by strict string equality in both runners — the contract
   documents this as a guarantee rather than an implementation habit
-  — and, since canon round-trips kind (docs/design/number-model.md,
+  — and, since canon round-trips kind (sketch/number-model.md,
   rule R4: a number-kind scalar always renders with a fraction or an
   exponent), a `canon` row pins the *kind* of a value where a `gen`
   row structurally cannot. The division goes into the contract:

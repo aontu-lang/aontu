@@ -81,7 +81,7 @@ const makeIntegerVal = (v, c) => new IntegerVal_1.IntegerVal({ peg: v }, c);
         (0, expect_1.expect)(makeSK_Float().same(makeSK_Integer())).equal(false);
     });
     // The number tower: `number` is a pure supertype over the disjoint
-    // leaves `integer` and `float`. See docs/design/number-tower.md D1.
+    // leaves `integer` and `float`. See sketch/number-tower.md D1.
     (0, node_test_1.it)('scalar-kind-lattice', () => {
         let ctx = makeCtx();
         let tu = (a, b) => (0, unify_2.unite)(ctx, a, b, 'kind-lattice-test');

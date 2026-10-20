@@ -473,7 +473,7 @@ type ConstraintVal struct {
 	kind   Kind   // KindTop when unnarrowed; a numeric leaf otherwise
 	lo, hi *constraintBound
 	neqs   []*ScalarVal
-	mults  []*ScalarVal   // divisors, each a positive number (multiple())
+	mults  []*ScalarVal   // divisors, each a positive number (mulof())
 	res    []constraintRe // accumulated patterns, sorted by source
 	fmts   []constraintFormat // formats, sorted by source, each once
 	// count is the len() residual: itself a residual over the integer
@@ -555,7 +555,7 @@ func (c *ConstraintVal) superior() Val { return top() }
 // the func-paren handler in lang.go.
 var constraintAtoms = map[string]bool{
 	"min": true, "max": true, "above": true, "below": true, "neq": true,
-	"re": true, "len": true, "unique": true, "must": true, "multiple": true,
+	"re": true, "len": true, "unique": true, "must": true, "mulof": true,
 	"nof": true, "when": true, "contains": true, "rest": true, "format": true,
 }
 
@@ -759,7 +759,7 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 		return bad("arg")
 	}
 
-	if "multiple" == atom {
+	if "mulof" == atom {
 		sv, d := orderableScalar(args[0])
 		if nil == sv || "number" != d || 0 >= scaledOfShown(sv).unscaled.Sign() {
 			return bad("invalid-arg")
@@ -1697,7 +1697,7 @@ func (c *ConstraintVal) Canon() string {
 		parts = append(parts, "neq("+strings.Join(ns, ",")+")")
 	}
 	for _, m := range c.mults {
-		parts = append(parts, "multiple("+m.Canon()+")")
+		parts = append(parts, "mulof("+m.Canon()+")")
 	}
 	for _, r := range c.res {
 		parts = append(parts, "re("+r.v.Canon()+")")

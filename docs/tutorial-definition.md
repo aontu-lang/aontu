@@ -392,7 +392,7 @@ What a float shows is its shortest decimal, which step 4 needs:
 /-- The decimal a float shows, as `c * 10 ^ k`: the shortest decimal
 that rounds to the float, the closest to it of those, and of two that
 close the one with the even last digit. It is the text both ports write
-for a float, and what `multiple` reads one as. -/
+for a float, and what `mulof` reads one as. -/
 def Float.shortest (x : Float) : ℤ × ℤ :=
 ```
 
@@ -558,22 +558,22 @@ $ aontu -c numbers.aontu
 `number` admits each, and each keeps its leaf.
 
 The numbers that show a whole number, of every leaf, are
-`number & multiple(1)`, and that's a law of the definition, not only an
+`number & mulof(1)`, and that's a law of the definition, not only an
 example. The tour proves it for every value:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
-/-- `number & multiple(1)` admits the biginteger `9007199254740993`. -/
-example : Instance .empty (.meet .number (.multiple (.integer (.of 1)))) (.num (.biginteger ⟨9007199254740993⟩)) :=
-  ⟨by decide, .meet .number (.multiple (by decide) (by decide))⟩
+/-- `number & mulof(1)` admits the biginteger `9007199254740993`. -/
+example : Instance .empty (.meet .number (.mulof (.integer (.of 1)))) (.num (.biginteger ⟨9007199254740993⟩)) :=
+  ⟨by decide, .meet .number (.mulof (by decide) (by decide))⟩
 
-/-- `number & multiple(1)` admits exactly the numbers that show a whole
+/-- `number & mulof(1)` admits exactly the numbers that show a whole
 number, of every leaf. -/
 example (env : Env) (root j : Data) :
-    Admits env root (.meet .number (.multiple (.integer (.of 1)))) j ↔ ∃ x, j = .num x ∧ x.Whole := by
+    Admits env root (.meet .number (.mulof (.integer (.of 1)))) j ↔ ∃ x, j = .num x ∧ x.Whole := by
 ```
 
-The proof reads `multiple(1)` through a fact about the numbers:
+The proof reads `mulof(1)` through a fact about the numbers:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
@@ -581,16 +581,16 @@ The proof reads `multiple(1)` through a fact about the numbers:
 theorem Number.multipleOf_one (x : Number) : x.multipleOf (.integer (.of 1)) ↔ x.Whole := by
 ```
 
-`↔` reads as *exactly when*. Meet `number & multiple(1)` with a whole
+`↔` reads as *exactly when*. Meet `number & mulof(1)` with a whole
 number of each leaf. Write `whole.aontu`:
 
 <!-- test: scenario whole -->
 <!-- test: file whole.aontu -->
 ```aontu
-integer: number & multiple(1) & 3
-float: number & multiple(1) & 1.0
-biginteger: number & multiple(1) & 0d9007199254740993
-bigdecimal: number & multiple(1) & 0d3.0
+integer: number & mulof(1) & 3
+float: number & mulof(1) & 1.0
+biginteger: number & mulof(1) & 0d9007199254740993
+bigdecimal: number & mulof(1) & 0d3.0
 ```
 
 and run it:
@@ -601,9 +601,9 @@ $ aontu -c whole.aontu
 {"bigdecimal":0d3.0,"biginteger":0d9007199254740993,"float":1.0,"integer":3}
 ```
 
-`number & multiple(1)` admits all four, the float `1.0` and the big
+`number & mulof(1)` admits all four, the float `1.0` and the big
 decimal `0d3.0` among them, which `integer` refuses: the law reads the
-value a number shows, not its leaf. Step 4 covers `multiple`.
+value a number shows, not its leaf. Step 4 covers `mulof`.
 
 ### Strings
 
@@ -898,7 +898,7 @@ def Number.value : Number → ℤ × ℕ
     if 0 ≤ x.scale then (x.coef, 10 ^ x.scale.toNat) else (x.coef * 10 ^ (-x.scale).toNat, 1)
 ```
 
-and `multiple` reads the value a number shows, which differs from its
+and `mulof` reads the value a number shows, which differs from its
 exact value only for a float:
 
 <!-- test: quote spec/Aontu/Data.lean -->
@@ -929,18 +929,18 @@ def Number.multipleOf (x d : Number) : Prop :=
 
 Each comparison multiplies each side by the other's denominator, which
 puts the two over one denominator: one and a half is three times a
-half, and `1.25` is no whole multiple of it. The rule for `multiple`
-asks for a positive divisor, so `multiple(0)` admits nothing:
+half, and `1.25` is no whole multiple of it. The rule for `mulof`
+asks for a positive divisor, so `mulof(0)` admits nothing:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
-  /-- `multiple` reads the value a number shows, which for a float is
-  its shortest decimal; `multiple(0)` and a negative divisor admit
+  /-- `mulof` reads the value a number shows, which for a float is
+  its shortest decimal; `mulof(0)` and a negative divisor admit
   nothing. -/
-  | multiple {d x : Number} :
-      d.Positive → x.multipleOf d → Judge env root true (.multiple d) (.num x)
-  | multipleNot {d : Number} {j : Data} :
-      (∀ x, j = .num x → d.Positive → ¬ x.multipleOf d) → Judge env root false (.multiple d) j
+  | mulof {d x : Number} :
+      d.Positive → x.multipleOf d → Judge env root true (.mulof d) (.num x)
+  | mulofNot {d : Number} {j : Data} :
+      (∀ x, j = .num x → d.Positive → ¬ x.multipleOf d) → Judge env root false (.mulof d) j
 ```
 
 <!-- test: quote spec/Aontu/Tour.lean -->
@@ -976,24 +976,24 @@ example : ¬ Instance .empty (.max (.num (.bigdecimal (.of 1 1))))
   cases h with
   | max h => exact absurd h (by decide)
 
-/-- `multiple(0.5)` admits one and a half. -/
-example : Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 15 1))) :=
-  ⟨by decide, .multiple (by decide) (by decide)⟩
+/-- `mulof(0.5)` admits one and a half. -/
+example : Instance .empty (.mulof (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 15 1))) :=
+  ⟨by decide, .mulof (by decide) (by decide)⟩
 
-/-- `multiple(0.5)` refuses `1.25`. -/
-example : ¬ Instance .empty (.multiple (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 125 2))) := by
+/-- `mulof(0.5)` refuses `1.25`. -/
+example : ¬ Instance .empty (.mulof (.float (.dyadic 1 (-1)))) (.num (.bigdecimal (.of 125 2))) := by
   rintro ⟨-, h⟩
   cases h with
-  | multiple _ h => exact absurd h (by decide)
+  | mulof _ h => exact absurd h (by decide)
 
-/-- `multiple(0.1)` admits the float `0.3`: it reads the decimal each
+/-- `mulof(0.1)` admits the float `0.3`: it reads the decimal each
 float shows, where their exact values are no multiple. -/
-example : Instance .empty (.multiple (.float (.dyadic 3602879701896397 (-55))))
+example : Instance .empty (.mulof (.float (.dyadic 3602879701896397 (-55))))
     (.num (.float (.dyadic 5404319552844595 (-54)))) :=
-  ⟨by decide, .multiple (by decide) (by decide)⟩
+  ⟨by decide, .mulof (by decide) (by decide)⟩
 
-/-- `multiple(0)` refuses `0`, and everything else. -/
-example : ¬ Instance .empty (.multiple (.integer (.of 0))) (.integer 0) := by
+/-- `mulof(0)` refuses `0`, and everything else. -/
+example : ¬ Instance .empty (.mulof (.integer (.of 0))) (.integer 0) := by
 ```
 
 Write `bounds.aontu`:
@@ -1004,7 +1004,7 @@ Write `bounds.aontu`:
 three: min(3) & 3
 fraction: min(3) & 3.5
 ceiling: max(2.5) & 0d2.5
-half: multiple(0.5) & 1.5
+half: mulof(0.5) & 1.5
 ```
 
 and run it:
@@ -1018,7 +1018,7 @@ $ aontu -c bounds.aontu
 `min(3)` admits `3` itself and the float three and a half. The bound of
 `max(2.5)` is a float and `0d2.5` a big decimal, and the bound admits
 it, as their exact values are equal. `1.5` is three halves, so
-`multiple(0.5)` admits it.
+`mulof(0.5)` admits it.
 
 A float's exact value is a binary fraction, and the value it shows its
 shortest decimal, so on a float the two part. Write `tenths.aontu`:
@@ -1027,7 +1027,7 @@ shortest decimal, so on a float the two part. Write `tenths.aontu`:
 <!-- test: file tenths.aontu -->
 ```aontu
 tenth: max(0d0.1) & 0d0.1
-thirds: multiple(0.1) & 0.3
+thirds: mulof(0.1) & 0.3
 ```
 
 and run it:
@@ -1038,7 +1038,7 @@ $ aontu -c tenths.aontu
 {"tenth":0d0.1,"thirds":0.3}
 ```
 
-`multiple(0.1)` admits the float `0.3`, which shows three tenths,
+`mulof(0.1)` admits the float `0.3`, which shows three tenths,
 though no exact multiple of the double nearest one tenth is the double
 nearest three tenths. A bound reads the exact value instead, and the
 float `0.1` is a little more than one tenth. Write `tenth.aontu`:
@@ -3154,13 +3154,13 @@ and a concrete number is below exactly the bounds that admit it:
 theorem min_le_min_iff (n m : Number) : .min (.num n) ⊑[env] .min (.num m) ↔ m.le n := by
 ```
 
-`multiple(a)` is below `multiple(b)` where `a` is itself a multiple of
+`mulof(a)` is below `mulof(b)` where `a` is itself a multiple of
 `b`, since every multiple of `a` is then one of `b`:
 
 <!-- test: quote spec/Aontu/Subsume.lean -->
 ```lean
-theorem multiple_le_multiple {a b : Number} (hb : b.Positive) (hab : a.multipleOf b) :
-    .multiple a ⊑[env] .multiple b := by
+theorem mulof_le_mulof {a b : Number} (hb : b.Positive) (hab : a.multipleOf b) :
+    .mulof a ⊑[env] .mulof b := by
 ```
 
 ## 11. Two declarations of one key
@@ -3620,7 +3620,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _
   | .anyString, _ | .boolean, _ | .min _, _ | .max _, _ | .above _, _ | .beneath _, _
-  | .neq _, _ | .multiple _, _ | .len _, _ | .unique _, _ | .re _, _ | .format _, _
+  | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _ | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _ => False
 ```
@@ -4783,7 +4783,7 @@ inductive Val.Checkable : Val → Prop
   | above {b : Bound} : Checkable (.above b)
   | beneath {b : Bound} : Checkable (.beneath b)
   | neq {vs : List Bound} : Checkable (.neq vs)
-  | multiple {d : Number} : Checkable (.multiple d)
+  | mulof {d : Number} : Checkable (.mulof d)
   | len {c : Val} : Checkable c → Checkable (.len c)
   | unique {k : Option String} : Checkable (.unique k)
   | any : Checkable .any
@@ -4870,7 +4870,7 @@ to try each against:
 <!-- test: quote spec/Oracle.lean -->
 ```lean
 def bases : List Val :=
-  [.any, .nil, .integer, .meet .number (.multiple (.integer (.of 1))), .string, .anyString,
+  [.any, .nil, .integer, .meet .number (.mulof (.integer (.of 1))), .string, .anyString,
     .min (.num (.integer (.of 0))), .min (.num (.integer (.of 3)))]
 
 /-- `{"x": v}`, or `{"x"?: v}`. -/
@@ -4929,7 +4929,7 @@ A row holds a schema, a value, and the verdict `check` gives, and each
 engine answers it with a plain `aontu vet`. The oracle writes a refusal
 as the three verdicts it may be, since the definition answers admit or
 refuse and no more. The second set's big integer is the first value to
-tell `integer` from `number & multiple(1)`:
+tell `integer` from `number & mulof(1)`:
 
 <!-- test: quote test/spec/def-fragment.tsv -->
 ```tsv
@@ -4938,7 +4938,7 @@ c9618	verdict	v: integer	v: 0d9007199254740993	{"verdict":["invalid","incomplete
 
 <!-- test: quote test/spec/def-fragment.tsv -->
 ```tsv
-c9626	verdict	v: (number) & (multiple(1))	v: 0d9007199254740993	{"verdict":"valid"}
+c9626	verdict	v: (number) & (mulof(1))	v: 0d9007199254740993	{"verdict":"valid"}
 ```
 
 A second fragment, written by `lake exe oracle bounds`, takes the
@@ -5345,7 +5345,7 @@ answer.
 Nor does it name JSON Schema, which isn't a concept of the language.
 The language needs only the power to represent a JSON Schema: what
 `aontu jsonschema import` writes is aontu terms, such as
-`number & multiple(1)`, and the definition says what those mean. Step
+`number & mulof(1)`, and the definition says what those mean. Step
 19 checks that it does, but for the six forms that step lists.
 
 Nor does it hold the subsumption table as theorems, nor a contract

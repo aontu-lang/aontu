@@ -11,7 +11,7 @@ register row, nothing proposed for building. This note exists because the questi
 been asked twice and re-derived from scratch both times, and because
 the answer is a layering rather than a preference. Status of the two
 surfaces it compares lives in the
-[progress register](../capability-review/progress.md), never here.
+[progress register](../docs/capability-review/progress.md), never here.
 
 **Origin:** Richard Rodger, 2026-09-12: *"Why are we still using
 Code.units now that we have jostraca?"*
@@ -178,7 +178,7 @@ A `content` cannot do any of this. It is a string, produced for one
 target, and it knows nothing about the field it came from. Writing the
 Go spelling means writing a second tree.
 
-This is the half of [G9 Resolution 1](../capability-review/g9-transformation.md#two-specialist-disagreements-resolved)
+This is the half of [G9 Resolution 1](../docs/capability-review/g9-transformation.md#two-specialist-disagreements-resolved)
 that survived the component spike, and [JOSTRACA.0.md §1](JOSTRACA.0.md#1-what-this-reverses-and-why-that-is-worth-doing)
 says so in the same words: the spike withdrew Resolution 1's first
 reason and left its second and third standing. This section is the
@@ -238,7 +238,7 @@ to get them is sugar for `%piece`, not a second output vocabulary.
 
 Three of the ten components touch a file that already exists, and they
 are the reason to reach for a component engine at all. From
-[`docs/reference-language.md`](../reference-language.md): `fragment` is
+[`docs/reference-language.md`](../docs/reference-language.md): `fragment` is
 *"a file read from `from` with its `<[SLOT]>` markers filled by the
 slots beneath it"*, `inject` is *"a body written between markers in a
 file that already exists"*, and `copyfiles` is *"files copied verbatim
@@ -253,7 +253,7 @@ exists. It is implemented so the set is complete.)
 aontu cannot do the other three, and not by accident.
 `ts/test/render.test.ts:64` is `render-source-has-no-filesystem-access`,
 a guarded property of both ports and a stated one in
-[`docs/trust.md`](../trust.md): a render reaches neither the filesystem
+[`docs/trust.md`](../docs/trust.md): a render reaches neither the filesystem
 nor a process. A component that reads a file cannot be served by
 `render` without moving that boundary, which is an ADR and not a patch.
 
@@ -344,7 +344,7 @@ first, in the order they bite:
 4. **The trust boundary does not move.** Even composed, the three
    file-touching components stay unserved by `render`. The composition
    buys declarations inside a tree; it does not buy a merge.
-5. **Both ports, one spec.** Per [ADR-001](../../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
+5. **Both ports, one spec.** Per [ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
    any of this is TypeScript and Go together, pinned by shared rows,
    before it is anything.
 

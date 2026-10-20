@@ -14,31 +14,31 @@ landed 2026-09-02, and SVG before them; the `lattice` kind
 (the `--format json` report carries the drawn text, not the figure's
 primitives) and VIEWS-ORDER's interval panel; `--loose` was dropped, since a path-native
 graph (ADR-014) has no loose edge. Where the built verb departs from
-the text below, the verb and [docs/reference-api.md](../reference-api.md)
+the text below, the verb and [docs/reference-api.md](../docs/reference-api.md)
 are the record. Phase 0 landed with it; see use-cases/BUGS.md 70 and
 71 for the two engine divergences it exposed. Date: 2026-08-30. This note
 is the G10 candidate for the [capability
-review](../capability-review/index.md), and it reverses a refusal
-recorded there — [G7](../capability-review/g7-machine-access.md) ruled
+review](../docs/capability-review/index.md), and it reverses a refusal
+recorded there — [G7](../docs/capability-review/g7-machine-access.md) ruled
 out view and diagram generation in v1, on the ground that
 model-once-render-many is "an exporter product". What has changed since
 is named in [Problem](#problem). The note proposes a `view` verb that
 draws four figures from an evaluated model: a dependency matrix, a
 node-link graph in Mermaid and Graphviz DOT, a set-intersection panel,
-and a document-layer panel. It reuses [G9](../capability-review/g9-transformation.md)'s
+and a document-layer panel. It reuses [G9](../docs/capability-review/g9-transformation.md)'s
 renderer DISCIPLINE and depends on none of G9's unbuilt code. Every
 claim marked VERIFIED was run against the built TypeScript CLI at
 0.53.0 during drafting; the counts and the emitted bytes in [Worked
 examples](#worked-examples) came out of a reference implementation of
 the extractors and renderers specified here, run against the real
-documents under [`use-cases/`](../../use-cases/).*
+documents under [`use-cases/`](../use-cases).*
 
 > **Companion.** The order views — the subsumption poset, the meet
 > ladder and the interval panel — are
 > [VIEWS-ORDER.0.md](VIEWS-ORDER.0.md). They are separated because
 > they draw the ORDERS the engine computes rather than the structures
 > it holds, and because one of them is gated on a defect this design
-> work found ([BUGS 64](../../use-cases/BUGS.md)): three of the seven
+> work found ([BUGS 64](../use-cases/BUGS.md)): three of the seven
 > use-case entry documents do not subsume themselves.
 
 ## Problem
@@ -47,11 +47,11 @@ A model that is ground truth for a system, and cannot show the system's
 shape, is ground truth nobody looks at.
 
 **First failing example, from a real document.**
-[`use-cases/01-service-catalog/`](../../use-cases/01-service-catalog/)
+[`use-cases/01-service-catalog/`](../use-cases/01-service-catalog)
 holds eight services declared across two files —
-[`catalog.aontu`](../../use-cases/01-service-catalog/catalog.aontu) (what
+[`catalog.aontu`](../use-cases/01-service-catalog/catalog.aontu) (what
 each service IS) and
-[`deploy.aontu`](../../use-cases/01-service-catalog/deploy.aontu) (what
+[`deploy.aontu`](../use-cases/01-service-catalog/deploy.aontu) (what
 each cluster RUNS) — joined by nothing but `id(svc_*)`. The dependency
 relation is declared once, at its field:
 
@@ -78,7 +78,7 @@ derives and no file records.
 
 **Second, and this is why the refusal is being reopened.** G7 declined
 this capability with a reason that was true when it was written
-([`g7-machine-access.md`](../capability-review/g7-machine-access.md),
+([`g7-machine-access.md`](../docs/capability-review/g7-machine-access.md),
 Boundary):
 
 > **No view/diagram generation in v1.** Model-once-render-many is real
@@ -88,7 +88,7 @@ Boundary):
 Four things landed after that sentence. G4 phase 3 shipped `graphOf`
 in both ports with determinism asserted as a property rather than
 claimed —
-[`test/spec/graph.tsv`](../../test/spec/graph.tsv)'s header says both
+[`test/spec/graph.tsv`](../test/spec/graph.tsv)'s header says both
 runners "re-derive it on a fresh engine and require the same bytes".
 RELATIONS P0–P2 replaced the inferred predicate and the magic
 `relations:` key with `rel(t)` at the field and the `acyclic()` /
@@ -106,7 +106,7 @@ drawing the graph the engine already computes.
 first diagram would be a lie.** `graphOf`'s `visit()` descends `isMap`,
 `isList` and the `isGraphAtom.held` transparency arm, and nothing else.
 A relation field wrapped in a residual CONJUNCTION mints no edges.
-[`use-cases/05-rbac-policy/roles.aontu`](../../use-cases/05-rbac-policy/roles.aontu)
+[`use-cases/05-rbac-policy/roles.aontu`](../use-cases/05-rbac-policy/roles.aontu)
 writes exactly that shape:
 
 ```aontu
@@ -114,7 +114,7 @@ grants: unique() & [&: refer() & string]
 ```
 
 VERIFIED against the built 0.53.0 on
-[`example.aontu`](../../use-cases/05-rbac-policy/example.aontu): the graph
+[`example.aontu`](../use-cases/05-rbac-policy/example.aontu): the graph
 has **13 entities and 3 edges**, and all three are `role` links written
 outside every entity. Every one of the nine grants the document states
 literally is invisible, and the consequence reaches a shipped verb:
@@ -215,7 +215,7 @@ More than it looks like, and none of it needs new engine work.
 What is NOT there, and is not being added: any layout algorithm, any
 coordinate, any text measurement, any colour model, and any `render`
 verb — G9's `render` is designed and unbuilt, and
-[`progress.md`](../capability-review/progress.md) records all nine of
+[`progress.md`](../docs/capability-review/progress.md) records all nine of
 its phases as NOT STARTED.
 
 ## Prior art
@@ -742,7 +742,7 @@ form, the identifier prefixes and the escape table.
 **Identifiers are encoded, never mangled and never refused.** Entity
 names are `/[_a-zA-Z][-_a-zA-Z0-9]*/` (ts/src/val/IdFuncVal.ts's
 `ID_NAME`), so a legal aontu name may contain hyphens and
-[`use-cases/10-data-model/seed.aontu`](../../use-cases/10-data-model/seed.aontu)
+[`use-cases/10-data-model/seed.aontu`](../use-cases/10-data-model/seed.aontu)
 declares `id("cust-1001")`. A design that refuses what it cannot spell
 would refuse a whole use case. The encoder is injective by
 construction, with two disjoint prefixes and one predicate:
@@ -1085,7 +1085,7 @@ tree; it is the existing one, drawn.
 a sizing residue and a preference stepped through because neither is a
 level of the shape, and an alias declaration omitted because a
 declaration is not part of the document
-([`use-cases/BUGS.md`](../../use-cases/BUGS.md) 74 — `get --keys` still
+([`use-cases/BUGS.md`](../use-cases/BUGS.md) 74 — `get --keys` still
 lists them). A leaf carries its canon, cut at 32 characters: the kind
 of thing it is, not its value. Values are what a document is FOR; the
 shape is what a reader needs before any of them mean anything.
@@ -1164,7 +1164,7 @@ value lattice in box characters, and it was wrong: no `path()`, no
 `null`, and the four numeric leaves collapsed into one row of example
 values. A hand-drawn picture of the thing the language is built on is
 a second source of truth that nothing checks.
-[`ts/scripts/figures.cjs`](../../ts/scripts/figures.cjs) now draws
+[`ts/scripts/figures.cjs`](../ts/scripts/figures.cjs) now draws
 `docs/figures/value-lattice.svg` from this kind, `make build-ts` runs
 it, and `ts/test/docs.test.ts` refuses a stale commit — the same
 `--check` relationship the use cases have with their own figures.
@@ -1697,7 +1697,7 @@ shared suite's contract and belongs to G9's open question, not here.
 
 ### The parity ledger
 
-[`test/spec/divergent.tsv`](../../test/spec/divergent.tsv) has **zero
+[`test/spec/divergent.tsv`](../test/spec/divergent.tsv) has **zero
 rows** at head, VERIFIED, and no entry against `graphOf` exists
 anywhere in the tree. The extractor this design rests on is currently
 in agreement between the ports, and Phase 0 must keep it that way: the
@@ -1848,7 +1848,7 @@ regress at any phase: the full shared suite, canon convergence, and the
 ADR-002 floor in both ports.
 
 Baseline for the register, re-derived 2026-08-30 per
-[protocol rule 5](../capability-review/progress.md#the-update-protocol):
+[protocol rule 5](../docs/capability-review/progress.md#the-update-protocol):
 `ls test/spec/*.tsv | wc -l` = **97**,
 `awk -F'\t' 'NF>2 && $0 !~ /^#/' test/spec/*.tsv | wc -l` = **3758**.
 
@@ -2006,9 +2006,9 @@ only, so it needs no new trust clause. `use-cases/16-views/` following
 the `14-jsonschema-export` pattern with `check.sh` and `expected/`,
 drawing the figures for use cases 01, 02, 05 and 12 and gating them.
 `docs/how-to/draw-a-model.md` and a reference section, both under
-[docs/STYLE-GUIDE.md](../STYLE-GUIDE.md), with every tagged snippet
+[STYLE-GUIDE.md](../STYLE-GUIDE.md), with every tagged snippet
 executed by `ts/test/docs.test.ts`. The register row in
-[`progress.md`](../capability-review/progress.md) moves in the same
+[`progress.md`](../docs/capability-review/progress.md) moves in the same
 commit that changes its status, per AGENTS.md.
 
 *Files:* ts/src/view.ts, ts/src/cli.ts, ts/src/mcp.ts; go/view.go,

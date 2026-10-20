@@ -510,7 +510,7 @@ Write `order.json`:
 <!-- test: run -->
 ```sh
 $ aontu jsonschema import --uri https://example.com/order --source-map order.map.json order.json
-%d_count = number & multiple(1) & min(1)
+%d_count = number & mulof(1) & min(1)
 
 qty?: %d_count
 sku: any
@@ -520,7 +520,7 @@ Save the text as `order.aontu`:
 
 <!-- test: file order.aontu -->
 ```aontu
-%d_count = number & multiple(1) & min(1)
+%d_count = number & mulof(1) & min(1)
 
 qty?: %d_count
 sku: any
@@ -1668,8 +1668,8 @@ written, `\d`, `\w`, `\D` and `\W` among it;
 `x-aontu-format` for a grammar, two of either an `allOf` of them, each
 with a loss (below);
 `neq` becomes `not: {enum: …}`, with `1` and `1.0` carried once;
-`multiple(n)` becomes `multipleOf` (two divisors, an `allOf` of them),
-and `number & multiple(1)` is `type: integer`;
+`mulof(n)` becomes `multipleOf` (two divisors, an `allOf` of them),
+and `number & mulof(1)` is `type: integer`;
 `nof(n, …)` becomes `anyOf` for a count of at least one, `oneOf` for
 exactly one, `not` for none and an `allOf` of the branches for every
 one;
@@ -1688,9 +1688,10 @@ a list, an open bound rounded inward to the next whole number
 (`len(above(2))` is `minLength: 3`) and an excluded count as `not`
 both bounds at it; `unique()` becomes `uniqueItems`; an optional key is
 simply absent from `required`; `map` and `list` become `object` and
-`array`; a `meta()` record becomes the annotation keywords of the same
-meaning, `comment` as `$comment` and each member of `x` as itself, with
-a second record in an `allOf` of schemas that only annotate;
+`array`; a `meta()` record's keys become the annotation keywords of the same
+meaning, `comment` as `$comment`, and any other key a keyword of its
+own name, with a second record in an `allOf` of schemas that only
+annotate;
 `deprecate()` becomes `deprecated: true`, with its record's `msg`,
 `use` and `since` under the extension keyword `x-aontu-deprecate`, a
 field holding several values as a list; a disjunction of bare kinds
@@ -1752,8 +1753,8 @@ The losses, and why each is one:
 | `must(c, m)` | the check crosses as `allOf` of its trial schema, but JSON Schema has no keyword for its message, which is dropped |
 | `unique(k)` | there is no uniqueness-by-property keyword; `uniqueItems` compares whole items |
 | `biginteger`, `bigdecimal` | no JSON Schema type admits one leaf of a number, so the schema says `number` or `integer` and admits the other leaves |
-| `integer`, `float` | JSON Schema reads a number by its value: its `integer` also admits `1.0` and whole numbers past the integer leaf, and its `number` admits the integer leaf a `float` refuses. `number & multiple(1)` is its integer, and crosses without loss |
-| `len(multiple(n))` | no keyword constrains a count's divisor |
+| `integer`, `float` | JSON Schema reads a number by its value: its `integer` also admits `1.0` and whole numbers past the integer leaf, and its `number` admits the integer leaf a `float` refuses. `number & mulof(1)` is its integer, and crosses without loss |
+| `len(mulof(n))` | no keyword constrains a count's divisor |
 | `nof(n, …)` with any other count | JSON Schema counts its branches only as `anyOf`, `oneOf`, `allOf` and `not`, so `nof(max(1), …)` has no keyword |
 | `contains(c, n)` on a map, or on no container | JSON Schema counts only an array's items, and passes any other value |
 | `contains(c, n)` with an excluded count or a divisor | `minContains` and `maxContains` bound the count only above and below |
@@ -1762,12 +1763,18 @@ The losses, and why each is one:
 | `format(g)` | 2020-12 asserts `format` only where a validator is asked to, and only aontu reads `x-aontu-format`, so the schema may admit a string the format refuses |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
-| a member of a `meta()` record's `x` named as a JSON Schema keyword | written as that keyword, it would assert where the record only annotates, so it is dropped |
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
 | `match(key(0), …)` with an arm testing a key other than by name or pattern | JSON Schema chooses a member's schema by its name or a pattern, so the spread is dropped |
 | `match(key(0), …)` with arms whose keys can overlap | every matching keyword applies, where `match` takes the first arm, so the spread is dropped |
 | a list's `match(key(0), …)` whose arms are not its positions in order | JSON Schema places a member by its position from the first, so the spread is dropped |
 | residue: a reference by a relative path or into a list, a waiting call, a nil the engine minted, a template that reaches its own key or a path outside itself | not a property constraint at all; guessing one would be inventing a promise |
+
+A rider's record is not on the list. A `meta()` or `ident()`
+record changes nothing its value admits, so what of one the schema
+cannot hold is left out without a report: a key named as a JSON Schema
+keyword, a key holding another kind of data than its keyword takes, an
+identity the export's one resource cannot place, and a dynamic
+reference written as its `$ref`.
 
 An exact value is not a loss. A `0d` literal, `enum` member, endpoint
 or divisor is written as its own digits, because 2020-12 compares
@@ -1792,13 +1799,14 @@ which is how JSON Schema reads `$ref` with siblings; and the alias sits under
 `$defs` by its own name, or by the `$defs` key `aontu jsonschema
 import` read it from. An alias declared with
 [`ident()`](reference-language.md#identity-ident) writes its `$id`,
-`$anchor` and `$dynamicAnchor` on the definition, or on the schema where
-the definition is the whole schema; an `$id` that a `$ref` inside the
-definition would resolve against is not written, and is reported. A
+`$anchor` and `$dynamicAnchor` on the definition, and every other key
+of its record as a keyword of that name, or on the schema where the
+definition is the whole schema; an `$id` that a `$ref` inside the
+definition would resolve against is not written. A
 use the importer read from a `$dynamicRef`, which carries the `meta`
 record's `dynamicRef`, is written as `$dynamicRef` to its anchor where
 that anchor, in the export, names the definition its `$ref` reached;
-otherwise it stays that `$ref`, and the dynamic reference is reported. A reference that
+otherwise it stays that `$ref`, which admits the same. A reference that
 reaches outside the template holding it, by a relative path or into a
 list, stays residue and is reported. Write a recursive `steps.aontu`:
 
@@ -1930,7 +1938,7 @@ y: number
 - A custom meta-schema whose `$vocabulary` lists vocabularies narrows
   the schemas that name it to the keywords of those vocabularies and of
   the core vocabulary; each other keyword of the dialect is carried as
-  an annotation under `x`. A vocabulary it lists with any value but
+  an annotation under its own name. A vocabulary it lists with any value but
   `false` that aontu does not read refuses the import with
   `jsonschema_vocabulary`. aontu reads the vocabularies of 2019-09 and
   2020-12, which `grammar/jsonschema/vocabularies.tsv` lists with their
@@ -1992,10 +2000,10 @@ y: number
 
 | Keyword | Becomes |
 |---|---|
-| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number`, `empty()` for a string, `map`, `list`; `integer` is `number & multiple(1)`; every kind narrowed by nothing is `any` |
+| `type` | one branch per kind, so a keyword that constrains strings constrains only strings: `null`, `boolean`, `number`, `empty()` for a string, `map`, `list`; `integer` is `number & mulof(1)`; every kind narrowed by nothing is `any` |
 | `enum`, `const` | literal values, compared by value, so `1` and `1.0` are one value; a `type` beside a `const` of its kind adds nothing and is not written |
 | `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum` | `min`, `max`, `above`, `below`, each bound written by value in the leaf that holds it exactly |
-| `multipleOf` | `multiple`, its divisor written by value |
+| `multipleOf` | `mulof`, its divisor written by value |
 | `minLength`, `maxLength`, `minItems`, `maxItems`, `minProperties`, `maxProperties` | `len`, counting code points on a string |
 | `pattern` | `re`, read as ECMA-262 and written as `re` source that means the same: `.`, `\s` and `\S` become the sets ECMA-262 means by them, and the rest is copied, `\p{…}` and named groups included; a lookaround, a backreference or a modifier group is a loss that names it |
 | `properties`, `required` | keys, optional unless required |
@@ -2019,7 +2027,7 @@ y: number
 | `format` under format assertion | the same record, and `format(g)` on the string branch, `g` the format's committed grammar or the one `--format-grammar` gives it |
 | `x-aontu-format` | `format(g)` on the string branch in any mode, `g` a grammar or a format's name |
 | `contentEncoding`, `contentMediaType`, `contentSchema` | the same record on the string branch alone, since JSON Schema annotates only a string with them, and `contentSchema` only beside `contentMediaType` |
-| a keyword JSON Schema does not name | the same record, under `x` |
+| a keyword JSON Schema does not name | the same record, under its own name; one named `comment` or `dynamicRef` is a reported loss, since the export writes those keys as other keywords |
 | `deprecated`, `x-aontu-deprecate` | `deprecate(v, {…})`, its record read from `x-aontu-deprecate` |
 | `$schema` | read and dropped: the dialect is 2020-12 |
 

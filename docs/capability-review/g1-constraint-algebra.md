@@ -22,7 +22,7 @@ Today "type safety through unification" cashes out as five scalar
 kinds (`string`, `number`, `integer`, `boolean`, `top` — five at
 review time; the number tower has since made `number` a pure
 supertype over four leaves, adding `float`, `biginteger` and
-`bigdecimal` — `docs/design/number-tower.md`), literal
+`bigdecimal` — `sketch/number-tower.md`), literal
 equality, disjunction-enums, and closedness. That is not enough to
 reject the most common class of wrong output an agent produces:
 values that are *type-safe but wrong*. Consider the best a
@@ -155,7 +155,7 @@ missing:
   `go/scalar.go` reimplements JS `Number.toString` formatting, and the
   canon path adds a `.0` suffix to number-kind values so canon
   round-trips kind. The model and the six rules that make it well
-  defined are recorded in `docs/design/number-model.md` and pinned by
+  defined are recorded in `sketch/number-model.md` and pinned by
   `test/spec/number-model.tsv`.
 
 Structurally blocking: there is no `Val` kind that can represent a
@@ -453,7 +453,7 @@ range; outside it, the definition refuses to pretend.
 
 **The contract is now welded to the kind rule, not advisory.** Since
 this document was drafted the number model has landed
-(`docs/design/number-model.md`, pinned by
+(`sketch/number-model.md`, pinned by
 `test/spec/number-model.tsv`), and its first rule decides exactly
 which literals the exactness contract binds. A numeric literal is
 integer kind if and only if its source text contains no `.`, its
@@ -544,13 +544,13 @@ something worth exposing.
   loud lossy-literal errors and an explicit exactness contract; full
   migration would destabilise canon, parity, and semantic hashing.
   The door that stays open is an **opt-in literal prefix** in the
-  manner of boru's `0d` (`docs/design/number-model.md`): an exact
+  manner of boru's `0d` (`sketch/number-model.md`): an exact
   leaf reachable only through new literal syntax adds a kind without
   changing the meaning, the value, or the canon of any literal
   already written. That property is why refusing the migration now
   costs nothing later — the refusal is a decision not to widen the
   default number, not a decision against exactness. *(Since landed:
-  the opt-in tower shipped — `docs/design/number-tower.md`. The
+  the opt-in tower shipped — `sketch/number-tower.md`. The
   boundary holds as stated: the default kinds are not migrated and
   exactness arrives as new opt-in leaves; the cross-leaf ordering
   this document's bound atoms needed is ruled in
@@ -823,7 +823,7 @@ applied to the language itself.
 
 ## Reconciliation with the 2026-08-27 constraint design note
 
-[`docs/design/AONTUCONSTRAINTS.0.md`](../../docs/design/AONTUCONSTRAINTS.0.md)
+[`sketch/AONTUCONSTRAINTS.0.md`](../../sketch/AONTUCONSTRAINTS.0.md)
 is a second, independent constraint design, uploaded to `main` on
 2026-08-27 in commit `8d892a4` — the only content of that commit. It was
 written downstream, from an empirical survey run through boru's

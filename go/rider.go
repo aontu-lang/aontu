@@ -3,7 +3,6 @@
 package aontu
 
 import (
-	"slices"
 	"sort"
 	"strings"
 )
@@ -121,7 +120,7 @@ func CanonRiders(v Val) string {
 func ride(out, a, b Val) {
 	recs := []map[string][]string{out.deprecRec()}
 	metas := []map[string][]Val{out.metaRec()}
-	idents := []map[string][]string{out.identRec()}
+	idents := []map[string][]Val{out.identRec()}
 	for _, v := range []Val{a, b} {
 		if nil != v {
 			recs = append(recs, v.deprecRec())
@@ -132,7 +131,7 @@ func ride(out, a, b Val) {
 	if dep := unionRiders(sameString, recs...); nil != dep {
 		out.setDeprecRec(dep)
 	}
-	if ident := unionRiders(sameString, idents...); nil != ident {
+	if ident := unionRiders(valCanon, idents...); nil != ident {
 		out.setIdentRec(ident)
 	}
 	if meta := unionRiders(valCanon, metas...); nil != meta {
@@ -204,19 +203,9 @@ func deprecationMessage(rec map[string][]string) string {
 	return msg
 }
 
-// metaKeys is what each annotation key holds; `x` carries the keywords
-// JSON Schema does not name, as a map of their values, and `dynamicRef`
-// the text of the $dynamicRef a use was read from (ADR-057).
-var metaKeys = map[string]string{
-	"title": "string", "description": "string", "comment": "string", "format": "string",
-	"contentEncoding": "string", "contentMediaType": "string", "dynamicRef": "string",
-	"readOnly": "boolean", "writeOnly": "boolean",
-	"examples": "list", "x": "map",
-	"default": "data", "contentSchema": "data",
-}
-
-// metaRecord reads a record whose every key is an annotation key holding
-// its kind of concrete data; ok is false where any one does not.
+// metaRecord reads a record: a map of concrete data, under any keys; ok
+// is false where it is not one. What a key means is for the reader of the
+// record to say; the JSON Schema exporter reads its own keys (ADR-072).
 func metaRecord(r Val) (map[string][]Val, bool) {
 	m, isMap := r.(*MapVal)
 	if !isMap || !isData(r) {
@@ -224,27 +213,7 @@ func metaRecord(r Val) (map[string][]Val, bool) {
 	}
 	out := map[string][]Val{}
 	for _, k := range m.keys {
-		v := m.peg[k]
-		sv, scalar := v.(*ScalarVal)
-		_, list := v.(*ListVal)
-		_, mapped := v.(*MapVal)
-		fits := false
-		switch metaKeys[k] {
-		case "data":
-			fits = true
-		case "string":
-			fits = scalar && (KindString == sv.kind || KindPath == sv.kind)
-		case "boolean":
-			fits = scalar && KindBoolean == sv.kind
-		case "list":
-			fits = list
-		case "map":
-			fits = mapped
-		}
-		if !fits {
-			return nil, false
-		}
-		out[k] = []Val{v}
+		out[k] = []Val{m.peg[k]}
 	}
 	return out, true
 }
@@ -293,21 +262,15 @@ func metaTexts(v Val, key string) []string {
 	return out
 }
 
-// identKeys are an identity's keys (ADR-056).
-var identKeys = []string{"id", "anchor", "defs", "dynamicAnchor"}
-
-func identRecord(r Val) (map[string][]string, bool) {
+// identRecord reads a declaration's record: concrete data, any keys (ADR-073).
+func identRecord(r Val) (map[string][]Val, bool) {
 	m, ok := r.(*MapVal)
-	if !ok {
+	if !ok || !isData(r) {
 		return nil, false
 	}
-	out := map[string][]string{}
+	out := map[string][]Val{}
 	for _, k := range m.keys {
-		sv, ok := m.peg[k].(*ScalarVal)
-		if !ok || KindString != sv.kind || !slices.Contains(identKeys, k) {
-			return nil, false
-		}
-		out[k] = []string{sv.peg.(string)}
+		out[k] = []Val{m.peg[k]}
 	}
 	return out, true
 }

@@ -1,4 +1,4 @@
-# WHAT WROTE THIS LINE (docs/design/UNITS-AND-TREES.1.md P6). `aontu
+# WHAT WROTE THIS LINE (sketch/UNITS-AND-TREES.1.md P6). `aontu
 # trace` answers every piece a rule stamped under the component tree:
 # the FILE it reached, the document address, the model NODE the
 # dispatch matched, and the RULE set that wrote it.

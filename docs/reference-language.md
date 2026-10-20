@@ -2443,7 +2443,7 @@ Example: `maybe($.gone)` generates nothing; `maybe($.here)` is `$.here`
 
 ### `meta(v: any, ...r: map) : any`
 
-Annotate `v` with the records `r`; it unifies exactly as `v`, and each record rides the result as `deprecate()`'s does, two records on one value meeting as their union. See [Annotations](#annotations-meta).
+Annotate `v` with the records `r`, each a map of concrete data under any keys; it unifies exactly as `v`, and each record rides the result as `deprecate()`'s does, two records on one value meeting as their union. See [Annotations](#annotations-meta).
 
 Example: `port: meta(*8080|integer, {title: "Port"})`
 
@@ -2471,13 +2471,13 @@ Multiply two numbers under the [number-tower rules](#arithmetic-add-sub-mul-div-
 
 Example: `mul(2, 3)` → `6`
 
-### `multiple(n: number) : constraint`
+### `mulof(n: number) : constraint`
 
 Admit a number that is a whole multiple of `n`, which must be a
 positive number. A float is read by the value it shows. See
 [constraint atoms](#the-constraint-algebra).
 
-Example: `multiple(0.01) & 19.99` → `19.99`
+Example: `mulof(0.01) & 19.99` → `19.99`
 
 ### `must(trial c: any, text msg: string) : constraint`
 
@@ -4056,22 +4056,26 @@ port: meta(*8080|integer, { title:"Port" description:"The listen port" })
 {"port":8080}
 ```
 
-A record is a map of annotation keys, and each key holds concrete data
-of one kind:
+A record is a map of concrete data under any keys, so any metadata
+can ride a value:
 
-| key | holds |
-|---|---|
-| `title`, `description`, `comment`, `format`, `contentEncoding`, `contentMediaType` | a string |
-| `readOnly`, `writeOnly` | a boolean |
-| `examples` | a list |
-| `default`, `contentSchema` | any concrete data |
-| `x` | a map of the keywords JSON Schema does not name |
-| `dynamicRef` | a string: the text of the `$dynamicRef` a use was read from |
+```aontu
+port: meta(*8080|integer, {
+  title: "Port"
+  owner: { team:"platform" channel:"#platform" }
+})
+```
 
-A key outside the table, a value of the wrong kind, and a value that is
-not concrete data, such as a kind, a spread, an optional key or a
-preference, refuse the call with `func_arg`. A call needs at least one
-record.
+```json
+{"port":8080}
+```
+
+A record that is not a map, or that holds anything but concrete data,
+such as a kind, a spread, an optional key or a preference, refuses the
+call with `func_arg`. A call needs at least one record. What a key
+means is for the reader of the record to say: the language server
+reads `title` and `description`, and the JSON Schema export reads the
+keys of the table below.
 
 **Records meet as their union.** Where two records reach one value,
 each key holds every value either record holds, in canon order. The
@@ -4102,18 +4106,36 @@ schema, and the document's root. The hash form includes every record,
 so changing one changes the canon-hash.
 
 `vet`, `subsume` and `breaking` read through a record. The language
-server's hover shows a value's titles in bold, then its descriptions,
-and `aontu jsonschema` writes each key as the JSON Schema keyword of
-the same meaning, which `aontu jsonschema import` reads back as
-`meta()` ([JSON Schema](reference-api.md#aontu-jsonschema)).
+server's hover shows the text a value's `title` keys hold, in bold,
+then the text its `description` keys hold. `aontu jsonschema` writes
+these keys as the JSON Schema keywords of the same meaning, which
+`aontu jsonschema import` reads back as the same keys
+([JSON Schema](reference-api.md#aontu-jsonschema)):
+
+| key | written as | when it holds |
+|---|---|---|
+| `title`, `description`, `format`, `contentEncoding`, `contentMediaType` | the keyword of its name | a string |
+| `comment` | `$comment` | a string |
+| `readOnly`, `writeOnly` | the keyword of its name | a boolean |
+| `examples` | `examples` | a list |
+| `default`, `contentSchema` | the keyword of its name | any concrete data |
+| `dynamicRef` | `$dynamicRef` | a string |
+
+A key of the table that holds another kind of data is not written. Any
+other key is written as a keyword of its own name, unless JSON Schema
+gives that name a keyword of its own, and then it is not written either.
+Neither is a loss, since a record changes nothing its value admits.
+The importer writes a keyword JSON Schema does not name as a key of
+its own name.
 `dynamicRef` annotates nothing: the importer writes it on a reference
 it read from a `$dynamicRef`, and the exporter writes that reference
 back as one where the export reads it the same.
 
 ## Identity: `ident`
 
-`ident(v, r)` declares an alias's value with the identity a JSON Schema
-gave it, which the importer writes and the exporter reads back:
+`ident(v, r)` declares an alias's value with a record that only the
+declaration carries. The importer writes there the identity a JSON
+Schema gave the schema, and the exporter reads it back:
 
 ```aontu
 %item = ident(integer, { id:"https://example.com/item.json" anchor:"item" })
@@ -4124,10 +4146,11 @@ count: %item & 3
 {"count":3}
 ```
 
-The record `r` is a map whose keys are among `id`, the schema's identifier,
-`anchor`, its anchor, `dynamicAnchor`, its dynamic anchor, and `defs`,
-the `$defs` key it was declared under, each holding a string. Any other
-key or kind refuses the call with `func_arg`.
+The record `r` is a map of concrete data under any keys, and a record
+that is not one refuses the call with `func_arg`. The JSON Schema
+export reads the identity from four of them, each holding a string:
+`id`, the schema's identifier, `anchor`, its anchor, `dynamicAnchor`,
+its dynamic anchor, and `defs`, the `$defs` key it was declared under.
 
 **Only an alias declaration carries it.** `ident()` is the value of a
 declaration, or one term of the meet that is that value, which is how
@@ -4142,10 +4165,15 @@ one. The identity is in no canon and no hash.
 
 `aontu jsonschema` writes the identity on the alias's definition: `$id`,
 `$anchor` and `$dynamicAnchor`, and the `defs` key as the definition's
-name, or on the schema itself where the definition is the whole schema. An identifier
-is not written where a `$ref` inside the definition would resolve
-against it, and that is reported as a loss
-([JSON Schema](reference-api.md#aontu-jsonschema)).
+name, or on the schema itself where the definition is the whole schema
+([JSON Schema](reference-api.md#aontu-jsonschema)), and every other key
+as a keyword of its own name on the definition. What JSON Schema cannot
+hold is not written, and is no loss: an
+identifier a `$ref` inside the definition would resolve against, an
+anchor its resource already holds, one of the four holding anything but
+a string, a JSON Schema keyword, a
+keyword the definition writes already, and a key the declarations gave
+several values.
 
 ## Closed values: `close` / `open`
 
@@ -5503,7 +5531,7 @@ spelling, and nothing turns it into `30`.
 ## The constraint algebra
 
 > All thirteen atoms (the bounds `min`/`max`/`above`/`below`, the
-> exclusion `neq`, the divisor `multiple`, the pattern `re`, the sizing
+> exclusion `neq`, the divisor `mulof`, the pattern `re`, the sizing
 > atoms `length` and `unique`, and the evaluate-only `must`, `nof`,
 > `when` and `contains`)
 > are implemented in both
@@ -5531,7 +5559,7 @@ as such. There is no new grammar: atoms are ordinary functions.
 | `above(n: number\|string) : constraint` | A | value > x |
 | `below(n: number\|string) : constraint` | A | value < x |
 | `neq(...vals: number\|string) : constraint` | A | value is none of the listed scalars (leaf-aware) |
-| `multiple(n: number) : constraint` | A | value is a whole multiple of n, a positive number (by the value each shows) |
+| `mulof(n: number) : constraint` | A | value is a whole multiple of n, a positive number (by the value each shows) |
 | `re(text p: string) : constraint` | A | string matches pattern p (unanchored, ECMA-262 syntax under `u`) |
 | `len(n: number\|constraint) : constraint` | A | length/count satisfies integer constraint c |
 | `unique(projector k?: string) : constraint` | A | members pairwise distinct (list elements, map values) |
@@ -5568,21 +5596,21 @@ supertype `number`):
    integer `1` and admits the float `1.0`. To exclude a point on the
    whole number line, list its leaves: `neq(1, 1.0)` (the exact
    leaves are opt-in, so `0d`-free documents need only these two).
-4. **`multiple` reads the value a number shows.** Divisibility does
+4. **`mulof` reads the value a number shows.** Divisibility does
    not survive binary rounding: the double nearest 0.3 is no multiple
    of the double nearest 0.1, though `0.3` is written as a multiple
    of `0.1` in every JSON document that carries it. So a `float`,
    divisor or value alike, is read through its shortest round-trip
    rendering, the text both implementations write for it, and the
-   exact leaves as they are: `multiple(0.1) & 0.3` is `0.3`, and
-   `multiple(1) & 1.0` is `1.0`. Like a bound, `multiple` implies
+   exact leaves as they are: `mulof(0.1) & 0.3` is `0.3`, and
+   `mulof(1) & 1.0` is `1.0`. Like a bound, `mulof` implies
    `number` and never narrows the leaf.
 
 String bounds (`min("a")`) use lexical code-point order and imply
 `string`. Mixing domains in one meet (`min(0) & min("a")`) is empty
 and yields nil.
 
-The definition's rules for the bounds are those of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), over the order of `Number` in [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean) and code-point order on strings; `multiple` reads the decimal a float shows; and the strict bounds sit under their closed ones, `above_le_min` and `beneath_le_max` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean).
+The definition's rules for the bounds are those of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), over the order of `Number` in [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean) and code-point order on strings; `mulof` reads the decimal a float shows; and the strict bounds sit under their closed ones, `above_le_min` and `beneath_le_max` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean).
 
 ### The meet
 
@@ -5594,7 +5622,7 @@ schema-composition time, before any data arrives:
 | interval & interval | intersection: `min(0) & min(5)` → `min(5)`; `min(2) & max(10) & max(7)` → `min(2)&max(7)` |
 | `neq` & `neq` | exclusion-set union, arguments sorted |
 | `re` & `re` | regex-set accumulation (patterns sorted; never simplified) |
-| `multiple` & `multiple` | divisor accumulation, sorted by value, one value kept once; no least common multiple is synthesised |
+| `mulof` & `mulof` | divisor accumulation, sorted by value, one value kept once; no least common multiple is synthesised |
 | `len(c1)` & `len(c2)` | `len(c1 & c2)`: the count atom reuses the numeric algebra recursively |
 | bound & kind | domain narrowing: `integer & min(0)` keeps both (interval gains the integral-domain flag); `number & min(0)` keeps `min(0)` (already implied); `string & min(0)` → nil |
 | bound & concrete scalar | membership by exact comparison → the scalar, or a two-site nil |
@@ -5616,7 +5644,7 @@ guessed where it is not:
 - Integral gap: an integral-domain interval containing no integral
   value: `integer & above(1) & below(2)` → nil. (Applies when the
   domain is narrowed by `integer` or `biginteger`, or by a whole
-  divisor, whose multiples are all whole: `multiple(1) & above(1) &
+  divisor, whose multiples are all whole: `mulof(1) & above(1) &
   below(2)` → nil.)
 - Point deletion **requires a narrowed leaf**: `min(3) & max(3)`
   admits the point 3 in any numeric leaf, so `neq(3)` (which excludes
@@ -5669,7 +5697,7 @@ in this sense and are marked; the rest are exact.
 | no bound on a side | any    | an absent endpoint is ±∞ and contains everything |
 | `neq(S)`    | `neq(T)`     | `S ⊆ T`: excluding *fewer* values is more general. `neq(1) ⊒ neq(1,2)` |
 | `neq(S)`    | concrete scalar | the scalar is in neither S nor excluded by A's other atoms |
-| `multiple(a)` | `multiple(b)` | **approximate**: some divisor of B is a multiple of a, or B is integral and 1 is a multiple of a. `multiple(2) ⊒ multiple(4)`, `multiple(0.5) ⊒ integer` |
+| `mulof(a)` | `mulof(b)` | **approximate**: some divisor of B is a multiple of a, or B is integral and 1 is a multiple of a. `mulof(2) ⊒ mulof(4)`, `mulof(0.5) ⊒ integer` |
 | `re(P)`     | `re(Q)`      | **approximate**: `P ⊆ Q` as a *set of pattern strings*. Adding a pattern narrows, so `re("a") ⊒ re("a")&re("b")` |
 | `len(c)`    | `len(d)`     | `c ⊒ d`, recursively: the count atom reuses this same table over the integer domain |
 | absent `length`/`unique` | present | always: an unsized residual admits every size |

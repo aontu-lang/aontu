@@ -175,7 +175,7 @@ top of a document, and its aliases are in scope. The alias
 once.
 
 **A third model is proposed, and it is what the gate below is for.**
-[G9](../capability-review/g9-transformation.md) specifies
+[G9](../docs/capability-review/g9-transformation.md) specifies
 `@"aontu:code"`, the output vocabulary a code-generation transform
 produces: twenty-odd aliases against this note's four, which makes it
 both the first real test of the no-shared-name rule and the reason to

@@ -2,7 +2,7 @@
 # mode: canon = unify(src).canon == expect ; gen = generate(src) deep-equals JSON(expect) ; err = generate(src) errors, message contains expect
 # mode: gens = generate(src) serialised as COMPACT JSON == expect, BYTE FOR BYTE
 #
-# See docs/design/number-tower.md for the design these rows pin. The
+# See sketch/number-tower.md for the design these rows pin. The
 # tower makes `number` a pure supertype over four disjoint leaves:
 #
 #   number

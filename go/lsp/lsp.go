@@ -336,7 +336,7 @@ func Completions(src string) []CompletionItem {
 	out := []CompletionItem{}
 	for _, f := range aontu.BuiltinFuncNames() {
 		// The detail is the rendered SIGNATURE
-		// (docs/design/SIGNATURES.0.md) -- the same renderer the hints
+		// (sketch/SIGNATURES.0.md) -- the same renderer the hints
 		// use, so the completion list cannot drift from the
 		// declaration.
 		out = append(out, CompletionItem{Label: f, Kind: CompletionFunction, Detail: aontu.FuncSignature(f)})

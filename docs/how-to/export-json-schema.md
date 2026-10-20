@@ -92,7 +92,7 @@ move: keep a registry of tools in one document and answer each tool's
 argschemas: type(close({
   search_docs: close({
     query: string & len(min(1) & max(256))
-    limit?: number & multiple(1) & min(1) & max(50)
+    limit?: number & mulof(1) & min(1) & max(50)
     scope?: workspace|org|web
   })
 }))
@@ -136,7 +136,7 @@ hallucinated argument is a refusal on the aontu side and
 `additionalProperties: false` on the JSON Schema side. Stderr stayed
 empty for this run because the registry is written in the crossing
 subset: kinds, scalar enums, bounds, `re()`, string `len()`,
-optional keys, `close()`, and `number & multiple(1)` for a whole
+optional keys, `close()`, and `number & mulof(1)` for a whole
 number, which is what `integer` means in JSON Schema. The full crossing table is in the
 reference under
 [`aontu jsonschema`](../reference-api.md#aontu-jsonschema).
@@ -199,7 +199,7 @@ a schema admitting more than the model does:
 $ aontu jsonschema --strict --at report report.aontu
 ...
 lossy: $.report.amountEur bigdecimal: JSON Schema has no type for one leaf of a number: the schema says "number", which admits the other leaves too, where this kind refuses them
-lossy: $.report.attempts.& integer: JSON Schema reads a number by its value, so its integer also admits 1.0 and whole numbers past the integer leaf, which this kind refuses; number & multiple(1) is the integer it means
+lossy: $.report.attempts.& integer: JSON Schema reads a number by its value, so its integer also admits 1.0 and whole numbers past the integer leaf, which this kind refuses; number & mulof(1) is the integer it means
 lossy: $.report.audit hide: a hidden entry is not generated, so it is omitted from the schema; a consumer is neither asked for it nor allowed to know about it
 lossy: $.report.retries len: a count with no domain is exported as minItems/maxItems; JSON Schema has no keyword that counts a string OR a container
 lossy: $.report.total nil: this is not a value yet, so there is nothing to constrain a consumer to; the schema admits anything here
@@ -212,7 +212,7 @@ each loss as `{path, construct, reason}`, the schema embedded) for a
 build step that wants to allowlist specific losses rather than fail
 on any. Two of the losses have a way around them. The `integer` kind
 admits only its leaf, where an integer in JSON Schema is any whole
-number however it is written, so `number & multiple(1)` crosses without loss.
+number however it is written, so `number & mulof(1)` crosses without loss.
 And [carry exact money over JSON](carry-exact-money-over-json.md)
 crosses the export loss-free as a decimal string with a conversion
 mark.
@@ -336,7 +336,8 @@ part that changes what a client does, and one that reads
 `x-aontu-deprecate` learns the reason, the replacement and the version
 too. Nothing is lost, so `--strict` passes. A `meta()` record crosses
 the same way, as the annotation keywords it holds: a `title` becomes
-`title`, and a member of its `x` becomes a keyword of its own name.
+`title`, and a key JSON Schema does not read becomes a keyword of its
+own name.
 
 ## The refusals
 

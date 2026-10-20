@@ -130,7 +130,7 @@ where
 /-- The decimal a float shows, as `c * 10 ^ k`: the shortest decimal
 that rounds to the float, the closest to it of those, and of two that
 close the one with the even last digit. It is the text both ports write
-for a float, and what `multiple` reads one as. -/
+for a float, and what `mulof` reads one as. -/
 def Float.shortest (x : Float) : ℤ × ℤ :=
   if x.man = 0 then (0, 0) else
   -- The decimals that round to `x` lie between the midpoints to its

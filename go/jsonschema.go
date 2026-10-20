@@ -52,10 +52,8 @@ type schemaDef struct {
 	value  Val
 	used   bool
 	schema any
-	// refers once a $ref is written inside the definition, reached once a
-	// use a walk that is not scratch writes was copied through it.
-	refers  bool
-	reached bool
+	// refers once a $ref is written inside the definition.
+	refers bool
 }
 
 type schemaPlain struct {
@@ -69,14 +67,6 @@ type schemaRefs struct {
 	names  map[string]bool
 	plain  map[Val]*schemaPlain
 	inside []*schemaDef
-	// dynamic holds the uses read from a $dynamicRef, by the $ref each was
-	// written with.
-	dynamic []schemaDynamicUse
-}
-
-type schemaDynamicUse struct {
-	path      []string
-	name, ref string
 }
 
 // schemaCtx is the exporter's running state: the losses collected so far,
@@ -110,7 +100,7 @@ var kindType = map[Kind]string{
 	KindBigDecimal: "number",
 	KindNumber:     "number",
 	// A path value is its address string at the JSON boundary
-	// (docs/design/PATHS.0.md), so the projection says string -- the
+	// (sketch/PATHS.0.md), so the projection says string -- the
 	// same lossy-projection rule the exact numeric leaves follow.
 	KindPath: "string",
 }
@@ -220,7 +210,7 @@ func schemaLoseLeafKind(sc *schemaCtx, path []string, k Kind) {
 		sc.lose(path, "integer",
 			"JSON Schema reads a number by its value, so its integer also admits "+
 				"1.0 and whole numbers past the integer leaf, which this kind refuses; "+
-				"number & multiple(1) is the integer it means")
+				"number & mulof(1) is the integer it means")
 	case KindFloat:
 		sc.lose(path, "float",
 			"JSON Schema has no float: its number also admits the integer leaf, "+
@@ -876,10 +866,9 @@ func schemaKeyword(out map[string]any, extra []any, key string, val any) []any {
 var schemaDeprecationText = []string{"msg", "use", "since"}
 
 // schemaFromVal is a schema object, or false where a value admits nothing.
-// A use the importer read from a $dynamicRef keeps the $ref of the binding
-// it reached until the definitions are written, when schemaDynamicRefs
-// knows which anchors they carry (ADR-057). A fragment that is no anchor
-// never asked the dynamic scope, and its $ref stands.
+// A use read from a $dynamicRef keeps its $ref until schemaDynamicRefs knows
+// the definitions' anchors (ADR-057). A fragment that is no anchor never
+// asked the dynamic scope, nor did a use whose schema is written in place.
 func schemaFromVal(sc *schemaCtx, path []string, v Val) any {
 	out := schemaFromValRef(sc, path, v)
 	m, ok := out.(map[string]any)
@@ -891,31 +880,21 @@ func schemaFromVal(sc *schemaCtx, path []string, v Val) any {
 	if hash := strings.Index(text, "#"); -1 != hash {
 		name = text[hash+1:]
 	}
-	switch {
-	case "" == name || strings.HasPrefix(name, "/"):
+	if "" == name || strings.HasPrefix(name, "/") || nil == m["$ref"] {
 		delete(m, "$dynamicRef")
-	case nil != m["$ref"]:
+	} else {
 		m["$dynamicRef"] = "#" + name
-		if !sc.scratch {
-			ref, _ := m["$ref"].(string)
-			sc.refs.dynamic = append(sc.refs.dynamic, schemaDynamicUse{path: path, name: name, ref: ref})
-		}
-	default:
-		delete(m, "$dynamicRef")
-		sc.lose(path, "$dynamicRef", "the schema it reached is not a definition, so it is written in place")
 	}
 	return out
 }
 
 func schemaFromValRef(sc *schemaCtx, path []string, v Val) any {
 	if nil == v || nil == v.viaRec() {
-		return schemaWithRiders(sc, path, schemaFromValInner(sc, path, v), v)
+		return schemaWithRiders(schemaFromValInner(sc, path, v), v)
 	}
 	defs := []*schemaDef{}
 	for _, key := range v.viaRec() {
-		def := schemaDefOf(sc, []string{key})
-		def.reached = def.reached || !sc.scratch
-		defs = append(defs, def)
+		defs = append(defs, schemaDefOf(sc, []string{key}))
 	}
 	own := schemaPlainOf(sc, path, v)
 	for _, def := range defs {
@@ -926,7 +905,7 @@ func schemaFromValRef(sc *schemaCtx, path []string, v Val) any {
 	if sc.scratch {
 		return schemaBeside(sc, defs, own.schema)
 	}
-	return schemaBeside(sc, defs, schemaWithRiders(sc, path, schemaFromValInner(sc, path, v), v))
+	return schemaBeside(sc, defs, schemaWithRiders(schemaFromValInner(sc, path, v), v))
 }
 
 // schemaPlainOf is a value's schema as a scratch walk writes it, short of
@@ -936,7 +915,7 @@ func schemaPlainOf(sc *schemaCtx, path []string, v Val) *schemaPlain {
 	plain, ok := sc.refs.plain[v]
 	if !ok {
 		scratch := &schemaCtx{refs: sc.refs, scratch: true}
-		schema := schemaWithRiders(scratch, path, schemaFromValInner(scratch, path, v), v)
+		schema := schemaWithRiders(schemaFromValInner(scratch, path, v), v)
 		plain = &schemaPlain{schema: schema, text: schemaText(schema)}
 		sc.refs.plain[v] = plain
 	}
@@ -1004,14 +983,14 @@ func schemaHeldBeside(sc *schemaCtx, path []string, out map[string]any, con *Con
 		return out
 	}
 	prior, _ := out["allOf"].([]any)
-	out["allOf"] = append(append([]any{}, prior...), schemaWithRiders(sc, path, own, con))
+	out["allOf"] = append(append([]any{}, prior...), schemaWithRiders(own, con))
 	return out
 }
 
-func schemaWithRiders(sc *schemaCtx, path []string, out any, v Val) any {
+func schemaWithRiders(out any, v Val) any {
 	if obj, ok := out.(map[string]any); ok && nil != v &&
 		(nil != v.deprecRec() || nil != v.metaRec()) {
-		schemaAnnotate(sc, path, obj, v)
+		schemaAnnotate(obj, v)
 	}
 	return out
 }
@@ -1042,7 +1021,7 @@ func schemaDefOf(sc *schemaCtx, target []string) *schemaDef {
 		path[i] = aliasPathSegment(seg)
 	}
 	base := strings.Join(path, ".")
-	if declared := value.identRec()["defs"]; 1 == len(declared) {
+	if declared := identTexts(value, "defs"); 1 == len(declared) {
 		base = declared[0]
 	} else if 1 == len(target) && aliasNameRe.MatchString(path[0]) {
 		base = schemaDefName(path[0][1:])
@@ -1123,8 +1102,7 @@ func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss
 		}
 	}
 	sort.Slice(used, func(i, j int) bool { return used[i].name < used[j].name })
-	moved := map[string]string{}
-	schemaUnclone(schema, body, used, moved)
+	schemaUnclone(schema, body, used)
 	used = slices.DeleteFunc(used, func(d *schemaDef) bool { return !d.used })
 	whole := schemaText(body)
 	to := map[string]string{}
@@ -1141,7 +1119,7 @@ func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss
 			rest = append(rest, d)
 		}
 	}
-	named := schemaIdentify(schema, folded, rest)
+	schemaIdentify(schema, folded, rest)
 	kept := map[string]any{}
 	for _, d := range rest {
 		kept[d.name] = d.schema
@@ -1150,31 +1128,10 @@ func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss
 		schema["$defs"] = kept
 	}
 	schemaRelink(schema, to)
-	for from, ref := range to {
-		moved[from] = ref
-	}
-	dynamic := schemaDynamicRefs(sc, schema, rest, moved)
-	// A use written as the $ref of another definition that says the same
-	// leaves this one unwritten, and with it the identity it was declared with.
-	unwritten := []SchemaLoss{}
-	all := []*schemaDef{}
-	for _, d := range sc.refs.defs {
-		if d.reached && !d.used && "" == moved[schemaDefRef(d)] {
-			all = append(all, d)
-		}
-	}
-	sort.Slice(all, func(i, j int) bool { return all[i].name < all[j].name })
-	for _, d := range all {
-		for _, kw := range schemaIdentityKeyword {
-			if 0 < len(d.value.identRec()[kw[0]]) {
-				unwritten = append(unwritten, SchemaLoss{Path: schemaPathText(d.path), Construct: kw[1],
-					Reason: "its uses are written as another definition that says the same, so it is not written"})
-			}
-		}
-	}
+	schemaDynamicRefs(schema, rest)
 	seen := map[string]bool{}
 	lossy := []SchemaLoss{}
-	for _, l := range slices.Concat(sc.lossy, named, unwritten, dynamic) {
+	for _, l := range sc.lossy {
 		key := l.Path + "\x00" + l.Construct + "\x00" + l.Reason
 		under := false
 		for _, g := range gone {
@@ -1188,25 +1145,19 @@ func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss
 	return lossy
 }
 
-var schemaIdentityKeyword = [][2]string{{"id", "$id"}, {"anchor", "$anchor"}, {"dynamicAnchor", "$dynamicAnchor"}}
-
 // schemaIdentify writes a definition's identity on it, and a folded
 // one's on the schema (ADR-056). An identifier a $ref inside would
-// resolve against is a loss, as is an anchor its resource already holds.
-func schemaIdentify(schema map[string]any, folded, kept []*schemaDef) []SchemaLoss {
-	lossy := []SchemaLoss{}
-	one := func(defs []*schemaDef, key, construct, path string) (string, bool) {
+// resolve against is not written, nor is an anchor its resource already
+// holds, nor a key the declarations gave several values (ADR-074).
+func schemaIdentify(schema map[string]any, folded, kept []*schemaDef) {
+	one := func(defs []*schemaDef, key string) (string, bool) {
 		all := []string{}
 		for _, d := range defs {
-			for _, v := range d.value.identRec()[key] {
+			for _, v := range identTexts(d.value, key) {
 				if !slices.Contains(all, v) {
 					all = append(all, v)
 				}
 			}
-		}
-		if 1 < len(all) {
-			lossy = append(lossy, SchemaLoss{Construct: construct, Path: path,
-				Reason: "the declaration carries more than one, so none is written"})
 		}
 		if 1 == len(all) {
 			return all[0], true
@@ -1219,12 +1170,13 @@ func schemaIdentify(schema map[string]any, folded, kept []*schemaDef) []SchemaLo
 		}
 	}
 
-	id, hasID := one(folded, "id", "$id", "$")
-	top, hasTop := one(folded, "anchor", "$anchor", "$")
-	topDynamic, hasTopDynamic := one(folded, "dynamicAnchor", "$dynamicAnchor", "$")
+	id, hasID := one(folded, "id")
+	top, hasTop := one(folded, "anchor")
+	topDynamic, hasTopDynamic := one(folded, "dynamicAnchor")
 	write(schema, "$id", id, hasID)
 	write(schema, "$anchor", top, hasTop)
 	write(schema, "$dynamicAnchor", topDynamic, hasTopDynamic)
+	schemaDeclared(folded, schema)
 
 	// An anchor and a dynamic anchor share one namespace in a resource.
 	anchors := map[string]bool{}
@@ -1235,34 +1187,27 @@ func schemaIdentify(schema map[string]any, folded, kept []*schemaDef) []SchemaLo
 		anchors[topDynamic] = true
 	}
 	for _, d := range kept {
-		path := schemaPathText(d.path)
-		id, hasID := one([]*schemaDef{d}, "id", "$id", path)
-		if hasID && d.refers {
-			lossy = append(lossy, SchemaLoss{Construct: "$id", Path: path,
-				Reason: "a $ref inside the definition would resolve against it, so it is not written"})
-			hasID = false
+		id, hasID := "", false
+		if !d.refers {
+			id, hasID = one([]*schemaDef{d}, "id")
 		}
 		own := map[string]bool{}
-		named := func(key, construct string) (string, bool) {
-			name, has := one([]*schemaDef{d}, key, construct, path)
-			if has && !hasID && anchors[name] && !own[name] {
-				lossy = append(lossy, SchemaLoss{Construct: construct, Path: path,
-					Reason: "another schema in its resource has the anchor, so it is not written"})
+		named := func(key string) (string, bool) {
+			name, has := one([]*schemaDef{d}, key)
+			if !has || (!hasID && anchors[name] && !own[name]) {
 				return "", false
 			}
-			if has {
-				own[name] = true
-			}
-			return name, has
+			own[name] = true
+			return name, true
 		}
-		anchor, hasAnchor := named("anchor", "$anchor")
-		dynamic, hasDynamic := named("dynamicAnchor", "$dynamicAnchor")
+		anchor, hasAnchor := named("anchor")
+		dynamic, hasDynamic := named("dynamicAnchor")
 		if !hasID {
 			for a := range own {
 				anchors[a] = true
 			}
 		}
-		if hasID || 0 < len(own) {
+		if hasID || 0 < len(own) || schemaHasOtherKeys(d.value) {
 			out, ok := d.schema.(map[string]any)
 			if !ok {
 				out = map[string]any{"not": map[string]any{}}
@@ -1270,26 +1215,74 @@ func schemaIdentify(schema map[string]any, folded, kept []*schemaDef) []SchemaLo
 			write(out, "$id", id, hasID)
 			write(out, "$anchor", anchor, hasAnchor)
 			write(out, "$dynamicAnchor", dynamic, hasDynamic)
+			schemaDeclared([]*schemaDef{d}, out)
 			d.schema = out
 		}
 	}
-	return lossy
+}
+
+var schemaIdentityKeys = map[string]bool{"id": true, "anchor": true, "dynamicAnchor": true, "defs": true}
+
+// identTexts is the text a declaration's record holds under one key, which
+// is all the exporter reads an identity from.
+func identTexts(v Val, key string) []string {
+	out := []string{}
+	for _, t := range v.identRec()[key] {
+		if sv, ok := t.(*ScalarVal); ok {
+			if s, ok := sv.peg.(string); ok {
+				out = append(out, s)
+			}
+		}
+	}
+	return out
+}
+
+// schemaHasOtherKeys is whether a declaration's record holds a key beyond
+// its identity, or an identity key holding something other than text.
+func schemaHasOtherKeys(v Val) bool {
+	for k, vs := range v.identRec() {
+		if !schemaIdentityKeys[k] || len(identTexts(v, k)) < len(vs) {
+			return true
+		}
+	}
+	return false
+}
+
+// schemaDeclared writes the keys of the definitions' records beyond their
+// identity on the schema they are written as, each a keyword of its own
+// name (ADR-073), unless it names a JSON Schema keyword, the schema writes
+// it already or the declarations gave it several values.
+func schemaDeclared(defs []*schemaDef, out map[string]any) {
+	recs := []map[string][]Val{}
+	for _, d := range defs {
+		recs = append(recs, d.value.identRec())
+	}
+	rec := unionRiders(valCanon, recs...)
+	keys := make([]string, 0, len(rec))
+	for k := range rec {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if _, has := out[k]; !schemaIdentityKeys[k] && !schemaKeywords[k] && 1 == len(rec[k]) && !has {
+			json, _ := schemaGenerated(rec[k][0])
+			out[k] = json
+		}
+	}
 }
 
 // schemaUnclone makes the declarations of one schema read in several
 // dynamic scopes one definition where their schemas agree, the $refs of
-// their uses included, so the scopes read the same there; each $ref moved
-// is in moved (ADR-057).
-func schemaUnclone(schema map[string]any, body any, used []*schemaDef, moved map[string]string) {
+// their uses included, so the scopes read the same there (ADR-057).
+func schemaUnclone(schema map[string]any, body any, used []*schemaDef) {
 	// Clones share the $defs key a clone's identity names.
 	twins := func(u, d *schemaDef) bool {
 		return u != d && u.used && u.base == d.base && u.name < d.name &&
-			(slices.Contains(u.value.identRec()["defs"], d.base) ||
-				slices.Contains(d.value.identRec()["defs"], d.base))
+			(slices.Contains(identTexts(u.value, "defs"), d.base) ||
+				slices.Contains(identTexts(d.value, "defs"), d.base))
 	}
 	drop := func(d, into *schemaDef) {
 		d.used = false
-		moved[schemaDefRef(d)] = schemaDefRef(into)
 		to := map[string]string{schemaDefRef(d): schemaDefRef(into)}
 		schemaRelink(schema, to)
 		schemaRelink(body, to)
@@ -1319,9 +1312,8 @@ func schemaUnclone(schema map[string]any, body any, used []*schemaDef, moved map
 // schemaDynamicRefs writes a use read from a $dynamicRef as one where its
 // anchor names, in the export, the schema its $ref reached, in the
 // resource of the schema, so the dynamic scope reads it as the import did;
-// otherwise its $ref stands, and the dynamic reference is a loss (ADR-057).
-func schemaDynamicRefs(sc *schemaCtx, schema map[string]any, kept []*schemaDef,
-	moved map[string]string) []SchemaLoss {
+// otherwise its $ref stands (ADR-057).
+func schemaDynamicRefs(schema map[string]any, kept []*schemaDef) {
 	at := map[string]any{"#": schema}
 	for _, d := range kept {
 		at[schemaDefRef(d)] = d.schema
@@ -1342,20 +1334,6 @@ func schemaDynamicRefs(sc *schemaCtx, schema map[string]any, kept []*schemaDef,
 			}
 		}
 	})
-	reached := func(ref string) string {
-		for "" != moved[ref] {
-			ref = moved[ref]
-		}
-		return ref
-	}
-	lossy := []SchemaLoss{}
-	for _, u := range sc.refs.dynamic {
-		if !names(reached(u.ref), u.name) {
-			lossy = append(lossy, SchemaLoss{Path: schemaPathText(u.path), Construct: "$dynamicRef",
-				Reason: "its anchor does not name the schema it reached in the export, so it is written as a $ref"})
-		}
-	}
-	return lossy
 }
 
 // schemaRelink points every $ref a folded definition had at the schema
@@ -1396,15 +1374,22 @@ func schemaEach(v any, fn func(map[string]any)) {
 	}
 }
 
-var schemaMetaKeyword = map[string]string{
-	"title": "title", "description": "description", "comment": "$comment", "default": "default",
-	"examples": "examples", "readOnly": "readOnly", "writeOnly": "writeOnly", "format": "format",
-	"contentEncoding": "contentEncoding", "contentMediaType": "contentMediaType",
-	"contentSchema": "contentSchema",
+// schemaMetaKeyword is the record keys JSON Schema reads, each as its
+// keyword and the kind of value that keyword holds. A record is open
+// (ADR-072): these are the exporter's conventions, and any other key is
+// written under its own name.
+var schemaMetaKeyword = map[string][2]string{
+	"title": {"title", "string"}, "description": {"description", "string"},
+	"comment": {"$comment", "string"}, "default": {"default", "data"},
+	"examples": {"examples", "list"}, "readOnly": {"readOnly", "boolean"},
+	"writeOnly": {"writeOnly", "boolean"}, "format": {"format", "string"},
+	"contentEncoding":  {"contentEncoding", "string"},
+	"contentMediaType": {"contentMediaType", "string"},
+	"contentSchema":    {"contentSchema", "data"}, "dynamicRef": {"$dynamicRef", "string"},
 }
 
-// schemaKeywords are the JSON Schema keywords: one held under `x` would
-// assert where the record only annotates, so it is not written.
+// schemaKeywords are the JSON Schema keywords: a record key that names one
+// is not written, since its meaning there would be JSON Schema's.
 var schemaKeywords = map[string]bool{}
 
 func init() {
@@ -1427,7 +1412,7 @@ func init() {
 // schemaAnnotate writes a value's riders as annotations: the first record
 // inline and any other in an allOf of annotation-only subschemas, and a
 // deprecation record as `deprecated`, its fields under x-aontu-deprecate.
-func schemaAnnotate(sc *schemaCtx, path []string, obj map[string]any, v Val) {
+func schemaAnnotate(obj map[string]any, v Val) {
 	if dep := v.deprecRec(); nil != dep {
 		obj["deprecated"] = true
 		rec := map[string]any{}
@@ -1460,40 +1445,30 @@ func schemaAnnotate(sc *schemaCtx, path []string, obj map[string]any, v Val) {
 		sort.Strings(keys)
 		for _, k := range keys {
 			json, _ := schemaGenerated(layer[k])
+			known, isKnown := schemaMetaKeyword[k]
+			// The record is anyone's, so what JSON Schema does not read in it
+			// is not written, and is no loss (ADR-074).
+			if isKnown && !schemaFitsKind(known[1], json) {
+				continue
+			}
 			// A $dynamicRef is no annotation: schemaFromVal reads the first
 			// beside the $ref it rides, and the meet the others reached is
 			// written already.
-			if _, has := obj["$dynamicRef"]; "dynamicRef" == k && !has {
-				obj["$dynamicRef"] = json
-				continue
-			}
 			if "dynamicRef" == k {
-				sc.lose(path, "$dynamicRef",
-					"the value meets more than one dynamic reference, so this one is written as the schema it reached")
+				if _, has := obj["$dynamicRef"]; !has {
+					obj["$dynamicRef"] = json
+				}
 				continue
 			}
 			// A format the constraint asserts is written already.
 			if s, ok := json.(string); ok && "format" == k && schemaWritesFormat(obj, s) {
 				continue
 			}
-			if "x" != k {
-				part[schemaMetaKeyword[k]] = json
-				continue
-			}
-			xm, _ := json.(map[string]any)
-			xkeys := make([]string, 0, len(xm))
-			for xk := range xm {
-				xkeys = append(xkeys, xk)
-			}
-			sort.Strings(xkeys)
-			for _, xk := range xkeys {
-				if schemaKeywords[xk] {
-					sc.lose(path, "meta",
-						"the unknown keyword "+xk+" is a JSON Schema keyword, which "+
-							"would assert where the record only annotates, so it is DROPPED")
-				} else {
-					part[xk] = xm[xk]
-				}
+			switch {
+			case isKnown:
+				part[known[0]] = json
+			case !schemaKeywords[k]:
+				part[k] = json
 			}
 		}
 		free := true
@@ -1514,6 +1489,23 @@ func schemaAnnotate(sc *schemaCtx, path []string, obj map[string]any, v Val) {
 		all, _ := obj["allOf"].([]any)
 		obj["allOf"] = append(append([]any{}, all...), extra...)
 	}
+}
+
+// schemaFitsKind is whether a record value is JSON of the kind a keyword
+// holds.
+func schemaFitsKind(kind string, json any) bool {
+	switch kind {
+	case "string":
+		_, ok := json.(string)
+		return ok
+	case "boolean":
+		_, ok := json.(bool)
+		return ok
+	case "list":
+		_, ok := json.([]any)
+		return ok
+	}
+	return true
 }
 
 // schemaWritesFormat is whether obj writes the format name, inline or as
@@ -1611,7 +1603,7 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		if "meta" == t.name || "deprecate" == t.name {
 			carrier := t.resolve(&Ctx{collect: true}, nil, append([]Val{top()}, t.peg[1:]...))
 			if !carrier.Nil() {
-				return schemaWithRiders(sc, path, schemaFromVal(sc, path, t.peg[0]), carrier)
+				return schemaWithRiders(schemaFromVal(sc, path, t.peg[0]), carrier)
 			}
 		}
 
@@ -2041,7 +2033,7 @@ func schemaSpreadTerms(v Val) []Val {
 var schemaIsolableFuncs = map[string]bool{
 	"above": true, "below": true, "close": true, "contains": true, "deprecate": true,
 	"empty": true, "format": true, "len": true, "lower": true, "match": true, "max": true, "meta": true,
-	"min": true, "multiple": true, "must": true, "neq": true, "nof": true, "open": true,
+	"min": true, "mulof": true, "must": true, "neq": true, "nof": true, "open": true,
 	"pref": true, "re": true, "unique": true, "upper": true, "when": true,
 }
 

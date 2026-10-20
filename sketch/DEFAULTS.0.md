@@ -6,7 +6,7 @@ a disjunction of the default with its own type — is the real
 structure.** `a: *x` means `a: *x | super(x)`, and every place the
 two spellings disagreed is resolved in favour of the long form.
 
-Recorded as [ADR-011](../../ADR.md#adr-011--the-star-is-sugar-the-disjunction-is-the-structure). This completes ADR-004
+Recorded as [ADR-011](../ADR.md#adr-011--the-star-is-sugar-the-disjunction-is-the-structure). This completes ADR-004
 rather than reversing it: ADR-004 said a default inside a disjunction
 must be admitted by that disjunction; this says a default *is* a
 disjunction with its own type, so there is only ever one rule.

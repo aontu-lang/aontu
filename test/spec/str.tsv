@@ -1,4 +1,4 @@
-# THE STRING BUILTINS (G9 phase 6, docs/design/TEMPLATE.0.md D4, D5).
+# THE STRING BUILTINS (G9 phase 6, sketch/TEMPLATE.0.md D4, D5).
 #
 #   esc(s, variant?)      make `s` safe inside a literal
 #   usc(s, variant?)      read it back out

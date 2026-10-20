@@ -499,7 +499,7 @@ function runStep(file, dir, cache, step) {
         }
         Assert.deepEqual(untested, [], `snippets with no test and no owned skip — give each a ` +
             `directive: file/run for execution, or skip with a reason ` +
-            `(docs/STYLE-GUIDE.md, "Code snippets"):\n${untested.join('\n')}`);
+            `(STYLE-GUIDE.md, "Code snippets"):\n${untested.join('\n')}`);
     });
     (0, node_test_1.test)('every-source-fence-is-in-the-agreed-form-or-keeps-its-spelling', () => {
         const failures = [];
@@ -553,7 +553,7 @@ function runStep(file, dir, cache, step) {
         return null;
     }
     (0, node_test_1.test)('function-signatures-match-the-registry', () => {
-        // THE DRIFT GATE (docs/design/SIGNATURES.0.md): a signature printed
+        // THE DRIFT GATE (sketch/SIGNATURES.0.md): a signature printed
         // on any gated page is the one the engine parses, pipes escaped in
         // a table cell. Aimed at the set rather than one filename, which
         // stops checking the rest the day a page moves.
@@ -815,7 +815,7 @@ corpusDescribe('docs-style', () => {
                 }
             }
         }
-        Assert.deepEqual(hits, [], `banned phrases (docs/STYLE-GUIDE.md):\n${hits.join('\n')}`);
+        Assert.deepEqual(hits, [], `banned phrases (STYLE-GUIDE.md):\n${hits.join('\n')}`);
     });
     // Literal code and quoted output keep their punctuation. The rule applies
     // to prose, using the same stripper as the phrase and first-person gates.
@@ -830,7 +830,7 @@ corpusDescribe('docs-style', () => {
                 }
             });
         }
-        Assert.deepEqual(hits, [], `em dashes in prose (docs/STYLE-GUIDE.md):\n${hits.join('\n')}`);
+        Assert.deepEqual(hits, [], `em dashes in prose (STYLE-GUIDE.md):\n${hits.join('\n')}`);
     });
     // `tutorial.md` is the INDEX of these and teaches nothing itself, so
     // it is held to the ordinary rules rather than the tutorial ones.
@@ -855,7 +855,7 @@ corpusDescribe('docs-style', () => {
             });
         }
         Assert.deepEqual(hits, [], 'first-person plural outside a tutorial ' +
-            `(docs/STYLE-GUIDE.md, voice rule 7):\n${hits.join('\n')}`);
+            `(STYLE-GUIDE.md, voice rule 7):\n${hits.join('\n')}`);
     });
     // "I" is stricter than Google's rule and applies to every page.
     // I/O is a word, not a pronoun; the negative lookahead keeps it.
@@ -872,7 +872,7 @@ corpusDescribe('docs-style', () => {
             });
         }
         Assert.deepEqual(hits, [], 'first-person singular in documentation ' +
-            `(docs/STYLE-GUIDE.md, voice rule 7):\n${hits.join('\n')}`);
+            `(STYLE-GUIDE.md, voice rule 7):\n${hits.join('\n')}`);
     });
     (0, node_test_1.test)('the-name-is-spelled-aontu', () => {
         const hits = [];
@@ -887,7 +887,7 @@ corpusDescribe('docs-style', () => {
             });
         }
         Assert.deepEqual(hits, [], 'the name is "aontu", lowercase and with no fada ' +
-            `(docs/STYLE-GUIDE.md, Terminology):\n${hits.join('\n')}`);
+            `(STYLE-GUIDE.md, Terminology):\n${hits.join('\n')}`);
     });
     (0, node_test_1.test)('exclamation-marks-are-rationed', () => {
         const hits = [];
@@ -907,7 +907,7 @@ corpusDescribe('docs-style', () => {
             }
         }
         Assert.deepEqual(hits, [], 'exclamation marks: at most one per page, tutorials only ' +
-            `(docs/STYLE-GUIDE.md):\n${hits.join('\n')}`);
+            `(STYLE-GUIDE.md):\n${hits.join('\n')}`);
     });
     (0, node_test_1.test)('no-emoji', () => {
         const hits = [];
@@ -930,10 +930,10 @@ corpusDescribe('docs-style', () => {
         [/\bADR\.md\b/g, 'ADR.md'],
         [/capability-review/g, 'the capability review'],
         [/\bG\d+ phase \d+\b/g, 'a capability-review phase'],
-        // Both spellings: the pages linked design notes as `docs/design/…`
-        // and as a bare `design/…` relative href, and only the first was
-        // listed.
+        // A design note is cited by the bare relative href the pages once
+        // used, or by its folder, `sketch/`.
         [/\bdesign\/[A-Za-z0-9._-]+\.md/g, 'a design note'],
+        [/\bsketch\//g, 'a working note'],
         [/\bDIVERGENCE\.md\b/g, 'DIVERGENCE.md'],
         [/use-cases\/(?:BUGS|REVIEW)\.md/g, 'a defect ledger'],
         [/\bprogress\.md\b/g, 'the progress register'],
@@ -971,7 +971,7 @@ corpusDescribe('docs-style', () => {
                 }
             }
         }
-        Assert.deepEqual(hits, [], 'published pages cite internal records (docs/STYLE-GUIDE.md,\n' +
+        Assert.deepEqual(hits, [], 'published pages cite internal records (STYLE-GUIDE.md,\n' +
             '"The published set cites nothing internal"):\n' + hits.join('\n'));
     });
     // The register's status column, held to it below, plus the markers it
@@ -1022,7 +1022,7 @@ corpusDescribe('docs-style', () => {
                 }
             }
         }
-        Assert.deepEqual(hits, [], 'published pages track this project\'s phases (docs/STYLE-GUIDE.md,\n' +
+        Assert.deepEqual(hits, [], 'published pages track this project\'s phases (STYLE-GUIDE.md,\n' +
             '"The published set cites nothing internal"):\n' + hits.join('\n'));
     });
     // aontu.dev serves grammar/ and the tarball ships it, so its comments
@@ -1046,7 +1046,7 @@ corpusDescribe('docs-style', () => {
                 }
             });
         }
-        Assert.deepEqual(hits, [], 'published grammars cite internal records (docs/STYLE-GUIDE.md,\n' +
+        Assert.deepEqual(hits, [], 'published grammars cite internal records (STYLE-GUIDE.md,\n' +
             '"The published set cites nothing internal"):\n' + hits.join('\n'));
     });
     // A clean run cannot tell a working rule from a broken one. Each case
@@ -1146,13 +1146,13 @@ corpusDescribe('docs-style', () => {
                 }
             }
         }
-        Assert.deepEqual(hits, [], 'figures must be generated and described (docs/STYLE-GUIDE.md,\n' +
+        Assert.deepEqual(hits, [], 'figures must be generated and described (STYLE-GUIDE.md,\n' +
             '"Figures are drawn by the engine"):\n' + hits.join('\n'));
     });
     // The guide, this gate and Vale's configuration must agree, and each
     // names the others, so a reader of any one finds the rest.
     (0, node_test_1.test)('the-style-guide-names-both-gates', () => {
-        const guide = Fs.readFileSync(Path.join(DOCS_DIR, 'STYLE-GUIDE.md'), 'utf8');
+        const guide = Fs.readFileSync(Path.join(REPO, 'STYLE-GUIDE.md'), 'utf8');
         Assert.ok(guide.includes('docs.test.ts'), 'STYLE-GUIDE.md should point at this test file');
         Assert.ok(guide.includes('.vale.ini'), 'STYLE-GUIDE.md should point at the Vale configuration');
         Assert.ok(guide.includes('reject.txt'), 'STYLE-GUIDE.md should point at the banned list it summarises');
@@ -1162,14 +1162,14 @@ corpusDescribe('docs-style', () => {
     // section heading in reject.txt has to appear in the guide's summary,
     // so a whole category cannot be added to one and missed by the other.
     (0, node_test_1.test)('the-guide-summarises-every-banned-category', () => {
-        const guide = Fs.readFileSync(Path.join(DOCS_DIR, 'STYLE-GUIDE.md'), 'utf8').toLowerCase();
+        const guide = Fs.readFileSync(Path.join(REPO, 'STYLE-GUIDE.md'), 'utf8').toLowerCase();
         const missing = Fs.readFileSync(REJECT_FILE, 'utf8')
             .split('\n')
             .map((l) => l.match(/^# --- (.+?) -+$/))
             .filter((m) => null != m)
             .map((m) => m[1].trim().toLowerCase())
             .filter((h) => !guide.includes(h));
-        Assert.deepEqual(missing, [], 'reject.txt categories with no summary in docs/STYLE-GUIDE.md:\n' +
+        Assert.deepEqual(missing, [], 'reject.txt categories with no summary in STYLE-GUIDE.md:\n' +
             missing.join('\n'));
     });
 });
@@ -1579,11 +1579,12 @@ function headingAnchors(md) {
     }
     return out;
 }
-// Wider than the style-gated set: working documents carry links too.
+// Wider than the style-gated set: working documents carry links too,
+// but not sketch/, whose files are ignored (DEV-PROCESS.md).
 function markdownFiles() {
     return (0, node_child_process_1.execFileSync)('git', ['ls-files', '*.md'], { cwd: REPO, encoding: 'utf8' })
         .split('\n')
-        .filter((f) => '' !== f);
+        .filter((f) => '' !== f && !f.startsWith('sketch/'));
 }
 corpusTest('every-internal-link-resolves', () => {
     const cache = new Map();
@@ -1629,7 +1630,7 @@ corpusTest('every-internal-link-resolves', () => {
 // `progress.md` records the retirements, so it names both spellings.
 const RETIRED_BUILTINS = ['form'];
 const FROZEN_NOTE = '**Names here are the names of the day.**';
-const FROZEN_DIRS = ['docs/design/', 'docs/capability-review/'];
+const FROZEN_DIRS = ['docs/capability-review/'];
 const FROZEN_EXEMPT = ['docs/capability-review/progress.md'];
 corpusTest('a-working-document-naming-a-retired-builtin-says-so', () => {
     const bare = [];

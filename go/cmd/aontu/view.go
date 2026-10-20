@@ -1,6 +1,6 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
-// THE VIEWS (docs/design/VIEWS.0.md, the Go side of ts/src/cli.ts):
+// THE VIEWS (sketch/VIEWS.0.md, the Go side of ts/src/cli.ts):
 // the figure on stdout, the loss report on stderr, and --out / --check
 // / --strict around them.
 

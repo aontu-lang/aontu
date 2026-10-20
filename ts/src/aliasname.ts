@@ -1,6 +1,6 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 
-// ONE PATTERN FOR THE ALIAS NAME. See docs/design/ALIASES.0.md
+// ONE PATTERN FOR THE ALIAS NAME. See sketch/ALIASES.0.md
 const ALIAS_NAME = '%[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)*'
 
 const ALIAS_RE = new RegExp('^' + ALIAS_NAME)

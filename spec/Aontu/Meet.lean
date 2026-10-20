@@ -132,7 +132,7 @@ def Val.doms : Val → List Dom
   | .lit .null => [.null]
   | .min b | .max b | .above b | .beneath b => [b.dom]
   | .neq (v :: _) => [v.dom]
-  | .multiple _ => [.num]
+  | .mulof _ => [.num]
   | .len _ => [.str, .list, .map]
   | .unique _ | .contains _ _ => [.list, .map]
   | .re _ | .format _ => [.str]
@@ -580,7 +580,7 @@ theorem dead_sound : ∀ v : Val, v.dead = true → ∀ j, ¬ Admits env root v 
   | .integer, hd, _, _ | .float, hd, _, _ | .biginteger, hd, _, _ | .bigdecimal, hd, _, _
   | .number, hd, _, _ | .string, hd, _, _ | .anyString, hd, _, _ | .boolean, hd, _, _
   | .lit _, hd, _, _ | .min _, hd, _, _ | .max _, hd, _, _ | .above _, hd, _, _
-  | .beneath _, hd, _, _ | .neq _, hd, _, _ | .multiple _, hd, _, _ | .len _, hd, _, _
+  | .beneath _, hd, _, _ | .neq _, hd, _, _ | .mulof _, hd, _, _ | .len _, hd, _, _
   | .unique _, hd, _, _ | .re _, hd, _, _ | .format _, hd, _, _ | .any, hd, _, _
   | .pref _ _, hd, _, _ | .alias _, hd, _, _ | .path _, hd, _, _ => nomatch hd
 
@@ -652,7 +652,7 @@ theorem dead_refuses : ∀ v : Val, v.dead = true → ∀ j, Refuses env root v 
   | .integer, hd, _ | .float, hd, _ | .biginteger, hd, _ | .bigdecimal, hd, _
   | .number, hd, _ | .string, hd, _ | .anyString, hd, _ | .boolean, hd, _
   | .lit _, hd, _ | .min _, hd, _ | .max _, hd, _ | .above _, hd, _
-  | .beneath _, hd, _ | .neq _, hd, _ | .multiple _, hd, _ | .len _, hd, _
+  | .beneath _, hd, _ | .neq _, hd, _ | .mulof _, hd, _ | .len _, hd, _
   | .unique _, hd, _ | .re _, hd, _ | .format _, hd, _ | .any, hd, _
   | .pref _ _, hd, _ | .alias _, hd, _ | .path _, hd, _ | .nof _ _, hd, _
   | .must _ _, hd, _ | .when _ _ _, hd, _ | .contains _ _, hd, _ | .rest _ _, hd, _
@@ -1702,7 +1702,7 @@ def Val.beq : Val → Val → Bool
   | .above a, .above b => decide (a = b)
   | .beneath a, .beneath b => decide (a = b)
   | .neq a, .neq b => decide (a = b)
-  | .multiple a, .multiple b => decide (a = b)
+  | .mulof a, .mulof b => decide (a = b)
   | .len c, .len d => c.beq d
   | .unique a, .unique b => decide (a = b)
   | .re a, .re b => decide (a = b)

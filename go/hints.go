@@ -460,7 +460,7 @@ var hints = map[string]string{
 	// Go-only: TS never raises decimal_syntax.
 	"decimal_syntax": "This 0d literal is not a valid exact number.",
 
-	// The formatter's self-check (docs/design/FMT.0.md).
+	// The formatter's self-check (sketch/FMT.0.md).
 	"format_check": "The formatted text is not the same document, so nothing was written.\nThis is a formatter defect: please report it, with the source.",
 }
 
@@ -526,7 +526,7 @@ var codeClasses = map[string]string{
 	"rel_address":      "parse",
 	"refer_unresolved": "reference",
 	"rel_unresolved":   "reference",
-	// The tree view (docs/design/VIEWS.0.md): a relation that draws
+	// The tree view (sketch/VIEWS.0.md): a relation that draws
 	// nothing is refused rather than drawn empty. Class reference: a
 	// name that does not resolve.
 	"view_relation_unknown": "reference",
@@ -534,7 +534,7 @@ var codeClasses = map[string]string{
 	"view_profile_unknown":  "reference",
 	"view_style_profile":    "reference",
 	"view_style_unknown":    "reference",
-	// The renderer (docs/design/RENDER.0.md D7, D8): a unit path that
+	// The renderer (sketch/RENDER.0.md D7, D8): a unit path that
 	// is not a relative descent of its own, a text escape in the wrong
 	// language, a declaration with no lowering, an opaque escape under
 	// strict, a unit filter that names nothing.
@@ -557,7 +557,7 @@ var codeClasses = map[string]string{
 	"view_split_kind":         "reference",
 	"view_part_names":         "reference",
 
-	// The formatter's self-check (docs/design/FMT.0.md): a report-layer
+	// The formatter's self-check (sketch/FMT.0.md): a report-layer
 	// code, class internal -- the formatter, not the document, is wrong.
 	"format_check": "internal",
 

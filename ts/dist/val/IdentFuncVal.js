@@ -7,9 +7,7 @@ const err_1 = require("../err");
 const rider_1 = require("../rider");
 const sig_1 = require("../sig");
 const FuncBaseVal_1 = require("./FuncBaseVal");
-// ADR-056: the identity a schema was declared with, carried by its alias
-// declaration and by nothing else.
-const IDENT_KEYS = ['id', 'anchor', 'defs', 'dynamicAnchor'];
+const MetaFuncVal_1 = require("./MetaFuncVal");
 class IdentFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -49,22 +47,20 @@ class IdentFuncVal extends FuncBaseVal_1.FuncBaseVal {
             });
         }
         const v = out.clone(ctx);
-        v.identity = (0, rider_1.unionRecords)([v.identity, record], (s) => s);
+        v.identity = (0, rider_1.unionRecords)([v.identity, record], (r) => r.canon);
         return v;
     }
 }
 exports.IdentFuncVal = IdentFuncVal;
+// A declaration's record: a map of concrete data under any keys, which
+// the JSON Schema exporter reads its identity from (ADR-073).
 function identRecord(r) {
-    if (true !== r.isMap) {
+    if (true !== r.isMap || !(0, MetaFuncVal_1.isData)(r)) {
         return undefined;
     }
-    const out = {};
+    const out = Object.create(null);
     for (const k of Object.keys(r.peg)) {
-        const v = r.peg[k];
-        if (!IDENT_KEYS.includes(k) || true !== v.isScalar || 'string' !== typeof v.peg) {
-            return undefined;
-        }
-        out[k] = [v.peg];
+        out[k] = [r.peg[k]];
     }
     return out;
 }

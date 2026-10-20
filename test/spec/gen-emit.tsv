@@ -1,5 +1,5 @@
 # TRANSFORMATION: emit(select, table) (G9 phase 6,
-# docs/design/EMIT.0.md). Apply-templates: for every node of `select`,
+# sketch/EMIT.0.md). Apply-templates: for every node of `select`,
 # in order, the first template whose `match` the node unifies with is
 # taken and its `body` instantiated AGAINST THAT NODE.
 # Columns: name<TAB>mode<TAB>src<TAB>expect
@@ -135,7 +135,7 @@ emit-table-call	errc	o:emit([{k:1}],pack([a],{x:1}))\n	emit_table
 # a hidden node is not selected. The rule is gen-join.tsv's, shared.
 emit-skips-a-hidden-node	gens	l: [{p: a}, hide({p: b})]\no: emit($.l, {match: {p: string}, body: ['P:' + .p]})	{"l":[{"p":"a"}],"o":["P:a"]}
 
-# REPLACE AND ESC (docs/design/TEMPLATE.0.md D3 and D4; RENDER P6). A
+# REPLACE AND ESC (sketch/TEMPLATE.0.md D3 and D4; RENDER P6). A
 # value reaches a body through `replace`, not a delimiter: a key is an
 # exact string the body already holds as ordinary target text, its
 # value is evaluated against the matched node, and every value is

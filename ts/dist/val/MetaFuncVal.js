@@ -2,20 +2,11 @@
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MetaFuncVal = void 0;
+exports.isData = isData;
 const err_1 = require("../err");
 const rider_1 = require("../rider");
 const sig_1 = require("../sig");
 const FuncBaseVal_1 = require("./FuncBaseVal");
-// What each annotation key holds. `x` carries the keywords JSON Schema
-// does not name, as a map of their values, and `dynamicRef` the text of
-// the $dynamicRef a use was read from (ADR-057).
-const META_KEYS = {
-    title: 'string', description: 'string', comment: 'string', format: 'string',
-    contentEncoding: 'string', contentMediaType: 'string', dynamicRef: 'string',
-    readOnly: 'boolean', writeOnly: 'boolean',
-    examples: 'list', x: 'map',
-    default: 'data', contentSchema: 'data',
-};
 class MetaFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -60,25 +51,16 @@ class MetaFuncVal extends FuncBaseVal_1.FuncBaseVal {
     }
 }
 exports.MetaFuncVal = MetaFuncVal;
-// A record whose every key is an annotation key holding its kind of
-// concrete data, or undefined where any one does not.
+// A record: a map of concrete data, under any keys, or undefined where it
+// is not one. What a key means is for the reader of the record to say;
+// the JSON Schema exporter reads its own keys (ADR-072).
 function metaRecord(r) {
     if (true !== r?.isMap || !isData(r)) {
         return undefined;
     }
-    const out = {};
+    const out = Object.create(null);
     for (const k of Object.keys(r.peg)) {
-        const v = r.peg[k];
-        const kind = META_KEYS[k];
-        const fits = 'data' === kind ||
-            ('string' === kind && 'string' === typeof v.peg && true === v.isScalar) ||
-            ('boolean' === kind && 'boolean' === typeof v.peg && true === v.isScalar) ||
-            ('list' === kind && true === v.isList) ||
-            ('map' === kind && true === v.isMap);
-        if (!fits) {
-            return undefined;
-        }
-        out[k] = [v];
+        out[k] = [r.peg[k]];
     }
     return out;
 }
@@ -93,5 +75,5 @@ function isData(v) {
         return false;
     }
     return Object.values(v.peg).every(isData);
-} /* node:coverage ignore next 5 */
+} /* node:coverage ignore next 6 */
 //# sourceMappingURL=MetaFuncVal.js.map
