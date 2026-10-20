@@ -512,9 +512,11 @@ encodes it lands.
    the schema, an `error` at the meet, since members only accumulate; a
    literal short of its size is tried at generation and is `invalid`
    (decision 8). The definition gains the rule at the meet and the
-   reference states it; the ports stand. Whether a sealed literal short
-   of its size, which cannot grow either, falls under the same rule is
-   for its build to measure against both ports.
+   reference states it; the ports stand. A sealed literal short of its
+   size, which cannot grow either, is a short literal under the same
+   rule, `invalid`, as both ports answer (`len(2) & close([1])` and
+   `len(3) & close({x: 1})`, measured 2026-10-20): the rule reads the
+   length against the size, not whether the literal may grow.
 10. **The marks in the definition.** Raised 2026-10-19 by P5.
    `type()` and `hide()` are no terms of the definition, which holds
    semantics only (§1), yet the `gen` profile of `subsume` compares
@@ -593,7 +595,12 @@ encodes it lands.
    so the first carries a record as data and names none of its keys.
    **Ruled 2026-10-20: the first.** The three riders enter the syntax as
    transparent forms, one rule each, with `Output` passing through
-   them, and the marks of decision 10 enter the same way.
+   them, and the marks of decision 10 enter the same way. `ident()`
+   keeps its place: it is a form only as the value of an alias
+   declaration, or one term of the meet that is that value, and is
+   ill-formed anywhere else, as both ports refuse it with `ident_place`
+   (`test/spec/ident.tsv`), so its rule belongs to the declaration and
+   not to a value.
 15. **The words `map` and `list`.** Raised 2026-10-19 by P6. The
    importer writes `map` for `type: object` with no other keyword and
    `list` for `type: array`. Both ports admit every map or every list

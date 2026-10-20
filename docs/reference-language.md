@@ -612,7 +612,7 @@ explicitly supplied empty map satisfies the kind), and subsume their
 containers (`map` subsumes `{a:1}`). Pinned by
 [`test/spec/containerkind.tsv`](../test/spec/containerkind.tsv).
 
-The words `map` and `list` are no terms of the definition yet. Whether they enter as kinds, which admit by kind and are not singled out, beside `{}` and `[]`, which are singled out as themselves, is an open decision of the definition.
+The words `map` and `list` are no terms of the definition yet. They are to enter it as kinds, which admit by kind and are not singled out, beside `{}` and `[]`, which are singled out as themselves.
 
 ## Conjunction `&`
 
@@ -5003,7 +5003,7 @@ answer folds toward `does_not_subsume` or `undecided`, never toward
 "compatible": a gate that wrongly reports "breaking" costs a second
 look, one that wrongly reports "compatible" ships the break.
 
-The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`, both still open decisions of the definition.
+The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`, both still to change: `DefaultsLe` to count only a default a term declares, as this page's effective default does, and `GenLe` to read the marks as terms.
 
 ### Profiles
 
@@ -5930,7 +5930,7 @@ atom's own arithmetic: `len(min(5) & max(3))` is empty at composition
 time whatever map it meets, because the inner interval is empty on its
 own.
 
-`len(c)` is a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), judging a string, a list or a map as `c` judges its size, an integer, and refusing a scalar, which has no size; `len_le_len` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carries the order of `c` to it, and a size against a container literal at the meet is an open decision of the definition.
+`len(c)` is a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), judging a string, a list or a map as `c` judges its size, an integer, and refusing a scalar, which has no size; `len_le_len` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carries the order of `c` to it, and a container literal longer than its size allows is a conflict at the meet, as both engines answer, which the definition is yet to hold: it tries every container at generation, where a literal shorter than its size is refused.
 
 ### Sizing atoms fold last
 

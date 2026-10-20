@@ -181,3 +181,57 @@ how much of the aontu language does the lean spec cover
 ```text
 Ask me
 ```
+
+## 2026-10-20 18:15:51 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+The Lean plan (P0–P7) stops at the validation core: what a value admits, what evaluation singles out, the subsume order and vet's verdicts. Describing aontu fully means new phases. How should I proceed?
+→ Draft the full roadmap (Recommended)
+
+Decision 14: meta(), ident() and deprecate() ride a value and change no admission, but the JSON Schema importer writes them around most of what it imports. How should the definition hold them?
+→ Transparent forms (Recommended)
+
+Decision 15: the importer writes `map` for a bare `type: object` and `list` for `type: array`. Both engines admit every map or list under the word and single nothing out. How should the definition hold them?
+→ Kinds, like string (Recommended)
+
+Decision 13: patternProperties and propertyNames import as a spread `&: match(key(0), p, any, nil)`, but no term of the definition can read the key it sits under. Should the syntax gain one?
+→ Add key, narrowed (Recommended)
+```
+
+## 2026-10-20 19:03:35 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 9 (#366): a size meets a container literal. Both engines answer `error` for `len(max(1)) & {x: 1, y: 2}`, which is too long, and `invalid` for `len(2) & [1]`, which is too short. The definition answers `invalid` for both. Which rule?
+→ Too long is an error (Recommended)
+
+Decision 10: the marks type() and hide() aren't terms of the definition, yet the `gen` profile of subsume compares them. Its contract therefore takes their agreement as a predicate the engines supply. Should the marks enter the syntax?
+→ Enter the syntax (Recommended)
+
+Decision 11: under `defaults`, the definition counts a literal's own value as a default. So `{a: integer}` doesn't safely replace `{a: 1}`: what generated before is now incomplete, which is the reference's own reason for compat_default_changed. The reference's definition and both engines count only preferences, so they answer subsumes for integer over 1. Which wins?
+→ Only preferences count
+
+Decision 12 (#375): both engines answer does_not_subsume for some pairs where the order holds, such as string over min("a"), by folding toward it when unsure. The contract allows does_not_subsume only where a failing case exists. Which moves?
+→ Engines say undecided (Recommended)
+```
+
+## 2026-10-20 19:07:26 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+DEV-PROCESS.md says docs/ holds only valid, up-to-date documentation. docs/capability-review/ holds the frozen gap documents G1–G12, status reports, and the live progress register that AGENTS.md's same-commit rule points at. Move it?
+→ Move all of it
+
+aontu.dev is built from docs/, and the aontu-lang/web agent guide still cites docs/STYLE-GUIDE.md, which #400 moved to the top level. Any site page that rendered a design note now points at a moved file. Should I fix aontu-lang/web?
+→ Yes, add it and fix (Recommended)
+
+Three comment lines in .github/workflows/ (daily.yml, docs.yml, spec.yml) still name docs/design/ paths, and this session can't push workflow files. The patch is in this session's scratchpad as workflow-comments.patch. What should happen to it?
+→ Create  a patch
+
+I read "add the agent guides and DEV-PROCESS.md" as: say in AGENTS.md and DEV-PROCESS.md, as well as sketch/README.md, that every file in sketch/ is to be ignored, and point sketch/README.md back at both. That is what #400 did. Is that what you meant?
+→ Yes, as done
+```
