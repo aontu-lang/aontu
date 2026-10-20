@@ -101,9 +101,9 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 The rest of the language waits on phases P8 to P12 of the plan: the
 calls that compute values, arithmetic, the aggregates, the text
 functions and the component tree among them (P8); the placeholder,
-templates and generation with `each`, `pack` and `emit` (P9); source
-loading, modules and variables (P10); links and relations (P11); and
-grammars (P12).
+templates, relative paths and generation with `each`, `pack` and
+`emit` (P9); source loading, modules and variables (P10); links and
+relations (P11); and grammars (P12).
 
 ## Build and run
 
