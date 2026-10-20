@@ -1688,9 +1688,10 @@ a list, an open bound rounded inward to the next whole number
 (`len(above(2))` is `minLength: 3`) and an excluded count as `not`
 both bounds at it; `unique()` becomes `uniqueItems`; an optional key is
 simply absent from `required`; `map` and `list` become `object` and
-`array`; a `meta()` record becomes the annotation keywords of the same
-meaning, `comment` as `$comment` and each member of `x` as itself, with
-a second record in an `allOf` of schemas that only annotate;
+`array`; a `meta()` record's keys become the annotation keywords of the same
+meaning, `comment` as `$comment`, and any other key a keyword of its
+own name, with a second record in an `allOf` of schemas that only
+annotate;
 `deprecate()` becomes `deprecated: true`, with its record's `msg`,
 `use` and `since` under the extension keyword `x-aontu-deprecate`, a
 field holding several values as a list; a disjunction of bare kinds
@@ -1762,7 +1763,8 @@ The losses, and why each is one:
 | `format(g)` | 2020-12 asserts `format` only where a validator is asked to, and only aontu reads `x-aontu-format`, so the schema may admit a string the format refuses |
 | `hide(x)` | a hidden entry is not generated, so it is not part of the value a consumer produces |
 | `type(x)` | a definition is not generated either; an export anchored inside a `type()` block still reads through it |
-| a member of a `meta()` record's `x` named as a JSON Schema keyword | written as that keyword, it would assert where the record only annotates, so it is dropped |
+| a `meta()` record key named as a JSON Schema keyword | written as that keyword, it would assert where the record only annotates, so it is dropped |
+| a `meta()` record key the export reads, holding another kind of data than its keyword takes | the keyword would not hold what JSON Schema says it holds, so it is dropped |
 | a `len` with no domain | no keyword counts a string *or* a container, so it is exported as `minItems`/`maxItems` |
 | `match(key(0), …)` with an arm testing a key other than by name or pattern | JSON Schema chooses a member's schema by its name or a pattern, so the spread is dropped |
 | `match(key(0), …)` with arms whose keys can overlap | every matching keyword applies, where `match` takes the first arm, so the spread is dropped |
@@ -1930,7 +1932,7 @@ y: number
 - A custom meta-schema whose `$vocabulary` lists vocabularies narrows
   the schemas that name it to the keywords of those vocabularies and of
   the core vocabulary; each other keyword of the dialect is carried as
-  an annotation under `x`. A vocabulary it lists with any value but
+  an annotation under its own name. A vocabulary it lists with any value but
   `false` that aontu does not read refuses the import with
   `jsonschema_vocabulary`. aontu reads the vocabularies of 2019-09 and
   2020-12, which `grammar/jsonschema/vocabularies.tsv` lists with their
@@ -2019,7 +2021,7 @@ y: number
 | `format` under format assertion | the same record, and `format(g)` on the string branch, `g` the format's committed grammar or the one `--format-grammar` gives it |
 | `x-aontu-format` | `format(g)` on the string branch in any mode, `g` a grammar or a format's name |
 | `contentEncoding`, `contentMediaType`, `contentSchema` | the same record on the string branch alone, since JSON Schema annotates only a string with them, and `contentSchema` only beside `contentMediaType` |
-| a keyword JSON Schema does not name | the same record, under `x` |
+| a keyword JSON Schema does not name | the same record, under its own name; one named `comment` or `dynamicRef` is a reported loss, since the export writes those keys as other keywords |
 | `deprecated`, `x-aontu-deprecate` | `deprecate(v, {…})`, its record read from `x-aontu-deprecate` |
 | `$schema` | read and dropped: the dialect is 2020-12 |
 

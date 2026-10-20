@@ -288,7 +288,7 @@ Every carrier is in both ports.
 | `format`, annotation mode | none | absent | the `meta` rider |
 | `format`, assertion mode, 19 attributes | none | absent | `format(g)`: any ABNF grammar, or one of nineteen committed grammars by name |
 | `contentEncoding`, `contentMediaType`, `contentSchema` | none | absent | the `meta` rider; never asserted |
-| unknown keywords | none | absent | the `meta` rider, under `x` |
+| unknown keywords | none | absent | the `meta` rider, each under its own name ([§12](#12-annotations)) |
 
 ### Evaluation and interop
 
@@ -970,6 +970,14 @@ patterns. `deprecate()`'s message, replacement and version cross in an
 extension keyword, `x-aontu-deprecate`, beside `deprecated: true`,
 which 2020-12 treats as an annotation. The LSP's hover gains `title`
 and `description`.
+
+**Amended 2026-10-20 by
+[ADR-072](../../ADR.md#adr-072--a-meta-record-is-open-metadata).** A
+record's keys are open: any key holds concrete data, and the keys
+above are the exporter's conventions, each read with its keyword's
+kind, a convention of another kind a reported loss. The importer
+writes an unknown keyword as a key of its own name, not under `x`,
+and `x` is a key like any other.
 
 ### 13. Dialects, vocabularies and the meta-schema
 

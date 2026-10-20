@@ -8,7 +8,7 @@ exports.riderText = riderText;
 exports.rides = rides;
 const keyorder_1 = require("./keyorder");
 function unionRecords(records, key) {
-    const sets = {};
+    const sets = Object.create(null);
     for (const r of records) {
         if (null == r) {
             continue;
@@ -22,7 +22,7 @@ function unionRecords(records, key) {
             }
         }
     }
-    const out = {};
+    const out = Object.create(null);
     for (const k of Object.keys(sets).sort(keyorder_1.cmpCodePoint)) {
         const set = sets[k];
         out[k] = [...set.keys()].sort(keyorder_1.cmpCodePoint).map((s) => set.get(s));
@@ -43,7 +43,7 @@ function recordLayers(rec) {
     const n = keys.reduce((m, k) => Math.max(m, rec[k].length), 0);
     const out = [];
     for (let i = 0; i < n; i++) {
-        const layer = {};
+        const layer = Object.create(null);
         for (const k of keys.filter((k) => i < rec[k].length)) {
             layer[k] = rec[k][i];
         }

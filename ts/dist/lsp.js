@@ -404,11 +404,12 @@ function hoverMarkdown(val) {
     return '```aontu\n' + canon + '\n```\n\n' + '*' + valKind(val) + '*' +
         annotationMarkdown(val);
 }
-// A value's titles, in bold, and its descriptions, from its annotations.
+// A value's titles, in bold, and its descriptions, from its annotations:
+// the text a record holds under each key, as the Go hover reads it.
 function annotationMarkdown(val) {
     const meta = val.meta ?? {};
-    return [...(meta.title ?? []).map((t) => '**' + t.peg + '**'),
-        ...(meta.description ?? []).map((d) => d.peg)]
+    const texts = (key) => (meta[key] ?? []).map((t) => t.peg).filter((t) => 'string' === typeof t);
+    return [...texts('title').map((t) => '**' + t + '**'), ...texts('description')]
         .map((said) => '\n\n' + said).join('');
 }
 // A short human description of a Val's kind, shown under the hover canon.

@@ -279,7 +279,8 @@ The `format` and `title` in `email.json` are not lost. The annotation keywords
 of JSON Schema assert nothing, so the importer carries them on the value they
 describe, in a `meta()` record: `title`, `description`, `$comment`,
 `default`, `examples`, `readOnly`, `writeOnly`, `format` and the
-content keywords, with any keyword JSON Schema does not name under `x`.
+content keywords, with any keyword JSON Schema does not name under its own
+name.
 `deprecated` imports as `deprecate()`. A record never changes what its
 value admits, and the export writes it back.
 

@@ -669,14 +669,22 @@ function withRiders(ctx, path, out, v) {
         (null == v?.deprecation && null == v?.meta) ? out : annotate(ctx, path, out, v);
 }
 const DEPRECATION_TEXT = ['msg', 'use', 'since'];
-const META_KEYWORD = {
-    title: 'title', description: 'description', comment: '$comment', default: 'default',
-    examples: 'examples', readOnly: 'readOnly', writeOnly: 'writeOnly', format: 'format',
-    contentEncoding: 'contentEncoding', contentMediaType: 'contentMediaType',
-    contentSchema: 'contentSchema',
+// The record keys the exporter reads as keywords, with each keyword's kind;
+// null-prototype, as a record key may be any string (ADR-072).
+const META_KEYWORD = Object.assign(Object.create(null), {
+    title: ['title', 'string'], description: ['description', 'string'],
+    comment: ['$comment', 'string'], default: ['default', 'data'],
+    examples: ['examples', 'list'], readOnly: ['readOnly', 'boolean'],
+    writeOnly: ['writeOnly', 'boolean'], format: ['format', 'string'],
+    contentEncoding: ['contentEncoding', 'string'],
+    contentMediaType: ['contentMediaType', 'string'],
+    contentSchema: ['contentSchema', 'data'], dynamicRef: ['$dynamicRef', 'string'],
+});
+const KIND_TEXT = {
+    string: 'a string', boolean: 'a boolean', list: 'an array',
 };
-// The JSON Schema keywords: one held under `x` would assert where the
-// record only annotates, so it is not written.
+// The JSON Schema keywords: a record key that names one would assert where
+// the record only annotates, so it is not written.
 const KEYWORDS = new Set([
     '$schema', '$id', '$ref', '$anchor', '$dynamicRef', '$dynamicAnchor', '$vocabulary',
     '$comment', '$defs', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else',
@@ -708,8 +716,15 @@ function annotate(ctx, path, out, v) {
     const extra = [];
     for (const layer of null == v.meta ? [] : (0, rider_1.recordLayers)(v.meta)) {
         const part = {};
-        for (const [k, val] of Object.entries(layer)) {
-            const json = generated(val);
+        for (const k of Object.keys(layer).sort(keyorder_1.cmpCodePoint)) {
+            const json = generated(layer[k]);
+            const known = META_KEYWORD[k];
+            if (undefined !== known && !fitsKind(known[1], json)) {
+                lose(ctx, path, 'meta', 'the key ' + k + ' holds ' + jsonKindText(json) +
+                    ', where JSON Schema\'s ' + known[0] + ' holds ' + KIND_TEXT[known[1]] +
+                    ', so it is DROPPED');
+                continue;
+            }
             // A $dynamicRef is no annotation: fromVal reads the first beside the
             // $ref it rides, and the meet the others reached is written already.
             if ('dynamicRef' === k && undefined === res.$dynamicRef) {
@@ -721,23 +736,19 @@ function annotate(ctx, path, out, v) {
                 continue;
             }
             // A format the constraint asserts is written already.
-            if ('format' === k && 'string' === typeof json && (res.format === json ||
+            if ('format' === k && (res.format === json ||
                 (res.allOf ?? []).some((m) => 1 === Object.keys(m).length && m.format === json))) {
                 continue;
             }
-            if ('x' !== k) {
-                part[META_KEYWORD[k]] = json;
-                continue;
+            if (undefined !== known) {
+                part[known[0]] = json;
             }
-            for (const xk of Object.keys(json).sort(keyorder_1.cmpCodePoint)) {
-                const xv = json[xk];
-                if (KEYWORDS.has(xk)) {
-                    lose(ctx, path, 'meta', 'the unknown keyword ' + xk + ' is a JSON Schema keyword, which ' +
-                        'would assert where the record only annotates, so it is DROPPED');
-                }
-                else {
-                    put(part, xk, xv);
-                }
+            else if (KEYWORDS.has(k)) {
+                lose(ctx, path, 'meta', 'the key ' + k + ' is a JSON Schema keyword, which ' +
+                    'would assert where the record only annotates, so it is DROPPED');
+            }
+            else {
+                put(part, k, json);
             }
         }
         if (0 === extra.length && Object.keys(part).every((k) => !Object.prototype.hasOwnProperty.call(res, k) || undefined === res[k])) {
@@ -751,6 +762,16 @@ function annotate(ctx, path, out, v) {
         res.allOf = [...(res.allOf ?? []), ...extra];
     }
     return res;
+}
+function fitsKind(kind, json) {
+    return 'data' === kind || ('string' === kind && 'string' === typeof json) ||
+        ('boolean' === kind && 'boolean' === typeof json) ||
+        ('list' === kind && Array.isArray(json));
+}
+function jsonKindText(json) {
+    return null === json ? 'null' : 'string' === typeof json ? 'a string' :
+        'boolean' === typeof json ? 'a boolean' : Array.isArray(json) ? 'an array' :
+            'object' === typeof json && !JSON.isRawJSON(json) ? 'an object' : 'a number';
 }
 // The schema of a literal's kind: what a bare `*x` admits beside x.
 function kindOfLiteral(ctx, path, v) {

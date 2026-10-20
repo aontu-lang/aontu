@@ -95,9 +95,7 @@ function annotationsAt(met, instance, location, keyword) {
         return nodes.some((n) => null != n.deprecation) ? ['true'] : [];
     }
     const key = ANNOTATION_KEY[keyword];
-    const vals = nodes.flatMap((n) => undefined === key ?
-        (n.meta?.x ?? []).map((v) => v.peg?.[keyword]).filter((v) => null != v) :
-        n.meta?.[key] ?? []);
+    const vals = nodes.flatMap((n) => n.meta?.[key ?? keyword] ?? []);
     const ctx = new aontu_1.Aontu().ctx({ collect: true });
     return [...new Set(vals.map((v) => (0, exactjson_1.exactJSON)(v.gen(ctx))))].sort();
 }

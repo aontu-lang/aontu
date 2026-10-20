@@ -8,6 +8,33 @@ each change affects.
 
 ## Unreleased
 
+### A `meta()` record takes any key
+
+Breaking, both implementations
+([ADR-072](ADR.md#adr-072--a-meta-record-is-open-metadata)).
+
+- `meta(v, ...r)` takes a record of concrete data under any keys:
+  `meta(1, {colour: "red"})` is `meta(1,{"colour":"red"})`, where it
+  refused with `func_arg`. Only a record that is not a map of concrete
+  data refuses, and `x` is a key like any other.
+- The JSON Schema exporter reads its conventions itself, each with the
+  kind its keyword takes, and reports one holding another kind as a
+  loss: `meta(number, {title: 1})` exports no `title`. Any other key
+  becomes a keyword of its own name, and one named as a JSON Schema
+  keyword is dropped with a loss, as a member of `x` was.
+- The importer writes a keyword JSON Schema does not name under its own
+  name rather than under `x`, which changes the canon and hash of an
+  imported schema that has one. An unknown keyword named `comment` or
+  `dynamicRef` is a reported loss, since the export writes those keys
+  as `$comment` and `$dynamicRef`.
+- The hover in both language servers shows only the text a `title` or
+  `description` holds.
+- TypeScript: a schema keyword named `toString`, `constructor` or
+  `__proto__` imports as an annotation, as it does in Go, where the
+  importer refused it with `jsonschema_schema`
+  ([#392](https://github.com/aontu-lang/aontu/issues/392)). A record
+  key of one of those names works in both ports.
+
 ### `multiple(n)` is renamed `mulof(n)`
 
 Breaking, both implementations. The divisibility atom is spelled
