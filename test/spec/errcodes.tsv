@@ -231,6 +231,7 @@ sub_disjunct_distribution	errcode	compat	0.53.0
 sub_path_dependent_spread	errcode	compat	0.53.0
 sub_evaluate_only	errcode	compat	0.53.0
 sub_default_indeterminate	errcode	compat	0.53.0
+sub_no_witness	errcode	compat	0.77.0
 # The deprecation mark's point-of-use warning (G3 phase 4,
 # deprecate(x, m)): vet reports a deprecated value's use at severity
 # `warning`, the slot G2 reserved for this mark; it is the one compat

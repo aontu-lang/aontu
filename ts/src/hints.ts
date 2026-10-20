@@ -919,6 +919,12 @@ const hints: Record<string, string> = {
     'applied to a path, so the general and specific sides cannot be\n' +
     'held against each other and the answer is undecided.',
 
+  'sub_no_witness':
+    'No rule decides the pair, and no failing case is found: no value\n' +
+    'tried is admitted by the specific side and refused by the general.\n' +
+    'A no names a value that fails, and there is none to name, so the\n' +
+    'answer is undecided rather than no.',
+
   // Dynamic patterns (these serve as prefixes)
   'func:': 'Function error: ',
   'op:': 'Operator error: ',
@@ -953,6 +959,7 @@ const codeClasses: Record<string, string> = {
   sub_path_dependent_spread: 'compat',
   sub_evaluate_only: 'compat',
   sub_default_indeterminate: 'compat',
+  sub_no_witness: 'compat',
   deprecated: 'compat',
   pref_not_instance: 'compat',
 

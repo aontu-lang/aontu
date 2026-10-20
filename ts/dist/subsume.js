@@ -14,6 +14,13 @@ const hcanon_1 = require("./hcanon");
 const ConstraintVal_1 = require("./val/ConstraintVal");
 const ScalarKindVal_1 = require("./val/ScalarKindVal");
 const PathVal_1 = require("./val/PathVal");
+const StringVal_1 = require("./val/StringVal");
+const IntegerVal_1 = require("./val/IntegerVal");
+const NumberVal_1 = require("./val/NumberVal");
+const BigIntegerVal_1 = require("./val/BigIntegerVal");
+const BigDecimalVal_1 = require("./val/BigDecimalVal");
+const BooleanVal_1 = require("./val/BooleanVal");
+const NullVal_1 = require("./val/NullVal");
 const PrefVal_1 = require("./val/PrefVal");
 const RecurseVal_1 = require("./val/RecurseVal");
 const DEFAULT_GENERAL_URL = 'general';
@@ -115,6 +122,110 @@ function unresolved(v) {
     return true === v?.isRef || true === v?.isVar ||
         true === v?.isConjunct || true === v?.isExpect ||
         (true === v?.isFunc && true !== v?.isConstraint);
+}
+const NO_WITNESS = 'no failing case is found, and no rule decides the pair';
+const PROBE_TEXT = ['', 'a', '0', ' ', '~', '\u0000', 'A', 'z', 'abc',
+    'a@b.co', '2020-01-01', '00:00:00Z', '2020-01-01T00:00:00Z', 'P1D', 'a.b',
+    '1.2.3.4', '::1', 'http://a.b', '00000000-0000-0000-0000-000000000000', '/a'];
+const PROBE_PATHS = ['.x', '$.x', '..x', '.a', '.z'];
+const PROBE_NUMBERS = [0, 1, -1, 2, 0.5, -0.5, 1.5];
+// A no names a value the specific side admits and the general side
+// refuses (sketch/DEFINITION.0.md, §7), and without one is undecided.
+function refute(state, path, g, s, message) {
+    if (listWitness(g, s) ||
+        probes(g, s).some((c) => 'yes' === trialSubsume(state, path, s, c) &&
+            'no' === trialSubsume(state, path, g, c))) {
+        record(state, 'compat_narrowed', path, g, s, message);
+        return 'no';
+    }
+    record(state, 'sub_no_witness', path, g, s, NO_WITNESS);
+    return 'undecided';
+}
+// The empty list, or a pair only the general side's uniqueness refuses.
+function listWitness(g, s) {
+    if (!sizesOnly(s)) {
+        return false;
+    }
+    if ((0, ConstraintVal_1.constraintAdmitsSize)(s, 0) && refusesEmptyList(g)) {
+        return true;
+    }
+    return true === g?.isConstraint && (0, ConstraintVal_1.constraintAdmitsSize)(s, 2) &&
+        ((true === g.uniq && true !== s.uniq && 0 === s.uniqBy.length) ||
+            g.uniqBy.some((k) => !s.uniqBy.includes(k)));
+}
+function sizesOnly(v) {
+    return true === v?.isConstraint && null == v.domain && true !== v.pathKind &&
+        0 === v.musts.length + v.nofs.length + v.whens.length + v.contains.length +
+            v.rests.length;
+}
+// Kinds, formats, and either residual's ends, divisors and patterns.
+function probes(g, s) {
+    const text = [...PROBE_TEXT];
+    const nums = [...PROBE_NUMBERS];
+    const ends = [];
+    const rs = [g, s].filter((v) => true === v?.isConstraint);
+    for (const r of rs) {
+        for (const v of [r.lo?.v, r.hi?.v, ...r.neqs].filter((v) => null != v)) {
+            if ('string' === typeof v.peg) {
+                text.push(v.peg, v.peg + 'a');
+            }
+            else {
+                ends.push(Number(String(v.peg)));
+            }
+        }
+        for (const re of r.res) {
+            text.push(sampleOf(re.src));
+        }
+    }
+    for (const n of ends) {
+        nums.push(n, n - 1, n + 1, n - 0.5, n + 0.5);
+    }
+    for (const m of rs.flatMap((r) => r.mults.map((d) => Number(String(d.peg))))) {
+        nums.push(m, -m, 3 * m, ...ends.flatMap((e) => [Math.ceil(e / m) * m, Math.ceil(e / m) * m + m]));
+    }
+    const out = [...new Set(text)].map((t) => new StringVal_1.StringVal({ peg: t }));
+    out.push(...PROBE_PATHS.map((p) => new PathVal_1.PathVal({ peg: p })));
+    for (const n of new Set(nums.filter((n) => Number.isFinite(n)))) {
+        if (Number.isSafeInteger(n)) {
+            out.push(new IntegerVal_1.IntegerVal({ peg: n }), new BigIntegerVal_1.BigIntegerVal({ peg: BigInt(n) }));
+        }
+        out.push(new NumberVal_1.NumberVal({ peg: n }));
+        if (!/e/.test(String(n))) {
+            out.push(new BigDecimalVal_1.BigDecimalVal({ peg: String(n) }));
+        }
+    }
+    out.push(new BooleanVal_1.BooleanVal({ peg: true }), new BooleanVal_1.BooleanVal({ peg: false }), new NullVal_1.NullVal({ peg: null }));
+    return out;
+}
+// A string a simple pattern matches: its first alternative, a class as
+// its first member, no quantifier, group or anchor.
+function sampleOf(src) {
+    return src.replace(/^\^|\$$/g, '').split('|')[0].replace(/\[\^[^\]]*\]|\[\\?(.)[^\]]*\]|\\([dws])|\\(.)|\{[^}]*\}|\(\?:|[()*+?]|(\.)/g, (_m, first, named, lit, dot) => first ?? (null != named ? { d: '0', w: 'a', s: ' ' }[named] :
+        lit ?? (null != dot ? 'a' : '')));
+}
+function refusesEmptyList(g) {
+    return true !== g?.isConstraint || null != g.domain || true === g.pathKind ||
+        (sizesOnly(g) && !(0, ConstraintVal_1.constraintAdmitsSize)(g, 0));
+}
+// Below `string` where it refuses "" and every path, each spelled from
+// `$` or `.`: a lower end starting after `.` refuses them all.
+function insideString(s) {
+    const lo = s.lo?.v?.peg;
+    return (true === s.nonEmpty && true !== s.emptyOk) ||
+        (false === (0, ConstraintVal_1.constraintAdmitsScalar)(s, new StringVal_1.StringVal({ peg: '' })) &&
+            'string' === typeof lo && 0x2e < (lo.codePointAt(0) ?? 0));
+}
+// Above `string` where nothing refuses a string it admits: no end but a
+// lower one at "", and no pattern, format, size, leaf or check.
+function aboveString(g, strict) {
+    const lo = g.lo;
+    return (null == g.domain || 'string' === g.domain) && null == g.kind &&
+        true !== g.pathKind && null == g.hi && null == g.count && true !== g.uniq &&
+        0 === g.uniqBy.length + g.res.length + g.fmts.length + g.musts.length +
+            g.nofs.length + g.whens.length + g.contains.length + g.rests.length &&
+        (null == lo || ('' === lo.v.peg && (strict || true !== lo.open))) &&
+        (strict || !(true === g.nonEmpty && true !== g.emptyOk)) &&
+        g.neqs.every((n) => true !== n.isString || (strict && '' === n.peg));
 }
 function subsumeNode(state, path, g0, s0) {
     const g = admission(g0);
@@ -221,16 +332,13 @@ function subsumeNode(state, path, g0, s0) {
                 return 'yes';
             }
             if ('string' === dom && String === g.peg &&
-                true !== s.pathKind &&
-                !(strict && !(true === s.nonEmpty &&
-                    true !== s.emptyOk))) {
+                true !== s.pathKind && (!strict || insideString(s))) {
                 return 'yes';
             }
             if (ScalarKindVal_1.Path === g.peg && true === s.pathKind) {
                 return 'yes';
             }
-            record(state, 'compat_narrowed', path, g, s, 'the general kind does not cover the specific residual');
-            return 'no';
+            return refute(state, path, g, s, 'the general kind does not cover the specific residual');
         }
         record(state, 'compat_narrowed', path, g, s, 'the general kind admits no such value');
         return 'no';
@@ -262,8 +370,7 @@ function subsumeNode(state, path, g0, s0) {
                 record(state, 'sub_evaluate_only', path, g, s, opaqueNote(g));
                 return 'undecided';
             }
-            record(state, 'compat_narrowed', path, g, s, 'the general residual does not contain the specific residual');
-            return 'no';
+            return refute(state, path, g, s, 'the general residual does not contain the specific residual');
         }
         if (true === s?.isScalar) {
             const r = (0, ConstraintVal_1.constraintAdmitsScalar)(g, s);
@@ -277,11 +384,21 @@ function subsumeNode(state, path, g0, s0) {
             record(state, 'compat_narrowed', path, g, s, 'the general residual does not admit the specific scalar');
             return 'no';
         }
-        if (true === s?.isScalarKind && (0, ConstraintVal_1.constraintSubsumesKind)(g, s.peg)) {
-            return 'yes';
+        const why = 'the general residual constrains a domain the specific value is not in';
+        if (true === s?.isScalarKind) {
+            if ((0, ConstraintVal_1.constraintSubsumesKind)(g, s.peg) ||
+                (String === s.peg && aboveString(g, true !== s.emptyOk))) {
+                return 'yes';
+            }
+            return refute(state, path, g, s, why);
         }
-        record(state, 'compat_narrowed', path, g, s, 'the general residual constrains a domain the specific value is not in');
-        return 'no';
+        // A domain holds no container, so any instance fails the residual.
+        if (null != g.domain || true === g.pathKind) {
+            record(state, 'compat_narrowed', path, g, s, why);
+            return 'no';
+        }
+        record(state, 'sub_no_witness', path, g, s, NO_WITNESS);
+        return 'undecided';
     }
     // Concrete scalars subsume only themselves (identity compares kind
     // as well as value) -- except paths, whose meet is the prefix rule
@@ -482,7 +599,11 @@ function subsumeBag(state, path, g, s, gKeys, sKeys, child) {
                     worse(subsumeNode(state, [...path, k], gcj, child(s, k)));
                 }
             }
-            worse(subsumeNode(state, [...path, '&'], gcj, scj ?? topLike()));
+            // A sealed specific side with no template has no member beyond the
+            // ones the loop above holds to the general template.
+            if (true !== s.closed || null != scj) {
+                worse(subsumeNode(state, [...path, '&'], gcj, scj ?? topLike()));
+            }
         }
         // A specific-only template narrows the specific side; nothing for
         // the (unconstrained) general side to refuse.

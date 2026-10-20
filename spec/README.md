@@ -84,9 +84,8 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   unmade: P3 and P4 landed without it (#403);
 - two recursions of one shape under different names, which the order
   leaves undecided, and the rows of the `defaults` and `gen` profiles,
-  which wait on rulings 11 and 12, `defaults` to count only a default
-  a term declares and the ports to answer `undecided` where no case
-  fails; the generated rows run under `values` meanwhile (P5);
+  which wait on ruling 11, `defaults` to count only a default a term
+  declares; the generated rows run under `values` meanwhile (P5);
 - the forms the importer writes that the definition lacks, each in
   `forms-outside.tsv` on its ruling: `key()` at a position, a term
   narrowed to the key a spread is tried on (13), the riders `meta()`,

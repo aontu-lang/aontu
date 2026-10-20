@@ -44,7 +44,7 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **195** codes across
+There are seven classes, and the registry holds **196** codes across
 them.
 
 | class | codes | what went wrong |
@@ -53,7 +53,7 @@ them.
 | `conflict` | 62 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 36 | a name or path resolves to nothing |
-| `compat` | 13 | a change breaks an earlier version |
+| `compat` | 14 | a change breaks an earlier version |
 | `budget` | 9 | evaluation hit a deterministic limit |
 | `internal` | 6 | the engine reached a state it should not reach |
 
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 195 codes have hint text. `aontu explain --list`
+**Hint text.** All 196 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -385,6 +385,7 @@ twenty rows have no such section and carry no link.
 | `sub_default_indeterminate` | 0.53.0 | Equal-rank preferences disagree, so the effective default is not a single value. ([Profiles](reference-language.md#profiles)) |
 | `sub_disjunct_distribution` | 0.53.0 | A specific alternative is not admitted member-wise, and no concrete counterexample settles the distribution case. ([Rules, by value former](reference-language.md#rules-by-value-former)) |
 | `sub_evaluate_only` | 0.53.0 | An evaluate-only check makes the admitted set opaque. ([Rules, by value former](reference-language.md#rules-by-value-former)) |
+| `sub_no_witness` | 0.77.0 | No rule decides the pair, and no failing case is found among the values tried. ([Rules, by value former](reference-language.md#rules-by-value-former)) |
 | `sub_path_dependent_spread` | 0.53.0 | A path-dependent spread template cannot be compared structurally. ([Maps, lists, closedness, optionality, spreads](reference-language.md#maps-lists-closedness-optionality-spreads)) |
 | `sub_unresolved` | 0.53.0 | Unresolved residue, or no subsumption rule covers the pair of value formers. ([Rules, by value former](reference-language.md#rules-by-value-former)) |
 
