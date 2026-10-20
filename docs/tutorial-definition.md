@@ -5348,10 +5348,12 @@ The language needs only the power to represent a JSON Schema: what
 `number & mulof(1)`, and the definition says what those mean. Step
 19 checks that it does, but for the six forms that step lists.
 
-Nor does it hold the subsumption table as theorems, nor a contract
-for each profile of `subsume` beyond `values`, which step 18 states;
-nor a path of step 9 read against the document as filled. Those are
-later phases.
+Nor does it order two recursions of one shape under different names,
+or read a selection inside a recursive name's body, which the checker
+of step 17 reads unmade. And its rows for `subsume` test the `values`
+profile alone: step 10 states the contracts of `defaults` and `gen`,
+but which values count as a default is still open, and the marks
+`gen` compares aren't terms yet. Those are later phases.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
