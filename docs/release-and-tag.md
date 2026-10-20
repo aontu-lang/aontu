@@ -130,8 +130,9 @@ half-done. Run what it would have run:
    neither tag already taken, asked of **origin**, because a clone's tag
    list is stale exactly when it matters. Everything after them is
    irreversible.
-2. `cd ts && npm version --no-git-tag-version <V>`, which also rewrites
-   `ts/src/aontu.ts`'s `VERSION` through the `version` lifecycle script,
+2. `cd ts && npm version --no-git-tag-version <V> && npm run sync-version`,
+   which sets the version and then rewrites `ts/src/aontu.ts`'s `VERSION`
+   to match,
    and the `perl` rewrite of `const VERSION` in `go/aontu.go`.
 3. `make all`, both builds and both suites, against the bumped tree.
 4. Stage the four paths the target stages: `ts/package.json`,
@@ -323,7 +324,8 @@ OIDC **cannot create a tag**: its audience is the registry, not GitHub.
 
 **They live in separate jobs, and the split is a security boundary.** The
 `publish` job runs `npm install`, the build and the tests (dependency
-lifecycle scripts and project code) and keeps `contents: read`. The `tag`
+code and project code, with every lifecycle script refused by
+`ts/.npmrc`) and keeps `contents: read`. The `tag`
 job runs git and nothing else, and is the only place `contents: write`
 exists. In one job they would share a credential: `checkout` persists its
 token into the git config for the whole job, so every dependency

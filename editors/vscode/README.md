@@ -65,9 +65,8 @@ npm install
 npm run package          # → aontu-<version>.vsix (runs compile first)
 ```
 
-`npm run package` invokes `vsce package`; the `vscode:prepublish` script
-compiles the TypeScript beforehand, so the produced `.vsix` contains the
-built `out/extension.js`.
+`npm run package` compiles the TypeScript and then runs `vsce package`,
+so the produced `.vsix` contains the built `out/extension.js`.
 
 Install the bundle without the Marketplace:
 
@@ -81,7 +80,7 @@ To publish to the Marketplace (requires a publisher and a Personal Access
 Token; see the [vsce docs](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)):
 
 ```sh
-npm run publish         # vsce publish
+npm run publish-marketplace   # compile, then vsce publish
 ```
 
 This directory ships a `LICENSE` (MIT) and a 128×128 `icon.png`, so `vsce`

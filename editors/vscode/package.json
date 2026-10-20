@@ -48,9 +48,8 @@
     "sync-grammar": "node scripts/sync-grammar.js",
     "compile": "npm run sync-grammar && tsc -p ./",
     "watch": "tsc -p ./ -w",
-    "vscode:prepublish": "npm run compile",
-    "package": "vsce package",
-    "publish": "vsce publish"
+    "package": "npm run compile && vsce package",
+    "publish-marketplace": "npm run compile && vsce publish"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
