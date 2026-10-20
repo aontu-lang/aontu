@@ -112,6 +112,7 @@ thereafter stated and changed in the definition, not here.
 | [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) | An `ident()` record is open declaration metadata | Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
 | [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) | What a rider's record holds is no export loss | Accepted |
 | [ADR-075](#adr-075--local-testing-takes-minutes-and-the-long-runs-are-the-daily-cis) | Local testing takes minutes, and the long runs are the daily CI's | Accepted |
+| [ADR-076](#adr-076--every-prompt-is-logged) | Every prompt is logged | Accepted |
 
 ---
 
@@ -6952,3 +6953,41 @@ for most of an hour for what the daily run reports the next morning.
   five of its pull request's CI.
 - Recorded where an agent reads it first: `AGENTS.md` ("Before you
   push") and `docs/contributing/testing.md`.
+
+## ADR-076 — Every prompt is logged
+
+**Date:** 2026-10-20
+**Status:** Accepted
+
+### Context
+
+The repository records what was decided, in this file, what was built,
+in the register, what changed, in the changelog, and why each commit
+was made. It did not record what was asked. The prompts that started
+the work lived only in each agent's session, out of reach once the
+session ended, so a reader could not trace a change back to the request
+that led to it, or tell which agent took it.
+
+### Decision
+
+1. **Every prompt is logged in
+   [`sketch/PROMPT-LOG.md`](sketch/PROMPT-LOG.md)**, oldest first: the
+   date and time it was given, in UTC, the agent that took it, and the
+   prompt as it was written, typos included. An entry is never
+   rewritten.
+2. **The agent is named by its tool and its session**, the session a
+   Claude Code commit's `Claude-Session` trailer names, so the log and
+   the history find each other.
+3. **An entry is written before the work it asks for**, and committed
+   with the first change that follows; a prompt that changes nothing,
+   such as a question, rides the next commit. A prompt given while a
+   turn is running is logged when it arrives.
+
+### Consequences
+
+- The log grows with every request, questions included, and reads as
+  the order the work was asked for.
+- The session that began the log, from 2026-10-18, had its 23 prompts
+  written from its transcript, with the times the transcript recorded;
+  a prompt the session's restart delivered twice is logged once.
+- Recorded where an agent reads it first: the rules of `AGENTS.md`.
