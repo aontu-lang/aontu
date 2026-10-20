@@ -1572,11 +1572,11 @@ const IDENTITY_KIND = Object.assign(Object.create(null), {
     dynamicAnchor: ['$dynamicAnchor', 'JSON Schema\'s $dynamicAnchor holds a string'],
     defs: ['$defs', 'a $defs key is a string'],
 });
-const isText = (v) => true === v?.isScalar && 'string' === typeof v.peg;
+const isText = (v) => true === v.isScalar && 'string' === typeof v.peg;
 // The text a declaration's record holds under one key: all the exporter
 // reads an identity from (ADR-073).
 function identityTexts(value, key) {
-    return (value?.identity?.[key] ?? []).filter(isText).map((v) => v.peg);
+    return (value.identity?.[key] ?? []).filter(isText).map((v) => v.peg);
 }
 function otherKeys(value) {
     const rec = value.identity ?? {};

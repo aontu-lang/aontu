@@ -1899,12 +1899,12 @@ const IDENTITY_KIND: Record<string, [string, string]> = Object.assign(Object.cre
   defs: ['$defs', 'a $defs key is a string'],
 })
 
-const isText = (v: any): boolean => true === v?.isScalar && 'string' === typeof v.peg
+const isText = (v: any): boolean => true === v.isScalar && 'string' === typeof v.peg
 
 // The text a declaration's record holds under one key: all the exporter
 // reads an identity from (ADR-073).
 function identityTexts(value: any, key: string): string[] {
-  return (value?.identity?.[key] ?? []).filter(isText).map((v: any) => v.peg)
+  return (value.identity?.[key] ?? []).filter(isText).map((v: any) => v.peg)
 }
 
 function otherKeys(value: any): boolean {
