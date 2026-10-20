@@ -1,5 +1,5 @@
 # G7 phase 6: the generated AGENTS.md stanza (`aontu agentsmd`)
-# (docs/capability-review/g7-machine-access.md). Columns:
+# (sketch/capability-review/g7-machine-access.md). Columns:
 # name<TAB>agentsmd<TAB>src<TAB>document-name<TAB>expect, where
 # expect is {ok, stanza} or {ok, codes}.
 #

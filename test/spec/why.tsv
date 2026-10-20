@@ -1,5 +1,5 @@
 # G7 phases 3-4: provenance -- WHY the value at a path holds
-# (docs/capability-review/g7-machine-access.md). Columns:
+# (sketch/capability-review/g7-machine-access.md). Columns:
 # name<TAB>why<TAB>src<TAB>path<TAB>expect, where expect is the
 # record as a JSON object: `value` and the ordered `conjuncts`
 # (each {canon, role, site}), or `class`, `code` and `note` when the

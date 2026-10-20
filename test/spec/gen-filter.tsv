@@ -1,5 +1,5 @@
 # SELECTION: filter(data, cond) (G8 phase 2,
-# docs/capability-review/g8-generation.md). The children of `data` that
+# sketch/capability-review/g8-generation.md). The children of `data` that
 # ALREADY SATISFY `cond` — keys preserved for a map, order for a list.
 # Columns: name<TAB>mode<TAB>src<TAB>expect
 #

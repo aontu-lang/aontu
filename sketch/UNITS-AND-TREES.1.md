@@ -12,7 +12,7 @@ flag §7 asked for. **§6 carries one thing the answers exposed and this
 note had missed:** `aontu:render` also holds the profile schema
 `template` and `fmt` vet against, so it splits rather than goes. The
 rest is design and plan. Status of every phase this note names lives in
-the [progress register](../docs/capability-review/progress.md), never here.
+the [progress register](capability-review/progress.md), never here.
 
 **Origin:** Richard Rodger, 2026-09-13: *"Our aim is to retire and
 remove code units, and rely entirely on jostraca. To this end we can
@@ -231,7 +231,7 @@ $ echo 'a: line({ src: "x" indent: "  " })' | aontu -c
 `..L\n`.
 
 Together those retire the last of
-[G9 Resolution 1](../docs/capability-review/g9-transformation.md#two-specialist-disagreements-resolved).
+[G9 Resolution 1](capability-review/g9-transformation.md#two-specialist-disagreements-resolved).
 Reason (iii) was *"at text level the layout is baked into the leaf at
 construction time and a renderer can never re-indent, which is XSLT's
 whitespace failure imported wholesale"*, and

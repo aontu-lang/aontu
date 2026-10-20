@@ -1174,7 +1174,7 @@ expectation, against 615 `errc` rows asserting the code alone (measured
 at the commit before the §46–§48 fixes; an earlier version of this
 paragraph said "7,679 and 15", and neither figure reproduces — the
 corrected counts and their commands are in
-`docs/capability-review/progress.md`). Both ports emit
+`sketch/capability-review/progress.md`). Both ports emit
 `no_scalar_unify` here, so every gate the suite has agrees while the two
 paths differ. **The suite pins error codes and message substrings; the
 path — the field the machine surface hands to agents — is very nearly
@@ -1524,7 +1524,7 @@ design's headline compatibility risk (§10 had budgeted a lexing break
 for reusing `>`; nothing had to break, because nothing was reused). The
 capability landed and the defect that motivated it was never in a
 phase's scope. See the reconciliation in
-[`docs/capability-review/g1-constraint-algebra.md`](../docs/capability-review/g1-constraint-algebra.md#reconciliation-with-the-2026-08-27-constraint-design-note).
+[`sketch/capability-review/g1-constraint-algebra.md`](../sketch/capability-review/g1-constraint-algebra.md#reconciliation-with-the-2026-08-27-constraint-design-note).
 
 The conjunct spelling does fail, but unhelpfully: `port: integer & >=1024`
 raises `no_scalar_unify`, "Literal scalar values of different kinds
@@ -2798,7 +2798,7 @@ never resolved, exactly the signature above. Neither spelling
 involves the other's feature, so the defect is in Go's snapshot of a
 staged producer, not in `hide` or in `pick`. One fix in
 `go/func.go`/`go/generate.go` should close both;
-[G9 phase 0](../docs/capability-review/g9-transformation.md#phase-0--the-four-gating-defects-s)
+[G9 phase 0](../sketch/capability-review/g9-transformation.md#phase-0--the-four-gating-defects-s)
 is the plan for it.
 
 **FIXED 2026-09-07, and the diagnosis above was wrong in an
@@ -2850,7 +2850,7 @@ and the staged-`each` spelling,
 ### 79. `join` folds a hidden child into the text it returns, in both ports [FIXED 2026-09-06]
 
 Found 2026-09-04 while re-basing the
-[G9 plan](../docs/capability-review/g9-transformation.md) on what had
+[G9 plan](../sketch/capability-review/g9-transformation.md) on what had
 landed. Not a divergence: one behaviour, wrong in both ports.
 
 ```aontu
@@ -2870,7 +2870,7 @@ the mark, so `each`, `pick` and now `join` all read a bag that
 generation does not. **The consequence is new, and it is why this has
 its own entry.** `each` and `pick` produce values, and a wrong
 aggregate over numbers is a wrong number. `join` produces TEXT, it
-landed in [G9 phase 2](../docs/capability-review/progress.md#g9--declarative-transformation),
+landed in [G9 phase 2](../sketch/capability-review/progress.md#g9--declarative-transformation),
 and [`docs/how-to/generate-code.md`](../docs/how-to/generate-code.md)
 documents it as the way to assemble a generated file — so the same
 mechanism now writes a value marked hidden into generated source, and

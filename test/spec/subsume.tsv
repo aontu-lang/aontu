@@ -1,5 +1,5 @@
 # G3: subsumption as a first-class query
-# (docs/capability-review/g3-subsumption-evolution.md).
+# (sketch/capability-review/g3-subsumption-evolution.md).
 #
 # Columns: name<TAB>subsume<TAB>general<TAB>specific<TAB>expect
 #

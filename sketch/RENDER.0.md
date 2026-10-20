@@ -2,10 +2,10 @@
 
 **Status:** PROPOSED, 2026-09-05. Design and plan; nothing below is
 built. This note is the plan for the remaining phases of
-[G9](../docs/capability-review/g9-transformation.md), with `render` as the
+[G9](capability-review/g9-transformation.md), with `render` as the
 spine. Where it changes what the gap document's phase text says, that
 document carries the change as its fourth amendment, and the
-[progress register](../docs/capability-review/progress.md) points here for
+[progress register](capability-review/progress.md) points here for
 the phases it names. Status lives in the register, never here.
 
 **Names here are the names of the day.** This document records what was
@@ -16,7 +16,7 @@ calls `form` is named `each` today
 and the `each` it describes as the bound was retired first
 ([ADR-026](../ADR.md#adr-026--each-is-retired-form-carries-the-bound)), that
 bound now being spelled `each(d, _ & t)`. The
-[progress register](../docs/capability-review/progress.md) carries the current status, and
+[progress register](capability-review/progress.md) carries the current status, and
 `test/spec/signature.tsv` is the call surface.
 
 **Origin:** Richard Rodger, 2026-09-05: *"Prepare a plan for the
@@ -26,9 +26,9 @@ complete the capability programme."*
 **Method:** every claim about what the engine does *today* was checked
 against the tree at `3669dfab` (`aontu@0.57.0` plus #148–#152) and is
 marked VERIFIED with what was read or run. Decisions already taken in
-G9 [§1](../docs/capability-review/g9-transformation.md#1-the-output-vocabulary--aontucode),
-[§3](../docs/capability-review/g9-transformation.md#3-the-renderer-and-the-language-profiles)
-and [§6](../docs/capability-review/g9-transformation.md#6-the-manifest-d5-iv-d7),
+G9 [§1](capability-review/g9-transformation.md#1-the-output-vocabulary--aontucode),
+[§3](capability-review/g9-transformation.md#3-the-renderer-and-the-language-profiles)
+and [§6](capability-review/g9-transformation.md#6-the-manifest-d5-iv-d7),
 in [EMIT.0.md](EMIT.0.md) and in [TEMPLATE.0.md](TEMPLATE.0.md) are
 inherited and not re-argued; where this note departs from one it says
 so, with the reason, in [§3](#3-decisions) and lists every departure in

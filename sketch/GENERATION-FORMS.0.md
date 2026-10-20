@@ -1,7 +1,7 @@
 # Generation forms (a) and (b): the host program, and the Jostraca path
 
 *Design note, 2026-08-30. Companion to
-[G9](../docs/capability-review/g9-transformation.md), which is the plan for
+[G9](capability-review/g9-transformation.md), which is the plan for
 form (c), the declarative transformation layer. This note covers the
 other two forms an aontu model can become output code — a host program
 reading the model directly, and driving
@@ -10,7 +10,7 @@ argues that both are nearer than they look, with one exception that is
 nearer to a defect than to a feature. Every claim marked VERIFIED was
 run against the built CLIs and, for the Go embedding claims, against a
 real external Go module. This note is design; status lives in the
-[progress register](../docs/capability-review/progress.md).*
+[progress register](capability-review/progress.md).*
 
 ## Why the two forms share one layer
 
@@ -215,7 +215,7 @@ Two things are genuinely needed:
    shipped to production" into a unification error before any file is
    written.
 
-Under [G9's D7](../docs/capability-review/g9-transformation.md) the driver
+Under [G9's D7](capability-review/g9-transformation.md) the driver
 hands Jostraca **one** `Project` containing all N outputs in a single
 `generate()` call, so its merge and exclusion logic sees the whole
 tree and one consistent snapshot of the model backs every file.
@@ -246,7 +246,7 @@ and `merge` is not.
 Neither list contains a language change. That is the point of this
 note: **forms (a) and (b) are tooling, and they are close.** Form (c)
 is where the language questions live, and they are in
-[G9](../docs/capability-review/g9-transformation.md).
+[G9](capability-review/g9-transformation.md).
 
 ## 7. Open, and owner-level
 

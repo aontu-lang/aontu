@@ -1,4 +1,4 @@
-# MODULES (G6 phase 2, docs/capability-review/g6-distribution.md; the
+# MODULES (G6 phase 2, sketch/capability-review/g6-distribution.md; the
 # shapes of ADR-039). An import is still just `@"…"`; the string's SHAPE
 # routes it, so the grammar is untouched -- a package path is
 # `<domain>/<path>` with no major (ADR-022), and a local file carries

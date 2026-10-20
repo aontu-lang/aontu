@@ -3,12 +3,12 @@
 *Design note, 2026-09-04. The sugar that desugars to
 [EMIT.0.md](EMIT.0.md)'s `emit`, and the three string builtins it needs
 — `esc`, `usc`, `rep` and `split`. Companion to
-[G9](../docs/capability-review/g9-transformation.md), which is the plan.
+[G9](capability-review/g9-transformation.md), which is the plan.
 Every claim marked VERIFIED was run against the built CLIs at 0.56.0
 and, for output claims, against
 [`voxgig/podmind`](https://github.com/voxgig/podmind)'s backend at
 `ab7f333`. This note is design; status lives in the
-[progress register](../docs/capability-review/progress.md).*
+[progress register](capability-review/progress.md).*
 
 **Names here are the names of the day.** This document records what was
 decided when it was written, and it is not rewritten as the language
@@ -18,7 +18,7 @@ calls `form` is named `each` today
 and the `each` it describes as the bound was retired first
 ([ADR-026](../ADR.md#adr-026--each-is-retired-form-carries-the-bound)), that
 bound now being spelled `each(d, _ & t)`. The
-[progress register](../docs/capability-review/progress.md) carries the current status, and
+[progress register](capability-review/progress.md) carries the current status, and
 `test/spec/signature.tsv` is the call surface.
 
 ## D1. One rule
@@ -344,7 +344,7 @@ plan at all:
   `pick(pack(['aim','ingest','process','episode'], …), u)` returns
   `AIM, EPISODE, INGEST, PROCESS`, sorted. So the map has to be
   `form`, the order-preserving map of
-  [G9](../docs/capability-review/g9-transformation.md) phase 3, which is
+  [G9](capability-review/g9-transformation.md) phase 3, which is
   exactly the gap that phase records.
 
 **So `split` is the one new builtin the case needs**, and it earns its

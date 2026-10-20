@@ -136,7 +136,7 @@ without `gh`".
   [`test/spec/errcodes.tsv`](test/spec/errcodes.tsv) row in the same
   change.
 - **A phase's row in
-  [`docs/capability-review/progress.md`](docs/capability-review/progress.md)
+  [`sketch/capability-review/progress.md`](sketch/capability-review/progress.md)
   changes in the same commit that changes its status.** Forward-looking
   design is the gap documents G1–G12; the register is the only record of
   what has been built.

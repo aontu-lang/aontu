@@ -1,5 +1,5 @@
 # G7 phase 5: the overlay patch verb (`aontu set`)
-# (docs/capability-review/g7-machine-access.md). Columns:
+# (sketch/capability-review/g7-machine-access.md). Columns:
 # name<TAB>patch<TAB>entry<TAB>input<TAB>expect, where input is a
 # JSON object {overlay, set} -- the overlay text as it stands and
 # the assignments to append -- and expect is the report:

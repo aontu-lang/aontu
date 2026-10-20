@@ -2,7 +2,7 @@
 # below) and exclusions (neq), over the four-leaf number tower and
 # strings. Normative design: docs/reference-language.md ("The
 # constraint algebra"); working notes:
-# docs/capability-review/g1-constraint-algebra.md.
+# sketch/capability-review/g1-constraint-algebra.md.
 # Promoted from test/spec/draft/ per the draft README protocol: every
 # expectation below was re-derived by running BOTH engines at
 # promotion time (byte-identical outputs, including full error text).

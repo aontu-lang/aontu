@@ -13,7 +13,7 @@ and the meet ladder are BUILT (2026-09-02) as `aontu view poset` and
 `aontu view ladder`, with `WhyConjunct.rank` in both ports; the
 interval panel and the `order` verb's `--head` gate are not. This note
 is design; status belongs in the
-[progress register](../docs/capability-review/progress.md).*
+[progress register](capability-review/progress.md).*
 
 ## Problem
 

@@ -60,7 +60,7 @@ every change, so they are reproduced rather than remembered: rerun
 `make cov`, which prints them, rather than trusting this page.
 The suite's SIZE is deliberately not quoted here: every count of it
 lives in the
-[capability-review progress register](capability-review/progress.md#the-update-protocol),
+[capability-review progress register](../sketch/capability-review/progress.md#the-update-protocol),
 rule 5, with its reproduction commands, because a figure kept in two
 places goes wrong in one of them.
 

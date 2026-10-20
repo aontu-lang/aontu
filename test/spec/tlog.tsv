@@ -1,5 +1,5 @@
 # THE TRANSPARENCY-LOG CLIENT -- G10 phase 2
-# (docs/capability-review/g10-transparency.md): the golden vectors of
+# (sketch/capability-review/g10-transparency.md): the golden vectors of
 # test/vectors/tlog.json, generated from upstream golang.org/x/mod, run
 # through each port's wrappers -- ts/src/tlog.ts over @aontu/mod, and
 # go/tlog.go over the upstream library itself.

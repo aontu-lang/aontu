@@ -13,7 +13,7 @@
 # `replace`. That is not only a workaround. It is the "symbol
 # provider" split that every surviving code generator arrives at --
 # what a type is CALLED in a target is a fact about the model, not a
-# rule in the template (docs/capability-review/g9-transformation.md,
+# rule in the template (sketch/capability-review/g9-transformation.md,
 # Prior art). Writing it down also makes a collision a unification
 # conflict rather than a broken identifier at emit time.
 records: [

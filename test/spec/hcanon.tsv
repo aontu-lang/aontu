@@ -1,5 +1,5 @@
 # G6 phases 0-1: the HASH FORM and the canon-hash
-# (docs/capability-review/g6-distribution.md). Columns:
+# (sketch/capability-review/g6-distribution.md). Columns:
 # name<TAB>mode<TAB>src<TAB>expect, in three modes.
 #
 # hcanon -- hcanon(unify(src)): exactly the unify-level canon with the

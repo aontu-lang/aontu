@@ -1,5 +1,5 @@
 # G3 phase 6: the trim reporter -- redundant map entries as paths
-# (docs/capability-review/g3-subsumption-evolution.md). Columns:
+# (sketch/capability-review/g3-subsumption-evolution.md). Columns:
 # name<TAB>trim<TAB>src<TAB>expect, where expect is the report as a
 # JSON object ({redundant, verdict}); verdicts are clean | redundant |
 # error (a source that does not stand up on its own).

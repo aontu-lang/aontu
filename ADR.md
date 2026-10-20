@@ -25,7 +25,7 @@ would end it, and that happened — becomes **RETIRED <date>**. Its
 heading and status stay for the same reason, and its body is replaced
 by what reached the clause and where the record now lives, which for a
 capability decision is the phase rows it governed in
-[`docs/capability-review/progress.md`](docs/capability-review/progress.md).
+[`sketch/capability-review/progress.md`](sketch/capability-review/progress.md).
 
 An entry that defines a rule of the language becomes **Moved to the
 definition <date>** once the definition under [`spec/`](spec/) holds
@@ -1373,7 +1373,7 @@ rather than relaxes them.
 
 ### Context
 
-[G6](docs/capability-review/g6-distribution.md) surveyed five ways to
+[G6](sketch/capability-review/g6-distribution.md) surveyed five ways to
 distribute modules and rejected one by name — *"E. A bespoke hosted
 registry service … infrastructure the project must run forever, and
 OCI already provides storage, auth, replication, and org familiarity"*
@@ -1404,7 +1404,7 @@ append-only, independently auditable statement** that a given version
 resolved to a given meaning, which no amount of local pinning can
 supply.
 
-A [design review](docs/capability-review/g10-transparency.md) of a
+A [design review](sketch/capability-review/g10-transparency.md) of a
 forge-tag transparency registry found the log sound and the substrate
 wrong. Reviewing it also established that the "forever" cost is
 bounded in a way a registry's is not: a log that stores no artifacts
@@ -1426,7 +1426,7 @@ Five constraints, each load-bearing:
    a different name.
 
 2. **A build that has a lockfile never touches it.** Evaluation is
-   hermetic ([G5](docs/capability-review/g5-trust-contract.md)) and
+   hermetic ([G5](sketch/capability-review/g5-trust-contract.md)) and
    stays so; `mod get` consults the log only when *adding* a version
    the lockfile does not already pin. This is what bounds the failure:
    if the service dies tomorrow, every existing project keeps
@@ -1487,8 +1487,8 @@ through an injected seam, exactly as `ModuleFs` and `ModuleEval`
 already do, or it does not land.
 
 The design, its phases and its open questions are
-[G10](docs/capability-review/g10-transparency.md); status is the
-[progress register](docs/capability-review/progress.md).
+[G10](sketch/capability-review/g10-transparency.md); status is the
+[progress register](sketch/capability-review/progress.md).
 
 ## ADR-014 — The tree is the namespace: there is no identity mark
 
@@ -1605,7 +1605,7 @@ takes a D-1 name: a relation is a vocabulary term, not an address.
 
 This does not reverse ADR-001 or ADR-002 — both ports and the shared
 spec move together, and coverage stays at 100 %. It does supersede G4
-phase 1 in `docs/capability-review/g4-identity-relations.md`; the
+phase 1 in `sketch/capability-review/g4-identity-relations.md`; the
 progress register records the retirement.
 
 ## ADR-015 — Paths are first-class values: `path(p)` captures, and a vacuous constructor call is a kind
@@ -1850,7 +1850,7 @@ consequences included, is
 admitted exactly one service and bound it with five constraints, the
 first of which was that it stores no module source, ever — "a log that
 began caching artifacts would be the registry
-[G6](docs/capability-review/g6-distribution.md) rejected, wearing a
+[G6](sketch/capability-review/g6-distribution.md) rejected, wearing a
 different name." That sentence was right about the risk and wrong about
 the arithmetic, and both halves are worth stating.
 
@@ -1989,16 +1989,16 @@ It does not weaken
 [ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations):
 the network code reaches the coverage floor through an injected seam, as
 `ModuleFs` and `ModuleEval` already do, or it does not land. And it does
-not disturb [G5](docs/capability-review/g5-trust-contract.md): no
+not disturb [G5](sketch/capability-review/g5-trust-contract.md): no
 include is ever executed in the evaluating process, and a repository
 changes where bytes come from, never what they are allowed to do.
 
 The G6 boundary bullet and the
-[G10](docs/capability-review/g10-transparency.md) boundary are amended
+[G10](sketch/capability-review/g10-transparency.md) boundary are amended
 in the same commit as this entry. The design, its cost model, its
 registry-management policy and its open questions are `REPOSITORY.0.md`
 in `aontu-lang/system`; status is the
-[progress register](docs/capability-review/progress.md).
+[progress register](sketch/capability-review/progress.md).
 
 ---
 
@@ -2016,7 +2016,7 @@ leaves the string, and the path is purely a name.
 
 ### Context
 
-[G6](docs/capability-review/g6-distribution.md) settled that a module
+[G6](sketch/capability-review/g6-distribution.md) settled that a module
 path is domain-based, CUE/Go-style, with the major version in the path,
 and `MODULE_RE` in both ports has enforced a domain-shaped first segment
 since. What was never settled is **which domains**, and the gap was
@@ -2202,7 +2202,7 @@ scope for the reason G6 gave.
 
 The design is `REPOSITORY.0.md` in `aontu-lang/system` — §3a for the two
 tiers, §3b for the rename, §7.6 for repojacking and what it costs;
-status is the [progress register](docs/capability-review/progress.md).
+status is the [progress register](sketch/capability-review/progress.md).
 
 ---
 
@@ -2322,13 +2322,13 @@ its own entry. It does not weaken
 [ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations):
 the client half reaches the coverage floor through an injected seam like
 every other network path, or it does not land. And it does not touch
-[G5](docs/capability-review/g5-trust-contract.md): a private package is
+[G5](sketch/capability-review/g5-trust-contract.md): a private package is
 data on the same terms as a public one, and where its bytes came from
 changes nothing about what they are permitted to do.
 
 The design, its seven constraints and the four questions it leaves open
 are `REPOSITORY.0.md` §10.6 in `aontu-lang/system`; status is the
-[progress register](docs/capability-review/progress.md).
+[progress register](sketch/capability-review/progress.md).
 
 ---
 
@@ -2362,7 +2362,7 @@ Nothing verifies that v1.3.0 really is compatible with v1.1.0; the
 version number is trusted. Most major bumps are therefore precautionary
 — published because the author *thinks* something broke.
 
-**Here it is decidable.** [G3](docs/capability-review/g3-subsumption-evolution.md)
+**Here it is decidable.** [G3](sketch/capability-review/g3-subsumption-evolution.md)
 subsumption answers exactly the question the rule asks: does every
 instance the old version admits, the new one admit too? Two properties
 make that compose:
@@ -2532,7 +2532,7 @@ production design choice as of 2026-09-11 — `project`, `folder`,
 implementations for [ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
 parity and pinned by `test/spec/cmp.tsv` — so the ground this entry
 stood on for phase 7 is gone, and that phase's row in
-[`docs/capability-review/progress.md`](docs/capability-review/progress.md)
+[`sketch/capability-review/progress.md`](sketch/capability-review/progress.md)
 carries what landed. It retired the bridge on an 11x install growth
 and a merge-over-hand-edits lifecycle; the components take no
 dependency in either direction and build a plan, which is a different
@@ -2715,7 +2715,7 @@ manifest is an aontu document, under `CLI.0.md` §5's rule that the
 toolchain invents no formats. The proof's fields and the trust
 configuration's shape are specified in `aontu-lang/mod`, beside the leaf
 and checkpoint specification the
-[G10](docs/capability-review/g10-transparency.md) split already places
+[G10](sketch/capability-review/g10-transparency.md) split already places
 there — because they are what a client relies on to verify, and the
 split's one hard rule is that nothing of that kind lives in
 `aontu-lang/system`. The write path's token verification and the roster
@@ -3841,7 +3841,7 @@ still have nowhere to live.
 
 ### Context
 
-[G9 Resolution 1](docs/capability-review/g9-transformation.md) was
+[G9 Resolution 1](sketch/capability-review/g9-transformation.md) was
 taken between two drafts of the same thing. One proposed a vocabulary
 of units, declarations, types and fields; the other a Jostraca-shaped
 plan of project/folder/file/content nodes. *"They cannot both be the
@@ -4016,7 +4016,7 @@ that no record here had taken. The engine's lock entry pinned `oci`, a
 digest nothing ever computed, while the specification pinned an archive
 digest and a manifest digest beside the canon-hash. ADR-022 retired the
 major from the path and named the routing consequence, and nothing had
-built it. [G10](docs/capability-review/g10-transparency.md) phase 3
+built it. [G10](sketch/capability-review/g10-transparency.md) phase 3
 cannot land against three contracts, and the status report of
 2026-09-12 (§5 item 11, §6 step 4) put this entry on its critical path
 ahead of every artifact that stores an `aon1-` pin.
@@ -4572,7 +4572,7 @@ because three descriptions of one drifted apart, and the progress
 register exists for the same reason. A hand-written second copy of the
 documentation on a website is that failure with a public URL on it.
 
-The decision was taken as D2 in `docs/site/index.md`, which asked for it
+The decision was taken as D2 in `sketch/site/index.md`, which asked for it
 to be recorded here once the site was built. aontu.dev is live.
 
 ### Decision
@@ -4618,7 +4618,7 @@ twin), so a required key met with an optional one lost its
 requirement: `a: {x?: integer}` beside `a: {x: integer}` admitted
 `a: {}`, and the meet was not below its left operand, which the
 lattice laws forbid. #298 found it while measuring for
-[G12](docs/capability-review/g12-jsonschema-fidelity.md), whose
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md), whose
 importer writes `required` and `properties` as separate statements the
 way JSON Schema's `allOf` and `$ref` split them; without this rule a
 key required in one object and declared in another validated when
@@ -4674,7 +4674,7 @@ because the meet returned the nil and generation drops an optional key
 whose value does not generate. `vet` refused `a: {}` against the same
 schema with `literal_nil` at `$.a.k`, where nothing had been supplied.
 JSON Schema's `properties: {k: false}` needs the opposite of both, and
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) imports it as
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) imports it as
 `k?: nil`.
 
 ### Decision
@@ -4706,7 +4706,7 @@ carries another code, is a refusal already recorded and is unchanged.
 
 ### Context
 
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 3 brings
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) phase 3 brings
 JSON Schema 2020-12 into aontu. The two languages differ at the
 construct: a JSON Schema keyword applies to one instance kind and passes
 every other, its numbers compare by value, its `properties` never imply
@@ -4811,7 +4811,7 @@ two values, and the conformance harness requires it to agree with
 
 ### Context
 
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 4 brings
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) phase 4 brings
 JSON Schema's `multipleOf` and its `integer` type into aontu. Both are
 statements about a number's value. aontu's numbers live in four leaves,
 two of them binary: the double nearest 0.3 is not a multiple of the
@@ -4868,7 +4868,7 @@ admits it.
 
 ### Context
 
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 5 brings
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) phase 5 brings
 JSON Schema's `anyOf`, `oneOf` and `not` into aontu. Each asks how many
 subschemas an instance *is* valid against. aontu has two near
 neighbours, and neither asks that. A disjunction meets every branch
@@ -4940,7 +4940,7 @@ on values still being evaluated.
 
 ### Context
 
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 6 brings
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) phase 6 brings
 JSON Schema's `if`, `then` and `else` into aontu, with
 `dependentSchemas` and `dependentRequired`, which are conditionals on a
 key being present. Each asks whether an instance *is* valid against
@@ -4992,7 +4992,7 @@ exporter would have to recognise the pattern to write it back.
 
 ### Context
 
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 7 brings
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) phase 7 brings
 JSON Schema's `contains`, `minContains`, `maxContains` and `uniqueItems`
 into aontu. `contains` asks how many of an array's items are valid
 against a subschema, a question no aontu atom answered: a list spread
@@ -5045,7 +5045,7 @@ distinct as JSON values, which `unique()` already asks of aontu values.
 
 ### Context
 
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 8 brings
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) phase 8 brings
 JSON Schema's annotation keywords into aontu: `title`, `description`,
 `$comment`, `default`, `examples`, `readOnly`, `writeOnly`, `format`
 and the content keywords, which assert nothing, and every keyword the
@@ -5125,7 +5125,7 @@ included, so `close({ b:1 }) & { a?:number }` was the error `closed`.
 No instance of either side can be refused by the other there: the
 closed map's instances hold no `a`, and the optional key asserts
 nothing about a value that holds none. The refusal surfaced in
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) phase 9, where
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) phase 9, where
 an imported `const` or `enum` object, which the importer writes as a
 closed literal, met the optional keys the same schema's `properties`
 writes: the position answered `nil`, admitting nothing where the schema
@@ -5176,7 +5176,7 @@ the template's `deny?`, a limit its design note recorded.
 [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value)
 put the admission trial inside the engine, and had `nof` try every
 branch. The review of the
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) plan (#311)
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) plan (#311)
 found three costs in that. A fixpoint pass re-wraps an atom, and tries
 its branches again; two atoms over one branch try it twice; and a count
 whose verdict is already decided keeps trying. Nothing bounded the total
@@ -5229,7 +5229,7 @@ the value lacks, written as a literal or filled by a default. So
 `must({a: 1}, "m") & {}` passed, while `nof(1, {a: 1}) & {}` refused,
 and the exporter could not write `must` as JSON Schema's `allOf`,
 which refuses what `must` admitted, and reported it as a loss instead.
-The [G12](docs/capability-review/g12-jsonschema-fidelity.md) review
+The [G12](sketch/capability-review/g12-jsonschema-fidelity.md) review
 (#311) decided that `must` moves to the admission trial under its own
 decision, with a run over every use case and bundled model before it,
 because a document that relies on `must` admitting a value that only
@@ -5283,7 +5283,7 @@ export meant to come back as the schema it came from does.
 [ADR-014](#adr-014--the-tree-is-the-namespace-there-is-no-identity-mark)
 removed `id()`, a second name that unified every node carrying it, so
 that a model carrying one could not be instantiated twice. The
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) review (#311,
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) review (#311,
 open question 3) put identity on the alias declaration, in a builtin
 only a declaration may carry, rather than in keys of the `meta` record,
 which a copy carries wherever it goes.
@@ -5349,7 +5349,7 @@ gives, it lands on the outermost resource in that scope declaring the
 name; otherwise it is a `$ref`. aontu has no dynamic scope: a reference
 denotes one value wherever it is used, and a term that denoted
 different values at different sites would break canon and the hash.
-The [G12](docs/capability-review/g12-jsonschema-fidelity.md) design
+The [G12](sketch/capability-review/g12-jsonschema-fidelity.md) design
 (phase 11) chose to specialise the reference away at import.
 
 ### Decision
@@ -5419,7 +5419,7 @@ which `anyOf` branch, `then` or `else` holds decides the set. A spread
 covers what `additionalProperties` and `items` say, the members the
 object's own keywords leave over, but nothing in aontu asks which
 members a passing branch reached. The
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) design
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) design
 (phase 12) chose a Band B atom for it.
 
 ### Decision
@@ -5485,7 +5485,7 @@ members a passing branch reached. The
 JSON Schema 2020-12's `format` names nineteen string formats, and
 asserts one only where a validator is asked to: by the format-assertion
 vocabulary, or by an option beside the default format-annotation
-vocabulary. The [G12](docs/capability-review/g12-jsonschema-fidelity.md)
+vocabulary. The [G12](sketch/capability-review/g12-jsonschema-fidelity.md)
 design (phase 13) chose an atom, `format(g)`, whose `g` is an ABNF
 grammar or the name of a committed one, run by the engine `parse(g)`
 uses after a check that one character of lookahead decides it.
@@ -5629,7 +5629,7 @@ restriction. Reach: the subset had no `\p{…}`, no named group, no empty
 class and no `\u` escape, and JSON Schema's `pattern` is ECMA-262's
 syntax, so the importer dropped any pattern holding one. ADR-003
 recorded owning the matcher as the accepted direction, and the
-[G12](docs/capability-review/g12-jsonschema-fidelity.md) design
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md) design
 scheduled it as phase 14.
 
 ### Decision
@@ -5739,7 +5739,7 @@ was dropped as one, though each asserts in its own dialect. Most
 schemas published for tools and APIs are written for draft-04 to
 draft-07, so an import of one widened it wherever the dialects differ,
 and the suite's draft-04, draft-06, draft-07 and 2019-09 directories
-were never run. The [G12](docs/capability-review/g12-jsonschema-fidelity.md)
+were never run. The [G12](sketch/capability-review/g12-jsonschema-fidelity.md)
 design, section 13, scheduled the dialect table and an upgrade stage as
 phase 15.
 
@@ -6244,7 +6244,7 @@ names could not be compared, nor a recursive schema with its own
 unrolling. G12's round trip compares an import with the import of its
 export, whose definitions the exporter names afresh, so its gate needs
 the comparison (phase 18 of
-[g12-jsonschema-fidelity.md](docs/capability-review/g12-jsonschema-fidelity.md)),
+[g12-jsonschema-fidelity.md](sketch/capability-review/g12-jsonschema-fidelity.md)),
 and the design note scoped it as its P3.
 
 ### Decision
@@ -6317,7 +6317,7 @@ and the design note scoped it as its P3.
 G12's last phase asks that a schema which crosses into aontu can cross
 back: the import of a schema's export should be the import it started
 from (phase 18 of
-[g12-jsonschema-fidelity.md](docs/capability-review/g12-jsonschema-fidelity.md)),
+[g12-jsonschema-fidelity.md](sketch/capability-review/g12-jsonschema-fidelity.md)),
 for the official suite and for a pinned subset of the configuration
 schemas SchemaStore publishes. A probe over the official suite found 990
 of its 1,709 groups coming back canon-equal and subsuming both ways.
@@ -6876,7 +6876,7 @@ already holds, and a dynamic reference written as its `$ref`.
 
 A loss names a difference between what a value admits and what its
 schema admits, the fourth property of
-[G12](docs/capability-review/g12-jsonschema-fidelity.md). A rider
+[G12](sketch/capability-review/g12-jsonschema-fidelity.md). A rider
 changes nothing its value admits, and a record that is anyone's
 metadata holds keys JSON Schema has no use for. Reporting them told a
 reader the schema admitted something else when it did not, and made an

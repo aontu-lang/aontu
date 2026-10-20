@@ -1,5 +1,5 @@
 # G4 phase 2: refer(t?) -- the CHECKED, TYPED, LINK-SHAPED reference
-# (docs/capability-review/g4-identity-relations.md). A constraint on a
+# (sketch/capability-review/g4-identity-relations.md). A constraint on a
 # string-valued field: the string must be a TREE ADDRESS, the addressed
 # node must exist in the evaluation, and -- when `t` is given -- `t` is
 # unified INTO the target. The field's own value stays the address

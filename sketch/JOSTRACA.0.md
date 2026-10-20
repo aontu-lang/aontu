@@ -5,7 +5,7 @@ primitives, `nom` and `translate` are aontu functions in TypeScript
 and Go, declared in [`test/spec/signature.tsv`](../test/spec/signature.tsv)
 and held by [`test/spec/cmp.tsv`](../test/spec/cmp.tsv); the
 register row is
-[G9 phase 7](../docs/capability-review/progress.md#g9--declarative-transformation),
+[G9 phase 7](capability-review/progress.md#g9--declarative-transformation),
 and the bridge that row was opened for stays retired. The sections
 below are as the spike left them on 2026-09-09 — built in TypeScript
 only, with no Go port, no shared-spec row and no declaration — and
@@ -36,7 +36,7 @@ retired the Jostraca *bridge* and the spike does not reopen it, taking no
 dependency and running as the pipeline hand-off that entry names. This
 section is about the other one.
 
-[G9 Resolution 1](../docs/capability-review/g9-transformation.md#two-specialist-disagreements-resolved)
+[G9 Resolution 1](capability-review/g9-transformation.md#two-specialist-disagreements-resolved)
 settled the output vocabulary against exactly this proposal. Two
 drafts disagreed: a DECLARATION vocabulary of units, declarations,
 types and fields, and a JOSTRACA-SHAPED plan of project/folder/file/
