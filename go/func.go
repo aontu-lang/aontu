@@ -714,7 +714,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			})
 		}
 		out := clonePath(args[0], cp(base))
-		out.setIdentRec(unionRiders(sameString, out.identRec(), rec))
+		out.setIdentRec(unionRiders(valCanon, out.identRec(), rec))
 		return out
 	case "meta":
 		if args[0].Nil() {

@@ -9,4 +9,5 @@ declare class MetaFuncVal extends FuncBaseVal {
     rides(): boolean;
     resolve(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal | Val;
 }
-export { MetaFuncVal, };
+declare function isData(v: any): boolean;
+export { MetaFuncVal, isData, };

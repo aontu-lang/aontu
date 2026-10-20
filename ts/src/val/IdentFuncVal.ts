@@ -15,11 +15,7 @@ import { unionRecords } from '../rider'
 import { funcSig, renderSig } from '../sig'
 
 import { FuncBaseVal } from './FuncBaseVal'
-
-
-// ADR-056: the identity a schema was declared with, carried by its alias
-// declaration and by nothing else.
-const IDENT_KEYS = ['id', 'anchor', 'defs', 'dynamicAnchor']
+import { isData } from './MetaFuncVal'
 
 
 class IdentFuncVal extends FuncBaseVal {
@@ -70,23 +66,21 @@ class IdentFuncVal extends FuncBaseVal {
       })
     }
     const v = out.clone(ctx)
-    v.identity = unionRecords([v.identity, record], (s: string) => s)
+    v.identity = unionRecords([v.identity, record], (r: any) => r.canon)
     return v
   }
 }
 
 
-function identRecord(r: any): Record<string, string[]> | undefined {
-  if (true !== r.isMap) {
+// A declaration's record: a map of concrete data under any keys, which
+// the JSON Schema exporter reads its identity from (ADR-073).
+function identRecord(r: any): Record<string, Val[]> | undefined {
+  if (true !== r.isMap || !isData(r)) {
     return undefined
   }
-  const out: Record<string, string[]> = {}
+  const out: Record<string, Val[]> = Object.create(null)
   for (const k of Object.keys(r.peg)) {
-    const v: any = r.peg[k]
-    if (!IDENT_KEYS.includes(k) || true !== v.isScalar || 'string' !== typeof v.peg) {
-      return undefined
-    }
-    out[k] = [v.peg]
+    out[k] = [r.peg[k]]
   }
   return out
 }

@@ -3,7 +3,6 @@
 package aontu
 
 import (
-	"slices"
 	"sort"
 	"strings"
 )
@@ -121,7 +120,7 @@ func CanonRiders(v Val) string {
 func ride(out, a, b Val) {
 	recs := []map[string][]string{out.deprecRec()}
 	metas := []map[string][]Val{out.metaRec()}
-	idents := []map[string][]string{out.identRec()}
+	idents := []map[string][]Val{out.identRec()}
 	for _, v := range []Val{a, b} {
 		if nil != v {
 			recs = append(recs, v.deprecRec())
@@ -132,7 +131,7 @@ func ride(out, a, b Val) {
 	if dep := unionRiders(sameString, recs...); nil != dep {
 		out.setDeprecRec(dep)
 	}
-	if ident := unionRiders(sameString, idents...); nil != ident {
+	if ident := unionRiders(valCanon, idents...); nil != ident {
 		out.setIdentRec(ident)
 	}
 	if meta := unionRiders(valCanon, metas...); nil != meta {
@@ -263,21 +262,15 @@ func metaTexts(v Val, key string) []string {
 	return out
 }
 
-// identKeys are an identity's keys (ADR-056).
-var identKeys = []string{"id", "anchor", "defs", "dynamicAnchor"}
-
-func identRecord(r Val) (map[string][]string, bool) {
+// identRecord reads a declaration's record: concrete data, any keys (ADR-073).
+func identRecord(r Val) (map[string][]Val, bool) {
 	m, ok := r.(*MapVal)
-	if !ok {
+	if !ok || !isData(r) {
 		return nil, false
 	}
-	out := map[string][]string{}
+	out := map[string][]Val{}
 	for _, k := range m.keys {
-		sv, ok := m.peg[k].(*ScalarVal)
-		if !ok || KindString != sv.kind || !slices.Contains(identKeys, k) {
-			return nil, false
-		}
-		out[k] = []string{sv.peg.(string)}
+		out[k] = []Val{m.peg[k]}
 	}
 	return out, true
 }

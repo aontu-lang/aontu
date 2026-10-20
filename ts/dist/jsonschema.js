@@ -617,7 +617,7 @@ function defOf(ctx, target) {
     }
     const path = target.map(aliasname_1.aliasPathSegment);
     const alias = 1 === target.length && aliasname_1.ALIAS_NAME_RE.test(path[0]);
-    const declared = value.identity?.defs ?? [];
+    const declared = identityTexts(value, 'defs');
     const base = 1 === declared.length ? declared[0] :
         alias ? defName(path[0].slice(1)) : path.join('.');
     let name = base;
@@ -1448,7 +1448,7 @@ function withDefs(ctx, schema, body) {
     const unwritten = [...ctx.refs.defs.values()]
         .filter((d) => true === d.reached && !d.used && !moved.has(defRef(d)))
         .sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.name, b.name))
-        .flatMap((d) => IDENTITY_KEYWORD.filter(([key]) => 0 < (d.value.identity?.[key]?.length ?? 0))
+        .flatMap((d) => IDENTITY_KEYWORD.filter(([key]) => 0 < identityTexts(d.value, key).length)
         .map(([, construct]) => ({ path: pathText(d.path), construct,
         reason: 'its uses are written as another definition that says the same, so it is not written' })));
     const gone = folded.filter((d) => aliasname_1.ALIAS_NAME_RE.test(d.path[0])).map((d) => pathText(d.path));
@@ -1470,7 +1470,7 @@ function unclone(schema, body, used, moved) {
     // Clones share the $defs key a clone's identity names.
     const twins = (u, d) => u !== d && u.used && u.base === d.base &&
         (0, keyorder_1.cmpCodePoint)(u.name, d.name) < 0 &&
-        [u, d].some((x) => true === x.value.identity?.defs?.includes(d.base));
+        [u, d].some((x) => identityTexts(x.value, 'defs').includes(d.base));
     const drop = (d, into) => {
         d.used = false;
         moved.set(defRef(d), defRef(into));
@@ -1519,7 +1519,7 @@ const IDENTITY_KEYWORD = [['id', '$id'], ['anchor', '$anchor'], ['dynamicAnchor'
 function identify(schema, folded, kept) {
     const lossy = [];
     const one = (defs, key, construct, path) => {
-        const all = [...new Set(defs.flatMap((d) => d.value.identity?.[key] ?? []))];
+        const all = [...new Set(defs.flatMap((d) => identityTexts(d.value, key)))];
         if (1 < all.length) {
             lossy.push({ construct, path, reason: 'the declaration carries more than one, so none is written' });
         }
@@ -1532,6 +1532,7 @@ function identify(schema, folded, kept) {
     const top = one(folded, 'anchor', '$anchor', '$');
     const topDynamic = one(folded, 'dynamicAnchor', '$dynamicAnchor', '$');
     Object.assign(schema, keywords(one(folded, 'id', '$id', '$'), top, topDynamic));
+    declared(folded, '$', schema, lossy);
     // An anchor and a dynamic anchor share one namespace in a resource.
     const anchors = new Set([top, topDynamic].filter((a) => undefined !== a));
     for (const d of kept) {
@@ -1557,12 +1558,60 @@ function identify(schema, folded, kept) {
         if (undefined === id) {
             own.forEach((a) => anchors.add(a));
         }
-        if (undefined !== id || 0 < own.size) {
+        if (undefined !== id || 0 < own.size || otherKeys(d.value)) {
             d.schema = { ...keywords(id, anchor, dynamic),
                 ...('object' === typeof d.schema ? d.schema : { not: {} }) };
+            declared([d], path, d.schema, lossy);
         }
     }
     return lossy;
+}
+const IDENTITY_KIND = Object.assign(Object.create(null), {
+    id: ['$id', 'JSON Schema\'s $id holds a string'],
+    anchor: ['$anchor', 'JSON Schema\'s $anchor holds a string'],
+    dynamicAnchor: ['$dynamicAnchor', 'JSON Schema\'s $dynamicAnchor holds a string'],
+    defs: ['$defs', 'a $defs key is a string'],
+});
+const isText = (v) => true === v?.isScalar && 'string' === typeof v.peg;
+// The text a declaration's record holds under one key: all the exporter
+// reads an identity from (ADR-073).
+function identityTexts(value, key) {
+    return (value?.identity?.[key] ?? []).filter(isText).map((v) => v.peg);
+}
+function otherKeys(value) {
+    const rec = value.identity ?? {};
+    return Object.keys(rec).some((k) => undefined === IDENTITY_KIND[k] || identityTexts(value, k).length < rec[k].length);
+}
+// A record's keys beyond its identity, each a keyword of its own name on
+// the schema its definitions are written as.
+function declared(defs, path, out, lossy) {
+    const rec = (0, rider_1.unionRecords)(defs.map((d) => d.value.identity), (v) => v.canon);
+    for (const k of Object.keys(rec).sort(keyorder_1.cmpCodePoint)) {
+        const kind = IDENTITY_KIND[k];
+        const odd = rec[k].find((v) => !isText(v));
+        if (undefined !== kind && undefined !== odd) {
+            lossy.push({ construct: kind[0], path, reason: 'the key ' + k + ' holds ' +
+                    jsonKindText(generated(odd)) + ', where ' + kind[1] + ', so it is DROPPED' });
+        }
+        else if (undefined !== kind) {
+            continue;
+        }
+        else if (KEYWORDS.has(k)) {
+            lossy.push({ construct: 'ident', path, reason: 'the key ' + k + ' is a JSON Schema ' +
+                    'keyword, which would assert where the record only describes the declaration, so it is DROPPED' });
+        }
+        else if (1 < rec[k].length) {
+            lossy.push({ construct: 'ident', path,
+                reason: 'the declaration carries more than one ' + k + ', so none is written' });
+        }
+        else if (Object.prototype.hasOwnProperty.call(out, k)) {
+            lossy.push({ construct: 'ident', path,
+                reason: 'the definition already writes the keyword ' + k + ', so the key is DROPPED' });
+        }
+        else {
+            put(out, k, generated(rec[k][0]));
+        }
+    }
 }
 // Every $ref a folded definition had, pointed at the schema itself.
 function relink(v, to) {

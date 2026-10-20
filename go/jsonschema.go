@@ -1042,7 +1042,7 @@ func schemaDefOf(sc *schemaCtx, target []string) *schemaDef {
 		path[i] = aliasPathSegment(seg)
 	}
 	base := strings.Join(path, ".")
-	if declared := value.identRec()["defs"]; 1 == len(declared) {
+	if declared := identTexts(value, "defs"); 1 == len(declared) {
 		base = declared[0]
 	} else if 1 == len(target) && aliasNameRe.MatchString(path[0]) {
 		base = schemaDefName(path[0][1:])
@@ -1166,7 +1166,7 @@ func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss
 	sort.Slice(all, func(i, j int) bool { return all[i].name < all[j].name })
 	for _, d := range all {
 		for _, kw := range schemaIdentityKeyword {
-			if 0 < len(d.value.identRec()[kw[0]]) {
+			if 0 < len(identTexts(d.value, kw[0])) {
 				unwritten = append(unwritten, SchemaLoss{Path: schemaPathText(d.path), Construct: kw[1],
 					Reason: "its uses are written as another definition that says the same, so it is not written"})
 			}
@@ -1198,7 +1198,7 @@ func schemaIdentify(schema map[string]any, folded, kept []*schemaDef) []SchemaLo
 	one := func(defs []*schemaDef, key, construct, path string) (string, bool) {
 		all := []string{}
 		for _, d := range defs {
-			for _, v := range d.value.identRec()[key] {
+			for _, v := range identTexts(d.value, key) {
 				if !slices.Contains(all, v) {
 					all = append(all, v)
 				}
@@ -1225,6 +1225,7 @@ func schemaIdentify(schema map[string]any, folded, kept []*schemaDef) []SchemaLo
 	write(schema, "$id", id, hasID)
 	write(schema, "$anchor", top, hasTop)
 	write(schema, "$dynamicAnchor", topDynamic, hasTopDynamic)
+	lossy = schemaDeclared(folded, "$", schema, lossy)
 
 	// An anchor and a dynamic anchor share one namespace in a resource.
 	anchors := map[string]bool{}
@@ -1262,7 +1263,7 @@ func schemaIdentify(schema map[string]any, folded, kept []*schemaDef) []SchemaLo
 				anchors[a] = true
 			}
 		}
-		if hasID || 0 < len(own) {
+		if hasID || 0 < len(own) || schemaHasOtherKeys(d.value) {
 			out, ok := d.schema.(map[string]any)
 			if !ok {
 				out = map[string]any{"not": map[string]any{}}
@@ -1270,7 +1271,91 @@ func schemaIdentify(schema map[string]any, folded, kept []*schemaDef) []SchemaLo
 			write(out, "$id", id, hasID)
 			write(out, "$anchor", anchor, hasAnchor)
 			write(out, "$dynamicAnchor", dynamic, hasDynamic)
+			lossy = schemaDeclared([]*schemaDef{d}, path, out, lossy)
 			d.schema = out
+		}
+	}
+	return lossy
+}
+
+// schemaIdentityKind is what each identity key is written as, for the loss
+// that names one holding something other than text.
+var schemaIdentityKind = map[string][2]string{
+	"id": {"$id", "JSON Schema's $id holds a string"}, "anchor": {"$anchor", "JSON Schema's $anchor holds a string"},
+	"dynamicAnchor": {"$dynamicAnchor", "JSON Schema's $dynamicAnchor holds a string"},
+	"defs":          {"$defs", "a $defs key is a string"},
+}
+
+// identTexts is the text a declaration's record holds under one key, which
+// is all the exporter reads an identity from.
+func identTexts(v Val, key string) []string {
+	out := []string{}
+	for _, t := range v.identRec()[key] {
+		if sv, ok := t.(*ScalarVal); ok {
+			if s, ok := sv.peg.(string); ok {
+				out = append(out, s)
+			}
+		}
+	}
+	return out
+}
+
+// schemaHasOtherKeys is whether a declaration's record holds a key beyond
+// its identity, or an identity key holding something other than text.
+func schemaHasOtherKeys(v Val) bool {
+	for k, vs := range v.identRec() {
+		if _, known := schemaIdentityKind[k]; !known || len(identTexts(v, k)) < len(vs) {
+			return true
+		}
+	}
+	return false
+}
+
+// schemaDeclared writes the keys of the definitions' records beyond their
+// identity on the schema they are written as, each a keyword of its own
+// name (ADR-073), and reports an identity key holding something other
+// than text.
+func schemaDeclared(defs []*schemaDef, path string, out map[string]any, lossy []SchemaLoss) []SchemaLoss {
+	recs := []map[string][]Val{}
+	for _, d := range defs {
+		recs = append(recs, d.value.identRec())
+	}
+	rec := unionRiders(valCanon, recs...)
+	keys := make([]string, 0, len(rec))
+	for k := range rec {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		vs := rec[k]
+		if kind, known := schemaIdentityKind[k]; known {
+			for _, v := range vs {
+				if sv, ok := v.(*ScalarVal); ok {
+					if _, text := sv.peg.(string); text {
+						continue
+					}
+				}
+				json, _ := schemaGenerated(v)
+				lossy = append(lossy, SchemaLoss{Construct: kind[0], Path: path,
+					Reason: "the key " + k + " holds " + schemaJSONKindText(json) + ", where " + kind[1] + ", so it is DROPPED"})
+				break
+			}
+			continue
+		}
+		_, has := out[k]
+		switch {
+		case schemaKeywords[k]:
+			lossy = append(lossy, SchemaLoss{Construct: "ident", Path: path,
+				Reason: "the key " + k + " is a JSON Schema keyword, which would assert where the record only describes the declaration, so it is DROPPED"})
+		case 1 < len(vs):
+			lossy = append(lossy, SchemaLoss{Construct: "ident", Path: path,
+				Reason: "the declaration carries more than one " + k + ", so none is written"})
+		case has:
+			lossy = append(lossy, SchemaLoss{Construct: "ident", Path: path,
+				Reason: "the definition already writes the keyword " + k + ", so the key is DROPPED"})
+		default:
+			json, _ := schemaGenerated(vs[0])
+			out[k] = json
 		}
 	}
 	return lossy
@@ -1284,8 +1369,8 @@ func schemaUnclone(schema map[string]any, body any, used []*schemaDef, moved map
 	// Clones share the $defs key a clone's identity names.
 	twins := func(u, d *schemaDef) bool {
 		return u != d && u.used && u.base == d.base && u.name < d.name &&
-			(slices.Contains(u.value.identRec()["defs"], d.base) ||
-				slices.Contains(d.value.identRec()["defs"], d.base))
+			(slices.Contains(identTexts(u.value, "defs"), d.base) ||
+				slices.Contains(identTexts(d.value, "defs"), d.base))
 	}
 	drop := func(d, into *schemaDef) {
 		d.used = false

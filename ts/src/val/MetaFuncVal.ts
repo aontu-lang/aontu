@@ -99,9 +99,10 @@ function isData(v: any): boolean {
     return false
   }
   return Object.values(v.peg).every(isData)
-} /* node:coverage ignore next 5 */
+} /* node:coverage ignore next 6 */
 
 
 export {
   MetaFuncVal,
+  isData,
 }
