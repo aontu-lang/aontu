@@ -98,10 +98,12 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - a container literal longer than its size allows, which the meet is
   to refuse as a conflict of the schema (ruling 9).
 
-The rest of the language is in no phase of the plan yet: generation
-(`each`, `pack`, `emit`), arithmetic and aggregates, the text and
-grammar functions, links and relations, and source loading and
-modules.
+The rest of the language waits on phases P8 to P12 of the plan: the
+calls that compute values, arithmetic, the aggregates, the text
+functions and the component tree among them (P8); the placeholder,
+templates and generation with `each`, `pack` and `emit` (P9); source
+loading, modules and variables (P10); links and relations (P11); and
+grammars (P12).
 
 ## Build and run
 
