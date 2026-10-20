@@ -20,7 +20,8 @@
 # TWO JOBS, BECAUSE THEY NEED DIFFERENT PRIVILEGES.
 #
 #   publish  id-token: write, contents: READ. Runs npm install, the build and
-#            the tests — i.e. dependency lifecycle scripts and project code.
+#            the tests — project code, and dependency code too, although
+#            ts/.npmrc refuses every lifecycle script.
 #   tag      contents: write. Runs git and nothing else.
 #
 # Keeping them in one job would hand a repository-write credential to every
@@ -99,8 +100,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # Deliberately NOT contents: write — see the header. This job runs
-    # dependency lifecycle scripts.
+    # Deliberately NOT contents: write — see the header. This job installs
+    # and runs dependency code.
     permissions:
       id-token: write
       contents: read
@@ -331,6 +332,10 @@ jobs:
             *)   DIST=latest ;;
           esac
           echo "publishing $V under dist-tag $DIST"
+          # By name, not as a prepack hook: ts/.npmrc refuses every
+          # lifecycle script, so a hook would publish without grammar/
+          # and skill/.
+          npm run stage-package
           npm publish --access public --tag "$DIST"
 
   # Runs git and nothing else. No npm install, no project code — so the

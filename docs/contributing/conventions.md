@@ -4,6 +4,18 @@ The house rules for code, prose and provenance. Summary in
 [AGENTS.md](../../AGENTS.md).
 
 
+## No npm lifecycle hooks
+
+npm runs some scripts without being asked: `pre<name>` and `post<name>`
+around any script, and `prepare`, `prepack`, `version` and the install
+scripts around its own commands. These projects use none of them, and
+every npm project here carries an `.npmrc` with `ignore-scripts=true`,
+so a hook would not run anyway, locally, in CI or in Cloudflare's
+builder. A script that needs the build runs it by name
+(`npm run build && …`), and a release step that once hid in a hook is a
+named script the release calls: `stage-package` before `npm publish`,
+`sync-version` after `npm version`.
+
 ## Comments are for the surprising code, and nothing else
 
 [ADR-032](../../ADR.md#adr-032--code-comments-are-sparse-and-terse-intent-lives-in-names-requirements-live-in-documents)

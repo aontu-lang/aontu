@@ -313,7 +313,7 @@ publish:
 	fi
 	@if [ -n "$(GOV)" ] && git rev-parse -q --verify "refs/tags/go/v$(GOV)" >/dev/null 2>&1; then \
 	  echo "publish: tag go/v$(GOV) already exists locally"; exit 1; fi
-	@if [ -n "$(V)" ]; then cd ts && npm version --no-git-tag-version $(V); fi
+	@if [ -n "$(V)" ]; then cd ts && npm version --no-git-tag-version $(V) && npm run sync-version; fi
 	@if [ -n "$(GOV)" ]; then \
 	  perl -pi -e 's/^const VERSION = ".*"/const VERSION = "$(GOV)"/' go/aontu.go; \
 	  grep -q '^const VERSION = "$(GOV)"' go/aontu.go || \
@@ -321,8 +321,8 @@ publish:
 	fi
 	$(MAKE) all
 	@# package-lock.json is gitignored in this repo, so only package.json moves.
-	@# THREE PATHS, not one: `npm version` rewrites ts/src/aontu.ts's VERSION
-	@# constant too (the postversion hook), and `make all` above rebuilds
+	@# THREE PATHS, not one: `npm run sync-version` rewrites ts/src/aontu.ts's
+	@# VERSION constant after `npm version`, and `make all` above rebuilds
 	@# ts/dist from it -- both of which are committed. Staging package.json
 	@# alone left the release commit claiming a version its own source and
 	@# build did not, which ts/test/version.test.ts catches in the publish
