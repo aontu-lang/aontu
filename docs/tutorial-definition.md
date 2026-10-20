@@ -3099,15 +3099,25 @@ theorem re_not_le_string {p : String} (h : host.pattern p "") : ¬ (.re p ⊑[en
 
 `aontu subsume` answers under one of three profiles, and each is a
 contract on the order. `values` is `Le`. `defaults` asks more: at every
-position where the specific side singles out a value, the general side
-must single out the same one.
+position where the specific side declares a default, the general side
+must declare one that singles out the same value. A preference declares
+a default, and so does a disjunction with a preferred arm:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+def Val.declaresDefault : Val → Bool
+  | .pref _ _ => true
+  | .or arms => (pickRank arms).isSome
+  | _ => false
+```
 
 <!-- test: quote spec/Aontu/Subsume.lean -->
 ```lean
 def DefaultsLe (env : Env) (a b : Val) : Prop :=
   a ⊑[env] b ∧
-    ∀ (p : List Seg) (wa wb : Val), (normalise a).at p = some wa → (normalise b).at p = some wb →
-      ∀ (root j : Data), Output env root wa j → Output env root wb j
+    ∀ (p : List Seg) (wa wb : Val), (normalise a).at p = some wa → wa.declaresDefault = true →
+      (normalise b).at p = some wb →
+      ∀ (root j : Data), Output env root wa j → wb.declaresDefault = true ∧ Output env root wb j
 ```
 
 `*2 | number` and `*1 | number` admit the same numbers, so the first
@@ -3117,6 +3127,17 @@ since the first singles out `2` where the second singles out `1`:
 <!-- test: quote spec/Aontu/Subsume.lean -->
 ```lean
 theorem defaults_sees_the_default :
+```
+
+A literal singles out its own value, and declares no default, so
+`defaults` asks nothing more of the general side. `integer` over `1`
+holds under `defaults` as it does under `values`, which is how the
+reference defines an effective default and how both ports answer:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem DefaultsLe.of_lit {s : Scalar} {b : Val} (h : .lit s ⊑[env] b) :
+    DefaultsLe env (.lit s) b := by
 ```
 
 `gen` asks that, and that the marks agree. The marks are not terms of

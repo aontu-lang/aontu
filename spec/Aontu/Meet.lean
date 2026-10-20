@@ -1878,6 +1878,9 @@ theorem admits_meet_eq {env : Env} {root : Data} (a b : Val) (j : Data) :
 so that every meet in it is computed and every dead arm dropped. -/
 def normalise (v : Val) : Val := meet .any v
 
+/-- A literal is its own normal form. -/
+theorem normalise_lit (s : Scalar) : normalise (.lit s) = .lit s := rfl
+
 theorem admits_normalise {env : Env} {root : Data} (v : Val) (j : Data) :
     Admits env root (normalise v) j ↔ Admits env root v j := by
   rw [normalise, admits_meet]

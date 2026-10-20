@@ -356,17 +356,28 @@ inductive Profile where
   | defaults
   | gen
 
+/-- Whether a term declares a default: a preference, or a disjunction
+with a live arm of positive rank, which the rank rule picks. A literal
+singles out its own value and declares none, nor does a disjunction
+whose arms all single out one value without a rank. -/
+def Val.declaresDefault : Val → Bool
+  | .pref _ _ => true
+  | .or arms => (pickRank arms).isSome
+  | _ => false
+
 /-- The `defaults` profile's order: `a`, the specific side, below `b`,
 the general side, in the order, and at every position where the normal
-form of `a` holds a term that singles out a value, the normal form of
-`b` holds a term that singles out the same value. A default the
+form of `a` declares a default that singles out a value, the normal
+form of `b` declares one that singles out the same value. A default the
 specific side declares survives into the general side unchanged; one
 the general side adds where the specific side had none is no
-obligation, since a term that singles out nothing asks nothing. -/
+obligation, and neither is a literal's own value, which is no default
+(decision 11 of the design note's §7). -/
 def DefaultsLe (env : Env) (a b : Val) : Prop :=
   a ⊑[env] b ∧
-    ∀ (p : List Seg) (wa wb : Val), (normalise a).at p = some wa → (normalise b).at p = some wb →
-      ∀ (root j : Data), Output env root wa j → Output env root wb j
+    ∀ (p : List Seg) (wa wb : Val), (normalise a).at p = some wa → wa.declaresDefault = true →
+      (normalise b).at p = some wb →
+      ∀ (root j : Data), Output env root wa j → wb.declaresDefault = true ∧ Output env root wb j
 
 /-- The `gen` profile's order: the `defaults` profile's, and the marks
 agree on corresponding nodes. The marks `type()` and `hide()` are not
@@ -401,7 +412,21 @@ theorem GenLe.defaults {marks : Val → Val → Prop} {a b : Val} (h : GenLe env
     DefaultsLe env a b := h.1
 
 theorem DefaultsLe.refl (a : Val) : DefaultsLe env a a :=
-  ⟨Le.refl env a, fun _ _ _ ha hb _ _ h => by rw [ha] at hb; cases hb; exact h⟩
+  ⟨Le.refl env a, fun _ _ _ ha hd hb _ _ h => by rw [ha] at hb; cases hb; exact ⟨hd, h⟩⟩
+
+/-- A literal declares no default, so `defaults` asks of a value above
+it what `values` asks: `integer` over `1` holds under both, as the
+reference's `kind-over-scalar` answers. -/
+theorem DefaultsLe.of_lit {s : Scalar} {b : Val} (h : .lit s ⊑[env] b) :
+    DefaultsLe env (.lit s) b := by
+  refine ⟨h, fun p wa _ ha hd _ _ _ _ => ?_⟩
+  rw [normalise_lit] at ha
+  cases p with
+  | nil =>
+    simp only [Val.at, Option.some.injEq] at ha
+    subst ha
+    simp [Val.declaresDefault] at hd
+  | cons g p => cases g <;> simp [Val.at] at ha
 
 /-- What `defaults` asks beyond `values`: `*2 | number` is below
 `*1 | number` in the order, since both admit every number, and not
@@ -422,8 +447,8 @@ theorem defaults_sees_the_default :
     · cases List.mem_singleton.1 h
       exact arm_le_or (List.mem_cons_of_mem _ (List.mem_singleton.mpr rfl))
   · intro ⟨_, h⟩
-    have h2 := h [] _ _ rfl rfl .null (.num (.integer (.of 2)))
-      ((output_iff (by decide) _).1 (by decide))
+    have h2 := (h [] _ _ rfl (by decide) rfl .null (.num (.integer (.of 2)))
+      ((output_iff (by decide) _).1 (by decide))).2
     have h1 : Output env .null (normalise (.or [(1, .lit (.num (.integer (.of 1)))), (0, .number)]))
         (.num (.integer (.of 1))) :=
       (output_iff (by decide) _).1 (by decide)
