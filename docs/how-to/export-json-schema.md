@@ -336,7 +336,8 @@ part that changes what a client does, and one that reads
 `x-aontu-deprecate` learns the reason, the replacement and the version
 too. Nothing is lost, so `--strict` passes. A `meta()` record crosses
 the same way, as the annotation keywords it holds: a `title` becomes
-`title`, and a member of its `x` becomes a keyword of its own name.
+`title`, and a key JSON Schema does not read becomes a keyword of its
+own name.
 
 ## The refusals
 

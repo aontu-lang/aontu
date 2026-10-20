@@ -2443,7 +2443,7 @@ Example: `maybe($.gone)` generates nothing; `maybe($.here)` is `$.here`
 
 ### `meta(v: any, ...r: map) : any`
 
-Annotate `v` with the records `r`; it unifies exactly as `v`, and each record rides the result as `deprecate()`'s does, two records on one value meeting as their union. See [Annotations](#annotations-meta).
+Annotate `v` with the records `r`, each a map of concrete data under any keys; it unifies exactly as `v`, and each record rides the result as `deprecate()`'s does, two records on one value meeting as their union. See [Annotations](#annotations-meta).
 
 Example: `port: meta(*8080|integer, {title: "Port"})`
 
@@ -4056,22 +4056,26 @@ port: meta(*8080|integer, { title:"Port" description:"The listen port" })
 {"port":8080}
 ```
 
-A record is a map of annotation keys, and each key holds concrete data
-of one kind:
+A record is a map of concrete data under any keys, so any metadata
+can ride a value:
 
-| key | holds |
-|---|---|
-| `title`, `description`, `comment`, `format`, `contentEncoding`, `contentMediaType` | a string |
-| `readOnly`, `writeOnly` | a boolean |
-| `examples` | a list |
-| `default`, `contentSchema` | any concrete data |
-| `x` | a map of the keywords JSON Schema does not name |
-| `dynamicRef` | a string: the text of the `$dynamicRef` a use was read from |
+```aontu
+port: meta(*8080|integer, {
+  title: "Port"
+  owner: { team:"platform" channel:"#platform" }
+})
+```
 
-A key outside the table, a value of the wrong kind, and a value that is
-not concrete data, such as a kind, a spread, an optional key or a
-preference, refuse the call with `func_arg`. A call needs at least one
-record.
+```json
+{"port":8080}
+```
+
+A record that is not a map, or that holds anything but concrete data,
+such as a kind, a spread, an optional key or a preference, refuses the
+call with `func_arg`. A call needs at least one record. What a key
+means is for the reader of the record to say: the language server
+reads `title` and `description`, and the JSON Schema export reads the
+keys of the table below.
 
 **Records meet as their union.** Where two records reach one value,
 each key holds every value either record holds, in canon order. The
@@ -4102,10 +4106,26 @@ schema, and the document's root. The hash form includes every record,
 so changing one changes the canon-hash.
 
 `vet`, `subsume` and `breaking` read through a record. The language
-server's hover shows a value's titles in bold, then its descriptions,
-and `aontu jsonschema` writes each key as the JSON Schema keyword of
-the same meaning, which `aontu jsonschema import` reads back as
-`meta()` ([JSON Schema](reference-api.md#aontu-jsonschema)).
+server's hover shows the text a value's `title` keys hold, in bold,
+then the text its `description` keys hold. `aontu jsonschema` writes
+these keys as the JSON Schema keywords of the same meaning, which
+`aontu jsonschema import` reads back as the same keys
+([JSON Schema](reference-api.md#aontu-jsonschema)):
+
+| key | written as | when it holds |
+|---|---|---|
+| `title`, `description`, `format`, `contentEncoding`, `contentMediaType` | the keyword of its name | a string |
+| `comment` | `$comment` | a string |
+| `readOnly`, `writeOnly` | the keyword of its name | a boolean |
+| `examples` | `examples` | a list |
+| `default`, `contentSchema` | the keyword of its name | any concrete data |
+| `dynamicRef` | `$dynamicRef` | a string |
+
+A key of the table that holds another kind of data is a reported loss.
+Any other key is written as a keyword of its own name, unless JSON
+Schema gives that name a keyword of its own, which would assert where
+the record only annotates and is a reported loss. The importer writes a
+keyword JSON Schema does not name as a key of its own name.
 `dynamicRef` annotates nothing: the importer writes it on a reference
 it read from a `$dynamicRef`, and the exporter writes that reference
 back as one where the export reads it the same.

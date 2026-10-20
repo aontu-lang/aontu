@@ -564,7 +564,10 @@ lands.
    and the check strips them before it reads, which trusts the
    stripping. The definition recommends the first: three constructors
    and three rules, and the marks of decision 10, `hide()` and
-   `type()`, would enter the same way.
+   `type()`, would enter the same way. Since 2026-10-20 a `meta()`
+   record is a map of concrete data under any keys
+   ([ADR-072](../../ADR.md#adr-072--a-meta-record-is-open-metadata)),
+   so the first carries a record as data and names none of its keys.
 15. **The words `map` and `list`.** Open, raised 2026-10-19 by P6. The
    importer writes `map` for `type: object` with no other keyword and
    `list` for `type: array`. Both ports admit every map or every list
