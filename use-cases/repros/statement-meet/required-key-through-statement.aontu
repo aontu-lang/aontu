@@ -12,7 +12,7 @@
 # actual (both ports): [aontu/mapval_spread_required] -- "The value
 #   for key b is required (defined in spread)". No spread is written.
 #
-# Found by `aontu fmt` (docs/design/FMT.0.md P2), whose agreed form
+# Found by `aontu fmt` (sketch/FMT.0.md P2), whose agreed form
 # writes a map that does not fit on one line as one statement per
 # entry: use-cases/08-feature-flags/flag-schema.aontu's `Flag` took this
 # shape and its check pins the code that came with it.

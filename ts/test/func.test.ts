@@ -68,7 +68,7 @@ describe('func', function() {
     expect(G('z:x:{a:61} z:y:(.x.a)')).equal({ z: { x: { a: 61 }, y: 61 } })
     expect(G('z:x:{a:62} z:y:.x.a')).equal({ z: { x: { a: 62 }, y: 62 } })
     expect(G('z:x:{a:63} z:y:(x.a)')).equal({ z: { x: { a: 63 }, y: 63 } })
-    // path CAPTURES (docs/design/PATHS.0.md): the value is the
+    // path CAPTURES (sketch/PATHS.0.md): the value is the
     // address spelling, not the value found there.
     expect(G('z:x:{a:64} z:y:path(x.a)')).equal({ z: { x: { a: 64 }, y: '.x.a' } })
     expect(G('z:x:{a:65} z:y:path($.z.x.a)')).equal({ z: { x: { a: 65 }, y: '$.z.x.a' } })
@@ -137,7 +137,7 @@ describe('func', function() {
     expect(G('[3.1 [4.1, 5.1] upper($.1.1)]')).equal([3.1, [4.1, 5.1], 6])
     expect(G('x:y:1.5 x:z:upper($.x.y)')).equal({ x: { y: 1.5, z: 2 } })
     // A map operand is the signature gate's refusal now
-    // (docs/design/SIGNATURES.0.md): the hint renders the signature
+    // (sketch/SIGNATURES.0.md): the hint renders the signature
     // line and names the argument.
     expect(() => G('x:y:a:1.1 x:z:upper($.x.y)')).throws(/func_arg/)
   })
@@ -558,7 +558,7 @@ describe('func', function() {
 
   test('path-canon', () => {
     const N = (x: string) => new Unify(x, lang).res.canon
-    // A string argument is ADDRESS TEXT (docs/design/PATHS.0.md):
+    // A string argument is ADDRESS TEXT (sketch/PATHS.0.md):
     // capture reads it by the address grammar, and text with no
     // anchor is RELATIVE -- the address the raw spelling captures.
     // Text that spells nothing once anchored still refuses.

@@ -90,7 +90,7 @@ with an upstream default processor: an internal error with no code, no
 path and no site, the §43 shape again.
 
 **Ruled and fixed 2026-08-30**, as
-[ADR-012](../../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused):
+[ADR-012](../ADR.md#adr-012--an-includes-extension-decides-what-the-file-is-aontu-source-config-data-or-refused):
 the extension says which of two things a file is. `.aontu` is aontu
 source; `.json` and `.jsonld` — with `.jsonc`, `.json5`,
 `.jsonic`, `.jsc`, `.toml`, `.yaml`, `.yml` and `.ini` — are
@@ -99,7 +99,7 @@ value it denotes. Every other extension, and a name with no extension,
 is refused by name. A vocabulary is therefore data, not source: what
 it holds is a map of scalars, lists and maps, and nothing in it is an
 aontu construct. Filed as
-[`use-cases/BUGS.md` §49](../../use-cases/BUGS.md#49-an-includes-extension-decides-the-answer-and-the-two-ports-decide-differently-fixed-2026-08-30).
+[`use-cases/BUGS.md` §49](../use-cases/BUGS.md#49-an-includes-extension-decides-the-answer-and-the-two-ports-decide-differently-fixed-2026-08-30).
 
 **P1 below is therefore unblocked**: an included vocabulary now means
 the same thing in both ports, so §6's projection can be tested. What
@@ -113,7 +113,7 @@ in front of it.
 This is the load-bearing constraint, and it settles the question the
 brief asks ("how?") before any syntax is chosen.
 
-[`docs/trust.md`](../trust.md) clause 1 states that an evaluation's
+[`docs/trust.md`](../docs/trust.md) clause 1 states that an evaluation's
 output is a pure function of exactly four inputs — the entry text, the
 resolved `@"…"` include closure, the host `$` bindings, and the
 evaluator — and then says, of the language:

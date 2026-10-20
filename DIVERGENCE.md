@@ -218,7 +218,7 @@ Kept because how each was closed is worth remembering.
 > canon-only — `+`'s string coercion keeps JS parity (`"a"+1.0` is
 > `"a1"`), so `go/scalar_format_test.go` passes unchanged. Pinned by
 > `test/spec/number-model.tsv`. Background:
-> [`docs/design/number-model.md`](docs/design/number-model.md).
+> [`sketch/number-model.md`](sketch/number-model.md).
 
 > **A colon-chain key whose value was a bare import** —
 > `struct: minor: @"file"` — used to resolve to `{}` in Go
@@ -226,4 +226,4 @@ Kept because how each was closed is worth remembering.
 > v0.3.1, and carried by every pin `go/go.mod` has taken since; covered
 > by the shared-spec regression
 > `file.tsv:load-colon-chain`. Background:
-> [`docs/design/nested-import-colon-chain.md`](docs/design/nested-import-colon-chain.md).
+> [`sketch/nested-import-colon-chain.md`](sketch/nested-import-colon-chain.md).

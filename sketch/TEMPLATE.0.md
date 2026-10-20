@@ -3,22 +3,22 @@
 *Design note, 2026-09-04. The sugar that desugars to
 [EMIT.0.md](EMIT.0.md)'s `emit`, and the three string builtins it needs
 — `esc`, `usc`, `rep` and `split`. Companion to
-[G9](../capability-review/g9-transformation.md), which is the plan.
+[G9](../docs/capability-review/g9-transformation.md), which is the plan.
 Every claim marked VERIFIED was run against the built CLIs at 0.56.0
 and, for output claims, against
 [`voxgig/podmind`](https://github.com/voxgig/podmind)'s backend at
 `ab7f333`. This note is design; status lives in the
-[progress register](../capability-review/progress.md).*
+[progress register](../docs/capability-review/progress.md).*
 
 **Names here are the names of the day.** This document records what was
 decided when it was written, and it is not rewritten as the language
 moves. Two names have since changed meaning. The list generator it
 calls `form` is named `each` today
-([ADR-027](../../ADR.md#adr-027--the-list-generator-is-named-each-and-_--t-is-its-bound)),
+([ADR-027](../ADR.md#adr-027--the-list-generator-is-named-each-and-_--t-is-its-bound)),
 and the `each` it describes as the bound was retired first
-([ADR-026](../../ADR.md#adr-026--each-is-retired-form-carries-the-bound)), that
+([ADR-026](../ADR.md#adr-026--each-is-retired-form-carries-the-bound)), that
 bound now being spelled `each(d, _ & t)`. The
-[progress register](../capability-review/progress.md) carries the current status, and
+[progress register](../docs/capability-review/progress.md) carries the current status, and
 `test/spec/signature.tsv` is the call surface.
 
 ## D1. One rule
@@ -240,7 +240,7 @@ rather than implied by its absence.
 alternative is to mark a string as already-escaped so `emit` can skip
 the default when the author escaped it themselves — but a new value mark has parity, canon-hash and `fmt`
 consequences in both ports, and marks leak:
-[BUGS §79](../../use-cases/BUGS.md) is a live case of `join` folding a
+[BUGS §79](../use-cases/BUGS.md) is a live case of `join` folding a
 `hide`-marked child into returned text. Declaring the variant on the
 template gets the same result for one word, and **`esc` is then never
 written inside a `replace` value at all**, so "was it already applied?"
@@ -344,7 +344,7 @@ plan at all:
   `pick(pack(['aim','ingest','process','episode'], …), u)` returns
   `AIM, EPISODE, INGEST, PROCESS`, sorted. So the map has to be
   `form`, the order-preserving map of
-  [G9](../capability-review/g9-transformation.md) phase 3, which is
+  [G9](../docs/capability-review/g9-transformation.md) phase 3, which is
   exactly the gap that phase records.
 
 **So `split` is the one new builtin the case needs**, and it earns its
@@ -390,7 +390,7 @@ both ports as D3 and D4 describe, with one code beside the two static
 checks — `replace_value`, a value that is not text — and `form` landed
 with them, so the chain D5 closes with, `join(form(split(…), …), "")`,
 now runs (`test/spec/gen-form.tsv` `form-chain`). The twelve handlers
-of D7 are [`use-cases/17-lambda-handlers/`](../../use-cases/17-lambda-handlers/):
+of D7 are [`use-cases/17-lambda-handlers/`](../use-cases/17-lambda-handlers):
 the generator in the canonical form, over a model written for the
 case, rendered byte-identically from both ports and held by `aontu
 render --check`. What P8 adds is the surface itself — the `//-`

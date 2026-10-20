@@ -551,7 +551,7 @@ content, or a parenthesis; breaks a line.
 ### 3.14 A generator is formatted as the document it carries
 
 A file whose extension is not `.aontu` is a GENERATOR written in the
-target's own syntax (docs/design/TEMPLATE.0.md), as it is for `render`:
+target's own syntax (sketch/TEMPLATE.0.md), as it is for `render`:
 the marker lines carry aontu and every other line is output. `fmt`
 desugars it, formats the document, and resugars, so what comes back is a
 generator — and what happens in between is what happens to any other

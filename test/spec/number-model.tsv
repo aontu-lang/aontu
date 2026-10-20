@@ -1,14 +1,14 @@
 # Shared aontu unit tests: the number model. Columns (tab-separated): name<TAB>mode<TAB>src<TAB>expect
 # mode: canon = unify(src).canon == expect ; gen = generate(src) deep-equals JSON(expect) ; gens = generate(src) as compact JSON == expect byte for byte ; err = generate(src) errors, message contains expect
 #
-# See docs/design/number-model.md for the rules these rows pin.
+# See sketch/number-model.md for the rules these rows pin.
 #
 # R1: a numeric literal has integer kind iff its source has no '.', its
 # value is integral, and it lies within the int64 range. Otherwise it is
 # number kind. (aontu has no negative literals -- '-' is an operator --
 # so the int64 minimum is not expressible as an integer-kind literal.)
 #
-# R1 now runs BEHIND D7 (docs/design/number-tower.md): a literal whose
+# R1 now runs BEHIND D7 (sketch/number-tower.md): a literal whose
 # value binary64 cannot hold exactly never becomes a value at all, so it
 # never reaches the kind question. The rows below therefore all use
 # literals that ARE exact -- 1e21 and 10^20 are exact and merely outside

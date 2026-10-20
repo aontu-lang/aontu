@@ -60,7 +60,7 @@ form, `; -> number` — and that is §4.
 
 **1. Opt-in — met.** A grammar with no annotation compiles exactly as
 it did. Every `parse-*` and `shape-*` row of
-[`test/spec/abnf.tsv`](../../test/spec/abnf.tsv) passes against 0.4.12
+[`test/spec/abnf.tsv`](../test/spec/abnf.tsv) passes against 0.4.12
 in both ports, unchanged, including the row that pins the leading fold.
 
 **2. Pure data — met.** `abnfConvert(src, {builtins: true})` on the
@@ -120,7 +120,7 @@ both read as surprises at the call site.
 
 ## 5. Moving the pin is safe
 
-[ADR-033](../../ADR.md#adr-033--a-grammar-is-a-string-and-parsing-is-a-function)
+[ADR-033](../ADR.md#adr-033--a-grammar-is-a-string-and-parsing-is-a-function)
 pinned all three packages exactly rather than by range, and gave a
 reason: `parser` 0.9.1 regressed `path($.z.x.a)` in TypeScript alone,
 which ADR-001 makes fatal. **That regression is gone at 0.9.6** —
@@ -169,7 +169,7 @@ act on. Go's type assertions are the two-value form, so a missing
 generates an empty tree with exit 0. A schema reading `$.t.src` gets
 `""` and passes.
 
-That is an [ADR-001](../../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
+That is an [ADR-001](../ADR.md#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
 break, and the Go half is the dangerous one: silent wrong output is the
 `critical` severity in this repository's own grading.
 
@@ -216,7 +216,7 @@ grammar that is valid ABNF and compiles upstream, to protect a shape
 aontu chose for itself, spends the capability to keep a sentence.
 
 **D2. The declared signature changes.** `parse(g: string, v?: string) :
-map|constraint` in [`test/spec/signature.tsv`](../../test/spec/signature.tsv)
+map|constraint` in [`test/spec/signature.tsv`](../test/spec/signature.tsv)
 becomes `map|list|constraint`. An `@array` grammar answers a list, and
 the signature gate reads that declaration.
 
@@ -227,7 +227,7 @@ prose rather than incidental:
   output shape is not something a `.aontu` file can choose"* — is now
   false. It needs an amendment, not a rewrite: the decision it records
   (a grammar is a string, parsing is a function) is unaffected.
-- [`docs/reference-language.md`](../reference-language.md#shaping-an-unannotated-tree)'s
+- [`docs/reference-language.md`](../docs/reference-language.md#shaping-an-unannotated-tree)'s
   closing sentence — *"the grammar compiler cannot yet express them as
   data"* — is false in the same way, and the "Shaping the tree" section
   around it now describes the SECOND-best way to get structure out of a
@@ -353,7 +353,7 @@ twin of the TypeScript rather than growing a host type. That is ADR-003
 applied literally: aontu defines the meaning and rewrites the input.
 
 **The signature is `map|list|constraint`**, and the reference gained
-["A grammar can say what it builds"](../reference-language.md#a-grammar-can-say-what-it-builds)
+["A grammar can say what it builds"](../docs/reference-language.md#a-grammar-can-say-what-it-builds)
 with two executed examples. "Shaping the tree" is now "Shaping an
 unannotated tree", which is what it always described.
 

@@ -415,7 +415,7 @@ function capture(fn) {
     });
     (0, node_test_1.test)('path-func-argument-shapes', () => {
         const ctx = CTX();
-        // No argument at all is the path KIND (docs/design/PATHS.0.md).
+        // No argument at all is the path KIND (sketch/PATHS.0.md).
         Assert.equal(new PathFuncVal_1.PathFuncVal({ peg: [] }, ctx).resolve(ctx, []).isPathKind, true);
         const pfs = new PathFuncVal_1.PathFuncVal({ peg: [new StringVal_1.StringVal({ peg: '.a' })] }, ctx);
         const sout = pfs.prepare(ctx, [new StringVal_1.StringVal({ peg: '.a' })]);
@@ -1020,7 +1020,7 @@ function capture(fn) {
         Assert.equal(state.findings[0].code, 'compat_narrowed');
     });
     // A recursion unfolds into the definition its own document holds
-    // (docs/design/RECURSION.0.md, P3); one whose document does not hold
+    // (sketch/RECURSION.0.md, P3); one whose document does not hold
     // it, which no evaluated pair produces, is undecided.
     (0, node_test_1.test)('subsume-recursion-without-its-definition', () => {
         const rec = new aontu_1.Aontu().unify('T: {next?: $.T}').peg.T.peg.next;

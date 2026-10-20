@@ -3,7 +3,7 @@
 # The algebra has no int8/uint16/port keyword and does not need one: a
 # constraint is a value, so a name for one is a field, and `type()`
 # keeps the definitions out of the output while they still unify.
-# docs/design/AONTUCONSTRAINTS.0.md wanted sized-integer sugar built
+# sketch/AONTUCONSTRAINTS.0.md wanted sized-integer sugar built
 # into the language (its "free win" once bounds exist); these rows are
 # why that was declined -- the idiom is already expressible, and unlike
 # a keyword it composes and is not a closed list.

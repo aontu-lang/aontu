@@ -192,7 +192,7 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                     newpeg.find((a) => true === a.isAbsent);
                 if (pegdone &&
                     (undefined !== gone || !this.deferResolve(ctx, newpeg))) {
-                    // THE SIGNATURE GATE (docs/design/SIGNATURES.0.md): the
+                    // THE SIGNATURE GATE (sketch/SIGNATURES.0.md): the
                     // driven arguments against the declared signature, before
                     // the builtin's own logic sees them. See siggate.ts for
                     // what the gate owns and what stays with the builtins.

@@ -169,7 +169,7 @@ the language is in the definition.
 ### The definition holds the profiles of `subsume`
 
 Definition and documentation; no engine changes. The first half of
-P5's remaining work (`docs/design/DEFINITION.0.md`, §6).
+P5's remaining work (`sketch/DEFINITION.0.md`, §6).
 
 - `spec/Aontu/Subsume.lean`: `Profile`, the three profiles `aontu
   subsume` answers under, and one contract per profile,
@@ -274,7 +274,7 @@ Definition, generated rows and documentation; no engine changes.
 ### The tenth fragment compares recursions through each other
 
 Generated rows, the ledger and documentation; no engine changes. A P5
-step (`docs/design/DEFINITION.0.md`, §6).
+step (`sketch/DEFINITION.0.md`, §6).
 
 - `spec/Oracle.lean`: eight more documents, two names recursive through
   each other and their unfolding, a name recursive through itself, and a
@@ -291,7 +291,7 @@ step (`docs/design/DEFINITION.0.md`, §6).
 ### The definition holds the order on documents
 
 Definition, generated rows, the ledger and documentation; no engine
-changes. A P5 step (`docs/design/DEFINITION.0.md`, §6), for the
+changes. A P5 step (`sketch/DEFINITION.0.md`, §6), for the
 reference's row on recursive positions.
 
 - `spec/Aontu/Subsume.lean`: `InstanceD` and `LeD`, the order on two
@@ -322,7 +322,7 @@ reference's row on recursive positions.
 ### The definition holds a spread on the general side and `multiple` under the order
 
 Definition, generated rows, the ledger and documentation; no engine
-changes. A P5 step (`docs/design/DEFINITION.0.md`, §6).
+changes. A P5 step (`sketch/DEFINITION.0.md`, §6).
 
 - `spec/Aontu/Subsume.lean`: `map_le_spread` and `list_le_spread`, the
   table's rule for a spread on the general side, which holds every
@@ -344,7 +344,7 @@ changes. A P5 step (`docs/design/DEFINITION.0.md`, §6).
 
 ### Thirteen language decisions read as moved to the definition
 
-Documentation only; the first step of P7 (`docs/design/DEFINITION.0.md`,
+Documentation only; the first step of P7 (`sketch/DEFINITION.0.md`,
 §4 and §6).
 
 - `ADR.md`: ADR-004, 007, 011, 045, 046, 048, 049, 050, 051, 053, 055
@@ -363,7 +363,7 @@ Documentation only; the first step of P7 (`docs/design/DEFINITION.0.md`,
 ### The importer's forms are checked against the definition
 
 Definition, a generated file, two tests and documentation; no engine
-changes. The first step of P6 (`docs/design/DEFINITION.0.md`, §6).
+changes. The first step of P6 (`sketch/DEFINITION.0.md`, §6).
 
 - `spec/Oracle.lean`: `oracle forms` writes `spec/forms.tsv`, every form
   of `Aontu/Syntax.lean` with its spelling as the oracle's printer
@@ -1089,7 +1089,7 @@ Both ports.
   runners read `spec/ledger.tsv`, the 42 cases the engines do not yet
   answer as the definition does, each with its cause and which side
   moves: a listed case that comes to agree fails the run. The design is
-  `docs/design/DEFINITION.0.md`.
+  `sketch/DEFINITION.0.md`.
 - `spec/`: a Lake project on Lean 4.15.0, core only, holding the
   definition's first fragment, with every proof checked by `lake
   build`. CI runs `make spec` in `build.yml`'s `spec` job, which
@@ -2903,7 +2903,7 @@ the negation prefix, so `%a-` reads as `%a` minus nothing.
 Both ports. Rows: `alias-value-position`, `alias-value-position-deep`,
 `alias-value-position-in-list`, `alias-value-position-redeclare`,
 `alias-name-hyphen`. The design note is
-`docs/design/ALIASES.0.md`, section *A declaration may also prefix a
+`sketch/ALIASES.0.md`, section *A declaration may also prefix a
 value*.
 
 ### Every registered error code explains itself, and `explain` takes the code as it is printed
@@ -3768,7 +3768,7 @@ k: 1
 
 *Both implementations.* Every `.aon` in the repository and every
 documented snippet is reformatted. See
-[FMT.0.md](docs/design/FMT.0.md), amended 2026-09-11.
+[FMT.0.md](sketch/FMT.0.md), amended 2026-09-11.
 
 ### The bundled models live under `aontu:render`, and profiles land at `$.aontu.render.Lang`
 
@@ -4077,8 +4077,8 @@ rename, and all seventeen are fixed.
 
 A second check, `a-working-document-naming-a-retired-builtin-says-so`,
 requires a design document that still calls the list generator `form`
-to carry a note saying so. `docs/design/TEMPLATE.0.md`,
-`docs/design/RENDER.0.md` and
+to carry a note saying so. `sketch/TEMPLATE.0.md`,
+`sketch/RENDER.0.md` and
 `docs/capability-review/g9-transformation.md` now carry it: those
 documents are frozen records and are not rewritten as the language
 moves, and a reader arriving at one has no other way to learn that
@@ -4188,7 +4188,7 @@ keeps its name. Both engines do this identically. The parser answering
 natural structure directly needs the ABNF front-end to reach the
 engine's own value builders, which it does not yet do; the request is
 written up in
-[GRAMMAR-SHAPE.0.md](docs/design/GRAMMAR-SHAPE.0.md).
+[GRAMMAR-SHAPE.0.md](sketch/GRAMMAR-SHAPE.0.md).
 
 New codes: `abnf_grammar`, `parse_arg`, `parse_failed`. Rationale in
 [ADR-033](ADR.md#adr-033--a-grammar-is-a-string-and-parsing-is-a-function).
@@ -4313,7 +4313,7 @@ service model with an agent skill that asks before it writes. The Go
 port does not have the verb and no shared spec mode pins it, so it is
 not landed under ADR-001: `go/allow.go` with its CLI verb, and a
 five-column `allow` mode in `test/spec/allow.tsv` probed in both
-ports, are what would land it. `docs/design/ALLOW.0.md` is the note.
+ports, are what would land it. `sketch/ALLOW.0.md` is the note.
 
 ### BREAKING: a bundled key that names a type is CamelCase
 
@@ -4702,7 +4702,7 @@ filter, so what the wrappers said was lost outright.
 `%A = close({n: string})` and `%A = {n: string}`, both used as
 `box: [&: %A]`, hashed to one string while refusing and admitting
 `{n: "x", z: 1}` respectively; and neither matched its own longhand
-twin, which `docs/design/ALIASES.0.md` §4 requires. Both renderers now
+twin, which `sketch/ALIASES.0.md` §4 requires. Both renderers now
 recurse into the expansion carrying the inherited marks, so a wrapper
 is emitted where the alias body starts, exactly as for a value written
 longhand. A reference with no expansion is untouched: a plain `$.A`
@@ -5080,7 +5080,7 @@ the gap without it.
 
 ### `aontu template`: a generator written in the target's own syntax
 
-The template surface (docs/design/TEMPLATE.0.md; RENDER.0.md P8), in
+The template surface (sketch/TEMPLATE.0.md; RENDER.0.md P8), in
 both ports. One rule: **a marked line is aontu source, and every other
 line is a line of output.** The marker is the target's comment token
 plus a dash — `//-`, `#-`, `---`, or the block form `/*- … */` where
@@ -5114,7 +5114,7 @@ discarded every output line as a comment and rewrote the file with exit
 
 ### `render --coverage`, and the dispatch trace
 
-What a transform read, and what it did not (docs/design/RENDER.0.md
+What a transform read, and what it did not (sketch/RENDER.0.md
 P7), in both ports. Every dispatch now stamps each piece it emits with
 the model node it matched and the rule it took, and
 `render --format json` carries one trace entry per piece: the piece's
@@ -5134,7 +5134,7 @@ implementations.
 ### `replace` and `esc` on an `emit` template, and `form`
 
 The rule layer's last two pieces before the renderer's surface
-(docs/design/RENDER.0.md P6), in both ports. A template may carry a
+(sketch/RENDER.0.md P6), in both ports. A template may carry a
 `replace` map — each key an exact string the body already holds as
 target text, its value evaluated against the matched node — and an
 `esc` naming the convention every value is escaped by (C/JSON when
@@ -5158,7 +5158,7 @@ Both implementations.
 
 ### The declaration lowering, and the TypeScript and Go profiles
 
-The renderer lowers declarations (docs/design/RENDER.0.md P5), in
+The renderer lowers declarations (sketch/RENDER.0.md P5), in
 both ports: a unit whose profile names a `lowering` — the bundled
 `aontu:lang/typescript` and `aontu:lang/go`, or a supplied profile
 that says so — renders a `record` as an exported interface or a
@@ -5190,7 +5190,7 @@ differently. Both implementations.
 
 ### `aontu render`, the verb and the tool
 
-The renderer's verb (docs/design/RENDER.0.md P4), in both CLIs:
+The renderer's verb (sketch/RENDER.0.md P4), in both CLIs:
 `aontu render [--at <path>] [--profile <file>]... [--unit <path>]
 [--stdout | --out <dir> | --check <dir>] [--strict] [--format
 text|json] <file>` evaluates a document, vets the value at `--at`
@@ -5218,7 +5218,7 @@ a call) and §85 (a value include that declares an alias).
 
 ### `render`, the fold: fragments render, under the text profile
 
-The renderer's core (docs/design/RENDER.0.md P3), in both ports:
+The renderer's core (sketch/RENDER.0.md P3), in both ports:
 `render(src, opts)` evaluates a document, takes the value at `at` (the
 root by default), vets it against `aontu:code` as `aontu vet` would,
 and folds `code.units` into bytes; `renderValue(instance, opts)` is
@@ -5359,7 +5359,7 @@ declaration that is not at the top level. Both implementations.
 `%name = value` declares an alias; `%name: value` no longer does. The
 proposal behind aliases spelled the declaration with `=`, and P1 landed
 the colon form instead, on the argument that `%name` was already a
-legal key and a colon cost no new operator (docs/design/ALIASES.0.md
+legal key and a colon cost no new operator (sketch/ALIASES.0.md
 X-1 and §10). That argument was measured and it was sound, and it lost
 anyway, to the reason a declaration should not look like a field: an
 alias is a note to the reader of the source, not a key of the document,
@@ -5400,7 +5400,7 @@ and the transcripts quoting them in the docs moved with them.
 Two things keep a capital, because both are identifiers rather than the
 name: the exported API (`Aontu`, `AontuOptions`, `AontuContext`,
 `AontuError`, Go's `aontu.Aontu`) and the Vale style directory. The
-rule is in [STYLE-GUIDE.md](docs/STYLE-GUIDE.md) and held by
+rule is in [STYLE-GUIDE.md](STYLE-GUIDE.md) and held by
 `ts/test/docs.test.ts` (`the-name-is-spelled-aontu`), which reads the
 gated set through the same fence stripper the other prose rules use —
 so the API survives and the prose cannot drift back. Both
@@ -5689,7 +5689,7 @@ of two documents and format to a single map. The formatter's
 self-check catches the difference and writes nothing, identically in
 both ports, so no file is corrupted. A new spec mode, `fmt-refuse`,
 pins the refusal (`test/spec/fmt.tsv`), and
-[FMT.0.md](docs/design/FMT.0.md) §9 records what is still open: the
+[FMT.0.md](sketch/FMT.0.md) §9 records what is still open: the
 refusal is the right failure and its message is not, since it names a
 formatter defect when what it has found is a document class the form
 does not cover.
@@ -5729,7 +5729,7 @@ a typo, and it is open.
 
 `aontu fmt [-w|-l|--check|-d] <file>...`, in both ports: one agreed
 form for Aontu source, so that layout is never argued about and a diff
-shows only what changed (docs/design/FMT.0.md, phase P1 -- the
+shows only what changed (sketch/FMT.0.md, phase P1 -- the
 syntactic tier). The form: two-space indentation, `key: value` with the
 colon tight to the key, no commas between entries (they stay in a
 call's argument list), braces only where the language needs them -- a
@@ -5843,7 +5843,7 @@ nothing checks.
 with the new kind, `make build-ts` runs it, and `ts/test/docs.test.ts`
 refuses a stale commit -- the same relationship the use cases already
 have with their own figures through `--check`. The language reference
-and `docs/unification.md` show it; `docs/STYLE-GUIDE.md` gains the
+and `docs/unification.md` show it; `STYLE-GUIDE.md` gains the
 rule, which also requires alt text that says what a figure shows.
 
 ### `@"notes.txt"` loads a file as a string
@@ -5870,7 +5870,7 @@ Documentation. [Vale](https://vale.sh) now runs over the reader-facing
 pages in CI (`.github/workflows/docs.yml`, `make prose`), with the
 binary and the Google package both pinned by version so that somebody
 else's release cannot turn a one-word pull request red. Google's
-conventions are the base for everything `docs/STYLE-GUIDE.md` does not
+conventions are the base for everything `STYLE-GUIDE.md` does not
 rule on, and every rule set below error level carries the count it
 produced on a clean run -- "it reported 30 serial commas, of which 14
 were two-item lists after a comma clause" is a reason; "it was noisy" is
@@ -5999,7 +5999,7 @@ and `NO_COLOR` directly, by the rule no-color.org states and `err.ts`
 implements.
 
 THE COLOUR BOUNDARY IS AMENDED, NARROWLY
-(`docs/design/VIEWS.0.md`, "7. Styling"). Neither mechanism states a
+(`sketch/VIEWS.0.md`, "7. Styling"). Neither mechanism states a
 colour: SGR 31 means the colour the reader's terminal calls red, which
 the reader chose, and a CSS class states nothing at all -- the
 stylesheet reads `var(--av-closure, ...)` so a host page's palette
@@ -6155,7 +6155,7 @@ embed them in their READMEs.
 ### `aontu view`: every figure of the design, drawn by the engine
 
 Both ports. **New kinds, new flags, one verb.** `aontu view <kind>`
-now draws the figures of `docs/design/VIEWS.0.md` and
+now draws the figures of `sketch/VIEWS.0.md` and
 `VIEWS-ORDER.0.md` from a finished model, as deterministic text: the
 `tree` (as before), the `matrix` (dependency-structure matrix over one
 relation, `--order canon|partition`, `--closure`, the `!` unmirrored
@@ -6409,7 +6409,7 @@ own codes (`map`, `list`); neither function takes arguments (element
 constraints belong to the spreads).
 
 Pinned by `test/spec/path.tsv` and `test/spec/containerkind.tsv`;
-design in `docs/design/PATHS.0.md`.
+design in `sketch/PATHS.0.md`.
 
 ### The use-case corpus is a CI gate
 
@@ -6738,7 +6738,7 @@ that refuses `.txt`. The TypeScript package leg narrows with it: a
 system (`aon_vendor/`) is unaffected.
 
 This was `use-cases/BUGS.md` §49, and it unblocks
-`docs/design/ONTOLOGY.0.md` phase P1, whose vocabularies all ship as
+`sketch/ONTOLOGY.0.md` phase P1, whose vocabularies all ship as
 `.json` or `.jsonld`.
 
 ### Security: a module path could escape its store
@@ -6823,7 +6823,7 @@ semantic, never a parse-time rewrite.
 ADR-011, because the `|:` prefix named a spelling a bare `*x` default
 never had. A default the peer satisfies now survives in canon (`*1 & 1`
 is `*1`; the generated value is unchanged). Eighteen pinned rows moved,
-listed in `docs/design/DEFAULTS.0.md`; `test/spec/defaults.tsv` adds 29.
+listed in `sketch/DEFAULTS.0.md`; `test/spec/defaults.tsv` adds 29.
 
 ### `super()` answers the immediate parent type
 
@@ -6834,7 +6834,7 @@ the immediate parent type structurally: maps and lists lift child by
 child, preferences unwrap, disjunctions distribute, and a constraint
 answers the kind it constrains. `top` remains only where `top` is the
 immediate parent. A recursion residual's lift stays symbolic, finite in
-canon. See `docs/design/SUPER.0.md`.
+canon. See `sketch/SUPER.0.md`.
 
 The TypeScript CLI's error frames stripped the working-directory prefix
 with a hardcoded `/`, so a Windows run named an absolute path where
@@ -7945,7 +7945,7 @@ codes are, and these codes (`no_scalar_unify`, `scalar-type`,
 `|:empty`) are now promised to a reader by name in the teaching
 documents, which makes them public surface. Closes §6 of the 2026-08-21
 status report, and supersedes the phase-1 implementation note in
-`docs/design/number-tower.md` that argued for the family gate — the note
+`sketch/number-tower.md` that argued for the family gate — the note
 is kept, with its reasoning and the reason that reasoning was
 incomplete. TypeScript and Go move together.
 
@@ -8361,7 +8361,7 @@ number                the set of all numeric values
 
 Alongside it, every numeric operation the language has is now **exact
 or an error**: nothing rounds silently any more, in either port. The
-rationale is in `docs/design/number-tower.md`; the contract is pinned
+rationale is in `sketch/number-tower.md`; the contract is pinned
 by the shared `test/spec/number-tower.tsv` and is identical in both
 implementations.
 
@@ -8739,7 +8739,7 @@ the result kind of `+`, `upper()`, `lower()` and `super()` are now a
 single contract, identical in both implementations and pinned by the
 101 rows of the new `test/spec/number-model.tsv`. Everywhere the two
 ports previously disagreed about a number, they now agree. Full
-rationale in `docs/design/number-model.md`; the rules are stated in
+rationale in `sketch/number-model.md`; the rules are stated in
 `docs/reference-language.md`.
 
 - **A numeric literal has `integer` kind only if it fits int64.** The
@@ -8892,4 +8892,4 @@ rationale in `docs/design/number-model.md`; the rules are stated in
   integer-kind rule and what falls outside int64, the kind-preserving
   results of `+`, `upper()`, `lower()` and `super()`, and the canonical
   rendering of number-kind values. New design note
-  `docs/design/number-model.md` carries the rationale.
+  `sketch/number-model.md` carries the rationale.

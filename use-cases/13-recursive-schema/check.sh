@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check.sh --- drive the aontu CLI over the recursive approval-chain
 # vocabulary and assert every moment of a recursive schema's life
-# (docs/design/RECURSION.0.md): expansion per level of data at
+# (sketch/RECURSION.0.md): expansion per level of data at
 # evaluation, the symbolic mu-form in canon and the hash, emergent
 # guardedness at generation, and vet over plain JSON at any depth.
 # Runnable from any cwd.

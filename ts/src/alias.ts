@@ -67,7 +67,7 @@ function aliasScope(src: string): AliasBinding[] {
 // reaches it. Resolution is lazy, so a reference inside a template that
 // nothing instantiates is never tried and a misspelling compiles clean.
 // Whether a NAME is declared does not depend on what the tree holds, so
-// it is answered here instead. See docs/design/ALIASES.0.md
+// it is answered here instead. See sketch/ALIASES.0.md
 function aliasErrors(ctx: any, root: Val): void {
   if (true !== (root as any).isMap) {
     return

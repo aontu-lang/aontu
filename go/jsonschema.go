@@ -100,7 +100,7 @@ var kindType = map[Kind]string{
 	KindBigDecimal: "number",
 	KindNumber:     "number",
 	// A path value is its address string at the JSON boundary
-	// (docs/design/PATHS.0.md), so the projection says string -- the
+	// (sketch/PATHS.0.md), so the projection says string -- the
 	// same lossy-projection rule the exact numeric leaves follow.
 	KindPath: "string",
 }

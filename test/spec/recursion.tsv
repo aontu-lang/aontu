@@ -1,4 +1,4 @@
-# RECURSIVE SCHEMAS (docs/design/RECURSION.0.md): where RefVal's
+# RECURSIVE SCHEMAS (sketch/RECURSION.0.md): where RefVal's
 # prefix test used to answer path_cycle, it answers a RECURSIVE
 # RESIDUAL -- `$.Node` inside `Node` (and `%t` inside `%t`) simply
 # means the fixpoint. The residual expands ONE LEVEL PER MEET WITH
@@ -60,7 +60,7 @@ hash-stable-under-data	hash	Node: hide({v: integer, next?: $.Node})	aon1-5xioH6h
 # --- Subsume: a recursion is the definition it names ----------------
 # Each side's recursion unfolds against its own document, and a pair of
 # bags already under comparison is assumed to subsume, so the walk ends
-# where a pair comes round again (docs/design/RECURSION.0.md, P3). Each
+# where a pair comes round again (sketch/RECURSION.0.md, P3). Each
 # pair is compared once, so a disagreement is reported where the walk
 # first meets it, and an unfolding reads the marks of its place. One met
 # again before a bag unfolds to nothing and is residue, as it was.

@@ -1,4 +1,4 @@
-# FIRST-CLASS PATHS (docs/design/PATHS.0.md): `path(p)` CAPTURES the
+# FIRST-CLASS PATHS (sketch/PATHS.0.md): `path(p)` CAPTURES the
 # path expression `p` as a value -- the spelling, never the resolution
 # -- and `path` with no argument is the path KIND. The captured
 # value is a scalar whose generated form is the address string, in

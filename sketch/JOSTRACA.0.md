@@ -2,10 +2,10 @@
 
 **Status:** LANDED 2026-09-11, in both ports. The ten component
 primitives, `nom` and `translate` are aontu functions in TypeScript
-and Go, declared in [`test/spec/signature.tsv`](../../test/spec/signature.tsv)
-and held by [`test/spec/cmp.tsv`](../../test/spec/cmp.tsv); the
+and Go, declared in [`test/spec/signature.tsv`](../test/spec/signature.tsv)
+and held by [`test/spec/cmp.tsv`](../test/spec/cmp.tsv); the
 register row is
-[G9 phase 7](../capability-review/progress.md#g9--declarative-transformation),
+[G9 phase 7](../docs/capability-review/progress.md#g9--declarative-transformation),
 and the bridge that row was opened for stays retired. The sections
 below are as the spike left them on 2026-09-09 — built in TypeScript
 only, with no Go port, no shared-spec row and no declaration — and
@@ -31,12 +31,12 @@ are marked as such.
 
 Two decisions stand in the way, and the spike is worth building because
 it bears on one of them and not the other. §8 has both;
-[ADR-023](../../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
+[ADR-023](../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
 retired the Jostraca *bridge* and the spike does not reopen it, taking no
 dependency and running as the pipeline hand-off that entry names. This
 section is about the other one.
 
-[G9 Resolution 1](../capability-review/g9-transformation.md#two-specialist-disagreements-resolved)
+[G9 Resolution 1](../docs/capability-review/g9-transformation.md#two-specialist-disagreements-resolved)
 settled the output vocabulary against exactly this proposal. Two
 drafts disagreed: a DECLARATION vocabulary of units, declarations,
 types and fields, and a JOSTRACA-SHAPED plan of project/folder/file/
@@ -78,7 +78,7 @@ out: folder("src", [
 ])
 ```
 
-That is [`ts/test/cmp-spike.aontu`](../../ts/test/cmp-spike.aontu) verbatim —
+That is [`ts/test/cmp-spike.aontu`](../ts/test/cmp-spike.aontu) verbatim —
 the fixture `ts/test/cmp.test.ts` asserts and the pipeline command in §9
 runs, so this block, the engine and the pipeline cannot drift apart. It
 is in the canonical form: `aontu fmt --check` passes on it, which is
@@ -121,7 +121,7 @@ not make it.
 ## 2. What was built
 
 All ten of jostraca's components, in
-[`ts/src/val/CmpFuncVal.ts`](../../ts/src/val/CmpFuncVal.ts) and
+[`ts/src/val/CmpFuncVal.ts`](../ts/src/val/CmpFuncVal.ts) and
 registered in `funcMap` (`ts/src/lang.ts`):
 
 ```
@@ -300,7 +300,7 @@ generate model — aontu owns the bytes right up until jostraca takes the
 last edit. VERIFIED both halves: with an empty model `a $$path$$ b`
 survives; with `model: {path: 'ZZZ'}` it becomes `a ZZZ b`. G9 §5 asked
 for a `raw: true` on the jostraca side and
-[ADR-023](../../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
+[ADR-023](../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
 withdrew the ask with the phase, so it is not outstanding — the pipeline
 passes an empty model instead, which is safe for a caller who wants no
 model of their own and not for one who does.
@@ -315,7 +315,7 @@ arity is refused in the call rather than by the parse-time table, and
 every refusal is `invalid-arg` rather than a code of its own, because
 a new code needs a row in `test/spec/errcodes.tsv` and an entry in
 BOTH ports' tables. The cases live in
-[`ts/test/cmp.test.ts`](../../ts/test/cmp.test.ts) and become spec
+[`ts/test/cmp.test.ts`](../ts/test/cmp.test.ts) and become spec
 rows, probed against both CLIs, if this lands.
 
 **Whether it replaces `aontu:code` or sits beside it.** The
@@ -400,7 +400,7 @@ nine keys are the vocabulary, so `nom($.n) & {pascel: ...}` is
 Spike scope is the same as the primitives': TypeScript only, so out of
 `signature.tsv`, `BUILTIN_FUNCS` and `grammar/`, with arity and
 argument shape refused in the call and every refusal `invalid-arg`.
-Cases in [`ts/test/nom.test.ts`](../../ts/test/nom.test.ts).
+Cases in [`ts/test/nom.test.ts`](../ts/test/nom.test.ts).
 
 **What it does not answer.** Nothing here knows a target's reserved
 words — `nom("type", camel)` is `type`, and Go's renamer lives in
@@ -480,7 +480,7 @@ the decision is the owner's. A third question the spike raised and did
 not answer — what the component tree leaves `aontu:code` to do — is
 [UNITS-AND-TREES.0.md](UNITS-AND-TREES.0.md).
 
-**[ADR-023](../../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
+**[ADR-023](../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired)
 retired the Jostraca bridge, and the spike does not reopen it.**
 (That entry was itself retired on 2026-09-11, when these primitives
 became a production design choice. The bridge is not what came back:

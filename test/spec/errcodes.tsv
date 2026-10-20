@@ -154,7 +154,7 @@ float_overflow	errcode	conflict	0.53.0
 lossy_integer_literal	errcode	conflict	0.51.0
 arg	errcode	conflict	0.51.0
 invalid-arg	errcode	conflict	0.51.0
-# THE SIGNATURE GATE (docs/design/SIGNATURES.0.md): a driven argument
+# THE SIGNATURE GATE (sketch/SIGNATURES.0.md): a driven argument
 # that does not fit the declared signature -- a wrong-kinded scalar, a
 # container or a kind marker in a value slot whose type is scalar-kind
 # words. The hint renders the signature line and names the argument.
@@ -291,7 +291,7 @@ refer_unresolved	errcode	reference	0.53.0
 # carried by the same refer machinery underneath.
 rel_address	errcode	parse	0.53.0
 rel_unresolved	errcode	reference	0.53.0
-# FIRST-CLASS PATHS (docs/design/PATHS.0.md). One code: text that is
+# FIRST-CLASS PATHS (sketch/PATHS.0.md). One code: text that is
 # not a tree address, met by `path(p)`'s capture -- literal or computed
 # argument alike (ADR-016). Class `parse` for refer_address's reason --
 # what is wrong is the text, and no later pass can repair it. An
@@ -415,7 +415,7 @@ module_depth	errcode	budget	0.53.0
 module_local	errcode	parse	0.65.0
 module_moved	errcode	parse	0.65.0
 
-# THE TREE VIEW (`aontu view tree`, docs/design/VIEWS.0.md). A relation
+# THE TREE VIEW (`aontu view tree`, sketch/VIEWS.0.md). A relation
 # named to the view that has no edges in the document is refused rather
 # than drawn empty: an empty tree and a misspelled name are the same
 # file on disk. Class `reference` -- a name that does not resolve. A
@@ -427,7 +427,7 @@ view_profile_unknown	errcode	reference	0.54.0
 view_style_profile	errcode	reference	0.55.0
 view_style_unknown	errcode	reference	0.55.0
 
-# THE FORMATTER (docs/design/FMT.0.md). One report-layer code, class
+# THE FORMATTER (sketch/FMT.0.md). One report-layer code, class
 # `internal`: the formatter re-parses what it is about to write and
 # compares the two parse trees, and a disagreement is a defect of the
 # formatter, never of the document -- nothing is written, and the
@@ -441,13 +441,13 @@ view_sets_required	errcode	reference	0.54.0
 view_at_required	errcode	reference	0.54.0
 view_group_required	errcode	reference	0.54.0
 view_document_shape	errcode	reference	0.54.0
-# The renderer (docs/design/RENDER.0.md D7, D8; RENDER P3).
+# The renderer (sketch/RENDER.0.md D7, D8; RENDER P3).
 render_path	errcode	parse	0.58.0
 render_lang	errcode	conflict	0.58.0
 render_profile	errcode	parse	0.58.0
 render_strict	errcode	conflict	0.58.0
 render_unit	errcode	reference	0.58.0
-# RENDER P6 -- `replace` on an emit template (docs/design/TEMPLATE.0.md
+# RENDER P6 -- `replace` on an emit template (sketch/TEMPLATE.0.md
 # D3, D4) and the list generator that shipped as `form`.
 # `replace_overlap` and `replace_unused` are class `parse`: both are
 # checks of the TEMPLATE as written, before any node. `replace_value`

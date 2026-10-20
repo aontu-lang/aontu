@@ -2580,7 +2580,7 @@ describe('cli-repair-loop', () => {
 })
 
 
-// --- the fmt verb (docs/design/FMT.0.md P1) ---------------------------
+// --- the fmt verb (sketch/FMT.0.md P1) ---------------------------
 
 
 function fmtFiles(...srcs: string[]): { dir: string, files: string[] } {

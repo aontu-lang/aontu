@@ -6,7 +6,7 @@ stale.** Written against **Go port v0.1.6**. As of `aontu@0.53.0` /
 landed as capabilities under *function* syntax — `min`, `max`, `above`,
 `below`, `neq`, `re` — not the CUE operators proposed here, which is why
 the §10 lexing break never happened. The operator SPELLINGS this note
-proposes are **declined outright** — [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators),
+proposes are **declined outright** — [ADR-008](../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators),
 2026-08-28: constraints are named, not spelled with operators, and
 adopting `>=10` later needs a new ADR. N3 is **deferred** (2026-08-28,
 maintainer decision — unblocked, simply not now); the sized-integer
@@ -18,8 +18,8 @@ value containing one is ordinary text, exactly as `port: high` is
 was **retracted** on 2026-08-28, since it assumes an intent the document
 never states. Do not read §2 as current behaviour. The item-by-item
 reconciliation, re-run against both engines on 2026-08-28, is in
-[`docs/capability-review/g1-constraint-algebra.md`](../capability-review/g1-constraint-algebra.md#reconciliation-with-the-2026-08-27-constraint-design-note);
-row 7's disposition is [`use-cases/BUGS.md`](../../use-cases/BUGS.md) §45.
+[`docs/capability-review/g1-constraint-algebra.md`](../docs/capability-review/g1-constraint-algebra.md#reconciliation-with-the-2026-08-27-constraint-design-note);
+row 7's disposition is [`use-cases/BUGS.md`](../use-cases/BUGS.md) §45.
 **Home:** this repository (TS canonical under `ts/`, Go port under `go/`)
 **Origin:** empirical survey run from boru, which consumes the Go port
 via its `boru:parselang` module (pinned at `go/` v0.1.6)
@@ -226,7 +226,7 @@ well-formed wrong config.
 
 ### Syntax
 
-> **DECLINED — [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators),
+> **DECLINED — [ADR-008](../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators),
 > 2026-08-28.** The bound FAMILY landed (G1 phase 1) and is complete;
 > these operator spellings did not and will not. The shipped syntax is
 > named atoms — `min`, `max`, `above`, `below`, `neq` — so
@@ -317,10 +317,10 @@ was surveyed as a separate CUE gap; bounds absorb it.
 
 ### Syntax
 
-> **DECLINED — [ADR-008](../../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators),
+> **DECLINED — [ADR-008](../ADR.md#adr-008--constraints-are-named-not-spelled-with-operators),
 > 2026-08-28**, as with N1. The pattern family landed as `re("p")` in G1
 > phase 2, under a normalisation posture stronger than the subset this
-> section proposes ([ADR-003](../../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted)).
+> section proposes ([ADR-003](../ADR.md#adr-003--host-provided-semantics-are-normalised-not-trusted)).
 > Note also that the premise below is stale: `=~"^ab"` is no longer a
 > lex error, it is a bare string, so the syntax is not "free".
 

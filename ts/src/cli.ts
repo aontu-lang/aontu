@@ -3528,7 +3528,7 @@ function renderReachesJson(report: ReachReport): string {
 }
 
 // ---------------------------------------------------------------------
-// The tree view (docs/design/VIEWS.0.md, ts/src/view.ts): the drawn
+// The tree view (sketch/VIEWS.0.md, ts/src/view.ts): the drawn
 // edge set, as text a golden diff can check.
 
 function runView(argv: string[]): number {

@@ -1,5 +1,5 @@
 # THE JOSTRACA COMPONENT PRIMITIVES, nom and translate
-# (docs/design/JOSTRACA.0.md). The components are aontu functions whose
+# (sketch/JOSTRACA.0.md). The components are aontu functions whose
 # node carries the Jostraca component name; `nom` spells one name in
 # one style, and `translate` maps characters of a string.
 #
@@ -85,7 +85,7 @@ cmp-folder-name-not-empty-still	errc	x: folder("")	invalid-arg
 cmp-project-folder-not-empty	errc	x: project({folder: ""})	invalid-arg
 cmp-bare-string-needs-line	errc	x: folder("s", ["oops"])	invalid-arg
 cmp-bare-string-not-in-project	errc	x: project("b", ["oops"])	invalid-arg
-# THE PROP SCHEMA (docs/design/UNITS-AND-TREES.1.md P3). Every prop each
+# THE PROP SCHEMA (sketch/UNITS-AND-TREES.1.md P3). Every prop each
 # Jostraca component declares, and nothing else: the props are the whole
 # contract with the engine that writes the files, so a typo was a
 # silently dropped `indent`, `mode` or `exclude`. The lists are hand-kept

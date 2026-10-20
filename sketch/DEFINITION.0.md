@@ -186,7 +186,7 @@ One module per layer:
 | `Aontu/Trial.lean` | the trial schemas as theorems: ADR-055, ADR-049's `not`, ADR-050, ADR-051 and ADR-058 landed (P4) |
 | `Aontu/Verdict.lean` | from P5: ill-formed values, and `valid`, `invalid`, `incomplete` and `error` defined over `Admits` and `Output`, with the `vet` modes as parameters |
 | `Aontu/Check.lean` | the verified checker, each function beside its `_iff` theorem |
-| `Aontu/Tour.lean` | the examples of [the tutorial](../tutorial-definition.md), each proved |
+| `Aontu/Tour.lean` | the examples of [the tutorial](../docs/tutorial-definition.md), each proved |
 | `Oracle.lean` | the executable that enumerates values and instances and prints each case with the definition's verdict |
 | `Oracle/Print.lean` | the oracle's printer from abstract syntax and data to aontu and JSON text, the one trusted bridge to the ports, and no part of the definition |
 
@@ -385,7 +385,7 @@ documents only.
 
 | Phase | Lands | Exit |
 |---|---|---|
-| **P0**: the seed (S) | **LANDED 2026-10-16**, [ADR-069](../../ADR.md#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it): `spec/` as a Lake project holding the prototype; the `verdict` mode and the ledger read in both runners; the 9,600 cases as `test/spec/def-fragment.tsv`; `make spec`; the CI job, `build.yml`'s `spec`, applied 2026-10-18 from `spec/ci.patch` | every generated row passes in both ports or is in the ledger, which holds only the cases decisions 3 and 4 of §2 own, 10 and 32; the TypeScript runner takes about two minutes over the rows and the Go runner three seconds, the first figure of §5's bound |
+| **P0**: the seed (S) | **LANDED 2026-10-16**, [ADR-069](../ADR.md#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it): `spec/` as a Lake project holding the prototype; the `verdict` mode and the ledger read in both runners; the 9,600 cases as `test/spec/def-fragment.tsv`; `make spec`; the CI job, `build.yml`'s `spec`, applied 2026-10-18 from `spec/ci.patch` | every generated row passes in both ports or is in the ledger, which holds only the cases decisions 3 and 4 of §2 own, 10 and 32; the TypeScript runner takes about two minutes over the rows and the Go runner three seconds, the first figure of §5's bound |
 | **P1**: data and scalars (M) | the data model (**LANDED 2026-10-17** as `spec/Aontu/Data.lean`; on 2026-10-18 aontu's own data: numbers in the four leaves, strings, maps and lists with unique keys, paths), and the two read modes, which stay parameters (§7, decision 5): the data holds every leaf either mode reads, and stating each mode's reading remains; the four numeric leaves (`integer` **LANDED 2026-10-17**: a double, of magnitude below `2^63`; `float`, `biginteger`, and `bigdecimal` **LANDED 2026-10-18**, as kinds and literals); `string` and `string & empty()` (**LANDED**); literals (scalars **LANDED**, numbers of every leaf **LANDED 2026-10-18**); the bounds `min`, `max`, `above`, `below`, `neq`, `len`, `mulof`, `unique` (`min`, `max`, and `mulof` **LANDED**); `re` and `format` as opaque predicates | the oracle covers every scalar row of `types.tsv` and `vet.tsv`; the sketch's range for `integer` (`\|n\| ≤ 2^53`, wrong: `1e18` is admitted) is replaced by the rule the reference states (**done** 2026-10-17) |
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers, read by position as the language reads them (an arm of a disjunction reads a list literal as its own length and `*x` as `x`, and elsewhere `*x` is `x \| super(x)`, so `*1` alone admits `2`: both engines, 2026-10-17); `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | **LANDED 2026-10-19**: aliases as the least fixpoint, path references read by declaration from the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule, which refuses no model, no use case and three documents of the suite | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
@@ -566,8 +566,8 @@ lands.
    and three rules, and the marks of decision 10, `hide()` and
    `type()`, would enter the same way. Since 2026-10-20 the `meta()`
    and `ident()` records are maps of concrete data under any keys
-   ([ADR-072](../../ADR.md#adr-072--a-meta-record-is-open-metadata),
-   [ADR-073](../../ADR.md#adr-073--an-ident-record-is-open-declaration-metadata)),
+   ([ADR-072](../ADR.md#adr-072--a-meta-record-is-open-metadata),
+   [ADR-073](../ADR.md#adr-073--an-ident-record-is-open-declaration-metadata)),
    so the first carries a record as data and names none of its keys.
 15. **The words `map` and `list`.** Open, raised 2026-10-19 by P6. The
    importer writes `map` for `type: object` with no other keyword and

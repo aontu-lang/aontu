@@ -460,7 +460,7 @@ func recordNotFound(ctx *jsonic.Context, path string) {
 
 // recordNotFoundMsg is recordNotFound with the message spelled by the
 // caller: the aontu: leg names the set of language-supplied models in
-// its refusal (docs/design/MODELS.0.md D1), where a file that is not
+// its refusal (sketch/MODELS.0.md D1), where a file that is not
 // there names only itself.
 func recordNotFoundMsg(ctx *jsonic.Context, msg string) {
 	if nil == ctx || nil == ctx.Meta {

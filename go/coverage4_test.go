@@ -124,7 +124,7 @@ func TestFuncNoArgGuardsViaAPI(t *testing.T) {
 	}
 
 	// path with no argument is the path KIND now
-	// (docs/design/PATHS.0.md), not a missing-argument refusal.
+	// (sketch/PATHS.0.md), not a missing-argument refusal.
 	pf := newFunc("path", nil)
 	if k, ok := pf.resolve(ctx, nil, nil).(*ScalarKindVal); !ok || KindPath != k.kind {
 		t.Fatalf("path: want the path kind, got %T", pf.resolve(ctx, nil, nil))

@@ -1,4 +1,4 @@
-# THE aontu: SCHEME (docs/design/MODELS.0.md D1; docs/design/RENDER.0.md
+# THE aontu: SCHEME (sketch/MODELS.0.md D1; sketch/RENDER.0.md
 # P0). A name that begins `aontu:` is a LANGUAGE-SUPPLIED MODEL, served
 # from the engine's own table and nowhere else: the memory, module,
 # file and package legs are never asked, so no file can shadow one, and

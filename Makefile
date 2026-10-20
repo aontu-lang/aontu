@@ -53,7 +53,7 @@ hooks:
 	git config core.hooksPath .githooks
 	@echo "hooks: core.hooksPath -> .githooks (undo: git config --unset core.hooksPath)"
 
-# The prose gate (see docs/STYLE-GUIDE.md). Vale over the reader-facing
+# The prose gate (see STYLE-GUIDE.md). Vale over the reader-facing
 # pages, at the levels set in .vale.ini, on the same file list
 # ts/test/docs.test.ts reads. Requires `vale` on PATH and one
 # `vale sync` to fetch the pinned Google package; CI does both in
@@ -172,7 +172,7 @@ vocabularies:
 
 # Regenerate the build-time-inlined copies of the signature
 # declaration (ts/src/sigdecl.ts, go/sigdecl.txt) from the shared
-# source test/spec/signature.tsv (docs/design/SIGNATURES.0.md).
+# source test/spec/signature.tsv (sketch/SIGNATURES.0.md).
 sig:
 	node ts/scripts/sigdecl.cjs
 
@@ -215,7 +215,7 @@ build-go:
 test-go:
 	cd go && go test -v ./...
 
-# THE DEFINITION (spec/, docs/design/DEFINITION.0.md): check every proof,
+# THE DEFINITION (spec/, sketch/DEFINITION.0.md): check every proof,
 # regenerate the rows the definition writes into test/spec/, and fail if
 # the committed copy differs, as the coverage job does for ts/dist. Needs
 # lean and lake from the release spec/lean-toolchain names on PATH; in CI,

@@ -1,4 +1,4 @@
-# G-VIEWS: the aontu:view VOCABULARY (docs/design/VIEWS.0.md, "6. The
+# G-VIEWS: the aontu:view VOCABULARY (sketch/VIEWS.0.md, "6. The
 # view document"). A view document declares its figures as data, and a
 # declaration is just a map: aontu:view is the schema for one, so a typo
 # is refused at EVALUATION, by unification, rather than by the verb

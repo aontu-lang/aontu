@@ -3,7 +3,7 @@
 **Status:** PROPOSED, 2026-09-13. **P1 LANDED** and §10 says what it
 cost. **§12's three open questions were ANSWERED by the owner and the
 ADR §12 asks for is written:**
-[ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages);
+[ADR-038](../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages);
 §12a records the answers, and §1, §2, §3, §5, §6, §9, §10 and §11
 carry what they changed. **P0 IS DONE** — jostraca v0.38.0 answered all
 three asks and two beyond the ask, so NOTHING BLOCKS: §5 and §7 say
@@ -12,7 +12,7 @@ flag §7 asked for. **§6 carries one thing the answers exposed and this
 note had missed:** `aontu:render` also holds the profile schema
 `template` and `fmt` vet against, so it splits rather than goes. The
 rest is design and plan. Status of every phase this note names lives in
-the [progress register](../capability-review/progress.md), never here.
+the [progress register](../docs/capability-review/progress.md), never here.
 
 **Origin:** Richard Rodger, 2026-09-13: *"Our aim is to retire and
 remove code units, and rely entirely on jostraca. To this end we can
@@ -231,7 +231,7 @@ $ echo 'a: line({ src: "x" indent: "  " })' | aontu -c
 `..L\n`.
 
 Together those retire the last of
-[G9 Resolution 1](../capability-review/g9-transformation.md#two-specialist-disagreements-resolved).
+[G9 Resolution 1](../docs/capability-review/g9-transformation.md#two-specialist-disagreements-resolved).
 Reason (iii) was *"at text level the layout is baked into the leaf at
 construction time and a renderer can never re-indent, which is XSLT's
 whitespace failure imported wholesale"*, and
@@ -267,7 +267,7 @@ Less than the instruction allows for. The data path already exists in
 both ports: `ts/src/tree.ts` (305 lines) exports `cmpTree(tree)`, and
 `go/tree.go` is its twin with byte-identical output, both pinned by the
 drift guard that reads `src/cmp/` and fails on an unreachable
-component. That repository's `docs/design/AONTU.0.md` records the
+component. That repository's `sketch/AONTU.0.md` records the
 pipeline as verified end to end.
 
 **ANSWERED 2026-09-13, all of them, in `jostraca` v0.38.0**
@@ -418,7 +418,7 @@ out and STAY**; only the lowering half of `aontu:render` goes, and the
 loader moves out of the render module before the render module is
 deleted. The `text` and `markdown` profiles stay with it — neither has
 a `lowering`, and markdown's marker is
-[ADR-035](../../ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer)'s
+[ADR-035](../ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer)'s
 own decision. P5 carries this.
 
 **DONE 2026-09-14, and it is P5's first commit.** The surviving half is
@@ -755,7 +755,7 @@ named instead, which is checkable at any commit.
 | `ts/src/render.ts`, `go/render.go` | deleted | **deleted** |
 | `ts/src/lower.ts`, `go/lower.go` | kept, re-fronted | **deleted**, bar whatever §3a keeps |
 | `aontu/render/lang/typescript.aontu`, `go.aontu` | kept — the profiles are the lowering | **deleted**; there is nothing left to spell |
-| `aontu/render/lang/text.aontu`, `markdown.aontu` | kept | **KEPT** — no lowering in either; they are `template`/`fmt` profiles ([ADR-035](../../ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer)) |
+| `aontu/render/lang/text.aontu`, `markdown.aontu` | kept | **KEPT** — no lowering in either; they are `template`/`fmt` profiles ([ADR-035](../ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer)) |
 | `aontu/render/render.aontu` | kept | **SPLIT** — the lowering half goes, the `template` half stays (§6) |
 | `aontu/code/code.aontu` and its Go twin | reduced to the declaration schema | **deleted entirely**, both copies |
 | `ts/src/val/LowerDeclsFuncVal.ts`, `go/lowerdecls.go` | — (P1, landed after the table) | **deleted**; P1 is a waypoint |
@@ -783,7 +783,7 @@ every new line arrives with it.
 ## 12. What this needs before it starts
 
 **An ADR. WRITTEN 2026-09-13 as
-[ADR-038](../../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).**
+[ADR-038](../ADR.md#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages).**
 It reverses G9 Resolution 1 — which chose the declaration vocabulary
 over a Jostraca-shaped plan and demoted the plan to "something the
 bridge builds, never something a transform writes" — and it removes a
@@ -815,7 +815,7 @@ aontu knows neither languages nor files, and the generator author knows
 both. §11 names what goes. What a profile still says is where a
 language's marker, extensions and indentation live for `template` and
 `fmt`, which is
-[ADR-035](../../ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer)
+[ADR-035](../ADR.md#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer)
 and is untouched.
 
 *What it costs, stated plainly:* one model rendering to two languages

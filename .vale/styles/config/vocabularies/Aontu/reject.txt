@@ -17,11 +17,11 @@
 # rather than holding its own copy, so the fast local gate and the CI
 # prose gate cannot disagree. Add a phrase here and both pick it up.
 
-# Sources: the original house list in docs/STYLE-GUIDE.md, plus the
+# Sources: the original house list in STYLE-GUIDE.md, plus the
 # additions carried over from the jostraca guide and claudisms.ai.
 # Entries from those lists that collide with this project's own
 # vocabulary are deliberately NOT here -- see "What is not banned, and
-# why" in docs/STYLE-GUIDE.md, which records the count each one
+# why" in STYLE-GUIDE.md, which records the count each one
 # produced on a clean run.
 
 # --- Filler and false emphasis -----------------------------------------
@@ -149,7 +149,7 @@ great question
 # set and on the built website before it was added, under the Node rules
 # and under Vale, and every one was checked against a sentence it must
 # catch. Four of its rules are deliberately absent, with the reasons in
-# docs/STYLE-GUIDE.md.
+# STYLE-GUIDE.md.
 
 # --- Inflated copulas --------------------------------------------------
 serves as an?

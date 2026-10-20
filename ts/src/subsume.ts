@@ -347,7 +347,7 @@ export function subsumeNode(
     return 'no'
   }
 
-  // Container kinds (docs/design/PATHS.0.md): `map` subsumes every
+  // Container kinds (sketch/PATHS.0.md): `map` subsumes every
   // map and itself, `list` every list. The unit literals (`{}`,
   // `[]`) already subsume through the container rules; only the kind
   // former needs an arm.
@@ -455,7 +455,7 @@ export function subsumeNode(
 
 
 // A recursion is the definition it names, unfolded against its own
-// document (docs/design/RECURSION.0.md, P3). One met again before the
+// document (sketch/RECURSION.0.md, P3). One met again before the
 // walk enters a bag unfolds to no structure, and is compared as residue.
 function subsumeRecursion(
   state: SubState, path: string[], g0: any, s0: any, g: any, s: any): Tri | undefined {

@@ -127,7 +127,7 @@ Where the rules are pinned: `test/spec/number-model.tsv` (the kind
 rules), `test/spec/number-tower.tsv` (the exact leaves), and
 `test/spec/number-cross-product.tsv` (the closed ordered-pair table for
 `+`). The reasoning is in
-[`docs/design/number-model.md`](../../docs/design/number-model.md) and
-[`docs/design/number-tower.md`](../../docs/design/number-tower.md); the
+[`sketch/number-model.md`](../../sketch/number-model.md) and
+[`sketch/number-tower.md`](../../sketch/number-tower.md); the
 user-facing rules are in
 [`docs/reference-language.md`](../../docs/reference-language.md#the-four-numeric-leaves).

@@ -1,5 +1,5 @@
 # The forms the JSON Schema importer writes that the definition lacks, each
-# on a decision of docs/design/DEFINITION.0.md, section 7. The checks
+# on a decision of sketch/DEFINITION.0.md, section 7. The checks
 # ts/test/jsonschema-forms.test.ts and go/jsonschema_forms_test.go hold the
 # importer's output over the vendored corpora to spec/forms.tsv and to these
 # rows, and refuse a row the importer no longer writes, so a form that enters

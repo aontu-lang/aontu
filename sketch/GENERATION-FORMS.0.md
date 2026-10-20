@@ -1,7 +1,7 @@
 # Generation forms (a) and (b): the host program, and the Jostraca path
 
 *Design note, 2026-08-30. Companion to
-[G9](../capability-review/g9-transformation.md), which is the plan for
+[G9](../docs/capability-review/g9-transformation.md), which is the plan for
 form (c), the declarative transformation layer. This note covers the
 other two forms an aontu model can become output code — a host program
 reading the model directly, and driving
@@ -10,7 +10,7 @@ argues that both are nearer than they look, with one exception that is
 nearer to a defect than to a feature. Every claim marked VERIFIED was
 run against the built CLIs and, for the Go embedding claims, against a
 real external Go module. This note is design; status lives in the
-[progress register](../capability-review/progress.md).*
+[progress register](../docs/capability-review/progress.md).*
 
 ## Why the two forms share one layer
 
@@ -105,8 +105,8 @@ schema above.
 > It is not a feature request; it is an ADR-001 question — does the
 > parity obligation cover the *embedding surface*, or only the
 > language? — and it is unanswered in
-> [`ADR.md`](../../ADR.md), [`DIVERGENCE.md`](../../DIVERGENCE.md) and
-> [`docs/reference-api.md`](../reference-api.md) alike.
+> [`ADR.md`](../ADR.md), [`DIVERGENCE.md`](../DIVERGENCE.md) and
+> [`docs/reference-api.md`](../docs/reference-api.md) alike.
 
 Three answers are available and only the third is honest for long:
 
@@ -215,7 +215,7 @@ Two things are genuinely needed:
    shipped to production" into a unification error before any file is
    written.
 
-Under [G9's D7](../capability-review/g9-transformation.md) the driver
+Under [G9's D7](../docs/capability-review/g9-transformation.md) the driver
 hands Jostraca **one** `Project` containing all N outputs in a single
 `generate()` call, so its merge and exclusion logic sees the whole
 tree and one consistent snapshot of the model backs every file.
@@ -246,13 +246,13 @@ and `merge` is not.
 Neither list contains a language change. That is the point of this
 note: **forms (a) and (b) are tooling, and they are close.** Form (c)
 is where the language questions live, and they are in
-[G9](../capability-review/g9-transformation.md).
+[G9](../docs/capability-review/g9-transformation.md).
 
 ## 7. Open, and owner-level
 
 - ~~Does ADR-001 cover the embedding surface, or only the language?
   (§2. Nothing currently says.)~~ **Answered 2026-09-05 by
-  [ADR-023](../../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired):
+  [ADR-023](../ADR.md#adr-023--g9-completes-at-the-renderer-the-reflection-sidecar-the-jostraca-bridge-and-string-interpolation-are-retired):
   the language and the verbs, not an embedding surface.** The
   reflection view (§3) is retired unbuilt; forms (a) and (b) stay as
   §2 found them, and `DIVERGENCE.md` records it. The Jostraca driver
