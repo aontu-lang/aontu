@@ -59,10 +59,11 @@ generated fragment, `test/spec/def-trial.tsv`, refusal at generation,
 decision 8 of §7, `when`, `contains` and `rest` inside values, and
 `match` and `filter` as selections, the same day, which lands P4. P5
 partial the same day, with the profiles' contracts, the order decided
-and its rows, and the tables for the containers and the constraints;
+and its rows, and the tables for the containers and the constraints,
+and decisions 9, 11 and 12 of §7 built 2026-10-20;
 P6 partial the same day, with the check of the importer's forms against
-the definition and three decisions open, which were ruled 2026-10-20
-and are yet to be built; P7 partial the same day, with
+the definition and three decisions open, ruled 2026-10-20, of which
+the words `map` and `list` (15) are built; P7 partial the same day, with
 thirteen ADRs read as moved and the reference citing the rules. The
 definition is under `spec/`, its rows under `test/spec/`, and both
 ports' runners hold the engines to them. P8 to P12, the rest of the
@@ -407,8 +408,8 @@ the value language to the whole of it, each placed after what it rests
 on. The open items of P1 to P6 come before them:
 each read mode's reading of a number (P1), `open()` (P2), two
 recursions of one shape under different names (P5), the rulings of §7
-not yet built (9 to 15), and #403, a selection inside a recursive
-name's body.
+not yet built (10, 13 and 14), decision 16, still open, and #403, a
+selection inside a recursive name's body.
 
 Outside the definition by design, whatever phase lands: text, which is
 the grammar's and each port's reader's (the lexical structure, the
@@ -536,7 +537,24 @@ encodes it lands.
    size, which cannot grow either, is a short literal under the same
    rule, `invalid`, as both ports answer (`len(2) & close([1])` and
    `len(3) & close({x: 1})`, measured 2026-10-20): the rule reads the
-   length against the size, not whether the literal may grow.
+   length against the size, not whether the literal may grow. **Built
+   2026-10-20** as `sizeClash` in `spec/Aontu/Verdict.lean`, one case of
+   `Val.illFormed`: a meet holding `len(c)` and container literals is
+   ill-formed where `c`'s upper half, its lower ends dropped and an
+   exact size read as its upper end, refuses the count of the literals
+   met, each position, required key and optional key whose value
+   generates. Measuring both ports found what the rule reads: only the
+   lower end waits, so an exclusion or a multiple the count breaks is a
+   conflict at the meet too, `len(neq(2)) & {x: 1, y: 2}` an `error`
+   though `{"x": 1, "y": 2, "z": 3}` would meet it, while
+   `len(neq(2)) & {x: 1, y: 2} & {z: 3}` counts the three members of
+   the literals met and is `valid`. The rule cannot live in the meet,
+   whose computed form admits what the written one does
+   (`admits_meet`), since `len(neq(2)) & {x: 1, y: 2}` admits a map of
+   three members; an ill-formed term admits it too, as a preference
+   clash does. The verdict fragment gains 48 rows, l0 on, which both
+   ports answer as the definition does. They hold no disjunctive size,
+   which both ports refuse as an argument (decision 16).
 10. **The marks in the definition.** Raised 2026-10-19 by P5.
    `type()` and `hide()` are no terms of the definition, which holds
    semantics only (§1), yet the `gen` profile of `subsume` compares
@@ -668,6 +686,17 @@ encodes it lands.
    put `{}` and `[]` outside `map` and `list`, though the open empty
    containers admit every map and every list. The words leave
    `spec/forms-outside.tsv`, whose bound falls from 6 to 4.
+16. **A disjunctive size.** Raised 2026-10-20 by decision 9's rows
+   (#413). Both ports refuse `len(1 | 3)` with `invalid-arg`, whatever
+   it meets, where the definition's `len(c)` judges a size as any term
+   `c` does, so `len(1 | 3)` admits `[1]` and `[1, 2, 3]`. The
+   reference calls the argument "any integer-domain constraint", which
+   does not say whether a disjunction of integers is one. Either the
+   definition narrows `len` to a conjunction of bounds, exclusions and
+   multiples, and reads any other size as ill-formed, as the ports
+   answer, or the ports accept a disjunctive size, whose upper half at
+   the meet is each arm's, as `Val.upperHalf` reads it. No generated
+   row carries a disjunctive size until it is ruled.
 
 ## 8. Risks
 
