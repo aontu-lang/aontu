@@ -1444,13 +1444,11 @@ function withDefs(ctx, schema, body) {
     to.forEach((ref, from) => moved.set(from, ref));
     const dynamic = dynamicRefs(ctx, schema, kept, moved);
     // A use written as the $ref of another definition that says the same
-    // leaves this one unwritten, and with it the identity it was declared with.
+    // leaves this one unwritten, and with it the record it was declared with.
     const unwritten = [...ctx.refs.defs.values()]
         .filter((d) => true === d.reached && !d.used && !moved.has(defRef(d)))
         .sort((a, b) => (0, keyorder_1.cmpCodePoint)(a.name, b.name))
-        .flatMap((d) => IDENTITY_KEYWORD.filter(([key]) => 0 < identityTexts(d.value, key).length)
-        .map(([, construct]) => ({ path: pathText(d.path), construct,
-        reason: 'its uses are written as another definition that says the same, so it is not written' })));
+        .flatMap(unwrittenRecord);
     const gone = folded.filter((d) => aliasname_1.ALIAS_NAME_RE.test(d.path[0])).map((d) => pathText(d.path));
     const seen = new Set();
     const lossy = [];
@@ -1462,6 +1460,17 @@ function withDefs(ctx, schema, body) {
         }
     }
     return lossy;
+}
+const UNWRITTEN = 'its uses are written as another definition that says the same, so ';
+function unwrittenRecord(d) {
+    const rec = d.value.identity ?? {};
+    const path = pathText(d.path);
+    return [
+        ...IDENTITY_KEYWORD.filter(([key]) => undefined !== rec[key])
+            .map(([, construct]) => ({ path, construct, reason: UNWRITTEN + 'it is not written' })),
+        ...Object.keys(rec).filter((k) => undefined === IDENTITY_KIND[k]).sort(keyorder_1.cmpCodePoint)
+            .map((k) => ({ path, construct: 'ident', reason: UNWRITTEN + 'the key ' + k + ' is not written' })),
+    ];
 }
 // ADR-057: the declarations of one schema read in several dynamic scopes
 // are one definition where their schemas agree, the $refs of their uses

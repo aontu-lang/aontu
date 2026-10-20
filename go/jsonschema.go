@@ -1155,7 +1155,7 @@ func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss
 	}
 	dynamic := schemaDynamicRefs(sc, schema, rest, moved)
 	// A use written as the $ref of another definition that says the same
-	// leaves this one unwritten, and with it the identity it was declared with.
+	// leaves this one unwritten, and with it the record it was declared with.
 	unwritten := []SchemaLoss{}
 	all := []*schemaDef{}
 	for _, d := range sc.refs.defs {
@@ -1164,12 +1164,25 @@ func schemaWithDefs(sc *schemaCtx, schema map[string]any, body any) []SchemaLoss
 		}
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].name < all[j].name })
+	const why = "its uses are written as another definition that says the same, so "
 	for _, d := range all {
+		rec := d.value.identRec()
 		for _, kw := range schemaIdentityKeyword {
-			if 0 < len(identTexts(d.value, kw[0])) {
+			if 0 < len(rec[kw[0]]) {
 				unwritten = append(unwritten, SchemaLoss{Path: schemaPathText(d.path), Construct: kw[1],
-					Reason: "its uses are written as another definition that says the same, so it is not written"})
+					Reason: why + "it is not written"})
 			}
+		}
+		keys := []string{}
+		for k := range rec {
+			if _, known := schemaIdentityKind[k]; !known {
+				keys = append(keys, k)
+			}
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			unwritten = append(unwritten, SchemaLoss{Path: schemaPathText(d.path), Construct: "ident",
+				Reason: why + "the key " + k + " is not written"})
 		}
 	}
 	seen := map[string]bool{}
