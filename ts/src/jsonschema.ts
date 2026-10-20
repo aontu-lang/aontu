@@ -865,8 +865,8 @@ const KIND_TEXT: Record<string, string> = {
   string: 'a string', boolean: 'a boolean', list: 'an array',
 }
 
-// The JSON Schema keywords: a record key that names one would assert where
-// the record only annotates, so it is not written.
+// The JSON Schema keywords: a record key that names one is not written,
+// since its meaning there would be JSON Schema's and not the record's.
 const KEYWORDS = new Set([
   '$schema', '$id', '$ref', '$anchor', '$dynamicRef', '$dynamicAnchor', '$vocabulary',
   '$comment', '$defs', 'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else',
@@ -1928,8 +1928,8 @@ function declared(defs: Def[], path: string, out: any, lossy: SchemaLoss[]): voi
       continue
     }
     else if (KEYWORDS.has(k)) {
-      lossy.push({ construct: 'ident', path, reason: 'the key ' + k + ' is a JSON Schema ' +
-        'keyword, which would assert where the record only describes the declaration, so it is DROPPED' })
+      lossy.push({ construct: 'ident', path, reason: 'the key ' + k + ' is a JSON Schema keyword, ' +
+        'whose meaning is JSON Schema\'s where the record only describes the declaration, so it is DROPPED' })
     }
     else if (1 < rec[k].length) {
       lossy.push({ construct: 'ident', path,

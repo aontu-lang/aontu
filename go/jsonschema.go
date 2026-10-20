@@ -1346,7 +1346,7 @@ func schemaDeclared(defs []*schemaDef, path string, out map[string]any, lossy []
 		switch {
 		case schemaKeywords[k]:
 			lossy = append(lossy, SchemaLoss{Construct: "ident", Path: path,
-				Reason: "the key " + k + " is a JSON Schema keyword, which would assert where the record only describes the declaration, so it is DROPPED"})
+				Reason: "the key " + k + " is a JSON Schema keyword, whose meaning is JSON Schema's where the record only describes the declaration, so it is DROPPED"})
 		case 1 < len(vs):
 			lossy = append(lossy, SchemaLoss{Construct: "ident", Path: path,
 				Reason: "the declaration carries more than one " + k + ", so none is written"})
@@ -1500,7 +1500,7 @@ var schemaKindText = map[string]string{
 }
 
 // schemaKeywords are the JSON Schema keywords: a record key that names one
-// would assert where the record only annotates, so it is not written.
+// is not written, since its meaning there would be JSON Schema's.
 var schemaKeywords = map[string]bool{}
 
 func init() {
