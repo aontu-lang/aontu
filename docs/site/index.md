@@ -176,7 +176,7 @@ Two things the sync must do that a copy would get wrong, both of which
 
 **Amended 2026-09-21: three environments, and `main` deploys nowhere.**
 The original decision is below the line; what supersedes it is
-[`ENVIRONMENTS.0.md`](https://github.com/aontu-lang/system/blob/main/sketch/ENVIRONMENTS.0.md)
+[`ENVIRONMENTS.0.md`](https://github.com/aontu-lang/system/blob/main/docs/design/ENVIRONMENTS.0.md)
 in `aontu-lang/system`, which covers both deployables rather than the
 site alone.
 
