@@ -1947,7 +1947,9 @@ function constraintAdmitsScalar(
   if (g.uniq || 0 < g.uniqBy.length + g.contains.length) {
     return false
   }
-  if (null != (g as any).count) {
+  const count = (g as any).count
+  if (null != count && (!stringishLeaf(scalar) ||
+    !stateAdmits(count, countVal([...scalar.peg].length)))) {
     return false
   }
   const ga: any = g
@@ -1959,6 +1961,12 @@ function constraintAdmitsScalar(
   }
   return stateAdmits(g as any, scalar) &&
     g.fmts.every((f: FormatAtom) => undefined === formatWhy(f, scalar.peg))
+}
+
+
+function constraintAdmitsSize(g: ConstraintVal, n: number): boolean {
+  const count = (g as any).count
+  return null == count || stateAdmits(count, countVal(n))
 }
 
 
@@ -2385,6 +2393,7 @@ export {
   constraintSubsumesConstraint,
   constraintSubsumesKind,
   constraintAdmitsScalar,
+  constraintAdmitsSize,
   ConstraintVal,
   MinConstraintVal,
   MaxConstraintVal,

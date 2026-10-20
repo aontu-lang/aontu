@@ -8,6 +8,31 @@ each change affects.
 
 ## Unreleased
 
+### `subsume` names a failing case for every no
+
+Both implementations (#375, #384, #408).
+
+- `does_not_subsume` now stands only on a failing case, a value the
+  specific side admits and the general side refuses. Where no rule
+  decides a pair, the walk looks for one among a few values of each
+  kind, a sample of each named format, either side's ends, excluded
+  values, divisors and patterns, and two lists. Where it finds none,
+  the answer is `undecided` with the new reason code `sub_no_witness`,
+  where it used to be `does_not_subsume`. `re("^a") ⊒ re("^ab")` and
+  `string ⊒ format("email")` are two such pairs.
+- `string` covers a residual that refuses `""` and whose lower end
+  starts after `.`, as no path's spelling does: `string ⊒ min("a")`
+  subsumes. A residual covers `string` where nothing in it refuses a
+  non-empty string: `above("") ⊒ string` subsumes. `string ⊒ above("")`
+  stays `does_not_subsume`, since `above("")` admits `path(.x)`.
+- A length demand admits a string or a path of its length:
+  `len(2) ⊒ "xy"` subsumes, as `len(2) & "xy"` already evaluated.
+- A spread on the general side no longer fails a sealed specific side
+  that has no spread of its own: `{&: integer} ⊒ close({x: integer})`
+  subsumes. The nine rows of `spec/ledger.tsv` that held this retire,
+  and the ledger's bound falls to 108.
+- The Go port no longer panics on a `format()` residual over a number.
+
 ### The transparency-log client is in both implementations
 
 Both implementations (G10 phase 2).

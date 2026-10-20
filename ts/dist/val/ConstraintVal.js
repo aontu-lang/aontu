@@ -8,6 +8,7 @@ exports.pendingNof = pendingNof;
 exports.constraintSubsumesConstraint = constraintSubsumesConstraint;
 exports.constraintSubsumesKind = constraintSubsumesKind;
 exports.constraintAdmitsScalar = constraintAdmitsScalar;
+exports.constraintAdmitsSize = constraintAdmitsSize;
 const type_1 = require("../type");
 const utility_1 = require("../utility");
 const Val_1 = require("./Val");
@@ -1574,7 +1575,9 @@ function constraintAdmitsScalar(g, scalar) {
     if (g.uniq || 0 < g.uniqBy.length + g.contains.length) {
         return false;
     }
-    if (null != g.count) {
+    const count = g.count;
+    if (null != count && (!stringishLeaf(scalar) ||
+        !stateAdmits(count, countVal([...scalar.peg].length)))) {
         return false;
     }
     const ga = g;
@@ -1586,6 +1589,10 @@ function constraintAdmitsScalar(g, scalar) {
     }
     return stateAdmits(g, scalar) &&
         g.fmts.every((f) => undefined === formatWhy(f, scalar.peg));
+}
+function constraintAdmitsSize(g, n) {
+    const count = g.count;
+    return null == count || stateAdmits(count, countVal(n));
 }
 function stateAdmits(s, peer) {
     return undefined === stateRefuser(s, peer);
