@@ -8,6 +8,22 @@ each change affects.
 
 ## Unreleased
 
+### A rider's record is no export loss
+
+Both implementations
+([ADR-074](ADR.md#adr-074--what-a-riders-record-holds-is-no-export-loss)).
+
+- `aontu jsonschema` reports no loss for what a `meta()` or `ident()`
+  record holds. A convention holding another kind of data, a key naming
+  a JSON Schema keyword, a key the schema writes already or the
+  declarations gave several values, the record of a definition whose
+  uses are written as another, an `$id` a `$ref` inside would resolve
+  against, an anchor its resource already holds, and a dynamic reference
+  written as its `$ref` are left out of the schema without a report,
+  where the entries below report them.
+- An export whose only losses were in records is `ok`, and `--strict`
+  passes it. Each schema is the one it was.
+
 ### An `ident()` record takes any key
 
 Both implementations
