@@ -23,7 +23,8 @@ Both implementations
   holding anything else as a loss. Any other key becomes a keyword of
   its own name on the definition; a JSON Schema keyword, a keyword the
   definition writes already, and a key the declarations gave several
-  values are reported losses.
+  values are reported losses, as is every key of a definition left
+  unwritten because another that says the same is written for its uses.
 
 ### A `meta()` record takes any key
 
