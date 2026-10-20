@@ -5351,9 +5351,10 @@ The language needs only the power to represent a JSON Schema: what
 Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker
 of step 17 reads unmade. And its rows for `subsume` test the `values`
-profile alone: step 10 states the contracts of `defaults` and `gen`,
-but which values count as a default is still open, and the marks
-`gen` compares aren't terms yet. None of those has a rule yet.
+profile alone, since the contracts of `defaults` and `gen` that step
+10 states are still to change: `defaults` to count only a default a
+term declares, and `gen` to read the marks as terms. None of those has
+a rule yet.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

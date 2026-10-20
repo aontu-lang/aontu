@@ -74,8 +74,8 @@ network.
 ## What it does not yet hold
 
 None of these has a rule here, so the definition says nothing about
-it. Each waits on a later phase of the plan, on a decision of its §7,
-or, where neither owns it, on the issue that tracks it:
+it. Each waits on a later phase of the plan, on a ruling of its §7
+not yet built, or, where neither owns it, on the issue that tracks it:
 
 - each read mode's reading of a number, and the exactness budget of a
   big decimal (P1);
@@ -84,14 +84,19 @@ or, where neither owns it, on the issue that tracks it:
   unmade: P3 and P4 landed without it (#403);
 - two recursions of one shape under different names, which the order
   leaves undecided, and the rows of the `defaults` and `gen` profiles,
-  whose contracts stand but whose rows wait on decisions 11 and 12, the
-  generated rows running under `values` meanwhile (P5);
+  which wait on rulings 11 and 12, `defaults` to count only a default
+  a term declares and the ports to answer `undecided` where no case
+  fails; the generated rows run under `values` meanwhile (P5);
 - the forms the importer writes that the definition lacks, each in
-  `forms-outside.tsv` on its decision: `key()` at a position (13), the
-  riders `meta()`, `ident()` and `deprecate()` (14), and the words
-  `map` and `list` (15);
-- the marks `hide()` and `type()`, which are no terms of the syntax:
-  the `gen` profile reads them as a predicate (decision 10).
+  `forms-outside.tsv` on its ruling: `key()` at a position, a term
+  narrowed to the key a spread is tried on (13), the riders `meta()`,
+  `ident()` and `deprecate()` as transparent forms (14), and the words
+  `map` and `list` as kinds (15);
+- the marks `hide()` and `type()`, which are no terms of the syntax
+  yet: the `gen` profile reads them as a predicate until they enter
+  as the riders do (ruling 10);
+- a container literal longer than its size allows, which the meet is
+  to refuse as a conflict of the schema (ruling 9).
 
 The rest of the language is in no phase of the plan yet: generation
 (`each`, `pack`, `emit`), arithmetic and aggregates, the text and
