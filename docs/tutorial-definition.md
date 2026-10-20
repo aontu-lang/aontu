@@ -2131,6 +2131,48 @@ $ aontu -c lists.aontu
 The list stays open, so it admits `true`, past its two positions. The
 spread holds every element, and stays, as a map's does.
 
+The words `map` and `list` are the kinds of the containers, as `string`
+is the kind of the strings: `map` admits every map, and `list` every
+list. Each has a rule for what it admits and one for what it refuses:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  | mapKind {fs : List (String × Data)} : Judge env root true .mapKind (.map fs)
+  | mapKindNot {j : Data} : (∀ fs, j ≠ .map fs) → Judge env root false .mapKind j
+  | listKind {xs : List Data} : Judge env root true .listKind (.list xs)
+  | listKindNot {j : Data} : (∀ xs, j ≠ .list xs) → Judge env root false .listKind j
+```
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `map` admits every map, `{"x": 1}` among them. -/
+example : Instance .empty .mapKind (.map [("x", .integer 1)]) := ⟨by decide, .mapKind⟩
+
+/-- `list` refuses `{}`: it admits lists alone. -/
+example : ¬ Instance .empty .listKind (.map []) := fun ⟨_, h⟩ => nomatch h
+```
+
+A kind admits what the open `{}` or `[]` admits, and the order of step
+10 says so in both directions. What sets the two apart is what
+evaluation singles out, in step 13: `{}` is `{}`, and `map` is nothing,
+as `boolean` is nothing. Met with a value of its kind, a kind is that
+value. Write `kinds.aontu`:
+
+<!-- test: scenario kinds -->
+<!-- test: file kinds.aontu -->
+```aontu
+map: map & { a:1 }
+list: list & [1 2]
+```
+
+and run it:
+
+<!-- test: run -->
+```sh
+$ aontu -c kinds.aontu
+{"list":[1,2],"map":{"a":1}}
+```
+
 ## 7. Conjunction
 
 <!-- test: quote spec/Aontu/Admits.lean -->
@@ -3426,7 +3468,7 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
-  | .number | .string | .anyString | .boolean | .any => .any
+  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .any => .any
   | .nil => .nil
   | .lit (.num x) => x.leaf.kind
   | .lit (.str s) => if s = "" then .anyString else .string
@@ -3619,8 +3661,9 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
     (Gen env root a j ∧ Admits env root b j) ∨
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _
-  | .anyString, _ | .boolean, _ | .min _, _ | .max _, _ | .above _, _ | .beneath _, _
-  | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _ | .re _, _ | .format _, _
+  | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .min _, _ | .max _, _
+  | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
+  | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _ => False
 ```
@@ -4777,6 +4820,8 @@ inductive Val.Checkable : Val → Prop
   | string : Checkable .string
   | anyString : Checkable .anyString
   | boolean : Checkable .boolean
+  | mapKind : Checkable .mapKind
+  | listKind : Checkable .listKind
   | lit {s : Scalar} : Checkable (.lit s)
   | min {b : Bound} : Checkable (.min b)
   | max {b : Bound} : Checkable (.max b)
@@ -5267,13 +5312,12 @@ key	call	13	the key of the member a spread holds, as `match(key(0), …)` for `p
 ident	call	14	the identity a schema gave an alias's value, its `$id`, its anchors and its `$defs` key, riding the declaration
 meta	call	14	the annotation keywords, and the keywords the dialect does not define, riding a value
 deprecate	call	14	`deprecated: true`, riding a value
-map	word	15	`type: object` with no other keyword: every map, which evaluation does not single out, where `{}` is singled out as itself
-list	word	15	`type: array` with no other keyword: every list, which evaluation does not single out, where `[]` is singled out as itself
 ```
 
-Six forms, each on a decision of the design note, and the test requires
-each still written, so a form that enters the definition leaves the
-file. One schema writes all six. Write `shape.json`:
+Four forms, each on a decision of the design note, and the test
+requires each still written, so a form that enters the definition leaves
+the file, as `map` and `list` did when they became the kinds of step 6.
+One schema writes all four, and both words. Write `shape.json`:
 
 <!-- test: scenario forms -->
 <!-- test: file shape.json -->
@@ -5316,13 +5360,10 @@ admits, which is why the definition says nothing about them yet (step
 20); decision 14 asks whether they enter the syntax as forms whose
 judgement is their value's own. `key(0)` is the key of the member the
 spread is tried on, which no rule of the definition reads; decision 13
-asks for the one rule. `map` and `list` admit every map and every
-list, as `{}` and `[]` do, and both engines refuse to generate them
-where `{}` generates `{}`; decision 15 asks whether they are kinds,
-beside `string` and `number`. Everything else the import wrote,
-`empty()`, `re`, `match`, `any`, `nil`, the optional keys and the
-spread, is a row of `spec/forms.tsv`, and so is everything the importer
-writes over the three corpora.
+asks for the one rule. Everything else the import wrote, the kinds
+`map` and `list`, `empty()`, `re`, `match`, `any`, `nil`, the optional
+keys and the spread, is a row of `spec/forms.tsv`, and so is everything
+the importer writes over the three corpora.
 
 ## 20. What the definition doesn't say yet
 
@@ -5346,7 +5387,7 @@ Nor does it name JSON Schema, which isn't a concept of the language.
 The language needs only the power to represent a JSON Schema: what
 `aontu jsonschema import` writes is aontu terms, such as
 `number & mulof(1)`, and the definition says what those mean. Step
-19 checks that it does, but for the six forms that step lists.
+19 checks that it does, but for the four forms that step lists.
 
 Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker

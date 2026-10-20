@@ -681,6 +681,16 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 
 	// Maps.
 	if gm, ok := g.(*MapVal); ok {
+		if _, ok := s.(*MapKindVal); ok {
+			keys := fieldKeys(gm)
+			refused := gm.closed
+			for _, k := range keys {
+				refused = refused || !contains(gm.optional, k)
+			}
+			return subOverKind(st, path, g, s, refused, keys,
+				func(k string) Val { return gm.peg[k] }, gm.spread,
+				"the general map refuses a map the specific kind admits")
+		}
 		sm, ok := s.(*MapVal)
 		if !ok {
 			st.record("compat_narrowed", path, g, s,
@@ -704,6 +714,11 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 
 	// Lists: element-wise by position, positions as keys.
 	if gl, ok := g.(*ListVal); ok {
+		if _, ok := s.(*ListKindVal); ok {
+			return subOverKind(st, path, g, s,
+				0 < len(gl.peg) || (gl.closed && nil == gl.spread), nil, nil, gl.spread,
+				"the general list refuses a list the specific kind admits")
+		}
 		sl, ok := s.(*ListVal)
 		if !ok {
 			st.record("compat_narrowed", path, g, s,
@@ -722,6 +737,27 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	st.record("sub_unresolved", path, g, s,
 		"no subsumption rule covers this pair of value formers")
 	return subUndecided
+}
+
+// subOverKind: each outright refusal has a failing case the kind admits,
+// and members and the spread are held to `any`. Mirrors overKind in
+// ts/src/subsume.ts, which names the cases.
+func subOverKind(st *subState, path []string, g, s Val, refused bool,
+	keys []string, child func(string) Val, spread Val, message string) string {
+	if refused {
+		st.record("compat_narrowed", path, g, s, message)
+		return subNo
+	}
+	out := subYes
+	for _, k := range keys {
+		kp := append(append([]string{}, path...), k)
+		out = subWorse(out, subsumeNode(st, kp, child(k), top()))
+	}
+	if nil != spread {
+		kp := append(append([]string{}, path...), "&")
+		out = subWorse(out, subsumeNode(st, kp, spread, top()))
+	}
+	return out
 }
 
 // subsumeRecursion reads a recursion as the definition it names,

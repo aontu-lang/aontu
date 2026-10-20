@@ -101,8 +101,8 @@ func readOutsideForms(t *testing.T, forms map[string]bool) []*outsideForm {
 		}
 		outside = append(outside, &outsideForm{text: cols[0], kind: cols[1], decision: cols[2], what: cols[3]})
 	}
-	if 6 < len(outside) {
-		t.Fatalf("spec/forms-outside.tsv holds %d rows, past its bound of 6", len(outside))
+	if 4 < len(outside) {
+		t.Fatalf("spec/forms-outside.tsv holds %d rows, past its bound of 4", len(outside))
 	}
 	return outside
 }

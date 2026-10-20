@@ -10,6 +10,9 @@
 # definition's own; a pair the definition leaves undecided has no row.
 # Regenerate with `make spec`; never edit by hand. The cases the ports do
 # not yet answer this way are listed in spec/ledger.tsv.
+# The words `map` and `list` follow in rows m0 on, each against the empty map
+# and list, a map and a list open and sealed, a spread on each, the ends,
+# `string` and `integer`.
 s0	subsumption	v: any	v: any	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
 s1	subsumption	v: any	v: nil	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
 s2	subsumption	v: any	v: integer	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
@@ -3274,3 +3277,63 @@ s3260	subsumption	v: mulof(4)	v: [&: integer]	{"verdict":["does_not_subsume","un
 s3261	subsumption	v: mulof(4)	v: [integer, &: integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
 s3262	subsumption	v: mulof(4)	v: mulof(2)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
 s3263	subsumption	v: mulof(4)	v: mulof(4)	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m0	subsumption	v: map	v: map	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m1	subsumption	v: map	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m2	subsumption	v: map	v: {}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m3	subsumption	v: map	v: []	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m4	subsumption	v: map	v: {"x": integer}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m5	subsumption	v: map	v: {"x"?: integer}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m6	subsumption	v: map	v: close({"x": integer})	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m7	subsumption	v: map	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m8	subsumption	v: map	v: close([integer])	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m9	subsumption	v: map	v: close([])	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m10	subsumption	v: map	v: {&: integer}	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m11	subsumption	v: map	v: [&: integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m12	subsumption	v: map	v: any	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m13	subsumption	v: map	v: nil	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m14	subsumption	v: map	v: string	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m15	subsumption	v: map	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m16	subsumption	v: list	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m17	subsumption	v: list	v: list	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m18	subsumption	v: list	v: {}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m19	subsumption	v: list	v: []	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m20	subsumption	v: list	v: {"x": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m21	subsumption	v: list	v: {"x"?: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m22	subsumption	v: list	v: close({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m23	subsumption	v: list	v: [integer]	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m24	subsumption	v: list	v: close([integer])	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m25	subsumption	v: list	v: close([])	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m26	subsumption	v: list	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m27	subsumption	v: list	v: [&: integer]	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m28	subsumption	v: list	v: any	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m29	subsumption	v: list	v: nil	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m30	subsumption	v: list	v: string	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m31	subsumption	v: list	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m32	subsumption	v: {}	v: map	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m33	subsumption	v: {}	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m34	subsumption	v: []	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m35	subsumption	v: []	v: list	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m36	subsumption	v: {"x": integer}	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m37	subsumption	v: {"x": integer}	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m38	subsumption	v: {"x"?: integer}	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m39	subsumption	v: {"x"?: integer}	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m40	subsumption	v: close({"x": integer})	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m41	subsumption	v: close({"x": integer})	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m42	subsumption	v: [integer]	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m43	subsumption	v: [integer]	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m44	subsumption	v: close([integer])	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m45	subsumption	v: close([integer])	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m46	subsumption	v: close([])	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m47	subsumption	v: close([])	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m48	subsumption	v: {&: integer}	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m49	subsumption	v: {&: integer}	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m50	subsumption	v: [&: integer]	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m51	subsumption	v: [&: integer]	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m52	subsumption	v: any	v: map	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m53	subsumption	v: any	v: list	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+m54	subsumption	v: nil	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m55	subsumption	v: nil	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m56	subsumption	v: string	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m57	subsumption	v: string	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m58	subsumption	v: integer	v: map	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+m59	subsumption	v: integer	v: list	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}

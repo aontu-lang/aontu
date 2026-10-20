@@ -6,6 +6,7 @@ import Aontu.Meet
 import Aontu.Output
 import Aontu.Verdict
 import Aontu.Paths
+import Aontu.Subsume
 
 /-!
 # The tour's examples
@@ -481,6 +482,18 @@ example : ¬ Instance .empty (.list [] (some .integer) false) (.list [.integer 1
   rintro ⟨-, h⟩
   cases h with
   | list _ _ _ hs => nomatch hs .integer rfl (.str "a") (by simp)
+
+/-! ## The container kinds -/
+
+/-- `map` admits every map, `{"x": 1}` among them. -/
+example : Instance .empty .mapKind (.map [("x", .integer 1)]) := ⟨by decide, .mapKind⟩
+
+/-- `list` refuses `{}`: it admits lists alone. -/
+example : ¬ Instance .empty .listKind (.map []) := fun ⟨_, h⟩ => nomatch h
+
+/-- `map` and `{}` admit the same values. -/
+example : Le .empty .mapKind (.map [] none false) ∧ Le .empty (.map [] none false) .mapKind :=
+  ⟨mapKind_le_open_map, map_le_mapKind [] none false⟩
 
 /-! ## Conjunction -/
 

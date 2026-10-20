@@ -94,8 +94,8 @@ function corpora(): Corpus[] {
 function readOutside(forms: Set<string>): Outside[] {
   const outside = rows(Path.join(SPEC, 'forms-outside.tsv'))
     .map(([text, kind, decision, what]) => ({ text, kind, decision, what, used: false }))
-  Assert.ok(outside.length <= 6,
-    `spec/forms-outside.tsv holds ${outside.length} rows, past its bound of 6`)
+  Assert.ok(outside.length <= 4,
+    `spec/forms-outside.tsv holds ${outside.length} rows, past its bound of 4`)
   for (const o of outside) {
     Assert.ok(('call' === o.kind || 'word' === o.kind) && /^[0-9]+$/.test(o.decision) && '' !== o.what,
       `a row of spec/forms-outside.tsv names a call or word, a decision and a reason: ${o.text}`)

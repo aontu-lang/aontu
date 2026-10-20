@@ -126,6 +126,8 @@ def Val.doms : Val → List Dom
   | .integer | .float | .biginteger | .bigdecimal | .number => [.num]
   | .string | .anyString => [.str]
   | .boolean => [.bool]
+  | .mapKind => [.map]
+  | .listKind => [.list]
   | .lit (.num _) => [.num]
   | .lit (.str _) => [.str]
   | .lit (.bool _) => [.bool]

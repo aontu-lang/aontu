@@ -142,6 +142,8 @@ def Val.src : Val → Option String
   | .string => some "string"
   | .anyString => some "string & empty()"
   | .boolean => some "boolean"
+  | .mapKind => some "map"
+  | .listKind => some "list"
   | .lit s => s.src
   | .min b => do pure s!"min({← b.src})"
   | .max b => do pure s!"max({← b.src})"

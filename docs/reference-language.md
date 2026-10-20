@@ -612,7 +612,7 @@ explicitly supplied empty map satisfies the kind), and subsume their
 containers (`map` subsumes `{a:1}`). Pinned by
 [`test/spec/containerkind.tsv`](../test/spec/containerkind.tsv).
 
-The words `map` and `list` are no terms of the definition yet. They are to enter it as kinds, which admit by kind and are not singled out, beside `{}` and `[]`, which are singled out as themselves.
+In the definition the words `map` and `list` are kinds, `mapKind` and `listKind` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), each admitting by kind and never singled out. They admit what the open `{}` and `[]` admit, which are singled out as themselves: `map_le_mapKind` and `mapKind_le_open_map` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), and the same for lists.
 
 ## Conjunction `&`
 
@@ -5053,8 +5053,10 @@ generable documents materialise differently or become incomplete.
 | constraint residual | scalar | membership, with `must` again `undecided`; `unique()` admits no scalar, and a length demand admits a string or a path whose length in code points it admits |
 | constraint residual | map or list | `compat_narrowed` where the residual has a domain, which holds no container; a size or a uniqueness alone is `undecided`, with reason `sub_no_witness`, since the walk counts no members |
 | concrete scalar | concrete scalar | identity: a concrete value subsumes only itself (kind included) |
-| map | map | see below; anything else is `compat_narrowed` |
+| map | map | see below; a specific value that is neither a map nor `map` is `compat_narrowed` |
 | list | list | element-wise by position, with the same required/optional shape as maps |
+| `map` or `list` | a container of its kind, or the kind | yes: `map` admits every map and `list` every list; anything else is `compat_narrowed` |
+| map or list | `map` or `list` | `compat_narrowed` where A requires a key or a position, is a sealed map, or is a sealed list with no spread, since each refuses a value the kind admits. Otherwise each member and the spread is held to `any`: `{}`, `[]` and `{x?: any}` subsume their kinds, and a member with no failing case, as in `{x?: len(2)} ⊒ map`, is `undecided` (`sub_no_witness`) |
 
 **A `nil` admits nothing.** An error-free evaluated document holds a
 `nil` only where it forbids: an optional key holding `nil` forbids the

@@ -296,6 +296,8 @@ inductive Val.Checkable : Val → Prop
   | string : Checkable .string
   | anyString : Checkable .anyString
   | boolean : Checkable .boolean
+  | mapKind : Checkable .mapKind
+  | listKind : Checkable .listKind
   | lit {s : Scalar} : Checkable (.lit s)
   | min {b : Bound} : Checkable (.min b)
   | max {b : Bound} : Checkable (.max b)
@@ -376,6 +378,8 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .string => ⟨fun _ => .string, fun _ => rfl⟩
   | .anyString => ⟨fun _ => .anyString, fun _ => rfl⟩
   | .boolean => ⟨fun _ => .boolean, fun _ => rfl⟩
+  | .mapKind => ⟨fun _ => .mapKind, fun _ => rfl⟩
+  | .listKind => ⟨fun _ => .listKind, fun _ => rfl⟩
   | .lit _ => ⟨fun _ => .lit, fun _ => rfl⟩
   | .min _ => ⟨fun _ => .min, fun _ => rfl⟩
   | .max _ => ⟨fun _ => .max, fun _ => rfl⟩
@@ -926,6 +930,8 @@ inductive Val.CheckableA : Val → Prop
   | string : CheckableA .string
   | anyString : CheckableA .anyString
   | boolean : CheckableA .boolean
+  | mapKind : CheckableA .mapKind
+  | listKind : CheckableA .listKind
   | lit {s : Scalar} : CheckableA (.lit s)
   | min {b : Bound} : CheckableA (.min b)
   | max {b : Bound} : CheckableA (.max b)
@@ -1007,6 +1013,8 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .string => ⟨fun _ => .string, fun _ => rfl⟩
   | .anyString => ⟨fun _ => .anyString, fun _ => rfl⟩
   | .boolean => ⟨fun _ => .boolean, fun _ => rfl⟩
+  | .mapKind => ⟨fun _ => .mapKind, fun _ => rfl⟩
+  | .listKind => ⟨fun _ => .listKind, fun _ => rfl⟩
   | .lit _ => ⟨fun _ => .lit, fun _ => rfl⟩
   | .min _ => ⟨fun _ => .min, fun _ => rfl⟩
   | .max _ => ⟨fun _ => .max, fun _ => rfl⟩
@@ -1133,6 +1141,8 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | string => exact .string
   | anyString => exact .anyString
   | boolean => exact .boolean
+  | mapKind => exact .mapKind
+  | listKind => exact .listKind
   | lit => exact .lit
   | min => exact .min
   | max => exact .max
@@ -1306,6 +1316,12 @@ def checkWith (u : String → Data → Bool) : Val → Data → Bool
   | .boolean, j => match j with
     | .bool _ => true
     | _ => false
+  | .mapKind, j => match j with
+    | .map _ => true
+    | _ => false
+  | .listKind, j => match j with
+    | .list _ => true
+    | _ => false
   | .lit s, j => match s, j with
     | .num x, .num y => decide (x = y)
     | .str s, .str s' => decide (s = s')
@@ -1430,7 +1446,8 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
   | .integer, j | .float, j | .biginteger, j | .bigdecimal, j => match j with
     | .num _ => true
     | _ => false
-  | .number, _ | .string, _ | .anyString, _ | .boolean, _ | .any, _ => true
+  | .number, _ | .string, _ | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _
+  | .any, _ => true
   | .nil, _ => false
   | .lit s, j => match s, j with
     | .num x, .num y => decide (x.leaf = y.leaf)
@@ -2064,6 +2081,16 @@ theorem judge_boolean (j : Data) : Judge env root (checkWith u .boolean j) .bool
   | bool b => exact .boolean
   | _ => exact .booleanNot fun _ h => nomatch h
 
+theorem judge_mapKind (j : Data) : Judge env root (checkWith u .mapKind j) .mapKind j := by
+  cases j with
+  | map fs => exact .mapKind
+  | _ => exact .mapKindNot fun _ h => nomatch h
+
+theorem judge_listKind (j : Data) : Judge env root (checkWith u .listKind j) .listKind j := by
+  cases j with
+  | list xs => exact .listKind
+  | _ => exact .listKindNot fun _ h => nomatch h
+
 /-- The checker judges a kind as the definition does. -/
 theorem check_kind_judge {v : Val} (hk : v.isKind = true) (j : Data) :
     Judge env root (checkWith u v j) v j := by
@@ -2089,7 +2116,7 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     cases j with
     | num x => exact .number
     | _ => exact .numberNot fun _ h => nomatch h
-  | number | string | anyString | boolean | any => intro j _; exact .any
+  | number | string | anyString | boolean | mapKind | listKind | any => intro j _; exact .any
   | nil => intro j _; exact .nil
   | @lit s =>
     intro j _
@@ -2282,6 +2309,8 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
   | string => intro j _; exact judge_string j
   | anyString => intro j _; exact judge_anyString j
   | boolean => intro j _; exact judge_boolean j
+  | mapKind => intro j _; exact judge_mapKind j
+  | listKind => intro j _; exact judge_listKind j
   | @lit s =>
     intro j _
     cases s with

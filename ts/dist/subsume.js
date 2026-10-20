@@ -417,6 +417,10 @@ function subsumeNode(state, path, g0, s0) {
     }
     // Maps.
     if (true === g?.isMap) {
+        if (true === s?.isMapKind) {
+            const keys = fieldKeys(g);
+            return overKind(state, path, g, s, true === g.closed || keys.some((k) => !g.optionalKeys.includes(k)), keys.map((k) => [k, g.peg[k]]), 'the general map refuses a map the specific kind admits');
+        }
         if (true !== s?.isMap) {
             record(state, 'compat_narrowed', path, g, s, 'the general value is a map and the specific value is not');
             return 'no';
@@ -428,6 +432,9 @@ function subsumeNode(state, path, g0, s0) {
     // Lists: element-wise by position; the same required/optional shape
     // as maps, with positions as keys.
     if (true === g?.isList) {
+        if (true === s?.isListKind) {
+            return overKind(state, path, g, s, 0 < g.peg.length || (true === g.closed && null == g.spread?.cj), [], 'the general list refuses a list the specific kind admits');
+        }
         if (true !== s?.isList) {
             record(state, 'compat_narrowed', path, g, s, 'the general value is a list and the specific value is not');
             return 'no';
@@ -441,6 +448,23 @@ function subsumeNode(state, path, g0, s0) {
     }
     record(state, 'sub_unresolved', path, g, s, 'no subsumption rule covers this pair of value formers');
     return 'undecided';
+}
+// Each outright refusal has a failing case the kind admits: `{}`, `[]`,
+// a fresh key past a map's seal, even under a spread, and `[1]` past a
+// list's seal with no spread. Members and the spread are held to `any`.
+function overKind(state, path, g, s, refused, members, message) {
+    if (refused) {
+        record(state, 'compat_narrowed', path, g, s, message);
+        return 'no';
+    }
+    let out = 'yes';
+    for (const [k, v] of [...members, ['&', g.spread?.cj]]) {
+        const r = null == v ? 'yes' : subsumeNode(state, [...path, k], v, topLike());
+        if ('no' === r || ('undecided' === r && 'no' !== out)) {
+            out = r;
+        }
+    }
+    return out;
 }
 // A recursion is the definition it names, unfolded against its own
 // document (sketch/RECURSION.0.md, P3). One met again before the

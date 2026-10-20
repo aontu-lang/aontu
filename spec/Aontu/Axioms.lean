@@ -299,6 +299,22 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.list_le_spread
 
+/-- info: 'Aontu.map_le_mapKind' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.map_le_mapKind
+
+/-- info: 'Aontu.list_le_listKind' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.list_le_listKind
+
+/-- info: 'Aontu.mapKind_le_open_map' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.mapKind_le_open_map
+
+/-- info: 'Aontu.listKind_le_open_list' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.listKind_le_open_list
+
 /-- info: 'Aontu.mulof_le_mulof' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.mulof_le_mulof

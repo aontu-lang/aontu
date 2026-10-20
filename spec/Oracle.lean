@@ -1077,24 +1077,84 @@ theorem subsume_rows_exact : ∀ g ∈ subVals, ∀ s ∈ subVals,
     not_le_of_witness (subVals_checkable s hs) (subVals_checkable g hg)
       (subInstances_wellFormed j hj) h1 h2⟩
 
-/-- The `subsumption` rows: each pair of values under the key `v`, the
-general first, with the answers the `values` contract allows; a pair the
-definition leaves undecided has no row. -/
-def subsumeRows (tag : String) : IO Unit := do
+/-- The `subsumption` rows of some pairs of values, each under the key `v`,
+the general first, with the answers the `values` contract allows; a pair
+the definition leaves undecided has no row. -/
+def subsumePairRows (tag : String) (pairs : List (Val × Val)) : IO Unit := do
   let mut i := 0
-  for g in subVals do
+  for (g, s) in pairs do
     let some gsrc := g.src | throw (IO.userError "a value of the fragment has no text")
-    for s in subVals do
-      let some ssrc := s.src | throw (IO.userError "a value of the fragment has no text")
-      let want? : Option String :=
-        if (leDecF .empty 64 s g).isSome then some "[\"subsumes\",\"undecided\"]"
-        else if subInstances.any (fun j => check s j && !(check g j)) then
-          some "[\"does_not_subsume\",\"undecided\"]"
-        else none
-      if let some want := want? then
-        IO.println (tag ++ toString i ++ "\tsubsumption\tv: " ++ gsrc ++ "\tv: " ++ ssrc
-          ++ "\t{\"verdict\":" ++ want ++ ",\"opts\":{\"profile\":\"values\"}}")
-        i := i + 1
+    let some ssrc := s.src | throw (IO.userError "a value of the fragment has no text")
+    let want? : Option String :=
+      if (leDecF .empty 64 s g).isSome then some "[\"subsumes\",\"undecided\"]"
+      else if subInstances.any (fun j => check s j && !(check g j)) then
+        some "[\"does_not_subsume\",\"undecided\"]"
+      else none
+    if let some want := want? then
+      IO.println (tag ++ toString i ++ "\tsubsumption\tv: " ++ gsrc ++ "\tv: " ++ ssrc
+        ++ "\t{\"verdict\":" ++ want ++ ",\"opts\":{\"profile\":\"values\"}}")
+      i := i + 1
+
+/-- The rows of the values `subVals` compares pairwise. -/
+def subsumeRows (tag : String) : IO Unit :=
+  subsumePairRows tag (subVals.flatMap fun g => subVals.map fun s => (g, s))
+
+/-! ## The words `map` and `list`
+
+The kinds of ruling 15 of `sketch/DEFINITION.0.md` §7, each alone, under
+a key, and met with a map, a list and `string`, as `verdict` rows against
+the first fragment's instances, rows k0 on in the first fragment's file;
+and in order against the empty map and list, open and sealed, a map and a
+list of each kind of seal, a spread on each, and the ends, as
+`subsumption` rows m0 on in the ninth fragment's file. -/
+
+def kindBases : List Val := [.mapKind, .listKind]
+
+def kindVals : List Val :=
+  kindBases ++ kindBases.flatMap (fun v => [field true v, field false v]) ++
+    kindBases.flatMap (fun k =>
+      [.meet k (field false .integer), .meet k (.list [.integer] none false), .meet k .string]) ++
+    [.meet .mapKind .listKind]
+
+theorem kindVals_checkableB : ∀ v ∈ kindVals, v.checkableB = true := by decide
+
+theorem kindVals_checkable : ∀ v ∈ kindVals, v.Checkable :=
+  fun v hv => (Val.checkableB_iff v).1 (kindVals_checkableB v hv)
+
+/-- Every row of the kinds is the definition's. -/
+theorem kind_verdict_exact {v : Val} (hv : v ∈ kindVals) {j : Data} (hj : j ∈ instances) :
+    check v j = true ↔ Instance Env.empty v j :=
+  ⟨fun h => ⟨instances_wellFormed j hj, (check_iff (kindVals_checkable v hv) j).mp h⟩,
+    fun h => (check_iff (kindVals_checkable v hv) j).mpr h.2⟩
+
+/-- The values the kinds are ordered against. -/
+def kindSubVals : List Val :=
+  kindBases ++ [.map [] none false, .list [] none false, field false .integer,
+    field true .integer, .map [("x", false, .integer)] none true, .list [.integer] none false,
+    .list [.integer] none true, .list [] none true, .map [] (some .integer) false,
+    .list [] (some .integer) false, .any, .nil, .string, .integer]
+
+def isWord : Val → Bool
+  | .mapKind | .listKind => true
+  | _ => false
+
+/-- The pairs with a kind on either side. -/
+def kindPairs : List (Val × Val) :=
+  kindSubVals.flatMap fun g =>
+    (kindSubVals.filter fun s => isWord g || isWord s).map fun s => (g, s)
+
+theorem kindSubVals_checkableB : ∀ v ∈ kindSubVals, v.checkableB = true := by decide
+
+/-- Every row of the kinds' order is the definition's, as
+`subsume_rows_exact` makes the ninth fragment's. -/
+theorem kind_subsume_rows_exact : ∀ g ∈ kindSubVals, ∀ s ∈ kindSubVals,
+    ((leDecF .empty 64 s g).isSome = true → s ⊑[.empty] g) ∧
+    (∀ j ∈ subInstances, check s j = true → check g j = false → ¬ s ⊑[.empty] g) := by
+  intro g hg s hs
+  exact ⟨leDecF_sound, fun j hj h1 h2 =>
+    not_le_of_witness ((Val.checkableB_iff s).1 (kindSubVals_checkableB s hs))
+      ((Val.checkableB_iff g).1 (kindSubVals_checkableB g hg))
+      (subInstances_wellFormed j hj) h1 h2⟩
 
 /-! ## The tenth fragment: the order on documents -/
 
@@ -1210,7 +1270,8 @@ def forms : List (String × String × String) :=
   [("integer", "word", "integer"), ("float", "word", "float"),
     ("biginteger", "word", "biginteger"), ("bigdecimal", "word", "bigdecimal"),
     ("number", "word", "number"), ("string", "word", "string"), ("anyString", "call", "empty"),
-    ("boolean", "word", "boolean"), ("lit", "word", "true"), ("lit", "word", "false"),
+    ("boolean", "word", "boolean"), ("mapKind", "word", "map"), ("listKind", "word", "list"),
+    ("lit", "word", "true"), ("lit", "word", "false"),
     ("lit", "word", "null"), ("min", "call", "min"), ("max", "call", "max"),
     ("above", "call", "above"), ("beneath", "call", "below"), ("neq", "call", "neq"),
     ("mulof", "call", "mulof"), ("len", "call", "len"), ("unique", "call", "unique"),
@@ -1272,7 +1333,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# Each row runs plain `vet`, its data written in aontu, exact numbers marked `0d`."
     IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
+    IO.println "# The words `map` and `list` follow in rows k0 on: each alone, under a key,"
+    IO.println "# and in a few meets (13 values), against all 24 instances."
     rows "c" vals [first, more]
+    rows "k" kindVals [instances]
     return 0
   | ["bounds"] =>
     IO.println "# Generated by `lake exe oracle bounds` (spec/Oracle.lean) from the definition"
@@ -1386,7 +1450,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# definition's own; a pair the definition leaves undecided has no row."
     IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
+    IO.println "# The words `map` and `list` follow in rows m0 on, each against the empty map"
+    IO.println "# and list, a map and a list open and sealed, a spread on each, the ends,"
+    IO.println "# `string` and `integer`."
     subsumeRows "s"
+    subsumePairRows "m" kindPairs
     return 0
   | ["trials"] =>
     IO.println "# Generated by `lake exe oracle trials` (spec/Oracle.lean) from the definition"
