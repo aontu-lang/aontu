@@ -151,5 +151,5 @@ without `gh`".
   complete when one can be estimated (`checks 12/32, 37%`), and an agent
   relays progress to its person at the same cadence. A silent task cannot
   be told from a hung one.
-- **Every prompt is logged** in [`sketch/PROMPT-LOG.md`](sketch/PROMPT-LOG.md)
-  before the work starts (ADR-076).
+- **Every prompt is logged** in [`sketch/PROMPT-LOG.md`](sketch/PROMPT-LOG.md),
+  secrets redacted, before the work starts (ADR-076).

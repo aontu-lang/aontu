@@ -106,3 +106,6 @@ go/metaschemas/** text eol=lf
 # they would then OVERRIDE the real grammar with a worse one.
 *.aontu   linguist-language=YAML -linguist-detectable
 *.aontu linguist-language=YAML -linguist-detectable
+# The prompt log only grows: two branches that each appended an entry
+# keep both (ADR-076).
+sketch/PROMPT-LOG.md merge=union

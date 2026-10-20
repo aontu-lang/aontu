@@ -1,19 +1,27 @@
 # Prompt log
 
-Every prompt given to an agent working in this repository, oldest
-first: when it was given, in UTC, the agent that took it, and the
+Every prompt given to an agent working in this repository, as
+appended: when it was given, in UTC, the agent that took it, and the
 prompt as it was written, typos included
 ([ADR-076](../ADR.md#adr-076--every-prompt-is-logged)).
 
-An agent appends the prompt it is given before it starts the work, and
-commits the entry with the first change that follows; a prompt that
-changes nothing, such as a question, rides the next commit. A prompt
-given while a turn is running is logged when it arrives. An entry is
-never rewritten.
-
-The agent is named by its tool and its session. A Claude Code
-session's commits carry the same session in their `Claude-Session`
-trailer.
+- **Append before the work starts**, and commit the entry with the
+  first change that follows. A session that ends holding entries and no
+  change commits them on a branch of their own. A prompt given while a
+  turn is running is logged when it arrives.
+- **Redact secrets.** A credential, token or key, or personal data, is
+  written as `[redacted: what it was]`. An entry found holding one is
+  redacted where it stands, the one rewrite allowed; a secret that
+  reached a push is revoked as well.
+- **Fence the prompt** with more backticks than the longest run of
+  backticks inside it, so a prompt holding a fence cannot end its own.
+- **Name the agent** by its tool and its session: a Claude Code
+  session's commits carry the same session in their `Claude-Session`
+  trailer. A tool with no session gives its run or task identifier, or
+  `no session id`.
+- **Branches merge.** `.gitattributes` gives this file git's `union`
+  merge, so two branches' appended entries both survive; their times
+  order them.
 
 The entries before 2026-10-20 16:45 were written from that session's
 transcript, with the times it recorded.
@@ -154,4 +162,10 @@ you need to record this process instruction - where will you record it?
 
 ```text
 establish a new process: all prompts must be recorded in a sketch/PROMPT-LOG.md file, recording date and time and agent
+```
+
+## 2026-10-20 16:53:47 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+write another file, at the top level, DEV-PROCESS.md, and record the prompt log process, and the unit test testing approach. move the STYLE-GUIDE.md to the top level, and add the use of it to the DEV-PROCESS.md; move all doc/design files into the new sketch folder. add the agent guides and DEV-PROCESS.md - all files in sketch are to be ignored - note this in the readme in the that folder. the doc folder should contain only valid and uptodate doc files -note this in DEV-PROCESS. make sure to reference DEV-PROCESS from AGENTS
 ```
