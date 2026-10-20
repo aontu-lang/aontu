@@ -1829,7 +1829,8 @@ function identityTexts(value: any, key: string): string[] {
 }
 
 function otherKeys(value: any): boolean {
-  return Object.keys(value.identity ?? {}).some((k) => !IDENTITY_KEYS.has(k))
+  const rec = value.identity ?? {}
+  return Object.keys(rec).some((k) => !IDENTITY_KEYS.has(k) || identityTexts(value, k).length < rec[k].length)
 }
 
 // A record's other keys, each a keyword of its own name on the schema its

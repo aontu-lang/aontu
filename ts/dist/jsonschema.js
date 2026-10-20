@@ -1509,7 +1509,8 @@ function identityTexts(value, key) {
     return (value.identity?.[key] ?? []).filter(isText).map((v) => v.peg);
 }
 function otherKeys(value) {
-    return Object.keys(value.identity ?? {}).some((k) => !IDENTITY_KEYS.has(k));
+    const rec = value.identity ?? {};
+    return Object.keys(rec).some((k) => !IDENTITY_KEYS.has(k) || identityTexts(value, k).length < rec[k].length);
 }
 // A record's other keys, each a keyword of its own name on the schema its
 // definitions are written as, unless it is a JSON Schema keyword, written

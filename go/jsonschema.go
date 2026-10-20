@@ -1238,10 +1238,10 @@ func identTexts(v Val, key string) []string {
 }
 
 // schemaHasOtherKeys is whether a declaration's record holds a key beyond
-// its identity.
+// its identity, or an identity key holding something other than text.
 func schemaHasOtherKeys(v Val) bool {
-	for k := range v.identRec() {
-		if !schemaIdentityKeys[k] {
+	for k, vs := range v.identRec() {
+		if !schemaIdentityKeys[k] || len(identTexts(v, k)) < len(vs) {
 			return true
 		}
 	}
