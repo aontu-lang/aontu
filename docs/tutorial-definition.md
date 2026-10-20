@@ -5353,7 +5353,7 @@ or read a selection inside a recursive name's body, which the checker
 of step 17 reads unmade. And its rows for `subsume` test the `values`
 profile alone: step 10 states the contracts of `defaults` and `gen`,
 but which values count as a default is still open, and the marks
-`gen` compares aren't terms yet. Those are later phases.
+`gen` compares aren't terms yet. None of those has a rule yet.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
