@@ -20,6 +20,7 @@ import { desugarTemplate, resugarTemplate } from '../dist/template'
 import { traceRun } from '../dist/trace'
 import { codeClasses } from '../dist/hints'
 import { canonRiders } from '../dist/utility'
+import { tlogRunGroup } from './tlog-vectors'
 import { IntegerVal } from '../dist/val/IntegerVal'
 import { StringVal } from '../dist/val/StringVal'
 import { BooleanVal } from '../dist/val/BooleanVal'
@@ -624,6 +625,9 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
   }
   else if ('hash' === row.mode) {
     Assert.strictEqual(canonHash(a0.unify(row.src, undefined, ctx)), row.expect)
+  }
+  else if ('tlog' === row.mode) {
+    Assert.deepStrictEqual(tlogRunGroup(row.src), JSON.parse(row.expect))
   }
   else if ('fmt' === row.mode) {
     const report: any = format(row.src)
