@@ -4,7 +4,12 @@ package aontu
 
 import (
 	"fmt"
+	"math"
+	"math/big"
+	"regexp"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // Subsume verdicts.
@@ -232,6 +237,221 @@ func subWorse(out, r string) string {
 	return subYes
 }
 
+const subNoWitness = "no failing case is found, and no rule decides the pair"
+
+var (
+	subProbeText = []string{"", "a", "0", " ", "~", "\u0000", "A", "z", "abc",
+		"a@b.co", "2020-01-01", "00:00:00Z", "2020-01-01T00:00:00Z", "P1D", "a.b",
+		"1.2.3.4", "::1", "http://a.b", "00000000-0000-0000-0000-000000000000", "/a"}
+	subProbePaths   = []string{".x", "$.x", "..x", ".a", ".z"}
+	subProbeNumbers = []float64{0, 1, -1, 2, 0.5, -0.5, 1.5}
+	subSampleToken  = regexp.MustCompile(`\[\^[^\]]*\]|\[\\?(.)[^\]]*\]|\\([dws])|\\(.)|\{[^}]*\}|\(\?:|[()*+?]|(\.)`)
+)
+
+// subRefute: a `does_not_subsume` names a failing case
+// (sketch/DEFINITION.0.md, §7), a value the specific side admits and the
+// general side refuses. Where the probes find none, the pair is
+// undecided. Mirrors refute in ts/src/subsume.ts.
+func subRefute(st *subState, path []string, g, s Val, message string) string {
+	if subListWitness(g, s) || subProbeWitness(st, path, g, s) {
+		st.record("compat_narrowed", path, g, s, message)
+		return subNo
+	}
+	st.record("sub_no_witness", path, g, s, subNoWitness)
+	return subUndecided
+}
+
+func subProbeWitness(st *subState, path []string, g, s Val) bool {
+	for _, c := range subProbes(g, s) {
+		if subYes == subTrial(st, path, s, c) && subNo == subTrial(st, path, g, c) {
+			return true
+		}
+	}
+	return false
+}
+
+// subListWitness: the empty list, or a pair of members only the general
+// side's uniqueness refuses.
+func subListWitness(g, s Val) bool {
+	sc, ok := s.(*ConstraintVal)
+	if !ok || !subSizesOnly(sc) {
+		return false
+	}
+	if constraintAdmitsSize(sc, 0) && subRefusesEmptyList(g) {
+		return true
+	}
+	gc, ok := g.(*ConstraintVal)
+	if !ok || !constraintAdmitsSize(sc, 2) {
+		return false
+	}
+	if gc.uniq && !sc.uniq && 0 == len(sc.uniqBy) {
+		return true
+	}
+	for _, k := range gc.uniqBy {
+		if !contains(sc.uniqBy, k) {
+			return true
+		}
+	}
+	return false
+}
+
+// subSizesOnly: a residual whose only demands on a container are its
+// size and the uniqueness of its members.
+func subSizesOnly(c *ConstraintVal) bool {
+	return "" == c.domain && !c.pathKind && 0 == c.bandBs()+len(c.contains)
+}
+
+// subRefusesEmptyList: a kind refuses the empty list, and so does a
+// residual with a domain, or one whose size demand refuses no members.
+func subRefusesEmptyList(g Val) bool {
+	c, ok := g.(*ConstraintVal)
+	return !ok || "" != c.domain || c.pathKind ||
+		(subSizesOnly(c) && !constraintAdmitsSize(c, 0))
+}
+
+// subProbes: a few scalars of each kind, a sample of each named format,
+// and the ends, excluded values, divisors and patterns of either
+// residual, with the numbers beside each end and the multiples beside
+// each divisor.
+func subProbes(g, s Val) []Val {
+	text := append([]string{}, subProbeText...)
+	nums := append([]float64{}, subProbeNumbers...)
+	var ends []float64
+	var rs []*ConstraintVal
+	for _, v := range []Val{g, s} {
+		if c, ok := v.(*ConstraintVal); ok {
+			rs = append(rs, c)
+		}
+	}
+	for _, r := range rs {
+		vals := append([]*ScalarVal{}, r.neqs...)
+		for _, b := range []*constraintBound{r.lo, r.hi} {
+			if nil != b {
+				vals = append(vals, b.v)
+			}
+		}
+		for _, v := range vals {
+			if t, ok := v.peg.(string); ok {
+				text = append(text, t, t+"a")
+				continue
+			}
+			n, _ := strconv.ParseFloat(fmt.Sprint(v.peg), 64)
+			ends = append(ends, n)
+		}
+		for _, re := range r.res {
+			text = append(text, subSampleOf(re.src))
+		}
+	}
+	for _, n := range ends {
+		nums = append(nums, n, n-1, n+1, n-0.5, n+0.5)
+	}
+	for _, r := range rs {
+		for _, d := range r.mults {
+			m, _ := strconv.ParseFloat(fmt.Sprint(d.peg), 64)
+			nums = append(nums, m, -m, 3*m)
+			for _, e := range ends {
+				c := math.Ceil(e/m) * m
+				nums = append(nums, c, c+m)
+			}
+		}
+	}
+	var out []Val
+	seen := map[string]bool{}
+	for _, t := range text {
+		if !seen[t] {
+			seen[t] = true
+			out = append(out, newString(t))
+		}
+	}
+	for _, p := range subProbePaths {
+		out = append(out, newPath(p))
+	}
+	seenN := map[float64]bool{}
+	for _, n := range nums {
+		if math.IsInf(n, 0) || math.IsNaN(n) || seenN[n] {
+			continue
+		}
+		seenN[n] = true
+		if n == math.Trunc(n) && math.Abs(n) <= 1<<53-1 {
+			out = append(out, newInteger(int64(n)), newBigInteger(big.NewInt(int64(n))))
+		}
+		out = append(out, newFloat(n))
+		// Only where JavaScript's String(n) writes no exponent, as the
+		// TypeScript twin builds its decimal from that text.
+		if a := math.Abs(n); 0 == a || (1e-6 <= a && a < 1e21) {
+			ip, fp, _ := strings.Cut(strconv.FormatFloat(a, 'f', -1, 64), ".")
+			d, _ := exactDecimal(n < 0, ip, fp, "")
+			out = append(out, newBigDecimal(d))
+		}
+	}
+	return append(out, newBoolean(true), newBoolean(false), newNull())
+}
+
+// subSampleOf: a string a simple pattern matches, its first alternative,
+// each class as its first member, each escape as a character it names,
+// and no quantifier, group or anchor.
+func subSampleOf(src string) string {
+	body := strings.SplitN(strings.TrimSuffix(strings.TrimPrefix(src, "^"), "$"), "|", 2)[0]
+	var b strings.Builder
+	last := 0
+	for _, m := range subSampleToken.FindAllStringSubmatchIndex(body, -1) {
+		b.WriteString(body[last:m[0]])
+		last = m[1]
+		switch {
+		case 0 <= m[2]:
+			b.WriteString(body[m[2]:m[3]])
+		case 0 <= m[4]:
+			b.WriteString(map[string]string{"d": "0", "w": "a", "s": " "}[body[m[4]:m[5]]])
+		case 0 <= m[6]:
+			b.WriteString(body[m[6]:m[7]])
+		case 0 <= m[8]:
+			b.WriteString("a")
+		}
+	}
+	b.WriteString(body[last:])
+	return b.String()
+}
+
+// subInsideString: a residual of the string domain is below `string`
+// where it refuses "" and every path, each spelled from `$` or `.`, so a
+// lower end that starts after `.` refuses them all.
+func subInsideString(s *ConstraintVal) bool {
+	if s.nonEmpty && !s.emptyOk {
+		return true
+	}
+	ok, und := constraintAdmitsScalarQ(s, newString(""))
+	if ok || und || nil == s.lo {
+		return false
+	}
+	lo, _ := s.lo.v.peg.(string)
+	r, n := utf8.DecodeRuneInString(lo)
+	return 0 < n && '.' < r
+}
+
+// subAboveString: a residual is above `string` where nothing in it
+// refuses a string the kind admits: no end but a lower one at "", no
+// excluded string the kind admits, and no pattern, format, size, leaf or
+// evaluated check.
+func subAboveString(g *ConstraintVal, strict bool) bool {
+	if ("" != g.domain && "string" != g.domain) || KindTop != g.kind || g.pathKind ||
+		nil != g.hi || nil != g.count || g.uniq ||
+		0 < len(g.uniqBy)+len(g.res)+len(g.fmts)+g.bandBs()+len(g.contains) {
+		return false
+	}
+	if nil != g.lo && !(KindString == g.lo.v.kind && "" == g.lo.v.peg && (strict || !g.lo.open)) {
+		return false
+	}
+	if !strict && g.nonEmpty && !g.emptyOk {
+		return false
+	}
+	for _, n := range g.neqs {
+		if KindString == n.kind && !(strict && "" == n.peg) {
+			return false
+		}
+	}
+	return true
+}
+
 func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	g := subAdmission(g0)
 	s := subAdmission(s0)
@@ -354,15 +574,14 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				return subYes
 			}
 			if "string" == sn.domain && KindString == gk.kind && !sn.pathKind &&
-				!(strict && !(sn.nonEmpty && !sn.emptyOk)) {
+				(!strict || subInsideString(sn)) {
 				return subYes
 			}
 			if KindPath == gk.kind && sn.pathKind {
 				return subYes
 			}
-			st.record("compat_narrowed", path, g, s,
+			return subRefute(st, path, g, s,
 				"the general kind does not cover the specific residual")
-			return subNo
 		}
 		st.record("compat_narrowed", path, g, s,
 			"the general kind admits no such value")
@@ -406,9 +625,8 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				st.record("sub_evaluate_only", path, g, s, opaqueNote(gc))
 				return subUndecided
 			}
-			st.record("compat_narrowed", path, g, s,
+			return subRefute(st, path, g, s,
 				"the general residual does not contain the specific residual")
-			return subNo
 		}
 		if sv, ok := s.(*ScalarVal); ok {
 			okc, und := constraintAdmitsScalarQ(gc, sv)
@@ -423,12 +641,22 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				"the general residual does not admit the specific scalar")
 			return subNo
 		}
-		if kv, ok := s.(*ScalarKindVal); ok && constraintSubsumesKind(gc, kv.kind) {
-			return subYes
+		why := "the general residual constrains a domain the specific value is not in"
+		if kv, ok := s.(*ScalarKindVal); ok {
+			if constraintSubsumesKind(gc, kv.kind) ||
+				(KindString == kv.kind && subAboveString(gc, !kv.emptyOk)) {
+				return subYes
+			}
+			return subRefute(st, path, g, s, why)
 		}
-		st.record("compat_narrowed", path, g, s,
-			"the general residual constrains a domain the specific value is not in")
-		return subNo
+		// A residual with a domain refuses every container, so any
+		// instance of the specific side fails it.
+		if "" != gc.domain || gc.pathKind {
+			st.record("compat_narrowed", path, g, s, why)
+			return subNo
+		}
+		st.record("sub_no_witness", path, g, s, subNoWitness)
+		return subUndecided
 	}
 
 	// Concrete scalars subsume only themselves -- except paths, whose
@@ -454,12 +682,14 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	// Maps.
 	if gm, ok := g.(*MapVal); ok {
 		if _, ok := s.(*MapKindVal); ok {
-			if subEveryMap(gm) {
-				return subYes
+			keys := fieldKeys(gm)
+			refused := gm.closed
+			for _, k := range keys {
+				refused = refused || !contains(gm.optional, k)
 			}
-			st.record("compat_narrowed", path, g, s,
+			return subOverKind(st, path, g, s, refused, keys,
+				func(k string) Val { return gm.peg[k] }, gm.spread,
 				"the general map refuses a map the specific kind admits")
-			return subNo
 		}
 		sm, ok := s.(*MapVal)
 		if !ok {
@@ -485,12 +715,9 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	// Lists: element-wise by position, positions as keys.
 	if gl, ok := g.(*ListVal); ok {
 		if _, ok := s.(*ListKindVal); ok {
-			if subEveryList(gl) {
-				return subYes
-			}
-			st.record("compat_narrowed", path, g, s,
+			return subOverKind(st, path, g, s,
+				0 < len(gl.peg) || (gl.closed && nil == gl.spread), nil, nil, gl.spread,
 				"the general list refuses a list the specific kind admits")
-			return subNo
 		}
 		sl, ok := s.(*ListVal)
 		if !ok {
@@ -512,28 +739,25 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 	return subUndecided
 }
 
-// subEveryMap: a bag admits every map, or every list, where it requires
-// no member, seals none away and holds each one to `any`. Mirrors
-// everyMap and everyList in ts/src/subsume.ts.
-func subEveryMap(g *MapVal) bool {
-	if g.closed || !subTopOrNone(g.spread) {
-		return false
+// subOverKind: each outright refusal has a failing case the kind admits,
+// and members and the spread are held to `any`. Mirrors overKind in
+// ts/src/subsume.ts, which names the cases.
+func subOverKind(st *subState, path []string, g, s Val, refused bool,
+	keys []string, child func(string) Val, spread Val, message string) string {
+	if refused {
+		st.record("compat_narrowed", path, g, s, message)
+		return subNo
 	}
-	for _, k := range fieldKeys(g) {
-		if _, top := g.peg[k].(*TopVal); !top || !contains(g.optional, k) {
-			return false
-		}
+	out := subYes
+	for _, k := range keys {
+		kp := append(append([]string{}, path...), k)
+		out = subWorse(out, subsumeNode(st, kp, child(k), top()))
 	}
-	return true
-}
-
-func subEveryList(g *ListVal) bool {
-	return 0 == len(g.peg) && subTopOrNone(g.spread) && (!g.closed || nil != g.spread)
-}
-
-func subTopOrNone(v Val) bool {
-	_, top := v.(*TopVal)
-	return nil == v || top
+	if nil != spread {
+		kp := append(append([]string{}, path...), "&")
+		out = subWorse(out, subsumeNode(st, kp, spread, top()))
+	}
+	return out
 }
 
 // subsumeRecursion reads a recursion as the definition it names,
@@ -803,12 +1027,16 @@ func subsumeBag(st *subState, path []string, g, s bagView) string {
 					out = subWorse(out, subsumeNode(st, kp, g.spread, s.child(k)))
 				}
 			}
-			sSpread := s.spread
-			if nil == sSpread {
-				sSpread = top()
+			// A sealed specific side with no template has no member beyond
+			// the ones the loop above holds to the general template.
+			if !s.closed || nil != s.spread {
+				sSpread := s.spread
+				if nil == sSpread {
+					sSpread = top()
+				}
+				kp := append(append([]string{}, path...), "&")
+				out = subWorse(out, subsumeNode(st, kp, g.spread, sSpread))
 			}
-			kp := append(append([]string{}, path...), "&")
-			out = subWorse(out, subsumeNode(st, kp, g.spread, sSpread))
 		}
 	}
 

@@ -2233,20 +2233,29 @@ func constraintAdmitsScalarQ(g *ConstraintVal, scalar *ScalarVal) (bool, bool) {
 	if 0 < g.bandBs() {
 		return false, true
 	}
-	if g.uniq || 0 < len(g.uniqBy)+len(g.contains) || nil != g.count {
+	if g.uniq || 0 < len(g.uniqBy)+len(g.contains) {
+		return false, false
+	}
+	text, isText := scalar.peg.(string)
+	if nil != g.count && (!isText || !constraintAdmitsSize(g, utf8.RuneCountInString(text))) {
 		return false, false
 	}
 	if (g.pathKind && KindPath != scalar.kind) ||
 		(g.nonEmpty && KindPath == scalar.kind) ||
-		(g.nonEmpty && !g.emptyOk && KindString == scalar.kind && "" == scalar.peg.(string)) {
+		(g.nonEmpty && !g.emptyOk && KindString == scalar.kind && "" == text) ||
+		!stateAdmits(g, scalar) {
 		return false, false
 	}
 	for _, f := range g.fmts {
-		if "" != formatWhy(f, scalar.peg.(string)) {
+		if "" != formatWhy(f, text) {
 			return false, false
 		}
 	}
-	return stateAdmits(g, scalar), false
+	return true, false
+}
+
+func constraintAdmitsSize(g *ConstraintVal, n int) bool {
+	return nil == g.count || stateAdmits(g.count, countVal(n))
 }
 
 func stateAdmits(s *ConstraintVal, peer *ScalarVal) bool {

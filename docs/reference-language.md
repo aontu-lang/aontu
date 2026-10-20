@@ -4998,10 +4998,22 @@ the validation verb's report object with class `compat`; every code is
 registered in `test/spec/errcodes.tsv`, and the whole behaviour is
 pinned by `test/spec/subsume.tsv` in both engines.
 
-**Soundness before completeness.** Where a rule cannot decide, the
-answer folds toward `does_not_subsume` or `undecided`, never toward
-"compatible": a gate that wrongly reports "breaking" costs a second
-look, one that wrongly reports "compatible" ships the break.
+**A no names a failing case.** `does_not_subsume` stands only on a
+value the specific side admits and the general side refuses, and
+`subsumes` only where a rule proves the order. Where no rule decides a
+pair, the walk looks for that value among the ones it tries:
+
+- a few of each kind, and a sample of each named format;
+- the ends, the excluded values and the divisors of either side, with
+  the numbers beside each;
+- a string each pattern matches;
+- the empty list, and two members that a uniqueness refuses.
+
+Where it finds none, the answer is `undecided`, with reason
+`sub_no_witness`.
+Neither guess is safe: a gate that wrongly reports "compatible" ships
+the break, and one that wrongly reports "breaking" sends its reader
+after a failure that isn't there.
 
 The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`, both still to change: `DefaultsLe` to count only a default a term declares, as this page's effective default does, and `GenLe` to read the marks as terms.
 
@@ -5035,12 +5047,16 @@ generable documents materialise differently or become incomplete.
 | anything | disjunction | yes where the two are identical; otherwise every specific alternative must be admitted by A, a concrete failing alternative is a witness (`compat_narrowed`), and a non-concrete one is `undecided` (`sub_disjunct_distribution`) |
 | disjunction | non-disjunction | some general alternative must admit B member-wise; failure with concrete B is a witness, otherwise `undecided` (`sub_disjunct_distribution`): member-wise failure is not proof, the distribution case |
 | scalar kind | scalar kind or scalar | the general kind admits the specific kind (`number ⊒ integer`) or the scalar's kind; distinct leaves are disjoint |
-| scalar kind | constraint residual | the kind covers the residual's domain: `number` admits any numeric residual, a numeric leaf kind admits a residual pinned to that leaf, `string & empty()` admits any string bound, pattern or format; `string` covers none of those, since each may admit `""`, which it refuses |
+| scalar kind | constraint residual | the kind covers the residual's domain: `number` admits any numeric residual, a numeric leaf kind admits a residual pinned to that leaf, and `string & empty()` admits any string bound, pattern or format. `string` refuses `""` and every path, and a string bound reads a path's spelling, which starts with `$` or `.`. So `string` covers a residual that refuses `""` and whose lower end starts after `.`, as `min("a")` does. Anywhere else a failing case decides, `""` for `re(".*")` and `path(.x)` for `above("")`, or the pair is `undecided` |
+| constraint residual | scalar kind | a numeric kind compares as the residual it names. The residual covers `string` where nothing in it refuses a non-empty string: no end but a lower one at `""`, no excluded string but `""`, and no pattern, format, size or leaf, as in `above("") ⊒ string`. Anywhere else a failing case decides, or the pair is `undecided` |
 | constraint residual | constraint residual | per the constraint algebra's own [subsumption table](#subsumption-1); a `must` on the general side is `undecided` (`sub_evaluate_only`) unless the two are identical |
-| constraint residual | scalar | membership, with `must` again `undecided`; `unique()` and `length` demands admit no scalar |
+| constraint residual | scalar | membership, with `must` again `undecided`; `unique()` admits no scalar, and a length demand admits a string or a path whose length in code points it admits |
+| constraint residual | map or list | `compat_narrowed` where the residual has a domain, which holds no container; a size or a uniqueness alone is `undecided`, with reason `sub_no_witness`, since the walk counts no members |
 | concrete scalar | concrete scalar | identity: a concrete value subsumes only itself (kind included) |
-| map | map | see below; anything else is `compat_narrowed` |
+| map | map | see below; a specific value that is neither a map nor `map` is `compat_narrowed` |
 | list | list | element-wise by position, with the same required/optional shape as maps |
+| `map` or `list` | a container of its kind, or the kind | yes: `map` admits every map and `list` every list; anything else is `compat_narrowed` |
+| map or list | `map` or `list` | `compat_narrowed` where A requires a key or a position, is a sealed map, or is a sealed list with no spread, since each refuses a value the kind admits. Otherwise each member and the spread is held to `any`: `{}`, `[]` and `{x?: any}` subsume their kinds, and a member with no failing case, as in `{x?: len(2)} ⊒ map`, is `undecided` (`sub_no_witness`) |
 
 **A `nil` admits nothing.** An error-free evaluated document holds a
 `nil` only where it forbids: an optional key holding `nil` forbids the
@@ -5057,7 +5073,7 @@ in its own document, which the other document may define differently,
 so the walk compares the definitions instead
 ([Recursive positions](#recursive-positions)).
 
-These rows are theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean): the ends (`le_nil_iff`, `any_le_iff`), the kinds (`leaf_le_leaf_iff`, `number_not_le_leaf`), the literals (`lit_le_lit_iff`), disjunction (`or_le_iff`), preference (`pref_le_or`, `or_le_pref`) and the meet (`le_meet_iff`). Where the table says `string` covers a bound or a pattern, `re_not_le_string` and `max_str_not_le_string` say it does not, since each may admit `""`, which `string` refuses.
+These rows are theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean): the ends (`le_nil_iff`, `any_le_iff`), the kinds (`leaf_le_leaf_iff`, `number_not_le_leaf`), the literals (`lit_le_lit_iff`), disjunction (`or_le_iff`), preference (`pref_le_or`, `or_le_pref`) and the meet (`le_meet_iff`). `re_not_le_string` and `max_str_not_le_string` say that `string` covers no pattern that admits `""` and no upper bound, since each admits `""`, which `string` refuses.
 
 ### Maps, lists, closedness, optionality, spreads
 
@@ -5074,7 +5090,9 @@ These rows are theorems of `⊑` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Su
 - A **spread** template (`&:`) on the general side governs the
   specific side's surplus keys and its template (a missing specific
   template compares as `top`, so a general-only template does not
-  subsume an open specific bag). A specific-only template narrows the
+  subsume an open specific bag). A sealed specific bag with no
+  template has no member beyond the ones it declares, each of which
+  the template already holds, so the walk compares nothing more. A specific-only template narrows the
   specific side and refuses nothing. A **path-dependent** template
   (one whose meaning depends on where it lands: `key()`, a
   reference) cannot be compared structurally:
@@ -5671,7 +5689,10 @@ mapping to note: the
 query answers the `must` row's "never" as `undecided` with reason
 `sub_evaluate_only`, and a `nof`, a `when` or a `contains` on the
 general side the same way: the admitted set is opaque, which is
-undecided rather than refused.*
+undecided rather than refused. A row that does not hold is not yet a
+no: the query answers `does_not_subsume` only with a failing case it
+finds, and `undecided`, with reason `sub_no_witness`, where it finds
+none.*
 
 `A ⊒ B` ("A subsumes B", B is an instance of A) holds when **every
 value B admits, A admits too**. It is the lattice's own order, and for
@@ -5680,12 +5701,12 @@ properties make it useful: it is reflexive (`A ⊒ A`), transitive, and
 `A ⊒ B` exactly when `A & B` is `B`, so an implementation has a free
 cross-check against the meet table.
 
-**Soundness before completeness.** Where a rule below cannot decide, the
-answer is **not subsumed**, never a guess. That direction is the safe
-one for the `subsume` query built on it: a compatibility check that wrongly
-reports "breaking" costs a reviewer a second look, while one that
-wrongly reports "compatible" ships the break. Two rules are approximate
-in this sense and are marked; the rest are exact.
+**Sound, and approximate where marked.** A row that holds proves the
+order. A row that fails proves nothing on its own, so where a rule
+below cannot decide, the table **does not say** that A subsumes B, and
+never guesses. The `subsume` query built on it then looks for a failing case
+before it answers `does_not_subsume`. Two rules are approximate in
+this sense and are marked; the rest are exact.
 
 | A (general) | B (specific) | A ⊒ B when |
 |-------------|--------------|------------|
@@ -5715,8 +5736,9 @@ patterns as *text* because deciding that `^a` admits everything `^ab`
 admits is regex containment, which this algebra deliberately does not
 do: the same ruling that stops two `re` atoms being declared empty at
 composition time. `must` is opaque by construction: that is what Band B
-*means*. In both cases the answer is "not subsumed", so the error is
-always toward reporting a difference that is not there.
+*means*. In both cases the table answers "not shown", and the query
+reports a difference only where it finds a value that shows one:
+`re("^a") ⊒ re("^ab")` is `undecided`.
 
 **Normalisation makes the spelling irrelevant.** Subsumption is decided
 over the *normalised* residual, so two spellings of one constraint

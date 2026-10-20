@@ -84,9 +84,8 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   unmade: P3 and P4 landed without it (#403);
 - two recursions of one shape under different names, which the order
   leaves undecided, and the rows of the `defaults` and `gen` profiles,
-  which wait on rulings 11 and 12, `defaults` to count only a default
-  a term declares and the ports to answer `undecided` where no case
-  fails; the generated rows run under `values` meanwhile (P5);
+  which wait on ruling 11, `defaults` to count only a default a term
+  declares; the generated rows run under `values` meanwhile (P5);
 - the forms the importer writes that the definition lacks, each in
   `forms-outside.tsv` on its ruling: `key()` at a position, a term
   narrowed to the key a spread is tried on (13), and the riders
@@ -97,10 +96,12 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - a container literal longer than its size allows, which the meet is
   to refuse as a conflict of the schema (ruling 9).
 
-The rest of the language is in no phase of the plan yet: generation
-(`each`, `pack`, `emit`), arithmetic and aggregates, the text and
-grammar functions, links and relations, and source loading and
-modules.
+The rest of the language waits on phases P8 to P12 of the plan: the
+calls that compute values, arithmetic, the aggregates, the text
+functions and the component tree among them (P8); the placeholder,
+templates, relative paths and generation with `each`, `pack` and
+`emit` (P9); source loading, modules and variables (P10); links and
+relations (P11); and grammars (P12).
 
 ## Build and run
 
