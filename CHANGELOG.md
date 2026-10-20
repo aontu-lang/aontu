@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### An `ident()` record takes any key
+
+Both implementations
+([ADR-073](ADR.md#adr-073--an-ident-record-is-open-declaration-metadata)).
+
+- `ident(v, r)` takes a record of concrete data under any keys:
+  `%a = ident(1, {owner: "core"})` is accepted where it refused with
+  `func_arg`. Only a record that is not a map of concrete data refuses.
+  The rest is unchanged: only a declaration carries the record, a copy
+  drops it, and it is in no canon and no hash.
+- The JSON Schema exporter reads the identity from `id`, `anchor`,
+  `dynamicAnchor` and `defs` where each holds text, and reports one
+  holding anything else as a loss. Any other key becomes a keyword of
+  its own name on the definition; a JSON Schema keyword, a keyword the
+  definition writes already, and a key the declarations gave several
+  values are reported losses.
+
 ### A `meta()` record takes any key
 
 Breaking, both implementations

@@ -1794,8 +1794,9 @@ which is how JSON Schema reads `$ref` with siblings; and the alias sits under
 `$defs` by its own name, or by the `$defs` key `aontu jsonschema
 import` read it from. An alias declared with
 [`ident()`](reference-language.md#identity-ident) writes its `$id`,
-`$anchor` and `$dynamicAnchor` on the definition, or on the schema where
-the definition is the whole schema; an `$id` that a `$ref` inside the
+`$anchor` and `$dynamicAnchor` on the definition, and every other key
+of its record as a keyword of that name, or on the schema where the
+definition is the whole schema; an `$id` that a `$ref` inside the
 definition would resolve against is not written, and is reported. A
 use the importer read from a `$dynamicRef`, which carries the `meta`
 record's `dynamicRef`, is written as `$dynamicRef` to its anchor where

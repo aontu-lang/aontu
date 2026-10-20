@@ -4132,8 +4132,9 @@ back as one where the export reads it the same.
 
 ## Identity: `ident`
 
-`ident(v, r)` declares an alias's value with the identity a JSON Schema
-gave it, which the importer writes and the exporter reads back:
+`ident(v, r)` declares an alias's value with a record that only the
+declaration carries. The importer writes there the identity a JSON
+Schema gave the schema, and the exporter reads it back:
 
 ```aontu
 %item = ident(integer, { id:"https://example.com/item.json" anchor:"item" })
@@ -4144,10 +4145,11 @@ count: %item & 3
 {"count":3}
 ```
 
-The record `r` is a map whose keys are among `id`, the schema's identifier,
-`anchor`, its anchor, `dynamicAnchor`, its dynamic anchor, and `defs`,
-the `$defs` key it was declared under, each holding a string. Any other
-key or kind refuses the call with `func_arg`.
+The record `r` is a map of concrete data under any keys, and a record
+that is not one refuses the call with `func_arg`. The JSON Schema
+export reads the identity from four of them, each holding a string:
+`id`, the schema's identifier, `anchor`, its anchor, `dynamicAnchor`,
+its dynamic anchor, and `defs`, the `$defs` key it was declared under.
 
 **Only an alias declaration carries it.** `ident()` is the value of a
 declaration, or one term of the meet that is that value, which is how
@@ -4165,7 +4167,11 @@ one. The identity is in no canon and no hash.
 name, or on the schema itself where the definition is the whole schema. An identifier
 is not written where a `$ref` inside the definition would resolve
 against it, and that is reported as a loss
-([JSON Schema](reference-api.md#aontu-jsonschema)).
+([JSON Schema](reference-api.md#aontu-jsonschema)). One of the four
+holding anything but a string is a reported loss. Every other key is
+written as a keyword of its own name on the definition, except a JSON
+Schema keyword, a keyword the definition writes already, and a key the
+declarations gave several values, each a reported loss.
 
 ## Closed values: `close` / `open`
 
