@@ -10,16 +10,15 @@ log sound and its substrate wrong for aontu; that review's decisions are
 recorded in
 [ADR-013](../../ADR.md#adr-013--the-project-operates-one-transparency-log-and-nothing-else)
 and in [Design space](#design-space) rather than relitigated here.
-Phases 1, 3 and 4 have landed, phase 2 is partial, phase 5 was retired
+Phases 1 to 4 have landed, phase 5 was retired
 as designed and phase 6 is rewritten for the federated design: the
 [progress register](progress.md) carries those rows and is authoritative
 for status, and this document is authoritative for design. The design
 below is as designed, and [Design space](#design-space) carries the four
 dated amendments that revised it. Every claim marked VERIFIED was run
 against the built CLIs during drafting, and
-[Current state](#current-state) is re-stated as of 2026-09-18: of the
-four blockers it named, two have closed, one is half-closed and one
-stands.*
+[Current state](#current-state) is re-stated as of 2026-10-20: of the
+four blockers it named, three have closed and one stands.*
 
 ## Problem
 
@@ -90,10 +89,10 @@ G6 landed the whole local half, and it is good bones.
   see the register's G6.2 note).
 
 Four things structurally blocked the capability when this was written.
-**Two still do** — one whole, one half. The items keep their own
-numbers, because the rest of this document refers to them by number,
-and because what closed the other two is worth keeping: both were
-closed by the work this document went on to argue for.
+**One still does**, the second. The items keep their own numbers,
+because the rest of this document refers to them by number, and
+because what closed the other three is worth keeping: each was closed
+by the work this document went on to argue for.
 
 1. **The fetch and the publish exist.** They did not at drafting: both
    exited 2 naming the missing half, and G6.3's departure 1 recorded
@@ -114,18 +113,17 @@ closed by the work this document went on to argue for.
    registry's word about bytes nothing local could recompute. That pin
    is retired, so every pin a lock entry carries is now checkable by
    the client carrying it.
-3. **Half of the transparency client exists.** Go has record, node and
-   tree hashing, inclusion and consistency proof checking, tile
+3. **The transparency client exists in both ports.** Go has record,
+   node and tree hashing, inclusion and consistency proof checking, tile
    addressing and note verification, in `go/tlog.go`, importing
    `golang.org/x/mod/sumdb/tlog` and `sumdb/note` behind about fifty
-   lines of glue. TypeScript has none of it in `ts/`: the port lives in
-   [aontu-lang/mod](https://github.com/aontu-lang/mod), unpublished, so
-   nothing here can import it and no shared spec row executes either
-   half. Register row G10.2 is PARTIAL for that reason, and returns to
-   LANDED with the shared rows rather than with the publish. **So this
-   one still blocks, half-closed**: by ADR-001 a behaviour in one port
-   is partial, and a client only the Go binary can run is not a client
-   this project ships.
+   lines of glue. TypeScript has the same calls in `ts/src/tlog.ts`,
+   over the port in [aontu-lang/mod](https://github.com/aontu-lang/mod),
+   published as `@aontu/mod` on 2026-10-20, and the shared rows in
+   `test/spec/tlog.tsv` hold both to the golden vectors: every group but
+   the sumdb tile paths, which are Go's alone and registered in
+   [DIVERGENCE.md](../../DIVERGENCE.md). Register row G10.2 returned to
+   LANDED with those rows. **Closed** on 2026-10-20.
 4. **The cache distinguishes identities.** `cacheStoreDir` takes the
    package path as well as the canon-hash (`ts/src/mod.ts`), so two
    modules that mean the same thing no longer share a directory. The

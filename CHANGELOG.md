@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### The transparency-log client is in both implementations
+
+Both implementations (G10 phase 2).
+
+- `ts/src/tlog.ts` is the TypeScript half of the client, over
+  `@aontu/mod`, which the npm package now depends on. It wraps the same
+  verifying calls as `go/tlog.go`: record, node and tree hashing,
+  inclusion and consistency proofs, tile addressing, and note and
+  checkpoint verification.
+- The shared suite has a `tlog` mode, and `test/spec/tlog.tsv` runs the
+  golden vectors in `test/vectors/tlog.json` through both
+  implementations.
+- Go: `TlogParseTree` refuses a checkpoint whose size is above
+  2^53−1, as TypeScript does.
+
 ### A rider's record is no export loss
 
 Both implementations

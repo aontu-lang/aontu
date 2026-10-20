@@ -50,6 +50,7 @@ const template_1 = require("../dist/template");
 const trace_1 = require("../dist/trace");
 const hints_1 = require("../dist/hints");
 const utility_1 = require("../dist/utility");
+const tlog_vectors_1 = require("./tlog-vectors");
 const IntegerVal_1 = require("../dist/val/IntegerVal");
 const StringVal_1 = require("../dist/val/StringVal");
 const BooleanVal_1 = require("../dist/val/BooleanVal");
@@ -497,6 +498,9 @@ function runRow(row) {
     }
     else if ('hash' === row.mode) {
         Assert.strictEqual((0, aontu_1.canonHash)(a0.unify(row.src, undefined, ctx)), row.expect);
+    }
+    else if ('tlog' === row.mode) {
+        Assert.deepStrictEqual((0, tlog_vectors_1.tlogRunGroup)(row.src), JSON.parse(row.expect));
     }
     else if ('fmt' === row.mode) {
         const report = (0, aontu_1.format)(row.src);

@@ -1,0 +1,30 @@
+# THE TRANSPARENCY-LOG CLIENT -- G10 phase 2
+# (docs/capability-review/g10-transparency.md): the golden vectors of
+# test/vectors/tlog.json, generated from upstream golang.org/x/mod, run
+# through each port's wrappers -- ts/src/tlog.ts over @aontu/mod, and
+# go/tlog.go over the upstream library itself.
+#
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+#
+# src names a group of the vector file, a nested group spelled with a
+# dot (note.signed). Every case in the group must answer what its vector
+# says, or the row fails naming the case. expect is the group's counts:
+# `cases`, and for a group whose cases accept or refuse, `accepted` and
+# `refused`. The refusals are the point: most proofs in the file must
+# NOT verify.
+#
+# The tilePath group is not here. Go wraps upstream's sumdb tile path
+# encoding and @aontu/mod keeps that encoding off its surface, so
+# TypeScript has no twin (DIVERGENCE.md, "Go sumdb tile paths").
+
+tlog-record-hash	tlog	recordHash	{"cases":9}
+tlog-node-hash	tlog	nodeHash	{"cases":4}
+tlog-stored-hash-index	tlog	storedHashIndex	{"cases":33}
+tlog-stored-hash-count	tlog	storedHashCount	{"cases":17}
+tlog-tree-hash	tlog	treeHash	{"cases":14}
+tlog-tile-for-index	tlog	tileForIndex	{"cases":30}
+tlog-check-record	tlog	checkRecord	{"cases":268,"accepted":54,"refused":214}
+tlog-check-tree	tlog	checkTree	{"cases":200,"accepted":40,"refused":160}
+tlog-note-signed	tlog	note.signed	{"cases":4,"accepted":3,"refused":1}
+tlog-note-malformed	tlog	note.malformed	{"cases":5,"accepted":0,"refused":5}
+tlog-checkpoint	tlog	note.trees	{"cases":10,"accepted":3,"refused":7}

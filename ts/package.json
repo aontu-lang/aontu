@@ -64,6 +64,7 @@
     "LICENSE"
   ],
   "dependencies": {
+    "@aontu/mod": "0.0.3",
     "@tabnas/abnf": "0.4.15",
     "@tabnas/bnf": "0.1.19",
     "@tabnas/debug": "0.3.8",

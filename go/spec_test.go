@@ -264,6 +264,19 @@ func TestSpec(t *testing.T) {
 						t.Fatalf("hash mismatch\n src:  %q\n want: %s\n got:  %s", src, expect, got)
 					}
 
+				case "tlog":
+					var want map[string]int
+					if err := json.Unmarshal([]byte(expect), &want); err != nil {
+						t.Fatalf("tlog expect is not JSON: %v\n expect: %q", err, expect)
+					}
+					got, err := tlogRunGroup(loadTlogVectors(t), src)
+					if err != nil {
+						t.Fatalf("tlog %s: %v", src, err)
+					}
+					if !reflect.DeepEqual(want, got) {
+						t.Fatalf("tlog mismatch\n group: %s\n want: %v\n got:  %v", src, want, got)
+					}
+
 				case "fmt":
 					// The formatter (sketch/FMT.0.md): the text is
 					// what fmt writes; the agreed form is a fixed point;

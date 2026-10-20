@@ -103,6 +103,18 @@ having been agreed.
   is owed. Nothing on the MCP surface writes a file: `aontu render`
   is a verb of both CLIs and has no tool.
 
+- **Go sumdb tile paths.** `TlogTilePath` and `TlogParseTilePath`
+  (`go/tlog.go`) wrap the tile-path encoding of upstream
+  `golang.org/x/mod/sumdb/tlog`, `tile/<H>/<L>/<N>`, and
+  `ts/src/tlog.ts` has no twin. `@aontu/mod` ports that encoding to
+  check its vectors and keeps it off its package surface, because the
+  log the project federates to serves C2SP `tlog-tiles` paths, which it
+  does export. So `test/spec/tlog.tsv` runs every group of
+  `test/vectors/tlog.json` but `tilePath`, whose cases run in
+  `go/tlog_test.go` and in `@aontu/mod`'s own suite. Closing it takes
+  one of two changes: `@aontu/mod` exporting the encoding, or the Go
+  pair leaving the package surface.
+
 ## Structural divergences
 
 The two ports answer identically here. What differs is the shape, which
