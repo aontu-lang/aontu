@@ -110,7 +110,7 @@ theorem lookup_isSome_iff (k : String) (fs : List (String × Data)) :
     obtain ⟨k', x⟩ := f
     by_cases h : k = k'
     · subst h; simp [lookup]
-    · simp [lookup, h, ih, Ne.symm h]
+    · simp [lookup, h, ih]
 
 mutual
 theorem Data.same_iff : ∀ j j' : Data, j.same j' = true ↔ j.Same j'
@@ -154,7 +154,7 @@ theorem Data.same_iff : ∀ j j' : Data, j.same j' = true ↔ j.Same j'
               simp [hf] at this
           | some x =>
             obtain ⟨y, hy, -⟩ := h1 k x (by simp) hf
-            simp [hf, hy]
+            simp [hy]
         · obtain ⟨y', hy', hs⟩ := h1 k x (by simp) hx
           rw [hy] at hy'
           cases hy'
@@ -210,7 +210,7 @@ theorem Data.sameMembers_iff (gs : List (String × Data)) :
           rw [hy]
           exact (Data.same_iff x y).mpr hs
       · intro k' x' hseen hl
-        have hk : k' ≠ k := fun hk => hseen (hk ▸ List.mem_cons_self _ _)
+        have hk : k' ≠ k := fun hk => hseen (hk ▸ List.mem_cons_self)
         have hseen' : k' ∉ seen := fun hm => hseen (List.mem_cons_of_mem _ hm)
         refine h k' x' hseen' ?_
         simp only [lookup, hk, if_false]
@@ -535,14 +535,14 @@ theorem Data.weight_pos : ∀ j : Data, 1 ≤ j.weight
 
 theorem weightMembers_ge : ∀ {fs : List (String × Data)} {m : String × Data}, m ∈ fs →
     m.2.weight ≤ weightMembers fs
-  | [], _, h => absurd h (List.not_mem_nil _)
+  | [], _, h => absurd h (List.not_mem_nil)
   | (k, x) :: fs, m, h => by
     rcases List.mem_cons.mp h with rfl | h'
     · exact Nat.le_add_right _ _
     · exact Nat.le_trans (weightMembers_ge h') (Nat.le_add_left _ _)
 
 theorem weightElems_ge : ∀ {xs : List Data} {x : Data}, x ∈ xs → x.weight ≤ weightElems xs
-  | [], _, h => absurd h (List.not_mem_nil _)
+  | [], _, h => absurd h (List.not_mem_nil)
   | y :: xs, x, h => by
     rcases List.mem_cons.mp h with rfl | h'
     · exact Nat.le_add_right _ _
@@ -560,7 +560,7 @@ theorem mem_of_lookup {k : String} {x : Data} : ∀ {fs : List (String × Data)}
     split at h
     · rename_i hk
       cases h
-      exact hk ▸ List.mem_cons_self _ _
+      exact hk ▸ List.mem_cons_self
     · exact List.mem_cons_of_mem _ (mem_of_lookup h)
 
 theorem Data.weight_lt_of_lookup {fs : List (String × Data)} {k : String} {x : Data}
@@ -1219,7 +1219,7 @@ theorem Val.Checkable.no_refs {v : Val} (h : v.Checkable) : ∀ n, n ∉ v.refs 
     · obtain ⟨k, o, v, hm, hv⟩ := mem_refsFields.mp hn
       exact ihf k o v hm n hv
     · cases hs : spread with
-      | none => rw [hs] at hn; exact absurd hn (List.not_mem_nil n)
+      | none => rw [hs] at hn; exact absurd hn (List.not_mem_nil)
       | some s => rw [hs] at hn; exact ihs s hs n hn
   | @list items spread closed _ _ ihi ihs =>
     intro n hn
@@ -1228,7 +1228,7 @@ theorem Val.Checkable.no_refs {v : Val} (h : v.Checkable) : ∀ n, n ∉ v.refs 
     · obtain ⟨v, hm, hv⟩ := mem_refsItems.mp hn
       exact ihi v hm n hv
     · cases hs : spread with
-      | none => rw [hs] at hn; exact absurd hn (List.not_mem_nil n)
+      | none => rw [hs] at hn; exact absurd hn (List.not_mem_nil)
       | some s => rw [hs] at hn; exact ihs s hs n hn
   | or _ ih =>
     intro n hn
@@ -1255,7 +1255,7 @@ theorem Val.Checkable.no_refs {v : Val} (h : v.Checkable) : ∀ n, n ∉ v.refs 
     · exact ihc m hm
     · exact iht m hm
     · cases he : e with
-      | none => rw [he] at hm; exact absurd hm (List.not_mem_nil m)
+      | none => rw [he] at hm; exact absurd hm (List.not_mem_nil)
       | some e' => rw [he] at hm; exact ihe e' he m hm
   | @contains c n _ _ ihc ihn =>
     intro m hm
@@ -1269,13 +1269,13 @@ theorem Val.Checkable.no_refs {v : Val} (h : v.Checkable) : ∀ n, n ∉ v.refs 
     · obtain ⟨c, hc, h⟩ := mem_refsCovers.mp hm
       rcases h with h | h | h
       · cases hv : c.1 with
-        | none => rw [hv] at h; exact absurd h (List.not_mem_nil m)
+        | none => rw [hv] at h; exact absurd h (List.not_mem_nil)
         | some v => rw [hv] at h; exact ih1 c hc v hv m h
       · cases hv : c.2.1 with
-        | none => rw [hv] at h; exact absurd h (List.not_mem_nil m)
+        | none => rw [hv] at h; exact absurd h (List.not_mem_nil)
         | some v => rw [hv] at h; exact ih2 c hc v hv m h
       · cases hv : c.2.2 with
-        | none => rw [hv] at h; exact absurd h (List.not_mem_nil m)
+        | none => rw [hv] at h; exact absurd h (List.not_mem_nil)
         | some v => rw [hv] at h; exact ih3 c hc v hv m h
   | _ => intro n hn; simp [Val.refs] at hn
 
@@ -1509,7 +1509,7 @@ theorem checkFieldsWith_iff {fs : List (String × Bool × Val)} {jfs : List (Str
   | nil => simp [checkFieldsWith]
   | cons f fs ihfs =>
     obtain ⟨k, o, v⟩ := f
-    have ihv := fun x hx => ih k o v x (List.mem_cons_self _ _) hx
+    have ihv := fun x hx => ih k o v x (List.mem_cons_self) hx
     have iht := ihfs (fun k o v x h hx => ih k o v x (List.mem_cons_of_mem _ h) hx)
     simp only [checkFieldsWith, Bool.and_eq_true, iht, List.mem_cons, Prod.mk.injEq]
     constructor
@@ -1588,7 +1588,7 @@ theorem checkArmsWith_iff {arms : List (ℕ × Val)} {j : Data}
   | nil => simp [checkArmsWith]
   | cons p arms iharms =>
     obtain ⟨r, a⟩ := p
-    have iha := ih r a (List.mem_cons_self _ _)
+    have iha := ih r a (List.mem_cons_self)
     have iht := iharms (fun r a h => ih r a (List.mem_cons_of_mem _ h))
     simp only [checkArmsWith, Bool.or_eq_true, iha, iht, List.mem_cons, Prod.mk.injEq]
     constructor
@@ -1700,7 +1700,7 @@ theorem checkSuperFieldsWith_iff {fs : List (String × Bool × Val)} {jfs : List
   | nil => simp [checkSuperFieldsWith]
   | cons f fs ihfs =>
     obtain ⟨k, o, v⟩ := f
-    have ihv := fun x hx => ih k o v x (List.mem_cons_self _ _) hx
+    have ihv := fun x hx => ih k o v x (List.mem_cons_self) hx
     have iht := ihfs (fun k o v x h hx => ih k o v x (List.mem_cons_of_mem _ h) hx)
     simp only [checkSuperFieldsWith, Bool.and_eq_true, iht, List.mem_cons, Prod.mk.injEq]
     constructor
@@ -1757,7 +1757,7 @@ theorem checkSuperArmsWith_iff {arms : List (ℕ × Val)} {j : Data}
   | nil => simp [checkSuperArmsWith]
   | cons p arms iharms =>
     obtain ⟨r, a⟩ := p
-    have iha := ih r a (List.mem_cons_self _ _)
+    have iha := ih r a (List.mem_cons_self)
     have iht := iharms (fun r a h => ih r a (List.mem_cons_of_mem _ h))
     simp only [checkSuperArmsWith, Bool.or_eq_true, iha, iht, List.mem_cons, Prod.mk.injEq]
     constructor
@@ -1791,7 +1791,7 @@ theorem all_false_mem {α : Type} {p : α → Bool} : ∀ {l : List α}, l.all p
   | x :: l, h => by
     simp only [List.all_cons, Bool.and_eq_false_iff] at h
     rcases h with h | h
-    · exact ⟨x, List.mem_cons_self _ _, h⟩
+    · exact ⟨x, List.mem_cons_self, h⟩
     · obtain ⟨y, hy, hp⟩ := all_false_mem h
       exact ⟨y, List.mem_cons_of_mem _ hy, hp⟩
 
@@ -1817,11 +1817,11 @@ theorem checkFieldsWith_false {fs : List (String × Bool × Val)} {jfs : List (S
     · cases hl : lookup k jfs with
       | none =>
         rw [hl] at h
-        exact .inr ⟨k, o, v, List.mem_cons_self _ _, hl, h⟩
+        exact .inr ⟨k, o, v, List.mem_cons_self, hl, h⟩
       | some x =>
         rw [hl] at h
-        exact .inl ⟨k, o, v, x, List.mem_cons_self _ _, hl,
-          (ih k o v x (List.mem_cons_self _ _) hl).of_eq h⟩
+        exact .inl ⟨k, o, v, x, List.mem_cons_self, hl,
+          (ih k o v x (List.mem_cons_self) hl).of_eq h⟩
     · rcases ihfs (fun k o v x hm hx => ih k o v x (List.mem_cons_of_mem _ hm) hx) h with
         ⟨k', o', v', x, hm, hx, hr⟩ | ⟨k', o', v', hm, hx, ho⟩
       · exact .inl ⟨k', o', v', x, List.mem_cons_of_mem _ hm, hx, hr⟩
@@ -1872,7 +1872,7 @@ theorem checkArmsWith_false {arms : List (ℕ × Val)} {j : Data}
     (ih : ∀ r a, (r, a) ∈ arms → Judge env root (checkWith u a j) a j) :
     checkArmsWith u arms j = false → ∀ r a, (r, a) ∈ arms → Judge env root false a j := by
   induction arms with
-  | nil => intro _ r a hm; exact absurd hm (List.not_mem_nil _)
+  | nil => intro _ r a hm; exact absurd hm (List.not_mem_nil)
   | cons p arms iharms =>
     obtain ⟨r, a⟩ := p
     intro h r' a' hm
@@ -1880,7 +1880,7 @@ theorem checkArmsWith_false {arms : List (ℕ × Val)} {j : Data}
     obtain ⟨ha, hrest⟩ := Bool.or_eq_false_iff.mp h
     rcases List.mem_cons.mp hm with he | hm'
     · cases he
-      exact (ih r a (List.mem_cons_self _ _)).of_eq ha
+      exact (ih r a (List.mem_cons_self)).of_eq ha
     · exact iharms (fun r a hm => ih r a (List.mem_cons_of_mem _ hm)) hrest r' a' hm'
 
 theorem checkSuperSpreadWith_false {spread : Option Val} {x : Data}
@@ -1906,11 +1906,11 @@ theorem checkSuperFieldsWith_false {fs : List (String × Bool × Val)} {jfs : Li
     · cases hl : lookup k jfs with
       | none =>
         rw [hl] at h
-        exact .inr ⟨k, o, v, List.mem_cons_self _ _, hl, h⟩
+        exact .inr ⟨k, o, v, List.mem_cons_self, hl, h⟩
       | some x =>
         rw [hl] at h
-        exact .inl ⟨k, o, v, x, List.mem_cons_self _ _, hl,
-          (ih k o v x (List.mem_cons_self _ _) hl).of_eq h⟩
+        exact .inl ⟨k, o, v, x, List.mem_cons_self, hl,
+          (ih k o v x (List.mem_cons_self) hl).of_eq h⟩
     · rcases ihfs (fun k o v x hm hx => ih k o v x (List.mem_cons_of_mem _ hm) hx) h with
         ⟨k', o', v', x, hm, hx, hr⟩ | ⟨k', o', v', hm, hx, ho⟩
       · exact .inl ⟨k', o', v', x, List.mem_cons_of_mem _ hm, hx, hr⟩
@@ -1943,7 +1943,7 @@ theorem checkSuperArmsWith_false {arms : List (ℕ × Val)} {j : Data}
     (ih : ∀ r a, (r, a) ∈ arms → Judge env root (checkSuperWith u a j) a.super j) :
     checkSuperArmsWith u arms j = false → ∀ r a, (r, a) ∈ arms → Judge env root false a.super j := by
   induction arms with
-  | nil => intro _ r a hm; exact absurd hm (List.not_mem_nil _)
+  | nil => intro _ r a hm; exact absurd hm (List.not_mem_nil)
   | cons p arms iharms =>
     obtain ⟨r, a⟩ := p
     intro h r' a' hm
@@ -1951,7 +1951,7 @@ theorem checkSuperArmsWith_false {arms : List (ℕ × Val)} {j : Data}
     obtain ⟨ha, hrest⟩ := Bool.or_eq_false_iff.mp h
     rcases List.mem_cons.mp hm with he | hm'
     · cases he
-      exact (ih r a (List.mem_cons_self _ _)).of_eq ha
+      exact (ih r a (List.mem_cons_self)).of_eq ha
     · exact iharms (fun r a hm => ih r a (List.mem_cons_of_mem _ hm)) hrest r' a' hm'
 
 /-- The checker's evaluation of a member is the relation's, each trial

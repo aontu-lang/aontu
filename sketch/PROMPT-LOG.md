@@ -169,3 +169,9 @@ establish a new process: all prompts must be recorded in a sketch/PROMPT-LOG.md 
 ```text
 write another file, at the top level, DEV-PROCESS.md, and record the prompt log process, and the unit test testing approach. move the STYLE-GUIDE.md to the top level, and add the use of it to the DEV-PROCESS.md; move all doc/design files into the new sketch folder. add the agent guides and DEV-PROCESS.md - all files in sketch are to be ignored - note this in the readme in the that folder. the doc folder should contain only valid and uptodate doc files -note this in DEV-PROCESS. make sure to reference DEV-PROCESS from AGENTS
 ```
+
+## 2026-10-20 17:38:59 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+how much of the aontu language does the lean spec cover
+```

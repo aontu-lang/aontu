@@ -31,16 +31,8 @@ theorem nil_le (env : Env) (a : Val) : .nil ⊑[env] a := fun _ h => nomatch h.2
 
 /-- Two strings are never below each other both: the order on strings,
 character by character, is asymmetric. -/
-theorem lt_asymm_chars : ∀ {l₁ l₂ : List Char}, l₁ < l₂ → ¬ l₂ < l₁
-  | _, _, .nil _ _ => fun h => nomatch h
-  | _, _, .head _ _ hab => fun h => by
-    cases h with
-    | head _ _ hba => exact Char.lt_asymm hab hba
-    | tail _ hab' _ => exact hab' hab
-  | _, _, .tail hab hba h => fun h' => by
-    cases h' with
-    | head _ _ hba' => exact hba hba'
-    | tail _ _ h'' => exact lt_asymm_chars h h''
+theorem lt_asymm_chars {l₁ l₂ : List Char} (h : l₁ < l₂) : ¬ l₂ < l₁ :=
+  List.lt_asymm h
 
 /-- Whatever is above `b` is at least `b`: a strict bound is below its
 closed one, for numbers and for strings. -/
