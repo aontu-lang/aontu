@@ -185,7 +185,7 @@ theorem Number.shown_den_pos (x : Number) : 0 < x.shown.2 := by
     dsimp only
     split
     · exact Nat.one_pos
-    · exact Nat.pos_pow_of_pos _ (by decide)
+    · exact Nat.pow_pos (by decide)
   | integer x => exact Number.den_pos _
   | biginteger x => exact Number.den_pos _
   | bigdecimal x => exact Number.den_pos _
@@ -302,7 +302,7 @@ theorem pref_le_or (r : ℕ) (x : Val) : .pref r x ⊑[env] .or [(r, x), (0, x.s
   intro j ⟨hw, h⟩
   refine ⟨hw, ?_⟩
   cases h with
-  | pref h => exact .or (List.mem_cons_self _ _) h
+  | pref h => exact .or (List.mem_cons_self) h
   | prefSuper h => exact .or (List.mem_cons_of_mem _ (List.mem_singleton.mpr rfl)) h
 
 theorem or_le_pref (r : ℕ) (x : Val) : .or [(r, x), (0, x.super)] ⊑[env] .pref r x := by
@@ -765,7 +765,7 @@ def Leaf.toKind : Leaf → Kind
 /-- Every arm of a disjunction below `b`, found arm by arm. -/
 def armsAllDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (b : Val) :
     (arms : List (ℕ × Val)) → Option (PLift (∀ r a, (r, a) ∈ arms → a ⊑[env] b))
-  | [] => some ⟨fun _ _ h => absurd h (List.not_mem_nil _)⟩
+  | [] => some ⟨fun _ _ h => absurd h (List.not_mem_nil)⟩
   | (_, x) :: rest =>
     match dec x b, armsAllDec dec b rest with
     | some ⟨h⟩, some ⟨hs⟩ => some ⟨fun r' a hm => by
@@ -783,7 +783,7 @@ def armsAnyDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (a : Val)
   | [], _ => none
   | p :: rest, hsub =>
     match dec a p.2 with
-    | some ⟨h⟩ => some ⟨le_or_of_mem h (hsub p (List.mem_cons_self _ _))⟩
+    | some ⟨h⟩ => some ⟨le_or_of_mem h (hsub p (List.mem_cons_self))⟩
     | none => armsAnyDec dec a arms₀ rest fun q hq => hsub q (List.mem_cons_of_mem _ hq)
 
 /-- Each key the general side declares, found on the specific side with a
@@ -792,7 +792,7 @@ def fieldsDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (fss : List 
     (fsg : List (String × Bool × Val)) →
       Option (PLift (∀ k og vg, (k, og, vg) ∈ fsg →
         ∃ os vs, (k, os, vs) ∈ fss ∧ vs ⊑[env] vg ∧ (og = false → os = false)))
-  | [] => some ⟨fun _ _ _ h => absurd h (List.not_mem_nil _)⟩
+  | [] => some ⟨fun _ _ _ h => absurd h (List.not_mem_nil)⟩
   | (k, og, vg) :: rest =>
     match hf : fss.find? (fun f => f.1 == k) with
     | none => none
@@ -814,7 +814,7 @@ too: what a sealed general side asks of a sealed specific side. -/
 def keysDec (fsg : List (String × Bool × Val)) :
     (fss : List (String × Bool × Val)) →
       Option (PLift (∀ k os vs, (k, os, vs) ∈ fss → ∃ og vg, (k, og, vg) ∈ fsg))
-  | [] => some ⟨fun _ _ _ h => absurd h (List.not_mem_nil _)⟩
+  | [] => some ⟨fun _ _ _ h => absurd h (List.not_mem_nil)⟩
   | (k, _, _) :: rest =>
     match hf : fsg.find? (fun f => f.1 == k), keysDec fsg rest with
     | some (k', og, vg), some ⟨hs⟩ => some ⟨fun k₁ o₁ v₁ hm => by
@@ -849,7 +849,7 @@ def itemsDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) :
 def valuesDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (sg : Val) :
     (fss : List (String × Bool × Val)) →
       Option (PLift (∀ k os vs, (k, os, vs) ∈ fss → vs ⊑[env] sg))
-  | [] => some ⟨fun _ _ _ h => absurd h (List.not_mem_nil _)⟩
+  | [] => some ⟨fun _ _ _ h => absurd h (List.not_mem_nil)⟩
   | (_, _, vs) :: rest =>
     match dec vs sg, valuesDec dec sg rest with
     | some ⟨h⟩, some ⟨hs⟩ => some ⟨fun k₁ o₁ v₁ hm => by
@@ -862,7 +862,7 @@ def valuesDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (sg : Val) :
 /-- Every item of a list below one term, found item by item. -/
 def itemsAllDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (sg : Val) :
     (is : List Val) → Option (PLift (∀ v, v ∈ is → v ⊑[env] sg))
-  | [] => some ⟨fun _ h => absurd h (List.not_mem_nil _)⟩
+  | [] => some ⟨fun _ h => absurd h (List.not_mem_nil)⟩
   | v :: rest =>
     match dec v sg, itemsAllDec dec sg rest with
     | some ⟨h⟩, some ⟨hs⟩ => some ⟨fun v' hm => by

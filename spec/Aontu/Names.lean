@@ -242,7 +242,7 @@ theorem length_addNew_ge : ∀ {seen xs : List String}, seen.length ≤ (addNew 
 theorem length_addNew_gt {seen xs : List String} {x : String} (hx : x ∈ xs) (hs : x ∉ seen) :
     seen.length < (addNew seen xs).length := by
   induction xs generalizing seen with
-  | nil => exact absurd hx (List.not_mem_nil x)
+  | nil => exact absurd hx (List.not_mem_nil)
   | cons y ys ih =>
     simp only [addNew]
     split
@@ -261,7 +261,7 @@ theorem addNew_eq_of_sub : ∀ {seen xs : List String}, (∀ y, y ∈ xs → y �
   | nil => rfl
   | cons y ys ih =>
     simp only [addNew]
-    have hy : seen.contains y = true := List.contains_iff_mem.mpr (h y (List.mem_cons_self y ys))
+    have hy : seen.contains y = true := List.contains_iff_mem.mpr (h y (List.mem_cons_self))
     rw [hy]
     simp only [↓reduceIte]
     exact ih fun z hz => h z (List.mem_cons_of_mem y hz)
@@ -281,7 +281,7 @@ theorem exists_new_of_ne : ∀ {seen xs : List String}, addNew seen xs ≠ seen 
       obtain ⟨z, hz, hzs⟩ := ih h
       exact ⟨z, List.mem_cons_of_mem y hz, hzs⟩
     | false =>
-      exact ⟨y, List.mem_cons_self y ys, fun hm => by
+      exact ⟨y, List.mem_cons_self, fun hm => by
         have := List.contains_iff_mem.mpr hm
         rw [hc] at this
         exact Bool.false_ne_true this⟩
@@ -290,7 +290,7 @@ theorem exists_new_of_ne : ∀ {seen xs : List String}, addNew seen xs ≠ seen 
 theorem length_filter_ne_lt {u : List String} {x : String} (hx : x ∈ u) :
     (u.filter fun y => y != x).length < u.length := by
   induction u with
-  | nil => exact absurd hx (List.not_mem_nil x)
+  | nil => exact absurd hx (List.not_mem_nil)
   | cons y u ih =>
     simp only [List.filter_cons]
     cases hyx : (y != x) with
@@ -308,7 +308,7 @@ theorem length_le_of_nodup {l u : List String} (hn : l.Nodup) (hu : ∀ x, x ∈
   induction l generalizing u with
   | nil => exact Nat.zero_le _
   | cons x l ih =>
-    have hx : x ∈ u := hu x (List.mem_cons_self x l)
+    have hx : x ∈ u := hu x (List.mem_cons_self)
     obtain ⟨hxl, hl⟩ := List.nodup_cons.mp hn
     have h := ih hl (u := u.filter fun y => y != x) fun y hy =>
       List.mem_filter.mpr ⟨hu y (List.mem_cons_of_mem x hy), bne_iff_ne.mpr fun h => hxl (h ▸ hy)⟩
@@ -515,7 +515,7 @@ theorem mem_bodies {ds : Decls} {a : String} {v : Val} (h : v ∈ ds.bodies a) :
   exact hmem
 
 theorem mem_names {ds : Decls} {a : String} {v : Val} (h : (a, v) ∈ ds) : a ∈ ds.names :=
-  List.mem_map_of_mem (·.1) h
+  List.mem_map_of_mem (f := (·.1)) h
 
 theorem succ_mentioned {ds : Decls} {a x : String} (h : x ∈ ds.succ a) : x ∈ ds.mentioned := by
   obtain ⟨v, hv, hx⟩ := List.mem_flatMap.mp h
@@ -557,15 +557,15 @@ theorem mem_reach_iff {ds : Decls} {succ : String → List String}
   constructor
   · intro h
     rcases mem_close h with h | ⟨a, ha, hax⟩
-    · exact .single ((mem_addNew.mp h).resolve_left (List.not_mem_nil x))
-    · exact .trans (.single ((mem_addNew.mp ha).resolve_left (List.not_mem_nil a))) hax
+    · exact .single ((mem_addNew.mp h).resolve_left (List.not_mem_nil))
+    · exact .trans (.single ((mem_addNew.mp ha).resolve_left (List.not_mem_nil))) hax
   · intro h
     refine mem_of_transGen (S := ds.reach succ n) ?_ ?_ h
     · intro y hy
       exact sub_close (mem_addNew.mpr (.inr hy))
     · intro b hb y hy
       exact close_closed hsucc _ _ (nodup_addNew List.nodup_nil)
-        (fun z hz => hsucc n z ((mem_addNew.mp hz).resolve_left (List.not_mem_nil z)))
+        (fun z hz => hsucc n z ((mem_addNew.mp hz).resolve_left (List.not_mem_nil)))
         (Nat.lt_of_lt_of_le (Nat.lt_succ_self _) (Nat.le_add_left _ _)) b hb y hy
 
 theorem recursiveB_iff {ds : Decls} {n : String} : ds.recursiveB n = true ↔ ds.Recursive n := by
@@ -631,7 +631,7 @@ theorem alias_self_admits_nothing {env : Env} {root : Data} {n : String} {j : Da
 
 theorem Decls.alias_self_admits_nothing {root : Data} {n : String} {j : Data} :
     ¬ Admits (Decls.env [(n, .alias n)]) root (.alias n) j :=
-  Aontu.alias_self_admits_nothing (by simp [Decls.env, Decls.bodies, List.filter_cons])
+  Aontu.alias_self_admits_nothing (by simp [Decls.env, Decls.bodies])
 
 /-! ## The paths a term writes -/
 

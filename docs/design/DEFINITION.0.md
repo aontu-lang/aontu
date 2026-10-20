@@ -203,7 +203,7 @@ language reads otherwise than the prototype's rules said was left for
 its phase: `|` and `*`, which P2 must read by position, and with them
 `Output`. The prototype's rule for `%U = %U` was dropped too: §7 rules
 it ill-formed, and the definition has no ill-formed values until P5.
-Everything compiles on Lean 4.15.0 with no `sorry`; no named theorem
+Everything compiles with no `sorry`, on Lean 4.24.1 since ADR-072; no named theorem
 rests on an axiom beyond `propext` and `Quot.sound`, and none on
 `Classical.choice`.
 

@@ -214,13 +214,13 @@ theorem genFields_mem {spread : Option Val} :
   | [], ms, h, k, x, hm => by
     rw [genFields] at h
     subst h
-    exact absurd hm (List.not_mem_nil _)
+    exact absurd hm (List.not_mem_nil)
   | (k', o', v') :: fs, ms, h, k, x, hm => by
     rw [genFields] at h
     rcases h with ⟨y, rest, hg, hs, hrest, rfl⟩ | ⟨-, -, hrest⟩
     · rcases List.mem_cons.mp hm with he | hm'
       · cases he
-        exact ⟨o', v', List.mem_cons_self _ _, hg, hs⟩
+        exact ⟨o', v', List.mem_cons_self, hg, hs⟩
       · obtain ⟨o, v, hmem, hg', hs'⟩ := genFields_mem hrest k x hm'
         exact ⟨o, v, List.mem_cons_of_mem _ hmem, hg', hs'⟩
     · obtain ⟨o, v, hmem, hg', hs'⟩ := genFields_mem hrest k x hm
@@ -258,7 +258,7 @@ theorem genFields_lookup_some {spread : Option Val} :
       keysDistinct fs = true → genFields env root spread fs ms →
       ∀ k o v x, (k, o, v) ∈ fs → lookup k ms = some x →
         Gen env root v x ∧ ∀ s, spread = some s → Admits env root s x
-  | [], _, _, _, _, _, _, _, hm, _ => absurd hm (List.not_mem_nil _)
+  | [], _, _, _, _, _, _, _, hm, _ => absurd hm (List.not_mem_nil)
   | (k', o', v') :: fs, ms, hd, h, k, o, v, x, hm, hl => by
     obtain ⟨hd₁, hd₂⟩ := keysDistinct_cons hd
     rw [genFields] at h
@@ -283,7 +283,7 @@ theorem genFields_lookup_none {spread : Option Val} :
     ∀ {fs : List (String × Bool × Val)} {ms : List (String × Data)},
       keysDistinct fs = true → genFields env root spread fs ms →
       ∀ k o v, (k, o, v) ∈ fs → lookup k ms = none → o = true
-  | [], _, _, _, _, _, _, hm, _ => absurd hm (List.not_mem_nil _)
+  | [], _, _, _, _, _, _, hm, _ => absurd hm (List.not_mem_nil)
   | (k', o', v') :: fs, ms, hd, h, k, o, v, hm, hl => by
     obtain ⟨hd₁, hd₂⟩ := keysDistinct_cons hd
     rw [genFields] at h
@@ -334,7 +334,7 @@ theorem genItems_mem {spread : Option Val} : ∀ {items : List Val} {xs : List D
   | [], xs, h, x, hx => by
     rw [genItems] at h
     subst h
-    exact absurd hx (List.not_mem_nil _)
+    exact absurd hx (List.not_mem_nil)
   | v :: vs, xs, h, x, hx => by
     rw [genItems] at h
     obtain ⟨y, rest, -, hs, hrest, rfl⟩ := h
@@ -344,7 +344,7 @@ theorem genItems_mem {spread : Option Val} : ∀ {items : List Val} {xs : List D
 
 theorem genArms_mem {arms₀ : List (ℕ × Val)} : ∀ {arms : List (ℕ × Val)} {j : Data},
     genArms env root arms₀ arms j → ∀ p, p ∈ arms → picked arms₀ p = true → Gen env root p.2 j
-  | [], _, _, _, hm, _ => absurd hm (List.not_mem_nil _)
+  | [], _, _, _, hm, _ => absurd hm (List.not_mem_nil)
   | ⟨r, a⟩ :: arms, j, h, p, hm, hp => by
     rw [genArms] at h
     rcases List.mem_cons.mp hm with rfl | hm'
@@ -355,7 +355,7 @@ theorem genArms_mem {arms₀ : List (ℕ × Val)} : ∀ {arms : List (ℕ × Val
 
 theorem lookup_eq_some_of_nodup : ∀ {l : List (String × Data)} {k : String} {x : Data},
     (l.map Prod.fst).Nodup → (k, x) ∈ l → lookup k l = some x
-  | [], _, _, _, h => absurd h (List.not_mem_nil _)
+  | [], _, _, _, h => absurd h (List.not_mem_nil)
   | (k', y) :: l, k, x, hn, h => by
     rw [List.map_cons, List.nodup_cons] at hn
     rcases List.mem_cons.mp h with he | hm
@@ -436,7 +436,7 @@ theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env r
 
 theorem fields_admits : ∀ fs : List (String × Bool × Val), ∀ k o v, (k, o, v) ∈ fs →
     ∀ x, Gen env root v x → Admits env root v x
-  | [], _, _, _, hm, _, _ => absurd hm (List.not_mem_nil _)
+  | [], _, _, _, hm, _, _ => absurd hm (List.not_mem_nil)
   | (k', o', v') :: fs, k, o, v, hm, x, hg => by
     rcases List.mem_cons.mp hm with he | hm'
     · cases he
@@ -445,7 +445,7 @@ theorem fields_admits : ∀ fs : List (String × Bool × Val), ∀ k o v, (k, o,
 
 theorem items_admits : ∀ items : List Val, ∀ v, v ∈ items →
     ∀ x, Gen env root v x → Admits env root v x
-  | [], _, hm, _, _ => absurd hm (List.not_mem_nil _)
+  | [], _, hm, _, _ => absurd hm (List.not_mem_nil)
   | v' :: vs, v, hm, x, hg => by
     rcases List.mem_cons.mp hm with rfl | hm'
     · exact gen_admits _ x hg
@@ -453,7 +453,7 @@ theorem items_admits : ∀ items : List Val, ∀ v, v ∈ items →
 
 theorem arms_admits : ∀ arms : List (ℕ × Val), ∀ r a, (r, a) ∈ arms →
     ∀ j, Gen env root a j → Admits env root a j
-  | [], _, _, hm, _, _ => absurd hm (List.not_mem_nil _)
+  | [], _, _, hm, _, _ => absurd hm (List.not_mem_nil)
   | (r', a') :: arms, r, a, hm, j, hg => by
     rcases List.mem_cons.mp hm with he | hm'
     · cases he
@@ -480,7 +480,7 @@ theorem genFields_unique {spread : Option Val} :
       fun k o v hm => hu k o v (List.mem_cons_of_mem _ hm)
     rcases h with ⟨x, rest, hg, hs, hrest, rfl⟩ | ⟨-, hnone, hrest⟩ <;>
       rcases h' with ⟨x', rest', hg', hs', hrest', rfl⟩ | ⟨-, hnone', hrest'⟩
-    · obtain rfl := hu k o v (List.mem_cons_self _ _) x x' hg hg'
+    · obtain rfl := hu k o v (List.mem_cons_self) x x' hg hg'
       rw [genFields_unique hu' hrest hrest']
     · exact absurd hs (hnone' x hg)
     · exact absurd hs' (hnone x' hg')
@@ -497,7 +497,7 @@ theorem genItems_unique {spread : Option Val} :
     rw [genItems] at h h'
     obtain ⟨x, rest, hg, -, hrest, rfl⟩ := h
     obtain ⟨x', rest', hg', -, hrest', rfl⟩ := h'
-    obtain rfl := hu v (List.mem_cons_self _ _) x x' hg hg'
+    obtain rfl := hu v (List.mem_cons_self) x x' hg hg'
     rw [genItems_unique (fun v hm => hu v (List.mem_cons_of_mem _ hm)) hrest hrest']
 
 mutual
@@ -540,7 +540,7 @@ theorem gen_unique : ∀ (v : Val) (j j' : Data), Gen env root v j → Gen env r
 
 theorem fields_unique : ∀ fs : List (String × Bool × Val), ∀ k o v, (k, o, v) ∈ fs →
     ∀ x x', Gen env root v x → Gen env root v x' → x = x'
-  | [], _, _, _, hm, _, _, _, _ => absurd hm (List.not_mem_nil _)
+  | [], _, _, _, hm, _, _, _, _ => absurd hm (List.not_mem_nil)
   | (k', o', v') :: fs, k, o, v, hm, x, x', hg, hg' => by
     rcases List.mem_cons.mp hm with he | hm'
     · cases he
@@ -549,7 +549,7 @@ theorem fields_unique : ∀ fs : List (String × Bool × Val), ∀ k o v, (k, o,
 
 theorem items_unique : ∀ items : List Val, ∀ v, v ∈ items →
     ∀ x x', Gen env root v x → Gen env root v x' → x = x'
-  | [], _, hm, _, _, _, _ => absurd hm (List.not_mem_nil _)
+  | [], _, hm, _, _, _, _ => absurd hm (List.not_mem_nil)
   | v' :: vs, v, hm, x, x', hg, hg' => by
     rcases List.mem_cons.mp hm with rfl | hm'
     · exact gen_unique _ x x' hg hg'
@@ -557,7 +557,7 @@ theorem items_unique : ∀ items : List Val, ∀ v, v ∈ items →
 
 theorem arms_unique : ∀ arms : List (ℕ × Val), ∀ r a, (r, a) ∈ arms →
     ∀ j j', Gen env root a j → Gen env root a j' → j = j'
-  | [], _, _, hm, _, _, _, _ => absurd hm (List.not_mem_nil _)
+  | [], _, _, hm, _, _, _, _ => absurd hm (List.not_mem_nil)
   | (r', a') :: arms, r, a, hm, j, j', hg, hg' => by
     rcases List.mem_cons.mp hm with he | hm'
     · cases he
@@ -664,7 +664,7 @@ theorem genFieldsWith_iff {spread : Option Val}
     rw [genFieldsWith, genFields, Option.some.injEq]
     exact eq_comm
   | (k, o, v) :: fs, ih, ms => by
-    have ihv := ih k o v (List.mem_cons_self _ _)
+    have ihv := ih k o v (List.mem_cons_self)
     have ihfs := genFieldsWith_iff hs (fun k o v hm => ih k o v (List.mem_cons_of_mem _ hm))
     rw [genFieldsWith, genFields]
     cases hg : genWith chk v with
@@ -702,11 +702,11 @@ theorem genFieldsWith_iff {spread : Option Val}
         rw [if_pos rfl]
         constructor
         · intro h
-          obtain ⟨rest, hrest, rfl⟩ := Option.map_eq_some'.mp h
+          obtain ⟨rest, hrest, rfl⟩ := Option.map_eq_some_iff.mp h
           exact .inl ⟨x, rest, hgen, hspOK, (ihfs rest).mp hrest, rfl⟩
         · rintro (⟨x', rest, hx', -, hrest, rfl⟩ | ⟨-, hno, -⟩)
           · obtain rfl := huniq x' hx'
-            exact Option.map_eq_some'.mpr ⟨rest, (ihfs rest).mpr hrest, rfl⟩
+            exact Option.map_eq_some_iff.mpr ⟨rest, (ihfs rest).mpr hrest, rfl⟩
           · exact absurd hspOK (hno x hgen)
       | false =>
         have hspNo : ¬ ∀ s, spread = some s → Admits env root s x := fun h => by
@@ -744,7 +744,7 @@ theorem genItemsWith_iff {spread : Option Val}
     rw [genItemsWith, genItems, Option.some.injEq]
     exact eq_comm
   | v :: vs, ih, xs => by
-    have ihv := ih v (List.mem_cons_self _ _)
+    have ihv := ih v (List.mem_cons_self)
     have ihvs := genItemsWith_iff hs (fun v hm => ih v (List.mem_cons_of_mem _ hm))
     rw [genItemsWith, genItems]
     cases hg : genWith chk v with
@@ -770,11 +770,11 @@ theorem genItemsWith_iff {spread : Option Val}
         rw [if_pos rfl]
         constructor
         · intro h
-          obtain ⟨rest, hrest, rfl⟩ := Option.map_eq_some'.mp h
+          obtain ⟨rest, hrest, rfl⟩ := Option.map_eq_some_iff.mp h
           exact ⟨x, rest, hgen, hspOK, (ihvs rest).mp hrest, rfl⟩
         · rintro ⟨x', rest, hx', -, hrest, rfl⟩
           obtain rfl := huniq x' hx'
-          exact Option.map_eq_some'.mpr ⟨rest, (ihvs rest).mpr hrest, rfl⟩
+          exact Option.map_eq_some_iff.mpr ⟨rest, (ihvs rest).mpr hrest, rfl⟩
       | false =>
         have hspNo : ¬ ∀ s, spread = some s → Admits env root s x := fun h => by
           have := (spreadOk_iff hs x).mpr h
@@ -797,7 +797,7 @@ theorem genArmsWith_iff {arms₀ : List (ℕ × Val)}
     rw [genArmsWith, genArms]
     simp
   | ⟨r, a⟩ :: arms, hsub, acc, j => by
-    have iha := ih r a (hsub _ (List.mem_cons_self _ _))
+    have iha := ih r a (hsub _ (List.mem_cons_self))
     have ihrest := genArmsWith_iff ih (fun p hp => hsub p (List.mem_cons_of_mem _ hp))
     rw [genArmsWith, genArms, List.any_cons]
     by_cases hp : picked arms₀ (r, a) = true
@@ -892,10 +892,10 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
     · rw [if_pos hd]
       constructor
       · intro h
-        obtain ⟨ms, hms, rfl⟩ := Option.map_eq_some'.mp h
+        obtain ⟨ms, hms, rfl⟩ := Option.map_eq_some_iff.mp h
         exact ⟨hd, ms, (genFieldsWith_iff hsp ihf ms).mp hms, rfl⟩
       · rintro ⟨-, ms, hg, rfl⟩
-        exact Option.map_eq_some'.mpr ⟨ms, (genFieldsWith_iff hsp ihf ms).mpr hg, rfl⟩
+        exact Option.map_eq_some_iff.mpr ⟨ms, (genFieldsWith_iff hsp ihf ms).mpr hg, rfl⟩
     · rw [if_neg hd]
       exact ⟨(fun h => nomatch h), fun h => absurd h.1 hd⟩
   | @list items spread closed hi hs ihi _ =>
@@ -908,10 +908,10 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
       simp only [Val.refs, List.mem_append]; exact .inl (mem_refsItems.mpr ⟨v, hm, hsub n hn⟩)
     constructor
     · intro h
-      obtain ⟨xs, hxs, rfl⟩ := Option.map_eq_some'.mp h
+      obtain ⟨xs, hxs, rfl⟩ := Option.map_eq_some_iff.mp h
       exact ⟨xs, (genItemsWith_iff hsp ihi xs).mp hxs, rfl⟩
     · rintro ⟨xs, hg, rfl⟩
-      exact Option.map_eq_some'.mpr ⟨xs, (genItemsWith_iff hsp ihi xs).mpr hg, rfl⟩
+      exact Option.map_eq_some_iff.mpr ⟨xs, (genItemsWith_iff hsp ihi xs).mpr hg, rfl⟩
   | @or arms ha iha =>
     intro j
     rw [genWith, Gen]

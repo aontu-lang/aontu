@@ -161,13 +161,13 @@ theorem dom_mem_doms {v : Val} {j : Data} (h : Admits env root v j) : j.dom ∈ 
     cases vs with
     | nil => simp [Val.doms, Data.dom]
     | cons b vs =>
-      obtain ⟨n, rfl, -⟩ := hv b (List.mem_cons_self b vs)
+      obtain ⟨n, rfl, -⟩ := hv b (List.mem_cons_self)
       simp [Val.doms, Bound.dom, Data.dom]
   case neqStr vs s hv =>
     cases vs with
     | nil => simp [Val.doms, Data.dom]
     | cons b vs =>
-      obtain ⟨t, rfl, -⟩ := hv b (List.mem_cons_self b vs)
+      obtain ⟨t, rfl, -⟩ := hv b (List.mem_cons_self)
       simp [Val.doms, Bound.dom, Data.dom]
   case len => cases j <;> simp_all [Data.size, Val.doms, Data.dom]
   case unique => cases j <;> simp_all [Data.members, Val.doms, Data.dom]
@@ -191,12 +191,12 @@ theorem Number.den_pos : ∀ x : Number, 0 < x.value.2
   | .bigdecimal x => by
     simp only [Number.value]
     split
-    · exact Nat.pos_pow_of_pos _ (by decide)
+    · exact Nat.pow_pos (by decide)
     · exact Nat.one_pos
 
 theorem Number.le_trans {a b c : Number} (h₁ : a.le b) (h₂ : b.le c) : a.le c := by
   unfold Number.le at *
-  have hb : (0 : ℤ) < b.value.2 := Int.ofNat_pos.mpr b.den_pos
+  have hb : (0 : ℤ) < b.value.2 := Int.natCast_pos.mpr b.den_pos
   have ha : (0 : ℤ) ≤ a.value.2 := Int.ofNat_zero_le _
   have hc : (0 : ℤ) ≤ c.value.2 := Int.ofNat_zero_le _
   apply Int.le_of_mul_le_mul_right _ hb
@@ -208,9 +208,9 @@ theorem Number.le_trans {a b c : Number} (h₁ : a.le b) (h₂ : b.le c) : a.le 
 
 theorem Number.lt_of_lt_of_le {a b c : Number} (h₁ : a.lt b) (h₂ : b.le c) : a.lt c := by
   unfold Number.lt Number.le at *
-  have hb : (0 : ℤ) < b.value.2 := Int.ofNat_pos.mpr b.den_pos
+  have hb : (0 : ℤ) < b.value.2 := Int.natCast_pos.mpr b.den_pos
   have ha : (0 : ℤ) ≤ a.value.2 := Int.ofNat_zero_le _
-  have hc : (0 : ℤ) < c.value.2 := Int.ofNat_pos.mpr c.den_pos
+  have hc : (0 : ℤ) < c.value.2 := Int.natCast_pos.mpr c.den_pos
   apply Int.lt_of_mul_lt_mul_right _ (Int.le_of_lt hb)
   calc a.value.1 * (c.value.2 : ℤ) * b.value.2 = a.value.1 * b.value.2 * c.value.2 := by ac_rfl
     _ < b.value.1 * a.value.2 * c.value.2 := Int.mul_lt_mul_of_pos_right h₁ hc
@@ -220,8 +220,8 @@ theorem Number.lt_of_lt_of_le {a b c : Number} (h₁ : a.lt b) (h₂ : b.le c) :
 
 theorem Number.lt_of_le_of_lt {a b c : Number} (h₁ : a.le b) (h₂ : b.lt c) : a.lt c := by
   unfold Number.lt Number.le at *
-  have hb : (0 : ℤ) < b.value.2 := Int.ofNat_pos.mpr b.den_pos
-  have ha : (0 : ℤ) < a.value.2 := Int.ofNat_pos.mpr a.den_pos
+  have hb : (0 : ℤ) < b.value.2 := Int.natCast_pos.mpr b.den_pos
+  have ha : (0 : ℤ) < a.value.2 := Int.natCast_pos.mpr a.den_pos
   have hc : (0 : ℤ) ≤ c.value.2 := Int.ofNat_zero_le _
   apply Int.lt_of_mul_lt_mul_right _ (Int.le_of_lt hb)
   calc a.value.1 * (c.value.2 : ℤ) * b.value.2 = a.value.1 * b.value.2 * c.value.2 := by ac_rfl
@@ -250,26 +250,22 @@ theorem Number.none_between_beneath {lo hi x : Number} (hlo : lo.le x) (hhi : x.
 
 /-- The order on strings, character by character, is transitive and
 total, so the same holds of strings. -/
-theorem chars_le_trans {x y z : Char} (h₁ : ¬ x < y) (h₂ : ¬ y < z) : ¬ x < z := by
-  rw [Char.not_lt] at *
-  exact UInt32.le_trans h₂ h₁
-
 theorem lt_trans_chars {l₁ l₂ l₃ : List Char} (h₁ : l₁ < l₂) (h₂ : l₂ < l₃) : l₁ < l₃ :=
-  List.lt_trans Char.lt_trans chars_le_trans h₁ h₂
+  List.lt_trans h₁ h₂
 
 theorem lt_total_chars : ∀ (l₁ l₂ : List Char), l₁ < l₂ ∨ l₁ = l₂ ∨ l₂ < l₁
   | [], [] => .inr (.inl rfl)
-  | [], _ :: _ => .inl (List.lt.nil _ _)
-  | _ :: _, [] => .inr (.inr (List.lt.nil _ _))
+  | [], _ :: _ => .inl List.Lex.nil
+  | _ :: _, [] => .inr (.inr List.Lex.nil)
   | a :: as, b :: bs =>
-    if hab : a < b then .inl (List.lt.head _ _ hab)
-    else if hba : b < a then .inr (.inr (List.lt.head _ _ hba))
+    if hab : a < b then .inl (List.Lex.rel hab)
+    else if hba : b < a then .inr (.inr (List.Lex.rel hba))
     else
       have heq : a = b := Char.ext (UInt32.le_antisymm (Char.not_lt.mp hba) (Char.not_lt.mp hab))
       match lt_total_chars as bs with
-      | .inl h => .inl (List.lt.tail hab hba h)
+      | .inl h => .inl (by subst heq; exact List.Lex.cons h)
       | .inr (.inl h) => .inr (.inl (by rw [heq, h]))
-      | .inr (.inr h) => .inr (.inr (List.lt.tail hba hab h))
+      | .inr (.inr h) => .inr (.inr (by subst heq; exact List.Lex.cons h))
 
 theorem String.none_between {lo hi s : String} (hlo : lo ≤ s) (hhi : s ≤ hi) (h : hi < lo) :
     False :=
@@ -349,7 +345,7 @@ theorem emptyPair_sound {a b : Val} {j : Data} (ha : Admits env root a j)
         | min h₁ => cases hb with
           | max h₂ => simp [emptyBetween]; exact fun h => Number.none_between h₁ h₂ h
         | minStr h₁ => cases hb with
-          | maxStr h₂ => simp [emptyBetween]; exact fun h => String.none_between h₁ h₂ h
+          | maxStr h₂ => simp [emptyBetween, -String.not_le]; exact fun h => String.none_between h₁ h₂ h
       · cases ha with
         | min h₁ => cases hb with
           | beneath h₂ =>
@@ -358,7 +354,7 @@ theorem emptyPair_sound {a b : Val} {j : Data} (ha : Admits env root a j)
               fun h => Number.none_between_beneath h₁ h₂ h⟩
         | minStr h₁ => cases hb with
           | beneathStr h₂ =>
-            simp [emptyBetween]
+            simp [emptyBetween, -String.not_le]
             exact ⟨fun h => String.none_between h₁ (String.le_of_lt h₂) h,
               fun h => String.none_between_beneath h₁ h₂ h⟩
       · cases ha with
@@ -369,7 +365,7 @@ theorem emptyPair_sound {a b : Val} {j : Data} (ha : Admits env root a j)
               fun h => Number.none_between_above h₁ h₂ h⟩
         | aboveStr h₁ => cases hb with
           | maxStr h₂ =>
-            simp [emptyBetween]
+            simp [emptyBetween, -String.not_le]
             exact ⟨fun h => String.none_between (String.le_of_lt h₁) h₂ h,
               fun h => String.none_between_above h₁ h₂ h⟩
       · cases ha with
@@ -380,7 +376,7 @@ theorem emptyPair_sound {a b : Val} {j : Data} (ha : Admits env root a j)
               fun h => Number.none_between_above h₁ (Number.le_of_lt h₂) h⟩
         | aboveStr h₁ => cases hb with
           | beneathStr h₂ =>
-            simp [emptyBetween]
+            simp [emptyBetween, -String.not_le]
             exact ⟨fun h => String.none_between (String.le_of_lt h₁) (String.le_of_lt h₂) h,
               fun h => String.none_between_above h₁ (String.le_of_lt h₂) h⟩
 
@@ -600,8 +596,8 @@ theorem deadField_sound : ∀ fs : List (String × Bool × Val), deadField fs = 
       | true => exact nomatch ho
       | false =>
         cases hl : lookup k jfs with
-        | none => exact Bool.false_ne_true (ha k false v (List.mem_cons_self _ _) hl)
-        | some x => exact dead_sound v hv x (hp k false v x (List.mem_cons_self _ _) hl)
+        | none => exact Bool.false_ne_true (ha k false v (List.mem_cons_self) hl)
+        | some x => exact dead_sound v hv x (hp k false v x (List.mem_cons_self) hl)
     · exact deadField_sound fs h₂ jfs (fun k o v x hm => hp k o v x (List.mem_cons_of_mem _ hm))
         (fun k o v hm => ha k o v (List.mem_cons_of_mem _ hm))
 
@@ -676,8 +672,8 @@ theorem deadField_refuses : ∀ (fs₀ fs : List (String × Bool × Val)), (∀ 
       | true => exact nomatch ho
       | false =>
         cases hl : lookup k jfs with
-        | none => exact .mapMissing (hsub _ (List.mem_cons_self _ _)) hl rfl
-        | some x => exact .mapField (hsub _ (List.mem_cons_self _ _)) hl (dead_refuses v hv x)
+        | none => exact .mapMissing (hsub _ (List.mem_cons_self)) hl rfl
+        | some x => exact .mapField (hsub _ (List.mem_cons_self)) hl (dead_refuses v hv x)
     · exact deadField_refuses fs₀ fs (fun f hf => hsub f (List.mem_cons_of_mem _ hf)) h₂ sp c jfs
 
 /-- A dead position, among the positions `items₀` of a list, refuses
@@ -702,7 +698,7 @@ theorem deadItem_refuses : ∀ (items₀ items : List Val) (off : ℕ),
 
 theorem allDead_refuses : ∀ arms : List (ℕ × Val), allDead arms = true →
     ∀ r a, (r, a) ∈ arms → ∀ j, Refuses env root a j
-  | [], _, _, _, h, _ => absurd h (List.not_mem_nil _)
+  | [], _, _, _, h, _ => absurd h (List.not_mem_nil)
   | (_, a') :: arms, h, r, a, hm, j => by
     obtain ⟨h₁, h₂⟩ := Bool.and_eq_true_iff.mp h
     rcases List.mem_cons.mp hm with he | hm'
@@ -820,7 +816,7 @@ theorem optional_iff {k : String} : ∀ {fs : List (String × Bool × Val)},
     · intro h
       refine ⟨?_, fun o v hm => h o v (List.mem_cons_of_mem _ hm)⟩
       by_cases hk : k = k'
-      · subst hk; simpa using h o' v' (List.mem_cons_self _ _)
+      · subst hk; simpa using h o' v' (List.mem_cons_self)
       · simp [hk]
 
 theorem admits_meetDecls {m : Val → Val → Val}
@@ -842,7 +838,7 @@ theorem admits_meetDecls {m : Val → Val → Val}
         · cases he; exact h₂
         · exact h₃ o'' v'' hm'
       · rintro ⟨h₁, h₂⟩
-        exact ⟨⟨h₁, h₂ o v' (List.mem_cons_self _ _)⟩,
+        exact ⟨⟨h₁, h₂ o v' (List.mem_cons_self)⟩,
           fun o'' v'' hm' => h₂ o'' v'' (List.mem_cons_of_mem _ hm')⟩
     · rw [if_neg hk]
       constructor
@@ -971,7 +967,7 @@ theorem lookup_mem {k : String} {x : Data} : ∀ {jfs : List (String × Data)},
     · subst hk
       simp [lookup] at h
       subst h
-      exact List.mem_cons_self _ _
+      exact List.mem_cons_self
     · simp [lookup, hk] at h
       exact List.mem_cons_of_mem _ (lookup_mem h)
 
@@ -1654,7 +1650,7 @@ theorem admits_pref_left {m : Val → Val → Val}
     Admits env root (mkOr [(r, m x b), (0, m x.super b)]) j ↔
       Admits env root (.pref r x) j ∧ Admits env root b j := by
   rw [admits_mkOr, admits_pref_iff]
-  simp only [List.mem_cons, List.mem_singleton, Prod.mk.injEq, List.not_mem_nil, or_false]
+  simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
   constructor
   · rintro ⟨r', a, h, ha⟩
     rcases h with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
@@ -1670,7 +1666,7 @@ theorem admits_pref_right {m : Val → Val → Val}
     Admits env root (mkOr [(r, m a y), (0, m a y.super)]) j ↔
       Admits env root a j ∧ Admits env root (.pref r y) j := by
   rw [admits_mkOr, admits_pref_iff]
-  simp only [List.mem_cons, List.mem_singleton, Prod.mk.injEq, List.not_mem_nil, or_false]
+  simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
   constructor
   · rintro ⟨r', b, h, hb⟩
     rcases h with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
@@ -1836,7 +1832,7 @@ theorem admits_meetStep {lm : Scalar → Val → Val} {rec : Val → Val → Val
     (hr : ∀ a b j, Admits env root (rec a b) j ↔ Admits env root a j ∧ Admits env root b j)
     (a b : Val) (j : Data) :
     Admits env root (meetStep lm rec a b) j ↔ Admits env root a j ∧ Admits env root b j := by
-  cases a <;> cases b <;> simp only [meetStep] <;> first
+  cases a <;> cases b <;> (unfold meetStep; dsimp only) <;> first
     | exact admits_meetBase hl ..
     | exact admits_nil_left ..
     | exact admits_nil_right ..

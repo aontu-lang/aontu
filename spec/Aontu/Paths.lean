@@ -312,7 +312,7 @@ theorem Decls.ofPaths_checkableA {root : Val} (hr : root.CheckableA) (ps : List 
   | none => rw [hw] at hp; exact absurd hp (by simp)
   | some w =>
     rw [hw] at hp
-    simp only [Option.map_some', Option.some.injEq] at hp
+    simp only [Option.map_some, Option.some.injEq] at hp
     rw [← hp]
     exact pathsToAliases_checkableA (at_checkableA p hr hw)
 
@@ -343,15 +343,15 @@ theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     by_cases he : vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j = .error
     · rw [if_pos he]
       have hE := (hvS .error).mp he
-      cases v <;> simp only [VetP, hR, hE, not_true_eq_false, false_and, and_false, or_true, iff_false,
-        reduceCtorEq, not_false_eq_true]
+      cases v <;> simp only [VetP, hR, hE, not_true_eq_false, false_and, and_false, or_true,
+        reduceCtorEq]
     · rw [if_neg he]
       have hE : ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error := fun h => he ((hvS .error).mpr h)
       cases hp : vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j <;> cases v <;>
-        simp only [VetP, hR, hE, ← hvP, hp, not_true_eq_false, not_false_eq_true, true_and, false_and,
-          false_or, or_true, true_or, or_false, iff_true, iff_false, and_false, and_true, reduceCtorEq]
+        simp only [VetP, hR, hE, ← hvP, hp, not_true_eq_false, not_false_eq_true,
+          or_true, or_false, and_false, and_true, reduceCtorEq]
   · rw [if_neg hr]
     have hR : ¬ ds.Resolves S := fun h => hr (Decls.resolvesB_iff.mpr h)
-    cases v <;> simp only [VetP, hR, not_false_eq_true, true_or, false_and, iff_false, reduceCtorEq]
+    cases v <;> simp only [VetP, hR, not_false_eq_true, true_or, false_and, reduceCtorEq]
 
 end Aontu

@@ -69,7 +69,7 @@ def Decls.envE (ds : Decls) : Env := fun n => (ds.env n).map (expand ds)
 
 theorem Decls.envE_eq {ds : Decls} {n : String} {b : Val} (h : ds.env n = some b) :
     ds.envE n = some (expand ds b) := by
-  simp only [Decls.envE, h, Option.map_some']
+  simp only [Decls.envE, h, Option.map_some]
 
 /-- A reference judges as the expansion of its body judges. -/
 theorem judge_alias_iff {ds : Decls} {root : Data} {b : Bool} {k : String} {body : Val} {j : Data}
@@ -130,7 +130,7 @@ def checkR (ds : Decls) (v : Val) (j : Data) : Bool := checkD ds (ds.budget j []
 namespace Decls
 
 theorem Stacked.nil {ds : Decls} (v : Val) : ds.Stacked [] v :=
-  ⟨List.nodup_nil, fun _ h => absurd h (List.not_mem_nil _), fun _ _ _ h => absurd h (List.not_mem_nil _)⟩
+  ⟨List.nodup_nil, fun _ h => absurd h (List.not_mem_nil), fun _ _ _ h => absurd h (List.not_mem_nil)⟩
 
 theorem Stacked.length_le {ds : Decls} {stack : List String} {v : Val} (h : ds.Stacked stack v) :
     stack.length ≤ ds.length := by
@@ -146,7 +146,7 @@ theorem mem_names_of_env {ds : Decls} {k : String} {b : Val} (h : ds.env k = som
   split at h
   · exact nomatch h
   · rename_i v vs hb
-    exact mem_names (mem_bodies (hb ▸ List.mem_cons_self v vs))
+    exact mem_names (mem_bodies (hb ▸ List.mem_cons_self))
 
 /-- The names a meet of bodies reaches with nothing between are the
 bodies' own. -/
@@ -158,7 +158,7 @@ theorem unguardedRefs_foldl_meet : ∀ (vs : List Val) (v : Val) {n : String},
     · simp only [Val.unguardedRefs, List.mem_append] at h'
       rcases h' with h' | h'
       · exact .inl h'
-      · exact .inr ⟨w, List.mem_cons_self _ _, h'⟩
+      · exact .inr ⟨w, List.mem_cons_self, h'⟩
     · exact .inr ⟨w', List.mem_cons_of_mem _ hw', hn⟩
 
 theorem refersUnguarded_of_env {ds : Decls} {k n : String} {b : Val} (h : ds.env k = some b)
@@ -169,7 +169,7 @@ theorem refersUnguarded_of_env {ds : Decls} {k n : String} {b : Val} (h : ds.env
   · rename_i v vs hb
     cases h
     rcases unguardedRefs_foldl_meet vs v hn with h' | ⟨w, hw, hn'⟩
-    · exact ⟨v, hb ▸ List.mem_cons_self v vs, h'⟩
+    · exact ⟨v, hb ▸ List.mem_cons_self, h'⟩
     · exact ⟨w, hb ▸ List.mem_cons_of_mem v hw, hn'⟩
 
 end Decls
@@ -241,7 +241,7 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
         · exact .inl (.inl (.inr h'))
         · exact .inr ⟨m, .inl (.inr hm), hmn⟩
       · cases e with
-        | none => exact absurd h (List.not_mem_nil _)
+        | none => exact absurd h (List.not_mem_nil)
         | some e' =>
           simp only [Option.map, unguardedSpread] at h ⊢
           rcases unguardedRefs_expandF f e' h with h' | ⟨m, hm, hmn⟩
@@ -279,7 +279,7 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
           · exact .inl (.inl (.inr (mem_unguardedPairs.mpr ⟨p, r, ha, .inr h'⟩)))
           · exact .inr ⟨m, .inl (.inr (mem_unguardedPairs.mpr ⟨p, r, ha, .inr hm'⟩)), hmn⟩
       · cases d with
-        | none => exact absurd h (List.not_mem_nil _)
+        | none => exact absurd h (List.not_mem_nil)
         | some e' =>
           simp only [Option.map, unguardedSpread] at h
           rcases unguardedRefs_expandF f e' h with h' | ⟨m, hm, hmn⟩
@@ -337,9 +337,9 @@ theorem Decls.env_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Checkabl
       | nil => intro v hv _; exact hv
       | cons w vs ih =>
         intro v hv hws
-        exact ih (.meet v w) (.meet hv (hws w (List.mem_cons_self _ _)))
+        exact ih (.meet v w) (.meet hv (hws w (List.mem_cons_self)))
           (fun w' hw' => hws w' (List.mem_cons_of_mem _ hw'))
-    exact this vs v (hall v (List.mem_cons_self _ _)) (fun w hw => hall w (List.mem_cons_of_mem _ hw))
+    exact this vs v (hall v (List.mem_cons_self)) (fun w hw => hall w (List.mem_cons_of_mem _ hw))
 
 theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
     ∀ (f : ℕ) (v : Val), v.CheckableA → (expandF ds f v).CheckableA
@@ -363,7 +363,7 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
         obtain ⟨rfl, rfl, rfl⟩ := he
         exact expandF_checkableA hb f w (hf k' o' w hw)
       · intro s hs'
-        obtain ⟨s', hs'', rfl⟩ := Option.map_eq_some'.mp hs'
+        obtain ⟨s', hs'', rfl⟩ := Option.map_eq_some_iff.mp hs'
         exact expandF_checkableA hb f s' (hs s' hs'')
     | list hi hs =>
       refine .list ?_ ?_
@@ -371,7 +371,7 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
         obtain ⟨w, hw, rfl⟩ := List.mem_map.mp hm
         exact expandF_checkableA hb f w (hi w hw)
       · intro s hs'
-        obtain ⟨s', hs'', rfl⟩ := Option.map_eq_some'.mp hs'
+        obtain ⟨s', hs'', rfl⟩ := Option.map_eq_some_iff.mp hs'
         exact expandF_checkableA hb f s' (hs s' hs'')
     | or ha =>
       refine .or ?_
@@ -391,22 +391,22 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
     | when hc ht he =>
       refine .when (expandF_checkableA hb f _ hc) (expandF_checkableA hb f _ ht) ?_
       intro e' he'
-      obtain ⟨e'', he'', rfl⟩ := Option.map_eq_some'.mp he'
+      obtain ⟨e'', he'', rfl⟩ := Option.map_eq_some_iff.mp he'
       exact expandF_checkableA hb f e'' (he e'' he'')
     | contains hc hn => exact .contains (expandF_checkableA hb f _ hc) (expandF_checkableA hb f _ hn)
     | rest ht h1 h2 h3 =>
       refine .rest (expandF_checkableA hb f _ ht) ?_ ?_ ?_
       · intro c' hc' v hv
         obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hc'
-        obtain ⟨w, hw, rfl⟩ := Option.map_eq_some'.mp hv
+        obtain ⟨w, hw, rfl⟩ := Option.map_eq_some_iff.mp hv
         exact expandF_checkableA hb f w (h1 c hc w hw)
       · intro c' hc' v hv
         obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hc'
-        obtain ⟨w, hw, rfl⟩ := Option.map_eq_some'.mp hv
+        obtain ⟨w, hw, rfl⟩ := Option.map_eq_some_iff.mp hv
         exact expandF_checkableA hb f w (h2 c hc w hw)
       · intro c' hc' v hv
         obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hc'
-        obtain ⟨w, hw, rfl⟩ := Option.map_eq_some'.mp hv
+        obtain ⟨w, hw, rfl⟩ := Option.map_eq_some_iff.mp hv
         exact expandF_checkableA hb f w (h3 c hc w hw)
     | _ => (try simp only [expandF]); constructor
 
@@ -829,7 +829,7 @@ theorem meetDecls_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m
     simp only [meetDecls]
     refine meetDecls_checkableA hm fs ?_ (fun k'' o' w' h => hfs k'' o' w' (List.mem_cons_of_mem _ h))
     split
-    · exact hm _ _ hv (hfs k' o w (List.mem_cons_self _ _))
+    · exact hm _ _ hv (hfs k' o w (List.mem_cons_self))
     · exact hv
 
 theorem meetKey_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
@@ -1019,11 +1019,10 @@ set_option maxHeartbeats 2000000 in
 theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.CheckableA → (lm s b).CheckableA)
     {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) : (meetStep lm rec a b).CheckableA := by
   have hany : (Val.map [] none false).CheckableA :=
-    .map (fun _ _ _ h => absurd h (List.not_mem_nil _)) (fun _ h => nomatch h)
+    .map (fun _ _ _ h => absurd h (List.not_mem_nil)) (fun _ h => nomatch h)
   have hanyL : (Val.list [] none false).CheckableA :=
-    .list (fun _ h => absurd h (List.not_mem_nil _)) (fun _ h => nomatch h)
-  unfold meetStep
-  split <;> first
+    .list (fun _ h => absurd h (List.not_mem_nil)) (fun _ h => nomatch h)
+  cases a <;> cases b <;> (unfold meetStep; dsimp only) <;> first
     | exact .nil
     | exact meetBase_checkableA hl ha hb
     | exact (match ha with | .meet h₁ h₂ => hr _ _ h₁ (hr _ _ h₂ hb))

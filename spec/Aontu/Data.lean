@@ -348,7 +348,7 @@ theorem mem_namedItems : ∀ {i : ℕ} {xs : List Data} {k : String} {x : Data},
   | i, y :: xs, k, x, h => by
     simp only [namedItems, List.mem_cons, Prod.mk.injEq] at h
     rcases h with ⟨-, rfl⟩ | h
-    · exact List.mem_cons_self _ _
+    · exact List.mem_cons_self
     · exact List.mem_cons_of_mem _ (mem_namedItems h)
 
 /-- A step of a path: a member's key, or a position in a list. -/

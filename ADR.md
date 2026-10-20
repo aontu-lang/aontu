@@ -108,6 +108,7 @@ thereafter stated and changed in the definition, not here.
 | [ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it) | The language is defined in Lean, and the ports implement it | Accepted |
 | [ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release) | The standard CI run samples, the daily run decides, and releases come from `release` | Amended by [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) |
 | [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) | A push is checked in two minutes and a pull request in five | Accepted |
+| [ADR-072](#adr-072--the-definition-is-pinned-to-lean-4241) | The definition is pinned to Lean 4.24.1 | Accepted |
 
 ---
 
@@ -6702,3 +6703,53 @@ the sample 105 to 152 s.
   five minutes, and a new step in `make quick` inside two.
 - Enforced by the `timeout-minutes` in `build.yml` and by the
   `quick` target's comment, which cite this entry.
+
+## ADR-072 — The definition is pinned to Lean 4.24.1
+
+**Date:** 2026-10-20
+**Status:** Accepted
+
+### Context
+
+Lean 4.15.0 bundles LLVM 15. Its linker, `ld64.lld` 15.0.1, leaves
+`SG_READ_ONLY` off an executable's `__DATA_CONST` segment, and its
+clang, not knowing a darwin 25 host, records macOS SDK 99.0. dyld on
+macOS 26 holds every executable whose recorded SDK falls in its spring
+2025 epoch or later to that flag, so the oracle aborted at load
+(`__DATA_CONST segment missing SG_READ_ONLY flag`): `make spec` checked
+every proof and regenerated no row. Lean 4.20.0 ships LLVM 19
+(lean4#6063), whose linker sets the flag.
+
+From 4.25.0 a `String` is a UTF-8 byte array. The order on strings is
+defined through `String.toList`, whose definition carries a decoding
+proof the core library proves with `Classical.propDecidable`, so on
+4.35.0 every theorem whose statement mentions that order rests on
+`Classical.choice`, `judge_unique` among them, and
+`spec/Aontu/Axioms.lean` refuses the build.
+
+### Decision
+
+1. **The definition builds on Lean 4.24.1**, the newest release with
+   LLVM 19 and a `String` that is still a list of characters.
+   `spec/lean-toolchain` names it, and `spec.yml` fetches it pinned by
+   its sha256.
+2. **A move past 4.24 waits** until the order on strings can be stated
+   without `Classical.choice`, by the core library or by the definition
+   reading a string as its characters. `spec/Aontu/Axioms.lean`
+   decides, not a release number.
+3. **The port changed proofs, not statements**: arguments the core
+   library made implicit, lemmas it renamed, the order on strings
+   through `List.Lex`, `simp` kept off `String.not_le` where the goal
+   is read as written, and the two theorems over `meetStep` reducing
+   its `match` by `dsimp` instead of its equation lemmas, which 4.24
+   generates under the default heartbeat limit whatever the proof sets.
+
+### Consequences
+
+- `make spec` runs whole on macOS 26. Every row it writes is
+  byte-identical to what 4.15.0 wrote, and no theorem gained an axiom.
+- Linking for an older SDK, so that dyld applies the older rules, would
+  also have run the oracle; it is not used, since it keeps a linker the
+  loader already refuses and lasts only while Apple keeps the epoch.
+- Enforced by `spec/lean-toolchain`, the pinned digest in `spec.yml`
+  and `spec/Aontu/Axioms.lean`.

@@ -51,7 +51,7 @@ theorem all_congr {α : Type} {p q : α → Bool} :
   | [], _ => rfl
   | x :: l, h => by
     simp only [List.all_cons]
-    rw [h x (List.mem_cons_self x l), all_congr fun y hy => h y (List.mem_cons_of_mem x hy)]
+    rw [h x (List.mem_cons_self), all_congr fun y hy => h y (List.mem_cons_of_mem x hy)]
 
 /-- Two predicates that agree on a list hold of some of it alike. -/
 theorem any_congr {α : Type} {p q : α → Bool} :
@@ -59,7 +59,7 @@ theorem any_congr {α : Type} {p q : α → Bool} :
   | [], _ => rfl
   | x :: l, h => by
     simp only [List.any_cons]
-    rw [h x (List.mem_cons_self x l), any_congr fun y hy => h y (List.mem_cons_of_mem x hy)]
+    rw [h x (List.mem_cons_self), any_congr fun y hy => h y (List.mem_cons_of_mem x hy)]
 
 /-- Whether a cover applies, by its condition's answer `g`: one without a
 condition always does. -/
@@ -375,7 +375,7 @@ theorem countP_congr {α : Type} {p q : α → Bool} :
     ∀ {l : List α}, (∀ x, x ∈ l → p x = q x) → l.countP p = l.countP q
   | [], _ => rfl
   | x :: l, h => by
-    simp only [List.countP_cons, h x (List.mem_cons_self x l),
+    simp only [List.countP_cons, h x (List.mem_cons_self),
       countP_congr fun y hy => h y (List.mem_cons_of_mem x hy)]
 
 /-- A value judges a datum one way at most: no value both admits and

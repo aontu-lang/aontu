@@ -176,7 +176,7 @@ theorem rest_nil_closes {j : Data} {ns : List (String × Data)} (hm : j.named = 
       cases ns with
       | nil => rfl
       | cons m ms =>
-        have hf : ft m.2 = false := judge_unique (hft m.1 m.2 (List.mem_cons_self _ _)) .nil
+        have hf : ft m.2 = false := judge_unique (hft m.1 m.2 (List.mem_cons_self)) .nil
         simp [evaluatedBy, hf] at hb
     | restNone hm' => rw [hm] at hm'; cases hm'
   · rintro rfl
