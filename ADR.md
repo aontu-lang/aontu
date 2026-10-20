@@ -92,7 +92,7 @@ thereafter stated and changed in the definition, not here.
 | [ADR-053](#adr-053--a-closed-map-drops-an-optional-key-it-does-not-declare) | A closed map drops an optional key it does not declare | Moved to the definition |
 | [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) | The admission trial is asked once, counted, and stopped when its count is decided | Accepted |
 | [ADR-055](#adr-055--must-asks-the-admission-trial) | `must` asks the admission trial | Moved to the definition |
-| [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) |
+| [ADR-056](#adr-056--identity-rides-the-alias-declaration) | Identity rides the alias declaration | Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) and [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) |
 | [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import) | A dynamic reference is specialised at import | Accepted |
 | [ADR-058](#adr-058--unevaluated-members-are-checked-by-rest) | Unevaluated members are checked by `rest()` | Moved to the definition |
 | [ADR-059](#adr-059--a-format-is-a-grammar-aontu-reads-and-runs-itself) | A format is a grammar aontu reads and runs itself | Accepted |
@@ -109,6 +109,7 @@ thereafter stated and changed in the definition, not here.
 | [ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release) | The standard CI run samples, the daily run decides, and releases come from `release` | Amended by [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) |
 | [ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five) | A push is checked in two minutes and a pull request in five | Accepted |
 | [ADR-072](#adr-072--a-meta-record-is-open-metadata) | A `meta()` record is open metadata | Accepted |
+| [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) | An `ident()` record is open declaration metadata | Accepted |
 
 ---
 
@@ -5266,7 +5267,7 @@ unifies changes its answer.
 ## ADR-056 — Identity rides the alias declaration
 
 **Date:** 2026-10-08
-**Status:** Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import)
+**Status:** Amended by [ADR-057](#adr-057--a-dynamic-reference-is-specialised-at-import), and by [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata): its first decision, the fixed record keys, is superseded
 
 ### Context
 
@@ -6784,3 +6785,66 @@ explain why `meta(1, {colour: "red"})` refused.
   and says nothing about.
 - Pinned by `test/spec/meta.tsv`, `test/spec/jsonschema.tsv` and
   `test/spec/jsonschema-import.tsv`, in both ports.
+
+## ADR-073 — An `ident()` record is open declaration metadata
+
+**Date:** 2026-10-20
+**Status:** Accepted
+
+### Context
+
+[ADR-072](#adr-072--a-meta-record-is-open-metadata) opened the `meta()`
+record and moved JSON Schema's annotation vocabulary into the importer
+and the exporter. `ident(v, r)`, the record only an alias declaration
+carries ([ADR-056](#adr-056--identity-rides-the-alias-declaration)),
+kept the shape `meta` had: four fixed keys, `id`, `anchor`,
+`dynamicAnchor` and `defs`, each a string, and anything else refused
+with `func_arg`. The keys are JSON Schema's identity, and the engine
+never reads them: a copy drops the record, and it is in no canon and no
+hash.
+
+Folding identity into `meta` does not work. A `meta` record travels
+with its value into every copy and meet, so every use would claim to be
+the resource, a meet of two identified aliases would hold two `$id`s,
+and the hash of every document using a schema would move with the
+schema's URL. What `ident` provides that `meta` does not is its scope:
+a record on a declaration that stays there.
+
+### Decision
+
+1. **A declaration's record is a map of concrete data under any keys.**
+   `ident()` refuses with `func_arg` only a record that is not one. The
+   rest of ADR-056 stands: only a declaration carries it, a copy drops
+   it, two declarations of one name meet their records as a union, and
+   it is in no canon and no hash. This supersedes ADR-056's first
+   decision.
+2. **The JSON Schema exporter reads the identity from its conventions.**
+   `id`, `anchor` and `dynamicAnchor` as `$id`, `$anchor` and
+   `$dynamicAnchor`, and `defs` as the definition's name under `$defs`,
+   each read only where it holds text; one holding anything else is a
+   reported loss.
+3. **Every other key crosses under its own name.** The exporter writes
+   it as a keyword of that name on the schema the definition is written
+   as, the root where the definition is the whole schema. A key naming a
+   JSON Schema keyword, a key the definition writes already, and a key
+   the declarations gave several values are each a reported loss.
+4. **The importer is unchanged.** It writes a schema's identity under
+   the four conventions, and the schema's other keywords on its value,
+   in `meta()`.
+
+### Consequences
+
+- Metadata about a definition can ride its declaration without reaching
+  its uses: an owner, a version, a source.
+- `ident(1, {nope: "x"})` and `ident(1, {id: 2})` are accepted where
+  they refused, and the second exports with a loss. No document that
+  evaluated before evaluates or exports differently.
+- A declaration's extra key exports as a keyword on its definition and
+  imports back as a `meta()` key on the value, since JSON Schema keeps
+  no metadata for a definition apart from its schema.
+- The name stays `ident`: identity is its main use, and renaming it
+  would change every imported schema for no change of meaning.
+- The riders can enter the definition under its decision 14 without
+  naming a JSON Schema keyword for either record.
+- Pinned by `test/spec/ident.tsv` and the `js-ident-*` rows of
+  `test/spec/jsonschema.tsv`, in both ports.
