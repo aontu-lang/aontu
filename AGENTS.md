@@ -81,9 +81,11 @@ reaching an analyser. The test project is not gated the same way.
 
 `make quick` (ADR-071): the comment gate, both builds, the gate group
 and the Go suite, inside two minutes. A commit may be broken; a push
-should not be. The rest is CI's, run by hand when a change reaches it:
-`make test`, `make cov`, `make prose`, `make spec`,
-`(cd use-cases && ./run-all.sh)`.
+should not be. **Local testing takes a few minutes at most**
+(ADR-075): `make quick` and the rows or tests of what changed. The
+long runs, `make test`, `make cov` and the use cases, belong to the
+daily CI: never run them locally before a push or a merge, nor wait
+on them.
 
 `make hooks` points git at [`.githooks/`](.githooks), whose `pre-push`
 runs the comment gate. It is a convenience, not the enforcement: the gate
