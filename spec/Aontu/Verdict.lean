@@ -413,6 +413,24 @@ def escOf (ds : Decls) (enc : Bool) (s : Val) (v : Option Val) : Made :=
     else ((e.usc t.toList).map fun cs => .made (.lit (.str (String.mk cs)))).getD .refused
   | _, _ => .refused
 
+/-- The fields `split` cuts a string into at a literal separator, the
+empty ones kept: at each occurrence from the left, the occurrences never
+overlapping, or between every two code points where the separator is
+`""`. -/
+def splitText (s sep : String) : List String :=
+  if sep = "" then s.toList.map Char.toString else s.splitOn sep
+
+/-- What `split` makes of its text and its separator, each in normal
+form, its riders read through: the list of the fields a string cuts the
+text into, literally, or a pattern's matches do, as the host's pattern
+engine finds them; a refusal where the text is no string or the
+separator neither a string nor a pattern. -/
+def splitOf (ds : Decls) (s sep : Val) : Made :=
+  match (normaliseD ds s).string?, (normaliseD ds sep).unride with
+  | some t, .lit (.str p) => .made (.list ((splitText t p).map fun f => .lit (.str f)) none false)
+  | some t, .re p => .made (.list ((host.split p t).map fun f => .lit (.str f)) none false)
+  | _, _ => .refused
+
 /-- The number a call computes from its arguments: a fold from the
 numbers its one bag's members are, and any other function from the
 numbers its arguments are, each read in its normal form. -/
@@ -434,14 +452,13 @@ def Made.term (ds : Decls) (f : Fn) (args : List Val) : Made → Val
 
 /-- The term a call is, its arguments resolved: a `+` what `plusOf` makes
 of its operands' normal forms, each read through its riders and a lone
-preference first, as `*1 + 1` is `2`; a `join`, a `pick`, a `sort`, an
-`upper`, a `lower`, a `translate`, an `esc` and a `usc` what its
-function's own reading makes, `joinOf`, `pickOf`, `sortOf`, `caseOf`,
-`translateOf` and `escOf`; a `super` its argument's parent type,
-`Val.super` read before the normal form, so that a preference reads as
-its default, as `super(*1)` is `integer`; any
-other call the number `callValue` computes, where it computes one, and
-itself otherwise, which no reading makes. -/
+preference first, as `*1 + 1` is `2`; a call on a bag or on text what
+its function's own reading makes, `joinOf`, `pickOf`, `sortOf`,
+`caseOf`, `translateOf`, `escOf` and `splitOf`; a `super` its
+argument's parent type, `Val.super` read before the normal form, so
+that a preference reads as its default, as `super(*1)` is `integer`;
+any other call the number `callValue` computes, where it computes one,
+and itself otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   match f, args with
   | .plus, [a, b] => (plusOf (normaliseD ds a.operand) (normaliseD ds b.operand)).term ds f args
@@ -464,6 +481,7 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .usc, [s] => (escOf ds false s none).term ds f args
   | .usc, [s, v] => (escOf ds false s (some v)).term ds f args
   | .super, [x] => x.super
+  | .split, [s, sep] => (splitOf ds s sep).term ds f args
   | _, _ =>
     match callValue ds f args with
     | some n => .lit (.num n)
@@ -853,6 +871,17 @@ theorem escOf_checkableA {ds : Decls} {enc : Bool} {s v : Val} {var : Option Val
       exact .lit
   · cases h
 
+theorem splitOf_checkableA {ds : Decls} {s sep v : Val}
+    (h : splitOf ds s sep = .made v) : v.CheckableA := by
+  unfold splitOf at h
+  split at h
+  all_goals first
+    | (cases h; done)
+    | (obtain rfl := (Made.made.injEq _ _).mp h
+       refine .list (fun w hw => ?_) (fun _ hs => absurd hs (by simp))
+       obtain ⟨_, _, rfl⟩ := List.mem_map.mp hw
+       exact .lit)
+
 theorem sortOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {b v : Val}
     {p d : Option Val} (hb : b.CheckableA) (h : sortOf ds b p d = .made v) : v.CheckableA := by
   unfold sortOf at h
@@ -949,6 +978,7 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact (h _ (by simp)).super
+  · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
   · split
     · exact .lit
     · exact .call h
