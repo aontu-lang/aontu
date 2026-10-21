@@ -1877,6 +1877,7 @@ def Val.beq : Val → Val → Bool
   | .select s as d, .select s' as' d' => s.beq s' && beqPairs as as' && beqSpread d d'
   | .filter s c, .filter s' c' => s.beq s' && c.beq c'
   | .ride k v r, .ride k' v' r' => decide (k = k') && v.beq v' && decide (r = r')
+  | .key, .key => true
   | _, _ => false
 termination_by structural a _ => a
 
