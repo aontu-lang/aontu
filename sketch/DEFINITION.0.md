@@ -415,7 +415,7 @@ the value language to the whole of it, each placed after what it rests
 on. The open items of P1 to P5 come before them:
 each read mode's reading of a number (P1), `open()` (P2), two
 recursions of one shape under different names (P5), the part of
-ruling 10 of §7 not yet built, what a reference makes of a marked
+ruling 10 of §7 not yet built, the seal a reference puts on a `type()`
 value, decisions 16 to 18, still open, and #403, a selection inside a
 recursive name's body.
 
@@ -593,10 +593,14 @@ encodes it lands.
    but four, a mark that a key's second declaration carries where the
    first's value is the meet's answer, which both drop (#420);
    TypeScript alone drops a mark in a direct meet whose answer is the
-   unmarked side (#419), so those cases wait outside the rows. What a
-   reference makes of a marked value, its marks cleared at every depth
-   and a `type()` value sealed at every depth, is still to be built,
-   and a marked list element is decision 18.
+   unmarked side (#419), so those cases wait outside the rows. The same
+   day a reference came to copy a body without its marks, at every
+   depth (`Val.unmark` in `Decls.env`), so what a body hides, the place
+   that refers to it asks for, and a mark written at that place stays:
+   the alias fragment gains 51 rows, n0 on, which both ports answer as
+   the definition does. The seal a reference puts on a `type()` value
+   at every depth is still to be built, and a marked list element is
+   decision 18.
 11. **The effective default under `defaults`.** Raised 2026-10-19
    by P5. `DefaultsLe` (`spec/Aontu/Subsume.lean`) holds the general
    side to every value the specific side singles out at a position, a

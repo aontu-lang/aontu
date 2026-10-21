@@ -11,6 +11,9 @@
 # The riders follow in rows r0 on: meta() and deprecate() judging as their
 # values, ident() on an alias's value, and ident() anywhere else, an error,
 # in a body no reference reads as in one a reference does.
+# The marks under the names follow in rows n0 on: a reference copies a body
+# with its marks cleared at every depth, and a mark written at the reference
+# stays.
 a0	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid"}
 a1	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"noFill":true}}
 a2	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"partial":true}}
@@ -272,3 +275,54 @@ r47	verdict	v: *((meta(integer, {})) & (min(3)))	v: 1.5	{"verdict":"invalid","op
 r48	verdict	v: *((meta(integer, {})) & (min(3)))	v: 2	{"verdict":"valid"}
 r49	verdict	v: *((meta(integer, {})) & (min(3)))	v: 2	{"verdict":"valid","opts":{"noFill":true}}
 r50	verdict	v: *((meta(integer, {})) & (min(3)))	v: 2	{"verdict":"valid","opts":{"partial":true}}
+n0	verdict	%T = hide({"x": integer})\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid"}
+n1	verdict	%T = hide({"x": integer})\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"noFill":true}}
+n2	verdict	%T = hide({"x": integer})\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"partial":true}}
+n3	verdict	%T = hide({"x": integer})\nv: %T	v: {}	{"verdict":"incomplete"}
+n4	verdict	%T = hide({"x": integer})\nv: %T	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+n5	verdict	%T = hide({"x": integer})\nv: %T	v: {}	{"verdict":"valid","opts":{"partial":true}}
+n6	verdict	%T = {"a": hide(integer), "b": integer}\nv: %T	v: {"b": 2}	{"verdict":"incomplete"}
+n7	verdict	%T = {"a": hide(integer), "b": integer}\nv: %T	v: {"b": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+n8	verdict	%T = {"a": hide(integer), "b": integer}\nv: %T	v: {"b": 2}	{"verdict":"valid","opts":{"partial":true}}
+n9	verdict	%T = {"a": hide(integer), "b": integer}\nv: %T	v: {"a": "x", "b": 2}	{"verdict":"invalid"}
+n10	verdict	%T = {"a": hide(integer), "b": integer}\nv: %T	v: {"a": "x", "b": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+n11	verdict	%T = {"a": hide(integer), "b": integer}\nv: %T	v: {"a": "x", "b": 2}	{"verdict":"invalid","opts":{"partial":true}}
+n12	verdict	%T = {"a": type({"x": integer})}\nv: %T	v: {"a": {"x": 1, "y": 2}}	{"verdict":"valid"}
+n13	verdict	%T = {"a": type({"x": integer})}\nv: %T	v: {"a": {"x": 1, "y": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+n14	verdict	%T = {"a": type({"x": integer})}\nv: %T	v: {"a": {"x": 1, "y": 2}}	{"verdict":"valid","opts":{"partial":true}}
+n15	verdict	%T = {"a": hide(1), "b": 2}\nv: %T	v: {"b": 2}	{"verdict":"valid"}
+n16	verdict	%T = {"a": hide(1), "b": 2}\nv: %T	v: {"b": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+n17	verdict	%T = {"a": hide(1), "b": 2}\nv: %T	v: {"b": 2}	{"verdict":"valid","opts":{"partial":true}}
+n18	verdict	%T = hide(integer)\nv: {"a": %T}	v: {}	{"verdict":"incomplete"}
+n19	verdict	%T = hide(integer)\nv: {"a": %T}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+n20	verdict	%T = hide(integer)\nv: {"a": %T}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+n21	verdict	%T = integer\nv: {"a": hide(%T)}	v: {}	{"verdict":"valid"}
+n22	verdict	%T = integer\nv: {"a": hide(%T)}	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+n23	verdict	%T = integer\nv: {"a": hide(%T)}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+n24	verdict	%T = {"a": hide(integer)}\n%U = {"t": %T}\nv: %U	v: {"t": {}}	{"verdict":"incomplete"}
+n25	verdict	%T = {"a": hide(integer)}\n%U = {"t": %T}\nv: %U	v: {"t": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+n26	verdict	%T = {"a": hide(integer)}\n%U = {"t": %T}\nv: %U	v: {"t": {}}	{"verdict":"valid","opts":{"partial":true}}
+n27	verdict	%T = {"next"?: %T, "a": hide(integer)}\nv: %T	v: {"next": {"a": 1}}	{"verdict":"incomplete"}
+n28	verdict	%T = {"next"?: %T, "a": hide(integer)}\nv: %T	v: {"next": {"a": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+n29	verdict	%T = {"next"?: %T, "a": hide(integer)}\nv: %T	v: {"next": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
+n30	verdict	%T = {"next"?: %T, "a": hide(integer)}\nv: %T	v: {"a": 1, "next": {}}	{"verdict":"incomplete"}
+n31	verdict	%T = {"next"?: %T, "a": hide(integer)}\nv: %T	v: {"a": 1, "next": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+n32	verdict	%T = {"next"?: %T, "a": hide(integer)}\nv: %T	v: {"a": 1, "next": {}}	{"verdict":"valid","opts":{"partial":true}}
+n33	verdict	%T = {"a": hide(integer)}\nv: (%T) & ({"b": 1})	v: {"b": 1}	{"verdict":"incomplete"}
+n34	verdict	%T = {"a": hide(integer)}\nv: (%T) & ({"b": 1})	v: {"b": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+n35	verdict	%T = {"a": hide(integer)}\nv: (%T) & ({"b": 1})	v: {"b": 1}	{"verdict":"valid","opts":{"partial":true}}
+n36	verdict	%T = {"a": hide(integer)}\nv: hide(%T)	v: {}	{"verdict":"valid"}
+n37	verdict	%T = {"a": hide(integer)}\nv: hide(%T)	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+n38	verdict	%T = {"a": hide(integer)}\nv: hide(%T)	v: {}	{"verdict":"valid","opts":{"partial":true}}
+n39	verdict	%T = {"a": {"b": hide(1)}}\nv: %T	v: {"a": {}}	{"verdict":"valid"}
+n40	verdict	%T = {"a": {"b": hide(1)}}\nv: %T	v: {"a": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+n41	verdict	%T = {"a": {"b": hide(1)}}\nv: %T	v: {"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+n42	verdict	%T = meta({"a": hide(integer)}, {})\nv: %T	v: {}	{"verdict":"incomplete"}
+n43	verdict	%T = meta({"a": hide(integer)}, {})\nv: %T	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+n44	verdict	%T = meta({"a": hide(integer)}, {})\nv: %T	v: {}	{"verdict":"valid","opts":{"partial":true}}
+n45	verdict	%T = {&: hide(integer)}\nv: %T	v: {"k": 1}	{"verdict":"valid"}
+n46	verdict	%T = {&: hide(integer)}\nv: %T	v: {"k": 1}	{"verdict":"valid","opts":{"noFill":true}}
+n47	verdict	%T = {&: hide(integer)}\nv: %T	v: {"k": 1}	{"verdict":"valid","opts":{"partial":true}}
+n48	verdict	%T = hide({"a": integer})\nv: {"x": %T, "y": hide(%T)}	v: {"x": {"a": 1}}	{"verdict":"valid"}
+n49	verdict	%T = hide({"a": integer})\nv: {"x": %T, "y": hide(%T)}	v: {"x": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+n50	verdict	%T = hide({"a": integer})\nv: {"x": %T, "y": hide(%T)}	v: {"x": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}

@@ -27,6 +27,39 @@ def Val.unident : Val → Val
   | .meet a b => .meet a.unident b.unident
   | v => v
 
+mutual
+/-- A term with its marks cleared, `type()` and `hide()`, at every depth
+through the containers, `|`, `*`, `&` and the riders: what a reference
+copies, as a mark belongs to the place it is written at (decision 10 of
+the design note's §7). -/
+def Val.unmark : Val → Val
+  | .map fs spread closed => .map (unmarkFields fs) (unmarkSpread spread) closed
+  | .list items spread closed => .list (unmarkItems items) (unmarkSpread spread) closed
+  | .or arms => .or (unmarkArms arms)
+  | .pref r x => .pref r x.unmark
+  | .meet a b => .meet a.unmark b.unmark
+  | .ride .type v _ => v.unmark
+  | .ride .hide v _ => v.unmark
+  | .ride k v r => .ride k v.unmark r
+  | v => v
+
+def unmarkFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.unmark) :: unmarkFields fs
+
+def unmarkItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.unmark :: unmarkItems vs
+
+def unmarkSpread : Option Val → Option Val
+  | none => none
+  | some s => some s.unmark
+
+def unmarkArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.unmark) :: unmarkArms as
+end
+
 namespace Decls
 
 /-- The bodies declared for a name, in the order written. -/
@@ -34,11 +67,12 @@ def bodies (ds : Decls) (n : String) : List Val := (ds.filter fun d => d.1 == n)
 
 /-- The environment the declarations make: a name's value is the meet
 of its bodies, and an undeclared name has none. A reference copies the
-value without the identity a body declares (`Val.unident`). -/
+value without the identity a body declares (`Val.unident`) and without
+its marks (`Val.unmark`). -/
 def env (ds : Decls) : Env := fun n =>
   match ds.bodies n with
   | [] => none
-  | v :: vs => some (vs.foldl .meet v).unident
+  | v :: vs => some (vs.foldl .meet v).unident.unmark
 
 /-- The names declared, in the order written, a name declared twice
 listed twice. -/
@@ -418,6 +452,26 @@ theorem transGen_first {R : String → String → Prop} {a x : String}
   | single hab => exact ⟨_, hab⟩
   | tail _ _ ih => exact ih
 
+/-- Clearing the marks keeps the names a body reaches. -/
+theorem Val.unguardedRefs_unmark (v : Val) : v.unmark.unguardedRefs = v.unguardedRefs := by
+  induction v using Val.unmark.induct
+    (motive_2 := fun arms => unguardedArms (unmarkArms arms) = unguardedArms arms)
+    (motive_3 := fun _ => True) (motive_4 := fun _ => True) (motive_5 := fun _ => True) with
+  | case1 | case2 => simp only [Val.unmark, Val.unguardedRefs]
+  | case3 arms ih => simp only [Val.unmark, Val.unguardedRefs, ih]
+  | case4 r x ih => simp only [Val.unmark, Val.unguardedRefs, ih]
+  | case5 a b iha ihb => simp only [Val.unmark, Val.unguardedRefs, iha, ihb]
+  | case6 v r ih | case7 v r ih => simp only [Val.unmark, Val.unguardedRefs, ih]
+  | case8 k v r h1 h2 ih =>
+    cases k with
+    | type => exact absurd rfl h1
+    | hide => exact absurd rfl h2
+    | _ => simp only [Val.unmark, Val.unguardedRefs, ih]
+  | case9 v h1 h2 h3 h4 h5 h6 h7 h8 => rw [Val.unmark.eq_9 v h1 h2 h3 h4 h5 h6 h7 h8]
+  | case10 | case11 | case12 | case13 | case14 | case15 => trivial
+  | case16 => rfl
+  | case17 r a as iha ihas => simp only [unmarkArms, unguardedArms, iha, ihas]
+
 /-- Leaving an identity behind keeps the names a body reaches. -/
 theorem Val.unguardedRefs_unident (v : Val) : v.unident.unguardedRefs = v.unguardedRefs := by
   induction v using Val.unident.induct with
@@ -651,7 +705,7 @@ theorem alias_self_admits_nothing {env : Env} {root : Data} {n : String} {j : Da
 
 theorem Decls.alias_self_admits_nothing {root : Data} {n : String} {j : Data} :
     ¬ Admits (Decls.env [(n, .alias n)]) root (.alias n) j :=
-  Aontu.alias_self_admits_nothing (by simp [Decls.env, Decls.bodies, Val.unident])
+  Aontu.alias_self_admits_nothing (by simp [Decls.env, Decls.bodies, Val.unident, Val.unmark])
 
 /-! ## The paths a term writes -/
 

@@ -4057,8 +4057,10 @@ no record, so a marked value admits what its value admits, as
 term's visible part, `Val.visible`, in which a marked member of a map is
 optional and holds anything: the output leaves the member out, and the
 member still meets the data at its key. Without the fill, `vet` asks
-the data to be an instance of the schema's visible part. What a
-reference makes of a marked value is yet to enter the definition, and
+the data to be an instance of the schema's visible part. A reference
+reads a body with its marks cleared at every depth, `Val.unmark` in
+[`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean). The seal a
+reference puts on a `type()` value is yet to enter the definition, and
 so is a marked list element, which both engines leave out of the
 output, the subject of decision 18 of the design note.
 

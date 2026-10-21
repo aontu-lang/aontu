@@ -2325,11 +2325,12 @@ abbrev Decls := List (String × Val)
 ```lean
 /-- The environment the declarations make: a name's value is the meet
 of its bodies, and an undeclared name has none. A reference copies the
-value without the identity a body declares (`Val.unident`). -/
+value without the identity a body declares (`Val.unident`) and without
+its marks (`Val.unmark`). -/
 def env (ds : Decls) : Env := fun n =>
   match ds.bodies n with
   | [] => none
-  | v :: vs => some (vs.foldl .meet v).unident
+  | v :: vs => some (vs.foldl .meet v).unident.unmark
 ```
 
 The identity is the one rider with a place. An `ident()` stands on an
@@ -2337,7 +2338,13 @@ alias's value, at its top or on a term of its top meet, and a reference
 reads the value without it. `unident` takes off that one layer and keeps
 whatever is inside it, so an `ident()` inside another stays behind, and
 so does one in a schema or deeper in a body. None of those stand, and
-step 14 comes to what doesn't stand:
+step 14 comes to what doesn't stand.
+
+A reference copies the value without its marks too, the `type()` and
+`hide()` of step 13, at every depth: `unmark` clears them through the
+containers, `|`, `*`, `&` and the riders. So what a body hides, the
+place that refers to it asks for, and a mark written at that place
+stays. The identity's one layer comes first:
 
 <!-- test: quote spec/Aontu/Names.lean -->
 ```lean
@@ -3910,8 +3917,9 @@ The classes `valid`, `invalid`, `incomplete` and `error`, defined from
 `type()` and `hide()` mark a value. Neither changes what the value
 admits, and both change what evaluation writes: evaluation leaves a
 member of a map whose value carries a mark out of the output, though
-the member still meets what the data holds at its key. Write
-`marks.aontu`:
+the member still meets what the data holds at its key. A mark belongs
+to the place it's written at, so a reference, which step 8 reads, copies
+a body without its marks. Write `marks.aontu`:
 
 <!-- test: scenario marks -->
 <!-- test: file marks.aontu -->
@@ -5630,8 +5638,8 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, most built-in functions,
 `key()` anywhere but in a spread, generation with `each`, `pack` and
-`emit`, and what a reference makes of a marked value: it clears the
-marks, and seals a `type()` value at every depth. [`aontu vet`](reference-api.md#aontu-vet) states which
+`emit`, and the seal a reference puts on a `type()` value at every
+depth. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 

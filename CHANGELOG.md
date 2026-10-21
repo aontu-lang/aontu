@@ -39,6 +39,11 @@ documentation; no engine changes. Ruling 10 of the design note
   `spec/ledger.tsv` lists the four, and its bound rises from 110 to
   114. TypeScript alone drops a mark in a direct meet whose answer is
   the unmarked side (#419), which the rows leave out.
+- `spec/Aontu/Names.lean`: a reference copies a body without its
+  marks, at every depth (`Val.unmark`), so what a body hides, the place
+  that refers to it asks for. `test/spec/def-alias.tsv` grows by rows
+  n0 on, which both ports answer as the definition does. The seal a
+  reference puts on a `type()` value is still to be built.
 - `spec/forms.tsv` holds `type` and `hide`.
 - Decision 18 of the design note asks about a marked list element,
   which both ports leave out of the output (#421).
