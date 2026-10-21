@@ -504,6 +504,150 @@ def nomOf (ds : Decls) (n : Val) (a b : Option Val) : Made :=
     | none => .refused
   | _, _ => .refused
 
+/-! ## The component tree -/
+
+/-- The name a component's node carries. -/
+def Cmp.node : Cmp → String
+  | .project => "Project" | .folder => "Folder" | .file => "File" | .content => "Content"
+  | .line => "Line" | .fragment => "Fragment" | .slot => "Slot" | .inject => "Inject"
+  | .copyfiles => "CopyFiles" | .listitems => "ListItems"
+
+/-- Every component. -/
+def Cmp.all : List Cmp :=
+  [.project, .folder, .file, .content, .line, .fragment, .slot, .inject, .copyfiles, .listitems]
+
+/-- The prop a component's spec fills where the spec is a string;
+`listitems` has none. -/
+def Cmp.text? : Cmp → Option String
+  | .project => some "folder"
+  | .folder | .file | .slot | .inject => some "name"
+  | .content | .line => some "src"
+  | .fragment | .copyfiles => some "from"
+  | .listitems => none
+
+/-- Whether that prop must be written: all but `project`'s. -/
+def Cmp.required : Cmp → Bool
+  | .project => false
+  | _ => true
+
+/-- Whether that prop is a span of text, where `""` is a value. -/
+def Cmp.span : Cmp → Bool
+  | .content | .line => true
+  | _ => false
+
+/-- The prop that must hold a list: `listitems`'s `item`. -/
+def Cmp.bag? : Cmp → Option String
+  | .listitems => some "item"
+  | _ => none
+
+/-- The components a component holds as children; none for a leaf. -/
+def Cmp.kids : Cmp → List Cmp
+  | .project => [.project, .folder, .file, .copyfiles]
+  | .folder => [.folder, .file, .copyfiles]
+  | .file => [.content, .line, .fragment, .inject, .listitems, .copyfiles]
+  | .content | .line | .copyfiles => []
+  | .fragment => [.slot, .content, .line, .listitems]
+  | .slot => [.content, .line, .fragment, .listitems]
+  | .inject => [.content, .line, .listitems]
+  | .listitems => [.content, .line, .fragment]
+
+/-- The props a component admits. -/
+def Cmp.props : Cmp → List String
+  | .project => ["name", "folder"]
+  | .folder | .slot => ["name"]
+  | .file => ["name", "exclude", "mode"]
+  | .content | .line => ["arg", "src", "name", "indent", "extra", "replace", "raw"]
+  | .fragment => ["from", "indent", "replace", "eject"]
+  | .inject => ["name", "markers", "exclude"]
+  | .copyfiles => ["from", "to", "replace", "exclude"]
+  | .listitems => ["item", "line", "indent"]
+
+/-- Whether a component's call takes so many arguments: a spec, which
+`project` alone may leave out, and children, which a leaf takes none
+of. -/
+def Cmp.takes (c : Cmp) (n : ℕ) : Bool :=
+  (!c.required || 1 ≤ n) && n ≤ (if c.kids.isEmpty then 1 else 2)
+
+/-- A node of the component tree: the sealed map of its component's
+name, its props and its children. -/
+def cmpNode (c : Cmp) (props : Val) (kids : List Val) : Val :=
+  .map [("cmp", false, .lit (.str c.node)), ("props", false, props),
+    ("children", false, .list kids none false)] none true
+
+/-- The node a bare string child stands for: a line of that text. -/
+def lineNode (s : String) : Val := cmpNode .line (.map [("src", false, .lit (.str s))] none false) []
+
+/-- The component a node is: a map whose `cmp` is a string naming one,
+its riders read through. -/
+def Val.cmp? (v : Val) : Option Cmp :=
+  match v.unride with
+  | .map fs _ _ => (fs.find? (·.1 == "cmp")).bind fun f =>
+      f.2.2.string?.bind fun s => Cmp.all.find? (·.node == s)
+  | _ => none
+
+/-- Whether a component admits its props: every key one it admits; the
+prop a string fills, where it is written, a string, and `""` only
+where it is a span, and written where it is required; and the bag a
+list. -/
+def cmpPropsOk (c : Cmp) (fs : List (String × Bool × Val)) : Bool :=
+  fs.all (fun f => c.props.contains f.1) &&
+  (match c.text? with
+    | none => true
+    | some k => match fs.find? (·.1 == k) with
+      | none => !c.required
+      | some f => match f.2.2.string? with
+        | some t => t != "" || c.span
+        | none => false) &&
+  (match c.bag? with
+    | none => true
+    | some k => match fs.find? (·.1 == k) with
+      | some f => match f.2.2.unride with
+        | .list _ _ _ => true
+        | _ => false
+      | none => false)
+
+/-- The props a component's spec writes, in normal form and its riders
+read through: none written, the empty map; a string, the map of the
+prop it fills; a map, itself; nothing for anything else. -/
+def cmpProps? (ds : Decls) (c : Cmp) : Option Val → Option Val
+  | none => some (.map [] none false)
+  | some s =>
+    match (normaliseD ds s).string?, (normaliseD ds s).unride with
+    | some t, _ => c.text?.map fun k => .map [(k, false, .lit (.str t))] none false
+    | none, .map fs sp cl => some (.map fs sp cl)
+    | none, _ => none
+
+/-- The children a component holds, each nested list spliced into its
+place: a string a line, where the component holds lines, and a node of
+a component it holds; nothing where a child is anything else. The fuel
+bounds the nesting. -/
+def cmpKids (c : Cmp) : ℕ → List Val → Option (List Val)
+  | 0, _ => none
+  | n + 1, ks => (ks.mapM fun (k : Val) => match k.unride with
+      | .list items _ _ => cmpKids c n items
+      | .lit (.str s) => if c.kids.contains .line then some [lineNode s] else none
+      | _ => if (k.cmp?.map c.kids.contains).getD false then some [k] else none).map List.flatten
+
+/-- The children a call writes: none written, no children; a list, in
+normal form and its riders read through, those it holds; nothing for
+anything else. -/
+def cmpChildren (ds : Decls) (c : Cmp) : Option Val → Option (List Val)
+  | none => some []
+  | some k => match (normaliseD ds k).unride with
+    | .list items _ _ => cmpKids c (normaliseD ds k).size items
+    | _ => none
+
+/-- What a component's call makes of its spec and its children: its
+node, where the component admits its props and holds its children; a
+refusal otherwise. The node holds its props and children open in both
+ports, against a `close()` from above, which the definition, holding
+no `open()`, leaves unsaid. -/
+def cmpOf (ds : Decls) (c : Cmp) (spec kids : Option Val) : Made :=
+  match cmpProps? ds c spec, cmpChildren ds c kids with
+  | some (.map fs sp cl), some xs =>
+    if cmpPropsOk c fs then .made (cmpNode c (.map fs sp cl) xs) else .refused
+  | _, _ => .refused
+
 /-- The number a call computes from its arguments: a fold from the
 numbers its one bag's members are, and any other function from the
 numbers its arguments are, each read in its normal form. -/
@@ -527,7 +671,8 @@ def Made.term (ds : Decls) (f : Fn) (args : List Val) : Made → Val
 of its operands' normal forms, each read through its riders and a lone
 preference first, as `*1 + 1` is `2`; a call on a bag or on text what
 its function's own reading makes, `joinOf`, `pickOf`, `sortOf`,
-`caseOf`, `translateOf`, `escOf`, `splitOf`, `repOf` and `nomOf`; a `super` its
+`caseOf`, `translateOf`, `escOf`, `splitOf`, `repOf` and `nomOf`; a
+component's call, with the arguments it takes, the node `cmpOf` makes; a `super` its
 argument's parent type, `Val.super` read before the normal form, so
 that a preference reads as its default, as `super(*1)` is `integer`;
 any other call the number `callValue` computes, where it computes one,
@@ -559,6 +704,9 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .nom, [n] => (nomOf ds n none none).term ds f args
   | .nom, [n, a] => (nomOf ds n (some a) none).term ds f args
   | .nom, [n, a, b] => (nomOf ds n (some a) (some b)).term ds f args
+  | .cmp c, args =>
+    if c.takes args.length then (cmpOf ds c args.head? (args.drop 1).head?).term ds f args
+    else .call f args
   | _, _ =>
     match callValue ds f args with
     | some n => .lit (.num n)
@@ -982,6 +1130,103 @@ theorem nomOf_checkableA {ds : Decls} {n v : Val} {a b : Option Val}
     · cases h
   · cases h
 
+theorem cmpNode_checkableA {c : Cmp} {props : Val} {xs : List Val} (hp : props.CheckableA)
+    (hx : ∀ x, x ∈ xs → x.CheckableA) : (cmpNode c props xs).CheckableA := by
+  refine .map (fun k o w hw => ?_) (fun _ hs => by cases hs)
+  simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hw
+  rcases hw with ⟨-, -, rfl⟩ | ⟨-, -, rfl⟩ | ⟨-, -, rfl⟩
+  · exact .lit
+  · exact hp
+  · exact .list hx (fun _ hs => by cases hs)
+
+theorem lineNode_checkableA {s : String} : (lineNode s).CheckableA :=
+  cmpNode_checkableA
+    (.map (fun _ _ w hw => by simp at hw; obtain ⟨-, -, rfl⟩ := hw; exact .lit) (fun _ hs => by cases hs))
+    (fun _ hx => by cases hx)
+
+theorem cmpProps?_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {c : Cmp}
+    {spec : Option Val} {p : Val} (hs : ∀ s, spec = some s → s.CheckableA)
+    (h : cmpProps? ds c spec = some p) : p.CheckableA := by
+  unfold cmpProps? at h
+  split at h
+  · cases h
+    exact .map (fun _ _ _ hw => by cases hw) (fun _ hs => by cases hs)
+  · rename_i s
+    split at h
+    · simp only [Option.map] at h
+      split at h <;> simp at h
+      subst h
+      exact .map (fun _ _ w hw => by simp at hw; obtain ⟨-, -, rfl⟩ := hw; exact .lit)
+        (fun _ hs => by cases hs)
+    · rename_i fs sp cl _ hu
+      cases h
+      have hn := Val.checkableA_unride (normaliseD_checkableA hd (hs s rfl))
+      rw [hu] at hn
+      exact hn
+    · cases h
+
+theorem cmpKids_checkableA {c : Cmp} : ∀ {n : ℕ} {ks xs : List Val},
+    (∀ k, k ∈ ks → k.CheckableA) → cmpKids c n ks = some xs → ∀ x, x ∈ xs → x.CheckableA
+  | 0, _, _, _, h => by simp [cmpKids] at h
+  | n + 1, ks, xs, hk, h => by
+    unfold cmpKids at h
+    obtain ⟨yss, hm, rfl⟩ := Option.map_eq_some_iff.mp h
+    have hy := mapM_some_forall (P := fun ys : List Val => ∀ x, x ∈ ys → x.CheckableA)
+      (fun k hkm ys hys => by
+        split at hys
+        · rename_i items _ _ hu
+          have hl := Val.checkableA_unride (hk k hkm)
+          rw [hu] at hl
+          cases hl with
+          | list hi _ => exact cmpKids_checkableA hi hys
+        · split at hys
+          · cases hys
+            intro x hx
+            simp only [List.mem_singleton] at hx
+            subst hx
+            exact lineNode_checkableA
+          · cases hys
+        · split at hys
+          · cases hys
+            intro x hx
+            simp only [List.mem_singleton] at hx
+            subst hx
+            exact hk _ hkm
+          · cases hys) hm
+    intro x hx
+    obtain ⟨ys, hys, hx⟩ := List.mem_flatten.mp hx
+    exact hy ys hys x hx
+
+theorem cmpChildren_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {c : Cmp}
+    {kids : Option Val} {xs : List Val} (hk : ∀ k, kids = some k → k.CheckableA)
+    (h : cmpChildren ds c kids = some xs) : ∀ x, x ∈ xs → x.CheckableA := by
+  unfold cmpChildren at h
+  split at h
+  · cases h
+    intro x hx
+    cases hx
+  · rename_i k
+    split at h
+    · rename_i items _ _ hu
+      have hl := Val.checkableA_unride (normaliseD_checkableA hd (hk k rfl))
+      rw [hu] at hl
+      cases hl with
+      | list hi _ => exact cmpKids_checkableA hi h
+    · cases h
+
+theorem cmpOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {c : Cmp}
+    {spec kids : Option Val} {v : Val} (hs : ∀ s, spec = some s → s.CheckableA)
+    (hk : ∀ k, kids = some k → k.CheckableA) (h : cmpOf ds c spec kids = .made v) :
+    v.CheckableA := by
+  unfold cmpOf at h
+  split at h
+  · rename_i fs sp cl xs hp hx
+    split at h
+    · cases h
+      exact cmpNode_checkableA (cmpProps?_checkableA hd hs hp) (cmpChildren_checkableA hd hk hx)
+    · cases h
+  · cases h
+
 theorem repOf_checkableA {ds : Decls} {s p r v : Val}
     (h : repOf ds s p r = .made v) : v.CheckableA := by
   unfold repOf at h
@@ -1142,6 +1387,11 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
+  · split
+    · exact Made.term_checkableA hd h fun v hv => cmpOf_checkableA hd
+        (fun s hs => h s (List.mem_of_mem_head? hs))
+        (fun k hk => h k (List.mem_of_mem_drop (List.mem_of_mem_head? hk))) hv
+    · exact .call h
   · split
     · exact .lit
     · exact .call h

@@ -75,3 +75,13 @@ call	call	super
 call	call	split
 call	call	rep
 call	call	nom
+call	call	project
+call	call	folder
+call	call	file
+call	call	content
+call	call	line
+call	call	fragment
+call	call	slot
+call	call	inject
+call	call	copyfiles
+call	call	listitems

@@ -15,15 +15,28 @@ members: `sum` adds them from the left, from the integer zero, and
 `least` and `greatest` answer the first of them no other is below or
 above, by exact value. -/
 
-/-- The functions on numbers, the folds on a bag of them, `+`, and the
-calls on bags and text, `join`, `pick`, `sort`, `upper`, `lower`,
-`translate`, `esc`, `usc`, `split`, `rep` and `nom`, and `super`
-written as a call. -/
+/-- The components of the component tree, each a function that builds
+a node of it. -/
+inductive Cmp where
+  | project | folder | file | content | line | fragment | slot | inject | copyfiles | listitems
+  deriving DecidableEq, Repr
+
+/-- A component's function name. -/
+def Cmp.name : Cmp → String
+  | .project => "project" | .folder => "folder" | .file => "file" | .content => "content"
+  | .line => "line" | .fragment => "fragment" | .slot => "slot" | .inject => "inject"
+  | .copyfiles => "copyfiles" | .listitems => "listitems"
+
+/-- The functions on numbers, the folds on a bag of them, `+`, the calls
+on bags and text, `join`, `pick`, `sort`, `upper`, `lower`,
+`translate`, `esc`, `usc`, `split`, `rep` and `nom`, `super` written as
+a call, and the components. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
   | plus | join | pick | sort | upper | lower | translate | esc | usc | split | rep | nom
   | super
+  | cmp (c : Cmp)
   deriving DecidableEq, Repr
 
 /-- Whether a function folds the members of one bag. -/
