@@ -2066,6 +2066,24 @@ theorem judge_select_cons {s : Scalar} {p r : Val} {arms : List (Val × Val)} {d
     · exact hp
     · exact hall q hq
 
+/-- An arm whose pattern refuses the scrutinee's value is passed over. -/
+theorem judge_select_uncons {s : Scalar} {p r : Val} {arms : List (Val × Val)} {d : Option Val}
+    {b : Bool} {j : Data} (hp : Judge env root false p s.data)
+    (h : Judge env root b (.select (.lit s) ((p, r) :: arms) d) j) :
+    Judge env root b (.select (.lit s) arms d) j := by
+  cases h with
+  | @selectArm _ _ _ _ i p' r' _ hi hpre hp' hr' =>
+    cases i with
+    | zero =>
+      simp only [List.getElem?_cons_zero, Option.some.injEq, Prod.mk.injEq] at hi
+      obtain ⟨rfl, rfl⟩ := hi
+      exact nomatch judge_unique hp hp'
+    | succ i =>
+      exact .selectArm (i := i) (by simpa using hi)
+        (fun i' q hlt hq => hpre (i' + 1) q (by omega) (by simpa using hq)) hp' hr'
+  | selectElse hall he => exact .selectElse (fun q hq => hall q (List.mem_cons_of_mem _ hq)) he
+  | selectNone hall => exact .selectNone fun q hq => hall q (List.mem_cons_of_mem _ hq)
+
 /-- The checker judges a selection on a literal as the definition does,
 given that it judges each pattern on the literal's value, and each
 result and the default on the datum. -/

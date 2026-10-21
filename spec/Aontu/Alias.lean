@@ -893,7 +893,7 @@ theorem meetKey_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a
       · cases hg
         exact .nil
     · cases hg
-      refine hm _ _ hf ?_
+      refine hm _ _ hf (Val.CheckableA.selectNow ?_)
       cases s with
       | none => exact .any
       | some t => exact (hs t rfl).atKey _
@@ -910,7 +910,7 @@ theorem foldSpread_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (
     obtain ⟨⟨k', o', u⟩, hu, he⟩ := List.mem_map.mp hw
     simp only [Prod.mk.injEq] at he
     obtain ⟨rfl, rfl, rfl⟩ := he
-    exact hm _ _ (hfs _ _ _ hu) ((hsp t rfl).atKey _)
+    exact hm _ _ (hfs _ _ _ hu) ((hsp t rfl).atKey _).selectNow
 
 theorem meetSpread_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
     {s₁ s₂ : Option Val} (h₁ : ∀ t, s₁ = some t → t.CheckableA) (h₂ : ∀ t, s₂ = some t → t.CheckableA) :
@@ -973,7 +973,7 @@ theorem meetWrap_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m 
     (meetWrap m sp i e).CheckableA := by
   cases sp with
   | none => exact he
-  | some t => exact hm _ _ he ((hsp t rfl).atKey _)
+  | some t => exact hm _ _ he ((hsp t rfl).atKey _).selectNow
 
 theorem meetItems_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
     {f₁ f₂ : Bool} {sp : Option Val} {is₁ is₂ : List Val} (hsp : ∀ t, sp = some t → t.CheckableA)

@@ -1804,14 +1804,15 @@ A map's rule has four premises:
 ```lean
   /-- A map: every declared key that is present holds its value, and
   holds every declaration of it; a key that is absent is optional in
-  every declaration; the spread holds every member, declared or not;
-  a sealed map holds no key it does not declare. It refuses a value
-  that is no map, and a map that breaks any one of those. -/
+  every declaration; the spread holds every member, declared or not,
+  read under the member's key (`Val.atKey`); a sealed map holds no key
+  it does not declare. It refuses a value that is no map, and a map
+  that breaks any one of those. -/
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool}
       {jfs : List (String × Data)} :
       (∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Judge env root true v x) →
       (∀ k o v, (k, o, v) ∈ fs → lookup k jfs = none → o = true) →
-      (∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Judge env root true s x) →
+      (∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Judge env root true (s.atKey k) x) →
       (closed = true → ∀ k x, (k, x) ∈ jfs → ∃ o v, (k, o, v) ∈ fs) →
       Judge env root true (.map fs spread closed) (.map jfs)
 ```
@@ -1849,7 +1850,7 @@ the four:
       Judge env root false (.map fs spread closed) (.map jfs)
   | mapSpread {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool}
       {jfs : List (String × Data)} {s : Val} {k : String} {x : Data} :
-      spread = some s → (k, x) ∈ jfs → Judge env root false s x →
+      spread = some s → (k, x) ∈ jfs → Judge env root false (s.atKey k) x →
       Judge env root false (.map fs spread closed) (.map jfs)
   | mapClosed {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool}
       {jfs : List (String × Data)} {k : String} {x : Data} :
@@ -2051,15 +2052,15 @@ holds each map's seal in its own `closed` flag.
 ```lean
   /-- A list: each of its positions is present and holds its value;
   later elements are allowed, but in a sealed list without a spread,
-  whose length is its positions'; the spread holds every element. It
-  refuses a value that is no list, and a list that breaks any one of
-  those. -/
+  whose length is its positions'; the spread holds every element, read
+  under the element's position as a string (`namedItems`). It refuses a
+  value that is no list, and a list that breaks any one of those. -/
   | list {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data} :
       items.length ≤ xs.length →
       (closed = true → spread = none → xs.length = items.length) →
       (∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
         Judge env root true v x) →
-      (∀ s, spread = some s → ∀ x, x ∈ xs → Judge env root true s x) →
+      (∀ s, spread = some s → ∀ k x, (k, x) ∈ namedItems 0 xs → Judge env root true (s.atKey k) x) →
       Judge env root true (.list items spread closed) (.list xs)
 ```
 
@@ -2081,8 +2082,8 @@ value that is no list, and a list that breaks any one of the four:
       items[i]? = some v → xs[i]? = some x → Judge env root false v x →
       Judge env root false (.list items spread closed) (.list xs)
   | listSpread {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data}
-      {s : Val} {x : Data} :
-      spread = some s → x ∈ xs → Judge env root false s x →
+      {s : Val} {k : String} {x : Data} :
+      spread = some s → (k, x) ∈ namedItems 0 xs → Judge env root false (s.atKey k) x →
       Judge env root false (.list items spread closed) (.list xs)
 ```
 
@@ -3224,7 +3225,9 @@ have. So the specific side's declared values must each be below it,
 and its other members must be covered: refused by a seal, or held by
 its own spread, which must itself be below the general one. A specific
 side that is open with no spread admits any member, so it is below only
-a spread that admits any:
+a spread that admits any. Neither spread may read the key, step 19's
+`key(0)`, since a spread that does is another term under each key, and
+`leDecF` proves no such pair:
 
 <!-- test: quote spec/Aontu/Subsume.lean -->
 ```lean
@@ -3234,7 +3237,8 @@ theorem map_le_spread {fsg fss : List (String × Bool × Val)} {sps : Option Val
       ∃ os vs, (k, os, vs) ∈ fss ∧ vs ⊑[env] vg ∧ (og = false → os = false))
     (hc : cg = true → cs = true ∧ ∀ k os vs, (k, os, vs) ∈ fss → ∃ og vg, (k, og, vg) ∈ fsg)
     (hv : ∀ k os vs, (k, os, vs) ∈ fss → vs ⊑[env] sg)
-    (ho : cs = true ∨ ∃ ss, sps = some ss ∧ ss ⊑[env] sg) :
+    (ho : cs = true ∨ ∃ ss, sps = some ss ∧ ss ⊑[env] sg)
+    (hkg : sg.keyed = false) (hks : ∀ ss, sps = some ss → ss.keyed = false) :
     .map fss sps cs ⊑[env] .map fsg (some sg) cg := by
 ```
 
@@ -3433,9 +3437,9 @@ sealed list without a spread has its positions' length:
 ```lean
   /-- A list: each of its positions is present and holds its value;
   later elements are allowed, but in a sealed list without a spread,
-  whose length is its positions'; the spread holds every element. It
-  refuses a value that is no list, and a list that breaks any one of
-  those. -/
+  whose length is its positions'; the spread holds every element, read
+  under the element's position as a string (`namedItems`). It refuses a
+  value that is no list, and a list that breaks any one of those. -/
   | list {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data} :
       items.length ≤ xs.length →
       (closed = true → spread = none → xs.length = items.length) →
@@ -3712,7 +3716,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .lit s, j => j = s.data
   | .map fs spread _, j =>
     keysDistinct fs = true ∧ ∃ ms, genFields env root spread fs ms ∧ j = .map (sortMembers ms)
-  | .list items spread _, j => ∃ xs, genItems env root spread items xs ∧ j = .list xs
+  | .list items spread _, j => ∃ xs, genItems env root spread 0 items xs ∧ j = .list xs
   | .or arms, j => arms.any (picked arms) = true ∧ genArms env root arms arms j
   | .pref _ x, j => Gen env root x j
   | .ride _ v _, j => Gen env root v j
@@ -3724,13 +3728,14 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
   | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
-  | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _ => False
+  | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
+  | .key, _ => False
 ```
 
 Read `Gen env root v j` as *`v` generates `j`*. A literal generates
 its value. A map generates a map whose members `genFields` lists, in
 declaration order and then in key order: a key whose value generates a
-value the spread admits is written with it, an optional key whose value
+value the spread admits under the key is written with it, an optional key whose value
 generates none such is left out, and a required key whose value
 generates none such leaves the map with no output at all. A list
 generates each position, `genItems`. A disjunction generates what the
@@ -4652,24 +4657,24 @@ member whether some cover evaluates it, else whether `t` admits it:
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
   | .nof n cs, j =>
-    if h : IntegerLeaf (countWith u cs j) then checkWith u n (.num (.integer ⟨countWith u cs j, h⟩))
+    if h : IntegerLeaf (countWith u cs j) then checkWith u none n (.num (.integer ⟨countWith u cs j, h⟩))
     else false
-  | .must c _, j => checkWith u c j
-  | .when c t e, j => if checkWith u c j then checkWith u t j else checkSpreadWith u e j
+  | .must c _, j => checkWith u none c j
+  | .when c t e, j => if checkWith u none c j then checkWith u none t j else checkSpreadWith u e j
   | .contains c n, j => match j.members with
     | some ms =>
-      if h : IntegerLeaf (ms.countP fun x => checkWith u c x) then
-        checkWith u n (.num (.integer ⟨ms.countP fun x => checkWith u c x, h⟩))
+      if h : IntegerLeaf (ms.countP fun x => checkWith u none c x) then
+        checkWith u none n (.num (.integer ⟨ms.countP fun x => checkWith u none c x, h⟩))
       else false
     | none => false
   | .rest t cs, j => match j.named with
-    | some ns => ns.all fun m => restEvaluatedWith u cs j m.1 m.2 || checkWith u t m.2
+    | some ns => ns.all fun m => restEvaluatedWith u cs j m.1 m.2 || checkWith u none t m.2
     | none => true
 
 /-- The branches of a trial that admit the datum, counted. -/
 def countWith (u : String → Data → Bool) : List Val → Data → ℕ
   | [], _ => 0
-  | c :: cs, j => (if checkWith u c j then 1 else 0) + countWith u cs j
+  | c :: cs, j => (if checkWith u none c j then 1 else 0) + countWith u cs j
 ```
 
 So `vet` decides a document with a trial inside a value:
@@ -4975,13 +4980,14 @@ A pattern's predicate is opaque, so no algorithm can run it, and `re`
 and `format` are outside the checker's reach as an alias is.
 
 `check` returns `true` or `false`, where `Judge` is a statement. It
-is `checkWith` with a hook that answers `false` for every name, whose
-first cases are:
+is `checkWith` with a hook that answers `false` for every name, and no
+key, whose first cases are:
 
 <!-- test: quote spec/Aontu/Check.lean -->
 ```lean
-/-- Whether `v` admits `j`, computed. -/
-def checkWith (u : String → Data → Bool) : Val → Data → Bool
+/-- Whether `v` admits `j`, computed: `v.atKeyO k` judged, with `k` the key a
+spread is tried under, which the forms `atKey` reads through carry. -/
+def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data → Bool
   | .integer, j => match j with
     | .num (.integer _) => true
     | _ => false
@@ -4995,14 +5001,12 @@ def checkWith (u : String → Data → Bool) : Val → Data → Bool
     | .num (.bigdecimal _) => true
     | _ => false
   | .number, j => match j with
-    | .num _ => true
-    | _ => false
-  | .string, j => match j with
-    | .str s => decide (s ≠ "")
 ```
 
 The rest of it takes one case for each form in the same way, and a
-name goes to the hook. Nothing in the code says that `check` and
+name goes to the hook. The key is the one a spread is tried under, which
+step 19 reads; a spread passes it down, and `key`, `&`, a rider and a
+`match` on `key` read it. Nothing in the code says that `check` and
 `Judge` agree. One theorem does: the `Bool` the checker computes is the
 judgement, so its `true` is admission and its `false` refusal, for
 either `b`:
@@ -5199,7 +5203,7 @@ inductive Val.CheckableA : Val → Prop
 given a hook that is right where it is asked: its `true` is admission
 and its `false` refusal. -/
 theorem checkWith_judge {v : Val} (h : v.CheckableA) :
-    ∀ j, HookOk u env root v j → Judge env root (checkWith u v j) v j := by
+    ∀ j, HookOk u env root v j → Judge env root (checkWith u none v j) v j :=
 ```
 
 <!-- test: quote spec/Aontu/Check.lean -->
@@ -5207,7 +5211,7 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
 /-- The checker decides admission, and refusal, for every value it can
 check, given a hook that is right where it is asked. -/
 theorem checkWith_iff {v : Val} (h : v.CheckableA) (j : Data) (hu : HookOk u env root v j) {b : Bool} :
-    checkWith u v j = b ↔ Judge env root b v j :=
+    checkWith u none v j = b ↔ Judge env root b v j :=
   (checkWith_judge h j hu).toIff
 ```
 
@@ -5228,7 +5232,7 @@ def checkD (ds : Decls) : ℕ → List String → Val → Data → Bool
         if j'.weight < j.weight then checkD ds n [] (expand ds b) j'
         else if stack.contains k then false
         else checkD ds n (k :: stack) (expand ds b) j'
-      | none => false) v j
+      | none => false) none v j
 ```
 
 A name met again at the same datum with no key and no element between
@@ -5431,18 +5435,14 @@ every schema of the JSON Schema test suite in its five dialects, of
 the Ajv extra tests and of the SchemaStore subset, with and without
 defaults, removes the strings from the output, and reads every call and
 every word left. Each must be a row of `spec/forms.tsv`, or of a second
-file, the forms the importer writes that the definition lacks:
-
-<!-- test: quote spec/forms-outside.tsv -->
-```tsv
-key	call	13	the key of the member a spread holds, as `match(key(0), …)` for `patternProperties` and `propertyNames`
-```
-
-One form, on a decision of the design note, and the test requires it
-still written, so a form that enters the definition leaves the file.
-`map` and `list` left it when they became the kinds of step 6, and
-`meta`, `deprecate` and `ident` when they became the riders. One schema
-writes all of them. Write `shape.json`:
+file, `spec/forms-outside.tsv`, which holds a form the importer writes
+that the definition lacks, on a decision of the design note. The test
+requires each such form still written, so a form that enters the
+definition leaves the file. Six began there: `map` and `list` left it
+when they became the kinds of step 6, `meta`, `deprecate` and `ident`
+when they became the riders, and `key` when it became the term below.
+The file is empty now, and its bound is zero. One schema writes all
+six. Write `shape.json`:
 
 <!-- test: scenario forms -->
 <!-- test: file shape.json -->
@@ -5505,12 +5505,47 @@ default, step 10's, and the kind that gives a meet its parent, so
 `integer & min(3)` has.
 
 The identity alone has a place, the alias's value, as step 8 reads it,
-and the import writes it there. `key(0)` is the key of the member the
-spread is tried on, which no rule of the definition reads; decision 13
-asks for the one rule. Everything else the import wrote, the kinds
-`map` and `list`, `empty()`, `re`, `match`, `any`, `nil`, the optional
-keys and the spread, is a row of `spec/forms.tsv`, and so is everything
-the importer writes over the three corpora.
+and the import writes it there.
+
+`key(0)` is the key of the member the spread applies to. It's the term
+`key`, and a spread is what reads it: the map rule tries the spread on
+each member with the key written in,
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+      (∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Judge env root true (s.atKey k) x) →
+```
+
+and the list rule tries it on each element with the element's position,
+`"0"` first. The key goes in at the spread's own position, and through
+`&`, the riders and the scrutinee of a `match` to theirs, which is
+where the importer writes it:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+def Val.atKey (k : String) : Val → Val
+  | .key => .lit (.str k)
+  | .meet a b => .meet (a.atKey k) (b.atKey k)
+  | .select s arms d => .select (s.atKey k) arms d
+  | .ride t v r => .ride t (v.atKey k) r
+  | v => v
+```
+
+Read so, `match(key(0), p, any, nil)` admits a member whose key `p`
+admits and refuses the rest, which is what `propertyNames` asks. A
+member the schema declares meets the spread read under its key, with
+the selection made, so `{a: string, &: match(key(0), "a", integer,
+nil)}` is a conflict. Two spreads that read the key meet as written,
+since no one term stands for both until a member gives the key. A `key` no
+spread has read refuses every value, as a path left unread does. The
+reference's `key()` at any other position, with its levels, waits on
+the templates of the roadmap. Both engines answer the rows `y0` on of
+`test/spec/def-trial.tsv` as the definition does.
+
+Everything else the import wrote, the kinds `map` and `list`,
+`empty()`, `re`, `match`, `any`, `nil`, the optional keys, and the
+spread, is a row of `spec/forms.tsv`, and so is everything the importer
+writes over the three corpora.
 
 ## 20. What the definition doesn't say yet
 
@@ -5519,8 +5554,8 @@ for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, most built-in functions,
-generation with `each`, `pack` and `emit`, and marks such as `hide()`
-and `type()`. [`aontu vet`](reference-api.md#aontu-vet) states which
+`key()` anywhere but in a spread, generation with `each`, `pack` and
+`emit`, and marks such as `hide()` and `type()`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 
@@ -5534,7 +5569,7 @@ Nor does it name JSON Schema, which isn't a concept of the language.
 The language needs only the power to represent a JSON Schema: what
 `aontu jsonschema import` writes is aontu terms, such as
 `number & mulof(1)`, and the definition says what those mean. Step
-19 checks that it does, but for the one form that step lists.
+19 checks that it does.
 
 Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker

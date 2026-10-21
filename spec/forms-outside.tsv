@@ -3,6 +3,5 @@
 # ts/test/jsonschema-forms.test.ts and go/jsonschema_forms_test.go hold the
 # importer's output over the vendored corpora to spec/forms.tsv and to these
 # rows, and refuse a row the importer no longer writes, so a form that enters
-# the definition leaves this file. Bounded at 1.
+# the definition leaves this file. Bounded at 0.
 # text	kind	decision	what the importer writes it for
-key	call	13	the key of the member a spread holds, as `match(key(0), …)` for `patternProperties` and `propertyNames`
