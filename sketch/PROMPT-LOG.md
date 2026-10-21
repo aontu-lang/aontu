@@ -269,3 +269,18 @@ The answer to the agent's question, the question followed by the option chosen:
 How should 0.76.1 be released? The fix merges into main either way; this decides what goes into the published package.
 → Hotfix on v0.76.0 (Recommended)
 ```
+
+## 2026-10-21 12:37:39 UTC · Claude Code · session_01KHD8Adfguemdb5wJmq329A
+
+```text
+you can't merge it to main to do a release - it is a hotfix on a published version - it releases from it's own branch, which you should rename to reflect what it is
+```
+
+## 2026-10-21 12:52:11 UTC · Claude Code · session_01KHD8Adfguemdb5wJmq329A
+
+The answer to the agent's question, the question followed by the option chosen:
+
+```text
+The hotfix's own branch is hotfix/0.76.1 (v0.76.0 + the fix + the bump; the tags go there). What should it be called?
+→ Keep hotfix/0.76.1
+```
