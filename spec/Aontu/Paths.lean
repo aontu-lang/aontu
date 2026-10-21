@@ -186,6 +186,21 @@ theorem mem_ptaFields {fs : List (String × Bool × Val)} {k : String} {o : Bool
       · exact Or.inl ⟨rfl, rfl, rfl⟩
       · exact Or.inr ⟨v, hm, rfl⟩
 
+theorem mem_ptaPairs {ps : List (Val × Val)} {p r : Val} :
+    (p, r) ∈ ptaPairs ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.pathsToAliases ∧ r = r₀.pathsToAliases := by
+  induction ps with
+  | nil => simp [ptaPairs]
+  | cons q ps ih =>
+    obtain ⟨p', r'⟩ := q
+    simp only [ptaPairs, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨p₀, r₀, hm, rfl, rfl⟩)
+      · exact ⟨p', r', Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
+      · exact ⟨p₀, r₀, Or.inr hm, rfl, rfl⟩
+    · rintro ⟨p₀, r₀, ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
+
 theorem mem_ptaItems {items : List Val} {w : Val} :
     w ∈ ptaItems items ↔ ∃ v, v ∈ items ∧ w = v.pathsToAliases := by
   induction items with
@@ -290,6 +305,22 @@ theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliase
       obtain ⟨c, hc, rfl⟩ := mem_ptaCovers.mp hc'
       obtain ⟨s, hs, rfl⟩ := ptaSpread_eq.mp hv
       exact ih3 c hc s hs
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_ptaPairs.mp hm
+      exact ihp p₀ r₀ hm₀
+    · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_ptaPairs.mp hm
+      exact ihr p₀ r₀ hm₀
+    · obtain ⟨e₀, he₀, rfl⟩ := ptaSpread_eq.mp he
+      exact ihd e₀ he₀
+  | @selectLit sc arms d _ _ _ ihp ihr ihd =>
+    refine .selectLit (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_ptaPairs.mp hm
+      exact ihp p₀ r₀ hm₀
+    · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_ptaPairs.mp hm
+      exact ihr p₀ r₀ hm₀
+    · obtain ⟨e₀, he₀, rfl⟩ := ptaSpread_eq.mp he
+      exact ihd e₀ he₀
   | _ => simp only [Val.pathsToAliases]; constructor
 
 theorem Val.checkableA_unride {v : Val} (h : v.CheckableA) : v.unride.CheckableA := by

@@ -342,6 +342,31 @@ def Data.named : Data → Option (List (String × Data))
   | .list xs => some (namedItems 0 xs)
   | _ => none
 
+/-- An element under its name: the one at a position, named by it. -/
+theorem mem_namedItems_iff : ∀ {i : ℕ} {xs : List Data} {k : String} {x : Data},
+    (k, x) ∈ namedItems i xs ↔ ∃ n : ℕ, xs[n]? = some x ∧ k = toString (i + n)
+  | _, [], _, _ => by simp [namedItems]
+  | i, y :: xs, k, x => by
+    simp only [namedItems, List.mem_cons, Prod.mk.injEq]
+    rw [mem_namedItems_iff]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨n, hn, rfl⟩)
+      · exact ⟨0, rfl, rfl⟩
+      · exact ⟨n + 1, by simpa using hn, by rw [Nat.add_assoc, Nat.add_comm 1 n]⟩
+    · rintro ⟨n, hn, rfl⟩
+      cases n with
+      | zero =>
+        simp only [List.getElem?_cons_zero, Option.some.injEq] at hn
+        exact .inl ⟨rfl, hn.symm⟩
+      | succ n =>
+        refine .inr ⟨n, by simpa using hn, ?_⟩
+        rw [Nat.add_assoc, Nat.add_comm 1 n]
+
+theorem mem_namedItems_zero {xs : List Data} {k : String} {x : Data} :
+    (k, x) ∈ namedItems 0 xs ↔ ∃ n : ℕ, xs[n]? = some x ∧ k = toString n := by
+  rw [mem_namedItems_iff]
+  simp
+
 theorem mem_namedItems : ∀ {i : ℕ} {xs : List Data} {k : String} {x : Data},
     (k, x) ∈ namedItems i xs → x ∈ xs
   | _, [], _, _, h => nomatch h

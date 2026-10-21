@@ -110,7 +110,7 @@ def checkD (ds : Decls) : ℕ → List String → Val → Data → Bool
         if j'.weight < j.weight then checkD ds n [] (expand ds b) j'
         else if stack.contains k then false
         else checkD ds n (k :: stack) (expand ds b) j'
-      | none => false) v j
+      | none => false) none v j
 
 /-- The turns a datum needs under a stack: one for each name a chain
 with no key and no element between can hold, at each level of the
@@ -422,6 +422,34 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
         obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hc'
         obtain ⟨w, hw, rfl⟩ := Option.map_eq_some_iff.mp hv
         exact expandF_checkableA hb f w (h3 c hc w hw)
+    | selectKey hp hr hd =>
+      show (Val.select (expandF ds f .key) _ _).CheckableA
+      rw [show expandF ds f .key = .key by cases f <;> rfl]
+      refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+      · obtain ⟨⟨p', r'⟩, hm', he⟩ := List.mem_map.mp hm
+        simp only [Prod.mk.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        exact expandF_checkableA hb f p' (hp p' r' hm')
+      · obtain ⟨⟨p', r'⟩, hm', he⟩ := List.mem_map.mp hm
+        simp only [Prod.mk.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        exact expandF_checkableA hb f r' (hr p' r' hm')
+      · obtain ⟨e', he', rfl⟩ := Option.map_eq_some_iff.mp he
+        exact expandF_checkableA hb f e' (hd e' he')
+    | @selectLit sc _ _ hp hr hd =>
+      show (Val.select (expandF ds f (.lit sc)) _ _).CheckableA
+      rw [show expandF ds f (.lit sc) = .lit sc by cases f <;> rfl]
+      refine .selectLit (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+      · obtain ⟨⟨p', r'⟩, hm', he⟩ := List.mem_map.mp hm
+        simp only [Prod.mk.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        exact expandF_checkableA hb f p' (hp p' r' hm')
+      · obtain ⟨⟨p', r'⟩, hm', he⟩ := List.mem_map.mp hm
+        simp only [Prod.mk.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        exact expandF_checkableA hb f r' (hr p' r' hm')
+      · obtain ⟨e', he', rfl⟩ := Option.map_eq_some_iff.mp he
+        exact expandF_checkableA hb f e' (hd e' he')
     | _ => (try simp only [expandF]); constructor
 
 theorem expand_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
@@ -779,7 +807,9 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
   | number | string | anyString | boolean | mapKind | listKind | any => exact .any
   | nil => exact .nil
   | path => exact .path
-  | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _ => exact .any
+  | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
+  | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ => exact .any
+  | key => exact .anyString
   | @lit s =>
     cases s with
     | num x =>
@@ -866,7 +896,7 @@ theorem meetKey_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a
       refine hm _ _ hf ?_
       cases s with
       | none => exact .any
-      | some t => exact hs t rfl
+      | some t => exact (hs t rfl).atKey _
 
 theorem foldSpread_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
     {sp : Option Val} {fs : List (String × Bool × Val)}
@@ -880,7 +910,7 @@ theorem foldSpread_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (
     obtain ⟨⟨k', o', u⟩, hu, he⟩ := List.mem_map.mp hw
     simp only [Prod.mk.injEq] at he
     obtain ⟨rfl, rfl, rfl⟩ := he
-    exact hm _ _ (hfs _ _ _ hu) (hsp t rfl)
+    exact hm _ _ (hfs _ _ _ hu) ((hsp t rfl).atKey _)
 
 theorem meetSpread_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
     {s₁ s₂ : Option Val} (h₁ : ∀ t, s₁ = some t → t.CheckableA) (h₂ : ∀ t, s₂ = some t → t.CheckableA) :
@@ -894,7 +924,11 @@ theorem meetSpread_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (
   | some t₁ =>
     cases s₂ with
     | none => exact (Option.some.inj ht) ▸ h₁ t₁ rfl
-    | some t₂ => exact (Option.some.inj ht) ▸ hm _ _ (h₁ t₁ rfl) (h₂ t₂ rfl)
+    | some t₂ =>
+      rw [← Option.some.inj ht]
+      split
+      · exact .meet (h₁ t₁ rfl) (h₂ t₂ rfl)
+      · exact hm _ _ (h₁ t₁ rfl) (h₂ t₂ rfl)
 
 theorem meetMap_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
     {fs₁ fs₂ : List (String × Bool × Val)} {s₁ s₂ : Option Val} {c₁ c₂ : Bool}
@@ -935,11 +969,11 @@ theorem meetPos_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a
     | some y => exact hm _ _ (ha x rfl) (hb y rfl)
 
 theorem meetWrap_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
-    {sp : Option Val} {e : Val} (hsp : ∀ t, sp = some t → t.CheckableA) (he : e.CheckableA) :
-    (meetWrap m sp e).CheckableA := by
+    {sp : Option Val} {i : ℕ} {e : Val} (hsp : ∀ t, sp = some t → t.CheckableA) (he : e.CheckableA) :
+    (meetWrap m sp i e).CheckableA := by
   cases sp with
   | none => exact he
-  | some t => exact hm _ _ he (hsp t rfl)
+  | some t => exact hm _ _ he ((hsp t rfl).atKey _)
 
 theorem meetItems_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
     {f₁ f₂ : Bool} {sp : Option Val} {is₁ is₂ : List Val} (hsp : ∀ t, sp = some t → t.CheckableA)

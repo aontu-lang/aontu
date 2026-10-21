@@ -79,7 +79,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .lit s, j => j = s.data
   | .map fs spread _, j =>
     keysDistinct fs = true ∧ ∃ ms, genFields env root spread fs ms ∧ j = .map (sortMembers ms)
-  | .list items spread _, j => ∃ xs, genItems env root spread items xs ∧ j = .list xs
+  | .list items spread _, j => ∃ xs, genItems env root spread 0 items xs ∧ j = .list xs
   | .or arms, j => arms.any (picked arms) = true ∧ genArms env root arms arms j
   | .pref _ x, j => Gen env root x j
   | .ride _ v _, j => Gen env root v j
@@ -91,29 +91,30 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
   | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
-  | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _ => False
+  | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
+  | .key, _ => False
 
 /-- The members a map's declarations generate, in declaration order: a
-key whose value generates one the spread admits, with it; an optional
-key whose value generates none such, absent; a required key whose
-value generates none such, no members at all. -/
+key whose value generates one the spread admits under the key, with it;
+an optional key whose value generates none such, absent; a required key
+whose value generates none such, no members at all. -/
 def genFields (env : Env) (root : Data) (spread : Option Val) :
     List (String × Bool × Val) → List (String × Data) → Prop
   | [], ms => ms = []
   | (k, o, v) :: fs, ms =>
-    (∃ x rest, Gen env root v x ∧ (∀ s, spread = some s → Admits env root s x) ∧
+    (∃ x rest, Gen env root v x ∧ (∀ s, spread = some s → Admits env root (s.atKey k) x) ∧
       genFields env root spread fs rest ∧ ms = (k, x) :: rest) ∨
     (o = true ∧
-      (∀ x, Gen env root v x → (∀ s, spread = some s → Admits env root s x) → False) ∧
+      (∀ x, Gen env root v x → (∀ s, spread = some s → Admits env root (s.atKey k) x) → False) ∧
       genFields env root spread fs ms)
 
-/-- The elements a list's positions generate, each one the spread
-admits. -/
-def genItems (env : Env) (root : Data) (spread : Option Val) : List Val → List Data → Prop
+/-- The elements a list's positions generate, from the position `i` on,
+each one the spread admits under its position. -/
+def genItems (env : Env) (root : Data) (spread : Option Val) (i : ℕ) : List Val → List Data → Prop
   | [], xs => xs = []
   | v :: vs, xs =>
-    ∃ x rest, Gen env root v x ∧ (∀ s, spread = some s → Admits env root s x) ∧
-      genItems env root spread vs rest ∧ xs = x :: rest
+    ∃ x rest, Gen env root v x ∧ (∀ s, spread = some s → Admits env root (s.atKey (toString i)) x) ∧
+      genItems env root spread (i + 1) vs rest ∧ xs = x :: rest
 
 /-- Every arm the rule picks, among the arms `arms₀`, generates `j`. -/
 def genArms (env : Env) (root : Data) (arms₀ : List (ℕ × Val)) :
@@ -135,7 +136,7 @@ variable {env : Env} {root : Data}
 theorem genFields_mem {spread : Option Val} :
     ∀ {fs : List (String × Bool × Val)} {ms : List (String × Data)},
       genFields env root spread fs ms → ∀ k x, (k, x) ∈ ms →
-        ∃ o v, (k, o, v) ∈ fs ∧ Gen env root v x ∧ ∀ s, spread = some s → Admits env root s x
+        ∃ o v, (k, o, v) ∈ fs ∧ Gen env root v x ∧ ∀ s, spread = some s → Admits env root (s.atKey k) x
   | [], ms, h, k, x, hm => by
     rw [genFields] at h
     subst h
@@ -182,7 +183,7 @@ theorem genFields_lookup_some {spread : Option Val} :
     ∀ {fs : List (String × Bool × Val)} {ms : List (String × Data)},
       keysDistinct fs = true → genFields env root spread fs ms →
       ∀ k o v x, (k, o, v) ∈ fs → lookup k ms = some x →
-        Gen env root v x ∧ ∀ s, spread = some s → Admits env root s x
+        Gen env root v x ∧ ∀ s, spread = some s → Admits env root (s.atKey k) x
   | [], _, _, _, _, _, _, _, hm, _ => absurd hm (List.not_mem_nil)
   | (k', o', v') :: fs, ms, hd, h, k, o, v, x, hm, hl => by
     obtain ⟨hd₁, hd₂⟩ := keysDistinct_cons hd
@@ -225,23 +226,23 @@ theorem genFields_lookup_none {spread : Option Val} :
         exact ho
       · exact genFields_lookup_none hd₂ hrest k o v hm' hl
 
-theorem genItems_length {spread : Option Val} : ∀ {items : List Val} {xs : List Data},
-    genItems env root spread items xs → xs.length = items.length
-  | [], xs, h => by
+theorem genItems_length {spread : Option Val} : ∀ {i : ℕ} {items : List Val} {xs : List Data},
+    genItems env root spread i items xs → xs.length = items.length
+  | _, [], xs, h => by
     rw [genItems] at h
     subst h
     rfl
-  | v :: vs, xs, h => by
+  | _, v :: vs, xs, h => by
     rw [genItems] at h
     obtain ⟨x, rest, -, -, hrest, rfl⟩ := h
     simp [genItems_length hrest]
 
-theorem genItems_pos {spread : Option Val} : ∀ {items : List Val} {xs : List Data},
-    genItems env root spread items xs →
+theorem genItems_pos {spread : Option Val} : ∀ {i₀ : ℕ} {items : List Val} {xs : List Data},
+    genItems env root spread i₀ items xs →
     ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
-      Gen env root v x ∧ ∀ s, spread = some s → Admits env root s x
-  | [], _, _, _, _, _, hv, _ => by simp at hv
-  | v' :: vs, xs, h, i, v, x, hv, hx => by
+      Gen env root v x ∧ ∀ s, spread = some s → Admits env root (s.atKey (toString (i₀ + i))) x
+  | _, [], _, _, _, _, _, hv, _ => by simp at hv
+  | i₀, v' :: vs, xs, h, i, v, x, hv, hx => by
     rw [genItems] at h
     obtain ⟨y, rest, hg, hs, hrest, rfl⟩ := h
     cases i with
@@ -252,20 +253,21 @@ theorem genItems_pos {spread : Option Val} : ∀ {items : List Val} {xs : List D
       exact ⟨hg, hs⟩
     | succ i =>
       simp only [List.getElem?_cons_succ] at hv hx
-      exact genItems_pos hrest i v x hv hx
+      have := genItems_pos hrest i v x hv hx
+      rw [Nat.add_assoc, Nat.add_comm 1 i] at this
+      exact this
 
-theorem genItems_mem {spread : Option Val} : ∀ {items : List Val} {xs : List Data},
-    genItems env root spread items xs → ∀ x, x ∈ xs → ∀ s, spread = some s → Admits env root s x
-  | [], xs, h, x, hx => by
-    rw [genItems] at h
-    subst h
-    exact absurd hx (List.not_mem_nil)
-  | v :: vs, xs, h, x, hx => by
-    rw [genItems] at h
-    obtain ⟨y, rest, -, hs, hrest, rfl⟩ := h
-    rcases List.mem_cons.mp hx with rfl | hm
-    · exact hs
-    · exact genItems_mem hrest x hm
+/-- Each element generated is admitted by the spread under its position. -/
+theorem genItems_named {spread : Option Val} {items : List Val} {xs : List Data}
+    (h : genItems env root spread 0 items xs) :
+    ∀ k x, (k, x) ∈ namedItems 0 xs → ∀ s, spread = some s → Admits env root (s.atKey k) x := by
+  intro k x hm s hs
+  obtain ⟨i, hx, rfl⟩ := mem_namedItems_zero.mp hm
+  have hi : i < items.length := by
+    rw [← genItems_length h]; exact (List.getElem?_eq_some_iff.mp hx).1
+  have hv : items[i]? = some items[i] := List.getElem?_eq_getElem hi
+  have := (genItems_pos h i _ x hv hx).2 s hs
+  rwa [Nat.zero_add] at this
 
 theorem genArms_mem {arms₀ : List (ℕ × Val)} : ∀ {arms : List (ℕ × Val)} {j : Data},
     genArms env root arms₀ arms j → ∀ p, p ∈ arms → picked arms₀ p = true → Gen env root p.2 j
@@ -338,8 +340,8 @@ theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env r
     refine .list (Nat.le_of_eq hlen.symm) (fun _ _ => hlen) ?_ ?_
     · intro i v x hv hx
       exact items_admits items v (List.mem_of_getElem? hv) x (genItems_pos hg i v x hv hx).1
-    · intro s hs x hx
-      exact genItems_mem hg x hx s hs
+    · intro s hs k x hx
+      exact genItems_named hg k x hx s hs
   | .or arms, j, h => by
     rw [Gen] at h
     obtain ⟨hany, hg⟩ := h
@@ -415,10 +417,10 @@ theorem genFields_unique {spread : Option Val} :
     · exact absurd hs' (hnone x' hg')
     · exact genFields_unique hu' hrest hrest'
 
-theorem genItems_unique {spread : Option Val} :
+theorem genItems_unique {spread : Option Val} {i : ℕ} :
     ∀ {items : List Val} {xs xs' : List Data},
       (∀ v, v ∈ items → ∀ x x', Gen env root v x → Gen env root v x' → x = x') →
-      genItems env root spread items xs → genItems env root spread items xs' → xs = xs'
+      genItems env root spread i items xs → genItems env root spread i items xs' → xs = xs'
   | [], xs, xs', _, h, h' => by
     rw [genItems] at h h'
     rw [h, h']
@@ -509,9 +511,9 @@ end
 
 /-- Whether a spread, where there is one, admits a member, by the checker
 given. -/
-def spreadOk (chk : Val → Data → Bool) : Option Val → Data → Bool
+def spreadOk (chk : Val → Data → Bool) (k : String) : Option Val → Data → Bool
   | none, _ => true
-  | some s, x => chk s x
+  | some s, x => chk (s.atKey k) x
 
 mutual
 /-- What `v` generates, computed. -/
@@ -519,7 +521,7 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
   | .lit s => some s.data
   | .map fs spread _ =>
     if keysDistinct fs then (genFieldsWith chk spread fs).map fun ms => .map (sortMembers ms) else none
-  | .list items spread _ => (genItemsWith chk spread items).map .list
+  | .list items spread _ => (genItemsWith chk spread 0 items).map .list
   | .or arms =>
     match genArmsWith chk arms arms none with
     | some (some j) => some j
@@ -537,7 +539,7 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
   | .mapKind | .listKind
   | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .mulof _ | .len _ | .unique _
   | .re _ | .format _ | .any | .nil | .alias _ | .path _ | .nof _ _ | .must _ _
-  | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ => none
+  | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .key => none
 
 /-- The members the declarations generate, or `none` where a required
 key's value generates none the spread admits. -/
@@ -546,15 +548,17 @@ def genFieldsWith (chk : Val → Data → Bool) (spread : Option Val) : List (St
   | (k, o, v) :: fs =>
     match genWith chk v with
     | some x =>
-      if spreadOk chk spread x then (genFieldsWith chk spread fs).map ((k, x) :: ·)
+      if spreadOk chk k spread x then (genFieldsWith chk spread fs).map ((k, x) :: ·)
       else if o then genFieldsWith chk spread fs else none
     | none => if o then genFieldsWith chk spread fs else none
 
-def genItemsWith (chk : Val → Data → Bool) (spread : Option Val) : List Val → Option (List Data)
+def genItemsWith (chk : Val → Data → Bool) (spread : Option Val) (i : ℕ) : List Val → Option (List Data)
   | [] => some []
   | v :: vs =>
     match genWith chk v with
-    | some x => if spreadOk chk spread x then (genItemsWith chk spread vs).map (x :: ·) else none
+    | some x =>
+      if spreadOk chk (toString i) spread x then (genItemsWith chk spread (i + 1) vs).map (x :: ·)
+      else none
     | none => none
 
 /-- The one value the picked arms generate: `some (some j)` where every
@@ -583,15 +587,16 @@ def output (v : Val) : Option Data := gen (normalise v)
 section
 variable {chk : Val → Data → Bool} {env : Env} {root : Data}
 
-theorem spreadOk_iff {spread : Option Val}
-    (ih : ∀ s, spread = some s → ∀ j, chk s j = true ↔ Admits env root s j) (x : Data) :
-    spreadOk chk spread x = true ↔ ∀ s, spread = some s → Admits env root s x := by
+theorem spreadOk_iff {spread : Option Val} {k : String}
+    (ih : ∀ s, spread = some s → ∀ j, chk (s.atKey k) j = true ↔ Admits env root (s.atKey k) j)
+    (x : Data) :
+    spreadOk chk k spread x = true ↔ ∀ s, spread = some s → Admits env root (s.atKey k) x := by
   cases spread with
   | none => simp [spreadOk]
   | some s => simp [spreadOk, ih s rfl]
 
 theorem genFieldsWith_iff {spread : Option Val}
-    (hs : ∀ s, spread = some s → ∀ j, chk s j = true ↔ Admits env root s j) :
+    (hs : ∀ s, spread = some s → ∀ k j, chk (s.atKey k) j = true ↔ Admits env root (s.atKey k) j) :
     ∀ {fs : List (String × Bool × Val)},
       (∀ k o v, (k, o, v) ∈ fs → ∀ j, genWith chk v = some j ↔ Gen env root v j) →
       ∀ ms, genFieldsWith chk spread fs = some ms ↔ genFields env root spread fs ms
@@ -631,9 +636,10 @@ theorem genFieldsWith_iff {spread : Option Val}
       have hgen : Gen env root v x := (ihv x).mp hg
       have huniq : ∀ y, Gen env root v y → x = y := fun y hy =>
         Option.some.inj (hg.symm.trans ((ihv y).mpr hy))
-      cases hsp : spreadOk chk spread x with
+      cases hsp : spreadOk chk k spread x with
       | true =>
-        have hspOK : ∀ s, spread = some s → Admits env root s x := (spreadOk_iff hs x).mp hsp
+        have hspOK : ∀ s, spread = some s → Admits env root (s.atKey k) x :=
+          (spreadOk_iff (fun s h => hs s h k) x).mp hsp
         rw [if_pos rfl]
         constructor
         · intro h
@@ -644,8 +650,8 @@ theorem genFieldsWith_iff {spread : Option Val}
             exact Option.map_eq_some_iff.mpr ⟨rest, (ihfs rest).mpr hrest, rfl⟩
           · exact absurd hspOK (hno x hgen)
       | false =>
-        have hspNo : ¬ ∀ s, spread = some s → Admits env root s x := fun h => by
-          have := (spreadOk_iff hs x).mpr h
+        have hspNo : ¬ ∀ s, spread = some s → Admits env root (s.atKey k) x := fun h => by
+          have := (spreadOk_iff (fun s h => hs s h k) x).mpr h
           rw [hsp] at this
           exact nomatch this
         rw [if_neg Bool.false_ne_true]
@@ -672,15 +678,15 @@ theorem genFieldsWith_iff {spread : Option Val}
             · exact nomatch h
 
 theorem genItemsWith_iff {spread : Option Val}
-    (hs : ∀ s, spread = some s → ∀ j, chk s j = true ↔ Admits env root s j) :
-    ∀ {items : List Val}, (∀ v, v ∈ items → ∀ j, genWith chk v = some j ↔ Gen env root v j) →
-      ∀ xs, genItemsWith chk spread items = some xs ↔ genItems env root spread items xs
-  | [], _, xs => by
+    (hs : ∀ s, spread = some s → ∀ k j, chk (s.atKey k) j = true ↔ Admits env root (s.atKey k) j) :
+    ∀ {i : ℕ} {items : List Val}, (∀ v, v ∈ items → ∀ j, genWith chk v = some j ↔ Gen env root v j) →
+      ∀ xs, genItemsWith chk spread i items = some xs ↔ genItems env root spread i items xs
+  | _, [], _, xs => by
     rw [genItemsWith, genItems, Option.some.injEq]
     exact eq_comm
-  | v :: vs, ih, xs => by
+  | i, v :: vs, ih, xs => by
     have ihv := ih v (List.mem_cons_self)
-    have ihvs := genItemsWith_iff hs (fun v hm => ih v (List.mem_cons_of_mem _ hm))
+    have ihvs := genItemsWith_iff hs (i := i + 1) (fun v hm => ih v (List.mem_cons_of_mem _ hm))
     rw [genItemsWith, genItems]
     cases hg : genWith chk v with
     | none =>
@@ -699,9 +705,10 @@ theorem genItemsWith_iff {spread : Option Val}
       have hgen : Gen env root v x := (ihv x).mp hg
       have huniq : ∀ y, Gen env root v y → x = y := fun y hy =>
         Option.some.inj (hg.symm.trans ((ihv y).mpr hy))
-      cases hsp : spreadOk chk spread x with
+      cases hsp : spreadOk chk (toString i) spread x with
       | true =>
-        have hspOK : ∀ s, spread = some s → Admits env root s x := (spreadOk_iff hs x).mp hsp
+        have hspOK : ∀ s, spread = some s → Admits env root (s.atKey (toString i)) x :=
+          (spreadOk_iff (fun s h => hs s h (toString i)) x).mp hsp
         rw [if_pos rfl]
         constructor
         · intro h
@@ -711,8 +718,8 @@ theorem genItemsWith_iff {spread : Option Val}
           obtain rfl := huniq x' hx'
           exact Option.map_eq_some_iff.mpr ⟨rest, (ihvs rest).mpr hrest, rfl⟩
       | false =>
-        have hspNo : ¬ ∀ s, spread = some s → Admits env root s x := fun h => by
-          have := (spreadOk_iff hs x).mpr h
+        have hspNo : ¬ ∀ s, spread = some s → Admits env root (s.atKey (toString i)) x := fun h => by
+          have := (spreadOk_iff (fun s h => hs s h (toString i)) x).mpr h
           rw [hsp] at this
           exact nomatch this
         rw [if_neg Bool.false_ne_true]
@@ -808,7 +815,8 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩
-  | len _ _ | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _ =>
+  | len _ _ | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
+  | key | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ =>
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩
@@ -819,8 +827,9 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
   | @map fs spread closed hf hs ihf _ =>
     intro j
     rw [genWith, Gen]
-    have hsp : ∀ s, spread = some s → ∀ j, chk s j = true ↔ Admits env root s j :=
-      fun s h j => hchk s j (hs s h) fun n hn => by
+    have hsp : ∀ s, spread = some s → ∀ k j, chk (s.atKey k) j = true ↔ Admits env root (s.atKey k) j :=
+      fun s h k j => hchk (s.atKey k) j ((hs s h).atKey k) fun n hn => by
+        rw [Val.refs_atKey] at hn
         simp only [Val.refs, List.mem_append, h, refsSpread]; exact .inr hn
     have ihf := fun k o v hm => ihf k o v hm fun w j hw hsub => hchk w j hw fun n hn => by
       simp only [Val.refs, List.mem_append]; exact .inl (mem_refsFields.mpr ⟨k, o, v, hm, hsub n hn⟩)
@@ -837,8 +846,9 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
   | @list items spread closed hi hs ihi _ =>
     intro j
     rw [genWith, Gen]
-    have hsp : ∀ s, spread = some s → ∀ j, chk s j = true ↔ Admits env root s j :=
-      fun s h j => hchk s j (hs s h) fun n hn => by
+    have hsp : ∀ s, spread = some s → ∀ k j, chk (s.atKey k) j = true ↔ Admits env root (s.atKey k) j :=
+      fun s h k j => hchk (s.atKey k) j ((hs s h).atKey k) fun n hn => by
+        rw [Val.refs_atKey] at hn
         simp only [Val.refs, List.mem_append, h, refsSpread]; exact .inr hn
     have ihi := fun v hm => ihi v hm fun w j hw hsub => hchk w j hw fun n hn => by
       simp only [Val.refs, List.mem_append]; exact .inl (mem_refsItems.mpr ⟨v, hm, hsub n hn⟩)

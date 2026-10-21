@@ -225,14 +225,15 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   | nil {j : Data} : Judge env root false .nil j
   /-- A map: every declared key that is present holds its value, and
   holds every declaration of it; a key that is absent is optional in
-  every declaration; the spread holds every member, declared or not;
-  a sealed map holds no key it does not declare. It refuses a value
-  that is no map, and a map that breaks any one of those. -/
+  every declaration; the spread holds every member, declared or not,
+  read under the member's key (`Val.atKey`); a sealed map holds no key
+  it does not declare. It refuses a value that is no map, and a map
+  that breaks any one of those. -/
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool}
       {jfs : List (String × Data)} :
       (∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Judge env root true v x) →
       (∀ k o v, (k, o, v) ∈ fs → lookup k jfs = none → o = true) →
-      (∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Judge env root true s x) →
+      (∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Judge env root true (s.atKey k) x) →
       (closed = true → ∀ k x, (k, x) ∈ jfs → ∃ o v, (k, o, v) ∈ fs) →
       Judge env root true (.map fs spread closed) (.map jfs)
   | mapNot {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} {j : Data} :
@@ -247,7 +248,7 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       Judge env root false (.map fs spread closed) (.map jfs)
   | mapSpread {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool}
       {jfs : List (String × Data)} {s : Val} {k : String} {x : Data} :
-      spread = some s → (k, x) ∈ jfs → Judge env root false s x →
+      spread = some s → (k, x) ∈ jfs → Judge env root false (s.atKey k) x →
       Judge env root false (.map fs spread closed) (.map jfs)
   | mapClosed {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool}
       {jfs : List (String × Data)} {k : String} {x : Data} :
@@ -255,15 +256,15 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       Judge env root false (.map fs spread closed) (.map jfs)
   /-- A list: each of its positions is present and holds its value;
   later elements are allowed, but in a sealed list without a spread,
-  whose length is its positions'; the spread holds every element. It
-  refuses a value that is no list, and a list that breaks any one of
-  those. -/
+  whose length is its positions'; the spread holds every element, read
+  under the element's position as a string (`namedItems`). It refuses a
+  value that is no list, and a list that breaks any one of those. -/
   | list {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data} :
       items.length ≤ xs.length →
       (closed = true → spread = none → xs.length = items.length) →
       (∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
         Judge env root true v x) →
-      (∀ s, spread = some s → ∀ x, x ∈ xs → Judge env root true s x) →
+      (∀ s, spread = some s → ∀ k x, (k, x) ∈ namedItems 0 xs → Judge env root true (s.atKey k) x) →
       Judge env root true (.list items spread closed) (.list xs)
   | listNot {items : List Val} {spread : Option Val} {closed : Bool} {j : Data} :
       (∀ xs, j ≠ .list xs) → Judge env root false (.list items spread closed) j
@@ -277,8 +278,8 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       items[i]? = some v → xs[i]? = some x → Judge env root false v x →
       Judge env root false (.list items spread closed) (.list xs)
   | listSpread {items : List Val} {spread : Option Val} {closed : Bool} {xs : List Data}
-      {s : Val} {x : Data} :
-      spread = some s → x ∈ xs → Judge env root false s x →
+      {s : Val} {k : String} {x : Data} :
+      spread = some s → (k, x) ∈ namedItems 0 xs → Judge env root false (s.atKey k) x →
       Judge env root false (.list items spread closed) (.list xs)
   /-- A disjunction admits what any arm admits, whatever the arm's
   rank: a rank picks the output, which is no part of admission. It
@@ -365,6 +366,30 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   nothing. -/
   | ride {b : Bool} {k : Rider} {v : Val} {r : Record} {j : Data} :
       Judge env root b v j → Judge env root b (.ride k v r) j
+  /-- A selection on a literal, as a spread's `key` reads one: judged as
+  the result of the first arm whose pattern admits the literal's value,
+  each pattern before it refusing it; as its default where every
+  pattern refuses it; and refusing every value where it has none, as
+  `selectArm` chooses. A selection on anything else is made as the
+  document is read, or not at all. -/
+  | selectArm {b : Bool} {s : Scalar} {arms : List (Val × Val)} {d : Option Val} {i : ℕ}
+      {p r : Val} {j : Data} :
+      arms[i]? = some (p, r) →
+      (∀ (i' : ℕ) (q : Val × Val), i' < i → arms[i']? = some q → Judge env root false q.1 s.data) →
+      Judge env root true p s.data → Judge env root b r j →
+      Judge env root b (.select (.lit s) arms d) j
+  | selectElse {b : Bool} {s : Scalar} {arms : List (Val × Val)} {e : Val} {j : Data} :
+      (∀ q, q ∈ arms → Judge env root false q.1 s.data) → Judge env root b e j →
+      Judge env root b (.select (.lit s) arms (some e)) j
+  | selectNone {s : Scalar} {arms : List (Val × Val)} {j : Data} :
+      (∀ q, q ∈ arms → Judge env root false q.1 s.data) →
+      Judge env root false (.select (.lit s) arms none) j
+  /-- A `key` no spread has read, and a selection on one, refuse every
+  value, as a path left unread does: in a spread, `Val.atKey` reads it
+  first. -/
+  | key {j : Data} : Judge env root false .key j
+  | selectKey {arms : List (Val × Val)} {d : Option Val} {j : Data} :
+      Judge env root false (.select .key arms d) j
 
 /-- `j` is an instance of `v`: the trial comes out `true`. -/
 abbrev Admits (env : Env) (root : Data) : Val → Data → Prop := Judge env root true
@@ -630,7 +655,7 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | listShort hl => exact absurd h1 (Nat.not_le_of_lt hl)
     | listLong hc hs hl => exact absurd (h2 hc hs) hl
     | listItem hv hx hr => exact nomatch ih3 _ _ _ hv hx hr
-    | listSpread hs hx hr => exact nomatch ih4 _ hs _ hx hr
+    | listSpread hs hx hr => exact nomatch ih4 _ hs _ _ hx hr
   | listNot hn => intro b' h'; cases h' with
     | list _ _ _ _ => exact absurd rfl (hn _)
     | listNot _ => rfl
@@ -651,7 +676,7 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | listNot hn => exact absurd rfl (hn _)
     | listShort _ | listLong _ _ _ | listItem _ _ _ | listSpread _ _ _ => rfl
   | listSpread hs hx _ ih => intro b' h'; cases h' with
-    | list _ _ _ h4 => exact nomatch ih (h4 _ hs _ hx)
+    | list _ _ _ h4 => exact nomatch ih (h4 _ hs _ _ hx)
     | listNot hn => exact absurd rfl (hn _)
     | listShort _ | listLong _ _ _ | listItem _ _ _ | listSpread _ _ _ => rfl
   | or hm _ ih => intro b' h'; cases h' with
@@ -755,6 +780,27 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | restNone _ => rfl
   | ride _ ih => intro b' h'; cases h' with
     | ride h' => exact ih h'
+  | @selectArm _ _ _ _ i _ _ _ hi _ _ _ ihpre ihp ihr => intro b' h'; cases h' with
+    | @selectArm _ _ _ _ i' _ _ _ hi' hpre' hp' hr' =>
+      rcases Nat.lt_trichotomy i i' with hlt | heq | hgt
+      · exact nomatch ihp (hpre' i _ hlt hi)
+      · subst heq
+        rw [hi] at hi'
+        cases hi'
+        exact ihr hr'
+      · exact nomatch ihpre i' _ hgt hi' hp'
+    | selectElse hall _ => exact nomatch ihp (hall _ (List.mem_of_getElem? hi))
+    | selectNone hall => exact nomatch ihp (hall _ (List.mem_of_getElem? hi))
+  | selectElse _ _ ihall ihe => intro b' h'; cases h' with
+    | selectArm hi _ hp _ => exact nomatch ihall _ (List.mem_of_getElem? hi) hp
+    | selectElse _ he' => exact ihe he'
+  | selectNone _ ihall => intro b' h'; cases h' with
+    | selectArm hi _ hp _ => exact nomatch ihall _ (List.mem_of_getElem? hi) hp
+    | selectNone _ => rfl
+  | key => intro b' h'; cases h' with
+    | key => rfl
+  | selectKey => intro b' h'; cases h' with
+    | selectKey => rfl
 
 /-- No rule reads `root`: a judgement under one root is a judgement under
 any, so `root` rides the relation and decides nothing. -/
@@ -851,6 +897,11 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.rest <;> assumption)
     | (apply Judge.restNone <;> assumption)
     | (apply Judge.ride <;> assumption)
+    | (apply Judge.selectArm <;> assumption)
+    | (apply Judge.selectElse <;> assumption)
+    | (apply Judge.selectNone <;> assumption)
+    | (apply Judge.key <;> assumption)
+    | (apply Judge.selectKey <;> assumption)
 
 /-- The judgement a term's trial comes out: the computed answer `c` is the
 judgement `b` exactly when the two agree. -/

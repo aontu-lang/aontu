@@ -481,7 +481,7 @@ example : ¬ Instance .empty (.list [.integer, .string] none false) (.list [.int
 example : ¬ Instance .empty (.list [] (some .integer) false) (.list [.integer 1, .str "a"]) := by
   rintro ⟨-, h⟩
   cases h with
-  | list _ _ _ hs => nomatch hs .integer rfl (.str "a") (by simp)
+  | list _ _ _ hs => nomatch hs .integer rfl "1" (.str "a") (by decide)
 
 /-! ## The container kinds -/
 
