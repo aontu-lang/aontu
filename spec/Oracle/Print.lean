@@ -176,6 +176,8 @@ def Fn.name : Fn → String
   | .join => "join"
   | .pick => "pick"
   | .sort => "sort"
+  | .upper => "upper"
+  | .lower => "lower"
 
 mutual
 def Val.src : Val → Option String

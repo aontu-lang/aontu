@@ -32,17 +32,29 @@ namespace Aontu
 
 /-- What the definition leaves to the engines: which strings a pattern
 matches, and which strings a format, a name or a grammar, reads to its
-end. Each is a predicate on two strings, and nothing here says what
-either holds of, so a theorem about `re` or `format` holds whatever they
-are. -/
+end, each a predicate on two strings; and how a string changes case,
+Unicode's default case conversion at the version of each engine's
+tables. Nothing here says what any of them holds of, so a theorem about
+`re`, `format`, `upper` or `lower` holds whatever they are. -/
 structure Host where
   pattern : String → String → Prop
   format : String → String → Prop
+  upper : String → String
+  lower : String → String
 
-instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True⟩⟩
+instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True, id, id⟩⟩
 
-/-- The predicates behind `re` and `format`: a constant no proof can
-unfold, so they are read and never computed. -/
+/-- The host the oracle computes with, whose case conversion changes the
+ASCII letters only, as every engine's does on a string of them: a row
+reads no other letter. -/
+def oracleHost : Host :=
+  ⟨fun _ _ => True, fun _ _ => True, String.map Char.toUpper, String.map Char.toLower⟩
+
+/-- The predicates behind `re` and `format`, and the case conversion
+behind `upper` and `lower`: a constant no proof can unfold, so no
+theorem rests on what they are, and which the oracle runs as
+`oracleHost`. -/
+@[implemented_by oracleHost]
 opaque host : Host
 
 /-- Two predicates that agree on a list hold of all of it alike. -/

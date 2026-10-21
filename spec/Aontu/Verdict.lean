@@ -310,6 +310,53 @@ def sortOf (ds : Decls) (b : Val) (p d : Option Val) : Made :=
     | none => .refused
   | _, _, _ => .refused
 
+/-- The run of code points, from `lo` up to `hi`, a start and a length
+select in a string of `n`: from a start of zero or more the run reaches
+forward, and from a negative one it ends that far from the end; a
+negative length is the whole string, and both ends clamp. -/
+def caseSpan (n : ℕ) (start len : ℤ) : ℕ × ℕ :=
+  let span := if len < 0 then n else len.toNat
+  if 0 ≤ start then (min start.toNat n, min (min start.toNat n + span) n)
+  else (((n : ℤ) + start).toNat - span, ((n : ℤ) + start).toNat)
+
+/-- A string with the run of code points a start and a length select
+converted by `conv`, the run converted whole, and the rest as it
+stands. -/
+def caseRun (conv : String → String) (s : String) (start len : ℤ) : String :=
+  let (lo, hi) := caseSpan s.length start len
+  if hi ≤ lo then s
+  else String.mk (s.toList.take lo) ++ conv (String.mk ((s.toList.drop lo).take (hi - lo)))
+    ++ String.mk (s.toList.drop hi)
+
+/-- An index in normal form, its riders read through: an integer, or a
+big integer that 64 bits hold, as an integer's value does. -/
+def Val.index? (v : Val) : Option ℤ :=
+  match v.unride with
+  | .lit (.num (.integer i)) => some i.value
+  | .lit (.num (.biginteger i)) =>
+    if -2 ^ 63 ≤ i.value ∧ i.value < 2 ^ 63 then some i.value else none
+  | _ => none
+
+/-- A range argument of `upper` and `lower`, an index where it is given,
+and `dflt` where it is not. -/
+def rangeArg? (ds : Decls) (dflt : ℤ) : Option Val → Option ℤ
+  | none => some dflt
+  | some a => (normaliseD ds a).index?
+
+/-- What `upper` (`up`) or `lower` makes of its argument and its range,
+the argument's riders read through: a string, the run the range selects
+converted by the host's case conversion; a number, where no range is
+given, rounded up or down in its own leaf; and a refusal for anything
+else, a range that is no index among them. -/
+def caseOf (ds : Decls) (up : Bool) (s : Val) (start len : Option Val) : Made :=
+  match (normaliseD ds s).unride, rangeArg? ds 0 start, rangeArg? ds (-1) len with
+  | .lit (.str t), some a, some n =>
+    .made (.lit (.str (caseRun (if up then host.upper else host.lower) t a n)))
+  | .lit (.num x), _, _ =>
+    if start.isNone && len.isNone then ((x.round up).map fun y => .made (.lit (.num y))).getD .refused
+    else .refused
+  | _, _, _ => .refused
+
 /-- The number a call computes from its arguments: a fold from the
 numbers its one bag's members are, and any other function from the
 numbers its arguments are, each read in its normal form. -/
@@ -332,7 +379,8 @@ def Made.term (ds : Decls) (f : Fn) (args : List Val) : Made → Val
 /-- The term a call is, its arguments resolved: a `+` what `plusOf` makes
 of its operands' normal forms, each read through its riders and a lone
 preference first, as `*1 + 1` is `2`; a `join`, a `pick` and a `sort`
-what `joinOf`, `pickOf` and `sortOf` make; any
+what `joinOf`, `pickOf` and `sortOf` make, and an `upper` and a `lower`
+what `caseOf` makes; any
 other call the number `callValue` computes, where it computes one, and
 itself otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
@@ -344,6 +392,12 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .sort, [b] => (sortOf ds b none none).term ds f args
   | .sort, [b, p] => (sortOf ds b (some p) none).term ds f args
   | .sort, [b, p, d] => (sortOf ds b (some p) (some d)).term ds f args
+  | .upper, [s] => (caseOf ds true s none none).term ds f args
+  | .upper, [s, a] => (caseOf ds true s (some a) none).term ds f args
+  | .upper, [s, a, n] => (caseOf ds true s (some a) (some n)).term ds f args
+  | .lower, [s] => (caseOf ds false s none none).term ds f args
+  | .lower, [s, a] => (caseOf ds false s (some a) none).term ds f args
+  | .lower, [s, a, n] => (caseOf ds false s (some a) (some n)).term ds f args
   | _, _ =>
     match callValue ds f args with
     | some n => .lit (.num n)
@@ -698,6 +752,20 @@ theorem pickOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA)
     · cases h
   · cases h
 
+theorem caseOf_checkableA {ds : Decls} {up : Bool} {s v : Val} {start len : Option Val}
+    (h : caseOf ds up s start len = .made v) : v.CheckableA := by
+  unfold caseOf at h
+  split at h
+  · obtain rfl := (Made.made.injEq _ _).mp h
+    exact .lit
+  · split at h
+    · simp only [Option.map] at h
+      split at h <;> simp at h
+      subst h
+      exact .lit
+    · cases h
+  · cases h
+
 theorem sortOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {b v : Val}
     {p d : Option Val} (hb : b.CheckableA) (h : sortOf ds b p d = .made v) : v.CheckableA := by
   unfold sortOf at h
@@ -781,6 +849,12 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => sortOf_checkableA hd (h _ (by simp)) hv
   · exact Made.term_checkableA hd h fun v hv => sortOf_checkableA hd (h _ (by simp)) hv
   · exact Made.term_checkableA hd h fun v hv => sortOf_checkableA hd (h _ (by simp)) hv
+  · exact Made.term_checkableA hd h fun v hv => caseOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => caseOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => caseOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => caseOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => caseOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => caseOf_checkableA hv
   · split
     · exact .lit
     · exact .call h

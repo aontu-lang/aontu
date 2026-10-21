@@ -2755,6 +2755,8 @@ x:upper(0d1.1) & biginteger → error   (rounding does not change the leaf)
 A bigdecimal result is still a bigdecimal, so it keeps the one decimal
 place its leaf always renders, even when the value is whole.
 
+The definition computes `upper` and `lower` as `caseOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). A number with no range rounds up or down in its own leaf, exactly, by `Number.round` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean). A string converts the run of code points `caseSpan` selects as a whole and keeps the rest as it stands. The case conversion itself belongs to `Host` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), which the definition leaves to the engines as it leaves patterns and formats. Both engines apply Unicode's default case conversion, and the version of their tables can differ. A range argument reads through its riders as an `integer`, or as a `biginteger` that 64 bits hold. The TypeScript engine refuses a `biginteger` index from 2^53 on, which #439 tracks.
+
 ### Composing calls
 
 Functions compose with operators, references, list elements, and the
