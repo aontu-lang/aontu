@@ -8,6 +8,44 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `rep`, and `split` reads a pattern's matches
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Admits.lean`: `Host` no longer cuts a string at a
+  pattern. It says which patterns lie in the subset that `rep` and
+  `split` hand the host's pattern engine (`portable`), and where such a
+  pattern's leftmost match at or after a code point falls, with what its
+  groups captured (`find`).
+- `spec/Aontu/Text.lean` holds what the calls make of the matches, read
+  as Go's regexp reads them:
+  - a scan from the left that resumes where the last match stopped, one
+    code point on after an empty match, and skips an empty match that
+    starts where the last one stopped (`scanMatches`);
+  - the fields the matches cut (`cutFields`). A pattern other than `""`
+    cuts the empty text into one empty field (`Host.cut`);
+  - a replacement's `$1` to `$9`, `$&` and `$$`, any other `$` refused
+    (`expandSub`).
+- `spec/Aontu/Verdict.lean`: `repOf` makes `rep`, and `splitOf` refuses
+  a pattern outside the subset. Neither call waits, so a call handed a
+  pattern, which the checker can't read as a term, still reads to one it
+  can (`resolveD_expandF_split`, `resolveD_expandF_rep`).
+- The oracle's host reads fixed patterns alone, text with unnested
+  groups, and `hostReads` refuses a row that hands the host another
+  pattern but four outside the subset.
+- `test/spec/def-call.tsv` gains `rep` in rows x1404 to x1520 and `split`
+  at a pattern in rows v0 to v38. Both ports answer every row as the
+  definition does but six, a wrong number of arguments (#426).
+  `spec/ledger.tsv` lists them, and its bound rises from 171 to 177.
+  `spec/forms.tsv` gains `rep`.
+- No row splits the empty text at a pattern, where TS answers no field
+  and Go one (#447). No row holds a replacement that names a missing
+  group over a text with no match, which both ports answer and the
+  reference may refuse (decision 20, #449).
+- The definition tutorial's step 24 gains matches of a pattern, and the
+  language reference's `rep` and `split` sections cite the rules.
+
 ### The definition holds `split`
 
 Definition, generated rows, the ledger and its bound in both runners,

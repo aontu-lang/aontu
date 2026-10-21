@@ -1587,31 +1587,41 @@ never defines.
 ```lean
 /-- What the definition leaves to the engines: which strings a pattern
 matches, and which strings a format, a name or a grammar, reads to its
-end, each a predicate on two strings; the fields a pattern's matches
-cut a string into; and how a string changes case, Unicode's default
-case conversion at the version of each engine's tables. Nothing here
-says what any of them holds of, so a theorem about `re`, `format`,
-`split`, `upper` or `lower` holds whatever they are. -/
+end, each a predicate on two strings; which patterns lie in the subset
+that `rep` and `split` hand to the host's own regex engine, a subset
+the reference states on a pattern's syntax, which the definition does
+not hold, and where such a pattern's leftmost match at or after a code
+point of a text falls; and how a string changes case, Unicode's
+default case conversion at the version of each engine's tables.
+Nothing here says what any of them holds of, so a theorem about `re`,
+`format`, `rep`, `split`, `upper` or `lower` holds whatever they are. -/
 structure Host where
   pattern : String → String → Prop
   format : String → String → Prop
-  split : String → String → List String
+  portable : String → Bool
+  find : String → String → ℕ → Option Match
   upper : String → String
   lower : String → String
 
-instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True, fun _ s => [s], id, id⟩⟩
+instance : Inhabited Host :=
+  ⟨⟨fun _ _ => True, fun _ _ => True, fun _ => false, fun _ _ _ => none, id, id⟩⟩
+```
 
-/-- The host the oracle computes with, whose case conversion changes the
-ASCII letters only, as every engine's does on a string of them: a row
-reads no other letter, and splits at no pattern. -/
+The oracle computes with a host of its own. It converts the case of the
+letters `a` to `z` and `A` to `Z` alone, and it reads fixed patterns
+alone: text, with groups that capture runs of it, which every engine
+reads as the oracle does.
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
 def oracleHost : Host :=
-  ⟨fun _ _ => True, fun _ _ => True, fun _ s => [s], String.map Char.toUpper,
-    String.map Char.toLower⟩
+  ⟨fun _ _ => True, fun _ _ => True, fun p => (fixedPieces p).isSome, fixedFind,
+    String.map Char.toUpper, String.map Char.toLower⟩
 
-/-- The predicates behind `re` and `format`, the fields behind `split`
-at a pattern, and the case conversion behind `upper` and `lower`: a
-constant no proof can unfold, so no theorem rests on what they are,
-and which the oracle runs as `oracleHost`. -/
+/-- The predicates behind `re` and `format`, the subset and the matches
+behind `rep` and `split` at a pattern, and the case conversion behind
+`upper` and `lower`: a constant no proof can unfold, so no theorem
+rests on what they are, and which the oracle runs as `oracleHost`. -/
 @[implemented_by oracleHost]
 opaque host : Host
 ```
@@ -1620,8 +1630,8 @@ opaque host : Host
 and `@[implemented_by]` gives the compiler `oracleHost` to run in its
 place, so the oracle computes with it and no proof can unfold `host`.
 The host holds the case conversion `upper` and `lower` use too, which
-step 23 reads, and the fields a pattern cuts a string into, which step
-24's `split` reads. The two pattern rules read it:
+step 23 reads, and where a pattern matches a text, which step 24's
+`split` and `rep` read. The two pattern rules read it:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
@@ -6246,12 +6256,76 @@ def splitText (s sep : String) : List String :=
   if sep = "" then s.toList.map Char.toString else s.splitOn sep
 ```
 
-A pattern separator, `re(p)`, cuts at the pattern's matches. Where
-they fall is the host's to say, as which strings a pattern admits is,
-so `Host` holds `split` too, and the rows split at strings alone. They
-are x1332 on, and both engines answer every one as the definition
-does, but for two calls with the wrong number of arguments, which #426
-tracks.
+The rows are x1332 on, and both engines answer every one as the
+definition does, but for two calls with the wrong number of arguments,
+which #426 tracks.
+
+### Matches of a pattern
+
+Where its separator is `re(p)`, `split` cuts at the pattern's matches.
+`rep(s, p, sub)` replaces every match of the pattern `p` in `s`. Write
+`rep.aontu`:
+
+<!-- test: scenario rep -->
+<!-- test: file rep.aontu -->
+```aontu
+day: rep("2026-09-04", "([0-9]+)-([0-9]+)-([0-9]+)", "$3/$2/$1")
+dashes: rep("aa", "a*", "-")
+runs: split("a1b22c", re("[0-9]+"))
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu rep.aontu
+{
+  "dashes": "-",
+  "day": "04/09/2026",
+  "runs": [
+    "a",
+    "b",
+    "c"
+  ]
+}
+```
+
+Where a match falls is the host's pattern engine's to say, as which
+strings a pattern admits is, so `Host` holds `find`, the leftmost match
+at or after a code point. Which matches a call reads is the
+definition's. A scan resumes where the last match stopped, and an
+empty match that starts there counts for nothing, so `rep("aa", "a*",
+"-")` replaces `aa` and leaves the empty match after it alone:
+
+<!-- test: quote spec/Aontu/Text.lean -->
+```lean
+def scanMatches (find : ℕ → Option Match) (len : ℕ) : ℕ → ℕ → Option ℕ → List Match
+  | 0, _, _ => []
+  | fuel + 1, pos, last =>
+    if len < pos then [] else
+    match find pos with
+    | none => []
+    | some m =>
+      let empty := m.stop == pos
+      let rest := scanMatches find len fuel (if empty then pos + 1 else m.stop) (some m.stop)
+      if empty && last == some m.start then rest else m :: rest
+```
+
+A replacement writes `$1` to `$9` as the groups captured them, `$&` as
+the whole match and `$$` as one `$`. `expandSub` refuses any other `$`,
+so a replacement that names a group the pattern hasn't got is an
+error. So is a pattern outside the subset that both engines' pattern
+engines read alike. The reference states that subset on a pattern's
+syntax, which the definition doesn't hold, so `Host` holds `portable`
+as well.
+
+The oracle's host reads fixed patterns alone, so the rows hold no
+other pattern but four that the subset excludes. The rows are x1404 on
+for `rep` and v0 on for `split` at a pattern. Both engines answer every
+one as the definition does, but for two calls with the wrong number of
+arguments, which #426 tracks. Neither engine refuses a replacement that
+names a missing group where the text holds no match, and decision 20 of
+the design note asks whether they should.
 
 ## 25. The parent type
 

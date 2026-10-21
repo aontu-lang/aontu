@@ -3392,6 +3392,8 @@ has not got, is refused (`rep_sub`) rather than expanded to the empty
 string: a file written with a hole in it and no complaint is the failure
 that refusal exists to close.
 
+The definition computes `rep` as `repOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). Where a match falls is the host's to say, as which strings a pattern admits is, so `Host` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) holds the leftmost match at or after a position and which patterns lie in the subset. Which matches `rep` replaces is the definition's: `scanMatches` in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean) scans from the left, resumes where the last match stopped, and skips an empty match that starts there, so `rep("aa", "a*", "-")` is `"-"`. `expandSub` writes a replacement for each match.
+
 ### `split(s, sep)`
 
 The fields of `s`. **A plain string separator is a literal and an
@@ -3416,7 +3418,7 @@ Empty fields are **preserved**, so `join` is the inverse:
 points, and a separator that does not occur yields the whole string as
 one field.
 
-The definition computes `split` as `splitOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), a string separator by `splitText`, which cuts at each occurrence from the left. Where a pattern's matches fall is the host's to say, as which strings a pattern admits is, so `Host` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) holds the fields a pattern cuts a string into.
+The definition computes `split` as `splitOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), a string separator by `splitText`, which cuts at each occurrence from the left. A pattern cuts at its matches, which `cutFields` in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean) reads as `rep` does.
 
 ## Linking: the tree is the namespace
 
