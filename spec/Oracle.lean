@@ -1727,7 +1727,8 @@ def forms : List (String × String × String) :=
     ("call", "call", "add"), ("call", "call", "sub"), ("call", "call", "mul"),
     ("call", "call", "div"), ("call", "call", "mod"), ("call", "call", "rem"),
     ("call", "syntax", "-"), ("call", "call", "sum"), ("call", "call", "least"),
-    ("call", "call", "greatest"), ("call", "syntax", "+"), ("call", "call", "join")]
+    ("call", "call", "greatest"), ("call", "syntax", "+"), ("call", "call", "join"),
+    ("call", "call", "pick"), ("call", "call", "sort")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1747,7 +1748,8 @@ def formSamples : List (String × Val) :=
     ("mod", .call .mod [.integer, .integer]), ("rem", .call .rem [.integer, .integer]),
     ("-", .call .neg [.integer]), ("sum", .call .sum [.listKind]),
     ("least", .call .least [.listKind]), ("greatest", .call .greatest [.listKind]),
-    ("join", .call .join [.listKind])]
+    ("join", .call .join [.listKind]), ("pick", .call .pick [.listKind, .string]),
+    ("sort", .call .sort [.listKind])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1796,7 +1798,13 @@ waits. A bag a mark lifts, a rider inside a lone preference, and a
 `match` whose pattern holds a call follow from row x480, and `join`
 from row x507: the members' texts as `+` writes them, a member or a
 separator with no text, a value that is no bag, and the members and
-separators it waits on. -/
+separators it waits on. `pick` and `sort` follow from row x597: a
+projector as a key in a map member and as an index in a list member,
+the two orders and the two directions, equal keys in their order, and
+the arguments they refuse. No case holds a projector or a direction
+with a rider or through a name (#435), a string the ports read as an
+index otherwise than by its digits, or `""` as `pick`'s projector
+(#437). -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -1818,6 +1826,9 @@ def callCases : List (Val × Data) :=
   let js (s : String) : Data := .str s
   let jl (xs : List Data) : Data := .list xs
   let p (a b : Val) : Val := .call .plus [a, b]
+  let jm (fs : List (String × Data)) : Data := .map fs
+  let kv (k : ℤ) (s : String) (h : IntegerLeaf k := by decide) : Val := mp [("k", int k h), ("v", str s)]
+  let jkv (k : ℤ) (s : String) (h : IntegerLeaf k := by decide) : Data := jm [("k", j k h), ("v", js s)]
   [(c .add [int 1, int 2], j 3), (c .add [int 1, int 2], j 4),
     (c .sub [int 10, int 3], j 7), (c .mul [int 6, int 7], j 42),
     (c .div [int 7, int 2], j 3), (c .div [int (-7), int 2], j (-3)),
@@ -1962,7 +1973,80 @@ def callCases : List (Val × Data) :=
     (c .join [.meet (lst [str "x"]) (lst [.string]), str ","], js "x"),
     (c .join [lst [str "a"], .or [(0, str ","), (0, str ";")]], js "a"),
     (c .join [.pref 1 (lst [str "a"]), str ","], js "a"),
-    (c .join [lst [p (str "a") (int 1), c .sum [lst [int 1, int 2]]], str "-"], js "a1-3")]
+    (c .join [lst [p (str "a") (int 1), c .sum [lst [int 1, int 2]]], str "-"], js "a1-3"),
+    (c .pick [lst [mp [("a", int 1)], mp [("a", int 2)]], str "a"], jl [j 1, j 2]),
+    (c .pick [lst [mp [("a", int 1)], mp [("a", int 2)]], str "a"], jl [j 1, j 3]),
+    (c .pick [lst [mp [("a", int 1)], mp [("b", int 2)]], str "a"], jl [j 1]),
+    (c .pick [lst [lst [int 9, int 8], lst [int 7, int 6]], int 0], jl [j 9, j 7]),
+    (c .pick [lst [lst [int 9, int 8], lst [int 7]], int 1], jl [j 8]),
+    (c .pick [lst [lst [int 9]], int (-1)], jl [j 9]), (c .pick [lst [int 1, int 2], str "a"], jl []),
+    (c .pick [lst [.integer], str "a"], jl []), (c .pick [int 3, str "a"], jl []),
+    (c .pick [lst [mp [("a", int 1)]], flt 0 1], jl [j 1]),
+    (c .pick [lst [mp [("a", int 1)]], .string], jl [j 1]),
+    (c .pick [lst [mp [("a", int 1)]], .pref 1 (str "a")], jl [j 1]),
+    (c .pick [lst [mp [("a", int 1)]], .lit (.bool true)], jl [j 1]),
+    (c .pick [lst [lst [int 5]], big 0], jl [j 5]),
+    (c .pick [lst [], str "a"], jl []), (c .pick [mp [], str "a"], jl []),
+    (c .pick [mp [("y", mp [("a", int 2)]), ("x", mp [("a", int 1)])], str "a"], jl [j 1, j 2]),
+    (c .pick [mp [("y", mp [("a", int 2)]), ("x", mp [("a", int 1)])], str "a"], jl [j 2, j 1]),
+    (c .pick [lst [mp [("a", .integer)]], str "a"], jl [j 1]),
+    (c .pick [lst [.map [("a", true, int 1)] none false], str "a"], jl [j 1]),
+    (c .pick [mp [("a", mp [("n", int 1)]), ("b", .ride .hide (mp [("n", int 2)]) [])], str "n"],
+      jl [j 1]),
+    (c .pick [lst [mp [("a", mp [("b", int 1)])]], str "a"], jl [jm [("b", j 1)]]),
+    (c .pick [c .pick [lst [mp [("a", mp [("b", int 1)])]], str "a"], str "b"], jl [j 1]),
+    (c .pick [lst [.ride .metadata (mp [("a", int 1)]) []], str "a"], jl [j 1]),
+    (c .pick [lst [lst [int 1, int 2]], str "1"], jl [j 2]),
+    (c .pick [lst [lst [int 1, int 2]], str "01"], jl [j 2]),
+    (c .pick [lst [lst [int 1, int 2]], str "-0"], jl [j 1]),
+    (c .pick [lst [lst [int 1, int 2]], str "-1"], jl [j 1]),
+    (c .pick [lst [mp [("0", int 5)]], int 0], jl [j 5]),
+    (c .pick [lst [mp [("-1", int 5)]], int (-1)], jl [j 5]),
+    (c .pick [lst [mp [("00", int 5)]], int 0], jl [j 5]),
+    (c .pick [lst [mp [("a", int 1)]], int 0], jl [j 1]),
+    (c .pick [mp [("a", lst [int 1, int 2]), ("b", lst [int 3, int 4])], int 1], jl [j 2, j 4]),
+    (c .pick [lst [mp [("a", int 1)]], str "a", str "b"], jl [j 1]),
+    (c .pick [lst [mp [("a", int 1)]]], jl [j 1]),
+    (c .sort [lst [int 3, int 1, int 2]], jl [j 1, j 2, j 3]),
+    (c .sort [lst [int 3, int 1, int 2]], jl [j 3, j 1, j 2]),
+    (c .sort [lst [int 2, int 1]], jl [j 1, j 2, j 3]),
+    (c .sort [mp [("x", str "c"), ("y", str "a")]], jl [js "a", js "c"]),
+    (c .sort [lst [mp [("n", str "b")], mp [("n", str "a")]], str "n"],
+      jl [jm [("n", js "a")], jm [("n", js "b")]]),
+    (c .sort [lst [mp [("n", int 1)], mp [("n", int 3)]], str "n", str "desc"],
+      jl [jm [("n", j 3)], jm [("n", j 1)]]),
+    (c .sort [lst [int 1, int 3, int 2], str "", str "desc"], jl [j 3, j 2, j 1]),
+    (c .sort [lst [int 2, int 1], str "", str "asc"], jl [j 1, j 2]),
+    (c .sort [lst [kv 1 "a", kv 1 "b", kv 0 "c"], str "k", str "desc"],
+      jl [jkv 1 "a", jkv 1 "b", jkv 0 "c"]),
+    (c .sort [lst [kv 1 "a", kv 0 "c", kv 1 "b"], str "k"], jl [jkv 0 "c", jkv 1 "a", jkv 1 "b"]),
+    (c .sort [lst [big 9007199254740993, int 9007199254740992]],
+      jl [j 9007199254740992, jbig 9007199254740993]),
+    (c .sort [lst [dec 15 1, int 1, flt 125 100]], jl [j 1, jf 125 100, jdec 15 1]),
+    (c .sort [lst [str "b", str "a", str "B"]], jl [js "B", js "a", js "b"]),
+    (c .sort [lst [str "é", str "z", str "e"]], jl [js "e", js "z", js "é"]),
+    (c .sort [lst [int 1, str "a"]], jl []), (c .sort [lst [.lit (.bool true), .lit (.bool false)]], jl []),
+    (c .sort [lst [.lit .null]], jl []), (c .sort [lst [lst [int 1], lst [int 2]]], jl []),
+    (c .sort [lst [.integer, int 1]], jl [j 1, j 1]), (c .sort [lst [int 1, int 2], int 0], jl [j 1, j 2]),
+    (c .sort [lst [int 2, int 1], str "desc"], jl [j 2, j 1]),
+    (c .sort [lst [int 2, int 1], str "", str "DESC"], jl [j 2, j 1]),
+    (c .sort [lst [int 2, int 1], str "", .pref 1 (str "desc")], jl [j 2, j 1]),
+    (c .sort [lst [int 2, int 1], flt 0 1], jl [j 1, j 2]),
+    (c .sort [lst [mp [("", int 2)], mp [("", int 1)]], str ""], jl []),
+    (c .sort [lst []], jl []), (c .sort [mp []], jl []), (c .sort [int 3], jl []),
+    (c .sort [lst [int 3, .pref 1 (int 2)]], jl [j 2, j 3]),
+    (c .sort [lst [mp [("a", .pref 1 (int 2))], mp [("a", int 1)]], str "a"],
+      jl [jm [("a", j 1)], jm [("a", j 2)]]),
+    (c .sort [lst [.ride .metadata (int 2) [], int 1]], jl [j 1, j 2]),
+    (c .sort [lst [lst [int 2, int 9], lst [int 1, int 8]], int 0], jl [jl [j 1, j 8], jl [j 2, j 9]]),
+    (c .sort [lst [lst [int 2, int 9], lst [int 1, int 8]], int 1, str "desc"],
+      jl [jl [j 2, j 9], jl [j 1, j 8]]),
+    (c .sort [lst [lst [int 2], lst [int 1]], str "0"], jl [jl [j 1], jl [j 2]]),
+    (c .sort [lst [mp [("0", int 2)], mp [("0", int 1)]], int 0], jl [jm [("0", j 1)], jm [("0", j 2)]]),
+    (c .sort [mp [("b", int 2), ("a", .ride .hide (int 1) []), ("c", int 0)]], jl [j 0, j 2]),
+    (c .sort [lst [int 2, int 1], str "", str "desc", str "x"], jl [j 2, j 1]),
+    (c .join [c .pick [c .sort [lst [mp [("n", str "id")], mp [("n", str "age")]], str "n"], str "n"],
+      str ", "], js "age, id")]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -1982,7 +2066,10 @@ def callAliasCases : List (Decls × Val × Data) :=
     ([("A", .integer)], .call .add [.alias "A", int 1], j 2),
     ([("L", .list [int 1, int 2, int 3] none false)], .call .sum [.alias "L"], j 6),
     ([("M", .map [("a", false, int 1), ("b", false, int 2)] none false)],
-      .call .greatest [.alias "M"], j 2)]
+      .call .greatest [.alias "M"], j 2),
+    ([("L", .list [.map [("a", false, int 1)] none false, .map [("a", false, int 2)] none false]
+        none false)], .call .pick [.alias "L", .lit (.str "a")], .list [j 1, j 2]),
+    ([("L", .list [int 3, int 1, int 2] none false)], .call .sort [.alias "L"], .list [j 1, j 2, j 3])]
 
 theorem callAliasCases_checkable : ∀ c ∈ callAliasCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
@@ -2199,7 +2286,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# over a list or a map whose members are numbers, follow from row x129, and +"
     IO.println "# from row x300, which waits where it does not take its operands, so that the"
     IO.println "# document is incomplete, and join from row x507, which waits on a member or a"
-    IO.println "# separator not yet settled. A call on a name follows in rows z0 on."
+    IO.println "# separator not yet settled. pick and sort, which never wait, follow from row"
+    IO.println "# x597. A call on a name follows in rows z0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     verdictRows "x" callCases
     aliasRows "z" callAliasCases

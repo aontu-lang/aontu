@@ -174,6 +174,8 @@ def Fn.name : Fn → String
   | .greatest => "greatest"
   | .plus => "+"
   | .join => "join"
+  | .pick => "pick"
+  | .sort => "sort"
 
 mutual
 def Val.src : Val → Option String

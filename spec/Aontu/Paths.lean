@@ -19,11 +19,6 @@ namespace Aontu
 
 /-! ## Positions -/
 
-/-- A term without the riders around it. -/
-def Val.unride : Val → Val
-  | .ride _ v _ => v.unride
-  | v => v
-
 /-- The term at a path in a term: through maps by key and lists by
 index, the riders around either read through, and through nothing
 else. -/
@@ -327,11 +322,6 @@ theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliase
     · obtain ⟨e₀, he₀, rfl⟩ := ptaSpread_eq.mp he
       exact ihd e₀ he₀
   | _ => simp only [Val.pathsToAliases]; constructor
-
-theorem Val.checkableA_unride {v : Val} (h : v.CheckableA) : v.unride.CheckableA := by
-  induction v using Val.unride.induct with
-  | case1 k v r ih => cases h with | ride h => exact ih h
-  | case2 v h1 => rw [Val.unride.eq_2 v h1]; exact h
 
 /-- The term at a path in a term the checker can read is one it can read. -/
 theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p = some w → w.CheckableA
