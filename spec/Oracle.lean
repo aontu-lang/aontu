@@ -1728,7 +1728,8 @@ def forms : List (String × String × String) :=
     ("call", "call", "div"), ("call", "call", "mod"), ("call", "call", "rem"),
     ("call", "syntax", "-"), ("call", "call", "sum"), ("call", "call", "least"),
     ("call", "call", "greatest"), ("call", "syntax", "+"), ("call", "call", "join"),
-    ("call", "call", "pick"), ("call", "call", "sort")]
+    ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
+    ("call", "call", "lower")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1749,7 +1750,8 @@ def formSamples : List (String × Val) :=
     ("-", .call .neg [.integer]), ("sum", .call .sum [.listKind]),
     ("least", .call .least [.listKind]), ("greatest", .call .greatest [.listKind]),
     ("join", .call .join [.listKind]), ("pick", .call .pick [.listKind, .string]),
-    ("sort", .call .sort [.listKind])]
+    ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
+    ("lower", .call .lower [.string])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1804,7 +1806,12 @@ the two orders and the two directions, equal keys in their order, and
 the arguments they refuse. No case holds a projector or a direction
 with a rider or through a name (#435), a string the ports read as an
 index otherwise than by its digits, or `""` as `pick`'s projector
-(#437). -/
+(#437). `upper` and `lower` follow from row x816: the run of code points
+a start and a length select, an index of either leaf, and a number
+rounded in its own leaf. Their strings are ASCII, the letters on which
+the oracle's host and every engine's case conversion agree, and
+`asciiCase` refuses a row that reads another, and no case holds a big
+integer index between 2 ^ 53 and 2 ^ 63 (#439). -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2046,7 +2053,35 @@ def callCases : List (Val × Data) :=
     (c .sort [mp [("b", int 2), ("a", .ride .hide (int 1) []), ("c", int 0)]], jl [j 0, j 2]),
     (c .sort [lst [int 2, int 1], str "", str "desc", str "x"], jl [j 2, j 1]),
     (c .join [c .pick [c .sort [lst [mp [("n", str "id")], mp [("n", str "age")]], str "n"], str "n"],
-      str ", "], js "age, id")]
+      str ", "], js "age, id"),
+    (c .upper [str "abc"], js "ABC"), (c .upper [str "abc"], js "abc"),
+    (c .lower [str "ABC"], js "abc"), (c .lower [str ""], js ""),
+    (c .upper [str "foo", int 0, int 1], js "Foo"), (c .upper [str "foo", int 1], js "fOO"),
+    (c .upper [str "foo", int (-1), int 2], js "FOo"),
+    (c .lower [str "FOOBAR", int (-3), int (-1)], js "fooBAR"),
+    (c .lower [str "FOO", int 1, int (-1)], js "Foo"), (c .upper [str "foo", int 5], js "foo"),
+    (c .upper [str "foo", int (-5), int 2], js "foo"), (c .upper [str "foo", int 0, int 0], js "foo"),
+    (c .upper [str "foo", int 0, int (-2)], js "FOO"), (c .upper [str "foo", int 1, int 5], js "fOO"),
+    (c .lower [str "ABC", big 1, big 1], js "AbC"),
+    (c .upper [str "foo", big 9007199254740991], js "foo"),
+    (c .upper [str "foo", big 99999999999999999999], js "foo"),
+    (c .upper [str "foo", int 9007199254740992], js "foo"),
+    (c .upper [str "foo", flt 1 1], js "fOO"), (c .upper [str "foo", .pref 1 (int 1)], js "fOO"),
+    (c .upper [str "foo", .integer], js "foo"),
+    (c .upper [str "foo", .ride .metadata (int 1) []], js "fOO"),
+    (c .upper [.ride .metadata (str "a") []], js "A"), (c .upper [.pref 1 (str "a")], js "A"),
+    (c .upper [.or [(0, str "a"), (0, str "b")]], js "A"), (c .upper [.lit (.bool true)], js "TRUE"),
+    (c .upper [.lit .null], js "NULL"), (c .upper [lst [int 1]], jl [j 1]), (c .upper [.string], js "A"),
+    (c .upper [.number], j 1),
+    (c .upper [flt 11 10], jf 2 1), (c .upper [flt 11 10], j 2), (c .upper [int 2], j 2),
+    (c .upper [flt (-5) 10], jf 0 1), (c .lower [flt 5 10], jf 0 1), (c .lower [flt 19 10], jf 1 1),
+    (c .upper [flt 25 10], jf 3 1), (c .lower [flt (-25) 10], jf (-3) 1),
+    (c .upper [dec 11 1], jdec 2 0), (c .upper [dec 11 1], jbig 2), (c .lower [dec (-15) 1], jdec (-2) 0),
+    (c .upper [dec (-5) 1], jdec 0 0), (c .upper [big 5], jbig 5),
+    (c .upper [flt 15 10, int 0], jf 2 1), (c .upper [int 1, int 0], j 1),
+    (c .upper [str "a", int 0, int 1, int 2], js "A"), (c .upper [], js "A"),
+    (p (c .upper [str "abc"]) (str "def"), js "ABCdef"), (p (c .lower [flt 11 10]) (int 2), jf 3 1),
+    (c .upper [c .join [lst [str "a", str "b"], str "-"]], js "A-B")]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -2056,6 +2091,12 @@ theorem call_verdict_exact : ∀ c ∈ callCases, ∀ (m : Mode) (v : Verdict),
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (callCases_checkable c hc)) v
+
+/-- Whether a row whose call converts case reads ASCII only, the letters
+on which the oracle's host and every engine's case conversion agree. -/
+def asciiCase (src : String) : Bool :=
+  ((src.splitOn "upper(").length == 1 && (src.splitOn "lower(").length == 1) ||
+    src.all (·.toNat < 128)
 
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
@@ -2069,7 +2110,9 @@ def callAliasCases : List (Decls × Val × Data) :=
       .call .greatest [.alias "M"], j 2),
     ([("L", .list [.map [("a", false, int 1)] none false, .map [("a", false, int 2)] none false]
         none false)], .call .pick [.alias "L", .lit (.str "a")], .list [j 1, j 2]),
-    ([("L", .list [int 3, int 1, int 2] none false)], .call .sort [.alias "L"], .list [j 1, j 2, j 3])]
+    ([("L", .list [int 3, int 1, int 2] none false)], .call .sort [.alias "L"], .list [j 1, j 2, j 3]),
+    ([("S", .lit (.str "ab"))], .call .upper [.alias "S"], .str "AB"),
+    ([("N", int 1)], .call .upper [.lit (.str "foo"), .alias "N"], .str "fOO")]
 
 theorem callAliasCases_checkable : ∀ c ∈ callAliasCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
@@ -2287,8 +2330,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# from row x300, which waits where it does not take its operands, so that the"
     IO.println "# document is incomplete, and join from row x507, which waits on a member or a"
     IO.println "# separator not yet settled. pick and sort, which never wait, follow from row"
-    IO.println "# x597. A call on a name follows in rows z0 on."
+    IO.println "# x597, and upper and lower from row x816. A call on a name follows in rows z0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
+    for (v, j) in callCases do
+      unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
+        throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
     verdictRows "x" callCases
     aliasRows "z" callAliasCases
     return 0

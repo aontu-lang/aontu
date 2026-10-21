@@ -16,11 +16,11 @@ members: `sum` adds them from the left, from the integer zero, and
 above, by exact value. -/
 
 /-- The functions on numbers, the folds on a bag of them, `+`, `join`,
-`pick` and `sort`. -/
+`pick`, `sort`, `upper` and `lower`. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
-  | plus | join | pick | sort
+  | plus | join | pick | sort | upper | lower
   deriving DecidableEq, Repr
 
 /-- Whether a function folds the members of one bag. -/
@@ -187,6 +187,17 @@ def Number.fold : Fn → List Number → Option Number
   | .least, xs => Number.least xs
   | .greatest, xs => Number.greatest xs
   | _, _ => none
+
+/-- A number rounded to a whole one in its own leaf, up to its ceiling or
+down to its floor, exactly: an integer and a big integer stand as they
+are, and a float's whole neighbour is a float, the zero unsigned. -/
+def Number.round (up : Bool) (x : Number) : Option Number :=
+  let k : ℤ :=
+    if up then -((-x.value.1).fdiv x.value.2) else x.value.1.fdiv x.value.2
+  match x with
+  | .integer _ | .biginteger _ => some x
+  | .float _ => (Float.nearest k 1).map .float
+  | .bigdecimal _ => some (.bigdecimal (BigDecimal.normal k 0))
 
 /-! ## A number as text
 

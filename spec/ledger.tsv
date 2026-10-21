@@ -2,7 +2,7 @@
 # generated row (test/spec/def-fragment.tsv and the fragments beside it) the
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, and the cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 141.
+# A listed case that comes to agree fails the run. Bounded at 147.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -145,3 +145,9 @@ x701	pick([{"a": 1}])	[1]	error	invalid	ports	#426: a call no reading makes is i
 x810	sort([2, 1], "", "desc", "x")	[2, 1]	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
 x811	sort([2, 1], "", "desc", "x")	[2, 1]	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
 x812	sort([2, 1], "", "desc", "x")	[2, 1]	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x951	upper("a", 0, 1, 2)	"A"	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x952	upper("a", 0, 1, 2)	"A"	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x953	upper("a", 0, 1, 2)	"A"	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x954	upper()	"A"	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x955	upper()	"A"	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x956	upper()	"A"	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
