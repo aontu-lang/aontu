@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### `pick` and `sort` read their projector and direction as values
+
+TypeScript, shared and generated rows, and documentation; no Go change
+(#435).
+
+- TypeScript drives `pick`'s key and `sort`'s projector and direction
+  before it reads them, as it drives the bag and `join`'s separator, so
+  a projector or a direction given through a rider, a mark, a name or a
+  path reads as its value, as Go reads it. `pick([{a: 1}], meta("a", {}))`
+  is `[1]` and `sort([1, 2], "", %D)` with `%D = "desc"` is `[2, 1]`,
+  where TypeScript answered `invalid-arg` and `sort_dir`. A lone
+  preference stays no projector and no direction in both ports.
+- `test/spec/agg.tsv` and `test/spec/sort.tsv` gain 13 rows, and
+  `test/spec/def-call.tsv` eight cases in rows x1995 to x2018 and three
+  calls on a name in rows z30 to z38. Both ports answer every one alike,
+  and as the definition does.
+- A refusal renders a driven argument by its value in TypeScript and
+  as written in Go, which #457 records; this widens it to the projector
+  and the direction.
+- The definition tutorial's step 22 and the reference's `pick` and
+  `sort` sections follow.
+
 ### `rep` reads its replacement before it scans the text
 
 Definition, both ports, shared and generated rows, and documentation.

@@ -97,14 +97,14 @@ class PickFuncVal extends FuncBaseVal_1.FuncBaseVal {
     funcname() {
         return 'pick';
     }
-    // The base drives neither argument: the DATA is driven by hand below
-    // (a staged func must advance what it waits on every pass), and the
-    // KEY is a bare word, which the parser has already made a string.
+    // The base drives neither argument: `unify` drives both by hand, as a
+    // staged func must advance what it waits on every pass, so a key given
+    // through a rider, a name or a path is read as its value.
     prepare(_ctx, _args) {
         return null;
     }
     unify(peer, ctx) {
-        const ready = this.driveStagedArgs(ctx, 1);
+        const ready = this.driveStagedArgs(ctx, 2);
         if (!ready || !ctx.settle) {
             return this.residuate(peer, ctx);
         }
@@ -188,13 +188,13 @@ class SortFuncVal extends FuncBaseVal_1.FuncBaseVal {
     funcname() {
         return 'sort';
     }
-    // The base drives no argument: the DATA is driven by hand below, and
-    // the projector is a bare word the parser has already made a string.
+    // The base drives no argument: `unify` drives all three by hand, as
+    // `pick` drives its key.
     prepare(_ctx, _args) {
         return null;
     }
     unify(peer, ctx) {
-        const ready = this.driveStagedArgs(ctx, 1);
+        const ready = this.driveStagedArgs(ctx, 3);
         if (!ready || !ctx.settle) {
             return this.residuate(peer, ctx);
         }
