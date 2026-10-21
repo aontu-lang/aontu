@@ -420,16 +420,44 @@ overlapping, or between every two code points where the separator is
 def splitText (s sep : String) : List String :=
   if sep = "" then s.toList.map Char.toString else s.splitOn sep
 
+/-- Every match the host finds of a pattern in a text, as a scan reads
+them. -/
+def Host.matches (h : Host) (p t : String) : List Match :=
+  scanMatches (h.find p t) t.length (t.length + 1) 0 none
+
+/-- The fields a pattern's matches cut a text into; a pattern other than
+`""` cuts the empty text into one empty field, before it looks for a
+match. -/
+def Host.cut (h : Host) (p t : String) : List String :=
+  if p ≠ "" ∧ t = "" then [""] else (cutFields t.toList 0 0 (h.matches p t)).map String.mk
+
 /-- What `split` makes of its text and its separator, each in normal
 form, its riders read through: the list of the fields a string cuts the
-text into, literally, or a pattern's matches do, as the host's pattern
-engine finds them; a refusal where the text is no string or the
-separator neither a string nor a pattern. -/
+text into, literally, or a pattern in the subset cuts it into at its
+matches; a refusal where the text is no string, the separator neither
+a string nor a pattern, or the pattern outside the subset. -/
 def splitOf (ds : Decls) (s sep : Val) : Made :=
   match (normaliseD ds s).string?, (normaliseD ds sep).unride with
   | some t, .lit (.str p) => .made (.list ((splitText t p).map fun f => .lit (.str f)) none false)
-  | some t, .re p => .made (.list ((host.split p t).map fun f => .lit (.str f)) none false)
+  | some t, .re p =>
+    if host.portable p then .made (.list ((host.cut p t).map fun f => .lit (.str f)) none false)
+    else .refused
   | _, _ => .refused
+
+/-- What `rep` makes of its text, its pattern and its replacement, each
+a string in normal form, its riders read through: the text with each
+match of a pattern in the subset replaced by what the replacement
+writes for it; a refusal where an argument is no string, the pattern
+lies outside the subset, or the replacement writes nothing for a match,
+which a text with no match never asks of it. -/
+def repOf (ds : Decls) (s p r : Val) : Made :=
+  match (normaliseD ds s).string?, (normaliseD ds p).string?, (normaliseD ds r).string? with
+  | some t, some q, some u =>
+    if host.portable q then
+      ((replaceMatches t.toList u.toList 0 (host.matches q t)).map fun cs =>
+        .made (.lit (.str (String.mk cs)))).getD .refused
+    else .refused
+  | _, _, _ => .refused
 
 /-- The number a call computes from its arguments: a fold from the
 numbers its one bag's members are, and any other function from the
@@ -454,7 +482,7 @@ def Made.term (ds : Decls) (f : Fn) (args : List Val) : Made → Val
 of its operands' normal forms, each read through its riders and a lone
 preference first, as `*1 + 1` is `2`; a call on a bag or on text what
 its function's own reading makes, `joinOf`, `pickOf`, `sortOf`,
-`caseOf`, `translateOf`, `escOf` and `splitOf`; a `super` its
+`caseOf`, `translateOf`, `escOf`, `splitOf` and `repOf`; a `super` its
 argument's parent type, `Val.super` read before the normal form, so
 that a preference reads as its default, as `super(*1)` is `integer`;
 any other call the number `callValue` computes, where it computes one,
@@ -482,6 +510,7 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .usc, [s, v] => (escOf ds false s (some v)).term ds f args
   | .super, [x] => x.super
   | .split, [s, sep] => (splitOf ds s sep).term ds f args
+  | .rep, [s, p, r] => (repOf ds s p r).term ds f args
   | _, _ =>
     match callValue ds f args with
     | some n => .lit (.num n)
@@ -875,12 +904,25 @@ theorem splitOf_checkableA {ds : Decls} {s sep v : Val}
     (h : splitOf ds s sep = .made v) : v.CheckableA := by
   unfold splitOf at h
   split at h
+  all_goals try split at h
   all_goals first
     | (cases h; done)
     | (obtain rfl := (Made.made.injEq _ _).mp h
        refine .list (fun w hw => ?_) (fun _ hs => absurd hs (by simp))
        obtain ⟨_, _, rfl⟩ := List.mem_map.mp hw
        exact .lit)
+
+theorem repOf_checkableA {ds : Decls} {s p r v : Val}
+    (h : repOf ds s p r = .made v) : v.CheckableA := by
+  unfold repOf at h
+  split at h
+  · split at h
+    · simp only [Option.map] at h
+      split at h <;> simp at h
+      subst h
+      exact .lit
+    · cases h
+  · cases h
 
 theorem sortOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {b v : Val}
     {p d : Option Val} (hb : b.CheckableA) (h : sortOf ds b p d = .made v) : v.CheckableA := by
@@ -950,6 +992,53 @@ theorem joinOf_checkableA {ds : Decls} {b : Val} {sep : Option Val} {v : Val}
     | (cases h; done)
     | (obtain rfl := (Made.made.injEq _ _).mp h; exact .lit)
 
+/-- `split` never waits: it makes its fields or refuses its arguments. -/
+theorem splitOf_ne_waits {ds : Decls} {s sep : Val} : splitOf ds s sep ≠ .waits := by
+  unfold splitOf
+  split <;> (try split) <;> simp
+
+/-- `rep` never waits: it makes its text or refuses its arguments. -/
+theorem repOf_ne_waits {ds : Decls} {s p r : Val} : repOf ds s p r ≠ .waits := by
+  unfold repOf
+  split
+  · split
+    · cases replaceMatches _ _ _ _ <;> simp
+    · simp
+  · simp
+
+theorem callTerm_split_checkableA {ds : Decls} {a b : Val} :
+    (callTerm ds .split [a, b]).CheckableA := by
+  show ((splitOf ds a b).term ds .split [a, b]).CheckableA
+  cases h : splitOf ds a b with
+  | made v => exact splitOf_checkableA h
+  | refused => exact .nil
+  | waits => exact absurd h splitOf_ne_waits
+
+theorem callTerm_rep_checkableA {ds : Decls} {a b c : Val} :
+    (callTerm ds .rep [a, b, c]).CheckableA := by
+  show ((repOf ds a b c).term ds .rep [a, b, c]).CheckableA
+  cases h : repOf ds a b c with
+  | made v => exact repOf_checkableA h
+  | refused => exact .nil
+  | waits => exact absurd h repOf_ne_waits
+
+/-- A `split` call reads to a term the checker can read whatever its
+arguments are, a pattern among them, which the checker cannot read,
+since `split` never waits. -/
+theorem resolveD_expandF_split {ds : Decls} {a b : Val} (k : ℕ) :
+    (resolveD ds (expandF ds k (.call .split [a, b]))).CheckableA := by
+  cases k with
+  | zero => simp only [expandF, resolveD, resolveItems]; exact callTerm_split_checkableA
+  | succ k => simp only [expandF, List.map, resolveD, resolveItems]; exact callTerm_split_checkableA
+
+/-- A `rep` call reads to a term the checker can read whatever its
+arguments are, since `rep` never waits. -/
+theorem resolveD_expandF_rep {ds : Decls} {a b c : Val} (k : ℕ) :
+    (resolveD ds (expandF ds k (.call .rep [a, b, c]))).CheckableA := by
+  cases k with
+  | zero => simp only [expandF, resolveD, resolveItems]; exact callTerm_rep_checkableA
+  | succ k => simp only [expandF, List.map, resolveD, resolveItems]; exact callTerm_rep_checkableA
+
 /-- A call's term is one the checker can read where its arguments are. -/
 theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
     {args : List Val} (h : ∀ a, a ∈ args → a.CheckableA) : (callTerm ds f args).CheckableA := by
@@ -979,6 +1068,7 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact (h _ (by simp)).super
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => repOf_checkableA hv
   · split
     · exact .lit
     · exact .call h

@@ -1737,7 +1737,8 @@ def forms : List (String × String × String) :=
     ("call", "call", "greatest"), ("call", "syntax", "+"), ("call", "call", "join"),
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
-    ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "split")]
+    ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "split"),
+    ("call", "call", "rep")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1761,7 +1762,7 @@ def formSamples : List (String × Val) :=
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
-    ("split", .call .split [.string, .string])]
+    ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1830,8 +1831,14 @@ original for, the variants and the arguments. `super` follows from row
 x1221: a scalar's kind, a kind's parent, a container of its members'
 parents, a preference read as its default at any depth, a meet that
 holds a kind, a disjunction, a seal, the riders. `split` follows from
-row x1332, at a literal separator only: the host's pattern engine
-splits at a pattern, and the oracle's host at none. -/
+row x1332, and `rep` from row x1404: the matches a scan reads, an empty
+one among them, each `$` form, the groups a pattern has and has not
+got, and patterns outside the subset. Their patterns are fixed text,
+with groups, on which the oracle's host and every engine's regex
+engine agree, or outside the subset, which every engine refuses, and
+`hostReads` refuses a row that hands the host another. No case holds a
+replacement that writes nothing for a match where the text holds no
+match, decision 20. `split` at a pattern follows in `patternCases`. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2200,7 +2207,42 @@ def callCases : List (Val × Data) :=
     (c .split [str "a,b", .pref 1 (str ",")], jl [js "a", js "b"]),
     (c .split [str "a"], jl [js "a"]), (c .split [str "a", str ",", str ","], jl [js "a"]),
     (c .join [c .split [str "a,,b", str ","], str ","], js "a,,b"),
-    (c .split [c .upper [str "a-b"], str "-"], jl [js "A", js "B"])]
+    (c .split [c .upper [str "a-b"], str "-"], jl [js "A", js "B"]),
+    (c .rep [str "a1b1", str "1", str "_"], js "a_b_"),
+    (c .rep [str "a1b1", str "1", str "_"], js "a_b1"),
+    (c .rep [str "aaa", str "aa", str "-"], js "-a"),
+    (c .rep [str "abc", str "", str "-"], js "-a-b-c-"),
+    (c .rep [str "", str "", str "-"], js "-"), (c .rep [str "", str "x", str "-"], js ""),
+    (c .rep [str "abc", str "x", str "-"], js "abc"),
+    (c .rep [str "a😀b", str "", str "-"], js "-a-😀-b-"),
+    (c .rep [str "a😀b", str "😀", str "é"], js "aéb"),
+    (c .rep [str "abc", str "b", str "[$&]"], js "a[b]c"),
+    (c .rep [str "x-y", str "-", str "$&$&"], js "x--y"),
+    (c .rep [str "abc", str "b", str "$$"], js "a$c"),
+    (c .rep [str "abc", str "(b)", str "<$1>"], js "a<b>c"),
+    (c .rep [str "2026-09-04", str "(2026)-(09)-(04)", str "$3/$2/$1"], js "04/09/2026"),
+    (c .rep [str "abab", str "(a)(b)", str "$2$1"], js "baba"),
+    (c .rep [str "abc", str "(b)", str "$10"], js "ab0c"),
+    (c .rep [str "abc", str "b", str "$1"], js "a$1c"),
+    (c .rep [str "abc", str "(b)", str "$2"], js "ac"),
+    (c .rep [str "abc", str "b", str "$"], js "a$c"),
+    (c .rep [str "abc", str "b", str "x$"], js "ax$c"),
+    (c .rep [str "abc", str "b", str "$x"], js "a$xc"),
+    (c .rep [str "abc", str "b", str "$0"], js "a$0c"),
+    (c .rep [str "abc", str "(?<n>b)", str "-"], js "a-c"),
+    (c .rep [str "abc", str "(?=b)", str "-"], js "a-bc"),
+    (c .rep [str "abc", str "\\p{L}", str "-"], js "---"),
+    (c .rep [str "abab", str "(a)\\1", str "-"], js "abab"),
+    (c .rep [int 1, str "1", str "2"], js "2"), (c .rep [str "a", int 1, str "b"], js "a"),
+    (c .rep [str "a", str "a", int 1], js "1"), (c .rep [.string, str "a", str "b"], js "b"),
+    (c .rep [.ride .metadata (str "a1") [], str "1", str "_"], js "a_"),
+    (c .rep [str "a1", .ride .metadata (str "1") [], str "_"], js "a_"),
+    (c .rep [str "a1", str "1", .ride .metadata (str "_") []], js "a_"),
+    (c .rep [.pref 1 (str "a1"), str "1", str "_"], js "a_"),
+    (c .rep [str "a", str "a"], js "a"), (c .rep [str "a", str "a", str "b", str "c"], js "b"),
+    (c .rep [c .upper [str "a-b"], str "-", str "_"], js "A_B"),
+    (c .split [c .rep [str "a1b", str "1", str ","], str ","], jl [js "a", js "b"]),
+    (c .rep [c .join [lst [str "a", str "b"], str "-"], str "-", str ""], js "ab")]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -2216,6 +2258,95 @@ on which the oracle's host and every engine's case conversion agree. -/
 def asciiCase (src : String) : Bool :=
   ((src.splitOn "upper(").length == 1 && (src.splitOn "lower(").length == 1) ||
     src.all (·.toNat < 128)
+
+/-- The terms directly inside a term. -/
+def Aontu.Val.kids : Val → List Val
+  | .len c | .must c _ | .pref _ c | .ride _ c _ => [c]
+  | .map fs sp _ => fs.map (fun f => f.2.2) ++ sp.toList
+  | .list items sp _ => items ++ sp.toList
+  | .or arms => arms.map (fun a => a.2)
+  | .meet a b | .contains a b | .filter a b => [a, b]
+  | .nof n cs => n :: cs
+  | .when c t e => c :: t :: e.toList
+  | .rest t cs => t :: cs.flatMap fun c => c.1.toList ++ c.2.1.toList ++ c.2.2.toList
+  | .select s arms d => s :: (arms.flatMap fun a => [a.1, a.2]) ++ d.toList
+  | .call _ args => args
+  | _ => []
+
+/-- Every term inside a term, the term itself first. -/
+partial def Aontu.Val.subterms (v : Val) : List Val := v :: v.kids.flatMap Aontu.Val.subterms
+
+/-- Patterns the reference puts outside the subset, which every engine
+refuses: a named group, a lookahead, a Unicode property and a
+backreference. -/
+def outsideSubset : List String := ["(?<n>b)", "(?=b)", "\\p{L}", "(a)\\1"]
+
+/-- Whether the oracle's host reads a pattern as every engine does: a
+fixed pattern, or one outside the subset. -/
+def hostReadsPattern (q : String) : Bool := (fixedPieces q).isSome || outsideSubset.contains q
+
+/-- Whether every pattern a term hands the host's regex engine is one
+the oracle's host reads as every engine does: `rep`'s, which must be a
+literal for the oracle to see it, and `split`'s at `re(p)`. -/
+def hostReads (v : Val) : Bool :=
+  v.subterms.all fun
+    | .call .rep (_ :: q :: _) => match q.unride with
+      | .lit (.str q) => hostReadsPattern q
+      | .lit _ | .re _ | .pref _ _ | .string | .number | .integer => true
+      | _ => false
+    | .call .split [_, sep] => match sep.unride with
+      | .re q => hostReadsPattern q
+      | _ => true
+    | _ => true
+
+/-- A vet document whose one field is a call that reads to a term the
+checker can read reads to one itself. -/
+theorem readR_call_checkableA {t : Val}
+    (h : ∀ k, (resolveD [] (expandF [] k t)).CheckableA) :
+    (Decls.readR [] (.map [("v", false, t)] none false)).CheckableA := by
+  have hm : ∀ u, (resolveD [] u).CheckableA →
+      (resolveD [] (.map [("v", false, u)] none false)).CheckableA := by
+    intro u hu
+    simp only [resolveD, resolveFields, resolveSpread]
+    exact .map (fun k o w hw => by simp at hw; obtain ⟨-, -, rfl⟩ := hw; exact hu)
+      (fun _ hs => by cases hs)
+  have : ∀ n, (resolveD [] (expandF [] n (.map [("v", false, t)] none false))).CheckableA := by
+    intro n
+    cases n with
+    | zero => simpa [expandF] using hm t (by simpa [expandF] using h 0)
+    | succ k => simp only [expandF, List.map, Option.map]; exact hm _ (h k)
+  exact this _
+
+/-- Calls handed a pattern, `re(p)`, which the checker cannot read as a
+term: `split` at a pattern, rows v0 on in `def-call.tsv`, and `rep`
+handed one as its pattern, which it refuses, since its pattern is a
+string. The patterns are fixed text, with groups, or outside the
+subset, and none splits the empty text (#447). Neither call waits, so
+each reads to a term the checker can read, and `vet` is `Vet` on it. -/
+def patternCases : List (Val × Data) :=
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  ([(str "a1b1c", "1", jl [js "a", js "b", js "c"]), (str "a1b1c", "1", jl [js "a1b1c"]),
+      (str "1a1", "1", jl [js "", js "a", js ""]), (str "a11b", "1", jl [js "a", js "", js "b"]),
+      (str "aaa", "aa", jl [js "", js "a"]), (str "ab", "", jl [js "a", js "b"]),
+      (str "a😀b", "", jl [js "a", js "😀", js "b"]), (str "abc", "x", jl [js "abc"]),
+      (str "aXbXc", "(X)", jl [js "a", js "b", js "c"]), (str "abc", "(?<n>b)", jl [js "a", js "c"]),
+      (.ride .metadata (str "a1b") [], "1", jl [js "a", js "b"]),
+      (.integer, "1", jl [js "1"])].map fun (s, p, d) => (.call .split [s, .re p], d)) ++
+    [(.call .rep [str "a", .re "a", str "b"], js "b")]
+
+theorem patternCases_readable : ∀ c ∈ patternCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
+  intro c hc
+  rcases List.mem_append.mp hc with h | h
+  · obtain ⟨⟨s, p, d⟩, _, rfl⟩ := List.mem_map.mp h
+    exact readR_call_checkableA resolveD_expandF_split
+  · rcases List.mem_singleton.mp h with rfl
+    exact readR_call_checkableA resolveD_expandF_rep
+
+theorem pattern_verdict_exact : ∀ c ∈ patternCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil)) (patternCases_readable c hc) v
 
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
@@ -2452,14 +2583,24 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# document is incomplete, and join from row x507, which waits on a member or a"
     IO.println "# separator not yet settled. pick and sort, which never wait, follow from row"
     IO.println "# x597, upper and lower from row x816, translate from row x966, and esc and usc"
-    IO.println "# from row x1068, super from row x1221, and split from row x1332. A call on a"
-    IO.println "# name follows in rows z0 on."
+    IO.println "# from row x1068, super from row x1221, split from row x1332, and rep from"
+    IO.println "# row x1404. A call on a name follows in rows z0 on, and a call handed a"
+    IO.println "# pattern, re(p), in rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
+      unless hostReads v do
+        throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
+    for (_, v, _) in callAliasCases do
+      unless hostReads v do
+        throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
+    for (v, _) in patternCases do
+      unless hostReads v do
+        throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" callCases
     aliasRows "z" callAliasCases
+    verdictRows "v" patternCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"
