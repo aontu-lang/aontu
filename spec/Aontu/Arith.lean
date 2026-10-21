@@ -15,10 +15,11 @@ members: `sum` adds them from the left, from the integer zero, and
 `least` and `greatest` answer the first of them no other is below or
 above, by exact value. -/
 
-/-- The functions on numbers, and the folds on a bag of them. -/
+/-- The functions on numbers, the folds on a bag of them, and `+`. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
+  | plus
   deriving DecidableEq, Repr
 
 /-- Whether a function folds the members of one bag. -/
@@ -185,5 +186,48 @@ def Number.fold : Fn → List Number → Option Number
   | .least, xs => Number.least xs
   | .greatest, xs => Number.greatest xs
   | _, _ => none
+
+/-! ## A number as text
+
+The text `+` writes for a number beside a string: an integer's digits,
+a big decimal's with its point and one place after it at least, and a
+float's as JavaScript writes a number, the shortest digits that read
+back as it, plain where the point falls within twenty-one places and
+in exponent form otherwise. -/
+
+def zeros (n : ℕ) : String := String.mk (List.replicate n '0')
+
+/-- A big decimal's digits, its point where its scale puts it. -/
+def BigDecimal.text (x : BigDecimal) : String :=
+  let sign := if x.coef < 0 then "-" else ""
+  let ds := toString x.coef.natAbs
+  if x.scale ≤ 0 then sign ++ ds ++ zeros x.scale.natAbs ++ ".0"
+  else
+    let s := x.scale.toNat
+    if s < ds.length then sign ++ ds.take (ds.length - s) ++ "." ++ ds.drop (ds.length - s)
+    else sign ++ "0." ++ zeros (s - ds.length) ++ ds
+
+/-- A float's shortest digits, placed as JavaScript places them. -/
+def Float.text (x : Float) : String :=
+  let (c, k) := x.shortest
+  if c = 0 then "0" else
+  let sign := if c < 0 then "-" else ""
+  let ds := toString c.natAbs
+  let len : ℤ := ds.length
+  let n := k + len
+  if len ≤ n ∧ n ≤ 21 then sign ++ ds ++ zeros (n - len).toNat
+  else if 0 < n ∧ n ≤ 21 then sign ++ ds.take n.toNat ++ "." ++ ds.drop n.toNat
+  else if -6 < n ∧ n ≤ 0 then sign ++ "0." ++ zeros n.natAbs ++ ds
+  else
+    let e := n - 1
+    let es := (if e < 0 then "-" else "+") ++ toString e.natAbs
+    if ds.length = 1 then sign ++ ds ++ "e" ++ es
+    else sign ++ ds.take 1 ++ "." ++ ds.drop 1 ++ "e" ++ es
+
+def Number.text : Number → String
+  | .integer x => toString x.value
+  | .float x => x.text
+  | .biginteger x => toString x.value
+  | .bigdecimal x => x.text
 
 end Aontu

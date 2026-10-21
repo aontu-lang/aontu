@@ -3374,7 +3374,7 @@ one wins: `-c` writes the merged key with no `?`.
 ```
 
 An arm carries a rank: `0` for an arm written plainly, `1` for one
-written `*a`, `2` for `**a`. The rank picks the output, which step 21
+written `*a`, `2` for `**a`. The rank picks the output, which step 22
 leaves to a later phase, and admission ignores it:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
@@ -3710,7 +3710,7 @@ question fills a default the data lacks: `{x: *1}` met with `{}` is
 valid, by the default `1`. Admission asks whether the data, as it
 stands, is an instance, and `{x: 1}` is one. Both questions are the
 definition's to state. The second is `Output`, what evaluation singles
-out, which step 21 leaves to a later phase, and the test rows of step
+out, which step 22 leaves to a later phase, and the test rows of step
 15 stay where the two agree.
 
 ## 13. What evaluation singles out
@@ -4199,7 +4199,9 @@ def Val.illFormed : Val → Bool
   | .pref _ x => x.illFormed
   | .meet a b => illChain a || illChain b || sizeClash (a.conjuncts ++ b.conjuncts)
   | .ride _ v _ => v.illFormed
+  | .call .plus args => args.length != 2 || illItems args
   | .call _ _ => true
+  | .select _ arms _ => illPats arms
   | _ => false
 ```
 
@@ -4952,16 +4954,15 @@ generates a value is the result its arms select for it, and each
 `filter` whose source generates a container is the members its
 condition admits, as a term, or `nil` where the source generates a
 scalar, which has no members. One whose scrutinee or source generates
-nothing stays, and generates nothing. A call is the number `callValue`
-computes, where it computes one, and any other call stays, which no
-reading makes. -/
+nothing stays, and generates nothing. A call, its arguments resolved,
+is the term `callTerm` makes of it. -/
 def resolveD (ds : Decls) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds s
     let arms' := resolvePairs ds arms
     let d' := resolveSpread ds d
     match genD ds s' with
-    | some x => selectArm ds x arms' d'
+    | some x => if callPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
     | none => .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds s
@@ -5720,10 +5721,10 @@ def Number.binary (f : Fn) (x y : Number) : Option Number :=
 An integer answer the leaf doesn't hold, such as `2^53 + 1`, is no value
 either, nor is a zero divisor in any leaf, nor a big decimal divided.
 The definition makes a call once it reads the document, as it makes a
-selection in step 16: `resolveD` puts the number `callValue` computes
-in the call's place, where it computes one. For arithmetic that's
-where the normal form of every argument, the riders read through, is a
-number:
+selection in step 16: `resolveD` puts the term `callTerm` makes in the
+call's place, which for arithmetic is the number `callValue` computes,
+where it computes one. That's where the normal form of every argument,
+the riders read through, is a number:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -5795,16 +5796,18 @@ in `spec/Aontu/Verdict.lean`, prove that `least` answers a member and
 that no member is below it.
 
 The members are the ones the output would hold: a list's elements in
-order, and a map's members in key order, but neither a marked member
-nor an optional one whose value generates nothing:
+order, and a map's members in key order, but neither an optional member
+whose value generates nothing nor a marked one, unless the bag carries
+a mark itself, which lifts its members' marks, so
+`sum(type({a: hide(1), b: 2}))` is `3`:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def Val.members (ds : Decls) : Val → Option (List Val)
-  | .ride _ v _ => v.members ds
+def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val)
+  | .ride k v _ => v.members ds (lifted || decide (k = .type) || decide (k = .hide))
   | .list items _ _ => some items
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
-      if m.2.2.marked || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
+      if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
   | _ => none
 ```
 
@@ -5822,7 +5825,95 @@ schema can't build, `add(1)`, `add(1, 2, 3)`, `sum([1], [2])` or
 `-(integer)`, is one both engines read as `invalid`, where the
 definition reads an error, which #426 tracks.
 
-## 21. What the definition doesn't say yet
+## 21. Sums with `+`
+
+`+` adds numbers and joins text, and two lists it concatenates. The
+definition holds it as one more call, `plus`. Write `plus.aontu`:
+
+<!-- test: scenario plus -->
+<!-- test: file plus.aontu -->
+```aontu
+a: 1 + 2
+b: "port " + 8080
+c: [1] + [2 3]
+d: "x" + 1e21
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu plus.aontu
+{
+  "a": 3,
+  "b": "port 8080",
+  "c": [
+    1,
+    2,
+    3
+  ],
+  "d": "x1e+21"
+}
+```
+
+`plusOf`, in `spec/Aontu/Verdict.lean`, reads the two operands' normal
+forms, each through its riders and a lone preference first, so
+`*1 + 1` is `2`, where `(*1 | number) + 1` waits, as both engines
+answer:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def plusOf (a b : Val) : Plus :=
+  match a.operand, b.operand with
+  | .list xs _ _, .list ys _ _ => .made (.list (xs ++ ys) none false)
+  | .lit (.bool p), .lit (.bool q) => .made (.lit (.bool (p || q)))
+  | .lit (.str s), .lit y => (y.plusText?.map fun t => .made (.lit (.str (s ++ t)))).getD .waits
+  | .lit x, .lit (.str t) => (x.plusText?.map fun s => .made (.lit (.str (s ++ t)))).getD .waits
+  | .lit (.num x), .lit (.num y) => ((Number.binary .add x y).map fun n => .made (.lit (.num n))).getD .refused
+  | _, _ => .waits
+```
+
+Two numbers add as `add` does, so `1 + 2.0` is a float and `1.0 + 0d2`
+is an error. A string beside a number joins the two texts, the number
+written as `Number.text` in `spec/Aontu/Arith.lean` writes it: an
+integer's digits, a big decimal with its point, and a float as
+JavaScript writes a number, which is why `d` reads `x1e+21`. Two lists
+concatenate, the left's elements then the right's: `plusOf_lists` and
+`plusOf_nil_list` say so, the empty list adding nothing, and
+`plusOf_list_lit` says that a list beside a scalar is no sum.
+
+Anything else waits: a kind, `null`, a map, a list beside a scalar, a
+boolean beside a number. A `+` that waits isn't an error. It generates
+nothing and refuses nothing, so `vet` reads `integer + 1` as
+incomplete, whatever the data, and `--partial` lets it pass. For that
+a literal has to meet it as a pair, since the checker would refuse
+every value at a call:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+def Val.callAt : Val → Bool
+  | .call _ _ => true
+  | .meet a b => a.callAt || b.callAt
+  | .ride _ v _ => v.callAt
+  | _ => false
+```
+
+A sum no leaf holds, `9007199254740992 + 1`, is `nil`, so `vet` reads
+it as an error, as it reads `add(9007199254740992, 1)`.
+
+Inside a trial the definition doesn't wait yet. A `match` whose pattern
+is a waiting `+` passes over the pattern, since `Judge` refuses every
+value at a call, where both engines wait on the pattern, which #432
+tracks. A pattern that holds a call keeps the `match` unmade, so
+`match(1, add(integer, 1), "yes", "no")` is an error, as both engines
+answer.
+
+The sums have rows of their own, x300 on in `test/spec/def-call.tsv`,
+and both engines answer every one as the definition does. The
+language's other rule for `+`, that a sum of an absence is absent,
+waits on `maybe`, which the definition doesn't hold yet.
+
+## 22. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
