@@ -2738,6 +2738,8 @@ spelling of a lift that is itself recursive) which generation
 refuses like any unresolved call, and `super(null)` answers the null
 kind, which canon prints as `null`, the same spelling as the value.
 
+The definition answers `super` with `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), which `callTerm` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) applies to the argument before its normal form. A preference therefore lifts to its value's parent at any depth, so `super({a: *1})` is `{a: integer}`.
+
 ### Rounding numbers
 
 `upper()` and `lower()` round a number without narrowing it: the result

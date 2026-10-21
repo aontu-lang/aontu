@@ -437,7 +437,9 @@ of its operands' normal forms, each read through its riders and a lone
 preference first, as `*1 + 1` is `2`; a `join`, a `pick`, a `sort`, an
 `upper`, a `lower`, a `translate`, an `esc` and a `usc` what its
 function's own reading makes, `joinOf`, `pickOf`, `sortOf`, `caseOf`,
-`translateOf` and `escOf`; any
+`translateOf` and `escOf`; a `super` its argument's parent type,
+`Val.super` read before the normal form, so that a preference reads as
+its default, as `super(*1)` is `integer`; any
 other call the number `callValue` computes, where it computes one, and
 itself otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
@@ -461,6 +463,7 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .esc, [s, v] => (escOf ds true s (some v)).term ds f args
   | .usc, [s] => (escOf ds false s none).term ds f args
   | .usc, [s, v] => (escOf ds false s (some v)).term ds f args
+  | .super, [x] => x.super
   | _, _ =>
     match callValue ds f args with
     | some n => .lit (.num n)
@@ -945,6 +948,7 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
+  · exact (h _ (by simp)).super
   · split
     · exact .lit
     · exact .call h

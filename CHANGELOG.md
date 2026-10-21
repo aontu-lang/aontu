@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `super` as a call
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `callTerm` answers `super(x)` with
+  `Val.super` of the argument as `resolveD` leaves it, before the normal
+  form, so that a preference reads as its default at any depth, as both
+  ports read it: `super(*1)` is `integer`, and `super({a: *1})` is
+  `{a: integer}`.
+- `test/spec/def-call.tsv` gains 37 cases in rows x1221 to x1331. Both
+  ports answer every row as the definition does but six, a wrong number
+  of arguments (#426). `spec/ledger.tsv` lists them, and its bound rises
+  from 159 to 165. `spec/forms.tsv` gains `super`.
+- `copy` waits on #445. The reference says it clears the marks, and
+  both ports clear none on a literal argument, only through a reference.
+- The definition tutorial gains step 25, the parent type, and the
+  language reference's parent types section cites the rule.
+
 ### The definition holds `esc` and `usc`
 
 Definition, generated rows, the ledger and its bound in both runners,
