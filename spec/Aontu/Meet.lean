@@ -1687,7 +1687,7 @@ theorem admits_pref_right {m : Val → Val → Val}
 rides the result. -/
 theorem admits_ride_left {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
-    (k : Rider) (v : Val) (r : Data) (b : Val) (j : Data) :
+    (k : Rider) (v : Val) (r : Record) (b : Val) (j : Data) :
     Admits env root (.ride k (m v b) r) j ↔ Admits env root (.ride k v r) j ∧ Admits env root b j := by
   constructor
   · intro h
@@ -1699,7 +1699,7 @@ theorem admits_ride_left {m : Val → Val → Val}
 
 theorem admits_ride_right {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
-    (a : Val) (k : Rider) (v : Val) (r : Data) (j : Data) :
+    (a : Val) (k : Rider) (v : Val) (r : Record) (j : Data) :
     Admits env root (.ride k (m a v) r) j ↔ Admits env root a j ∧ Admits env root (.ride k v r) j := by
   constructor
   · intro h
@@ -1754,6 +1754,7 @@ def Val.beq : Val → Val → Bool
   | .rest t cs, .rest t' cs' => t.beq t' && beqCovers cs cs'
   | .select s as d, .select s' as' d' => s.beq s' && beqPairs as as' && beqSpread d d'
   | .filter s c, .filter s' c' => s.beq s' && c.beq c'
+  | .ride k v r, .ride k' v' r' => decide (k = k') && v.beq v' && decide (r = r')
   | _, _ => false
 termination_by structural a _ => a
 

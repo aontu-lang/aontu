@@ -35,13 +35,18 @@ inductive Bound where
   deriving DecidableEq
 
 /-- The riders: the calls that put a record on a value and change
-nothing it admits or generates. The record is data the definition
-carries and reads nothing of (decision 14 of the design note's §7). -/
+nothing it admits or generates. The record is a map of data the
+definition carries and reads nothing of (decision 14 of the design
+note's §7). -/
 inductive Rider where
   | metadata                                -- `meta(v, r)`, an annotation; Lean keeps `meta`
   | deprecate                               -- `deprecate(v, r)`, the record `{}` where none is written
   | ident                                   -- `ident(v, r)`, the identity of an alias's value
   deriving DecidableEq
+
+/-- A rider's record: the members of a map of data, as both ports take
+no other record (`func_arg`). -/
+abbrev Record := List (String × Data)
 
 /-- A value, each constructor beside the construct it is. A map has
 keys, each required or optional, a spread that holds every member, and
@@ -87,7 +92,7 @@ inductive Val where
   | rest (t : Val) (cs : List (Option Val × Option Val × Option Val))  -- `rest(t, c₁, …)`: each member no cover evaluates held to `t`
   | select (s : Val) (arms : List (Val × Val)) (d : Option Val)  -- `match(s, p₁, r₁, …, d?)`, the first `rᵢ` whose `pᵢ` admits the value of `s`, else `d`; Lean keeps `match`
   | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
-  | ride (k : Rider) (v : Val) (r : Data)   -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`: `v` carrying `r`
+  | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`: `v` carrying `r`
 
 /-! The language reads `|` and `*` by position, and the reader, not a
 rule, carries the reading into the terms: an arm of a disjunction, and
@@ -194,11 +199,13 @@ def Bound.domain : Bound → Val
 kind here, since `any & x` is `x`, whose parent is `x`'s own. -/
 def Val.isKind : Val → Bool
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean => true
+  | .ride _ v _ => v.isKind
   | _ => false
 
 /-- One of the four numeric leaves. -/
 def Val.isLeaf : Val → Bool
   | .integer | .float | .biginteger | .bigdecimal => true
+  | .ride _ v _ => v.isLeaf
   | _ => false
 
 mutual

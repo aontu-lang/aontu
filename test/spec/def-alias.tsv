@@ -9,7 +9,8 @@
 # Regenerate with `make spec`; never edit by hand. The cases the ports do
 # not yet answer this way are listed in spec/ledger.tsv.
 # The riders follow in rows r0 on: meta() and deprecate() judging as their
-# values, ident() on an alias's value, and ident() anywhere else, an error.
+# values, ident() on an alias's value, and ident() anywhere else, an error,
+# in a body no reference reads as in one a reference does.
 a0	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid"}
 a1	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"noFill":true}}
 a2	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"partial":true}}
@@ -250,3 +251,24 @@ r26	verdict	%T = meta(integer, {"title": "t"})\nv: %T	v: 1	{"verdict":"valid","o
 r27	verdict	v: ident(integer, {"id": "https://example.com/t"})	v: 1	{"verdict":"error"}
 r28	verdict	v: ident(integer, {"id": "https://example.com/t"})	v: 1	{"verdict":"error","opts":{"noFill":true}}
 r29	verdict	v: ident(integer, {"id": "https://example.com/t"})	v: 1	{"verdict":"error","opts":{"partial":true}}
+r30	verdict	%T = ident(ident(integer, {"id": "inner"}), {"id": "outer"})\nv: %T	v: 1	{"verdict":"error"}
+r31	verdict	%T = ident(ident(integer, {"id": "inner"}), {"id": "outer"})\nv: %T	v: 1	{"verdict":"error","opts":{"noFill":true}}
+r32	verdict	%T = ident(ident(integer, {"id": "inner"}), {"id": "outer"})\nv: %T	v: 1	{"verdict":"error","opts":{"partial":true}}
+r33	verdict	%T = (ident(integer, {"id": "a"})) & (ident(min(1), {"id": "b"}))\nv: %T	v: 1	{"verdict":"valid"}
+r34	verdict	%T = (ident(integer, {"id": "a"})) & (ident(min(1), {"id": "b"}))\nv: %T	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+r35	verdict	%T = (ident(integer, {"id": "a"})) & (ident(min(1), {"id": "b"}))\nv: %T	v: 1	{"verdict":"valid","opts":{"partial":true}}
+r36	verdict	%T = meta(ident(integer, {"id": "a"}), {})\nv: %T	v: 1	{"verdict":"error"}
+r37	verdict	%T = meta(ident(integer, {"id": "a"}), {})\nv: %T	v: 1	{"verdict":"error","opts":{"noFill":true}}
+r38	verdict	%T = meta(ident(integer, {"id": "a"}), {})\nv: %T	v: 1	{"verdict":"error","opts":{"partial":true}}
+r39	verdict	%T = {"next"?: %T, "x": ident(integer, {})}\nv: %T	v: {"x": 1}	{"verdict":"error"}
+r40	verdict	%T = {"next"?: %T, "x": ident(integer, {})}\nv: %T	v: {"x": 1}	{"verdict":"error","opts":{"noFill":true}}
+r41	verdict	%T = {"next"?: %T, "x": ident(integer, {})}\nv: %T	v: {"x": 1}	{"verdict":"error","opts":{"partial":true}}
+r42	verdict	%T = {"x": ident(integer, {})}\nv: 1	v: 1	{"verdict":"error"}
+r43	verdict	%T = {"x": ident(integer, {})}\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+r44	verdict	%T = {"x": ident(integer, {})}\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+r45	verdict	v: *((meta(integer, {})) & (min(3)))	v: 1.5	{"verdict":"invalid"}
+r46	verdict	v: *((meta(integer, {})) & (min(3)))	v: 1.5	{"verdict":"invalid","opts":{"noFill":true}}
+r47	verdict	v: *((meta(integer, {})) & (min(3)))	v: 1.5	{"verdict":"invalid","opts":{"partial":true}}
+r48	verdict	v: *((meta(integer, {})) & (min(3)))	v: 2	{"verdict":"valid"}
+r49	verdict	v: *((meta(integer, {})) & (min(3)))	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+r50	verdict	v: *((meta(integer, {})) & (min(3)))	v: 2	{"verdict":"valid","opts":{"partial":true}}

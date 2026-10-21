@@ -329,7 +329,7 @@ inductive Val.Checkable : Val → Prop
       (∀ c, c ∈ cs → ∀ v, c.2.1 = some v → Checkable v) →
       (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → Checkable v) →
       Checkable (.rest t cs)
-  | ride {k : Rider} {v : Val} {r : Data} : Checkable v → Checkable (.ride k v r)
+  | ride {k : Rider} {v : Val} {r : Record} : Checkable v → Checkable (.ride k v r)
 
 mutual
 /-- Whether a value is checkable, computed. -/
@@ -833,7 +833,7 @@ theorem HookOk.pref {r : ℕ} {x : Val} {j : Data} (h : HookOk u env root (.pref
     HookOk u env root x j :=
   h.same (fun n hn => by simpa [Val.refs] using hn) (fun n hn => by simpa [Val.unguardedRefs] using hn)
 
-theorem HookOk.ride {k : Rider} {v : Val} {r : Data} {j : Data} (h : HookOk u env root (.ride k v r) j) :
+theorem HookOk.ride {k : Rider} {v : Val} {r : Record} {j : Data} (h : HookOk u env root (.ride k v r) j) :
     HookOk u env root v j :=
   h.same (fun n hn => by simpa [Val.refs] using hn) (fun n hn => by simpa [Val.unguardedRefs] using hn)
 
@@ -974,7 +974,7 @@ inductive Val.CheckableA : Val → Prop
       (∀ c, c ∈ cs → ∀ v, c.2.1 = some v → CheckableA v) →
       (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → CheckableA v) →
       CheckableA (.rest t cs)
-  | ride {k : Rider} {v : Val} {r : Data} : CheckableA v → CheckableA (.ride k v r)
+  | ride {k : Rider} {v : Val} {r : Record} : CheckableA v → CheckableA (.ride k v r)
 
 mutual
 /-- Whether a value is checkable given a hook, computed. -/
@@ -2115,7 +2115,9 @@ theorem judge_listKind (j : Data) : Judge env root (checkWith u .listKind j) .li
 /-- The checker judges a kind as the definition does. -/
 theorem check_kind_judge {v : Val} (hk : v.isKind = true) (j : Data) :
     Judge env root (checkWith u v j) v j := by
-  cases v <;> simp [Val.isKind] at hk <;>
+  cases v
+  case ride k v r => exact .ride (check_kind_judge (v := v) hk j)
+  all_goals simp [Val.isKind] at hk <;>
     first
     | exact judge_integer j
     | exact judge_float j

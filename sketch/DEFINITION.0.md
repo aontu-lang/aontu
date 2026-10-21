@@ -317,7 +317,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 108 rows under eight causes: decisions 3 and 4 of §2, under
+ledger holds 110 rows under nine causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -325,8 +325,10 @@ and through a trial #361); the cycles through paths of decision 7 of
 §7, where the ports move (#357); `must` refusing a conflicting branch
 as an error of the schema, where the ports move (#361); a default a
 trial refuses leaving its disjunction generating nothing, where the
-ports move (#365); and an optional key of the general side compared
-only where the specific side declares it, where the ports move (#377).
+ports move (#365); an optional key of the general side compared only
+where the specific side declares it, where the ports move (#377); and a
+path inside a rider's value to a member beside it, which decision 14 of
+§7 reads through the rider, where the ports move (#416).
 The nine rows of #384, a spread on the general side compared with a
 sealed specific side's missing spread as `any`, retired on 2026-10-20
 when the ports built ruling 12 of §7.
@@ -409,8 +411,8 @@ the value language to the whole of it, each placed after what it rests
 on. The open items of P1 to P6 come before them:
 each read mode's reading of a number (P1), `open()` (P2), two
 recursions of one shape under different names (P5), the rulings of §7
-not yet built (10, 13 and 14), decision 16, still open, and #403, a
-selection inside a recursive name's body.
+not yet built (10 and 13), decisions 16 and 17, still open, and #403,
+a selection inside a recursive name's body.
 
 Outside the definition by design, whatever phase lands: text, which is
 the grammar's and each port's reader's (the lexical structure, the
@@ -662,16 +664,23 @@ encodes it lands.
    (`test/spec/ident.tsv`), so its rule belongs to the declaration and
    not to a value. **Built 2026-10-20** as one form, not three: `ride`
    in `spec/Aontu/Syntax.lean`, with a `Rider` naming the call and a
-   record of data, since the three differ in nothing a rule reads. One
-   rule of `Judge` makes it judge as its value (`judge_ride_iff`), and
-   `Gen`, the meet, the checker, the parent type, the expansion and the
-   selections pass through it, so a rider and its value are below each
-   other (`ride_le_iff`, `le_ride_iff`). `Decls.env` reads a body
-   without the `ident()` at its top or on a term of its top meet
-   (`Val.unident`), and `Val.illFormed` holds of one left anywhere else.
-   The alias fragment gains 30 rows, r0 on, which both ports answer as
-   the definition does. The riders leave `spec/forms-outside.tsv`, whose
-   bound falls from 4 to 1. The marks of decision 10 wait.
+   record, the members of a map of data, since the three differ in
+   nothing a rule reads and both ports take no other record. One rule
+   of `Judge` makes it judge as its value (`judge_ride_iff`), and `Gen`,
+   the meet, the checker, the parent type, the expansion and the
+   selections pass through it, as do a path, a declared default and the
+   kind that gives a meet its parent, so a rider and its value are
+   below each other (`ride_le_iff`, `le_ride_iff`). `Decls.env` reads a
+   body without the `ident()` at its top or on a term of its top meet,
+   keeping one inside it (`Val.unident`), and `Decls.identMisplaced`
+   holds of one anywhere else. It reads the text, so a body no
+   reference reads is held to the place too, as both ports answer. The
+   alias fragment gains 51 rows, r0 on, which both ports answer as the
+   definition does, and the path fragment 24, q0 on, which both answer
+   so but q21 and q22: a path inside a rider's value to a member beside
+   it leaves both `incomplete` (#416), where the ports move. The riders
+   leave `spec/forms-outside.tsv`, whose bound falls from 4 to 1. The
+   marks of decision 10 wait.
 15. **The words `map` and `list`.** Raised 2026-10-19 by P6. The
    importer writes `map` for `type: object` with no other keyword and
    `list` for `type: array`. Both ports admit every map or every list
@@ -709,6 +718,20 @@ encodes it lands.
    answer, or the ports accept a disjunctive size, whose upper half at
    the meet is each arm's, as `Val.upperHalf` reads it. No generated
    row carries a disjunctive size until it is ruled.
+17. **A declaration nothing reads.** Raised 2026-10-21 by decision 14's
+   rows (#417). Both ports evaluate every alias declaration, at `$.%T`,
+   whether or not anything refers to it, so `%T = 1 & 2` beside `v: 1`
+   is an `error`, `scalar_value`, where the definition reads a document
+   as the expansion of its term and never reads a body no reference
+   reaches, so the document is `valid`. Only the names a body refers to
+   (`Decls.Declares`), the alias-cycle rule (`Decls.Guarded`) and the
+   place of an `ident()` (`Decls.identMisplaced`) read every body.
+   Either the definition reads every declaration, so that a dead or
+   ill-formed body is an `error` whether or not anything reads it, as
+   both ports answer, or a declaration nothing reads means nothing and
+   the ports stop evaluating it. The definition recommends the first,
+   which states what both ports do and refuses a document whose author
+   wrote a broken declaration.
 
 ## 8. Risks
 

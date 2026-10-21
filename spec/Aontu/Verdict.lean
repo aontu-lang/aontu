@@ -294,9 +294,7 @@ def sizeClash (cs : List Val) : Bool :=
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, a
-preference clash, a size the meet's container literal breaks, or an
-`ident()` anywhere but on an alias's value, which a reference reads
-without it (`Decls.env`). -/
+preference clash, or a size the meet's container literal breaks. -/
 def Val.illFormed : Val → Bool
   | .nil => true
   | .map fs _ _ => illFields fs
@@ -304,7 +302,6 @@ def Val.illFormed : Val → Bool
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .meet a b => illChain a || illChain b || sizeClash (a.conjuncts ++ b.conjuncts)
-  | .ride .ident _ _ => true
   | .ride _ v _ => v.illFormed
   | _ => false
 
@@ -317,7 +314,6 @@ def illChain : Val → Bool
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
-  | .ride .ident _ _ => true
   | .ride _ v _ => v.illFormed
   | _ => false
 
@@ -333,6 +329,64 @@ def illArms : List (ℕ × Val) → Bool
   | [] => false
   | (_, a) :: arms => a.illFormed || illArms arms
 end
+
+mutual
+/-- Whether a term holds an `ident()`, at any depth. -/
+def Val.idents : Val → Bool
+  | .ride .ident _ _ => true
+  | .ride _ v _ => v.idents
+  | .len c => c.idents
+  | .map fs spread _ => identsFields fs || identsSpread spread
+  | .list items spread _ => identsItems items || identsSpread spread
+  | .or arms => identsArms arms
+  | .pref _ x => x.idents
+  | .meet a b => a.idents || b.idents
+  | .nof n cs => n.idents || identsItems cs
+  | .must c _ => c.idents
+  | .when c t e => c.idents || t.idents || identsSpread e
+  | .contains c n => c.idents || n.idents
+  | .rest t cs => t.idents || identsCovers cs
+  | .select s arms d => s.idents || identsPairs arms || identsSpread d
+  | .filter s c => s.idents || c.idents
+  | _ => false
+
+def identsPairs : List (Val × Val) → Bool
+  | [] => false
+  | (p, r) :: ps => p.idents || r.idents || identsPairs ps
+
+def identsCovers : List Cover → Bool
+  | [] => false
+  | (c, k, m) :: cs => identsSpread c || identsSpread k || identsSpread m || identsCovers cs
+
+def identsFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.idents || identsFields fs
+
+def identsItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.idents || identsItems vs
+
+def identsSpread : Option Val → Bool
+  | none => false
+  | some s => s.idents
+
+def identsArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.idents || identsArms arms
+end
+
+/-- Whether an `ident()` stands where none may: anywhere in the
+document's term, or in a declaration's body but at its top or on a term
+of its top meet (`Val.unident`). The place is the text's, so a
+declaration no reference reads is held to it as well, as both ports
+refuse it with `ident_place` (decision 14 of the design note's §7). -/
+def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
+  S.idents || ds.any fun d => d.2.unident.idents
+
+/-- Whether a document does not stand: an `ident()` out of its place, or
+the schema, read, with a normal form that does not stand. -/
+def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
+  ds.identMisplaced S || (normaliseD ds (ds.readR S)).illFormed
 
 /-! ## The value a document gives with its trials unread
 
@@ -490,28 +544,28 @@ instance (ds : Decls) : Decidable ds.Guarded := decidable_of_iff _ Decls.guarded
 /-- The verdict `vet` gives the data `j` against the schema `S` under
 the declarations `ds` and the mode `m`, the schema read as its
 expansion with its selections made: `error` where the document refers to a name it does not
-declare, where its names break the alias-cycle rule, or where the
-schema's normal form does not stand; `invalid` where the meet of the
-schema with the data as a term is dead, or refuses, read whole, the
-value it gives with its trials and sizes unread; `valid` where the meet
-singles out a value, and without the fill where the data as written is
-an instance too, or where `--partial` lets the unresolved pass; and
-`incomplete` otherwise. -/
+declare, where its names break the alias-cycle rule, where an
+`ident()` stands out of its place, or where the schema's normal form
+does not stand; `invalid` where the meet of the schema with the data as
+a term is dead, or refuses, read whole, the value it gives with its
+trials and sizes unread; `valid` where the meet singles out a value,
+and without the fill where the data as written is an instance too, or
+where `--partial` lets the unresolved pass; and `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
-  | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ (normaliseD ds (ds.readR S)).illFormed = true
+  | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
-    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.readR S)).illFormed = false ∧
+    ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
       ((normaliseD ds (meetD ds (ds.readR S) j.term)).dead = true ∨
         RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)))
   | .valid =>
-    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.readR S)).illFormed = false ∧
+    ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
       (normaliseD ds (meetD ds (ds.readR S) j.term)).dead = false ∧
       ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
       (m.lax = true ∨
         ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
           (m.fill = true ∨ Admits ds.envE j (ds.readR S) j))
   | .incomplete =>
-    ds.Declares S ∧ ds.Guarded ∧ (normaliseD ds (ds.readR S)).illFormed = false ∧
+    ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
       (normaliseD ds (meetD ds (ds.readR S) j.term)).dead = false ∧
       ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
       m.lax = false ∧
@@ -521,7 +575,7 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 /-- The verdict, computed. -/
 def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
   if !(ds.declaresB S && ds.guardedB) then .error
-  else if (normaliseD ds (ds.readR S)).illFormed then .error
+  else if ds.illFormedR S then .error
   else if (normaliseD ds (meetD ds (ds.readR S) j.term)).dead then .invalid
   else if refusedAt ds (normaliseD ds (meetD ds (ds.readR S) j.term)) then .invalid
   else if m.lax then .valid
@@ -698,7 +752,7 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
     have hG := Decls.guardedB_iff.mp hgB
     have hS' : (ds.readR S).CheckableA := hS
     have hM' := normaliseD_checkableA hb (meetD_checkableA hb hS' (Data.term_checkableA j))
-    cases hi : (normaliseD ds (ds.readR S)).illFormed with
+    cases hi : ds.illFormedR S with
     | true => exact .inr (.inr hi)
     | false =>
       rw [if_neg Bool.false_ne_true]

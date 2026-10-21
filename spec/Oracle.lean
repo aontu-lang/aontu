@@ -576,23 +576,34 @@ theorem alias_verdict_exact : ∀ c ∈ aliasCases, ∀ (m : Mode) (v : Verdict)
 /-- The cases of decision 14 of the design note's §7: a `meta()` and a
 `deprecate()` that judge as their values do, alone, under a key, in a
 meet and on a declaration; an `ident()` on an alias's value, which a
-reference reads without it; and an `ident()` anywhere else, an error. -/
+reference reads without it; and an `ident()` anywhere else, an error,
+inside another, inside a `meta()`, in a recursive body, or in a body no
+reference reads. A rider on a kind keeps the kind's parent. -/
 def riderCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
-  let note (k s : String) : Data := .map [(k, .str s)]
+  let note (k s : String) : Record := [(k, .str s)]
   let key (k : String) (o : Bool) (v : Val) : Val := .map [(k, o, v)] none false
   let pick : Val := .or [(1, int 1), (0, .integer)]
   let named : Decls := [("T", .ride .ident .integer (note "id" "https://example.com/t"))]
+  let parent : Val := .pref 1 (.meet (.ride .metadata .integer []) (.min (.num (.integer (.of 3)))))
   [([], .ride .metadata .integer (note "title" "n"), j 1),
     ([], .ride .metadata .integer (note "title" "n"), .str "a"),
-    ([], .ride .deprecate pick (.map []), j 2),
+    ([], .ride .deprecate pick [], j 2),
     ([], key "x" false (.ride .deprecate pick (note "msg" "old")), .map []),
-    ([], key "x" false (.ride .metadata (int 1) (.map [])), .map [("x", j 1)]),
-    ([], .meet (.ride .metadata .integer (.map [])) (int 2), j 2),
+    ([], key "x" false (.ride .metadata (int 1) []), .map [("x", j 1)]),
+    ([], .meet (.ride .metadata .integer []) (int 2), j 2),
     (named, .alias "T", j 1), (named, .alias "T", .str "a"),
     ([("T", .ride .metadata .integer (note "title" "t"))], .alias "T", j 1),
-    ([], .ride .ident .integer (note "id" "https://example.com/t"), j 1)]
+    ([], .ride .ident .integer (note "id" "https://example.com/t"), j 1),
+    ([("T", .ride .ident (.ride .ident .integer (note "id" "inner")) (note "id" "outer"))], .alias "T", j 1),
+    ([("T", .meet (.ride .ident .integer (note "id" "a")) (.ride .ident (.min (.num (.integer (.of 1)))) (note "id" "b")))],
+      .alias "T", j 1),
+    ([("T", .ride .metadata (.ride .ident .integer (note "id" "a")) [])], .alias "T", j 1),
+    ([("T", .map [("next", true, .alias "T"), ("x", false, .ride .ident .integer [])] none false)], .alias "T",
+      .map [("x", j 1)]),
+    ([("T", key "x" false (.ride .ident .integer []))], int 1, j 1),
+    ([], parent, .num (.float (.dyadic 3 (-1)))), ([], parent, j 2)]
 
 theorem riderCases_checkable : ∀ c ∈ riderCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
@@ -708,13 +719,41 @@ theorem path_verdict_exact : ∀ c ∈ pathCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (pathCases_checkable c hc).1 (pathCases_checkable c hc).2 v
 
+/-- Paths through the riders, which a path reads through as through
+nothing (decision 14 of the design note's §7): into a `meta()` from
+outside it, to a member under a `deprecate()`, by index into a rider's
+list, and from inside a rider's value to a member beside it. -/
+def riderPathCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let annotated (v : Val) : Val := .ride .metadata v []
+  [([], m [("a", annotated (m [("x", int 1)])), ("b", p ["a", "x"])], .map [("a", .map [("x", j 1)]), ("b", j 1)]),
+    ([], m [("a", annotated (m [("x", int 1)])), ("b", p ["a", "x"])], .map [("a", .map [("x", j 1)]), ("b", j 2)]),
+    ([], m [("a", annotated (m [("x", int 1)])), ("b", p ["a", "x"])], .map [("b", j 1)]),
+    ([], m [("a", annotated (m [("x", .integer)])), ("b", p ["a", "x"])], .map [("a", .map [("x", j 7)]), ("b", j 7)]),
+    ([], m [("a", annotated (m [("x", int 1)])), ("b", p ["a", "y"])], .map [("b", j 1)]),
+    ([], m [("a", m [("x", .ride .deprecate (int 1) [])]), ("b", p ["a", "x"])],
+      .map [("a", .map [("x", j 1)]), ("b", j 1)]),
+    ([], m [("a", annotated (.list [int 1, int 2] none false)), ("b", .path [.key "a", .idx 1])],
+      .map [("a", .list [j 1, j 2]), ("b", j 2)]),
+    ([], m [("a", annotated (m [("x", p ["a", "y"]), ("y", int 1)]))], .map [("a", .map [("x", j 1), ("y", j 1)])])]
+
+theorem riderPathCases_checkable : ∀ c ∈ riderPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem rider_path_verdict_exact : ∀ c ∈ riderPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (riderPathCases_checkable c hc).1 (riderPathCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, the schema's braces dropped since neither CLI reads a braced
 map after a declaration, in the three modes, with the one class `vetP`
 gives. -/
-def pathRows (tag : String) : IO Unit := do
+def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) : IO Unit := do
   let mut i := 0
-  for c in pathCases do
+  for c in cases do
     let mut lines : List String := []
     for d in c.1 do
       let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
@@ -1361,8 +1400,8 @@ def formSamples : List (String × Val) :=
     ("must", .must .integer "m"), ("when", .when .integer .integer none),
     ("contains", .contains .integer (.min (.num one))), ("rest", .rest .integer []),
     ("match", .select .integer [] none), ("filter", .filter .integer .integer),
-    ("meta", .ride .metadata .integer (.map [])), ("deprecate", .ride .deprecate .integer (.map [])),
-    ("ident", .ride .ident .integer (.map []))]
+    ("meta", .ride .metadata .integer []), ("deprecate", .ride .deprecate .integer []),
+    ("ident", .ride .ident .integer [])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1474,7 +1513,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
     IO.println "# The riders follow in rows r0 on: meta() and deprecate() judging as their"
-    IO.println "# values, ident() on an alias's value, and ident() anywhere else, an error."
+    IO.println "# values, ident() on an alias's value, and ident() anywhere else, an error,"
+    IO.println "# in a body no reference reads as in one a reference does."
     aliasRows "a"
     aliasRows "r" riderCases
     return 0
@@ -1490,7 +1530,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# path to nothing is an error, as is a document that reads only by its own"
     IO.println "# paths. Regenerate with `make spec`; never edit by hand. The cases the ports"
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
+    IO.println "# Paths through the riders follow in rows q0 on, which a path reads through."
     pathRows "p"
+    pathRows "q" riderPathCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

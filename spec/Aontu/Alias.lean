@@ -325,7 +325,7 @@ theorem Decls.Stacked.push {ds : Decls} {stack : List String} {v : Val} {k : Str
 /-- Leaving an identity behind keeps a body checkable. -/
 theorem Val.checkableA_unident {v : Val} (h : v.CheckableA) : v.unident.CheckableA := by
   induction v using Val.unident.induct with
-  | case1 v r ih => cases h with | ride h => exact ih h
+  | case1 v r => cases h with | ride h => exact h
   | case2 a b iha ihb => cases h with | meet ha hb => exact .meet (iha ha) (ihb hb)
   | case3 v h1 h2 => rw [Val.unident.eq_3 v h1 h2]; exact h
 

@@ -363,7 +363,7 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   | restNone {t : Val} {cs : List Cover} {j : Data} : j.named = none → Judge env root true (.rest t cs) j
   /-- A rider judges as its value: the record it carries decides
   nothing. -/
-  | ride {b : Bool} {k : Rider} {v : Val} {r : Data} {j : Data} :
+  | ride {b : Bool} {k : Rider} {v : Val} {r : Record} {j : Data} :
       Judge env root b v j → Judge env root b (.ride k v r) j
 
 /-- `j` is an instance of `v`: the trial comes out `true`. -/
@@ -859,7 +859,7 @@ theorem Judge.toIff {env : Env} {root : Data} {c : Bool} {v : Val} {j : Data}
   ⟨fun e => e ▸ h, fun h' => judge_unique h h'⟩
 
 /-- A rider judges every datum as its value does. -/
-theorem judge_ride_iff {env : Env} {root : Data} {b : Bool} {k : Rider} {v : Val} {r : Data}
+theorem judge_ride_iff {env : Env} {root : Data} {b : Bool} {k : Rider} {v : Val} {r : Record}
     {j : Data} : Judge env root b (.ride k v r) j ↔ Judge env root b v j :=
   ⟨fun h => by cases h with | ride h => exact h, .ride⟩
 

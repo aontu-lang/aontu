@@ -19,19 +19,30 @@ namespace Aontu
 
 /-! ## Positions -/
 
+/-- A term without the riders around it. -/
+def Val.unride : Val → Val
+  | .ride _ v _ => v.unride
+  | v => v
+
 /-- The term at a path in a term: through maps by key and lists by
-index, and through nothing else. -/
+index, the riders around either read through, and through nothing
+else. -/
 def Val.at : Val → List Seg → Option Val
   | v, [] => some v
-  | .map fs _ _, .key k :: p =>
-    match fs.find? (fun f => f.1 == k) with
-    | some f => f.2.2.at p
-    | none => none
-  | .list items _ _, .idx i :: p =>
-    match items[i]? with
-    | some w => w.at p
-    | none => none
-  | _, _ => none
+  | v, .key k :: p =>
+    match v.unride with
+    | .map fs _ _ =>
+      match fs.find? (fun f => f.1 == k) with
+      | some f => f.2.2.at p
+      | none => none
+    | _ => none
+  | v, .idx i :: p =>
+    match v.unride with
+    | .list items _ _ =>
+      match items[i]? with
+      | some w => w.at p
+      | none => none
+    | _ => none
 termination_by structural _ p => p
 
 /-! ## Paths as names -/
@@ -281,29 +292,42 @@ theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliase
       exact ih3 c hc s hs
   | _ => simp only [Val.pathsToAliases]; constructor
 
+theorem Val.checkableA_unride {v : Val} (h : v.CheckableA) : v.unride.CheckableA := by
+  induction v using Val.unride.induct with
+  | case1 k v r ih => cases h with | ride h => exact ih h
+  | case2 v h1 => rw [Val.unride.eq_2 v h1]; exact h
+
 /-- The term at a path in a term the checker can read is one it can read. -/
 theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p = some w → w.CheckableA
   | [], _, _, hv, h => by
     simp only [Val.at, Option.some.injEq] at h
     exact h ▸ hv
-  | .key k :: p, _, w, hv, h => by
-    cases hv with
-    | map hf _ =>
-      simp only [Val.at] at h
-      split at h
-      · rename_i f hfind
-        exact at_checkableA p (hf f.1 f.2.1 f.2.2 (List.mem_of_find?_eq_some hfind)) h
-      · exact absurd h (by simp)
-    | _ => simp [Val.at] at h
-  | .idx i :: p, _, w, hv, h => by
-    cases hv with
-    | list hi _ =>
-      simp only [Val.at] at h
-      split at h
-      · rename_i x hx
-        exact at_checkableA p (hi x (List.mem_of_getElem? hx)) h
-      · exact absurd h (by simp)
-    | _ => simp [Val.at] at h
+  | .key k :: p, v, w, hv, h => by
+    have hu := Val.checkableA_unride hv
+    simp only [Val.at] at h
+    split at h
+    · rename_i fs _ _ hm
+      rw [hm] at hu
+      cases hu with
+      | map hf _ =>
+        split at h
+        · rename_i f hfind
+          exact at_checkableA p (hf f.1 f.2.1 f.2.2 (List.mem_of_find?_eq_some hfind)) h
+        · exact absurd h (by simp)
+    · exact absurd h (by simp)
+  | .idx i :: p, v, w, hv, h => by
+    have hu := Val.checkableA_unride hv
+    simp only [Val.at] at h
+    split at h
+    · rename_i items _ _ hm
+      rw [hm] at hu
+      cases hu with
+      | list hi _ =>
+        split at h
+        · rename_i x hx
+          exact at_checkableA p (hi x (List.mem_of_getElem? hx)) h
+        · exact absurd h (by simp)
+    · exact absurd h (by simp)
 
 theorem Decls.ofPaths_checkableA {root : Val} (hr : root.CheckableA) (ps : List (List Seg)) :
     ∀ d, d ∈ Decls.ofPaths root ps → d.2.CheckableA := by

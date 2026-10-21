@@ -19,10 +19,11 @@ declarations. -/
 abbrev Decls := List (String × Val)
 
 /-- A declaration's body as a reference reads it: an `ident()` at its
-top, or on a term of its top meet, left behind. That is the one place
-an identity stands (decision 14 of the design note's §7). -/
+top, or on a term of its top meet, left behind, and one inside it kept.
+That is the one place an identity stands (decision 14 of the design
+note's §7). -/
 def Val.unident : Val → Val
-  | .ride .ident v _ => v.unident
+  | .ride .ident v _ => v
   | .meet a b => .meet a.unident b.unident
   | v => v
 
@@ -420,7 +421,7 @@ theorem transGen_first {R : String → String → Prop} {a x : String}
 /-- Leaving an identity behind keeps the names a body reaches. -/
 theorem Val.unguardedRefs_unident (v : Val) : v.unident.unguardedRefs = v.unguardedRefs := by
   induction v using Val.unident.induct with
-  | case1 v r ih => simp only [Val.unident, Val.unguardedRefs, ih]
+  | case1 v r => simp only [Val.unident, Val.unguardedRefs]
   | case2 a b iha ihb => simp only [Val.unident, Val.unguardedRefs, iha, ihb]
   | case3 v h1 h2 => rw [Val.unident.eq_3 v h1 h2]
 

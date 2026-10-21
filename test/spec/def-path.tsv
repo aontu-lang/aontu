@@ -9,6 +9,7 @@
 # path to nothing is an error, as is a document that reads only by its own
 # paths. Regenerate with `make spec`; never edit by hand. The cases the ports
 # do not yet answer this way are listed in spec/ledger.tsv.
+# Paths through the riders follow in rows q0 on, which a path reads through.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -189,3 +190,27 @@ p176	verdict	"a": ({"v": 1}) | ({"v": 2}), "b": $.a.v	{"a": {"v": 1}, "b": 1}	{"
 p177	verdict	"a": {"x": 1, "y": 2}, "b": ($.a) & ({"x": 2})	{"b": {"x": 2, "y": 2}}	{"verdict":"error"}
 p178	verdict	"a": {"x": 1, "y": 2}, "b": ($.a) & ({"x": 2})	{"b": {"x": 2, "y": 2}}	{"verdict":"error","opts":{"noFill":true}}
 p179	verdict	"a": {"x": 1, "y": 2}, "b": ($.a) & ({"x": 2})	{"b": {"x": 2, "y": 2}}	{"verdict":"error","opts":{"partial":true}}
+q0	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid"}
+q1	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
+q2	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
+q3	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 2}	{"verdict":"invalid"}
+q4	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+q5	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 2}	{"verdict":"invalid","opts":{"partial":true}}
+q6	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"b": 1}	{"verdict":"valid"}
+q7	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"b": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+q8	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"b": 1}	{"verdict":"valid","opts":{"partial":true}}
+q9	verdict	"a": meta({"x": integer}, {}), "b": $.a.x	{"a": {"x": 7}, "b": 7}	{"verdict":"valid"}
+q10	verdict	"a": meta({"x": integer}, {}), "b": $.a.x	{"a": {"x": 7}, "b": 7}	{"verdict":"valid","opts":{"noFill":true}}
+q11	verdict	"a": meta({"x": integer}, {}), "b": $.a.x	{"a": {"x": 7}, "b": 7}	{"verdict":"valid","opts":{"partial":true}}
+q12	verdict	"a": meta({"x": 1}, {}), "b": $.a.y	{"b": 1}	{"verdict":"error"}
+q13	verdict	"a": meta({"x": 1}, {}), "b": $.a.y	{"b": 1}	{"verdict":"error","opts":{"noFill":true}}
+q14	verdict	"a": meta({"x": 1}, {}), "b": $.a.y	{"b": 1}	{"verdict":"error","opts":{"partial":true}}
+q15	verdict	"a": {"x": deprecate(1, {})}, "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid"}
+q16	verdict	"a": {"x": deprecate(1, {})}, "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
+q17	verdict	"a": {"x": deprecate(1, {})}, "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
+q18	verdict	"a": meta([1, 2], {}), "b": $.a.1	{"a": [1, 2], "b": 2}	{"verdict":"valid"}
+q19	verdict	"a": meta([1, 2], {}), "b": $.a.1	{"a": [1, 2], "b": 2}	{"verdict":"valid","opts":{"noFill":true}}
+q20	verdict	"a": meta([1, 2], {}), "b": $.a.1	{"a": [1, 2], "b": 2}	{"verdict":"valid","opts":{"partial":true}}
+q21	verdict	"a": meta({"x": $.a.y, "y": 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+q22	verdict	"a": meta({"x": $.a.y, "y": 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+q23	verdict	"a": meta({"x": $.a.y, "y": 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid","opts":{"partial":true}}

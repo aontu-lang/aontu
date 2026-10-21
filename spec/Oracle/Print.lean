@@ -212,7 +212,7 @@ def Val.src : Val → Option String
   | .rest t cs => do pure s!"rest({", ".intercalate ([← t.src] ++ (← coversSrc cs))})"
   | .select s arms d => do pure s!"match({", ".intercalate ([← s.src] ++ (← pairsSrc arms) ++ (← elseSrc d))})"
   | .filter s c => do pure s!"filter({← s.src}, {← c.src})"
-  | .ride k v r => do pure s!"{k.name}({← v.src}, {← r.src})"
+  | .ride k v r => do pure s!"{k.name}({← v.src}, {← (Data.map r).src})"
 
 def fieldsSrc : List (String × Bool × Val) → Option (List String)
   | [] => some []
