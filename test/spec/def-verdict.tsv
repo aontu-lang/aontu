@@ -10,7 +10,8 @@
 # not yet answer this way are listed in spec/ledger.tsv.
 # A size met with a container literal follows in rows l0 on: an error where
 # the size's upper half refuses the literal's count, the lower end waiting
-# for generation.
+# for generation, and an optional member whose value generates an empty map
+# or list not counted.
 # The marks follow in rows h0 on: hide() and type() leave a member of a map
 # out of the output, the member still meeting the data, and --no-fill reads
 # the schema's visible part.
@@ -233,6 +234,15 @@ l44	verdict	v: (len(above(5))) & ([1])	v: [1]	{"verdict":"invalid","opts":{"part
 l45	verdict	v: (len(max(1))) & ([&: integer])	v: [1, 2]	{"verdict":"invalid"}
 l46	verdict	v: (len(max(1))) & ([&: integer])	v: [1, 2]	{"verdict":"invalid","opts":{"noFill":true}}
 l47	verdict	v: (len(max(1))) & ([&: integer])	v: [1, 2]	{"verdict":"invalid","opts":{"partial":true}}
+l48	verdict	v: (len(max(1))) & ({"x": 1, "y"?: {}})	v: {"x": 1}	{"verdict":"valid"}
+l49	verdict	v: (len(max(1))) & ({"x": 1, "y"?: {}})	v: {"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+l50	verdict	v: (len(max(1))) & ({"x": 1, "y"?: {}})	v: {"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+l51	verdict	v: (len(max(1))) & ({"x": 1, "y"?: []})	v: {"x": 1}	{"verdict":"valid"}
+l52	verdict	v: (len(max(1))) & ({"x": 1, "y"?: []})	v: {"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+l53	verdict	v: (len(max(1))) & ({"x": 1, "y"?: []})	v: {"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+l54	verdict	v: (len(max(1))) & ({"x": 1, "y"?: {"z": 1}})	v: {"x": 1}	{"verdict":"error"}
+l55	verdict	v: (len(max(1))) & ({"x": 1, "y"?: {"z": 1}})	v: {"x": 1}	{"verdict":"error","opts":{"noFill":true}}
+l56	verdict	v: (len(max(1))) & ({"x": 1, "y"?: {"z": 1}})	v: {"x": 1}	{"verdict":"error","opts":{"partial":true}}
 h0	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid"}
 h1	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
 h2	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid","opts":{"partial":true}}

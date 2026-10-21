@@ -313,6 +313,13 @@ def Data.size : Data → Option ℕ
   | .map fs => some fs.length
   | _ => none
 
+/-- Whether a value is an empty map or an empty list: what an optional
+member whose value generates it leaves out of the output (decision 19
+of the design note's §7). -/
+def Data.emptyBag : Data → Bool
+  | .map [] | .list [] => true
+  | _ => false
+
 /-- The members `unique` compares: a list's elements, or a map's
 values. A scalar has no members. -/
 def Data.members : Data → Option (List Data)

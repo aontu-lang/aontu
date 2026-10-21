@@ -158,13 +158,13 @@ abstract class BagVal extends FeatureVal {
         }
       }
 
-      // Optional unresolved disjuncts are not an error, just dropped.
+      // An optional disjunct is dropped unresolved or empty, as any optional is.
       if (child.isDisjunct && optional) {
         const dctx = ctx.clone({ err: [], collect: true })
 
         let cval = child.gen(dctx)
 
-        if (raiseParse(dctx, child, ctx) || undefined === cval) {
+        if (raiseParse(dctx, child, ctx) || undefined === cval || empty(cval)) {
           continue
         }
 

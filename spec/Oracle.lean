@@ -250,8 +250,10 @@ open Aontu
 
 /-- The values of the `gen` fragment: literals, kinds, preferences and
 disjunctions with their ranks, maps with required, optional and
-defaulted keys and spreads, lists with spreads, and meets of these, the
-fill of a schema with data among them. No value here splits the ports
+defaulted keys and spreads, an optional key whose value generates an
+empty map or list and so is absent (decision 19 of the design note's
+§7), lists with spreads, and meets of these, the fill of a schema with
+data among them. No value here splits the ports
 (#348) or writes a `nil` under an optional key, where the engines
 answer `error` and the definition drops the key. -/
 def genVals : List Val :=
@@ -309,7 +311,20 @@ def genVals : List Val :=
       (0, .map [("b", false, int 2), ("a", false, int 1)] none false)],
     .or [(0, key "x" false (.meet (int 1) (int 2))), (0, int 1)],
     .or [(0, .list [.meet (int 1) (int 2)] none false), (0, int 1)],
-    .or [(0, .nil), (0, int 1)]]
+    .or [(0, .nil), (0, int 1)],
+    key "a" true (.map [] none false), key "a" true (.list [] none false),
+    key "a" false (.map [] none false), key "a" false (.list [] none false),
+    key "a" true (key "b" true .integer), key "a" true (key "b" true (.map [] none false)),
+    key "a" false (key "b" true (.map [] none false)), key "a" true (.map [] none true),
+    key "a" true (.map [] (some .integer) false), key "a" true (.list [] (some .integer) false),
+    key "a" true (.pref 1 (.map [] none false)),
+    key "a" true (.or [(1, .list [] none false), (0, .list [int 1] none false)]),
+    key "a" true (.or [(1, .map [] none false), (0, key "x" false (int 1))]),
+    key "a" true (.or [(1, .list [int 1] none false), (0, .list [] none false)]),
+    key "a" true (.meet (.map [] none false) (key "b" true (int 1))),
+    .map [("a", true, .map [] none false), ("b", false, int 1)] none false,
+    .meet (key "a" true (.map [] none false)) (key "a" false (.map [] none false)),
+    .list [key "a" true (.map [] none false)] none false]
 
 /-- Every value of the `gen` fragment normalises to a checkable one, so
 `output` is `Output` on it, by `output_iff`. -/
@@ -412,8 +427,9 @@ def verdictName : Verdict → String
 /-- The cases of decision 9 of the design note's §7: a size met with a
 container literal, the size's upper half refusing the literal's count or
 admitting it, a literal short of its size, and members that arrive by
-the data or by a second literal. No size is a disjunction, which both
-ports refuse as an argument (#413). -/
+the data or by a second literal, and an optional member whose value
+generates an empty map or list, which isn't counted (decision 19). No
+size is a disjunction, which both ports refuse as an argument (#413). -/
 def lenCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
@@ -438,7 +454,11 @@ def lenCases : List (Val × Data) :=
     (.meet (.len (.neq [nb 2])) (.meet xy (mp [("z", false, int 3)])), dxyz),
     (.meet (.len (.mulof (.integer ⟨3, by decide⟩))) (ls [int 1, int 2]), .list [j 1, j 2, j 3]),
     (.meet (.len (.above (nb 5))) (ls [int 1]), .list [j 1]),
-    (.meet (.len (.max (nb 1))) (.list [] (some .integer) false), .list [j 1, j 2])]
+    (.meet (.len (.max (nb 1))) (.list [] (some .integer) false), .list [j 1, j 2]),
+    (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, mp [])]), .map [("x", j 1)]),
+    (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, ls [])]), .map [("x", j 1)]),
+    (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, mp [("z", false, int 1)])]),
+      .map [("x", j 1)])]
 
 theorem lenCases_checkable : ∀ c ∈ lenCases, (vetDoc c).1.CheckableA := by decide
 
@@ -2563,6 +2583,35 @@ theorem filter_verdict_exact : ∀ c ∈ filterCases ++ filterEachCases, ∀ (m 
     · exact filterEachCases_readable c h
   exact vet_iff (fun _ h => absurd h (List.not_mem_nil)) hr v
 
+/-- A call reads none of a bag's optional members whose value generates
+an empty map or list (decision 19 of the design note's §7), so `sum`
+adds the others and `each` and `join` skip it. An optional member whose
+value generates more stays. -/
+def optionalCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  [(c .sum [mp [("a", true, mp []), ("b", false, int 2)]], j 2),
+    (c .sum [mp [("a", true, lst []), ("b", false, int 2)]], j 2),
+    (c .sum [mp [("a", true, .or [(1, lst []), (0, lst [int 1])]), ("b", false, int 2)]], j 2),
+    (c .each [mp [("a", true, mp []), ("b", false, int 1)], .hole], .list [j 1]),
+    (c .each [mp [("a", true, mp [("b", true, .integer)]), ("c", false, int 1)], .hole], .list [j 1]),
+    (c .each [mp [("a", true, mp [("b", false, int 1)]), ("c", false, int 2)], .hole],
+      .list [.map [("b", j 1)], j 2]),
+    (c .each [mp [("a", true, .or [(1, lst [int 1]), (0, lst [])]), ("b", false, int 2)], .hole],
+      .list [.list [j 1], j 2]),
+    (c .join [mp [("a", true, lst []), ("b", false, str "x")], str "-"], .str "x")]
+
+theorem optionalCases_checkable : ∀ c ∈ optionalCases, (vetDoc c).1.CheckableA := by decide
+
+theorem optional_verdict_exact : ∀ c ∈ optionalCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (optionalCases_checkable c hc)) v
+
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2656,7 +2705,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
     IO.println "# A size met with a container literal follows in rows l0 on: an error where"
     IO.println "# the size's upper half refuses the literal's count, the lower end waiting"
-    IO.println "# for generation."
+    IO.println "# for generation, and an optional member whose value generates an empty map"
+    IO.println "# or list not counted."
     IO.println "# The marks follow in rows h0 on: hide() and type() leave a member of a map"
     IO.println "# out of the output, the member still meeting the data, and --no-fill reads"
     IO.println "# the schema's visible part."
@@ -2802,10 +2852,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# x1404, nom from row x1521, the components of the component tree from row"
     IO.println "# x1677, the generator each, its template read for each member of its data,"
     IO.println "# from row x1803, and a filter whose condition holds the hole, read for each"
-    IO.println "# member it tries, from row x1902. A call on a name follows in rows z0 on,"
-    IO.println "# and a call handed a pattern, re(p), in rows v0 on."
+    IO.println "# member it tries, from row x1902. A call skips an optional member whose value"
+    IO.println "# generates an empty map or list, from row x1935. A call on a name follows in"
+    IO.println "# rows z0 on, and a call handed a pattern, re(p), in rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
-    for (v, j) in callCases ++ filterCases ++ filterEachCases do
+    for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -2816,7 +2867,7 @@ def main (args : List String) : IO UInt32 := do
     for (v, _) in patternCases do
       unless hostReads v do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
-    verdictRows "x" (callCases ++ filterCases ++ filterEachCases)
+    verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases)
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     return 0
