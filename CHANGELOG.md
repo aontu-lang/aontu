@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds the hole and `each`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes. P9's first slice.
+
+- `spec/Aontu/Syntax.lean`: `Val` gains `hole`, the placeholder `_`.
+  Where no generator fills it, it admits every value, refuses none and
+  generates nothing (`Judge.hole`).
+- `spec/Aontu/Verdict.lean`: `resolveD` reads a term for the member a
+  generator's template is read for, and each hole reads as that member.
+  A spread is read for none, and a `filter` reads its condition for each
+  member it tries, so `filter(["A", "b"], upper(_))` is `["A"]`.
+- `each(d, t)` is the open list of `t` read for each member of `d`, in
+  the order `Val.members` reads them, and `nil` where `d` is no bag. A
+  nested `each` binds its own hole, and its data is read for the outer
+  member. The resolve functions recurse on their term with the member
+  beside it (`termination_by structural`).
+- `test/spec/def-call.tsv` gains 42 cases in rows x1809 to x1934, 11 of
+  them a `filter` whose condition holds the hole. Both ports answer every
+  row as the definition does but six, a wrong number of arguments
+  (#426). `spec/ledger.tsv` lists them, and its bound rises from 192 to
+  198. `spec/forms.tsv` gains `each` and the hole.
+- No row holds a marked list element (decision 18), `key()` in a
+  template, which both ports read as the member's key, or a hole
+  outside a template, which both ports fill from the call's peer.
+- The definition tutorial gains step 27, a list from a template, and
+  the language reference's `each` section cites the rule.
+
 ### The definition holds the component functions
 
 Definition, generated rows, the ledger and its bound in both runners,

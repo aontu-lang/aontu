@@ -142,7 +142,7 @@ def Val.doms : Val → List Dom
   | .list _ _ _ => [.list]
   | .nil => []
   | .neq [] | .any | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _ | .must _ _
-  | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ | .key | .call _ _ =>
+  | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ | .key | .call _ _ | .hole =>
     [.num, .str, .bool, .null, .map, .list]
 
 /-- The domain a value is in. -/

@@ -1100,6 +1100,8 @@ shows. Like `pack`, it waits for the model to settle and fires once; a
 `_` inside its template is its own to bind, never an enclosing
 generator's.
 
+The definition reads `each` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member of the data, in the order `Val.members` reads them, each hole in it standing for that member.
+
 ### The `_ & …` idiom: construction and bound
 
 `_` inside a generator's template binds the **source child**. Whether

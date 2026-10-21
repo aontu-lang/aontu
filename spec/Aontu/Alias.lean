@@ -1229,7 +1229,7 @@ theorem mem_superItems {items : List Val} {w : Val} :
 theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA := by
   induction h with
   | integer | float | biginteger | bigdecimal => exact .number
-  | number | string | anyString | boolean | mapKind | listKind | any => exact .any
+  | number | string | anyString | boolean | mapKind | listKind | any | hole => exact .any
   | nil => exact .nil
   | path => exact .path
   | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _

@@ -13,9 +13,11 @@
 # separator not yet settled. pick and sort, which never wait, follow from row
 # x597, upper and lower from row x816, translate from row x966, and esc and usc
 # from row x1068, super from row x1221, split from row x1332, rep from row
-# x1404, nom from row x1521, and the components of the component tree from
-# row x1677. A call on a name follows in rows z0 on, and a call handed a
-# pattern, re(p), in rows v0 on.
+# x1404, nom from row x1521, the components of the component tree from row
+# x1677, the generator each, its template read for each member of its data,
+# from row x1803, and a filter whose condition holds the hole, read for each
+# member it tries, from row x1902. A call on a name follows in rows z0 on,
+# and a call handed a pattern, re(p), in rows v0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -1826,6 +1828,132 @@ x1805	verdict	v: upper(folder("src"))	v: "SRC"	{"verdict":"error","opts":{"parti
 x1806	verdict	v: folder(join(["s", "rc"], ""))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid"}
 x1807	verdict	v: folder(join(["s", "rc"], ""))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
 x1808	verdict	v: folder(join(["s", "rc"], ""))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1809	verdict	v: each([1, 2], _)	v: [1, 2]	{"verdict":"valid"}
+x1810	verdict	v: each([1, 2], _)	v: [1, 2]	{"verdict":"valid","opts":{"noFill":true}}
+x1811	verdict	v: each([1, 2], _)	v: [1, 2]	{"verdict":"valid","opts":{"partial":true}}
+x1812	verdict	v: each([1, 2], _)	v: [1, 3]	{"verdict":"invalid"}
+x1813	verdict	v: each([1, 2], _)	v: [1, 3]	{"verdict":"invalid","opts":{"noFill":true}}
+x1814	verdict	v: each([1, 2], _)	v: [1, 3]	{"verdict":"invalid","opts":{"partial":true}}
+x1815	verdict	v: each([1, 2], _)	v: [1, 2, 3]	{"verdict":"valid"}
+x1816	verdict	v: each([1, 2], _)	v: [1, 2, 3]	{"verdict":"valid","opts":{"noFill":true}}
+x1817	verdict	v: each([1, 2], _)	v: [1, 2, 3]	{"verdict":"valid","opts":{"partial":true}}
+x1818	verdict	v: each([1, 2], _)	v: [1]	{"verdict":"valid"}
+x1819	verdict	v: each([1, 2], _)	v: [1]	{"verdict":"incomplete","opts":{"noFill":true}}
+x1820	verdict	v: each([1, 2], _)	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+x1821	verdict	v: each({"b": 2, "a": 1}, _)	v: [1, 2]	{"verdict":"valid"}
+x1822	verdict	v: each({"b": 2, "a": 1}, _)	v: [1, 2]	{"verdict":"valid","opts":{"noFill":true}}
+x1823	verdict	v: each({"b": 2, "a": 1}, _)	v: [1, 2]	{"verdict":"valid","opts":{"partial":true}}
+x1824	verdict	v: each(["x", "y"], upper(_))	v: ["X", "Y"]	{"verdict":"valid"}
+x1825	verdict	v: each(["x", "y"], upper(_))	v: ["X", "Y"]	{"verdict":"valid","opts":{"noFill":true}}
+x1826	verdict	v: each(["x", "y"], upper(_))	v: ["X", "Y"]	{"verdict":"valid","opts":{"partial":true}}
+x1827	verdict	v: each([1, 2], {"v": _})	v: [{"v": 1}, {"v": 2}]	{"verdict":"valid"}
+x1828	verdict	v: each([1, 2], {"v": _})	v: [{"v": 1}, {"v": 2}]	{"verdict":"valid","opts":{"noFill":true}}
+x1829	verdict	v: each([1, 2], {"v": _})	v: [{"v": 1}, {"v": 2}]	{"verdict":"valid","opts":{"partial":true}}
+x1830	verdict	v: each([{"p": 1}], (_) & ({"q": 2}))	v: [{"p": 1, "q": 2}]	{"verdict":"valid"}
+x1831	verdict	v: each([{"p": 1}], (_) & ({"q": 2}))	v: [{"p": 1, "q": 2}]	{"verdict":"valid","opts":{"noFill":true}}
+x1832	verdict	v: each([{"p": 1}], (_) & ({"q": 2}))	v: [{"p": 1, "q": 2}]	{"verdict":"valid","opts":{"partial":true}}
+x1833	verdict	v: each([{"p": 1}], {"q": 2})	v: [{"q": 2}]	{"verdict":"valid"}
+x1834	verdict	v: each([{"p": 1}], {"q": 2})	v: [{"q": 2}]	{"verdict":"valid","opts":{"noFill":true}}
+x1835	verdict	v: each([{"p": 1}], {"q": 2})	v: [{"q": 2}]	{"verdict":"valid","opts":{"partial":true}}
+x1836	verdict	v: each([{"p": 1}], {"q": 2})	v: [{"p": 1, "q": 2}]	{"verdict":"valid"}
+x1837	verdict	v: each([{"p": 1}], {"q": 2})	v: [{"p": 1, "q": 2}]	{"verdict":"valid","opts":{"noFill":true}}
+x1838	verdict	v: each([{"p": 1}], {"q": 2})	v: [{"p": 1, "q": 2}]	{"verdict":"valid","opts":{"partial":true}}
+x1839	verdict	v: each([1, 2], 7)	v: [7, 7]	{"verdict":"valid"}
+x1840	verdict	v: each([1, 2], 7)	v: [7, 7]	{"verdict":"valid","opts":{"noFill":true}}
+x1841	verdict	v: each([1, 2], 7)	v: [7, 7]	{"verdict":"valid","opts":{"partial":true}}
+x1842	verdict	v: each([], _)	v: []	{"verdict":"valid"}
+x1843	verdict	v: each([], _)	v: []	{"verdict":"valid","opts":{"noFill":true}}
+x1844	verdict	v: each([], _)	v: []	{"verdict":"valid","opts":{"partial":true}}
+x1845	verdict	v: each({}, _)	v: []	{"verdict":"valid"}
+x1846	verdict	v: each({}, _)	v: []	{"verdict":"valid","opts":{"noFill":true}}
+x1847	verdict	v: each({}, _)	v: []	{"verdict":"valid","opts":{"partial":true}}
+x1848	verdict	v: each("x", _)	v: []	{"verdict":"error"}
+x1849	verdict	v: each("x", _)	v: []	{"verdict":"error","opts":{"noFill":true}}
+x1850	verdict	v: each("x", _)	v: []	{"verdict":"error","opts":{"partial":true}}
+x1851	verdict	v: each(1, _)	v: []	{"verdict":"error"}
+x1852	verdict	v: each(1, _)	v: []	{"verdict":"error","opts":{"noFill":true}}
+x1853	verdict	v: each(1, _)	v: []	{"verdict":"error","opts":{"partial":true}}
+x1854	verdict	v: each(list, _)	v: []	{"verdict":"error"}
+x1855	verdict	v: each(list, _)	v: []	{"verdict":"error","opts":{"noFill":true}}
+x1856	verdict	v: each(list, _)	v: []	{"verdict":"error","opts":{"partial":true}}
+x1857	verdict	v: each(*[1], _)	v: [1]	{"verdict":"error"}
+x1858	verdict	v: each(*[1], _)	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+x1859	verdict	v: each(*[1], _)	v: [1]	{"verdict":"error","opts":{"partial":true}}
+x1860	verdict	v: each({"a"?: 1, "b": 2}, _)	v: [1, 2]	{"verdict":"valid"}
+x1861	verdict	v: each({"a"?: 1, "b": 2}, _)	v: [1, 2]	{"verdict":"valid","opts":{"noFill":true}}
+x1862	verdict	v: each({"a"?: 1, "b": 2}, _)	v: [1, 2]	{"verdict":"valid","opts":{"partial":true}}
+x1863	verdict	v: each([[1, 2], [3]], each(_, (_) + (1)))	v: [[2, 3], [4]]	{"verdict":"valid"}
+x1864	verdict	v: each([[1, 2], [3]], each(_, (_) + (1)))	v: [[2, 3], [4]]	{"verdict":"valid","opts":{"noFill":true}}
+x1865	verdict	v: each([[1, 2], [3]], each(_, (_) + (1)))	v: [[2, 3], [4]]	{"verdict":"valid","opts":{"partial":true}}
+x1866	verdict	v: each([1, 2], (_) & (string))	v: [1, 2]	{"verdict":"error"}
+x1867	verdict	v: each([1, 2], (_) & (string))	v: [1, 2]	{"verdict":"error","opts":{"noFill":true}}
+x1868	verdict	v: each([1, 2], (_) & (string))	v: [1, 2]	{"verdict":"error","opts":{"partial":true}}
+x1869	verdict	v: each([1, 2], (_) + (1))	v: [2, 3]	{"verdict":"valid"}
+x1870	verdict	v: each([1, 2], (_) + (1))	v: [2, 3]	{"verdict":"valid","opts":{"noFill":true}}
+x1871	verdict	v: each([1, 2], (_) + (1))	v: [2, 3]	{"verdict":"valid","opts":{"partial":true}}
+x1872	verdict	v: join(each(split("index-build", "-"), upper(_)), "_")	v: "INDEX_BUILD"	{"verdict":"valid"}
+x1873	verdict	v: join(each(split("index-build", "-"), upper(_)), "_")	v: "INDEX_BUILD"	{"verdict":"valid","opts":{"noFill":true}}
+x1874	verdict	v: join(each(split("index-build", "-"), upper(_)), "_")	v: "INDEX_BUILD"	{"verdict":"valid","opts":{"partial":true}}
+x1875	verdict	v: each(meta([1], {}), _)	v: [1]	{"verdict":"valid"}
+x1876	verdict	v: each(meta([1], {}), _)	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
+x1877	verdict	v: each(meta([1], {}), _)	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+x1878	verdict	v: each([meta(1, {})], _)	v: [1]	{"verdict":"valid"}
+x1879	verdict	v: each([meta(1, {})], _)	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
+x1880	verdict	v: each([meta(1, {})], _)	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+x1881	verdict	v: each({"b": {"x": 1}, "a": {"x": 2}}, (_) & ({"y": 3}))	v: [{"x": 2, "y": 3}, {"x": 1, "y": 3}]	{"verdict":"valid"}
+x1882	verdict	v: each({"b": {"x": 1}, "a": {"x": 2}}, (_) & ({"y": 3}))	v: [{"x": 2, "y": 3}, {"x": 1, "y": 3}]	{"verdict":"valid","opts":{"noFill":true}}
+x1883	verdict	v: each({"b": {"x": 1}, "a": {"x": 2}}, (_) & ({"y": 3}))	v: [{"x": 2, "y": 3}, {"x": 1, "y": 3}]	{"verdict":"valid","opts":{"partial":true}}
+x1884	verdict	v: each([1], [_, _])	v: [[1, 1]]	{"verdict":"valid"}
+x1885	verdict	v: each([1], [_, _])	v: [[1, 1]]	{"verdict":"valid","opts":{"noFill":true}}
+x1886	verdict	v: each([1], [_, _])	v: [[1, 1]]	{"verdict":"valid","opts":{"partial":true}}
+x1887	verdict	v: each([*(1) | (2)], _)	v: [1]	{"verdict":"valid"}
+x1888	verdict	v: each([*(1) | (2)], _)	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
+x1889	verdict	v: each([*(1) | (2)], _)	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+x1890	verdict	v: each([1, 2], *(_))	v: [1, 2]	{"verdict":"valid"}
+x1891	verdict	v: each([1, 2], *(_))	v: [1, 2]	{"verdict":"valid","opts":{"noFill":true}}
+x1892	verdict	v: each([1, 2], *(_))	v: [1, 2]	{"verdict":"valid","opts":{"partial":true}}
+x1893	verdict	v: each([1], each([2], _))	v: [[2]]	{"verdict":"valid"}
+x1894	verdict	v: each([1], each([2], _))	v: [[2]]	{"verdict":"valid","opts":{"noFill":true}}
+x1895	verdict	v: each([1], each([2], _))	v: [[2]]	{"verdict":"valid","opts":{"partial":true}}
+x1896	verdict	v: each([1, 2])	v: []	{"verdict":"error"}
+x1897	verdict	v: each([1, 2])	v: []	{"verdict":"error","opts":{"noFill":true}}
+x1898	verdict	v: each([1, 2])	v: []	{"verdict":"error","opts":{"partial":true}}
+x1899	verdict	v: each([1, 2], _, 3)	v: []	{"verdict":"error"}
+x1900	verdict	v: each([1, 2], _, 3)	v: []	{"verdict":"error","opts":{"noFill":true}}
+x1901	verdict	v: each([1, 2], _, 3)	v: []	{"verdict":"error","opts":{"partial":true}}
+x1902	verdict	v: filter(["A", "b"], upper(_))	v: ["A"]	{"verdict":"valid"}
+x1903	verdict	v: filter(["A", "b"], upper(_))	v: ["A"]	{"verdict":"valid","opts":{"noFill":true}}
+x1904	verdict	v: filter(["A", "b"], upper(_))	v: ["A"]	{"verdict":"valid","opts":{"partial":true}}
+x1905	verdict	v: filter(["A", "b"], upper(_))	v: []	{"verdict":"valid"}
+x1906	verdict	v: filter(["A", "b"], upper(_))	v: []	{"verdict":"incomplete","opts":{"noFill":true}}
+x1907	verdict	v: filter(["A", "b"], upper(_))	v: []	{"verdict":"valid","opts":{"partial":true}}
+x1908	verdict	v: filter(["A", "b"], (_) & (upper(_)))	v: ["A"]	{"verdict":"valid"}
+x1909	verdict	v: filter(["A", "b"], (_) & (upper(_)))	v: ["A"]	{"verdict":"valid","opts":{"noFill":true}}
+x1910	verdict	v: filter(["A", "b"], (_) & (upper(_)))	v: ["A"]	{"verdict":"valid","opts":{"partial":true}}
+x1911	verdict	v: filter({"a": "A", "b": "b"}, upper(_))	v: {"a": "A"}	{"verdict":"valid"}
+x1912	verdict	v: filter({"a": "A", "b": "b"}, upper(_))	v: {"a": "A"}	{"verdict":"valid","opts":{"noFill":true}}
+x1913	verdict	v: filter({"a": "A", "b": "b"}, upper(_))	v: {"a": "A"}	{"verdict":"valid","opts":{"partial":true}}
+x1914	verdict	v: filter(["a", "B"], lower(_))	v: ["a"]	{"verdict":"valid"}
+x1915	verdict	v: filter(["a", "B"], lower(_))	v: ["a"]	{"verdict":"valid","opts":{"noFill":true}}
+x1916	verdict	v: filter(["a", "B"], lower(_))	v: ["a"]	{"verdict":"valid","opts":{"partial":true}}
+x1917	verdict	v: filter(["A", "b"], (upper(_)) | ("b"))	v: ["A", "b"]	{"verdict":"valid"}
+x1918	verdict	v: filter(["A", "b"], (upper(_)) | ("b"))	v: ["A", "b"]	{"verdict":"valid","opts":{"noFill":true}}
+x1919	verdict	v: filter(["A", "b"], (upper(_)) | ("b"))	v: ["A", "b"]	{"verdict":"valid","opts":{"partial":true}}
+x1920	verdict	v: filter([1, 2], _)	v: [1, 2]	{"verdict":"valid"}
+x1921	verdict	v: filter([1, 2], _)	v: [1, 2]	{"verdict":"valid","opts":{"noFill":true}}
+x1922	verdict	v: filter([1, 2], _)	v: [1, 2]	{"verdict":"valid","opts":{"partial":true}}
+x1923	verdict	v: filter([{"n": "A"}, {"n": "b"}], {"n": upper(_)})	v: []	{"verdict":"valid"}
+x1924	verdict	v: filter([{"n": "A"}, {"n": "b"}], {"n": upper(_)})	v: []	{"verdict":"valid","opts":{"noFill":true}}
+x1925	verdict	v: filter([{"n": "A"}, {"n": "b"}], {"n": upper(_)})	v: []	{"verdict":"valid","opts":{"partial":true}}
+x1926	verdict	v: filter([0, 1, 2], mul(_, 2))	v: [0]	{"verdict":"valid"}
+x1927	verdict	v: filter([0, 1, 2], mul(_, 2))	v: [0]	{"verdict":"valid","opts":{"noFill":true}}
+x1928	verdict	v: filter([0, 1, 2], mul(_, 2))	v: [0]	{"verdict":"valid","opts":{"partial":true}}
+x1929	verdict	v: filter({"a": 0, "b": 1}, mul(_, 2))	v: {"a": 0}	{"verdict":"valid"}
+x1930	verdict	v: filter({"a": 0, "b": 1}, mul(_, 2))	v: {"a": 0}	{"verdict":"valid","opts":{"noFill":true}}
+x1931	verdict	v: filter({"a": 0, "b": 1}, mul(_, 2))	v: {"a": 0}	{"verdict":"valid","opts":{"partial":true}}
+x1932	verdict	v: each([[0, 1], [2]], filter(_, mul(_, 2)))	v: [[0], []]	{"verdict":"valid"}
+x1933	verdict	v: each([[0, 1], [2]], filter(_, mul(_, 2)))	v: [[0], []]	{"verdict":"valid","opts":{"noFill":true}}
+x1934	verdict	v: each([[0, 1], [2]], filter(_, mul(_, 2)))	v: [[0], []]	{"verdict":"valid","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}

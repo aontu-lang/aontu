@@ -1723,11 +1723,15 @@ $ echo $?
 
 `any` admits every value and refuses none, and `nil` refuses every
 value and admits none, each by its one rule. They're the [top](unification.md) and the
-[bottom](unification.md) of the [lattice](unification.md):
+[bottom](unification.md) of the [lattice](unification.md). The hole `_`,
+which step 27 reads, admits every value too where nothing fills it:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
   | any {j : Data} : Judge env root true .any j
+  /-- `_`, a hole no generator filled, admits every value, as `any`
+  does: the value is the one that fills it. -/
+  | hole {j : Data} : Judge env root true .hole j
   | nil {j : Data} : Judge env root false .nil j
 ```
 
@@ -3809,7 +3813,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
-  | .key, _ | .call _ _, _ => False
+  | .key, _ | .call _ _, _ | .hole, _ => False
 ```
 
 Read `Gen env root v j` as *`v` generates `j`*. A literal generates
@@ -4975,39 +4979,44 @@ def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
 
 and a term reads with its selections made, where one whose scrutinee
 generates nothing stays, and generates nothing, as a `match` on an
-unfilled hole does:
+unfilled hole does. The reading carries `b`, the member a hole in a
+template reads as, which step 27 covers:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- A term with its selections made: each `match` whose scrutinee
-generates a value is the result its arms select for it, and each
-`filter` whose source generates a container is the members its
-condition admits, as a term, or `nil` where the source generates a
-scalar, which has no members. One whose scrutinee or source generates
-nothing stays, and generates nothing. A call, its arguments resolved,
-is the term `callTerm` makes of it. -/
-def resolveD (ds : Decls) : Val → Val
+/-- A term with its selections made, `b` the member a generator's
+template is read for, which each hole in the template stands for: each
+`match` whose scrutinee generates a value is the result its arms select
+for it, and each `filter` whose source generates a container is the
+members its condition admits, as a term, or `nil` where the source
+generates a scalar, which has no members. One whose scrutinee or source
+generates nothing stays, and generates nothing. An `each` is the list of
+its template read for each member of its data, in the order `Val.members`
+reads them, and `nil` where the data is no bag. Any other call, its
+arguments resolved, is the term `callTerm` makes of it. A spread has no
+hole, and a `filter`'s condition and a template are read for their own
+members, so none of them is read for `b`. -/
+def resolveD (ds : Decls) (b : Option Val) : Val → Val
   | .select s arms d =>
-    let s' := resolveD ds s
-    let arms' := resolvePairs ds arms
-    let d' := resolveSpread ds d
+    let s' := resolveD ds b s
+    let arms' := resolvePairs ds b arms
+    let d' := resolveSpread ds b d
     match genD ds s' with
     | some x => if callPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
     | none => .select s' arms' d'
   | .filter s c =>
-    let s' := resolveD ds s
-    let c' := resolveD ds c
+    let s' := resolveD ds b s
     match genD ds s' with
-    | some (.map fs) => (Data.map (fs.filter fun m => checkR ds c' m.2)).term
-    | some (.list xs) => (Data.list (xs.filter fun x => checkR ds c' x)).term
+    | some (.map fs) => (Data.map (fs.filter fun m => checkR ds (resolveD ds (some m.2.term) c) m.2)).term
+    | some (.list xs) => (Data.list (xs.filter fun x => checkR ds (resolveD ds (some x.term) c) x)).term
     | some _ => .nil
-    | none => .filter s' c'
+    | none => .filter s' (resolveD ds none c)
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- How a document reads: its term expanded, with its selections made. -/
-def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds (ds.read S)
+def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (ds.read S)
 ```
 
 Step 14's `Vet` reads the schema so, and three theorems say what the
@@ -5031,10 +5040,11 @@ theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm d
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- A `filter` over a list keeps the elements its condition admits, in
-their order. -/
-theorem resolveD_filter_list {ds : Decls} {s c : Val} {xs : List Data}
-    (h : genD ds (resolveD ds s) = some (.list xs)) :
-    resolveD ds (.filter s c) = (Data.list (xs.filter fun x => checkR ds (resolveD ds c) x)).term := by
+their order, the condition read for each element it tries. -/
+theorem resolveD_filter_list {ds : Decls} {b : Option Val} {s c : Val} {xs : List Data}
+    (h : genD ds (resolveD ds b s) = some (.list xs)) :
+    resolveD ds b (.filter s c) =
+      (Data.list (xs.filter fun x => checkR ds (resolveD ds (some x.term) c) x)).term := by
   simp [resolveD, h]
 ```
 
@@ -5115,6 +5125,7 @@ inductive Val.Checkable : Val → Prop
   | len {c : Val} : Checkable c → Checkable (.len c)
   | unique {k : Option String} : Checkable (.unique k)
   | any : Checkable .any
+  | hole : Checkable .hole
   | nil : Checkable .nil
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
       (∀ k o v, (k, o, v) ∈ fs → Checkable v) → (∀ s, spread = some s → Checkable s) →
@@ -6505,7 +6516,84 @@ closes a node. The rows are x1677 on, and both engines answer every one
 as the definition does, but for three calls with the wrong number of
 arguments, which #426 tracks.
 
-## 27. What the definition doesn't say yet
+## 27. A list from a template
+
+`each(d, t)` makes one list element for each member of `d`, the
+template `t` read for that member, with the hole `_` standing for it.
+Write `each.aontu`:
+
+<!-- test: scenario each -->
+<!-- test: file each.aontu -->
+```aontu
+names: each(["web" "auth"], upper(_))
+files: each(["web" "auth"], { path:_ + ".ts" })
+ports: each([port:80], _ & { tcp:true })
+values: each({ b:2 a:1 }, _)
+loud: filter(["WEB" "auth"], upper(_))
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu each.aontu
+{
+  "files": [
+    {
+      "path": "web.ts"
+    },
+    {
+      "path": "auth.ts"
+    }
+  ],
+  "loud": [
+    "WEB"
+  ],
+  "names": [
+    "WEB",
+    "AUTH"
+  ],
+  "ports": [
+    {
+      "port": 80,
+      "tcp": true
+    }
+  ],
+  "values": [
+    1,
+    2
+  ]
+}
+```
+
+`resolveD` reads every term for a member, `b`, which a hole reads as,
+and an `each` reads its template once for each member of its data:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+    | .each, [d, t] =>
+      match (normaliseD ds (resolveD ds b d)).members ds with
+      | some ms => .list (ms.map fun m => resolveD ds (some m) t) none false
+      | none => .nil
+```
+
+So the template replaces the member, unless the template names the
+hole: `files` builds new maps, and `ports` meets each member with
+`{ tcp:true }`. A map's members come in key order, as `values`
+shows. A nested `each` binds its own hole, and an `each` over a string
+or a number is an error. A spread has no hole. A `filter` binds its
+own: it reads its condition once for each member it tries, so `loud`
+keeps `"WEB"`, which `upper(_)` doesn't change.
+
+Outside a template, a hole no generator fills admits every value, as
+`any` does. Both engines also let a call's peer fill a hole in the
+call, so `upper(_) & "a"` is `"A"`, and the definition doesn't hold
+that yet. Both engines read `key()` in a template as the member's key,
+which waits on `key()` at any position. The rows are x1809 on, and
+both engines answer every one as the definition does, but for two
+calls with the wrong number of arguments, which #426 tracks.
+
+## 28. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -6513,7 +6601,7 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
 steps 20 to 26 don't walk through, `key()` anywhere but in a spread, and
-generation with `each`, `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
+generation with `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 

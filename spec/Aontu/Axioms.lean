@@ -107,6 +107,14 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.resolveD_filter_scalar
 
+/-- info: 'Aontu.resolveD_filter_checkableA' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.resolveD_filter_checkableA
+
+/-- info: 'Aontu.expandF_term' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.expandF_term
+
 /-- info: 'Aontu.Data.wf_iff' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.Data.wf_iff
