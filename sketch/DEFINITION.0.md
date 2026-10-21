@@ -319,7 +319,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 127 rows under twelve causes: decisions 3 and 4 of §2, under
+ledger holds 129 rows under thirteen causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -337,7 +337,9 @@ under the `defaults` profile, which the ports do not compare, where the
 ports move (#424); and a call no reading makes, with the wrong number
 of arguments or a non-number negated, which the definition reads as an
 error of the schema and the ports as invalid, where the ports move
-(#426).
+(#426); and a `+` that waits inside a `match` pattern, which the
+definition reads as refusing, a call refusing every value, where both
+ports wait and the definition moves (#432).
 The nine rows of #384, a spread on the general side compared with a
 sealed specific side's missing spread as `any`, retired on 2026-10-20
 when the ports built ruling 12 of §7.

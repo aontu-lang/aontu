@@ -80,23 +80,38 @@ def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
   | [], d => d.getD .nil
   | (p, r) :: arms, d => if checkR ds p x then r else selectArm ds x arms d
 
-/-- The number a term is, the riders around it read through, and a lone
-preference `*n` too, whose normal form is `*n | super(n)`. -/
-def Val.number? : Val → Option Number
+/-- A lone preference in normal form, `*x | super(x)`, read as `x`. -/
+def Val.lonePref : Val → Val
+  | .or [(r, x), (0, s)] => if 0 < r && s.beq x.super then x else .or [(r, x), (0, s)]
+  | v => v
+
+/-- A term with its riders and a lone `*` read through. -/
+def Val.unwrap : Val → Val
+  | .ride _ v _ => v.unwrap
+  | .pref _ x => x.unwrap
+  | v => v
+
+/-- A term as a call reads its argument: its riders and a lone
+preference read through, the preference's normal form too, and the
+riders inside it. -/
+def Val.operand (v : Val) : Val := v.unwrap.lonePref.unwrap
+
+/-- The number a term is, read as a call reads its argument. -/
+def Val.number? (v : Val) : Option Number :=
+  match v.operand with
   | .lit (.num n) => some n
-  | .ride _ v _ => v.number?
-  | .or [(r, .lit (.num n)), (0, s)] => if 0 < r && s.beq (Val.lit (.num n)).super then some n else none
   | _ => none
 
 /-- The members a fold reads in a bag's normal form, the riders around
 it read through: a list's elements in order, and a map's members in key
-order, but a marked one and an optional one whose value generates
-nothing, which are no part of the output. -/
-def Val.members (ds : Decls) : Val → Option (List Val)
-  | .ride _ v _ => v.members ds
+order, but an optional one whose value generates nothing, and a marked
+one, which is no part of the output, unless the bag carries a mark
+itself, which lifts its members' marks. -/
+def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val)
+  | .ride k v _ => v.members ds (lifted || decide (k = .type) || decide (k = .hide))
   | .list items _ _ => some items
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
-      if m.2.2.marked || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
+      if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
   | _ => none
 
 /-- What `+` makes of its operands: the term the sum is, a sum no leaf
@@ -106,16 +121,6 @@ inductive Plus where
   | refused
   | waits
 
-/-- A lone preference in normal form, `*x | super(x)`, read as `x`. -/
-def Val.lonePref : Val → Val
-  | .or [(r, x), (0, s)] => if 0 < r && s.beq x.super then x else .or [(r, x), (0, s)]
-  | v => v
-
-/-- An operand of `+`, its riders and a lone preference read through. -/
-def Val.operand : Val → Val
-  | .ride _ v _ => v.operand
-  | .pref _ x => x.operand
-  | v => v.lonePref
 
 /-- The text `+` writes for a scalar beside a string; `null` has none. -/
 def Scalar.plusText? : Scalar → Option String
@@ -182,6 +187,52 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
     | none => .call f args
 
 mutual
+/-- Whether a term holds a call, at any depth: a `+` or a `join` that
+waits, or a call no reading made. -/
+def Val.holdsCall : Val → Bool
+  | .call _ _ => true
+  | .ride _ v _ => v.holdsCall
+  | .len c => c.holdsCall
+  | .map fs spread _ => callFields fs || callSpread spread
+  | .list items spread _ => callItems items || callSpread spread
+  | .or arms => callArms arms
+  | .pref _ x => x.holdsCall
+  | .meet a b => a.holdsCall || b.holdsCall
+  | .nof n cs => n.holdsCall || callItems cs
+  | .must c _ => c.holdsCall
+  | .when c t e => c.holdsCall || t.holdsCall || callSpread e
+  | .contains c n => c.holdsCall || n.holdsCall
+  | .rest t cs => t.holdsCall || callCovers cs
+  | .select s arms d => s.holdsCall || callPairs arms || callSpread d
+  | .filter s c => s.holdsCall || c.holdsCall
+  | _ => false
+
+def callFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.holdsCall || callFields fs
+
+def callItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.holdsCall || callItems vs
+
+def callSpread : Option Val → Bool
+  | none => false
+  | some s => s.holdsCall
+
+def callArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.holdsCall || callArms arms
+
+def callPairs : List (Val × Val) → Bool
+  | [] => false
+  | (p, r) :: ps => p.holdsCall || r.holdsCall || callPairs ps
+
+def callCovers : List Cover → Bool
+  | [] => false
+  | (c, k, m) :: cs => callSpread c || callSpread k || callSpread m || callCovers cs
+end
+
+mutual
 /-- A term with its selections made: each `match` whose scrutinee
 generates a value is the result its arms select for it, and each
 `filter` whose source generates a container is the members its
@@ -195,7 +246,7 @@ def resolveD (ds : Decls) : Val → Val
     let arms' := resolvePairs ds arms
     let d' := resolveSpread ds d
     match genD ds s' with
-    | some x => selectArm ds x arms' d'
+    | some x => if callPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
     | none => .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds s
@@ -371,16 +422,19 @@ theorem Val.lonePref_checkableA {v : Val} (h : v.CheckableA) : v.lonePref.Checka
     · exact h
   · exact h
 
-theorem Val.operand_checkableA : ∀ {v : Val}, v.CheckableA → v.operand.CheckableA
-  | .ride _ v _, .ride h => show v.operand.CheckableA from Val.operand_checkableA h
-  | .pref _ x, .pref h => show x.operand.CheckableA from Val.operand_checkableA h
+theorem Val.unwrap_checkableA : ∀ {v : Val}, v.CheckableA → v.unwrap.CheckableA
+  | .ride _ v _, .ride h => show v.unwrap.CheckableA from Val.unwrap_checkableA h
+  | .pref _ x, .pref h => show x.unwrap.CheckableA from Val.unwrap_checkableA h
   | .integer, h | .float, h | .biginteger, h | .bigdecimal, h | .number, h | .string, h
   | .anyString, h | .boolean, h | .mapKind, h | .listKind, h | .lit _, h | .min _, h
   | .max _, h | .above _, h | .beneath _, h | .neq _, h | .mulof _, h | .len _, h
   | .unique _, h | .re _, h | .format _, h | .any, h | .nil, h | .map _ _ _, h
   | .list _ _ _, h | .or _, h | .meet _ _, h | .alias _, h | .path _, h | .nof _ _, h
   | .must _ _, h | .when _ _ _, h | .contains _ _, h | .rest _ _, h | .select _ _ _, h
-  | .filter _ _, h | .key, h | .call _ _, h => Val.lonePref_checkableA h
+  | .filter _ _, h | .key, h | .call _ _, h => h
+
+theorem Val.operand_checkableA {v : Val} (h : v.CheckableA) : v.operand.CheckableA :=
+  Val.unwrap_checkableA (Val.lonePref_checkableA (Val.unwrap_checkableA h))
 
 theorem plusOf_checkableA {a b v : Val} (ha : a.CheckableA) (hb : b.CheckableA)
     (h : plusOf a b = .made v) : v.CheckableA := by
@@ -490,7 +544,8 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   | @selectKey arms d _ _ _ ihp ihr ihd =>
     simp only [resolveD]
     show (match genD ds .key with
-      | some x => selectArm ds x (resolvePairs ds arms) (resolveSpread ds d)
+      | some x => if callPairs (resolvePairs ds arms) then Val.select .key (resolvePairs ds arms)
+          (resolveSpread ds d) else selectArm ds x (resolvePairs ds arms) (resolveSpread ds d)
       | none => .select .key (resolvePairs ds arms) (resolveSpread ds d)).CheckableA
     have hg : genD ds .key = none := rfl
     rw [hg]
@@ -504,15 +559,25 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   | @selectLit sc arms d _ _ _ ihp ihr ihd =>
     simp only [resolveD]
     show (match genD ds (.lit sc) with
-      | some x => selectArm ds x (resolvePairs ds arms) (resolveSpread ds d)
+      | some x => if callPairs (resolvePairs ds arms) then Val.select (.lit sc) (resolvePairs ds arms)
+          (resolveSpread ds d) else selectArm ds x (resolvePairs ds arms) (resolveSpread ds d)
       | none => .select (.lit sc) (resolvePairs ds arms) (resolveSpread ds d)).CheckableA
     have hg : genD ds (.lit sc) = some sc.data := rfl
     rw [hg]
-    refine selectArm_checkableA (fun p r hm => ?_) (fun e he => ?_)
-    · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_resolvePairs hm
-      exact ihr p₀ r₀ hm₀
-    · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
-      exact ihd e₀ he₀
+    dsimp only
+    split
+    · refine .selectLit (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+      · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_resolvePairs hm
+        exact ihp p₀ r₀ hm₀
+      · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_resolvePairs hm
+        exact ihr p₀ r₀ hm₀
+      · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
+        exact ihd e₀ he₀
+    · refine selectArm_checkableA (fun p r hm => ?_) (fun e he => ?_)
+      · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_resolvePairs hm
+        exact ihr p₀ r₀ hm₀
+      · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
+        exact ihd e₀ he₀
   | @call f args _ ih =>
     simp only [resolveD]
     refine callTerm_checkableA hd fun a ha => ?_
@@ -750,6 +815,7 @@ def Val.illFormed : Val → Bool
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call _ _ => true
+  | .select _ arms _ => illPats arms
   | _ => false
 
 /-- A conjunct of a meet read as `illFormed` reads a term, the meet it
@@ -764,6 +830,7 @@ def illChain : Val → Bool
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call _ _ => true
+  | .select _ arms _ => illPats arms
   | _ => false
 
 def illFields : List (String × Bool × Val) → Bool
@@ -777,6 +844,10 @@ def illItems : List Val → Bool
 def illArms : List (ℕ × Val) → Bool
   | [] => false
   | (_, a) :: arms => a.illFormed || illArms arms
+
+def illPats : List (Val × Val) → Bool
+  | [] => false
+  | (p, _) :: ps => p.illFormed || illPats ps
 end
 
 mutual

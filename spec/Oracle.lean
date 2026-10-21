@@ -1791,7 +1791,8 @@ an argument or a member, and an `ident()` inside a call, follow from row
 x273, and `+` from row x300: two numbers by `add`, a string beside a
 scalar as the two texts, two lists, two booleans, the riders and a lone
 preference read through, and the operands it does not take, where it
-waits. -/
+waits. A bag a mark lifts, a rider inside a lone preference, and a
+`match` whose pattern holds a call follow from row x480. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -1924,7 +1925,16 @@ def callCases : List (Val × Data) :=
     (p (p (str "a") (str "b")) (int 1), js "ab1"), (p (p (int 1) (int 2)) (str "a"), js "3a"),
     (p (.meet (int 1) .integer) (int 1), j 2), (p (str "") (str ""), js ""),
     (p (c .add [int 1, int 2]) (int 1), j 4), (p (c .sum [lst [int 1, int 2]]) (str "a"), js "3a"),
-    (p (p .integer (int 1)) (str "a"), j 1), (p (.meet (int 1) (int 2)) .integer, j 1)]
+    (p (p .integer (int 1)) (str "a"), j 1), (p (.meet (int 1) (int 2)) .integer, j 1),
+    (c .sum [.ride .type (mp [("a", .ride .hide (int 1) []), ("b", int 2)]) []], j 3),
+    (c .sum [.ride .hide (mp [("a", .ride .hide (int 1) []), ("b", int 2)]) []], j 3),
+    (c .sum [.ride .metadata (.ride .type (mp [("a", .ride .hide (int 1) []), ("b", int 2)]) []) []], j 3),
+    (c .add [.pref 1 (.ride .metadata (int 1) []), int 2], j 3),
+    (c .sum [lst [.pref 1 (.ride .metadata (int 1) []), int 2]], j 3),
+    (p (.pref 1 (.ride .metadata (int 1) [])) (int 1), j 2),
+    (.select (int 1) [(p .integer (int 1), str "yes")] (some (str "no")), js "no"),
+    (.select (int 2) [(p (int 1) (int 1), str "yes")] (some (str "no")), js "yes"),
+    (.select (int 1) [(c .add [.integer, int 1], str "yes")] (some (str "no")), js "no")]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in

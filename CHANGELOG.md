@@ -33,6 +33,17 @@ engine changes.
   part. Its sum of an absence waits on `maybe`.
 - `test/spec/def-call.tsv` gains 60 sums, rows x300 on, which both
   ports answer as the definition does, and `spec/forms.tsv` gains `+`.
+- Review on #430 adds three rules, each as both ports answer:
+  - A bag that carries a mark lifts its members' marks, so
+    `sum(type({a: hide(1), b: 2}))` is `3`.
+  - A rider inside a lone preference reads through, so
+    `add(*(meta(1, {})), 2)` is `3`.
+  - A `match` whose pattern holds a call stays unmade, so an unmade
+    call there is an error.
+- A `+` that waits inside a `match` pattern still reads as refusing,
+  where both ports wait (#432). Rows x480 on hold the three rules and
+  this case, and `spec/ledger.tsv` lists the case with the definition
+  moving, its bound rising from 127 to 129.
 - The definition tutorial gains step 21, sums with `+`, and the
   language reference's `+` section cites the rules.
 

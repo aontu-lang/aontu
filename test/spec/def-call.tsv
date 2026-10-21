@@ -491,6 +491,33 @@ x476	verdict	v: ((integer) + (1)) + ("a")	v: 1	{"verdict":"valid","opts":{"parti
 x477	verdict	v: ((1) & (2)) + (integer)	v: 1	{"verdict":"error"}
 x478	verdict	v: ((1) & (2)) + (integer)	v: 1	{"verdict":"error","opts":{"noFill":true}}
 x479	verdict	v: ((1) & (2)) + (integer)	v: 1	{"verdict":"error","opts":{"partial":true}}
+x480	verdict	v: sum(type({"a": hide(1), "b": 2}))	v: 3	{"verdict":"valid"}
+x481	verdict	v: sum(type({"a": hide(1), "b": 2}))	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x482	verdict	v: sum(type({"a": hide(1), "b": 2}))	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x483	verdict	v: sum(hide({"a": hide(1), "b": 2}))	v: 3	{"verdict":"valid"}
+x484	verdict	v: sum(hide({"a": hide(1), "b": 2}))	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x485	verdict	v: sum(hide({"a": hide(1), "b": 2}))	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x486	verdict	v: sum(meta(type({"a": hide(1), "b": 2}), {}))	v: 3	{"verdict":"valid"}
+x487	verdict	v: sum(meta(type({"a": hide(1), "b": 2}), {}))	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x488	verdict	v: sum(meta(type({"a": hide(1), "b": 2}), {}))	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x489	verdict	v: add(*(meta(1, {})), 2)	v: 3	{"verdict":"valid"}
+x490	verdict	v: add(*(meta(1, {})), 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x491	verdict	v: add(*(meta(1, {})), 2)	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x492	verdict	v: sum([*(meta(1, {})), 2])	v: 3	{"verdict":"valid"}
+x493	verdict	v: sum([*(meta(1, {})), 2])	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x494	verdict	v: sum([*(meta(1, {})), 2])	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x495	verdict	v: (*(meta(1, {}))) + (1)	v: 2	{"verdict":"valid"}
+x496	verdict	v: (*(meta(1, {}))) + (1)	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+x497	verdict	v: (*(meta(1, {}))) + (1)	v: 2	{"verdict":"valid","opts":{"partial":true}}
+x498	verdict	v: match(1, (integer) + (1), "yes", "no")	v: "no"	{"verdict":"valid"}
+x499	verdict	v: match(1, (integer) + (1), "yes", "no")	v: "no"	{"verdict":"valid","opts":{"noFill":true}}
+x500	verdict	v: match(1, (integer) + (1), "yes", "no")	v: "no"	{"verdict":"valid","opts":{"partial":true}}
+x501	verdict	v: match(2, (1) + (1), "yes", "no")	v: "yes"	{"verdict":"valid"}
+x502	verdict	v: match(2, (1) + (1), "yes", "no")	v: "yes"	{"verdict":"valid","opts":{"noFill":true}}
+x503	verdict	v: match(2, (1) + (1), "yes", "no")	v: "yes"	{"verdict":"valid","opts":{"partial":true}}
+x504	verdict	v: match(1, add(integer, 1), "yes", "no")	v: "no"	{"verdict":"error"}
+x505	verdict	v: match(1, add(integer, 1), "yes", "no")	v: "no"	{"verdict":"error","opts":{"noFill":true}}
+x506	verdict	v: match(1, add(integer, 1), "yes", "no")	v: "no"	{"verdict":"error","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}

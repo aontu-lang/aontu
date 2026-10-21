@@ -4201,6 +4201,7 @@ def Val.illFormed : Val → Bool
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call _ _ => true
+  | .select _ arms _ => illPats arms
   | _ => false
 ```
 
@@ -4961,7 +4962,7 @@ def resolveD (ds : Decls) : Val → Val
     let arms' := resolvePairs ds arms
     let d' := resolveSpread ds d
     match genD ds s' with
-    | some x => selectArm ds x arms' d'
+    | some x => if callPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
     | none => .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds s
@@ -5795,16 +5796,18 @@ in `spec/Aontu/Verdict.lean`, prove that `least` answers a member and
 that no member is below it.
 
 The members are the ones the output would hold: a list's elements in
-order, and a map's members in key order, but neither a marked member
-nor an optional one whose value generates nothing:
+order, and a map's members in key order, but neither an optional member
+whose value generates nothing nor a marked one, unless the bag carries
+a mark itself, which lifts its members' marks, so
+`sum(type({a: hide(1), b: 2}))` is `3`:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def Val.members (ds : Decls) : Val → Option (List Val)
-  | .ride _ v _ => v.members ds
+def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val)
+  | .ride k v _ => v.members ds (lifted || decide (k = .type) || decide (k = .hide))
   | .list items _ _ => some items
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
-      if m.2.2.marked || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
+      if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
   | _ => none
 ```
 
@@ -5897,6 +5900,13 @@ def Val.callAt : Val → Bool
 
 A sum no leaf holds, `9007199254740992 + 1`, is `nil`, so `vet` reads
 it as an error, as it reads `add(9007199254740992, 1)`.
+
+Inside a trial the definition doesn't wait yet. A `match` whose pattern
+is a waiting `+` passes over the pattern, since `Judge` refuses every
+value at a call, where both engines wait on the pattern, which #432
+tracks. A pattern that holds a call keeps the `match` unmade, so
+`match(1, add(integer, 1), "yes", "no")` is an error, as both engines
+answer.
 
 The sums have rows of their own, x300 on in `test/spec/def-call.tsv`,
 and both engines answer every one as the definition does. The
