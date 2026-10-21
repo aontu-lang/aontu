@@ -1,5 +1,6 @@
 import Aontu.Output
 import Aontu.Alias
+import Aontu.Text
 
 /-!
 # The verdicts
@@ -398,6 +399,20 @@ def translateOf (ds : Decls) (s fr : Val) (to : Option Val) : Made :=
   | some src, some f, some t => .made (.lit (.str (String.mk (src.toList.flatMap (translateChar f t)))))
   | _, _, _ => .refused
 
+/-- What `esc` (`enc`) or `usc` makes of its text and its variant, each a
+string in normal form, its riders read through, the variant C and JSON
+in double quotes where none is given: the text written in the
+convention, or read back out of it (`Aontu/Text.lean`); a refusal where
+an argument is no string, the variant names no convention, or `usc`'s
+text has no original. -/
+def escOf (ds : Decls) (enc : Bool) (s : Val) (v : Option Val) : Made :=
+  match (normaliseD ds s).string?,
+      (v.map fun v => ((normaliseD ds v).string?).bind Escape.ofName?).getD (some .dq) with
+  | some t, some e =>
+    if enc then .made (.lit (.str (String.mk (e.esc t.toList))))
+    else ((e.usc t.toList).map fun cs => .made (.lit (.str (String.mk cs)))).getD .refused
+  | _, _ => .refused
+
 /-- The number a call computes from its arguments: a fold from the
 numbers its one bag's members are, and any other function from the
 numbers its arguments are, each read in its normal form. -/
@@ -420,8 +435,9 @@ def Made.term (ds : Decls) (f : Fn) (args : List Val) : Made → Val
 /-- The term a call is, its arguments resolved: a `+` what `plusOf` makes
 of its operands' normal forms, each read through its riders and a lone
 preference first, as `*1 + 1` is `2`; a `join`, a `pick`, a `sort`, an
-`upper`, a `lower` and a `translate` what its function's own reading
-makes, `joinOf`, `pickOf`, `sortOf`, `caseOf` and `translateOf`; any
+`upper`, a `lower`, a `translate`, an `esc` and a `usc` what its
+function's own reading makes, `joinOf`, `pickOf`, `sortOf`, `caseOf`,
+`translateOf` and `escOf`; any
 other call the number `callValue` computes, where it computes one, and
 itself otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
@@ -441,6 +457,10 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .lower, [s, a, n] => (caseOf ds false s (some a) (some n)).term ds f args
   | .translate, [s, fr] => (translateOf ds s fr none).term ds f args
   | .translate, [s, fr, t] => (translateOf ds s fr (some t)).term ds f args
+  | .esc, [s] => (escOf ds true s none).term ds f args
+  | .esc, [s, v] => (escOf ds true s (some v)).term ds f args
+  | .usc, [s] => (escOf ds false s none).term ds f args
+  | .usc, [s, v] => (escOf ds false s (some v)).term ds f args
   | _, _ =>
     match callValue ds f args with
     | some n => .lit (.num n)
@@ -817,6 +837,19 @@ theorem translateOf_checkableA {ds : Decls} {s fr v : Val} {to : Option Val}
     exact .lit
   · cases h
 
+theorem escOf_checkableA {ds : Decls} {enc : Bool} {s v : Val} {var : Option Val}
+    (h : escOf ds enc s var = .made v) : v.CheckableA := by
+  unfold escOf at h
+  split at h
+  · split at h
+    · obtain rfl := (Made.made.injEq _ _).mp h
+      exact .lit
+    · simp only [Option.map] at h
+      split at h <;> simp at h
+      subst h
+      exact .lit
+  · cases h
+
 theorem sortOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {b v : Val}
     {p d : Option Val} (hb : b.CheckableA) (h : sortOf ds b p d = .made v) : v.CheckableA := by
   unfold sortOf at h
@@ -908,6 +941,10 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => caseOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => translateOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => translateOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · split
     · exact .lit
     · exact .call h

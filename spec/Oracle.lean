@@ -319,13 +319,20 @@ theorem gen_output_exact : ∀ v ∈ genVals, ∀ (env : Env) (root j : Data),
     output v = some j ↔ Output env root v j :=
   fun v hv _ _ j => output_iff (genVals_checkable v hv) j
 
+/-- A term's text as a cell of a row, each backslash doubled, since the
+runners expand `\n`, `\t` and `\\` in a cell before they read it. -/
+def Aontu.Val.cell (v : Val) : Option String := v.src.map fun s => s.replace "\\" "\\\\"
+
+/-- Data's text as a cell of a row, as `Val.cell` writes a term's. -/
+def Aontu.Data.cell (d : Data) : Option String := d.src.map fun s => s.replace "\\" "\\\\"
+
 /-- The `gens` rows: each value under the key `v` that generates, with
 the JSON the engines must write for it. A value that generates nothing
 has no row, since the definition gives no code for it until P5. -/
 def genRows (tag : String) (vals : List Val) : IO Unit := do
   let mut i := 0
   for v in vals do
-    let some src := v.src | throw (IO.userError "a value of the fragment has no text")
+    let some src := v.cell | throw (IO.userError "a value of the fragment has no text")
     if let some j := output v then
       let some json := j.json | throw (IO.userError "an output has no JSON")
       IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ "\t{\"v\":" ++ json ++ "}")
@@ -495,8 +502,8 @@ and under `--partial`, with the one class `vet` gives. -/
 def verdictRows (tag : String) (cases : List (Val × Data) := vetCases) : IO Unit := do
   let mut i := 0
   for c in cases do
-    let some ssrc := c.1.src | throw (IO.userError "a schema of the fragment has no text")
-    let some dsrc := c.2.src | throw (IO.userError "a document of the fragment has no text")
+    let some ssrc := c.1.cell | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.cell | throw (IO.userError "a document of the fragment has no text")
     let (S, D) := vetDoc c
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
         (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
@@ -789,10 +796,10 @@ def aliasRows (tag : String) (cases : List (Decls × Val × Data) := aliasCases)
   for c in cases do
     let mut lines : List String := []
     for d in c.1 do
-      let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+      let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
       lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
-    let some ssrc := c.2.1.src | throw (IO.userError "a schema of the fragment has no text")
-    let some dsrc := c.2.2.src | throw (IO.userError "a document of the fragment has no text")
+    let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
     let src := "\\n".intercalate (lines ++ ["v: " ++ ssrc])
     let (S, D) := aliasDoc c
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
@@ -925,10 +932,10 @@ def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) :
   for c in cases do
     let mut lines : List String := []
     for d in c.1 do
-      let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+      let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
       lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
-    let some ssrc := c.2.1.src | throw (IO.userError "a schema of the fragment has no text")
-    let some dsrc := c.2.2.src | throw (IO.userError "a document of the fragment has no text")
+    let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
     let src := "\\n".intercalate (lines ++ [(ssrc.drop 1).dropRight 1])
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
         (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
@@ -1343,10 +1350,10 @@ def trialRows (tag : String) (cases : List (Decls × Val × Data) := trialCases 
   for c in cases do
     let mut lines : List String := []
     for d in c.1 do
-      let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+      let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
       lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
-    let some ssrc := c.2.1.src | throw (IO.userError "a schema of the fragment has no text")
-    let some dsrc := c.2.2.src | throw (IO.userError "a document of the fragment has no text")
+    let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
     let src := "\\n".intercalate (lines ++ [(ssrc.drop 1).dropRight 1])
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
         (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
@@ -1409,8 +1416,8 @@ the definition leaves undecided has no row. -/
 def subsumePairRows (tag : String) (pairs : List (Val × Val)) : IO Unit := do
   let mut i := 0
   for (g, s) in pairs do
-    let some gsrc := g.src | throw (IO.userError "a value of the fragment has no text")
-    let some ssrc := s.src | throw (IO.userError "a value of the fragment has no text")
+    let some gsrc := g.cell | throw (IO.userError "a value of the fragment has no text")
+    let some ssrc := s.cell | throw (IO.userError "a value of the fragment has no text")
     let want? : Option String :=
       if (leDecF .empty 64 s g).isSome then some "[\"subsumes\",\"undecided\"]"
       else if subInstances.any (fun j => check s j && !(check g j)) then
@@ -1517,8 +1524,8 @@ def profilePairRows (tag : String) (pr : Profile) (pairs : List (Val × Val)) : 
   let name := match pr with | .values => "values" | .defaults => "defaults" | .gen => "gen"
   let mut i := 0
   for (g, s) in pairs do
-    let some gsrc := g.src | throw (IO.userError "a value of the pool has no text")
-    let some ssrc := s.src | throw (IO.userError "a value of the pool has no text")
+    let some gsrc := g.cell | throw (IO.userError "a value of the pool has no text")
+    let some ssrc := s.cell | throw (IO.userError "a value of the pool has no text")
     let ns := normalise s
     let ng := normalise g
     let dHolds := (leDecF .empty 64 s g).isSome && defaultsAt ns ng && defaultsBelow ns ng
@@ -1673,9 +1680,9 @@ theorem subsume_doc_rows_exact : ∀ g ∈ docCases, ∀ s ∈ docCases, ∀ j �
 def docSrc (c : Decls × Val) : IO String := do
   let mut lines : List String := []
   for d in c.1 do
-    let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+    let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
     lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
-  let some tsrc := c.2.src | throw (IO.userError "a term of the fragment has no text")
+  let some tsrc := c.2.cell | throw (IO.userError "a term of the fragment has no text")
   pure ("\\n".intercalate (lines ++ ["v: " ++ tsrc]))
 
 /-- The rows of the tenth fragment: each pair of documents, the general
@@ -1729,7 +1736,8 @@ def forms : List (String × String × String) :=
     ("call", "syntax", "-"), ("call", "call", "sum"), ("call", "call", "least"),
     ("call", "call", "greatest"), ("call", "syntax", "+"), ("call", "call", "join"),
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
-    ("call", "call", "lower"), ("call", "call", "translate")]
+    ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
+    ("call", "call", "usc")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1751,7 +1759,8 @@ def formSamples : List (String × Val) :=
     ("least", .call .least [.listKind]), ("greatest", .call .greatest [.listKind]),
     ("join", .call .join [.listKind]), ("pick", .call .pick [.listKind, .string]),
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
-    ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string])]
+    ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
+    ("esc", .call .esc [.string]), ("usc", .call .usc [.string])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1772,9 +1781,9 @@ def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit 
   let mut i := 0
   for block in blocks do
     for v in vals do
-      let some src := v.src | throw (IO.userError "a value of the fragment has no text")
+      let some src := v.cell | throw (IO.userError "a value of the fragment has no text")
       for j in block do
-        let some jsrc := j.src | throw (IO.userError "an instance has no text")
+        let some jsrc := j.cell | throw (IO.userError "an instance has no text")
         let want := if check v j then "\"valid\"" else "[\"invalid\",\"incomplete\",\"error\"]"
         IO.println (tag ++ toString i ++ "\tverdict\tv: " ++ src ++ "\tv: " ++ jsrc
           ++ "\t" ++ head ++ want ++ "}")
@@ -1814,7 +1823,9 @@ the oracle's host and every engine's case conversion agree, and
 integer index between 2 ^ 53 and 2 ^ 63 (#439). `translate` follows
 from row x966: ranges, a `-` that stands for itself, a short `to` and an
 empty one, a character named twice, code points beyond ASCII, and a
-range across the surrogates, where the ports agree. -/
+range across the surrogates, where the ports agree, and `esc` and `usc`
+from row x1068: each convention both ways, the text each `usc` has no
+original for, the variants and the arguments. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2112,7 +2123,38 @@ def callCases : List (Val × Data) :=
     (c .translate [str "a"], js "a"), (c .translate [str "a", str "b", str "c", str "d"], js "a"),
     (c .upper [c .translate [str "a-b", str "-", str "_"]], js "A_B"),
     (c .translate [str "\uE000", str "\uD7FF-\uE000", str "xyz"], js "z"),
-    (c .translate [str "\uFFFD", str "\uD7FF-\uE000", str "xyz"], js "\uFFFD")]
+    (c .translate [str "\uFFFD", str "\uD7FF-\uE000", str "xyz"], js "\uFFFD"),
+    (c .esc [str "plain text"], js "plain text"),
+    -- A control character before `z`, not a hexadecimal digit: Lean 4.24 writes it into
+    -- the compiled oracle as a C `\x01` escape, which a hexadecimal digit after it would extend.
+    (c .esc [str "a\"b\\c\nd\te\x01z"], js "a\\\"b\\\\c\\nd\\te\\u0001z"),
+    (c .esc [str "a\"b\\c\nd\te\x01z"], js "a\"b\\c\nd\te\x01z"),
+    (c .esc [str "é😀\x7f"], js "é😀\x7f"), (c .esc [str "it's \"q\"", str "sq"], js "it\\'s \"q\""),
+    (c .usc [str "\\\"x\\u00e9\\u00E9"], js "\"xéé"), (c .usc [str "\\'"], js "'"),
+    (c .usc [str "\\/"], js "/"), (c .usc [str "\\uD83D\\uDE00"], js "😀"), (c .usc [str "\\uDE00"], js "a"),
+    (c .usc [str "\\uD83D"], js "a"), (c .usc [str "\\x41"], js "A"), (c .usc [str "a\\"], js "a"),
+    (c .usc [str "\\u12"], js "a"), (c .usc [str "\\'", str "sq"], js "'"),
+    (c .esc [str "o'brien", str "sql"], js "o''brien"), (c .usc [str "o'brien", str "sql"], js "o'brien"),
+    (c .usc [str "o''brien", str "sql"], js "o'brien"), (c .esc [str "it's", str "shell"], js "it'\\''s"),
+    (c .usc [str "it'\\''s", str "shell"], js "it's"), (c .usc [str "it's", str "shell"], js "it's"),
+    (c .esc [str "<a>&\"'", str "xml"], js "&lt;a&gt;&amp;&quot;&apos;"),
+    (c .usc [str "&amp;&lt;&gt;&quot;&apos;", str "xml"], js "&<>\"'"),
+    (c .usc [str "&#39;", str "xml"], js "'"), (c .usc [str "a&b", str "xml"], js "a&b"),
+    (c .esc [str "a b/c~-._é😀+", str "uri"], js "a%20b%2Fc~-._%C3%A9%F0%9F%98%80%2B"),
+    (c .usc [str "%c3%a9%C3%A9+", str "uri"], js "éé+"), (c .usc [str "%C3", str "uri"], js "a"),
+    (c .usc [str "%E0%80%80", str "uri"], js "a"), (c .usc [str "%ED%A0%80", str "uri"], js "a"),
+    (c .usc [str "%F4%90%80%80", str "uri"], js "a"), (c .usc [str "%", str "uri"], js "%"),
+    (c .usc [str "%zz", str "uri"], js "a"), (c .usc [str "é", str "uri"], js "é"),
+    (c .esc [str "a.b-c\\/", str "regex"], js "a\\.b-c\\\\\\/"),
+    (c .usc [str "a\\.b", str "regex"], js "a.b"), (c .usc [str "a\\-b", str "regex"], js "a-b"),
+    (c .esc [str "a", str "nope"], js "a"), (c .usc [str "a", str "nope"], js "a"),
+    (c .esc [str "a", str ""], js "a"), (c .usc [str "x", str "none"], js "x"),
+    (c .esc [int 1], js "1"), (c .esc [.string], js "a"), (c .esc [.ride .metadata (str "a") []], js "a"),
+    (c .esc [.pref 1 (str "a")], js "a"), (c .esc [str "a'", .ride .metadata (str "sq") []], js "a\\'"),
+    (c .esc [], js "a"), (c .usc [str "a", str "sq", str "x"], js "a"),
+    (c .usc [c .esc [str "a'\n\"<&é😀", str "sq"], str "sq"], js "a'\n\"<&é😀"),
+    (c .usc [c .esc [str "a b/é", str "uri"], str "uri"], js "a b/é"),
+    (c .esc [c .upper [str "a b"], str "uri"], js "A%20B")]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -2363,8 +2405,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# from row x300, which waits where it does not take its operands, so that the"
     IO.println "# document is incomplete, and join from row x507, which waits on a member or a"
     IO.println "# separator not yet settled. pick and sort, which never wait, follow from row"
-    IO.println "# x597, upper and lower from row x816, and translate from row x966. A call on a"
-    IO.println "# name follows in rows z0 on."
+    IO.println "# x597, upper and lower from row x816, translate from row x966, and esc and usc"
+    IO.println "# from row x1068. A call on a name follows in rows z0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do

@@ -179,6 +179,8 @@ def Fn.name : Fn → String
   | .upper => "upper"
   | .lower => "lower"
   | .translate => "translate"
+  | .esc => "esc"
+  | .usc => "usc"
 
 mutual
 def Val.src : Val → Option String

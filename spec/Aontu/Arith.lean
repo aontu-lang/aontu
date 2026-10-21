@@ -15,12 +15,13 @@ members: `sum` adds them from the left, from the integer zero, and
 `least` and `greatest` answer the first of them no other is below or
 above, by exact value. -/
 
-/-- The functions on numbers, the folds on a bag of them, `+`, `join`,
-`pick`, `sort`, `upper`, `lower` and `translate`. -/
+/-- The functions on numbers, the folds on a bag of them, `+`, and the
+calls on bags and text, `join`, `pick`, `sort`, `upper`, `lower`,
+`translate`, `esc` and `usc`. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
-  | plus | join | pick | sort | upper | lower | translate
+  | plus | join | pick | sort | upper | lower | translate | esc | usc
   deriving DecidableEq, Repr
 
 /-- Whether a function folds the members of one bag. -/
