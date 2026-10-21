@@ -138,7 +138,7 @@ prefixes.
   `Service` is `close()`d and `replicas` is `integer & min(1)`, so
   `admin` is allowed `$.services.auth.colour` by the gate and refused
   by `set` with `[aontu/closed]`, and `dev` is allowed
-  `$.deploy.us1.replicas.auth=0` and refused with `[aontu/constraint]`.
+  `$.deploy.us1.replicas.auth=0` and refused with `[aontu/empty]`.
 - **The assignment spelling is accepted.** The gate takes
   `'$.services.auth.description="Sign-in, sessions and MFA"'` as it
   is, so the skill hands it the very arguments the write will get and
@@ -299,7 +299,7 @@ temporary copy, so the committed `changes.aontu` is never written.
     allowed `$.services.auth.colour="blue"` by `$` and `set` refuses
     it with `[aontu/closed]`; `dev` is allowed
     `$.deploy.us1.replicas.auth=0` and `set` refuses it with
-    `[aontu/constraint]` against `min(1)`. Neither reaches the
+    `[aontu/empty]` against `min(1)`. Neither reaches the
     overlay.
 17. The served view after the loop matches `expected/system.json`,
     and the overlay carries exactly the four allowed lines.

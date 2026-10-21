@@ -253,3 +253,19 @@ why did this issue occur?
 ```text
 do we now have unit tests covering this case and more variants of defaults unification ordering?
 ```
+
+## 2026-10-21 11:44:33 UTC · Claude Code · session_01KHD8Adfguemdb5wJmq329A
+
+```text
+why did this issue occur?
+do we now have unit tests covering this case and more variants of defaults unification ordering?
+```
+
+## 2026-10-21 11:46:06 UTC · Claude Code · session_01KHD8Adfguemdb5wJmq329A
+
+The answer to the agent's question, the question followed by the option chosen:
+
+```text
+How should 0.76.1 be released? The fix merges into main either way; this decides what goes into the published package.
+→ Hotfix on v0.76.0 (Recommended)
+```
