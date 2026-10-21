@@ -185,6 +185,7 @@ def Fn.name : Fn → String
   | .split => "split"
   | .rep => "rep"
   | .nom => "nom"
+  | .cmp c => c.name
 
 mutual
 def Val.src : Val → Option String

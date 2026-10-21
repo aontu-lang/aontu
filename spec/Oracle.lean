@@ -1738,7 +1738,10 @@ def forms : List (String × String × String) :=
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
     ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "split"),
-    ("call", "call", "rep"), ("call", "call", "nom")]
+    ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "project"),
+    ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
+    ("call", "call", "line"), ("call", "call", "fragment"), ("call", "call", "slot"),
+    ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1763,7 +1766,12 @@ def formSamples : List (String × Val) :=
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
     ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
-    ("nom", .call .nom [.string])]
+    ("nom", .call .nom [.string]), ("project", .call (.cmp .project) []),
+    ("folder", .call (.cmp .folder) [.string]), ("file", .call (.cmp .file) [.string]),
+    ("content", .call (.cmp .content) [.string]), ("line", .call (.cmp .line) [.string]),
+    ("fragment", .call (.cmp .fragment) [.string]), ("slot", .call (.cmp .slot) [.string]),
+    ("inject", .call (.cmp .inject) [.string]), ("copyfiles", .call (.cmp .copyfiles) [.string]),
+    ("listitems", .call (.cmp .listitems) [.mapKind])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1842,8 +1850,13 @@ replacement that writes nothing for a match where the text holds no
 match, decision 20. `nom` follows from row x1521: each spelling, the
 words a name holds, an acronym list, the sealed map of every spelling,
 and the arguments it refuses, but no style written as `""`, which Go
-reads as no style (#451). `split` at a pattern follows in
-`patternCases`. -/
+reads as no style (#451). The components follow from row x1677: each
+component's node, its seal and its open props and children, a bare
+string as a line, nested lists spliced, a hand-written node as a
+child, and the props and children each component refuses, but no
+`close()` above a node, which both ports hold its props and children
+open against and the definition, holding no `open()`, leaves unsaid.
+`split` at a pattern follows in `patternCases`. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -1868,6 +1881,9 @@ def callCases : List (Val × Data) :=
   let jm (fs : List (String × Data)) : Data := .map fs
   let kv (k : ℤ) (s : String) (h : IntegerLeaf k := by decide) : Val := mp [("k", int k h), ("v", str s)]
   let jkv (k : ℤ) (s : String) (h : IntegerLeaf k := by decide) : Data := jm [("k", j k h), ("v", js s)]
+  let node (cmp : String) (props : List (String × Data)) (kids : List Data) : Data :=
+    jm [("cmp", js cmp), ("props", jm props), ("children", jl kids)]
+  let lineD (s : String) : Data := node "Line" [("src", js s)] []
   [(c .add [int 1, int 2], j 3), (c .add [int 1, int 2], j 4),
     (c .sub [int 10, int 3], j 7), (c .mul [int 6, int 7], j 42),
     (c .div [int 7, int 2], j 3), (c .div [int (-7), int 2], j (-3)),
@@ -2297,7 +2313,57 @@ def callCases : List (Val × Data) :=
     (c .nom [str "user_id", str "pascal", lst [.ride .metadata (str "ID") []]], js "UserID"),
     (c .nom [], js "a"), (c .nom [str "a", str "camel", lst [], str "x"], js "a"),
     (c .nom [c .join [lst [str "user", str "id"], str "_"], str "camel"], js "userId"),
-    (c .upper [c .nom [str "user_id", str "kebab"]], js "USER-ID")]
+    (c .upper [c .nom [str "user_id", str "kebab"]], js "USER-ID"),
+    (c (.cmp .folder) [str "src"], node "Folder" [("name", js "src")] []),
+    (c (.cmp .folder) [str "src"], node "Folder" [("name", js "x")] []),
+    (c (.cmp .folder) [str "src"],
+      jm [("cmp", js "Folder"), ("props", jm [("name", js "src")]), ("children", jl []), ("x", j 1)]),
+    (c (.cmp .folder) [str "src"], node "Folder" [("name", js "src"), ("x", j 1)] []),
+    (c (.cmp .folder) [str "src"], node "Folder" [("name", js "src")] [j 1]),
+    (c (.cmp .folder) [str "src"], jm []),
+    (c (.cmp .folder) [mp [("name", str "src")]], node "Folder" [("name", js "src")] []),
+    (c (.cmp .folder) [str "src", lst [c (.cmp .file) [str "a"]]],
+      node "Folder" [("name", js "src")] [node "File" [("name", js "a")] []]),
+    (c (.cmp .file) [str "f", lst [str "x"]], node "File" [("name", js "f")] [lineD "x"]),
+    (c (.cmp .file) [str "f", lst [str "x", lst [str "y", c (.cmp .line) [str "z"]]]],
+      node "File" [("name", js "f")] [lineD "x", lineD "y", lineD "z"]),
+    (c (.cmp .line) [str ""], lineD ""), (c (.cmp .content) [str "x"], node "Content" [("src", js "x")] []),
+    (c (.cmp .copyfiles) [str "assets"], node "CopyFiles" [("from", js "assets")] []),
+    (c (.cmp .fragment) [str "head.ts", lst [c (.cmp .slot) [str "body"]]],
+      node "Fragment" [("from", js "head.ts")] [node "Slot" [("name", js "body")] []]),
+    (c (.cmp .inject) [str "routes", lst [c (.cmp .line) [str "app.use(r)"]]],
+      node "Inject" [("name", js "routes")] [lineD "app.use(r)"]),
+    (c (.cmp .listitems) [mp [("item", lst [int 1, int 2])], lst [c (.cmp .line) [str "x"]]],
+      node "ListItems" [("item", jl [j 1, j 2])] [lineD "x"]),
+    (c (.cmp .project) [], node "Project" [] []),
+    (c (.cmp .project) [str "./build", lst [c (.cmp .folder) [str "src"]]],
+      node "Project" [("folder", js "./build")] [node "Folder" [("name", js "src")] []]),
+    (c (.cmp .project) [mp [("name", str "p")]], node "Project" [("name", js "p")] []),
+    (c (.cmp .file) [mp [("name", str "f"), ("mode", int 420)]],
+      node "File" [("name", js "f"), ("mode", j 420)] []),
+    (c (.cmp .folder) [str "src", lst [mp [("cmp", str "File"), ("props", mp [("name", str "x")]),
+        ("children", lst [])]]],
+      node "Folder" [("name", js "src")] [node "File" [("name", js "x")] []]),
+    (c (.cmp .folder) [str ""], jm []), (c (.cmp .folder) [mp []], jm []),
+    (c (.cmp .folder) [mp [("name", str "src"), ("x", int 1)]], jm []),
+    (c (.cmp .project) [mp [("folder", str "")]], jm []),
+    (c (.cmp .listitems) [mp [("item", str "x")]], jm []), (c (.cmp .listitems) [mp []], jm []),
+    (c (.cmp .listitems) [str "x"], jm []),
+    (c (.cmp .folder) [str "src", lst [str "x"]], jm []),
+    (c (.cmp .folder) [str "src", lst [c (.cmp .line) [str "x"]]], jm []),
+    (c (.cmp .folder) [str "src", lst [mp [("cmp", str "Nope")]]], jm []),
+    (c (.cmp .folder) [str "src", str "x"], jm []), (c (.cmp .folder) [int 1], jm []),
+    (c (.cmp .folder) [.pref 1 (str "src")], jm []),
+    (c (.cmp .folder) [str "src", lst [.pref 1 (str "x")]], jm []),
+    (c (.cmp .folder) [mp [("name", .string)]], jm []),
+    (c (.cmp .folder) [.ride .metadata (str "src") []], node "Folder" [("name", js "src")] []),
+    (c (.cmp .folder) [mp [("name", .ride .metadata (str "src") [])]], node "Folder" [("name", js "src")] []),
+    (c (.cmp .folder) [str "src", .ride .metadata (lst [c (.cmp .file) [str "x"]]) []],
+      node "Folder" [("name", js "src")] [node "File" [("name", js "x")] []]),
+    (c (.cmp .folder) [], jm []), (c (.cmp .content) [str "x", lst []], jm []),
+    (c (.cmp .folder) [str "a", lst [], int 1], jm []),
+    (c .upper [c (.cmp .folder) [str "src"]], js "SRC"),
+    (c (.cmp .folder) [c .join [lst [str "s", str "rc"], str ""]], node "Folder" [("name", js "src")] [])]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -2639,8 +2705,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# separator not yet settled. pick and sort, which never wait, follow from row"
     IO.println "# x597, upper and lower from row x816, translate from row x966, and esc and usc"
     IO.println "# from row x1068, super from row x1221, split from row x1332, rep from row"
-    IO.println "# x1404, and nom from row x1521. A call on a name follows in rows z0 on, and a"
-    IO.println "# call handed a pattern, re(p), in rows v0 on."
+    IO.println "# x1404, nom from row x1521, and the components of the component tree from"
+    IO.println "# row x1677. A call on a name follows in rows z0 on, and a call handed a"
+    IO.println "# pattern, re(p), in rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do

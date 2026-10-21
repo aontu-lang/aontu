@@ -8,6 +8,33 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds the component functions
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `cmp`, over the ten components
+  of the component tree (`Cmp`).
+- `spec/Aontu/Verdict.lean`: `cmpOf` builds each node, the sealed map
+  of its component's name, its props and its children, from the table
+  both ports keep:
+  - the prop a string spec fills, written wherever it is required, and
+    `""` only where it is a span of text;
+  - `listitems`'s `item` a list, and the props each component admits;
+  - the components each holds. Each nested list of children is spliced
+    into its place, a bare string is a line where the component holds
+    lines, and a node is any map whose `cmp` names a component.
+- Both ports hold a node's props and children open against a
+  `close()` from above, which the definition, holding no `open()`,
+  leaves unsaid. No row closes a node.
+- `test/spec/def-call.tsv` gains 44 cases in rows x1677 to x1808. Both
+  ports answer every row as the definition does but nine, a wrong
+  number of arguments (#426). `spec/ledger.tsv` lists them, and its
+  bound rises from 183 to 192. `spec/forms.tsv` gains the ten
+  components.
+- The definition tutorial gains step 26, the component tree, and the
+  language reference's Generation section cites the rule.
+
 ### The definition holds `nom`
 
 Definition, generated rows, the ledger and its bound in both runners,

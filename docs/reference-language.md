@@ -5007,6 +5007,8 @@ up: `Project`, `CopyFiles`, `ListItems`, and the rest.
 [jostraca](https://github.com/jostraca/jostraca) is one such runtime,
 and reads the tree directly.
 
+The definition builds each node as `cmpOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), from one table of the props each component admits and the components each holds, `Cmp.props` and `Cmp.kids`.
+
 `generate` / `Generate` produces a native value (JSON-compatible) and
 requires the model to be **fully concrete**:
 

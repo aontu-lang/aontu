@@ -13,8 +13,9 @@
 # separator not yet settled. pick and sort, which never wait, follow from row
 # x597, upper and lower from row x816, translate from row x966, and esc and usc
 # from row x1068, super from row x1221, split from row x1332, rep from row
-# x1404, and nom from row x1521. A call on a name follows in rows z0 on, and a
-# call handed a pattern, re(p), in rows v0 on.
+# x1404, nom from row x1521, and the components of the component tree from
+# row x1677. A call on a name follows in rows z0 on, and a call handed a
+# pattern, re(p), in rows v0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -1693,6 +1694,138 @@ x1673	verdict	v: nom(join(["user", "id"], "_"), "camel")	v: "userId"	{"verdict":
 x1674	verdict	v: upper(nom("user_id", "kebab"))	v: "USER-ID"	{"verdict":"valid"}
 x1675	verdict	v: upper(nom("user_id", "kebab"))	v: "USER-ID"	{"verdict":"valid","opts":{"noFill":true}}
 x1676	verdict	v: upper(nom("user_id", "kebab"))	v: "USER-ID"	{"verdict":"valid","opts":{"partial":true}}
+x1677	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid"}
+x1678	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1679	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1680	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "x"}, "children": []}	{"verdict":"invalid"}
+x1681	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "x"}, "children": []}	{"verdict":"invalid","opts":{"noFill":true}}
+x1682	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "x"}, "children": []}	{"verdict":"invalid","opts":{"partial":true}}
+x1683	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [], "x": 1}	{"verdict":"invalid"}
+x1684	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [], "x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+x1685	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [], "x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+x1686	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src", "x": 1}, "children": []}	{"verdict":"valid"}
+x1687	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src", "x": 1}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1688	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src", "x": 1}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1689	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [1]}	{"verdict":"valid"}
+x1690	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [1]}	{"verdict":"valid","opts":{"noFill":true}}
+x1691	verdict	v: folder("src")	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [1]}	{"verdict":"valid","opts":{"partial":true}}
+x1692	verdict	v: folder("src")	v: {}	{"verdict":"valid"}
+x1693	verdict	v: folder("src")	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+x1694	verdict	v: folder("src")	v: {}	{"verdict":"valid","opts":{"partial":true}}
+x1695	verdict	v: folder({"name": "src"})	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid"}
+x1696	verdict	v: folder({"name": "src"})	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1697	verdict	v: folder({"name": "src"})	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1698	verdict	v: folder("src", [file("a")])	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [{"cmp": "File", "props": {"name": "a"}, "children": []}]}	{"verdict":"valid"}
+x1699	verdict	v: folder("src", [file("a")])	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [{"cmp": "File", "props": {"name": "a"}, "children": []}]}	{"verdict":"valid","opts":{"noFill":true}}
+x1700	verdict	v: folder("src", [file("a")])	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [{"cmp": "File", "props": {"name": "a"}, "children": []}]}	{"verdict":"valid","opts":{"partial":true}}
+x1701	verdict	v: file("f", ["x"])	v: {"cmp": "File", "props": {"name": "f"}, "children": [{"cmp": "Line", "props": {"src": "x"}, "children": []}]}	{"verdict":"valid"}
+x1702	verdict	v: file("f", ["x"])	v: {"cmp": "File", "props": {"name": "f"}, "children": [{"cmp": "Line", "props": {"src": "x"}, "children": []}]}	{"verdict":"valid","opts":{"noFill":true}}
+x1703	verdict	v: file("f", ["x"])	v: {"cmp": "File", "props": {"name": "f"}, "children": [{"cmp": "Line", "props": {"src": "x"}, "children": []}]}	{"verdict":"valid","opts":{"partial":true}}
+x1704	verdict	v: file("f", ["x", ["y", line("z")]])	v: {"cmp": "File", "props": {"name": "f"}, "children": [{"cmp": "Line", "props": {"src": "x"}, "children": []}, {"cmp": "Line", "props": {"src": "y"}, "children": []}, {"cmp": "Line", "props": {"src": "z"}, "children": []}]}	{"verdict":"valid"}
+x1705	verdict	v: file("f", ["x", ["y", line("z")]])	v: {"cmp": "File", "props": {"name": "f"}, "children": [{"cmp": "Line", "props": {"src": "x"}, "children": []}, {"cmp": "Line", "props": {"src": "y"}, "children": []}, {"cmp": "Line", "props": {"src": "z"}, "children": []}]}	{"verdict":"valid","opts":{"noFill":true}}
+x1706	verdict	v: file("f", ["x", ["y", line("z")]])	v: {"cmp": "File", "props": {"name": "f"}, "children": [{"cmp": "Line", "props": {"src": "x"}, "children": []}, {"cmp": "Line", "props": {"src": "y"}, "children": []}, {"cmp": "Line", "props": {"src": "z"}, "children": []}]}	{"verdict":"valid","opts":{"partial":true}}
+x1707	verdict	v: line("")	v: {"cmp": "Line", "props": {"src": ""}, "children": []}	{"verdict":"valid"}
+x1708	verdict	v: line("")	v: {"cmp": "Line", "props": {"src": ""}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1709	verdict	v: line("")	v: {"cmp": "Line", "props": {"src": ""}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1710	verdict	v: content("x")	v: {"cmp": "Content", "props": {"src": "x"}, "children": []}	{"verdict":"valid"}
+x1711	verdict	v: content("x")	v: {"cmp": "Content", "props": {"src": "x"}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1712	verdict	v: content("x")	v: {"cmp": "Content", "props": {"src": "x"}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1713	verdict	v: copyfiles("assets")	v: {"cmp": "CopyFiles", "props": {"from": "assets"}, "children": []}	{"verdict":"valid"}
+x1714	verdict	v: copyfiles("assets")	v: {"cmp": "CopyFiles", "props": {"from": "assets"}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1715	verdict	v: copyfiles("assets")	v: {"cmp": "CopyFiles", "props": {"from": "assets"}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1716	verdict	v: fragment("head.ts", [slot("body")])	v: {"cmp": "Fragment", "props": {"from": "head.ts"}, "children": [{"cmp": "Slot", "props": {"name": "body"}, "children": []}]}	{"verdict":"valid"}
+x1717	verdict	v: fragment("head.ts", [slot("body")])	v: {"cmp": "Fragment", "props": {"from": "head.ts"}, "children": [{"cmp": "Slot", "props": {"name": "body"}, "children": []}]}	{"verdict":"valid","opts":{"noFill":true}}
+x1718	verdict	v: fragment("head.ts", [slot("body")])	v: {"cmp": "Fragment", "props": {"from": "head.ts"}, "children": [{"cmp": "Slot", "props": {"name": "body"}, "children": []}]}	{"verdict":"valid","opts":{"partial":true}}
+x1719	verdict	v: inject("routes", [line("app.use(r)")])	v: {"cmp": "Inject", "props": {"name": "routes"}, "children": [{"cmp": "Line", "props": {"src": "app.use(r)"}, "children": []}]}	{"verdict":"valid"}
+x1720	verdict	v: inject("routes", [line("app.use(r)")])	v: {"cmp": "Inject", "props": {"name": "routes"}, "children": [{"cmp": "Line", "props": {"src": "app.use(r)"}, "children": []}]}	{"verdict":"valid","opts":{"noFill":true}}
+x1721	verdict	v: inject("routes", [line("app.use(r)")])	v: {"cmp": "Inject", "props": {"name": "routes"}, "children": [{"cmp": "Line", "props": {"src": "app.use(r)"}, "children": []}]}	{"verdict":"valid","opts":{"partial":true}}
+x1722	verdict	v: listitems({"item": [1, 2]}, [line("x")])	v: {"cmp": "ListItems", "props": {"item": [1, 2]}, "children": [{"cmp": "Line", "props": {"src": "x"}, "children": []}]}	{"verdict":"valid"}
+x1723	verdict	v: listitems({"item": [1, 2]}, [line("x")])	v: {"cmp": "ListItems", "props": {"item": [1, 2]}, "children": [{"cmp": "Line", "props": {"src": "x"}, "children": []}]}	{"verdict":"valid","opts":{"noFill":true}}
+x1724	verdict	v: listitems({"item": [1, 2]}, [line("x")])	v: {"cmp": "ListItems", "props": {"item": [1, 2]}, "children": [{"cmp": "Line", "props": {"src": "x"}, "children": []}]}	{"verdict":"valid","opts":{"partial":true}}
+x1725	verdict	v: project()	v: {"cmp": "Project", "props": {}, "children": []}	{"verdict":"valid"}
+x1726	verdict	v: project()	v: {"cmp": "Project", "props": {}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1727	verdict	v: project()	v: {"cmp": "Project", "props": {}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1728	verdict	v: project("./build", [folder("src")])	v: {"cmp": "Project", "props": {"folder": "./build"}, "children": [{"cmp": "Folder", "props": {"name": "src"}, "children": []}]}	{"verdict":"valid"}
+x1729	verdict	v: project("./build", [folder("src")])	v: {"cmp": "Project", "props": {"folder": "./build"}, "children": [{"cmp": "Folder", "props": {"name": "src"}, "children": []}]}	{"verdict":"valid","opts":{"noFill":true}}
+x1730	verdict	v: project("./build", [folder("src")])	v: {"cmp": "Project", "props": {"folder": "./build"}, "children": [{"cmp": "Folder", "props": {"name": "src"}, "children": []}]}	{"verdict":"valid","opts":{"partial":true}}
+x1731	verdict	v: project({"name": "p"})	v: {"cmp": "Project", "props": {"name": "p"}, "children": []}	{"verdict":"valid"}
+x1732	verdict	v: project({"name": "p"})	v: {"cmp": "Project", "props": {"name": "p"}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1733	verdict	v: project({"name": "p"})	v: {"cmp": "Project", "props": {"name": "p"}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1734	verdict	v: file({"name": "f", "mode": 420})	v: {"cmp": "File", "props": {"name": "f", "mode": 420}, "children": []}	{"verdict":"valid"}
+x1735	verdict	v: file({"name": "f", "mode": 420})	v: {"cmp": "File", "props": {"name": "f", "mode": 420}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1736	verdict	v: file({"name": "f", "mode": 420})	v: {"cmp": "File", "props": {"name": "f", "mode": 420}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1737	verdict	v: folder("src", [{"cmp": "File", "props": {"name": "x"}, "children": []}])	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [{"cmp": "File", "props": {"name": "x"}, "children": []}]}	{"verdict":"valid"}
+x1738	verdict	v: folder("src", [{"cmp": "File", "props": {"name": "x"}, "children": []}])	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [{"cmp": "File", "props": {"name": "x"}, "children": []}]}	{"verdict":"valid","opts":{"noFill":true}}
+x1739	verdict	v: folder("src", [{"cmp": "File", "props": {"name": "x"}, "children": []}])	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [{"cmp": "File", "props": {"name": "x"}, "children": []}]}	{"verdict":"valid","opts":{"partial":true}}
+x1740	verdict	v: folder("")	v: {}	{"verdict":"error"}
+x1741	verdict	v: folder("")	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1742	verdict	v: folder("")	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1743	verdict	v: folder({})	v: {}	{"verdict":"error"}
+x1744	verdict	v: folder({})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1745	verdict	v: folder({})	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1746	verdict	v: folder({"name": "src", "x": 1})	v: {}	{"verdict":"error"}
+x1747	verdict	v: folder({"name": "src", "x": 1})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1748	verdict	v: folder({"name": "src", "x": 1})	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1749	verdict	v: project({"folder": ""})	v: {}	{"verdict":"error"}
+x1750	verdict	v: project({"folder": ""})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1751	verdict	v: project({"folder": ""})	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1752	verdict	v: listitems({"item": "x"})	v: {}	{"verdict":"error"}
+x1753	verdict	v: listitems({"item": "x"})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1754	verdict	v: listitems({"item": "x"})	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1755	verdict	v: listitems({})	v: {}	{"verdict":"error"}
+x1756	verdict	v: listitems({})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1757	verdict	v: listitems({})	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1758	verdict	v: listitems("x")	v: {}	{"verdict":"error"}
+x1759	verdict	v: listitems("x")	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1760	verdict	v: listitems("x")	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1761	verdict	v: folder("src", ["x"])	v: {}	{"verdict":"error"}
+x1762	verdict	v: folder("src", ["x"])	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1763	verdict	v: folder("src", ["x"])	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1764	verdict	v: folder("src", [line("x")])	v: {}	{"verdict":"error"}
+x1765	verdict	v: folder("src", [line("x")])	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1766	verdict	v: folder("src", [line("x")])	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1767	verdict	v: folder("src", [{"cmp": "Nope"}])	v: {}	{"verdict":"error"}
+x1768	verdict	v: folder("src", [{"cmp": "Nope"}])	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1769	verdict	v: folder("src", [{"cmp": "Nope"}])	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1770	verdict	v: folder("src", "x")	v: {}	{"verdict":"error"}
+x1771	verdict	v: folder("src", "x")	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1772	verdict	v: folder("src", "x")	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1773	verdict	v: folder(1)	v: {}	{"verdict":"error"}
+x1774	verdict	v: folder(1)	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1775	verdict	v: folder(1)	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1776	verdict	v: folder(*("src"))	v: {}	{"verdict":"error"}
+x1777	verdict	v: folder(*("src"))	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1778	verdict	v: folder(*("src"))	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1779	verdict	v: folder("src", [*("x")])	v: {}	{"verdict":"error"}
+x1780	verdict	v: folder("src", [*("x")])	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1781	verdict	v: folder("src", [*("x")])	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1782	verdict	v: folder({"name": string})	v: {}	{"verdict":"error"}
+x1783	verdict	v: folder({"name": string})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1784	verdict	v: folder({"name": string})	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1785	verdict	v: folder(meta("src", {}))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid"}
+x1786	verdict	v: folder(meta("src", {}))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1787	verdict	v: folder(meta("src", {}))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1788	verdict	v: folder({"name": meta("src", {})})	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid"}
+x1789	verdict	v: folder({"name": meta("src", {})})	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1790	verdict	v: folder({"name": meta("src", {})})	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
+x1791	verdict	v: folder("src", meta([file("x")], {}))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [{"cmp": "File", "props": {"name": "x"}, "children": []}]}	{"verdict":"valid"}
+x1792	verdict	v: folder("src", meta([file("x")], {}))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [{"cmp": "File", "props": {"name": "x"}, "children": []}]}	{"verdict":"valid","opts":{"noFill":true}}
+x1793	verdict	v: folder("src", meta([file("x")], {}))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": [{"cmp": "File", "props": {"name": "x"}, "children": []}]}	{"verdict":"valid","opts":{"partial":true}}
+x1794	verdict	v: folder()	v: {}	{"verdict":"error"}
+x1795	verdict	v: folder()	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1796	verdict	v: folder()	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1797	verdict	v: content("x", [])	v: {}	{"verdict":"error"}
+x1798	verdict	v: content("x", [])	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1799	verdict	v: content("x", [])	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1800	verdict	v: folder("a", [], 1)	v: {}	{"verdict":"error"}
+x1801	verdict	v: folder("a", [], 1)	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x1802	verdict	v: folder("a", [], 1)	v: {}	{"verdict":"error","opts":{"partial":true}}
+x1803	verdict	v: upper(folder("src"))	v: "SRC"	{"verdict":"error"}
+x1804	verdict	v: upper(folder("src"))	v: "SRC"	{"verdict":"error","opts":{"noFill":true}}
+x1805	verdict	v: upper(folder("src"))	v: "SRC"	{"verdict":"error","opts":{"partial":true}}
+x1806	verdict	v: folder(join(["s", "rc"], ""))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid"}
+x1807	verdict	v: folder(join(["s", "rc"], ""))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"noFill":true}}
+x1808	verdict	v: folder(join(["s", "rc"], ""))	v: {"cmp": "Folder", "props": {"name": "src"}, "children": []}	{"verdict":"valid","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}
