@@ -659,7 +659,7 @@ def riderCases : List (Decls × Val × Data) :=
 reference copies a body with its marks cleared at every depth, so what
 the body hides its reader asks for, and a mark written at the place of
 the reference stays, through a name, a nested name, a recursive name,
-a meet, a rider and a spread. -/
+a meet, a rider, a spread and a selection. -/
 def markAliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -685,7 +685,9 @@ def markAliasCases : List (Decls × Val × Data) :=
     ([("T", mp [("a", mp [("b", hide (int 1))])])], T, .map [("a", .map [])]),
     ([("T", .ride .metadata (mp [("a", hide .integer)]) [])], T, .map []),
     ([("T", .map [] (some (hide .integer)) false)], T, .map [("k", j 1)]),
-    ([("T", hide (mp [("a", .integer)]))], mp [("x", T), ("y", hide T)], .map [("x", .map [("a", j 1)])])]
+    ([("T", hide (mp [("a", .integer)]))], mp [("x", T), ("y", hide T)], .map [("x", .map [("a", j 1)])]),
+    ([("T", .select (int 1) [(int 1, mp [("a", hide (int 1))])] none)], T, .map []),
+    ([("T", .select (int 1) [(int 1, mp [("a", hide .integer)])] none)], T, .map [])]
 
 /-- The cases of the seal of decision 10 of the design note's §7: a
 reference to a `type()` value reads it as a definition and its copy as

@@ -28,16 +28,23 @@ def Val.unident : Val → Val
   | v => v
 
 mutual
-/-- A term with its marks cleared, `type()` and `hide()`, at every depth
-through the containers, `|`, `*`, `&` and the riders: what a reference
-copies, as a mark belongs to the place it is written at (decision 10 of
-the design note's §7). -/
+/-- A term with its marks cleared, `type()` and `hide()`, at every depth:
+what a reference copies, as a mark belongs to the place it is written
+at (decision 10 of the design note's §7). -/
 def Val.unmark : Val → Val
+  | .len c => .len c.unmark
   | .map fs spread closed => .map (unmarkFields fs) (unmarkSpread spread) closed
   | .list items spread closed => .list (unmarkItems items) (unmarkSpread spread) closed
   | .or arms => .or (unmarkArms arms)
   | .pref r x => .pref r x.unmark
   | .meet a b => .meet a.unmark b.unmark
+  | .nof n cs => .nof n.unmark (unmarkItems cs)
+  | .must c m => .must c.unmark m
+  | .when c t e => .when c.unmark t.unmark (unmarkSpread e)
+  | .contains c n => .contains c.unmark n.unmark
+  | .rest t cs => .rest t.unmark (unmarkCovers cs)
+  | .select s arms d => .select s.unmark (unmarkPairs arms) (unmarkSpread d)
+  | .filter s c => .filter s.unmark c.unmark
   | .ride .type v _ => v.unmark
   | .ride .hide v _ => v.unmark
   | .ride k v r => .ride k v.unmark r
@@ -58,6 +65,14 @@ def unmarkSpread : Option Val → Option Val
 def unmarkArms : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
   | (r, a) :: as => (r, a.unmark) :: unmarkArms as
+
+def unmarkPairs : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.unmark, r.unmark) :: unmarkPairs ps
+
+def unmarkCovers : List (Option Val × Option Val × Option Val) → List (Option Val × Option Val × Option Val)
+  | [] => []
+  | (a, b, c) :: cs => (unmarkSpread a, unmarkSpread b, unmarkSpread c) :: unmarkCovers cs
 end
 
 namespace Decls
@@ -459,22 +474,24 @@ theorem transGen_first {R : String → String → Prop} {a x : String}
 /-- Clearing the marks keeps the names a body reaches. -/
 theorem Val.unguardedRefs_unmark (v : Val) : v.unmark.unguardedRefs = v.unguardedRefs := by
   induction v using Val.unmark.induct
-    (motive_2 := fun arms => unguardedArms (unmarkArms arms) = unguardedArms arms)
-    (motive_3 := fun _ => True) (motive_4 := fun _ => True) (motive_5 := fun _ => True) with
-  | case1 | case2 => simp only [Val.unmark, Val.unguardedRefs]
-  | case3 arms ih => simp only [Val.unmark, Val.unguardedRefs, ih]
-  | case4 r x ih => simp only [Val.unmark, Val.unguardedRefs, ih]
-  | case5 a b iha ihb => simp only [Val.unmark, Val.unguardedRefs, iha, ihb]
-  | case6 v r ih | case7 v r ih => simp only [Val.unmark, Val.unguardedRefs, ih]
-  | case8 k v r h1 h2 ih =>
+    (motive_2 := fun ps => unguardedPairs (unmarkPairs ps) = unguardedPairs ps)
+    (motive_3 := fun cs => unguardedCovers (unmarkCovers cs) = unguardedCovers cs)
+    (motive_4 := fun s => unguardedSpread (unmarkSpread s) = unguardedSpread s)
+    (motive_5 := fun arms => unguardedArms (unmarkArms arms) = unguardedArms arms)
+    (motive_6 := fun vs => unguardedItems (unmarkItems vs) = unguardedItems vs)
+    (motive_7 := fun _ => True)
+  case case16 k v r h1 h2 ih =>
     cases k with
     | type => exact absurd rfl h1
     | hide => exact absurd rfl h2
     | _ => simp only [Val.unmark, Val.unguardedRefs, ih]
-  | case9 v h1 h2 h3 h4 h5 h6 h7 h8 => rw [Val.unmark.eq_9 v h1 h2 h3 h4 h5 h6 h7 h8]
-  | case10 | case11 | case12 | case13 | case14 | case15 => trivial
-  | case16 => rfl
-  | case17 r a as iha ihas => simp only [unmarkArms, unguardedArms, iha, ihas]
+  case case17 =>
+    rename_i v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16
+    rw [Val.unmark.eq_17 v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16]
+  all_goals first
+    | trivial
+    | simp_all only [Val.unmark, unmarkItems, unmarkArms, unmarkPairs, unmarkCovers,
+        Val.unguardedRefs, unguardedItems, unguardedPairs, unguardedCovers, unguardedArms]
 
 /-- Leaving an identity behind keeps the names a body reaches. -/
 theorem Val.unguardedRefs_unident (v : Val) : v.unident.unguardedRefs = v.unguardedRefs := by
