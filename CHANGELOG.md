@@ -6,7 +6,58 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 entries before it carry two numbers, and entries note which implementation
 each change affects.
 
-## Unreleased
+## 0.76.1 — 2026-10-21
+
+A patch on 0.76.0 that carries one fix. The work merged into `main`
+since 0.76.0 is not in it.
+
+### A value a default has met outlives a stronger default
+
+Both ports (#431). Two scalar defaults now meet as the two
+disjunctions they stand for (ADR-011, `*x` is `x | super(x)`): each
+stands only where the other's override space admits it, and whichever
+stands keeps both gates. A value or a bound one default had already
+met was dropped when a default of a lower rank arrived, so the answer
+hung on the order the statements were written in, and a concrete value
+could lose to a default.
+
+- `**true | boolean` from a spread, then `true`, then `*false |
+  boolean` generated `false`. It generates `true`, as the other orders
+  already did, and so do numbers, strings, a reference, and defaults
+  written with no alternative.
+- A bound the losing default had met was dropped too: `a: x: *1`,
+  `a: x: min(1)`, `a: x: *1`, `a: x: 0` generated `0`, and refuses as
+  `empty` now. Where a bound rules the stronger default out, the
+  weaker stands in its place: `a: x: **1`, `a: x: min(1)`, `a: x: *0`
+  generates `1`.
+- Two defaults of one rank no longer clash where a value already met
+  rules one of them out: `*true`, `true`, `*false` generates `true`.
+- Two defaults whose types share nothing refuse as `empty` at any
+  rank, as a default and a value of another kind already did
+  (ADR-011): `**1` beside `*"a"` answered `"a"`, which `**1` does not
+  admit. Two such defaults of one rank report `empty` where they
+  reported `pref_rank_clash`; the class, `conflict`, is unchanged.
+- Map and list defaults meet as before.
+- `test/spec/defaults.tsv` gains sixteen rows, for the rule and for
+  map and list defaults keeping their arbitration, and the new
+  `test/spec/defaults-order.tsv` writes eight families of statements
+  in every order, 100 rows, of which the unfixed engines failed 32.
+  The `include-in-place` rows of `test/spec/file.tsv` read the include
+  order from the canon, since what generates no longer depends on it.
+- Still open, on #431: a bound met only after two defaults of
+  different ranks have met cannot promote the weaker one, which the
+  stronger has already displaced, so `a: **1`, `a: *0`, `a: min(1)` is
+  incomplete where the meet of the two disjunctions generates `1`; and
+  two defaults of one rank that meet before the value clash, where
+  the value would have decided between them.
+
+## 0.76.0 — 2026-09-24
+
+### `@tabnas/yaml` moves to 0.5.9
+
+TypeScript. The YAML reader moves from 0.5.8 to 0.5.9, which reads a
+flow collection written on the line after its key, as in `required:`
+followed by `[a, b, c]`: valid YAML 1.2 that 0.5.8 refused.
 
 ### A nameless `file` is refused wherever it sits in the tree
 
