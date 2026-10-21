@@ -3971,10 +3971,13 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 ```
 
 Read the four in order. `error` is a document that refers to a name it
-does not declare, one whose names break the alias-cycle rule, or a
-schema whose normal form does not stand, `illFormed`: a `nil` anywhere
-but in a spread, which the engines read only against a member, a
-preference clash, or an `ident()` out of the place step 8 gives it:
+doesn't declare, one whose names break the alias-cycle rule, or a
+schema whose normal form doesn't stand, `illFormed`. A normal form
+doesn't stand where it holds a `nil` anywhere but in a spread, which
+the engines read only against a member, a preference clash, a size its
+container literal breaks, or an `ident()` out of the place step 8 gives
+it. A preference clash is two picked arms that single out different
+values:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -3987,19 +3990,59 @@ def clash (arms : List (ℕ × Val)) : Bool :=
     match (arms.filter (picked arms)).filterMap fun p => gen p.2 with
     | [] => false
     | x :: rest => rest.any fun y => decide (y ≠ x)
+```
 
-mutual
-/-- Whether a term in normal form does not stand: a `nil` anywhere but
-in a spread, which the engines read only against a member, a
-preference clash, or an `ident()` anywhere but on an alias's value,
-which a reference reads without it (`Decls.env`). -/
+A size breaks a container literal where its upper half refuses the
+literal's count. Members only accumulate, so a literal longer than its
+size allows can never meet it, and both engines refuse the schema at
+the meet: `len(max(1)) & {x: 1, y: 2}` is an `error`. A literal short
+of its size may still grow, by the data or by another literal, so the
+size's lower end waits for generation: `len(2) & [1]` is `invalid`
+against `[1]` and `valid` against `[1, 2]`. The upper half reads an
+exact size as its upper end:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.upperHalf : Val → Val
+  | .min _ | .above _ => .any
+  | .lit (.num x) => .max (.num x)
+  | .meet a b => .meet a.upperHalf b.upperHalf
+  | .or arms => .or (upperArms arms)
+  | v => v
+```
+
+The count is what generates, so `{x: 1, y?: integer}` counts one, and
+the size counts a meet's literals after meeting them, so
+`len(neq(2)) & {x: 1, y: 2} & {z: 3}` counts three:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def sizeClash (cs : List Val) : Bool :=
+  match (cs.filter fun v => v.genCount.isSome).foldl meet .any |>.genCount with
+  | none => false
+  | some n =>
+    if h : IntegerLeaf n then
+      cs.any fun v => match v with
+        | .len c => !check c.upperHalf (.num (.integer ⟨n, h⟩))
+        | _ => false
+    else false
+```
+
+Only the lower end waits. The meet decides an exclusion or a multiple
+with the upper end, so `len(neq(2)) & {x: 1, y: 2}` is an `error`
+though the data `{"x": 1, "y": 2, "z": 3}` would meet it, as both
+engines answer. `illFormed` reads the sizes of a meet once, whole, and
+each of its conjuncts as it reads a term:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
 def Val.illFormed : Val → Bool
   | .nil => true
   | .map fs _ _ => illFields fs
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
-  | .meet a b => a.illFormed || b.illFormed
+  | .meet a b => illChain a || illChain b || sizeClash (a.conjuncts ++ b.conjuncts)
   | .ride .ident _ _ => true
   | .ride _ v _ => v.illFormed
   | _ => false
@@ -4151,7 +4194,9 @@ own. Both engines agree with the definition on every row but three,
 which the ledger names. The rows keep away from two corners. The next
 step records the three rows and the two corners: a seal met with a
 spread, a `nil` written in a schema, and a contradiction under an
-optional key.
+optional key. The sizes met with container literals follow in rows
+`l0` on, the cases of `lenCases`, and both engines answer every one as
+the definition does.
 
 ## 15. Where the definition and the engines differ
 

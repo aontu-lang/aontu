@@ -248,18 +248,75 @@ def clash (arms : List (ℕ × Val)) : Bool :=
     | [] => false
     | x :: rest => rest.any fun y => decide (y ≠ x)
 
+/-- The terms a meet is written of, in order. -/
+def Val.conjuncts : Val → List Val
+  | .meet a b => a.conjuncts ++ b.conjuncts
+  | v => [v]
+
+/-- The members a container literal generates: each position of a list,
+each required key of a map, and each optional key whose value
+generates, as the reference's `len` counts what generates. -/
+def Val.genCount : Val → Option ℕ
+  | .list items _ _ => some items.length
+  | .map fs _ _ => some (fs.countP fun f => !f.2.1 || (gen f.2.2).isSome)
+  | _ => none
+
+mutual
+/-- A size with its lower ends dropped and an exact size read as its
+upper end: the half the meet decides against a literal's count, since
+members only accumulate. -/
+def Val.upperHalf : Val → Val
+  | .min _ | .above _ => .any
+  | .lit (.num x) => .max (.num x)
+  | .meet a b => .meet a.upperHalf b.upperHalf
+  | .or arms => .or (upperArms arms)
+  | v => v
+
+def upperArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.upperHalf) :: upperArms arms
+end
+
+/-- Whether the conjuncts of a meet hold a size their container literal
+breaks: a `len(c)` whose upper half refuses the count of the literals,
+met. A literal short of its size is no conflict: it is tried at
+generation, after the fills (decision 9 of the design note's §7). -/
+def sizeClash (cs : List Val) : Bool :=
+  match (cs.filter fun v => v.genCount.isSome).foldl meet .any |>.genCount with
+  | none => false
+  | some n =>
+    if h : IntegerLeaf n then
+      cs.any fun v => match v with
+        | .len c => !check c.upperHalf (.num (.integer ⟨n, h⟩))
+        | _ => false
+    else false
+
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, a
-preference clash, or an `ident()` anywhere but on an alias's value,
-which a reference reads without it (`Decls.env`). -/
+preference clash, a size the meet's container literal breaks, or an
+`ident()` anywhere but on an alias's value, which a reference reads
+without it (`Decls.env`). -/
 def Val.illFormed : Val → Bool
   | .nil => true
   | .map fs _ _ => illFields fs
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
-  | .meet a b => a.illFormed || b.illFormed
+  | .meet a b => illChain a || illChain b || sizeClash (a.conjuncts ++ b.conjuncts)
+  | .ride .ident _ _ => true
+  | .ride _ v _ => v.illFormed
+  | _ => false
+
+/-- A conjunct of a meet read as `illFormed` reads a term, the meet it
+stands in having read its sizes once, whole. -/
+def illChain : Val → Bool
+  | .meet a b => illChain a || illChain b
+  | .nil => true
+  | .map fs _ _ => illFields fs
+  | .list items _ _ => illItems items
+  | .or arms => clash arms || illArms arms
+  | .pref _ x => x.illFormed
   | .ride .ident _ _ => true
   | .ride _ v _ => v.illFormed
   | _ => false

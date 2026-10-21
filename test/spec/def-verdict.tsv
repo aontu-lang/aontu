@@ -8,6 +8,9 @@
 # incomplete otherwise.
 # Regenerate with `make spec`; never edit by hand. The cases the ports do
 # not yet answer this way are listed in spec/ledger.tsv.
+# A size met with a container literal follows in rows l0 on: an error where
+# the size's upper half refuses the literal's count, the lower end waiting
+# for generation.
 e0	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error"}
 e1	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"noFill":true}}
 e2	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"partial":true}}
@@ -179,3 +182,51 @@ e167	verdict	v: true	v: false	{"verdict":"invalid","opts":{"partial":true}}
 e168	verdict	v: (close([1, 2])) & ([&: integer])	v: [1, 2, 3]	{"verdict":"invalid"}
 e169	verdict	v: (close([1, 2])) & ([&: integer])	v: [1, 2, 3]	{"verdict":"invalid","opts":{"noFill":true}}
 e170	verdict	v: (close([1, 2])) & ([&: integer])	v: [1, 2, 3]	{"verdict":"invalid","opts":{"partial":true}}
+l0	verdict	v: (len(max(1))) & ({"x": 1, "y": 2})	v: {"x": 1, "y": 2}	{"verdict":"error"}
+l1	verdict	v: (len(max(1))) & ({"x": 1, "y": 2})	v: {"x": 1, "y": 2}	{"verdict":"error","opts":{"noFill":true}}
+l2	verdict	v: (len(max(1))) & ({"x": 1, "y": 2})	v: {"x": 1, "y": 2}	{"verdict":"error","opts":{"partial":true}}
+l3	verdict	v: (len(max(1))) & ({"x"?: 1, "y"?: 2})	v: {}	{"verdict":"error"}
+l4	verdict	v: (len(max(1))) & ({"x"?: 1, "y"?: 2})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+l5	verdict	v: (len(max(1))) & ({"x"?: 1, "y"?: 2})	v: {}	{"verdict":"error","opts":{"partial":true}}
+l6	verdict	v: (len(max(1))) & ({"x": 1, "y"?: integer})	v: {"x": 1}	{"verdict":"valid"}
+l7	verdict	v: (len(max(1))) & ({"x": 1, "y"?: integer})	v: {"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+l8	verdict	v: (len(max(1))) & ({"x": 1, "y"?: integer})	v: {"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+l9	verdict	v: (len(max(1))) & ([1, 2])	v: [1, 2]	{"verdict":"error"}
+l10	verdict	v: (len(max(1))) & ([1, 2])	v: [1, 2]	{"verdict":"error","opts":{"noFill":true}}
+l11	verdict	v: (len(max(1))) & ([1, 2])	v: [1, 2]	{"verdict":"error","opts":{"partial":true}}
+l12	verdict	v: (len(2)) & ([1, 2, 3])	v: [1, 2, 3]	{"verdict":"error"}
+l13	verdict	v: (len(2)) & ([1, 2, 3])	v: [1, 2, 3]	{"verdict":"error","opts":{"noFill":true}}
+l14	verdict	v: (len(2)) & ([1, 2, 3])	v: [1, 2, 3]	{"verdict":"error","opts":{"partial":true}}
+l15	verdict	v: (len(2)) & ([1])	v: [1]	{"verdict":"invalid"}
+l16	verdict	v: (len(2)) & ([1])	v: [1]	{"verdict":"invalid","opts":{"noFill":true}}
+l17	verdict	v: (len(2)) & ([1])	v: [1]	{"verdict":"invalid","opts":{"partial":true}}
+l18	verdict	v: (len(2)) & ([1])	v: [1, 2]	{"verdict":"valid"}
+l19	verdict	v: (len(2)) & ([1])	v: [1, 2]	{"verdict":"valid","opts":{"noFill":true}}
+l20	verdict	v: (len(2)) & ([1])	v: [1, 2]	{"verdict":"valid","opts":{"partial":true}}
+l21	verdict	v: (len(2)) & (close([1]))	v: [1]	{"verdict":"invalid"}
+l22	verdict	v: (len(2)) & (close([1]))	v: [1]	{"verdict":"invalid","opts":{"noFill":true}}
+l23	verdict	v: (len(2)) & (close([1]))	v: [1]	{"verdict":"invalid","opts":{"partial":true}}
+l24	verdict	v: (len(max(1))) & (close({"x": 1, "y": 2}))	v: {"x": 1, "y": 2}	{"verdict":"error"}
+l25	verdict	v: (len(max(1))) & (close({"x": 1, "y": 2}))	v: {"x": 1, "y": 2}	{"verdict":"error","opts":{"noFill":true}}
+l26	verdict	v: (len(max(1))) & (close({"x": 1, "y": 2}))	v: {"x": 1, "y": 2}	{"verdict":"error","opts":{"partial":true}}
+l27	verdict	v: (len(max(1))) & ({"x": 1, "y": 2, &: integer})	v: {"x": 1, "y": 2}	{"verdict":"error"}
+l28	verdict	v: (len(max(1))) & ({"x": 1, "y": 2, &: integer})	v: {"x": 1, "y": 2}	{"verdict":"error","opts":{"noFill":true}}
+l29	verdict	v: (len(max(1))) & ({"x": 1, "y": 2, &: integer})	v: {"x": 1, "y": 2}	{"verdict":"error","opts":{"partial":true}}
+l30	verdict	v: (len(max(2))) & ({"x": 1, "y": 2})	v: {"x": 1, "y": 2}	{"verdict":"valid"}
+l31	verdict	v: (len(max(2))) & ({"x": 1, "y": 2})	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"noFill":true}}
+l32	verdict	v: (len(max(2))) & ({"x": 1, "y": 2})	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"partial":true}}
+l33	verdict	v: (len(neq(2))) & ({"x": 1, "y": 2})	v: {"x": 1, "y": 2, "z": 3}	{"verdict":"error"}
+l34	verdict	v: (len(neq(2))) & ({"x": 1, "y": 2})	v: {"x": 1, "y": 2, "z": 3}	{"verdict":"error","opts":{"noFill":true}}
+l35	verdict	v: (len(neq(2))) & ({"x": 1, "y": 2})	v: {"x": 1, "y": 2, "z": 3}	{"verdict":"error","opts":{"partial":true}}
+l36	verdict	v: (len(neq(2))) & (({"x": 1, "y": 2}) & ({"z": 3}))	v: {"x": 1, "y": 2, "z": 3}	{"verdict":"valid"}
+l37	verdict	v: (len(neq(2))) & (({"x": 1, "y": 2}) & ({"z": 3}))	v: {"x": 1, "y": 2, "z": 3}	{"verdict":"valid","opts":{"noFill":true}}
+l38	verdict	v: (len(neq(2))) & (({"x": 1, "y": 2}) & ({"z": 3}))	v: {"x": 1, "y": 2, "z": 3}	{"verdict":"valid","opts":{"partial":true}}
+l39	verdict	v: (len(mulof(3))) & ([1, 2])	v: [1, 2, 3]	{"verdict":"error"}
+l40	verdict	v: (len(mulof(3))) & ([1, 2])	v: [1, 2, 3]	{"verdict":"error","opts":{"noFill":true}}
+l41	verdict	v: (len(mulof(3))) & ([1, 2])	v: [1, 2, 3]	{"verdict":"error","opts":{"partial":true}}
+l42	verdict	v: (len(above(5))) & ([1])	v: [1]	{"verdict":"invalid"}
+l43	verdict	v: (len(above(5))) & ([1])	v: [1]	{"verdict":"invalid","opts":{"noFill":true}}
+l44	verdict	v: (len(above(5))) & ([1])	v: [1]	{"verdict":"invalid","opts":{"partial":true}}
+l45	verdict	v: (len(max(1))) & ([&: integer])	v: [1, 2]	{"verdict":"invalid"}
+l46	verdict	v: (len(max(1))) & ([&: integer])	v: [1, 2]	{"verdict":"invalid","opts":{"noFill":true}}
+l47	verdict	v: (len(max(1))) & ([&: integer])	v: [1, 2]	{"verdict":"invalid","opts":{"partial":true}}

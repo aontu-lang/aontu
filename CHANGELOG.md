@@ -35,6 +35,28 @@ documentation; no engine changes. Ruling 14 of the design note
 - The definition tutorial reads the riders at steps 8 and 19, and the
   language reference cites the rules.
 
+### A size its container literal breaks is an error in the definition
+
+Definition, generated rows and documentation; no engine changes.
+Ruling 9 of the design note (`sketch/DEFINITION.0.md`, §7) is built.
+
+- `spec/Aontu/Verdict.lean`: `sizeClash` reads a meet's `len(c)`
+  against its container literals, met. Where `c`'s upper half refuses
+  the count of what the literals generate, `Val.illFormed` holds and
+  `vet` answers `error`. The upper half drops the lower ends and reads
+  an exact size as its upper end. A literal short of its size is tried
+  at generation, after the fills, as before. `illFormed` reads a
+  meet's sizes once, whole, through `illChain`.
+- `test/spec/def-verdict.tsv` grows by rows l0 on, the sixteen cases
+  of `lenCases` in three modes, which both ports answer as the
+  definition does.
+- Building it found that both ports refuse a disjunctive size as an
+  argument (#413). The rows leave it out, and the design note opens
+  decision 16 on it.
+- The definition tutorial reads the size clash in step 14, and the
+  language reference states the rule under the definition's name for
+  it. `spec/README.md` and the design note say it is built.
+
 ### The definition's `defaults` profile counts only a declared default
 
 Definition and documentation; no engine changes, and no row changes.
