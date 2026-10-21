@@ -3217,6 +3217,30 @@ A pair neither decides has no row, and since an engine may answer
 `undecided` anywhere, a row allows it beside the answer the definition
 gives.
 
+The definition decides the other two profiles position by position.
+`defaultsAt` decides what `defaults` asks at one position, reading each
+side's output through `output_iff`:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+def defaultsAt (a b : Val) : Bool :=
+  !a.declaresDefault ||
+    (decide (normalise a).Checkable &&
+      match output a with
+      | some j => b.declaresDefault && decide (normalise b).Checkable && decide (output b = some j)
+      | none => true)
+```
+
+`defaultsBelow` asks it at every position both sides have, the keys and
+the indexes `Val.at` reads. Where `leDecF` proves the order and the
+walk fails nowhere, `defaultsLe_of_walk` proves `DefaultsLe`, and one
+position where it fails refutes it. `marksAt` and `marksBelow` do the
+same for the marks, a spread included, for `gen`. Their rows are f0 on
+under `defaults` and w0 on under `gen`, and both engines answer them as
+the contracts allow but one: under `defaults` they compare a default at
+a map member and not at a list position, so `[number]` over
+`[*1 | number]` subsumes for them, which #424 tracks.
+
 The containers follow the members. A map on the general side is above
 a map on the specific side when each key it declares, the specific side
 declares too, with a value below it and required where the general
@@ -5658,9 +5682,7 @@ The language needs only the power to represent a JSON Schema: what
 
 Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker
-of step 17 reads unmade. And its rows for `subsume` test the `values`
-profile alone: the `defaults` and `gen` rows wait on a procedure that
-decides `DefaultsLe`. None of those has a rule yet.
+of step 17 reads unmade. Neither has a rule yet.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

@@ -8,6 +8,27 @@ each change affects.
 
 ## Unreleased
 
+### The defaults and gen profiles are decided
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Subsume.lean`: `defaultsAt` and `marksAt` decide what the
+  `defaults` and `gen` profiles ask at one position, and
+  `defaultsBelow` and `marksBelow` walk every position both normal
+  forms have, a spread's among them under `gen`. `defaultsLe_of_walk`
+  and `genLe_of_walk` prove each profile's order where `leDecF` proves
+  the order and the walk fails nowhere, and
+  `not_defaultsLe_of_refutes` and `not_genLe_of_refutes` refute it at
+  one position.
+- `test/spec/def-subsume.tsv` grows by rows f0 on, 288 pairs under
+  `defaults`, and w0 on, 234 pairs under `gen`. Both ports answer
+  every row as the contract allows but one: under `defaults` they
+  compare a default at a map member and not at a list position (#424).
+  `spec/ledger.tsv` lists it, and its bound rises from 114 to 115.
+- The definition tutorial and the language reference state how the two
+  profiles are decided.
+
 ### The definition holds the marks
 
 Definition, generated rows, a generated file, two tests and
