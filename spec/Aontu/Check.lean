@@ -320,6 +320,7 @@ inductive Val.Checkable : Val → Prop
   | meet {a b : Val} : Checkable a → Checkable b → Checkable (.meet a b)
   | path {p : List Seg} : Checkable (.path p)
   | nof {n : Val} {cs : List Val} : Checkable n → (∀ c, c ∈ cs → Checkable c) → Checkable (.nof n cs)
+  | call {f : Fn} {args : List Val} : (∀ a, a ∈ args → Checkable a) → Checkable (.call f args)
   | must {c : Val} {msg : String} : Checkable c → Checkable (.must c msg)
   | when {c t : Val} {e : Option Val} :
       Checkable c → Checkable t → (∀ e', e = some e' → Checkable e') → Checkable (.when c t e)
@@ -350,6 +351,7 @@ def Val.checkableB : Val → Bool
   | .pref _ x => x.checkableB
   | .meet a b => a.checkableB && b.checkableB
   | .nof n cs => n.checkableB && itemsCheckable cs
+  | .call _ args => itemsCheckable args
   | .must c _ => c.checkableB
   | .when c t e => c.checkableB && t.checkableB && spreadCheckable e
   | .contains c n => c.checkableB && n.checkableB
@@ -453,6 +455,10 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
     simp only [Val.checkableB, Bool.and_eq_true]
     rw [Val.checkableB_iff n, itemsCheckable_iff cs]
     exact ⟨fun ⟨h1, h2⟩ => .nof h1 h2, fun h => by cases h; exact ⟨‹_›, ‹_›⟩⟩
+  | .call _ args => by
+    simp only [Val.checkableB]
+    rw [itemsCheckable_iff args]
+    exact ⟨.call, fun h => by cases h; assumption⟩
   | .must c _ => by
     simp only [Val.checkableB]
     rw [Val.checkableB_iff c]
@@ -1031,6 +1037,7 @@ inductive Val.CheckableA : Val → Prop
   | alias {n : String} : CheckableA (.alias n)
   | path {p : List Seg} : CheckableA (.path p)
   | nof {n : Val} {cs : List Val} : CheckableA n → (∀ c, c ∈ cs → CheckableA c) → CheckableA (.nof n cs)
+  | call {f : Fn} {args : List Val} : (∀ a, a ∈ args → CheckableA a) → CheckableA (.call f args)
   | must {c : Val} {msg : String} : CheckableA c → CheckableA (.must c msg)
   | when {c t : Val} {e : Option Val} :
       CheckableA c → CheckableA t → (∀ e', e = some e' → CheckableA e') → CheckableA (.when c t e)
@@ -1061,6 +1068,7 @@ def Val.checkableAB : Val → Bool
   | .pref _ x => x.checkableAB
   | .meet a b => a.checkableAB && b.checkableAB
   | .nof n cs => n.checkableAB && itemsCheckableA cs
+  | .call _ args => itemsCheckableA args
   | .must c _ => c.checkableAB
   | .when c t e => c.checkableAB && t.checkableAB && spreadCheckableA e
   | .contains c n => c.checkableAB && n.checkableAB
@@ -1164,6 +1172,10 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
     simp only [Val.checkableAB, Bool.and_eq_true]
     rw [Val.checkableAB_iff n, itemsCheckableA_iff cs]
     exact ⟨fun ⟨h1, h2⟩ => .nof h1 h2, fun h => by cases h; exact ⟨‹_›, ‹_›⟩⟩
+  | .call _ args => by
+    simp only [Val.checkableAB]
+    rw [itemsCheckableA_iff args]
+    exact ⟨.call, fun h => by cases h; assumption⟩
   | .must c _ => by
     simp only [Val.checkableAB]
     rw [Val.checkableAB_iff c]
@@ -1315,6 +1327,7 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | meet _ _ iha ihb => exact .meet iha ihb
   | path => exact .path
   | nof _ _ ihn ihcs => exact .nof ihn ihcs
+  | call _ ih => exact .call ih
   | must _ ih => exact .must ih
   | when _ _ _ ihc iht ihe => exact .when ihc iht ihe
   | contains _ _ ihc ihn => exact .contains ihc ihn
@@ -1386,6 +1399,9 @@ theorem Val.CheckableA.toChecked {v : Val} (h : v.CheckableA) (hn : ∀ n, n ∉
     · simp only [Val.refs, List.mem_append]; exact .inl (.inr (mem_refsPairs.mpr ⟨p, r, hm, .inl hn'⟩))
     · simp only [Val.refs, List.mem_append]; exact .inl (.inr (mem_refsPairs.mpr ⟨p, r, hm, .inr hn'⟩))
     · simp only [Val.refs, List.mem_append, he, refsSpread]; exact .inr hn'
+  | @call f args _ ih =>
+    exact .call fun a ha => ih a ha fun n hn' => hn n (by
+      simp only [Val.refs]; exact mem_refsItems.mpr ⟨a, ha, hn'⟩)
   | _ => constructor
 
 /-- A checkable value refers to no name. -/
@@ -1480,6 +1496,11 @@ theorem Val.Checkable.no_refs {v : Val} (h : v.Checkable) : ∀ n, n ∉ v.refs 
     · cases hd : d with
       | none => rw [hd] at hn; exact absurd hn (List.not_mem_nil)
       | some e => rw [hd] at hn; exact ihd e hd n hn
+  | call _ ih =>
+    intro n hn
+    simp only [Val.refs] at hn
+    obtain ⟨a, ha, hn⟩ := mem_refsItems.mp hn
+    exact ih a ha n hn
   | _ => intro n hn; simp [Val.refs] at hn
 
 mutual
@@ -1580,6 +1601,7 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .select (.lit s) arms d, j => (checkArmsSelectWith u s.data arms j).getD (checkOptWith u d j)
   | .select _ _ _, _ => false
   | .filter _ _, _ => false
+  | .call _ _, _ => false
   | .key, j => match k, j with
     | some k', .str s => decide (k' = s)
     | _, _ => false
@@ -1698,7 +1720,7 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
   | .alias n, j => u n j
   | .path _, _ => false
   | .nof _ _, _ | .must _ _, _ | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _
-  | .select _ _ _, _ | .filter _ _, _ => true
+  | .select _ _ _, _ | .filter _ _, _ | .call _ _, _ => true
   | .key, j => match j with
     | .str _ => true
     | _ => false
@@ -2569,7 +2591,7 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     simp only [checkSuperWith, Val.super]
     exact .path
   | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
-  | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ => intro j _; exact .any
+  | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ | call _ _ => intro j _; exact .any
   | key =>
     intro j _
     cases j with
@@ -2639,6 +2661,7 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
   induction h with
   | any => intro ky j _; refine judge_keyless rfl ?_; exact .any
   | nil => intro ky j _; refine judge_keyless rfl ?_; exact .nil
+  | call _ _ => intro ky j _; refine judge_keyless rfl ?_; exact .call
   | integer => intro ky j _; refine judge_keyless rfl ?_; exact judge_integer j
   | float => intro ky j _; refine judge_keyless rfl ?_; exact judge_float j
   | biginteger => intro ky j _; refine judge_keyless rfl ?_; exact judge_biginteger j

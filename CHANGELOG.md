@@ -8,6 +8,31 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds calls on numbers
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Arith.lean`: `Number.arith` computes `add`, `sub`,
+  `mul`, `div`, `mod`, `rem` and unary `-` by the tower's rules. Two
+  integers compute exactly and must stay in the integer leaf; anything
+  with a float rounds to the nearest double, ties to even, and must
+  not overflow; a float with a big integer or a big decimal computes
+  nothing. Division truncates, `rem` follows the dividend's sign and
+  `mod` the divisor's, and a zero divisor computes nothing in any leaf.
+- `spec/Aontu/Syntax.lean` gains the form `call`, and `resolveD` in
+  `spec/Aontu/Verdict.lean` makes a call once every argument reads as
+  a number. A call no reading makes is ill-formed, so `vet` reads its
+  schema as an error.
+- `test/spec/def-call.tsv`, the eleventh generated fragment, holds 43
+  calls and three calls on a name, each in three modes. Both ports
+  answer every row as the definition does but nine, where a call has
+  the wrong number of arguments or negates a kind and both ports
+  answer `invalid` (#426). `spec/ledger.tsv` lists them, and its bound
+  rises from 115 to 124.
+- The definition tutorial gains step 20, calls on numbers, and the
+  language reference's arithmetic section cites the rules.
+
 ### The defaults and gen profiles are decided
 
 Definition, generated rows, the ledger and its bound in both runners,

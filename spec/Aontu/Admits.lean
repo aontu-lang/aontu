@@ -223,6 +223,10 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       (∀ s, j = .str s → ¬ host.format g s) → Judge env root false (.format g) j
   | any {j : Data} : Judge env root true .any j
   | nil {j : Data} : Judge env root false .nil j
+  /-- A call the reading could not make, outside its function's domain,
+  refuses every value; `vet` reads a document that holds one as an
+  error before it judges. -/
+  | call {f : Fn} {args : List Val} {j : Data} : Judge env root false (.call f args) j
   /-- A map: every declared key that is present holds its value, and
   holds every declaration of it; a key that is absent is optional in
   every declaration; the spread holds every member, declared or not,
@@ -615,6 +619,8 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | any => rfl
   | nil => intro b' h'; cases h' with
     | nil => rfl
+  | call => intro b' h'; cases h' with
+    | call => rfl
   | map h1 h2 h3 h4 ih1 ih3 => intro b' h'; cases h' with
     | map _ _ _ _ => rfl
     | mapNot hn => exact absurd rfl (hn _)
@@ -902,6 +908,7 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.selectNone <;> assumption)
     | (apply Judge.key <;> assumption)
     | (apply Judge.selectKey <;> assumption)
+    | exact Judge.call
 
 /-- The judgement a term's trial comes out: the computed answer `c` is the
 judgement `b` exactly when the two agree. -/

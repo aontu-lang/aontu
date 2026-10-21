@@ -306,6 +306,7 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .select s arms d =>
       .select (expandF ds k s) (arms.map fun a => (expandF ds k a.1, expandF ds k a.2)) (d.map (expandF ds k))
     | .filter s c => .filter (expandF ds k s) (expandF ds k c)
+    | .call f args => .call f (args.map (expandF ds k))
     | .ride t v r => .ride t (expandF ds k v) r
     | v => v
 
@@ -563,6 +564,13 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
         · exact .inr ⟨m, .inr hm, hmn⟩
     | map _ _ _ => simp [expandF, Val.unguardedRefs] at h
     | list _ _ _ => simp [expandF, Val.unguardedRefs] at h
+    | call _ args =>
+      simp only [expandF, Val.unguardedRefs] at h ⊢
+      obtain ⟨a', hm, hn⟩ := mem_unguardedItems.mp h
+      obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hm
+      rcases unguardedRefs_expandF f a hn with h' | ⟨m, hm', hmn⟩
+      · exact .inl (mem_unguardedItems.mpr ⟨a, ha, h'⟩)
+      · exact .inr ⟨m, mem_unguardedItems.mpr ⟨a, ha, hm'⟩, hmn⟩
     | _ => exact .inl (by simpa [expandF] using h)
 
 theorem Decls.Stacked.push {ds : Decls} {stack : List String} {v : Val} {k : String} {b : Val}
@@ -701,6 +709,10 @@ theorem Val.CheckableA.unmark {v : Val} (h : v.CheckableA) : v.unmark.CheckableA
     refine .nof ihn fun w hm => ?_
     obtain ⟨v, hv, rfl⟩ := mem_unmarkItems.mp hm
     exact ihc v hv
+  | @call f args _ ih =>
+    refine .call fun w hm => ?_
+    obtain ⟨v, hv, rfl⟩ := mem_unmarkItems.mp hm
+    exact ih v hv
   | must _ ih => exact .must ih
   | when _ _ _ ihc iht ihe =>
     refine .when ihc iht fun e' he => ?_
@@ -807,6 +819,10 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       intro c' hm
       obtain ⟨c, hc, rfl⟩ := List.mem_map.mp hm
       exact expandF_checkableA hb f c (hcs c hc)
+    | call hargs =>
+      refine .call fun a' hm => ?_
+      obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hm
+      exact expandF_checkableA hb f a (hargs a ha)
     | must hc => exact .must (expandF_checkableA hb f _ hc)
     | when hc ht he =>
       refine .when (expandF_checkableA hb f _ hc) (expandF_checkableA hb f _ ht) ?_
@@ -1215,7 +1231,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
   | nil => exact .nil
   | path => exact .path
   | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
-  | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ => exact .any
+  | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ | call _ _ => exact .any
   | key => exact .anyString
   | @lit s =>
     cases s with

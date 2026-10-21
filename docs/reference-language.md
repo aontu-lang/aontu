@@ -2856,6 +2856,8 @@ An exact result that will not store is refused too, exactly as a sum is
 error rather than a rounded answer, and `0d` operands compute it
 exactly.
 
+The definition holds a call as the term `call` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) and computes it by `Number.arith` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean). Two integers compute exactly, with no answer where the result leaves the integer leaf. Anything with a float computes the nearest double, ties to even, with no answer where it overflows, and a float with a big integer or a big decimal has no answer. Anything else computes exactly, in the wider leaf, a big decimal never divided and held to a budget of 4096 digits, and a zero divisor has no answer in any leaf. `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) makes a call once every argument reads as a number, and a call no reading makes leaves the schema ill-formed, an `error` for `vet`. Both engines answer `invalid` instead where a call has the wrong number of arguments or negates something other than a number, which #426 tracks.
+
 ## Projecting fields: `pick`
 
 `pick(data, key)` returns a list containing the named field from each
