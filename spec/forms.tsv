@@ -64,3 +64,5 @@ call	call	least
 call	call	greatest
 call	syntax	+
 call	call	join
+call	call	pick
+call	call	sort

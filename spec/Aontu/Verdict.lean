@@ -193,6 +193,123 @@ def joinOf (ds : Decls) (b : Val) (sep : Option Val) : Made :=
       | some t, some ps => .made (.lit (.str (t.intercalate ps)))
       | _, _ => .refused
 
+/-- A term without the riders around it. -/
+def Val.unride : Val → Val
+  | .ride _ v _ => v.unride
+  | v => v
+
+/-- A projector in normal form, its riders read through: a string or an
+integer. -/
+def Val.projector? (v : Val) : Option (String ⊕ ℤ) :=
+  match v.unride with
+  | .lit (.str s) => some (.inl s)
+  | .lit (.num (.integer i)) => some (.inr i.value)
+  | _ => none
+
+/-- The key a projector names in a map member: a string itself, and an
+integer its digits, after a `-` where it is negative. -/
+def projKey : String ⊕ ℤ → String
+  | .inl s => s
+  | .inr i => toString i
+
+/-- The index a projector names in a list member: an integer itself, and
+a string the integer its digits write, ASCII and at least one, after
+one optional sign; `" 0"`, `"0.0"` and `"1e0"` name none. -/
+def projIndex? : String ⊕ ℤ → Option ℤ
+  | .inl s => match s.toList with
+    | '-' :: ds => (String.mk ds).toNat?.map fun n => -(n : ℤ)
+    | '+' :: ds => (String.mk ds).toNat?.map fun n => (n : ℤ)
+    | _ => s.toNat?.map fun n => (n : ℤ)
+  | .inr i => some i
+
+/-- What a projector reads in a member in normal form, its riders read
+through: a map's field at the key it names, or a list's item at the
+index it names, where the list has one. -/
+def Val.project? (m : Val) (p : String ⊕ ℤ) : Option Val :=
+  match m.unride with
+  | .map fs _ _ => (fs.find? fun f => f.1 = projKey p).map fun f => f.2.2
+  | .list items _ _ => match projIndex? p with
+    | some i => if 0 ≤ i then items[i.toNat]? else none
+    | none => none
+  | _ => none
+
+/-- What `pick` makes of its bag and its projector: the list of what the
+projector reads in each member, the members read as the folds read
+them; a refusal where the bag is none, where the projector is no string
+and no integer or is `""`, which names no key, or where a member lacks
+what it names. -/
+def pickOf (ds : Decls) (b k : Val) : Made :=
+  match (normaliseD ds b).members ds, (normaliseD ds k).projector? with
+  | _, some (.inl "") => .refused
+  | some ms, some p =>
+    match (ms.map (normaliseD ds)).mapM (fun m => m.project? p) with
+    | some vs => .made (.list vs none false)
+    | none => .refused
+  | _, _ => .refused
+
+/-- The key `sort` orders a member by: a number or a string, read as a
+call reads its argument. -/
+def Val.sortKey? (v : Val) : Option Scalar :=
+  match v.operand with
+  | .lit (.num n) => some (.num n)
+  | .lit (.str s) => some (.str s)
+  | _ => none
+
+/-- `sort`'s order on keys: numbers by exact value, strings by code point. -/
+def sortLt : Scalar → Scalar → Bool
+  | .num a, .num b => decide (a.lt b)
+  | .str a, .str b => decide (a < b)
+  | _, _ => false
+
+/-- Whether keys share one of `sort`'s two orders: all numbers, or all strings. -/
+def sortable (ks : List Scalar) : Bool :=
+  ks.all (fun k => match k with | .num _ => true | _ => false) ||
+    ks.all (fun k => match k with | .str _ => true | _ => false)
+
+/-- `sort`'s order on keyed members, descending or ascending, equal keys
+each before the other, so that a stable sort keeps their order. -/
+def sortLe (desc : Bool) (x y : Scalar × Val) : Bool :=
+  if desc then !(sortLt x.1 y.1) else !(sortLt y.1 x.1)
+
+/-- The projector `sort` reads in its second argument, read as `pick`
+reads one: none where there is no argument or it is `""`, which orders
+the members themselves. -/
+def sortProjector? (ds : Decls) : Option Val → Option (Option (String ⊕ ℤ))
+  | none => some none
+  | some p => match (normaliseD ds p).projector? with
+    | some (.inl "") => some none
+    | some q => some (some q)
+    | none => none
+
+/-- Whether `sort`'s third argument, its riders read through, orders
+descending: `desc` does, and `asc` or no argument does not. -/
+def sortDesc? (ds : Decls) : Option Val → Option Bool
+  | none => some false
+  | some d => match (normaliseD ds d).unride with
+    | .lit (.str "asc") => some false
+    | .lit (.str "desc") => some true
+    | _ => none
+
+/-- What `sort` makes of its bag, its projector and its direction: the
+members, read as the folds read them, ordered by the key the projector
+reads in each, or by the member itself where `sortProjector?` reads
+none, equal keys in their order. A refusal where the bag is none, where
+the projector is no string and no integer, where the direction is
+neither `asc` nor `desc`, where a member lacks what the projector names
+or its key is no number and no string, and where the keys are not all
+numbers or all strings. -/
+def sortOf (ds : Decls) (b : Val) (p d : Option Val) : Made :=
+  match (normaliseD ds b).members ds, sortProjector? ds p, sortDesc? ds d with
+  | some ms, some q, some desc =>
+    match (ms.map (normaliseD ds)).mapM fun m => (q.elim (some m) m.project?).bind Val.sortKey? with
+    | some ks =>
+      if sortable ks then
+        .made (.list (((ks.zip (ms.map (normaliseD ds))).mergeSort (sortLe desc)).map Prod.snd)
+          none false)
+      else .refused
+    | none => .refused
+  | _, _, _ => .refused
+
 /-- The number a call computes from its arguments: a fold from the
 numbers its one bag's members are, and any other function from the
 numbers its arguments are, each read in its normal form. -/
@@ -214,7 +331,8 @@ def Made.term (ds : Decls) (f : Fn) (args : List Val) : Made → Val
 
 /-- The term a call is, its arguments resolved: a `+` what `plusOf` makes
 of its operands' normal forms, each read through its riders and a lone
-preference first, as `*1 + 1` is `2`; a `join` what `joinOf` makes; any
+preference first, as `*1 + 1` is `2`; a `join`, a `pick` and a `sort`
+what `joinOf`, `pickOf` and `sortOf` make; any
 other call the number `callValue` computes, where it computes one, and
 itself otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
@@ -222,6 +340,10 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .plus, [a, b] => (plusOf (normaliseD ds a.operand) (normaliseD ds b.operand)).term ds f args
   | .join, [b] => (joinOf ds b none).term ds f args
   | .join, [b, s] => (joinOf ds b (some s)).term ds f args
+  | .pick, [b, k] => (pickOf ds b k).term ds f args
+  | .sort, [b] => (sortOf ds b none none).term ds f args
+  | .sort, [b, p] => (sortOf ds b (some p) none).term ds f args
+  | .sort, [b, p, d] => (sortOf ds b (some p) (some d)).term ds f args
   | _, _ =>
     match callValue ds f args with
     | some n => .lit (.num n)
@@ -477,6 +599,122 @@ theorem Val.unwrap_checkableA : ∀ {v : Val}, v.CheckableA → v.unwrap.Checkab
 theorem Val.operand_checkableA {v : Val} (h : v.CheckableA) : v.operand.CheckableA :=
   Val.unwrap_checkableA (Val.lonePref_checkableA (Val.unwrap_checkableA h))
 
+theorem Val.checkableA_unride {v : Val} (h : v.CheckableA) : v.unride.CheckableA := by
+  induction v using Val.unride.induct with
+  | case1 k v r ih => cases h with | ride h => exact ih h
+  | case2 v h1 => rw [Val.unride.eq_2 v h1]; exact h
+
+/-- What an `Option` `mapM` makes holds what each of its results holds. -/
+theorem mapM_some_forall {α β : Type} {f : α → Option β} {P : β → Prop} :
+    ∀ {l : List α} {ys : List β}, (∀ x, x ∈ l → ∀ y, f x = some y → P y) →
+      l.mapM f = some ys → ∀ y, y ∈ ys → P y
+  | [], ys, _, h => by
+    simp only [List.mapM_nil] at h
+    cases h
+    simp
+  | x :: l, ys, hf, h => by
+    simp only [List.mapM_cons] at h
+    cases hx : f x with
+    | none => simp [hx] at h
+    | some y =>
+      cases hl : l.mapM f with
+      | none => simp [hx, hl] at h
+      | some ys' =>
+        simp [hx, hl] at h
+        subst h
+        intro z hz
+        rcases List.mem_cons.mp hz with rfl | hz
+        · exact hf x List.mem_cons_self z hx
+        · exact mapM_some_forall (fun x' hx' => hf x' (List.mem_cons_of_mem _ hx')) hl z hz
+
+/-- The members a fold reads in a bag the checker can read are ones it
+can read. -/
+theorem Val.members_checkableA {ds : Decls} :
+    ∀ {lifted : Bool} {v : Val} {ms : List Val}, v.CheckableA → v.members ds lifted = some ms →
+      ∀ m, m ∈ ms → m.CheckableA
+  | _, .ride _ _ _, _, .ride h, hm => Val.members_checkableA h hm
+  | _, .list _ _ _, _, .list hi _, hm => by
+    simp only [Val.members, Option.some.injEq] at hm
+    exact hm ▸ hi
+  | _, .map _ _ _, _, .map hf _, hm => by
+    simp only [Val.members, Option.some.injEq] at hm
+    subst hm
+    intro m hm
+    obtain ⟨x, hx, hxm⟩ := List.mem_filterMap.mp hm
+    split at hxm
+    · cases hxm
+    · obtain rfl := Option.some.inj hxm
+      exact hf x.1 x.2.1 x.2.2 (List.mem_mergeSort.mp hx)
+  | _, .integer, _, _, hm | _, .float, _, _, hm | _, .biginteger, _, _, hm
+  | _, .bigdecimal, _, _, hm | _, .number, _, _, hm | _, .string, _, _, hm
+  | _, .anyString, _, _, hm | _, .boolean, _, _, hm | _, .mapKind, _, _, hm
+  | _, .listKind, _, _, hm | _, .lit _, _, _, hm | _, .min _, _, _, hm | _, .max _, _, _, hm
+  | _, .above _, _, _, hm | _, .beneath _, _, _, hm | _, .neq _, _, _, hm
+  | _, .mulof _, _, _, hm | _, .len _, _, _, hm | _, .unique _, _, _, hm | _, .re _, _, _, hm
+  | _, .format _, _, _, hm | _, .any, _, _, hm | _, .nil, _, _, hm | _, .or _, _, _, hm
+  | _, .pref _ _, _, _, hm | _, .meet _ _, _, _, hm | _, .alias _, _, _, hm
+  | _, .path _, _, _, hm | _, .nof _ _, _, _, hm | _, .must _ _, _, _, hm
+  | _, .when _ _ _, _, _, hm | _, .contains _ _, _, _, hm | _, .rest _ _, _, _, hm
+  | _, .select _ _ _, _, _, hm | _, .filter _ _, _, _, hm | _, .key, _, _, hm
+  | _, .call _ _, _, _, hm => by simp [Val.members] at hm
+
+/-- What a projector reads in a member the checker can read is one it
+can read. -/
+theorem Val.project?_checkableA {m w : Val} {p : String ⊕ ℤ} (h : m.CheckableA)
+    (hp : m.project? p = some w) : w.CheckableA := by
+  have hu := Val.checkableA_unride h
+  unfold Val.project? at hp
+  split at hp
+  · rename_i fs _ _ hm
+    rw [hm] at hu
+    cases hu with
+    | map hf _ =>
+      obtain ⟨f, hf', rfl⟩ := Option.map_eq_some_iff.mp hp
+      exact hf f.1 f.2.1 f.2.2 (List.mem_of_find?_eq_some hf')
+  · rename_i items _ _ hm
+    rw [hm] at hu
+    split at hp
+    · split at hp
+      · cases hu with
+        | list hi _ => exact hi w (List.mem_of_getElem? hp)
+      · cases hp
+    · cases hp
+  · cases hp
+
+theorem pickOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {b k v : Val}
+    (hb : b.CheckableA) (h : pickOf ds b k = .made v) : v.CheckableA := by
+  unfold pickOf at h
+  split at h
+  · cases h
+  · rename_i ms p _ hms _
+    split at h
+    · rename_i vs hvs
+      obtain rfl := (Made.made.injEq _ _).mp h
+      refine .list (fun w hw => ?_) (fun _ hs => absurd hs (by simp))
+      refine mapM_some_forall (fun m hm w' hw' => ?_) hvs w hw
+      obtain ⟨m₀, hm₀, rfl⟩ := List.mem_map.mp hm
+      exact Val.project?_checkableA (normaliseD_checkableA hd
+        (Val.members_checkableA (normaliseD_checkableA hd hb) hms m₀ hm₀)) hw'
+    · cases h
+  · cases h
+
+theorem sortOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {b v : Val}
+    {p d : Option Val} (hb : b.CheckableA) (h : sortOf ds b p d = .made v) : v.CheckableA := by
+  unfold sortOf at h
+  split at h
+  · rename_i ms q desc hms _ _
+    split at h
+    · split at h
+      · obtain rfl := (Made.made.injEq _ _).mp h
+        refine .list (fun w hw => ?_) (fun _ hs => absurd hs (by simp))
+        obtain ⟨⟨kw, mw⟩, hx, rfl⟩ := List.mem_map.mp hw
+        obtain ⟨m₀, hm₀, rfl⟩ := List.mem_map.mp (List.of_mem_zip (List.mem_mergeSort.mp hx)).2
+        exact normaliseD_checkableA hd
+          (Val.members_checkableA (normaliseD_checkableA hd hb) hms m₀ hm₀)
+      · cases h
+    · cases h
+  · cases h
+
 theorem plusOf_checkableA {a b v : Val} (ha : a.CheckableA) (hb : b.CheckableA)
     (h : plusOf a b = .made v) : v.CheckableA := by
   have ha' := Val.operand_checkableA ha
@@ -539,6 +777,10 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     exact Made.term_checkableA hd h fun v hv => plusOf_checkableA ha' hb' hv
   · exact Made.term_checkableA hd h fun v hv => joinOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => joinOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => pickOf_checkableA hd (h _ (by simp)) hv
+  · exact Made.term_checkableA hd h fun v hv => sortOf_checkableA hd (h _ (by simp)) hv
+  · exact Made.term_checkableA hd h fun v hv => sortOf_checkableA hd (h _ (by simp)) hv
+  · exact Made.term_checkableA hd h fun v hv => sortOf_checkableA hd (h _ (by simp)) hv
   · split
     · exact .lit
     · exact .call h

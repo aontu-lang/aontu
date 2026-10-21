@@ -8,6 +8,42 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `pick` and `sort`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `pickOf` and `sortOf` read the members as
+  the folds read them. Neither waits: each call is the list it makes,
+  or an error.
+  - A projector is a string or an integer, read through its riders. In
+    a map member it names a key, an integer by its digits, so
+    `pick([{"0": 5}], 0)` is `[5]`. In a list member it names an index,
+    a string by its digits after one optional sign, so
+    `pick([[1, 2]], "1")` is `[2]`. `""` names no key in `pick`, and in
+    `sort` it orders the members themselves.
+  - `sort` orders by exact value or by code point, and a bag whose keys
+    mix the two, or hold anything else, is an error. Equal keys keep
+    their order in both directions, and the direction is `asc` or
+    `desc`, read through its riders.
+- `Val.unride` moves from `spec/Aontu/Paths.lean` to
+  `spec/Aontu/Verdict.lean`, beside the proofs that what both calls
+  make is a term the checker reads.
+- `test/spec/def-call.tsv` gains 72 cases in rows x597 to x812 and two
+  on names. Both ports answer every row as the definition does but nine,
+  a wrong number of arguments, which both read as `invalid` (#426).
+  `spec/ledger.tsv` lists them, and its bound rises from 132 to 141.
+  `spec/forms.tsv` gains `pick` and `sort`.
+- No row holds a projector or a direction with a rider or given through
+  a name, which TS reads before evaluating it and so refuses, where Go
+  reads through it (#435). Nor does a row hold a string TS reads as an
+  index as JavaScript's `Number()` does, such as `"1e0"`, or `""` as
+  `pick`'s projector, which TS reads as a key (#437).
+- The definition tutorial gains step 22, picking and sorting, and the
+  language reference's `pick` and `sort` sections cite the rules. Step
+  12's two references to the output now name step 13, which reads it,
+  and step 21's `join` paragraph is its own paragraph again.
+
 ### The definition holds `join`
 
 Definition, generated rows, the ledger and its bound in both runners,

@@ -2922,6 +2922,8 @@ A non-collection input is `aggregate_data`. The key must be a string
 name or an `integer` index; a float such as `0.0`, a kind, or a list is
 `invalid-arg`. A missing argument is `func_arity`.
 
+The definition computes `pick` as `pickOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), over the members `Val.members` reads. A projector reads through its riders. In a map member it names a key, an integer by its digits, so `pick([{"0": 5}], 0)` is `[5]`. In a list member it names an index, a string by its digits after one optional sign, so `pick([[1, 2]], "1")` is `[2]`. `Val.project?` reads both, and `""` names no key. The two engines differ on a projector with a rider or given through a name, which #435 tracks. They differ too on a string the TypeScript engine reads as an index as JavaScript's `Number()` does, such as `"1e0"`, which #437 tracks.
+
 A projector names one key, not a dotted path expression. Project twice
 to select through two levels:
 
@@ -3119,6 +3121,8 @@ records into an ordered line of source, and with
 $ echo 'cols: [{n:"id"}, {n:"age"}]  sql: join(pick(sort($.cols, n), n), ", ")' | aontu -c
 {"cols":[{"n":"id"},{"n":"age"}],"sql":"age, id"}
 ```
+
+The definition computes `sort` as `sortOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), over the members `Val.members` reads. It orders them by the key the projector names in each, read as `pick` reads it, or by the member itself where the projector is absent or `""`. Keys compare by exact value or by code point, `sortLt`, and a bag whose keys mix the two, or hold anything else, has no order. The sort is a stable merge sort under `sortLe`, which lets two equal keys stand either way round, so equal keys keep their order in both directions. The direction reads through its riders, where the TypeScript engine refuses one with a rider or given through a name, which #435 tracks.
 
 ## Aggregating: `sum` `least` `greatest`
 
