@@ -21,9 +21,105 @@ namespace Aontu
 /-- The size of the bodies declared, summed. -/
 def Decls.bodiesSize (ds : Decls) : ℕ := ds.foldl (fun acc d => acc + d.2.size) 0
 
+/-! ## The seal on a definition
+
+A reference reads a `type()` value as a definition and its copy as an
+instance, which admits nothing the definition does not declare, at any
+depth, once the definition's declarations are met (decision 10 of the
+design note's §7). The copy is the expansion met with a restriction: a
+sealed map that declares the keys the conjuncts' maps declare, each
+optional and restricted in turn by its declarations, a sealed list the
+same by position, and `any` where no conjunct is a container, so the
+seal stops at a disjunction, a kind and a name. -/
+
+/-- The terms a meet joins, through the riders, as the seal reads them. -/
+def Val.sealConjuncts : Val → List Val
+  | .meet a b => a.sealConjuncts ++ b.sealConjuncts
+  | .ride _ v _ => v.sealConjuncts
+  | v => [v]
+
+/-- The keys the maps among some terms declare, each once. -/
+def declaredKeys (vs : List Val) : List String :=
+  (vs.flatMap fun v => match v with
+    | .map fs _ _ => fs.map (·.1)
+    | _ => []).eraseDups
+
+/-- The values the maps among some terms declare for a key. -/
+def valuesAt (k : String) (vs : List Val) : List Val :=
+  vs.flatMap fun v => match v with
+    | .map fs _ _ => (fs.filter (·.1 == k)).map (·.2.2)
+    | _ => []
+
+/-- The elements the lists among some terms hold at a position. -/
+def itemsAt (i : ℕ) (vs : List Val) : List Val :=
+  vs.flatMap fun v => match v with
+    | .list items _ _ => items[i]?.toList
+    | _ => []
+
+/-- The longest of the lists among some terms. -/
+def listsLength (vs : List Val) : ℕ :=
+  vs.foldl (fun n v => match v with
+    | .list items _ _ => max n items.length
+    | _ => n) 0
+
+def isMapLit : Val → Bool
+  | .map _ _ _ => true
+  | _ => false
+
+def isListLit : Val → Bool
+  | .list _ _ _ => true
+  | _ => false
+
+def hasListSpread : Val → Bool
+  | .list _ (some _) _ => true
+  | _ => false
+
+/-- What the seal adds to some conjuncts, within `f` levels. -/
+def restrictF : ℕ → List Val → Val
+  | 0, _ => .any
+  | f + 1, vs =>
+    let cs := vs.flatMap Val.sealConjuncts
+    if cs.any isMapLit then
+      .map ((declaredKeys cs).map fun k => (k, true, restrictF f (valuesAt k cs))) none true
+    else if cs.any isListLit then
+      .list ((List.range (listsLength cs)).map fun i => restrictF f (itemsAt i cs))
+        (if cs.any hasListSpread then some .any else none) true
+    else .any
+
+/-- The restriction a seal puts on a term. -/
+def Val.restrict (v : Val) : Val := restrictF (v.size + 1) [v]
+
+theorem restrictF_unguardedRefs : ∀ (f : ℕ) (vs : List Val), (restrictF f vs).unguardedRefs = []
+  | 0, _ => rfl
+  | f + 1, vs => by
+    simp only [restrictF]
+    split
+    · rfl
+    · split <;> rfl
+
+theorem restrictF_checkableA : ∀ (f : ℕ) (vs : List Val), (restrictF f vs).CheckableA
+  | 0, _ => .any
+  | f + 1, vs => by
+    simp only [restrictF]
+    split
+    · refine .map (fun k o w hm => ?_) (fun _ h => nomatch h)
+      obtain ⟨k', hk, he⟩ := List.mem_map.mp hm
+      simp only [Prod.mk.injEq] at he
+      obtain ⟨-, -, rfl⟩ := he
+      exact restrictF_checkableA f _
+    · split
+      · refine .list (fun w hm => ?_) (fun s hs => ?_)
+        · obtain ⟨i, -, rfl⟩ := List.mem_map.mp hm
+          exact restrictF_checkableA f _
+        · split at hs
+          · cases hs; exact .any
+          · exact nomatch hs
+      · exact .any
+
 /-- The expansion of a term, within `k` turns: a reference to a name
 that is not recursive is replaced by the meet of its bodies, expanded in
-turn; a reference to a recursive name, or to no name, stays. -/
+turn and sealed where the name is a definition; a reference to a
+recursive name, or to no name, stays. -/
 def expandF (ds : Decls) : ℕ → Val → Val
   | 0, v => v
   | k + 1, v =>
@@ -32,7 +128,8 @@ def expandF (ds : Decls) : ℕ → Val → Val
       if ds.recursiveB n then .alias n
       else
         match ds.env n with
-        | some b => expandF ds k b
+        | some b =>
+          if ds.typed n then .meet (expandF ds k b) (expandF ds k b).restrict else expandF ds k b
         | none => .alias n
     | .len c => .len (expandF ds k c)
     | .map fs spread closed =>
@@ -190,7 +287,12 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
       · exact .inl h
       · split at h
         · rename_i b' he
-          rcases unguardedRefs_expandF f b' h with h' | ⟨m, hm, hmn⟩
+          have h0 : n ∈ (expandF ds f b').unguardedRefs := by
+            split at h
+            · simpa only [Val.unguardedRefs, Val.restrict, restrictF_unguardedRefs, List.append_nil]
+                using h
+            · exact h
+          rcases unguardedRefs_expandF f b' h0 with h' | ⟨m, hm, hmn⟩
           · exact .inr ⟨k, by simp [Val.unguardedRefs], .single (Decls.refersUnguarded_of_env he h')⟩
           · exact .inr ⟨k, by simp [Val.unguardedRefs],
               .trans (.single (Decls.refersUnguarded_of_env he hm)) hmn⟩
@@ -441,7 +543,10 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       · exact .alias
       · split
         · rename_i he
-          exact expandF_checkableA hb f _ (Decls.env_checkableA hb he)
+          have hx := expandF_checkableA hb f _ (Decls.env_checkableA hb he)
+          split
+          · exact .meet hx (restrictF_checkableA _ _)
+          · exact hx
         · exact .alias
     | len hc => exact .len (expandF_checkableA hb f _ hc)
     | map hf hs =>

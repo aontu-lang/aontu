@@ -687,6 +687,65 @@ def markAliasCases : List (Decls × Val × Data) :=
     ([("T", .map [] (some (hide .integer)) false)], T, .map [("k", j 1)]),
     ([("T", hide (mp [("a", .integer)]))], mp [("x", T), ("y", hide T)], .map [("x", .map [("a", j 1)])])]
 
+/-- The cases of the seal of decision 10 of the design note's §7: a
+reference to a `type()` value reads it as a definition and its copy as
+an instance that admits nothing the definition does not declare, at any
+depth, once its declarations are met: through members, optional ones,
+lists and a nested name, with a spread, beside a rider and another
+mark, met with a name, declared twice and met at the reference. The
+seal stops at a kind, `any`, a disjunction and a list's spread, and a
+recursive name, which both ports read unsealed, takes none. -/
+def sealCases : List (Decls × Val × Data) :=
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let T : Val := .alias "T"
+  let x : Val := mp [("x", .integer)]
+  let y : Val := mp [("y", .integer)]
+  let dxy : Data := .map [("x", j 1), ("y", j 2)]
+  let dxyz : Data := .map [("x", j 1), ("y", j 2), ("z", j 3)]
+  let rec_ : Val := type (mo [("next", true, T), ("v", false, .integer)])
+  let ab : Val := type (mp [("a", mp [("b", .integer)])])
+  [([("T", type x)], T, dxy), ([("T", type x)], T, .map [("x", j 1)]), ([("T", type x)], T, .map []),
+    ([("T", type (mp [("x", y)]))], T, .map [("x", .map [("y", j 1), ("z", j 2)])]),
+    ([("T", type (.list [.integer] none false))], T, .list [j 1, j 2]),
+    ([("T", type (.map [] (some .integer) false))], T, .map [("a", j 1)]),
+    ([("T", .meet (type x) y)], T, dxyz), ([("T", .meet (type x) y)], T, dxy),
+    ([("T", type .integer)], T, j 1), ([("T", type x)], mp [("w", T)], .map [("w", dxy)]),
+    ([("T", type (mp [("x", .list [y] none false)]))], T,
+      .map [("x", .list [.map [("y", j 1), ("z", j 2)]])]),
+    ([("T", type (mo [("x", true, .integer)]))], T, .map []),
+    ([("T", type (mo [("x", true, .integer)]))], T, .map [("y", j 1)]),
+    ([("T", hide (type x))], T, dxy), ([("T", type (hide x))], T, dxy),
+    ([("T", .ride .metadata (type x) [])], T, dxy), ([("T", type (.ride .metadata x []))], T, dxy),
+    ([("T", type x), ("U", T)], .alias "U", dxy), ([("T", type x)], .meet T y, dxy),
+    ([("U", y), ("T", type (.meet (.alias "U") x))], T, dxy),
+    ([("U", y), ("T", type (.meet (.alias "U") x))], T, dxyz),
+    ([("T", type x), ("T", y)], T, dxy), ([("T", type x), ("T", y)], T, dxyz),
+    ([("T", type (mp [("a", .mapKind)]))], T, .map [("a", .map [("x", j 1)])]),
+    ([("T", type (mp [("a", .any)]))], T, .map [("a", .map [("x", j 1)])]),
+    ([("T", type (mp [("a", .or [(0, .integer), (0, mp [("b", .integer)])])]))], T,
+      .map [("a", .map [("b", j 1), ("c", j 2)])]),
+    ([("T", type (mo [("a", true, mp [("b", .integer)])]))], T, .map [("a", .map [("b", j 1), ("c", j 2)])]),
+    ([("T", rec_)], T, .map [("v", j 1), ("x", j 3)]),
+    ([("T", rec_)], T, .map [("v", j 1), ("next", .map [("v", j 2), ("x", j 3)])]),
+    ([("T", type (mp [("a", .list [.integer] (some .integer) false)]))], T, .map [("a", .list [j 1, j 2])]),
+    ([("T", type (.list [] (some .integer) false))], T, .list [j 1, j 2]),
+    ([("T", type (mp [("a", .map [] (some .integer) false)]))], T, .map [("a", .map [("k", j 1)])]),
+    ([("T", ab), ("U", mp [("t", T)])], .alias "U", .map [("t", .map [("a", .map [("b", j 1), ("c", j 2)])])]),
+    ([("T", ab), ("U", type (mp [("t", T)]))], .alias "U",
+      .map [("t", .map [("a", .map [("b", j 1)])]), ("z", j 1)])]
+
+theorem sealCases_checkable : ∀ c ∈ sealCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
+
+theorem seal_verdict_exact : ∀ c ∈ sealCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 (aliasDoc c).1 (aliasDoc c).2 = v ↔ Vet m c.1 (aliasDoc c).1 (aliasDoc c).2 v :=
+  fun c hc _ v => vet_iff (sealCases_checkable c hc).1
+    (readR_checkableA (sealCases_checkable c hc).1 (sealCases_checkable c hc).2) v
+
 theorem markAliasCases_checkable : ∀ c ∈ markAliasCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
 
@@ -1665,9 +1724,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# The marks under the names follow in rows n0 on: a reference copies a body"
     IO.println "# with its marks cleared at every depth, and a mark written at the reference"
     IO.println "# stays."
+    IO.println "# The seal a reference puts on a type() value follows in rows o0 on: the copy"
+    IO.println "# admits nothing the definition does not declare, at any depth, and a"
+    IO.println "# recursive name takes none."
     aliasRows "a"
     aliasRows "r" riderCases
     aliasRows "n" markAliasCases
+    aliasRows "o" sealCases
     return 0
   | ["paths"] =>
     IO.println "# Generated by `lake exe oracle paths` (spec/Oracle.lean) from the definition"
