@@ -5952,7 +5952,7 @@ atom's own arithmetic: `len(min(5) & max(3))` is empty at composition
 time whatever map it meets, because the inner interval is empty on its
 own.
 
-`len(c)` is a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), judging a string, a list or a map as `c` judges its size, an integer, and refusing a scalar, which has no size; `len_le_len` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carries the order of `c` to it, and a container literal longer than its size allows is a conflict at the meet, as both engines answer, which the definition is yet to hold: it tries every container at generation, where a literal shorter than its size is refused.
+`len(c)` is a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), judging a string, a list or a map as `c` judges its size, an integer, and refusing a scalar, which has no size; `len_le_len` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carries the order of `c` to it, and a container literal longer than its size allows is a conflict of the schema, an `error`, as both engines answer. `sizeClash` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads the size with its lower ends dropped against the count of what the literal generates, so an exclusion or a multiple the count breaks is a conflict too, as in `len(neq(2)) & {x: 1, y: 2}`. Generation tries a literal shorter than its size, after the fills, and refuses it unless the data brings the members it lacks.
 
 ### Sizing atoms fold last
 
