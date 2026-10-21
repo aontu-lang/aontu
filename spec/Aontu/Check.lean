@@ -330,10 +330,18 @@ inductive Val.Checkable : Val → Prop
       (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → Checkable v) →
       Checkable (.rest t cs)
   | ride {k : Rider} {v : Val} {r : Record} : Checkable v → Checkable (.ride k v r)
+  | key : Checkable .key
+  | selectKey {arms : List (Val × Val)} {d : Option Val} :
+      (∀ p r, (p, r) ∈ arms → Checkable p) → (∀ p r, (p, r) ∈ arms → Checkable r) →
+      (∀ e, d = some e → Checkable e) → Checkable (.select .key arms d)
+  | selectLit {s : Scalar} {arms : List (Val × Val)} {d : Option Val} :
+      (∀ p r, (p, r) ∈ arms → Checkable p) → (∀ p r, (p, r) ∈ arms → Checkable r) →
+      (∀ e, d = some e → Checkable e) → Checkable (.select (.lit s) arms d)
 
 mutual
 /-- Whether a value is checkable, computed. -/
 def Val.checkableB : Val → Bool
+  | .select .key arms d | .select (.lit _) arms d => pairsCheckable arms && spreadCheckable d
   | .alias _ | .re _ | .format _ | .select _ _ _ | .filter _ _ => false
   | .len c => c.checkableB
   | .map fs spread _ => fieldsCheckable fs && spreadCheckable spread
@@ -368,6 +376,10 @@ def coversCheckable : List Cover → Bool
 def armsCheckable : List (ℕ × Val) → Bool
   | [] => true
   | (_, a) :: arms => a.checkableB && armsCheckable arms
+
+def pairsCheckable : List (Val × Val) → Bool
+  | [] => true
+  | (p, r) :: ps => p.checkableB && r.checkableB && pairsCheckable ps
 end
 
 mutual
@@ -394,10 +406,21 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
   | .re _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .format _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | .select _ _ _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .select s arms d => by
+    cases s
+    case key =>
+      simp only [Val.checkableB, Bool.and_eq_true]
+      rw [pairsCheckable_iff arms, spreadCheckable_iff d]
+      exact ⟨fun ⟨⟨h1, h2⟩, h3⟩ => .selectKey h1 h2 h3, fun h => by cases h; exact ⟨⟨‹_›, ‹_›⟩, ‹_›⟩⟩
+    case lit =>
+      simp only [Val.checkableB, Bool.and_eq_true]
+      rw [pairsCheckable_iff arms, spreadCheckable_iff d]
+      exact ⟨fun ⟨⟨h1, h2⟩, h3⟩ => .selectLit h1 h2 h3, fun h => by cases h; exact ⟨⟨‹_›, ‹_›⟩, ‹_›⟩⟩
+    all_goals exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .filter _ _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .alias _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .path _ => ⟨fun _ => .path, fun _ => rfl⟩
+  | .key => ⟨fun _ => .key, fun _ => rfl⟩
   | .len c => by
     simp only [Val.checkableB]
     rw [Val.checkableB_iff c]
@@ -497,6 +520,26 @@ theorem armsCheckable_iff : ∀ arms : List (ℕ × Val),
       · exact harms r' a' h
     · intro h
       exact ⟨h r a (.inl ⟨rfl, rfl⟩), fun r' a' h' => h r' a' (.inr h')⟩
+
+theorem pairsCheckable_iff : ∀ ps : List (Val × Val),
+    pairsCheckable ps = true ↔
+      (∀ p r, (p, r) ∈ ps → p.Checkable) ∧ (∀ p r, (p, r) ∈ ps → r.Checkable)
+  | [] => by simp [pairsCheckable]
+  | (p, r) :: ps => by
+    simp only [pairsCheckable, Bool.and_eq_true, List.mem_cons, Prod.mk.injEq]
+    rw [Val.checkableB_iff p, Val.checkableB_iff r, pairsCheckable_iff ps]
+    constructor
+    · rintro ⟨⟨hp, hr⟩, hps, hrs⟩
+      refine ⟨fun p' r' h => ?_, fun p' r' h => ?_⟩
+      · rcases h with ⟨rfl, rfl⟩ | h
+        · exact hp
+        · exact hps p' r' h
+      · rcases h with ⟨rfl, rfl⟩ | h
+        · exact hr
+        · exact hrs p' r' h
+    · rintro ⟨hps, hrs⟩
+      exact ⟨⟨hps p r (.inl ⟨rfl, rfl⟩), hrs p r (.inl ⟨rfl, rfl⟩)⟩,
+        fun p' r' h' => hps p' r' (.inr h'), fun p' r' h' => hrs p' r' (.inr h')⟩
 end
 
 instance (v : Val) : Decidable v.Checkable := decidable_of_iff _ (Val.checkableB_iff v)
@@ -829,6 +872,29 @@ theorem HookOk.arm {arms : List (ℕ × Val)} {j : Data} {r : ℕ} {a : Val}
   h.same (fun n hn => by simp only [Val.refs]; exact mem_refsArms.mpr ⟨r, a, hm, hn⟩)
     (fun n hn => by simp only [Val.unguardedRefs]; exact mem_unguardedArms.mpr ⟨r, a, hm, hn⟩)
 
+theorem HookOk.selectPattern {sc : Val} {arms : List (Val × Val)} {d : Option Val} {j x : Data}
+    {p r : Val} (h : HookOk u env root (.select sc arms d) j) (hm : (p, r) ∈ arms)
+    (hx : x.weight ≤ j.weight) : HookOk u env root p x :=
+  h.sub hx (fun n hn => by
+      simp only [Val.refs, List.mem_append]; exact .inl (.inr (mem_refsPairs.mpr ⟨p, r, hm, .inl hn⟩)))
+    (fun _ n hn => by
+      simp only [Val.unguardedRefs, List.mem_append]
+      exact .inl (.inr (mem_unguardedPairs.mpr ⟨p, r, hm, .inl hn⟩)))
+
+theorem HookOk.selectResult {sc : Val} {arms : List (Val × Val)} {d : Option Val} {j : Data}
+    {p r : Val} (h : HookOk u env root (.select sc arms d) j) (hm : (p, r) ∈ arms) :
+    HookOk u env root r j :=
+  h.same (fun n hn => by
+      simp only [Val.refs, List.mem_append]; exact .inl (.inr (mem_refsPairs.mpr ⟨p, r, hm, .inr hn⟩)))
+    (fun n hn => by
+      simp only [Val.unguardedRefs, List.mem_append]
+      exact .inl (.inr (mem_unguardedPairs.mpr ⟨p, r, hm, .inr hn⟩)))
+
+theorem HookOk.selectElse {sc : Val} {arms : List (Val × Val)} {d : Option Val} {j : Data} {e : Val}
+    (h : HookOk u env root (.select sc arms d) j) (hd : d = some e) : HookOk u env root e j :=
+  h.same (fun n hn => by simp only [Val.refs, List.mem_append, hd, refsSpread]; exact .inr hn)
+    (fun n hn => by simp only [Val.unguardedRefs, List.mem_append, hd, unguardedSpread]; exact .inr hn)
+
 theorem HookOk.pref {r : ℕ} {x : Val} {j : Data} (h : HookOk u env root (.pref r x) j) :
     HookOk u env root x j :=
   h.same (fun n hn => by simpa [Val.refs] using hn) (fun n hn => by simpa [Val.unguardedRefs] using hn)
@@ -975,10 +1041,18 @@ inductive Val.CheckableA : Val → Prop
       (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → CheckableA v) →
       CheckableA (.rest t cs)
   | ride {k : Rider} {v : Val} {r : Record} : CheckableA v → CheckableA (.ride k v r)
+  | key : CheckableA .key
+  | selectKey {arms : List (Val × Val)} {d : Option Val} :
+      (∀ p r, (p, r) ∈ arms → CheckableA p) → (∀ p r, (p, r) ∈ arms → CheckableA r) →
+      (∀ e, d = some e → CheckableA e) → CheckableA (.select .key arms d)
+  | selectLit {s : Scalar} {arms : List (Val × Val)} {d : Option Val} :
+      (∀ p r, (p, r) ∈ arms → CheckableA p) → (∀ p r, (p, r) ∈ arms → CheckableA r) →
+      (∀ e, d = some e → CheckableA e) → CheckableA (.select (.lit s) arms d)
 
 mutual
 /-- Whether a value is checkable given a hook, computed. -/
 def Val.checkableAB : Val → Bool
+  | .select .key arms d | .select (.lit _) arms d => pairsCheckableA arms && spreadCheckableA d
   | .re _ | .format _ | .select _ _ _ | .filter _ _ => false
   | .len c => c.checkableAB
   | .map fs spread _ => fieldsCheckableA fs && spreadCheckableA spread
@@ -1013,6 +1087,10 @@ def coversCheckableA : List Cover → Bool
 def armsCheckableA : List (ℕ × Val) → Bool
   | [] => true
   | (_, a) :: arms => a.checkableAB && armsCheckableA arms
+
+def pairsCheckableA : List (Val × Val) → Bool
+  | [] => true
+  | (p, r) :: ps => p.checkableAB && r.checkableAB && pairsCheckableA ps
 end
 
 mutual
@@ -1040,9 +1118,20 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .alias _ => ⟨fun _ => .alias, fun _ => rfl⟩
   | .re _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .format _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | .select _ _ _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .select s arms d => by
+    cases s
+    case key =>
+      simp only [Val.checkableAB, Bool.and_eq_true]
+      rw [pairsCheckableA_iff arms, spreadCheckableA_iff d]
+      exact ⟨fun ⟨⟨h1, h2⟩, h3⟩ => .selectKey h1 h2 h3, fun h => by cases h; exact ⟨⟨‹_›, ‹_›⟩, ‹_›⟩⟩
+    case lit =>
+      simp only [Val.checkableAB, Bool.and_eq_true]
+      rw [pairsCheckableA_iff arms, spreadCheckableA_iff d]
+      exact ⟨fun ⟨⟨h1, h2⟩, h3⟩ => .selectLit h1 h2 h3, fun h => by cases h; exact ⟨⟨‹_›, ‹_›⟩, ‹_›⟩⟩
+    all_goals exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .filter _ _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .path _ => ⟨fun _ => .path, fun _ => rfl⟩
+  | .key => ⟨fun _ => .key, fun _ => rfl⟩
   | .len c => by
     simp only [Val.checkableAB]
     rw [Val.checkableAB_iff c]
@@ -1142,9 +1231,57 @@ theorem armsCheckableA_iff : ∀ arms : List (ℕ × Val),
       · exact harms r' a' h
     · intro h
       exact ⟨h r a (.inl ⟨rfl, rfl⟩), fun r' a' h' => h r' a' (.inr h')⟩
+
+theorem pairsCheckableA_iff : ∀ ps : List (Val × Val),
+    pairsCheckableA ps = true ↔
+      (∀ p r, (p, r) ∈ ps → p.CheckableA) ∧ (∀ p r, (p, r) ∈ ps → r.CheckableA)
+  | [] => by simp [pairsCheckableA]
+  | (p, r) :: ps => by
+    simp only [pairsCheckableA, Bool.and_eq_true, List.mem_cons, Prod.mk.injEq]
+    rw [Val.checkableAB_iff p, Val.checkableAB_iff r, pairsCheckableA_iff ps]
+    constructor
+    · rintro ⟨⟨hp, hr⟩, hps, hrs⟩
+      refine ⟨fun p' r' h => ?_, fun p' r' h => ?_⟩
+      · rcases h with ⟨rfl, rfl⟩ | h
+        · exact hp
+        · exact hps p' r' h
+      · rcases h with ⟨rfl, rfl⟩ | h
+        · exact hr
+        · exact hrs p' r' h
+    · rintro ⟨hps, hrs⟩
+      exact ⟨⟨hps p r (.inl ⟨rfl, rfl⟩), hrs p r (.inl ⟨rfl, rfl⟩)⟩,
+        fun p' r' h' => hps p' r' (.inr h'), fun p' r' h' => hrs p' r' (.inr h')⟩
 end
 
 instance (v : Val) : Decidable v.CheckableA := decidable_of_iff _ (Val.checkableAB_iff v)
+
+/-- A spread the checker can read it can read under any key. -/
+theorem Val.CheckableA.atKey {v : Val} (h : v.CheckableA) (k : String) : (v.atKey k).CheckableA := by
+  induction h with
+  | key => exact .lit
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | ride _ ih => exact .ride ih
+  | selectKey hp hr hd => exact .selectLit hp hr hd
+  | selectLit hp hr hd => exact .selectLit hp hr hd
+  | _ => rw [Val.atKey_of_keyed k rfl]; first | (constructor <;> assumption) | constructor
+
+theorem Val.Checkable.atKey {v : Val} (h : v.Checkable) (k : String) : (v.atKey k).Checkable := by
+  induction h with
+  | key => exact .lit
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | ride _ ih => exact .ride ih
+  | selectKey hp hr hd => exact .selectLit hp hr hd
+  | selectLit hp hr hd => exact .selectLit hp hr hd
+  | _ => rw [Val.atKey_of_keyed k rfl]; first | (constructor <;> assumption) | constructor
+
+/-- A spread reads the names it reads under any key. -/
+theorem Val.refs_atKey (k : String) (v : Val) : (v.atKey k).refs = v.refs := by
+  induction v using Val.atKey.induct with
+  | case1 => rfl
+  | case2 a b iha ihb => simp only [Val.atKey, Val.refs, iha, ihb]
+  | case3 s arms d ih => simp only [Val.atKey, Val.refs, ih]
+  | case4 t v r ih => simp only [Val.atKey, Val.refs, ih]
+  | case5 v h1 h2 h3 h4 => rw [Val.atKey.eq_5 k v h1 h2 h3 h4]
 
 /-- A checkable value is checkable given any hook. -/
 theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
@@ -1182,6 +1319,9 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | when _ _ _ ihc iht ihe => exact .when ihc iht ihe
   | contains _ _ ihc ihn => exact .contains ihc ihn
   | rest _ _ _ _ iht ih1 ih2 ih3 => exact .rest iht ih1 ih2 ih3
+  | key => exact .key
+  | selectKey _ _ _ ihp ihr ihd => exact .selectKey ihp ihr ihd
+  | selectLit _ _ _ ihp ihr ihd => exact .selectLit ihp ihr ihd
 
 /-- A value the checker can read given a hook, which refers to no name,
 is checkable with none. -/
@@ -1234,6 +1374,18 @@ theorem Val.CheckableA.toChecked {v : Val} (h : v.CheckableA) (hn : ∀ n, n ∉
       exact .inr (mem_refsCovers.mpr ⟨c, hc, .inr (.inl (by rw [hv]; exact hm))⟩)
     · simp only [Val.refs, List.mem_append]
       exact .inr (mem_refsCovers.mpr ⟨c, hc, .inr (.inr (by rw [hv]; exact hm))⟩)
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    refine .selectKey (fun p r hm => ihp p r hm fun n hn' => hn n ?_)
+      (fun p r hm => ihr p r hm fun n hn' => hn n ?_) (fun e he => ihd e he fun n hn' => hn n ?_)
+    · simp only [Val.refs, List.mem_append]; exact .inl (.inr (mem_refsPairs.mpr ⟨p, r, hm, .inl hn'⟩))
+    · simp only [Val.refs, List.mem_append]; exact .inl (.inr (mem_refsPairs.mpr ⟨p, r, hm, .inr hn'⟩))
+    · simp only [Val.refs, List.mem_append, he, refsSpread]; exact .inr hn'
+  | @selectLit s arms d _ _ _ ihp ihr ihd =>
+    refine .selectLit (fun p r hm => ihp p r hm fun n hn' => hn n ?_)
+      (fun p r hm => ihr p r hm fun n hn' => hn n ?_) (fun e he => ihd e he fun n hn' => hn n ?_)
+    · simp only [Val.refs, List.mem_append]; exact .inl (.inr (mem_refsPairs.mpr ⟨p, r, hm, .inl hn'⟩))
+    · simp only [Val.refs, List.mem_append]; exact .inl (.inr (mem_refsPairs.mpr ⟨p, r, hm, .inr hn'⟩))
+    · simp only [Val.refs, List.mem_append, he, refsSpread]; exact .inr hn'
   | _ => constructor
 
 /-- A checkable value refers to no name. -/
@@ -1306,11 +1458,34 @@ theorem Val.Checkable.no_refs {v : Val} (h : v.Checkable) : ∀ n, n ∉ v.refs 
       · cases hv : c.2.2 with
         | none => rw [hv] at h; exact absurd h (List.not_mem_nil)
         | some v => rw [hv] at h; exact ih3 c hc v hv m h
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    intro n hn
+    simp only [Val.refs, List.mem_append] at hn
+    rcases hn with (hn | hn) | hn
+    · simp at hn
+    · obtain ⟨p, r, hm, hp | hr⟩ := mem_refsPairs.mp hn
+      · exact ihp p r hm n hp
+      · exact ihr p r hm n hr
+    · cases hd : d with
+      | none => rw [hd] at hn; exact absurd hn (List.not_mem_nil)
+      | some e => rw [hd] at hn; exact ihd e hd n hn
+  | @selectLit s arms d _ _ _ ihp ihr ihd =>
+    intro n hn
+    simp only [Val.refs, List.mem_append] at hn
+    rcases hn with (hn | hn) | hn
+    · simp at hn
+    · obtain ⟨p, r, hm, hp | hr⟩ := mem_refsPairs.mp hn
+      · exact ihp p r hm n hp
+      · exact ihr p r hm n hr
+    · cases hd : d with
+      | none => rw [hd] at hn; exact absurd hn (List.not_mem_nil)
+      | some e => rw [hd] at hn; exact ihd e hd n hn
   | _ => intro n hn; simp [Val.refs] at hn
 
 mutual
-/-- Whether `v` admits `j`, computed. -/
-def checkWith (u : String → Data → Bool) : Val → Data → Bool
+/-- Whether `v` admits `j`, computed: `v.atKeyO k` judged, with `k` the key a
+spread is tried under, which the forms `atKey` reads through carry. -/
+def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data → Bool
   | .integer, j => match j with
     | .num (.integer _) => true
     | _ => false
@@ -1375,7 +1550,7 @@ def checkWith (u : String → Data → Bool) : Val → Data → Bool
     | .num x => decide d.Positive && decide (x.multipleOf d)
     | _ => false
   | .len c, j => match j.size with
-    | some n => if h : IntegerLeaf n then checkWith u c (.num (.integer ⟨n, h⟩)) else false
+    | some n => if h : IntegerLeaf n then checkWith u none c (.num (.integer ⟨n, h⟩)) else false
     | none => false
   | .unique k, j => match j.members with
     | some ms => ms.all (fun x => (x.project k).isSome) && distinct k ms
@@ -1384,44 +1559,51 @@ def checkWith (u : String → Data → Bool) : Val → Data → Bool
   | .nil, _ => false
   | .map fs spread closed, j => match j with
     | .map jfs =>
-      checkFieldsWith u fs jfs && jfs.all (fun m => checkSpreadWith u spread m.2) &&
+      checkFieldsWith u fs jfs && jfs.all (fun m => checkKeySpreadWith u m.1 spread m.2) &&
         (!closed || jfs.all fun m => fs.any fun f => decide (f.1 = m.1))
     | _ => false
   | .list items spread closed, j => match j with
     | .list xs =>
       decide (items.length ≤ xs.length) &&
         (!closed || spread.isSome || decide (xs.length = items.length)) &&
-        checkItemsWith u items xs && xs.all (fun x => checkSpreadWith u spread x)
+        checkItemsWith u items xs && (namedItems 0 xs).all (fun m => checkKeySpreadWith u m.1 spread m.2)
     | _ => false
   | .or arms, j => checkArmsWith u arms j
-  | .pref _ x, j => checkWith u x j || checkSuperWith u x j
-  | .ride _ v _, j => checkWith u v j
-  | .meet a b, j => checkWith u a j && checkWith u b j
+  | .pref _ x, j => checkWith u none x j || checkSuperWith u x j
+  | .ride _ v _, j => checkWith u k v j
+  | .meet a b, j => checkWith u k a j && checkWith u k b j
   | .re _, _ => false
   | .format _, _ => false
+  | .select .key arms d, j => match k with
+    | some k' => (checkArmsSelectWith u (.str k') arms j).getD (checkOptWith u d j)
+    | none => false
+  | .select (.lit s) arms d, j => (checkArmsSelectWith u s.data arms j).getD (checkOptWith u d j)
   | .select _ _ _, _ => false
   | .filter _ _, _ => false
-  | .alias k, j => u k j
+  | .key, j => match k, j with
+    | some k', .str s => decide (k' = s)
+    | _, _ => false
+  | .alias n, j => u n j
   | .path _, _ => false
   | .nof n cs, j =>
-    if h : IntegerLeaf (countWith u cs j) then checkWith u n (.num (.integer ⟨countWith u cs j, h⟩))
+    if h : IntegerLeaf (countWith u cs j) then checkWith u none n (.num (.integer ⟨countWith u cs j, h⟩))
     else false
-  | .must c _, j => checkWith u c j
-  | .when c t e, j => if checkWith u c j then checkWith u t j else checkSpreadWith u e j
+  | .must c _, j => checkWith u none c j
+  | .when c t e, j => if checkWith u none c j then checkWith u none t j else checkSpreadWith u e j
   | .contains c n, j => match j.members with
     | some ms =>
-      if h : IntegerLeaf (ms.countP fun x => checkWith u c x) then
-        checkWith u n (.num (.integer ⟨ms.countP fun x => checkWith u c x, h⟩))
+      if h : IntegerLeaf (ms.countP fun x => checkWith u none c x) then
+        checkWith u none n (.num (.integer ⟨ms.countP fun x => checkWith u none c x, h⟩))
       else false
     | none => false
   | .rest t cs, j => match j.named with
-    | some ns => ns.all fun m => restEvaluatedWith u cs j m.1 m.2 || checkWith u t m.2
+    | some ns => ns.all fun m => restEvaluatedWith u cs j m.1 m.2 || checkWith u none t m.2
     | none => true
 
 /-- The branches of a trial that admit the datum, counted. -/
 def countWith (u : String → Data → Bool) : List Val → Data → ℕ
   | [], _ => 0
-  | c :: cs, j => (if checkWith u c j then 1 else 0) + countWith u cs j
+  | c :: cs, j => (if checkWith u none c j then 1 else 0) + countWith u cs j
 
 /-- The declared keys of a map: each present one holds its value, and
 each absent one is optional. -/
@@ -1430,23 +1612,34 @@ def checkFieldsWith (u : String → Data → Bool) : List (String × Bool × Val
   | (k, o, v) :: fs, jfs =>
     (match lookup k jfs with
       | none => o
-      | some x => checkWith u v x) && checkFieldsWith u fs jfs
+      | some x => checkWith u none v x) && checkFieldsWith u fs jfs
 
 /-- The positions of a list that the instance has. -/
 def checkItemsWith (u : String → Data → Bool) : List Val → List Data → Bool
-  | v :: vs, x :: xs => checkWith u v x && checkItemsWith u vs xs
+  | v :: vs, x :: xs => checkWith u none v x && checkItemsWith u vs xs
   | _, _ => true
 
 /-- A spread, where there is one. -/
 def checkSpreadWith (u : String → Data → Bool) : Option Val → Data → Bool
   | none, _ => true
-  | some s, x => checkWith u s x
+  | some s, x => checkWith u none s x
+
+/-- A container's spread, where there is one, under the key of the
+member it is tried on. -/
+def checkKeySpreadWith (u : String → Data → Bool) (key : String) : Option Val → Data → Bool
+  | none, _ => true
+  | some s, x => checkWith u (some key) s x
+
+/-- The result of the first arm whose pattern admits `x`, where one does. -/
+def checkArmsSelectWith (u : String → Data → Bool) (x : Data) : List (Val × Val) → Data → Option Bool
+  | [], _ => none
+  | (p, r) :: arms, j => if checkWith u none p x then some (checkWith u none r j) else checkArmsSelectWith u x arms j
 
 /-- A cover's `keys` or `members` trial, where there is one: one not
 written evaluates nothing. -/
 def checkOptWith (u : String → Data → Bool) : Option Val → Data → Bool
   | none, _ => false
-  | some v, x => checkWith u v x
+  | some v, x => checkWith u none v x
 
 /-- Whether some cover evaluates the member `x` under the key `k` of `j`. -/
 def restEvaluatedWith (u : String → Data → Bool) : List Cover → Data → String → Data → Bool
@@ -1457,7 +1650,7 @@ def restEvaluatedWith (u : String → Data → Bool) : List Cover → Data → S
 /-- Whether any arm admits. -/
 def checkArmsWith (u : String → Data → Bool) : List (ℕ × Val) → Data → Bool
   | [], _ => false
-  | (_, a) :: arms, j => checkWith u a j || checkArmsWith u arms j
+  | (_, a) :: arms, j => checkWith u none a j || checkArmsWith u arms j
 
 /-- Whether `v.super`, the parent type of `v`, admits `j`: `check` on
 `v.super`, written by recursion on `v`, since `v.super` is no part of
@@ -1494,18 +1687,21 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
     | .list xs =>
       decide (items.length ≤ xs.length) &&
         (!closed || spread.isSome || decide (xs.length = items.length)) &&
-        checkSuperItemsWith u items xs && xs.all (fun x => checkSuperSpreadWith u spread x)
+        checkSuperItemsWith u items xs && (namedItems 0 xs).all (fun m => checkSuperSpreadWith u spread m.2)
     | _ => false
   | .or arms, j => checkSuperArmsWith u arms j
   | .pref _ x, j => checkSuperWith u x j
   | .ride _ v _, j => checkSuperWith u v j
   | .meet a b, j =>
-    if a.isKind then (if b.isKind then (if a.isLeaf then checkSuperWith u a j else checkSuperWith u b j) else checkWith u a j)
-    else if b.isKind then checkWith u b j else checkSuperWith u a j && checkSuperWith u b j
-  | .alias k, j => u k j
+    if a.isKind then (if b.isKind then (if a.isLeaf then checkSuperWith u a j else checkSuperWith u b j) else checkWith u none a j)
+    else if b.isKind then checkWith u none b j else checkSuperWith u a j && checkSuperWith u b j
+  | .alias n, j => u n j
   | .path _, _ => false
   | .nof _ _, _ | .must _ _, _ | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _
   | .select _ _ _, _ | .filter _ _, _ => true
+  | .key, j => match j with
+    | .str _ => true
+    | _ => false
 
 def checkSuperFieldsWith (u : String → Data → Bool) : List (String × Bool × Val) → List (String × Data) → Bool
   | [], _ => true
@@ -1531,7 +1727,7 @@ section
 variable {u : String → Data → Bool} {env : Env} {root : Data}
 
 theorem checkSpreadWith_iff {spread : Option Val} {x : Data}
-    (ih : ∀ s, spread = some s → (checkWith u s x = true ↔ Admits env root s x)) :
+    (ih : ∀ s, spread = some s → (checkWith u none s x = true ↔ Admits env root s x)) :
     checkSpreadWith u spread x = true ↔ ∀ s, spread = some s → Admits env root s x := by
   cases spread with
   | none => simp [checkSpreadWith]
@@ -1539,7 +1735,7 @@ theorem checkSpreadWith_iff {spread : Option Val} {x : Data}
 
 theorem checkFieldsWith_iff {fs : List (String × Bool × Val)} {jfs : List (String × Data)}
     (ih : ∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x →
-      (checkWith u v x = true ↔ Admits env root v x)) :
+      (checkWith u none v x = true ↔ Admits env root v x)) :
     checkFieldsWith u fs jfs = true ↔
       (∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Admits env root v x) ∧
         (∀ k o v, (k, o, v) ∈ fs → lookup k jfs = none → o = true) := by
@@ -1569,7 +1765,7 @@ theorem checkFieldsWith_iff {fs : List (String × Bool × Val)} {jfs : List (Str
 set_option maxHeartbeats 1000000 in
 theorem checkItemsWith_iff {items : List Val} {xs : List Data}
     (ih : ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
-      (checkWith u v x = true ↔ Admits env root v x)) :
+      (checkWith u none v x = true ↔ Admits env root v x)) :
     checkItemsWith u items xs = true ↔
       ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
         Admits env root v x := by
@@ -1620,7 +1816,7 @@ theorem checkSealed_iff (closed : Bool) (spread : Option Val) (items : List Val)
   cases closed <;> cases spread <;> simp
 
 theorem checkArmsWith_iff {arms : List (ℕ × Val)} {j : Data}
-    (ih : ∀ r a, (r, a) ∈ arms → (checkWith u a j = true ↔ Admits env root a j)) :
+    (ih : ∀ r a, (r, a) ∈ arms → (checkWith u none a j = true ↔ Admits env root a j)) :
     checkArmsWith u arms j = true ↔ ∃ r a, (r, a) ∈ arms ∧ Admits env root a j := by
   induction arms with
   | nil => simp [checkArmsWith]
@@ -1834,14 +2030,89 @@ theorem all_false_mem {α : Type} {p : α → Bool} : ∀ {l : List α}, l.all p
       exact ⟨y, List.mem_cons_of_mem _ hy, hp⟩
 
 theorem checkSpreadWith_false {spread : Option Val} {x : Data}
-    (ih : ∀ s, spread = some s → Judge env root (checkWith u s x) s x) :
+    (ih : ∀ s, spread = some s → Judge env root (checkWith u none s x) s x) :
     checkSpreadWith u spread x = false → ∃ s, spread = some s ∧ Judge env root false s x := by
   cases spread with
   | none => intro h; exact nomatch h
   | some s => intro h; exact ⟨s, rfl, (ih s rfl).of_eq h⟩
 
+theorem checkKeySpreadWith_false {spread : Option Val} {k : String} {x : Data}
+    (ih : ∀ s, spread = some s → Judge env root (checkWith u (some k) s x) (s.atKey k) x) :
+    checkKeySpreadWith u k spread x = false → ∃ s, spread = some s ∧ Judge env root false (s.atKey k) x := by
+  cases spread with
+  | none => intro h; exact nomatch h
+  | some s => intro h; exact ⟨s, rfl, (ih s rfl).of_eq h⟩
+
+/-- An arm the scrutinee's value is refused by goes before what a
+selection on the rest of the arms judges. -/
+theorem judge_select_cons {s : Scalar} {p r : Val} {arms : List (Val × Val)} {d : Option Val}
+    {b : Bool} {j : Data} (hp : Judge env root false p s.data)
+    (h : Judge env root b (.select (.lit s) arms d) j) :
+    Judge env root b (.select (.lit s) ((p, r) :: arms) d) j := by
+  cases h with
+  | @selectArm _ _ _ _ i p' r' _ hi hpre hp' hr' =>
+    refine .selectArm (i := i + 1) (by simpa using hi) (fun i' q hlt hq => ?_) hp' hr'
+    cases i' with
+    | zero => simp only [List.getElem?_cons_zero, Option.some.injEq] at hq; subst hq; exact hp
+    | succ i' => exact hpre i' q (by omega) (by simpa using hq)
+  | selectElse hall he =>
+    refine .selectElse (fun q hq => ?_) he
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact hp
+    · exact hall q hq
+  | selectNone hall =>
+    refine .selectNone fun q hq => ?_
+    rcases List.mem_cons.mp hq with rfl | hq
+    · exact hp
+    · exact hall q hq
+
+/-- An arm whose pattern refuses the scrutinee's value is passed over. -/
+theorem judge_select_uncons {s : Scalar} {p r : Val} {arms : List (Val × Val)} {d : Option Val}
+    {b : Bool} {j : Data} (hp : Judge env root false p s.data)
+    (h : Judge env root b (.select (.lit s) ((p, r) :: arms) d) j) :
+    Judge env root b (.select (.lit s) arms d) j := by
+  cases h with
+  | @selectArm _ _ _ _ i p' r' _ hi hpre hp' hr' =>
+    cases i with
+    | zero =>
+      simp only [List.getElem?_cons_zero, Option.some.injEq, Prod.mk.injEq] at hi
+      obtain ⟨rfl, rfl⟩ := hi
+      exact nomatch judge_unique hp hp'
+    | succ i =>
+      exact .selectArm (i := i) (by simpa using hi)
+        (fun i' q hlt hq => hpre (i' + 1) q (by omega) (by simpa using hq)) hp' hr'
+  | selectElse hall he => exact .selectElse (fun q hq => hall q (List.mem_cons_of_mem _ hq)) he
+  | selectNone hall => exact .selectNone fun q hq => hall q (List.mem_cons_of_mem _ hq)
+
+/-- The checker judges a selection on a literal as the definition does,
+given that it judges each pattern on the literal's value, and each
+result and the default on the datum. -/
+theorem judge_selectWith {s : Scalar} {d : Option Val} {j : Data} :
+    ∀ {arms : List (Val × Val)},
+    (∀ p r, (p, r) ∈ arms → Judge env root (checkWith u none p s.data) p s.data) →
+    (∀ p r, (p, r) ∈ arms → Judge env root (checkWith u none r j) r j) →
+    (∀ e, d = some e → Judge env root (checkWith u none e j) e j) →
+    Judge env root ((checkArmsSelectWith u s.data arms j).getD (checkOptWith u d j))
+      (.select (.lit s) arms d) j
+  | [], _, _, hd => by
+    simp only [checkArmsSelectWith, Option.getD_none]
+    cases d with
+    | none => exact .selectNone fun q hq => nomatch hq
+    | some e => exact .selectElse (fun q hq => nomatch hq) (hd e rfl)
+  | (p, r) :: arms, hp, hr, hd => by
+    simp only [checkArmsSelectWith]
+    have hp0 := hp p r List.mem_cons_self
+    split
+    · rename_i hc
+      exact .selectArm (i := 0) rfl (fun _ _ hlt _ => absurd hlt (Nat.not_lt_zero _))
+        (hp0.of_eq hc) (hr p r List.mem_cons_self)
+    · rename_i hc
+      exact judge_select_cons (hp0.of_eq (Bool.eq_false_iff.mpr hc))
+        (judge_selectWith (fun p' r' hm => hp p' r' (List.mem_cons_of_mem _ hm))
+          (fun p' r' hm => hr p' r' (List.mem_cons_of_mem _ hm)) hd)
+
 theorem checkFieldsWith_false {fs : List (String × Bool × Val)} {jfs : List (String × Data)}
-    (ih : ∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Judge env root (checkWith u v x) v x) :
+    (ih : ∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Judge env root (checkWith u none v x) v x) :
     checkFieldsWith u fs jfs = false →
       (∃ k o v x, (k, o, v) ∈ fs ∧ lookup k jfs = some x ∧ Judge env root false v x) ∨
         (∃ k o v, (k, o, v) ∈ fs ∧ lookup k jfs = none ∧ o = false) := by
@@ -1868,7 +2139,7 @@ theorem checkFieldsWith_false {fs : List (String × Bool × Val)} {jfs : List (S
 set_option maxHeartbeats 1000000 in
 theorem checkItemsWith_false {items : List Val} {xs : List Data}
     (ih : ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
-      Judge env root (checkWith u v x) v x) :
+      Judge env root (checkWith u none v x) v x) :
     checkItemsWith u items xs = false →
       ∃ (i : ℕ) (v : Val) (x : Data), items[i]? = some v ∧ xs[i]? = some x ∧ Judge env root false v x := by
   induction items generalizing xs with
@@ -1907,7 +2178,7 @@ theorem checkSealed_false (closed : Bool) (spread : Option Val) (items : List Va
   cases closed <;> cases spread <;> simp
 
 theorem checkArmsWith_false {arms : List (ℕ × Val)} {j : Data}
-    (ih : ∀ r a, (r, a) ∈ arms → Judge env root (checkWith u a j) a j) :
+    (ih : ∀ r a, (r, a) ∈ arms → Judge env root (checkWith u none a j) a j) :
     checkArmsWith u arms j = false → ∀ r a, (r, a) ∈ arms → Judge env root false a j := by
   induction arms with
   | nil => intro _ r a hm; exact absurd hm (List.not_mem_nil)
@@ -2008,11 +2279,11 @@ theorem restEvaluatedWith_eq {u : String → Data → Bool} : ∀ (cs : List Cov
     cases c <;> cases ks <;> cases ms <;> simp [checkSpreadWith, checkOptWith]
 
 /-- The count the checker takes is the count of the branches it answers `true`. -/
-theorem countWith_eq {j : Data} : ∀ cs : List Val, countWith u cs j = cs.countP fun c => checkWith u c j
+theorem countWith_eq {j : Data} : ∀ cs : List Val, countWith u cs j = cs.countP fun c => checkWith u none c j
   | [] => rfl
   | c :: cs => by
     simp only [countWith, List.countP_cons, countWith_eq cs]
-    cases checkWith u c j <;> simp [Nat.add_comm]
+    cases checkWith u none c j <;> simp [Nat.add_comm]
 
 /-- The domain of a bound, judged as the checker judges it. -/
 theorem checkDomain_judge (b : Bound) (j : Data) : Judge env root (checkDomain b j) b.domain j := by
@@ -2050,40 +2321,40 @@ theorem leaf_kind_refuses_nonnum (l : Leaf) (j : Data) (h : ∀ y, j ≠ .num y)
   · exact .bigintegerNot fun x hx => h _ hx
   · exact .bigdecimalNot fun x hx => h _ hx
 
-theorem judge_integer (j : Data) : Judge env root (checkWith u .integer j) .integer j := by
+theorem judge_integer (j : Data) : Judge env root (checkWith u none .integer j) .integer j := by
   cases j with
   | num x => cases x with
     | integer _ => exact .integer
     | _ => exact .integerNot fun _ h => nomatch h
   | _ => exact .integerNot fun _ h => nomatch h
 
-theorem judge_float (j : Data) : Judge env root (checkWith u .float j) .float j := by
+theorem judge_float (j : Data) : Judge env root (checkWith u none .float j) .float j := by
   cases j with
   | num x => cases x with
     | float _ => exact .float
     | _ => exact .floatNot fun _ h => nomatch h
   | _ => exact .floatNot fun _ h => nomatch h
 
-theorem judge_biginteger (j : Data) : Judge env root (checkWith u .biginteger j) .biginteger j := by
+theorem judge_biginteger (j : Data) : Judge env root (checkWith u none .biginteger j) .biginteger j := by
   cases j with
   | num x => cases x with
     | biginteger _ => exact .biginteger
     | _ => exact .bigintegerNot fun _ h => nomatch h
   | _ => exact .bigintegerNot fun _ h => nomatch h
 
-theorem judge_bigdecimal (j : Data) : Judge env root (checkWith u .bigdecimal j) .bigdecimal j := by
+theorem judge_bigdecimal (j : Data) : Judge env root (checkWith u none .bigdecimal j) .bigdecimal j := by
   cases j with
   | num x => cases x with
     | bigdecimal _ => exact .bigdecimal
     | _ => exact .bigdecimalNot fun _ h => nomatch h
   | _ => exact .bigdecimalNot fun _ h => nomatch h
 
-theorem judge_number (j : Data) : Judge env root (checkWith u .number j) .number j := by
+theorem judge_number (j : Data) : Judge env root (checkWith u none .number j) .number j := by
   cases j with
   | num x => exact .number
   | _ => exact .numberNot fun _ h => nomatch h
 
-theorem judge_string (j : Data) : Judge env root (checkWith u .string j) .string j := by
+theorem judge_string (j : Data) : Judge env root (checkWith u none .string j) .string j := by
   cases j with
   | str s =>
     simp only [checkWith]
@@ -2092,29 +2363,29 @@ theorem judge_string (j : Data) : Judge env root (checkWith u .string j) .string
     exact Decidable.of_not_not (of_decide_eq_false h)
   | _ => exact .stringNot fun _ h => nomatch h
 
-theorem judge_anyString (j : Data) : Judge env root (checkWith u .anyString j) .anyString j := by
+theorem judge_anyString (j : Data) : Judge env root (checkWith u none .anyString j) .anyString j := by
   cases j with
   | str s => exact .anyString
   | _ => exact .anyStringNot fun _ h => nomatch h
 
-theorem judge_boolean (j : Data) : Judge env root (checkWith u .boolean j) .boolean j := by
+theorem judge_boolean (j : Data) : Judge env root (checkWith u none .boolean j) .boolean j := by
   cases j with
   | bool b => exact .boolean
   | _ => exact .booleanNot fun _ h => nomatch h
 
-theorem judge_mapKind (j : Data) : Judge env root (checkWith u .mapKind j) .mapKind j := by
+theorem judge_mapKind (j : Data) : Judge env root (checkWith u none .mapKind j) .mapKind j := by
   cases j with
   | map fs => exact .mapKind
   | _ => exact .mapKindNot fun _ h => nomatch h
 
-theorem judge_listKind (j : Data) : Judge env root (checkWith u .listKind j) .listKind j := by
+theorem judge_listKind (j : Data) : Judge env root (checkWith u none .listKind j) .listKind j := by
   cases j with
   | list xs => exact .listKind
   | _ => exact .listKindNot fun _ h => nomatch h
 
 /-- The checker judges a kind as the definition does. -/
 theorem check_kind_judge {v : Val} (hk : v.isKind = true) (j : Data) :
-    Judge env root (checkWith u v j) v j := by
+    Judge env root (checkWith u none v j) v j := by
   cases v
   case ride k v r => exact .ride (check_kind_judge (v := v) hk j)
   all_goals simp [Val.isKind] at hk <;>
@@ -2202,9 +2473,11 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
         obtain ⟨⟨h1, h2⟩, h3⟩ := h
         obtain ⟨hf1, hf2⟩ :=
           (checkSuperFieldsWith_iff fun k o v x hm hx => (ihf k o v x hm hx).toIff).mp h1
-        have hs : ∀ t, superSpread spread = some t → ∀ k x, (k, x) ∈ jfs → Admits env root t x := by
+        have hs : ∀ t, superSpread spread = some t → ∀ k x, (k, x) ∈ jfs →
+            Admits env root (t.atKey k) x := by
           intro t ht k x hm
           obtain ⟨s, hs, rfl⟩ := superSpread_eq.mp ht
+          rw [Val.atKey_of_keyed k (Val.keyed_super s)]
           have := List.all_eq_true.mp h2 (k, x) hm
           exact (ihsp s hs x (hu.mapSpread hs hm)).of_eq (by simpa [checkSuperSpreadWith, hs] using this)
         have h4 := (checkClosed_iff fs closed jfs).mp h3
@@ -2226,7 +2499,8 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
           · obtain ⟨⟨k, x⟩, hm, hn⟩ := all_false_mem h2
             obtain ⟨s, hs, hr⟩ := checkSuperSpreadWith_false
               (fun s hs => ihsp s hs x (hu.mapSpread hs hm)) hn
-            exact .mapSpread (superSpread_eq.mpr ⟨s, hs, rfl⟩) hm hr
+            exact .mapSpread (superSpread_eq.mpr ⟨s, hs, rfl⟩) hm
+              (by rw [Val.atKey_of_keyed k (Val.keyed_super s)]; exact hr)
         · obtain ⟨hc, k, x, hm, hn⟩ := checkClosed_false fs closed jfs h3
           refine .mapClosed hc hm fun o w hw => ?_
           obtain ⟨v, hv, -⟩ := mem_superFields.mp hw
@@ -2249,14 +2523,16 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
             rw [superItems_length]
             intro hc ht
             exact (checkSealed_iff closed spread items xs).mp h2 hc (superSpread_none.mp ht))
-          (fun i w x hw hx => ?_) (fun t ht x hm => ?_)
+          (fun i w x hw hx => ?_) (fun t ht k x hm => ?_)
         · rw [superItems_getElem?] at hw
           cases hv : items[i]? with
           | none => rw [hv] at hw; cases hw
           | some v => rw [hv] at hw; cases hw; exact hi i v x hv hx
         · obtain ⟨s, hs, rfl⟩ := superSpread_eq.mp ht
-          have := List.all_eq_true.mp h4 x hm
-          exact (ihsp s hs x (hu.listSpread hs hm)).of_eq (by simpa [checkSuperSpreadWith, hs] using this)
+          rw [Val.atKey_of_keyed k (Val.keyed_super s)]
+          have := List.all_eq_true.mp h4 (k, x) hm
+          exact (ihsp s hs x (hu.listSpread hs (mem_namedItems hm))).of_eq
+            (by simpa [checkSuperSpreadWith, hs] using this)
       · rcases Bool.and_eq_false_iff.mp h with h123 | h4
         · rcases Bool.and_eq_false_iff.mp h123 with h12 | h3
           · rcases Bool.and_eq_false_iff.mp h12 with h1 | h2
@@ -2265,10 +2541,11 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
               exact .listLong hc (superSpread_none.mpr hsn) (by rw [superItems_length]; exact hne)
           · obtain ⟨i, v, x, hv, hx, hr⟩ := checkSuperItemsWith_false ihi h3
             exact .listItem (by rw [superItems_getElem?, hv]; rfl) hx hr
-        · obtain ⟨x, hm, hn⟩ := all_false_mem h4
+        · obtain ⟨⟨k, x⟩, hm, hn⟩ := all_false_mem h4
           obtain ⟨s, hs, hr⟩ := checkSuperSpreadWith_false
-            (fun s hs => ihsp s hs x (hu.listSpread hs hm)) hn
-          exact .listSpread (superSpread_eq.mpr ⟨s, hs, rfl⟩) hm hr
+            (fun s hs => ihsp s hs x (hu.listSpread hs (mem_namedItems hm))) hn
+          exact .listSpread (superSpread_eq.mpr ⟨s, hs, rfl⟩) hm
+            (by rw [Val.atKey_of_keyed k (Val.keyed_super s)]; exact hr)
     | _ => exact .listNot fun _ h => nomatch h
   | @or arms _ iharms =>
     intro j hu
@@ -2291,7 +2568,13 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     intro j _
     simp only [checkSuperWith, Val.super]
     exact .path
-  | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _ => intro j _; exact .any
+  | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
+  | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ => intro j _; exact .any
+  | key =>
+    intro j _
+    cases j with
+    | str s => exact .anyString
+    | _ => exact .anyStringNot fun _ h => nomatch h
   | @meet a b ha hb iha ihb =>
     intro j hu
     cases hka : a.isKind <;> cases hkb : b.isKind <;>
@@ -2316,27 +2599,59 @@ theorem checkSuperWith_iff {v : Val} (h : v.CheckableA) (j : Data) (hu : HookOk 
     {b : Bool} : checkSuperWith u v j = b ↔ Judge env root b v.super j :=
   (checkSuperWith_judge h j hu).toIff
 
+/-- A term with no `key` at its own position is checked alike under any key. -/
+theorem checkWith_keyless {v : Val} (hv : v.keyed = false) (ky : Option String) (j : Data) :
+    checkWith u ky v j = checkWith u none v j := by
+  induction v using Val.keyed.induct generalizing j with
+  | case1 => exact nomatch hv
+  | case2 a b iha ihb =>
+    simp only [Val.keyed, Bool.or_eq_false_iff] at hv
+    simp only [checkWith, iha hv.1, ihb hv.2]
+  | case3 sc arms d _ =>
+    simp only [Val.keyed] at hv
+    cases sc <;> first | rfl | exact nomatch hv
+  | case4 t v r ih =>
+    simp only [Val.keyed] at hv
+    simp only [checkWith, ih hv]
+  | case5 v h1 h2 h3 h4 =>
+    cases v <;> first
+      | rfl
+      | exact absurd rfl h1
+      | exact (h2 _ _ rfl).elim
+      | exact (h3 _ _ _ rfl).elim
+      | exact (h4 _ _ _ rfl).elim
+
+theorem judge_keyless {v : Val} (hv : v.keyed = false) {ky : Option String} {j : Data}
+    (h : Judge env root (checkWith u none v j) v j) :
+    Judge env root (checkWith u ky v j) (v.atKeyO ky) j := by
+  cases ky with
+  | none => exact h
+  | some k' =>
+    rw [checkWith_keyless hv, Val.atKeyO, Val.atKey_of_keyed k' hv]
+    exact h
+
 set_option linter.unusedVariables false in
 /-- The checker judges every value it can check as the definition does,
-given a hook that is right where it is asked: its `true` is admission
-and its `false` refusal. -/
-theorem checkWith_judge {v : Val} (h : v.CheckableA) :
-    ∀ j, HookOk u env root v j → Judge env root (checkWith u v j) v j := by
+under the key a spread is tried with, where there is one. -/
+theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
+    ∀ (ky : Option String) j, HookOk u env root v j →
+      Judge env root (checkWith u ky v j) (v.atKeyO ky) j := by
   induction h with
-  | any => intro j _; exact .any
-  | nil => intro j _; exact .nil
-  | integer => intro j _; exact judge_integer j
-  | float => intro j _; exact judge_float j
-  | biginteger => intro j _; exact judge_biginteger j
-  | bigdecimal => intro j _; exact judge_bigdecimal j
-  | number => intro j _; exact judge_number j
-  | string => intro j _; exact judge_string j
-  | anyString => intro j _; exact judge_anyString j
-  | boolean => intro j _; exact judge_boolean j
-  | mapKind => intro j _; exact judge_mapKind j
-  | listKind => intro j _; exact judge_listKind j
+  | any => intro ky j _; refine judge_keyless rfl ?_; exact .any
+  | nil => intro ky j _; refine judge_keyless rfl ?_; exact .nil
+  | integer => intro ky j _; refine judge_keyless rfl ?_; exact judge_integer j
+  | float => intro ky j _; refine judge_keyless rfl ?_; exact judge_float j
+  | biginteger => intro ky j _; refine judge_keyless rfl ?_; exact judge_biginteger j
+  | bigdecimal => intro ky j _; refine judge_keyless rfl ?_; exact judge_bigdecimal j
+  | number => intro ky j _; refine judge_keyless rfl ?_; exact judge_number j
+  | string => intro ky j _; refine judge_keyless rfl ?_; exact judge_string j
+  | anyString => intro ky j _; refine judge_keyless rfl ?_; exact judge_anyString j
+  | boolean => intro ky j _; refine judge_keyless rfl ?_; exact judge_boolean j
+  | mapKind => intro ky j _; refine judge_keyless rfl ?_; exact judge_mapKind j
+  | listKind => intro ky j _; refine judge_keyless rfl ?_; exact judge_listKind j
   | @lit s =>
-    intro j _
+    intro ky j _
+    refine judge_keyless rfl ?_
     cases s with
     | null =>
       cases j with
@@ -2367,7 +2682,8 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
         · exact of_decide_eq_false h (by cases e; rfl)
       | _ => exact .litNot fun h => nomatch h
   | @min b =>
-    intro j _
+    intro ky j _
+    refine judge_keyless rfl ?_
     cases b with
     | num n =>
       cases j with
@@ -2386,7 +2702,8 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
         cases hb; cases hs; exact of_decide_eq_false h
       | _ => exact .minNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @max b =>
-    intro j _
+    intro ky j _
+    refine judge_keyless rfl ?_
     cases b with
     | num n =>
       cases j with
@@ -2405,7 +2722,8 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
         cases hb; cases hs; exact of_decide_eq_false h
       | _ => exact .maxNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @above b =>
-    intro j _
+    intro ky j _
+    refine judge_keyless rfl ?_
     cases b with
     | num n =>
       cases j with
@@ -2424,7 +2742,8 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
         cases hb; cases hs; exact of_decide_eq_false h
       | _ => exact .aboveNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @beneath b =>
-    intro j _
+    intro ky j _
+    refine judge_keyless rfl ?_
     cases b with
     | num n =>
       cases j with
@@ -2443,7 +2762,8 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
         cases hb; cases hs; exact of_decide_eq_false h
       | _ => exact .beneathNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @neq vs =>
-    intro j _
+    intro ky j _
+    refine judge_keyless rfl ?_
     cases j with
     | num x =>
       simp only [checkWith]
@@ -2477,7 +2797,8 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
         exact Decidable.of_not_not (of_decide_eq_false hnv)
     | _ => exact .neqNot (fun _ h => nomatch h) (fun _ h => nomatch h)
   | @mulof d =>
-    intro j _
+    intro ky j _
+    refine judge_keyless rfl ?_
     cases j with
     | num x =>
       simp only [checkWith]
@@ -2490,19 +2811,21 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
         · exact of_decide_eq_false h hm
     | _ => exact .mulofNot fun _ h => nomatch h
   | @len c _ ihc =>
-    intro j hu
+    intro ky j hu
+    refine judge_keyless rfl ?_
     simp only [checkWith]
     cases hs : j.size with
     | none => exact .lenNone hs
     | some n =>
-      show Judge env root (if h : IntegerLeaf n then checkWith u c (.num (.integer ⟨n, h⟩)) else false) (.len c) j
+      show Judge env root (if h : IntegerLeaf n then checkWith u none c (.num (.integer ⟨n, h⟩)) else false) (.len c) j
       split
       · rename_i h
-        exact .len h hs (ihc _ hu.len)
+        exact .len h hs (ihc none _ hu.len)
       · rename_i h
         exact .lenBig hs h
   | @unique k =>
-    intro j _
+    intro ky j _
+    refine judge_keyless rfl ?_
     simp only [checkWith]
     cases hm : j.members with
     | none => exact .uniqueNone hm
@@ -2520,116 +2843,126 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
           rw [(distinct_iff k ms).mpr hp] at h
           exact nomatch h
   | @alias k =>
-    intro j hu
+    intro ky j hu
+    refine judge_keyless rfl ?_
     simp only [checkWith]
     exact hu.alias
-  | path => intro j _; exact .path
+  | path => intro ky j _; refine judge_keyless rfl ?_; exact .path
   | @nof n cs _ _ ihn ihcs =>
-    intro j hu
+    intro ky j hu
+    refine judge_keyless rfl ?_
     simp only [checkWith]
-    have hbr : ∀ c, c ∈ cs → Judge env root (checkWith u c j) c j :=
-      fun c hc => ihcs c hc j (hu.nofBranch hc)
+    have hbr : ∀ c, c ∈ cs → Judge env root (checkWith u none c j) c j :=
+      fun c hc => ihcs c hc none j (hu.nofBranch hc)
     split
     · rename_i h
-      exact .nof h hbr (countWith_eq cs).symm (ihn _ hu.nofCount)
+      exact .nof h hbr (countWith_eq cs).symm (ihn none _ hu.nofCount)
     · rename_i h
       exact .nofBig hbr (countWith_eq cs).symm h
   | must _ ih =>
-    intro j hu
+    intro ky j hu
+    refine judge_keyless rfl ?_
     simp only [checkWith]
-    exact .must (ih j hu.must)
+    exact .must (ih none j hu.must)
   | @when c t e _ _ _ ihc iht ihe =>
-    intro j hu
+    intro ky j hu
+    refine judge_keyless rfl ?_
     simp only [checkWith]
-    have hc := ihc j hu.whenCond
+    have hc := ihc none j hu.whenCond
     split
     · rename_i h
-      exact .whenThen (hc.of_eq h) (iht j hu.whenThen)
+      exact .whenThen (hc.of_eq h) (iht none j hu.whenThen)
     · rename_i h
       have hc' : Judge env root false c j := hc.of_eq (Bool.eq_false_iff.mpr h)
       cases e with
       | none => exact .whenPass hc'
-      | some e' => exact .whenElse hc' (ihe e' rfl j hu.whenElse)
+      | some e' => exact .whenElse hc' (ihe e' rfl none j hu.whenElse)
   | @contains c n _ _ ihc ihn =>
-    intro j hu
+    intro ky j hu
+    refine judge_keyless rfl ?_
     simp only [checkWith]
     cases hm : j.members with
     | none => exact .containsNone hm
     | some ms =>
-      have hmem : ∀ x, x ∈ ms → Judge env root (checkWith u c x) c x :=
-        fun x hx => ihc x (hu.containsMember hm hx)
-      show Judge env root (if h : IntegerLeaf (ms.countP fun x => checkWith u c x) then
-        checkWith u n (.num (.integer ⟨ms.countP fun x => checkWith u c x, h⟩)) else false) (.contains c n) j
+      have hmem : ∀ x, x ∈ ms → Judge env root (checkWith u none c x) c x :=
+        fun x hx => ihc none x (hu.containsMember hm hx)
+      show Judge env root (if h : IntegerLeaf (ms.countP fun x => checkWith u none c x) then
+        checkWith u none n (.num (.integer ⟨ms.countP fun x => checkWith u none c x, h⟩)) else false) (.contains c n) j
       split
       · rename_i h
-        exact .contains h hm hmem rfl (ihn _ hu.containsCount)
+        exact .contains h hm hmem rfl (ihn none _ hu.containsCount)
       · rename_i h
         exact .containsBig hm hmem rfl h
   | @rest t cs _ _ _ _ iht ih1 ih2 ih3 =>
-    intro j hu
+    intro ky j hu
+    refine judge_keyless rfl ?_
     simp only [checkWith]
     cases hm : j.named with
     | none => exact .restNone hm
     | some ns =>
-      show Judge env root (ns.all fun m => restEvaluatedWith u cs j m.1 m.2 || checkWith u t m.2) (.rest t cs) j
+      show Judge env root (ns.all fun m => restEvaluatedWith u cs j m.1 m.2 || checkWith u none t m.2) (.rest t cs) j
       refine .rest (gc := fun c => checkSpreadWith u c.1 j) (gk := fun c k => checkOptWith u c.2.1 (.str k))
-        (gm := fun c x => checkOptWith u c.2.2 x) (ft := fun x => checkWith u t x) hm
+        (gm := fun c x => checkOptWith u c.2.2 x) (ft := fun x => checkWith u none t x) hm
         (fun c hc v hv => ?_) (fun c hc v hv k x hx => ?_) (fun c hc v hv k x hx => ?_)
-        (fun k x hx => iht x (hu.restT hm hx)) ?_
-      · have := ih1 c hc v hv j (hu.restCond hc hv)
+        (fun k x hx => iht none x (hu.restT hm hx)) ?_
+      · have := ih1 c hc v hv none j (hu.restCond hc hv)
         show Judge env root (checkSpreadWith u c.1 j) v j
         rw [hv]; exact this
-      · have := ih2 c hc v hv (.str k) (hu.restKey hc hv hm hx)
+      · have := ih2 c hc v hv none (.str k) (hu.restKey hc hv hm hx)
         show Judge env root (checkOptWith u c.2.1 (.str k)) v (.str k)
         rw [hv]; exact this
-      · have := ih3 c hc v hv x (hu.restMember hc hv hm hx)
+      · have := ih3 c hc v hv none x (hu.restMember hc hv hm hx)
         show Judge env root (checkOptWith u c.2.2 x) v x
         rw [hv]; exact this
       · apply all_congr
         intro m _
         rw [restEvaluatedWith_eq]
   | @map fs spread closed _ _ ihfs ihsp =>
-    intro j hu
+    intro ky j hu
+    refine judge_keyless rfl ?_
     cases j with
     | map jfs =>
       simp only [checkWith]
       have ihf : ∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x →
-          Judge env root (checkWith u v x) v x :=
-        fun k o v x hm hx => ihfs k o v hm x (hu.field hm hx)
+          Judge env root (checkWith u none v x) v x :=
+        fun k o v x hm hx => ihfs k o v hm none x (hu.field hm hx)
       refine judge_of_bool (fun h => ?_) (fun h => ?_)
       · simp only [Bool.and_eq_true] at h
         obtain ⟨⟨h1, h2⟩, h3⟩ := h
         obtain ⟨hf1, hf2⟩ := (checkFieldsWith_iff fun k o v x hm hx => (ihf k o v x hm hx).toIff).mp h1
         refine .map hf1 hf2 (fun s hs k x hm => ?_) ((checkClosed_iff fs closed jfs).mp h3)
         have := List.all_eq_true.mp h2 (k, x) hm
-        exact (ihsp s hs x (hu.mapSpread hs hm)).of_eq (by simpa [checkSpreadWith, hs] using this)
+        exact (ihsp s hs (some k) x (hu.mapSpread hs hm)).of_eq
+          (by simpa [checkKeySpreadWith, hs] using this)
       · rcases Bool.and_eq_false_iff.mp h with h12 | h3
         · rcases Bool.and_eq_false_iff.mp h12 with h1 | h2
           · rcases checkFieldsWith_false ihf h1 with ⟨k, o, v, x, hm, hx, hr⟩ | ⟨k, o, v, hm, hx, ho⟩
             · exact .mapField hm hx hr
             · exact .mapMissing hm hx ho
           · obtain ⟨⟨k, x⟩, hm, hn⟩ := all_false_mem h2
-            obtain ⟨s, hs, hr⟩ := checkSpreadWith_false
-              (fun s hs => ihsp s hs x (hu.mapSpread hs hm)) hn
+            obtain ⟨s, hs, hr⟩ := checkKeySpreadWith_false
+              (fun s hs => ihsp s hs (some k) x (hu.mapSpread hs hm)) hn
             exact .mapSpread hs hm hr
         · obtain ⟨hc, k, x, hm, hn⟩ := checkClosed_false fs closed jfs h3
           exact .mapClosed hc hm hn
     | _ => exact .mapNot fun _ h => nomatch h
   | @list items spread closed _ _ ihitems ihsp =>
-    intro j hu
+    intro ky j hu
+    refine judge_keyless rfl ?_
     cases j with
     | list xs =>
       simp only [checkWith]
       have ihi : ∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
-          Judge env root (checkWith u v x) v x :=
-        fun i v x hv hx => ihitems v (List.mem_of_getElem? hv) x (hu.item hv hx)
+          Judge env root (checkWith u none v x) v x :=
+        fun i v x hv hx => ihitems v (List.mem_of_getElem? hv) none x (hu.item hv hx)
       refine judge_of_bool (fun h => ?_) (fun h => ?_)
       · simp only [Bool.and_eq_true, decide_eq_true_eq] at h
         obtain ⟨⟨⟨h1, h2⟩, h3⟩, h4⟩ := h
         refine .list h1 ((checkSealed_iff closed spread items xs).mp h2)
-          ((checkItemsWith_iff fun i v x hv hx => (ihi i v x hv hx).toIff).mp h3) (fun s hs x hm => ?_)
-        have := List.all_eq_true.mp h4 x hm
-        exact (ihsp s hs x (hu.listSpread hs hm)).of_eq (by simpa [checkSpreadWith, hs] using this)
+          ((checkItemsWith_iff fun i v x hv hx => (ihi i v x hv hx).toIff).mp h3) (fun s hs k x hm => ?_)
+        have := List.all_eq_true.mp h4 (k, x) hm
+        exact (ihsp s hs (some k) x (hu.listSpread hs (mem_namedItems hm))).of_eq
+          (by simpa [checkKeySpreadWith, hs] using this)
       · rcases Bool.and_eq_false_iff.mp h with h123 | h4
         · rcases Bool.and_eq_false_iff.mp h123 with h12 | h3
           · rcases Bool.and_eq_false_iff.mp h12 with h1 | h2
@@ -2638,23 +2971,25 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
               exact .listLong hc hsn hne
           · obtain ⟨i, v, x, hv, hx, hr⟩ := checkItemsWith_false ihi h3
             exact .listItem hv hx hr
-        · obtain ⟨x, hm, hn⟩ := all_false_mem h4
-          obtain ⟨s, hs, hr⟩ := checkSpreadWith_false
-            (fun s hs => ihsp s hs x (hu.listSpread hs hm)) hn
+        · obtain ⟨⟨k, x⟩, hm, hn⟩ := all_false_mem h4
+          obtain ⟨s, hs, hr⟩ := checkKeySpreadWith_false
+            (fun s hs => ihsp s hs (some k) x (hu.listSpread hs (mem_namedItems hm))) hn
           exact .listSpread hs hm hr
     | _ => exact .listNot fun _ h => nomatch h
   | @or arms _ iharms =>
-    intro j hu
+    intro ky j hu
+    refine judge_keyless rfl ?_
     simp only [checkWith]
-    have iha : ∀ r a, (r, a) ∈ arms → Judge env root (checkWith u a j) a j :=
-      fun r a hm => iharms r a hm j (hu.arm hm)
+    have iha : ∀ r a, (r, a) ∈ arms → Judge env root (checkWith u none a j) a j :=
+      fun r a hm => iharms r a hm none j (hu.arm hm)
     refine judge_of_bool (fun h => ?_) (fun h => .orNone (checkArmsWith_false iha h))
     obtain ⟨r, a, hm, ha⟩ := (checkArmsWith_iff fun r a hm => (iha r a hm).toIff).mp h
     exact .or hm ha
   | @pref r x hx ihx =>
-    intro j hu
+    intro ky j hu
+    refine judge_keyless rfl ?_
     simp only [checkWith]
-    have h1 := ihx j hu.pref
+    have h1 := ihx none j hu.pref
     have h2 := checkSuperWith_judge hx j hu.pref
     refine judge_of_bool (fun h => ?_) (fun h => ?_)
     · rcases Bool.or_eq_true_iff.mp h with h | h
@@ -2662,33 +2997,76 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
       · exact .prefSuper (h2.of_eq h)
     · obtain ⟨ha, hb⟩ := Bool.or_eq_false_iff.mp h
       exact .prefNone (h1.of_eq ha) (h2.of_eq hb)
-  | @ride k v r _ ihv =>
-    intro j hu
+  | @ride t v r _ ihv =>
+    intro ky j hu
+    have e : (Val.ride t v r).atKeyO ky = .ride t (v.atKeyO ky) r := by cases ky <;> rfl
+    rw [e]
     simp only [checkWith]
-    exact .ride (ihv j hu.ride)
-  | meet _ _ iha ihb =>
-    intro j hu
+    exact .ride (ihv ky j hu.ride)
+  | @meet a b _ _ iha ihb =>
+    intro ky j hu
+    have e : (Val.meet a b).atKeyO ky = .meet (a.atKeyO ky) (b.atKeyO ky) := by cases ky <;> rfl
+    rw [e]
     simp only [checkWith]
-    have ha := iha j hu.meetLeft
-    have hb := ihb j hu.meetRight
+    have ha := iha ky j hu.meetLeft
+    have hb := ihb ky j hu.meetRight
     refine judge_of_bool (fun h => ?_) (fun h => ?_)
     · simp only [Bool.and_eq_true] at h
       exact .meet (ha.of_eq h.1) (hb.of_eq h.2)
     · rcases Bool.and_eq_false_iff.mp h with h1 | h2
       · exact .meetLeft (ha.of_eq h1)
       · exact .meetRight (hb.of_eq h2)
+  | key =>
+    intro ky j _
+    cases ky with
+    | none => exact .key
+    | some k' =>
+      show Judge env root (checkWith u (some k') .key j) (.lit (.str k')) j
+      cases j with
+      | str s =>
+        simp only [checkWith]
+        refine judge_of_bool (fun h => ?_) (fun h => .litNot fun e => ?_)
+        · cases of_decide_eq_true h; exact .str
+        · exact of_decide_eq_false h (by cases e; rfl)
+      | _ => exact .litNot fun h => nomatch h
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    intro ky j hu
+    cases ky with
+    | none => exact .selectKey
+    | some k' =>
+      show Judge env root (checkWith u (some k') (.select .key arms d) j) (.select (.lit (.str k')) arms d) j
+      simp only [checkWith]
+      exact judge_selectWith (s := .str k')
+        (fun p r hm => ihp p r hm none _ (hu.selectPattern hm (Data.weight_pos j)))
+        (fun p r hm => ihr p r hm none j (hu.selectResult hm))
+        (fun e hd => ihd e hd none j (hu.selectElse hd))
+  | @selectLit s arms d _ _ _ ihp ihr ihd =>
+    intro ky j hu
+    refine judge_keyless rfl ?_
+    simp only [checkWith]
+    exact judge_selectWith
+      (fun p r hm => ihp p r hm none _ (hu.selectPattern hm (by cases s <;> exact Data.weight_pos j)))
+      (fun p r hm => ihr p r hm none j (hu.selectResult hm))
+      (fun e hd => ihd e hd none j (hu.selectElse hd))
+
+/-- The checker judges every value it can check as the definition does,
+given a hook that is right where it is asked: its `true` is admission
+and its `false` refusal. -/
+theorem checkWith_judge {v : Val} (h : v.CheckableA) :
+    ∀ j, HookOk u env root v j → Judge env root (checkWith u none v j) v j :=
+  fun j hu => checkWithKey_judge h none j hu
 
 /-- The checker decides admission, and refusal, for every value it can
 check, given a hook that is right where it is asked. -/
 theorem checkWith_iff {v : Val} (h : v.CheckableA) (j : Data) (hu : HookOk u env root v j) {b : Bool} :
-    checkWith u v j = b ↔ Judge env root b v j :=
+    checkWith u none v j = b ↔ Judge env root b v j :=
   (checkWith_judge h j hu).toIff
 
 end
 
 /-- The checker with no hook: a name is never admitted, which decides the
 values that read no name. -/
-abbrev check : Val → Data → Bool := checkWith fun _ _ => false
+abbrev check : Val → Data → Bool := checkWith (fun _ _ => false) none
 
 abbrev checkSpread : Option Val → Data → Bool := checkSpreadWith fun _ _ => false
 

@@ -201,6 +201,7 @@ def Val.src : Val → Option String
   | .pref r x => do pure (prefSrc r (← x.src))
   | .meet a b => do pure s!"({← a.src}) & ({← b.src})"
   | .alias n => some ("%" ++ n)
+  | .key => some "key(0)"
   | .path p => do pure ("$" ++ String.join (← p.mapM segSrc))
   | .nof n cs => do pure s!"nof({← n.src}, {", ".intercalate (← itemsSrc cs)})"
   | .must c m => do pure s!"must({← c.src}, {quote m})"

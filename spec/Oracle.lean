@@ -1115,12 +1115,63 @@ theorem select_verdict_exact : ∀ c ∈ selectCases, ∀ (m : Mode) (v : Verdic
     vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vet_iff (selectCases_checkable c hc).1 (selectCases_checkable c hc).2 v
 
+/-- The cases of decision 13 of the design note's §7: a spread that
+selects on `key(0)`, the key of the member it is tried on, over a map's
+members and over a list's positions: an arm that admits, an arm that
+refuses, the default, no arm and no default, a pattern over the key's
+length, two such spreads met, a spread under a rider, and a spread
+beside a member the schema declares, whose value the selection meets. -/
+def keyCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
+  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let on (arms : List (Val × Val)) (d : Option Val) : Val := .select .key arms d
+  let spm (fs : List (String × Bool × Val)) (s : Val) : Val := .map fs (some s) false
+  let spl (xs : List Val) (s : Val) : Val := .list xs (some s) false
+  let z (v : Val) : Val := .map [("z", false, v)] none false
+  let dz (x : Data) : Data := .map [("z", x)]
+  let a : Val := on [(str "a", .integer)] (some .nil)
+  let ab : Val := on [(str "a", .integer), (str "b", .string)] none
+  let short : Val := on [(.len (.max (nb 2)), .any)] (some .nil)
+  let both : Val := .meet (spm [] (on [(str "a", .integer)] (some .any)))
+    (spm [] (on [(str "a", min 1)] (some .any)))
+  let pick : Val := on [(str "a", .or [(1, int 1), (0, .integer)])] (some .nil)
+  let pos : Val := on [(str "0", .integer), (str "1", .string)] (some .any)
+  let second : Val := on [(str "1", .string)] (some .any)
+  [([], z (spm [] a), dz (.map [("a", j 1)])), ([], z (spm [] a), dz (.map [("a", .str "x")])),
+    ([], z (spm [] a), dz (.map [("b", j 1)])), ([], z (spm [] a), dz (.map [])),
+    ([], z (spm [] ab), dz (.map [("c", j 1)])), ([], z (spm [] ab), dz (.map [("b", .str "x")])),
+    ([], z (spm [] short), dz (.map [("ab", j 1)])), ([], z (spm [] short), dz (.map [("abc", j 1)])),
+    ([], z both, dz (.map [("a", j 0)])), ([], z both, dz (.map [("a", j 2)])),
+    ([], z (spm [] (.ride .metadata a [])), dz (.map [("a", j 1)])),
+    ([], z (spm [] (.ride .metadata a [])), dz (.map [("a", .str "x")])),
+    ([], z (spm [("a", false, int 1)] a), dz (.map [("a", j 1)])),
+    ([], z (spm [("a", false, str "x")] a), dz (.map [("a", .str "x")])),
+    ([], z (spm [("a", false, .integer)] (on [(str "a", min 3)] (some .nil))), dz (.map [("a", j 1)])),
+    ([], z (spm [("a", false, .string)] a), dz (.map [("a", .str "x")])),
+    ([], z (spm [("a", false, .any)] pick), dz (.map [])),
+    ([], z (spm [("a", false, .any)] pick), dz (.map [("a", j 2)])),
+    ([], z (spl [] pos), dz (.list [j 1, .str "a", .bool true])), ([], z (spl [] pos), dz (.list [.str "a"])),
+    ([], z (spl [.integer] second), dz (.list [j 1, .str "a", j 3])),
+    ([], z (spl [.integer] second), dz (.list [j 1, j 2]))]
+
+set_option maxRecDepth 8192 in
+theorem keyCases_checkable : ∀ c ∈ keyCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem key_verdict_exact : ∀ c ∈ keyCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (keyCases_checkable c hc).1 (keyCases_checkable c hc).2 v
+
 /-- The `trials` rows: each case's declarations and schema as one
 document, the schema a map written without its braces, in the three
 modes, with the one class `vet` gives. -/
-def trialRows (tag : String) : IO Unit := do
+def trialRows (tag : String) (cases : List (Decls × Val × Data) := trialCases ++ selectCases) :
+    IO Unit := do
   let mut i := 0
-  for c in trialCases ++ selectCases do
+  for c in cases do
     let mut lines : List String := []
     for d in c.1 do
       let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
@@ -1388,7 +1439,8 @@ def forms : List (String × String × String) :=
     ("alias", "syntax", "%"), ("path", "syntax", "$"), ("nof", "call", "nof"),
     ("must", "call", "must"), ("when", "call", "when"), ("contains", "call", "contains"),
     ("rest", "call", "rest"), ("select", "call", "match"), ("filter", "call", "filter"),
-    ("ride", "call", "meta"), ("ride", "call", "deprecate"), ("ride", "call", "ident")]
+    ("ride", "call", "meta"), ("ride", "call", "deprecate"), ("ride", "call", "ident"),
+    ("key", "call", "key")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1401,7 +1453,7 @@ def formSamples : List (String × Val) :=
     ("contains", .contains .integer (.min (.num one))), ("rest", .rest .integer []),
     ("match", .select .integer [] none), ("filter", .filter .integer .integer),
     ("meta", .ride .metadata .integer []), ("deprecate", .ride .deprecate .integer []),
-    ("ident", .ride .ident .integer [])]
+    ("ident", .ride .ident .integer []), ("key", .key)]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1596,7 +1648,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# refers to itself through a trial alone breaks the alias-cycle rule, an"
     IO.println "# error. Regenerate with `make spec`; never edit by hand. The cases the ports"
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
+    IO.println "# A spread that selects on key(0), the key of the member it is tried on, or"
+    IO.println "# the position of the item, follows in rows y0 on."
     trialRows "t"
+    trialRows "y" keyCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials]"

@@ -43,6 +43,10 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.checkWith_judge
 
+/-- info: 'Aontu.checkWithKey_judge' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.checkWithKey_judge
+
 /-- info: 'Aontu.checkR_judge' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.checkR_judge
@@ -114,6 +118,10 @@ line each comment states.
 /-- info: 'Aontu.admits_meet' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.admits_meet
+
+/-- info: 'Aontu.admits_selectNow' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.admits_selectNow
 
 /-- info: 'Aontu.admits_normalise' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in

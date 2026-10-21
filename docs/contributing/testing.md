@@ -360,7 +360,8 @@ the definition's syntax, or of
 that wait on a decision of the design note, each row naming its
 decision. A row of the outside file the importer no longer writes fails
 the run, so a form that enters the definition leaves the file, and the
-file may not grow past its bound.
+file may not grow past its bound. The bound is zero: the importer
+writes no form the definition lacks.
 
 ## The divergence ledger
 

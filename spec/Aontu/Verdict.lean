@@ -183,32 +183,166 @@ theorem resolveCovers_eq {ds : Decls} : ∀ {cs : List Cover},
     rw [resolveSpread_eq h1, resolveSpread_eq h2, resolveSpread_eq h3,
       resolveCovers_eq fun c' hm => h c' (List.mem_cons_of_mem _ hm)]
 
-/-- A term the checker can read holds no `match` and no `filter`, so its
-selections are already made. -/
-theorem resolveD_eq {ds : Decls} {v : Val} (h : v.CheckableA) : resolveD ds v = v := by
+theorem mem_resolveFields {ds : Decls} : ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
+    (k, o, w) ∈ resolveFields ds fs → ∃ v, (k, o, v) ∈ fs ∧ w = resolveD ds v
+  | [], _, _, _, h => nomatch h
+  | (k', o', v') :: fs, k, o, w, h => by
+    simp only [resolveFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact ⟨v', List.mem_cons_self, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := mem_resolveFields h
+      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+
+theorem mem_resolveItems {ds : Decls} : ∀ {vs : List Val} {w : Val},
+    w ∈ resolveItems ds vs → ∃ v, v ∈ vs ∧ w = resolveD ds v
+  | [], _, h => nomatch h
+  | v' :: vs, w, h => by
+    simp only [resolveItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v', List.mem_cons_self, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := mem_resolveItems h
+      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+
+theorem resolveSpread_some {ds : Decls} : ∀ {sp : Option Val} {w : Val},
+    resolveSpread ds sp = some w → ∃ s, sp = some s ∧ w = resolveD ds s
+  | none, _, h => nomatch h
+  | some s, _, h => by simp only [resolveSpread, Option.some.injEq] at h; exact ⟨s, rfl, h.symm⟩
+
+theorem mem_resolveArms {ds : Decls} : ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
+    (r, w) ∈ resolveArms ds arms → ∃ a, (r, a) ∈ arms ∧ w = resolveD ds a
+  | [], _, _, h => nomatch h
+  | (r', a') :: arms, r, w, h => by
+    simp only [resolveArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨a', List.mem_cons_self, rfl⟩
+    · obtain ⟨a, ha, rfl⟩ := mem_resolveArms h
+      exact ⟨a, List.mem_cons_of_mem _ ha, rfl⟩
+
+theorem mem_resolvePairs {ds : Decls} : ∀ {ps : List (Val × Val)} {p r : Val},
+    (p, r) ∈ resolvePairs ds ps → ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = resolveD ds p₀ ∧ r = resolveD ds r₀
+  | [], _, _, h => nomatch h
+  | (p', r') :: ps, p, r, h => by
+    simp only [resolvePairs, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨p', r', List.mem_cons_self, rfl, rfl⟩
+    · obtain ⟨p₀, r₀, hm, rfl, rfl⟩ := mem_resolvePairs h
+      exact ⟨p₀, r₀, List.mem_cons_of_mem _ hm, rfl, rfl⟩
+
+theorem mem_resolveCovers {ds : Decls} : ∀ {cs : List Cover} {c : Cover},
+    c ∈ resolveCovers ds cs → ∃ c₀, c₀ ∈ cs ∧ c.1 = resolveSpread ds c₀.1 ∧
+      c.2.1 = resolveSpread ds c₀.2.1 ∧ c.2.2 = resolveSpread ds c₀.2.2
+  | [], _, h => nomatch h
+  | (c₁, k₁, m₁) :: cs, c, h => by
+    simp only [resolveCovers, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨(c₁, k₁, m₁), List.mem_cons_self, rfl, rfl, rfl⟩
+    · obtain ⟨c₀, hc, h1, h2, h3⟩ := mem_resolveCovers h
+      exact ⟨c₀, List.mem_cons_of_mem _ hc, h1, h2, h3⟩
+
+/-- The selection a literal makes is one of its arms' results, its
+default, or `nil`, each of which the checker can read. -/
+theorem selectArm_checkableA {ds : Decls} {x : Data} {d : Option Val} :
+    ∀ {arms : List (Val × Val)}, (∀ p r, (p, r) ∈ arms → r.CheckableA) →
+      (∀ e, d = some e → e.CheckableA) → (selectArm ds x arms d).CheckableA
+  | [], _, hd => by
+    simp only [selectArm]
+    cases d with
+    | none => exact .nil
+    | some e => exact hd e rfl
+  | (p, r) :: arms, hr, hd => by
+    simp only [selectArm]
+    split
+    · exact hr p r List.mem_cons_self
+    · exact selectArm_checkableA (fun p' r' hm => hr p' r' (List.mem_cons_of_mem _ hm)) hd
+
+/-- Making a term's selections keeps it a term the checker can read: a
+`match` on a literal is the arm it selects, and one on a key, which no
+value settles, stays. -/
+theorem resolveD_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (resolveD ds v).CheckableA := by
   induction h with
-  | len _ ih => simp only [resolveD]; rw [ih]
-  | @map fs spread closed _ _ ihf ihs => simp only [resolveD]; rw [resolveFields_eq ihf, resolveSpread_eq ihs]
-  | @list items spread closed _ _ ihi ihs => simp only [resolveD]; rw [resolveItems_eq ihi, resolveSpread_eq ihs]
-  | or _ ih => simp only [resolveD]; rw [resolveArms_eq ih]
-  | pref _ ih => simp only [resolveD]; rw [ih]
-  | ride _ ih => simp only [resolveD]; rw [ih]
-  | meet _ _ iha ihb => simp only [resolveD]; rw [iha, ihb]
-  | nof _ _ ihn ihcs => simp only [resolveD]; rw [ihn, resolveItems_eq ihcs]
-  | must _ ih => simp only [resolveD]; rw [ih]
-  | when _ _ _ ihc iht ihe => simp only [resolveD]; rw [ihc, iht, resolveSpread_eq ihe]
-  | contains _ _ ihc ihn => simp only [resolveD]; rw [ihc, ihn]
+  | len _ ih => simp only [resolveD]; exact .len ih
+  | @map fs spread closed _ _ ihf ihs =>
+    simp only [resolveD]
+    refine .map (fun k o w hw => ?_) (fun s hs' => ?_)
+    · obtain ⟨v, hv, rfl⟩ := mem_resolveFields hw
+      exact ihf k o v hv
+    · obtain ⟨s, hs, rfl⟩ := resolveSpread_some hs'
+      exact ihs s hs
+  | @list items spread closed _ _ ihi ihs =>
+    simp only [resolveD]
+    refine .list (fun w hw => ?_) (fun s hs' => ?_)
+    · obtain ⟨v, hv, rfl⟩ := mem_resolveItems hw
+      exact ihi v hv
+    · obtain ⟨s, hs, rfl⟩ := resolveSpread_some hs'
+      exact ihs s hs
+  | or _ ih =>
+    simp only [resolveD]
+    refine .or fun r w hw => ?_
+    obtain ⟨a, ha, rfl⟩ := mem_resolveArms hw
+    exact ih r a ha
+  | pref _ ih => simp only [resolveD]; exact .pref ih
+  | ride _ ih => simp only [resolveD]; exact .ride ih
+  | meet _ _ iha ihb => simp only [resolveD]; exact .meet iha ihb
+  | nof _ _ ihn ihcs =>
+    simp only [resolveD]
+    refine .nof ihn fun c hc => ?_
+    obtain ⟨c₀, hc₀, rfl⟩ := mem_resolveItems hc
+    exact ihcs c₀ hc₀
+  | must _ ih => simp only [resolveD]; exact .must ih
+  | when _ _ _ ihc iht ihe =>
+    simp only [resolveD]
+    refine .when ihc iht fun e he => ?_
+    obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
+    exact ihe e₀ he₀
+  | contains _ _ ihc ihn => simp only [resolveD]; exact .contains ihc ihn
   | rest _ _ _ _ iht ih1 ih2 ih3 =>
     simp only [resolveD]
-    rw [iht, resolveCovers_eq fun c hc => ⟨ih1 c hc, ih2 c hc, ih3 c hc⟩]
-  | _ => rfl
+    refine .rest iht (fun c hc v hv => ?_) (fun c hc v hv => ?_) (fun c hc v hv => ?_)
+    · obtain ⟨c₀, hc₀, h1, -, -⟩ := mem_resolveCovers hc
+      rw [h1] at hv
+      obtain ⟨w, hw, rfl⟩ := resolveSpread_some hv
+      exact ih1 c₀ hc₀ w hw
+    · obtain ⟨c₀, hc₀, -, h2, -⟩ := mem_resolveCovers hc
+      rw [h2] at hv
+      obtain ⟨w, hw, rfl⟩ := resolveSpread_some hv
+      exact ih2 c₀ hc₀ w hw
+    · obtain ⟨c₀, hc₀, -, -, h3⟩ := mem_resolveCovers hc
+      rw [h3] at hv
+      obtain ⟨w, hw, rfl⟩ := resolveSpread_some hv
+      exact ih3 c₀ hc₀ w hw
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    simp only [resolveD]
+    show (match genD ds .key with
+      | some x => selectArm ds x (resolvePairs ds arms) (resolveSpread ds d)
+      | none => .select .key (resolvePairs ds arms) (resolveSpread ds d)).CheckableA
+    have hg : genD ds .key = none := rfl
+    rw [hg]
+    refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_resolvePairs hm
+      exact ihp p₀ r₀ hm₀
+    · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_resolvePairs hm
+      exact ihr p₀ r₀ hm₀
+    · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
+      exact ihd e₀ he₀
+  | @selectLit sc arms d _ _ _ ihp ihr ihd =>
+    simp only [resolveD]
+    show (match genD ds (.lit sc) with
+      | some x => selectArm ds x (resolvePairs ds arms) (resolveSpread ds d)
+      | none => .select (.lit sc) (resolvePairs ds arms) (resolveSpread ds d)).CheckableA
+    have hg : genD ds (.lit sc) = some sc.data := rfl
+    rw [hg]
+    refine selectArm_checkableA (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_resolvePairs hm
+      exact ihr p₀ r₀ hm₀
+    · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
+      exact ihd e₀ he₀
+  | _ => simp only [resolveD]; constructor
 
 /-- A document whose schema the checker can read reads as its expansion. -/
 theorem readR_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
     (ds.readR S).CheckableA := by
   unfold Decls.readR
-  rw [resolveD_eq (expand_checkableA hb hS)]
-  exact expand_checkableA hb hS
+  exact resolveD_checkableA (expand_checkableA hb hS)
 
 /-- The first pattern the scrutinee's value satisfies selects its result. -/
 theorem selectArm_first {ds : Decls} {x : Data} {p r : Val} {arms : List (Val × Val)} {d : Option Val}

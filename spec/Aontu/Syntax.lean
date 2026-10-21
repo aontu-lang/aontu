@@ -93,6 +93,7 @@ inductive Val where
   | select (s : Val) (arms : List (Val × Val)) (d : Option Val)  -- `match(s, p₁, r₁, …, d?)`, the first `rᵢ` whose `pᵢ` admits the value of `s`, else `d`; Lean keeps `match`
   | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
   | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`: `v` carrying `r`
+  | key                                     -- `key(0)`, the key of the member a spread is tried on
 
 /-! The language reads `|` and `*` by position, and the reader, not a
 rule, carries the reading into the terms: an arm of a disjunction, and
@@ -239,6 +240,7 @@ def Val.super : Val → Val
   | .path p => .path p
   | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ => .any
   | .ride _ v _ => v.super
+  | .key => .anyString
 
 def superFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
@@ -256,5 +258,84 @@ def superArms : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
   | (r, a) :: arms => (r, a.super) :: superArms arms
 end
+
+/-! ## The key a spread is tried under
+
+A spread holds every member of its container, and `key` in it reads the
+key of the member it is tried on (decision 13 of the design note's §7):
+a map's member's key, or a list's element's position, as a string. A
+`key` stands at its spread's own position through `&`, the riders and
+the scrutinee of a `match`, which is where the importer writes it, and
+beneath any other form stands at none. -/
+
+/-- A spread's term as it is tried on the member under the key `k`:
+each `key` at the spread's own position read as the string `k`. -/
+def Val.atKey (k : String) : Val → Val
+  | .key => .lit (.str k)
+  | .meet a b => .meet (a.atKey k) (b.atKey k)
+  | .select s arms d => .select (s.atKey k) arms d
+  | .ride t v r => .ride t (v.atKey k) r
+  | v => v
+
+/-- A term read under a key, where one is given. -/
+def Val.atKeyO : Option String → Val → Val
+  | none, v => v
+  | some k, v => v.atKey k
+
+/-- Whether a term holds a `key` at its own position, one `atKey` reads. -/
+def Val.keyed : Val → Bool
+  | .key => true
+  | .meet a b => a.keyed || b.keyed
+  | .select s _ _ => s.keyed
+  | .ride _ v _ => v.keyed
+  | _ => false
+
+/-- A kind holds no `key`. -/
+theorem Val.keyed_of_isKind {v : Val} (h : v.isKind = true) : v.keyed = false := by
+  cases v <;> simp_all [Val.isKind, Val.keyed]
+  rename_i v _
+  exact Val.keyed_of_isKind h
+
+/-- No parent type holds a `key`: the parent of `key` is every string, so a
+spread's parent reads the same under any key. -/
+theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
+  | .meet a b => by
+    simp only [Val.super]
+    split
+    · split
+      · split
+        · exact Val.keyed_super a
+        · exact Val.keyed_super b
+      · exact Val.keyed_of_isKind ‹_›
+    · split
+      · exact Val.keyed_of_isKind ‹_›
+      · simp only [Val.keyed, Val.keyed_super a, Val.keyed_super b, Bool.or_self]
+  | .ride _ v _ => by simp only [Val.super]; exact Val.keyed_super v
+  | .pref _ x => by simp only [Val.super]; exact Val.keyed_super x
+  | .lit (.num x) => by simp only [Val.super]; cases x.leaf <;> rfl
+  | .lit (.str s) => by simp only [Val.super]; split <;> rfl
+  | .min b | .max b | .above b | .beneath b | .neq (b :: _) => by
+    simp only [Val.super]; cases b <;> rfl
+  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
+  | .mapKind | .listKind | .lit (.bool _) | .lit .null | .neq [] | .mulof _
+  | .len _ | .unique _ | .re _ | .format _ | .any | .nil | .map _ _ _ | .list _ _ _ | .or _
+  | .alias _ | .path _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
+  | .select _ _ _ | .filter _ _ | .key => rfl
+
+/-- A term with no `key` at its own position is its own reading under
+any key. -/
+theorem Val.atKey_of_keyed (k : String) {v : Val} (h : v.keyed = false) : v.atKey k = v := by
+  induction v using Val.atKey.induct with
+  | case1 => exact nomatch h
+  | case2 a b iha ihb =>
+    simp only [Val.keyed, Bool.or_eq_false_iff] at h
+    simp only [Val.atKey, iha h.1, ihb h.2]
+  | case3 s arms d ih =>
+    simp only [Val.keyed] at h
+    simp only [Val.atKey, ih h]
+  | case4 t v r ih =>
+    simp only [Val.keyed] at h
+    simp only [Val.atKey, ih h]
+  | case5 v h1 h2 h3 h4 => exact Val.atKey.eq_5 k v h1 h2 h3 h4
 
 end Aontu

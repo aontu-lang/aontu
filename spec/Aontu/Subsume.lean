@@ -576,14 +576,15 @@ every member the specific side can have: each value the specific side
 declares is below the spread, and its other members are refused by a
 seal or held by its own spread, itself below the general one. A specific
 side open with no spread admits any member, so it is below only a
-spread that admits any. -/
+spread that admits any. Neither spread reads a member's key here. -/
 theorem map_le_spread {fsg fss : List (String × Bool × Val)} {sps : Option Val} {sg : Val}
     {cs cg : Bool}
     (hk : ∀ k og vg, (k, og, vg) ∈ fsg →
       ∃ os vs, (k, os, vs) ∈ fss ∧ vs ⊑[env] vg ∧ (og = false → os = false))
     (hc : cg = true → cs = true ∧ ∀ k os vs, (k, os, vs) ∈ fss → ∃ og vg, (k, og, vg) ∈ fsg)
     (hv : ∀ k os vs, (k, os, vs) ∈ fss → vs ⊑[env] sg)
-    (ho : cs = true ∨ ∃ ss, sps = some ss ∧ ss ⊑[env] sg) :
+    (ho : cs = true ∨ ∃ ss, sps = some ss ∧ ss ⊑[env] sg)
+    (hkg : sg.keyed = false) (hks : ∀ ss, sps = some ss → ss.keyed = false) :
     .map fss sps cs ⊑[env] .map fsg (some sg) cg := by
   intro j ⟨hw, hj⟩
   cases hj with
@@ -604,6 +605,7 @@ theorem map_le_spread {fsg fss : List (String × Bool × Val)} {sps : Option Val
           exact nomatch hos
       · intro s hs' k x hmem
         cases hs'
+        rw [Val.atKey_of_keyed k hkg]
         cases hd : declared k fss with
         | true =>
           obtain ⟨os, vs, hms⟩ := declared_iff.1 hd
@@ -615,7 +617,9 @@ theorem map_le_spread {fsg fss : List (String × Bool × Val)} {sps : Option Val
             have hd' := declared_iff.2 ⟨o, v, hm'⟩
             rw [hd] at hd'
             exact nomatch hd'
-          · exact admits_of_le hle (hm k x hmem) (hs ss hsps k x hmem)
+          · have h := hs ss hsps k x hmem
+            rw [Val.atKey_of_keyed k (hks ss hsps)] at h
+            exact admits_of_le hle (hm k x hmem) h
       · intro hcg k x hkx
         obtain ⟨hcs, hkeys⟩ := hc hcg
         obtain ⟨os, vs, hms⟩ := hcl hcs k x hkx
@@ -628,12 +632,14 @@ below the spread, and the members past its positions are refused by a
 seal with no spread or held by its own spread, itself below the general
 one. The general side's own seal asks nothing here: beside a spread it
 fixes no length, so `close([integer, &: integer])` and
-`[integer, &: integer]` admit the same lists. -/
+`[integer, &: integer]` admit the same lists. Neither spread reads an
+element's position here. -/
 theorem list_le_spread {ig is : List Val} {sps : Option Val} {sg : Val} {cs cg : Bool}
     (hn : ig.length ≤ is.length)
     (hi : ∀ (i : ℕ) (vg vs : Val), ig[i]? = some vg → is[i]? = some vs → vs ⊑[env] vg)
     (hv : ∀ v, v ∈ is → v ⊑[env] sg)
-    (ho : (cs = true ∧ sps = none) ∨ ∃ ss, sps = some ss ∧ ss ⊑[env] sg) :
+    (ho : (cs = true ∧ sps = none) ∨ ∃ ss, sps = some ss ∧ ss ⊑[env] sg)
+    (hkg : sg.keyed = false) (hks : ∀ ss, sps = some ss → ss.keyed = false) :
     .list is sps cs ⊑[env] .list ig (some sg) cg := by
   intro j ⟨hw, hj⟩
   cases hj with
@@ -652,8 +658,10 @@ theorem list_le_spread {ig is : List Val} {sps : Option Val} {sg : Val} {cs cg :
           exact absurd (Nat.le_trans hn (List.getElem?_eq_none_iff.1 his)) hlt
         | some vs =>
           exact admits_of_le (hi i vg vs hig his) (hm x (List.mem_of_getElem? hx)) (hp i vs x his hx)
-      · intro s hs' x hx
+      · intro s hs' k x hkx
         cases hs'
+        rw [Val.atKey_of_keyed k hkg]
+        have hx := mem_namedItems hkx
         rcases ho with ⟨hcs, hsp⟩ | ⟨ss, hsps, hle⟩
         · obtain ⟨i, hi'⟩ := List.mem_iff_getElem?.1 hx
           cases his : is[i]? with
@@ -663,7 +671,9 @@ theorem list_le_spread {ig is : List Val} {sps : Option Val} {sg : Val} {cs cg :
             exact nomatch hi'
           | some vs =>
             exact admits_of_le (hv vs (List.mem_of_getElem? his)) (hm x hx) (hp i vs x his hi')
-        · exact admits_of_le hle (hm x hx) (hs ss hsps x hx)
+        · have h := hs ss hsps k x hkx
+          rw [Val.atKey_of_keyed k (hks ss hsps)] at h
+          exact admits_of_le hle (hm x hx) h
 
 /-! ## The table: the constraint algebra
 
@@ -968,6 +978,13 @@ def coverDec (dec : (a b : Val) → Option (PLift (a ⊑[env] b))) (sg : Val) (s
       | some ⟨h⟩ => some ⟨.inr ⟨ss, rfl, h⟩⟩
       | none => none
 
+/-- A spread that reads no key, as `Option.any` reads it. -/
+theorem spreads_unkeyed {sps : Option Val} (h : sps.any Val.keyed = false) :
+    ∀ ss, sps = some ss → ss.keyed = false := by
+  intro ss hs
+  subst hs
+  simpa using h
+
 /-- `a` below `b`, with the proof, where the forms decide it in `n`
 steps; the connectives first, the right side's meet and disjunction
 before the left side's, since below a meet is below both sides and
@@ -1027,19 +1044,24 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
             | some ⟨hkeys⟩ => some ⟨map_le hk fun _ => ⟨rfl, hkeys⟩⟩
             | none => none
     | .map fss sps cs, .map fsg (some sg) cg =>
-      match fieldsDec (leDecF env n) fss fsg, valuesDec (leDecF env n) sg fss,
-          coverDec (leDecF env n) sg sps cs with
-      | some ⟨hk⟩, some ⟨hv⟩, some ⟨ho⟩ =>
-        match cg with
-        | false => some ⟨map_le_spread hk (fun h => nomatch h) hv ho⟩
-        | true =>
-          match cs with
-          | false => none
-          | true =>
-            match keysDec fsg fss with
-            | some ⟨hkeys⟩ => some ⟨map_le_spread hk (fun _ => ⟨rfl, hkeys⟩) hv ho⟩
-            | none => none
-      | _, _, _ => none
+      if hkg : sg.keyed = false then
+        if hks : (sps.any Val.keyed) = false then
+          match fieldsDec (leDecF env n) fss fsg, valuesDec (leDecF env n) sg fss,
+              coverDec (leDecF env n) sg sps cs with
+          | some ⟨hk⟩, some ⟨hv⟩, some ⟨ho⟩ =>
+            match cg with
+            | false => some ⟨map_le_spread hk (fun h => nomatch h) hv ho hkg (spreads_unkeyed hks)⟩
+            | true =>
+              match cs with
+              | false => none
+              | true =>
+                match keysDec fsg fss with
+                | some ⟨hkeys⟩ =>
+                  some ⟨map_le_spread hk (fun _ => ⟨rfl, hkeys⟩) hv ho hkg (spreads_unkeyed hks)⟩
+                | none => none
+          | _, _, _ => none
+        else none
+      else none
     | .list is sps cs, .list ig none cg =>
       if hn : ig.length ≤ is.length then
         match itemsDec (leDecF env n) ig is with
@@ -1056,16 +1078,21 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
       else none
     | .list is sps cs, .list ig (some sg) _ =>
       if hn : ig.length ≤ is.length then
-        match itemsDec (leDecF env n) ig is, itemsAllDec (leDecF env n) sg is with
-        | some ⟨hi⟩, some ⟨hv⟩ =>
-          match cs, sps with
-          | true, none => some ⟨list_le_spread hn hi hv (.inl ⟨rfl, rfl⟩)⟩
-          | _, some ss =>
-            match leDecF env n ss sg with
-            | some ⟨hle⟩ => some ⟨list_le_spread hn hi hv (.inr ⟨ss, rfl, hle⟩)⟩
-            | none => none
-          | false, none => none
-        | _, _ => none
+        if hkg : sg.keyed = false then
+          if hks : (sps.any Val.keyed) = false then
+            match itemsDec (leDecF env n) ig is, itemsAllDec (leDecF env n) sg is with
+            | some ⟨hi⟩, some ⟨hv⟩ =>
+              match cs, sps, hks with
+              | true, none, _ => some ⟨list_le_spread hn hi hv (.inl ⟨rfl, rfl⟩) hkg (fun _ h => nomatch h)⟩
+              | _, some ss, hks =>
+                match leDecF env n ss sg with
+                | some ⟨hle⟩ =>
+                  some ⟨list_le_spread hn hi hv (.inr ⟨ss, rfl, hle⟩) hkg (spreads_unkeyed hks)⟩
+                | none => none
+              | false, none, _ => none
+            | _, _ => none
+          else none
+        else none
       else none
     | .min (.num k), .min (.num m) => if h : m.le k then some ⟨(min_le_min_iff k m).2 h⟩ else none
     | .max (.num k), .max (.num m) => if h : k.le m then some ⟨(max_le_max_iff k m).2 h⟩ else none

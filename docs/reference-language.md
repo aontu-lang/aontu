@@ -973,6 +973,14 @@ w: y: {p:2, r:6}
 
 A spread is the `spread` of a map or list term in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), and `admits_map_iff` and `admits_list_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean) hold every member to it, the declared keys and positions included; the computed meet folds it into them by `foldSpread`.
 
+In the definition, `key(0)` in a spread is the term `key`, which the
+spread reads as the key of each member it holds, or as an element's
+position written as a string, `"0"` first: `Val.atKey` in
+[`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) writes the key in
+at the spread's own position, through `&`, the riders and the scrutinee
+of a `match`. So `&: match(key(0), p, any, nil)` admits the members
+whose keys `p` admits. The definition reads `key()` nowhere else.
+
 ## Generating children: `pack` and `each`
 
 A spread constrains children that already exist. `pack` and `each`

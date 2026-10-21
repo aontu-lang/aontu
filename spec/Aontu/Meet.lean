@@ -142,7 +142,7 @@ def Val.doms : Val → List Dom
   | .list _ _ _ => [.list]
   | .nil => []
   | .neq [] | .any | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _ | .must _ _
-  | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ =>
+  | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ | .key =>
     [.num, .str, .bool, .null, .map, .list]
 
 /-- The domain a value is in. -/
@@ -482,6 +482,103 @@ theorem admits_litMeet (s : Scalar) (b : Val) (j : Data) :
         exact (hk ((check_iff hb _).mpr h₂)).elim
   · rw [if_neg hc]
     exact admits_meet_iff
+
+/-- The result a selection on a literal picks, the checker reading its
+patterns: the result of the first arm whose pattern admits the literal,
+else the default, else `nil`. -/
+def pickArm (s : Scalar) (arms : List (Val × Val)) (d : Option Val) : Val :=
+  ((arms.find? fun q => check q.1 s.data).map (·.2)).getD (d.getD .nil)
+
+theorem admits_pickArm {s : Scalar} {d : Option Val} {j : Data} :
+    ∀ {arms : List (Val × Val)}, (∀ q, q ∈ arms → q.1.Checkable) →
+      (Admits env root (pickArm s arms d) j ↔ Admits env root (.select (.lit s) arms d) j)
+  | [], _ => by
+    simp only [pickArm, List.find?_nil, Option.map_none, Option.getD_none]
+    cases d with
+    | none =>
+      exact ⟨(fun h => nomatch h), fun h => by
+        cases h with
+        | selectArm hi _ _ _ => exact nomatch hi⟩
+    | some e =>
+      simp only [Option.getD_some]
+      exact ⟨fun h => .selectElse (fun q hq => nomatch hq) h, fun h => by
+        cases h with
+        | selectArm hi _ _ _ => exact nomatch hi
+        | selectElse _ he => exact he⟩
+  | (p, r) :: arms, hc => by
+    have hp := check_judge (env := env) (root := root) (hc (p, r) List.mem_cons_self) s.data
+    cases hcp : check p s.data with
+    | true =>
+      have hpa : Admits env root p s.data := hp.of_eq hcp
+      simp only [pickArm, List.find?_cons, hcp, Option.map_some, Option.getD_some]
+      constructor
+      · intro h
+        exact .selectArm (i := 0) rfl (fun _ _ hlt _ => absurd hlt (Nat.not_lt_zero _)) hpa h
+      · intro h
+        cases h with
+        | @selectArm _ _ _ _ i p' r' _ hi hpre hp' hr' =>
+          cases i with
+          | zero =>
+            simp only [List.getElem?_cons_zero, Option.some.injEq, Prod.mk.injEq] at hi
+            obtain ⟨rfl, rfl⟩ := hi
+            exact hr'
+          | succ i => exact nomatch judge_unique hpa (hpre 0 (p, r) (Nat.succ_pos _) rfl)
+        | selectElse hall _ => exact nomatch judge_unique hpa (hall (p, r) List.mem_cons_self)
+    | false =>
+      have hpr : Refuses env root p s.data := hp.of_eq hcp
+      have ih := admits_pickArm (s := s) (d := d) (j := j) (arms := arms)
+        (fun q hq => hc q (List.mem_cons_of_mem _ hq))
+      simp only [pickArm, List.find?_cons, hcp] at ih ⊢
+      rw [ih]
+      exact ⟨judge_select_cons hpr, judge_select_uncons hpr⟩
+
+/-- A term with its selections on a literal made, through the meets and
+the riders, wherever the checker reads every pattern: what a spread
+gives a member once its key is read. -/
+def Val.selectNow : Val → Val
+  | .select (.lit s) arms d =>
+    if arms.all (fun q => q.1.checkableB) then pickArm s arms d else .select (.lit s) arms d
+  | .meet a b => .meet a.selectNow b.selectNow
+  | .ride t v r => .ride t v.selectNow r
+  | v => v
+
+theorem admits_selectNow (v : Val) (j : Data) :
+    Admits env root v.selectNow j ↔ Admits env root v j := by
+  induction v using Val.selectNow.induct generalizing j with
+  | case1 s arms d hc =>
+    rw [Val.selectNow, if_pos hc]
+    exact admits_pickArm fun q hq => (Val.checkableB_iff _).mp (List.all_eq_true.mp hc q hq)
+  | case2 s arms d hc => rw [Val.selectNow, if_neg hc]
+  | case3 a b iha ihb =>
+    simp only [Val.selectNow]
+    exact ⟨fun h => by cases h with | meet ha hb => exact .meet ((iha j).mp ha) ((ihb j).mp hb),
+      fun h => by cases h with | meet ha hb => exact .meet ((iha j).mpr ha) ((ihb j).mpr hb)⟩
+  | case4 t v r ih =>
+    simp only [Val.selectNow]
+    exact judge_ride_iff.trans ((ih j).trans judge_ride_iff.symm)
+  | case5 v h1 h2 h3 => rw [Val.selectNow.eq_4 v h1 h2 h3]
+
+theorem Val.CheckableA.selectNow {v : Val} (h : v.CheckableA) : v.selectNow.CheckableA := by
+  induction v using Val.selectNow.induct with
+  | case1 s arms d hc =>
+    rw [Val.selectNow, if_pos hc]
+    cases h with
+    | selectLit _ hr hd =>
+      simp only [pickArm]
+      cases hf : arms.find? (fun q => check q.1 s.data) with
+      | some q => exact hr q.1 q.2 (List.mem_of_find?_eq_some hf)
+      | none =>
+        cases d with
+        | none => exact .nil
+        | some e => exact hd e rfl
+  | case2 s arms d hc => rw [Val.selectNow, if_neg hc]; exact h
+  | case3 a b iha ihb =>
+    simp only [Val.selectNow]
+    cases h with | meet ha hb => exact .meet (iha ha) (ihb hb)
+  | case4 t v r ih =>
+    simp only [Val.selectNow]
+    cases h with | ride hv => exact .ride (ih hv)
+  | case5 v h1 h2 h3 => rw [Val.selectNow.eq_4 v h1 h2 h3]; exact h
 
 /-- A literal's scalar, if the term is one. -/
 def Val.lit? : Val → Option Scalar
@@ -857,19 +954,35 @@ theorem admits_meetDecls {m : Val → Val → Val}
       · rintro ⟨h₁, h₂⟩
         exact ⟨h₁, fun o'' v'' hm' => h₂ o'' v'' (List.mem_cons_of_mem _ hm')⟩
 
-/-- The spread of a meet: the meet of the spreads, or the one there is. -/
+/-- The spread of a meet: the meet of the spreads, or the one there is.
+Two spreads either of which reads a member's key stay as written, since
+the meet of a `key` is known only under the key. -/
 def meetSpread (m : Val → Val → Val) : Option Val → Option Val → Option Val
-  | some t₁, some t₂ => some (m t₁ t₂)
+  | some t₁, some t₂ => some (if t₁.keyed || t₂.keyed || (m t₁ t₂).keyed then .meet t₁ t₂ else m t₁ t₂)
   | some t, none => some t
   | none, some t => some t
   | none, none => none
 
 theorem meetSpread_admits {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
-    {s₁ s₂ : Option Val} {x : Data} :
-    (∀ t, meetSpread m s₁ s₂ = some t → Admits env root t x) ↔
-      (∀ t, s₁ = some t → Admits env root t x) ∧ (∀ t, s₂ = some t → Admits env root t x) := by
-  cases s₁ <;> cases s₂ <;> simp [meetSpread, hm]
+    {s₁ s₂ : Option Val} {k : String} {x : Data} :
+    (∀ t, meetSpread m s₁ s₂ = some t → Admits env root (t.atKey k) x) ↔
+      (∀ t, s₁ = some t → Admits env root (t.atKey k) x) ∧
+        (∀ t, s₂ = some t → Admits env root (t.atKey k) x) := by
+  cases s₁ with
+  | none => cases s₂ <;> simp [meetSpread]
+  | some t₁ =>
+    cases s₂ with
+    | none => simp [meetSpread]
+    | some t₂ =>
+      simp only [meetSpread, Option.some.injEq, forall_eq']
+      split
+      · simp only [Val.atKey]
+        exact admits_meet_iff
+      · rename_i hk
+        simp only [Bool.or_eq_true, not_or, Bool.not_eq_true] at hk
+        rw [Val.atKey_of_keyed k hk.2, Val.atKey_of_keyed k hk.1.1, Val.atKey_of_keyed k hk.1.2]
+        exact hm _ _ _
 
 theorem meetSpread_none {m : Val → Val → Val} {s₁ s₂ : Option Val} :
     meetSpread m s₁ s₂ = none ↔ s₁ = none ∧ s₂ = none := by
@@ -885,14 +998,14 @@ def meetKey (m : Val → Val → Val) (other : List (String × Bool × Val)) (s 
     (c : Bool) (f : String × Bool × Val) : Option (String × Bool × Val) :=
   if declared f.1 other then some (f.1, f.2.1 && optional f.1 other, meetDecls m f.1 f.2.2 other)
   else if c then (if f.2.1 then none else some (f.1, false, .nil))
-  else some (f.1, f.2.1, m f.2.2 (s.getD .any))
+  else some (f.1, f.2.1, m f.2.2 ((s.getD .any).atKey f.1).selectNow)
 
 /-- Each declared value met with the spread, where the meet has one. -/
 def foldSpread (m : Val → Val → Val) (sp : Option Val) (fs : List (String × Bool × Val)) :
     List (String × Bool × Val) :=
   match sp with
   | none => fs
-  | some t => fs.map fun f => (f.1, f.2.1, m f.2.2 t)
+  | some t => fs.map fun f => (f.1, f.2.1, m f.2.2 (t.atKey f.1).selectNow)
 
 /-- The meet of two maps, key by key: the keys of one side, each against
 the other, then the keys of the other side alone, and every value met
@@ -913,7 +1026,8 @@ theorem meetKey_eq_some {m : Val → Val → Val} {other : List (String × Bool 
       ((declared k other = true ∧ o = (f.2.1 && optional k other) ∧
           v = meetDecls m k f.2.2 other) ∨
        (declared k other = false ∧ c = true ∧ f.2.1 = false ∧ o = false ∧ v = .nil) ∨
-       (declared k other = false ∧ c = false ∧ o = f.2.1 ∧ v = m f.2.2 (s.getD .any))) := by
+       (declared k other = false ∧ c = false ∧ o = f.2.1 ∧
+          v = m f.2.2 ((s.getD .any).atKey k).selectNow)) := by
   unfold meetKey at h
   split at h
   · rename_i hd
@@ -947,7 +1061,8 @@ theorem meetKey_sealed {m : Val → Val → Val} {other : List (String × Bool �
 
 theorem meetKey_open {m : Val → Val → Val} {other : List (String × Bool × Val)}
     {s : Option Val} (f : String × Bool × Val) (h : declared f.1 other = false) :
-    meetKey m other s false f = some (f.1, f.2.1, m f.2.2 (s.getD .any)) := by
+    meetKey m other s false f =
+      some (f.1, f.2.1, m f.2.2 ((s.getD .any).atKey f.1).selectNow) := by
   simp [meetKey, h]
 
 theorem meetKey_alone {m : Val → Val → Val} {fs₁ : List (String × Bool × Val)} {s₁ : Option Val}
@@ -961,7 +1076,7 @@ theorem admits_map_iff {fs : List (String × Bool × Val)} {spread : Option Val}
     Admits env root (.map fs spread closed) (.map jfs) ↔
       (∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Admits env root v x) ∧
       (∀ k o v, (k, o, v) ∈ fs → lookup k jfs = none → o = true) ∧
-      (∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Admits env root s x) ∧
+      (∀ s, spread = some s → ∀ k x, (k, x) ∈ jfs → Admits env root (s.atKey k) x) ∧
       (closed = true → ∀ k x, (k, x) ∈ jfs → ∃ o v, (k, o, v) ∈ fs) :=
   ⟨fun h => by cases h with | map hp ha hs hc => exact ⟨hp, ha, hs, hc⟩,
    fun ⟨hp, ha, hs, hc⟩ => .map hp ha hs hc⟩
@@ -990,8 +1105,9 @@ theorem mem_lookup {k : String} {x : Data} : ∀ {jfs : List (String × Data)},
         exact ⟨z, by simp [lookup, hk, hz]⟩
 
 theorem admits_spread_getD {s : Option Val} {jfs : List (String × Data)} {k : String} {x : Data}
-    (hs : ∀ t, s = some t → ∀ k x, (k, x) ∈ jfs → Admits env root t x) (hx : (k, x) ∈ jfs) :
-    Admits env root (s.getD .any) x := by
+    (hs : ∀ t, s = some t → ∀ k x, (k, x) ∈ jfs → Admits env root (t.atKey k) x) (hx : (k, x) ∈ jfs) :
+    Admits env root ((s.getD .any).atKey k).selectNow x := by
+  refine (admits_selectNow _ _).mpr ?_
   cases s with
   | none => exact .any
   | some t => exact hs t rfl k x hx
@@ -1009,9 +1125,9 @@ theorem admits_foldSpread {m : Val → Val → Val}
     constructor
     · rintro ⟨hp, ha, hs, hc⟩
       refine ⟨fun k o v x hm' hl => ?_, fun k o v hm' hl => ?_, hs, fun hcl k x hx => ?_⟩
-      · have h := hp k o (m v t) x (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl
+      · have h := hp k o (m v (t.atKey k).selectNow) x (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl
         exact ((hm _ _ _).mp h).1
-      · exact ha k o (m v t) (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl
+      · exact ha k o (m v (t.atKey k).selectNow) (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl
       · obtain ⟨o, v', hmem⟩ := hc hcl k x hx
         obtain ⟨⟨k', o', v⟩, hm', he⟩ := List.mem_map.mp hmem
         simp only [Prod.mk.injEq] at he
@@ -1022,13 +1138,14 @@ theorem admits_foldSpread {m : Val → Val → Val}
       · obtain ⟨⟨k', o', v⟩, hmem, he⟩ := List.mem_map.mp hm'
         simp only [Prod.mk.injEq] at he
         obtain ⟨rfl, rfl, rfl⟩ := he
-        exact (hm _ _ _).mpr ⟨hp _ _ _ x hmem hl, hs t rfl _ x (lookup_mem hl)⟩
+        exact (hm _ _ _).mpr
+          ⟨hp _ _ _ x hmem hl, (admits_selectNow _ _).mpr (hs t rfl _ x (lookup_mem hl))⟩
       · obtain ⟨⟨k', o', v⟩, hmem, he⟩ := List.mem_map.mp hm'
         simp only [Prod.mk.injEq] at he
         obtain ⟨rfl, rfl, -⟩ := he
         exact ha _ _ _ hmem hl
       · obtain ⟨o, v, hmem⟩ := hc hcl k x hx
-        exact ⟨o, m v t, List.mem_map.mpr ⟨(k, o, v), hmem, rfl⟩⟩
+        exact ⟨o, m v (t.atKey k).selectNow, List.mem_map.mpr ⟨(k, o, v), hmem, rfl⟩⟩
 
 theorem admits_meetMap_core {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
@@ -1300,10 +1417,11 @@ def meetPos (m : Val → Val → Val) (f₁ f₂ : Bool) : Option Val → Option
   | none, some b => if f₁ then .nil else m .any b
   | none, none => .nil
 
-/-- A position met with the spread, where the meet has one. -/
-def meetWrap (m : Val → Val → Val) (sp : Option Val) (e : Val) : Val :=
+/-- A position met with the spread, read under the position, where the
+meet has one. -/
+def meetWrap (m : Val → Val → Val) (sp : Option Val) (i : ℕ) (e : Val) : Val :=
   match sp with
-  | some t => m e t
+  | some t => m e (t.atKey (toString i)).selectNow
   | none => e
 
 /-- The positions of the meet of two lists, as many as the longer side
@@ -1311,7 +1429,7 @@ has, each met with the spread. -/
 def meetItems (m : Val → Val → Val) (f₁ f₂ : Bool) (sp : Option Val) (is₁ is₂ : List Val) :
     List Val :=
   (List.range (max is₁.length is₂.length)).map fun i =>
-    meetWrap m sp (meetPos m f₁ f₂ is₁[i]? is₂[i]?)
+    meetWrap m sp i (meetPos m f₁ f₂ is₁[i]? is₂[i]?)
 
 /-- The meet of two lists, position by position, each position met with
 the spread, which is the meet of the spreads. A side sealed without a
@@ -1330,9 +1448,15 @@ theorem admits_list_iff {items : List Val} {spread : Option Val} {closed : Bool}
       (closed = true → spread = none → xs.length = items.length) ∧
       (∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
         Admits env root v x) ∧
-      (∀ s, spread = some s → ∀ x, x ∈ xs → Admits env root s x) :=
-  ⟨fun h => by cases h with | list h₁ h₂ h₃ h₄ => exact ⟨h₁, h₂, h₃, h₄⟩,
-   fun ⟨h₁, h₂, h₃, h₄⟩ => .list h₁ h₂ h₃ h₄⟩
+      (∀ s, spread = some s → ∀ (i : ℕ) (x : Data), xs[i]? = some x →
+        Admits env root (s.atKey (toString i)) x) :=
+  ⟨fun h => by
+    cases h with
+    | list h₁ h₂ h₃ h₄ =>
+      exact ⟨h₁, h₂, h₃, fun s hs i x hx => h₄ s hs _ x (mem_namedItems_zero.mpr ⟨i, hx, rfl⟩)⟩,
+   fun ⟨h₁, h₂, h₃, h₄⟩ => .list h₁ h₂ h₃ fun s hs k x hm => by
+    obtain ⟨i, hx, rfl⟩ := mem_namedItems_zero.mp hm
+    exact h₄ s hs i x hx⟩
 
 theorem getElem?_range_map {α : Type} (f : ℕ → α) (n i : ℕ) :
     ((List.range n).map f)[i]? = if i < n then some (f i) else none := by
@@ -1350,7 +1474,7 @@ theorem getElem?_meetItems {m : Val → Val → Val} {f₁ f₂ : Bool} {sp : Op
     {is₁ is₂ : List Val} (i : ℕ) :
     (meetItems m f₁ f₂ sp is₁ is₂)[i]? =
       if i < max is₁.length is₂.length then
-        some (meetWrap m sp (meetPos m f₁ f₂ is₁[i]? is₂[i]?))
+        some (meetWrap m sp i (meetPos m f₁ f₂ is₁[i]? is₂[i]?))
       else none :=
   getElem?_range_map _ _ _
 
@@ -1367,10 +1491,10 @@ theorem forall_pos_iff {n : ℕ} {w : ℕ → Val} {xs : List Data} :
 
 theorem admits_wrap {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
-    {sp : Option Val} {e : Val} {x : Data} :
-    Admits env root (meetWrap m sp e) x ↔
-      Admits env root e x ∧ ∀ t, sp = some t → Admits env root t x := by
-  cases sp <;> simp [meetWrap, hm]
+    {sp : Option Val} {i : ℕ} {e : Val} {x : Data} :
+    Admits env root (meetWrap m sp i e) x ↔
+      Admits env root e x ∧ ∀ t, sp = some t → Admits env root (t.atKey (toString i)) x := by
+  cases sp <;> simp [meetWrap, hm, admits_selectNow]
 
 theorem admits_meetPos {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
@@ -1410,7 +1534,7 @@ theorem admits_meetList_aux {m : Val → Val → Val}
           (is₁[i]? = none → is₂[i]?.isSome = true → f₁ = false) ∧
           (is₂[i]? = none → is₁[i]?.isSome = true → f₂ = false) ∧
           (is₁[i]?.isSome = true ∨ is₂[i]?.isSome = true)) ∧
-        (∀ t, meetSpread m s₁ s₂ = some t → Admits env root t x) := by
+        (∀ t, meetSpread m s₁ s₂ = some t → Admits env root (t.atKey (toString i)) x) := by
       intro i x hi hx
       have h := hpos i x hi hx
       rwa [admits_wrap hm, admits_meetPos hm] at h
@@ -1442,17 +1566,16 @@ theorem admits_meetList_aux {m : Val → Val → Val}
     · intro i a x ha hx
       obtain ⟨hi, -⟩ := List.getElem?_eq_some_iff.mp ha
       exact (hpos' i x (Nat.lt_of_lt_of_le hi (Nat.le_max_left _ _)) hx).1.1 a ha
-    · intro t ht x hx
+    · intro t ht i x hx
       cases hF : (f₁ || f₂) with
       | false =>
         have h := hspr
         rw [if_neg (by simp [hF])] at h
-        exact ((meetSpread_admits hm).mp fun t' ht' => h t' ht' x hx).1 t ht
+        exact ((meetSpread_admits hm).mp fun t' ht' => h t' ht' i x hx).1 t ht
       | true =>
-        obtain ⟨i, hi⟩ := List.mem_iff_getElem?.mp hx
-        obtain ⟨hlt, -⟩ := List.getElem?_eq_some_iff.mp hi
+        obtain ⟨hlt, -⟩ := List.getElem?_eq_some_iff.mp hx
         rw [hX hF] at hlt
-        exact ((meetSpread_admits hm).mp (hpos' i x hlt hi).2).1 t ht
+        exact ((meetSpread_admits hm).mp (hpos' i x hlt hx).2).1 t ht
     · intro hc hs
       have hf : f₂ = true := hf₂.mpr ⟨hc, hs⟩
       have hF : (f₁ || f₂) = true := by simp [hf]
@@ -1473,17 +1596,16 @@ theorem admits_meetList_aux {m : Val → Val → Val}
     · intro i b x hb hx
       obtain ⟨hi, -⟩ := List.getElem?_eq_some_iff.mp hb
       exact (hpos' i x (Nat.lt_of_lt_of_le hi (Nat.le_max_right _ _)) hx).1.2.1 b hb
-    · intro t ht x hx
+    · intro t ht i x hx
       cases hF : (f₁ || f₂) with
       | false =>
         have h := hspr
         rw [if_neg (by simp [hF])] at h
-        exact ((meetSpread_admits hm).mp fun t' ht' => h t' ht' x hx).2 t ht
+        exact ((meetSpread_admits hm).mp fun t' ht' => h t' ht' i x hx).2 t ht
       | true =>
-        obtain ⟨i, hi⟩ := List.mem_iff_getElem?.mp hx
-        obtain ⟨hlt, -⟩ := List.getElem?_eq_some_iff.mp hi
+        obtain ⟨hlt, -⟩ := List.getElem?_eq_some_iff.mp hx
         rw [hX hF] at hlt
-        exact ((meetSpread_admits hm).mp (hpos' i x hlt hi).2).2 t ht
+        exact ((meetSpread_admits hm).mp (hpos' i x hlt hx).2).2 t ht
   · rintro ⟨⟨h1, h2, h3, h4⟩, ⟨h5, h6, h7, h8⟩⟩
     refine ⟨Nat.max_le.mpr ⟨h1, h5⟩, ?_, ?_, ?_⟩
     · intro hc hnone
@@ -1530,13 +1652,13 @@ theorem admits_meetList_aux {m : Val → Val → Val}
         · left; rw [List.getElem?_eq_getElem h]; rfl
         · right; rw [List.getElem?_eq_getElem h]; rfl
       · intro t ht
-        exact (meetSpread_admits hm).mpr ⟨fun t₁ h₁ => h4 t₁ h₁ x (List.mem_of_getElem? hx),
-          fun t₂ h₂ => h8 t₂ h₂ x (List.mem_of_getElem? hx)⟩ t ht
-    · intro t ht x hx
+        exact (meetSpread_admits hm).mpr ⟨fun t₁ h₁ => h4 t₁ h₁ i x hx,
+          fun t₂ h₂ => h8 t₂ h₂ i x hx⟩ t ht
+    · intro t ht i x hx
       split at ht
       · exact nomatch ht
       · exact (meetSpread_admits hm).mpr
-          ⟨fun t₁ h₁ => h4 t₁ h₁ x hx, fun t₂ h₂ => h8 t₂ h₂ x hx⟩ t ht
+          ⟨fun t₁ h₁ => h4 t₁ h₁ i x hx, fun t₂ h₂ => h8 t₂ h₂ i x hx⟩ t ht
 
 theorem admits_meetList {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
@@ -1755,6 +1877,7 @@ def Val.beq : Val → Val → Bool
   | .select s as d, .select s' as' d' => s.beq s' && beqPairs as as' && beqSpread d d'
   | .filter s c, .filter s' c' => s.beq s' && c.beq c'
   | .ride k v r, .ride k' v' r' => decide (k = k') && v.beq v' && decide (r = r')
+  | .key, .key => true
   | _, _ => false
 termination_by structural a _ => a
 

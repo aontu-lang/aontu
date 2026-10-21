@@ -8,6 +8,45 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads the key a spread is tried on
+
+Definition, generated rows, two generated files, two tests and
+documentation; no engine changes. Ruling 13 of the design note
+(`sketch/DEFINITION.0.md`, §7) is built, and with it P6, the power to
+represent JSON Schema, lands.
+
+- `spec/Aontu/Syntax.lean`: the term `key`, printed `key(0)`, is the
+  key of the member a spread is tried on. `Val.atKey` writes the key in
+  at the spread's own position, through `&`, the riders and the
+  scrutinee of a `match`, which is where the importer writes it.
+- `spec/Aontu/Admits.lean`: the map rule tries its spread on each
+  member under the member's key, and the list rule on each element
+  under its position, written as a string, `"0"` first, as both ports
+  read `key(0)` in a list. A `key` no spread has read refuses every
+  value, and a `match` on a literal judges as its first arm whose
+  pattern admits the literal, else as its default, and refuses with
+  neither.
+- `spec/Aontu/Check.lean`: the checker carries the key a spread is
+  tried under (`checkWithKey_judge`).
+- `spec/Aontu/Meet.lean`: a declared member meets the spread read under
+  its key, with the selection made where the checker reads every
+  pattern (`Val.selectNow`, `admits_selectNow`), so
+  `{a: string, &: match(key(0), "a", integer, nil)}` is a conflict. Two
+  spreads that read the key meet as written.
+- `spec/Aontu/Subsume.lean`: `map_le_spread` and `list_le_spread` take
+  spreads that read no key, and `leDecF` proves no pair whose spreads
+  read one.
+- `test/spec/def-trial.tsv` grows by rows y0 on: a spread that selects
+  on the key, an arm that admits, one that refuses, the default, no
+  arm, a pattern over the key's length, two such spreads met, one under
+  a rider, one beside a declared member, and a list's positions. Both
+  ports answer every row as the definition does.
+- `spec/forms.tsv` holds `key`, so `spec/forms-outside.tsv` is empty,
+  and the importer's forms check, `ts/test/jsonschema-forms.test.ts`
+  and `go/jsonschema_forms_test.go`, is bounded at no form.
+- The definition tutorial reads the key at step 19, and the language
+  reference cites the rule in its section on spreads.
+
 ### The definition holds the riders
 
 Definition, generated rows, a generated file, four tests and
