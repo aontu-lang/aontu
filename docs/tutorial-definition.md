@@ -6230,14 +6230,61 @@ read through its riders. The rows are x1068 on, and both engines answer
 every one as the definition does, but for two calls with the wrong
 number of arguments, which #426 tracks.
 
-## 25. What the definition doesn't say yet
+## 25. The parent type
+
+`super` answers the immediate parent type of its argument: a scalar's
+kind, a kind's parent, and a container of its members' parents. Write
+`parent.aontu`:
+
+<!-- test: scenario parent -->
+<!-- test: file parent.aontu -->
+```aontu
+a: super(1)
+b: super("")
+c: super({ n: *1 })
+d: super(integer & min(3))
+```
+
+and `parent-data.aontu`:
+
+<!-- test: file parent-data.aontu -->
+```aontu
+a: 7
+b: "x"
+c: n: 2
+d: 4
+```
+
+Now vet the data against the schema:
+
+<!-- test: run -->
+```sh
+$ aontu vet parent.aontu parent-data.aontu
+verdict: valid
+```
+
+`super("")` is every string, where `super("a")` is the non-empty ones,
+and a meet that holds a kind has that kind for its parent, so `d` is
+an integer. The call is `Val.super` in `spec/Aontu/Syntax.lean`, the
+same parent a lone preference's normal form, `*x | super(x)`, already
+reads. The definition applies it to the argument before its normal
+form, so a preference reads as its default at any depth:
+`super({ n: *1 })` is `{ n: integer }`, and `n: 1.5` is invalid.
+
+The rows are x1221 on, and both engines answer every one as the
+definition does, but for two calls with the wrong number of arguments,
+which #426 tracks. `copy` isn't held yet. The reference says it clears
+the marks, but neither engine clears a mark on a literal argument, and
+#445 asks which reading stands.
+
+## 26. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
-steps 20 to 24 don't walk through, `key()` anywhere but in a spread, and
+steps 20 to 25 don't walk through, `key()` anywhere but in a spread, and
 generation with `each`, `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
