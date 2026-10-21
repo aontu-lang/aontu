@@ -173,6 +173,7 @@ def Fn.name : Fn → String
   | .least => "least"
   | .greatest => "greatest"
   | .plus => "+"
+  | .join => "join"
 
 mutual
 def Val.src : Val → Option String

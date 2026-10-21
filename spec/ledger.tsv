@@ -2,7 +2,7 @@
 # generated row (test/spec/def-fragment.tsv and the fragments beside it) the
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, and the cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 129.
+# A listed case that comes to agree fails the run. Bounded at 132.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -133,3 +133,6 @@ x271	sum([1], [2])	1	error	invalid	ports	#426: a call no reading makes is ill-fo
 x272	sum([1], [2])	1	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
 x498	match(1, (integer) + (1), "yes", "no")	"no"	valid	incomplete	definition	#432: a + that waits inside a match pattern, which the definition reads as refusing, since Judge refuses every value at a call, so the default arm admits the data; both ports wait on the pattern and leave the document incomplete
 x499	match(1, (integer) + (1), "yes", "no")	"no"	valid	incomplete	definition	#432: a + that waits inside a match pattern, which the definition reads as refusing, since Judge refuses every value at a call, so the default arm admits the data; both ports wait on the pattern and leave the document incomplete
+x558	join(["a"], ",", ";")	"a"	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x559	join(["a"], ",", ";")	"a"	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x560	join(["a"], ",", ";")	"a"	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid

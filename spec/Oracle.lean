@@ -1727,7 +1727,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "add"), ("call", "call", "sub"), ("call", "call", "mul"),
     ("call", "call", "div"), ("call", "call", "mod"), ("call", "call", "rem"),
     ("call", "syntax", "-"), ("call", "call", "sum"), ("call", "call", "least"),
-    ("call", "call", "greatest"), ("call", "syntax", "+")]
+    ("call", "call", "greatest"), ("call", "syntax", "+"), ("call", "call", "join")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1746,7 +1746,8 @@ def formSamples : List (String × Val) :=
     ("mul", .call .mul [.integer, .integer]), ("div", .call .div [.integer, .integer]),
     ("mod", .call .mod [.integer, .integer]), ("rem", .call .rem [.integer, .integer]),
     ("-", .call .neg [.integer]), ("sum", .call .sum [.listKind]),
-    ("least", .call .least [.listKind]), ("greatest", .call .greatest [.listKind])]
+    ("least", .call .least [.listKind]), ("greatest", .call .greatest [.listKind]),
+    ("join", .call .join [.listKind])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1792,7 +1793,10 @@ x273, and `+` from row x300: two numbers by `add`, a string beside a
 scalar as the two texts, two lists, two booleans, the riders and a lone
 preference read through, and the operands it does not take, where it
 waits. A bag a mark lifts, a rider inside a lone preference, and a
-`match` whose pattern holds a call follow from row x480. -/
+`match` whose pattern holds a call follow from row x480, and `join`
+from row x507: the members' texts as `+` writes them, a member or a
+separator with no text, a value that is no bag, and the members and
+separators it waits on. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -1934,7 +1938,31 @@ def callCases : List (Val × Data) :=
     (p (.pref 1 (.ride .metadata (int 1) [])) (int 1), j 2),
     (.select (int 1) [(p .integer (int 1), str "yes")] (some (str "no")), js "no"),
     (.select (int 2) [(p (int 1) (int 1), str "yes")] (some (str "no")), js "yes"),
-    (.select (int 1) [(c .add [.integer, int 1], str "yes")] (some (str "no")), js "no")]
+    (.select (int 1) [(c .add [.integer, int 1], str "yes")] (some (str "no")), js "no"),
+    (c .join [lst [str "a", str "b"], str "-"], js "a-b"),
+    (c .join [lst [str "a", str "b"], str "-"], js "ab"),
+    (c .join [lst [str "a", str "b"]], js "ab"), (c .join [lst []], js ""),
+    (c .join [lst [int 1, flt 2 1, dec 5 1, .lit (.bool true)], str "|"], js "1|2|0.5|true"),
+    (c .join [mp [("b", str "B"), ("a", str "A")], str ","], js "A,B"),
+    (c .join [lst [mp [("x", int 1)]], str ","], js "a"),
+    (c .join [lst [.lit .null], str ","], js "a"), (c .join [lst [lst [int 1]], str ","], js "a"),
+    (c .join [lst [.string], str ","], js "a"), (c .join [lst [str "a"], int 5], js "a"),
+    (c .join [int 3, str ","], js "a"), (c .join [lst [str "a"], .string], js "a"),
+    (c .join [lst [str "a", .pref 1 (str "b")], str ""], js "ab"),
+    (c .join [lst [str "a", .or [(1, str "b"), (0, str "c")]], str ""], js "ab"),
+    (c .join [mp [("a", str "x"), ("b", .ride .hide (str "y") [])], str "-"], js "x"),
+    (c .join [.map [("a", true, .string), ("b", false, str "y")] none false, str "-"], js "y"),
+    (c .join [lst [str "a"], str ",", str ";"], js "a"),
+    (c .join [lst [str "a", flt (10 ^ 21) 1], str ""], js "a1e+21"),
+    (c .join [lst [.ride .metadata (str "a") [], str "b"], str ""], js "ab"),
+    (c .join [lst [mp [("x", int 1)], .string], str ","], js "a"),
+    (c .join [lst [.string], int 5], js "a"), (c .join [lst [mp [("x", int 1)]], .string], js "a"),
+    (c .join [int 3, .string], js "a"), (c .join [lst [str "a"], .pref 1 (str ",")], js "a"),
+    (c .join [lst [str "a", str "b"], .ride .metadata (str "-") []], js "a-b"),
+    (c .join [.meet (lst [str "x"]) (lst [.string]), str ","], js "x"),
+    (c .join [lst [str "a"], .or [(0, str ","), (0, str ";")]], js "a"),
+    (c .join [.pref 1 (lst [str "a"]), str ","], js "a"),
+    (c .join [lst [p (str "a") (int 1), c .sum [lst [int 1, int 2]]], str "-"], js "a1-3")]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -2170,7 +2198,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# wrong number of arguments, is an error. The folds sum, least and greatest,"
     IO.println "# over a list or a map whose members are numbers, follow from row x129, and +"
     IO.println "# from row x300, which waits where it does not take its operands, so that the"
-    IO.println "# document is incomplete. A call on a name follows in rows z0 on."
+    IO.println "# document is incomplete, and join from row x507, which waits on a member or a"
+    IO.println "# separator not yet settled. A call on a name follows in rows z0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     verdictRows "x" callCases
     aliasRows "z" callAliasCases
