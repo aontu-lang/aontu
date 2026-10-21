@@ -6146,19 +6146,23 @@ of its last naming:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def translateChar (fr to : List Char) (c : Char) : List Char :=
-  match fr.zipIdx.reverse.find? (·.1 == c) with
+def translateChar (fr to : List ℕ) (c : Char) : List Char :=
+  match fr.zipIdx.reverse.find? (·.1 == c.toNat) with
   | none => [c]
   | some (_, i) => match to.getLast? with
     | none => []
-    | some last => [to.getD i last]
+    | some last => [scalar (to.getD i last)]
 ```
 
 A `to` shorter than the set pads with its last character, so
 `translate("hello", "elo", "x")` is `"hxxxx"`, and an empty `to`, or
-none, deletes, so `translate("hello", "lo")` is `"he"`. Its rows are
-x966 on, and both engines answer every one as the definition does, but
-for two calls with the wrong number of arguments, which #426 tracks.
+none, deletes, so `translate("hello", "lo")` is `"he"`. A range counts
+every code point it crosses, the surrogates too, which is why the set
+holds code point numbers, and `scalar` writes `U+FFFD` for a surrogate,
+which is no character. Its rows are x966 on, and both engines answer
+every one as the definition does, but for two calls with the wrong
+number of arguments, which #426 tracks. TypeScript writes a lone
+surrogate where Go writes `U+FFFD`, which #442 tracks.
 
 ## 24. What the definition doesn't say yet
 

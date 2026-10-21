@@ -363,26 +363,29 @@ def Val.string? (v : Val) : Option String :=
   | .lit (.str s) => some s
   | _ => none
 
-/-- A character set with its ranges expanded, `a-z` every code point from
-`a` to `z`, and a `-` with no character on one side standing for
+/-- A character set's code points with its ranges expanded, `a-z` every
+code point from `a` to `z`, the surrogates' among them where the range
+crosses them, and a `-` with no character on one side standing for
 itself; none where a range descends. -/
-def expandSet : List Char → Option (List Char)
+def expandSet : List Char → Option (List ℕ)
   | c :: '-' :: d :: rest =>
     if d.toNat < c.toNat then none
-    else (expandSet rest).map fun r =>
-      (List.range (d.toNat - c.toNat + 1)).map (fun k => Char.ofNat (c.toNat + k)) ++ r
-  | c :: rest => (expandSet rest).map (c :: ·)
+    else (expandSet rest).map fun r => (List.range (d.toNat - c.toNat + 1)).map (c.toNat + ·) ++ r
+  | c :: rest => (expandSet rest).map (c.toNat :: ·)
   | [] => some []
 
+/-- The character a code point is, U+FFFD for a surrogate, which is none. -/
+def scalar (n : ℕ) : Char := if n.isValidChar then Char.ofNat n else Char.ofNat 0xFFFD
+
 /-- What `translate` writes for a code point: where `fr` names it, the
-`to` character at the position of its last naming, `to`'s last where
+`to` code point at the position of its last naming, `to`'s last where
 `to` is shorter, and nothing where `to` is empty; itself otherwise. -/
-def translateChar (fr to : List Char) (c : Char) : List Char :=
-  match fr.zipIdx.reverse.find? (·.1 == c) with
+def translateChar (fr to : List ℕ) (c : Char) : List Char :=
+  match fr.zipIdx.reverse.find? (·.1 == c.toNat) with
   | none => [c]
   | some (_, i) => match to.getLast? with
     | none => []
-    | some last => [to.getD i last]
+    | some last => [scalar (to.getD i last)]
 
 /-- What `translate` makes of its source, its `from` set and its `to`
 set, each a string in normal form, its riders read through, `to` empty

@@ -1813,7 +1813,8 @@ the oracle's host and every engine's case conversion agree, and
 `asciiCase` refuses a row that reads another, and no case holds a big
 integer index between 2 ^ 53 and 2 ^ 63 (#439). `translate` follows
 from row x966: ranges, a `-` that stands for itself, a short `to` and an
-empty one, a character named twice, and code points beyond ASCII. -/
+empty one, a character named twice, code points beyond ASCII, and a
+range across the surrogates, where the ports agree. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2109,7 +2110,9 @@ def callCases : List (Val × Data) :=
     (c .translate [.pref 1 (str "abc"), str "a", str "x"], js "xbc"),
     (c .translate [str "abc", str "a", .ride .metadata (str "x") []], js "xbc"),
     (c .translate [str "a"], js "a"), (c .translate [str "a", str "b", str "c", str "d"], js "a"),
-    (c .upper [c .translate [str "a-b", str "-", str "_"]], js "A_B")]
+    (c .upper [c .translate [str "a-b", str "-", str "_"]], js "A_B"),
+    (c .translate [str "\uE000", str "\uD7FF-\uE000", str "xyz"], js "z"),
+    (c .translate [str "\uFFFD", str "\uD7FF-\uE000", str "xyz"], js "\uFFFD")]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in

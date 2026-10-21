@@ -21,7 +21,10 @@ and documentation; no engine changes.
   - `translateChar` writes a code point the set names as the `to`
     character at the position of its last naming, or `to`'s last where
     `to` is shorter. Where `to` is empty or absent it writes nothing.
-- `test/spec/def-call.tsv` gains 32 cases in rows x966 to x1061 and one
+  - A range counts every code point it crosses, the surrogates too, as
+    both ports do, and a surrogate written from `to` is U+FFFD, as Go
+    writes it. TS writes a lone surrogate (#442).
+- `test/spec/def-call.tsv` gains 34 cases in rows x966 to x1067 and one
   on a name. Both ports answer every row as the definition does but
   six, a wrong number of arguments (#426). `spec/ledger.tsv` lists
   them, and its bound rises from 147 to 153. `spec/forms.tsv` gains

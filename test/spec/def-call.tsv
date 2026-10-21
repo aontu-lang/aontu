@@ -1076,6 +1076,12 @@ x1058	verdict	v: translate("a", "b", "c", "d")	v: "a"	{"verdict":"error","opts":
 x1059	verdict	v: upper(translate("a-b", "-", "_"))	v: "A_B"	{"verdict":"valid"}
 x1060	verdict	v: upper(translate("a-b", "-", "_"))	v: "A_B"	{"verdict":"valid","opts":{"noFill":true}}
 x1061	verdict	v: upper(translate("a-b", "-", "_"))	v: "A_B"	{"verdict":"valid","opts":{"partial":true}}
+x1062	verdict	v: translate("", "퟿-", "xyz")	v: "z"	{"verdict":"valid"}
+x1063	verdict	v: translate("", "퟿-", "xyz")	v: "z"	{"verdict":"valid","opts":{"noFill":true}}
+x1064	verdict	v: translate("", "퟿-", "xyz")	v: "z"	{"verdict":"valid","opts":{"partial":true}}
+x1065	verdict	v: translate("�", "퟿-", "xyz")	v: "�"	{"verdict":"valid"}
+x1066	verdict	v: translate("�", "퟿-", "xyz")	v: "�"	{"verdict":"valid","opts":{"noFill":true}}
+x1067	verdict	v: translate("�", "퟿-", "xyz")	v: "�"	{"verdict":"valid","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}
