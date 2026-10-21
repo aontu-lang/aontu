@@ -8,6 +8,33 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `nom`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Text.lean` holds a name's words and the nine spellings
+  `nom` writes them in, all of it in ASCII case, so none of it is the
+  host's:
+  - `nameWords` cuts a name at `_`, `-` and spaces, and again where
+    `wordStarts`, so `HTTPServer` is `HTTP` and `Server`;
+  - `capitalise` writes a word that matches an acronym as the acronym
+    is written;
+  - `NameStyle.write` spells the words, and `nomName` reads `.` and `/`
+    as `_` first.
+- `spec/Aontu/Verdict.lean`: `nomOf` answers the name in one spelling,
+  or, with no style named, the sealed map of all nine. A style that
+  names no spelling, a bad acronym list, and a name with no word are
+  errors.
+- `test/spec/def-call.tsv` gains 52 cases in rows x1521 to x1676. Both
+  ports answer every row as the definition does but six, a wrong number
+  of arguments (#426). `spec/ledger.tsv` lists them, and its bound rises
+  from 177 to 183. `spec/forms.tsv` gains `nom`.
+- No row writes the style as `""`, which Go reads as no style and TS
+  refuses (#451).
+- The definition tutorial's step 23 gains spelling a name, and the
+  language reference's `nom` entry cites the rule.
+
 ### The definition holds `rep`, and `split` reads a pattern's matches
 
 Definition, generated rows, the ledger and its bound in both runners,
