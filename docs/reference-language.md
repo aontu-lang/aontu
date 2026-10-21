@@ -3182,6 +3182,8 @@ function, and this language has no user functions to give it. These
 three are total because the bag is finite, the operation is fixed, and
 each child is visited once: the same argument that makes `each` safe.
 
+The definition computes the three as `Number.fold` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean), over the members `Val.members` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads, each a number in its normal form. `sum` adds them from the left, from the integer zero, each step an `add`, so a step no leaf holds leaves the sum without an answer. `least` answers the first member no other is below, and `greatest` the first no other exceeds, and `Number.least_mem` and `Number.least_lowest` hold that `least` answers a member and that no member is below it. A bag met with a size or another constraint is no bag in its normal form, as both engines answer. Both engines also leave out an optional member whose value generates an empty map or list, which the definition holds, and which #428 tracks.
+
 ## Folding to a string: `join`
 
 `join(coll, sep?)` folds a bag into one string: every member rendered

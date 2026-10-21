@@ -10,12 +10,21 @@ exact answer is not one the leaf holds; anything with a float is a
 float, the double nearest the exact answer; a float with an exact big
 number is no value; and otherwise the widest exact leaf of the two,
 exact, a big decimal within the exactness budget and never divided. A
-zero divisor gives no value in every leaf. -/
+zero divisor gives no value in every leaf. The folds read a bag's
+members: `sum` adds them from the left, from the integer zero, and
+`least` and `greatest` answer the first of them no other is below or
+above, by exact value. -/
 
-/-- The functions on numbers. -/
+/-- The functions on numbers, and the folds on a bag of them. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
+  | sum | least | greatest
   deriving DecidableEq, Repr
+
+/-- Whether a function folds the members of one bag. -/
+def Fn.folds : Fn → Bool
+  | .sum | .least | .greatest => true
+  | _ => false
 
 /-- The float zero, which aontu holds unsigned. -/
 def Float.zero : Float := ⟨false, 0, 0, by decide, by decide, fun h => nomatch h⟩
@@ -68,7 +77,7 @@ def Fn.onInts : Fn → ℤ → ℤ → Option ℤ
   | .div, a, b => if b = 0 then none else some (a.tdiv b)
   | .rem, a, b => if b = 0 then none else some (a.tmod b)
   | .mod, a, b => if b = 0 then none else some (a.fmod b)
-  | .neg, _, _ => none
+  | _, _, _ => none
 
 /-- A function on exact fractions `(n, d)`, `d` positive, as the
 operation on their values. -/
@@ -86,7 +95,7 @@ def Fn.onFracs : Fn → ℤ × ℕ → ℤ × ℕ → Option (ℤ × ℕ)
     if c = 0 then none else
     let q := (a * d).fdiv (b * c)
     some (a * d - c * q * b, b * d)
-  | .neg, _, _ => none
+  | _, _, _ => none
 
 /-- The big decimal `c * 10 ^ (-s)` with its trailing zeros dropped, the
 one each value has. -/
@@ -153,6 +162,28 @@ def Number.arith : Fn → List Number → Option Number
   | .neg, [.bigdecimal a] => some (.bigdecimal (BigDecimal.normal (-a.coef) a.scale))
   | .neg, _ => none
   | f, [x, y] => Number.binary f x y
+  | _, _ => none
+
+/-- `sum`: the members added from the left, from the integer zero, each
+step by `add`, so a step no leaf holds is no value. -/
+def Number.sum (xs : List Number) : Option Number :=
+  xs.foldlM (fun acc x => Number.binary .add acc x) (.integer ⟨0, by decide⟩)
+
+/-- `least`: the first member no other is below; an empty bag has none. -/
+def Number.least : List Number → Option Number
+  | [] => none
+  | x :: xs => some (xs.foldl (fun acc y => if y.lt acc then y else acc) x)
+
+/-- `greatest`: the first member no other is above; an empty bag has none. -/
+def Number.greatest : List Number → Option Number
+  | [] => none
+  | x :: xs => some (xs.foldl (fun acc y => if acc.lt y then y else acc) x)
+
+/-- The value a fold computes from its bag's members, or none. -/
+def Number.fold : Fn → List Number → Option Number
+  | .sum, xs => Number.sum xs
+  | .least, xs => Number.least xs
+  | .greatest, xs => Number.greatest xs
   | _, _ => none
 
 end Aontu

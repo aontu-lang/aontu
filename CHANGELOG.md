@@ -8,6 +8,42 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds the folds `sum`, `least` and `greatest`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Arith.lean`: `Number.fold` computes the three folds over
+  a bag's members. `sum` adds them from the left, from the integer
+  zero, each step an `add`, so a step no leaf holds leaves no value.
+  `least` and `greatest` answer the first member no other is below or
+  above, by exact value.
+- `spec/Aontu/Verdict.lean`: `callValue` makes a fold from the members
+  `Val.members` reads in its one bag's normal form. A list gives its
+  elements, and a map its members in key order, but a marked member
+  and an optional one whose value generates nothing. Each member must
+  be a number in its normal form. `Number.least_mem`,
+  `Number.least_lowest`, `Number.greatest_mem` and
+  `Number.greatest_highest` hold that the two answer a member and that
+  none lies beyond it.
+- `Val.number?` reads a lone preference as its value, by its normal
+  form `*n | super(n)`, so `add(*1, 2)` is `3` and `sum([1, *2])` is
+  `3`, as both ports answer, and `Val.idents` reads a call's arguments,
+  so `add(ident(1, {id: "x"}), 2)` is an `error`. `spec/forms.tsv` gains
+  the calls' spellings, `Val.beq` compares two calls and the printer
+  reads a call's arguments for an open container.
+- `test/spec/def-call.tsv` gains 57 calls, rows x129 on, and two calls
+  on a name. Both ports answer every row as the definition does but
+  three, a fold with the wrong number of arguments, which both read as
+  `invalid` (#426). `spec/ledger.tsv` lists them, and its bound rises
+  from 124 to 127.
+- Both ports leave out of the output, and out of a fold's members, an
+  optional member whose value generates an empty map or list, which
+  the definition generates, and they split on a disjunction (#428).
+  The design note records it as decision 19, and no row holds the case.
+- The definition tutorial's step 20 and the language reference's
+  aggregates section cite the folds.
+
 ### The definition holds calls on numbers
 
 Definition, generated rows, the ledger and its bound in both runners,

@@ -80,11 +80,35 @@ def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
   | [], d => d.getD .nil
   | (p, r) :: arms, d => if checkR ds p x then r else selectArm ds x arms d
 
-/-- The number a term is, the riders around it read through. -/
+/-- The number a term is, the riders around it read through, and a lone
+preference `*n` too, whose normal form is `*n | super(n)`. -/
 def Val.number? : Val → Option Number
   | .lit (.num n) => some n
   | .ride _ v _ => v.number?
+  | .or [(r, .lit (.num n)), (0, s)] => if 0 < r && s.beq (Val.lit (.num n)).super then some n else none
   | _ => none
+
+/-- The members a fold reads in a bag's normal form, the riders around
+it read through: a list's elements in order, and a map's members in key
+order, but a marked one and an optional one whose value generates
+nothing, which are no part of the output. -/
+def Val.members (ds : Decls) : Val → Option (List Val)
+  | .ride _ v _ => v.members ds
+  | .list items _ _ => some items
+  | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
+      if m.2.2.marked || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
+  | _ => none
+
+/-- The number a call computes from its arguments: a fold from the
+numbers its one bag's members are, and any other function from the
+numbers its arguments are, each read in its normal form. -/
+def callValue (ds : Decls) (f : Fn) (args : List Val) : Option Number :=
+  if f.folds then
+    match args with
+    | [b] => ((normaliseD ds b).members ds).bind fun ms =>
+        (ms.mapM fun m => (normaliseD ds m).number?).bind (Number.fold f)
+    | _ => none
+  else (args.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f)
 
 mutual
 /-- A term with its selections made: each `match` whose scrutinee
@@ -92,9 +116,9 @@ generates a value is the result its arms select for it, and each
 `filter` whose source generates a container is the members its
 condition admits, as a term, or `nil` where the source generates a
 scalar, which has no members. One whose scrutinee or source generates
-nothing stays, and generates nothing. A call whose arguments' normal
-forms are numbers is the number its function computes from them, and
-any other call stays, which no reading makes. -/
+nothing stays, and generates nothing. A call is the number `callValue`
+computes, where it computes one, and any other call stays, which no
+reading makes. -/
 def resolveD (ds : Decls) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds s
@@ -113,7 +137,7 @@ def resolveD (ds : Decls) : Val → Val
     | none => .filter s' c'
   | .call f args =>
     let args' := resolveItems ds args
-    match (args'.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f) with
+    match callValue ds f args' with
     | some n => .lit (.num n)
     | none => .call f args'
   | .len c => .len (resolveD ds c)
@@ -390,6 +414,133 @@ theorem resolveD_filter_scalar {ds : Decls} {s c : Val} {x : Scalar}
     (h : genD ds (resolveD ds s) = some x.data) : resolveD ds (.filter s c) = .nil := by
   cases x <;> simp [resolveD, h, Scalar.data]
 
+/-! ## The folds
+
+`sum` of an empty bag is the integer zero, and an empty bag has no
+least member and no greatest. `least` answers a member no other is
+below, and `greatest` one no other is above, by exact value. -/
+
+theorem Number.sum_nil : Number.sum [] = some (.integer ⟨0, by decide⟩) := rfl
+
+theorem Number.least_nil : Number.least [] = none := rfl
+
+theorem Number.greatest_nil : Number.greatest [] = none := rfl
+
+theorem Number.not_lt_iff {a b : Number} : ¬ a.lt b ↔ b.le a := Int.not_lt
+
+theorem foldl_least_mem : ∀ (xs : List Number) (acc : Number),
+    xs.foldl (fun acc y => if y.lt acc then y else acc) acc = acc ∨
+      xs.foldl (fun acc y => if y.lt acc then y else acc) acc ∈ xs
+  | [], _ => .inl rfl
+  | y :: ys, acc => by
+    simp only [List.foldl_cons]
+    rcases foldl_least_mem ys (if y.lt acc then y else acc) with h | h
+    · rw [h]; split
+      · exact .inr List.mem_cons_self
+      · exact .inl rfl
+    · exact .inr (List.mem_cons_of_mem y h)
+
+theorem foldl_least_le : ∀ (xs : List Number) (acc : Number),
+    (xs.foldl (fun acc y => if y.lt acc then y else acc) acc).le acc ∧
+      ∀ z ∈ xs, (xs.foldl (fun acc y => if y.lt acc then y else acc) acc).le z
+  | [], acc => ⟨Int.le_refl _, fun _ h => absurd h List.not_mem_nil⟩
+  | y :: ys, acc => by
+    simp only [List.foldl_cons]
+    obtain ⟨h₁, h₂⟩ := foldl_least_le ys (if y.lt acc then y else acc)
+    by_cases hy : y.lt acc
+    · simp only [hy, ↓reduceIte] at h₁ h₂ ⊢
+      refine ⟨Number.le_trans h₁ (Number.le_of_lt hy), fun z hz => ?_⟩
+      rcases List.mem_cons.mp hz with rfl | hz
+      · exact h₁
+      · exact h₂ z hz
+    · simp only [hy, ↓reduceIte] at h₁ h₂ ⊢
+      refine ⟨h₁, fun z hz => ?_⟩
+      rcases List.mem_cons.mp hz with rfl | hz
+      · exact Number.le_trans h₁ (Number.not_lt_iff.mp hy)
+      · exact h₂ z hz
+
+theorem foldl_greatest_mem : ∀ (xs : List Number) (acc : Number),
+    xs.foldl (fun acc y => if acc.lt y then y else acc) acc = acc ∨
+      xs.foldl (fun acc y => if acc.lt y then y else acc) acc ∈ xs
+  | [], _ => .inl rfl
+  | y :: ys, acc => by
+    simp only [List.foldl_cons]
+    rcases foldl_greatest_mem ys (if acc.lt y then y else acc) with h | h
+    · rw [h]; split
+      · exact .inr List.mem_cons_self
+      · exact .inl rfl
+    · exact .inr (List.mem_cons_of_mem y h)
+
+theorem foldl_greatest_ge : ∀ (xs : List Number) (acc : Number),
+    acc.le (xs.foldl (fun acc y => if acc.lt y then y else acc) acc) ∧
+      ∀ z ∈ xs, z.le (xs.foldl (fun acc y => if acc.lt y then y else acc) acc)
+  | [], acc => ⟨Int.le_refl _, fun _ h => absurd h List.not_mem_nil⟩
+  | y :: ys, acc => by
+    simp only [List.foldl_cons]
+    obtain ⟨h₁, h₂⟩ := foldl_greatest_ge ys (if acc.lt y then y else acc)
+    by_cases hy : acc.lt y
+    · simp only [hy, ↓reduceIte] at h₁ h₂ ⊢
+      refine ⟨Number.le_trans (Number.le_of_lt hy) h₁, fun z hz => ?_⟩
+      rcases List.mem_cons.mp hz with rfl | hz
+      · exact h₁
+      · exact h₂ z hz
+    · simp only [hy, ↓reduceIte] at h₁ h₂ ⊢
+      refine ⟨h₁, fun z hz => ?_⟩
+      rcases List.mem_cons.mp hz with rfl | hz
+      · exact Number.le_trans (Number.not_lt_iff.mp hy) h₁
+      · exact h₂ z hz
+
+/-- `least` answers one of the members. -/
+theorem Number.least_mem {xs : List Number} {x : Number} (h : Number.least xs = some x) : x ∈ xs := by
+  cases xs with
+  | nil => exact absurd h (by simp [Number.least])
+  | cons y ys =>
+    simp only [Number.least, Option.some.injEq] at h
+    subst h
+    rcases foldl_least_mem ys y with h | h
+    · rw [h]; exact List.mem_cons_self
+    · exact List.mem_cons_of_mem y h
+
+/-- No member is below what `least` answers. -/
+theorem Number.least_lowest {xs : List Number} {x y : Number} (h : Number.least xs = some x)
+    (hy : y ∈ xs) : ¬ y.lt x := by
+  cases xs with
+  | nil => exact absurd hy List.not_mem_nil
+  | cons z zs =>
+    simp only [Number.least, Option.some.injEq] at h
+    subst h
+    obtain ⟨h₁, h₂⟩ := foldl_least_le zs z
+    apply Number.not_lt_iff.mpr
+    rcases List.mem_cons.mp hy with rfl | hy
+    · exact h₁
+    · exact h₂ y hy
+
+/-- `greatest` answers one of the members. -/
+theorem Number.greatest_mem {xs : List Number} {x : Number} (h : Number.greatest xs = some x) :
+    x ∈ xs := by
+  cases xs with
+  | nil => exact absurd h (by simp [Number.greatest])
+  | cons y ys =>
+    simp only [Number.greatest, Option.some.injEq] at h
+    subst h
+    rcases foldl_greatest_mem ys y with h | h
+    · rw [h]; exact List.mem_cons_self
+    · exact List.mem_cons_of_mem y h
+
+/-- No member is above what `greatest` answers. -/
+theorem Number.greatest_highest {xs : List Number} {x y : Number} (h : Number.greatest xs = some x)
+    (hy : y ∈ xs) : ¬ x.lt y := by
+  cases xs with
+  | nil => exact absurd hy List.not_mem_nil
+  | cons z zs =>
+    simp only [Number.greatest, Option.some.injEq] at h
+    subst h
+    obtain ⟨h₁, h₂⟩ := foldl_greatest_ge zs z
+    apply Number.not_lt_iff.mpr
+    rcases List.mem_cons.mp hy with rfl | hy
+    · exact h₁
+    · exact h₂ y hy
+
 /-! ## Ill-formed terms -/
 
 /-- Whether the arms the rank rule picks single out two different
@@ -505,6 +656,7 @@ def Val.idents : Val → Bool
   | .rest t cs => t.idents || identsCovers cs
   | .select s arms d => s.idents || identsPairs arms || identsSpread d
   | .filter s c => s.idents || c.idents
+  | .call _ args => identsItems args
   | _ => false
 
 def identsPairs : List (Val × Val) → Bool

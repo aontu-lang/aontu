@@ -978,7 +978,7 @@ func specVetGolden(t *testing.T, report VetReport) string {
 // The cases the definition's rows (test/spec/def-fragment.tsv) expect and
 // the engine does not yet answer, spec/ledger.tsv: each must keep failing
 // until its cause is fixed, and a name the rows do not carry is stale.
-const specLedgerBound = 124
+const specLedgerBound = 127
 
 func specLedger(t *testing.T, specDir string) map[string]bool {
 	t.Helper()
