@@ -8,6 +8,22 @@ each change affects.
 
 ## Unreleased
 
+### `translate` writes U+FFFD for a surrogate in `to`
+
+TypeScript, shared and generated rows, and documentation; no Go change
+(#442).
+
+- A range in `translate`'s `to` that crosses the surrogate block names
+  each surrogate, and TypeScript wrote it as a lone surrogate, which no
+  string can hold. It now writes U+FFFD, as Go does:
+  `translate("b", "a-b", "\ud7ff-\ue000")` is `"\ufffd"` in both.
+  A surrogate in `from` still matches no source character.
+- `test/spec/cmp.tsv` gains three rows, and `test/spec/def-call.tsv`
+  three cases in rows x2055 to x2063. Both ports answer every one
+  alike, and as the definition does.
+- The definition tutorial's step 23 and the reference's `translate`
+  section follow.
+
 ### A string names a `pick` or `sort` index by its digits alone
 
 TypeScript, shared and generated rows, and documentation; no Go change

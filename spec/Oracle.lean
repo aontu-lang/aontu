@@ -1854,7 +1854,8 @@ the oracle's host and every engine's case conversion agree, and
 integer index between 2 ^ 53 and 2 ^ 63 (#439). `translate` follows
 from row x966: ranges, a `-` that stands for itself, a short `to` and an
 empty one, a character named twice, code points beyond ASCII, and a
-range across the surrogates, where the ports agree, and `esc` and `usc`
+range across the surrogates in `from`, and `surrogateCases` one in
+`to`, which writes U+FFFD for each surrogate. `esc` and `usc` follow
 from row x1068: each convention both ways, the text each `usc` has no
 original for, the variants and the arguments. `super` follows from row
 x1221: a scalar's kind, a kind's parent, a container of its members'
@@ -2689,6 +2690,22 @@ theorem index_verdict_exact : ∀ c ∈ indexCases, ∀ (m : Mode) (v : Verdict)
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (indexCases_checkable c hc)) v
 
+/-- A range in `translate`'s `to` through the surrogate block writes
+U+FFFD for each surrogate it names, as both ports write it (#442). -/
+def surrogateCases : List (Val × Data) :=
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let str (s : String) : Val := .lit (.str s)
+  [(c .translate [str "b", str "a-b", str "\uD7FF-\uE000"], .str "\uFFFD"),
+    (c .translate [str "abc", str "a-c", str "\uD7FF-\uE000"], .str "\uD7FF\uFFFD\uFFFD"),
+    (c .translate [str "z", str "a-z", str "\uD7FF-\uE000"], .str "\uFFFD")]
+
+theorem surrogateCases_checkable : ∀ c ∈ surrogateCases, (vetDoc c).1.CheckableA := by decide
+
+theorem surrogate_verdict_exact : ∀ c ∈ surrogateCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (surrogateCases_checkable c hc)) v
+
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2940,11 +2957,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# generates an empty map or list, from row x1935, rep reads its replacement"
     IO.println "# against its pattern's groups before the text, from row x1959, pick and sort"
     IO.println "# read a projector and a direction through a rider or a mark, from row x1995,"
-    IO.println "# and a string names an index by its digits alone, from row x2025. A call on a"
+    IO.println "# a string names an index by its digits alone, from row x2025, and translate"
+    IO.println "# writes U+FFFD for a surrogate its to range names, from row x2055. A call on a"
     IO.println "# name follows in rows z0 on, and a call handed a pattern, re(p), in rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
-        projectorCases ++ indexCases do
+        projectorCases ++ indexCases ++ surrogateCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -2956,7 +2974,7 @@ def main (args : List String) : IO UInt32 := do
       unless hostReads v do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
-      projectorCases ++ indexCases)
+      projectorCases ++ indexCases ++ surrogateCases)
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     return 0

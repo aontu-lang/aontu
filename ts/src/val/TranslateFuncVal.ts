@@ -47,6 +47,12 @@ function expandSet(set: string): string[] | undefined {
 }
 
 
+function isSurrogate(c: string): boolean {
+  const u = c.charCodeAt(0)
+  return 1 === c.length && 0xD800 <= u && u <= 0xDFFF
+}
+
+
 // The text a value carries, when it is a concrete string.
 function textOf(v: Val | undefined): string | undefined {
   const s: any = v
@@ -96,7 +102,9 @@ class TranslateFuncVal extends FuncBaseVal {
       if (undefined === expanded) {
         return makeNilErr(ctx, 'invalid-arg', this, args[2], 'to')
       }
-      to = expanded
+      // A range through the surrogate block writes U+FFFD for each of
+      // its surrogates, as Go's encoder does: no string holds one.
+      to = expanded.map((c) => isSurrogate(c) ? '\uFFFD' : c)
     }
 
     // The table, built left to right so a character named twice takes

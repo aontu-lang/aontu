@@ -20,7 +20,8 @@
 # generates an empty map or list, from row x1935, rep reads its replacement
 # against its pattern's groups before the text, from row x1959, pick and sort
 # read a projector and a direction through a rider or a mark, from row x1995,
-# and a string names an index by its digits alone, from row x2025. A call on a
+# a string names an index by its digits alone, from row x2025, and translate
+# writes U+FFFD for a surrogate its to range names, from row x2055. A call on a
 # name follows in rows z0 on, and a call handed a pattern, re(p), in rows v0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
@@ -2078,6 +2079,15 @@ x2051	verdict	v: sort([[2], [1]], "0")	v: [[1], [2]]	{"verdict":"valid","opts":{
 x2052	verdict	v: sort([[2], [1]], " 0")	v: [[1], [2]]	{"verdict":"error"}
 x2053	verdict	v: sort([[2], [1]], " 0")	v: [[1], [2]]	{"verdict":"error","opts":{"noFill":true}}
 x2054	verdict	v: sort([[2], [1]], " 0")	v: [[1], [2]]	{"verdict":"error","opts":{"partial":true}}
+x2055	verdict	v: translate("b", "a-b", "퟿-")	v: "�"	{"verdict":"valid"}
+x2056	verdict	v: translate("b", "a-b", "퟿-")	v: "�"	{"verdict":"valid","opts":{"noFill":true}}
+x2057	verdict	v: translate("b", "a-b", "퟿-")	v: "�"	{"verdict":"valid","opts":{"partial":true}}
+x2058	verdict	v: translate("abc", "a-c", "퟿-")	v: "퟿��"	{"verdict":"valid"}
+x2059	verdict	v: translate("abc", "a-c", "퟿-")	v: "퟿��"	{"verdict":"valid","opts":{"noFill":true}}
+x2060	verdict	v: translate("abc", "a-c", "퟿-")	v: "퟿��"	{"verdict":"valid","opts":{"partial":true}}
+x2061	verdict	v: translate("z", "a-z", "퟿-")	v: "�"	{"verdict":"valid"}
+x2062	verdict	v: translate("z", "a-z", "퟿-")	v: "�"	{"verdict":"valid","opts":{"noFill":true}}
+x2063	verdict	v: translate("z", "a-z", "퟿-")	v: "�"	{"verdict":"valid","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}
