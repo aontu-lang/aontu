@@ -833,10 +833,13 @@ example : output (.meet (.or [(0, .map [("x", false, .lit (.num (.integer (.of 1
       (0, .map [("y", false, .lit (.num (.integer (.of 2))))] none false)])
     (.map [("x", false, .lit (.num (.integer (.of 1))))] none false)) = none := rfl
 
-/-- What is singled out is an instance, `output_admits`: `*8080 & min(1024)`
-admits `8080`, and the output of `{x?: *1}` is one of its instances. -/
+/-- What is singled out is an instance of the visible part of the normal
+form, `output_admits`, which for `*8080 & min(1024)`, holding no mark, is
+the normal form itself: the term admits `8080`. -/
 example : Instance .empty port (.integer 8080) :=
-  ⟨by decide, output_admits port _ ((output_iff (by decide) _).mp rfl)⟩
+  ⟨by decide, (admits_normalise port _).mp
+    ((show (normalise port).visible = normalise port from rfl) ▸
+      output_admits port _ ((output_iff (by decide) _).mp rfl))⟩
 
 /-! ## The verdicts -/
 
@@ -877,8 +880,10 @@ example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .inco
     vet { lax := true } [] (.map [("x", false, .integer)] none false) (.map []) = .valid := by decide
 
 /-- Without the fill, `valid` is `Instance`: `[*1]` against `[2]`, under
-no declaration, where a document reads as itself. -/
-example : Instance (Decls.envE []) (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))
+no declaration, where a document reads as itself, its visible part the
+normal form of `[*1]`. -/
+example : Instance (Decls.envE [])
+    (normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).visible
     (.list [.integer 2]) :=
   vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
     ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))

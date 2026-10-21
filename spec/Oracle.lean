@@ -440,6 +440,56 @@ theorem len_verdict_exact : ∀ c ∈ lenCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (lenCases_checkable c hc)) v
 
+/-- The cases of decision 10 of the design note's §7: `hide()` and
+`type()` on a member of a map, which the output leaves out while the
+member still meets the data, the member absent and present, in conflict,
+with a default, nested, beside a seal, as a spread, under a rider and in
+a meet, and on the value at `v` itself. A disjunction of marked arms
+carries no mark, and a refusal at generation reads a marked member. -/
+def markCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let mp (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let a (v : Val) : Val := mp [("a", false, v)]
+  let da (x : Data) : Data := .map [("a", x)]
+  let pick (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .or [(1, int n h), (0, .integer)]
+  let b : Val := mp [("b", false, .integer)]
+  let sealed : Val := .map [("a", false, hide .integer)] none true
+  [(a (hide .integer), da (j 1)), (a (hide .integer), .map []), (a (hide .integer), da (.str "x")),
+    (a (type .integer), .map []), (a (type .integer), da (.str "x")),
+    (a (hide (pick 1)), .map []), (a (hide (pick 1)), da (j 2)),
+    (type (mp [("x", false, .integer)]), .map [("x", j 1), ("y", j 2)]), (hide (a .integer), .map []),
+    (a (hide (int 1)), da (j 2)), (a (hide (int 1)), .map []),
+    (mp [("a", false, hide .integer), ("b", false, .integer)], .map [("b", j 1)]),
+    (mp [("a", false, hide .integer), ("b", false, .integer)], .map []),
+    (mp [("a", false, hide (int 1)), ("b", false, pick 2)], .map []),
+    (a (mp [("b", false, hide .integer)]), da (.map [])),
+    (sealed, .map []), (sealed, da (j 1)), (sealed, .map [("b", j 1)]),
+    (mp [("a", true, hide .integer)], .map []),
+    (.map [] (some (hide .integer)) false, da (j 1)), (.map [] (some (hide .integer)) false, da (.str "x")),
+    (.map [] (some (hide b)) false, da (.map [])),
+    (a (.ride .metadata (hide .integer) []), .map []), (a (hide (.ride .metadata .integer [])), .map []),
+    (a (.ride .deprecate (hide .integer) []), .map []),
+    (a (.meet (hide b) (mp [("c", false, .integer)])), da (.map [])),
+    (a (type b), da (.map [])), (a (type b), da (.map [("c", j 1)])),
+    (a (.meet (hide .integer) (int 1)), .map []), (a (.meet .integer (hide (int 1))), da (j 1)),
+    (.meet (a .integer) (a (hide (int 1))), .map []), (.meet (a (hide .integer)) (a .integer), .map []),
+    (.meet (a .number) (a (hide .integer)), .map []), (.meet (a .integer) (a (hide .integer)), .map []),
+    (.meet (a .integer) (a (hide .number)), .map []),
+    (a (hide (.nof (int 1) [.integer, .number])), da (j 1)),
+    (a (hide (.nof (int 1) [.integer, .string])), da (j 1)),
+    (a (.or [(0, hide (int 1)), (0, hide (int 2))]), .map []),
+    (a (.or [(1, hide (int 1)), (0, .integer)]), .map [])]
+
+theorem markCases_checkable : ∀ c ∈ markCases, (vetDoc c).1.CheckableA := by decide
+
+theorem mark_verdict_exact : ∀ c ∈ markCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (markCases_checkable c hc)) v
+
 /-- The `verdict` rows: each case in the default mode, without the fill
 and under `--partial`, with the one class `vet` gives. -/
 def verdictRows (tag : String) (cases : List (Val × Data) := vetCases) : IO Unit := do
@@ -1440,7 +1490,7 @@ def forms : List (String × String × String) :=
     ("must", "call", "must"), ("when", "call", "when"), ("contains", "call", "contains"),
     ("rest", "call", "rest"), ("select", "call", "match"), ("filter", "call", "filter"),
     ("ride", "call", "meta"), ("ride", "call", "deprecate"), ("ride", "call", "ident"),
-    ("key", "call", "key")]
+    ("ride", "call", "type"), ("ride", "call", "hide"), ("key", "call", "key")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1453,7 +1503,8 @@ def formSamples : List (String × Val) :=
     ("contains", .contains .integer (.min (.num one))), ("rest", .rest .integer []),
     ("match", .select .integer [] none), ("filter", .filter .integer .integer),
     ("meta", .ride .metadata .integer []), ("deprecate", .ride .deprecate .integer []),
-    ("ident", .ride .ident .integer []), ("key", .key)]
+    ("ident", .ride .ident .integer []), ("type", .ride .type .integer []),
+    ("hide", .ride .hide .integer []), ("key", .key)]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1550,8 +1601,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A size met with a container literal follows in rows l0 on: an error where"
     IO.println "# the size's upper half refuses the literal's count, the lower end waiting"
     IO.println "# for generation."
+    IO.println "# The marks follow in rows h0 on: hide() and type() leave a member of a map"
+    IO.println "# out of the output, the member still meeting the data, and --no-fill reads"
+    IO.println "# the schema's visible part."
     verdictRows "e"
     verdictRows "l" lenCases
+    verdictRows "h" markCases
     return 0
   | ["alias"] =>
     IO.println "# Generated by `lake exe oracle alias` (spec/Oracle.lean) from the definition"

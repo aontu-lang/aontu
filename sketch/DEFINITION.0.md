@@ -60,7 +60,8 @@ decision 8 of §7, `when`, `contains` and `rest` inside values, and
 `match` and `filter` as selections, the same day, which lands P4. P5
 partial the same day, with the profiles' contracts, the order decided
 and its rows, and the tables for the containers and the constraints,
-and decisions 9, 11 and 12 of §7 built 2026-10-20;
+and decisions 9, 11 and 12 of §7 built 2026-10-20, and 10 in part on
+2026-10-21;
 P6 LANDED 2026-10-21, with the check of the importer's forms against
 the definition and the three decisions it raised, ruled 2026-10-20 and
 built: the riders (14) and the words `map` and `list` (15) the same
@@ -318,7 +319,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 110 rows under nine causes: decisions 3 and 4 of §2, under
+ledger holds 114 rows under ten causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -329,7 +330,9 @@ trial refuses leaving its disjunction generating nothing, where the
 ports move (#365); an optional key of the general side compared only
 where the specific side declares it, where the ports move (#377); and a
 path inside a rider's value to a member beside it, which decision 14 of
-§7 reads through the rider, where the ports move (#416).
+§7 reads through the rider, where the ports move (#416); and a mark a
+key's second declaration carries, which decision 10 of §7 keeps through
+the meet, where the ports move (#420).
 The nine rows of #384, a spread on the general side compared with a
 sealed specific side's missing spread as `any`, retired on 2026-10-20
 when the ports built ruling 12 of §7.
@@ -398,7 +401,7 @@ documents only.
 | **P2**: containers (L) | maps with optional and required keys, spreads over every member, the duplicate-key merge, `close()` sealing every level and `open()`; lists with required positions, an open tail and spreads; `&`, `\|` and `*` over containers, read by position as the language reads them (an arm of a disjunction reads a list literal as its own length and `*x` as `x`, and elsewhere `*x` is `x \| super(x)`, so `*1` alone admits `2`: both engines, 2026-10-17); `Output` for containers, which is where filling and ADR-004 live; ADR-045, 046 and 053 as theorems; the rule #319 needs | the ports agree with the oracle over two-level documents; the three ADRs read "moved" |
 | **P3**: references (L) | **LANDED 2026-10-19**: aliases as the least fixpoint, path references read by declaration from the unified instance, recursion as the single `alias` rule; the meaning of `%U = %U` (§7); the alias-cycle rule, which refuses no model, no use case and three documents of the suite | `recursion.tsv` and `alias.tsv` rows covered; `unify_cycle` is a meaning or an error, no longer only a budget |
 | **P4**: trial schemas (L) | **LANDED 2026-10-19**: refusal beside admission as the two answers of one relation, `Judge`, with the checker's `false` proved refusal (`checkWith_judge`, `checkR_judge`), **landed 2026-10-19**; `nof` and `must` inside values, with ADR-055 and ADR-049's `not` as theorems, as the eighth generated fragment, `test/spec/def-trial.tsv`, **landed 2026-10-19**; refusal at generation, decision 8 of §7, **landed 2026-10-19**; `when` inside values, with ADR-050 as theorems (`judge_when_iff`, `when_nil_refuses`), **landed 2026-10-19**; `contains` inside values, with ADR-051 as theorems (`judge_contains_empty`, `contains_refuses_scalar`), **landed 2026-10-19**; `rest` inside values, with ADR-058 as theorems (`rest_admits_scalar`, `rest_nil_closes`), **landed 2026-10-19**; `match` and `filter` as selections made once a document is read (`resolveD`, `Decls.readR`), with the language's rules as theorems (`selectArm_first`, `selectArm_next`, `selectArm_default`, `resolveD_filter_list`, `resolveD_filter_scalar`), **landed 2026-10-19** | the go/no-go of §7 is settled; the `constraint-*.tsv` rows are covered |
-| **P5**: order and verdicts (M) | **PARTIAL**: the verdict classes, the `vet` modes as parameters and ADR-007 (`output_admits`) landed with P2; on 2026-10-19 one contract per `subsume` profile (§1), `ProfileCorrect` in `Aontu/Subsume.lean`, `defaults` asking, at every position where the specific side declares a default, the same default of the general side (`DefaultsLe`, with `defaults_sees_the_default`, narrowed by decision 11 on 2026-10-20 to a declared default, `DefaultsLe.of_lit`) and `gen` the marks as a predicate (decision 10), and the table's rows for the ends, the kinds, the literals, the bounds under their kinds, disjunction, preference and the meet as theorems, among them `re_not_le_string`, where the table overstates `string`; the same day `leDecF`, the order decided with its proof where the scalars and the connectives decide it, `not_le_of_witness`, and the ninth fragment, `test/spec/def-subsume.tsv`; then the rows for maps and lists, `map_le`, `list_le` and `not_le_map_required`, on `judge_root`, that no rule reads the root, with `leDecF` deciding two maps and two lists; then the constraint algebra's own table, intervals, membership, `neq` and `len` (`min_le_min_iff` and the rest); then a spread on the general side, `map_le_spread` and `list_le_spread`, which hold every member of the specific side to the spread, a seal or the specific side's own spread covering the rest, and `mulof` under `mulof` (`mulof_le_mulof`, on `Number.multipleOf_trans`), with `leDecF` deciding them and the printer spelling a sealed map: 3,265 rows over 58 values pairwise (the general list's seal asking nothing beside a spread, a review finding on the first cut), both ports answering as the contract allows but for nineteen rows in the ledger, five under #346 (two of them an open list with the spread of a sealed one, which the ports put outside it), five under #377 and nine under #384, a false negative the rows found, which retired on 2026-10-20 with ruling 12 built; then the order on documents, `LeD`, each side read under its own declarations as `vet` reads it, with `SubsumeCorrectD` its contract, a recursion and its unrolling below each other (`alias_le_unroll`, `unroll_le_alias`, the reference's row for recursive positions), `leDecD` deciding two readings that read no name and `not_leD_of_witness` refuting by `checkR`, and the tenth fragment, `test/spec/def-subsume-docs.tsv`, 310 rows over 20 documents, two names recursive through each other and a recursion with a sealed base among them, both ports answering as the contract allows but for nine rows under #377, four of them through a recursion; a recursion through a list against `any` at its position, which both ports put below the recursion, is #387, which the oracle cannot write while its printer declines a sealed list holding a reference; open: two recursions of one shape under different names, which the definition leaves undecided, the approximate rows, and the `defaults` and `gen` rows, which wait on a procedure that decides `DefaultsLe` | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
+| **P5**: order and verdicts (M) | **PARTIAL**: the verdict classes, the `vet` modes as parameters and ADR-007 (`output_admits`) landed with P2; on 2026-10-19 one contract per `subsume` profile (§1), `ProfileCorrect` in `Aontu/Subsume.lean`, `defaults` asking, at every position where the specific side declares a default, the same default of the general side (`DefaultsLe`, with `defaults_sees_the_default`, narrowed by decision 11 on 2026-10-20 to a declared default, `DefaultsLe.of_lit`) and `gen` the marks, as a predicate until decision 10 was built in part on 2026-10-21 and as `MarksAgree` since, and the table's rows for the ends, the kinds, the literals, the bounds under their kinds, disjunction, preference and the meet as theorems, among them `re_not_le_string`, where the table overstates `string`; the same day `leDecF`, the order decided with its proof where the scalars and the connectives decide it, `not_le_of_witness`, and the ninth fragment, `test/spec/def-subsume.tsv`; then the rows for maps and lists, `map_le`, `list_le` and `not_le_map_required`, on `judge_root`, that no rule reads the root, with `leDecF` deciding two maps and two lists; then the constraint algebra's own table, intervals, membership, `neq` and `len` (`min_le_min_iff` and the rest); then a spread on the general side, `map_le_spread` and `list_le_spread`, which hold every member of the specific side to the spread, a seal or the specific side's own spread covering the rest, and `mulof` under `mulof` (`mulof_le_mulof`, on `Number.multipleOf_trans`), with `leDecF` deciding them and the printer spelling a sealed map: 3,265 rows over 58 values pairwise (the general list's seal asking nothing beside a spread, a review finding on the first cut), both ports answering as the contract allows but for nineteen rows in the ledger, five under #346 (two of them an open list with the spread of a sealed one, which the ports put outside it), five under #377 and nine under #384, a false negative the rows found, which retired on 2026-10-20 with ruling 12 built; then the order on documents, `LeD`, each side read under its own declarations as `vet` reads it, with `SubsumeCorrectD` its contract, a recursion and its unrolling below each other (`alias_le_unroll`, `unroll_le_alias`, the reference's row for recursive positions), `leDecD` deciding two readings that read no name and `not_leD_of_witness` refuting by `checkR`, and the tenth fragment, `test/spec/def-subsume-docs.tsv`, 310 rows over 20 documents, two names recursive through each other and a recursion with a sealed base among them, both ports answering as the contract allows but for nine rows under #377, four of them through a recursion; a recursion through a list against `any` at its position, which both ports put below the recursion, is #387, which the oracle cannot write while its printer declines a sealed list holding a reference; open: two recursions of one shape under different names, which the definition leaves undecided, the approximate rows, and the `defaults` and `gen` rows, which wait on a procedure that decides `DefaultsLe` | every `subsume` row of `test/spec/subsume.tsv` agrees with its profile's contract where decidable; a verdict class disagreement fails the differential |
 | **P6**: the power to represent JSON Schema (M) | **LANDED 2026-10-21**: every value the importer writes for a keyword it carries is a form of the definition, defined on its own terms; the definition names no JSON Schema keyword (decision 2 of §2, ruled 2026-10-17, which retired this phase's first plan: `valid` for the 2020-12 keywords, the import's modes as contracts, and the export's round trip, all of which put JSON Schema in the definition). On 2026-10-19 the check, `ts/test/jsonschema-forms.test.ts` and `go/jsonschema_forms_test.go`: the importer's output for every schema of the suite in its five dialects, of Ajv's extras and of the SchemaStore subset, with and without defaults, 3,504 imports, strings removed, uses 21 calls and 9 words, each a row of `spec/forms.tsv`, the spelling of every form of `Aontu/Syntax.lean` as the oracle's printer writes it, or of `spec/forms-outside.tsv`, the six the definition lacked, each on its decision: `key(0)` under `match`, for `patternProperties` and `propertyNames` (decision 13 of §7), the riders `meta`, `deprecate` and `ident` (14), and the words `map` and `list` (15), which entered the definition as kinds on 2026-10-20 and left the file, leaving four, and the riders after them, as the one form `ride` the same day, leaving `key(0)` alone, which entered as the term `key` on 2026-10-21 and left the file empty, bounded at zero; a row of the outside file the importer stops writing fails the check | the importer's output over the suite's schemas uses only forms the definition holds, which is the outside file empty |
 | **P7**: the migration (M, ongoing) | **PARTIAL**: the language ADRs moved as §4 says; the reference cites the rules; the language-change record settled. On 2026-10-19 thirteen ADRs carry the status line of §4, each naming the module and the theorems that hold its rule: ADR-004, 007, 011, 045, 046, 048, 049, 050, 051, 053, 055 and 058, and ADR-034 in part (`nil`; `maybe` is no term of the definition). Waiting on their construct: ADR-037 (`+`), 052 (decision 14 of §7), 054 and 062 (the trial and the residual strategies, which the definition states only as meaning: a count is what the `nof` rules say and a residual what the fixpoint says, and a theorem that the strategy computes them is the ports' to offer), and 067, moved in part the same day with `LeD` and the unrolling theorems, two recursions of one shape under different names staying undecided. The same day `docs/reference-language.md` came to cite the rule each of its sections explains, 32 citations naming the module and the theorems, and the three open decisions where a construct waits on one; the language-change record of §4 is settled by decision 4 and needs no step | no ADR after P7 defines a rule the definition holds |
 | **P8**: calls on values (M) | **NOT STARTED**: the built-ins whose answer is a value computed from values: arithmetic (`add`, `sub`, `mul`, `div`, `mod`, `rem`, unary `-`, and `+`, which ADR-037 waits on), the aggregates (`sum`, `least`, `greatest`), `pick`, `sort` and `join`, the text functions (`upper`, `lower`, `esc`, `usc`, `rep`, `split`, `translate`, `nom`), `super` and `copy` written as calls, and the ten component functions (`project`, `folder`, `file`, `content`, `line`, `fragment`, `slot`, `inject`, `copyfiles`, `listitems`) as the maps of the component tree they answer. One rule carries most of them: a call denotes the value its function computes from its arguments' values, a function on `Data` stated beside the call, the leaf of a number by the tower's rules, and an argument outside the function's domain, a kind among them (`sub(integer, 1)`), is the verdict the reference gives it. `super`, which answers a term (`super(integer)` is `number`), and `split` over a pattern, which reads its separator as a term, have rules of their own. `copy` clears the marks, so it rests on ruling 10 of §7; the others rest on P1's numbers and P2's `Output` | a generated fragment, `def-call.tsv`, every call over the fragment's data, both ports answering as the definition does; the reference's function entries cite their rules |
@@ -411,9 +414,10 @@ The phases from P8 on, drafted 2026-10-20, take the definition from
 the value language to the whole of it, each placed after what it rests
 on. The open items of P1 to P5 come before them:
 each read mode's reading of a number (P1), `open()` (P2), two
-recursions of one shape under different names (P5), the ruling of §7
-not yet built (10), decisions 16 and 17, still open, and #403,
-a selection inside a recursive name's body.
+recursions of one shape under different names (P5), the part of
+ruling 10 of §7 not yet built, what a reference makes of a marked
+value, decisions 16 to 18, still open, and #403, a selection inside a
+recursive name's body.
 
 Outside the definition by design, whatever phase lands: text, which is
 the grammar's and each port's reader's (the lexical structure, the
@@ -570,7 +574,29 @@ encodes it lands.
    the definition only through `defaults`. **Ruled 2026-10-20: the
    marks enter the syntax**, each a term with what it decides stated,
    entering as the riders do (decision 14), so that `GenLe` reads them
-   from the terms and `gen` is held to the definition directly.
+   from the terms and `gen` is held to the definition directly. **Built
+   in part 2026-10-21**: `type` and `hide` are riders in
+   `spec/Aontu/Syntax.lean`, printed `type(v)` and `hide(v)` with no
+   record, so a marked value judges as its value does and a mark rides
+   every meet (`Val.hasMark`). What each decides is stated in
+   `spec/Aontu/Output.lean`: a member of a map whose value carries a
+   mark is left out of the output and still meets the data at its key,
+   which `Output` reads by generating from the term's visible part
+   (`Val.visible`), a marked member optional and holding anything, as is
+   a map's marked spread, and ADR-007 holds of the visible part
+   (`output_admits`). Without the fill, `vet` asks the data to be an
+   instance of the schema's visible part, as both ports answer, a
+   member that refuses its datum still making the meet dead. `GenLe`
+   reads the marks from the terms (`MarksAgree`), and `hide_not_genLe`
+   shows a mark changes the `gen` order alone. The verdict fragment
+   gains 117 rows, h0 on, which both ports answer as the definition does
+   but four, a mark that a key's second declaration carries where the
+   first's value is the meet's answer, which both drop (#420);
+   TypeScript alone drops a mark in a direct meet whose answer is the
+   unmarked side (#419), so those cases wait outside the rows. What a
+   reference makes of a marked value, its marks cleared at every depth
+   and a `type()` value sealed at every depth, is still to be built,
+   and a marked list element is decision 18.
 11. **The effective default under `defaults`.** Raised 2026-10-19
    by P5. `DefaultsLe` (`spec/Aontu/Subsume.lean`) holds the general
    side to every value the specific side singles out at a position, a
@@ -753,6 +779,21 @@ encodes it lands.
    the ports stop evaluating it. The definition recommends the first,
    which states what both ports do and refuses a document whose author
    wrote a broken declaration.
+18. **A marked list element.** Raised 2026-10-21 by ruling 10's rows
+   (#421). Both ports leave a `hide()` or `type()` element of a list out
+   of the output, so `[1, hide(2), 3]` gives `[1, 3]`, and still hold
+   each element to its position, so `[hide(1), 2]` admits `[1, 2]`
+   without the fill and refuses `[2]`. No reading by position makes the
+   output an instance (ADR-007, `output_admits`), and the reference
+   states the omission for a member of a map alone. Either a mark on a
+   list element decides nothing, and the element is generated and held
+   to its value as any other, which the ports would follow, or the
+   definition reads a marked element as no element and states what a
+   list admits around it, which the ports' answers by position would
+   have to follow too. The definition recommends the first, which
+   keeps ADR-007 and leaves the marks a member's affair, and reads a
+   list's elements so meanwhile (`Val.visible`); no generated row holds
+   a marked list element until it is ruled.
 
 ## 8. Risks
 

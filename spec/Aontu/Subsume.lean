@@ -10,8 +10,7 @@ instance of the specific document is an instance of the general.
 `defaults` asks that, and that every value the specific side singles
 out at a position, the general side singles out there too, so that a
 default survives into the general side unchanged. `gen` asks that, and
-that the marks agree, which are not yet terms of the definition and
-enter its contract as a predicate. Each profile has one contract, of
+that the marks agree at every position both sides have. Each profile has one contract, of
 the shape `SubsumeCorrect` gives the first, and the rows of the
 reference's table, "Rules, by value former", are theorems of `Le`
 here: the scalars, the kinds, the bounds under the kinds that cover
@@ -393,40 +392,52 @@ def DefaultsLe (env : Env) (a b : Val) : Prop :=
       (normalise b).at p = some wb →
       ∀ (root j : Data), Output env root wa j → wb.declaresDefault = true ∧ Output env root wb j
 
+/-- The marks agree on corresponding nodes: at every position both
+normal forms have, each carries `type()` where the other does, and
+`hide()` where the other does. -/
+def MarksAgree (a b : Val) : Prop :=
+  ∀ (p : List Seg) (wa wb : Val), (normalise a).at p = some wa → (normalise b).at p = some wb →
+    wa.hasMark .type = wb.hasMark .type ∧ wa.hasMark .hide = wb.hasMark .hide
+
 /-- The `gen` profile's order: the `defaults` profile's, and the marks
-agree on corresponding nodes. The marks `type()` and `hide()` are not
-terms of the definition, so their agreement is a predicate the engines
-supply, as `host` supplies the patterns. -/
-def GenLe (env : Env) (marks : Val → Val → Prop) (a b : Val) : Prop :=
-  DefaultsLe env a b ∧ marks a b
+agree on corresponding nodes, since a mark decides what the output holds
+(decision 10 of the design note's §7). -/
+def GenLe (env : Env) (a b : Val) : Prop :=
+  DefaultsLe env a b ∧ MarksAgree a b
 
 /-- The order each profile asks. -/
-def Profile.Le (env : Env) (marks : Val → Val → Prop) : Profile → Val → Val → Prop
+def Profile.Le (env : Env) : Profile → Val → Val → Prop
   | .values => Aontu.Le env
   | .defaults => DefaultsLe env
-  | .gen => GenLe env marks
+  | .gen => GenLe env
 
 /-- The contract on an implementation under a profile: `subsumes` only
 where the profile's order holds, `doesNotSubsume` only where it fails,
 and `undecided` anywhere. Under `values` it is `SubsumeCorrect`. -/
-def ProfileCorrect (env : Env) (marks : Val → Val → Prop) (pr : Profile)
-    (subsume : Val → Val → Subsumption) : Prop :=
+def ProfileCorrect (env : Env) (pr : Profile) (subsume : Val → Val → Subsumption) : Prop :=
   ∀ general specific,
-    (subsume general specific = .subsumes → pr.Le env marks specific general) ∧
-    (subsume general specific = .doesNotSubsume → ¬ pr.Le env marks specific general)
+    (subsume general specific = .subsumes → pr.Le env specific general) ∧
+    (subsume general specific = .doesNotSubsume → ¬ pr.Le env specific general)
 
-theorem values_correct_iff {marks : Val → Val → Prop} {sub : Val → Val → Subsumption} :
-    ProfileCorrect env marks .values sub ↔ SubsumeCorrect env sub := by
+theorem values_correct_iff {sub : Val → Val → Subsumption} :
+    ProfileCorrect env .values sub ↔ SubsumeCorrect env sub := by
   unfold ProfileCorrect SubsumeCorrect Profile.Le
   exact Iff.rfl
 
 theorem DefaultsLe.le {a b : Val} (h : DefaultsLe env a b) : a ⊑[env] b := h.1
 
-theorem GenLe.defaults {marks : Val → Val → Prop} {a b : Val} (h : GenLe env marks a b) :
-    DefaultsLe env a b := h.1
+theorem GenLe.defaults {a b : Val} (h : GenLe env a b) : DefaultsLe env a b := h.1
 
 theorem DefaultsLe.refl (a : Val) : DefaultsLe env a a :=
   ⟨Le.refl env a, fun _ _ _ ha hd hb _ _ h => by rw [ha] at hb; cases hb; exact ⟨hd, h⟩⟩
+
+theorem GenLe.refl (a : Val) : GenLe env a a :=
+  ⟨DefaultsLe.refl a, fun _ _ _ ha hb => by rw [ha] at hb; cases hb; exact ⟨rfl, rfl⟩⟩
+
+/-- A mark changes the `gen` order: `hide(integer)` is not below
+`integer` under it, though each is below the other in `Le`. -/
+theorem hide_not_genLe : ¬ GenLe env (.ride .hide .integer []) .integer := fun h =>
+  absurd (h.2 [] _ _ rfl rfl).2 (by decide)
 
 /-- A literal declares no default, so `defaults` asks of a value above
 it what `values` asks: `integer` over `1` holds under both, as the

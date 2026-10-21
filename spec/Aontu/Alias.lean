@@ -687,14 +687,15 @@ theorem admits_normaliseD {ds : Decls} {root : Data} (v : Val) (j : Data) :
 /-! ## What evaluation singles out, under the declarations -/
 
 /-- What evaluation singles out for `v` under the declarations: what
-its normal form generates. -/
+the visible part of its normal form generates. -/
 def OutputD (ds : Decls) (root : Data) (v : Val) (j : Data) : Prop :=
-  Gen ds.envE root (normaliseD ds v) j
+  Gen ds.envE root (normaliseD ds v).visible j
 
-/-- What evaluation singles out under the declarations is an instance. -/
+/-- What evaluation singles out under the declarations is an instance
+of the visible part of the normal form. -/
 theorem outputD_admits {ds : Decls} {root : Data} (v : Val) (j : Data) (h : OutputD ds root v j) :
-    Admits ds.envE root v j :=
-  (admits_normaliseD v j).mp (gen_admits _ j h)
+    Admits ds.envE root (normaliseD ds v).visible j :=
+  gen_admits _ j h
 
 theorem outputD_unique {ds : Decls} {root : Data} {v : Val} {j j' : Data}
     (h : OutputD ds root v j) (h' : OutputD ds root v j') : j = j' :=
@@ -704,14 +705,14 @@ theorem outputD_unique {ds : Decls} {root : Data} {v : Val} {j j' : Data}
 def genD (ds : Decls) : Val → Option Data := genWith (checkR ds)
 
 /-- What evaluation singles out under the declarations, computed. -/
-def outputD (ds : Decls) (v : Val) : Option Data := genD ds (normaliseD ds v)
+def outputD (ds : Decls) (v : Val) : Option Data := genD ds (normaliseD ds v).visible
 
 /-- `outputD` computes `OutputD` wherever the normal form can be read,
 and the names keep the alias-cycle rule. -/
 theorem outputD_iff {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     {v : Val} (h : (normaliseD ds v).CheckableA) (j : Data) :
     outputD ds v = some j ↔ OutputD ds root v j :=
-  genWith_iff h (fun _ j hw _ => checkR_iff hg hb hw j) j
+  genWith_iff h.visible (fun _ j hw _ => checkR_iff hg hb hw j) j
 
 
 /-! ## The normal form can be read

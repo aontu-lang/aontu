@@ -683,8 +683,9 @@ declare, where its names break the alias-cycle rule, where an
 does not stand; `invalid` where the meet of the schema with the data as
 a term is dead, or refuses, read whole, the value it gives with its
 trials and sizes unread; `valid` where the meet singles out a value,
-and without the fill where the data as written is an instance too, or
-where `--partial` lets the unresolved pass; and `incomplete` otherwise. -/
+and without the fill where the data as written is an instance of the
+visible part of the schema's normal form too, or where `--partial` lets
+the unresolved pass; and `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
@@ -697,14 +698,14 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
       ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
       (m.lax = true ∨
         ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
-          (m.fill = true ∨ Admits ds.envE j (ds.readR S) j))
+          (m.fill = true ∨ Admits ds.envE j (normaliseD ds (ds.readR S)).visible j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
       (normaliseD ds (meetD ds (ds.readR S) j.term)).dead = false ∧
       ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
       m.lax = false ∧
       ¬ ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
-        (m.fill = true ∨ Admits ds.envE j (ds.readR S) j)
+        (m.fill = true ∨ Admits ds.envE j (normaliseD ds (ds.readR S)).visible j)
 
 /-- The verdict, computed. -/
 def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
@@ -715,7 +716,7 @@ def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
   else if m.lax then .valid
   else
     match outputD ds (meetD ds (ds.readR S) j.term) with
-    | some _ => if m.fill || checkR ds (ds.readR S) j then .valid else .incomplete
+    | some _ => if m.fill || checkR ds (normaliseD ds (ds.readR S)).visible j then .valid else .incomplete
     | none => .incomplete
 
 section
@@ -884,8 +885,8 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
     obtain ⟨hdB, hgB⟩ := hok
     have hD := Decls.declaresB_iff.mp hdB
     have hG := Decls.guardedB_iff.mp hgB
-    have hS' : (ds.readR S).CheckableA := hS
-    have hM' := normaliseD_checkableA hb (meetD_checkableA hb hS' (Data.term_checkableA j))
+    have hS' : (normaliseD ds (ds.readR S)).visible.CheckableA := (normaliseD_checkableA hb hS).visible
+    have hM' := normaliseD_checkableA hb (meetD_checkableA hb hS (Data.term_checkableA j))
     cases hi : ds.illFormedR S with
     | true => exact .inr (.inr hi)
     | false =>
@@ -909,7 +910,7 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
             | some j' =>
               have hout : OutputD ds j (meetD ds (ds.readR S) j.term) j' :=
                 (outputD_iff hG hb hM' j').mp ho
-              cases hc : (m.fill || checkR ds (ds.readR S) j) with
+              cases hc : (m.fill || checkR ds (normaliseD ds (ds.readR S)).visible j) with
               | true =>
                 rw [if_pos rfl]
                 refine ⟨hD, hG, hi, hd, hnr, .inr ⟨j', hout, ?_⟩⟩
@@ -938,10 +939,10 @@ theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ 
 /-! ## What the verdicts say -/
 
 /-- Without the fill, `valid` is `Instance`: the data as written is an
-instance of the schema as read. -/
+instance of the visible part of the schema as read. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE (ds.readR S) j := by
+    Instance ds.envE (normaliseD ds (ds.readR S)).visible j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -950,14 +951,15 @@ theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (
   · exact ⟨hj, hA⟩
 
 /-- With the fill, `valid` singles out a value, the data filled, which
-is an instance of the schema as read. -/
+is an instance of the visible part of the schema met with the data. -/
 theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
     (h : Vet m ds S j .valid) :
-    ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧ Admits ds.envE j (ds.readR S) j' := by
+    ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
+      Admits ds.envE j (normaliseD ds (meetD ds (ds.readR S) j.term)).visible j' := by
   obtain ⟨-, -, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
-  · exact ⟨j', hout, ((admits_meetD _ _ _).mp (outputD_admits _ _ hout)).1⟩
+  · exact ⟨j', hout, outputD_admits _ _ hout⟩
 
 /-- `invalid` refuses: the normal form of the schema met with the data
 refuses the data as written, or, its trials and sizes unread, the value

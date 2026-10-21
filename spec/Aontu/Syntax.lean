@@ -42,6 +42,8 @@ inductive Rider where
   | metadata                                -- `meta(v, r)`, an annotation; Lean keeps `meta`
   | deprecate                               -- `deprecate(v, r)`, the record `{}` where none is written
   | ident                                   -- `ident(v, r)`, the identity of an alias's value
+  | type                                    -- `type(v)`, a mark: the value is a definition
+  | hide                                    -- `hide(v)`, a mark: the value is no part of the output
   deriving DecidableEq
 
 /-- A rider's record: the members of a map of data, as both ports take
@@ -92,7 +94,7 @@ inductive Val where
   | rest (t : Val) (cs : List (Option Val × Option Val × Option Val))  -- `rest(t, c₁, …)`: each member no cover evaluates held to `t`
   | select (s : Val) (arms : List (Val × Val)) (d : Option Val)  -- `match(s, p₁, r₁, …, d?)`, the first `rᵢ` whose `pᵢ` admits the value of `s`, else `d`; Lean keeps `match`
   | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
-  | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`: `v` carrying `r`
+  | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`, `type(v)`, `hide(v)`: `v` carrying `r`
   | key                                     -- `key(0)`, the key of the member a spread is tried on
 
 /-! The language reads `|` and `*` by position, and the reader, not a
@@ -258,6 +260,22 @@ def superArms : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
   | (r, a) :: arms => (r, a.super) :: superArms arms
 end
+
+/-! ## The marks
+
+`type()` and `hide()` are the riders that mark a value (decision 10 of
+the design note's §7). A mark rides every meet, as the riders do, so a
+term carries one where one rides it at its own position, through `&`
+and the other riders. -/
+
+/-- Whether a term carries the mark `m` at its own position. -/
+def Val.hasMark (m : Rider) : Val → Bool
+  | .ride k v _ => decide (k = m) || v.hasMark m
+  | .meet a b => a.hasMark m || b.hasMark m
+  | _ => false
+
+/-- Whether a term carries a mark, `type()` or `hide()`, at its own position. -/
+def Val.marked (v : Val) : Bool := v.hasMark .type || v.hasMark .hide
 
 /-! ## The key a spread is tried under
 

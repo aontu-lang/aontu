@@ -108,6 +108,8 @@ def Rider.name : Rider → String
   | .metadata => "meta"
   | .deprecate => "deprecate"
   | .ident => "ident"
+  | .type => "type"
+  | .hide => "hide"
 
 /-! `close()` seals every level, so a sealed container prints as
 `close(…)` only where no open container sits beneath it, and a reference
@@ -213,6 +215,9 @@ def Val.src : Val → Option String
   | .rest t cs => do pure s!"rest({", ".intercalate ([← t.src] ++ (← coversSrc cs))})"
   | .select s arms d => do pure s!"match({", ".intercalate ([← s.src] ++ (← pairsSrc arms) ++ (← elseSrc d))})"
   | .filter s c => do pure s!"filter({← s.src}, {← c.src})"
+  | .ride .type v [] => do pure s!"type({← v.src})"
+  | .ride .hide v [] => do pure s!"hide({← v.src})"
+  | .ride .type _ _ | .ride .hide _ _ => none
   | .ride k v r => do pure s!"{k.name}({← v.src}, {← (Data.map r).src})"
 
 def fieldsSrc : List (String × Bool × Val) → Option (List String)

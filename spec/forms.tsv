@@ -49,4 +49,6 @@ filter	call	filter
 ride	call	meta
 ride	call	deprecate
 ride	call	ident
+ride	call	type
+ride	call	hide
 key	call	key
