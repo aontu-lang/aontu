@@ -27,7 +27,7 @@ and documentation; no engine changes.
 - Both ports hold a node's props and children open against a
   `close()` from above, which the definition, holding no `open()`,
   leaves unsaid. No row closes a node.
-- `test/spec/def-call.tsv` gains 42 cases in rows x1677 to x1802. Both
+- `test/spec/def-call.tsv` gains 44 cases in rows x1677 to x1808. Both
   ports answer every row as the definition does but nine, a wrong
   number of arguments (#426). `spec/ledger.tsv` lists them, and its
   bound rises from 183 to 192. `spec/forms.tsv` gains the ten
