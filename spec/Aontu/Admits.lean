@@ -36,21 +36,24 @@ matches, and which strings a format, a name or a grammar, reads to its
 end, each a predicate on two strings; which patterns lie in the subset
 that `rep` and `split` hand to the host's own regex engine, a subset
 the reference states on a pattern's syntax, which the definition does
-not hold, and where such a pattern's leftmost match at or after a code
-point of a text falls; and how a string changes case, Unicode's
-default case conversion at the version of each engine's tables.
-Nothing here says what any of them holds of, so a theorem about `re`,
-`format`, `rep`, `split`, `upper` or `lower` holds whatever they are. -/
+not hold, how many groups such a pattern captures, which the engines
+count on its text before any match is read, and where its leftmost
+match at or after a code point of a text falls; and how a string
+changes case, Unicode's default case conversion at the version of each
+engine's tables. Nothing here says what any of them holds of, so a
+theorem about `re`, `format`, `rep`, `split`, `upper` or `lower` holds
+whatever they are. -/
 structure Host where
   pattern : String → String → Prop
   format : String → String → Prop
   portable : String → Bool
+  groups : String → ℕ
   find : String → String → ℕ → Option Match
   upper : String → String
   lower : String → String
 
 instance : Inhabited Host :=
-  ⟨⟨fun _ _ => True, fun _ _ => True, fun _ => false, fun _ _ _ => none, id, id⟩⟩
+  ⟨⟨fun _ _ => True, fun _ _ => True, fun _ => false, fun _ => 0, fun _ _ _ => none, id, id⟩⟩
 
 /-- Whether a pattern reads a character as itself alone. -/
 def plainChar (c : Char) : Bool := !"\\^$.|?*+()[]{}".contains c
@@ -88,13 +91,15 @@ whose regex engine reads fixed patterns alone, as every engine reads
 them: a row reads no other letter and no other pattern but one outside
 the subset. -/
 def oracleHost : Host :=
-  ⟨fun _ _ => True, fun _ _ => True, fun p => (fixedPieces p).isSome, fixedFind,
+  ⟨fun _ _ => True, fun _ _ => True, fun p => (fixedPieces p).isSome,
+    fun p => ((fixedPieces p).map fun ps => (ps.filter (·.1)).length).getD 0, fixedFind,
     String.map Char.toUpper, String.map Char.toLower⟩
 
-/-- The predicates behind `re` and `format`, the subset and the matches
-behind `rep` and `split` at a pattern, and the case conversion behind
-`upper` and `lower`: a constant no proof can unfold, so no theorem
-rests on what they are, and which the oracle runs as `oracleHost`. -/
+/-- The predicates behind `re` and `format`, the subset, the groups and
+the matches behind `rep` and `split` at a pattern, and the case
+conversion behind `upper` and `lower`: a constant no proof can unfold,
+so no theorem rests on what they are, and which the oracle runs as
+`oracleHost`. -/
 @[implemented_by oracleHost]
 opaque host : Host
 

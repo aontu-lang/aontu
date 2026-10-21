@@ -1866,9 +1866,9 @@ one among them, each `$` form, the groups a pattern has and has not
 got, and patterns outside the subset. Their patterns are fixed text,
 with groups, on which the oracle's host and every engine's regex
 engine agree, or outside the subset, which every engine refuses, and
-`hostReads` refuses a row that hands the host another. No case holds a
-replacement that writes nothing for a match where the text holds no
-match, decision 20. `nom` follows from row x1521: each spelling, the
+`hostReads` refuses a row that hands the host another. A replacement
+that names something its pattern lacks, over a text with no match,
+follows in `repSubCases`. `nom` follows from row x1521: each spelling, the
 words a name holds, an acronym list, the sealed map of every spelling,
 and the arguments it refuses, but no style written as `""`, which Go
 reads as no style (#451). The components follow from row x1677: each
@@ -2612,6 +2612,28 @@ theorem optional_verdict_exact : ∀ c ∈ optionalCases, ∀ (m : Mode) (v : Ve
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (optionalCases_checkable c hc)) v
 
+/-- A replacement is read against its pattern's groups before the text
+is scanned (decision 20 of the design note's §7), so one that names a
+group the pattern lacks, a `$0`, a lone `$` or a `$` before a letter is
+an error over a text with no match too, the empty text among them, and
+one that names only what the pattern has leaves such a text as it is. -/
+def repSubCases : List (Val × Data) :=
+  let str (s : String) : Val := .lit (.str s)
+  let rep (t p r : String) : Val := .call .rep [str t, str p, str r]
+  [(rep "abc" "x" "$9", .str "abc"), (rep "abc" "x" "$", .str "abc"),
+    (rep "abc" "x" "x$", .str "abc"), (rep "abc" "x" "$x", .str "abc"),
+    (rep "abc" "x" "$0", .str "abc"), (rep "abc" "x" "$1", .str "abc"),
+    (rep "abc" "(x)" "$2", .str "abc"), (rep "" "a" "$1", .str ""),
+    (rep "abc" "(x)" "$1", .str "abc"), (rep "abc" "(x)(y)" "$2$1", .str "abc"),
+    (rep "abc" "x" "$$$&", .str "abc"), (rep "" "(a)" "[$1]", .str "")]
+
+theorem repSubCases_checkable : ∀ c ∈ repSubCases, (vetDoc c).1.CheckableA := by decide
+
+theorem repSub_verdict_exact : ∀ c ∈ repSubCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (repSubCases_checkable c hc)) v
+
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2853,10 +2875,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# x1677, the generator each, its template read for each member of its data,"
     IO.println "# from row x1803, and a filter whose condition holds the hole, read for each"
     IO.println "# member it tries, from row x1902. A call skips an optional member whose value"
-    IO.println "# generates an empty map or list, from row x1935. A call on a name follows in"
-    IO.println "# rows z0 on, and a call handed a pattern, re(p), in rows v0 on."
+    IO.println "# generates an empty map or list, from row x1935, and rep reads its replacement"
+    IO.println "# against its pattern's groups before the text, from row x1959. A call on a"
+    IO.println "# name follows in rows z0 on, and a call handed a pattern, re(p), in rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
-    for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases do
+    for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -2867,7 +2890,7 @@ def main (args : List String) : IO UInt32 := do
     for (v, _) in patternCases do
       unless hostReads v do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
-    verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases)
+    verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases)
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     return 0

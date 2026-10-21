@@ -17,8 +17,9 @@
 # x1677, the generator each, its template read for each member of its data,
 # from row x1803, and a filter whose condition holds the hole, read for each
 # member it tries, from row x1902. A call skips an optional member whose value
-# generates an empty map or list, from row x1935. A call on a name follows in
-# rows z0 on, and a call handed a pattern, re(p), in rows v0 on.
+# generates an empty map or list, from row x1935, and rep reads its replacement
+# against its pattern's groups before the text, from row x1959. A call on a
+# name follows in rows z0 on, and a call handed a pattern, re(p), in rows v0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -1979,6 +1980,42 @@ x1955	verdict	v: each({"a"?: *[1] | ([]), "b": 2}, _)	v: [[1], 2]	{"verdict":"va
 x1956	verdict	v: join({"a"?: [], "b": "x"}, "-")	v: "x"	{"verdict":"valid"}
 x1957	verdict	v: join({"a"?: [], "b": "x"}, "-")	v: "x"	{"verdict":"valid","opts":{"noFill":true}}
 x1958	verdict	v: join({"a"?: [], "b": "x"}, "-")	v: "x"	{"verdict":"valid","opts":{"partial":true}}
+x1959	verdict	v: rep("abc", "x", "$9")	v: "abc"	{"verdict":"error"}
+x1960	verdict	v: rep("abc", "x", "$9")	v: "abc"	{"verdict":"error","opts":{"noFill":true}}
+x1961	verdict	v: rep("abc", "x", "$9")	v: "abc"	{"verdict":"error","opts":{"partial":true}}
+x1962	verdict	v: rep("abc", "x", "$")	v: "abc"	{"verdict":"error"}
+x1963	verdict	v: rep("abc", "x", "$")	v: "abc"	{"verdict":"error","opts":{"noFill":true}}
+x1964	verdict	v: rep("abc", "x", "$")	v: "abc"	{"verdict":"error","opts":{"partial":true}}
+x1965	verdict	v: rep("abc", "x", "x$")	v: "abc"	{"verdict":"error"}
+x1966	verdict	v: rep("abc", "x", "x$")	v: "abc"	{"verdict":"error","opts":{"noFill":true}}
+x1967	verdict	v: rep("abc", "x", "x$")	v: "abc"	{"verdict":"error","opts":{"partial":true}}
+x1968	verdict	v: rep("abc", "x", "$x")	v: "abc"	{"verdict":"error"}
+x1969	verdict	v: rep("abc", "x", "$x")	v: "abc"	{"verdict":"error","opts":{"noFill":true}}
+x1970	verdict	v: rep("abc", "x", "$x")	v: "abc"	{"verdict":"error","opts":{"partial":true}}
+x1971	verdict	v: rep("abc", "x", "$0")	v: "abc"	{"verdict":"error"}
+x1972	verdict	v: rep("abc", "x", "$0")	v: "abc"	{"verdict":"error","opts":{"noFill":true}}
+x1973	verdict	v: rep("abc", "x", "$0")	v: "abc"	{"verdict":"error","opts":{"partial":true}}
+x1974	verdict	v: rep("abc", "x", "$1")	v: "abc"	{"verdict":"error"}
+x1975	verdict	v: rep("abc", "x", "$1")	v: "abc"	{"verdict":"error","opts":{"noFill":true}}
+x1976	verdict	v: rep("abc", "x", "$1")	v: "abc"	{"verdict":"error","opts":{"partial":true}}
+x1977	verdict	v: rep("abc", "(x)", "$2")	v: "abc"	{"verdict":"error"}
+x1978	verdict	v: rep("abc", "(x)", "$2")	v: "abc"	{"verdict":"error","opts":{"noFill":true}}
+x1979	verdict	v: rep("abc", "(x)", "$2")	v: "abc"	{"verdict":"error","opts":{"partial":true}}
+x1980	verdict	v: rep("", "a", "$1")	v: ""	{"verdict":"error"}
+x1981	verdict	v: rep("", "a", "$1")	v: ""	{"verdict":"error","opts":{"noFill":true}}
+x1982	verdict	v: rep("", "a", "$1")	v: ""	{"verdict":"error","opts":{"partial":true}}
+x1983	verdict	v: rep("abc", "(x)", "$1")	v: "abc"	{"verdict":"valid"}
+x1984	verdict	v: rep("abc", "(x)", "$1")	v: "abc"	{"verdict":"valid","opts":{"noFill":true}}
+x1985	verdict	v: rep("abc", "(x)", "$1")	v: "abc"	{"verdict":"valid","opts":{"partial":true}}
+x1986	verdict	v: rep("abc", "(x)(y)", "$2$1")	v: "abc"	{"verdict":"valid"}
+x1987	verdict	v: rep("abc", "(x)(y)", "$2$1")	v: "abc"	{"verdict":"valid","opts":{"noFill":true}}
+x1988	verdict	v: rep("abc", "(x)(y)", "$2$1")	v: "abc"	{"verdict":"valid","opts":{"partial":true}}
+x1989	verdict	v: rep("abc", "x", "$$$&")	v: "abc"	{"verdict":"valid"}
+x1990	verdict	v: rep("abc", "x", "$$$&")	v: "abc"	{"verdict":"valid","opts":{"noFill":true}}
+x1991	verdict	v: rep("abc", "x", "$$$&")	v: "abc"	{"verdict":"valid","opts":{"partial":true}}
+x1992	verdict	v: rep("", "(a)", "[$1]")	v: ""	{"verdict":"valid"}
+x1993	verdict	v: rep("", "(a)", "[$1]")	v: ""	{"verdict":"valid","opts":{"noFill":true}}
+x1994	verdict	v: rep("", "(a)", "[$1]")	v: ""	{"verdict":"valid","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}

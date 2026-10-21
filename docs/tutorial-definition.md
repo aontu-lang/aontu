@@ -1590,38 +1590,43 @@ matches, and which strings a format, a name or a grammar, reads to its
 end, each a predicate on two strings; which patterns lie in the subset
 that `rep` and `split` hand to the host's own regex engine, a subset
 the reference states on a pattern's syntax, which the definition does
-not hold, and where such a pattern's leftmost match at or after a code
-point of a text falls; and how a string changes case, Unicode's
-default case conversion at the version of each engine's tables.
-Nothing here says what any of them holds of, so a theorem about `re`,
-`format`, `rep`, `split`, `upper` or `lower` holds whatever they are. -/
+not hold, how many groups such a pattern captures, which the engines
+count on its text before any match is read, and where its leftmost
+match at or after a code point of a text falls; and how a string
+changes case, Unicode's default case conversion at the version of each
+engine's tables. Nothing here says what any of them holds of, so a
+theorem about `re`, `format`, `rep`, `split`, `upper` or `lower` holds
+whatever they are. -/
 structure Host where
   pattern : String → String → Prop
   format : String → String → Prop
   portable : String → Bool
+  groups : String → ℕ
   find : String → String → ℕ → Option Match
   upper : String → String
   lower : String → String
 
 instance : Inhabited Host :=
-  ⟨⟨fun _ _ => True, fun _ _ => True, fun _ => false, fun _ _ _ => none, id, id⟩⟩
+  ⟨⟨fun _ _ => True, fun _ _ => True, fun _ => false, fun _ => 0, fun _ _ _ => none, id, id⟩⟩
 ```
 
 The oracle computes with a host of its own. It converts the case of the
 letters `a` to `z` and `A` to `Z` alone, and it reads fixed patterns
 alone: text, with groups that capture runs of it, which every engine
-reads as the oracle does.
+reads and counts as the oracle does.
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
 def oracleHost : Host :=
-  ⟨fun _ _ => True, fun _ _ => True, fun p => (fixedPieces p).isSome, fixedFind,
+  ⟨fun _ _ => True, fun _ _ => True, fun p => (fixedPieces p).isSome,
+    fun p => ((fixedPieces p).map fun ps => (ps.filter (·.1)).length).getD 0, fixedFind,
     String.map Char.toUpper, String.map Char.toLower⟩
 
-/-- The predicates behind `re` and `format`, the subset and the matches
-behind `rep` and `split` at a pattern, and the case conversion behind
-`upper` and `lower`: a constant no proof can unfold, so no theorem
-rests on what they are, and which the oracle runs as `oracleHost`. -/
+/-- The predicates behind `re` and `format`, the subset, the groups and
+the matches behind `rep` and `split` at a pattern, and the case
+conversion behind `upper` and `lower`: a constant no proof can unfold,
+so no theorem rests on what they are, and which the oracle runs as
+`oracleHost`. -/
 @[implemented_by oracleHost]
 opaque host : Host
 ```
@@ -6393,20 +6398,32 @@ def scanMatches (find : ℕ → Option Match) (len : ℕ) : ℕ → ℕ → Opti
 ```
 
 A replacement writes `$1` to `$9` as the groups captured them, `$&` as
-the whole match and `$$` as one `$`. `expandSub` refuses any other `$`,
-so a replacement that names a group the pattern hasn't got is an
-error. So is a pattern outside the subset that both engines' pattern
-engines read alike. The reference states that subset on a pattern's
-syntax, which the definition doesn't hold, so `Host` holds `portable`
-as well.
+the whole match and `$$` as one `$`. Any other `$`, or a group the
+pattern hasn't got, makes the call an error, and `subReads` reads the
+replacement for that before the call scans the text, so
+`rep("abc", "x", "$9")` is an error though nothing matches:
+
+<!-- test: quote spec/Aontu/Text.lean -->
+```lean
+def subReads (n : ℕ) : List Char → Bool
+  | [] => true
+  | '$' :: '$' :: rest | '$' :: '&' :: rest => subReads n rest
+  | '$' :: d :: rest => decide ('1' ≤ d ∧ d ≤ '9' ∧ d.toNat - 48 ≤ n) && subReads n rest
+  | ['$'] => false
+  | _ :: rest => subReads n rest
+```
+
+So is a pattern outside the subset that both engines' pattern engines
+read alike. The reference states that subset on a pattern's syntax,
+which the definition doesn't hold, so `Host` holds `portable` as well,
+and `groups`, how many groups such a pattern captures.
 
 The oracle's host reads fixed patterns alone, so the rows hold no
 other pattern but four that the subset excludes. The rows are x1404 on
-for `rep` and v0 on for `split` at a pattern. Both engines answer every
-one as the definition does, but for two calls with the wrong number of
-arguments, which #426 tracks. Neither engine refuses a replacement that
-names a missing group where the text holds no match, and decision 20 of
-the design note asks whether they should.
+for `rep` and v0 on for `split` at a pattern, and x1959 on for a
+replacement over a text with no match. Both engines answer every one as
+the definition does, but for two calls with the wrong number of
+arguments, which #426 tracks.
 
 ## 25. The parent type
 
