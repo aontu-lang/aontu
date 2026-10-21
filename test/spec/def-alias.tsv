@@ -473,3 +473,6 @@ o134	verdict	%T = {"a": type({"y": integer})}\nv: %T	v: {"a": {"y": 1, "z": 2}}	
 o135	verdict	%T = type({"x": integer})\nv: match(1, 1, %T)	v: {"x": 1, "y": 2}	{"verdict":"invalid"}
 o136	verdict	%T = type({"x": integer})\nv: match(1, 1, %T)	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
 o137	verdict	%T = type({"x": integer})\nv: match(1, 1, %T)	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+o138	verdict	%T = type({"a": *{"b": integer}})\nv: %T	v: {"a": {"b": 1, "c": 2}}	{"verdict":"valid"}
+o139	verdict	%T = type({"a": *{"b": integer}})\nv: %T	v: {"a": {"b": 1, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+o140	verdict	%T = type({"a": *{"b": integer}})\nv: %T	v: {"a": {"b": 1, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}

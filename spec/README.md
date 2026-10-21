@@ -79,7 +79,9 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 
 - each read mode's reading of a number, and the exactness budget of a
   big decimal (P1);
-- `open()`, which the syntax has no form for (P2);
+- `open()`, which the syntax has no form for, and with it the way out
+  of the seal that both ports give a body written `type(open(...))`
+  (P2);
 - a selection inside a recursive name's body, which the checker reads
   unmade: P3 and P4 landed without it (#403);
 - two recursions of one shape under different names, which the order

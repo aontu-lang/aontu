@@ -30,9 +30,9 @@ design note's §7). The copy is the expansion met with a restriction: a
 sealed map that declares the keys the conjuncts' maps declare, each
 optional and restricted in turn by its declarations, a sealed list the
 same by position, and `any` where no conjunct is a container, so the
-seal stops at a disjunction, a kind and a name. The seal follows a
-selection: the restriction of one is a selection on the same scrutinee
-and patterns, of the restrictions of its results. -/
+seal stops at a disjunction, a preference, a kind and a name. The seal
+follows a selection: the restriction of one is a selection on the same
+scrutinee and patterns, of the restrictions of its results. -/
 
 /-- The terms a meet joins, through the riders, as the seal reads them. -/
 def Val.sealConjuncts : Val → List Val
@@ -285,7 +285,8 @@ def expandF (ds : Decls) : ℕ → Val → Val
       else
         match ds.env n with
         | some b =>
-          if ds.typed n then .meet (expandF ds k b) (expandF ds k b).restrict else expandF ds k b
+          let e := expandF ds k b
+          if ds.typed n then .meet e e.restrict else e
         | none => .alias n
     | .len c => .len (expandF ds k c)
     | .map fs spread closed =>

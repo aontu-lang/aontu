@@ -2350,8 +2350,8 @@ declare, at any depth: the expansion meets the copy with a restriction,
 `Val.restrict`, a sealed map declaring the keys the body's maps declare,
 each optional and restricted in turn, and a sealed list the same by
 position. The seal follows a selection to the result it makes, stops at
-a kind, a disjunction and a name, and a recursive name takes none, as
-both engines read it. The identity's one layer comes first:
+a kind, a disjunction, a preference and a name, and a recursive name
+takes none, as both engines read it. The identity's one layer comes first:
 
 <!-- test: quote spec/Aontu/Names.lean -->
 ```lean

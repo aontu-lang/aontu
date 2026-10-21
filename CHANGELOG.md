@@ -50,7 +50,8 @@ documentation; no engine changes. Ruling 10 of the design note
   restriction (`Val.restrict`), a sealed map declaring the keys the
   body's maps declare, each optional and restricted in turn, and a
   sealed list the same by position, so the copy admits nothing the
-  definition does not declare, at any depth. The seal follows a
+  definition does not declare, down to a kind, a disjunction, a
+  preference or a name, where the seal stops. The seal follows a
   selection to the result it makes, and a recursive name takes none,
   as both ports read it. `test/spec/def-alias.tsv` grows by rows
   o0 on, which both ports answer as the definition does.

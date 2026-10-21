@@ -4064,9 +4064,9 @@ a name whose body carries `type()` meets the copy with `Val.restrict`
 in [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean): a sealed map
 declaring the keys the body's maps declare, each optional and
 restricted in turn, and a sealed list the same by position. The seal
-follows a selection to the result it makes and stops at a kind, a
-disjunction and a name. A recursive name takes none, as both engines
-read it. A marked list element, which both engines leave out of the
+follows a selection to the result it makes and stops at a disjunction
+or a preference, as it does at a kind and at a name. A recursive name
+takes none, as both engines read it. A marked list element, which both engines leave out of the
 output, is yet to enter the definition, the subject of decision 18 of
 the design note.
 

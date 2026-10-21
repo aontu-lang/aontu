@@ -696,9 +696,9 @@ depth, once its declarations are met: through members, optional ones,
 lists and a nested name, with a spread, beside a rider and another
 mark, met with a name, declared twice, met at the reference and
 through a selection, its default and one met with a map. The seal stops
-at a kind, `any`, a disjunction and a list's spread, a mark inside a
-body seals nothing, and a recursive name, which both ports read
-unsealed, takes none. -/
+at a kind, `any`, a disjunction, a preference and a list's spread, a
+mark inside a body seals nothing, and a recursive name, which both
+ports read unsealed, takes none. -/
 def sealCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -754,7 +754,9 @@ def sealCases : List (Decls × Val × Data) :=
     ([("T", type (.select (int 1) [(int 1, .integer)] none))], T, j 3),
     ([("T", .select (int 1) [(int 1, type x)] none)], T, dxy),
     ([("T", mp [("a", type y)])], T, .map [("a", .map [("y", j 1), ("z", j 2)])]),
-    ([("T", type x)], .select (int 1) [(int 1, T)] none, dxy)]
+    ([("T", type x)], .select (int 1) [(int 1, T)] none, dxy),
+    ([("T", type (mp [("a", .pref 1 (mp [("b", .integer)]))]))], T,
+      .map [("a", .map [("b", j 1), ("c", j 2)])])]
 
 theorem sealCases_checkable : ∀ c ∈ sealCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide

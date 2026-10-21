@@ -413,7 +413,8 @@ documents only.
 The phases from P8 on, drafted 2026-10-20, take the definition from
 the value language to the whole of it, each placed after what it rests
 on. The open items of P1 to P5 come before them:
-each read mode's reading of a number (P1), `open()` (P2), two
+each read mode's reading of a number (P1), `open()` and the way out of
+a `type()` seal it gives (P2), two
 recursions of one shape under different names (P5), decisions 16 to
 18, still open, and #403, a selection inside a recursive name's body.
 
@@ -602,11 +603,12 @@ encodes it lands.
    `spec/Aontu/Alias.lean`), a sealed map declaring the keys the
    conjuncts' maps declare, each optional and restricted in turn, a
    sealed list the same by position, and `any` where no conjunct is a
-   container, so the seal stops at a kind, a disjunction and a name; a
+   container, so the seal stops at a kind, a disjunction, a preference
+   and a name; a
    selection among the conjuncts restricts as a selection on the same
    scrutinee and patterns, so the seal follows it to the result it
    makes. A recursive name takes none, as both ports read it. The alias
-   fragment gains 138 rows more, o0 on, which both ports answer as the
+   fragment gains 141 rows more, o0 on, which both ports answer as the
    definition does. A marked list element is decision 18.
 11. **The effective default under `defaults`.** Raised 2026-10-19
    by P5. `DefaultsLe` (`spec/Aontu/Subsume.lean`) holds the general
