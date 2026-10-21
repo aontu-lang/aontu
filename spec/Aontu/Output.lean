@@ -96,16 +96,18 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
 
 /-- The members a map's declarations generate, in declaration order: a
 key whose value generates one the spread admits under the key, with it;
-an optional key whose value generates none such, absent; a required key
-whose value generates none such, no members at all. -/
+an optional key whose value generates none such, or an empty map or list
+(decision 19 of the design note's §7), absent; a required key whose
+value generates none such, no members at all. -/
 def genFields (env : Env) (root : Data) (spread : Option Val) :
     List (String × Bool × Val) → List (String × Data) → Prop
   | [], ms => ms = []
   | (k, o, v) :: fs, ms =>
     (∃ x rest, Gen env root v x ∧ (∀ s, spread = some s → Admits env root (s.atKey k) x) ∧
-      genFields env root spread fs rest ∧ ms = (k, x) :: rest) ∨
+      (o = false ∨ x.emptyBag = false) ∧ genFields env root spread fs rest ∧ ms = (k, x) :: rest) ∨
     (o = true ∧
-      (∀ x, Gen env root v x → (∀ s, spread = some s → Admits env root (s.atKey k) x) → False) ∧
+      (∀ x, Gen env root v x → (∀ s, spread = some s → Admits env root (s.atKey k) x) →
+        x.emptyBag = true) ∧
       genFields env root spread fs ms)
 
 /-- The elements a list's positions generate, from the position `i` on,
@@ -319,7 +321,7 @@ theorem genFields_mem {spread : Option Val} :
     exact absurd hm (List.not_mem_nil)
   | (k', o', v') :: fs, ms, h, k, x, hm => by
     rw [genFields] at h
-    rcases h with ⟨y, rest, hg, hs, hrest, rfl⟩ | ⟨-, -, hrest⟩
+    rcases h with ⟨y, rest, hg, hs, -, hrest, rfl⟩ | ⟨-, -, hrest⟩
     · rcases List.mem_cons.mp hm with he | hm'
       · cases he
         exact ⟨o', v', List.mem_cons_self, hg, hs⟩
@@ -345,7 +347,7 @@ theorem genFields_nodup {spread : Option Val} :
   | (k, o, v) :: fs, ms, hd, h => by
     obtain ⟨hd₁, hd₂⟩ := keysDistinct_cons hd
     rw [genFields] at h
-    rcases h with ⟨x, rest, -, -, hrest, rfl⟩ | ⟨-, -, hrest⟩
+    rcases h with ⟨x, rest, -, -, -, hrest, rfl⟩ | ⟨-, -, hrest⟩
     · rw [List.map_cons, List.nodup_cons]
       refine ⟨fun hk => ?_, genFields_nodup hd₂ hrest⟩
       obtain ⟨⟨k', y⟩, hmem, hk'⟩ := List.mem_map.mp hk
@@ -364,7 +366,7 @@ theorem genFields_lookup_some {spread : Option Val} :
   | (k', o', v') :: fs, ms, hd, h, k, o, v, x, hm, hl => by
     obtain ⟨hd₁, hd₂⟩ := keysDistinct_cons hd
     rw [genFields] at h
-    rcases h with ⟨y, rest, hg, hs, hrest, rfl⟩ | ⟨-, -, hrest⟩
+    rcases h with ⟨y, rest, hg, hs, -, hrest, rfl⟩ | ⟨-, -, hrest⟩
     · rcases List.mem_cons.mp hm with he | hm'
       · cases he
         simp only [lookup, if_true, Option.some.injEq] at hl
@@ -389,7 +391,7 @@ theorem genFields_lookup_none {spread : Option Val} :
   | (k', o', v') :: fs, ms, hd, h, k, o, v, hm, hl => by
     obtain ⟨hd₁, hd₂⟩ := keysDistinct_cons hd
     rw [genFields] at h
-    rcases h with ⟨y, rest, -, -, hrest, rfl⟩ | ⟨ho, -, hrest⟩
+    rcases h with ⟨y, rest, -, -, -, hrest, rfl⟩ | ⟨ho, -, hrest⟩
     · rcases List.mem_cons.mp hm with he | hm'
       · cases he
         simp [lookup] at hl
@@ -586,12 +588,20 @@ theorem genFields_unique {spread : Option Val} :
     rw [genFields] at h h'
     have hu' : ∀ k o v, (k, o, v) ∈ fs → ∀ x x', Gen env root v x → Gen env root v x' → x = x' :=
       fun k o v hm => hu k o v (List.mem_cons_of_mem _ hm)
-    rcases h with ⟨x, rest, hg, hs, hrest, rfl⟩ | ⟨-, hnone, hrest⟩ <;>
-      rcases h' with ⟨x', rest', hg', hs', hrest', rfl⟩ | ⟨-, hnone', hrest'⟩
+    rcases h with ⟨x, rest, hg, hs, he, hrest, rfl⟩ | ⟨ho, hnone, hrest⟩ <;>
+      rcases h' with ⟨x', rest', hg', hs', he', hrest', rfl⟩ | ⟨ho', hnone', hrest'⟩
     · obtain rfl := hu k o v (List.mem_cons_self) x x' hg hg'
       rw [genFields_unique hu' hrest hrest']
-    · exact absurd hs (hnone' x hg)
-    · exact absurd hs' (hnone x' hg')
+    · exfalso
+      have hx := hnone' x hg hs
+      rcases he with h0 | h0
+      · exact Bool.false_ne_true (h0.symm.trans ho')
+      · exact Bool.false_ne_true (h0.symm.trans hx)
+    · exfalso
+      have hx := hnone x' hg' hs'
+      rcases he' with h0 | h0
+      · exact Bool.false_ne_true (h0.symm.trans ho)
+      · exact Bool.false_ne_true (h0.symm.trans hx)
     · exact genFields_unique hu' hrest hrest'
 
 theorem genItems_unique {spread : Option Val} {i : ℕ} :
@@ -720,13 +730,16 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
   | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .key | .call _ _ | .hole => none
 
 /-- The members the declarations generate, or `none` where a required
-key's value generates none the spread admits. -/
+key's value generates none the spread admits. An optional key whose
+value generates an empty map or list is absent. -/
 def genFieldsWith (chk : Val → Data → Bool) (spread : Option Val) : List (String × Bool × Val) → Option (List (String × Data))
   | [] => some []
   | (k, o, v) :: fs =>
     match genWith chk v with
     | some x =>
-      if spreadOk chk k spread x then (genFieldsWith chk spread fs).map ((k, x) :: ·)
+      if spreadOk chk k spread x then
+        if o && x.emptyBag then genFieldsWith chk spread fs
+        else (genFieldsWith chk spread fs).map ((k, x) :: ·)
       else if o then genFieldsWith chk spread fs else none
     | none => if o then genFieldsWith chk spread fs else none
 
@@ -797,8 +810,8 @@ theorem genFieldsWith_iff {spread : Option Val}
         rw [if_pos rfl, ihfs]
         constructor
         · intro h
-          exact .inr ⟨rfl, fun x hx _ => hnone x hx, h⟩
-        · rintro (⟨x, rest, hx, -, -, -⟩ | ⟨-, -, h⟩)
+          exact .inr ⟨rfl, fun x hx _ => (hnone x hx).elim, h⟩
+        · rintro (⟨x, rest, hx, -, -, -, -⟩ | ⟨-, -, h⟩)
           · exact absurd hx (hnone x)
           · exact h
       | false =>
@@ -806,7 +819,7 @@ theorem genFieldsWith_iff {spread : Option Val}
         constructor
         · intro h
           exact nomatch h
-        · rintro (⟨x, rest, hx, -, -, -⟩ | ⟨h, -, -⟩)
+        · rintro (⟨x, rest, hx, -, -, -, -⟩ | ⟨h, -, -⟩)
           · exact absurd hx (hnone x)
           · exact nomatch h
     | some x =>
@@ -819,14 +832,31 @@ theorem genFieldsWith_iff {spread : Option Val}
         have hspOK : ∀ s, spread = some s → Admits env root (s.atKey k) x :=
           (spreadOk_iff (fun s h => hs s h k) x).mp hsp
         rw [if_pos rfl]
-        constructor
-        · intro h
-          obtain ⟨rest, hrest, rfl⟩ := Option.map_eq_some_iff.mp h
-          exact .inl ⟨x, rest, hgen, hspOK, (ihfs rest).mp hrest, rfl⟩
-        · rintro (⟨x', rest, hx', -, hrest, rfl⟩ | ⟨-, hno, -⟩)
-          · obtain rfl := huniq x' hx'
-            exact Option.map_eq_some_iff.mpr ⟨rest, (ihfs rest).mpr hrest, rfl⟩
-          · exact absurd hspOK (hno x hgen)
+        cases o <;> cases hx : x.emptyBag <;> split <;> rename_i hc
+        all_goals first
+          | exact absurd hc (by decide)
+          | constructor
+            · intro h
+              obtain ⟨rest, hrest, rfl⟩ := Option.map_eq_some_iff.mp h
+              exact .inl ⟨x, rest, hgen, hspOK, by simp [hx], (ihfs rest).mp hrest, rfl⟩
+            · rintro (⟨x', rest, hx', -, -, hrest, rfl⟩ | ⟨ho, hno, -⟩)
+              · obtain rfl := huniq x' hx'
+                exact Option.map_eq_some_iff.mpr ⟨rest, (ihfs rest).mpr hrest, rfl⟩
+              · first
+                  | exact absurd ho (by decide)
+                  | exact absurd ((hno x hgen hspOK).symm.trans hx) (by decide)
+          | rw [ihfs]
+            constructor
+            · intro h
+              refine .inr ⟨rfl, fun y hy _ => ?_, h⟩
+              obtain rfl := huniq y hy
+              exact hx
+            · rintro (⟨x', rest, hx', -, he, -, -⟩ | ⟨-, -, h⟩)
+              · obtain rfl := huniq x' hx'
+                rcases he with h0 | h0
+                · exact absurd h0 (by decide)
+                · exact absurd (hx.symm.trans h0) (by decide)
+              · exact h
       | false =>
         have hspNo : ¬ ∀ s, spread = some s → Admits env root (s.atKey k) x := fun h => by
           have := (spreadOk_iff (fun s h => hs s h k) x).mpr h
@@ -840,8 +870,8 @@ theorem genFieldsWith_iff {spread : Option Val}
           · intro h
             refine .inr ⟨rfl, fun y hy hsp' => ?_, h⟩
             obtain rfl := huniq y hy
-            exact hspNo hsp'
-          · rintro (⟨x', rest, hx', hsp', -, -⟩ | ⟨-, -, h⟩)
+            exact (hspNo hsp').elim
+          · rintro (⟨x', rest, hx', hsp', -, -, -⟩ | ⟨-, -, h⟩)
             · obtain rfl := huniq x' hx'
               exact absurd hsp' hspNo
             · exact h
@@ -850,7 +880,7 @@ theorem genFieldsWith_iff {spread : Option Val}
           constructor
           · intro h
             exact nomatch h
-          · rintro (⟨x', rest, hx', hsp', -, -⟩ | ⟨h, -, -⟩)
+          · rintro (⟨x', rest, hx', hsp', -, -, -⟩ | ⟨h, -, -⟩)
             · obtain rfl := huniq x' hx'
               exact absurd hsp' hspNo
             · exact nomatch h

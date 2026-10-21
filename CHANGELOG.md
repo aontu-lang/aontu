@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### An optional member that generates an empty container is absent
+
+Definition, TypeScript, generated rows and documentation; no Go change.
+Decision 19 of the design note, ruled 2026-10-21 (#428).
+
+- `spec/Aontu/Output.lean`: `genFields` and `genFieldsWith` leave out
+  an optional member whose value generates an empty map or list
+  (`Data.emptyBag`), as Go does, so `{a?: {}}`, `{a?: {b?: integer}}`
+  and `{a?: *[] | [1]}` give `{}`.
+- `spec/Aontu/Verdict.lean`: `Val.members` skips such a member, so
+  `sum({a?: {}, b: 2})` is `2`, and `Val.genCount` doesn't count it, so
+  `len(max(1)) & {x: 1, y?: {}}` admits `{x: 1}`.
+- TypeScript drops an optional disjunction whose default is an empty
+  map or list, as it drops any other optional member's (`BagVal.gen`),
+  so `{a?: *[] | [1]}` gives `{}` as Go gives it.
+- The generated rows gain 18 values for generation, rows g75 to g92,
+  three sizes, rows l48 to l56, and eight calls on a bag with such a
+  member, rows x1935 to x1958. Both ports answer every one as the
+  definition does.
+- The definition tutorial's steps 13 and 20, the definition's README
+  and the language reference's aggregates section follow.
+
 ### The definition holds the hole and `each`
 
 Definition, generated rows, the ledger and its bound in both runners,

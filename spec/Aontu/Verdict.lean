@@ -105,14 +105,15 @@ def Val.number? (v : Val) : Option Number :=
 
 /-- The members a fold reads in a bag's normal form, the riders around
 it read through: a list's elements in order, and a map's members in key
-order, but an optional one whose value generates nothing, and a marked
-one, which is no part of the output, unless the bag carries a mark
-itself, which lifts its members' marks. -/
+order, but an optional one whose value generates nothing or an empty map
+or list, and a marked one, which is no part of the output, unless the
+bag carries a mark itself, which lifts its members' marks. -/
 def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val)
   | .ride k v _ => v.members ds (lifted || decide (k = .type) || decide (k = .hide))
   | .list items _ _ => some items
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
-      if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
+      if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
+      else some m.2.2)
   | _ => none
 
 /-- What a call that can wait makes of its arguments: the term it is, a
@@ -1721,11 +1722,12 @@ def Val.conjuncts : Val → List Val
   | v => [v]
 
 /-- The members a container literal generates: each position of a list,
-each required key of a map, and each optional key whose value
-generates, as the reference's `len` counts what generates. -/
+each required key of a map, and each optional key whose value generates
+something but an empty map or list, as the reference's `len` counts what
+generates. -/
 def Val.genCount : Val → Option ℕ
   | .list items _ _ => some items.length
-  | .map fs _ _ => some (fs.countP fun f => !f.2.1 || (gen f.2.2).isSome)
+  | .map fs _ _ => some (fs.countP fun f => !f.2.1 || (gen f.2.2).any fun x => !x.emptyBag)
   | _ => none
 
 mutual

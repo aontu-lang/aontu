@@ -860,6 +860,13 @@ c: {y:11}
 The unresolved `x?` is dropped, `b`'s filled `y` is kept, and `c`'s
 default still applies beside the filled key.
 
+**An empty container supplies nothing.** An optional key whose value
+generates an empty map or list leaves no member either, so
+`{a?: {b?: integer}}` and `{a?: *[] | [1]}` each give `{}`: an optional
+structure of optional members that nothing supplies writes no empty
+container into the output. A required key keeps its empty container,
+and `{a: {}}` gives `{"a":{}}`.
+
 Optionality survives references: a referenced map drops its unresolved
 optional keys too.
 
@@ -904,7 +911,7 @@ x?: *b: 1                → [aontu/pref_implicit_bag] at $.x
 x?: {y: 1, z: *b: 1}     → [aontu/pref_implicit_bag] at $.x.z
 ```
 
-The definition reads an optional key in `admits_map_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a key the data leaves out is admitted only where every declaration of it is optional, and two declarations of one key meet as `merge_exact` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) says, optional only where both are.
+The definition reads an optional key in `admits_map_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a key the data leaves out is admitted only where every declaration of it is optional, and two declarations of one key meet as `merge_exact` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) says, optional only where both are. `genFields` in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) generates an optional key's member only where its value generates something other than an empty map or list, which decision 19 of the definition's design note rules.
 
 ## Spreads `&:`
 
@@ -3198,7 +3205,7 @@ function, and this language has no user functions to give it. These
 three are total because the bag is finite, the operation is fixed, and
 each child is visited once: the same argument that makes `each` safe.
 
-The definition computes the three as `Number.fold` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean), over the members `Val.members` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads, each a number in its normal form. `sum` adds them from the left, from the integer zero, each step an `add`, so a step no leaf holds leaves the sum without an answer. `least` answers the first member no other is below, and `greatest` the first no other exceeds, and `Number.least_mem` and `Number.least_lowest` hold that `least` answers a member and that no member is below it. A bag met with a size or another constraint is no bag in its normal form, as both engines answer. Both engines also leave out an optional member whose value generates an empty map or list, which the definition holds, and which #428 tracks.
+The definition computes the three as `Number.fold` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean), over the members `Val.members` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads, each a number in its normal form. `sum` adds them from the left, from the integer zero, each step an `add`, so a step no leaf holds leaves the sum without an answer. `least` answers the first member no other is below, and `greatest` the first no other exceeds, and `Number.least_mem` and `Number.least_lowest` hold that `least` answers a member and that no member is below it. A bag met with a size or another constraint is no bag in its normal form, as both engines answer. An optional member whose value generates an empty map or list is no member either, so `sum({a?: {}, b: 2})` is `2`.
 
 ## Folding to a string: `join`
 
@@ -3226,7 +3233,8 @@ $ echo 'a: join([x, y, z])  b: join([x, y, z], ", ")' | aontu -c
 **A fold sees the members generation emits.** `join`, and with it
 `each`, `emit`, `filter`, `pack`, `pick` and the aggregates, read a
 bag's *members*: a `hide()`- or `type()`-marked child is not one, and
-an optional key whose value generates nothing is not one, so a value
+an optional key whose value generates nothing, or an empty map or list,
+is not one, so a value
 the document withholds from its output never reaches a string or a
 total the document computes. Canon still shows the whole document; the
 fold does not.
@@ -5987,7 +5995,8 @@ members. `min(2) & unique()` and `re("^a") & unique()` are empty for the
 same reason.
 
 **`length` counts what generates.** An optional key that never resolves
-is dropped at generation, so it does not count. The constraint is a
+is dropped at generation, so it does not count, and neither does one
+whose value generates an empty map or list. The constraint is a
 claim about the data, and the data is what comes out:
 
 ```aontu

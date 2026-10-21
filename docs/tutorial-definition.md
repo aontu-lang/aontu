@@ -3760,6 +3760,7 @@ b: (*1|2)|3
 c: { x?: *1 y?:integer }
 d: { x: *1 } & {}
 e: [&: integer *1]
+f: { x?: {} y:1 }
 ```
 
 and evaluate it:
@@ -3778,7 +3779,10 @@ $ aontu singles.aontu
   },
   "e": [
     1
-  ]
+  ],
+  "f": {
+    "y": 1
+  }
 }
 ```
 
@@ -3788,7 +3792,8 @@ preference inside it counts. `c` writes the optional key whose value
 singles out something and leaves out the one whose value does not. `d`
 is the fill of the data `{}` by the schema `{x: *1}`, which is how
 `vet` reads a default, as the end of step 12 says. `e` meets its
-position with the spread.
+position with the spread. `f` leaves out `x`, an optional key whose
+value is an empty map.
 
 `spec/Aontu/Output.lean` states this as `Gen`, a relation by recursion
 on the term:
@@ -3821,7 +3826,9 @@ its value. A map generates a map whose members `genFields` lists, in
 declaration order and then in key order: a key whose value generates a
 value the spread admits under the key is written with it, an optional key whose value
 generates none such is left out, and a required key whose value
-generates none such leaves the map with no output at all. A list
+generates none such leaves the map with no output at all. An optional
+key whose value generates an empty map or list leaves no member either,
+as decision 19 of the design note rules, so `{a?: {}}` generates `{}`. A list
 generates each position, `genItems`. A disjunction generates what the
 arms the rank rule picks all generate, `genArms` over `picked`: of the
 live arms, those of the lowest positive rank, or every live arm where
@@ -5840,7 +5847,9 @@ The members are the ones the output would hold: a list's elements in
 order, and a map's members in key order, but neither an optional member
 whose value generates nothing nor a marked one, unless the bag carries
 a mark itself, which lifts its members' marks, so
-`sum(type({a: hide(1), b: 2}))` is `3`:
+`sum(type({a: hide(1), b: 2}))` is `3`. An optional member whose value
+generates an empty map or list counts as one that generates nothing, as
+the output reads it under decision 19, so `sum({a?: {}, b: 2})` is `2`:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -5848,17 +5857,15 @@ def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val
   | .ride k v _ => v.members ds (lifted || decide (k = .type) || decide (k = .hide))
   | .list items _ _ => some items
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
-      if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
+      if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
+      else some m.2.2)
   | _ => none
 ```
 
 Each member has to be a number in its normal form, as each argument of
 `add` does, so `sum([*1 | number, 2])` is an error, though the default
 would give a number. A bag met with a size, `[1, 2] & len(2)`, isn't a
-bag in normal form, and the engines refuse it too. Both engines also
-leave out an optional member whose value generates an empty map or
-list, `{a?: {}}`, as their output does, where the definition holds the
-member: #428 asks which reading stands.
+bag in normal form, and the engines refuse it too.
 
 The calls have rows of their own, `test/spec/def-call.tsv`, and both
 engines answer them as the definition does but twelve. A call the
