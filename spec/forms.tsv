@@ -72,3 +72,4 @@ call	call	translate
 call	call	esc
 call	call	usc
 call	call	super
+call	call	split

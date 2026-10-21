@@ -32,28 +32,31 @@ namespace Aontu
 
 /-- What the definition leaves to the engines: which strings a pattern
 matches, and which strings a format, a name or a grammar, reads to its
-end, each a predicate on two strings; and how a string changes case,
-Unicode's default case conversion at the version of each engine's
-tables. Nothing here says what any of them holds of, so a theorem about
-`re`, `format`, `upper` or `lower` holds whatever they are. -/
+end, each a predicate on two strings; the fields a pattern's matches
+cut a string into; and how a string changes case, Unicode's default
+case conversion at the version of each engine's tables. Nothing here
+says what any of them holds of, so a theorem about `re`, `format`,
+`split`, `upper` or `lower` holds whatever they are. -/
 structure Host where
   pattern : String → String → Prop
   format : String → String → Prop
+  split : String → String → List String
   upper : String → String
   lower : String → String
 
-instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True, id, id⟩⟩
+instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True, fun _ s => [s], id, id⟩⟩
 
 /-- The host the oracle computes with, whose case conversion changes the
 ASCII letters only, as every engine's does on a string of them: a row
-reads no other letter. -/
+reads no other letter, and splits at no pattern. -/
 def oracleHost : Host :=
-  ⟨fun _ _ => True, fun _ _ => True, String.map Char.toUpper, String.map Char.toLower⟩
+  ⟨fun _ _ => True, fun _ _ => True, fun _ s => [s], String.map Char.toUpper,
+    String.map Char.toLower⟩
 
-/-- The predicates behind `re` and `format`, and the case conversion
-behind `upper` and `lower`: a constant no proof can unfold, so no
-theorem rests on what they are, and which the oracle runs as
-`oracleHost`. -/
+/-- The predicates behind `re` and `format`, the fields behind `split`
+at a pattern, and the case conversion behind `upper` and `lower`: a
+constant no proof can unfold, so no theorem rests on what they are,
+and which the oracle runs as `oracleHost`. -/
 @[implemented_by oracleHost]
 opaque host : Host
 
