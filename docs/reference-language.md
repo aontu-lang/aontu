@@ -5058,7 +5058,7 @@ Neither guess is safe: a gate that wrongly reports "compatible" ships
 the break, and one that wrongly reports "breaking" sends its reader
 after a failure that isn't there.
 
-The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`. `DefaultsLe` counts only a default a term declares, as this page's effective default does, so a literal's own value is none, and `integer` over `1` holds under it, as `DefaultsLe.of_lit` proves. `GenLe` adds `MarksAgree`: the marks agree at every position both sides have, so `hide(integer)` and `integer` are below each other in the order and not under `gen`, as `hide_not_genLe` proves.
+The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`. `DefaultsLe` counts only a default a term declares, as this page's effective default does, so a literal's own value is none, and `integer` over `1` holds under it, as `DefaultsLe.of_lit` proves. `GenLe` adds `MarksAgree`: the marks agree at every position both sides have, a container's spread among them, so `hide(integer)` and `integer` are below each other in the order and not under `gen`, as `hide_not_genLe` proves.
 
 ### Profiles
 

@@ -2341,10 +2341,10 @@ so does one in a schema or deeper in a body. None of those stand, and
 step 14 comes to what doesn't stand.
 
 A reference copies the value without its marks too, the `type()` and
-`hide()` of step 13, at every depth: `unmark` clears them through the
-containers, `|`, `*`, `&` and the riders. So what a body hides, the
-place that refers to it asks for, and a mark written at that place
-stays. The identity's one layer comes first:
+`hide()` of step 13, at every depth: `unmark` clears them through every
+form that holds a term, a selection's results among them. So what a
+body hides, the place that refers to it asks for, and a mark written at
+that place stays. The identity's one layer comes first:
 
 <!-- test: quote spec/Aontu/Names.lean -->
 ```lean
@@ -3186,18 +3186,19 @@ theorem DefaultsLe.of_lit {s : Scalar} {b : Val} (h : .lit s ⊑[env] b) :
 ```
 
 `gen` asks that, and that the marks agree at every position both sides
-have, since a mark, `type()` or `hide()`, decides what the output holds,
-as step 13 shows:
+have, a container's spread among them, since a mark, `type()` or
+`hide()`, decides what the output holds, as step 13 shows:
 
 <!-- test: quote spec/Aontu/Subsume.lean -->
 ```lean
 def MarksAgree (a b : Val) : Prop :=
-  ∀ (p : List Seg) (wa wb : Val), (normalise a).at p = some wa → (normalise b).at p = some wb →
+  ∀ (p : List MarkSeg) (wa wb : Val), (normalise a).atM p = some wa → (normalise b).atM p = some wb →
     wa.hasMark .type = wb.hasMark .type ∧ wa.hasMark .hide = wb.hasMark .hide
 ```
 
 So `hide(integer)` and `integer` are below each other in the order and
-not under `gen`, which `hide_not_genLe` proves.
+not under `gen`, which `hide_not_genLe` proves, and
+`hide_spread_not_genLe` proves the same of two maps' spreads.
 
 The order has rows of its own, `test/spec/def-subsume.tsv`: every pair
 of fifty-eight values, the general first, with the answers the `values`

@@ -597,7 +597,7 @@ encodes it lands.
    day a reference came to copy a body without its marks, at every
    depth (`Val.unmark` in `Decls.env`), so what a body hides, the place
    that refers to it asks for, and a mark written at that place stays:
-   the alias fragment gains 51 rows, n0 on, which both ports answer as
+   the alias fragment gains 57 rows, n0 on, which both ports answer as
    the definition does. The seal a reference puts on a `type()` value
    at every depth is still to be built, and a marked list element is
    decision 18.

@@ -377,6 +377,37 @@ theorem mem_unmarkArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
       · exact Or.inl ⟨rfl, rfl⟩
       · exact Or.inr ⟨a, hm, rfl⟩
 
+theorem mem_unmarkPairs {ps : List (Val × Val)} {p r : Val} :
+    (p, r) ∈ unmarkPairs ps ↔ ∃ p' r', (p', r') ∈ ps ∧ p = p'.unmark ∧ r = r'.unmark := by
+  induction ps with
+  | nil => simp [unmarkPairs]
+  | cons q ps ih =>
+    obtain ⟨p₀, r₀⟩ := q
+    simp only [unmarkPairs, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨p', r', hm, rfl, rfl⟩)
+      · exact ⟨p₀, r₀, Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
+      · exact ⟨p', r', Or.inr hm, rfl, rfl⟩
+    · rintro ⟨p', r', ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨p', r', hm, rfl, rfl⟩
+
+theorem mem_unmarkCovers {cs : List Cover} {c : Cover} :
+    c ∈ unmarkCovers cs ↔
+      ∃ c', c' ∈ cs ∧ c = (unmarkSpread c'.1, unmarkSpread c'.2.1, unmarkSpread c'.2.2) := by
+  induction cs with
+  | nil => simp [unmarkCovers]
+  | cons q cs ih =>
+    obtain ⟨a, b, d⟩ := q
+    simp only [unmarkCovers, List.mem_cons, ih]
+    constructor
+    · rintro (rfl | ⟨c', hm, rfl⟩)
+      · exact ⟨(a, b, d), Or.inl rfl, rfl⟩
+      · exact ⟨c', Or.inr hm, rfl⟩
+    · rintro ⟨c', rfl | hm, rfl⟩
+      · exact Or.inl rfl
+      · exact Or.inr ⟨c', hm, rfl⟩
+
 /-- Clearing the marks keeps a body checkable. -/
 theorem Val.CheckableA.unmark {v : Val} (h : v.CheckableA) : v.unmark.CheckableA := by
   induction h with
@@ -403,6 +434,40 @@ theorem Val.CheckableA.unmark {v : Val} (h : v.CheckableA) : v.unmark.CheckableA
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | @ride k v r _ ih => cases k <;> first | exact ih | exact .ride ih
+  | len _ ih => exact .len ih
+  | @nof n cs _ _ ihn ihc =>
+    refine .nof ihn fun w hm => ?_
+    obtain ⟨v, hv, rfl⟩ := mem_unmarkItems.mp hm
+    exact ihc v hv
+  | must _ ih => exact .must ih
+  | when _ _ _ ihc iht ihe =>
+    refine .when ihc iht fun e' he => ?_
+    obtain ⟨s, hs, rfl⟩ := unmarkSpread_eq.mp he
+    exact ihe s hs
+  | contains _ _ ihc ihn => exact .contains ihc ihn
+  | @rest t cs _ _ _ _ iht ih1 ih2 ih3 =>
+    refine .rest iht ?_ ?_ ?_ <;> intro c hc w hw <;>
+      obtain ⟨c', hc', rfl⟩ := mem_unmarkCovers.mp hc <;>
+      obtain ⟨s, hs, rfl⟩ := unmarkSpread_eq.mp hw
+    · exact ih1 c' hc' s hs
+    · exact ih2 c' hc' s hs
+    · exact ih3 c' hc' s hs
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p', r', hm', rfl, rfl⟩ := mem_unmarkPairs.mp hm
+      exact ihp p' r' hm'
+    · obtain ⟨p', r', hm', rfl, rfl⟩ := mem_unmarkPairs.mp hm
+      exact ihr p' r' hm'
+    · obtain ⟨s, hs, rfl⟩ := unmarkSpread_eq.mp he
+      exact ihd s hs
+  | @selectLit s₀ arms d _ _ _ ihp ihr ihd =>
+    refine .selectLit (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p', r', hm', rfl, rfl⟩ := mem_unmarkPairs.mp hm
+      exact ihp p' r' hm'
+    · obtain ⟨p', r', hm', rfl, rfl⟩ := mem_unmarkPairs.mp hm
+      exact ihr p' r' hm'
+    · obtain ⟨s, hs, rfl⟩ := unmarkSpread_eq.mp he
+      exact ihd s hs
   | _ => simp only [Val.unmark]; constructor <;> assumption
 
 theorem Decls.env_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {k : String} {b : Val}
