@@ -85,3 +85,5 @@ call	call	slot
 call	call	inject
 call	call	copyfiles
 call	call	listitems
+call	call	each
+hole	syntax	_

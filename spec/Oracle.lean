@@ -1741,7 +1741,8 @@ def forms : List (String × String × String) :=
     ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "project"),
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
     ("call", "call", "line"), ("call", "call", "fragment"), ("call", "call", "slot"),
-    ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems")]
+    ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems"),
+    ("call", "call", "each"), ("hole", "syntax", "_")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1771,7 +1772,7 @@ def formSamples : List (String × Val) :=
     ("content", .call (.cmp .content) [.string]), ("line", .call (.cmp .line) [.string]),
     ("fragment", .call (.cmp .fragment) [.string]), ("slot", .call (.cmp .slot) [.string]),
     ("inject", .call (.cmp .inject) [.string]), ("copyfiles", .call (.cmp .copyfiles) [.string]),
-    ("listitems", .call (.cmp .listitems) [.mapKind])]
+    ("listitems", .call (.cmp .listitems) [.mapKind]), ("each", .call .each [.listKind, .hole])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1856,6 +1857,12 @@ string as a line, nested lists spliced, a hand-written node as a
 child, and the props and children each component refuses, but no
 `close()` above a node, which both ports hold its props and children
 open against and the definition, holding no `open()`, leaves unsaid.
+`each` follows from row x1803: its template read for each member of its
+data, a list's in order and a map's in key order, the hole kept, met
+and left out, a nested `each` binding its own hole, and data that is no
+bag. No case holds a marked list element (decision 18), `key()` in a
+template, which both ports read as the member's key, or a hole outside
+a template, which both ports fill from the call's peer.
 `split` at a pattern follows in `patternCases`. -/
 
 def callCases : List (Val × Data) :=
@@ -2363,7 +2370,34 @@ def callCases : List (Val × Data) :=
     (c (.cmp .folder) [], jm []), (c (.cmp .content) [str "x", lst []], jm []),
     (c (.cmp .folder) [str "a", lst [], int 1], jm []),
     (c .upper [c (.cmp .folder) [str "src"]], js "SRC"),
-    (c (.cmp .folder) [c .join [lst [str "s", str "rc"], str ""]], node "Folder" [("name", js "src")] [])]
+    (c (.cmp .folder) [c .join [lst [str "s", str "rc"], str ""]], node "Folder" [("name", js "src")] []),
+    (c .each [lst [int 1, int 2], .hole], jl [j 1, j 2]), (c .each [lst [int 1, int 2], .hole], jl [j 1, j 3]),
+    (c .each [lst [int 1, int 2], .hole], jl [j 1, j 2, j 3]), (c .each [lst [int 1, int 2], .hole], jl [j 1]),
+    (c .each [mp [("b", int 2), ("a", int 1)], .hole], jl [j 1, j 2]),
+    (c .each [lst [str "x", str "y"], c .upper [.hole]], jl [js "X", js "Y"]),
+    (c .each [lst [int 1, int 2], mp [("v", .hole)]], jl [jm [("v", j 1)], jm [("v", j 2)]]),
+    (c .each [lst [mp [("p", int 1)]], .meet .hole (mp [("q", int 2)])], jl [jm [("p", j 1), ("q", j 2)]]),
+    (c .each [lst [mp [("p", int 1)]], mp [("q", int 2)]], jl [jm [("q", j 2)]]),
+    (c .each [lst [mp [("p", int 1)]], mp [("q", int 2)]], jl [jm [("p", j 1), ("q", j 2)]]),
+    (c .each [lst [int 1, int 2], int 7], jl [j 7, j 7]),
+    (c .each [lst [], .hole], jl []), (c .each [mp [], .hole], jl []),
+    (c .each [str "x", .hole], jl []), (c .each [int 1, .hole], jl []), (c .each [.listKind, .hole], jl []),
+    (c .each [.pref 1 (lst [int 1]), .hole], jl [j 1]),
+    (c .each [.map [("a", true, int 1), ("b", false, int 2)] none false, .hole], jl [j 1, j 2]),
+    (c .each [lst [lst [int 1, int 2], lst [int 3]], c .each [.hole, p .hole (int 1)]],
+      jl [jl [j 2, j 3], jl [j 4]]),
+    (c .each [lst [int 1, int 2], .meet .hole .string], jl [j 1, j 2]),
+    (c .each [lst [int 1, int 2], p .hole (int 1)], jl [j 2, j 3]),
+    (c .join [c .each [c .split [str "index-build", str "-"], c .upper [.hole]], str "_"], js "INDEX_BUILD"),
+    (c .each [.ride .metadata (lst [int 1]) [], .hole], jl [j 1]),
+    (c .each [lst [.ride .metadata (int 1) []], .hole], jl [j 1]),
+    (c .each [mp [("b", mp [("x", int 1)]), ("a", mp [("x", int 2)])], .meet .hole (mp [("y", int 3)])],
+      jl [jm [("x", j 2), ("y", j 3)], jm [("x", j 1), ("y", j 3)]]),
+    (c .each [lst [int 1], lst [.hole, .hole]], jl [jl [j 1, j 1]]),
+    (c .each [lst [.or [(1, int 1), (0, int 2)]], .hole], jl [j 1]),
+    (c .each [lst [int 1, int 2], .pref 1 .hole], jl [j 1, j 2]),
+    (c .each [lst [int 1], c .each [lst [int 2], .hole]], jl [jl [j 2]]),
+    (c .each [lst [int 1, int 2]], jl []), (c .each [lst [int 1, int 2], .hole, int 3], jl [])]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -2423,15 +2457,15 @@ def hostReads (v : Val) : Bool :=
 /-- A vet document whose one field is a call that reads to a term the
 checker can read reads to one itself. -/
 theorem readR_call_checkableA {t : Val}
-    (h : ∀ k, (resolveD [] (expandF [] k t)).CheckableA) :
+    (h : ∀ k, (resolveD [] none (expandF [] k t)).CheckableA) :
     (Decls.readR [] (.map [("v", false, t)] none false)).CheckableA := by
-  have hm : ∀ u, (resolveD [] u).CheckableA →
-      (resolveD [] (.map [("v", false, u)] none false)).CheckableA := by
+  have hm : ∀ u, (resolveD [] none u).CheckableA →
+      (resolveD [] none (.map [("v", false, u)] none false)).CheckableA := by
     intro u hu
     simp only [resolveD, resolveFields, resolveSpread]
     exact .map (fun k o w hw => by simp at hw; obtain ⟨-, -, rfl⟩ := hw; exact hu)
       (fun _ hs => by cases hs)
-  have : ∀ n, (resolveD [] (expandF [] n (.map [("v", false, t)] none false))).CheckableA := by
+  have : ∀ n, (resolveD [] none (expandF [] n (.map [("v", false, t)] none false))).CheckableA := by
     intro n
     cases n with
     | zero => simpa [expandF] using hm t (by simpa [expandF] using h 0)
@@ -2705,9 +2739,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# separator not yet settled. pick and sort, which never wait, follow from row"
     IO.println "# x597, upper and lower from row x816, translate from row x966, and esc and usc"
     IO.println "# from row x1068, super from row x1221, split from row x1332, rep from row"
-    IO.println "# x1404, nom from row x1521, and the components of the component tree from"
-    IO.println "# row x1677. A call on a name follows in rows z0 on, and a call handed a"
-    IO.println "# pattern, re(p), in rows v0 on."
+    IO.println "# x1404, nom from row x1521, the components of the component tree from row"
+    IO.println "# x1677, and the generator each, its template read for each member of its"
+    IO.println "# data, from row x1803. A call on a name follows in rows z0 on, and a call"
+    IO.println "# handed a pattern, re(p), in rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do

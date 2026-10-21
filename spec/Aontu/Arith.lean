@@ -30,13 +30,14 @@ def Cmp.name : Cmp → String
 /-- The functions on numbers, the folds on a bag of them, `+`, the calls
 on bags and text, `join`, `pick`, `sort`, `upper`, `lower`,
 `translate`, `esc`, `usc`, `split`, `rep` and `nom`, `super` written as
-a call, and the components. -/
+a call, the components, and the generator `each`. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
   | plus | join | pick | sort | upper | lower | translate | esc | usc | split | rep | nom
   | super
   | cmp (c : Cmp)
+  | each
   deriving DecidableEq, Repr
 
 /-- Whether a function folds the members of one bag. -/
