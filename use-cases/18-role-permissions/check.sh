@@ -305,8 +305,8 @@ has admin-colour set '$.services.auth.colour'
 propose dev-zero dev '$.deploy.us1.replicas.auth=0'
 gate dev-zero 0
 [ "$(cat "$WORK/dev-zero.setexit")" -eq 1 ] || fail "set accepted a replica count of 0"
-has dev-zero set '[aontu/constraint]'
-has dev-zero set 'expected: min(1)'
+has dev-zero set '[aontu/empty]'
+has dev-zero set '(*3)'
 grep -q 'colour' "$CASE/changes.aontu" && fail "the undeclared key reached the overlay" || true
 grep -q '"auth": 0' "$CASE/changes.aontu" && fail "the zero count reached the overlay" || true
 ok "a change the gate allows is still held to the model: closed keys and min(1) refuse"

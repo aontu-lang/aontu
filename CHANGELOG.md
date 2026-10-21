@@ -30,6 +30,10 @@ could lose to a default.
   `empty` now. Where a bound rules the stronger default out, the
   weaker stands in its place: `a: x: **1`, `a: x: min(1)`, `a: x: *0`
   generates `1`.
+- A bound a spread puts on a default stays in its gate, so a value
+  outside the bound refuses as `empty`, as the default met with the
+  bound directly always did, where it reported `constraint`. Use case
+  18's `dev-zero` check expects `[aontu/empty]` accordingly.
 - Two defaults of one rank no longer clash where a value already met
   rules one of them out: `*true`, `true`, `*false` generates `true`.
 - Two defaults whose types share nothing refuse as `empty` at any
