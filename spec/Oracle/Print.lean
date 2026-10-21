@@ -181,6 +181,7 @@ def Fn.name : Fn → String
   | .translate => "translate"
   | .esc => "esc"
   | .usc => "usc"
+  | .super => "super"
 
 mutual
 def Val.src : Val → Option String

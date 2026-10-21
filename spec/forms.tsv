@@ -71,3 +71,4 @@ call	call	lower
 call	call	translate
 call	call	esc
 call	call	usc
+call	call	super

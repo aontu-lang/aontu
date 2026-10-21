@@ -1737,7 +1737,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "greatest"), ("call", "syntax", "+"), ("call", "call", "join"),
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
-    ("call", "call", "usc")]
+    ("call", "call", "usc"), ("call", "call", "super")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1760,7 +1760,7 @@ def formSamples : List (String × Val) :=
     ("join", .call .join [.listKind]), ("pick", .call .pick [.listKind, .string]),
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
-    ("esc", .call .esc [.string]), ("usc", .call .usc [.string])]
+    ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1825,7 +1825,10 @@ from row x966: ranges, a `-` that stands for itself, a short `to` and an
 empty one, a character named twice, code points beyond ASCII, and a
 range across the surrogates, where the ports agree, and `esc` and `usc`
 from row x1068: each convention both ways, the text each `usc` has no
-original for, the variants and the arguments. -/
+original for, the variants and the arguments. `super` follows from row
+x1221: a scalar's kind, a kind's parent, a container of its members'
+parents, a preference read as its default at any depth, a meet that
+holds a kind, a disjunction, a seal, the riders. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2154,7 +2157,28 @@ def callCases : List (Val × Data) :=
     (c .esc [], js "a"), (c .usc [str "a", str "sq", str "x"], js "a"),
     (c .usc [c .esc [str "a'\n\"<&é😀", str "sq"], str "sq"], js "a'\n\"<&é😀"),
     (c .usc [c .esc [str "a b/é", str "uri"], str "uri"], js "a b/é"),
-    (c .esc [c .upper [str "a b"], str "uri"], js "A%20B")]
+    (c .esc [c .upper [str "a b"], str "uri"], js "A%20B"),
+    (c .super [int 1], j 5), (c .super [int 1], js "a"), (c .super [int 1], jf 15 10),
+    (c .super [mp [("a", int 1)]], jm [("a", j 7)]),
+    (c .super [mp [("a", int 1)]], jm [("a", j 2), ("b", j 3)]),
+    (c .super [.pref 1 (int 1)], j 5), (c .super [.pref 1 (int 1)], jf 15 10),
+    (c .super [str ""], js ""), (c .super [str ""], js "a"), (c .super [str "a"], js ""),
+    (c .super [.integer], jf 15 10), (c .super [.number], js "a"), (c .super [.lit .null], .null),
+    (c .super [.lit (.bool true)], .bool false), (c .super [lst [int 1, str "a"]], jl [j 2, js "b"]),
+    (c .super [.min (.num (.integer ⟨3, by decide⟩))], j 1),
+    (c .super [.or [(0, int 1), (0, str "a")]], j 5), (c .super [.or [(0, int 1), (0, str "a")]], js "b"),
+    (c .super [.or [(0, int 1), (0, str "a")]], .bool true),
+    (c .super [.meet .integer (.min (.num (.integer ⟨3, by decide⟩)))], j 1),
+    (c .super [.meet .integer (.min (.num (.integer ⟨3, by decide⟩)))], jf 15 10),
+    (c .super [.or [(1, int 1), (0, flt 25 10)]], jf 15 10), (c .super [.pref 1 (str "a")], js ""),
+    (c .super [mp [("a", .pref 1 (int 1))]], jm [("a", j 2)]),
+    (c .super [mp [("a", .pref 1 (int 1))]], jm [("a", jf 15 10)]),
+    (c .super [.string], j 1), (c .super [lst [int 1]], jl [j 2, j 3]),
+    (c .super [.map [("a", false, int 1)] none true], jm [("a", j 2), ("b", j 3)]),
+    (c .super [.ride .hide (int 1) []], j 2), (c .super [.ride .metadata (int 1) []], j 2),
+    (c .super [c .super [int 1]], jf 15 10), (c .super [c .add [int 1, int 2]], j 7),
+    (c .super [.any], j 1), (c .super [dec 15 1], jdec 25 1), (c .super [flt 15 10], j 2),
+    (c .super [], j 1), (c .super [int 1, int 2], j 1)]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -2406,7 +2430,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# document is incomplete, and join from row x507, which waits on a member or a"
     IO.println "# separator not yet settled. pick and sort, which never wait, follow from row"
     IO.println "# x597, upper and lower from row x816, translate from row x966, and esc and usc"
-    IO.println "# from row x1068. A call on a name follows in rows z0 on."
+    IO.println "# from row x1068, and super from row x1221. A call on a name follows in rows z0"
+    IO.println "# on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
