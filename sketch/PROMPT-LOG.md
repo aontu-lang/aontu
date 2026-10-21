@@ -236,6 +236,18 @@ I read "add the agent guides and DEV-PROCESS.md" as: say in AGENTS.md and DEV-PR
 → Yes, as done
 ```
 
+## 2026-10-20 18:11:37 UTC · Claude Code · session_016yMzMBxz57NmgRx74LKLFg
+
+```text
+We do NOT use npm script hooks ever, they are a security risk
+```
+
+## 2026-10-20 19:01:12 UTC · Claude Code · session_016yMzMBxz57NmgRx74LKLFg
+
+```text
+Merge as needed
+```
+
 ## 2026-10-21 11:32:14 UTC · Claude Code · session_016yMzMBxz57NmgRx74LKLFg
 
 ```text
