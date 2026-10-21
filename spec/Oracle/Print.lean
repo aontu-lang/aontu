@@ -183,6 +183,7 @@ def Fn.name : Fn → String
   | .usc => "usc"
   | .super => "super"
   | .split => "split"
+  | .rep => "rep"
 
 mutual
 def Val.src : Val → Option String

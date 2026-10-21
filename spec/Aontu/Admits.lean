@@ -1,4 +1,5 @@
 import Aontu.Syntax
+import Aontu.Text
 
 /-!
 # What a value admits, and what it refuses
@@ -32,31 +33,68 @@ namespace Aontu
 
 /-- What the definition leaves to the engines: which strings a pattern
 matches, and which strings a format, a name or a grammar, reads to its
-end, each a predicate on two strings; the fields a pattern's matches
-cut a string into; and how a string changes case, Unicode's default
-case conversion at the version of each engine's tables. Nothing here
-says what any of them holds of, so a theorem about `re`, `format`,
-`split`, `upper` or `lower` holds whatever they are. -/
+end, each a predicate on two strings; which patterns lie in the subset
+that `rep` and `split` hand to the host's own regex engine, a subset
+the reference states on a pattern's syntax, which the definition does
+not hold, and where such a pattern's leftmost match at or after a code
+point of a text falls; and how a string changes case, Unicode's
+default case conversion at the version of each engine's tables.
+Nothing here says what any of them holds of, so a theorem about `re`,
+`format`, `rep`, `split`, `upper` or `lower` holds whatever they are. -/
 structure Host where
   pattern : String → String → Prop
   format : String → String → Prop
-  split : String → String → List String
+  portable : String → Bool
+  find : String → String → ℕ → Option Match
   upper : String → String
   lower : String → String
 
-instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True, fun _ s => [s], id, id⟩⟩
+instance : Inhabited Host :=
+  ⟨⟨fun _ _ => True, fun _ _ => True, fun _ => false, fun _ _ _ => none, id, id⟩⟩
+
+/-- Whether a pattern reads a character as itself alone. -/
+def plainChar (c : Char) : Bool := !"\\^$.|?*+()[]{}".contains c
+
+/-- A pattern read as fixed text: runs of characters it reads as
+themselves, each with whether a group captures it, the groups neither
+nested nor empty; `none` for any other pattern. -/
+def fixedPieces (p : String) : Option (List (Bool × List Char)) :=
+  let step : Option (List (Bool × List Char) × Option (List Char)) → Char →
+      Option (List (Bool × List Char) × Option (List Char))
+    | some (acc, none), '(' => some (acc, some [])
+    | some (acc, none), c => if plainChar c then some (acc ++ [(false, [c])], none) else none
+    | some (acc, some g), ')' => if g = [] then none else some (acc ++ [(true, g)], none)
+    | some (acc, some g), c => if plainChar c then some (acc, some (g ++ [c])) else none
+    | none, _ => none
+  match p.toList.foldl step (some ([], none)) with
+  | some (acc, none) => some acc
+  | _ => none
+
+/-- The leftmost match of a fixed pattern at or after a code point of a
+text, each group capturing its own run; none for any other pattern. -/
+def fixedFind (p t : String) (i : ℕ) : Option Match :=
+  (fixedPieces p).bind fun ps =>
+    let lit := ps.flatMap (·.2)
+    let ts := t.toList
+    (List.range (ts.length + 1 - i)).findSome? fun k =>
+      if lit.isPrefixOf (ts.drop (i + k)) then
+        some ⟨i + k, i + k + lit.length,
+          (ps.filter (·.1)).map fun g => some (String.mk g.2)⟩
+      else none
 
 /-- The host the oracle computes with, whose case conversion changes the
-ASCII letters only, as every engine's does on a string of them: a row
-reads no other letter, and splits at no pattern. -/
+ASCII letters only, as every engine's does on a string of them, and
+whose regex engine reads fixed patterns alone, as every engine reads
+them: a row reads no other letter and no other pattern but one outside
+the subset. -/
 def oracleHost : Host :=
-  ⟨fun _ _ => True, fun _ _ => True, fun _ s => [s], String.map Char.toUpper,
-    String.map Char.toLower⟩
+  ⟨fun _ _ => True, fun _ _ => True, fun p => (fixedPieces p).isSome, fixedFind,
+    String.map Char.toUpper, String.map Char.toLower⟩
 
-/-- The predicates behind `re` and `format`, the fields behind `split`
-at a pattern, and the case conversion behind `upper` and `lower`: a
-constant no proof can unfold, so no theorem rests on what they are,
-and which the oracle runs as `oracleHost`. -/
+/-- The predicates behind `re` and `format`, the subset and the matches
+behind `rep` and `split` at a pattern, and the case conversion behind
+`upper` and `lower`: a constant no proof can unfold, so no theorem
+rests on what they are, and which the oracle runs as `oracleHost`. -/
 @[implemented_by oracleHost]
 opaque host : Host
 

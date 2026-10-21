@@ -8,6 +8,11 @@ string's code points. A convention is a function from text to text and
 a partial inverse, which refuses text no text escapes to: a lone quote
 where the convention doubles it, an escape it does not define, a code
 point a surrogate pair or a byte sequence does not spell.
+
+And what `rep` and `split` make of a pattern's matches. Where a match
+falls is the host's regex engine's to say; which matches a scan of the
+text reads, the fields they cut it into, and what a replacement writes
+for each are aontu's, read as Go's regexp reads them.
 -/
 
 namespace Aontu
@@ -270,5 +275,66 @@ def Escape.usc : Escape → List Char → Option (List Char)
   | .xml => uscXml
   | .uri => uscUri
   | .regex => uscRegex
+
+/-! ## Matches -/
+
+/-- Where a pattern matches a text: the code point the match starts at
+and the one it stops before, and what each of the pattern's groups
+captured, `none` where a group took no part. -/
+structure Match where
+  start : ℕ
+  stop : ℕ
+  groups : List (Option String)
+
+/-- Every match a scan of a text reads, from the left, given the
+leftmost match at or after each position: a scan resumes where the
+last match stopped, one code point on after an empty match, and an
+empty match that starts where the last match stopped counts for
+nothing. The fuel bounds a scan whose matches do not move it on. -/
+def scanMatches (find : ℕ → Option Match) (len : ℕ) : ℕ → ℕ → Option ℕ → List Match
+  | 0, _, _ => []
+  | fuel + 1, pos, last =>
+    if len < pos then [] else
+    match find pos with
+    | none => []
+    | some m =>
+      let empty := m.stop == pos
+      let rest := scanMatches find len fuel (if empty then pos + 1 else m.stop) (some m.stop)
+      if empty && last == some m.start then rest else m :: rest
+
+/-- The fields matches cut a text into, from code point `beg` on: the
+text before each match, but none before an empty match at the very
+start, and the text after the last match, but none where the last
+match starts at the end, `last` being where the last match started. -/
+def cutFields (cs : List Char) : ℕ → ℕ → List Match → List (List Char)
+  | beg, last, [] => if last = cs.length then [] else [cs.drop beg]
+  | beg, _, m :: ms =>
+    let rest := cutFields cs m.stop m.start ms
+    if m.stop = 0 then rest else (cs.drop beg).take (m.start - beg) :: rest
+
+/-- What a replacement writes for one match: `$1` to `$9` what that
+group captured, nothing where it took no part, `$&` the whole match,
+`$$` a `$`, and any other character itself; `none` where a `$` names
+none of these, or a group the pattern has not got. -/
+def expandSub (whole : List Char) (gs : List (Option String)) : List Char → Option (List Char)
+  | [] => some []
+  | '$' :: '$' :: rest => ('$' :: ·) <$> expandSub whole gs rest
+  | '$' :: '&' :: rest => (whole ++ ·) <$> expandSub whole gs rest
+  | '$' :: d :: rest =>
+    if '1' ≤ d ∧ d ≤ '9' ∧ d.toNat - 48 ≤ gs.length then
+      (((gs.getD (d.toNat - 49) none).getD "").toList ++ ·) <$> expandSub whole gs rest
+    else none
+  | ['$'] => none
+  | c :: rest => (c :: ·) <$> expandSub whole gs rest
+
+/-- The text a replacement makes of matches, from code point `pos` on:
+the text before each match kept, and the match replaced by what the
+replacement writes for it; `none` where it writes nothing for one. -/
+def replaceMatches (cs sub : List Char) : ℕ → List Match → Option (List Char)
+  | pos, [] => some (cs.drop pos)
+  | pos, m :: ms => do
+    let piece ← expandSub ((cs.drop m.start).take (m.stop - m.start)) m.groups sub
+    let rest ← replaceMatches cs sub m.stop ms
+    pure ((cs.drop pos).take (m.start - pos) ++ piece ++ rest)
 
 end Aontu
