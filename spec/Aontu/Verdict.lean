@@ -784,12 +784,11 @@ def resolveD (ds : Decls) (b : Option Val) : Val → Val
     | none => .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b s
-    let c' := resolveD ds none c
     match genD ds s' with
-    | some (.map fs) => (Data.map (fs.filter fun m => checkR ds c' m.2)).term
-    | some (.list xs) => (Data.list (xs.filter fun x => checkR ds c' x)).term
+    | some (.map fs) => (Data.map (fs.filter fun m => checkR ds (resolveD ds (some m.2.term) c) m.2)).term
+    | some (.list xs) => (Data.list (xs.filter fun x => checkR ds (resolveD ds (some x.term) c) x)).term
     | some _ => .nil
-    | none => .filter s' c'
+    | none => .filter s' (resolveD ds none c)
   | .call f args =>
     match f, args with
     | .each, [d, t] =>
@@ -1565,10 +1564,11 @@ none the selection is `nil`: an error, not an empty answer. -/
 theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm ds x [] d = d.getD .nil := rfl
 
 /-- A `filter` over a list keeps the elements its condition admits, in
-their order. -/
+their order, the condition read for each element it tries. -/
 theorem resolveD_filter_list {ds : Decls} {b : Option Val} {s c : Val} {xs : List Data}
     (h : genD ds (resolveD ds b s) = some (.list xs)) :
-    resolveD ds b (.filter s c) = (Data.list (xs.filter fun x => checkR ds (resolveD ds none c) x)).term := by
+    resolveD ds b (.filter s c) =
+      (Data.list (xs.filter fun x => checkR ds (resolveD ds (some x.term) c) x)).term := by
   simp [resolveD, h]
 
 /-- A `filter` over a scalar, which has no members, is `nil`: an error. -/
@@ -2180,6 +2180,40 @@ theorem termElems_checkableA : ∀ xs : List Data, ∀ v, v ∈ termElems xs →
     · exact Data.term_checkableA x
     · exact termElems_checkableA xs v h
 end
+
+mutual
+/-- A term made of data expands to itself: it names nothing. -/
+theorem expandF_term {ds : Decls} : ∀ (k : ℕ) (j : Data), expandF ds k j.term = j.term
+  | 0, _ => rfl
+  | _ + 1, .num _ | _ + 1, .str _ | _ + 1, .bool _ | _ + 1, .null => rfl
+  | k + 1, .map fs => by
+    simp only [Data.term, expandF, Option.map, expandF_termMembers k fs]
+  | k + 1, .list xs => by
+    simp only [Data.term, expandF, Option.map, expandF_termElems k xs]
+
+theorem expandF_termMembers {ds : Decls} (k : ℕ) : ∀ fs : List (String × Data),
+    (termMembers fs).map (fun f => (f.1, f.2.1, expandF ds k f.2.2)) = termMembers fs
+  | [] => rfl
+  | (_, x) :: fs => by
+    simp only [termMembers, List.map_cons, expandF_term k x, expandF_termMembers k fs]
+
+theorem expandF_termElems {ds : Decls} (k : ℕ) : ∀ xs : List Data,
+    (termElems xs).map (expandF ds k) = termElems xs
+  | [] => rfl
+  | x :: xs => by
+    simp only [termElems, List.map_cons, expandF_term k x, expandF_termElems k xs]
+end
+
+/-- A `filter` whose source generates a value reads to a term the
+checker can read, whatever its condition holds: the members it admits,
+or `nil`. -/
+theorem resolveD_filter_checkableA {ds : Decls} {b : Option Val} {s c : Val}
+    (h : (genD ds (resolveD ds b s)).isSome) : (resolveD ds b (.filter s c)).CheckableA := by
+  obtain ⟨x, hx⟩ := Option.isSome_iff_exists.mp h
+  rw [resolveD.eq_def]
+  dsimp only
+  rw [hx]
+  cases x <;> first | exact Data.term_checkableA _ | exact .nil
 
 /-! ## One verdict, and the computed one -/
 

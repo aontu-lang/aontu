@@ -1862,8 +1862,9 @@ data, a list's in order and a map's in key order, the hole kept, met
 and left out, a nested `each` binding its own hole, and data that is no
 bag. No case holds a marked list element (decision 18), `key()` in a
 template, which both ports read as the member's key, or a hole outside
-a template, which both ports fill from the call's peer.
-`split` at a pattern follows in `patternCases`. -/
+a template, which both ports fill from the call's peer. A `filter`
+whose condition holds the hole follows in `filterCases`, and `split`
+at a pattern in `patternCases`. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2503,6 +2504,65 @@ theorem pattern_verdict_exact : ∀ c ∈ patternCases, ∀ (m : Mode) (v : Verd
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil)) (patternCases_readable c hc) v
 
+/-- A `filter` whose condition holds the hole, its condition read for
+each member it tries: over a list and a map, a call on the member, a
+meet with it and a disjunction beside it, the hole alone, and a member
+the call does not take. Each source is data, so it generates, and each
+`filter` reads to the members it admits, which the checker can read
+whatever host converts the case. -/
+def filterSources : List (Data × Val × Data) :=
+  let s (t : String) : Data := .str t
+  let n (i : ℤ) (h : IntegerLeaf i := by decide) : Data := .integer i h
+  let up : Val := .call .upper [.hole]
+  let twice : Val := .call .mul [.hole, .lit (.num (.integer ⟨2, by decide⟩))]
+  [(.list [s "A", s "b"], up, .list [s "A"]), (.list [s "A", s "b"], up, .list []),
+    (.list [s "A", s "b"], .meet .hole up, .list [s "A"]),
+    (.map [("a", s "A"), ("b", s "b")], up, .map [("a", s "A")]),
+    (.list [s "a", s "B"], .call .lower [.hole], .list [s "a"]),
+    (.list [s "A", s "b"], .or [(0, up), (0, .lit (.str "b"))], .list [s "A", s "b"]),
+    (.list [n 1, n 2], .hole, .list [n 1, n 2]),
+    (.list [.map [("n", s "A")], .map [("n", s "b")]], .map [("n", false, up)] none false, .list []),
+    (.list [n 0, n 1, n 2], twice, .list [n 0]), (.map [("a", n 0), ("b", n 1)], twice, .map [("a", n 0)])]
+
+def filterCases : List (Val × Data) := filterSources.map fun (j, t, d) => (.filter j.term t, d)
+
+theorem filterSources_generate : ∀ x ∈ filterSources, (genD [] (resolveD [] none x.1.term)).isSome := by
+  decide
+
+theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
+  intro c hc
+  obtain ⟨⟨j, t, d⟩, hm, rfl⟩ := List.mem_map.mp hc
+  have hj := filterSources_generate _ hm
+  refine readR_call_checkableA fun k => ?_
+  cases k with
+  | zero => exact resolveD_filter_checkableA hj
+  | succ k =>
+    simp only [expandF, expandF_term]
+    exact resolveD_filter_checkableA hj
+
+/-- A `filter` in an `each` template binds its own hole, and its source
+reads the template's member. The condition is arithmetic, so the reading
+is decided whole. -/
+def filterEachCases : List (Val × Data) :=
+  let int (i : ℤ) (h : IntegerLeaf i := by decide) : Val := .lit (.num (.integer ⟨i, h⟩))
+  let j (i : ℤ) (h : IntegerLeaf i := by decide) : Data := .integer i h
+  let lst (xs : List Val) : Val := .list xs none false
+  [(.call .each [lst [lst [int 0, int 1], lst [int 2]], .filter .hole (.call .mul [.hole, int 2])],
+      .list [.list [j 0], .list []])]
+
+set_option maxRecDepth 8192 in
+theorem filterEachCases_readable : ∀ c ∈ filterEachCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
+  decide
+
+theorem filter_verdict_exact : ∀ c ∈ filterCases ++ filterEachCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v := by
+  intro c hc _ v
+  have hr : (Decls.readR [] (vetDoc c).1).CheckableA := by
+    rcases List.mem_append.mp hc with h | h
+    · exact filterCases_readable c h
+    · exact filterEachCases_readable c h
+  exact vet_iff (fun _ h => absurd h (List.not_mem_nil)) hr v
+
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2740,11 +2800,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# x597, upper and lower from row x816, translate from row x966, and esc and usc"
     IO.println "# from row x1068, super from row x1221, split from row x1332, rep from row"
     IO.println "# x1404, nom from row x1521, the components of the component tree from row"
-    IO.println "# x1677, and the generator each, its template read for each member of its"
-    IO.println "# data, from row x1803. A call on a name follows in rows z0 on, and a call"
-    IO.println "# handed a pattern, re(p), in rows v0 on."
+    IO.println "# x1677, the generator each, its template read for each member of its data,"
+    IO.println "# from row x1803, and a filter whose condition holds the hole, read for each"
+    IO.println "# member it tries, from row x1902. A call on a name follows in rows z0 on,"
+    IO.println "# and a call handed a pattern, re(p), in rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
-    for (v, j) in callCases do
+    for (v, j) in callCases ++ filterCases ++ filterEachCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -2755,7 +2816,7 @@ def main (args : List String) : IO UInt32 := do
     for (v, _) in patternCases do
       unless hostReads v do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
-    verdictRows "x" callCases
+    verdictRows "x" (callCases ++ filterCases ++ filterEachCases)
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     return 0

@@ -14,9 +14,10 @@
 # x597, upper and lower from row x816, translate from row x966, and esc and usc
 # from row x1068, super from row x1221, split from row x1332, rep from row
 # x1404, nom from row x1521, the components of the component tree from row
-# x1677, and the generator each, its template read for each member of its
-# data, from row x1803. A call on a name follows in rows z0 on, and a call
-# handed a pattern, re(p), in rows v0 on.
+# x1677, the generator each, its template read for each member of its data,
+# from row x1803, and a filter whose condition holds the hole, read for each
+# member it tries, from row x1902. A call on a name follows in rows z0 on,
+# and a call handed a pattern, re(p), in rows v0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -1920,6 +1921,39 @@ x1898	verdict	v: each([1, 2])	v: []	{"verdict":"error","opts":{"partial":true}}
 x1899	verdict	v: each([1, 2], _, 3)	v: []	{"verdict":"error"}
 x1900	verdict	v: each([1, 2], _, 3)	v: []	{"verdict":"error","opts":{"noFill":true}}
 x1901	verdict	v: each([1, 2], _, 3)	v: []	{"verdict":"error","opts":{"partial":true}}
+x1902	verdict	v: filter(["A", "b"], upper(_))	v: ["A"]	{"verdict":"valid"}
+x1903	verdict	v: filter(["A", "b"], upper(_))	v: ["A"]	{"verdict":"valid","opts":{"noFill":true}}
+x1904	verdict	v: filter(["A", "b"], upper(_))	v: ["A"]	{"verdict":"valid","opts":{"partial":true}}
+x1905	verdict	v: filter(["A", "b"], upper(_))	v: []	{"verdict":"valid"}
+x1906	verdict	v: filter(["A", "b"], upper(_))	v: []	{"verdict":"incomplete","opts":{"noFill":true}}
+x1907	verdict	v: filter(["A", "b"], upper(_))	v: []	{"verdict":"valid","opts":{"partial":true}}
+x1908	verdict	v: filter(["A", "b"], (_) & (upper(_)))	v: ["A"]	{"verdict":"valid"}
+x1909	verdict	v: filter(["A", "b"], (_) & (upper(_)))	v: ["A"]	{"verdict":"valid","opts":{"noFill":true}}
+x1910	verdict	v: filter(["A", "b"], (_) & (upper(_)))	v: ["A"]	{"verdict":"valid","opts":{"partial":true}}
+x1911	verdict	v: filter({"a": "A", "b": "b"}, upper(_))	v: {"a": "A"}	{"verdict":"valid"}
+x1912	verdict	v: filter({"a": "A", "b": "b"}, upper(_))	v: {"a": "A"}	{"verdict":"valid","opts":{"noFill":true}}
+x1913	verdict	v: filter({"a": "A", "b": "b"}, upper(_))	v: {"a": "A"}	{"verdict":"valid","opts":{"partial":true}}
+x1914	verdict	v: filter(["a", "B"], lower(_))	v: ["a"]	{"verdict":"valid"}
+x1915	verdict	v: filter(["a", "B"], lower(_))	v: ["a"]	{"verdict":"valid","opts":{"noFill":true}}
+x1916	verdict	v: filter(["a", "B"], lower(_))	v: ["a"]	{"verdict":"valid","opts":{"partial":true}}
+x1917	verdict	v: filter(["A", "b"], (upper(_)) | ("b"))	v: ["A", "b"]	{"verdict":"valid"}
+x1918	verdict	v: filter(["A", "b"], (upper(_)) | ("b"))	v: ["A", "b"]	{"verdict":"valid","opts":{"noFill":true}}
+x1919	verdict	v: filter(["A", "b"], (upper(_)) | ("b"))	v: ["A", "b"]	{"verdict":"valid","opts":{"partial":true}}
+x1920	verdict	v: filter([1, 2], _)	v: [1, 2]	{"verdict":"valid"}
+x1921	verdict	v: filter([1, 2], _)	v: [1, 2]	{"verdict":"valid","opts":{"noFill":true}}
+x1922	verdict	v: filter([1, 2], _)	v: [1, 2]	{"verdict":"valid","opts":{"partial":true}}
+x1923	verdict	v: filter([{"n": "A"}, {"n": "b"}], {"n": upper(_)})	v: []	{"verdict":"valid"}
+x1924	verdict	v: filter([{"n": "A"}, {"n": "b"}], {"n": upper(_)})	v: []	{"verdict":"valid","opts":{"noFill":true}}
+x1925	verdict	v: filter([{"n": "A"}, {"n": "b"}], {"n": upper(_)})	v: []	{"verdict":"valid","opts":{"partial":true}}
+x1926	verdict	v: filter([0, 1, 2], mul(_, 2))	v: [0]	{"verdict":"valid"}
+x1927	verdict	v: filter([0, 1, 2], mul(_, 2))	v: [0]	{"verdict":"valid","opts":{"noFill":true}}
+x1928	verdict	v: filter([0, 1, 2], mul(_, 2))	v: [0]	{"verdict":"valid","opts":{"partial":true}}
+x1929	verdict	v: filter({"a": 0, "b": 1}, mul(_, 2))	v: {"a": 0}	{"verdict":"valid"}
+x1930	verdict	v: filter({"a": 0, "b": 1}, mul(_, 2))	v: {"a": 0}	{"verdict":"valid","opts":{"noFill":true}}
+x1931	verdict	v: filter({"a": 0, "b": 1}, mul(_, 2))	v: {"a": 0}	{"verdict":"valid","opts":{"partial":true}}
+x1932	verdict	v: each([[0, 1], [2]], filter(_, mul(_, 2)))	v: [[0], []]	{"verdict":"valid"}
+x1933	verdict	v: each([[0, 1], [2]], filter(_, mul(_, 2)))	v: [[0], []]	{"verdict":"valid","opts":{"noFill":true}}
+x1934	verdict	v: each([[0, 1], [2]], filter(_, mul(_, 2)))	v: [[0], []]	{"verdict":"valid","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}

@@ -235,3 +235,34 @@ Three comment lines in .github/workflows/ (daily.yml, docs.yml, spec.yml) still 
 I read "add the agent guides and DEV-PROCESS.md" as: say in AGENTS.md and DEV-PROCESS.md, as well as sketch/README.md, that every file in sketch/ is to be ignored, and point sketch/README.md back at both. That is what #400 did. Is that what you meant?
 → Yes, as done
 ```
+
+## 2026-10-21 19:34:11 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+Status of the lean spec?
+What is the Status of the lean spec? Just report, do no other work
+```
+
+## 2026-10-21 21:10:20 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+Ask me
+```
+
+## 2026-10-21 21:17:39 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Codex found that #455 reads a filter's condition with no member bound, so filter(["A", "b"], upper(_)) is [] in the definition but ["A"] in both ports. What should I do with #455 and web #96?
+→ Fix, then merge both (Recommended)
+
+Once the PRs are settled, what should I work on next?
+→ Accepted decisions first (Recommended)
+
+Which of the design note's recommendations for the open decisions do you accept? Each one you accept becomes a ruling, built in the definition and in whichever ports change, with its rows.
+→ 19: drop empty optional containers, 20: check replacements up front
+
+Four TS/Go divergences are open, and in each the definition follows the port left unchanged. Which port fixes should I make, each in its own PR with the rows it unlocks?
+→ #435: TS evaluates projectors, #437: TS decimal string index, #442: TS writes U+FFFD, #454: Go keeps the rider
+```

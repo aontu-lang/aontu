@@ -5006,12 +5006,11 @@ def resolveD (ds : Decls) (b : Option Val) : Val → Val
     | none => .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b s
-    let c' := resolveD ds none c
     match genD ds s' with
-    | some (.map fs) => (Data.map (fs.filter fun m => checkR ds c' m.2)).term
-    | some (.list xs) => (Data.list (xs.filter fun x => checkR ds c' x)).term
+    | some (.map fs) => (Data.map (fs.filter fun m => checkR ds (resolveD ds (some m.2.term) c) m.2)).term
+    | some (.list xs) => (Data.list (xs.filter fun x => checkR ds (resolveD ds (some x.term) c) x)).term
     | some _ => .nil
-    | none => .filter s' c'
+    | none => .filter s' (resolveD ds none c)
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
@@ -5041,10 +5040,11 @@ theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm d
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- A `filter` over a list keeps the elements its condition admits, in
-their order. -/
+their order, the condition read for each element it tries. -/
 theorem resolveD_filter_list {ds : Decls} {b : Option Val} {s c : Val} {xs : List Data}
     (h : genD ds (resolveD ds b s) = some (.list xs)) :
-    resolveD ds b (.filter s c) = (Data.list (xs.filter fun x => checkR ds (resolveD ds none c) x)).term := by
+    resolveD ds b (.filter s c) =
+      (Data.list (xs.filter fun x => checkR ds (resolveD ds (some x.term) c) x)).term := by
   simp [resolveD, h]
 ```
 
@@ -6529,6 +6529,7 @@ names: each(["web" "auth"], upper(_))
 files: each(["web" "auth"], { path:_ + ".ts" })
 ports: each([port:80], _ & { tcp:true })
 values: each({ b:2 a:1 }, _)
+loud: filter(["WEB" "auth"], upper(_))
 ```
 
 and evaluate it:
@@ -6544,6 +6545,9 @@ $ aontu each.aontu
     {
       "path": "auth.ts"
     }
+  ],
+  "loud": [
+    "WEB"
   ],
   "names": [
     "WEB",
@@ -6577,8 +6581,9 @@ So the template replaces the member, unless the template names the
 hole: `files` builds new maps, and `ports` meets each member with
 `{ tcp:true }`. A map's members come in key order, as `values`
 shows. A nested `each` binds its own hole, and an `each` over a string
-or a number is an error. A spread has no hole, and a `filter`'s condition reads none
-either.
+or a number is an error. A spread has no hole. A `filter` binds its
+own: it reads its condition once for each member it tries, so `loud`
+keeps `"WEB"`, which `upper(_)` doesn't change.
 
 Outside a template, a hole no generator fills admits every value, as
 `any` does. Both engines also let a call's peer fill a hole in the
