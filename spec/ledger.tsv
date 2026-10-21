@@ -2,7 +2,7 @@
 # generated row (test/spec/def-fragment.tsv and the fragments beside it) the
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, and the cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 115.
+# A listed case that comes to agree fails the run. Bounded at 124.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -119,3 +119,12 @@ u235	%A = {"b"?: %A}\nv: %A ⊒ %A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"b": 5}
 q21	"a": meta({"x": $.a.y, "y": 1}, {})	{"a": {"x": 1, "y": 1}}	valid	incomplete	ports	decision 14 (section 7): a rider changes nothing its value admits or generates, so a path reads through it as through nothing; a path inside a rider's value to a member beside it leaves both ports' meet unresolved, mapval_no_gen, where the same map without the rider is valid (#416)
 q22	"a": meta({"x": $.a.y, "y": 1}, {})	{"a": {"x": 1, "y": 1}}	valid	incomplete	ports	decision 14 (section 7): a rider changes nothing its value admits or generates, so a path reads through it as through nothing; a path inside a rider's value to a member beside it leaves both ports' meet unresolved, mapval_no_gen, where the same map without the rider is valid (#416)
 f269	[number] ⊒ [*(1) | (number)]	[1]	does_not_subsume	subsumes	ports	#424: under defaults the ports compare the effective default at a map member and not at a list position, so the default the specific side declares at position 0 goes unseen
+x105	-(integer)	1	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x106	-(integer)	1	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x107	-(integer)	1	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x123	add(1)	1	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x124	add(1)	1	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x125	add(1)	1	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x126	add(1, 2, 3)	6	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x127	add(1, 2, 3)	6	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
+x128	add(1, 2, 3)	6	error	invalid	ports	#426: a call no reading makes is ill-formed (P8), so vet reads its schema as an error; the ports read a call the schema cannot build, the wrong number of arguments or a non-number negated, as invalid
