@@ -52,3 +52,13 @@ ride	call	ident
 ride	call	type
 ride	call	hide
 key	call	key
+call	call	add
+call	call	sub
+call	call	mul
+call	call	div
+call	call	mod
+call	call	rem
+call	syntax	-
+call	call	sum
+call	call	least
+call	call	greatest

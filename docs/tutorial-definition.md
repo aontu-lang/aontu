@@ -5736,11 +5736,12 @@ def callValue (ds : Decls) (f : Fn) (args : List Val) : Option Number :=
   else (args.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f)
 ```
 
-So `add(1 & integer, 1)`, `add(meta(3, {}), 1)` and a name that holds a
-number all make their calls. A kind, a string or a disjunction, even one
-with a default, leaves the call unmade, and so does the wrong number of
-arguments. A call left unmade is ill-formed, so `vet` reads its document
-as an error.
+So `add(1 & integer, 1)`, `add(meta(3, {}), 1)`, `add(*3, 1)` and a
+name that holds a number all make their calls: `Val.number?` reads a
+lone preference by its normal form, `*3 | integer`. A kind, a string or
+any other disjunction, even one with a default, leaves the call unmade,
+and so does the wrong number of arguments. A call left unmade is
+ill-formed, so `vet` reads its document as an error.
 
 The folds `sum`, `least` and `greatest` take one bag, a list or a map,
 and read its members, the first branch of `callValue`. Write

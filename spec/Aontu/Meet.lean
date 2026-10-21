@@ -1878,6 +1878,7 @@ def Val.beq : Val → Val → Bool
   | .filter s c, .filter s' c' => s.beq s' && c.beq c'
   | .ride k v r, .ride k' v' r' => decide (k = k') && v.beq v' && decide (r = r')
   | .key, .key => true
+  | .call f args, .call g bs => decide (f = g) && beqItems args bs
   | _, _ => false
 termination_by structural a _ => a
 

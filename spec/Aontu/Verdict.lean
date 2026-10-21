@@ -80,10 +80,12 @@ def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
   | [], d => d.getD .nil
   | (p, r) :: arms, d => if checkR ds p x then r else selectArm ds x arms d
 
-/-- The number a term is, the riders around it read through. -/
+/-- The number a term is, the riders around it read through, and a lone
+preference `*n` too, whose normal form is `*n | super(n)`. -/
 def Val.number? : Val → Option Number
   | .lit (.num n) => some n
   | .ride _ v _ => v.number?
+  | .or [(r, .lit (.num n)), (0, s)] => if 0 < r && s.beq (Val.lit (.num n)).super then some n else none
   | _ => none
 
 /-- The members a fold reads in a bag's normal form, the riders around
@@ -654,6 +656,7 @@ def Val.idents : Val → Bool
   | .rest t cs => t.idents || identsCovers cs
   | .select s arms d => s.idents || identsPairs arms || identsSpread d
   | .filter s c => s.idents || c.idents
+  | .call _ args => identsItems args
   | _ => false
 
 def identsPairs : List (Val × Val) → Bool

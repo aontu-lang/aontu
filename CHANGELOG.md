@@ -26,7 +26,13 @@ and documentation; no engine changes.
   `Number.least_lowest`, `Number.greatest_mem` and
   `Number.greatest_highest` hold that the two answer a member and that
   none lies beyond it.
-- `test/spec/def-call.tsv` gains 48 calls, rows x129 on, and two calls
+- `Val.number?` reads a lone preference as its value, by its normal
+  form `*n | super(n)`, so `add(*1, 2)` is `3` and `sum([1, *2])` is
+  `3`, as both ports answer, and `Val.idents` reads a call's arguments,
+  so `add(ident(1, {id: "x"}), 2)` is an `error`. `spec/forms.tsv` gains
+  the calls' spellings, `Val.beq` compares two calls and the printer
+  reads a call's arguments for an open container.
+- `test/spec/def-call.tsv` gains 57 calls, rows x129 on, and two calls
   on a name. Both ports answer every row as the definition does but
   three, a fold with the wrong number of arguments, which both read as
   `invalid` (#426). `spec/ledger.tsv` lists them, and its bound rises

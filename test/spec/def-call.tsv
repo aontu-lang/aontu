@@ -283,6 +283,33 @@ x269	verdict	v: add(sum([1, 2]), 1)	v: 4	{"verdict":"valid","opts":{"partial":tr
 x270	verdict	v: sum([1], [2])	v: 1	{"verdict":"error"}
 x271	verdict	v: sum([1], [2])	v: 1	{"verdict":"error","opts":{"noFill":true}}
 x272	verdict	v: sum([1], [2])	v: 1	{"verdict":"error","opts":{"partial":true}}
+x273	verdict	v: add(*(1), 2)	v: 3	{"verdict":"valid"}
+x274	verdict	v: add(*(1), 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x275	verdict	v: add(*(1), 2)	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x276	verdict	v: add(**(1), 2)	v: 3	{"verdict":"valid"}
+x277	verdict	v: add(**(1), 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x278	verdict	v: add(**(1), 2)	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x279	verdict	v: add(meta(*(1), {}), 2)	v: 3	{"verdict":"valid"}
+x280	verdict	v: add(meta(*(1), {}), 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x281	verdict	v: add(meta(*(1), {}), 2)	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x282	verdict	v: sum([1, *(2)])	v: 3	{"verdict":"valid"}
+x283	verdict	v: sum([1, *(2)])	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x284	verdict	v: sum([1, *(2)])	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x285	verdict	v: sum(([*(1)]) & ([integer]))	v: 1	{"verdict":"valid"}
+x286	verdict	v: sum(([*(1)]) & ([integer]))	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+x287	verdict	v: sum(([*(1)]) & ([integer]))	v: 1	{"verdict":"valid","opts":{"partial":true}}
+x288	verdict	v: least([*(3), 2])	v: 2	{"verdict":"valid"}
+x289	verdict	v: least([*(3), 2])	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+x290	verdict	v: least([*(3), 2])	v: 2	{"verdict":"valid","opts":{"partial":true}}
+x291	verdict	v: sum(*[1, 2])	v: 3	{"verdict":"error"}
+x292	verdict	v: sum(*[1, 2])	v: 3	{"verdict":"error","opts":{"noFill":true}}
+x293	verdict	v: sum(*[1, 2])	v: 3	{"verdict":"error","opts":{"partial":true}}
+x294	verdict	v: add(ident(1, {"id": "x"}), 2)	v: 3	{"verdict":"error"}
+x295	verdict	v: add(ident(1, {"id": "x"}), 2)	v: 3	{"verdict":"error","opts":{"noFill":true}}
+x296	verdict	v: add(ident(1, {"id": "x"}), 2)	v: 3	{"verdict":"error","opts":{"partial":true}}
+x297	verdict	v: sum([ident(1, {"id": "x"})])	v: 1	{"verdict":"error"}
+x298	verdict	v: sum([ident(1, {"id": "x"})])	v: 1	{"verdict":"error","opts":{"noFill":true}}
+x299	verdict	v: sum([ident(1, {"id": "x"})])	v: 1	{"verdict":"error","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}

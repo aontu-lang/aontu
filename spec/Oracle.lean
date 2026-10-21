@@ -1723,7 +1723,11 @@ def forms : List (String × String × String) :=
     ("must", "call", "must"), ("when", "call", "when"), ("contains", "call", "contains"),
     ("rest", "call", "rest"), ("select", "call", "match"), ("filter", "call", "filter"),
     ("ride", "call", "meta"), ("ride", "call", "deprecate"), ("ride", "call", "ident"),
-    ("ride", "call", "type"), ("ride", "call", "hide"), ("key", "call", "key")]
+    ("ride", "call", "type"), ("ride", "call", "hide"), ("key", "call", "key"),
+    ("call", "call", "add"), ("call", "call", "sub"), ("call", "call", "mul"),
+    ("call", "call", "div"), ("call", "call", "mod"), ("call", "call", "rem"),
+    ("call", "syntax", "-"), ("call", "call", "sum"), ("call", "call", "least"),
+    ("call", "call", "greatest")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1737,7 +1741,12 @@ def formSamples : List (String × Val) :=
     ("match", .select .integer [] none), ("filter", .filter .integer .integer),
     ("meta", .ride .metadata .integer []), ("deprecate", .ride .deprecate .integer []),
     ("ident", .ride .ident .integer []), ("type", .ride .type .integer []),
-    ("hide", .ride .hide .integer []), ("key", .key)]
+    ("hide", .ride .hide .integer []), ("key", .key),
+    ("add", .call .add [.integer, .integer]), ("sub", .call .sub [.integer, .integer]),
+    ("mul", .call .mul [.integer, .integer]), ("div", .call .div [.integer, .integer]),
+    ("mod", .call .mod [.integer, .integer]), ("rem", .call .rem [.integer, .integer]),
+    ("-", .call .neg [.integer]), ("sum", .call .sum [.listKind]),
+    ("least", .call .least [.listKind]), ("greatest", .call .greatest [.listKind])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1777,7 +1786,9 @@ on. The folds `sum`, `least` and `greatest` follow from row x129, over
 lists and maps, their members read as `Val.members` reads them: no case
 holds a marked list element (decision 18) or an optional member whose
 value generates an empty map or list (decision 19), and no bag is met
-with a kind, which the normal form keeps beside it. -/
+with a kind, which the normal form keeps beside it. A lone preference as
+an argument or a member, and an `ident()` inside a call, follow from row
+x273. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -1857,7 +1868,15 @@ def callCases : List (Val × Data) :=
     (c .sum [.or [(1, lst [int 1]), (0, lst [int 2, int 3])]], j 1),
     (c .sum [lst [c .add [int 1, int 2], int 4]], j 7),
     (c .add [c .sum [lst [int 1, int 2]], int 1], j 4),
-    (c .sum [lst [int 1], lst [int 2]], j 1)]
+    (c .sum [lst [int 1], lst [int 2]], j 1),
+    (c .add [.pref 1 (int 1), int 2], j 3), (c .add [.pref 2 (int 1), int 2], j 3),
+    (c .add [.ride .metadata (.pref 1 (int 1)) [], int 2], j 3),
+    (c .sum [lst [int 1, .pref 1 (int 2)]], j 3),
+    (c .sum [.meet (lst [.pref 1 (int 1)]) (lst [.integer])], j 1),
+    (c .least [lst [.pref 1 (int 3), int 2]], j 2),
+    (c .sum [.pref 1 (lst [int 1, int 2])], j 3),
+    (c .add [.ride .ident (int 1) [("id", .str "x")], int 2], j 3),
+    (c .sum [lst [.ride .ident (int 1) [("id", .str "x")]]], j 1)]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in

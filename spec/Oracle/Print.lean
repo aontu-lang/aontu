@@ -131,6 +131,7 @@ def openBelow : Val → Bool
   | .select s arms d => openBelow s || openPairs arms || openSpread d
   | .filter s c => openBelow s || openBelow c
   | .ride _ v _ => openBelow v
+  | .call _ args => openItems args
   | .alias _ | .path _ => true
   | _ => false
 
