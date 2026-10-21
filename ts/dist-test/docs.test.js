@@ -934,6 +934,8 @@ corpusDescribe('docs-style', () => {
         // used, or by its folder, `sketch/`.
         [/\bdesign\/[A-Za-z0-9._-]+\.md/g, 'a design note'],
         [/\bsketch\//g, 'a working note'],
+        // The repository's own folder, not an example path that ends in one.
+        [/(?<![\w./-])admin\//g, 'an admin note'],
         [/\bDIVERGENCE\.md\b/g, 'DIVERGENCE.md'],
         [/use-cases\/(?:BUGS|REVIEW)\.md/g, 'a defect ledger'],
         [/\bprogress\.md\b/g, 'the progress register'],
@@ -1117,6 +1119,8 @@ corpusDescribe('docs-style', () => {
         claim(cites('sugar removed in G8 phase 4'), 'a capability-review phase');
         claim(cites('ADR-018 removed the pipe'), 'a numbered decision record');
         claim(!cites('a G8 grammar'), 'a phase needs its number');
+        claim(cites('the steps in admin/scripts'), 'the admin folder');
+        claim(!cites('a model at services/admin/roles.aontu'), 'a path that ends in admin/');
         Assert.deepEqual(faults, [], `these rules no longer catch what they claim:\n${faults.join('\n')}`);
     });
     (0, node_test_1.test)('the-committed-figures-are-what-the-engine-draws', () => {

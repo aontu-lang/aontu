@@ -34,14 +34,16 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-// The ADR-032 gate, in the suite so that CI runs it on every push.
-// `make comments` and .githooks/pre-push call the same checker.
+// The comment gate of DEV-PROCESS.md, in the suite so that CI runs it
+// on every push. `make comments` and .githooks/pre-push call the same
+// checker, admin/scripts/comment-gate.cjs.
 const node_test_1 = require("node:test");
 const Assert = __importStar(require("node:assert"));
 const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
 const REPO = Path.join(__dirname, '..', '..');
-const gate = require(Path.join(REPO, 'ts', 'scripts', 'comment-gate.cjs'));
+const GATE = Path.join(REPO, 'admin', 'scripts');
+const gate = require(Path.join(GATE, 'comment-gate.cjs'));
 const SHOWN = 25;
 function render(findings) {
     const shown = findings.slice(0, SHOWN);
@@ -49,7 +51,7 @@ function render(findings) {
     const head = shown
         .map((f) => `  ${f.file}:${f.line}: ${f.rule}: ${f.detail}`)
         .join('\n');
-    return `ADR-032: ${findings.length} comment finding(s)\n${head}`
+    return `comment gate: ${findings.length} finding(s)\n${head}`
         + (0 < rest ? `\n  ... ${rest} more (run: make comments)` : '');
 }
 (0, node_test_1.describe)('comments', () => {
@@ -66,13 +68,15 @@ function render(findings) {
             'editors/vscode/src/extension.ts',
             'go/aontu.go',
             'go/cmd/aontu/main.go',
+            'aontu/view/view.aontu',
         ]) {
             Assert.ok(files.includes(covered), `not gated: ${covered}`);
         }
         for (const excluded of [
             'ts/src/sigdecl.ts',
             'ts/src/helpdoc.ts',
-            'ts/scripts/comment-gate.cjs',
+            'admin/scripts/comment-gate.cjs',
+            'go/aontumodel/view/view.aontu',
             'use-cases/17-lambda-handlers/handler.ts',
             'test/system/rb-solar/ref/validate.ts',
         ]) {
@@ -81,6 +85,10 @@ function render(findings) {
         }
         Assert.ok(files.every((f) => /\.(ts|go|rs|aontu)$/.test(f)), 'a non-source file is gated');
         Assert.ok(!files.some((f) => f.startsWith('ts/dist')), 'build output gated');
+        const config = JSON.parse(Fs.readFileSync(Path.join(GATE, 'comment-gate.json'), 'utf8'));
+        for (const listed of [...config.generated, ...config.fixtures, config.decisions]) {
+            Assert.ok(Fs.existsSync(Path.join(REPO, listed)), `listed and gone: ${listed}`);
+        }
     });
     (0, node_test_1.test)('lexer', () => {
         const source = [
@@ -89,9 +97,27 @@ function render(findings) {
             '/* two',
             '   lines */',
         ].join('\n');
-        const { comments, codeLines } = gate.lex(source, 'ts');
+        const { comments, codeLines } = gate.lex(source, 'js');
         Assert.deepEqual(comments.map((c) => [c.kind, c.start, c.end]), [['line', 1, 1], ['block', 3, 4]]);
         Assert.equal(codeLines, 2);
+    });
+    (0, node_test_1.test)('lexer-syntaxes', () => {
+        const starts = (scan) => scan.comments.map((c) => c.start);
+        const hash = gate.lex([
+            'a: "x # y" # trailing',
+            'b: `raw # not',
+            '# still raw`',
+            '# own line',
+        ].join('\n'), 'hash');
+        Assert.deepEqual(starts(hash), [1, 4]);
+        Assert.equal(hash.codeLines, 2);
+        // A quote left open ends with its line, so the comment below it is
+        // counted on its own line.
+        Assert.deepEqual(starts(gate.lex("let a = 'x\n// two\nlet b = 1", 'c')), [2]);
+        const model = gate.checkText('aontu/view/view.aontu', '# a note\na: 1\n');
+        Assert.deepEqual(model.findings, []);
+        Assert.equal(model.words, 2);
+        Assert.throws(() => gate.checkText('ts/scripts/test.cjs', '// x\n'), /not source in comment-gate.json/);
     });
     (0, node_test_1.test)('exempt', () => {
         const source = [

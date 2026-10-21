@@ -115,11 +115,14 @@ engine codes must land with a registry row in the same change.
 
 Before a push, `make quick` runs the comment gate, both builds, the
 gate group and the Go suite, inside two minutes (ADR-071). Local
-testing stops at a few minutes (ADR-075): `make quick`, the shared rows
-or tests of what the change touches, `make prose` where pages changed
-and `make spec` where `spec/` changed. The rest below belongs to the
-daily CI: it is not run locally before a push or a merge, and nothing
-waits on it.
+testing stops at a few minutes
+([DEV-PROCESS.md](../../DEV-PROCESS.md#testing)): `make quick`, the
+shared rows or tests of what the change touches, in both ports
+(`--test-name-pattern='^(file)\.tsv:'` over the TypeScript spec tests,
+`go test -run 'TestSpec$/^(file)\.tsv'` in `go/`), `make prose` where
+pages changed and `make spec` where `spec/` changed. The rest below
+belongs to the daily CI: it is not run locally before a push or a
+merge, and nothing waits on it.
 
 CI is two workflows (ADR-070). `build.yml`, the standard run, runs on
 every push and pull request, on Linux, in about three minutes and
