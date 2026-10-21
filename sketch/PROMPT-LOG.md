@@ -257,3 +257,9 @@ work in aontu, make sure you have the latest main; update the DEV-PROCESS as fol
 * a top level admin folder shall contain administration, maintenance and build notes, trackers and scripts - note this in DEV-PROCESS
 * rewrite the comments ADR-032 and move it into DEV-PROCESS with appropriate scripting references to the admin/scripts folder; ensure it is programming language neutral
 ```
+
+## 2026-10-21 12:36:41 UTC · Claude Code · session_016yMzMBxz57NmgRx74LKLFg
+
+```text
+move the adrs too, leave the scripts alone for the moment
+```

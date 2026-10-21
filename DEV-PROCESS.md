@@ -18,7 +18,8 @@ Every prompt given to an agent working in the project is recorded in
 
 - **Append the entry before the work starts**: the date and time the
   prompt was given, in UTC, the agent that took it, and the prompt as it
-  was written, typos included.
+  was written, typos included. A prompt given while a turn is running is
+  logged when it arrives.
 - **Name the agent** by its tool and its session. A Claude Code
   session's commits carry the same session in their `Claude-Session`
   trailer; a tool with no session gives its run or task identifier, or
@@ -33,7 +34,8 @@ Every prompt given to an agent working in the project is recorded in
   their own, so a question is not lost with its checkout.
 - **Never rewrite an entry**, except to redact. The project's
   `.gitattributes` gives the file git's `union` merge driver, so two
-  branches' entries both survive.
+  branches' entries both survive, in the order the merge takes them;
+  their times say which came first.
 
 ## Testing
 

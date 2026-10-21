@@ -118,8 +118,8 @@ rule now lives and where its record is in the history.
 | [ADR-072](#adr-072--a-meta-record-is-open-metadata) | A `meta()` record is open metadata | Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
 | [ADR-073](#adr-073--an-ident-record-is-open-declaration-metadata) | An `ident()` record is open declaration metadata | Amended by [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) |
 | [ADR-074](#adr-074--what-a-riders-record-holds-is-no-export-loss) | What a rider's record holds is no export loss | Accepted |
-| [ADR-075](#adr-075--local-testing-takes-minutes-and-the-long-runs-are-the-daily-cis) | Local testing takes minutes, and the long runs are the daily CI's | Accepted |
-| [ADR-076](#adr-076--every-prompt-is-logged) | Every prompt is logged | Accepted |
+| [ADR-075](#adr-075--local-testing-takes-minutes-and-the-long-runs-are-the-daily-cis) | Local testing takes minutes, and the long runs are the daily CI's | Moved to [DEV-PROCESS.md](DEV-PROCESS.md#testing) |
+| [ADR-076](#adr-076--every-prompt-is-logged) | Every prompt is logged | Moved to [DEV-PROCESS.md](DEV-PROCESS.md#the-prompt-log) |
 | [ADR-077](#adr-077--the-definition-is-pinned-to-lean-4241) | The definition is pinned to Lean 4.24.1 | Accepted |
 
 ---
@@ -6779,92 +6779,26 @@ outer scope would do.
 ## ADR-075 — Local testing takes minutes, and the long runs are the daily CI's
 
 **Date:** 2026-10-20
-**Status:** Accepted
+**Status:** Moved to DEV-PROCESS.md 2026-10-21
 
-### Context
-
-[ADR-071](#adr-071--a-push-is-checked-in-two-minutes-and-a-pull-request-in-five)
-put a push's check at two minutes and a pull request's CI at five, and
-left the prose gate, coverage, the use cases and the other test groups
-to the daily run, to be run "by hand when a change reaches them". That
-clause read as an instruction: an agent ran the coverage gate, about
-forty minutes, and the use cases before each merge, holding each change
-for most of an hour for what the daily run reports the next morning.
-
-### Decision
-
-1. **Local testing takes a few minutes at most.** Before a push:
-   `make quick`, the shared rows or the tests of what the change
-   touches, `make prose` where pages changed, and `make spec` where
-   `spec/` changed (ADR-071's third decision).
-2. **The long runs are the daily CI's.** `make test`, `make cov`, the
-   test groups past the gate group and `use-cases/run-all.sh` are not
-   run locally before a push or a merge, and nothing waits on them.
-   This replaces ADR-071's "run by hand when a change reaches them".
-3. **A pull request merges on its own CI.** Once `build.yml` is green on
-   its head and its review is answered, it merges, without waiting on a
-   local long run or on the daily one.
-
-### Consequences
-
-- A coverage gap, a use case a language change broke, or a failure in a
-  group the sample did not draw can merge, and the next daily run finds
-  it; the fix follows that report.
-- A change goes from edit to merge in the local few minutes and the
-  five of its pull request's CI.
-- Recorded where an agent reads it first: `AGENTS.md` ("Before you
-  push") and `docs/contributing/testing.md`.
+The rule is one of how work is done, and it holds in every project that
+adopts [`DEV-PROCESS.md`](DEV-PROCESS.md), so it is stated and changed
+there, in [Testing](DEV-PROCESS.md#testing). This project's commands
+for it are in `AGENTS.md`, under "Before you push", and in
+[`docs/contributing/testing.md`](docs/contributing/testing.md#the-standard-run-and-the-sampled-groups).
+The entry as accepted is in the history: `git show 08890066:ADR.md`.
 
 ## ADR-076 — Every prompt is logged
 
 **Date:** 2026-10-20
-**Status:** Accepted
+**Status:** Moved to DEV-PROCESS.md 2026-10-21
 
-### Context
-
-The repository records what was decided, in this file, what was built,
-in the register, what changed, in the changelog, and why each commit
-was made. It did not record what was asked. The prompts that started
-the work lived only in each agent's session, out of reach once the
-session ended, so a reader could not trace a change back to the request
-that led to it, or tell which agent took it.
-
-### Decision
-
-1. **Every prompt is logged in
-   [`sketch/PROMPT-LOG.md`](sketch/PROMPT-LOG.md)**, appended: the date
-   and time it was given, in UTC, the agent that took it, and the
-   prompt as it was written, typos included, inside a fence longer than
-   any run of backticks in it. An entry is not rewritten, except to
-   redact.
-2. **A secret is never logged.** A credential, token or key, or
-   personal data, in a prompt is written as `[redacted: what it was]`.
-   An entry found holding one is redacted where it stands, the one
-   rewrite the log allows, and a secret that reached a push is revoked
-   too, since the history keeps it.
-3. **The agent is named by its tool and its session**: the session a
-   Claude Code commit's `Claude-Session` trailer names, so the log and
-   the history find each other, or the run or task identifier another
-   tool gives, or `no session id` where it gives none.
-4. **An entry is written before the work it asks for**, and committed
-   with the first change that follows. A session that ends holding
-   entries and no change commits them on a branch of their own, so a
-   question is not lost with its checkout. A prompt given while a turn
-   is running is logged when it arrives.
-5. **Two branches' entries merge.** `.gitattributes` gives the log
-   git's `union` merge, so branches that each appended an entry merge
-   with both entries kept, in the order the merge takes them.
-
-### Consequences
-
-- The log grows with every request, questions included, and reads
-  roughly in the order the work was asked for; a union merge can set
-  two branches' entries out of time order, and their times say which
-  came first.
-- The session that began the log, from 2026-10-18, had its 23 prompts
-  written from its transcript, with the times the transcript recorded;
-  a prompt the session's restart delivered twice is logged once.
-- Recorded where an agent reads it first: the rules of `AGENTS.md`.
+The rule is one of how work is done, and it holds in every project that
+adopts [`DEV-PROCESS.md`](DEV-PROCESS.md), so it is stated and changed
+there, in [The prompt log](DEV-PROCESS.md#the-prompt-log). This
+project's log is [`sketch/PROMPT-LOG.md`](sketch/PROMPT-LOG.md), which
+`.gitattributes` merges with git's `union` driver. The entry as
+accepted is in the history: `git show 08890066:ADR.md`.
 
 ## ADR-077 — The definition is pinned to Lean 4.24.1
 
