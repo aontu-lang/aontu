@@ -46,3 +46,6 @@ contains	call	contains
 rest	call	rest
 select	call	match
 filter	call	filter
+ride	call	meta
+ride	call	deprecate
+ride	call	ident

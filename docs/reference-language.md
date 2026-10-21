@@ -4131,6 +4131,16 @@ its own name.
 it read from a `$dynamicRef`, and the exporter writes that reference
 back as one where the export reads it the same.
 
+In the definition `meta()`, `deprecate()` and `ident()` are one form,
+`ride` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), which
+carries its record, the members of a map of data, and judges every
+datum as its value does, `judge_ride_iff` in
+[`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean). A path, a
+declared default and the kind that gives a meet its parent read through
+a rider as well. A rider and its value are below each other in the
+order, `ride_le_iff` and `le_ride_iff` in
+[`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean).
+
 ## Identity: `ident`
 
 `ident(v, r)` declares an alias's value with a record that only the
@@ -4174,6 +4184,16 @@ anchor its resource already holds, one of the four holding anything but
 a string, a JSON Schema keyword, a
 keyword the definition writes already, and a key the declarations gave
 several values.
+
+In the definition a reference reads a declaration's value without its
+identity, `Val.unident` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean),
+which takes off the `ident()` at the value's top or on a term of its
+top meet and keeps one inside it. An `ident()` anywhere else, in a
+schema, inside another `ident()` or deeper in a body, is out of its
+place, and `Decls.identMisplaced` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) makes it an
+`error`, as both engines answer. It reads the text, so it holds a
+declaration that no reference reads to that place too.
 
 ## Closed values: `close` / `open`
 

@@ -3,9 +3,6 @@
 # ts/test/jsonschema-forms.test.ts and go/jsonschema_forms_test.go hold the
 # importer's output over the vendored corpora to spec/forms.tsv and to these
 # rows, and refuse a row the importer no longer writes, so a form that enters
-# the definition leaves this file. Bounded at 4.
+# the definition leaves this file. Bounded at 1.
 # text	kind	decision	what the importer writes it for
 key	call	13	the key of the member a spread holds, as `match(key(0), …)` for `patternProperties` and `propertyNames`
-ident	call	14	the identity a schema gave an alias's value, its `$id`, its anchors and its `$defs` key, riding the declaration
-meta	call	14	the annotation keywords, and the keywords the dialect does not define, riding a value
-deprecate	call	14	`deprecated: true`, riding a value

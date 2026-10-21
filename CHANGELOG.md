@@ -8,6 +8,47 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds the riders
+
+Definition, generated rows, a generated file, four tests and
+documentation; no engine changes. Ruling 14 of the design note
+(`sketch/DEFINITION.0.md`, §7) is built.
+
+- `spec/Aontu/Syntax.lean`: `meta(v, r)`, `deprecate(v, r)` and
+  `ident(v, r)` are one form, `ride`, with a `Rider` naming the call
+  and the record as the members of a map of data, the one record both
+  ports take. One rule of `Judge` makes it judge as its value
+  (`judge_ride_iff`). Generation, the meet, the checker, the parent
+  type, the expansion and the selections pass through it, and so do a
+  path (`Val.at`), a declared default (`Val.declaresDefault`) and the
+  kind that gives a meet its parent (`Val.isKind`). `ride_le_iff` and
+  `le_ride_iff` in `spec/Aontu/Subsume.lean` put a rider and its value
+  below each other, and `defaults_sees_through_riders` keeps the
+  default a rider's value declares.
+- `spec/Aontu/Names.lean`: a reference reads a declaration's body
+  without the `ident()` at its top or on a term of its top meet, and
+  keeps one inside it (`Val.unident`). `Decls.identMisplaced` in
+  `spec/Aontu/Verdict.lean` holds of an `ident()` anywhere else, in the
+  schema or in any body, a body no reference reads included, which
+  `vet` answers as `error`, as both ports refuse it with `ident_place`.
+- `spec/Aontu/Data.lean` holds the equality of data, which the
+  structural equality of terms reads in a rider's record.
+- `test/spec/def-alias.tsv` grows by rows r0 on: the riders alone,
+  under a key, in a meet and on a declaration; an `ident()` out of
+  place, inside another, inside a `meta()`, in a recursive body and in
+  a body no reference reads; and a rider on a kind, which keeps the
+  kind's parent. Both ports answer every row as the definition does.
+- `test/spec/def-path.tsv` grows by rows q0 on, paths through the
+  riders. Both ports answer every row as the definition does but q21
+  and q22, a path inside a rider's value to a member beside it, which
+  both leave `incomplete` (#416). `spec/ledger.tsv` lists the two, and
+  its bound rises from 108 to 110.
+- `spec/forms.tsv` holds the three calls, so `spec/forms-outside.tsv`
+  keeps `key` alone, and the importer's forms check is bounded at one
+  form.
+- The definition tutorial reads the riders at steps 8 and 19, and the
+  language reference cites the rules.
+
 ### A size its container literal breaks is an error in the definition
 
 Definition, generated rows and documentation; no engine changes.

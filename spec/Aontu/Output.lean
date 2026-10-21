@@ -23,83 +23,6 @@ it, admitted by `gen_iff`.
 
 namespace Aontu
 
-/-! ## Values, told apart -/
-
-mutual
-/-- Whether two values are one Lean `Data`: the same scalar, the same
-members in the same order, the same elements. -/
-def Data.eqb : Data → Data → Bool
-  | .num x, .num y => decide (x = y)
-  | .str s, .str t => decide (s = t)
-  | .bool b, .bool c => decide (b = c)
-  | .null, .null => true
-  | .map fs, .map gs => Data.eqbMembers fs gs
-  | .list xs, .list ys => Data.eqbList xs ys
-  | _, _ => false
-
-def Data.eqbMembers : List (String × Data) → List (String × Data) → Bool
-  | [], [] => true
-  | (k, x) :: fs, (k', y) :: gs => decide (k = k') && x.eqb y && Data.eqbMembers fs gs
-  | _, _ => false
-
-def Data.eqbList : List Data → List Data → Bool
-  | [], [] => true
-  | x :: xs, y :: ys => x.eqb y && Data.eqbList xs ys
-  | _, _ => false
-end
-
-mutual
-theorem Data.eqb_iff : ∀ x y : Data, x.eqb y = true ↔ x = y
-  | .num x, y => by
-    cases y with
-    | num y => simp [Data.eqb]
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | .str s, y => by
-    cases y with
-    | str t => simp [Data.eqb]
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | .bool b, y => by
-    cases y with
-    | bool c => simp [Data.eqb]
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | .null, y => by
-    cases y with
-    | null => simp [Data.eqb]
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | .map fs, y => by
-    cases y with
-    | map gs =>
-      simp only [Data.eqb, Data.map.injEq]
-      exact Data.eqbMembers_iff fs gs
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | .list xs, y => by
-    cases y with
-    | list ys =>
-      simp only [Data.eqb, Data.list.injEq]
-      exact Data.eqbList_iff xs ys
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-
-theorem Data.eqbMembers_iff : ∀ fs gs : List (String × Data),
-    Data.eqbMembers fs gs = true ↔ fs = gs
-  | [], [] => by simp [Data.eqbMembers]
-  | [], _ :: _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | _ :: _, [] => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | (k, x) :: fs, (k', y) :: gs => by
-    simp only [Data.eqbMembers, Bool.and_eq_true, decide_eq_true_eq, List.cons.injEq,
-      Prod.mk.injEq]
-    rw [Data.eqb_iff x y, Data.eqbMembers_iff fs gs]
-
-theorem Data.eqbList_iff : ∀ xs ys : List Data, Data.eqbList xs ys = true ↔ xs = ys
-  | [], [] => by simp [Data.eqbList]
-  | [], _ :: _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | _ :: _, [] => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | x :: xs, y :: ys => by
-    simp only [Data.eqbList, Bool.and_eq_true, List.cons.injEq]
-    rw [Data.eqb_iff x y, Data.eqbList_iff xs ys]
-end
-
-instance : DecidableEq Data := fun x y => decidable_of_iff _ (Data.eqb_iff x y)
-
 /-! ## The rank rule -/
 
 /-- The rank the rule picks: the lowest positive rank among the live
@@ -159,6 +82,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .list items spread _, j => ∃ xs, genItems env root spread items xs ∧ j = .list xs
   | .or arms, j => arms.any (picked arms) = true ∧ genArms env root arms arms j
   | .pref _ x, j => Gen env root x j
+  | .ride _ v _, j => Gen env root v j
   | .meet a b, j =>
     (Gen env root a j ∧ Admits env root b j) ∨
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
@@ -424,6 +348,9 @@ theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env r
   | .pref r x, j, h => by
     rw [Gen] at h
     exact .pref (gen_admits x j h)
+  | .ride _ v _, j, h => by
+    rw [Gen] at h
+    exact .ride (gen_admits v j h)
   | .meet a b, j, h => by
     rw [Gen] at h
     rcases h with ⟨ha, hb⟩ | ⟨-, hb, ha⟩
@@ -526,6 +453,9 @@ theorem gen_unique : ∀ (v : Val) (j j' : Data), Gen env root v j → Gen env r
   | .pref r x, j, j', h, h' => by
     rw [Gen] at h h'
     exact gen_unique x j j' h h'
+  | .ride _ v _, j, j', h, h' => by
+    rw [Gen] at h h'
+    exact gen_unique v j j' h h'
   | .meet a b, j, j', h, h' => by
     rw [Gen] at h h'
     rcases h with ⟨ha, -⟩ | ⟨hna, hb, -⟩ <;> rcases h' with ⟨ha', -⟩ | ⟨hna', hb', -⟩
@@ -595,6 +525,7 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
     | some (some j) => some j
     | _ => none
   | .pref _ x => genWith chk x
+  | .ride _ v _ => genWith chk v
   | .meet a b =>
     match genWith chk a with
     | some x => if chk b x then some x else none
@@ -948,6 +879,10 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
           rw [Option.some.injEq, Option.some.injEq] at this
           rw [this]
   | @pref r x _ ih =>
+    intro j
+    rw [genWith, Gen]
+    exact ih (fun w j hw hsub => hchk w j hw fun n hn => by simpa [Val.refs] using hsub n hn) j
+  | @ride k v r _ ih =>
     intro j
     rw [genWith, Gen]
     exact ih (fun w j hw hsub => hchk w j hw fun n hn => by simpa [Val.refs] using hsub n hn) j

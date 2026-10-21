@@ -142,7 +142,7 @@ def Val.doms : Val → List Dom
   | .list _ _ _ => [.list]
   | .nil => []
   | .neq [] | .any | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _ | .must _ _
-  | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ =>
+  | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ =>
     [.num, .str, .bool, .null, .map, .list]
 
 /-- The domain a value is in. -/
@@ -546,6 +546,7 @@ def Val.dead : Val → Bool
   | .list items _ _ => deadItem items
   | .or arms => allDead arms
   | .meet a b => a.dead || b.dead
+  | .ride _ v _ => v.dead
   | _ => false
 
 def deadField : List (String × Bool × Val) → Bool
@@ -579,6 +580,9 @@ theorem dead_sound : ∀ v : Val, v.dead = true → ∀ j, ¬ Admits env root v 
       rcases Bool.or_eq_true_iff.mp hd with hda | hdb
       · exact dead_sound a hda j ha
       · exact dead_sound b hdb j hb
+  | .ride _ v _, hd, j, h => by
+    cases h with
+    | ride h => exact dead_sound v hd j h
   | .integer, hd, _, _ | .float, hd, _, _ | .biginteger, hd, _, _ | .bigdecimal, hd, _, _
   | .number, hd, _, _ | .string, hd, _, _ | .anyString, hd, _, _ | .boolean, hd, _, _
   | .lit _, hd, _, _ | .min _, hd, _, _ | .max _, hd, _, _ | .above _, hd, _, _
@@ -651,6 +655,7 @@ theorem dead_refuses : ∀ v : Val, v.dead = true → ∀ j, Refuses env root v 
     rcases Bool.or_eq_true_iff.mp hd with hda | hdb
     · exact .meetLeft (dead_refuses a hda j)
     · exact .meetRight (dead_refuses b hdb j)
+  | .ride _ v _, hd, j => .ride (dead_refuses v hd j)
   | .integer, hd, _ | .float, hd, _ | .biginteger, hd, _ | .bigdecimal, hd, _
   | .number, hd, _ | .string, hd, _ | .anyString, hd, _ | .boolean, hd, _
   | .lit _, hd, _ | .min _, hd, _ | .max _, hd, _ | .above _, hd, _
@@ -1678,6 +1683,32 @@ theorem admits_pref_right {m : Val → Val → Val}
     · exact ⟨r, m a y, .inl ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨ha, hy⟩⟩
     · exact ⟨0, m a y.super, .inr ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨ha, hy⟩⟩
 
+/-- A rider met with a value carries the meet of its own: the record
+rides the result. -/
+theorem admits_ride_left {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (k : Rider) (v : Val) (r : Record) (b : Val) (j : Data) :
+    Admits env root (.ride k (m v b) r) j ↔ Admits env root (.ride k v r) j ∧ Admits env root b j := by
+  constructor
+  · intro h
+    cases h with
+    | ride h => exact ⟨.ride ((hm v b j).mp h).1, ((hm v b j).mp h).2⟩
+  · rintro ⟨h, hb⟩
+    cases h with
+    | ride h => exact .ride ((hm v b j).mpr ⟨h, hb⟩)
+
+theorem admits_ride_right {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a : Val) (k : Rider) (v : Val) (r : Record) (j : Data) :
+    Admits env root (.ride k (m a v) r) j ↔ Admits env root a j ∧ Admits env root (.ride k v r) j := by
+  constructor
+  · intro h
+    cases h with
+    | ride h => exact ⟨((hm a v j).mp h).1, .ride ((hm a v j).mp h).2⟩
+  · rintro ⟨ha, h⟩
+    cases h with
+    | ride h => exact .ride ((hm a v j).mpr ⟨ha, h⟩)
+
 theorem admits_nil_left (b : Val) (j : Data) :
     Admits env root .nil j ↔ Admits env root .nil j ∧ Admits env root b j :=
   ⟨(fun h => nomatch h), (fun h => h.1)⟩
@@ -1723,6 +1754,7 @@ def Val.beq : Val → Val → Bool
   | .rest t cs, .rest t' cs' => t.beq t' && beqCovers cs cs'
   | .select s as d, .select s' as' d' => s.beq s' && beqPairs as as' && beqSpread d d'
   | .filter s c, .filter s' c' => s.beq s' && c.beq c'
+  | .ride k v r, .ride k' v' r' => decide (k = k') && v.beq v' && decide (r = r')
   | _, _ => false
 termination_by structural a _ => a
 
@@ -1789,6 +1821,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | .nil, _ | _, .nil => .nil
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
+  | .ride k v r, b => .ride k (rec v b) r
+  | a, .ride k v r => .ride k (rec a v) r
   | .or arms, b => mkOr (arms.map fun p => (p.1, rec p.2 b))
   | a, .or arms => mkOr (arms.map fun p => (p.1, rec a p.2))
   | .pref r x, b => mkOr [(r, rec x b), (0, rec x.super b)]
@@ -1849,6 +1883,8 @@ theorem admits_meetStep {lm : Scalar → Val → Val} {rec : Val → Val → Val
     | exact admits_pref_left hr ..
     | exact admits_pref_right hr ..
     | exact admits_meetRight hr ..
+    | exact admits_ride_left hr ..
+    | exact admits_ride_right hr ..
     | (simp only [hr, admits_meet_iff, and_assoc, iff_self]; done)
 
 /-- Whatever the budget, the meet admits what both of its sides admit. -/

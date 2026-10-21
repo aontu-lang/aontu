@@ -367,4 +367,81 @@ def Data.at (j : Data) : List Seg → Option Data
     | .list xs => xs[i]?.bind (·.at p)
     | _ => none
 
+/-! ## Values, told apart -/
+
+mutual
+/-- Whether two values are one Lean `Data`: the same scalar, the same
+members in the same order, the same elements. -/
+def Data.eqb : Data → Data → Bool
+  | .num x, .num y => decide (x = y)
+  | .str s, .str t => decide (s = t)
+  | .bool b, .bool c => decide (b = c)
+  | .null, .null => true
+  | .map fs, .map gs => Data.eqbMembers fs gs
+  | .list xs, .list ys => Data.eqbList xs ys
+  | _, _ => false
+
+def Data.eqbMembers : List (String × Data) → List (String × Data) → Bool
+  | [], [] => true
+  | (k, x) :: fs, (k', y) :: gs => decide (k = k') && x.eqb y && Data.eqbMembers fs gs
+  | _, _ => false
+
+def Data.eqbList : List Data → List Data → Bool
+  | [], [] => true
+  | x :: xs, y :: ys => x.eqb y && Data.eqbList xs ys
+  | _, _ => false
+end
+
+mutual
+theorem Data.eqb_iff : ∀ x y : Data, x.eqb y = true ↔ x = y
+  | .num x, y => by
+    cases y with
+    | num y => simp [Data.eqb]
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .str s, y => by
+    cases y with
+    | str t => simp [Data.eqb]
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .bool b, y => by
+    cases y with
+    | bool c => simp [Data.eqb]
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .null, y => by
+    cases y with
+    | null => simp [Data.eqb]
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .map fs, y => by
+    cases y with
+    | map gs =>
+      simp only [Data.eqb, Data.map.injEq]
+      exact Data.eqbMembers_iff fs gs
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .list xs, y => by
+    cases y with
+    | list ys =>
+      simp only [Data.eqb, Data.list.injEq]
+      exact Data.eqbList_iff xs ys
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+
+theorem Data.eqbMembers_iff : ∀ fs gs : List (String × Data),
+    Data.eqbMembers fs gs = true ↔ fs = gs
+  | [], [] => by simp [Data.eqbMembers]
+  | [], _ :: _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | _ :: _, [] => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | (k, x) :: fs, (k', y) :: gs => by
+    simp only [Data.eqbMembers, Bool.and_eq_true, decide_eq_true_eq, List.cons.injEq,
+      Prod.mk.injEq]
+    rw [Data.eqb_iff x y, Data.eqbMembers_iff fs gs]
+
+theorem Data.eqbList_iff : ∀ xs ys : List Data, Data.eqbList xs ys = true ↔ xs = ys
+  | [], [] => by simp [Data.eqbList]
+  | [], _ :: _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | _ :: _, [] => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | x :: xs, y :: ys => by
+    simp only [Data.eqbList, Bool.and_eq_true, List.cons.injEq]
+    rw [Data.eqb_iff x y, Data.eqbList_iff xs ys]
+end
+
+instance : DecidableEq Data := fun x y => decidable_of_iff _ (Data.eqb_iff x y)
+
 end Aontu

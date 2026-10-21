@@ -361,6 +361,10 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       ns.all (fun m => evaluatedBy cs gc gk gm m.1 m.2 || ft m.2) = b →
       Judge env root b (.rest t cs) j
   | restNone {t : Val} {cs : List Cover} {j : Data} : j.named = none → Judge env root true (.rest t cs) j
+  /-- A rider judges as its value: the record it carries decides
+  nothing. -/
+  | ride {b : Bool} {k : Rider} {v : Val} {r : Record} {j : Data} :
+      Judge env root b v j → Judge env root b (.ride k v r) j
 
 /-- `j` is an instance of `v`: the trial comes out `true`. -/
 abbrev Admits (env : Env) (root : Data) : Val → Data → Prop := Judge env root true
@@ -749,6 +753,8 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | restNone hm => intro b' h'; cases h' with
     | rest hm' _ _ _ _ _ => rw [hm] at hm'; cases hm'
     | restNone _ => rfl
+  | ride _ ih => intro b' h'; cases h' with
+    | ride h' => exact ih h'
 
 /-- No rule reads `root`: a judgement under one root is a judgement under
 any, so `root` rides the relation and decides nothing. -/
@@ -844,11 +850,17 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.containsBig <;> assumption)
     | (apply Judge.rest <;> assumption)
     | (apply Judge.restNone <;> assumption)
+    | (apply Judge.ride <;> assumption)
 
 /-- The judgement a term's trial comes out: the computed answer `c` is the
 judgement `b` exactly when the two agree. -/
 theorem Judge.toIff {env : Env} {root : Data} {c : Bool} {v : Val} {j : Data}
     (h : Judge env root c v j) {b : Bool} : c = b ↔ Judge env root b v j :=
   ⟨fun e => e ▸ h, fun h' => judge_unique h h'⟩
+
+/-- A rider judges every datum as its value does. -/
+theorem judge_ride_iff {env : Env} {root : Data} {b : Bool} {k : Rider} {v : Val} {r : Record}
+    {j : Data} : Judge env root b (.ride k v r) j ↔ Judge env root b v j :=
+  ⟨fun h => by cases h with | ride h => exact h, .ride⟩
 
 end Aontu

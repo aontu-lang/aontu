@@ -348,6 +348,18 @@ theorem le_meet_iff {a b c : Val} : c ⊑[env] .meet a b ↔ c ⊑[env] a ∧ c 
   ⟨fun h => ⟨h.trans (meet_le_left env a b), h.trans (meet_le_right env a b)⟩,
    fun ⟨ha, hb⟩ => le_meet ha hb⟩
 
+/-- A rider changes nothing in the order, on either side: the record it
+carries is no part of what it admits (decision 14 of the design note's
+§7). -/
+theorem ride_le_iff {k : Rider} {v : Val} {r : Record} {b : Val} :
+    .ride k v r ⊑[env] b ↔ v ⊑[env] b :=
+  ⟨fun h j ⟨hw, hj⟩ => h j ⟨hw, .ride hj⟩, fun h j ⟨hw, hj⟩ => h j ⟨hw, judge_ride_iff.mp hj⟩⟩
+
+theorem le_ride_iff {a : Val} {k : Rider} {v : Val} {r : Record} :
+    a ⊑[env] .ride k v r ↔ a ⊑[env] v :=
+  ⟨fun h j hj => ⟨(h j hj).1, judge_ride_iff.mp (h j hj).2⟩,
+   fun h j hj => ⟨(h j hj).1, .ride (h j hj).2⟩⟩
+
 /-! ## The profiles -/
 
 /-- The profiles `aontu subsume` answers under. -/
@@ -359,10 +371,12 @@ inductive Profile where
 /-- Whether a term declares a default: a preference, or a disjunction
 with a live arm of positive rank, which the rank rule picks. A literal
 singles out its own value and declares none, nor does a disjunction
-whose arms all single out one value without a rank. -/
+whose arms all single out one value without a rank. A rider declares
+what its value declares. -/
 def Val.declaresDefault : Val → Bool
   | .pref _ _ => true
   | .or arms => (pickRank arms).isSome
+  | .ride _ v _ => v.declaresDefault
   | _ => false
 
 /-- The `defaults` profile's order: `a`, the specific side, below `b`,
@@ -426,7 +440,7 @@ theorem DefaultsLe.of_lit {s : Scalar} {b : Val} (h : .lit s ⊑[env] b) :
     simp only [Val.at, Option.some.injEq] at ha
     subst ha
     simp [Val.declaresDefault] at hd
-  | cons g p => cases g <;> simp [Val.at] at ha
+  | cons g p => cases g <;> simp [Val.at, Val.unride] at ha
 
 /-- What `defaults` asks beyond `values`: `*2 | number` is below
 `*1 | number` in the order, since both admit every number, and not
@@ -453,6 +467,20 @@ theorem defaults_sees_the_default :
         (.num (.integer (.of 1))) :=
       (output_iff (by decide) _).1 (by decide)
     exact absurd (output_unique _ _ _ h2 h1) (by decide)
+
+/-- A rider keeps the default its value declares: `meta(*2 | number,
+{})` is not below `*1 | number` under `defaults`, as `*2 | number` is
+not. -/
+theorem defaults_sees_through_riders :
+    ¬ DefaultsLe env (.ride .metadata (.or [(1, .lit (.num (.integer (.of 2)))), (0, .number)]) [])
+      (.or [(1, .lit (.num (.integer (.of 1)))), (0, .number)]) := by
+  intro ⟨_, h⟩
+  have h2 := (h [] _ _ rfl (by decide) rfl .null (.num (.integer (.of 2)))
+    ((output_iff (by decide) _).1 (by decide))).2
+  have h1 : Output env .null (normalise (.or [(1, .lit (.num (.integer (.of 1)))), (0, .number)]))
+      (.num (.integer (.of 1))) :=
+    (output_iff (by decide) _).1 (by decide)
+  exact absurd (output_unique _ _ _ h2 h1) (by decide)
 
 /-! ## The table: maps and lists
 

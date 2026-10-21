@@ -271,6 +271,10 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.DefaultsLe.of_lit
 
+/-- info: 'Aontu.defaults_sees_through_riders' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.defaults_sees_through_riders
+
 /-- info: 'Aontu.leDecF_sound' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.leDecF_sound
@@ -318,6 +322,14 @@ line each comment states.
 /-- info: 'Aontu.listKind_le_open_list' depends on axioms: [propext] -/
 #guard_msgs in
 #print axioms Aontu.listKind_le_open_list
+
+/-- info: 'Aontu.ride_le_iff' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.ride_le_iff
+
+/-- info: 'Aontu.le_ride_iff' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.le_ride_iff
 
 /-- info: 'Aontu.mulof_le_mulof' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
