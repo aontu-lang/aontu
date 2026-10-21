@@ -2191,6 +2191,8 @@ Unary `-` negates a numeric operand exactly. It binds tighter than
 `+`, `&` and `|` (`-1 & integer` is `(-1) & integer`) and, like `+`,
 never narrows the kind and never yields `-0`.
 
+The definition holds `+` as the call `plus`, which `callTerm` and `plusOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) make from the operands' normal forms. Each operand reads through its riders first, then through a lone preference. Two numbers add by `add`'s rules, `Number.binary` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean), and a sum no leaf holds is `nil`, an error. A string beside a scalar joins the two texts, a number written as `Number.text` writes it. Two lists concatenate, `plusOf_lists` and `plusOf_nil_list`, and a list beside a scalar is no sum, `plusOf_list_lit`. Any other pair of operands leaves the `+` waiting: it generates nothing and refuses nothing, so `vet` reads the document as incomplete, and a literal meets it as a pair, `Val.callAt` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean). A sum of an absence waits on `maybe`, which the definition lacks.
+
 ## Functions
 
 aontu provides a fixed set of built-in functions. There are no

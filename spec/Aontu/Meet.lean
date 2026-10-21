@@ -457,16 +457,16 @@ theorem admits_atomMeet (a b : Val) (j : Data) :
 
 /-- A literal met with a term: the literal where the term admits its
 value, `nil` where it refuses it, and the pair where that cannot be
-computed. -/
+computed, or where the term is a call the reading has not made. -/
 def litMeet (s : Scalar) (b : Val) : Val :=
-  if b.checkableB then (if check b s.data then .lit s else .nil) else .meet (.lit s) b
+  if b.checkableB && !b.callAt then (if check b s.data then .lit s else .nil) else .meet (.lit s) b
 
 theorem admits_litMeet (s : Scalar) (b : Val) (j : Data) :
     Admits env root (litMeet s b) j ↔ Admits env root (.lit s) j ∧ Admits env root b j := by
   unfold litMeet
-  by_cases hc : b.checkableB = true
+  by_cases hc : (b.checkableB && !b.callAt) = true
   · rw [if_pos hc]
-    have hb := (Val.checkableB_iff b).mp hc
+    have hb := (Val.checkableB_iff b).mp (Bool.and_eq_true _ _ |>.mp hc).1
     by_cases hk : check b s.data = true
     · rw [if_pos hk]
       constructor

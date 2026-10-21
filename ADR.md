@@ -73,7 +73,7 @@ thereafter stated and changed in the definition, not here.
 | [ADR-034](#adr-034--absence-is-a-value-and-maybe-is-where-it-is-made) | Absence is a value, and `maybe` is where it is made | Moved to the definition in part |
 | [ADR-035](#adr-035--a-language-is-configured-in-its-profile-and-a-marker-may-name-its-closer) | A language is configured in its profile, and a marker may name its closer | Superseded in part by [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) |
 | [ADR-036](#adr-036--a-bundled-model-is-a-file-in-aontu-not-a-string-in-each-port) | A bundled model is a file in `aontu/`, not a string in each port | Accepted |
-| [ADR-037](#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent) | Two lists concatenate under `+`, and a sum of an absence is absent | Accepted |
+| [ADR-037](#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent) | Two lists concatenate under `+`, and a sum of an absence is absent | Moved to the definition in part |
 | [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) | The component tree is the only output road, and aontu knows no languages | Amended by [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports) |
 | [ADR-039](#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins) | The package system has one vocabulary, one set of files, and three pins | Accepted |
 | [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports) | `aontu render` writes the component tree through jostraca, in both ports | Accepted |
@@ -3739,7 +3739,7 @@ beside its source.
 ## ADR-037 — Two lists concatenate under `+`, and a sum of an absence is absent
 
 **Date:** 2026-09-11
-**Status:** Accepted
+**Status:** Moved to the definition (2026-10-21): in part, two lists concatenating under `+`: [`spec/Aontu/Verdict.lean`](spec/Aontu/Verdict.lean) `plusOf_lists`, `plusOf_nil_list` and `plusOf_list_lit`; a sum of an absence waits on `maybe`, a function the definition does not hold. Accepted 2026-09-11.
 
 ### Context
 
