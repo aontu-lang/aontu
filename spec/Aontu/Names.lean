@@ -18,17 +18,26 @@ the order written. A name declared twice is declared as the meet of its
 declarations. -/
 abbrev Decls := List (String × Val)
 
+/-- A declaration's body as a reference reads it: an `ident()` at its
+top, or on a term of its top meet, left behind. That is the one place
+an identity stands (decision 14 of the design note's §7). -/
+def Val.unident : Val → Val
+  | .ride .ident v _ => v.unident
+  | .meet a b => .meet a.unident b.unident
+  | v => v
+
 namespace Decls
 
 /-- The bodies declared for a name, in the order written. -/
 def bodies (ds : Decls) (n : String) : List Val := (ds.filter fun d => d.1 == n).map (·.2)
 
 /-- The environment the declarations make: a name's value is the meet
-of its bodies, and an undeclared name has none. -/
+of its bodies, and an undeclared name has none. A reference copies the
+value without the identity a body declares (`Val.unident`). -/
 def env (ds : Decls) : Env := fun n =>
   match ds.bodies n with
   | [] => none
-  | v :: vs => some (vs.foldl .meet v)
+  | v :: vs => some (vs.foldl .meet v).unident
 
 /-- The names declared, in the order written, a name declared twice
 listed twice. -/
@@ -53,6 +62,7 @@ def Val.refs : Val → List String
   | .rest t cs => t.refs ++ refsCovers cs
   | .select s arms d => s.refs ++ refsPairs arms ++ refsSpread d
   | .filter s c => s.refs ++ c.refs
+  | .ride _ v _ => v.refs
   | _ => []
 
 def refsPairs : List (Val × Val) → List String
@@ -102,6 +112,7 @@ def Val.unguardedRefs : Val → List String
   | .rest _ cs => unguardedCovers cs
   | .select s arms d => s.unguardedRefs ++ unguardedPairs arms ++ unguardedSpread d
   | .filter s c => s.unguardedRefs ++ c.unguardedRefs
+  | .ride _ v _ => v.unguardedRefs
   | _ => []
 
 def unguardedPairs : List (Val × Val) → List String
@@ -406,12 +417,20 @@ theorem transGen_first {R : String → String → Prop} {a x : String}
   | single hab => exact ⟨_, hab⟩
   | tail _ _ ih => exact ih
 
+/-- Leaving an identity behind keeps the names a body reaches. -/
+theorem Val.unguardedRefs_unident (v : Val) : v.unident.unguardedRefs = v.unguardedRefs := by
+  induction v using Val.unident.induct with
+  | case1 v r ih => simp only [Val.unident, Val.unguardedRefs, ih]
+  | case2 a b iha ihb => simp only [Val.unident, Val.unguardedRefs, iha, ihb]
+  | case3 v h1 h2 => rw [Val.unident.eq_3 v h1 h2]
+
 mutual
 theorem unguardedRefs_sub_refs : ∀ (v : Val) (n : String), n ∈ v.unguardedRefs → n ∈ v.refs
   | .alias _, _, h => h
   | .len c, n, h => unguardedRefs_sub_refs c n h
   | .or arms, n, h => unguardedArms_sub_refsArms arms n h
   | .pref _ x, n, h => unguardedRefs_sub_refs x n h
+  | .ride _ v _, n, h => unguardedRefs_sub_refs v n h
   | .meet a b, n, h => by
     simp only [Val.unguardedRefs, List.mem_append] at h
     simp only [Val.refs, List.mem_append]
@@ -631,7 +650,7 @@ theorem alias_self_admits_nothing {env : Env} {root : Data} {n : String} {j : Da
 
 theorem Decls.alias_self_admits_nothing {root : Data} {n : String} {j : Data} :
     ¬ Admits (Decls.env [(n, .alias n)]) root (.alias n) j :=
-  Aontu.alias_self_admits_nothing (by simp [Decls.env, Decls.bodies])
+  Aontu.alias_self_admits_nothing (by simp [Decls.env, Decls.bodies, Val.unident])
 
 /-! ## The paths a term writes -/
 
@@ -652,6 +671,7 @@ def Val.paths : Val → List (List Seg)
   | .rest t cs => t.paths ++ pathsCovers cs
   | .select s arms d => s.paths ++ pathsPairs arms ++ pathsSpread d
   | .filter s c => s.paths ++ c.paths
+  | .ride _ v _ => v.paths
   | _ => []
 
 def pathsPairs : List (Val × Val) → List (List Seg)

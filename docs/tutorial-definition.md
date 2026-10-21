@@ -2323,11 +2323,26 @@ abbrev Decls := List (String × Val)
 <!-- test: quote spec/Aontu/Names.lean -->
 ```lean
 /-- The environment the declarations make: a name's value is the meet
-of its bodies, and an undeclared name has none. -/
+of its bodies, and an undeclared name has none. A reference copies the
+value without the identity a body declares (`Val.unident`). -/
 def env (ds : Decls) : Env := fun n =>
   match ds.bodies n with
   | [] => none
-  | v :: vs => some (vs.foldl .meet v)
+  | v :: vs => some (vs.foldl .meet v).unident
+```
+
+The identity is the one rider with a place. An `ident()` stands on an
+alias's value, at its top or on a term of its top meet, and a reference
+reads the value without it, so an `ident()` left anywhere else, in a
+schema or deeper in a body, doesn't stand. Step 14 comes to what
+doesn't stand:
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+def Val.unident : Val → Val
+  | .ride .ident v _ => v.unident
+  | .meet a b => .meet a.unident b.unident
+  | v => v
 ```
 
 The declarations make a graph, where a name refers to every name in
@@ -2939,6 +2954,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | .nil, _ | _, .nil => .nil
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
+  | .ride k v r, b => .ride k (rec v b) r
+  | a, .ride k v r => .ride k (rec a v) r
   | .or arms, b => mkOr (arms.map fun p => (p.1, rec p.2 b))
   | a, .or arms => mkOr (arms.map fun p => (p.1, rec a p.2))
   | .pref r x, b => mkOr [(r, rec x b), (0, rec x.super b)]
@@ -2958,8 +2975,9 @@ side is met one side at a time, and on the right `meetRight` tries each
 atom against each other once: `a` meets `b₁`, and where the two had
 nothing to say to each other, such as `min(1)` and `max(9)`, `a` meets
 `b₂` instead, and the pair is never taken up in another association,
-which the two rows would otherwise do without end. A disjunction meets
-a peer arm by arm,
+which the two rows would otherwise do without end. A rider of step 19
+carries the meet of its value, so its record rides the result. A
+disjunction meets a peer arm by arm,
 and `mkOr` keeps the arms that are live: an arm that admits nothing on
 its face, such as `min(5) & max(3)` once computed to `nil`, drops, and
 a disjunction with no live arm is `nil`. A preference alone is
@@ -3678,6 +3696,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .list items spread _, j => ∃ xs, genItems env root spread items xs ∧ j = .list xs
   | .or arms, j => arms.any (picked arms) = true ∧ genArms env root arms arms j
   | .pref _ x, j => Gen env root x j
+  | .ride _ v _, j => Gen env root v j
   | .meet a b, j =>
     (Gen env root a j ∧ Admits env root b j) ∨
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
@@ -3954,8 +3973,8 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 Read the four in order. `error` is a document that refers to a name it
 does not declare, one whose names break the alias-cycle rule, or a
 schema whose normal form does not stand, `illFormed`: a `nil` anywhere
-but in a spread, which the engines read only against a member, or a
-preference clash:
+but in a spread, which the engines read only against a member, a
+preference clash, or an `ident()` out of the place step 8 gives it:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -3971,8 +3990,9 @@ def clash (arms : List (ℕ × Val)) : Bool :=
 
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
-in a spread, which the engines read only against a member, or a
-preference clash. -/
+in a spread, which the engines read only against a member, a
+preference clash, or an `ident()` anywhere but on an alias's value,
+which a reference reads without it (`Decls.env`). -/
 def Val.illFormed : Val → Bool
   | .nil => true
   | .map fs _ _ => illFields fs
@@ -3980,6 +4000,8 @@ def Val.illFormed : Val → Bool
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
+  | .ride .ident _ _ => true
+  | .ride _ v _ => v.illFormed
   | _ => false
 ```
 
@@ -4005,6 +4027,7 @@ def Val.untried : Val → Val
   | .or arms => .or (untriedArms arms)
   | .pref r x => .pref r x.untried
   | .meet a b => .meet a.untried b.untried
+  | .ride k v r => .ride k v.untried r
   | v => v
 ```
 
@@ -5330,15 +5353,13 @@ file, the forms the importer writes that the definition lacks:
 <!-- test: quote spec/forms-outside.tsv -->
 ```tsv
 key	call	13	the key of the member a spread holds, as `match(key(0), …)` for `patternProperties` and `propertyNames`
-ident	call	14	the identity a schema gave an alias's value, its `$id`, its anchors and its `$defs` key, riding the declaration
-meta	call	14	the annotation keywords, and the keywords the dialect does not define, riding a value
-deprecate	call	14	`deprecated: true`, riding a value
 ```
 
-Four forms, each on a decision of the design note, and the test
-requires each still written, so a form that enters the definition leaves
-the file, as `map` and `list` did when they became the kinds of step 6.
-One schema writes all four, and both words. Write `shape.json`:
+One form, on a decision of the design note, and the test requires it
+still written, so a form that enters the definition leaves the file.
+`map` and `list` left it when they became the kinds of step 6, and
+`meta`, `deprecate` and `ident` when they became the riders. One schema
+writes all of them. Write `shape.json`:
 
 <!-- test: scenario forms -->
 <!-- test: file shape.json -->
@@ -5377,9 +5398,25 @@ meta(
 ```
 
 `meta`, `deprecate` and `ident` ride a value and change nothing it
-admits, which is why the definition says nothing about them yet (step
-20); decision 14 asks whether they enter the syntax as forms whose
-judgement is their value's own. `key(0)` is the key of the member the
+admits. They're one form, `ride`, which carries its record as data and
+judges every datum as its value does:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  | ride {b : Bool} {k : Rider} {v : Val} {r : Data} {j : Data} :
+      Judge env root b v j → Judge env root b (.ride k v r) j
+```
+
+so a rider and its value are below each other in the order:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+theorem ride_le_iff {k : Rider} {v : Val} {r : Data} {b : Val} :
+    .ride k v r ⊑[env] b ↔ v ⊑[env] b :=
+```
+
+The identity alone has a place, the alias's value, as step 8 reads it,
+and the import writes it there. `key(0)` is the key of the member the
 spread is tried on, which no rule of the definition reads; decision 13
 asks for the one rule. Everything else the import wrote, the kinds
 `map` and `list`, `empty()`, `re`, `match`, `any`, `nil`, the optional
@@ -5408,15 +5445,14 @@ Nor does it name JSON Schema, which isn't a concept of the language.
 The language needs only the power to represent a JSON Schema: what
 `aontu jsonschema import` writes is aontu terms, such as
 `number & mulof(1)`, and the definition says what those mean. Step
-19 checks that it does, but for the four forms that step lists.
+19 checks that it does, but for the one form that step lists.
 
 Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker
 of step 17 reads unmade. And its rows for `subsume` test the `values`
-profile alone, since the contracts of `defaults` and `gen` that step
-10 states are still to change: `defaults` to count only a default a
-term declares, and `gen` to read the marks as terms. None of those has
-a rule yet.
+profile alone: the `defaults` rows wait on a procedure that decides
+`DefaultsLe`, and the contract of `gen` that step 10 states is still
+to read the marks as terms. None of those has a rule yet.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

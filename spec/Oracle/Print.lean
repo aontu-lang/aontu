@@ -85,6 +85,30 @@ def segSrc : Seg → Option String
     then some ("." ++ k) else none
   | .idx i => some ("." ++ toString i)
 
+mutual
+def Data.src : Data → Option String
+  | .num x => x.src
+  | .str s => some (quote s)
+  | .bool b => some (if b then "true" else "false")
+  | .null => some "null"
+  | .map fs => do pure ("{" ++ ", ".intercalate (← membersSrc fs) ++ "}")
+  | .list xs => do pure ("[" ++ ", ".intercalate (← elemsSrc xs) ++ "]")
+
+def membersSrc : List (String × Data) → Option (List String)
+  | [] => some []
+  | (k, x) :: fs => do pure ((quote k ++ ": " ++ (← x.src)) :: (← membersSrc fs))
+
+def elemsSrc : List Data → Option (List String)
+  | [] => some []
+  | x :: xs => do pure ((← x.src) :: (← elemsSrc xs))
+end
+
+/-- The call a rider is written as. -/
+def Rider.name : Rider → String
+  | .metadata => "meta"
+  | .deprecate => "deprecate"
+  | .ident => "ident"
+
 /-! `close()` seals every level, so a sealed container prints as
 `close(…)` only where no open container sits beneath it, and a reference
 or a path, which may stand for one, counts as open; a term the spelling
@@ -104,6 +128,7 @@ def openBelow : Val → Bool
   | .rest t cs => openBelow t || openCovers cs
   | .select s arms d => openBelow s || openPairs arms || openSpread d
   | .filter s c => openBelow s || openBelow c
+  | .ride _ v _ => openBelow v
   | .alias _ | .path _ => true
   | _ => false
 
@@ -187,6 +212,7 @@ def Val.src : Val → Option String
   | .rest t cs => do pure s!"rest({", ".intercalate ([← t.src] ++ (← coversSrc cs))})"
   | .select s arms d => do pure s!"match({", ".intercalate ([← s.src] ++ (← pairsSrc arms) ++ (← elseSrc d))})"
   | .filter s c => do pure s!"filter({← s.src}, {← c.src})"
+  | .ride k v r => do pure s!"{k.name}({← v.src}, {← r.src})"
 
 def fieldsSrc : List (String × Bool × Val) → Option (List String)
   | [] => some []
@@ -230,24 +256,6 @@ def armsSrc : List (ℕ × Val) → Option (List String)
   | (r, a) :: arms => do
     let s ← a.src
     pure ((if r = 0 then s!"({s})" else prefSrc r s) :: (← armsSrc arms))
-end
-
-mutual
-def Data.src : Data → Option String
-  | .num x => x.src
-  | .str s => some (quote s)
-  | .bool b => some (if b then "true" else "false")
-  | .null => some "null"
-  | .map fs => do pure ("{" ++ ", ".intercalate (← membersSrc fs) ++ "}")
-  | .list xs => do pure ("[" ++ ", ".intercalate (← elemsSrc xs) ++ "]")
-
-def membersSrc : List (String × Data) → Option (List String)
-  | [] => some []
-  | (k, x) :: fs => do pure ((quote k ++ ": " ++ (← x.src)) :: (← membersSrc fs))
-
-def elemsSrc : List Data → Option (List String)
-  | [] => some []
-  | x :: xs => do pure ((← x.src) :: (← elemsSrc xs))
 end
 
 /-! ## JSON

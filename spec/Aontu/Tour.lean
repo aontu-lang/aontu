@@ -495,6 +495,21 @@ example : ¬ Instance .empty .listKind (.map []) := fun ⟨_, h⟩ => nomatch h
 example : Le .empty .mapKind (.map [] none false) ∧ Le .empty (.map [] none false) .mapKind :=
   ⟨mapKind_le_open_map, map_le_mapKind [] none false⟩
 
+/-! ## The riders -/
+
+/-- `meta(integer, {"title": "n"})` admits `1`, as `integer` does: the
+record decides nothing. -/
+example : Instance .empty (.ride .metadata .integer (.map [("title", .str "n")])) (.integer 1) :=
+  ⟨by decide, .ride .integer⟩
+
+/-- A rider and its value are below each other. -/
+example : Le .empty (.ride .deprecate .integer (.map [])) .integer ∧
+    Le .empty .integer (.ride .deprecate .integer (.map [])) :=
+  ⟨ride_le_iff.mpr (Le.refl _ _), le_ride_iff.mpr (Le.refl _ _)⟩
+
+/-- An `ident()` anywhere but on an alias's value does not stand. -/
+example : (normalise (.ride .ident .integer (.map []))).illFormed = true := by decide
+
 /-! ## Conjunction -/
 
 /-- `integer & min(3)` admits `7`. -/

@@ -348,6 +348,18 @@ theorem le_meet_iff {a b c : Val} : c ⊑[env] .meet a b ↔ c ⊑[env] a ∧ c 
   ⟨fun h => ⟨h.trans (meet_le_left env a b), h.trans (meet_le_right env a b)⟩,
    fun ⟨ha, hb⟩ => le_meet ha hb⟩
 
+/-- A rider changes nothing in the order, on either side: the record it
+carries is no part of what it admits (decision 14 of the design note's
+§7). -/
+theorem ride_le_iff {k : Rider} {v : Val} {r : Data} {b : Val} :
+    .ride k v r ⊑[env] b ↔ v ⊑[env] b :=
+  ⟨fun h j ⟨hw, hj⟩ => h j ⟨hw, .ride hj⟩, fun h j ⟨hw, hj⟩ => h j ⟨hw, judge_ride_iff.mp hj⟩⟩
+
+theorem le_ride_iff {a : Val} {k : Rider} {v : Val} {r : Data} :
+    a ⊑[env] .ride k v r ↔ a ⊑[env] v :=
+  ⟨fun h j hj => ⟨(h j hj).1, judge_ride_iff.mp (h j hj).2⟩,
+   fun h j hj => ⟨(h j hj).1, .ride (h j hj).2⟩⟩
+
 /-! ## The profiles -/
 
 /-- The profiles `aontu subsume` answers under. -/

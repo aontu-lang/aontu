@@ -61,6 +61,7 @@ def Val.pathsToAliases : Val → Val
   | .rest t cs => .rest t.pathsToAliases (ptaCovers cs)
   | .select s arms d => .select s.pathsToAliases (ptaPairs arms) (ptaSpread d)
   | .filter s c => .filter s.pathsToAliases c.pathsToAliases
+  | .ride k v r => .ride k v.pathsToAliases r
   | v => v
 
 def ptaPairs : List (Val × Val) → List (Val × Val)
@@ -251,6 +252,7 @@ theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliase
     obtain ⟨a, ha, rfl⟩ := mem_ptaArms.mp hm
     exact ih r a ha
   | pref _ ih => exact .pref ih
+  | ride _ ih => exact .ride ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | path => exact .alias
   | @nof n cs _ _ ihn ihcs =>

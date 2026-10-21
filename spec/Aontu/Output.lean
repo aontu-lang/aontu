@@ -159,6 +159,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .list items spread _, j => ∃ xs, genItems env root spread items xs ∧ j = .list xs
   | .or arms, j => arms.any (picked arms) = true ∧ genArms env root arms arms j
   | .pref _ x, j => Gen env root x j
+  | .ride _ v _, j => Gen env root v j
   | .meet a b, j =>
     (Gen env root a j ∧ Admits env root b j) ∨
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
@@ -424,6 +425,9 @@ theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env r
   | .pref r x, j, h => by
     rw [Gen] at h
     exact .pref (gen_admits x j h)
+  | .ride _ v _, j, h => by
+    rw [Gen] at h
+    exact .ride (gen_admits v j h)
   | .meet a b, j, h => by
     rw [Gen] at h
     rcases h with ⟨ha, hb⟩ | ⟨-, hb, ha⟩
@@ -526,6 +530,9 @@ theorem gen_unique : ∀ (v : Val) (j j' : Data), Gen env root v j → Gen env r
   | .pref r x, j, j', h, h' => by
     rw [Gen] at h h'
     exact gen_unique x j j' h h'
+  | .ride _ v _, j, j', h, h' => by
+    rw [Gen] at h h'
+    exact gen_unique v j j' h h'
   | .meet a b, j, j', h, h' => by
     rw [Gen] at h h'
     rcases h with ⟨ha, -⟩ | ⟨hna, hb, -⟩ <;> rcases h' with ⟨ha', -⟩ | ⟨hna', hb', -⟩
@@ -595,6 +602,7 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
     | some (some j) => some j
     | _ => none
   | .pref _ x => genWith chk x
+  | .ride _ v _ => genWith chk v
   | .meet a b =>
     match genWith chk a with
     | some x => if chk b x then some x else none
@@ -948,6 +956,10 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
           rw [Option.some.injEq, Option.some.injEq] at this
           rw [this]
   | @pref r x _ ih =>
+    intro j
+    rw [genWith, Gen]
+    exact ih (fun w j hw hsub => hchk w j hw fun n hn => by simpa [Val.refs] using hsub n hn) j
+  | @ride k v r _ ih =>
     intro j
     rw [genWith, Gen]
     exact ih (fun w j hw hsub => hchk w j hw fun n hn => by simpa [Val.refs] using hsub n hn) j

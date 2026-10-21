@@ -114,6 +114,7 @@ def resolveD (ds : Decls) : Val → Val
   | .when c t e => .when (resolveD ds c) (resolveD ds t) (resolveSpread ds e)
   | .contains c n => .contains (resolveD ds c) (resolveD ds n)
   | .rest t cs => .rest (resolveD ds t) (resolveCovers ds cs)
+  | .ride k v r => .ride k (resolveD ds v) r
   | v => v
 
 def resolveFields (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val)
@@ -191,6 +192,7 @@ theorem resolveD_eq {ds : Decls} {v : Val} (h : v.CheckableA) : resolveD ds v = 
   | @list items spread closed _ _ ihi ihs => simp only [resolveD]; rw [resolveItems_eq ihi, resolveSpread_eq ihs]
   | or _ ih => simp only [resolveD]; rw [resolveArms_eq ih]
   | pref _ ih => simp only [resolveD]; rw [ih]
+  | ride _ ih => simp only [resolveD]; rw [ih]
   | meet _ _ iha ihb => simp only [resolveD]; rw [iha, ihb]
   | nof _ _ ihn ihcs => simp only [resolveD]; rw [ihn, resolveItems_eq ihcs]
   | must _ ih => simp only [resolveD]; rw [ih]
@@ -248,8 +250,9 @@ def clash (arms : List (ℕ × Val)) : Bool :=
 
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
-in a spread, which the engines read only against a member, or a
-preference clash. -/
+in a spread, which the engines read only against a member, a
+preference clash, or an `ident()` anywhere but on an alias's value,
+which a reference reads without it (`Decls.env`). -/
 def Val.illFormed : Val → Bool
   | .nil => true
   | .map fs _ _ => illFields fs
@@ -257,6 +260,8 @@ def Val.illFormed : Val → Bool
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
+  | .ride .ident _ _ => true
+  | .ride _ v _ => v.illFormed
   | _ => false
 
 def illFields : List (String × Bool × Val) → Bool
@@ -292,6 +297,7 @@ def Val.untried : Val → Val
   | .or arms => .or (untriedArms arms)
   | .pref r x => .pref r x.untried
   | .meet a b => .meet a.untried b.untried
+  | .ride k v r => .ride k v.untried r
   | v => v
 
 def untriedFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -386,6 +392,7 @@ theorem untried_checkableA {v : Val} (h : v.CheckableA) : v.untried.CheckableA :
     exact ih r a ha
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
+  | ride _ ih => exact .ride ih
   | _ => simp only [Val.untried]; constructor
 
 /-- A refusal at generation: with its trials and sizes unread, the term

@@ -34,6 +34,15 @@ inductive Bound where
   | str (s : String)
   deriving DecidableEq
 
+/-- The riders: the calls that put a record on a value and change
+nothing it admits or generates. The record is data the definition
+carries and reads nothing of (decision 14 of the design note's §7). -/
+inductive Rider where
+  | metadata                                -- `meta(v, r)`, an annotation; Lean keeps `meta`
+  | deprecate                               -- `deprecate(v, r)`, the record `{}` where none is written
+  | ident                                   -- `ident(v, r)`, the identity of an alias's value
+  deriving DecidableEq
+
 /-- A value, each constructor beside the construct it is. A map has
 keys, each required or optional, a spread that holds every member, and
 a seal that refuses every member it does not declare; a list has its
@@ -78,6 +87,7 @@ inductive Val where
   | rest (t : Val) (cs : List (Option Val × Option Val × Option Val))  -- `rest(t, c₁, …)`: each member no cover evaluates held to `t`
   | select (s : Val) (arms : List (Val × Val)) (d : Option Val)  -- `match(s, p₁, r₁, …, d?)`, the first `rᵢ` whose `pᵢ` admits the value of `s`, else `d`; Lean keeps `match`
   | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
+  | ride (k : Rider) (v : Val) (r : Data)   -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`: `v` carrying `r`
 
 /-! The language reads `|` and `*` by position, and the reader, not a
 rule, carries the reading into the terms: an arm of a disjunction, and
@@ -119,6 +129,7 @@ def Val.size : Val → ℕ
   | .rest t cs => t.size + sizeCovers cs + 1
   | .select s arms d => s.size + sizePairs arms + sizeSpread d + 1
   | .filter s c => s.size + c.size + 1
+  | .ride _ v _ => v.size + 1
   | _ => 1
 
 def sizePairs : List (Val × Val) → ℕ
@@ -220,6 +231,7 @@ def Val.super : Val → Val
   | .alias n => .alias n
   | .path p => .path p
   | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ => .any
+  | .ride _ v _ => v.super
 
 def superFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []

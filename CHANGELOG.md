@@ -8,6 +8,33 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds the riders
+
+Definition, generated rows, a generated file, two tests and
+documentation; no engine changes. Ruling 14 of the design note
+(`sketch/DEFINITION.0.md`, §7) is built.
+
+- `spec/Aontu/Syntax.lean`: `meta(v, r)`, `deprecate(v, r)` and
+  `ident(v, r)` are one form, `ride`, with a `Rider` naming the call
+  and the record as data. One rule of `Judge` makes it judge as its
+  value (`judge_ride_iff`). Generation, the meet, the checker, the
+  parent type, the expansion and the selections pass through it.
+  `ride_le_iff` and `le_ride_iff` in `spec/Aontu/Subsume.lean` put a
+  rider and its value below each other.
+- `spec/Aontu/Names.lean`: a reference reads a declaration's body
+  without the `ident()` at its top or on a term of its top meet
+  (`Val.unident`). `Val.illFormed` holds of one left anywhere else,
+  which `vet` answers as `error`, as both ports refuse it with
+  `ident_place`.
+- `test/spec/def-alias.tsv` grows by rows r0 on: the riders alone,
+  under a key, in a meet, on a declaration and out of place, which
+  both ports answer as the definition does.
+- `spec/forms.tsv` holds the three calls, so `spec/forms-outside.tsv`
+  keeps `key` alone, and the importer's forms check is bounded at one
+  form.
+- The definition tutorial reads the riders at steps 8 and 19, and the
+  language reference cites the rules.
+
 ### The definition's `defaults` profile counts only a declared default
 
 Definition and documentation; no engine changes, and no row changes.

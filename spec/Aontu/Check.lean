@@ -329,6 +329,7 @@ inductive Val.Checkable : Val → Prop
       (∀ c, c ∈ cs → ∀ v, c.2.1 = some v → Checkable v) →
       (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → Checkable v) →
       Checkable (.rest t cs)
+  | ride {k : Rider} {v : Val} {r : Data} : Checkable v → Checkable (.ride k v r)
 
 mutual
 /-- Whether a value is checkable, computed. -/
@@ -345,6 +346,7 @@ def Val.checkableB : Val → Bool
   | .when c t e => c.checkableB && t.checkableB && spreadCheckable e
   | .contains c n => c.checkableB && n.checkableB
   | .rest t cs => t.checkableB && coversCheckable cs
+  | .ride _ v _ => v.checkableB
   | _ => true
 
 def fieldsCheckable : List (String × Bool × Val) → Bool
@@ -416,6 +418,10 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
     simp only [Val.checkableB]
     rw [Val.checkableB_iff x]
     exact ⟨.pref, fun h => by cases h; assumption⟩
+  | .ride k v r => by
+    simp only [Val.checkableB]
+    rw [Val.checkableB_iff v]
+    exact ⟨.ride, fun h => by cases h; assumption⟩
   | .meet a b => by
     simp only [Val.checkableB, Bool.and_eq_true]
     rw [Val.checkableB_iff a, Val.checkableB_iff b]
@@ -827,6 +833,10 @@ theorem HookOk.pref {r : ℕ} {x : Val} {j : Data} (h : HookOk u env root (.pref
     HookOk u env root x j :=
   h.same (fun n hn => by simpa [Val.refs] using hn) (fun n hn => by simpa [Val.unguardedRefs] using hn)
 
+theorem HookOk.ride {k : Rider} {v : Val} {r : Data} {j : Data} (h : HookOk u env root (.ride k v r) j) :
+    HookOk u env root v j :=
+  h.same (fun n hn => by simpa [Val.refs] using hn) (fun n hn => by simpa [Val.unguardedRefs] using hn)
+
 theorem HookOk.meetLeft {a b : Val} {j : Data} (h : HookOk u env root (.meet a b) j) :
     HookOk u env root a j :=
   h.same (fun n hn => by simp only [Val.refs, List.mem_append]; exact .inl hn)
@@ -964,6 +974,7 @@ inductive Val.CheckableA : Val → Prop
       (∀ c, c ∈ cs → ∀ v, c.2.1 = some v → CheckableA v) →
       (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → CheckableA v) →
       CheckableA (.rest t cs)
+  | ride {k : Rider} {v : Val} {r : Data} : CheckableA v → CheckableA (.ride k v r)
 
 mutual
 /-- Whether a value is checkable given a hook, computed. -/
@@ -980,6 +991,7 @@ def Val.checkableAB : Val → Bool
   | .when c t e => c.checkableAB && t.checkableAB && spreadCheckableA e
   | .contains c n => c.checkableAB && n.checkableAB
   | .rest t cs => t.checkableAB && coversCheckableA cs
+  | .ride _ v _ => v.checkableAB
   | _ => true
 
 def fieldsCheckableA : List (String × Bool × Val) → Bool
@@ -1051,6 +1063,10 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
     simp only [Val.checkableAB]
     rw [Val.checkableAB_iff x]
     exact ⟨.pref, fun h => by cases h; assumption⟩
+  | .ride k v r => by
+    simp only [Val.checkableAB]
+    rw [Val.checkableAB_iff v]
+    exact ⟨.ride, fun h => by cases h; assumption⟩
   | .meet a b => by
     simp only [Val.checkableAB, Bool.and_eq_true]
     rw [Val.checkableAB_iff a, Val.checkableAB_iff b]
@@ -1158,6 +1174,7 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | list _ _ ihi ihs => exact .list ihi ihs
   | or _ ih => exact .or ih
   | pref _ ih => exact .pref ih
+  | ride _ ih => exact .ride ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | path => exact .path
   | nof _ _ ihn ihcs => exact .nof ihn ihcs
@@ -1187,6 +1204,7 @@ theorem Val.CheckableA.toChecked {v : Val} (h : v.CheckableA) (hn : ∀ n, n ∉
     exact .or fun r a hm => ih r a hm fun n hn' => hn n (by
       simp only [Val.refs]; exact mem_refsArms.mpr ⟨r, a, hm, hn'⟩)
   | pref _ ih => exact .pref (ih fun n hn' => hn n (by simpa [Val.refs] using hn'))
+  | ride _ ih => exact .ride (ih fun n hn' => hn n (by simpa [Val.refs] using hn'))
   | meet _ _ iha ihb =>
     exact .meet (iha fun n hn' => hn n (by simp only [Val.refs, List.mem_append]; exact .inl hn'))
       (ihb fun n hn' => hn n (by simp only [Val.refs, List.mem_append]; exact .inr hn'))
@@ -1246,6 +1264,7 @@ theorem Val.Checkable.no_refs {v : Val} (h : v.Checkable) : ∀ n, n ∉ v.refs 
     obtain ⟨r, a, hm, ha⟩ := mem_refsArms.mp hn
     exact ih r a hm n ha
   | pref _ ih => intro n hn; exact ih n (by simpa [Val.refs] using hn)
+  | ride _ ih => intro n hn; exact ih n (by simpa [Val.refs] using hn)
   | meet _ _ iha ihb =>
     intro n hn
     simp only [Val.refs, List.mem_append] at hn
@@ -1376,6 +1395,7 @@ def checkWith (u : String → Data → Bool) : Val → Data → Bool
     | _ => false
   | .or arms, j => checkArmsWith u arms j
   | .pref _ x, j => checkWith u x j || checkSuperWith u x j
+  | .ride _ v _, j => checkWith u v j
   | .meet a b, j => checkWith u a j && checkWith u b j
   | .re _, _ => false
   | .format _, _ => false
@@ -1478,6 +1498,7 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
     | _ => false
   | .or arms, j => checkSuperArmsWith u arms j
   | .pref _ x, j => checkSuperWith u x j
+  | .ride _ v _, j => checkSuperWith u v j
   | .meet a b, j =>
     if a.isKind then (if b.isKind then (if a.isLeaf then checkSuperWith u a j else checkSuperWith u b j) else checkWith u a j)
     else if b.isKind then checkWith u b j else checkSuperWith u a j && checkSuperWith u b j
@@ -2259,6 +2280,7 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
       obtain ⟨a, hm', rfl⟩ := mem_superArms.mp hm
       exact checkSuperArmsWith_false iha h r a hm'
   | @pref r x _ ihx => intro j hu; exact ihx j hu.pref
+  | @ride k v r _ ihv => intro j hu; exact ihv j hu.ride
   | @alias k =>
     intro j hu
     simp only [checkSuperWith, Val.super]
@@ -2638,6 +2660,10 @@ theorem checkWith_judge {v : Val} (h : v.CheckableA) :
       · exact .prefSuper (h2.of_eq h)
     · obtain ⟨ha, hb⟩ := Bool.or_eq_false_iff.mp h
       exact .prefNone (h1.of_eq ha) (h2.of_eq hb)
+  | @ride k v r _ ihv =>
+    intro j hu
+    simp only [checkWith]
+    exact .ride (ihv j hu.ride)
   | meet _ _ iha ihb =>
     intro j hu
     simp only [checkWith]

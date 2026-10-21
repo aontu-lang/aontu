@@ -8,6 +8,8 @@
 # name is a residual that expands against the data, as far as it goes.
 # Regenerate with `make spec`; never edit by hand. The cases the ports do
 # not yet answer this way are listed in spec/ledger.tsv.
+# The riders follow in rows r0 on: meta() and deprecate() judging as their
+# values, ident() on an alias's value, and ident() anywhere else, an error.
 a0	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid"}
 a1	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"noFill":true}}
 a2	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"partial":true}}
@@ -218,3 +220,33 @@ a206	verdict	%T = {"n": integer, "next"?: %T}\nv: %T	v: {"n": 1, "next": {"n": 2
 a207	verdict	%T = (%T) | (1)\nv: %T	v: 1	{"verdict":"error"}
 a208	verdict	%T = (%T) | (1)\nv: %T	v: 1	{"verdict":"error","opts":{"noFill":true}}
 a209	verdict	%T = (%T) | (1)\nv: %T	v: 1	{"verdict":"error","opts":{"partial":true}}
+r0	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid"}
+r1	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+r2	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid","opts":{"partial":true}}
+r3	verdict	v: meta(integer, {"title": "n"})	v: "a"	{"verdict":"invalid"}
+r4	verdict	v: meta(integer, {"title": "n"})	v: "a"	{"verdict":"invalid","opts":{"noFill":true}}
+r5	verdict	v: meta(integer, {"title": "n"})	v: "a"	{"verdict":"invalid","opts":{"partial":true}}
+r6	verdict	v: deprecate(*(1) | (integer), {})	v: 2	{"verdict":"valid"}
+r7	verdict	v: deprecate(*(1) | (integer), {})	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+r8	verdict	v: deprecate(*(1) | (integer), {})	v: 2	{"verdict":"valid","opts":{"partial":true}}
+r9	verdict	v: {"x": deprecate(*(1) | (integer), {"msg": "old"})}	v: {}	{"verdict":"valid"}
+r10	verdict	v: {"x": deprecate(*(1) | (integer), {"msg": "old"})}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+r11	verdict	v: {"x": deprecate(*(1) | (integer), {"msg": "old"})}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+r12	verdict	v: {"x": meta(1, {})}	v: {"x": 1}	{"verdict":"valid"}
+r13	verdict	v: {"x": meta(1, {})}	v: {"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+r14	verdict	v: {"x": meta(1, {})}	v: {"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+r15	verdict	v: (meta(integer, {})) & (2)	v: 2	{"verdict":"valid"}
+r16	verdict	v: (meta(integer, {})) & (2)	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+r17	verdict	v: (meta(integer, {})) & (2)	v: 2	{"verdict":"valid","opts":{"partial":true}}
+r18	verdict	%T = ident(integer, {"id": "https://example.com/t"})\nv: %T	v: 1	{"verdict":"valid"}
+r19	verdict	%T = ident(integer, {"id": "https://example.com/t"})\nv: %T	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+r20	verdict	%T = ident(integer, {"id": "https://example.com/t"})\nv: %T	v: 1	{"verdict":"valid","opts":{"partial":true}}
+r21	verdict	%T = ident(integer, {"id": "https://example.com/t"})\nv: %T	v: "a"	{"verdict":"invalid"}
+r22	verdict	%T = ident(integer, {"id": "https://example.com/t"})\nv: %T	v: "a"	{"verdict":"invalid","opts":{"noFill":true}}
+r23	verdict	%T = ident(integer, {"id": "https://example.com/t"})\nv: %T	v: "a"	{"verdict":"invalid","opts":{"partial":true}}
+r24	verdict	%T = meta(integer, {"title": "t"})\nv: %T	v: 1	{"verdict":"valid"}
+r25	verdict	%T = meta(integer, {"title": "t"})\nv: %T	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+r26	verdict	%T = meta(integer, {"title": "t"})\nv: %T	v: 1	{"verdict":"valid","opts":{"partial":true}}
+r27	verdict	v: ident(integer, {"id": "https://example.com/t"})	v: 1	{"verdict":"error"}
+r28	verdict	v: ident(integer, {"id": "https://example.com/t"})	v: 1	{"verdict":"error","opts":{"noFill":true}}
+r29	verdict	v: ident(integer, {"id": "https://example.com/t"})	v: 1	{"verdict":"error","opts":{"partial":true}}

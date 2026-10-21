@@ -52,6 +52,7 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .select s arms d =>
       .select (expandF ds k s) (arms.map fun a => (expandF ds k a.1, expandF ds k a.2)) (d.map (expandF ds k))
     | .filter s c => .filter (expandF ds k s) (expandF ds k c)
+    | .ride t v r => .ride t (expandF ds k v) r
     | v => v
 
 /-- The expansion of a term: enough turns for every chain of names that
@@ -168,6 +169,7 @@ theorem refersUnguarded_of_env {ds : Decls} {k n : String} {b : Val} (h : ds.env
   · exact nomatch h
   · rename_i v vs hb
     cases h
+    rw [Val.unguardedRefs_unident] at hn
     rcases unguardedRefs_foldl_meet vs v hn with h' | ⟨w, hw, hn'⟩
     · exact ⟨v, hb ▸ List.mem_cons_self, h'⟩
     · exact ⟨w, hb ▸ List.mem_cons_of_mem v hw, hn'⟩
@@ -208,6 +210,9 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
     | pref r x =>
       simp only [expandF, Val.unguardedRefs] at h ⊢
       exact unguardedRefs_expandF f x h
+    | ride t v r =>
+      simp only [expandF, Val.unguardedRefs] at h ⊢
+      exact unguardedRefs_expandF f v h
     | meet a b =>
       simp only [expandF, Val.unguardedRefs, List.mem_append] at h ⊢
       rcases h with h | h
@@ -317,6 +322,13 @@ theorem Decls.Stacked.push {ds : Decls} {stack : List String} {v : Val} {k : Str
 
 /-! ### The expansion keeps a term checkable -/
 
+/-- Leaving an identity behind keeps a body checkable. -/
+theorem Val.checkableA_unident {v : Val} (h : v.CheckableA) : v.unident.CheckableA := by
+  induction v using Val.unident.induct with
+  | case1 v r ih => cases h with | ride h => exact ih h
+  | case2 a b iha ihb => cases h with | meet ha hb => exact .meet (iha ha) (ihb hb)
+  | case3 v h1 h2 => rw [Val.unident.eq_3 v h1 h2]; exact h
+
 theorem Decls.env_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {k : String} {b : Val}
     (h : ds.env k = some b) : b.CheckableA := by
   simp only [Decls.env] at h
@@ -339,7 +351,8 @@ theorem Decls.env_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Checkabl
         intro v hv hws
         exact ih (.meet v w) (.meet hv (hws w (List.mem_cons_self)))
           (fun w' hw' => hws w' (List.mem_cons_of_mem _ hw'))
-    exact this vs v (hall v (List.mem_cons_self)) (fun w hw => hall w (List.mem_cons_of_mem _ hw))
+    exact Val.checkableA_unident
+      (this vs v (hall v (List.mem_cons_self)) (fun w hw => hall w (List.mem_cons_of_mem _ hw)))
 
 theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
     ∀ (f : ℕ) (v : Val), v.CheckableA → (expandF ds f v).CheckableA
@@ -381,6 +394,7 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       obtain ⟨rfl, rfl⟩ := he
       exact expandF_checkableA hb f a (ha r' a ha')
     | pref hx => exact .pref (expandF_checkableA hb f _ hx)
+    | ride hv => exact .ride (expandF_checkableA hb f _ hv)
     | meet ha hb' => exact .meet (expandF_checkableA hb f _ ha) (expandF_checkableA hb f _ hb')
     | nof hn hcs =>
       refine .nof (expandF_checkableA hb f _ hn) ?_
@@ -493,6 +507,7 @@ theorem checkR_iff {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, d �
 against: everything but `any`, `nil`, a reference and a connective. -/
 def Val.concrete : Val → Bool
   | .any | .nil | .alias _ | .path _ | .meet _ _ | .or _ | .pref _ _ => false
+  | .ride _ v _ => v.concrete
   | _ => true
 
 /-- Whether every body reads no path, no pattern and no format. -/
@@ -804,6 +819,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
     obtain ⟨a, ha, rfl⟩ := mem_superArms.mp hm
     exact ih r a ha
   | pref _ ih => exact ih
+  | ride _ ih => exact ih
   | @meet a b ha hb iha ihb =>
     show (if a.isKind then (if b.isKind then (if a.isLeaf then a.super else b.super) else a)
       else if b.isKind then b else Val.meet a.super b.super).CheckableA
@@ -1027,6 +1043,8 @@ theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
     | exact meetBase_checkableA hl ha hb
     | exact (match ha with | .meet h₁ h₂ => hr _ _ h₁ (hr _ _ h₂ hb))
     | exact meetRight_checkableA hr ha hb
+    | exact (match ha with | .ride h => .ride (hr _ _ h hb))
+    | exact (match hb with | .ride h => .ride (hr _ _ ha h))
     | exact mkOr_or_left hr ha hb
     | exact mkOr_or_right hr ha hb
     | exact mkOr_pref_left hr ha hb
