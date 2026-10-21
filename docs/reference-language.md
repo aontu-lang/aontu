@@ -2645,6 +2645,8 @@ Map the characters of `s` from one set to another. A range expands
 
 Example: `translate("a-b-c", "-", "_")` → `"a_b_c"`
 
+The definition computes `translate` as `translateOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). `expandSet` reads each set, where a range that descends is an error, and `translateChar` writes each code point by its last naming in `from`.
+
 ### `type(t: any) : any`
 
 Mark `x` as a type/schema value: a definition, whose instances (a copy
