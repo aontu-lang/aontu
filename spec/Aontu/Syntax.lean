@@ -1,4 +1,4 @@
-import Aontu.Data
+import Aontu.Arith
 
 /-!
 # The values
@@ -96,6 +96,7 @@ inductive Val where
   | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
   | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`, `type(v)`, `hide(v)`: `v` carrying `r`
   | key                                     -- `key(0)`, the key of the member a spread is tried on
+  | call (f : Fn) (args : List Val)         -- `add(a, b)`, `-(a)`, …: the value `f` computes from the values of `args`
 
 /-! The language reads `|` and `*` by position, and the reader, not a
 rule, carries the reading into the terms: an arm of a disjunction, and
@@ -138,6 +139,7 @@ def Val.size : Val → ℕ
   | .select s arms d => s.size + sizePairs arms + sizeSpread d + 1
   | .filter s c => s.size + c.size + 1
   | .ride _ v _ => v.size + 1
+  | .call _ args => sizeItems args + 1
   | _ => 1
 
 def sizePairs : List (Val × Val) → ℕ
@@ -240,7 +242,8 @@ def Val.super : Val → Val
     else if b.isKind then b else .meet a.super b.super
   | .alias n => .alias n
   | .path p => .path p
-  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ => .any
+  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _
+  | .call _ _ => .any
   | .ride _ v _ => v.super
   | .key => .anyString
 
@@ -338,7 +341,7 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
   | .mapKind | .listKind | .lit (.bool _) | .lit .null | .neq [] | .mulof _
   | .len _ | .unique _ | .re _ | .format _ | .any | .nil | .map _ _ _ | .list _ _ _ | .or _
   | .alias _ | .path _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
-  | .select _ _ _ | .filter _ _ | .key => rfl
+  | .select _ _ _ | .filter _ _ | .key | .call _ _ => rfl
 
 /-- A term with no `key` at its own position is its own reading under
 any key. -/

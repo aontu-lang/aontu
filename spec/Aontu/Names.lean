@@ -45,6 +45,7 @@ def Val.unmark : Val → Val
   | .rest t cs => .rest t.unmark (unmarkCovers cs)
   | .select s arms d => .select s.unmark (unmarkPairs arms) (unmarkSpread d)
   | .filter s c => .filter s.unmark c.unmark
+  | .call f args => .call f (unmarkItems args)
   | .ride .type v _ => v.unmark
   | .ride .hide v _ => v.unmark
   | .ride k v r => .ride k v.unmark r
@@ -116,6 +117,7 @@ def Val.refs : Val → List String
   | .rest t cs => t.refs ++ refsCovers cs
   | .select s arms d => s.refs ++ refsPairs arms ++ refsSpread d
   | .filter s c => s.refs ++ c.refs
+  | .call _ args => refsItems args
   | .ride _ v _ => v.refs
   | _ => []
 
@@ -166,6 +168,7 @@ def Val.unguardedRefs : Val → List String
   | .rest _ cs => unguardedCovers cs
   | .select s arms d => s.unguardedRefs ++ unguardedPairs arms ++ unguardedSpread d
   | .filter s c => s.unguardedRefs ++ c.unguardedRefs
+  | .call _ args => unguardedItems args
   | .ride _ v _ => v.unguardedRefs
   | _ => []
 
@@ -480,14 +483,14 @@ theorem Val.unguardedRefs_unmark (v : Val) : v.unmark.unguardedRefs = v.unguarde
     (motive_5 := fun arms => unguardedArms (unmarkArms arms) = unguardedArms arms)
     (motive_6 := fun vs => unguardedItems (unmarkItems vs) = unguardedItems vs)
     (motive_7 := fun _ => True)
-  case case16 k v r h1 h2 ih =>
+  case case17 k v r h1 h2 ih =>
     cases k with
     | type => exact absurd rfl h1
     | hide => exact absurd rfl h2
     | _ => simp only [Val.unmark, Val.unguardedRefs, ih]
-  case case17 =>
-    rename_i v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16
-    rw [Val.unmark.eq_17 v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16]
+  case case18 =>
+    rename_i v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16 h17
+    rw [Val.unmark.eq_18 v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16 h17]
   all_goals first
     | trivial
     | simp_all only [Val.unmark, unmarkItems, unmarkArms, unmarkPairs, unmarkCovers,
@@ -544,6 +547,7 @@ theorem unguardedRefs_sub_refs : ∀ (v : Val) (n : String), n ∈ v.unguardedRe
     simp only [Val.unguardedRefs, List.mem_append] at h
     simp only [Val.refs, List.mem_append]
     exact h.elim (fun h => .inl (unguardedRefs_sub_refs s n h)) (fun h => .inr (unguardedRefs_sub_refs c n h))
+  | .call _ args, n, h => unguardedItems_sub_refsItems args n h
   | .integer, _, h | .float, _, h | .biginteger, _, h | .bigdecimal, _, h | .number, _, h
   | .string, _, h | .anyString, _, h | .boolean, _, h | .lit _, _, h | .min _, _, h
   | .max _, _, h | .above _, _, h | .beneath _, _, h | .neq _, _, h | .mulof _, _, h
@@ -747,6 +751,7 @@ def Val.paths : Val → List (List Seg)
   | .rest t cs => t.paths ++ pathsCovers cs
   | .select s arms d => s.paths ++ pathsPairs arms ++ pathsSpread d
   | .filter s c => s.paths ++ c.paths
+  | .call _ args => pathsItems args
   | .ride _ v _ => v.paths
   | _ => []
 

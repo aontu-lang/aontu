@@ -159,6 +159,16 @@ def openCovers : List Cover → Bool
   | (c, k, m) :: cs => openSpread c || openSpread k || openSpread m || openCovers cs
 end
 
+/-- The name a call on numbers is written with. -/
+def Fn.name : Fn → String
+  | .add => "add"
+  | .sub => "sub"
+  | .mul => "mul"
+  | .div => "div"
+  | .mod => "mod"
+  | .rem => "rem"
+  | .neg => "-"
+
 mutual
 def Val.src : Val → Option String
   | .integer => some "integer"
@@ -215,6 +225,7 @@ def Val.src : Val → Option String
   | .rest t cs => do pure s!"rest({", ".intercalate ([← t.src] ++ (← coversSrc cs))})"
   | .select s arms d => do pure s!"match({", ".intercalate ([← s.src] ++ (← pairsSrc arms) ++ (← elseSrc d))})"
   | .filter s c => do pure s!"filter({← s.src}, {← c.src})"
+  | .call f args => do pure s!"{f.name}({", ".intercalate (← itemsSrc args)})"
   | .ride .type v [] => do pure s!"type({← v.src})"
   | .ride .hide v [] => do pure s!"hide({← v.src})"
   | .ride .type _ _ | .ride .hide _ _ => none

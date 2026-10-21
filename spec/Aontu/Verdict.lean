@@ -80,13 +80,21 @@ def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
   | [], d => d.getD .nil
   | (p, r) :: arms, d => if checkR ds p x then r else selectArm ds x arms d
 
+/-- The number a term is, the riders around it read through. -/
+def Val.number? : Val → Option Number
+  | .lit (.num n) => some n
+  | .ride _ v _ => v.number?
+  | _ => none
+
 mutual
 /-- A term with its selections made: each `match` whose scrutinee
 generates a value is the result its arms select for it, and each
 `filter` whose source generates a container is the members its
 condition admits, as a term, or `nil` where the source generates a
 scalar, which has no members. One whose scrutinee or source generates
-nothing stays, and generates nothing. -/
+nothing stays, and generates nothing. A call whose arguments' normal
+forms are numbers is the number its function computes from them, and
+any other call stays, which no reading makes. -/
 def resolveD (ds : Decls) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds s
@@ -103,6 +111,11 @@ def resolveD (ds : Decls) : Val → Val
     | some (.list xs) => (Data.list (xs.filter fun x => checkR ds c' x)).term
     | some _ => .nil
     | none => .filter s' c'
+  | .call f args =>
+    let args' := resolveItems ds args
+    match (args'.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f) with
+    | some n => .lit (.num n)
+    | none => .call f args'
   | .len c => .len (resolveD ds c)
   | .map fs spread closed => .map (resolveFields ds fs) (resolveSpread ds spread) closed
   | .list items spread closed => .list (resolveItems ds items) (resolveSpread ds spread) closed
@@ -336,6 +349,13 @@ theorem resolveD_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (resolve
       exact ihr p₀ r₀ hm₀
     · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
       exact ihd e₀ he₀
+  | @call f args _ ih =>
+    simp only [resolveD]
+    split
+    · exact .lit
+    · refine .call fun a ha => ?_
+      obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
+      exact ih a₀ ha₀
   | _ => simp only [resolveD]; constructor
 
 /-- A document whose schema the checker can read reads as its expansion. -/
@@ -428,7 +448,8 @@ def sizeClash (cs : List Val) : Bool :=
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, a
-preference clash, or a size the meet's container literal breaks. -/
+preference clash, a size the meet's container literal breaks, or a
+call the reading could not make. -/
 def Val.illFormed : Val → Bool
   | .nil => true
   | .map fs _ _ => illFields fs
@@ -437,6 +458,7 @@ def Val.illFormed : Val → Bool
   | .pref _ x => x.illFormed
   | .meet a b => illChain a || illChain b || sizeClash (a.conjuncts ++ b.conjuncts)
   | .ride _ v _ => v.illFormed
+  | .call _ _ => true
   | _ => false
 
 /-- A conjunct of a meet read as `illFormed` reads a term, the meet it
@@ -449,6 +471,7 @@ def illChain : Val → Bool
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .ride _ v _ => v.illFormed
+  | .call _ _ => true
   | _ => false
 
 def illFields : List (String × Bool × Val) → Bool
@@ -638,6 +661,7 @@ theorem untried_checkableA {v : Val} (h : v.CheckableA) : v.untried.CheckableA :
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
+  | call h _ => simp only [Val.untried]; exact .call h
   | _ => simp only [Val.untried]; constructor
 
 /-- A refusal at generation: with its trials and sizes unread, the term

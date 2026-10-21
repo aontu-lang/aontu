@@ -92,7 +92,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
-  | .key, _ => False
+  | .key, _ | .call _ _, _ => False
 
 /-- The members a map's declarations generate, in declaration order: a
 key whose value generates one the spread admits under the key, with it;
@@ -539,7 +539,7 @@ theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env r
   | .min _, _, h | .max _, _, h
   | .above _, _, h | .beneath _, _, h | .neq _, _, h | .mulof _, _, h | .len _, _, h
   | .unique _, _, h | .re _, _, h | .format _, _, h | .any, _, h | .nil, _, h
-  | .alias _, _, h | .path _, _, h => by rw [Gen] at h; exact h.elim
+  | .alias _, _, h | .path _, _, h | .call _ _, _, h => by rw [Gen] at h; exact h.elim
 
 theorem fields_admits : ∀ fs : List (String × Bool × Val), ∀ k o v, (k, o, v) ∈ fs →
     ∀ x, Gen env root v x → Admits env root v x
@@ -648,7 +648,7 @@ theorem gen_unique : ∀ (v : Val) (j j' : Data), Gen env root v j → Gen env r
   | .min _, _, _, h, _ | .max _, _, _, h, _ | .above _, _, _, h, _ | .beneath _, _, _, h, _
   | .neq _, _, _, h, _ | .mulof _, _, _, h, _ | .len _, _, _, h, _ | .unique _, _, _, h, _
   | .re _, _, _, h, _ | .format _, _, _, h, _ | .any, _, _, h, _ | .nil, _, _, h, _
-  | .alias _, _, _, h, _ | .path _, _, _, h, _ => by rw [Gen] at h; exact h.elim
+  | .alias _, _, _, h, _ | .path _, _, _, h, _ | .call _ _, _, _, h, _ => by rw [Gen] at h; exact h.elim
 
 theorem fields_unique : ∀ fs : List (String × Bool × Val), ∀ k o v, (k, o, v) ∈ fs →
     ∀ x x', Gen env root v x → Gen env root v x' → x = x'
@@ -716,7 +716,7 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
   | .mapKind | .listKind
   | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .mulof _ | .len _ | .unique _
   | .re _ | .format _ | .any | .nil | .alias _ | .path _ | .nof _ _ | .must _ _
-  | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .key => none
+  | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .key | .call _ _ => none
 
 /-- The members the declarations generate, or `none` where a required
 key's value generates none the spread admits. -/
@@ -993,7 +993,7 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩
   | len _ _ | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
-  | key | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ =>
+  | key | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ | call _ _ =>
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩
