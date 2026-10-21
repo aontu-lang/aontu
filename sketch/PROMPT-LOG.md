@@ -284,3 +284,9 @@ The answer to the agent's question, the question followed by the option chosen:
 The hotfix's own branch is hotfix/0.76.1 (v0.76.0 + the fix + the bump; the tags go there). What should it be called?
 → Keep hotfix/0.76.1
 ```
+
+## 2026-10-21 12:58:22 UTC · Claude Code · session_01KHD8Adfguemdb5wJmq329A
+
+```text
+tags pushed
+```
