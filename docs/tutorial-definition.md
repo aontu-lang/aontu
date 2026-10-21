@@ -2344,7 +2344,14 @@ A reference copies the value without its marks too, the `type()` and
 `hide()` of step 13, at every depth: `unmark` clears them through every
 form that holds a term, a selection's results among them. So what a
 body hides, the place that refers to it asks for, and a mark written at
-that place stays. The identity's one layer comes first:
+that place stays. A name whose body carries `type()` is a definition,
+and its copy an instance, which admits nothing the definition doesn't
+declare, at any depth: the expansion meets the copy with a restriction,
+`Val.restrict`, a sealed map declaring the keys the body's maps declare,
+each optional and restricted in turn, and a sealed list the same by
+position. The seal follows a selection to the result it makes, stops at
+a kind, a disjunction, a preference and a name, and a recursive name
+takes none, as both engines read it. The identity's one layer comes first:
 
 <!-- test: quote spec/Aontu/Names.lean -->
 ```lean
@@ -2594,14 +2601,16 @@ ledger of step 15 carries `%U = %U`, where the engines move.
 
 A document reads as its expansion, in `spec/Aontu/Alias.lean`: a
 reference to a name that is not recursive is replaced by the meet of
-the name's bodies, read the same way, and a reference to a recursive
-name stays as written, a residual.
+the name's bodies, read the same way and sealed where the name is a
+definition, and a reference to a recursive name stays as written, a
+residual.
 
 <!-- test: quote spec/Aontu/Alias.lean -->
 ```lean
 /-- The expansion of a term, within `k` turns: a reference to a name
 that is not recursive is replaced by the meet of its bodies, expanded in
-turn; a reference to a recursive name, or to no name, stays. -/
+turn and sealed where the name is a definition; a reference to a
+recursive name, or to no name, stays. -/
 def expandF (ds : Decls) : ℕ → Val → Val
 ```
 
@@ -5638,9 +5647,8 @@ for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, most built-in functions,
-`key()` anywhere but in a spread, generation with `each`, `pack` and
-`emit`, and the seal a reference puts on a `type()` value at every
-depth. [`aontu vet`](reference-api.md#aontu-vet) states which
+`key()` anywhere but in a spread, and generation with `each`, `pack`
+and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 

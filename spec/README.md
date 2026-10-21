@@ -79,7 +79,9 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 
 - each read mode's reading of a number, and the exactness budget of a
   big decimal (P1);
-- `open()`, which the syntax has no form for (P2);
+- `open()`, which the syntax has no form for, and with it the way out
+  of the seal that both ports give a body written `type(open(...))`
+  (P2);
 - a selection inside a recursive name's body, which the checker reads
   unmade: P3 and P4 landed without it (#403);
 - two recursions of one shape under different names, which the order
@@ -89,8 +91,6 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - `key()` anywhere but a spread's own position, and its levels: ruling
   13 entered the term narrowed to the key a spread is tried on, and the
   rest waits on the templates (P9);
-- the seal a reference puts on a `type()` value at every depth, which
-  both ports put on it: the rest of ruling 10;
 - a marked list element, which both ports leave out of the output
   where no reading by position admits the output (decision 18, #421);
 - a size that is a disjunction, which both ports refuse as an argument
