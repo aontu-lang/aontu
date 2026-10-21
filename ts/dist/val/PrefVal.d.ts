@@ -12,6 +12,8 @@ declare class PrefVal extends FeatureVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
     private resuper;
     private restand;
+    private stand;
+    private meetPref;
     unify(peer: Val, ctx: AontuContext): Val;
     same(peer: Val): boolean;
     clone(ctx: AontuContext, spec?: ValSpec): Val;

@@ -204,20 +204,22 @@ load-ext-broken	err	x:@"__FIXTURES__/broken.toml"	unexpected
 load-ext-toml-dates	gen	x:@"__FIXTURES__/dates.toml"	{"x":{"day":"1979-05-27","port":8080,"when":"1979-05-27T07:32:00Z"}}
 # AN INCLUDE UNIFIES IN PLACE (reference-language.md, "Source loading"): the
 # loaded document's keys join the enclosing map WHERE THE `@` STANDS, so
-# `@"base" k:..` folds base first and `k:.. @"base"` folds it last. A scalar
-# meet commutes and hides the order; a preference inside a disjunction does
-# not, because the lowest rank wins when two defaults meet -- so the arm
-# order decides which default survives generation. TypeScript held a loaded
+# `@"base" k:..` folds base first and `k:.. @"base"` folds it last. What
+# generates commutes and hides the order: the concrete `info` wins over both
+# defaults whichever side it arrives on. The canon does not, because a
+# disjunction keeps its arms in the order they met, so the canon rows are
+# the ones that see where the `@` stands. TypeScript held a loaded
 # document as a conjunct arm AFTER every pair of the map whatever the `@`'s
 # position, which made both spellings mean the same thing, neither of them
 # the source order, and an include stop being its own inlining. The -inline
-# row is the control: it is the same three statements with no `@` at all,
-# and it must answer what -before answers.
-include-in-place-before	canon	@"__FIXTURES__/pref_base.aontu" w: {a: { L: ***info | string }}	{"w":{&:{"L":*"warn"|string},"a":{"L":*"warn"|"info"|***"info"}}}
-include-in-place-before-gen	gen	@"__FIXTURES__/pref_base.aontu" w: {a: { L: ***info | string }}	{"w":{"a":{"L":"warn"}}}
+# rows are the control: the same three statements with no `@` at all, which
+# must answer what the -before rows answer.
+include-in-place-before	canon	@"__FIXTURES__/pref_base.aontu" w: {a: { L: ***info | string }}	{"w":{&:{"L":*"warn"|string},"a":{"L":***"info"|"info"}}}
+include-in-place-before-gen	gen	@"__FIXTURES__/pref_base.aontu" w: {a: { L: ***info | string }}	{"w":{"a":{"L":"info"}}}
 include-in-place-after	canon	w: {a: { L: ***info | string }} @"__FIXTURES__/pref_base.aontu"	{"w":{&:{"L":*"warn"|string},"a":{"L":"info"|***"info"}}}
 include-in-place-after-gen	gen	w: {a: { L: ***info | string }} @"__FIXTURES__/pref_base.aontu"	{"w":{"a":{"L":"info"}}}
-include-in-place-inline	gen	w: { &: { L: *warn | string } a: L: info } w: {a: { L: ***info | string }}	{"w":{"a":{"L":"warn"}}}
+include-in-place-inline	gen	w: { &: { L: *warn | string } a: L: info } w: {a: { L: ***info | string }}	{"w":{"a":{"L":"info"}}}
+include-in-place-inline-canon	canon	w: { &: { L: *warn | string } a: L: info } w: {a: { L: ***info | string }}	{"w":{&:{"L":*"warn"|string},"a":{"L":***"info"|"info"}}}
 # Two includes and three local pairs fold into ONE map in statement order.
 include-in-place-interleaved	gen	x:11 @"__FIXTURES__/foo.aontu" y:22 @"__FIXTURES__/car.aontu" z:33	{"color":"silver","doors":4,"f":11,"x":11,"y":22,"z":33}
 # A FRAME NAMES THE FILE IT EXCERPTS. A value's position is an offset

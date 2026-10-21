@@ -235,3 +235,21 @@ Three comment lines in .github/workflows/ (daily.yml, docs.yml, spec.yml) still 
 I read "add the agent guides and DEV-PROCESS.md" as: say in AGENTS.md and DEV-PROCESS.md, as well as sketch/README.md, that every file in sketch/ is to be ignored, and point sketch/README.md back at both. That is what #400 did. Is that what you meant?
 → Yes, as done
 ```
+
+## 2026-10-21 10:50:43 UTC · Claude Code · session_01KHD8Adfguemdb5wJmq329A
+
+```text
+fix this issue in aontu 0.76.0 : https://github.com/aontu-lang/aontu/issues/431 and release 0.76.1 - don't close the issue when done, instead note it needs to be checked again for the next release
+```
+
+## 2026-10-21 10:51:41 UTC · Claude Code · session_01KHD8Adfguemdb5wJmq329A
+
+```text
+why did this issue occur?
+```
+
+## 2026-10-21 11:13:55 UTC · Claude Code · session_01KHD8Adfguemdb5wJmq329A
+
+```text
+do we now have unit tests covering this case and more variants of defaults unification ordering?
+```
