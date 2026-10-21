@@ -18,10 +18,10 @@
 # from row x1803, and a filter whose condition holds the hole, read for each
 # member it tries, from row x1902. A call skips an optional member whose value
 # generates an empty map or list, from row x1935, rep reads its replacement
-# against its pattern's groups before the text, from row x1959, and pick and
-# sort read a projector and a direction through a rider or a mark, from row
-# x1995. A call on a name follows in rows z0 on, and a call handed a pattern,
-# re(p), in rows v0 on.
+# against its pattern's groups before the text, from row x1959, pick and sort
+# read a projector and a direction through a rider or a mark, from row x1995,
+# and a string names an index by its digits alone, from row x2025. A call on a
+# name follows in rows z0 on, and a call handed a pattern, re(p), in rows v0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -2048,6 +2048,36 @@ x2021	verdict	v: sort([2, 1], null)	v: [1, 2]	{"verdict":"error","opts":{"partia
 x2022	verdict	v: sort([2, 1], meta(null, {}))	v: [1, 2]	{"verdict":"error"}
 x2023	verdict	v: sort([2, 1], meta(null, {}))	v: [1, 2]	{"verdict":"error","opts":{"noFill":true}}
 x2024	verdict	v: sort([2, 1], meta(null, {}))	v: [1, 2]	{"verdict":"error","opts":{"partial":true}}
+x2025	verdict	v: pick([[1, 2]], "+1")	v: [2]	{"verdict":"valid"}
+x2026	verdict	v: pick([[1, 2]], "+1")	v: [2]	{"verdict":"valid","opts":{"noFill":true}}
+x2027	verdict	v: pick([[1, 2]], "+1")	v: [2]	{"verdict":"valid","opts":{"partial":true}}
+x2028	verdict	v: pick([[1, 2]], " 0")	v: [1]	{"verdict":"error"}
+x2029	verdict	v: pick([[1, 2]], " 0")	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+x2030	verdict	v: pick([[1, 2]], " 0")	v: [1]	{"verdict":"error","opts":{"partial":true}}
+x2031	verdict	v: pick([[1, 2]], "0 ")	v: [1]	{"verdict":"error"}
+x2032	verdict	v: pick([[1, 2]], "0 ")	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+x2033	verdict	v: pick([[1, 2]], "0 ")	v: [1]	{"verdict":"error","opts":{"partial":true}}
+x2034	verdict	v: pick([[1, 2]], "1.0")	v: [2]	{"verdict":"error"}
+x2035	verdict	v: pick([[1, 2]], "1.0")	v: [2]	{"verdict":"error","opts":{"noFill":true}}
+x2036	verdict	v: pick([[1, 2]], "1.0")	v: [2]	{"verdict":"error","opts":{"partial":true}}
+x2037	verdict	v: pick([[1, 2]], "1e0")	v: [2]	{"verdict":"error"}
+x2038	verdict	v: pick([[1, 2]], "1e0")	v: [2]	{"verdict":"error","opts":{"noFill":true}}
+x2039	verdict	v: pick([[1, 2]], "1e0")	v: [2]	{"verdict":"error","opts":{"partial":true}}
+x2040	verdict	v: pick([[1, 2]], "0x1")	v: [2]	{"verdict":"error"}
+x2041	verdict	v: pick([[1, 2]], "0x1")	v: [2]	{"verdict":"error","opts":{"noFill":true}}
+x2042	verdict	v: pick([[1, 2]], "0x1")	v: [2]	{"verdict":"error","opts":{"partial":true}}
+x2043	verdict	v: pick([[1, 2]], "")	v: [1]	{"verdict":"error"}
+x2044	verdict	v: pick([[1, 2]], "")	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+x2045	verdict	v: pick([[1, 2]], "")	v: [1]	{"verdict":"error","opts":{"partial":true}}
+x2046	verdict	v: pick([{"": 1}], "")	v: [1]	{"verdict":"error"}
+x2047	verdict	v: pick([{"": 1}], "")	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+x2048	verdict	v: pick([{"": 1}], "")	v: [1]	{"verdict":"error","opts":{"partial":true}}
+x2049	verdict	v: sort([[2], [1]], "0")	v: [[1], [2]]	{"verdict":"valid"}
+x2050	verdict	v: sort([[2], [1]], "0")	v: [[1], [2]]	{"verdict":"valid","opts":{"noFill":true}}
+x2051	verdict	v: sort([[2], [1]], "0")	v: [[1], [2]]	{"verdict":"valid","opts":{"partial":true}}
+x2052	verdict	v: sort([[2], [1]], " 0")	v: [[1], [2]]	{"verdict":"error"}
+x2053	verdict	v: sort([[2], [1]], " 0")	v: [[1], [2]]	{"verdict":"error","opts":{"noFill":true}}
+x2054	verdict	v: sort([[2], [1]], " 0")	v: [[1], [2]]	{"verdict":"error","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}

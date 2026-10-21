@@ -6087,15 +6087,13 @@ def sortLe (desc : Bool) (x y : Scalar × Val) : Bool :=
 ```
 
 The picks and sorts have rows of their own, x597 on in
-`test/spec/def-call.tsv`, and x1995 on for a projector or a direction
-through a rider or a mark, which reads as its value, as one through a
-name does in rows z30 on. Both engines answer every one as the
-definition does, but for three calls with the wrong number of
-arguments, which #426 tracks. The two engines differ from each other in
-one place, so no row holds it. TypeScript reads a string as an index as
-JavaScript's `Number()` does, so `" 0"` and `"1e0"` name index 0 and
-index 1, and reads `""` as a key in `pick`, where Go reads neither,
-which #437 tracks.
+`test/spec/def-call.tsv`. A projector or a direction through a rider
+or a mark reads as its value, rows x1995 on, as one through a name does
+in rows z30 on. A string names an index by its digits alone, so
+`" 0"` and `"1e0"` name none, and `""` names no key in `pick`, rows
+x2025 on. Both engines answer every row as the definition does, but
+for three calls with the wrong number of arguments, which #426
+tracks.
 
 ## 23. Changing case and characters
 

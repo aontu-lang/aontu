@@ -131,6 +131,19 @@ pick-key-alias	canon	%K = "a" x:pick([{a:1}],%K)	{"x":[1]}
 pick-key-path	canon	k:"a" x:pick([{a:1}],$.k)	{"k":"a","x":[1]}
 pick-key-index-path	canon	i:1 x:pick([[9,8]],$.i)	{"i":1,"x":[8]}
 pick-key-preference	errc	x:pick([{a:1}],*"a")	invalid-arg
+# A STRING NAMES AN INDEX BY ITS DIGITS, after one optional sign, as a
+# reference segment does, and by nothing else: a space, a point, an
+# exponent or a hexadecimal prefix names none (#437), where TypeScript
+# once read the string as JavaScript's Number() does. `""` names no key,
+# since it is `sort`'s spelling of the member itself.
+pick-index-signed	canon	x:pick([[9,8]],"+1")	{"x":[8]}
+pick-index-leading-zero	canon	x:pick([[9,8]],"01")	{"x":[8]}
+pick-index-space	errc	x:pick([[9,8]]," 0")	pick_key
+pick-index-point	errc	x:pick([[9,8]],"1.0")	pick_key
+pick-index-exponent	errc	x:pick([[9,8]],"1e0")	pick_key
+pick-index-hex	errc	x:pick([[9,8]],"0x1")	pick_key
+pick-key-empty	errc	x:pick([[9,8]],"")	invalid-arg
+pick-key-empty-map	errc	x:pick([{"":1}],"")	invalid-arg
 # PICK AND EACH SHARE ONE ORDER, and it is CODE POINT order -- the
 # order canon emits and the one keyorder.ts exists to state. TypeScript
 # sorted this one call site with a bare `.sort()`, which is UTF-16 CODE

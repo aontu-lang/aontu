@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### A string names a `pick` or `sort` index by its digits alone
+
+TypeScript, shared and generated rows, and documentation; no Go change
+(#437).
+
+- TypeScript reads a string as a list member's index by its digits
+  after one optional sign, as Go's `strconv.Atoi` reads it, where it
+  read it as JavaScript's `Number()` does. `pick([[1, 2]], " 0")`,
+  `pick([[1, 2]], "1e0")` and `sort([[2], [1]], " 0")` are `pick_key`
+  and `sort_key` in both ports, and `"+1"` and `"01"` still name index 1.
+- TypeScript refuses `""` as `pick`'s key, `invalid-arg`, as Go does:
+  it is `sort`'s spelling of the member itself, and names no key.
+- `test/spec/agg.tsv` and `test/spec/sort.tsv` gain 11 rows, and
+  `test/spec/def-call.tsv` ten cases in rows x2025 to x2054. Both ports
+  answer every one alike, and as the definition does.
+- The definition tutorial's step 22 and the reference's `pick` section
+  follow.
+
 ### `pick` and `sort` read their projector and direction as values
 
 TypeScript, shared and generated rows, and documentation; no Go change

@@ -1844,10 +1844,9 @@ separator with no text, a value that is no bag, and the members and
 separators it waits on. `pick` and `sort` follow from row x597: a
 projector as a key in a map member and as an index in a list member,
 the two orders and the two directions, equal keys in their order, and
-the arguments they refuse, and `projectorCases` a projector or a
-direction through a rider or a mark. No case holds a string the ports
-read as an index otherwise than by its digits, or `""` as `pick`'s
-projector (#437). `upper` and `lower` follow from row x816: the run of code points
+the arguments they refuse, `projectorCases` a projector or a direction
+through a rider or a mark, and `indexCases` the strings that name an
+index otherwise than by their digits, and `""` as `pick`'s projector. `upper` and `lower` follow from row x816: the run of code points
 a start and a length select, an index of either leaf, and a number
 rounded in its own leaf. Their strings are ASCII, the letters on which
 the oracle's host and every engine's case conversion agree, and
@@ -2664,6 +2663,32 @@ theorem projector_verdict_exact : ∀ c ∈ projectorCases, ∀ (m : Mode) (v : 
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (projectorCases_checkable c hc)) v
 
+/-- A string names a list member's index by its digits after one
+optional sign and by nothing else, so a space, a point, an exponent or
+a hexadecimal prefix names none, and `""` names no key in `pick`, as
+both ports read them (#437). -/
+def indexCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let ab : Val := lst [lst [int 1, int 2]]
+  [(c .pick [ab, str "+1"], .list [j 2]), (c .pick [ab, str " 0"], .list [j 1]),
+    (c .pick [ab, str "0 "], .list [j 1]), (c .pick [ab, str "1.0"], .list [j 2]),
+    (c .pick [ab, str "1e0"], .list [j 2]), (c .pick [ab, str "0x1"], .list [j 2]),
+    (c .pick [ab, str ""], .list [j 1]),
+    (c .pick [lst [.map [("", false, int 1)] none false], str ""], .list [j 1]),
+    (c .sort [lst [lst [int 2], lst [int 1]], str "0"], .list [.list [j 1], .list [j 2]]),
+    (c .sort [lst [lst [int 2], lst [int 1]], str " 0"], .list [.list [j 1], .list [j 2]])]
+
+theorem indexCases_checkable : ∀ c ∈ indexCases, (vetDoc c).1.CheckableA := by decide
+
+theorem index_verdict_exact : ∀ c ∈ indexCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (indexCases_checkable c hc)) v
+
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2913,13 +2938,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# from row x1803, and a filter whose condition holds the hole, read for each"
     IO.println "# member it tries, from row x1902. A call skips an optional member whose value"
     IO.println "# generates an empty map or list, from row x1935, rep reads its replacement"
-    IO.println "# against its pattern's groups before the text, from row x1959, and pick and"
-    IO.println "# sort read a projector and a direction through a rider or a mark, from row"
-    IO.println "# x1995. A call on a name follows in rows z0 on, and a call handed a pattern,"
-    IO.println "# re(p), in rows v0 on."
+    IO.println "# against its pattern's groups before the text, from row x1959, pick and sort"
+    IO.println "# read a projector and a direction through a rider or a mark, from row x1995,"
+    IO.println "# and a string names an index by its digits alone, from row x2025. A call on a"
+    IO.println "# name follows in rows z0 on, and a call handed a pattern, re(p), in rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
-        projectorCases do
+        projectorCases ++ indexCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -2931,7 +2956,7 @@ def main (args : List String) : IO UInt32 := do
       unless hostReads v do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
-      projectorCases)
+      projectorCases ++ indexCases)
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     return 0
