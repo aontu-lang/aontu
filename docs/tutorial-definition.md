@@ -6164,14 +6164,80 @@ every one as the definition does, but for two calls with the wrong
 number of arguments, which #426 tracks. TypeScript writes a lone
 surrogate where Go writes `U+FFFD`, which #442 tracks.
 
-## 24. What the definition doesn't say yet
+## 24. Escaping text
+
+`esc` writes a string so that it can stand inside a literal of some
+convention, and `usc` reads it back out. Write `esc.aontu`:
+
+<!-- test: scenario esc -->
+<!-- test: file esc.aontu -->
+```aontu
+a: esc("it's", sq)
+b: esc("o'brien", sql)
+c: esc("x < y & z", xml)
+d: esc("a b/é", uri)
+e: usc("%C3%A9", uri)
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu esc.aontu
+{
+  "a": "it\\'s",
+  "b": "o''brien",
+  "c": "x &lt; y &amp; z",
+  "d": "a%20b%2F%C3%A9",
+  "e": "é"
+}
+```
+
+The seven conventions are in `spec/Aontu/Text.lean`, each a function
+on a string's code points. With no variant, `esc` writes C and JSON in
+double quotes:
+
+<!-- test: quote spec/Aontu/Text.lean -->
+```lean
+def Escape.esc : Escape → List Char → List Char
+  | .dq => escC '"'
+  | .sq => escC '\''
+  | .sql => escSql
+  | .shell => escShell
+  | .xml => escXml
+  | .uri => escUri
+  | .regex => escRegex
+```
+
+`usc` reads text back out of a convention, and refuses text that no
+text escapes to, where `Escape.usc` answers none. That covers a lone
+quote where `sql` doubles it, an `&` that opens none of the five
+entities, and a `\u` escape that names half a surrogate pair. It also
+covers percent-encoded bytes that aren't strict UTF-8, such as the
+overlong `%E0%80%80`:
+
+<!-- test: quote spec/Aontu/Text.lean -->
+```lean
+def uscSql : List Char → Option (List Char)
+  | [] => some []
+  | '\'' :: '\'' :: rest => ('\'' :: ·) <$> uscSql rest
+  | '\'' :: _ => none
+  | c :: rest => (c :: ·) <$> uscSql rest
+```
+
+An unknown variant is an error, and so is any argument but a string,
+read through its riders. The rows are x1068 on, and both engines answer
+every one as the definition does, but for two calls with the wrong
+number of arguments, which #426 tracks.
+
+## 25. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
-steps 20 to 23 don't walk through, `key()` anywhere but in a spread, and
+steps 20 to 24 don't walk through, `key()` anywhere but in a spread, and
 generation with `each`, `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.

@@ -11,8 +11,8 @@
 # from row x300, which waits where it does not take its operands, so that the
 # document is incomplete, and join from row x507, which waits on a member or a
 # separator not yet settled. pick and sort, which never wait, follow from row
-# x597, upper and lower from row x816, and translate from row x966. A call on a
-# name follows in rows z0 on.
+# x597, upper and lower from row x816, translate from row x966, and esc and usc
+# from row x1068. A call on a name follows in rows z0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -1082,6 +1082,159 @@ x1064	verdict	v: translate("", "퟿-", "xyz")	v: "z"	{"verdict":"valid","o
 x1065	verdict	v: translate("�", "퟿-", "xyz")	v: "�"	{"verdict":"valid"}
 x1066	verdict	v: translate("�", "퟿-", "xyz")	v: "�"	{"verdict":"valid","opts":{"noFill":true}}
 x1067	verdict	v: translate("�", "퟿-", "xyz")	v: "�"	{"verdict":"valid","opts":{"partial":true}}
+x1068	verdict	v: esc("plain text")	v: "plain text"	{"verdict":"valid"}
+x1069	verdict	v: esc("plain text")	v: "plain text"	{"verdict":"valid","opts":{"noFill":true}}
+x1070	verdict	v: esc("plain text")	v: "plain text"	{"verdict":"valid","opts":{"partial":true}}
+x1071	verdict	v: esc("a\\"b\\\\c\\u000ad\\u0009e\\u0001z")	v: "a\\\\\\"b\\\\\\\\c\\\\nd\\\\te\\\\u0001z"	{"verdict":"valid"}
+x1072	verdict	v: esc("a\\"b\\\\c\\u000ad\\u0009e\\u0001z")	v: "a\\\\\\"b\\\\\\\\c\\\\nd\\\\te\\\\u0001z"	{"verdict":"valid","opts":{"noFill":true}}
+x1073	verdict	v: esc("a\\"b\\\\c\\u000ad\\u0009e\\u0001z")	v: "a\\\\\\"b\\\\\\\\c\\\\nd\\\\te\\\\u0001z"	{"verdict":"valid","opts":{"partial":true}}
+x1074	verdict	v: esc("a\\"b\\\\c\\u000ad\\u0009e\\u0001z")	v: "a\\"b\\\\c\\u000ad\\u0009e\\u0001z"	{"verdict":"invalid"}
+x1075	verdict	v: esc("a\\"b\\\\c\\u000ad\\u0009e\\u0001z")	v: "a\\"b\\\\c\\u000ad\\u0009e\\u0001z"	{"verdict":"invalid","opts":{"noFill":true}}
+x1076	verdict	v: esc("a\\"b\\\\c\\u000ad\\u0009e\\u0001z")	v: "a\\"b\\\\c\\u000ad\\u0009e\\u0001z"	{"verdict":"invalid","opts":{"partial":true}}
+x1077	verdict	v: esc("é😀")	v: "é😀"	{"verdict":"valid"}
+x1078	verdict	v: esc("é😀")	v: "é😀"	{"verdict":"valid","opts":{"noFill":true}}
+x1079	verdict	v: esc("é😀")	v: "é😀"	{"verdict":"valid","opts":{"partial":true}}
+x1080	verdict	v: esc("it's \\"q\\"", "sq")	v: "it\\\\'s \\"q\\""	{"verdict":"valid"}
+x1081	verdict	v: esc("it's \\"q\\"", "sq")	v: "it\\\\'s \\"q\\""	{"verdict":"valid","opts":{"noFill":true}}
+x1082	verdict	v: esc("it's \\"q\\"", "sq")	v: "it\\\\'s \\"q\\""	{"verdict":"valid","opts":{"partial":true}}
+x1083	verdict	v: usc("\\\\\\"x\\\\u00e9\\\\u00E9")	v: "\\"xéé"	{"verdict":"valid"}
+x1084	verdict	v: usc("\\\\\\"x\\\\u00e9\\\\u00E9")	v: "\\"xéé"	{"verdict":"valid","opts":{"noFill":true}}
+x1085	verdict	v: usc("\\\\\\"x\\\\u00e9\\\\u00E9")	v: "\\"xéé"	{"verdict":"valid","opts":{"partial":true}}
+x1086	verdict	v: usc("\\\\'")	v: "'"	{"verdict":"error"}
+x1087	verdict	v: usc("\\\\'")	v: "'"	{"verdict":"error","opts":{"noFill":true}}
+x1088	verdict	v: usc("\\\\'")	v: "'"	{"verdict":"error","opts":{"partial":true}}
+x1089	verdict	v: usc("\\\\/")	v: "/"	{"verdict":"error"}
+x1090	verdict	v: usc("\\\\/")	v: "/"	{"verdict":"error","opts":{"noFill":true}}
+x1091	verdict	v: usc("\\\\/")	v: "/"	{"verdict":"error","opts":{"partial":true}}
+x1092	verdict	v: usc("\\\\uD83D\\\\uDE00")	v: "😀"	{"verdict":"valid"}
+x1093	verdict	v: usc("\\\\uD83D\\\\uDE00")	v: "😀"	{"verdict":"valid","opts":{"noFill":true}}
+x1094	verdict	v: usc("\\\\uD83D\\\\uDE00")	v: "😀"	{"verdict":"valid","opts":{"partial":true}}
+x1095	verdict	v: usc("\\\\uDE00")	v: "a"	{"verdict":"error"}
+x1096	verdict	v: usc("\\\\uDE00")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1097	verdict	v: usc("\\\\uDE00")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1098	verdict	v: usc("\\\\uD83D")	v: "a"	{"verdict":"error"}
+x1099	verdict	v: usc("\\\\uD83D")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1100	verdict	v: usc("\\\\uD83D")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1101	verdict	v: usc("\\\\x41")	v: "A"	{"verdict":"error"}
+x1102	verdict	v: usc("\\\\x41")	v: "A"	{"verdict":"error","opts":{"noFill":true}}
+x1103	verdict	v: usc("\\\\x41")	v: "A"	{"verdict":"error","opts":{"partial":true}}
+x1104	verdict	v: usc("a\\\\")	v: "a"	{"verdict":"error"}
+x1105	verdict	v: usc("a\\\\")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1106	verdict	v: usc("a\\\\")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1107	verdict	v: usc("\\\\u12")	v: "a"	{"verdict":"error"}
+x1108	verdict	v: usc("\\\\u12")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1109	verdict	v: usc("\\\\u12")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1110	verdict	v: usc("\\\\'", "sq")	v: "'"	{"verdict":"valid"}
+x1111	verdict	v: usc("\\\\'", "sq")	v: "'"	{"verdict":"valid","opts":{"noFill":true}}
+x1112	verdict	v: usc("\\\\'", "sq")	v: "'"	{"verdict":"valid","opts":{"partial":true}}
+x1113	verdict	v: esc("o'brien", "sql")	v: "o''brien"	{"verdict":"valid"}
+x1114	verdict	v: esc("o'brien", "sql")	v: "o''brien"	{"verdict":"valid","opts":{"noFill":true}}
+x1115	verdict	v: esc("o'brien", "sql")	v: "o''brien"	{"verdict":"valid","opts":{"partial":true}}
+x1116	verdict	v: usc("o'brien", "sql")	v: "o'brien"	{"verdict":"error"}
+x1117	verdict	v: usc("o'brien", "sql")	v: "o'brien"	{"verdict":"error","opts":{"noFill":true}}
+x1118	verdict	v: usc("o'brien", "sql")	v: "o'brien"	{"verdict":"error","opts":{"partial":true}}
+x1119	verdict	v: usc("o''brien", "sql")	v: "o'brien"	{"verdict":"valid"}
+x1120	verdict	v: usc("o''brien", "sql")	v: "o'brien"	{"verdict":"valid","opts":{"noFill":true}}
+x1121	verdict	v: usc("o''brien", "sql")	v: "o'brien"	{"verdict":"valid","opts":{"partial":true}}
+x1122	verdict	v: esc("it's", "shell")	v: "it'\\\\''s"	{"verdict":"valid"}
+x1123	verdict	v: esc("it's", "shell")	v: "it'\\\\''s"	{"verdict":"valid","opts":{"noFill":true}}
+x1124	verdict	v: esc("it's", "shell")	v: "it'\\\\''s"	{"verdict":"valid","opts":{"partial":true}}
+x1125	verdict	v: usc("it'\\\\''s", "shell")	v: "it's"	{"verdict":"valid"}
+x1126	verdict	v: usc("it'\\\\''s", "shell")	v: "it's"	{"verdict":"valid","opts":{"noFill":true}}
+x1127	verdict	v: usc("it'\\\\''s", "shell")	v: "it's"	{"verdict":"valid","opts":{"partial":true}}
+x1128	verdict	v: usc("it's", "shell")	v: "it's"	{"verdict":"error"}
+x1129	verdict	v: usc("it's", "shell")	v: "it's"	{"verdict":"error","opts":{"noFill":true}}
+x1130	verdict	v: usc("it's", "shell")	v: "it's"	{"verdict":"error","opts":{"partial":true}}
+x1131	verdict	v: esc("<a>&\\"'", "xml")	v: "&lt;a&gt;&amp;&quot;&apos;"	{"verdict":"valid"}
+x1132	verdict	v: esc("<a>&\\"'", "xml")	v: "&lt;a&gt;&amp;&quot;&apos;"	{"verdict":"valid","opts":{"noFill":true}}
+x1133	verdict	v: esc("<a>&\\"'", "xml")	v: "&lt;a&gt;&amp;&quot;&apos;"	{"verdict":"valid","opts":{"partial":true}}
+x1134	verdict	v: usc("&amp;&lt;&gt;&quot;&apos;", "xml")	v: "&<>\\"'"	{"verdict":"valid"}
+x1135	verdict	v: usc("&amp;&lt;&gt;&quot;&apos;", "xml")	v: "&<>\\"'"	{"verdict":"valid","opts":{"noFill":true}}
+x1136	verdict	v: usc("&amp;&lt;&gt;&quot;&apos;", "xml")	v: "&<>\\"'"	{"verdict":"valid","opts":{"partial":true}}
+x1137	verdict	v: usc("&#39;", "xml")	v: "'"	{"verdict":"error"}
+x1138	verdict	v: usc("&#39;", "xml")	v: "'"	{"verdict":"error","opts":{"noFill":true}}
+x1139	verdict	v: usc("&#39;", "xml")	v: "'"	{"verdict":"error","opts":{"partial":true}}
+x1140	verdict	v: usc("a&b", "xml")	v: "a&b"	{"verdict":"error"}
+x1141	verdict	v: usc("a&b", "xml")	v: "a&b"	{"verdict":"error","opts":{"noFill":true}}
+x1142	verdict	v: usc("a&b", "xml")	v: "a&b"	{"verdict":"error","opts":{"partial":true}}
+x1143	verdict	v: esc("a b/c~-._é😀+", "uri")	v: "a%20b%2Fc~-._%C3%A9%F0%9F%98%80%2B"	{"verdict":"valid"}
+x1144	verdict	v: esc("a b/c~-._é😀+", "uri")	v: "a%20b%2Fc~-._%C3%A9%F0%9F%98%80%2B"	{"verdict":"valid","opts":{"noFill":true}}
+x1145	verdict	v: esc("a b/c~-._é😀+", "uri")	v: "a%20b%2Fc~-._%C3%A9%F0%9F%98%80%2B"	{"verdict":"valid","opts":{"partial":true}}
+x1146	verdict	v: usc("%c3%a9%C3%A9+", "uri")	v: "éé+"	{"verdict":"valid"}
+x1147	verdict	v: usc("%c3%a9%C3%A9+", "uri")	v: "éé+"	{"verdict":"valid","opts":{"noFill":true}}
+x1148	verdict	v: usc("%c3%a9%C3%A9+", "uri")	v: "éé+"	{"verdict":"valid","opts":{"partial":true}}
+x1149	verdict	v: usc("%C3", "uri")	v: "a"	{"verdict":"error"}
+x1150	verdict	v: usc("%C3", "uri")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1151	verdict	v: usc("%C3", "uri")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1152	verdict	v: usc("%E0%80%80", "uri")	v: "a"	{"verdict":"error"}
+x1153	verdict	v: usc("%E0%80%80", "uri")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1154	verdict	v: usc("%E0%80%80", "uri")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1155	verdict	v: usc("%ED%A0%80", "uri")	v: "a"	{"verdict":"error"}
+x1156	verdict	v: usc("%ED%A0%80", "uri")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1157	verdict	v: usc("%ED%A0%80", "uri")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1158	verdict	v: usc("%F4%90%80%80", "uri")	v: "a"	{"verdict":"error"}
+x1159	verdict	v: usc("%F4%90%80%80", "uri")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1160	verdict	v: usc("%F4%90%80%80", "uri")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1161	verdict	v: usc("%", "uri")	v: "%"	{"verdict":"error"}
+x1162	verdict	v: usc("%", "uri")	v: "%"	{"verdict":"error","opts":{"noFill":true}}
+x1163	verdict	v: usc("%", "uri")	v: "%"	{"verdict":"error","opts":{"partial":true}}
+x1164	verdict	v: usc("%zz", "uri")	v: "a"	{"verdict":"error"}
+x1165	verdict	v: usc("%zz", "uri")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1166	verdict	v: usc("%zz", "uri")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1167	verdict	v: usc("é", "uri")	v: "é"	{"verdict":"valid"}
+x1168	verdict	v: usc("é", "uri")	v: "é"	{"verdict":"valid","opts":{"noFill":true}}
+x1169	verdict	v: usc("é", "uri")	v: "é"	{"verdict":"valid","opts":{"partial":true}}
+x1170	verdict	v: esc("a.b-c\\\\/", "regex")	v: "a\\\\.b-c\\\\\\\\\\\\/"	{"verdict":"valid"}
+x1171	verdict	v: esc("a.b-c\\\\/", "regex")	v: "a\\\\.b-c\\\\\\\\\\\\/"	{"verdict":"valid","opts":{"noFill":true}}
+x1172	verdict	v: esc("a.b-c\\\\/", "regex")	v: "a\\\\.b-c\\\\\\\\\\\\/"	{"verdict":"valid","opts":{"partial":true}}
+x1173	verdict	v: usc("a\\\\.b", "regex")	v: "a.b"	{"verdict":"valid"}
+x1174	verdict	v: usc("a\\\\.b", "regex")	v: "a.b"	{"verdict":"valid","opts":{"noFill":true}}
+x1175	verdict	v: usc("a\\\\.b", "regex")	v: "a.b"	{"verdict":"valid","opts":{"partial":true}}
+x1176	verdict	v: usc("a\\\\-b", "regex")	v: "a-b"	{"verdict":"error"}
+x1177	verdict	v: usc("a\\\\-b", "regex")	v: "a-b"	{"verdict":"error","opts":{"noFill":true}}
+x1178	verdict	v: usc("a\\\\-b", "regex")	v: "a-b"	{"verdict":"error","opts":{"partial":true}}
+x1179	verdict	v: esc("a", "nope")	v: "a"	{"verdict":"error"}
+x1180	verdict	v: esc("a", "nope")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1181	verdict	v: esc("a", "nope")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1182	verdict	v: usc("a", "nope")	v: "a"	{"verdict":"error"}
+x1183	verdict	v: usc("a", "nope")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1184	verdict	v: usc("a", "nope")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1185	verdict	v: esc("a", "")	v: "a"	{"verdict":"error"}
+x1186	verdict	v: esc("a", "")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1187	verdict	v: esc("a", "")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1188	verdict	v: usc("x", "none")	v: "x"	{"verdict":"error"}
+x1189	verdict	v: usc("x", "none")	v: "x"	{"verdict":"error","opts":{"noFill":true}}
+x1190	verdict	v: usc("x", "none")	v: "x"	{"verdict":"error","opts":{"partial":true}}
+x1191	verdict	v: esc(1)	v: "1"	{"verdict":"error"}
+x1192	verdict	v: esc(1)	v: "1"	{"verdict":"error","opts":{"noFill":true}}
+x1193	verdict	v: esc(1)	v: "1"	{"verdict":"error","opts":{"partial":true}}
+x1194	verdict	v: esc(string)	v: "a"	{"verdict":"error"}
+x1195	verdict	v: esc(string)	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1196	verdict	v: esc(string)	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1197	verdict	v: esc(meta("a", {}))	v: "a"	{"verdict":"valid"}
+x1198	verdict	v: esc(meta("a", {}))	v: "a"	{"verdict":"valid","opts":{"noFill":true}}
+x1199	verdict	v: esc(meta("a", {}))	v: "a"	{"verdict":"valid","opts":{"partial":true}}
+x1200	verdict	v: esc(*("a"))	v: "a"	{"verdict":"error"}
+x1201	verdict	v: esc(*("a"))	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1202	verdict	v: esc(*("a"))	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1203	verdict	v: esc("a'", meta("sq", {}))	v: "a\\\\'"	{"verdict":"valid"}
+x1204	verdict	v: esc("a'", meta("sq", {}))	v: "a\\\\'"	{"verdict":"valid","opts":{"noFill":true}}
+x1205	verdict	v: esc("a'", meta("sq", {}))	v: "a\\\\'"	{"verdict":"valid","opts":{"partial":true}}
+x1206	verdict	v: esc()	v: "a"	{"verdict":"error"}
+x1207	verdict	v: esc()	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1208	verdict	v: esc()	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1209	verdict	v: usc("a", "sq", "x")	v: "a"	{"verdict":"error"}
+x1210	verdict	v: usc("a", "sq", "x")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1211	verdict	v: usc("a", "sq", "x")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1212	verdict	v: usc(esc("a'\\u000a\\"<&é😀", "sq"), "sq")	v: "a'\\u000a\\"<&é😀"	{"verdict":"valid"}
+x1213	verdict	v: usc(esc("a'\\u000a\\"<&é😀", "sq"), "sq")	v: "a'\\u000a\\"<&é😀"	{"verdict":"valid","opts":{"noFill":true}}
+x1214	verdict	v: usc(esc("a'\\u000a\\"<&é😀", "sq"), "sq")	v: "a'\\u000a\\"<&é😀"	{"verdict":"valid","opts":{"partial":true}}
+x1215	verdict	v: usc(esc("a b/é", "uri"), "uri")	v: "a b/é"	{"verdict":"valid"}
+x1216	verdict	v: usc(esc("a b/é", "uri"), "uri")	v: "a b/é"	{"verdict":"valid","opts":{"noFill":true}}
+x1217	verdict	v: usc(esc("a b/é", "uri"), "uri")	v: "a b/é"	{"verdict":"valid","opts":{"partial":true}}
+x1218	verdict	v: esc(upper("a b"), "uri")	v: "A%20B"	{"verdict":"valid"}
+x1219	verdict	v: esc(upper("a b"), "uri")	v: "A%20B"	{"verdict":"valid","opts":{"noFill":true}}
+x1220	verdict	v: esc(upper("a b"), "uri")	v: "A%20B"	{"verdict":"valid","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}

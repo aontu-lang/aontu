@@ -3358,6 +3358,8 @@ escape, an escape the convention does not define, a lone quote where the
 convention doubles it) is refused (`usc_malformed`) rather than answered
 with a different string.
 
+The definition holds the conventions in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean), each a function on a string's code points and a partial inverse, `Escape.esc` and `Escape.usc`, and computes both calls as `escOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). Percent-encoding writes a character's UTF-8 bytes, and `utf8Decode` reads bytes back strictly, refusing an overlong form, a surrogate, a value past U+10FFFF and a sequence cut short.
+
 ### `rep(s, pattern, sub)`
 
 Every match of `pattern` in `s` replaced by `sub`. The pattern is a
