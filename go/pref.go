@@ -42,6 +42,58 @@ func (p *PrefVal) restand(met Val) Val {
 	return out
 }
 
+// Unchanged on both counts is the SAME preference, returned as itself:
+// minting a new one every pass would keep the fixpoint moving for ever.
+func (p *PrefVal) stand(met, gate Val) Val {
+	if valSame(met, prefInnerPeg(p)) && valSame(gate, p.superpeg) {
+		return p
+	}
+	stood := p.restand(met)
+	if sp, ok := stood.(*PrefVal); ok {
+		sp.narrowed = gate
+		sp.superpeg = gate
+	}
+	return stood
+}
+
+// Scalar defaults meet as the disjunctions they stand for: each
+// stands only where the other's override space admits it, so a value
+// either one has already met survives the other's rank.
+func (p *PrefVal) meetPref(pp *PrefVal, ctx *Ctx) Val {
+	strong, weak := p, pp
+	if pp.rank < p.rank {
+		strong, weak = pp, p
+	}
+	path := cp(p.path)
+
+	gate := trialUnify(ctx, clonePath(strong.superpeg, path),
+		clonePath(weak.superpeg, path))
+	if nil == gate {
+		return makeNilErr(ctx, "empty", p, pp)
+	}
+
+	strongMet := trialUnify(ctx, clonePath(prefInnerPeg(strong), path),
+		clonePath(weak.superpeg, path))
+	weakMet := trialUnify(ctx, clonePath(strong.superpeg, path),
+		clonePath(prefInnerPeg(weak), path))
+
+	if strong.rank == weak.rank && nil != strongMet && nil != weakMet {
+		peg := trialUnify(ctx, clonePath(prefInnerPeg(p), path), prefInnerPeg(pp))
+		if nil == peg {
+			return makeNilErr(ctx, "pref_rank_clash", p, pp)
+		}
+		return p.stand(peg, gate)
+	}
+
+	switch {
+	case nil != strongMet:
+		return strong.stand(strongMet, gate)
+	case nil != weakMet:
+		return weak.stand(weakMet, gate)
+	}
+	return gate
+}
+
 func prefInnerPeg(v Val) Val {
 	out := v
 	for {
@@ -78,7 +130,11 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 	case nil:
 		out = p
 	case *PrefVal:
+		_, ps := prefInnerPeg(p).(*ScalarVal)
+		_, qs := prefInnerPeg(pp).(*ScalarVal)
 		switch {
+		case ps && qs:
+			out = p.meetPref(pp, ctx)
 		case p.rank < pp.rank:
 			out = p
 		case pp.rank < p.rank:
@@ -103,20 +159,7 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 			inner := prefInnerPeg(p)
 			if met := trialUnify(ctx, clonePath(inner, cp(p.path)), peer); nil != met {
 				gate := unite(ctx, clonePath(p.superpeg, cp(p.path)), peer)
-
-				// Unchanged on both counts is the SAME preference,
-				// returned as itself: minting a new one every pass
-				// would keep the fixpoint moving for ever.
-				if valSame(met, inner) && valSame(gate, p.superpeg) {
-					out = p
-				} else {
-					stood := p.restand(met)
-					if sp, ok := stood.(*PrefVal); ok {
-						sp.narrowed = gate
-						sp.superpeg = gate
-					}
-					out = stood
-				}
+				out = p.stand(met, gate)
 			} else if over := trialUnify(ctx, clonePath(p.superpeg, cp(p.path)), peer); nil != over {
 				out = over
 			} else if peer.Nil() {

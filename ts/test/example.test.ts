@@ -16,7 +16,7 @@ describe('examples', function() {
 
   test('pref-examples', () => {
     expect(G('*1 & **2')).equal(1)
-    expect(G('*1 & **a')).equal(1)
+    expect(() => G('*1 & **a')).throws(/aontu\/empty/)
     expect(() => G('*1 & *a')).throws(/aontu/)
     expect(() => G('*1 & x')).throws(/aontu/)
     expect(() => G('*1&x')).throws(/aontu/)

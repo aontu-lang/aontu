@@ -48,6 +48,41 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         }
         return this.place(out);
     }
+    // Unchanged on both counts is the SAME preference, returned as
+    // itself: minting a new one every pass would keep the fixpoint
+    // moving for ever.
+    stand(met, gate, ctx) {
+        if (met.same(prefInnerPeg(this)) && gate.same(this.superpeg)) {
+            return this;
+        }
+        const stood = this.restand(met, ctx);
+        stood.narrowed = gate;
+        stood.superpeg = gate;
+        return stood;
+    }
+    // Scalar defaults meet as the disjunctions they stand for: each
+    // stands only where the other's override space admits it, so a value
+    // either one has already met survives the other's rank.
+    meetPref(peer, ctx) {
+        const strong = peer.rank < this.rank ? peer : this;
+        const weak = strong === this ? peer : this;
+        const gate = (0, FuncBaseVal_1.trialUnify)(ctx, strong.superpeg.clone(ctx), weak.superpeg.clone(ctx));
+        if (undefined === gate) {
+            return (0, err_1.makeNilErr)(ctx, 'empty', this, peer, 'unify');
+        }
+        const strongMet = (0, FuncBaseVal_1.trialUnify)(ctx, prefInnerPeg(strong).clone(ctx), weak.superpeg.clone(ctx));
+        const weakMet = (0, FuncBaseVal_1.trialUnify)(ctx, strong.superpeg.clone(ctx), prefInnerPeg(weak).clone(ctx));
+        if (strong.rank === weak.rank &&
+            undefined !== strongMet && undefined !== weakMet) {
+            const peg = (0, FuncBaseVal_1.trialUnify)(ctx, prefInnerPeg(this).clone(ctx), prefInnerPeg(peer));
+            return undefined === peg
+                ? (0, err_1.makeNilErr)(ctx, 'pref_rank_clash', this, peer, 'unify')
+                : this.stand(peg, gate, ctx);
+        }
+        return undefined !== strongMet ? strong.stand(strongMet, gate, ctx)
+            : undefined !== weakMet ? weak.stand(weakMet, gate, ctx)
+                : gate;
+    }
     // PrefVal unify always returns a PrefVal
     // PrefVals can only be removed by becoming Nil in a Disjunct
     unify(peer, ctx) {
@@ -71,6 +106,11 @@ class PrefVal extends FeatureVal_1.FeatureVal {
                 out = this;
                 why += 'same-peg';
             }
+            else if (true === prefInnerPeg(this).isScalar &&
+                true === prefInnerPeg(peer).isScalar) {
+                out = this.meetPref(peer, ctx);
+                why += 'gated';
+            }
             else if (this.rank < peer.rank) {
                 out = this;
                 why += 'rank-win';
@@ -92,18 +132,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
             const met = (0, FuncBaseVal_1.trialUnify)(ctx, prefInnerPeg(this).clone(ctx), peer);
             if (undefined !== met) {
                 const gate = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'GATE') }) : ctx, this.superpeg.clone(ctx), peer, 'pref-gate/' + this.id);
-                // Unchanged on both counts is the SAME preference, returned as
-                // itself: minting a new one every pass would keep the fixpoint
-                // moving for ever.
-                if (met.same(prefInnerPeg(this)) && gate.same(this.superpeg)) {
-                    out = this;
-                }
-                else {
-                    const stood = this.restand(met, ctx);
-                    stood.narrowed = gate;
-                    stood.superpeg = gate;
-                    out = stood;
-                }
+                out = this.stand(met, gate, ctx);
                 why += 'stands';
                 (0, utility_1.explainClose)(te, out);
                 out.dc = type_1.DONE;
