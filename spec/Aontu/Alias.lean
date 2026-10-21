@@ -971,10 +971,11 @@ theorem Decls.bodiesCheckableB_iff {ds : Decls} :
 the term admits its value and `nil` where it refuses it, decided by the
 checker that reads the names wherever the names keep the alias-cycle
 rule and the bodies and the term read no pattern and no format; and the
-pair where that cannot be computed, or where the term writes a path,
-which is read by declaration later and until then is left as written. -/
+pair where that cannot be computed, where the term writes a path,
+which is read by declaration later and until then is left as written,
+or where the term is a call the reading has not made. -/
 def litMeetD (ds : Decls) (s : Scalar) (b : Val) : Val :=
-  if ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty then
+  if ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty && !b.callAt then
     (if checkR ds b s.data then .lit s else .nil)
   else .meet (.lit s) b
 
@@ -982,10 +983,11 @@ theorem admits_litMeetD {ds : Decls} {root : Data} (s : Scalar) (b : Val) (j : D
     Admits ds.envE root (litMeetD ds s b) j ↔
       Admits ds.envE root (.lit s) j ∧ Admits ds.envE root b j := by
   unfold litMeetD
-  by_cases hc : (ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty) = true
+  by_cases hc : (ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty &&
+      !b.callAt) = true
   · rw [if_pos hc]
     simp only [Bool.and_eq_true] at hc
-    obtain ⟨⟨⟨hg, hb⟩, hcb⟩, -⟩ := hc
+    obtain ⟨⟨⟨⟨hg, hb⟩, hcb⟩, -⟩, -⟩ := hc
     have hg' := Decls.guardedB_iff.mp hg
     have hb' := Decls.bodiesCheckableB_iff.mp hb
     have hcb' := (Val.checkableAB_iff b).mp hcb

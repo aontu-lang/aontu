@@ -172,6 +172,7 @@ def Fn.name : Fn → String
   | .sum => "sum"
   | .least => "least"
   | .greatest => "greatest"
+  | .plus => "+"
 
 mutual
 def Val.src : Val → Option String
@@ -229,6 +230,7 @@ def Val.src : Val → Option String
   | .rest t cs => do pure s!"rest({", ".intercalate ([← t.src] ++ (← coversSrc cs))})"
   | .select s arms d => do pure s!"match({", ".intercalate ([← s.src] ++ (← pairsSrc arms) ++ (← elseSrc d))})"
   | .filter s c => do pure s!"filter({← s.src}, {← c.src})"
+  | .call .plus [a, b] => do pure s!"({← a.src}) + ({← b.src})"
   | .call f args => do pure s!"{f.name}({", ".intercalate (← itemsSrc args)})"
   | .ride .type v [] => do pure s!"type({← v.src})"
   | .ride .hide v [] => do pure s!"hide({← v.src})"

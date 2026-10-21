@@ -62,3 +62,4 @@ call	syntax	-
 call	call	sum
 call	call	least
 call	call	greatest
+call	syntax	+

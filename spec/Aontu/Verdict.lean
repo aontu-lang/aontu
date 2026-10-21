@@ -99,6 +99,59 @@ def Val.members (ds : Decls) : Val → Option (List Val)
       if m.2.2.marked || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
   | _ => none
 
+/-- What `+` makes of its operands: the term the sum is, a sum no leaf
+holds, or operands it does not take, where it waits. -/
+inductive Plus where
+  | made (v : Val)
+  | refused
+  | waits
+
+/-- A lone preference in normal form, `*x | super(x)`, read as `x`. -/
+def Val.lonePref : Val → Val
+  | .or [(r, x), (0, s)] => if 0 < r && s.beq x.super then x else .or [(r, x), (0, s)]
+  | v => v
+
+/-- An operand of `+`, its riders and a lone preference read through. -/
+def Val.operand : Val → Val
+  | .ride _ v _ => v.operand
+  | .pref _ x => x.operand
+  | v => v.lonePref
+
+/-- The text `+` writes for a scalar beside a string; `null` has none. -/
+def Scalar.plusText? : Scalar → Option String
+  | .str s => some s
+  | .bool b => some (if b then "true" else "false")
+  | .num n => some n.text
+  | .null => none
+
+/-- What `+` makes of two terms in normal form: two lists one list, the
+left's elements then the right's; two booleans either; a string and a
+scalar with text the two texts joined; two numbers their sum by `add`,
+refused where no leaf holds it; and anything else waits: a kind,
+`null`, a map, a list beside a scalar, a boolean beside a number. -/
+def plusOf (a b : Val) : Plus :=
+  match a.operand, b.operand with
+  | .list xs _ _, .list ys _ _ => .made (.list (xs ++ ys) none false)
+  | .lit (.bool p), .lit (.bool q) => .made (.lit (.bool (p || q)))
+  | .lit (.str s), .lit y => (y.plusText?.map fun t => .made (.lit (.str (s ++ t)))).getD .waits
+  | .lit x, .lit (.str t) => (x.plusText?.map fun s => .made (.lit (.str (s ++ t)))).getD .waits
+  | .lit (.num x), .lit (.num y) => ((Number.binary .add x y).map fun n => .made (.lit (.num n))).getD .refused
+  | _, _ => .waits
+
+/-- Two lists concatenate under `+` (ADR-037): the left's elements, then
+the right's. -/
+theorem plusOf_lists {xs ys : List Val} {s s' : Option Val} {c c' : Bool} :
+    plusOf (.list xs s c) (.list ys s' c') = .made (.list (xs ++ ys) none false) := rfl
+
+/-- The empty list adds nothing to a list's elements. -/
+theorem plusOf_nil_list {ys : List Val} {s s' : Option Val} {c c' : Bool} :
+    plusOf (.list [] s c) (.list ys s' c') = .made (.list ys none false) := rfl
+
+/-- A list beside a scalar is no sum: `+` waits, in either order. -/
+theorem plusOf_list_lit {xs : List Val} {s : Option Val} {c : Bool} {x : Scalar} :
+    plusOf (.list xs s c) (.lit x) = .waits ∧ plusOf (.lit x) (.list xs s c) = .waits := by
+  cases x <;> exact ⟨rfl, rfl⟩
+
 /-- The number a call computes from its arguments: a fold from the
 numbers its one bag's members are, and any other function from the
 numbers its arguments are, each read in its normal form. -/
@@ -110,15 +163,32 @@ def callValue (ds : Decls) (f : Fn) (args : List Val) : Option Number :=
     | _ => none
   else (args.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f)
 
+/-- The term a call is, its arguments resolved: a `+` the term `plusOf`
+makes of its operands' normal forms, each read through its riders and a
+lone preference first, as `*1 + 1` is `2`, `nil` where it refuses them, and
+itself, its operands in normal form, where it waits; any other call the
+number `callValue` computes, where it computes one, and itself
+otherwise, which no reading makes. -/
+def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
+  match f, args with
+  | .plus, [a, b] =>
+    match plusOf (normaliseD ds a.operand) (normaliseD ds b.operand) with
+    | .made v => v
+    | .refused => .nil
+    | .waits => .call .plus [normaliseD ds a, normaliseD ds b]
+  | _, _ =>
+    match callValue ds f args with
+    | some n => .lit (.num n)
+    | none => .call f args
+
 mutual
 /-- A term with its selections made: each `match` whose scrutinee
 generates a value is the result its arms select for it, and each
 `filter` whose source generates a container is the members its
 condition admits, as a term, or `nil` where the source generates a
 scalar, which has no members. One whose scrutinee or source generates
-nothing stays, and generates nothing. A call is the number `callValue`
-computes, where it computes one, and any other call stays, which no
-reading makes. -/
+nothing stays, and generates nothing. A call, its arguments resolved,
+is the term `callTerm` makes of it. -/
 def resolveD (ds : Decls) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds s
@@ -135,11 +205,7 @@ def resolveD (ds : Decls) : Val → Val
     | some (.list xs) => (Data.list (xs.filter fun x => checkR ds c' x)).term
     | some _ => .nil
     | none => .filter s' c'
-  | .call f args =>
-    let args' := resolveItems ds args
-    match callValue ds f args' with
-    | some n => .lit (.num n)
-    | none => .call f args'
+  | .call f args => callTerm ds f (resolveItems ds args)
   | .len c => .len (resolveD ds c)
   | .map fs spread closed => .map (resolveFields ds fs) (resolveSpread ds spread) closed
   | .list items spread closed => .list (resolveItems ds items) (resolveSpread ds spread) closed
@@ -295,7 +361,81 @@ theorem selectArm_checkableA {ds : Decls} {x : Data} {d : Option Val} :
 /-- Making a term's selections keeps it a term the checker can read: a
 `match` on a literal is the arm it selects, and one on a key, which no
 value settles, stays. -/
-theorem resolveD_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (resolveD ds v).CheckableA := by
+theorem Val.lonePref_checkableA {v : Val} (h : v.CheckableA) : v.lonePref.CheckableA := by
+  unfold Val.lonePref
+  split
+  · rename_i r x s
+    split
+    · cases h with
+      | or ha => exact ha r x (by simp)
+    · exact h
+  · exact h
+
+theorem Val.operand_checkableA : ∀ {v : Val}, v.CheckableA → v.operand.CheckableA
+  | .ride _ v _, .ride h => show v.operand.CheckableA from Val.operand_checkableA h
+  | .pref _ x, .pref h => show x.operand.CheckableA from Val.operand_checkableA h
+  | .integer, h | .float, h | .biginteger, h | .bigdecimal, h | .number, h | .string, h
+  | .anyString, h | .boolean, h | .mapKind, h | .listKind, h | .lit _, h | .min _, h
+  | .max _, h | .above _, h | .beneath _, h | .neq _, h | .mulof _, h | .len _, h
+  | .unique _, h | .re _, h | .format _, h | .any, h | .nil, h | .map _ _ _, h
+  | .list _ _ _, h | .or _, h | .meet _ _, h | .alias _, h | .path _, h | .nof _ _, h
+  | .must _ _, h | .when _ _ _, h | .contains _ _, h | .rest _ _, h | .select _ _ _, h
+  | .filter _ _, h | .key, h | .call _ _, h => Val.lonePref_checkableA h
+
+theorem plusOf_checkableA {a b v : Val} (ha : a.CheckableA) (hb : b.CheckableA)
+    (h : plusOf a b = .made v) : v.CheckableA := by
+  have ha' := Val.operand_checkableA ha
+  have hb' := Val.operand_checkableA hb
+  unfold plusOf at h
+  split at h
+  · rename_i xs _ _ ys _ _ hxa hyb
+    obtain rfl := (Plus.made.injEq _ _).mp h
+    rw [hxa] at ha'
+    rw [hyb] at hb'
+    cases ha' with
+    | list hi _ =>
+      cases hb' with
+      | list hj _ =>
+        refine .list (fun w hw => ?_) (fun _ hs => absurd hs (by simp))
+        rcases List.mem_append.mp hw with hw | hw
+        · exact hi w hw
+        · exact hj w hw
+  all_goals
+    first
+    | (obtain rfl := (Plus.made.injEq _ _).mp h; exact .lit)
+    | (cases h)
+    | skip
+  all_goals
+    simp only [Option.map] at h
+    split at h <;> simp at h
+    subst h
+    exact .lit
+
+/-- A call's term is one the checker can read where its arguments are. -/
+theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
+    {args : List Val} (h : ∀ a, a ∈ args → a.CheckableA) : (callTerm ds f args).CheckableA := by
+  unfold callTerm
+  split
+  · rename_i a b
+    have ha := normaliseD_checkableA (ds := ds) hd (h a (by simp))
+    have hb := normaliseD_checkableA (ds := ds) hd (h b (by simp))
+    have ha' := normaliseD_checkableA (ds := ds) hd (Val.operand_checkableA (h a (by simp)))
+    have hb' := normaliseD_checkableA (ds := ds) hd (Val.operand_checkableA (h b (by simp)))
+    split
+    · rename_i v hv
+      exact plusOf_checkableA ha' hb' hv
+    · exact .nil
+    · refine .call fun w hw => ?_
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
+      rcases hw with rfl | rfl
+      · exact ha
+      · exact hb
+  · split
+    · exact .lit
+    · exact .call h
+
+theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
+    (h : v.CheckableA) : (resolveD ds v).CheckableA := by
   induction h with
   | len _ ih => simp only [resolveD]; exact .len ih
   | @map fs spread closed _ _ ihf ihs =>
@@ -375,18 +515,16 @@ theorem resolveD_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (resolve
       exact ihd e₀ he₀
   | @call f args _ ih =>
     simp only [resolveD]
-    split
-    · exact .lit
-    · refine .call fun a ha => ?_
-      obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
-      exact ih a₀ ha₀
+    refine callTerm_checkableA hd fun a ha => ?_
+    obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
+    exact ih a₀ ha₀
   | _ => simp only [resolveD]; constructor
 
 /-- A document whose schema the checker can read reads as its expansion. -/
 theorem readR_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
     (ds.readR S).CheckableA := by
   unfold Decls.readR
-  exact resolveD_checkableA (expand_checkableA hb hS)
+  exact resolveD_checkableA hb (expand_checkableA hb hS)
 
 /-- The first pattern the scrutinee's value satisfies selects its result. -/
 theorem selectArm_first {ds : Decls} {x : Data} {p r : Val} {arms : List (Val × Val)} {d : Option Val}
@@ -600,7 +738,8 @@ mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, a
 preference clash, a size the meet's container literal breaks, or a
-call the reading could not make. -/
+call the reading could not make. A `+` that waits stands where its
+operands do. -/
 def Val.illFormed : Val → Bool
   | .nil => true
   | .map fs _ _ => illFields fs
@@ -609,6 +748,7 @@ def Val.illFormed : Val → Bool
   | .pref _ x => x.illFormed
   | .meet a b => illChain a || illChain b || sizeClash (a.conjuncts ++ b.conjuncts)
   | .ride _ v _ => v.illFormed
+  | .call .plus args => args.length != 2 || illItems args
   | .call _ _ => true
   | _ => false
 
@@ -622,6 +762,7 @@ def illChain : Val → Bool
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .ride _ v _ => v.illFormed
+  | .call .plus args => args.length != 2 || illItems args
   | .call _ _ => true
   | _ => false
 

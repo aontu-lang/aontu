@@ -280,6 +280,15 @@ def Val.hasMark (m : Rider) : Val → Bool
 /-- Whether a term carries a mark, `type()` or `hide()`, at its own position. -/
 def Val.marked (v : Val) : Bool := v.hasMark .type || v.hasMark .hide
 
+/-- Whether a term is a call at its own position, through `&` and the
+riders: a value the reading has not made, which a literal meets as a
+pair rather than by the checker. -/
+def Val.callAt : Val → Bool
+  | .call _ _ => true
+  | .meet a b => a.callAt || b.callAt
+  | .ride _ v _ => v.callAt
+  | _ => false
+
 /-! ## The key a spread is tried under
 
 A spread holds every member of its container, and `key` in it reads the

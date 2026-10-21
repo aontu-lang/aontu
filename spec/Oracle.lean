@@ -1727,7 +1727,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "add"), ("call", "call", "sub"), ("call", "call", "mul"),
     ("call", "call", "div"), ("call", "call", "mod"), ("call", "call", "rem"),
     ("call", "syntax", "-"), ("call", "call", "sum"), ("call", "call", "least"),
-    ("call", "call", "greatest")]
+    ("call", "call", "greatest"), ("call", "syntax", "+")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1788,7 +1788,10 @@ holds a marked list element (decision 18) or an optional member whose
 value generates an empty map or list (decision 19), and no bag is met
 with a kind, which the normal form keeps beside it. A lone preference as
 an argument or a member, and an `ident()` inside a call, follow from row
-x273. -/
+x273, and `+` from row x300: two numbers by `add`, a string beside a
+scalar as the two texts, two lists, two booleans, the riders and a lone
+preference read through, and the operands it does not take, where it
+waits. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -1806,6 +1809,10 @@ def callCases : List (Val × Data) :=
   let c (f : Fn) (args : List Val) : Val := .call f args
   let lst (xs : List Val) : Val := .list xs none false
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let p (a b : Val) : Val := .call .plus [a, b]
   [(c .add [int 1, int 2], j 3), (c .add [int 1, int 2], j 4),
     (c .sub [int 10, int 3], j 7), (c .mul [int 6, int 7], j 42),
     (c .div [int 7, int 2], j 3), (c .div [int (-7), int 2], j (-3)),
@@ -1876,7 +1883,48 @@ def callCases : List (Val × Data) :=
     (c .least [lst [.pref 1 (int 3), int 2]], j 2),
     (c .sum [.pref 1 (lst [int 1, int 2])], j 3),
     (c .add [.ride .ident (int 1) [("id", .str "x")], int 2], j 3),
-    (c .sum [lst [.ride .ident (int 1) [("id", .str "x")]]], j 1)]
+    (c .sum [lst [.ride .ident (int 1) [("id", .str "x")]]], j 1),
+    (p (int 1) (int 2), j 3), (p (int 1) (int 2), j 4),
+    (p (int 1) (flt 2 1), jf 3 1), (p (int 1) (flt 2 1), j 3),
+    (p (int 1) (big 2), jbig 3),
+    (p (dec 5 1) (dec 5 1), jdec 1 0), (p (dec 5 1) (dec 5 1), jbig 1),
+    (p (flt 1 1) (big 2), j 1),
+    (p (int 9007199254740992) (int 1), j 1),
+    (p (int 9007199254740992) (int 2), j 9007199254740994),
+    (p (flt (10 ^ 308) 1) (flt (10 ^ 308) 1), j 1),
+    (p (str "a") (str "b"), js "ab"),
+    (p (str "a") (int 1), js "a1"), (p (int 1) (str "a"), js "1a"),
+    (p (str "a") (flt 15 10), js "a1.5"), (p (str "a") (flt 1 1), js "a1"),
+    (p (str "a") (flt (10 ^ 21) 1), js "a1e+21"),
+    (p (str "a") (flt (10 ^ 20) 1), js "a100000000000000000000"),
+    (p (str "a") (flt 1 1000000), js "a0.000001"), (p (str "a") (flt 1 10000000), js "a1e-7"),
+    (p (str "a") (flt 15 100000000), js "a1.5e-7"), (p (str "a") (flt (-5) 10), js "a-0.5"),
+    (p (str "a") (flt 12345678901234567890 1), js "a12345678901234567000"),
+    (p (str "a") (dec 1 (-3)), js "a1000.0"), (p (str "a") (dec 15 1), js "a1.5"),
+    (p (str "a") (dec 1 10), js "a0.0000000001"),
+    (p (str "a") (big 123456789012345678901234567890), js "a123456789012345678901234567890"),
+    (p (str "a") (.lit (.bool true)), js "atrue"), (p (.lit (.bool true)) (str "a"), js "truea"),
+    (p (str "a") (.lit .null), js "a"),
+    (p (.lit (.bool true)) (.lit (.bool false)), .bool true),
+    (p (.lit (.bool false)) (.lit (.bool false)), .bool false),
+    (p (.lit (.bool true)) (int 1), .bool true),
+    (p (lst [int 1]) (lst [int 2]), jl [j 1, j 2]), (p (lst [int 1]) (lst [int 2]), jl [j 1]),
+    (p (lst [int 1]) (lst [int 2]), jl [j 1, j 2, j 3]), (p (lst []) (lst []), jl []),
+    (p (lst [int 1]) (int 2), j 1), (p (int 2) (lst [int 1]), j 1),
+    (p (str "a") (lst [int 1]), js "a"),
+    (p (mp [("a", int 1)]) (mp [("b", int 2)]), .map [("a", j 1), ("b", j 2)]),
+    (p .integer (int 1), j 2), (p .string (str "a"), js "ba"),
+    (p (.or [(1, int 1), (0, .number)]) (int 1), j 2),
+    (p (.pref 1 (int 1)) (int 1), j 2), (p (int 1) (.pref 2 (int 2)), j 3),
+    (p (.ride .metadata (int 1) []) (int 1), j 2), (p (.ride .type (int 1) []) (int 1), j 2),
+    (p (.ride .metadata (lst [int 1]) []) (lst [int 2]), jl [j 1, j 2]),
+    (p (lst [int 1]) (lst [.pref 1 (int 2)]), jl [j 1, j 2]),
+    (p (.meet (.list [] (some .integer) false) (lst [int 1])) (lst [str "x"]), jl [j 1, js "x"]),
+    (p (.list [int 1] none true) (lst [int 2]), jl [j 1, j 2]),
+    (p (p (str "a") (str "b")) (int 1), js "ab1"), (p (p (int 1) (int 2)) (str "a"), js "3a"),
+    (p (.meet (int 1) .integer) (int 1), j 2), (p (str "") (str ""), js ""),
+    (p (c .add [int 1, int 2]) (int 1), j 4), (p (c .sum [lst [int 1, int 2]]) (str "a"), js "3a"),
+    (p (p .integer (int 1)) (str "a"), j 1), (p (.meet (int 1) (int 2)) .integer, j 1)]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -2110,8 +2158,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# by the tower's rules (spec/Aontu/Arith.lean); any other call, an argument"
     IO.println "# outside the function's domain, a zero divisor, an answer no leaf holds or the"
     IO.println "# wrong number of arguments, is an error. The folds sum, least and greatest,"
-    IO.println "# over a list or a map whose members are numbers, follow from row x129. A call"
-    IO.println "# on a name follows in rows z0 on."
+    IO.println "# over a list or a map whose members are numbers, follow from row x129, and +"
+    IO.println "# from row x300, which waits where it does not take its operands, so that the"
+    IO.println "# document is incomplete. A call on a name follows in rows z0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     verdictRows "x" callCases
     aliasRows "z" callAliasCases
