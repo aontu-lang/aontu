@@ -6178,6 +6178,69 @@ every one as the definition does, but for two calls with the wrong
 number of arguments, which #426 tracks. TypeScript writes a lone
 surrogate where Go writes `U+FFFD`, which #442 tracks.
 
+### Spelling a name
+
+`nom` spells a name in one of nine spellings, or, where its call names
+no style, in all nine as a map. Write `nom.aontu`:
+
+<!-- test: scenario nom -->
+<!-- test: file nom.aontu -->
+```aontu
+a: nom("planet_body", pascal)
+b: nom("HTTPServer", snake)
+c: nom("user_id", camel, ["ID"])
+d: nom("user_id")
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu nom.aontu
+{
+  "a": "PlanetBody",
+  "b": "http_server",
+  "c": "userID",
+  "d": {
+    "camel": "userId",
+    "dot": "user.id",
+    "kebab": "user-id",
+    "pascal": "UserId",
+    "path": "user/id",
+    "snake": "user_id",
+    "text": "User id",
+    "title": "User Id",
+    "upper": "USER_ID"
+  }
+}
+```
+
+A name's words are the runs between `_`, `-` and spaces, each cut
+again where a new word starts:
+
+<!-- test: quote spec/Aontu/Text.lean -->
+```lean
+def wordStarts (prev c : Char) (next : Option Char) : Bool :=
+  c.toNat < 128 && prev.toNat < 128 &&
+    ((c.isUpper && (prev.isLower || prev.isDigit)) || c.isDigit != prev.isDigit ||
+      (c.isUpper && prev.isUpper && (next.map Char.isLower).getD false))
+```
+
+So `HTTPServer` is the words `HTTP` and `Server`, and `v2Api` is `v`,
+`2` and `Api`. A spelling writes the words, and `capitalise` writes a
+word that matches an acronym in the acronym's own letters, so `["ID"]`
+turns the `id` of `user_id` into `ID` wherever a spelling capitalises
+a word. `camel` never capitalises the first word. `Char.toUpper` and
+`Char.toLower` change the letters `a` to `z` and `A` to `Z` alone, so
+any other letter keeps its case and starts no word, and nothing here
+is the host's.
+
+The rows are x1521 on. Both engines answer every one as the definition
+does, but for two calls with the wrong number of arguments, which #426
+tracks. Go reads a style written as `""` as no style and answers the
+map, where TypeScript refuses it, so no row holds one, which #451
+tracks.
+
 ## 24. Escaping and splitting text
 
 `esc` writes a string so that it can stand inside a literal of some

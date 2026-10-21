@@ -2516,6 +2516,8 @@ is named: `camel`, `dot`, `kebab`, `pascal`, `path`, `snake`,
 
 Example: `nom("planet_body", pascal)` → `"PlanetBody"`
 
+The definition computes `nom` as `nomOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), and the words of a name and their spellings as `nameWords` and `NameStyle.write` in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean). Their case changes the letters `a` to `z` and `A` to `Z` alone.
+
 ### `open(m?: any) : any`
 
 Reverse a `close`, at every depth beneath it, and hold the subtree

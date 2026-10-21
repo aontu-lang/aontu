@@ -1738,7 +1738,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
     ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "split"),
-    ("call", "call", "rep")]
+    ("call", "call", "rep"), ("call", "call", "nom")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1762,7 +1762,8 @@ def formSamples : List (String × Val) :=
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
-    ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string])]
+    ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
+    ("nom", .call .nom [.string])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1838,7 +1839,11 @@ with groups, on which the oracle's host and every engine's regex
 engine agree, or outside the subset, which every engine refuses, and
 `hostReads` refuses a row that hands the host another. No case holds a
 replacement that writes nothing for a match where the text holds no
-match, decision 20. `split` at a pattern follows in `patternCases`. -/
+match, decision 20. `nom` follows from row x1521: each spelling, the
+words a name holds, an acronym list, the sealed map of every spelling,
+and the arguments it refuses, but no style written as `""`, which Go
+reads as no style (#451). `split` at a pattern follows in
+`patternCases`. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2242,7 +2247,57 @@ def callCases : List (Val × Data) :=
     (c .rep [str "a", str "a"], js "a"), (c .rep [str "a", str "a", str "b", str "c"], js "b"),
     (c .rep [c .upper [str "a-b"], str "-", str "_"], js "A_B"),
     (c .split [c .rep [str "a1b", str "1", str ","], str ","], jl [js "a", js "b"]),
-    (c .rep [c .join [lst [str "a", str "b"], str "-"], str "-", str ""], js "ab")]
+    (c .rep [c .join [lst [str "a", str "b"], str "-"], str "-", str ""], js "ab"),
+    (c .nom [str "planet_body", str "pascal"], js "PlanetBody"),
+    (c .nom [str "planet_body", str "pascal"], js "planetBody"),
+    (c .nom [str "planet_body", str "camel"], js "planetBody"),
+    (c .nom [str "planet_body", str "snake"], js "planet_body"),
+    (c .nom [str "planet_body", str "kebab"], js "planet-body"),
+    (c .nom [str "planet_body", str "dot"], js "planet.body"),
+    (c .nom [str "planet_body", str "path"], js "planet/body"),
+    (c .nom [str "planet_body", str "upper"], js "PLANET_BODY"),
+    (c .nom [str "planet_body", str "title"], js "Planet Body"),
+    (c .nom [str "planet_body", str "text"], js "Planet body"),
+    (c .nom [str "HTTPServer", str "snake"], js "http_server"),
+    (c .nom [str "v2Api", str "kebab"], js "v-2-api"), (c .nom [str "aB1c", str "snake"], js "a_b_1_c"),
+    (c .nom [str "ABc", str "snake"], js "a_bc"), (c .nom [str "aBC", str "snake"], js "a_bc"),
+    (c .nom [str "x__y--z  w", str "dot"], js "x.y.z.w"), (c .nom [str "a.b/c", str "snake"], js "a_b_c"),
+    (c .nom [str "_a", str "pascal"], js "A"), (c .nom [str "a1", str "camel"], js "a1"),
+    (c .nom [str "Ünïcode_name", str "pascal"], js "ÜnïcodeName"),
+    (c .nom [str "éA", str "snake"], js "éa"),
+    (c .nom [str "user_id", str "pascal", lst [str "ID"]], js "UserID"),
+    (c .nom [str "user id", str "camel", lst [str "ID"]], js "userID"),
+    (c .nom [str "id_user", str "camel", lst [str "ID"]], js "idUser"),
+    (c .nom [str "user_id", str "text", lst [str "ID"]], js "User ID"),
+    (c .nom [str "ID_user", str "text", lst [str "ID"]], js "ID user"),
+    (c .nom [str "user_id", str "pascal", lst [str "Id", str "ID"]], js "UserId"),
+    (c .nom [str "user_id", str "camel", lst []], js "userId"),
+    (c .nom [str "user_id"], jm [("camel", js "userId"), ("dot", js "user.id"), ("kebab", js "user-id"),
+      ("pascal", js "UserId"), ("path", js "user/id"), ("snake", js "user_id"), ("text", js "User id"),
+      ("title", js "User Id"), ("upper", js "USER_ID")]),
+    (c .nom [str "user_id", lst [str "ID"]], jm [("camel", js "userID"), ("dot", js "user.id"),
+      ("kebab", js "user-id"), ("pascal", js "UserID"), ("path", js "user/id"), ("snake", js "user_id"),
+      ("text", js "User ID"), ("title", js "User ID"), ("upper", js "USER_ID")]),
+    (c .nom [str "user_id"], jm [("camel", js "userId"), ("dot", js "user.id"), ("kebab", js "user-id"),
+      ("pascal", js "UserId"), ("path", js "user/id"), ("snake", js "user_id"), ("text", js "User id"),
+      ("title", js "User Id"), ("upper", js "USER_ID"), ("x", js "y")]),
+    (c .nom [str "user_id"], jm [("camel", js "userId")]),
+    (c .nom [str "user_id", lst []], jm [("camel", js "userId"), ("dot", js "user.id"), ("kebab", js "user-id"),
+      ("pascal", js "UserId"), ("path", js "user/id"), ("snake", js "user_id"), ("text", js "User id"),
+      ("title", js "User Id"), ("upper", js "USER_ID")]),
+    (c .nom [str ""], js "a"), (c .nom [str "___"], js "a"), (c .nom [str "user_id", str "nope"], js "a"),
+    (c .nom [str "user_id", lst [str "ID"], str "x"], js "a"),
+    (c .nom [str "user_id", str "pascal", lst [str "id", str ""]], js "UserId"),
+    (c .nom [str "user_id", str "pascal", str "ID"], js "UserID"), (c .nom [int 1], js "1"),
+    (c .nom [str "user_id", int 1], js "a"), (c .nom [str "a", str "pascal", lst [int 1]], js "A"),
+    (c .nom [.string], js "a"), (c .nom [.pref 1 (str "user_id"), str "pascal"], js "UserId"),
+    (c .nom [.ride .metadata (str "user_id") [], str "pascal"], js "UserId"),
+    (c .nom [str "user_id", .ride .metadata (str "pascal") []], js "UserId"),
+    (c .nom [str "user_id", str "pascal", .ride .metadata (lst [str "ID"]) []], js "UserID"),
+    (c .nom [str "user_id", str "pascal", lst [.ride .metadata (str "ID") []]], js "UserID"),
+    (c .nom [], js "a"), (c .nom [str "a", str "camel", lst [], str "x"], js "a"),
+    (c .nom [c .join [lst [str "user", str "id"], str "_"], str "camel"], js "userId"),
+    (c .upper [c .nom [str "user_id", str "kebab"]], js "USER-ID")]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -2583,9 +2638,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# document is incomplete, and join from row x507, which waits on a member or a"
     IO.println "# separator not yet settled. pick and sort, which never wait, follow from row"
     IO.println "# x597, upper and lower from row x816, translate from row x966, and esc and usc"
-    IO.println "# from row x1068, super from row x1221, split from row x1332, and rep from"
-    IO.println "# row x1404. A call on a name follows in rows z0 on, and a call handed a"
-    IO.println "# pattern, re(p), in rows v0 on."
+    IO.println "# from row x1068, super from row x1221, split from row x1332, rep from row"
+    IO.println "# x1404, and nom from row x1521. A call on a name follows in rows z0 on, and a"
+    IO.println "# call handed a pattern, re(p), in rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do

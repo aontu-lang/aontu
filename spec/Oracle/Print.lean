@@ -184,6 +184,7 @@ def Fn.name : Fn → String
   | .super => "super"
   | .split => "split"
   | .rep => "rep"
+  | .nom => "nom"
 
 mutual
 def Val.src : Val → Option String

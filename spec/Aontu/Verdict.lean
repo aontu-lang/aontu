@@ -459,6 +459,51 @@ def repOf (ds : Decls) (s p r : Val) : Made :=
     else .refused
   | _, _, _ => .refused
 
+/-- The acronyms a list names, each a string in normal form, its riders
+read through, and none of them `""`; none where the value is no list
+or a member no such string. -/
+def acronymsOf? (ds : Decls) (v : Val) : Option (List (List Char)) :=
+  match (normaliseD ds v).unride with
+  | .list items _ _ => items.mapM fun i => i.string?.bind fun s => if s = "" then none else some s.toList
+  | _ => none
+
+/-- What `nom` reads after the name: a style, an acronym list, or a
+style and then an acronym list; none where an argument is neither, a
+style names no spelling, or an acronym list has a third argument after
+it. -/
+def nomArgs? (ds : Decls) : Option Val → Option Val → Option (Option NameStyle × List (List Char))
+  | none, none => some (none, [])
+  | none, some _ => none
+  | some a, b =>
+    match (normaliseD ds a).unride, b with
+    | .list _ _ _, none => (acronymsOf? ds a).map fun acr => (none, acr)
+    | .list _ _ _, some _ => none
+    | _, none => ((normaliseD ds a).string?.bind NameStyle.ofName?).map fun st => (some st, [])
+    | _, some b => ((normaliseD ds a).string?.bind NameStyle.ofName?).bind fun st =>
+        (acronymsOf? ds b).map fun acr => (some st, acr)
+
+/-- The member of `nom`'s map for one spelling: its name, and the name
+in it. -/
+def nomField (acr : List (List Char)) (nm : String) (st : NameStyle) : Option (String × Bool × Val) :=
+  (nomName acr st nm.toList).map fun cs => (st.name, false, .lit (.str (String.mk cs)))
+
+/-- What `nom` makes of its name and the rest of its arguments: the
+name in the spelling a style names, or, where none is named, the sealed
+map of every spelling; a refusal where the name is no string with a
+word in it, a style names no spelling, or an acronym list is no list of
+strings. -/
+def nomOf (ds : Decls) (n : Val) (a b : Option Val) : Made :=
+  match (normaliseD ds n).string?, nomArgs? ds a b with
+  | some nm, some (some st, acr) =>
+    match nomName acr st nm.toList with
+    | some cs => .made (.lit (.str (String.mk cs)))
+    | none => .refused
+  | some nm, some (none, acr) =>
+    match NameStyle.all.mapM (nomField acr nm) with
+    | some fs => .made (.map fs none true)
+    | none => .refused
+  | _, _ => .refused
+
 /-- The number a call computes from its arguments: a fold from the
 numbers its one bag's members are, and any other function from the
 numbers its arguments are, each read in its normal form. -/
@@ -482,7 +527,7 @@ def Made.term (ds : Decls) (f : Fn) (args : List Val) : Made → Val
 of its operands' normal forms, each read through its riders and a lone
 preference first, as `*1 + 1` is `2`; a call on a bag or on text what
 its function's own reading makes, `joinOf`, `pickOf`, `sortOf`,
-`caseOf`, `translateOf`, `escOf`, `splitOf` and `repOf`; a `super` its
+`caseOf`, `translateOf`, `escOf`, `splitOf`, `repOf` and `nomOf`; a `super` its
 argument's parent type, `Val.super` read before the normal form, so
 that a preference reads as its default, as `super(*1)` is `integer`;
 any other call the number `callValue` computes, where it computes one,
@@ -511,6 +556,9 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .super, [x] => x.super
   | .split, [s, sep] => (splitOf ds s sep).term ds f args
   | .rep, [s, p, r] => (repOf ds s p r).term ds f args
+  | .nom, [n] => (nomOf ds n none none).term ds f args
+  | .nom, [n, a] => (nomOf ds n (some a) none).term ds f args
+  | .nom, [n, a, b] => (nomOf ds n (some a) (some b)).term ds f args
   | _, _ =>
     match callValue ds f args with
     | some n => .lit (.num n)
@@ -912,6 +960,28 @@ theorem splitOf_checkableA {ds : Decls} {s sep v : Val}
        obtain ⟨_, _, rfl⟩ := List.mem_map.mp hw
        exact .lit)
 
+theorem nomOf_checkableA {ds : Decls} {n v : Val} {a b : Option Val}
+    (h : nomOf ds n a b = .made v) : v.CheckableA := by
+  unfold nomOf at h
+  split at h
+  · split at h
+    · cases h
+      exact .lit
+    · cases h
+  · split at h
+    · rename_i fs hm
+      cases h
+      refine .map (fun k o w hw => ?_) (fun _ hs => by cases hs)
+      exact mapM_some_forall (P := fun y : String × Bool × Val => y.2.2.CheckableA)
+        (fun _ _ y hy => by
+          unfold nomField at hy
+          simp only [Option.map] at hy
+          split at hy <;> simp at hy
+          subst hy
+          exact .lit) hm (k, o, w) hw
+    · cases h
+  · cases h
+
 theorem repOf_checkableA {ds : Decls} {s p r v : Val}
     (h : repOf ds s p r = .made v) : v.CheckableA := by
   unfold repOf at h
@@ -1069,6 +1139,9 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact (h _ (by simp)).super
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => repOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
   · split
     · exact .lit
     · exact .call h
