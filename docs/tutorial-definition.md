@@ -2325,11 +2325,12 @@ abbrev Decls := List (String × Val)
 ```lean
 /-- The environment the declarations make: a name's value is the meet
 of its bodies, and an undeclared name has none. A reference copies the
-value without the identity a body declares (`Val.unident`). -/
+value without the identity a body declares (`Val.unident`) and without
+its marks (`Val.unmark`). -/
 def env (ds : Decls) : Env := fun n =>
   match ds.bodies n with
   | [] => none
-  | v :: vs => some (vs.foldl .meet v).unident
+  | v :: vs => some (vs.foldl .meet v).unident.unmark
 ```
 
 The identity is the one rider with a place. An `ident()` stands on an
@@ -2337,7 +2338,13 @@ alias's value, at its top or on a term of its top meet, and a reference
 reads the value without it. `unident` takes off that one layer and keeps
 whatever is inside it, so an `ident()` inside another stays behind, and
 so does one in a schema or deeper in a body. None of those stand, and
-step 14 comes to what doesn't stand:
+step 14 comes to what doesn't stand.
+
+A reference copies the value without its marks too, the `type()` and
+`hide()` of step 13, at every depth: `unmark` clears them through every
+form that holds a term, a selection's results among them. So what a
+body hides, the place that refers to it asks for, and a mark written at
+that place stays. The identity's one layer comes first:
 
 <!-- test: quote spec/Aontu/Names.lean -->
 ```lean
@@ -3178,9 +3185,20 @@ theorem DefaultsLe.of_lit {s : Scalar} {b : Val} (h : .lit s ⊑[env] b) :
     DefaultsLe env (.lit s) b := by
 ```
 
-`gen` asks that, and that the marks agree. The marks are not terms of
-the definition yet, so they enter its contract as a predicate, as the
-patterns enter `Admits` through `host`.
+`gen` asks that, and that the marks agree at every position both sides
+have, a container's spread among them, since a mark, `type()` or
+`hide()`, decides what the output holds, as step 13 shows:
+
+<!-- test: quote spec/Aontu/Subsume.lean -->
+```lean
+def MarksAgree (a b : Val) : Prop :=
+  ∀ (p : List MarkSeg) (wa wb : Val), (normalise a).atM p = some wa → (normalise b).atM p = some wb →
+    wa.hasMark .type = wb.hasMark .type ∧ wa.hasMark .hide = wb.hasMark .hide
+```
+
+So `hide(integer)` and `integer` are below each other in the order and
+not under `gen`, which `hide_not_genLe` proves, and
+`hide_spread_not_genLe` proves the same of two maps' spreads.
 
 The order has rows of its own, `test/spec/def-subsume.tsv`: every pair
 of fifty-eight values, the general first, with the answers the `values`
@@ -3748,14 +3766,18 @@ a constraint, generates what its left side generates and its right
 admits, or the other way about where the left generates nothing. A
 kind, a bound, `any`, `nil`, an alias and a path generate nothing.
 
-`Output` reads `Gen` off the normal form of step 10, where every meet
-is computed and every dead arm dropped:
+`Output` reads `Gen` off the visible part of the normal form of step
+10, where every meet is computed and every dead arm dropped. The visible
+part, the end of this step's, is the normal form itself for a term with
+no mark:
 
 <!-- test: quote spec/Aontu/Output.lean -->
 ```lean
-/-- What evaluation singles out for `v`: what the normal form of `v`,
-every meet computed and every dead arm dropped, generates. -/
-def Output (env : Env) (root : Data) (v : Val) (j : Data) : Prop := Gen env root (normalise v) j
+/-- What evaluation singles out for `v`: what the visible part of the
+normal form of `v`, every meet computed and every dead arm dropped,
+generates. -/
+def Output (env : Env) (root : Data) (v : Val) (j : Data) : Prop :=
+  Gen env root (normalise v).visible j
 ```
 
 Two theorems say what that output is:
@@ -3763,8 +3785,9 @@ Two theorems say what that output is:
 <!-- test: quote spec/Aontu/Output.lean -->
 ```lean
 /-- What evaluation singles out is an instance. -/
-theorem output_admits (v : Val) (j : Data) (h : Output env root v j) : Admits env root v j :=
-  (admits_normalise v j).mp (gen_admits _ j h)
+theorem output_admits (v : Val) (j : Data) (h : Output env root v j) :
+    Admits env root (normalise v).visible j :=
+  gen_admits _ j h
 ```
 
 <!-- test: quote spec/Aontu/Output.lean -->
@@ -3776,7 +3799,8 @@ theorem output_unique (v : Val) (j j' : Data) (h : Output env root v j) (h' : Ou
 ```
 
 `output_admits` says what evaluation singles out is an instance of
-the term, so a filled default never writes a value the schema refuses. `output_unique` says there is at most one. A
+the term's visible part, which for a term with no mark is the term, so
+a filled default never writes a value the schema refuses. `output_unique` says there is at most one. A
 function `gen` computes it, and `gen_iff` admits the function on every
 checkable value, as `check_iff` admits `check` in step 17:
 
@@ -3832,14 +3856,18 @@ example : output (.meet (.or [(0, .map [("x", false, .lit (.num (.integer (.of 1
       (0, .map [("y", false, .lit (.num (.integer (.of 2))))] none false)])
     (.map [("x", false, .lit (.num (.integer (.of 1))))] none false)) = none := rfl
 
-/-- What is singled out is an instance, `output_admits`: `*8080 & min(1024)`
-admits `8080`, and the output of `{x?: *1}` is one of its instances. -/
+/-- What is singled out is an instance of the visible part of the normal
+form, `output_admits`, which for `*8080 & min(1024)`, holding no mark, is
+the normal form itself: the term admits `8080`. -/
 example : Instance .empty port (.integer 8080) :=
-  ⟨by decide, output_admits port _ ((output_iff (by decide) _).mp rfl)⟩
+  ⟨by decide, (admits_normalise port _).mp
+    ((show (normalise port).visible = normalise port from rfl) ▸
+      output_admits port _ ((output_iff (by decide) _).mp rfl))⟩
 ```
 
 The last example is `output_admits` at work: `8080` is what
-`*8080 & min(1024)` singles out, so it is an instance.
+`*8080 & min(1024)` singles out, so it is an instance, since a term
+with no mark is its own visible part.
 
 The fourth generated fragment, `test/spec/def-gen.tsv`, holds `gens`
 rows for the values of `genVals` in `spec/Oracle.lean`: each value
@@ -3884,6 +3912,55 @@ $ echo $?
 singles out, which the tour shows is `{x: 1}`, and answers `valid`.
 The classes `valid`, `invalid`, `incomplete` and `error`, defined from
 `Admits` and `Output` together, are the next phase's.
+
+### The marks
+
+`type()` and `hide()` mark a value. Neither changes what the value
+admits, and both change what evaluation writes: evaluation leaves a
+member of a map whose value carries a mark out of the output, though
+the member still meets what the data holds at its key. A mark belongs
+to the place it's written at, so a reference, which step 8 reads, copies
+a body without its marks. Write `marks.aontu`:
+
+<!-- test: scenario marks -->
+<!-- test: file marks.aontu -->
+```aontu
+v: { a:hide(1) b:2 c:type({ d:integer }) }
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu marks.aontu
+{
+  "v": {
+    "b": 2
+  }
+}
+```
+
+A mark is a rider, `ride` with the call `type` or `hide` and no record,
+so it judges every datum as its value does, as the riders of step 19
+do, and it rides every meet: `{a: integer} & {a: hide(1)}` leaves `a`
+out too. Evaluation generates what it singles out from the term's
+visible part, in which a marked member is optional and holds anything:
+
+<!-- test: quote spec/Aontu/Output.lean -->
+```lean
+def visibleFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (if v.marked then (k, true, .any) else (k, o, v.visible)) :: visibleFields fs
+```
+
+A map's marked spread holds anything the same way. A mark on a list's
+element changes nothing. Both engines leave a marked element out of the
+output too, which no reading by position admits, and decision 18 of the
+design note asks which way to go. Both also drop a mark that a key's
+second declaration carries where the first declaration's value is the
+meet's answer, which #420 records, so `{a: integer} & {a: hide(integer)}`
+against `{}` is `incomplete` in both, and the ledger names the engines
+as the side that changes.
 
 ## 14. The verdicts
 
@@ -3970,8 +4047,9 @@ declare, where its names break the alias-cycle rule, where an
 does not stand; `invalid` where the meet of the schema with the data as
 a term is dead, or refuses, read whole, the value it gives with its
 trials and sizes unread; `valid` where the meet singles out a value,
-and without the fill where the data as written is an instance too, or
-where `--partial` lets the unresolved pass; and `incomplete` otherwise. -/
+and without the fill where the data as written is an instance of the
+visible part of the schema's normal form too, or where `--partial` lets
+the unresolved pass; and `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
@@ -3984,14 +4062,14 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
       ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
       (m.lax = true ∨
         ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
-          (m.fill = true ∨ Admits ds.envE j (ds.readR S) j))
+          (m.fill = true ∨ Admits ds.envE j (normaliseD ds (ds.readR S)).visible j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
       (normaliseD ds (meetD ds (ds.readR S) j.term)).dead = false ∧
       ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
       m.lax = false ∧
       ¬ ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
-        (m.fill = true ∨ Admits ds.envE j (ds.readR S) j)
+        (m.fill = true ∨ Admits ds.envE j (normaliseD ds (ds.readR S)).visible j)
 ```
 
 Read the four in order. `error` is a document that refers to a name it
@@ -4127,7 +4205,9 @@ def RefusedAt (ds : Decls) (root : Data) (v : Val) : Prop :=
 
 `valid` is a meet alive that singles out a value, step 13's `Output`,
 and without the fill only where the data as written is an instance of
-the schema too; `--partial` makes any live meet `valid`. `incomplete`
+the schema's visible part too, so a marked member asks nothing of the
+data but that it meet the member; `--partial` makes any live meet
+`valid`. `incomplete`
 is what remains: a live meet that singles out nothing, or a fill the
 data lacks. `vet` computes the verdict, and `vet_iff` admits it on
 checkable terms, as `check_iff` and `gen_iff` do for theirs.
@@ -4137,10 +4217,10 @@ Three theorems say what the words mean:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- Without the fill, `valid` is `Instance`: the data as written is an
-instance of the schema as read. -/
+instance of the visible part of the schema as read. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE (ds.readR S) j := by
+    Instance ds.envE (normaliseD ds (ds.readR S)).visible j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -4152,14 +4232,15 @@ theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- With the fill, `valid` singles out a value, the data filled, which
-is an instance of the schema as read. -/
+is an instance of the visible part of the schema met with the data. -/
 theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
     (h : Vet m ds S j .valid) :
-    ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧ Admits ds.envE j (ds.readR S) j' := by
+    ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
+      Admits ds.envE j (normaliseD ds (meetD ds (ds.readR S) j.term)).visible j' := by
   obtain ⟨-, -, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
-  · exact ⟨j', hout, ((admits_meetD _ _ _).mp (outputD_admits _ _ hout)).1⟩
+  · exact ⟨j', hout, outputD_admits _ _ hout⟩
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
@@ -4175,9 +4256,10 @@ theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Ve
   · exact .inr hr
 ```
 
-So `vet --no-fill` answers `valid` exactly for an instance, step 2's
-question; `vet` answers it for a filled value that is an instance of
-the schema; and `invalid` refuses the data as written or as filled,
+So `vet --no-fill` answers `valid` exactly for an instance of the
+schema's visible part, step 2's question where the schema holds no
+mark; `vet` answers it for a filled value that is an instance of the
+visible part of the schema met with the data; and `invalid` refuses the data as written or as filled,
 where a fill a trial refuses is `invalid` though the data as written
 may be an instance, as `{a?: 1} & nof(0, {a: 1})` against `{}` shows.
 The tour runs the
@@ -4223,8 +4305,10 @@ example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .inco
     vet { lax := true } [] (.map [("x", false, .integer)] none false) (.map []) = .valid := by decide
 
 /-- Without the fill, `valid` is `Instance`: `[*1]` against `[2]`, under
-no declaration, where a document reads as itself. -/
-example : Instance (Decls.envE []) (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))
+no declaration, where a document reads as itself, its visible part the
+normal form of `[*1]`. -/
+example : Instance (Decls.envE [])
+    (normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).visible
     (.list [.integer 2]) :=
   vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
     ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))
@@ -5555,7 +5639,8 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, most built-in functions,
 `key()` anywhere but in a spread, generation with `each`, `pack` and
-`emit`, and marks such as `hide()` and `type()`. [`aontu vet`](reference-api.md#aontu-vet) states which
+`emit`, and the seal a reference puts on a `type()` value at every
+depth. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 
@@ -5574,9 +5659,8 @@ The language needs only the power to represent a JSON Schema: what
 Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker
 of step 17 reads unmade. And its rows for `subsume` test the `values`
-profile alone: the `defaults` rows wait on a procedure that decides
-`DefaultsLe`, and the contract of `gen` that step 10 states is still
-to read the marks as terms. None of those has a rule yet.
+profile alone: the `defaults` and `gen` rows wait on a procedure that
+decides `DefaultsLe`. None of those has a rule yet.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

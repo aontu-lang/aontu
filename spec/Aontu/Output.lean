@@ -124,9 +124,185 @@ def genArms (env : Env) (root : Data) (arms₀ : List (ℕ × Val)) :
     (picked arms₀ (r, a) = true → Gen env root a j) ∧ genArms env root arms₀ arms j
 end
 
-/-- What evaluation singles out for `v`: what the normal form of `v`,
-every meet computed and every dead arm dropped, generates. -/
-def Output (env : Env) (root : Data) (v : Val) (j : Data) : Prop := Gen env root (normalise v) j
+/-! ## The visible part
+
+A mark, `type()` or `hide()`, leaves the member of a map it rides out of
+the output, and the member still meets what arrives at its key
+(decision 10 of the design note's §7). What evaluation singles out is
+generated from the term's visible part, in which a marked member is
+optional and holds anything, and so is a map's marked spread; the marks
+change no admission. A list's element keeps its mark's value
+(decision 18). -/
+
+mutual
+/-- The visible part of a term: each marked member of a map optional
+and `any`, a map's marked spread `any`, through the containers, `|`,
+`*`, `&` and the riders. -/
+def Val.visible : Val → Val
+  | .map fs spread closed => .map (visibleFields fs) (visibleSpread spread) closed
+  | .list items spread closed => .list (visibleItems items) (visibleElems spread) closed
+  | .or arms => .or (visibleArms arms)
+  | .pref r x => .pref r x.visible
+  | .meet a b => .meet a.visible b.visible
+  | .ride k v r => .ride k v.visible r
+  | v => v
+
+def visibleFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (if v.marked then (k, true, .any) else (k, o, v.visible)) :: visibleFields fs
+
+def visibleSpread : Option Val → Option Val
+  | none => none
+  | some s => some (if s.marked then .any else s.visible)
+
+def visibleItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.visible :: visibleItems vs
+
+def visibleElems : Option Val → Option Val
+  | none => none
+  | some s => some s.visible
+
+def visibleArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.visible) :: visibleArms as
+end
+
+theorem mem_visibleFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+    (k, o, w) ∈ visibleFields fs ↔
+      ∃ o' v, (k, o', v) ∈ fs ∧
+        ((v.marked = true ∧ o = true ∧ w = .any) ∨ (v.marked = false ∧ o = o' ∧ w = v.visible)) := by
+  induction fs with
+  | nil => simp [visibleFields]
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    rw [visibleFields, List.mem_cons, ih]
+    constructor
+    · rintro (h | ⟨o'', v, hm, hc⟩)
+      · cases hv : v'.marked
+        · rw [hv] at h
+          simp only [Bool.false_eq_true, ↓reduceIte, Prod.mk.injEq] at h
+          obtain ⟨rfl, rfl, rfl⟩ := h
+          exact ⟨o, v', List.mem_cons_self, .inr ⟨hv, rfl, rfl⟩⟩
+        · rw [hv] at h
+          simp only [↓reduceIte, Prod.mk.injEq] at h
+          obtain ⟨rfl, rfl, rfl⟩ := h
+          exact ⟨o', v', List.mem_cons_self, .inl ⟨hv, rfl, rfl⟩⟩
+      · exact ⟨o'', v, List.mem_cons_of_mem _ hm, hc⟩
+    · rintro ⟨o'', v, hm, hc⟩
+      rcases List.mem_cons.mp hm with he | hm'
+      · simp only [Prod.mk.injEq] at he
+        obtain ⟨rfl, rfl, rfl⟩ := he
+        left
+        rcases hc with ⟨hv, rfl, rfl⟩ | ⟨hv, rfl, rfl⟩ <;> simp [hv]
+      · exact .inr ⟨o'', v, hm', hc⟩
+
+theorem visibleSpread_eq {spread : Option Val} {t : Val} :
+    visibleSpread spread = some t ↔
+      ∃ s, spread = some s ∧ ((s.marked = true ∧ t = .any) ∨ (s.marked = false ∧ t = s.visible)) := by
+  cases spread with
+  | none => simp [visibleSpread]
+  | some s =>
+    simp only [visibleSpread, Option.some.injEq, exists_eq_left']
+    cases hs : s.marked <;> simp [eq_comm]
+
+theorem mem_visibleItems {items : List Val} {w : Val} :
+    w ∈ visibleItems items ↔ ∃ v, v ∈ items ∧ w = v.visible := by
+  induction items with
+  | nil => simp [visibleItems]
+  | cons v vs ih =>
+    simp only [visibleItems, List.mem_cons, ih]
+    constructor
+    · rintro (rfl | ⟨v', hm, rfl⟩)
+      · exact ⟨v, Or.inl rfl, rfl⟩
+      · exact ⟨v', Or.inr hm, rfl⟩
+    · rintro ⟨v', rfl | hm, rfl⟩
+      · exact Or.inl rfl
+      · exact Or.inr ⟨v', hm, rfl⟩
+
+theorem visibleElems_eq {spread : Option Val} {t : Val} :
+    visibleElems spread = some t ↔ ∃ s, spread = some s ∧ t = s.visible := by
+  cases spread <;> simp [visibleElems, eq_comm]
+
+theorem mem_visibleArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
+    (r, b) ∈ visibleArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.visible := by
+  induction arms with
+  | nil => simp [visibleArms]
+  | cons p arms ih =>
+    obtain ⟨r', a'⟩ := p
+    simp only [visibleArms, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
+      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
+      · exact ⟨a, Or.inr hm, rfl⟩
+    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨a, hm, rfl⟩
+
+/-- A term the checker can read has a visible part it can read. -/
+theorem Val.CheckableA.visible {v : Val} (h : v.CheckableA) : v.visible.CheckableA := by
+  induction h with
+  | @map fs spread closed _ _ ihf ihs =>
+    refine .map ?_ ?_
+    · intro k o w hm
+      obtain ⟨o', v, hv, ⟨-, -, rfl⟩ | ⟨-, -, rfl⟩⟩ := mem_visibleFields.mp hm
+      · exact .any
+      · exact ihf k o' v hv
+    · intro t ht
+      obtain ⟨s, hs, ⟨-, rfl⟩ | ⟨-, rfl⟩⟩ := visibleSpread_eq.mp ht
+      · exact .any
+      · exact ihs s hs
+  | @list items spread closed _ _ ihi ihs =>
+    refine .list ?_ ?_
+    · intro w hm
+      obtain ⟨v, hv, rfl⟩ := mem_visibleItems.mp hm
+      exact ihi v hv
+    · intro t ht
+      obtain ⟨s, hs, rfl⟩ := visibleElems_eq.mp ht
+      exact ihs s hs
+  | @or arms _ ih =>
+    refine .or fun r b hm => ?_
+    obtain ⟨a, ha, rfl⟩ := mem_visibleArms.mp hm
+    exact ih r a ha
+  | pref _ ih => exact .pref ih
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | ride _ ih => exact .ride ih
+  | _ => simp only [Val.visible]; constructor <;> assumption
+
+theorem Val.Checkable.visible {v : Val} (h : v.Checkable) : v.visible.Checkable := by
+  induction h with
+  | @map fs spread closed _ _ ihf ihs =>
+    refine .map ?_ ?_
+    · intro k o w hm
+      obtain ⟨o', v, hv, ⟨-, -, rfl⟩ | ⟨-, -, rfl⟩⟩ := mem_visibleFields.mp hm
+      · exact .any
+      · exact ihf k o' v hv
+    · intro t ht
+      obtain ⟨s, hs, ⟨-, rfl⟩ | ⟨-, rfl⟩⟩ := visibleSpread_eq.mp ht
+      · exact .any
+      · exact ihs s hs
+  | @list items spread closed _ _ ihi ihs =>
+    refine .list ?_ ?_
+    · intro w hm
+      obtain ⟨v, hv, rfl⟩ := mem_visibleItems.mp hm
+      exact ihi v hv
+    · intro t ht
+      obtain ⟨s, hs, rfl⟩ := visibleElems_eq.mp ht
+      exact ihs s hs
+  | @or arms _ ih =>
+    refine .or fun r b hm => ?_
+    obtain ⟨a, ha, rfl⟩ := mem_visibleArms.mp hm
+    exact ih r a ha
+  | pref _ ih => exact .pref ih
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | ride _ ih => exact .ride ih
+  | _ => simp only [Val.visible]; constructor <;> assumption
+
+/-- What evaluation singles out for `v`: what the visible part of the
+normal form of `v`, every meet computed and every dead arm dropped,
+generates. -/
+def Output (env : Env) (root : Data) (v : Val) (j : Data) : Prop :=
+  Gen env root (normalise v).visible j
 
 section
 variable {env : Env} {root : Data}
@@ -393,8 +569,9 @@ theorem arms_admits : ∀ arms : List (ℕ × Val), ∀ r a, (r, a) ∈ arms →
 end
 
 /-- What evaluation singles out is an instance. -/
-theorem output_admits (v : Val) (j : Data) (h : Output env root v j) : Admits env root v j :=
-  (admits_normalise v j).mp (gen_admits _ j h)
+theorem output_admits (v : Val) (j : Data) (h : Output env root v j) :
+    Admits env root (normalise v).visible j :=
+  gen_admits _ j h
 
 /-! ## The output is one value -/
 
@@ -582,7 +759,7 @@ none. -/
 abbrev gen : Val → Option Data := genWith check
 
 /-- What evaluation singles out, computed: `gen` of the normal form. -/
-def output (v : Val) : Option Data := gen (normalise v)
+def output (v : Val) : Option Data := gen (normalise v).visible
 
 section
 variable {chk : Val → Data → Bool} {env : Env} {root : Data}
@@ -985,7 +1162,7 @@ theorem gen_iff {v : Val} (h : v.Checkable) : ∀ j, gen v = some j ↔ Gen env 
 which `decide` settles for any closed term. -/
 theorem output_iff {v : Val} (h : (normalise v).Checkable) (j : Data) :
     output v = some j ↔ Output env root v j :=
-  gen_iff h j
+  gen_iff h.visible j
 
 end
 

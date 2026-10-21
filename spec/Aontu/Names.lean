@@ -27,6 +27,54 @@ def Val.unident : Val → Val
   | .meet a b => .meet a.unident b.unident
   | v => v
 
+mutual
+/-- A term with its marks cleared, `type()` and `hide()`, at every depth:
+what a reference copies, as a mark belongs to the place it is written
+at (decision 10 of the design note's §7). -/
+def Val.unmark : Val → Val
+  | .len c => .len c.unmark
+  | .map fs spread closed => .map (unmarkFields fs) (unmarkSpread spread) closed
+  | .list items spread closed => .list (unmarkItems items) (unmarkSpread spread) closed
+  | .or arms => .or (unmarkArms arms)
+  | .pref r x => .pref r x.unmark
+  | .meet a b => .meet a.unmark b.unmark
+  | .nof n cs => .nof n.unmark (unmarkItems cs)
+  | .must c m => .must c.unmark m
+  | .when c t e => .when c.unmark t.unmark (unmarkSpread e)
+  | .contains c n => .contains c.unmark n.unmark
+  | .rest t cs => .rest t.unmark (unmarkCovers cs)
+  | .select s arms d => .select s.unmark (unmarkPairs arms) (unmarkSpread d)
+  | .filter s c => .filter s.unmark c.unmark
+  | .ride .type v _ => v.unmark
+  | .ride .hide v _ => v.unmark
+  | .ride k v r => .ride k v.unmark r
+  | v => v
+
+def unmarkFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.unmark) :: unmarkFields fs
+
+def unmarkItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.unmark :: unmarkItems vs
+
+def unmarkSpread : Option Val → Option Val
+  | none => none
+  | some s => some s.unmark
+
+def unmarkArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.unmark) :: unmarkArms as
+
+def unmarkPairs : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.unmark, r.unmark) :: unmarkPairs ps
+
+def unmarkCovers : List (Option Val × Option Val × Option Val) → List (Option Val × Option Val × Option Val)
+  | [] => []
+  | (a, b, c) :: cs => (unmarkSpread a, unmarkSpread b, unmarkSpread c) :: unmarkCovers cs
+end
+
 namespace Decls
 
 /-- The bodies declared for a name, in the order written. -/
@@ -34,11 +82,12 @@ def bodies (ds : Decls) (n : String) : List Val := (ds.filter fun d => d.1 == n)
 
 /-- The environment the declarations make: a name's value is the meet
 of its bodies, and an undeclared name has none. A reference copies the
-value without the identity a body declares (`Val.unident`). -/
+value without the identity a body declares (`Val.unident`) and without
+its marks (`Val.unmark`). -/
 def env (ds : Decls) : Env := fun n =>
   match ds.bodies n with
   | [] => none
-  | v :: vs => some (vs.foldl .meet v).unident
+  | v :: vs => some (vs.foldl .meet v).unident.unmark
 
 /-- The names declared, in the order written, a name declared twice
 listed twice. -/
@@ -418,6 +467,28 @@ theorem transGen_first {R : String → String → Prop} {a x : String}
   | single hab => exact ⟨_, hab⟩
   | tail _ _ ih => exact ih
 
+/-- Clearing the marks keeps the names a body reaches. -/
+theorem Val.unguardedRefs_unmark (v : Val) : v.unmark.unguardedRefs = v.unguardedRefs := by
+  induction v using Val.unmark.induct
+    (motive_2 := fun ps => unguardedPairs (unmarkPairs ps) = unguardedPairs ps)
+    (motive_3 := fun cs => unguardedCovers (unmarkCovers cs) = unguardedCovers cs)
+    (motive_4 := fun s => unguardedSpread (unmarkSpread s) = unguardedSpread s)
+    (motive_5 := fun arms => unguardedArms (unmarkArms arms) = unguardedArms arms)
+    (motive_6 := fun vs => unguardedItems (unmarkItems vs) = unguardedItems vs)
+    (motive_7 := fun _ => True)
+  case case16 k v r h1 h2 ih =>
+    cases k with
+    | type => exact absurd rfl h1
+    | hide => exact absurd rfl h2
+    | _ => simp only [Val.unmark, Val.unguardedRefs, ih]
+  case case17 =>
+    rename_i v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16
+    rw [Val.unmark.eq_17 v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16]
+  all_goals first
+    | trivial
+    | simp_all only [Val.unmark, unmarkItems, unmarkArms, unmarkPairs, unmarkCovers,
+        Val.unguardedRefs, unguardedItems, unguardedPairs, unguardedCovers, unguardedArms]
+
 /-- Leaving an identity behind keeps the names a body reaches. -/
 theorem Val.unguardedRefs_unident (v : Val) : v.unident.unguardedRefs = v.unguardedRefs := by
   induction v using Val.unident.induct with
@@ -651,7 +722,7 @@ theorem alias_self_admits_nothing {env : Env} {root : Data} {n : String} {j : Da
 
 theorem Decls.alias_self_admits_nothing {root : Data} {n : String} {j : Data} :
     ¬ Admits (Decls.env [(n, .alias n)]) root (.alias n) j :=
-  Aontu.alias_self_admits_nothing (by simp [Decls.env, Decls.bodies, Val.unident])
+  Aontu.alias_self_admits_nothing (by simp [Decls.env, Decls.bodies, Val.unident, Val.unmark])
 
 /-! ## The paths a term writes -/
 

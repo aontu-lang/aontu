@@ -163,6 +163,10 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.output_admits
 
+/-- info: 'Aontu.hide_not_genLe' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.hide_not_genLe
+
 /-- info: 'Aontu.output_unique' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.output_unique

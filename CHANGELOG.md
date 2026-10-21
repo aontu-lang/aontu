@@ -8,6 +8,50 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds the marks
+
+Definition, generated rows, a generated file, two tests and
+documentation; no engine changes. Ruling 10 of the design note
+(`sketch/DEFINITION.0.md`, §7) is built in part.
+
+- `spec/Aontu/Syntax.lean`: `type(v)` and `hide(v)` are riders with no
+  record, so a marked value judges as its value does, and a mark rides
+  every meet (`Val.hasMark`, `Val.marked`).
+- `spec/Aontu/Output.lean`: a member of a map whose value carries a
+  mark is left out of the output and still meets the data at its key.
+  `Output` generates from the term's visible part, `Val.visible`, in
+  which a marked member, and a map's marked spread, is optional and
+  holds anything, and `output_admits` (ADR-007) holds of the visible
+  part.
+- `spec/Aontu/Verdict.lean`: without the fill, `vet` asks the data to be
+  an instance of the schema's visible part, so
+  `{a: hide({b: integer})}` against `{a: {}}` is `valid`, as both ports
+  answer.
+- `spec/Aontu/Subsume.lean`: `GenLe` reads the marks from the terms
+  (`MarksAgree`) at every position both sides have, a container's
+  spread among them, and `hide_not_genLe` shows that a mark changes
+  the `gen` order and no other.
+- `test/spec/def-verdict.tsv` grows by rows h0 on: a marked member
+  absent, present and in conflict, with a default, nested, beside a
+  seal, as a spread, under a rider and in a meet, and the value at `v`
+  marked. Both ports answer every row as the definition does but four:
+  a mark that a key's second declaration carries where the first
+  declaration's value is the meet's answer, which both drop (#420).
+  `spec/ledger.tsv` lists the four, and its bound rises from 110 to
+  114. TypeScript alone drops a mark in a direct meet whose answer is
+  the unmarked side (#419), which the rows leave out.
+- `spec/Aontu/Names.lean`: a reference copies a body without its
+  marks, at every depth and through every form that holds a term
+  (`Val.unmark`), so what a body hides, the place that refers to it
+  asks for. `test/spec/def-alias.tsv` grows by rows
+  n0 on, which both ports answer as the definition does. The seal a
+  reference puts on a `type()` value is still to be built.
+- `spec/forms.tsv` holds `type` and `hide`.
+- Decision 18 of the design note asks about a marked list element,
+  which both ports leave out of the output (#421).
+- The definition tutorial reads the marks at steps 10, 13 and 14, and
+  the language reference cites the rules.
+
 ### The definition reads the key a spread is tried on
 
 Definition, generated rows, two generated files, two tests and

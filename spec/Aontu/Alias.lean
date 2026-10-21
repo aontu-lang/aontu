@@ -169,7 +169,7 @@ theorem refersUnguarded_of_env {ds : Decls} {k n : String} {b : Val} (h : ds.env
   · exact nomatch h
   · rename_i v vs hb
     cases h
-    rw [Val.unguardedRefs_unident] at hn
+    rw [Val.unguardedRefs_unmark, Val.unguardedRefs_unident] at hn
     rcases unguardedRefs_foldl_meet vs v hn with h' | ⟨w, hw, hn'⟩
     · exact ⟨v, hb ▸ List.mem_cons_self, h'⟩
     · exact ⟨w, hb ▸ List.mem_cons_of_mem v hw, hn'⟩
@@ -329,6 +329,147 @@ theorem Val.checkableA_unident {v : Val} (h : v.CheckableA) : v.unident.Checkabl
   | case2 a b iha ihb => cases h with | meet ha hb => exact .meet (iha ha) (ihb hb)
   | case3 v h1 h2 => rw [Val.unident.eq_3 v h1 h2]; exact h
 
+theorem mem_unmarkFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+    (k, o, w) ∈ unmarkFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.unmark := by
+  induction fs with
+  | nil => simp [unmarkFields]
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    simp only [unmarkFields, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
+      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
+      · exact ⟨v, Or.inr hm, rfl⟩
+    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl, rfl⟩
+      · exact Or.inr ⟨v, hm, rfl⟩
+
+theorem mem_unmarkItems {items : List Val} {w : Val} :
+    w ∈ unmarkItems items ↔ ∃ v, v ∈ items ∧ w = v.unmark := by
+  induction items with
+  | nil => simp [unmarkItems]
+  | cons v vs ih =>
+    simp only [unmarkItems, List.mem_cons, ih]
+    constructor
+    · rintro (rfl | ⟨v', hm, rfl⟩)
+      · exact ⟨v, Or.inl rfl, rfl⟩
+      · exact ⟨v', Or.inr hm, rfl⟩
+    · rintro ⟨v', rfl | hm, rfl⟩
+      · exact Or.inl rfl
+      · exact Or.inr ⟨v', hm, rfl⟩
+
+theorem unmarkSpread_eq {spread : Option Val} {t : Val} :
+    unmarkSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.unmark := by
+  cases spread <;> simp [unmarkSpread, eq_comm]
+
+theorem mem_unmarkArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
+    (r, b) ∈ unmarkArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.unmark := by
+  induction arms with
+  | nil => simp [unmarkArms]
+  | cons p arms ih =>
+    obtain ⟨r', a'⟩ := p
+    simp only [unmarkArms, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
+      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
+      · exact ⟨a, Or.inr hm, rfl⟩
+    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨a, hm, rfl⟩
+
+theorem mem_unmarkPairs {ps : List (Val × Val)} {p r : Val} :
+    (p, r) ∈ unmarkPairs ps ↔ ∃ p' r', (p', r') ∈ ps ∧ p = p'.unmark ∧ r = r'.unmark := by
+  induction ps with
+  | nil => simp [unmarkPairs]
+  | cons q ps ih =>
+    obtain ⟨p₀, r₀⟩ := q
+    simp only [unmarkPairs, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨p', r', hm, rfl, rfl⟩)
+      · exact ⟨p₀, r₀, Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
+      · exact ⟨p', r', Or.inr hm, rfl, rfl⟩
+    · rintro ⟨p', r', ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨p', r', hm, rfl, rfl⟩
+
+theorem mem_unmarkCovers {cs : List Cover} {c : Cover} :
+    c ∈ unmarkCovers cs ↔
+      ∃ c', c' ∈ cs ∧ c = (unmarkSpread c'.1, unmarkSpread c'.2.1, unmarkSpread c'.2.2) := by
+  induction cs with
+  | nil => simp [unmarkCovers]
+  | cons q cs ih =>
+    obtain ⟨a, b, d⟩ := q
+    simp only [unmarkCovers, List.mem_cons, ih]
+    constructor
+    · rintro (rfl | ⟨c', hm, rfl⟩)
+      · exact ⟨(a, b, d), Or.inl rfl, rfl⟩
+      · exact ⟨c', Or.inr hm, rfl⟩
+    · rintro ⟨c', rfl | hm, rfl⟩
+      · exact Or.inl rfl
+      · exact Or.inr ⟨c', hm, rfl⟩
+
+/-- Clearing the marks keeps a body checkable. -/
+theorem Val.CheckableA.unmark {v : Val} (h : v.CheckableA) : v.unmark.CheckableA := by
+  induction h with
+  | @map fs spread closed _ _ ihf ihs =>
+    refine .map ?_ ?_
+    · intro k o w hm
+      obtain ⟨v, hv, rfl⟩ := mem_unmarkFields.mp hm
+      exact ihf k o v hv
+    · intro t ht
+      obtain ⟨s, hs, rfl⟩ := unmarkSpread_eq.mp ht
+      exact ihs s hs
+  | @list items spread closed _ _ ihi ihs =>
+    refine .list ?_ ?_
+    · intro w hm
+      obtain ⟨v, hv, rfl⟩ := mem_unmarkItems.mp hm
+      exact ihi v hv
+    · intro t ht
+      obtain ⟨s, hs, rfl⟩ := unmarkSpread_eq.mp ht
+      exact ihs s hs
+  | @or arms _ ih =>
+    refine .or fun r b hm => ?_
+    obtain ⟨a, ha, rfl⟩ := mem_unmarkArms.mp hm
+    exact ih r a ha
+  | pref _ ih => exact .pref ih
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | @ride k v r _ ih => cases k <;> first | exact ih | exact .ride ih
+  | len _ ih => exact .len ih
+  | @nof n cs _ _ ihn ihc =>
+    refine .nof ihn fun w hm => ?_
+    obtain ⟨v, hv, rfl⟩ := mem_unmarkItems.mp hm
+    exact ihc v hv
+  | must _ ih => exact .must ih
+  | when _ _ _ ihc iht ihe =>
+    refine .when ihc iht fun e' he => ?_
+    obtain ⟨s, hs, rfl⟩ := unmarkSpread_eq.mp he
+    exact ihe s hs
+  | contains _ _ ihc ihn => exact .contains ihc ihn
+  | @rest t cs _ _ _ _ iht ih1 ih2 ih3 =>
+    refine .rest iht ?_ ?_ ?_ <;> intro c hc w hw <;>
+      obtain ⟨c', hc', rfl⟩ := mem_unmarkCovers.mp hc <;>
+      obtain ⟨s, hs, rfl⟩ := unmarkSpread_eq.mp hw
+    · exact ih1 c' hc' s hs
+    · exact ih2 c' hc' s hs
+    · exact ih3 c' hc' s hs
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p', r', hm', rfl, rfl⟩ := mem_unmarkPairs.mp hm
+      exact ihp p' r' hm'
+    · obtain ⟨p', r', hm', rfl, rfl⟩ := mem_unmarkPairs.mp hm
+      exact ihr p' r' hm'
+    · obtain ⟨s, hs, rfl⟩ := unmarkSpread_eq.mp he
+      exact ihd s hs
+  | @selectLit s₀ arms d _ _ _ ihp ihr ihd =>
+    refine .selectLit (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p', r', hm', rfl, rfl⟩ := mem_unmarkPairs.mp hm
+      exact ihp p' r' hm'
+    · obtain ⟨p', r', hm', rfl, rfl⟩ := mem_unmarkPairs.mp hm
+      exact ihr p' r' hm'
+    · obtain ⟨s, hs, rfl⟩ := unmarkSpread_eq.mp he
+      exact ihd s hs
+  | _ => simp only [Val.unmark]; constructor <;> assumption
+
 theorem Decls.env_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {k : String} {b : Val}
     (h : ds.env k = some b) : b.CheckableA := by
   simp only [Decls.env] at h
@@ -351,8 +492,8 @@ theorem Decls.env_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Checkabl
         intro v hv hws
         exact ih (.meet v w) (.meet hv (hws w (List.mem_cons_self)))
           (fun w' hw' => hws w' (List.mem_cons_of_mem _ hw'))
-    exact Val.checkableA_unident
-      (this vs v (hall v (List.mem_cons_self)) (fun w hw => hall w (List.mem_cons_of_mem _ hw)))
+    exact (Val.checkableA_unident
+      (this vs v (hall v (List.mem_cons_self)) (fun w hw => hall w (List.mem_cons_of_mem _ hw)))).unmark
 
 theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
     ∀ (f : ℕ) (v : Val), v.CheckableA → (expandF ds f v).CheckableA
@@ -687,14 +828,15 @@ theorem admits_normaliseD {ds : Decls} {root : Data} (v : Val) (j : Data) :
 /-! ## What evaluation singles out, under the declarations -/
 
 /-- What evaluation singles out for `v` under the declarations: what
-its normal form generates. -/
+the visible part of its normal form generates. -/
 def OutputD (ds : Decls) (root : Data) (v : Val) (j : Data) : Prop :=
-  Gen ds.envE root (normaliseD ds v) j
+  Gen ds.envE root (normaliseD ds v).visible j
 
-/-- What evaluation singles out under the declarations is an instance. -/
+/-- What evaluation singles out under the declarations is an instance
+of the visible part of the normal form. -/
 theorem outputD_admits {ds : Decls} {root : Data} (v : Val) (j : Data) (h : OutputD ds root v j) :
-    Admits ds.envE root v j :=
-  (admits_normaliseD v j).mp (gen_admits _ j h)
+    Admits ds.envE root (normaliseD ds v).visible j :=
+  gen_admits _ j h
 
 theorem outputD_unique {ds : Decls} {root : Data} {v : Val} {j j' : Data}
     (h : OutputD ds root v j) (h' : OutputD ds root v j') : j = j' :=
@@ -704,14 +846,14 @@ theorem outputD_unique {ds : Decls} {root : Data} {v : Val} {j j' : Data}
 def genD (ds : Decls) : Val → Option Data := genWith (checkR ds)
 
 /-- What evaluation singles out under the declarations, computed. -/
-def outputD (ds : Decls) (v : Val) : Option Data := genD ds (normaliseD ds v)
+def outputD (ds : Decls) (v : Val) : Option Data := genD ds (normaliseD ds v).visible
 
 /-- `outputD` computes `OutputD` wherever the normal form can be read,
 and the names keep the alias-cycle rule. -/
 theorem outputD_iff {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     {v : Val} (h : (normaliseD ds v).CheckableA) (j : Data) :
     outputD ds v = some j ↔ OutputD ds root v j :=
-  genWith_iff h (fun _ j hw _ => checkR_iff hg hb hw j) j
+  genWith_iff h.visible (fun _ j hw _ => checkR_iff hg hb hw j) j
 
 
 /-! ## The normal form can be read

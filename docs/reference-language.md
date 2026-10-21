@@ -4049,6 +4049,21 @@ does (the generated children stay usable downstream (`out: pack($.m,
 inside another `type()` body constrains the referring field without
 suppressing its emission.
 
+In the definition, `type()` and `hide()` are riders, `ride` in
+[`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) with the call and
+no record, so a marked value admits what its value admits, as
+`judge_ride_iff` states, and a mark rides every meet. `Output` in
+[`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) generates from a
+term's visible part, `Val.visible`, in which a marked member of a map is
+optional and holds anything: the output leaves the member out, and the
+member still meets the data at its key. Without the fill, `vet` asks
+the data to be an instance of the schema's visible part. A reference
+reads a body with its marks cleared at every depth, `Val.unmark` in
+[`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean). The seal a
+reference puts on a `type()` value is yet to enter the definition, and
+so is a marked list element, which both engines leave out of the
+output, the subject of decision 18 of the design note.
+
 ## Annotations: `meta`
 
 `meta(v, ...r)` annotates a value without changing it. The value
@@ -5043,7 +5058,7 @@ Neither guess is safe: a gate that wrongly reports "compatible" ships
 the break, and one that wrongly reports "breaking" sends its reader
 after a failure that isn't there.
 
-The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`. `DefaultsLe` counts only a default a term declares, as this page's effective default does, so a literal's own value is none, and `integer` over `1` holds under it, as `DefaultsLe.of_lit` proves. `GenLe` is still to read the marks as terms.
+The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`. `DefaultsLe` counts only a default a term declares, as this page's effective default does, so a literal's own value is none, and `integer` over `1` holds under it, as `DefaultsLe.of_lit` proves. `GenLe` adds `MarksAgree`: the marks agree at every position both sides have, a container's spread among them, so `hide(integer)` and `integer` are below each other in the order and not under `gen`, as `hide_not_genLe` proves.
 
 ### Profiles
 
