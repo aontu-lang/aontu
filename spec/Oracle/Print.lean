@@ -159,7 +159,7 @@ def openCovers : List Cover → Bool
   | (c, k, m) :: cs => openSpread c || openSpread k || openSpread m || openCovers cs
 end
 
-/-- The name a call on numbers is written with. -/
+/-- The name a call is written with. -/
 def Fn.name : Fn → String
   | .add => "add"
   | .sub => "sub"
@@ -168,6 +168,9 @@ def Fn.name : Fn → String
   | .mod => "mod"
   | .rem => "rem"
   | .neg => "-"
+  | .sum => "sum"
+  | .least => "least"
+  | .greatest => "greatest"
 
 mutual
 def Val.src : Val → Option String

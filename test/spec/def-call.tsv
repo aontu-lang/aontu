@@ -6,7 +6,9 @@
 # whose arguments' normal forms are numbers is the number its function computes
 # by the tower's rules (spec/Aontu/Arith.lean); any other call, an argument
 # outside the function's domain, a zero divisor, an answer no leaf holds or the
-# wrong number of arguments, is an error. A call on a name follows in rows z0 on.
+# wrong number of arguments, is an error. The folds sum, least and greatest,
+# over a list or a map whose members are numbers, follow from row x129. A call
+# on a name follows in rows z0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -137,6 +139,150 @@ x125	verdict	v: add(1)	v: 1	{"verdict":"error","opts":{"partial":true}}
 x126	verdict	v: add(1, 2, 3)	v: 6	{"verdict":"error"}
 x127	verdict	v: add(1, 2, 3)	v: 6	{"verdict":"error","opts":{"noFill":true}}
 x128	verdict	v: add(1, 2, 3)	v: 6	{"verdict":"error","opts":{"partial":true}}
+x129	verdict	v: sum([1, 2, 3])	v: 6	{"verdict":"valid"}
+x130	verdict	v: sum([1, 2, 3])	v: 6	{"verdict":"valid","opts":{"noFill":true}}
+x131	verdict	v: sum([1, 2, 3])	v: 6	{"verdict":"valid","opts":{"partial":true}}
+x132	verdict	v: sum([1, 2, 3])	v: 7	{"verdict":"invalid"}
+x133	verdict	v: sum([1, 2, 3])	v: 7	{"verdict":"invalid","opts":{"noFill":true}}
+x134	verdict	v: sum([1, 2, 3])	v: 7	{"verdict":"invalid","opts":{"partial":true}}
+x135	verdict	v: sum([1, 2.5])	v: 3.5	{"verdict":"valid"}
+x136	verdict	v: sum([1, 2.5])	v: 3.5	{"verdict":"valid","opts":{"noFill":true}}
+x137	verdict	v: sum([1, 2.5])	v: 3.5	{"verdict":"valid","opts":{"partial":true}}
+x138	verdict	v: sum([0.1, 0.2, 0.3])	v: 0.6000000000000001	{"verdict":"valid"}
+x139	verdict	v: sum([0.1, 0.2, 0.3])	v: 0.6000000000000001	{"verdict":"valid","opts":{"noFill":true}}
+x140	verdict	v: sum([0.1, 0.2, 0.3])	v: 0.6000000000000001	{"verdict":"valid","opts":{"partial":true}}
+x141	verdict	v: sum([0.3, 0.2, 0.1])	v: 0.6	{"verdict":"valid"}
+x142	verdict	v: sum([0.3, 0.2, 0.1])	v: 0.6	{"verdict":"valid","opts":{"noFill":true}}
+x143	verdict	v: sum([0.3, 0.2, 0.1])	v: 0.6	{"verdict":"valid","opts":{"partial":true}}
+x144	verdict	v: sum([0d1.5, 0d2.5])	v: 0d4.0	{"verdict":"valid"}
+x145	verdict	v: sum([0d1.5, 0d2.5])	v: 0d4.0	{"verdict":"valid","opts":{"noFill":true}}
+x146	verdict	v: sum([0d1.5, 0d2.5])	v: 0d4.0	{"verdict":"valid","opts":{"partial":true}}
+x147	verdict	v: sum([])	v: 0	{"verdict":"valid"}
+x148	verdict	v: sum([])	v: 0	{"verdict":"valid","opts":{"noFill":true}}
+x149	verdict	v: sum([])	v: 0	{"verdict":"valid","opts":{"partial":true}}
+x150	verdict	v: sum([9007199254740992, 1, -1])	v: 9007199254740992	{"verdict":"error"}
+x151	verdict	v: sum([9007199254740992, 1, -1])	v: 9007199254740992	{"verdict":"error","opts":{"noFill":true}}
+x152	verdict	v: sum([9007199254740992, 1, -1])	v: 9007199254740992	{"verdict":"error","opts":{"partial":true}}
+x153	verdict	v: sum([1, -1, 9007199254740992])	v: 9007199254740992	{"verdict":"valid"}
+x154	verdict	v: sum([1, -1, 9007199254740992])	v: 9007199254740992	{"verdict":"valid","opts":{"noFill":true}}
+x155	verdict	v: sum([1, -1, 9007199254740992])	v: 9007199254740992	{"verdict":"valid","opts":{"partial":true}}
+x156	verdict	v: sum([1, 0d2])	v: 0d3	{"verdict":"valid"}
+x157	verdict	v: sum([1, 0d2])	v: 0d3	{"verdict":"valid","opts":{"noFill":true}}
+x158	verdict	v: sum([1, 0d2])	v: 0d3	{"verdict":"valid","opts":{"partial":true}}
+x159	verdict	v: sum([1.5, 0d2])	v: 1	{"verdict":"error"}
+x160	verdict	v: sum([1.5, 0d2])	v: 1	{"verdict":"error","opts":{"noFill":true}}
+x161	verdict	v: sum([1.5, 0d2])	v: 1	{"verdict":"error","opts":{"partial":true}}
+x162	verdict	v: sum({"b": 1, "a": 2})	v: 3	{"verdict":"valid"}
+x163	verdict	v: sum({"b": 1, "a": 2})	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x164	verdict	v: sum({"b": 1, "a": 2})	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x165	verdict	v: least([3, 1, 2])	v: 1	{"verdict":"valid"}
+x166	verdict	v: least([3, 1, 2])	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+x167	verdict	v: least([3, 1, 2])	v: 1	{"verdict":"valid","opts":{"partial":true}}
+x168	verdict	v: greatest([3, 1, 2])	v: 3	{"verdict":"valid"}
+x169	verdict	v: greatest([3, 1, 2])	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x170	verdict	v: greatest([3, 1, 2])	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x171	verdict	v: least([])	v: 1	{"verdict":"error"}
+x172	verdict	v: least([])	v: 1	{"verdict":"error","opts":{"noFill":true}}
+x173	verdict	v: least([])	v: 1	{"verdict":"error","opts":{"partial":true}}
+x174	verdict	v: greatest({})	v: 1	{"verdict":"error"}
+x175	verdict	v: greatest({})	v: 1	{"verdict":"error","opts":{"noFill":true}}
+x176	verdict	v: greatest({})	v: 1	{"verdict":"error","opts":{"partial":true}}
+x177	verdict	v: least([1, 1.0])	v: 1	{"verdict":"valid"}
+x178	verdict	v: least([1, 1.0])	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+x179	verdict	v: least([1, 1.0])	v: 1	{"verdict":"valid","opts":{"partial":true}}
+x180	verdict	v: least([1, 1.0])	v: 1.0	{"verdict":"invalid"}
+x181	verdict	v: least([1, 1.0])	v: 1.0	{"verdict":"invalid","opts":{"noFill":true}}
+x182	verdict	v: least([1, 1.0])	v: 1.0	{"verdict":"invalid","opts":{"partial":true}}
+x183	verdict	v: least([1.0, 1])	v: 1.0	{"verdict":"valid"}
+x184	verdict	v: least([1.0, 1])	v: 1.0	{"verdict":"valid","opts":{"noFill":true}}
+x185	verdict	v: least([1.0, 1])	v: 1.0	{"verdict":"valid","opts":{"partial":true}}
+x186	verdict	v: greatest([1, 0d1])	v: 1	{"verdict":"valid"}
+x187	verdict	v: greatest([1, 0d1])	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+x188	verdict	v: greatest([1, 0d1])	v: 1	{"verdict":"valid","opts":{"partial":true}}
+x189	verdict	v: greatest([1, 0d1])	v: 0d1	{"verdict":"invalid"}
+x190	verdict	v: greatest([1, 0d1])	v: 0d1	{"verdict":"invalid","opts":{"noFill":true}}
+x191	verdict	v: greatest([1, 0d1])	v: 0d1	{"verdict":"invalid","opts":{"partial":true}}
+x192	verdict	v: least([0d9007199254740993, 9007199254740992])	v: 9007199254740992	{"verdict":"valid"}
+x193	verdict	v: least([0d9007199254740993, 9007199254740992])	v: 9007199254740992	{"verdict":"valid","opts":{"noFill":true}}
+x194	verdict	v: least([0d9007199254740993, 9007199254740992])	v: 9007199254740992	{"verdict":"valid","opts":{"partial":true}}
+x195	verdict	v: least([1.5, 0d1.25])	v: 0d1.25	{"verdict":"valid"}
+x196	verdict	v: least([1.5, 0d1.25])	v: 0d1.25	{"verdict":"valid","opts":{"noFill":true}}
+x197	verdict	v: least([1.5, 0d1.25])	v: 0d1.25	{"verdict":"valid","opts":{"partial":true}}
+x198	verdict	v: greatest({"b": 1, "a": 1.0})	v: 1.0	{"verdict":"valid"}
+x199	verdict	v: greatest({"b": 1, "a": 1.0})	v: 1.0	{"verdict":"valid","opts":{"noFill":true}}
+x200	verdict	v: greatest({"b": 1, "a": 1.0})	v: 1.0	{"verdict":"valid","opts":{"partial":true}}
+x201	verdict	v: greatest({"b": 1, "a": 1.0})	v: 1	{"verdict":"invalid"}
+x202	verdict	v: greatest({"b": 1, "a": 1.0})	v: 1	{"verdict":"invalid","opts":{"noFill":true}}
+x203	verdict	v: greatest({"b": 1, "a": 1.0})	v: 1	{"verdict":"invalid","opts":{"partial":true}}
+x204	verdict	v: sum(3)	v: 3	{"verdict":"error"}
+x205	verdict	v: sum(3)	v: 3	{"verdict":"error","opts":{"noFill":true}}
+x206	verdict	v: sum(3)	v: 3	{"verdict":"error","opts":{"partial":true}}
+x207	verdict	v: least("a")	v: 1	{"verdict":"error"}
+x208	verdict	v: least("a")	v: 1	{"verdict":"error","opts":{"noFill":true}}
+x209	verdict	v: least("a")	v: 1	{"verdict":"error","opts":{"partial":true}}
+x210	verdict	v: sum(["a"])	v: 1	{"verdict":"error"}
+x211	verdict	v: sum(["a"])	v: 1	{"verdict":"error","opts":{"noFill":true}}
+x212	verdict	v: sum(["a"])	v: 1	{"verdict":"error","opts":{"partial":true}}
+x213	verdict	v: sum([integer])	v: 1	{"verdict":"error"}
+x214	verdict	v: sum([integer])	v: 1	{"verdict":"error","opts":{"noFill":true}}
+x215	verdict	v: sum([integer])	v: 1	{"verdict":"error","opts":{"partial":true}}
+x216	verdict	v: sum([*(1) | (number), 2])	v: 3	{"verdict":"error"}
+x217	verdict	v: sum([*(1) | (number), 2])	v: 3	{"verdict":"error","opts":{"noFill":true}}
+x218	verdict	v: sum([*(1) | (number), 2])	v: 3	{"verdict":"error","opts":{"partial":true}}
+x219	verdict	v: sum([1, [2]])	v: 3	{"verdict":"error"}
+x220	verdict	v: sum([1, [2]])	v: 3	{"verdict":"error","opts":{"noFill":true}}
+x221	verdict	v: sum([1, [2]])	v: 3	{"verdict":"error","opts":{"partial":true}}
+x222	verdict	v: sum({"a": 1, "b": hide(2)})	v: 1	{"verdict":"valid"}
+x223	verdict	v: sum({"a": 1, "b": hide(2)})	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+x224	verdict	v: sum({"a": 1, "b": hide(2)})	v: 1	{"verdict":"valid","opts":{"partial":true}}
+x225	verdict	v: sum({"a": type(1), "b": 2})	v: 2	{"verdict":"valid"}
+x226	verdict	v: sum({"a": type(1), "b": 2})	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+x227	verdict	v: sum({"a": type(1), "b": 2})	v: 2	{"verdict":"valid","opts":{"partial":true}}
+x228	verdict	v: sum({"a"?: integer, "b": 2})	v: 2	{"verdict":"valid"}
+x229	verdict	v: sum({"a"?: integer, "b": 2})	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+x230	verdict	v: sum({"a"?: integer, "b": 2})	v: 2	{"verdict":"valid","opts":{"partial":true}}
+x231	verdict	v: sum({"a"?: (1) | (2), "b": 2})	v: 2	{"verdict":"valid"}
+x232	verdict	v: sum({"a"?: (1) | (2), "b": 2})	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+x233	verdict	v: sum({"a"?: (1) | (2), "b": 2})	v: 2	{"verdict":"valid","opts":{"partial":true}}
+x234	verdict	v: sum({"a"?: 1, "b": 2})	v: 3	{"verdict":"valid"}
+x235	verdict	v: sum({"a"?: 1, "b": 2})	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x236	verdict	v: sum({"a"?: 1, "b": 2})	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x237	verdict	v: sum({"a"?: "x", "b": 2})	v: 2	{"verdict":"error"}
+x238	verdict	v: sum({"a"?: "x", "b": 2})	v: 2	{"verdict":"error","opts":{"noFill":true}}
+x239	verdict	v: sum({"a"?: "x", "b": 2})	v: 2	{"verdict":"error","opts":{"partial":true}}
+x240	verdict	v: sum(meta([1, 2], {}))	v: 3	{"verdict":"valid"}
+x241	verdict	v: sum(meta([1, 2], {}))	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x242	verdict	v: sum(meta([1, 2], {}))	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x243	verdict	v: sum([meta(1, {}), 2])	v: 3	{"verdict":"valid"}
+x244	verdict	v: sum([meta(1, {}), 2])	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x245	verdict	v: sum([meta(1, {}), 2])	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x246	verdict	v: sum(type([1, 2]))	v: 3	{"verdict":"valid"}
+x247	verdict	v: sum(type([1, 2]))	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x248	verdict	v: sum(type([1, 2]))	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x249	verdict	v: sum(([1, 2]) & ([integer, integer]))	v: 3	{"verdict":"valid"}
+x250	verdict	v: sum(([1, 2]) & ([integer, integer]))	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x251	verdict	v: sum(([1, 2]) & ([integer, integer]))	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x252	verdict	v: sum(({"a": 1}) & ({"b": 2}))	v: 3	{"verdict":"valid"}
+x253	verdict	v: sum(({"a": 1}) & ({"b": 2}))	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x254	verdict	v: sum(({"a": 1}) & ({"b": 2}))	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x255	verdict	v: sum(([&: integer]) & ([1, 2]))	v: 3	{"verdict":"valid"}
+x256	verdict	v: sum(([&: integer]) & ([1, 2]))	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+x257	verdict	v: sum(([&: integer]) & ([1, 2]))	v: 3	{"verdict":"valid","opts":{"partial":true}}
+x258	verdict	v: sum(([1, 2]) & (len(2)))	v: 3	{"verdict":"error"}
+x259	verdict	v: sum(([1, 2]) & (len(2)))	v: 3	{"verdict":"error","opts":{"noFill":true}}
+x260	verdict	v: sum(([1, 2]) & (len(2)))	v: 3	{"verdict":"error","opts":{"partial":true}}
+x261	verdict	v: sum(*[1] | ([2, 3]))	v: 1	{"verdict":"error"}
+x262	verdict	v: sum(*[1] | ([2, 3]))	v: 1	{"verdict":"error","opts":{"noFill":true}}
+x263	verdict	v: sum(*[1] | ([2, 3]))	v: 1	{"verdict":"error","opts":{"partial":true}}
+x264	verdict	v: sum([add(1, 2), 4])	v: 7	{"verdict":"valid"}
+x265	verdict	v: sum([add(1, 2), 4])	v: 7	{"verdict":"valid","opts":{"noFill":true}}
+x266	verdict	v: sum([add(1, 2), 4])	v: 7	{"verdict":"valid","opts":{"partial":true}}
+x267	verdict	v: add(sum([1, 2]), 1)	v: 4	{"verdict":"valid"}
+x268	verdict	v: add(sum([1, 2]), 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
+x269	verdict	v: add(sum([1, 2]), 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}
+x270	verdict	v: sum([1], [2])	v: 1	{"verdict":"error"}
+x271	verdict	v: sum([1], [2])	v: 1	{"verdict":"error","opts":{"noFill":true}}
+x272	verdict	v: sum([1], [2])	v: 1	{"verdict":"error","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}
@@ -146,3 +292,9 @@ z5	verdict	%A = 3\nv: add(%A, 1)	v: 5	{"verdict":"invalid","opts":{"partial":tru
 z6	verdict	%A = integer\nv: add(%A, 1)	v: 2	{"verdict":"error"}
 z7	verdict	%A = integer\nv: add(%A, 1)	v: 2	{"verdict":"error","opts":{"noFill":true}}
 z8	verdict	%A = integer\nv: add(%A, 1)	v: 2	{"verdict":"error","opts":{"partial":true}}
+z9	verdict	%L = [1, 2, 3]\nv: sum(%L)	v: 6	{"verdict":"valid"}
+z10	verdict	%L = [1, 2, 3]\nv: sum(%L)	v: 6	{"verdict":"valid","opts":{"noFill":true}}
+z11	verdict	%L = [1, 2, 3]\nv: sum(%L)	v: 6	{"verdict":"valid","opts":{"partial":true}}
+z12	verdict	%M = {"a": 1, "b": 2}\nv: greatest(%M)	v: 2	{"verdict":"valid"}
+z13	verdict	%M = {"a": 1, "b": 2}\nv: greatest(%M)	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+z14	verdict	%M = {"a": 1, "b": 2}\nv: greatest(%M)	v: 2	{"verdict":"valid","opts":{"partial":true}}

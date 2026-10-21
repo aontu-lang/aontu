@@ -1773,7 +1773,11 @@ exact big leaves, each with the value it computes and one it does not,
 and each call no reading makes, an argument outside its function's
 domain, a zero divisor, an answer no leaf holds, or the wrong number of
 arguments, rows x0 on in `def-call.tsv`; and a call on a name, rows z0
-on. -/
+on. The folds `sum`, `least` and `greatest` follow from row x129, over
+lists and maps, their members read as `Val.members` reads them: no case
+holds a marked list element (decision 18) or an optional member whose
+value generates an empty map or list (decision 19), and no bag is met
+with a kind, which the normal form keeps beside it. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -1789,6 +1793,8 @@ def callCases : List (Val × Data) :=
   let dec (c e : ℤ) : Val := .lit (.num (.bigdecimal (BigDecimal.normal c e)))
   let jdec (c e : ℤ) : Data := .num (.bigdecimal (BigDecimal.normal c e))
   let c (f : Fn) (args : List Val) : Val := .call f args
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
   [(c .add [int 1, int 2], j 3), (c .add [int 1, int 2], j 4),
     (c .sub [int 10, int 3], j 7), (c .mul [int 6, int 7], j 42),
     (c .div [int 7, int 2], j 3), (c .div [int (-7), int 2], j (-3)),
@@ -1812,7 +1818,46 @@ def callCases : List (Val × Data) :=
     (c .add [.meet (int 1) .integer, int 1], j 2), (c .add [.ride .metadata (int 3) [], int 1], j 4),
     (c .add [.ride .type (int 2) [], int 1], j 3), (c .add [c .add [int 1, int 2], int 1], j 4),
     (c .add [.meet .number (int 2), int 1], j 3), (c .add [int 1], j 1),
-    (c .add [int 1, int 2, int 3], j 6)]
+    (c .add [int 1, int 2, int 3], j 6),
+    (c .sum [lst [int 1, int 2, int 3]], j 6), (c .sum [lst [int 1, int 2, int 3]], j 7),
+    (c .sum [lst [int 1, flt 25 10]], jf 35 10),
+    (c .sum [lst [flt 1 10, flt 2 10, flt 3 10]], jf 6000000000000001 (10 ^ 16)),
+    (c .sum [lst [flt 3 10, flt 2 10, flt 1 10]], jf 6 10),
+    (c .sum [lst [dec 15 1, dec 25 1]], jdec 4 0), (c .sum [lst []], j 0),
+    (c .sum [lst [int 9007199254740992, int 1, int (-1)]], j 9007199254740992),
+    (c .sum [lst [int 1, int (-1), int 9007199254740992]], j 9007199254740992),
+    (c .sum [lst [int 1, big 2]], jbig 3), (c .sum [lst [flt 15 10, big 2]], j 1),
+    (c .sum [mp [("b", int 1), ("a", int 2)]], j 3),
+    (c .least [lst [int 3, int 1, int 2]], j 1), (c .greatest [lst [int 3, int 1, int 2]], j 3),
+    (c .least [lst []], j 1), (c .greatest [mp []], j 1),
+    (c .least [lst [int 1, flt 1 1]], j 1), (c .least [lst [int 1, flt 1 1]], jf 1 1),
+    (c .least [lst [flt 1 1, int 1]], jf 1 1), (c .greatest [lst [int 1, big 1]], j 1),
+    (c .greatest [lst [int 1, big 1]], jbig 1),
+    (c .least [lst [big 9007199254740993, int 9007199254740992]], j 9007199254740992),
+    (c .least [lst [flt 15 10, dec 125 2]], jdec 125 2),
+    (c .greatest [mp [("b", int 1), ("a", flt 1 1)]], jf 1 1),
+    (c .greatest [mp [("b", int 1), ("a", flt 1 1)]], j 1),
+    (c .sum [int 3], j 3), (c .least [.lit (.str "a")], j 1),
+    (c .sum [lst [.lit (.str "a")]], j 1), (c .sum [lst [.integer]], j 1),
+    (c .sum [lst [.or [(1, int 1), (0, .number)], int 2]], j 3),
+    (c .sum [lst [int 1, lst [int 2]]], j 3),
+    (c .sum [mp [("a", int 1), ("b", .ride .hide (int 2) [])]], j 1),
+    (c .sum [mp [("a", .ride .type (int 1) []), ("b", int 2)]], j 2),
+    (c .sum [.map [("a", true, .integer), ("b", false, int 2)] none false], j 2),
+    (c .sum [.map [("a", true, .or [(0, int 1), (0, int 2)]), ("b", false, int 2)] none false], j 2),
+    (c .sum [.map [("a", true, int 1), ("b", false, int 2)] none false], j 3),
+    (c .sum [.map [("a", true, .lit (.str "x")), ("b", false, int 2)] none false], j 2),
+    (c .sum [.ride .metadata (lst [int 1, int 2]) []], j 3),
+    (c .sum [lst [.ride .metadata (int 1) [], int 2]], j 3),
+    (c .sum [.ride .type (lst [int 1, int 2]) []], j 3),
+    (c .sum [.meet (lst [int 1, int 2]) (lst [.integer, .integer])], j 3),
+    (c .sum [.meet (mp [("a", int 1)]) (mp [("b", int 2)])], j 3),
+    (c .sum [.meet (.list [] (some .integer) false) (lst [int 1, int 2])], j 3),
+    (c .sum [.meet (lst [int 1, int 2]) (.len (int 2))], j 3),
+    (c .sum [.or [(1, lst [int 1]), (0, lst [int 2, int 3])]], j 1),
+    (c .sum [lst [c .add [int 1, int 2], int 4]], j 7),
+    (c .add [c .sum [lst [int 1, int 2]], int 1], j 4),
+    (c .sum [lst [int 1], lst [int 2]], j 1)]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -1829,7 +1874,10 @@ def callAliasCases : List (Decls × Val × Data) :=
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   [([("A", int 3)], .call .add [.alias "A", int 1], j 4),
     ([("A", int 3)], .call .add [.alias "A", int 1], j 5),
-    ([("A", .integer)], .call .add [.alias "A", int 1], j 2)]
+    ([("A", .integer)], .call .add [.alias "A", int 1], j 2),
+    ([("L", .list [int 1, int 2, int 3] none false)], .call .sum [.alias "L"], j 6),
+    ([("M", .map [("a", false, int 1), ("b", false, int 2)] none false)],
+      .call .greatest [.alias "M"], j 2)]
 
 theorem callAliasCases_checkable : ∀ c ∈ callAliasCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
@@ -2042,7 +2090,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# whose arguments' normal forms are numbers is the number its function computes"
     IO.println "# by the tower's rules (spec/Aontu/Arith.lean); any other call, an argument"
     IO.println "# outside the function's domain, a zero divisor, an answer no leaf holds or the"
-    IO.println "# wrong number of arguments, is an error. A call on a name follows in rows z0 on."
+    IO.println "# wrong number of arguments, is an error. The folds sum, least and greatest,"
+    IO.println "# over a list or a map whose members are numbers, follow from row x129. A call"
+    IO.println "# on a name follows in rows z0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     verdictRows "x" callCases
     aliasRows "z" callAliasCases
