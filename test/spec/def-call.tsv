@@ -12,9 +12,9 @@
 # document is incomplete, and join from row x507, which waits on a member or a
 # separator not yet settled. pick and sort, which never wait, follow from row
 # x597, upper and lower from row x816, translate from row x966, and esc and usc
-# from row x1068, super from row x1221, split from row x1332, and rep from
-# row x1404. A call on a name follows in rows z0 on, and a call handed a
-# pattern, re(p), in rows v0 on.
+# from row x1068, super from row x1221, split from row x1332, rep from row
+# x1404, and nom from row x1521. A call on a name follows in rows z0 on, and a
+# call handed a pattern, re(p), in rows v0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -1537,6 +1537,162 @@ x1517	verdict	v: split(rep("a1b", "1", ","), ",")	v: ["a", "b"]	{"verdict":"vali
 x1518	verdict	v: rep(join(["a", "b"], "-"), "-", "")	v: "ab"	{"verdict":"valid"}
 x1519	verdict	v: rep(join(["a", "b"], "-"), "-", "")	v: "ab"	{"verdict":"valid","opts":{"noFill":true}}
 x1520	verdict	v: rep(join(["a", "b"], "-"), "-", "")	v: "ab"	{"verdict":"valid","opts":{"partial":true}}
+x1521	verdict	v: nom("planet_body", "pascal")	v: "PlanetBody"	{"verdict":"valid"}
+x1522	verdict	v: nom("planet_body", "pascal")	v: "PlanetBody"	{"verdict":"valid","opts":{"noFill":true}}
+x1523	verdict	v: nom("planet_body", "pascal")	v: "PlanetBody"	{"verdict":"valid","opts":{"partial":true}}
+x1524	verdict	v: nom("planet_body", "pascal")	v: "planetBody"	{"verdict":"invalid"}
+x1525	verdict	v: nom("planet_body", "pascal")	v: "planetBody"	{"verdict":"invalid","opts":{"noFill":true}}
+x1526	verdict	v: nom("planet_body", "pascal")	v: "planetBody"	{"verdict":"invalid","opts":{"partial":true}}
+x1527	verdict	v: nom("planet_body", "camel")	v: "planetBody"	{"verdict":"valid"}
+x1528	verdict	v: nom("planet_body", "camel")	v: "planetBody"	{"verdict":"valid","opts":{"noFill":true}}
+x1529	verdict	v: nom("planet_body", "camel")	v: "planetBody"	{"verdict":"valid","opts":{"partial":true}}
+x1530	verdict	v: nom("planet_body", "snake")	v: "planet_body"	{"verdict":"valid"}
+x1531	verdict	v: nom("planet_body", "snake")	v: "planet_body"	{"verdict":"valid","opts":{"noFill":true}}
+x1532	verdict	v: nom("planet_body", "snake")	v: "planet_body"	{"verdict":"valid","opts":{"partial":true}}
+x1533	verdict	v: nom("planet_body", "kebab")	v: "planet-body"	{"verdict":"valid"}
+x1534	verdict	v: nom("planet_body", "kebab")	v: "planet-body"	{"verdict":"valid","opts":{"noFill":true}}
+x1535	verdict	v: nom("planet_body", "kebab")	v: "planet-body"	{"verdict":"valid","opts":{"partial":true}}
+x1536	verdict	v: nom("planet_body", "dot")	v: "planet.body"	{"verdict":"valid"}
+x1537	verdict	v: nom("planet_body", "dot")	v: "planet.body"	{"verdict":"valid","opts":{"noFill":true}}
+x1538	verdict	v: nom("planet_body", "dot")	v: "planet.body"	{"verdict":"valid","opts":{"partial":true}}
+x1539	verdict	v: nom("planet_body", "path")	v: "planet/body"	{"verdict":"valid"}
+x1540	verdict	v: nom("planet_body", "path")	v: "planet/body"	{"verdict":"valid","opts":{"noFill":true}}
+x1541	verdict	v: nom("planet_body", "path")	v: "planet/body"	{"verdict":"valid","opts":{"partial":true}}
+x1542	verdict	v: nom("planet_body", "upper")	v: "PLANET_BODY"	{"verdict":"valid"}
+x1543	verdict	v: nom("planet_body", "upper")	v: "PLANET_BODY"	{"verdict":"valid","opts":{"noFill":true}}
+x1544	verdict	v: nom("planet_body", "upper")	v: "PLANET_BODY"	{"verdict":"valid","opts":{"partial":true}}
+x1545	verdict	v: nom("planet_body", "title")	v: "Planet Body"	{"verdict":"valid"}
+x1546	verdict	v: nom("planet_body", "title")	v: "Planet Body"	{"verdict":"valid","opts":{"noFill":true}}
+x1547	verdict	v: nom("planet_body", "title")	v: "Planet Body"	{"verdict":"valid","opts":{"partial":true}}
+x1548	verdict	v: nom("planet_body", "text")	v: "Planet body"	{"verdict":"valid"}
+x1549	verdict	v: nom("planet_body", "text")	v: "Planet body"	{"verdict":"valid","opts":{"noFill":true}}
+x1550	verdict	v: nom("planet_body", "text")	v: "Planet body"	{"verdict":"valid","opts":{"partial":true}}
+x1551	verdict	v: nom("HTTPServer", "snake")	v: "http_server"	{"verdict":"valid"}
+x1552	verdict	v: nom("HTTPServer", "snake")	v: "http_server"	{"verdict":"valid","opts":{"noFill":true}}
+x1553	verdict	v: nom("HTTPServer", "snake")	v: "http_server"	{"verdict":"valid","opts":{"partial":true}}
+x1554	verdict	v: nom("v2Api", "kebab")	v: "v-2-api"	{"verdict":"valid"}
+x1555	verdict	v: nom("v2Api", "kebab")	v: "v-2-api"	{"verdict":"valid","opts":{"noFill":true}}
+x1556	verdict	v: nom("v2Api", "kebab")	v: "v-2-api"	{"verdict":"valid","opts":{"partial":true}}
+x1557	verdict	v: nom("aB1c", "snake")	v: "a_b_1_c"	{"verdict":"valid"}
+x1558	verdict	v: nom("aB1c", "snake")	v: "a_b_1_c"	{"verdict":"valid","opts":{"noFill":true}}
+x1559	verdict	v: nom("aB1c", "snake")	v: "a_b_1_c"	{"verdict":"valid","opts":{"partial":true}}
+x1560	verdict	v: nom("ABc", "snake")	v: "a_bc"	{"verdict":"valid"}
+x1561	verdict	v: nom("ABc", "snake")	v: "a_bc"	{"verdict":"valid","opts":{"noFill":true}}
+x1562	verdict	v: nom("ABc", "snake")	v: "a_bc"	{"verdict":"valid","opts":{"partial":true}}
+x1563	verdict	v: nom("aBC", "snake")	v: "a_bc"	{"verdict":"valid"}
+x1564	verdict	v: nom("aBC", "snake")	v: "a_bc"	{"verdict":"valid","opts":{"noFill":true}}
+x1565	verdict	v: nom("aBC", "snake")	v: "a_bc"	{"verdict":"valid","opts":{"partial":true}}
+x1566	verdict	v: nom("x__y--z  w", "dot")	v: "x.y.z.w"	{"verdict":"valid"}
+x1567	verdict	v: nom("x__y--z  w", "dot")	v: "x.y.z.w"	{"verdict":"valid","opts":{"noFill":true}}
+x1568	verdict	v: nom("x__y--z  w", "dot")	v: "x.y.z.w"	{"verdict":"valid","opts":{"partial":true}}
+x1569	verdict	v: nom("a.b/c", "snake")	v: "a_b_c"	{"verdict":"valid"}
+x1570	verdict	v: nom("a.b/c", "snake")	v: "a_b_c"	{"verdict":"valid","opts":{"noFill":true}}
+x1571	verdict	v: nom("a.b/c", "snake")	v: "a_b_c"	{"verdict":"valid","opts":{"partial":true}}
+x1572	verdict	v: nom("_a", "pascal")	v: "A"	{"verdict":"valid"}
+x1573	verdict	v: nom("_a", "pascal")	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+x1574	verdict	v: nom("_a", "pascal")	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+x1575	verdict	v: nom("a1", "camel")	v: "a1"	{"verdict":"valid"}
+x1576	verdict	v: nom("a1", "camel")	v: "a1"	{"verdict":"valid","opts":{"noFill":true}}
+x1577	verdict	v: nom("a1", "camel")	v: "a1"	{"verdict":"valid","opts":{"partial":true}}
+x1578	verdict	v: nom("Ünïcode_name", "pascal")	v: "ÜnïcodeName"	{"verdict":"valid"}
+x1579	verdict	v: nom("Ünïcode_name", "pascal")	v: "ÜnïcodeName"	{"verdict":"valid","opts":{"noFill":true}}
+x1580	verdict	v: nom("Ünïcode_name", "pascal")	v: "ÜnïcodeName"	{"verdict":"valid","opts":{"partial":true}}
+x1581	verdict	v: nom("éA", "snake")	v: "éa"	{"verdict":"valid"}
+x1582	verdict	v: nom("éA", "snake")	v: "éa"	{"verdict":"valid","opts":{"noFill":true}}
+x1583	verdict	v: nom("éA", "snake")	v: "éa"	{"verdict":"valid","opts":{"partial":true}}
+x1584	verdict	v: nom("user_id", "pascal", ["ID"])	v: "UserID"	{"verdict":"valid"}
+x1585	verdict	v: nom("user_id", "pascal", ["ID"])	v: "UserID"	{"verdict":"valid","opts":{"noFill":true}}
+x1586	verdict	v: nom("user_id", "pascal", ["ID"])	v: "UserID"	{"verdict":"valid","opts":{"partial":true}}
+x1587	verdict	v: nom("user id", "camel", ["ID"])	v: "userID"	{"verdict":"valid"}
+x1588	verdict	v: nom("user id", "camel", ["ID"])	v: "userID"	{"verdict":"valid","opts":{"noFill":true}}
+x1589	verdict	v: nom("user id", "camel", ["ID"])	v: "userID"	{"verdict":"valid","opts":{"partial":true}}
+x1590	verdict	v: nom("id_user", "camel", ["ID"])	v: "idUser"	{"verdict":"valid"}
+x1591	verdict	v: nom("id_user", "camel", ["ID"])	v: "idUser"	{"verdict":"valid","opts":{"noFill":true}}
+x1592	verdict	v: nom("id_user", "camel", ["ID"])	v: "idUser"	{"verdict":"valid","opts":{"partial":true}}
+x1593	verdict	v: nom("user_id", "text", ["ID"])	v: "User ID"	{"verdict":"valid"}
+x1594	verdict	v: nom("user_id", "text", ["ID"])	v: "User ID"	{"verdict":"valid","opts":{"noFill":true}}
+x1595	verdict	v: nom("user_id", "text", ["ID"])	v: "User ID"	{"verdict":"valid","opts":{"partial":true}}
+x1596	verdict	v: nom("ID_user", "text", ["ID"])	v: "ID user"	{"verdict":"valid"}
+x1597	verdict	v: nom("ID_user", "text", ["ID"])	v: "ID user"	{"verdict":"valid","opts":{"noFill":true}}
+x1598	verdict	v: nom("ID_user", "text", ["ID"])	v: "ID user"	{"verdict":"valid","opts":{"partial":true}}
+x1599	verdict	v: nom("user_id", "pascal", ["Id", "ID"])	v: "UserId"	{"verdict":"valid"}
+x1600	verdict	v: nom("user_id", "pascal", ["Id", "ID"])	v: "UserId"	{"verdict":"valid","opts":{"noFill":true}}
+x1601	verdict	v: nom("user_id", "pascal", ["Id", "ID"])	v: "UserId"	{"verdict":"valid","opts":{"partial":true}}
+x1602	verdict	v: nom("user_id", "camel", [])	v: "userId"	{"verdict":"valid"}
+x1603	verdict	v: nom("user_id", "camel", [])	v: "userId"	{"verdict":"valid","opts":{"noFill":true}}
+x1604	verdict	v: nom("user_id", "camel", [])	v: "userId"	{"verdict":"valid","opts":{"partial":true}}
+x1605	verdict	v: nom("user_id")	v: {"camel": "userId", "dot": "user.id", "kebab": "user-id", "pascal": "UserId", "path": "user/id", "snake": "user_id", "text": "User id", "title": "User Id", "upper": "USER_ID"}	{"verdict":"valid"}
+x1606	verdict	v: nom("user_id")	v: {"camel": "userId", "dot": "user.id", "kebab": "user-id", "pascal": "UserId", "path": "user/id", "snake": "user_id", "text": "User id", "title": "User Id", "upper": "USER_ID"}	{"verdict":"valid","opts":{"noFill":true}}
+x1607	verdict	v: nom("user_id")	v: {"camel": "userId", "dot": "user.id", "kebab": "user-id", "pascal": "UserId", "path": "user/id", "snake": "user_id", "text": "User id", "title": "User Id", "upper": "USER_ID"}	{"verdict":"valid","opts":{"partial":true}}
+x1608	verdict	v: nom("user_id", ["ID"])	v: {"camel": "userID", "dot": "user.id", "kebab": "user-id", "pascal": "UserID", "path": "user/id", "snake": "user_id", "text": "User ID", "title": "User ID", "upper": "USER_ID"}	{"verdict":"valid"}
+x1609	verdict	v: nom("user_id", ["ID"])	v: {"camel": "userID", "dot": "user.id", "kebab": "user-id", "pascal": "UserID", "path": "user/id", "snake": "user_id", "text": "User ID", "title": "User ID", "upper": "USER_ID"}	{"verdict":"valid","opts":{"noFill":true}}
+x1610	verdict	v: nom("user_id", ["ID"])	v: {"camel": "userID", "dot": "user.id", "kebab": "user-id", "pascal": "UserID", "path": "user/id", "snake": "user_id", "text": "User ID", "title": "User ID", "upper": "USER_ID"}	{"verdict":"valid","opts":{"partial":true}}
+x1611	verdict	v: nom("user_id")	v: {"camel": "userId", "dot": "user.id", "kebab": "user-id", "pascal": "UserId", "path": "user/id", "snake": "user_id", "text": "User id", "title": "User Id", "upper": "USER_ID", "x": "y"}	{"verdict":"invalid"}
+x1612	verdict	v: nom("user_id")	v: {"camel": "userId", "dot": "user.id", "kebab": "user-id", "pascal": "UserId", "path": "user/id", "snake": "user_id", "text": "User id", "title": "User Id", "upper": "USER_ID", "x": "y"}	{"verdict":"invalid","opts":{"noFill":true}}
+x1613	verdict	v: nom("user_id")	v: {"camel": "userId", "dot": "user.id", "kebab": "user-id", "pascal": "UserId", "path": "user/id", "snake": "user_id", "text": "User id", "title": "User Id", "upper": "USER_ID", "x": "y"}	{"verdict":"invalid","opts":{"partial":true}}
+x1614	verdict	v: nom("user_id")	v: {"camel": "userId"}	{"verdict":"valid"}
+x1615	verdict	v: nom("user_id")	v: {"camel": "userId"}	{"verdict":"incomplete","opts":{"noFill":true}}
+x1616	verdict	v: nom("user_id")	v: {"camel": "userId"}	{"verdict":"valid","opts":{"partial":true}}
+x1617	verdict	v: nom("user_id", [])	v: {"camel": "userId", "dot": "user.id", "kebab": "user-id", "pascal": "UserId", "path": "user/id", "snake": "user_id", "text": "User id", "title": "User Id", "upper": "USER_ID"}	{"verdict":"valid"}
+x1618	verdict	v: nom("user_id", [])	v: {"camel": "userId", "dot": "user.id", "kebab": "user-id", "pascal": "UserId", "path": "user/id", "snake": "user_id", "text": "User id", "title": "User Id", "upper": "USER_ID"}	{"verdict":"valid","opts":{"noFill":true}}
+x1619	verdict	v: nom("user_id", [])	v: {"camel": "userId", "dot": "user.id", "kebab": "user-id", "pascal": "UserId", "path": "user/id", "snake": "user_id", "text": "User id", "title": "User Id", "upper": "USER_ID"}	{"verdict":"valid","opts":{"partial":true}}
+x1620	verdict	v: nom("")	v: "a"	{"verdict":"error"}
+x1621	verdict	v: nom("")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1622	verdict	v: nom("")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1623	verdict	v: nom("___")	v: "a"	{"verdict":"error"}
+x1624	verdict	v: nom("___")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1625	verdict	v: nom("___")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1626	verdict	v: nom("user_id", "nope")	v: "a"	{"verdict":"error"}
+x1627	verdict	v: nom("user_id", "nope")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1628	verdict	v: nom("user_id", "nope")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1629	verdict	v: nom("user_id", ["ID"], "x")	v: "a"	{"verdict":"error"}
+x1630	verdict	v: nom("user_id", ["ID"], "x")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1631	verdict	v: nom("user_id", ["ID"], "x")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1632	verdict	v: nom("user_id", "pascal", ["id", ""])	v: "UserId"	{"verdict":"error"}
+x1633	verdict	v: nom("user_id", "pascal", ["id", ""])	v: "UserId"	{"verdict":"error","opts":{"noFill":true}}
+x1634	verdict	v: nom("user_id", "pascal", ["id", ""])	v: "UserId"	{"verdict":"error","opts":{"partial":true}}
+x1635	verdict	v: nom("user_id", "pascal", "ID")	v: "UserID"	{"verdict":"error"}
+x1636	verdict	v: nom("user_id", "pascal", "ID")	v: "UserID"	{"verdict":"error","opts":{"noFill":true}}
+x1637	verdict	v: nom("user_id", "pascal", "ID")	v: "UserID"	{"verdict":"error","opts":{"partial":true}}
+x1638	verdict	v: nom(1)	v: "1"	{"verdict":"error"}
+x1639	verdict	v: nom(1)	v: "1"	{"verdict":"error","opts":{"noFill":true}}
+x1640	verdict	v: nom(1)	v: "1"	{"verdict":"error","opts":{"partial":true}}
+x1641	verdict	v: nom("user_id", 1)	v: "a"	{"verdict":"error"}
+x1642	verdict	v: nom("user_id", 1)	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1643	verdict	v: nom("user_id", 1)	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1644	verdict	v: nom("a", "pascal", [1])	v: "A"	{"verdict":"error"}
+x1645	verdict	v: nom("a", "pascal", [1])	v: "A"	{"verdict":"error","opts":{"noFill":true}}
+x1646	verdict	v: nom("a", "pascal", [1])	v: "A"	{"verdict":"error","opts":{"partial":true}}
+x1647	verdict	v: nom(string)	v: "a"	{"verdict":"error"}
+x1648	verdict	v: nom(string)	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1649	verdict	v: nom(string)	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1650	verdict	v: nom(*("user_id"), "pascal")	v: "UserId"	{"verdict":"error"}
+x1651	verdict	v: nom(*("user_id"), "pascal")	v: "UserId"	{"verdict":"error","opts":{"noFill":true}}
+x1652	verdict	v: nom(*("user_id"), "pascal")	v: "UserId"	{"verdict":"error","opts":{"partial":true}}
+x1653	verdict	v: nom(meta("user_id", {}), "pascal")	v: "UserId"	{"verdict":"valid"}
+x1654	verdict	v: nom(meta("user_id", {}), "pascal")	v: "UserId"	{"verdict":"valid","opts":{"noFill":true}}
+x1655	verdict	v: nom(meta("user_id", {}), "pascal")	v: "UserId"	{"verdict":"valid","opts":{"partial":true}}
+x1656	verdict	v: nom("user_id", meta("pascal", {}))	v: "UserId"	{"verdict":"valid"}
+x1657	verdict	v: nom("user_id", meta("pascal", {}))	v: "UserId"	{"verdict":"valid","opts":{"noFill":true}}
+x1658	verdict	v: nom("user_id", meta("pascal", {}))	v: "UserId"	{"verdict":"valid","opts":{"partial":true}}
+x1659	verdict	v: nom("user_id", "pascal", meta(["ID"], {}))	v: "UserID"	{"verdict":"valid"}
+x1660	verdict	v: nom("user_id", "pascal", meta(["ID"], {}))	v: "UserID"	{"verdict":"valid","opts":{"noFill":true}}
+x1661	verdict	v: nom("user_id", "pascal", meta(["ID"], {}))	v: "UserID"	{"verdict":"valid","opts":{"partial":true}}
+x1662	verdict	v: nom("user_id", "pascal", [meta("ID", {})])	v: "UserID"	{"verdict":"valid"}
+x1663	verdict	v: nom("user_id", "pascal", [meta("ID", {})])	v: "UserID"	{"verdict":"valid","opts":{"noFill":true}}
+x1664	verdict	v: nom("user_id", "pascal", [meta("ID", {})])	v: "UserID"	{"verdict":"valid","opts":{"partial":true}}
+x1665	verdict	v: nom()	v: "a"	{"verdict":"error"}
+x1666	verdict	v: nom()	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1667	verdict	v: nom()	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1668	verdict	v: nom("a", "camel", [], "x")	v: "a"	{"verdict":"error"}
+x1669	verdict	v: nom("a", "camel", [], "x")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1670	verdict	v: nom("a", "camel", [], "x")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1671	verdict	v: nom(join(["user", "id"], "_"), "camel")	v: "userId"	{"verdict":"valid"}
+x1672	verdict	v: nom(join(["user", "id"], "_"), "camel")	v: "userId"	{"verdict":"valid","opts":{"noFill":true}}
+x1673	verdict	v: nom(join(["user", "id"], "_"), "camel")	v: "userId"	{"verdict":"valid","opts":{"partial":true}}
+x1674	verdict	v: upper(nom("user_id", "kebab"))	v: "USER-ID"	{"verdict":"valid"}
+x1675	verdict	v: upper(nom("user_id", "kebab"))	v: "USER-ID"	{"verdict":"valid","opts":{"noFill":true}}
+x1676	verdict	v: upper(nom("user_id", "kebab"))	v: "USER-ID"	{"verdict":"valid","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}

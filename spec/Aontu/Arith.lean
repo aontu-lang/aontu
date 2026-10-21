@@ -17,12 +17,12 @@ above, by exact value. -/
 
 /-- The functions on numbers, the folds on a bag of them, `+`, and the
 calls on bags and text, `join`, `pick`, `sort`, `upper`, `lower`,
-`translate`, `esc`, `usc`, `split` and `rep`, and `super` written as a
-call. -/
+`translate`, `esc`, `usc`, `split`, `rep` and `nom`, and `super`
+written as a call. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
-  | plus | join | pick | sort | upper | lower | translate | esc | usc | split | rep
+  | plus | join | pick | sort | upper | lower | translate | esc | usc | split | rep | nom
   | super
   deriving DecidableEq, Repr
 

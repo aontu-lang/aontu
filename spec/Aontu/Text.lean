@@ -9,6 +9,8 @@ a partial inverse, which refuses text no text escapes to: a lone quote
 where the convention doubles it, an escape it does not define, a code
 point a surrogate pair or a byte sequence does not spell.
 
+The words of a name and the nine spellings `nom` writes them in.
+
 And what `rep` and `split` make of a pattern's matches. Where a match
 falls is the host's regex engine's to say; which matches a scan of the
 text reads, the fields they cut it into, and what a replacement writes
@@ -275,6 +277,97 @@ def Escape.usc : Escape → List Char → Option (List Char)
   | .xml => uscXml
   | .uri => uscUri
   | .regex => uscRegex
+
+/-! ## Names -/
+
+/-- Whether a character separates the words of a name. -/
+def nameSep (c : Char) : Bool := c == '_' || c == '-' || c == ' '
+
+/-- Whether a new word starts at `c`, `prev` the character before it in
+the word and `next` the one after it in the name: both ASCII, and a
+capital after a small letter or a digit, a digit beside a non-digit,
+or the last capital of a run that a small letter follows. -/
+def wordStarts (prev c : Char) (next : Option Char) : Bool :=
+  c.toNat < 128 && prev.toNat < 128 &&
+    ((c.isUpper && (prev.isLower || prev.isDigit)) || c.isDigit != prev.isDigit ||
+      (c.isUpper && prev.isUpper && (next.map Char.isLower).getD false))
+
+/-- The words of a name from here on, `cur` the word being read,
+reversed, and `acc` the words before it, reversed. -/
+def nameWordsGo : List Char → List Char → List (List Char) → List (List Char)
+  | [], cur, acc => (if cur = [] then acc else cur.reverse :: acc).reverse
+  | c :: rest, cur, acc =>
+    if nameSep c then nameWordsGo rest [] (if cur = [] then acc else cur.reverse :: acc)
+    else match cur with
+      | [] => nameWordsGo rest [c] acc
+      | prev :: _ =>
+        if wordStarts prev c rest.head? then nameWordsGo rest [c] (cur.reverse :: acc)
+        else nameWordsGo rest (c :: cur) acc
+
+/-- The words of a name: the runs between `_`, `-` and spaces, each
+cut again where `wordStarts`, so `HTTPServer` is `HTTP` and `Server`
+and `v2Api` is `v`, `2` and `Api`. -/
+def nameWords (cs : List Char) : List (List Char) := nameWordsGo cs [] []
+
+/-- A word capitalised: the first acronym that matches it, ignoring
+ASCII case, as the acronym is written, and otherwise the word in small
+letters with its first one a capital. -/
+def capitalise (acr : List (List Char)) (w : List Char) : List Char :=
+  let low := w.map Char.toLower
+  match acr.find? (fun a => a.map Char.toLower == low) with
+  | some a => a
+  | none => match low with
+    | [] => []
+    | c :: cs => c.toUpper :: cs
+
+/-- Whether a word is one of the acronyms, ignoring ASCII case. -/
+def isAcronym (acr : List (List Char)) (w : List Char) : Bool :=
+  acr.any fun a => a.map Char.toLower == w.map Char.toLower
+
+/-- The spellings `nom` writes a name in. -/
+inductive NameStyle where
+  | camel | dot | kebab | pascal | path | snake | text | title | upper
+  deriving DecidableEq
+
+/-- Every spelling, in the order the map of them is written. -/
+def NameStyle.all : List NameStyle := [.camel, .dot, .kebab, .pascal, .path, .snake, .text, .title, .upper]
+
+/-- A spelling's name. -/
+def NameStyle.name : NameStyle → String
+  | .camel => "camel" | .dot => "dot" | .kebab => "kebab" | .pascal => "pascal" | .path => "path"
+  | .snake => "snake" | .text => "text" | .title => "title" | .upper => "upper"
+
+/-- The spelling a style names; none for any other string. -/
+def NameStyle.ofName? (s : String) : Option NameStyle := NameStyle.all.find? (·.name == s)
+
+/-- A name's words in a spelling, an acronym capitalised as it is
+written wherever a word is capitalised: `camel` the first word small
+and the rest capitalised, never the first an acronym; `pascal` every
+word capitalised; `snake`, `kebab`, `dot` and `path` the words small,
+joined by `_`, `-`, `.` and `/`; `upper` the words in capitals joined
+by `_`; `title` every word capitalised and `text` the first, the rest
+small but an acronym, each joined by a space. -/
+def NameStyle.write (acr : List (List Char)) : NameStyle → List (List Char) → List Char
+  | .camel, [] => []
+  | .camel, w :: ws => w.map Char.toLower ++ (ws.map (capitalise acr)).flatten
+  | .pascal, ws => (ws.map (capitalise acr)).flatten
+  | .snake, ws => ['_'].intercalate (ws.map (·.map Char.toLower))
+  | .kebab, ws => ['-'].intercalate (ws.map (·.map Char.toLower))
+  | .dot, ws => ['.'].intercalate (ws.map (·.map Char.toLower))
+  | .path, ws => ['/'].intercalate (ws.map (·.map Char.toLower))
+  | .upper, ws => ['_'].intercalate (ws.map (·.map Char.toUpper))
+  | .title, ws => [' '].intercalate (ws.map (capitalise acr))
+  | .text, [] => []
+  | .text, w :: ws =>
+    [' '].intercalate (capitalise acr w :: ws.map fun v =>
+      if isAcronym acr v then capitalise acr v else v.map Char.toLower)
+
+/-- A name in a spelling, `.` and `/` read as `_`; none where the name
+holds no word. -/
+def nomName (acr : List (List Char)) (st : NameStyle) (name : List Char) : Option (List Char) :=
+  match nameWords (name.map fun c => if c == '.' || c == '/' then '_' else c) with
+  | [] => none
+  | ws => some (st.write acr ws)
 
 /-! ## Matches -/
 
