@@ -93,6 +93,10 @@ def env (ds : Decls) : Env := fun n =>
 listed twice. -/
 def names (ds : Decls) : List String := ds.map (·.1)
 
+/-- Whether a name is a definition: a body declared for it carries
+`type()` at its own position. -/
+def typed (ds : Decls) (n : String) : Bool := (ds.bodies n).any (·.hasMark .type)
+
 end Decls
 
 mutual

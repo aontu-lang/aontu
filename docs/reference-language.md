@@ -4059,10 +4059,16 @@ optional and holds anything: the output leaves the member out, and the
 member still meets the data at its key. Without the fill, `vet` asks
 the data to be an instance of the schema's visible part. A reference
 reads a body with its marks cleared at every depth, `Val.unmark` in
-[`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean). The seal a
-reference puts on a `type()` value is yet to enter the definition, and
-so is a marked list element, which both engines leave out of the
-output, the subject of decision 18 of the design note.
+[`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean), and a reference to
+a name whose body carries `type()` meets the copy with `Val.restrict`
+in [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean): a sealed map
+declaring the keys the body's maps declare, each optional and
+restricted in turn, and a sealed list the same by position. The seal
+follows a selection to the result it makes and stops at a disjunction
+or a preference, as it does at a kind and at a name. A recursive name
+takes none, as both engines read it. A marked list element, which both engines leave out of the
+output, is yet to enter the definition, the subject of decision 18 of
+the design note.
 
 ## Annotations: `meta`
 
