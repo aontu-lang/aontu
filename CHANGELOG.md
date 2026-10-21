@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds the `+` operator
+
+Definition, generated rows, ADR-037's status and documentation; no
+engine changes.
+
+- `spec/Aontu/Verdict.lean`: `callTerm` makes every call, and `plusOf`
+  makes a `+` from its operands' normal forms, each read through its
+  riders and a lone preference first, so `*1 + 1` is `2`.
+  - Two numbers add by `add`'s rules, and a sum no leaf holds is `nil`,
+    an error.
+  - A string beside a scalar with text joins the two texts. A number
+    reads as `Number.text` in `spec/Aontu/Arith.lean` writes it: an
+    integer's digits, a big decimal with its point, and a float as
+    JavaScript writes a number, so `"x" + 1e21` is `"x1e+21"`.
+  - Two lists concatenate and two booleans give either.
+  - Anything else waits: a kind, `null`, a map, a list beside a scalar,
+    a boolean beside a number. A `+` that waits generates nothing and
+    refuses nothing, so `vet` reads the document as incomplete. A
+    literal meets it as a pair, `Val.callAt` in
+    `spec/Aontu/Syntax.lean`, rather than by the checker.
+- `plusOf_lists`, `plusOf_nil_list` and `plusOf_list_lit` state
+  ADR-037's rules for lists, and ADR-037 moves to the definition in
+  part. Its sum of an absence waits on `maybe`.
+- `test/spec/def-call.tsv` gains 60 sums, rows x300 on, which both
+  ports answer as the definition does, and `spec/forms.tsv` gains `+`.
+- The definition tutorial gains step 21, sums with `+`, and the
+  language reference's `+` section cites the rules.
+
 ### The definition holds the folds `sum`, `least` and `greatest`
 
 Definition, generated rows, the ledger and its bound in both runners,
