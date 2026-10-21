@@ -114,9 +114,9 @@ def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val
       if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
   | _ => none
 
-/-- What `+` makes of its operands: the term the sum is, a sum no leaf
-holds, or operands it does not take, where it waits. -/
-inductive Plus where
+/-- What a call that can wait makes of its arguments: the term it is, a
+refusal, or arguments it does not take yet, where it waits. -/
+inductive Made where
   | made (v : Val)
   | refused
   | waits
@@ -134,7 +134,7 @@ left's elements then the right's; two booleans either; a string and a
 scalar with text the two texts joined; two numbers their sum by `add`,
 refused where no leaf holds it; and anything else waits: a kind,
 `null`, a map, a list beside a scalar, a boolean beside a number. -/
-def plusOf (a b : Val) : Plus :=
+def plusOf (a b : Val) : Made :=
   match a.operand, b.operand with
   | .list xs _ _, .list ys _ _ => .made (.list (xs ++ ys) none false)
   | .lit (.bool p), .lit (.bool q) => .made (.lit (.bool (p || q)))
@@ -157,6 +157,42 @@ theorem plusOf_list_lit {xs : List Val} {s : Option Val} {c : Bool} {x : Scalar}
     plusOf (.list xs s c) (.lit x) = .waits ∧ plusOf (.lit x) (.list xs s c) = .waits := by
   cases x <;> exact ⟨rfl, rfl⟩
 
+/-- Whether a term in normal form is settled for `join`, its riders and a
+lone preference read through: a scalar, a map or a list. -/
+def Val.settled (v : Val) : Bool :=
+  match v.operand with
+  | .lit _ | .map _ _ _ | .list _ _ _ => true
+  | _ => false
+
+/-- The text `join` writes for a member: a scalar's as `+` writes it;
+`null`, a map and a list have none. -/
+def Val.joinText? (v : Val) : Option String :=
+  match v.operand with
+  | .lit x => x.plusText?
+  | _ => none
+
+/-- What `join` makes of its bag and its separator: where the bag is one,
+and its separator or a member is not settled, it waits; otherwise it
+refuses a separator that is no string, a value that is no bag, and a
+member with no text, and joins the members' texts with the separator,
+`""` where there is none. -/
+def joinOf (ds : Decls) (b : Val) (sep : Option Val) : Made :=
+  let sep' := sep.map (normaliseD ds)
+  match (normaliseD ds b).members ds with
+  | none => .refused
+  | some ms =>
+    let ms' := ms.map (normaliseD ds)
+    if sep'.any (fun s => !s.settled) || ms'.any (fun m => !m.settled) then .waits
+    else
+      let t? : Option String := match sep' with
+        | none => some ""
+        | some s => match s.operand with
+          | .lit (.str t) => some t
+          | _ => none
+      match t?, ms'.mapM Val.joinText? with
+      | some t, some ps => .made (.lit (.str (t.intercalate ps)))
+      | _, _ => .refused
+
 /-- The number a call computes from its arguments: a fold from the
 numbers its one bag's members are, and any other function from the
 numbers its arguments are, each read in its normal form. -/
@@ -168,19 +204,24 @@ def callValue (ds : Decls) (f : Fn) (args : List Val) : Option Number :=
     | _ => none
   else (args.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f)
 
-/-- The term a call is, its arguments resolved: a `+` the term `plusOf`
-makes of its operands' normal forms, each read through its riders and a
-lone preference first, as `*1 + 1` is `2`, `nil` where it refuses them, and
-itself, its operands in normal form, where it waits; any other call the
-number `callValue` computes, where it computes one, and itself
-otherwise, which no reading makes. -/
+/-- What a call that can wait is as a term: the term it makes, `nil`
+where it refuses its arguments, and itself, its arguments in normal
+form, where it waits. -/
+def Made.term (ds : Decls) (f : Fn) (args : List Val) : Made → Val
+  | .made v => v
+  | .refused => .nil
+  | .waits => .call f (args.map (normaliseD ds))
+
+/-- The term a call is, its arguments resolved: a `+` what `plusOf` makes
+of its operands' normal forms, each read through its riders and a lone
+preference first, as `*1 + 1` is `2`; a `join` what `joinOf` makes; any
+other call the number `callValue` computes, where it computes one, and
+itself otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   match f, args with
-  | .plus, [a, b] =>
-    match plusOf (normaliseD ds a.operand) (normaliseD ds b.operand) with
-    | .made v => v
-    | .refused => .nil
-    | .waits => .call .plus [normaliseD ds a, normaliseD ds b]
+  | .plus, [a, b] => (plusOf (normaliseD ds a.operand) (normaliseD ds b.operand)).term ds f args
+  | .join, [b] => (joinOf ds b none).term ds f args
+  | .join, [b, s] => (joinOf ds b (some s)).term ds f args
   | _, _ =>
     match callValue ds f args with
     | some n => .lit (.num n)
@@ -443,7 +484,7 @@ theorem plusOf_checkableA {a b v : Val} (ha : a.CheckableA) (hb : b.CheckableA)
   unfold plusOf at h
   split at h
   · rename_i xs _ _ ys _ _ hxa hyb
-    obtain rfl := (Plus.made.injEq _ _).mp h
+    obtain rfl := (Made.made.injEq _ _).mp h
     rw [hxa] at ha'
     rw [hyb] at hb'
     cases ha' with
@@ -456,7 +497,7 @@ theorem plusOf_checkableA {a b v : Val} (ha : a.CheckableA) (hb : b.CheckableA)
         · exact hj w hw
   all_goals
     first
-    | (obtain rfl := (Plus.made.injEq _ _).mp h; exact .lit)
+    | (obtain rfl := (Made.made.injEq _ _).mp h; exact .lit)
     | (cases h)
     | skip
   all_goals
@@ -465,25 +506,39 @@ theorem plusOf_checkableA {a b v : Val} (ha : a.CheckableA) (hb : b.CheckableA)
     subst h
     exact .lit
 
+/-- A call's outcome, as a term, is one the checker can read where its
+arguments are and what it makes is. -/
+theorem Made.term_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
+    {args : List Val} (h : ∀ a, a ∈ args → a.CheckableA) {m : Made}
+    (hm : ∀ v, m = .made v → v.CheckableA) : (m.term ds f args).CheckableA := by
+  cases m with
+  | made v => exact hm v rfl
+  | refused => exact .nil
+  | waits =>
+    refine .call fun w hw => ?_
+    obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hw
+    exact normaliseD_checkableA hd (h a ha)
+
+theorem joinOf_checkableA {ds : Decls} {b : Val} {sep : Option Val} {v : Val}
+    (h : joinOf ds b sep = .made v) : v.CheckableA := by
+  unfold joinOf at h
+  simp only at h
+  repeat' split at h
+  all_goals first
+    | (cases h; done)
+    | (obtain rfl := (Made.made.injEq _ _).mp h; exact .lit)
+
 /-- A call's term is one the checker can read where its arguments are. -/
 theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
     {args : List Val} (h : ∀ a, a ∈ args → a.CheckableA) : (callTerm ds f args).CheckableA := by
   unfold callTerm
   split
   · rename_i a b
-    have ha := normaliseD_checkableA (ds := ds) hd (h a (by simp))
-    have hb := normaliseD_checkableA (ds := ds) hd (h b (by simp))
     have ha' := normaliseD_checkableA (ds := ds) hd (Val.operand_checkableA (h a (by simp)))
     have hb' := normaliseD_checkableA (ds := ds) hd (Val.operand_checkableA (h b (by simp)))
-    split
-    · rename_i v hv
-      exact plusOf_checkableA ha' hb' hv
-    · exact .nil
-    · refine .call fun w hw => ?_
-      simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
-      rcases hw with rfl | rfl
-      · exact ha
-      · exact hb
+    exact Made.term_checkableA hd h fun v hv => plusOf_checkableA ha' hb' hv
+  · exact Made.term_checkableA hd h fun v hv => joinOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => joinOf_checkableA hv
   · split
     · exact .lit
     · exact .call h
@@ -814,6 +869,7 @@ def Val.illFormed : Val → Bool
   | .meet a b => illChain a || illChain b || sizeClash (a.conjuncts ++ b.conjuncts)
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
+  | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call _ _ => true
   | .select _ arms _ => illPats arms
   | _ => false
@@ -829,6 +885,7 @@ def illChain : Val → Bool
   | .pref _ x => x.illFormed
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
+  | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call _ _ => true
   | .select _ arms _ => illPats arms
   | _ => false

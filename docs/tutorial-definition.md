@@ -4200,6 +4200,7 @@ def Val.illFormed : Val → Bool
   | .meet a b => illChain a || illChain b || sizeClash (a.conjuncts ++ b.conjuncts)
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
+  | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call _ _ => true
   | .select _ arms _ => illPats arms
   | _ => false
@@ -5863,7 +5864,7 @@ answer:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def plusOf (a b : Val) : Plus :=
+def plusOf (a b : Val) : Made :=
   match a.operand, b.operand with
   | .list xs _ _, .list ys _ _ => .made (.list (xs ++ ys) none false)
   | .lit (.bool p), .lit (.bool q) => .made (.lit (.bool (p || q)))
@@ -5907,9 +5908,38 @@ value at a call, where both engines wait on the pattern, which #432
 tracks. A pattern that holds a call keeps the `match` unmade, so
 `match(1, add(integer, 1), "yes", "no")` is an error, as both engines
 answer.
+`join` folds a bag into one string with the texts `+` writes, the
+separator between them, `""` where there's none, so
+`join([1, 2.0, true], "|")` is `"1|2|true"`. Its members are the ones
+the folds read, and like `+` it waits rather than refuse: where the bag
+is one and its separator or a member isn't settled yet,
+`join([string], ",")` leaves the document incomplete. A settled member
+with no text, `null`, a map or a list, is an error, and so is a
+separator that's no string:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def joinOf (ds : Decls) (b : Val) (sep : Option Val) : Made :=
+  let sep' := sep.map (normaliseD ds)
+  match (normaliseD ds b).members ds with
+  | none => .refused
+  | some ms =>
+    let ms' := ms.map (normaliseD ds)
+    if sep'.any (fun s => !s.settled) || ms'.any (fun m => !m.settled) then .waits
+    else
+      let t? : Option String := match sep' with
+        | none => some ""
+        | some s => match s.operand with
+          | .lit (.str t) => some t
+          | _ => none
+      match t?, ms'.mapM Val.joinText? with
+      | some t, some ps => .made (.lit (.str (t.intercalate ps)))
+      | _, _ => .refused
+```
 
 The sums have rows of their own, x300 on in `test/spec/def-call.tsv`,
-and both engines answer every one as the definition does. The
+and the joins x507 on. Both engines answer every one as the definition
+does, but for a `join` with three arguments, which #426 tracks. The
 language's other rule for `+`, that a sum of an absence is absent,
 waits on `maybe`, which the definition doesn't hold yet.
 

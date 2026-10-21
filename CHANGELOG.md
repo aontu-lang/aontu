@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `join`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `joinOf` folds a bag into one string. It
+  reads the members as the folds read them, each member's text the one
+  `+` writes, joined by the separator, `""` where there is none.
+  - Where the bag is one and its separator or a member is not settled,
+    `join` waits, so the document is incomplete: `join([string], ",")`.
+  - Otherwise a separator that is no string, a value that is no bag and
+    a member with no text, `null`, a map or a list, are errors.
+- `Made`, which was `Plus`, is the outcome of a call that can wait, and
+  `Made.term` reads it as a term.
+- `test/spec/def-call.tsv` gains 30 joins, rows x507 on. Both ports
+  answer every row as the definition does but three, `join` with three
+  arguments, which both read as `invalid` (#426). `spec/ledger.tsv`
+  lists them, and its bound rises from 129 to 132. `spec/forms.tsv`
+  gains `join`.
+- The definition tutorial's step 21 and the language reference's
+  `join` section cite the rule.
+
 ### The definition holds the `+` operator
 
 Definition, generated rows, ADR-037's status and documentation; no
