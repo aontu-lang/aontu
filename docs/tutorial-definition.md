@@ -3374,7 +3374,7 @@ one wins: `-c` writes the merged key with no `?`.
 ```
 
 An arm carries a rank: `0` for an arm written plainly, `1` for one
-written `*a`, `2` for `**a`. The rank picks the output, which step 20
+written `*a`, `2` for `**a`. The rank picks the output, which step 21
 leaves to a later phase, and admission ignores it:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
@@ -3710,7 +3710,7 @@ question fills a default the data lacks: `{x: *1}` met with `{}` is
 valid, by the default `1`. Admission asks whether the data, as it
 stands, is an instance, and `{x: 1}` is one. Both questions are the
 definition's to state. The second is `Output`, what evaluation singles
-out, which step 20 leaves to a later phase, and the test rows of step
+out, which step 21 leaves to a later phase, and the test rows of step
 15 stay where the two agree.
 
 ## 13. What evaluation singles out
@@ -3780,7 +3780,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
-  | .key, _ => False
+  | .key, _ | .call _ _, _ => False
 ```
 
 Read `Gen env root v j` as *`v` generates `j`*. A literal generates
@@ -4199,6 +4199,7 @@ def Val.illFormed : Val → Bool
   | .pref _ x => x.illFormed
   | .meet a b => illChain a || illChain b || sizeClash (a.conjuncts ++ b.conjuncts)
   | .ride _ v _ => v.illFormed
+  | .call _ _ => true
   | _ => false
 ```
 
@@ -4951,7 +4952,9 @@ generates a value is the result its arms select for it, and each
 `filter` whose source generates a container is the members its
 condition admits, as a term, or `nil` where the source generates a
 scalar, which has no members. One whose scrutinee or source generates
-nothing stays, and generates nothing. -/
+nothing stays, and generates nothing. A call whose arguments' normal
+forms are numbers is the number its function computes from them, and
+any other call stays, which no reading makes. -/
 def resolveD (ds : Decls) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds s
@@ -5664,15 +5667,93 @@ Everything else the import wrote, the kinds `map` and `list`,
 spread, is a row of `spec/forms.tsv`, and so is everything the importer
 writes over the three corpora.
 
-## 20. What the definition doesn't say yet
+## 20. Calls on numbers
+
+The language spells arithmetic with functions, `add`, `sub`, `mul`,
+`div`, `mod` and `rem`, and a unary `-`, and each is a term of the
+definition, `call` in `spec/Aontu/Syntax.lean`. Write `calls.aontu`:
+
+<!-- test: scenario calls -->
+<!-- test: file calls.aontu -->
+```aontu
+a: add(1, 2)
+b: div(-7, 2)
+c: mod(-7, 2)
+d: add(0.1, 0.2)
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu calls.aontu
+{
+  "a": 3,
+  "b": -3,
+  "c": 1,
+  "d": 0.30000000000000004
+}
+```
+
+Division truncates toward zero, so `b` is `-3`, and `mod` takes the
+divisor's sign, so `c` is `1` where `rem` gives `-1`. What a call
+computes is in `spec/Aontu/Arith.lean`, by the tower's rules. An integer
+with an integer is an integer, exact. Anything with a float is the
+double nearest the exact answer, which is why `d` isn't `0.3`, and a
+float with an exact big number is no value. Anything else takes the
+widest exact leaf:
+
+<!-- test: quote spec/Aontu/Arith.lean -->
+```lean
+def Number.binary (f : Fn) (x y : Number) : Option Number :=
+  match x, y with
+  | .integer a, .integer b => (f.onInts a.value b.value).bind Number.ofIntegerLeaf
+  | .float _, .biginteger _ | .float _, .bigdecimal _
+  | .biginteger _, .float _ | .bigdecimal _, .float _ => none
+  | .float _, _ | _, .float _ =>
+    (f.onFracs x.value y.value).bind fun r => (Float.nearest r.1 r.2).map .float
+  | .bigdecimal _, _ | _, .bigdecimal _ =>
+    (f.onDecimals x.toDecimal y.toDecimal).map .bigdecimal
+  | _, _ => (f.onInts x.value.1 y.value.1).map fun n => .biginteger ⟨n⟩
+```
+
+An integer answer the leaf doesn't hold, such as `2^53 + 1`, is no value
+either, nor is a zero divisor in any leaf, nor a big decimal divided.
+The definition makes a call once it reads the document, as it makes a
+selection in step 16: where the normal form of every argument, the
+riders read through, is a number, the call is the number its function
+computes:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+  | .call f args =>
+    let args' := resolveItems ds args
+    match (args'.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f) with
+    | some n => .lit (.num n)
+    | none => .call f args'
+```
+
+So `add(1 & integer, 1)`, `add(meta(3, {}), 1)` and a name that holds a
+number all make their calls. A kind, a string or a disjunction, even one
+with a default, leaves the call unmade, and so does the wrong number of
+arguments. A call left unmade is ill-formed, so `vet` reads its document
+as an error.
+
+The calls have rows of their own, `test/spec/def-call.tsv`, and both
+engines answer them as the definition does but nine. A call the schema
+can't build, `add(1)`, `add(1, 2, 3)` or `-(integer)`, is one both
+engines read as `invalid`, where the definition reads an error, which
+#426 tracks.
+
+## 21. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between,
-which strings a pattern or a format admits, most built-in functions,
-`key()` anywhere but in a spread, and generation with `each`, `pack`
-and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
+which strings a pattern or a format admits, the built-in functions
+beyond arithmetic, `key()` anywhere but in a spread, and generation
+with `each`, `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 
