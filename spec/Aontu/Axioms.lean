@@ -386,3 +386,19 @@ line each comment states.
 /-- info: 'Aontu.len_le_len' does not depend on any axioms -/
 #guard_msgs in
 #print axioms Aontu.len_le_len
+
+/-- info: 'Aontu.defaultsLe_of_walk' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.defaultsLe_of_walk
+
+/-- info: 'Aontu.not_defaultsLe_of_refutes' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.not_defaultsLe_of_refutes
+
+/-- info: 'Aontu.genLe_of_walk' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.genLe_of_walk
+
+/-- info: 'Aontu.not_genLe_of_refutes' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.not_genLe_of_refutes

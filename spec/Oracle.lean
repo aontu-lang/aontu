@@ -1425,6 +1425,120 @@ def subsumePairRows (tag : String) (pairs : List (Val × Val)) : IO Unit := do
 def subsumeRows (tag : String) : IO Unit :=
   subsumePairRows tag (subVals.flatMap fun g => subVals.map fun s => (g, s))
 
+/-! ## The `defaults` and `gen` profiles
+
+Values that declare defaults, alone, under a key and at a position, for
+the `defaults` profile, rows f0 on in the ninth fragment's file, and
+values that carry marks, on a member, a position, a spread and a whole
+map, for the `gen` profile, rows w0 on, each pool compared pairwise. -/
+
+def defaultVals : List Val :=
+  let d1 : Val := .or [(1, .lit (.num one)), (0, .number)]
+  let d2 : Val := .or [(1, .lit (.num two)), (0, .number)]
+  let mx (v : Val) : Val := .map [("x", false, v)] none false
+  [.lit (.num one), .lit (.num two), .integer, .number, d1, d2,
+    .or [(1, .lit (.num one)), (0, .integer)], .or [(0, .lit (.num one)), (0, .lit (.num two))],
+    .or [(2, .lit (.num one)), (1, .lit (.num two)), (0, .number)], .pref 1 (.lit (.num one)),
+    mx d1, mx d2, mx .number, mx (.lit (.num one)),
+    .list [d1] none false, .list [.number] none false, .list [.lit (.num one)] none false]
+
+def markVals : List Val :=
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let mx (v : Val) : Val := .map [("x", false, v)] none false
+  let d1 : Val := .or [(1, .lit (.num one)), (0, .number)]
+  [.integer, hide .integer, type .integer, mx .integer, mx (hide .integer), mx (type .integer),
+    .map [("x", true, hide .integer)] none false, .list [.integer] none false,
+    .list [hide .integer] none false, mx (.map [("y", false, hide (.lit (.num one)))] none false),
+    mx (.map [("y", false, .lit (.num one))] none false), hide (mx .integer), d1, mx (hide d1),
+    .map [] (some .integer) false, .map [] (some (hide .integer)) false]
+
+/-- The instances that may tell two values of the profiles' pools apart. -/
+def profileInstances : List Data :=
+  subInstances ++ [.map [("x", .map [("y", .integer 1)])]]
+
+theorem defaultVals_checkable : ∀ v ∈ defaultVals, v.Checkable := by decide
+
+theorem markVals_checkable : ∀ v ∈ markVals, v.Checkable := by decide
+
+theorem profileInstances_wellFormed : ∀ j ∈ profileInstances, j.WellFormed := by
+  intro j hj
+  rcases List.mem_append.1 hj with h | h
+  · exact subInstances_wellFormed j h
+  · rcases List.mem_singleton.1 h with rfl
+    decide
+
+/-- The positions of a term, as `Val.at` reads them, where the oracle
+looks for one that refutes the `defaults` profile. -/
+partial def segPaths (v : Val) : List (List Seg) :=
+  [] :: match v.unride with
+    | .map fs _ _ => fs.flatMap fun f => (segPaths f.2.2).map (.key f.1 :: ·)
+    | .list items _ _ =>
+      ((List.range items.length).zip items).flatMap fun (i, x) => (segPaths x).map (.idx i :: ·)
+    | _ => []
+
+/-- The positions of a term, as `Val.atM` reads them, a spread's among
+them, where the oracle looks for one that refutes the `gen` profile. -/
+partial def markPaths (v : Val) : List (List MarkSeg) :=
+  [] :: match v.unride with
+    | .map fs s _ =>
+      (fs.flatMap fun f => (markPaths f.2.2).map (.key f.1 :: ·)) ++
+        (match s with | some t => (markPaths t).map (.spread :: ·) | none => [])
+    | .list items s _ =>
+      (((List.range items.length).zip items).flatMap fun (i, x) => (markPaths x).map (.idx i :: ·)) ++
+        (match s with | some t => (markPaths t).map (.spread :: ·) | none => [])
+    | _ => []
+
+/-- Every row of the profiles is the definition's: where the order holds
+and the walk fails nowhere the profile's order holds, and where an
+instance tells the two apart, or a position refutes what the profile
+asks, it fails. -/
+theorem profile_rows_exact (g s : Val) (hs : s.Checkable) (hg : g.Checkable) :
+    ((leDecF .empty 64 s g).isSome = true → defaultsAt (normalise s) (normalise g) = true →
+      defaultsBelow (normalise s) (normalise g) = true → DefaultsLe .empty s g) ∧
+    (∀ j ∈ profileInstances, check s j = true → check g j = false → ¬ DefaultsLe .empty s g) ∧
+    (∀ p, defaultsRefutesAt s g p = true → ¬ DefaultsLe .empty s g) ∧
+    (DefaultsLe .empty s g → marksAt (normalise s) (normalise g) = true →
+      marksBelow (normalise s) (normalise g) = true → GenLe .empty s g) ∧
+    (¬ DefaultsLe .empty s g → ¬ GenLe .empty s g) ∧
+    (∀ p, marksRefuteAt s g p = true → ¬ GenLe .empty s g) :=
+  ⟨fun h h1 h2 => defaultsLe_of_walk (leDecF_sound h) h1 h2,
+    fun j hj h1 h2 hd => not_le_of_witness hs hg (profileInstances_wellFormed j hj) h1 h2 hd.le,
+    fun _ h => not_defaultsLe_of_refutes h,
+    fun hd h1 h2 => genLe_of_walk hd h1 h2,
+    fun h hg' => h hg'.defaults,
+    fun _ h => not_genLe_of_refutes h⟩
+
+/-- The `subsumption` rows of some pairs of values under the `defaults`
+or the `gen` profile, each under the key `v`, the general first, with
+the answers the profile's contract allows; a pair the definition leaves
+undecided has no row. -/
+def profilePairRows (tag : String) (pr : Profile) (pairs : List (Val × Val)) : IO Unit := do
+  let name := match pr with | .values => "values" | .defaults => "defaults" | .gen => "gen"
+  let mut i := 0
+  for (g, s) in pairs do
+    let some gsrc := g.src | throw (IO.userError "a value of the pool has no text")
+    let some ssrc := s.src | throw (IO.userError "a value of the pool has no text")
+    let ns := normalise s
+    let ng := normalise g
+    let dHolds := (leDecF .empty 64 s g).isSome && defaultsAt ns ng && defaultsBelow ns ng
+    let dFails := profileInstances.any (fun j => check s j && !(check g j)) ||
+      (segPaths ns).any (defaultsRefutesAt s g)
+    let (holds, fails) := match pr with
+      | .gen => (dHolds && marksAt ns ng && marksBelow ns ng,
+          dFails || (markPaths ns).any (marksRefuteAt s g))
+      | _ => (dHolds, dFails)
+    if holds && fails then
+      throw (IO.userError s!"a pair both holds and fails: {gsrc} over {ssrc}")
+    let want? : Option String :=
+      if holds then some "[\"subsumes\",\"undecided\"]"
+      else if fails then some "[\"does_not_subsume\",\"undecided\"]"
+      else none
+    if let some want := want? then
+      IO.println (tag ++ toString i ++ "\tsubsumption\tv: " ++ gsrc ++ "\tv: " ++ ssrc
+        ++ "\t{\"verdict\":" ++ want ++ ",\"opts\":{\"profile\":\"" ++ name ++ "\"}}")
+      i := i + 1
+
 /-! ## The words `map` and `list`
 
 The kinds of ruling 15 of `sketch/DEFINITION.0.md` §7, each alone, under
@@ -1806,8 +1920,19 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# The words `map` and `list` follow in rows m0 on, each against the empty map"
     IO.println "# and list, a map and a list open and sealed, a spread on each, the ends,"
     IO.println "# `string` and `integer`."
+    IO.println "# The `defaults` profile follows in rows f0 on, over values that declare a"
+    IO.println "# default alone, under a key and at a position: subsumes or undecided where"
+    IO.println "# `leDecF` puts the specific below the general and `defaultsAt` holds at every"
+    IO.println "# position both have, which `defaultsLe_of_walk` makes the definition's own,"
+    IO.println "# and does_not_subsume or undecided where an instance tells the two apart or"
+    IO.println "# one position refutes it (`not_defaultsLe_of_refutes`). The `gen` profile"
+    IO.println "# follows in rows w0 on, over values that carry marks, the marks compared at"
+    IO.println "# every position both have, a spread's among them (`genLe_of_walk`,"
+    IO.println "# `not_genLe_of_refutes`)."
     subsumeRows "s"
     subsumePairRows "m" kindPairs
+    profilePairRows "f" .defaults (defaultVals.flatMap fun g => defaultVals.map fun s => (g, s))
+    profilePairRows "w" .gen (markVals.flatMap fun g => markVals.map fun s => (g, s))
     return 0
   | ["trials"] =>
     IO.println "# Generated by `lake exe oracle trials` (spec/Oracle.lean) from the definition"

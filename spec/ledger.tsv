@@ -2,7 +2,7 @@
 # generated row (test/spec/def-fragment.tsv and the fragments beside it) the
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, and the cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 114.
+# A listed case that comes to agree fails the run. Bounded at 115.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -118,3 +118,4 @@ u229	v: {"b"?: {"a"?: any}} ⊒ %A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"b": 5}
 u235	%A = {"b"?: %A}\nv: %A ⊒ %A = {"b"?: %B}\n%B = {"a"?: %A}\nv: %B	{"b": 5}	does_not_subsume	subsumes	ports	#377: an optional key of the general side, inside a recursion, is compared only where the specific side declares it, and the specific side's openness admits any value at the key
 q21	"a": meta({"x": $.a.y, "y": 1}, {})	{"a": {"x": 1, "y": 1}}	valid	incomplete	ports	decision 14 (section 7): a rider changes nothing its value admits or generates, so a path reads through it as through nothing; a path inside a rider's value to a member beside it leaves both ports' meet unresolved, mapval_no_gen, where the same map without the rider is valid (#416)
 q22	"a": meta({"x": $.a.y, "y": 1}, {})	{"a": {"x": 1, "y": 1}}	valid	incomplete	ports	decision 14 (section 7): a rider changes nothing its value admits or generates, so a path reads through it as through nothing; a path inside a rider's value to a member beside it leaves both ports' meet unresolved, mapval_no_gen, where the same map without the rider is valid (#416)
+f269	[number] ⊒ [*(1) | (number)]	[1]	does_not_subsume	subsumes	ports	#424: under defaults the ports compare the effective default at a map member and not at a list position, so the default the specific side declares at position 0 goes unseen
