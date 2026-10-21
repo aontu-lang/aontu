@@ -5,7 +5,7 @@ layout, build and test commands, the shared spec format, the parity
 rules, and the conventions both human and agent contributors follow.
 This file is the short version and the pointers.
 
-## The four fundamentals
+## The three fundamentals
 
 Recorded in [ADR.md](ADR.md); do not reverse them without a new ADR
 entry:
@@ -17,10 +17,12 @@ entry:
 - **ADR-003** — where a host subsystem supplies semantics, Aontu
   defines the meaning and rewrites the input rather than trusting the
   host.
-- **ADR-032** — code comments are sparse and terse, and exist only for
-  intricate or surprising code: intent goes in identifier names,
-  business logic and requirements go in documents. `make comments` is
-  the gate, and it checks accuracy as well as form.
+
+How work is done is [DEV-PROCESS.md](DEV-PROCESS.md), and it holds code
+comments to a gate: comments are sparse and terse, and exist only for
+code whose correct form is surprising; intent goes in identifier names,
+business logic and requirements go in documents. `make comments` runs
+the gate, and it checks accuracy as well as form.
 
 ## The shared-spec-first workflow
 
@@ -35,7 +37,7 @@ then in the Go port — it is only "shared" once both pass. `ts/dist` and
 make build   # build both implementations (rebuilds ts/dist)
 make test    # run both suites against the shared spec
 make cov     # check the ADR-002 coverage floor
-make comments # check the ADR-032 comment gate (also run by pre-push)
+make comments # check the comment gate (also run by pre-push)
 ```
 
 ## The parity probe

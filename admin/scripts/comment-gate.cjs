@@ -6,44 +6,33 @@ const Path = require('node:path')
 
 const REPO = Path.join(__dirname, '..', '..')
 
-// The implementation languages, wherever their source lives. A Rust
-// tree is covered from the day it appears; build and release tooling
-// written in .cjs, .mjs or .js is not source in this sense.
-const SOURCE_EXTS = ['.ts', '.go', '.rs']
+const CONFIG = {
+  trees: {}, generated: [], fixtures: [], skip: [], decisions: 'ADR.md',
+  ...JSON.parse(Fs.readFileSync(Path.join(__dirname, 'comment-gate.json'), 'utf8')),
+}
 
-// The bundled models are source too (ADR-036): aontu/ is where the
-// language's own vocabularies are written, and they are held to the
-// same rule. Every other .aontu in the tree is a fixture or a document.
-const AON_TREE = 'aontu/'
+// How each family of languages writes a comment. Strings are tracked
+// only so that a comment marker inside one is not read as a comment; a
+// backtick string spans lines, and is raw (no escapes) where `raw`
+// names it. `regex` marks a family with regular expression literals.
+const SYNTAX = {
+  c: { line: '//', block: true, quotes: '"\'' },
+  js: { line: '//', block: true, quotes: '"\'`', regex: true },
+  go: { line: '//', block: true, quotes: '"\'', raw: '`' },
+  hash: { line: '#', block: false, quotes: '"\'', raw: '`' },
+}
 
-// Written by a generator, checked byte-for-byte by its own suite.
-const GENERATED = new Set([
-  'ts/src/sigdecl.ts',
-  'ts/src/helpdoc.ts',
-  'ts/src/aontumodel.ts',
-  'ts/src/formatgrammars.ts',
-  'ts/src/unicodeprops.ts',
-  'go/aontumodel.go',
-])
-
-// Worked-example corpora: fixtures, and the generated ones are compared
-// byte for byte against what a generator writes.
-const FIXTURE_TREES = new Set([
-  'use-cases',
-  'test/system',
-])
-
-const SKIP_DIRS = new Set([
-  'node_modules', 'dist', 'dist-test', 'covdata', 'bin', 'out', '.git',
-])
+const GENERATED = new Set(CONFIG.generated)
+const FIXTURE_TREES = new Set(CONFIG.fixtures)
+const SKIP_DIRS = new Set(CONFIG.skip)
 
 const MAX_BLOCK_LINES = 5
 const MAX_DENSITY = 0.12
 const DENSITY_FLOOR_LINES = 8
 
-const LICENSE_RE = /^\/\*+\s*Copyright[^\n]*\*\/$/
+const LICENSE_RE = /^(\/\*+\s*Copyright[^\n]*\*\/|(\/\/|#)\s*Copyright\b[^\n]*)$/
 const DIRECTIVE_RE =
-  /^(#!|\/\/\s*(go:|nolint|@ts-|eslint|prettier|c8 |istanbul|coverage:ignore|\/\s*<reference)|\/\*\s*(node:coverage|eslint|c8|istanbul|prettier))/
+  /^(#!|\/\/\s*(go:|nolint|@ts-|eslint|prettier|c8 |istanbul|coverage:ignore|\/\s*<reference)|\/\*\s*(node:coverage|eslint|c8|istanbul|prettier)|#\s*(noqa|pragma|pylint:|fmt:|shellcheck|-\*-))/
 
 const NARRATIVE_RE = [
   /\b(we|our|ours|us)\b/i,
@@ -75,8 +64,19 @@ const UNVERIFIABLE_RE = [
   },
 ]
 
-const PATH_RE = /\b((?:[\w.-]+\/)+[\w.-]+\.(?:ts|go|md|tsv|cjs|mjs|js|json|aontu|abnf|yml|sh))\b/g
-const ADR_RE = /\bADR-(\d{3})\b/g
+const PATH_EXTS = new Set(['ts', 'go', 'rs', 'py', 'md', 'tsv', 'csv', 'cjs', 'mjs', 'js',
+  'json', 'abnf', 'lean', 'yml', 'yaml', 'toml', 'sh', 'txt'])
+for (const exts of [CONFIG.source, ...Object.values(CONFIG.trees)]) {
+  for (const [ext, syntax] of Object.entries(exts)) {
+    if (!Object.hasOwn(SYNTAX, syntax)) {
+      throw new Error(`comment-gate.json: no comment syntax "${syntax}" for ${ext}`)
+    }
+    PATH_EXTS.add(ext.slice(1))
+  }
+}
+const PATH_RE = new RegExp(
+  `\\b((?:[\\w.-]+\\/)+[\\w.-]+\\.(?:${[...PATH_EXTS].join('|')}))\\b`, 'g')
+const ADR_RE = /\bADR-(\d+)\b/g
 const SYMBOL_RE = /`([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)(?:\(\))?`/g
 
 const CODE_SHAPED_RE =
@@ -85,9 +85,14 @@ const CODE_SHAPED_RE =
 const WORD_RE = /[A-Za-z_$][\w$]*/g
 
 
-function gated(rel, name) {
-  return SOURCE_EXTS.some((e) => name.endsWith(e)) ||
-    (rel.startsWith(AON_TREE) && name.endsWith('.aontu'))
+// The comment syntax of a file in scope, or undefined: a tree's own
+// extensions first, then the project's source extensions.
+function syntaxOf(rel) {
+  const ext = Path.extname(rel)
+  for (const [tree, exts] of Object.entries(CONFIG.trees)) {
+    if (rel.startsWith(tree + '/') && Object.hasOwn(exts, ext)) return exts[ext]
+  }
+  return Object.hasOwn(CONFIG.source, ext) ? CONFIG.source[ext] : undefined
 }
 
 
@@ -98,7 +103,7 @@ function walk(dir, out) {
     if (entry.isDirectory()) {
       if (!SKIP_DIRS.has(entry.name) && !FIXTURE_TREES.has(rel)) walk(rel, out)
     }
-    else if (gated(rel, entry.name) && !GENERATED.has(rel)) {
+    else if (syntaxOf(rel) && !GENERATED.has(rel)) {
       out.push(rel)
     }
   }
@@ -111,11 +116,10 @@ function sourceFiles() {
 }
 
 
-// A hand-rolled lexer, because the gate has to see comments in both
-// languages and neither parser is installable at gate time. Strings,
-// template literals, Go raw strings and TypeScript regex literals are
-// tracked only so that a `//` inside one is not read as a comment.
-function lex(text, lang) {
+// A hand-rolled lexer, because the gate has to see comments in every
+// language in scope and no parser for them is installable at gate time.
+function lex(text, syntax) {
+  const s = SYNTAX[syntax]
   const comments = []
   const codeLine = new Set()
   let line = 1
@@ -123,7 +127,7 @@ function lex(text, lang) {
   let prev = ''
   const n = text.length
 
-  const isRegexStart = () => lang === 'ts' && !/[\w$)\]]/.test(prev)
+  const isRegexStart = () => s.regex && !/[\w$)\]]/.test(prev)
 
   while (i < n) {
     const c = text[i]
@@ -131,21 +135,14 @@ function lex(text, lang) {
 
     if (c === '\n') { line++; i++; continue }
 
-    if (c === '#' && lang === 'aontu') {
+    if (text.startsWith(s.line, i)) {
       const start = i
       while (i < n && text[i] !== '\n') i++
       comments.push({ kind: 'line', start: line, end: line, from: start, to: i, text: text.slice(start, i) })
       continue
     }
 
-    if (c === '/' && c2 === '/' && lang !== 'aontu') {
-      const start = i
-      while (i < n && text[i] !== '\n') i++
-      comments.push({ kind: 'line', start: line, end: line, from: start, to: i, text: text.slice(start, i) })
-      continue
-    }
-
-    if (c === '/' && c2 === '*' && lang !== 'aontu') {
+    if (s.block && c === '/' && c2 === '*') {
       const start = i
       const startLine = line
       i += 2
@@ -158,14 +155,14 @@ function lex(text, lang) {
       continue
     }
 
-    if (c === '"' || c === "'" || c === '`') {
+    if (s.quotes.includes(c) || c === s.raw) {
       const quote = c
-      const raw = ('go' === lang || 'aontu' === lang) && c === '`'
+      const raw = c === s.raw
       codeLine.add(line)
       i++
       while (i < n) {
         if (!raw && text[i] === '\\') { i += 2; continue }
-        if (text[i] === '\n') { line++; if (quote !== '`') break }
+        if (text[i] === '\n') { if (quote !== '`') break; line++ }
         if (text[i] === quote) { i++; break }
         i++
       }
@@ -191,7 +188,7 @@ function lex(text, lang) {
     i++
   }
 
-  return { comments, codeLines: codeLine.size }
+  return { comments, codeLines: codeLine.size, syntax }
 }
 
 
@@ -222,6 +219,7 @@ function blocks(scan, lines) {
       from: c.from,
       to: c.to,
       text: c.text,
+      syntax: scan.syntax,
       inline,
       directive,
     }
@@ -238,9 +236,11 @@ function blockLines(block) {
 
 
 function prose(block) {
+  const hash = '#' === SYNTAX[block.syntax].line
   return block.text
     .split('\n')
-    .map((l) => l.replace(/^\s*(\/\/+|\/\*+|\*+\/?)/, '').replace(/\*\/\s*$/, '').trim())
+    .map((l) => (hash ? l.replace(/^\s*#+/, '')
+      : l.replace(/^\s*(\/\/+|\/\*+|\*+\/?)/, '').replace(/\*\/\s*$/, '')).trim())
     .join('\n')
     .trim()
 }
@@ -254,8 +254,8 @@ function exempt(block) {
 
 let symbolIndex = null
 
-function codeOnly(text, lang) {
-  const { comments } = lex(text, lang)
+function codeOnly(text, syntax) {
+  const { comments } = lex(text, syntax)
   let out = ''
   let at = 0
   for (const c of comments) { out += text.slice(at, c.from); at = c.to }
@@ -270,7 +270,7 @@ function symbols() {
   symbolIndex = new Set()
   for (const file of sourceFiles()) {
     const text = Fs.readFileSync(Path.join(REPO, file), 'utf8')
-    const code = codeOnly(text, file.endsWith('.go') ? 'go' : 'ts')
+    const code = codeOnly(text, syntaxOf(file))
     for (const word of code.match(WORD_RE) || []) symbolIndex.add(word)
   }
   return symbolIndex
@@ -282,8 +282,8 @@ let adrIndex = null
 function adrs() {
   if (adrIndex) return adrIndex
   adrIndex = new Set()
-  const text = Fs.readFileSync(Path.join(REPO, 'ADR.md'), 'utf8')
-  for (const m of text.matchAll(/^## ADR-(\d{3})\b/gm)) adrIndex.add(m[1])
+  const text = Fs.readFileSync(Path.join(REPO, CONFIG.decisions), 'utf8')
+  for (const m of text.matchAll(/^#+\s+ADR-(\d+)\b/gm)) adrIndex.add(m[1])
   return adrIndex
 }
 
@@ -304,9 +304,12 @@ function checkFile(file, opts = {}) {
 
 
 function checkText(file, text, opts = {}) {
+  const syntax = syntaxOf(file)
+  if (!syntax) {
+    throw new Error(`comment gate: ${file} is not source in comment-gate.json`)
+  }
   const lines = text.split('\n')
-  const scan = lex(text,
-    file.endsWith('.go') ? 'go' : file.endsWith('.aontu') ? 'aontu' : 'ts')
+  const scan = lex(text, syntax)
   const all = blocks(scan, lines)
   const kept = all.filter((b) => !exempt(b))
 
@@ -344,8 +347,9 @@ function checkText(file, text, opts = {}) {
       if (m) add(block, rule, `"${m[0].trim()}"`)
     }
 
+    const again = '#' === SYNTAX[syntax].line ? /^\s*(?:#+\s*)+/ : /^\s*(?:\/\/+\s*)+/
     for (const raw of body.split('\n')) {
-      const line = raw.replace(/^\s*(?:\/\/+\s*)+/, '')
+      const line = raw.replace(again, '')
       if (CODE_SHAPED_RE.test(line) && line.length > 3) {
         add(block, 'commented-code', `"${line.slice(0, 48)}"`)
         break
@@ -435,7 +439,14 @@ if (require.main === module) {
   const only = args.filter((a) => !a.startsWith('--'))
   const files = only.length > 0 ? only : sourceFiles()
   const opts = { skipSymbols: args.includes('--no-symbols') }
-  const reports = checkAll(files, opts)
+  let reports
+  try {
+    reports = checkAll(files, opts)
+  }
+  catch (err) {
+    process.stderr.write(err.message + '\n')
+    process.exit(2)
+  }
   const t = totals(reports)
 
   if (args.includes('--json')) {
@@ -467,6 +478,6 @@ if (require.main === module) {
   if (t.findings > limit) process.stdout.write(`... ${t.findings - limit} more\n`)
   process.stdout.write(t.findings === 0
     ? `comment gate: clean (${t.commentLines} comment lines, ${(t.density * 100).toFixed(1)}%)\n`
-    : `comment gate: ${t.findings} finding(s) in ${t.filesWithFindings} file(s) — ADR-032\n`)
+    : `comment gate: ${t.findings} finding(s) in ${t.filesWithFindings} file(s), DEV-PROCESS.md "Code comments"\n`)
   process.exit(t.findings === 0 ? 0 : 1)
 }

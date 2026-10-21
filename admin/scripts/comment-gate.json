@@ -1,0 +1,34 @@
+{
+  "source": {
+    ".ts": "js",
+    ".go": "go",
+    ".rs": "c"
+  },
+  "trees": {
+    "aontu": {
+      ".aontu": "hash"
+    }
+  },
+  "generated": [
+    "ts/src/sigdecl.ts",
+    "ts/src/helpdoc.ts",
+    "ts/src/aontumodel.ts",
+    "ts/src/formatgrammars.ts",
+    "ts/src/unicodeprops.ts",
+    "go/aontumodel.go"
+  ],
+  "fixtures": [
+    "use-cases",
+    "test/system"
+  ],
+  "skip": [
+    "node_modules",
+    "dist",
+    "dist-test",
+    "covdata",
+    "bin",
+    "out",
+    ".git"
+  ],
+  "decisions": "ADR.md"
+}

@@ -80,9 +80,11 @@ rather than on taste:
 hand once and were out by a factor of two the next time anybody
 checked, which is the one thing a recorded count exists to prevent.
 `node ts/scripts/vale-counts.cjs` reads every one of them, and the total
-above, against a live Vale run and fails on any difference; `--write`
-re-measures. A rule switched off is measured with it switched back on,
-because the count is the evidence for switching it off.
+above, against a live Vale run and fails on any difference;
+`make prose-counts` re-measures, with `--write`, and a change to a page
+that moves a count runs it in the same commit. A rule switched off is
+measured with it switched back on, because the count is the evidence
+for switching it off.
 
 ## The structure: Diátaxis, enforced by placement
 
@@ -122,7 +124,7 @@ published:
 | Set | Files | Audience |
 |---|---|---|
 | Published | `index.md`, `tutorial*.md`, `unification.md`, `reference-*.md`, `trust.md`, `lsp.md`, `use-cases.md`, `how-to/*.md`, the use-case READMEs, `test/system/README.md` and each system's README and `doc/*.md` | anyone using aontu |
-| Internal | `ADR.md`, `sketch/`, `sketch/capability-review/`, `DIVERGENCE.md`, `AGENTS.md`, `use-cases/BUGS.md`, `use-cases/REVIEW.md`, `shared-spec.md`, `test-coverage.md`, `release-and-tag.md` | contributors |
+| Internal | `ADR.md`, `sketch/`, `sketch/capability-review/`, `admin/`, `DIVERGENCE.md`, `AGENTS.md`, `use-cases/BUGS.md`, `use-cases/REVIEW.md`, `shared-spec.md`, `test-coverage.md`, `release-and-tag.md` | contributors |
 
 **A published page never cites an internal one.** Not as a link, not
 as a parenthetical, not as a bare token. `(ADR-004)` after a rule tells

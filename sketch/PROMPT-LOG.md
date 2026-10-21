@@ -235,3 +235,13 @@ Three comment lines in .github/workflows/ (daily.yml, docs.yml, spec.yml) still 
 I read "add the agent guides and DEV-PROCESS.md" as: say in AGENTS.md and DEV-PROCESS.md, as well as sketch/README.md, that every file in sketch/ is to be ignored, and point sketch/README.md back at both. That is what #400 did. Is that what you meant?
 → Yes, as done
 ```
+
+## 2026-10-21 11:32:14 UTC · Claude Code · session_016yMzMBxz57NmgRx74LKLFg
+
+```text
+work in aontu, make sure you have the latest main; update the DEV-PROCESS as follows:
+
+* it should be generic as it will be used in other projects
+* a top level admin folder shall contain administration, maintenance and build notes, trackers and scripts - note this in DEV-PROCESS
+* rewrite the comments ADR-032 and move it into DEV-PROCESS with appropriate scripting references to the admin/scripts folder; ensure it is programming language neutral
+```

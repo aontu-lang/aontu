@@ -18,23 +18,19 @@ named script the release calls: `stage-package` before `npm publish`,
 
 ## Comments are for the surprising code, and nothing else
 
-[ADR-032](../../ADR.md#adr-032--code-comments-are-sparse-and-terse-intent-lives-in-names-requirements-live-in-documents)
-is the rule and `make comments` is the gate, over every `.ts`, `.go` and
-`.rs` source outside the generated files and the worked-example corpora.
-A comment exists only where the code is intricate or its correct form is
-surprising; it runs to a line or two rather than a paragraph; semantic
-intent is carried by the identifier name instead; and business logic and
-requirements are carried by a document instead. When a comment fails one
-of those tests, deletion is the default move, not rewriting.
+[DEV-PROCESS.md](../../DEV-PROCESS.md#code-comments) states the rule,
+and its gate is `admin/scripts/comment-gate.cjs`. Here the gate reads
+what [`comment-gate.json`](../../admin/scripts/comment-gate.json) names:
+every `.ts`, `.go` and `.rs` source, and the bundled models under
+`aontu/`, outside the generated files and the worked-example corpora.
+Build and release tooling written in `.cjs`, `.mjs` or `.js` is not
+source in this sense, and is out. `make comments` runs the gate,
+`ts/test/comments.test.ts` runs it inside the TypeScript suite, so that
+CI runs it on every push, and `.githooks/pre-push`, which `make hooks`
+installs, runs it before a push leaves the machine.
 
-The gate is not only about form. Its accuracy rules refuse a comment
-naming a path, a symbol or a decision number that does not resolve, and
-refuse the claims a reader cannot check from the tree — issue numbers,
-dates, versions and counts. A comment that has gone stale fails the
-build, which is what keeps the surviving prose true.
-
-What a comment used to carry has homes: `sketch/` for the why
-behind a settled decision, [`ADR.md`](../../ADR.md) for a fundamental, the
+What a comment used to carry has homes: `sketch/` for the why behind a
+settled decision, [`ADR.md`](../../ADR.md) for a fundamental, the
 commit message for how the work went, and `git log -L` / `git blame`
 for reading any of it back.
 

@@ -22,7 +22,7 @@ belongs in the pages below; add it there, not here.
 
 | Page | What it carries |
 |------|-----------------|
-| [DEV-PROCESS.md](DEV-PROCESS.md) | how work is done: the prompt log, testing, docs, `sketch/` — read first |
+| [DEV-PROCESS.md](DEV-PROCESS.md) | how work is done: the prompt log, testing, docs, comments, `sketch/`, `admin/` — read first |
 | [contributing/testing.md](docs/contributing/testing.md) | the shared `test/spec/*.tsv` suite and its modes, the generated-copy generators (`sig`, `helpdoc`, `aontu`), adding a behaviour, the parity probe, the vet ≡ eval differential, the JSON Schema suite, the divergence ledger |
 | [contributing/parity.md](docs/contributing/parity.md) | what the Go port covers, why the `@tabnas` pins are exact, the numeric tower |
 | [contributing/conventions.md](docs/contributing/conventions.md) | comments, what a document is for, module vs package, site attribution, provenance, colour, the mutation caveat |
@@ -45,6 +45,7 @@ belongs in the pages below; add it there, not here.
 ├── STYLE-GUIDE.md       # how documentation is written
 ├── Makefile             # fans out to ts/ and go/
 ├── aontu/               # the built-in aontu: models, named by their path
+├── admin/               # notes, trackers, scripts
 ├── docs/                # only valid, up-to-date documentation
 ├── sketch/              # working files, to be ignored
 ├── editors/             # editor plugins (VS Code, Emacs, Vim) → aontu-lsp
@@ -90,7 +91,7 @@ to the daily CI, never run locally ([DEV-PROCESS.md](DEV-PROCESS.md#testing)).
 `make hooks` points git at [`.githooks/`](.githooks), whose `pre-push`
 runs the comment gate. It is a convenience, not the enforcement: the gate
 that decides is `ts/test/comments.test.ts`, inside `npm test` and so
-inside CI on every push. A hook is skippable (`--no-verify`); CI is not.
+inside CI on every push.
 
 Two failures are found in CI rather than locally: a generated copy or
 `ts/dist` not rebuilt (the happy path refuses a tree `make build-ts`
@@ -140,7 +141,8 @@ without `gh`".
   changes in the same commit that changes its status.** Forward-looking
   design is the gap documents G1–G12; the register is the only record of
   what has been built.
-- **Comments are for the surprising code and nothing else** (ADR-032),
+- **Comments are for the surprising code and nothing else**
+  ([DEV-PROCESS.md](DEV-PROCESS.md#code-comments)),
   and a comment naming a path, symbol or decision that does not resolve
   fails the build.
 - **A `Val` tree is single-use.** Do not cache, reuse or re-unify a
