@@ -8,6 +8,38 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `esc` and `usc`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Text.lean`, a new module, holds the seven escaping
+  conventions on a string's code points. With no variant, the
+  convention is C and JSON in double quotes. The others are
+  single-quoted C, standard SQL, POSIX shell quoting, XML's five
+  entities, percent-encoding over UTF-8, and a pattern's
+  metacharacters.
+  - Each is a function from text to text and a partial inverse, which
+    refuses text no text escapes to.
+  - The C escape writes a control character below U+0020 that has no
+    short form as `\u` and four lowercase hexadecimal digits, as JSON
+    writes it. Its inverse reads a surrogate pair whole and refuses a
+    lone surrogate.
+  - Percent-encoding reads bytes back as strict UTF-8 (`utf8Decode`).
+    It refuses an overlong form, a surrogate, a value past U+10FFFF and
+    a sequence cut short.
+- `spec/Aontu/Verdict.lean`: `escOf` makes both calls. The text and the
+  variant are strings, read through their riders. An unknown variant is
+  an error, and so is `usc`'s text where it has no original.
+- The oracle doubles each backslash in a row's cells, which the runners
+  expand, and every earlier fragment regenerates byte-identically.
+- `test/spec/def-call.tsv` gains 51 cases in rows x1068 to x1220. Both
+  ports answer every row as the definition does but six, a wrong number
+  of arguments (#426). `spec/ledger.tsv` lists them, and its bound
+  rises from 153 to 159. `spec/forms.tsv` gains `esc` and `usc`.
+- The definition tutorial gains step 24, escaping text, and the
+  language reference's `esc` and `usc` section cites the rules.
+
 ### The definition holds `translate`
 
 Definition, generated rows, the ledger and its bound in both runners,
