@@ -960,7 +960,7 @@ theorem Val.unwrap_checkableA : ∀ {v : Val}, v.CheckableA → v.unwrap.Checkab
   | .unique _, h | .re _, h | .format _, h | .any, h | .nil, h | .map _ _ _, h
   | .list _ _ _, h | .or _, h | .meet _ _, h | .alias _, h | .path _, h | .nof _ _, h
   | .must _ _, h | .when _ _ _, h | .contains _ _, h | .rest _ _, h | .select _ _ _, h
-  | .filter _ _, h | .key, h | .call _ _, h => h
+  | .filter _ _, h | .key, h | .call _ _, h | .hole, h => h
 
 theorem Val.operand_checkableA {v : Val} (h : v.CheckableA) : v.operand.CheckableA :=
   Val.unwrap_checkableA (Val.lonePref_checkableA (Val.unwrap_checkableA h))

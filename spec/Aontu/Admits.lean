@@ -275,6 +275,9 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   | formatNot {g : String} {j : Data} :
       (∀ s, j = .str s → ¬ host.format g s) → Judge env root false (.format g) j
   | any {j : Data} : Judge env root true .any j
+  /-- `_`, a hole no generator filled, admits every value, as `any`
+  does: the value is the one that fills it. -/
+  | hole {j : Data} : Judge env root true .hole j
   | nil {j : Data} : Judge env root false .nil j
   /-- A call the reading could not make, outside its function's domain,
   refuses every value; `vet` reads a document that holds one as an
@@ -670,6 +673,8 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | formatNot _ => rfl
   | any => intro b' h'; cases h' with
     | any => rfl
+  | hole => intro b' h'; cases h' with
+    | hole => rfl
   | nil => intro b' h'; cases h' with
     | nil => rfl
   | call => intro b' h'; cases h' with
@@ -920,6 +925,7 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.format <;> assumption)
     | (apply Judge.formatNot <;> assumption)
     | (apply Judge.any <;> assumption)
+    | (apply Judge.hole <;> assumption)
     | (apply Judge.nil <;> assumption)
     | (apply Judge.map <;> assumption)
     | (apply Judge.mapNot <;> assumption)
