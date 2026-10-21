@@ -3295,6 +3295,8 @@ the fold but the parameter naming the text between members, and
 A value that is not a bag is `aggregate_data`, as it is for the
 aggregates.
 
+The definition computes `join` as `joinOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), over the members `Val.members` reads, each member's text the one `+` writes, `Scalar.plusText?`. Where the bag is one and its separator or a member has no settled value yet, the call waits, so the document is incomplete. Otherwise the call refuses a separator other than a string and a value other than a bag, and a member with no text too, each an error.
+
 ## Text: `esc` `usc` `rep` `split`
 
 Four ordinary string functions. They return values and compose with
