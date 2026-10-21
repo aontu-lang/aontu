@@ -449,12 +449,13 @@ def splitOf (ds : Decls) (s sep : Val) : Made :=
 a string in normal form, its riders read through: the text with each
 match of a pattern in the subset replaced by what the replacement
 writes for it; a refusal where an argument is no string, the pattern
-lies outside the subset, or the replacement writes nothing for a match,
-which a text with no match never asks of it. -/
+lies outside the subset, or the replacement names something the
+pattern's groups lack, read before the text is scanned, so that a text
+with no match is refused alike. -/
 def repOf (ds : Decls) (s p r : Val) : Made :=
   match (normaliseD ds s).string?, (normaliseD ds p).string?, (normaliseD ds r).string? with
   | some t, some q, some u =>
-    if host.portable q then
+    if host.portable q && subReads (host.groups q) u.toList then
       ((replaceMatches t.toList u.toList 0 (host.matches q t)).map fun cs =>
         .made (.lit (.str (String.mk cs)))).getD .refused
     else .refused

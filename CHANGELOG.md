@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### `rep` reads its replacement before it scans the text
+
+Definition, both ports, shared and generated rows, and documentation.
+Decision 20 of the design note, ruled 2026-10-21 (#449).
+
+- Both ports: `rep` reads its replacement against the pattern's groups
+  before it scans the text, so `rep("abc", "x", "$9")`,
+  `rep("abc", "x", "x$")` and `rep("", "a", "$1")` are `rep_sub`, where
+  they answered the text unchanged. A replacement that names only what
+  the pattern has leaves a text with no match as it is.
+- `spec/Aontu/Admits.lean`: `Host` gains `groups`, how many groups a
+  pattern of the subset captures. `spec/Aontu/Text.lean`: `subReads`
+  reads a replacement against that count, and `repOf` refuses one it
+  doesn't read.
+- `test/spec/str.tsv` gains four rows, and `test/spec/def-call.tsv` 12
+  cases in rows x1959 to x1994. Both ports answer every one alike, and
+  as the definition does.
+- The definition tutorial's step 24 quotes `subReads`, and the
+  reference's `rep` section follows.
+
 ### An optional member that generates an empty container is absent
 
 Definition, TypeScript, generated rows and documentation; no Go change.

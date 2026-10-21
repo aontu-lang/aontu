@@ -405,6 +405,18 @@ def cutFields (cs : List Char) : ℕ → ℕ → List Match → List (List Char)
     let rest := cutFields cs m.stop m.start ms
     if m.stop = 0 then rest else (cs.drop beg).take (m.start - beg) :: rest
 
+/-- Whether a replacement names only what a pattern with `n` groups
+has: each `$` followed by `$`, `&`, or a digit from `1` to `n`. A call
+reads it before the text is scanned (decision 20 of the design note's
+§7), so a replacement that names a missing group is refused whatever
+the text holds. -/
+def subReads (n : ℕ) : List Char → Bool
+  | [] => true
+  | '$' :: '$' :: rest | '$' :: '&' :: rest => subReads n rest
+  | '$' :: d :: rest => decide ('1' ≤ d ∧ d ≤ '9' ∧ d.toNat - 48 ≤ n) && subReads n rest
+  | ['$'] => false
+  | _ :: rest => subReads n rest
+
 /-- What a replacement writes for one match: `$1` to `$9` what that
 group captured, nothing where it took no part, `$&` the whole match,
 `$$` a `$`, and any other character itself; `none` where a `$` names

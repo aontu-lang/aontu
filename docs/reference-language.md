@@ -3402,9 +3402,12 @@ the wrong thing in a generator that normalises separators, and anchoring
 the pattern is how a document asks for one. A `$` naming nothing, or a group the pattern
 has not got, is refused (`rep_sub`) rather than expanded to the empty
 string: a file written with a hole in it and no complaint is the failure
-that refusal exists to close.
+that refusal exists to close. `rep` reads the substitution against the
+pattern before it scans the text, and refuses `rep("abc", "x", "$9")`
+though nothing matches: a generator that runs clean on today's data and
+fails on tomorrow's is the same failure.
 
-The definition computes `rep` as `repOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). Where a match falls is the host's to say, as which strings a pattern admits is, so `Host` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) holds the leftmost match at or after a position and which patterns lie in the subset. Which matches `rep` replaces is the definition's: `scanMatches` in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean) scans from the left, resumes where the last match stopped, and skips an empty match that starts there, so `rep("aa", "a*", "-")` is `"-"`. `expandSub` writes a replacement for each match.
+The definition computes `rep` as `repOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). Where a match falls is the host's to say, as which strings a pattern admits is, so `Host` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) holds the leftmost match at or after a position and which patterns lie in the subset. Which matches `rep` replaces is the definition's: `scanMatches` in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean) scans from the left, resumes where the last match stopped, and skips an empty match that starts there, so `rep("aa", "a*", "-")` is `"-"`. `subReads` reads the replacement against the number of groups `Host` counts in the pattern before any match, and `expandSub` writes it for each match.
 
 ### `split(s, sep)`
 
