@@ -694,10 +694,13 @@ reference to a `type()` value reads it as a definition and its copy as
 an instance that admits nothing the definition does not declare, at any
 depth, once its declarations are met: through members, optional ones,
 lists and a nested name, with a spread, beside a rider and another
-mark, met with a name, declared twice and met at the reference. The
-seal stops at a kind, `any`, a disjunction and a list's spread, and a
-recursive name, which both ports read unsealed, takes none. -/
+mark, met with a name, declared twice, met at the reference and
+through a selection, its default and one met with a map. The seal stops
+at a kind, `any`, a disjunction and a list's spread, a mark inside a
+body seals nothing, and a recursive name, which both ports read
+unsealed, takes none. -/
 def sealCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let hide (v : Val) : Val := .ride .hide v []
   let type (v : Val) : Val := .ride .type v []
@@ -738,7 +741,20 @@ def sealCases : List (Decls × Val × Data) :=
     ([("T", type (mp [("a", .map [] (some .integer) false)]))], T, .map [("a", .map [("k", j 1)])]),
     ([("T", ab), ("U", mp [("t", T)])], .alias "U", .map [("t", .map [("a", .map [("b", j 1), ("c", j 2)])])]),
     ([("T", ab), ("U", type (mp [("t", T)]))], .alias "U",
-      .map [("t", .map [("a", .map [("b", j 1)])]), ("z", j 1)])]
+      .map [("t", .map [("a", .map [("b", j 1)])]), ("z", j 1)]),
+    ([("T", type (.select (int 1) [(int 1, x)] none))], T, dxy),
+    ([("T", type (.select (int 1) [(int 1, x)] none))], T, .map [("x", j 1)]),
+    ([("T", type (mp [("a", .select (int 1) [(int 1, y)] none)]))], T,
+      .map [("a", .map [("y", j 1), ("z", j 2)])]),
+    ([("T", type (.meet x (.select (int 1) [(int 1, y)] none)))], T, dxyz),
+    ([("T", type (.meet x (.select (int 1) [(int 1, y)] none)))], T, dxy),
+    ([("T", type (.select (int 2) [(int 1, y)] (some x)))], T, dxy),
+    ([("T", type (.select (int 2) [(int 1, y)] (some x)))], T, .map [("x", j 1)]),
+    ([("T", type (.select (int 1) [(int 1, .list [.integer] none false)] none))], T, .list [j 1, j 2]),
+    ([("T", type (.select (int 1) [(int 1, .integer)] none))], T, j 3),
+    ([("T", .select (int 1) [(int 1, type x)] none)], T, dxy),
+    ([("T", mp [("a", type y)])], T, .map [("a", .map [("y", j 1), ("z", j 2)])]),
+    ([("T", type x)], .select (int 1) [(int 1, T)] none, dxy)]
 
 theorem sealCases_checkable : ∀ c ∈ sealCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide

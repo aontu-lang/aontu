@@ -437,3 +437,39 @@ o98	verdict	%T = type({"a": {"b": integer}})\n%U = {"t": %T}\nv: %U	v: {"t": {"a
 o99	verdict	%T = type({"a": {"b": integer}})\n%U = type({"t": %T})\nv: %U	v: {"t": {"a": {"b": 1}}, "z": 1}	{"verdict":"invalid"}
 o100	verdict	%T = type({"a": {"b": integer}})\n%U = type({"t": %T})\nv: %U	v: {"t": {"a": {"b": 1}}, "z": 1}	{"verdict":"invalid","opts":{"noFill":true}}
 o101	verdict	%T = type({"a": {"b": integer}})\n%U = type({"t": %T})\nv: %U	v: {"t": {"a": {"b": 1}}, "z": 1}	{"verdict":"invalid","opts":{"partial":true}}
+o102	verdict	%T = type(match(1, 1, {"x": integer}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid"}
+o103	verdict	%T = type(match(1, 1, {"x": integer}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+o104	verdict	%T = type(match(1, 1, {"x": integer}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+o105	verdict	%T = type(match(1, 1, {"x": integer}))\nv: %T	v: {"x": 1}	{"verdict":"valid"}
+o106	verdict	%T = type(match(1, 1, {"x": integer}))\nv: %T	v: {"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+o107	verdict	%T = type(match(1, 1, {"x": integer}))\nv: %T	v: {"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+o108	verdict	%T = type({"a": match(1, 1, {"y": integer})})\nv: %T	v: {"a": {"y": 1, "z": 2}}	{"verdict":"invalid"}
+o109	verdict	%T = type({"a": match(1, 1, {"y": integer})})\nv: %T	v: {"a": {"y": 1, "z": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+o110	verdict	%T = type({"a": match(1, 1, {"y": integer})})\nv: %T	v: {"a": {"y": 1, "z": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+o111	verdict	%T = type(({"x": integer}) & (match(1, 1, {"y": integer})))\nv: %T	v: {"x": 1, "y": 2, "z": 3}	{"verdict":"invalid"}
+o112	verdict	%T = type(({"x": integer}) & (match(1, 1, {"y": integer})))\nv: %T	v: {"x": 1, "y": 2, "z": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+o113	verdict	%T = type(({"x": integer}) & (match(1, 1, {"y": integer})))\nv: %T	v: {"x": 1, "y": 2, "z": 3}	{"verdict":"invalid","opts":{"partial":true}}
+o114	verdict	%T = type(({"x": integer}) & (match(1, 1, {"y": integer})))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid"}
+o115	verdict	%T = type(({"x": integer}) & (match(1, 1, {"y": integer})))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"noFill":true}}
+o116	verdict	%T = type(({"x": integer}) & (match(1, 1, {"y": integer})))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"partial":true}}
+o117	verdict	%T = type(match(2, 1, {"y": integer}, {"x": integer}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid"}
+o118	verdict	%T = type(match(2, 1, {"y": integer}, {"x": integer}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+o119	verdict	%T = type(match(2, 1, {"y": integer}, {"x": integer}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+o120	verdict	%T = type(match(2, 1, {"y": integer}, {"x": integer}))\nv: %T	v: {"x": 1}	{"verdict":"valid"}
+o121	verdict	%T = type(match(2, 1, {"y": integer}, {"x": integer}))\nv: %T	v: {"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+o122	verdict	%T = type(match(2, 1, {"y": integer}, {"x": integer}))\nv: %T	v: {"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+o123	verdict	%T = type(match(1, 1, [integer]))\nv: %T	v: [1, 2]	{"verdict":"invalid"}
+o124	verdict	%T = type(match(1, 1, [integer]))\nv: %T	v: [1, 2]	{"verdict":"invalid","opts":{"noFill":true}}
+o125	verdict	%T = type(match(1, 1, [integer]))\nv: %T	v: [1, 2]	{"verdict":"invalid","opts":{"partial":true}}
+o126	verdict	%T = type(match(1, 1, integer))\nv: %T	v: 3	{"verdict":"valid"}
+o127	verdict	%T = type(match(1, 1, integer))\nv: %T	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+o128	verdict	%T = type(match(1, 1, integer))\nv: %T	v: 3	{"verdict":"valid","opts":{"partial":true}}
+o129	verdict	%T = match(1, 1, type({"x": integer}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid"}
+o130	verdict	%T = match(1, 1, type({"x": integer}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"noFill":true}}
+o131	verdict	%T = match(1, 1, type({"x": integer}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"partial":true}}
+o132	verdict	%T = {"a": type({"y": integer})}\nv: %T	v: {"a": {"y": 1, "z": 2}}	{"verdict":"valid"}
+o133	verdict	%T = {"a": type({"y": integer})}\nv: %T	v: {"a": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+o134	verdict	%T = {"a": type({"y": integer})}\nv: %T	v: {"a": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+o135	verdict	%T = type({"x": integer})\nv: match(1, 1, %T)	v: {"x": 1, "y": 2}	{"verdict":"invalid"}
+o136	verdict	%T = type({"x": integer})\nv: match(1, 1, %T)	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+o137	verdict	%T = type({"x": integer})\nv: match(1, 1, %T)	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
