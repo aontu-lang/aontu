@@ -3374,8 +3374,8 @@ one wins: `-c` writes the merged key with no `?`.
 ```
 
 An arm carries a rank: `0` for an arm written plainly, `1` for one
-written `*a`, `2` for `**a`. The rank picks the output, which step 22
-leaves to a later phase, and admission ignores it:
+written `*a`, `2` for `**a`. The rank picks the output, which step 13
+reads, and admission ignores it:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
@@ -3710,8 +3710,8 @@ question fills a default the data lacks: `{x: *1}` met with `{}` is
 valid, by the default `1`. Admission asks whether the data, as it
 stands, is an instance, and `{x: 1}` is one. Both questions are the
 definition's to state. The second is `Output`, what evaluation singles
-out, which step 22 leaves to a later phase, and the test rows of step
-15 stay where the two agree.
+out, which the next step reads, and the test rows of step 15 stay where
+the two agree.
 
 ## 13. What evaluation singles out
 
@@ -5908,6 +5908,7 @@ value at a call, where both engines wait on the pattern, which #432
 tracks. A pattern that holds a call keeps the `match` unmade, so
 `match(1, add(integer, 1), "yes", "no")` is an error, as both engines
 answer.
+
 `join` folds a bag into one string with the texts `+` writes, the
 separator between them, `""` where there's none, so
 `join([1, 2.0, true], "|")` is `"1|2|true"`. Its members are the ones
@@ -5943,14 +5944,115 @@ does, but for a `join` with three arguments, which #426 tracks. The
 language's other rule for `+`, that a sum of an absence is absent,
 waits on `maybe`, which the definition doesn't hold yet.
 
-## 22. What the definition doesn't say yet
+## 22. Picking and sorting
+
+`pick` takes one field or index from every member of a bag, into a list,
+and `sort` puts a bag's members in order. Both read the members the
+folds read, and neither waits: each call is the list it makes or an
+error. Write `pick.aontu`:
+
+<!-- test: scenario pick -->
+<!-- test: file pick.aontu -->
+```aontu
+a: pick([{ n:"b" k:2 } { n:"a" k:1 }], n)
+b: pick([[9 8] [7 6]], "1")
+c: sort(["b" "a" "B"])
+d: sort([{ n:"x" k:1 } { n:"y" k:0 } { n:"z" k:1 }], k, desc)
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu pick.aontu
+{
+  "a": [
+    "b",
+    "a"
+  ],
+  "b": [
+    8,
+    6
+  ],
+  "c": [
+    "B",
+    "a",
+    "b"
+  ],
+  "d": [
+    {
+      "k": 1,
+      "n": "x"
+    },
+    {
+      "k": 1,
+      "n": "z"
+    },
+    {
+      "k": 0,
+      "n": "y"
+    }
+  ]
+}
+```
+
+A projector is a string or an integer, read through its riders. It
+names a key in a map member, an integer by its digits, so
+`pick([{"0": 5}], 0)` is `[5]`. It names an index in a list member, a
+string by its digits after one optional sign, which is why `b` reads
+index 1:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.project? (m : Val) (p : String ⊕ ℤ) : Option Val :=
+  match m.unride with
+  | .map fs _ _ => (fs.find? fun f => f.1 = projKey p).map fun f => f.2.2
+  | .list items _ _ => match projIndex? p with
+    | some i => if 0 ≤ i then items[i.toNat]? else none
+    | none => none
+  | _ => none
+```
+
+`pickOf` refuses a member that lacks what the projector names, rather
+than skip it, since a shorter list would be a different answer. It
+refuses a value that's no bag, a projector that's no string and no
+integer, and `""`, which names no key.
+
+`sort` orders the members by the key the projector names in each, or by
+the member itself where there's no projector or it's `""`, which is how
+you write a descending sort with no key: `sort([1, 3, 2], "", desc)`.
+A key is a number or a string, read as a call reads its argument. A
+bag's keys are all numbers, compared by exact value, or all strings,
+compared by code point, so `c` puts `"B"` first, and any other bag has
+no order: `sort([1, "a"])` is an error. Equal keys keep their order in
+both directions, as `d` shows, since `List.mergeSort` is stable and
+`sortLe` lets two equal keys stand either way round:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def sortLe (desc : Bool) (x y : Scalar × Val) : Bool :=
+  if desc then !(sortLt x.1 y.1) else !(sortLt y.1 x.1)
+```
+
+The picks and sorts have rows of their own, x597 on in
+`test/spec/def-call.tsv`. Both engines answer every one as the
+definition does, but for three calls with the wrong number of
+arguments, which #426 tracks. The two engines differ from each other in
+two places, so no row holds either. TypeScript reads a projector or a
+direction before evaluating it, so it refuses one with a rider or given
+through a name, where Go reads through both, which #435 tracks. And
+TypeScript reads a string as an index as JavaScript's `Number()` does,
+so `" 0"` and `"1e0"` name index 0 and index 1, and reads `""` as a key
+in `pick`, where Go reads neither, which #437 tracks.
+
+## 23. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
-beyond arithmetic and the folds, `key()` anywhere but in a spread, and
+steps 20 to 22 don't walk through, `key()` anywhere but in a spread, and
 generation with `each`, `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
