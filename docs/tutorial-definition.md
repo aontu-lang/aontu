@@ -6437,14 +6437,82 @@ which #426 tracks. `copy` isn't held yet. The reference says it clears
 the marks, but neither engine clears a mark on a literal argument, and
 #445 asks which reading stands.
 
-## 26. What the definition doesn't say yet
+## 26. The component tree
+
+The ten component functions build the nodes of a component tree, each
+the sealed map of its component's name, its `props` and its `children`.
+Write `tree.aontu`:
+
+<!-- test: scenario tree -->
+<!-- test: file tree.aontu -->
+```aontu
+page: file("index.ts", ["export {}"])
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu tree.aontu
+{
+  "page": {
+    "children": [
+      {
+        "children": [],
+        "cmp": "Line",
+        "props": {
+          "src": "export {}"
+        }
+      }
+    ],
+    "cmp": "File",
+    "props": {
+      "name": "index.ts"
+    }
+  }
+}
+```
+
+A string spec fills the component's main prop, a `file`'s `name` here,
+and a bare string child stands for a line, so `"export {}"` is a `Line`
+node. One table says which components each holds:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Cmp.kids : Cmp → List Cmp
+  | .project => [.project, .folder, .file, .copyfiles]
+  | .folder => [.folder, .file, .copyfiles]
+  | .file => [.content, .line, .fragment, .inject, .listitems, .copyfiles]
+  | .content | .line | .copyfiles => []
+  | .fragment => [.slot, .content, .line, .listitems]
+  | .slot => [.content, .line, .fragment, .listitems]
+  | .inject => [.content, .line, .listitems]
+  | .listitems => [.content, .line, .fragment]
+```
+
+A prop the component doesn't admit is an error, and so is a child it
+doesn't hold, a `line` under a `folder` among them. A name that the
+component requires can't be `""`, but a span of text can, so `line("")` is a
+blank line, and `listitems` must hold a list at `item`. A node is any
+map whose `cmp` names a component, so a node written out by hand is a
+child too.
+
+The node's seal makes data with another key beside `cmp`, `props` and
+`children` invalid, and its props and children are open. Both engines
+also hold them open against an enclosing `close()`, which needs
+`open()`, and the definition doesn't hold `open()` yet, so no row
+closes a node. The rows are x1677 on, and both engines answer every one
+as the definition does, but for three calls with the wrong number of
+arguments, which #426 tracks.
+
+## 27. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
-steps 20 to 25 don't walk through, `key()` anywhere but in a spread, and
+steps 20 to 26 don't walk through, `key()` anywhere but in a spread, and
 generation with `each`, `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
