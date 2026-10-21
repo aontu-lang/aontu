@@ -357,6 +357,47 @@ def caseOf (ds : Decls) (up : Bool) (s : Val) (start len : Option Val) : Made :=
     else .refused
   | _, _, _ => .refused
 
+/-- A string in normal form, its riders read through. -/
+def Val.string? (v : Val) : Option String :=
+  match v.unride with
+  | .lit (.str s) => some s
+  | _ => none
+
+/-- A character set's code points with its ranges expanded, `a-z` every
+code point from `a` to `z`, the surrogates' among them where the range
+crosses them, and a `-` with no character on one side standing for
+itself; none where a range descends. -/
+def expandSet : List Char → Option (List ℕ)
+  | c :: '-' :: d :: rest =>
+    if d.toNat < c.toNat then none
+    else (expandSet rest).map fun r => (List.range (d.toNat - c.toNat + 1)).map (c.toNat + ·) ++ r
+  | c :: rest => (expandSet rest).map (c.toNat :: ·)
+  | [] => some []
+
+/-- The character a code point is, U+FFFD for a surrogate, which is none. -/
+def scalar (n : ℕ) : Char := if n.isValidChar then Char.ofNat n else Char.ofNat 0xFFFD
+
+/-- What `translate` writes for a code point: where `fr` names it, the
+`to` code point at the position of its last naming, `to`'s last where
+`to` is shorter, and nothing where `to` is empty; itself otherwise. -/
+def translateChar (fr to : List ℕ) (c : Char) : List Char :=
+  match fr.zipIdx.reverse.find? (·.1 == c.toNat) with
+  | none => [c]
+  | some (_, i) => match to.getLast? with
+    | none => []
+    | some last => [scalar (to.getD i last)]
+
+/-- What `translate` makes of its source, its `from` set and its `to`
+set, each a string in normal form, its riders read through, `to` empty
+where it is not given: the source with each code point written as
+`translateChar` writes it; a refusal where an argument is no string or
+a set's range descends. -/
+def translateOf (ds : Decls) (s fr : Val) (to : Option Val) : Made :=
+  match (normaliseD ds s).string?, ((normaliseD ds fr).string?).bind (fun t => expandSet t.toList),
+      (to.map fun t => ((normaliseD ds t).string?).bind (fun t => expandSet t.toList)).getD (some []) with
+  | some src, some f, some t => .made (.lit (.str (String.mk (src.toList.flatMap (translateChar f t)))))
+  | _, _, _ => .refused
+
 /-- The number a call computes from its arguments: a fold from the
 numbers its one bag's members are, and any other function from the
 numbers its arguments are, each read in its normal form. -/
@@ -378,9 +419,9 @@ def Made.term (ds : Decls) (f : Fn) (args : List Val) : Made → Val
 
 /-- The term a call is, its arguments resolved: a `+` what `plusOf` makes
 of its operands' normal forms, each read through its riders and a lone
-preference first, as `*1 + 1` is `2`; a `join`, a `pick` and a `sort`
-what `joinOf`, `pickOf` and `sortOf` make, and an `upper` and a `lower`
-what `caseOf` makes; any
+preference first, as `*1 + 1` is `2`; a `join`, a `pick`, a `sort`, an
+`upper`, a `lower` and a `translate` what its function's own reading
+makes, `joinOf`, `pickOf`, `sortOf`, `caseOf` and `translateOf`; any
 other call the number `callValue` computes, where it computes one, and
 itself otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
@@ -398,6 +439,8 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .lower, [s] => (caseOf ds false s none none).term ds f args
   | .lower, [s, a] => (caseOf ds false s (some a) none).term ds f args
   | .lower, [s, a, n] => (caseOf ds false s (some a) (some n)).term ds f args
+  | .translate, [s, fr] => (translateOf ds s fr none).term ds f args
+  | .translate, [s, fr, t] => (translateOf ds s fr (some t)).term ds f args
   | _, _ =>
     match callValue ds f args with
     | some n => .lit (.num n)
@@ -766,6 +809,14 @@ theorem caseOf_checkableA {ds : Decls} {up : Bool} {s v : Val} {start len : Opti
     · cases h
   · cases h
 
+theorem translateOf_checkableA {ds : Decls} {s fr v : Val} {to : Option Val}
+    (h : translateOf ds s fr to = .made v) : v.CheckableA := by
+  unfold translateOf at h
+  split at h
+  · obtain rfl := (Made.made.injEq _ _).mp h
+    exact .lit
+  · cases h
+
 theorem sortOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {b v : Val}
     {p d : Option Val} (hb : b.CheckableA) (h : sortOf ds b p d = .made v) : v.CheckableA := by
   unfold sortOf at h
@@ -855,6 +906,8 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => caseOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => caseOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => caseOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => translateOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => translateOf_checkableA hv
   · split
     · exact .lit
     · exact .call h

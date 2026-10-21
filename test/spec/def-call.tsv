@@ -11,7 +11,8 @@
 # from row x300, which waits where it does not take its operands, so that the
 # document is incomplete, and join from row x507, which waits on a member or a
 # separator not yet settled. pick and sort, which never wait, follow from row
-# x597, and upper and lower from row x816. A call on a name follows in rows z0 on.
+# x597, upper and lower from row x816, and translate from row x966. A call on a
+# name follows in rows z0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -979,6 +980,108 @@ x962	verdict	v: (lower(1.1)) + (2)	v: 3.0	{"verdict":"valid","opts":{"partial":t
 x963	verdict	v: upper(join(["a", "b"], "-"))	v: "A-B"	{"verdict":"valid"}
 x964	verdict	v: upper(join(["a", "b"], "-"))	v: "A-B"	{"verdict":"valid","opts":{"noFill":true}}
 x965	verdict	v: upper(join(["a", "b"], "-"))	v: "A-B"	{"verdict":"valid","opts":{"partial":true}}
+x966	verdict	v: translate("a-b-c", "-", "_")	v: "a_b_c"	{"verdict":"valid"}
+x967	verdict	v: translate("a-b-c", "-", "_")	v: "a_b_c"	{"verdict":"valid","opts":{"noFill":true}}
+x968	verdict	v: translate("a-b-c", "-", "_")	v: "a_b_c"	{"verdict":"valid","opts":{"partial":true}}
+x969	verdict	v: translate("a-b-c", "-", "_")	v: "a-b-c"	{"verdict":"invalid"}
+x970	verdict	v: translate("a-b-c", "-", "_")	v: "a-b-c"	{"verdict":"invalid","opts":{"noFill":true}}
+x971	verdict	v: translate("a-b-c", "-", "_")	v: "a-b-c"	{"verdict":"invalid","opts":{"partial":true}}
+x972	verdict	v: translate("hello", "a-y", "b-z")	v: "ifmmp"	{"verdict":"valid"}
+x973	verdict	v: translate("hello", "a-y", "b-z")	v: "ifmmp"	{"verdict":"valid","opts":{"noFill":true}}
+x974	verdict	v: translate("hello", "a-y", "b-z")	v: "ifmmp"	{"verdict":"valid","opts":{"partial":true}}
+x975	verdict	v: translate("hello", "lo")	v: "he"	{"verdict":"valid"}
+x976	verdict	v: translate("hello", "lo")	v: "he"	{"verdict":"valid","opts":{"noFill":true}}
+x977	verdict	v: translate("hello", "lo")	v: "he"	{"verdict":"valid","opts":{"partial":true}}
+x978	verdict	v: translate("hello", "lo", "")	v: "he"	{"verdict":"valid"}
+x979	verdict	v: translate("hello", "lo", "")	v: "he"	{"verdict":"valid","opts":{"noFill":true}}
+x980	verdict	v: translate("hello", "lo", "")	v: "he"	{"verdict":"valid","opts":{"partial":true}}
+x981	verdict	v: translate("hello", "elo", "x")	v: "hxxxx"	{"verdict":"valid"}
+x982	verdict	v: translate("hello", "elo", "x")	v: "hxxxx"	{"verdict":"valid","opts":{"noFill":true}}
+x983	verdict	v: translate("hello", "elo", "x")	v: "hxxxx"	{"verdict":"valid","opts":{"partial":true}}
+x984	verdict	v: translate("aaa", "aa", "xy")	v: "yyy"	{"verdict":"valid"}
+x985	verdict	v: translate("aaa", "aa", "xy")	v: "yyy"	{"verdict":"valid","opts":{"noFill":true}}
+x986	verdict	v: translate("aaa", "aa", "xy")	v: "yyy"	{"verdict":"valid","opts":{"partial":true}}
+x987	verdict	v: translate("abc", "z-a", "x")	v: "abc"	{"verdict":"error"}
+x988	verdict	v: translate("abc", "z-a", "x")	v: "abc"	{"verdict":"error","opts":{"noFill":true}}
+x989	verdict	v: translate("abc", "z-a", "x")	v: "abc"	{"verdict":"error","opts":{"partial":true}}
+x990	verdict	v: translate("abc", "a", "z-a")	v: "abc"	{"verdict":"error"}
+x991	verdict	v: translate("abc", "a", "z-a")	v: "abc"	{"verdict":"error","opts":{"noFill":true}}
+x992	verdict	v: translate("abc", "a", "z-a")	v: "abc"	{"verdict":"error","opts":{"partial":true}}
+x993	verdict	v: translate("abc", "c-a-z", "x")	v: "abc"	{"verdict":"error"}
+x994	verdict	v: translate("abc", "c-a-z", "x")	v: "abc"	{"verdict":"error","opts":{"noFill":true}}
+x995	verdict	v: translate("abc", "c-a-z", "x")	v: "abc"	{"verdict":"error","opts":{"partial":true}}
+x996	verdict	v: translate("a-b", "-a", "xy")	v: "yxb"	{"verdict":"valid"}
+x997	verdict	v: translate("a-b", "-a", "xy")	v: "yxb"	{"verdict":"valid","opts":{"noFill":true}}
+x998	verdict	v: translate("a-b", "-a", "xy")	v: "yxb"	{"verdict":"valid","opts":{"partial":true}}
+x999	verdict	v: translate("a-b", "a-", "xy")	v: "xyb"	{"verdict":"valid"}
+x1000	verdict	v: translate("a-b", "a-", "xy")	v: "xyb"	{"verdict":"valid","opts":{"noFill":true}}
+x1001	verdict	v: translate("a-b", "a-", "xy")	v: "xyb"	{"verdict":"valid","opts":{"partial":true}}
+x1002	verdict	v: translate("abcde-", "a-c-e", "x")	v: "xxxdxx"	{"verdict":"valid"}
+x1003	verdict	v: translate("abcde-", "a-c-e", "x")	v: "xxxdxx"	{"verdict":"valid","opts":{"noFill":true}}
+x1004	verdict	v: translate("abcde-", "a-c-e", "x")	v: "xxxdxx"	{"verdict":"valid","opts":{"partial":true}}
+x1005	verdict	v: translate("abc", "--a", "x")	v: "xbc"	{"verdict":"valid"}
+x1006	verdict	v: translate("abc", "--a", "x")	v: "xbc"	{"verdict":"valid","opts":{"noFill":true}}
+x1007	verdict	v: translate("abc", "--a", "x")	v: "xbc"	{"verdict":"valid","opts":{"partial":true}}
+x1008	verdict	v: translate("a-", "-", "")	v: "a"	{"verdict":"valid"}
+x1009	verdict	v: translate("a-", "-", "")	v: "a"	{"verdict":"valid","opts":{"noFill":true}}
+x1010	verdict	v: translate("a-", "-", "")	v: "a"	{"verdict":"valid","opts":{"partial":true}}
+x1011	verdict	v: translate("abc", "", "x")	v: "abc"	{"verdict":"valid"}
+x1012	verdict	v: translate("abc", "", "x")	v: "abc"	{"verdict":"valid","opts":{"noFill":true}}
+x1013	verdict	v: translate("abc", "", "x")	v: "abc"	{"verdict":"valid","opts":{"partial":true}}
+x1014	verdict	v: translate("", "a", "b")	v: ""	{"verdict":"valid"}
+x1015	verdict	v: translate("", "a", "b")	v: ""	{"verdict":"valid","opts":{"noFill":true}}
+x1016	verdict	v: translate("", "a", "b")	v: ""	{"verdict":"valid","opts":{"partial":true}}
+x1017	verdict	v: translate("abc", "a-c", "A-C")	v: "ABC"	{"verdict":"valid"}
+x1018	verdict	v: translate("abc", "a-c", "A-C")	v: "ABC"	{"verdict":"valid","opts":{"noFill":true}}
+x1019	verdict	v: translate("abc", "a-c", "A-C")	v: "ABC"	{"verdict":"valid","opts":{"partial":true}}
+x1020	verdict	v: translate("abc", "a-a", "x")	v: "xbc"	{"verdict":"valid"}
+x1021	verdict	v: translate("abc", "a-a", "x")	v: "xbc"	{"verdict":"valid","opts":{"noFill":true}}
+x1022	verdict	v: translate("abc", "a-a", "x")	v: "xbc"	{"verdict":"valid","opts":{"partial":true}}
+x1023	verdict	v: translate("a😀b", "😀", "x")	v: "axb"	{"verdict":"valid"}
+x1024	verdict	v: translate("a😀b", "😀", "x")	v: "axb"	{"verdict":"valid","opts":{"noFill":true}}
+x1025	verdict	v: translate("a😀b", "😀", "x")	v: "axb"	{"verdict":"valid","opts":{"partial":true}}
+x1026	verdict	v: translate("é", "a-z", "x")	v: "é"	{"verdict":"valid"}
+x1027	verdict	v: translate("é", "a-z", "x")	v: "é"	{"verdict":"valid","opts":{"noFill":true}}
+x1028	verdict	v: translate("é", "a-z", "x")	v: "é"	{"verdict":"valid","opts":{"partial":true}}
+x1029	verdict	v: translate("abc", "a-c", "é")	v: "ééé"	{"verdict":"valid"}
+x1030	verdict	v: translate("abc", "a-c", "é")	v: "ééé"	{"verdict":"valid","opts":{"noFill":true}}
+x1031	verdict	v: translate("abc", "a-c", "é")	v: "ééé"	{"verdict":"valid","opts":{"partial":true}}
+x1032	verdict	v: translate(1, "a")	v: "1"	{"verdict":"error"}
+x1033	verdict	v: translate(1, "a")	v: "1"	{"verdict":"error","opts":{"noFill":true}}
+x1034	verdict	v: translate(1, "a")	v: "1"	{"verdict":"error","opts":{"partial":true}}
+x1035	verdict	v: translate("a", 1)	v: "a"	{"verdict":"error"}
+x1036	verdict	v: translate("a", 1)	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1037	verdict	v: translate("a", 1)	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1038	verdict	v: translate("a", "a", 1)	v: "1"	{"verdict":"error"}
+x1039	verdict	v: translate("a", "a", 1)	v: "1"	{"verdict":"error","opts":{"noFill":true}}
+x1040	verdict	v: translate("a", "a", 1)	v: "1"	{"verdict":"error","opts":{"partial":true}}
+x1041	verdict	v: translate(string, "a")	v: "a"	{"verdict":"error"}
+x1042	verdict	v: translate(string, "a")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1043	verdict	v: translate(string, "a")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1044	verdict	v: translate(meta("abc", {}), "a", "x")	v: "xbc"	{"verdict":"valid"}
+x1045	verdict	v: translate(meta("abc", {}), "a", "x")	v: "xbc"	{"verdict":"valid","opts":{"noFill":true}}
+x1046	verdict	v: translate(meta("abc", {}), "a", "x")	v: "xbc"	{"verdict":"valid","opts":{"partial":true}}
+x1047	verdict	v: translate(*("abc"), "a", "x")	v: "xbc"	{"verdict":"error"}
+x1048	verdict	v: translate(*("abc"), "a", "x")	v: "xbc"	{"verdict":"error","opts":{"noFill":true}}
+x1049	verdict	v: translate(*("abc"), "a", "x")	v: "xbc"	{"verdict":"error","opts":{"partial":true}}
+x1050	verdict	v: translate("abc", "a", meta("x", {}))	v: "xbc"	{"verdict":"valid"}
+x1051	verdict	v: translate("abc", "a", meta("x", {}))	v: "xbc"	{"verdict":"valid","opts":{"noFill":true}}
+x1052	verdict	v: translate("abc", "a", meta("x", {}))	v: "xbc"	{"verdict":"valid","opts":{"partial":true}}
+x1053	verdict	v: translate("a")	v: "a"	{"verdict":"error"}
+x1054	verdict	v: translate("a")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1055	verdict	v: translate("a")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1056	verdict	v: translate("a", "b", "c", "d")	v: "a"	{"verdict":"error"}
+x1057	verdict	v: translate("a", "b", "c", "d")	v: "a"	{"verdict":"error","opts":{"noFill":true}}
+x1058	verdict	v: translate("a", "b", "c", "d")	v: "a"	{"verdict":"error","opts":{"partial":true}}
+x1059	verdict	v: upper(translate("a-b", "-", "_"))	v: "A_B"	{"verdict":"valid"}
+x1060	verdict	v: upper(translate("a-b", "-", "_"))	v: "A_B"	{"verdict":"valid","opts":{"noFill":true}}
+x1061	verdict	v: upper(translate("a-b", "-", "_"))	v: "A_B"	{"verdict":"valid","opts":{"partial":true}}
+x1062	verdict	v: translate("", "퟿-", "xyz")	v: "z"	{"verdict":"valid"}
+x1063	verdict	v: translate("", "퟿-", "xyz")	v: "z"	{"verdict":"valid","opts":{"noFill":true}}
+x1064	verdict	v: translate("", "퟿-", "xyz")	v: "z"	{"verdict":"valid","opts":{"partial":true}}
+x1065	verdict	v: translate("�", "퟿-", "xyz")	v: "�"	{"verdict":"valid"}
+x1066	verdict	v: translate("�", "퟿-", "xyz")	v: "�"	{"verdict":"valid","opts":{"noFill":true}}
+x1067	verdict	v: translate("�", "퟿-", "xyz")	v: "�"	{"verdict":"valid","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}
@@ -1006,3 +1109,6 @@ z23	verdict	%S = "ab"\nv: upper(%S)	v: "AB"	{"verdict":"valid","opts":{"partial"
 z24	verdict	%N = 1\nv: upper("foo", %N)	v: "fOO"	{"verdict":"valid"}
 z25	verdict	%N = 1\nv: upper("foo", %N)	v: "fOO"	{"verdict":"valid","opts":{"noFill":true}}
 z26	verdict	%N = 1\nv: upper("foo", %N)	v: "fOO"	{"verdict":"valid","opts":{"partial":true}}
+z27	verdict	%F = "a"\nv: translate("abc", %F, "x")	v: "xbc"	{"verdict":"valid"}
+z28	verdict	%F = "a"\nv: translate("abc", %F, "x")	v: "xbc"	{"verdict":"valid","opts":{"noFill":true}}
+z29	verdict	%F = "a"\nv: translate("abc", %F, "x")	v: "xbc"	{"verdict":"valid","opts":{"partial":true}}

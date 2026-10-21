@@ -6060,7 +6060,7 @@ TypeScript reads a string as an index as JavaScript's `Number()` does,
 so `" 0"` and `"1e0"` name index 0 and index 1, and reads `""` as a key
 in `pick`, where Go reads neither, which #437 tracks.
 
-## 23. Changing case
+## 23. Changing case and characters
 
 `upper` and `lower` change the case of a string, or of a run of it, and
 round a number up or down. Write `case.aontu`:
@@ -6135,6 +6135,34 @@ every one as the definition does, but for two calls with the wrong
 number of arguments, which #426 tracks. TypeScript refuses a big integer
 index from 2^53 on, where Go reads it, so no row holds one, which #439
 tracks.
+
+`translate` maps a string's code points from one set to another, so
+`translate("a-b-c", "-", "_")` is `"a_b_c"`. A set reads left to right,
+and a character, a `-` and a character form a range, so `"a-y"` names
+twenty-five letters and `translate("hello", "a-y", "b-z")` is
+`"ifmmp"`. A `-` with nothing on one side stands for itself, and a range
+that runs down, `"z-a"`, is an error. Each code point takes the mapping
+of its last naming:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def translateChar (fr to : List ℕ) (c : Char) : List Char :=
+  match fr.zipIdx.reverse.find? (·.1 == c.toNat) with
+  | none => [c]
+  | some (_, i) => match to.getLast? with
+    | none => []
+    | some last => [scalar (to.getD i last)]
+```
+
+A `to` shorter than the set pads with its last character, so
+`translate("hello", "elo", "x")` is `"hxxxx"`, and an empty `to`, or
+none, deletes, so `translate("hello", "lo")` is `"he"`. A range counts
+every code point it crosses, the surrogates too, which is why the set
+holds code point numbers, and `scalar` writes `U+FFFD` for a surrogate,
+which is no character. Its rows are x966 on, and both engines answer
+every one as the definition does, but for two calls with the wrong
+number of arguments, which #426 tracks. TypeScript writes a lone
+surrogate where Go writes `U+FFFD`, which #442 tracks.
 
 ## 24. What the definition doesn't say yet
 

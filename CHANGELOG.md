@@ -8,6 +8,31 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `translate`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `translateOf` makes the call, which never
+  waits. Each argument is a string, read through its riders.
+  - `expandSet` reads a set left to right. A character, a `-` and a
+    character form a range, and a `-` with nothing on one side stands
+    for itself. A range that descends is an error.
+  - `translateChar` writes a code point the set names as the `to`
+    character at the position of its last naming, or `to`'s last where
+    `to` is shorter. Where `to` is empty or absent it writes nothing.
+  - A range counts every code point it crosses, the surrogates too, as
+    both ports do, and a surrogate written from `to` is U+FFFD, as Go
+    writes it. TS writes a lone surrogate (#442).
+- `test/spec/def-call.tsv` gains 34 cases in rows x966 to x1067 and one
+  on a name. Both ports answer every row as the definition does but
+  six, a wrong number of arguments (#426). `spec/ledger.tsv` lists
+  them, and its bound rises from 147 to 153. `spec/forms.tsv` gains
+  `translate`.
+- The definition tutorial's step 23, now changing case and characters,
+  gains `translate`, and the language reference's `translate` entry
+  cites the rule.
+
 ### The definition holds `upper` and `lower`
 
 Definition, generated rows, the ledger and its bound in both runners,

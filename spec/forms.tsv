@@ -68,3 +68,4 @@ call	call	pick
 call	call	sort
 call	call	upper
 call	call	lower
+call	call	translate

@@ -1729,7 +1729,7 @@ def forms : List (String × String × String) :=
     ("call", "syntax", "-"), ("call", "call", "sum"), ("call", "call", "least"),
     ("call", "call", "greatest"), ("call", "syntax", "+"), ("call", "call", "join"),
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
-    ("call", "call", "lower")]
+    ("call", "call", "lower"), ("call", "call", "translate")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1751,7 +1751,7 @@ def formSamples : List (String × Val) :=
     ("least", .call .least [.listKind]), ("greatest", .call .greatest [.listKind]),
     ("join", .call .join [.listKind]), ("pick", .call .pick [.listKind, .string]),
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
-    ("lower", .call .lower [.string])]
+    ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1811,7 +1811,10 @@ a start and a length select, an index of either leaf, and a number
 rounded in its own leaf. Their strings are ASCII, the letters on which
 the oracle's host and every engine's case conversion agree, and
 `asciiCase` refuses a row that reads another, and no case holds a big
-integer index between 2 ^ 53 and 2 ^ 63 (#439). -/
+integer index between 2 ^ 53 and 2 ^ 63 (#439). `translate` follows
+from row x966: ranges, a `-` that stands for itself, a short `to` and an
+empty one, a character named twice, code points beyond ASCII, and a
+range across the surrogates, where the ports agree. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2081,7 +2084,35 @@ def callCases : List (Val × Data) :=
     (c .upper [flt 15 10, int 0], jf 2 1), (c .upper [int 1, int 0], j 1),
     (c .upper [str "a", int 0, int 1, int 2], js "A"), (c .upper [], js "A"),
     (p (c .upper [str "abc"]) (str "def"), js "ABCdef"), (p (c .lower [flt 11 10]) (int 2), jf 3 1),
-    (c .upper [c .join [lst [str "a", str "b"], str "-"]], js "A-B")]
+    (c .upper [c .join [lst [str "a", str "b"], str "-"]], js "A-B"),
+    (c .translate [str "a-b-c", str "-", str "_"], js "a_b_c"),
+    (c .translate [str "a-b-c", str "-", str "_"], js "a-b-c"),
+    (c .translate [str "hello", str "a-y", str "b-z"], js "ifmmp"),
+    (c .translate [str "hello", str "lo"], js "he"), (c .translate [str "hello", str "lo", str ""], js "he"),
+    (c .translate [str "hello", str "elo", str "x"], js "hxxxx"),
+    (c .translate [str "aaa", str "aa", str "xy"], js "yyy"),
+    (c .translate [str "abc", str "z-a", str "x"], js "abc"),
+    (c .translate [str "abc", str "a", str "z-a"], js "abc"),
+    (c .translate [str "abc", str "c-a-z", str "x"], js "abc"),
+    (c .translate [str "a-b", str "-a", str "xy"], js "yxb"),
+    (c .translate [str "a-b", str "a-", str "xy"], js "xyb"),
+    (c .translate [str "abcde-", str "a-c-e", str "x"], js "xxxdxx"),
+    (c .translate [str "abc", str "--a", str "x"], js "xbc"),
+    (c .translate [str "a-", str "-", str ""], js "a"),
+    (c .translate [str "abc", str "", str "x"], js "abc"), (c .translate [str "", str "a", str "b"], js ""),
+    (c .translate [str "abc", str "a-c", str "A-C"], js "ABC"),
+    (c .translate [str "abc", str "a-a", str "x"], js "xbc"),
+    (c .translate [str "a😀b", str "😀", str "x"], js "axb"), (c .translate [str "é", str "a-z", str "x"], js "é"),
+    (c .translate [str "abc", str "a-c", str "é"], js "ééé"),
+    (c .translate [int 1, str "a"], js "1"), (c .translate [str "a", int 1], js "a"),
+    (c .translate [str "a", str "a", int 1], js "1"), (c .translate [.string, str "a"], js "a"),
+    (c .translate [.ride .metadata (str "abc") [], str "a", str "x"], js "xbc"),
+    (c .translate [.pref 1 (str "abc"), str "a", str "x"], js "xbc"),
+    (c .translate [str "abc", str "a", .ride .metadata (str "x") []], js "xbc"),
+    (c .translate [str "a"], js "a"), (c .translate [str "a", str "b", str "c", str "d"], js "a"),
+    (c .upper [c .translate [str "a-b", str "-", str "_"]], js "A_B"),
+    (c .translate [str "\uE000", str "\uD7FF-\uE000", str "xyz"], js "z"),
+    (c .translate [str "\uFFFD", str "\uD7FF-\uE000", str "xyz"], js "\uFFFD")]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -2112,7 +2143,9 @@ def callAliasCases : List (Decls × Val × Data) :=
         none false)], .call .pick [.alias "L", .lit (.str "a")], .list [j 1, j 2]),
     ([("L", .list [int 3, int 1, int 2] none false)], .call .sort [.alias "L"], .list [j 1, j 2, j 3]),
     ([("S", .lit (.str "ab"))], .call .upper [.alias "S"], .str "AB"),
-    ([("N", int 1)], .call .upper [.lit (.str "foo"), .alias "N"], .str "fOO")]
+    ([("N", int 1)], .call .upper [.lit (.str "foo"), .alias "N"], .str "fOO"),
+    ([("F", .lit (.str "a"))], .call .translate [.lit (.str "abc"), .alias "F", .lit (.str "x")],
+      .str "xbc")]
 
 theorem callAliasCases_checkable : ∀ c ∈ callAliasCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
@@ -2330,7 +2363,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# from row x300, which waits where it does not take its operands, so that the"
     IO.println "# document is incomplete, and join from row x507, which waits on a member or a"
     IO.println "# separator not yet settled. pick and sort, which never wait, follow from row"
-    IO.println "# x597, and upper and lower from row x816. A call on a name follows in rows z0 on."
+    IO.println "# x597, upper and lower from row x816, and translate from row x966. A call on a"
+    IO.println "# name follows in rows z0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do

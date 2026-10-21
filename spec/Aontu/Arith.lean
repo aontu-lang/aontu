@@ -16,11 +16,11 @@ members: `sum` adds them from the left, from the integer zero, and
 above, by exact value. -/
 
 /-- The functions on numbers, the folds on a bag of them, `+`, `join`,
-`pick`, `sort`, `upper` and `lower`. -/
+`pick`, `sort`, `upper`, `lower` and `translate`. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
-  | plus | join | pick | sort | upper | lower
+  | plus | join | pick | sort | upper | lower | translate
   deriving DecidableEq, Repr
 
 /-- Whether a function folds the members of one bag. -/

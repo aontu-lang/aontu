@@ -178,6 +178,7 @@ def Fn.name : Fn → String
   | .sort => "sort"
   | .upper => "upper"
   | .lower => "lower"
+  | .translate => "translate"
 
 mutual
 def Val.src : Val → Option String
