@@ -606,15 +606,16 @@ def cmpPropsOk (c : Cmp) (fs : List (String × Bool × Val)) : Bool :=
         | _ => false
       | none => false)
 
-/-- The props a component's spec writes, in normal form and its riders
-read through: none written, the empty map; a string, the map of the
-prop it fills; a map, itself; nothing for anything else. -/
+/-- The props a component's spec writes, in normal form with its riders
+kept, which ride into the node as a rider rides any value: none
+written, the empty map; a string, the map of the prop it fills, which
+holds it; a map, itself; nothing for anything else. -/
 def cmpProps? (ds : Decls) (c : Cmp) : Option Val → Option Val
   | none => some (.map [] none false)
   | some s =>
     match (normaliseD ds s).string?, (normaliseD ds s).unride with
-    | some t, _ => c.text?.map fun k => .map [(k, false, .lit (.str t))] none false
-    | none, .map fs sp cl => some (.map fs sp cl)
+    | some _, _ => c.text?.map fun k => .map [(k, false, normaliseD ds s)] none false
+    | none, .map _ _ _ => some (normaliseD ds s)
     | none, _ => none
 
 /-- The children a component holds, each nested list spliced into its
@@ -638,14 +639,16 @@ def cmpChildren (ds : Decls) (c : Cmp) : Option Val → Option (List Val)
     | _ => none
 
 /-- What a component's call makes of its spec and its children: its
-node, where the component admits its props and holds its children; a
-refusal otherwise. The node holds its props and children open in both
+node, where the component admits its props, read through their riders,
+and holds its children; a refusal otherwise. The node holds its props and children open in both
 ports, against a `close()` from above, which the definition, holding
 no `open()`, leaves unsaid. -/
 def cmpOf (ds : Decls) (c : Cmp) (spec kids : Option Val) : Made :=
   match cmpProps? ds c spec, cmpChildren ds c kids with
-  | some (.map fs sp cl), some xs =>
-    if cmpPropsOk c fs then .made (cmpNode c (.map fs sp cl) xs) else .refused
+  | some p, some xs =>
+    match p.unride with
+    | .map fs _ _ => if cmpPropsOk c fs then .made (cmpNode c p xs) else .refused
+    | _ => .refused
   | _, _ => .refused
 
 /-- The number a call computes from its arguments: a fold from the
@@ -1152,16 +1155,14 @@ theorem cmpProps?_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkabl
   · cases h
     exact .map (fun _ _ _ hw => by cases hw) (fun _ hs => by cases hs)
   · rename_i s
+    have hn := normaliseD_checkableA hd (hs s rfl)
     split at h
     · simp only [Option.map] at h
       split at h <;> simp at h
       subst h
-      exact .map (fun _ _ w hw => by simp at hw; obtain ⟨-, -, rfl⟩ := hw; exact .lit)
+      exact .map (fun _ _ w hw => by simp at hw; obtain ⟨-, -, rfl⟩ := hw; exact hn)
         (fun _ hs => by cases hs)
-    · rename_i fs sp cl _ hu
-      cases h
-      have hn := Val.checkableA_unride (normaliseD_checkableA hd (hs s rfl))
-      rw [hu] at hn
+    · cases h
       exact hn
     · cases h
 
@@ -1220,10 +1221,12 @@ theorem cmpOf_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) 
     v.CheckableA := by
   unfold cmpOf at h
   split at h
-  · rename_i fs sp cl xs hp hx
+  · rename_i p xs hp hx
     split at h
-    · cases h
-      exact cmpNode_checkableA (cmpProps?_checkableA hd hs hp) (cmpChildren_checkableA hd hk hx)
+    · split at h
+      · cases h
+        exact cmpNode_checkableA (cmpProps?_checkableA hd hs hp) (cmpChildren_checkableA hd hk hx)
+      · cases h
     · cases h
   · cases h
 
