@@ -4952,9 +4952,9 @@ generates a value is the result its arms select for it, and each
 `filter` whose source generates a container is the members its
 condition admits, as a term, or `nil` where the source generates a
 scalar, which has no members. One whose scrutinee or source generates
-nothing stays, and generates nothing. A call whose arguments' normal
-forms are numbers is the number its function computes from them, and
-any other call stays, which no reading makes. -/
+nothing stays, and generates nothing. A call is the number `callValue`
+computes, where it computes one, and any other call stays, which no
+reading makes. -/
 def resolveD (ds : Decls) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds s
@@ -5720,17 +5720,20 @@ def Number.binary (f : Fn) (x y : Number) : Option Number :=
 An integer answer the leaf doesn't hold, such as `2^53 + 1`, is no value
 either, nor is a zero divisor in any leaf, nor a big decimal divided.
 The definition makes a call once it reads the document, as it makes a
-selection in step 16: where the normal form of every argument, the
-riders read through, is a number, the call is the number its function
-computes:
+selection in step 16: `resolveD` puts the number `callValue` computes
+in the call's place, where it computes one. For arithmetic that's
+where the normal form of every argument, the riders read through, is a
+number:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-  | .call f args =>
-    let args' := resolveItems ds args
-    match (args'.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f) with
-    | some n => .lit (.num n)
-    | none => .call f args'
+def callValue (ds : Decls) (f : Fn) (args : List Val) : Option Number :=
+  if f.folds then
+    match args with
+    | [b] => ((normaliseD ds b).members ds).bind fun ms =>
+        (ms.mapM fun m => (normaliseD ds m).number?).bind (Number.fold f)
+    | _ => none
+  else (args.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f)
 ```
 
 So `add(1 & integer, 1)`, `add(meta(3, {}), 1)` and a name that holds a
@@ -5739,11 +5742,84 @@ with a default, leaves the call unmade, and so does the wrong number of
 arguments. A call left unmade is ill-formed, so `vet` reads its document
 as an error.
 
+The folds `sum`, `least` and `greatest` take one bag, a list or a map,
+and read its members, the first branch of `callValue`. Write
+`folds.aontu`:
+
+<!-- test: scenario folds -->
+<!-- test: file folds.aontu -->
+```aontu
+a: sum([1 2 3])
+b: sum([0.3 0.2 0.1])
+c: sum([0.1 0.2 0.3])
+d: least({ y:2 x:1.5 })
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu folds.aontu
+{
+  "a": 6,
+  "b": 0.6,
+  "c": 0.6000000000000001,
+  "d": 1.5
+}
+```
+
+`sum` adds the members from the left, from the integer zero, one `add`
+at a time, so the order of the floats shows in `b` and `c`. A step no
+leaf holds leaves the whole sum without a value, which is why
+`sum([9007199254740992, 1, -1])` is an error and
+`sum([1, -1, 9007199254740992])` isn't. `least` answers the first
+member no other is below, and `greatest` the first no other exceeds,
+by exact value, so `least([1, 1.0])` is the integer and
+`least([1.0, 1])` the float:
+
+<!-- test: quote spec/Aontu/Arith.lean -->
+```lean
+def Number.sum (xs : List Number) : Option Number :=
+  xs.foldlM (fun acc x => Number.binary .add acc x) (.integer ⟨0, by decide⟩)
+
+/-- `least`: the first member no other is below; an empty bag has none. -/
+def Number.least : List Number → Option Number
+  | [] => none
+  | x :: xs => some (xs.foldl (fun acc y => if y.lt acc then y else acc) x)
+```
+
+An empty bag sums to the integer zero and has no least member, so
+`least([])` is an error. `Number.least_mem` and `Number.least_lowest`,
+in `spec/Aontu/Verdict.lean`, prove that `least` answers a member and
+that no member is below it.
+
+The members are the ones the output would hold: a list's elements in
+order, and a map's members in key order, but neither a marked member
+nor an optional one whose value generates nothing:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.members (ds : Decls) : Val → Option (List Val)
+  | .ride _ v _ => v.members ds
+  | .list items _ _ => some items
+  | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
+      if m.2.2.marked || (m.2.1 && (genD ds m.2.2).isNone) then none else some m.2.2)
+  | _ => none
+```
+
+Each member has to be a number in its normal form, as each argument of
+`add` does, so `sum([*1 | number, 2])` is an error, though the default
+would give a number. A bag met with a size, `[1, 2] & len(2)`, isn't a
+bag in normal form, and the engines refuse it too. Both engines also
+leave out an optional member whose value generates an empty map or
+list, `{a?: {}}`, as their output does, where the definition holds the
+member: #428 asks which reading stands.
+
 The calls have rows of their own, `test/spec/def-call.tsv`, and both
-engines answer them as the definition does but nine. A call the schema
-can't build, `add(1)`, `add(1, 2, 3)` or `-(integer)`, is one both
-engines read as `invalid`, where the definition reads an error, which
-#426 tracks.
+engines answer them as the definition does but twelve. A call the
+schema can't build, `add(1)`, `add(1, 2, 3)`, `sum([1], [2])` or
+`-(integer)`, is one both engines read as `invalid`, where the
+definition reads an error, which #426 tracks.
 
 ## 21. What the definition doesn't say yet
 
@@ -5752,8 +5828,8 @@ for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
-beyond arithmetic, `key()` anywhere but in a spread, and generation
-with `each`, `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
+beyond arithmetic and the folds, `key()` anywhere but in a spread, and
+generation with `each`, `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 
