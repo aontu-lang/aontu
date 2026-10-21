@@ -3416,6 +3416,8 @@ Empty fields are **preserved**, so `join` is the inverse:
 points, and a separator that does not occur yields the whole string as
 one field.
 
+The definition computes `split` as `splitOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), a string separator by `splitText`, which cuts at each occurrence from the left. Where a pattern's matches fall is the host's to say, as which strings a pattern admits is, so `Host` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) holds the fields a pattern cuts a string into.
+
 ## Linking: the tree is the namespace
 
 A document is a tree, and its only names are tree paths. That is

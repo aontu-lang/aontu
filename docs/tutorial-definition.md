@@ -1587,28 +1587,31 @@ never defines.
 ```lean
 /-- What the definition leaves to the engines: which strings a pattern
 matches, and which strings a format, a name or a grammar, reads to its
-end, each a predicate on two strings; and how a string changes case,
-Unicode's default case conversion at the version of each engine's
-tables. Nothing here says what any of them holds of, so a theorem about
-`re`, `format`, `upper` or `lower` holds whatever they are. -/
+end, each a predicate on two strings; the fields a pattern's matches
+cut a string into; and how a string changes case, Unicode's default
+case conversion at the version of each engine's tables. Nothing here
+says what any of them holds of, so a theorem about `re`, `format`,
+`split`, `upper` or `lower` holds whatever they are. -/
 structure Host where
   pattern : String → String → Prop
   format : String → String → Prop
+  split : String → String → List String
   upper : String → String
   lower : String → String
 
-instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True, id, id⟩⟩
+instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True, fun _ s => [s], id, id⟩⟩
 
 /-- The host the oracle computes with, whose case conversion changes the
 ASCII letters only, as every engine's does on a string of them: a row
-reads no other letter. -/
+reads no other letter, and splits at no pattern. -/
 def oracleHost : Host :=
-  ⟨fun _ _ => True, fun _ _ => True, String.map Char.toUpper, String.map Char.toLower⟩
+  ⟨fun _ _ => True, fun _ _ => True, fun _ s => [s], String.map Char.toUpper,
+    String.map Char.toLower⟩
 
-/-- The predicates behind `re` and `format`, and the case conversion
-behind `upper` and `lower`: a constant no proof can unfold, so no
-theorem rests on what they are, and which the oracle runs as
-`oracleHost`. -/
+/-- The predicates behind `re` and `format`, the fields behind `split`
+at a pattern, and the case conversion behind `upper` and `lower`: a
+constant no proof can unfold, so no theorem rests on what they are,
+and which the oracle runs as `oracleHost`. -/
 @[implemented_by oracleHost]
 opaque host : Host
 ```
@@ -1617,7 +1620,8 @@ opaque host : Host
 and `@[implemented_by]` gives the compiler `oracleHost` to run in its
 place, so the oracle computes with it and no proof can unfold `host`.
 The host holds the case conversion `upper` and `lower` use too, which
-step 23 reads. The two pattern rules read it:
+step 23 reads, and the fields a pattern cuts a string into, which step
+24's `split` reads. The two pattern rules read it:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
@@ -6164,7 +6168,7 @@ every one as the definition does, but for two calls with the wrong
 number of arguments, which #426 tracks. TypeScript writes a lone
 surrogate where Go writes `U+FFFD`, which #442 tracks.
 
-## 24. Escaping text
+## 24. Escaping and splitting text
 
 `esc` writes a string so that it can stand inside a literal of some
 convention, and `usc` reads it back out. Write `esc.aontu`:
@@ -6229,6 +6233,25 @@ An unknown variant is an error, and so is any argument but a string,
 read through its riders. The rows are x1068 on, and both engines answer
 every one as the definition does, but for two calls with the wrong
 number of arguments, which #426 tracks.
+
+`split` cuts a string into fields at a separator and keeps the empty
+ones, so `split("a,,b", ",")` is `["a", "", "b"]` and
+`join(split(s, sep), sep)` is `s`. A string separator is a literal,
+cut at each occurrence from the left, and `""` cuts between every two
+code points:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def splitText (s sep : String) : List String :=
+  if sep = "" then s.toList.map Char.toString else s.splitOn sep
+```
+
+A pattern separator, `re(p)`, cuts at the pattern's matches. Where
+they fall is the host's to say, as which strings a pattern admits is,
+so `Host` holds `split` too, and the rows split at strings alone. They
+are x1332 on, and both engines answer every one as the definition
+does, but for two calls with the wrong number of arguments, which #426
+tracks.
 
 ## 25. The parent type
 

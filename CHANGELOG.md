@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `split`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `splitOf` makes the call, which never
+  waits. The text and the separator read through their riders.
+  - A string separator cuts the text at each occurrence from the left,
+    the occurrences never overlapping, and keeps the empty fields
+    (`splitText`). `""` cuts between every two code points.
+  - A pattern separator, `re(p)`, cuts at the pattern's matches. Where
+    they fall is the host's to say, so `Host` in
+    `spec/Aontu/Admits.lean` gains `split`. The oracle's host splits at
+    no pattern, and no row holds one.
+  - Anything else is an error, a lone preference among them.
+- `test/spec/def-call.tsv` gains 24 cases in rows x1332 to x1403. Both
+  ports answer every row as the definition does but six, a wrong number
+  of arguments (#426). `spec/ledger.tsv` lists them, and its bound rises
+  from 165 to 171. `spec/forms.tsv` gains `split`.
+- The definition tutorial's step 24, now escaping and splitting text,
+  gains `split`, and the language reference's `split` section cites the
+  rule. Step 4's quote of `Host` is refreshed.
+
 ### The definition holds `super` as a call
 
 Definition, generated rows, the ledger and its bound in both runners,
