@@ -8,6 +8,42 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `upper` and `lower`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `caseOf` makes both calls. Neither waits.
+  - On a string, the run of code points a start and a length select,
+    `caseSpan`, converts as a whole, and the rest stands. A start of
+    zero or more reaches forward, and a negative one ends the run that
+    far from the end. A negative length is the whole string, and both
+    ends clamp.
+  - A range argument is an integer, or a big integer that 64 bits hold,
+    read through its riders.
+  - On a number with no range, the call rounds up or down in the
+    number's own leaf, exactly: `Number.round` in
+    `spec/Aontu/Arith.lean`.
+  - The argument reads through its riders but not through a lone
+    preference, and anything but a string or a number is an error.
+- `spec/Aontu/Admits.lean`: `Host` gains the case conversion, which the
+  definition leaves to the engines as it leaves patterns. Both engines
+  apply Unicode's default case conversion, at their own table version,
+  which `DIVERGENCE.md` records. The oracle runs the host as
+  `oracleHost`, through `implemented_by`, converting ASCII letters
+  only, so the logical default stays free of axioms. `asciiCase`
+  refuses a row that converts any other letter.
+- `test/spec/def-call.tsv` gains 50 cases in rows x816 to x965 and two
+  on names. Both ports answer every row as the definition does but six,
+  a wrong number of arguments (#426). `spec/ledger.tsv` lists them, and
+  its bound rises from 141 to 147. `spec/forms.tsv` gains `upper` and
+  `lower`.
+- No row holds a big integer index from 2^53 to 2^63, which TS refuses
+  and Go reads (#439).
+- The definition tutorial gains step 23, changing case, and the
+  language reference's rounding section cites the rule. The tutorial's
+  quote of `Host` is refreshed.
+
 ### The definition holds `pick` and `sort`
 
 Definition, generated rows, the ledger and its bound in both runners,

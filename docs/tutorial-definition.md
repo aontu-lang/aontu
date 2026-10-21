@@ -1587,22 +1587,37 @@ never defines.
 ```lean
 /-- What the definition leaves to the engines: which strings a pattern
 matches, and which strings a format, a name or a grammar, reads to its
-end. Each is a predicate on two strings, and nothing here says what
-either holds of, so a theorem about `re` or `format` holds whatever they
-are. -/
+end, each a predicate on two strings; and how a string changes case,
+Unicode's default case conversion at the version of each engine's
+tables. Nothing here says what any of them holds of, so a theorem about
+`re`, `format`, `upper` or `lower` holds whatever they are. -/
 structure Host where
   pattern : String → String → Prop
   format : String → String → Prop
+  upper : String → String
+  lower : String → String
 
-instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True⟩⟩
+instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True, id, id⟩⟩
 
-/-- The predicates behind `re` and `format`: a constant no proof can
-unfold, so they are read and never computed. -/
+/-- The host the oracle computes with, whose case conversion changes the
+ASCII letters only, as every engine's does on a string of them: a row
+reads no other letter. -/
+def oracleHost : Host :=
+  ⟨fun _ _ => True, fun _ _ => True, String.map Char.toUpper, String.map Char.toLower⟩
+
+/-- The predicates behind `re` and `format`, and the case conversion
+behind `upper` and `lower`: a constant no proof can unfold, so no
+theorem rests on what they are, and which the oracle runs as
+`oracleHost`. -/
+@[implemented_by oracleHost]
 opaque host : Host
 ```
 
-`opaque` declares a constant Lean knows the type of and nothing else.
-The two rules read it:
+`opaque` declares a constant Lean knows the type of and nothing else,
+and `@[implemented_by]` gives the compiler `oracleHost` to run in its
+place, so the oracle computes with it and no proof can unfold `host`.
+The host holds the case conversion `upper` and `lower` use too, which
+step 23 reads. The two pattern rules read it:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
@@ -6045,14 +6060,90 @@ TypeScript reads a string as an index as JavaScript's `Number()` does,
 so `" 0"` and `"1e0"` name index 0 and index 1, and reads `""` as a key
 in `pick`, where Go reads neither, which #437 tracks.
 
-## 23. What the definition doesn't say yet
+## 23. Changing case
+
+`upper` and `lower` change the case of a string, or of a run of it, and
+round a number up or down. Write `case.aontu`:
+
+<!-- test: scenario case -->
+<!-- test: file case.aontu -->
+```aontu
+a: upper("foo")
+b: upper("foo", 1)
+c: lower("FOOBAR", -3)
+d: upper(1.1)
+e: lower(0d1.9)
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu case.aontu
+{
+  "a": "FOO",
+  "b": "fOO",
+  "c": "fooBAR",
+  "d": 2,
+  "e": 1.0
+}
+```
+
+The run is of code points. A start of zero or more reaches forward, and
+a negative one ends the run that far from the end, so `c` lowers the
+first three. A length counts code points, and a negative one, the
+default, is the whole string. Both ends clamp, so `upper("foo", 5)` is
+`"foo"`:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def caseSpan (n : ℕ) (start len : ℤ) : ℕ × ℕ :=
+  let span := if len < 0 then n else len.toNat
+  if 0 ≤ start then (min start.toNat n, min (min start.toNat n + span) n)
+  else (((n : ℤ) + start).toNat - span, ((n : ℤ) + start).toNat)
+```
+
+`caseRun` converts the run whole and keeps the rest, and the conversion
+itself is the host's, `host.upper` and `host.lower`, as patterns are.
+Both engines apply Unicode's default case conversion, `ß` to `SS`
+among its rules, and the version of their tables can differ, so the
+rows convert the letters `a` to `z` and `A` to `Z` alone.
+
+A number takes no range. `upper(1.1)` is the float `2`, and
+`lower(0d1.9)` is the big decimal `1.0`, each rounded exactly in its own
+leaf:
+
+<!-- test: quote spec/Aontu/Arith.lean -->
+```lean
+def Number.round (up : Bool) (x : Number) : Option Number :=
+  let k : ℤ :=
+    if up then -((-x.value.1).fdiv x.value.2) else x.value.1.fdiv x.value.2
+  match x with
+  | .integer _ | .biginteger _ => some x
+  | .float _ => (Float.nearest k 1).map .float
+  | .bigdecimal _ => some (.bigdecimal (BigDecimal.normal k 0))
+```
+
+A range argument is an integer, or a big integer that 64 bits hold,
+read through its riders, and anything else is an error, as is any
+argument but a string or a number: a boolean, a kind, or a lone
+preference such as `*"a"`, which `upper` doesn't read through as
+arithmetic does.
+
+The rows are x816 on in `test/spec/def-call.tsv`. Both engines answer
+every one as the definition does, but for two calls with the wrong
+number of arguments, which #426 tracks. TypeScript refuses a big integer
+index from 2^53 on, where Go reads it, so no row holds one, which #439
+tracks.
+
+## 24. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
-steps 20 to 22 don't walk through, `key()` anywhere but in a spread, and
+steps 20 to 23 don't walk through, `key()` anywhere but in a spread, and
 generation with `each`, `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
