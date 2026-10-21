@@ -89,8 +89,6 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - `key()` anywhere but a spread's own position, and its levels: ruling
   13 entered the term narrowed to the key a spread is tried on, and the
   rest waits on the templates (P9);
-- the seal a reference puts on a `type()` value at every depth, which
-  both ports put on it: the rest of ruling 10;
 - a marked list element, which both ports leave out of the output
   where no reading by position admits the output (decision 18, #421);
 - a size that is a disjunction, which both ports refuse as an argument

@@ -12,7 +12,7 @@ each change affects.
 
 Definition, generated rows, a generated file, two tests and
 documentation; no engine changes. Ruling 10 of the design note
-(`sketch/DEFINITION.0.md`, §7) is built in part.
+(`sketch/DEFINITION.0.md`, §7) is built.
 
 - `spec/Aontu/Syntax.lean`: `type(v)` and `hide(v)` are riders with no
   record, so a marked value judges as its value does, and a mark rides
@@ -44,8 +44,16 @@ documentation; no engine changes. Ruling 10 of the design note
   marks, at every depth and through every form that holds a term
   (`Val.unmark`), so what a body hides, the place that refers to it
   asks for. `test/spec/def-alias.tsv` grows by rows
-  n0 on, which both ports answer as the definition does. The seal a
-  reference puts on a `type()` value is still to be built.
+  n0 on, which both ports answer as the definition does.
+- `spec/Aontu/Alias.lean`: a reference to a name that is not recursive
+  and whose body carries `type()` reads as the expansion met with a
+  restriction (`Val.restrict`), a sealed map declaring the keys the
+  body's maps declare, each optional and restricted in turn, and a
+  sealed list the same by position, so the copy admits nothing the
+  definition does not declare, at any depth. The seal follows a
+  selection to the result it makes, and a recursive name takes none,
+  as both ports read it. `test/spec/def-alias.tsv` grows by rows
+  o0 on, which both ports answer as the definition does.
 - `spec/forms.tsv` holds `type` and `hide`.
 - Decision 18 of the design note asks about a marked list element,
   which both ports leave out of the output (#421).
