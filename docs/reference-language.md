@@ -5483,6 +5483,14 @@ a `0` is always the same token wherever it appears. Spell it as the
 class and `numeric-identifier`'s `"0"` branch is never reached, so
 `1.0.0` stops parsing while `1.2.3` still does.
 
+The definition leaves compiling a grammar and parsing a string to the
+host, as it leaves a pattern's matches. `abnfOf` and `parseOf` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) make the two
+calls, and `Judge.grammar` in
+[`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) says what
+`parse(g)` admits: a string the grammar parses whole, and not the empty
+string.
+
 ### A grammar reads better in backticks
 
 A backtick string spans lines, so a grammar can be written as a grammar

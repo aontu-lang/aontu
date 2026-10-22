@@ -1245,6 +1245,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
   | integer | float | biginteger | bigdecimal => exact .number
   | number | string | anyString | boolean | mapKind | listKind | pathKind | any | hole => exact .any
   | addr => exact .pathKind
+  | grammar => exact .string
   | nil => exact .nil
   | path => exact .path
   | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _

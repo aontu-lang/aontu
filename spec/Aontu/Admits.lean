@@ -38,11 +38,13 @@ that `rep` and `split` hand to the host's own regex engine, a subset
 the reference states on a pattern's syntax, which the definition does
 not hold, how many groups such a pattern captures, which the engines
 count on its text before any match is read, and where its leftmost
-match at or after a code point of a text falls; and how a string
+match at or after a code point of a text falls; how a string
 changes case, Unicode's default case conversion at the version of each
-engine's tables. Nothing here says what any of them holds of, so a
-theorem about `re`, `format`, `rep`, `split`, `upper` or `lower` holds
-whatever they are. -/
+engine's tables; and which grammars an RFC 5234 compiler compiles, as
+`abnf` asks, and the tree its parser builds of a string a grammar reads
+whole, as `parse` asks, none where it doesn't. Nothing here says what
+any of them holds of, so a theorem about `re`, `format`, `rep`, `split`,
+`upper`, `lower`, `abnf` or `parse` holds whatever they are. -/
 structure Host where
   pattern : String → String → Prop
   format : String → String → Prop
@@ -51,9 +53,12 @@ structure Host where
   find : String → String → ℕ → Option Match
   upper : String → String
   lower : String → String
+  compiles : String → Bool
+  tree : String → String → Option Data
 
 instance : Inhabited Host :=
-  ⟨⟨fun _ _ => True, fun _ _ => True, fun _ => false, fun _ => 0, fun _ _ _ => none, id, id⟩⟩
+  ⟨⟨fun _ _ => True, fun _ _ => True, fun _ => false, fun _ => 0, fun _ _ _ => none, id, id,
+    fun _ => false, fun _ _ => none⟩⟩
 
 /-- Whether a pattern reads a character as itself alone. -/
 def plainChar (c : Char) : Bool := !"\\^$.|?*+()[]{}".contains c
@@ -85,21 +90,60 @@ def fixedFind (p t : String) (i : ℕ) : Option Match :=
           (ps.filter (·.1)).map fun g => some (String.mk g.2)⟩
       else none
 
+/-- Whether a character stands for itself in a quoted ABNF literal the
+oracle's host reads: printable ASCII but the quote. -/
+def literalChar (c : Char) : Bool := 0x20 ≤ c.toNat && c.toNat ≤ 0x7E && c != '"'
+
+/-- A grammar of one rule whose body is one quoted literal, as the
+oracle's host reads it: `name = "lit"`, the name a letter and then
+letters, digits or `-`, the literal one or more characters, matched
+without regard to ASCII case, or exactly after `%s`, a newline after it
+or not. The rule's name, whether case counts, and the literal; `none`
+for any other grammar. -/
+def oneLiteral (g : String) : Option (String × Bool × List Char) :=
+  let cs := g.toList
+  let name := cs.takeWhile fun c => c.isAlphanum || c == '-'
+  let rest := cs.drop name.length
+  let body (exact : Bool) (r : List Char) : Option (String × Bool × List Char) :=
+    match r with
+    | '"' :: r =>
+      let lit := r.takeWhile literalChar
+      match r.drop lit.length with
+      | ['"'] | ['"', '\n'] =>
+        if lit.isEmpty then none else some (String.mk name, exact, lit)
+      | _ => none
+    | _ => none
+  match name, rest with
+  | c :: _, ' ' :: '=' :: ' ' :: '%' :: 's' :: r => if c.isAlpha then body true r else none
+  | c :: _, ' ' :: '=' :: ' ' :: r => if c.isAlpha then body false r else none
+  | _, _ => none
+
+/-- The tree the oracle's host builds of a string a grammar of one
+literal reads whole: the rule, the text it matched and no children. -/
+def oneLiteralTree (g s : String) : Option Data :=
+  (oneLiteral g).bind fun (name, exact, lit) =>
+    let low (l : List Char) := l.map Char.toLower
+    if (if exact then s.toList = lit else low s.toList = low lit) then
+      some (.map [("kids", .list []), ("rule", .str name), ("src", .str s)])
+    else none
+
 /-- The host the oracle computes with, whose case conversion changes the
-ASCII letters only, as every engine's does on a string of them, and
-whose regex engine reads fixed patterns alone, as every engine reads
-them: a row reads no other letter and no other pattern but one outside
-the subset. -/
+ASCII letters only, as every engine's does on a string of them, whose
+regex engine reads fixed patterns alone, as every engine reads them, and
+whose grammars are each one rule of one literal: a row reads no other
+letter, no other pattern but one outside the subset, and no other
+grammar but one that compiles in no engine. -/
 def oracleHost : Host :=
   ⟨fun _ _ => True, fun _ _ => True, fun p => (fixedPieces p).isSome,
     fun p => ((fixedPieces p).map fun ps => (ps.filter (·.1)).length).getD 0, fixedFind,
-    String.map Char.toUpper, String.map Char.toLower⟩
+    String.map Char.toUpper, String.map Char.toLower,
+    fun g => (oneLiteral g).isSome, oneLiteralTree⟩
 
 /-- The predicates behind `re` and `format`, the subset, the groups and
-the matches behind `rep` and `split` at a pattern, and the case
-conversion behind `upper` and `lower`: a constant no proof can unfold,
-so no theorem rests on what they are, and which the oracle runs as
-`oracleHost`. -/
+the matches behind `rep` and `split` at a pattern, the case conversion
+behind `upper` and `lower`, and the compiler and parser behind `abnf`
+and `parse`: a constant no proof can unfold, so no theorem rests on what
+they are, and which the oracle runs as `oracleHost`. -/
 @[implemented_by oracleHost]
 opaque host : Host
 
@@ -287,6 +331,15 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   | format {g s : String} : host.format g s → Judge env root true (.format g) (.str s)
   | formatNot {g : String} {j : Data} :
       (∀ s, j = .str s → ¬ host.format g s) → Judge env root false (.format g) j
+  /-- `parse(g)` admits the strings the host's parser reads whole under
+  the grammar `g`, the empty string under none, and refuses every other
+  value: a grammar that doesn't compile reads no string, so it admits
+  nothing. -/
+  | grammar {g s : String} :
+      s ≠ "" → (host.tree g s).isSome = true → Judge env root true (.grammar g) (.str s)
+  | grammarNot {g : String} {j : Data} :
+      (∀ s, j = .str s → s ≠ "" → (host.tree g s).isSome = false) →
+      Judge env root false (.grammar g) j
   | any {j : Data} : Judge env root true .any j
   /-- `_`, a hole no generator filled, admits every value, as `any`
   does: the value is the one that fills it. -/
@@ -699,6 +752,12 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | formatNot hn => intro b' h'; cases h' with
     | format h => exact absurd h (hn _ rfl)
     | formatNot _ => rfl
+  | grammar hs ht => intro b' h'; cases h' with
+    | grammar _ _ => rfl
+    | grammarNot hn => exact absurd ht (by rw [hn _ rfl hs]; decide)
+  | grammarNot hn => intro b' h'; cases h' with
+    | grammar hs ht => exact absurd ht (by rw [hn _ rfl hs]; decide)
+    | grammarNot _ => rfl
   | any => intro b' h'; cases h' with
     | any => rfl
   | hole => intro b' h'; cases h' with
@@ -958,6 +1017,8 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.reNot <;> assumption)
     | (apply Judge.format <;> assumption)
     | (apply Judge.formatNot <;> assumption)
+    | (apply Judge.grammar <;> assumption)
+    | (apply Judge.grammarNot <;> assumption)
     | (apply Judge.any <;> assumption)
     | (apply Judge.hole <;> assumption)
     | (apply Judge.nil <;> assumption)

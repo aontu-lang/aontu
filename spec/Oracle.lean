@@ -1838,7 +1838,8 @@ def forms : List (String × String × String) :=
     ("lit", "word", "null"), ("min", "call", "min"), ("max", "call", "max"),
     ("above", "call", "above"), ("beneath", "call", "below"), ("neq", "call", "neq"),
     ("mulof", "call", "mulof"), ("len", "call", "len"), ("unique", "call", "unique"),
-    ("re", "call", "re"), ("format", "call", "format"), ("any", "word", "any"),
+    ("re", "call", "re"), ("format", "call", "format"), ("grammar", "call", "parse"),
+    ("any", "word", "any"),
     ("nil", "word", "nil"), ("map", "syntax", "{}"), ("map", "call", "close"),
     ("list", "syntax", "[]"),
     ("or", "syntax", "|"), ("pref", "syntax", "*"), ("meet", "syntax", "&"),
@@ -1854,7 +1855,8 @@ def forms : List (String × String × String) :=
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
     ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "split"),
-    ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "project"),
+    ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "abnf"),
+    ("call", "call", "parse"), ("call", "call", "project"),
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
     ("call", "call", "line"), ("call", "call", "fragment"), ("call", "call", "slot"),
     ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems"),
@@ -1866,6 +1868,7 @@ def formSamples : List (String × Val) :=
   [("min", .min (.num one)), ("max", .max (.num one)), ("above", .above (.num one)),
     ("below", .beneath (.num one)), ("neq", .neq [.num one]), ("mulof", .mulof one),
     ("len", .len .integer), ("unique", .unique none), ("re", .re "a"), ("format", .format "email"),
+    ("parse", .grammar "v = \"a\""), ("abnf", .call .abnf [.string]), ("parse", .call .parse [.string]),
     ("close", .list [.integer] none true), ("nof", .nof .integer [.integer]),
     ("must", .must .integer "m"), ("when", .when .integer .integer none),
     ("contains", .contains .integer (.min (.num one))), ("rest", .rest .integer []),
@@ -3188,6 +3191,50 @@ theorem path_call_verdict_exact : ∀ c ∈ pathCallCases, ∀ (m : Mode) (v : V
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (pathCallCases_checkable c hc)) v
 
+/-- The grammars the rows hand `abnf` and `parse`: one rule of one
+literal, matched without regard to case and, after `%s`, exactly, which
+the oracle's host reads as every engine does, and two texts that compile
+in no engine, the empty text and a lone name. -/
+def oracleGrammars : List String := ["v = \"a\"\n", "v = %s\"ab\"", "", "v"]
+
+/-- `abnf`, which answers a grammar's source where it compiles; `parse`
+of a grammar and a string, the tree as data, met with the tree it must
+be; and `parse` of a grammar alone, the constraint of the strings it
+parses whole, against data. Each grammar is one of `oracleGrammars`. -/
+def grammarCases : List (Val × Data) :=
+  let x (v : Val) : Val := .map [("x", false, v)] none false
+  let str (s : String) : Val := .lit (.str s)
+  let one : Val := .lit (.num (.integer (.of 1)))
+  let gi := str "v = \"a\"\n"
+  let gs := str "v = %s\"ab\""
+  let tree (s : String) : Val :=
+    .map [("kids", false, .list [] none false), ("rule", false, str "v"), ("src", false, str s)] none false
+  let abnf (g : Val) : Val := .call .abnf [g]
+  let parse (g : Val) (v : Val) : Val := .call .parse [g, v]
+  let parse1 (g : Val) : Val := .call .parse [g]
+  [(x (.meet (abnf gi) gi), .map []), (x (abnf (str "")), .map []), (x (abnf (str "v")), .map []),
+    (x (abnf one), .map []),
+    (x (.meet (parse gi (str "a")) (tree "a")), .map []), (x (.meet (parse gi (str "A")) (tree "A")), .map []),
+    (x (.meet (parse gs (str "ab")) (tree "ab")), .map []), (x (parse gs (str "aB")), .map []),
+    (x (parse gi (str "b")), .map []), (x (parse gi (str "")), .map []), (x (parse (str "") (str "a")), .map []),
+    (x (parse one (str "a")), .map []), (x (parse gi one), .map []),
+    (x (.meet (parse (abnf gi) (str "a")) (tree "a")), .map []),
+    (x (.meet (parse gi (str "a")) (.map [("rule", false, str "w")] none false)), .map []),
+    (x (parse gi (str "a")), .map [("x", .map [("kids", .list []), ("rule", .str "v"), ("src", .str "a")])]),
+    (parse1 gi, .str "a"), (parse1 gi, .str "A"), (parse1 gi, .str "b"), (parse1 gi, .str ""),
+    (parse1 gs, .str "ab"), (parse1 gs, .str "AB"), (parse1 (str ""), .str "a"),
+    (x (parse1 gi), .map []), (x (.or [(1, str ""), (0, parse1 gi)]), .map []),
+    (x (.meet (parse1 gi) (str "A")), .map []), (x (.meet (parse1 gi) (str "b")), .map []),
+    (parse1 (abnf gi), .str "a")]
+
+set_option maxRecDepth 8192 in
+theorem grammarCases_checkable : ∀ c ∈ grammarCases, (vetDoc c).1.CheckableA := by decide
+
+theorem grammar_verdict_exact : ∀ c ∈ grammarCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (grammarCases_checkable c hc)) v
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | [] =>
@@ -3429,7 +3476,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# call on a name follows in rows z0 on, and a call handed a pattern, re(p), in"
     IO.println "# rows v0 on. path handed a string follows in rows k0 on: its text converted to"
     IO.println "# an address, text with no start read from one dot, and refused where it spells"
-    IO.println "# none, as is any other scalar and a container."
+    IO.println "# none, as is any other scalar and a container. abnf and parse follow in rows"
+    IO.println "# g0 on, over grammars of one rule of one literal, which the oracle's host"
+    IO.println "# reads as every engine does: abnf answers a grammar's source where it compiles,"
+    IO.println "# parse(g, v) the tree as data, and parse(g) admits the strings g parses whole."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
@@ -3449,6 +3499,10 @@ def main (args : List String) : IO UInt32 := do
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     verdictRows "k" pathCallCases
+    unless (oracleGrammars.take 2).all (fun g => (oneLiteral g).isSome) &&
+        (oracleGrammars.drop 2).all (fun g => (oneLiteral g).isNone) do
+      throw (IO.userError "a grammar of the rows the oracle's host does not read as every engine does")
+    verdictRows "g" grammarCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"

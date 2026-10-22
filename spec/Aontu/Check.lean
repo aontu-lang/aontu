@@ -318,6 +318,7 @@ inductive Val.Checkable : Val → Prop
   | mulof {d : Number} : Checkable (.mulof d)
   | len {c : Val} : Checkable c → Checkable (.len c)
   | unique {k : Option String} : Checkable (.unique k)
+  | grammar {g : String} : Checkable (.grammar g)
   | any : Checkable .any
   | hole : Checkable .hole
   | nil : Checkable .nil
@@ -419,6 +420,7 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .neq _ => ⟨fun _ => .neq, fun _ => rfl⟩
   | .mulof _ => ⟨fun _ => .mulof, fun _ => rfl⟩
   | .unique _ => ⟨fun _ => .unique, fun _ => rfl⟩
+  | .grammar _ => ⟨fun _ => .grammar, fun _ => rfl⟩
   | .any => ⟨fun _ => .any, fun _ => rfl⟩
   | .hole => ⟨fun _ => .hole, fun _ => rfl⟩
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
@@ -1042,6 +1044,7 @@ inductive Val.CheckableA : Val → Prop
   | mulof {d : Number} : CheckableA (.mulof d)
   | len {c : Val} : CheckableA c → CheckableA (.len c)
   | unique {k : Option String} : CheckableA (.unique k)
+  | grammar {g : String} : CheckableA (.grammar g)
   | any : CheckableA .any
   | hole : CheckableA .hole
   | nil : CheckableA .nil
@@ -1144,6 +1147,7 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .neq _ => ⟨fun _ => .neq, fun _ => rfl⟩
   | .mulof _ => ⟨fun _ => .mulof, fun _ => rfl⟩
   | .unique _ => ⟨fun _ => .unique, fun _ => rfl⟩
+  | .grammar _ => ⟨fun _ => .grammar, fun _ => rfl⟩
   | .any => ⟨fun _ => .any, fun _ => rfl⟩
   | .hole => ⟨fun _ => .hole, fun _ => rfl⟩
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
@@ -1344,6 +1348,7 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | mulof => exact .mulof
   | len _ ih => exact .len ih
   | unique => exact .unique
+  | grammar => exact .grammar
   | any => exact .any
   | hole => exact .hole
   | nil => exact .nil
@@ -1631,6 +1636,9 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .meet a b, j => checkWith u k a j && checkWith u k b j
   | .re _, _ => false
   | .format _, _ => false
+  | .grammar g, j => match j with
+    | .str s => decide (s ≠ "") && (host.tree g s).isSome
+    | _ => false
   | .select .key arms d, j => match k with
     | some k' => (checkArmsSelectWith u (.str k') arms j).getD (checkOptWith u d j)
     | none => false
@@ -1738,7 +1746,7 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
     | .num _ => true
     | _ => false
   | .len _, _ | .unique _, _ => true
-  | .re _, j | .format _, j => match j with
+  | .re _, j | .format _, j | .grammar _, j => match j with
     | .str t => decide (t ≠ "")
     | _ => false
   | .map fs spread closed, j => match j with
@@ -2446,6 +2454,23 @@ theorem judge_listKind (j : Data) : Judge env root (checkWith u none .listKind j
   | list xs => exact .listKind
   | _ => exact .listKindNot fun _ h => nomatch h
 
+theorem judge_grammar (g : String) (j : Data) :
+    Judge env root (checkWith u none (.grammar g) j) (.grammar g) j := by
+  cases j with
+  | str s =>
+    simp only [checkWith]
+    by_cases hs : s = ""
+    · subst hs
+      simp only [ne_eq, not_true_eq_false, decide_false, Bool.false_and]
+      exact .grammarNot fun _ e h => by cases e; exact absurd rfl h
+    · by_cases ht : (host.tree g s).isSome = true
+      · rw [decide_eq_true hs, ht]
+        exact .grammar hs ht
+      · rw [Bool.not_eq_true] at ht
+        rw [decide_eq_true hs, ht]
+        exact .grammarNot fun _ e _ => by cases e; exact ht
+  | _ => exact .grammarNot fun _ h => nomatch h
+
 theorem judge_pathKind (j : Data) : Judge env root (checkWith u none .pathKind j) .pathKind j := by
   cases j with
   | addr a => exact .pathKind
@@ -2495,6 +2520,10 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     cases j with
     | addr b => exact .pathKind
     | _ => exact .pathKindNot fun _ h => nomatch h
+  | grammar =>
+    intro j _
+    have h := judge_string (env := env) (root := root) (u := u) j
+    cases j <;> simp only [checkWith] at h <;> simp only [checkSuperWith, Val.super] <;> exact h
   | nil => intro j _; exact .nil
   | @lit s =>
     intro j _
@@ -2738,6 +2767,7 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
   | listKind => intro ky j _; refine judge_keyless rfl ?_; exact judge_listKind j
   | pathKind => intro ky j _; refine judge_keyless rfl ?_; exact judge_pathKind j
   | @addr a => intro ky j _; refine judge_keyless rfl ?_; exact judge_addr a j
+  | @grammar g => intro ky j _; refine judge_keyless rfl ?_; exact judge_grammar g j
   | @lit s =>
     intro ky j _
     refine judge_keyless rfl ?_

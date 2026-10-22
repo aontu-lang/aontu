@@ -66,6 +66,36 @@ def termElems : List Data → List Val
   | x :: xs => x.term :: termElems xs
 end
 
+/-! ## The data as a term can be read -/
+
+mutual
+theorem Data.term_checkableA : ∀ j : Data, j.term.CheckableA
+  | .num _ => .lit
+  | .str _ => .lit
+  | .bool _ => .lit
+  | .null => .lit
+  | .addr _ => .addr
+  | .map fs => .map (termMembers_checkableA fs) (fun _ h => nomatch h)
+  | .list xs => .list (termElems_checkableA xs) (fun _ h => nomatch h)
+
+theorem termMembers_checkableA : ∀ fs : List (String × Data), ∀ k o v, (k, o, v) ∈ termMembers fs →
+    v.CheckableA
+  | [], _, _, _, h => absurd h (List.not_mem_nil)
+  | (_, x) :: fs, k, o, v, h => by
+    rcases List.mem_cons.mp h with h | h
+    · simp only [Prod.mk.injEq] at h
+      obtain ⟨-, -, rfl⟩ := h
+      exact Data.term_checkableA x
+    · exact termMembers_checkableA fs k o v h
+
+theorem termElems_checkableA : ∀ xs : List Data, ∀ v, v ∈ termElems xs → v.CheckableA
+  | [], _, h => absurd h (List.not_mem_nil)
+  | x :: xs, v, h => by
+    rcases List.mem_cons.mp h with rfl | h
+    · exact Data.term_checkableA x
+    · exact termElems_checkableA xs v h
+end
+
 /-! ## Selecting: `match` and `filter`
 
 A `match` holds a value to the result of the first arm whose pattern
@@ -708,6 +738,36 @@ def pathOf (ds : Decls) (s : Val) : Made :=
   | .lit _ | .map _ _ _ | .list _ _ _ => .refused
   | _ => .waits
 
+/-- What `abnf` makes of a string: the string itself, a grammar's
+source, where the host's compiler compiles it, and refused where it
+doesn't, as for any other scalar and a container; waiting for anything
+else. -/
+def abnfOf (ds : Decls) (g : Val) : Made :=
+  match (normaliseD ds g).unride with
+  | .lit (.str t) => if host.compiles t then .made (.lit (.str t)) else .refused
+  | .lit _ | .map _ _ _ | .list _ _ _ => .refused
+  | _ => .waits
+
+/-- What `parse` makes of a grammar's text: alone, the constraint of the
+strings it parses whole, which admits none where it doesn't compile;
+with a string, the tree the host's parser builds, as data, and refused
+where the string is empty or the grammar doesn't read it. A scalar that
+isn't a string and a container are refused, and anything else waits. -/
+def parseOf (ds : Decls) (g : Val) (v : Option Val) : Made :=
+  match (normaliseD ds g).unride with
+  | .lit (.str t) =>
+    match v.map fun v => (normaliseD ds v).unride with
+    | none => .made (.grammar t)
+    | some (.lit (.str s)) =>
+      if s = "" then .refused else
+        match host.tree t s with
+        | some d => .made d.term
+        | none => .refused
+    | some (.lit _) | some (.map _ _ _) | some (.list _ _ _) => .refused
+    | some _ => .waits
+  | .lit _ | .map _ _ _ | .list _ _ _ => .refused
+  | _ => .waits
+
 /-- What a call that can wait is as a term: the term it makes, `nil`
 where it refuses its arguments, and itself, its arguments in normal
 form, where it waits. -/
@@ -754,6 +814,9 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .nom, [n, a] => (nomOf ds n (some a) none).term ds f args
   | .nom, [n, a, b] => (nomOf ds n (some a) (some b)).term ds f args
   | .path, [s] => (pathOf ds s).term ds f args
+  | .abnf, [g] => (abnfOf ds g).term ds f args
+  | .parse, [g] => (parseOf ds g none).term ds f args
+  | .parse, [g, v] => (parseOf ds g (some v)).term ds f args
   | .cmp c, args =>
     if c.takes args.length then (cmpOf ds c args.head? (args.drop 1).head?).term ds f args
     else .call f args
@@ -1108,7 +1171,7 @@ theorem Val.unwrap_checkableA : ∀ {v : Val}, v.CheckableA → v.unwrap.Checkab
   | .anyString, h | .boolean, h | .mapKind, h | .listKind, h | .pathKind, h | .lit _, h
   | .addr _, h | .min _, h
   | .max _, h | .above _, h | .beneath _, h | .neq _, h | .mulof _, h | .len _, h
-  | .unique _, h | .re _, h | .format _, h | .any, h | .nil, h | .map _ _ _, h
+  | .unique _, h | .re _, h | .format _, h | .grammar _, h | .any, h | .nil, h | .map _ _ _, h
   | .list _ _ _, h | .or _, h | .meet _ _, h | .alias _, h | .path _, h | .nof _ _, h
   | .must _ _, h | .when _ _ _, h | .contains _ _, h | .rest _ _, h | .select _ _ _, h
   | .filter _ _, h | .key, h | .keyUp _, h | .call _ _, h | .hole, h => h
@@ -1169,7 +1232,8 @@ theorem Val.members_checkableA {ds : Decls} :
   | _, .min _, _, _, hm | _, .max _, _, _, hm
   | _, .above _, _, _, hm | _, .beneath _, _, _, hm | _, .neq _, _, _, hm
   | _, .mulof _, _, _, hm | _, .len _, _, _, hm | _, .unique _, _, _, hm | _, .re _, _, _, hm
-  | _, .format _, _, _, hm | _, .any, _, _, hm | _, .nil, _, _, hm | _, .or _, _, _, hm
+  | _, .format _, _, _, hm | _, .grammar _, _, _, hm | _, .any, _, _, hm | _, .nil, _, _, hm
+  | _, .or _, _, _, hm
   | _, .pref _ _, _, _, hm | _, .meet _ _, _, _, hm | _, .alias _, _, _, hm
   | _, .path _, _, _, hm | _, .nof _ _, _, _, hm | _, .must _ _, _, _, hm
   | _, .when _ _ _, _, _, hm | _, .contains _ _, _, _, hm | _, .rest _ _, _, _, hm
@@ -1206,7 +1270,8 @@ theorem Val.keyedMembers_checkableA {ds : Decls} :
   | _, .min _, _, _, hm | _, .max _, _, _, hm
   | _, .above _, _, _, hm | _, .beneath _, _, _, hm | _, .neq _, _, _, hm
   | _, .mulof _, _, _, hm | _, .len _, _, _, hm | _, .unique _, _, _, hm | _, .re _, _, _, hm
-  | _, .format _, _, _, hm | _, .any, _, _, hm | _, .nil, _, _, hm | _, .or _, _, _, hm
+  | _, .format _, _, _, hm | _, .grammar _, _, _, hm | _, .any, _, _, hm | _, .nil, _, _, hm
+  | _, .or _, _, _, hm
   | _, .pref _ _, _, _, hm | _, .meet _ _, _, _, hm | _, .alias _, _, _, hm
   | _, .path _, _, _, hm | _, .nof _ _, _, _, hm | _, .must _ _, _, _, hm
   | _, .when _ _ _, _, _, hm | _, .contains _ _, _, _, hm | _, .rest _ _, _, _, hm
@@ -1511,6 +1576,21 @@ theorem Made.term_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkabl
     obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hw
     exact normaliseD_checkableA hd (h a ha)
 
+theorem abnfOf_checkableA {ds : Decls} {g v : Val} (h : abnfOf ds g = .made v) : v.CheckableA := by
+  unfold abnfOf at h
+  repeat' split at h
+  all_goals first
+    | (cases h; done)
+    | (obtain rfl := (Made.made.injEq _ _).mp h; exact .lit)
+
+theorem parseOf_checkableA {ds : Decls} {g : Val} {w : Option Val} {v : Val}
+    (h : parseOf ds g w = .made v) : v.CheckableA := by
+  unfold parseOf at h
+  repeat' split at h
+  all_goals first
+    | (cases h; done)
+    | (obtain rfl := (Made.made.injEq _ _).mp h; first | exact .grammar | exact Data.term_checkableA _)
+
 theorem pathOf_checkableA {ds : Decls} {s v : Val} (h : pathOf ds s = .made v) : v.CheckableA := by
   unfold pathOf at h
   repeat' split at h
@@ -1620,6 +1700,9 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => pathOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => abnfOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => parseOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => parseOf_checkableA hv
   · split
     · exact Made.term_checkableA hd h fun v hv => cmpOf_checkableA hd
         (fun s hs => h s (List.mem_of_mem_head? hs))
@@ -2416,35 +2499,6 @@ theorem elems_admit_self : ∀ xs : List Data, (∀ x, x ∈ xs → x.WellFormed
     · exact elems_admit_self xs (fun x hm => hw x (List.mem_cons_of_mem _ hm)) x hm'
 end
 
-/-! ## The data as a term can be read -/
-
-mutual
-theorem Data.term_checkableA : ∀ j : Data, j.term.CheckableA
-  | .num _ => .lit
-  | .str _ => .lit
-  | .bool _ => .lit
-  | .null => .lit
-  | .addr _ => .addr
-  | .map fs => .map (termMembers_checkableA fs) (fun _ h => nomatch h)
-  | .list xs => .list (termElems_checkableA xs) (fun _ h => nomatch h)
-
-theorem termMembers_checkableA : ∀ fs : List (String × Data), ∀ k o v, (k, o, v) ∈ termMembers fs →
-    v.CheckableA
-  | [], _, _, _, h => absurd h (List.not_mem_nil)
-  | (_, x) :: fs, k, o, v, h => by
-    rcases List.mem_cons.mp h with h | h
-    · simp only [Prod.mk.injEq] at h
-      obtain ⟨-, -, rfl⟩ := h
-      exact Data.term_checkableA x
-    · exact termMembers_checkableA fs k o v h
-
-theorem termElems_checkableA : ∀ xs : List Data, ∀ v, v ∈ termElems xs → v.CheckableA
-  | [], _, h => absurd h (List.not_mem_nil)
-  | x :: xs, v, h => by
-    rcases List.mem_cons.mp h with rfl | h
-    · exact Data.term_checkableA x
-    · exact termElems_checkableA xs v h
-end
 
 mutual
 /-- A term made of data expands to itself: it names nothing. -/

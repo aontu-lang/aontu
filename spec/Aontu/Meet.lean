@@ -140,7 +140,7 @@ def Val.doms : Val → List Dom
   | .mulof _ => [.num]
   | .len _ => [.str, .list, .map]
   | .unique _ | .contains _ _ => [.list, .map]
-  | .re _ | .format _ => [.str]
+  | .re _ | .format _ | .grammar _ => [.str]
   | .map _ _ _ => [.map]
   | .list _ _ _ => [.list]
   | .nil => []
@@ -1932,6 +1932,7 @@ def Val.beq : Val → Val → Bool
   | .unique a, .unique b => decide (a = b)
   | .re a, .re b => decide (a = b)
   | .format a, .format b => decide (a = b)
+  | .grammar a, .grammar b => decide (a = b)
   | .map fs s c, .map fs' s' c' => beqFields fs fs' && beqSpread s s' && decide (c = c')
   | .list is s c, .list is' s' c' => beqItems is is' && beqSpread s s' && decide (c = c')
   | .or as, .or bs => beqArms as bs

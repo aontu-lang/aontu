@@ -35,7 +35,7 @@ inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
   | plus | join | pick | sort | upper | lower | translate | esc | usc | split | rep | nom
-  | super | path
+  | super | path | abnf | parse
   | cmp (c : Cmp)
   | each | pack
   deriving DecidableEq, Repr

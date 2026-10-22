@@ -198,6 +198,8 @@ def Fn.name : Fn → String
   | .usc => "usc"
   | .super => "super"
   | .path => "path"
+  | .abnf => "abnf"
+  | .parse => "parse"
   | .split => "split"
   | .rep => "rep"
   | .nom => "nom"
@@ -231,6 +233,7 @@ def Val.src : Val → Option String
   | .unique (some k) => some s!"unique({quote k})"
   | .re p => some s!"re({quote p})"
   | .format g => some s!"format({quote g})"
+  | .grammar g => some s!"parse({quote g})"
   | .any => some "any"
   | .nil => some "nil"
   | .map fs spread closed => do
