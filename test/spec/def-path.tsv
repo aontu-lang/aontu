@@ -9,7 +9,8 @@
 # path to nothing is an error, as is a document that reads only by its own
 # paths. Regenerate with `make spec`; never edit by hand. The cases the ports
 # do not yet answer this way are listed in spec/ledger.tsv.
-# Paths through the riders follow in rows q0 on, which a path reads through.
+# Paths through the riders follow in rows q0 on, which a path reads through,
+# and key(n) reached through a path or a name, read where it lands, in rows r0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -214,3 +215,36 @@ q20	verdict	"a": meta([1, 2], {}), "b": $.a.1	{"a": [1, 2], "b": 2}	{"verdict":"
 q21	verdict	"a": meta({"x": $.a.y, "y": 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
 q22	verdict	"a": meta({"x": $.a.y, "y": 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid","opts":{"noFill":true}}
 q23	verdict	"a": meta({"x": $.a.y, "y": 1}, {})	{"a": {"x": 1, "y": 1}}	{"verdict":"valid","opts":{"partial":true}}
+r0	verdict	"a": {"x": key(1)}, "b": $.a	{"b": {"x": "b"}}	{"verdict":"valid"}
+r1	verdict	"a": {"x": key(1)}, "b": $.a	{"b": {"x": "b"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+r2	verdict	"a": {"x": key(1)}, "b": $.a	{"b": {"x": "b"}}	{"verdict":"valid","opts":{"partial":true}}
+r3	verdict	"a": {"x": key(1)}, "b": $.a	{}	{"verdict":"valid"}
+r4	verdict	"a": {"x": key(1)}, "b": $.a	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+r5	verdict	"a": {"x": key(1)}, "b": $.a	{}	{"verdict":"valid","opts":{"partial":true}}
+r6	verdict	"a": {"x": key(1)}, "b": $.a	{"b": {"x": "a"}}	{"verdict":"invalid"}
+r7	verdict	"a": {"x": key(1)}, "b": $.a	{"b": {"x": "a"}}	{"verdict":"invalid","opts":{"noFill":true}}
+r8	verdict	"a": {"x": key(1)}, "b": $.a	{"b": {"x": "a"}}	{"verdict":"invalid","opts":{"partial":true}}
+r9	verdict	"a": {"x": key(1)}, "b": $.a	{"a": {"x": "a"}, "b": {"x": "b"}}	{"verdict":"invalid"}
+r10	verdict	"a": {"x": key(1)}, "b": $.a	{"a": {"x": "a"}, "b": {"x": "b"}}	{"verdict":"invalid","opts":{"noFill":true}}
+r11	verdict	"a": {"x": key(1)}, "b": $.a	{"a": {"x": "a"}, "b": {"x": "b"}}	{"verdict":"invalid","opts":{"partial":true}}
+r12	verdict	"a": {"x": key(0)}, "b": $.a	{"a": {"x": "x"}, "b": {"x": "x"}}	{"verdict":"valid"}
+r13	verdict	"a": {"x": key(0)}, "b": $.a	{"a": {"x": "x"}, "b": {"x": "x"}}	{"verdict":"valid","opts":{"noFill":true}}
+r14	verdict	"a": {"x": key(0)}, "b": $.a	{"a": {"x": "x"}, "b": {"x": "x"}}	{"verdict":"valid","opts":{"partial":true}}
+r15	verdict	"a": {"x": key(1)}, "c": {"d": $.a.x}	{"c": {"d": "c"}}	{"verdict":"valid"}
+r16	verdict	"a": {"x": key(1)}, "c": {"d": $.a.x}	{"c": {"d": "c"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+r17	verdict	"a": {"x": key(1)}, "c": {"d": $.a.x}	{"c": {"d": "c"}}	{"verdict":"valid","opts":{"partial":true}}
+r18	verdict	"t": {"x": key(1)}, "a": {"b": {"c": $.t}}	{"a": {"b": {"c": {"x": "c"}}}}	{"verdict":"valid"}
+r19	verdict	"t": {"x": key(1)}, "a": {"b": {"c": $.t}}	{"a": {"b": {"c": {"x": "c"}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+r20	verdict	"t": {"x": key(1)}, "a": {"b": {"c": $.t}}	{"a": {"b": {"c": {"x": "c"}}}}	{"verdict":"valid","opts":{"partial":true}}
+r21	verdict	"a": pack(["x"], {"n": key(2)}), "b": $.a	{"b": {"x": {"n": "b"}}}	{"verdict":"valid"}
+r22	verdict	"a": pack(["x"], {"n": key(2)}), "b": $.a	{"b": {"x": {"n": "b"}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+r23	verdict	"a": pack(["x"], {"n": key(2)}), "b": $.a	{"b": {"x": {"n": "b"}}}	{"verdict":"valid","opts":{"partial":true}}
+r24	verdict	"a": pack(["x"], {"n": key(1)}), "b": {"q": $.a}	{"b": {"q": {"x": {"n": "x"}}}}	{"verdict":"valid"}
+r25	verdict	"a": pack(["x"], {"n": key(1)}), "b": {"q": $.a}	{"b": {"q": {"x": {"n": "x"}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+r26	verdict	"a": pack(["x"], {"n": key(1)}), "b": {"q": $.a}	{"b": {"q": {"x": {"n": "x"}}}}	{"verdict":"valid","opts":{"partial":true}}
+r27	verdict	%T = {"x": key(1)}\n"a": %T, "b": %T	{"a": {"x": "a"}, "b": {"x": "b"}}	{"verdict":"valid"}
+r28	verdict	%T = {"x": key(1)}\n"a": %T, "b": %T	{"a": {"x": "a"}, "b": {"x": "b"}}	{"verdict":"valid","opts":{"noFill":true}}
+r29	verdict	%T = {"x": key(1)}\n"a": %T, "b": %T	{"a": {"x": "a"}, "b": {"x": "b"}}	{"verdict":"valid","opts":{"partial":true}}
+r30	verdict	%T = {"x": key(2)}\n"a": {"b": %T}	{"a": {"b": {"x": "a"}}}	{"verdict":"valid"}
+r31	verdict	%T = {"x": key(2)}\n"a": {"b": %T}	{"a": {"b": {"x": "a"}}}	{"verdict":"valid","opts":{"noFill":true}}
+r32	verdict	%T = {"x": key(2)}\n"a": {"b": %T}	{"a": {"b": {"x": "a"}}}	{"verdict":"valid","opts":{"partial":true}}

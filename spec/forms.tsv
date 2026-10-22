@@ -52,6 +52,7 @@ ride	call	ident
 ride	call	type
 ride	call	hide
 key	call	key
+keyUp	call	key
 call	call	add
 call	call	sub
 call	call	mul

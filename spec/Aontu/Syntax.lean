@@ -283,11 +283,11 @@ def Val.hasMark (m : Rider) : Val → Bool
 /-- Whether a term carries a mark, `type()` or `hide()`, at its own position. -/
 def Val.marked (v : Val) : Bool := v.hasMark .type || v.hasMark .hide
 
-/-- Whether a term is a call at its own position, through `&` and the
-riders: a value the reading has not made, which a literal meets as a
-pair rather than by the checker. -/
+/-- Whether a term is a call or a `key(n)` at its own position, through
+`&` and the riders: a value the reading has not made, which a literal
+meets as a pair rather than by the checker. -/
 def Val.callAt : Val → Bool
-  | .call _ _ => true
+  | .call _ _ | .keyUp _ => true
   | .meet a b => a.callAt || b.callAt
   | .ride _ v _ => v.callAt
   | _ => false
