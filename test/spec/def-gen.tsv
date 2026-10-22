@@ -119,6 +119,7 @@ i30	gens	v: {"q": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], "x": $.v.q.$foo}	{
 i31	gens	v: {"q": [5, 6, 7, 8, 9, 10], "x": $.v.q.$bigi}	{"v":{"q":[5,6,7,8,9,10],"x":10}}
 i32	gens	v: {"q": {"c": 5}, "a": {"b": $.v.$PARENT.c}}	{"v":{"a":{"b":5},"q":{"c":5}}}
 i33	gens	v: {"q": {"hello": {"q": 4}}, "x": $.v.q.$bar.$PARENT}	{"v":{"q":{"hello":{"q":4}},"x":4}}
+i34	gens	v: {"q": {"hello": 1}, "x": move($.v.q.$bar)}	{"v":{"q":{},"x":1}}
 k0	gens	v: path($.a)	{"v":"$.a"}
 k1	gens	v: path($.a.b)	{"v":"$.a.b"}
 k2	gens	v: path(.a)	{"v":".a"}
