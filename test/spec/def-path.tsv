@@ -15,7 +15,8 @@
 # maybe, absence where all that is wrong with a path is that it names nothing,
 # in rows mb0 on, and pref, each literal a preference and each preference a
 # rank weaker, in rows pf0 on. Paths into a call's output, which resolve in the
-# root with its calls made, follow in rows pc0 on.
+# root with its calls made, follow in rows pc0 on, and move, a preference of
+# the value a path reads with its source hidden, in rows mv0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -580,3 +581,30 @@ pc23	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{}	{"verdict":"valid","opts"
 pc24	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{"b": 3}	{"verdict":"invalid"}
 pc25	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{"b": 3}	{"verdict":"invalid","opts":{"noFill":true}}
 pc26	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{"b": 3}	{"verdict":"invalid","opts":{"partial":true}}
+mv0	verdict	"a": 1, "b": move($.a)	{}	{"verdict":"valid"}
+mv1	verdict	"a": 1, "b": move($.a)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv2	verdict	"a": 1, "b": move($.a)	{}	{"verdict":"valid","opts":{"partial":true}}
+mv3	verdict	"a": 1, "b": move($.a)	{"a": 1}	{"verdict":"valid"}
+mv4	verdict	"a": 1, "b": move($.a)	{"a": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv5	verdict	"a": 1, "b": move($.a)	{"a": 1}	{"verdict":"valid","opts":{"partial":true}}
+mv6	verdict	"a": 1, "b": move($.a)	{"a": 2}	{"verdict":"invalid"}
+mv7	verdict	"a": 1, "b": move($.a)	{"a": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+mv8	verdict	"a": 1, "b": move($.a)	{"a": 2}	{"verdict":"invalid","opts":{"partial":true}}
+mv9	verdict	"a": 1, "b": move($.a)	{"b": 2}	{"verdict":"valid"}
+mv10	verdict	"a": 1, "b": move($.a)	{"b": 2}	{"verdict":"valid","opts":{"noFill":true}}
+mv11	verdict	"a": 1, "b": move($.a)	{"b": 2}	{"verdict":"valid","opts":{"partial":true}}
+mv12	verdict	"a": {"c": 1, "d": 2}, "b": move($.a.c)	{}	{"verdict":"valid"}
+mv13	verdict	"a": {"c": 1, "d": 2}, "b": move($.a.c)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv14	verdict	"a": {"c": 1, "d": 2}, "b": move($.a.c)	{}	{"verdict":"valid","opts":{"partial":true}}
+mv15	verdict	"a": {"c": 1, "d": 2}, "b": move($.a.c)	{"a": {"d": 2}, "b": 1}	{"verdict":"valid"}
+mv16	verdict	"a": {"c": 1, "d": 2}, "b": move($.a.c)	{"a": {"d": 2}, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
+mv17	verdict	"a": {"c": 1, "d": 2}, "b": move($.a.c)	{"a": {"d": 2}, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
+mv18	verdict	"a": [1, 2], "b": move($.a)	{}	{"verdict":"valid"}
+mv19	verdict	"a": [1, 2], "b": move($.a)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv20	verdict	"a": [1, 2], "b": move($.a)	{}	{"verdict":"valid","opts":{"partial":true}}
+mv21	verdict	"b": move({"x": 1})	{}	{"verdict":"valid"}
+mv22	verdict	"b": move({"x": 1})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv23	verdict	"b": move({"x": 1})	{}	{"verdict":"valid","opts":{"partial":true}}
+mv24	verdict	"b": move($.gone)	{}	{"verdict":"error"}
+mv25	verdict	"b": move($.gone)	{}	{"verdict":"error","opts":{"noFill":true}}
+mv26	verdict	"b": move($.gone)	{}	{"verdict":"error","opts":{"partial":true}}
