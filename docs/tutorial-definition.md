@@ -2807,17 +2807,19 @@ def Decls.pathAt (ds : Decls) (root : Val) (p : List Seg) : Option Val :=
   (p.mapM ds.bindSeg).bind root.atW
 ```
 
-A path resolves in the schema's own tree, before any data: a key the
-data alone supplies is no position, and a path to nothing is an
-`error`, but where `maybe` forgives it, as step 33 shows. The term it
-reads is then taken from the root, data and all:
+A path resolves in the schema's own tree, before any data and with its
+calls made, so a path into a call's output resolves: `$.b.camel` beside
+`b: nom("ab_cd")` reads `"abCd"`. A key the data alone supplies is no
+position, and a path to nothing is an `error`, but where `maybe`
+forgives it, as step 33 shows. The term it reads is then taken from the
+root, data and all:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- Every path of the document that must name something resolves in
 the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.strictPaths S → (ds.pathAt (normaliseD ds (ds.read S)) p).isSome = true
+  ∀ p, p ∈ ds.strictPaths S → (ds.pathAt (normaliseD ds (ds.readU S)) p).isSome = true
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -7516,12 +7518,15 @@ The data overrides `port` and `cpu`, and `mem` fills from its default.
 A kind and a bound stay as written, so `pref(integer)` is `integer`.
 `pref` reads a path first, so `pref($.a)` is the preference of what
 `$.a` names, and a `pref` that waits on one stands where its argument does.
+A path into its output reads the preference, so `$.b.x` beside
+`b: pref({ x:1 })` is `*1`.
 `pref(1 | 2)` is `*1 | *2`, two defaults of one rank that disagree, a
 clash as step 14 reads it: an `error`, as `*1 | *2` written so is.
 
 Rows pf0 on of `test/spec/def-path.tsv` hold these readings in the
-three modes of `vet`, and both engines answer every one as the
-definition does. They answer `pref(1 | 2)` `invalid` where they answer
+three modes of `vet`, rows pc0 on hold paths into a call's output, and
+both engines answer every one as the definition does. They answer
+`pref(1 | 2)` `invalid` where they answer
 `*1 | *2` an `error`, and no row holds that case, which #482 tracks.
 
 ## 35. What the definition doesn't say yet
