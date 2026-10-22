@@ -19,7 +19,8 @@
 # the value a path reads with its source hidden, in rows mv0 on. Paths into
 # what a call over a path makes, which resolve a round later, follow in rows
 # rn0 on, and refer, a link that keeps its address, its template met into
-# its target, in rows rf0 on.
+# its target, in rows rf0 on. rel, a relation whose value holds a link at
+# each leaf, follows in rows rl0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -812,3 +813,87 @@ rf104	verdict	%L = (refer({"z": {}})) & (path($.h))\n"h": {}, "x": (refer({"p": 
 rf105	verdict	"h": {}, "x": (refer({"p": {}})) & (path($.h.q)), "y": (refer({"q": {}})) & (path($.h.p))	{}	{"verdict":"error"}
 rf106	verdict	"h": {}, "x": (refer({"p": {}})) & (path($.h.q)), "y": (refer({"q": {}})) & (path($.h.p))	{}	{"verdict":"error","opts":{"noFill":true}}
 rf107	verdict	"h": {}, "x": (refer({"p": {}})) & (path($.h.q)), "y": (refer({"q": {}})) & (path($.h.p))	{}	{"verdict":"error","opts":{"partial":true}}
+rl0	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"valid"}
+rl1	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl2	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"valid","opts":{"partial":true}}
+rl3	verdict	"a": {}, "b": {}, "s": {"d": (rel()) & ([path($.a), path($.b)])}	{}	{"verdict":"valid"}
+rl4	verdict	"a": {}, "b": {}, "s": {"d": (rel()) & ([path($.a), path($.b)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl5	verdict	"a": {}, "b": {}, "s": {"d": (rel()) & ([path($.a), path($.b)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+rl6	verdict	"a": {}, "s": {"u": (rel()) & ({"primary": path($.a)})}	{}	{"verdict":"valid"}
+rl7	verdict	"a": {}, "s": {"u": (rel()) & ({"primary": path($.a)})}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl8	verdict	"a": {}, "s": {"u": (rel()) & ({"primary": path($.a)})}	{}	{"verdict":"valid","opts":{"partial":true}}
+rl9	verdict	"a": {}, "s": {"u": (rel()) & ({"t1": {"primary": path($.a)}})}	{}	{"verdict":"valid"}
+rl10	verdict	"a": {}, "s": {"u": (rel()) & ({"t1": {"primary": path($.a)}})}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl11	verdict	"a": {}, "s": {"u": (rel()) & ({"t1": {"primary": path($.a)}})}	{}	{"verdict":"valid","opts":{"partial":true}}
+rl12	verdict	"a": {}, "d": (rel()) & ([[path($.a)]])	{}	{"verdict":"valid"}
+rl13	verdict	"a": {}, "d": (rel()) & ([[path($.a)]])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl14	verdict	"a": {}, "d": (rel()) & ([[path($.a)]])	{}	{"verdict":"valid","opts":{"partial":true}}
+rl15	verdict	"a": {}, "d": (rel()) & ({"x": [path($.a)]})	{}	{"verdict":"valid"}
+rl16	verdict	"a": {}, "d": (rel()) & ({"x": [path($.a)]})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl17	verdict	"a": {}, "d": (rel()) & ({"x": [path($.a)]})	{}	{"verdict":"valid","opts":{"partial":true}}
+rl18	verdict	"a": {}, "b": {}, "s": {"d": (rel({"kind": "svc"})) & ([path($.a), path($.b)])}	{}	{"verdict":"valid"}
+rl19	verdict	"a": {}, "b": {}, "s": {"d": (rel({"kind": "svc"})) & ([path($.a), path($.b)])}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl20	verdict	"a": {}, "b": {}, "s": {"d": (rel({"kind": "svc"})) & ([path($.a), path($.b)])}	{}	{"verdict":"valid","opts":{"partial":true}}
+rl21	verdict	"a": {}, "b": {}, "s": {"d": (rel({"kind": "svc"})) & ([path($.a), path($.b)])}	{"b": {"kind": "db"}}	{"verdict":"invalid"}
+rl22	verdict	"a": {}, "b": {}, "s": {"d": (rel({"kind": "svc"})) & ([path($.a), path($.b)])}	{"b": {"kind": "db"}}	{"verdict":"invalid","opts":{"noFill":true}}
+rl23	verdict	"a": {}, "b": {}, "s": {"d": (rel({"kind": "svc"})) & ([path($.a), path($.b)])}	{"b": {"kind": "db"}}	{"verdict":"invalid","opts":{"partial":true}}
+rl24	verdict	"a": {"kind": "db"}, "s": {"d": (rel({"kind": "svc"})) & ([path($.a)])}	{}	{"verdict":"error"}
+rl25	verdict	"a": {"kind": "db"}, "s": {"d": (rel({"kind": "svc"})) & ([path($.a)])}	{}	{"verdict":"error","opts":{"noFill":true}}
+rl26	verdict	"a": {"kind": "db"}, "s": {"d": (rel({"kind": "svc"})) & ([path($.a)])}	{}	{"verdict":"error","opts":{"partial":true}}
+rl27	verdict	"a": {}, "s": {"d": (rel()) & ([path($.a), path($.nosuch)])}	{}	{"verdict":"error"}
+rl28	verdict	"a": {}, "s": {"d": (rel()) & ([path($.a), path($.nosuch)])}	{}	{"verdict":"error","opts":{"noFill":true}}
+rl29	verdict	"a": {}, "s": {"d": (rel()) & ([path($.a), path($.nosuch)])}	{}	{"verdict":"error","opts":{"partial":true}}
+rl30	verdict	"a": {}, "d": (rel()) & ([path($.a), 7])	{}	{"verdict":"error"}
+rl31	verdict	"a": {}, "d": (rel()) & ([path($.a), 7])	{}	{"verdict":"error","opts":{"noFill":true}}
+rl32	verdict	"a": {}, "d": (rel()) & ([path($.a), 7])	{}	{"verdict":"error","opts":{"partial":true}}
+rl33	verdict	"a": {}, "d": (rel()) & ("x")	{}	{"verdict":"error"}
+rl34	verdict	"a": {}, "d": (rel()) & ("x")	{}	{"verdict":"error","opts":{"noFill":true}}
+rl35	verdict	"a": {}, "d": (rel()) & ("x")	{}	{"verdict":"error","opts":{"partial":true}}
+rl36	verdict	"a": {}, "s": {"d": rel()}	{"s": {"d": ["$.a"]}}	{"verdict":"invalid"}
+rl37	verdict	"a": {}, "s": {"d": rel()}	{"s": {"d": ["$.a"]}}	{"verdict":"invalid","opts":{"noFill":true}}
+rl38	verdict	"a": {}, "s": {"d": rel()}	{"s": {"d": ["$.a"]}}	{"verdict":"invalid","opts":{"partial":true}}
+rl39	verdict	"a": {}, "s": {"d": rel()}	{"s": {"d": 7}}	{"verdict":"invalid"}
+rl40	verdict	"a": {}, "s": {"d": rel()}	{"s": {"d": 7}}	{"verdict":"invalid","opts":{"noFill":true}}
+rl41	verdict	"a": {}, "s": {"d": rel()}	{"s": {"d": 7}}	{"verdict":"invalid","opts":{"partial":true}}
+rl42	verdict	"d": rel()	{}	{"verdict":"incomplete"}
+rl43	verdict	"d": rel()	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl44	verdict	"d": rel()	{}	{"verdict":"valid","opts":{"partial":true}}
+rl45	verdict	"d"?: rel()	{}	{"verdict":"valid"}
+rl46	verdict	"d"?: rel()	{}	{"verdict":"valid","opts":{"noFill":true}}
+rl47	verdict	"d"?: rel()	{}	{"verdict":"valid","opts":{"partial":true}}
+rl48	verdict	"a": {}, "d": (rel()) & ([])	{}	{"verdict":"valid"}
+rl49	verdict	"a": {}, "d": (rel()) & ([])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl50	verdict	"a": {}, "d": (rel()) & ([])	{}	{"verdict":"valid","opts":{"partial":true}}
+rl51	verdict	"a": {}, "d": (rel()) & ({})	{}	{"verdict":"valid"}
+rl52	verdict	"a": {}, "d": (rel()) & ({})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl53	verdict	"a": {}, "d": (rel()) & ({})	{}	{"verdict":"valid","opts":{"partial":true}}
+rl54	verdict	"x": {}, "s": ({"d": rel()}) & ({"d": [path($.x)]})	{}	{"verdict":"valid"}
+rl55	verdict	"x": {}, "s": ({"d": rel()}) & ({"d": [path($.x)]})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl56	verdict	"x": {}, "s": ({"d": rel()}) & ({"d": [path($.x)]})	{}	{"verdict":"valid","opts":{"partial":true}}
+rl57	verdict	"x": {}, "s": {"d": (rel({"p": 1})) & ((rel({"q": 2})) & ([path($.x)]))}	{"x": {"p": 1, "q": 3}}	{"verdict":"invalid"}
+rl58	verdict	"x": {}, "s": {"d": (rel({"p": 1})) & ((rel({"q": 2})) & ([path($.x)]))}	{"x": {"p": 1, "q": 3}}	{"verdict":"invalid","opts":{"noFill":true}}
+rl59	verdict	"x": {}, "s": {"d": (rel({"p": 1})) & ((rel({"q": 2})) & ([path($.x)]))}	{"x": {"p": 1, "q": 3}}	{"verdict":"invalid","opts":{"partial":true}}
+rl60	verdict	%L = (rel({"k": 1})) & ([path($.a)])\n"a": {}	{"a": {"k": 2}}	{"verdict":"invalid"}
+rl61	verdict	%L = (rel({"k": 1})) & ([path($.a)])\n"a": {}	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+rl62	verdict	%L = (rel({"k": 1})) & ([path($.a)])\n"a": {}	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+rl63	verdict	"x": (rel({"p": 1})) & ([path($.h.z)]), "h": {}, "y": (rel({"z": {}})) & ([path($.h)])	{}	{"verdict":"valid"}
+rl64	verdict	"x": (rel({"p": 1})) & ([path($.h.z)]), "h": {}, "y": (rel({"z": {}})) & ([path($.h)])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl65	verdict	"x": (rel({"p": 1})) & ([path($.h.z)]), "h": {}, "y": (rel({"z": {}})) & ([path($.h)])	{}	{"verdict":"valid","opts":{"partial":true}}
+rl66	verdict	"x": (rel({"p": 1})) & ([path($.h.z)]), "h": {}, "y": (rel({"z": {}})) & ([path($.h)])	{"h": {"z": {"p": 2}}}	{"verdict":"invalid"}
+rl67	verdict	"x": (rel({"p": 1})) & ([path($.h.z)]), "h": {}, "y": (rel({"z": {}})) & ([path($.h)])	{"h": {"z": {"p": 2}}}	{"verdict":"invalid","opts":{"noFill":true}}
+rl68	verdict	"x": (rel({"p": 1})) & ([path($.h.z)]), "h": {}, "y": (rel({"z": {}})) & ([path($.h)])	{"h": {"z": {"p": 2}}}	{"verdict":"invalid","opts":{"partial":true}}
+rl69	verdict	"h": {}, "d": (rel({"z": {}})) & ([path($.h), path($.h.z)])	{}	{"verdict":"valid"}
+rl70	verdict	"h": {}, "d": (rel({"z": {}})) & ([path($.h), path($.h.z)])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl71	verdict	"h": {}, "d": (rel({"z": {}})) & ([path($.h), path($.h.z)])	{}	{"verdict":"valid","opts":{"partial":true}}
+rl72	verdict	"h": {}, "d": (rel({"z": {}})) & ([path($.h), path($.h.z)])	{"h": {"z": {"z": 5}}}	{"verdict":"invalid"}
+rl73	verdict	"h": {}, "d": (rel({"z": {}})) & ([path($.h), path($.h.z)])	{"h": {"z": {"z": 5}}}	{"verdict":"invalid","opts":{"noFill":true}}
+rl74	verdict	"h": {}, "d": (rel({"z": {}})) & ([path($.h), path($.h.z)])	{"h": {"z": {"z": 5}}}	{"verdict":"invalid","opts":{"partial":true}}
+rl75	verdict	"a": {}, "d": (rel()) & (path)	{}	{"verdict":"incomplete"}
+rl76	verdict	"a": {}, "d": (rel()) & (path)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl77	verdict	"a": {}, "d": (rel()) & (path)	{}	{"verdict":"valid","opts":{"partial":true}}
+rl78	verdict	"a": {}, "b": (refer({"p": 1})) & (path($.a)), "d": (rel({"q": 2})) & ([path($.a)])	{"a": {"p": 1, "q": 2}}	{"verdict":"valid"}
+rl79	verdict	"a": {}, "b": (refer({"p": 1})) & (path($.a)), "d": (rel({"q": 2})) & ([path($.a)])	{"a": {"p": 1, "q": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rl80	verdict	"a": {}, "b": (refer({"p": 1})) & (path($.a)), "d": (rel({"q": 2})) & ([path($.a)])	{"a": {"p": 1, "q": 2}}	{"verdict":"valid","opts":{"partial":true}}
+rl81	verdict	"a": {}, "d": (rel()) & (true)	{}	{"verdict":"error"}
+rl82	verdict	"a": {}, "d": (rel()) & (true)	{}	{"verdict":"error","opts":{"noFill":true}}
+rl83	verdict	"a": {}, "d": (rel()) & (true)	{}	{"verdict":"error","opts":{"partial":true}}

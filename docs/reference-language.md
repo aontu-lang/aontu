@@ -4109,6 +4109,22 @@ reports the same findings without generating, and the library exposes
 `relationCheck(src)`. The closure question (does `a` reach `b` at any
 remove?) is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches).
 
+In the definition, `rel(t)` reads as the relation kind, `relKind` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): an address, or
+a list or a map of addresses nested to any depth, so a string, a number
+or `true` where an address must be is an `error`. Each leaf of the
+value is a link, which `Decls.withRefers` in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean) reads as it reads a
+`refer`, the leaf's address read from the relation's own position. The
+definition has no rule yet for `acyclic()` and `inverse(k)`, which
+`vet` doesn't check either
+([#491](https://github.com/aontu-lang/aontu/issues/491)). Rows rl0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it. No row holds a relative address at a leaf of a list or a map,
+which the engines read from different places
+([#492](https://github.com/aontu-lang/aontu/issues/492),
+[#493](https://github.com/aontu-lang/aontu/issues/493)).
+
 There is no reserved `relations:` key: a document that writes one has
 written ordinary data. The tree is user space at every level.
 

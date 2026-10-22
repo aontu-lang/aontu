@@ -200,6 +200,7 @@ def Fn.name : Fn → String
   | .pref => "pref"
   | .move => "move"
   | .refer => "refer"
+  | .rel => "rel"
   | .path => "path"
   | .abnf => "abnf"
   | .parse => "parse"
