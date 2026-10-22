@@ -1735,12 +1735,16 @@ $ echo $?
 
 `any` admits every value and refuses none, and `nil` refuses every
 value and admits none, each by its one rule. They're the [top](unification.md) and the
-[bottom](unification.md) of the [lattice](unification.md). The hole `_`,
-which step 27 reads, admits every value too where nothing fills it:
+[bottom](unification.md) of the [lattice](unification.md). Absence,
+which step 33 reads, admits every value too, and so does the hole `_`,
+which step 27 reads, where nothing fills it:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
   | any {j : Data} : Judge env root true .any j
+  /-- Absence admits every value, as `any` does: it differs from `any`
+  in what it generates, and nothing else. -/
+  | absent {j : Data} : Judge env root true .absent j
   /-- `_`, a hole no generator filled, admits every value, as `any`
   does: the value is the one that fills it. -/
   | hole {j : Data} : Judge env root true .hole j
@@ -2805,13 +2809,15 @@ def Decls.pathAt (ds : Decls) (root : Val) (p : List Seg) : Option Val :=
 
 A path resolves in the schema's own tree, before any data: a key the
 data alone supplies is no position, and a path to nothing is an
-`error`. The term it reads is then taken from the root, data and all:
+`error`, but where `maybe` forgives it, as step 33 shows. The term it
+reads is then taken from the root, data and all:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- Every path of the document resolves in the schema's own tree. -/
+/-- Every path of the document that must name something resolves in
+the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.docPaths S → (ds.pathAt (normaliseD ds (ds.read S)) p).isSome = true
+  ∀ p, p ∈ ds.strictPaths S → (ds.pathAt (normaliseD ds (ds.read S)) p).isSome = true
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -3133,6 +3139,8 @@ with a term:
 def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Val) : Val :=
   match a, b with
   | .nil, _ | _, .nil => .nil
+  | .absent, b => absentOr (rec .any b)
+  | a, .absent => absentOr (rec a .any)
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
   | .ride k v r, b => .ride k (rec v b) r
@@ -3151,7 +3159,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
 ```
 
 Read each row as *these two shapes meet in this one*. `nil` is the
-zero: it admits nothing, so nor does any meet with it. A meet on either
+zero: it admits nothing, so nor does any meet with it. Absence, step
+33's, is the unit, but met with `any` it stays absence. A meet on either
 side is met one side at a time, and on the right `meetRight` tries each
 atom against each other once: `a` meets `b₁`, and where the two had
 nothing to say to each other, such as `min(1)` and `max(9)`, `a` meets
@@ -3736,7 +3745,7 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
-  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any => .any
+  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent => .any
   | .nil => .nil
   | .lit (.num x) => x.leaf.kind
   | .lit (.str s) => if s = "" then .anyString else .string
@@ -3939,7 +3948,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
   | .re _, _ | .format _, _ | .grammar _, _
-  | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
+  | .any, _ | .absent, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
   | .key, _ | .keyUp _, _ | .call _ _, _ | .hole, _ => False
 ```
@@ -3960,7 +3969,8 @@ none has one. So `*1 | 2` generates `1`, `1 | 1` generates `1`, and
 value generates. A meet left as written, two atoms or a container with
 a constraint, generates what its left side generates and its right
 admits, or the other way about where the left generates nothing. A
-kind, a bound, `any`, `nil`, an alias and a path generate nothing.
+kind, a bound, `any`, absence, `nil`, an alias and a path generate
+nothing.
 
 `Output` reads `Gen` off the visible part of the normal form of step
 10, where every meet is computed and every dead arm dropped. The visible
@@ -4140,13 +4150,15 @@ A mark is a rider, `ride` with the call `type` or `hide` and no record,
 so it judges every datum as its value does, as the riders of step 19
 do, and it rides every meet: `{a: integer} & {a: hide(1)}` leaves `a`
 out too. Evaluation generates what it singles out from the term's
-visible part, in which a marked member is optional and holds anything:
+visible part, in which a member left out of the output, `leftOut`, is
+optional and holds anything: a marked member, and an absent member,
+step 33's:
 
 <!-- test: quote spec/Aontu/Output.lean -->
 ```lean
 def visibleFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
-  | (k, o, v) :: fs => (if v.marked then (k, true, .any) else (k, o, v.visible)) :: visibleFields fs
+  | (k, o, v) :: fs => (if v.leftOut then (k, true, .any) else (k, o, v.visible)) :: visibleFields fs
 ```
 
 A map's marked spread holds anything the same way. A mark on a list's
@@ -5127,8 +5139,10 @@ its template read for each member of its data, in the order `Val.members`
 reads them, and `nil` where the data is no bag. A `pack` is the open map
 of its template read for each member `Val.keyedMembers` reads, under the
 member's key, the instances of a repeated key met, and `nil` where the
-data is no bag or a list holds anything but a string.
-Any other call, its
+data is no bag or a list holds anything but a string. A `maybe` is
+what `maybeOf` makes of its argument, and a call, a generator, a
+selection or a `filter` that takes absence is absence, as a list holds
+no position for an element that is absence. Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
 hole, and a `filter`'s condition and a template are read for their own
 members, so none of them is read for `b`. Each `key(n)` reads `here`, by
@@ -5146,7 +5160,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let d' := resolveSpread ds b here d
     match genD ds s' with
     | some x => if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
-    | none => .select s' arms' d'
+    | none => if (normaliseD ds s').isAbsent then .absent else .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
     if here.isNone && c.holdsKey then .filter s' c else
@@ -5156,7 +5170,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     | some (.list xs) => (Data.list (keptAt (fun i x =>
         checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term
     | some _ => .nil
-    | none => .filter s' (resolveD ds none none c)
+    | none => if (normaliseD ds s').isAbsent then .absent else .filter s' (resolveD ds none none c)
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
@@ -5277,6 +5291,7 @@ inductive Val.Checkable : Val → Prop
   | unique {k : Option String} : Checkable (.unique k)
   | grammar {g : String} : Checkable (.grammar g)
   | any : Checkable .any
+  | absent : Checkable .absent
   | hole : Checkable .hole
   | nil : Checkable .nil
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
@@ -5989,7 +6004,8 @@ that no member is below it.
 
 The members are the ones the output would hold: a list's elements in
 order, and a map's members in key order, but neither an optional member
-whose value generates nothing nor a marked one, unless the bag carries
+whose value generates nothing, nor an absent one, step 33's, nor
+a marked one, unless the bag carries
 a mark itself, which lifts its members' marks, so
 `sum(type({a: hide(1), b: 2}))` is `3`. An optional member whose value
 generates an empty map or list counts as one that generates nothing, as
@@ -6001,7 +6017,7 @@ def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val
   | .ride k v _ => v.members ds (lifted || decide (k = .type) || decide (k = .hide))
   | .list items _ _ => some items
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
-      if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
+      if (!lifted && m.2.2.marked) || m.2.2.isAbsent || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
       else some m.2.2)
   | _ => none
 ```
@@ -6738,7 +6754,7 @@ and an `each` reads its template once for each member of its data:
       if here.isNone && (resolveD ds b here d).holdsKey then .call .each [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).members ds with
       | some ms => .list (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t) none false
-      | none => .nil
+      | none => if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent else .nil
 ```
 
 So the template replaces the member, unless the template names the
@@ -6806,7 +6822,7 @@ each member, but into an open map:
       | some ms =>
         .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
           fun m => (m.1, false, m.2)) none false
-      | none => .nil
+      | none => if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent else .nil
 ```
 
 `Val.keyedMembers` pairs each member with its key. It reads a map's
@@ -6898,7 +6914,8 @@ stands one key below the map, and a list's element one index below:
   | .map fs spread closed =>
     .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
   | .list items spread closed =>
-    .list (resolveElems ds b here 0 items) (resolveSpread ds none (stepped here .spread) spread) closed
+    .list ((resolveElems ds b here 0 items).filter fun e => !(normaliseD ds e).isAbsent)
+      (resolveSpread ds none (stepped here .spread) spread) closed
 ```
 
 and a key reads the position it stands at:
@@ -7319,7 +7336,102 @@ children. Rows g0 to g83 of `test/spec/def-call.tsv` hold `abnf`,
 two texts that compile in no engine. Both engines answer every row as
 the definition does.
 
-## 33. What the definition doesn't say yet
+## 33. Optional input
+
+A path that names nothing is an error, as it should be: a typo should
+be loud. `maybe(v)` is how a document reads input that may not be
+there. Write `optional.aontu`:
+
+<!-- test: file optional.aontu -->
+```aontu
+name: "web"
+port: maybe($.config.port)
+tags: ["a" maybe($.config.tag)]
+```
+
+<!-- test: run -->
+```sh
+$ aontu optional.aontu
+{
+  "name": "web",
+  "tags": [
+    "a"
+  ]
+}
+```
+
+Nothing names `config`, so `port` and the second tag are **absence**,
+`Val.absent`, which the definition reads this way:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-! ## Absence
+
+`maybe(v)` is `v` where it names something, and absence where all that
+is wrong with it is that it doesn't: a reference at the top of `v`, `v`
+itself, a side of a meet, an arm of a disjunction or the value under a
+rider, names nothing in the document read. Absence admits every value,
+generates nothing, and is the unit of the meet, but met with `any` it
+stays absence; a map leaves it out of its output at a required key as
+at an optional one, a list holds no position for it, and a call that
+takes it makes it. -/
+```
+
+`maybeOf` says what's wrong with the argument by reading it twice,
+with each reference at its top that names nothing read as `nil` and
+then as `any`:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- What `maybe` makes of its argument, read: absence where a reference
+at its top names nothing and that is all that is wrong with it, so that
+the argument is dead with each such reference read as `nil` and live
+with each read as `any`; otherwise the argument with each such
+reference read as `nil`, which drops an arm that holds one and leaves a
+conflict for the document to answer. Where a path at its top is not
+read yet, the call waits. -/
+def maybeOf (ds : Decls) (v : Val) : Val :=
+  if v.pathTop then .call .maybe [v]
+  else if v.missingTop ds then
+    if (normaliseD ds (fillTop ds .nil v)).dead && !(normaliseD ds (fillTop ds .any v)).dead then .absent
+    else fillTop ds .nil v
+  else v
+```
+
+So `maybe($.gone & 1)` is absence too, since `1` alone is live, and
+`maybe($.gone | 1)` is `1`, the arm the missing path kills dropped.
+`maybe(1 & 2)` is the conflict, an error, as `1 & 2` is anywhere, and a
+path under a call isn't at the top, so `maybe(upper($.gone))` is an
+error as `upper($.gone)` is. `vet` reads paths from the data as well,
+so against `{"gone": 5}`, `b: maybe($.gone)` asks for `5` at `b`.
+
+Absence is the unit of the meet, so `1 & maybe($.gone)` is `1`:
+
+<!-- test: quote spec/Aontu/Meet.lean -->
+```lean
+/-- A meet with absence: what the other side's normal form is, but
+absence where that is `any`, which absence is below. -/
+def absentOr (v : Val) : Val := if v.isAny then .absent else v
+```
+
+Absence admits every value, as `any` does, so where the two differ is
+generation. An absent member of a map is optional in the visible part
+of step 13, `leftOut`, so `vet` reads `port` as a key the data may
+leave out and the output leaves it out. A list holds no position for
+an absent element: `resolveD` drops it as it reads the list, so the
+second tag never meets anything. A call that takes
+absence makes it, so `upper(maybe($.gone))` is absence too, and so do
+`each`, `pack`, `match` and `filter`.
+
+Rows mb0 on of `test/spec/def-path.tsv` hold these readings in the
+three modes of `vet`, and both engines answer every row as the
+definition does. Where the engines read absence otherwise, no row
+holds the case, which #479 tracks: they forgive a conflict beside a
+missing path, they keep a list's absent element at its position while
+the list meets another, so that their output can fail their own `vet`,
+and decision 24 of the design note asks which reading is right.
+
+## 34. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -7327,7 +7439,7 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
-steps 20 to 26 don't walk through, `key()` deeper in a spread than its
+steps 20 to 26 and 33 don't walk through, `key()` deeper in a spread than its
 own position, a relative path in a spread, a template or a `filter`'s
 condition, generation with `emit`, a string constraint met with a path
 value, and the links `refer` and `rel`. [`aontu vet`](reference-api.md#aontu-vet) states which
