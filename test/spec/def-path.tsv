@@ -679,3 +679,27 @@ rn41	verdict	"a": {"x": 1}, "b": pref($.a), "c": $.b.x	{}	{"verdict":"valid","op
 rn42	verdict	"a": {"x": 1}, "b": pref($.a), "c": $.b.x	{"c": 2}	{"verdict":"valid"}
 rn43	verdict	"a": {"x": 1}, "b": pref($.a), "c": $.b.x	{"c": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
 rn44	verdict	"a": {"x": 1}, "b": pref($.a), "c": $.b.x	{"c": 2}	{"verdict":"valid","opts":{"partial":true}}
+rn45	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": nom($.u.camel)}, "c": $.b.x	{}	{"verdict":"valid"}
+rn46	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": nom($.u.camel)}, "c": $.b.x	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rn47	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": nom($.u.camel)}, "c": $.b.x	{}	{"verdict":"valid","opts":{"partial":true}}
+rn48	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": nom($.u.camel)}, "c": $.b.x	{"c": {"snake": "ab_cd"}}	{"verdict":"valid"}
+rn49	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": nom($.u.camel)}, "c": $.b.x	{"c": {"snake": "ab_cd"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rn50	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": nom($.u.camel)}, "c": $.b.x	{"c": {"snake": "ab_cd"}}	{"verdict":"valid","opts":{"partial":true}}
+rn51	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": nom($.u.camel)}, "c": $.b.x	{"c": {"snake": "x"}}	{"verdict":"invalid"}
+rn52	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": nom($.u.camel)}, "c": $.b.x	{"c": {"snake": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+rn53	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": nom($.u.camel)}, "c": $.b.x	{"c": {"snake": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+rn54	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": upper(nom($.u.camel, "snake"))}, "c": $.b.x	{"c": "AB_CD"}	{"verdict":"valid"}
+rn55	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": upper(nom($.u.camel, "snake"))}, "c": $.b.x	{"c": "AB_CD"}	{"verdict":"incomplete","opts":{"noFill":true}}
+rn56	verdict	"a": "ab_cd", "u": nom($.a), "b": {"x": upper(nom($.u.camel, "snake"))}, "c": $.b.x	{"c": "AB_CD"}	{"verdict":"valid","opts":{"partial":true}}
+rn57	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b	{}	{"verdict":"valid"}
+rn58	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rn59	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b	{}	{"verdict":"valid","opts":{"partial":true}}
+rn60	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b	{"c": {"camel": "x"}}	{"verdict":"invalid"}
+rn61	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b	{"c": {"camel": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+rn62	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b	{"c": {"camel": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+rn63	verdict	"l": [1, 2], "e": each($.l, {"v": _}), "c": $.e	{}	{"verdict":"valid"}
+rn64	verdict	"l": [1, 2], "e": each($.l, {"v": _}), "c": $.e	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rn65	verdict	"l": [1, 2], "e": each($.l, {"v": _}), "c": $.e	{}	{"verdict":"valid","opts":{"partial":true}}
+rn66	verdict	"l": [1, 2], "e": each($.l, {"v": _}), "c": $.e.1.v	{"c": 2}	{"verdict":"valid"}
+rn67	verdict	"l": [1, 2], "e": each($.l, {"v": _}), "c": $.e.1.v	{"c": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+rn68	verdict	"l": [1, 2], "e": each($.l, {"v": _}), "c": $.e.1.v	{"c": 2}	{"verdict":"valid","opts":{"partial":true}}
