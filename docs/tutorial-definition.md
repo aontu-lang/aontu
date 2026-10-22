@@ -7626,15 +7626,19 @@ def hideAt : List Seg → Val
   | _ :: _ => .any
 ```
 
+The definition reads the steps of the source's path in the first of
+the schema's roots that names it, each by the container it meets and
+each variable bound first, as it reads the term a path names, so
+`move($.q.$name)` hides the member the variable's value spells. A
+`move` in a declaration's body hides its source as one in the schema
+does, whether a reference reads the body or not, since both engines
+read a body where it's declared:
+
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The schema with each source a `move` reads hidden, met with
-`hideAt` of the path, so that the document generates the value once, at
-its new place, and the data needn't supply the source. A path to
-nothing hides nothing, so that it stays the error any path to nothing
-is. -/
 def Decls.withMoves (ds : Decls) (S : Val) : Val :=
-  (S.moved.filter fun p => (ds.pathIn (ds.rootsS S) p).isSome).foldl
+  ((S.moved ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.moved) []).filterMap fun p =>
+      (p.mapM ds.bindSeg).bind fun q => (ds.rootsS S).findSome? fun root => root.stepsW q).foldl
     (fun acc p => .meet acc (hideAt p)) S
 ```
 
@@ -7666,9 +7670,12 @@ $ echo $?
 
 A `move` of a value written in place, `move({ x:1 })`, hides nothing
 and reads as `pref`, and a path that names nothing is an `error`, as
-any path is. Rows mv0 on of `test/spec/def-path.tsv` hold these
-readings in the three modes of `vet`, and both engines answer every one
-as the definition does.
+any path is. The definition reads a rider around the path through, so
+`move(meta($.x, r))` hides `x` and reads as `*meta(1, r)`. Rows mv0 on
+of `test/spec/def-path.tsv` hold these readings in the three modes of
+`vet`, and both engines answer every one as the definition does. Data
+that sets the copy of a path under a rider splits the engines, and
+no row holds it, which #486 tracks.
 
 ## 36. What the definition doesn't say yet
 
@@ -7700,6 +7707,10 @@ The language needs only the power to represent a JSON Schema: what
 Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker
 of step 17 reads unmade. Neither has a rule yet.
+
+Nor does it say which of a document's moves the reading makes. A
+`move` in an arm no selection takes, or in a template no member
+instantiates, still hides its source, where both engines keep it.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

@@ -610,6 +610,30 @@ mv23	verdict	"b": move({"x": 1})	{}	{"verdict":"valid","opts":{"partial":true}}
 mv24	verdict	"b": move($.gone)	{}	{"verdict":"error"}
 mv25	verdict	"b": move($.gone)	{}	{"verdict":"error","opts":{"noFill":true}}
 mv26	verdict	"b": move($.gone)	{}	{"verdict":"error","opts":{"partial":true}}
+mv27	verdict	%T = {"y": move($.x)}\n"x": 1, "a": %T	{}	{"verdict":"valid"}
+mv28	verdict	%T = {"y": move($.x)}\n"x": 1, "a": %T	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv29	verdict	%T = {"y": move($.x)}\n"x": 1, "a": %T	{}	{"verdict":"valid","opts":{"partial":true}}
+mv30	verdict	%T = {"y": move($.x)}\n"x": 1, "a": %T	{"a": {"y": 1}}	{"verdict":"valid"}
+mv31	verdict	%T = {"y": move($.x)}\n"x": 1, "a": %T	{"a": {"y": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+mv32	verdict	%T = {"y": move($.x)}\n"x": 1, "a": %T	{"a": {"y": 1}}	{"verdict":"valid","opts":{"partial":true}}
+mv33	verdict	%T = {"y": move($.x)}\n"x": 1	{}	{"verdict":"valid"}
+mv34	verdict	%T = {"y": move($.x)}\n"x": 1	{}	{"verdict":"valid","opts":{"noFill":true}}
+mv35	verdict	%T = {"y": move($.x)}\n"x": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+mv36	verdict	%T = {"y": move($.x)}\n"x": 1	{"x": 2}	{"verdict":"invalid"}
+mv37	verdict	%T = {"y": move($.x)}\n"x": 1	{"x": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+mv38	verdict	%T = {"y": move($.x)}\n"x": 1	{"x": 2}	{"verdict":"invalid","opts":{"partial":true}}
+mv39	verdict	"x": 1, "y": move(meta($.x, {"q": 1}))	{}	{"verdict":"valid"}
+mv40	verdict	"x": 1, "y": move(meta($.x, {"q": 1}))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv41	verdict	"x": 1, "y": move(meta($.x, {"q": 1}))	{}	{"verdict":"valid","opts":{"partial":true}}
+mv42	verdict	"x": 1, "y": move(meta($.x, {"q": 1}))	{"x": 2}	{"verdict":"invalid"}
+mv43	verdict	"x": 1, "y": move(meta($.x, {"q": 1}))	{"x": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+mv44	verdict	"x": 1, "y": move(meta($.x, {"q": 1}))	{"x": 2}	{"verdict":"invalid","opts":{"partial":true}}
+mv45	verdict	"x": 1, "y": move(hide($.x))	{}	{"verdict":"valid"}
+mv46	verdict	"x": 1, "y": move(hide($.x))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv47	verdict	"x": 1, "y": move(hide($.x))	{}	{"verdict":"valid","opts":{"partial":true}}
+mv48	verdict	"x": 1, "y": move(hide($.x))	{"y": 1}	{"verdict":"valid"}
+mv49	verdict	"x": 1, "y": move(hide($.x))	{"y": 1}	{"verdict":"valid","opts":{"noFill":true}}
+mv50	verdict	"x": 1, "y": move(hide($.x))	{"y": 1}	{"verdict":"valid","opts":{"partial":true}}
 rn0	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b.camel	{}	{"verdict":"valid"}
 rn1	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b.camel	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 rn2	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b.camel	{}	{"verdict":"valid","opts":{"partial":true}}

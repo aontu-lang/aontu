@@ -8,7 +8,7 @@ each change affects.
 
 ## Unreleased
 
-### The definition reads a document's root in rounds
+### The definition reads a document's roots in rounds
 
 Definition, generated rows, and documentation. No engine changes.
 
@@ -43,12 +43,20 @@ P10's fourth slice.
   met with `hide(any)` at each path a `move` reads that names something
   (`Decls.withMoves`, `hideAt`, `Decls.prepared`). So the document generates the value once, at its new
   place. The data needn't supply the source, but the source still
-  refuses data that disagrees. A path into a list hides nothing.
+  refuses data that disagrees. A `move` in a body hides its source,
+  whether a reference reads the body or not. `movedSrc` reads a rider
+  around the path through, and `Val.stepsW` reads the path's steps in
+  the root, each by the container it meets with its variables bound. A
+  path into a list hides nothing.
 - `test/spec/def-path.tsv` gains rows mv0 on, in the three modes of
-  `vet`. Both ports answer every row as the definition does.
+  `vet`, and `test/spec/def-gen.tsv` row i34, a `move` whose path holds
+  a variable. Both ports answer every row as the definition does. Data
+  that sets the copy of a path under a rider splits the ports, which
+  #486 tracks.
 - The definition tutorial gains step 35, moving a value, and the last
-  step becomes 36. The reference's section on marks cites
-  `Decls.withMoves`.
+  step becomes 36, which says the definition doesn't yet read which of
+  a document's moves the reading makes. The reference's section on
+  marks cites `Decls.withMoves`.
 
 ### The definition resolves a path into a call's output
 

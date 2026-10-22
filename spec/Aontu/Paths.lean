@@ -336,11 +336,20 @@ def vetA (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
 
 /-! ## Moves -/
 
+/-- The path a `move` reads its source from: its argument where that is
+a path, the riders around it read through, as both ports read a rider's
+value as the reference it wraps. -/
+def movedSrc : Fn → List Val → List (List Seg)
+  | .move, [v] =>
+    match v.unride with
+    | .path p => [p]
+    | _ => []
+  | _, _ => []
+
 mutual
 /-- The paths the `move` calls of a term read, each the call's argument
 as written. -/
 def Val.moved : Val → List (List Seg)
-  | .call .move [.path p] => [p]
   | .len c => c.moved
   | .map fs spread _ => movedFields fs ++ movedSpread spread
   | .list items spread _ => movedItems items ++ movedSpread spread
@@ -354,7 +363,7 @@ def Val.moved : Val → List (List Seg)
   | .rest t cs => t.moved ++ movedCovers cs
   | .select s arms d => s.moved ++ movedPairs arms ++ movedSpread d
   | .filter s c => s.moved ++ c.moved
-  | .call _ args => movedItems args
+  | .call f args => movedSrc f args ++ movedItems args
   | .ride _ v _ => v.moved
   | _ => []
 
@@ -391,13 +400,31 @@ def hideAt : List Seg → Val
   | .key k :: p => .map [(k, true, hideAt p)] none false
   | _ :: _ => .any
 
+/-- The steps a written path takes in a term, each read by the container
+it meets (`Seg.stepIn`), where the path names something there. -/
+def Val.stepsW : Val → List Seg → Option (List Seg)
+  | _, [] => some []
+  | v, s :: p =>
+    match s.stepIn v with
+    | some t =>
+      match v.at [t] with
+      | some w => (w.stepsW p).map (t :: ·)
+      | none => none
+    | none => none
+termination_by structural _ p => p
+
 /-- The schema with each source a `move` reads hidden, met with
-`hideAt` of the path, so that the document generates the value once, at
-its new place, and the data needn't supply the source. A path to
-nothing hides nothing, so that it stays the error any path to nothing
-is. -/
+`hideAt` of the steps its path takes in the first of the schema's roots
+it names something in, each variable bound and each step read by the
+container it meets, so that the document
+generates the value once, at its new place, and the data needn't supply
+the source. A `move` in a body hides its source as one in the schema
+does, used or not, as both ports read a body where it's declared. A
+path to nothing hides nothing, so that it stays the error any path to
+nothing is. -/
 def Decls.withMoves (ds : Decls) (S : Val) : Val :=
-  (S.moved.filter fun p => (ds.pathIn (ds.rootsS S) p).isSome).foldl
+  ((S.moved ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.moved) []).filterMap fun p =>
+      (p.mapM ds.bindSeg).bind fun q => (ds.rootsS S).findSome? fun root => root.stepsW q).foldl
     (fun acc p => .meet acc (hideAt p)) S
 
 /-- A document as the definition reads it: its relative paths placed

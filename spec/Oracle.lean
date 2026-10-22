@@ -1186,8 +1186,8 @@ theorem call_path_verdict_exact : ∀ c ∈ callPathCases, ∀ (m : Mode) (v : V
 
 /-- `move` of a path to a scalar, beside data that supplies the source,
 data that refuses it and data that overrides the copy; of a path into a
-map; of a path to a list; of a value written in place; and of a path
-to nothing. -/
+map; of a path to a list; of a value written in place; of a path to
+nothing; in a body, used and not; and of a path under a rider. -/
 def moveCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1204,7 +1204,15 @@ def moveCases : List (Decls × Val × Data) :=
       .map [("a", .map [("d", j 2)]), ("b", j 1)]),
     ([], m [("a", lst [int 1, int 2]), ("b", mv (p ["a"]))], .map []),
     ([], m [("b", mv (m [("x", int 1)]))], .map []),
-    ([], m [("b", mv (p ["gone"]))], .map [])]
+    ([], m [("b", mv (p ["gone"]))], .map []),
+    ([("T", m [("y", mv (p ["x"]))])], m [("x", int 1), ("a", .alias "T")], .map []),
+    ([("T", m [("y", mv (p ["x"]))])], m [("x", int 1), ("a", .alias "T")], .map [("a", .map [("y", j 1)])]),
+    ([("T", m [("y", mv (p ["x"]))])], m [("x", int 1)], .map []),
+    ([("T", m [("y", mv (p ["x"]))])], m [("x", int 1)], .map [("x", j 2)]),
+    ([], m [("x", int 1), ("y", mv (.ride .metadata (p ["x"]) [("q", j 1)]))], .map []),
+    ([], m [("x", int 1), ("y", mv (.ride .metadata (p ["x"]) [("q", j 1)]))], .map [("x", j 2)]),
+    ([], m [("x", int 1), ("y", mv (.ride .hide (p ["x"]) []))], .map []),
+    ([], m [("x", int 1), ("y", mv (.ride .hide (p ["x"]) []))], .map [("y", j 1)])]
 
 theorem moveCases_checkable : ∀ c ∈ moveCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -3203,7 +3211,8 @@ theorem var_output_exact : ∀ t ∈ varCases, ∀ (root j : Data),
 
 /-- Variables as a path's steps, each read as its value's text: a map
 read by key and a list by the index the text spells, a variable as the
-first step, and two variables in one path. -/
+first step, two variables in one path, and a `move` that hides the
+member a variable names. -/
 def varPathCases : List Val :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
@@ -3215,7 +3224,8 @@ def varPathCases : List Val :=
       ("x", .path [.key "v", .key "q", .var "foo"])],
     mp [("q", lst [int 5, int 6, int 7, int 8, int 9, int 10]), ("x", .path [.key "v", .key "q", .var "bigi"])],
     mp [("q", mp [("c", int 5)]), ("a", mp [("b", .path [.key "v", .var "PARENT", .key "c"])])],
-    mp [("q", mp [("hello", mp [("q", int 4)])]), ("x", .path [.key "v", .key "q", .var "bar", .var "PARENT"])]]
+    mp [("q", mp [("hello", mp [("q", int 4)])]), ("x", .path [.key "v", .key "q", .var "bar", .var "PARENT"])],
+    mp [("q", mp [("hello", int 1)]), ("x", .call .move [.path [.key "v", .key "q", .var "bar"]])]]
 
 /-- A variable case read as the definition reads a document with paths:
 placed, then its paths read as names from the schema alone. -/

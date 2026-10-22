@@ -4185,11 +4185,15 @@ the design note.
 `Decls.withMoves` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
 meets the schema with `hide(any)` at each path a `move` reads, and the
 call reads as `pref` of the value the path names, `Val.prefer`, so the
-document generates the value once, at its new place. A path into a
-list hides nothing, as a marked list element is yet to enter the
-definition. Rows mv0 on of
-[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
-engines to it.
+document generates the value once, at its new place. A `move` in a
+declaration's body hides its source too, whether a reference reads the
+body or not. The definition reads a rider around the path through, and
+a variable in the path names the member its value spells. A path into a list hides
+nothing, as a marked list element is yet to enter the definition. Rows
+mv0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold
+both engines to it. Data that sets the copy of a path under a
+rider splits the engines, which
+[#486](https://github.com/aontu-lang/aontu/issues/486) tracks.
 
 ## Annotations: `meta`
 
