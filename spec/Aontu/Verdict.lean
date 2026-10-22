@@ -694,15 +694,17 @@ def callValue (ds : Decls) (f : Fn) (args : List Val) : Option Number :=
 
 /-- What `path` makes of a string: the address its text spells, text with
 no start read from one dot (`Addr.ofText?`), and refused where the text
-spells none; refused for any other scalar and for a container; and
-waiting for anything else, a kind, a disjunction or a preference among
-them, its riders read through, since only a string's text converts. -/
+spells none; of a path value, the value itself; refused for any other
+scalar and for a container; and waiting for anything else, a kind, a
+disjunction or a preference among them, its riders read through, since
+only a string's text converts. -/
 def pathOf (ds : Decls) (s : Val) : Made :=
   match (normaliseD ds s).unride with
   | .lit (.str t) =>
     match Addr.ofText? t with
     | some a => .made (.addr a)
     | none => .refused
+  | .addr a => .made (.addr a)
   | .lit _ | .map _ _ _ | .list _ _ _ => .refused
   | _ => .waits
 

@@ -3151,7 +3151,8 @@ theorem addr_subsume_rows_exact : ∀ g ∈ addrSubVals, ∀ s ∈ addrSubVals,
 the capture it must equal, or with one it can't, so that the row says
 which address the text spells; text that spells none, any other scalar
 and a container, each refused; a string a call computes, converted once
-it's settled; and a preference, which only waits. -/
+it's settled; a preference, which only waits; and a path value, handed
+back as it is, behind a rider too, where `path` alone waits. -/
 def pathCallCases : List (Val × Data) :=
   let x (v : Val) : Val := .map [("x", false, v)] none false
   let str (s : String) : Val := .lit (.str s)
@@ -3171,7 +3172,13 @@ def pathCallCases : List (Val × Data) :=
     (x (.call .path [.lit .null]), .map []), (x (.call .path [.list [one] none false]), .map []),
     (x (.call .path [.map [("a", false, one)] none false]), .map []),
     (x (.call .path [.pref 1 (str "a")]), .map []), (x (.call .path [.string]), .map []),
-    (x (.meet (p "$.a") (str "$.a")), .map []), (p "$.a", .str "$.a")]
+    (x (.meet (p "$.a") (str "$.a")), .map []), (p "$.a", .str "$.a"),
+    (x (.meet (.call .path [p "$.a"]) (addrAt 0 ["a"])), .map []),
+    (x (.meet (.call .path [.ride .metadata (p "a") []]) (addrAt 1 ["a"])), .map []),
+    (x (.meet (.call .path [addrAt 0 ["a"]]) (addrAt 0 ["a"])), .map []),
+    (x (.meet (.call .path [.meet (addrAt 0 ["a"]) (addrAt 0 ["a", "b"])]) (addrAt 0 ["a", "b"])), .map []),
+    (x (.call .path [.meet (addrAt 0 ["a"]) (addrAt 0 ["b"])]), .map []),
+    (x (.call .path [.pathKind]), .map [])]
 
 set_option maxRecDepth 8192 in
 theorem pathCallCases_checkable : ∀ c ∈ pathCallCases, (vetDoc c).1.CheckableA := by decide

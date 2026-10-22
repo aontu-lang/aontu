@@ -2432,3 +2432,21 @@ k83	verdict	v: {"x": (path("$.a")) & ("$.a")}	v: {}	{"verdict":"error","opts":{"
 k84	verdict	v: path("$.a")	v: "$.a"	{"verdict":"invalid"}
 k85	verdict	v: path("$.a")	v: "$.a"	{"verdict":"invalid","opts":{"noFill":true}}
 k86	verdict	v: path("$.a")	v: "$.a"	{"verdict":"invalid","opts":{"partial":true}}
+k87	verdict	v: {"x": (path(path("$.a"))) & (path($.a))}	v: {}	{"verdict":"valid"}
+k88	verdict	v: {"x": (path(path("$.a"))) & (path($.a))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k89	verdict	v: {"x": (path(path("$.a"))) & (path($.a))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k90	verdict	v: {"x": (path(meta(path("a"), {}))) & (path(.a))}	v: {}	{"verdict":"valid"}
+k91	verdict	v: {"x": (path(meta(path("a"), {}))) & (path(.a))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k92	verdict	v: {"x": (path(meta(path("a"), {}))) & (path(.a))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k93	verdict	v: {"x": (path(path($.a))) & (path($.a))}	v: {}	{"verdict":"valid"}
+k94	verdict	v: {"x": (path(path($.a))) & (path($.a))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k95	verdict	v: {"x": (path(path($.a))) & (path($.a))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k96	verdict	v: {"x": (path((path($.a)) & (path($.a.b)))) & (path($.a.b))}	v: {}	{"verdict":"valid"}
+k97	verdict	v: {"x": (path((path($.a)) & (path($.a.b)))) & (path($.a.b))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k98	verdict	v: {"x": (path((path($.a)) & (path($.a.b)))) & (path($.a.b))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k99	verdict	v: {"x": path((path($.a)) & (path($.b)))}	v: {}	{"verdict":"error"}
+k100	verdict	v: {"x": path((path($.a)) & (path($.b)))}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k101	verdict	v: {"x": path((path($.a)) & (path($.b)))}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k102	verdict	v: {"x": path(path)}	v: {}	{"verdict":"error"}
+k103	verdict	v: {"x": path(path)}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k104	verdict	v: {"x": path(path)}	v: {}	{"verdict":"error","opts":{"partial":true}}

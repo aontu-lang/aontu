@@ -20,13 +20,14 @@ P11's second slice.
   one dot, and `$` alone addresses nothing.
 - `spec/Aontu/Arith.lean` and `spec/Aontu/Verdict.lean`: `Fn` gains
   `path`, and `pathOf` makes the call: the address a string spells,
-  through its riders, refused where the text spells none, refused for
-  any other scalar and for a container, and waiting for anything else.
-  A string a call computes converts once it's settled.
-- `test/spec/def-call.tsv` gains rows k0 to k86: each conversion met
+  through its riders, refused where the text spells none, the path value
+  it's handed as it is, refused for any other scalar and for a
+  container, and waiting for anything else. A string a call computes
+  converts once it's settled.
+- `test/spec/def-call.tsv` gains rows k0 to k104: each conversion met
   with the capture it must equal, or with one it can't, the texts that
-  spell no address, the arguments refused, and a computed string. Both
-  ports answer every row as the definition does.
+  spell no address, the arguments refused, a computed string, and a path
+  value handed back. Both ports answer every row as the definition does.
 - The definition tutorial's step 31 reads a string's conversion. The
   reference's section on first-class paths, the design note's P11 row
   and the definition's README follow.

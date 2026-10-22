@@ -7212,9 +7212,9 @@ Each step is one or more letters, digits, `_` or `-`, which
 `addrSteps` reads. Text that spells no address, such as `""`, `"$"`,
 `"a..b"` or `"a b"`, is an error, as is any other scalar and a
 container. A string a call computes converts once it's settled, so
-`path("$." + "a")` is `path($.a)`. Rows k0 to k86 of
-`test/spec/def-call.tsv` hold each, and both engines answer every one
-as the definition does.
+`path("$." + "a")` is `path($.a)`, and a path value comes back as it
+is. Rows k0 to k104 of `test/spec/def-call.tsv` hold each, and both
+engines answer every one as the definition does.
 
 Rows k0 on of three files hold this: `test/spec/def-gen.tsv` what path
 values generate, `test/spec/def-verdict.tsv` how `vet` judges data
