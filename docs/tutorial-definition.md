@@ -2807,8 +2807,8 @@ def Decls.pathAt (ds : Decls) (root : Val) (p : List Seg) : Option Val :=
   (p.mapM ds.bindSeg).bind root.atW
 ```
 
-A path resolves in the schema's own tree, before any data and with its
-calls made, so a path into a call's output resolves: `$.b.camel` beside
+A path resolves in the schema's own tree, read before any data with
+its calls made, so a path into a call's output resolves: `$.b.camel` beside
 `b: nom("ab_cd")` reads `"abCd"`. A key the data alone supplies is no
 position, and a path to nothing is an `error`, but where `maybe`
 forgives it, as step 33 shows. The term it reads is then taken from the
