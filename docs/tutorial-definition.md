@@ -2929,14 +2929,16 @@ is an error, while `..x` in the same body climbs to the document's own
 `x`. A spread, a template and a `filter`'s condition keep their relative
 paths as written: each stands at a position no written step names, and
 the definition has no rule for a relative path there yet. The verdict
-of a document with paths places it first:
+of a document with paths prepares it first: it places the document and
+hides the sources its moves read, which step 35 comes to:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The verdict of a document with paths: its relative paths placed
-(`Decls.placed`), the verdict of the document whose paths are absolute. -/
+/-- The verdict of a document with paths: the document prepared
+(`Decls.prepared`), its relative paths placed and the sources its moves
+read hidden, the verdict of the document whose paths are absolute. -/
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  VetA m (ds.placed S).1 (ds.placed S).2 j v
+  VetA m (ds.prepared S).1 (ds.prepared S).2 j v
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -2945,7 +2947,8 @@ def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
 read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
-  vetA_iff (Decls.placed_bodies_checkableA hb) (placed_checkableA hS []) v
+  vetA_iff (ds := (ds.placed S).1) (S := (ds.placed S).1.withMoves (ds.placed S).2)
+    (Decls.placed_bodies_checkableA hb) (withMoves_checkableA (placed_checkableA hS [])) v
 ```
 
 A recursive position, `then?: $.schema.Step` inside `Step`, is a name
@@ -7539,7 +7542,97 @@ both engines answer every one as the definition does. They answer
 `pref(1 | 2)` `invalid` where they answer
 `*1 | *2` an `error`, and no row holds that case, which #482 tracks.
 
-## 35. What the definition doesn't say yet
+## 35. Moving a value
+
+`move(p)` reads the value at the path `p` as a preference where the
+call stands, and hides the source, so the document generates the value
+once, at its new place. Write `move.aontu`:
+
+<!-- test: scenario move -->
+<!-- test: file move.aontu -->
+```aontu
+draft: { title:"Notes" year:2026 }
+title: move($.draft.title)
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu move.aontu
+{
+  "draft": {
+    "year": 2026
+  },
+  "title": "Notes"
+}
+```
+
+The call reads as `pref` does, `Val.prefer` of the value the path
+reads, so `title` is `*"Notes"`, which data may override. The hiding
+belongs to the document: before the definition reads it, the schema
+meets an open map that holds the source's key as optional, down to
+`hide(any)`, where the source names something:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def hideAt : List Seg → Val
+  | [] => .ride .hide .any []
+  | .key k :: p => .map [(k, true, hideAt p)] none false
+  | _ :: _ => .any
+```
+
+The definition reads the steps of the source's path in the root, each
+by the container it meets and each variable bound first, as it reads
+the term a path names, so `move($.q.$name)` hides the member the
+variable's value spells. A `move` in a declaration's body hides its source as one in the
+schema does, whether a reference reads the body or not, since both
+engines read a body where it's declared:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.withMoves (ds : Decls) (S : Val) : Val :=
+  ((S.moved ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.moved) []).filterMap fun p =>
+      (p.mapM ds.bindSeg).bind (normaliseD ds (ds.readU S)).stepsW).foldl
+    (fun acc p => .meet acc (hideAt p)) S
+```
+
+A hidden member is optional in the visible part of step 13, so the
+output leaves `draft.title` out and `--no-fill` doesn't ask the data
+for it. The source still holds its value, and a reference clears the
+mark, so `move` reads `"Notes"`. Data that refuses the source is still
+refused. Write `move-data.aontu`:
+
+<!-- test: file move-data.aontu -->
+```aontu
+draft: title: "Other"
+```
+
+and vet it:
+
+<!-- test: run -->
+```sh
+$ aontu vet move.aontu move-data.aontu
+verdict: invalid
+
+$.draft.title: scalar_value [conflict]
+  [aontu/scalar_value]: Cannot unify values at path $.draft.title
+  data: move-data.aontu:1:15 ("Other")
+  schema: move.aontu:1:16 ("Notes")
+$ echo $?
+1
+```
+
+A `move` of a value written in place, `move({ x:1 })`, hides nothing
+and reads as `pref`, and a path that names nothing is an `error`, as
+any path is. The definition reads a rider around the path through, so
+`move(meta($.x, r))` hides `x` and reads as `*meta(1, r)`. Rows mv0 on
+of `test/spec/def-path.tsv` hold these readings in the three modes of
+`vet`, and both engines answer every one as the definition does. Data
+that sets the copy of a path under a rider splits the engines, and
+no row holds it, which #486 tracks.
+
+## 36. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -7547,7 +7640,7 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
-steps 20 to 26, 33 and 34 don't walk through, `key()` deeper in a spread than its
+steps 20 to 26 and 33 to 35 don't walk through, `key()` deeper in a spread than its
 own position, a relative path in a spread, a template or a `filter`'s
 condition, generation with `emit`, a string constraint met with a path
 value, and the links `refer` and `rel`. [`aontu vet`](reference-api.md#aontu-vet) states which
@@ -7569,6 +7662,10 @@ The language needs only the power to represent a JSON Schema: what
 Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker
 of step 17 reads unmade. Neither has a rule yet.
+
+Nor does it say which of a document's moves the reading makes. A
+`move` in an arm no selection takes, or in a template no member
+instantiates, still hides its source, where both engines keep it.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
