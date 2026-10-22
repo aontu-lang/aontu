@@ -21,7 +21,8 @@
 # rn0 on, and refer, a link that keeps its address, its template met into
 # its target, in rows rf0 on. rel, a relation whose value holds a link at
 # each leaf, follows in rows rl0 on, and links read where they land, in a
-# spread's template or copied by a path reference, in rows ld0 on.
+# spread's template or copied by a path reference, in rows ld0 on, and in a
+# generator's template, at each member of its output, in rows lg0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -946,3 +947,33 @@ ld44	verdict	"jobs": {"a": {}, "b": {}, &: {"feeds": (refer({"kind": "job"})) & 
 ld45	verdict	"a": {}, "l": [&: (refer({"k": 1})) & (path($.a))], "m": ($.l) & ([path($.a)])	{"a": {"k": 2}}	{"verdict":"invalid"}
 ld46	verdict	"a": {}, "l": [&: (refer({"k": 1})) & (path($.a))], "m": ($.l) & ([path($.a)])	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
 ld47	verdict	"a": {}, "l": [&: (refer({"k": 1})) & (path($.a))], "m": ($.l) & ([path($.a)])	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+lg0	verdict	"a": {}, "l": [1, 2], "e": each($.l, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid"}
+lg1	verdict	"a": {}, "l": [1, 2], "e": each($.l, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+lg2	verdict	"a": {}, "l": [1, 2], "e": each($.l, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+lg3	verdict	"a": {}, "l": [1, 2], "e": each($.l, {"r": (refer({"k": 1})) & (path($.a))})	{}	{"verdict":"valid"}
+lg4	verdict	"a": {}, "l": [1, 2], "e": each($.l, {"r": (refer({"k": 1})) & (path($.a))})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lg5	verdict	"a": {}, "l": [1, 2], "e": each($.l, {"r": (refer({"k": 1})) & (path($.a))})	{}	{"verdict":"valid","opts":{"partial":true}}
+lg6	verdict	"l": [1], "e": each($.l, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"error"}
+lg7	verdict	"l": [1], "e": each($.l, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"error","opts":{"noFill":true}}
+lg8	verdict	"l": [1], "e": each($.l, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"error","opts":{"partial":true}}
+lg9	verdict	"l": [], "e": each($.l, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"valid"}
+lg10	verdict	"l": [], "e": each($.l, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lg11	verdict	"l": [], "e": each($.l, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"valid","opts":{"partial":true}}
+lg12	verdict	"a": {}, "n": ["x", "y"], "p": pack($.n, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid"}
+lg13	verdict	"a": {}, "n": ["x", "y"], "p": pack($.n, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+lg14	verdict	"a": {}, "n": ["x", "y"], "p": pack($.n, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+lg15	verdict	"n": ["x"], "p": pack($.n, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"error"}
+lg16	verdict	"n": ["x"], "p": pack($.n, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"error","opts":{"noFill":true}}
+lg17	verdict	"n": ["x"], "p": pack($.n, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"error","opts":{"partial":true}}
+lg18	verdict	"n": [], "p": pack($.n, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"valid"}
+lg19	verdict	"n": [], "p": pack($.n, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lg20	verdict	"n": [], "p": pack($.n, {"r": (refer()) & (path($.nosuch))})	{}	{"verdict":"valid","opts":{"partial":true}}
+lg21	verdict	"a": {}, "l": [1], "e": each($.l, {"d": (rel({"k": 1})) & ([path($.a)])})	{"a": {"k": 2}}	{"verdict":"invalid"}
+lg22	verdict	"a": {}, "l": [1], "e": each($.l, {"d": (rel({"k": 1})) & ([path($.a)])})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+lg23	verdict	"a": {}, "l": [1], "e": each($.l, {"d": (rel({"k": 1})) & ([path($.a)])})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+lg24	verdict	"a": {}, "l": [1], "e": each($.l, (refer({"k": 1})) & (path($.a)))	{"a": {"k": 2}}	{"verdict":"invalid"}
+lg25	verdict	"a": {}, "l": [1], "e": each($.l, (refer({"k": 1})) & (path($.a)))	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+lg26	verdict	"a": {}, "l": [1], "e": each($.l, (refer({"k": 1})) & (path($.a)))	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+lg27	verdict	"a": {}, "m": {"x": 1, "y": 2}, "e": each($.m, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid"}
+lg28	verdict	"a": {}, "m": {"x": 1, "y": 2}, "e": each($.m, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+lg29	verdict	"a": {}, "m": {"x": 1, "y": 2}, "e": each($.m, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}

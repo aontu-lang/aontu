@@ -8,6 +8,20 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a link in a generator's template
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Paths.lean`: `Val.stepItems` lands a generator's
+  template, `each`'s or `pack`'s, at each member of the generator's
+  output, so a `refer` or `rel` in the template reads at each member, as
+  both ports read it, and a generator with no members reads none.
+- `test/spec/def-path.tsv` gains rows lg0 on, in the three modes of
+  `vet`, and no other row changes. Both ports answer every row as the
+  definition does.
+- The definition tutorial's last step now lists only a link in a
+  disjunction or a selection among what the definition doesn't read.
+
 ### The definition reads a link where it lands
 
 Definition, generated rows, and documentation. No engine changes.

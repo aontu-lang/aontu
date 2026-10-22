@@ -3745,8 +3745,9 @@ address names from where the link stands. It reads the targets in
 passes, so one link's template can make another link's target,
 whichever the document writes first. It reads each link where it
 lands: where the document writes it, at each member a spread's template
-holds, and wherever a path reference copies it, each place reading the
-relative address from where it stands. Where a target names nothing in
+holds, at each member a generator's template makes, and wherever a path
+reference copies it, each place reading the relative address from where
+it stands. Where a target names nothing in
 the schema's own tree, the document is an `error`. The definition reads a link in a
 declaration's body at the body's own place, whether a reference reads
 the body or not. Rows rf0 on of

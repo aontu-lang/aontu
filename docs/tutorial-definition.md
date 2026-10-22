@@ -7763,10 +7763,11 @@ target with its marks cleared, as a reference copies a value, so
 
 A link reads where it lands, not where it's written: a `type()` that
 holds a link reaches each place that uses it through a path reference,
-and a spread's template reaches each member. So at each position the
-schema's normal form holds, the definition reads the terms the schema
-writes there, through meets, riders, a map's member and its spread, a
-list's element and its spread, and a path reference's target:
+a spread's template reaches each member, and a generator's template
+each member of its output. So at each position the schema's normal
+form holds, the definition reads the terms the schema writes there,
+through meets, riders, a map's member and its spread, a list's element
+and its spread, a generator's template, and a path reference's target:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -7841,9 +7842,9 @@ $ echo $?
 ```
 
 Rows rf0 on of `test/spec/def-path.tsv` hold these readings in the
-three modes of `vet`, and rows ld0 on hold links that land through a
-spread or a path reference. Both engines answer every one as the
-definition does. With data, both engines read a body's relative link a
+three modes of `vet`, rows ld0 on hold links that land through a
+spread or a path reference, and rows lg0 on links in a generator's
+template. Both engines answer every one as the definition does. With data, both engines read a body's relative link a
 second time, from each place that uses the body, which #488 tracks, and
 no row holds such a link.
 
@@ -7955,10 +7956,9 @@ Nor does it say which of a document's moves the reading makes. A
 instantiates, still hides its source, where both engines keep it.
 
 Nor does it read a link everywhere one can land. A `refer` or a `rel`
-inside a disjunction, a selection or a generator's template is no link
-the definition reads, so its template flows nowhere and its target
-needn't exist, where both engines read it in the arm a selection takes
-and in each instance a generator makes.
+inside a disjunction or a selection is no link the definition reads,
+so its template flows nowhere and its target needn't exist, where both
+engines read it in the arm the selection takes.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
