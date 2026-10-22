@@ -15,10 +15,10 @@ P8's fourteenth slice.
 
 - `spec/Aontu/Arith.lean`: `Fn` gains `pref`.
 - `spec/Aontu/Verdict.lean`: `Val.prefer` makes `pref(v)` of the
-  argument's normal form, as both ports walk it. Each scalar literal
+  argument read before its normal form, as both ports walk it. Each scalar literal
   and each address becomes a preference of rank one, and each
-  preference and each preferred arm a rank weaker. A leaf or a
-  preference under a rider is preferred whole, rider and all, as both
+  preference and each preferred arm a rank weaker. `pref` prefers a
+  leaf or a preference under a rider whole, rider and all, as both
   ports carry a rider on the value it rides. The same reading reaches a
   map's and a list's members, a meet's sides and the value under any
   other rider. A kind and a bound stay as written. A path not read yet and

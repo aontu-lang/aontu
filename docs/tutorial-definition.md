@@ -7471,16 +7471,16 @@ preference a rank weaker:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- What `pref` makes of its argument in normal form, as both ports walk
-it: each scalar literal and each address a preference of rank one, and
-each preference and each preferred arm of a disjunction a rank weaker,
-a plain arm that is a leaf preferred, and a leaf or a preference under a
-rider preferred whole, rider and all, as both ports carry a rider on the
-value it rides; each member of a map and of a list, each side of a meet
-and the value under any other rider read so too, a spread left as
-written; a path not read yet and a call that waits read as `pref` of
-themselves, which waits; and a kind, a bound and any other constraint
-left as they are. -/
+/-- What `pref` makes of its argument, read before the normal form, as
+both ports walk it: each scalar literal and each address a preference
+of rank one, and each preference and each preferred arm of a
+disjunction a rank weaker, a plain arm that is a leaf preferred, and a
+leaf or a preference under a rider preferred whole, rider and all, as
+both ports carry a rider on the value it rides; each member of a map
+and of a list, each side of a meet and the value under any other rider
+read so too, a spread left as written; a path not read yet and a call
+that waits read as `pref` of themselves, which waits; and a kind, a
+bound and any other constraint left as they are. -/
 def Val.prefer : Val → Val
   | .lit s => .pref 1 (.lit s)
   | .addr a => .pref 1 (.addr a)
