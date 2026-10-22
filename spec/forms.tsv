@@ -78,6 +78,7 @@ call	call	super
 call	call	split
 call	call	rep
 call	call	nom
+call	call	path
 call	call	project
 call	call	folder
 call	call	file

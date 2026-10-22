@@ -1854,7 +1854,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
     ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "split"),
-    ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "project"),
+    ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "project"),
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
     ("call", "call", "line"), ("call", "call", "fragment"), ("call", "call", "slot"),
     ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems"),
@@ -1883,7 +1883,7 @@ def formSamples : List (String × Val) :=
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
     ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
-    ("nom", .call .nom [.string]), ("project", .call (.cmp .project) []),
+    ("nom", .call .nom [.string]), ("path", .call .path [.string]), ("project", .call (.cmp .project) []),
     ("folder", .call (.cmp .folder) [.string]), ("file", .call (.cmp .file) [.string]),
     ("content", .call (.cmp .content) [.string]), ("line", .call (.cmp .line) [.string]),
     ("fragment", .call (.cmp .fragment) [.string]), ("slot", .call (.cmp .slot) [.string]),
@@ -3147,6 +3147,40 @@ theorem addr_subsume_rows_exact : ∀ g ∈ addrSubVals, ∀ s ∈ addrSubVals,
     not_le_of_witness (addrSubVals_checkable s hs) (addrSubVals_checkable g hg)
       (addrInstances_wellFormed j hj) h1 h2⟩
 
+/-- `path` handed a string: its text converted to an address and met with
+the capture it must equal, or with one it can't, so that the row says
+which address the text spells; text that spells none, any other scalar
+and a container, each refused; a string a call computes, converted once
+it's settled; and a preference, which only waits. -/
+def pathCallCases : List (Val × Data) :=
+  let x (v : Val) : Val := .map [("x", false, v)] none false
+  let str (s : String) : Val := .lit (.str s)
+  let p (s : String) : Val := .call .path [str s]
+  let one : Val := .lit (.num (.integer (.of 1)))
+  [(x (.meet (p "$.a") (addrAt 0 ["a"])), .map []), (x (.meet (p "$.a") (addrAt 1 ["a"])), .map []),
+    (x (.meet (p "a") (addrAt 1 ["a"])), .map []), (x (.meet (p "a") (addrAt 0 ["a"])), .map []),
+    (x (.meet (p "a.b") (addrAt 1 ["a", "b"])), .map []), (x (.meet (p "..a") (addrAt 2 ["a"])), .map []),
+    (x (.meet (p "$.0") (addrAt 0 ["0"])), .map []), (x (p "$.a-b_1"), .map []),
+    (x (.meet (p "$.a") (addrAt 0 ["a", "b"])), .map []),
+    (x (p "$"), .map []), (x (p "$x"), .map []), (x (p ""), .map []), (x (p "."), .map []),
+    (x (p "a."), .map []), (x (p "a..b"), .map []), (x (p "a b"), .map []), (x (p "Ü"), .map []),
+    (x (.meet (.call .path [.call .plus [str "$.", str "a"]]) (addrAt 0 ["a"])), .map []),
+    (x (.meet (.call .path [.call .upper [str "a"]]) (addrAt 1 ["A"])), .map []),
+    (x (.meet (.call .path [.ride .metadata (str "a") [("x", .integer 1)]]) (addrAt 1 ["a"])), .map []),
+    (x (.call .path [one]), .map []), (x (.call .path [.lit (.bool true)]), .map []),
+    (x (.call .path [.lit .null]), .map []), (x (.call .path [.list [one] none false]), .map []),
+    (x (.call .path [.map [("a", false, one)] none false]), .map []),
+    (x (.call .path [.pref 1 (str "a")]), .map []), (x (.call .path [.string]), .map []),
+    (x (.meet (p "$.a") (str "$.a")), .map []), (p "$.a", .str "$.a")]
+
+set_option maxRecDepth 8192 in
+theorem pathCallCases_checkable : ∀ c ∈ pathCallCases, (vetDoc c).1.CheckableA := by decide
+
+theorem path_call_verdict_exact : ∀ c ∈ pathCallCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (pathCallCases_checkable c hc)) v
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | [] =>
@@ -3386,10 +3420,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# pack, its template read for each member of its data under the member's key,"
     IO.println "# follows from row x2064, and key(n), read where it stands, from row x2121. A"
     IO.println "# call on a name follows in rows z0 on, and a call handed a pattern, re(p), in"
-    IO.println "# rows v0 on."
+    IO.println "# rows v0 on. path handed a string follows in rows k0 on: its text converted to"
+    IO.println "# an address, text with no start read from one dot, and refused where it spells"
+    IO.println "# none, as is any other scalar and a container."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
-        projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases do
+        projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
+        pathCallCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -3404,6 +3441,7 @@ def main (args : List String) : IO UInt32 := do
       projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases)
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
+    verdictRows "k" pathCallCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"

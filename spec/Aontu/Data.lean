@@ -292,6 +292,39 @@ theorem Addr.opens_or_opens {a b c : Addr} (ha : a.Opens c) (hb : b.Opens c) :
   · exact .inl ⟨ha.1.trans hb.1.symm, h⟩
   · exact .inr ⟨hb.1.trans ha.1.symm, h⟩
 
+/-! ## Address text
+
+Text read as an address, as both ports read the string `path(s)` is
+handed: `$.` and its steps from the root, or dots and their steps from a
+relative start, each step one or more letters, digits, `_` or `-`. Text
+with no start reads from one dot, and `$` alone, the root, addresses
+nothing. -/
+
+/-- A character a step of address text may hold. -/
+def addrChar (c : Char) : Bool := c.isAlphanum || c == '_' || c == '-'
+
+/-- The steps of address text, split at its dots, `acc` the step so far,
+reversed; no step is empty. -/
+def addrSteps : List Char → List Char → Option (List String)
+  | acc, [] => if acc.isEmpty then none else some [String.mk acc.reverse]
+  | acc, c :: cs =>
+    if c = '.' then
+      if acc.isEmpty then none else (addrSteps [] cs).map (String.mk acc.reverse :: ·)
+    else if addrChar c then addrSteps (c :: acc) cs else none
+
+/-- The dots text starts with, counted, and the text after them. -/
+def leadDots : List Char → ℕ × List Char
+  | '.' :: cs => ((leadDots cs).1 + 1, (leadDots cs).2)
+  | cs => (0, cs)
+
+/-- Address text read as an address. -/
+def Addr.ofText? (t : String) : Option Addr :=
+  match t.toList with
+  | '$' :: '.' :: cs => (addrSteps [] cs).map (Addr.mk 0)
+  | '$' :: _ => none
+  | '.' :: cs => (addrSteps [] (leadDots cs).2).map (Addr.mk ((leadDots cs).1 + 1))
+  | cs => (addrSteps [] cs).map (Addr.mk 1)
+
 /-! ## The data -/
 
 /-- The data: a number, a string, a boolean, null, a map, a list, or an

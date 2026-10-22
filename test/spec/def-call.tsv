@@ -25,7 +25,9 @@
 # pack, its template read for each member of its data under the member's key,
 # follows from row x2064, and key(n), read where it stands, from row x2121. A
 # call on a name follows in rows z0 on, and a call handed a pattern, re(p), in
-# rows v0 on.
+# rows v0 on. path handed a string follows in rows k0 on: its text converted to
+# an address, text with no start read from one dot, and refused where it spells
+# none, as is any other scalar and a container.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -2343,3 +2345,90 @@ v35	verdict	v: split(integer, re("1"))	v: ["1"]	{"verdict":"error","opts":{"part
 v36	verdict	v: rep("a", re("a"), "b")	v: "b"	{"verdict":"error"}
 v37	verdict	v: rep("a", re("a"), "b")	v: "b"	{"verdict":"error","opts":{"noFill":true}}
 v38	verdict	v: rep("a", re("a"), "b")	v: "b"	{"verdict":"error","opts":{"partial":true}}
+k0	verdict	v: {"x": (path("$.a")) & (path($.a))}	v: {}	{"verdict":"valid"}
+k1	verdict	v: {"x": (path("$.a")) & (path($.a))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k2	verdict	v: {"x": (path("$.a")) & (path($.a))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k3	verdict	v: {"x": (path("$.a")) & (path(.a))}	v: {}	{"verdict":"error"}
+k4	verdict	v: {"x": (path("$.a")) & (path(.a))}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k5	verdict	v: {"x": (path("$.a")) & (path(.a))}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k6	verdict	v: {"x": (path("a")) & (path(.a))}	v: {}	{"verdict":"valid"}
+k7	verdict	v: {"x": (path("a")) & (path(.a))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k8	verdict	v: {"x": (path("a")) & (path(.a))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k9	verdict	v: {"x": (path("a")) & (path($.a))}	v: {}	{"verdict":"error"}
+k10	verdict	v: {"x": (path("a")) & (path($.a))}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k11	verdict	v: {"x": (path("a")) & (path($.a))}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k12	verdict	v: {"x": (path("a.b")) & (path(.a.b))}	v: {}	{"verdict":"valid"}
+k13	verdict	v: {"x": (path("a.b")) & (path(.a.b))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k14	verdict	v: {"x": (path("a.b")) & (path(.a.b))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k15	verdict	v: {"x": (path("..a")) & (path(..a))}	v: {}	{"verdict":"valid"}
+k16	verdict	v: {"x": (path("..a")) & (path(..a))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k17	verdict	v: {"x": (path("..a")) & (path(..a))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k18	verdict	v: {"x": (path("$.0")) & (path($.0))}	v: {}	{"verdict":"valid"}
+k19	verdict	v: {"x": (path("$.0")) & (path($.0))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k20	verdict	v: {"x": (path("$.0")) & (path($.0))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k21	verdict	v: {"x": path("$.a-b_1")}	v: {}	{"verdict":"valid"}
+k22	verdict	v: {"x": path("$.a-b_1")}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k23	verdict	v: {"x": path("$.a-b_1")}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k24	verdict	v: {"x": (path("$.a")) & (path($.a.b))}	v: {}	{"verdict":"valid"}
+k25	verdict	v: {"x": (path("$.a")) & (path($.a.b))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k26	verdict	v: {"x": (path("$.a")) & (path($.a.b))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k27	verdict	v: {"x": path("$")}	v: {}	{"verdict":"error"}
+k28	verdict	v: {"x": path("$")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k29	verdict	v: {"x": path("$")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k30	verdict	v: {"x": path("$x")}	v: {}	{"verdict":"error"}
+k31	verdict	v: {"x": path("$x")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k32	verdict	v: {"x": path("$x")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k33	verdict	v: {"x": path("")}	v: {}	{"verdict":"error"}
+k34	verdict	v: {"x": path("")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k35	verdict	v: {"x": path("")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k36	verdict	v: {"x": path(".")}	v: {}	{"verdict":"error"}
+k37	verdict	v: {"x": path(".")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k38	verdict	v: {"x": path(".")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k39	verdict	v: {"x": path("a.")}	v: {}	{"verdict":"error"}
+k40	verdict	v: {"x": path("a.")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k41	verdict	v: {"x": path("a.")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k42	verdict	v: {"x": path("a..b")}	v: {}	{"verdict":"error"}
+k43	verdict	v: {"x": path("a..b")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k44	verdict	v: {"x": path("a..b")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k45	verdict	v: {"x": path("a b")}	v: {}	{"verdict":"error"}
+k46	verdict	v: {"x": path("a b")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k47	verdict	v: {"x": path("a b")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k48	verdict	v: {"x": path("Ü")}	v: {}	{"verdict":"error"}
+k49	verdict	v: {"x": path("Ü")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k50	verdict	v: {"x": path("Ü")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k51	verdict	v: {"x": (path(("$.") + ("a"))) & (path($.a))}	v: {}	{"verdict":"valid"}
+k52	verdict	v: {"x": (path(("$.") + ("a"))) & (path($.a))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k53	verdict	v: {"x": (path(("$.") + ("a"))) & (path($.a))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k54	verdict	v: {"x": (path(upper("a"))) & (path(.A))}	v: {}	{"verdict":"valid"}
+k55	verdict	v: {"x": (path(upper("a"))) & (path(.A))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k56	verdict	v: {"x": (path(upper("a"))) & (path(.A))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k57	verdict	v: {"x": (path(meta("a", {"x": 1}))) & (path(.a))}	v: {}	{"verdict":"valid"}
+k58	verdict	v: {"x": (path(meta("a", {"x": 1}))) & (path(.a))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+k59	verdict	v: {"x": (path(meta("a", {"x": 1}))) & (path(.a))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+k60	verdict	v: {"x": path(1)}	v: {}	{"verdict":"error"}
+k61	verdict	v: {"x": path(1)}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k62	verdict	v: {"x": path(1)}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k63	verdict	v: {"x": path(true)}	v: {}	{"verdict":"error"}
+k64	verdict	v: {"x": path(true)}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k65	verdict	v: {"x": path(true)}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k66	verdict	v: {"x": path(null)}	v: {}	{"verdict":"error"}
+k67	verdict	v: {"x": path(null)}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k68	verdict	v: {"x": path(null)}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k69	verdict	v: {"x": path([1])}	v: {}	{"verdict":"error"}
+k70	verdict	v: {"x": path([1])}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k71	verdict	v: {"x": path([1])}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k72	verdict	v: {"x": path({"a": 1})}	v: {}	{"verdict":"error"}
+k73	verdict	v: {"x": path({"a": 1})}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k74	verdict	v: {"x": path({"a": 1})}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k75	verdict	v: {"x": path(*("a"))}	v: {}	{"verdict":"error"}
+k76	verdict	v: {"x": path(*("a"))}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k77	verdict	v: {"x": path(*("a"))}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k78	verdict	v: {"x": path(string)}	v: {}	{"verdict":"error"}
+k79	verdict	v: {"x": path(string)}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k80	verdict	v: {"x": path(string)}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k81	verdict	v: {"x": (path("$.a")) & ("$.a")}	v: {}	{"verdict":"error"}
+k82	verdict	v: {"x": (path("$.a")) & ("$.a")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+k83	verdict	v: {"x": (path("$.a")) & ("$.a")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+k84	verdict	v: path("$.a")	v: "$.a"	{"verdict":"invalid"}
+k85	verdict	v: path("$.a")	v: "$.a"	{"verdict":"invalid","opts":{"noFill":true}}
+k86	verdict	v: path("$.a")	v: "$.a"	{"verdict":"invalid","opts":{"partial":true}}
