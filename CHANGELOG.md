@@ -8,6 +8,39 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds path values
+
+Definition, generated rows, and documentation. No engine changes.
+P11's first slice.
+
+- `spec/Aontu/Data.lean`: `Addr`, an address, where it starts and its
+  steps as written, and `Data.addr`, an address as a datum. JSON writes
+  an address as its text, and no JSON text reads as one, so `vet`
+  refuses the string that data writes for a path value, as both ports
+  do.
+- `spec/Aontu/Syntax.lean`: `Val` gains `addr a`, the value `path(p)`
+  holds, and `pathKind`, the word `path`.
+- `spec/Aontu/Admits.lean`: a path value admits each address its own
+  opens, itself and every address that adds steps to it, as
+  `Addr.Opens` says, and `path` admits every address.
+- `spec/Aontu/Meet.lean`: two path values meet by the prefix rule, in
+  the longer where one opens the other and in `nil` where neither does,
+  by `addrMeet`, and `path` shares no value with another kind.
+- `spec/Aontu/Output.lean`: a path value generates its own address.
+- `spec/Aontu/Subsume.lean`: a prefix subsumes its extensions, by
+  `addr_le_addr`, and `path` subsumes every path value, by
+  `addr_le_pathKind`.
+- `test/spec/def-gen.tsv` gains rows k0 to k17,
+  `test/spec/def-verdict.tsv` rows k0 to k47, and
+  `test/spec/def-subsume.tsv` rows k0 to k80. Both ports answer every
+  row as the definition does. No row meets a path value with a string
+  constraint, which both ports read by the one address the value
+  spells, so that their answer depends on the order of the meets, which
+  #474 tracks.
+- The definition tutorial gains step 31, path values, and the last step
+  becomes 32. The reference's section on first-class paths, the design
+  note's P11 row and the definition's README follow.
+
 ### The definition reads a relative path where it's written
 
 Definition, generated rows and documentation. No engine changes. P9's

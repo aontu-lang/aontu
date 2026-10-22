@@ -1047,6 +1047,25 @@ set_option maxRecDepth 8192 in
 /-- The filter keeps `1` and `2`, and the document is valid. -/
 example : vet {} [] kept (.map [("d", .list [.integer 1, .integer 2])]) = .valid := by decide
 
+/-! ## Path values -/
+
+/-- `path($.a)` and `path($.a.b)`, the second's address one step past
+the first's. -/
+abbrev pathA : Val := .addr ⟨0, ["a"]⟩
+abbrev pathAB : Val := .addr ⟨0, ["a", "b"]⟩
+
+/-- `path($.a)` admits `$.a.b`, an address its own opens… -/
+example : Instance .empty pathA (.addr ⟨0, ["a", "b"]⟩) := ⟨by decide, .addr ⟨rfl, by decide⟩⟩
+
+/-- …and refuses the string `"$.a"`, which no address is. -/
+example : ¬ Instance .empty pathA (.str "$.a") := fun ⟨_, h⟩ => nomatch h
+
+/-- The two meet in the longer, which generates its own address. -/
+example : output (.meet pathA pathAB) = some (.addr ⟨0, ["a", "b"]⟩) := by decide
+
+/-- A prefix subsumes its extensions. -/
+example : pathAB ⊑[.empty] pathA := addr_le_addr ⟨rfl, by decide⟩
+
 /-! ## What a `subsume` must answer -/
 
 /-- One implementation: never commit. Correct, and useless. -/
