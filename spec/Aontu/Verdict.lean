@@ -845,8 +845,10 @@ that a preference reads as its default, as `super(*1)` is `integer`;
 a `pref` what `Val.prefer` makes of its argument read before the normal
 form, as `super` reads it, so that a preference stays one, and a `move`
 the same, its source hidden where the document is read (`Decls.withMoves`);
-any other call the number `callValue` computes, where it computes one,
-and itself otherwise, which no reading makes. -/
+a `refer` the path kind, the link's own value, its template met into
+its target where the document is read (`Decls.withRefers`); any other
+call the number `callValue` computes, where it computes one, and itself
+otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   match f, args with
   | .plus, [a, b] => (plusOf (normaliseD ds a.operand) (normaliseD ds b.operand)).term ds f args
@@ -871,6 +873,8 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .super, [x] => x.super
   | .pref, [x] => x.prefer
   | .move, [x] => x.prefer
+  | .refer, [] => .pathKind
+  | .refer, [_] => .pathKind
   | .split, [s, sep] => (splitOf ds s sep).term ds f args
   | .rep, [s, p, r] => (repOf ds s p r).term ds f args
   | .nom, [n] => (nomOf ds n none none).term ds f args
@@ -1940,6 +1944,8 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact (h _ (by simp)).super
   · exact prefer_checkableA (h _ (by simp))
   · exact prefer_checkableA (h _ (by simp))
+  · exact .pathKind
+  · exact .pathKind
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => repOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv

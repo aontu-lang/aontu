@@ -1263,6 +1263,57 @@ theorem round_verdict_exact : ∀ c ∈ roundCases, ∀ (m : Mode) (v : Verdict)
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (roundCases_checkable c hc).1 (roundCases_checkable c hc).2 v
 
+/-- `refer` of a path value: its template met into the target, beside
+data that agrees with it, data that refuses it and data that writes the
+link as a string; a template that clashes with the target; no
+template; a target that names nothing, one only the data supplies, a
+relative one, one that climbs past the top, a scalar and a list
+element; a string where an address must be; a link with no address;
+and a link in a body, used and not, read at the body's own place. -/
+def referCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
+  let rf (t : Val) (a : Val) : Val := .meet (.call .refer [t]) a
+  let rf0 (a : Val) : Val := .meet (.call .refer []) a
+  let a1 : Val := m [("p", int 1)]
+  let r3 : Val := rf (m [("r", int 3)]) (ad 0 ["a"])
+  let svc (t : Val) : Val := m [("s", m [("auth", m [("k", int 1)]), ("billing", m [("dep", rf t (ad 2 ["auth"]))])])]
+  [([], m [("a", a1), ("b", r3)], .map []),
+    ([], m [("a", a1), ("b", r3)], .map [("a", .map [("r", j 3)])]),
+    ([], m [("a", a1), ("b", r3)], .map [("a", .map [("r", j 4)])]),
+    ([], m [("a", a1), ("b", r3)], .map [("b", .str "$.a")]),
+    ([], m [("a", a1), ("b", rf (m [("p", int 2)]) (ad 0 ["a"]))], .map []),
+    ([], m [("a", a1), ("b", rf0 (ad 0 ["a"]))], .map []),
+    ([], m [("a", m [("p", .integer)]), ("b", rf (m [("p", int 1)]) (ad 0 ["a"]))], .map []),
+    ([], m [("a", m [("p", .integer)]), ("b", rf (m [("p", int 1)]) (ad 0 ["a"]))], .map [("a", .map [("p", j 2)])]),
+    ([], m [("b", rf0 (ad 0 ["gone"]))], .map []),
+    ([], m [("a", m []), ("b", rf0 (ad 0 ["a", "x"]))], .map [("a", .map [("x", j 1)])]),
+    ([], svc (m [("m", int 2)]), .map []),
+    ([], svc (m [("m", int 2)]), .map [("s", .map [("auth", .map [("m", j 3)])])]),
+    ([], m [("b", rf0 (ad 3 ["a"]))], .map []),
+    ([], m [("a", int 1), ("b", rf0 (ad 2 ["a"]))], .map []),
+    ([], m [("a", a1), ("b", rf .integer (ad 0 ["a", "p"]))], .map []),
+    ([], m [("a", a1), ("b", rf .string (ad 0 ["a", "p"]))], .map []),
+    ([], m [("a", .list [int 1, int 2] none false), ("b", rf .integer (ad 0 ["a", "1"]))], .map []),
+    ([], m [("a", .list [int 1, int 2] none false), ("b", rf .string (ad 0 ["a", "1"]))], .map []),
+    ([], m [("a", .list [int 1, int 2] none false), ("b", rf0 (ad 0 ["a", "5"]))], .map []),
+    ([], m [("a", int 1), ("b", .meet (.call .refer []) (.lit (.str "$.a")))], .map []),
+    ([], m [("b", .call .refer [])], .map []),
+    ([("L", r3)], m [("a", a1), ("b", .alias "L")], .map []),
+    ([("L", r3)], m [("a", a1), ("b", .alias "L")], .map [("a", .map [("r", j 4)])]),
+    ([("L", r3)], m [("a", a1)], .map [("a", .map [("r", j 4)])]),
+    ([("L", rf0 (ad 1 ["auth"]))], m [("auth", m [("k", int 1)])], .map []),
+    ([("L", rf0 (ad 1 ["auth"]))], m [("s", m [("auth", m [("k", int 1)]), ("b", .alias "L")])], .map [])]
+
+theorem referCases_checkable : ∀ c ∈ referCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem refer_verdict_exact : ∀ c ∈ referCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (referCases_checkable c hc).1 (referCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, the schema's braces dropped since neither CLI reads a braced
 map after a declaration, in the three modes, with the one class `vetP`
@@ -2081,7 +2132,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
     ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "pref"),
-    ("call", "call", "move"), ("call", "call", "split"),
+    ("call", "call", "move"), ("call", "call", "refer"), ("call", "call", "split"),
     ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "abnf"),
     ("call", "call", "parse"), ("call", "call", "project"),
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
@@ -2113,7 +2164,7 @@ def formSamples : List (String × Val) :=
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
-    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]),
+    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]), ("refer", .call .refer []),
     ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
     ("nom", .call .nom [.string]), ("path", .call .path [.string]), ("project", .call (.cmp .project) []),
     ("folder", .call (.cmp .folder) [.string]), ("file", .call (.cmp .file) [.string]),
@@ -3598,7 +3649,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# root with its calls made, follow in rows pc0 on, and move, a preference of"
     IO.println "# the value a path reads with its source hidden, in rows mv0 on. Paths into"
     IO.println "# what a call over a path makes, which resolve a round later, follow in rows"
-    IO.println "# rn0 on."
+    IO.println "# rn0 on, and refer, a link that keeps its address, its template met into"
+    IO.println "# its target, in rows rf0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -3608,6 +3660,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "pc" callPathCases
     pathRows "mv" moveCases
     pathRows "rn" roundCases
+    pathRows "rf" referCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
