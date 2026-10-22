@@ -187,6 +187,7 @@ def Fn.name : Fn → String
   | .nom => "nom"
   | .cmp c => c.name
   | .each => "each"
+  | .pack => "pack"
 
 mutual
 def Val.src : Val → Option String

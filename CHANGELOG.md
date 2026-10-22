@@ -8,6 +8,27 @@ each change affects.
 
 ## Unreleased
 
+### The definition holds `pack`
+
+Definition, generated rows and documentation; no engine changes. P9's
+second slice.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `pack`.
+- `spec/Aontu/Verdict.lean`: `pack(d, t)` is the open map of `t` read
+  for each member `Val.keyedMembers` reads, under the member's key: a
+  map's keys, in key order, a member a fold skips left out, and a
+  list's strings, each its own key, riders read through, a key the
+  list repeats making one member. It's `nil` where a list holds
+  anything but a string or the data is no bag.
+  `Val.keyedMembers_checkableA` carries `resolveD_checkableA` through it.
+- `test/spec/def-call.tsv` gains 19 cases in rows x2064 to x2120, and
+  `spec/forms.tsv` gains `pack`. Both ports answer every row as the
+  definition does. No row holds `key()` in a template, which waits on
+  `key()` at any position.
+- The definition tutorial gains step 28, a map from a template, and the
+  last step becomes 29. The reference's generators section, the design
+  note's P9 row and the definition's README follow.
+
 ### A component's string spec keeps its riders in Go
 
 Go, shared rows, and documentation; no TypeScript change (#454).

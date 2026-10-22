@@ -5004,7 +5004,10 @@ members its condition admits, as a term, or `nil` where the source
 generates a scalar, which has no members. One whose scrutinee or source
 generates nothing stays, and generates nothing. An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
-reads them, and `nil` where the data is no bag. Any other call, its
+reads them, and `nil` where the data is no bag. A `pack` is the open map
+of its template read for each member `Val.keyedMembers` reads, under the
+member's key, and `nil` where the data is no bag or a list of strings.
+Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
 hole, and a `filter`'s condition and a template are read for their own
 members, so none of them is read for `b`. -/
@@ -6617,7 +6620,69 @@ which waits on `key()` at any position. The rows are x1809 on, and
 both engines answer every one as the definition does, but for two
 calls with the wrong number of arguments, which #426 tracks.
 
-## 28. What the definition doesn't say yet
+## 28. A map from a template
+
+`pack(d, t)` makes one map member for each member of `d`, under the
+member's key: a map's own keys, or each string of a list, which is its
+own key. Write `pack.aontu`:
+
+<!-- test: scenario pack -->
+<!-- test: file pack.aontu -->
+```aontu
+deploy: pack(["web" "auth"], { image:"acme/" + _ })
+totals: pack({ b: [1 2] a: [3] }, sum(_))
+loud: pack(["web"], upper(_))
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu pack.aontu
+{
+  "deploy": {
+    "auth": {
+      "image": "acme/auth"
+    },
+    "web": {
+      "image": "acme/web"
+    }
+  },
+  "loud": {
+    "web": "WEB"
+  },
+  "totals": {
+    "a": 3,
+    "b": 3
+  }
+}
+```
+
+`resolveD` reads a `pack` as it reads an `each`, its template once for
+each member, but into an open map:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+    | .pack, [d, t] =>
+      match (normaliseD ds (resolveD ds b d)).keyedMembers ds with
+      | some ms => .map (ms.map fun m => (m.1, false, resolveD ds (some m.2) t)) none false
+      | none => .nil
+```
+
+`Val.keyedMembers` pairs each member with its key. It reads a map's
+members in key order and leaves out a marked member or an optional one
+that generates nothing, as a fold does. A list's members are its
+strings, each its own key, and a key the list names twice makes one
+member, since both make the same instance. A list holding anything
+but a string is an error, `pack([1], {})`, and so is data that isn't a
+bag. The map is open, so `pack(["a"], {x: 1}) & {b: 2}` holds `b` too.
+
+The templates here don't use `key()`. Both engines read it as the key
+the instance lands under, which waits on `key()` at any position. The
+rows are x2064 on, and both engines answer every one as the
+definition does.
+
+## 29. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -6625,7 +6690,7 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
 steps 20 to 26 don't walk through, `key()` anywhere but in a spread, and
-generation with `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
+generation with `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 
