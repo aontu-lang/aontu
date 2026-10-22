@@ -964,7 +964,28 @@ encodes it lands.
    holds only of a list whose absent elements come last. The
    definition recommends the first and reads it meanwhile: `resolveD`
    drops the element as it reads the list. No generated row holds an
-   absent element before another.
+   absent element before another. A link after an absent element,
+   `[maybe($.gone), rel(t) & [path($.a)]]`, is read at the index the
+   document writes it at, which the dropped element shifts, so its
+   template flows nowhere where both ports flow it (#494's review); the
+   ruling settles that too.
+
+25. **A constraint met with `rel()` before its value.** Raised
+   2026-10-22 by P11's fourth slice (#496). Both ports hold a
+   constraint that meets `rel()` before the relation's value arrives
+   and meet it with each leaf once the value does, so
+   `rel() & path & [path($.a)]` generates `["$.a"]` where
+   `rel() & ([path($.a)] & path)` refuses, `path` meeting the list
+   before the relation does, and `len` held the same way meets the
+   list, not each leaf. No meet gives both answers of the pair. Either
+   a constraint met with `rel()` meets the relation's value as any meet
+   does, so that `rel() & path & [path($.a)]` is `nil`, as
+   `path & [path($.a)]` is, and an author constrains each leaf with a
+   spread, `[&: re("sa$")]`, which holds every element in any grouping;
+   or `rel()` holds what meets it for its leaves, which a list met with
+   a constraint first would have to wait for. The definition recommends
+   the first and reads it meanwhile, and no generated row meets `rel()`
+   with a constraint before its value.
 
 ## 8. Risks
 
