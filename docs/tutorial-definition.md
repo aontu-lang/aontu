@@ -6194,10 +6194,10 @@ A `to` shorter than the set pads with its last character, so
 none, deletes, so `translate("hello", "lo")` is `"he"`. A range counts
 every code point it crosses, the surrogates too, which is why the set
 holds code point numbers, and `scalar` writes `U+FFFD` for a surrogate,
-which is no character. Its rows are x966 on, and both engines answer
-every one as the definition does, but for two calls with the wrong
-number of arguments, which #426 tracks. TypeScript writes a lone
-surrogate where Go writes `U+FFFD`, which #442 tracks.
+which is no character. Its rows are x966 on, and x2055 on for a
+surrogate written from `to`. Both engines answer every one as the
+definition does, but for two calls with the wrong number of arguments,
+which #426 tracks.
 
 ### Spelling a name
 
