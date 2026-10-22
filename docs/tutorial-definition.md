@@ -7522,7 +7522,7 @@ clash as step 14 reads it: an `error`, as `*1 | *2` written so is.
 Rows pf0 on of `test/spec/def-path.tsv` hold these readings in the
 three modes of `vet`, and both engines answer every one as the
 definition does. They answer `pref(1 | 2)` `invalid` where they answer
-`*1 | *2` an `error`, and no row holds that case, which #PREFISSUE tracks.
+`*1 | *2` an `error`, and no row holds that case, which #482 tracks.
 
 ## 35. What the definition doesn't say yet
 

@@ -837,7 +837,7 @@ spelling when you mean "a map whose `x` defaults to 1", and it is what
 
 In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, and the rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
 
-`pref(v)` is `Val.prefer` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), read on the argument's normal form. Each scalar literal becomes a preference of rank one, and each preference a rank weaker, so `pref(*1 | 2)` is `**1 | *2`, which generates `2`. A kind and a bound stay as they are. Rows pf0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. They answer `pref(1 | 2)` `invalid` where `*1 | *2` is an `error`, which #PREFISSUE tracks.
+`pref(v)` is `Val.prefer` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), read on the argument's normal form. Each scalar literal becomes a preference of rank one, and each preference a rank weaker, so `pref(*1 | 2)` is `**1 | *2`, which generates `2`. A kind and a bound stay as they are. Rows pf0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. They answer `pref(1 | 2)` `invalid` where `*1 | *2` is an `error`, which [#482](https://github.com/aontu-lang/aontu/issues/482) tracks.
 
 ## Optional keys `?`
 

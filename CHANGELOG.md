@@ -23,7 +23,7 @@ P8's fourteenth slice.
   a call that waits read as `pref` of themselves, which waits, and a
   `pref` that waits stands where its argument does (`Val.illFormed`).
 - `test/spec/def-path.tsv` gains rows pf0 on, in the three modes of
-  `vet`. Both ports answer every row as the definition does. #PREFISSUE
+  `vet`. Both ports answer every row as the definition does. #482
   lists the cases where they don't: `pref(1 | 2)` is `*1 | *2`, a
   clash, which both ports answer `invalid` where `*1 | *2` written so
   is an `error`.
