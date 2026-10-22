@@ -78,13 +78,15 @@ def prefSrc (r : ℕ) (s : String) : String :=
   if s.startsWith "{" || s.startsWith "[" then stars ++ s else stars ++ s!"({s})"
 
 /-- A step of a path as the grammar spells it: a key that is a plain
-name, a key in quotes, a position, or a variable. -/
+name, a key in quotes, a position, a variable, or a climb, whose last
+dot the step after it writes. -/
 def segSrc : Seg → Option String
   | .key k =>
     if k.length > 0 && k.all (fun c => c.isAlphanum || c == '_') && !k.front.isDigit
     then some ("." ++ k) else some ("." ++ quote k)
   | .idx i => some ("." ++ toString i)
   | .var n => some (".$" ++ n)
+  | .up n => some (String.mk (List.replicate (n - 1) '.'))
 
 mutual
 def Data.src : Data → Option String
@@ -237,7 +239,7 @@ def Val.src : Val → Option String
   | .key => some "key(0)"
   | .keyUp n => some s!"key({n})"
   | .hole => some "_"
-  | .path p => do pure ("$" ++ String.join (← p.mapM segSrc))
+  | .path p => do pure ((if p.head? matches some (.up _) then "" else "$") ++ String.join (← p.mapM segSrc))
   | .nof n cs => do pure s!"nof({← n.src}, {", ".intercalate (← itemsSrc cs)})"
   | .must c m => do pure s!"must({← c.src}, {quote m})"
   | .when c t e => do pure s!"when({", ".intercalate ([← c.src, ← t.src] ++ (← elseSrc e))})"

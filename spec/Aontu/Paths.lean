@@ -39,6 +39,7 @@ def Val.at : Val → List Seg → Option Val
       | none => none
     | _ => none
   | _, .var _ :: _ => none
+  | _, .up _ :: _ => none
 termination_by structural _ p => p
 
 /-- The index digits spell in canonical decimal: `0`, or digits that
@@ -59,7 +60,7 @@ list, the index its text spells in canonical decimal. A variable names
 no step until it's bound. -/
 def Seg.stepIn (s : Seg) (v : Val) : Option Seg :=
   match s, v.unride with
-  | .var _, _ => none
+  | .var _, _ | .up _, _ => none
   | s, .map _ _ _ => some (.key s.text)
   | .idx i, .list _ _ _ => some (.idx i)
   | .key k, .list _ _ _ => (indexOf? k).map .idx
@@ -87,7 +88,8 @@ def pathName (p : List Seg) : String :=
   "$" ++ String.join (p.map fun
     | .key k => "." ++ toString k.length ++ ":" ++ k
     | .idx i => "#" ++ toString i
-    | .var n => "$" ++ toString n.length ++ ":" ++ n)
+    | .var n => "$" ++ toString n.length ++ ":" ++ n
+    | .up n => "^" ++ toString n)
 
 mutual
 /-- The term with each path replaced by a reference to the path's name. -/
@@ -134,6 +136,76 @@ def ptaArms : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
   | (r, a) :: as => (r, a.pathsToAliases) :: ptaArms as
 end
+
+/-! ## Relative paths -/
+
+mutual
+/-- The term standing at `pos`, each relative path it writes made
+absolute where it stands, its dots climbing as many steps: a map's
+member stands one key below the map and a list's element one index
+below, as `resolveD` places a key. A path that climbs past the top stays
+as written, and resolves nowhere. A spread, a template and a `filter`'s
+condition keep theirs as written, since each stands at a position the
+written document doesn't name. -/
+def Val.placed (pos : List Seg) : Val → Val
+  | .path (.up n :: p) => if n ≤ pos.length then .path (pos.take (pos.length - n) ++ p) else .path (.up n :: p)
+  | .len c => .len (c.placed pos)
+  | .map fs spread closed => .map (plFields pos fs) spread closed
+  | .list items spread closed => .list (plElems pos 0 items) spread closed
+  | .or arms => .or (plArms pos arms)
+  | .pref r x => .pref r (x.placed pos)
+  | .meet a b => .meet (a.placed pos) (b.placed pos)
+  | .nof n cs => .nof (n.placed pos) (plItems pos cs)
+  | .must c m => .must (c.placed pos) m
+  | .when c t e => .when (c.placed pos) (t.placed pos) (plSpread pos e)
+  | .contains c n => .contains (c.placed pos) (n.placed pos)
+  | .rest t cs => .rest (t.placed pos) (plCovers pos cs)
+  | .select s arms d => .select (s.placed pos) (plPairs pos arms) (plSpread pos d)
+  | .filter s c => .filter (s.placed pos) c
+  | .call f args => .call f (plArgs pos f args)
+  | .ride k v r => .ride k (v.placed pos) r
+  | v => v
+
+def plPairs (pos : List Seg) : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.placed pos, r.placed pos) :: plPairs pos ps
+
+def plCovers (pos : List Seg) : List Cover → List Cover
+  | [] => []
+  | (c, k, m) :: cs => (plSpread pos c, plSpread pos k, plSpread pos m) :: plCovers pos cs
+
+def plFields (pos : List Seg) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.placed (pos ++ [.key k])) :: plFields pos fs
+
+def plElems (pos : List Seg) : ℕ → List Val → List Val
+  | _, [] => []
+  | i, v :: vs => v.placed (pos ++ [.idx i]) :: plElems pos (i + 1) vs
+
+def plItems (pos : List Seg) : List Val → List Val
+  | [] => []
+  | v :: vs => v.placed pos :: plItems pos vs
+
+/-- A call's arguments placed, but a generator's template, which stays
+as written. -/
+def plArgs (pos : List Seg) (f : Fn) : List Val → List Val
+  | [] => []
+  | v :: vs => v.placed pos :: (if f = .each ∨ f = .pack then vs else plArgs pos f vs)
+
+def plSpread (pos : List Seg) : Option Val → Option Val
+  | none => none
+  | some s => some (s.placed pos)
+
+def plArms (pos : List Seg) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.placed pos) :: plArms pos as
+end
+
+/-- A document with each relative path it writes made absolute where it
+stands: the schema from the top, and each body at its name's own place,
+`%` and the name as a key at the top, as both ports place a body. -/
+def Decls.placed (ds : Decls) (S : Val) : Decls × Val :=
+  (ds.map fun d => (d.1, d.2.placed [.key ("%" ++ d.1)]), S.placed [])
 
 /-- A variable's step: the text of the scalar the calling program binds
 it to, a string as itself, a number as `Number.text` writes it and a
@@ -197,14 +269,14 @@ def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
 
 /-! ## The verdict with paths -/
 
-/-- The verdict of a document with paths. It is an `error` where a path
-does not resolve in the schema's own tree, or where the document is an
-error with its paths read from the schema alone: a name declared
-nowhere, a cycle, a `nil` in the schema. Otherwise the paths read from
-the data too, and the document is `invalid` where that reading is dead
-or an error, since the data made it so, and `valid` or `incomplete` as
-that reading is. -/
-def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
+/-- The verdict of a document whose paths are absolute. It is an `error`
+where a path does not resolve in the schema's own tree, or where the
+document is an error with its paths read from the schema alone: a name
+declared nowhere, a cycle, a `nil` in the schema. Otherwise the paths
+read from the data too, and the document is `invalid` where that
+reading is dead or an error, since the data made it so, and `valid` or
+`incomplete` as that reading is. -/
+def VetA (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Resolves S ∨ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error
   | .invalid =>
     ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
@@ -214,8 +286,8 @@ def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
     ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
       Vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j v
 
-/-- The verdict with paths, computed. -/
-def vetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
+/-- The verdict of a document whose paths are absolute, computed. -/
+def vetA (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
   if ds.resolvesB S then
     if vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j = .error then .error
     else
@@ -223,6 +295,15 @@ def vetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
       | .error => .invalid
       | v => v
   else .error
+
+/-- The verdict of a document with paths: its relative paths placed
+(`Decls.placed`), the verdict of the document whose paths are absolute. -/
+def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
+  VetA m (ds.placed S).1 (ds.placed S).2 j v
+
+/-- The verdict with paths, computed. -/
+def vetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
+  vetA m (ds.placed S).1 (ds.placed S).2 j
 
 /-! ## Paths read as names keep a term checkable -/
 
@@ -382,6 +463,207 @@ theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliase
       exact ihd e₀ he₀
   | _ => simp only [Val.pathsToAliases]; constructor
 
+/-! ## Placing keeps a term checkable -/
+
+theorem mem_plFields {pos : List Seg} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+    (k, o, w) ∈ plFields pos fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.placed (pos ++ [.key k]) := by
+  induction fs with
+  | nil => simp [plFields]
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    simp only [plFields, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
+      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
+      · exact ⟨v, Or.inr hm, rfl⟩
+    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl, rfl⟩
+      · exact Or.inr ⟨v, hm, rfl⟩
+
+theorem mem_plElems {pos : List Seg} : ∀ {i : ℕ} {items : List Val} {w : Val},
+    w ∈ plElems pos i items → ∃ v, v ∈ items ∧ ∃ j, w = v.placed (pos ++ [.idx j])
+  | _, [], _, h => by simp [plElems] at h
+  | i, v :: vs, w, h => by
+    simp only [plElems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, List.mem_cons_self, i, rfl⟩
+    · obtain ⟨u, hu, j, rfl⟩ := mem_plElems h
+      exact ⟨u, List.mem_cons_of_mem _ hu, j, rfl⟩
+
+theorem mem_plItems {pos : List Seg} {items : List Val} {w : Val} :
+    w ∈ plItems pos items ↔ ∃ v, v ∈ items ∧ w = v.placed pos := by
+  induction items with
+  | nil => simp [plItems]
+  | cons v vs ih =>
+    simp only [plItems, List.mem_cons, ih]
+    constructor
+    · rintro (rfl | ⟨u, hu, rfl⟩)
+      · exact ⟨v, .inl rfl, rfl⟩
+      · exact ⟨u, .inr hu, rfl⟩
+    · rintro ⟨u, rfl | hu, rfl⟩
+      · exact .inl rfl
+      · exact .inr ⟨u, hu, rfl⟩
+
+theorem mem_plArgs {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
+    w ∈ plArgs pos f args → ∃ v, v ∈ args ∧ (w = v.placed pos ∨ w = v)
+  | [], _, h => by simp [plArgs] at h
+  | v :: vs, w, h => by
+    simp only [plArgs, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, List.mem_cons_self, .inl rfl⟩
+    · split at h
+      · exact ⟨w, List.mem_cons_of_mem _ h, .inr rfl⟩
+      · obtain ⟨u, hu, hw⟩ := mem_plArgs h
+        exact ⟨u, List.mem_cons_of_mem _ hu, hw⟩
+
+theorem mem_plPairs {pos : List Seg} {ps : List (Val × Val)} {p r : Val} :
+    (p, r) ∈ plPairs pos ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.placed pos ∧ r = r₀.placed pos := by
+  induction ps with
+  | nil => simp [plPairs]
+  | cons q ps ih =>
+    obtain ⟨p', r'⟩ := q
+    simp only [plPairs, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨p₀, r₀, hm, rfl, rfl⟩)
+      · exact ⟨p', r', Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
+      · exact ⟨p₀, r₀, Or.inr hm, rfl, rfl⟩
+    · rintro ⟨p₀, r₀, ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
+
+theorem plSpread_eq {pos : List Seg} {spread : Option Val} {t : Val} :
+    plSpread pos spread = some t ↔ ∃ s, spread = some s ∧ t = s.placed pos := by
+  cases spread with
+  | none => simp [plSpread]
+  | some s =>
+    simp only [plSpread, Option.some.injEq]
+    exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
+
+theorem mem_plCovers {pos : List Seg} {cs : List Cover} {c' : Cover} :
+    c' ∈ plCovers pos cs ↔ ∃ c, c ∈ cs ∧ c' = (plSpread pos c.1, plSpread pos c.2.1, plSpread pos c.2.2) := by
+  induction cs with
+  | nil => simp [plCovers]
+  | cons c cs ih =>
+    obtain ⟨a, k, m⟩ := c
+    simp only [plCovers, List.mem_cons, ih]
+    constructor
+    · rintro (rfl | ⟨d, hd, rfl⟩)
+      · exact ⟨(a, k, m), .inl rfl, rfl⟩
+      · exact ⟨d, .inr hd, rfl⟩
+    · rintro ⟨d, rfl | hd, rfl⟩
+      · exact .inl rfl
+      · exact .inr ⟨d, hd, rfl⟩
+
+theorem mem_plArms {pos : List Seg} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
+    (r, b) ∈ plArms pos arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.placed pos := by
+  induction arms with
+  | nil => simp [plArms]
+  | cons q qs ih =>
+    obtain ⟨r', a'⟩ := q
+    simp only [plArms, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
+      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
+      · exact ⟨a, Or.inr hm, rfl⟩
+    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨a, hm, rfl⟩
+
+/-- A term the checker can read, its relative paths placed, is one it
+can read. -/
+theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos).CheckableA := by
+  induction h with
+  | len _ ih => intro pos; exact .len (ih pos)
+  | @map fs spread closed _ hs ihf _ =>
+    intro pos
+    refine .map ?_ hs
+    intro k o w hm
+    obtain ⟨v, hv, rfl⟩ := mem_plFields.mp hm
+    exact ihf k o v hv _
+  | @list items spread closed _ hs ihi _ =>
+    intro pos
+    refine .list ?_ hs
+    intro w hm
+    obtain ⟨v, hv, j, rfl⟩ := mem_plElems hm
+    exact ihi v hv _
+  | @or arms _ ih =>
+    intro pos
+    refine .or fun r b hm => ?_
+    obtain ⟨a, ha, rfl⟩ := mem_plArms.mp hm
+    exact ih r a ha pos
+  | pref _ ih => intro pos; exact .pref (ih pos)
+  | ride _ ih => intro pos; exact .ride (ih pos)
+  | meet _ _ iha ihb => intro pos; exact .meet (iha pos) (ihb pos)
+  | @path p =>
+    intro pos
+    match p with
+    | .up n :: q =>
+      simp only [Val.placed]
+      split <;> exact .path
+    | [] => exact .path
+    | .key _ :: _ => exact .path
+    | .idx _ :: _ => exact .path
+    | .var _ :: _ => exact .path
+  | @nof n cs _ _ ihn ihcs =>
+    intro pos
+    refine .nof (ihn pos) fun w hm => ?_
+    obtain ⟨c, hc, rfl⟩ := mem_plItems.mp hm
+    exact ihcs c hc pos
+  | @call f args hargs ih =>
+    intro pos
+    refine .call fun w hm => ?_
+    obtain ⟨a, ha, hw | hw⟩ := mem_plArgs hm
+    · rw [hw]; exact ih a ha pos
+    · rw [hw]; exact hargs a ha
+  | must _ ih => intro pos; exact .must (ih pos)
+  | @when c t e _ _ _ ihc iht ihe =>
+    intro pos
+    refine .when (ihc pos) (iht pos) fun e' he => ?_
+    obtain ⟨s, hs, rfl⟩ := plSpread_eq.mp he
+    exact ihe s hs pos
+  | contains _ _ ihc ihn => intro pos; exact .contains (ihc pos) (ihn pos)
+  | @rest t cs _ _ _ _ iht ih1 ih2 ih3 =>
+    intro pos
+    refine .rest (iht pos) ?_ ?_ ?_
+    · intro c' hc' v hv
+      obtain ⟨c, hc, rfl⟩ := mem_plCovers.mp hc'
+      obtain ⟨s, hs, rfl⟩ := plSpread_eq.mp hv
+      exact ih1 c hc s hs pos
+    · intro c' hc' v hv
+      obtain ⟨c, hc, rfl⟩ := mem_plCovers.mp hc'
+      obtain ⟨s, hs, rfl⟩ := plSpread_eq.mp hv
+      exact ih2 c hc s hs pos
+    · intro c' hc' v hv
+      obtain ⟨c, hc, rfl⟩ := mem_plCovers.mp hc'
+      obtain ⟨s, hs, rfl⟩ := plSpread_eq.mp hv
+      exact ih3 c hc s hs pos
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    intro pos
+    refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_plPairs.mp hm
+      exact ihp p₀ r₀ hm₀ pos
+    · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_plPairs.mp hm
+      exact ihr p₀ r₀ hm₀ pos
+    · obtain ⟨e₀, he₀, rfl⟩ := plSpread_eq.mp he
+      exact ihd e₀ he₀ pos
+  | @selectLit sc arms d _ _ _ ihp ihr ihd =>
+    intro pos
+    refine .selectLit (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_plPairs.mp hm
+      exact ihp p₀ r₀ hm₀ pos
+    · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_plPairs.mp hm
+      exact ihr p₀ r₀ hm₀ pos
+    · obtain ⟨e₀, he₀, rfl⟩ := plSpread_eq.mp he
+      exact ihd e₀ he₀ pos
+  | _ => intro pos; simp only [Val.placed]; constructor
+
+theorem Decls.placed_bodies_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
+    ∀ d, d ∈ (ds.placed S).1 → d.2.CheckableA := by
+  intro d hd
+  simp only [Decls.placed, List.mem_map] at hd
+  obtain ⟨d', hd', rfl⟩ := hd
+  exact placed_checkableA (hb d' hd') _
+
 /-- The term at a path in a term the checker can read is one it can read. -/
 theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p = some w → w.CheckableA
   | [], _, _, hv, h => by
@@ -414,6 +696,7 @@ theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p 
         · exact absurd h (by simp)
     · exact absurd h (by simp)
   | .var _ :: _, _, _, _, h => by simp [Val.at] at h
+  | .up _ :: _, _, _, _, h => by simp [Val.at] at h
 
 /-- The term at a written path in a term the checker can read is one it
 can read. -/
@@ -460,10 +743,10 @@ theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {root : Val
   · exact pathsToAliases_checkableA (hb d' hd')
   · exact Decls.ofPaths_checkableA hr _ d hd
 
-/-- `vetP` computes `VetP` on every document whose bodies and schema
+/-- `vetA` computes `VetA` on every document whose bodies and schema
 read no pattern and no format. -/
-theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v := by
+theorem vetA_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (v : Verdict) : vetA m ds S j = v ↔ VetA m ds S j v := by
   have hbS := Decls.withPathsFrom_bodies_checkableA (S := S) hb (normaliseD_checkableA hb (readU_checkableA hb hS))
   have hvS := vet_iff (m := m) (ds := (ds.withPathsS S).1) (S := (ds.withPathsS S).2) (j := j) hbS
     (readR_checkableA hbS (pathsToAliases_checkableA hS))
@@ -471,48 +754,75 @@ theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (normaliseD_checkableA hb (meetD_checkableA hb (readU_checkableA hb hS) (Data.term_checkableA j)))
   have hvP := vet_iff (m := m) (ds := (ds.withPaths S j).1) (S := (ds.withPaths S j).2) (j := j) hbP
     (readR_checkableA hbP (pathsToAliases_checkableA hS))
-  unfold vetP
+  unfold vetA
   by_cases hr : ds.resolvesB S = true
   · rw [if_pos hr]
     have hR := Decls.resolvesB_iff.mp hr
     by_cases he : vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j = .error
     · rw [if_pos he]
       have hE := (hvS .error).mp he
-      cases v <;> simp only [VetP, hR, hE, not_true_eq_false, false_and, and_false, or_true,
+      cases v <;> simp only [VetA, hR, hE, not_true_eq_false, false_and, and_false, or_true,
         reduceCtorEq]
     · rw [if_neg he]
       have hE : ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error := fun h => he ((hvS .error).mpr h)
       cases hp : vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j <;> cases v <;>
-        simp only [VetP, hR, hE, ← hvP, hp, not_true_eq_false, not_false_eq_true,
+        simp only [VetA, hR, hE, ← hvP, hp, not_true_eq_false, not_false_eq_true,
           or_true, or_false, and_false, and_true, reduceCtorEq]
   · rw [if_neg hr]
     have hR : ¬ ds.Resolves S := fun h => hr (Decls.resolvesB_iff.mpr h)
-    cases v <;> simp only [VetP, hR, not_false_eq_true, true_or, false_and, reduceCtorEq]
+    cases v <;> simp only [VetA, hR, not_false_eq_true, true_or, false_and, reduceCtorEq]
+
+/-- `vetP` computes `VetP` on every document whose bodies and schema
+read no pattern and no format. -/
+theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
+  vetA_iff (Decls.placed_bodies_checkableA hb) (placed_checkableA hS []) v
 
 /-! ## The output with paths -/
 
-/-- What a document with paths generates, where every path resolves:
-the output of the document with its paths read as names from the
-schema alone. -/
-def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
+/-- What a document whose paths are absolute generates, where every
+path resolves: the output of the document with its paths read as names
+from the schema alone. -/
+def OutputA (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
   ds.Resolves S ∧ OutputD (ds.withPathsS S).1 root ((ds.withPathsS S).1.readR (ds.withPathsS S).2) j
 
-/-- The output with paths, computed. -/
-def outputP (ds : Decls) (S : Val) : Option Data :=
+/-- What a document whose paths are absolute generates, computed. -/
+def outputA (ds : Decls) (S : Val) : Option Data :=
   if ds.resolvesB S then outputD (ds.withPathsS S).1 ((ds.withPathsS S).1.readR (ds.withPathsS S).2)
   else none
 
-/-- `outputP` computes `OutputP` where the reading keeps the alias-cycle
+/-- `outputA` computes `OutputA` where the reading keeps the alias-cycle
 rule and the checker can read its bodies and its normal form. -/
-theorem outputP_iff {ds : Decls} {S : Val} {root : Data} (hg : (ds.withPathsS S).1.Guarded)
+theorem outputA_iff {ds : Decls} {S : Val} {root : Data} (hg : (ds.withPathsS S).1.Guarded)
     (hb : ∀ d, d ∈ (ds.withPathsS S).1 → d.2.CheckableA)
     (h : (normaliseD (ds.withPathsS S).1 ((ds.withPathsS S).1.readR (ds.withPathsS S).2)).CheckableA)
-    (j : Data) : outputP ds S = some j ↔ OutputP ds root S j := by
-  unfold outputP OutputP
+    (j : Data) : outputA ds S = some j ↔ OutputA ds root S j := by
+  unfold outputA OutputA
   by_cases hr : ds.resolvesB S = true
   · rw [if_pos hr, outputD_iff hg hb h j]
     exact ⟨fun h' => ⟨Decls.resolvesB_iff.mp hr, h'⟩, fun h' => h'.2⟩
   · rw [if_neg hr]
     exact ⟨fun h' => absurd h' (by simp), fun h' => absurd (Decls.resolvesB_iff.mpr h'.1) hr⟩
+
+/-- What a document with paths generates: its relative paths placed
+(`Decls.placed`), what the document whose paths are absolute generates. -/
+def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
+  OutputA (ds.placed S).1 root (ds.placed S).2 j
+
+/-- What a document with paths generates, computed. -/
+def outputP (ds : Decls) (S : Val) : Option Data :=
+  outputA (ds.placed S).1 (ds.placed S).2
+
+/-- `outputP` computes `OutputP` where the reading of the placed
+document keeps the alias-cycle rule and the checker can read its bodies
+and its normal form. -/
+theorem outputP_iff {ds : Decls} {S : Val} {root : Data}
+    (hg : ((ds.placed S).1.withPathsS (ds.placed S).2).1.Guarded)
+    (hb : ∀ d, d ∈ ((ds.placed S).1.withPathsS (ds.placed S).2).1 → d.2.CheckableA)
+    (h : (normaliseD ((ds.placed S).1.withPathsS (ds.placed S).2).1
+      (((ds.placed S).1.withPathsS (ds.placed S).2).1.readR
+        ((ds.placed S).1.withPathsS (ds.placed S).2).2)).CheckableA)
+    (j : Data) : outputP ds S = some j ↔ OutputP ds root S j :=
+  outputA_iff hg hb h j
 
 end Aontu
