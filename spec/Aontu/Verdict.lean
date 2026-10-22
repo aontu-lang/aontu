@@ -1057,6 +1057,32 @@ def maybeOf (ds : Decls) (v : Val) : Val :=
     else fillTop ds .nil v
   else v
 
+mutual
+/-- Whether a term waits on a reference that names nothing yet: a path
+not read yet or a name nothing declares, which a later round of the
+paths may declare, at its top, through meets, disjunctions and riders,
+or as what a call, a selection or a `filter` it is waits on. A call or
+a generator handed such a term waits. -/
+def Val.pending (ds : Decls) : Val → Bool
+  | .path _ => true
+  | .alias n => (ds.bodies n).isEmpty
+  | .meet a b => a.pending ds || b.pending ds
+  | .or arms => pendingArms ds arms
+  | .ride _ v _ => v.pending ds
+  | .call _ args => pendingItems ds args
+  | .select s _ _ => s.pending ds
+  | .filter s _ => s.pending ds
+  | _ => false
+
+def pendingItems (ds : Decls) : List Val → Bool
+  | [] => false
+  | v :: vs => v.pending ds || pendingItems ds vs
+
+def pendingArms (ds : Decls) : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.pending ds || pendingArms ds arms
+end
+
 /-- The members `keep` keeps, in order, each tried at the index it takes
 among those kept before it, as a list's `filter` places its trial. -/
 def keptAt (keep : ℕ → Data → Bool) : ℕ → List Data → List Data
@@ -1080,7 +1106,9 @@ member's key, the instances of a repeated key met, and `nil` where the
 data is no bag or a list holds anything but a string. A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
-no position for an element that is absence. Any other call, its
+no position for an element that is absence. A call or a generator
+handed a reference that names nothing yet (`Val.pending`) waits, as a
+later round of the paths may declare it. Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
 hole, and a `filter`'s condition and a template are read for their own
 members, so none of them is read for `b`. Each `key(n)` reads `here`, by
@@ -1117,19 +1145,26 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       | some ms =>
         .list ((ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).filter
           fun e => !(normaliseD ds e).isAbsent) none false
-      | none => if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent else .nil
+      | none =>
+        if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
+        else if (resolveD ds b here d).pending ds then .call .each [resolveD ds b here d, t]
+        else .nil
     | .pack, [d, t] =>
       if here.isNone && (resolveD ds b here d).holdsKey then .call .pack [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).keyedMembers ds with
       | some ms =>
         .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
           fun m => (m.1, false, m.2)) none false
-      | none => if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent else .nil
+      | none =>
+        if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
+        else if (resolveD ds b here d).pending ds then .call .pack [resolveD ds b here d, t]
+        else .nil
     | .maybe, [v] => maybeOf ds (resolveD ds b here v)
     | .maybe, args => .call .maybe (resolveItems ds b here args)
     | f, args =>
       if here.isNone && keyItems (resolveItems ds b here args) then .call f (resolveItems ds b here args)
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
+      else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
       else callTerm ds f (resolveItems ds b here args)
   | .len c => .len (resolveD ds b here c)
   | .map fs spread closed =>
@@ -1786,37 +1821,53 @@ theorem callTerm_rep_checkableA {ds : Decls} {a b c : Val} :
 
 /-- A `split` call read at a position reads to a term the checker can
 read whatever its arguments are, a pattern among them, which the checker
-cannot read, since `split` never waits. -/
-theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {pos : List Step} {a b : Val} (k : ℕ) :
+cannot read, where neither waits on a reference that names nothing yet,
+since `split` itself never waits. -/
+theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {pos : List Step} {a b : Val} (k : ℕ)
+    (hp : ∀ j, ∀ x, x ∈ [a, b] → (resolveD ds bd (some pos) (expandF ds j x)).pending ds = false) :
     (resolveD ds bd (some pos) (expandF ds k (.call .split [a, b]))).CheckableA := by
   cases k with
   | zero =>
+    have ha := hp 0 a (by simp)
+    have hb := hp 0 b (by simp)
+    simp only [expandF] at ha hb
     simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
-      ite_false]
+      ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false]
     split
     · exact .absent
     · exact callTerm_split_checkableA
   | succ k =>
+    have ha := hp k a (by simp)
+    have hb := hp k b (by simp)
     simp only [expandF, List.map, resolveD, resolveItems, Option.isNone_some, Bool.false_and,
-      Bool.false_eq_true, ite_false]
+      Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false]
     split
     · exact .absent
     · exact callTerm_split_checkableA
 
 /-- A `rep` call read at a position reads to a term the checker can read
-whatever its arguments are, since `rep` never waits. -/
-theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a b c : Val} (k : ℕ) :
+whatever its arguments are, where none waits on a reference that names
+nothing yet, since `rep` itself never waits. -/
+theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a b c : Val} (k : ℕ)
+    (hp : ∀ j, ∀ x, x ∈ [a, b, c] → (resolveD ds bd (some pos) (expandF ds j x)).pending ds = false) :
     (resolveD ds bd (some pos) (expandF ds k (.call .rep [a, b, c]))).CheckableA := by
   cases k with
   | zero =>
+    have ha := hp 0 a (by simp)
+    have hb := hp 0 b (by simp)
+    have hc := hp 0 c (by simp)
+    simp only [expandF] at ha hb hc
     simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
-      ite_false]
+      ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false]
     split
     · exact .absent
     · exact callTerm_rep_checkableA
   | succ k =>
+    have ha := hp k a (by simp)
+    have hb := hp k b (by simp)
+    have hc := hp k c (by simp)
     simp only [expandF, List.map, resolveD, resolveItems, Option.isNone_some, Bool.false_and,
-      Bool.false_eq_true, ite_false]
+      Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false]
     split
     · exact .absent
     · exact callTerm_rep_checkableA
@@ -2130,6 +2181,12 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
           exact hmc
       · split
         · exact .absent
+        split
+        · refine .call fun a ha => ?_
+          simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
+          rcases ha with h | h
+          · rw [h]; exact ih d (by simp) hb
+          · rw [h]; exact hargs t (by simp)
         · exact .nil
     · rename_i d t
       split
@@ -2153,6 +2210,12 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
           exact hmc
       · split
         · exact .absent
+        split
+        · refine .call fun a ha => ?_
+          simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
+          rcases ha with h | h
+          · rw [h]; exact ih d (by simp) hb
+          · rw [h]; exact hargs t (by simp)
         · exact .nil
     · rename_i v
       exact maybeOf_checkableA (ih v (by simp) hb)
@@ -2165,6 +2228,10 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         exact ih a₀ ha₀ hb
       split
       · exact .absent
+      split
+      · refine .call fun a ha => ?_
+        obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
+        exact ih a₀ ha₀ hb
       · refine callTerm_checkableA hd fun a ha => ?_
         obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
         exact ih a₀ ha₀ hb

@@ -226,11 +226,17 @@ variable bound (`Decls.bindSeg`), read by `Val.atW`. -/
 def Decls.pathAt (ds : Decls) (root : Val) (p : List Seg) : Option Val :=
   (p.mapM ds.bindSeg).bind root.atW
 
+/-- The term a written path names in the first of the roots it names
+something in. -/
+def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) : Option Val :=
+  roots.findSome? fun root => ds.pathAt root p
+
 /-- The declarations a document's paths make: each path's name, declared
-as the term at the path in the root, with that term's own paths read as
-names too. A path to nothing declares nothing. -/
-def Decls.ofPaths (ds : Decls) (root : Val) (ps : List (List Seg)) : Decls :=
-  ps.filterMap fun p => (ds.pathAt root p).map fun w => (pathName p, w.pathsToAliases)
+as the term at the path in the first of the roots it names something
+in, with that term's own paths read as names too. A path to nothing
+declares nothing. -/
+def Decls.ofPaths (ds : Decls) (roots : List Val) (ps : List (List Seg)) : Decls :=
+  ps.filterMap fun p => (ds.pathIn roots p).map fun w => (pathName p, w.pathsToAliases)
 
 /-- The paths a document writes: in the schema as read and in every body. -/
 def Decls.docPaths (ds : Decls) (S : Val) : List (List Seg) :=
@@ -241,39 +247,63 @@ but one `maybe` forgives (`Val.forgive`). -/
 def Decls.strictPaths (ds : Decls) (S : Val) : List (List Seg) :=
   ((ds.read S).forgive.paths ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.forgive.paths) []).eraseDups
 
+/-- The document with its paths read as names from roots: each path is
+declared as the term at it in the first root it names something in, and
+the bodies and the schema refer to the names. -/
+def Decls.withPathsFrom (ds : Decls) (S : Val) (roots : List Val) : Decls × Val :=
+  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths roots (ds.docPaths S), S.pathsToAliases)
+
+/-- The roots a document's paths read, round by round, `r` reading a
+document to its root: the first with its paths unread, and each after
+with its paths read as names from the roots before it. A call over a
+path makes its value the round after the path names something, and a
+path into that value names something the round after that, so each
+round reaches one more step of a chain of paths. A path keeps the term
+the first round that reaches it holds there. -/
+def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → List Val
+  | 0 => [r ds S]
+  | n + 1 =>
+    let rs := ds.rounds S r n
+    let d := ds.withPathsFrom S rs
+    rs ++ [r d.1 d.2]
+
+/-- The schema's own tree: the normal form of the schema as read, before
+any data, its calls made (`Decls.readU`), in as many rounds as the
+document writes paths, since a round that reaches no new path changes
+nothing after it. The roots keep their keys as written, so that a key a
+path reaches reads where the path lands. -/
+def Decls.rootsS (ds : Decls) (S : Val) : List Val :=
+  ds.rounds S (fun d T => normaliseD d (d.readU T)) (ds.docPaths S).length
+
+/-- The tree the data reads in: the normal form of the schema met with
+the data, in as many rounds. -/
+def Decls.rootsD (ds : Decls) (S : Val) (j : Data) : List Val :=
+  ds.rounds S (fun d T => normaliseD d (meetD d (d.readU T) j.term)) (ds.docPaths S).length
+
 /-- Whether every path of the document that must name something
-resolves in the schema's own tree: the normal form of the schema as
-read, before any data, its calls made (`Decls.readU`), the root its
-paths read from, so that a path into a call's output resolves. -/
+resolves in the schema's own tree (`Decls.rootsS`), so that a path into
+a call's output resolves, the call's arguments paths or not. -/
 def Decls.resolvesB (ds : Decls) (S : Val) : Bool :=
-  (ds.strictPaths S).all fun p => (ds.pathAt (normaliseD ds (ds.readU S)) p).isSome
+  (ds.strictPaths S).all fun p => (ds.pathIn (ds.rootsS S) p).isSome
 
 /-- Every path of the document that must name something resolves in
 the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.strictPaths S → (ds.pathAt (normaliseD ds (ds.readU S)) p).isSome = true
+  ∀ p, p ∈ ds.strictPaths S → (ds.pathIn (ds.rootsS S) p).isSome = true
 
 theorem Decls.resolvesB_iff {ds : Decls} {S : Val} : ds.resolvesB S = true ↔ ds.Resolves S := by
   simp only [Decls.resolvesB, Decls.Resolves, List.all_eq_true]
 
-/-- The document with its paths read as names from a root: each path is
-declared as the term at it, and the bodies and the schema refer to the
-names. -/
-def Decls.withPathsFrom (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths root (ds.docPaths S), S.pathsToAliases)
-
-/-- The document with its paths read as names from the schema alone:
-the root is the normal form of the schema as read, before any data,
-which is what the error class is judged on. The root keeps its keys as
-written, so that a key a path reaches reads where the path lands. -/
+/-- The document with its paths read as names from the schema alone,
+from its own tree, which is what the error class is judged on. -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (ds.readU S))
+  ds.withPathsFrom S (ds.rootsS S)
 
-/-- The document with its paths read as names from the data too: the
-root is the normal form of the schema met with the data, which is what
-the other classes are judged on. -/
+/-- The document with its paths read as names from the data too, from
+the tree the data reads in, which is what the other classes are judged
+on. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.readU S) j.term))
+  ds.withPathsFrom S (ds.rootsD S j)
 
 /-! ## The verdict with paths -/
 
@@ -384,8 +414,9 @@ def Val.stepsW : Val → List Seg → Option (List Seg)
 termination_by structural _ p => p
 
 /-- The schema with each source a `move` reads hidden, met with
-`hideAt` of the steps its path takes in the root, each variable bound
-and each step read by the container it meets, so that the document
+`hideAt` of the steps its path takes in the first of the schema's roots
+it names something in, each variable bound and each step read by the
+container it meets, so that the document
 generates the value once, at its new place, and the data needn't supply
 the source. A `move` in a body hides its source as one in the schema
 does, used or not, as both ports read a body where it's declared. A
@@ -393,7 +424,7 @@ path to nothing hides nothing, so that it stays the error any path to
 nothing is. -/
 def Decls.withMoves (ds : Decls) (S : Val) : Val :=
   ((S.moved ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.moved) []).filterMap fun p =>
-      (p.mapM ds.bindSeg).bind (normaliseD ds (ds.readU S)).stepsW).foldl
+      (p.mapM ds.bindSeg).bind fun q => (ds.rootsS S).findSome? fun root => root.stepsW q).foldl
     (fun acc p => .meet acc (hideAt p)) S
 
 /-- A document as the definition reads it: its relative paths placed
@@ -845,37 +876,69 @@ theorem Decls.pathAt_checkableA {ds : Decls} {root w : Val} {p : List Seg} (hr :
   | none => rw [hq] at h; exact absurd h (by simp)
   | some q => rw [hq] at h; exact atW_checkableA q hr h
 
-theorem Decls.ofPaths_checkableA {ds : Decls} {root : Val} (hr : root.CheckableA) (ps : List (List Seg)) :
-    ∀ d, d ∈ ds.ofPaths root ps → d.2.CheckableA := by
+theorem Decls.pathIn_checkableA {ds : Decls} {roots : List Val} {w : Val} {p : List Seg}
+    (hr : ∀ root, root ∈ roots → root.CheckableA) (h : ds.pathIn roots p = some w) : w.CheckableA := by
+  obtain ⟨root, hm, hw⟩ := List.exists_of_findSome?_eq_some h
+  exact Decls.pathAt_checkableA (hr root hm) hw
+
+theorem Decls.ofPaths_checkableA {ds : Decls} {roots : List Val} (hr : ∀ root, root ∈ roots → root.CheckableA)
+    (ps : List (List Seg)) : ∀ d, d ∈ ds.ofPaths roots ps → d.2.CheckableA := by
   intro d hd
   simp only [Decls.ofPaths, List.mem_filterMap] at hd
   obtain ⟨p, -, hp⟩ := hd
-  cases hw : ds.pathAt root p with
+  cases hw : ds.pathIn roots p with
   | none => rw [hw] at hp; exact absurd hp (by simp)
   | some w =>
     rw [hw] at hp
     simp only [Option.map_some, Option.some.injEq] at hp
     rw [← hp]
-    exact pathsToAliases_checkableA (Decls.pathAt_checkableA hr hw)
+    exact pathsToAliases_checkableA (Decls.pathIn_checkableA hr hw)
 
-theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {root : Val}
-    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hr : root.CheckableA) :
-    ∀ d, d ∈ (ds.withPathsFrom S root).1 → d.2.CheckableA := by
+theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {roots : List Val}
+    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hr : ∀ root, root ∈ roots → root.CheckableA) :
+    ∀ d, d ∈ (ds.withPathsFrom S roots).1 → d.2.CheckableA := by
   intro d hd
   simp only [Decls.withPathsFrom, List.mem_append, List.mem_map] at hd
   rcases hd with ⟨d', hd', rfl⟩ | hd
   · exact pathsToAliases_checkableA (hb d' hd')
   · exact Decls.ofPaths_checkableA hr _ d hd
 
+/-- Every round's root is one the checker can read, where `r` reads a
+document the checker can read to one. -/
+theorem Decls.rounds_checkableA {r : Decls → Val → Val}
+    (hr : ∀ {d : Decls} {T : Val}, (∀ x, x ∈ d → x.2.CheckableA) → T.CheckableA → (r d T).CheckableA)
+    {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
+    ∀ n, ∀ root, root ∈ ds.rounds S r n → root.CheckableA
+  | 0, root, h => by
+    simp only [Decls.rounds, List.mem_singleton] at h
+    rw [h]
+    exact hr hb hS
+  | n + 1, root, h => by
+    simp only [Decls.rounds, List.mem_append, List.mem_singleton] at h
+    rcases h with h | h
+    · exact Decls.rounds_checkableA hr hb hS n root h
+    · rw [h]
+      exact hr (Decls.withPathsFrom_bodies_checkableA hb (Decls.rounds_checkableA hr hb hS n))
+        (pathsToAliases_checkableA hS)
+
+theorem Decls.rootsS_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) : ∀ root, root ∈ ds.rootsS S → root.CheckableA :=
+  Decls.rounds_checkableA (fun hd hT => normaliseD_checkableA hd (readU_checkableA hd hT)) hb hS _
+
+theorem Decls.rootsD_checkableA {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) : ∀ root, root ∈ ds.rootsD S j → root.CheckableA :=
+  Decls.rounds_checkableA
+    (fun hd hT => normaliseD_checkableA hd (meetD_checkableA hd (readU_checkableA hd hT) (Data.term_checkableA j)))
+    hb hS _
+
 /-- `vetA` computes `VetA` on every document whose bodies and schema
 read no pattern and no format. -/
 theorem vetA_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetA m ds S j = v ↔ VetA m ds S j v := by
-  have hbS := Decls.withPathsFrom_bodies_checkableA (S := S) hb (normaliseD_checkableA hb (readU_checkableA hb hS))
+  have hbS := Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsS_checkableA hb hS)
   have hvS := vet_iff (m := m) (ds := (ds.withPathsS S).1) (S := (ds.withPathsS S).2) (j := j) hbS
     (readR_checkableA hbS (pathsToAliases_checkableA hS))
-  have hbP := Decls.withPathsFrom_bodies_checkableA (S := S) hb
-    (normaliseD_checkableA hb (meetD_checkableA hb (readU_checkableA hb hS) (Data.term_checkableA j)))
+  have hbP := Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsD_checkableA (j := j) hb hS)
   have hvP := vet_iff (m := m) (ds := (ds.withPaths S j).1) (S := (ds.withPaths S j).2) (j := j) hbP
     (readR_checkableA hbP (pathsToAliases_checkableA hS))
   unfold vetA

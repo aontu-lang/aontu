@@ -2811,57 +2811,119 @@ A path resolves in the schema's own tree, read before any data with
 its calls made, so a path into a call's output resolves: `$.b.camel` beside
 `b: nom("ab_cd")` reads `"abCd"`. A key the data alone supplies is no
 position, and a path to nothing is an `error`, but where `maybe`
-forgives it, as step 33 shows. The term it reads is then taken from the
-root, data and all:
+forgives it, as step 33 shows:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- Every path of the document that must name something resolves in
 the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.strictPaths S → (ds.pathAt (normaliseD ds (ds.readU S)) p).isSome = true
+  ∀ p, p ∈ ds.strictPaths S → (ds.pathIn (ds.rootsS S) p).isSome = true
+```
+
+The term a path reads is then taken from the document's roots, data
+and all. A call over a path makes its value only once the path reads,
+so the definition reads the document in rounds. The first round reads
+it with its paths unread. Each round after declares each path as the
+term at it in the first root before that reaches it, and reads the
+document again. A call or a generator waits while a term it's handed
+waits on a reference that names nothing yet: a path not read, a name no
+round has declared, or a call that waits on one:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.pending (ds : Decls) : Val → Bool
+  | .path _ => true
+  | .alias n => (ds.bodies n).isEmpty
+  | .meet a b => a.pending ds || b.pending ds
+  | .or arms => pendingArms ds arms
+  | .ride _ v _ => v.pending ds
+  | .call _ args => pendingItems ds args
+  | .select s _ _ => s.pending ds
+  | .filter s _ => s.pending ds
+  | _ => false
+```
+
+In `a: "ab_cd", b: nom($.a), c: $.b.camel` the first round holds `b`
+as the call itself, which waits on `$.a`. The second reads `$.a` as
+`"ab_cd"`, so `b` is the map of spellings, and the third reads
+`$.b.camel` as `"abCd"`:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The term a written path names in the first of the roots it names
+something in. -/
+def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) : Option Val :=
+  roots.findSome? fun root => ds.pathAt root p
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The declarations a document's paths make: each path's name, declared
-as the term at the path in the root, with that term's own paths read as
-names too. A path to nothing declares nothing. -/
-def Decls.ofPaths (ds : Decls) (root : Val) (ps : List (List Seg)) : Decls :=
-  ps.filterMap fun p => (ds.pathAt root p).map fun w => (pathName p, w.pathsToAliases)
+as the term at the path in the first of the roots it names something
+in, with that term's own paths read as names too. A path to nothing
+declares nothing. -/
+def Decls.ofPaths (ds : Decls) (roots : List Val) (ps : List (List Seg)) : Decls :=
+  ps.filterMap fun p => (ds.pathIn roots p).map fun w => (pathName p, w.pathsToAliases)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The document with its paths read as names from a root: each path is
-declared as the term at it, and the bodies and the schema refer to the
-names. -/
-def Decls.withPathsFrom (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths root (ds.docPaths S), S.pathsToAliases)
+/-- The document with its paths read as names from roots: each path is
+declared as the term at it in the first root it names something in, and
+the bodies and the schema refer to the names. -/
+def Decls.withPathsFrom (ds : Decls) (S : Val) (roots : List Val) : Decls × Val :=
+  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths roots (ds.docPaths S), S.pathsToAliases)
 ```
-
-Two roots serve: the schema alone, for the error class, and the schema
-met with the data, for the rest. A contradiction the data brings, `a: 1`
-met with `"a": 2` where `b: $.a` reads it, is the data's fault, invalid,
-and not an ill-formed schema:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The document with its paths read as names from the schema alone:
-the root is the normal form of the schema as read, before any data,
-which is what the error class is judged on. The root keeps its keys as
-written, so that a key a path reaches reads where the path lands. -/
+def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → List Val
+  | 0 => [r ds S]
+  | n + 1 =>
+    let rs := ds.rounds S r n
+    let d := ds.withPathsFrom S rs
+    rs ++ [r d.1 d.2]
+```
+
+A path keeps the term the first round that reaches it holds there,
+since a later round has read that term's own paths: a path whose term
+holds the path itself, as `"c"?: $.a.b` under `a.b` does, would
+otherwise unfold once more each round the data meets it. A round that
+reaches no new path then changes nothing after it, and each round
+reaches one more step of a chain of paths, so as many rounds as the
+document writes paths reach the end of every chain. Two sets of roots serve: the schema alone, for
+the error class, and the schema met with the data, for the rest. A
+contradiction the data brings, `a: 1` met with `"a": 2` where `b: $.a`
+reads it, is the data's fault, invalid, and not an ill-formed schema:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.rootsS (ds : Decls) (S : Val) : List Val :=
+  ds.rounds S (fun d T => normaliseD d (d.readU T)) (ds.docPaths S).length
+```
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.rootsD (ds : Decls) (S : Val) (j : Data) : List Val :=
+  ds.rounds S (fun d T => normaliseD d (meetD d (d.readU T) j.term)) (ds.docPaths S).length
+```
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The document with its paths read as names from the schema alone,
+from its own tree, which is what the error class is judged on. -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (ds.readU S))
+  ds.withPathsFrom S (ds.rootsS S)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The document with its paths read as names from the data too: the
-root is the normal form of the schema met with the data, which is what
-the other classes are judged on. -/
+/-- The document with its paths read as names from the data too, from
+the tree the data reads in, which is what the other classes are judged
+on. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.readU S) j.term))
+  ds.withPathsFrom S (ds.rootsD S j)
 ```
 
 The verdict of a document whose paths are absolute is then the verdict
@@ -5149,7 +5211,9 @@ member's key, the instances of a repeated key met, and `nil` where the
 data is no bag or a list holds anything but a string. A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
-no position for an element that is absence. Any other call, its
+no position for an element that is absence. A call or a generator
+handed a reference that names nothing yet (`Val.pending`) waits, as a
+later round of the paths may declare it. Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
 hole, and a `filter`'s condition and a template are read for their own
 members, so none of them is read for `b`. Each `key(n)` reads `here`, by
@@ -6763,7 +6827,10 @@ and an `each` reads its template once for each member of its data:
       | some ms =>
         .list ((ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).filter
           fun e => !(normaliseD ds e).isAbsent) none false
-      | none => if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent else .nil
+      | none =>
+        if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
+        else if (resolveD ds b here d).pending ds then .call .each [resolveD ds b here d, t]
+        else .nil
 ```
 
 So the template replaces the member, unless the template names the
@@ -6831,7 +6898,10 @@ each member, but into an open map:
       | some ms =>
         .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
           fun m => (m.1, false, m.2)) none false
-      | none => if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent else .nil
+      | none =>
+        if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
+        else if (resolveD ds b here d).pending ds then .call .pack [resolveD ds b here d, t]
+        else .nil
 ```
 
 `Val.keyedMembers` pairs each member with its key. It reads a map's
@@ -7582,18 +7652,19 @@ def hideAt : List Seg → Val
   | _ :: _ => .any
 ```
 
-The definition reads the steps of the source's path in the root, each
-by the container it meets and each variable bound first, as it reads
-the term a path names, so `move($.q.$name)` hides the member the
-variable's value spells. A `move` in a declaration's body hides its source as one in the
-schema does, whether a reference reads the body or not, since both
-engines read a body where it's declared:
+The definition reads the steps of the source's path in the first of
+the schema's roots that names it, each by the container it meets and
+each variable bound first, as it reads the term a path names, so
+`move($.q.$name)` hides the member the variable's value spells. A
+`move` in a declaration's body hides its source as one in the schema
+does, whether a reference reads the body or not, since both engines
+read a body where it's declared:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.withMoves (ds : Decls) (S : Val) : Val :=
   ((S.moved ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.moved) []).filterMap fun p =>
-      (p.mapM ds.bindSeg).bind (normaliseD ds (ds.readU S)).stepsW).foldl
+      (p.mapM ds.bindSeg).bind fun q => (ds.rootsS S).findSome? fun root => root.stepsW q).foldl
     (fun acc p => .meet acc (hideAt p)) S
 ```
 
