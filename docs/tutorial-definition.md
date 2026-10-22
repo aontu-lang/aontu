@@ -7448,7 +7448,7 @@ and decision 24 of the design note asks which reading is right.
 ```aontu
 port: pref(8080)
 limits: pref({ cpu:2 mem:512 })
-mode: pref(*"fast" | "safe")
+mode: pref(*"fast"|"safe")
 ```
 
 and evaluate it:
@@ -7513,9 +7513,9 @@ verdict: valid
 ```
 
 The data overrides `port` and `cpu`, and `mem` fills from its default.
-A kind and a bound stay as they are, so `pref(integer)` is `integer`. A
-path is read first, so `pref($.a)` is the preference of what `$.a`
-names, and a `pref` that waits on one stands where its argument does.
+A kind and a bound stay as written, so `pref(integer)` is `integer`.
+`pref` reads a path first, so `pref($.a)` is the preference of what
+`$.a` names, and a `pref` that waits on one stands where its argument does.
 `pref(1 | 2)` is `*1 | *2`, two defaults of one rank that disagree, a
 clash as step 14 reads it: an `error`, as `*1 | *2` written so is.
 
