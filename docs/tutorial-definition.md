@@ -5136,7 +5136,8 @@ members its condition admits, as a term, or `nil` where the source
 generates a scalar, which has no members. One whose scrutinee or source
 generates nothing stays, and generates nothing. An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
-reads them, and `nil` where the data is no bag. A `pack` is the open map
+reads them, less each reading that is absence, and `nil` where the data
+is no bag. A `pack` is the open map
 of its template read for each member `Val.keyedMembers` reads, under the
 member's key, the instances of a repeated key met, and `nil` where the
 data is no bag or a list holds anything but a string. A `maybe` is
@@ -6753,7 +6754,9 @@ and an `each` reads its template once for each member of its data:
     | .each, [d, t] =>
       if here.isNone && (resolveD ds b here d).holdsKey then .call .each [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).members ds with
-      | some ms => .list (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t) none false
+      | some ms =>
+        .list ((ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).filter
+          fun e => !(normaliseD ds e).isAbsent) none false
       | none => if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent else .nil
 ```
 
@@ -7421,7 +7424,10 @@ leave out and the output leaves it out. A list holds no position for
 an absent element: `resolveD` drops it as it reads the list, so the
 second tag never meets anything. A call that takes
 absence makes it, so `upper(maybe($.gone))` is absence too, and so do
-`each`, `pack`, `match` and `filter`.
+`each`, `pack`, `match` and `filter`. Where a template reads as
+absence for a member, that instance holds no position either, so
+`each([1], maybe($.gone))` is `[]`, and `pack` leaves the member out of
+its map.
 
 Rows mb0 on of `test/spec/def-path.tsv` hold these readings in the
 three modes of `vet`, and both engines answer every row as the

@@ -22,7 +22,8 @@ P10's third slice.
   such reference read as `nil`, so an arm a missing path kills drops,
   and a conflict stays the document's. A call, a generator, a selection
   or a `filter` that takes absence makes it, a list holds no position
-  for it, and a fold skips it.
+  for it, nor does an `each` for an instance that reads as absence, and
+  a fold skips it.
 - `spec/Aontu/Names.lean` and `spec/Aontu/Paths.lean`: a reference
   `maybe` forgives needn't name anything (`Val.forgive`), in `Declares`
   and in `Decls.Resolves`.

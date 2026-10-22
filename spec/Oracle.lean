@@ -1043,7 +1043,8 @@ an arm and a call's argument, and met with a literal and a kind, beside
 data that supplies the key and data that supplies the path; a path to
 an optional key and into a scalar, and a name declared nowhere; a
 missing path met with a literal, an arm it kills and a conflict inside
-the argument, and a missing path that stands under a call. -/
+the argument, a missing path that stands under a call, and a template
+that is absence. -/
 def maybeCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1088,7 +1089,11 @@ def maybeCases : List (Decls × Val × Data) :=
     ([], m [("b", .or [(0, gone), (0, int 1)])], .map []),
     ([], m [("b", .or [(0, gone), (0, int 1)])], .map [("b", j 1)]),
     ([], m [("b", .or [(1, gone), (0, int 1)])], .map []),
-    ([], m [("b", mb (.call .upper [p ["gone"]]))], .map [])]
+    ([], m [("b", mb (.call .upper [p ["gone"]]))], .map []),
+    ([], m [("b", .call .each [lst [int 1], gone])], .map []),
+    ([], m [("b", .call .each [lst [int 1], gone])], .map [("b", .list [])]),
+    ([], m [("b", .call .pack [m [("x", int 1)], gone])], .map []),
+    ([], m [("b", .call .pack [m [("x", int 1)], gone])], .map [("b", .map [("x", j 2)])])]
 
 theorem maybeCases_checkable : ∀ c ∈ maybeCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

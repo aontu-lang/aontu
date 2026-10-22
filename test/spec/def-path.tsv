@@ -443,3 +443,15 @@ mb104	verdict	"b": *(maybe($.gone)) | (1)	{}	{"verdict":"valid","opts":{"partial
 mb105	verdict	"b": maybe(upper($.gone))	{}	{"verdict":"error"}
 mb106	verdict	"b": maybe(upper($.gone))	{}	{"verdict":"error","opts":{"noFill":true}}
 mb107	verdict	"b": maybe(upper($.gone))	{}	{"verdict":"error","opts":{"partial":true}}
+mb108	verdict	"b": each([1], maybe($.gone))	{}	{"verdict":"valid"}
+mb109	verdict	"b": each([1], maybe($.gone))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mb110	verdict	"b": each([1], maybe($.gone))	{}	{"verdict":"valid","opts":{"partial":true}}
+mb111	verdict	"b": each([1], maybe($.gone))	{"b": []}	{"verdict":"valid"}
+mb112	verdict	"b": each([1], maybe($.gone))	{"b": []}	{"verdict":"valid","opts":{"noFill":true}}
+mb113	verdict	"b": each([1], maybe($.gone))	{"b": []}	{"verdict":"valid","opts":{"partial":true}}
+mb114	verdict	"b": pack({"x": 1}, maybe($.gone))	{}	{"verdict":"valid"}
+mb115	verdict	"b": pack({"x": 1}, maybe($.gone))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mb116	verdict	"b": pack({"x": 1}, maybe($.gone))	{}	{"verdict":"valid","opts":{"partial":true}}
+mb117	verdict	"b": pack({"x": 1}, maybe($.gone))	{"b": {"x": 2}}	{"verdict":"valid"}
+mb118	verdict	"b": pack({"x": 1}, maybe($.gone))	{"b": {"x": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+mb119	verdict	"b": pack({"x": 1}, maybe($.gone))	{"b": {"x": 2}}	{"verdict":"valid","opts":{"partial":true}}
