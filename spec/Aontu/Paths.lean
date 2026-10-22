@@ -135,16 +135,17 @@ def ptaArms : List (ℕ × Val) → List (ℕ × Val)
   | (r, a) :: as => (r, a.pathsToAliases) :: ptaArms as
 end
 
-/-- A variable's step: the text of the value the calling program binds
+/-- A variable's step: the text of the scalar the calling program binds
 it to, a string as itself, a number as `Number.text` writes it and a
-boolean as `true` or `false`. A variable bound to nothing, to `null`,
-to a container or to a value that generates nothing names no step. -/
+boolean as `true` or `false`, as both ports take a step only from a
+scalar. A variable bound to nothing, to `null`, to a container or to
+any other term, one that generates text among them, names no step. -/
 def Decls.bindSeg (ds : Decls) : Seg → Option Seg
   | .var n =>
-    match outputD ds (ds.readR (.var n)) with
-    | some (.str s) => some (.key s)
-    | some (.num x) => some (.key x.text)
-    | some (.bool b) => some (.key (if b then "true" else "false"))
+    match ds.filter (·.1 == "$" ++ n) with
+    | [(_, .lit (.str s))] => some (.key s)
+    | [(_, .lit (.num x))] => some (.key x.text)
+    | [(_, .lit (.bool b))] => some (.key (if b then "true" else "false"))
     | _ => none
   | s => some s
 

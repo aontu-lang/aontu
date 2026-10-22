@@ -6986,28 +6986,31 @@ generator reads. A variable the program doesn't bind is a name
 declared nowhere, which is an error.
 
 A variable can stand as a path's step too, as in `$.q.$foo`. The step
-is the text of the value the program binds, which then reads a map or a
-list as any written step does in step 9:
+is the text of the scalar the program binds, which then reads a map or
+a list as any written step does in step 9:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- A variable's step: the text of the value the calling program binds
+/-- A variable's step: the text of the scalar the calling program binds
 it to, a string as itself, a number as `Number.text` writes it and a
-boolean as `true` or `false`. A variable bound to nothing, to `null`,
-to a container or to a value that generates nothing names no step. -/
+boolean as `true` or `false`, as both ports take a step only from a
+scalar. A variable bound to nothing, to `null`, to a container or to
+any other term, one that generates text among them, names no step. -/
 def Decls.bindSeg (ds : Decls) : Seg → Option Seg
   | .var n =>
-    match outputD ds (ds.readR (.var n)) with
-    | some (.str s) => some (.key s)
-    | some (.num x) => some (.key x.text)
-    | some (.bool b) => some (.key (if b then "true" else "false"))
+    match ds.filter (·.1 == "$" ++ n) with
+    | [(_, .lit (.str s))] => some (.key s)
+    | [(_, .lit (.num x))] => some (.key x.text)
+    | [(_, .lit (.bool b))] => some (.key (if b then "true" else "false"))
     | _ => none
   | s => some s
 ```
 
 So where the program binds `foo` to `11`, `$.q.$foo` reads the key
 `"11"` of a map and the index `11` of a list. A variable bound to a
-kind, to `null` or to a map names no step, so its path is an error.
+kind, to `null`, to a map, or to a term that only generates text, such
+as `*"a" | string`, names no step, as in both engines, so its path is an
+error.
 What a document with paths generates is the output of its reading with
 the paths read as names from the schema alone:
 

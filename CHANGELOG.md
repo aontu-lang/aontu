@@ -20,10 +20,11 @@ second slice.
   map reads the key the text spells, and a list the index it spells in
   canonical decimal (`Seg.stepIn`, `indexOf?`). So `$.q.0` reads a map's
   key `"0"`, `$.q."1"` a list's index `1`, and `$.q."01"` nothing.
-  `Decls.bindSeg` reads a variable's step as the text of the value the
+  `Decls.bindSeg` reads a variable's step as the text of the scalar the
   program binds: a string as itself, a number as `Number.text` writes
-  it, and a boolean as its word. A value with no text, such as a kind,
-  `null` or a map, names no step, so the path is an error. `OutputP`
+  it, and a boolean as its word. Any other binding, such as a kind,
+  `null`, a map or a term that only generates text, names no step, as in
+  both ports, so the path is an error. `OutputP`
   and `outputP_iff` say what a document with paths generates.
 - `test/spec/def-gen.tsv` gains rows i22 to i33, variables as path
   steps under the runners' bindings, and `test/spec/def-path.tsv` rows

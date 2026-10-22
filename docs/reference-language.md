@@ -1663,9 +1663,10 @@ declares. `Val.var` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean)
 is the alias `$name`, which no document can write, and `Decls.withVars`,
 in the same module, sets the program's bindings beside the document's
 declarations. A binding is any value the program builds, a kind as
-well as data. A variable as a path's segment names the text of its
-value, by `Decls.bindSeg` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
-and a value with no text, such as a kind, `null` or a map, names none.
+well as data. A variable as a path's segment names the text of the
+scalar it's bound to, by `Decls.bindSeg` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
+and any other binding, such as a kind, `null`, a map or a disjunction,
+names none.
 
 ## Aliases `%`
 
