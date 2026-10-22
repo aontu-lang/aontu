@@ -2870,8 +2870,9 @@ def VetA (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 ```
 
 A path that starts with dots is relative. Its first dot names the map
-the field holding it stands in, and each further dot climbs one step,
-so in `z: {x: 1, y: {w: ..x}}` the path `..x` reads `z`'s `x`. Both
+or list that holds it, and each further dot climbs one step, so in
+`z: {x: 1, y: {w: ..x}}` the path `..x` reads `z`'s `x`, and in
+`a: [1, .0]` the path `.0` reads `a`'s first element. Both
 engines read such a path where it's written, so the definition makes
 each absolute where it stands before anything else reads the document.
 A map's member stands one key down and a list's element one index down,

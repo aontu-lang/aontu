@@ -1555,9 +1555,10 @@ An unresolvable path is an error: `a:$.nope` →
 `Cannot resolve value: $.nope`.
 
 A relative path names a place relative to where it's written. Its
-first dot names the map the field holding it stands in, and each
-further dot climbs a step, so `z:x:1 z:y:w:..x` gives `w:1`, and a
-climb past the top resolves nowhere. An alias's body reads its relative paths at the alias's own
+first dot names the map or list that holds it, and each further dot
+climbs a step, so `z:x:1 z:y:w:..x` gives `w:1`, `a:[1, .0]` gives
+`a:[1, 1]`, and a climb past the top resolves nowhere. An alias's body
+reads its relative paths at the alias's own
 place, `%` and its name as a key at the top: in `%T = {y: .x}` the path
 `.x` names `$.%T.x`, which no document holds, while `..x` there names
 the document's own `x`. The definition makes each relative path
