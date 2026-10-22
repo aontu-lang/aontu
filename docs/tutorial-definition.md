@@ -1630,10 +1630,10 @@ def oracleHost : Host :=
     fun g => (oneLiteral g).isSome, oneLiteralTree⟩
 
 /-- The predicates behind `re` and `format`, the subset, the groups and
-the matches behind `rep` and `split` at a pattern, and the case
-conversion behind `upper` and `lower`: a constant no proof can unfold,
-so no theorem rests on what they are, and which the oracle runs as
-`oracleHost`. -/
+the matches behind `rep` and `split` at a pattern, the case conversion
+behind `upper` and `lower`, and the compiler and parser behind `abnf`
+and `parse`: a constant no proof can unfold, so no theorem rests on what
+they are, and which the oracle runs as `oracleHost`. -/
 @[implemented_by oracleHost]
 opaque host : Host
 ```
@@ -7244,13 +7244,89 @@ path value with one. Nor does the definition read the links `refer`
 and `rel`. It holds `path($."a.b")` as one step, a key with a dot in
 it, where both engines split it into two, which #475 tracks.
 
-## 32. What the definition doesn't say yet
+## 32. Grammars
+
+`abnf(g)` compiles a grammar in Augmented Backus–Naur Form (ABNF) and
+answers its source, and `parse` runs one: handed a string it answers
+the syntax tree as maps and lists, and alone it's the constraint of
+the strings the grammar parses whole. The definition leaves compiling and parsing to the host,
+as it leaves patterns: step 4's `Host` says which grammars compile,
+`compiles`, and the tree a grammar's parse of a string builds, `tree`,
+none where it fails. The two calls read them:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- What `abnf` makes of a string: the string itself, a grammar's
+source, where the host's compiler compiles it, and refused where it
+doesn't, as for any other scalar and a container; waiting for anything
+else. -/
+def abnfOf (ds : Decls) (g : Val) : Made :=
+  match (normaliseD ds g).unride with
+  | .lit (.str t) => if host.compiles t then .made (.lit (.str t)) else .refused
+  | .lit _ | .map _ _ _ | .list _ _ _ => .refused
+  | _ => .waits
+
+/-- What `parse` makes of a grammar's text: alone, the constraint of the
+strings it parses whole, which admits none where it doesn't compile;
+with a string, the tree the host's parser builds, as data, and refused
+where the string is empty or the grammar doesn't read it. A scalar that
+isn't a string and a container are refused, and anything else waits. -/
+def parseOf (ds : Decls) (g : Val) (v : Option Val) : Made :=
+  match (normaliseD ds g).unride with
+  | .lit (.str t) =>
+    match v.map fun v => (normaliseD ds v).unride with
+    | none => .made (.grammar t)
+    | some (.lit (.str s)) =>
+      if s = "" then .refused else
+        match host.tree t s with
+        | some d => .made d.term
+        | none => .refused
+    | some (.lit _) | some (.map _ _ _) | some (.list _ _ _) => .refused
+    | some _ => .waits
+  | .lit _ | .map _ _ _ | .list _ _ _ => .refused
+  | _ => .waits
+```
+
+A failure to parse is a refusal, so `parse(g, "x")` is an error where
+the grammar doesn't read `"x"`, and the empty string parses under no
+grammar. Alone, `parse(g)` is a constraint as `re` is, `Val.grammar`,
+which admits a string the grammar parses whole:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- `parse(g)` admits the strings the host's parser reads whole under
+  the grammar `g`, the empty string under none, and refuses every other
+  value: a grammar that doesn't compile reads no string, so it admits
+  nothing. -/
+  | grammar {g s : String} :
+      s ≠ "" → (host.tree g s).isSome = true → Judge env root true (.grammar g) (.str s)
+  | grammarNot {g : String} {j : Data} :
+      (∀ s, j = .str s → s ≠ "" → (host.tree g s).isSome = false) →
+      Judge env root false (.grammar g) j
+```
+
+So `parse(g)` of a grammar that doesn't compile admits nothing, and
+generates nothing either, where `abnf` and `parse(g, v)` of it are
+errors, as in both engines. Unlike `re`, whose predicate on two strings
+no checker can run, the host's `tree` is a function, so step 17's
+checker reads `parse(g)`.
+
+The oracle's host reads a grammar of one rule whose body is one quoted
+literal, which ABNF matches without regard to case, or exactly after
+`%s`, and builds its tree: the rule, the text it matched, and no
+children. Rows g0 to g83 of `test/spec/def-call.tsv` hold `abnf`,
+`parse` with a string, and `parse` alone over such grammars, and over
+two texts that compile in no engine. Both engines answer every row as
+the definition does.
+
+## 33. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between,
-which strings a pattern or a format admits, the built-in functions
+which strings a pattern, a format or a grammar admits, the tree a
+grammar's parse builds, the built-in functions
 steps 20 to 26 don't walk through, `key()` deeper in a spread than its
 own position, a relative path in a spread, a template or a `filter`'s
 condition, generation with `emit`, a string constraint met with a path

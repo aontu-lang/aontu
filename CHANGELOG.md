@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads `abnf` and `parse`
+
+Definition, generated rows, and documentation. No engine changes.
+P12's first slice.
+
+- `spec/Aontu/Admits.lean`: `Host` gains `compiles`, the grammars its
+  compiler compiles, and `tree`, the tree its parser builds of a string
+  a grammar reads whole, none where it doesn't. `parse(g)` alone admits
+  the non-empty strings the grammar parses whole, by `Judge.grammar`,
+  and none where it doesn't compile. The oracle's host reads grammars
+  of one rule of one literal, matched without regard to case or, after
+  `%s`, exactly.
+- `spec/Aontu/Syntax.lean`: `Val` gains `grammar g`, the constraint
+  `parse(g)` is, and `Fn` gains `abnf` and `parse`.
+- `spec/Aontu/Verdict.lean`: `abnfOf` makes a grammar's source where
+  it compiles and refuses it where it doesn't. `parseOf` with a string
+  makes the tree as data, refused for the empty string and a string the
+  grammar doesn't read. The checker reads `parse(g)`, since the host's
+  tree is a function.
+- `test/spec/def-call.tsv` gains rows g0 to g83: `abnf` of a grammar,
+  of texts that compile in no engine and of a number; `parse` of a
+  grammar and a string, met with the tree it must be, and its refusals;
+  and `parse` alone, against data, as a default's alternative and met
+  with a string. Both ports answer every row as the definition does.
+- The definition tutorial gains step 32, grammars, and the last step
+  becomes 33. The reference's section on grammars, the design note's
+  P12 row and the definition's README follow.
+
 ### The definition converts a string to an address
 
 Definition, generated rows, and documentation. No engine changes.

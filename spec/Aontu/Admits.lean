@@ -140,10 +140,10 @@ def oracleHost : Host :=
     fun g => (oneLiteral g).isSome, oneLiteralTree⟩
 
 /-- The predicates behind `re` and `format`, the subset, the groups and
-the matches behind `rep` and `split` at a pattern, and the case
-conversion behind `upper` and `lower`: a constant no proof can unfold,
-so no theorem rests on what they are, and which the oracle runs as
-`oracleHost`. -/
+the matches behind `rep` and `split` at a pattern, the case conversion
+behind `upper` and `lower`, and the compiler and parser behind `abnf`
+and `parse`: a constant no proof can unfold, so no theorem rests on what
+they are, and which the oracle runs as `oracleHost`. -/
 @[implemented_by oracleHost]
 opaque host : Host
 
