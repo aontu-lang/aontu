@@ -6614,8 +6614,9 @@ keeps `"WEB"`, which `upper(_)` doesn't change.
 
 Outside a template, a hole no generator fills admits every value, as
 `any` does. Both engines also let a call's peer fill a hole in the
-call, so `upper(_) & "a"` is `"A"`, and the definition doesn't hold
-that yet. Both engines read `key()` in a template as the member's key,
+call, so `upper(_) & "a"` is `"A"`. That isn't a meet, since `"a"`
+alone is no `"A"`, and decision 21 of the design note asks how the
+definition should read it. Both engines read `key()` in a template as the member's key,
 which waits on `key()` at any position. The rows are x1809 on, and
 both engines answer every one as the definition does, but for two
 calls with the wrong number of arguments, which #426 tracks.
