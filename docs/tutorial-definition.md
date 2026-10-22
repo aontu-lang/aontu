@@ -7759,17 +7759,38 @@ def Addr.from (a : Addr) (pos : List Seg) : Option (List Seg) :=
 So `..auth` written at `s.billing.dep` names `s.auth`, and `...a`
 written at `b` climbs past the top, an `error`. The template meets the
 target with its marks cleared, as a reference copies a value, so
-`refer(type({ k:1 }))` makes the target `{ k:1 }`, not a type. The
-definition reads a link written in a body at the body's own place, `%`
-and the name as a key at the top, whether a reference reads the body
-or not:
+`refer(type({ k:1 }))` makes the target `{ k:1 }`, not a type.
+
+A link reads where it lands, not where it's written: a `type()` that
+holds a link reaches each place that uses it through a path reference,
+and a spread's template reaches each member. So at each position the
+schema's normal form holds, the definition reads the terms the schema
+writes there, through meets, riders, a map's member and its spread, a
+list's element and its spread, and a path reference's target:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def landStep (S : Val) (i : Val × List Seg) : List Val × List (Val × List Seg) :=
+  match i.1 with
+  | .meet a b => ([], [(a, i.2), (b, i.2)])
+  | .ride _ v _ => ([], [(v, i.2)])
+  | .path q => ([], [(S, q ++ i.2)])
+  | _ => landLeaf i.1 i.2
+```
+
+Each `refer` among them is a link at that position, its relative
+address read from there, so that each place a spread or a reference
+puts it reads its own. The definition reads a link written in a body
+at the body's own place, `%` and the name as a key at the top, whether
+a reference reads the body or not:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val :=
   ds.foldl (fun acc d => (d.2.refers []).foldl
       (referStep roots miss [.key ("%" ++ d.1)] (normaliseD ds (ds.readU d.2))) acc)
-    ((S.refers []).foldl (referStep roots miss [] ((ds.rootsS S).getLast?.getD .any)) S)
+    ((S.landedLinks ((ds.rootsS S).getLast?.getD .any)).foldl
+      (referStep roots miss [] ((ds.rootsS S).getLast?.getD .any)) S)
 ```
 
 One link's template can make another link's target:
@@ -7820,7 +7841,8 @@ $ echo $?
 ```
 
 Rows rf0 on of `test/spec/def-path.tsv` hold these readings in the
-three modes of `vet`, and both engines answer every one as the
+three modes of `vet`, and rows ld0 on hold links that land through a
+spread or a path reference. Both engines answer every one as the
 definition does. With data, both engines read a body's relative link a
 second time, from each place that uses the body, which #488 tracks, and
 no row holds such a link.
@@ -7932,12 +7954,11 @@ Nor does it say which of a document's moves the reading makes. A
 `move` in an arm no selection takes, or in a template no member
 instantiates, still hides its source, where both engines keep it.
 
-Nor does it read every link where it lands. A `refer` or a `rel`
-inside a disjunction, a selection, a spread or a generator's template
-is no link the definition reads, and it reads one that a path
-reference copies only where the document writes it, so its template
-flows nowhere from where the copy lands and its target needn't exist
-there. Both engines read each link where it lands.
+Nor does it read a link everywhere one can land. A `refer` or a `rel`
+inside a disjunction, a selection or a generator's template is no link
+the definition reads, so its template flows nowhere and its target
+needn't exist, where both engines read it in the arm a selection takes
+and in each instance a generator makes.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

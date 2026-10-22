@@ -1416,6 +1416,61 @@ theorem rel_verdict_exact : ∀ c ∈ relCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (relCases_checkable c hc).1 (relCases_checkable c hc).2 v
 
+/-- Links read where they land: a `refer` in a `type()` that a path
+reference copies, beside a target the template admits, one it refuses,
+one that names nothing and data that refuses the template; a `refer` in
+a spread's template, at a target that names nothing, and beside data
+the template's flow refuses and none; a `rel` in a `type()` that a path
+reference copies, at a target, one that names nothing and beside data
+that refuses its template; a path reference to a link and to a map
+holding one, and one to a map holding a link to nothing; a relative
+link in a spread's template, read from each member it lands at, beside
+data the flow refuses; and a list's spread holding a link that a path
+reference copies. -/
+def landCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let ms (fs : List (String × Val)) (s : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some s) false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
+  let lst (vs : List Val) : Val := .list vs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let type (v : Val) : Val := .ride .type v []
+  let rf (t : Val) (a : Val) : Val := .meet (.call .refer [t]) a
+  let k1 : Val := m [("k", int 1)]
+  let K := type (m [("k", .integer)])
+  let T := type (m [("p", .call .refer [p ["K"]])])
+  let sp := ms [("s1", m []), ("s2", m [])] (m [("d", rf k1 (ad 0 ["a"]))])
+  let Srel (t : List Val) := type (.map [("dependsOn", true, .call .rel t)] none false)
+  let jobs := ms [("a", m []), ("b", m [])] (m [("feeds", rf (m [("kind", str "job")]) (ad 2 ["b"]))])
+  [([], m [("K", K), ("T", T), ("svc", k1), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))], .map []),
+    ([], m [("K", K), ("T", T), ("svc", m [("k", str "no")]), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))], .map []),
+    ([], m [("K", K), ("T", T), ("x", .meet (p ["T"]) (m [("p", ad 0 ["nosuch"])]))], .map []),
+    ([], m [("T", type (m [("p", .call .refer [k1])])), ("svc", m []), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))],
+      .map [("svc", .map [("k", j 2)])]),
+    ([], m [("T", ms [("s1", m [])] (m [("d", .meet (.call .refer []) (ad 0 ["nosuch"]))]))], .map []),
+    ([], m [("a", m []), ("T", sp)], .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("T", sp)], .map []),
+    ([], m [("S", Srel []), ("a", m []), ("s", .meet (p ["S"]) (m [("dependsOn", lst [ad 0 ["a"]])]))], .map []),
+    ([], m [("S", Srel []), ("s", .meet (p ["S"]) (m [("dependsOn", lst [ad 0 ["nosuch"]])]))], .map []),
+    ([], m [("S", Srel [k1]), ("a", m []), ("s", .meet (p ["S"]) (m [("dependsOn", lst [ad 0 ["a"]])]))],
+      .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("L", rf k1 (ad 0 ["a"])), ("x", p ["L"])], .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("L", m [("d", rf k1 (ad 0 ["a"]))]), ("x", p ["L"])], .map []),
+    ([], m [("L", m [("d", .meet (.call .refer []) (ad 0 ["nosuch"]))]), ("x", p ["L"])], .map []),
+    ([], m [("jobs", jobs)], .map []),
+    ([], m [("jobs", jobs)], .map [("jobs", .map [("b", .map [("kind", .str "svc")])])]),
+    ([], m [("a", m []), ("l", .list [] (some (rf k1 (ad 0 ["a"]))) false), ("m", .meet (p ["l"]) (lst [ad 0 ["a"]]))],
+      .map [("a", .map [("k", j 2)])])]
+
+theorem landCases_checkable : ∀ c ∈ landCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem land_verdict_exact : ∀ c ∈ landCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (landCases_checkable c hc).1 (landCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, the schema's braces dropped since neither CLI reads a braced
 map after a declaration, in the three modes, with the one class `vetP`
@@ -3789,7 +3844,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# what a call over a path makes, which resolve a round later, follow in rows"
     IO.println "# rn0 on, and refer, a link that keeps its address, its template met into"
     IO.println "# its target, in rows rf0 on. rel, a relation whose value holds a link at"
-    IO.println "# each leaf, follows in rows rl0 on."
+    IO.println "# each leaf, follows in rows rl0 on, and links read where they land, in a"
+    IO.println "# spread's template or copied by a path reference, in rows ld0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -3801,6 +3857,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "rn" roundCases
     pathRows "rf" referCases
     pathRows "rl" relCases
+    pathRows "ld" landCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

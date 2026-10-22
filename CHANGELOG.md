@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a link where it lands
+
+Definition, generated rows, and documentation. No engine changes.
+P11's fifth slice.
+
+- `spec/Aontu/Paths.lean`: `Decls.withRefers` read the schema's links
+  only where the document writes them, so a link in a `type()` that a
+  path reference copies, or in a spread's template, flowed nowhere and
+  needed no target, where both ports read it at each place it lands.
+  Now, at each position the schema's normal form holds
+  (`Val.positions`), `landing` reads the terms the schema writes there:
+  through meets, riders, a map's member and its spread, a list's
+  element and its spread, and a path reference's target, within a
+  budget that ends a cycle of references. Each `refer` and `rel` among
+  them is a link at that position (`Val.landedLinks`), its relative
+  address read from there. A body's links are still read at the body's
+  own place.
+- `test/spec/def-path.tsv` gains rows ld0 on, in the three modes of
+  `vet`, and no other row changes. Both ports answer every row as the
+  definition does.
+- The definition tutorial's step 36 quotes `landStep` and the new
+  `Decls.referPass`, and its last step no longer lists a link in a
+  spread or copied by a path reference among what the definition
+  doesn't read. The reference's section on checked links says where a
+  link lands.
+
 ### The definition reads `rel`
 
 Definition, generated rows, and documentation. No engine changes.
