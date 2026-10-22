@@ -2814,7 +2814,7 @@ x:upper(0d1.1) & biginteger → error   (rounding does not change the leaf)
 A bigdecimal result is still a bigdecimal, so it keeps the one decimal
 place its leaf always renders, even when the value is whole.
 
-The definition computes `upper` and `lower` as `caseOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). A number with no range rounds up or down in its own leaf, exactly, by `Number.round` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean). A string converts the run of code points `caseSpan` selects as a whole and keeps the rest as it stands. The case conversion itself belongs to `Host` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), which the definition leaves to the engines as it leaves patterns and formats. Both engines apply Unicode's default case conversion, and the version of their tables can differ. A range argument reads through its riders as an `integer`, or as a `biginteger` that 64 bits hold. The TypeScript engine refuses a `biginteger` index from 2^53 on, which #439 tracks.
+The definition computes `upper` and `lower` as `caseOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). A number with no range rounds up or down in its own leaf, exactly, by `Number.round` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean). A string converts the run of code points `caseSpan` selects as a whole and keeps the rest as it stands. The case conversion itself belongs to `Host` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), which the definition leaves to the engines as it leaves patterns and formats. Both engines apply Unicode's default case conversion, and the version of their tables can differ. A range argument reads through its riders as an `integer`, or as a `biginteger` that 64 bits hold. The TypeScript engine refuses a `biginteger` index from 2^53 on, which [#439](https://github.com/aontu-lang/aontu/issues/439) tracks.
 
 ### Composing calls
 
@@ -2919,7 +2919,7 @@ An exact result that will not store is refused too, exactly as a sum is
 error rather than a rounded answer, and `0d` operands compute it
 exactly.
 
-The definition holds a call as the term `call` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) and computes it by `Number.arith` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean). Two integers compute exactly, with no answer where the result leaves the integer leaf. Anything with a float computes the nearest double, ties to even, with no answer where it overflows, and a float with a big integer or a big decimal has no answer. Anything else computes exactly, in the wider leaf, a big decimal never divided and held to a budget of 4096 digits, and a zero divisor has no answer in any leaf. `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) makes a call once every argument reads as a number, and a call no reading makes leaves the schema ill-formed, an `error` for `vet`. Both engines answer `invalid` instead where a call has the wrong number of arguments or negates something other than a number, which #426 tracks.
+The definition holds a call as the term `call` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) and computes it by `Number.arith` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean). Two integers compute exactly, with no answer where the result leaves the integer leaf. Anything with a float computes the nearest double, ties to even, with no answer where it overflows, and a float with a big integer or a big decimal has no answer. Anything else computes exactly, in the wider leaf, a big decimal never divided and held to a budget of 4096 digits, and a zero divisor has no answer in any leaf. `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) makes a call once every argument reads as a number, and a call no reading makes leaves the schema ill-formed, an `error` for `vet`. Both engines answer `invalid` instead where a call has the wrong number of arguments or negates something other than a number, which [#426](https://github.com/aontu-lang/aontu/issues/426) tracks.
 
 ## Projecting fields: `pick`
 
@@ -3119,7 +3119,7 @@ admits every value, and `Val.leftOut` in
 [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) leaves an absent
 member out of the output. An absent element of a list holds no
 position in the definition, where both engines keep it at its position
-while the list meets another, which #479 tracks.
+while the list meets another, which [#479](https://github.com/aontu-lang/aontu/issues/479) tracks.
 
 ## Ordering: `sort`
 
@@ -3645,7 +3645,7 @@ string converts from by `Addr.ofText?`, in the same module as
 `Data.addr`. It doesn't yet read
 a string constraint met with a path value. Both engines read the one
 address the value spells when the two meet, so their answer depends on
-the order of the meets, which #474 tracks.
+the order of the meets, which [#474](https://github.com/aontu-lang/aontu/issues/474) tracks.
 
 Pinned by [`test/spec/path.tsv`](../test/spec/path.tsv).
 
