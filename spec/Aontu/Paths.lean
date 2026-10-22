@@ -218,6 +218,113 @@ stands: the schema from the top, and each body at its name's own place,
 def Decls.placed (ds : Decls) (S : Val) : Decls × Val :=
   (ds.map fun d => (d.1, d.2.placed [.key ("%" ++ d.1)]), S.placed [])
 
+/-! ## Sources -/
+
+/-- The extensions a source may be loaded with: aontu's own, the data
+formats, each of which maps onto JSON, and text. -/
+def loadExts : List String :=
+  ["aontu", "json", "jsonld", "jsonc", "json5", "jsonic", "jsc", "toml", "yaml", "yml", "ini", "txt"]
+
+/-- The name a source written `p` in the source named `src` loads: a
+`./` read from `src`'s own directory, `.aontu` supplied where the last
+step names no extension, and none where it names one no source may be
+loaded with. The document itself is the source named `""`. -/
+def loadPath (src p : String) : Option String :=
+  let q := if p.startsWith "./" then src.dropRightWhile (· ≠ '/') ++ p.drop 2 else p
+  match ((q.splitOn "/").getLast?.getD "").splitOn "." with
+  | [_] => some (q ++ ".aontu")
+  | parts => if parts.getLast?.getD "" ∈ loadExts then some q else none
+
+/-- The term a document declares for the source it loads under a name:
+`@` and the name, which no document can write, since a name a document
+writes begins with a letter. A source is aontu's own term for a source
+in the language, the term `Data.term` makes of data, or a string for
+text. -/
+def Decls.source? (ds : Decls) (q : String) : Option Val :=
+  (ds.find? fun d => d.1 == "@" ++ q).map (·.2)
+
+/-- The text a load's argument writes, where it's one string. -/
+def loadArg? : List Val → Option String
+  | [.lit (.str p)] => some p
+  | _ => none
+
+mutual
+/-- The term with each `@"p"` it writes, at any depth, read as the term
+`k` gives `p`, and left as written where `k` gives none. -/
+def Val.mapLoads (k : String → Option Val) : Val → Val
+  | .len c => .len (c.mapLoads k)
+  | .map fs spread closed => .map (mlFields k fs) (mlSpread k spread) closed
+  | .list items spread closed => .list (mlItems k items) (mlSpread k spread) closed
+  | .or arms => .or (mlArms k arms)
+  | .pref r x => .pref r (x.mapLoads k)
+  | .meet a b => .meet (a.mapLoads k) (b.mapLoads k)
+  | .nof n cs => .nof (n.mapLoads k) (mlItems k cs)
+  | .must c m => .must (c.mapLoads k) m
+  | .when c t e => .when (c.mapLoads k) (t.mapLoads k) (mlSpread k e)
+  | .contains c n => .contains (c.mapLoads k) (n.mapLoads k)
+  | .rest t cs => .rest (t.mapLoads k) (mlCovers k cs)
+  | .select s arms d => .select (s.mapLoads k) (mlPairs k arms) (mlSpread k d)
+  | .filter s c => .filter (s.mapLoads k) (c.mapLoads k)
+  | .call f args =>
+    match f, loadArg? args with
+    | .load, some p => (k p).getD (.call f args)
+    | _, _ => .call f (mlItems k args)
+  | .ride rd v r => .ride rd (v.mapLoads k) r
+  | v => v
+
+def mlPairs (k : String → Option Val) : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.mapLoads k, r.mapLoads k) :: mlPairs k ps
+
+def mlCovers (k : String → Option Val) : List Cover → List Cover
+  | [] => []
+  | (c, ky, m) :: cs => (mlSpread k c, mlSpread k ky, mlSpread k m) :: mlCovers k cs
+
+def mlFields (k : String → Option Val) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (ky, o, v) :: fs => (ky, o, v.mapLoads k) :: mlFields k fs
+
+def mlItems (k : String → Option Val) : List Val → List Val
+  | [] => []
+  | v :: vs => v.mapLoads k :: mlItems k vs
+
+def mlSpread (k : String → Option Val) : Option Val → Option Val
+  | none => none
+  | some s => some (s.mapLoads k)
+
+def mlArms (k : String → Option Val) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.mapLoads k) :: mlArms k as
+end
+
+/-- A term written in the source named `src` with the sources it loads
+read in, `n` deep: each `@"p"` read as the term the document declares
+for the source it names (`loadPath`, `Decls.source?`), that term's own
+sources read in from there, one level less deep. A source the document
+declares no term for, one no source may be loaded with, and one deeper
+than `n`, so a cycle among them, stays as written: a call the reading
+can't make, which makes the document an `error`. -/
+def Decls.loadIn (ds : Decls) : ℕ → String → Val → Val
+  | 0, _, v => v
+  | n + 1, src, v => v.mapLoads fun p => (loadPath src p).bind fun q => (ds.source? q).map (ds.loadIn n q)
+
+/-- Whether a declaration's name is a source's: `@` and the name it's
+loaded by. -/
+def sourceName (n : String) : Bool := n.toList.head? == some '@'
+
+/-- How many sources a document declares. -/
+def Decls.sourceCount (ds : Decls) : ℕ := (ds.filter fun d => sourceName d.1).length
+
+/-- A document with the sources it loads read in where it loads them, as
+both ports read a source in place: as deep as it declares sources, so
+that a chain of loads reads to its end and a cycle never does; its
+bodies and its schema read in from the document itself, and the
+sources no longer declared, so that a source nothing loads is no part
+of the document. -/
+def Decls.loaded (ds : Decls) (S : Val) : Decls × Val :=
+  ((ds.filter fun d => !sourceName d.1).map fun d => (d.1, ds.loadIn (ds.sourceCount + 1) "" d.2),
+    ds.loadIn (ds.sourceCount + 1) "" S)
+
 /-- A variable's step: the text of the scalar the calling program binds
 it to, a string as itself, a number as `Number.text` writes it and a
 boolean as `true` or `false`, as both ports take a step only from a
@@ -1201,20 +1308,31 @@ theorem Decls.withRel_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Chec
   · exact hb d hd
   · exact relKind_checkableA
 
-/-- The verdict of a document with paths: the document prepared
-(`Decls.prepared`), the relation kind declared, its relative paths
-placed, its spreads read at each member, the sources its moves read
-hidden and its links' templates met into their targets, the verdict of
-the document whose paths are absolute. The error class reads a spread
-at the members the schema's own tree holds, and the others at those of
-the tree the data reads in, so that a member the data alone supplies
-makes the document `invalid`, never an `error`. -/
-def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
+/-- The verdict of a document with paths whose sources are read in: the
+document prepared (`Decls.prepared`), the relation kind declared, its
+relative paths placed, its spreads read at each member, the sources its
+moves read hidden and its links' templates met into their targets, the
+verdict of the document whose paths are absolute. The error class reads
+a spread at the members the schema's own tree holds, and the others at
+those of the tree the data reads in, so that a member the data alone
+supplies makes the document `invalid`, never an `error`. -/
+def VetL (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
   VetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j) j v
+
+/-- The verdict of a document with paths whose sources are read in,
+computed. -/
+def vetL (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
+  vetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j) j
+
+/-- The verdict of a document with paths: the document with the sources
+it loads read in where it loads them (`Decls.loaded`), and its verdict
+as `VetL` gives it. -/
+def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
+  VetL m (ds.loaded S).1 (ds.loaded S).2 j v
 
 /-- The verdict with paths, computed. -/
 def vetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
-  vetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j) j
+  vetL m (ds.loaded S).1 (ds.loaded S).2 j
 
 /-! ## Paths read as names keep a term checkable -/
 
@@ -1578,6 +1696,195 @@ theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos)
       exact ihd e₀ he₀ pos
   | _ => intro pos; simp only [Val.placed]; constructor
 
+theorem mem_mlFields {ld : String → Option Val} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+    (k, o, w) ∈ mlFields ld fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.mapLoads ld := by
+  induction fs with
+  | nil => simp [mlFields]
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    simp only [mlFields, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
+      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
+      · exact ⟨v, Or.inr hm, rfl⟩
+    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl, rfl⟩
+      · exact Or.inr ⟨v, hm, rfl⟩
+
+theorem mem_mlPairs {ld : String → Option Val} {ps : List (Val × Val)} {p r : Val} :
+    (p, r) ∈ mlPairs ld ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.mapLoads ld ∧ r = r₀.mapLoads ld := by
+  induction ps with
+  | nil => simp [mlPairs]
+  | cons q ps ih =>
+    obtain ⟨p', r'⟩ := q
+    simp only [mlPairs, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨p₀, r₀, hm, rfl, rfl⟩)
+      · exact ⟨p', r', Or.inl ⟨rfl, rfl⟩, rfl, rfl⟩
+      · exact ⟨p₀, r₀, Or.inr hm, rfl, rfl⟩
+    · rintro ⟨p₀, r₀, ⟨rfl, rfl⟩ | hm, rfl, rfl⟩
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
+
+theorem mem_mlItems {ld : String → Option Val} {items : List Val} {w : Val} :
+    w ∈ mlItems ld items ↔ ∃ v, v ∈ items ∧ w = v.mapLoads ld := by
+  induction items with
+  | nil => simp [mlItems]
+  | cons v vs ih =>
+    simp only [mlItems, List.mem_cons, ih]
+    constructor
+    · rintro (rfl | ⟨u, hu, rfl⟩)
+      · exact ⟨v, .inl rfl, rfl⟩
+      · exact ⟨u, .inr hu, rfl⟩
+    · rintro ⟨u, rfl | hu, rfl⟩
+      · exact .inl rfl
+      · exact .inr ⟨u, hu, rfl⟩
+
+theorem mlSpread_eq {ld : String → Option Val} {spread : Option Val} {t : Val} :
+    mlSpread ld spread = some t ↔ ∃ s, spread = some s ∧ t = s.mapLoads ld := by
+  cases spread with
+  | none => simp [mlSpread]
+  | some s =>
+    simp only [mlSpread, Option.some.injEq]
+    exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
+
+theorem mem_mlCovers {ld : String → Option Val} {cs : List Cover} {c' : Cover} :
+    c' ∈ mlCovers ld cs ↔ ∃ c, c ∈ cs ∧ c' = (mlSpread ld c.1, mlSpread ld c.2.1, mlSpread ld c.2.2) := by
+  induction cs with
+  | nil => simp [mlCovers]
+  | cons c cs ih =>
+    obtain ⟨a, k, m⟩ := c
+    simp only [mlCovers, List.mem_cons, ih]
+    constructor
+    · rintro (rfl | ⟨d, hd, rfl⟩)
+      · exact ⟨(a, k, m), .inl rfl, rfl⟩
+      · exact ⟨d, .inr hd, rfl⟩
+    · rintro ⟨d, rfl | hd, rfl⟩
+      · exact .inl rfl
+      · exact .inr ⟨d, hd, rfl⟩
+
+theorem mem_mlArms {ld : String → Option Val} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
+    (r, b) ∈ mlArms ld arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.mapLoads ld := by
+  induction arms with
+  | nil => simp [mlArms]
+  | cons q qs ih =>
+    obtain ⟨r', a'⟩ := q
+    simp only [mlArms, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | ⟨a, hm, rfl⟩)
+      · exact ⟨a', Or.inl ⟨rfl, rfl⟩, rfl⟩
+      · exact ⟨a, Or.inr hm, rfl⟩
+    · rintro ⟨a, ⟨rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl⟩
+      · exact Or.inr ⟨a, hm, rfl⟩
+
+/-- A term the checker can read, its paths read as names, is one it can read. -/
+theorem mapLoads_checkableA {ld : String → Option Val} (hk : ∀ p w, ld p = some w → w.CheckableA)
+    {v : Val} (h : v.CheckableA) : (v.mapLoads ld).CheckableA := by
+  induction h with
+  | len _ ih => exact .len ih
+  | @map fs spread closed _ _ ihf ihs =>
+    refine .map ?_ ?_
+    · intro k o w hm
+      obtain ⟨v, hv, rfl⟩ := mem_mlFields.mp hm
+      exact ihf k o v hv
+    · intro t ht
+      obtain ⟨s, hs, rfl⟩ := mlSpread_eq.mp ht
+      exact ihs s hs
+  | @list items spread closed _ _ ihi ihs =>
+    refine .list ?_ ?_
+    · intro w hm
+      obtain ⟨v, hv, rfl⟩ := mem_mlItems.mp hm
+      exact ihi v hv
+    · intro t ht
+      obtain ⟨s, hs, rfl⟩ := mlSpread_eq.mp ht
+      exact ihs s hs
+  | @or arms _ ih =>
+    refine .or fun r b hm => ?_
+    obtain ⟨a, ha, rfl⟩ := mem_mlArms.mp hm
+    exact ih r a ha
+  | pref _ ih => exact .pref ih
+  | ride _ ih => exact .ride ih
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | @nof n cs _ _ ihn ihcs =>
+    refine .nof ihn fun w hm => ?_
+    obtain ⟨c, hc, rfl⟩ := mem_mlItems.mp hm
+    exact ihcs c hc
+  | @call f args hargs ih =>
+    simp only [Val.mapLoads]
+    split
+    · next p _ =>
+      cases hkp : ld p with
+      | none => exact .call hargs
+      | some w => exact hk p w hkp
+    · refine .call fun w hm => ?_
+      obtain ⟨a, ha, rfl⟩ := mem_mlItems.mp hm
+      exact ih a ha
+  | must _ ih => exact .must ih
+  | @when c t e _ _ _ ihc iht ihe =>
+    refine .when ihc iht fun e' he => ?_
+    obtain ⟨s, hs, rfl⟩ := mlSpread_eq.mp he
+    exact ihe s hs
+  | contains _ _ ihc ihn => exact .contains ihc ihn
+  | @rest t cs _ _ _ _ iht ih1 ih2 ih3 =>
+    refine .rest iht ?_ ?_ ?_
+    · intro c' hc' v hv
+      obtain ⟨c, hc, rfl⟩ := mem_mlCovers.mp hc'
+      obtain ⟨s, hs, rfl⟩ := mlSpread_eq.mp hv
+      exact ih1 c hc s hs
+    · intro c' hc' v hv
+      obtain ⟨c, hc, rfl⟩ := mem_mlCovers.mp hc'
+      obtain ⟨s, hs, rfl⟩ := mlSpread_eq.mp hv
+      exact ih2 c hc s hs
+    · intro c' hc' v hv
+      obtain ⟨c, hc, rfl⟩ := mem_mlCovers.mp hc'
+      obtain ⟨s, hs, rfl⟩ := mlSpread_eq.mp hv
+      exact ih3 c hc s hs
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_mlPairs.mp hm
+      exact ihp p₀ r₀ hm₀
+    · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_mlPairs.mp hm
+      exact ihr p₀ r₀ hm₀
+    · obtain ⟨e₀, he₀, rfl⟩ := mlSpread_eq.mp he
+      exact ihd e₀ he₀
+  | @selectLit sc arms d _ _ _ ihp ihr ihd =>
+    refine .selectLit (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_mlPairs.mp hm
+      exact ihp p₀ r₀ hm₀
+    · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_mlPairs.mp hm
+      exact ihr p₀ r₀ hm₀
+    · obtain ⟨e₀, he₀, rfl⟩ := mlSpread_eq.mp he
+      exact ihd e₀ he₀
+  | _ => simp only [Val.mapLoads]; constructor
+
+theorem Decls.source?_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {q : String} {w : Val}
+    (h : ds.source? q = some w) : w.CheckableA := by
+  simp only [Decls.source?, Option.map_eq_some_iff] at h
+  obtain ⟨d, hd, rfl⟩ := h
+  exact hb d (List.mem_of_find?_eq_some hd)
+
+theorem Decls.loadIn_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
+    ∀ (n : ℕ) (src : String) {v : Val}, v.CheckableA → (ds.loadIn n src v).CheckableA
+  | 0, _, _, h => h
+  | n + 1, src, _, h => by
+    simp only [Decls.loadIn]
+    refine mapLoads_checkableA (fun p w hw => ?_) h
+    simp only [Option.bind_eq_some_iff, Option.map_eq_some_iff] at hw
+    obtain ⟨q, -, t, ht, rfl⟩ := hw
+    exact Decls.loadIn_checkableA hb n q (Decls.source?_checkableA hb ht)
+
+theorem Decls.loaded_bodies_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
+    ∀ d, d ∈ (ds.loaded S).1 → d.2.CheckableA := by
+  intro d hd
+  simp only [Decls.loaded, List.mem_map, List.mem_filter] at hd
+  obtain ⟨d', ⟨hd', -⟩, rfl⟩ := hd
+  exact Decls.loadIn_checkableA hb _ _ (hb d' hd')
+
+theorem Decls.loaded_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) : (ds.loaded S).2.CheckableA :=
+  Decls.loadIn_checkableA hb _ _ hS
+
 theorem Decls.placed_bodies_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
     ∀ d, d ∈ (ds.placed S).1 → d.2.CheckableA := by
   intro d hd
@@ -1839,13 +2146,19 @@ theorem vetA_iff {m : Mode} {ds : Decls} {S S' : Val} {j : Data} (hb : ∀ d, d 
     have hR : ¬ ds.Resolves S := fun h => hr (Decls.resolvesB_iff.mpr h)
     cases v <;> simp only [VetA, hR, not_false_eq_true, true_or, false_and, reduceCtorEq]
 
-/-- `vetP` computes `VetP` on every document whose bodies and schema
+/-- `vetL` computes `VetL` on every document whose bodies and schema
 read no pattern and no format. -/
-theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
+theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (S' := ds.preparedD S j)
     (Decls.placed_bodies_checkableA (S := S) (Decls.withRel_checkableA hb))
     (Decls.prepared_checkableA hb hS _) (Decls.prepared_checkableA hb hS _) v
+
+/-- `vetP` computes `VetP` on every document whose bodies, sources and
+schema read no pattern and no format. -/
+theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
+  vetL_iff (Decls.loaded_bodies_checkableA hb) (Decls.loaded_checkableA hb hS) v
 
 /-! ## The output with paths -/
 
@@ -1873,28 +2186,45 @@ theorem outputA_iff {ds : Decls} {S : Val} {root : Data} (hg : (ds.withPathsS S)
   · rw [if_neg hr]
     exact ⟨fun h' => absurd h' (by simp), fun h' => absurd (Decls.resolvesB_iff.mpr h'.1) hr⟩
 
-/-- What a document with paths generates: the document prepared before
-any data (`Decls.preparedS`), the relation kind declared, its relative
-paths placed, its spreads read at each member of the schema's own tree,
-the sources its moves read hidden and its links' templates met into
-their targets, what the document whose paths are absolute generates. -/
-def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
+/-- What a document with paths whose sources are read in generates: the
+document prepared before any data (`Decls.preparedS`), the relation
+kind declared, its relative paths placed, its spreads read at each
+member of the schema's own tree, the sources its moves read hidden and
+its links' templates met into their targets, what the document whose
+paths are absolute generates. -/
+def OutputL (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
   OutputA (ds.preparedS S).1 root (ds.preparedS S).2 j
+
+/-- What a document with paths whose sources are read in generates,
+computed. -/
+def outputL (ds : Decls) (S : Val) : Option Data :=
+  outputA (ds.preparedS S).1 (ds.preparedS S).2
+
+/-- What a document with paths generates: what the document with its
+sources read in generates (`Decls.loaded`, `OutputL`). -/
+def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
+  OutputL (ds.loaded S).1 root (ds.loaded S).2 j
 
 /-- What a document with paths generates, computed. -/
 def outputP (ds : Decls) (S : Val) : Option Data :=
-  outputA (ds.preparedS S).1 (ds.preparedS S).2
+  outputL (ds.loaded S).1 (ds.loaded S).2
 
-/-- `outputP` computes `OutputP` where the reading of the placed
+/-- `outputL` computes `OutputL` where the reading of the placed
 document keeps the alias-cycle rule and the checker can read its bodies
 and its normal form. -/
-theorem outputP_iff {ds : Decls} {S : Val} {root : Data}
+theorem outputL_iff {ds : Decls} {S : Val} {root : Data}
     (hg : ((ds.preparedS S).1.withPathsS (ds.preparedS S).2).1.Guarded)
     (hb : ∀ d, d ∈ ((ds.preparedS S).1.withPathsS (ds.preparedS S).2).1 → d.2.CheckableA)
     (h : (normaliseD ((ds.preparedS S).1.withPathsS (ds.preparedS S).2).1
       (((ds.preparedS S).1.withPathsS (ds.preparedS S).2).1.readR
         ((ds.preparedS S).1.withPathsS (ds.preparedS S).2).2)).CheckableA)
-    (j : Data) : outputP ds S = some j ↔ OutputP ds root S j :=
+    (j : Data) : outputL ds S = some j ↔ OutputL ds root S j :=
   outputA_iff hg hb h j
+
+/-- `outputP` computes `OutputP` where `outputL` computes `OutputL` on
+the document with its sources read in. -/
+theorem outputP_iff {ds : Decls} {S : Val} {root : Data} {j : Data}
+    (h : outputL (ds.loaded S).1 (ds.loaded S).2 = some j ↔ OutputL (ds.loaded S).1 root (ds.loaded S).2 j) :
+    outputP ds S = some j ↔ OutputP ds root S j := h
 
 end Aontu

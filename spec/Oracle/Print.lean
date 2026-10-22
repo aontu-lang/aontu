@@ -204,6 +204,7 @@ def Fn.name : Fn → String
   | .path => "path"
   | .abnf => "abnf"
   | .parse => "parse"
+  | .load => "@"
   | .split => "split"
   | .rep => "rep"
   | .nom => "nom"
@@ -275,6 +276,7 @@ def Val.src : Val → Option String
   | .select s arms d => do pure s!"match({", ".intercalate ([← s.src] ++ (← pairsSrc arms) ++ (← elseSrc d))})"
   | .filter s c => do pure s!"filter({← s.src}, {← c.src})"
   | .call .plus [a, b] => do pure s!"({← a.src}) + ({← b.src})"
+  | .call .load [.lit (.str p)] => some ("@" ++ quote p)
   | .call f args => do pure s!"{f.name}({", ".intercalate (← itemsSrc args)})"
   | .ride .type v [] => do pure s!"type({← v.src})"
   | .ride .hide v [] => do pure s!"hide({← v.src})"

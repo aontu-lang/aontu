@@ -4714,6 +4714,22 @@ the filesystem, then package resolution (see
 value and a local one is a normal unification
 error.
 
+In the definition, a document declares each source it can load as a
+term, under `@` and the source's name, which no document can write:
+aontu's own term for a source in the language, the term `Data.term`
+makes of data, or a string for text, so that the definition reads no
+file.
+`Decls.loaded` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+reads each load in place before anything else reads the document. It
+reads the name with `loadPath`, from the source that writes the load,
+and reads the source's own loads in from there, as deep as the
+document declares sources. A source the document declares no term for,
+an extension the table refuses, and a cycle of sources each leave the
+load unmade, which makes the document an `error`. Rows from lf0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it. The definition doesn't yet read a source's own declarations,
+the destructure `{ %a } = @"…"`, or a module.
+
 ### Modules
 
 An import whose path is **domain-shaped** is a module import rather than

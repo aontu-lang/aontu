@@ -1586,20 +1586,82 @@ theorem spread_verdict_exact : ∀ c ∈ spreadCases, ∀ (m : Mode) (v : Verdic
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (spreadCases_checkable c hc).1 (spreadCases_checkable c hc).2 v
 
+/-- Sources loaded in place, each a file of `test/spec/files` the case
+declares as a term: an aontu source at the root, alone and met with a
+map, and under a key, beside data that agrees and data that doesn't; a
+source met with a map that refuses it; a source that names nothing; a
+JSON map and text under a key; a cycle of sources; an extension no
+source may be loaded with; a chain of sources, each read from the one
+before it; a path in a source loaded at the root and in one loaded
+under a key; a spread in a source met with a map; a JSON list met with
+a map at the root; and the extension supplied. -/
+def loadCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let ms (fs : List (String × Val)) (s : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some s) false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let ld (s : String) : Val := .call .load [.lit (.str s)]
+  let fx (s : String) : String := "__FIXTURES__/" ++ s
+  let files : Decls :=
+    [("@" ++ fx "foo.aontu", m [("f", int 11)]),
+      ("@" ++ fx "car.aontu", m [("color", str "silver"), ("doors", int 4)]),
+      ("@" ++ fx "refs.aontu", m [("a", m [("x", int 1)]), ("b", p ["a", "x"])]),
+      ("@" ++ fx "spread.aontu", ms [("one", m []), ("two", m [])] (m [("active", .lit (.bool true))])),
+      ("@" ++ fx "nest_parent.aontu", m [("a", int 1), ("child", ld "./nest_child.aontu")]),
+      ("@" ++ fx "nest_child.aontu", m [("b", int 2), ("grand", ld "./nest_grand.aontu")]),
+      ("@" ++ fx "nest_grand.aontu", m [("c", int 3)]),
+      ("@" ++ fx "cycle_a.aontu", m [("x", ld "./cycle_b.aontu")]),
+      ("@" ++ fx "cycle_b.aontu", m [("y", ld "./cycle_b.aontu"), ("z", ld "./cycle_a.aontu")]),
+      ("@" ++ fx "vocab.json", (Data.map [("a", j 1), ("b", .map [("c", j 2)])]).term),
+      ("@" ++ fx "list.json", (Data.list [.str "a", j 1, .bool true]).term),
+      ("@" ++ fx "notes.txt", str "These are notes, not a document.\n")]
+  [(files, ld (fx "foo.aontu"), dm []),
+    (files, ld (fx "foo.aontu"), dm [("f", j 12)]),
+    (files, .meet (ld (fx "foo.aontu")) (m [("c", int 3)]), dm []),
+    (files, m [("a", ld (fx "foo.aontu"))], dm [("a", dm [("f", j 11)])]),
+    (files, m [("a", ld (fx "foo.aontu"))], dm [("a", dm [("f", j 12)])]),
+    (files, m [("car", .meet (ld (fx "car.aontu")) (m [("wheels", int 4)]))], dm []),
+    (files, m [("car", .meet (ld (fx "car.aontu")) (m [("doors", int 5)]))], dm []),
+    (files, m [("a", ld "nope-no-such-file")], dm []),
+    (files, m [("x", ld (fx "vocab.json"))], dm [("x", dm [("a", j 2)])]),
+    (files, m [("x", ld (fx "vocab.json"))], dm []),
+    (files, m [("x", ld (fx "notes.txt"))], dm [("x", .str "other")]),
+    (files, m [("x", ld (fx "notes.txt"))], dm []),
+    (files, ld (fx "cycle_a.aontu"), dm []),
+    (files, m [("x", ld (fx "conf.csv"))], dm []),
+    (files, ld (fx "nest_parent.aontu"), dm [("child", dm [("b", j 3)])]),
+    (files, ld (fx "nest_parent.aontu"), dm []),
+    (files, ld (fx "refs.aontu"), dm [("b", j 2)]),
+    (files, m [("r", ld (fx "refs.aontu"))], dm []),
+    (files, .meet (ld (fx "spread.aontu")) (m [("three", m [])]), dm [("three", dm [("active", .bool false)])]),
+    (files, .meet (ld (fx "list.json")) (m [("x", int 1)]), dm []),
+    (files, m [("x", ld (fx "foo"))], dm [])]
+
+theorem loadCases_checkable : ∀ c ∈ loadCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem load_verdict_exact : ∀ c ∈ loadCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (loadCases_checkable c hc).1 (loadCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
-document, the schema's braces dropped since neither CLI reads a braced
-map after a declaration, in the three modes, with the one class `vetP`
-gives. -/
+document, a map's braces dropped since neither CLI reads a braced map
+after a declaration, in the three modes, with the one class `vetP`
+gives. A source a case declares, `@` and its name, is a file the row
+loads, which the row doesn't write. -/
 def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) : IO Unit := do
   let mut i := 0
   for c in cases do
     let mut lines : List String := []
-    for d in c.1 do
+    for d in c.1.filter fun d => !sourceName d.1 do
       let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
       lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
     let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
     let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
-    let src := "\\n".intercalate (lines ++ [(ssrc.drop 1).dropRight 1])
+    let src := "\\n".intercalate (lines ++ [match c.2.1 with | .map _ _ _ => (ssrc.drop 1).dropRight 1 | _ => ssrc])
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
         (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
       IO.println (tag ++ toString i ++ "\tverdict\t" ++ src ++ "\t" ++ dsrc ++ "\t{\"verdict\":\""
@@ -2404,7 +2466,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
     ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "pref"),
-    ("call", "call", "move"), ("call", "call", "refer"), ("call", "call", "rel"), ("call", "call", "split"),
+    ("call", "call", "move"), ("call", "call", "refer"), ("call", "call", "rel"), ("call", "syntax", "@"), ("call", "call", "split"),
     ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "abnf"),
     ("call", "call", "parse"), ("call", "call", "project"),
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
@@ -3589,7 +3651,8 @@ def varPathCases : List Val :=
 /-- A variable case read as the definition reads a document with paths:
 placed, then its paths read as names from the schema alone. -/
 def varReading (t : Val) : Decls × Val :=
-  (progDecls.preparedS (docOf t)).1.withPathsS (progDecls.preparedS (docOf t)).2
+  ((progDecls.loaded (docOf t)).1.preparedS (progDecls.loaded (docOf t)).2).1.withPathsS
+    ((progDecls.loaded (docOf t)).1.preparedS (progDecls.loaded (docOf t)).2).2
 
 set_option maxRecDepth 16384 in
 theorem varPathCases_readable : ∀ t ∈ varPathCases,
@@ -3601,9 +3664,9 @@ theorem varPathCases_readable : ∀ t ∈ varPathCases,
 under the program's declarations, by `outputP_iff`. -/
 theorem var_path_output_exact : ∀ t ∈ varPathCases, ∀ (root j : Data),
     outputP progDecls (docOf t) = some j ↔ OutputP progDecls root (docOf t) j :=
-  fun t ht _ j => outputP_iff (Decls.guardedB_iff.mp (varPathCases_readable t ht).1)
+  fun t ht _ j => outputP_iff (outputL_iff (Decls.guardedB_iff.mp (varPathCases_readable t ht).1)
     (Decls.bodiesCheckableB_iff.mp (varPathCases_readable t ht).2.1)
-    ((Val.checkableAB_iff _).mp (varPathCases_readable t ht).2.2) j
+    ((Val.checkableAB_iff _).mp (varPathCases_readable t ht).2.2) j)
 
 /-- The `gens` rows of the variables: each case under the key `v`, with
 the JSON the engines must write for it under the runners' bindings,
@@ -3963,7 +4026,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# spread's template or copied by a path reference, in rows ld0 on, and in a"
     IO.println "# generator's template, at each member of its output, in rows lg0 on. Spreads"
     IO.println "# whose templates read their member's place, each read at each member there"
-    IO.println "# is, follow in rows sp0 on."
+    IO.println "# is, follow in rows sp0 on, and sources loaded in place, each a file of"
+    IO.println "# test/spec/files the definition declares as a term, in rows lf0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -3978,6 +4042,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "ld" landCases
     pathRows "lg" genLinkCases
     pathRows "sp" spreadCases
+    pathRows "lf" loadCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
