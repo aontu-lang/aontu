@@ -775,15 +775,22 @@ def Val.prefLeaf : Val → Bool
   | .lit _ | .addr _ => true
   | _ => false
 
+/-- A preference's rank and the value it prefers. -/
+def Val.prefOf? : Val → Option (ℕ × Val)
+  | .pref r x => some (r, x)
+  | _ => none
+
 mutual
 /-- What `pref` makes of its argument in normal form, as both ports walk
 it: each scalar literal and each address a preference of rank one, and
 each preference and each preferred arm of a disjunction a rank weaker,
-a plain arm that is a leaf preferred; each member of a map and of a
-list, each side of a meet and the value under a rider read so too, a
-spread left as written; a path not read yet and a call that waits read
-as `pref` of themselves, which waits; and a kind, a bound and any other
-constraint left as they are. -/
+a plain arm that is a leaf preferred, and a leaf or a preference under a
+rider preferred whole, rider and all, as both ports carry a rider on the
+value it rides; each member of a map and of a list, each side of a meet
+and the value under any other rider read so too, a spread left as
+written; a path not read yet and a call that waits read as `pref` of
+themselves, which waits; and a kind, a bound and any other constraint
+left as they are. -/
 def Val.prefer : Val → Val
   | .lit s => .pref 1 (.lit s)
   | .addr a => .pref 1 (.addr a)
@@ -792,7 +799,11 @@ def Val.prefer : Val → Val
   | .list items spread closed => .list (preferItems items) spread closed
   | .or arms => .or (preferArms arms)
   | .meet a b => .meet a.prefer b.prefer
-  | .ride k v r => .ride k v.prefer r
+  | .ride k v r =>
+    if v.unride.prefLeaf then .pref 1 (.ride k v r)
+    else match v.prefOf? with
+      | some (s, x) => .pref (s + 1) (.ride k x r)
+      | none => .ride k v.prefer r
   | .path p => .call .pref [.path p]
   | .call f args => .call .pref [.call f args]
   | v => v
@@ -1840,6 +1851,12 @@ theorem mem_preferArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
     · obtain ⟨r'', b, hb, hx⟩ := mem_preferArms h
       exact ⟨r'', b, List.mem_cons_of_mem _ hb, hx⟩
 
+theorem Val.prefOf?_checkableA {v x : Val} {s : ℕ} (h : v.CheckableA) (hp : v.prefOf? = some (s, x)) :
+    x.CheckableA := by
+  cases h <;> simp only [Val.prefOf?, reduceCtorEq, Option.some.injEq, Prod.mk.injEq] at hp
+  obtain ⟨-, rfl⟩ := hp
+  assumption
+
 /-- `pref` of a term the checker can read is a term it can read. -/
 theorem prefer_checkableA {v : Val} (h : v.CheckableA) : v.prefer.CheckableA := by
   induction h with
@@ -1863,7 +1880,14 @@ theorem prefer_checkableA {v : Val} (h : v.CheckableA) : v.prefer.CheckableA := 
     · rw [hx]; exact ha r' a hm
     · rw [hx]; exact iha r' a hm
   | meet _ _ iha ihb => simp only [Val.prefer]; exact .meet iha ihb
-  | ride _ ih => simp only [Val.prefer]; exact .ride ih
+  | ride h ih =>
+    simp only [Val.prefer]
+    split
+    · exact .pref (.ride h)
+    · split
+      · rename_i s x hp
+        exact .pref (.ride (Val.prefOf?_checkableA h hp))
+      · exact .ride ih
   | path =>
     simp only [Val.prefer]
     refine .call fun a ha => ?_
