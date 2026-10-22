@@ -946,7 +946,9 @@ theorem rider_path_verdict_exact : ∀ c ∈ riderPathCases, ∀ (m : Mode) (v :
 /-- `key(n)` reached through a path or a name, read where the path or
 the name lands: a path at the depth its target stands or deeper, the
 data at the target met with the term it copies, a generator a path
-copies whole, and a name read at each place it stands. -/
+copies whole, a name read at each place it stands, and a selection, a
+call and a generator that compute with the key, which the root a path
+reads keeps as written. -/
 def keyPathCases : List (Decls × Val × Data) :=
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let lst (xs : List Val) : Val := .list xs none false
@@ -954,6 +956,13 @@ def keyPathCases : List (Decls × Val × Data) :=
   let js (s : String) : Data := .str s
   let p (ks : List String) : Val := .path (ks.map .key)
   let k (n : ℤ) : Val := .keyUp n
+  let sel := m [("a", .select (str "b") [(k 1, .lit (.num (.integer ⟨1, by decide⟩)))]
+    (some (.lit (.num (.integer ⟨2, by decide⟩))))), ("b", m [("c", p ["a"])])]
+  let plus := m [("a", .call .plus [str "q", k 1]), ("b", m [("c", p ["a"])])]
+  let gen := m [("a", .call .each [m [("x", k 0)], .hole]), ("b", m [("c", p ["a"])])]
+  let pk := m [("a", .call .pack [lst [k 1], m [("v", .lit (.num (.integer ⟨1, by decide⟩)))]]),
+    ("b", m [("c", p ["a"])])]
+  let up := m [("a", .call .upper [k 1]), ("b", m [("c", p ["a"])])]
   [([], m [("a", m [("x", k 1)]), ("b", p ["a"])], .map [("b", .map [("x", js "b")])]),
     ([], m [("a", m [("x", k 1)]), ("b", p ["a"])], .map []),
     ([], m [("a", m [("x", k 1)]), ("b", p ["a"])], .map [("b", .map [("x", js "a")])]),
@@ -968,7 +977,17 @@ def keyPathCases : List (Decls × Val × Data) :=
       .map [("b", .map [("q", .map [("x", .map [("n", js "x")])])])]),
     ([("T", m [("x", k 1)])], m [("a", .alias "T"), ("b", .alias "T")],
       .map [("a", .map [("x", js "a")]), ("b", .map [("x", js "b")])]),
-    ([("T", m [("x", k 2)])], m [("a", m [("b", .alias "T")])], .map [("a", .map [("b", .map [("x", js "a")])])])]
+    ([("T", m [("x", k 2)])], m [("a", m [("b", .alias "T")])], .map [("a", .map [("b", .map [("x", js "a")])])]),
+    ([], sel, .map [("b", .map [("c", .integer 1)])]),
+    ([], sel, .map [("b", .map [("c", .integer 2)])]),
+    ([], plus, .map [("b", .map [("c", js "qb")])]),
+    ([], plus, .map [("b", .map [("c", js "q")])]),
+    ([], gen, .map [("b", .map [("c", .list [js "x"])])]),
+    ([], gen, .map [("b", .map [("c", .list [js "c"])])]),
+    ([], pk, .map [("b", .map [("c", .map [("c", .map [("v", .integer 1)])])])]),
+    ([], pk, .map [("b", .map [("c", .map [("c", .map [("v", .integer 2)])])])]),
+    ([], up, .map [("b", .map [("c", js "B")])]),
+    ([], up, .map [("b", .map [("c", js "A")])])]
 
 theorem keyPathCases_checkable : ∀ c ∈ keyPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

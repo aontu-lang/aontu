@@ -789,6 +789,54 @@ def callCovers : List Cover → Bool
   | (c, k, m) :: cs => callSpread c || callSpread k || callSpread m || callCovers cs
 end
 
+mutual
+/-- Whether a term holds a `key(n)` no reading has placed, at any depth,
+a call's arguments among them: a term whose value waits on the position
+it lands at. -/
+def Val.holdsKey : Val → Bool
+  | .keyUp _ => true
+  | .call _ args => keyItems args
+  | .ride _ v _ => v.holdsKey
+  | .len c => c.holdsKey
+  | .map fs spread _ => keyFields fs || keySpread spread
+  | .list items spread _ => keyItems items || keySpread spread
+  | .or arms => keyArms arms
+  | .pref _ x => x.holdsKey
+  | .meet a b => a.holdsKey || b.holdsKey
+  | .nof n cs => n.holdsKey || keyItems cs
+  | .must c _ => c.holdsKey
+  | .when c t e => c.holdsKey || t.holdsKey || keySpread e
+  | .contains c n => c.holdsKey || n.holdsKey
+  | .rest t cs => t.holdsKey || keyCovers cs
+  | .select s arms d => s.holdsKey || keyPairs arms || keySpread d
+  | .filter s c => s.holdsKey || c.holdsKey
+  | _ => false
+
+def keyFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.holdsKey || keyFields fs
+
+def keyItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.holdsKey || keyItems vs
+
+def keySpread : Option Val → Bool
+  | none => false
+  | some s => s.holdsKey
+
+def keyArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.holdsKey || keyArms arms
+
+def keyPairs : List (Val × Val) → Bool
+  | [] => false
+  | (p, r) :: ps => p.holdsKey || r.holdsKey || keyPairs ps
+
+def keyCovers : List Cover → Bool
+  | [] => false
+  | (c, k, m) :: cs => keySpread c || keySpread k || keySpread m || keyCovers cs
+end
+
 /-- The members `keep` keeps, in order, each tried at the index it takes
 among those kept before it, as a list's `filter` places its trial. -/
 def keptAt (keep : ℕ → Data → Bool) : ℕ → List Data → List Data
@@ -816,17 +864,21 @@ members, so none of them is read for `b`. Each `key(n)` reads `here`, by
 `keyUpAt`: a template stands at the position its instance lands at, the
 member's index or key below the call, and a `filter`'s condition where
 the member it tries lands, under its key or at the index it takes among
-those kept. A term read with no position keeps its keys as written. -/
+those kept. A term read with no position keeps its keys as written, and
+a selection whose arms hold a key, a call or a generator whose arguments
+hold one, and a `filter` whose condition does stay as written too, so
+that a path copies them to be read where it lands. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
     let arms' := resolvePairs ds b here arms
     let d' := resolveSpread ds b here d
     match genD ds s' with
-    | some x => if callPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
+    | some x => if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
     | none => .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
+    if here.isNone && c.holdsKey then .filter s' c else
     match genD ds s' with
     | some (.map fs) => (Data.map (fs.filter fun m =>
         checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).term
@@ -837,16 +889,20 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
   | .call f args =>
     match f, args with
     | .each, [d, t] =>
+      if here.isNone && (resolveD ds b here d).holdsKey then .call .each [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).members ds with
       | some ms => .list (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t) none false
       | none => .nil
     | .pack, [d, t] =>
+      if here.isNone && (resolveD ds b here d).holdsKey then .call .pack [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).keyedMembers ds with
       | some ms =>
         .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
           fun m => (m.1, false, m.2)) none false
       | none => .nil
-    | f, args => callTerm ds f (resolveItems ds b here args)
+    | f, args =>
+      if here.isNone && keyItems (resolveItems ds b here args) then .call f (resolveItems ds b here args)
+      else callTerm ds f (resolveItems ds b here args)
   | .len c => .len (resolveD ds b here c)
   | .map fs spread closed =>
     .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
@@ -1472,22 +1528,34 @@ theorem callTerm_rep_checkableA {ds : Decls} {a b c : Val} :
   | refused => exact .nil
   | waits => exact absurd h repOf_ne_waits
 
-/-- A `split` call reads to a term the checker can read whatever its
-arguments are, a pattern among them, which the checker cannot read,
-since `split` never waits. -/
-theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {here : Option (List Step)} {a b : Val} (k : ℕ) :
-    (resolveD ds bd here (expandF ds k (.call .split [a, b]))).CheckableA := by
+/-- A `split` call read at a position reads to a term the checker can
+read whatever its arguments are, a pattern among them, which the checker
+cannot read, since `split` never waits. -/
+theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {pos : List Step} {a b : Val} (k : ℕ) :
+    (resolveD ds bd (some pos) (expandF ds k (.call .split [a, b]))).CheckableA := by
   cases k with
-  | zero => simp only [expandF, resolveD, resolveItems]; exact callTerm_split_checkableA
-  | succ k => simp only [expandF, List.map, resolveD, resolveItems]; exact callTerm_split_checkableA
+  | zero =>
+    simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
+      ite_false]
+    exact callTerm_split_checkableA
+  | succ k =>
+    simp only [expandF, List.map, resolveD, resolveItems, Option.isNone_some, Bool.false_and,
+      Bool.false_eq_true, ite_false]
+    exact callTerm_split_checkableA
 
-/-- A `rep` call reads to a term the checker can read whatever its
-arguments are, since `rep` never waits. -/
-theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {here : Option (List Step)} {a b c : Val} (k : ℕ) :
-    (resolveD ds bd here (expandF ds k (.call .rep [a, b, c]))).CheckableA := by
+/-- A `rep` call read at a position reads to a term the checker can read
+whatever its arguments are, since `rep` never waits. -/
+theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a b c : Val} (k : ℕ) :
+    (resolveD ds bd (some pos) (expandF ds k (.call .rep [a, b, c]))).CheckableA := by
   cases k with
-  | zero => simp only [expandF, resolveD, resolveItems]; exact callTerm_rep_checkableA
-  | succ k => simp only [expandF, List.map, resolveD, resolveItems]; exact callTerm_rep_checkableA
+  | zero =>
+    simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
+      ite_false]
+    exact callTerm_rep_checkableA
+  | succ k =>
+    simp only [expandF, List.map, resolveD, resolveItems, Option.isNone_some, Bool.false_and,
+      Bool.false_eq_true, ite_false]
+    exact callTerm_rep_checkableA
 
 /-- A call's term is one the checker can read where its arguments are. -/
 theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
@@ -1595,7 +1663,8 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     intro b here hb
     simp only [resolveD]
     show (match genD ds .key with
-      | some x => if callPairs (resolvePairs ds b here arms) then Val.select .key (resolvePairs ds b here arms)
+      | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
+          then Val.select .key (resolvePairs ds b here arms)
           (resolveSpread ds b here d) else selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)
       | none => .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds .key = none := rfl
@@ -1611,7 +1680,8 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     intro b here hb
     simp only [resolveD]
     show (match genD ds (.lit sc) with
-      | some x => if callPairs (resolvePairs ds b here arms) then Val.select (.lit sc) (resolvePairs ds b here arms)
+      | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
+          then Val.select (.lit sc) (resolvePairs ds b here arms)
           (resolveSpread ds b here d) else selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)
       | none => .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds (.lit sc) = some sc.data := rfl
@@ -1630,12 +1700,18 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         exact ihr p₀ r₀ hm₀ hb
       · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
         exact ihd e₀ he₀ hb
-  | @call f args _ ih =>
+  | @call f args hargs ih =>
     intro b here hb
     rw [resolveD.eq_def]
     dsimp only
     split
-    · rename_i d t _
+    · rename_i d t
+      split
+      · refine .call fun a ha => ?_
+        simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
+        rcases ha with h | h
+        · rw [h]; exact ih d (by simp) hb
+        · rw [h]; exact hargs t (by simp)
       split
       · rename_i ms hms
         refine .list (fun w hw => ?_) (fun _ hs => by cases hs)
@@ -1646,7 +1722,13 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
           obtain rfl := Option.some.inj hm'
           exact hmc
       · exact .nil
-    · rename_i d t _
+    · rename_i d t
+      split
+      · refine .call fun a ha => ?_
+        simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
+        rcases ha with h | h
+        · rw [h]; exact ih d (by simp) hb
+        · rw [h]; exact hargs t (by simp)
       split
       · rename_i ms hms
         refine .map (fun k o w hw => ?_) (fun _ hs => by cases hs)
@@ -1661,9 +1743,13 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
           obtain rfl := Option.some.inj hm''
           exact hmc
       · exact .nil
-    · refine callTerm_checkableA hd fun a ha => ?_
-      obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
-      exact ih a₀ ha₀ hb
+    · split
+      · refine .call fun a ha => ?_
+        obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
+        exact ih a₀ ha₀ hb
+      · refine callTerm_checkableA hd fun a ha => ?_
+        obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
+        exact ih a₀ ha₀ hb
   | hole =>
     intro b here hb
     simp only [resolveD]
@@ -1705,19 +1791,21 @@ theorem selectArm_next {ds : Decls} {x : Data} {p r : Val} {arms : List (Val × 
 none the selection is `nil`: an error, not an empty answer. -/
 theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm ds x [] d = d.getD .nil := rfl
 
-/-- A `filter` over a list keeps the elements its condition admits, in
-their order, the condition read for each element it tries, at the index
-the element takes among those kept. -/
-theorem resolveD_filter_list {ds : Decls} {b : Option Val} {here : Option (List Step)} {s c : Val}
-    {xs : List Data} (h : genD ds (resolveD ds b here s) = some (.list xs)) :
-    resolveD ds b here (.filter s c) =
-      (Data.list (keptAt (fun i x => checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x)
-        0 xs)).term := by
+/-- A `filter` read at a position over a list keeps the elements its
+condition admits, in their order, the condition read for each element
+it tries, at the index the element takes among those kept. -/
+theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
+    {xs : List Data} (h : genD ds (resolveD ds b (some pos) s) = some (.list xs)) :
+    resolveD ds b (some pos) (.filter s c) =
+      (Data.list (keptAt (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) 0 xs)).term := by
   simp [resolveD, h]
 
-/-- A `filter` over a scalar, which has no members, is `nil`: an error. -/
-theorem resolveD_filter_scalar {ds : Decls} {b : Option Val} {here : Option (List Step)} {s c : Val}
-    {x : Scalar} (h : genD ds (resolveD ds b here s) = some x.data) : resolveD ds b here (.filter s c) = .nil := by
+/-- A `filter` read at a position over a scalar, which has no members, is
+`nil`: an error. -/
+theorem resolveD_filter_scalar {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
+    {x : Scalar} (h : genD ds (resolveD ds b (some pos) s) = some x.data) :
+    resolveD ds b (some pos) (.filter s c) = .nil := by
   cases x <;> simp [resolveD, h, Scalar.data]
 
 /-! ## The folds
@@ -2352,11 +2440,11 @@ end
 /-- A `filter` whose source generates a value reads to a term the
 checker can read, whatever its condition holds: the members it admits,
 or `nil`. -/
-theorem resolveD_filter_checkableA {ds : Decls} {b : Option Val} {here : Option (List Step)} {s c : Val}
-    (h : (genD ds (resolveD ds b here s)).isSome) : (resolveD ds b here (.filter s c)).CheckableA := by
+theorem resolveD_filter_checkableA {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
+    (h : (genD ds (resolveD ds b (some pos) s)).isSome) : (resolveD ds b (some pos) (.filter s c)).CheckableA := by
   obtain ⟨x, hx⟩ := Option.isSome_iff_exists.mp h
   rw [resolveD.eq_def]
-  dsimp only
+  simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false]
   rw [hx]
   cases x <;> first | exact Data.term_checkableA _ | exact .nil
 

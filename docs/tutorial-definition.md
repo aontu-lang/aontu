@@ -5018,17 +5018,21 @@ members, so none of them is read for `b`. Each `key(n)` reads `here`, by
 `keyUpAt`: a template stands at the position its instance lands at, the
 member's index or key below the call, and a `filter`'s condition where
 the member it tries lands, under its key or at the index it takes among
-those kept. A term read with no position keeps its keys as written. -/
+those kept. A term read with no position keeps its keys as written, and
+a selection whose arms hold a key, a call or a generator whose arguments
+hold one, and a `filter` whose condition does stay as written too, so
+that a path copies them to be read where it lands. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
     let arms' := resolvePairs ds b here arms
     let d' := resolveSpread ds b here d
     match genD ds s' with
-    | some x => if callPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
+    | some x => if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
     | none => .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
+    if here.isNone && c.holdsKey then .filter s' c else
     match genD ds s' with
     | some (.map fs) => (Data.map (fs.filter fun m =>
         checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).term
@@ -5065,14 +5069,14 @@ theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm d
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- A `filter` over a list keeps the elements its condition admits, in
-their order, the condition read for each element it tries, at the index
-the element takes among those kept. -/
-theorem resolveD_filter_list {ds : Decls} {b : Option Val} {here : Option (List Step)} {s c : Val}
-    {xs : List Data} (h : genD ds (resolveD ds b here s) = some (.list xs)) :
-    resolveD ds b here (.filter s c) =
-      (Data.list (keptAt (fun i x => checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x)
-        0 xs)).term := by
+/-- A `filter` read at a position over a list keeps the elements its
+condition admits, in their order, the condition read for each element
+it tries, at the index the element takes among those kept. -/
+theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
+    {xs : List Data} (h : genD ds (resolveD ds b (some pos) s) = some (.list xs)) :
+    resolveD ds b (some pos) (.filter s c) =
+      (Data.list (keptAt (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) 0 xs)).term := by
   simp [resolveD, h]
 ```
 
@@ -6611,6 +6615,7 @@ and an `each` reads its template once for each member of its data:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
     | .each, [d, t] =>
+      if here.isNone && (resolveD ds b here d).holdsKey then .call .each [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).members ds with
       | some ms => .list (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t) none false
       | none => .nil
@@ -6676,6 +6681,7 @@ each member, but into an open map:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
     | .pack, [d, t] =>
+      if here.isNone && (resolveD ds b here d).holdsKey then .call .pack [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).keyedMembers ds with
       | some ms =>
         .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
@@ -6839,8 +6845,39 @@ the key. Against `{"a": {"x": "a"}, "b": {"x": "b"}}`, then, `ref.aontu`
 is invalid in both engines, since `b` copies `x: key() & "a"` and its
 key reads `"b"`.
 
+In the root a path reads, a computation over a key waits for the key's
+place too: each `match` whose arms hold a key stays as written, and so
+does each call and each generator whose arguments hold one, and each
+`filter` whose condition does. A path copies the computation, and it's
+made where the path lands.
+Write `calc.aontu`:
+
+<!-- test: scenario calc -->
+<!-- test: file calc.aontu -->
+```aontu
+a: "q" + key()
+b: c: $.a
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu calc.aontu
+{
+  "a": "q",
+  "b": {
+    "c": "qb"
+  }
+}
+```
+
+At `a`, `key()` reads past the top, so `a` is `"q"`, and the copy at
+`b.c` reads `"b"`. Had the root made the sum where it stands, at `a`,
+the copy would hold `"q"`, which refuses the data `{"b": {"c": "qb"}}`.
+
 The rows are x2121 on and r0 on, and both engines answer every one as
-the definition does. Four shapes have no row:
+the definition does. Six shapes have no row:
 
 - A key deeper in a spread than its own position, `&: {name: key()}`,
   which both engines read as the member's key, has no rule yet.
@@ -6852,6 +6889,14 @@ the definition does. Four shapes have no row:
   engines, which #463 records.
 - A preference on a key, `*key() | "x"`, which neither engine
   resolves, as #465 records.
+- A path to a generator whose list argument holds a key,
+  `each([key()], _)`, changes the generator's own value at its target
+  in both engines, and a path to `upper(key())` does in the Go engine,
+  which #468 records.
+- A path to a `filter` whose condition holds a key leaves the `filter`
+  in the path's declaration, which the checker can't read. The
+  definition generates the copy both engines do, but a literal that
+  meets a term under that declaration stays undecided.
 
 ## 30. What the definition doesn't say yet
 

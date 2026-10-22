@@ -23,16 +23,22 @@ third slice.
   member's key or at its index, and a `filter`'s condition where the
   member it tries lands, under its key or at the index it takes among
   those kept, as `keptAt` counts. `Decls.readR` reads from the top, and
-  `Decls.readU` places nothing.
+  `Decls.readU` places nothing: it keeps as written each selection whose
+  arms hold a key, each call and each generator whose arguments hold
+  one, and each `filter` whose condition does (`Val.holdsKey`), so that
+  a path copies the computation, to be made where the path lands.
 - `spec/Aontu/Paths.lean`: the roots paths read come from
   `Decls.readU`, so a key a path reaches reads where the path lands, as
   both ports read it. `Val.callAt` lets a literal meet an unplaced key
   as a pair.
 - `test/spec/def-call.tsv` gains 39 cases in rows x2121 to x2237, and
-  `test/spec/def-path.tsv` 11 in rows r0 to r32. Both ports answer
+  `test/spec/def-path.tsv` 21 in rows r0 to r62. Both ports answer
   every row as the definition does. No row holds a key deeper in a
   spread, a path shallower than its target, which #463 records, a
-  preference on a key, which #465 records, or a path into a generator's
+  preference on a key, which #465 records, a path to a call whose list
+  argument holds a key, which changes the call's own value and which
+  #468 records, a path to a `filter` whose condition holds a key, whose
+  declaration the checker can't read, or a path into a generator's
   output, which decision 22 of the design note raises.
 - The definition tutorial gains step 29, a key where it stands, and the
   last step becomes 30. The reference's spread and generator sections
