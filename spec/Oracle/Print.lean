@@ -77,6 +77,17 @@ def prefSrc (r : ℕ) (s : String) : String :=
   let stars := String.mk (List.replicate r '*')
   if s.startsWith "{" || s.startsWith "[" then stars ++ s else stars ++ s!"({s})"
 
+/-- A step of an address as the grammar spells it, where it can: a plain
+name, or a position. -/
+def plainStep (k : String) : Bool :=
+  k.length > 0 && (k.all Char.isDigit || (k.all (fun c => c.isAlphanum || c == '_') && !k.front.isDigit))
+
+/-- A path value as the call that captures it: `path($.a.b)`, `path(.b)`,
+where its text spells it, every step a plain name or a position and at
+least one step after its start. -/
+def Addr.src (a : Addr) : Option String :=
+  if a.steps.length > 0 && a.steps.all plainStep then some s!"path({a.text})" else none
+
 /-- A step of a path as the grammar spells it: a key that is a plain
 name, a key in quotes, a position, a variable, or a climb, whose last
 dot the step after it writes. -/
@@ -96,6 +107,7 @@ def Data.src : Data → Option String
   | .null => some "null"
   | .map fs => do pure ("{" ++ ", ".intercalate (← membersSrc fs) ++ "}")
   | .list xs => do pure ("[" ++ ", ".intercalate (← elemsSrc xs) ++ "]")
+  | .addr _ => none
 
 def membersSrc : List (String × Data) → Option (List String)
   | [] => some []
@@ -204,7 +216,9 @@ def Val.src : Val → Option String
   | .boolean => some "boolean"
   | .mapKind => some "map"
   | .listKind => some "list"
+  | .pathKind => some "path"
   | .lit s => s.src
+  | .addr a => a.src
   | .min b => do pure s!"min({← b.src})"
   | .max b => do pure s!"max({← b.src})"
   | .above b => do pure s!"above({← b.src})"
@@ -317,6 +331,7 @@ def Data.json : Data → Option String
   | .null => some "null"
   | .map fs => do pure ("{" ++ ",".intercalate (← membersJson fs) ++ "}")
   | .list xs => do pure ("[" ++ ",".intercalate (← elemsJson xs) ++ "]")
+  | .addr a => some (quote a.text)
 
 def membersJson : List (String × Data) → Option (List String)
   | [] => some []

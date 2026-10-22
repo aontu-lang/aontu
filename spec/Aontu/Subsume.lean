@@ -160,6 +160,19 @@ theorem list_le_listKind (items : List Val) (spread : Option Val) (closed : Bool
   cases h
   exact ⟨hw, .listKind⟩
 
+/-- A path value is below every path value whose address opens its own,
+so a prefix subsumes its extensions, and every path value is below
+`path`. -/
+theorem addr_le_addr {a b : Addr} (h : a.Opens b) : .addr b ⊑[env] .addr a := by
+  intro j ⟨hw, hj⟩
+  cases hj with
+  | addr hc => exact ⟨hw, .addr (h.trans hc)⟩
+
+theorem addr_le_pathKind (a : Addr) : .addr a ⊑[env] .pathKind := by
+  intro j ⟨hw, h⟩
+  cases h
+  exact ⟨hw, .pathKind⟩
+
 /-- `{}` and `[]`, open and with no spread, admit every map and every
 list, so each kind is below them: the kind and its empty literal admit
 the same values, and only `Output` tells them apart. -/
@@ -1163,8 +1176,10 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
       | none => none
     | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
     | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean
-    | .mapKind, .mapKind | .listKind, .listKind =>
+    | .mapKind, .mapKind | .listKind, .listKind | .pathKind, .pathKind =>
       some ⟨Le.refl env _⟩
+    | .addr b, .addr a => if h : a.Opens b then some ⟨addr_le_addr h⟩ else none
+    | .addr a, .pathKind => some ⟨addr_le_pathKind a⟩
     | .map fs sp cl, .mapKind => some ⟨map_le_mapKind fs sp cl⟩
     | .list is sp cl, .listKind => some ⟨list_le_listKind is sp cl⟩
     | .mapKind, .map [] none false => some ⟨mapKind_le_open_map⟩

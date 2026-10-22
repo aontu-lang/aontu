@@ -190,6 +190,8 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   | mapKindNot {j : Data} : (∀ fs, j ≠ .map fs) → Judge env root false .mapKind j
   | listKind {xs : List Data} : Judge env root true .listKind (.list xs)
   | listKindNot {j : Data} : (∀ xs, j ≠ .list xs) → Judge env root false .listKind j
+  | pathKind {a : Addr} : Judge env root true .pathKind (.addr a)
+  | pathKindNot {j : Data} : (∀ a, j ≠ .addr a) → Judge env root false .pathKind j
   /-- A literal admits its own value alone, of its own leaf, and refuses
   every other. -/
   | num {x : Number} : Judge env root true (.lit (.num x)) (.num x)
@@ -197,6 +199,12 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   | bool {b : Bool} : Judge env root true (.lit (.bool b)) (.bool b)
   | null : Judge env root true (.lit .null) .null
   | litNot {s : Scalar} {j : Data} : j ≠ s.data → Judge env root false (.lit s) j
+  /-- A path value admits each address its own opens: itself, and every
+  address that adds steps to it, so that two paths meet by the prefix
+  rule. It refuses every other value. -/
+  | addr {a b : Addr} : a.Opens b → Judge env root true (.addr a) (.addr b)
+  | addrNot {a : Addr} {j : Data} :
+      (∀ b, j = .addr b → ¬ a.Opens b) → Judge env root false (.addr a) j
   /-- A bound with a number at its end admits a number, by exact value,
   and one with a string at its end a string, in code-point order; the
   bound's domain is its end's, so `min(0)` admits no string and
@@ -544,6 +552,12 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | listKindNot hn => intro b' h'; cases h' with
     | listKind => exact absurd rfl (hn _)
     | listKindNot _ => rfl
+  | pathKind => intro b' h'; cases h' with
+    | pathKind => rfl
+    | pathKindNot hn => exact absurd rfl (hn _)
+  | pathKindNot hn => intro b' h'; cases h' with
+    | pathKind => exact absurd rfl (hn _)
+    | pathKindNot _ => rfl
   | num => intro b' h'; cases h' with
     | num => rfl
     | litNot hn => exact absurd rfl hn
@@ -559,6 +573,12 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | @litNot s j hn => intro b' h'; cases h' with
     | num | str | bool | null => exact absurd rfl hn
     | litNot _ => rfl
+  | addr h => intro b' h'; cases h' with
+    | addr _ => rfl
+    | addrNot hn => exact absurd h (hn _ rfl)
+  | addrNot hn => intro b' h'; cases h' with
+    | addr h => exact absurd h (hn _ rfl)
+    | addrNot _ => rfl
   | min h => intro b' h'; cases h' with
     | min _ => rfl
     | minNot hn _ => exact absurd h (hn _ _ rfl rfl)
@@ -901,11 +921,15 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.mapKindNot <;> assumption)
     | (apply Judge.listKind <;> assumption)
     | (apply Judge.listKindNot <;> assumption)
+    | (apply Judge.pathKind <;> assumption)
+    | (apply Judge.pathKindNot <;> assumption)
     | (apply Judge.num <;> assumption)
     | (apply Judge.str <;> assumption)
     | (apply Judge.bool <;> assumption)
     | (apply Judge.null <;> assumption)
     | (apply Judge.litNot <;> assumption)
+    | (apply Judge.addr <;> assumption)
+    | (apply Judge.addrNot <;> assumption)
     | (apply Judge.min <;> assumption)
     | (apply Judge.minStr <;> assumption)
     | (apply Judge.minNot <;> assumption)

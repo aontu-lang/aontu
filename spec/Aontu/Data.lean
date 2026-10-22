@@ -254,12 +254,51 @@ on what it is (`test/spec/divergent.tsv`). Two strings are ordered as
 Lean orders them, character by character by code point, and a string
 is below any longer string it begins: `"b" < "ba"`. -/
 
+/-! ## Addresses -/
+
+/-- An address, what a path value is (`path(p)`): where it starts, `0`
+for the document's root `$` and `n` for the `n` dots a relative path
+starts with, and its steps, each the text it's written with. -/
+structure Addr where
+  up : ℕ
+  steps : List String
+  deriving DecidableEq
+
+/-- An address as text: `$` with each step after a dot from the root,
+and from a relative start its dots, then its steps between dots, so
+`.b` from the map or list that holds the path and `..b` a step up. -/
+def Addr.text (a : Addr) : String :=
+  match a.up with
+  | 0 => "$" ++ String.join (a.steps.map ("." ++ ·))
+  | n => String.mk (List.replicate n '.') ++ ".".intercalate a.steps
+
+/-- `a` opens `b`: they start alike, and `a`'s steps begin `b`'s, so
+`b` is `a` told as precisely or more. -/
+def Addr.Opens (a b : Addr) : Prop := a.up = b.up ∧ a.steps <+: b.steps
+
+instance : DecidableRel Addr.Opens :=
+  fun a b => inferInstanceAs (Decidable (a.up = b.up ∧ a.steps <+: b.steps))
+
+theorem Addr.opens_refl (a : Addr) : a.Opens a := ⟨rfl, List.prefix_refl _⟩
+
+theorem Addr.Opens.trans {a b c : Addr} (h₁ : a.Opens b) (h₂ : b.Opens c) : a.Opens c :=
+  ⟨h₁.1.trans h₂.1, h₁.2.trans h₂.2⟩
+
+/-- Two addresses that open one address open each other, one way or the
+other. -/
+theorem Addr.opens_or_opens {a b c : Addr} (ha : a.Opens c) (hb : b.Opens c) :
+    a.Opens b ∨ b.Opens a := by
+  rcases List.prefix_or_prefix_of_prefix ha.2 hb.2 with h | h
+  · exact .inl ⟨ha.1.trans hb.1.symm, h⟩
+  · exact .inr ⟨hb.1.trans ha.1.symm, h⟩
+
 /-! ## The data -/
 
-/-- The data: a number, a string, a boolean, null, a map, or a list. A
-map is the set of its members: Lean lists them, the order of the list
-is no part of the value, and a map gives each key once
-(`Data.WellFormed`). -/
+/-- The data: a number, a string, a boolean, null, a map, a list, or an
+address. A map is the set of its members: Lean lists them, the order of
+the list is no part of the value, and a map gives each key once
+(`Data.WellFormed`). JSON writes an address as its text, and no JSON
+text reads as one. -/
 inductive Data where
   | num (x : Number)
   | str (s : String)
@@ -267,6 +306,7 @@ inductive Data where
   | null
   | map (fs : List (String × Data))
   | list (xs : List Data)
+  | addr (a : Addr)
 
 /-- The integer `n`, for an `n` the leaf holds: `Data.integer 3` is the
 `integer` three. -/
@@ -293,6 +333,7 @@ inductive Data.Same : Data → Data → Prop
       xs.length = ys.length →
       (∀ (i : ℕ) (x y : Data), xs[i]? = some x → ys[i]? = some y → Same x y) →
       Same (.list xs) (.list ys)
+  | addr {a : Addr} : Same (.addr a) (.addr a)
 
 /-- A Lean `Data` is a value when each of its maps gives each key once.
 Every number is one already: each leaf's type holds only its own. -/
@@ -304,6 +345,7 @@ inductive Data.WellFormed : Data → Prop
   | map {fs : List (String × Data)} :
       (fs.map Prod.fst).Nodup → (∀ k x, (k, x) ∈ fs → WellFormed x) → WellFormed (.map fs)
   | list {xs : List Data} : (∀ x, x ∈ xs → WellFormed x) → WellFormed (.list xs)
+  | addr {a : Addr} : WellFormed (.addr a)
 
 /-- The size `len` counts: a string's characters, a list's elements,
 a map's members. A scalar has no size. -/
@@ -417,6 +459,7 @@ def Data.eqb : Data → Data → Bool
   | .null, .null => true
   | .map fs, .map gs => Data.eqbMembers fs gs
   | .list xs, .list ys => Data.eqbList xs ys
+  | .addr a, .addr b => decide (a = b)
   | _, _ => false
 
 def Data.eqbMembers : List (String × Data) → List (String × Data) → Bool
@@ -459,6 +502,10 @@ theorem Data.eqb_iff : ∀ x y : Data, x.eqb y = true ↔ x = y
     | list ys =>
       simp only [Data.eqb, Data.list.injEq]
       exact Data.eqbList_iff xs ys
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .addr a, y => by
+    cases y with
+    | addr b => simp [Data.eqb]
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
 
 theorem Data.eqbMembers_iff : ∀ fs gs : List (String × Data),

@@ -1779,10 +1779,11 @@ The data goes on past the scalars to the two containers:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- The data: a number, a string, a boolean, null, a map, or a list. A
-map is the set of its members: Lean lists them, the order of the list
-is no part of the value, and a map gives each key once
-(`Data.WellFormed`). -/
+/-- The data: a number, a string, a boolean, null, a map, a list, or an
+address. A map is the set of its members: Lean lists them, the order of
+the list is no part of the value, and a map gives each key once
+(`Data.WellFormed`). JSON writes an address as its text, and no JSON
+text reads as one. -/
 inductive Data where
   | num (x : Number)
   | str (s : String)
@@ -1790,6 +1791,7 @@ inductive Data where
   | null
   | map (fs : List (String × Data))
   | list (xs : List Data)
+  | addr (a : Addr)
 ```
 
 A map is the set of its members, and a member is a key with the value
@@ -3726,7 +3728,7 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
-  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .any => .any
+  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any => .any
   | .nil => .nil
   | .lit (.num x) => x.leaf.kind
   | .lit (.str s) => if s = "" then .anyString else .string
@@ -3915,6 +3917,7 @@ on the term:
 /-- `v` generates `j`. -/
 def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .lit s, j => j = s.data
+  | .addr a, j => j = .addr a
   | .map fs spread _, j =>
     keysDistinct fs = true ∧ ∃ ms, genFields env root spread fs ms ∧ j = .map (sortMembers ms)
   | .list items spread _, j => ∃ xs, genItems env root spread 0 items xs ∧ j = .list xs
@@ -3925,7 +3928,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
     (Gen env root a j ∧ Admits env root b j) ∨
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _
-  | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .min _, _ | .max _, _
+  | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
   | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
@@ -5253,7 +5256,9 @@ inductive Val.Checkable : Val → Prop
   | boolean : Checkable .boolean
   | mapKind : Checkable .mapKind
   | listKind : Checkable .listKind
+  | pathKind : Checkable .pathKind
   | lit {s : Scalar} : Checkable (.lit s)
+  | addr {a : Addr} : Checkable (.addr a)
   | min {b : Bound} : Checkable (.min b)
   | max {b : Bound} : Checkable (.max b)
   | above {b : Bound} : Checkable (.above b)

@@ -77,6 +77,7 @@ mutual
 /-- `v` generates `j`. -/
 def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .lit s, j => j = s.data
+  | .addr a, j => j = .addr a
   | .map fs spread _, j =>
     keysDistinct fs = true ∧ ∃ ms, genFields env root spread fs ms ∧ j = .map (sortMembers ms)
   | .list items spread _, j => ∃ xs, genItems env root spread 0 items xs ∧ j = .list xs
@@ -87,7 +88,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
     (Gen env root a j ∧ Admits env root b j) ∨
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _
-  | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .min _, _ | .max _, _
+  | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
   | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
@@ -491,6 +492,10 @@ theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env r
     rw [Gen] at h
     subst h
     exact admits_lit_iff.mpr rfl
+  | .addr a, j, h => by
+    rw [Gen] at h
+    subst h
+    exact .addr (Addr.opens_refl a)
   | .map fs spread closed, j, h => by
     rw [Gen] at h
     obtain ⟨hd, ms, hg, rfl⟩ := h
@@ -538,7 +543,7 @@ theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env r
     · exact .meet ha (gen_admits b j hb)
   | .integer, _, h | .float, _, h | .biginteger, _, h | .bigdecimal, _, h | .number, _, h
   | .string, _, h | .anyString, _, h | .boolean, _, h | .mapKind, _, h | .listKind, _, h
-  | .min _, _, h | .max _, _, h
+  | .pathKind, _, h | .min _, _, h | .max _, _, h
   | .above _, _, h | .beneath _, _, h | .neq _, _, h | .mulof _, _, h | .len _, _, h
   | .unique _, _, h | .re _, _, h | .format _, _, h | .any, _, h | .nil, _, h
   | .alias _, _, h | .path _, _, h | .call _ _, _, h | .hole, _, h | .keyUp _, _, h => by
@@ -624,6 +629,9 @@ theorem gen_unique : ∀ (v : Val) (j j' : Data), Gen env root v j → Gen env r
   | .lit s, j, j', h, h' => by
     rw [Gen] at h h'
     rw [h, h']
+  | .addr a, j, j', h, h' => by
+    rw [Gen] at h h'
+    rw [h, h']
   | .map fs spread closed, j, j', h, h' => by
     rw [Gen] at h h'
     obtain ⟨-, ms, hg, rfl⟩ := h
@@ -655,7 +663,7 @@ theorem gen_unique : ∀ (v : Val) (j j' : Data), Gen env root v j → Gen env r
     · exact gen_unique b j j' hb hb'
   | .integer, _, _, h, _ | .float, _, _, h, _ | .biginteger, _, _, h, _ | .bigdecimal, _, _, h, _
   | .number, _, _, h, _ | .string, _, _, h, _ | .anyString, _, _, h, _ | .boolean, _, _, h, _
-  | .mapKind, _, _, h, _ | .listKind, _, _, h, _
+  | .mapKind, _, _, h, _ | .listKind, _, _, h, _ | .pathKind, _, _, h, _
   | .min _, _, _, h, _ | .max _, _, _, h, _ | .above _, _, _, h, _ | .beneath _, _, _, h, _
   | .neq _, _, _, h, _ | .mulof _, _, _, h, _ | .len _, _, _, h, _ | .unique _, _, _, h, _
   | .re _, _, _, h, _ | .format _, _, _, h, _ | .any, _, _, h, _ | .nil, _, _, h, _
@@ -709,6 +717,7 @@ mutual
 /-- What `v` generates, computed. -/
 def genWith (chk : Val → Data → Bool) : Val → Option Data
   | .lit s => some s.data
+  | .addr a => some (.addr a)
   | .map fs spread _ =>
     if keysDistinct fs then (genFieldsWith chk spread fs).map fun ms => .map (sortMembers ms) else none
   | .list items spread _ => (genItemsWith chk spread 0 items).map .list
@@ -726,7 +735,7 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
       | some y => if chk a y then some y else none
       | none => none
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
-  | .mapKind | .listKind
+  | .mapKind | .listKind | .pathKind
   | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .mulof _ | .len _ | .unique _
   | .re _ | .format _ | .any | .nil | .alias _ | .path _ | .nof _ _ | .must _ _
   | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .key | .keyUp _ | .call _ _
@@ -1021,7 +1030,7 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
     ∀ j, genWith chk v = some j ↔ Gen env root v j := by
   induction h with
   | integer | float | biginteger | bigdecimal | number | string | anyString | boolean
-  | mapKind | listKind
+  | mapKind | listKind | pathKind
   | min | max | above | beneath | neq | mulof | unique | any | nil | alias | path =>
     intro j
     rw [genWith, Gen]
@@ -1031,7 +1040,7 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩
-  | lit =>
+  | lit | addr =>
     intro j
     rw [genWith, Gen]
     exact ⟨fun h => (Option.some.inj h).symm, fun h => by rw [h]⟩

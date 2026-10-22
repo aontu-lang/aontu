@@ -51,7 +51,7 @@ theorem admits_lit_iff {s : Scalar} {j : Data} : Admits env root (.lit s) j ↔ 
 
 /-- The kinds, as terms are told apart by them. -/
 inductive Kind where
-  | integer | float | biginteger | bigdecimal | number | string | anyString | boolean
+  | integer | float | biginteger | bigdecimal | number | string | anyString | boolean | path
   deriving DecidableEq
 
 /-- The kind a term is, if it is one. -/
@@ -64,6 +64,7 @@ def Val.kind? : Val → Option Kind
   | .string => some .string
   | .anyString => some .anyString
   | .boolean => some .boolean
+  | .pathKind => some .path
   | _ => none
 
 /-- The term a kind is. -/
@@ -76,14 +77,15 @@ def Kind.val : Kind → Val
   | .string => .string
   | .anyString => .anyString
   | .boolean => .boolean
+  | .path => .pathKind
 
 /-- The meet of two kinds: a kind with itself, a leaf under `number`,
 `string` under `string & empty()`, and `nil` for two that share no
-value. -/
+value, as `path` shares none with any other. -/
 def Kind.meet : Kind → Kind → Val
   | .number, k | k, .number =>
     match k with
-    | .string | .anyString | .boolean => .nil
+    | .string | .anyString | .boolean | .path => .nil
     | k => k.val
   | .string, .anyString | .anyString, .string => .string
   | a, b => if a = b then a.val else .nil
@@ -112,7 +114,7 @@ theorem admits_kind_meet (ka kb : Kind) (j : Data) :
 
 /-- The kinds of data, as a term's domain tells them apart. -/
 inductive Dom where
-  | num | str | bool | null | map | list
+  | num | str | bool | null | map | list | addr
   deriving DecidableEq
 
 def Bound.dom : Bound → Dom
@@ -128,6 +130,7 @@ def Val.doms : Val → List Dom
   | .boolean => [.bool]
   | .mapKind => [.map]
   | .listKind => [.list]
+  | .pathKind | .addr _ => [.addr]
   | .lit (.num _) => [.num]
   | .lit (.str _) => [.str]
   | .lit (.bool _) => [.bool]
@@ -144,7 +147,7 @@ def Val.doms : Val → List Dom
   | .neq [] | .any | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _ | .must _ _
   | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ | .key | .keyUp _ | .call _ _
   | .hole =>
-    [.num, .str, .bool, .null, .map, .list]
+    [.num, .str, .bool, .null, .map, .list, .addr]
 
 /-- The domain a value is in. -/
 def Data.dom : Data → Dom
@@ -154,6 +157,7 @@ def Data.dom : Data → Dom
   | .null => .null
   | .map _ => .map
   | .list _ => .list
+  | .addr _ => .addr
 
 /-- Whether two terms share a domain. -/
 def domsMeet (a b : Val) : Bool := a.doms.any fun d => b.doms.contains d
@@ -406,12 +410,27 @@ def aliasMeet (a b : Val) : Val :=
   | some n, some m => if n = m then a else .meet a b
   | _, _ => if domsMeet a b && !emptyBounds a b then .meet a b else .nil
 
-/-- The meet of two atoms: two kinds by `Kind.meet`, and the rest by
+/-- The meet of two path values, by the prefix rule: the one the other
+opens, so the longer, and `nil` where neither opens the other. -/
+def addrMeet (a b : Addr) : Val :=
+  if a.Opens b then .addr b else if b.Opens a then .addr a else .nil
+
+/-- The meet of two atoms that are not two kinds: two path values by
+`addrMeet`, a path value under `path` itself, and the rest by
 `aliasMeet`. -/
+def pathMeet (a b : Val) : Val :=
+  match a, b with
+  | .addr x, .addr y => addrMeet x y
+  | .pathKind, .addr y => .addr y
+  | .addr x, .pathKind => .addr x
+  | _, _ => aliasMeet a b
+
+/-- The meet of two atoms: two kinds by `Kind.meet`, and the rest by
+`pathMeet`. -/
 def atomMeet (a b : Val) : Val :=
   match a.kind?, b.kind? with
   | some ka, some kb => ka.meet kb
-  | _, _ => aliasMeet a b
+  | _, _ => pathMeet a b
 
 theorem admits_residual (a b : Val) (j : Data) :
     Admits env root (if domsMeet a b && !emptyBounds a b then .meet a b else .nil) j ↔
@@ -444,6 +463,53 @@ theorem admits_aliasMeet (a b : Val) (j : Data) :
     simp only
     exact admits_residual a b j
 
+theorem admits_addr_iff {a : Addr} {j : Data} :
+    Admits env root (.addr a) j ↔ ∃ b, j = .addr b ∧ a.Opens b := by
+  constructor
+  · intro h
+    cases h with
+    | addr h => exact ⟨_, rfl, h⟩
+  · rintro ⟨b, rfl, h⟩
+    exact .addr h
+
+theorem admits_addrMeet (a b : Addr) (j : Data) :
+    Admits env root (addrMeet a b) j ↔ Admits env root (.addr a) j ∧ Admits env root (.addr b) j := by
+  unfold addrMeet
+  by_cases hab : a.Opens b
+  · rw [if_pos hab]
+    simp only [admits_addr_iff]
+    constructor
+    · rintro ⟨c, rfl, hc⟩
+      exact ⟨⟨c, rfl, hab.trans hc⟩, ⟨c, rfl, hc⟩⟩
+    · exact fun h => h.2
+  · rw [if_neg hab]
+    by_cases hba : b.Opens a
+    · rw [if_pos hba]
+      simp only [admits_addr_iff]
+      constructor
+      · rintro ⟨c, rfl, hc⟩
+        exact ⟨⟨c, rfl, hc⟩, ⟨c, rfl, hba.trans hc⟩⟩
+      · exact fun h => h.1
+    · rw [if_neg hba]
+      simp only [admits_addr_iff]
+      constructor
+      · intro h
+        exact nomatch h
+      · rintro ⟨⟨c, rfl, hc⟩, ⟨c', hc', hc''⟩⟩
+        cases hc'
+        rcases Addr.opens_or_opens hc hc'' with h | h
+        · exact absurd h hab
+        · exact absurd h hba
+
+theorem admits_pathMeet (a b : Val) (j : Data) :
+    Admits env root (pathMeet a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+  unfold pathMeet
+  split
+  · exact admits_addrMeet _ _ j
+  · exact ⟨fun h => ⟨by cases h; exact .pathKind, h⟩, fun h => h.2⟩
+  · exact ⟨fun h => ⟨h, by cases h; exact .pathKind⟩, fun h => h.1⟩
+  · exact admits_aliasMeet _ _ j
+
 theorem admits_atomMeet (a b : Val) (j : Data) :
     Admits env root (atomMeet a b) j ↔ Admits env root a j ∧ Admits env root b j := by
   unfold atomMeet
@@ -453,8 +519,8 @@ theorem admits_atomMeet (a b : Val) (j : Data) :
     | some kb =>
       rw [kind?_eq hka, kind?_eq hkb]
       exact admits_kind_meet ka kb j
-    | none => exact admits_aliasMeet a b j
-  | none => exact admits_aliasMeet a b j
+    | none => exact admits_pathMeet a b j
+  | none => exact admits_pathMeet a b j
 
 /-- A literal met with a term: the literal where the term admits its
 value, `nil` where it refuses it, and the pair where that cannot be
@@ -741,12 +807,14 @@ theorem dead_refuses : ∀ v : Val, v.dead = true → ∀ j, Refuses env root v 
     | .bool _ => .mapNot fun _ h => nomatch h
     | .null => .mapNot fun _ h => nomatch h
     | .list _ => .mapNot fun _ h => nomatch h
+    | .addr _ => .mapNot fun _ h => nomatch h
   | .list items sp c, hd, j => match j with
     | .list xs => deadItem_refuses items items 0 (fun _ _ h => by rw [Nat.zero_add]; exact h) hd sp c xs
     | .num _ => .listNot fun _ h => nomatch h
     | .str _ => .listNot fun _ h => nomatch h
     | .bool _ => .listNot fun _ h => nomatch h
     | .null => .listNot fun _ h => nomatch h
+    | .addr _ => .listNot fun _ h => nomatch h
     | .map _ => .listNot fun _ h => nomatch h
   | .or arms, hd, j => .orNone fun r a hm => allDead_refuses arms hd r a hm j
   | .meet a b, hd, j => by
@@ -1400,7 +1468,7 @@ theorem admits_meetMap {m : Val → Val → Val}
     Admits env root (meetMap m fs₁ s₁ c₁ fs₂ s₂ c₂) j ↔
       Admits env root (.map fs₁ s₁ c₁) j ∧ Admits env root (.map fs₂ s₂ c₂) j := by
   cases j with
-  | num _ | str _ | bool _ | null | list _ =>
+  | num _ | str _ | bool _ | null | list _ | addr _ =>
     exact ⟨(fun h => nomatch h), (fun ⟨h, _⟩ => nomatch h)⟩
   | map jfs =>
     unfold meetMap
@@ -1668,7 +1736,7 @@ theorem admits_meetList {m : Val → Val → Val}
     Admits env root (meetList m is₁ s₁ c₁ is₂ s₂ c₂) j ↔
       Admits env root (.list is₁ s₁ c₁) j ∧ Admits env root (.list is₂ s₂ c₂) j := by
   cases j with
-  | num _ | str _ | bool _ | null | map _ =>
+  | num _ | str _ | bool _ | null | map _ | addr _ =>
     exact ⟨(fun h => nomatch h), (fun ⟨h, _⟩ => nomatch h)⟩
   | list xs =>
     exact admits_meetList_aux hm (by simp [Option.isNone_iff_eq_none])
@@ -1851,8 +1919,9 @@ mutual
 def Val.beq : Val → Val → Bool
   | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
   | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean
-  | .any, .any | .nil, .nil => true
+  | .pathKind, .pathKind | .any, .any | .nil, .nil => true
   | .lit s, .lit t => decide (s = t)
+  | .addr a, .addr b => decide (a = b)
   | .min a, .min b => decide (a = b)
   | .max a, .max b => decide (a = b)
   | .above a, .above b => decide (a = b)

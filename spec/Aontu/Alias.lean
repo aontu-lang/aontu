@@ -1152,7 +1152,7 @@ theorem Kind.val_checkableA (k : Kind) : k.val.CheckableA := by
 theorem Kind.meet_checkableA (ka kb : Kind) : (ka.meet kb).CheckableA := by
   cases ka <;> cases kb <;> first
     | exact .nil | exact .integer | exact .float | exact .biginteger | exact .bigdecimal
-    | exact .number | exact .string | exact .anyString | exact .boolean
+    | exact .number | exact .string | exact .anyString | exact .boolean | exact .pathKind
 
 theorem litMeet_checkableA (s : Scalar) {b : Val} (hb : b.CheckableA) : (litMeet s b).CheckableA := by
   unfold litMeet
@@ -1173,12 +1173,26 @@ theorem aliasMeet_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA)
     · exact .meet ha hb
     · exact .nil
 
+theorem pathMeet_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
+    (pathMeet a b).CheckableA := by
+  unfold pathMeet
+  split
+  · unfold addrMeet
+    split
+    · exact .addr
+    · split
+      · exact .addr
+      · exact .nil
+  · exact .addr
+  · exact .addr
+  · exact aliasMeet_checkableA ha hb
+
 theorem atomMeet_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
     (atomMeet a b).CheckableA := by
   unfold atomMeet
   split
   · exact Kind.meet_checkableA _ _
-  · exact aliasMeet_checkableA ha hb
+  · exact pathMeet_checkableA ha hb
 
 theorem meetBase_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.CheckableA → (lm s b).CheckableA)
     {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) : (meetBase lm a b).CheckableA := by
@@ -1229,7 +1243,8 @@ theorem mem_superItems {items : List Val} {w : Val} :
 theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA := by
   induction h with
   | integer | float | biginteger | bigdecimal => exact .number
-  | number | string | anyString | boolean | mapKind | listKind | any | hole => exact .any
+  | number | string | anyString | boolean | mapKind | listKind | pathKind | any | hole => exact .any
+  | addr => exact .pathKind
   | nil => exact .nil
   | path => exact .path
   | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
