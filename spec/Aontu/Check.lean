@@ -2475,6 +2475,7 @@ theorem check_kind_judge {v : Val} (hk : v.isKind = true) (j : Data) :
     | exact judge_string j
     | exact judge_anyString j
     | exact judge_boolean j
+    | exact judge_pathKind j
 
 set_option linter.unusedVariables false in
 /-- The checker by the parent type judges by it, for every value it can

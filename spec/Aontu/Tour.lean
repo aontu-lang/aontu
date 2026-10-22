@@ -1066,6 +1066,10 @@ example : output (.meet pathA pathAB) = some (.addr ⟨0, ["a", "b"]⟩) := by d
 /-- A prefix subsumes its extensions. -/
 example : pathAB ⊑[.empty] pathA := addr_le_addr ⟨rfl, by decide⟩
 
+/-- `path` is a kind of its own, so `path & boolean` has `any` for its
+parent, as `string & boolean` has. -/
+example : (Val.meet .pathKind .boolean).super = .any := rfl
+
 /-! ## What a `subsume` must answer -/
 
 /-- One implementation: never commit. Correct, and useless. -/

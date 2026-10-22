@@ -207,7 +207,8 @@ def Bound.domain : Bound → Val
 /-- A kind: a term that admits scalars by their kind alone. `any` is no
 kind here, since `any & x` is `x`, whose parent is `x`'s own. -/
 def Val.isKind : Val → Bool
-  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean => true
+  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
+  | .pathKind => true
   | .ride _ v _ => v.isKind
   | _ => false
 
