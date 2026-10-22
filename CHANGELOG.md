@@ -33,7 +33,7 @@ Definition, generated rows, and documentation. No engine changes.
 
 - `spec/Aontu/Paths.lean`: `Decls.Resolves` reads the schema with its
   calls made (`Decls.readU`), the root its paths read from. Before, it
-  read the schema before any call was made, so a path into a call's
+  read the schema before making any call, so a path into a call's
   output, `$.b.x` beside `b: pref({x: 1})`, named nothing, an `error`,
   where both ports resolve it.
 - `test/spec/def-path.tsv` gains rows pc0 on, in the three modes of
