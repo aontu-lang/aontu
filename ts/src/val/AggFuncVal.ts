@@ -185,18 +185,15 @@ class PickFuncVal extends FuncBaseVal {
         'number' === typeof key.peg && key.isInteger ? String(key.peg) :
           undefined
 
-    if (undefined === name) {
+    // `""` names no key: it is `sort`'s spelling of the member itself.
+    if (undefined === name || '' === name) {
       return this.place(makeNilErr(ctx, 'invalid-arg', this, undefined,
         'pick'))
     }
 
     const peg: Val[] = []
     for (const child of children) {
-      const c: any = child
-      const got =
-        true === c?.isMap ? c.peg[name] :
-          true === c?.isList ? c.peg[Number(name)] :
-            undefined
+      const got = fieldOf(child, name)
       if (null == got) {
         return this.place(makeNilErr(ctx, 'pick_key', this, undefined, 'pick',
           { key: name }))
@@ -226,9 +223,12 @@ function projectorName(key: any): [string, boolean] {
 }
 
 
+// A list member's index is the string's digits after one optional sign,
+// as Go's strconv.Atoi reads them, never what Number() makes of it.
 function fieldOf(child: any, name: string): Val | undefined {
   return true === child?.isMap ? child.peg[name] :
-    true === child?.isList ? child.peg[Number(name)] :
+    true === child?.isList && /^[+-]?[0-9]+$/.test(name) ?
+      child.peg[Number(name)] :
       undefined
 }
 

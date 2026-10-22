@@ -2939,7 +2939,7 @@ A non-collection input is `aggregate_data`. The key must be a string
 name or an `integer` index; a float such as `0.0`, a kind, or a list is
 `invalid-arg`. A missing argument is `func_arity`.
 
-The definition computes `pick` as `pickOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), over the members `Val.members` reads. A projector reads through its riders. In a map member it names a key, an integer by its digits, so `pick([{"0": 5}], 0)` is `[5]`. In a list member it names an index, a string by its digits after one optional sign, so `pick([[1, 2]], "1")` is `[2]`. `Val.project?` reads both, and `""` names no key. Both engines read a projector as its value, through a rider, a name or a path, as they read the bag. They differ on a string the TypeScript engine reads as an index as JavaScript's `Number()` does, such as `"1e0"`, which #437 tracks.
+The definition computes `pick` as `pickOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), over the members `Val.members` reads. A projector reads through its riders. In a map member it names a key, an integer by its digits, so `pick([{"0": 5}], 0)` is `[5]`. In a list member it names an index, a string by its digits after one optional sign, so `pick([[1, 2]], "1")` is `[2]`. `Val.project?` reads both, and `""` names no key. Both engines read a projector as its value, through a rider, a name or a path, as they read the bag. A string names an index by its digits alone, so `" 0"` and `"1e0"` name none, and `""` names no key: `pick([{"": 1}], "")` is `invalid-arg`.
 
 A projector names one key, not a dotted path expression. Project twice
 to select through two levels:

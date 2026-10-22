@@ -90,3 +90,7 @@ sort-dir-preference	errc	x:sort([1,2], "", *desc)	sort_dir
 sort-projector-null	errc	x:sort([2,1], null)	invalid-arg
 sort-projector-null-rider	errc	x:sort([2,1], meta(null,{}))	invalid-arg
 sort-projector-null-path	errc	p:null x:sort([2,1], $.p)	invalid-arg
+# A STRING NAMES AN INDEX BY ITS DIGITS, as in `pick` (#437).
+sort-index-string	canon	x:sort([[2],[1]], "0")	{"x":[[1],[2]]}
+sort-index-space	errc	x:sort([[2],[1]], " 0")	sort_key
+sort-index-exponent	errc	x:sort([[2],[1]], "0e0")	sort_key
