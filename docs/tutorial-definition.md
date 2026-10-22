@@ -2929,14 +2929,16 @@ is an error, while `..x` in the same body climbs to the document's own
 `x`. A spread, a template and a `filter`'s condition keep their relative
 paths as written: each stands at a position no written step names, and
 the definition has no rule for a relative path there yet. The verdict
-of a document with paths places it first:
+of a document with paths prepares it first: it places the document and
+hides the sources its moves read, which step 35 comes to:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The verdict of a document with paths: its relative paths placed
-(`Decls.placed`), the verdict of the document whose paths are absolute. -/
+/-- The verdict of a document with paths: the document prepared
+(`Decls.prepared`), its relative paths placed and the sources its moves
+read hidden, the verdict of the document whose paths are absolute. -/
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  VetA m (ds.placed S).1 (ds.placed S).2 j v
+  VetA m (ds.prepared S).1 (ds.prepared S).2 j v
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -2945,7 +2947,8 @@ def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
 read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
-  vetA_iff (Decls.placed_bodies_checkableA hb) (placed_checkableA hS []) v
+  vetA_iff (ds := (ds.placed S).1) (S := (ds.placed S).1.withMoves (ds.placed S).2)
+    (Decls.placed_bodies_checkableA hb) (withMoves_checkableA (placed_checkableA hS [])) v
 ```
 
 A recursive position, `then?: $.schema.Step` inside `Step`, is a name
@@ -7613,6 +7616,8 @@ $.draft.title: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.draft.title
   data: move-data.aontu:1:15 ("Other")
   schema: move.aontu:1:16 ("Notes")
+$ echo $?
+1
 ```
 
 A `move` of a value written in place, `move({ x:1 })`, hides nothing
