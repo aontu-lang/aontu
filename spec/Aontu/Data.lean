@@ -383,12 +383,14 @@ theorem mem_namedItems : ∀ {i : ℕ} {xs : List Data} {k : String} {x : Data},
     · exact List.mem_cons_self
     · exact List.mem_cons_of_mem _ (mem_namedItems h)
 
-/-- A step of a path: a member's key, a position in a list, or a
-variable the calling program binds, whose value names the step. -/
+/-- A step of a path: a member's key, a position in a list, a variable
+the calling program binds, whose value names the step, or the climb a
+relative path starts with, a step up for each of its dots. -/
 inductive Seg where
   | key (k : String)
   | idx (i : ℕ)
   | var (n : String)
+  | up (n : ℕ)
   deriving DecidableEq
 
 /-- The part of a value a path names. -/
@@ -401,6 +403,7 @@ def Data.at (j : Data) : List Seg → Option Data
     | .list xs => xs[i]?.bind (·.at p)
     | _ => none
   | .var _ :: _ => none
+  | .up _ :: _ => none
 
 /-! ## Values, told apart -/
 

@@ -11,6 +11,7 @@
 # do not yet answer this way are listed in spec/ledger.tsv.
 # Paths through the riders follow in rows q0 on, which a path reads through,
 # and key(n) reached through a path or a name, read where it lands, in rows r0 on.
+# Relative paths, made absolute where each stands, follow in rows j0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -293,3 +294,42 @@ r59	verdict	"a": upper(key(1)), "b": {"c": $.a}	{"b": {"c": "B"}}	{"verdict":"va
 r60	verdict	"a": upper(key(1)), "b": {"c": $.a}	{"b": {"c": "A"}}	{"verdict":"invalid"}
 r61	verdict	"a": upper(key(1)), "b": {"c": $.a}	{"b": {"c": "A"}}	{"verdict":"invalid","opts":{"noFill":true}}
 r62	verdict	"a": upper(key(1)), "b": {"c": $.a}	{"b": {"c": "A"}}	{"verdict":"invalid","opts":{"partial":true}}
+j0	verdict	"z": {"x": {"a": 62}, "y": .x.a}	{"z": {"y": 62}}	{"verdict":"valid"}
+j1	verdict	"z": {"x": {"a": 62}, "y": .x.a}	{"z": {"y": 62}}	{"verdict":"incomplete","opts":{"noFill":true}}
+j2	verdict	"z": {"x": {"a": 62}, "y": .x.a}	{"z": {"y": 62}}	{"verdict":"valid","opts":{"partial":true}}
+j3	verdict	"z": {"x": {"a": 62}, "y": .x.a}	{"z": {"y": 61}}	{"verdict":"invalid"}
+j4	verdict	"z": {"x": {"a": 62}, "y": .x.a}	{"z": {"y": 61}}	{"verdict":"invalid","opts":{"noFill":true}}
+j5	verdict	"z": {"x": {"a": 62}, "y": .x.a}	{"z": {"y": 61}}	{"verdict":"invalid","opts":{"partial":true}}
+j6	verdict	"z": {"x": 1, "y": {"w": ..x}}	{"z": {"y": {"w": 1}}}	{"verdict":"valid"}
+j7	verdict	"z": {"x": 1, "y": {"w": ..x}}	{"z": {"y": {"w": 1}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+j8	verdict	"z": {"x": 1, "y": {"w": ..x}}	{"z": {"y": {"w": 1}}}	{"verdict":"valid","opts":{"partial":true}}
+j9	verdict	"x": 1, "y": .x	{"y": 1}	{"verdict":"valid"}
+j10	verdict	"x": 1, "y": .x	{"y": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+j11	verdict	"x": 1, "y": .x	{"y": 1}	{"verdict":"valid","opts":{"partial":true}}
+j12	verdict	"a": ...x	{}	{"verdict":"error"}
+j13	verdict	"a": ...x	{}	{"verdict":"error","opts":{"noFill":true}}
+j14	verdict	"a": ...x	{}	{"verdict":"error","opts":{"partial":true}}
+j15	verdict	"a": {"k k": 1, "y": ."k k"}	{"a": {"y": 1}}	{"verdict":"valid"}
+j16	verdict	"a": {"k k": 1, "y": ."k k"}	{"a": {"y": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+j17	verdict	"a": {"k k": 1, "y": ."k k"}	{"a": {"y": 1}}	{"verdict":"valid","opts":{"partial":true}}
+j18	verdict	"a": {"x": [1, 2], "y": .x.1}	{"a": {"y": 2}}	{"verdict":"valid"}
+j19	verdict	"a": {"x": [1, 2], "y": .x.1}	{"a": {"y": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+j20	verdict	"a": {"x": [1, 2], "y": .x.1}	{"a": {"y": 2}}	{"verdict":"valid","opts":{"partial":true}}
+j21	verdict	"a": [1, .0]	{"a": [1, 1]}	{"verdict":"valid"}
+j22	verdict	"a": [1, .0]	{"a": [1, 1]}	{"verdict":"valid","opts":{"noFill":true}}
+j23	verdict	"a": [1, .0]	{"a": [1, 1]}	{"verdict":"valid","opts":{"partial":true}}
+j24	verdict	"a": {"b": [5, ..c], "c": 7}	{"a": {"b": [5, 7]}}	{"verdict":"valid"}
+j25	verdict	"a": {"b": [5, ..c], "c": 7}	{"a": {"b": [5, 7]}}	{"verdict":"incomplete","opts":{"noFill":true}}
+j26	verdict	"a": {"b": [5, ..c], "c": 7}	{"a": {"b": [5, 7]}}	{"verdict":"valid","opts":{"partial":true}}
+j27	verdict	"a": {"x": 1, "y": .x, "z": .y}	{"a": {"z": 1}}	{"verdict":"valid"}
+j28	verdict	"a": {"x": 1, "y": .x, "z": .y}	{"a": {"z": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+j29	verdict	"a": {"x": 1, "y": .x, "z": .y}	{"a": {"z": 1}}	{"verdict":"valid","opts":{"partial":true}}
+j30	verdict	"a": {"x": 1, "y": (.x) + (1)}	{"a": {"y": 2}}	{"verdict":"valid"}
+j31	verdict	"a": {"x": 1, "y": (.x) + (1)}	{"a": {"y": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+j32	verdict	"a": {"x": 1, "y": (.x) + (1)}	{"a": {"y": 2}}	{"verdict":"valid","opts":{"partial":true}}
+j33	verdict	%T = {"y": ..x}\n"x": 1, "a": %T	{"a": {"y": 1}}	{"verdict":"valid"}
+j34	verdict	%T = {"y": ..x}\n"x": 1, "a": %T	{"a": {"y": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+j35	verdict	%T = {"y": ..x}\n"x": 1, "a": %T	{"a": {"y": 1}}	{"verdict":"valid","opts":{"partial":true}}
+j36	verdict	%T = {"y": .x}\n"a": ({"x": 1}) & (%T)	{"a": {"y": 1}}	{"verdict":"error"}
+j37	verdict	%T = {"y": .x}\n"a": ({"x": 1}) & (%T)	{"a": {"y": 1}}	{"verdict":"error","opts":{"noFill":true}}
+j38	verdict	%T = {"y": .x}\n"a": ({"x": 1}) & (%T)	{"a": {"y": 1}}	{"verdict":"error","opts":{"partial":true}}

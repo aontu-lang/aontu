@@ -8,6 +8,33 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a relative path where it's written
+
+Definition, generated rows and documentation. No engine changes. P9's
+fourth slice.
+
+- `spec/Aontu/Data.lean`: `Seg` gains `up n`, the climb a relative
+  path starts with, a step up for each of its dots.
+- `spec/Aontu/Paths.lean`: `Val.placed` makes each relative path a
+  term writes absolute where it stands, a map's member one key down and
+  a list's element one index down, as `resolveD` places a key. A climb
+  past the top stays as written and resolves nowhere. `Decls.placed`
+  places the schema from the top and each body at its name's own place:
+  `%` and the name, as a key at the top, as both ports place a body. A
+  spread, a template and a `filter`'s condition keep their relative
+  paths as written, since each stands at a position no written step
+  names. `VetP` and `OutputP` place a document before reading it, over
+  `VetA` and `OutputA`, the reading of a document whose paths are
+  absolute, and `placed_checkableA` carries `vetP_iff` through.
+- `test/spec/def-path.tsv` gains rows j0 to j38: a sibling, climbs of
+  two and three steps, one past the top, a key in quotes, an index, a
+  list's element reading its sibling, a chain, a relative path in a
+  call, and a body's, read at the body's own place. Both ports answer
+  every row as the definition does.
+- The definition tutorial's step 9 reads a relative path. The
+  reference's path section, the design note's P9 row and the
+  definition's README follow.
+
 ### The definition reads a path's steps as text, and a variable as a step
 
 Definition, generated rows and documentation; no engine changes. P10's

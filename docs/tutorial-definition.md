@@ -2698,15 +2698,18 @@ A path names a part of a value, step by step:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- A step of a path: a member's key, a position in a list, or a
-variable the calling program binds, whose value names the step. -/
+/-- A step of a path: a member's key, a position in a list, a variable
+the calling program binds, whose value names the step, or the climb a
+relative path starts with, a step up for each of its dots. -/
 inductive Seg where
   | key (k : String)
   | idx (i : ℕ)
   | var (n : String)
+  | up (n : ℕ)
 ```
 
-Step 30 comes to the variable. A path in a document reads as what the
+Step 30 comes to the variable, and the end of this step to the climb.
+A path in a document reads as what the
 document holds at that position, the data unified in: `x: $.y` with
 `y: integer & 1` makes `x` the value `1`. `spec/Aontu/Paths.lean` reads
 it by declaration. Each path a document writes becomes a name, declared
@@ -2757,7 +2760,7 @@ list, the index its text spells in canonical decimal. A variable names
 no step until it's bound. -/
 def Seg.stepIn (s : Seg) (v : Val) : Option Seg :=
   match s, v.unride with
-  | .var _, _ => none
+  | .var _, _ | .up _, _ => none
   | s, .map _ _ _ => some (.key s.text)
   | .idx i, .list _ _ _ => some (.idx i)
   | .key k, .list _ _ _ => (indexOf? k).map .idx
@@ -2843,19 +2846,19 @@ def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
   ds.withPathsFrom S (normaliseD ds (meetD ds (ds.readU S) j.term))
 ```
 
-The verdict of a document with paths is then the verdict of step 14 on
-the document with its paths read as names:
+The verdict of a document whose paths are absolute is then the verdict
+of step 14 on the document with its paths read as names:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The verdict of a document with paths. It is an `error` where a path
-does not resolve in the schema's own tree, or where the document is an
-error with its paths read from the schema alone: a name declared
-nowhere, a cycle, a `nil` in the schema. Otherwise the paths read from
-the data too, and the document is `invalid` where that reading is dead
-or an error, since the data made it so, and `valid` or `incomplete` as
-that reading is. -/
-def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
+/-- The verdict of a document whose paths are absolute. It is an `error`
+where a path does not resolve in the schema's own tree, or where the
+document is an error with its paths read from the schema alone: a name
+declared nowhere, a cycle, a `nil` in the schema. Otherwise the paths
+read from the data too, and the document is `invalid` where that
+reading is dead or an error, since the data made it so, and `valid` or
+`incomplete` as that reading is. -/
+def VetA (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Resolves S ∨ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error
   | .invalid =>
     ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
@@ -2866,12 +2869,65 @@ def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
       Vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j v
 ```
 
+A path that starts with dots is relative. Its first dot names the map
+or list that holds it, and each further dot climbs one step, so in
+`z: {x: 1, y: {w: ..x}}` the path `..x` reads `z`'s `x`, and in
+`a: [1, .0]` the path `.0` reads `a`'s first element. Both
+engines read such a path where it's written, so the definition makes
+each absolute where it stands before anything else reads the document.
+A map's member stands one key down and a list's element one index down,
+as step 29 places a key:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The term standing at `pos`, each relative path it writes made
+absolute where it stands, its dots climbing as many steps: a map's
+member stands one key below the map and a list's element one index
+below, as `resolveD` places a key. A path that climbs past the top stays
+as written, and resolves nowhere. A spread, a template and a `filter`'s
+condition keep theirs as written, since each stands at a position the
+written document doesn't name. -/
+def Val.placed (pos : List Seg) : Val → Val
+  | .path (.up n :: p) => if n ≤ pos.length then .path (pos.take (pos.length - n) ++ p) else .path (.up n :: p)
+  | .len c => .len (c.placed pos)
+  | .map fs spread closed => .map (plFields pos fs) spread closed
+  | .list items spread closed => .list (plElems pos 0 items) spread closed
+```
+
+The definition places a body at its name's own place, `%` and the name
+as a key at the top, as both engines place it:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- A document with each relative path it writes made absolute where it
+stands: the schema from the top, and each body at its name's own place,
+`%` and the name as a key at the top, as both ports place a body. -/
+def Decls.placed (ds : Decls) (S : Val) : Decls × Val :=
+  (ds.map fun d => (d.1, d.2.placed [.key ("%" ++ d.1)]), S.placed [])
+```
+
+So `%T = {y: .x}` reads `$.%T.x`, which no document holds, and the path
+is an error, while `..x` in the same body climbs to the document's own
+`x`. A spread, a template and a `filter`'s condition keep their relative
+paths as written: each stands at a position no written step names, and
+the definition has no rule for a relative path there yet. The verdict
+of a document with paths places it first:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The verdict of a document with paths: its relative paths placed
+(`Decls.placed`), the verdict of the document whose paths are absolute. -/
+def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
+  VetA m (ds.placed S).1 (ds.placed S).2 j v
+```
+
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- `vetP` computes `VetP` on every document whose bodies and schema
 read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v := by
+    (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
+  vetA_iff (Decls.placed_bodies_checkableA hb) (placed_checkableA hS []) v
 ```
 
 A recursive position, `then?: $.schema.Step` inside `Step`, is a name
@@ -7012,14 +7068,15 @@ kind, to `null`, to a map, or to a term that only generates text, such
 as `*"a" | string`, names no step, as in both engines, so its path is an
 error.
 What a document with paths generates is the output of its reading with
-the paths read as names from the schema alone:
+the paths read as names from the schema alone, once `OutputP` has made
+its relative paths absolute, as `VetP` does in step 9:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- What a document with paths generates, where every path resolves:
-the output of the document with its paths read as names from the
-schema alone. -/
-def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
+/-- What a document whose paths are absolute generates, where every
+path resolves: the output of the document with its paths read as names
+from the schema alone. -/
+def OutputA (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
   ds.Resolves S ∧ OutputD (ds.withPathsS S).1 root ((ds.withPathsS S).1.readR (ds.withPathsS S).2) j
 ```
 
@@ -7040,7 +7097,8 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
 steps 20 to 26 don't walk through, `key()` deeper in a spread than its
-own position, and generation with `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
+own position, a relative path in a spread, a template or a `filter`'s
+condition, and generation with `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 
