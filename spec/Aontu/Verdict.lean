@@ -64,6 +64,12 @@ def termElems : List Data → List Val
   | x :: xs => x.term :: termElems xs
 end
 
+/-- The declarations a document reads under the bindings `vs` the
+calling program makes: its own, and each variable's value under its
+name, as `Val.var` reads it. -/
+def Decls.withVars (ds : Decls) (vs : List (String × Data)) : Decls :=
+  ds ++ vs.map fun v => ("$" ++ v.1, v.2.term)
+
 /-! ## Selecting: `match` and `filter`
 
 A `match` holds a value to the result of the first arm whose pattern
