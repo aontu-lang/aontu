@@ -831,7 +831,9 @@ def aliasRows (tag : String) (cases : List (Decls × Val × Data) := aliasCases)
 /-! ## The seventh fragment: paths -/
 
 /-- Documents with paths: each case its declarations, a schema that is
-a map with paths in it, and a document, run in the three modes. -/
+a map with paths in it, and a document, run in the three modes. A
+step's text reads a map by key and a list by the index it spells in
+canonical decimal. -/
 def pathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -904,7 +906,12 @@ def pathCases : List (Decls × Val × Data) :=
     ([], step false, .map [("doc", .map [("label", .str "a")])]),
     ([], m [("a", .meet (m [("x", int 1)]) (m [("y", int 2)])), ("b", p ["a", "y"])], .map [("b", j 2)]),
     ([], m [("a", .or [(0, m [("v", int 1)]), (0, m [("v", int 2)])]), ("b", p ["a", "v"])], .map [("a", .map [("v", j 1)]), ("b", j 1)]),
-    ([], m [("a", m [("x", int 1), ("y", int 2)]), ("b", .meet pa (m [("x", int 2)]))], .map [("b", .map [("x", j 2), ("y", j 2)])])]
+    ([], m [("a", m [("x", int 1), ("y", int 2)]), ("b", .meet pa (m [("x", int 2)]))], .map [("b", .map [("x", j 2), ("y", j 2)])]),
+    ([], m [("q", m [("0", int 3)]), ("x", .path [.key "q", .idx 0])], .map [("x", j 3)]),
+    ([], m [("q", m [("0", int 3)]), ("x", .path [.key "q", .idx 0])], .map [("x", j 4)]),
+    ([], m [("q", .list [int 5, int 6] none false), ("x", .path [.key "q", .key "1"])], .map [("x", j 6)]),
+    ([], m [("q", .list [int 5, int 6] none false), ("x", .path [.key "q", .key "1"])], .map [("x", j 5)]),
+    ([], m [("q", .list [int 5, int 6] none false), ("x", .path [.key "q", .key "01"])], .map [("x", j 5)])]
 
 /-- Every case's bodies and schema hold no pattern and no format, so
 `vetP` is `VetP` on it, by `vetP_iff`. -/
@@ -2934,13 +2941,47 @@ theorem var_output_exact : ∀ t ∈ varCases, ∀ (root j : Data),
     (Decls.bodiesCheckableB_iff.mp varCases_readable.2.1)
     ((Val.checkableAB_iff _).mp (varCases_readable.2.2 t ht)) j
 
+/-- Variables as a path's steps, each read as its value's text: a map
+read by key and a list by the index the text spells, a variable as the
+first step, and two variables in one path. -/
+def varPathCases : List Val :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let keyed (k n : String) : Val := mp [("q", mp [(k, int 3)]), ("x", .path [.key "v", .key "q", .var n])]
+  [keyed "11" "foo", keyed "hello" "bar", keyed "true" "flag", keyed "false" "off",
+    keyed "1152921504606846976" "big", keyed "1.5" "half", keyed "5" "bigi", keyed "1.5" "bigd",
+    mp [("q", lst [int 0, int 1, int 2, int 3, int 4, int 5, int 6, int 7, int 8, int 9, int 10, int 11, int 12]),
+      ("x", .path [.key "v", .key "q", .var "foo"])],
+    mp [("q", lst [int 5, int 6, int 7, int 8, int 9, int 10]), ("x", .path [.key "v", .key "q", .var "bigi"])],
+    mp [("q", mp [("c", int 5)]), ("a", mp [("b", .path [.key "v", .var "PARENT", .key "c"])])],
+    mp [("q", mp [("hello", mp [("q", int 4)])]), ("x", .path [.key "v", .key "q", .var "bar", .var "PARENT"])]]
+
+set_option maxRecDepth 16384 in
+theorem varPathCases_readable : ∀ t ∈ varPathCases,
+    (progDecls.withPathsS (docOf t)).1.guardedB = true ∧
+    (progDecls.withPathsS (docOf t)).1.bodiesCheckableB = true ∧
+    (normaliseD (progDecls.withPathsS (docOf t)).1
+      ((progDecls.withPathsS (docOf t)).1.readR (progDecls.withPathsS (docOf t)).2)).checkableAB = true := by
+  decide
+
+/-- What each case generates is the definition's output with paths
+under the program's declarations, by `outputP_iff`. -/
+theorem var_path_output_exact : ∀ t ∈ varPathCases, ∀ (root j : Data),
+    outputP progDecls (docOf t) = some j ↔ OutputP progDecls root (docOf t) j :=
+  fun t ht _ j => outputP_iff (Decls.guardedB_iff.mp (varPathCases_readable t ht).1)
+    (Decls.bodiesCheckableB_iff.mp (varPathCases_readable t ht).2.1)
+    ((Val.checkableAB_iff _).mp (varPathCases_readable t ht).2.2) j
+
 /-- The `gens` rows of the variables: each case under the key `v`, with
-the JSON the engines must write for it under the runners' bindings. -/
+the JSON the engines must write for it under the runners' bindings,
+the cases with paths read by `outputP`. -/
 def varRows (tag : String) : IO Unit := do
   let mut i := 0
-  for t in varCases do
+  for (t, out) in varCases.map (fun t => (t, outputD progDecls (progDecls.readR (docOf t)))) ++
+      varPathCases.map (fun t => (t, outputP progDecls (docOf t))) do
     let some src := t.cell | throw (IO.userError "a variable case has no text")
-    match outputD progDecls (progDecls.readR (docOf t)) with
+    match out with
     | some (.map [("v", x)]) =>
       let some json := x.json | throw (IO.userError "an output has no JSON")
       IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ "\t{\"v\":" ++ json ++ "}")
