@@ -123,6 +123,14 @@ pick-key-kind	errc	x:pick([{a:1}],integer)	invalid-arg
 pick-scalar-child	errc	x:pick([1,2],a)	pick_key
 pick-index-out-of-range	errc	x:pick([[9]],3)	pick_key
 pick-arity	errc	x:pick([{a:1}])	func_arity
+# THE KEY IS READ AS ITS VALUE, as the bag is: through a rider, a name
+# or a path, where TypeScript once refused anything but a literal
+# (#435). A lone preference stays no key in both ports.
+pick-key-rider	canon	x:pick([{a:1}],meta("a",{}))	{"x":[1]}
+pick-key-alias	canon	%K = "a" x:pick([{a:1}],%K)	{"x":[1]}
+pick-key-path	canon	k:"a" x:pick([{a:1}],$.k)	{"k":"a","x":[1]}
+pick-key-index-path	canon	i:1 x:pick([[9,8]],$.i)	{"i":1,"x":[8]}
+pick-key-preference	errc	x:pick([{a:1}],*"a")	invalid-arg
 # PICK AND EACH SHARE ONE ORDER, and it is CODE POINT order -- the
 # order canon emits and the one keyorder.ts exists to state. TypeScript
 # sorted this one call site with a bare `.sort()`, which is UTF-16 CODE

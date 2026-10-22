@@ -1844,10 +1844,10 @@ separator with no text, a value that is no bag, and the members and
 separators it waits on. `pick` and `sort` follow from row x597: a
 projector as a key in a map member and as an index in a list member,
 the two orders and the two directions, equal keys in their order, and
-the arguments they refuse. No case holds a projector or a direction
-with a rider or through a name (#435), a string the ports read as an
-index otherwise than by its digits, or `""` as `pick`'s projector
-(#437). `upper` and `lower` follow from row x816: the run of code points
+the arguments they refuse, and `projectorCases` a projector or a
+direction through a rider or a mark. No case holds a string the ports
+read as an index otherwise than by its digits, or `""` as `pick`'s
+projector (#437). `upper` and `lower` follow from row x816: the run of code points
 a start and a length select, an index of either leaf, and a number
 rounded in its own leaf. Their strings are ASCII, the letters on which
 the oracle's host and every engine's case conversion agree, and
@@ -2634,6 +2634,36 @@ theorem repSub_verdict_exact : ∀ c ∈ repSubCases, ∀ (m : Mode) (v : Verdic
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (repSubCases_checkable c hc)) v
 
+/-- A projector and a direction read as their values, through a rider
+or a mark, as both ports read them (#435); a lone preference stays
+neither, and so does `null`, which is no absent projector. -/
+def projectorCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let rd (v : Val) : Val := .ride .metadata v []
+  [(c .pick [lst [mp [("a", int 1)]], rd (str "a")], .list [j 1]),
+    (c .pick [lst [lst [int 9, int 8]], rd (int 1)], .list [j 8]),
+    (c .pick [lst [mp [("a", int 1)]], .ride .type (str "a") []], .list [j 1]),
+    (c .sort [lst [mp [("n", int 2)], mp [("n", int 1)]], rd (str "n")],
+      .list [.map [("n", j 1)], .map [("n", j 2)]]),
+    (c .sort [lst [int 1, int 2], rd (str ""), str "desc"], .list [j 2, j 1]),
+    (c .sort [lst [int 1, int 2], str "", rd (str "desc")], .list [j 2, j 1]),
+    (c .sort [lst [int 1, int 2], str "", .ride .type (str "desc") []], .list [j 2, j 1]),
+    (c .sort [lst [int 1, int 2], str "", .pref 1 (str "desc")], .list [j 2, j 1]),
+    (c .sort [lst [int 2, int 1], .lit .null], .list [j 1, j 2]),
+    (c .sort [lst [int 2, int 1], rd (.lit .null)], .list [j 1, j 2])]
+
+theorem projectorCases_checkable : ∀ c ∈ projectorCases, (vetDoc c).1.CheckableA := by decide
+
+theorem projector_verdict_exact : ∀ c ∈ projectorCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (projectorCases_checkable c hc)) v
+
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2650,7 +2680,14 @@ def callAliasCases : List (Decls × Val × Data) :=
     ([("S", .lit (.str "ab"))], .call .upper [.alias "S"], .str "AB"),
     ([("N", int 1)], .call .upper [.lit (.str "foo"), .alias "N"], .str "fOO"),
     ([("F", .lit (.str "a"))], .call .translate [.lit (.str "abc"), .alias "F", .lit (.str "x")],
-      .str "xbc")]
+      .str "xbc"),
+    ([("K", .lit (.str "a"))], .call .pick [.list [.map [("a", false, int 1)] none false] none false,
+      .alias "K"], .list [j 1]),
+    ([("P", .lit (.str "n"))], .call .sort [.list [.map [("n", false, int 2)] none false,
+      .map [("n", false, int 1)] none false] none false, .alias "P"],
+      .list [.map [("n", j 1)], .map [("n", j 2)]]),
+    ([("D", .lit (.str "desc"))], .call .sort [.list [int 1, int 2] none false, .lit (.str ""),
+      .alias "D"], .list [j 2, j 1])]
 
 theorem callAliasCases_checkable : ∀ c ∈ callAliasCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
@@ -2875,11 +2912,14 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# x1677, the generator each, its template read for each member of its data,"
     IO.println "# from row x1803, and a filter whose condition holds the hole, read for each"
     IO.println "# member it tries, from row x1902. A call skips an optional member whose value"
-    IO.println "# generates an empty map or list, from row x1935, and rep reads its replacement"
-    IO.println "# against its pattern's groups before the text, from row x1959. A call on a"
-    IO.println "# name follows in rows z0 on, and a call handed a pattern, re(p), in rows v0 on."
+    IO.println "# generates an empty map or list, from row x1935, rep reads its replacement"
+    IO.println "# against its pattern's groups before the text, from row x1959, and pick and"
+    IO.println "# sort read a projector and a direction through a rider or a mark, from row"
+    IO.println "# x1995. A call on a name follows in rows z0 on, and a call handed a pattern,"
+    IO.println "# re(p), in rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
-    for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases do
+    for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
+        projectorCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -2890,7 +2930,8 @@ def main (args : List String) : IO UInt32 := do
     for (v, _) in patternCases do
       unless hostReads v do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
-    verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases)
+    verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
+      projectorCases)
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     return 0

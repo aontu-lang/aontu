@@ -73,3 +73,20 @@ sort-projector-pref	errc	x:sort([{n:2},{n:1}], pref(n))	invalid-arg
 sort-dir-not-text	errc	x:sort([1,2], "", 3)	func_arg
 sort-dir-pref-word	errc	x:sort([1,2], "", pref(up))	sort_dir
 sort-dir-pref-number	errc	x:sort([1,2], "", pref(3))	sort_dir
+# THE PROJECTOR AND THE DIRECTION ARE READ AS THEIR VALUES, as the bag
+# is: through a rider, a mark, a name or a path (#435). A lone
+# preference stays no direction, as `pref(up)` is none.
+sort-projector-rider	canon	x:sort([{n:2},{n:1}],meta("n",{}))	{"x":[{"n":1},{"n":2}]}
+sort-projector-alias	canon	%P = "n" x:sort([{n:2},{n:1}],%P)	{"x":[{"n":1},{"n":2}]}
+sort-projector-path	canon	p:"n" x:sort([{n:2},{n:1}],$.p)	{"p":"n","x":[{"n":1},{"n":2}]}
+sort-dir-rider	canon	x:sort([1,2], "", meta("desc",{}))	{"x":[2,1]}
+sort-dir-type	canon	x:sort([1,2], "", type("desc"))	{"x":[2,1]}
+sort-dir-alias	canon	%D = "desc" x:sort([1,2], "", %D)	{"x":[2,1]}
+sort-dir-path	canon	d:desc x:sort([1,2], "", $.d)	{"d":"desc","x":[2,1]}
+sort-dir-preference	errc	x:sort([1,2], "", *desc)	sort_dir
+# ONLY AN ABSENT PROJECTOR IS THE MEMBER ITSELF. A `null` is a value
+# supplied, written or reached through a rider or a path, and names no
+# key, where TypeScript once read a written one as absent.
+sort-projector-null	errc	x:sort([2,1], null)	invalid-arg
+sort-projector-null-rider	errc	x:sort([2,1], meta(null,{}))	invalid-arg
+sort-projector-null-path	errc	p:null x:sort([2,1], $.p)	invalid-arg
