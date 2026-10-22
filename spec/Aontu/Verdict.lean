@@ -138,13 +138,14 @@ def Val.number? (v : Val) : Option Number :=
 /-- The members a fold reads in a bag's normal form, the riders around
 it read through: a list's elements in order, and a map's members in key
 order, but an optional one whose value generates nothing or an empty map
-or list, and a marked one, which is no part of the output, unless the
-bag carries a mark itself, which lifts its members' marks. -/
+or list, one that is absence, and a marked one, which is no part of the
+output, unless the bag carries a mark itself, which lifts its members'
+marks. -/
 def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val)
   | .ride k v _ => v.members ds (lifted || decide (k = .type) || decide (k = .hide))
   | .list items _ _ => some items
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
-      if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
+      if (!lifted && m.2.2.marked) || m.2.2.isAbsent || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
       else some m.2.2)
   | _ => none
 
@@ -419,7 +420,7 @@ def Val.keyedMembers (ds : Decls) (lifted : Bool := false) : Val → Option (Lis
   | .ride k v _ => v.keyedMembers ds (lifted || decide (k = .type) || decide (k = .hide))
   | .list items _ _ => items.mapM fun (i : Val) => i.string?.map fun s => (s, i)
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
-      if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
+      if (!lifted && m.2.2.marked) || m.2.2.isAbsent || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
       else some (m.1, m.2.2))
   | _ => none
 
@@ -919,6 +920,81 @@ def keyCovers : List Cover → Bool
   | (c, k, m) :: cs => keySpread c || keySpread k || keySpread m || keyCovers cs
 end
 
+/-! ## Absence
+
+`maybe(v)` is `v` where it names something, and absence where all that
+is wrong with it is that it doesn't: a reference at the top of `v`, `v`
+itself, a side of a meet, an arm of a disjunction or the value under a
+rider, names nothing in the document read. Absence admits every value,
+generates nothing, and is the unit of the meet, but met with `any` it
+stays absence; a map leaves it out of its output at a required key as
+at an optional one, a list holds no position for it, and a call that
+takes it makes it. -/
+
+mutual
+/-- Whether a path not read yet stands at the top of `maybe`'s
+argument, as in the root the paths are read from. -/
+def Val.pathTop : Val → Bool
+  | .path _ => true
+  | .meet a b => a.pathTop || b.pathTop
+  | .or arms => pathTopArms arms
+  | .ride _ v _ => v.pathTop
+  | _ => false
+  termination_by structural v => v
+
+def pathTopArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.pathTop || pathTopArms arms
+  termination_by structural arms => arms
+end
+
+mutual
+/-- Whether a reference at the top of `maybe`'s argument names nothing. -/
+def Val.missingTop (ds : Decls) : Val → Bool
+  | .alias n => (ds.bodies n).isEmpty
+  | .meet a b => a.missingTop ds || b.missingTop ds
+  | .or arms => missingTopArms ds arms
+  | .ride _ v _ => v.missingTop ds
+  | _ => false
+  termination_by structural v => v
+
+def missingTopArms (ds : Decls) : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.missingTop ds || missingTopArms ds arms
+  termination_by structural arms => arms
+end
+
+mutual
+/-- The top of `maybe`'s argument with each reference that names
+nothing read as `w`. -/
+def fillTop (ds : Decls) (w : Val) : Val → Val
+  | .alias n => if (ds.bodies n).isEmpty then w else .alias n
+  | .meet a b => .meet (fillTop ds w a) (fillTop ds w b)
+  | .or arms => .or (fillTopArms ds w arms)
+  | .ride k v r => .ride k (fillTop ds w v) r
+  | v => v
+  termination_by structural v => v
+
+def fillTopArms (ds : Decls) (w : Val) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, fillTop ds w a) :: fillTopArms ds w arms
+  termination_by structural arms => arms
+end
+
+/-- What `maybe` makes of its argument, read: absence where a reference
+at its top names nothing and that is all that is wrong with it, so that
+the argument is dead with each such reference read as `nil` and live
+with each read as `any`; otherwise the argument with each such
+reference read as `nil`, which drops an arm that holds one and leaves a
+conflict for the document to answer. Where a path at its top is not
+read yet, the call waits. -/
+def maybeOf (ds : Decls) (v : Val) : Val :=
+  if v.pathTop then .call .maybe [v]
+  else if v.missingTop ds then
+    if (normaliseD ds (fillTop ds .nil v)).dead && !(normaliseD ds (fillTop ds .any v)).dead then .absent
+    else fillTop ds .nil v
+  else v
+
 /-- The members `keep` keeps, in order, each tried at the index it takes
 among those kept before it, as a list's `filter` places its trial. -/
 def keptAt (keep : ℕ → Data → Bool) : ℕ → List Data → List Data
@@ -938,8 +1014,10 @@ its template read for each member of its data, in the order `Val.members`
 reads them, and `nil` where the data is no bag. A `pack` is the open map
 of its template read for each member `Val.keyedMembers` reads, under the
 member's key, the instances of a repeated key met, and `nil` where the
-data is no bag or a list holds anything but a string.
-Any other call, its
+data is no bag or a list holds anything but a string. A `maybe` is
+what `maybeOf` makes of its argument, and a call, a generator, a
+selection or a `filter` that takes absence is absence, as a list holds
+no position for an element that is absence. Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
 hole, and a `filter`'s condition and a template are read for their own
 members, so none of them is read for `b`. Each `key(n)` reads `here`, by
@@ -957,7 +1035,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let d' := resolveSpread ds b here d
     match genD ds s' with
     | some x => if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
-    | none => .select s' arms' d'
+    | none => if (normaliseD ds s').isAbsent then .absent else .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
     if here.isNone && c.holdsKey then .filter s' c else
@@ -967,29 +1045,33 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     | some (.list xs) => (Data.list (keptAt (fun i x =>
         checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term
     | some _ => .nil
-    | none => .filter s' (resolveD ds none none c)
+    | none => if (normaliseD ds s').isAbsent then .absent else .filter s' (resolveD ds none none c)
   | .call f args =>
     match f, args with
     | .each, [d, t] =>
       if here.isNone && (resolveD ds b here d).holdsKey then .call .each [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).members ds with
       | some ms => .list (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t) none false
-      | none => .nil
+      | none => if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent else .nil
     | .pack, [d, t] =>
       if here.isNone && (resolveD ds b here d).holdsKey then .call .pack [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).keyedMembers ds with
       | some ms =>
         .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
           fun m => (m.1, false, m.2)) none false
-      | none => .nil
+      | none => if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent else .nil
+    | .maybe, [v] => maybeOf ds (resolveD ds b here v)
+    | .maybe, args => .call .maybe (resolveItems ds b here args)
     | f, args =>
       if here.isNone && keyItems (resolveItems ds b here args) then .call f (resolveItems ds b here args)
+      else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else callTerm ds f (resolveItems ds b here args)
   | .len c => .len (resolveD ds b here c)
   | .map fs spread closed =>
     .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
   | .list items spread closed =>
-    .list (resolveElems ds b here 0 items) (resolveSpread ds none (stepped here .spread) spread) closed
+    .list ((resolveElems ds b here 0 items).filter fun e => !(normaliseD ds e).isAbsent)
+      (resolveSpread ds none (stepped here .spread) spread) closed
   | .or arms => .or (resolveArms ds b here arms)
   | .pref r x => .pref r (resolveD ds b here x)
   | .meet a c => .meet (resolveD ds b here a) (resolveD ds b here c)
@@ -1171,8 +1253,8 @@ theorem Val.unwrap_checkableA : ∀ {v : Val}, v.CheckableA → v.unwrap.Checkab
   | .anyString, h | .boolean, h | .mapKind, h | .listKind, h | .pathKind, h | .lit _, h
   | .addr _, h | .min _, h
   | .max _, h | .above _, h | .beneath _, h | .neq _, h | .mulof _, h | .len _, h
-  | .unique _, h | .re _, h | .format _, h | .grammar _, h | .any, h | .nil, h | .map _ _ _, h
-  | .list _ _ _, h | .or _, h | .meet _ _, h | .alias _, h | .path _, h | .nof _ _, h
+  | .unique _, h | .re _, h | .format _, h | .grammar _, h | .any, h | .absent, h | .nil, h
+  | .map _ _ _, h | .list _ _ _, h | .or _, h | .meet _ _, h | .alias _, h | .path _, h | .nof _ _, h
   | .must _ _, h | .when _ _ _, h | .contains _ _, h | .rest _ _, h | .select _ _ _, h
   | .filter _ _, h | .key, h | .keyUp _, h | .call _ _, h | .hole, h => h
 
@@ -1646,11 +1728,15 @@ theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {pos : List Step} 
   | zero =>
     simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
       ite_false]
-    exact callTerm_split_checkableA
+    split
+    · exact .absent
+    · exact callTerm_split_checkableA
   | succ k =>
     simp only [expandF, List.map, resolveD, resolveItems, Option.isNone_some, Bool.false_and,
       Bool.false_eq_true, ite_false]
-    exact callTerm_split_checkableA
+    split
+    · exact .absent
+    · exact callTerm_split_checkableA
 
 /-- A `rep` call read at a position reads to a term the checker can read
 whatever its arguments are, since `rep` never waits. -/
@@ -1660,11 +1746,15 @@ theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a
   | zero =>
     simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
       ite_false]
-    exact callTerm_rep_checkableA
+    split
+    · exact .absent
+    · exact callTerm_rep_checkableA
   | succ k =>
     simp only [expandF, List.map, resolveD, resolveItems, Option.isNone_some, Bool.false_and,
       Bool.false_eq_true, ite_false]
-    exact callTerm_rep_checkableA
+    split
+    · exact .absent
+    · exact callTerm_rep_checkableA
 
 /-- A call's term is one the checker can read where its arguments are. -/
 theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
@@ -1712,6 +1802,49 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     · exact .lit
     · exact .call h
 
+theorem mem_fillTopArms {ds : Decls} {w : Val} :
+    ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
+      (r, x) ∈ fillTopArms ds w arms → ∃ a, (r, a) ∈ arms ∧ x = fillTop ds w a
+  | [], _, _, h => nomatch h
+  | (r', a) :: arms, r, x, h => by
+    simp only [fillTopArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨a, List.mem_cons_self, rfl⟩
+    · obtain ⟨b, hb, rfl⟩ := mem_fillTopArms h
+      exact ⟨b, List.mem_cons_of_mem _ hb, rfl⟩
+
+/-- The top of `maybe`'s argument with its missing references read as a
+term the checker can read is a term it can read. -/
+theorem fillTop_checkableA {ds : Decls} {w : Val} (hw : w.CheckableA) {v : Val} (h : v.CheckableA) :
+    (fillTop ds w v).CheckableA := by
+  induction h with
+  | alias =>
+    unfold fillTop
+    split
+    · exact hw
+    · exact .alias
+  | meet _ _ iha ihb => simp only [fillTop]; exact .meet iha ihb
+  | or _ ih =>
+    simp only [fillTop]
+    refine .or fun r x hx => ?_
+    obtain ⟨a, ha, rfl⟩ := mem_fillTopArms hx
+    exact ih r a ha
+  | ride _ ih => simp only [fillTop]; exact .ride ih
+  | _ => simp only [fillTop]; constructor <;> assumption
+
+/-- What `maybe` makes of a term the checker can read is one it can read. -/
+theorem maybeOf_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (maybeOf ds v).CheckableA := by
+  unfold maybeOf
+  split
+  · exact .call fun a ha => by
+      simp only [List.mem_singleton] at ha
+      exact ha ▸ h
+  · split
+    · split
+      · exact .absent
+      · exact fillTop_checkableA .nil h
+    · exact h
+
 theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
     (h : v.CheckableA) : ∀ {b : Option Val} {here : Option (List Step)}, (∀ m, b = some m → m.CheckableA) →
       (resolveD ds b here v).CheckableA := by
@@ -1729,7 +1862,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     intro b here hb
     simp only [resolveD]
     refine .list (fun w hw => ?_) (fun s hs' => ?_)
-    · obtain ⟨v, hv, i, rfl⟩ := mem_resolveElems hw
+    · obtain ⟨v, hv, i, rfl⟩ := mem_resolveElems (List.mem_filter.mp hw).1
       exact ihi v hv hb
     · obtain ⟨s, hs, rfl⟩ := resolveSpread_some hs'
       exact ihs s hs fun _ h => nomatch h
@@ -1779,9 +1912,13 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
           then Val.select .key (resolvePairs ds b here arms)
           (resolveSpread ds b here d) else selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)
-      | none => .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
+      | none => if (normaliseD ds .key).isAbsent then .absent
+          else .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds .key = none := rfl
     rw [hg]
+    dsimp only
+    split
+    · exact .absent
     refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
     · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_resolvePairs hm
       exact ihp p₀ r₀ hm₀ hb
@@ -1796,7 +1933,8 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
           then Val.select (.lit sc) (resolvePairs ds b here arms)
           (resolveSpread ds b here d) else selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)
-      | none => .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
+      | none => if (normaliseD ds (.lit sc)).isAbsent then .absent
+          else .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds (.lit sc) = some sc.data := rfl
     rw [hg]
     dsimp only
@@ -1834,7 +1972,9 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         exact ih t (by simp) (b := some m.1) fun m' hm' => by
           obtain rfl := Option.some.inj hm'
           exact hmc
-      · exact .nil
+      · split
+        · exact .absent
+        · exact .nil
     · rename_i d t
       split
       · refine .call fun a ha => ?_
@@ -1855,11 +1995,20 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         exact ih t (by simp) (b := some m'.2) fun m'' hm'' => by
           obtain rfl := Option.some.inj hm''
           exact hmc
-      · exact .nil
+      · split
+        · exact .absent
+        · exact .nil
+    · rename_i v
+      exact maybeOf_checkableA (ih v (by simp) hb)
+    · refine .call fun a ha => ?_
+      obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
+      exact ih a₀ ha₀ hb
     · split
       · refine .call fun a ha => ?_
         obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
         exact ih a₀ ha₀ hb
+      split
+      · exact .absent
       · refine callTerm_checkableA hd fun a ha => ?_
         obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
         exact ih a₀ ha₀ hb

@@ -236,14 +236,21 @@ def Decls.ofPaths (ds : Decls) (root : Val) (ps : List (List Seg)) : Decls :=
 def Decls.docPaths (ds : Decls) (S : Val) : List (List Seg) :=
   ((ds.read S).paths ++ ds.paths).eraseDups
 
-/-- Whether every path of the document resolves in the schema's own
-tree: the normal form of the schema as read, before any data. -/
-def Decls.resolvesB (ds : Decls) (S : Val) : Bool :=
-  (ds.docPaths S).all fun p => (ds.pathAt (normaliseD ds (ds.read S)) p).isSome
+/-- The paths a document writes that must name something: every path
+but one `maybe` forgives (`Val.forgive`). -/
+def Decls.strictPaths (ds : Decls) (S : Val) : List (List Seg) :=
+  ((ds.read S).forgive.paths ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.forgive.paths) []).eraseDups
 
-/-- Every path of the document resolves in the schema's own tree. -/
+/-- Whether every path of the document that must name something
+resolves in the schema's own tree: the normal form of the schema as
+read, before any data. -/
+def Decls.resolvesB (ds : Decls) (S : Val) : Bool :=
+  (ds.strictPaths S).all fun p => (ds.pathAt (normaliseD ds (ds.read S)) p).isSome
+
+/-- Every path of the document that must name something resolves in
+the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.docPaths S → (ds.pathAt (normaliseD ds (ds.read S)) p).isSome = true
+  ∀ p, p ∈ ds.strictPaths S → (ds.pathAt (normaliseD ds (ds.read S)) p).isSome = true
 
 theorem Decls.resolvesB_iff {ds : Decls} {S : Val} : ds.resolvesB S = true ↔ ds.Resolves S := by
   simp only [Decls.resolvesB, Decls.Resolves, List.all_eq_true]

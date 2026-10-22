@@ -94,4 +94,6 @@ call	call	copyfiles
 call	call	listitems
 call	call	each
 call	call	pack
+call	call	maybe
+absent	call	maybe
 hole	syntax	_

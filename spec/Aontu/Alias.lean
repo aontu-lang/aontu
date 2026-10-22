@@ -1243,7 +1243,8 @@ theorem mem_superItems {items : List Val} {w : Val} :
 theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA := by
   induction h with
   | integer | float | biginteger | bigdecimal => exact .number
-  | number | string | anyString | boolean | mapKind | listKind | pathKind | any | hole => exact .any
+  | number | string | anyString | boolean | mapKind | listKind | pathKind | any | absent | hole =>
+    exact .any
   | addr => exact .pathKind
   | grammar => exact .string
   | nil => exact .nil
@@ -1438,6 +1439,13 @@ theorem meetList_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m 
 
 end
 
+/-- A meet with absence keeps a term the checker can read. -/
+theorem absentOr_checkableA {v : Val} (h : v.CheckableA) : (absentOr v).CheckableA := by
+  unfold absentOr
+  split
+  · exact .absent
+  · exact h
+
 section
 variable {rec : Val → Val → Val} (hr : ∀ a b, a.CheckableA → b.CheckableA → (rec a b).CheckableA)
 include hr
@@ -1515,6 +1523,8 @@ theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
     .list (fun _ h => absurd h (List.not_mem_nil)) (fun _ h => nomatch h)
   cases a <;> cases b <;> (unfold meetStep; dsimp only) <;> first
     | exact .nil
+    | exact absentOr_checkableA (hr _ _ .any hb)
+    | exact absentOr_checkableA (hr _ _ ha .any)
     | exact meetBase_checkableA hl ha hb
     | exact (match ha with | .meet h₁ h₂ => hr _ _ h₁ (hr _ _ h₂ hb))
     | exact meetRight_checkableA hr ha hb

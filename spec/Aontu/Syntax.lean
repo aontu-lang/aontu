@@ -80,6 +80,7 @@ inductive Val where
   | grammar (g : String)                    -- `parse(g)`, the strings the grammar `g` parses whole
   | any                                     -- `any`
   | nil                                     -- `nil`
+  | absent                                  -- absence, what `maybe(v)` is where `v` names nothing; `maybe()` in the residual
   | map (fs : List (String × Bool × Val)) (spread : Option Val) (closed : Bool)
                                             -- `{k: v, k?: v, &: s}`, sealed by `close()`
   | list (items : List Val) (spread : Option Val) (closed : Bool)
@@ -227,7 +228,7 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
-  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any => .any
+  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent => .any
   | .nil => .nil
   | .lit (.num x) => x.leaf.kind
   | .lit (.str s) => if s = "" then .anyString else .string
@@ -287,6 +288,12 @@ def Val.hasMark (m : Rider) : Val → Bool
 
 /-- Whether a term carries a mark, `type()` or `hide()`, at its own position. -/
 def Val.marked (v : Val) : Bool := v.hasMark .type || v.hasMark .hide
+
+/-- Whether a term is absence, through the riders it carries. -/
+def Val.isAbsent : Val → Bool
+  | .absent => true
+  | .ride _ v _ => v.isAbsent
+  | _ => false
 
 /-- Whether a term is a call or a `key(n)` at its own position, through
 `&` and the riders: a value the reading has not made, which a literal
@@ -356,8 +363,8 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
     simp only [Val.super]; cases b <;> rfl
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
   | .mapKind | .listKind | .pathKind | .lit (.bool _) | .lit .null | .neq [] | .mulof _
-  | .len _ | .unique _ | .re _ | .format _ | .grammar _ | .any | .nil | .map _ _ _ | .list _ _ _ | .or _
-  | .alias _ | .path _ | .addr _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
+  | .len _ | .unique _ | .re _ | .format _ | .grammar _ | .any | .nil | .absent | .map _ _ _ | .list _ _ _
+  | .or _ | .alias _ | .path _ | .addr _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
   | .select _ _ _ | .filter _ _ | .key | .keyUp _ | .call _ _ | .hole => rfl
 
 /-- A term with no `key` at its own position is its own reading under

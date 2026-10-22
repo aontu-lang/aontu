@@ -320,6 +320,7 @@ inductive Val.Checkable : Val → Prop
   | unique {k : Option String} : Checkable (.unique k)
   | grammar {g : String} : Checkable (.grammar g)
   | any : Checkable .any
+  | absent : Checkable .absent
   | hole : Checkable .hole
   | nil : Checkable .nil
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
@@ -422,6 +423,7 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .unique _ => ⟨fun _ => .unique, fun _ => rfl⟩
   | .grammar _ => ⟨fun _ => .grammar, fun _ => rfl⟩
   | .any => ⟨fun _ => .any, fun _ => rfl⟩
+  | .absent => ⟨fun _ => .absent, fun _ => rfl⟩
   | .hole => ⟨fun _ => .hole, fun _ => rfl⟩
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
   | .re _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
@@ -1046,6 +1048,7 @@ inductive Val.CheckableA : Val → Prop
   | unique {k : Option String} : CheckableA (.unique k)
   | grammar {g : String} : CheckableA (.grammar g)
   | any : CheckableA .any
+  | absent : CheckableA .absent
   | hole : CheckableA .hole
   | nil : CheckableA .nil
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
@@ -1149,6 +1152,7 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .unique _ => ⟨fun _ => .unique, fun _ => rfl⟩
   | .grammar _ => ⟨fun _ => .grammar, fun _ => rfl⟩
   | .any => ⟨fun _ => .any, fun _ => rfl⟩
+  | .absent => ⟨fun _ => .absent, fun _ => rfl⟩
   | .hole => ⟨fun _ => .hole, fun _ => rfl⟩
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
   | .alias _ => ⟨fun _ => .alias, fun _ => rfl⟩
@@ -1350,6 +1354,7 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | unique => exact .unique
   | grammar => exact .grammar
   | any => exact .any
+  | absent => exact .absent
   | hole => exact .hole
   | nil => exact .nil
   | map _ _ ihf ihs => exact .map ihf ihs
@@ -1617,6 +1622,7 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
     | some ms => ms.all (fun x => (x.project k).isSome) && distinct k ms
     | none => false
   | .any, _ => true
+  | .absent, _ => true
   | .hole, _ => true
   | .nil, _ => false
   | .map fs spread closed, j => match j with
@@ -1727,7 +1733,7 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
     | .num _ => true
     | _ => false
   | .number, _ | .string, _ | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _
-  | .pathKind, _ | .any, _ => true
+  | .pathKind, _ | .any, _ | .absent, _ => true
   | .addr _, j => match j with
     | .addr _ => true
     | _ => false
@@ -2513,7 +2519,7 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     cases j with
     | num x => exact .number
     | _ => exact .numberNot fun _ h => nomatch h
-  | number | string | anyString | boolean | mapKind | listKind | pathKind | any | hole =>
+  | number | string | anyString | boolean | mapKind | listKind | pathKind | any | absent | hole =>
     intro j _; exact .any
   | addr =>
     intro j _
@@ -2751,6 +2757,7 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
       Judge env root (checkWith u ky v j) (v.atKeyO ky) j := by
   induction h with
   | any => intro ky j _; refine judge_keyless rfl ?_; exact .any
+  | absent => intro ky j _; refine judge_keyless rfl ?_; exact .absent
   | hole => intro ky j _; refine judge_keyless rfl ?_; exact .hole
   | keyUp => intro ky j _; refine judge_keyless rfl ?_; exact .keyUp
   | nil => intro ky j _; refine judge_keyless rfl ?_; exact .nil

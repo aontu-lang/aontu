@@ -1037,6 +1037,66 @@ theorem rel_path_verdict_exact : ∀ c ∈ relPathCases, ∀ (m : Mode) (v : Ver
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (relPathCases_checkable c hc).1 (relPathCases_checkable c hc).2 v
 
+/-- `maybe` over paths that name something and paths that name nothing:
+absence at a required key and at an optional one, as a list's element,
+an arm and a call's argument, and met with a literal and a kind, beside
+data that supplies the key and data that supplies the path; a path to
+an optional key and into a scalar, and a name declared nowhere; a
+missing path met with a literal, an arm it kills and a conflict inside
+the argument, and a missing path that stands under a call. -/
+def maybeCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let mb (v : Val) : Val := .call .maybe [v]
+  let gone : Val := mb (p ["gone"])
+  [([], m [("b", gone)], .map []),
+    ([], m [("b", gone)], .map [("b", j 1)]),
+    ([], m [("b", gone)], .map [("gone", j 5)]),
+    ([], m [("b", gone)], .map [("gone", j 5), ("b", j 5)]),
+    ([], m [("b", gone)], .map [("gone", j 5), ("b", j 6)]),
+    ([], m [("a", int 1), ("b", mb (p ["a"]))], .map []),
+    ([], m [("a", int 1), ("b", mb (p ["a"]))], .map [("a", j 1), ("b", j 1)]),
+    ([], m [("a", int 1), ("b", mb (p ["a"]))], .map [("a", j 1), ("b", j 2)]),
+    ([], m [("b", mb (p ["x"])), ("x", int 1)], .map []),
+    ([], m [("b", .meet gone .string)], .map []),
+    ([], m [("b", .meet gone .string)], .map [("b", .str "x")]),
+    ([], m [("b", .meet gone .string)], .map [("b", j 1)]),
+    ([], m [("b", .meet (int 1) gone)], .map []),
+    ([], m [("b", .meet (int 1) gone)], .map [("b", j 2)]),
+    ([], m [("b", mb (.meet (p ["gone"]) (int 1)))], .map []),
+    ([], m [("b", mb (.meet (p ["gone"]) (int 1)))], .map [("b", j 2)]),
+    ([], m [("b", mb (.meet (p ["gone"]) (int 1)))], .map [("gone", j 1)]),
+    ([], m [("b", mb (.meet (p ["gone"]) (int 1)))], .map [("gone", j 2)]),
+    ([], m [("b", mb (.or [(0, p ["gone"]), (0, int 1)]))], .map []),
+    ([], m [("b", mb (.or [(0, p ["gone"]), (0, int 1)]))], .map [("b", j 2)]),
+    ([], m [("b", mb (.meet (int 1) (int 2)))], .map []),
+    ([], m [("b", mb (p ["x", "y"])), ("x", mo [("y", true, int 1)])], .map []),
+    ([], m [("b", mb (p ["x", "y"])), ("x", int 1)], .map []),
+    ([], m [("b", mb (.alias "U"))], .map []),
+    ([], mo [("b", true, gone)], .map []),
+    ([], m [("b", lst [int 1, gone])], .map []),
+    ([], m [("b", lst [int 1, gone])], .map [("b", .list [j 1])]),
+    ([], m [("b", lst [int 1, gone])], .map [("b", .list [j 1, j 7])]),
+    ([], m [("b", .call .upper [gone])], .map []),
+    ([], m [("b", .call .upper [gone])], .map [("b", .str "x")]),
+    ([], m [("b", .call .add [int 1, gone])], .map []),
+    ([], m [("b", .call .each [gone, m [("t", .hole)]])], .map []),
+    ([], m [("b", .or [(0, gone), (0, int 1)])], .map []),
+    ([], m [("b", .or [(0, gone), (0, int 1)])], .map [("b", j 1)]),
+    ([], m [("b", .or [(1, gone), (0, int 1)])], .map []),
+    ([], m [("b", mb (.call .upper [p ["gone"]]))], .map [])]
+
+theorem maybeCases_checkable : ∀ c ∈ maybeCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem maybe_verdict_exact : ∀ c ∈ maybeCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (maybeCases_checkable c hc).1 (maybeCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, the schema's braces dropped since neither CLI reads a braced
 map after a declaration, in the three modes, with the one class `vetP`
@@ -1860,7 +1920,8 @@ def forms : List (String × String × String) :=
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
     ("call", "call", "line"), ("call", "call", "fragment"), ("call", "call", "slot"),
     ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems"),
-    ("call", "call", "each"), ("call", "call", "pack"), ("hole", "syntax", "_")]
+    ("call", "call", "each"), ("call", "call", "pack"), ("call", "call", "maybe"),
+    ("absent", "call", "maybe"), ("hole", "syntax", "_")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1892,7 +1953,7 @@ def formSamples : List (String × Val) :=
     ("fragment", .call (.cmp .fragment) [.string]), ("slot", .call (.cmp .slot) [.string]),
     ("inject", .call (.cmp .inject) [.string]), ("copyfiles", .call (.cmp .copyfiles) [.string]),
     ("listitems", .call (.cmp .listitems) [.mapKind]), ("each", .call .each [.listKind, .hole]),
-    ("pack", .call .pack [.listKind, .hole])]
+    ("pack", .call .pack [.listKind, .hole]), ("maybe", .call .maybe [.string])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -3360,11 +3421,14 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
     IO.println "# Paths through the riders follow in rows q0 on, which a path reads through,"
     IO.println "# and key(n) reached through a path or a name, read where it lands, in rows r0 on."
-    IO.println "# Relative paths, made absolute where each stands, follow in rows j0 on."
+    IO.println "# Relative paths, made absolute where each stands, follow in rows j0 on, and"
+    IO.println "# maybe, absence where all that is wrong with a path is that it names nothing,"
+    IO.println "# in rows mb0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
     pathRows "j" relPathCases
+    pathRows "mb" maybeCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
