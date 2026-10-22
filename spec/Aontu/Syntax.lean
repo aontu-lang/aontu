@@ -371,4 +371,40 @@ theorem Val.atKey_of_keyed (k : String) {v : Val} (h : v.keyed = false) : v.atKe
     simp only [Val.atKey, ih h]
   | case5 v h1 h2 h3 h4 => exact Val.atKey.eq_5 k v h1 h2 h3 h4
 
+/-! ## The key a term reads where it stands
+
+`key(n)` reads the key `n` levels above the position it stands at: `0`
+its own key, `key()` its parent's, and `""` above the top or below the
+bottom. A position is the steps from the top of the document, each a
+map's key or a list's index, where the document writes it. The member a
+spread holds is a step no position names until the spread is tried on
+it, which is where `Val.atKey` reads a `key` standing at the spread's
+own position. -/
+
+/-- A step of a position: a key or an index the document writes, or the
+member a spread holds. -/
+inductive Step where
+  | seg (s : Seg)
+  | spread
+  deriving DecidableEq
+
+/-- A step's text, as `key()` answers it: a key, or an index in decimal. -/
+def Seg.text : Seg → String
+  | .key k => k
+  | .idx i => toString i
+
+/-- `key(n)` read at the position `pos`, outermost step first: the text of
+the step `n` levels up, `""` where there is none, and, where that step is
+the member a spread holds, the `key` the spread reads at its own position,
+or `key(n)` still beneath it. -/
+def keyUpAt (pos : List Step) (n : ℤ) : Val :=
+  if n < 0 then .lit (.str "") else
+  match pos.reverse[n.toNat]? with
+  | some (.seg s) => .lit (.str s.text)
+  | some .spread => if n = 0 then .key else .keyUp n
+  | none => .lit (.str "")
+
+/-- A position one step down, where there is one. -/
+def stepped (here : Option (List Step)) (s : Step) : Option (List Step) := here.map (· ++ [s])
+
 end Aontu

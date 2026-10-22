@@ -126,15 +126,16 @@ def Decls.withPathsFrom (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
 
 /-- The document with its paths read as names from the schema alone:
 the root is the normal form of the schema as read, before any data,
-which is what the error class is judged on. -/
+which is what the error class is judged on. The root keeps its keys as
+written, so that a key a path reaches reads where the path lands. -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (ds.readR S))
+  ds.withPathsFrom S (normaliseD ds (ds.readU S))
 
 /-- The document with its paths read as names from the data too: the
 root is the normal form of the schema met with the data, which is what
 the other classes are judged on. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.readR S) j.term))
+  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.readU S) j.term))
 
 /-! ## The verdict with paths -/
 
@@ -381,11 +382,11 @@ theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {root : Val
 read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v := by
-  have hbS := Decls.withPathsFrom_bodies_checkableA (S := S) hb (normaliseD_checkableA hb (readR_checkableA hb hS))
+  have hbS := Decls.withPathsFrom_bodies_checkableA (S := S) hb (normaliseD_checkableA hb (readU_checkableA hb hS))
   have hvS := vet_iff (m := m) (ds := (ds.withPathsS S).1) (S := (ds.withPathsS S).2) (j := j) hbS
     (readR_checkableA hbS (pathsToAliases_checkableA hS))
   have hbP := Decls.withPathsFrom_bodies_checkableA (S := S) hb
-    (normaliseD_checkableA hb (meetD_checkableA hb (readR_checkableA hb hS) (Data.term_checkableA j)))
+    (normaliseD_checkableA hb (meetD_checkableA hb (readU_checkableA hb hS) (Data.term_checkableA j)))
   have hvP := vet_iff (m := m) (ds := (ds.withPaths S j).1) (S := (ds.withPaths S j).2) (j := j) hbP
     (readR_checkableA hbP (pathsToAliases_checkableA hS))
   unfold vetP

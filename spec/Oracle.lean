@@ -2479,15 +2479,15 @@ def hostReads (v : Val) : Bool :=
 /-- A vet document whose one field is a call that reads to a term the
 checker can read reads to one itself. -/
 theorem readR_call_checkableA {t : Val}
-    (h : ∀ k, (resolveD [] none (expandF [] k t)).CheckableA) :
+    (h : ∀ k, (resolveD [] none (stepped (some []) (.seg (.key "v"))) (expandF [] k t)).CheckableA) :
     (Decls.readR [] (.map [("v", false, t)] none false)).CheckableA := by
-  have hm : ∀ u, (resolveD [] none u).CheckableA →
-      (resolveD [] none (.map [("v", false, u)] none false)).CheckableA := by
+  have hm : ∀ u, (resolveD [] none (stepped (some []) (.seg (.key "v"))) u).CheckableA →
+      (resolveD [] none (some []) (.map [("v", false, u)] none false)).CheckableA := by
     intro u hu
     simp only [resolveD, resolveFields, resolveSpread]
     exact .map (fun k o w hw => by simp at hw; obtain ⟨-, -, rfl⟩ := hw; exact hu)
       (fun _ hs => by cases hs)
-  have : ∀ n, (resolveD [] none (expandF [] n (.map [("v", false, t)] none false))).CheckableA := by
+  have : ∀ n, (resolveD [] none (some []) (expandF [] n (.map [("v", false, t)] none false))).CheckableA := by
     intro n
     cases n with
     | zero => simpa [expandF] using hm t (by simpa [expandF] using h 0)
@@ -2547,7 +2547,8 @@ def filterSources : List (Data × Val × Data) :=
 
 def filterCases : List (Val × Data) := filterSources.map fun (j, t, d) => (.filter j.term t, d)
 
-theorem filterSources_generate : ∀ x ∈ filterSources, (genD [] (resolveD [] none x.1.term)).isSome := by
+theorem filterSources_generate : ∀ x ∈ filterSources,
+    (genD [] (resolveD [] none (stepped (some []) (.seg (.key "v"))) x.1.term)).isSome := by
   decide
 
 theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c).1).CheckableA := by

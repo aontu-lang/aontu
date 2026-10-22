@@ -789,9 +789,16 @@ def callCovers : List Cover → Bool
   | (c, k, m) :: cs => callSpread c || callSpread k || callSpread m || callCovers cs
 end
 
+/-- The members `keep` keeps, in order, each tried at the index it takes
+among those kept before it, as a list's `filter` places its trial. -/
+def keptAt (keep : ℕ → Data → Bool) : ℕ → List Data → List Data
+  | _, [] => []
+  | i, x :: xs => if keep i x then x :: keptAt keep (i + 1) xs else keptAt keep i xs
+
 mutual
 /-- A term with its selections made, `b` the member a generator's
-template is read for, which each hole in the template stands for: each
+template is read for, which each hole in the template stands for, and
+`here` the position the term stands at, where one is placed: each
 `match` whose scrutinee generates a value is the result its arms select
 for it, and each `filter` whose source generates a container is the
 members its condition admits, as a term, or `nil` where the source
@@ -805,125 +812,112 @@ data is no bag or a list holds anything but a string.
 Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
 hole, and a `filter`'s condition and a template are read for their own
-members, so none of them is read for `b`. -/
-def resolveD (ds : Decls) (b : Option Val) : Val → Val
+members, so none of them is read for `b`. Each `key(n)` reads `here`, by
+`keyUpAt`: a template stands at the position its instance lands at, the
+member's index or key below the call, and a `filter`'s condition where
+the member it tries lands, under its key or at the index it takes among
+those kept. A term read with no position keeps its keys as written. -/
+def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
-    let s' := resolveD ds b s
-    let arms' := resolvePairs ds b arms
-    let d' := resolveSpread ds b d
+    let s' := resolveD ds b here s
+    let arms' := resolvePairs ds b here arms
+    let d' := resolveSpread ds b here d
     match genD ds s' with
     | some x => if callPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
     | none => .select s' arms' d'
   | .filter s c =>
-    let s' := resolveD ds b s
+    let s' := resolveD ds b here s
     match genD ds s' with
-    | some (.map fs) => (Data.map (fs.filter fun m => checkR ds (resolveD ds (some m.2.term) c) m.2)).term
-    | some (.list xs) => (Data.list (xs.filter fun x => checkR ds (resolveD ds (some x.term) c) x)).term
+    | some (.map fs) => (Data.map (fs.filter fun m =>
+        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).term
+    | some (.list xs) => (Data.list (keptAt (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term
     | some _ => .nil
-    | none => .filter s' (resolveD ds none c)
+    | none => .filter s' (resolveD ds none none c)
   | .call f args =>
     match f, args with
     | .each, [d, t] =>
-      match (normaliseD ds (resolveD ds b d)).members ds with
-      | some ms => .list (ms.map fun m => resolveD ds (some m) t) none false
+      match (normaliseD ds (resolveD ds b here d)).members ds with
+      | some ms => .list (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t) none false
       | none => .nil
     | .pack, [d, t] =>
-      match (normaliseD ds (resolveD ds b d)).keyedMembers ds with
+      match (normaliseD ds (resolveD ds b here d)).keyedMembers ds with
       | some ms =>
-        .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) t))).map fun m => (m.1, false, m.2))
-          none false
+        .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
+          fun m => (m.1, false, m.2)) none false
       | none => .nil
-    | f, args => callTerm ds f (resolveItems ds b args)
-  | .len c => .len (resolveD ds b c)
-  | .map fs spread closed => .map (resolveFields ds b fs) (resolveSpread ds none spread) closed
-  | .list items spread closed => .list (resolveItems ds b items) (resolveSpread ds none spread) closed
-  | .or arms => .or (resolveArms ds b arms)
-  | .pref r x => .pref r (resolveD ds b x)
-  | .meet a c => .meet (resolveD ds b a) (resolveD ds b c)
-  | .nof n cs => .nof (resolveD ds b n) (resolveItems ds b cs)
-  | .must c m => .must (resolveD ds b c) m
-  | .when c t e => .when (resolveD ds b c) (resolveD ds b t) (resolveSpread ds b e)
-  | .contains c n => .contains (resolveD ds b c) (resolveD ds b n)
-  | .rest t cs => .rest (resolveD ds b t) (resolveCovers ds b cs)
-  | .ride k v r => .ride k (resolveD ds b v) r
+    | f, args => callTerm ds f (resolveItems ds b here args)
+  | .len c => .len (resolveD ds b here c)
+  | .map fs spread closed =>
+    .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
+  | .list items spread closed =>
+    .list (resolveElems ds b here 0 items) (resolveSpread ds none (stepped here .spread) spread) closed
+  | .or arms => .or (resolveArms ds b here arms)
+  | .pref r x => .pref r (resolveD ds b here x)
+  | .meet a c => .meet (resolveD ds b here a) (resolveD ds b here c)
+  | .nof n cs => .nof (resolveD ds b here n) (resolveItems ds b here cs)
+  | .must c m => .must (resolveD ds b here c) m
+  | .when c t e => .when (resolveD ds b here c) (resolveD ds b here t) (resolveSpread ds b here e)
+  | .contains c n => .contains (resolveD ds b here c) (resolveD ds b here n)
+  | .rest t cs => .rest (resolveD ds b here t) (resolveCovers ds b here cs)
+  | .ride k v r => .ride k (resolveD ds b here v) r
+  | .keyUp n =>
+    match here with
+    | some pos => keyUpAt pos n
+    | none => .keyUp n
   | .hole => b.getD .hole
   | v => v
   termination_by structural v => v
 
-def resolveFields (ds : Decls) (b : Option Val) : List (String × Bool × Val) → List (String × Bool × Val)
+def resolveFields (ds : Decls) (b : Option Val) (here : Option (List Step)) :
+    List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
-  | (k, o, v) :: fs => (k, o, resolveD ds b v) :: resolveFields ds b fs
+  | (k, o, v) :: fs => (k, o, resolveD ds b (stepped here (.seg (.key k))) v) :: resolveFields ds b here fs
   termination_by structural fs => fs
 
-def resolveItems (ds : Decls) (b : Option Val) : List Val → List Val
+def resolveElems (ds : Decls) (b : Option Val) (here : Option (List Step)) : ℕ → List Val → List Val
+  | _, [] => []
+  | i, v :: vs => resolveD ds b (stepped here (.seg (.idx i))) v :: resolveElems ds b here (i + 1) vs
+  termination_by structural _ vs => vs
+
+def resolveItems (ds : Decls) (b : Option Val) (here : Option (List Step)) : List Val → List Val
   | [] => []
-  | v :: vs => resolveD ds b v :: resolveItems ds b vs
+  | v :: vs => resolveD ds b here v :: resolveItems ds b here vs
   termination_by structural vs => vs
 
-def resolveSpread (ds : Decls) (b : Option Val) : Option Val → Option Val
+def resolveSpread (ds : Decls) (b : Option Val) (here : Option (List Step)) : Option Val → Option Val
   | none => none
-  | some s => some (resolveD ds b s)
+  | some s => some (resolveD ds b here s)
   termination_by structural sp => sp
 
-def resolveArms (ds : Decls) (b : Option Val) : List (ℕ × Val) → List (ℕ × Val)
+def resolveArms (ds : Decls) (b : Option Val) (here : Option (List Step)) : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
-  | (r, a) :: arms => (r, resolveD ds b a) :: resolveArms ds b arms
+  | (r, a) :: arms => (r, resolveD ds b here a) :: resolveArms ds b here arms
   termination_by structural arms => arms
 
-def resolvePairs (ds : Decls) (b : Option Val) : List (Val × Val) → List (Val × Val)
+def resolvePairs (ds : Decls) (b : Option Val) (here : Option (List Step)) : List (Val × Val) → List (Val × Val)
   | [] => []
-  | (p, r) :: ps => (resolveD ds b p, resolveD ds b r) :: resolvePairs ds b ps
+  | (p, r) :: ps => (resolveD ds b here p, resolveD ds b here r) :: resolvePairs ds b here ps
   termination_by structural ps => ps
 
-def resolveCovers (ds : Decls) (b : Option Val) : List Cover → List Cover
+def resolveCovers (ds : Decls) (b : Option Val) (here : Option (List Step)) : List Cover → List Cover
   | [] => []
-  | (c, k, m) :: cs => (resolveSpread ds b c, resolveSpread ds b k, resolveSpread ds b m) :: resolveCovers ds b cs
+  | (c, k, m) :: cs =>
+    (resolveSpread ds b here c, resolveSpread ds b here k, resolveSpread ds b here m) :: resolveCovers ds b here cs
   termination_by structural cs => cs
 end
 
-/-- How a document reads: its term expanded, with its selections made. -/
-def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (ds.read S)
+/-- How a document reads: its term expanded, with its selections made and
+each key placed, the document standing at the top. -/
+def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.read S)
 
-theorem resolveFields_eq {ds : Decls} {b : Option Val} : ∀ {fs : List (String × Bool × Val)},
-    (∀ k o v, (k, o, v) ∈ fs → resolveD ds b v = v) → resolveFields ds b fs = fs
-  | [], _ => rfl
-  | (k, o, v) :: fs, h => by
-    simp only [resolveFields]
-    rw [h k o v (List.mem_cons_self),
-      resolveFields_eq fun k' o' v' hm => h k' o' v' (List.mem_cons_of_mem _ hm)]
+/-- How a document reads with its keys as written: the root its paths
+read, so that a key a path reaches reads where the path lands. -/
+def Decls.readU (ds : Decls) (S : Val) : Val := resolveD ds none none (ds.read S)
 
-theorem resolveItems_eq {ds : Decls} {b : Option Val} : ∀ {vs : List Val},
-    (∀ v, v ∈ vs → resolveD ds b v = v) → resolveItems ds b vs = vs
-  | [], _ => rfl
-  | v :: vs, h => by
-    simp only [resolveItems]
-    rw [h v (List.mem_cons_self), resolveItems_eq fun v' hm => h v' (List.mem_cons_of_mem _ hm)]
-
-theorem resolveSpread_eq {ds : Decls} {b : Option Val} : ∀ {sp : Option Val},
-    (∀ s, sp = some s → resolveD ds b s = s) → resolveSpread ds b sp = sp
-  | none, _ => rfl
-  | some s, h => by simp only [resolveSpread]; rw [h s rfl]
-
-theorem resolveArms_eq {ds : Decls} {b : Option Val} : ∀ {arms : List (ℕ × Val)},
-    (∀ r a, (r, a) ∈ arms → resolveD ds b a = a) → resolveArms ds b arms = arms
-  | [], _ => rfl
-  | (r, a) :: arms, h => by
-    simp only [resolveArms]
-    rw [h r a (List.mem_cons_self), resolveArms_eq fun r' a' hm => h r' a' (List.mem_cons_of_mem _ hm)]
-
-theorem resolveCovers_eq {ds : Decls} {b : Option Val} : ∀ {cs : List Cover},
-    (∀ c, c ∈ cs → (∀ v, c.1 = some v → resolveD ds b v = v) ∧ (∀ v, c.2.1 = some v → resolveD ds b v = v) ∧
-      (∀ v, c.2.2 = some v → resolveD ds b v = v)) →
-    resolveCovers ds b cs = cs
-  | [], _ => rfl
-  | (c, k, m) :: cs, h => by
-    simp only [resolveCovers]
-    obtain ⟨h1, h2, h3⟩ := h (c, k, m) (List.mem_cons_self)
-    rw [resolveSpread_eq h1, resolveSpread_eq h2, resolveSpread_eq h3,
-      resolveCovers_eq fun c' hm => h c' (List.mem_cons_of_mem _ hm)]
-
-theorem mem_resolveFields {ds : Decls} {b : Option Val} : ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
-    (k, o, w) ∈ resolveFields ds b fs → ∃ v, (k, o, v) ∈ fs ∧ w = resolveD ds b v
+theorem mem_resolveFields {ds : Decls} {b : Option Val} {here : Option (List Step)} :
+    ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
+    (k, o, w) ∈ resolveFields ds b here fs → ∃ v, (k, o, v) ∈ fs ∧ w = resolveD ds b (stepped here (.seg (.key k))) v
   | [], _, _, _, h => nomatch h
   | (k', o', v') :: fs, k, o, w, h => by
     simp only [resolveFields, List.mem_cons, Prod.mk.injEq] at h
@@ -932,8 +926,19 @@ theorem mem_resolveFields {ds : Decls} {b : Option Val} : ∀ {fs : List (String
     · obtain ⟨v, hv, rfl⟩ := mem_resolveFields h
       exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
 
-theorem mem_resolveItems {ds : Decls} {b : Option Val} : ∀ {vs : List Val} {w : Val},
-    w ∈ resolveItems ds b vs → ∃ v, v ∈ vs ∧ w = resolveD ds b v
+theorem mem_resolveElems {ds : Decls} {b : Option Val} {here : Option (List Step)} :
+    ∀ {i : ℕ} {vs : List Val} {w : Val},
+    w ∈ resolveElems ds b here i vs → ∃ v, v ∈ vs ∧ ∃ i', w = resolveD ds b (stepped here (.seg (.idx i'))) v
+  | _, [], _, h => nomatch h
+  | i, v' :: vs, w, h => by
+    simp only [resolveElems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v', List.mem_cons_self, i, rfl⟩
+    · obtain ⟨v, hv, i', rfl⟩ := mem_resolveElems h
+      exact ⟨v, List.mem_cons_of_mem _ hv, i', rfl⟩
+
+theorem mem_resolveItems {ds : Decls} {b : Option Val} {here : Option (List Step)} : ∀ {vs : List Val} {w : Val},
+    w ∈ resolveItems ds b here vs → ∃ v, v ∈ vs ∧ w = resolveD ds b here v
   | [], _, h => nomatch h
   | v' :: vs, w, h => by
     simp only [resolveItems, List.mem_cons] at h
@@ -942,13 +947,14 @@ theorem mem_resolveItems {ds : Decls} {b : Option Val} : ∀ {vs : List Val} {w 
     · obtain ⟨v, hv, rfl⟩ := mem_resolveItems h
       exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
 
-theorem resolveSpread_some {ds : Decls} {b : Option Val} : ∀ {sp : Option Val} {w : Val},
-    resolveSpread ds b sp = some w → ∃ s, sp = some s ∧ w = resolveD ds b s
+theorem resolveSpread_some {ds : Decls} {b : Option Val} {here : Option (List Step)} : ∀ {sp : Option Val} {w : Val},
+    resolveSpread ds b here sp = some w → ∃ s, sp = some s ∧ w = resolveD ds b here s
   | none, _, h => nomatch h
   | some s, _, h => by simp only [resolveSpread, Option.some.injEq] at h; exact ⟨s, rfl, h.symm⟩
 
-theorem mem_resolveArms {ds : Decls} {b : Option Val} : ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
-    (r, w) ∈ resolveArms ds b arms → ∃ a, (r, a) ∈ arms ∧ w = resolveD ds b a
+theorem mem_resolveArms {ds : Decls} {b : Option Val} {here : Option (List Step)} :
+    ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
+    (r, w) ∈ resolveArms ds b here arms → ∃ a, (r, a) ∈ arms ∧ w = resolveD ds b here a
   | [], _, _, h => nomatch h
   | (r', a') :: arms, r, w, h => by
     simp only [resolveArms, List.mem_cons, Prod.mk.injEq] at h
@@ -957,8 +963,9 @@ theorem mem_resolveArms {ds : Decls} {b : Option Val} : ∀ {arms : List (ℕ ×
     · obtain ⟨a, ha, rfl⟩ := mem_resolveArms h
       exact ⟨a, List.mem_cons_of_mem _ ha, rfl⟩
 
-theorem mem_resolvePairs {ds : Decls} {b : Option Val} : ∀ {ps : List (Val × Val)} {p r : Val},
-    (p, r) ∈ resolvePairs ds b ps → ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = resolveD ds b p₀ ∧ r = resolveD ds b r₀
+theorem mem_resolvePairs {ds : Decls} {b : Option Val} {here : Option (List Step)} :
+    ∀ {ps : List (Val × Val)} {p r : Val},
+    (p, r) ∈ resolvePairs ds b here ps → ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = resolveD ds b here p₀ ∧ r = resolveD ds b here r₀
   | [], _, _, h => nomatch h
   | (p', r') :: ps, p, r, h => by
     simp only [resolvePairs, List.mem_cons, Prod.mk.injEq] at h
@@ -967,9 +974,9 @@ theorem mem_resolvePairs {ds : Decls} {b : Option Val} : ∀ {ps : List (Val × 
     · obtain ⟨p₀, r₀, hm, rfl, rfl⟩ := mem_resolvePairs h
       exact ⟨p₀, r₀, List.mem_cons_of_mem _ hm, rfl, rfl⟩
 
-theorem mem_resolveCovers {ds : Decls} {b : Option Val} : ∀ {cs : List Cover} {c : Cover},
-    c ∈ resolveCovers ds b cs → ∃ c₀, c₀ ∈ cs ∧ c.1 = resolveSpread ds b c₀.1 ∧
-      c.2.1 = resolveSpread ds b c₀.2.1 ∧ c.2.2 = resolveSpread ds b c₀.2.2
+theorem mem_resolveCovers {ds : Decls} {b : Option Val} {here : Option (List Step)} : ∀ {cs : List Cover} {c : Cover},
+    c ∈ resolveCovers ds b here cs → ∃ c₀, c₀ ∈ cs ∧ c.1 = resolveSpread ds b here c₀.1 ∧
+      c.2.1 = resolveSpread ds b here c₀.2.1 ∧ c.2.2 = resolveSpread ds b here c₀.2.2
   | [], _, h => nomatch h
   | (c₁, k₁, m₁) :: cs, c, h => by
     simp only [resolveCovers, List.mem_cons] at h
@@ -977,6 +984,18 @@ theorem mem_resolveCovers {ds : Decls} {b : Option Val} : ∀ {cs : List Cover} 
     · exact ⟨(c₁, k₁, m₁), List.mem_cons_self, rfl, rfl, rfl⟩
     · obtain ⟨c₀, hc, h1, h2, h3⟩ := mem_resolveCovers h
       exact ⟨c₀, List.mem_cons_of_mem _ hc, h1, h2, h3⟩
+
+/-- A key placed at a position is one the checker can read. -/
+theorem keyUpAt_checkableA (pos : List Step) (n : ℤ) : (keyUpAt pos n).CheckableA := by
+  unfold keyUpAt
+  split
+  · exact .lit
+  · split
+    · exact .lit
+    · split
+      · exact .key
+      · exact .keyUp
+    · exact .lit
 
 /-- The selection a literal makes is one of its arms' results, its
 default, or `nil`, each of which the checker can read. -/
@@ -1456,16 +1475,16 @@ theorem callTerm_rep_checkableA {ds : Decls} {a b c : Val} :
 /-- A `split` call reads to a term the checker can read whatever its
 arguments are, a pattern among them, which the checker cannot read,
 since `split` never waits. -/
-theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {a b : Val} (k : ℕ) :
-    (resolveD ds bd (expandF ds k (.call .split [a, b]))).CheckableA := by
+theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {here : Option (List Step)} {a b : Val} (k : ℕ) :
+    (resolveD ds bd here (expandF ds k (.call .split [a, b]))).CheckableA := by
   cases k with
   | zero => simp only [expandF, resolveD, resolveItems]; exact callTerm_split_checkableA
   | succ k => simp only [expandF, List.map, resolveD, resolveItems]; exact callTerm_split_checkableA
 
 /-- A `rep` call reads to a term the checker can read whatever its
 arguments are, since `rep` never waits. -/
-theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {a b c : Val} (k : ℕ) :
-    (resolveD ds bd (expandF ds k (.call .rep [a, b, c]))).CheckableA := by
+theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {here : Option (List Step)} {a b c : Val} (k : ℕ) :
+    (resolveD ds bd here (expandF ds k (.call .rep [a, b, c]))).CheckableA := by
   cases k with
   | zero => simp only [expandF, resolveD, resolveItems]; exact callTerm_rep_checkableA
   | succ k => simp only [expandF, List.map, resolveD, resolveItems]; exact callTerm_rep_checkableA
@@ -1513,12 +1532,12 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     · exact .call h
 
 theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
-    (h : v.CheckableA) : ∀ {b : Option Val}, (∀ m, b = some m → m.CheckableA) →
-      (resolveD ds b v).CheckableA := by
+    (h : v.CheckableA) : ∀ {b : Option Val} {here : Option (List Step)}, (∀ m, b = some m → m.CheckableA) →
+      (resolveD ds b here v).CheckableA := by
   induction h with
-  | len _ ih => intro b hb; simp only [resolveD]; exact .len (ih hb)
+  | len _ ih => intro b here hb; simp only [resolveD]; exact .len (ih hb)
   | @map fs spread closed _ _ ihf ihs =>
-    intro b hb
+    intro b here hb
     simp only [resolveD]
     refine .map (fun k o w hw => ?_) (fun s hs' => ?_)
     · obtain ⟨v, hv, rfl⟩ := mem_resolveFields hw
@@ -1526,38 +1545,38 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     · obtain ⟨s, hs, rfl⟩ := resolveSpread_some hs'
       exact ihs s hs fun _ h => nomatch h
   | @list items spread closed _ _ ihi ihs =>
-    intro b hb
+    intro b here hb
     simp only [resolveD]
     refine .list (fun w hw => ?_) (fun s hs' => ?_)
-    · obtain ⟨v, hv, rfl⟩ := mem_resolveItems hw
+    · obtain ⟨v, hv, i, rfl⟩ := mem_resolveElems hw
       exact ihi v hv hb
     · obtain ⟨s, hs, rfl⟩ := resolveSpread_some hs'
       exact ihs s hs fun _ h => nomatch h
   | or _ ih =>
-    intro b hb
+    intro b here hb
     simp only [resolveD]
     refine .or fun r w hw => ?_
     obtain ⟨a, ha, rfl⟩ := mem_resolveArms hw
     exact ih r a ha hb
-  | pref _ ih => intro b hb; simp only [resolveD]; exact .pref (ih hb)
-  | ride _ ih => intro b hb; simp only [resolveD]; exact .ride (ih hb)
-  | meet _ _ iha ihb => intro b hb; simp only [resolveD]; exact .meet (iha hb) (ihb hb)
+  | pref _ ih => intro b here hb; simp only [resolveD]; exact .pref (ih hb)
+  | ride _ ih => intro b here hb; simp only [resolveD]; exact .ride (ih hb)
+  | meet _ _ iha ihb => intro b here hb; simp only [resolveD]; exact .meet (iha hb) (ihb hb)
   | nof _ _ ihn ihcs =>
-    intro b hb
+    intro b here hb
     simp only [resolveD]
     refine .nof (ihn hb) fun c hc => ?_
     obtain ⟨c₀, hc₀, rfl⟩ := mem_resolveItems hc
     exact ihcs c₀ hc₀ hb
-  | must _ ih => intro b hb; simp only [resolveD]; exact .must (ih hb)
+  | must _ ih => intro b here hb; simp only [resolveD]; exact .must (ih hb)
   | when _ _ _ ihc iht ihe =>
-    intro b hb
+    intro b here hb
     simp only [resolveD]
     refine .when (ihc hb) (iht hb) fun e he => ?_
     obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
     exact ihe e₀ he₀ hb
-  | contains _ _ ihc ihn => intro b hb; simp only [resolveD]; exact .contains (ihc hb) (ihn hb)
+  | contains _ _ ihc ihn => intro b here hb; simp only [resolveD]; exact .contains (ihc hb) (ihn hb)
   | rest _ _ _ _ iht ih1 ih2 ih3 =>
-    intro b hb
+    intro b here hb
     simp only [resolveD]
     refine .rest (iht hb) (fun c hc v hv => ?_) (fun c hc v hv => ?_) (fun c hc v hv => ?_)
     · obtain ⟨c₀, hc₀, h1, -, -⟩ := mem_resolveCovers hc
@@ -1573,12 +1592,12 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       obtain ⟨w, hw, rfl⟩ := resolveSpread_some hv
       exact ih3 c₀ hc₀ w hw hb
   | @selectKey arms d _ _ _ ihp ihr ihd =>
-    intro b hb
+    intro b here hb
     simp only [resolveD]
     show (match genD ds .key with
-      | some x => if callPairs (resolvePairs ds b arms) then Val.select .key (resolvePairs ds b arms)
-          (resolveSpread ds b d) else selectArm ds x (resolvePairs ds b arms) (resolveSpread ds b d)
-      | none => .select .key (resolvePairs ds b arms) (resolveSpread ds b d)).CheckableA
+      | some x => if callPairs (resolvePairs ds b here arms) then Val.select .key (resolvePairs ds b here arms)
+          (resolveSpread ds b here d) else selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)
+      | none => .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds .key = none := rfl
     rw [hg]
     refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
@@ -1589,12 +1608,12 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
       exact ihd e₀ he₀ hb
   | @selectLit sc arms d _ _ _ ihp ihr ihd =>
-    intro b hb
+    intro b here hb
     simp only [resolveD]
     show (match genD ds (.lit sc) with
-      | some x => if callPairs (resolvePairs ds b arms) then Val.select (.lit sc) (resolvePairs ds b arms)
-          (resolveSpread ds b d) else selectArm ds x (resolvePairs ds b arms) (resolveSpread ds b d)
-      | none => .select (.lit sc) (resolvePairs ds b arms) (resolveSpread ds b d)).CheckableA
+      | some x => if callPairs (resolvePairs ds b here arms) then Val.select (.lit sc) (resolvePairs ds b here arms)
+          (resolveSpread ds b here d) else selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)
+      | none => .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds (.lit sc) = some sc.data := rfl
     rw [hg]
     dsimp only
@@ -1612,7 +1631,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
         exact ihd e₀ he₀ hb
   | @call f args _ ih =>
-    intro b hb
+    intro b here hb
     rw [resolveD.eq_def]
     dsimp only
     split
@@ -1621,9 +1640,9 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       · rename_i ms hms
         refine .list (fun w hw => ?_) (fun _ hs => by cases hs)
         obtain ⟨m, hm, rfl⟩ := List.mem_map.mp hw
-        have hn := normaliseD_checkableA hd (ih d (by simp) hb)
-        have hmc : m.CheckableA := Val.members_checkableA hn hms m hm
-        exact ih t (by simp) (b := some m) fun m' hm' => by
+        have hn := normaliseD_checkableA hd (ih d (by simp) (here := here) hb)
+        have hmc : m.1.CheckableA := Val.members_checkableA hn hms _ (List.fst_mem_of_mem_zipIdx hm)
+        exact ih t (by simp) (b := some m.1) fun m' hm' => by
           obtain rfl := Option.some.inj hm'
           exact hmc
       · exact .nil
@@ -1634,7 +1653,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         obtain ⟨m, hm, hmw⟩ := List.mem_map.mp hw
         simp only [Prod.mk.injEq] at hmw
         obtain ⟨-, -, rfl⟩ := hmw
-        have hn := normaliseD_checkableA hd (ih d (by simp) hb)
+        have hn := normaliseD_checkableA hd (ih d (by simp) (here := here) hb)
         refine mergeKeys_checkableA (fun _ h => absurd h List.not_mem_nil) (fun p hp => ?_) m hm
         obtain ⟨m', hm', rfl⟩ := List.mem_map.mp hp
         have hmc : m'.2.CheckableA := Val.keyedMembers_checkableA hn hms m' hm'
@@ -1646,17 +1665,30 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
       exact ih a₀ ha₀ hb
   | hole =>
-    intro b hb
+    intro b here hb
     simp only [resolveD]
     cases b with
     | none => exact .hole
     | some m => exact hb m rfl
-  | _ => intro b hb; simp only [resolveD]; constructor
+  | keyUp =>
+    intro b here hb
+    simp only [resolveD]
+    cases here with
+    | none => exact .keyUp
+    | some pos => exact keyUpAt_checkableA pos _
+  | _ => intro b here hb; simp only [resolveD]; constructor
 
 /-- A document whose schema the checker can read reads as its expansion. -/
 theorem readR_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
     (ds.readR S).CheckableA := by
   unfold Decls.readR
+  exact resolveD_checkableA hb (expand_checkableA hb hS) fun _ h => nomatch h
+
+/-- A document whose schema the checker can read reads, with its keys as
+written, as a term it can read too. -/
+theorem readU_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
+    (ds.readU S).CheckableA := by
+  unfold Decls.readU
   exact resolveD_checkableA hb (expand_checkableA hb hS) fun _ h => nomatch h
 
 /-- The first pattern the scrutinee's value satisfies selects its result. -/
@@ -1674,16 +1706,18 @@ none the selection is `nil`: an error, not an empty answer. -/
 theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm ds x [] d = d.getD .nil := rfl
 
 /-- A `filter` over a list keeps the elements its condition admits, in
-their order, the condition read for each element it tries. -/
-theorem resolveD_filter_list {ds : Decls} {b : Option Val} {s c : Val} {xs : List Data}
-    (h : genD ds (resolveD ds b s) = some (.list xs)) :
-    resolveD ds b (.filter s c) =
-      (Data.list (xs.filter fun x => checkR ds (resolveD ds (some x.term) c) x)).term := by
+their order, the condition read for each element it tries, at the index
+the element takes among those kept. -/
+theorem resolveD_filter_list {ds : Decls} {b : Option Val} {here : Option (List Step)} {s c : Val}
+    {xs : List Data} (h : genD ds (resolveD ds b here s) = some (.list xs)) :
+    resolveD ds b here (.filter s c) =
+      (Data.list (keptAt (fun i x => checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x)
+        0 xs)).term := by
   simp [resolveD, h]
 
 /-- A `filter` over a scalar, which has no members, is `nil`: an error. -/
-theorem resolveD_filter_scalar {ds : Decls} {b : Option Val} {s c : Val} {x : Scalar}
-    (h : genD ds (resolveD ds b s) = some x.data) : resolveD ds b (.filter s c) = .nil := by
+theorem resolveD_filter_scalar {ds : Decls} {b : Option Val} {here : Option (List Step)} {s c : Val}
+    {x : Scalar} (h : genD ds (resolveD ds b here s) = some x.data) : resolveD ds b here (.filter s c) = .nil := by
   cases x <;> simp [resolveD, h, Scalar.data]
 
 /-! ## The folds
@@ -2318,8 +2352,8 @@ end
 /-- A `filter` whose source generates a value reads to a term the
 checker can read, whatever its condition holds: the members it admits,
 or `nil`. -/
-theorem resolveD_filter_checkableA {ds : Decls} {b : Option Val} {s c : Val}
-    (h : (genD ds (resolveD ds b s)).isSome) : (resolveD ds b (.filter s c)).CheckableA := by
+theorem resolveD_filter_checkableA {ds : Decls} {b : Option Val} {here : Option (List Step)} {s c : Val}
+    (h : (genD ds (resolveD ds b here s)).isSome) : (resolveD ds b here (.filter s c)).CheckableA := by
   obtain ⟨x, hx⟩ := Option.isSome_iff_exists.mp h
   rw [resolveD.eq_def]
   dsimp only
