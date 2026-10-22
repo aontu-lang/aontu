@@ -1102,6 +1102,57 @@ theorem maybe_verdict_exact : ∀ c ∈ maybeCases, ∀ (m : Mode) (v : Verdict)
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (maybeCases_checkable c hc).1 (maybeCases_checkable c hc).2 v
 
+/-- `pref` over a literal, a map, a list, a disjunction with a preferred
+arm and one with a kind, a kind, a bound, a preference, `null`, a
+boolean and a map arm beside a literal; over a path, a call, absence and
+a path into its map; and met with a preference. -/
+def prefCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let pf (v : Val) : Val := .call .pref [v]
+  [([], m [("b", pf (int 1))], .map []),
+    ([], m [("b", pf (int 1))], .map [("b", j 2)]),
+    ([], m [("b", pf (int 1))], .map [("b", .str "x")]),
+    ([], m [("b", pf (m [("x", int 1)]))], .map []),
+    ([], m [("b", pf (m [("x", int 1)]))], .map [("b", .map [("x", j 2)])]),
+    ([], m [("b", pf (m [("x", int 1)]))], .map [("b", .map [("x", .str "y")])]),
+    ([], m [("b", pf (lst [int 1, int 2]))], .map []),
+    ([], m [("b", pf (lst [int 1, int 2]))], .map [("b", .list [j 3, j 4])]),
+    ([], m [("b", pf (lst [int 1, int 2]))], .map [("b", .list [j 3])]),
+    ([], m [("b", pf (.or [(1, int 1), (0, int 2)]))], .map []),
+    ([], m [("b", pf (.or [(1, int 1), (0, int 2)]))], .map [("b", j 1)]),
+    ([], m [("b", pf (.or [(0, int 1), (0, .number)]))], .map []),
+    ([], m [("b", pf (.or [(0, int 1), (0, .number)]))], .map [("b", j 5)]),
+    ([], m [("b", pf (.or [(0, int 1), (0, int 2)]))], .map []),
+    ([], m [("b", pf (.or [(0, .lit (.str "x")), (0, .lit (.str "y"))]))], .map [("b", .str "x")]),
+    ([], m [("b", pf .integer)], .map []),
+    ([], m [("b", pf .integer)], .map [("b", j 3)]),
+    ([], m [("b", pf .integer)], .map [("b", .num (.float (.dyadic 3 (-1))))]),
+    ([], m [("b", pf (.above (.num (.integer (.of 1)))))], .map [("b", j 0)]),
+    ([], m [("b", pf (.pref 2 (int 1)))], .map []),
+    ([], m [("b", .meet (pf (.pref 1 (int 1))) (.pref 1 (int 2)))], .map []),
+    ([], m [("b", .meet (pf (int 1)) (pf (int 2)))], .map []),
+    ([], m [("b", pf (.lit .null))], .map [("b", j 1)]),
+    ([], m [("b", pf (.lit (.bool true)))], .map [("b", .bool false)]),
+    ([], m [("b", pf (.or [(0, m [("x", int 1)]), (0, int 2)]))], .map []),
+    ([], m [("a", int 1), ("b", pf (p ["a"]))], .map []),
+    ([], m [("a", int 1), ("b", pf (p ["a"]))], .map [("b", j 2)]),
+    ([], m [("b", pf (.call .add [int 1, int 2]))], .map []),
+    ([], m [("b", pf (.call .add [int 1, int 2]))], .map [("b", j 4)]),
+    ([], m [("b", pf (.call .maybe [p ["gone"]]))], .map []),
+    ([], m [("b", pf (m [("x", int 1)])), ("c", p ["b", "x"])], .map []),
+    ([], m [("b", pf (m [("x", int 1)])), ("c", p ["b", "x"])], .map [("c", j 2)])]
+
+theorem prefCases_checkable : ∀ c ∈ prefCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem pref_verdict_exact : ∀ c ∈ prefCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (prefCases_checkable c hc).1 (prefCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, the schema's braces dropped since neither CLI reads a braced
 map after a declaration, in the three modes, with the one class `vetP`
@@ -1919,7 +1970,8 @@ def forms : List (String × String × String) :=
     ("call", "call", "greatest"), ("call", "syntax", "+"), ("call", "call", "join"),
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
-    ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "split"),
+    ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "pref"),
+    ("call", "call", "split"),
     ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "abnf"),
     ("call", "call", "parse"), ("call", "call", "project"),
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
@@ -1951,7 +2003,7 @@ def formSamples : List (String × Val) :=
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
-    ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
+    ("pref", .call .pref [.integer]), ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
     ("nom", .call .nom [.string]), ("path", .call .path [.string]), ("project", .call (.cmp .project) []),
     ("folder", .call (.cmp .folder) [.string]), ("file", .call (.cmp .file) [.string]),
     ("content", .call (.cmp .content) [.string]), ("line", .call (.cmp .line) [.string]),
@@ -3428,12 +3480,14 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# and key(n) reached through a path or a name, read where it lands, in rows r0 on."
     IO.println "# Relative paths, made absolute where each stands, follow in rows j0 on, and"
     IO.println "# maybe, absence where all that is wrong with a path is that it names nothing,"
-    IO.println "# in rows mb0 on."
+    IO.println "# in rows mb0 on, and pref, each literal a preference and each preference a"
+    IO.println "# rank weaker, in rows pf0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
     pathRows "j" relPathCases
     pathRows "mb" maybeCases
+    pathRows "pf" prefCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

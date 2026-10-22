@@ -29,14 +29,14 @@ def Cmp.name : Cmp → String
 
 /-- The functions on numbers, the folds on a bag of them, `+`, the calls
 on bags and text, `join`, `pick`, `sort`, `upper`, `lower`,
-`translate`, `esc`, `usc`, `split`, `rep` and `nom`, `super` written as
-a call, `path`, `abnf` and `parse`, the components, the generators
-`each` and `pack`, and `maybe`, where absence is made. -/
+`translate`, `esc`, `usc`, `split`, `rep` and `nom`, `super` and `pref`
+written as calls, `path`, `abnf` and `parse`, the components, the
+generators `each` and `pack`, and `maybe`, where absence is made. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
   | plus | join | pick | sort | upper | lower | translate | esc | usc | split | rep | nom
-  | super | path | abnf | parse
+  | super | pref | path | abnf | parse
   | cmp (c : Cmp)
   | each | pack
   | maybe

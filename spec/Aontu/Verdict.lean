@@ -769,6 +769,52 @@ def parseOf (ds : Decls) (g : Val) (v : Option Val) : Made :=
   | .lit _ | .map _ _ _ | .list _ _ _ => .refused
   | _ => .waits
 
+/-- Whether a term is a scalar literal or an address, the leaves `pref`
+makes preferences of. -/
+def Val.prefLeaf : Val → Bool
+  | .lit _ | .addr _ => true
+  | _ => false
+
+mutual
+/-- What `pref` makes of its argument in normal form, as both ports walk
+it: each scalar literal and each address a preference of rank one, and
+each preference and each preferred arm of a disjunction a rank weaker,
+a plain arm that is a leaf preferred; each member of a map and of a
+list, each side of a meet and the value under a rider read so too, a
+spread left as written; a path not read yet and a call that waits read
+as `pref` of themselves, which waits; and a kind, a bound and any other
+constraint left as they are. -/
+def Val.prefer : Val → Val
+  | .lit s => .pref 1 (.lit s)
+  | .addr a => .pref 1 (.addr a)
+  | .pref r x => .pref (r + 1) x
+  | .map fs spread closed => .map (preferFields fs) spread closed
+  | .list items spread closed => .list (preferItems items) spread closed
+  | .or arms => .or (preferArms arms)
+  | .meet a b => .meet a.prefer b.prefer
+  | .ride k v r => .ride k v.prefer r
+  | .path p => .call .pref [.path p]
+  | .call f args => .call .pref [.call f args]
+  | v => v
+  termination_by structural v => v
+
+def preferFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.prefer) :: preferFields fs
+  termination_by structural fs => fs
+
+def preferItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.prefer :: preferItems vs
+  termination_by structural vs => vs
+
+def preferArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms =>
+    (if r == 0 && !a.unride.prefLeaf then (0, a.prefer) else (r + 1, a)) :: preferArms arms
+  termination_by structural arms => arms
+end
+
 /-- What a call that can wait is as a term: the term it makes, `nil`
 where it refuses its arguments, and itself, its arguments in normal
 form, where it waits. -/
@@ -785,6 +831,7 @@ its function's own reading makes, `joinOf`, `pickOf`, `sortOf`,
 component's call, with the arguments it takes, the node `cmpOf` makes; a `super` its
 argument's parent type, `Val.super` read before the normal form, so
 that a preference reads as its default, as `super(*1)` is `integer`;
+a `pref` what `Val.prefer` makes of its argument's normal form;
 any other call the number `callValue` computes, where it computes one,
 and itself otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
@@ -809,6 +856,7 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .usc, [s] => (escOf ds false s none).term ds f args
   | .usc, [s, v] => (escOf ds false s (some v)).term ds f args
   | .super, [x] => x.super
+  | .pref, [x] => (normaliseD ds x).prefer
   | .split, [s, sep] => (splitOf ds s sep).term ds f args
   | .rep, [s, p, r] => (repOf ds s p r).term ds f args
   | .nom, [n] => (nomOf ds n none none).term ds f args
@@ -1760,6 +1808,84 @@ theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a
     · exact callTerm_rep_checkableA
 
 /-- A call's term is one the checker can read where its arguments are. -/
+theorem mem_preferFields :
+    ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
+      (k, o, w) ∈ preferFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.prefer
+  | [], _, _, _, h => nomatch h
+  | (k', o', v') :: fs, k, o, w, h => by
+    simp only [preferFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact ⟨v', List.mem_cons_self, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := mem_preferFields h
+      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+
+theorem mem_preferItems : ∀ {vs : List Val} {w : Val}, w ∈ preferItems vs → ∃ v, v ∈ vs ∧ w = v.prefer
+  | [], _, h => nomatch h
+  | v :: vs, w, h => by
+    simp only [preferItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, List.mem_cons_self, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := mem_preferItems h
+      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+
+theorem mem_preferArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
+    (r, x) ∈ preferArms arms → ∃ r' a, (r', a) ∈ arms ∧ (x = a ∨ x = a.prefer)
+  | [], _, _, h => nomatch h
+  | (r', a) :: arms, r, x, h => by
+    simp only [preferArms, List.mem_cons] at h
+    rcases h with h | h
+    · split at h
+      · obtain ⟨-, rfl⟩ := Prod.mk.inj h
+        exact ⟨r', a, List.mem_cons_self, .inr rfl⟩
+      · obtain ⟨-, rfl⟩ := Prod.mk.inj h
+        exact ⟨r', a, List.mem_cons_self, .inl rfl⟩
+    · obtain ⟨r'', b, hb, hx⟩ := mem_preferArms h
+      exact ⟨r'', b, List.mem_cons_of_mem _ hb, hx⟩
+
+/-- `pref` of a term the checker can read is a term it can read. -/
+theorem prefer_checkableA {v : Val} (h : v.CheckableA) : v.prefer.CheckableA := by
+  induction h with
+  | lit => simp only [Val.prefer]; exact .pref .lit
+  | addr => simp only [Val.prefer]; exact .pref .addr
+  | pref h _ => simp only [Val.prefer]; exact .pref h
+  | @map fs spread closed _ hs ihf _ =>
+    simp only [Val.prefer]
+    refine .map (fun k o w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_preferFields hw
+    exact ihf k o v hv
+  | @list items spread closed _ hs ihi _ =>
+    simp only [Val.prefer]
+    refine .list (fun w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_preferItems hw
+    exact ihi v hv
+  | @or arms ha iha =>
+    simp only [Val.prefer]
+    refine .or fun r w hw => ?_
+    obtain ⟨r', a, hm, rfl | rfl⟩ := mem_preferArms hw
+    · exact ha r' a hm
+    · exact iha r' a hm
+  | meet _ _ iha ihb => simp only [Val.prefer]; exact .meet iha ihb
+  | ride _ ih => simp only [Val.prefer]; exact .ride ih
+  | path =>
+    simp only [Val.prefer]
+    refine .call fun a ha => ?_
+    simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
+    rw [ha]; exact .path
+  | call hargs _ =>
+    simp only [Val.prefer]
+    refine .call fun a ha => ?_
+    simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
+    rw [ha]; exact .call hargs
+  | len h _ => simp only [Val.prefer]; exact .len h
+  | nof hn hcs _ _ => simp only [Val.prefer]; exact .nof hn hcs
+  | must h _ => simp only [Val.prefer]; exact .must h
+  | when hc ht he _ _ _ => simp only [Val.prefer]; exact .when hc ht he
+  | contains hc hn _ _ => simp only [Val.prefer]; exact .contains hc hn
+  | rest ht h1 h2 h3 _ _ _ _ => simp only [Val.prefer]; exact .rest ht h1 h2 h3
+  | selectKey hp hr hd _ _ _ => simp only [Val.prefer]; exact .selectKey hp hr hd
+  | selectLit hp hr hd _ _ _ => simp only [Val.prefer]; exact .selectLit hp hr hd
+  | _ => simp only [Val.prefer]; constructor
+
 theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
     {args : List Val} (h : ∀ a, a ∈ args → a.CheckableA) : (callTerm ds f args).CheckableA := by
   unfold callTerm
@@ -1787,6 +1913,7 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact (h _ (by simp)).super
+  · exact prefer_checkableA (normaliseD_checkableA hd (h _ (by simp)))
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => repOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
@@ -2261,7 +2388,7 @@ mutual
 in a spread, which the engines read only against a member, a
 preference clash, a size the meet's container literal breaks, or a
 call the reading could not make. A `+` that waits stands where its
-operands do. -/
+operands do, and a `pref` that waits where its argument does. -/
 def Val.illFormed : Val → Bool
   | .nil => true
   | .map fs _ _ => illFields fs
@@ -2272,6 +2399,7 @@ def Val.illFormed : Val → Bool
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
+  | .call .pref args => args.length != 1 || illItems args
   | .call _ _ => true
   | .select _ arms _ => illPats arms
   | _ => false
@@ -2288,6 +2416,7 @@ def illChain : Val → Bool
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
+  | .call .pref args => args.length != 1 || illItems args
   | .call _ _ => true
   | .select _ arms _ => illPats arms
   | _ => false
