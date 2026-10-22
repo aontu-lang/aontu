@@ -519,7 +519,9 @@ end
 
 /-- What a term leaves for the next step of a path, each with the path
 left after the step: a map's member at the step and its spread, which
-holds every member, and a list's element at the step and its spread. -/
+holds every member, a list's element at the step and its spread, and a
+generator's template, which makes every member of its output, `each`'s
+and `pack`'s. -/
 def Val.stepItems (t : Val) (s : Seg) (p : List Seg) : List (Val × List Seg) :=
   match t with
   | .map fs spread _ =>
@@ -530,6 +532,8 @@ def Val.stepItems (t : Val) (s : Seg) (p : List Seg) : List (Val × List Seg) :=
     (match s.stepIn t with
       | some (.idx i) => items[i]?.toList.map fun w => (w, p)
       | _ => []) ++ spread.toList.map fun sp => (sp, p)
+  | .call .each [_, tmpl] => [(tmpl, p)]
+  | .call .pack [_, tmpl] => [(tmpl, p)]
   | _ => []
 
 /-- A term on a path where no meet, rider or reference stands: the term
@@ -835,6 +839,22 @@ theorem stepItems_checkableA {t : Val} (ht : t.CheckableA) {s : Seg} {p : List S
     · simp only [List.mem_map, Option.mem_toList] at hj
       obtain ⟨sp, hsp, rfl⟩ := hj
       exact hs sp hsp
+  case call f args hargs =>
+    unfold Val.stepItems at hj
+    split at hj
+    next _ _ _ _ heq => cases heq
+    next _ _ _ _ heq => cases heq
+    next _ _ tmpl heq =>
+      injection heq with _ ha
+      subst ha
+      simp only [List.mem_singleton] at hj
+      rw [hj]; exact hargs tmpl (by simp)
+    next _ _ tmpl heq =>
+      injection heq with _ ha
+      subst ha
+      simp only [List.mem_singleton] at hj
+      rw [hj]; exact hargs tmpl (by simp)
+    next => simp at hj
   all_goals simp [Val.stepItems] at hj
 
 theorem landLeaf_checkableA {t : Val} (ht : t.CheckableA) :
