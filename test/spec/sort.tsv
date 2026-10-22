@@ -84,3 +84,9 @@ sort-dir-type	canon	x:sort([1,2], "", type("desc"))	{"x":[2,1]}
 sort-dir-alias	canon	%D = "desc" x:sort([1,2], "", %D)	{"x":[2,1]}
 sort-dir-path	canon	d:desc x:sort([1,2], "", $.d)	{"d":"desc","x":[2,1]}
 sort-dir-preference	errc	x:sort([1,2], "", *desc)	sort_dir
+# ONLY AN ABSENT PROJECTOR IS THE MEMBER ITSELF. A `null` is a value
+# supplied, written or reached through a rider or a path, and names no
+# key, where TypeScript once read a written one as absent.
+sort-projector-null	errc	x:sort([2,1], null)	invalid-arg
+sort-projector-null-rider	errc	x:sort([2,1], meta(null,{}))	invalid-arg
+sort-projector-null-path	errc	p:null x:sort([2,1], $.p)	invalid-arg

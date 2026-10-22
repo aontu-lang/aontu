@@ -2042,6 +2042,12 @@ x2015	verdict	v: sort([1, 2], "", type("desc"))	v: [2, 1]	{"verdict":"valid","op
 x2016	verdict	v: sort([1, 2], "", *("desc"))	v: [2, 1]	{"verdict":"error"}
 x2017	verdict	v: sort([1, 2], "", *("desc"))	v: [2, 1]	{"verdict":"error","opts":{"noFill":true}}
 x2018	verdict	v: sort([1, 2], "", *("desc"))	v: [2, 1]	{"verdict":"error","opts":{"partial":true}}
+x2019	verdict	v: sort([2, 1], null)	v: [1, 2]	{"verdict":"error"}
+x2020	verdict	v: sort([2, 1], null)	v: [1, 2]	{"verdict":"error","opts":{"noFill":true}}
+x2021	verdict	v: sort([2, 1], null)	v: [1, 2]	{"verdict":"error","opts":{"partial":true}}
+x2022	verdict	v: sort([2, 1], meta(null, {}))	v: [1, 2]	{"verdict":"error"}
+x2023	verdict	v: sort([2, 1], meta(null, {}))	v: [1, 2]	{"verdict":"error","opts":{"noFill":true}}
+x2024	verdict	v: sort([2, 1], meta(null, {}))	v: [1, 2]	{"verdict":"error","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}

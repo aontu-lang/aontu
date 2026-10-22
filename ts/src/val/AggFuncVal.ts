@@ -211,7 +211,9 @@ class PickFuncVal extends FuncBaseVal {
 // `pick`'s rule, plus: the empty string is the member itself, which is
 // how a keyless descending sort is spelled.
 function projectorName(key: any): [string, boolean] {
-  if (null == key || null == key.peg) {
+  // Only an absent projector is the member itself: a supplied `null`,
+  // written or reached through a rider or a path, is none.
+  if (undefined === key) {
     return ['', true]
   }
   if ('string' === typeof key.peg) {
@@ -235,7 +237,7 @@ const SORT_DIRECTIONS: Record<string, number> = { asc: 1, desc: -1 }
 
 
 function directionOf(v: any): number | undefined {
-  if (null == v || null == v.peg) {
+  if (undefined === v) {
     return 1
   }
   return 'string' === typeof v.peg ? SORT_DIRECTIONS[v.peg] : undefined

@@ -2636,7 +2636,7 @@ theorem repSub_verdict_exact : ∀ c ∈ repSubCases, ∀ (m : Mode) (v : Verdic
 
 /-- A projector and a direction read as their values, through a rider
 or a mark, as both ports read them (#435); a lone preference stays
-neither. -/
+neither, and so does `null`, which is no absent projector. -/
 def projectorCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -2653,7 +2653,9 @@ def projectorCases : List (Val × Data) :=
     (c .sort [lst [int 1, int 2], rd (str ""), str "desc"], .list [j 2, j 1]),
     (c .sort [lst [int 1, int 2], str "", rd (str "desc")], .list [j 2, j 1]),
     (c .sort [lst [int 1, int 2], str "", .ride .type (str "desc") []], .list [j 2, j 1]),
-    (c .sort [lst [int 1, int 2], str "", .pref 1 (str "desc")], .list [j 2, j 1])]
+    (c .sort [lst [int 1, int 2], str "", .pref 1 (str "desc")], .list [j 2, j 1]),
+    (c .sort [lst [int 2, int 1], .lit .null], .list [j 1, j 2]),
+    (c .sort [lst [int 2, int 1], rd (.lit .null)], .list [j 1, j 2])]
 
 theorem projectorCases_checkable : ∀ c ∈ projectorCases, (vetDoc c).1.CheckableA := by decide
 

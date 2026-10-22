@@ -20,8 +20,12 @@ TypeScript, shared and generated rows, and documentation; no Go change
   is `[1]` and `sort([1, 2], "", %D)` with `%D = "desc"` is `[2, 1]`,
   where TypeScript answered `invalid-arg` and `sort_dir`. A lone
   preference stays no projector and no direction in both ports.
-- `test/spec/agg.tsv` and `test/spec/sort.tsv` gain 13 rows, and
-  `test/spec/def-call.tsv` eight cases in rows x1995 to x2018 and three
+- Only an absent projector or direction reads as none in TypeScript. A
+  supplied `null`, written or reached through a rider or a path, is
+  `invalid-arg`, as Go answers, where TypeScript read
+  `sort([2, 1], null)` as `sort([2, 1])`.
+- `test/spec/agg.tsv` and `test/spec/sort.tsv` gain 16 rows, and
+  `test/spec/def-call.tsv` ten cases in rows x1995 to x2024 and three
   calls on a name in rows z30 to z38. Both ports answer every one alike,
   and as the definition does.
 - A refusal renders a driven argument by its value in TypeScript and
