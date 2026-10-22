@@ -3763,7 +3763,10 @@ whichever the document writes first. It reads each link where it
 lands: where the document writes it, at each member a spread's template
 holds, at each member a generator's template makes, and wherever a path
 reference copies it, each place reading the relative address from where
-it stands. Where a target names nothing in
+it stands. It reads a generator's template as written, though, not as
+each member instantiates it, so a link whose own template holds `_` or
+a `key()` doesn't flow what both engines flow, and it reads no link in
+a generator inside a declaration's body. Where a target names nothing in
 the schema's own tree, the document is an `error`. The definition reads a link in a
 declaration's body at the body's own place, whether a reference reads
 the body or not. Rows from rf0 on of

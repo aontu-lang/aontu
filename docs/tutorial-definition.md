@@ -8061,9 +8061,15 @@ Nor does it read a link or a spread everywhere one can land. A `refer`
 or a `rel` inside a disjunction or a selection is no link the
 definition reads, so its template flows nowhere and its target needn't
 exist, where both engines read it in the arm the selection takes. A
-spread whose template reads its member's place, inside a disjunction,
-a selection, a generator's template or an alias's body, keeps its
-template as written, so a relative path in it resolves nowhere.
+link in a generator's template reads the template as written, not as
+each member instantiates it: a hole or a `key()` in the link's own
+template doesn't read the member, and the template lands at each
+member the generator's place holds, one another term writes there
+among them. The definition reads no link in a generator inside a
+declaration's body. A spread whose template reads its member's place,
+inside a disjunction, a selection, a generator's template or an
+alias's body, keeps its template as written, so a relative path in it
+resolves nowhere.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

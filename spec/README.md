@@ -104,6 +104,11 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   (#413);
 - a declaration nothing reads, which both ports evaluate, so that a
   conflict inside it is an error (#417);
+- a link in a generator's template, which P11 reads as written: a
+  hole or a `key()` in the link's own template doesn't read the member,
+  the template lands at each member the generator's place holds, one
+  another term writes there among them, and the definition reads no
+  link in a generator inside a body;
 - a string constraint met with a path value, which both ports read by
   the one address the value spells when the two meet, so that their
   answer depends on the order of the meets: no string constraint
