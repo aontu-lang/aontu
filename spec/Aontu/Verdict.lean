@@ -1835,10 +1835,8 @@ theorem mem_preferArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
     simp only [preferArms, List.mem_cons] at h
     rcases h with h | h
     · split at h
-      · obtain ⟨-, rfl⟩ := Prod.mk.inj h
-        exact ⟨r', a, List.mem_cons_self, .inr rfl⟩
-      · obtain ⟨-, rfl⟩ := Prod.mk.inj h
-        exact ⟨r', a, List.mem_cons_self, .inl rfl⟩
+      · exact ⟨r', a, List.mem_cons_self, .inr (Prod.mk.inj h).2⟩
+      · exact ⟨r', a, List.mem_cons_self, .inl (Prod.mk.inj h).2⟩
     · obtain ⟨r'', b, hb, hx⟩ := mem_preferArms h
       exact ⟨r'', b, List.mem_cons_of_mem _ hb, hx⟩
 
@@ -1861,9 +1859,9 @@ theorem prefer_checkableA {v : Val} (h : v.CheckableA) : v.prefer.CheckableA := 
   | @or arms ha iha =>
     simp only [Val.prefer]
     refine .or fun r w hw => ?_
-    obtain ⟨r', a, hm, rfl | rfl⟩ := mem_preferArms hw
-    · exact ha r' a hm
-    · exact iha r' a hm
+    obtain ⟨r', a, hm, hx | hx⟩ := mem_preferArms hw
+    · rw [hx]; exact ha r' a hm
+    · rw [hx]; exact iha r' a hm
   | meet _ _ iha ihb => simp only [Val.prefer]; exact .meet iha ihb
   | ride _ ih => simp only [Val.prefer]; exact .ride ih
   | path =>
