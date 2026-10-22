@@ -8,6 +8,38 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads `rel`
+
+Definition, generated rows, and documentation. No engine changes.
+P11's fourth slice.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `rel`. `spec/Aontu/Verdict.lean`
+  reads it as the relation kind, `relKind`: an address, or a list or a
+  map whose elements or members are each the relation kind, declared
+  under `relName`, a name no document can write. A string, a number or
+  `true` where an address must be is an `error`, and data that writes
+  the addresses as strings is `invalid`.
+- `spec/Aontu/Paths.lean`: `Decls.withRel` declares the relation kind
+  for every document `Decls.prepared` reads. `Val.refers` reads a `rel`
+  as it reads a `refer`, and each leaf of the relation's value
+  (`Val.addrs`, `linkAddrs`) is a link that `Decls.withRefers` meets the
+  template into, its address read from the relation's own position. The
+  passes count one for each address the links hold
+  (`Decls.referCount`), so a relation's leaf can make another leaf's
+  target.
+- `test/spec/def-path.tsv` gains rows rl0 on, in the three modes of
+  `vet`. Both ports answer every row as the definition does. No row
+  holds a relative address at a leaf of a list or a map: TypeScript and
+  Go read one from different places once containers nest, which #492
+  tracks, and `eval` and `vet` read it from different places even at
+  one level, in both ports, which #493 tracks. #489 now also covers the
+  `rel_unresolved` hint's examples.
+- The definition tutorial gains step 37, relations, and the last step
+  becomes 38, which now lists the links the definition doesn't read
+  where they land: one in a spread's template, or copied by a path
+  reference. The reference's section on declared relations cites
+  `relKind` and `Decls.withRefers`.
+
 ### The definition reads `refer`
 
 Definition, generated rows, and documentation. No engine changes.

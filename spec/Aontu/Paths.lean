@@ -429,18 +429,21 @@ def Decls.withMoves (ds : Decls) (S : Val) : Val :=
 
 /-! ## Links -/
 
-/-- A `refer` call's template, `any` where none is written, at the
-position the call stands at. -/
-def referSrc (pos : List Seg) : Fn → List Val → List (List Seg × Val)
-  | .refer, [] => [(pos, .any)]
-  | .refer, [t] => [(pos, t)]
+/-- A link call's template, `any` where none is written, at the
+position the call stands at, and whether it's a relation, whose value
+holds a link at each leaf: a `refer` or a `rel`. -/
+def referSrc (pos : List Seg) : Fn → List Val → List (List Seg × Val × Bool)
+  | .refer, [] => [(pos, .any, false)]
+  | .refer, [t] => [(pos, t, false)]
+  | .rel, [] => [(pos, .any, true)]
+  | .rel, [t] => [(pos, t, true)]
   | _, _ => []
 
 mutual
-/-- The `refer` calls of a term, each with its template and the position
-it stands at: through maps by key, lists by index, meets and riders,
-where a link's own value stands. -/
-def Val.refers (pos : List Seg) : Val → List (List Seg × Val)
+/-- The `refer` and `rel` calls of a term, each with its template, the
+position it stands at and whether it's a relation: through maps by key,
+lists by index, meets and riders, where a link's own value stands. -/
+def Val.refers (pos : List Seg) : Val → List (List Seg × Val × Bool)
   | .call f args => referSrc pos f args
   | .map fs _ _ => refersFields pos fs
   | .list items _ _ => refersElems pos 0 items
@@ -448,11 +451,11 @@ def Val.refers (pos : List Seg) : Val → List (List Seg × Val)
   | .ride _ v _ => v.refers pos
   | _ => []
 
-def refersFields (pos : List Seg) : List (String × Bool × Val) → List (List Seg × Val)
+def refersFields (pos : List Seg) : List (String × Bool × Val) → List (List Seg × Val × Bool)
   | [] => []
   | (k, _, v) :: fs => v.refers (pos ++ [.key k]) ++ refersFields pos fs
 
-def refersElems (pos : List Seg) : ℕ → List Val → List (List Seg × Val)
+def refersElems (pos : List Seg) : ℕ → List Val → List (List Seg × Val × Bool)
   | _, [] => []
   | i, v :: vs => v.refers (pos ++ [.idx i]) ++ refersElems pos (i + 1) vs
 end
@@ -462,6 +465,38 @@ def Val.addrOf? (v : Val) : Option Addr :=
   match v.unride with
   | .addr a => some a
   | _ => none
+
+mutual
+/-- The addresses at a term's leaves: the term where it's an address,
+and those of each element of a list and each member of a map, through
+meets, riders and a disjunction of one arm, as the relation kind's
+normal form leaves its value. -/
+def Val.addrs : Val → List Addr
+  | .addr a => [a]
+  | .list items _ _ => addrsItems items
+  | .map fs _ _ => addrsFields fs
+  | .meet a b => a.addrs ++ b.addrs
+  | .ride _ v _ => v.addrs
+  | .or arms => addrsArms arms
+  | _ => []
+
+def addrsArms : List (ℕ × Val) → List Addr
+  | [(_, x)] => x.addrs
+  | _ => []
+
+def addrsItems : List Val → List Addr
+  | [] => []
+  | v :: vs => v.addrs ++ addrsItems vs
+
+def addrsFields : List (String × Bool × Val) → List Addr
+  | [] => []
+  | (_, _, v) :: fs => v.addrs ++ addrsFields fs
+end
+
+/-- The addresses a link written in `src` holds at its position: a
+`refer`'s one, and one at each leaf of a relation's value. -/
+def linkAddrs (src : Val) (e : List Seg × Val × Bool) : List Addr :=
+  ((src.at e.1).map fun v => if e.2.2 then v.addrs else v.addrOf?.toList).getD []
 
 /-- The written path an address names from the position its link stands
 at: from the root for `$`, and for `n` dots from the map or list that
@@ -496,22 +531,26 @@ def Val.putW : Val → List Seg → Val → Option Val
     | _ => none
 termination_by structural _ p _ => p
 
+/-- One address's part in the schema: `t` met at the path the address
+names from `pos` (`Addr.from`, `Val.putW`) in the first of `roots` it
+names something in, or `miss` where it names nothing in them or climbs
+past the top. -/
+def referFlow (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val) (a : Addr) :
+    Val :=
+  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p t with
+  | some u => .meet acc u
+  | none => .meet acc miss
+
 /-- One link's part in the schema, the link written in `src` at `home`:
-where `src`'s normal form holds an address at the link's position, the
-template with its marks cleared (`Val.unmark`), as a reference copies
-it, met at the path the address names from where the link stands
-(`Addr.from`, `Val.putW`) in the first of `roots` it names something
-in, or `miss` where it names nothing in them or climbs past the top. A
-link whose position holds no address has no target yet, and meets
-nothing. -/
+for each address `src`'s normal form holds at the link's position
+(`linkAddrs`), the template with its marks cleared (`Val.unmark`), as a
+reference copies it, met at the address's target read from where the
+link stands, a relation's every leaf read from the relation's own
+position. A link whose position holds no address has no target yet,
+and meets nothing. -/
 def referStep (roots : List Val) (miss : Val) (home : List Seg) (src : Val) (acc : Val)
-    (e : List Seg × Val) : Val :=
-  match (src.at e.1).bind Val.addrOf? with
-  | some a =>
-    match (a.from (home ++ e.1)).bind fun p => roots.findSome? fun root => root.putW p e.2.unmark with
-    | some u => .meet acc u
-    | none => .meet acc miss
-  | none => acc
+    (e : List Seg × Val × Bool) : Val :=
+  (linkAddrs src e).foldl (referFlow roots miss (home ++ e.1) e.2.1.unmark) acc
 
 /-- The schema with each link's template met into its target as `roots`
 hold it, and `miss` for each link whose target they don't hold: each
@@ -524,9 +563,12 @@ def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val
       (referStep roots miss [.key ("%" ++ d.1)] (normaliseD ds (ds.readU d.2))) acc)
     ((S.refers []).foldl (referStep roots miss [] ((ds.rootsS S).getLast?.getD .any)) S)
 
-/-- The links a document writes, the schema's and its bodies'. -/
+/-- The flows a document's links make, one for each address they hold:
+the schema's and its bodies', each read as `Decls.referPass` reads it. -/
 def Decls.referCount (ds : Decls) (S : Val) : ℕ :=
-  ds.foldl (fun n d => n + (d.2.refers []).length) (S.refers []).length
+  ds.foldl (fun n d => n + ((d.2.refers []).map fun e =>
+      (linkAddrs (normaliseD ds (ds.readU d.2)) e).length).sum)
+    ((S.refers []).map fun e => (linkAddrs ((ds.rootsS S).getLast?.getD .any) e).length).sum
 
 /-- The schema after `n` passes, each meeting the templates of the links
 whose targets the roots of the last pass's schema hold, so that one
@@ -537,19 +579,23 @@ def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
 
 /-- The schema with each link's template met into its target, so that
 the template flows into the target and a link to nothing is an error:
-read in the roots of the schema after as many passes as the document
-writes links, so that links whose templates make each other's targets
-resolve in any order, a link whose target is still missing meeting
-`nil`. -/
+read in the roots of the schema after as many passes as the links make
+flows, so that links whose templates make each other's targets resolve
+in any order, a link whose target is still missing meeting `nil`. -/
 def Decls.withRefers (ds : Decls) (S : Val) : Val :=
   ds.referPass S (ds.rootsS (ds.referPasses S (ds.referCount S))) .nil
 
-/-- A document as the definition reads it: its relative paths placed
-(`Decls.placed`), the sources its moves read hidden
-(`Decls.withMoves`), and its links' templates met into their targets
-(`Decls.withRefers`). -/
+/-- A document's declarations with the relation kind declared under its
+name, which a `rel` reads as (`relKind`). -/
+def Decls.withRel (ds : Decls) : Decls := ds ++ [(relName, relKind)]
+
+/-- A document as the definition reads it: the relation kind declared
+(`Decls.withRel`), its relative paths placed (`Decls.placed`), the
+sources its moves read hidden (`Decls.withMoves`), and its links'
+templates met into their targets (`Decls.withRefers`). -/
 def Decls.prepared (ds : Decls) (S : Val) : Decls × Val :=
-  ((ds.placed S).1, (ds.placed S).1.withRefers ((ds.placed S).1.withMoves (ds.placed S).2))
+  ((ds.withRel.placed S).1,
+    (ds.withRel.placed S).1.withRefers ((ds.withRel.placed S).1.withMoves (ds.withRel.placed S).2))
 
 theorem hideAt_checkableA : ∀ p, (hideAt p).CheckableA
   | [] => .ride .any
@@ -569,7 +615,7 @@ theorem withMoves_checkableA {ds : Decls} {S : Val} (h : S.CheckableA) :
   foldl_hide_checkableA _ h
 
 theorem referSrc_checkableA {pos : List Seg} {f : Fn} {args : List Val}
-    (h : ∀ a, a ∈ args → a.CheckableA) : ∀ e, e ∈ referSrc pos f args → e.2.CheckableA := by
+    (h : ∀ a, a ∈ args → a.CheckableA) : ∀ e, e ∈ referSrc pos f args → e.2.1.CheckableA := by
   intro e he
   unfold referSrc at he
   split at he
@@ -577,9 +623,13 @@ theorem referSrc_checkableA {pos : List Seg} {f : Fn} {args : List Val}
     rw [he]; exact .any
   · simp only [List.mem_singleton] at he
     rw [he]; exact h _ (by simp)
+  · simp only [List.mem_singleton] at he
+    rw [he]; exact .any
+  · simp only [List.mem_singleton] at he
+    rw [he]; exact h _ (by simp)
   · exact absurd he (by simp)
 
-theorem mem_refersFields {pos : List Seg} : ∀ {fs : List (String × Bool × Val)} {e : List Seg × Val},
+theorem mem_refersFields {pos : List Seg} : ∀ {fs : List (String × Bool × Val)} {e : List Seg × Val × Bool},
     e ∈ refersFields pos fs → ∃ k o v, (k, o, v) ∈ fs ∧ e ∈ v.refers (pos ++ [.key k])
   | [], _, h => nomatch h
   | (k, o, v) :: fs, e, h => by
@@ -589,7 +639,7 @@ theorem mem_refersFields {pos : List Seg} : ∀ {fs : List (String × Bool × Va
     · obtain ⟨k', o', v', hm, h'⟩ := mem_refersFields h
       exact ⟨k', o', v', List.mem_cons_of_mem _ hm, h'⟩
 
-theorem mem_refersElems {pos : List Seg} : ∀ {i : ℕ} {vs : List Val} {e : List Seg × Val},
+theorem mem_refersElems {pos : List Seg} : ∀ {i : ℕ} {vs : List Val} {e : List Seg × Val × Bool},
     e ∈ refersElems pos i vs → ∃ j v, v ∈ vs ∧ e ∈ v.refers (pos ++ [.idx j])
   | _, [], _, h => nomatch h
   | i, v :: vs, e, h => by
@@ -602,7 +652,7 @@ theorem mem_refersElems {pos : List Seg} : ∀ {i : ℕ} {vs : List Val} {e : Li
 /-- Each link's template in a term the checker can read is one it can
 read. -/
 theorem refers_checkableA {v : Val} (h : v.CheckableA) :
-    ∀ pos, ∀ e, e ∈ v.refers pos → e.2.CheckableA := by
+    ∀ pos, ∀ e, e ∈ v.refers pos → e.2.1.CheckableA := by
   induction h
   case map fs spread closed hf hs ihf ihs =>
     intro pos e he
@@ -675,27 +725,36 @@ theorem putW_checkableA {t : Val} (ht : t.CheckableA) :
     · exact absurd h (by simp)
 termination_by p => p
 
-theorem referStep_checkableA {roots : List Val} {miss acc src : Val} {home : List Seg}
-    {e : List Seg × Val} (hm : miss.CheckableA) (hacc : acc.CheckableA) (he : e.2.CheckableA) :
-    (referStep roots miss home src acc e).CheckableA := by
-  unfold referStep
+theorem referFlow_checkableA {roots : List Val} {miss acc t : Val} {pos : List Seg} {a : Addr}
+    (hm : miss.CheckableA) (hacc : acc.CheckableA) (ht : t.CheckableA) :
+    (referFlow roots miss pos t acc a).CheckableA := by
+  unfold referFlow
   split
-  next a _ =>
-    split
-    next u hu =>
-      cases hq : a.from (home ++ e.1) with
-      | none => rw [hq] at hu; exact absurd hu (by simp)
-      | some p =>
-        rw [hq] at hu
-        simp only [Option.bind_some] at hu
-        obtain ⟨root, -, hr⟩ := List.exists_of_findSome?_eq_some hu
-        exact .meet hacc (putW_checkableA he.unmark p hr)
-    next => exact .meet hacc hm
-  next => exact hacc
+  next u hu =>
+    cases hq : a.from pos with
+    | none => rw [hq] at hu; exact absurd hu (by simp)
+    | some p =>
+      rw [hq] at hu
+      simp only [Option.bind_some] at hu
+      obtain ⟨root, -, hr⟩ := List.exists_of_findSome?_eq_some hu
+      exact .meet hacc (putW_checkableA ht p hr)
+  next => exact .meet hacc hm
+
+theorem foldl_referFlow_checkableA {roots : List Val} {miss t : Val} {pos : List Seg}
+    (hm : miss.CheckableA) (ht : t.CheckableA) :
+    ∀ (as : List Addr) {acc : Val}, acc.CheckableA →
+      (as.foldl (referFlow roots miss pos t) acc).CheckableA
+  | [], _, h => h
+  | _ :: as, _, h => foldl_referFlow_checkableA hm ht as (referFlow_checkableA hm h ht)
+
+theorem referStep_checkableA {roots : List Val} {miss acc src : Val} {home : List Seg}
+    {e : List Seg × Val × Bool} (hm : miss.CheckableA) (hacc : acc.CheckableA)
+    (he : e.2.1.CheckableA) : (referStep roots miss home src acc e).CheckableA :=
+  foldl_referFlow_checkableA hm he.unmark _ hacc
 
 theorem foldl_referStep_checkableA {roots : List Val} {miss src : Val} {home : List Seg}
     (hm : miss.CheckableA) :
-    ∀ (es : List (List Seg × Val)) {acc : Val}, acc.CheckableA → (∀ e, e ∈ es → e.2.CheckableA) →
+    ∀ (es : List (List Seg × Val × Bool)) {acc : Val}, acc.CheckableA → (∀ e, e ∈ es → e.2.1.CheckableA) →
       (es.foldl (referStep roots miss home src) acc).CheckableA
   | [], _, h, _ => h
   | e :: es, _, h, he =>
@@ -727,10 +786,23 @@ theorem withRefers_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d
     (hS : S.CheckableA) : (ds.withRefers S).CheckableA :=
   referPass_checkableA hb hS .nil
 
+theorem relKind_checkableA : relKind.CheckableA := by decide
+
+/-- Declarations the checker can read can read with the relation kind
+declared. -/
+theorem Decls.withRel_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
+    ∀ d, d ∈ ds.withRel → d.2.CheckableA := by
+  intro d hd
+  simp only [Decls.withRel, List.mem_append, List.mem_singleton] at hd
+  rcases hd with hd | rfl
+  · exact hb d hd
+  · exact relKind_checkableA
+
 /-- The verdict of a document with paths: the document prepared
-(`Decls.prepared`), its relative paths placed, the sources its moves
-read hidden and its links' templates met into their targets, the
-verdict of the document whose paths are absolute. -/
+(`Decls.prepared`), the relation kind declared, its relative paths
+placed, the sources its moves read hidden and its links' templates met
+into their targets, the verdict of the document whose paths are
+absolute. -/
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
   VetA m (ds.prepared S).1 (ds.prepared S).2 j v
 
@@ -1241,9 +1313,11 @@ theorem vetA_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
 read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
-  vetA_iff (ds := (ds.placed S).1) (S := (ds.placed S).1.withRefers ((ds.placed S).1.withMoves (ds.placed S).2))
-    (Decls.placed_bodies_checkableA hb)
-    (withRefers_checkableA (Decls.placed_bodies_checkableA hb) (withMoves_checkableA (placed_checkableA hS []))) v
+  vetA_iff (ds := (ds.withRel.placed S).1)
+    (S := (ds.withRel.placed S).1.withRefers ((ds.withRel.placed S).1.withMoves (ds.withRel.placed S).2))
+    (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb))
+    (withRefers_checkableA (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb))
+      (withMoves_checkableA (placed_checkableA hS []))) v
 
 /-! ## The output with paths -/
 
@@ -1272,9 +1346,10 @@ theorem outputA_iff {ds : Decls} {S : Val} {root : Data} (hg : (ds.withPathsS S)
     exact ⟨fun h' => absurd h' (by simp), fun h' => absurd (Decls.resolvesB_iff.mpr h'.1) hr⟩
 
 /-- What a document with paths generates: the document prepared
-(`Decls.prepared`), its relative paths placed, the sources its moves
-read hidden and its links' templates met into their targets, what the
-document whose paths are absolute generates. -/
+(`Decls.prepared`), the relation kind declared, its relative paths
+placed, the sources its moves read hidden and its links' templates met
+into their targets, what the document whose paths are absolute
+generates. -/
 def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
   OutputA (ds.prepared S).1 root (ds.prepared S).2 j
 

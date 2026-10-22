@@ -826,6 +826,18 @@ def preferArms : List (ℕ × Val) → List (ℕ × Val)
   termination_by structural arms => arms
 end
 
+/-- The name the relation kind is declared under, which no document
+can write, since a name a document writes holds no parenthesis. -/
+def relName : String := "rel()"
+
+/-- The relation kind: an address, or a list or a map whose every
+element or member is one in turn, so that a relation's value is an
+address, or lists and maps of them nested as deep as they go, with
+an address at each leaf. -/
+def relKind : Val :=
+  .or [(0, .pathKind), (0, .list [] (some (.alias relName)) false),
+    (0, .map [] (some (.alias relName)) false)]
+
 /-- What a call that can wait is as a term: the term it makes, `nil`
 where it refuses its arguments, and itself, its arguments in normal
 form, where it waits. -/
@@ -845,8 +857,9 @@ that a preference reads as its default, as `super(*1)` is `integer`;
 a `pref` what `Val.prefer` makes of its argument read before the normal
 form, as `super` reads it, so that a preference stays one, and a `move`
 the same, its source hidden where the document is read (`Decls.withMoves`);
-a `refer` the path kind, the link's own value, its template met into
-its target where the document is read (`Decls.withRefers`); any other
+a `refer` the path kind, the link's own value, and a `rel` the relation
+kind, `relName`, its value's links, their template met into each
+target where the document is read (`Decls.withRefers`); any other
 call the number `callValue` computes, where it computes one, and itself
 otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
@@ -875,6 +888,8 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .move, [x] => x.prefer
   | .refer, [] => .pathKind
   | .refer, [_] => .pathKind
+  | .rel, [] => .alias relName
+  | .rel, [_] => .alias relName
   | .split, [s, sep] => (splitOf ds s sep).term ds f args
   | .rep, [s, p, r] => (repOf ds s p r).term ds f args
   | .nom, [n] => (nomOf ds n none none).term ds f args
@@ -1997,6 +2012,8 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact prefer_checkableA (h _ (by simp))
   · exact .pathKind
   · exact .pathKind
+  · exact .alias
+  · exact .alias
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => repOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv

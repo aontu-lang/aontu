@@ -2991,16 +2991,18 @@ is an error, while `..x` in the same body climbs to the document's own
 `x`. A spread, a template and a `filter`'s condition keep their relative
 paths as written: each stands at a position no written step names, and
 the definition has no rule for a relative path there yet. The verdict
-of a document with paths prepares it first: it places the document,
-hides the sources its moves read, which step 35 comes to, and meets
-its links' templates into their targets, which step 36 comes to:
+of a document with paths prepares it first: it declares the relation
+kind, which step 37 comes to, places the document, hides the sources
+its moves read, which step 35 comes to, and meets its links' templates
+into their targets, which step 36 comes to:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The verdict of a document with paths: the document prepared
-(`Decls.prepared`), its relative paths placed, the sources its moves
-read hidden and its links' templates met into their targets, the
-verdict of the document whose paths are absolute. -/
+(`Decls.prepared`), the relation kind declared, its relative paths
+placed, the sources its moves read hidden and its links' templates met
+into their targets, the verdict of the document whose paths are
+absolute. -/
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
   VetA m (ds.prepared S).1 (ds.prepared S).2 j v
 ```
@@ -3011,9 +3013,11 @@ def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
 read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
-  vetA_iff (ds := (ds.placed S).1) (S := (ds.placed S).1.withRefers ((ds.placed S).1.withMoves (ds.placed S).2))
-    (Decls.placed_bodies_checkableA hb)
-    (withRefers_checkableA (Decls.placed_bodies_checkableA hb) (withMoves_checkableA (placed_checkableA hS []))) v
+  vetA_iff (ds := (ds.withRel.placed S).1)
+    (S := (ds.withRel.placed S).1.withRefers ((ds.withRel.placed S).1.withMoves (ds.withRel.placed S).2))
+    (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb))
+    (withRefers_checkableA (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb))
+      (withMoves_checkableA (placed_checkableA hS []))) v
 ```
 
 A recursive position, `then?: $.schema.Step` inside `Step`, is a name
@@ -7773,7 +7777,7 @@ One link's template can make another link's target:
 `x: refer({ p:1 }) & path($.h.z)`, whichever the document writes
 first. So the definition reads the targets in passes, each meeting the
 templates of the links whose targets the last pass's schema holds, as
-many passes as the document writes links:
+many passes as the links hold addresses:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -7821,7 +7825,79 @@ definition does. With data, both engines read a body's relative link a
 second time, from each place that uses the body, which #488 tracks, and
 no row holds such a link.
 
-## 37. What the definition doesn't say yet
+## 37. Relations
+
+`rel(t)` declares a relation at its field: the field's value is an
+address, or a list or a map of addresses nested as deep as it goes,
+and `t` flows into the target of each. Write `rel.aontu`:
+
+<!-- test: scenario rel -->
+<!-- test: file rel.aontu -->
+```aontu
+services: { auth: {} billing: {} }
+
+gateway: routes: rel({ kind:"service" }) & [
+  path($.services.auth)
+  path($.services.billing)
+]
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu rel.aontu
+{
+  "gateway": {
+    "routes": [
+      "$.services.auth",
+      "$.services.billing"
+    ]
+  },
+  "services": {
+    "auth": {
+      "kind": "service"
+    },
+    "billing": {
+      "kind": "service"
+    }
+  }
+}
+```
+
+The call reads as the relation kind, which the definition declares for
+every document under a name no document can write, since a name a
+document writes holds no parenthesis:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def relKind : Val :=
+  .or [(0, .pathKind), (0, .list [] (some (.alias relName)) false),
+    (0, .map [] (some (.alias relName)) false)]
+```
+
+So a string, a number or `true` where an address must be is an
+`error`, as `rel() & "x"` is, and data that writes the addresses as
+strings is `invalid`, as data that writes a path value as a string
+is. Each leaf of the relation's value is a link, as a `refer` is, read
+from the relation's own position:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def linkAddrs (src : Val) (e : List Seg × Val × Bool) : List Addr :=
+  ((src.at e.1).map fun v => if e.2.2 then v.addrs else v.addrOf?.toList).getD []
+```
+
+So each leaf's target must exist, and the template meets each target,
+in the passes step 36 walked through. Rows rl0 on of
+`test/spec/def-path.tsv` hold these readings in the three modes of
+`vet`, and both engines answer every one as the definition does. The
+engines read a relative address at a leaf from different places: the
+two disagree once one container nests in another, which #492 tracks,
+and `eval` and `vet` disagree even with one, which #493 tracks, so no
+row holds a relative leaf.
+
+## 38. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -7829,10 +7905,10 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
-steps 20 to 26 and 33 to 36 don't walk through, `key()` deeper in a spread than its
+steps 20 to 26 and 33 to 37 don't walk through, `key()` deeper in a spread than its
 own position, a relative path in a spread, a template or a `filter`'s
 condition, generation with `emit`, a string constraint met with a path
-value, and the relation `rel`. [`aontu vet`](reference-api.md#aontu-vet) states which
+value, and the graph atoms `inverse(k)` and `acyclic()`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 
@@ -7854,10 +7930,14 @@ of step 17 reads unmade. Neither has a rule yet.
 
 Nor does it say which of a document's moves the reading makes. A
 `move` in an arm no selection takes, or in a template no member
-instantiates, still hides its source, where both engines keep it. A
-`refer` inside a disjunction, a selection or a generator's template is
-no link the definition reads, so its template flows nowhere and its
-target needn't exist.
+instantiates, still hides its source, where both engines keep it.
+
+Nor does it read every link where it lands. A `refer` or a `rel`
+inside a disjunction, a selection, a spread or a generator's template
+is no link the definition reads, and it reads one that a path
+reference copies only where the document writes it, so its template
+flows nowhere from where the copy lands and its target needn't exist
+there. Both engines read each link where it lands.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

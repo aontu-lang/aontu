@@ -1352,6 +1352,70 @@ theorem refer_verdict_exact : ∀ c ∈ referCases, ∀ (m : Mode) (v : Verdict)
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (referCases_checkable c hc).1 (referCases_checkable c hc).2 v
 
+/-- `rel` over each shape of value: one address, a list, a map, a map
+and a list nested in each other, and none, an empty list and an empty
+map; its template met into each target, beside data that refuses it,
+and a template that refuses a target; a leaf that names nothing, a
+leaf that isn't an address, and a string or `true` where an address
+must be; data that writes the addresses as strings or a number; a
+relation with no value, required and optional, and one met with
+`path`; the value from a second meet; two relations' templates at one
+field; a relation in a body no reference reads; a relation's template
+making another relation's target, and one relation's leaf making its
+own other leaf's target, each beside data the flow refuses; and a
+`refer` and a `rel` at one target. -/
+def relCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
+  let lst (vs : List Val) : Val := .list vs none false
+  let rl (t : Val) (v : Val) : Val := .meet (.call .rel [t]) v
+  let rl0 (v : Val) : Val := .meet (.call .rel []) v
+  let svc : Val := m [("kind", str "svc")]
+  let chain : Val := m [("x", rl (m [("p", int 1)]) (lst [ad 0 ["h", "z"]])), ("h", m []),
+    ("y", rl (m [("z", m [])]) (lst [ad 0 ["h"]]))]
+  let own : Val := m [("h", m []), ("d", rl (m [("z", m [])]) (lst [ad 0 ["h"], ad 0 ["h", "z"]]))]
+  [([], m [("p", m [("k", int 1)]), ("q", m [("h", rl0 (ad 0 ["p"]))])], .map []),
+    ([], m [("a", m []), ("b", m []), ("s", m [("d", rl0 (lst [ad 0 ["a"], ad 0 ["b"]]))])], .map []),
+    ([], m [("a", m []), ("s", m [("u", rl0 (m [("primary", ad 0 ["a"])]))])], .map []),
+    ([], m [("a", m []), ("s", m [("u", rl0 (m [("t1", m [("primary", ad 0 ["a"])])]))])], .map []),
+    ([], m [("a", m []), ("d", rl0 (lst [lst [ad 0 ["a"]]]))], .map []),
+    ([], m [("a", m []), ("d", rl0 (m [("x", lst [ad 0 ["a"]])]))], .map []),
+    ([], m [("a", m []), ("b", m []), ("s", m [("d", rl svc (lst [ad 0 ["a"], ad 0 ["b"]]))])], .map []),
+    ([], m [("a", m []), ("b", m []), ("s", m [("d", rl svc (lst [ad 0 ["a"], ad 0 ["b"]]))])],
+      .map [("b", .map [("kind", .str "db")])]),
+    ([], m [("a", m [("kind", str "db")]), ("s", m [("d", rl svc (lst [ad 0 ["a"]]))])], .map []),
+    ([], m [("a", m []), ("s", m [("d", rl0 (lst [ad 0 ["a"], ad 0 ["nosuch"]]))])], .map []),
+    ([], m [("a", m []), ("d", rl0 (lst [ad 0 ["a"], int 7]))], .map []),
+    ([], m [("a", m []), ("d", rl0 (str "x"))], .map []),
+    ([], m [("a", m []), ("s", m [("d", .call .rel [])])], .map [("s", .map [("d", .list [.str "$.a"])])]),
+    ([], m [("a", m []), ("s", m [("d", .call .rel [])])], .map [("s", .map [("d", j 7)])]),
+    ([], m [("d", .call .rel [])], .map []),
+    ([], .map [("d", true, .call .rel [])] none false, .map []),
+    ([], m [("a", m []), ("d", rl0 (lst []))], .map []),
+    ([], m [("a", m []), ("d", rl0 (m []))], .map []),
+    ([], m [("x", m []), ("s", .meet (m [("d", .call .rel [])]) (m [("d", lst [ad 0 ["x"]])]))], .map []),
+    ([], m [("x", m []), ("s", m [("d", .meet (.call .rel [m [("p", int 1)]]) (rl (m [("q", int 2)]) (lst [ad 0 ["x"]])))])],
+      .map [("x", .map [("p", j 1), ("q", j 3)])]),
+    ([("L", rl (m [("k", int 1)]) (lst [ad 0 ["a"]]))], m [("a", m [])], .map [("a", .map [("k", j 2)])]),
+    ([], chain, .map []),
+    ([], chain, .map [("h", .map [("z", .map [("p", j 2)])])]),
+    ([], own, .map []),
+    ([], own, .map [("h", .map [("z", .map [("z", j 5)])])]),
+    ([], m [("a", m []), ("d", .meet (.call .rel []) .pathKind)], .map []),
+    ([], m [("a", m []), ("b", .meet (.call .refer [m [("p", int 1)]]) (ad 0 ["a"])),
+      ("d", rl (m [("q", int 2)]) (lst [ad 0 ["a"]]))], .map [("a", .map [("p", j 1), ("q", j 2)])]),
+    ([], m [("a", m []), ("d", rl0 (.lit (.bool true)))], .map [])]
+
+theorem relCases_checkable : ∀ c ∈ relCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem rel_verdict_exact : ∀ c ∈ relCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (relCases_checkable c hc).1 (relCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, the schema's braces dropped since neither CLI reads a braced
 map after a declaration, in the three modes, with the one class `vetP`
@@ -2170,7 +2234,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
     ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "pref"),
-    ("call", "call", "move"), ("call", "call", "refer"), ("call", "call", "split"),
+    ("call", "call", "move"), ("call", "call", "refer"), ("call", "call", "rel"), ("call", "call", "split"),
     ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "abnf"),
     ("call", "call", "parse"), ("call", "call", "project"),
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
@@ -2202,7 +2266,7 @@ def formSamples : List (String × Val) :=
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
-    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]), ("refer", .call .refer []),
+    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]), ("refer", .call .refer []), ("rel", .call .rel []),
     ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
     ("nom", .call .nom [.string]), ("path", .call .path [.string]), ("project", .call (.cmp .project) []),
     ("folder", .call (.cmp .folder) [.string]), ("file", .call (.cmp .file) [.string]),
@@ -3724,7 +3788,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# the value a path reads with its source hidden, in rows mv0 on. Paths into"
     IO.println "# what a call over a path makes, which resolve a round later, follow in rows"
     IO.println "# rn0 on, and refer, a link that keeps its address, its template met into"
-    IO.println "# its target, in rows rf0 on."
+    IO.println "# its target, in rows rf0 on. rel, a relation whose value holds a link at"
+    IO.println "# each leaf, follows in rows rl0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -3735,6 +3800,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "mv" moveCases
     pathRows "rn" roundCases
     pathRows "rf" referCases
+    pathRows "rl" relCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
