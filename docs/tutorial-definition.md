@@ -6918,27 +6918,25 @@ A variable no program declares is a name declared nowhere, an error. -/
 
 /-- The variable `$n`: the name the calling program declares it under. -/
 def Val.var (n : String) : Val := .alias ("$" ++ n)
-```
 
-and the program's declarations sit beside the document's own:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
 /-- The declarations a document reads under the bindings `vs` the
 calling program makes: its own, and each variable's value under its
-name, as `Val.var` reads it. -/
-def Decls.withVars (ds : Decls) (vs : List (String × Data)) : Decls :=
-  ds ++ vs.map fun v => ("$" ++ v.1, v.2.term)
+name, as `Val.var` reads it. A binding is any value the program builds,
+a kind as well as data. -/
+def Decls.withVars (ds : Decls) (vs : List (String × Val)) : Decls :=
+  ds ++ vs.map fun v => ("$" ++ v.1, v.2)
 ```
 
 So a variable reads as an alias does. It meets like any value, so
-`$foo & integer` is `11` where the program binds `foo` to `11`. It
-stands anywhere a value can: in a list, in a call's argument, as a
-default, and as the data a generator reads. A variable the program
-doesn't bind is a name declared nowhere, which is an error.
+`$foo & integer` is `11` where the program binds `foo` to `11`. A
+binding can be a kind as well, so `$kint & $foo` is `11` too where the
+program binds `kint` to `integer`. A variable stands anywhere a value
+can: in a list, in a call's argument, as a default, and as the data a
+generator reads. A variable the program doesn't bind is a name
+declared nowhere, which is an error.
 
 The shared test suite binds one set of variables for every row, and
-the rows i0 to i19 of `test/spec/def-gen.tsv` read them, the oracle
+the rows i0 to i21 of `test/spec/def-gen.tsv` read them, the oracle
 binding the same set. Both engines answer every one as the definition
 does. A float, a big integer and a big decimal bind too and have no
 row, since the rows write no number but an integer as JSON. A variable

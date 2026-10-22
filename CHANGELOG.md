@@ -15,12 +15,13 @@ first slice.
 
 - `spec/Aontu/Names.lean`: `Val.var n` is `$n`, a name the calling
   program declares where a document declares an alias, the alias
-  `"$n"`, which no document can write.
-- `spec/Aontu/Verdict.lean`: `Decls.withVars` sets the program's
-  bindings beside the document's declarations, so a variable no program
-  binds is a name declared nowhere, an error.
-- `test/spec/def-gen.tsv` gains rows i0 to i19, which read the variables
-  both runners bind for every row. Both ports answer every row as the
+  `"$n"`, which no document can write. `Decls.withVars` sets the
+  program's bindings beside the document's declarations, so a variable
+  no program binds is a name declared nowhere, an error. A binding is
+  any value the program builds, a kind as well as data.
+- `test/spec/def-gen.tsv` gains rows i0 to i21, which read the variables
+  both runners bind for every row. Both runners now bind the kind
+  `integer` as `kint` too. Both ports answer every row as the
   definition does. No row holds a variable as a path's segment.
 - The definition tutorial gains step 30, variables, and the last step
   becomes 31. The reference's variables section, the design note's P10

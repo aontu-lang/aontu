@@ -2891,21 +2891,23 @@ A variable is a name the calling program declares. Both runners bind the
 same variables for every row, `specVars` in `go/spec_test.go` and
 `makeVarsCtx` in `ts/test/spec.test.ts`, and a `gens` row reads them. -/
 
-/-- The runners' bindings, as the calling program makes them. -/
-def progVars : List (String × Data) :=
-  [("foo", .integer 11), ("bar", .str "hello"), ("flag", .bool true), ("obj", .map [("x", .integer 1)]),
+/-- The runners' bindings, as the calling program makes them: data,
+each as its term, and the kind `integer`, since a binding is any value. -/
+def progVars : List (String × Val) :=
+  (([("foo", .integer 11), ("bar", .str "hello"), ("flag", .bool true), ("obj", .map [("x", .integer 1)]),
     ("big", .integer 1152921504606846976), ("half", .num (.float (.dyadic 3 (-1)))),
     ("off", .bool false), ("bigi", .num (.biginteger ⟨5⟩)), ("bigd", .num (.bigdecimal (.of 15 1))),
-    ("nul", .null), ("PARENT", .str "q")]
+    ("nul", .null), ("PARENT", .str "q")] : List (String × Data)).map fun v => (v.1, v.2.term)) ++
+    [("kint", .integer)]
 
 /-- The declarations the bindings make, beside a document that declares none. -/
 def progDecls : Decls := Decls.withVars [] progVars
 
 /-- Variables read as the values the program binds: each binding alone,
 met with a kind, a map and itself, in a list and a map, in a call, as a
-default, and as the data a generator reads. A float, a big integer and
-a big decimal bind too, and have no row, since `Data.json` writes no
-number but an integer. -/
+default, and as the data a generator reads, and a kind the program binds
+met with a number. A float, a big integer and a big decimal bind too,
+and have no row, since `Data.json` writes no number but an integer. -/
 def varCases : List Val :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
@@ -2916,7 +2918,8 @@ def varCases : List Val :=
     .meet (v "obj") .mapKind, .meet (v "obj") (mp [("y", int 2)]), .meet (v "foo") (v "foo"),
     lst [v "foo", v "bar"], mp [("a", v "foo"), ("b", v "foo")],
     .call .plus [v "foo", int 1], .call .upper [v "bar"], .or [(1, v "foo"), (0, int 1)],
-    .call .pack [lst [v "PARENT"], mp [("n", .hole)]]]
+    .call .pack [lst [v "PARENT"], mp [("n", .hole)]],
+    .meet (v "kint") (v "foo"), .meet (v "kint") (int 2)]
 
 set_option maxRecDepth 16384 in
 theorem varCases_readable : progDecls.guardedB = true ∧ progDecls.bodiesCheckableB = true ∧

@@ -1653,10 +1653,11 @@ next line as its operand, which is the usual way this arises.
 
 The definition reads a variable as a name that the calling program
 declares. `Val.var` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean)
-is the alias `$name`, which no document can write, and `Decls.withVars`
-in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) sets the
-program's bindings beside the document's declarations. It doesn't yet
-read a variable as a path's segment.
+is the alias `$name`, which no document can write, and `Decls.withVars`,
+in the same module, sets the program's bindings beside the document's
+declarations. A binding is any value the program builds, a kind as
+well as data. The definition doesn't yet read a variable as a path's
+segment.
 
 ## Aliases `%`
 

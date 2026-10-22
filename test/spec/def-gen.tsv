@@ -103,3 +103,5 @@ i16	gens	v: ($foo) + (1)	{"v":12}
 i17	gens	v: upper($bar)	{"v":"HELLO"}
 i18	gens	v: *($foo) | (1)	{"v":11}
 i19	gens	v: pack([$PARENT], {"n": _})	{"v":{"q":{"n":"q"}}}
+i20	gens	v: ($kint) & ($foo)	{"v":11}
+i21	gens	v: ($kint) & (2)	{"v":2}

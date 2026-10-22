@@ -29,6 +29,13 @@ A variable no program declares is a name declared nowhere, an error. -/
 /-- The variable `$n`: the name the calling program declares it under. -/
 def Val.var (n : String) : Val := .alias ("$" ++ n)
 
+/-- The declarations a document reads under the bindings `vs` the
+calling program makes: its own, and each variable's value under its
+name, as `Val.var` reads it. A binding is any value the program builds,
+a kind as well as data. -/
+def Decls.withVars (ds : Decls) (vs : List (String × Val)) : Decls :=
+  ds ++ vs.map fun v => ("$" ++ v.1, v.2)
+
 /-- A declaration's body as a reference reads it: an `ident()` at its
 top, or on a term of its top meet, left behind, and one inside it kept.
 That is the one place an identity stands (decision 14 of the design
