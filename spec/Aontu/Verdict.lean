@@ -844,7 +844,7 @@ argument's parent type, `Val.super` read before the normal form, so
 that a preference reads as its default, as `super(*1)` is `integer`;
 a `pref` what `Val.prefer` makes of its argument read before the normal
 form, as `super` reads it, so that a preference stays one, and a `move`
-the same, its source hidden where the document is read (`Val.withMoves`);
+the same, its source hidden where the document is read (`Decls.withMoves`);
 any other call the number `callValue` computes, where it computes one,
 and itself otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=

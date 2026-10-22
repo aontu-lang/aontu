@@ -7569,7 +7569,7 @@ The call reads as `pref` does, `Val.prefer` of the value the path
 reads, so `title` is `*"Notes"`, which data may override. The hiding
 belongs to the document: before the definition reads it, the schema
 meets an open map that holds the source's key as optional, down to
-`hide(any)`:
+`hide(any)`, where the source names something:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -7583,8 +7583,12 @@ def hideAt : List Seg → Val
 ```lean
 /-- The schema with each source a `move` reads hidden, met with
 `hideAt` of the path, so that the document generates the value once, at
-its new place, and the data needn't supply the source. -/
-def Val.withMoves (S : Val) : Val := S.moved.foldl (fun acc p => .meet acc (hideAt p)) S
+its new place, and the data needn't supply the source. A path to
+nothing hides nothing, so that it stays the error any path to nothing
+is. -/
+def Decls.withMoves (ds : Decls) (S : Val) : Val :=
+  (S.moved.filter fun p => (ds.pathAt (normaliseD ds (ds.readU S)) p).isSome).foldl
+    (fun acc p => .meet acc (hideAt p)) S
 ```
 
 A hidden member is optional in the visible part of step 13, so the

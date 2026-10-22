@@ -3178,7 +3178,7 @@ def varPathCases : List Val :=
 /-- A variable case read as the definition reads a document with paths:
 placed, then its paths read as names from the schema alone. -/
 def varReading (t : Val) : Decls × Val :=
-  (progDecls.placed (docOf t)).1.withPathsS (progDecls.placed (docOf t)).2.withMoves
+  (progDecls.prepared (docOf t)).1.withPathsS (progDecls.prepared (docOf t)).2
 
 set_option maxRecDepth 16384 in
 theorem varPathCases_readable : ∀ t ∈ varPathCases,

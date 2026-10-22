@@ -363,8 +363,18 @@ def hideAt : List Seg → Val
 
 /-- The schema with each source a `move` reads hidden, met with
 `hideAt` of the path, so that the document generates the value once, at
-its new place, and the data needn't supply the source. -/
-def Val.withMoves (S : Val) : Val := S.moved.foldl (fun acc p => .meet acc (hideAt p)) S
+its new place, and the data needn't supply the source. A path to
+nothing hides nothing, so that it stays the error any path to nothing
+is. -/
+def Decls.withMoves (ds : Decls) (S : Val) : Val :=
+  (S.moved.filter fun p => (ds.pathAt (normaliseD ds (ds.readU S)) p).isSome).foldl
+    (fun acc p => .meet acc (hideAt p)) S
+
+/-- A document as the definition reads it: its relative paths placed
+(`Decls.placed`) and the sources its moves read hidden
+(`Decls.withMoves`). -/
+def Decls.prepared (ds : Decls) (S : Val) : Decls × Val :=
+  ((ds.placed S).1, (ds.placed S).1.withMoves (ds.placed S).2)
 
 theorem hideAt_checkableA : ∀ p, (hideAt p).CheckableA
   | [] => .ride .any
@@ -379,18 +389,19 @@ theorem foldl_hide_checkableA : ∀ (ps : List (List Seg)) {S : Val}, S.Checkabl
   | p :: ps, _, h => foldl_hide_checkableA ps (.meet h (hideAt_checkableA p))
 
 /-- A schema the checker can read reads with its moves' sources hidden. -/
-theorem withMoves_checkableA {S : Val} (h : S.CheckableA) : S.withMoves.CheckableA :=
-  foldl_hide_checkableA S.moved h
+theorem withMoves_checkableA {ds : Decls} {S : Val} (h : S.CheckableA) :
+    (ds.withMoves S).CheckableA :=
+  foldl_hide_checkableA _ h
 
-/-- The verdict of a document with paths: its relative paths placed
-(`Decls.placed`) and the sources its moves read hidden (`Val.withMoves`),
-the verdict of the document whose paths are absolute. -/
+/-- The verdict of a document with paths: the document prepared
+(`Decls.prepared`), its relative paths placed and the sources its moves
+read hidden, the verdict of the document whose paths are absolute. -/
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  VetA m (ds.placed S).1 (ds.placed S).2.withMoves j v
+  VetA m (ds.prepared S).1 (ds.prepared S).2 j v
 
 /-- The verdict with paths, computed. -/
 def vetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
-  vetA m (ds.placed S).1 (ds.placed S).2.withMoves j
+  vetA m (ds.prepared S).1 (ds.prepared S).2 j
 
 /-! ## Paths read as names keep a term checkable -/
 
@@ -863,7 +874,8 @@ theorem vetA_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
 read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
-  vetA_iff (Decls.placed_bodies_checkableA hb) (withMoves_checkableA (placed_checkableA hS [])) v
+  vetA_iff (ds := (ds.placed S).1) (S := (ds.placed S).1.withMoves (ds.placed S).2)
+    (Decls.placed_bodies_checkableA hb) (withMoves_checkableA (placed_checkableA hS [])) v
 
 /-! ## The output with paths -/
 
@@ -891,25 +903,25 @@ theorem outputA_iff {ds : Decls} {S : Val} {root : Data} (hg : (ds.withPathsS S)
   · rw [if_neg hr]
     exact ⟨fun h' => absurd h' (by simp), fun h' => absurd (Decls.resolvesB_iff.mpr h'.1) hr⟩
 
-/-- What a document with paths generates: its relative paths placed
-(`Decls.placed`) and the sources its moves read hidden (`Val.withMoves`),
-what the document whose paths are absolute generates. -/
+/-- What a document with paths generates: the document prepared
+(`Decls.prepared`), its relative paths placed and the sources its moves
+read hidden, what the document whose paths are absolute generates. -/
 def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
-  OutputA (ds.placed S).1 root (ds.placed S).2.withMoves j
+  OutputA (ds.prepared S).1 root (ds.prepared S).2 j
 
 /-- What a document with paths generates, computed. -/
 def outputP (ds : Decls) (S : Val) : Option Data :=
-  outputA (ds.placed S).1 (ds.placed S).2.withMoves
+  outputA (ds.prepared S).1 (ds.prepared S).2
 
 /-- `outputP` computes `OutputP` where the reading of the placed
 document keeps the alias-cycle rule and the checker can read its bodies
 and its normal form. -/
 theorem outputP_iff {ds : Decls} {S : Val} {root : Data}
-    (hg : ((ds.placed S).1.withPathsS (ds.placed S).2.withMoves).1.Guarded)
-    (hb : ∀ d, d ∈ ((ds.placed S).1.withPathsS (ds.placed S).2.withMoves).1 → d.2.CheckableA)
-    (h : (normaliseD ((ds.placed S).1.withPathsS (ds.placed S).2.withMoves).1
-      (((ds.placed S).1.withPathsS (ds.placed S).2.withMoves).1.readR
-        ((ds.placed S).1.withPathsS (ds.placed S).2.withMoves).2)).CheckableA)
+    (hg : ((ds.prepared S).1.withPathsS (ds.prepared S).2).1.Guarded)
+    (hb : ∀ d, d ∈ ((ds.prepared S).1.withPathsS (ds.prepared S).2).1 → d.2.CheckableA)
+    (h : (normaliseD ((ds.prepared S).1.withPathsS (ds.prepared S).2).1
+      (((ds.prepared S).1.withPathsS (ds.prepared S).2).1.readR
+        ((ds.prepared S).1.withPathsS (ds.prepared S).2).2)).CheckableA)
     (j : Data) : outputP ds S = some j ↔ OutputP ds root S j :=
   outputA_iff hg hb h j
 
