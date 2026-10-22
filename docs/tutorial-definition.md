@@ -7193,6 +7193,29 @@ example : pathAB ⊑[.empty] pathA := addr_le_addr ⟨rfl, by decide⟩
 shares a value with it, `string` among them, so `string & path($.a)`
 is `nil`, as in both engines.
 
+`path` handed a string converts the string's text to an address, as
+both engines do, so `path("$.a")` is `path($.a)`. Text with no start
+reads from one dot, so `path("a.b")` is `path(.a.b)`:
+
+<!-- test: quote spec/Aontu/Data.lean -->
+```lean
+/-- Address text read as an address. -/
+def Addr.ofText? (t : String) : Option Addr :=
+  match t.toList with
+  | '$' :: '.' :: cs => (addrSteps [] cs).map (Addr.mk 0)
+  | '$' :: _ => none
+  | '.' :: cs => (addrSteps [] (leadDots cs).2).map (Addr.mk ((leadDots cs).1 + 1))
+  | cs => (addrSteps [] cs).map (Addr.mk 1)
+```
+
+Each step is one or more letters, digits, `_` or `-`, which
+`addrSteps` reads. Text that spells no address, such as `""`, `"$"`,
+`"a..b"` or `"a b"`, is an error, as is any other scalar and a
+container. A string a call computes converts once it's settled, so
+`path("$." + "a")` is `path($.a)`, and a path value comes back as it
+is. Rows k0 to k104 of `test/spec/def-call.tsv` hold each, and both
+engines answer every one as the definition does.
+
 Rows k0 on of three files hold this: `test/spec/def-gen.tsv` what path
 values generate, `test/spec/def-verdict.tsv` how `vet` judges data
 against them, and `test/spec/def-subsume.tsv` which one subsumes
@@ -7209,8 +7232,7 @@ meets: `above("$.a") & path($.a) & path($.a.b)` refuses, while
 tracks. No
 reading by what each side admits gives both answers, so no string
 constraint admits an address in the definition yet, and no row meets a
-path value with one. Nor does the definition read `path` of a string,
-which converts the string's text to an address, or the links `refer`
+path value with one. Nor does the definition read the links `refer`
 and `rel`. It holds `path($."a.b")` as one step, a key with a dot in
 it, where both engines split it into two, which #475 tracks.
 

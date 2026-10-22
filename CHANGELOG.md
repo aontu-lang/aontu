@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### The definition converts a string to an address
+
+Definition, generated rows, and documentation. No engine changes.
+P11's second slice.
+
+- `spec/Aontu/Data.lean`: `Addr.ofText?` reads address text as both
+  ports read the string `path(s)` is handed: `$.` and its steps from
+  the root, or dots and their steps from a relative start, each step
+  one or more letters, digits, `_` or `-`. Text with no start reads from
+  one dot, and `$` alone addresses nothing.
+- `spec/Aontu/Arith.lean` and `spec/Aontu/Verdict.lean`: `Fn` gains
+  `path`, and `pathOf` makes the call: the address a string spells,
+  through its riders, refused where the text spells none, the path value
+  it's handed as it is, refused for any other scalar and for a
+  container, and waiting for anything else. A string a call computes
+  converts once it's settled.
+- `test/spec/def-call.tsv` gains rows k0 to k104: each conversion met
+  with the capture it must equal, or with one it can't, the texts that
+  spell no address, the arguments refused, a computed string, and a path
+  value handed back. Both ports answer every row as the definition does.
+- The definition tutorial's step 31 reads a string's conversion. The
+  reference's section on first-class paths, the design note's P11 row
+  and the definition's README follow.
+
 ### The definition holds path values
 
 Definition, generated rows, and documentation. No engine changes.

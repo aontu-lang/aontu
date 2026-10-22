@@ -692,6 +692,22 @@ def callValue (ds : Decls) (f : Fn) (args : List Val) : Option Number :=
     | _ => none
   else (args.mapM fun a => (normaliseD ds a).number?).bind (Number.arith f)
 
+/-- What `path` makes of a string: the address its text spells, text with
+no start read from one dot (`Addr.ofText?`), and refused where the text
+spells none; of a path value, the value itself; refused for any other
+scalar and for a container; and waiting for anything else, a kind, a
+disjunction or a preference among them, its riders read through, since
+only a string's text converts. -/
+def pathOf (ds : Decls) (s : Val) : Made :=
+  match (normaliseD ds s).unride with
+  | .lit (.str t) =>
+    match Addr.ofText? t with
+    | some a => .made (.addr a)
+    | none => .refused
+  | .addr a => .made (.addr a)
+  | .lit _ | .map _ _ _ | .list _ _ _ => .refused
+  | _ => .waits
+
 /-- What a call that can wait is as a term: the term it makes, `nil`
 where it refuses its arguments, and itself, its arguments in normal
 form, where it waits. -/
@@ -737,6 +753,7 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .nom, [n] => (nomOf ds n none none).term ds f args
   | .nom, [n, a] => (nomOf ds n (some a) none).term ds f args
   | .nom, [n, a, b] => (nomOf ds n (some a) (some b)).term ds f args
+  | .path, [s] => (pathOf ds s).term ds f args
   | .cmp c, args =>
     if c.takes args.length then (cmpOf ds c args.head? (args.drop 1).head?).term ds f args
     else .call f args
@@ -1494,6 +1511,13 @@ theorem Made.term_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkabl
     obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hw
     exact normaliseD_checkableA hd (h a ha)
 
+theorem pathOf_checkableA {ds : Decls} {s v : Val} (h : pathOf ds s = .made v) : v.CheckableA := by
+  unfold pathOf at h
+  repeat' split at h
+  all_goals first
+    | (cases h; done)
+    | (obtain rfl := (Made.made.injEq _ _).mp h; exact .addr)
+
 theorem joinOf_checkableA {ds : Decls} {b : Val} {sep : Option Val} {v : Val}
     (h : joinOf ds b sep = .made v) : v.CheckableA := by
   unfold joinOf at h
@@ -1595,6 +1619,7 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
+  · exact Made.term_checkableA hd h fun v hv => pathOf_checkableA hv
   · split
     · exact Made.term_checkableA hd h fun v hv => cmpOf_checkableA hd
         (fun s hs => h s (List.mem_of_mem_head? hs))

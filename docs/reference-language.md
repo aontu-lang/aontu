@@ -3625,7 +3625,9 @@ The definition holds an address as a datum of its own, `Data.addr` in
 [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean), and a path value as
 a term that admits each address its own opens (`Addr.Opens`), so the
 prefix rule is the meet of what two path values admit, `addrMeet` in
-[`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean). It doesn't yet read
+[`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean). It reads the text a
+string converts from by `Addr.ofText?`, in the same module as
+`Data.addr`. It doesn't yet read
 a string constraint met with a path value. Both engines read the one
 address the value spells when the two meet, so their answer depends on
 the order of the meets, which #474 tracks.
