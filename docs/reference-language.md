@@ -837,7 +837,7 @@ spelling when you mean "a map whose `x` defaults to 1", and it is what
 
 In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, and the rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
 
-`pref(v)` is `Val.prefer` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), read on the argument before its normal form, so a preference stays one. Each scalar literal becomes a preference of rank one, and each preference a rank weaker, so `pref(*1 | 2)` is `**1 | *2`, which generates `2`. A kind and a bound stay as written. Rows pf0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. They answer `pref(1 | 2)` `invalid` where `*1 | *2` is an `error`, which [#482](https://github.com/aontu-lang/aontu/issues/482) tracks.
+`pref(v)` is `Val.prefer` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), read on the argument before its normal form, so a preference stays one. Each scalar literal becomes a preference of rank one, and each preference a rank weaker, so `pref(*1 | 2)` is `**1 | *2`, which generates `2`. A kind and a bound stay as written. Rows from pf0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. They answer `pref(1 | 2)` `invalid` where `*1 | *2` is an `error`, which [#482](https://github.com/aontu-lang/aontu/issues/482) tracks.
 
 ## Optional keys `?`
 
@@ -3750,7 +3750,7 @@ reference copies it, each place reading the relative address from where
 it stands. Where a target names nothing in
 the schema's own tree, the document is an `error`. The definition reads a link in a
 declaration's body at the body's own place, whether a reference reads
-the body or not. Rows rf0 on of
+the body or not. Rows from rf0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to it. With data, both engines also read a body's relative link from
 each place that uses the body, which
@@ -4122,7 +4122,7 @@ value is a link, which `Decls.withRefers` in
 `refer`, the leaf's address read from the relation's own position. The
 definition has no rule yet for `acyclic()` and `inverse(k)`, which
 `vet` doesn't check either
-([#491](https://github.com/aontu-lang/aontu/issues/491)). Rows rl0 on of
+([#491](https://github.com/aontu-lang/aontu/issues/491)). Rows from rl0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to it. No row holds a relative address at a leaf of a list or a map,
 which the engines read from different places
@@ -5225,7 +5225,7 @@ Neither guess is safe: a gate that wrongly reports "compatible" ships
 the break, and one that wrongly reports "breaking" sends its reader
 after a failure that isn't there.
 
-The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`. `DefaultsLe` counts only a default a term declares, as this page's effective default does, so a literal's own value is none, and `integer` over `1` holds under it, as `DefaultsLe.of_lit` proves. `GenLe` adds `MarksAgree`: the marks agree at every position both sides have, a container's spread among them, so `hide(integer)` and `integer` are below each other in the order and not under `gen`, as `hide_not_genLe` proves. The definition decides both profiles position by position: `defaultsLe_of_walk` and `genLe_of_walk` prove the profile's order where `leDecF` proves the order and the walk of `defaultsAt` or `marksAt` fails nowhere, and `not_defaultsLe_of_refutes` and `not_genLe_of_refutes` refute it at one position. The rows f0 on and w0 on of [`test/spec/def-subsume.tsv`](../test/spec/def-subsume.tsv) hold both engines to them.
+The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`. `DefaultsLe` counts only a default a term declares, as this page's effective default does, so a literal's own value is none, and `integer` over `1` holds under it, as `DefaultsLe.of_lit` proves. `GenLe` adds `MarksAgree`: the marks agree at every position both sides have, a container's spread among them, so `hide(integer)` and `integer` are below each other in the order and not under `gen`, as `hide_not_genLe` proves. The definition decides both profiles position by position: `defaultsLe_of_walk` and `genLe_of_walk` prove the profile's order where `leDecF` proves the order and the walk of `defaultsAt` or `marksAt` fails nowhere, and `not_defaultsLe_of_refutes` and `not_genLe_of_refutes` refute it at one position. The rows from f0 on and w0 on of [`test/spec/def-subsume.tsv`](../test/spec/def-subsume.tsv) hold both engines to them.
 
 ### Profiles
 

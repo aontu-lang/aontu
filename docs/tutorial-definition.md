@@ -6321,8 +6321,8 @@ def sortLe (desc : Bool) (x y : Scalar × Val) : Bool :=
 
 The picks and sorts have rows of their own, x597 on in
 `test/spec/def-call.tsv`. A projector or a direction through a rider
-or a mark reads as its value, rows x1995 on, as one through a name does
-in rows z30 on. A string names an index by its digits alone, so
+or a mark reads as its value, rows from x1995 on, as one through a name does
+in rows from z30 on. A string names an index by its digits alone, so
 `" 0"` and `"1e0"` name none, and `""` names no key in `pick`, rows
 x2025 on. Both engines answer every row as the definition does, but
 for three calls with the wrong number of arguments, which #426
@@ -7199,7 +7199,7 @@ def OutputA (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
 
 The shared test suite binds one set of variables for every row, and
 the rows i0 to i33 of `test/spec/def-gen.tsv` read them, the oracle
-binding the same set. Rows i22 on stand a variable as a path's step,
+binding the same set. Rows from i22 on stand a variable as a path's step,
 each kind of scalar the runners bind among them, as the first step and
 twice in one path. Both engines answer every one as the definition
 does. A float, a big integer and a big decimal bind too and have no
@@ -7327,7 +7327,7 @@ container. A string a call computes converts once it's settled, so
 is. Rows k0 to k104 of `test/spec/def-call.tsv` hold each, and both
 engines answer every one as the definition does.
 
-Rows k0 on of three files hold this: `test/spec/def-gen.tsv` what path
+Rows from k0 on of three files hold this: `test/spec/def-gen.tsv` what path
 values generate, `test/spec/def-verdict.tsv` how `vet` judges data
 against them, and `test/spec/def-subsume.tsv` which one subsumes
 which. Both engines answer every row as the definition does.
@@ -7512,7 +7512,7 @@ absence for a member, that instance holds no position either, so
 `each([1], maybe($.gone))` is `[]`, and `pack` leaves the member out of
 its map.
 
-Rows mb0 on of `test/spec/def-path.tsv` hold these readings in the
+Rows from mb0 on of `test/spec/def-path.tsv` hold these readings in the
 three modes of `vet`, and both engines answer every row as the
 definition does. Where the engines read absence otherwise, no row
 holds the case, which #479 tracks: they forgive a conflict beside a
@@ -7613,8 +7613,8 @@ A path into its output reads the preference, so `$.b.x` beside
 `pref(1 | 2)` is `*1 | *2`, two defaults of one rank that disagree, a
 clash as step 14 reads it: an `error`, as `*1 | *2` written so is.
 
-Rows pf0 on of `test/spec/def-path.tsv` hold these readings in the
-three modes of `vet`, rows pc0 on hold paths into a call's output, and
+Rows from pf0 on of `test/spec/def-path.tsv` hold these readings in the
+three modes of `vet`, rows from pc0 on hold paths into a call's output, and
 both engines answer every one as the definition does. They answer
 `pref(1 | 2)` `invalid` where they answer
 `*1 | *2` an `error`, and no row holds that case, which #482 tracks.
@@ -7704,7 +7704,7 @@ $ echo $?
 A `move` of a value written in place, `move({ x:1 })`, hides nothing
 and reads as `pref`, and a path that names nothing is an `error`, as
 any path is. The definition reads a rider around the path through, so
-`move(meta($.x, r))` hides `x` and reads as `*meta(1, r)`. Rows mv0 on
+`move(meta($.x, r))` hides `x` and reads as `*meta(1, r)`. Rows from mv0 on
 of `test/spec/def-path.tsv` hold these readings in the three modes of
 `vet`, and both engines answer every one as the definition does. Data
 that sets the copy of a path under a rider splits the engines, and
@@ -7841,9 +7841,9 @@ $ echo $?
 1
 ```
 
-Rows rf0 on of `test/spec/def-path.tsv` hold these readings in the
-three modes of `vet`, rows ld0 on hold links that land through a
-spread or a path reference, and rows lg0 on links in a generator's
+Rows from rf0 on of `test/spec/def-path.tsv` hold these readings in the
+three modes of `vet`, rows from ld0 on hold links that land through a
+spread or a path reference, and rows from lg0 on links in a generator's
 template. Both engines answer every one as the definition does. With data, both engines read a body's relative link a
 second time, from each place that uses the body, which #488 tracks, and
 no row holds such a link.
@@ -7912,7 +7912,7 @@ def linkAddrs (src : Val) (e : List Seg × Val × Bool) : List Addr :=
 ```
 
 So each leaf's target must exist, and the template meets each target,
-in the passes step 36 walked through. Rows rl0 on of
+in the passes step 36 walked through. Rows from rl0 on of
 `test/spec/def-path.tsv` hold these readings in the three modes of
 `vet`, and both engines answer every one as the definition does. The
 engines read a relative address at a leaf from different places: the
