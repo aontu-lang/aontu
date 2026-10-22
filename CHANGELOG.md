@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a spread at each member
+
+Definition, generated rows, and documentation. No engine changes.
+P9's fifth slice.
+
+- `spec/Aontu/Paths.lean`: a spread's template that holds a path or a
+  `key(n)` reads at each member it's tried on, placed at the member,
+  wherever the spread lands, a path reference's copy among them
+  (`Val.membersRead`). The error class reads it at the members the
+  schema's own tree holds and the other classes at those of the tree
+  the data reads in, so a template whose path names nothing is an
+  `error` at a member the schema writes and makes a member the data
+  alone supplies `invalid`, as both ports answer. A spread that's a
+  relative path reads where it's written (`plBare`). `VetA` takes the
+  two schemas, and `vetP_iff` holds as before.
+- `test/spec/def-path.tsv` gains rows sp0 on, in the three modes of
+  `vet`, and no other row changes. Both ports answer every row as the
+  definition does.
+- The definition tutorial gains step 38, which walks through the
+  reading, and the language reference says how a spread reads its
+  paths and a `key(n)` deeper in its template.
+
 ### The definition reads a link in a generator's template
 
 Definition, generated rows, and documentation. No engine changes.

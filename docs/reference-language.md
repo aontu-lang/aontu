@@ -995,8 +995,10 @@ reads at the position it stands at, by `keyUpAt` in
 [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean): a template at the
 position its instance lands at, and a `filter`'s condition where the
 member it tries lands. At a spread's own position `key(1)` reads the
-container's key. The definition doesn't yet read a `key(n)` deeper in a
-spread.
+container's key. Deeper in a spread's template, `key(n)` reads at each
+member the spread holds, as a relative path there does:
+`Val.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+places the template at each member before `resolveD` reads it.
 
 ## Generating children: `pack` and `each`
 
@@ -1566,9 +1568,23 @@ place, `%` and its name as a key at the top: in `%T = {y: .x}` the path
 `.x` names `$.%T.x`, which no document holds, while `..x` there names
 the document's own `x`. The definition makes each relative path
 absolute where it stands, by `Val.placed` and `Decls.placed` in
-[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). It doesn't yet
-read one in a spread, a template or a `filter`'s condition, each of
-which stands at a position no written step names.
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean).
+
+A spread's template reads its paths at each member the spread holds,
+the member's own place: in `hosts: {&: {url: .name}}`, each member's `url`
+is that member's `name`. Both engines try a template only on the
+members there are, so a path in a template that names nothing is no
+error until a member reads it: an `error` where the schema writes the
+member, even where the data supplies what the path names, and
+`invalid` where only the data supplies the member. A spread that's
+itself a relative path, `&: ..x`, reads where it's written, the same
+place for every member. The definition reads a spread so by
+`Val.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
+at each member wherever the spread lands, at each place a path
+reference copies it to among them. It doesn't yet read a relative path
+in a template or a `filter`'s condition, each of which stands at a
+position no written step names, nor a spread's inside a disjunction, a
+selection, a generator's template or an alias's body.
 
 ### Recursive references (fixpoints)
 

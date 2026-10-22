@@ -22,7 +22,9 @@
 # its target, in rows rf0 on. rel, a relation whose value holds a link at
 # each leaf, follows in rows rl0 on, and links read where they land, in a
 # spread's template or copied by a path reference, in rows ld0 on, and in a
-# generator's template, at each member of its output, in rows lg0 on.
+# generator's template, at each member of its output, in rows lg0 on. Spreads
+# whose templates read their member's place, each read at each member there
+# is, follow in rows sp0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -977,3 +979,123 @@ lg26	verdict	"a": {}, "l": [1], "e": each($.l, (refer({"k": 1})) & (path($.a)))	
 lg27	verdict	"a": {}, "m": {"x": 1, "y": 2}, "e": each($.m, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid"}
 lg28	verdict	"a": {}, "m": {"x": 1, "y": 2}, "e": each($.m, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
 lg29	verdict	"a": {}, "m": {"x": 1, "y": 2}, "e": each($.m, {"r": (refer({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+sp0	verdict	"s": {&: {"host": .name}}	{"s": {"a": {"name": "x", "host": "x"}}}	{"verdict":"valid"}
+sp1	verdict	"s": {&: {"host": .name}}	{"s": {"a": {"name": "x", "host": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+sp2	verdict	"s": {&: {"host": .name}}	{"s": {"a": {"name": "x", "host": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+sp3	verdict	"s": {&: {"host": .name}}	{"s": {"a": {"name": "x", "host": "y"}}}	{"verdict":"invalid"}
+sp4	verdict	"s": {&: {"host": .name}}	{"s": {"a": {"name": "x", "host": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp5	verdict	"s": {&: {"host": .name}}	{"s": {"a": {"name": "x", "host": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp6	verdict	"s": {&: {"host": .name}}	{"s": {"a": {"name": "x"}}}	{"verdict":"valid"}
+sp7	verdict	"s": {&: {"host": .name}}	{"s": {"a": {"name": "x"}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp8	verdict	"s": {&: {"host": .name}}	{"s": {"a": {"name": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+sp9	verdict	"s": {&: {"host": .name}}	{"s": {"a": {}}}	{"verdict":"invalid"}
+sp10	verdict	"s": {&: {"host": .name}}	{"s": {"a": {}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp11	verdict	"s": {&: {"host": .name}}	{"s": {"a": {}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp12	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{}	{"verdict":"valid"}
+sp13	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp14	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{}	{"verdict":"valid","opts":{"partial":true}}
+sp15	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid"}
+sp16	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp17	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp18	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{"s": {"b": {"name": "y"}}}	{"verdict":"valid"}
+sp19	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{"s": {"b": {"name": "y"}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp20	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{"s": {"b": {"name": "y"}}}	{"verdict":"valid","opts":{"partial":true}}
+sp21	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{"s": {"b": {"name": "y", "host": "z"}}}	{"verdict":"invalid"}
+sp22	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{"s": {"b": {"name": "y", "host": "z"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp23	verdict	"s": {"a": {"name": "x"}, &: {"host": .name}}	{"s": {"b": {"name": "y", "host": "z"}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp24	verdict	"s": {"a": {}, &: {"host": .name}}	{}	{"verdict":"error"}
+sp25	verdict	"s": {"a": {}, &: {"host": .name}}	{}	{"verdict":"error","opts":{"noFill":true}}
+sp26	verdict	"s": {"a": {}, &: {"host": .name}}	{}	{"verdict":"error","opts":{"partial":true}}
+sp27	verdict	"s": {"a": {}, &: {"host": .name}}	{"s": {"a": {"name": "z"}}}	{"verdict":"error"}
+sp28	verdict	"s": {"a": {}, &: {"host": .name}}	{"s": {"a": {"name": "z"}}}	{"verdict":"error","opts":{"noFill":true}}
+sp29	verdict	"s": {"a": {}, &: {"host": .name}}	{"s": {"a": {"name": "z"}}}	{"verdict":"error","opts":{"partial":true}}
+sp30	verdict	"s": {"a": {"name": string}, &: {"host": .name}}	{}	{"verdict":"incomplete"}
+sp31	verdict	"s": {"a": {"name": string}, &: {"host": .name}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp32	verdict	"s": {"a": {"name": string}, &: {"host": .name}}	{}	{"verdict":"valid","opts":{"partial":true}}
+sp33	verdict	"l": [&: {"host": .name}]	{"l": [{"name": "x"}]}	{"verdict":"valid"}
+sp34	verdict	"l": [&: {"host": .name}]	{"l": [{"name": "x"}]}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp35	verdict	"l": [&: {"host": .name}]	{"l": [{"name": "x"}]}	{"verdict":"valid","opts":{"partial":true}}
+sp36	verdict	"l": [{"n": 1}, &: {"h": .n}]	{"l": [{"h": 2}]}	{"verdict":"invalid"}
+sp37	verdict	"l": [{"n": 1}, &: {"h": .n}]	{"l": [{"h": 2}]}	{"verdict":"invalid","opts":{"noFill":true}}
+sp38	verdict	"l": [{"n": 1}, &: {"h": .n}]	{"l": [{"h": 2}]}	{"verdict":"invalid","opts":{"partial":true}}
+sp39	verdict	"s": {"a": {}, &: {"up": ...top}}, "top": 1	{}	{"verdict":"valid"}
+sp40	verdict	"s": {"a": {}, &: {"up": ...top}}, "top": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp41	verdict	"s": {"a": {}, &: {"up": ...top}}, "top": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+sp42	verdict	"s": {&: {"v": ..x}}	{"s": {"a": {}}}	{"verdict":"invalid"}
+sp43	verdict	"s": {&: {"v": ..x}}	{"s": {"a": {}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp44	verdict	"s": {&: {"v": ..x}}	{"s": {"a": {}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp45	verdict	"s": {&: {"v": ..x}}	{}	{"verdict":"valid"}
+sp46	verdict	"s": {&: {"v": ..x}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp47	verdict	"s": {&: {"v": ..x}}	{}	{"verdict":"valid","opts":{"partial":true}}
+sp48	verdict	"s": {"b": {}, &: {"v": ...x}}	{}	{"verdict":"error"}
+sp49	verdict	"s": {"b": {}, &: {"v": ...x}}	{}	{"verdict":"error","opts":{"noFill":true}}
+sp50	verdict	"s": {"b": {}, &: {"v": ...x}}	{}	{"verdict":"error","opts":{"partial":true}}
+sp51	verdict	"s": {&: {"k": key(1)}}	{"s": {"a": {}}}	{"verdict":"valid"}
+sp52	verdict	"s": {&: {"k": key(1)}}	{"s": {"a": {}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp53	verdict	"s": {&: {"k": key(1)}}	{"s": {"a": {}}}	{"verdict":"valid","opts":{"partial":true}}
+sp54	verdict	"s": {&: {"k": key(1)}}	{"s": {"a": {"k": "b"}}}	{"verdict":"invalid"}
+sp55	verdict	"s": {&: {"k": key(1)}}	{"s": {"a": {"k": "b"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp56	verdict	"s": {&: {"k": key(1)}}	{"s": {"a": {"k": "b"}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp57	verdict	"s": {"a": {}, &: {"k": key(1)}}	{}	{"verdict":"valid"}
+sp58	verdict	"s": {"a": {}, &: {"k": key(1)}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp59	verdict	"s": {"a": {}, &: {"k": key(1)}}	{}	{"verdict":"valid","opts":{"partial":true}}
+sp60	verdict	"s": {&: {"k": key(2)}}	{"s": {"a": {"k": "s"}}}	{"verdict":"valid"}
+sp61	verdict	"s": {&: {"k": key(2)}}	{"s": {"a": {"k": "s"}}}	{"verdict":"valid","opts":{"noFill":true}}
+sp62	verdict	"s": {&: {"k": key(2)}}	{"s": {"a": {"k": "s"}}}	{"verdict":"valid","opts":{"partial":true}}
+sp63	verdict	"s": {&: {"w": {"k": key(2)}}}	{"s": {"a": {"w": {"k": "b"}}}}	{"verdict":"invalid"}
+sp64	verdict	"s": {&: {"w": {"k": key(2)}}}	{"s": {"a": {"w": {"k": "b"}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp65	verdict	"s": {&: {"w": {"k": key(2)}}}	{"s": {"a": {"w": {"k": "b"}}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp66	verdict	"l": [&: {"i": key(1)}]	{"l": [{}, {}]}	{"verdict":"valid"}
+sp67	verdict	"l": [&: {"i": key(1)}]	{"l": [{}, {}]}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp68	verdict	"l": [&: {"i": key(1)}]	{"l": [{}, {}]}	{"verdict":"valid","opts":{"partial":true}}
+sp69	verdict	"s": {&: .x}	{"s": {"a": 1}}	{"verdict":"error"}
+sp70	verdict	"s": {&: .x}	{"s": {"a": 1}}	{"verdict":"error","opts":{"noFill":true}}
+sp71	verdict	"s": {&: .x}	{"s": {"a": 1}}	{"verdict":"error","opts":{"partial":true}}
+sp72	verdict	"s": {&: ..x}, "x": 1	{"s": {"a": 2}}	{"verdict":"invalid"}
+sp73	verdict	"s": {&: ..x}, "x": 1	{"s": {"a": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp74	verdict	"s": {&: ..x}, "x": 1	{"s": {"a": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+sp75	verdict	"s": {&: ..x}	{}	{"verdict":"error"}
+sp76	verdict	"s": {&: ..x}	{}	{"verdict":"error","opts":{"noFill":true}}
+sp77	verdict	"s": {&: ..x}	{}	{"verdict":"error","opts":{"partial":true}}
+sp78	verdict	"s": {&: (1) & (.x)}, "x": 1	{}	{"verdict":"valid"}
+sp79	verdict	"s": {&: (1) & (.x)}, "x": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp80	verdict	"s": {&: (1) & (.x)}, "x": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+sp81	verdict	"s": {&: {"z": $.nosuch}}	{}	{"verdict":"valid"}
+sp82	verdict	"s": {&: {"z": $.nosuch}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp83	verdict	"s": {&: {"z": $.nosuch}}	{}	{"verdict":"valid","opts":{"partial":true}}
+sp84	verdict	"s": {&: {"z": $.nosuch}}	{"s": {"a": {}}}	{"verdict":"invalid"}
+sp85	verdict	"s": {&: {"z": $.nosuch}}	{"s": {"a": {}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp86	verdict	"s": {&: {"z": $.nosuch}}	{"s": {"a": {}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp87	verdict	"s": {"a": {}, &: {"z": $.nosuch}}	{}	{"verdict":"error"}
+sp88	verdict	"s": {"a": {}, &: {"z": $.nosuch}}	{}	{"verdict":"error","opts":{"noFill":true}}
+sp89	verdict	"s": {"a": {}, &: {"z": $.nosuch}}	{}	{"verdict":"error","opts":{"partial":true}}
+sp90	verdict	"T": {&: {"h": .name}}, "x": $.T	{"x": {"a": {"name": "n", "h": "m"}}}	{"verdict":"invalid"}
+sp91	verdict	"T": {&: {"h": .name}}, "x": $.T	{"x": {"a": {"name": "n", "h": "m"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp92	verdict	"T": {&: {"h": .name}}, "x": $.T	{"x": {"a": {"name": "n", "h": "m"}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp93	verdict	"T": {&: {"h": .name}}, "x": $.T	{"x": {"a": {"name": "n"}}}	{"verdict":"valid"}
+sp94	verdict	"T": {&: {"h": .name}}, "x": $.T	{"x": {"a": {"name": "n"}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp95	verdict	"T": {&: {"h": .name}}, "x": $.T	{"x": {"a": {"name": "n"}}}	{"verdict":"valid","opts":{"partial":true}}
+sp96	verdict	"T": {&: {"z": $.y}}, "y": 1, "x": $.T	{"x": {"a": {"z": 2}}}	{"verdict":"invalid"}
+sp97	verdict	"T": {&: {"z": $.y}}, "y": 1, "x": $.T	{"x": {"a": {"z": 2}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp98	verdict	"T": {&: {"z": $.y}}, "y": 1, "x": $.T	{"x": {"a": {"z": 2}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp99	verdict	"T": {"a": {"name": "t"}, &: {"h": .name}}, "x": $.T	{"x": {"a": {"h": "u"}}}	{"verdict":"invalid"}
+sp100	verdict	"T": {"a": {"name": "t"}, &: {"h": .name}}, "x": $.T	{"x": {"a": {"h": "u"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp101	verdict	"T": {"a": {"name": "t"}, &: {"h": .name}}, "x": $.T	{"x": {"a": {"h": "u"}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp102	verdict	"T": {"a": {}, &: {"h": .name}}, "x": $.T	{}	{"verdict":"error"}
+sp103	verdict	"T": {"a": {}, &: {"h": .name}}, "x": $.T	{}	{"verdict":"error","opts":{"noFill":true}}
+sp104	verdict	"T": {"a": {}, &: {"h": .name}}, "x": $.T	{}	{"verdict":"error","opts":{"partial":true}}
+sp105	verdict	"s": {"a": {"name": "n"}, &: {"w": {"f": {}, &: {"h": ...name}}}}	{"s": {"a": {"w": {"f": {"h": "m"}}}}}	{"verdict":"invalid"}
+sp106	verdict	"s": {"a": {"name": "n"}, &: {"w": {"f": {}, &: {"h": ...name}}}}	{"s": {"a": {"w": {"f": {"h": "m"}}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp107	verdict	"s": {"a": {"name": "n"}, &: {"w": {"f": {}, &: {"h": ...name}}}}	{"s": {"a": {"w": {"f": {"h": "m"}}}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp108	verdict	"s": {"a": {"name": "n"}, &: {"w": {"f": {}, &: {"h": ...name}}}}	{}	{"verdict":"valid"}
+sp109	verdict	"s": {"a": {"name": "n"}, &: {"w": {"f": {}, &: {"h": ...name}}}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp110	verdict	"s": {"a": {"name": "n"}, &: {"w": {"f": {}, &: {"h": ...name}}}}	{}	{"verdict":"valid","opts":{"partial":true}}
+sp111	verdict	"s": {&: {"w": {&: {"h": ...name}}}}	{"s": {"a": {"name": "x", "w": {"b": {}}}}}	{"verdict":"valid"}
+sp112	verdict	"s": {&: {"w": {&: {"h": ...name}}}}	{"s": {"a": {"name": "x", "w": {"b": {}}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp113	verdict	"s": {&: {"w": {&: {"h": ...name}}}}	{"s": {"a": {"name": "x", "w": {"b": {}}}}}	{"verdict":"valid","opts":{"partial":true}}
+sp114	verdict	"s": {"a": {"w": {"b": {}}}, &: {"w": {&: {"h": ...name}}}}	{}	{"verdict":"error"}
+sp115	verdict	"s": {"a": {"w": {"b": {}}}, &: {"w": {&: {"h": ...name}}}}	{}	{"verdict":"error","opts":{"noFill":true}}
+sp116	verdict	"s": {"a": {"w": {"b": {}}}, &: {"w": {&: {"h": ...name}}}}	{}	{"verdict":"error","opts":{"partial":true}}
+sp117	verdict	"s": ({&: {"host": .name}}) & ({"a": {"name": "x"}})	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid"}
+sp118	verdict	"s": ({&: {"host": .name}}) & ({"a": {"name": "x"}})	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp119	verdict	"s": ({&: {"host": .name}}) & ({"a": {"name": "x"}})	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
