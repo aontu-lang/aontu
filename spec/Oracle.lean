@@ -1224,7 +1224,10 @@ theorem move_verdict_exact : ∀ c ∈ moveCases, ∀ (m : Mode) (v : Verdict),
 /-- Paths into what a call over a path makes, which resolve a round after
 the call's path does: a name's spellings, two chained, two lists added
 and a string split, beside data that agrees and data that refuses; a
-key the call doesn't make; and a preference of a path's map. -/
+key the call doesn't make; a preference of a path's map; a call, and a
+call around it, waiting on a path the round before didn't reach where a
+path first reaches them; and paths to a call's and a generator's own
+value. -/
 def roundCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (t : String) : Val := .lit (.str t)
@@ -1240,6 +1243,10 @@ def roundCases : List (Decls × Val × Data) :=
   let cut : List (String × Val) :=
     [("a", str "x,y"), ("b", .call .split [p ["a"], str ","]), ("c", .path [.key "b", .idx 1])]
   let pr : List (String × Val) := [("a", m [("x", int 1)]), ("b", .call .pref [p ["a"]]), ("c", p ["b", "x"])]
+  let late : List (String × Val) :=
+    [("a", str "ab_cd"), ("u", nm (p ["a"])), ("b", m [("x", nm (p ["u", "camel"]))]), ("c", p ["b", "x"])]
+  let nested : List (String × Val) := [("a", str "ab_cd"), ("u", nm (p ["a"])),
+    ("b", m [("x", .call .upper [.call .nom [p ["u", "camel"], str "snake"]])]), ("c", p ["b", "x"])]
   [([], m one, .map []),
     ([], m one, .map [("c", .str "abCd")]),
     ([], m one, .map [("c", .str "x")]),
@@ -1254,7 +1261,16 @@ def roundCases : List (Decls × Val × Data) :=
     ([], m cut, .map [("c", .str "z")]),
     ([], m [("a", str "ab_cd"), ("b", nm (p ["a"])), ("c", p ["b", "nope"])], .map []),
     ([], m pr, .map []),
-    ([], m pr, .map [("c", j 2)])]
+    ([], m pr, .map [("c", j 2)]),
+    ([], m late, .map []),
+    ([], m late, .map [("c", .map [("snake", .str "ab_cd")])]),
+    ([], m late, .map [("c", .map [("snake", .str "x")])]),
+    ([], m nested, .map [("c", .str "AB_CD")]),
+    ([], m [("a", str "ab_cd"), ("b", nm (p ["a"])), ("c", p ["b"])], .map []),
+    ([], m [("a", str "ab_cd"), ("b", nm (p ["a"])), ("c", p ["b"])], .map [("c", .map [("camel", .str "x")])]),
+    ([], m [("l", lst [int 1, int 2]), ("e", .call .each [p ["l"], m [("v", .hole)]]), ("c", p ["e"])], .map []),
+    ([], m [("l", lst [int 1, int 2]), ("e", .call .each [p ["l"], m [("v", .hole)]]),
+      ("c", .path [.key "e", .idx 1, .key "v"])], .map [("c", j 2)])]
 
 theorem roundCases_checkable : ∀ c ∈ roundCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -2879,26 +2895,62 @@ handed one as its pattern, which it refuses, since its pattern is a
 string. The patterns are fixed text, with groups, or outside the
 subset, and none splits the empty text (#447). Neither call waits, so
 each reads to a term the checker can read, and `vet` is `Vet` on it. -/
-def patternCases : List (Val × Data) :=
+def patternSplits : List (Val × String × Data) :=
   let str (s : String) : Val := .lit (.str s)
   let js (s : String) : Data := .str s
   let jl (xs : List Data) : Data := .list xs
-  ([(str "a1b1c", "1", jl [js "a", js "b", js "c"]), (str "a1b1c", "1", jl [js "a1b1c"]),
-      (str "1a1", "1", jl [js "", js "a", js ""]), (str "a11b", "1", jl [js "a", js "", js "b"]),
-      (str "aaa", "aa", jl [js "", js "a"]), (str "ab", "", jl [js "a", js "b"]),
-      (str "a😀b", "", jl [js "a", js "😀", js "b"]), (str "abc", "x", jl [js "abc"]),
-      (str "aXbXc", "(X)", jl [js "a", js "b", js "c"]), (str "abc", "(?<n>b)", jl [js "a", js "c"]),
-      (.ride .metadata (str "a1b") [], "1", jl [js "a", js "b"]),
-      (.integer, "1", jl [js "1"])].map fun (s, p, d) => (.call .split [s, .re p], d)) ++
-    [(.call .rep [str "a", .re "a", str "b"], js "b")]
+  [(str "a1b1c", "1", jl [js "a", js "b", js "c"]), (str "a1b1c", "1", jl [js "a1b1c"]),
+    (str "1a1", "1", jl [js "", js "a", js ""]), (str "a11b", "1", jl [js "a", js "", js "b"]),
+    (str "aaa", "aa", jl [js "", js "a"]), (str "ab", "", jl [js "a", js "b"]),
+    (str "a😀b", "", jl [js "a", js "😀", js "b"]), (str "abc", "x", jl [js "abc"]),
+    (str "aXbXc", "(X)", jl [js "a", js "b", js "c"]), (str "abc", "(?<n>b)", jl [js "a", js "c"]),
+    (.ride .metadata (str "a1b") [], "1", jl [js "a", js "b"]),
+    (.integer, "1", jl [js "1"])]
+
+def patternCases : List (Val × Data) :=
+  (patternSplits.map fun (s, p, d) => (.call .split [s, .re p], d)) ++
+    [(.call .rep [.lit (.str "a"), .re "a", .lit (.str "b")], .str "b")]
+
+/-- A term the patterns' cases hand a call: a literal, a pattern, a kind
+or a rider around one, holding no reference, call or selection. -/
+def Aontu.Val.inertB : Val → Bool
+  | .lit _ | .re _ | .integer => true
+  | .ride _ v _ => v.inertB
+  | _ => false
+
+/-- A term that holds no reference waits on none, whatever reads it. -/
+theorem inert_pending {ds : Decls} {bd : Option Val} {here : Option (List Step)} :
+    ∀ {x : Val}, x.inertB = true → ∀ j, (resolveD ds bd here (expandF ds j x)).pending ds = false
+  | .lit _, _, j => by cases j <;> simp [expandF, resolveD, Val.pending]
+  | .re _, _, j => by cases j <;> simp [expandF, resolveD, Val.pending]
+  | .integer, _, j => by cases j <;> simp [expandF, resolveD, Val.pending]
+  | .ride _ v _, h, j => by
+    cases j with
+    | zero =>
+      simp only [expandF, resolveD, Val.pending]
+      exact inert_pending (x := v) h 0
+    | succ j =>
+      simp only [expandF, resolveD, Val.pending]
+      exact inert_pending (x := v) h j
+
+theorem patternSplits_inert : ∀ t ∈ patternSplits, t.1.inertB = true := by decide
 
 theorem patternCases_readable : ∀ c ∈ patternCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
   intro c hc
   rcases List.mem_append.mp hc with h | h
-  · obtain ⟨⟨s, p, d⟩, _, rfl⟩ := List.mem_map.mp h
-    exact readR_call_checkableA resolveD_expandF_split
+  · obtain ⟨⟨s, p, d⟩, hm, rfl⟩ := List.mem_map.mp h
+    refine readR_call_checkableA fun k => resolveD_expandF_split k fun j x hx => ?_
+    simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
+    rcases hx with rfl | rfl
+    · exact inert_pending (patternSplits_inert _ hm) j
+    · exact inert_pending (x := .re p) rfl j
   · rcases List.mem_singleton.mp h with rfl
-    exact readR_call_checkableA resolveD_expandF_rep
+    refine readR_call_checkableA fun k => resolveD_expandF_rep k fun j x hx => ?_
+    simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
+    rcases hx with rfl | rfl | rfl
+    · exact inert_pending (x := .lit (.str "a")) rfl j
+    · exact inert_pending (x := .re "a") rfl j
+    · exact inert_pending (x := .lit (.str "b")) rfl j
 
 theorem pattern_verdict_exact : ∀ c ∈ patternCases, ∀ (m : Mode) (v : Verdict),
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=

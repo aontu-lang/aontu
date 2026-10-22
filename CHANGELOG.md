@@ -50,7 +50,11 @@ Definition, generated rows, and documentation. No engine changes.
   `$.b.camel` beside `b: nom($.a)`, was an `error` where both ports
   read it.
 - A path keeps the term the first round that reaches it holds there,
-  so every row a path read before keeps its class.
+  so every row a path read before keeps its class. A call or a
+  generator handed a reference that names nothing yet, a path not read
+  or a name no round has declared, waits (`Val.pending`), so that term
+  holds the call, which a later round makes. Before, the call refused
+  the reference, and a path that reached it kept `nil`.
 - `Decls.Resolves`, `Decls.withPathsS`, `Decls.withPaths` and
   `Decls.withMoves` read these roots; `vetA_iff` carries the checker's
   precondition through every round (`Decls.rounds_checkableA`).

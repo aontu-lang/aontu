@@ -2826,10 +2826,28 @@ and all. A call over a path makes its value only once the path reads,
 so the definition reads the document in rounds. The first round reads
 it with its paths unread. Each round after declares each path as the
 term at it in the first root before that reaches it, and reads the
-document again. In `a: "ab_cd", b: nom($.a), c: $.b.camel` the first
-round holds `b` as `nil`, since `nom` takes no path not yet read. The
-second reads `$.a` as `"ab_cd"`, so `b` is the map of spellings, and the
-third reads `$.b.camel` as `"abCd"`:
+document again. A call or a generator waits while a term it's handed
+waits on a reference that names nothing yet: a path not read, a name no
+round has declared, or a call that waits on one:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.pending (ds : Decls) : Val → Bool
+  | .path _ => true
+  | .alias n => (ds.bodies n).isEmpty
+  | .meet a b => a.pending ds || b.pending ds
+  | .or arms => pendingArms ds arms
+  | .ride _ v _ => v.pending ds
+  | .call _ args => pendingItems ds args
+  | .select s _ _ => s.pending ds
+  | .filter s _ => s.pending ds
+  | _ => false
+```
+
+In `a: "ab_cd", b: nom($.a), c: $.b.camel` the first round holds `b`
+as the call itself, which waits on `$.a`. The second reads `$.a` as
+`"ab_cd"`, so `b` is the map of spellings, and the third reads
+`$.b.camel` as `"abCd"`:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -5196,7 +5214,9 @@ member's key, the instances of a repeated key met, and `nil` where the
 data is no bag or a list holds anything but a string. A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
-no position for an element that is absence. Any other call, its
+no position for an element that is absence. A call or a generator
+handed a reference that names nothing yet (`Val.pending`) waits, as a
+later round of the paths may declare it. Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
 hole, and a `filter`'s condition and a template are read for their own
 members, so none of them is read for `b`. Each `key(n)` reads `here`, by
@@ -6810,7 +6830,10 @@ and an `each` reads its template once for each member of its data:
       | some ms =>
         .list ((ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).filter
           fun e => !(normaliseD ds e).isAbsent) none false
-      | none => if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent else .nil
+      | none =>
+        if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
+        else if (resolveD ds b here d).pending ds then .call .each [resolveD ds b here d, t]
+        else .nil
 ```
 
 So the template replaces the member, unless the template names the
@@ -6878,7 +6901,10 @@ each member, but into an open map:
       | some ms =>
         .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
           fun m => (m.1, false, m.2)) none false
-      | none => if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent else .nil
+      | none =>
+        if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
+        else if (resolveD ds b here d).pending ds then .call .pack [resolveD ds b here d, t]
+        else .nil
 ```
 
 `Val.keyedMembers` pairs each member with its key. It reads a map's
