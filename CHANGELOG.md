@@ -8,6 +8,20 @@ each change affects.
 
 ## Unreleased
 
+### A component's string spec keeps its riders in Go
+
+Go, shared rows, and documentation; no TypeScript change (#454).
+
+- Go filled the prop a string spec fills with a new string, so a rider
+  on the spec was lost, where TypeScript fills it with the spec itself.
+  Go now does the same, so `folder(meta("src", {title: "x"}))` is
+  `{"name": meta("src", {"title": "x"})}` in both ports' canonical
+  form. The generated JSON was the same in both and doesn't change.
+- `test/spec/cmp.tsv` gains three canonical rows, each answered alike
+  by both ports.
+- The definition tutorial's component step says the riders ride into
+  the prop.
+
 ### `translate` writes U+FFFD for a surrogate in `to`
 
 TypeScript, shared and generated rows, and documentation; no Go change

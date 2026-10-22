@@ -192,12 +192,12 @@ func cmpFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 	case 0 == len(args):
 		props = newMap()
 	default:
-		if s, ok := stringPeg(args[0]); ok {
+		if _, ok := stringPeg(args[0]); ok {
 			if "" == def.text {
 				return makeNilErrFull(ctx, "invalid-arg", f, args[0], "spec", nil)
 			}
 			props = newMap()
-			props.set(def.text, newString(s))
+			props.set(def.text, args[0])
 		} else if m, ok := args[0].(*MapVal); ok {
 			props = m
 		} else {
