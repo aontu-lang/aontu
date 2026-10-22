@@ -1651,6 +1651,13 @@ anything but a name or a path (`${b: 1}`, `$1`) is refused where it is
 written, with `[aontu/var_name]`; a `$` that ends a line takes the
 next line as its operand, which is the usual way this arises.
 
+The definition reads a variable as a name that the calling program
+declares. `Val.var` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean)
+is the alias `$name`, which no document can write, and `Decls.withVars`
+in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) sets the
+program's bindings beside the document's declarations. It doesn't yet
+read a variable as a path's segment.
+
 ## Aliases `%`
 
 An **alias** is a name for a value, written with a leading `%`.

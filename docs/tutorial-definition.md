@@ -6898,7 +6898,53 @@ the definition does. Six shapes have no row:
   definition generates the copy both engines do, but a literal that
   meets a term under that declaration stays undecided.
 
-## 30. What the definition doesn't say yet
+## 30. Variables
+
+A variable, `$foo`, takes its value from the program that runs the
+document rather than from the document. The API binds it, as
+[the API reference](reference-api.md#variables) shows, and `aontu`
+itself binds none. The definition reads a variable as a name that the program
+declares, beside the aliases the document declares:
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+/-! ## Variables
+
+A variable, `$name`, is a name the calling program declares where the
+document declares an alias: the reading is the document's with the
+program's declarations beside its own, each under `$` and the name,
+which no alias can be written as, since an alias begins with a letter.
+A variable no program declares is a name declared nowhere, an error. -/
+
+/-- The variable `$n`: the name the calling program declares it under. -/
+def Val.var (n : String) : Val := .alias ("$" ++ n)
+```
+
+and the program's declarations sit beside the document's own:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- The declarations a document reads under the bindings `vs` the
+calling program makes: its own, and each variable's value under its
+name, as `Val.var` reads it. -/
+def Decls.withVars (ds : Decls) (vs : List (String × Data)) : Decls :=
+  ds ++ vs.map fun v => ("$" ++ v.1, v.2.term)
+```
+
+So a variable reads as an alias does. It meets like any value, so
+`$foo & integer` is `11` where the program binds `foo` to `11`. It
+stands anywhere a value can: in a list, in a call's argument, as a
+default, and as the data a generator reads. A variable the program
+doesn't bind is a name declared nowhere, which is an error.
+
+The shared test suite binds one set of variables for every row, and
+the rows i0 to i19 of `test/spec/def-gen.tsv` read them, the oracle
+binding the same set. Both engines answer every one as the definition
+does. A float, a big integer and a big decimal bind too and have no
+row, since the rows write no number but an integer as JSON. A variable
+as a path's segment, `$.q.$foo`, has no rule yet.
+
+## 31. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
