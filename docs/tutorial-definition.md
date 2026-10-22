@@ -2698,24 +2698,26 @@ A path names a part of a value, step by step:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- A step of a path: a member's key, or a position in a list. -/
+/-- A step of a path: a member's key, a position in a list, or a
+variable the calling program binds, whose value names the step. -/
 inductive Seg where
   | key (k : String)
   | idx (i : ℕ)
+  | var (n : String)
 ```
 
-A path in a document reads as what the document holds at that position,
-the data unified in: `x: $.y` with `y: integer & 1` makes `x` the value
-`1`. `spec/Aontu/Paths.lean` reads it by declaration. Each path a
-document writes becomes a name, declared as the term at the path in the
-root, the normal form of the schema met with the data, and the document
-refers to the name in its place, so that the expansion, the residuals,
-the checker and the alias-cycle rule of step 8 carry paths as they
-carry names. The term at a path is found through maps by key and lists
-by index, and through nothing else: not a disjunction, and not a
-reference left as a residual. A rider around a map or a list, which
-step 19 comes to, changes nothing a path reads, so `unride` takes it
-off first:
+Step 30 comes to the variable. A path in a document reads as what the
+document holds at that position, the data unified in: `x: $.y` with
+`y: integer & 1` makes `x` the value `1`. `spec/Aontu/Paths.lean` reads
+it by declaration. Each path a document writes becomes a name, declared
+as the term at the path in the root, the normal form of the schema met
+with the data, and the document refers to the name in its place, so
+that the expansion, the residuals, the checker and the alias-cycle rule
+of step 8 carry paths as they carry names. The term at a path is found
+through maps by key and lists by index, and through nothing else: not a
+disjunction, and not a reference left as a residual. A rider around a
+map or a list, which step 19 comes to, changes nothing a path reads, so
+`unride` takes it off first:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -2738,6 +2740,54 @@ def Val.at : Val → List Seg → Option Val
       | some w => w.at p
       | none => none
     | _ => none
+  | _, .var _ :: _ => none
+```
+
+A document writes a path as text, though, and both engines read each
+step by the container it meets. A map reads the key the text spells, and a list
+the index it spells in canonical decimal, `0` or digits that don't
+begin with `0`. So `$.q.0` reads a map's key `"0"`, `$.q."1"` reads a
+list's index `1`, and `$.q."01"` reads nothing:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The step a written step takes in the container it meets, the riders
+around it read through: in a map, the key its text spells, and in a
+list, the index its text spells in canonical decimal. A variable names
+no step until it's bound. -/
+def Seg.stepIn (s : Seg) (v : Val) : Option Seg :=
+  match s, v.unride with
+  | .var _, _ => none
+  | s, .map _ _ _ => some (.key s.text)
+  | .idx i, .list _ _ _ => some (.idx i)
+  | .key k, .list _ _ _ => (indexOf? k).map .idx
+  | _, _ => none
+```
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The term at a written path in a term: each step read as text, by
+the container it meets (`Seg.stepIn`). -/
+def Val.atW : Val → List Seg → Option Val
+  | v, [] => some v
+  | v, s :: p =>
+    match s.stepIn v with
+    | some t =>
+      match v.at [t] with
+      | some w => w.atW p
+      | none => none
+    | none => none
+```
+
+A path's term is then `Val.atW` of the path in a root, its variables
+bound first:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The term a written path names in a root: the path with each
+variable bound (`Decls.bindSeg`), read by `Val.atW`. -/
+def Decls.pathAt (ds : Decls) (root : Val) (p : List Seg) : Option Val :=
+  (p.mapM ds.bindSeg).bind root.atW
 ```
 
 A path resolves in the schema's own tree, before any data: a key the
@@ -2748,7 +2798,7 @@ data alone supplies is no position, and a path to nothing is an
 ```lean
 /-- Every path of the document resolves in the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.docPaths S → ((normaliseD ds (ds.read S)).at p).isSome = true
+  ∀ p, p ∈ ds.docPaths S → (ds.pathAt (normaliseD ds (ds.read S)) p).isSome = true
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -2756,8 +2806,8 @@ def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
 /-- The declarations a document's paths make: each path's name, declared
 as the term at the path in the root, with that term's own paths read as
 names too. A path to nothing declares nothing. -/
-def Decls.ofPaths (root : Val) (ps : List (List Seg)) : Decls :=
-  ps.filterMap fun p => (root.at p).map fun w => (pathName p, w.pathsToAliases)
+def Decls.ofPaths (ds : Decls) (root : Val) (ps : List (List Seg)) : Decls :=
+  ps.filterMap fun p => (ds.pathAt root p).map fun w => (pathName p, w.pathsToAliases)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -2766,7 +2816,7 @@ def Decls.ofPaths (root : Val) (ps : List (List Seg)) : Decls :=
 declared as the term at it, and the bodies and the schema refer to the
 names. -/
 def Decls.withPathsFrom (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ Decls.ofPaths root (ds.docPaths S), S.pathsToAliases)
+  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths root (ds.docPaths S), S.pathsToAliases)
 ```
 
 Two roots serve: the schema alone, for the error class, and the schema
@@ -6935,12 +6985,49 @@ can: in a list, in a call's argument, as a default, and as the data a
 generator reads. A variable the program doesn't bind is a name
 declared nowhere, which is an error.
 
+A variable can stand as a path's step too, as in `$.q.$foo`. The step
+is the text of the value the program binds, which then reads a map or a
+list as any written step does in step 9:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- A variable's step: the text of the value the calling program binds
+it to, a string as itself, a number as `Number.text` writes it and a
+boolean as `true` or `false`. A variable bound to nothing, to `null`,
+to a container or to a value that generates nothing names no step. -/
+def Decls.bindSeg (ds : Decls) : Seg → Option Seg
+  | .var n =>
+    match outputD ds (ds.readR (.var n)) with
+    | some (.str s) => some (.key s)
+    | some (.num x) => some (.key x.text)
+    | some (.bool b) => some (.key (if b then "true" else "false"))
+    | _ => none
+  | s => some s
+```
+
+So where the program binds `foo` to `11`, `$.q.$foo` reads the key
+`"11"` of a map and the index `11` of a list. A variable bound to a
+kind, to `null` or to a map names no step, so its path is an error.
+What a document with paths generates is the output of its reading with
+the paths read as names from the schema alone:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- What a document with paths generates, where every path resolves:
+the output of the document with its paths read as names from the
+schema alone. -/
+def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
+  ds.Resolves S ∧ OutputD (ds.withPathsS S).1 root ((ds.withPathsS S).1.readR (ds.withPathsS S).2) j
+```
+
 The shared test suite binds one set of variables for every row, and
-the rows i0 to i21 of `test/spec/def-gen.tsv` read them, the oracle
-binding the same set. Both engines answer every one as the definition
+the rows i0 to i33 of `test/spec/def-gen.tsv` read them, the oracle
+binding the same set. Rows i22 on stand a variable as a path's step,
+each kind of scalar the runners bind among them, as the first step and
+twice in one path. Both engines answer every one as the definition
 does. A float, a big integer and a big decimal bind too and have no
-row, since the rows write no number but an integer as JSON. A variable
-as a path's segment, `$.q.$foo`, has no rule yet.
+row of their own, since the rows write no number but an integer as
+JSON, though each names a step.
 
 ## 31. What the definition doesn't say yet
 

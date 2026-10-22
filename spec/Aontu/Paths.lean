@@ -38,6 +38,44 @@ def Val.at : Val → List Seg → Option Val
       | some w => w.at p
       | none => none
     | _ => none
+  | _, .var _ :: _ => none
+termination_by structural _ p => p
+
+/-- The index digits spell in canonical decimal: `0`, or digits that
+don't begin with `0`. -/
+def digitsOf? : List Char → Option ℕ
+  | ['0'] => some 0
+  | '0' :: _ => none
+  | [] => none
+  | cs => cs.foldl (fun acc c => acc.bind fun n =>
+      if c.isDigit then some (10 * n + (c.toNat - '0'.toNat)) else none) (some 0)
+
+/-- The index a step's text spells in canonical decimal. -/
+def indexOf? (k : String) : Option ℕ := digitsOf? k.toList
+
+/-- The step a written step takes in the container it meets, the riders
+around it read through: in a map, the key its text spells, and in a
+list, the index its text spells in canonical decimal. A variable names
+no step until it's bound. -/
+def Seg.stepIn (s : Seg) (v : Val) : Option Seg :=
+  match s, v.unride with
+  | .var _, _ => none
+  | s, .map _ _ _ => some (.key s.text)
+  | .idx i, .list _ _ _ => some (.idx i)
+  | .key k, .list _ _ _ => (indexOf? k).map .idx
+  | _, _ => none
+
+/-- The term at a written path in a term: each step read as text, by
+the container it meets (`Seg.stepIn`). -/
+def Val.atW : Val → List Seg → Option Val
+  | v, [] => some v
+  | v, s :: p =>
+    match s.stepIn v with
+    | some t =>
+      match v.at [t] with
+      | some w => w.atW p
+      | none => none
+    | none => none
 termination_by structural _ p => p
 
 /-! ## Paths as names -/
@@ -48,7 +86,8 @@ alias, since an alias begins with a letter. -/
 def pathName (p : List Seg) : String :=
   "$" ++ String.join (p.map fun
     | .key k => "." ++ toString k.length ++ ":" ++ k
-    | .idx i => "#" ++ toString i)
+    | .idx i => "#" ++ toString i
+    | .var n => "$" ++ toString n.length ++ ":" ++ n)
 
 mutual
 /-- The term with each path replaced by a reference to the path's name. -/
@@ -96,11 +135,29 @@ def ptaArms : List (ℕ × Val) → List (ℕ × Val)
   | (r, a) :: as => (r, a.pathsToAliases) :: ptaArms as
 end
 
+/-- A variable's step: the text of the value the calling program binds
+it to, a string as itself, a number as `Number.text` writes it and a
+boolean as `true` or `false`. A variable bound to nothing, to `null`,
+to a container or to a value that generates nothing names no step. -/
+def Decls.bindSeg (ds : Decls) : Seg → Option Seg
+  | .var n =>
+    match outputD ds (ds.readR (.var n)) with
+    | some (.str s) => some (.key s)
+    | some (.num x) => some (.key x.text)
+    | some (.bool b) => some (.key (if b then "true" else "false"))
+    | _ => none
+  | s => some s
+
+/-- The term a written path names in a root: the path with each
+variable bound (`Decls.bindSeg`), read by `Val.atW`. -/
+def Decls.pathAt (ds : Decls) (root : Val) (p : List Seg) : Option Val :=
+  (p.mapM ds.bindSeg).bind root.atW
+
 /-- The declarations a document's paths make: each path's name, declared
 as the term at the path in the root, with that term's own paths read as
 names too. A path to nothing declares nothing. -/
-def Decls.ofPaths (root : Val) (ps : List (List Seg)) : Decls :=
-  ps.filterMap fun p => (root.at p).map fun w => (pathName p, w.pathsToAliases)
+def Decls.ofPaths (ds : Decls) (root : Val) (ps : List (List Seg)) : Decls :=
+  ps.filterMap fun p => (ds.pathAt root p).map fun w => (pathName p, w.pathsToAliases)
 
 /-- The paths a document writes: in the schema as read and in every body. -/
 def Decls.docPaths (ds : Decls) (S : Val) : List (List Seg) :=
@@ -109,11 +166,11 @@ def Decls.docPaths (ds : Decls) (S : Val) : List (List Seg) :=
 /-- Whether every path of the document resolves in the schema's own
 tree: the normal form of the schema as read, before any data. -/
 def Decls.resolvesB (ds : Decls) (S : Val) : Bool :=
-  (ds.docPaths S).all fun p => ((normaliseD ds (ds.read S)).at p).isSome
+  (ds.docPaths S).all fun p => (ds.pathAt (normaliseD ds (ds.read S)) p).isSome
 
 /-- Every path of the document resolves in the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.docPaths S → ((normaliseD ds (ds.read S)).at p).isSome = true
+  ∀ p, p ∈ ds.docPaths S → (ds.pathAt (normaliseD ds (ds.read S)) p).isSome = true
 
 theorem Decls.resolvesB_iff {ds : Decls} {S : Val} : ds.resolvesB S = true ↔ ds.Resolves S := by
   simp only [Decls.resolvesB, Decls.Resolves, List.all_eq_true]
@@ -122,7 +179,7 @@ theorem Decls.resolvesB_iff {ds : Decls} {S : Val} : ds.resolvesB S = true ↔ d
 declared as the term at it, and the bodies and the schema refer to the
 names. -/
 def Decls.withPathsFrom (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ Decls.ofPaths root (ds.docPaths S), S.pathsToAliases)
+  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths root (ds.docPaths S), S.pathsToAliases)
 
 /-- The document with its paths read as names from the schema alone:
 the root is the normal form of the schema as read, before any data,
@@ -355,19 +412,43 @@ theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p 
           exact at_checkableA p (hi x (List.mem_of_getElem? hx)) h
         · exact absurd h (by simp)
     · exact absurd h (by simp)
+  | .var _ :: _, _, _, _, h => by simp [Val.at] at h
 
-theorem Decls.ofPaths_checkableA {root : Val} (hr : root.CheckableA) (ps : List (List Seg)) :
-    ∀ d, d ∈ Decls.ofPaths root ps → d.2.CheckableA := by
+/-- The term at a written path in a term the checker can read is one it
+can read. -/
+theorem atW_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.atW p = some w → w.CheckableA
+  | [], _, _, hv, h => by
+    simp only [Val.atW, Option.some.injEq] at h
+    exact h ▸ hv
+  | s :: p, v, w, hv, h => by
+    simp only [Val.atW] at h
+    split at h
+    · rename_i t _
+      split at h
+      · rename_i u hu
+        exact atW_checkableA p (at_checkableA [t] hv hu) h
+      · exact absurd h (by simp)
+    · exact absurd h (by simp)
+
+theorem Decls.pathAt_checkableA {ds : Decls} {root w : Val} {p : List Seg} (hr : root.CheckableA)
+    (h : ds.pathAt root p = some w) : w.CheckableA := by
+  unfold Decls.pathAt at h
+  cases hq : p.mapM ds.bindSeg with
+  | none => rw [hq] at h; exact absurd h (by simp)
+  | some q => rw [hq] at h; exact atW_checkableA q hr h
+
+theorem Decls.ofPaths_checkableA {ds : Decls} {root : Val} (hr : root.CheckableA) (ps : List (List Seg)) :
+    ∀ d, d ∈ ds.ofPaths root ps → d.2.CheckableA := by
   intro d hd
   simp only [Decls.ofPaths, List.mem_filterMap] at hd
   obtain ⟨p, -, hp⟩ := hd
-  cases hw : root.at p with
+  cases hw : ds.pathAt root p with
   | none => rw [hw] at hp; exact absurd hp (by simp)
   | some w =>
     rw [hw] at hp
     simp only [Option.map_some, Option.some.injEq] at hp
     rw [← hp]
-    exact pathsToAliases_checkableA (at_checkableA p hr hw)
+    exact pathsToAliases_checkableA (Decls.pathAt_checkableA hr hw)
 
 theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {root : Val}
     (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hr : root.CheckableA) :
@@ -406,5 +487,31 @@ theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
   · rw [if_neg hr]
     have hR : ¬ ds.Resolves S := fun h => hr (Decls.resolvesB_iff.mpr h)
     cases v <;> simp only [VetP, hR, not_false_eq_true, true_or, false_and, reduceCtorEq]
+
+/-! ## The output with paths -/
+
+/-- What a document with paths generates, where every path resolves:
+the output of the document with its paths read as names from the
+schema alone. -/
+def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
+  ds.Resolves S ∧ OutputD (ds.withPathsS S).1 root ((ds.withPathsS S).1.readR (ds.withPathsS S).2) j
+
+/-- The output with paths, computed. -/
+def outputP (ds : Decls) (S : Val) : Option Data :=
+  if ds.resolvesB S then outputD (ds.withPathsS S).1 ((ds.withPathsS S).1.readR (ds.withPathsS S).2)
+  else none
+
+/-- `outputP` computes `OutputP` where the reading keeps the alias-cycle
+rule and the checker can read its bodies and its normal form. -/
+theorem outputP_iff {ds : Decls} {S : Val} {root : Data} (hg : (ds.withPathsS S).1.Guarded)
+    (hb : ∀ d, d ∈ (ds.withPathsS S).1 → d.2.CheckableA)
+    (h : (normaliseD (ds.withPathsS S).1 ((ds.withPathsS S).1.readR (ds.withPathsS S).2)).CheckableA)
+    (j : Data) : outputP ds S = some j ↔ OutputP ds root S j := by
+  unfold outputP OutputP
+  by_cases hr : ds.resolvesB S = true
+  · rw [if_pos hr, outputD_iff hg hb h j]
+    exact ⟨fun h' => ⟨Decls.resolvesB_iff.mp hr, h'⟩, fun h' => h'.2⟩
+  · rw [if_neg hr]
+    exact ⟨fun h' => absurd h' (by simp), fun h' => absurd (Decls.resolvesB_iff.mpr h'.1) hr⟩
 
 end Aontu

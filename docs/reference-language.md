@@ -1523,6 +1523,13 @@ That is why `$.a.1.0` is the two segments `1` and `0` (how a nested list
 index is written (`a:[[1,2],[3,4]] b:$.a.1.0` → `b:3`)) rather than a
 key spelled `1.0`.
 
+The definition reads each segment as text, by the container it meets:
+`Val.atW` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). A map
+reads the key the text spells, and a list the index it spells in
+canonical decimal, `0` or digits that don't begin with `0`. So
+`$.a."1"` indexes a list as `$.a.1` does, and `$.a.01` reaches a map's
+key `01` and no list index.
+
 References compose with unification and each other: cross-references,
 chains, and a referenced map met with extra keys:
 
@@ -1656,8 +1663,9 @@ declares. `Val.var` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean)
 is the alias `$name`, which no document can write, and `Decls.withVars`,
 in the same module, sets the program's bindings beside the document's
 declarations. A binding is any value the program builds, a kind as
-well as data. The definition doesn't yet read a variable as a path's
-segment.
+well as data. A variable as a path's segment names the text of its
+value, by `Decls.bindSeg` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
+and a value with no text, such as a kind, `null` or a map, names none.
 
 ## Aliases `%`
 

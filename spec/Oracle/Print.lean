@@ -78,12 +78,13 @@ def prefSrc (r : ℕ) (s : String) : String :=
   if s.startsWith "{" || s.startsWith "[" then stars ++ s else stars ++ s!"({s})"
 
 /-- A step of a path as the grammar spells it: a key that is a plain
-name, or a position; a key that needs quoting has no text here. -/
+name, a key in quotes, a position, or a variable. -/
 def segSrc : Seg → Option String
   | .key k =>
     if k.length > 0 && k.all (fun c => c.isAlphanum || c == '_') && !k.front.isDigit
-    then some ("." ++ k) else none
+    then some ("." ++ k) else some ("." ++ quote k)
   | .idx i => some ("." ++ toString i)
+  | .var n => some (".$" ++ n)
 
 mutual
 def Data.src : Data → Option String

@@ -191,6 +191,21 @@ p176	verdict	"a": ({"v": 1}) | ({"v": 2}), "b": $.a.v	{"a": {"v": 1}, "b": 1}	{"
 p177	verdict	"a": {"x": 1, "y": 2}, "b": ($.a) & ({"x": 2})	{"b": {"x": 2, "y": 2}}	{"verdict":"error"}
 p178	verdict	"a": {"x": 1, "y": 2}, "b": ($.a) & ({"x": 2})	{"b": {"x": 2, "y": 2}}	{"verdict":"error","opts":{"noFill":true}}
 p179	verdict	"a": {"x": 1, "y": 2}, "b": ($.a) & ({"x": 2})	{"b": {"x": 2, "y": 2}}	{"verdict":"error","opts":{"partial":true}}
+p180	verdict	"q": {"0": 3}, "x": $.q.0	{"x": 3}	{"verdict":"valid"}
+p181	verdict	"q": {"0": 3}, "x": $.q.0	{"x": 3}	{"verdict":"incomplete","opts":{"noFill":true}}
+p182	verdict	"q": {"0": 3}, "x": $.q.0	{"x": 3}	{"verdict":"valid","opts":{"partial":true}}
+p183	verdict	"q": {"0": 3}, "x": $.q.0	{"x": 4}	{"verdict":"invalid"}
+p184	verdict	"q": {"0": 3}, "x": $.q.0	{"x": 4}	{"verdict":"invalid","opts":{"noFill":true}}
+p185	verdict	"q": {"0": 3}, "x": $.q.0	{"x": 4}	{"verdict":"invalid","opts":{"partial":true}}
+p186	verdict	"q": [5, 6], "x": $.q."1"	{"x": 6}	{"verdict":"valid"}
+p187	verdict	"q": [5, 6], "x": $.q."1"	{"x": 6}	{"verdict":"incomplete","opts":{"noFill":true}}
+p188	verdict	"q": [5, 6], "x": $.q."1"	{"x": 6}	{"verdict":"valid","opts":{"partial":true}}
+p189	verdict	"q": [5, 6], "x": $.q."1"	{"x": 5}	{"verdict":"invalid"}
+p190	verdict	"q": [5, 6], "x": $.q."1"	{"x": 5}	{"verdict":"invalid","opts":{"noFill":true}}
+p191	verdict	"q": [5, 6], "x": $.q."1"	{"x": 5}	{"verdict":"invalid","opts":{"partial":true}}
+p192	verdict	"q": [5, 6], "x": $.q."01"	{"x": 5}	{"verdict":"error"}
+p193	verdict	"q": [5, 6], "x": $.q."01"	{"x": 5}	{"verdict":"error","opts":{"noFill":true}}
+p194	verdict	"q": [5, 6], "x": $.q."01"	{"x": 5}	{"verdict":"error","opts":{"partial":true}}
 q0	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid"}
 q1	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 q2	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid","opts":{"partial":true}}

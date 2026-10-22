@@ -1351,6 +1351,7 @@ theorem defaults_walk_sound : ∀ (p : List Seg) {a b wa wb : Val},
         · exact absurd hb (by simp)
       · exact absurd ha (by simp)
     · exact absurd ha (by simp)
+  | .var _ :: _, _, _, _, _, _, _, ha, _ => by simp [Val.at] at ha
 
 /-- The `defaults` profile's order where the order holds and the walk
 fails nowhere. -/
