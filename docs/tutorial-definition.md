@@ -2778,9 +2778,10 @@ and not an ill-formed schema:
 ```lean
 /-- The document with its paths read as names from the schema alone:
 the root is the normal form of the schema as read, before any data,
-which is what the error class is judged on. -/
+which is what the error class is judged on. The root keeps its keys as
+written, so that a key a path reaches reads where the path lands. -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (ds.readR S))
+  ds.withPathsFrom S (normaliseD ds (ds.readU S))
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -2789,7 +2790,7 @@ def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
 root is the normal form of the schema met with the data, which is what
 the other classes are judged on. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.readR S) j.term))
+  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.readU S) j.term))
 ```
 
 The verdict of a document with paths is then the verdict of step 14 on
@@ -3823,7 +3824,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
-  | .key, _ | .call _ _, _ | .hole, _ => False
+  | .key, _ | .keyUp _, _ | .call _ _, _ | .hole, _ => False
 ```
 
 Read `Gen env root v j` as *`v` generates `j`*. A literal generates
@@ -4992,12 +4993,14 @@ def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
 and a term reads with its selections made, where one whose scrutinee
 generates nothing stays, and generates nothing, as a `match` on an
 unfilled hole does. The reading carries `b`, the member a hole in a
-template reads as, which step 27 covers:
+template reads as, which step 27 covers, and `here`, the position a
+term stands at, which step 29 covers:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- A term with its selections made, `b` the member a generator's
-template is read for, which each hole in the template stands for: each
+template is read for, which each hole in the template stands for, and
+`here` the position the term stands at, where one is placed: each
 `match` whose scrutinee generates a value is the result its arms select
 for it, and each `filter` whose source generates a container is the
 members its condition admits, as a term, or `nil` where the source
@@ -5011,28 +5014,35 @@ data is no bag or a list holds anything but a string.
 Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
 hole, and a `filter`'s condition and a template are read for their own
-members, so none of them is read for `b`. -/
-def resolveD (ds : Decls) (b : Option Val) : Val → Val
+members, so none of them is read for `b`. Each `key(n)` reads `here`, by
+`keyUpAt`: a template stands at the position its instance lands at, the
+member's index or key below the call, and a `filter`'s condition where
+the member it tries lands, under its key or at the index it takes among
+those kept. A term read with no position keeps its keys as written. -/
+def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
-    let s' := resolveD ds b s
-    let arms' := resolvePairs ds b arms
-    let d' := resolveSpread ds b d
+    let s' := resolveD ds b here s
+    let arms' := resolvePairs ds b here arms
+    let d' := resolveSpread ds b here d
     match genD ds s' with
     | some x => if callPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
     | none => .select s' arms' d'
   | .filter s c =>
-    let s' := resolveD ds b s
+    let s' := resolveD ds b here s
     match genD ds s' with
-    | some (.map fs) => (Data.map (fs.filter fun m => checkR ds (resolveD ds (some m.2.term) c) m.2)).term
-    | some (.list xs) => (Data.list (xs.filter fun x => checkR ds (resolveD ds (some x.term) c) x)).term
+    | some (.map fs) => (Data.map (fs.filter fun m =>
+        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).term
+    | some (.list xs) => (Data.list (keptAt (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term
     | some _ => .nil
-    | none => .filter s' (resolveD ds none c)
+    | none => .filter s' (resolveD ds none none c)
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- How a document reads: its term expanded, with its selections made. -/
-def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (ds.read S)
+/-- How a document reads: its term expanded, with its selections made and
+each key placed, the document standing at the top. -/
+def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.read S)
 ```
 
 Step 14's `Vet` reads the schema so, and three theorems say what the
@@ -5056,11 +5066,13 @@ theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm d
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- A `filter` over a list keeps the elements its condition admits, in
-their order, the condition read for each element it tries. -/
-theorem resolveD_filter_list {ds : Decls} {b : Option Val} {s c : Val} {xs : List Data}
-    (h : genD ds (resolveD ds b s) = some (.list xs)) :
-    resolveD ds b (.filter s c) =
-      (Data.list (xs.filter fun x => checkR ds (resolveD ds (some x.term) c) x)).term := by
+their order, the condition read for each element it tries, at the index
+the element takes among those kept. -/
+theorem resolveD_filter_list {ds : Decls} {b : Option Val} {here : Option (List Step)} {s c : Val}
+    {xs : List Data} (h : genD ds (resolveD ds b here s) = some (.list xs)) :
+    resolveD ds b here (.filter s c) =
+      (Data.list (keptAt (fun i x => checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x)
+        0 xs)).term := by
   simp [resolveD, h]
 ```
 
@@ -5715,9 +5727,8 @@ member the schema declares meets the spread read under its key, with
 the selection made, so `{a: string, &: match(key(0), "a", integer,
 nil)}` is a conflict. Two spreads that read the key meet as written,
 since no one term stands for both until a member gives the key. A `key` no
-spread has read refuses every value, as a path left unread does. The
-reference's `key()` at any other position, with its levels, waits on
-the templates of the roadmap. Both engines answer the rows `y0` on of
+spread has read refuses every value, as a path left unread does. Step
+29 reads `key()` at any other position, with its levels. Both engines answer the rows `y0` on of
 `test/spec/def-trial.tsv` as the definition does.
 
 Everything else the import wrote, the kinds `map` and `list`,
@@ -5949,7 +5960,7 @@ every value at a call:
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
 def Val.callAt : Val → Bool
-  | .call _ _ => true
+  | .call _ _ | .keyUp _ => true
   | .meet a b => a.callAt || b.callAt
   | .ride _ v _ => v.callAt
   | _ => false
@@ -6600,8 +6611,8 @@ and an `each` reads its template once for each member of its data:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
     | .each, [d, t] =>
-      match (normaliseD ds (resolveD ds b d)).members ds with
-      | some ms => .list (ms.map fun m => resolveD ds (some m) t) none false
+      match (normaliseD ds (resolveD ds b here d)).members ds with
+      | some ms => .list (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t) none false
       | none => .nil
 ```
 
@@ -6616,9 +6627,8 @@ keeps `"WEB"`, which `upper(_)` doesn't change.
 Outside a template, a hole no generator fills admits every value, as
 `any` does. Both engines also let a call's peer fill a hole in the
 call, so `upper(_) & "a"` is `"A"`. That isn't a meet, since `"a"`
-alone is no `"A"`, and the definition doesn't read it yet. Both engines
-read `key()` in a template as the member's key,
-which waits on `key()` at any position. The rows are x1809 on, and
+alone is no `"A"`, and the definition doesn't read it yet. Step 29
+reads `key()` in a template. The rows are x1809 on, and
 both engines answer every one as the definition does, but for two
 calls with the wrong number of arguments, which #426 tracks.
 
@@ -6666,10 +6676,10 @@ each member, but into an open map:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
     | .pack, [d, t] =>
-      match (normaliseD ds (resolveD ds b d)).keyedMembers ds with
+      match (normaliseD ds (resolveD ds b here d)).keyedMembers ds with
       | some ms =>
-        .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) t))).map fun m => (m.1, false, m.2))
-          none false
+        .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
+          fun m => (m.1, false, m.2)) none false
       | none => .nil
 ```
 
@@ -6681,20 +6691,177 @@ member, its instances met by `mergeKeys`, as a map's repeated key is. A list hol
 but a string is an error, `pack([1], {})`, and so is data that isn't a
 bag. The map is open, so `pack(["a"], {x: 1}) & {b: 2}` holds `b` too.
 
-The templates here don't use `key()`. Both engines read it as the key
-the instance lands under, which waits on `key()` at any position. The
-rows are x2064 on, and both engines answer every one as the
-definition does.
+The templates here don't use `key()`, which step 29 reads. The rows
+are x2064 on, and both engines answer every one as the definition does.
 
-## 29. What the definition doesn't say yet
+## 29. A key where it stands
+
+`key(n)` reads the key `n` levels up from the place it stands: `key(0)`
+its own key, `key()` its parent's, and `""` past the top. A list's
+index reads as its digits. Write `key.aontu`:
+
+<!-- test: scenario key -->
+<!-- test: file key.aontu -->
+```aontu
+a: b: { c:key() d:key(0) e:key(2) }
+l: [key(0) x:key(1)]
+deploy: pack(["web" "auth"], { image:"acme/" + key() })
+order: each(["p" "q"], { slot:key() })
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu key.aontu
+{
+  "a": {
+    "b": {
+      "c": "b",
+      "d": "d",
+      "e": "a"
+    }
+  },
+  "deploy": {
+    "auth": {
+      "image": "acme/auth"
+    },
+    "web": {
+      "image": "acme/web"
+    }
+  },
+  "l": [
+    "0",
+    {
+      "x": "1"
+    }
+  ],
+  "order": [
+    {
+      "slot": "0"
+    },
+    {
+      "slot": "1"
+    }
+  ]
+}
+```
+
+The term `keyUp n` is `key(n)` as written. `keyUpAt` reads it at a
+position, the steps from the top:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+/-- `key(n)` read at the position `pos`, outermost step first: the text of
+the step `n` levels up, `""` where there is none, and, where that step is
+the member a spread holds, the `key` the spread reads at its own position,
+or `key(n)` still beneath it. -/
+def keyUpAt (pos : List Step) (n : ℤ) : Val :=
+  if n < 0 then .lit (.str "") else
+  match pos.reverse[n.toNat]? with
+  | some (.seg s) => .lit (.str s.text)
+  | some .spread => if n = 0 then .key else .keyUp n
+  | none => .lit (.str "")
+```
+
+`resolveD` carries the position each term stands at. A map's member
+stands one key below the map, and a list's element one index below:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+  | .map fs spread closed =>
+    .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
+  | .list items spread closed =>
+    .list (resolveElems ds b here 0 items) (resolveSpread ds none (stepped here .spread) spread) closed
+```
+
+and a key reads the position it stands at:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+  | .keyUp n =>
+    match here with
+    | some pos => keyUpAt pos n
+    | none => .keyUp n
+```
+
+A template stands where its instance lands, under the member's key in
+a `pack` and at its index in an `each`, so `deploy` names each image
+and `order` numbers each slot. A `filter`'s condition stands where the
+member it tries lands, under its key, or at the index a list's member
+takes among those kept. So `filter(["x", "0", "1"], key(0))` keeps
+`"0"` and `"1"`, each tried at index `0` and then `1`. At a spread's own
+position, `key(0)` is the term `key` that step 18 reads under each
+member's key, and `key(1)` the key of the spread's container.
+
+A path copies its target's term with the keys in it unread, and they
+read where the path lands. Write `ref.aontu`:
+
+<!-- test: scenario ref -->
+<!-- test: file ref.aontu -->
+```aontu
+a: x: key()
+b: $.a
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu ref.aontu
+{
+  "a": {
+    "x": "a"
+  },
+  "b": {
+    "x": "b"
+  }
+}
+```
+
+The root a path reads is the document read with its keys as written,
+and the verdict reads the document with each key placed:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- How a document reads: its term expanded, with its selections made and
+each key placed, the document standing at the top. -/
+def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.read S)
+
+/-- How a document reads with its keys as written: the root its paths
+read, so that a key a path reaches reads where the path lands. -/
+def Decls.readU (ds : Decls) (S : Val) : Val := resolveD ds none none (ds.read S)
+```
+
+A literal meets an unplaced key as a pair, as it meets a call the
+reading hasn't made, so the data a path's target holds stays beside
+the key. Against `{"a": {"x": "a"}, "b": {"x": "b"}}`, then, `ref.aontu`
+is invalid in both engines, since `b` copies `x: key() & "a"` and its
+key reads `"b"`.
+
+The rows are x2121 on and r0 on, and both engines answer every one as
+the definition does. Four shapes have no row:
+
+- A key deeper in a spread than its own position, `&: {name: key()}`,
+  which both engines read as the member's key, has no rule yet.
+- A path into a generator's output finds the keys the generator wrote
+  in both engines, where a path to the generator itself rereads them
+  where it lands. The definition rereads both, and has no rule for the
+  difference yet.
+- A path shallower than its target leaves a stale level in both
+  engines, which #463 records.
+- A preference on a key, `*key() | "x"`, which neither engine
+  resolves, as #465 records.
+
+## 30. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
 [language reference](reference-language.md) states the rest: the
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
-steps 20 to 26 don't walk through, `key()` anywhere but in a spread, and
-generation with `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
+steps 20 to 26 don't walk through, `key()` deeper in a spread than its
+own position, and generation with `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 
