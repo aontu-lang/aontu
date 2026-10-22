@@ -3740,9 +3740,11 @@ it.
 
 In the definition, `refer(t)` reads as the path kind, and
 `Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
-meets each link's template at the target its address names from where
-the link stands. Where that target names nothing in the schema's own
-tree, the document is an `error`. The definition reads a link in a
+meets each link's template, its marks cleared, at the target its
+address names from where the link stands. It reads the targets in
+passes, so one link's template can make another link's target,
+whichever the document writes first. Where a target names nothing in
+the schema's own tree, the document is an `error`. The definition reads a link in a
 declaration's body at the body's own place, whether a reference reads
 the body or not. Rows rf0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines

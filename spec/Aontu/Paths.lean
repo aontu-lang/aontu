@@ -498,29 +498,51 @@ termination_by structural _ p _ => p
 
 /-- One link's part in the schema, the link written in `src` at `home`:
 where `src`'s normal form holds an address at the link's position, the
-template met at the path the address names from where the link stands
-(`Addr.from`, `Val.putW`), or `nil`, an error, where that path names
-nothing in the schema's own tree or climbs past the top. A link whose
-position holds no address has no target yet, and meets nothing. -/
-def Decls.referStep (ds : Decls) (S : Val) (home : List Seg) (src : Val) (acc : Val)
+template with its marks cleared (`Val.unmark`), as a reference copies
+it, met at the path the address names from where the link stands
+(`Addr.from`, `Val.putW`) in the first of `roots` it names something
+in, or `miss` where it names nothing in them or climbs past the top. A
+link whose position holds no address has no target yet, and meets
+nothing. -/
+def referStep (roots : List Val) (miss : Val) (home : List Seg) (src : Val) (acc : Val)
     (e : List Seg × Val) : Val :=
   match (src.at e.1).bind Val.addrOf? with
   | some a =>
-    match (a.from (home ++ e.1)).bind fun p => (ds.rootsS S).findSome? fun root => root.putW p e.2 with
+    match (a.from (home ++ e.1)).bind fun p => roots.findSome? fun root => root.putW p e.2.unmark with
     | some u => .meet acc u
-    | none => .meet acc .nil
+    | none => .meet acc miss
   | none => acc
 
-/-- The schema with each link's template met into its target, so that
-the template flows into the target and a link to nothing is an error:
-each `refer` the schema writes (`Val.refers`), read in the schema's own
+/-- The schema with each link's template met into its target as `roots`
+hold it, and `miss` for each link whose target they don't hold: each
+`refer` the schema writes (`Val.refers`), read in the schema's own
 tree, and each a body writes, read in the body's normal form at the
 body's own place, `%` and the name as a key at the top, as both ports
 read a body where it's declared, used or not. -/
-def Decls.withRefers (ds : Decls) (S : Val) : Val :=
+def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val :=
   ds.foldl (fun acc d => (d.2.refers []).foldl
-      (ds.referStep S [.key ("%" ++ d.1)] (normaliseD ds (ds.readU d.2))) acc)
-    ((S.refers []).foldl (ds.referStep S [] ((ds.rootsS S).getLast?.getD .any)) S)
+      (referStep roots miss [.key ("%" ++ d.1)] (normaliseD ds (ds.readU d.2))) acc)
+    ((S.refers []).foldl (referStep roots miss [] ((ds.rootsS S).getLast?.getD .any)) S)
+
+/-- The links a document writes, the schema's and its bodies'. -/
+def Decls.referCount (ds : Decls) (S : Val) : ℕ :=
+  ds.foldl (fun n d => n + (d.2.refers []).length) (S.refers []).length
+
+/-- The schema after `n` passes, each meeting the templates of the links
+whose targets the roots of the last pass's schema hold, so that one
+link's template can make another link's target. -/
+def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
+  | 0 => S
+  | n + 1 => ds.referPass S (ds.rootsS (ds.referPasses S n)) .any
+
+/-- The schema with each link's template met into its target, so that
+the template flows into the target and a link to nothing is an error:
+read in the roots of the schema after as many passes as the document
+writes links, so that links whose templates make each other's targets
+resolve in any order, a link whose target is still missing meeting
+`nil`. -/
+def Decls.withRefers (ds : Decls) (S : Val) : Val :=
+  ds.referPass S (ds.rootsS (ds.referPasses S (ds.referCount S))) .nil
 
 /-- A document as the definition reads it: its relative paths placed
 (`Decls.placed`), the sources its moves read hidden
@@ -653,9 +675,10 @@ theorem putW_checkableA {t : Val} (ht : t.CheckableA) :
     · exact absurd h (by simp)
 termination_by p => p
 
-theorem referStep_checkableA {ds : Decls} {S acc src : Val} {home : List Seg} {e : List Seg × Val}
-    (hacc : acc.CheckableA) (he : e.2.CheckableA) : (ds.referStep S home src acc e).CheckableA := by
-  unfold Decls.referStep
+theorem referStep_checkableA {roots : List Val} {miss acc src : Val} {home : List Seg}
+    {e : List Seg × Val} (hm : miss.CheckableA) (hacc : acc.CheckableA) (he : e.2.CheckableA) :
+    (referStep roots miss home src acc e).CheckableA := by
+  unfold referStep
   split
   next a _ =>
     split
@@ -666,33 +689,43 @@ theorem referStep_checkableA {ds : Decls} {S acc src : Val} {home : List Seg} {e
         rw [hq] at hu
         simp only [Option.bind_some] at hu
         obtain ⟨root, -, hr⟩ := List.exists_of_findSome?_eq_some hu
-        exact .meet hacc (putW_checkableA he p hr)
-    next => exact .meet hacc .nil
+        exact .meet hacc (putW_checkableA he.unmark p hr)
+    next => exact .meet hacc hm
   next => exact hacc
 
-theorem foldl_referStep_checkableA {ds : Decls} {S src : Val} {home : List Seg} :
+theorem foldl_referStep_checkableA {roots : List Val} {miss src : Val} {home : List Seg}
+    (hm : miss.CheckableA) :
     ∀ (es : List (List Seg × Val)) {acc : Val}, acc.CheckableA → (∀ e, e ∈ es → e.2.CheckableA) →
-      (es.foldl (ds.referStep S home src) acc).CheckableA
+      (es.foldl (referStep roots miss home src) acc).CheckableA
   | [], _, h, _ => h
   | e :: es, _, h, he =>
-    foldl_referStep_checkableA es (referStep_checkableA h (he e List.mem_cons_self))
+    foldl_referStep_checkableA hm es (referStep_checkableA hm h (he e List.mem_cons_self))
       fun e' h' => he e' (List.mem_cons_of_mem _ h')
 
-theorem foldl_bodyRefers_checkableA {ds : Decls} {S : Val} :
+theorem foldl_bodyRefers_checkableA {ds : Decls} {roots : List Val} {miss : Val}
+    (hm : miss.CheckableA) :
     ∀ (bs : Decls) {acc : Val}, acc.CheckableA → (∀ d, d ∈ bs → d.2.CheckableA) →
       (bs.foldl (fun acc d => (d.2.refers []).foldl
-        (ds.referStep S [.key ("%" ++ d.1)] (normaliseD ds (ds.readU d.2))) acc) acc).CheckableA
+        (referStep roots miss [.key ("%" ++ d.1)] (normaliseD ds (ds.readU d.2))) acc) acc).CheckableA
   | [], _, h, _ => h
   | d :: bs, _, h, hd =>
-    foldl_bodyRefers_checkableA bs
-      (foldl_referStep_checkableA _ h (refers_checkableA (hd d List.mem_cons_self) []))
+    foldl_bodyRefers_checkableA hm bs
+      (foldl_referStep_checkableA hm _ h (refers_checkableA (hd d List.mem_cons_self) []))
       fun d' h' => hd d' (List.mem_cons_of_mem _ h')
+
+/-- A schema the checker can read, under bodies it can read, reads with
+the templates of the links a pass finds targets for met into them,
+whatever roots the pass reads. -/
+theorem referPass_checkableA {ds : Decls} {S miss : Val} {roots : List Val}
+    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) (hm : miss.CheckableA) :
+    (ds.referPass S roots miss).CheckableA :=
+  foldl_bodyRefers_checkableA hm ds (foldl_referStep_checkableA hm _ hS (refers_checkableA hS [])) hb
 
 /-- A schema the checker can read, under bodies it can read, reads with
 its links' templates met into their targets. -/
 theorem withRefers_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (ds.withRefers S).CheckableA :=
-  foldl_bodyRefers_checkableA ds (foldl_referStep_checkableA _ hS (refers_checkableA hS [])) hb
+  referPass_checkableA hb hS .nil
 
 /-- The verdict of a document with paths: the document prepared
 (`Decls.prepared`), its relative paths placed, the sources its moves

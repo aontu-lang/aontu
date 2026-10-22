@@ -16,9 +16,12 @@ P11's third slice.
 - `spec/Aontu/Arith.lean`: `Fn` gains `refer`. `spec/Aontu/Verdict.lean`
   reads it as the path kind, the link's own value, so a string where an
   address must be is an `error`.
-- `spec/Aontu/Paths.lean`: `Decls.withRefers` meets each link's template
-  into the target its address names from where the link stands
-  (`Addr.from`, `Val.putW`). A target that names nothing in the schema's
+- `spec/Aontu/Paths.lean`: `Decls.withRefers` meets each link's template,
+  its marks cleared as a reference's are, into the target its address
+  names from where the link stands (`Addr.from`, `Val.putW`). It reads
+  the targets in passes (`Decls.referPasses`), so that one link's
+  template can make another link's target, whichever comes first. A
+  target that names nothing in the schema's
   own tree, or an address that climbs past the top, makes the schema
   `nil`, an `error`. `Val.refers` reads the schema's links where
   they're written, and a body's at the body's own place, used or not.

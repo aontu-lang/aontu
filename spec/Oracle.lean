@@ -1285,7 +1285,11 @@ link as a string; a template that clashes with the target; no
 template; a target that names nothing, one only the data supplies, a
 relative one, one that climbs past the top, a scalar and a list
 element; a string where an address must be; a link with no address;
-and a link in a body, used and not, read at the body's own place. -/
+a link in a body, used and not, read at the body's own place; a
+template whose marks the flow clears, at its top and inside it; and
+links whose templates make each other's targets, in either order,
+three deep, from a body, under data a template refuses, and in a cycle
+that makes neither. -/
 def referCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1296,6 +1300,11 @@ def referCases : List (Decls × Val × Data) :=
   let a1 : Val := m [("p", int 1)]
   let r3 : Val := rf (m [("r", int 3)]) (ad 0 ["a"])
   let svc (t : Val) : Val := m [("s", m [("auth", m [("k", int 1)]), ("billing", m [("dep", rf t (ad 2 ["auth"]))])])]
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let k1 : Val := m [("k", int 1)]
+  let x2 : Val := rf (m [("p", int 1)]) (ad 0 ["h", "z"])
+  let y2 : Val := rf (m [("z", m [])]) (ad 0 ["h"])
   [([], m [("a", a1), ("b", r3)], .map []),
     ([], m [("a", a1), ("b", r3)], .map [("a", .map [("r", j 3)])]),
     ([], m [("a", a1), ("b", r3)], .map [("a", .map [("r", j 4)])]),
@@ -1321,7 +1330,20 @@ def referCases : List (Decls × Val × Data) :=
     ([("L", r3)], m [("a", a1), ("b", .alias "L")], .map [("a", .map [("r", j 4)])]),
     ([("L", r3)], m [("a", a1)], .map [("a", .map [("r", j 4)])]),
     ([("L", rf0 (ad 1 ["auth"]))], m [("auth", m [("k", int 1)])], .map []),
-    ([("L", rf0 (ad 1 ["auth"]))], m [("s", m [("auth", m [("k", int 1)]), ("b", .alias "L")])], .map [])]
+    ([("L", rf0 (ad 1 ["auth"]))], m [("s", m [("auth", m [("k", int 1)]), ("b", .alias "L")])], .map []),
+    ([("L", rf (type k1) (ad 0 ["a"]))], m [("a", m [])], .map []),
+    ([("L", rf (hide k1) (ad 0 ["a"]))], m [("a", m [])], .map []),
+    ([("L", rf (m [("x", type k1)]) (ad 0 ["a"]))], m [("a", m [])], .map [("a", .map [])]),
+    ([("L", rf (type k1) (ad 0 ["a"]))], m [("a", m [])], .map [("a", .map [("k", j 1)])]),
+    ([], m [("h", m []), ("y", y2), ("x", .meet (.call .refer [m [("p", int 1)]]) (rf (m [("q", int 2)]) (ad 0 ["h", "z"])))],
+      .map []),
+    ([], m [("x", x2), ("h", m []), ("y", y2)], .map []),
+    ([], m [("x", x2), ("h", m []), ("y", y2)], .map [("h", .map [("z", .map [("p", j 2)])])]),
+    ([], m [("v", rf (m [("q", int 1)]) (ad 0 ["h", "z", "w", "u"])), ("x", rf (m [("u", m [])]) (ad 0 ["h", "z", "w"])),
+      ("h", m []), ("y", rf (m [("z", m [("w", m [])])]) (ad 0 ["h"]))], .map []),
+    ([("L", y2)], m [("h", m []), ("x", x2)], .map []),
+    ([], m [("h", m []), ("x", rf (m [("p", m [])]) (ad 0 ["h", "q"])), ("y", rf (m [("q", m [])]) (ad 0 ["h", "p"]))],
+      .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

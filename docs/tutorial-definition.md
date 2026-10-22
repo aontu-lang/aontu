@@ -7753,18 +7753,43 @@ def Addr.from (a : Addr) (pos : List Seg) : Option (List Seg) :=
 ```
 
 So `..auth` written at `s.billing.dep` names `s.auth`, and `...a`
-written at `b` climbs past the top, an `error`. A target that names
-nothing in the schema's own tree is an `error` too, even where the data
-supplies it, as a path to nothing is. The definition reads a link
-written in a body at the body's own place, `%` and the name as a key
-at the top, whether a reference reads the body or not:
+written at `b` climbs past the top, an `error`. The template meets the
+target with its marks cleared, as a reference copies a value, so
+`refer(type({ k:1 }))` makes the target `{ k:1 }`, not a type. The
+definition reads a link written in a body at the body's own place, `%`
+and the name as a key at the top, whether a reference reads the body
+or not:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val :=
+  ds.foldl (fun acc d => (d.2.refers []).foldl
+      (referStep roots miss [.key ("%" ++ d.1)] (normaliseD ds (ds.readU d.2))) acc)
+    ((S.refers []).foldl (referStep roots miss [] ((ds.rootsS S).getLast?.getD .any)) S)
+```
+
+One link's template can make another link's target:
+`y: refer({ z:{} }) & path($.h)` makes `h.z` for
+`x: refer({ p:1 }) & path($.h.z)`, whichever the document writes
+first. So the definition reads the targets in passes, each meeting the
+templates of the links whose targets the last pass's schema holds, as
+many passes as the document writes links:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
+  | 0 => S
+  | n + 1 => ds.referPass S (ds.rootsS (ds.referPasses S n)) .any
+```
+
+A last pass reads each target in the roots those passes make, and a
+target that names nothing there is an `error`, even where the data
+supplies it, as a path to nothing is:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.withRefers (ds : Decls) (S : Val) : Val :=
-  ds.foldl (fun acc d => (d.2.refers []).foldl
-      (ds.referStep S [.key ("%" ++ d.1)] (normaliseD ds (ds.readU d.2))) acc)
-    ((S.refers []).foldl (ds.referStep S [] ((ds.rootsS S).getLast?.getD .any)) S)
+  ds.referPass S (ds.rootsS (ds.referPasses S (ds.referCount S))) .nil
 ```
 
 The template meets the target, so the target refuses the data the

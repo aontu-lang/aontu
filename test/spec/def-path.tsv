@@ -782,3 +782,33 @@ rf74	verdict	%L = (refer()) & (path(.auth))\n"auth": {"k": 1}	{}	{"verdict":"val
 rf75	verdict	%L = (refer()) & (path(.auth))\n"s": {"auth": {"k": 1}, "b": %L}	{}	{"verdict":"error"}
 rf76	verdict	%L = (refer()) & (path(.auth))\n"s": {"auth": {"k": 1}, "b": %L}	{}	{"verdict":"error","opts":{"noFill":true}}
 rf77	verdict	%L = (refer()) & (path(.auth))\n"s": {"auth": {"k": 1}, "b": %L}	{}	{"verdict":"error","opts":{"partial":true}}
+rf78	verdict	%L = (refer(type({"k": 1}))) & (path($.a))\n"a": {}	{}	{"verdict":"valid"}
+rf79	verdict	%L = (refer(type({"k": 1}))) & (path($.a))\n"a": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rf80	verdict	%L = (refer(type({"k": 1}))) & (path($.a))\n"a": {}	{}	{"verdict":"valid","opts":{"partial":true}}
+rf81	verdict	%L = (refer(hide({"k": 1}))) & (path($.a))\n"a": {}	{}	{"verdict":"valid"}
+rf82	verdict	%L = (refer(hide({"k": 1}))) & (path($.a))\n"a": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rf83	verdict	%L = (refer(hide({"k": 1}))) & (path($.a))\n"a": {}	{}	{"verdict":"valid","opts":{"partial":true}}
+rf84	verdict	%L = (refer({"x": type({"k": 1})})) & (path($.a))\n"a": {}	{"a": {}}	{"verdict":"valid"}
+rf85	verdict	%L = (refer({"x": type({"k": 1})})) & (path($.a))\n"a": {}	{"a": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rf86	verdict	%L = (refer({"x": type({"k": 1})})) & (path($.a))\n"a": {}	{"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+rf87	verdict	%L = (refer(type({"k": 1}))) & (path($.a))\n"a": {}	{"a": {"k": 1}}	{"verdict":"valid"}
+rf88	verdict	%L = (refer(type({"k": 1}))) & (path($.a))\n"a": {}	{"a": {"k": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+rf89	verdict	%L = (refer(type({"k": 1}))) & (path($.a))\n"a": {}	{"a": {"k": 1}}	{"verdict":"valid","opts":{"partial":true}}
+rf90	verdict	"h": {}, "y": (refer({"z": {}})) & (path($.h)), "x": (refer({"p": 1})) & ((refer({"q": 2})) & (path($.h.z)))	{}	{"verdict":"valid"}
+rf91	verdict	"h": {}, "y": (refer({"z": {}})) & (path($.h)), "x": (refer({"p": 1})) & ((refer({"q": 2})) & (path($.h.z)))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rf92	verdict	"h": {}, "y": (refer({"z": {}})) & (path($.h)), "x": (refer({"p": 1})) & ((refer({"q": 2})) & (path($.h.z)))	{}	{"verdict":"valid","opts":{"partial":true}}
+rf93	verdict	"x": (refer({"p": 1})) & (path($.h.z)), "h": {}, "y": (refer({"z": {}})) & (path($.h))	{}	{"verdict":"valid"}
+rf94	verdict	"x": (refer({"p": 1})) & (path($.h.z)), "h": {}, "y": (refer({"z": {}})) & (path($.h))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rf95	verdict	"x": (refer({"p": 1})) & (path($.h.z)), "h": {}, "y": (refer({"z": {}})) & (path($.h))	{}	{"verdict":"valid","opts":{"partial":true}}
+rf96	verdict	"x": (refer({"p": 1})) & (path($.h.z)), "h": {}, "y": (refer({"z": {}})) & (path($.h))	{"h": {"z": {"p": 2}}}	{"verdict":"invalid"}
+rf97	verdict	"x": (refer({"p": 1})) & (path($.h.z)), "h": {}, "y": (refer({"z": {}})) & (path($.h))	{"h": {"z": {"p": 2}}}	{"verdict":"invalid","opts":{"noFill":true}}
+rf98	verdict	"x": (refer({"p": 1})) & (path($.h.z)), "h": {}, "y": (refer({"z": {}})) & (path($.h))	{"h": {"z": {"p": 2}}}	{"verdict":"invalid","opts":{"partial":true}}
+rf99	verdict	"v": (refer({"q": 1})) & (path($.h.z.w.u)), "x": (refer({"u": {}})) & (path($.h.z.w)), "h": {}, "y": (refer({"z": {"w": {}}})) & (path($.h))	{}	{"verdict":"valid"}
+rf100	verdict	"v": (refer({"q": 1})) & (path($.h.z.w.u)), "x": (refer({"u": {}})) & (path($.h.z.w)), "h": {}, "y": (refer({"z": {"w": {}}})) & (path($.h))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rf101	verdict	"v": (refer({"q": 1})) & (path($.h.z.w.u)), "x": (refer({"u": {}})) & (path($.h.z.w)), "h": {}, "y": (refer({"z": {"w": {}}})) & (path($.h))	{}	{"verdict":"valid","opts":{"partial":true}}
+rf102	verdict	%L = (refer({"z": {}})) & (path($.h))\n"h": {}, "x": (refer({"p": 1})) & (path($.h.z))	{}	{"verdict":"valid"}
+rf103	verdict	%L = (refer({"z": {}})) & (path($.h))\n"h": {}, "x": (refer({"p": 1})) & (path($.h.z))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rf104	verdict	%L = (refer({"z": {}})) & (path($.h))\n"h": {}, "x": (refer({"p": 1})) & (path($.h.z))	{}	{"verdict":"valid","opts":{"partial":true}}
+rf105	verdict	"h": {}, "x": (refer({"p": {}})) & (path($.h.q)), "y": (refer({"q": {}})) & (path($.h.p))	{}	{"verdict":"error"}
+rf106	verdict	"h": {}, "x": (refer({"p": {}})) & (path($.h.q)), "y": (refer({"q": {}})) & (path($.h.p))	{}	{"verdict":"error","opts":{"noFill":true}}
+rf107	verdict	"h": {}, "x": (refer({"p": {}})) & (path($.h.q)), "y": (refer({"q": {}})) & (path($.h.p))	{}	{"verdict":"error","opts":{"partial":true}}
