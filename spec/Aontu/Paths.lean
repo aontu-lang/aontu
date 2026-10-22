@@ -243,14 +243,15 @@ def Decls.strictPaths (ds : Decls) (S : Val) : List (List Seg) :=
 
 /-- Whether every path of the document that must name something
 resolves in the schema's own tree: the normal form of the schema as
-read, before any data. -/
+read, before any data, its calls made (`Decls.readU`), the root its
+paths read from, so that a path into a call's output resolves. -/
 def Decls.resolvesB (ds : Decls) (S : Val) : Bool :=
-  (ds.strictPaths S).all fun p => (ds.pathAt (normaliseD ds (ds.read S)) p).isSome
+  (ds.strictPaths S).all fun p => (ds.pathAt (normaliseD ds (ds.readU S)) p).isSome
 
 /-- Every path of the document that must name something resolves in
 the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.strictPaths S → (ds.pathAt (normaliseD ds (ds.read S)) p).isSome = true
+  ∀ p, p ∈ ds.strictPaths S → (ds.pathAt (normaliseD ds (ds.readU S)) p).isSome = true
 
 theorem Decls.resolvesB_iff {ds : Decls} {S : Val} : ds.resolvesB S = true ↔ ds.Resolves S := by
   simp only [Decls.resolvesB, Decls.Resolves, List.all_eq_true]

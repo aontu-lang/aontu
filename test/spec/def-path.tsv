@@ -14,7 +14,8 @@
 # Relative paths, made absolute where each stands, follow in rows j0 on, and
 # maybe, absence where all that is wrong with a path is that it names nothing,
 # in rows mb0 on, and pref, each literal a preference and each preference a
-# rank weaker, in rows pf0 on.
+# rank weaker, in rows pf0 on. Paths into a call's output, which resolve in the
+# root with its calls made, follow in rows pc0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -552,3 +553,30 @@ pf92	verdict	"b": pref(hide(*(1)))	{}	{"verdict":"valid","opts":{"partial":true}
 pf93	verdict	"b": pref(hide({"x": 1}))	{}	{"verdict":"valid"}
 pf94	verdict	"b": pref(hide({"x": 1}))	{}	{"verdict":"valid","opts":{"noFill":true}}
 pf95	verdict	"b": pref(hide({"x": 1}))	{}	{"verdict":"valid","opts":{"partial":true}}
+pc0	verdict	"b": pref({"x": 1}), "c": $.b.x	{}	{"verdict":"valid"}
+pc1	verdict	"b": pref({"x": 1}), "c": $.b.x	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pc2	verdict	"b": pref({"x": 1}), "c": $.b.x	{}	{"verdict":"valid","opts":{"partial":true}}
+pc3	verdict	"b": pref({"x": 1}), "c": $.b.x	{"c": 2}	{"verdict":"valid"}
+pc4	verdict	"b": pref({"x": 1}), "c": $.b.x	{"c": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+pc5	verdict	"b": pref({"x": 1}), "c": $.b.x	{"c": 2}	{"verdict":"valid","opts":{"partial":true}}
+pc6	verdict	"b": pref({"x": 1}), "c": $.b.x	{"b": {"x": 5}}	{"verdict":"valid"}
+pc7	verdict	"b": pref({"x": 1}), "c": $.b.x	{"b": {"x": 5}}	{"verdict":"incomplete","opts":{"noFill":true}}
+pc8	verdict	"b": pref({"x": 1}), "c": $.b.x	{"b": {"x": 5}}	{"verdict":"valid","opts":{"partial":true}}
+pc9	verdict	"b": nom("ab_cd"), "c": $.b.camel	{}	{"verdict":"valid"}
+pc10	verdict	"b": nom("ab_cd"), "c": $.b.camel	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pc11	verdict	"b": nom("ab_cd"), "c": $.b.camel	{}	{"verdict":"valid","opts":{"partial":true}}
+pc12	verdict	"b": nom("ab_cd"), "c": $.b.camel	{"c": "x"}	{"verdict":"invalid"}
+pc13	verdict	"b": nom("ab_cd"), "c": $.b.camel	{"c": "x"}	{"verdict":"invalid","opts":{"noFill":true}}
+pc14	verdict	"b": nom("ab_cd"), "c": $.b.camel	{"c": "x"}	{"verdict":"invalid","opts":{"partial":true}}
+pc15	verdict	"a": ([1]) + ([2]), "b": $.a.1	{}	{"verdict":"valid"}
+pc16	verdict	"a": ([1]) + ([2]), "b": $.a.1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pc17	verdict	"a": ([1]) + ([2]), "b": $.a.1	{}	{"verdict":"valid","opts":{"partial":true}}
+pc18	verdict	"a": ([1]) + ([2]), "b": $.a.1	{"b": 3}	{"verdict":"invalid"}
+pc19	verdict	"a": ([1]) + ([2]), "b": $.a.1	{"b": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+pc20	verdict	"a": ([1]) + ([2]), "b": $.a.1	{"b": 3}	{"verdict":"invalid","opts":{"partial":true}}
+pc21	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{}	{"verdict":"valid"}
+pc22	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pc23	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{}	{"verdict":"valid","opts":{"partial":true}}
+pc24	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{"b": 3}	{"verdict":"invalid"}
+pc25	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{"b": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+pc26	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{"b": 3}	{"verdict":"invalid","opts":{"partial":true}}
