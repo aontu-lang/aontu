@@ -2811,57 +2811,101 @@ A path resolves in the schema's own tree, read before any data with
 its calls made, so a path into a call's output resolves: `$.b.camel` beside
 `b: nom("ab_cd")` reads `"abCd"`. A key the data alone supplies is no
 position, and a path to nothing is an `error`, but where `maybe`
-forgives it, as step 33 shows. The term it reads is then taken from the
-root, data and all:
+forgives it, as step 33 shows:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- Every path of the document that must name something resolves in
 the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.strictPaths S → (ds.pathAt (normaliseD ds (ds.readU S)) p).isSome = true
+  ∀ p, p ∈ ds.strictPaths S → (ds.pathIn (ds.rootsS S) p).isSome = true
+```
+
+The term a path reads is then taken from the document's roots, data
+and all. A call over a path makes its value only once the path reads,
+so the definition reads the document in rounds. The first round reads
+it with its paths unread. Each round after declares each path as the
+term at it in the first root before that reaches it, and reads the
+document again. In `a: "ab_cd", b: nom($.a), c: $.b.camel` the first
+round holds `b` as `nil`, since `nom` takes no path not yet read. The
+second reads `$.a` as `"ab_cd"`, so `b` is the map of spellings, and the
+third reads `$.b.camel` as `"abCd"`:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The term a written path names in the first of the roots it names
+something in. -/
+def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) : Option Val :=
+  roots.findSome? fun root => ds.pathAt root p
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The declarations a document's paths make: each path's name, declared
-as the term at the path in the root, with that term's own paths read as
-names too. A path to nothing declares nothing. -/
-def Decls.ofPaths (ds : Decls) (root : Val) (ps : List (List Seg)) : Decls :=
-  ps.filterMap fun p => (ds.pathAt root p).map fun w => (pathName p, w.pathsToAliases)
+as the term at the path in the first of the roots it names something
+in, with that term's own paths read as names too. A path to nothing
+declares nothing. -/
+def Decls.ofPaths (ds : Decls) (roots : List Val) (ps : List (List Seg)) : Decls :=
+  ps.filterMap fun p => (ds.pathIn roots p).map fun w => (pathName p, w.pathsToAliases)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The document with its paths read as names from a root: each path is
-declared as the term at it, and the bodies and the schema refer to the
-names. -/
-def Decls.withPathsFrom (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths root (ds.docPaths S), S.pathsToAliases)
+/-- The document with its paths read as names from roots: each path is
+declared as the term at it in the first root it names something in, and
+the bodies and the schema refer to the names. -/
+def Decls.withPathsFrom (ds : Decls) (S : Val) (roots : List Val) : Decls × Val :=
+  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths roots (ds.docPaths S), S.pathsToAliases)
 ```
-
-Two roots serve: the schema alone, for the error class, and the schema
-met with the data, for the rest. A contradiction the data brings, `a: 1`
-met with `"a": 2` where `b: $.a` reads it, is the data's fault, invalid,
-and not an ill-formed schema:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The document with its paths read as names from the schema alone:
-the root is the normal form of the schema as read, before any data,
-which is what the error class is judged on. The root keeps its keys as
-written, so that a key a path reaches reads where the path lands. -/
+def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → List Val
+  | 0 => [r ds S]
+  | n + 1 =>
+    let rs := ds.rounds S r n
+    let d := ds.withPathsFrom S rs
+    rs ++ [r d.1 d.2]
+```
+
+A path keeps the term the first round that reaches it holds there,
+since a later round has read that term's own paths: a path whose term
+holds the path itself, as `"c"?: $.a.b` under `a.b` does, would
+otherwise unfold once more each round the data meets it. A round that
+reaches no new path then changes nothing after it, and each round
+reaches one more step of a chain of paths, so as many rounds as the
+document writes paths reach the end of every chain. Two sets of roots serve: the schema alone, for
+the error class, and the schema met with the data, for the rest. A
+contradiction the data brings, `a: 1` met with `"a": 2` where `b: $.a`
+reads it, is the data's fault, invalid, and not an ill-formed schema:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.rootsS (ds : Decls) (S : Val) : List Val :=
+  ds.rounds S (fun d T => normaliseD d (d.readU T)) (ds.docPaths S).length
+```
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.rootsD (ds : Decls) (S : Val) (j : Data) : List Val :=
+  ds.rounds S (fun d T => normaliseD d (meetD d (d.readU T) j.term)) (ds.docPaths S).length
+```
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The document with its paths read as names from the schema alone,
+from its own tree, which is what the error class is judged on. -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (ds.readU S))
+  ds.withPathsFrom S (ds.rootsS S)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The document with its paths read as names from the data too: the
-root is the normal form of the schema met with the data, which is what
-the other classes are judged on. -/
+/-- The document with its paths read as names from the data too, from
+the tree the data reads in, which is what the other classes are judged
+on. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.withPathsFrom S (normaliseD ds (meetD ds (ds.readU S) j.term))
+  ds.withPathsFrom S (ds.rootsD S j)
 ```
 
 The verdict of a document whose paths are absolute is then the verdict
@@ -7590,7 +7634,7 @@ its new place, and the data needn't supply the source. A path to
 nothing hides nothing, so that it stays the error any path to nothing
 is. -/
 def Decls.withMoves (ds : Decls) (S : Val) : Val :=
-  (S.moved.filter fun p => (ds.pathAt (normaliseD ds (ds.readU S)) p).isSome).foldl
+  (S.moved.filter fun p => (ds.pathIn (ds.rootsS S) p).isSome).foldl
     (fun acc p => .meet acc (hideAt p)) S
 ```
 

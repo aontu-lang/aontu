@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a document's root in rounds
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Paths.lean`: the definition reads the roots a document's
+  paths read in rounds (`Decls.rounds`). The first round reads the
+  document with its paths unread, and each round after declares each
+  path as the term at it in the first root before that reaches it
+  (`Decls.pathIn`). The schema's own tree (`Decls.rootsS`) and the tree
+  the data reads in (`Decls.rootsD`) each take as many rounds as the
+  document writes paths. Before, the definition read one root, so a
+  call over a path made nothing, and a path into what it makes, as
+  `$.b.camel` beside `b: nom($.a)`, was an `error` where both ports
+  read it.
+- A path keeps the term the first round that reaches it holds there,
+  so every row a path read before keeps its class.
+- `Decls.Resolves`, `Decls.withPathsS`, `Decls.withPaths` and
+  `Decls.withMoves` read these roots; `vetA_iff` carries the checker's
+  precondition through every round (`Decls.rounds_checkableA`).
+- `test/spec/def-path.tsv` gains rows rn0 on, in the three modes of
+  `vet`. Both ports answer every row as the definition does.
+- The definition tutorial's step 9 explains the rounds.
+
 ### The definition reads `move`
 
 Definition, generated rows, and documentation. No engine changes.
