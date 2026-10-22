@@ -13,7 +13,8 @@
 # and key(n) reached through a path or a name, read where it lands, in rows r0 on.
 # Relative paths, made absolute where each stands, follow in rows j0 on, and
 # maybe, absence where all that is wrong with a path is that it names nothing,
-# in rows mb0 on.
+# in rows mb0 on, and pref, each literal a preference and each preference a
+# rank weaker, in rows pf0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -455,3 +456,87 @@ mb116	verdict	"b": pack({"x": 1}, maybe($.gone))	{}	{"verdict":"valid","opts":{"
 mb117	verdict	"b": pack({"x": 1}, maybe($.gone))	{"b": {"x": 2}}	{"verdict":"valid"}
 mb118	verdict	"b": pack({"x": 1}, maybe($.gone))	{"b": {"x": 2}}	{"verdict":"valid","opts":{"noFill":true}}
 mb119	verdict	"b": pack({"x": 1}, maybe($.gone))	{"b": {"x": 2}}	{"verdict":"valid","opts":{"partial":true}}
+pf0	verdict	"b": pref(1)	{}	{"verdict":"valid"}
+pf1	verdict	"b": pref(1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf2	verdict	"b": pref(1)	{}	{"verdict":"valid","opts":{"partial":true}}
+pf3	verdict	"b": pref(1)	{"b": 2}	{"verdict":"valid"}
+pf4	verdict	"b": pref(1)	{"b": 2}	{"verdict":"valid","opts":{"noFill":true}}
+pf5	verdict	"b": pref(1)	{"b": 2}	{"verdict":"valid","opts":{"partial":true}}
+pf6	verdict	"b": pref(1)	{"b": "x"}	{"verdict":"invalid"}
+pf7	verdict	"b": pref(1)	{"b": "x"}	{"verdict":"invalid","opts":{"noFill":true}}
+pf8	verdict	"b": pref(1)	{"b": "x"}	{"verdict":"invalid","opts":{"partial":true}}
+pf9	verdict	"b": pref({"x": 1})	{}	{"verdict":"valid"}
+pf10	verdict	"b": pref({"x": 1})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf11	verdict	"b": pref({"x": 1})	{}	{"verdict":"valid","opts":{"partial":true}}
+pf12	verdict	"b": pref({"x": 1})	{"b": {"x": 2}}	{"verdict":"valid"}
+pf13	verdict	"b": pref({"x": 1})	{"b": {"x": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+pf14	verdict	"b": pref({"x": 1})	{"b": {"x": 2}}	{"verdict":"valid","opts":{"partial":true}}
+pf15	verdict	"b": pref({"x": 1})	{"b": {"x": "y"}}	{"verdict":"invalid"}
+pf16	verdict	"b": pref({"x": 1})	{"b": {"x": "y"}}	{"verdict":"invalid","opts":{"noFill":true}}
+pf17	verdict	"b": pref({"x": 1})	{"b": {"x": "y"}}	{"verdict":"invalid","opts":{"partial":true}}
+pf18	verdict	"b": pref([1, 2])	{}	{"verdict":"valid"}
+pf19	verdict	"b": pref([1, 2])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf20	verdict	"b": pref([1, 2])	{}	{"verdict":"valid","opts":{"partial":true}}
+pf21	verdict	"b": pref([1, 2])	{"b": [3, 4]}	{"verdict":"valid"}
+pf22	verdict	"b": pref([1, 2])	{"b": [3, 4]}	{"verdict":"valid","opts":{"noFill":true}}
+pf23	verdict	"b": pref([1, 2])	{"b": [3, 4]}	{"verdict":"valid","opts":{"partial":true}}
+pf24	verdict	"b": pref([1, 2])	{"b": [3]}	{"verdict":"valid"}
+pf25	verdict	"b": pref([1, 2])	{"b": [3]}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf26	verdict	"b": pref([1, 2])	{"b": [3]}	{"verdict":"valid","opts":{"partial":true}}
+pf27	verdict	"b": pref(*(1) | (2))	{}	{"verdict":"valid"}
+pf28	verdict	"b": pref(*(1) | (2))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf29	verdict	"b": pref(*(1) | (2))	{}	{"verdict":"valid","opts":{"partial":true}}
+pf30	verdict	"b": pref(*(1) | (2))	{"b": 1}	{"verdict":"valid"}
+pf31	verdict	"b": pref(*(1) | (2))	{"b": 1}	{"verdict":"valid","opts":{"noFill":true}}
+pf32	verdict	"b": pref(*(1) | (2))	{"b": 1}	{"verdict":"valid","opts":{"partial":true}}
+pf33	verdict	"b": pref((1) | (number))	{}	{"verdict":"valid"}
+pf34	verdict	"b": pref((1) | (number))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf35	verdict	"b": pref((1) | (number))	{}	{"verdict":"valid","opts":{"partial":true}}
+pf36	verdict	"b": pref((1) | (number))	{"b": 5}	{"verdict":"valid"}
+pf37	verdict	"b": pref((1) | (number))	{"b": 5}	{"verdict":"valid","opts":{"noFill":true}}
+pf38	verdict	"b": pref((1) | (number))	{"b": 5}	{"verdict":"valid","opts":{"partial":true}}
+pf39	verdict	"b": pref(integer)	{}	{"verdict":"incomplete"}
+pf40	verdict	"b": pref(integer)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf41	verdict	"b": pref(integer)	{}	{"verdict":"valid","opts":{"partial":true}}
+pf42	verdict	"b": pref(integer)	{"b": 3}	{"verdict":"valid"}
+pf43	verdict	"b": pref(integer)	{"b": 3}	{"verdict":"valid","opts":{"noFill":true}}
+pf44	verdict	"b": pref(integer)	{"b": 3}	{"verdict":"valid","opts":{"partial":true}}
+pf45	verdict	"b": pref(integer)	{"b": 1.5}	{"verdict":"invalid"}
+pf46	verdict	"b": pref(integer)	{"b": 1.5}	{"verdict":"invalid","opts":{"noFill":true}}
+pf47	verdict	"b": pref(integer)	{"b": 1.5}	{"verdict":"invalid","opts":{"partial":true}}
+pf48	verdict	"b": pref(above(1))	{"b": 0}	{"verdict":"invalid"}
+pf49	verdict	"b": pref(above(1))	{"b": 0}	{"verdict":"invalid","opts":{"noFill":true}}
+pf50	verdict	"b": pref(above(1))	{"b": 0}	{"verdict":"invalid","opts":{"partial":true}}
+pf51	verdict	"b": pref(**(1))	{}	{"verdict":"valid"}
+pf52	verdict	"b": pref(**(1))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf53	verdict	"b": pref(**(1))	{}	{"verdict":"valid","opts":{"partial":true}}
+pf54	verdict	"b": (pref(*(1))) & (*(2))	{}	{"verdict":"valid"}
+pf55	verdict	"b": (pref(*(1))) & (*(2))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf56	verdict	"b": (pref(*(1))) & (*(2))	{}	{"verdict":"valid","opts":{"partial":true}}
+pf57	verdict	"b": (pref(1)) & (pref(2))	{}	{"verdict":"error"}
+pf58	verdict	"b": (pref(1)) & (pref(2))	{}	{"verdict":"error","opts":{"noFill":true}}
+pf59	verdict	"b": (pref(1)) & (pref(2))	{}	{"verdict":"error","opts":{"partial":true}}
+pf60	verdict	"b": pref(null)	{"b": 1}	{"verdict":"invalid"}
+pf61	verdict	"b": pref(null)	{"b": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+pf62	verdict	"b": pref(null)	{"b": 1}	{"verdict":"invalid","opts":{"partial":true}}
+pf63	verdict	"b": pref(true)	{"b": false}	{"verdict":"valid"}
+pf64	verdict	"b": pref(true)	{"b": false}	{"verdict":"valid","opts":{"noFill":true}}
+pf65	verdict	"b": pref(true)	{"b": false}	{"verdict":"valid","opts":{"partial":true}}
+pf66	verdict	"b": pref(({"x": 1}) | (2))	{}	{"verdict":"valid"}
+pf67	verdict	"b": pref(({"x": 1}) | (2))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf68	verdict	"b": pref(({"x": 1}) | (2))	{}	{"verdict":"valid","opts":{"partial":true}}
+pf69	verdict	"a": 1, "b": pref($.a)	{}	{"verdict":"valid"}
+pf70	verdict	"a": 1, "b": pref($.a)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf71	verdict	"a": 1, "b": pref($.a)	{}	{"verdict":"valid","opts":{"partial":true}}
+pf72	verdict	"a": 1, "b": pref($.a)	{"b": 2}	{"verdict":"valid"}
+pf73	verdict	"a": 1, "b": pref($.a)	{"b": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf74	verdict	"a": 1, "b": pref($.a)	{"b": 2}	{"verdict":"valid","opts":{"partial":true}}
+pf75	verdict	"b": pref(add(1, 2))	{}	{"verdict":"valid"}
+pf76	verdict	"b": pref(add(1, 2))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf77	verdict	"b": pref(add(1, 2))	{}	{"verdict":"valid","opts":{"partial":true}}
+pf78	verdict	"b": pref(add(1, 2))	{"b": 4}	{"verdict":"valid"}
+pf79	verdict	"b": pref(add(1, 2))	{"b": 4}	{"verdict":"valid","opts":{"noFill":true}}
+pf80	verdict	"b": pref(add(1, 2))	{"b": 4}	{"verdict":"valid","opts":{"partial":true}}
+pf81	verdict	"b": pref(maybe($.gone))	{}	{"verdict":"valid"}
+pf82	verdict	"b": pref(maybe($.gone))	{}	{"verdict":"valid","opts":{"noFill":true}}
+pf83	verdict	"b": pref(maybe($.gone))	{}	{"verdict":"valid","opts":{"partial":true}}

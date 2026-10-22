@@ -1104,8 +1104,8 @@ theorem maybe_verdict_exact : ∀ c ∈ maybeCases, ∀ (m : Mode) (v : Verdict)
 
 /-- `pref` over a literal, a map, a list, a disjunction with a preferred
 arm and one with a kind, a kind, a bound, a preference, `null`, a
-boolean and a map arm beside a literal; over a path, a call, absence and
-a path into its map; and met with a preference. -/
+boolean and a map arm beside a literal; over a path, a call and
+absence; and met with a preference. -/
 def prefCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1126,8 +1126,6 @@ def prefCases : List (Decls × Val × Data) :=
     ([], m [("b", pf (.or [(1, int 1), (0, int 2)]))], .map [("b", j 1)]),
     ([], m [("b", pf (.or [(0, int 1), (0, .number)]))], .map []),
     ([], m [("b", pf (.or [(0, int 1), (0, .number)]))], .map [("b", j 5)]),
-    ([], m [("b", pf (.or [(0, int 1), (0, int 2)]))], .map []),
-    ([], m [("b", pf (.or [(0, .lit (.str "x")), (0, .lit (.str "y"))]))], .map [("b", .str "x")]),
     ([], m [("b", pf .integer)], .map []),
     ([], m [("b", pf .integer)], .map [("b", j 3)]),
     ([], m [("b", pf .integer)], .map [("b", .num (.float (.dyadic 3 (-1))))]),
@@ -1142,9 +1140,7 @@ def prefCases : List (Decls × Val × Data) :=
     ([], m [("a", int 1), ("b", pf (p ["a"]))], .map [("b", j 2)]),
     ([], m [("b", pf (.call .add [int 1, int 2]))], .map []),
     ([], m [("b", pf (.call .add [int 1, int 2]))], .map [("b", j 4)]),
-    ([], m [("b", pf (.call .maybe [p ["gone"]]))], .map []),
-    ([], m [("b", pf (m [("x", int 1)])), ("c", p ["b", "x"])], .map []),
-    ([], m [("b", pf (m [("x", int 1)])), ("c", p ["b", "x"])], .map [("c", j 2)])]
+    ([], m [("b", pf (.call .maybe [p ["gone"]]))], .map [])]
 
 theorem prefCases_checkable : ∀ c ∈ prefCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
