@@ -1762,7 +1762,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
     ("call", "call", "line"), ("call", "call", "fragment"), ("call", "call", "slot"),
     ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems"),
-    ("call", "call", "each"), ("hole", "syntax", "_")]
+    ("call", "call", "each"), ("call", "call", "pack"), ("hole", "syntax", "_")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1792,7 +1792,8 @@ def formSamples : List (String × Val) :=
     ("content", .call (.cmp .content) [.string]), ("line", .call (.cmp .line) [.string]),
     ("fragment", .call (.cmp .fragment) [.string]), ("slot", .call (.cmp .slot) [.string]),
     ("inject", .call (.cmp .inject) [.string]), ("copyfiles", .call (.cmp .copyfiles) [.string]),
-    ("listitems", .call (.cmp .listitems) [.mapKind]), ("each", .call .each [.listKind, .hole])]
+    ("listitems", .call (.cmp .listitems) [.mapKind]), ("each", .call .each [.listKind, .hole]),
+    ("pack", .call .pack [.listKind, .hole])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -2706,6 +2707,49 @@ theorem surrogate_verdict_exact : ∀ c ∈ surrogateCases, ∀ (m : Mode) (v : 
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (surrogateCases_checkable c hc)) v
 
+/-- The generator `pack`: the open map of its template read for each
+member of its data under the member's key, a list's strings each its
+own key and a map's keys theirs; the hole kept, met and left out; a
+map member skipped as a fold skips it; a key a list repeats made once,
+its instances met;
+a list holding anything but a string, and data that is no bag. No
+template holds `key()`, which waits on `key()` at any position. -/
+def packCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jm (fs : List (String × Data)) : Data := .map fs
+  [(c .pack [lst [str "a", str "b"], mp [("x", .hole)]], jm [("a", jm [("x", js "a")]), ("b", jm [("x", js "b")])]),
+    (c .pack [mp [("p", int 1), ("q", int 2)], .meet .hole .integer], jm [("p", j 1), ("q", j 2)]),
+    (c .pack [mp [("p", int 1), ("q", int 2)], .hole], jm [("p", j 1), ("q", j 2)]),
+    (c .pack [mp [("p", int 1), ("q", int 2)], mp [("n", .hole)]],
+      jm [("p", jm [("n", j 1)]), ("q", jm [("n", j 2)])]),
+    (c .pack [lst [], mp [("x", int 1)]], jm []), (c .pack [mp [], mp [("x", int 1)]], jm []),
+    (c .pack [lst [int 1], mp [("x", int 1)]], jm []), (c .pack [str "a", mp [("x", int 1)]], jm []),
+    (c .pack [lst [str "a", str "a"], mp [("x", .hole)]], jm [("a", jm [("x", js "a")])]),
+    (c .pack [lst [str "b", str "a"], int 1], jm [("a", j 1), ("b", j 1)]),
+    (c .pack [mp [("p", int 1), ("q", .ride .hide (int 2) [])], .hole], jm [("p", j 1)]),
+    (c .pack [.map [("p", false, int 1), ("q", true, .integer)] none false, .hole], jm [("p", j 1)]),
+    (c .pack [.map [("p", false, int 1), ("q", true, mp [])] none false, .hole], jm [("p", j 1)]),
+    (c .pack [lst [str "a"], c .upper [.hole]], jm [("a", js "A")]),
+    (c .pack [lst [str "a"], mp [("x", int 1)]], jm [("a", jm [("x", j 1)]), ("b", j 2)]),
+    (c .pack [mp [("p", lst [int 1, int 2])], c .each [.hole, .meet .hole .integer]],
+      jm [("p", .list [j 1, j 2])]),
+    (c .pack [lst [str "a", str "b"], .pref 1 (int 1)], jm [("a", j 1), ("b", j 1)]),
+    (c .pack [lst [.pref 1 (str "a")], int 1], jm [("a", j 1)]),
+    (c .pack [lst [.ride .metadata (str "a") []], int 1], jm [("a", j 1)])]
+
+theorem packCases_checkable : ∀ c ∈ packCases, (vetDoc c).1.CheckableA := by decide
+
+theorem pack_verdict_exact : ∀ c ∈ packCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (packCases_checkable c hc)) v
+
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2958,11 +3002,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# against its pattern's groups before the text, from row x1959, pick and sort"
     IO.println "# read a projector and a direction through a rider or a mark, from row x1995,"
     IO.println "# a string names an index by its digits alone, from row x2025, and translate"
-    IO.println "# writes U+FFFD for a surrogate its to range names, from row x2055. A call on a"
-    IO.println "# name follows in rows z0 on, and a call handed a pattern, re(p), in rows v0 on."
+    IO.println "# writes U+FFFD for a surrogate its to range names, from row x2055. The generator"
+    IO.println "# pack, its template read for each member of its data under the member's key,"
+    IO.println "# follows from row x2064. A call on a name follows in rows z0 on, and a call"
+    IO.println "# handed a pattern, re(p), in rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
-        projectorCases ++ indexCases ++ surrogateCases do
+        projectorCases ++ indexCases ++ surrogateCases ++ packCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -2974,7 +3020,7 @@ def main (args : List String) : IO UInt32 := do
       unless hostReads v do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
-      projectorCases ++ indexCases ++ surrogateCases)
+      projectorCases ++ indexCases ++ surrogateCases ++ packCases)
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     return 0

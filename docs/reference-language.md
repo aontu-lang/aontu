@@ -1072,6 +1072,8 @@ Neither can recurse. Both iterate a finite bag that already exists, so
 the number of children either can produce is fixed by the data:
 evaluation still terminates by construction.
 
+The definition reads `pack` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member `Val.keyedMembers` reads, under the member's key, into an open map, the instances of a list's repeated key met, as colliding children unify. It doesn't yet read `key()` in a template.
+
 ### `each`, the order-preserving map
 
 `each(data, tmpl)` makes one **list element** per child of `data`,

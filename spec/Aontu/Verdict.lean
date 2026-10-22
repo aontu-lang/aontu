@@ -365,6 +365,32 @@ def Val.string? (v : Val) : Option String :=
   | .lit (.str s) => some s
   | _ => none
 
+/-- A pair added to pairs whose keys are distinct: met with the value
+its key already has, as a map's repeated key is, or added at the end. -/
+def mergeKey (acc : List (String × Val)) (m : String × Val) : List (String × Val) :=
+  if acc.any (fun a => a.1 == m.1) then acc.map fun a => if a.1 = m.1 then (a.1, .meet a.2 m.2) else a
+  else acc ++ [m]
+
+/-- Pairs with their keys made distinct, in the order each key first
+comes, the values a key has met. -/
+def mergeKeys (acc : List (String × Val)) : List (String × Val) → List (String × Val)
+  | [] => acc
+  | m :: ms => mergeKeys (mergeKey acc m) ms
+
+/-- The members `pack` reads, each under the key its instance takes, in a
+bag's normal form, the riders around it read through: a map's members
+under their keys, in key order, skipped as `Val.members` skips them,
+and a list's elements, each under the string it is, riders read
+through; none where a list holds anything but a string, or the value is
+no bag. -/
+def Val.keyedMembers (ds : Decls) (lifted : Bool := false) : Val → Option (List (String × Val))
+  | .ride k v _ => v.keyedMembers ds (lifted || decide (k = .type) || decide (k = .hide))
+  | .list items _ _ => items.mapM fun (i : Val) => i.string?.map fun s => (s, i)
+  | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
+      if (!lifted && m.2.2.marked) || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
+      else some (m.1, m.2.2))
+  | _ => none
+
 /-- A character set's code points with its ranges expanded, `a-z` every
 code point from `a` to `z`, the surrogates' among them where the range
 crosses them, and a `-` with no character on one side standing for
@@ -772,7 +798,11 @@ members its condition admits, as a term, or `nil` where the source
 generates a scalar, which has no members. One whose scrutinee or source
 generates nothing stays, and generates nothing. An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
-reads them, and `nil` where the data is no bag. Any other call, its
+reads them, and `nil` where the data is no bag. A `pack` is the open map
+of its template read for each member `Val.keyedMembers` reads, under the
+member's key, the instances of a repeated key met, and `nil` where the
+data is no bag or a list holds anything but a string.
+Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
 hole, and a `filter`'s condition and a template are read for their own
 members, so none of them is read for `b`. -/
@@ -796,6 +826,12 @@ def resolveD (ds : Decls) (b : Option Val) : Val → Val
     | .each, [d, t] =>
       match (normaliseD ds (resolveD ds b d)).members ds with
       | some ms => .list (ms.map fun m => resolveD ds (some m) t) none false
+      | none => .nil
+    | .pack, [d, t] =>
+      match (normaliseD ds (resolveD ds b d)).keyedMembers ds with
+      | some ms =>
+        .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) t))).map fun m => (m.1, false, m.2))
+          none false
       | none => .nil
     | f, args => callTerm ds f (resolveItems ds b args)
   | .len c => .len (resolveD ds b c)
@@ -1043,6 +1079,63 @@ theorem Val.members_checkableA {ds : Decls} :
   | _, .when _ _ _, _, _, hm | _, .contains _ _, _, _, hm | _, .rest _ _, _, _, hm
   | _, .select _ _ _, _, _, hm | _, .filter _ _, _, _, hm | _, .key, _, _, hm
   | _, .call _ _, _, _, hm => by simp [Val.members] at hm
+
+/-- The members `pack` reads in a bag the checker can read are ones it
+can read. -/
+theorem Val.keyedMembers_checkableA {ds : Decls} :
+    ∀ {lifted : Bool} {v : Val} {ms : List (String × Val)}, v.CheckableA →
+      v.keyedMembers ds lifted = some ms → ∀ m, m ∈ ms → m.2.CheckableA
+  | _, .ride _ _ _, _, .ride h, hm => Val.keyedMembers_checkableA h hm
+  | _, .list _ _ _, _, .list hi _, hm => by
+    simp only [Val.keyedMembers] at hm
+    intro m hm'
+    refine mapM_some_forall (P := fun p : String × Val => p.2.CheckableA)
+      (fun x hx y hy => ?_) hm m hm'
+    simp only [Option.map_eq_some_iff] at hy
+    obtain ⟨_, -, rfl⟩ := hy
+    exact hi x hx
+  | _, .map _ _ _, _, .map hf _, hm => by
+    simp only [Val.keyedMembers, Option.some.injEq] at hm
+    subst hm
+    intro m hm
+    obtain ⟨x, hx, hxm⟩ := List.mem_filterMap.mp hm
+    split at hxm
+    · cases hxm
+    · obtain rfl := Option.some.inj hxm
+      exact hf x.1 x.2.1 x.2.2 (List.mem_mergeSort.mp hx)
+  | _, .integer, _, _, hm | _, .float, _, _, hm | _, .biginteger, _, _, hm
+  | _, .bigdecimal, _, _, hm | _, .number, _, _, hm | _, .string, _, _, hm
+  | _, .anyString, _, _, hm | _, .boolean, _, _, hm | _, .mapKind, _, _, hm
+  | _, .listKind, _, _, hm | _, .lit _, _, _, hm | _, .min _, _, _, hm | _, .max _, _, _, hm
+  | _, .above _, _, _, hm | _, .beneath _, _, _, hm | _, .neq _, _, _, hm
+  | _, .mulof _, _, _, hm | _, .len _, _, _, hm | _, .unique _, _, _, hm | _, .re _, _, _, hm
+  | _, .format _, _, _, hm | _, .any, _, _, hm | _, .nil, _, _, hm | _, .or _, _, _, hm
+  | _, .pref _ _, _, _, hm | _, .meet _ _, _, _, hm | _, .alias _, _, _, hm
+  | _, .path _, _, _, hm | _, .nof _ _, _, _, hm | _, .must _ _, _, _, hm
+  | _, .when _ _ _, _, _, hm | _, .contains _ _, _, _, hm | _, .rest _ _, _, _, hm
+  | _, .select _ _ _, _, _, hm | _, .filter _ _, _, _, hm | _, .key, _, _, hm
+  | _, .call _ _, _, _, hm => by simp [Val.keyedMembers] at hm
+
+/-- Pairs whose values the checker can read keep values it can read when
+a repeated key's values are met. -/
+theorem mergeKey_checkableA {acc : List (String × Val)} {m : String × Val}
+    (ha : ∀ a ∈ acc, a.2.CheckableA) (hm : m.2.CheckableA) : ∀ x ∈ mergeKey acc m, x.2.CheckableA := by
+  intro x hx
+  unfold mergeKey at hx
+  split at hx
+  · obtain ⟨a, ha', rfl⟩ := List.mem_map.mp hx
+    split
+    · exact .meet (ha a ha') hm
+    · exact ha a ha'
+  · rcases List.mem_append.mp hx with h | h
+    · exact ha x h
+    · rw [List.mem_singleton.mp h]; exact hm
+
+theorem mergeKeys_checkableA : ∀ {acc ms : List (String × Val)}, (∀ a ∈ acc, a.2.CheckableA) →
+    (∀ m ∈ ms, m.2.CheckableA) → ∀ x ∈ mergeKeys acc ms, x.2.CheckableA
+  | _, [], ha, _ => ha
+  | acc, m :: ms, ha, hm => mergeKeys_checkableA (acc := mergeKey acc m) (ms := ms)
+      (mergeKey_checkableA ha (hm m List.mem_cons_self)) (fun m' h => hm m' (List.mem_cons_of_mem _ h))
 
 /-- What a projector reads in a member the checker can read is one it
 can read. -/
@@ -1532,6 +1625,21 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         have hmc : m.CheckableA := Val.members_checkableA hn hms m hm
         exact ih t (by simp) (b := some m) fun m' hm' => by
           obtain rfl := Option.some.inj hm'
+          exact hmc
+      · exact .nil
+    · rename_i d t _
+      split
+      · rename_i ms hms
+        refine .map (fun k o w hw => ?_) (fun _ hs => by cases hs)
+        obtain ⟨m, hm, hmw⟩ := List.mem_map.mp hw
+        simp only [Prod.mk.injEq] at hmw
+        obtain ⟨-, -, rfl⟩ := hmw
+        have hn := normaliseD_checkableA hd (ih d (by simp) hb)
+        refine mergeKeys_checkableA (fun _ h => absurd h List.not_mem_nil) (fun p hp => ?_) m hm
+        obtain ⟨m', hm', rfl⟩ := List.mem_map.mp hp
+        have hmc : m'.2.CheckableA := Val.keyedMembers_checkableA hn hms m' hm'
+        exact ih t (by simp) (b := some m'.2) fun m'' hm'' => by
+          obtain rfl := Option.some.inj hm''
           exact hmc
       · exact .nil
     · refine callTerm_checkableA hd fun a ha => ?_

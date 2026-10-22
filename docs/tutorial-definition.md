@@ -3833,7 +3833,7 @@ value the spread admits under the key is written with it, an optional key whose 
 generates none such is left out, and a required key whose value
 generates none such leaves the map with no output at all. An optional
 key whose value generates an empty map or list leaves no member either,
-as decision 19 of the design note rules, so `{a?: {}}` generates `{}`. A list
+so `{a?: {}}` generates `{}`. A list
 generates each position, `genItems`. A disjunction generates what the
 arms the rank rule picks all generate, `genArms` over `picked`: of the
 live arms, those of the lowest positive rank, or every live arm where
@@ -4033,8 +4033,8 @@ def visibleFields : List (String × Bool × Val) → List (String × Bool × Val
 
 A map's marked spread holds anything the same way. A mark on a list's
 element changes nothing. Both engines leave a marked element out of the
-output too, which no reading by position admits, and decision 18 of the
-design note asks which way to go. Both also drop a mark that a key's
+output too, which no reading by position admits, and the definition has
+no rule for it yet. Both also drop a mark that a key's
 second declaration carries where the first declaration's value is the
 meet's answer, which #420 records, so `{a: integer} & {a: hide(integer)}`
 against `{}` is `incomplete` in both, and the ledger names the engines
@@ -5004,7 +5004,11 @@ members its condition admits, as a term, or `nil` where the source
 generates a scalar, which has no members. One whose scrutinee or source
 generates nothing stays, and generates nothing. An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
-reads them, and `nil` where the data is no bag. Any other call, its
+reads them, and `nil` where the data is no bag. A `pack` is the open map
+of its template read for each member `Val.keyedMembers` reads, under the
+member's key, the instances of a repeated key met, and `nil` where the
+data is no bag or a list holds anything but a string.
+Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
 hole, and a `filter`'s condition and a template are read for their own
 members, so none of them is read for `b`. -/
@@ -5610,7 +5614,7 @@ the Ajv extra tests and of the SchemaStore subset, with and without
 defaults, removes the strings from the output, and reads every call and
 every word left. Each must be a row of `spec/forms.tsv`, or of a second
 file, `spec/forms-outside.tsv`, which holds a form the importer writes
-that the definition lacks, on a decision of the design note. The test
+that the definition lacks. The test
 requires each such form still written, so a form that enters the
 definition leaves the file. Six began there: `map` and `list` left it
 when they became the kinds of step 6, `meta`, `deprecate` and `ident`
@@ -5854,7 +5858,7 @@ whose value generates nothing nor a marked one, unless the bag carries
 a mark itself, which lifts its members' marks, so
 `sum(type({a: hide(1), b: 2}))` is `3`. An optional member whose value
 generates an empty map or list counts as one that generates nothing, as
-the output reads it under decision 19, so `sum({a?: {}, b: 2})` is `2`:
+the output reads it, so `sum({a?: {}, b: 2})` is `2`:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -6611,13 +6615,78 @@ keeps `"WEB"`, which `upper(_)` doesn't change.
 
 Outside a template, a hole no generator fills admits every value, as
 `any` does. Both engines also let a call's peer fill a hole in the
-call, so `upper(_) & "a"` is `"A"`, and the definition doesn't hold
-that yet. Both engines read `key()` in a template as the member's key,
+call, so `upper(_) & "a"` is `"A"`. That isn't a meet, since `"a"`
+alone is no `"A"`, and the definition doesn't read it yet. Both engines
+read `key()` in a template as the member's key,
 which waits on `key()` at any position. The rows are x1809 on, and
 both engines answer every one as the definition does, but for two
 calls with the wrong number of arguments, which #426 tracks.
 
-## 28. What the definition doesn't say yet
+## 28. A map from a template
+
+`pack(d, t)` makes one map member for each member of `d`, under the
+member's key: a map's own keys, or each string of a list, which is its
+own key. Write `pack.aontu`:
+
+<!-- test: scenario pack -->
+<!-- test: file pack.aontu -->
+```aontu
+deploy: pack(["web" "auth"], { image:"acme/" + _ })
+totals: pack({ b: [1 2] a: [3] }, sum(_))
+loud: pack(["web"], upper(_))
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu pack.aontu
+{
+  "deploy": {
+    "auth": {
+      "image": "acme/auth"
+    },
+    "web": {
+      "image": "acme/web"
+    }
+  },
+  "loud": {
+    "web": "WEB"
+  },
+  "totals": {
+    "a": 3,
+    "b": 3
+  }
+}
+```
+
+`resolveD` reads a `pack` as it reads an `each`, its template once for
+each member, but into an open map:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+    | .pack, [d, t] =>
+      match (normaliseD ds (resolveD ds b d)).keyedMembers ds with
+      | some ms =>
+        .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) t))).map fun m => (m.1, false, m.2))
+          none false
+      | none => .nil
+```
+
+`Val.keyedMembers` pairs each member with its key. It reads a map's
+members in key order and leaves out a marked member or an optional one
+that generates nothing, as a fold does. A list's members are its
+strings, each its own key. A key the list names twice makes one
+member, its instances met by `mergeKeys`, as a map's repeated key is. A list holding anything
+but a string is an error, `pack([1], {})`, and so is data that isn't a
+bag. The map is open, so `pack(["a"], {x: 1}) & {b: 2}` holds `b` too.
+
+The templates here don't use `key()`. Both engines read it as the key
+the instance lands under, which waits on `key()` at any position. The
+rows are x2064 on, and both engines answer every one as the
+definition does.
+
+## 29. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -6625,7 +6694,7 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
 steps 20 to 26 don't walk through, `key()` anywhere but in a spread, and
-generation with `pack` and `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
+generation with `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 
