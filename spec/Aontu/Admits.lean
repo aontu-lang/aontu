@@ -453,6 +453,9 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   value, as a path left unread does: in a spread, `Val.atKey` reads it
   first. -/
   | key {j : Data} : Judge env root false .key j
+  /-- A `key(n)` no reading placed refuses every value, as `key` does: the
+  reading writes in the key where it knows the position. -/
+  | keyUp {n : ℤ} {j : Data} : Judge env root false (.keyUp n) j
   | selectKey {arms : List (Val × Val)} {d : Option Val} {j : Data} :
       Judge env root false (.select .key arms d) j
 
@@ -868,6 +871,8 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | selectNone _ => rfl
   | key => intro b' h'; cases h' with
     | key => rfl
+  | keyUp => intro b' h'; cases h' with
+    | keyUp => rfl
   | selectKey => intro b' h'; cases h' with
     | selectKey => rfl
 
@@ -971,6 +976,7 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.selectElse <;> assumption)
     | (apply Judge.selectNone <;> assumption)
     | (apply Judge.key <;> assumption)
+    | (apply Judge.keyUp <;> assumption)
     | (apply Judge.selectKey <;> assumption)
     | exact Judge.call
 

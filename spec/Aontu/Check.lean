@@ -333,6 +333,7 @@ inductive Val.Checkable : Val → Prop
       Checkable (.rest t cs)
   | ride {k : Rider} {v : Val} {r : Record} : Checkable v → Checkable (.ride k v r)
   | key : Checkable .key
+  | keyUp {n : ℤ} : Checkable (.keyUp n)
   | selectKey {arms : List (Val × Val)} {d : Option Val} :
       (∀ p r, (p, r) ∈ arms → Checkable p) → (∀ p r, (p, r) ∈ arms → Checkable r) →
       (∀ e, d = some e → Checkable e) → Checkable (.select .key arms d)
@@ -425,6 +426,7 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .alias _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .path _ => ⟨fun _ => .path, fun _ => rfl⟩
   | .key => ⟨fun _ => .key, fun _ => rfl⟩
+  | .keyUp _ => ⟨fun _ => .keyUp, fun _ => rfl⟩
   | .len c => by
     simp only [Val.checkableB]
     rw [Val.checkableB_iff c]
@@ -1052,6 +1054,7 @@ inductive Val.CheckableA : Val → Prop
       CheckableA (.rest t cs)
   | ride {k : Rider} {v : Val} {r : Record} : CheckableA v → CheckableA (.ride k v r)
   | key : CheckableA .key
+  | keyUp {n : ℤ} : CheckableA (.keyUp n)
   | selectKey {arms : List (Val × Val)} {d : Option Val} :
       (∀ p r, (p, r) ∈ arms → CheckableA p) → (∀ p r, (p, r) ∈ arms → CheckableA r) →
       (∀ e, d = some e → CheckableA e) → CheckableA (.select .key arms d)
@@ -1144,6 +1147,7 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .filter _ _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .path _ => ⟨fun _ => .path, fun _ => rfl⟩
   | .key => ⟨fun _ => .key, fun _ => rfl⟩
+  | .keyUp _ => ⟨fun _ => .keyUp, fun _ => rfl⟩
   | .len c => by
     simp only [Val.checkableAB]
     rw [Val.checkableAB_iff c]
@@ -1338,6 +1342,7 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | contains _ _ ihc ihn => exact .contains ihc ihn
   | rest _ _ _ _ iht ih1 ih2 ih3 => exact .rest iht ih1 ih2 ih3
   | key => exact .key
+  | keyUp => exact .keyUp
   | selectKey _ _ _ ihp ihr ihd => exact .selectKey ihp ihr ihd
   | selectLit _ _ _ ihp ihr ihd => exact .selectLit ihp ihr ihd
 
@@ -1611,6 +1616,7 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .key, j => match k, j with
     | some k', .str s => decide (k' = s)
     | _, _ => false
+  | .keyUp _, _ => false
   | .alias n, j => u n j
   | .path _, _ => false
   | .nof n cs, j =>
@@ -1728,7 +1734,7 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
   | .path _, _ => false
   | .nof _ _, _ | .must _ _, _ | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _
   | .select _ _ _, _ | .filter _ _, _ | .call _ _, _ => true
-  | .key, j => match j with
+  | .key, j | .keyUp _, j => match j with
     | .str _ => true
     | _ => false
 
@@ -2599,7 +2605,7 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     exact .path
   | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
   | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ | call _ _ => intro j _; exact .any
-  | key =>
+  | key | keyUp =>
     intro j _
     cases j with
     | str s => exact .anyString
@@ -2668,6 +2674,7 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
   induction h with
   | any => intro ky j _; refine judge_keyless rfl ?_; exact .any
   | hole => intro ky j _; refine judge_keyless rfl ?_; exact .hole
+  | keyUp => intro ky j _; refine judge_keyless rfl ?_; exact .keyUp
   | nil => intro ky j _; refine judge_keyless rfl ?_; exact .nil
   | call _ _ => intro ky j _; refine judge_keyless rfl ?_; exact .call
   | integer => intro ky j _; refine judge_keyless rfl ?_; exact judge_integer j

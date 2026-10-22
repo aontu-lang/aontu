@@ -96,6 +96,7 @@ inductive Val where
   | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
   | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`, `type(v)`, `hide(v)`: `v` carrying `r`
   | key                                     -- `key(0)`, the key of the member a spread is tried on
+  | keyUp (n : ℤ)                           -- `key(n)` as written, the key `n` levels above where it stands; `key()` is `key(1)`
   | hole                                    -- `_`, the placeholder a generator's template binds to its member
   | call (f : Fn) (args : List Val)         -- `add(a, b)`, `-(a)`, …: the value `f` computes from the values of `args`
 
@@ -246,7 +247,7 @@ def Val.super : Val → Val
   | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _
   | .call _ _ => .any
   | .ride _ v _ => v.super
-  | .key => .anyString
+  | .key | .keyUp _ => .anyString
   | .hole => .any
 
 def superFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -352,7 +353,7 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
   | .mapKind | .listKind | .lit (.bool _) | .lit .null | .neq [] | .mulof _
   | .len _ | .unique _ | .re _ | .format _ | .any | .nil | .map _ _ _ | .list _ _ _ | .or _
   | .alias _ | .path _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
-  | .select _ _ _ | .filter _ _ | .key | .call _ _ | .hole => rfl
+  | .select _ _ _ | .filter _ _ | .key | .keyUp _ | .call _ _ | .hole => rfl
 
 /-- A term with no `key` at its own position is its own reading under
 any key. -/

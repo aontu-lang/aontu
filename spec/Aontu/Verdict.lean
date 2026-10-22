@@ -1016,7 +1016,7 @@ theorem Val.unwrap_checkableA : ∀ {v : Val}, v.CheckableA → v.unwrap.Checkab
   | .unique _, h | .re _, h | .format _, h | .any, h | .nil, h | .map _ _ _, h
   | .list _ _ _, h | .or _, h | .meet _ _, h | .alias _, h | .path _, h | .nof _ _, h
   | .must _ _, h | .when _ _ _, h | .contains _ _, h | .rest _ _, h | .select _ _ _, h
-  | .filter _ _, h | .key, h | .call _ _, h | .hole, h => h
+  | .filter _ _, h | .key, h | .keyUp _, h | .call _ _, h | .hole, h => h
 
 theorem Val.operand_checkableA {v : Val} (h : v.CheckableA) : v.operand.CheckableA :=
   Val.unwrap_checkableA (Val.lonePref_checkableA (Val.unwrap_checkableA h))
@@ -1078,7 +1078,7 @@ theorem Val.members_checkableA {ds : Decls} :
   | _, .path _, _, _, hm | _, .nof _ _, _, _, hm | _, .must _ _, _, _, hm
   | _, .when _ _ _, _, _, hm | _, .contains _ _, _, _, hm | _, .rest _ _, _, _, hm
   | _, .select _ _ _, _, _, hm | _, .filter _ _, _, _, hm | _, .key, _, _, hm
-  | _, .call _ _, _, _, hm => by simp [Val.members] at hm
+  | _, .keyUp _, _, _, hm | _, .call _ _, _, _, hm => by simp [Val.members] at hm
 
 /-- The members `pack` reads in a bag the checker can read are ones it
 can read. -/
@@ -1114,7 +1114,7 @@ theorem Val.keyedMembers_checkableA {ds : Decls} :
   | _, .path _, _, _, hm | _, .nof _ _, _, _, hm | _, .must _ _, _, _, hm
   | _, .when _ _ _, _, _, hm | _, .contains _ _, _, _, hm | _, .rest _ _, _, _, hm
   | _, .select _ _ _, _, _, hm | _, .filter _ _, _, _, hm | _, .key, _, _, hm
-  | _, .call _ _, _, _, hm => by simp [Val.keyedMembers] at hm
+  | _, .keyUp _, _, _, hm | _, .call _ _, _, _, hm => by simp [Val.keyedMembers] at hm
 
 /-- Pairs whose values the checker can read keep values it can read when
 a repeated key's values are met. -/
