@@ -9,6 +9,8 @@
 # not yet answer this way are listed in spec/ledger.tsv.
 # Variables, each the value both runners bind for every row, follow in rows
 # i0 on, read as names the calling program declares.
+# Path values follow in rows k0 on: path(p) generates its own address, two
+# meet by the prefix rule, the longer winning, and path admits each.
 g0	gens	v: 1	{"v":1}
 g1	gens	v: *(1)	{"v":1}
 g5	gens	v: *(null)	{"v":null}
@@ -117,3 +119,21 @@ i30	gens	v: {"q": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], "x": $.v.q.$foo}	{
 i31	gens	v: {"q": [5, 6, 7, 8, 9, 10], "x": $.v.q.$bigi}	{"v":{"q":[5,6,7,8,9,10],"x":10}}
 i32	gens	v: {"q": {"c": 5}, "a": {"b": $.v.$PARENT.c}}	{"v":{"a":{"b":5},"q":{"c":5}}}
 i33	gens	v: {"q": {"hello": {"q": 4}}, "x": $.v.q.$bar.$PARENT}	{"v":{"q":{"hello":{"q":4}},"x":4}}
+k0	gens	v: path($.a)	{"v":"$.a"}
+k1	gens	v: path($.a.b)	{"v":"$.a.b"}
+k2	gens	v: path(.a)	{"v":".a"}
+k3	gens	v: path(..a.b)	{"v":"..a.b"}
+k4	gens	v: path($.a.0)	{"v":"$.a.0"}
+k5	gens	v: (path($.a)) & (path($.a.b))	{"v":"$.a.b"}
+k6	gens	v: (path($.a.b)) & (path($.a))	{"v":"$.a.b"}
+k7	gens	v: (path(.a)) & (path(.a.b))	{"v":".a.b"}
+k8	gens	v: (path($.a)) & (path($.a))	{"v":"$.a"}
+k9	gens	v: (path) & (path($.a))	{"v":"$.a"}
+k10	gens	v: (path($.a)) & (path)	{"v":"$.a"}
+k11	gens	v: (any) & (path($.a))	{"v":"$.a"}
+k12	gens	v: ((path) & (path($.a.b))) & (path($.a))	{"v":"$.a.b"}
+k13	gens	v: *(path($.a)) | (path)	{"v":"$.a"}
+k14	gens	v: *(path($.a)) | (path($.b))	{"v":"$.a"}
+k15	gens	v: (path($.a)) & ((path($.a.b)) | (path($.c)))	{"v":"$.a.b"}
+k16	gens	v: {"x": path($.a), "y": path(.x)}	{"v":{"x":"$.a","y":".x"}}
+k17	gens	v: [path($.a), path(..b)]	{"v":["$.a","..b"]}

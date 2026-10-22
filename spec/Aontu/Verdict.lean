@@ -45,8 +45,9 @@ structure Mode where
 /-! ## The data as a term -/
 
 mutual
-/-- A document of data as the term it is: each scalar its literal, a
-map its members as required keys, open, and a list its elements, open. -/
+/-- A document of data as the term it is: each scalar its literal, an
+address the path value that captures it, a map its members as required
+keys, open, and a list its elements, open. -/
 def Data.term : Data → Val
   | .num x => .lit (.num x)
   | .str s => .lit (.str s)
@@ -54,6 +55,7 @@ def Data.term : Data → Val
   | .null => .lit .null
   | .map fs => .map (termMembers fs) none false
   | .list xs => .list (termElems xs) none false
+  | .addr a => .addr a
 
 def termMembers : List (String × Data) → List (String × Bool × Val)
   | [] => []
@@ -1086,7 +1088,8 @@ theorem Val.unwrap_checkableA : ∀ {v : Val}, v.CheckableA → v.unwrap.Checkab
   | .ride _ v _, .ride h => show v.unwrap.CheckableA from Val.unwrap_checkableA h
   | .pref _ x, .pref h => show x.unwrap.CheckableA from Val.unwrap_checkableA h
   | .integer, h | .float, h | .biginteger, h | .bigdecimal, h | .number, h | .string, h
-  | .anyString, h | .boolean, h | .mapKind, h | .listKind, h | .lit _, h | .min _, h
+  | .anyString, h | .boolean, h | .mapKind, h | .listKind, h | .pathKind, h | .lit _, h
+  | .addr _, h | .min _, h
   | .max _, h | .above _, h | .beneath _, h | .neq _, h | .mulof _, h | .len _, h
   | .unique _, h | .re _, h | .format _, h | .any, h | .nil, h | .map _ _ _, h
   | .list _ _ _, h | .or _, h | .meet _ _, h | .alias _, h | .path _, h | .nof _ _, h
@@ -1145,7 +1148,8 @@ theorem Val.members_checkableA {ds : Decls} :
   | _, .integer, _, _, hm | _, .float, _, _, hm | _, .biginteger, _, _, hm
   | _, .bigdecimal, _, _, hm | _, .number, _, _, hm | _, .string, _, _, hm
   | _, .anyString, _, _, hm | _, .boolean, _, _, hm | _, .mapKind, _, _, hm
-  | _, .listKind, _, _, hm | _, .lit _, _, _, hm | _, .min _, _, _, hm | _, .max _, _, _, hm
+  | _, .listKind, _, _, hm | _, .pathKind, _, _, hm | _, .lit _, _, _, hm | _, .addr _, _, _, hm
+  | _, .min _, _, _, hm | _, .max _, _, _, hm
   | _, .above _, _, _, hm | _, .beneath _, _, _, hm | _, .neq _, _, _, hm
   | _, .mulof _, _, _, hm | _, .len _, _, _, hm | _, .unique _, _, _, hm | _, .re _, _, _, hm
   | _, .format _, _, _, hm | _, .any, _, _, hm | _, .nil, _, _, hm | _, .or _, _, _, hm
@@ -1181,7 +1185,8 @@ theorem Val.keyedMembers_checkableA {ds : Decls} :
   | _, .integer, _, _, hm | _, .float, _, _, hm | _, .biginteger, _, _, hm
   | _, .bigdecimal, _, _, hm | _, .number, _, _, hm | _, .string, _, _, hm
   | _, .anyString, _, _, hm | _, .boolean, _, _, hm | _, .mapKind, _, _, hm
-  | _, .listKind, _, _, hm | _, .lit _, _, _, hm | _, .min _, _, _, hm | _, .max _, _, _, hm
+  | _, .listKind, _, _, hm | _, .pathKind, _, _, hm | _, .lit _, _, _, hm | _, .addr _, _, _, hm
+  | _, .min _, _, _, hm | _, .max _, _, _, hm
   | _, .above _, _, _, hm | _, .beneath _, _, _, hm | _, .neq _, _, _, hm
   | _, .mulof _, _, _, hm | _, .len _, _, _, hm | _, .unique _, _, _, hm | _, .re _, _, _, hm
   | _, .format _, _, _, hm | _, .any, _, _, hm | _, .nil, _, _, hm | _, .or _, _, _, hm
@@ -2343,6 +2348,7 @@ theorem term_admits_self : ∀ j : Data, j.WellFormed → Admits env root j.term
   | .str _, _ => .str
   | .bool _, _ => .bool
   | .null, _ => .null
+  | .addr a, _ => .addr (Addr.opens_refl a)
   | .map fs, h => by
     cases h with
     | map hn hw =>
@@ -2393,6 +2399,7 @@ theorem Data.term_checkableA : ∀ j : Data, j.term.CheckableA
   | .str _ => .lit
   | .bool _ => .lit
   | .null => .lit
+  | .addr _ => .addr
   | .map fs => .map (termMembers_checkableA fs) (fun _ h => nomatch h)
   | .list xs => .list (termElems_checkableA xs) (fun _ h => nomatch h)
 
@@ -2418,7 +2425,7 @@ mutual
 /-- A term made of data expands to itself: it names nothing. -/
 theorem expandF_term {ds : Decls} : ∀ (k : ℕ) (j : Data), expandF ds k j.term = j.term
   | 0, _ => rfl
-  | _ + 1, .num _ | _ + 1, .str _ | _ + 1, .bool _ | _ + 1, .null => rfl
+  | _ + 1, .num _ | _ + 1, .str _ | _ + 1, .bool _ | _ + 1, .null | _ + 1, .addr _ => rfl
   | k + 1, .map fs => by
     simp only [Data.term, expandF, Option.map, expandF_termMembers k fs]
   | k + 1, .list xs => by

@@ -65,6 +65,7 @@ inductive Val where
   | boolean                                 -- `boolean`
   | mapKind                                 -- `map`, every map
   | listKind                                -- `list`, every list
+  | pathKind                                -- `path`, every address
   | lit (s : Scalar)                        -- a literal: `3`, `1.5`, `0d5`, `0d1.5`, `"a"`, `true`, `null`
   | min (b : Bound)                         -- `min(b)`
   | max (b : Bound)                         -- `max(b)`
@@ -87,6 +88,7 @@ inductive Val where
   | meet (a b : Val)                        -- `a & b`
   | alias (n : String)                      -- `%n`
   | path (p : List Seg)                     -- `$.a.b`
+  | addr (a : Addr)                         -- `path($.a.b)`, the address `a` and every address it opens
   | nof (n : Val) (cs : List Val)           -- `nof(n, c₁, …, cₖ)`, the branches that admit counted by `n`
   | must (c : Val) (msg : String)           -- `must(c, "msg")`, which asks what `nof(1, c)` asks
   | when (c t : Val) (e : Option Val)       -- `when(c, t)` or `when(c, t, e)`: `t` where `c` admits, else `e`, or nothing
@@ -205,7 +207,8 @@ def Bound.domain : Bound → Val
 /-- A kind: a term that admits scalars by their kind alone. `any` is no
 kind here, since `any & x` is `x`, whose parent is `x`'s own. -/
 def Val.isKind : Val → Bool
-  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean => true
+  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
+  | .pathKind => true
   | .ride _ v _ => v.isKind
   | _ => false
 
@@ -223,7 +226,7 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
-  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .any => .any
+  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any => .any
   | .nil => .nil
   | .lit (.num x) => x.leaf.kind
   | .lit (.str s) => if s = "" then .anyString else .string
@@ -244,6 +247,7 @@ def Val.super : Val → Val
     else if b.isKind then b else .meet a.super b.super
   | .alias n => .alias n
   | .path p => .path p
+  | .addr _ => .pathKind
   | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _
   | .call _ _ => .any
   | .ride _ v _ => v.super
@@ -350,9 +354,9 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
   | .min b | .max b | .above b | .beneath b | .neq (b :: _) => by
     simp only [Val.super]; cases b <;> rfl
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
-  | .mapKind | .listKind | .lit (.bool _) | .lit .null | .neq [] | .mulof _
+  | .mapKind | .listKind | .pathKind | .lit (.bool _) | .lit .null | .neq [] | .mulof _
   | .len _ | .unique _ | .re _ | .format _ | .any | .nil | .map _ _ _ | .list _ _ _ | .or _
-  | .alias _ | .path _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
+  | .alias _ | .path _ | .addr _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
   | .select _ _ _ | .filter _ _ | .key | .keyUp _ | .call _ _ | .hole => rfl
 
 /-- A term with no `key` at its own position is its own reading under

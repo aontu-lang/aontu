@@ -1779,10 +1779,11 @@ The data goes on past the scalars to the two containers:
 
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
-/-- The data: a number, a string, a boolean, null, a map, or a list. A
-map is the set of its members: Lean lists them, the order of the list
-is no part of the value, and a map gives each key once
-(`Data.WellFormed`). -/
+/-- The data: a number, a string, a boolean, null, a map, a list, or an
+address. A map is the set of its members: Lean lists them, the order of
+the list is no part of the value, and a map gives each key once
+(`Data.WellFormed`). JSON writes an address as its text, and no JSON
+text reads as one. -/
 inductive Data where
   | num (x : Number)
   | str (s : String)
@@ -1790,9 +1791,11 @@ inductive Data where
   | null
   | map (fs : List (String × Data))
   | list (xs : List Data)
+  | addr (a : Addr)
 ```
 
-A map is the set of its members, and a member is a key with the value
+An address is what a path value holds, and step 31 reads it. A map is
+the set of its members, and a member is a key with the value
 the map gives it: `List (String × Data)` reads as a list of pairs of a
 string and a value. A Lean list can give one key twice, which no map
 does, so the definition says which Lean `Data` is a value:
@@ -3726,7 +3729,7 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
-  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .any => .any
+  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any => .any
   | .nil => .nil
   | .lit (.num x) => x.leaf.kind
   | .lit (.str s) => if s = "" then .anyString else .string
@@ -3915,6 +3918,7 @@ on the term:
 /-- `v` generates `j`. -/
 def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .lit s, j => j = s.data
+  | .addr a, j => j = .addr a
   | .map fs spread _, j =>
     keysDistinct fs = true ∧ ∃ ms, genFields env root spread fs ms ∧ j = .map (sortMembers ms)
   | .list items spread _, j => ∃ xs, genItems env root spread 0 items xs ∧ j = .list xs
@@ -3925,7 +3929,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
     (Gen env root a j ∧ Admits env root b j) ∨
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _
-  | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .min _, _ | .max _, _
+  | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
   | .re _, _ | .format _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
@@ -5253,7 +5257,9 @@ inductive Val.Checkable : Val → Prop
   | boolean : Checkable .boolean
   | mapKind : Checkable .mapKind
   | listKind : Checkable .listKind
+  | pathKind : Checkable .pathKind
   | lit {s : Scalar} : Checkable (.lit s)
+  | addr {a : Addr} : Checkable (.addr a)
   | min {b : Bound} : Checkable (.min b)
   | max {b : Bound} : Checkable (.max b)
   | above {b : Bound} : Checkable (.above b)
@@ -7089,7 +7095,126 @@ does. A float, a big integer and a big decimal bind too and have no
 row of their own, since the rows write no number but an integer as
 JSON, though each names a step.
 
-## 31. What the definition doesn't say yet
+## 31. Path values
+
+`path(p)` holds the address `p` spells, as data: where it points, not
+what's there. So `cap: path($.a.b)` generates `"$.a.b"`, whatever
+`$.a.b` holds, if anything. The definition holds an address as data of
+its own:
+
+<!-- test: quote spec/Aontu/Data.lean -->
+```lean
+/-- An address, what a path value is (`path(p)`): where it starts, `0`
+for the document's root `$` and `n` for the `n` dots a relative path
+starts with, and its steps, each the text it's written with. -/
+structure Addr where
+  up : ℕ
+  steps : List String
+  deriving DecidableEq
+
+/-- An address as text: `$` with each step after a dot from the root,
+and from a relative start its dots, then its steps between dots, so
+`.b` from the map or list that holds the path and `..b` a step up. -/
+def Addr.text (a : Addr) : String :=
+  match a.up with
+  | 0 => "$" ++ String.join (a.steps.map ("." ++ ·))
+  | n => String.mk (List.replicate n '.') ++ ".".intercalate a.steps
+```
+
+An address is a datum, `Data.addr` among the data of step 6. JSON
+writes it as its text, and no JSON text reads as one, so `vet` refuses
+the string that data writes for a path value, as both engines do: the
+data `{"v": "$.a"}` against the schema `v: path($.a)` is `invalid`.
+Data that holds addresses has to be an aontu document.
+
+A path value isn't a literal, since two of them meet without being
+equal: `path($.a) & path($.a.b)` is `path($.a.b)` in both engines. An
+address that opens another names the same place, less precisely. So a
+path value admits each address its own opens:
+
+<!-- test: quote spec/Aontu/Data.lean -->
+```lean
+/-- `a` opens `b`: they start alike, and `a`'s steps begin `b`'s, so
+`b` is `a` told as precisely or more. -/
+def Addr.Opens (a b : Addr) : Prop := a.up = b.up ∧ a.steps <+: b.steps
+```
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  /-- A path value admits each address its own opens: itself, and every
+  address that adds steps to it, so that two paths meet by the prefix
+  rule. It refuses every other value. -/
+  | addr {a b : Addr} : a.Opens b → Judge env root true (.addr a) (.addr b)
+  | addrNot {a : Addr} {j : Data} :
+      (∀ b, j = .addr b → ¬ a.Opens b) → Judge env root false (.addr a) j
+```
+
+The prefix rule then needs no rule of its own. What two path values
+both admit is what the longer admits, where one opens the other, and
+nothing where neither does, since of two addresses that both open a
+third, one opens the other. The meet of step 10 computes it:
+
+<!-- test: quote spec/Aontu/Meet.lean -->
+```lean
+/-- The meet of two path values, by the prefix rule: the one the other
+opens, so the longer, and `nil` where neither opens the other. -/
+def addrMeet (a b : Addr) : Val :=
+  if a.Opens b then .addr b else if b.Opens a then .addr a else .nil
+```
+
+The order follows as well: a prefix subsumes its extensions, so
+`path($.a)` subsumes `path($.a.b)` and not the other way round. Two
+addresses that start apart open nothing of each other, so `path(.a)`
+and `path($.a)` meet in `nil`. A path value generates its own address,
+as a literal generates its value, by the clause of `Gen` that step 13
+lists:
+
+<!-- test: quote spec/Aontu/Tour.lean -->
+```lean
+/-- `path($.a)` and `path($.a.b)`, the second's address one step past
+the first's. -/
+abbrev pathA : Val := .addr ⟨0, ["a"]⟩
+abbrev pathAB : Val := .addr ⟨0, ["a", "b"]⟩
+
+/-- `path($.a)` admits `$.a.b`, an address its own opens… -/
+example : Instance .empty pathA (.addr ⟨0, ["a", "b"]⟩) := ⟨by decide, .addr ⟨rfl, by decide⟩⟩
+
+/-- …and refuses the string `"$.a"`, which no address is. -/
+example : ¬ Instance .empty pathA (.str "$.a") := fun ⟨_, h⟩ => nomatch h
+
+/-- The two meet in the longer, which generates its own address. -/
+example : output (.meet pathA pathAB) = some (.addr ⟨0, ["a", "b"]⟩) := by decide
+
+/-- A prefix subsumes its extensions. -/
+example : pathAB ⊑[.empty] pathA := addr_le_addr ⟨rfl, by decide⟩
+```
+
+`path` alone admits every address and generates none. No other kind
+shares a value with it, `string` among them, so `string & path($.a)`
+is `nil`, as in both engines.
+
+Rows k0 on of three files hold this: `test/spec/def-gen.tsv` what path
+values generate, `test/spec/def-verdict.tsv` how `vet` judges data
+against them, and `test/spec/def-subsume.tsv` which one subsumes
+which. Both engines answer every row as the definition does.
+
+The definition doesn't read a string constraint on a path value yet.
+Both engines read a path value's spelling where `min`, `max`, `above`,
+`below`, `neq`, `len`, `re`, or `format` meets it, so
+`len(3) & path($.a)` is `"$.a"`. They read the one address the value
+spells, when the two meet, where the prefix rule has the value stand
+for every address it opens, and the answer depends on the order of the
+meets: `above("$.a") & path($.a) & path($.a.b)` refuses, while
+`path($.a.b) & path($.a) & above("$.a")` is `"$.a.b"`, which #474
+tracks. No
+reading by what each side admits gives both answers, so no string
+constraint admits an address in the definition yet, and no row meets a
+path value with one. Nor does the definition read `path` of a string,
+which converts the string's text to an address, or the links `refer`
+and `rel`. It holds `path($."a.b")` as one step, a key with a dot in
+it, where both engines split it into two, which #475 tracks.
+
+## 32. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -7098,7 +7223,8 @@ two readings of a number that `--exact-numbers` switches between,
 which strings a pattern or a format admits, the built-in functions
 steps 20 to 26 don't walk through, `key()` deeper in a spread than its
 own position, a relative path in a spread, a template or a `filter`'s
-condition, and generation with `emit`. [`aontu vet`](reference-api.md#aontu-vet) states which
+condition, generation with `emit`, a string constraint met with a path
+value, and the links `refer` and `rel`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 

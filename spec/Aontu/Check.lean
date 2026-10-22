@@ -24,6 +24,7 @@ def Data.wf : Data → Bool
   | .null => true
   | .map fs => decide (fs.map Prod.fst).Nodup && Data.wfMembers fs
   | .list xs => Data.wfAll xs
+  | .addr _ => true
 
 def Data.wfAll : List Data → Bool
   | [] => true
@@ -48,6 +49,7 @@ theorem Data.wf_iff : ∀ j : Data, j.wf = true ↔ j.WellFormed
     simp only [Data.wf]
     rw [Data.wfAll_iff xs]
     exact ⟨.list, fun h => by cases h; assumption⟩
+  | .addr _ => ⟨fun _ => .addr, fun _ => rfl⟩
 
 theorem Data.wfAll_iff : ∀ xs : List Data, Data.wfAll xs = true ↔ ∀ x, x ∈ xs → x.WellFormed
   | [] => by simp [Data.wfAll]
@@ -82,6 +84,7 @@ def Data.same : Data → Data → Bool
   | .null, .null => true
   | .map fs, .map gs => Data.sameMembers gs [] fs && gs.all fun m => (lookup m.1 fs).isSome
   | .list xs, .list ys => Data.sameElems xs ys
+  | .addr a, .addr b => decide (a = b)
   | _, _ => false
 
 /-- Each key of `fs` not yet seen gives, in `gs`, the same value it
@@ -179,6 +182,12 @@ theorem Data.same_iff : ∀ j j' : Data, j.same j' = true ↔ j.Same j'
       simp only [Data.same]
       rw [Data.sameElems_iff xs ys]
       exact ⟨fun ⟨h1, h2⟩ => .list h1 h2, fun h => by cases h; exact ⟨‹_›, ‹_›⟩⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .addr a, j' => by
+    cases j' with
+    | addr b =>
+      simp only [Data.same, decide_eq_true_eq]
+      exact ⟨fun h => by subst h; exact .addr, fun h => by cases h; rfl⟩
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
 
 theorem Data.sameMembers_iff (gs : List (String × Data)) :
@@ -298,7 +307,9 @@ inductive Val.Checkable : Val → Prop
   | boolean : Checkable .boolean
   | mapKind : Checkable .mapKind
   | listKind : Checkable .listKind
+  | pathKind : Checkable .pathKind
   | lit {s : Scalar} : Checkable (.lit s)
+  | addr {a : Addr} : Checkable (.addr a)
   | min {b : Bound} : Checkable (.min b)
   | max {b : Bound} : Checkable (.max b)
   | above {b : Bound} : Checkable (.above b)
@@ -398,7 +409,9 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .boolean => ⟨fun _ => .boolean, fun _ => rfl⟩
   | .mapKind => ⟨fun _ => .mapKind, fun _ => rfl⟩
   | .listKind => ⟨fun _ => .listKind, fun _ => rfl⟩
+  | .pathKind => ⟨fun _ => .pathKind, fun _ => rfl⟩
   | .lit _ => ⟨fun _ => .lit, fun _ => rfl⟩
+  | .addr _ => ⟨fun _ => .addr, fun _ => rfl⟩
   | .min _ => ⟨fun _ => .min, fun _ => rfl⟩
   | .max _ => ⟨fun _ => .max, fun _ => rfl⟩
   | .above _ => ⟨fun _ => .above, fun _ => rfl⟩
@@ -594,7 +607,7 @@ end
 theorem Data.weight_pos : ∀ j : Data, 1 ≤ j.weight
   | .map _ => Nat.le_add_left _ _
   | .list _ => Nat.le_add_left _ _
-  | .num _ | .str _ | .bool _ | .null => Nat.le_refl _
+  | .num _ | .str _ | .bool _ | .null | .addr _ => Nat.le_refl _
 
 theorem weightMembers_ge : ∀ {fs : List (String × Data)} {m : String × Data}, m ∈ fs →
     m.2.weight ≤ weightMembers fs
@@ -1018,7 +1031,9 @@ inductive Val.CheckableA : Val → Prop
   | boolean : CheckableA .boolean
   | mapKind : CheckableA .mapKind
   | listKind : CheckableA .listKind
+  | pathKind : CheckableA .pathKind
   | lit {s : Scalar} : CheckableA (.lit s)
+  | addr {a : Addr} : CheckableA (.addr a)
   | min {b : Bound} : CheckableA (.min b)
   | max {b : Bound} : CheckableA (.max b)
   | above {b : Bound} : CheckableA (.above b)
@@ -1119,7 +1134,9 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .boolean => ⟨fun _ => .boolean, fun _ => rfl⟩
   | .mapKind => ⟨fun _ => .mapKind, fun _ => rfl⟩
   | .listKind => ⟨fun _ => .listKind, fun _ => rfl⟩
+  | .pathKind => ⟨fun _ => .pathKind, fun _ => rfl⟩
   | .lit _ => ⟨fun _ => .lit, fun _ => rfl⟩
+  | .addr _ => ⟨fun _ => .addr, fun _ => rfl⟩
   | .min _ => ⟨fun _ => .min, fun _ => rfl⟩
   | .max _ => ⟨fun _ => .max, fun _ => rfl⟩
   | .above _ => ⟨fun _ => .above, fun _ => rfl⟩
@@ -1316,7 +1333,9 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | boolean => exact .boolean
   | mapKind => exact .mapKind
   | listKind => exact .listKind
+  | pathKind => exact .pathKind
   | lit => exact .lit
+  | addr => exact .addr
   | min => exact .min
   | max => exact .max
   | above => exact .above
@@ -1547,6 +1566,12 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .listKind, j => match j with
     | .list _ => true
     | _ => false
+  | .pathKind, j => match j with
+    | .addr _ => true
+    | _ => false
+  | .addr a, j => match j with
+    | .addr b => decide (a.Opens b)
+    | _ => false
   | .lit s, j => match s, j with
     | .num x, .num y => decide (x = y)
     | .str s, .str s' => decide (s = s')
@@ -1694,7 +1719,10 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
     | .num _ => true
     | _ => false
   | .number, _ | .string, _ | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _
-  | .any, _ => true
+  | .pathKind, _ | .any, _ => true
+  | .addr _, j => match j with
+    | .addr _ => true
+    | _ => false
   | .hole, _ => true
   | .nil, _ => false
   | .lit s, j => match s, j with
@@ -2418,6 +2446,20 @@ theorem judge_listKind (j : Data) : Judge env root (checkWith u none .listKind j
   | list xs => exact .listKind
   | _ => exact .listKindNot fun _ h => nomatch h
 
+theorem judge_pathKind (j : Data) : Judge env root (checkWith u none .pathKind j) .pathKind j := by
+  cases j with
+  | addr a => exact .pathKind
+  | _ => exact .pathKindNot fun _ h => nomatch h
+
+theorem judge_addr (a : Addr) (j : Data) : Judge env root (checkWith u none (.addr a) j) (.addr a) j := by
+  cases j with
+  | addr b =>
+    simp only [checkWith]
+    by_cases h : a.Opens b
+    · rw [decide_eq_true h]; exact .addr h
+    · rw [decide_eq_false h]; exact .addrNot fun _ e => by cases e; exact h
+  | _ => exact .addrNot fun _ h => nomatch h
+
 /-- The checker judges a kind as the definition does. -/
 theorem check_kind_judge {v : Val} (hk : v.isKind = true) (j : Data) :
     Judge env root (checkWith u none v j) v j := by
@@ -2433,6 +2475,7 @@ theorem check_kind_judge {v : Val} (hk : v.isKind = true) (j : Data) :
     | exact judge_string j
     | exact judge_anyString j
     | exact judge_boolean j
+    | exact judge_pathKind j
 
 set_option linter.unusedVariables false in
 /-- The checker by the parent type judges by it, for every value it can
@@ -2445,7 +2488,13 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     cases j with
     | num x => exact .number
     | _ => exact .numberNot fun _ h => nomatch h
-  | number | string | anyString | boolean | mapKind | listKind | any | hole => intro j _; exact .any
+  | number | string | anyString | boolean | mapKind | listKind | pathKind | any | hole =>
+    intro j _; exact .any
+  | addr =>
+    intro j _
+    cases j with
+    | addr b => exact .pathKind
+    | _ => exact .pathKindNot fun _ h => nomatch h
   | nil => intro j _; exact .nil
   | @lit s =>
     intro j _
@@ -2687,6 +2736,8 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
   | boolean => intro ky j _; refine judge_keyless rfl ?_; exact judge_boolean j
   | mapKind => intro ky j _; refine judge_keyless rfl ?_; exact judge_mapKind j
   | listKind => intro ky j _; refine judge_keyless rfl ?_; exact judge_listKind j
+  | pathKind => intro ky j _; refine judge_keyless rfl ?_; exact judge_pathKind j
+  | @addr a => intro ky j _; refine judge_keyless rfl ?_; exact judge_addr a j
   | @lit s =>
     intro ky j _
     refine judge_keyless rfl ?_

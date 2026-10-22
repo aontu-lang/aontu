@@ -16,6 +16,7 @@ anyString	call	empty
 boolean	word	boolean
 mapKind	word	map
 listKind	word	list
+pathKind	word	path
 lit	word	true
 lit	word	false
 lit	word	null
@@ -39,6 +40,7 @@ pref	syntax	*
 meet	syntax	&
 alias	syntax	%
 path	syntax	$
+addr	call	path
 nof	call	nof
 must	call	must
 when	call	when

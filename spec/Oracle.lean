@@ -1525,16 +1525,18 @@ theorem subsume_rows_exact : ∀ g ∈ subVals, ∀ s ∈ subVals,
       (subInstances_wellFormed j hj) h1 h2⟩
 
 /-- The `subsumption` rows of some pairs of values, each under the key `v`,
-the general first, with the answers the `values` contract allows; a pair
-the definition leaves undecided has no row. -/
-def subsumePairRows (tag : String) (pairs : List (Val × Val)) : IO Unit := do
+the general first, with the answers the `values` contract allows, an
+instance of `pool` telling a pair apart; a pair the definition leaves
+undecided has no row. -/
+def subsumePairRows (tag : String) (pairs : List (Val × Val)) (pool : List Data := subInstances) :
+    IO Unit := do
   let mut i := 0
   for (g, s) in pairs do
     let some gsrc := g.cell | throw (IO.userError "a value of the fragment has no text")
     let some ssrc := s.cell | throw (IO.userError "a value of the fragment has no text")
     let want? : Option String :=
       if (leDecF .empty 64 s g).isSome then some "[\"subsumes\",\"undecided\"]"
-      else if subInstances.any (fun j => check s j && !(check g j)) then
+      else if pool.any (fun j => check s j && !(check g j)) then
         some "[\"does_not_subsume\",\"undecided\"]"
       else none
     if let some want := want? then
@@ -1832,7 +1834,7 @@ def forms : List (String × String × String) :=
     ("biginteger", "word", "biginteger"), ("bigdecimal", "word", "bigdecimal"),
     ("number", "word", "number"), ("string", "word", "string"), ("anyString", "call", "empty"),
     ("boolean", "word", "boolean"), ("mapKind", "word", "map"), ("listKind", "word", "list"),
-    ("lit", "word", "true"), ("lit", "word", "false"),
+    ("pathKind", "word", "path"), ("lit", "word", "true"), ("lit", "word", "false"),
     ("lit", "word", "null"), ("min", "call", "min"), ("max", "call", "max"),
     ("above", "call", "above"), ("beneath", "call", "below"), ("neq", "call", "neq"),
     ("mulof", "call", "mulof"), ("len", "call", "len"), ("unique", "call", "unique"),
@@ -1840,7 +1842,7 @@ def forms : List (String × String × String) :=
     ("nil", "word", "nil"), ("map", "syntax", "{}"), ("map", "call", "close"),
     ("list", "syntax", "[]"),
     ("or", "syntax", "|"), ("pref", "syntax", "*"), ("meet", "syntax", "&"),
-    ("alias", "syntax", "%"), ("path", "syntax", "$"), ("nof", "call", "nof"),
+    ("alias", "syntax", "%"), ("path", "syntax", "$"), ("addr", "call", "path"), ("nof", "call", "nof"),
     ("must", "call", "must"), ("when", "call", "when"), ("contains", "call", "contains"),
     ("rest", "call", "rest"), ("select", "call", "match"), ("filter", "call", "filter"),
     ("ride", "call", "meta"), ("ride", "call", "deprecate"), ("ride", "call", "ident"),
@@ -1870,7 +1872,7 @@ def formSamples : List (String × Val) :=
     ("match", .select .integer [] none), ("filter", .filter .integer .integer),
     ("meta", .ride .metadata .integer []), ("deprecate", .ride .deprecate .integer []),
     ("ident", .ride .ident .integer []), ("type", .ride .type .integer []),
-    ("hide", .ride .hide .integer []), ("key", .key), ("key", .keyUp 1),
+    ("hide", .ride .hide .integer []), ("key", .key), ("key", .keyUp 1), ("path", .addr ⟨0, ["a"]⟩),
     ("add", .call .add [.integer, .integer]), ("sub", .call .sub [.integer, .integer]),
     ("mul", .call .mul [.integer, .integer]), ("div", .call .div [.integer, .integer]),
     ("mod", .call .mod [.integer, .integer]), ("rem", .call .rem [.integer, .integer]),
@@ -3058,6 +3060,93 @@ theorem call_alias_verdict_exact : ∀ c ∈ callAliasCases, ∀ (m : Mode) (v :
   fun c hc _ v => vet_iff (callAliasCases_checkable c hc).1
     (readR_checkableA (callAliasCases_checkable c hc).1 (callAliasCases_checkable c hc).2) v
 
+/-! ## Path values
+
+`path(p)` holds an address as data: it admits each address its own
+opens, generates its own, and meets another by the prefix rule. The
+rows read each the three ways the definition does: what it generates,
+how `vet` judges data against it, and what it subsumes. No row meets a
+path value with a string constraint, whose reading decision 23 of the
+design note's §7 leaves open (#474). -/
+
+/-- A path value: `path($.a.b)` from the root is `addrAt 0 ["a", "b"]`,
+and `path(..a)` is `addrAt 2 ["a"]`. -/
+def addrAt (up : ℕ) (steps : List String) : Val := .addr ⟨up, steps⟩
+
+/-- Path values alone, met with each other by the prefix rule and with
+`path` and `any`, in a disjunction and behind a preference, and in a
+map and a list, for the `gens` rows k0 on. -/
+def addrVals : List Val :=
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  [addrAt 0 ["a"], addrAt 0 ["a", "b"], addrAt 1 ["a"], addrAt 2 ["a", "b"], addrAt 0 ["a", "0"],
+    .meet (addrAt 0 ["a"]) (addrAt 0 ["a", "b"]), .meet (addrAt 0 ["a", "b"]) (addrAt 0 ["a"]),
+    .meet (addrAt 1 ["a"]) (addrAt 1 ["a", "b"]), .meet (addrAt 0 ["a"]) (addrAt 0 ["a"]),
+    .meet .pathKind (addrAt 0 ["a"]), .meet (addrAt 0 ["a"]) .pathKind, .meet .any (addrAt 0 ["a"]),
+    .meet (.meet .pathKind (addrAt 0 ["a", "b"])) (addrAt 0 ["a"]),
+    .or [(1, addrAt 0 ["a"]), (0, .pathKind)], .or [(1, addrAt 0 ["a"]), (0, addrAt 0 ["b"])],
+    .meet (addrAt 0 ["a"]) (.or [(0, addrAt 0 ["a", "b"]), (0, addrAt 0 ["c"])]),
+    mp [("x", addrAt 0 ["a"]), ("y", addrAt 1 ["x"])],
+    .list [addrAt 0 ["a"], addrAt 2 ["b"]] none false]
+
+theorem addrVals_checkable : ∀ v ∈ addrVals, (normalise v).Checkable := by decide
+
+theorem addr_output_exact : ∀ v ∈ addrVals, ∀ (env : Env) (root j : Data),
+    output v = some j ↔ Output env root v j :=
+  fun v hv _ _ j => output_iff (addrVals_checkable v hv) j
+
+/-- Schemas that hold a path value against data, for the `verdict` rows k0
+on: a path the data leaves out, which the fill supplies, and a string
+the data writes for it, which no path value admits, since no JSON text
+reads as an address; `path` alone; and meets no value satisfies. -/
+def addrVetCases : List (Val × Data) :=
+  let x (v : Val) : Val := .map [("x", false, v)] none false
+  [(x (addrAt 0 ["a"]), .map []), (addrAt 0 ["a"], .str "$.a"), (x .pathKind, .map []),
+    (.pathKind, .str "$.a"), (.map [("x", true, addrAt 0 ["a"])] none false, .map []),
+    (x (.meet (addrAt 0 ["a"]) (addrAt 0 ["a", "b"])), .map []),
+    (x (.meet (addrAt 0 ["a"]) (addrAt 0 ["b"])), .map []),
+    (x (.meet (addrAt 0 ["a"]) (.lit (.str "$.a"))), .map []),
+    (x (.meet .string (addrAt 0 ["a"])), .map []),
+    (x (.meet .pathKind (.lit (.num (.integer (.of 1))))), .map []),
+    (x (.or [(1, addrAt 0 ["a"]), (0, .pathKind)]), .map []),
+    (x (.or [(0, addrAt 0 ["a"]), (0, addrAt 0 ["b"])]), .map []),
+    (x (addrAt 1 ["a"]), .map []), (addrAt 0 ["a"], .integer 1),
+    (x (.meet .pathKind (addrAt 0 ["a"])), .map []),
+    (x (.list [addrAt 0 ["a"], addrAt 2 ["b"]] none false), .map [])]
+
+theorem addrVetCases_checkable : ∀ c ∈ addrVetCases, (vetDoc c).1.CheckableA := by decide
+
+theorem addr_verdict_exact : ∀ c ∈ addrVetCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (addrVetCases_checkable c hc)) v
+
+/-- The values the `subsumption` rows k0 on compare: path values from the
+root and from a relative start, one the prefix of another, `path`,
+`string`, `any` and a string that spells an address. -/
+def addrSubVals : List Val :=
+  [.pathKind, addrAt 0 ["a"], addrAt 0 ["a", "b"], addrAt 0 ["b"], addrAt 1 ["a"],
+    addrAt 1 ["a", "b"], .string, .any, .lit (.str "$.a")]
+
+/-- The instances that may tell two of them apart: an address for each
+value, and a string. -/
+def addrInstances : List Data :=
+  [.addr ⟨0, ["a"]⟩, .addr ⟨0, ["a", "b"]⟩, .addr ⟨0, ["b"]⟩, .addr ⟨1, ["a"]⟩,
+    .addr ⟨1, ["a", "b"]⟩, .str "$.a", .str "a"]
+
+theorem addrSubVals_checkable : ∀ v ∈ addrSubVals, v.Checkable := by decide
+
+theorem addrInstances_wellFormed : ∀ j ∈ addrInstances, j.WellFormed := by decide
+
+/-- Every path `subsumption` row is the definition's, as
+`subsume_rows_exact` makes the others. -/
+theorem addr_subsume_rows_exact : ∀ g ∈ addrSubVals, ∀ s ∈ addrSubVals,
+    ((leDecF .empty 64 s g).isSome = true → s ⊑[.empty] g) ∧
+    (∀ j ∈ addrInstances, check s j = true → check g j = false → ¬ s ⊑[.empty] g) := by
+  intro g hg s hs
+  exact ⟨leDecF_sound, fun j hj h1 h2 =>
+    not_le_of_witness (addrSubVals_checkable s hs) (addrSubVals_checkable g hg)
+      (addrInstances_wellFormed j hj) h1 h2⟩
+
 def main (args : List String) : IO UInt32 := do
   match args with
   | [] =>
@@ -3112,8 +3201,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
     IO.println "# Variables, each the value both runners bind for every row, follow in rows"
     IO.println "# i0 on, read as names the calling program declares."
+    IO.println "# Path values follow in rows k0 on: path(p) generates its own address, two"
+    IO.println "# meet by the prefix rule, the longer winning, and path admits each."
     genRows "g" genVals
     varRows "i"
+    genRows "k" addrVals
     return 0
   | ["verdict"] =>
     IO.println "# Generated by `lake exe oracle verdict` (spec/Oracle.lean) from the definition"
@@ -3133,9 +3225,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# The marks follow in rows h0 on: hide() and type() leave a member of a map"
     IO.println "# out of the output, the member still meeting the data, and --no-fill reads"
     IO.println "# the schema's visible part."
+    IO.println "# Path values follow in rows k0 on: the fill supplies a path value the data"
+    IO.println "# leaves out, and none admits the string the data writes for it, since no"
+    IO.println "# JSON text reads as an address."
     verdictRows "e"
     verdictRows "l" lenCases
     verdictRows "h" markCases
+    verdictRows "k" addrVetCases
     return 0
   | ["alias"] =>
     IO.println "# Generated by `lake exe oracle alias` (spec/Oracle.lean) from the definition"
@@ -3228,9 +3324,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# one position refutes it (`not_defaultsLe_of_refutes`). The `gen` profile"
     IO.println "# follows in rows w0 on, over values that carry marks, the marks compared at"
     IO.println "# every position both have, a spread's among them (`genLe_of_walk`,"
-    IO.println "# `not_genLe_of_refutes`)."
+    IO.println "# `not_genLe_of_refutes`). Path values follow in rows k0 on: a prefix subsumes"
+    IO.println "# its extensions, path every path value, and string none."
     subsumeRows "s"
     subsumePairRows "m" kindPairs
+    subsumePairRows "k" (addrSubVals.flatMap fun g => addrSubVals.map fun s => (g, s)) addrInstances
     profilePairRows "f" .defaults (defaultVals.flatMap fun g => defaultVals.map fun s => (g, s))
     profilePairRows "w" .gen (markVals.flatMap fun g => markVals.map fun s => (g, s))
     return 0
