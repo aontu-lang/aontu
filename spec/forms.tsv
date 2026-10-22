@@ -30,6 +30,7 @@ len	call	len
 unique	call	unique
 re	call	re
 format	call	format
+grammar	call	parse
 any	word	any
 nil	word	nil
 map	syntax	{}
@@ -79,6 +80,8 @@ call	call	split
 call	call	rep
 call	call	nom
 call	call	path
+call	call	abnf
+call	call	parse
 call	call	project
 call	call	folder
 call	call	file

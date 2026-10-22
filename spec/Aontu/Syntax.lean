@@ -77,6 +77,7 @@ inductive Val where
   | unique (k : Option String)              -- `unique()`, or `unique("k")`
   | re (p : String)                         -- `re(p)`, the strings the pattern matches
   | format (g : String)                     -- `format(g)`, the strings the format reads
+  | grammar (g : String)                    -- `parse(g)`, the strings the grammar `g` parses whole
   | any                                     -- `any`
   | nil                                     -- `nil`
   | map (fs : List (String × Bool × Val)) (spread : Option Val) (closed : Bool)
@@ -237,7 +238,7 @@ def Val.super : Val → Val
   | .neq [] => .any
   | .mulof _ => .number
   | .len _ | .unique _ => .any
-  | .re _ | .format _ => .string
+  | .re _ | .format _ | .grammar _ => .string
   | .map fs spread closed => .map (superFields fs) (superSpread spread) closed
   | .list items spread closed => .list (superItems items) (superSpread spread) closed
   | .or arms => .or (superArms arms)
@@ -355,7 +356,7 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
     simp only [Val.super]; cases b <;> rfl
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
   | .mapKind | .listKind | .pathKind | .lit (.bool _) | .lit .null | .neq [] | .mulof _
-  | .len _ | .unique _ | .re _ | .format _ | .any | .nil | .map _ _ _ | .list _ _ _ | .or _
+  | .len _ | .unique _ | .re _ | .format _ | .grammar _ | .any | .nil | .map _ _ _ | .list _ _ _ | .or _
   | .alias _ | .path _ | .addr _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
   | .select _ _ _ | .filter _ _ | .key | .keyUp _ | .call _ _ | .hole => rfl
 

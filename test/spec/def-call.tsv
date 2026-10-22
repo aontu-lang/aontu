@@ -27,7 +27,10 @@
 # call on a name follows in rows z0 on, and a call handed a pattern, re(p), in
 # rows v0 on. path handed a string follows in rows k0 on: its text converted to
 # an address, text with no start read from one dot, and refused where it spells
-# none, as is any other scalar and a container.
+# none, as is any other scalar and a container. abnf and parse follow in rows
+# g0 on, over grammars of one rule of one literal, which the oracle's host
+# reads as every engine does: abnf answers a grammar's source where it compiles,
+# parse(g, v) the tree as data, and parse(g) admits the strings g parses whole.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -2450,3 +2453,87 @@ k101	verdict	v: {"x": path((path($.a)) & (path($.b)))}	v: {}	{"verdict":"error",
 k102	verdict	v: {"x": path(path)}	v: {}	{"verdict":"error"}
 k103	verdict	v: {"x": path(path)}	v: {}	{"verdict":"error","opts":{"noFill":true}}
 k104	verdict	v: {"x": path(path)}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g0	verdict	v: {"x": (abnf("v = \\"a\\"\\u000a")) & ("v = \\"a\\"\\u000a")}	v: {}	{"verdict":"valid"}
+g1	verdict	v: {"x": (abnf("v = \\"a\\"\\u000a")) & ("v = \\"a\\"\\u000a")}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+g2	verdict	v: {"x": (abnf("v = \\"a\\"\\u000a")) & ("v = \\"a\\"\\u000a")}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+g3	verdict	v: {"x": abnf("")}	v: {}	{"verdict":"error"}
+g4	verdict	v: {"x": abnf("")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+g5	verdict	v: {"x": abnf("")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g6	verdict	v: {"x": abnf("v")}	v: {}	{"verdict":"error"}
+g7	verdict	v: {"x": abnf("v")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+g8	verdict	v: {"x": abnf("v")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g9	verdict	v: {"x": abnf(1)}	v: {}	{"verdict":"error"}
+g10	verdict	v: {"x": abnf(1)}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+g11	verdict	v: {"x": abnf(1)}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g12	verdict	v: {"x": (parse("v = \\"a\\"\\u000a", "a")) & ({"kids": [], "rule": "v", "src": "a"})}	v: {}	{"verdict":"valid"}
+g13	verdict	v: {"x": (parse("v = \\"a\\"\\u000a", "a")) & ({"kids": [], "rule": "v", "src": "a"})}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+g14	verdict	v: {"x": (parse("v = \\"a\\"\\u000a", "a")) & ({"kids": [], "rule": "v", "src": "a"})}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+g15	verdict	v: {"x": (parse("v = \\"a\\"\\u000a", "A")) & ({"kids": [], "rule": "v", "src": "A"})}	v: {}	{"verdict":"valid"}
+g16	verdict	v: {"x": (parse("v = \\"a\\"\\u000a", "A")) & ({"kids": [], "rule": "v", "src": "A"})}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+g17	verdict	v: {"x": (parse("v = \\"a\\"\\u000a", "A")) & ({"kids": [], "rule": "v", "src": "A"})}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+g18	verdict	v: {"x": (parse("v = %s\\"ab\\"", "ab")) & ({"kids": [], "rule": "v", "src": "ab"})}	v: {}	{"verdict":"valid"}
+g19	verdict	v: {"x": (parse("v = %s\\"ab\\"", "ab")) & ({"kids": [], "rule": "v", "src": "ab"})}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+g20	verdict	v: {"x": (parse("v = %s\\"ab\\"", "ab")) & ({"kids": [], "rule": "v", "src": "ab"})}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+g21	verdict	v: {"x": parse("v = %s\\"ab\\"", "aB")}	v: {}	{"verdict":"error"}
+g22	verdict	v: {"x": parse("v = %s\\"ab\\"", "aB")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+g23	verdict	v: {"x": parse("v = %s\\"ab\\"", "aB")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g24	verdict	v: {"x": parse("v = \\"a\\"\\u000a", "b")}	v: {}	{"verdict":"error"}
+g25	verdict	v: {"x": parse("v = \\"a\\"\\u000a", "b")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+g26	verdict	v: {"x": parse("v = \\"a\\"\\u000a", "b")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g27	verdict	v: {"x": parse("v = \\"a\\"\\u000a", "")}	v: {}	{"verdict":"error"}
+g28	verdict	v: {"x": parse("v = \\"a\\"\\u000a", "")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+g29	verdict	v: {"x": parse("v = \\"a\\"\\u000a", "")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g30	verdict	v: {"x": parse("", "a")}	v: {}	{"verdict":"error"}
+g31	verdict	v: {"x": parse("", "a")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+g32	verdict	v: {"x": parse("", "a")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g33	verdict	v: {"x": parse(1, "a")}	v: {}	{"verdict":"error"}
+g34	verdict	v: {"x": parse(1, "a")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+g35	verdict	v: {"x": parse(1, "a")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g36	verdict	v: {"x": parse("v = \\"a\\"\\u000a", 1)}	v: {}	{"verdict":"error"}
+g37	verdict	v: {"x": parse("v = \\"a\\"\\u000a", 1)}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+g38	verdict	v: {"x": parse("v = \\"a\\"\\u000a", 1)}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g39	verdict	v: {"x": (parse(abnf("v = \\"a\\"\\u000a"), "a")) & ({"kids": [], "rule": "v", "src": "a"})}	v: {}	{"verdict":"valid"}
+g40	verdict	v: {"x": (parse(abnf("v = \\"a\\"\\u000a"), "a")) & ({"kids": [], "rule": "v", "src": "a"})}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+g41	verdict	v: {"x": (parse(abnf("v = \\"a\\"\\u000a"), "a")) & ({"kids": [], "rule": "v", "src": "a"})}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+g42	verdict	v: {"x": (parse("v = \\"a\\"\\u000a", "a")) & ({"rule": "w"})}	v: {}	{"verdict":"error"}
+g43	verdict	v: {"x": (parse("v = \\"a\\"\\u000a", "a")) & ({"rule": "w"})}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+g44	verdict	v: {"x": (parse("v = \\"a\\"\\u000a", "a")) & ({"rule": "w"})}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g45	verdict	v: {"x": parse("v = \\"a\\"\\u000a", "a")}	v: {"x": {"kids": [], "rule": "v", "src": "a"}}	{"verdict":"valid"}
+g46	verdict	v: {"x": parse("v = \\"a\\"\\u000a", "a")}	v: {"x": {"kids": [], "rule": "v", "src": "a"}}	{"verdict":"valid","opts":{"noFill":true}}
+g47	verdict	v: {"x": parse("v = \\"a\\"\\u000a", "a")}	v: {"x": {"kids": [], "rule": "v", "src": "a"}}	{"verdict":"valid","opts":{"partial":true}}
+g48	verdict	v: parse("v = \\"a\\"\\u000a")	v: "a"	{"verdict":"valid"}
+g49	verdict	v: parse("v = \\"a\\"\\u000a")	v: "a"	{"verdict":"valid","opts":{"noFill":true}}
+g50	verdict	v: parse("v = \\"a\\"\\u000a")	v: "a"	{"verdict":"valid","opts":{"partial":true}}
+g51	verdict	v: parse("v = \\"a\\"\\u000a")	v: "A"	{"verdict":"valid"}
+g52	verdict	v: parse("v = \\"a\\"\\u000a")	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+g53	verdict	v: parse("v = \\"a\\"\\u000a")	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+g54	verdict	v: parse("v = \\"a\\"\\u000a")	v: "b"	{"verdict":"invalid"}
+g55	verdict	v: parse("v = \\"a\\"\\u000a")	v: "b"	{"verdict":"invalid","opts":{"noFill":true}}
+g56	verdict	v: parse("v = \\"a\\"\\u000a")	v: "b"	{"verdict":"invalid","opts":{"partial":true}}
+g57	verdict	v: parse("v = \\"a\\"\\u000a")	v: ""	{"verdict":"invalid"}
+g58	verdict	v: parse("v = \\"a\\"\\u000a")	v: ""	{"verdict":"invalid","opts":{"noFill":true}}
+g59	verdict	v: parse("v = \\"a\\"\\u000a")	v: ""	{"verdict":"invalid","opts":{"partial":true}}
+g60	verdict	v: parse("v = %s\\"ab\\"")	v: "ab"	{"verdict":"valid"}
+g61	verdict	v: parse("v = %s\\"ab\\"")	v: "ab"	{"verdict":"valid","opts":{"noFill":true}}
+g62	verdict	v: parse("v = %s\\"ab\\"")	v: "ab"	{"verdict":"valid","opts":{"partial":true}}
+g63	verdict	v: parse("v = %s\\"ab\\"")	v: "AB"	{"verdict":"invalid"}
+g64	verdict	v: parse("v = %s\\"ab\\"")	v: "AB"	{"verdict":"invalid","opts":{"noFill":true}}
+g65	verdict	v: parse("v = %s\\"ab\\"")	v: "AB"	{"verdict":"invalid","opts":{"partial":true}}
+g66	verdict	v: parse("")	v: "a"	{"verdict":"invalid"}
+g67	verdict	v: parse("")	v: "a"	{"verdict":"invalid","opts":{"noFill":true}}
+g68	verdict	v: parse("")	v: "a"	{"verdict":"invalid","opts":{"partial":true}}
+g69	verdict	v: {"x": parse("v = \\"a\\"\\u000a")}	v: {}	{"verdict":"incomplete"}
+g70	verdict	v: {"x": parse("v = \\"a\\"\\u000a")}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+g71	verdict	v: {"x": parse("v = \\"a\\"\\u000a")}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+g72	verdict	v: {"x": *("") | (parse("v = \\"a\\"\\u000a"))}	v: {}	{"verdict":"valid"}
+g73	verdict	v: {"x": *("") | (parse("v = \\"a\\"\\u000a"))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+g74	verdict	v: {"x": *("") | (parse("v = \\"a\\"\\u000a"))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+g75	verdict	v: {"x": (parse("v = \\"a\\"\\u000a")) & ("A")}	v: {}	{"verdict":"valid"}
+g76	verdict	v: {"x": (parse("v = \\"a\\"\\u000a")) & ("A")}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+g77	verdict	v: {"x": (parse("v = \\"a\\"\\u000a")) & ("A")}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+g78	verdict	v: {"x": (parse("v = \\"a\\"\\u000a")) & ("b")}	v: {}	{"verdict":"error"}
+g79	verdict	v: {"x": (parse("v = \\"a\\"\\u000a")) & ("b")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+g80	verdict	v: {"x": (parse("v = \\"a\\"\\u000a")) & ("b")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+g81	verdict	v: parse(abnf("v = \\"a\\"\\u000a"))	v: "a"	{"verdict":"valid"}
+g82	verdict	v: parse(abnf("v = \\"a\\"\\u000a"))	v: "a"	{"verdict":"valid","opts":{"noFill":true}}
+g83	verdict	v: parse(abnf("v = \\"a\\"\\u000a"))	v: "a"	{"verdict":"valid","opts":{"partial":true}}

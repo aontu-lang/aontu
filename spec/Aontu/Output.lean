@@ -90,7 +90,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _
   | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
-  | .re _, _ | .format _, _
+  | .re _, _ | .format _, _ | .grammar _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
   | .key, _ | .keyUp _, _ | .call _ _, _ | .hole, _ => False
@@ -545,7 +545,7 @@ theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env r
   | .string, _, h | .anyString, _, h | .boolean, _, h | .mapKind, _, h | .listKind, _, h
   | .pathKind, _, h | .min _, _, h | .max _, _, h
   | .above _, _, h | .beneath _, _, h | .neq _, _, h | .mulof _, _, h | .len _, _, h
-  | .unique _, _, h | .re _, _, h | .format _, _, h | .any, _, h | .nil, _, h
+  | .unique _, _, h | .re _, _, h | .format _, _, h | .grammar _, _, h | .any, _, h | .nil, _, h
   | .alias _, _, h | .path _, _, h | .call _ _, _, h | .hole, _, h | .keyUp _, _, h => by
     rw [Gen] at h; exact h.elim
 
@@ -666,7 +666,8 @@ theorem gen_unique : ∀ (v : Val) (j j' : Data), Gen env root v j → Gen env r
   | .mapKind, _, _, h, _ | .listKind, _, _, h, _ | .pathKind, _, _, h, _
   | .min _, _, _, h, _ | .max _, _, _, h, _ | .above _, _, _, h, _ | .beneath _, _, _, h, _
   | .neq _, _, _, h, _ | .mulof _, _, _, h, _ | .len _, _, _, h, _ | .unique _, _, _, h, _
-  | .re _, _, _, h, _ | .format _, _, _, h, _ | .any, _, _, h, _ | .nil, _, _, h, _
+  | .re _, _, _, h, _ | .format _, _, _, h, _ | .grammar _, _, _, h, _ | .any, _, _, h, _
+  | .nil, _, _, h, _
   | .alias _, _, _, h, _ | .path _, _, _, h, _ | .call _ _, _, _, h, _ | .hole, _, _, h, _
   | .keyUp _, _, _, h, _ => by
     rw [Gen] at h; exact h.elim
@@ -737,7 +738,7 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
   | .mapKind | .listKind | .pathKind
   | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .mulof _ | .len _ | .unique _
-  | .re _ | .format _ | .any | .nil | .alias _ | .path _ | .nof _ _ | .must _ _
+  | .re _ | .format _ | .grammar _ | .any | .nil | .alias _ | .path _ | .nof _ _ | .must _ _
   | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .key | .keyUp _ | .call _ _
   | .hole => none
 
@@ -1031,7 +1032,7 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
   induction h with
   | integer | float | biginteger | bigdecimal | number | string | anyString | boolean
   | mapKind | listKind | pathKind
-  | min | max | above | beneath | neq | mulof | unique | any | nil | alias | path =>
+  | min | max | above | beneath | neq | mulof | unique | grammar | any | nil | alias | path =>
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩

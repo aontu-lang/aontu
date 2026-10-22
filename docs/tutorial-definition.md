@@ -1592,11 +1592,13 @@ that `rep` and `split` hand to the host's own regex engine, a subset
 the reference states on a pattern's syntax, which the definition does
 not hold, how many groups such a pattern captures, which the engines
 count on its text before any match is read, and where its leftmost
-match at or after a code point of a text falls; and how a string
+match at or after a code point of a text falls; how a string
 changes case, Unicode's default case conversion at the version of each
-engine's tables. Nothing here says what any of them holds of, so a
-theorem about `re`, `format`, `rep`, `split`, `upper` or `lower` holds
-whatever they are. -/
+engine's tables; and which grammars an RFC 5234 compiler compiles, as
+`abnf` asks, and the tree its parser builds of a string a grammar reads
+whole, as `parse` asks, none where it doesn't. Nothing here says what
+any of them holds of, so a theorem about `re`, `format`, `rep`, `split`,
+`upper`, `lower`, `abnf` or `parse` holds whatever they are. -/
 structure Host where
   pattern : String → String → Prop
   format : String → String → Prop
@@ -1605,22 +1607,27 @@ structure Host where
   find : String → String → ℕ → Option Match
   upper : String → String
   lower : String → String
+  compiles : String → Bool
+  tree : String → String → Option Data
 
 instance : Inhabited Host :=
-  ⟨⟨fun _ _ => True, fun _ _ => True, fun _ => false, fun _ => 0, fun _ _ _ => none, id, id⟩⟩
+  ⟨⟨fun _ _ => True, fun _ _ => True, fun _ => false, fun _ => 0, fun _ _ _ => none, id, id,
+    fun _ => false, fun _ _ => none⟩⟩
 ```
 
 The oracle computes with a host of its own. It converts the case of the
 letters `a` to `z` and `A` to `Z` alone, and it reads fixed patterns
 alone: text, with groups that capture runs of it, which every engine
-reads and counts as the oracle does.
+reads and counts as the oracle does. Its grammars are each one rule of
+one literal, which step 32 reads.
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
 def oracleHost : Host :=
   ⟨fun _ _ => True, fun _ _ => True, fun p => (fixedPieces p).isSome,
     fun p => ((fixedPieces p).map fun ps => (ps.filter (·.1)).length).getD 0, fixedFind,
-    String.map Char.toUpper, String.map Char.toLower⟩
+    String.map Char.toUpper, String.map Char.toLower,
+    fun g => (oneLiteral g).isSome, oneLiteralTree⟩
 
 /-- The predicates behind `re` and `format`, the subset, the groups and
 the matches behind `rep` and `split` at a pattern, and the case
@@ -3931,7 +3938,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _
   | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
-  | .re _, _ | .format _, _
+  | .re _, _ | .format _, _ | .grammar _, _
   | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
   | .key, _ | .keyUp _, _ | .call _ _, _ | .hole, _ => False
@@ -5268,6 +5275,7 @@ inductive Val.Checkable : Val → Prop
   | mulof {d : Number} : Checkable (.mulof d)
   | len {c : Val} : Checkable c → Checkable (.len c)
   | unique {k : Option String} : Checkable (.unique k)
+  | grammar {g : String} : Checkable (.grammar g)
   | any : Checkable .any
   | hole : Checkable .hole
   | nil : Checkable .nil
