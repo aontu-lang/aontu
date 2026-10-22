@@ -3738,6 +3738,20 @@ target: `refer() & string & re("auth$") & path($.services.auth)` checks the
 address itself. They are held until the address arrives, and then meet
 it.
 
+In the definition, `refer(t)` reads as the path kind, and
+`Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+meets each link's template, its marks cleared, at the target its
+address names from where the link stands. It reads the targets in
+passes, so one link's template can make another link's target,
+whichever the document writes first. Where a target names nothing in
+the schema's own tree, the document is an `error`. The definition reads a link in a
+declaration's body at the body's own place, whether a reference reads
+the body or not. Rows rf0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it. With data, both engines also read a body's relative link from
+each place that uses the body, which
+[#488](https://github.com/aontu-lang/aontu/issues/488) tracks.
+
 ### The argument is a template, not an address
 
 `refer(t)` takes the value the **target** must satisfy. The address

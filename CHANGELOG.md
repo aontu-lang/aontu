@@ -8,6 +8,36 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads `refer`
+
+Definition, generated rows, and documentation. No engine changes.
+P11's third slice.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `refer`. `spec/Aontu/Verdict.lean`
+  reads it as the path kind, the link's own value, so a string where an
+  address must be is an `error`.
+- `spec/Aontu/Paths.lean`: `Decls.withRefers` meets each link's template,
+  its marks cleared as a reference's are, into the target its address
+  names from where the link stands (`Addr.from`, `Val.putW`). It reads
+  the targets in passes (`Decls.referPasses`), so that one link's
+  template can make another link's target, whichever comes first. A
+  target that names nothing in the schema's
+  own tree, or an address that climbs past the top, makes the schema
+  `nil`, an `error`. `Val.refers` reads the schema's links where
+  they're written, and a body's at the body's own place, used or not.
+  `Decls.prepared` meets the links' templates after the moves hide their
+  sources; `vetP_iff` carries the checker's precondition through
+  (`withRefers_checkableA`).
+- `test/spec/def-path.tsv` gains rows rf0 on, in the three modes of
+  `vet`. Both ports answer every row as the definition does. With data,
+  both ports also read a body's relative link from each place that uses
+  the body, which #488 tracks, and no row holds such a link. #489 tracks
+  the `refer_unresolved` hint's examples, which write a string where an
+  address must be.
+- The definition tutorial gains step 36, checked links, and the last
+  step becomes 37. The reference's section on checked links cites
+  `Decls.withRefers`.
+
 ### The definition reads a document's roots in rounds
 
 Definition, generated rows, and documentation. No engine changes.

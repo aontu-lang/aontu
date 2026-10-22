@@ -2991,14 +2991,16 @@ is an error, while `..x` in the same body climbs to the document's own
 `x`. A spread, a template and a `filter`'s condition keep their relative
 paths as written: each stands at a position no written step names, and
 the definition has no rule for a relative path there yet. The verdict
-of a document with paths prepares it first: it places the document and
-hides the sources its moves read, which step 35 comes to:
+of a document with paths prepares it first: it places the document,
+hides the sources its moves read, which step 35 comes to, and meets
+its links' templates into their targets, which step 36 comes to:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The verdict of a document with paths: the document prepared
-(`Decls.prepared`), its relative paths placed and the sources its moves
-read hidden, the verdict of the document whose paths are absolute. -/
+(`Decls.prepared`), its relative paths placed, the sources its moves
+read hidden and its links' templates met into their targets, the
+verdict of the document whose paths are absolute. -/
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
   VetA m (ds.prepared S).1 (ds.prepared S).2 j v
 ```
@@ -3009,8 +3011,9 @@ def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
 read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
-  vetA_iff (ds := (ds.placed S).1) (S := (ds.placed S).1.withMoves (ds.placed S).2)
-    (Decls.placed_bodies_checkableA hb) (withMoves_checkableA (placed_checkableA hS [])) v
+  vetA_iff (ds := (ds.placed S).1) (S := (ds.placed S).1.withRefers ((ds.placed S).1.withMoves (ds.placed S).2))
+    (Decls.placed_bodies_checkableA hb)
+    (withRefers_checkableA (Decls.placed_bodies_checkableA hb) (withMoves_checkableA (placed_checkableA hS []))) v
 ```
 
 A recursive position, `then?: $.schema.Step` inside `Step`, is a name
@@ -7703,7 +7706,122 @@ of `test/spec/def-path.tsv` hold these readings in the three modes of
 that sets the copy of a path under a rider splits the engines, and
 no row holds it, which #486 tracks.
 
-## 36. What the definition doesn't say yet
+## 36. Checked links
+
+`refer(t)` constrains a link: a path value that keeps its address in the
+output, whose target must exist, and into whose target `t` flows. Write
+`refer.aontu`:
+
+<!-- test: scenario refer -->
+<!-- test: file refer.aontu -->
+```aontu
+services: auth: port: 8080
+billing: dep: refer({ kind:"service" }) & path($.services.auth)
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu refer.aontu
+{
+  "billing": {
+    "dep": "$.services.auth"
+  },
+  "services": {
+    "auth": {
+      "kind": "service",
+      "port": 8080
+    }
+  }
+}
+```
+
+The call reads as the path kind, `path`, so the link's own value is the
+address `path($.services.auth)` gives it. A string where an address
+must be, `refer() & "$.a"`, is an `error`, as `path & "$.a"` is. The
+rest belongs to the document, as a `move`'s hiding does: before the
+definition reads it, the schema meets each link's template at the
+link's target, from where the link stands, as a relative path climbs:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Addr.from (a : Addr) (pos : List Seg) : Option (List Seg) :=
+  if a.up = 0 then some (a.steps.map .key)
+  else if a.up ≤ pos.length then some (pos.take (pos.length - a.up) ++ a.steps.map .key)
+  else none
+```
+
+So `..auth` written at `s.billing.dep` names `s.auth`, and `...a`
+written at `b` climbs past the top, an `error`. The template meets the
+target with its marks cleared, as a reference copies a value, so
+`refer(type({ k:1 }))` makes the target `{ k:1 }`, not a type. The
+definition reads a link written in a body at the body's own place, `%`
+and the name as a key at the top, whether a reference reads the body
+or not:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val :=
+  ds.foldl (fun acc d => (d.2.refers []).foldl
+      (referStep roots miss [.key ("%" ++ d.1)] (normaliseD ds (ds.readU d.2))) acc)
+    ((S.refers []).foldl (referStep roots miss [] ((ds.rootsS S).getLast?.getD .any)) S)
+```
+
+One link's template can make another link's target:
+`y: refer({ z:{} }) & path($.h)` makes `h.z` for
+`x: refer({ p:1 }) & path($.h.z)`, whichever the document writes
+first. So the definition reads the targets in passes, each meeting the
+templates of the links whose targets the last pass's schema holds, as
+many passes as the document writes links:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
+  | 0 => S
+  | n + 1 => ds.referPass S (ds.rootsS (ds.referPasses S n)) .any
+```
+
+A last pass reads each target in the roots those passes make, and a
+target that names nothing there is an `error`, even where the data
+supplies it, as a path to nothing is:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.withRefers (ds : Decls) (S : Val) : Val :=
+  ds.referPass S (ds.rootsS (ds.referPasses S (ds.referCount S))) .nil
+```
+
+The template meets the target, so the target refuses the data the
+template refuses. Write `refer-data.aontu`:
+
+<!-- test: file refer-data.aontu -->
+```aontu
+services: auth: kind: "client"
+```
+
+and vet it:
+
+<!-- test: run -->
+```sh
+$ aontu vet refer.aontu refer-data.aontu
+verdict: invalid
+
+$.billing.dep.kind: scalar_value [conflict]
+  [aontu/scalar_value]: Cannot unify values at path $.billing.dep.kind
+  data: refer-data.aontu:1:23 ("client")
+  schema: refer.aontu:2:28 ("service")
+$ echo $?
+1
+```
+
+Rows rf0 on of `test/spec/def-path.tsv` hold these readings in the
+three modes of `vet`, and both engines answer every one as the
+definition does. With data, both engines read a body's relative link a
+second time, from each place that uses the body, which #488 tracks, and
+no row holds such a link.
+
+## 37. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -7711,10 +7829,10 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
-steps 20 to 26 and 33 to 35 don't walk through, `key()` deeper in a spread than its
+steps 20 to 26 and 33 to 36 don't walk through, `key()` deeper in a spread than its
 own position, a relative path in a spread, a template or a `filter`'s
 condition, generation with `emit`, a string constraint met with a path
-value, and the links `refer` and `rel`. [`aontu vet`](reference-api.md#aontu-vet) states which
+value, and the relation `rel`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
 suite in [`test/spec/`](../test/spec/) holds both engines to them.
 
@@ -7736,7 +7854,10 @@ of step 17 reads unmade. Neither has a rule yet.
 
 Nor does it say which of a document's moves the reading makes. A
 `move` in an arm no selection takes, or in a template no member
-instantiates, still hides its source, where both engines keep it.
+instantiates, still hides its source, where both engines keep it. A
+`refer` inside a disjunction, a selection or a generator's template is
+no link the definition reads, so its template flows nowhere and its
+target needn't exist.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
