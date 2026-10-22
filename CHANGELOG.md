@@ -18,9 +18,10 @@ second slice.
   for each member `Val.keyedMembers` reads, under the member's key: a
   map's keys, in key order, a member a fold skips left out, and a
   list's strings, each its own key, riders read through, a key the
-  list repeats making one member. It's `nil` where a list holds
-  anything but a string or the data is no bag.
-  `Val.keyedMembers_checkableA` carries `resolveD_checkableA` through it.
+  list repeats making one member, its instances met (`mergeKeys`), as
+  colliding children unify. It's `nil` where a list holds anything but
+  a string or the data is no bag. `Val.keyedMembers_checkableA` and
+  `mergeKeys_checkableA` carry `resolveD_checkableA` through it.
 - `test/spec/def-call.tsv` gains 19 cases in rows x2064 to x2120, and
   `spec/forms.tsv` gains `pack`. Both ports answer every row as the
   definition does. No row holds `key()` in a template, which waits on

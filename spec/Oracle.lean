@@ -2710,7 +2710,8 @@ theorem surrogate_verdict_exact : ∀ c ∈ surrogateCases, ∀ (m : Mode) (v : 
 /-- The generator `pack`: the open map of its template read for each
 member of its data under the member's key, a list's strings each its
 own key and a map's keys theirs; the hole kept, met and left out; a
-map member skipped as a fold skips it; a key a list repeats made once;
+map member skipped as a fold skips it; a key a list repeats made once,
+its instances met;
 a list holding anything but a string, and data that is no bag. No
 template holds `key()`, which waits on `key()` at any position. -/
 def packCases : List (Val × Data) :=
