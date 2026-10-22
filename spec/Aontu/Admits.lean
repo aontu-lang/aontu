@@ -341,6 +341,9 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       (∀ s, j = .str s → s ≠ "" → (host.tree g s).isSome = false) →
       Judge env root false (.grammar g) j
   | any {j : Data} : Judge env root true .any j
+  /-- Absence admits every value, as `any` does: it differs from `any`
+  in what it generates, and nothing else. -/
+  | absent {j : Data} : Judge env root true .absent j
   /-- `_`, a hole no generator filled, admits every value, as `any`
   does: the value is the one that fills it. -/
   | hole {j : Data} : Judge env root true .hole j
@@ -760,6 +763,8 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | grammarNot _ => rfl
   | any => intro b' h'; cases h' with
     | any => rfl
+  | absent => intro b' h'; cases h' with
+    | absent => rfl
   | hole => intro b' h'; cases h' with
     | hole => rfl
   | nil => intro b' h'; cases h' with
@@ -1020,6 +1025,7 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.grammar <;> assumption)
     | (apply Judge.grammarNot <;> assumption)
     | (apply Judge.any <;> assumption)
+    | (apply Judge.absent <;> assumption)
     | (apply Judge.hole <;> assumption)
     | (apply Judge.nil <;> assumption)
     | (apply Judge.map <;> assumption)

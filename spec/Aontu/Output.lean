@@ -13,10 +13,10 @@ of the live arms, those of the lowest positive rank, or every arm where
 none has one. A preference generates what its value does. A meet left
 as written generates what its left side generates and its right admits,
 or, where the left generates nothing, the other way about. A kind, a
-bound, `any`, `nil`, an alias and a path generate nothing. `Output env
-root v j` reads `Gen` off the normal form `normalise v`, where every
-meet is computed and every dead arm dropped, which is the shape the
-engines evaluate. `output_admits` says what evaluation singles out is
+bound, `any`, absence, `nil`, an alias and a path generate nothing.
+`Output env root v j` reads `Gen` off the normal form `normalise v`,
+where every meet is computed and every dead arm dropped, which is the
+shape the engines evaluate. `output_admits` says what evaluation singles out is
 an instance; `output_unique` that it is one value; and `gen` computes
 it, admitted by `gen_iff`.
 -/
@@ -91,7 +91,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
   | .re _, _ | .format _, _ | .grammar _, _
-  | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
+  | .any, _ | .absent, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
   | .key, _ | .keyUp _, _ | .call _ _, _ | .hole, _ => False
 
@@ -131,16 +131,20 @@ end
 
 A mark, `type()` or `hide()`, leaves the member of a map it rides out of
 the output, and the member still meets what arrives at its key
-(decision 10 of the design note's §7). What evaluation singles out is
-generated from the term's visible part, in which a marked member is
-optional and holds anything, and so is a map's marked spread; the marks
-change no admission. A list's element keeps its mark's value
-(decision 18). -/
+(decision 10 of the design note's §7). So does absence, at a required
+key as at an optional one. What evaluation singles out is generated
+from the term's visible part, in which a marked member and a member
+that is absence are optional and hold anything, and so is a map's
+marked spread; neither changes what a term admits. A list's element
+keeps its mark's value (decision 18). -/
 
 mutual
-/-- The visible part of a term: each marked member of a map optional
-and `any`, a map's marked spread `any`, through the containers, `|`,
-`*`, `&` and the riders. -/
+/-- Whether a map's member is left out of the output: marked, or absence. -/
+def Val.leftOut (v : Val) : Bool := v.marked || v.isAbsent
+
+/-- The visible part of a term: each member of a map left out of the
+output optional and `any`, a map's marked spread `any`, through the
+containers, `|`, `*`, `&` and the riders. -/
 def Val.visible : Val → Val
   | .map fs spread closed => .map (visibleFields fs) (visibleSpread spread) closed
   | .list items spread closed => .list (visibleItems items) (visibleElems spread) closed
@@ -152,7 +156,7 @@ def Val.visible : Val → Val
 
 def visibleFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
-  | (k, o, v) :: fs => (if v.marked then (k, true, .any) else (k, o, v.visible)) :: visibleFields fs
+  | (k, o, v) :: fs => (if v.leftOut then (k, true, .any) else (k, o, v.visible)) :: visibleFields fs
 
 def visibleSpread : Option Val → Option Val
   | none => none
@@ -174,7 +178,7 @@ end
 theorem mem_visibleFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
     (k, o, w) ∈ visibleFields fs ↔
       ∃ o' v, (k, o', v) ∈ fs ∧
-        ((v.marked = true ∧ o = true ∧ w = .any) ∨ (v.marked = false ∧ o = o' ∧ w = v.visible)) := by
+        ((v.leftOut = true ∧ o = true ∧ w = .any) ∨ (v.leftOut = false ∧ o = o' ∧ w = v.visible)) := by
   induction fs with
   | nil => simp [visibleFields]
   | cons f fs ih =>
@@ -182,7 +186,7 @@ theorem mem_visibleFields {fs : List (String × Bool × Val)} {k : String} {o : 
     rw [visibleFields, List.mem_cons, ih]
     constructor
     · rintro (h | ⟨o'', v, hm, hc⟩)
-      · cases hv : v'.marked
+      · cases hv : v'.leftOut
         · rw [hv] at h
           simp only [Bool.false_eq_true, ↓reduceIte, Prod.mk.injEq] at h
           obtain ⟨rfl, rfl, rfl⟩ := h
@@ -738,9 +742,9 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
   | .mapKind | .listKind | .pathKind
   | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .mulof _ | .len _ | .unique _
-  | .re _ | .format _ | .grammar _ | .any | .nil | .alias _ | .path _ | .nof _ _ | .must _ _
-  | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .key | .keyUp _ | .call _ _
-  | .hole => none
+  | .re _ | .format _ | .grammar _ | .any | .absent | .nil | .alias _ | .path _ | .nof _ _
+  | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .key | .keyUp _
+  | .call _ _ | .hole => none
 
 /-- The members the declarations generate, or `none` where a required
 key's value generates none the spread admits. An optional key whose
@@ -1032,7 +1036,7 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
   induction h with
   | integer | float | biginteger | bigdecimal | number | string | anyString | boolean
   | mapKind | listKind | pathKind
-  | min | max | above | beneath | neq | mulof | unique | grammar | any | nil | alias | path =>
+  | min | max | above | beneath | neq | mulof | unique | grammar | any | absent | nil | alias | path =>
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩

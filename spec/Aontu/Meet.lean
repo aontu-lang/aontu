@@ -144,9 +144,9 @@ def Val.doms : Val → List Dom
   | .map _ _ _ => [.map]
   | .list _ _ _ => [.list]
   | .nil => []
-  | .neq [] | .any | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _ | .must _ _
-  | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ | .key | .keyUp _ | .call _ _
-  | .hole =>
+  | .neq [] | .any | .absent | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _
+  | .must _ _ | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ | .key | .keyUp _
+  | .call _ _ | .hole =>
     [.num, .str, .bool, .null, .map, .list, .addr]
 
 /-- The domain a value is in. -/
@@ -661,6 +661,10 @@ def Val.isAny : Val → Bool
 
 theorem isAny_eq {v : Val} (h : v.isAny = true) : v = .any := by
   cases v <;> simp [Val.isAny] at h <;> rfl
+
+/-- A meet with absence: what the other side's normal form is, but
+absence where that is `any`, which absence is below. -/
+def absentOr (v : Val) : Val := if v.isAny then .absent else v
 
 /-- The meet of two terms neither of which is `nil`, a meet, a
 disjunction, or a preference, and that are not two containers or a
@@ -1900,6 +1904,30 @@ theorem admits_ride_right {m : Val → Val → Val}
     cases h with
     | ride h => exact .ride ((hm a v j).mpr ⟨ha, h⟩)
 
+theorem admits_absent_left {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (b : Val) (j : Data) :
+    Admits env root (absentOr (m .any b)) j ↔ Admits env root .absent j ∧ Admits env root b j := by
+  unfold absentOr
+  split
+  · rename_i h
+    have hb := (hm .any b j).mp (by rw [isAny_eq h]; exact .any)
+    exact ⟨fun _ => ⟨.absent, hb.2⟩, fun _ => .absent⟩
+  · rw [hm]
+    exact ⟨fun h => ⟨.absent, h.2⟩, fun h => ⟨.any, h.2⟩⟩
+
+theorem admits_absent_right {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a : Val) (j : Data) :
+    Admits env root (absentOr (m a .any)) j ↔ Admits env root a j ∧ Admits env root .absent j := by
+  unfold absentOr
+  split
+  · rename_i h
+    have ha := (hm a .any j).mp (by rw [isAny_eq h]; exact .any)
+    exact ⟨fun _ => ⟨ha.1, .absent⟩, fun _ => .absent⟩
+  · rw [hm]
+    exact ⟨fun h => ⟨h.1, .absent⟩, fun h => ⟨h.1, .any⟩⟩
+
 theorem admits_nil_left (b : Val) (j : Data) :
     Admits env root .nil j ↔ Admits env root .nil j ∧ Admits env root b j :=
   ⟨(fun h => nomatch h), (fun h => h.1)⟩
@@ -1919,7 +1947,7 @@ mutual
 def Val.beq : Val → Val → Bool
   | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
   | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean
-  | .pathKind, .pathKind | .any, .any | .nil, .nil => true
+  | .pathKind, .pathKind | .any, .any | .absent, .absent | .nil, .nil => true
   | .lit s, .lit t => decide (s = t)
   | .addr a, .addr b => decide (a = b)
   | .min a, .min b => decide (a = b)
@@ -2008,13 +2036,16 @@ def meetRight (rec : Val → Val → Val) (a b₁ b₂ : Val) : Val :=
   else rec x b₂
 
 /-- One step of the meet, given the meet `lm` of a literal with a term
-and the meet `rec` of smaller terms: `nil` is the zero, a meet on either
-side is met one side at a time, a disjunction distributes over its arms,
-a preference alone is `x | super(x)`, two maps and two lists merge,
-`any` is the unit of each container, and what remains is `meetBase`. -/
+and the meet `rec` of smaller terms: `nil` is the zero, absence is the
+unit, but met with `any` it stays absence, a meet on either side is met
+one side at a time, a disjunction distributes over its arms, a
+preference alone is `x | super(x)`, two maps and two lists merge, `any`
+is the unit of each container, and what remains is `meetBase`. -/
 def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Val) : Val :=
   match a, b with
   | .nil, _ | _, .nil => .nil
+  | .absent, b => absentOr (rec .any b)
+  | a, .absent => absentOr (rec a .any)
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
   | .ride k v r, b => .ride k (rec v b) r
@@ -2068,6 +2099,8 @@ theorem admits_meetStep {lm : Scalar → Val → Val} {rec : Val → Val → Val
     | exact admits_meetBase hl ..
     | exact admits_nil_left ..
     | exact admits_nil_right ..
+    | exact admits_absent_left hr ..
+    | exact admits_absent_right hr ..
     | exact admits_meetMap hr ..
     | exact admits_meetList hr ..
     | exact admits_any_map hr ..

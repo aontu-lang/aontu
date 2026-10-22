@@ -3106,6 +3106,18 @@ a schema DECLARES is a different case: `{a:string, b:string}` against
 `{a:"p", b:maybe($.gone)}` is `mapval_no_gen`, because the document
 declines to supply a key the schema requires.
 
+The definition reads `maybe` in `maybeOf`, in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): absence where
+a reference at the top of the argument names nothing, and nothing else
+is wrong with the argument. The top is the argument itself, a side of a
+meet, an arm of a disjunction, or the value under a rider.
+`Judge.absent` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean)
+admits every value, and `Val.leftOut` in
+[`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) leaves an absent
+member out of the output. An absent element of a list holds no
+position in the definition, where both engines keep it at its position
+while the list meets another, which #479 tracks.
+
 ## Ordering: `sort`
 
 Generation supplies two orders, and neither is the one a report or a

@@ -266,3 +266,21 @@ Which of the design note's recommendations for the open decisions do you accept?
 Four TS/Go divergences are open, and in each the definition follows the port left unchanged. Which port fixes should I make, each in its own PR with the rows it unlocks?
 → #435: TS evaluates projectors, #437: TS decimal string index, #442: TS writes U+FFFD, #454: Go keeps the rider
 ```
+
+## 2026-10-22 12:56:24 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+i allow you to merge; ask me
+```
+
+## 2026-10-22 13:02:28 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Which of the two open PRs may I merge? Web #101 (grammar paragraph sync) is green with no Codex findings. #480 (the definition's `maybe`) is still in CI and Codex review.
+→ Web #101 now (Recommended), #480 when green and reviewed
+
+For future slices, how should merging work?
+→ Merge green, reviewed PRs
+```

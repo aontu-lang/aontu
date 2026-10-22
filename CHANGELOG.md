@@ -8,6 +8,39 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads `maybe`
+
+Definition, generated rows, and documentation. No engine changes.
+P10's third slice.
+
+- `spec/Aontu/Syntax.lean`: `Val` gains `absent`, absence, and `Fn`
+  gains `maybe`.
+- `spec/Aontu/Verdict.lean`: `maybeOf` makes `maybe(v)` absence where a
+  reference at the top of `v` names nothing and nothing else is wrong
+  with `v`, which is dead with each such reference read as `nil` and
+  live with each read as `any`. Otherwise `maybe(v)` is `v` with each
+  such reference read as `nil`, so an arm a missing path kills drops,
+  and a conflict stays the document's. A call, a generator, a selection
+  or a `filter` that takes absence makes it, a list holds no position
+  for it, nor does an `each` for an instance that reads as absence, and
+  a fold skips it.
+- `spec/Aontu/Names.lean` and `spec/Aontu/Paths.lean`: a reference
+  `maybe` forgives needn't name anything (`Val.forgive`), in `Declares`
+  and in `Decls.Resolves`.
+- `spec/Aontu/Admits.lean`, `spec/Aontu/Meet.lean` and
+  `spec/Aontu/Output.lean`: absence admits every value, is the unit of
+  the meet but met with `any` stays absence, generates nothing, and is
+  left out of a map's output at a required key as at an optional one
+  (`Val.leftOut`).
+- `test/spec/def-path.tsv` gains rows mb0 on, in the three modes of
+  `vet`. Both ports answer every row as the definition does. #479
+  lists the cases where they don't, and decision 24 of the design note
+  asks whether a list's absent element holds a position.
+- The definition tutorial gains step 33, optional input, and the last
+  step becomes 34. The quotes of earlier steps follow the code, and the
+  reference's section on `maybe`, the design note's P10 row and the
+  definition's README follow.
+
 ### The definition reads `abnf` and `parse`
 
 Definition, generated rows, and documentation. No engine changes.
