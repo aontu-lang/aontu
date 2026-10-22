@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads `pref`
+
+Definition, generated rows, and documentation. No engine changes.
+P8's fourteenth slice.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `pref`.
+- `spec/Aontu/Verdict.lean`: `Val.prefer` makes `pref(v)` of the
+  argument read before its normal form, as both ports walk it. Each scalar literal
+  and each address becomes a preference of rank one, and each
+  preference and each preferred arm a rank weaker. `pref` prefers a
+  leaf or a preference under a rider whole, rider and all, as both
+  ports carry a rider on the value it rides. The same reading reaches a
+  map's and a list's members, a meet's sides and the value under any
+  other rider. A kind and a bound stay as written. A path not read yet and
+  a call that waits read as `pref` of themselves, which waits, and a
+  `pref` that waits stands where its argument does (`Val.illFormed`).
+- `test/spec/def-path.tsv` gains rows pf0 on, in the three modes of
+  `vet`. Both ports answer every row as the definition does. #482
+  lists the cases where they don't: `pref(1 | 2)` is `*1 | *2`, a
+  clash, which both ports answer `invalid` where `*1 | *2` written so
+  is an `error`.
+- The definition tutorial gains step 34, a preference as a call, and
+  the last step becomes 35. The reference cites `Val.prefer`.
+
 ### The definition reads `maybe`
 
 Definition, generated rows, and documentation. No engine changes.

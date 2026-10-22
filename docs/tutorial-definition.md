@@ -4376,6 +4376,7 @@ def Val.illFormed : Val → Bool
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
+  | .call .pref args => args.length != 1 || illItems args
   | .call _ _ => true
   | .select _ arms _ => illPats arms
   | _ => false
@@ -7437,7 +7438,103 @@ missing path, they keep a list's absent element at its position while
 the list meets another, so that their output can fail their own `vet`,
 and decision 24 of the design note asks which reading is right.
 
-## 34. What the definition doesn't say yet
+## 34. A preference as a call
+
+`pref(v)` is the function form of `*v`, read member by member. Write
+`pref.aontu`:
+
+<!-- test: scenario pref -->
+<!-- test: file pref.aontu -->
+```aontu
+port: pref(8080)
+limits: pref({ cpu:2 mem:512 })
+mode: pref(*"fast"|"safe")
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu pref.aontu
+{
+  "limits": {
+    "cpu": 2,
+    "mem": 512
+  },
+  "mode": "safe",
+  "port": 8080
+}
+```
+
+`pref` makes each scalar literal of its argument a preference, and each
+preference a rank weaker:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- What `pref` makes of its argument, read before the normal form, as
+both ports walk it: each scalar literal and each address a preference
+of rank one, and each preference and each preferred arm of a
+disjunction a rank weaker, a plain arm that is a leaf preferred, and a
+leaf or a preference under a rider preferred whole, rider and all, as
+both ports carry a rider on the value it rides; each member of a map
+and of a list, each side of a meet and the value under any other rider
+read so too, a spread left as written; a path not read yet and a call
+that waits read as `pref` of themselves, which waits; and a kind, a
+bound and any other constraint left as they are. -/
+def Val.prefer : Val → Val
+  | .lit s => .pref 1 (.lit s)
+  | .addr a => .pref 1 (.addr a)
+  | .pref r x => .pref (r + 1) x
+  | .map fs spread closed => .map (preferFields fs) spread closed
+  | .list items spread closed => .list (preferItems items) spread closed
+  | .or arms => .or (preferArms arms)
+  | .meet a b => .meet a.prefer b.prefer
+  | .ride k v r =>
+    if v.unride.prefLeaf then .pref 1 (.ride k v r)
+    else match v.prefOf? with
+      | some (s, x) => .pref (s + 1) (.ride k x r)
+      | none => .ride k v.prefer r
+  | .path p => .call .pref [.path p]
+  | .call f args => .call .pref [.call f args]
+  | v => v
+```
+
+So `limits` is `{ cpu: *2, mem: *512 }`, not `*{ cpu: 2, mem: 512 }`,
+and data may override each member on its own. In `mode`, `*"fast"`
+becomes `**"fast"` and `"safe"` becomes `*"safe"`, and the rank rule of
+step 13 picks the lowest rank, `"safe"`. Write `pref-data.aontu`:
+
+<!-- test: file pref-data.aontu -->
+```aontu
+port: 9090
+limits: cpu: 4
+```
+
+and vet it:
+
+<!-- test: run -->
+```sh
+$ aontu vet pref.aontu pref-data.aontu
+verdict: valid
+```
+
+The data overrides `port` and `cpu`, and `mem` fills from its default.
+A rider rides the value it's written on, so `pref(meta(1, r))` is
+`*meta(1, r)`, the scalar preferred whole. A mark under a preference
+marks no member, so `pref(hide(1))` is visible, as `*hide(1)` is, where
+`pref(hide({ x:1 }))` keeps its map hidden.
+A kind and a bound stay as written, so `pref(integer)` is `integer`.
+`pref` reads a path first, so `pref($.a)` is the preference of what
+`$.a` names, and a `pref` that waits on one stands where its argument does.
+`pref(1 | 2)` is `*1 | *2`, two defaults of one rank that disagree, a
+clash as step 14 reads it: an `error`, as `*1 | *2` written so is.
+
+Rows pf0 on of `test/spec/def-path.tsv` hold these readings in the
+three modes of `vet`, and both engines answer every one as the
+definition does. They answer `pref(1 | 2)` `invalid` where they answer
+`*1 | *2` an `error`, and no row holds that case, which #482 tracks.
+
+## 35. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -7445,7 +7542,7 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
-steps 20 to 26 and 33 don't walk through, `key()` deeper in a spread than its
+steps 20 to 26, 33 and 34 don't walk through, `key()` deeper in a spread than its
 own position, a relative path in a spread, a template or a `filter`'s
 condition, generation with `emit`, a string constraint met with a path
 value, and the links `refer` and `rel`. [`aontu vet`](reference-api.md#aontu-vet) states which

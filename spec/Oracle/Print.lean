@@ -197,6 +197,7 @@ def Fn.name : Fn → String
   | .esc => "esc"
   | .usc => "usc"
   | .super => "super"
+  | .pref => "pref"
   | .path => "path"
   | .abnf => "abnf"
   | .parse => "parse"
