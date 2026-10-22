@@ -232,7 +232,7 @@ def Val.src : Val → Option String
   | .or arms => do pure (" | ".intercalate (← armsSrc arms))
   | .pref r x => do pure (prefSrc r (← x.src))
   | .meet a b => do pure s!"({← a.src}) & ({← b.src})"
-  | .alias n => some ("%" ++ n)
+  | .alias n => some (if n.startsWith "$" then n else "%" ++ n)
   | .key => some "key(0)"
   | .keyUp n => some s!"key({n})"
   | .hole => some "_"

@@ -18,6 +18,24 @@ the order written. A name declared twice is declared as the meet of its
 declarations. -/
 abbrev Decls := List (String × Val)
 
+/-! ## Variables
+
+A variable, `$name`, is a name the calling program declares where the
+document declares an alias: the reading is the document's with the
+program's declarations beside its own, each under `$` and the name,
+which no alias can be written as, since an alias begins with a letter.
+A variable no program declares is a name declared nowhere, an error. -/
+
+/-- The variable `$n`: the name the calling program declares it under. -/
+def Val.var (n : String) : Val := .alias ("$" ++ n)
+
+/-- The declarations a document reads under the bindings `vs` the
+calling program makes: its own, and each variable's value under its
+name, as `Val.var` reads it. A binding is any value the program builds,
+a kind as well as data. -/
+def Decls.withVars (ds : Decls) (vs : List (String × Val)) : Decls :=
+  ds ++ vs.map fun v => ("$" ++ v.1, v.2)
+
 /-- A declaration's body as a reference reads it: an `ident()` at its
 top, or on a term of its top meet, left behind, and one inside it kept.
 That is the one place an identity stands (decision 14 of the design

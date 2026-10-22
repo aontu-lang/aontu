@@ -7,6 +7,8 @@
 # evaluation on a document with the one key `v`.
 # Regenerate with `make spec`; never edit by hand. The cases the ports do
 # not yet answer this way are listed in spec/ledger.tsv.
+# Variables, each the value both runners bind for every row, follow in rows
+# i0 on, read as names the calling program declares.
 g0	gens	v: 1	{"v":1}
 g1	gens	v: *(1)	{"v":1}
 g5	gens	v: *(null)	{"v":null}
@@ -81,3 +83,25 @@ g89	gens	v: {"a"?: ({}) & ({"b"?: 1})}	{"v":{"a":{"b":1}}}
 g90	gens	v: {"a"?: {}, "b": 1}	{"v":{"b":1}}
 g91	gens	v: ({"a"?: {}}) & ({"a": {}})	{"v":{"a":{}}}
 g92	gens	v: [{"a"?: {}}]	{"v":[{}]}
+i0	gens	v: $foo	{"v":11}
+i1	gens	v: $bar	{"v":"hello"}
+i2	gens	v: $flag	{"v":true}
+i3	gens	v: $obj	{"v":{"x":1}}
+i4	gens	v: $big	{"v":1152921504606846976}
+i5	gens	v: $off	{"v":false}
+i6	gens	v: $nul	{"v":null}
+i7	gens	v: $PARENT	{"v":"q"}
+i8	gens	v: ($foo) & (integer)	{"v":11}
+i9	gens	v: ($foo) & (number)	{"v":11}
+i10	gens	v: ($big) & (integer)	{"v":1152921504606846976}
+i11	gens	v: ($obj) & (map)	{"v":{"x":1}}
+i12	gens	v: ($obj) & ({"y": 2})	{"v":{"x":1,"y":2}}
+i13	gens	v: ($foo) & ($foo)	{"v":11}
+i14	gens	v: [$foo, $bar]	{"v":[11,"hello"]}
+i15	gens	v: {"a": $foo, "b": $foo}	{"v":{"a":11,"b":11}}
+i16	gens	v: ($foo) + (1)	{"v":12}
+i17	gens	v: upper($bar)	{"v":"HELLO"}
+i18	gens	v: *($foo) | (1)	{"v":11}
+i19	gens	v: pack([$PARENT], {"n": _})	{"v":{"q":{"n":"q"}}}
+i20	gens	v: ($kint) & ($foo)	{"v":11}
+i21	gens	v: ($kint) & (2)	{"v":2}

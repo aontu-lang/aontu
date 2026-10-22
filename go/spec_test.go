@@ -1245,6 +1245,8 @@ func specVars() map[string]Val {
 		"bigd":   newBigDecimal(newDecimal(big.NewInt(15), 1)),
 		"nul":    newNull(),
 		"PARENT": newString("q"),
+		// A kind: a binding is any value the program builds.
+		"kint": newScalarKind(KindInteger),
 	}
 }
 

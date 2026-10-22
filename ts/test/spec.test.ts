@@ -29,6 +29,7 @@ import { NumberVal } from '../dist/val/NumberVal'
 import { NullVal } from '../dist/val/NullVal'
 import { BigIntegerVal } from '../dist/val/BigIntegerVal'
 import { BigDecimalVal } from '../dist/val/BigDecimalVal'
+import { Integer, ScalarKindVal } from '../dist/val/ScalarKindVal'
 import { Decimal } from '../dist/val/Decimal'
 
 
@@ -921,5 +922,7 @@ function makeVarsCtx(a0: Aontu): any {
   ctx.vars.bigd = new BigDecimalVal({ peg: new Decimal(15n, 1) })
   ctx.vars.nul = new NullVal({ peg: null })
   ctx.vars.PARENT = new StringVal({ peg: 'q' })
+  // A kind: a binding is any value the program builds.
+  ctx.vars.kint = new ScalarKindVal({ peg: Integer })
   return ctx
 }
