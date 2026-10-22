@@ -1234,7 +1234,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
   | path => exact .path
   | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
   | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ | call _ _ => exact .any
-  | key => exact .anyString
+  | key | keyUp => exact .anyString
   | @lit s =>
     cases s with
     | num x =>

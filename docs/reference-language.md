@@ -986,7 +986,14 @@ position written as a string, `"0"` first: `Val.atKey` in
 [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) writes the key in
 at the spread's own position, through `&`, the riders and the scrutinee
 of a `match`. So `&: match(key(0), p, any, nil)` admits the members
-whose keys `p` admits. The definition reads `key()` nowhere else.
+whose keys `p` admits. Anywhere else, `key(n)` is the term `keyUp n`,
+which `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)
+reads at the position it stands at, by `keyUpAt` in
+[`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean): a template at the
+position its instance lands at, and a `filter`'s condition where the
+member it tries lands. At a spread's own position `key(1)` reads the
+container's key. The definition doesn't yet read a `key(n)` deeper in a
+spread.
 
 ## Generating children: `pack` and `each`
 
@@ -1072,7 +1079,7 @@ Neither can recurse. Both iterate a finite bag that already exists, so
 the number of children either can produce is fixed by the data:
 evaluation still terminates by construction.
 
-The definition reads `pack` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member `Val.keyedMembers` reads, under the member's key, into an open map, the instances of a list's repeated key met, as colliding children unify. It doesn't yet read `key()` in a template.
+The definition reads `pack` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member `Val.keyedMembers` reads, under the member's key, into an open map, the instances of a list's repeated key met, as colliding children unify. A `key(n)` in the template reads the instance's position, as anywhere else.
 
 ### `each`, the order-preserving map
 
@@ -2408,6 +2415,8 @@ Example: `join([a, b], ", ")` → `"a, b"`
 The ancestor key `n` levels up (`0` = own key, default `1` = parent). `n` must be an **integer** (`integer` or `biginteger`); anything else is an error. A level beyond the top of the path yields `""`.
 
 Example: at `a:b:c`: `key()`→`"b"`, `key(0)`→`"c"`, `key(2)`→`"a"`, `key(2.0)`→error
+
+The definition reads `key(n)` by `keyUpAt` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), at the position `resolveD` carries.
 
 ### `least(d: map|list) : number`
 

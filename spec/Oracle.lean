@@ -943,6 +943,59 @@ theorem rider_path_verdict_exact : ∀ c ∈ riderPathCases, ∀ (m : Mode) (v :
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (riderPathCases_checkable c hc).1 (riderPathCases_checkable c hc).2 v
 
+/-- `key(n)` reached through a path or a name, read where the path or
+the name lands: a path at the depth its target stands or deeper, the
+data at the target met with the term it copies, a generator a path
+copies whole, a name read at each place it stands, and a selection, a
+call and a generator that compute with the key, which the root a path
+reads keeps as written. -/
+def keyPathCases : List (Decls × Val × Data) :=
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let k (n : ℤ) : Val := .keyUp n
+  let sel := m [("a", .select (str "b") [(k 1, .lit (.num (.integer ⟨1, by decide⟩)))]
+    (some (.lit (.num (.integer ⟨2, by decide⟩))))), ("b", m [("c", p ["a"])])]
+  let plus := m [("a", .call .plus [str "q", k 1]), ("b", m [("c", p ["a"])])]
+  let gen := m [("a", .call .each [m [("x", k 0)], .hole]), ("b", m [("c", p ["a"])])]
+  let pk := m [("a", .call .pack [lst [k 1], m [("v", .lit (.num (.integer ⟨1, by decide⟩)))]]),
+    ("b", m [("c", p ["a"])])]
+  let up := m [("a", .call .upper [k 1]), ("b", m [("c", p ["a"])])]
+  [([], m [("a", m [("x", k 1)]), ("b", p ["a"])], .map [("b", .map [("x", js "b")])]),
+    ([], m [("a", m [("x", k 1)]), ("b", p ["a"])], .map []),
+    ([], m [("a", m [("x", k 1)]), ("b", p ["a"])], .map [("b", .map [("x", js "a")])]),
+    ([], m [("a", m [("x", k 1)]), ("b", p ["a"])], .map [("a", .map [("x", js "a")]), ("b", .map [("x", js "b")])]),
+    ([], m [("a", m [("x", k 0)]), ("b", p ["a"])], .map [("a", .map [("x", js "x")]), ("b", .map [("x", js "x")])]),
+    ([], m [("a", m [("x", k 1)]), ("c", m [("d", p ["a", "x"])])], .map [("c", .map [("d", js "c")])]),
+    ([], m [("t", m [("x", k 1)]), ("a", m [("b", m [("c", p ["t"])])])],
+      .map [("a", .map [("b", .map [("c", .map [("x", js "c")])])])]),
+    ([], m [("a", .call .pack [lst [str "x"], m [("n", k 2)]]), ("b", p ["a"])],
+      .map [("b", .map [("x", .map [("n", js "b")])])]),
+    ([], m [("a", .call .pack [lst [str "x"], m [("n", k 1)]]), ("b", m [("q", p ["a"])])],
+      .map [("b", .map [("q", .map [("x", .map [("n", js "x")])])])]),
+    ([("T", m [("x", k 1)])], m [("a", .alias "T"), ("b", .alias "T")],
+      .map [("a", .map [("x", js "a")]), ("b", .map [("x", js "b")])]),
+    ([("T", m [("x", k 2)])], m [("a", m [("b", .alias "T")])], .map [("a", .map [("b", .map [("x", js "a")])])]),
+    ([], sel, .map [("b", .map [("c", .integer 1)])]),
+    ([], sel, .map [("b", .map [("c", .integer 2)])]),
+    ([], plus, .map [("b", .map [("c", js "qb")])]),
+    ([], plus, .map [("b", .map [("c", js "q")])]),
+    ([], gen, .map [("b", .map [("c", .list [js "x"])])]),
+    ([], gen, .map [("b", .map [("c", .list [js "c"])])]),
+    ([], pk, .map [("b", .map [("c", .map [("c", .map [("v", .integer 1)])])])]),
+    ([], pk, .map [("b", .map [("c", .map [("c", .map [("v", .integer 2)])])])]),
+    ([], up, .map [("b", .map [("c", js "B")])]),
+    ([], up, .map [("b", .map [("c", js "A")])])]
+
+theorem keyPathCases_checkable : ∀ c ∈ keyPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem key_path_verdict_exact : ∀ c ∈ keyPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (keyPathCases_checkable c hc).1 (keyPathCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, the schema's braces dropped since neither CLI reads a braced
 map after a declaration, in the three modes, with the one class `vetP`
@@ -1750,7 +1803,7 @@ def forms : List (String × String × String) :=
     ("must", "call", "must"), ("when", "call", "when"), ("contains", "call", "contains"),
     ("rest", "call", "rest"), ("select", "call", "match"), ("filter", "call", "filter"),
     ("ride", "call", "meta"), ("ride", "call", "deprecate"), ("ride", "call", "ident"),
-    ("ride", "call", "type"), ("ride", "call", "hide"), ("key", "call", "key"),
+    ("ride", "call", "type"), ("ride", "call", "hide"), ("key", "call", "key"), ("keyUp", "call", "key"),
     ("call", "call", "add"), ("call", "call", "sub"), ("call", "call", "mul"),
     ("call", "call", "div"), ("call", "call", "mod"), ("call", "call", "rem"),
     ("call", "syntax", "-"), ("call", "call", "sum"), ("call", "call", "least"),
@@ -1776,7 +1829,7 @@ def formSamples : List (String × Val) :=
     ("match", .select .integer [] none), ("filter", .filter .integer .integer),
     ("meta", .ride .metadata .integer []), ("deprecate", .ride .deprecate .integer []),
     ("ident", .ride .ident .integer []), ("type", .ride .type .integer []),
-    ("hide", .ride .hide .integer []), ("key", .key),
+    ("hide", .ride .hide .integer []), ("key", .key), ("key", .keyUp 1),
     ("add", .call .add [.integer, .integer]), ("sub", .call .sub [.integer, .integer]),
     ("mul", .call .mul [.integer, .integer]), ("div", .call .div [.integer, .integer]),
     ("mod", .call .mod [.integer, .integer]), ("rem", .call .rem [.integer, .integer]),
@@ -2479,15 +2532,15 @@ def hostReads (v : Val) : Bool :=
 /-- A vet document whose one field is a call that reads to a term the
 checker can read reads to one itself. -/
 theorem readR_call_checkableA {t : Val}
-    (h : ∀ k, (resolveD [] none (expandF [] k t)).CheckableA) :
+    (h : ∀ k, (resolveD [] none (stepped (some []) (.seg (.key "v"))) (expandF [] k t)).CheckableA) :
     (Decls.readR [] (.map [("v", false, t)] none false)).CheckableA := by
-  have hm : ∀ u, (resolveD [] none u).CheckableA →
-      (resolveD [] none (.map [("v", false, u)] none false)).CheckableA := by
+  have hm : ∀ u, (resolveD [] none (stepped (some []) (.seg (.key "v"))) u).CheckableA →
+      (resolveD [] none (some []) (.map [("v", false, u)] none false)).CheckableA := by
     intro u hu
     simp only [resolveD, resolveFields, resolveSpread]
     exact .map (fun k o w hw => by simp at hw; obtain ⟨-, -, rfl⟩ := hw; exact hu)
       (fun _ hs => by cases hs)
-  have : ∀ n, (resolveD [] none (expandF [] n (.map [("v", false, t)] none false))).CheckableA := by
+  have : ∀ n, (resolveD [] none (some []) (expandF [] n (.map [("v", false, t)] none false))).CheckableA := by
     intro n
     cases n with
     | zero => simpa [expandF] using hm t (by simpa [expandF] using h 0)
@@ -2547,7 +2600,8 @@ def filterSources : List (Data × Val × Data) :=
 
 def filterCases : List (Val × Data) := filterSources.map fun (j, t, d) => (.filter j.term t, d)
 
-theorem filterSources_generate : ∀ x ∈ filterSources, (genD [] (resolveD [] none x.1.term)).isSome := by
+theorem filterSources_generate : ∀ x ∈ filterSources,
+    (genD [] (resolveD [] none (stepped (some []) (.seg (.key "v"))) x.1.term)).isSome := by
   decide
 
 theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
@@ -2750,6 +2804,87 @@ theorem pack_verdict_exact : ∀ c ∈ packCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (packCases_checkable c hc)) v
 
+/-- `key(n)` read where it stands: at a key and at an index, at its
+levels to the top and past it, under a meet, a call, a rider and a
+disjunction, and where the fill writes it; in a template, the member's
+key or index and the levels above the call, through nested generators;
+at a spread's own position, the key the spread reads and the levels
+above it. -/
+def keyUpCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jm (fs : List (String × Data)) : Data := .map fs
+  let jl (xs : List Data) : Data := .list xs
+  let k (n : ℤ) : Val := .keyUp n
+  [(k 0, js "v"), (k 0, js "x"), (k 1, js ""), (k 2, js ""), (k (-1), js ""),
+    (mp [("a", k 1)], jm [("a", js "v")]), (mp [("a", k 0)], jm [("a", js "a")]),
+    (mp [("a", k 0)], jm []),
+    (mp [("a", mp [("b", k 1)])], jm [("a", jm [("b", js "a")])]),
+    (mp [("a", mp [("b", k 2)])], jm [("a", jm [("b", js "v")])]),
+    (mp [("a", mp [("b", k 2)])], jm [("a", jm [("b", js "a")])]),
+    (mp [("a", mp [("b", k 3)])], jm [("a", jm [("b", js "")])]),
+    (lst [k 0, k 1], jl [js "0", js "v"]),
+    (lst [mp [("x", k 1)], mp [("x", k 1)]], jl [jm [("x", js "0")], jm [("x", js "1")]]),
+    (mp [("a", c .upper [k 0])], jm [("a", js "A")]),
+    (mp [("a", c .plus [str "x-", k 0])], jm [("a", js "x-a")]),
+    (mp [("a", .meet (k 0) .string)], jm [("a", js "a")]),
+    (mp [("a", .ride .metadata (k 0) [("t", j 1)])], jm [("a", js "a")]),
+    (mp [("a", .or [(0, k 0), (0, str "x")])], jm [("a", js "a")]),
+    (mp [("a", .or [(0, k 0), (0, str "x")])], jm [("a", js "y")]),
+    (c .pack [lst [str "web", str "auth"], mp [("n", k 1), ("t", k 2)]],
+      jm [("auth", jm [("n", js "auth"), ("t", js "v")]), ("web", jm [("n", js "web"), ("t", js "v")])]),
+    (c .pack [lst [str "a"], k 0], jm [("a", js "a")]),
+    (c .pack [lst [str "a"], c .plus [str "acme/", k 0]], jm [("a", js "acme/a")]),
+    (c .each [lst [str "p", str "q"], mp [("k", k 1)]], jl [jm [("k", js "0")], jm [("k", js "1")]]),
+    (c .each [lst [str "p", str "q"], k 0], jl [js "0", js "1"]),
+    (c .each [mp [("b", int 1), ("a", int 2)], mp [("k", k 1), ("v", .hole)]],
+      jl [jm [("k", js "0"), ("v", j 2)], jm [("k", js "1"), ("v", j 1)]]),
+    (c .pack [lst [str "a"], mp [("i", c .pack [lst [str "b"], mp [("x", k 1), ("y", k 2), ("z", k 3)]])]],
+      jm [("a", jm [("i", jm [("b", jm [("x", js "b"), ("y", js "i"), ("z", js "a")])])])]),
+    (c .pack [lst [str "a"], mp [("i", c .each [lst [str "b"], mp [("x", k 1), ("w", k 4)]])]],
+      jm [("a", jm [("i", jl [jm [("x", js "0"), ("w", js "v")]])])]),
+    (c .each [lst [int 1, int 2], lst [k 0, k 1]], jl [jl [js "0", js "0"], jl [js "0", js "1"]]),
+    (.map [("c", false, .string)] (some (k 1)) false, jm [("c", js "v")]),
+    (.map [("c", false, .string)] (some (k 0)) false, jm [("c", js "c")]),
+    (mp [("s", .map [("c", false, .string)] (some (k 1)) false)], jm [("s", jm [("c", js "s")])]),
+    (.list [] (some (k 1)) false, jl [js "v", js "v"]),
+    (c .pack [lst [str "a"], .map [("q", false, .string)] (some (k 1)) false], jm [("a", jm [("q", js "a")])]),
+    (c .pack [lst [str "a"], .map [("q", false, .string)] (some (k 0)) false], jm [("a", jm [("q", js "q")])])]
+
+theorem keyUpCases_checkable : ∀ c ∈ keyUpCases, (vetDoc c).1.CheckableA := by decide
+
+/-- A `filter`'s condition holding `key(n)`, read where each member it
+tries lands: under a map member's key, and at the index a list member
+takes among those kept. -/
+def keyUpFilterCases : List (Val × Data) :=
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  [(.filter (mp [("a", str "a"), ("b", str "c")]) (.keyUp 0), .map [("a", js "a")]),
+    (.filter (lst [str "x", str "0", str "1"]) (.keyUp 0), .list [js "0", js "1"]),
+    (.filter (lst [str "0", str "b", str "2"]) (.keyUp 0), .list [js "0"]),
+    (.filter (mp [("a", mp [("n", str "a")]), ("b", mp [("n", str "c")])]) (mp [("n", .keyUp 1)]),
+      .map [("a", .map [("n", js "a")])])]
+
+set_option maxRecDepth 8192 in
+theorem keyUpFilterCases_readable : ∀ c ∈ keyUpFilterCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
+  decide
+
+theorem keyUp_verdict_exact : ∀ c ∈ keyUpCases ++ keyUpFilterCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v := by
+  intro c hc _ v
+  have hr : (Decls.readR [] (vetDoc c).1).CheckableA := by
+    rcases List.mem_append.mp hc with h | h
+    · exact readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (keyUpCases_checkable c h)
+    · exact keyUpFilterCases_readable c h
+  exact vet_iff (fun _ h => absurd h (List.not_mem_nil)) hr v
+
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -2896,9 +3031,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# path to nothing is an error, as is a document that reads only by its own"
     IO.println "# paths. Regenerate with `make spec`; never edit by hand. The cases the ports"
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
-    IO.println "# Paths through the riders follow in rows q0 on, which a path reads through."
+    IO.println "# Paths through the riders follow in rows q0 on, which a path reads through,"
+    IO.println "# and key(n) reached through a path or a name, read where it lands, in rows r0 on."
     pathRows "p"
     pathRows "q" riderPathCases
+    pathRows "r" keyPathCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
@@ -3004,11 +3141,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# a string names an index by its digits alone, from row x2025, and translate"
     IO.println "# writes U+FFFD for a surrogate its to range names, from row x2055. The generator"
     IO.println "# pack, its template read for each member of its data under the member's key,"
-    IO.println "# follows from row x2064. A call on a name follows in rows z0 on, and a call"
-    IO.println "# handed a pattern, re(p), in rows v0 on."
+    IO.println "# follows from row x2064, and key(n), read where it stands, from row x2121. A"
+    IO.println "# call on a name follows in rows z0 on, and a call handed a pattern, re(p), in"
+    IO.println "# rows v0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
-        projectorCases ++ indexCases ++ surrogateCases ++ packCases do
+        projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -3020,7 +3158,7 @@ def main (args : List String) : IO UInt32 := do
       unless hostReads v do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
-      projectorCases ++ indexCases ++ surrogateCases ++ packCases)
+      projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases)
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     return 0

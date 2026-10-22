@@ -142,7 +142,8 @@ def Val.doms : Val → List Dom
   | .list _ _ _ => [.list]
   | .nil => []
   | .neq [] | .any | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _ | .must _ _
-  | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ | .key | .call _ _ | .hole =>
+  | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ | .key | .keyUp _ | .call _ _
+  | .hole =>
     [.num, .str, .bool, .null, .map, .list]
 
 /-- The domain a value is in. -/
@@ -1878,6 +1879,7 @@ def Val.beq : Val → Val → Bool
   | .filter s c, .filter s' c' => s.beq s' && c.beq c'
   | .ride k v r, .ride k' v' r' => decide (k = k') && v.beq v' && decide (r = r')
   | .key, .key => true
+  | .keyUp m, .keyUp n => decide (m = n)
   | .call f args, .call g bs => decide (f = g) && beqItems args bs
   | _, _ => false
 termination_by structural a _ => a

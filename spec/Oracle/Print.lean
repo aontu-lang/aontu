@@ -234,6 +234,7 @@ def Val.src : Val → Option String
   | .meet a b => do pure s!"({← a.src}) & ({← b.src})"
   | .alias n => some ("%" ++ n)
   | .key => some "key(0)"
+  | .keyUp n => some s!"key({n})"
   | .hole => some "_"
   | .path p => do pure ("$" ++ String.join (← p.mapM segSrc))
   | .nof n cs => do pure s!"nof({← n.src}, {", ".intercalate (← itemsSrc cs)})"

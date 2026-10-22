@@ -96,6 +96,7 @@ inductive Val where
   | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
   | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`, `type(v)`, `hide(v)`: `v` carrying `r`
   | key                                     -- `key(0)`, the key of the member a spread is tried on
+  | keyUp (n : ℤ)                           -- `key(n)` as written, the key `n` levels above where it stands; `key()` is `key(1)`
   | hole                                    -- `_`, the placeholder a generator's template binds to its member
   | call (f : Fn) (args : List Val)         -- `add(a, b)`, `-(a)`, …: the value `f` computes from the values of `args`
 
@@ -246,7 +247,7 @@ def Val.super : Val → Val
   | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _
   | .call _ _ => .any
   | .ride _ v _ => v.super
-  | .key => .anyString
+  | .key | .keyUp _ => .anyString
   | .hole => .any
 
 def superFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -282,11 +283,11 @@ def Val.hasMark (m : Rider) : Val → Bool
 /-- Whether a term carries a mark, `type()` or `hide()`, at its own position. -/
 def Val.marked (v : Val) : Bool := v.hasMark .type || v.hasMark .hide
 
-/-- Whether a term is a call at its own position, through `&` and the
-riders: a value the reading has not made, which a literal meets as a
-pair rather than by the checker. -/
+/-- Whether a term is a call or a `key(n)` at its own position, through
+`&` and the riders: a value the reading has not made, which a literal
+meets as a pair rather than by the checker. -/
 def Val.callAt : Val → Bool
-  | .call _ _ => true
+  | .call _ _ | .keyUp _ => true
   | .meet a b => a.callAt || b.callAt
   | .ride _ v _ => v.callAt
   | _ => false
@@ -352,7 +353,7 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
   | .mapKind | .listKind | .lit (.bool _) | .lit .null | .neq [] | .mulof _
   | .len _ | .unique _ | .re _ | .format _ | .any | .nil | .map _ _ _ | .list _ _ _ | .or _
   | .alias _ | .path _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
-  | .select _ _ _ | .filter _ _ | .key | .call _ _ | .hole => rfl
+  | .select _ _ _ | .filter _ _ | .key | .keyUp _ | .call _ _ | .hole => rfl
 
 /-- A term with no `key` at its own position is its own reading under
 any key. -/
@@ -369,5 +370,41 @@ theorem Val.atKey_of_keyed (k : String) {v : Val} (h : v.keyed = false) : v.atKe
     simp only [Val.keyed] at h
     simp only [Val.atKey, ih h]
   | case5 v h1 h2 h3 h4 => exact Val.atKey.eq_5 k v h1 h2 h3 h4
+
+/-! ## The key a term reads where it stands
+
+`key(n)` reads the key `n` levels above the position it stands at: `0`
+its own key, `key()` its parent's, and `""` above the top or below the
+bottom. A position is the steps from the top of the document, each a
+map's key or a list's index, where the document writes it. The member a
+spread holds is a step no position names until the spread is tried on
+it, which is where `Val.atKey` reads a `key` standing at the spread's
+own position. -/
+
+/-- A step of a position: a key or an index the document writes, or the
+member a spread holds. -/
+inductive Step where
+  | seg (s : Seg)
+  | spread
+  deriving DecidableEq
+
+/-- A step's text, as `key()` answers it: a key, or an index in decimal. -/
+def Seg.text : Seg → String
+  | .key k => k
+  | .idx i => toString i
+
+/-- `key(n)` read at the position `pos`, outermost step first: the text of
+the step `n` levels up, `""` where there is none, and, where that step is
+the member a spread holds, the `key` the spread reads at its own position,
+or `key(n)` still beneath it. -/
+def keyUpAt (pos : List Step) (n : ℤ) : Val :=
+  if n < 0 then .lit (.str "") else
+  match pos.reverse[n.toNat]? with
+  | some (.seg s) => .lit (.str s.text)
+  | some .spread => if n = 0 then .key else .keyUp n
+  | none => .lit (.str "")
+
+/-- A position one step down, where there is one. -/
+def stepped (here : Option (List Step)) (s : Step) : Option (List Step) := here.map (· ++ [s])
 
 end Aontu
