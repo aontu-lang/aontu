@@ -6507,8 +6507,10 @@ $ aontu tree.aontu
 ```
 
 A string spec fills the component's main prop, a `file`'s `name` here,
-and a bare string child stands for a line, so `"export {}"` is a `Line`
-node. One table says which components each holds:
+riders and all, so `folder(meta("src", {title: "x"}))` keeps its
+`meta` on the `name` it fills, in both engines. A bare string child
+stands for a line, so `"export {}"` is a `Line` node. One table says
+which components each holds:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
