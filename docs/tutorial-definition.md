@@ -7473,14 +7473,16 @@ preference a rank weaker:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- What `pref` makes of its argument in normal form, as both ports walk
-it: each scalar literal and each address a preference of rank one, and
-each preference and each preferred arm of a disjunction a rank weaker,
-a plain arm that is a leaf preferred; each member of a map and of a
-list, each side of a meet and the value under a rider read so too, a
-spread left as written; a path not read yet and a call that waits read
-as `pref` of themselves, which waits; and a kind, a bound and any other
-constraint left as they are. -/
+/-- What `pref` makes of its argument, read before the normal form, as
+both ports walk it: each scalar literal and each address a preference
+of rank one, and each preference and each preferred arm of a
+disjunction a rank weaker, a plain arm that is a leaf preferred, and a
+leaf or a preference under a rider preferred whole, rider and all, as
+both ports carry a rider on the value it rides; each member of a map
+and of a list, each side of a meet and the value under any other rider
+read so too, a spread left as written; a path not read yet and a call
+that waits read as `pref` of themselves, which waits; and a kind, a
+bound and any other constraint left as they are. -/
 def Val.prefer : Val → Val
   | .lit s => .pref 1 (.lit s)
   | .addr a => .pref 1 (.addr a)
@@ -7489,7 +7491,11 @@ def Val.prefer : Val → Val
   | .list items spread closed => .list (preferItems items) spread closed
   | .or arms => .or (preferArms arms)
   | .meet a b => .meet a.prefer b.prefer
-  | .ride k v r => .ride k v.prefer r
+  | .ride k v r =>
+    if v.unride.prefLeaf then .pref 1 (.ride k v r)
+    else match v.prefOf? with
+      | some (s, x) => .pref (s + 1) (.ride k x r)
+      | none => .ride k v.prefer r
   | .path p => .call .pref [.path p]
   | .call f args => .call .pref [.call f args]
   | v => v
@@ -7515,6 +7521,10 @@ verdict: valid
 ```
 
 The data overrides `port` and `cpu`, and `mem` fills from its default.
+A rider rides the value it's written on, so `pref(meta(1, r))` is
+`*meta(1, r)`, the scalar preferred whole. A mark under a preference
+marks no member, so `pref(hide(1))` is visible, as `*hide(1)` is, where
+`pref(hide({ x:1 }))` keeps its map hidden.
 A kind and a bound stay as written, so `pref(integer)` is `integer`.
 `pref` reads a path first, so `pref($.a)` is the preference of what
 `$.a` names, and a `pref` that waits on one stands where its argument does.

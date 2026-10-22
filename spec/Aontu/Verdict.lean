@@ -781,16 +781,16 @@ def Val.prefOf? : Val → Option (ℕ × Val)
   | _ => none
 
 mutual
-/-- What `pref` makes of its argument in normal form, as both ports walk
-it: each scalar literal and each address a preference of rank one, and
-each preference and each preferred arm of a disjunction a rank weaker,
-a plain arm that is a leaf preferred, and a leaf or a preference under a
-rider preferred whole, rider and all, as both ports carry a rider on the
-value it rides; each member of a map and of a list, each side of a meet
-and the value under any other rider read so too, a spread left as
-written; a path not read yet and a call that waits read as `pref` of
-themselves, which waits; and a kind, a bound and any other constraint
-left as they are. -/
+/-- What `pref` makes of its argument, read before the normal form, as
+both ports walk it: each scalar literal and each address a preference
+of rank one, and each preference and each preferred arm of a
+disjunction a rank weaker, a plain arm that is a leaf preferred, and a
+leaf or a preference under a rider preferred whole, rider and all, as
+both ports carry a rider on the value it rides; each member of a map
+and of a list, each side of a meet and the value under any other rider
+read so too, a spread left as written; a path not read yet and a call
+that waits read as `pref` of themselves, which waits; and a kind, a
+bound and any other constraint left as they are. -/
 def Val.prefer : Val → Val
   | .lit s => .pref 1 (.lit s)
   | .addr a => .pref 1 (.addr a)
@@ -842,8 +842,9 @@ its function's own reading makes, `joinOf`, `pickOf`, `sortOf`,
 component's call, with the arguments it takes, the node `cmpOf` makes; a `super` its
 argument's parent type, `Val.super` read before the normal form, so
 that a preference reads as its default, as `super(*1)` is `integer`;
-a `pref` what `Val.prefer` makes of its argument's normal form, and a
-`move` the same, its source hidden where the document is read (`Val.withMoves`);
+a `pref` what `Val.prefer` makes of its argument read before the normal
+form, as `super` reads it, so that a preference stays one, and a `move`
+the same, its source hidden where the document is read (`Val.withMoves`);
 any other call the number `callValue` computes, where it computes one,
 and itself otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
@@ -868,8 +869,8 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .usc, [s] => (escOf ds false s none).term ds f args
   | .usc, [s, v] => (escOf ds false s (some v)).term ds f args
   | .super, [x] => x.super
-  | .pref, [x] => (normaliseD ds x).prefer
-  | .move, [x] => (normaliseD ds x).prefer
+  | .pref, [x] => x.prefer
+  | .move, [x] => x.prefer
   | .split, [s, sep] => (splitOf ds s sep).term ds f args
   | .rep, [s, p, r] => (repOf ds s p r).term ds f args
   | .nom, [n] => (nomOf ds n none none).term ds f args
@@ -1937,8 +1938,8 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact (h _ (by simp)).super
-  · exact prefer_checkableA (normaliseD_checkableA hd (h _ (by simp)))
-  · exact prefer_checkableA (normaliseD_checkableA hd (h _ (by simp)))
+  · exact prefer_checkableA (h _ (by simp))
+  · exact prefer_checkableA (h _ (by simp))
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => repOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
