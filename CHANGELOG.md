@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads `move`
+
+Definition, generated rows, and documentation. No engine changes.
+P10's fourth slice.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `move`.
+- `spec/Aontu/Verdict.lean`: `move(p)` reads as `pref` of the value
+  the path names (`Val.prefer`).
+- `spec/Aontu/Paths.lean`: `VetP` and `OutputP` read the placed schema
+  met with `hide(any)` at each path a `move` reads (`Val.withMoves`,
+  `hideAt`). So the document generates the value once, at its new
+  place. The data needn't supply the source, but the source still
+  refuses data that disagrees. A path into a list hides nothing.
+- `test/spec/def-path.tsv` gains rows mv0 on, in the three modes of
+  `vet`. Both ports answer every row as the definition does.
+- The definition tutorial gains step 35, moving a value, and the last
+  step becomes 36. The reference's section on marks cites
+  `Val.withMoves`.
+
 ### The definition resolves a path into a call's output
 
 Definition, generated rows, and documentation. No engine changes.

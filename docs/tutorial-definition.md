@@ -7529,7 +7529,85 @@ both engines answer every one as the definition does. They answer
 `pref(1 | 2)` `invalid` where they answer
 `*1 | *2` an `error`, and no row holds that case, which #482 tracks.
 
-## 35. What the definition doesn't say yet
+## 35. Moving a value
+
+`move(p)` reads the value at the path `p` as a preference where the
+call stands, and hides the source, so the document generates the value
+once, at its new place. Write `move.aontu`:
+
+<!-- test: scenario move -->
+<!-- test: file move.aontu -->
+```aontu
+draft: { title:"Notes" year:2026 }
+title: move($.draft.title)
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu move.aontu
+{
+  "draft": {
+    "year": 2026
+  },
+  "title": "Notes"
+}
+```
+
+The call reads as `pref` does, `Val.prefer` of the value the path
+reads, so `title` is `*"Notes"`, which data may override. The hiding
+belongs to the document: before the definition reads it, the schema
+meets an open map that holds the source's key as optional, down to
+`hide(any)`:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def hideAt : List Seg → Val
+  | [] => .ride .hide .any []
+  | .key k :: p => .map [(k, true, hideAt p)] none false
+  | _ :: _ => .any
+```
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+/-- The schema with each source a `move` reads hidden, met with
+`hideAt` of the path, so that the document generates the value once, at
+its new place, and the data needn't supply the source. -/
+def Val.withMoves (S : Val) : Val := S.moved.foldl (fun acc p => .meet acc (hideAt p)) S
+```
+
+A hidden member is optional in the visible part of step 13, so the
+output leaves `draft.title` out and `--no-fill` doesn't ask the data
+for it. The source still holds its value, and a reference clears the
+mark, so `move` reads `"Notes"`. Data that refuses the source is still
+refused. Write `move-data.aontu`:
+
+<!-- test: file move-data.aontu -->
+```aontu
+draft: title: "Other"
+```
+
+and vet it:
+
+<!-- test: run -->
+```sh
+$ aontu vet move.aontu move-data.aontu
+verdict: invalid
+
+$.draft.title: scalar_value [conflict]
+  [aontu/scalar_value]: Cannot unify values at path $.draft.title
+  data: move-data.aontu:1:15 ("Other")
+  schema: move.aontu:1:16 ("Notes")
+```
+
+A `move` of a value written in place, `move({ x:1 })`, hides nothing
+and reads as `pref`, and a path that names nothing is an `error`, as
+any path is. Rows mv0 on of `test/spec/def-path.tsv` hold these
+readings in the three modes of `vet`, and both engines answer every one
+as the definition does.
+
+## 36. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -7537,7 +7615,7 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
-steps 20 to 26, 33 and 34 don't walk through, `key()` deeper in a spread than its
+steps 20 to 26 and 33 to 35 don't walk through, `key()` deeper in a spread than its
 own position, a relative path in a spread, a template or a `filter`'s
 condition, generation with `emit`, a string constraint met with a path
 value, and the links `refer` and `rel`. [`aontu vet`](reference-api.md#aontu-vet) states which

@@ -4181,6 +4181,16 @@ takes none, as both engines read it. A marked list element, which both engines l
 output, is yet to enter the definition, the subject of decision 18 of
 the design note.
 
+`move(p)` hides its source with the same mark. In the definition,
+`Val.withMoves` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+meets the schema with `hide(any)` at each path a `move` reads, and the
+call reads as `pref` of the value the path names, `Val.prefer`, so the
+document generates the value once, at its new place. A path into a
+list hides nothing, as a marked list element is yet to enter the
+definition. Rows mv0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
+engines to it.
+
 ## Annotations: `meta`
 
 `meta(v, ...r)` annotates a value without changing it. The value

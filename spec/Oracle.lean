@@ -1179,6 +1179,35 @@ theorem call_path_verdict_exact : ∀ c ∈ callPathCases, ∀ (m : Mode) (v : V
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (callPathCases_checkable c hc).1 (callPathCases_checkable c hc).2 v
 
+/-- `move` of a path to a scalar, beside data that supplies the source,
+data that refuses it and data that overrides the copy; of a path into a
+map; of a path to a list; of a value written in place; and of a path
+to nothing. -/
+def moveCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let mv (v : Val) : Val := .call .move [v]
+  [([], m [("a", int 1), ("b", mv (p ["a"]))], .map []),
+    ([], m [("a", int 1), ("b", mv (p ["a"]))], .map [("a", j 1)]),
+    ([], m [("a", int 1), ("b", mv (p ["a"]))], .map [("a", j 2)]),
+    ([], m [("a", int 1), ("b", mv (p ["a"]))], .map [("b", j 2)]),
+    ([], m [("a", m [("c", int 1), ("d", int 2)]), ("b", mv (p ["a", "c"]))], .map []),
+    ([], m [("a", m [("c", int 1), ("d", int 2)]), ("b", mv (p ["a", "c"]))],
+      .map [("a", .map [("d", j 2)]), ("b", j 1)]),
+    ([], m [("a", lst [int 1, int 2]), ("b", mv (p ["a"]))], .map []),
+    ([], m [("b", mv (m [("x", int 1)]))], .map []),
+    ([], m [("b", mv (p ["gone"]))], .map [])]
+
+theorem moveCases_checkable : ∀ c ∈ moveCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem move_verdict_exact : ∀ c ∈ moveCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (moveCases_checkable c hc).1 (moveCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, the schema's braces dropped since neither CLI reads a braced
 map after a declaration, in the three modes, with the one class `vetP`
@@ -1997,7 +2026,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
     ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "pref"),
-    ("call", "call", "split"),
+    ("call", "call", "move"), ("call", "call", "split"),
     ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "abnf"),
     ("call", "call", "parse"), ("call", "call", "project"),
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
@@ -2029,7 +2058,8 @@ def formSamples : List (String × Val) :=
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
-    ("pref", .call .pref [.integer]), ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
+    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]),
+    ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
     ("nom", .call .nom [.string]), ("path", .call .path [.string]), ("project", .call (.cmp .project) []),
     ("folder", .call (.cmp .folder) [.string]), ("file", .call (.cmp .file) [.string]),
     ("content", .call (.cmp .content) [.string]), ("line", .call (.cmp .line) [.string]),
@@ -3143,7 +3173,7 @@ def varPathCases : List Val :=
 /-- A variable case read as the definition reads a document with paths:
 placed, then its paths read as names from the schema alone. -/
 def varReading (t : Val) : Decls × Val :=
-  (progDecls.placed (docOf t)).1.withPathsS (progDecls.placed (docOf t)).2
+  (progDecls.placed (docOf t)).1.withPathsS (progDecls.placed (docOf t)).2.withMoves
 
 set_option maxRecDepth 16384 in
 theorem varPathCases_readable : ∀ t ∈ varPathCases,
@@ -3508,7 +3538,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# maybe, absence where all that is wrong with a path is that it names nothing,"
     IO.println "# in rows mb0 on, and pref, each literal a preference and each preference a"
     IO.println "# rank weaker, in rows pf0 on. Paths into a call's output, which resolve in the"
-    IO.println "# root with its calls made, follow in rows pc0 on."
+    IO.println "# root with its calls made, follow in rows pc0 on, and move, a preference of"
+    IO.println "# the value a path reads with its source hidden, in rows mv0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -3516,6 +3547,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "mb" maybeCases
     pathRows "pf" prefCases
     pathRows "pc" callPathCases
+    pathRows "mv" moveCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

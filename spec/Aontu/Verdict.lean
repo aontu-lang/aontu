@@ -831,7 +831,8 @@ its function's own reading makes, `joinOf`, `pickOf`, `sortOf`,
 component's call, with the arguments it takes, the node `cmpOf` makes; a `super` its
 argument's parent type, `Val.super` read before the normal form, so
 that a preference reads as its default, as `super(*1)` is `integer`;
-a `pref` what `Val.prefer` makes of its argument's normal form;
+a `pref` what `Val.prefer` makes of its argument's normal form, and a
+`move` the same, its source hidden where the document is read (`Val.withMoves`);
 any other call the number `callValue` computes, where it computes one,
 and itself otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
@@ -857,6 +858,7 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .usc, [s, v] => (escOf ds false s (some v)).term ds f args
   | .super, [x] => x.super
   | .pref, [x] => (normaliseD ds x).prefer
+  | .move, [x] => (normaliseD ds x).prefer
   | .split, [s, sep] => (splitOf ds s sep).term ds f args
   | .rep, [s, p, r] => (repOf ds s p r).term ds f args
   | .nom, [n] => (nomOf ds n none none).term ds f args
@@ -1911,6 +1913,7 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => escOf_checkableA hv
   · exact (h _ (by simp)).super
+  · exact prefer_checkableA (normaliseD_checkableA hd (h _ (by simp)))
   · exact prefer_checkableA (normaliseD_checkableA hd (h _ (by simp)))
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => repOf_checkableA hv
