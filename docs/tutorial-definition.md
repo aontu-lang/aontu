@@ -4438,18 +4438,33 @@ where no place is yet, as the roots that paths read are
 (`Decls.readU`, which step 29 comes to), as the name and as the body
 itself, so that a recursive body is read too. A hole or a `key(n)`
 waits for the use that places it, so the check reads each part that
-holds one as `any` (`Val.unplaced`), in every body at once. So
-`%T = upper(_) & (1 & 2)` is still an `error` for the conflict beside
-the hole, and `%T = %U` beside `%U = upper(_)` is not, as both engines
-answer.
+holds one as what any place could make of it (`Val.unplaced`), in every
+body at once: a hole as `any`, and a `key(n)` as any string, since a
+key is text wherever it lands. So `%T = upper(_) & (1 & 2)` is still an
+`error` for the conflict beside the hole, and so is `%T = key(1) & 1`,
+while `%T = key(1) & ""` stands, as both engines answer. A body that
+names a waiting body waits too, through a call or another name, so
+`%T = %U` and `%T = add(%U, 1)` beside `%U = upper(_)` stand, while
+`%T = add(%U, 1 & 2)` is an `error`, as both engines answer.
+`Decls.waitNames` finds those names to a fixed point. The name itself
+stays a name, though, so it reads its own body read the same way, and
+what that body fixes holds: `%T = %U & 2` beside `%U = _ & 1` is an
+`error`, as both engines answer. Both engines read a
+waiting `key(n)` at the declaration's own name, though, which #528
+tracks, and the definition reads it as waiting. And both skip a
+conflict met with a call that waits through a name, so they answer
+`valid` for `%T = add(%U, 1) & (1 & 2)`, which the definition reads as
+an `error` and #530 tracks.
 
 A call or a trial that waits for its hole still reads the arguments
 both engines read as written: a call's own, a size, the count of `nof`
 and `contains`, the condition of `must`, and the data, selection,
 scrutinee or source of `each`, `emit`, `match` and `filter`. Where one
-of them doesn't
-stand, read against the bodies with each waiting part as `any`, the
-call is `nil`. So `%T = contains(upper(_), 1 & 2)` is an `error`, and
+of them doesn't stand, read against the bodies with each waiting part
+read so, the call is `nil`, and so is a call with another count of
+arguments than its function takes (`Fn.takes`). So the definition
+reads `%T = add(_)` as an `error`, as it reads `v: add(1)`, where both
+engines answer `invalid`, the split #426 tracks. So `%T = contains(upper(_), 1 & 2)` is an `error`, and
 `add(upper(_), 1 & 2) | 3` holds an arm that dies. A trial's branches
 and a template wait with the call, since the engines read them later,
 so `%T = when(upper(_), 1 & 2)` stands. A template's hole and `key(n)`
@@ -4462,9 +4477,11 @@ source publishes is read where a destructure takes it, so not here:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.bodyIll (ds : Decls) : Bool :=
-  let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced fun _ => false)
+  let ws := ds.waitNames
+  let w : String → Bool := fun n => ws.contains n
+  let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced w fun _ => false)
   let ill : Val → Bool := fun t => (normaliseD d0 (d0.readU t)).staged.illFormed
-  let du : Decls := ds.map fun d => (d.1, d.2.unplaced ill)
+  let du : Decls := ds.map fun d => (d.1, d.2.unplaced w ill)
   du.any fun d => d.1.toList.head? != some '!' &&
     ((normaliseD du (du.readU (.alias d.1))).staged.illFormed || (normaliseD du (du.readU d.2)).staged.illFormed)
 ```

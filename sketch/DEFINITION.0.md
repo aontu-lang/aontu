@@ -846,7 +846,18 @@ each stands here until the phase that encodes it lands.
    and a name a source publishes waits for the destructure that takes
    it; and `Decls.illFormedR` makes the document an error where a body
    doesn't stand. Forty-four cases of the alias fragment hold it, and
-   both ports answer every one as the definition does (#417).
+   both ports answer every one as the definition does (#417). A name
+   whose body waits makes a body that names it wait too, through a call
+   and through another name, as `Decls.waitNames` reads them, while
+   the name itself stays a name, so what its body fixes holds. A
+   waiting `key(n)` is any string, since a key is text wherever it
+   lands. A waiting call with another count of arguments than its
+   function takes is `nil` by `Fn.takes`, the split #426 tracks. Twelve
+   more cases hold the first two, rows a342 to a377, and both ports
+   answer each one as the definition does. Both ports read a waiting
+   `key(n)` at the declaration's own name, which #528 tracks, and skip a
+   conflict met with a call that waits through a name, which #530
+   tracks.
 18. **A marked list element.** Raised 2026-10-21 by ruling 10's rows
    (#421). Both ports leave a `hide()` or `type()` element of a list out
    of the output, so `[1, hide(2), 3]` gives `[1, 3]`, and still hold
