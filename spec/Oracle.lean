@@ -2952,7 +2952,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "line"), ("call", "call", "fragment"), ("call", "call", "slot"),
     ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems"),
     ("call", "call", "each"), ("call", "call", "pack"), ("call", "call", "maybe"),
-    ("absent", "call", "maybe"), ("hole", "syntax", "_")]
+    ("call", "call", "emit"), ("absent", "call", "maybe"), ("hole", "syntax", "_")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -2985,7 +2985,8 @@ def formSamples : List (String × Val) :=
     ("fragment", .call (.cmp .fragment) [.string]), ("slot", .call (.cmp .slot) [.string]),
     ("inject", .call (.cmp .inject) [.string]), ("copyfiles", .call (.cmp .copyfiles) [.string]),
     ("listitems", .call (.cmp .listitems) [.mapKind]), ("each", .call .each [.listKind, .hole]),
-    ("pack", .call .pack [.listKind, .hole]), ("maybe", .call .maybe [.string])]
+    ("pack", .call .pack [.listKind, .hole]), ("maybe", .call .maybe [.string]),
+    ("emit", .call .emit [.listKind, .mapKind])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -3980,15 +3981,23 @@ theorem pack_verdict_exact : ∀ c ∈ packCases, ∀ (m : Mode) (v : Verdict),
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (packCases_checkable c hc)) v
 
 /-- The transformer `emit`, over a selection written in place: the first
-template whose `match` a node meets taken, in the table's order, a map's
+template whose `match` takes a node taken, in the table's order, a map's
 members in key order, and a table of one template written as the
 template; a body's hole and its references into the node, in a map of
-the body and through a map of the node; a list in a body spliced, a
-nested `emit` among them, whose selection reads the outer node; an empty
-selection and an empty body; and each refusal both ports make an error:
-no template that matches, an empty table, a template without its `match`
-or its `body`, a body that is no list, a selection that is no bag, and a
-reference the node doesn't answer, a step up among them. -/
+the body, through a map of the node and at a position of a list, a
+map's key in digits among them; a list in a body spliced at any depth,
+a nested `emit` among them, whose selection reads the outer node; an
+empty selection and an empty body; a template's `match` fields met;
+the dispatch, which takes a node the meet narrows nothing of, a kind
+and a map of kinds among them, refusing one it narrows and one whose
+meet holds a key it lacks, and taking a disjunction with no preference
+where any arm meets; a hole in a `match`, which matches nothing where
+it stands and is the value it meets in a meet or an arm; and each
+refusal both ports make an error: no template that matches, an empty
+table, a template without its `match` or its `body`, read before the
+selection, a body that is no list or two bodies, a selection that is
+no bag, and a reference the node doesn't answer, a step up and a
+position past the end among them. -/
 def emitCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -4000,6 +4009,7 @@ def emitCases : List (Val × Data) :=
   let jl (xs : List Data) : Data := .list xs
   let jm (fs : List (String × Data)) : Data := .map fs
   let nd (ks : List String) : Val := .path (.node :: ks.map .key)
+  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
   let rule (m : Val) (b : List Val) : Val := mp [("match", m), ("body", lst b)]
   let k1 : Val := mp [("k", int 1)]
   [(c .emit [lst [k1], rule k1 [str "a"]], jl [js "a"]),
@@ -4033,7 +4043,48 @@ def emitCases : List (Val × Data) :=
     (c .emit [lst [k1], rule k1 [nd ["nope"]]], jm []),
     (c .emit [lst [k1, mp [("p", str "q")]],
       lst [rule (mp [("k", .integer)]) [nd ["k"]], rule (mp [("p", .string)]) [nd ["p"], nd ["k"]]]], jm []),
-    (c .emit [lst [k1], rule k1 [.path [.node, .up 2, .key "k"]]], jm [])]
+    (c .emit [lst [k1], rule k1 [.path [.node, .up 2, .key "k"]]], jm []),
+    (c .emit [lst [lst [int 10]], rule .listKind [.path [.node, .idx 0]]], jl [j 10]),
+    (c .emit [lst [mp [("a", lst [int 5, int 6])]], rule .mapKind [.path [.node, .key "a", .idx 1]]], jl [j 6]),
+    (c .emit [lst [mp [("a", mp [("b", lst [int 7])])]], rule .mapKind [.path [.node, .key "a", .key "b", .idx 0]]],
+      jl [j 7]),
+    (c .emit [lst [mp [("0", int 5)]], rule .mapKind [.path [.node, .idx 0]]], jl [j 5]),
+    (c .emit [lst [lst [int 10]], rule .listKind [.path [.node, .idx 2]]], jm []),
+    (c .emit [lst [int 1], rule .any [lst [lst [str "a"]]]], jl [js "a"]),
+    (c .emit [lst [int 1], rule .any [lst [str "a", lst [str "b"]]]], jl [js "a", js "b"]),
+    (c .emit [lst [], mp [("match", .any)]], jm []),
+    (c .emit [lst [], mp [("body", lst [str "x"])]], jm []),
+    (c .emit [lst [], lst []], jl []),
+    (c .emit [lst [], lst [rule (int 1) []]], jl []),
+    (c .emit [lst [k1], .map [("match", false, k1), ("match", false, mp [("k", int 2)]),
+      ("body", false, lst [str "x"])] none false], jm []),
+    (c .emit [lst [mp [("k", int 1), ("j", int 2)]], .map [("match", false, k1), ("match", false, mp [("j", int 2)]),
+      ("body", false, lst [str "x"])] none false], jl [js "x"]),
+    (c .emit [lst [int 1], .map [("match", false, .integer), ("body", false, lst [str "a"]),
+      ("body", false, lst [str "a"])] none false], jm []),
+    (c .emit [lst [.integer], rule .integer [str "x"]], jl [js "x"]),
+    (c .emit [lst [.integer], rule .string [str "x"]], jm []),
+    (c .emit [lst [mp [("a", .integer)]], rule (mp [("a", .integer)]) [str "x"]], jl [js "x"]),
+    (c .emit [lst [mp [("a", .integer)]], rule (mp [("a", int 1)]) [str "x"]], jm []),
+    (c .emit [lst [.min (nb 1)], rule (int 5) [str "x"]], jm []),
+    (c .emit [lst [int 1], rule (.min (nb 0)) [str "x"]], jl [js "x"]),
+    (c .emit [lst [k1], rule (mp [("k", int 1), ("j", int 2)]) [str "x"]], jm []),
+    (c .emit [lst [k1], rule (.map [("k", false, int 1), ("j", true, int 2)] none false) [str "x"]], jm []),
+    (c .emit [lst [k1], rule (.map [("k", false, int 1)] none true) [str "x"]], jl [js "x"]),
+    (c .emit [lst [mp [("k", int 1), ("j", int 2)]], rule k1 [str "x"]], jl [js "x"]),
+    (c .emit [lst [lst [int 1]], rule (lst [.integer]) [str "x"]], jl [js "x"]),
+    (c .emit [lst [.or [(0, int 1), (0, int 2)]], rule (int 1) [str "x"]], jl [js "x"]),
+    (c .emit [lst [.or [(1, int 1), (0, int 2)]], rule (int 1) [str "x"]], jm []),
+    (c .emit [lst [k1], rule (.or [(0, k1), (0, mp [("j", int 2)])]) [str "x"]], jm []),
+    (c .emit [lst [int 1], rule .hole [str "yes"]], jm []),
+    (c .emit [lst [k1], rule (mp [("k", .hole)]) [str "yes"]], jm []),
+    (c .emit [lst [lst [int 1]], rule (lst [.hole]) [str "x"]], jm []),
+    (c .emit [lst [int 1], rule (.meet .hole .integer) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule (.meet .integer .hole) [str "x"]], jl [js "x"]),
+    (c .emit [lst [k1], rule (mp [("k", .meet .hole .integer)]) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule (.or [(0, .hole), (0, int 2)]) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], lst [rule .hole [str "a"], rule .any [str "b"]]], jl [js "b"]),
+    (c .emit [lst [mp [("a", int 1)]], rule (mp [("a", nd ["a"])]) [str "x"]], jm [])]
 
 theorem emitCases_checkable : ∀ c ∈ emitCases, (vetDoc c).1.CheckableA := by decide
 
@@ -4720,7 +4771,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# g0 on, over grammars of one rule of one literal, which the oracle's host"
     IO.println "# reads as every engine does: abnf answers a grammar's source where it compiles,"
     IO.println "# parse(g, v) the tree as data, and parse(g) admits the strings g parses whole."
-    IO.println "# The transformer emit follows in rows e0 on, over selections written in place:"
+    IO.println "# The transformer emit follows in rows et0 on, over selections written in place:"
     IO.println "# for each node, the body of the first template whose match the node meets,"
     IO.println "# read for the node, each list in it spliced, and an error where no template"
     IO.println "# matches or the body names what the node doesn't hold."
@@ -4740,7 +4791,7 @@ def main (args : List String) : IO UInt32 := do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
       projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases)
-    verdictRows "e" emitCases
+    verdictRows "et" emitCases
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     verdictRows "k" pathCallCases

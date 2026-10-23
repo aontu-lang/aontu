@@ -1145,9 +1145,10 @@ def pendingArms (ds : Decls) : List (ℕ × Val) → Bool
 end
 
 /-- The term a reference into an `emit`'s node names, `.p` in a body:
-the node's field at each key, the riders around each map read through,
-and nothing for any other step, as both ports read only a chain of plain
-names as a field of the node. -/
+the node's field at each key, its element at each position, the field
+a map holds under the position's digits, the riders around each read
+through, and nothing for any other step, as both ports read a chain of
+names and positions as a field of the node. -/
 def Val.fieldAt : Val → List Seg → Option Val
   | v, [] => some v
   | v, .key k :: p =>
@@ -1157,13 +1158,24 @@ def Val.fieldAt : Val → List Seg → Option Val
       | some f => f.2.2.fieldAt p
       | none => none
     | _ => none
+  | v, .idx i :: p =>
+    match v.unride with
+    | .list items _ _ =>
+      match items[i]? with
+      | some x => x.fieldAt p
+      | none => none
+    | .map fs _ _ =>
+      match fs.find? (fun f => f.1 == toString i) with
+      | some f => f.2.2.fieldAt p
+      | none => none
+    | _ => none
   | _, _ :: _ => none
 termination_by structural _ p => p
 
 /-- A path read for the node `b` a body of `emit` is read for: a
-reference into the node, `Seg.node` and the keys after it, is the node's
-field there (`Val.fieldAt`), and stays as written where the node has
-none or no node is being read, as does any other path. -/
+reference into the node, `Seg.node` and the steps after it, is the
+node's field there (`Val.fieldAt`), and stays as written where the node
+has none or no node is being read, as does any other path. -/
 def nodeRef (b : Option Val) : List Seg → Val
   | .node :: p =>
     match b with
@@ -1171,12 +1183,21 @@ def nodeRef (b : Option Val) : List Seg → Val
     | none => .path (.node :: p)
   | p => .path p
 
-/-- An `emit` template's `match` and `body`, the members of its map so
-named; none for a template that lacks either, or that is no map. -/
+/-- The meet of the values a map's fields named `k` hold, as a map that
+writes a key twice meets them; none where no field is so named. -/
+def fieldsMeet (fs : List (String × Bool × Val)) (k : String) : Option Val :=
+  match fs.filter (·.1 == k) with
+  | [] => none
+  | f :: rest => some (rest.foldl (fun acc g => .meet acc g.2.2) f.2.2)
+
+/-- An `emit` template's `match` and `body`, each the meet of the
+template's members so named (`fieldsMeet`), so that two `match` fields
+meet and two `body` fields make no list; none for a template that lacks
+either, or that is no map. -/
 def emitRule : Val → Option (Val × Val)
   | .map fs _ _ =>
-    match fs.find? (·.1 == "match"), fs.find? (·.1 == "body") with
-    | some m, some b => some (m.2.2, b.2.2)
+    match fieldsMeet fs "match", fieldsMeet fs "body" with
+    | some m, some b => some (m, b)
     | _, _ => none
   | _ => none
 
@@ -1186,27 +1207,127 @@ def emitTable : Val → List Val
   | .list items _ _ => items
   | t => [t]
 
-/-- The pieces a body makes: its elements, each that is a list spliced
-in its place. None for a body that is no list, and for one that still
-holds a reference into the node, one the node doesn't answer. -/
+/-- The pieces an element of a body makes, a list's own pieces spliced
+in its place to `n` levels and any other element itself, so that
+`e.size` levels splice `e` whole. -/
+def emitSpliceF : ℕ → Val → List Val
+  | 0, e => [e]
+  | n + 1, e =>
+    match e with
+    | .list xs _ _ => xs.flatMap (emitSpliceF n)
+    | e => [e]
+
+/-- The pieces a body makes: its elements, each list among them spliced
+in its place at any depth (`emitSpliceF`). None for a body that is no
+list, for one that still holds a reference into the node, one the node
+doesn't answer, and for one that holds a `key(n)`, which the ports read
+at different positions (#524). -/
 def emitBody : Val → Option (List Val)
   | .list items _ _ =>
     if items.any (fun e => e.paths.any fun p => p.head? == some .node) then none
-    else some (items.flatMap fun e => match e with
-      | .list xs _ _ => xs
-      | e => [e])
+    else if items.any Val.holdsKey then none
+    else some (items.flatMap fun e => emitSpliceF e.size e)
   | _ => none
 
-/-- The pieces an `emit`'s table, read for the node `m`, makes of it: what
-the body of the first template whose `match` the node meets without a
-refusal, the question `filter` asks, makes (`emitBody`). None where a
-template lacks its `match` or its `body`, the node generates no value,
-no template matches, or the body makes no pieces, each of which both
-ports refuse. -/
-def emitPieces (ds : Decls) (m T : Val) : Option (List Val) :=
-  if (emitTable T).any (fun t => (emitRule t).isNone) then none else
-  (genD ds m).bind fun d =>
-    (((emitTable T).filterMap emitRule).find? fun r => checkR ds r.1 d).bind fun r => emitBody r.2
+mutual
+/-- A `match` read as both ports read its holes, which no node binds:
+a hole that stands at a position, the `match` itself, a member or an
+element, waits for a value that never comes, so admits nothing, as
+`nil`, and one a meet or an arm of a disjunction holds is the value it
+is met with, as `any`. -/
+def Val.matchRead : Val → Val
+  | .hole => .nil
+  | .meet a b =>
+    .meet (match a with | .hole => .any | a => a.matchRead) (match b with | .hole => .any | b => b.matchRead)
+  | .or arms => .or (matchArms arms)
+  | .map fs spread closed => .map (matchFields fs) spread closed
+  | .list items spread closed => .list (matchItems items) spread closed
+  | .ride k v r => .ride k v.matchRead r
+  | v => v
+
+def matchArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, .hole) :: arms => (r, .any) :: matchArms arms
+  | (r, a) :: arms => (r, a.matchRead) :: matchArms arms
+
+def matchFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.matchRead) :: matchFields fs
+
+def matchItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.matchRead :: matchItems vs
+end
+
+/-- A term in normal form read through a disjunction whose arms are one
+arm of rank `0` written alike (`Val.beq`), as both ports keep one arm of
+such a disjunction. -/
+def Val.one : Val → Val
+  | .or ((0, a) :: arms) => if arms.all (fun p => p.1 == 0 && p.2.beq a) then a.one else .or ((0, a) :: arms)
+  | v => v
+
+/-- A term in normal form with a container kind dropped beside a
+container of its kind, which the kind narrows in nothing, so that
+`list & [1]` is `[1]` and `map & {k: 1}` is `{k: 1}`. -/
+def Val.kindless : Val → Val
+  | .meet .listKind (.list items spread closed) => .list items spread closed
+  | .meet (.list items spread closed) .listKind => .list items spread closed
+  | .meet .mapKind (.map fs spread closed) => .map fs spread closed
+  | .meet (.map fs spread closed) .mapKind => .map fs spread closed
+  | v => v
+
+mutual
+/-- Whether a node and its meet with a `match` are alike, as both ports
+compare them: two maps with the same keys, each member alike, two lists
+with the same elements alike, each read through a disjunction of one
+arm (`Val.one`) and without a container kind beside a container of its
+kind (`Val.kindless`), and any other pair written alike (`Val.beq`). -/
+def Val.alike : Val → Val → Bool
+  | .map fs _ _, .map gs _ _ => fs.length == gs.length && alikeIn fs gs
+  | .list xs _ _, .list ys _ _ => alikeItems xs ys
+  | a, b => a.beq b
+
+def alikeIn : List (String × Bool × Val) → List (String × Bool × Val) → Bool
+  | [], _ => true
+  | (k, _, v) :: fs, gs =>
+    (match gs.find? (·.1 == k) with
+     | some g => v.alike g.2.2.one.kindless
+     | none => false) && alikeIn fs gs
+
+def alikeItems : List Val → List Val → Bool
+  | [], [] => true
+  | x :: xs, y :: ys => x.alike y.one.kindless && alikeItems xs ys
+  | _, _ => false
+end
+
+/-- Whether a term in normal form is a disjunction with no preference
+among its arms. -/
+def Val.freeChoice : Val → Bool
+  | .or arms => arms.all (·.1 == 0)
+  | _ => false
+
+/-- Whether a template's `match` takes the node `m`, as both ports
+dispatch: the node met with the `match`, its holes read by
+`Val.matchRead`, doesn't die and is alike the node (`Val.alike`), so
+that the meet narrows nothing; or, where the node is a disjunction with
+no preference among its arms, doesn't die. -/
+def emitTakes (ds : Decls) (pat m : Val) : Bool :=
+  let met := normaliseD ds (meetD ds pat.matchRead m)
+  !met.dead && ((normaliseD ds m).freeChoice || (normaliseD ds m).kindless.alike met.one.kindless)
+
+/-- The pieces an `emit`'s table makes of the node `m`, its `match`es
+read from `tB`, the table read for no node, and its bodies from `tM`,
+the table read for `m`: what the body of the first template whose
+`match` takes the node (`emitTakes`) makes (`emitBody`). None where no
+template takes the node, or the body makes no pieces, each of which
+both ports refuse. -/
+def emitPieces (ds : Decls) (m tB tM : Val) : Option (List Val) :=
+  match ((emitTable tB).zip (emitTable tM)).find? (fun p =>
+      match emitRule p.1 with
+      | some r => emitTakes ds r.1 m
+      | none => false) with
+  | some p => (emitRule p.2).bind fun r => emitBody r.2
+  | none => none
 
 /-- The members `keep` keeps, in order, each tried at the index it takes
 among those kept before it, as a list's `filter` places its trial. -/
@@ -1230,10 +1351,11 @@ of its template read for each member `Val.keyedMembers` reads, under the
 member's key, the instances of a repeated key met, and `nil` where the
 data is no bag or a list holds anything but a string. An `emit` is the
 list of the pieces its table makes of each member of its selection, in
-the order `Val.members` reads them, the table read for the member, each
-hole and each reference into the node bound to it (`nodeRef`), and
-stays as written, a call no reading makes, where the selection is no
-bag or a member makes no pieces (`emitPieces`). A `maybe` is
+the order `Val.members` reads them, its `match`es read for no member and
+its bodies for the member, each hole and each reference into the node
+bound to it (`nodeRef`), and stays as written, a call no reading makes,
+where a template lacks its `match` or its `body`, the selection is no
+bag, or a member makes no pieces (`emitPieces`). A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
 no position for an element that is absence. A call or a generator
@@ -1293,9 +1415,11 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     | .maybe, args => .call .maybe (resolveItems ds b here args)
     | .emit, [s, t] =>
       if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
+      if (emitTable (resolveD ds none none t)).any (fun r => (emitRule r).isNone) then
+        .call .emit [resolveD ds b here s, t] else
       match (normaliseD ds (resolveD ds b here s)).members ds with
       | some ms =>
-        let pss := ms.map fun m => emitPieces ds m (resolveD ds (some m) none t)
+        let pss := ms.map fun m => emitPieces ds m (resolveD ds none none t) (resolveD ds (some m) none t)
         if pss.all Option.isSome then .list (pss.filterMap id).flatten none false
         else .call .emit [resolveD ds b here s, t]
       | none =>
@@ -1583,7 +1707,27 @@ theorem Val.fieldAt_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA �
           exact Val.fieldAt_checkableA p (hf f.1 f.2.1 f.2.2 (List.mem_of_find?_eq_some hfind)) h
         · exact absurd h (by simp)
     · exact absurd h (by simp)
-  | .idx _ :: _, _, _, _, h => by simp [Val.fieldAt] at h
+  | .idx i :: p, v, w, hv, h => by
+    have hu := Val.checkableA_unride hv
+    simp only [Val.fieldAt] at h
+    split at h
+    · rename_i items _ _ hm
+      rw [hm] at hu
+      cases hu with
+      | list hi _ =>
+        split at h
+        · rename_i x hx
+          exact Val.fieldAt_checkableA p (hi x (List.mem_of_getElem? hx)) h
+        · exact absurd h (by simp)
+    · rename_i fs _ _ hm
+      rw [hm] at hu
+      cases hu with
+      | map hf _ =>
+        split at h
+        · rename_i f hfind
+          exact Val.fieldAt_checkableA p (hf f.1 f.2.1 f.2.2 (List.mem_of_find?_eq_some hfind)) h
+        · exact absurd h (by simp)
+    · exact absurd h (by simp)
   | .var _ :: _, _, _, _, h => by simp [Val.fieldAt] at h
   | .up _ :: _, _, _, _, h => by simp [Val.fieldAt] at h
   | .node :: _, _, _, _, h => by simp [Val.fieldAt] at h
@@ -1605,6 +1749,28 @@ theorem nodeRef_checkableA {b : Option Val} (hb : ∀ m, b = some m → m.Checka
   | .var _ :: _ => by exact .path
   | .up _ :: _ => by exact .path
 
+/-- The meet of fields the checker can read is a term it can read. -/
+theorem fieldsMeet_checkableA {fs : List (String × Bool × Val)} {k : String} {v : Val}
+    (hf : ∀ k o v, (k, o, v) ∈ fs → v.CheckableA) (h : fieldsMeet fs k = some v) : v.CheckableA := by
+  unfold fieldsMeet at h
+  split at h
+  · exact absurd h (by simp)
+  · rename_i f rest hfr
+    simp only [Option.some.injEq] at h
+    subst h
+    have hmem : ∀ g, g ∈ f :: rest → g.2.2.CheckableA := fun g hg => by
+      rw [← hfr] at hg
+      exact hf g.1 g.2.1 g.2.2 (List.mem_filter.mp hg).1
+    have hfold : ∀ (l : List (String × Bool × Val)) (acc : Val), acc.CheckableA →
+        (∀ g, g ∈ l → g.2.2.CheckableA) → (l.foldl (fun acc g => .meet acc g.2.2) acc).CheckableA := by
+      intro l
+      induction l with
+      | nil => intro acc ha _; exact ha
+      | cons g l ih =>
+        intro acc ha hl
+        exact ih _ (.meet ha (hl g List.mem_cons_self)) fun g' hg' => hl g' (List.mem_cons_of_mem _ hg')
+    exact hfold rest f.2.2 (hmem f List.mem_cons_self) fun g hg => hmem g (List.mem_cons_of_mem _ hg)
+
 /-- A template the checker can read has a body it can read. -/
 theorem emitRule_checkableA {t : Val} {r : Val × Val} (ht : t.CheckableA) (h : emitRule t = some r) :
     r.2.CheckableA := by
@@ -1613,15 +1779,15 @@ theorem emitRule_checkableA {t : Val} {r : Val × Val} (ht : t.CheckableA) (h : 
   · rename_i fs spread closed
     cases ht with
     | map hf _ =>
-      cases hm : fs.find? (·.1 == "match") with
+      cases hm : fieldsMeet fs "match" with
       | none => simp [hm] at h
       | some mt =>
-        cases hb : fs.find? (·.1 == "body") with
+        cases hb : fieldsMeet fs "body" with
         | none => simp [hm, hb] at h
         | some bd =>
           simp only [hm, hb, Option.some.injEq] at h
           subst h
-          exact hf bd.1 bd.2.1 bd.2.2 (List.mem_of_find?_eq_some hb)
+          exact fieldsMeet_checkableA hf hb
   · exact absurd h (by simp)
 
 /-- The templates of a table the checker can read are terms it can read. -/
@@ -1633,6 +1799,22 @@ theorem emitTable_checkableA {T : Val} (hT : T.CheckableA) : ∀ t, t ∈ emitTa
     | list hi _ => exact hi t ht
   | _ => exact (List.mem_singleton.mp ht) ▸ hT
 
+/-- The pieces an element the checker can read makes are terms it can
+read. -/
+theorem emitSpliceF_checkableA : ∀ (n : ℕ) (e : Val), e.CheckableA → ∀ w, w ∈ emitSpliceF n e → w.CheckableA
+  | 0, e, he, w, hw => by
+    simp only [emitSpliceF, List.mem_cons, List.mem_nil_iff, or_false] at hw
+    exact hw ▸ he
+  | n + 1, e, he, w, hw => by
+    simp only [emitSpliceF] at hw
+    split at hw
+    · cases he with
+      | list hi _ =>
+        obtain ⟨x, hx, hwx⟩ := List.mem_flatMap.mp hw
+        exact emitSpliceF_checkableA n x (hi x hx) w hwx
+    · simp only [List.mem_cons, List.mem_nil_iff, or_false] at hw
+      exact hw ▸ he
+
 /-- The pieces a body the checker can read makes are terms it can read. -/
 theorem emitBody_checkableA {b : Val} {ps : List Val} (hb : b.CheckableA) (h : emitBody b = some ps) :
     ∀ w, w ∈ ps → w.CheckableA := by
@@ -1643,37 +1825,30 @@ theorem emitBody_checkableA {b : Val} {ps : List Val} (hb : b.CheckableA) (h : e
       simp only [emitBody] at h
       split at h
       · exact absurd h (by simp)
-      · simp only [Option.some.injEq] at h
-        subst h
-        intro w hw
-        obtain ⟨e, he, hwe⟩ := List.mem_flatMap.mp hw
-        have hec := hi e he
-        split at hwe
-        · cases hec with
-          | list hx _ => exact hx w hwe
-        · simp only [List.mem_cons, List.mem_nil_iff, or_false] at hwe
-          exact hwe ▸ hec
+      split at h
+      · exact absurd h (by simp)
+      simp only [Option.some.injEq] at h
+      subst h
+      intro w hw
+      obtain ⟨e, he, hwe⟩ := List.mem_flatMap.mp hw
+      exact emitSpliceF_checkableA _ e (hi e he) w hwe
   | _ => simp [emitBody] at h
 
-/-- The pieces a table the checker can read makes of a node are terms it
-can read. -/
-theorem emitPieces_checkableA {ds : Decls} {m T : Val} {ps : List Val} (hT : T.CheckableA)
-    (h : emitPieces ds m T = some ps) : ∀ w, w ∈ ps → w.CheckableA := by
+/-- The pieces a table the checker can read, its bodies read for a node,
+makes of the node are terms it can read. -/
+theorem emitPieces_checkableA {ds : Decls} {m tB tM : Val} {ps : List Val} (hT : tM.CheckableA)
+    (h : emitPieces ds m tB tM = some ps) : ∀ w, w ∈ ps → w.CheckableA := by
   unfold emitPieces at h
   split at h
-  · exact absurd h (by simp)
-  cases hg : genD ds m with
-  | none => rw [hg] at h; exact absurd h (by simp)
-  | some d =>
-    rw [hg] at h
-    simp only [Option.bind] at h
-    cases hr : ((emitTable T).filterMap emitRule).find? (fun r => checkR ds r.1 d) with
+  · rename_i p hp
+    cases hr : emitRule p.2 with
     | none => rw [hr] at h; exact absurd h (by simp)
     | some r =>
       rw [hr] at h
-      simp only at h
-      obtain ⟨t, ht, htr⟩ := List.mem_filterMap.mp (List.mem_of_find?_eq_some hr)
-      exact emitBody_checkableA (emitRule_checkableA (emitTable_checkableA hT t ht) htr) h
+      simp only [Option.bind] at h
+      have hmem := List.of_mem_zip (List.mem_of_find?_eq_some hp)
+      exact emitBody_checkableA (emitRule_checkableA (emitTable_checkableA hT p.2 hmem.2) hr) h
+  · exact absurd h (by simp)
 
 /-- The members `pack` reads in a bag the checker can read are ones it
 can read. -/
@@ -2496,6 +2671,8 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         rcases ha with h | h
         · rw [h]; exact ih s (by simp) hb
         · rw [h]; exact hargs t (by simp)
+      split
+      · exact hcall
       split
       · exact hcall
       split

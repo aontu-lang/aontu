@@ -16,22 +16,34 @@ slice.
 - `spec/Aontu/Data.lean`: `Seg.node`, the step a relative reference in
   a body of `emit` starts with, since it names a field of the node
   rather than a place.
-- `spec/Aontu/Verdict.lean`: `resolveD` reads an `emit`'s table once
-  for each node of its selection, in the order `Val.members` reads
-  them. `emitPieces` takes the body of the first template whose `match`
-  the node meets without a refusal, and splices each list in the body.
-  A body's hole and its references into the node read the node, by
-  `nodeRef` and `Val.fieldAt`. A selection other than a bag, a template
-  without its `match` or its `body`, a body other than a list, a node no
-  template matches and a reference the node doesn't answer leave the
-  call unmade, an error, as both ports refuse each.
+- `spec/Aontu/Verdict.lean`: `resolveD` checks an `emit`'s table, then
+  reads it once for each node of its selection, in the order
+  `Val.members` reads them, its `match`es for no node and its bodies for
+  the node. `emitPieces` takes the body of the first template whose
+  `match` takes the node, as both ports dispatch (`emitTakes`): the node
+  met with the `match` doesn't die and is alike the node (`Val.alike`),
+  so that the meet narrows nothing, a disjunction with no preference
+  taken where any arm meets. A hole in a `match` matches nothing where
+  it stands and is the value it meets in a meet or an arm
+  (`Val.matchRead`), and a template's `match` fields meet. The answer
+  splices in each list in the body, at any depth (`emitSpliceF`). A
+  body's hole and
+  its references into the node read the node, by `nodeRef` and
+  `Val.fieldAt`, a position of a list node and a map's key in digits
+  among them. A selection other than a bag, a template without its
+  `match` or its `body`, a body other than a list, a node no template
+  takes and a reference the node doesn't answer leave the call unmade,
+  an error, as both ports refuse each. The definition leaves a body
+  that holds a `key(n)` unmade, since the ports read it at different
+  positions, as #524 records.
 - `spec/Aontu/Paths.lean`: placing a document, reading its paths as
   names and the paths that must name something leave a reference into
   the node as written (`placePath`).
-- `spec/Oracle.lean`: `emitCases` writes rows e0 on of
+- `spec/Oracle.lean`: `emitCases` writes rows et0 on of
   `test/spec/def-call.tsv`, and `emitPathCases` rows em0 on of
   `test/spec/def-path.tsv`, where a path names the selection. Both
-  ports answer every row as the definition does.
+  ports answer every row as the definition does. The forms list gains
+  `emit`.
 - `docs/tutorial-definition.md` gains step 40, "Rules over nodes"; the
   last step is now 41. The reference's `emit` section cites the
   definition.

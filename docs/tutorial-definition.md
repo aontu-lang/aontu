@@ -5269,10 +5269,11 @@ of its template read for each member `Val.keyedMembers` reads, under the
 member's key, the instances of a repeated key met, and `nil` where the
 data is no bag or a list holds anything but a string. An `emit` is the
 list of the pieces its table makes of each member of its selection, in
-the order `Val.members` reads them, the table read for the member, each
-hole and each reference into the node bound to it (`nodeRef`), and
-stays as written, a call no reading makes, where the selection is no
-bag or a member makes no pieces (`emitPieces`). A `maybe` is
+the order `Val.members` reads them, its `match`es read for no member and
+its bodies for the member, each hole and each reference into the node
+bound to it (`nodeRef`), and stays as written, a call no reading makes,
+where a template lacks its `match` or its `body`, the selection is no
+bag, or a member makes no pieces (`emitPieces`). A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
 no position for an element that is absence. A call or a generator
@@ -8362,9 +8363,9 @@ calling program adds to those read as text, as `--text-ext` does.
 ## 40. Rules over nodes
 
 `emit(s, t)` applies a table of rules to the nodes of a selection. For
-each node, in order, it takes the first template whose `match` the node
-meets and reads that template's `body` for the node, and the answer is
-one flat list. Write `emit.aontu`:
+each node, in order, it takes the first template whose `match` takes
+the node and reads that template's `body` for the node, and the answer
+is one flat list. Write `emit.aontu`:
 
 <!-- test: scenario emit -->
 <!-- test: file emit.aontu -->
@@ -8397,16 +8398,19 @@ $ aontu emit.aontu
 }
 ```
 
-`resolveD` reads the table once for each node of the selection, as it
-reads an `each`'s template once for each member:
+`resolveD` checks the table first, then reads it once for each node of
+the selection, as it reads an `each`'s template once for each member:
+its `match`es for no node, and its bodies for the node:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
     | .emit, [s, t] =>
       if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
+      if (emitTable (resolveD ds none none t)).any (fun r => (emitRule r).isNone) then
+        .call .emit [resolveD ds b here s, t] else
       match (normaliseD ds (resolveD ds b here s)).members ds with
       | some ms =>
-        let pss := ms.map fun m => emitPieces ds m (resolveD ds (some m) none t)
+        let pss := ms.map fun m => emitPieces ds m (resolveD ds none none t) (resolveD ds (some m) none t)
         if pss.all Option.isSome then .list (pss.filterMap id).flatten none false
         else .call .emit [resolveD ds b here s, t]
       | none =>
@@ -8414,15 +8418,40 @@ reads an `each`'s template once for each member:
         else .call .emit [resolveD ds b here s, t]
 ```
 
-`emitPieces` takes the first template whose `match` the node meets
-without a refusal, the question a `filter` asks, and splices each list
-in the body into the answer, so a nested `emit` adds its pieces where
-it stands. A table of one template may be the template itself. In a
-body, `_` is the node, and a relative reference such as `.pin` names a
-field of the node rather than a place, at any depth of the body. The
-definition writes such a reference with the step `Seg.node`, which no
-other path holds, so that placing a document leaves it as written, and
-`resolveD` reads it for the node:
+`emitPieces` takes the first template whose `match` takes the node, and
+a `match` takes a node the way both engines dispatch. The node, met with
+the `match`, must not die, and must be alike the node: the meet narrows
+nothing. So `{k: 1}` takes the node `{"k": 1}`, and so do `{}`, `map`
+and `close({k: 1})`. `{k: 1, j: 2}` doesn't take it, and neither does
+`{k: 1, j?: 2}`, whose meet holds a key the node lacks. Where the node
+is a kind, `integer`, the `match` `integer` takes it and `1` refuses
+it. A disjunction with no preference among its arms takes the node
+where any arm meets it:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def emitTakes (ds : Decls) (pat m : Val) : Bool :=
+  let met := normaliseD ds (meetD ds pat.matchRead m)
+  !met.dead && ((normaliseD ds m).freeChoice || (normaliseD ds m).kindless.alike met.one.kindless)
+```
+
+No node binds a hole in a `match`, so `Val.matchRead` reads one as
+both engines do. A hole that stands at a position, the whole `match`,
+a member or an element, waits for a value that never comes and matches
+nothing. One in a meet or a disjunction's arm is the value it meets, so
+`_ & integer` takes `1` where `_` alone doesn't. A template that writes
+`match` twice meets the two, and one that writes `body` twice makes no
+list.
+
+The answer splices in each list in the body, at any depth, so a
+nested `emit` adds its pieces where it stands. A table of one template
+may be the template itself. In a body, `_` is the node, and a relative
+reference such as `.pin` names a field of the node rather than a place,
+at any depth of the body. `.0` names a list node's first element, or a
+map's member under the key `"0"`. The definition writes such a
+reference with the step `Seg.node`, which no other path holds, so that
+placing a document leaves it as written, and `resolveD` reads it for
+the node:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -8436,17 +8465,22 @@ def nodeRef (b : Option Val) : List Seg → Val
 
 A nested `emit` reads its selection, `.logs`, for the outer node, and
 its own table for each of its own nodes. An empty selection emits
-nothing. Both engines refuse a selection that isn't a bag, a template
-without its `match` or its `body`, a body that isn't a list, a node no
-template matches, and a reference the node doesn't answer, a step up
-among them. Each leaves the call unmade, which is an error. The rows are
-e0 on, over selections written in place, and em0 on, where a path names
-the selection. Both engines answer every one as the definition does.
+nothing, but both engines check its table all the same. Both refuse a
+selection that isn't a bag, a template without its `match` or its
+`body`, a body that isn't a list, a node no template takes, and a
+reference the node doesn't answer. A step up is such a reference, and
+so is a position past the end. Each leaves the call unmade, which is an
+error. The
+rows are et0 on, over selections written in place, and em0 on, where a
+path names the selection. Both engines answer every one as the
+definition does.
 
 The definition doesn't yet read a table named apart from its call,
 `emit(_, t)`, which is how a rule set recurses, `replace` and `esc` in
 a body, or a reference into the node inside an `each`, a `pack` or a
-`filter`'s condition in a body.
+`filter`'s condition in a body. It leaves a body that holds a `key(n)`
+unmade too, since the engines read it at different positions, as #524
+records.
 
 ## 41. What the definition doesn't say yet
 

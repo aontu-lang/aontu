@@ -1407,10 +1407,15 @@ of the selection was meant to be allowed.
 
 The definition reads `emit` by `resolveD` and `emitPieces` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), each body
-read for its node, and rows from e0 on of
+read for its node, and rows from et0 on of
 [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) and from em0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
-to it. It doesn't yet read a named table, or `replace` in a body.
+to it. A template's `match` takes a node where the meet of the two
+narrows nothing of the node (`emitTakes`), as both engines dispatch, so
+`{k: 1}` takes `{"k": 1}` and `{k: 1, j?: 2}` doesn't. It doesn't yet
+read a named table, `replace` in a body, or a `key(n)` in a body, which
+the two engines read at different positions
+([#524](https://github.com/aontu-lang/aontu/issues/524)).
 
 ### A named table
 
