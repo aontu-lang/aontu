@@ -567,8 +567,10 @@ rule or refer to a name declared nowhere are errors before anything
 else is asked, and `%T = %T | 1`, which the engines run, is one. A
 declaration nothing reads is read too (decision 17): a dead or
 ill-formed body is an error, alone, beside a name the schema uses and
-inside a recursive body, while one that stands, a literal short of its
-size and a template whose hole its use would fill are not. -/
+inside a recursive body, and beside a hole or a `key(n)` its use would
+place; while one that stands, a literal short of its size, a template
+whose hole its use would fill, a body that names one and a call over a
+`key(n)` are not. -/
 def aliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -678,7 +680,16 @@ def aliasCases : List (Decls × Val × Data) :=
     ([("T", .map [("x", true, .alias "T"), ("y", false, .meet (int 1) (int 2))] none false)], int 1, j 1),
     ([("T", .or [(0, int 1), (0, int 2)])], int 1, j 1),
     ([("T", .meet (.list [int 1, int 2] none false) (.len (int 3)))], int 1, j 1),
-    ([("U", .call .upper [.hole])], int 1, j 1)]
+    ([("U", .call .upper [.hole])], int 1, j 1),
+    ([("T", .meet (.call .upper [.hole]) (.meet (int 1) (int 2)))], int 1, j 1),
+    ([("T", .map [("a", false, .call .upper [.hole]), ("b", false, .meet (int 1) (int 2))] none false)], int 1, j 1),
+    ([("T", .list [.call .upper [.hole], .meet (int 1) (int 2)] none false)], int 1, j 1),
+    ([("U", .call .upper [.hole]), ("T", .alias "U")], int 1, j 1),
+    ([("U", .call .upper [.hole]), ("T", .meet (.alias "U") (.meet (int 1) (int 2)))], int 1, j 1),
+    ([("U", .map [("a", false, .call .upper [.hole])] none false),
+      ("T", .meet (.alias "U") (.map [("a", false, str "x")] none false))], int 1, j 1),
+    ([("T", .list [.keyUp 1, .meet (int 1) (int 2)] none false)], int 1, j 1),
+    ([("T", .call .upper [.keyUp 1])], int 1, j 1)]
 
 /-- The schema and data of a case, each under the key `v`, as the rows
 write them. -/

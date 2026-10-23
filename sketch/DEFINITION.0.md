@@ -820,13 +820,14 @@ each stands here until the phase that encodes it lands.
    body is an `error` whether or not anything reads it; the ports
    stand. **Built 2026-10-23**: `Decls.bodyIll` in
    `spec/Aontu/Verdict.lean` reads each body where no place is yet
-   (`Decls.readU`), as the name and as the body itself, a body that
-   holds a hole (`Val.holdsHole`) or a `key(n)` waiting for the use
-   that places it and a name a source publishes for the destructure
-   that takes it, and `Decls.illFormedR` makes the document an error
-   where a body doesn't stand. Fourteen cases of the alias
-   fragment hold it, and both ports answer every one as the definition
-   does (#417).
+   (`Decls.readU`), as the name and as the body itself, each part that
+   holds a hole or a `key(n)` read as `any` while it waits for the use
+   that places it (`Val.unplaced`), so that a conflict beside one is
+   read and a body that names one waits too, and a name a source
+   publishes waits for the destructure that takes it; and
+   `Decls.illFormedR` makes the document an error where a body doesn't
+   stand. Twenty-two cases of the alias fragment hold it, and both
+   ports answer every one as the definition does (#417).
 18. **A marked list element.** Raised 2026-10-21 by ruling 10's rows
    (#421). Both ports leave a `hide()` or `type()` element of a list out
    of the output, so `[1, hide(2), 3]` gives `[1, 3]`, and still hold

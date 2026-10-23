@@ -4405,16 +4405,20 @@ reaches it, so `%T = 1 & 2` beside `v: 1` is an `error`, as both
 engines answer (decision 17 of the design note's §7). The body is read
 where no place is yet, as the roots that paths read are
 (`Decls.readU`, which step 29 comes to), as the name and as the body
-itself, so that a recursive body is read too. A body that holds a hole
-or a `key(n)` waits for the use that places it, and a name a source
-publishes is read where a destructure takes it, so the check reads none
-of them:
+itself, so that a recursive body is read too. A hole or a `key(n)`
+waits for the use that places it, so the check reads each part that
+holds one as `any` (`Val.unplaced`), in every body at once. So
+`%T = upper(_) & (1 & 2)` is still an `error` for the conflict beside
+the hole, and `%T = %U` beside `%U = upper(_)` is not, as both engines
+answer. A name a source publishes is read where a destructure takes
+it, so not here:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.bodyIll (ds : Decls) : Bool :=
-  ds.any fun d => d.1.toList.head? != some '!' && !d.2.holdsHole && !d.2.holdsKey &&
-    ((normaliseD ds (ds.readU (.alias d.1))).illFormed || (normaliseD ds (ds.readU d.2)).illFormed)
+  let du : Decls := ds.map fun d => (d.1, d.2.unplaced)
+  du.any fun d => d.1.toList.head? != some '!' &&
+    ((normaliseD du (du.readU (.alias d.1))).illFormed || (normaliseD du (du.readU d.2)).illFormed)
 ```
 
 A normal form doesn't stand, `illFormed`, where it holds a `nil`

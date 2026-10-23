@@ -2741,16 +2741,46 @@ refuse it with `ident_place` (decision 14 of the design note's §7). -/
 def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
   S.idents || ds.any fun d => d.2.unident.idents
 
+mutual
+/-- A term with each part that waits for a place read as `any`: a hole,
+a `key(n)`, and any other term that holds either, a call over one
+among them, so that what stands beside them is still read. -/
+def Val.unplaced : Val → Val
+  | .hole | .keyUp _ => .any
+  | .map fs spread closed => .map (unplacedFields fs) spread closed
+  | .list items spread closed => .list (unplacedItems items) spread closed
+  | .meet a b => .meet a.unplaced b.unplaced
+  | .or arms => .or (unplacedArms arms)
+  | .pref r x => .pref r x.unplaced
+  | .ride k v r => .ride k v.unplaced r
+  | v => if v.holdsHole || v.holdsKey then .any else v
+
+def unplacedFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.unplaced) :: unplacedFields fs
+
+def unplacedItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.unplaced :: unplacedItems vs
+
+def unplacedArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.unplaced) :: unplacedArms arms
+end
+
 /-- Whether a declaration's body does not stand, read where no place is
 yet (`Decls.readU`), as the name and as the body itself, so that a dead
 or ill-formed body makes the document an error whether or not anything
 reads it, a recursive one among them, as both ports answer (decision 17
-of the design note's §7). A body that holds a hole or a `key(n)` waits
-for the use that places it, and a name a source publishes is read where
-a destructure takes it, so none of them is read here. -/
+of the design note's §7). Each body is read with the parts that wait
+for the use that places them, a hole or a `key(n)`, as `any`
+(`Val.unplaced`), so that a body that names one waits too and what
+stands beside them is read; a name a source publishes is read where a
+destructure takes it, so not here. -/
 def Decls.bodyIll (ds : Decls) : Bool :=
-  ds.any fun d => d.1.toList.head? != some '!' && !d.2.holdsHole && !d.2.holdsKey &&
-    ((normaliseD ds (ds.readU (.alias d.1))).illFormed || (normaliseD ds (ds.readU d.2)).illFormed)
+  let du : Decls := ds.map fun d => (d.1, d.2.unplaced)
+  du.any fun d => d.1.toList.head? != some '!' &&
+    ((normaliseD du (du.readU (.alias d.1))).illFormed || (normaliseD du (du.readU d.2)).illFormed)
 
 /-- Whether a document does not stand: an `ident()` out of its place, a
 declaration's body that does not stand, or the schema, read, with a
