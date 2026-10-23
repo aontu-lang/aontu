@@ -39,6 +39,57 @@ findings on #521.
   definition does.
 - The tutorial's step 40 describes the readings.
 
+### An atom over an argument outside its domain admits nothing, however the argument is written
+
+Both engines, the definition, generated rows, and documentation.
+Ruling 28 of the design note's §7 (#509).
+
+- TS (`ts/src/val/ConstraintVal.ts`) and Go (`go/constraint.go`): a
+  pending atom that settles with an argument outside its domain, such
+  as `mulof($.d)` where `d` is `0` or `len($.s)` where `s` is a string,
+  leaves a residual that admits nothing, as the same argument written
+  as a literal does, rather than an error in the schema alone. So `vet`
+  reads it as `invalid` against data that meets it, and evaluation
+  answers `mapval_no_gen`, as for the literal. The same holds of an
+  argument an expression computes, `min(min(1) & max(3))` among them. A
+  choice still to make, a disjunction or a preference, stays an error
+  whatever the atom meets, as ruling 16 has it of a size (#413). The
+  check reads the arguments the atom reads, so a choice in a sole list
+  under `neq`, `x: [1 | 3], t: neq($.x)`, is an error too.
+- `spec/Aontu/Admits.lean`: `Val.unsized`, `any` and the trials, which
+  admit numbers but name no count, so `len` over one admits no size
+  (`Judge.lenOut`), as both engines refuse `len(any)` and
+  `len(must(integer, "m"))` their argument. The checker reads it so
+  too, and `len_le_len` in `spec/Aontu/Subsume.lean` needs the general
+  count in `len`'s domain.
+- `spec/Aontu/Syntax.lean`: `Val.nothing`, the atom that admits
+  nothing. It stands, refuses every value (`Judge.nothing`), generates
+  nothing, and is `nil` met with anything but `any` (`nothingOr`).
+- `spec/Aontu/Verdict.lean`: `bndOf` makes `Val.nothing` of a bound over
+  an argument outside its domain, `Val.noEnd` reading a kind, a bound, a
+  pattern and a meet as one too, and refuses a bound over a choice
+  (`Val.isChoice`). A `neq` over a sole list that isn't empty reads the
+  list's elements as its arguments, as both engines read `neq([1, 3])`
+  as `neq(1, 3)`. `resolveD` makes a size over a term outside `len`'s
+  domain `Val.nothing` too, so that it refuses at the meet, as both
+  engines do, even beside a field that generates nothing.
+- `spec/Oracle.lean`: `boundArgCases` gains ten cases, rows bd102 to
+  bd131 of `test/spec/def-path.tsv`. `mulof` over a path to `0` and to
+  `-3`, `len` over a path to a string and `min` over a path to a meet
+  of bounds are each `invalid`. A kind and `any` the data fills are
+  `valid`. A preference, a disjunction, and a disjunction the data
+  fills are each an `error`. Rows bd45 to bd71 and bd78 to bd80 read
+  `invalid` where they read `error`, as both engines now answer, and
+  both answer every row as the definition does. Fourteen more cases,
+  rows bd132 to bd173, hold `min($.lo) & integer` over a path to `true`
+  an error, as `min(true) & integer` is; `neq` over a sole list, written
+  and through a path, a choice among its elements an error and a list
+  among them or an empty list admitting nothing; and `len` over `any`,
+  written and through a path, and over a trial, admitting no size, a
+  rider and a meet with `any` read through.
+- The tutorial and the reference describe the reading, and the
+  reference no longer cites #509.
+
 ### The definition reads `emit`
 
 Definition, generated rows, and documentation. No engine changes. A P9
