@@ -423,8 +423,8 @@ on. The open items of P1 to P5 come before them:
 each read mode's reading of a number (P1), `open()` and the way out of
 a `type()` seal it gives (P2), two
 recursions of one shape under different names (P5), decisions 16 to
-18 and 21 to 28, each ruled on 2026-10-23 and built as §7 records it,
-and #403, a selection inside a recursive name's body.
+18 and 21 to 28, each ruled on 2026-10-23 and to be built as §7 records
+it, and #403, a selection inside a recursive name's body.
 
 Outside the definition by design, whatever phase lands: text, which is
 the grammar's and each port's reader's (the lexical structure, the
