@@ -662,9 +662,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             args.push(next);
         }
         if (settled) {
-            // The residual the atom always meant, at this atom's site: a
-            // bound's stands against the top, unless an argument it reads, a
-            // sole list's element among them, is a choice.
+            // The residual the atom always meant, at this atom's site: a bound's
+            // stands against the top, unless an argument it reads is a choice.
             const built = new ConstraintVal({ peg: args, atom: pend.atom }, ctx);
             built.path = this.path;
             built.site.row = this.site.row;

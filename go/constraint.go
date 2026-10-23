@@ -941,8 +941,7 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 
 	if settled {
 		// A bound's residual stands against the top, but a choice in the
-		// arguments it reads, a sole list's elements among them, is no
-		// argument; any other peer meets the residual.
+		// arguments it reads is no argument; any other peer meets it.
 		if (nil == peer || isTop(peer)) && boundAtom(c.pending.atom) && !holdsChoice(atomArgs(c.pending.atom, args)) {
 			return built
 		}
