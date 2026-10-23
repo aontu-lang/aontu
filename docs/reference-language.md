@@ -6261,7 +6261,7 @@ atom's own arithmetic: `len(min(5) & max(3))` is empty at composition
 time whatever map it meets, because the inner interval is empty on its
 own.
 
-`len(c)` is a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), judging a string, a list or a map as `c` judges its size, an integer, and refusing a scalar, which has no size; `len_le_len` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carries the order of `c` to it where the general `c` is in `len`'s domain, so `len(1)` is below `len(number)` but not below `len(any)`, which admits no size, and a container literal longer than its size allows is a conflict of the schema, an `error`, as both engines answer. `sizeClash` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads the size with its lower ends dropped against the count of what the literal generates, so an exclusion or a multiple the count breaks is a conflict too, as in `len(neq(2)) & {x: 1, y: 2}`. Generation tries a literal shorter than its size, after the fills, and refuses it unless the data brings the members it lacks.
+`len(c)` is a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), judging a string, a list or a map as `c` judges its size, an integer, and refusing a scalar, which has no size; `len_le_len` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carries the order of `c` to it where the general `c` is in `len`'s domain, so `len(1)` is below `len(number)` but not below `len(any)`, which admits no size, and a container literal longer than its size allows is a conflict of the schema, an `error`, as both engines answer. `meetClash` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads the size with its lower ends dropped against the count of the members a container holds where the meet reads it, each one it requires a container or a value that generates, so an exclusion or a multiple the count breaks is a conflict too, as in `len(neq(2)) & {x: 1, y: 2}`, while `len(1) & [1, integer]` waits for its second member. `Val.staged` reads each such conflict as `nil` where it stands, so a clashing arm drops, and a container the data gives too long for its size is `invalid` at the meet whatever else is incomplete. Generation tries a literal shorter than its size, after the fills, and refuses it unless the data brings the members it lacks.
 
 ### Sizing atoms fold last
 
@@ -6393,7 +6393,7 @@ needs the same key on the specific side (distinctness on `port` says
 nothing about distinctness on `name`) while a specific that adds a
 key still subsumes, because more distinctness is narrower.
 
-`unique()` and `unique(k)` are rules of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), comparing members, or the values under `k`, as values by `Data.Same` in [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean), and refusing a scalar, which has no members.
+`unique()` and `unique(k)` are rules of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), comparing members, or the values under `k`, as values by `Data.Same` in [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean), and refusing a scalar, which has no members. Where the meet reads a container's members, two written alike are a conflict there (`Val.refusesAtMeet`), so `unique() & [1, 1]` is an `error` and `unique()` against the data `[1, 1]` is `invalid` whatever else is incomplete.
 
 ### Cross-field bounds and residuation
 
@@ -6620,7 +6620,7 @@ compares members as aontu values: read through `vet --exact-numbers`,
 `1.0` in the data is `1`, so a list of both is refused as JSON Schema
 refuses it.
 
-`contains(c, n)` counts the members `c` admits and judges the count as `n` judges it: `judge_contains_empty` and `contains_refuses_scalar` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean).
+`contains(c, n)` counts the members `c` admits and judges the count as `n` judges it: `judge_contains_empty` and `contains_refuses_scalar` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean). Where the meet reads a container's members, a count above `n`'s upper end is a conflict there (`Val.refusesAtMeet`), as `contains(number, max(1)) & [1, 2]` is.
 
 ### Band B: `rest`
 

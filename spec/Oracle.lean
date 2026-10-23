@@ -432,7 +432,13 @@ generates an empty map or list, which isn't counted (decision 19); and
 a size that holds a disjunction or a preference, alone, met with a
 literal and under a rider, ill-formed (decision 16), beside a choice
 the meet, a dead arm or arms written alike settle to one arm, which
-is that arm's size. -/
+is that arm's size; and, beside a member that generates nothing, what
+the meet refuses where it reads a container (#529): the data's
+container too long for a size, two members alike under `unique()` or
+at `unique("k")`'s key, and more than `contains` counts, each refused
+at the meet, while a literal short of its size waits; a literal whose
+member generates nothing yet, which waits, a nested container, which
+counts, a clashing arm, which drops, and a clashing optional member. -/
 def lenCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
@@ -442,6 +448,9 @@ def lenCases : List (Val × Data) :=
   let xy : Val := mp [("x", false, int 1), ("y", false, int 2)]
   let dxy : Data := .map [("x", j 1), ("y", j 2)]
   let dxyz : Data := .map [("x", j 1), ("y", j 2), ("z", j 3)]
+  let nt (t : Val) : Val := mp [("n", false, .any), ("t", false, t)]
+  let dt (x : Data) : Data := .map [("t", x)]
+  let d0 : Data := .map []
   [(.meet (.len (.max (nb 1))) xy, dxy),
     (.meet (.len (.max (nb 1))) (mp [("x", true, int 1), ("y", true, int 2)]), .map []),
     (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, .integer)]), .map [("x", j 1)]),
@@ -485,7 +494,44 @@ def lenCases : List (Val × Data) :=
     (.len (.or [(0, .integer), (0, .integer)]), .list [j 1]),
     (.len (.or [(0, int 1), (0, .lit (.num (.float (.dyadic 1 0))))]), .list [j 1]),
     (.len (.or [(0, .meet (.min (nb 1)) (.max (nb 1))), (0, int 1)]), .list [j 1]),
-    (.len (.or [(0, .meet (.min (nb 1)) (.max (nb 0))), (0, int 1)]), .list [j 1])]
+    (.len (.or [(0, .meet (.min (nb 1)) (.max (nb 0))), (0, int 1)]), .list [j 1]),
+    (nt (.len (int 1)), dt (.list [j 1, j 2])),
+    (nt (.len (int 1)), dt (.map [("a", j 1), ("b", j 2)])),
+    (nt (.len (int 3)), dt (.list [j 1, j 2])),
+    (nt (.len (.neq [nb 2])), dt (.list [j 1, j 2])),
+    (nt (.len (.beneath (nb 2))), dt (.list [j 1, j 2])),
+    (nt (.len (.above (nb 2))), dt (.list [j 1, j 2])),
+    (nt (ls [.len (int 1)]), dt (.list [.list [j 1, j 2]])),
+    (nt (.meet (.len (int 1)) (.list [] (some .integer) false)), dt (.list [j 1, j 2])),
+    (nt (.meet (.len (int 2)) (mp [("a", false, int 1)])), dt (.map [("b", j 2), ("c", j 3)])),
+    (nt (.len (int 3)), dt (.str "ab")),
+    (nt (.unique none), dt (.list [j 1, j 1])),
+    (nt (.unique none), dt (.list [j 1, j 2])),
+    (nt (.meet (.unique none) (ls [int 1, .integer])), dt (.list [j 1, j 1])),
+    (nt (.unique (some "k")), dt (.list [.map [("k", j 1)], .map [("k", j 1)]])),
+    (nt (.contains (int 1) (.max (nb 1))), dt (.list [j 1, j 1])),
+    (nt (.contains (int 1) (int 0)), dt (.list [j 1])),
+    (nt (.contains (int 1) (.min (nb 1))), dt (.list [j 2])),
+    (nt (.meet (.contains (int 1) (.max (nb 1))) (ls [int 1, .integer])), dt (.list [j 1, j 1])),
+    (nt (.meet (.len (int 1)) (ls [int 1, .integer])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, .string])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, .or [(0, int 2), (0, int 3)]])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, .or [(1, int 2), (0, int 3)]])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, mp [("a", false, .integer)]])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, ls [.integer]])), d0),
+    (nt (.meet (.len (int 1)) (mp [("a", false, int 1), ("b", true, .integer)])), d0),
+    (nt (.meet (.unique none) (ls [int 1, int 1])), d0),
+    (nt (.meet (.unique none) (ls [.integer, .integer])), d0),
+    (nt (.meet (.unique none) (ls [.or [(1, int 1), (0, int 2)], int 1])), d0),
+    (nt (.meet (.unique none) (ls [mp [("a", false, .integer)], mp [("a", false, .integer)]])), d0),
+    (nt (.meet (.unique (some "k")) (ls [mp [("k", false, int 1)], mp [("k", false, int 1)]])), d0),
+    (nt (.meet (.contains (int 1) (.max (nb 1))) (ls [int 1, int 1])), d0),
+    (nt (.meet (.contains (int 1) (.max (nb 1))) (ls [.integer, .integer])), d0),
+    (nt (.or [(0, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)]), d0),
+    (nt (.or [(0, .len (int 1)), (0, .listKind)]), dt (.list [j 1, j 2])),
+    (nt (.or [(0, .len (int 1)), (0, .string)]), dt (.list [j 1, j 2])),
+    (nt (.map [("a", true, .meet (.len (int 1)) (ls [int 1, int 2]))] none false), d0),
+    (mp [("t", false, .len (int 1))], dt (.list [j 1, j 2]))]
 
 theorem lenCases_checkable : ∀ c ∈ lenCases, (vetDoc c).1.CheckableA := by decide
 

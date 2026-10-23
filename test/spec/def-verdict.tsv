@@ -318,6 +318,117 @@ l125	verdict	v: len(((min(1)) & (max(1))) | (1))	v: [1]	{"verdict":"error","opts
 l126	verdict	v: len(((min(1)) & (max(0))) | (1))	v: [1]	{"verdict":"valid"}
 l127	verdict	v: len(((min(1)) & (max(0))) | (1))	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
 l128	verdict	v: len(((min(1)) & (max(0))) | (1))	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+l129	verdict	v: {"n": any, "t": len(1)}	v: {"t": [1, 2]}	{"verdict":"invalid"}
+l130	verdict	v: {"n": any, "t": len(1)}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"noFill":true}}
+l131	verdict	v: {"n": any, "t": len(1)}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"partial":true}}
+l132	verdict	v: {"n": any, "t": len(1)}	v: {"t": {"a": 1, "b": 2}}	{"verdict":"invalid"}
+l133	verdict	v: {"n": any, "t": len(1)}	v: {"t": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+l134	verdict	v: {"n": any, "t": len(1)}	v: {"t": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+l135	verdict	v: {"n": any, "t": len(3)}	v: {"t": [1, 2]}	{"verdict":"incomplete"}
+l136	verdict	v: {"n": any, "t": len(3)}	v: {"t": [1, 2]}	{"verdict":"incomplete","opts":{"noFill":true}}
+l137	verdict	v: {"n": any, "t": len(3)}	v: {"t": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+l138	verdict	v: {"n": any, "t": len(neq(2))}	v: {"t": [1, 2]}	{"verdict":"invalid"}
+l139	verdict	v: {"n": any, "t": len(neq(2))}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"noFill":true}}
+l140	verdict	v: {"n": any, "t": len(neq(2))}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"partial":true}}
+l141	verdict	v: {"n": any, "t": len(below(2))}	v: {"t": [1, 2]}	{"verdict":"invalid"}
+l142	verdict	v: {"n": any, "t": len(below(2))}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"noFill":true}}
+l143	verdict	v: {"n": any, "t": len(below(2))}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"partial":true}}
+l144	verdict	v: {"n": any, "t": len(above(2))}	v: {"t": [1, 2]}	{"verdict":"incomplete"}
+l145	verdict	v: {"n": any, "t": len(above(2))}	v: {"t": [1, 2]}	{"verdict":"incomplete","opts":{"noFill":true}}
+l146	verdict	v: {"n": any, "t": len(above(2))}	v: {"t": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+l147	verdict	v: {"n": any, "t": [len(1)]}	v: {"t": [[1, 2]]}	{"verdict":"invalid"}
+l148	verdict	v: {"n": any, "t": [len(1)]}	v: {"t": [[1, 2]]}	{"verdict":"invalid","opts":{"noFill":true}}
+l149	verdict	v: {"n": any, "t": [len(1)]}	v: {"t": [[1, 2]]}	{"verdict":"invalid","opts":{"partial":true}}
+l150	verdict	v: {"n": any, "t": (len(1)) & ([&: integer])}	v: {"t": [1, 2]}	{"verdict":"invalid"}
+l151	verdict	v: {"n": any, "t": (len(1)) & ([&: integer])}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"noFill":true}}
+l152	verdict	v: {"n": any, "t": (len(1)) & ([&: integer])}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"partial":true}}
+l153	verdict	v: {"n": any, "t": (len(2)) & ({"a": 1})}	v: {"t": {"b": 2, "c": 3}}	{"verdict":"invalid"}
+l154	verdict	v: {"n": any, "t": (len(2)) & ({"a": 1})}	v: {"t": {"b": 2, "c": 3}}	{"verdict":"invalid","opts":{"noFill":true}}
+l155	verdict	v: {"n": any, "t": (len(2)) & ({"a": 1})}	v: {"t": {"b": 2, "c": 3}}	{"verdict":"invalid","opts":{"partial":true}}
+l156	verdict	v: {"n": any, "t": len(3)}	v: {"t": "ab"}	{"verdict":"invalid"}
+l157	verdict	v: {"n": any, "t": len(3)}	v: {"t": "ab"}	{"verdict":"invalid","opts":{"noFill":true}}
+l158	verdict	v: {"n": any, "t": len(3)}	v: {"t": "ab"}	{"verdict":"invalid","opts":{"partial":true}}
+l159	verdict	v: {"n": any, "t": unique()}	v: {"t": [1, 1]}	{"verdict":"invalid"}
+l160	verdict	v: {"n": any, "t": unique()}	v: {"t": [1, 1]}	{"verdict":"invalid","opts":{"noFill":true}}
+l161	verdict	v: {"n": any, "t": unique()}	v: {"t": [1, 1]}	{"verdict":"invalid","opts":{"partial":true}}
+l162	verdict	v: {"n": any, "t": unique()}	v: {"t": [1, 2]}	{"verdict":"incomplete"}
+l163	verdict	v: {"n": any, "t": unique()}	v: {"t": [1, 2]}	{"verdict":"incomplete","opts":{"noFill":true}}
+l164	verdict	v: {"n": any, "t": unique()}	v: {"t": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+l165	verdict	v: {"n": any, "t": (unique()) & ([1, integer])}	v: {"t": [1, 1]}	{"verdict":"invalid"}
+l166	verdict	v: {"n": any, "t": (unique()) & ([1, integer])}	v: {"t": [1, 1]}	{"verdict":"invalid","opts":{"noFill":true}}
+l167	verdict	v: {"n": any, "t": (unique()) & ([1, integer])}	v: {"t": [1, 1]}	{"verdict":"invalid","opts":{"partial":true}}
+l168	verdict	v: {"n": any, "t": unique("k")}	v: {"t": [{"k": 1}, {"k": 1}]}	{"verdict":"invalid"}
+l169	verdict	v: {"n": any, "t": unique("k")}	v: {"t": [{"k": 1}, {"k": 1}]}	{"verdict":"invalid","opts":{"noFill":true}}
+l170	verdict	v: {"n": any, "t": unique("k")}	v: {"t": [{"k": 1}, {"k": 1}]}	{"verdict":"invalid","opts":{"partial":true}}
+l171	verdict	v: {"n": any, "t": contains(1, max(1))}	v: {"t": [1, 1]}	{"verdict":"invalid"}
+l172	verdict	v: {"n": any, "t": contains(1, max(1))}	v: {"t": [1, 1]}	{"verdict":"invalid","opts":{"noFill":true}}
+l173	verdict	v: {"n": any, "t": contains(1, max(1))}	v: {"t": [1, 1]}	{"verdict":"invalid","opts":{"partial":true}}
+l174	verdict	v: {"n": any, "t": contains(1, 0)}	v: {"t": [1]}	{"verdict":"invalid"}
+l175	verdict	v: {"n": any, "t": contains(1, 0)}	v: {"t": [1]}	{"verdict":"invalid","opts":{"noFill":true}}
+l176	verdict	v: {"n": any, "t": contains(1, 0)}	v: {"t": [1]}	{"verdict":"invalid","opts":{"partial":true}}
+l177	verdict	v: {"n": any, "t": contains(1)}	v: {"t": [2]}	{"verdict":"incomplete"}
+l178	verdict	v: {"n": any, "t": contains(1)}	v: {"t": [2]}	{"verdict":"incomplete","opts":{"noFill":true}}
+l179	verdict	v: {"n": any, "t": contains(1)}	v: {"t": [2]}	{"verdict":"valid","opts":{"partial":true}}
+l180	verdict	v: {"n": any, "t": (contains(1, max(1))) & ([1, integer])}	v: {"t": [1, 1]}	{"verdict":"invalid"}
+l181	verdict	v: {"n": any, "t": (contains(1, max(1))) & ([1, integer])}	v: {"t": [1, 1]}	{"verdict":"invalid","opts":{"noFill":true}}
+l182	verdict	v: {"n": any, "t": (contains(1, max(1))) & ([1, integer])}	v: {"t": [1, 1]}	{"verdict":"invalid","opts":{"partial":true}}
+l183	verdict	v: {"n": any, "t": (len(1)) & ([1, integer])}	v: {}	{"verdict":"incomplete"}
+l184	verdict	v: {"n": any, "t": (len(1)) & ([1, integer])}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+l185	verdict	v: {"n": any, "t": (len(1)) & ([1, integer])}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+l186	verdict	v: {"n": any, "t": (len(1)) & ([1, string])}	v: {}	{"verdict":"incomplete"}
+l187	verdict	v: {"n": any, "t": (len(1)) & ([1, string])}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+l188	verdict	v: {"n": any, "t": (len(1)) & ([1, string])}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+l189	verdict	v: {"n": any, "t": (len(1)) & ([1, (2) | (3)])}	v: {}	{"verdict":"incomplete"}
+l190	verdict	v: {"n": any, "t": (len(1)) & ([1, (2) | (3)])}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+l191	verdict	v: {"n": any, "t": (len(1)) & ([1, (2) | (3)])}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+l192	verdict	v: {"n": any, "t": (len(1)) & ([1, *(2) | (3)])}	v: {}	{"verdict":"error"}
+l193	verdict	v: {"n": any, "t": (len(1)) & ([1, *(2) | (3)])}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+l194	verdict	v: {"n": any, "t": (len(1)) & ([1, *(2) | (3)])}	v: {}	{"verdict":"error","opts":{"partial":true}}
+l195	verdict	v: {"n": any, "t": (len(1)) & ([1, {"a": integer}])}	v: {}	{"verdict":"error"}
+l196	verdict	v: {"n": any, "t": (len(1)) & ([1, {"a": integer}])}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+l197	verdict	v: {"n": any, "t": (len(1)) & ([1, {"a": integer}])}	v: {}	{"verdict":"error","opts":{"partial":true}}
+l198	verdict	v: {"n": any, "t": (len(1)) & ([1, [integer]])}	v: {}	{"verdict":"error"}
+l199	verdict	v: {"n": any, "t": (len(1)) & ([1, [integer]])}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+l200	verdict	v: {"n": any, "t": (len(1)) & ([1, [integer]])}	v: {}	{"verdict":"error","opts":{"partial":true}}
+l201	verdict	v: {"n": any, "t": (len(1)) & ({"a": 1, "b"?: integer})}	v: {}	{"verdict":"incomplete"}
+l202	verdict	v: {"n": any, "t": (len(1)) & ({"a": 1, "b"?: integer})}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+l203	verdict	v: {"n": any, "t": (len(1)) & ({"a": 1, "b"?: integer})}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+l204	verdict	v: {"n": any, "t": (unique()) & ([1, 1])}	v: {}	{"verdict":"error"}
+l205	verdict	v: {"n": any, "t": (unique()) & ([1, 1])}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+l206	verdict	v: {"n": any, "t": (unique()) & ([1, 1])}	v: {}	{"verdict":"error","opts":{"partial":true}}
+l207	verdict	v: {"n": any, "t": (unique()) & ([integer, integer])}	v: {}	{"verdict":"incomplete"}
+l208	verdict	v: {"n": any, "t": (unique()) & ([integer, integer])}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+l209	verdict	v: {"n": any, "t": (unique()) & ([integer, integer])}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+l210	verdict	v: {"n": any, "t": (unique()) & ([*(1) | (2), 1])}	v: {}	{"verdict":"incomplete"}
+l211	verdict	v: {"n": any, "t": (unique()) & ([*(1) | (2), 1])}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+l212	verdict	v: {"n": any, "t": (unique()) & ([*(1) | (2), 1])}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+l213	verdict	v: {"n": any, "t": (unique()) & ([{"a": integer}, {"a": integer}])}	v: {}	{"verdict":"error"}
+l214	verdict	v: {"n": any, "t": (unique()) & ([{"a": integer}, {"a": integer}])}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+l215	verdict	v: {"n": any, "t": (unique()) & ([{"a": integer}, {"a": integer}])}	v: {}	{"verdict":"error","opts":{"partial":true}}
+l216	verdict	v: {"n": any, "t": (unique("k")) & ([{"k": 1}, {"k": 1}])}	v: {}	{"verdict":"error"}
+l217	verdict	v: {"n": any, "t": (unique("k")) & ([{"k": 1}, {"k": 1}])}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+l218	verdict	v: {"n": any, "t": (unique("k")) & ([{"k": 1}, {"k": 1}])}	v: {}	{"verdict":"error","opts":{"partial":true}}
+l219	verdict	v: {"n": any, "t": (contains(1, max(1))) & ([1, 1])}	v: {}	{"verdict":"error"}
+l220	verdict	v: {"n": any, "t": (contains(1, max(1))) & ([1, 1])}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+l221	verdict	v: {"n": any, "t": (contains(1, max(1))) & ([1, 1])}	v: {}	{"verdict":"error","opts":{"partial":true}}
+l222	verdict	v: {"n": any, "t": (contains(1, max(1))) & ([integer, integer])}	v: {}	{"verdict":"incomplete"}
+l223	verdict	v: {"n": any, "t": (contains(1, max(1))) & ([integer, integer])}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+l224	verdict	v: {"n": any, "t": (contains(1, max(1))) & ([integer, integer])}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+l225	verdict	v: {"n": any, "t": ((len(1)) & ([1, 2])) | (3)}	v: {}	{"verdict":"incomplete"}
+l226	verdict	v: {"n": any, "t": ((len(1)) & ([1, 2])) | (3)}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+l227	verdict	v: {"n": any, "t": ((len(1)) & ([1, 2])) | (3)}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+l228	verdict	v: {"n": any, "t": (len(1)) | (list)}	v: {"t": [1, 2]}	{"verdict":"incomplete"}
+l229	verdict	v: {"n": any, "t": (len(1)) | (list)}	v: {"t": [1, 2]}	{"verdict":"incomplete","opts":{"noFill":true}}
+l230	verdict	v: {"n": any, "t": (len(1)) | (list)}	v: {"t": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+l231	verdict	v: {"n": any, "t": (len(1)) | (string)}	v: {"t": [1, 2]}	{"verdict":"invalid"}
+l232	verdict	v: {"n": any, "t": (len(1)) | (string)}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"noFill":true}}
+l233	verdict	v: {"n": any, "t": (len(1)) | (string)}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"partial":true}}
+l234	verdict	v: {"n": any, "t": {"a"?: (len(1)) & ([1, 2])}}	v: {}	{"verdict":"error"}
+l235	verdict	v: {"n": any, "t": {"a"?: (len(1)) & ([1, 2])}}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+l236	verdict	v: {"n": any, "t": {"a"?: (len(1)) & ([1, 2])}}	v: {}	{"verdict":"error","opts":{"partial":true}}
+l237	verdict	v: {"t": len(1)}	v: {"t": [1, 2]}	{"verdict":"invalid"}
+l238	verdict	v: {"t": len(1)}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"noFill":true}}
+l239	verdict	v: {"t": len(1)}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"partial":true}}
 h0	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid"}
 h1	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
 h2	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid","opts":{"partial":true}}

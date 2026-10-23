@@ -570,7 +570,23 @@ each stands here until the phase that encodes it lands.
    clash does. The verdict fragment gains 48 rows, l0 on, which both
    ports answer as the definition does. A disjunctive size, which both
    ports refuse as an argument, is ill-formed since decision 16 was
-   built on 2026-10-23, with rows of its own.
+   built on 2026-10-23, with rows of its own. Measured again on
+   2026-10-23 (#529): both ports decide a size at the meet only once
+   they can read the container's members, each one it requires a
+   container or a value that generates, a marked member counting for
+   nothing, so `len(1) & [1, integer]` waits while
+   `len(1) & [1, {a: integer}]` is an `error`. They decide `unique()`
+   and `contains`'s upper count there the same way, so
+   `unique() & [1, 1]` is an `error` too, and they read the data's
+   container so: `n: any, t: len(1)` against `{"t": [1, 2]}` is
+   `invalid` in every mode, where the definition tried it at generation
+   and answered `incomplete`. A clash in a disjunction's arm drops the
+   arm, so `(len(1) & [1, 2]) | 3` stands. **Built 2026-10-23** as
+   `meetClash` and `Val.staged` in `spec/Aontu/Verdict.lean`, in place
+   of `sizeClash`: the verdict reads the normal form with each meet that
+   clashes read as `nil`, an `error` in the schema and `invalid` in its
+   meet with the data. The verdict fragment gains rows l129 to l239,
+   which both ports answer as the definition does.
 10. **The marks in the definition.** Raised 2026-10-19 by P5.
    `type()` and `hide()` are no terms of the definition, which holds
    semantics only (§1), yet the `gen` profile of `subsume` compares
