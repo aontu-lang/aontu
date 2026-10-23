@@ -13,26 +13,29 @@ each change affects.
 Both engines, the definition, generated rows, and documentation.
 Ruling 27 of the design note's §7 (#445).
 
-- TS (`ts/src/val/CopyFuncVal.ts`) and Go (`go/func.go`): `copy` reads
-  an argument that is no reference before it copies it, and clears the
-  marks and the seal of what it reads, at every depth. A literal's
-  marks and seal now clear as a reference's always did:
-  `copy(hide(1))` is visible, and `copy(close({a: 1}))` admits
-  `{a: 1, b: 2}` and meets `{b: 2}`, where before it was sealed. A bare
-  reference is still copied as written, so that it clears what it reads
-  where it lands. An argument that never settles leaves the copy
-  waiting, so `x: copy(2+{a:1})` keeps its canon as `copy(2+{"a":1})`
-  and is the same error (`func.tsv`).
+- TS (`ts/src/val/CopyFuncVal.ts`) and Go (`go/func.go`, `stripMarks`):
+  `copy` copies its argument as written, so that each reference in it
+  reads where the copy lands, and drops each `hide()`, `type()` and
+  `close()` the argument writes, at every depth, reading each reference
+  in it as the copy's, which clears the marks and the seal of what it
+  brings. A literal's marks and seal now clear as a reference's always
+  did: `copy(hide(1))` is visible, and `copy(close({a: 1}))` admits
+  `{a: 1, b: 2}` and meets `{b: 2}`, where before it was sealed. A
+  member that refers to its sibling still reads, so `copy({a: .b, b: 1})`
+  is `{"a": 1, "b": 1}`, and `copy(close({a: .b, b: 1}))`, which was an
+  error, reads so too.
 - `spec/Aontu/Arith.lean`: `Fn.copy`. `spec/Aontu/Verdict.lean`:
   `callTerm` makes a `copy` its argument's normal form, with its marks
   cleared (`Val.unmark`) and every map and list in it unsealed
   (`Val.unseal`, new, with `Val.CheckableA.unseal`).
-- `spec/Oracle.lean`: `copyCases`, rows cp0 to cp59 of
+- `spec/Oracle.lean`: `copyCases`, rows cp0 to cp80 of
   `test/spec/def-path.tsv`, a sealed map and list, a seal at depth and
   in a meet, a hidden and a typed value alone and under a key, a path
   to a sealed, a typed and a hidden value, a name for a sealed and a
-  typed map, and a copy met with a map. Both ports answer every row as
-  the definition does. The forms list gains `copy`.
+  typed map, a copy met with a map, a literal whose member refers to
+  its sibling, alone, met with a map and copied twice, and a hidden
+  value met with absence and preferred in a disjunction. Both ports
+  answer every row as the definition does. The forms list gains `copy`.
 - The tutorial's step 25 holds `copy`; the reference's `copy` entry
   and its marks section state that it unseals any argument; decision
   27, the P8 row and the definition's README record the build.

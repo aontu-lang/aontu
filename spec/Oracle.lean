@@ -1293,8 +1293,11 @@ meet; of a hidden and a typed literal, alone and under a key, beside
 data that writes the value and data that leaves it out, which the fill
 then supplies; of a path to a sealed map, a typed map and a hidden
 literal, and of a name for a sealed and a typed map; a copy met with
-another map; and, beside them, a path to the typed map, which a copy
-would open (decision 27 of the design note's §7). -/
+another map; a literal one of whose members refers to another, alone,
+met with a map and copied twice, which reads where the copy lands; a
+hidden value met with absence, and one preferred in a disjunction; and,
+beside them, a path to the typed map, which a copy would open (decision
+27 of the design note's §7). -/
 def copyCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1303,6 +1306,10 @@ def copyCases : List (Decls × Val × Data) :=
   let p (ks : List String) : Val := .path (ks.map .key)
   let cp (v : Val) : Val := .call .copy [v]
   let ab : Data := .map [("v", .map [("a", j 1), ("b", j 2)])]
+  let sib : List (String × Val) := [("a", .path [.up 1, .key "b"]), ("b", int 1)]
+  let s11 : Data := .map [("v", .map [("a", j 1), ("b", j 1)])]
+  let s112 : Data := .map [("v", .map [("a", j 1), ("b", j 1), ("c", j 2)])]
+  let hm : Val := .meet (.ride .hide (int 1) []) (.call .maybe [p ["missing"]])
   [([], m [("v", cp (sm [("a", int 1)]))], ab),
     ([], m [("v", cp (sm [("a", int 1)]))], .map [("v", .map [("a", j 1)])]),
     ([], m [("v", cp (sm [("a", int 1)]))], .map [("v", .map [("a", j 2)])]),
@@ -1323,7 +1330,14 @@ def copyCases : List (Decls × Val × Data) :=
     ([], m [("x", .ride .hide (int 1) []), ("v", cp (p ["x"]))], .map [("v", j 1)]),
     ([("T", sm [("a", int 1)])], m [("v", cp (.alias "T"))], ab),
     ([("T", .ride .type (m [("a", int 1)]) [])], m [("v", cp (.alias "T"))], ab),
-    ([], m [("v", .meet (cp (sm [("a", int 1)])) (m [("b", int 2)]))], ab)]
+    ([], m [("v", .meet (cp (sm [("a", int 1)])) (m [("b", int 2)]))], ab),
+    ([], m [("v", cp (m sib))], s11),
+    ([], m [("v", cp (m sib))], .map [("v", .map [("a", j 2), ("b", j 1)])]),
+    ([], m [("v", .meet (cp (m sib)) (m [("c", int 2)]))], s112),
+    ([], m [("v", cp (cp (m sib)))], s11),
+    ([], m [("v", cp (.or [(1, .ride .hide (int 1) []), (0, int 2)]))], .map [("v", j 1)]),
+    ([], m [("v", cp hm)], .map [("v", j 1)]),
+    ([], m [("v", cp hm)], .map [])]
 
 theorem copyCases_checkable : ∀ c ∈ copyCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

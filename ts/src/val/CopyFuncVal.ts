@@ -47,16 +47,14 @@ class CopyFuncVal extends FuncBaseVal {
     return 'copy'
   }
 
-  // A reference is copied as written, so that it clears the marks and
-  // seal where it lands; any other argument is read first.
-  prepare(_ctx: AontuContext, args: Val[]) {
-    return true === args?.[0]?.isRef ? null : args
+  prepare(_ctx: AontuContext, _args: Val[]) {
+    return null
   }
 
 
   resolve(ctx: AontuContext, args: Val[]) {
     const val = args?.[0]
-    const out = null == val || null == ctx ?
+    let out = null == val || null == ctx ?
       makeNilErr(ctx, 'invalid-arg', this) :
       val.clone(ctx)
 
@@ -65,9 +63,19 @@ class CopyFuncVal extends FuncBaseVal {
       ;(out as any).copyFound = true
     }
     else {
-      walk(out, (_key: string | number | undefined, val: Val) => {
+      // The argument lands as written: each hide(), type() and close()
+      // in it is its argument, and each reference in it is the copy's,
+      // so nothing it reads where it lands marks or seals it.
+      out = walk(out, (_key: string | number | undefined, val: any) => {
+        while ((true === val.isHideFunc || true === val.isTypeFunc || true === val.isCloseFunc)
+          && 1 === val.peg?.length) {
+          val = val.peg[0]
+        }
         val.mark.type = false
         val.mark.hide = false
+        if (true === val.isRef) {
+          val.copyFound = true
+        }
         return val
       })
       unsealTree(out)

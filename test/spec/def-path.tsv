@@ -1746,3 +1746,24 @@ cp56	verdict	%T = type({"a": 1})\n"v": copy(%T)	{"v": {"a": 1, "b": 2}}	{"verdic
 cp57	verdict	"v": (copy(close({"a": 1}))) & ({"b": 2})	{"v": {"a": 1, "b": 2}}	{"verdict":"valid"}
 cp58	verdict	"v": (copy(close({"a": 1}))) & ({"b": 2})	{"v": {"a": 1, "b": 2}}	{"verdict":"valid","opts":{"noFill":true}}
 cp59	verdict	"v": (copy(close({"a": 1}))) & ({"b": 2})	{"v": {"a": 1, "b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+cp60	verdict	"v": copy({"a": .b, "b": 1})	{"v": {"a": 1, "b": 1}}	{"verdict":"valid"}
+cp61	verdict	"v": copy({"a": .b, "b": 1})	{"v": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+cp62	verdict	"v": copy({"a": .b, "b": 1})	{"v": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+cp63	verdict	"v": copy({"a": .b, "b": 1})	{"v": {"a": 2, "b": 1}}	{"verdict":"invalid"}
+cp64	verdict	"v": copy({"a": .b, "b": 1})	{"v": {"a": 2, "b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+cp65	verdict	"v": copy({"a": .b, "b": 1})	{"v": {"a": 2, "b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+cp66	verdict	"v": (copy({"a": .b, "b": 1})) & ({"c": 2})	{"v": {"a": 1, "b": 1, "c": 2}}	{"verdict":"valid"}
+cp67	verdict	"v": (copy({"a": .b, "b": 1})) & ({"c": 2})	{"v": {"a": 1, "b": 1, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+cp68	verdict	"v": (copy({"a": .b, "b": 1})) & ({"c": 2})	{"v": {"a": 1, "b": 1, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+cp69	verdict	"v": copy(copy({"a": .b, "b": 1}))	{"v": {"a": 1, "b": 1}}	{"verdict":"valid"}
+cp70	verdict	"v": copy(copy({"a": .b, "b": 1}))	{"v": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+cp71	verdict	"v": copy(copy({"a": .b, "b": 1}))	{"v": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+cp72	verdict	"v": copy(*(hide(1)) | (2))	{"v": 1}	{"verdict":"valid"}
+cp73	verdict	"v": copy(*(hide(1)) | (2))	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+cp74	verdict	"v": copy(*(hide(1)) | (2))	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+cp75	verdict	"v": copy((hide(1)) & (maybe($.missing)))	{"v": 1}	{"verdict":"valid"}
+cp76	verdict	"v": copy((hide(1)) & (maybe($.missing)))	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+cp77	verdict	"v": copy((hide(1)) & (maybe($.missing)))	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+cp78	verdict	"v": copy((hide(1)) & (maybe($.missing)))	{}	{"verdict":"valid"}
+cp79	verdict	"v": copy((hide(1)) & (maybe($.missing)))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+cp80	verdict	"v": copy((hide(1)) & (maybe($.missing)))	{}	{"verdict":"valid","opts":{"partial":true}}

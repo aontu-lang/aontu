@@ -349,7 +349,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	newpeg := make([]Val, 0, len(f.peg))
 	newtype := f.mtype
 	newhide := f.mhide
-	if f.name == "move" || rawCopy(f) || f.name == "maybe" ||
+	if f.name == "move" || f.name == "copy" || f.name == "maybe" ||
 		generatorFuncs[f.name] {
 		newpeg = f.peg
 	} else {
@@ -508,14 +508,45 @@ func pathEq(a, b []string) bool {
 	return true
 }
 
-// A reference is copied as written, so that it clears the marks and
-// seal where it lands; copy reads any other argument first.
-func rawCopy(f *FuncVal) bool {
-	if f.name != "copy" || 0 == len(f.peg) {
-		return false
+// stripMarks reads a copy's argument as written: each hide(), type()
+// and close() call in it is its argument, and each reference in it is
+// the copy's, so nothing the argument reads where it lands marks or
+// seals it.
+func stripMarks(v Val) Val {
+	for {
+		fv, ok := v.(*FuncVal)
+		if !ok || 1 != len(fv.peg) || ("hide" != fv.name && "type" != fv.name && "close" != fv.name) {
+			break
+		}
+		v = fv.peg[0]
 	}
-	_, ok := f.peg[0].(*RefVal)
-	return ok
+	switch n := v.(type) {
+	case *RefVal:
+		n.copyFound = true
+	case *MapVal:
+		for _, k := range n.keys {
+			n.peg[k] = stripMarks(n.peg[k])
+		}
+	case *ListVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	case *ConjunctVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	case *DisjunctVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	case *PrefVal:
+		n.peg = stripMarks(n.peg)
+	case *FuncVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	}
+	return v
 }
 
 // resolve dispatches to the named function's implementation. base is
@@ -536,7 +567,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			src.copyFound = true
 			return src
 		}
-		out := clonePath(args[0], cp(base))
+		out := stripMarks(clonePath(args[0], cp(base)))
 		walkMark(out, true, false, true, false) // copy clears marks
 		unsealTree(out)
 		return out
