@@ -637,7 +637,7 @@ def Fn.takes : Fn → ℕ → Bool
   | .add, n | .sub, n | .mul, n | .div, n | .mod, n | .rem, n | .plus, n | .pick, n
   | .split, n | .each, n | .pack, n | .emit, n => n == 2
   | .neg, n | .sum, n | .least, n | .greatest, n | .super, n | .pref, n | .move, n
-  | .abnf, n | .maybe, n => n == 1
+  | .abnf, n | .maybe, n | .copy, n => n == 1
   | .join, n | .esc, n | .usc, n | .parse, n => 1 ≤ n && n ≤ 2
   | .sort, n | .upper, n | .lower, n | .nom, n => 1 ≤ n && n ≤ 3
   | .translate, n => 2 ≤ n && n ≤ 3
@@ -905,6 +905,38 @@ def preferArms : List (ℕ × Val) → List (ℕ × Val)
   termination_by structural arms => arms
 end
 
+mutual
+/-- A term with each map and list in it unsealed, at every depth
+through members, elements, arms, preferences, meets and riders: what
+`copy` makes of its argument, its marks cleared too, as a copy is open
+whatever it copies, a literal as a reference (decision 27 of the design
+note's §7). -/
+def Val.unseal : Val → Val
+  | .map fs spread _ => .map (unsealFields fs) spread false
+  | .list items spread _ => .list (unsealItems items) spread false
+  | .or arms => .or (unsealArms arms)
+  | .pref r x => .pref r x.unseal
+  | .meet a b => .meet a.unseal b.unseal
+  | .ride k v r => .ride k v.unseal r
+  | v => v
+  termination_by structural v => v
+
+def unsealFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.unseal) :: unsealFields fs
+  termination_by structural fs => fs
+
+def unsealItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.unseal :: unsealItems vs
+  termination_by structural vs => vs
+
+def unsealArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.unseal) :: unsealArms arms
+  termination_by structural arms => arms
+end
+
 /-- The name the relation kind is declared under, which no document
 can write, since a name a document writes holds no parenthesis. -/
 def relName : String := "rel()"
@@ -936,6 +968,8 @@ that a preference reads as its default, as `super(*1)` is `integer`;
 a `pref` what `Val.prefer` makes of its argument read before the normal
 form, as `super` reads it, so that a preference stays one, and a `move`
 the same, its source hidden where the document is read (`Decls.withMoves`);
+a `copy` its argument's normal form with its marks cleared and every
+map and list in it unsealed (`Val.unmark`, `Val.unseal`);
 a `refer` the path kind, the link's own value, and a `rel` the relation
 kind, `relName`, its value's links, their template met into each
 target where the document is read (`Decls.withRefers`); a bound
@@ -966,6 +1000,7 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .super, [x] => x.super
   | .pref, [x] => x.prefer
   | .move, [x] => x.prefer
+  | .copy, [x] => (normaliseD ds x).unmark.unseal
   | .refer, [] => .pathKind
   | .refer, [_] => .pathKind
   | .rel, [] => .alias relName
@@ -2640,6 +2675,69 @@ theorem prefer_checkableA {v : Val} (h : v.CheckableA) : v.prefer.CheckableA := 
   | selectLit hp hr hd _ _ _ => simp only [Val.prefer]; exact .selectLit hp hr hd
   | _ => simp only [Val.prefer]; constructor
 
+
+theorem mem_unsealFields :
+    ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
+      (k, o, w) ∈ unsealFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.unseal
+  | [], _, _, _, h => nomatch h
+  | (k', o', v') :: fs, k, o, w, h => by
+    simp only [unsealFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact ⟨v', List.mem_cons_self, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := mem_unsealFields h
+      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+
+theorem mem_unsealItems : ∀ {vs : List Val} {w : Val}, w ∈ unsealItems vs → ∃ v, v ∈ vs ∧ w = v.unseal
+  | [], _, h => nomatch h
+  | v :: vs, w, h => by
+    simp only [unsealItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, List.mem_cons_self, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := mem_unsealItems h
+      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+
+theorem mem_unsealArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
+    (r, x) ∈ unsealArms arms → ∃ a, (r, a) ∈ arms ∧ x = a.unseal
+  | [], _, _, h => nomatch h
+  | (r', a) :: arms, r, x, h => by
+    simp only [unsealArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨a, List.mem_cons_self, rfl⟩
+    · obtain ⟨b, hb, rfl⟩ := mem_unsealArms h
+      exact ⟨b, List.mem_cons_of_mem _ hb, rfl⟩
+
+/-- Unsealing a term the checker can read gives a term it can read. -/
+theorem Val.CheckableA.unseal {v : Val} (h : v.CheckableA) : v.unseal.CheckableA := by
+  induction h with
+  | @map fs spread closed _ hs ihf _ =>
+    simp only [Val.unseal]
+    refine .map (fun k o w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_unsealFields hw
+    exact ihf k o v hv
+  | @list items spread closed _ hs ihi _ =>
+    simp only [Val.unseal]
+    refine .list (fun w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_unsealItems hw
+    exact ihi v hv
+  | @or arms _ iha =>
+    simp only [Val.unseal]
+    refine .or fun r w hw => ?_
+    obtain ⟨a, hm, rfl⟩ := mem_unsealArms hw
+    exact iha r a hm
+  | pref _ ih => simp only [Val.unseal]; exact .pref ih
+  | meet _ _ iha ihb => simp only [Val.unseal]; exact .meet iha ihb
+  | ride _ ih => simp only [Val.unseal]; exact .ride ih
+  | call hargs _ => simp only [Val.unseal]; exact .call hargs
+  | len h _ => simp only [Val.unseal]; exact .len h
+  | nof hn hcs _ _ => simp only [Val.unseal]; exact .nof hn hcs
+  | must h _ => simp only [Val.unseal]; exact .must h
+  | when hc ht he _ _ _ => simp only [Val.unseal]; exact .when hc ht he
+  | contains hc hn _ _ => simp only [Val.unseal]; exact .contains hc hn
+  | rest ht h1 h2 h3 _ _ _ _ => simp only [Val.unseal]; exact .rest ht h1 h2 h3
+  | selectKey hp hr hd _ _ _ => simp only [Val.unseal]; exact .selectKey hp hr hd
+  | selectLit hp hr hd _ _ _ => simp only [Val.unseal]; exact .selectLit hp hr hd
+  | _ => simp only [Val.unseal]; constructor
+
 theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
     {args : List Val} (h : ∀ a, a ∈ args → a.CheckableA) : (callTerm ds f args).CheckableA := by
   unfold callTerm
@@ -2669,6 +2767,7 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact (h _ (by simp)).super
   · exact prefer_checkableA (h _ (by simp))
   · exact prefer_checkableA (h _ (by simp))
+  · exact (normaliseD_checkableA (ds := ds) hd (h _ (by simp))).unmark.unseal
   · exact .pathKind
   · exact .pathKind
   · exact .alias
@@ -3199,15 +3298,15 @@ def Val.bagLike : Val → Bool
 /-- The members a container literal holds where the meet reads it, as
 both ports read them there: each position of a list and each key of a
 map but a marked one, and an optional key only where its value
-generates something but an empty map or list. None where a member it
-requires is no container and generates nothing yet, whose reading
-waits for it. -/
-def Val.meetMembers : Val → Option (List Val)
+generates something but an empty map or list, each read under the
+declarations `ds`. None where a member it requires is no container and
+generates nothing yet, whose reading waits for it. -/
+def Val.meetMembers (ds : Decls) : Val → Option (List Val)
   | .list items _ _ =>
-    (items.filter fun v => !v.marked).mapM fun v => if v.bagLike || (gen v).isSome then some v else none
+    (items.filter fun v => !v.marked).mapM fun v => if v.bagLike || (genD ds v).isSome then some v else none
   | .map fs _ _ =>
-    ((fs.filter fun f => !f.2.2.marked && (!f.2.1 || (gen f.2.2).any fun x => !x.emptyBag)).map
-      (·.2.2)).mapM fun v => if v.bagLike || (gen v).isSome then some v else none
+    ((fs.filter fun f => !f.2.2.marked && (!f.2.1 || (genD ds f.2.2).any fun x => !x.emptyBag)).map
+      (·.2.2)).mapM fun v => if v.bagLike || (genD ds v).isSome then some v else none
   | _ => none
 
 /-- Whether two of the members are written alike (`Val.beq`). -/
@@ -3225,14 +3324,16 @@ def Val.keyVal (k : String) : Val → Option Val
 container literal: a size whose upper half refuses their count,
 `unique()` where two are written alike, `unique("k")` where one is no
 map holding `k` or two hold it alike, and `contains(c, n)` where `n`'s
-upper half refuses the count of those that generate a value `c` admits. -/
-def Val.refusesAtMeet (ms : List Val) : Val → Bool
-  | .len c => if h : IntegerLeaf ms.length then !check c.upperHalf (.num (.integer ⟨ms.length, h⟩)) else false
+upper half refuses the count of those that generate a value `c` admits,
+each read under the declarations `ds`, so that a name `c` holds reads
+as its body. -/
+def Val.refusesAtMeet (ds : Decls) (ms : List Val) : Val → Bool
+  | .len c => if h : IntegerLeaf ms.length then !checkR ds c.upperHalf (.num (.integer ⟨ms.length, h⟩)) else false
   | .unique none => dupAlike ms
   | .unique (some k) => ms.any (fun m => (m.keyVal k).isNone) || dupAlike (ms.filterMap (·.keyVal k))
   | .contains c n =>
-    if h : IntegerLeaf (ms.countP fun m => (gen m).any (check c)) then
-      !check n.upperHalf (.num (.integer ⟨ms.countP fun m => (gen m).any (check c), h⟩))
+    if h : IntegerLeaf (ms.countP fun m => (genD ds m).any (checkR ds c)) then
+      !checkR ds n.upperHalf (.num (.integer ⟨ms.countP fun m => (genD ds m).any (checkR ds c), h⟩))
     else false
   | _ => false
 
@@ -3242,37 +3343,100 @@ of their container literals, met, where the meet reads them
 long for its size (decision 9 of the design note's §7), two members
 alike under `unique`, and more members than `contains` counts. A literal
 short of its size is tried at generation, after the fills. -/
-def meetClash (cs : List Val) : Bool :=
-  match ((cs.filter fun v => v.genCount.isSome).foldl meet .any).meetMembers with
+def meetClash (ds : Decls) (cs : List Val) : Bool :=
+  match ((cs.filter fun v => v.genCount.isSome).foldl meet .any).meetMembers ds with
   | none => false
-  | some ms => cs.any (·.refusesAtMeet ms)
+  | some ms => cs.any (·.refusesAtMeet ds ms)
 
 mutual
 /-- A term in normal form with each meet whose conjuncts clash
 (`meetClash`) read as `nil`, and each arm so read dropped (`mkOr`): the
 conflicts both ports find at the meet, an arm's the arm's alone, and a
 member's its container's. -/
-def Val.staged : Val → Val
-  | .meet a b => if meetClash (a.conjuncts ++ b.conjuncts) then .nil else .meet a.staged b.staged
-  | .map fs spread closed => .map (stagedFields fs) spread closed
-  | .list items spread closed => .list (stagedItems items) spread closed
-  | .or arms => mkOr (stagedArms arms)
-  | .pref r x => .pref r x.staged
-  | .ride k v r => .ride k v.staged r
+def Val.staged (ds : Decls) : Val → Val
+  | .meet a b => if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.staged ds) (b.staged ds)
+  | .map fs spread closed => .map (stagedFields ds fs) spread closed
+  | .list items spread closed => .list (stagedItems ds items) spread closed
+  | .or arms => mkOr (stagedArms ds arms)
+  | .pref r x => .pref r (x.staged ds)
+  | .ride k v r => .ride k (v.staged ds) r
   | v => v
 
-def stagedFields : List (String × Bool × Val) → List (String × Bool × Val)
+def stagedFields (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
-  | (k, o, v) :: fs => (k, o, v.staged) :: stagedFields fs
+  | (k, o, v) :: fs => (k, o, v.staged ds) :: stagedFields ds fs
 
-def stagedItems : List Val → List Val
+def stagedItems (ds : Decls) : List Val → List Val
   | [] => []
-  | v :: vs => v.staged :: stagedItems vs
+  | v :: vs => v.staged ds :: stagedItems ds vs
 
-def stagedArms : List (ℕ × Val) → List (ℕ × Val)
+def stagedArms (ds : Decls) : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
-  | (r, a) :: arms => (r, a.staged) :: stagedArms arms
+  | (r, a) :: arms => (r, a.staged ds) :: stagedArms ds arms
 end
+
+theorem mem_stagedFields {ds : Decls} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val}
+    (h : (k, o, w) ∈ stagedFields ds fs) : ∃ v, (k, o, v) ∈ fs ∧ w = v.staged ds := by
+  induction fs with
+  | nil => simp [stagedFields] at h
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    simp only [stagedFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact ⟨v', .head _, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := ih h
+      exact ⟨v, .tail _ hv, rfl⟩
+
+theorem mem_stagedItems {ds : Decls} {items : List Val} {w : Val} (h : w ∈ stagedItems ds items) :
+    ∃ v, v ∈ items ∧ w = v.staged ds := by
+  induction items with
+  | nil => simp [stagedItems] at h
+  | cons v vs ih =>
+    simp only [stagedItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, .head _, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := ih h
+      exact ⟨u, .tail _ hu, rfl⟩
+
+theorem mem_stagedArms {ds : Decls} {arms : List (ℕ × Val)} {p : ℕ × Val} (h : p ∈ stagedArms ds arms) :
+    ∃ a, (p.1, a) ∈ arms ∧ p.2 = a.staged ds := by
+  induction arms with
+  | nil => simp [stagedArms] at h
+  | cons q arms ih =>
+    obtain ⟨r, a⟩ := q
+    simp only [stagedArms, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨a, .head _, rfl⟩
+    · obtain ⟨b, hb, he⟩ := ih h
+      exact ⟨b, .tail _ hb, he⟩
+
+/-- Staging keeps a term the checker reads one it reads. -/
+theorem staged_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (v.staged ds).CheckableA := by
+  induction h with
+  | meet _ _ iha ihb =>
+    simp only [Val.staged]
+    split
+    · exact .nil
+    · exact .meet iha ihb
+  | @map fs spread closed _ hs ihf _ =>
+    simp only [Val.staged]
+    refine .map (fun k o w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_stagedFields hw
+    exact ihf k o v hv
+  | @list items spread closed _ hs ihi _ =>
+    simp only [Val.staged]
+    refine .list (fun w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_stagedItems hw
+    exact ihi v hv
+  | @or arms _ ih =>
+    simp only [Val.staged]
+    refine mkOr_checkableA fun p hp => ?_
+    obtain ⟨a, ha, he⟩ := mem_stagedArms hp
+    rw [he]
+    exact ih p.1 a ha
+  | pref _ ih => simp only [Val.staged]; exact .pref ih
+  | ride _ ih => simp only [Val.staged]; exact .ride ih
+  | _ => simp only [Val.staged]; constructor <;> assumption
 
 /-- Whether two arms are written alike: the same literal, the same
 numeric kind or the same bound, which both ports read as one arm, so
@@ -3485,16 +3649,16 @@ def Decls.bodyIll (ds : Decls) : Bool :=
   let ws := ds.waitNames
   let w : String → Bool := fun n => ws.contains n
   let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced w fun _ => false)
-  let ill : Val → Bool := fun t => (normaliseD d0 (d0.readU t)).staged.illFormed
+  let ill : Val → Bool := fun t => ((normaliseD d0 (d0.readU t)).staged d0).illFormed
   let du : Decls := ds.map fun d => (d.1, d.2.unplaced w ill)
   du.any fun d => d.1.toList.head? != some '!' &&
-    ((normaliseD du (du.readU (.alias d.1))).staged.illFormed || (normaliseD du (du.readU d.2)).staged.illFormed)
+    (((normaliseD du (du.readU (.alias d.1))).staged du).illFormed || ((normaliseD du (du.readU d.2)).staged du).illFormed)
 
 /-- Whether a document does not stand: an `ident()` out of its place, a
 declaration's body that does not stand, or the schema, read, with a
 normal form that does not stand. -/
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || (normaliseD ds (ds.readR S)).staged.illFormed
+  ds.identMisplaced S || ds.bodyIll || ((normaliseD ds (ds.readR S)).staged ds).illFormed
 
 /-! ## The value a document gives with its trials unread
 
@@ -3656,44 +3820,44 @@ expansion with its selections made: `error` where the document refers to a name 
 declare, where its names break the alias-cycle rule, where an
 `ident()` stands out of its place, or where the schema's normal form,
 staged, does not stand; `invalid` where the meet of the schema with the
-data as a term is dead once staged (`Val.staged`), so that a conflict
-the meet finds refuses the data's container, or refuses, read whole,
+data as a term, staged (`Val.staged`) so that a conflict the meet finds
+is `nil` and an arm holding one drops, is dead, or refuses, read whole,
 the value it gives with its trials and sizes unread; `valid` where the
-meet singles out a value,
-and without the fill where the data as written is an instance of the
-visible part of the schema's normal form too, or where `--partial` lets
-the unresolved pass; and `incomplete` otherwise. -/
+staged meet singles out a value, and without the fill where the data as
+written is an instance of the visible part of the schema's normal form,
+staged, too, or where `--partial` lets the unresolved pass; and
+`incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged.dead = true ∨
-        RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)))
+      (((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = true ∨
+        RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (normaliseD ds (meetD ds (ds.readR S) j.term)).staged.dead = false ∧
-      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
+      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = false ∧
+      ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) ∧
       (m.lax = true ∨
-        ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
-          (m.fill = true ∨ Admits ds.envE j (normaliseD ds (ds.readR S)).visible j))
+        ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧
+          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (normaliseD ds (meetD ds (ds.readR S) j.term)).staged.dead = false ∧
-      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
+      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = false ∧
+      ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) ∧
       m.lax = false ∧
-      ¬ ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
-        (m.fill = true ∨ Admits ds.envE j (normaliseD ds (ds.readR S)).visible j)
+      ¬ ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧
+        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j)
 
 /-- The verdict, computed. -/
 def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
   if !(ds.declaresB S && ds.guardedB) then .error
   else if ds.illFormedR S then .error
-  else if (normaliseD ds (meetD ds (ds.readR S) j.term)).staged.dead then .invalid
-  else if refusedAt ds (normaliseD ds (meetD ds (ds.readR S) j.term)) then .invalid
+  else if ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead then .invalid
+  else if refusedAt ds ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) then .invalid
   else if m.lax then .valid
   else
-    match outputD ds (meetD ds (ds.readR S) j.term) with
-    | some _ => if m.fill || checkR ds (normaliseD ds (ds.readR S)).visible j then .valid else .incomplete
+    match genD ds ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible with
+    | some _ => if m.fill || checkR ds ((normaliseD ds (ds.readR S)).staged ds).visible j then .valid else .incomplete
     | none => .incomplete
 
 section
@@ -3869,32 +4033,33 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
     obtain ⟨hdB, hgB⟩ := hok
     have hD := Decls.declaresB_iff.mp hdB
     have hG := Decls.guardedB_iff.mp hgB
-    have hS' : (normaliseD ds (ds.readR S)).visible.CheckableA := (normaliseD_checkableA hb hS).visible
-    have hM' := normaliseD_checkableA hb (meetD_checkableA hb hS (Data.term_checkableA j))
+    have hS' : ((normaliseD ds (ds.readR S)).staged ds).visible.CheckableA :=
+      (staged_checkableA (ds := ds) (normaliseD_checkableA hb hS)).visible
+    have hM' := staged_checkableA (ds := ds) (normaliseD_checkableA hb (meetD_checkableA hb hS (Data.term_checkableA j)))
     cases hi : ds.illFormedR S with
     | true => exact .inr (.inr hi)
     | false =>
       rw [if_neg Bool.false_ne_true]
-      cases hd : (normaliseD ds (meetD ds (ds.readR S) j.term)).staged.dead with
+      cases hd : ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead with
       | true => exact ⟨hD, hG, hi, .inl hd⟩
       | false =>
         rw [if_neg Bool.false_ne_true]
-        cases hr : refusedAt ds (normaliseD ds (meetD ds (ds.readR S) j.term)) with
+        cases hr : refusedAt ds ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) with
         | true => exact ⟨hD, hG, hi, .inr ((refusedAt_iff hG hb hM').mp hr)⟩
         | false =>
           rw [if_neg Bool.false_ne_true]
-          have hnr : ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) := fun h => by
+          have hnr : ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) := fun h => by
             rw [(refusedAt_iff hG hb hM').mpr h] at hr
             exact nomatch hr
           cases hp : m.lax with
           | true => exact ⟨hD, hG, hi, hd, hnr, .inl hp⟩
           | false =>
             rw [if_neg Bool.false_ne_true]
-            cases ho : outputD ds (meetD ds (ds.readR S) j.term) with
+            cases ho : genD ds ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible with
             | some j' =>
-              have hout : OutputD ds j (meetD ds (ds.readR S) j.term) j' :=
-                (outputD_iff hG hb hM' j').mp ho
-              cases hc : (m.fill || checkR ds (normaliseD ds (ds.readR S)).visible j) with
+              have hout : Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' :=
+                (genWith_iff hM'.visible (fun _ j hw _ => checkR_iff hG hb hw j) j').mp ho
+              cases hc : (m.fill || checkR ds ((normaliseD ds (ds.readR S)).staged ds).visible j) with
               | true =>
                 rw [if_pos rfl]
                 refine ⟨hD, hG, hi, hd, hnr, .inr ⟨j', hout, ?_⟩⟩
@@ -3912,7 +4077,9 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
             | none =>
               refine ⟨hD, hG, hi, hd, hnr, hp, ?_⟩
               rintro ⟨j', hout, -⟩
-              rw [(outputD_iff hG hb hM' j').mpr hout] at ho
+              have hg' : genD ds ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible = some j' :=
+                (genWith_iff hM'.visible (fun _ j hw _ => checkR_iff hG hb hw j) j').mpr hout
+              rw [hg'] at ho
               exact nomatch ho
 
 /-- `vet` computes `Vet`. -/
@@ -3926,7 +4093,7 @@ theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ 
 instance of the visible part of the schema as read. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE (normaliseD ds (ds.readR S)).visible j := by
+    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -3938,19 +4105,18 @@ theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (
 is an instance of the visible part of the schema met with the data. -/
 theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
     (h : Vet m ds S j .valid) :
-    ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
-      Admits ds.envE j (normaliseD ds (meetD ds (ds.readR S) j.term)).visible j' := by
+    ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧ Admits ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' := by
   obtain ⟨-, -, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
-  · exact ⟨j', hout, outputD_admits _ _ hout⟩
+  · exact ⟨j', hout, gen_admits _ _ hout⟩
 
 /-- `invalid` refuses: the normal form of the schema met with the data,
 the conflicts the meet finds read (`Val.staged`), refuses the data as
 written, or, its trials and sizes unread, the value it would single out. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j (normaliseD ds (meetD ds (ds.readR S) j.term)).staged j ∨
-      RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) := by
+    Refuses ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) j ∨
+      RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) := by
   obtain ⟨-, -, -, hd | hr⟩ := h
   · exact .inl (dead_refuses _ hd j)
   · exact .inr hr

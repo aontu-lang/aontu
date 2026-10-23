@@ -56,23 +56,60 @@ Closes #529.
   `len(1) & [1, {a: integer}]` is an error. `Val.refusesAtMeet` and
   `meetClash` find a size's upper half refusing the count, two members
   alike under `unique()` or at `unique("k")`'s key, and more members
-  than `contains` counts, so `unique() & [1, 1]` is an error.
+  than `contains` counts, so `unique() & [1, 1]` is an error. Each
+  reads a member and a condition under the declarations (`genD`,
+  `checkR`), so `contains(%A, neq(0))` over a recursive `%A` counts a
+  member the name admits, as both ports do.
 - `Val.staged` reads each such conflict as `nil` where it stands, and
   the verdict reads the normal form so staged: `Decls.illFormedR` and
-  `Decls.bodyIll` for the error class, and the dead check of the meet
-  with the data for `invalid`. A clashing arm drops, so
-  `(len(1) & [1, 2]) | 3` stands, and a container the data gives too
-  long for its size is `invalid` at the meet whatever else is
+  `Decls.bodyIll` for the error class, and for the meet with the data
+  its dead check, its refusal, its output and the unfilled check. A
+  clashing arm drops, so `(len(1) & [1, 2]) | 3` stands and generates
+  `3` against `{}`, as both ports answer, and a container the data
+  gives too long for its size is `invalid` at the meet whatever else is
   incomplete: `n: any, t: len(1)` against `{"t": [1, 2]}` is `invalid`
   in every mode, as both ports answer, where the definition answered
   `incomplete`. `vet_invalid_refuses` states the refusal of the staged
   form.
-- `spec/Oracle.lean`: `lenCases` gains 37 cases, rows l129 to l239 of
-  `test/spec/def-verdict.tsv`. Both ports answer every l row as the
+- `spec/Oracle.lean`: `lenCases` gains 40 cases, rows l129 to l248 of
+  `test/spec/def-verdict.tsv`, and `meetNameCases` five, rows tc0 to
+  tc14 of `test/spec/def-trial.tsv`. Both ports answer every row as the
   definition does, and no other row changes.
 - The tutorial's step on the verdict, the reference's `len`, `unique`
   and `contains` notes, the definition's README and decision 9 of the
   design note's §7 describe the reading.
+
+### `copy` clears the marks and the seal of any argument
+
+Both engines, the definition, generated rows, and documentation.
+Ruling 27 of the design note's §7 (#445).
+
+- TS (`ts/src/val/CopyFuncVal.ts`) and Go (`go/func.go`, `stripMarks`):
+  `copy` copies its argument as written, so that each reference in it
+  reads where the copy lands, and drops each `hide()`, `type()` and
+  `close()` the argument writes, at every depth, reading each reference
+  in it as the copy's, which clears the marks and the seal of what it
+  brings. A literal's marks and seal now clear as a reference's always
+  did: `copy(hide(1))` is visible, and `copy(close({a: 1}))` admits
+  `{a: 1, b: 2}` and meets `{b: 2}`, where before it was sealed. A
+  member that refers to its sibling still reads, so `copy({a: .b, b: 1})`
+  is `{"a": 1, "b": 1}`, and `copy(close({a: .b, b: 1}))`, which was an
+  error, reads so too.
+- `spec/Aontu/Arith.lean`: `Fn.copy`. `spec/Aontu/Verdict.lean`:
+  `callTerm` makes a `copy` its argument's normal form, with its marks
+  cleared (`Val.unmark`) and every map and list in it unsealed
+  (`Val.unseal`, new, with `Val.CheckableA.unseal`).
+- `spec/Oracle.lean`: `copyCases`, rows cp0 to cp80 of
+  `test/spec/def-path.tsv`, a sealed map and list, a seal at depth and
+  in a meet, a hidden and a typed value alone and under a key, a path
+  to a sealed, a typed and a hidden value, a name for a sealed and a
+  typed map, a copy met with a map, a literal whose member refers to
+  its sibling, alone, met with a map and copied twice, and a hidden
+  value met with absence and preferred in a disjunction. Both ports
+  answer every row as the definition does. The forms list gains `copy`.
+- The tutorial's step 25 holds `copy`; the reference's `copy` entry
+  and its marks section state that it unseals any argument; decision
+  27, the P8 row and the definition's README record the build.
 
 ### The definition dispatches `emit` through riders and meets, and binds a body as written
 

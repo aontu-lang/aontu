@@ -429,6 +429,15 @@ l236	verdict	v: {"n": any, "t": {"a"?: (len(1)) & ([1, 2])}}	v: {}	{"verdict":"e
 l237	verdict	v: {"t": len(1)}	v: {"t": [1, 2]}	{"verdict":"invalid"}
 l238	verdict	v: {"t": len(1)}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"noFill":true}}
 l239	verdict	v: {"t": len(1)}	v: {"t": [1, 2]}	{"verdict":"invalid","opts":{"partial":true}}
+l240	verdict	v: {"t": ((len(1)) & ([1, 2])) | (3)}	v: {}	{"verdict":"valid"}
+l241	verdict	v: {"t": ((len(1)) & ([1, 2])) | (3)}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+l242	verdict	v: {"t": ((len(1)) & ([1, 2])) | (3)}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+l243	verdict	v: {"t": *((len(1)) & ([1, 2])) | (3)}	v: {}	{"verdict":"valid"}
+l244	verdict	v: {"t": *((len(1)) & ([1, 2])) | (3)}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+l245	verdict	v: {"t": *((len(1)) & ([1, 2])) | (3)}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+l246	verdict	v: {"t": *((len(1)) & ([1, 2])) | (3)}	v: {"t": 3}	{"verdict":"valid"}
+l247	verdict	v: {"t": *((len(1)) & ([1, 2])) | (3)}	v: {"t": 3}	{"verdict":"valid","opts":{"noFill":true}}
+l248	verdict	v: {"t": *((len(1)) & ([1, 2])) | (3)}	v: {"t": 3}	{"verdict":"valid","opts":{"partial":true}}
 h0	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid"}
 h1	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
 h2	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid","opts":{"partial":true}}

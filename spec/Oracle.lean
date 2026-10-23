@@ -531,7 +531,10 @@ def lenCases : List (Val × Data) :=
     (nt (.or [(0, .len (int 1)), (0, .listKind)]), dt (.list [j 1, j 2])),
     (nt (.or [(0, .len (int 1)), (0, .string)]), dt (.list [j 1, j 2])),
     (nt (.map [("a", true, .meet (.len (int 1)) (ls [int 1, int 2]))] none false), d0),
-    (mp [("t", false, .len (int 1))], dt (.list [j 1, j 2]))]
+    (mp [("t", false, .len (int 1))], dt (.list [j 1, j 2])),
+    (mp [("t", false, .or [(0, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)])], d0),
+    (mp [("t", false, .or [(1, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)])], d0),
+    (mp [("t", false, .or [(1, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)])], dt (j 3))]
 
 theorem lenCases_checkable : ∀ c ∈ lenCases, (vetDoc c).1.CheckableA := by decide
 
@@ -1332,6 +1335,65 @@ theorem prefCases_checkable : ∀ c ∈ prefCases,
 theorem pref_verdict_exact : ∀ c ∈ prefCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (prefCases_checkable c hc).1 (prefCases_checkable c hc).2 v
+
+/-- `copy` of a sealed map and a sealed list, beside data that adds to
+them and data that meets them, and of one inside a map and inside a
+meet; of a hidden and a typed literal, alone and under a key, beside
+data that writes the value and data that leaves it out, which the fill
+then supplies; of a path to a sealed map, a typed map and a hidden
+literal, and of a name for a sealed and a typed map; a copy met with
+another map; a literal one of whose members refers to another, alone,
+met with a map and copied twice, which reads where the copy lands; a
+hidden value met with absence, and one preferred in a disjunction; and,
+beside them, a path to the typed map, which a copy would open (decision
+27 of the design note's §7). -/
+def copyCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let sm (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none true
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let cp (v : Val) : Val := .call .copy [v]
+  let ab : Data := .map [("v", .map [("a", j 1), ("b", j 2)])]
+  let sib : List (String × Val) := [("a", .path [.up 1, .key "b"]), ("b", int 1)]
+  let s11 : Data := .map [("v", .map [("a", j 1), ("b", j 1)])]
+  let s112 : Data := .map [("v", .map [("a", j 1), ("b", j 1), ("c", j 2)])]
+  let hm : Val := .meet (.ride .hide (int 1) []) (.call .maybe [p ["missing"]])
+  [([], m [("v", cp (sm [("a", int 1)]))], ab),
+    ([], m [("v", cp (sm [("a", int 1)]))], .map [("v", .map [("a", j 1)])]),
+    ([], m [("v", cp (sm [("a", int 1)]))], .map [("v", .map [("a", j 2)])]),
+    ([], m [("v", cp (.list [int 1] none true))], .map [("v", .list [j 1, j 2])]),
+    ([], m [("v", cp (m [("a", sm [("x", int 1)])]))], .map [("v", .map [("a", .map [("x", j 1), ("y", j 2)])])]),
+    ([], m [("v", cp (.meet (sm [("a", int 1)]) (m [("a", int 1)])))], ab),
+    ([], m [("v", cp (.ride .hide (int 1) []))], .map [("v", j 1)]),
+    ([], m [("v", cp (.ride .hide (int 1) []))], .map []),
+    ([], m [("v", cp (.ride .type (int 1) []))], .map []),
+    ([], m [("v", cp (m [("a", .ride .hide (int 1) []), ("b", int 2)]))], .map [("v", .map [("b", j 2)])]),
+    ([], m [("v", cp (m [("a", .ride .hide (int 1) []), ("b", int 2)]))], ab),
+    ([], m [("v", cp (m [("a", .ride .type (m [("x", int 1)]) [])]))],
+      .map [("v", .map [("a", .map [("x", j 1), ("y", j 2)])])]),
+    ([], m [("v", cp (m [("a", .ride .type (m [("x", int 1)]) [])]))], .map [("v", .map [])]),
+    ([], m [("x", sm [("a", int 1)]), ("v", cp (p ["x"]))], ab),
+    ([], m [("x", .ride .type (m [("a", int 1)]) []), ("v", cp (p ["x"]))], ab),
+    ([], m [("x", .ride .type (m [("a", int 1)]) []), ("v", p ["x"])], ab),
+    ([], m [("x", .ride .hide (int 1) []), ("v", cp (p ["x"]))], .map [("v", j 1)]),
+    ([("T", sm [("a", int 1)])], m [("v", cp (.alias "T"))], ab),
+    ([("T", .ride .type (m [("a", int 1)]) [])], m [("v", cp (.alias "T"))], ab),
+    ([], m [("v", .meet (cp (sm [("a", int 1)])) (m [("b", int 2)]))], ab),
+    ([], m [("v", cp (m sib))], s11),
+    ([], m [("v", cp (m sib))], .map [("v", .map [("a", j 2), ("b", j 1)])]),
+    ([], m [("v", .meet (cp (m sib)) (m [("c", int 2)]))], s112),
+    ([], m [("v", cp (cp (m sib)))], s11),
+    ([], m [("v", cp (.or [(1, .ride .hide (int 1) []), (0, int 2)]))], .map [("v", j 1)]),
+    ([], m [("v", cp hm)], .map [("v", j 1)]),
+    ([], m [("v", cp hm)], .map [])]
+
+theorem copyCases_checkable : ∀ c ∈ copyCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem copy_verdict_exact : ∀ c ∈ copyCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (copyCases_checkable c hc).1 (copyCases_checkable c hc).2 v
 
 /-- Paths into a call's output, which resolve in the root with its calls
 made: a preference's map, a name's spellings, two lists added and a
@@ -2766,6 +2828,31 @@ theorem eager_verdict_exact : ∀ c ∈ eagerCases, ∀ (m : Mode) (v : Verdict)
     vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vet_iff (eagerCases_checkable c hc).1 (eagerCases_checkable c hc).2 v
 
+/-- `contains` over a recursive name met with a list, which the meet
+counts reading the name as its body, as both ports do: a member that
+matches, beside a count that admits it and one that refuses it, against
+data and met with the schema's own literal, and a member that doesn't
+match (#534's review). -/
+def meetNameCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
+  let a : Decls := [("A", .map [("next", true, .alias "A")] none false)]
+  let t (v : Val) : Val := .map [("t", false, v)] none false
+  let d1 : Data := .map [("t", .list [.map []])]
+  [(a, t (.contains (.alias "A") (.neq [nb 0])), d1),
+    (a, t (.contains (.alias "A") (.max (nb 0))), d1),
+    (a, t (.meet (.contains (.alias "A") (.max (nb 0))) (.list [.map [] none false] none false)), .map []),
+    (a, t (.meet (.contains (.alias "A") (.neq [nb 0])) (.list [.map [] none false] none false)), .map []),
+    (a, t (.meet (.contains (.alias "A") (.neq [nb 0])) (.list [int 1] none false)), .map [])]
+
+theorem meetNameCases_checkable : ∀ c ∈ meetNameCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem meetName_verdict_exact : ∀ c ∈ meetNameCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (meetNameCases_checkable c hc).1
+    (readR_checkableA (meetNameCases_checkable c hc).1 (meetNameCases_checkable c hc).2) v
+
 /-- The `trials` rows: each case's declarations and schema as one
 document, the schema a map written without its braces, in the three
 modes, with the one class `vet` gives. -/
@@ -3166,7 +3253,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
     ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "pref"),
-    ("call", "call", "move"), ("call", "call", "refer"), ("call", "call", "rel"), ("call", "syntax", "@"), ("call", "call", "split"),
+    ("call", "call", "move"), ("call", "call", "copy"), ("call", "call", "refer"), ("call", "call", "rel"), ("call", "syntax", "@"), ("call", "call", "split"),
     ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "abnf"),
     ("call", "call", "parse"), ("call", "call", "project"),
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
@@ -3198,7 +3285,7 @@ def formSamples : List (String × Val) :=
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
-    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]), ("refer", .call .refer []), ("rel", .call .rel []),
+    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]), ("copy", .call .copy [.integer]), ("refer", .call .refer []), ("rel", .call .rel []),
     ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
     ("nom", .call .nom [.string]), ("path", .call .path [.string]), ("project", .call (.cmp .project) []),
     ("folder", .call (.cmp .folder) [.string]), ("file", .call (.cmp .file) [.string]),
@@ -4892,7 +4979,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# declare names of their own, each read in its own scope, follow in rows ls0 on,"
     IO.println "# and the names a source publishes, with the destructures that take them, in"
     IO.println "# rows lx0 on. The transformer emit over a selection a path names follows in"
-    IO.println "# rows em0 on."
+    IO.println "# rows em0 on, and copy, its argument with the marks and the seal cleared at"
+    IO.println "# every depth, in rows cp0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -4916,6 +5004,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "ls" scopeCases
     pathRows "lx" takeCases
     pathRows "em" (emitPathCases ++ emitFilterCases)
+    pathRows "cp" copyCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
@@ -4993,10 +5082,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# error. Regenerate with `make spec`; never edit by hand. The cases the ports"
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
     IO.println "# A spread that selects on key(0), the key of the member it is tried on, or"
-    IO.println "# the position of the item, follows in rows y0 on, and a trial with a dead"
-    IO.println "# argument both ports read as they build it in rows te0 on."
+    IO.println "# the position of the item, follows in rows y0 on, contains over a recursive"
+    IO.println "# name, which the meet reads as its body, in rows tc0 on, and a trial with a"
+    IO.println "# dead argument both ports read as they build it in rows te0 on."
     trialRows "t"
     trialRows "y" keyCases
+    trialRows "tc" meetNameCases
     trialRows "te" eagerCases
     return 0
   | ["calls"] =>
