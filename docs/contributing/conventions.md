@@ -61,7 +61,9 @@ So, when writing or revising a document:
 - **A defect goes to `use-cases/BUGS.md` or an issue**, never into the
   prose of a page about something else. Cite it from the page if the
   page's argument needs it — as the rb-solar model notes still cite
-  §88 — but the record lives where records live.
+  §88 — but the record lives where records live. A page that states a
+  divergence between the ports, or a gap in the definition, names the
+  open issue that tracks it, so that a reader can follow it to its end.
 - **A task goes to an issue.** "Waiting to be applied", "the next step
   is", "someone should" — if it can be *done*, it is not documentation.
 - **A narrative of how the work went goes nowhere**, or into the commit

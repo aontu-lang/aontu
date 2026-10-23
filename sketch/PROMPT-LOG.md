@@ -284,3 +284,87 @@ Which of the two open PRs may I merge? Web #101 (grammar paragraph sync) is gree
 For future slices, how should merging work?
 → Merge green, reviewed PRs
 ```
+
+## 2026-10-23 09:31:16 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+you have now ben working for several days of wall clock - what exactly is taking so long?
+```
+
+## 2026-10-23 10:04:58 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+ask me for my decisions
+```
+
+## 2026-10-23 10:54:05 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 16: a size written as a disjunction, len(1 | 3). Both ports refuse it (invalid-arg), whatever it meets. The definition's len(c) judges a size as any term c does, so len(1 | 3) admits [1] and [1, 2, 3]. Which reading is the language's?
+→ Narrow len (Recommended)
+
+Decision 17: a declaration nothing reads. %T = 1 & 2 beside v: 1 is an error in both ports (they evaluate every declaration), but valid in the definition, which never reads a body no reference reaches. Which is right?
+→ Read every declaration (Recommended)
+
+Decision 18: a marked list element. Both ports leave hide()/type() elements out of a list's output ([1, hide(2), 3] gives [1, 3]) but still hold each element to its position, so the output isn't an instance of the schema (breaking ADR-007). Which way?
+→ Marked element is no element
+
+Decision 21: a hole its call's peer fills. Outside a template both ports fill a call's hole from what it meets: upper(_) & "a" is "A". That isn't a meet ("a" alone isn't "A") and it isn't associative. How should the definition read it?
+→ A reading before the meet (Recommended)
+```
+
+## 2026-10-23 11:01:09 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 22: a path into a generator's output. x: pack(["a"], {n: key()}) with y: $.x.a gives y: {n: "a"} in both ports: the path keeps the key the generator wrote. A path to an ordinary map or to the generator itself rereads keys where it lands (y: {n: "y"}), as the reference says. Which rule?
+→ Every path rereads (Recommended)
+
+Decision 23 (#474): a string constraint met with a path value. Both ports read the one address the value spells where they meet, so the answer depends on meet order: above("$.a") & path($.a) & path($.a.b) refuses, but the reverse order gives "$.a.b". Which reading?
+→ Constraint holds per address (Recommended)
+
+Decision 24 (#479): a list element that is absence. Both ports keep an absent element's position while the list meets another and drop it only from the output, so [maybe($.gone), "a", 2] outputs ["a", 2] but vet refuses that output against the same schema. Which way?
+→ No position for absence (Recommended)
+
+Decision 25 (#496): a constraint met with rel() before its value. Both ports hold the constraint and meet it with each leaf once the value arrives, so rel() & path & [path($.a)] gives ["$.a"] while rel() & ([path($.a)] & path) refuses. Which reading?
+→ An ordinary meet (Recommended)
+```
+
+## 2026-10-23 11:29:32 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 26 (#504): a relative path inside a body that an alias or a path reference copies. Both ports read it where it's written or where the copy stands, by the order the document writes them: with %T = {v: ..x}, a.b.v is 1 or 2 depending on whether %T comes before a. vet reads it at the use in either order. Which rule?
+→ A copy is a destination (Recommended)
+
+#509: an atom over a bare path to an argument outside its domain, such as mulof over a path to 0 or len over a path to a string, is an error in both ports. The same argument written as a literal, or computed by an expression, makes an atom that admits nothing (invalid). Which should both be?
+→ Admits nothing
+
+May the published docs (the reference and the definition tutorial) cite an open GitHub issue that tracks a port divergence or a gap, e.g. 'Go keeps the declaration in its output, which #514 tracks'? Codex flagged this on #510; I declined and kept citing.
+→ Yes, cite them
+
+To cut wall-clock time: once Codex's first review on a PR is answered (findings fixed or declined) and CI is green, may I merge without waiting for a Codex re-review of the fix? Re-reviews often stall for hours.
+→ Merge on green (Recommended)
+```
+
+## 2026-10-23 13:24:53 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#445, part 1: does copy(v) clear type()/hide() marks on any argument? The reference says it clears marks, and the TypeScript code tries to, but on a literal argument both ports keep them (v: copy(hide(1)) gives {}). Through a reference, copy clears them in both ports.
+→ Clears on any argument
+
+#445, part 2: does copy unseal? Through a reference, both ports unseal: x: close({a: 1}) then v: copy($.x) admits {a: 1, b: 2}, where v: $.x refuses it. The reference doesn't mention it.
+→ copy unseals
+
+Rulings 18, 22, 23, 24, 25, 26 and #509 each need both engines to change for the definition and the ports to agree again. How should I handle the engine side?
+→ Change both engines
+
+Which definition work should come next? Pick any.
+→ Build the rulings in Lean, Links in generator templates, Only moves that run, emit and modules
+```
