@@ -629,6 +629,24 @@ of. -/
 def Cmp.takes (c : Cmp) (n : ℕ) : Bool :=
   (!c.required || 1 ≤ n) && n ≤ (if c.kids.isEmpty then 1 else 2)
 
+/-- Whether a function takes so many arguments, as both ports' shared
+signatures give each its count: `neq` one or more, a source's load its
+path and the names a destructure takes, a component's call as
+`Cmp.takes` reads it, and every other a range. -/
+def Fn.takes : Fn → ℕ → Bool
+  | .add, n | .sub, n | .mul, n | .div, n | .mod, n | .rem, n | .plus, n | .pick, n
+  | .split, n | .each, n | .pack, n | .emit, n => n == 2
+  | .neg, n | .sum, n | .least, n | .greatest, n | .super, n | .pref, n | .move, n
+  | .abnf, n | .maybe, n => n == 1
+  | .join, n | .esc, n | .usc, n | .parse, n => 1 ≤ n && n ≤ 2
+  | .sort, n | .upper, n | .lower, n | .nom, n => 1 ≤ n && n ≤ 3
+  | .translate, n => 2 ≤ n && n ≤ 3
+  | .rep, n => n == 3
+  | .refer, n | .rel, n | .path, n => n ≤ 1
+  | .cmp c, n => c.takes n
+  | .load, n | .bnd .neq, n => 1 ≤ n
+  | .bnd _, n => n == 1
+
 /-- A node of the component tree: the sealed map of its component's
 name, its props and its children. -/
 def cmpNode (c : Cmp) (props : Val) (kids : List Val) : Val :=
@@ -1066,56 +1084,58 @@ end
 
 mutual
 /-- Whether a term waits for the place a use gives it: whether it holds
-the hole `_` or a `key(n)` at any depth, but in the template of an
-`each` or a `pack`, which reads its template for each member, so that
-the member binds both, or in an `emit`'s table, read for each node. -/
-def Val.waits : Val → Bool
+the hole `_` or a `key(n)` at any depth, or names a declaration `w`
+reads as waiting, but in the template of an `each` or a `pack`, which
+reads its template for each member, so that the member binds both, or
+in an `emit`'s table, read for each node. -/
+def Val.waits (w : String → Bool) : Val → Bool
   | .hole | .keyUp _ => true
-  | .call .each args | .call .pack args | .call .emit args => waitsHead args
-  | .call _ args => waitsItems args
-  | .ride _ v _ => v.waits
-  | .len c => c.waits
-  | .map fs spread _ => waitsFields fs || waitsSpread spread
-  | .list items spread _ => waitsItems items || waitsSpread spread
-  | .or arms => waitsArms arms
-  | .pref _ x => x.waits
-  | .meet a b => a.waits || b.waits
-  | .nof n cs => n.waits || waitsItems cs
-  | .must c _ => c.waits
-  | .when c t e => c.waits || t.waits || waitsSpread e
-  | .contains c n => c.waits || n.waits
-  | .rest t cs => t.waits || waitsCovers cs
-  | .select s arms d => s.waits || waitsPairs arms || waitsSpread d
-  | .filter s c => s.waits || c.waits
+  | .alias n => w n
+  | .call .each args | .call .pack args | .call .emit args => waitsHead w args
+  | .call _ args => waitsItems w args
+  | .ride _ v _ => v.waits w
+  | .len c => c.waits w
+  | .map fs spread _ => waitsFields w fs || waitsSpread w spread
+  | .list items spread _ => waitsItems w items || waitsSpread w spread
+  | .or arms => waitsArms w arms
+  | .pref _ x => x.waits w
+  | .meet a b => a.waits w || b.waits w
+  | .nof n cs => n.waits w || waitsItems w cs
+  | .must c _ => c.waits w
+  | .when c t e => c.waits w || t.waits w || waitsSpread w e
+  | .contains c n => c.waits w || n.waits w
+  | .rest t cs => t.waits w || waitsCovers w cs
+  | .select s arms d => s.waits w || waitsPairs w arms || waitsSpread w d
+  | .filter s c => s.waits w || c.waits w
   | _ => false
 
-def waitsHead : List Val → Bool
+def waitsHead (w : String → Bool) : List Val → Bool
   | [] => false
-  | v :: _ => v.waits
+  | v :: _ => v.waits w
 
-def waitsFields : List (String × Bool × Val) → Bool
+def waitsFields (w : String → Bool) : List (String × Bool × Val) → Bool
   | [] => false
-  | (_, _, v) :: fs => v.waits || waitsFields fs
+  | (_, _, v) :: fs => v.waits w || waitsFields w fs
 
-def waitsItems : List Val → Bool
+def waitsItems (w : String → Bool) : List Val → Bool
   | [] => false
-  | v :: vs => v.waits || waitsItems vs
+  | v :: vs => v.waits w || waitsItems w vs
 
-def waitsSpread : Option Val → Bool
+def waitsSpread (w : String → Bool) : Option Val → Bool
   | none => false
-  | some s => s.waits
+  | some s => s.waits w
 
-def waitsArms : List (ℕ × Val) → Bool
+def waitsArms (w : String → Bool) : List (ℕ × Val) → Bool
   | [] => false
-  | (_, a) :: arms => a.waits || waitsArms arms
+  | (_, a) :: arms => a.waits w || waitsArms w arms
 
-def waitsPairs : List (Val × Val) → Bool
+def waitsPairs (w : String → Bool) : List (Val × Val) → Bool
   | [] => false
-  | (p, r) :: ps => p.waits || r.waits || waitsPairs ps
+  | (p, r) :: ps => p.waits w || r.waits w || waitsPairs w ps
 
-def waitsCovers : List Cover → Bool
+def waitsCovers (w : String → Bool) : List Cover → Bool
   | [] => false
-  | (c, k, m) :: cs => waitsSpread c || waitsSpread k || waitsSpread m || waitsCovers cs
+  | (c, k, m) :: cs => waitsSpread w c || waitsSpread w k || waitsSpread w m || waitsCovers w cs
 end
 
 /-! ## Absence
@@ -3192,75 +3212,92 @@ def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
   S.idents || ds.any fun d => d.2.unident.idents
 
 mutual
-/-- A term with each part that waits for a place read as `any`: a hole,
-a `key(n)`, and a call or a trial that holds either. Such a call reads
-as `nil` instead where an argument both ports read as written doesn't
+/-- A term with each part that waits for a place read as what any place
+could make of it: a hole as `any`, a `key(n)` as any string, since a
+key is text wherever it lands, and a call or a trial that holds either,
+or a name `w` reads as waiting, as `any`. A name itself stays, so that
+it reads its own body so read, what that body fixes kept. Such a call
+reads as `nil` instead where it takes another count of arguments
+(`Fn.takes`), or where an argument both ports read as written doesn't
 stand by `ill`: any of a call's but the template of an `each` or a
 `pack` and an `emit`'s table, a size, the count of `nof` and
 `contains`, the condition of `must`, and the scrutinee or source of
 `match` and `filter`. -/
-def Val.unplaced (ill : Val → Bool) : Val → Val
-  | .hole | .keyUp _ => .any
-  | .map fs spread closed => .map (unplacedFields ill fs) spread closed
-  | .list items spread closed => .list (unplacedItems ill items) spread closed
-  | .meet a b => .meet (a.unplaced ill) (b.unplaced ill)
-  | .or arms => .or (unplacedArms ill arms)
-  | .pref r x => .pref r (x.unplaced ill)
-  | .ride k v r => .ride k (v.unplaced ill) r
+def Val.unplaced (w : String → Bool) (ill : Val → Bool) : Val → Val
+  | .hole => .any
+  | .keyUp _ => .anyString
+  | .map fs spread closed => .map (unplacedFields w ill fs) spread closed
+  | .list items spread closed => .list (unplacedItems w ill items) spread closed
+  | .meet a b => .meet (a.unplaced w ill) (b.unplaced w ill)
+  | .or arms => .or (unplacedArms w ill arms)
+  | .pref r x => .pref r (x.unplaced w ill)
+  | .ride k v r => .ride k (v.unplaced w ill) r
   | .call f args =>
-    if !(Val.call f args).waits then .call f args
-    else if (match f with
-      | .each | .pack | .emit => headIll ill args
-      | _ => argsIll ill args) then .nil else .any
-  | .len c => if !c.waits then .len c else if ill (c.unplaced ill) then .nil else .any
-  | .must c m => if !c.waits then .must c m else if ill (c.unplaced ill) then .nil else .any
+    if !(Val.call f args).waits w then .call f args
+    else if !f.takes args.length || (match f with
+      | .each | .pack | .emit => headIll w ill args
+      | _ => argsIll w ill args) then .nil else .any
+  | .len c => if !c.waits w then .len c else if ill (c.unplaced w ill) then .nil else .any
+  | .must c m => if !c.waits w then .must c m else if ill (c.unplaced w ill) then .nil else .any
   | .nof n cs =>
-    if !(Val.nof n cs).waits then .nof n cs else if ill (n.unplaced ill) then .nil else .any
+    if !(Val.nof n cs).waits w then .nof n cs else if ill (n.unplaced w ill) then .nil else .any
   | .contains c n =>
-    if !(Val.contains c n).waits then .contains c n else if ill (n.unplaced ill) then .nil else .any
+    if !(Val.contains c n).waits w then .contains c n else if ill (n.unplaced w ill) then .nil else .any
   | .select s arms d =>
-    if !(Val.select s arms d).waits then .select s arms d
-    else if ill (s.unplaced ill) then .nil else .any
+    if !(Val.select s arms d).waits w then .select s arms d
+    else if ill (s.unplaced w ill) then .nil else .any
   | .filter s c =>
-    if !(Val.filter s c).waits then .filter s c else if ill (s.unplaced ill) then .nil else .any
-  | v => if v.waits then .any else v
+    if !(Val.filter s c).waits w then .filter s c else if ill (s.unplaced w ill) then .nil else .any
+  | .alias n => .alias n
+  | v => if v.waits w then .any else v
 
-def unplacedFields (ill : Val → Bool) : List (String × Bool × Val) → List (String × Bool × Val)
+def unplacedFields (w : String → Bool) (ill : Val → Bool) :
+    List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
-  | (k, o, v) :: fs => (k, o, v.unplaced ill) :: unplacedFields ill fs
+  | (k, o, v) :: fs => (k, o, v.unplaced w ill) :: unplacedFields w ill fs
 
-def unplacedItems (ill : Val → Bool) : List Val → List Val
+def unplacedItems (w : String → Bool) (ill : Val → Bool) : List Val → List Val
   | [] => []
-  | v :: vs => v.unplaced ill :: unplacedItems ill vs
+  | v :: vs => v.unplaced w ill :: unplacedItems w ill vs
 
-def unplacedArms (ill : Val → Bool) : List (ℕ × Val) → List (ℕ × Val)
+def unplacedArms (w : String → Bool) (ill : Val → Bool) : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
-  | (r, a) :: arms => (r, a.unplaced ill) :: unplacedArms ill arms
+  | (r, a) :: arms => (r, a.unplaced w ill) :: unplacedArms w ill arms
 
-def argsIll (ill : Val → Bool) : List Val → Bool
+def argsIll (w : String → Bool) (ill : Val → Bool) : List Val → Bool
   | [] => false
-  | v :: vs => ill (v.unplaced ill) || argsIll ill vs
+  | v :: vs => ill (v.unplaced w ill) || argsIll w ill vs
 
-def headIll (ill : Val → Bool) : List Val → Bool
+def headIll (w : String → Bool) (ill : Val → Bool) : List Val → Bool
   | [] => false
-  | v :: _ => ill (v.unplaced ill)
+  | v :: _ => ill (v.unplaced w ill)
 end
+
+/-- The names whose bodies wait for the place a use gives them, a body
+that names one of them waiting too, read to a fixed point: each round
+adds the names whose bodies wait given the names found so far. -/
+def Decls.waitNames (ds : Decls) : List String :=
+  (List.range ds.length).foldl
+    (fun ws _ => (ds.filter fun d => d.2.waits fun n => ws.contains n).map (·.1)) []
 
 /-- Whether a declaration's body does not stand, read where no place is
 yet (`Decls.readU`), as the name and as the body itself, so that a dead
 or ill-formed body makes the document an error whether or not anything
 reads it, a recursive one among them, as both ports answer (decision 17
 of the design note's §7). Each body is read with the parts that wait
-for the use that places them, a hole or a `key(n)`, as `any`
-(`Val.unplaced`), so that a body that names one waits too and what
-stands beside them is read. A waiting call is `nil` where an argument
-it reads as written doesn't stand, read against the bodies with each
-waiting part as `any` (`d0`). A name a source publishes is read where a
-destructure takes it, so not here. -/
+for the use that places them, a hole or a `key(n)`, read as what any
+place could make of them (`Val.unplaced`), and so is a name whose body
+waits (`Decls.waitNames`), so that what stands beside them is read. A
+waiting call is `nil` where it takes another count of arguments or an
+argument it reads as written doesn't stand, read against the bodies
+with each waiting part so read (`d0`). A name a source publishes is
+read where a destructure takes it, so not here. -/
 def Decls.bodyIll (ds : Decls) : Bool :=
-  let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced fun _ => false)
+  let ws := ds.waitNames
+  let w : String → Bool := fun n => ws.contains n
+  let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced w fun _ => false)
   let ill : Val → Bool := fun t => (normaliseD d0 (d0.readU t)).illFormed
-  let du : Decls := ds.map fun d => (d.1, d.2.unplaced ill)
+  let du : Decls := ds.map fun d => (d.1, d.2.unplaced w ill)
   du.any fun d => d.1.toList.head? != some '!' &&
     ((normaliseD du (du.readU (.alias d.1))).illFormed || (normaliseD du (du.readU d.2)).illFormed)
 

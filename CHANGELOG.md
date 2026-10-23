@@ -8,6 +8,37 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a waiting body through its names, its keys as text and its arity
+
+Definition, generated rows, and documentation. No engine changes. A
+follow-up to ruling 17, decision 17 of the design note's §7, from
+three Codex findings on #523.
+
+- `spec/Aontu/Verdict.lean`: `Decls.waitNames`, the names whose bodies
+  wait for a place, a body that names one of them waiting too, read to
+  a fixed point, and `Val.waits` reads a name through them. So
+  `%T = add(%U, 1)` beside `%U = upper(_)` stands, as both ports
+  answer, and `%T = add(%U, 1 & 2)` is an error. The name itself stays
+  a name, so what its body fixes holds: `%T = %U & 2` beside
+  `%U = _ & 1` is an error, as both ports answer.
+- `Val.unplaced` reads a waiting `key(n)` as any string rather than
+  `any`, since a key is text wherever it lands, so `%T = key(1) & 1` is
+  an error, as both ports answer, while `%T = key(1) & ""` stands.
+- A waiting call with another count of arguments than its function
+  takes is `nil` (`Fn.takes`, each function's count as both ports'
+  signatures give it). So the definition reads `%T = add(_)` as an
+  error, as it reads `v: add(1)`, where both ports answer `invalid`,
+  the split #426 tracks; no row holds it.
+- `spec/Oracle.lean`: `aliasCases` gains twelve cases, rows a342 to a377
+  of `test/spec/def-alias.tsv`. Both ports answer every row as the
+  definition does.
+- Both ports read a waiting `key(n)` at the declaration's own name,
+  `%T@<file>`, so `%T = key(0) & "x"` used at `x` is an error in both;
+  that's #528. Both skip a conflict met with a call that waits through
+  a name, so `%T = add(%U, 1) & (1 & 2)` is `valid` in both; that's
+  #530. No row holds either.
+- The tutorial's step on declarations describes the reading.
+
 ### An atom over an argument outside its domain admits nothing, however the argument is written
 
 Both engines, the definition, generated rows, and documentation.
