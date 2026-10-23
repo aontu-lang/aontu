@@ -116,3 +116,8 @@ each-bound-empty-template	errc	n:[a,b]\no:each($.n,_ & {})\n	scalar_kind
 # as any other term of the template does (#506).
 each-bound-relative-arg	gens	a:{lim:2,l:[1],f:each(.l,{v:min(...lim)} & {v:5})}	{"a":{"f":[{"v":5}],"l":[1],"lim":2}}
 each-bound-relative-arg-refuses	errc	a:{lim:2,l:[1],f:each(.l,{v:min(...lim)} & {v:1})}	constraint
+#
+# Each instance reads its own target: a relative path into the member
+# names that member's value, not the last instance's.
+each-bound-relative-arg-per-instance	gens	o:each([{lim:1,v:1},{lim:2,v:2}],_ & {v:min(.lim)})	{"o":[{"lim":1,"v":1},{"lim":2,"v":2}]}
+each-bound-relative-arg-per-instance-refuses	errc	o:each([{lim:2,v:1},{lim:1,v:1}],_ & {v:min(.lim)})	constraint

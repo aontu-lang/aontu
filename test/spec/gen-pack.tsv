@@ -102,4 +102,6 @@ pack-skips-a-hidden-name	gens	n: [a, hide(b)]\nd: pack($.n, {x: 1})	{"d":{"a":{"
 # A RELATIVE PATH IN A BOUND'S ARGUMENT reads where the instance lands,
 # as any other term of the template does (#506).
 pack-bound-relative-arg	gens	a:{lim:2,l:{p:1},f:pack(.l,{v:min(...lim)} & {v:5})}	{"a":{"f":{"p":{"v":5}},"l":{"p":1},"lim":2}}
+pack-bound-relative-arg-per-instance	gens	o:pack({a:{lim:1,v:1},b:{lim:2,v:2}},_ & {v:min(.lim)})	{"o":{"a":{"lim":1,"v":1},"b":{"lim":2,"v":2}}}
+pack-bound-relative-arg-per-instance-refuses	errc	o:pack({a:{lim:2,v:1},b:{lim:1,v:1}},_ & {v:min(.lim)})	constraint
 pack-bound-relative-arg-refuses	errc	a:{lim:2,l:{p:1},f:pack(.l,{v:min(...lim)} & {v:1})}	constraint

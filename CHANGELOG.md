@@ -8,9 +8,9 @@ each change affects.
 
 ## Unreleased
 
-### Go reads a bound's relative argument where a generator's instance lands
+### A bound's relative argument reads where a generator's instance lands
 
-Go only.
+Both ports.
 
 - `go/generate.go`: `each`, `pack` and `filter` place each instance of
   their template or condition with `setPaths` after `instanceClone`, as
@@ -20,8 +20,14 @@ Go only.
   read from where the document writes the template, so the bound named
   nothing or the wrong value. It now reads where the instance lands, as
   TypeScript reads it, and #506 has the cases.
+- `ts/src/val/ConstraintVal.ts`: an instance's copy of a waiting bound
+  holds copies of its arguments. Every instance shared one argument, so
+  the last instance's re-pathing moved it for all of them, and
+  `each([{lim: 1, v: 1}, {lim: 2, v: 2}], _ & {v: min(.lim)})` read the
+  second member's `lim` at the first and refused it.
 - `test/spec/gen-filter.tsv`, `gen-each.tsv` and `gen-pack.tsv` gain
-  eight rows, each expectation from both engines.
+  twelve rows, each expectation from both engines; four give each
+  instance a target of its own.
 
 ### The definition reads a generator's template at each member
 
