@@ -33,7 +33,8 @@
 # filter's condition, read where the member it tries lands, in rows fc0 on,
 # bounds written over terms, each the bound its terms name, in rows bd0 on, and
 # bounds over a relative path in a generator's template or a filter's
-# condition, each read where its instance lands, in rows bg0 on.
+# condition, each read where its instance lands, in rows bg0 on. Sources that
+# declare names of their own, each read in its own scope, follow in rows ls0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -1504,3 +1505,33 @@ bg32	verdict	"o": pack({"a": {"lim": 1, "v": 1}, "b": {"lim": 2, "v": 2}}, (_) &
 bg33	verdict	"a": {"lim": 2, "l": [1], "f": each(.l, ({"v": min(...lim)}) & ({"v": 5}))}	{}	{"verdict":"valid"}
 bg34	verdict	"a": {"lim": 2, "l": [1], "f": each(.l, ({"v": min(...lim)}) & ({"v": 5}))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 bg35	verdict	"a": {"lim": 2, "l": [1], "f": each(.l, ({"v": min(...lim)}) & ({"v": 5}))}	{}	{"verdict":"valid","opts":{"partial":true}}
+ls0	verdict	@"__FIXTURES__/alias_declares_u.aontu"	{}	{"verdict":"valid"}
+ls1	verdict	@"__FIXTURES__/alias_declares_u.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ls2	verdict	@"__FIXTURES__/alias_declares_u.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+ls3	verdict	(@"__FIXTURES__/alias_declares_u.aontu") & ({"z": %u})	{}	{"verdict":"error"}
+ls4	verdict	(@"__FIXTURES__/alias_declares_u.aontu") & ({"z": %u})	{}	{"verdict":"error","opts":{"noFill":true}}
+ls5	verdict	(@"__FIXTURES__/alias_declares_u.aontu") & ({"z": %u})	{}	{"verdict":"error","opts":{"partial":true}}
+ls6	verdict	%t = 42\n"inner": @"__FIXTURES__/alias_uses_t.aontu"	{}	{"verdict":"error"}
+ls7	verdict	%t = 42\n"inner": @"__FIXTURES__/alias_uses_t.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+ls8	verdict	%t = 42\n"inner": @"__FIXTURES__/alias_uses_t.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+ls9	verdict	(@"__FIXTURES__/alias_row_a.aontu") & (@"__FIXTURES__/alias_row_b.aontu")	{}	{"verdict":"valid"}
+ls10	verdict	(@"__FIXTURES__/alias_row_a.aontu") & (@"__FIXTURES__/alias_row_b.aontu")	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ls11	verdict	(@"__FIXTURES__/alias_row_a.aontu") & (@"__FIXTURES__/alias_row_b.aontu")	{}	{"verdict":"valid","opts":{"partial":true}}
+ls12	verdict	(@"__FIXTURES__/alias_row_a.aontu") & (@"__FIXTURES__/alias_row_b.aontu")	{"a": {"extra": "s"}}	{"verdict":"valid"}
+ls13	verdict	(@"__FIXTURES__/alias_row_a.aontu") & (@"__FIXTURES__/alias_row_b.aontu")	{"a": {"extra": "s"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+ls14	verdict	(@"__FIXTURES__/alias_row_a.aontu") & (@"__FIXTURES__/alias_row_b.aontu")	{"a": {"extra": "s"}}	{"verdict":"valid","opts":{"partial":true}}
+ls15	verdict	(@"__FIXTURES__/alias_sigil.aontu") & ({"x": 1})	{}	{"verdict":"valid"}
+ls16	verdict	(@"__FIXTURES__/alias_sigil.aontu") & ({"x": 1})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ls17	verdict	(@"__FIXTURES__/alias_sigil.aontu") & ({"x": 1})	{}	{"verdict":"valid","opts":{"partial":true}}
+ls18	verdict	(@"__FIXTURES__/alias_sigil.aontu") & ({"x": 1})	{"q": 0}	{"verdict":"invalid"}
+ls19	verdict	(@"__FIXTURES__/alias_sigil.aontu") & ({"x": 1})	{"q": 0}	{"verdict":"invalid","opts":{"noFill":true}}
+ls20	verdict	(@"__FIXTURES__/alias_sigil.aontu") & ({"x": 1})	{"q": 0}	{"verdict":"invalid","opts":{"partial":true}}
+ls21	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{}	{"verdict":"valid"}
+ls22	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ls23	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+ls24	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{"y": {"l": 2}}	{"verdict":"invalid"}
+ls25	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{"y": {"l": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+ls26	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{"y": {"l": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+ls27	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error"}
+ls28	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+ls29	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error","opts":{"partial":true}}

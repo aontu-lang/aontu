@@ -1865,6 +1865,13 @@ was written rather than where it lands, so a spread template written in
 one file still names its own file's declaration when it is instantiated
 against another file's data.
 
+The definition reads each name a file declares, and each name the file
+uses, under a name of that file's own, by `Decls.ofSource` in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), and rows from ls0
+on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
+engines to it. A name a file declares reads its loads from that file's
+directory, and a file the document never loads adds no names.
+
 A name crosses where both files say so, and nowhere else: the declaring
 file publishes it with [`export`](#publishing-a-name-export), and the
 using file asks for it by name with [the

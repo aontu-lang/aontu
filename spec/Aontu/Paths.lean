@@ -388,6 +388,79 @@ def mlArms (k : String → Option Val) : List (ℕ × Val) → List (ℕ × Val)
   | (r, a) :: as => (r, a.mapLoads k) :: mlArms k as
 end
 
+/-- The name a declaration takes in the source named `q` that makes it:
+`%`, the source's name, `%` and the declaration's own name, which no
+document can write, since a name a document writes begins with a letter,
+and which no other source shares, so that two sources that declare one
+name hold two names. -/
+def scopedName (q n : String) : String := "%" ++ q ++ "%" ++ n
+
+/-- Whether a declaration's name is a source's own (`scopedName`). -/
+def scopedDecl (n : String) : Bool := n.toList.head? == some '%'
+
+/-- The source a declaration's name scopes it to (`scopedName`): the
+name from its second character to its last `%`, since the declaration's
+own name holds none. None for a name no source scopes. -/
+def scopeOf (n : String) : Option String :=
+  if scopedDecl n then some ("%".intercalate ((n.drop 1).splitOn "%").dropLast) else none
+
+mutual
+/-- A term written in the source named `q`, each alias it names read as
+the source's own (`scopedName`), as both ports scope a name to the file
+that declares it: the source reads its own declarations and none of the
+document's, and the document none of the source's. A variable, `$` and
+its name, is the calling program's and stays as it is. -/
+def Val.scoped (q : String) : Val → Val
+  | .alias n => if n.toList.head? == some '$' then .alias n else .alias (scopedName q n)
+  | .len c => .len (c.scoped q)
+  | .map fs spread closed => .map (scFields q fs) (scSpread q spread) closed
+  | .list items spread closed => .list (scItems q items) (scSpread q spread) closed
+  | .or arms => .or (scArms q arms)
+  | .pref r x => .pref r (x.scoped q)
+  | .meet a b => .meet (a.scoped q) (b.scoped q)
+  | .nof n cs => .nof (n.scoped q) (scItems q cs)
+  | .must c m => .must (c.scoped q) m
+  | .when c t e => .when (c.scoped q) (t.scoped q) (scSpread q e)
+  | .contains c n => .contains (c.scoped q) (n.scoped q)
+  | .rest t cs => .rest (t.scoped q) (scCovers q cs)
+  | .select s arms d => .select (s.scoped q) (scPairs q arms) (scSpread q d)
+  | .filter s c => .filter (s.scoped q) (c.scoped q)
+  | .call f args => .call f (scItems q args)
+  | .ride rd v r => .ride rd (v.scoped q) r
+  | v => v
+
+def scPairs (q : String) : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.scoped q, r.scoped q) :: scPairs q ps
+
+def scCovers (q : String) : List Cover → List Cover
+  | [] => []
+  | (c, ky, m) :: cs => (scSpread q c, scSpread q ky, scSpread q m) :: scCovers q cs
+
+def scFields (q : String) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (ky, o, v) :: fs => (ky, o, v.scoped q) :: scFields q fs
+
+def scItems (q : String) : List Val → List Val
+  | [] => []
+  | v :: vs => v.scoped q :: scItems q vs
+
+def scSpread (q : String) : Option Val → Option Val
+  | none => none
+  | some s => some (s.scoped q)
+
+def scArms (q : String) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.scoped q) :: scArms q as
+end
+
+/-- The declarations a source named `q` adds to a document that loads
+it: its term under `@` and its name, and each declaration it makes,
+`own`, under its own name (`scopedName`), each read in the source's
+scope (`Val.scoped`). -/
+def Decls.ofSource (q : String) (own : Decls) (t : Val) : Decls :=
+  ("@" ++ q, t.scoped q) :: own.map fun d => (scopedName q d.1, d.2.scoped q)
+
 /-- A term written in the source named `src` with the sources it loads
 read in, `n` deep, `seen` the sources it's being read into: each `@"p"`
 read as the term the document declares for the source it names
@@ -409,62 +482,83 @@ def sourceName (n : String) : Bool := n.toList.head? == some '@'
 /-- How many sources a document declares. -/
 def Decls.sourceCount (ds : Decls) : ℕ := (ds.filter fun d => sourceName d.1).length
 
+mutual
+/-- The arguments of each load a term writes, at any depth. -/
+def Val.loads : Val → List (List Val)
+  | .call .load args => [args]
+  | .call _ args => ldItems args
+  | .len c => c.loads
+  | .map fs spread _ => ldFields fs ++ ldSpread spread
+  | .list items spread _ => ldItems items ++ ldSpread spread
+  | .or arms => ldArms arms
+  | .pref _ x => x.loads
+  | .meet a b => a.loads ++ b.loads
+  | .nof n cs => n.loads ++ ldItems cs
+  | .must c _ => c.loads
+  | .when c t e => c.loads ++ t.loads ++ ldSpread e
+  | .contains c n => c.loads ++ n.loads
+  | .rest t cs => t.loads ++ ldCovers cs
+  | .select s arms d => s.loads ++ ldPairs arms ++ ldSpread d
+  | .filter s c => s.loads ++ c.loads
+  | .ride _ v _ => v.loads
+  | _ => []
+
+def ldFields : List (String × Bool × Val) → List (List Val)
+  | [] => []
+  | (_, _, v) :: fs => v.loads ++ ldFields fs
+
+def ldItems : List Val → List (List Val)
+  | [] => []
+  | v :: vs => v.loads ++ ldItems vs
+
+def ldSpread : Option Val → List (List Val)
+  | none => []
+  | some s => s.loads
+
+def ldArms : List (ℕ × Val) → List (List Val)
+  | [] => []
+  | (_, a) :: arms => a.loads ++ ldArms arms
+
+def ldPairs : List (Val × Val) → List (List Val)
+  | [] => []
+  | (p, r) :: ps => p.loads ++ r.loads ++ ldPairs ps
+
+def ldCovers : List Cover → List (List Val)
+  | [] => []
+  | (c, k, m) :: cs => ldSpread c ++ ldSpread k ++ ldSpread m ++ ldCovers cs
+end
+
+/-- The sources a term written in the source named `src` reads, `n`
+deep, `seen` the sources it's being read into: each source it loads that
+`Decls.loadIn` reads in, and those that source's term and the names it
+declares read in turn. -/
+def Decls.sourcesRead (ds : Decls) : ℕ → List String → String → Val → List String
+  | 0, _, _, _ => []
+  | n + 1, seen, src, v => v.loads.flatMap fun a => match (loadArg? a).bind (loadPath src) with
+    | none => []
+    | some q => if q ∈ seen then [] else match ds.source? q with
+      | none => []
+      | some t => q :: (t :: (ds.filter fun d => scopeOf d.1 == some q).map (·.2)).flatMap
+          (ds.sourcesRead n (q :: seen) q)
+
 /-- A document with the sources it loads read in where it loads them, as
 both ports read a source in place: as deep as it declares sources, so
-that a chain of loads reads to its end and a cycle never does; its
-bodies and its schema read in from the document itself, and the
-sources no longer declared, so that a source nothing loads is no part
-of the document. -/
+that a chain of loads reads to its end and a cycle never does. Its
+schema and its own bodies read in from the document itself, each body a
+source declares from that source, a load of the source itself a cycle,
+and the sources no longer declared, so that a source nothing loads is
+no part of the document, nor are the names it declares
+(`Decls.sourcesRead`). -/
 def Decls.loaded (ds : Decls) (S : Val) : Decls × Val :=
-  ((ds.filter fun d => !sourceName d.1).map fun d => (d.1, ds.loadIn (ds.sourceCount + 1) [] "" d.2),
+  let read := (S :: (ds.filter fun d => !sourceName d.1 && !scopedDecl d.1).map (·.2)).flatMap
+    (ds.sourcesRead (ds.sourceCount + 1) [] "")
+  ((ds.filter fun d => !sourceName d.1 && (scopeOf d.1).all read.contains).map fun d =>
+      (d.1, ds.loadIn (ds.sourceCount + 1) (scopeOf d.1).toList ((scopeOf d.1).getD "") d.2),
     ds.loadIn (ds.sourceCount + 1) [] "" S)
 
-mutual
 /-- Whether a term holds a load, at any depth: once the sources are read
 in, one the reading couldn't make. -/
-def Val.holdsLoad : Val → Bool
-  | .call .load _ => true
-  | .call _ args => hlItems args
-  | .len c => c.holdsLoad
-  | .map fs spread _ => hlFields fs || hlSpread spread
-  | .list items spread _ => hlItems items || hlSpread spread
-  | .or arms => hlArms arms
-  | .pref _ x => x.holdsLoad
-  | .meet a b => a.holdsLoad || b.holdsLoad
-  | .nof n cs => n.holdsLoad || hlItems cs
-  | .must c _ => c.holdsLoad
-  | .when c t e => c.holdsLoad || t.holdsLoad || hlSpread e
-  | .contains c n => c.holdsLoad || n.holdsLoad
-  | .rest t cs => t.holdsLoad || hlCovers cs
-  | .select s arms d => s.holdsLoad || hlPairs arms || hlSpread d
-  | .filter s c => s.holdsLoad || c.holdsLoad
-  | .ride _ v _ => v.holdsLoad
-  | _ => false
-
-def hlFields : List (String × Bool × Val) → Bool
-  | [] => false
-  | (_, _, v) :: fs => v.holdsLoad || hlFields fs
-
-def hlItems : List Val → Bool
-  | [] => false
-  | v :: vs => v.holdsLoad || hlItems vs
-
-def hlSpread : Option Val → Bool
-  | none => false
-  | some s => s.holdsLoad
-
-def hlArms : List (ℕ × Val) → Bool
-  | [] => false
-  | (_, a) :: arms => a.holdsLoad || hlArms arms
-
-def hlPairs : List (Val × Val) → Bool
-  | [] => false
-  | (p, r) :: ps => p.holdsLoad || r.holdsLoad || hlPairs ps
-
-def hlCovers : List Cover → Bool
-  | [] => false
-  | (c, k, m) :: cs => hlSpread c || hlSpread k || hlSpread m || hlCovers cs
-end
+def Val.holdsLoad (v : Val) : Bool := !v.loads.isEmpty
 
 /-- Whether a document, its sources read in, still holds a load, in its
 schema or in a body: one the reading couldn't make. -/

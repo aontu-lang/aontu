@@ -8250,10 +8250,44 @@ $ echo $?
 Rows from lf0 on of `test/spec/def-path.tsv` load the files of
 `test/spec/files`, which each case declares as the term the file holds,
 in the three modes of `vet`, and both engines answer every one as the
-definition does. The definition doesn't yet read a source's own
-declarations, the destructure `{ %a } = @"…"`, a module, or an
-extension the calling program adds to those read as text, as
-`--text-ext` does.
+definition does.
+
+### A source's own names
+
+A source may declare names of its own, and a name belongs to the
+source that declares it: the source reads its own declarations and
+none of the document's, the document reads none of the source's, and
+two sources that declare one name hold two names. The definition reads
+each name a source declares, and each name the source uses, under a
+name of the source's own, `%`, the source's name, `%` and the name,
+which no document can write and no other source shares:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.ofSource (q : String) (own : Decls) (t : Val) : Decls :=
+  ("@" ++ q, t.scoped q) :: own.map fun d => (scopedName q d.1, d.2.scoped q)
+```
+
+So a source that declares `%u` and writes `y: 1` gives `{"y": 1}`
+wherever it's loaded, and a document that loads it and writes `z: %u`
+names a `%u` it never declared, an error. A variable belongs to the
+calling program and reads the same in every source.
+
+A name a source declares reads its loads from the source's own
+directory, as the source's term does, and a load of the source itself
+is a cycle. A source the document never loads, not even through
+another source, adds none of its names, so a name it declares over
+nothing makes an error only of a document that loads it. Rows from ls0
+on hold these readings, and both engines answer every one as the
+definition does. Both engines refuse a source that
+declares a name when a document loads it under a key, which the
+definition reads as it reads one at the root. When a document declares
+a name and loads such a source at the root, Go keeps the document's
+declaration in its output, which #514 tracks. No row holds either.
+
+The definition doesn't yet read the destructure `{ %a } = @"…"` or
+`export`, a module, or an extension the calling program adds to those
+read as text, as `--text-ext` does.
 
 ## 40. What the definition doesn't say yet
 
