@@ -347,6 +347,18 @@ a326	verdict	%T = [add(upper(_), (1) & (2))]\nv: 1	v: 1	{"verdict":"error","opts
 a327	verdict	%T = add(add(upper(_), (1) & (2)), 1)\nv: 1	v: 1	{"verdict":"error"}
 a328	verdict	%T = add(add(upper(_), (1) & (2)), 1)\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
 a329	verdict	%T = add(add(upper(_), (1) & (2)), 1)\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a330	verdict	%T = emit(upper(_), {"match": any, "body": [(1) & (2)]})\nv: 1	v: 1	{"verdict":"valid"}
+a331	verdict	%T = emit(upper(_), {"match": any, "body": [(1) & (2)]})\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a332	verdict	%T = emit(upper(_), {"match": any, "body": [(1) & (2)]})\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a333	verdict	%T = emit((upper(_)) & ((1) & (2)), {"match": any, "body": ["x"]})\nv: 1	v: 1	{"verdict":"error"}
+a334	verdict	%T = emit((upper(_)) & ((1) & (2)), {"match": any, "body": ["x"]})\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a335	verdict	%T = emit((upper(_)) & ((1) & (2)), {"match": any, "body": ["x"]})\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a336	verdict	%T = emit([1], {"match": any, "body": [(upper(_)) & ((1) & (2))]})\nv: 1	v: 1	{"verdict":"error"}
+a337	verdict	%T = emit([1], {"match": any, "body": [(upper(_)) & ((1) & (2))]})\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a338	verdict	%T = emit([1], {"match": any, "body": [(upper(_)) & ((1) & (2))]})\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a339	verdict	%T = emit([1], {"match": _, "body": ["x"]})\nv: 1	v: 1	{"verdict":"error"}
+a340	verdict	%T = emit([1], {"match": _, "body": ["x"]})\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a341	verdict	%T = emit([1], {"match": _, "body": ["x"]})\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
 r0	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid"}
 r1	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid","opts":{"noFill":true}}
 r2	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid","opts":{"partial":true}}

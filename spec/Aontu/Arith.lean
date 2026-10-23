@@ -47,7 +47,7 @@ inductive Fn where
   | plus | join | pick | sort | upper | lower | translate | esc | usc | split | rep | nom
   | super | pref | move | refer | rel | path | abnf | parse | load
   | cmp (c : Cmp)
-  | each | pack
+  | each | pack | emit
   | maybe
   | bnd (b : Bnd)
   deriving DecidableEq, Repr

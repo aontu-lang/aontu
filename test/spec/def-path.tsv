@@ -36,7 +36,8 @@
 # condition, each read where its instance lands, in rows bg0 on. Sources that
 # declare names of their own, each read in its own scope, follow in rows ls0 on,
 # and the names a source publishes, with the destructures that take them, in
-# rows lx0 on.
+# rows lx0 on. The transformer emit over a selection a path names follows in
+# rows em0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -1594,3 +1595,21 @@ lx53	verdict	{ % } = @"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"error",
 lx54	verdict	@"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"valid"}
 lx55	verdict	@"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 lx56	verdict	@"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+em0	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"valid"}
+em1	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+em2	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"valid","opts":{"partial":true}}
+em3	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{"o": ["L:x", "S:/y"]}	{"verdict":"valid"}
+em4	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{"o": ["L:x", "S:/y"]}	{"verdict":"incomplete","opts":{"noFill":true}}
+em5	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{"o": ["L:x", "S:/y"]}	{"verdict":"valid","opts":{"partial":true}}
+em6	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{"o": ["x"]}	{"verdict":"invalid"}
+em7	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{"o": ["x"]}	{"verdict":"invalid","opts":{"noFill":true}}
+em8	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{"o": ["x"]}	{"verdict":"invalid","opts":{"partial":true}}
+em9	verdict	"z": "Z", "s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, {"match": {"k": string}, "body": [$.z, .k]})	{}	{"verdict":"valid"}
+em10	verdict	"z": "Z", "s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, {"match": {"k": string}, "body": [$.z, .k]})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+em11	verdict	"z": "Z", "s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, {"match": {"k": string}, "body": [$.z, .k]})	{}	{"verdict":"valid","opts":{"partial":true}}
+em12	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit(filter($.s, {"k": "sqs"}), {"match": {"k": string}, "body": [.p]})	{"o": ["x"]}	{"verdict":"valid"}
+em13	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit(filter($.s, {"k": "sqs"}), {"match": {"k": string}, "body": [.p]})	{"o": ["x"]}	{"verdict":"incomplete","opts":{"noFill":true}}
+em14	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit(filter($.s, {"k": "sqs"}), {"match": {"k": string}, "body": [.p]})	{"o": ["x"]}	{"verdict":"valid","opts":{"partial":true}}
+em15	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit(filter($.s, {"k": "sqs"}), {"match": {"k": string}, "body": [.p]})	{"o": ["y"]}	{"verdict":"invalid"}
+em16	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit(filter($.s, {"k": "sqs"}), {"match": {"k": string}, "body": [.p]})	{"o": ["y"]}	{"verdict":"invalid","opts":{"noFill":true}}
+em17	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit(filter($.s, {"k": "sqs"}), {"match": {"k": string}, "body": [.p]})	{"o": ["y"]}	{"verdict":"invalid","opts":{"partial":true}}

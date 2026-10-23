@@ -40,6 +40,7 @@ def Val.at : Val → List Seg → Option Val
     | _ => none
   | _, .var _ :: _ => none
   | _, .up _ :: _ => none
+  | _, .node :: _ => none
 termination_by structural _ p => p
 
 /-- The index digits spell in canonical decimal: `0`, or digits that
@@ -60,7 +61,7 @@ list, the index its text spells in canonical decimal. A variable names
 no step until it's bound. -/
 def Seg.stepIn (s : Seg) (v : Val) : Option Seg :=
   match s, v.unride with
-  | .var _, _ | .up _, _ => none
+  | .var _, _ | .up _, _ | .node, _ => none
   | s, .map _ _ _ => some (.key s.text)
   | .idx i, .list _ _ _ => some (.idx i)
   | .key k, .list _ _ _ => (indexOf? k).map .idx
@@ -89,12 +90,15 @@ def pathName (p : List Seg) : String :=
     | .key k => "." ++ toString k.length ++ ":" ++ k
     | .idx i => "#" ++ toString i
     | .var n => "$" ++ toString n.length ++ ":" ++ n
-    | .up n => "^" ++ toString n)
+    | .up n => "^" ++ toString n
+    | .node => "_")
 
 mutual
-/-- The term with each path replaced by a reference to the path's name. -/
+/-- The term with each path replaced by a reference to the path's name,
+but a reference into an `emit`'s node (`Seg.node`), which names no
+place, and which the `emit` reads for each node. -/
 def Val.pathsToAliases : Val → Val
-  | .path p => .alias (pathName p)
+  | .path p => if p.head? == some .node then .path p else .alias (pathName p)
   | .len c => .len c.pathsToAliases
   | .map fs spread closed => .map (ptaFields fs) (ptaSpread spread) closed
   | .list items spread closed => .list (ptaItems items) (ptaSpread spread) closed
@@ -682,14 +686,21 @@ declares nothing. -/
 def Decls.ofPaths (ds : Decls) (roots : List Val) (ps : List (List Seg)) : Decls :=
   ps.filterMap fun p => (ds.pathIn roots p).map fun w => (pathName p, w.pathsToAliases)
 
-/-- The paths a document writes: in the schema as read and in every body. -/
+/-- Whether a path names a place, as every path does but a reference
+into an `emit`'s node (`Seg.node`). -/
+def placePath (p : List Seg) : Bool := p.head? != some .node
+
+/-- The paths a document writes: in the schema as read and in every body,
+each that names a place (`placePath`). -/
 def Decls.docPaths (ds : Decls) (S : Val) : List (List Seg) :=
-  ((ds.read S).paths ++ ds.paths).eraseDups
+  (((ds.read S).paths ++ ds.paths).filter placePath).eraseDups
 
 /-- The paths a document writes that must name something: every path
-but one `maybe` or a `filter`'s condition forgives (`Val.forgive`). -/
+that names a place but one `maybe` or a `filter`'s condition forgives
+(`Val.forgive`). -/
 def Decls.strictPaths (ds : Decls) (S : Val) : List (List Seg) :=
-  ((ds.read S).forgive.paths ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.forgive.paths) []).eraseDups
+  (((ds.read S).forgive.paths ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.forgive.paths) []).filter
+    placePath).eraseDups
 
 /-- The document with its paths read as names from roots: each path is
 declared as the term at it in the first root it names something in, and
@@ -1425,7 +1436,7 @@ theorem hideAt_checkableA : ∀ p, (hideAt p).CheckableA
   | .key _ :: p => .map (fun _ _ _ hv => by
       simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hv
       rw [hv.2.2]; exact hideAt_checkableA p) (fun _ h => nomatch h)
-  | .idx _ :: _ | .var _ :: _ | .up _ :: _ => .any
+  | .idx _ :: _ | .var _ :: _ | .up _ :: _ | .node :: _ => .any
 
 theorem foldl_hide_checkableA : ∀ (ps : List (List Seg)) {S : Val}, S.CheckableA →
     (ps.foldl (fun acc p => Val.meet acc (hideAt p)) S).CheckableA
@@ -1876,7 +1887,7 @@ theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliase
   | pref _ ih => exact .pref ih
   | ride _ ih => exact .ride ih
   | meet _ _ iha ihb => exact .meet iha ihb
-  | path => exact .alias
+  | path => simp only [Val.pathsToAliases]; split <;> constructor
   | @nof n cs _ _ ihn ihcs =>
     refine .nof ihn fun w hm => ?_
     obtain ⟨c, hc, rfl⟩ := mem_ptaItems.mp hm
@@ -2074,6 +2085,7 @@ theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos)
     | .key _ :: _ => exact .path
     | .idx _ :: _ => exact .path
     | .var _ :: _ => exact .path
+    | .node :: _ => exact .path
   | @nof n cs _ _ ihn ihcs =>
     intro pos
     refine .nof (ihn pos) fun w hm => ?_
@@ -2684,6 +2696,7 @@ theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p 
     · exact absurd h (by simp)
   | .var _ :: _, _, _, _, h => by simp [Val.at] at h
   | .up _ :: _, _, _, _, h => by simp [Val.at] at h
+  | .node :: _, _, _, _, h => by simp [Val.at] at h
 
 /-- The term at a written path in a term the checker can read is one it
 can read. -/

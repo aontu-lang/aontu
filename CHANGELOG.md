@@ -8,6 +8,54 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads `emit`
+
+Definition, generated rows, and documentation. No engine changes. A P9
+slice.
+
+- `spec/Aontu/Data.lean`: `Seg.node`, the step a relative reference in
+  a body of `emit` starts with, since it names a field of the node
+  rather than a place.
+- `spec/Aontu/Verdict.lean`: `resolveD` checks an `emit`'s table, each
+  template a map with its `match` and a list for its `body`
+  (`emitRuleOk`), then reads it once for each node of its selection, in the order
+  `Val.members` reads them, its `match`es for no node and its bodies for
+  the node. `emitPieces` takes the body of the first template whose
+  `match` takes the node, as both ports dispatch (`emitTakes`): the node
+  met with the `match` doesn't die and is alike the node (`Val.alike`),
+  its members counted as `Val.members` reads them (`memberField`), so
+  that the meet narrows nothing, a disjunction with no preference, under
+  any rider, taken where any arm meets. A hole in a `match` matches nothing where
+  it stands and is the value it meets in a meet or an arm
+  (`Val.matchRead`), and a template's `match` fields meet. The answer
+  splices in each list in the body, at any depth (`emitSpliceF`). A
+  body's hole and
+  its references into the node read the node, by `nodeRef` and
+  `Val.fieldAt`, a position of a list node and a map's key in digits
+  among them. A selection other than a bag, a template without its
+  `match` or its `body`, a body other than a list, a node no template
+  takes and a reference the node doesn't answer leave the call unmade,
+  an error, as both ports refuse each. The definition leaves a body
+  that holds a `key(n)` unmade, since the ports read it at different
+  positions, as #524 records.
+- `spec/Aontu/Verdict.lean`, ruling 17's reading of a declaration:
+  `Val.waits` reads an `emit`'s table as a template, its holes the
+  node's, and `Val.unplaced` reads its selection as the argument both
+  ports read as written, so `%T = emit(upper(_), t)` waits whatever
+  `t` holds, and the check reads `%T = emit([1], t)` whole.
+- `spec/Aontu/Paths.lean`: placing a document, reading its paths as
+  names and the paths that must name something leave a reference into
+  the node as written (`placePath`).
+- `spec/Oracle.lean`: `aliasCases` gains four cases of an `emit` in a
+  declaration, rows a330 to a341. `emitCases` writes rows et0 on of
+  `test/spec/def-call.tsv`, and `emitPathCases` rows em0 on of
+  `test/spec/def-path.tsv`, where a path names the selection. Both
+  ports answer every row as the definition does. The forms list gains
+  `emit`.
+- `docs/tutorial-definition.md` gains step 40, "Rules over nodes"; the
+  last step is now 41. The reference's `emit` section cites the
+  definition.
+
 ### The definition reads every declaration
 
 Definition, generated rows, and documentation. No engine changes.
