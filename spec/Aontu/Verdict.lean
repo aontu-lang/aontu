@@ -2551,15 +2551,36 @@ def sizeClash (cs : List Val) : Bool :=
         | _ => false
     else false
 
-/-- Whether a size, the argument of `len`, holds a disjunction or a
-preference: `len` takes a conjunction of integers, bounds, exclusions
-and multiples, as both ports read it (decision 16 of the design note's
-§7). -/
-def Val.sizeIll : Val → Bool
+/-- Whether two arms are written alike: the same literal, the same
+numeric kind or the same bound, which both ports read as one arm, so
+that `1 | 1` and `min(1) | min(1)` are each one size. -/
+def Val.sameArm : Val → Val → Bool
+  | .lit a, .lit b => decide (a = b)
+  | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
+  | .number, .number => true
+  | .min a, .min b | .max a, .max b | .above a, .above b | .beneath a, .beneath b => decide (a = b)
+  | .neq a, .neq b => decide (a = b)
+  | .mulof a, .mulof b => decide (a = b)
+  | _, _ => false
+
+/-- Whether a term in normal form still holds a choice: a disjunction
+whose arms aren't one arm of rank `0` written alike, or a preference,
+through `&` and the riders. -/
+def Val.choiceLeft : Val → Bool
+  | .or ((0, a) :: arms) => arms.any fun p => p.1 != 0 || !a.sameArm p.2
   | .or _ => true
   | .pref _ _ => true
-  | .meet a b => a.sizeIll || b.sizeIll
+  | .meet a b => a.choiceLeft || b.choiceLeft
+  | .ride _ v _ => v.choiceLeft
   | _ => false
+
+/-- Whether a size, the argument of `len`, holds a choice once in normal
+form: `len` takes a conjunction of integers, bounds, exclusions and
+multiples, as both ports read it, so that `len(1 | 3)`, `len(*1)` and
+`len(type(1 | 3))` are ill-formed, and a choice the meet or a dead arm
+settles to one arm, `len(1 & (1 | 3))` or `len(1 | (1 & 2))`, is that
+arm's size (decision 16 of the design note's §7). -/
+def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
