@@ -209,6 +209,16 @@ theorem evaluatedBy_congr {cs : List Cover} {gc gc' : Cover → Bool} {gk gk' : 
     | some v => exact hm c hcs v h
   rw [e1, e2, e3]
 
+/-- Whether a term lies outside `len`'s domain though it may admit a
+number: `any` or a trial, under any rider, or a meet of two such terms,
+as both ports refuse `len(any)` and `len(must(integer, "m"))` their
+argument (decision 28 of the design note's §7). -/
+def Val.unsized : Val → Bool
+  | .any | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ => true
+  | .ride _ v _ => v.unsized
+  | .meet a b => a.unsized && b.unsized
+  | _ => false
+
 inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   /-- A kind admits the values of its kind, and refuses every other
   value. -/
@@ -296,12 +306,15 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       (∀ x, j = .num x → d.Positive → ¬ x.multipleOf d) → Judge env root false (.mulof d) j
   /-- `len(c)` judges a string, a list, or a map as `c` judges its size,
   an integer; `len(0)` admits `""`, and a scalar has no size, so `len`
-  refuses it, as it refuses a size no integer leaf holds. -/
+  refuses it, as it refuses a size no integer leaf holds. A `c` outside
+  `len`'s domain, `any` or a trial (`Val.unsized`), admits no size. -/
   | len {b : Bool} {c : Val} {j : Data} {n : ℕ} (h : IntegerLeaf n) :
-      j.size = some n → Judge env root b c (.num (.integer ⟨n, h⟩)) → Judge env root b (.len c) j
+      c.unsized = false → j.size = some n → Judge env root b c (.num (.integer ⟨n, h⟩)) →
+        Judge env root b (.len c) j
   | lenNone {c : Val} {j : Data} : j.size = none → Judge env root false (.len c) j
   | lenBig {c : Val} {j : Data} {n : ℕ} :
       j.size = some n → ¬ IntegerLeaf n → Judge env root false (.len c) j
+  | lenOut {c : Val} {j : Data} : c.unsized = true → Judge env root false (.len c) j
   /-- `unique()` admits a list or a map whose members are pairwise
   distinct as values, and `unique("k")` one whose members each give
   `k` a value and whose values at `k` are; a member that is no map, or
@@ -348,6 +361,9 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   does: the value is the one that fills it. -/
   | hole {j : Data} : Judge env root true .hole j
   | nil {j : Data} : Judge env root false .nil j
+  /-- An atom over an argument outside its domain refuses every value,
+  though it stands: only what it meets finds the refusal. -/
+  | nothing {j : Data} : Judge env root false .nothing j
   /-- A call the reading could not make, outside its function's domain,
   refuses every value; `vet` reads a document that holds one as an
   error before it judges. -/
@@ -703,18 +719,26 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | mulofNot hn => intro b' h'; cases h' with
     | mulof hp hm => exact absurd hm (hn _ rfl hp)
     | mulofNot _ => rfl
-  | len h hs _ ih => intro b' h'; cases h' with
-    | len h' hs' hc' => rw [hs] at hs'; cases hs'; exact ih hc'
+  | len h hu hs _ ih => intro b' h'; cases h' with
+    | len h' _ hs' hc' => rw [hs] at hs'; cases hs'; exact ih hc'
     | lenNone hs' => rw [hs] at hs'; cases hs'
     | lenBig hs' hn => rw [hs] at hs'; cases hs'; exact absurd h hn
+    | lenOut hu' => rw [hu] at hu'; cases hu'
   | lenNone hs => intro b' h'; cases h' with
-    | len _ hs' _ => rw [hs] at hs'; cases hs'
+    | len _ _ hs' _ => rw [hs] at hs'; cases hs'
     | lenNone _ => rfl
     | lenBig _ _ => rfl
+    | lenOut _ => rfl
   | lenBig hs hn => intro b' h'; cases h' with
-    | len h hs' _ => rw [hs] at hs'; cases hs'; exact absurd h hn
+    | len h _ hs' _ => rw [hs] at hs'; cases hs'; exact absurd h hn
     | lenNone _ => rfl
     | lenBig _ _ => rfl
+    | lenOut _ => rfl
+  | lenOut hu => intro b' h'; cases h' with
+    | len _ hu' _ _ => rw [hu] at hu'; cases hu'
+    | lenNone _ => rfl
+    | lenBig _ _ => rfl
+    | lenOut _ => rfl
   | unique hm h1 h2 => intro b' h'; cases h' with
     | unique _ _ _ => rfl
     | uniqueNone hm' => rw [hm] at hm'; cases hm'
@@ -769,6 +793,8 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | hole => rfl
   | nil => intro b' h'; cases h' with
     | nil => rfl
+  | nothing => intro b' h'; cases h' with
+    | nothing => rfl
   | call => intro b' h'; cases h' with
     | call => rfl
   | map h1 h2 h3 h4 ih1 ih3 => intro b' h'; cases h' with
@@ -1014,6 +1040,7 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.len <;> assumption)
     | (apply Judge.lenNone <;> assumption)
     | (apply Judge.lenBig <;> assumption)
+    | (apply Judge.lenOut <;> assumption)
     | (apply Judge.unique <;> assumption)
     | (apply Judge.uniqueNone <;> assumption)
     | (apply Judge.uniqueBare <;> assumption)
@@ -1028,6 +1055,7 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.absent <;> assumption)
     | (apply Judge.hole <;> assumption)
     | (apply Judge.nil <;> assumption)
+    | (apply Judge.nothing <;> assumption)
     | (apply Judge.map <;> assumption)
     | (apply Judge.mapNot <;> assumption)
     | (apply Judge.mapField <;> assumption)
