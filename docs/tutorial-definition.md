@@ -5367,7 +5367,8 @@ the member it tries lands, under its key or at the index it takes among
 those kept. A term read with no position keeps its keys as written, and
 a selection whose arms hold a key, a call or a generator whose arguments
 hold one, and a `filter` whose condition does stay as written too, so
-that a path copies them to be read where it lands. A size over a term
+that a path copies them to be read where it lands, but a `refer` or a
+`rel`, whose value no argument decides. A size over a term
 outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
 as a bound over one is (`bndOf`), so that both refuse at the meet. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
@@ -5388,6 +5389,73 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
         checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term
     | some _ => .nil
     | none => if (normaliseD ds s').isAbsent then .absent else .filter s' (resolveD ds none none c)
+  | .call f args =>
+    match f, args with
+    | .each, [d, t] =>
+      if here.isNone && (resolveD ds b here d).holdsKey then .call .each [resolveD ds b here d, t] else
+      match (normaliseD ds (resolveD ds b here d)).members ds with
+      | some ms =>
+        .list ((ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).filter
+          fun e => !(normaliseD ds e).isAbsent) none false
+      | none =>
+        if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
+        else if (resolveD ds b here d).pending ds then .call .each [resolveD ds b here d, t]
+        else .nil
+    | .pack, [d, t] =>
+      if here.isNone && (resolveD ds b here d).holdsKey then .call .pack [resolveD ds b here d, t] else
+      match (normaliseD ds (resolveD ds b here d)).keyedMembers ds with
+      | some ms =>
+        .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
+          fun m => (m.1, false, m.2)) none false
+      | none =>
+        if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
+        else if (resolveD ds b here d).pending ds then .call .pack [resolveD ds b here d, t]
+        else .nil
+    | .maybe, [v] => maybeOf ds (resolveD ds b here v)
+    | .maybe, args => .call .maybe (resolveItems ds b here args)
+    | .emit, [s, t] =>
+      if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
+      if (emitTable t).any (fun r => !emitRawOk r) ||
+        (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
+        .call .emit [resolveD ds b here s, t] else
+      match (normaliseD ds (resolveD ds b here s)).members ds with
+      | some ms =>
+        let pss := ms.map fun m => emitPieces ds m t (resolveD ds none none t) (resolveD ds (some m) none t)
+        if pss.all Option.isSome then .list (pss.filterMap id).flatten none false
+        else .call .emit [resolveD ds b here s, t]
+      | none =>
+        if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
+        else .call .emit [resolveD ds b here s, t]
+    | f, args =>
+      if here.isNone && keyItems (resolveItems ds b here args) && f != .refer && f != .rel then
+        .call f (resolveItems ds b here args)
+      else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
+      else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
+      else callTerm ds f (resolveItems ds b here args)
+  | .len c =>
+    if (normaliseD ds (resolveD ds b here c)).unsized then .nothing else .len (resolveD ds b here c)
+  | .map fs spread closed =>
+    .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
+  | .list items spread closed =>
+    .list ((resolveElems ds b here 0 items).filter fun e => !(normaliseD ds e).isAbsent)
+      (resolveSpread ds none (stepped here .spread) spread) closed
+  | .or arms => .or (resolveArms ds b here arms)
+  | .pref r x => .pref r (resolveD ds b here x)
+  | .meet a c => .meet (resolveD ds b here a) (resolveD ds b here c)
+  | .nof n cs => .nof (resolveD ds b here n) (resolveItems ds b here cs)
+  | .must c m => .must (resolveD ds b here c) m
+  | .when c t e => .when (resolveD ds b here c) (resolveD ds b here t) (resolveSpread ds b here e)
+  | .contains c n => .contains (resolveD ds b here c) (resolveD ds b here n)
+  | .rest t cs => .rest (resolveD ds b here t) (resolveCovers ds b here cs)
+  | .ride k v r => .ride k (resolveD ds b here v) r
+  | .keyUp n =>
+    match here with
+    | some pos => keyUpAt pos n
+    | none => .keyUp n
+  | .hole => b.getD .hole
+  | .path p => nodeRef b p
+  | v => v
+  termination_by structural v => v
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
@@ -8017,31 +8085,81 @@ a spread's template reaches each member, and a generator's template
 each member of its output. So at each position the schema's normal
 form holds, the definition reads the terms the schema writes there,
 through meets, riders, a map's member and its spread, a list's element
-and its spread, a generator's template, and a path reference's target:
+and its spread, a generator's template, and a path reference's target.
+Each item it reads carries the member a generator's template is read
+for and the place the item lands at, which a reference's own path
+leaves where it was:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def landStep (S : Val) (i : Val × List Seg) : List Val × List (Val × List Seg) :=
-  match i.1 with
-  | .meet a b => ([], [(a, i.2), (b, i.2)])
-  | .ride _ v _ => ([], [(v, i.2)])
-  | .path q => ([], [(S, q ++ i.2)])
-  | _ => landLeaf i.1 i.2
+def linkStep (dp : Decls) (S : Val) (i : LinkItem) : List LinkItem × List LinkItem :=
+  match i.term with
+  | .meet a b => ([], [{ i with term := a }, { i with term := b }])
+  | .ride _ v _ => ([], [{ i with term := v }])
+  | .path q => ([], [⟨S, q ++ i.left, q.length + i.skip, none, i.place⟩])
+  | _ => linkLeaf dp i
 ```
 
-Each `refer` among them is a link at that position, its relative
-address read from there, so that each place a spread or a reference
-puts it reads its own. The definition reads a link written in a body
-at the body's own place, `%` and the name as a key at the top, whether
-a reference reads the body or not:
+A generator's template lands only at the instances the generator
+makes, each read for its member: `each`'s at an index among those that
+aren't absence, and `pack`'s under a key. So
+`each([], refer({ k:1 })) & [path($.a)]` flows nothing into `a`,
+though the list the generator meets has an element:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def genSteps (dp : Decls) (b : Option Val) (here : List Seg) (f : Fn) (d t : Val) (s : Seg) :
+    List (Val × Seg) :=
+  match f with
+  | .each =>
+    match (normaliseD dp (resolveD dp b (some (here.map .seg)) (dp.read d.pathsToAliases))).members dp with
+    | some ms =>
+      match s.stepIn (.list [] none false) with
+      | some (.idx i) =>
+        ((ms.zipIdx.filter fun m => !(normaliseD dp (resolveD dp (some m.1)
+            (some ((here ++ [Seg.idx m.2]).map .seg)) (dp.read t.pathsToAliases))).isAbsent)[i]?).toList.map
+          fun m => (m.1, .idx m.2)
+      | _ => []
+    | none => []
+  | .pack =>
+    match (normaliseD dp (resolveD dp b (some (here.map .seg)) (dp.read d.pathsToAliases))).keyedMembers dp with
+    | some ms => (ms.filter fun m => m.1 == s.text).map fun m => (m.2, .key m.1)
+    | none => []
+  | _ => []
+```
+
+Each `refer` among the terms the landing reaches is a link at that
+position, its relative address read from there, so that each place a
+spread or a reference puts it reads its own. Its template is read for
+the member it lands with, at the place it lands at, as both engines
+read a template where its link stands. A hole in a generator's
+template stands for the member, so `each($.l, refer(_) & path($.a))`
+flows each member of `l` into `a`, and `key()` reads the link's own
+place, so `x: r: refer({ n:key() }) & path($.a)` makes `a.n` the
+string `"r"`:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.linksAt (ds dp : Decls) (S T : Val) (home pos : List Seg) : List (List Seg × Val × Bool) :=
+  (linkLanding dp S ((S.size + T.size + pos.length + 2) * (S.size + 2)) [⟨T, pos, 0, none, home⟩]).flatMap
+    fun i => (callLinks pos i.term).map fun e => (e.1, resolveD ds i.member (some (i.place.map .seg)) e.2.1, e.2.2)
+```
+
+The definition reads the links that land in a body too, at a position
+of the body's own tree, and at the body's own place, `%` and the name
+as a key at the top, whether a reference reads the body or not. So a
+generator in a body no reference reads still flows its links'
+templates:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val :=
-  ds.foldl (fun acc d => (d.2.refers []).foldl
-      (referStep roots miss [.key ("%" ++ d.1)] (normaliseD ds (ds.readU d.2))) acc)
-    ((S.landedLinks ((ds.rootsS S).getLast?.getD .any)).foldl
-      (referStep roots miss [] ((ds.rootsS S).getLast?.getD .any)) S)
+  let own := ds.rootsS S
+  let dp := (ds.withPathsFrom S own).1
+  ds.foldl (fun acc d => (ds.landedLinks dp S d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
+      (referStep roots miss [.key ("%" ++ d.1)] (dp.bodyRoot d)) acc)
+    ((ds.landedLinks dp S S (own.getLast?.getD .any) []).foldl
+      (referStep roots miss [] (own.getLast?.getD .any)) S)
 ```
 
 One link's template can make another link's target:
@@ -8093,10 +8211,19 @@ $ echo $?
 
 Rows from rf0 on of `test/spec/def-path.tsv` hold these readings in the
 three modes of `vet`, rows from ld0 on hold links that land through a
-spread or a path reference, and rows from lg0 on links in a generator's
-template. Both engines answer every one as the definition does. With data, both engines read a body's relative link a
+spread or a path reference, rows from lg0 on links in a generator's
+template, and rows from lt0 on templates that read the member or the
+place where their link lands. Both engines answer every one as the
+definition does. With data, both engines read a body's relative link a
 second time, from each place that uses the body, which #488 tracks, and
-no row holds such a link.
+no row holds such a link. Both engines flow a link that a path
+reference copies whole once, its template read at one copy's place,
+which the order of the document picks, where the definition reads each
+copy as a link of its own, which #536 tracks. The definition reads the
+links where the schema's own tree puts them before any template flows,
+so it doesn't yet read a link in the template of a generator whose data
+another link's template makes, as both engines do, and no row holds
+one.
 
 ## 37. Relations
 
