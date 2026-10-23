@@ -160,8 +160,12 @@ absolute where it stands, its dots climbing as many steps: a map's
 member stands one key below the map and a list's element one index
 below, as `resolveD` places a key. A path that climbs past the top stays
 as written, and resolves nowhere. A spread that is a path stands where
-its members do (`plBare`). Any other spread, a template and a `filter`'s
-condition keep theirs as written, since each stands at a position the
+its members do (`plBare`). A `filter`'s condition stands where the
+member it tries lands, one step below the filter, a step no written
+path names (`.up 0`): a path that climbs out of the member names the
+same place for every member, and one that stays inside it keeps the
+step and names nothing, as both ports read it. Any other spread and a
+template keep theirs as written, since each stands at a position the
 written document doesn't name. -/
 def Val.placed (pos : List Seg) : Val → Val
   | .path (.up n :: p) => if n ≤ pos.length then .path (pos.take (pos.length - n) ++ p) else .path (.up n :: p)
@@ -177,7 +181,7 @@ def Val.placed (pos : List Seg) : Val → Val
   | .contains c n => .contains (c.placed pos) (n.placed pos)
   | .rest t cs => .rest (t.placed pos) (plCovers pos cs)
   | .select s arms d => .select (s.placed pos) (plPairs pos arms) (plSpread pos d)
-  | .filter s c => .filter (s.placed pos) c
+  | .filter s c => .filter (s.placed pos) (c.placed (pos ++ [.up 0]))
   | .call f args => .call f (plArgs pos f args)
   | .ride k v r => .ride k (v.placed pos) r
   | v => v
@@ -503,7 +507,7 @@ def Decls.docPaths (ds : Decls) (S : Val) : List (List Seg) :=
   ((ds.read S).paths ++ ds.paths).eraseDups
 
 /-- The paths a document writes that must name something: every path
-but one `maybe` forgives (`Val.forgive`). -/
+but one `maybe` or a `filter`'s condition forgives (`Val.forgive`). -/
 def Decls.strictPaths (ds : Decls) (S : Val) : List (List Seg) :=
   ((ds.read S).forgive.paths ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.forgive.paths) []).eraseDups
 
@@ -2566,16 +2570,18 @@ theorem Decls.rootsD_checkableA {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d
     (fun hd hT => normaliseD_checkableA hd (meetD_checkableA hd (readU_checkableA hd hT) (Data.term_checkableA j)))
     hb hS _
 
-/-- `vetA` computes `VetA` on every document whose bodies and schema
-read no pattern and no format. -/
-theorem vetA_iff {m : Mode} {ds : Decls} {S S' : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (hS' : S'.CheckableA) (v : Verdict) : vetA m ds S S' j = v ↔ VetA m ds S S' j v := by
-  have hbS := Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsS_checkableA hb hS)
-  have hvS := vet_iff (m := m) (ds := (ds.withPathsS S).1) (S := (ds.withPathsS S).2) (j := j) hbS
-    (readR_checkableA hbS (pathsToAliases_checkableA hS))
-  have hbP := Decls.withPathsFrom_bodies_checkableA (S := S') hb (Decls.rootsD_checkableA (j := j) hb hS')
-  have hvP := vet_iff (m := m) (ds := (ds.withPaths S' j).1) (S := (ds.withPaths S' j).2) (j := j) hbP
-    (readR_checkableA hbP (pathsToAliases_checkableA hS'))
+/-- `vetA` computes `VetA` wherever the checker can read the two
+documents the verdict hands `vet`, the schema's reading and the data's,
+each with its bodies, as it can a document whose `filter` reads its
+source to the members it keeps. -/
+theorem vetA_iff_of {m : Mode} {ds : Decls} {S S' : Val} {j : Data}
+    (hbS : ∀ d, d ∈ (ds.withPathsS S).1 → d.2.CheckableA)
+    (hRS : ((ds.withPathsS S).1.readR (ds.withPathsS S).2).CheckableA)
+    (hbP : ∀ d, d ∈ (ds.withPaths S' j).1 → d.2.CheckableA)
+    (hRP : ((ds.withPaths S' j).1.readR (ds.withPaths S' j).2).CheckableA) (v : Verdict) :
+    vetA m ds S S' j = v ↔ VetA m ds S S' j v := by
+  have hvS := vet_iff (m := m) (ds := (ds.withPathsS S).1) (S := (ds.withPathsS S).2) (j := j) hbS hRS
+  have hvP := vet_iff (m := m) (ds := (ds.withPaths S' j).1) (S := (ds.withPaths S' j).2) (j := j) hbP hRP
   unfold vetA
   by_cases hr : ds.resolvesB S = true
   · rw [if_pos hr]
@@ -2593,6 +2599,30 @@ theorem vetA_iff {m : Mode} {ds : Decls} {S S' : Val} {j : Data} (hb : ∀ d, d 
   · rw [if_neg hr]
     have hR : ¬ ds.Resolves S := fun h => hr (Decls.resolvesB_iff.mpr h)
     cases v <;> simp only [VetA, hR, not_false_eq_true, true_or, false_and, reduceCtorEq]
+
+/-- `vetA` computes `VetA` on every document whose bodies and schema
+read no pattern and no format. -/
+theorem vetA_iff {m : Mode} {ds : Decls} {S S' : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (hS' : S'.CheckableA) (v : Verdict) : vetA m ds S S' j = v ↔ VetA m ds S S' j v :=
+  vetA_iff_of (Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsS_checkableA hb hS))
+    (readR_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsS_checkableA hb hS))
+      (pathsToAliases_checkableA hS))
+    (Decls.withPathsFrom_bodies_checkableA (S := S') hb (Decls.rootsD_checkableA (j := j) hb hS'))
+    (readR_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S') hb (Decls.rootsD_checkableA (j := j) hb hS'))
+      (pathsToAliases_checkableA hS')) v
+
+/-- Whether the checker can read the two documents `vetA` hands `vet`,
+each with its bodies, computed. -/
+def Decls.readsAB (ds : Decls) (S S' : Val) (j : Data) : Bool :=
+  (ds.withPathsS S).1.all (·.2.checkableAB) && ((ds.withPathsS S).1.readR (ds.withPathsS S).2).checkableAB &&
+    (ds.withPaths S' j).1.all (·.2.checkableAB) && ((ds.withPaths S' j).1.readR (ds.withPaths S' j).2).checkableAB
+
+theorem vetA_iff_reads {m : Mode} {ds : Decls} {S S' : Val} {j : Data} (h : ds.readsAB S S' j = true)
+    (v : Verdict) : vetA m ds S S' j = v ↔ VetA m ds S S' j v := by
+  simp only [Decls.readsAB, Bool.and_eq_true, List.all_eq_true] at h
+  obtain ⟨⟨⟨hbS, hRS⟩, hbP⟩, hRP⟩ := h
+  exact vetA_iff_of (fun d hd => (Val.checkableAB_iff _).mp (hbS d hd)) ((Val.checkableAB_iff _).mp hRS)
+    (fun d hd => (Val.checkableAB_iff _).mp (hbP d hd)) ((Val.checkableAB_iff _).mp hRP) v
 
 /-- `vetL` computes `VetL` on every document whose bodies and schema
 read no pattern and no format. -/
@@ -2612,6 +2642,21 @@ theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     exact eq_comm
   · rw [if_neg hl, if_neg hl]
     exact vetL_iff (Decls.loaded_bodies_checkableA hb) (Decls.loaded_checkableA hb hS) v
+
+/-- Whether a document leaves no load unmade and the checker can read
+the two documents its verdict hands `vet`, computed: what a document
+whose `filter` the checker can't read before the reading needs. -/
+def Decls.readsPB (ds : Decls) (S : Val) (j : Data) : Bool :=
+  !ds.loadsLeft S && ((ds.loaded S).1.preparedS (ds.loaded S).2).1.readsAB
+    ((ds.loaded S).1.preparedS (ds.loaded S).2).2 ((ds.loaded S).1.preparedD (ds.loaded S).2 j) j
+
+/-- `vetP` computes `VetP` on every document `Decls.readsPB` reads. -/
+theorem vetP_iff_reads {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : ds.readsPB S j = true)
+    (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v := by
+  simp only [Decls.readsPB, Bool.and_eq_true, Bool.not_eq_true'] at h
+  unfold vetP VetP
+  rw [if_neg (by simp [h.1]), if_neg (by simp [h.1])]
+  exact vetA_iff_reads h.2 v
 
 /-! ## The output with paths -/
 

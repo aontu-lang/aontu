@@ -169,7 +169,10 @@ mutual
 saying whether the term stands at the top of `maybe`'s argument: the
 argument itself, a side of a meet, an arm of a disjunction or the value
 under a rider, where a reference that names nothing makes absence
-rather than an error. -/
+rather than an error. A `filter`'s condition reads as `any` too, every
+reference in it, since a condition that names nothing refuses the
+member it tries rather than making the document an error, as both
+ports read it. -/
 def Val.forgiveAt (top : Bool) : Val → Val
   | .alias n => if top then .any else .alias n
   | .path p => if top then .any else .path p
@@ -187,7 +190,7 @@ def Val.forgiveAt (top : Bool) : Val → Val
   | .contains c n => .contains (c.forgiveAt false) (n.forgiveAt false)
   | .rest t cs => .rest (t.forgiveAt false) (forgiveCovers cs)
   | .select s arms d => .select (s.forgiveAt false) (forgivePairs arms) (forgiveSpread d)
-  | .filter s c => .filter (s.forgiveAt false) (c.forgiveAt false)
+  | .filter s _ => .filter (s.forgiveAt false) .any
   | .call f args => .call f (forgiveItems args)
   | v => v
   termination_by structural v => v
@@ -294,7 +297,7 @@ next?: %N}` keeps it. -/
 def Guarded (ds : Decls) : Prop := ∀ n, ¬ Relation.TransGen ds.RefersUnguarded n n
 
 /-- Every name a value and the declarations refer to is declared, but
-one `maybe` forgives (`Val.forgive`). -/
+one `maybe` or a `filter`'s condition forgives (`Val.forgive`). -/
 def Declares (ds : Decls) (v : Val) : Prop :=
   (∀ n, n ∈ v.forgive.refs → ds.bodies n ≠ []) ∧
     ∀ d, d ∈ ds → ∀ n, n ∈ d.2.forgive.refs → ds.bodies n ≠ []
