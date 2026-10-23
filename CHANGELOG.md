@@ -59,6 +59,92 @@ Ruling 28 of the design note's §7 (#509).
 - The tutorial and the reference describe the reading, and the
   reference no longer cites #509.
 
+### The definition reads `emit`
+
+Definition, generated rows, and documentation. No engine changes. A P9
+slice.
+
+- `spec/Aontu/Data.lean`: `Seg.node`, the step a relative reference in
+  a body of `emit` starts with, since it names a field of the node
+  rather than a place.
+- `spec/Aontu/Verdict.lean`: `resolveD` checks an `emit`'s table, each
+  template a map with its `match` and a list for its `body`
+  (`emitRuleOk`), then reads it once for each node of its selection, in the order
+  `Val.members` reads them, its `match`es for no node and its bodies for
+  the node. `emitPieces` takes the body of the first template whose
+  `match` takes the node, as both ports dispatch (`emitTakes`): the node
+  met with the `match` doesn't die and is alike the node (`Val.alike`),
+  its members counted as `Val.members` reads them (`memberField`), so
+  that the meet narrows nothing, a disjunction with no preference, under
+  any rider, taken where any arm meets. A hole in a `match` matches nothing where
+  it stands and is the value it meets in a meet or an arm
+  (`Val.matchRead`), and a template's `match` fields meet. The answer
+  splices in each list in the body, at any depth (`emitSpliceF`). A
+  body's hole and
+  its references into the node read the node, by `nodeRef` and
+  `Val.fieldAt`, a position of a list node and a map's key in digits
+  among them. A selection other than a bag, a template without its
+  `match` or its `body`, a body other than a list, a node no template
+  takes and a reference the node doesn't answer leave the call unmade,
+  an error, as both ports refuse each. The definition leaves a body
+  that holds a `key(n)` unmade, since the ports read it at different
+  positions, as #524 records.
+- `spec/Aontu/Verdict.lean`, ruling 17's reading of a declaration:
+  `Val.waits` reads an `emit`'s table as a template, its holes the
+  node's, and `Val.unplaced` reads its selection as the argument both
+  ports read as written, so `%T = emit(upper(_), t)` waits whatever
+  `t` holds, and the check reads `%T = emit([1], t)` whole.
+- `spec/Aontu/Paths.lean`: placing a document, reading its paths as
+  names and the paths that must name something leave a reference into
+  the node as written (`placePath`).
+- `spec/Oracle.lean`: `aliasCases` gains four cases of an `emit` in a
+  declaration, rows a330 to a341. `emitCases` writes rows et0 on of
+  `test/spec/def-call.tsv`, and `emitPathCases` rows em0 on of
+  `test/spec/def-path.tsv`, where a path names the selection. Both
+  ports answer every row as the definition does. The forms list gains
+  `emit`.
+- `docs/tutorial-definition.md` gains step 40, "Rules over nodes"; the
+  last step is now 41. The reference's `emit` section cites the
+  definition.
+
+### The definition reads every declaration
+
+Definition, generated rows, and documentation. No engine changes.
+Ruling 17 of the design note's §7.
+
+- `spec/Aontu/Verdict.lean`: `Decls.bodyIll` reads each declaration's
+  body where no place is yet (`Decls.readU`), as the name and as the
+  body itself, so that a recursive body is read too, and
+  `Decls.illFormedR` makes the document an error where one doesn't
+  stand, whether or not anything reads it, as both ports answer:
+  `%T = 1 & 2` beside `v: 1` is an `error`. A hole or a `key(n)` waits
+  for the use that places it, so each body is read with the parts that
+  hold one as `any` (`Val.unplaced`, over `Val.waits`, which leaves out
+  the hole and the `key(n)` an `each` or a `pack` binds in its
+  template): a conflict beside a hole is still an `error`, and a body
+  that names a template stands. A call or a trial that waits is `nil`
+  where an argument both ports read as written doesn't stand, a call's
+  own, a size, a count, `must`'s condition, or the data, scrutinee or
+  source of `each`, `match` and `filter`, so `%T = contains(upper(_),
+  1 & 2)` is an `error`, and in a disjunction it's an arm that dies. A
+  name a source publishes is read where a destructure takes it, so not
+  alone.
+- `spec/Oracle.lean`: `aliasCases` gains forty cases, a dead or
+  ill-formed body alone, beside a name the schema uses, inside a
+  recursive body and beside a hole or a `key(n)`, an error, and a body
+  that stands, a literal short of its size, a template with a hole, a
+  body that names one and a call over a `key(n)` beside them, not; and
+  a waiting call or trial over a conflict its arguments read, an
+  error, over one only a trial or a template holds, not, and an `each`
+  or a `pack` over data written in place, read whole.
+  Both ports answer every row as the definition does. A body that is
+  an unbuilt call, `%T = add(1)`, or the literal `nil` holds no row:
+  both ports answer it `invalid`, by the split #426 tracks, where the
+  definition reads it as it reads the schema's own, an `error`.
+- The tutorial quotes `Decls.illFormedR` as it now stands, and
+  `Decls.bodyIll`; the definition's README no longer lists the gap
+  (#417).
+
 ### The definition reads a disjunctive size as ill-formed
 
 Definition, generated rows, and documentation. No engine changes.
