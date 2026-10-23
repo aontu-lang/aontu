@@ -1332,12 +1332,15 @@ $ echo $?
 ```lean
   /-- `len(c)` judges a string, a list, or a map as `c` judges its size,
   an integer; `len(0)` admits `""`, and a scalar has no size, so `len`
-  refuses it, as it refuses a size no integer leaf holds. -/
+  refuses it, as it refuses a size no integer leaf holds. A `c` outside
+  `len`'s domain, `any` or a trial (`Val.unsized`), admits no size. -/
   | len {b : Bool} {c : Val} {j : Data} {n : ℕ} (h : IntegerLeaf n) :
-      j.size = some n → Judge env root b c (.num (.integer ⟨n, h⟩)) → Judge env root b (.len c) j
+      c.unsized = false → j.size = some n → Judge env root b c (.num (.integer ⟨n, h⟩)) →
+        Judge env root b (.len c) j
   | lenNone {c : Val} {j : Data} : j.size = none → Judge env root false (.len c) j
   | lenBig {c : Val} {j : Data} {n : ℕ} :
       j.size = some n → ¬ IntegerLeaf n → Judge env root false (.len c) j
+  | lenOut {c : Val} {j : Data} : c.unsized = true → Judge env root false (.len c) j
 ```
 
 The size is the value's own:
@@ -1356,22 +1359,38 @@ def Data.size : Data → Option ℕ
 A string's size is its characters, not its bytes, so `len(1)` admits
 `"𝄞"`, one character in four bytes. The rule hands the size to `c` as
 an integer, so `c` is any term over the integers: a literal, a bound,
-or a kind such as `number`:
+or a kind such as `number`. `any` and a trial admit numbers but name no
+count, so both engines refuse `len(any)` and `len(must(integer, "m"))`
+their argument, and `len` over one admits no size at all. A rider and
+a meet are read through, so `len(meta(1, {}))` and `len(any & 1)` are
+each `len(1)`:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+def Val.unsized : Val → Bool
+  | .any | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ => true
+  | .ride _ v _ => v.unsized
+  | .meet a b => a.unsized && b.unsized
+  | _ => false
+```
+
+Lean's `rfl` proves `c.unsized = false` of each `c` below, and the
+examples read:
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
 /-- `len(1)` admits `"𝄞"`, one character in four bytes. -/
 example : Instance .empty (.len (.lit (.num (.integer (.of 1))))) (.str "𝄞") :=
-  ⟨by decide, .len (n := 1) (by decide) (by decide) .num⟩
+  ⟨by decide, .len (n := 1) (by decide) rfl (by decide) .num⟩
 
 /-- `len(0)` admits `""`, which `string` refuses. -/
 example : Instance .empty (.len (.lit (.num (.integer (.of 0))))) (.str "") :=
-  ⟨by decide, .len (n := 0) (by decide) (by decide) .num⟩
+  ⟨by decide, .len (n := 0) (by decide) rfl (by decide) .num⟩
 
 /-- `len(min(2))` admits `{"x": 1, "y": 2}`… -/
 example : Instance .empty (.len (.min (.num (.integer (.of 2)))))
     (.map [("x", .integer 1), ("y", .integer 2)]) :=
-  ⟨by decide, .len (n := 2) (by decide) (by decide) (.min (by decide))⟩
+  ⟨by decide, .len (n := 2) (by decide) rfl (by decide) (.min (by decide))⟩
 
 /-- …and refuses `[1]`. -/
 example : ¬ Instance .empty (.len (.min (.num (.integer (.of 2))))) (.list [.integer 1]) :=
@@ -1381,7 +1400,7 @@ example : ¬ Instance .empty (.len (.min (.num (.integer (.of 2))))) (.list [.in
 example : ¬ Instance .empty (.len (.lit (.num (.integer (.of 1))))) (.integer 5) := by
   rintro ⟨-, h⟩
   cases h with
-  | len _ hs _ => cases hs
+  | len _ _ hs _ => cases hs
 ```
 
 `(n := 1)` names the size for Lean, which the rule otherwise reads off
@@ -2713,16 +2732,21 @@ A path names a part of a value, step by step:
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- A step of a path: a member's key, a position in a list, a variable
-the calling program binds, whose value names the step, or the climb a
-relative path starts with, a step up for each of its dots. -/
+the calling program binds, whose value names the step, the climb a
+relative path starts with, a step up for each of its dots, or the step
+into the node a body of `emit` is read for, which a relative reference
+in a body starts with, since it names a field of the node rather than a
+place. -/
 inductive Seg where
   | key (k : String)
   | idx (i : ℕ)
   | var (n : String)
   | up (n : ℕ)
+  | node
 ```
 
-Step 30 comes to the variable, and the end of this step to the climb.
+Step 30 comes to the variable, the end of this step to the climb, and
+step 40 to the step into a node.
 A path in a document reads as what the
 document holds at that position, the data unified in: `x: $.y` with
 `y: integer & 1` makes `x` the value `1`. `spec/Aontu/Paths.lean` reads
@@ -2774,7 +2798,7 @@ list, the index its text spells in canonical decimal. A variable names
 no step until it's bound. -/
 def Seg.stepIn (s : Seg) (v : Val) : Option Seg :=
   match s, v.unride with
-  | .var _, _ | .up _, _ => none
+  | .var _, _ | .up _, _ | .node, _ => none
   | s, .map _ _ _ => some (.key s.text)
   | .idx i, .list _ _ _ => some (.idx i)
   | .key k, .list _ _ _ => (indexOf? k).map .idx
@@ -3237,6 +3261,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | .nil, _ | _, .nil => .nil
   | .absent, b => absentOr (rec .any b)
   | a, .absent => absentOr (rec a .any)
+  | .nothing, b => nothingOr b
+  | a, .nothing => nothingOr a
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
   | .ride k v r, b => .ride k (rec v b) r
@@ -3256,7 +3282,9 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
 
 Read each row as *these two shapes meet in this one*. `nil` is the
 zero: it admits nothing, so nor does any meet with it. Absence, step
-33's, is the unit, but met with `any` it stays absence. A meet on either
+33's, is the unit, but met with `any` it stays absence. `nothing`,
+step 20's atom over an argument outside its domain, stays itself met
+with `any` and is `nil` met with anything else. A meet on either
 side is met one side at a time, and on the right `meetRight` tries each
 atom against each other once: `a` meets `b₁`, and where the two had
 nothing to say to each other, such as `min(1)` and `max(9)`, `a` meets
@@ -3841,7 +3869,8 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
-  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent => .any
+  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
+  | .nothing => .any
   | .nil => .nil
   | .lit (.num x) => x.leaf.kind
   | .lit (.str s) => if s = "" then .anyString else .string
@@ -4044,7 +4073,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
   | .re _, _ | .format _, _ | .grammar _, _
-  | .any, _ | .absent, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
+  | .any, _ | .absent, _ | .nil, _ | .nothing, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
   | .key, _ | .keyUp _, _ | .call _ _, _ | .hole, _ => False
 ```
@@ -4065,8 +4094,8 @@ none has one. So `*1 | 2` generates `1`, `1 | 1` generates `1`, and
 value generates. A meet left as written, two atoms or a container with
 a constraint, generates what its left side generates and its right
 admits, or the other way about where the left generates nothing. A
-kind, a bound, `any`, absence, `nil`, an alias and a path generate
-nothing.
+kind, a bound, `any`, absence, `nil`, `nothing`, an alias and a path
+generate nothing.
 
 `Output` reads `Gen` off the visible part of the normal form of step
 10, where every meet is computed and every dead arm dropped. The visible
@@ -4378,14 +4407,14 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 
 Read the four in order. `error` is a document that refers to a name it
 doesn't declare, one whose names break the alias-cycle rule, one with
-an `ident()` out of the place step 8 gives it, or a schema whose normal
-form doesn't stand. Both clauses that aren't about names are one
-check:
+an `ident()` out of the place step 8 gives it, or a schema or a
+declaration's body whose normal form doesn't stand. The clauses that
+aren't about names are one check:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || (normaliseD ds (ds.readR S)).illFormed
+  ds.identMisplaced S || ds.bodyIll || (normaliseD ds (ds.readR S)).illFormed
 ```
 
 An `ident()`'s place belongs to the text, so the check reads the
@@ -4398,6 +4427,44 @@ beside `v: 1` is an `error`:
 ```lean
 def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
   S.idents || ds.any fun d => d.2.unident.idents
+```
+
+Every declaration's body is read too, whether or not a reference
+reaches it, so `%T = 1 & 2` beside `v: 1` is an `error`, as both
+engines answer (decision 17 of the design note's §7). The body is read
+where no place is yet, as the roots that paths read are
+(`Decls.readU`, which step 29 comes to), as the name and as the body
+itself, so that a recursive body is read too. A hole or a `key(n)`
+waits for the use that places it, so the check reads each part that
+holds one as `any` (`Val.unplaced`), in every body at once. So
+`%T = upper(_) & (1 & 2)` is still an `error` for the conflict beside
+the hole, and `%T = %U` beside `%U = upper(_)` is not, as both engines
+answer.
+
+A call or a trial that waits for its hole still reads the arguments
+both engines read as written: a call's own, a size, the count of `nof`
+and `contains`, the condition of `must`, and the data, selection,
+scrutinee or source of `each`, `emit`, `match` and `filter`. Where one
+of them doesn't
+stand, read against the bodies with each waiting part as `any`, the
+call is `nil`. So `%T = contains(upper(_), 1 & 2)` is an `error`, and
+`add(upper(_), 1 & 2) | 3` holds an arm that dies. A trial's branches
+and a template wait with the call, since the engines read them later,
+so `%T = when(upper(_), 1 & 2)` stands. A template's hole and `key(n)`
+are its member's (`Val.waits`), so the check reads
+`%T = each(["a"], upper(_) & (1 & 2))` whole, an `error`, and an
+`emit`'s table is its node's, so the check reads an `emit` over a
+selection written in place whole too. A name a
+source publishes is read where a destructure takes it, so not here:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.bodyIll (ds : Decls) : Bool :=
+  let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced fun _ => false)
+  let ill : Val → Bool := fun t => (normaliseD d0 (d0.readU t)).illFormed
+  let du : Decls := ds.map fun d => (d.1, d.2.unplaced ill)
+  du.any fun d => d.1.toList.head? != some '!' &&
+    ((normaliseD du (du.readU (.alias d.1))).illFormed || (normaliseD du (du.readU d.2)).illFormed)
 ```
 
 A normal form doesn't stand, `illFormed`, where it holds a `nil`
@@ -5262,7 +5329,13 @@ reads them, less each reading that is absence, and `nil` where the data
 is no bag. A `pack` is the open map
 of its template read for each member `Val.keyedMembers` reads, under the
 member's key, the instances of a repeated key met, and `nil` where the
-data is no bag or a list holds anything but a string. A `maybe` is
+data is no bag or a list holds anything but a string. An `emit` is the
+list of the pieces its table makes of each member of its selection, in
+the order `Val.members` reads them, its `match`es read for no member and
+its bodies for the member, each hole and each reference into the node
+bound to it (`nodeRef`), and stays as written, a call no reading makes,
+where a template lacks its `match` or a list for its `body`, the selection is no
+bag, or a member makes no pieces (`emitPieces`). A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
 no position for an element that is absence. A call or a generator
@@ -5277,7 +5350,9 @@ the member it tries lands, under its key or at the index it takes among
 those kept. A term read with no position keeps its keys as written, and
 a selection whose arms hold a key, a call or a generator whose arguments
 hold one, and a `filter` whose condition does stay as written too, so
-that a path copies them to be read where it lands. -/
+that a path copies them to be read where it lands. A size over a term
+outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
+as a bound over one is (`bndOf`), so that both refuse at the meet. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
@@ -5419,6 +5494,7 @@ inductive Val.Checkable : Val → Prop
   | absent : Checkable .absent
   | hole : Checkable .hole
   | nil : Checkable .nil
+  | nothing : Checkable .nothing
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
       (∀ k o v, (k, o, v) ∈ fs → Checkable v) → (∀ s, spread = some s → Checkable s) →
       Checkable (.map fs spread closed)
@@ -6169,30 +6245,58 @@ there is `min(2)`:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
-  let ns := args.map fun a => (normaliseD ds a).unride
-  if ns.any Val.noEnd then .refused else
+  let ns := match b, args.map fun a => (normaliseD ds a).unride with
+    | .neq, [.list (x :: xs) _ _] => (x :: xs).map fun e => (normaliseD ds e).unride
+    | _, ns => ns
+  if ns.any Val.isChoice then .refused else
+  if ns.any Val.noEnd then .made .nothing else
   match ns.mapM Val.boundEnd?, b with
   | none, _ => .waits
 ```
 
-A boolean, `null` or a container names no end, so the definition
-refuses a bound over one, and a `neq` over a number and a string, and
-either makes the document an error, as both engines answer. In a
-`filter`'s condition the refusal refuses each member the condition
-tries instead, as a condition that names nothing does. An
-argument that never settles, a kind, a bound or a disjunction, leaves
-the call waiting, and a call no reading makes is an error too, which
-is what both engines answer for `lo: integer` and for a path to
-`*2 | 3`. So is a bound over a path that only the data supplies, since
-the schema's own tree names nothing there. A size needs no call:
-`len` takes a term already, so `n: 2, t: len($.n)` reads as `len(2)`.
-Both engines read `mulof` over a path to zero or a negative number,
-and `len` over a path to anything but a count, as an error, where the
-same argument written as a literal admits nothing, which #509 tracks.
-The definition reads a path to either as it reads the literal, and no
-row holds one. Rows from bd0 on of `test/spec/def-path.tsv` hold these
-readings in the three modes of `vet`, and both engines answer every
-one as the definition does.
+A `neq` over a sole list that isn't empty reads the list's elements as
+its arguments, as both engines read `neq([1, 3])` as `neq(1, 3)`, so
+`x: [1, 3], t: neq($.x)` refuses `1` and `3`. A choice among the
+elements is no argument either, so `x: [1 | 3], t: neq($.x)` is an
+error, as `neq([1 | 3])` is, whatever the data makes of `x`. A list
+among them, and an empty list, name no end.
+
+A boolean, `null`, a container, a kind, a bound, a pattern or a meet
+names no end, and neither do a number and a string together under
+`neq`, so a bound over one is outside its domain and admits nothing,
+however its argument is written, as both engines answer (decision 28
+of the design note's §7). A choice still to make, a disjunction or a
+preference, is no argument at all: the bound is refused, and the
+document is an error whatever the bound meets, as a size that holds
+one is (decision 16). The atom that admits nothing is `Val.nothing`. It
+stands, so a schema that holds one is no error, but it refuses every
+value and generates nothing, and the meet makes it `nil` against
+anything but `any`:
+
+<!-- test: quote spec/Aontu/Meet.lean -->
+```lean
+def nothingOr (v : Val) : Val := if v.isAny then .nothing else .nil
+```
+
+So `lo: true, t: min($.lo)` refuses whatever data meets it, an
+`invalid`, though `min($.lo) & integer` there is an error, as
+`min(true) & integer` is, and in a `filter`'s condition such a bound refuses each
+member the condition tries. The schema's own tree reads a kind as it
+stands, but the tree the data reads in holds what the data gives it,
+so `lo: number, t: min($.lo)` against `{"lo": 2, "t": 3}` is `valid`.
+An argument that never settles leaves the call waiting, and a call no
+reading makes is an error, as a bound over a path that only the data
+supplies is, since the schema's own tree names nothing there. A size
+needs no call: `len` takes a term already, so `n: 2, t: len($.n)`
+reads as `len(2)`, and one over a path to a string admits nothing, as
+`mulof` over a path to zero or a negative number does, and so does one
+over a path to `any`, which `Val.unsized` reads as it reads
+`len(any)`. `resolveD` makes such a size `Val.nothing`, as `bndOf` makes
+a bound, so that both engines' refusal at the meet holds beside a field
+that generates nothing: `n: any, t: len($.n)` is `invalid`, not
+`incomplete`. Rows from bd0
+on of `test/spec/def-path.tsv` hold these readings in the three modes
+of `vet`, and both engines answer every one as the definition does.
 
 A bound in a generator's template or in a `filter`'s condition reads
 a relative path where its instance lands, as step 27 reads a template
@@ -8388,7 +8492,134 @@ The definition doesn't yet read a destructure that a source or a body
 writes, one over a term that isn't a load, a module, or an extension the
 calling program adds to those read as text, as `--text-ext` does.
 
-## 40. What the definition doesn't say yet
+## 40. Rules over nodes
+
+`emit(s, t)` applies a table of rules to the nodes of a selection. For
+each node, in order, it takes the first template whose `match` takes
+the node and reads that template's `body` for the node, and the answer
+is one flat list. Write `emit.aontu`:
+
+<!-- test: scenario emit -->
+<!-- test: file emit.aontu -->
+```aontu
+lines: emit([{ kind:"sqs" pin:"srv:a" } { kind:"http" path:"/a" }], [
+  { match:kind:"sqs" body: ["listen(" + .pin + ")"] }
+  { match:kind:"http" body: ["serve(" + .path + ")"] }
+])
+
+start: emit([{ name:"web" logs: [level:"debug"] }], {
+  match: name: string
+  body: ["start " + .name emit(.logs, { match:level:string body: [.level] })]
+})
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu emit.aontu
+{
+  "lines": [
+    "listen(srv:a)",
+    "serve(/a)"
+  ],
+  "start": [
+    "start web",
+    "debug"
+  ]
+}
+```
+
+`resolveD` checks the table first, each template a map with its `match`
+and a list for its `body` (`emitRuleOk`), so that a bad table is an
+error even over an empty selection. It then reads the table once for
+each node of the selection, as it reads an `each`'s template once for
+each member: its `match`es for no node, and its bodies for the node:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+    | .emit, [s, t] =>
+      if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
+      if (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
+        .call .emit [resolveD ds b here s, t] else
+      match (normaliseD ds (resolveD ds b here s)).members ds with
+      | some ms =>
+        let pss := ms.map fun m => emitPieces ds m (resolveD ds none none t) (resolveD ds (some m) none t)
+        if pss.all Option.isSome then .list (pss.filterMap id).flatten none false
+        else .call .emit [resolveD ds b here s, t]
+      | none =>
+        if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
+        else .call .emit [resolveD ds b here s, t]
+```
+
+`emitPieces` takes the first template whose `match` takes the node, and
+a `match` takes a node the way both engines dispatch. The node, met with
+the `match`, must not die, and must be alike the node: the meet narrows
+nothing. So `{k: 1}` takes the node `{"k": 1}`, and so do `{}`, `map`
+and `close({k: 1})`. `{k: 1, j: 2}` doesn't take it, and neither does
+`{k: 1, j?: 2}`, whose meet holds a key the node lacks. But
+`{k: 1, j?: integer}` takes it: an optional key whose value generates
+nothing, or an empty map or list, is no member, as `Val.members` reads
+it (`memberField`). Where the node is a kind, `integer`, the `match`
+`integer` takes it and `1` refuses it. A disjunction with no preference
+among its arms takes the node where any arm meets it, under a rider
+too, as in `meta(1 | 2, {})`:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def emitTakes (ds : Decls) (pat m : Val) : Bool :=
+  let met := normaliseD ds (meetD ds pat.matchRead m)
+  !met.dead && ((normaliseD ds m).freeChoice || (normaliseD ds m).kindless.alike ds met.one.kindless)
+```
+
+No node binds a hole in a `match`, so `Val.matchRead` reads one as
+both engines do. A hole that stands at a position, the whole `match`,
+a member or an element, waits for a value that never comes and matches
+nothing. One in a meet or a disjunction's arm is the value it meets, so
+`_ & integer` takes `1` where `_` alone doesn't. A template that writes
+`match` twice meets the two, and one that writes `body` twice makes no
+list.
+
+The answer splices in each list in the body, at any depth, so a
+nested `emit` adds its pieces where it stands. A table of one template
+may be the template itself. In a body, `_` is the node, and a relative
+reference such as `.pin` names a field of the node rather than a place,
+at any depth of the body. `.0` names a list node's first element, or a
+map's member under the key `"0"`. The definition writes such a
+reference with the step `Seg.node`, which no other path holds, so that
+placing a document leaves it as written, and `resolveD` reads it for
+the node:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def nodeRef (b : Option Val) : List Seg → Val
+  | .node :: p =>
+    match b with
+    | some m => (m.fieldAt p).getD (.path (.node :: p))
+    | none => .path (.node :: p)
+  | p => .path p
+```
+
+A nested `emit` reads its selection, `.logs`, for the outer node, and
+its own table for each of its own nodes. An empty selection emits
+nothing, but both engines check its table all the same. Both refuse a
+selection that isn't a bag, a template without its `match` or its
+`body`, a body that isn't a list, a node no template takes, and a
+reference the node doesn't answer. A step up is such a reference, and
+so is a position past the end. Each leaves the call unmade, which is an
+error. The
+rows are et0 on, over selections written in place, and em0 on, where a
+path names the selection. Both engines answer every one as the
+definition does.
+
+The definition doesn't yet read a table named apart from its call,
+`emit(_, t)`, which is how a rule set recurses, `replace` and `esc` in
+a body, or a reference into the node inside an `each`, a `pack` or a
+`filter`'s condition in a body. It leaves a body that holds a `key(n)`
+unmade too, since the engines read it at different positions, as #524
+records.
+
+## 41. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -8396,8 +8627,8 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
-steps 20 to 26 and 33 to 37 don't walk through, generation with
-`emit`, a string
+steps 20 to 26 and 33 to 37 don't walk through, the named tables and
+recursion of step 40, a string
 constraint met with a path value, and the graph atoms `inverse(k)` and
 `acyclic()`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test

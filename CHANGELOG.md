@@ -37,6 +37,143 @@ Ruling 27 of the design note's §7 (#445).
   and its marks section state that it unseals any argument; decision
   27, the P8 row and the definition's README record the build.
 
+### An atom over an argument outside its domain admits nothing, however the argument is written
+
+Both engines, the definition, generated rows, and documentation.
+Ruling 28 of the design note's §7 (#509).
+
+- TS (`ts/src/val/ConstraintVal.ts`) and Go (`go/constraint.go`): a
+  pending atom that settles with an argument outside its domain, such
+  as `mulof($.d)` where `d` is `0` or `len($.s)` where `s` is a string,
+  leaves a residual that admits nothing, as the same argument written
+  as a literal does, rather than an error in the schema alone. So `vet`
+  reads it as `invalid` against data that meets it, and evaluation
+  answers `mapval_no_gen`, as for the literal. The same holds of an
+  argument an expression computes, `min(min(1) & max(3))` among them. A
+  choice still to make, a disjunction or a preference, stays an error
+  whatever the atom meets, as ruling 16 has it of a size (#413). The
+  check reads the arguments the atom reads, so a choice in a sole list
+  under `neq`, `x: [1 | 3], t: neq($.x)`, is an error too.
+- `spec/Aontu/Admits.lean`: `Val.unsized`, `any` and the trials, which
+  admit numbers but name no count, so `len` over one admits no size
+  (`Judge.lenOut`), as both engines refuse `len(any)` and
+  `len(must(integer, "m"))` their argument. The checker reads it so
+  too, and `len_le_len` in `spec/Aontu/Subsume.lean` needs the general
+  count in `len`'s domain.
+- `spec/Aontu/Syntax.lean`: `Val.nothing`, the atom that admits
+  nothing. It stands, refuses every value (`Judge.nothing`), generates
+  nothing, and is `nil` met with anything but `any` (`nothingOr`).
+- `spec/Aontu/Verdict.lean`: `bndOf` makes `Val.nothing` of a bound over
+  an argument outside its domain, `Val.noEnd` reading a kind, a bound, a
+  pattern and a meet as one too, and refuses a bound over a choice
+  (`Val.isChoice`). A `neq` over a sole list that isn't empty reads the
+  list's elements as its arguments, as both engines read `neq([1, 3])`
+  as `neq(1, 3)`. `resolveD` makes a size over a term outside `len`'s
+  domain `Val.nothing` too, so that it refuses at the meet, as both
+  engines do, even beside a field that generates nothing.
+- `spec/Oracle.lean`: `boundArgCases` gains ten cases, rows bd102 to
+  bd131 of `test/spec/def-path.tsv`. `mulof` over a path to `0` and to
+  `-3`, `len` over a path to a string and `min` over a path to a meet
+  of bounds are each `invalid`. A kind and `any` the data fills are
+  `valid`. A preference, a disjunction, and a disjunction the data
+  fills are each an `error`. Rows bd45 to bd71 and bd78 to bd80 read
+  `invalid` where they read `error`, as both engines now answer, and
+  both answer every row as the definition does. Fourteen more cases,
+  rows bd132 to bd173, hold `min($.lo) & integer` over a path to `true`
+  an error, as `min(true) & integer` is; `neq` over a sole list, written
+  and through a path, a choice among its elements an error and a list
+  among them or an empty list admitting nothing; and `len` over `any`,
+  written and through a path, and over a trial, admitting no size, a
+  rider and a meet with `any` read through.
+- The tutorial and the reference describe the reading, and the
+  reference no longer cites #509.
+
+### The definition reads `emit`
+
+Definition, generated rows, and documentation. No engine changes. A P9
+slice.
+
+- `spec/Aontu/Data.lean`: `Seg.node`, the step a relative reference in
+  a body of `emit` starts with, since it names a field of the node
+  rather than a place.
+- `spec/Aontu/Verdict.lean`: `resolveD` checks an `emit`'s table, each
+  template a map with its `match` and a list for its `body`
+  (`emitRuleOk`), then reads it once for each node of its selection, in the order
+  `Val.members` reads them, its `match`es for no node and its bodies for
+  the node. `emitPieces` takes the body of the first template whose
+  `match` takes the node, as both ports dispatch (`emitTakes`): the node
+  met with the `match` doesn't die and is alike the node (`Val.alike`),
+  its members counted as `Val.members` reads them (`memberField`), so
+  that the meet narrows nothing, a disjunction with no preference, under
+  any rider, taken where any arm meets. A hole in a `match` matches nothing where
+  it stands and is the value it meets in a meet or an arm
+  (`Val.matchRead`), and a template's `match` fields meet. The answer
+  splices in each list in the body, at any depth (`emitSpliceF`). A
+  body's hole and
+  its references into the node read the node, by `nodeRef` and
+  `Val.fieldAt`, a position of a list node and a map's key in digits
+  among them. A selection other than a bag, a template without its
+  `match` or its `body`, a body other than a list, a node no template
+  takes and a reference the node doesn't answer leave the call unmade,
+  an error, as both ports refuse each. The definition leaves a body
+  that holds a `key(n)` unmade, since the ports read it at different
+  positions, as #524 records.
+- `spec/Aontu/Verdict.lean`, ruling 17's reading of a declaration:
+  `Val.waits` reads an `emit`'s table as a template, its holes the
+  node's, and `Val.unplaced` reads its selection as the argument both
+  ports read as written, so `%T = emit(upper(_), t)` waits whatever
+  `t` holds, and the check reads `%T = emit([1], t)` whole.
+- `spec/Aontu/Paths.lean`: placing a document, reading its paths as
+  names and the paths that must name something leave a reference into
+  the node as written (`placePath`).
+- `spec/Oracle.lean`: `aliasCases` gains four cases of an `emit` in a
+  declaration, rows a330 to a341. `emitCases` writes rows et0 on of
+  `test/spec/def-call.tsv`, and `emitPathCases` rows em0 on of
+  `test/spec/def-path.tsv`, where a path names the selection. Both
+  ports answer every row as the definition does. The forms list gains
+  `emit`.
+- `docs/tutorial-definition.md` gains step 40, "Rules over nodes"; the
+  last step is now 41. The reference's `emit` section cites the
+  definition.
+
+### The definition reads every declaration
+
+Definition, generated rows, and documentation. No engine changes.
+Ruling 17 of the design note's §7.
+
+- `spec/Aontu/Verdict.lean`: `Decls.bodyIll` reads each declaration's
+  body where no place is yet (`Decls.readU`), as the name and as the
+  body itself, so that a recursive body is read too, and
+  `Decls.illFormedR` makes the document an error where one doesn't
+  stand, whether or not anything reads it, as both ports answer:
+  `%T = 1 & 2` beside `v: 1` is an `error`. A hole or a `key(n)` waits
+  for the use that places it, so each body is read with the parts that
+  hold one as `any` (`Val.unplaced`, over `Val.waits`, which leaves out
+  the hole and the `key(n)` an `each` or a `pack` binds in its
+  template): a conflict beside a hole is still an `error`, and a body
+  that names a template stands. A call or a trial that waits is `nil`
+  where an argument both ports read as written doesn't stand, a call's
+  own, a size, a count, `must`'s condition, or the data, scrutinee or
+  source of `each`, `match` and `filter`, so `%T = contains(upper(_),
+  1 & 2)` is an `error`, and in a disjunction it's an arm that dies. A
+  name a source publishes is read where a destructure takes it, so not
+  alone.
+- `spec/Oracle.lean`: `aliasCases` gains forty cases, a dead or
+  ill-formed body alone, beside a name the schema uses, inside a
+  recursive body and beside a hole or a `key(n)`, an error, and a body
+  that stands, a literal short of its size, a template with a hole, a
+  body that names one and a call over a `key(n)` beside them, not; and
+  a waiting call or trial over a conflict its arguments read, an
+  error, over one only a trial or a template holds, not, and an `each`
+  or a `pack` over data written in place, read whole.
+  Both ports answer every row as the definition does. A body that is
+  an unbuilt call, `%T = add(1)`, or the literal `nil` holds no row:
+  both ports answer it `invalid`, by the split #426 tracks, where the
+  definition reads it as it reads the schema's own, an `error`.
+- The tutorial quotes `Decls.illFormedR` as it now stands, and
+  `Decls.bodyIll`; the definition's README no longer lists the gap
+  (#417).
+
 ### The definition reads a disjunctive size as ill-formed
 
 Definition, generated rows, and documentation. No engine changes.

@@ -81,6 +81,7 @@ inductive Val where
   | any                                     -- `any`
   | nil                                     -- `nil`
   | absent                                  -- absence, what `maybe(v)` is where `v` names nothing; `maybe()` in the residual
+  | nothing                                 -- what an atom over an argument outside its domain is, `min(true)`: it stands, and admits nothing
   | map (fs : List (String × Bool × Val)) (spread : Option Val) (closed : Bool)
                                             -- `{k: v, k?: v, &: s}`, sealed by `close()`
   | list (items : List Val) (spread : Option Val) (closed : Bool)
@@ -228,7 +229,8 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
-  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent => .any
+  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
+  | .nothing => .any
   | .nil => .nil
   | .lit (.num x) => x.leaf.kind
   | .lit (.str s) => if s = "" then .anyString else .string
@@ -363,7 +365,7 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
     simp only [Val.super]; cases b <;> rfl
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
   | .mapKind | .listKind | .pathKind | .lit (.bool _) | .lit .null | .neq [] | .mulof _
-  | .len _ | .unique _ | .re _ | .format _ | .grammar _ | .any | .nil | .absent | .map _ _ _ | .list _ _ _
+  | .len _ | .unique _ | .re _ | .format _ | .grammar _ | .any | .nil | .absent | .nothing | .map _ _ _ | .list _ _ _
   | .or _ | .alias _ | .path _ | .addr _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
   | .select _ _ _ | .filter _ _ | .key | .keyUp _ | .call _ _ | .hole => rfl
 
@@ -401,12 +403,14 @@ inductive Step where
   deriving DecidableEq
 
 /-- A step's text, as `key()` answers it: a key, or an index in decimal,
-and a variable or a climb as written, which no position holds. -/
+and a variable, a climb or the step into a node as written, which no
+position holds. -/
 def Seg.text : Seg → String
   | .key k => k
   | .idx i => toString i
   | .var n => "$" ++ n
   | .up n => String.mk (List.replicate n '.')
+  | .node => ""
 
 /-- `key(n)` read at the position `pos`, outermost step first: the text of
 the step `n` levels up, `""` where there is none, and, where that step is

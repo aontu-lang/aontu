@@ -101,5 +101,6 @@ call	call	listitems
 call	call	each
 call	call	pack
 call	call	maybe
+call	call	emit
 absent	call	maybe
 hole	syntax	_
