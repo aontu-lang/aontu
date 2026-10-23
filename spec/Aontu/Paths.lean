@@ -469,10 +469,11 @@ under its own name (`scopedName`), each read in the source's scope
 (`Val.scoped`); and each name it publishes, `export({ %a })`, under the
 name it publishes it by (`exportName`), naming its own. A name it
 exports that it doesn't declare, one that arrived through a load among
-them, publishes nothing, as both ports refuse to take it. -/
+them, it publishes as `nil`, which no destructure can take
+(`Decls.takesLeft`), as both ports refuse to take it. -/
 def Decls.ofSource (q : String) (own : Decls) (t : Val) (exports : List String := []) : Decls :=
   ("@" ++ q, t.scoped q) :: own.map (fun d => (scopedName q d.1, d.2.scoped q)) ++
-    (exports.filter fun n => own.any (·.1 == n)).map fun n => (exportName q n, .alias (scopedName q n))
+    exports.map fun n => (exportName q n, if own.any (·.1 == n) then .alias (scopedName q n) else .nil)
 
 /-- The names a destructure takes from the source named `q`, each the
 document's name and the name the source publishes: `{ %b: %a }` takes
@@ -488,17 +489,37 @@ def Decls.takeNames (ds : Decls) (q : String) : List Val → Option (List (Strin
 
 mutual
 /-- The destructures a document writes, each the text of its load and
-the names it takes: at the top, in a side of a meet, and under a key,
-where its values land while its names are the document's. -/
+the names it takes, wherever its values land while its names are the
+document's: at the top, in a side of a meet, under a key, in a map's or
+a list's spread, in an arm of a disjunction, under a preference or a
+rider, and in a call's argument, as both ports bind them. A list's
+element holds none, where the ports differ (#518). -/
 def Val.takes : Val → List (String × List Val)
   | .call .load (.lit (.str p) :: names@(_ :: _)) => [(p, names)]
+  | .call _ args => takesItems args
   | .meet a b => a.takes ++ b.takes
-  | .map fs _ _ => takesFields fs
+  | .map fs spread _ => takesFields fs ++ takesSpread spread
+  | .list _ spread _ => takesSpread spread
+  | .or arms => takesArms arms
+  | .pref _ x => x.takes
+  | .ride _ v _ => v.takes
   | _ => []
 
 def takesFields : List (String × Bool × Val) → List (String × List Val)
   | [] => []
   | (_, _, v) :: fs => v.takes ++ takesFields fs
+
+def takesItems : List Val → List (String × List Val)
+  | [] => []
+  | v :: vs => v.takes ++ takesItems vs
+
+def takesSpread : Option Val → List (String × List Val)
+  | none => []
+  | some s => s.takes
+
+def takesArms : List (ℕ × Val) → List (String × List Val)
+  | [] => []
+  | (_, a) :: as => a.takes ++ takesArms as
 end
 
 /-- The names a document's destructures bind: each name a destructure
@@ -511,14 +532,19 @@ def Decls.takeBinds (ds : Decls) (S : Val) : Decls :=
     | some q => ((ds.takeNames q t.2).getD []).map fun n => (n.1, .alias (exportName q n.2))
 
 /-- Whether a document's destructure asks for a name its source doesn't
-publish, which makes the document an error whether or not anything
-reads the name, as both ports refuse it. -/
+publish, or publishes without declaring it (`nil`), which makes the
+document an error whether or not anything reads the name, as both ports
+refuse it: a wildcard, `{ % }`, asks for every name the source
+publishes. -/
 def Decls.takesLeft (ds : Decls) (S : Val) : Bool :=
   S.takes.any fun t => match loadPath "" t.1 with
     | none => true
     | some q => match ds.takeNames q t.2 with
       | none => true
-      | some ns => ns.any fun n => !(ds.any (·.1 == exportName q n.2))
+      | some ns => ns.any fun n => match ds.find? (·.1 == exportName q n.2) with
+        | some (_, .nil) => true
+        | some _ => false
+        | none => true
 
 /-- A term written in the source named `src` with the sources it loads
 read in, `n` deep, `seen` the sources it's being read into: each `@"p"`

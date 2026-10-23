@@ -1576,3 +1576,21 @@ lx35	verdict	{ %u } = @"__FIXTURES__/alias_reexport.aontu"\n"a": %u	{}	{"verdict
 lx36	verdict	{ %nosuch } = @"__FIXTURES__/alias_exports.aontu"\n"a": %nosuch	{}	{"verdict":"error"}
 lx37	verdict	{ %nosuch } = @"__FIXTURES__/alias_exports.aontu"\n"a": %nosuch	{}	{"verdict":"error","opts":{"noFill":true}}
 lx38	verdict	{ %nosuch } = @"__FIXTURES__/alias_exports.aontu"\n"a": %nosuch	{}	{"verdict":"error","opts":{"partial":true}}
+lx39	verdict	"a": type({ %uint8 } = @"__FIXTURES__/alias_exports.aontu"), "b": %uint8	{}	{"verdict":"valid"}
+lx40	verdict	"a": type({ %uint8 } = @"__FIXTURES__/alias_exports.aontu"), "b": %uint8	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lx41	verdict	"a": type({ %uint8 } = @"__FIXTURES__/alias_exports.aontu"), "b": %uint8	{}	{"verdict":"valid","opts":{"partial":true}}
+lx42	verdict	type({ %secret } = @"__FIXTURES__/alias_exports.aontu")	{}	{"verdict":"error"}
+lx43	verdict	type({ %secret } = @"__FIXTURES__/alias_exports.aontu")	{}	{"verdict":"error","opts":{"noFill":true}}
+lx44	verdict	type({ %secret } = @"__FIXTURES__/alias_exports.aontu")	{}	{"verdict":"error","opts":{"partial":true}}
+lx45	verdict	"a": {&: { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}, "b": %uint8	{}	{"verdict":"valid"}
+lx46	verdict	"a": {&: { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}, "b": %uint8	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lx47	verdict	"a": {&: { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}, "b": %uint8	{}	{"verdict":"valid","opts":{"partial":true}}
+lx48	verdict	"a": *{ %uint8 } = @"__FIXTURES__/alias_exports.aontu", "b": %uint8	{}	{"verdict":"valid"}
+lx49	verdict	"a": *{ %uint8 } = @"__FIXTURES__/alias_exports.aontu", "b": %uint8	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lx50	verdict	"a": *{ %uint8 } = @"__FIXTURES__/alias_exports.aontu", "b": %uint8	{}	{"verdict":"valid","opts":{"partial":true}}
+lx51	verdict	{ % } = @"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"error"}
+lx52	verdict	{ % } = @"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lx53	verdict	{ % } = @"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lx54	verdict	@"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"valid"}
+lx55	verdict	@"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lx56	verdict	@"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}

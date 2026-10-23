@@ -1754,9 +1754,13 @@ that take them, `{ %a } = @"p"`: a name taken by its own name, all of a
 source's names at once, and under another name; at the top and under a
 key, where the source's values land while its names are the document's;
 beside a declaration of the same name, which it meets; beside data that
-refuses it; and a name the source declares but doesn't publish, used and
+refuses it; a name the source declares but doesn't publish, used and
 not, one it publishes but declares only through a load, and one it
-never declares, each an error. -/
+never declares, each an error; a destructure under a rider, in a spread
+and under a preference, which binds its names as at a key, and an
+unexported name under a rider at the top, an error; and every name of a source
+that publishes one it doesn't declare, an error, beside the source
+loaded alone. -/
 def takeCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -1790,7 +1794,14 @@ def takeCases : List (Decls × Val × Data) :=
     (files, .meet (take "alias_exports.aontu" ["secret", "secret"]) (m [("a", .alias "secret")]), dm []),
     (files, take "alias_exports.aontu" ["secret", "secret"], dm []),
     (files, .meet (take "alias_reexport.aontu" ["u", "u"]) (m [("a", .alias "u")]), dm []),
-    (files, .meet (take "alias_exports.aontu" ["nosuch", "nosuch"]) (m [("a", .alias "nosuch")]), dm [])]
+    (files, .meet (take "alias_exports.aontu" ["nosuch", "nosuch"]) (m [("a", .alias "nosuch")]), dm []),
+    (files, m [("a", .ride .type (take "alias_exports.aontu" ["uint8", "uint8"]) []), ("b", .alias "uint8")], dm []),
+    (files, .ride .type (take "alias_exports.aontu" ["secret", "secret"]) [], dm []),
+    (files, m [("a", .map [] (some (take "alias_exports.aontu" ["uint8", "uint8"])) false), ("b", .alias "uint8")],
+      dm []),
+    (files, m [("a", .pref 1 (take "alias_exports.aontu" ["uint8", "uint8"])), ("b", .alias "uint8")], dm []),
+    (files, take "alias_reexport.aontu" ["%"], dm []),
+    (files, ld (fx "alias_reexport.aontu"), dm [])]
 
 theorem takeCases_checkable : ∀ c ∈ takeCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
