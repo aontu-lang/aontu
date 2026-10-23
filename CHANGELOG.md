@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a generator's template at each member
+
+Definition, generated rows, and documentation. No engine changes.
+P9's sixth slice.
+
+- `spec/Aontu/Paths.lean`: a relative path in `each`'s or `pack`'s
+  template reads at each member of the generator's output, as both
+  ports read it. The generator's own instance reads each term of its
+  template that holds a relative path as `any` (`Val.relBlank`), and
+  the part of the template that holds one (`Val.relPart`) meets each
+  member of the output, placed there (`Val.genTemplate`,
+  `Val.genInst`), wherever the generator lands. A spread or a generator
+  inside the template reads at its own members in turn, so a spread in
+  a generator's template no longer resolves nowhere. `vetP_iff` holds
+  as before.
+- `test/spec/def-path.tsv` gains rows gt0 on, in the three modes of
+  `vet`, and no other row changes. Both ports answer every row as the
+  definition does.
+- The definition tutorial's step 38 shows a generator's template read
+  at each member, and the reference, the README and the gap lists say
+  that a relative path in a `filter`'s condition is what's left.
+
 ### The definition reads a loaded source
 
 Definition, generated rows, and documentation. No engine changes.
