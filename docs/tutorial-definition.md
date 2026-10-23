@@ -3845,7 +3845,8 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
-  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent => .any
+  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
+  | .nothing => .any
   | .nil => .nil
   | .lit (.num x) => x.leaf.kind
   | .lit (.str s) => if s = "" then .anyString else .string
@@ -4048,7 +4049,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
   | .re _, _ | .format _, _ | .grammar _, _
-  | .any, _ | .absent, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
+  | .any, _ | .absent, _ | .nil, _ | .nothing, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
   | .key, _ | .keyUp _, _ | .call _ _, _ | .hole, _ => False
 ```
@@ -4069,8 +4070,8 @@ none has one. So `*1 | 2` generates `1`, `1 | 1` generates `1`, and
 value generates. A meet left as written, two atoms or a container with
 a constraint, generates what its left side generates and its right
 admits, or the other way about where the left generates nothing. A
-kind, a bound, `any`, absence, `nil`, an alias and a path generate
-nothing.
+kind, a bound, `any`, absence, `nil`, `nothing`, an alias and a path
+generate nothing.
 
 `Output` reads `Gen` off the visible part of the normal form of step
 10, where every meet is computed and every dead arm dropped. The visible
@@ -5423,6 +5424,7 @@ inductive Val.Checkable : Val → Prop
   | absent : Checkable .absent
   | hole : Checkable .hole
   | nil : Checkable .nil
+  | nothing : Checkable .nothing
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
       (∀ k o v, (k, o, v) ∈ fs → Checkable v) → (∀ s, spread = some s → Checkable s) →
       Checkable (.map fs spread closed)
