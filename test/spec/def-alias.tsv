@@ -359,6 +359,33 @@ a338	verdict	%T = emit([1], {"match": any, "body": [(upper(_)) & ((1) & (2))]})\
 a339	verdict	%T = emit([1], {"match": _, "body": ["x"]})\nv: 1	v: 1	{"verdict":"error"}
 a340	verdict	%T = emit([1], {"match": _, "body": ["x"]})\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
 a341	verdict	%T = emit([1], {"match": _, "body": ["x"]})\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a342	verdict	%U = upper(_)\n%T = add(%U, 1)\nv: 1	v: 1	{"verdict":"valid"}
+a343	verdict	%U = upper(_)\n%T = add(%U, 1)\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a344	verdict	%U = upper(_)\n%T = add(%U, 1)\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a345	verdict	%U = upper(_)\n%T = add(%U, (1) & (2))\nv: 1	v: 1	{"verdict":"error"}
+a346	verdict	%U = upper(_)\n%T = add(%U, (1) & (2))\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a347	verdict	%U = upper(_)\n%T = add(%U, (1) & (2))\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a348	verdict	%U = upper(_)\n%T = add(%U, 1)\n%V = %T\nv: 1	v: 1	{"verdict":"valid"}
+a349	verdict	%U = upper(_)\n%T = add(%U, 1)\n%V = %T\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a350	verdict	%U = upper(_)\n%T = add(%U, 1)\n%V = %T\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a351	verdict	%T = (key(1)) & (1)\nv: 1	v: 1	{"verdict":"error"}
+a352	verdict	%T = (key(1)) & (1)\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a353	verdict	%T = (key(1)) & (1)\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a354	verdict	%T = (key(1)) & (integer)\nv: 1	v: 1	{"verdict":"error"}
+a355	verdict	%T = (key(1)) & (integer)\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a356	verdict	%T = (key(1)) & (integer)\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a357	verdict	%T = (key(1)) & ({})\nv: 1	v: 1	{"verdict":"error"}
+a358	verdict	%T = (key(1)) & ({})\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a359	verdict	%T = (key(1)) & ({})\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a360	verdict	%T = (key(1)) & ("")\nv: 1	v: 1	{"verdict":"valid"}
+a361	verdict	%T = (key(1)) & ("")\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a362	verdict	%T = (key(1)) & ("")\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a363	verdict	%T = (key(1)) & (string)\nv: 1	v: 1	{"verdict":"valid"}
+a364	verdict	%T = (key(1)) & (string)\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a365	verdict	%T = (key(1)) & (string)\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a366	verdict	%T = {"a": (key(0)) & ("a")}\nv: 1	v: 1	{"verdict":"valid"}
+a367	verdict	%T = {"a": (key(0)) & ("a")}\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a368	verdict	%T = {"a": (key(0)) & ("a")}\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
 r0	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid"}
 r1	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid","opts":{"noFill":true}}
 r2	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid","opts":{"partial":true}}
