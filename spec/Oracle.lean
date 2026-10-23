@@ -4120,7 +4120,7 @@ table, a template without its `match` or its `body`, or with a body
 not written as a list, read before the selection, two bodies, a
 selection that is no bag, and a reference the node doesn't answer, a
 step up, a position past the end and one in a part the reading drops
-among them. -/
+among them, but one in a spread, which the ports leave unbound. -/
 def emitCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -4233,7 +4233,15 @@ def emitCases : List (Val × Data) :=
     (c .emit [lst [k1], rule (.map [] (some .hole) false) [str "x"]], jm []),
     (c .emit [lst [lst [int 1]], rule (.list [] (some .hole) false) [str "x"]], jm []),
     (c .emit [lst [mp []], rule (.map [] (some .hole) false) [str "x"]], jl [js "x"]),
-    (c .emit [lst [k1], rule (.map [] (some (.meet .hole .integer)) false) [str "x"]], jl [js "x"])]
+    (c .emit [lst [k1], rule (.map [] (some (.meet .hole .integer)) false) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule .any [.select (int 1) [(int 1, str "x")] (some (.map [] (some (nd ["missing"])) false))]],
+      jl [js "x"]),
+    (c .emit [lst [int 1], rule .any [.select (int 1) [(int 1, str "x")] (some (.list [] (some (nd ["missing"])) false))]],
+      jl [js "x"]),
+    (c .emit [lst [int 1], rule .any [.select (int 1) [(int 1, str "x")] (some (mp [("a", nd ["missing"])]))]],
+      jl [js "x"]),
+    (c .emit [lst [mp [("a", int 1)]], rule .any [.map [("x", false, int 1)] (some (nd ["a"])) false]],
+      jl [.map [("x", j 1)]])]
 
 theorem emitCases_checkable : ∀ c ∈ emitCases, (vetDoc c).1.CheckableA := by decide
 

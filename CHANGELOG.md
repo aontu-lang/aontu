@@ -33,9 +33,10 @@ findings on #521.
   `match(1, 1, "x", .missing)` in a body is an error, as both ports
   answer. A nested `emit`'s table, a generator's template and a
   `filter`'s condition read their own nodes and members, so their
-  references are theirs.
-- `spec/Oracle.lean`: `emitCases` gains sixteen cases, rows et210 to
-  et257 of `test/spec/def-call.tsv`. Both ports answer every row as the
+  references are theirs, and both ports bind no spread, so
+  `match(1, 1, "x", {&: .missing})` in a body emits `"x"`.
+- `spec/Oracle.lean`: `emitCases` gains twenty cases, rows et210 to
+  et269 of `test/spec/def-call.tsv`. Both ports answer every row as the
   definition does.
 - The tutorial's step 40 describes the readings.
 

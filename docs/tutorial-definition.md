@@ -8597,8 +8597,9 @@ selection that isn't a bag, a template without its `match` or its
 reference the node doesn't answer. A step up is such a reference, and
 so is a position past the end. So is one in a part the reading drops,
 as in `match(1, 1, "x", .missing)`, since both engines bind a body to
-the node before they read it (`emitBound`). Each leaves the call
-unmade, which is an error. The
+the node before they read it (`emitBound`). They bind no spread, so
+`{&: .missing}` in the part dropped is no reference the node must
+answer. Each refusal leaves the call unmade, which is an error. The
 rows are et0 on, over selections written in place, and em0 on, where a
 path names the selection. Both engines answer every one as the
 definition does.
@@ -8608,7 +8609,10 @@ The definition doesn't yet read a table named apart from its call,
 a body, or a reference into the node inside an `each`, a `pack` or a
 `filter`'s condition in a body. It leaves a body that holds a `key(n)`
 unmade too, since the engines read it at different positions, as #524
-records.
+records, and one whose spread holds a reference into the node. Both
+engines leave such a spread unbound, so the reference reads nowhere and
+refuses a member the spread meets, but they pass a spread that meets
+no member, which the definition doesn't yet.
 
 ## 41. What the definition doesn't say yet
 

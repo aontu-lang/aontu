@@ -1459,6 +1459,7 @@ def emitTakes (ds : Decls) (pat m : Val) : Bool :=
 
 mutual
 /-- The references into the node a term holds as written, but those in
+a map's or a list's spread, which both ports leave unbound, and those in
 a nested `emit`'s table, a generator's template and a `filter`'s
 condition, which read their own nodes and members. -/
 def Val.nodePaths : Val → List (List Seg)
@@ -1467,8 +1468,8 @@ def Val.nodePaths : Val → List (List Seg)
   | .filter s _ => s.nodePaths
   | .call _ args => nodeItems args
   | .len c => c.nodePaths
-  | .map fs spread _ => nodeFields fs ++ nodeSpread spread
-  | .list items spread _ => nodeItems items ++ nodeSpread spread
+  | .map fs _ _ => nodeFields fs
+  | .list items _ _ => nodeItems items
   | .or arms => nodeArms arms
   | .pref _ x => x.nodePaths
   | .meet a b => a.nodePaths ++ b.nodePaths

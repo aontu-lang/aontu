@@ -2532,6 +2532,18 @@ et254	verdict	v: emit([{}], {"match": {&: _}, "body": ["x"]})	v: ["x"]	{"verdict
 et255	verdict	v: emit([{"k": 1}], {"match": {&: (_) & (integer)}, "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
 et256	verdict	v: emit([{"k": 1}], {"match": {&: (_) & (integer)}, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
 et257	verdict	v: emit([{"k": 1}], {"match": {&: (_) & (integer)}, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et258	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {&: .missing})]})	v: ["x"]	{"verdict":"valid"}
+et259	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {&: .missing})]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+et260	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {&: .missing})]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et261	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", [&: .missing])]})	v: ["x"]	{"verdict":"valid"}
+et262	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", [&: .missing])]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+et263	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", [&: .missing])]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et264	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {"a": .missing})]})	v: ["x"]	{"verdict":"error"}
+et265	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {"a": .missing})]})	v: ["x"]	{"verdict":"error","opts":{"noFill":true}}
+et266	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {"a": .missing})]})	v: ["x"]	{"verdict":"error","opts":{"partial":true}}
+et267	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error"}
+et268	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error","opts":{"noFill":true}}
+et269	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}
