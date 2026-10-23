@@ -4383,14 +4383,14 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 
 Read the four in order. `error` is a document that refers to a name it
 doesn't declare, one whose names break the alias-cycle rule, one with
-an `ident()` out of the place step 8 gives it, or a schema whose normal
-form doesn't stand. Both clauses that aren't about names are one
-check:
+an `ident()` out of the place step 8 gives it, or a schema or a
+declaration's body whose normal form doesn't stand. The clauses that
+aren't about names are one check:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || (normaliseD ds (ds.readR S)).illFormed
+  ds.identMisplaced S || ds.bodyIll || (normaliseD ds (ds.readR S)).illFormed
 ```
 
 An `ident()`'s place belongs to the text, so the check reads the
@@ -4403,6 +4403,44 @@ beside `v: 1` is an `error`:
 ```lean
 def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
   S.idents || ds.any fun d => d.2.unident.idents
+```
+
+Every declaration's body is read too, whether or not a reference
+reaches it, so `%T = 1 & 2` beside `v: 1` is an `error`, as both
+engines answer (decision 17 of the design note's §7). The body is read
+where no place is yet, as the roots that paths read are
+(`Decls.readU`, which step 29 comes to), as the name and as the body
+itself, so that a recursive body is read too. A hole or a `key(n)`
+waits for the use that places it, so the check reads each part that
+holds one as `any` (`Val.unplaced`), in every body at once. So
+`%T = upper(_) & (1 & 2)` is still an `error` for the conflict beside
+the hole, and `%T = %U` beside `%U = upper(_)` is not, as both engines
+answer.
+
+A call or a trial that waits for its hole still reads the arguments
+both engines read as written: a call's own, a size, the count of `nof`
+and `contains`, the condition of `must`, and the data, selection,
+scrutinee or source of `each`, `emit`, `match` and `filter`. Where one
+of them doesn't
+stand, read against the bodies with each waiting part as `any`, the
+call is `nil`. So `%T = contains(upper(_), 1 & 2)` is an `error`, and
+`add(upper(_), 1 & 2) | 3` holds an arm that dies. A trial's branches
+and a template wait with the call, since the engines read them later,
+so `%T = when(upper(_), 1 & 2)` stands. A template's hole and `key(n)`
+are its member's (`Val.waits`), so the check reads
+`%T = each(["a"], upper(_) & (1 & 2))` whole, an `error`, and an
+`emit`'s table is its node's, so the check reads an `emit` over a
+selection written in place whole too. A name a
+source publishes is read where a destructure takes it, so not here:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.bodyIll (ds : Decls) : Bool :=
+  let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced fun _ => false)
+  let ill : Val → Bool := fun t => (normaliseD d0 (d0.readU t)).illFormed
+  let du : Decls := ds.map fun d => (d.1, d.2.unplaced ill)
+  du.any fun d => d.1.toList.head? != some '!' &&
+    ((normaliseD du (du.readU (.alias d.1))).illFormed || (normaliseD du (du.readU d.2)).illFormed)
 ```
 
 A normal form doesn't stand, `illFormed`, where it holds a `nil`

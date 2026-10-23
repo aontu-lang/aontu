@@ -564,7 +564,20 @@ replaced as the document reads, and recursive ones, left as residuals
 that the data expands, a linked list, a tree, a spread of itself, a
 pair that refer to each other. The cases that break the alias-cycle
 rule or refer to a name declared nowhere are errors before anything
-else is asked, and `%T = %T | 1`, which the engines run, is one. -/
+else is asked, and `%T = %T | 1`, which the engines run, is one. A
+declaration nothing reads is read too (decision 17): a dead or
+ill-formed body is an error, alone, beside a name the schema uses and
+inside a recursive body, and beside a hole or a `key(n)` its use would
+place; while one that stands, a literal short of its size, a template
+whose hole its use would fill, a body that names one and a call over a
+`key(n)` are not. A call or a trial that waits for its hole is an error
+where an argument both ports read as written doesn't stand, a count,
+a size, a condition, a call's own or an `each`'s data, and stands where
+only a trial or a template does, which both read later; in a
+disjunction such a call is an arm that dies. A template's hole and
+`key(n)` are its member's, so an `each` or a `pack` over data written
+in place is read whole, and an `emit`'s table its node's, so an `emit`
+over a selection written in place is too. -/
 def aliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -572,6 +585,8 @@ def aliasCases : List (Decls × Val × Data) :=
   let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let p : Val := .alias "p"
+  let up : Val := .call .upper [.hole]
+  let x12 : Val := .meet (int 1) (int 2)
   [([("p", .meet .integer (min 1))], p, j 5), ([("p", .meet .integer (min 1))], p, j 0),
     ([("p", .meet .integer (min 1))], p, .str "a"),
     ([("p", .pref 1 (int 1))], key "x" false p, .map []),
@@ -660,7 +675,57 @@ def aliasCases : List (Decls × Val × Data) :=
       .alias "T", .map [("n", j 1)]),
     ([("T", .map [("n", false, .integer), ("next", true, .alias "T")] none false)], .alias "T",
       .map [("n", j 1), ("next", .map [("n", j 2), ("next", .map [("n", j 3), ("next", .map [("n", j 4)])])])]),
-    ([("T", .or [(0, .alias "T"), (0, int 1)])], .alias "T", j 1)]
+    ([("T", .or [(0, .alias "T"), (0, int 1)])], .alias "T", j 1),
+    ([("T", .meet (int 1) (int 2))], int 1, j 1),
+    ([("T", .meet (key "a" false (int 1)) (key "a" false (int 2)))], int 1, j 1),
+    ([("T", .meet (.map [("a", false, int 1)] none true) (key "b" false (int 2)))], int 1, j 1),
+    ([("T", .meet .string (int 1))], int 1, j 1),
+    ([("T", .meet (.pref 1 (int 1)) (.pref 1 (int 2)))], int 1, j 1),
+    ([("T", .meet (.list [int 1] none false) (.list [int 2] none false))], int 1, j 1),
+    ([("T", key "a" true (.meet (int 1) (int 2)))], int 1, j 1),
+    ([("T", .len (.or [(0, int 1), (0, int 3)]))], int 1, j 1),
+    ([("T", .call .div [int 1, int 0])], int 1, j 1),
+    ([("T", .meet (int 1) (int 2)), ("U", .integer)], .alias "U", j 1),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .meet (int 1) (int 2))] none false)], int 1, j 1),
+    ([("T", .or [(0, int 1), (0, int 2)])], int 1, j 1),
+    ([("T", .meet (.list [int 1, int 2] none false) (.len (int 3)))], int 1, j 1),
+    ([("U", .call .upper [.hole])], int 1, j 1),
+    ([("T", .meet (.call .upper [.hole]) (.meet (int 1) (int 2)))], int 1, j 1),
+    ([("T", .map [("a", false, .call .upper [.hole]), ("b", false, .meet (int 1) (int 2))] none false)], int 1, j 1),
+    ([("T", .list [.call .upper [.hole], .meet (int 1) (int 2)] none false)], int 1, j 1),
+    ([("U", .call .upper [.hole]), ("T", .alias "U")], int 1, j 1),
+    ([("U", .call .upper [.hole]), ("T", .meet (.alias "U") (.meet (int 1) (int 2)))], int 1, j 1),
+    ([("U", .map [("a", false, .call .upper [.hole])] none false),
+      ("T", .meet (.alias "U") (.map [("a", false, str "x")] none false))], int 1, j 1),
+    ([("T", .list [.keyUp 1, .meet (int 1) (int 2)] none false)], int 1, j 1),
+    ([("T", .call .upper [.keyUp 1])], int 1, j 1),
+    ([("T", .contains up x12)], int 1, j 1),
+    ([("T", .contains up (int 2))], int 1, j 1),
+    ([("T", .call .add [up, x12])], int 1, j 1),
+    ([("T", .len (.meet up x12))], int 1, j 1),
+    ([("T", .nof x12 [up])], int 1, j 1),
+    ([("T", .nof (int 1) [up, x12])], int 1, j 1),
+    ([("T", .must (.meet up x12) "m")], int 1, j 1),
+    ([("T", .when up x12 none)], int 1, j 1),
+    ([("T", .select (int 1) [(up, x12)] none)], int 1, j 1),
+    ([("T", .call .each [up, x12])], int 1, j 1),
+    ([("T", .call .each [.meet up x12, int 1])], int 1, j 1),
+    ([("T", .call .each [.list [str "a"] none false, .meet up x12])], int 1, j 1),
+    ([("T", .call .pack [.list [str "a"] none false, .meet up x12])], int 1, j 1),
+    ([("T", .call .each [.list [int 1] none false, .map [("a", false, .keyUp 0), ("b", false, x12)] none false])],
+      int 1, j 1),
+    ([("T", .call .each [.list [int 1] none false, .keyUp 0])], int 1, j 1),
+    ([("T", .or [(0, .call .add [up, x12]), (0, int 3)])], int 1, j 1),
+    ([("T", .list [.call .add [up, x12]] none false)], int 1, j 1),
+    ([("T", .call .add [.call .add [up, x12], int 1])], int 1, j 1),
+    ([("T", .call .emit [up, .map [("match", false, .any), ("body", false, .list [x12] none false)] none false])],
+      int 1, j 1),
+    ([("T", .call .emit [.meet up x12, .map [("match", false, .any), ("body", false, .list [str "x"] none false)] none false])],
+      int 1, j 1),
+    ([("T", .call .emit [.list [int 1] none false,
+      .map [("match", false, .any), ("body", false, .list [.meet up x12] none false)] none false])], int 1, j 1),
+    ([("T", .call .emit [.list [int 1] none false,
+      .map [("match", false, .hole), ("body", false, .list [str "x"] none false)] none false])], int 1, j 1)]
 
 /-- The schema and data of a case, each under the key `v`, as the rows
 write them. -/
