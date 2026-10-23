@@ -122,11 +122,10 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   admits an address here yet, which decision 23 raises and #474
   tracks.
 
-The rest of the language waits on phases P8 to P12 of the plan:
-`copy` written as a call (P8, #445); a hole its call's peer fills, and
-the rest of generation with `emit`: a named table, `replace` and `esc`
-in a body, and a `key(n)` in a body, which the ports read at different
-positions (P9, #524);
+The rest of the language waits on phases P9 to P12 of the plan: a
+hole its call's peer fills, and the rest of generation with `emit`: a
+named table, `replace` and `esc` in a body, and a `key(n)` in a body,
+which the ports read at different positions (P9, #524);
 a destructure that a source or a body writes, modules, and the text
 extensions a calling program adds (P10); links and relations (P11); and
 the shaping of a grammar's tree by its annotations, stated over a raw
