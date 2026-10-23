@@ -1810,6 +1810,56 @@ theorem take_verdict_exact : ∀ c ∈ takeCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (takeCases_checkable c hc).1 (takeCases_checkable c hc).2 v
 
+/-- The transformer `emit` in a document with paths: a selection a path
+names, and a body that reads the node and the root, beside data that
+agrees and data that refuses. -/
+def emitPathCases : List (Decls × Val × Data) :=
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let rule (mt : Val) (b : List Val) : Val := m [("match", mt), ("body", l b)]
+  let sel := l [m [("k", str "sqs"), ("p", str "x")], m [("k", str "http"), ("u", str "/y")]]
+  let table := l [rule (m [("k", str "sqs")]) [.call .plus [str "L:", nd ["p"]]],
+    rule (m [("k", str "http")]) [.call .plus [str "S:", nd ["u"]]]]
+  [([], m [("s", sel), ("o", .call .emit [p ["s"], table])], dm []),
+    ([], m [("s", sel), ("o", .call .emit [p ["s"], table])], dm [("o", .list [.str "L:x", .str "S:/y"])]),
+    ([], m [("s", sel), ("o", .call .emit [p ["s"], table])], dm [("o", .list [.str "x"])]),
+    ([], m [("z", str "Z"), ("s", sel), ("o", .call .emit [p ["s"], rule (m [("k", .string)]) [p ["z"], nd ["k"]]])],
+      dm [])]
+
+theorem emitPathCases_checkable : ∀ c ∈ emitPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem emitPath_verdict_exact : ∀ c ∈ emitPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (emitPathCases_checkable c hc).1 (emitPathCases_checkable c hc).2 v
+
+/-- The transformer `emit` over the members a `filter` keeps, beside
+data that agrees and data that refuses. -/
+def emitFilterCases : List (Decls × Val × Data) :=
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let sel := l [m [("k", str "sqs"), ("p", str "x")], m [("k", str "http"), ("u", str "/y")]]
+  let o := .call .emit [.filter (p ["s"]) (m [("k", str "sqs")]),
+    m [("match", m [("k", .string)]), ("body", l [nd ["p"]])]]
+  [([], m [("s", sel), ("o", o)], dm [("o", .list [.str "x"])]),
+    ([], m [("s", sel), ("o", o)], dm [("o", .list [.str "y"])])]
+
+/-- The checker can't read a `filter` before the reading makes it, so
+each case's readings are read whole (`Decls.readsPB`). -/
+theorem emitFilterCases_reads : ∀ c ∈ emitFilterCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+
+theorem emitFilter_verdict_exact : ∀ c ∈ emitFilterCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (emitFilterCases_reads c hc) v
+
 /-- Generators whose templates read their member's place through a
 relative path, each read at each member of the generator's output:
 `each` and `pack` over a list a path names, beside data that refuses
@@ -3902,6 +3952,69 @@ theorem pack_verdict_exact : ∀ c ∈ packCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (packCases_checkable c hc)) v
 
+/-- The transformer `emit`, over a selection written in place: the first
+template whose `match` a node meets taken, in the table's order, a map's
+members in key order, and a table of one template written as the
+template; a body's hole and its references into the node, in a map of
+the body and through a map of the node; a list in a body spliced, a
+nested `emit` among them, whose selection reads the outer node; an empty
+selection and an empty body; and each refusal both ports make an error:
+no template that matches, an empty table, a template without its `match`
+or its `body`, a body that is no list, a selection that is no bag, and a
+reference the node doesn't answer, a step up among them. -/
+def emitCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let jm (fs : List (String × Data)) : Data := .map fs
+  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
+  let rule (m : Val) (b : List Val) : Val := mp [("match", m), ("body", lst b)]
+  let k1 : Val := mp [("k", int 1)]
+  [(c .emit [lst [k1], rule k1 [str "a"]], jl [js "a"]),
+    (c .emit [lst [k1], rule k1 [str "a"]], jl [js "b"]),
+    (c .emit [lst [mp [("k", str "sqs"), ("p", str "x")], mp [("k", str "http"), ("u", str "/y")]],
+      lst [rule (mp [("k", str "sqs")]) [c .plus [str "L:", nd ["p"]]],
+        rule (mp [("k", str "http")]) [c .plus [str "S:", nd ["u"]]]]], jl [js "L:x", js "S:/y"]),
+    (c .emit [lst [mp [("k", str "sqs")]], lst [rule (mp []) [str "first"], rule (mp [("k", str "sqs")]) [str "second"]]],
+      jl [js "first"]),
+    (c .emit [mp [("b", mp [("k", int 2)]), ("a", k1)], rule (mp [("k", .integer)]) [nd ["k"]]], jl [j 1, j 2]),
+    (c .emit [mp [("b", mp [("k", int 2)]), ("a", k1)], rule (mp [("k", .integer)]) [nd ["k"]]], jl [j 2, j 1]),
+    (c .emit [lst [], rule (mp []) [str "x"]], jl []),
+    (c .emit [mp [], rule (mp []) [str "x"]], jl []),
+    (c .emit [lst [k1], rule k1 [lst [str "a", str "b"], str "c"]], jl [js "a", js "b", js "c"]),
+    (c .emit [lst [k1], rule k1 [.hole]], jl [jm [("k", j 1)]]),
+    (c .emit [lst [mp [("k", int 1), ("c", lst [mp [("n", str "x")], mp [("n", str "y")]])]],
+      rule k1 [str "open", c .emit [nd ["c"], rule (mp [("n", .string)]) [nd ["n"]]], str "close"]],
+      jl [js "open", js "x", js "y", js "close"]),
+    (c .emit [lst [k1], rule k1 [mp [("a", nd ["k"])]]], jl [jm [("a", j 1)]]),
+    (c .emit [lst [mp [("m", mp [("p", str "x")])]], rule (mp [("m", mp [("p", .string)])]) [nd ["m", "p"]]],
+      jl [js "x"]),
+    (c .emit [lst [k1, mp [("p", str "q")]],
+      lst [rule (mp [("p", .string)]) [nd ["p"]], rule (mp [("k", .integer)]) [nd ["k"]]]], jl [j 1, js "q"]),
+    (c .emit [lst [k1], rule k1 []], jl []),
+    (c .emit [lst [k1], rule (mp [("k", int 2)]) [str "x"]], jm []),
+    (c .emit [lst [k1], lst []], jm []),
+    (c .emit [lst [k1], mp [("match", k1)]], jm []),
+    (c .emit [lst [k1], mp [("body", lst [str "x"])]], jm []),
+    (c .emit [lst [k1], mp [("match", k1), ("body", str "x")]], jm []),
+    (c .emit [int 1, rule (mp []) [str "x"]], jm []),
+    (c .emit [lst [k1], rule k1 [nd ["nope"]]], jm []),
+    (c .emit [lst [k1, mp [("p", str "q")]],
+      lst [rule (mp [("k", .integer)]) [nd ["k"]], rule (mp [("p", .string)]) [nd ["p"], nd ["k"]]]], jm []),
+    (c .emit [lst [k1], rule k1 [.path [.node, .up 2, .key "k"]]], jm [])]
+
+theorem emitCases_checkable : ∀ c ∈ emitCases, (vetDoc c).1.CheckableA := by decide
+
+theorem emit_verdict_exact : ∀ c ∈ emitCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (emitCases_checkable c hc)) v
+
 /-- `key(n)` read where it stands: at a key and at an index, at its
 levels to the top and past it, under a meet, a call, a rider and a
 disjunction, and where the fill writes it; in a template, the member's
@@ -4440,7 +4553,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# condition, each read where its instance lands, in rows bg0 on. Sources that"
     IO.println "# declare names of their own, each read in its own scope, follow in rows ls0 on,"
     IO.println "# and the names a source publishes, with the destructures that take them, in"
-    IO.println "# rows lx0 on."
+    IO.println "# rows lx0 on. The transformer emit over a selection a path names follows in"
+    IO.println "# rows em0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -4463,6 +4577,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "bg" (boundFilterCases ++ boundEachCases)
     pathRows "ls" scopeCases
     pathRows "lx" takeCases
+    pathRows "em" (emitPathCases ++ emitFilterCases)
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
@@ -4578,6 +4693,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# g0 on, over grammars of one rule of one literal, which the oracle's host"
     IO.println "# reads as every engine does: abnf answers a grammar's source where it compiles,"
     IO.println "# parse(g, v) the tree as data, and parse(g) admits the strings g parses whole."
+    IO.println "# The transformer emit follows in rows e0 on, over selections written in place:"
+    IO.println "# for each node, the body of the first template whose match the node meets,"
+    IO.println "# read for the node, each list in it spliced, and an error where no template"
+    IO.println "# matches or the body names what the node doesn't hold."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
@@ -4594,6 +4713,7 @@ def main (args : List String) : IO UInt32 := do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
       projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases)
+    verdictRows "e" emitCases
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     verdictRows "k" pathCallCases

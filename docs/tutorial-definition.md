@@ -2713,16 +2713,21 @@ A path names a part of a value, step by step:
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- A step of a path: a member's key, a position in a list, a variable
-the calling program binds, whose value names the step, or the climb a
-relative path starts with, a step up for each of its dots. -/
+the calling program binds, whose value names the step, the climb a
+relative path starts with, a step up for each of its dots, or the step
+into the node a body of `emit` is read for, which a relative reference
+in a body starts with, since it names a field of the node rather than a
+place. -/
 inductive Seg where
   | key (k : String)
   | idx (i : ℕ)
   | var (n : String)
   | up (n : ℕ)
+  | node
 ```
 
-Step 30 comes to the variable, and the end of this step to the climb.
+Step 30 comes to the variable, the end of this step to the climb, and
+step 40 to the step into a node.
 A path in a document reads as what the
 document holds at that position, the data unified in: `x: $.y` with
 `y: integer & 1` makes `x` the value `1`. `spec/Aontu/Paths.lean` reads
@@ -2774,7 +2779,7 @@ list, the index its text spells in canonical decimal. A variable names
 no step until it's bound. -/
 def Seg.stepIn (s : Seg) (v : Val) : Option Seg :=
   match s, v.unride with
-  | .var _, _ | .up _, _ => none
+  | .var _, _ | .up _, _ | .node, _ => none
   | s, .map _ _ _ => some (.key s.text)
   | .idx i, .list _ _ _ => some (.idx i)
   | .key k, .list _ _ _ => (indexOf? k).map .idx
@@ -5237,7 +5242,12 @@ reads them, less each reading that is absence, and `nil` where the data
 is no bag. A `pack` is the open map
 of its template read for each member `Val.keyedMembers` reads, under the
 member's key, the instances of a repeated key met, and `nil` where the
-data is no bag or a list holds anything but a string. A `maybe` is
+data is no bag or a list holds anything but a string. An `emit` is the
+list of the pieces its table makes of each member of its selection, in
+the order `Val.members` reads them, the table read for the member, each
+hole and each reference into the node bound to it (`nodeRef`), and
+stays as written, a call no reading makes, where the selection is no
+bag or a member makes no pieces (`emitPieces`). A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
 no position for an element that is absence. A call or a generator
@@ -8324,7 +8334,96 @@ The definition doesn't yet read a destructure that a source or a body
 writes, one over a term that isn't a load, a module, or an extension the
 calling program adds to those read as text, as `--text-ext` does.
 
-## 40. What the definition doesn't say yet
+## 40. Rules over nodes
+
+`emit(s, t)` applies a table of rules to the nodes of a selection. For
+each node, in order, it takes the first template whose `match` the node
+meets and reads that template's `body` for the node, and the answer is
+one flat list. Write `emit.aontu`:
+
+<!-- test: scenario emit -->
+<!-- test: file emit.aontu -->
+```aontu
+lines: emit([{ kind:"sqs" pin:"srv:a" } { kind:"http" path:"/a" }], [
+  { match:kind:"sqs" body: ["listen(" + .pin + ")"] }
+  { match:kind:"http" body: ["serve(" + .path + ")"] }
+])
+
+start: emit([{ name:"web" logs: [level:"debug"] }], {
+  match: name: string
+  body: ["start " + .name emit(.logs, { match:level:string body: [.level] })]
+})
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu emit.aontu
+{
+  "lines": [
+    "listen(srv:a)",
+    "serve(/a)"
+  ],
+  "start": [
+    "start web",
+    "debug"
+  ]
+}
+```
+
+`resolveD` reads the table once for each node of the selection, as it
+reads an `each`'s template once for each member:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+    | .emit, [s, t] =>
+      if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
+      match (normaliseD ds (resolveD ds b here s)).members ds with
+      | some ms =>
+        let pss := ms.map fun m => emitPieces ds m (resolveD ds (some m) none t)
+        if pss.all Option.isSome then .list (pss.filterMap id).flatten none false
+        else .call .emit [resolveD ds b here s, t]
+      | none =>
+        if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
+        else .call .emit [resolveD ds b here s, t]
+```
+
+`emitPieces` takes the first template whose `match` the node meets
+without a refusal, the question a `filter` asks, and splices each list
+in the body into the answer, so a nested `emit` adds its pieces where
+it stands. A table of one template may be the template itself. In a
+body, `_` is the node, and a relative reference such as `.pin` names a
+field of the node rather than a place, at any depth of the body. The
+definition writes such a reference with the step `Seg.node`, which no
+other path holds, so that placing a document leaves it as written, and
+`resolveD` reads it for the node:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def nodeRef (b : Option Val) : List Seg → Val
+  | .node :: p =>
+    match b with
+    | some m => (m.fieldAt p).getD (.path (.node :: p))
+    | none => .path (.node :: p)
+  | p => .path p
+```
+
+A nested `emit` reads its selection, `.logs`, for the outer node, and
+its own table for each of its own nodes. An empty selection emits
+nothing. Both engines refuse a selection that isn't a bag, a template
+without its `match` or its `body`, a body that isn't a list, a node no
+template matches, and a reference the node doesn't answer, a step up
+among them. Each leaves the call unmade, which is an error. The rows are
+e0 on, over selections written in place, and em0 on, where a path names
+the selection. Both engines answer every one as the definition does.
+
+The definition doesn't yet read a table named apart from its call,
+`emit(_, t)`, which is how a rule set recurses, `replace` and `esc` in
+a body, or a reference into the node inside an `each`, a `pack` or a
+`filter`'s condition in a body.
+
+## 41. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
@@ -8332,8 +8431,8 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
-steps 20 to 26 and 33 to 37 don't walk through, generation with
-`emit`, a string
+steps 20 to 26 and 33 to 37 don't walk through, the named tables and
+recursion of step 40, a string
 constraint met with a path value, and the graph atoms `inverse(k)` and
 `acyclic()`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test

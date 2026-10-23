@@ -1405,6 +1405,13 @@ tried, rather than an empty answer or a copy of the node. A template
 whose `match` is `any`, written last, is how a document says the rest
 of the selection was meant to be allowed.
 
+The definition reads `emit` by `resolveD` and `emitPieces` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), each body
+read for its node, and rows from e0 on of
+[`test/spec/def-call.tsv`](../test/spec/def-call.tsv) and from em0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it. It doesn't yet read a named table, or `replace` in a body.
+
 ### A named table
 
 A table written as an ordinary field is evaluated where it sits, so the

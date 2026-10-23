@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads `emit`
+
+Definition, generated rows, and documentation. No engine changes. A P9
+slice.
+
+- `spec/Aontu/Data.lean`: `Seg.node`, the step a relative reference in
+  a body of `emit` starts with, since it names a field of the node
+  rather than a place.
+- `spec/Aontu/Verdict.lean`: `resolveD` reads an `emit`'s table once
+  for each node of its selection, in the order `Val.members` reads
+  them. `emitPieces` takes the body of the first template whose `match`
+  the node meets without a refusal, and splices each list in the body.
+  A body's hole and its references into the node read the node, by
+  `nodeRef` and `Val.fieldAt`. A selection other than a bag, a template
+  without its `match` or its `body`, a body other than a list, a node no
+  template matches and a reference the node doesn't answer leave the
+  call unmade, an error, as both ports refuse each.
+- `spec/Aontu/Paths.lean`: placing a document, reading its paths as
+  names and the paths that must name something leave a reference into
+  the node as written (`placePath`).
+- `spec/Oracle.lean`: `emitCases` writes rows e0 on of
+  `test/spec/def-call.tsv`, and `emitPathCases` rows em0 on of
+  `test/spec/def-path.tsv`, where a path names the selection. Both
+  ports answer every row as the definition does.
+- `docs/tutorial-definition.md` gains step 40, "Rules over nodes"; the
+  last step is now 41. The reference's `emit` section cites the
+  definition.
+
 ### The definition reads `export` and the destructure
 
 Definition, generated rows, and documentation. No engine changes. A
