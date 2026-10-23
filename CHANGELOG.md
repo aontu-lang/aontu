@@ -18,7 +18,9 @@ three Codex findings on #523.
   wait for a place, a body that names one of them waiting too, read to
   a fixed point, and `Val.waits` reads a name through them. So
   `%T = add(%U, 1)` beside `%U = upper(_)` stands, as both ports
-  answer, and `%T = add(%U, 1 & 2)` is an error.
+  answer, and `%T = add(%U, 1 & 2)` is an error. The name itself stays
+  a name, so what its body fixes holds: `%T = %U & 2` beside
+  `%U = _ & 1` is an error, as both ports answer.
 - `Val.unplaced` reads a waiting `key(n)` as any string rather than
   `any`, since a key is text wherever it lands, so `%T = key(1) & 1` is
   an error, as both ports answer, while `%T = key(1) & ""` stands.
@@ -27,7 +29,7 @@ three Codex findings on #523.
   signatures give it). So the definition reads `%T = add(_)` as an
   error, as it reads `v: add(1)`, where both ports answer `invalid`,
   the split #426 tracks; no row holds it.
-- `spec/Oracle.lean`: `aliasCases` gains nine cases, rows a342 to a368
+- `spec/Oracle.lean`: `aliasCases` gains twelve cases, rows a342 to a377
   of `test/spec/def-alias.tsv`. Both ports answer every row as the
   definition does.
 - Both ports read a waiting `key(n)` at the declaration's own name,

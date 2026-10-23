@@ -832,11 +832,12 @@ each stands here until the phase that encodes it lands.
    doesn't stand. Forty-four cases of the alias fragment hold it, and
    both ports answer every one as the definition does (#417). A name
    whose body waits makes a body that names it wait too, through a call
-   and through another name, as `Decls.waitNames` reads them. A
+   and through another name, as `Decls.waitNames` reads them, while
+   the name itself stays a name, so what its body fixes holds. A
    waiting `key(n)` is any string, since a key is text wherever it
    lands. A waiting call with another count of arguments than its
-   function takes is `nil` by `Fn.takes`, the split #426 tracks. Nine
-   more cases hold the first two, rows a342 to a368, and both ports
+   function takes is `nil` by `Fn.takes`, the split #426 tracks. Twelve
+   more cases hold the first two, rows a342 to a377, and both ports
    answer each one as the definition does. Both ports read a waiting
    `key(n)` at the declaration's own name, which #528 tracks, and skip a
    conflict met with a call that waits through a name, which #530

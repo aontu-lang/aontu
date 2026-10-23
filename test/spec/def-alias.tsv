@@ -386,6 +386,15 @@ a365	verdict	%T = (key(1)) & (string)\nv: 1	v: 1	{"verdict":"valid","opts":{"par
 a366	verdict	%T = {"a": (key(0)) & ("a")}\nv: 1	v: 1	{"verdict":"valid"}
 a367	verdict	%T = {"a": (key(0)) & ("a")}\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
 a368	verdict	%T = {"a": (key(0)) & ("a")}\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a369	verdict	%U = (_) & (1)\n%T = (%U) & (2)\nv: 1	v: 1	{"verdict":"error"}
+a370	verdict	%U = (_) & (1)\n%T = (%U) & (2)\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a371	verdict	%U = (_) & (1)\n%T = (%U) & (2)\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a372	verdict	%U = (_) & (1)\n%T = (%U) & (1)\nv: 1	v: 1	{"verdict":"valid"}
+a373	verdict	%U = (_) & (1)\n%T = (%U) & (1)\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a374	verdict	%U = (_) & (1)\n%T = (%U) & (1)\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a375	verdict	%U = {"a": _, "b": 1}\n%T = (%U) & ({"b": 2})\nv: 1	v: 1	{"verdict":"error"}
+a376	verdict	%U = {"a": _, "b": 1}\n%T = (%U) & ({"b": 2})\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a377	verdict	%U = {"a": _, "b": 1}\n%T = (%U) & ({"b": 2})\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
 r0	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid"}
 r1	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid","opts":{"noFill":true}}
 r2	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid","opts":{"partial":true}}

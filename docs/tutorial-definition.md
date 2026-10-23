@@ -4444,7 +4444,10 @@ while `%T = key(1) & ""` stands, as both engines answer. A body that
 names a waiting body waits too, through a call or another name, so
 `%T = %U` and `%T = add(%U, 1)` beside `%U = upper(_)` stand, while
 `%T = add(%U, 1 & 2)` is an `error`, as both engines answer.
-`Decls.waitNames` finds those names to a fixed point. Both engines read a
+`Decls.waitNames` finds those names to a fixed point. The name itself
+stays a name, though, so it reads its own body read the same way, and
+what that body fixes holds: `%T = %U & 2` beside `%U = _ & 1` is an
+`error`, as both engines answer. Both engines read a
 waiting `key(n)` at the declaration's own name, though, which #528
 tracks, and the definition reads it as waiting. And both skip a
 conflict met with a call that waits through a name, so they answer
