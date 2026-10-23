@@ -1589,9 +1589,17 @@ reference copies it to and at each member a link's template makes among
 them. A generator's template reads its relative paths at each member of
 the generator's output in the same way: in `each($.names, {name: _,
 url: "https://" + .name})` each instance's `url` reads that instance's
-own `name`. It doesn't yet read a relative path in a `filter`'s
-condition, which stands at a position no written step names, nor a
-template's inside a disjunction, a selection or an alias's body.
+own `name`. A `filter`'s condition stands where the member it tries
+lands, a step no written path names, so a relative path that climbs out
+of the member names the same place for every member: in `a: {lim: 2,
+l: [1, 2, 3], f: filter(.l, ..lim)}` the condition reads `a`'s `lim`,
+and `f` is `[2]`. A path that stays inside the member names nothing.
+Both engines try the condition on each member, so a condition that
+names nothing, a path, an alias or a variable, refuses each member
+rather than making the document an error. The definition places a
+condition so in `Val.placed`, and `Val.forgive` exempts it from the
+references that must name something. It doesn't yet read a template's
+relative paths inside a disjunction, a selection or an alias's body.
 
 ### Recursive references (fixpoints)
 

@@ -8,6 +8,33 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a relative path in a filter's condition
+
+Definition, generated rows, and documentation. No engine changes.
+P9's seventh slice.
+
+- `spec/Aontu/Paths.lean`: a `filter`'s condition stands where the
+  member it tries lands, one step below the filter, a step no written
+  path names (`Val.placed`). A relative path that climbs out of the
+  member names the same place for every member, and one that stays
+  inside it names nothing, as both ports read it.
+- `spec/Aontu/Names.lean`: `Val.forgive` exempts a `filter`'s
+  condition from the references that must name something, so a
+  condition whose path, alias or variable names nothing refuses each
+  member rather than making the document an error, as both ports
+  answer.
+- `vetA_iff_of`, `vetA_iff_reads` and `vetP_iff_reads` hold the
+  verdict wherever the checker can read the two documents it hands
+  `vet` (`Decls.readsAB`, `Decls.readsPB`), as it can a document whose
+  `filter` reads its source, so the oracle's path rows can hold one.
+  `vetA_iff` and `vetP_iff` hold as before.
+- `test/spec/def-path.tsv` gains rows fc0 on, in the three modes of
+  `vet`, and no other row changes. Both ports answer every row as the
+  definition does.
+- The definition tutorial's step 9 and the reference say how a
+  condition reads its relative paths, and the gap lists no longer name
+  it.
+
 ### The definition reads a generator's template at each member
 
 Definition, generated rows, and documentation. No engine changes.

@@ -2966,8 +2966,12 @@ absolute where it stands, its dots climbing as many steps: a map's
 member stands one key below the map and a list's element one index
 below, as `resolveD` places a key. A path that climbs past the top stays
 as written, and resolves nowhere. A spread that is a path stands where
-its members do (`plBare`). Any other spread, a template and a `filter`'s
-condition keep theirs as written, since each stands at a position the
+its members do (`plBare`). A `filter`'s condition stands where the
+member it tries lands, one step below the filter, a step no written
+path names (`.up 0`): a path that climbs out of the member names the
+same place for every member, and one that stays inside it keeps the
+step and names nothing, as both ports read it. Any other spread and a
+template keep theirs as written, since each stands at a position the
 written document doesn't name. -/
 def Val.placed (pos : List Seg) : Val → Val
   | .path (.up n :: p) => if n ≤ pos.length then .path (pos.take (pos.length - n) ++ p) else .path (.up n :: p)
@@ -2993,9 +2997,19 @@ spread reads its relative paths at each member it holds, and a spread
 that's itself a relative path also reads where it's written, at the
 place `Val.bares` collects: step 38 comes to both, and to a generator's
 template, which reads its relative paths at each member of its output.
-A `filter`'s condition keeps its relative paths as written: it stands
-at a position no written step names, and the definition has no rule
-for a relative path there yet. Once it reads in the sources a document
+A `filter`'s condition stands where the member it tries lands, as step
+29 says of `key()`, and no written path names that step. So a relative
+path that climbs out of the member names the same place for every
+member: in `a: {lim: 2, l: [1, 2, 3], f: filter(.l, ..lim)}` the
+condition reads `a`'s `lim`, and `f` is `[2]`. A path that stays inside
+the member names nothing. Both engines try a condition on each member
+and keep the members it admits, so a condition that names nothing
+refuses each member rather than making the document an error, and the
+definition forgives every reference in a condition as it forgives the
+one at the top of `maybe`. Rows from fc0 on of
+`test/spec/def-path.tsv` hold these readings in the three modes of
+`vet`, and both engines answer every one as the definition does. Once it
+reads in the sources a document
 loads, which step 39 comes to, the verdict of a document with paths
 prepares it: it
 declares the relation kind, which step 37 comes to, places the
@@ -8206,8 +8220,8 @@ for the rest of the language, so it says nothing about it. The
 two readings of a number that `--exact-numbers` switches between,
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
-steps 20 to 26 and 33 to 37 don't walk through, a relative path in a
-`filter`'s condition, generation with `emit`, a string
+steps 20 to 26 and 33 to 37 don't walk through, generation with
+`emit`, a string
 constraint met with a path value, and the graph atoms `inverse(k)` and
 `acyclic()`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
