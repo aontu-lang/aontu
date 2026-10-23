@@ -288,16 +288,16 @@ example (j : Data) : ¬ Instance .empty (.neq [.num (.integer (.of 1)), .str "a"
 
 /-- `len(1)` admits `"𝄞"`, one character in four bytes. -/
 example : Instance .empty (.len (.lit (.num (.integer (.of 1))))) (.str "𝄞") :=
-  ⟨by decide, .len (n := 1) (by decide) (by decide) .num⟩
+  ⟨by decide, .len (n := 1) (by decide) rfl (by decide) .num⟩
 
 /-- `len(0)` admits `""`, which `string` refuses. -/
 example : Instance .empty (.len (.lit (.num (.integer (.of 0))))) (.str "") :=
-  ⟨by decide, .len (n := 0) (by decide) (by decide) .num⟩
+  ⟨by decide, .len (n := 0) (by decide) rfl (by decide) .num⟩
 
 /-- `len(min(2))` admits `{"x": 1, "y": 2}`… -/
 example : Instance .empty (.len (.min (.num (.integer (.of 2)))))
     (.map [("x", .integer 1), ("y", .integer 2)]) :=
-  ⟨by decide, .len (n := 2) (by decide) (by decide) (.min (by decide))⟩
+  ⟨by decide, .len (n := 2) (by decide) rfl (by decide) (.min (by decide))⟩
 
 /-- …and refuses `[1]`. -/
 example : ¬ Instance .empty (.len (.min (.num (.integer (.of 2))))) (.list [.integer 1]) :=
@@ -307,7 +307,7 @@ example : ¬ Instance .empty (.len (.min (.num (.integer (.of 2))))) (.list [.in
 example : ¬ Instance .empty (.len (.lit (.num (.integer (.of 1))))) (.integer 5) := by
   rintro ⟨-, h⟩
   cases h with
-  | len _ hs _ => cases hs
+  | len _ _ hs _ => cases hs
 
 /-! ## Distinct members -/
 

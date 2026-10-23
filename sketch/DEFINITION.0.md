@@ -1114,7 +1114,28 @@ each stands here until the phase that encodes it lands.
    and the same argument written as a literal, or computed by an
    expression, as an atom that admits nothing, `invalid`. **Ruled 2026-10-23: an atom that admits
    nothing**, however the argument is written, so that the verdict is
-   `invalid`; both ports move for the bare path.
+   `invalid`; both ports move for the bare path. **Built 2026-10-23**:
+   both ports leave a residual that admits nothing where a waiting atom
+   settles with an argument outside its domain, as the literal does,
+   rather than an error in the schema alone. A choice still to make, a
+   disjunction or a preference, stays an error whatever the atom meets,
+   as decision 16 has it of a size. The definition gains `Val.nothing`
+   in `spec/Aontu/Syntax.lean`, the atom that admits nothing: it
+   stands, refuses every value (`Judge.nothing`), generates nothing,
+   and the meet makes it `nil` against all but `any` (`nothingOr`).
+   `bndOf` in `spec/Aontu/Verdict.lean` makes it of a bound over an
+   argument outside its domain, a kind, a bound, a pattern and a meet
+   among them (`Val.noEnd`), and refuses a bound over a choice
+   (`Val.isChoice`). Rows bd45 to bd71 and bd78 to bd80 read `invalid`
+   where they read `error`, ten cases join them as rows bd102 to
+   bd131, and both ports answer every row as the definition does
+   (#509). A `neq` over a sole list that isn't empty reads the list's
+   elements, as both ports do, so a choice among them stays an error,
+   and both ports check the elements for one too. `len` over `any` or a
+   trial admits no size (`Val.unsized` in `spec/Aontu/Admits.lean`), as
+   both ports refuse either its argument, and `resolveD` makes such a
+   size `Val.nothing`, as `bndOf` makes a bound, so that it refuses at
+   the meet. Fourteen cases join the rows as bd132 to bd173.
 
 ## 8. Risks
 

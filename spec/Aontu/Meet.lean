@@ -143,7 +143,7 @@ def Val.doms : Val → List Dom
   | .re _ | .format _ | .grammar _ => [.str]
   | .map _ _ _ => [.map]
   | .list _ _ _ => [.list]
-  | .nil => []
+  | .nil | .nothing => []
   | .neq [] | .any | .absent | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _
   | .must _ _ | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ | .key | .keyUp _
   | .call _ _ | .hole =>
@@ -665,6 +665,12 @@ theorem isAny_eq {v : Val} (h : v.isAny = true) : v = .any := by
 /-- A meet with absence: what the other side's normal form is, but
 absence where that is `any`, which absence is below. -/
 def absentOr (v : Val) : Val := if v.isAny then .absent else v
+
+/-- A meet with an atom over an argument outside its domain: the atom
+where the other side is `any`, and `nil` where it is anything else,
+since the atom admits nothing and both ports refuse it against any
+peer but the top. -/
+def nothingOr (v : Val) : Val := if v.isAny then .nothing else .nil
 
 /-- The meet of two terms neither of which is `nil`, a meet, a
 disjunction, or a preference, and that are not two containers or a
@@ -1928,6 +1934,16 @@ theorem admits_absent_right {m : Val → Val → Val}
   · rw [hm]
     exact ⟨fun h => ⟨h.1, .absent⟩, fun h => ⟨h.1, .any⟩⟩
 
+theorem admits_nothing_left (b : Val) (j : Data) :
+    Admits env root (nothingOr b) j ↔ Admits env root .nothing j ∧ Admits env root b j := by
+  unfold nothingOr
+  split <;> exact ⟨(fun h => nomatch h), (fun h => nomatch h.1)⟩
+
+theorem admits_nothing_right (a : Val) (j : Data) :
+    Admits env root (nothingOr a) j ↔ Admits env root a j ∧ Admits env root .nothing j := by
+  unfold nothingOr
+  split <;> exact ⟨(fun h => nomatch h), (fun h => nomatch h.2)⟩
+
 theorem admits_nil_left (b : Val) (j : Data) :
     Admits env root .nil j ↔ Admits env root .nil j ∧ Admits env root b j :=
   ⟨(fun h => nomatch h), (fun h => h.1)⟩
@@ -1947,7 +1963,7 @@ mutual
 def Val.beq : Val → Val → Bool
   | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
   | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean
-  | .pathKind, .pathKind | .any, .any | .absent, .absent | .nil, .nil => true
+  | .pathKind, .pathKind | .any, .any | .absent, .absent | .nil, .nil | .nothing, .nothing => true
   | .lit s, .lit t => decide (s = t)
   | .addr a, .addr b => decide (a = b)
   | .min a, .min b => decide (a = b)
@@ -2037,7 +2053,8 @@ def meetRight (rec : Val → Val → Val) (a b₁ b₂ : Val) : Val :=
 
 /-- One step of the meet, given the meet `lm` of a literal with a term
 and the meet `rec` of smaller terms: `nil` is the zero, absence is the
-unit, but met with `any` it stays absence, a meet on either side is met
+unit, but met with `any` it stays absence, an atom over an argument
+outside its domain is `nil` against all but `any`, a meet on either side is met
 one side at a time, a disjunction distributes over its arms, a
 preference alone is `x | super(x)`, two maps and two lists merge, `any`
 is the unit of each container, and what remains is `meetBase`. -/
@@ -2046,6 +2063,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | .nil, _ | _, .nil => .nil
   | .absent, b => absentOr (rec .any b)
   | a, .absent => absentOr (rec a .any)
+  | .nothing, b => nothingOr b
+  | a, .nothing => nothingOr a
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
   | .ride k v r, b => .ride k (rec v b) r
@@ -2101,6 +2120,8 @@ theorem admits_meetStep {lm : Scalar → Val → Val} {rec : Val → Val → Val
     | exact admits_nil_right ..
     | exact admits_absent_left hr ..
     | exact admits_absent_right hr ..
+    | exact admits_nothing_left ..
+    | exact admits_nothing_right ..
     | exact admits_meetMap hr ..
     | exact admits_meetList hr ..
     | exact admits_any_map hr ..

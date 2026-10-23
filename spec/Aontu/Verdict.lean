@@ -800,22 +800,41 @@ def Val.boundEnd? : Val → Option Bound
   | _ => none
 
 /-- Whether a term in normal form can name no bound's end at all: a
-boolean, `null`, a map or a list. -/
+boolean, `null`, a map or a list, a kind or `any`, a bound, a pattern,
+a meet, or an atom that admits nothing. -/
 def Val.noEnd : Val → Bool
   | .lit (.bool _) | .lit .null | .map _ _ _ | .list _ _ _ => true
+  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
+  | .mapKind | .listKind | .pathKind | .any => true
+  | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .mulof _ | .len _ | .unique _ => true
+  | .re _ | .format _ | .grammar _ | .meet _ _ | .nothing => true
+  | _ => false
+
+/-- Whether a term in normal form is a choice still to make: a
+disjunction or a preference. -/
+def Val.isChoice : Val → Bool
+  | .or _ | .pref _ _ => true
   | _ => false
 
 /-- What a bound written over terms makes of them: the bound itself,
 `min($.lo)` being `min(2)` where `lo` is `2`, once each argument's normal
 form, its riders read through, is a number or a string, as both ports
-settle such a bound; refused where one is a boolean, `null` or a
-container, where `neq` takes both numbers and strings, where `mulof`
-takes a string, and where a bound takes another count of arguments than
-its own; waiting for anything else, a kind, a bound or a disjunction
-among them, as both ports wait. -/
+settle such a bound; the atom that admits nothing where an argument is
+outside the bound's domain, a boolean, `null`, a container, a kind, a
+bound, a pattern or a meet, where `neq` takes both numbers and strings
+and where `mulof` takes a string, however the argument is written
+(decision 28 of the design note's §7); refused where an argument is a
+choice still to make, which both ports refuse as an argument whatever
+the bound meets (#413), and where a bound takes another count of
+arguments than its own; waiting for anything else. A `neq` over a sole
+list that isn't empty reads its elements as its arguments, as both
+ports read `neq([1, 3])` as `neq(1, 3)`, a choice among them refused. -/
 def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
-  let ns := args.map fun a => (normaliseD ds a).unride
-  if ns.any Val.noEnd then .refused else
+  let ns := match b, args.map fun a => (normaliseD ds a).unride with
+    | .neq, [.list (x :: xs) _ _] => (x :: xs).map fun e => (normaliseD ds e).unride
+    | _, ns => ns
+  if ns.any Val.isChoice then .refused else
+  if ns.any Val.noEnd then .made .nothing else
   match ns.mapM Val.boundEnd?, b with
   | none, _ => .waits
   | some [e], .min => .made (.min e)
@@ -823,8 +842,10 @@ def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
   | some [e], .above => .made (.above e)
   | some [e], .below => .made (.beneath e)
   | some [.num d], .mulof => .made (.mulof d)
+  | some [.str _], .mulof => .made .nothing
+  | some [], .neq => .refused
   | some es, .neq =>
-    if !es.isEmpty && (es.all Bound.isNum || es.all fun e => !e.isNum) then .made (.neq es) else .refused
+    if es.all Bound.isNum || es.all fun e => !e.isNum then .made (.neq es) else .made .nothing
   | some _, _ => .refused
 
 /-- Whether a term is a scalar literal or an address, the leaves `pref`
@@ -1463,7 +1484,9 @@ the member it tries lands, under its key or at the index it takes among
 those kept. A term read with no position keeps its keys as written, and
 a selection whose arms hold a key, a call or a generator whose arguments
 hold one, and a `filter` whose condition does stay as written too, so
-that a path copies them to be read where it lands. -/
+that a path copies them to be read where it lands. A size over a term
+outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
+as a bound over one is (`bndOf`), so that both refuse at the meet. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
@@ -1523,7 +1546,8 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
       else callTerm ds f (resolveItems ds b here args)
-  | .len c => .len (resolveD ds b here c)
+  | .len c =>
+    if (normaliseD ds (resolveD ds b here c)).unsized then .nothing else .len (resolveD ds b here c)
   | .map fs spread closed =>
     .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
   | .list items spread closed =>
@@ -1712,6 +1736,7 @@ theorem Val.unwrap_checkableA : ∀ {v : Val}, v.CheckableA → v.unwrap.Checkab
   | .addr _, h | .min _, h
   | .max _, h | .above _, h | .beneath _, h | .neq _, h | .mulof _, h | .len _, h
   | .unique _, h | .re _, h | .format _, h | .grammar _, h | .any, h | .absent, h | .nil, h
+  | .nothing, h
   | .map _ _ _, h | .list _ _ _, h | .or _, h | .meet _ _, h | .alias _, h | .path _, h | .nof _ _, h
   | .must _ _, h | .when _ _ _, h | .contains _ _, h | .rest _ _, h | .select _ _ _, h
   | .filter _ _, h | .key, h | .keyUp _, h | .call _ _, h | .hole, h => h
@@ -2591,7 +2616,10 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     (h : v.CheckableA) : ∀ {b : Option Val} {here : Option (List Step)}, (∀ m, b = some m → m.CheckableA) →
       (resolveD ds b here v).CheckableA := by
   induction h with
-  | len _ ih => intro b here hb; simp only [resolveD]; exact .len (ih hb)
+  | len _ ih =>
+    intro b here hb; simp only [resolveD]; split
+    · exact .nothing
+    · exact .len (ih hb)
   | @map fs spread closed _ _ ihf ihs =>
     intro b here hb
     simp only [resolveD]
