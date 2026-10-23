@@ -11,7 +11,9 @@
 # do not yet answer this way are listed in spec/ledger.tsv.
 # Paths through the riders follow in rows q0 on, which a path reads through,
 # and key(n) reached through a path or a name, read where it lands, in rows r0 on.
-# Relative paths, made absolute where each stands, follow in rows j0 on, and
+# Relative paths, made absolute where each stands, follow in rows j0 on, with
+# the bodies read at an alias's own place written again after the schema in
+# rows jl0 on, and
 # maybe, absence where all that is wrong with a path is that it names nothing,
 # in rows mb0 on, and pref, each literal a preference and each preference a
 # rank weaker, in rows pf0 on. Paths into a call's output, which resolve in the
@@ -349,6 +351,48 @@ j35	verdict	%T = {"y": ..x}\n"x": 1, "a": %T	{"a": {"y": 1}}	{"verdict":"valid",
 j36	verdict	%T = {"y": .x}\n"a": ({"x": 1}) & (%T)	{"a": {"y": 1}}	{"verdict":"error"}
 j37	verdict	%T = {"y": .x}\n"a": ({"x": 1}) & (%T)	{"a": {"y": 1}}	{"verdict":"error","opts":{"noFill":true}}
 j38	verdict	%T = {"y": .x}\n"a": ({"x": 1}) & (%T)	{"a": {"y": 1}}	{"verdict":"error","opts":{"partial":true}}
+j39	verdict	%T = {"v": ..x}\n"a": {"x": 2, "b": %T}	{}	{"verdict":"error"}
+j40	verdict	%T = {"v": ..x}\n"a": {"x": 2, "b": %T}	{}	{"verdict":"error","opts":{"noFill":true}}
+j41	verdict	%T = {"v": ..x}\n"a": {"x": 2, "b": %T}	{}	{"verdict":"error","opts":{"partial":true}}
+j42	verdict	%T = {"v": (..x) & (1)}\n"x": 2, "a": {"x": 1, "b": %T}	{}	{"verdict":"error"}
+j43	verdict	%T = {"v": (..x) & (1)}\n"x": 2, "a": {"x": 1, "b": %T}	{}	{"verdict":"error","opts":{"noFill":true}}
+j44	verdict	%T = {"v": (..x) & (1)}\n"x": 2, "a": {"x": 1, "b": %T}	{}	{"verdict":"error","opts":{"partial":true}}
+j45	verdict	%T = {"v": ..x}\n"y": 1	{}	{"verdict":"error"}
+j46	verdict	%T = {"v": ..x}\n"y": 1	{}	{"verdict":"error","opts":{"noFill":true}}
+j47	verdict	%T = {"v": ..x}\n"y": 1	{}	{"verdict":"error","opts":{"partial":true}}
+j48	verdict	%T = {"v": .w}\n"a": {"b": (%T) & ({"w": 3})}	{}	{"verdict":"error"}
+j49	verdict	%T = {"v": .w}\n"a": {"b": (%T) & ({"w": 3})}	{}	{"verdict":"error","opts":{"noFill":true}}
+j50	verdict	%T = {"v": .w}\n"a": {"b": (%T) & ({"w": 3})}	{}	{"verdict":"error","opts":{"partial":true}}
+j51	verdict	%T = ..x\n"x": 1, "a": {"x": 2, "b": %T}	{}	{"verdict":"error"}
+j52	verdict	%T = ..x\n"x": 1, "a": {"x": 2, "b": %T}	{}	{"verdict":"error","opts":{"noFill":true}}
+j53	verdict	%T = ..x\n"x": 1, "a": {"x": 2, "b": %T}	{}	{"verdict":"error","opts":{"partial":true}}
+j54	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"valid"}
+j55	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+j56	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+j57	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"invalid"}
+j58	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+j59	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+jl0	verdict	"a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{}	{"verdict":"error"}
+jl1	verdict	"a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{}	{"verdict":"error","opts":{"noFill":true}}
+jl2	verdict	"a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{}	{"verdict":"error","opts":{"partial":true}}
+jl3	verdict	"x": 2, "a": {"x": 1, "b": %T}\n%T = {"v": (..x) & (1)}	{}	{"verdict":"error"}
+jl4	verdict	"x": 2, "a": {"x": 1, "b": %T}\n%T = {"v": (..x) & (1)}	{}	{"verdict":"error","opts":{"noFill":true}}
+jl5	verdict	"x": 2, "a": {"x": 1, "b": %T}\n%T = {"v": (..x) & (1)}	{}	{"verdict":"error","opts":{"partial":true}}
+jl6	verdict	"y": 1\n%T = {"v": ..x}	{}	{"verdict":"error"}
+jl7	verdict	"y": 1\n%T = {"v": ..x}	{}	{"verdict":"error","opts":{"noFill":true}}
+jl8	verdict	"y": 1\n%T = {"v": ..x}	{}	{"verdict":"error","opts":{"partial":true}}
+jl9	verdict	"a": {"b": (%T) & ({"w": 3})}\n%T = {"v": .w}	{}	{"verdict":"error"}
+jl10	verdict	"a": {"b": (%T) & ({"w": 3})}\n%T = {"v": .w}	{}	{"verdict":"error","opts":{"noFill":true}}
+jl11	verdict	"a": {"b": (%T) & ({"w": 3})}\n%T = {"v": .w}	{}	{"verdict":"error","opts":{"partial":true}}
+jl12	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = ..x	{}	{"verdict":"error"}
+jl13	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = ..x	{}	{"verdict":"error","opts":{"noFill":true}}
+jl14	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = ..x	{}	{"verdict":"error","opts":{"partial":true}}
+jl15	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 1}}	{"verdict":"valid"}
+jl16	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+jl17	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+jl18	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 2}}	{"verdict":"invalid"}
+jl19	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+jl20	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
 mb0	verdict	"b": maybe($.gone)	{}	{"verdict":"valid"}
 mb1	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"noFill":true}}
 mb2	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"partial":true}}

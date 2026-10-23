@@ -1564,13 +1564,23 @@ first dot names the map or list that holds it, and each further dot
 climbs a step, so `z:x:1 z:y:w:..x` gives `w:1`, `a:[1, .0]` gives
 `a:[1, 1]`, and a climb past the top resolves nowhere. An alias's body
 reads its relative paths at the alias's own place, `%` and its name as
-a key at the top, and again at each use of the alias: in
-`%T = {y: .x}` the path `.x` names `$.%T.x`, which no document holds, so
-the document is an error, while `..x` there names the document's own `x`,
-and where `a: {x: 2, b: %T}` uses the body, `a`'s too. The definition
-makes each relative path absolute where it stands, by `Val.placed` and
-`Decls.placed` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
-and reads a body at its own place alone.
+a key at the top, whether or not anything uses it: in `%T = {y: .x}`
+the path `.x` names `$.%T.x`, which no document holds, so the document
+is an error, while `..x` there names the document's own `x`. The
+language doesn't yet say where a use of the alias, or a path
+reference's copy, reads such a path. Both engines read a copy's
+relative paths where the copy stands or where they're written by the
+order the document writes the two: with `x: 1`, `a: {x: 2, b: %T}`
+and `%T = {v: ..x}`, `a.b.v` is 1 where the alias comes first and 2
+where it comes after, and `aontu vet` reads 2 in either order. The
+engines split on a path in a call's argument. TypeScript reads it where
+it's written in either order, under `aontu vet` too, and Go reads it as
+it reads any other.
+[#504](https://github.com/aontu-lang/aontu/issues/504) tracks both. The
+definition makes each relative path absolute where it stands, by
+`Val.placed` and `Decls.placed` in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so a use or a
+copy holds what the path reads where it's written.
 
 A spread's template reads its paths at each member the spread holds,
 the member's own place: in `hosts: {&: {url: .name}}`, each member's `url`
