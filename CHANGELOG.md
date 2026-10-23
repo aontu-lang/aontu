@@ -45,11 +45,22 @@ P9's fifth slice.
   the data reads in, so a template whose path names nothing is an
   `error` at a member the schema writes and makes a member the data
   alone supplies `invalid`, as both ports answer. A spread that's a
-  relative path reads where it's written (`plBare`). `VetA` takes the
-  two schemas, and `vetP_iff` holds as before.
+  relative path reads at each member too, so a path reference's copy
+  reads it where the copy stands, and where the schema writes it, which
+  `Decls.placed` declares under a name no term refers to, so that one
+  naming nothing there is an `error` (`Val.bares`). The definition
+  reads the tree a spread reads its members in with the document's
+  links read first, so a member a link's template makes reads the
+  template too
+  (`Decls.linked`), and it keeps what an absolute path in a template
+  names (`Val.blank`). `VetA` takes the two schemas, and `vetP_iff`
+  holds as before.
 - `test/spec/def-path.tsv` gains rows sp0 on, in the three modes of
   `vet`, and no other row changes. Both ports answer every row as the
-  definition does.
+  definition does. Probing found two shapes where both ports report
+  `no_path` for a template's relative path at a member it holds, filed
+  as #500, and one where TypeScript alone does, filed as #501. No row
+  holds either.
 - The definition tutorial gains step 38, which walks through the
   reading, and the language reference says how a spread reads its
   paths and a `key(n)` deeper in its template.

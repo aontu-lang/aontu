@@ -1100,6 +1100,51 @@ sp116	verdict	"s": {"a": {"w": {"b": {}}}, &: {"w": {&: {"h": ...name}}}}	{}	{"v
 sp117	verdict	"s": ({&: {"host": .name}}) & ({"a": {"name": "x"}})	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid"}
 sp118	verdict	"s": ({&: {"host": .name}}) & ({"a": {"name": "x"}})	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
 sp119	verdict	"s": ({&: {"host": .name}}) & ({"a": {"name": "x"}})	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp120	verdict	"x": 1, "T": {&: ..x}, "outer": {"x": 2, "t": $.T}	{"outer": {"t": {"a": 2}}}	{"verdict":"valid"}
+sp121	verdict	"x": 1, "T": {&: ..x}, "outer": {"x": 2, "t": $.T}	{"outer": {"t": {"a": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp122	verdict	"x": 1, "T": {&: ..x}, "outer": {"x": 2, "t": $.T}	{"outer": {"t": {"a": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+sp123	verdict	"x": 1, "T": {&: ..x}, "outer": {"x": 2, "t": $.T}	{"outer": {"t": {"a": 1}}}	{"verdict":"invalid"}
+sp124	verdict	"x": 1, "T": {&: ..x}, "outer": {"x": 2, "t": $.T}	{"outer": {"t": {"a": 1}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp125	verdict	"x": 1, "T": {&: ..x}, "outer": {"x": 2, "t": $.T}	{"outer": {"t": {"a": 1}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp126	verdict	"T": {&: ..x}, "outer": {"x": 2, "t": $.T}	{}	{"verdict":"error"}
+sp127	verdict	"T": {&: ..x}, "outer": {"x": 2, "t": $.T}	{}	{"verdict":"error","opts":{"noFill":true}}
+sp128	verdict	"T": {&: ..x}, "outer": {"x": 2, "t": $.T}	{}	{"verdict":"error","opts":{"partial":true}}
+sp129	verdict	"x": 1, "T": [&: ..x], "outer": {"x": 2, "t": $.T}	{"outer": {"t": [2]}}	{"verdict":"valid"}
+sp130	verdict	"x": 1, "T": [&: ..x], "outer": {"x": 2, "t": $.T}	{"outer": {"t": [2]}}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp131	verdict	"x": 1, "T": [&: ..x], "outer": {"x": 2, "t": $.T}	{"outer": {"t": [2]}}	{"verdict":"valid","opts":{"partial":true}}
+sp132	verdict	"x": 1, "T": {&: ..x}, "outer": {"t": $.T}	{}	{"verdict":"valid"}
+sp133	verdict	"x": 1, "T": {&: ..x}, "outer": {"t": $.T}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp134	verdict	"x": 1, "T": {&: ..x}, "outer": {"t": $.T}	{}	{"verdict":"valid","opts":{"partial":true}}
+sp135	verdict	"x": 1, "T": {&: ..x}, "outer": {"t": $.T}	{"outer": {"t": {"a": 2}}}	{"verdict":"invalid"}
+sp136	verdict	"x": 1, "T": {&: ..x}, "outer": {"t": $.T}	{"outer": {"t": {"a": 2}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp137	verdict	"x": 1, "T": {&: ..x}, "outer": {"t": $.T}	{"outer": {"t": {"a": 2}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp138	verdict	"global": "x", "T": {&: {"h": $.global}}, "Source": {"a": {}}, "s": {"m": {}, &: {"copy": ($.T) & ($.Source)}}	{"s": {"m": {"copy": {"a": {"h": "y"}}}}}	{"verdict":"invalid"}
+sp139	verdict	"global": "x", "T": {&: {"h": $.global}}, "Source": {"a": {}}, "s": {"m": {}, &: {"copy": ($.T) & ($.Source)}}	{"s": {"m": {"copy": {"a": {"h": "y"}}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp140	verdict	"global": "x", "T": {&: {"h": $.global}}, "Source": {"a": {}}, "s": {"m": {}, &: {"copy": ($.T) & ($.Source)}}	{"s": {"m": {"copy": {"a": {"h": "y"}}}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp141	verdict	"global": "x", "T": {&: {"h": $.global}}, "Source": {"a": {}}, "s": {"m": {}, &: {"copy": ($.T) & ($.Source)}}	{"s": {"m": {"copy": {"a": {"h": "x"}}}}}	{"verdict":"valid"}
+sp142	verdict	"global": "x", "T": {&: {"h": $.global}}, "Source": {"a": {}}, "s": {"m": {}, &: {"copy": ($.T) & ($.Source)}}	{"s": {"m": {"copy": {"a": {"h": "x"}}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp143	verdict	"global": "x", "T": {&: {"h": $.global}}, "Source": {"a": {}}, "s": {"m": {}, &: {"copy": ($.T) & ($.Source)}}	{"s": {"m": {"copy": {"a": {"h": "x"}}}}}	{"verdict":"valid","opts":{"partial":true}}
+sp144	verdict	"global": "x", "s": {&: {"host": $.global}}, "r": (refer({"a": {"name": "n"}})) & (path($.s))	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid"}
+sp145	verdict	"global": "x", "s": {&: {"host": $.global}}, "r": (refer({"a": {"name": "n"}})) & (path($.s))	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp146	verdict	"global": "x", "s": {&: {"host": $.global}}, "r": (refer({"a": {"name": "n"}})) & (path($.s))	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp147	verdict	"global": "x", "s": {&: {"host": $.global}}, "r": (refer({"a": {"name": "n"}})) & (path($.s))	{"s": {"a": {"host": "x"}}}	{"verdict":"valid"}
+sp148	verdict	"global": "x", "s": {&: {"host": $.global}}, "r": (refer({"a": {"name": "n"}})) & (path($.s))	{"s": {"a": {"host": "x"}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+sp149	verdict	"global": "x", "s": {&: {"host": $.global}}, "r": (refer({"a": {"name": "n"}})) & (path($.s))	{"s": {"a": {"host": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+sp150	verdict	"g": "x", "s": {&: {"host": ...g}}, "r": (refer({"a": {"name": "n"}})) & (path($.s))	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid"}
+sp151	verdict	"g": "x", "s": {&: {"host": ...g}}, "r": (refer({"a": {"name": "n"}})) & (path($.s))	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp152	verdict	"g": "x", "s": {&: {"host": ...g}}, "r": (refer({"a": {"name": "n"}})) & (path($.s))	{"s": {"a": {"host": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp153	verdict	"s": {&: {"host": .name}}, "r": (refer({"a": {}})) & (path($.s))	{}	{"verdict":"error"}
+sp154	verdict	"s": {&: {"host": .name}}, "r": (refer({"a": {}})) & (path($.s))	{}	{"verdict":"error","opts":{"noFill":true}}
+sp155	verdict	"s": {&: {"host": .name}}, "r": (refer({"a": {}})) & (path($.s))	{}	{"verdict":"error","opts":{"partial":true}}
+sp156	verdict	"T": {&: {"h": .name}}, "s": {"m": {}, &: {"copy": $.T}}	{"s": {"m": {"copy": {"a": {"name": "n", "h": "z"}}}}}	{"verdict":"invalid"}
+sp157	verdict	"T": {&: {"h": .name}}, "s": {"m": {}, &: {"copy": $.T}}	{"s": {"m": {"copy": {"a": {"name": "n", "h": "z"}}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp158	verdict	"T": {&: {"h": .name}}, "s": {"m": {}, &: {"copy": $.T}}	{"s": {"m": {"copy": {"a": {"name": "n", "h": "z"}}}}}	{"verdict":"invalid","opts":{"partial":true}}
+sp159	verdict	%T = {&: ..x}\n"x": 1, "a": %T	{"a": {"m": 2}}	{"verdict":"invalid"}
+sp160	verdict	%T = {&: ..x}\n"x": 1, "a": %T	{"a": {"m": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+sp161	verdict	%T = {&: ..x}\n"x": 1, "a": %T	{"a": {"m": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+sp162	verdict	%T = {&: ..x}\n"a": %T	{}	{"verdict":"error"}
+sp163	verdict	%T = {&: ..x}\n"a": %T	{}	{"verdict":"error","opts":{"noFill":true}}
+sp164	verdict	%T = {&: ..x}\n"a": %T	{}	{"verdict":"error","opts":{"partial":true}}
 lf0	verdict	@"__FIXTURES__/foo.aontu"	{}	{"verdict":"valid"}
 lf1	verdict	@"__FIXTURES__/foo.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 lf2	verdict	@"__FIXTURES__/foo.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
