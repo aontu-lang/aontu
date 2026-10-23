@@ -2709,32 +2709,62 @@ theorem key_verdict_exact : ∀ c ∈ keyCases, ∀ (m : Mode) (v : Verdict),
     vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vet_iff (keyCases_checkable c hc).1 (keyCases_checkable c hc).2 v
 
-/-- The arguments of a trial both ports read as written, when they build
-the trial, each dead: a size, `must`'s condition, the count of `nof` and
+/-- The arguments of a trial both ports read as they build the trial,
+each dead: a size, `must`'s condition, the count of `nof` and
 `contains`, `filter`'s source and `match`'s scrutinee, which make the
-document an error, alone and under a key; beside the arguments both read
-later, against a value, `when`'s condition, a branch of `nof`, the
-condition of `contains` and of `filter`, which a dead one doesn't make
-an error (#525). -/
+document an error, alone, under a key, at an optional key, in a
+generator's instance and in a body nothing reads; in an arm, which
+drops; in a spread, which refuses only a member it's tried on; beside
+the arguments both read later, against a value, `when`'s condition, a
+branch of `nof` and the conditions of `contains` and `filter`, which a
+dead one doesn't make an error; and a size and the counts of `nof` and
+`contains` written `nil`, which both read as a value that admits
+nothing, beside `nil` met with `1`, a `filter` over `nil` and a
+selection on it, which are errors (#525). -/
 def eagerCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let c12 : Val := .meet (int 1) (int 2)
+  let mu : Val := .must c12 "m"
+  let mt : Val := .select c12 [(int 1, int 3)] none
   let dv : Data := .map [("v", .integer 1)]
-  [([], m [("v", .must c12 "m")], dv),
+  let d4 : Data := .map [("v", .integer 4)]
+  let or4 (a : Val) : Val := .or [(0, a), (0, int 4)]
+  [([], m [("v", mu)], dv),
     ([], m [("v", .nof c12 [.string])], dv),
     ([], m [("v", .contains .any c12)], dv),
     ([], m [("v", .len c12)], dv),
     ([], m [("v", .filter c12 (int 1))], dv),
-    ([], m [("v", .select c12 [(int 1, int 3)] none)], dv),
-    ([], m [("v", m [("a", .must c12 "m")])], .map [("v", .map [("a", .integer 1)])]),
+    ([], m [("v", mt)], dv),
+    ([], m [("v", m [("a", mu)])], .map [("v", .map [("a", .integer 1)])]),
     ([], m [("v", .when c12 (int 1) none)], dv),
     ([], m [("v", .nof (int 1) [c12])], dv),
     ([], m [("v", .contains c12 (int 2))], dv),
-    ([], m [("v", .filter (.list [int 1] none false) c12)], dv)]
+    ([], m [("v", .filter (.list [int 1] none false) c12)], dv),
+    ([], m [("v", or4 mu)], d4),
+    ([], m [("v", or4 mt)], d4),
+    ([], m [("v", or4 (.filter c12 (int 1)))], d4),
+    ([], m [("v", or4 (.len c12))], d4),
+    ([], m [("v", .map [] (some mu) false)], .map [("v", .map [])]),
+    ([], m [("v", .map [] (some mu) false)], .map [("v", .map [("a", .integer 1)])]),
+    ([], m [("v", .map [("a", true, mu)] none false)], .map [("v", .map [])]),
+    ([], m [("v", .call .each [.list [int 1] none false, mu])], .map [("v", .list [.integer 1])]),
+    ([], m [("v", .call .each [.list [] none false, mu])], .map [("v", .list [])]),
+    ([("T", mu)], m [("v", int 1)], dv),
+    ([("T", .len c12)], m [("v", int 1)], dv),
+    ([], m [("v", .nof .nil [.string])], dv),
+    ([], m [("v", .len .nil)], dv),
+    ([], m [("v", .contains .any .nil)], dv),
+    ([], m [("v", .must (.meet .nil (int 1)) "m")], dv),
+    ([], m [("v", .select .nil [(int 1, int 3)] none)], dv),
+    ([], m [("v", .filter .nil (int 1))], dv)]
 
 theorem eagerCases_checkable : ∀ c ∈ eagerCases,
-    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem eager_verdict_exact : ∀ c ∈ eagerCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (eagerCases_checkable c hc).1 (eagerCases_checkable c hc).2 v
 
 /-- The `trials` rows: each case's declarations and schema as one
 document, the schema a map written without its braces, in the three
@@ -4963,8 +4993,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# error. Regenerate with `make spec`; never edit by hand. The cases the ports"
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
     IO.println "# A spread that selects on key(0), the key of the member it is tried on, or"
-    IO.println "# the position of the item, follows in rows y0 on, and a trial whose argument"
-    IO.println "# both ports read as written is dead, an error, in rows te0 on."
+    IO.println "# the position of the item, follows in rows y0 on, and a trial with a dead"
+    IO.println "# argument both ports read as they build it in rows te0 on."
     trialRows "t"
     trialRows "y" keyCases
     trialRows "te" eagerCases
