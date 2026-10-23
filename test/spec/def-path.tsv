@@ -34,7 +34,9 @@
 # bounds written over terms, each the bound its terms name, in rows bd0 on, and
 # bounds over a relative path in a generator's template or a filter's
 # condition, each read where its instance lands, in rows bg0 on. Sources that
-# declare names of their own, each read in its own scope, follow in rows ls0 on.
+# declare names of their own, each read in its own scope, follow in rows ls0 on,
+# and the names a source publishes, with the destructures that take them, in
+# rows lx0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -1535,3 +1537,42 @@ ls26	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{"y": {"l": 2}}	{"verdict
 ls27	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error"}
 ls28	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
 ls29	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lx0	verdict	{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"valid"}
+lx1	verdict	{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lx2	verdict	{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"valid","opts":{"partial":true}}
+lx3	verdict	{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{"a": 254}	{"verdict":"invalid"}
+lx4	verdict	{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{"a": 254}	{"verdict":"invalid","opts":{"noFill":true}}
+lx5	verdict	{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{"a": 254}	{"verdict":"invalid","opts":{"partial":true}}
+lx6	verdict	{ % } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"valid"}
+lx7	verdict	{ % } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lx8	verdict	{ % } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"valid","opts":{"partial":true}}
+lx9	verdict	{ %u8: %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %u8	{}	{"verdict":"valid"}
+lx10	verdict	{ %u8: %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %u8	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lx11	verdict	{ %u8: %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %u8	{}	{"verdict":"valid","opts":{"partial":true}}
+lx12	verdict	"svc": { %uint8 } = @"__FIXTURES__/alias_exports.aontu", "a": %uint8	{"svc": {"defaults": {"retries": 3}}}	{"verdict":"valid"}
+lx13	verdict	"svc": { %uint8 } = @"__FIXTURES__/alias_exports.aontu", "a": %uint8	{"svc": {"defaults": {"retries": 3}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lx14	verdict	"svc": { %uint8 } = @"__FIXTURES__/alias_exports.aontu", "a": %uint8	{"svc": {"defaults": {"retries": 3}}}	{"verdict":"valid","opts":{"partial":true}}
+lx15	verdict	"svc": { %port } = @"__FIXTURES__/alias_exports_used.aontu", "a": (%port) & (443)	{}	{"verdict":"valid"}
+lx16	verdict	"svc": { %port } = @"__FIXTURES__/alias_exports_used.aontu", "a": (%port) & (443)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lx17	verdict	"svc": { %port } = @"__FIXTURES__/alias_exports_used.aontu", "a": (%port) & (443)	{}	{"verdict":"valid","opts":{"partial":true}}
+lx18	verdict	"svc": { %port } = @"__FIXTURES__/alias_exports_used.aontu", "a": %port	{"a": 0}	{"verdict":"invalid"}
+lx19	verdict	"svc": { %port } = @"__FIXTURES__/alias_exports_used.aontu", "a": %port	{"a": 0}	{"verdict":"invalid","opts":{"noFill":true}}
+lx20	verdict	"svc": { %port } = @"__FIXTURES__/alias_exports_used.aontu", "a": %port	{"a": 0}	{"verdict":"invalid","opts":{"partial":true}}
+lx21	verdict	%uint8 = integer\n{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"valid"}
+lx22	verdict	%uint8 = integer\n{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lx23	verdict	%uint8 = integer\n{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{}	{"verdict":"valid","opts":{"partial":true}}
+lx24	verdict	%uint8 = integer\n{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{"a": 7}	{"verdict":"invalid"}
+lx25	verdict	%uint8 = integer\n{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{"a": 7}	{"verdict":"invalid","opts":{"noFill":true}}
+lx26	verdict	%uint8 = integer\n{ %uint8 } = @"__FIXTURES__/alias_exports.aontu"\n"a": %uint8	{"a": 7}	{"verdict":"invalid","opts":{"partial":true}}
+lx27	verdict	{ %secret } = @"__FIXTURES__/alias_exports.aontu"\n"a": %secret	{}	{"verdict":"error"}
+lx28	verdict	{ %secret } = @"__FIXTURES__/alias_exports.aontu"\n"a": %secret	{}	{"verdict":"error","opts":{"noFill":true}}
+lx29	verdict	{ %secret } = @"__FIXTURES__/alias_exports.aontu"\n"a": %secret	{}	{"verdict":"error","opts":{"partial":true}}
+lx30	verdict	{ %secret } = @"__FIXTURES__/alias_exports.aontu"	{}	{"verdict":"error"}
+lx31	verdict	{ %secret } = @"__FIXTURES__/alias_exports.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lx32	verdict	{ %secret } = @"__FIXTURES__/alias_exports.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lx33	verdict	{ %u } = @"__FIXTURES__/alias_reexport.aontu"\n"a": %u	{}	{"verdict":"error"}
+lx34	verdict	{ %u } = @"__FIXTURES__/alias_reexport.aontu"\n"a": %u	{}	{"verdict":"error","opts":{"noFill":true}}
+lx35	verdict	{ %u } = @"__FIXTURES__/alias_reexport.aontu"\n"a": %u	{}	{"verdict":"error","opts":{"partial":true}}
+lx36	verdict	{ %nosuch } = @"__FIXTURES__/alias_exports.aontu"\n"a": %nosuch	{}	{"verdict":"error"}
+lx37	verdict	{ %nosuch } = @"__FIXTURES__/alias_exports.aontu"\n"a": %nosuch	{}	{"verdict":"error","opts":{"noFill":true}}
+lx38	verdict	{ %nosuch } = @"__FIXTURES__/alias_exports.aontu"\n"a": %nosuch	{}	{"verdict":"error","opts":{"partial":true}}

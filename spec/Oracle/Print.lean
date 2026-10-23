@@ -219,6 +219,17 @@ def Fn.name : Fn → String
   | .bnd .neq => "neq"
   | .bnd .mulof => "mulof"
 
+/-- The names a destructure takes, as it writes them: `%a` where the
+document's name is the source's, `%b: %a` where it takes `a` as `b`,
+and `%` for every name the source publishes. -/
+def takeNamesSrc : List Val → Option (List String)
+  | [.lit (.str "%")] => some ["%"]
+  | [] => some []
+  | .lit (.str b) :: .lit (.str a) :: rest => do
+    let r ← takeNamesSrc rest
+    pure ((if b == a then "%" ++ a else "%" ++ b ++ ": %" ++ a) :: r)
+  | _ => none
+
 mutual
 def Val.src : Val → Option String
   | .integer => some "integer"
@@ -283,6 +294,8 @@ def Val.src : Val → Option String
   | .filter s c => do pure s!"filter({← s.src}, {← c.src})"
   | .call .plus [a, b] => do pure s!"({← a.src}) + ({← b.src})"
   | .call .load [.lit (.str p)] => some ("@" ++ quote p)
+  | .call .load (.lit (.str p) :: names) => do
+    pure ("{ " ++ ", ".intercalate (← takeNamesSrc names) ++ " } = @" ++ quote p)
   | .call f args => do pure s!"{f.name}({", ".intercalate (← itemsSrc args)})"
   | .ride .type v [] => do pure s!"type({← v.src})"
   | .ride .hide v [] => do pure s!"hide({← v.src})"
