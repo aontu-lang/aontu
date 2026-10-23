@@ -29,6 +29,55 @@ Both ports.
   twelve rows, each expectation from both engines; four give each
   instance a target of its own.
 
+### The definition reads a relative path in a filter's condition
+
+Definition, generated rows, and documentation. No engine changes.
+P9's seventh slice.
+
+- `spec/Aontu/Paths.lean`: a `filter`'s condition stands where the
+  member it tries lands, one step below the filter, a step no written
+  path names (`Val.placed`). A relative path that climbs out of the
+  member names the same place for every member, and one that stays
+  inside it names nothing, as both ports read it.
+- `spec/Aontu/Names.lean`: `Val.forgive` exempts a `filter`'s
+  condition from the references that must name something, so a
+  condition whose path, alias or variable names nothing refuses each
+  member rather than making the document an error, as both ports
+  answer.
+- `vetA_iff_of`, `vetA_iff_reads` and `vetP_iff_reads` hold the
+  verdict wherever the checker can read the two documents it hands
+  `vet` (`Decls.readsAB`, `Decls.readsPB`), as it can a document whose
+  `filter` reads its source, so the oracle's path rows can hold one.
+  `vetA_iff` and `vetP_iff` hold as before.
+- `test/spec/def-path.tsv` gains rows fc0 on, in the three modes of
+  `vet`, and no other row changes. Both ports answer every row as the
+  definition does.
+- The definition tutorial's step 9 and the reference say how a
+  condition reads its relative paths, and the gap lists no longer name
+  it.
+
+### Where a copy reads a relative path, raised as a decision
+
+Generated rows and documentation. No definition or engine changes.
+
+- Both ports read a relative path inside an alias's body, or inside a
+  path reference's copy, either where it's written or where the copy
+  stands, by the order the document writes the two, and `aontu vet`
+  reads an alias's body at the use in either order, so it refuses the
+  output `aontu` generates for the same file, which #504 tracks. A path
+  in a call's argument splits the ports, and `test/spec/divergent.tsv`
+  records it. The definition reads such a path where it's written, as
+  before, and the definition's design note raises which reading is the
+  language's.
+- `test/spec/def-path.tsv` gains rows j39 on, in the three modes of
+  `vet`: a body read at the alias's own place, used or not, an error
+  where a path names nothing there or meets a conflict there, and a
+  body that's itself a relative path, which both ports read alike in
+  any order. Rows jl0 on hold the same documents with each declaration
+  after the schema. No other row changes.
+- The reference and the definition tutorial no longer say both engines
+  read a body at each use: they say how the order decides.
+
 ### The definition reads a generator's template at each member
 
 Definition, generated rows, and documentation. No engine changes.
