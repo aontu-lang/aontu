@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads every declaration
+
+Definition, generated rows, and documentation. No engine changes.
+Ruling 17 of the design note's §7.
+
+- `spec/Aontu/Verdict.lean`: `Decls.bodyIll` reads each declaration's
+  body where no place is yet (`Decls.readU`), as the name and as the
+  body itself, so that a recursive body is read too, and
+  `Decls.illFormedR` makes the document an error where one doesn't
+  stand, whether or not anything reads it, as both ports answer:
+  `%T = 1 & 2` beside `v: 1` is an `error`. A body that holds a hole
+  (`Val.holdsHole`) or a `key(n)` waits for the use that places it,
+  and a name a source publishes is read where a destructure takes it,
+  so none of them is read alone.
+- `spec/Oracle.lean`: `aliasCases` gains fourteen cases, a dead or
+  ill-formed body alone, beside a name the schema uses and inside a
+  recursive body, an error, and a body that stands, a literal short of
+  its size and a template with a hole beside them, not. Both ports
+  answer every row as the definition does.
+- The tutorial quotes `Decls.illFormedR` as it now stands, and
+  `Decls.bodyIll`; the definition's README no longer lists the gap
+  (#417).
+
 ### The definition reads a disjunctive size as ill-formed
 
 Definition, generated rows, and documentation. No engine changes.

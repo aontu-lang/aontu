@@ -546,7 +546,11 @@ replaced as the document reads, and recursive ones, left as residuals
 that the data expands, a linked list, a tree, a spread of itself, a
 pair that refer to each other. The cases that break the alias-cycle
 rule or refer to a name declared nowhere are errors before anything
-else is asked, and `%T = %T | 1`, which the engines run, is one. -/
+else is asked, and `%T = %T | 1`, which the engines run, is one. A
+declaration nothing reads is read too (decision 17): a dead or
+ill-formed body is an error, alone, beside a name the schema uses and
+inside a recursive body, while one that stands, a literal short of its
+size and a template whose hole its use would fill are not. -/
 def aliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -642,7 +646,21 @@ def aliasCases : List (Decls × Val × Data) :=
       .alias "T", .map [("n", j 1)]),
     ([("T", .map [("n", false, .integer), ("next", true, .alias "T")] none false)], .alias "T",
       .map [("n", j 1), ("next", .map [("n", j 2), ("next", .map [("n", j 3), ("next", .map [("n", j 4)])])])]),
-    ([("T", .or [(0, .alias "T"), (0, int 1)])], .alias "T", j 1)]
+    ([("T", .or [(0, .alias "T"), (0, int 1)])], .alias "T", j 1),
+    ([("T", .meet (int 1) (int 2))], int 1, j 1),
+    ([("T", .meet (key "a" false (int 1)) (key "a" false (int 2)))], int 1, j 1),
+    ([("T", .meet (.map [("a", false, int 1)] none true) (key "b" false (int 2)))], int 1, j 1),
+    ([("T", .meet .string (int 1))], int 1, j 1),
+    ([("T", .meet (.pref 1 (int 1)) (.pref 1 (int 2)))], int 1, j 1),
+    ([("T", .meet (.list [int 1] none false) (.list [int 2] none false))], int 1, j 1),
+    ([("T", key "a" true (.meet (int 1) (int 2)))], int 1, j 1),
+    ([("T", .len (.or [(0, int 1), (0, int 3)]))], int 1, j 1),
+    ([("T", .call .div [int 1, int 0])], int 1, j 1),
+    ([("T", .meet (int 1) (int 2)), ("U", .integer)], .alias "U", j 1),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .meet (int 1) (int 2))] none false)], int 1, j 1),
+    ([("T", .or [(0, int 1), (0, int 2)])], int 1, j 1),
+    ([("T", .meet (.list [int 1, int 2] none false) (.len (int 3)))], int 1, j 1),
+    ([("U", .call .upper [.hole])], int 1, j 1)]
 
 /-- The schema and data of a case, each under the key `v`, as the rows
 write them. -/

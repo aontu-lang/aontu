@@ -4378,14 +4378,14 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 
 Read the four in order. `error` is a document that refers to a name it
 doesn't declare, one whose names break the alias-cycle rule, one with
-an `ident()` out of the place step 8 gives it, or a schema whose normal
-form doesn't stand. Both clauses that aren't about names are one
-check:
+an `ident()` out of the place step 8 gives it, or a schema or a
+declaration's body whose normal form doesn't stand. The clauses that
+aren't about names are one check:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || (normaliseD ds (ds.readR S)).illFormed
+  ds.identMisplaced S || ds.bodyIll || (normaliseD ds (ds.readR S)).illFormed
 ```
 
 An `ident()`'s place belongs to the text, so the check reads the
@@ -4398,6 +4398,23 @@ beside `v: 1` is an `error`:
 ```lean
 def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
   S.idents || ds.any fun d => d.2.unident.idents
+```
+
+Every declaration's body is read too, whether or not a reference
+reaches it, so `%T = 1 & 2` beside `v: 1` is an `error`, as both
+engines answer (decision 17 of the design note's §7). The body is read
+where no place is yet, as the roots that paths read are
+(`Decls.readU`, which step 29 comes to), as the name and as the body
+itself, so that a recursive body is read too. A body that holds a hole
+or a `key(n)` waits for the use that places it, and a name a source
+publishes is read where a destructure takes it, so the check reads none
+of them:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.bodyIll (ds : Decls) : Bool :=
+  ds.any fun d => d.1.toList.head? != some '!' && !d.2.holdsHole && !d.2.holdsKey &&
+    ((normaliseD ds (ds.readU (.alias d.1))).illFormed || (normaliseD ds (ds.readU d.2)).illFormed)
 ```
 
 A normal form doesn't stand, `illFormed`, where it holds a `nil`

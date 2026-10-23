@@ -1043,6 +1043,53 @@ def keyCovers : List Cover → Bool
   | (c, k, m) :: cs => keySpread c || keySpread k || keySpread m || keyCovers cs
 end
 
+mutual
+/-- Whether a term holds the hole `_`, at any depth: a body that holds
+one is a template its use fills, read where it's used. -/
+def Val.holdsHole : Val → Bool
+  | .hole => true
+  | .call _ args => holeItems args
+  | .ride _ v _ => v.holdsHole
+  | .len c => c.holdsHole
+  | .map fs spread _ => holeFields fs || holeSpread spread
+  | .list items spread _ => holeItems items || holeSpread spread
+  | .or arms => holeArms arms
+  | .pref _ x => x.holdsHole
+  | .meet a b => a.holdsHole || b.holdsHole
+  | .nof n cs => n.holdsHole || holeItems cs
+  | .must c _ => c.holdsHole
+  | .when c t e => c.holdsHole || t.holdsHole || holeSpread e
+  | .contains c n => c.holdsHole || n.holdsHole
+  | .rest t cs => t.holdsHole || holeCovers cs
+  | .select s arms d => s.holdsHole || holePairs arms || holeSpread d
+  | .filter s c => s.holdsHole || c.holdsHole
+  | _ => false
+
+def holeFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.holdsHole || holeFields fs
+
+def holeItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.holdsHole || holeItems vs
+
+def holeSpread : Option Val → Bool
+  | none => false
+  | some s => s.holdsHole
+
+def holeArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.holdsHole || holeArms arms
+
+def holePairs : List (Val × Val) → Bool
+  | [] => false
+  | (p, r) :: ps => p.holdsHole || r.holdsHole || holePairs ps
+
+def holeCovers : List Cover → Bool
+  | [] => false
+  | (c, k, m) :: cs => holeSpread c || holeSpread k || holeSpread m || holeCovers cs
+end
+
 /-! ## Absence
 
 `maybe(v)` is `v` where it names something, and absence where all that
@@ -2673,10 +2720,22 @@ refuse it with `ident_place` (decision 14 of the design note's §7). -/
 def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
   S.idents || ds.any fun d => d.2.unident.idents
 
-/-- Whether a document does not stand: an `ident()` out of its place, or
-the schema, read, with a normal form that does not stand. -/
+/-- Whether a declaration's body does not stand, read where no place is
+yet (`Decls.readU`), as the name and as the body itself, so that a dead
+or ill-formed body makes the document an error whether or not anything
+reads it, a recursive one among them, as both ports answer (decision 17
+of the design note's §7). A body that holds a hole or a `key(n)` waits
+for the use that places it, and a name a source publishes is read where
+a destructure takes it, so none of them is read here. -/
+def Decls.bodyIll (ds : Decls) : Bool :=
+  ds.any fun d => d.1.toList.head? != some '!' && !d.2.holdsHole && !d.2.holdsKey &&
+    ((normaliseD ds (ds.readU (.alias d.1))).illFormed || (normaliseD ds (ds.readU d.2)).illFormed)
+
+/-- Whether a document does not stand: an `ident()` out of its place, a
+declaration's body that does not stand, or the schema, read, with a
+normal form that does not stand. -/
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || (normaliseD ds (ds.readR S)).illFormed
+  ds.identMisplaced S || ds.bodyIll || (normaliseD ds (ds.readR S)).illFormed
 
 /-! ## The value a document gives with its trials unread
 
