@@ -2376,7 +2376,11 @@ Example: `content("export const N = 1\n")`
 
 ### `copy(v: any) : any`
 
-Deep copy of a value or referenced node; clears `type`/`hide` marks.
+Deep copy of a value or referenced node. It clears the `type` and
+`hide` marks and any seal, at every depth, of any argument, a literal's
+as a reference's, so the copy is visible and open. The definition holds
+it (`callTerm` in `spec/Aontu/Verdict.lean`), rows cp0 on of
+`test/spec/def-path.tsv`.
 
 Example: `copy({a:1,b:2})`→`{a:1,b:2}`; `copy($.x)`
 
@@ -4208,8 +4212,9 @@ or propagated by conjunction):
 In both cases, **a map field whose value is type- or hide-marked is
 omitted when the enclosing map is generated**, while still participating
 in unification. A bare marked value at the top level still generates
-(`type(1) & number`→`1`). `copy()` of a referenced node clears both
-marks and any seal, making the result emittable and open again:
+(`type(1) & number`→`1`). `copy()` clears both marks and any seal of
+what it copies, a referenced node or a literal, making the result
+emittable and open again:
 
 ```aontu
 x: type({})

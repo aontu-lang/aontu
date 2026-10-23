@@ -866,6 +866,38 @@ def preferArms : List (ℕ × Val) → List (ℕ × Val)
   termination_by structural arms => arms
 end
 
+mutual
+/-- A term with each map and list in it unsealed, at every depth
+through members, elements, arms, preferences, meets and riders: what
+`copy` makes of its argument, its marks cleared too, as a copy is open
+whatever it copies, a literal as a reference (decision 27 of the design
+note's §7). -/
+def Val.unseal : Val → Val
+  | .map fs spread _ => .map (unsealFields fs) spread false
+  | .list items spread _ => .list (unsealItems items) spread false
+  | .or arms => .or (unsealArms arms)
+  | .pref r x => .pref r x.unseal
+  | .meet a b => .meet a.unseal b.unseal
+  | .ride k v r => .ride k v.unseal r
+  | v => v
+  termination_by structural v => v
+
+def unsealFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.unseal) :: unsealFields fs
+  termination_by structural fs => fs
+
+def unsealItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.unseal :: unsealItems vs
+  termination_by structural vs => vs
+
+def unsealArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.unseal) :: unsealArms arms
+  termination_by structural arms => arms
+end
+
 /-- The name the relation kind is declared under, which no document
 can write, since a name a document writes holds no parenthesis. -/
 def relName : String := "rel()"
@@ -897,6 +929,8 @@ that a preference reads as its default, as `super(*1)` is `integer`;
 a `pref` what `Val.prefer` makes of its argument read before the normal
 form, as `super` reads it, so that a preference stays one, and a `move`
 the same, its source hidden where the document is read (`Decls.withMoves`);
+a `copy` its argument's normal form with its marks cleared and every
+map and list in it unsealed (`Val.unmark`, `Val.unseal`);
 a `refer` the path kind, the link's own value, and a `rel` the relation
 kind, `relName`, its value's links, their template met into each
 target where the document is read (`Decls.withRefers`); a bound
@@ -927,6 +961,7 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .super, [x] => x.super
   | .pref, [x] => x.prefer
   | .move, [x] => x.prefer
+  | .copy, [x] => (normaliseD ds x).unmark.unseal
   | .refer, [] => .pathKind
   | .refer, [_] => .pathKind
   | .rel, [] => .alias relName
@@ -2032,6 +2067,69 @@ theorem prefer_checkableA {v : Val} (h : v.CheckableA) : v.prefer.CheckableA := 
   | selectLit hp hr hd _ _ _ => simp only [Val.prefer]; exact .selectLit hp hr hd
   | _ => simp only [Val.prefer]; constructor
 
+
+theorem mem_unsealFields :
+    ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
+      (k, o, w) ∈ unsealFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.unseal
+  | [], _, _, _, h => nomatch h
+  | (k', o', v') :: fs, k, o, w, h => by
+    simp only [unsealFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact ⟨v', List.mem_cons_self, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := mem_unsealFields h
+      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+
+theorem mem_unsealItems : ∀ {vs : List Val} {w : Val}, w ∈ unsealItems vs → ∃ v, v ∈ vs ∧ w = v.unseal
+  | [], _, h => nomatch h
+  | v :: vs, w, h => by
+    simp only [unsealItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, List.mem_cons_self, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := mem_unsealItems h
+      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+
+theorem mem_unsealArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
+    (r, x) ∈ unsealArms arms → ∃ a, (r, a) ∈ arms ∧ x = a.unseal
+  | [], _, _, h => nomatch h
+  | (r', a) :: arms, r, x, h => by
+    simp only [unsealArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨a, List.mem_cons_self, rfl⟩
+    · obtain ⟨b, hb, rfl⟩ := mem_unsealArms h
+      exact ⟨b, List.mem_cons_of_mem _ hb, rfl⟩
+
+/-- Unsealing a term the checker can read gives a term it can read. -/
+theorem Val.CheckableA.unseal {v : Val} (h : v.CheckableA) : v.unseal.CheckableA := by
+  induction h with
+  | @map fs spread closed _ hs ihf _ =>
+    simp only [Val.unseal]
+    refine .map (fun k o w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_unsealFields hw
+    exact ihf k o v hv
+  | @list items spread closed _ hs ihi _ =>
+    simp only [Val.unseal]
+    refine .list (fun w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_unsealItems hw
+    exact ihi v hv
+  | @or arms _ iha =>
+    simp only [Val.unseal]
+    refine .or fun r w hw => ?_
+    obtain ⟨a, hm, rfl⟩ := mem_unsealArms hw
+    exact iha r a hm
+  | pref _ ih => simp only [Val.unseal]; exact .pref ih
+  | meet _ _ iha ihb => simp only [Val.unseal]; exact .meet iha ihb
+  | ride _ ih => simp only [Val.unseal]; exact .ride ih
+  | call hargs _ => simp only [Val.unseal]; exact .call hargs
+  | len h _ => simp only [Val.unseal]; exact .len h
+  | nof hn hcs _ _ => simp only [Val.unseal]; exact .nof hn hcs
+  | must h _ => simp only [Val.unseal]; exact .must h
+  | when hc ht he _ _ _ => simp only [Val.unseal]; exact .when hc ht he
+  | contains hc hn _ _ => simp only [Val.unseal]; exact .contains hc hn
+  | rest ht h1 h2 h3 _ _ _ _ => simp only [Val.unseal]; exact .rest ht h1 h2 h3
+  | selectKey hp hr hd _ _ _ => simp only [Val.unseal]; exact .selectKey hp hr hd
+  | selectLit hp hr hd _ _ _ => simp only [Val.unseal]; exact .selectLit hp hr hd
+  | _ => simp only [Val.unseal]; constructor
+
 theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {f : Fn}
     {args : List Val} (h : ∀ a, a ∈ args → a.CheckableA) : (callTerm ds f args).CheckableA := by
   unfold callTerm
@@ -2061,6 +2159,7 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact (h _ (by simp)).super
   · exact prefer_checkableA (h _ (by simp))
   · exact prefer_checkableA (h _ (by simp))
+  · exact (normaliseD_checkableA (ds := ds) hd (h _ (by simp))).unmark.unseal
   · exact .pathKind
   · exact .pathKind
   · exact .alias

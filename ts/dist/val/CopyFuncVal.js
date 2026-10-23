@@ -19,8 +19,10 @@ class CopyFuncVal extends FuncBaseVal_1.FuncBaseVal {
     funcname() {
         return 'copy';
     }
-    prepare(_ctx, _args) {
-        return null;
+    // A reference is copied as written, so that it clears the marks and
+    // seal where it lands; any other argument is read first.
+    prepare(_ctx, args) {
+        return true === args?.[0]?.isRef ? null : args;
     }
     resolve(ctx, args) {
         const val = args?.[0];

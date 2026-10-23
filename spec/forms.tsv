@@ -78,6 +78,7 @@ call	call	usc
 call	call	super
 call	call	pref
 call	call	move
+call	call	copy
 call	call	refer
 call	call	rel
 call	syntax	@

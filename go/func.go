@@ -349,7 +349,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	newpeg := make([]Val, 0, len(f.peg))
 	newtype := f.mtype
 	newhide := f.mhide
-	if f.name == "move" || f.name == "copy" || f.name == "maybe" ||
+	if f.name == "move" || rawCopy(f) || f.name == "maybe" ||
 		generatorFuncs[f.name] {
 		newpeg = f.peg
 	} else {
@@ -506,6 +506,16 @@ func pathEq(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// A reference is copied as written, so that it clears the marks and
+// seal where it lands; copy reads any other argument first.
+func rawCopy(f *FuncVal) bool {
+	if f.name != "copy" || 0 == len(f.peg) {
+		return false
+	}
+	_, ok := f.peg[0].(*RefVal)
+	return ok
 }
 
 // resolve dispatches to the named function's implementation. base is

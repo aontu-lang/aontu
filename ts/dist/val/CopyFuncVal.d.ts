@@ -7,7 +7,7 @@ declare class CopyFuncVal extends FuncBaseVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
     make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): string;
-    prepare(_ctx: AontuContext, _args: Val[]): null;
+    prepare(_ctx: AontuContext, args: Val[]): Val[] | null;
     resolve(ctx: AontuContext, args: Val[]): import("./NilVal").NilVal | Val;
 }
 export { CopyFuncVal, };

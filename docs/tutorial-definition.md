@@ -6789,9 +6789,48 @@ form, so a preference reads as its default at any depth:
 
 The rows are x1221 on, and both engines answer every one as the
 definition does, but for two calls with the wrong number of arguments,
-which #426 tracks. `copy` isn't held yet. The reference says it clears
-the marks, but neither engine clears a mark on a literal argument, and
-#445 asks which reading stands.
+which #426 tracks.
+
+`copy` makes a value that carries nothing of where it came from: it
+clears the marks, `type()` and `hide()`, and the seal, at every depth,
+of any argument, a literal's as a reference's (decision 27 of the
+design note's §7). Write `copy.aontu`:
+
+<!-- test: scenario copy -->
+<!-- test: file copy.aontu -->
+```aontu
+a: copy(close({ x:1 }))
+b: copy(hide(2))
+```
+
+and `copy-data.aontu`:
+
+<!-- test: file copy-data.aontu -->
+```aontu
+a: { x:1 y:2 }
+b: 2
+```
+
+<!-- test: run -->
+```sh
+$ aontu vet copy.aontu copy-data.aontu
+verdict: valid
+```
+
+Without the copies, `close({ x:1 })` refuses the key `y`, and the
+document is `invalid`. The copy is open, and `b` is a visible member,
+which the output holds. The definition reads the argument's normal
+form, so that a name or a path has expanded into its value, a type's
+seal among it, and then clears its marks with `Val.unmark`, the reading
+a reference copies with, and opens every map and list in it:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+  | .copy, [x] => (normaliseD ds x).unmark.unseal
+```
+
+The rows are cp0 on, in `test/spec/def-path.tsv`, and both engines
+answer every one as the definition does.
 
 ## 26. The component tree
 

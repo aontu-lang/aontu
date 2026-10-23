@@ -47,8 +47,10 @@ class CopyFuncVal extends FuncBaseVal {
     return 'copy'
   }
 
-  prepare(_ctx: AontuContext, _args: Val[]) {
-    return null
+  // A reference is copied as written, so that it clears the marks and
+  // seal where it lands; any other argument is read first.
+  prepare(_ctx: AontuContext, args: Val[]) {
+    return true === args?.[0]?.isRef ? null : args
   }
 
 

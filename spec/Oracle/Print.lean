@@ -199,6 +199,7 @@ def Fn.name : Fn → String
   | .super => "super"
   | .pref => "pref"
   | .move => "move"
+  | .copy => "copy"
   | .refer => "refer"
   | .rel => "rel"
   | .path => "path"
