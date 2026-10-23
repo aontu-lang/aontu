@@ -4475,17 +4475,27 @@ Only the lower end waits. The meet decides an exclusion or a multiple
 with the upper end, so `len(neq(2)) & {x: 1, y: 2}` is an `error`
 though the data `{"x": 1, "y": 2, "z": 3}` would meet it, as both
 engines answer. A size is a conjunction of integers, bounds, exclusions
-and multiples, so one that holds a disjunction or a preference,
-`len(1 | 3)` or `len(*1)`, is ill-formed whatever it meets, as both
-engines answer too (decision 16 of the design note's §7):
+and multiples, so one that still holds a choice once in normal form,
+`len(1 | 3)`, `len(*1)` or `len(type(1 | 3))`, is ill-formed whatever
+it meets, as both engines answer too (decision 16 of the design note's
+§7). A choice the meet or a dead arm settles to one arm is that arm,
+and two arms written alike are one, so `len(1 & (1 | 3))` and
+`len(1 | 1)` are each `len(1)`:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def Val.sizeIll : Val → Bool
+def Val.choiceLeft : Val → Bool
+  | .or ((0, a) :: arms) => arms.any fun p => p.1 != 0 || !a.sameArm p.2
   | .or _ => true
   | .pref _ _ => true
-  | .meet a b => a.sizeIll || b.sizeIll
+  | .meet a b => a.choiceLeft || b.choiceLeft
+  | .ride _ v _ => v.choiceLeft
   | _ => false
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 ```
 
 `illFormed` reads each size, the sizes of a meet once, whole, and each

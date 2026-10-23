@@ -795,10 +795,13 @@ each stands here until the phase that encodes it lands.
    ports stand. A size outside the integer domain, such as `len(any)`
    or `len(string)`, admits nothing in both ports, as decision 28 has
    it. **Built 2026-10-23**: `Val.sizeIll` in `spec/Aontu/Verdict.lean`
-   holds where a size holds a disjunction or a preference, and
-   `Val.illFormed` reads such a size as ill-formed. Rows l57 to l80
-   hold it, and both ports answer every one as the definition does
-   (#413).
+   holds where a size's normal form still holds a choice, a disjunction
+   or a preference, through `&` and the riders (`Val.choiceLeft`), and
+   `Val.illFormed` reads such a size as ill-formed. A choice the meet
+   or a dead arm settles to one arm is that arm, and arms written alike
+   are one (`Val.sameArm`), as both ports read `len(1 & (1 | 3))` and
+   `len(1 | 1)` as `len(1)`. Rows l57 to l128 hold it, and both ports
+   answer every one as the definition does (#413).
 17. **A declaration nothing reads.** Raised 2026-10-21 by decision 14's
    rows (#417). Both ports evaluate every alias declaration, at `$.%T`,
    whether or not anything refers to it, so `%T = 1 & 2` beside `v: 1`

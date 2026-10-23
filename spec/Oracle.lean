@@ -429,8 +429,10 @@ container literal, the size's upper half refusing the literal's count or
 admitting it, a literal short of its size, and members that arrive by
 the data or by a second literal, and an optional member whose value
 generates an empty map or list, which isn't counted (decision 19); and
-a size that holds a disjunction or a preference, alone and met with a
-literal, ill-formed (decision 16). -/
+a size that holds a disjunction or a preference, alone, met with a
+literal and under a rider, ill-formed (decision 16), beside a choice
+the meet, a dead arm or arms written alike settle to one arm, which
+is that arm's size. -/
 def lenCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
@@ -467,7 +469,23 @@ def lenCases : List (Val × Data) :=
     (.len (.pref 1 (int 1)), .list [j 1]),
     (.len (.or [(1, int 1), (0, int 3)]), .list [j 1]),
     (.len (.meet (.min (nb 1)) (.or [(0, int 1), (0, int 3)])), .list [j 1]),
-    (.len (.meet (.min (nb 1)) (.max (nb 3))), .list [j 1])]
+    (.len (.meet (.min (nb 1)) (.max (nb 3))), .list [j 1]),
+    (.len (.ride .type (.or [(0, int 1), (0, int 3)]) []), .list [j 1]),
+    (.len (.ride .metadata (.or [(0, int 1), (0, int 3)]) []), .list [j 1]),
+    (.len (.ride .type (.pref 1 (int 1)) []), .list [j 1]),
+    (.len (.ride .type (int 1) []), .list [j 1]),
+    (.len (.ride .type (int 1) []), .list [j 1, j 2]),
+    (.len (.or [(0, int 1), (0, int 1)]), .list [j 1]),
+    (.len (.or [(0, int 1), (0, int 1)]), .list [j 1, j 2]),
+    (.len (.meet (int 1) (.or [(0, int 1), (0, int 3)])), .list [j 1]),
+    (.len (.or [(0, int 1), (0, .meet (int 1) (int 2))]), .list [j 1]),
+    (.len (.or [(0, .meet (int 1) (int 2)), (0, int 3)]), .list [j 1]),
+    (.len (.meet (.pref 1 (int 1)) (int 1)), .list [j 1]),
+    (.len (.or [(0, .min (nb 1)), (0, .min (nb 1))]), .list [j 1]),
+    (.len (.or [(0, .integer), (0, .integer)]), .list [j 1]),
+    (.len (.or [(0, int 1), (0, .lit (.num (.float (.dyadic 1 0))))]), .list [j 1]),
+    (.len (.or [(0, .meet (.min (nb 1)) (.max (nb 1))), (0, int 1)]), .list [j 1]),
+    (.len (.or [(0, .meet (.min (nb 1)) (.max (nb 0))), (0, int 1)]), .list [j 1])]
 
 theorem lenCases_checkable : ∀ c ∈ lenCases, (vetDoc c).1.CheckableA := by decide
 
