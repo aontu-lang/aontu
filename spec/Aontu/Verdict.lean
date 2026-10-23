@@ -1255,6 +1255,13 @@ def emitRule : Val → Option (Val × Val)
     | _, _ => none
   | _ => none
 
+/-- Whether a template is one both ports take before they read a node: a
+map whose `match` and `body` are written, the body a list. -/
+def emitRuleOk (r : Val) : Bool :=
+  match emitRule r with
+  | some (_, .list _ _ _) => true
+  | _ => false
+
 /-- The templates an `emit`'s table holds: a list's elements, or the
 table itself, since a table of one template may be the template. -/
 def emitTable : Val → List Val
@@ -1330,34 +1337,46 @@ def Val.kindless : Val → Val
   | .meet (.map fs spread closed) .mapKind => .map fs spread closed
   | v => v
 
+/-- Whether a map's field is one of its members as both ports count them
+in a dispatch, as `Val.members` reads them: not one that is marked or
+absence, nor an optional one whose value generates nothing or an empty
+map or list. -/
+def memberField (ds : Decls) (f : String × Bool × Val) : Bool :=
+  !(f.2.2.marked || f.2.2.isAbsent || (f.2.1 && (genD ds f.2.2).all Data.emptyBag))
+
 mutual
 /-- Whether a node and its meet with a `match` are alike, as both ports
-compare them: two maps with the same keys, each member alike, two lists
-with the same elements alike, each read through a disjunction of one
-arm (`Val.one`) and without a container kind beside a container of its
-kind (`Val.kindless`), and any other pair written alike (`Val.beq`). -/
-def Val.alike : Val → Val → Bool
-  | .map fs _ _, .map gs _ _ => fs.length == gs.length && alikeIn fs gs
-  | .list xs _ _, .list ys _ _ => alikeItems xs ys
+compare them: two maps with the same members (`memberField`), each
+alike, two lists with the same elements alike, each read through a
+disjunction of one arm (`Val.one`) and without a container kind beside a
+container of its kind (`Val.kindless`), and any other pair written alike
+(`Val.beq`). -/
+def Val.alike (ds : Decls) : Val → Val → Bool
+  | .map fs _ _, .map gs _ _ =>
+    (fs.filter (memberField ds)).length == (gs.filter (memberField ds)).length && alikeIn ds fs gs
+  | .list xs _ _, .list ys _ _ => alikeItems ds xs ys
   | a, b => a.beq b
 
-def alikeIn : List (String × Bool × Val) → List (String × Bool × Val) → Bool
+def alikeIn (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val) → Bool
   | [], _ => true
-  | (k, _, v) :: fs, gs =>
-    (match gs.find? (·.1 == k) with
-     | some g => v.alike g.2.2.one.kindless
-     | none => false) && alikeIn fs gs
+  | (k, o, v) :: fs, gs =>
+    (!memberField ds (k, o, v) ||
+      match gs.find? (·.1 == k) with
+      | some g => v.alike ds g.2.2.one.kindless
+      | none => false) && alikeIn ds fs gs
 
-def alikeItems : List Val → List Val → Bool
+def alikeItems (ds : Decls) : List Val → List Val → Bool
   | [], [] => true
-  | x :: xs, y :: ys => x.alike y.one.kindless && alikeItems xs ys
+  | x :: xs, y :: ys => x.alike ds y.one.kindless && alikeItems ds xs ys
   | _, _ => false
 end
 
 /-- Whether a term in normal form is a disjunction with no preference
-among its arms. -/
+among its arms, the riders around it read through, as both ports
+dispatch a node under a rider as the node. -/
 def Val.freeChoice : Val → Bool
   | .or arms => arms.all (·.1 == 0)
+  | .ride _ v _ => v.freeChoice
   | _ => false
 
 /-- Whether a template's `match` takes the node `m`, as both ports
@@ -1367,7 +1386,7 @@ that the meet narrows nothing; or, where the node is a disjunction with
 no preference among its arms, doesn't die. -/
 def emitTakes (ds : Decls) (pat m : Val) : Bool :=
   let met := normaliseD ds (meetD ds pat.matchRead m)
-  !met.dead && ((normaliseD ds m).freeChoice || (normaliseD ds m).kindless.alike met.one.kindless)
+  !met.dead && ((normaliseD ds m).freeChoice || (normaliseD ds m).kindless.alike ds met.one.kindless)
 
 /-- The pieces an `emit`'s table makes of the node `m`, its `match`es
 read from `tB`, the table read for no node, and its bodies from `tM`,
@@ -1408,7 +1427,7 @@ list of the pieces its table makes of each member of its selection, in
 the order `Val.members` reads them, its `match`es read for no member and
 its bodies for the member, each hole and each reference into the node
 bound to it (`nodeRef`), and stays as written, a call no reading makes,
-where a template lacks its `match` or its `body`, the selection is no
+where a template lacks its `match` or a list for its `body`, the selection is no
 bag, or a member makes no pieces (`emitPieces`). A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
@@ -1469,7 +1488,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     | .maybe, args => .call .maybe (resolveItems ds b here args)
     | .emit, [s, t] =>
       if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
-      if (emitTable (resolveD ds none none t)).any (fun r => (emitRule r).isNone) then
+      if (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
         .call .emit [resolveD ds b here s, t] else
       match (normaliseD ds (resolveD ds b here s)).members ds with
       | some ms =>

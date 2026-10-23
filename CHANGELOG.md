@@ -16,14 +16,16 @@ slice.
 - `spec/Aontu/Data.lean`: `Seg.node`, the step a relative reference in
   a body of `emit` starts with, since it names a field of the node
   rather than a place.
-- `spec/Aontu/Verdict.lean`: `resolveD` checks an `emit`'s table, then
-  reads it once for each node of its selection, in the order
+- `spec/Aontu/Verdict.lean`: `resolveD` checks an `emit`'s table, each
+  template a map with its `match` and a list for its `body`
+  (`emitRuleOk`), then reads it once for each node of its selection, in the order
   `Val.members` reads them, its `match`es for no node and its bodies for
   the node. `emitPieces` takes the body of the first template whose
   `match` takes the node, as both ports dispatch (`emitTakes`): the node
   met with the `match` doesn't die and is alike the node (`Val.alike`),
-  so that the meet narrows nothing, a disjunction with no preference
-  taken where any arm meets. A hole in a `match` matches nothing where
+  its members counted as `Val.members` reads them (`memberField`), so
+  that the meet narrows nothing, a disjunction with no preference, under
+  any rider, taken where any arm meets. A hole in a `match` matches nothing where
   it stands and is the value it meets in a meet or an arm
   (`Val.matchRead`), and a template's `match` fields meet. The answer
   splices in each list in the body, at any depth (`emitSpliceF`). A

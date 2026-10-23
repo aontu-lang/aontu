@@ -5310,7 +5310,7 @@ list of the pieces its table makes of each member of its selection, in
 the order `Val.members` reads them, its `match`es read for no member and
 its bodies for the member, each hole and each reference into the node
 bound to it (`nodeRef`), and stays as written, a call no reading makes,
-where a template lacks its `match` or its `body`, the selection is no
+where a template lacks its `match` or a list for its `body`, the selection is no
 bag, or a member makes no pieces (`emitPieces`). A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
@@ -8436,15 +8436,17 @@ $ aontu emit.aontu
 }
 ```
 
-`resolveD` checks the table first, then reads it once for each node of
-the selection, as it reads an `each`'s template once for each member:
-its `match`es for no node, and its bodies for the node:
+`resolveD` checks the table first, each template a map with its `match`
+and a list for its `body` (`emitRuleOk`), so that a bad table is an
+error even over an empty selection. It then reads the table once for
+each node of the selection, as it reads an `each`'s template once for
+each member: its `match`es for no node, and its bodies for the node:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
     | .emit, [s, t] =>
       if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
-      if (emitTable (resolveD ds none none t)).any (fun r => (emitRule r).isNone) then
+      if (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
         .call .emit [resolveD ds b here s, t] else
       match (normaliseD ds (resolveD ds b here s)).members ds with
       | some ms =>
@@ -8461,16 +8463,19 @@ a `match` takes a node the way both engines dispatch. The node, met with
 the `match`, must not die, and must be alike the node: the meet narrows
 nothing. So `{k: 1}` takes the node `{"k": 1}`, and so do `{}`, `map`
 and `close({k: 1})`. `{k: 1, j: 2}` doesn't take it, and neither does
-`{k: 1, j?: 2}`, whose meet holds a key the node lacks. Where the node
-is a kind, `integer`, the `match` `integer` takes it and `1` refuses
-it. A disjunction with no preference among its arms takes the node
-where any arm meets it:
+`{k: 1, j?: 2}`, whose meet holds a key the node lacks. But
+`{k: 1, j?: integer}` takes it: an optional key whose value generates
+nothing, or an empty map or list, is no member, as `Val.members` reads
+it (`memberField`). Where the node is a kind, `integer`, the `match`
+`integer` takes it and `1` refuses it. A disjunction with no preference
+among its arms takes the node where any arm meets it, under a rider
+too, as in `meta(1 | 2, {})`:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def emitTakes (ds : Decls) (pat m : Val) : Bool :=
   let met := normaliseD ds (meetD ds pat.matchRead m)
-  !met.dead && ((normaliseD ds m).freeChoice || (normaliseD ds m).kindless.alike met.one.kindless)
+  !met.dead && ((normaliseD ds m).freeChoice || (normaliseD ds m).kindless.alike ds met.one.kindless)
 ```
 
 No node binds a hole in a `match`, so `Val.matchRead` reads one as
