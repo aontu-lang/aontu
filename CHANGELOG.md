@@ -23,19 +23,24 @@ Closes #529.
   `len(1) & [1, {a: integer}]` is an error. `Val.refusesAtMeet` and
   `meetClash` find a size's upper half refusing the count, two members
   alike under `unique()` or at `unique("k")`'s key, and more members
-  than `contains` counts, so `unique() & [1, 1]` is an error.
+  than `contains` counts, so `unique() & [1, 1]` is an error. Each
+  reads a member and a condition under the declarations (`genD`,
+  `checkR`), so `contains(%A, neq(0))` over a recursive `%A` counts a
+  member the name admits, as both ports do.
 - `Val.staged` reads each such conflict as `nil` where it stands, and
   the verdict reads the normal form so staged: `Decls.illFormedR` and
-  `Decls.bodyIll` for the error class, and the dead check of the meet
-  with the data for `invalid`. A clashing arm drops, so
-  `(len(1) & [1, 2]) | 3` stands, and a container the data gives too
-  long for its size is `invalid` at the meet whatever else is
+  `Decls.bodyIll` for the error class, and for the meet with the data
+  its dead check, its refusal, its output and the unfilled check. A
+  clashing arm drops, so `(len(1) & [1, 2]) | 3` stands and generates
+  `3` against `{}`, as both ports answer, and a container the data
+  gives too long for its size is `invalid` at the meet whatever else is
   incomplete: `n: any, t: len(1)` against `{"t": [1, 2]}` is `invalid`
   in every mode, as both ports answer, where the definition answered
   `incomplete`. `vet_invalid_refuses` states the refusal of the staged
   form.
-- `spec/Oracle.lean`: `lenCases` gains 37 cases, rows l129 to l239 of
-  `test/spec/def-verdict.tsv`. Both ports answer every l row as the
+- `spec/Oracle.lean`: `lenCases` gains 40 cases, rows l129 to l248 of
+  `test/spec/def-verdict.tsv`, and `meetNameCases` five, rows tc0 to
+  tc14 of `test/spec/def-trial.tsv`. Both ports answer every row as the
   definition does, and no other row changes.
 - The tutorial's step on the verdict, the reference's `len`, `unique`
   and `contains` notes, the definition's README and decision 9 of the

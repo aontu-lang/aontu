@@ -19,7 +19,8 @@
 # error. Regenerate with `make spec`; never edit by hand. The cases the ports
 # do not yet answer this way are listed in spec/ledger.tsv.
 # A spread that selects on key(0), the key of the member it is tried on, or
-# the position of the item, follows in rows y0 on.
+# the position of the item, follows in rows y0 on, and contains over a
+# recursive name, which the meet reads as its body, in rows tc0 on.
 t0	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid"}
 t1	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid","opts":{"noFill":true}}
 t2	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid","opts":{"partial":true}}
@@ -884,3 +885,18 @@ y62	verdict	"z": [integer, &: match(key(0), "1", string, any)]	{"z": [1, "a", 3]
 y63	verdict	"z": [integer, &: match(key(0), "1", string, any)]	{"z": [1, 2]}	{"verdict":"invalid"}
 y64	verdict	"z": [integer, &: match(key(0), "1", string, any)]	{"z": [1, 2]}	{"verdict":"invalid","opts":{"noFill":true}}
 y65	verdict	"z": [integer, &: match(key(0), "1", string, any)]	{"z": [1, 2]}	{"verdict":"invalid","opts":{"partial":true}}
+tc0	verdict	%A = {"next"?: %A}\n"t": contains(%A, neq(0))	{"t": [{}]}	{"verdict":"valid"}
+tc1	verdict	%A = {"next"?: %A}\n"t": contains(%A, neq(0))	{"t": [{}]}	{"verdict":"valid","opts":{"noFill":true}}
+tc2	verdict	%A = {"next"?: %A}\n"t": contains(%A, neq(0))	{"t": [{}]}	{"verdict":"valid","opts":{"partial":true}}
+tc3	verdict	%A = {"next"?: %A}\n"t": contains(%A, max(0))	{"t": [{}]}	{"verdict":"invalid"}
+tc4	verdict	%A = {"next"?: %A}\n"t": contains(%A, max(0))	{"t": [{}]}	{"verdict":"invalid","opts":{"noFill":true}}
+tc5	verdict	%A = {"next"?: %A}\n"t": contains(%A, max(0))	{"t": [{}]}	{"verdict":"invalid","opts":{"partial":true}}
+tc6	verdict	%A = {"next"?: %A}\n"t": (contains(%A, max(0))) & ([{}])	{}	{"verdict":"error"}
+tc7	verdict	%A = {"next"?: %A}\n"t": (contains(%A, max(0))) & ([{}])	{}	{"verdict":"error","opts":{"noFill":true}}
+tc8	verdict	%A = {"next"?: %A}\n"t": (contains(%A, max(0))) & ([{}])	{}	{"verdict":"error","opts":{"partial":true}}
+tc9	verdict	%A = {"next"?: %A}\n"t": (contains(%A, neq(0))) & ([{}])	{}	{"verdict":"valid"}
+tc10	verdict	%A = {"next"?: %A}\n"t": (contains(%A, neq(0))) & ([{}])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+tc11	verdict	%A = {"next"?: %A}\n"t": (contains(%A, neq(0))) & ([{}])	{}	{"verdict":"valid","opts":{"partial":true}}
+tc12	verdict	%A = {"next"?: %A}\n"t": (contains(%A, neq(0))) & ([1])	{}	{"verdict":"error"}
+tc13	verdict	%A = {"next"?: %A}\n"t": (contains(%A, neq(0))) & ([1])	{}	{"verdict":"error","opts":{"noFill":true}}
+tc14	verdict	%A = {"next"?: %A}\n"t": (contains(%A, neq(0))) & ([1])	{}	{"verdict":"error","opts":{"partial":true}}

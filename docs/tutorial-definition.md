@@ -4378,33 +4378,33 @@ expansion with its selections made: `error` where the document refers to a name 
 declare, where its names break the alias-cycle rule, where an
 `ident()` stands out of its place, or where the schema's normal form,
 staged, does not stand; `invalid` where the meet of the schema with the
-data as a term is dead once staged (`Val.staged`), so that a conflict
-the meet finds refuses the data's container, or refuses, read whole,
+data as a term, staged (`Val.staged`) so that a conflict the meet finds
+is `nil` and an arm holding one drops, is dead, or refuses, read whole,
 the value it gives with its trials and sizes unread; `valid` where the
-meet singles out a value,
-and without the fill where the data as written is an instance of the
-visible part of the schema's normal form too, or where `--partial` lets
-the unresolved pass; and `incomplete` otherwise. -/
+staged meet singles out a value, and without the fill where the data as
+written is an instance of the visible part of the schema's normal form,
+staged, too, or where `--partial` lets the unresolved pass; and
+`incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged.dead = true ∨
-        RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)))
+      (((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = true ∨
+        RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (normaliseD ds (meetD ds (ds.readR S) j.term)).staged.dead = false ∧
-      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
+      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = false ∧
+      ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) ∧
       (m.lax = true ∨
-        ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
-          (m.fill = true ∨ Admits ds.envE j (normaliseD ds (ds.readR S)).visible j))
+        ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧
+          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (normaliseD ds (meetD ds (ds.readR S) j.term)).staged.dead = false ∧
-      ¬ RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) ∧
+      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = false ∧
+      ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) ∧
       m.lax = false ∧
-      ¬ ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
-        (m.fill = true ∨ Admits ds.envE j (normaliseD ds (ds.readR S)).visible j)
+      ¬ ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧
+        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j)
 ```
 
 Read the four in order. `error` is a document that refers to a name it
@@ -4416,7 +4416,7 @@ aren't about names are one check:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || (normaliseD ds (ds.readR S)).staged.illFormed
+  ds.identMisplaced S || ds.bodyIll || ((normaliseD ds (ds.readR S)).staged ds).illFormed
 ```
 
 An `ident()`'s place belongs to the text, so the check reads the
@@ -4480,10 +4480,10 @@ def Decls.bodyIll (ds : Decls) : Bool :=
   let ws := ds.waitNames
   let w : String → Bool := fun n => ws.contains n
   let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced w fun _ => false)
-  let ill : Val → Bool := fun t => (normaliseD d0 (d0.readU t)).staged.illFormed
+  let ill : Val → Bool := fun t => ((normaliseD d0 (d0.readU t)).staged d0).illFormed
   let du : Decls := ds.map fun d => (d.1, d.2.unplaced w ill)
   du.any fun d => d.1.toList.head? != some '!' &&
-    ((normaliseD du (du.readU (.alias d.1))).staged.illFormed || (normaliseD du (du.readU d.2)).staged.illFormed)
+    (((normaliseD du (du.readU (.alias d.1))).staged du).illFormed || ((normaliseD du (du.readU d.2)).staged du).illFormed)
 ```
 
 A normal form doesn't stand, `illFormed`, where it holds a `nil`
@@ -4534,40 +4534,44 @@ whose second member is a map, is an `error`:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def Val.meetMembers : Val → Option (List Val)
+def Val.meetMembers (ds : Decls) : Val → Option (List Val)
   | .list items _ _ =>
-    (items.filter fun v => !v.marked).mapM fun v => if v.bagLike || (gen v).isSome then some v else none
+    (items.filter fun v => !v.marked).mapM fun v => if v.bagLike || (genD ds v).isSome then some v else none
   | .map fs _ _ =>
-    ((fs.filter fun f => !f.2.2.marked && (!f.2.1 || (gen f.2.2).any fun x => !x.emptyBag)).map
-      (·.2.2)).mapM fun v => if v.bagLike || (gen v).isSome then some v else none
+    ((fs.filter fun f => !f.2.2.marked && (!f.2.1 || (genD ds f.2.2).any fun x => !x.emptyBag)).map
+      (·.2.2)).mapM fun v => if v.bagLike || (genD ds v).isSome then some v else none
   | _ => none
 ```
 
 Then a size whose upper half refuses the count, two members written
 alike under `unique()` or at `unique("k")`'s key, and more members than
 `contains` counts are each a conflict, so `unique() & [1, 1]` is an
-`error`. The meet's literals are counted after meeting them, so
-`len(neq(2)) & {x: 1, y: 2} & {z: 3}` counts three:
+`error`. The meet reads each member and condition under the
+declarations, so `contains(%A, neq(0))` over a recursive `%A` counts a
+member the name admits, as both engines do, and
+`contains(%A, max(0)) & [{}]` is an `error`. The meet's literals are
+counted after meeting them, so `len(neq(2)) & {x: 1, y: 2} & {z: 3}`
+counts three:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def Val.refusesAtMeet (ms : List Val) : Val → Bool
-  | .len c => if h : IntegerLeaf ms.length then !check c.upperHalf (.num (.integer ⟨ms.length, h⟩)) else false
+def Val.refusesAtMeet (ds : Decls) (ms : List Val) : Val → Bool
+  | .len c => if h : IntegerLeaf ms.length then !checkR ds c.upperHalf (.num (.integer ⟨ms.length, h⟩)) else false
   | .unique none => dupAlike ms
   | .unique (some k) => ms.any (fun m => (m.keyVal k).isNone) || dupAlike (ms.filterMap (·.keyVal k))
   | .contains c n =>
-    if h : IntegerLeaf (ms.countP fun m => (gen m).any (check c)) then
-      !check n.upperHalf (.num (.integer ⟨ms.countP fun m => (gen m).any (check c), h⟩))
+    if h : IntegerLeaf (ms.countP fun m => (genD ds m).any (checkR ds c)) then
+      !checkR ds n.upperHalf (.num (.integer ⟨ms.countP fun m => (genD ds m).any (checkR ds c), h⟩))
     else false
   | _ => false
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def meetClash (cs : List Val) : Bool :=
-  match ((cs.filter fun v => v.genCount.isSome).foldl meet .any).meetMembers with
+def meetClash (ds : Decls) (cs : List Val) : Bool :=
+  match ((cs.filter fun v => v.genCount.isSome).foldl meet .any).meetMembers ds with
   | none => false
-  | some ms => cs.any (·.refusesAtMeet ms)
+  | some ms => cs.any (·.refusesAtMeet ds ms)
 ```
 
 Only the lower end waits. The meet decides an exclusion or a multiple
@@ -4576,9 +4580,10 @@ though the data `{"x": 1, "y": 2, "z": 3}` would meet it, as both
 engines answer.
 
 The conflict is the meet's, so `Val.staged` reads it as a `nil` where
-it stands, and the verdict reads the term so staged. A clashing arm
-drops, so `(len(1) & [1, 2]) | 3` stands, and a clashing member is its
-container's conflict. The data's container is read the same way, so a
+it stands, and the verdict reads the term so staged throughout: for
+the dead check, for the refusal of the value it gives, and for the
+output. A clashing arm drops, so `(len(1) & [1, 2]) | 3` stands and
+generates `3`, and a clashing member is its container's conflict. The data's container is read the same way, so a
 container the data gives too long for its size is `invalid` at the
 meet whatever else is incomplete: `n: any, t: len(1)` against
 `{"t": [1, 2]}` is `invalid` in every mode, as both engines answer
@@ -4586,13 +4591,13 @@ meet whatever else is incomplete: `n: any, t: len(1)` against
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-def Val.staged : Val → Val
-  | .meet a b => if meetClash (a.conjuncts ++ b.conjuncts) then .nil else .meet a.staged b.staged
-  | .map fs spread closed => .map (stagedFields fs) spread closed
-  | .list items spread closed => .list (stagedItems items) spread closed
-  | .or arms => mkOr (stagedArms arms)
-  | .pref r x => .pref r x.staged
-  | .ride k v r => .ride k v.staged r
+def Val.staged (ds : Decls) : Val → Val
+  | .meet a b => if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.staged ds) (b.staged ds)
+  | .map fs spread closed => .map (stagedFields ds fs) spread closed
+  | .list items spread closed => .list (stagedItems ds items) spread closed
+  | .or arms => mkOr (stagedArms ds arms)
+  | .pref r x => .pref r (x.staged ds)
+  | .ride k v r => .ride k (v.staged ds) r
   | v => v
 ```
 
@@ -4693,7 +4698,7 @@ Three theorems say what the words mean:
 instance of the visible part of the schema as read. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE (normaliseD ds (ds.readR S)).visible j := by
+    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -4708,12 +4713,11 @@ theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (
 is an instance of the visible part of the schema met with the data. -/
 theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
     (h : Vet m ds S j .valid) :
-    ∃ j', OutputD ds j (meetD ds (ds.readR S) j.term) j' ∧
-      Admits ds.envE j (normaliseD ds (meetD ds (ds.readR S) j.term)).visible j' := by
+    ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧ Admits ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' := by
   obtain ⟨-, -, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
-  · exact ⟨j', hout, outputD_admits _ _ hout⟩
+  · exact ⟨j', hout, gen_admits _ _ hout⟩
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
@@ -4722,8 +4726,8 @@ theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.la
 the conflicts the meet finds read (`Val.staged`), refuses the data as
 written, or, its trials and sizes unread, the value it would single out. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j (normaliseD ds (meetD ds (ds.readR S) j.term)).staged j ∨
-      RefusedAt ds j (normaliseD ds (meetD ds (ds.readR S) j.term)) := by
+    Refuses ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) j ∨
+      RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) := by
   obtain ⟨-, -, -, hd | hr⟩ := h
   · exact .inl (dead_refuses _ hd j)
   · exact .inr hr
@@ -4779,9 +4783,9 @@ example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .inco
 
 /-- Without the fill, `valid` is `Instance`: `[*1]` against `[2]`, under
 no declaration, where a document reads as itself, its visible part the
-normal form of `[*1]`. -/
+normal form of `[*1]`, staged. -/
 example : Instance (Decls.envE [])
-    (normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).visible
+    ((normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).staged []).visible
     (.list [.integer 2]) :=
   vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
     ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))
