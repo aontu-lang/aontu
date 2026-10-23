@@ -8075,40 +8075,47 @@ $ aontu main.aontu
 The definition reads no file. A document declares each source it can
 load as a term, under `@` and the source's name, which no document can
 write, since a name a document writes begins with a letter. A load
-names its source from the source it's written in, a `./` read from that
-source's directory and `.aontu` supplied where the name has no
-extension:
+names its source from the source it's written in: read from that
+source's directory, each `.` dropped and each `..` taking back a step,
+and `.aontu` supplied where the name has no extension. A bare name whose
+first step holds a dot names a module, which the definition doesn't
+read yet, so it names no source. Both engines refuse one whose last
+step names an extension, as a file written without `./`:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def loadPath (src p : String) : Option String :=
-  let q := if p.startsWith "./" then src.dropRightWhile (· ≠ '/') ++ p.drop 2 else p
+  let q := "/".intercalate
+    (normSteps [] ((if p.startsWith "/" then [] else (src.splitOn "/").dropLast) ++ p.splitOn "/"))
+  if moduleRef p then none else
   match ((q.splitOn "/").getLast?.getD "").splitOn "." with
   | [_] => some (q ++ ".aontu")
   | parts => if parts.getLast?.getD "" ∈ loadExts then some q else none
 ```
 
 Before anything else reads the document, each load reads in its
-source's term, whose own loads read in from there, as deep as the
-document declares sources:
+source's term, whose own loads read in from there, `seen` holding the
+chain of sources the load stands in:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.loadIn (ds : Decls) : ℕ → String → Val → Val
-  | 0, _, v => v
-  | n + 1, src, v => v.mapLoads fun p => (loadPath src p).bind fun q => (ds.source? q).map (ds.loadIn n q)
+def Decls.loadIn (ds : Decls) : ℕ → List String → String → Val → Val
+  | 0, _, _, v => v
+  | n + 1, seen, src, v => v.mapLoads fun p => (loadPath src p).bind fun q =>
+    if q ∈ seen then none else (ds.source? q).map (ds.loadIn n (q :: seen) q)
 ```
 
 A source the document declares no term for, one whose extension no
-source may have, and a cycle of sources, which the depth never reaches
-the end of, each leave the load as written, a call the reading can't
-make, so the document is an `error`, as both engines answer. The
-verdict reads the document with its sources read in:
+source may have, and one the chain already holds, a cycle, each leave
+the load as written, a load the reading can't make. The verdict reads
+the document with its sources read in, and is an `error` wherever a
+load remains, even in an arm a selection leaves out, since both engines
+read every load before anything else:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  VetL m (ds.loaded S).1 (ds.loaded S).2 j v
+  if ds.loadsLeft S then v = .error else VetL m (ds.loaded S).1 (ds.loaded S).2 j v
 ```
 
 A source refuses data as anything the document writes does. Write
@@ -8138,7 +8145,9 @@ Rows from lf0 on of `test/spec/def-path.tsv` load the files of
 `test/spec/files`, which each case declares as the term the file holds,
 in the three modes of `vet`, and both engines answer every one as the
 definition does. The definition doesn't yet read a source's own
-declarations, the destructure `{ %a } = @"…"`, or a module.
+declarations, the destructure `{ %a } = @"…"`, a module, or an
+extension the calling program adds to those read as text, as
+`--text-ext` does.
 
 ## 40. What the definition doesn't say yet
 

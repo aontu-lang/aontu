@@ -126,9 +126,10 @@ The rest of the language waits on phases P8 to P12 of the plan:
 `copy` written as a call (P8, #445); a hole its call's peer fills,
 a relative path in a template or a `filter`'s condition, and
 generation with `emit` (P9);
-a source's own declarations, the destructure and modules (P10); links and relations (P11); and the
-shaping of a grammar's tree by its annotations, stated over a raw parse
-the host supplies (P12).
+a source's own declarations, the destructure, modules, and the text
+extensions a calling program adds (P10); links and relations (P11); and
+the shaping of a grammar's tree by its annotations, stated over a raw
+parse the host supplies (P12).
 
 ## Build and run
 
