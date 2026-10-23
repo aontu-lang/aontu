@@ -579,9 +579,10 @@ disjunction such a call is an arm that dies. A template's hole and
 in place is read whole, and an `emit`'s table its node's, so an `emit`
 over a selection written in place is too. A name whose body waits makes
 a body that names it wait too, through a call and through another name,
-so `add(%U, 1)` stands where `%U` waits and `add(%U, 1 & 2)` doesn't;
-and a waiting `key(n)` is any string, so `key(1) & 1` is an error and
-`key(1) & ""` stands. -/
+so `add(%U, 1)` stands where `%U` waits and `add(%U, 1 & 2)` doesn't,
+while the name itself reads what its body fixes, so `%U & 2` is an
+error beside `%U = _ & 1`; and a waiting `key(n)` is any string, so
+`key(1) & 1` is an error and `key(1) & ""` stands. -/
 def aliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -738,7 +739,11 @@ def aliasCases : List (Decls × Val × Data) :=
     ([("T", .meet (.keyUp 1) (.map [] none false))], int 1, j 1),
     ([("T", .meet (.keyUp 1) (str ""))], int 1, j 1),
     ([("T", .meet (.keyUp 1) .string)], int 1, j 1),
-    ([("T", .map [("a", false, .meet (.keyUp 0) (str "a"))] none false)], int 1, j 1)]
+    ([("T", .map [("a", false, .meet (.keyUp 0) (str "a"))] none false)], int 1, j 1),
+    ([("U", .meet .hole (int 1)), ("T", .meet (.alias "U") (int 2))], int 1, j 1),
+    ([("U", .meet .hole (int 1)), ("T", .meet (.alias "U") (int 1))], int 1, j 1),
+    ([("U", .map [("a", false, .hole), ("b", false, int 1)] none false),
+      ("T", .meet (.alias "U") (.map [("b", false, int 2)] none false))], int 1, j 1)]
 
 /-- The schema and data of a case, each under the key `v`, as the rows
 write them. -/

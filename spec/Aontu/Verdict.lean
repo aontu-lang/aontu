@@ -3185,15 +3185,16 @@ def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
 
 mutual
 /-- A term with each part that waits for a place read as what any place
-could make of it, the parts `w` names among them: a hole as `any`, a
-`key(n)` as any string, since a key is text wherever it lands, and a
-call or a trial that holds either as `any`. Such a call reads as `nil`
-instead where it takes another count of arguments (`Fn.takes`), or
-where an argument both ports read as written doesn't stand by `ill`:
-any of a call's but the template of an `each` or a `pack` and an
-`emit`'s table, a size, the count of `nof` and `contains`, the
-condition of `must`, and the scrutinee or source of `match` and
-`filter`. -/
+could make of it: a hole as `any`, a `key(n)` as any string, since a
+key is text wherever it lands, and a call or a trial that holds either,
+or a name `w` reads as waiting, as `any`. A name itself stays, so that
+it reads its own body so read, what that body fixes kept. Such a call
+reads as `nil` instead where it takes another count of arguments
+(`Fn.takes`), or where an argument both ports read as written doesn't
+stand by `ill`: any of a call's but the template of an `each` or a
+`pack` and an `emit`'s table, a size, the count of `nof` and
+`contains`, the condition of `must`, and the scrutinee or source of
+`match` and `filter`. -/
 def Val.unplaced (w : String → Bool) (ill : Val → Bool) : Val → Val
   | .hole => .any
   | .keyUp _ => .anyString
@@ -3219,6 +3220,7 @@ def Val.unplaced (w : String → Bool) (ill : Val → Bool) : Val → Val
     else if ill (s.unplaced w ill) then .nil else .any
   | .filter s c =>
     if !(Val.filter s c).waits w then .filter s c else if ill (s.unplaced w ill) then .nil else .any
+  | .alias n => .alias n
   | v => if v.waits w then .any else v
 
 def unplacedFields (w : String → Bool) (ill : Val → Bool) :
