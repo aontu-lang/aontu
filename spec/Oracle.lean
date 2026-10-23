@@ -1910,11 +1910,15 @@ theorem filterCond_verdict_exact : ∀ c ∈ filterCondCases, ∀ (m : Mode) (v 
 /-- Bounds written over terms: `min`, `max`, `above` and `below` over a
 path to a number and to a string, the empty string among them, over a
 relative path and over a call; two bounds over paths met; `neq` over
-paths to numbers, to strings and to both, which is refused; `mulof`
-over a path to a number and to a string; a path to a boolean, `null`,
-a map, a kind, a bound and a disjunction, which no bound reads, and one
-only the data supplies; and `len`, which takes a term already, over a
-path to a count, a relative one, one to a bound, and one only the data
+paths to numbers, to strings and to both; `mulof` over a path to a
+number, to a string, to `0` and to a negative number; a path to a
+boolean, `null`, a map, a kind, a bound and a meet, which no bound
+reads, so that the bound admits nothing, however its argument is
+written (decision 28), and a kind and `any` the data fills; a path to a
+preference and to a disjunction, a choice no bound takes, an error
+whether or not the data fills it (#413); one only the data supplies;
+and `len`, which takes a term already, over a path to a count, a
+relative one, one to a bound, one to a string, and one only the data
 supplies. -/
 def boundArgCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -1960,7 +1964,17 @@ def boundArgCases : List (Decls × Val × Data) :=
     ([], m [("a", m [("n", int 2), ("t", .len (rel 1 ["n"]))])], dm [("a", dm [("t", .list [j 1, j 2])])]),
     ([], m [("n", .min (.num (.integer ⟨1, by decide⟩))), ("t", .len (p ["n"]))], dm [("t", .list [j 1])]),
     ([], m [("n", int 2), ("t", .len (p ["n"]))], dm []),
-    ([], m [("t", .len (p ["n"]))], dm [("n", j 2), ("t", .list [j 1, j 2])])]
+    ([], m [("t", .len (p ["n"]))], dm [("n", j 2), ("t", .list [j 1, j 2])]),
+    ([], m [("d", int 0), ("t", bnd .mulof [p ["d"]])], t (j 7)),
+    ([], m [("d", int (-3)), ("t", bnd .mulof [p ["d"]])], t (j 6)),
+    ([], m [("s", str "a"), ("t", .len (p ["s"]))], t (.str "abc")),
+    ([], lo (.pref 1 (int 2)), t (j 3)),
+    ([], lo .number, dm [("lo", j 2), ("t", j 3)]),
+    ([], lo .any, dm [("lo", j 2), ("t", j 3)]),
+    ([], lo (.or [(1, int 2), (0, int 3)]), dm [("lo", j 3), ("t", j 3)]),
+    ([], lo (.meet (.min (.num (.integer ⟨1, by decide⟩))) (.max (.num (.integer ⟨3, by decide⟩)))), t (j 2)),
+    ([], lo (.or [(0, int 1), (0, int 3)]), t (j 2)),
+    ([], lo (.or [(0, int 1), (0, int 3)]), dm [("lo", j 1), ("t", j 2)])]
 
 theorem boundArgCases_checkable : ∀ c ∈ boundArgCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

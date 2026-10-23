@@ -91,7 +91,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
   | .re _, _ | .format _, _ | .grammar _, _
-  | .any, _ | .absent, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
+  | .any, _ | .absent, _ | .nil, _ | .nothing, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
   | .key, _ | .keyUp _, _ | .call _ _, _ | .hole, _ => False
 
@@ -742,7 +742,7 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
   | .mapKind | .listKind | .pathKind
   | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .mulof _ | .len _ | .unique _
-  | .re _ | .format _ | .grammar _ | .any | .absent | .nil | .alias _ | .path _ | .nof _ _
+  | .re _ | .format _ | .grammar _ | .any | .absent | .nil | .nothing | .alias _ | .path _ | .nof _ _
   | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .key | .keyUp _
   | .call _ _ | .hole => none
 
@@ -1036,7 +1036,8 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
   induction h with
   | integer | float | biginteger | bigdecimal | number | string | anyString | boolean
   | mapKind | listKind | pathKind
-  | min | max | above | beneath | neq | mulof | unique | grammar | any | absent | nil | alias | path =>
+  | min | max | above | beneath | neq | mulof | unique | grammar | any | absent | nil | nothing | alias
+  | path =>
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩

@@ -259,7 +259,7 @@ def Val.src : Val → Option String
   | .grammar g => some s!"parse({quote g})"
   | .any => some "any"
   | .nil => some "nil"
-  | .absent => none
+  | .absent | .nothing => none
   | .map fs spread closed => do
     let entries ← fieldsSrc fs
     let rest ← spreadSrc spread

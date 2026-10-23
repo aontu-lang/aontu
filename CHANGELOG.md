@@ -8,6 +8,39 @@ each change affects.
 
 ## Unreleased
 
+### An atom over an argument outside its domain admits nothing, however the argument is written
+
+Both engines, the definition, generated rows, and documentation.
+Ruling 28 of the design note's §7 (#509).
+
+- TS (`ts/src/val/ConstraintVal.ts`) and Go (`go/constraint.go`): a
+  pending atom that settles with an argument outside its domain, such
+  as `mulof($.d)` where `d` is `0` or `len($.s)` where `s` is a string,
+  leaves a residual that admits nothing, as the same argument written
+  as a literal does, rather than an error in the schema alone. So `vet`
+  reads it as `invalid` against data that meets it, and evaluation
+  answers `mapval_no_gen`, as for the literal. The same holds of an
+  argument an expression computes, `min(min(1) & max(3))` among them. A
+  choice still to make, a disjunction or a preference, stays an error
+  whatever the atom meets, as ruling 16 has it of a size (#413).
+- `spec/Aontu/Syntax.lean`: `Val.nothing`, the atom that admits
+  nothing. It stands, refuses every value (`Judge.nothing`), generates
+  nothing, and is `nil` met with anything but `any` (`nothingOr`).
+- `spec/Aontu/Verdict.lean`: `bndOf` makes `Val.nothing` of a bound over
+  an argument outside its domain, `Val.noEnd` reading a kind, a bound, a
+  pattern and a meet as one too, and refuses a bound over a choice
+  (`Val.isChoice`).
+- `spec/Oracle.lean`: `boundArgCases` gains ten cases, rows bd102 to
+  bd131 of `test/spec/def-path.tsv`. `mulof` over a path to `0` and to
+  `-3`, `len` over a path to a string and `min` over a path to a meet
+  of bounds are each `invalid`. A kind and `any` the data fills are
+  `valid`. A preference, a disjunction, and a disjunction the data
+  fills are each an `error`. Rows bd45 to bd71 and bd78 to bd80 read
+  `invalid` where they read `error`, as both engines now answer, and
+  both answer every row as the definition does.
+- The tutorial and the reference describe the reading, and the
+  reference no longer cites #509.
+
 ### The definition reads `export` and the destructure
 
 Definition, generated rows, and documentation. No engine changes. A

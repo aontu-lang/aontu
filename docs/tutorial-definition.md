@@ -3237,6 +3237,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | .nil, _ | _, .nil => .nil
   | .absent, b => absentOr (rec .any b)
   | a, .absent => absentOr (rec a .any)
+  | .nothing, b => nothingOr b
+  | a, .nothing => nothingOr a
   | .meet a₁ a₂, b => rec a₁ (rec a₂ b)
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
   | .ride k v r, b => .ride k (rec v b) r
@@ -3256,7 +3258,9 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
 
 Read each row as *these two shapes meet in this one*. `nil` is the
 zero: it admits nothing, so nor does any meet with it. Absence, step
-33's, is the unit, but met with `any` it stays absence. A meet on either
+33's, is the unit, but met with `any` it stays absence. `nothing`,
+step 20's atom over an argument outside its domain, stays itself met
+with `any` and is `nil` met with anything else. A meet on either
 side is met one side at a time, and on the right `meetRight` tries each
 atom against each other once: `a` meets `b₁`, and where the two had
 nothing to say to each other, such as `min(1)` and `max(9)`, `a` meets
@@ -6145,29 +6149,42 @@ there is `min(2)`:
 ```lean
 def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
   let ns := args.map fun a => (normaliseD ds a).unride
-  if ns.any Val.noEnd then .refused else
+  if ns.any Val.isChoice then .refused else
+  if ns.any Val.noEnd then .made .nothing else
   match ns.mapM Val.boundEnd?, b with
   | none, _ => .waits
 ```
 
-A boolean, `null` or a container names no end, so the definition
-refuses a bound over one, and a `neq` over a number and a string, and
-either makes the document an error, as both engines answer. In a
-`filter`'s condition the refusal refuses each member the condition
-tries instead, as a condition that names nothing does. An
-argument that never settles, a kind, a bound or a disjunction, leaves
-the call waiting, and a call no reading makes is an error too, which
-is what both engines answer for `lo: integer` and for a path to
-`*2 | 3`. So is a bound over a path that only the data supplies, since
-the schema's own tree names nothing there. A size needs no call:
-`len` takes a term already, so `n: 2, t: len($.n)` reads as `len(2)`.
-Both engines read `mulof` over a path to zero or a negative number,
-and `len` over a path to anything but a count, as an error, where the
-same argument written as a literal admits nothing, which #509 tracks.
-The definition reads a path to either as it reads the literal, and no
-row holds one. Rows from bd0 on of `test/spec/def-path.tsv` hold these
-readings in the three modes of `vet`, and both engines answer every
-one as the definition does.
+A boolean, `null`, a container, a kind, a bound, a pattern or a meet
+names no end, and neither do a number and a string together under
+`neq`, so a bound over one is outside its domain and admits nothing,
+however its argument is written, as both engines answer (decision 28
+of the design note's §7). A choice still to make, a disjunction or a
+preference, is no argument at all: the bound is refused, and the
+document is an error whatever the bound meets, as a size that holds
+one is (decision 16). The atom that admits nothing is `Val.nothing`. It
+stands, so a schema that holds one is no error, but it refuses every
+value and generates nothing, and the meet makes it `nil` against
+anything but `any`:
+
+<!-- test: quote spec/Aontu/Meet.lean -->
+```lean
+def nothingOr (v : Val) : Val := if v.isAny then .nothing else .nil
+```
+
+So `lo: true, t: min($.lo)` refuses whatever data meets it, an
+`invalid`, and in a `filter`'s condition such a bound refuses each
+member the condition tries. The schema's own tree reads a kind as it
+stands, but the tree the data reads in holds what the data gives it,
+so `lo: number, t: min($.lo)` against `{"lo": 2, "t": 3}` is `valid`.
+An argument that never settles leaves the call waiting, and a call no
+reading makes is an error, as a bound over a path that only the data
+supplies is, since the schema's own tree names nothing there. A size
+needs no call: `len` takes a term already, so `n: 2, t: len($.n)`
+reads as `len(2)`, and one over a path to a string admits nothing, as
+`mulof` over a path to zero or a negative number does. Rows from bd0
+on of `test/spec/def-path.tsv` hold these readings in the three modes
+of `vet`, and both engines answer every one as the definition does.
 
 A bound in a generator's template or in a `filter`'s condition reads
 a relative path where its instance lands, as step 27 reads a template

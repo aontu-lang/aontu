@@ -323,6 +323,7 @@ inductive Val.Checkable : Val → Prop
   | absent : Checkable .absent
   | hole : Checkable .hole
   | nil : Checkable .nil
+  | nothing : Checkable .nothing
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
       (∀ k o v, (k, o, v) ∈ fs → Checkable v) → (∀ s, spread = some s → Checkable s) →
       Checkable (.map fs spread closed)
@@ -426,6 +427,7 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .absent => ⟨fun _ => .absent, fun _ => rfl⟩
   | .hole => ⟨fun _ => .hole, fun _ => rfl⟩
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
+  | .nothing => ⟨fun _ => .nothing, fun _ => rfl⟩
   | .re _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .format _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .select s arms d => by
@@ -1051,6 +1053,7 @@ inductive Val.CheckableA : Val → Prop
   | absent : CheckableA .absent
   | hole : CheckableA .hole
   | nil : CheckableA .nil
+  | nothing : CheckableA .nothing
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
       (∀ k o v, (k, o, v) ∈ fs → CheckableA v) → (∀ s, spread = some s → CheckableA s) →
       CheckableA (.map fs spread closed)
@@ -1155,6 +1158,7 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .absent => ⟨fun _ => .absent, fun _ => rfl⟩
   | .hole => ⟨fun _ => .hole, fun _ => rfl⟩
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
+  | .nothing => ⟨fun _ => .nothing, fun _ => rfl⟩
   | .alias _ => ⟨fun _ => .alias, fun _ => rfl⟩
   | .re _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .format _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
@@ -1357,6 +1361,7 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | absent => exact .absent
   | hole => exact .hole
   | nil => exact .nil
+  | nothing => exact .nothing
   | map _ _ ihf ihs => exact .map ihf ihs
   | list _ _ ihi ihs => exact .list ihi ihs
   | or _ ih => exact .or ih
@@ -1625,6 +1630,7 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .absent, _ => true
   | .hole, _ => true
   | .nil, _ => false
+  | .nothing, _ => false
   | .map fs spread closed, j => match j with
     | .map jfs =>
       checkFieldsWith u fs jfs && jfs.all (fun m => checkKeySpreadWith u m.1 spread m.2) &&
@@ -1733,7 +1739,7 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
     | .num _ => true
     | _ => false
   | .number, _ | .string, _ | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _
-  | .pathKind, _ | .any, _ | .absent, _ => true
+  | .pathKind, _ | .any, _ | .absent, _ | .nothing, _ => true
   | .addr _, j => match j with
     | .addr _ => true
     | _ => false
@@ -2519,7 +2525,7 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     cases j with
     | num x => exact .number
     | _ => exact .numberNot fun _ h => nomatch h
-  | number | string | anyString | boolean | mapKind | listKind | pathKind | any | absent | hole =>
+  | number | string | anyString | boolean | mapKind | listKind | pathKind | any | absent | nothing | hole =>
     intro j _; exact .any
   | addr =>
     intro j _
@@ -2761,6 +2767,7 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
   | hole => intro ky j _; refine judge_keyless rfl ?_; exact .hole
   | keyUp => intro ky j _; refine judge_keyless rfl ?_; exact .keyUp
   | nil => intro ky j _; refine judge_keyless rfl ?_; exact .nil
+  | nothing => intro ky j _; refine judge_keyless rfl ?_; exact .nothing
   | call _ _ => intro ky j _; refine judge_keyless rfl ?_; exact .call
   | integer => intro ky j _; refine judge_keyless rfl ?_; exact judge_integer j
   | float => intro ky j _; refine judge_keyless rfl ?_; exact judge_float j

@@ -348,6 +348,9 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   does: the value is the one that fills it. -/
   | hole {j : Data} : Judge env root true .hole j
   | nil {j : Data} : Judge env root false .nil j
+  /-- An atom over an argument outside its domain refuses every value,
+  though it stands: only what it meets finds the refusal. -/
+  | nothing {j : Data} : Judge env root false .nothing j
   /-- A call the reading could not make, outside its function's domain,
   refuses every value; `vet` reads a document that holds one as an
   error before it judges. -/
@@ -769,6 +772,8 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | hole => rfl
   | nil => intro b' h'; cases h' with
     | nil => rfl
+  | nothing => intro b' h'; cases h' with
+    | nothing => rfl
   | call => intro b' h'; cases h' with
     | call => rfl
   | map h1 h2 h3 h4 ih1 ih3 => intro b' h'; cases h' with
@@ -1028,6 +1033,7 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.absent <;> assumption)
     | (apply Judge.hole <;> assumption)
     | (apply Judge.nil <;> assumption)
+    | (apply Judge.nothing <;> assumption)
     | (apply Judge.map <;> assumption)
     | (apply Judge.mapNot <;> assumption)
     | (apply Judge.mapField <;> assumption)
