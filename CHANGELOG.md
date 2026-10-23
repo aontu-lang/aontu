@@ -8,6 +8,33 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a disjunctive size as ill-formed
+
+Definition, generated rows, and documentation. No engine changes.
+Ruling 16 of the design note's §7.
+
+- `spec/Aontu/Verdict.lean`: `Val.sizeIll` holds where a size, the
+  argument of `len`, still holds a choice once in normal form
+  (`Val.choiceLeft`), a disjunction or a preference, through `&` and
+  the riders, and `Val.illFormed` reads such a size as ill-formed, so
+  `len(1 | 3)`, `len(*1)` and `len(type(1 | 3))` are an `error` whatever
+  they meet, as in both ports. `len` takes a conjunction of integers,
+  bounds, exclusions and multiples. A choice the meet or a dead arm
+  settles to one arm is that arm's size, and arms written alike
+  (`Val.sameArm`) are one, so `len(1 & (1 | 3))` and `len(1 | 1)` are
+  each `len(1)`, as both ports read them.
+- `spec/Oracle.lean`: `lenCases` gains twenty-five cases, a disjunctive
+  size alone, met with a literal, of bounds, with a preference among
+  its arms and in a conjunction, a preference alone, a choice under
+  `type()` and `meta()`, choices the meet, a dead arm or arms written
+  alike settle, and a conjunction of bounds beside them, written as
+  rows l57 to l128 of `test/spec/def-verdict.tsv` in the three modes
+  of `vet`. Every other fragment regenerates unchanged, and both ports
+  answer every row as the definition does.
+- The tutorial quotes `Val.sizeIll` and `Val.illFormed` as they now
+  stand; the definition's README no longer lists the disjunctive size
+  as a gap (#413).
+
 ### The definition reads `export` and the destructure
 
 Definition, generated rows, and documentation. No engine changes. A
