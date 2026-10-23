@@ -423,8 +423,8 @@ on. The open items of P1 to P5 come before them:
 each read mode's reading of a number (P1), `open()` and the way out of
 a `type()` seal it gives (P2), two
 recursions of one shape under different names (P5), decisions 16 to
-18 and 21 to 26, still open, and #403, a selection inside a recursive
-name's body.
+18 and 21 to 28, each ruled on 2026-10-23 and to be built as §7 records
+it, and #403, a selection inside a recursive name's body.
 
 Outside the definition by design, whatever phase lands: text, which is
 the grammar's and each port's reader's (the lexical structure, the
@@ -441,9 +441,9 @@ of §1, which waits on the marks of ruling 10.
 ## 7. Decisions: ruled and open
 
 Each changes a rule. The first five were ruled on 2026-10-16, the
-next three on 2026-10-19 and the last seven on 2026-10-20, each raised
-by the phase that found it, and each stands here until the phase that
-encodes it lands.
+next three on 2026-10-19, seven more on 2026-10-20, two on 2026-10-21
+and the rest on 2026-10-23, each raised by the phase that found it, and
+each stands here until the phase that encodes it lands.
 
 1. **The meaning of `%U = %U`.** Ruled 2026-10-16: ill-formed, an
    `error`. An alias admitted only through itself
@@ -787,6 +787,13 @@ encodes it lands.
    answer, or the ports accept a disjunctive size, whose upper half at
    the meet is each arm's, as `Val.upperHalf` reads it. No generated
    row carries a disjunctive size until it is ruled.
+   **Ruled 2026-10-23: the first.** `len` takes a conjunction of
+   integers, bounds, exclusions and multiples. A size that holds a
+   disjunction or a preference, `len(1 | 3)` or `len(*1)`, is
+   ill-formed, an `error` whatever it meets, as both ports answer; the
+   ports stand. A size outside the integer domain, such as `len(any)`
+   or `len(string)`, admits nothing in both ports, as decision 28 has
+   it.
 17. **A declaration nothing reads.** Raised 2026-10-21 by decision 14's
    rows (#417). Both ports evaluate every alias declaration, at `$.%T`,
    whether or not anything refers to it, so `%T = 1 & 2` beside `v: 1`
@@ -800,7 +807,10 @@ encodes it lands.
    both ports answer, or a declaration nothing reads means nothing and
    the ports stop evaluating it. The definition recommends the first,
    which states what both ports do and refuses a document whose author
-   wrote a broken declaration.
+   wrote a broken declaration. **Ruled 2026-10-23: the first.** The
+   definition reads every declaration, so that a dead or ill-formed
+   body is an `error` whether or not anything reads it; the ports
+   stand.
 18. **A marked list element.** Raised 2026-10-21 by ruling 10's rows
    (#421). Both ports leave a `hide()` or `type()` element of a list out
    of the output, so `[1, hide(2), 3]` gives `[1, 3]`, and still hold
@@ -815,7 +825,11 @@ encodes it lands.
    have to follow too. The definition recommends the first, which
    keeps ADR-007 and leaves the marks a member's affair, and reads a
    list's elements so meanwhile (`Val.visible`); no generated row holds
-   a marked list element until it is ruled.
+   a marked list element until it is ruled. **Ruled 2026-10-23: the
+   second.** A marked list element is no element: it holds no
+   position, as an element that is absence holds none (decision 24),
+   so that `[1, hide(2), 3]` is `[1, 3]` for the meet as for the
+   output, and both ports' reading by position follows.
 19. **An optional member whose value generates an empty map or list.**
    Raised 2026-10-21 by P8's rows for the folds (#428). Both ports leave
    such a member out of the output, so `{a?: {}}` and
@@ -891,7 +905,14 @@ encodes it lands.
    recommends the second, which keeps `&` a meet, matches both ports on
    every shape with one peer, `vet` included, and reuses the binding
    that `each` and `pack` already read. No generated row holds a hole
-   outside a template until it is ruled.
+   outside a template until it is ruled. **Ruled 2026-10-23: the
+   second.** The fill is a reading before the meets: a meet with a free
+   hole on one side and none on the other reads as that side with the
+   hole bound to the other, in the order the document groups it, and a
+   hole alone admits every value, so that `&` stays a meet. The ports
+   stand where a call meets one peer, and move where it meets more,
+   reading the conjunction as it groups rather than as it's written,
+   which #512 tracks.
 
    Probed again on 2026-10-23, both ports read a conjunction that holds
    such a call in the order it's written, and parentheses change
@@ -929,7 +950,12 @@ encodes it lands.
    reference already states, where the second makes a path's answer
    depend on whether its target came from a generator, which the
    referring document can't see. No generated row holds a path into a
-   generator's output until it is ruled.
+   generator's output until it is ruled. **Ruled 2026-10-23: the
+   first.** Every path rereads its keys where it lands, a generator's
+   output included, and both ports move for a path into generated
+   output, and for a path that lands above its target, whose `key()`
+   they read wrong too: `y: $.x.a` over `x: {a: {n: key()}}` gives
+   `"n"` at `y.n`, not `"y"`. #520 tracks both.
 23. **A string constraint met with a path value.** Raised 2026-10-22 by
    P11's first slice (#474). ADR-016 gives a path value two rules. Two
    paths meet by the prefix rule, so `path($.a) & path($.a.b)` is
@@ -959,7 +985,12 @@ encodes it lands.
    rather than `error` where a constraint asks more of a path than it
    spells yet. Meanwhile the definition reads the second, since no
    string constraint admits an address, and no generated row meets a
-   path value with one.
+   path value with one. **Ruled 2026-10-23: the first.** A string
+   constraint holds of each address a path value admits, by that
+   address's spelling, so that every order of the meets answers alike;
+   both ports hold such a constraint until the path settles, and where
+   it asks more of a path than the path spells yet the answer is
+   `incomplete`.
 
 24. **A list element that is absence.** Raised 2026-10-22 by P10's
    third slice (#479). ADR-034 drops absence from a list without
@@ -984,7 +1015,10 @@ encodes it lands.
    `[maybe($.gone), rel(t) & [path($.a)]]`, is read at the index the
    document writes it at, which the dropped element shifts, so its
    template flows nowhere where both ports flow it (#494's review); the
-   ruling settles that too.
+   ruling settles that too. **Ruled 2026-10-23: the first.** A list
+   holds no position for an element that is absence, as the definition
+   reads it, and both ports move, a link after an absent element among
+   what they read at the index the element leaves.
 
 25. **A constraint met with `rel()` before its value.** Raised
    2026-10-22 by P11's fourth slice (#496). Both ports hold a
@@ -1001,7 +1035,9 @@ encodes it lands.
    or `rel()` holds what meets it for its leaves, which a list met with
    a constraint first would have to wait for. The definition recommends
    the first and reads it meanwhile, and no generated row meets `rel()`
-   with a constraint before its value.
+   with a constraint before its value. **Ruled 2026-10-23: the
+   first.** A constraint met with `rel()` meets the relation's value as
+   any meet does, as the definition reads it, and both ports move.
 26. **A relative path that a copy holds.** Raised 2026-10-23 by P3's
    alias bodies (#504). Both ports read a relative path inside a body
    that an alias or a path reference copies either where it's written
@@ -1027,7 +1063,28 @@ encodes it lands.
    `%T = .x` at each use too. The definition recommends the second, the
    one ADR-025 states and its templates follow, and reads the first
    meanwhile, as it did before the question arose; the generated rows
-   hold only what both ports answer alike in every order.
+   hold only what both ports answer alike in every order. **Ruled
+   2026-10-23: the second.** A copy is a destination: it reads each
+   relative path again where it stands, as ADR-025 has a reference's
+   copy, `%T = .x` at each use among them; the definition and both
+   ports move.
+27. **A copy's marks and seal.** Raised 2026-10-21 by P8 (#445). The
+   reference says `copy(v)` clears the `type` and `hide` marks. Both
+   ports clear them, and unseal, only through a reference:
+   `copy(hide(1))` stays hidden and `copy(close({a: 1}))` stays sealed,
+   while `x: close({a: 1})` with `v: copy($.x)` admits `{a: 1, b: 2}`.
+   **Ruled 2026-10-23: `copy` clears the marks and the seal of any
+   argument**, a literal's as a reference's, and the reference states
+   that it unseals; both ports move for a literal argument, and the
+   definition holds `copy` once they do.
+28. **An atom over an argument outside its domain.** Raised 2026-10-23
+   by P8's bounds over terms (#509). Both ports' `vet` reads an atom
+   over a bare path to an argument outside its domain, such as `mulof`
+   over a path to `0` or `len` over a path to a string, as an `error`,
+   and the same argument written as a literal, or computed by an
+   expression, as an atom that admits nothing, `invalid`. **Ruled 2026-10-23: an atom that admits
+   nothing**, however the argument is written, so that the verdict is
+   `invalid`; both ports move for the bare path.
 
 ## 8. Risks
 
