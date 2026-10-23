@@ -423,7 +423,8 @@ on. The open items of P1 to P5 come before them:
 each read mode's reading of a number (P1), `open()` and the way out of
 a `type()` seal it gives (P2), two
 recursions of one shape under different names (P5), decisions 16 to
-19, still open, and #403, a selection inside a recursive name's body.
+18 and 21 to 26, still open, and #403, a selection inside a recursive
+name's body.
 
 Outside the definition by design, whatever phase lands: text, which is
 the grammar's and each port's reader's (the lexical structure, the
@@ -986,6 +987,32 @@ encodes it lands.
    a constraint first would have to wait for. The definition recommends
    the first and reads it meanwhile, and no generated row meets `rel()`
    with a constraint before its value.
+26. **A relative path that a copy holds.** Raised 2026-10-23 by P3's
+   alias bodies (#504). Both ports read a relative path inside a body
+   that an alias or a path reference copies either where it's written
+   or where the copy stands, by the order the document writes them.
+   Evaluating `x: 1` and `a: {x: 2, b: %T}` with `%T = {v: ..x}` gives
+   `a.b.v` 1, read at `$.%T`, where the alias is written before `a`,
+   and 2, read at `a.b`, where it's written after; a path reference's
+   copy reads the same way, so `c: {x: 3, d: $.a.b}` with `a.b`
+   holding `v: ..x` gives `c.d.v` 2 or 3. `vet` reads an alias's body
+   at the use in either order, so it refuses the output `aontu`
+   generates for the first file, and the two ports split on a call in
+   the body. Both ports read a body at its own place too, used or not,
+   so a path that names nothing there is an error whatever each use
+   reads, and a body that's itself a relative path, `%T = .x`, reads
+   there in every order. No order-independent reading gives every
+   answer. Either a relative path reads only where it's written and a
+   copy copies its value, which is what evaluation answers where the
+   alias or the target is written first; or a copy is a destination,
+   as ADR-025 has a reference's copy, and reads each relative path
+   again where it stands, which is what `vet` answers for an alias's
+   body, and what the definition already does for `key()` and for the
+   templates of spreads and generators, at the cost of reading
+   `%T = .x` at each use too. The definition recommends the second, the
+   one ADR-025 states and its templates follow, and reads the first
+   meanwhile, as it did before the question arose; the generated rows
+   hold only what both ports answer alike in every order.
 
 ## 8. Risks
 

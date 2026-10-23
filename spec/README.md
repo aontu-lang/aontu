@@ -112,9 +112,11 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   enters, and an address the data supplies, which P11 doesn't read yet,
   since a link's address reads from the schema's own tree, where both
   ports read each;
-- a relative path in an alias's body, which P9 reads at the body's own
-  place alone, where both ports read it at each use of the alias as
-  well;
+- a relative path inside a body an alias's use or a path reference
+  copies, which P9 reads where it's written, where both ports read it
+  where the copy stands or where it's written by the order the
+  document writes the two, and `vet` reads an alias's body at the use
+  in either order, which decision 26 raises and #504 tracks;
 - a string constraint met with a path value, which both ports read by
   the one address the value spells when the two meet, so that their
   answer depends on the order of the meets: no string constraint

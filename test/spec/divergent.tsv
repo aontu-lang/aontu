@@ -631,3 +631,27 @@
 #   the shape tried sites alike in both ports.
 #
 # ---------------------------------------------------------------------
+#
+# OPEN -- a relative path in a call's argument inside an alias's body,
+#   where the document writes the alias after its use.
+#   issue: #504; found 2026-10-23 while probing where a copy reads a
+#   relative path, for the definition.
+#
+#   Divergent input:  x: "a"\na: {x: "b", b: %T}\n%T = {v: upper(..x)}
+#   TypeScript: a.b.v is "A", the path read at $.%T, the alias's own
+#               place, as TypeScript reads it in either order
+#   Go:         a.b.v is "B", the path read at a.b, the use, as both
+#               ports read a path outside a call where the alias comes
+#               after its use
+#
+#   With the alias written first both answer "A". Under vet, with
+#   %T = {v: add(..x, 1)} written before x: 1 and a: {x: 2, b: %T},
+#   TypeScript accepts {"a": {"b": {"v": 2}}} and Go
+#   {"a": {"b": {"v": 3}}}.
+#
+#   Not simply fixed because where a copy reads a relative path is the
+#   open language question #504 tracks: both ports read one outside a
+#   call by the order the document writes the two, so which port is
+#   wrong inside a call waits on that answer.
+#
+# ---------------------------------------------------------------------

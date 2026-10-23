@@ -8265,11 +8265,17 @@ inside a disjunction, a selection or an alias's body, keeps its
 template as written, so a relative path in it resolves nowhere, and so
 does a generator's template there.
 
-Nor does it read an alias's body at each use of the alias. A relative
-path in a body reads at the body's own place alone, where both engines
-read it at each use of the alias as well: with `%T = {v: ..x}`,
-`x: 1` at the top and `a: {x: 2, b: %T}`, the definition sets `a.b.v`
-to 1, the top's `x`, and both engines set it to 2, `a`'s.
+Nor does it say where a copy reads a relative path the copy holds. The
+definition reads one where it's written, so a use of an alias, or a
+path reference's copy, holds what the path reads there. Both engines
+read it where the copy stands or where it's written by the order the
+document writes the two: with `x: 1` at the top, `a: {x: 2, b: %T}`
+and `%T = {v: ..x}`, they set `a.b.v` to 1, the top's `x`, where the
+alias comes first, as the definition does, and to 2, `a`'s, where it
+comes after, and `aontu vet` reads 2 in either order. The engines split
+on a path in a call's argument. TypeScript reads it where it's written
+in either order, and Go reads it as it reads any other. #504 tracks
+both.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
