@@ -432,7 +432,13 @@ generates an empty map or list, which isn't counted (decision 19); and
 a size that holds a disjunction or a preference, alone, met with a
 literal and under a rider, ill-formed (decision 16), beside a choice
 the meet, a dead arm or arms written alike settle to one arm, which
-is that arm's size. -/
+is that arm's size; and, beside a member that generates nothing, what
+the meet refuses where it reads a container (#529): the data's
+container too long for a size, two members alike under `unique()` or
+at `unique("k")`'s key, and more than `contains` counts, each refused
+at the meet, while a literal short of its size waits; a literal whose
+member generates nothing yet, which waits, a nested container, which
+counts, a clashing arm, which drops, and a clashing optional member. -/
 def lenCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
@@ -442,6 +448,9 @@ def lenCases : List (Val × Data) :=
   let xy : Val := mp [("x", false, int 1), ("y", false, int 2)]
   let dxy : Data := .map [("x", j 1), ("y", j 2)]
   let dxyz : Data := .map [("x", j 1), ("y", j 2), ("z", j 3)]
+  let nt (t : Val) : Val := mp [("n", false, .any), ("t", false, t)]
+  let dt (x : Data) : Data := .map [("t", x)]
+  let d0 : Data := .map []
   [(.meet (.len (.max (nb 1))) xy, dxy),
     (.meet (.len (.max (nb 1))) (mp [("x", true, int 1), ("y", true, int 2)]), .map []),
     (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, .integer)]), .map [("x", j 1)]),
@@ -485,7 +494,47 @@ def lenCases : List (Val × Data) :=
     (.len (.or [(0, .integer), (0, .integer)]), .list [j 1]),
     (.len (.or [(0, int 1), (0, .lit (.num (.float (.dyadic 1 0))))]), .list [j 1]),
     (.len (.or [(0, .meet (.min (nb 1)) (.max (nb 1))), (0, int 1)]), .list [j 1]),
-    (.len (.or [(0, .meet (.min (nb 1)) (.max (nb 0))), (0, int 1)]), .list [j 1])]
+    (.len (.or [(0, .meet (.min (nb 1)) (.max (nb 0))), (0, int 1)]), .list [j 1]),
+    (nt (.len (int 1)), dt (.list [j 1, j 2])),
+    (nt (.len (int 1)), dt (.map [("a", j 1), ("b", j 2)])),
+    (nt (.len (int 3)), dt (.list [j 1, j 2])),
+    (nt (.len (.neq [nb 2])), dt (.list [j 1, j 2])),
+    (nt (.len (.beneath (nb 2))), dt (.list [j 1, j 2])),
+    (nt (.len (.above (nb 2))), dt (.list [j 1, j 2])),
+    (nt (ls [.len (int 1)]), dt (.list [.list [j 1, j 2]])),
+    (nt (.meet (.len (int 1)) (.list [] (some .integer) false)), dt (.list [j 1, j 2])),
+    (nt (.meet (.len (int 2)) (mp [("a", false, int 1)])), dt (.map [("b", j 2), ("c", j 3)])),
+    (nt (.len (int 3)), dt (.str "ab")),
+    (nt (.unique none), dt (.list [j 1, j 1])),
+    (nt (.unique none), dt (.list [j 1, j 2])),
+    (nt (.meet (.unique none) (ls [int 1, .integer])), dt (.list [j 1, j 1])),
+    (nt (.unique (some "k")), dt (.list [.map [("k", j 1)], .map [("k", j 1)]])),
+    (nt (.contains (int 1) (.max (nb 1))), dt (.list [j 1, j 1])),
+    (nt (.contains (int 1) (int 0)), dt (.list [j 1])),
+    (nt (.contains (int 1) (.min (nb 1))), dt (.list [j 2])),
+    (nt (.meet (.contains (int 1) (.max (nb 1))) (ls [int 1, .integer])), dt (.list [j 1, j 1])),
+    (nt (.meet (.len (int 1)) (ls [int 1, .integer])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, .string])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, .or [(0, int 2), (0, int 3)]])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, .or [(1, int 2), (0, int 3)]])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, mp [("a", false, .integer)]])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, ls [.integer]])), d0),
+    (nt (.meet (.len (int 1)) (mp [("a", false, int 1), ("b", true, .integer)])), d0),
+    (nt (.meet (.unique none) (ls [int 1, int 1])), d0),
+    (nt (.meet (.unique none) (ls [.integer, .integer])), d0),
+    (nt (.meet (.unique none) (ls [.or [(1, int 1), (0, int 2)], int 1])), d0),
+    (nt (.meet (.unique none) (ls [mp [("a", false, .integer)], mp [("a", false, .integer)]])), d0),
+    (nt (.meet (.unique (some "k")) (ls [mp [("k", false, int 1)], mp [("k", false, int 1)]])), d0),
+    (nt (.meet (.contains (int 1) (.max (nb 1))) (ls [int 1, int 1])), d0),
+    (nt (.meet (.contains (int 1) (.max (nb 1))) (ls [.integer, .integer])), d0),
+    (nt (.or [(0, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)]), d0),
+    (nt (.or [(0, .len (int 1)), (0, .listKind)]), dt (.list [j 1, j 2])),
+    (nt (.or [(0, .len (int 1)), (0, .string)]), dt (.list [j 1, j 2])),
+    (nt (.map [("a", true, .meet (.len (int 1)) (ls [int 1, int 2]))] none false), d0),
+    (mp [("t", false, .len (int 1))], dt (.list [j 1, j 2])),
+    (mp [("t", false, .or [(0, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)])], d0),
+    (mp [("t", false, .or [(1, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)])], d0),
+    (mp [("t", false, .or [(1, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)])], dt (j 3))]
 
 theorem lenCases_checkable : ∀ c ∈ lenCases, (vetDoc c).1.CheckableA := by decide
 
@@ -2780,6 +2829,31 @@ theorem key_verdict_exact : ∀ c ∈ keyCases, ∀ (m : Mode) (v : Verdict),
     vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vet_iff (keyCases_checkable c hc).1 (keyCases_checkable c hc).2 v
 
+/-- `contains` over a recursive name met with a list, which the meet
+counts reading the name as its body, as both ports do: a member that
+matches, beside a count that admits it and one that refuses it, against
+data and met with the schema's own literal, and a member that doesn't
+match (#534's review). -/
+def meetNameCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
+  let a : Decls := [("A", .map [("next", true, .alias "A")] none false)]
+  let t (v : Val) : Val := .map [("t", false, v)] none false
+  let d1 : Data := .map [("t", .list [.map []])]
+  [(a, t (.contains (.alias "A") (.neq [nb 0])), d1),
+    (a, t (.contains (.alias "A") (.max (nb 0))), d1),
+    (a, t (.meet (.contains (.alias "A") (.max (nb 0))) (.list [.map [] none false] none false)), .map []),
+    (a, t (.meet (.contains (.alias "A") (.neq [nb 0])) (.list [.map [] none false] none false)), .map []),
+    (a, t (.meet (.contains (.alias "A") (.neq [nb 0])) (.list [int 1] none false)), .map [])]
+
+theorem meetNameCases_checkable : ∀ c ∈ meetNameCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem meetName_verdict_exact : ∀ c ∈ meetNameCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (meetNameCases_checkable c hc).1
+    (readR_checkableA (meetNameCases_checkable c hc).1 (meetNameCases_checkable c hc).2) v
+
 /-- The `trials` rows: each case's declarations and schema as one
 document, the schema a map written without its braces, in the three
 modes, with the one class `vet` gives. -/
@@ -5012,9 +5086,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# error. Regenerate with `make spec`; never edit by hand. The cases the ports"
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
     IO.println "# A spread that selects on key(0), the key of the member it is tried on, or"
-    IO.println "# the position of the item, follows in rows y0 on."
+    IO.println "# the position of the item, follows in rows y0 on, and contains over a"
+    IO.println "# recursive name, which the meet reads as its body, in rows tc0 on."
     trialRows "t"
     trialRows "y" keyCases
+    trialRows "tc" meetNameCases
     return 0
   | ["calls"] =>
     IO.println "# Generated by `lake exe oracle calls` (spec/Oracle.lean) from the definition"

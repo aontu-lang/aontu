@@ -881,9 +881,9 @@ example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .inco
 
 /-- Without the fill, `valid` is `Instance`: `[*1]` against `[2]`, under
 no declaration, where a document reads as itself, its visible part the
-normal form of `[*1]`. -/
+normal form of `[*1]`, staged. -/
 example : Instance (Decls.envE [])
-    (normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).visible
+    ((normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).staged []).visible
     (.list [.integer 2]) :=
   vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
     ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))
