@@ -139,19 +139,35 @@ end
 
 /-! ## Relative paths -/
 
+/-- The place a spread that is the relative path of `n` dots and `p`
+names from the members of a map or list at `pos`: one step below it,
+the same place for every member, since the path's first dot leaves the
+member's own step behind. A path that climbs past the top stays as
+written, and resolves nowhere. -/
+def bareTo (pos : List Seg) (n : ℕ) (p : List Seg) : List Seg :=
+  if 0 < n ∧ n ≤ pos.length + 1 then pos.take (pos.length + 1 - n) ++ p else .up n :: p
+
+/-- A spread that is a relative path, placed where its members stand
+(`bareTo`). Any other spread stays as written, to be read at each member
+(`Val.membersRead`). -/
+def plBare (pos : List Seg) : Option Val → Option Val
+  | some (.path (.up n :: p)) => some (.path (bareTo pos n p))
+  | s => s
+
 mutual
 /-- The term standing at `pos`, each relative path it writes made
 absolute where it stands, its dots climbing as many steps: a map's
 member stands one key below the map and a list's element one index
 below, as `resolveD` places a key. A path that climbs past the top stays
-as written, and resolves nowhere. A spread, a template and a `filter`'s
+as written, and resolves nowhere. A spread that is a path stands where
+its members do (`plBare`). Any other spread, a template and a `filter`'s
 condition keep theirs as written, since each stands at a position the
 written document doesn't name. -/
 def Val.placed (pos : List Seg) : Val → Val
   | .path (.up n :: p) => if n ≤ pos.length then .path (pos.take (pos.length - n) ++ p) else .path (.up n :: p)
   | .len c => .len (c.placed pos)
-  | .map fs spread closed => .map (plFields pos fs) spread closed
-  | .list items spread closed => .list (plElems pos 0 items) spread closed
+  | .map fs spread closed => .map (plFields pos fs) (plBare pos spread) closed
+  | .list items spread closed => .list (plElems pos 0 items) (plBare pos spread) closed
   | .or arms => .or (plArms pos arms)
   | .pref r x => .pref r (x.placed pos)
   | .meet a b => .meet (a.placed pos) (b.placed pos)
@@ -201,11 +217,69 @@ def plArms (pos : List Seg) : List (ℕ × Val) → List (ℕ × Val)
   | (r, a) :: as => (r, a.placed pos) :: plArms pos as
 end
 
+mutual
+/-- The schema's term at `pos`, placed as `Val.placed` places it, but a
+spread that is a relative path on a map or a list reached through maps
+by key, lists by index, meets and riders, where `Val.membersRead` reads
+one: it stays as written, to be read at each member wherever its map or
+list lands, a path reference's copy included, as both ports read it. -/
+def Val.placedT (pos : List Seg) : Val → Val
+  | .map fs spread closed => .map (ptdFields pos fs) spread closed
+  | .list items spread closed => .list (ptdElems pos 0 items) spread closed
+  | .meet a b => .meet (a.placedT pos) (b.placedT pos)
+  | .ride k v r => .ride k (v.placedT pos) r
+  | v => v.placed pos
+
+def ptdFields (pos : List Seg) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.placedT (pos ++ [.key k])) :: ptdFields pos fs
+
+def ptdElems (pos : List Seg) : ℕ → List Val → List Val
+  | _, [] => []
+  | i, v :: vs => v.placedT (pos ++ [.idx i]) :: ptdElems pos (i + 1) vs
+end
+
+/-- The place a spread that is a relative path names where its map or
+list at `pos` is written (`bareTo`); none for any other spread. -/
+def bareAt (pos : List Seg) : Option Val → List (List Seg)
+  | some (.path (.up n :: p)) => [bareTo pos n p]
+  | _ => []
+
+mutual
+/-- The places the spreads that are relative paths name where the schema
+writes them, on the maps and lists `Val.placedT` leaves them on. -/
+def Val.bares (pos : List Seg) : Val → List (List Seg)
+  | .map fs spread _ => bareAt pos spread ++ baFields pos fs
+  | .list items spread _ => bareAt pos spread ++ baElems pos 0 items
+  | .meet a b => a.bares pos ++ b.bares pos
+  | .ride _ v _ => v.bares pos
+  | _ => []
+
+def baFields (pos : List Seg) : List (String × Bool × Val) → List (List Seg)
+  | [] => []
+  | (k, _, v) :: fs => v.bares (pos ++ [.key k]) ++ baFields pos fs
+
+def baElems (pos : List Seg) : ℕ → List Val → List (List Seg)
+  | _, [] => []
+  | i, v :: vs => v.bares (pos ++ [.idx i]) ++ baElems pos (i + 1) vs
+end
+
+/-- The name the places of the schema's relative spreads are declared
+under, which no document can write, since a name a document writes
+begins with a letter. -/
+def bareName : String := "&"
+
 /-- A document with each relative path it writes made absolute where it
-stands: the schema from the top, and each body at its name's own place,
-`%` and the name as a key at the top, as both ports place a body. -/
+stands: the schema from the top (`Val.placedT`), and each body at its
+name's own place, `%` and the name as a key at the top, as both ports
+place a body. Each place a spread that is a relative path names where
+the schema writes it (`Val.bares`) is declared too, under a name no term
+refers to (`bareName`), since both ports read such a spread there as
+well as at each member, so that one naming nothing is an `error` with no
+member to read it at. -/
 def Decls.placed (ds : Decls) (S : Val) : Decls × Val :=
-  (ds.map fun d => (d.1, d.2.placed [.key ("%" ++ d.1)]), S.placed [])
+  (ds.map (fun d => (d.1, d.2.placed [.key ("%" ++ d.1)])) ++ (S.bares []).map fun p => (bareName, .path p),
+    S.placedT [])
 
 /-- A variable's step: the text of the scalar the calling program binds
 it to, a string as itself, a number as `Number.text` writes it and a
@@ -307,29 +381,30 @@ def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
 
 /-! ## The verdict with paths -/
 
-/-- The verdict of a document whose paths are absolute. It is an `error`
-where a path does not resolve in the schema's own tree, or where the
-document is an error with its paths read from the schema alone: a name
-declared nowhere, a cycle, a `nil` in the schema. Otherwise the paths
-read from the data too, and the document is `invalid` where that
-reading is dead or an error, since the data made it so, and `valid` or
-`incomplete` as that reading is. -/
-def VetA (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
+/-- The verdict of a document whose paths are absolute, its schema `S`
+as the schema alone reads it and `S'` as the data does. It is an `error`
+where a path of `S` does not resolve in the schema's own tree, or where
+the document is an error with its paths read from the schema alone: a
+name declared nowhere, a cycle, a `nil` in the schema. Otherwise the
+paths of `S'` read from the data too, and the document is `invalid`
+where that reading is dead or an error, since the data made it so, and
+`valid` or `incomplete` as that reading is. -/
+def VetA (m : Mode) (ds : Decls) (S S' : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Resolves S ∨ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error
   | .invalid =>
     ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
-      (Vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j .invalid ∨
-        Vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j .error)
+      (Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j .invalid ∨
+        Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j .error)
   | v =>
     ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
-      Vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j v
+      Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j v
 
 /-- The verdict of a document whose paths are absolute, computed. -/
-def vetA (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
+def vetA (m : Mode) (ds : Decls) (S S' : Val) (j : Data) : Verdict :=
   if ds.resolvesB S then
     if vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j = .error then .error
     else
-      match vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j with
+      match vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j with
       | .error => .invalid
       | v => v
   else .error
@@ -671,17 +746,215 @@ in any order, a link whose target is still missing meeting `nil`. -/
 def Decls.withRefers (ds : Decls) (S : Val) : Val :=
   ds.referPass S (ds.rootsS (ds.referPasses S (ds.referCount S))) .nil
 
+/-! ## A spread read at each member -/
+
+/-- Whether a spread's template reads its member's place: it's a
+relative path, or holds a path or a `key(n)` at any depth, but isn't
+itself an absolute path, which names the same place for every member. -/
+def Val.perMember : Val → Bool
+  | .path (.up _ :: _) => true
+  | .path _ => false
+  | s => !s.paths.isEmpty || s.holdsKey
+
+mutual
+/-- The term with each relative path and each `key(n)` it holds, at any
+depth, read as `any`: a template as the tree its spread is read at holds
+it, its members' structure kept, and what an absolute path names too,
+since that's the same at every member, but none of the places the
+template reads from its member's. -/
+def Val.blank : Val → Val
+  | .path (.up _ :: _) | .keyUp _ => .any
+  | .len c => .len c.blank
+  | .map fs spread closed => .map (blFields fs) (blSpread spread) closed
+  | .list items spread closed => .list (blItems items) (blSpread spread) closed
+  | .or arms => .or (blArms arms)
+  | .pref r x => .pref r x.blank
+  | .meet a b => .meet a.blank b.blank
+  | .nof n cs => .nof n.blank (blItems cs)
+  | .must c m => .must c.blank m
+  | .when c t e => .when c.blank t.blank (blSpread e)
+  | .contains c n => .contains c.blank n.blank
+  | .rest t cs => .rest t.blank (blCovers cs)
+  | .select s arms d => .select s.blank (blPairs arms) (blSpread d)
+  | .filter s c => .filter s.blank c.blank
+  | .call f args => .call f (blItems args)
+  | .ride k v r => .ride k v.blank r
+  | v => v
+
+def blPairs : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.blank, r.blank) :: blPairs ps
+
+def blCovers : List Cover → List Cover
+  | [] => []
+  | (c, k, m) :: cs => (blSpread c, blSpread k, blSpread m) :: blCovers cs
+
+def blFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.blank) :: blFields fs
+
+def blItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.blank :: blItems vs
+
+def blSpread : Option Val → Option Val
+  | none => none
+  | some s => some s.blank
+
+def blArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.blank) :: blArms as
+end
+
+/-- A spread whose template reads its member's place, blanked. -/
+def opSpread : Option Val → Option Val
+  | some s => some (if s.perMember then s.blank else s)
+  | none => none
+
+mutual
+/-- The term with each spread whose template reads its member's place
+blanked (`Val.blank`), where `Val.neutral` reads one: the schema the
+tree a spread is read at comes from. -/
+def Val.opened : Val → Val
+  | .map fs spread closed => .map (opFields fs) (opSpread spread) closed
+  | .list items spread closed => .list (opItems items) (opSpread spread) closed
+  | .meet a b => .meet a.opened b.opened
+  | .ride k v r => .ride k v.opened r
+  | v => v
+
+def opFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.opened) :: opFields fs
+
+def opItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.opened :: opItems vs
+end
+
+/-- A spread whose template reads its member's place, left to admit any
+value. -/
+def ntSpread : Option Val → Option Val
+  | some s => some (if s.perMember then .any else s)
+  | none => none
+
+mutual
+/-- The term with each spread whose template reads its member's place
+left to admit any value (`ntSpread`), through maps by key, lists by
+index, meets and riders, where `landing` reads one: the schema each
+member's instance is met into. -/
+def Val.neutral : Val → Val
+  | .map fs spread closed => .map (ntFields fs) (ntSpread spread) closed
+  | .list items spread closed => .list (ntItems items) (ntSpread spread) closed
+  | .meet a b => .meet a.neutral b.neutral
+  | .ride k v r => .ride k v.neutral r
+  | v => v
+
+def ntFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.neutral) :: ntFields fs
+
+def ntItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.neutral :: ntItems vs
+end
+
+mutual
+/-- Whether a term holds a spread whose template reads its member's
+place, where `Val.neutral` reads one. -/
+def Val.perMembers : Val → Bool
+  | .map fs spread _ => pmFields fs || (spread.map Val.perMember).getD false
+  | .list items spread _ => pmItems items || (spread.map Val.perMember).getD false
+  | .meet a b => a.perMembers || b.perMembers
+  | .ride _ v _ => v.perMembers
+  | _ => false
+
+def pmFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.perMembers || pmFields fs
+
+def pmItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.perMembers || pmItems vs
+end
+
+/-- The spread a map or a list holds, where its template reads its
+member's place. -/
+def Val.memberSpread : Val → Option Val
+  | .map _ (some s) _ | .list _ (some s) _ => if s.perMember then some s else none
+  | _ => none
+
+/-- The members a tree holds at a position, the riders around it read
+through: a map's keys, and a list's indices. -/
+def Val.membersAt (root : Val) (p : List Seg) : List Seg :=
+  match (root.at p).map Val.unride with
+  | some (.map fs _ _) => fs.map fun f => .key f.1
+  | some (.list items _ _) => (List.range items.length).map .idx
+  | _ => []
+
+/-- A spread's template at the member `t` below the position `p`: tried
+on the member's key (`Val.atKey`), placed at the member, its own spreads
+that read their member's place left to admit any value, since each
+lands at its own members too, and met at the member's path in `root`
+(`Val.putW`). -/
+def Val.spreadInst (root s : Val) (p : List Seg) (t : Seg) : Option Val :=
+  root.putW (p ++ [t]) ((s.atKey t.text).placed (p ++ [t])).neutral
+
+/-- What the spreads that land at a position of `root` make there: for
+each spread whose template reads its member's place among the terms the
+schema `P` writes at the position (`landing`), whether written there,
+in a template that holds the position or where a path reference copies
+it from, its template at each member `root` holds there. -/
+def Val.instancesAt (P root : Val) (p : List Seg) : List Val :=
+  ((landing P ((P.size + p.length + 2) * (P.size + 2)) [(P, p)]).filterMap Val.memberSpread).flatMap
+    fun s => (root.membersAt p).filterMap (root.spreadInst s p)
+
+/-- The schema `P` with each spread whose template reads its member's
+place read at each member `root` holds wherever the spread lands
+(`Val.instancesAt`), at every position of `root`, and left to admit any
+other member (`Val.neutral`), as both ports try such a template only on
+the members there are, at the place each stands. -/
+def Val.membersRead (P root : Val) : Val :=
+  if P.perMembers then (root.positions.flatMap (P.instancesAt root)).foldl .meet P.neutral else P
+
 /-- A document's declarations with the relation kind declared under its
 name, which a `rel` reads as (`relKind`). -/
 def Decls.withRel (ds : Decls) : Decls := ds ++ [(relName, relKind)]
 
-/-- A document as the definition reads it: the relation kind declared
+/-- A document with its links read: the relation kind declared
 (`Decls.withRel`), its relative paths placed (`Decls.placed`), the
 sources its moves read hidden (`Decls.withMoves`), and its links'
 templates met into their targets (`Decls.withRefers`). -/
-def Decls.prepared (ds : Decls) (S : Val) : Decls × Val :=
+def Decls.linked (ds : Decls) (S : Val) : Decls × Val :=
   ((ds.withRel.placed S).1,
     (ds.withRel.placed S).1.withRefers ((ds.withRel.placed S).1.withMoves (ds.withRel.placed S).2))
+
+/-- A document as the definition reads it, its spreads read at the
+members `root` holds: its links read (`Decls.linked`), and each spread
+whose template reads its member's place read at each member where it
+lands (`Val.membersRead`), a member a link's template makes among them. -/
+def Decls.prepared (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
+  ((ds.linked S).1, (ds.linked S).2.membersRead root)
+
+/-- The tree a document's spreads are read at, `r` reading a document to
+its roots: the last root of the document with its links read, each
+template that reads its member's place blanked (`Val.opened`), so that
+the tree holds the members the templates and the links write and none
+of the places the templates read; `any` where no spread reads its
+member's place. -/
+def Decls.spreadRoot (ds : Decls) (S : Val) (r : Decls → Val → List Val) : Val :=
+  if (ds.linked S).2.perMembers then
+    (r (ds.linked S).1 (ds.linked S).2.opened).getLast?.getD .any
+  else .any
+
+/-- A document as the definition reads it before any data: its spreads
+read at the members of the schema's own tree (`Decls.rootsS`). -/
+def Decls.preparedS (ds : Decls) (S : Val) : Decls × Val :=
+  ds.prepared S (ds.spreadRoot S Decls.rootsS)
+
+/-- The schema as the definition reads it beside data: its spreads read
+at the members of the tree the data reads in (`Decls.rootsD`). -/
+def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Val :=
+  (ds.prepared S (ds.spreadRoot S fun d T => d.rootsD T j)).2
 
 theorem hideAt_checkableA : ∀ p, (hideAt p).CheckableA
   | [] => .ride .any
@@ -1001,15 +1274,18 @@ theorem Decls.withRel_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Chec
 
 /-- The verdict of a document with paths: the document prepared
 (`Decls.prepared`), the relation kind declared, its relative paths
-placed, the sources its moves read hidden and its links' templates met
-into their targets, the verdict of the document whose paths are
-absolute. -/
+placed, the sources its moves read hidden, its links' templates met
+into their targets and its spreads read at each member, the verdict of
+the document whose paths are absolute. The error class reads a spread
+at the members the schema's own tree holds, and the others at those of
+the tree the data reads in, so that a member the data alone supplies
+makes the document `invalid`, never an `error`. -/
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  VetA m (ds.prepared S).1 (ds.prepared S).2 j v
+  VetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j) j v
 
 /-- The verdict with paths, computed. -/
 def vetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
-  vetA m (ds.prepared S).1 (ds.prepared S).2 j
+  vetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j) j
 
 /-! ## Paths read as names keep a term checkable -/
 
@@ -1277,18 +1553,28 @@ theorem mem_plArms {pos : List Seg} {arms : List (ℕ × Val)} {r : ℕ} {b : Va
 
 /-- A term the checker can read, its relative paths placed, is one it
 can read. -/
+theorem plBare_checkableA {pos : List Seg} {spread : Option Val} (hs : ∀ s, spread = some s → s.CheckableA) :
+    ∀ s, plBare pos spread = some s → s.CheckableA := by
+  intro s h
+  unfold plBare at h
+  split at h
+  · injection h with h
+    subst h
+    exact .path
+  · exact hs s h
+
 theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos).CheckableA := by
   induction h with
   | len _ ih => intro pos; exact .len (ih pos)
   | @map fs spread closed _ hs ihf _ =>
     intro pos
-    refine .map ?_ hs
+    refine .map ?_ (plBare_checkableA hs)
     intro k o w hm
     obtain ⟨v, hv, rfl⟩ := mem_plFields.mp hm
     exact ihf k o v hv _
   | @list items spread closed _ hs ihi _ =>
     intro pos
-    refine .list ?_ hs
+    refine .list ?_ (plBare_checkableA hs)
     intro w hm
     obtain ⟨v, hv, j, rfl⟩ := mem_plElems hm
     exact ihi v hv _
@@ -1363,12 +1649,178 @@ theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos)
       exact ihd e₀ he₀ pos
   | _ => intro pos; simp only [Val.placed]; constructor
 
+theorem mem_ptdFields {pos : List Seg} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+    (k, o, w) ∈ ptdFields pos fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.placedT (pos ++ [.key k]) := by
+  induction fs with
+  | nil => simp [ptdFields]
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    simp only [ptdFields, List.mem_cons, Prod.mk.injEq]
+    rintro (⟨rfl, rfl, rfl⟩ | hm)
+    · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := ih hm
+      exact ⟨v, Or.inr hv, rfl⟩
+
+theorem mem_ptdElems {pos : List Seg} : ∀ {i : ℕ} {items : List Val} {w : Val},
+    w ∈ ptdElems pos i items → ∃ v, v ∈ items ∧ ∃ j, w = v.placedT (pos ++ [.idx j])
+  | _, [], _, h => by simp [ptdElems] at h
+  | i, v :: vs, w, h => by
+    simp only [ptdElems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, List.mem_cons_self, i, rfl⟩
+    · obtain ⟨u, hu, j, rfl⟩ := mem_ptdElems h
+      exact ⟨u, List.mem_cons_of_mem _ hu, j, rfl⟩
+
+theorem placedT_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placedT pos).CheckableA := by
+  induction h with
+  | @map fs spread closed _ hs ihf _ =>
+    intro pos
+    refine .map ?_ hs
+    intro k o w hm
+    obtain ⟨v, hv, rfl⟩ := mem_ptdFields hm
+    exact ihf k o v hv _
+  | @list items spread closed _ hs ihi _ =>
+    intro pos
+    refine .list ?_ hs
+    intro w hm
+    obtain ⟨v, hv, j, rfl⟩ := mem_ptdElems hm
+    exact ihi v hv _
+  | meet _ _ iha ihb => intro pos; exact .meet (iha pos) (ihb pos)
+  | ride _ ih => intro pos; exact .ride (ih pos)
+  | len hc _ => intro pos; exact placed_checkableA (.len hc) pos
+  | or ha _ => intro pos; exact placed_checkableA (.or ha) pos
+  | pref hx _ => intro pos; exact placed_checkableA (.pref hx) pos
+  | nof hn hcs _ _ => intro pos; exact placed_checkableA (.nof hn hcs) pos
+  | call ha _ => intro pos; exact placed_checkableA (.call ha) pos
+  | must hc _ => intro pos; exact placed_checkableA (.must hc) pos
+  | when hc ht he _ _ _ => intro pos; exact placed_checkableA (.when hc ht he) pos
+  | contains hc hn _ _ => intro pos; exact placed_checkableA (.contains hc hn) pos
+  | rest ht h1 h2 h3 _ _ _ _ => intro pos; exact placed_checkableA (.rest ht h1 h2 h3) pos
+  | selectKey hp hr hd _ _ _ => intro pos; exact placed_checkableA (.selectKey hp hr hd) pos
+  | selectLit hp hr hd _ _ _ => intro pos; exact placed_checkableA (.selectLit hp hr hd) pos
+  | _ => intro pos; exact placed_checkableA (by constructor) pos
+
 theorem Decls.placed_bodies_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
     ∀ d, d ∈ (ds.placed S).1 → d.2.CheckableA := by
   intro d hd
-  simp only [Decls.placed, List.mem_map] at hd
-  obtain ⟨d', hd', rfl⟩ := hd
-  exact placed_checkableA (hb d' hd') _
+  simp only [Decls.placed, List.mem_append, List.mem_map] at hd
+  rcases hd with ⟨d', hd', rfl⟩ | ⟨p, -, rfl⟩
+  · exact placed_checkableA (hb d' hd') _
+  · exact .path
+
+/-! ## Reading a spread at each member keeps a term checkable -/
+
+theorem ntSpread_checkableA {spread : Option Val} (hs : ∀ s, spread = some s → s.CheckableA) :
+    ∀ s, ntSpread spread = some s → s.CheckableA := by
+  intro s h
+  cases spread with
+  | none => exact nomatch h
+  | some t =>
+    simp only [ntSpread, Option.some.injEq] at h
+    subst h
+    split
+    · exact .any
+    · exact hs t rfl
+
+theorem mem_ntFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+    (k, o, w) ∈ ntFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.neutral := by
+  induction fs with
+  | nil => simp [ntFields]
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    simp only [ntFields, List.mem_cons, Prod.mk.injEq, ih]
+    constructor
+    · rintro (⟨rfl, rfl, rfl⟩ | ⟨v, hm, rfl⟩)
+      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
+      · exact ⟨v, Or.inr hm, rfl⟩
+    · rintro ⟨v, ⟨rfl, rfl, rfl⟩ | hm, rfl⟩
+      · exact Or.inl ⟨rfl, rfl, rfl⟩
+      · exact Or.inr ⟨v, hm, rfl⟩
+
+theorem mem_ntItems {items : List Val} {w : Val} : w ∈ ntItems items ↔ ∃ v, v ∈ items ∧ w = v.neutral := by
+  induction items with
+  | nil => simp [ntItems]
+  | cons v vs ih =>
+    simp only [ntItems, List.mem_cons, ih]
+    constructor
+    · rintro (rfl | ⟨u, hu, rfl⟩)
+      · exact ⟨v, .inl rfl, rfl⟩
+      · exact ⟨u, .inr hu, rfl⟩
+    · rintro ⟨u, rfl | hu, rfl⟩
+      · exact .inl rfl
+      · exact .inr ⟨u, hu, rfl⟩
+
+theorem neutral_checkableA {v : Val} (h : v.CheckableA) : v.neutral.CheckableA := by
+  induction h with
+  | @map fs spread closed _ hs ihf _ =>
+    refine .map (fun k o w hm => ?_) (ntSpread_checkableA hs)
+    obtain ⟨v, hv, rfl⟩ := mem_ntFields.mp hm
+    exact ihf k o v hv
+  | @list items spread closed _ hs ihi _ =>
+    refine .list (fun w hm => ?_) (ntSpread_checkableA hs)
+    obtain ⟨v, hv, rfl⟩ := mem_ntItems.mp hm
+    exact ihi v hv
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | ride _ ih => exact .ride ih
+  | len hc _ => exact .len hc
+  | or ha _ => exact .or ha
+  | pref hx _ => exact .pref hx
+  | nof hn hcs _ _ => exact .nof hn hcs
+  | call ha _ => exact .call ha
+  | must hc _ => exact .must hc
+  | when hc ht he _ _ _ => exact .when hc ht he
+  | contains hc hn _ _ => exact .contains hc hn
+  | rest ht h1 h2 h3 _ _ _ _ => exact .rest ht h1 h2 h3
+  | selectKey hp hr hd _ _ _ => exact .selectKey hp hr hd
+  | selectLit hp hr hd _ _ _ => exact .selectLit hp hr hd
+  | _ => constructor
+
+theorem memberSpread_checkableA {v s : Val} (h : v.CheckableA) (hs : v.memberSpread = some s) : s.CheckableA := by
+  unfold Val.memberSpread at hs
+  split at hs
+  · split at hs
+    · injection hs with hs
+      subst hs
+      cases h with
+      | map _ h => exact h _ rfl
+    · exact nomatch hs
+  · split at hs
+    · injection hs with hs
+      subst hs
+      cases h with
+      | list _ h => exact h _ rfl
+    · exact nomatch hs
+  · exact nomatch hs
+
+theorem instancesAt_checkableA {P root : Val} (hP : P.CheckableA) (p : List Seg) :
+    ∀ u, u ∈ P.instancesAt root p → u.CheckableA := by
+  intro u hu
+  simp only [Val.instancesAt, List.mem_flatMap, List.mem_filterMap] at hu
+  obtain ⟨s, ⟨w, hw, hs⟩, t, -, ht⟩ := hu
+  have hw' := landing_checkableA hP _ [(P, p)] (fun i hi => by
+    simp only [List.mem_cons, List.mem_nil_iff, or_false] at hi
+    subst hi
+    exact hP) w hw
+  exact putW_checkableA (neutral_checkableA (placed_checkableA ((memberSpread_checkableA hw' hs).atKey _) _)) _ ht
+
+theorem foldl_meet_checkableA : ∀ (us : List Val) {acc : Val}, acc.CheckableA → (∀ u, u ∈ us → u.CheckableA) →
+    (us.foldl .meet acc).CheckableA
+  | [], _, h, _ => h
+  | u :: us, _, h, hu => foldl_meet_checkableA us (.meet h (hu u List.mem_cons_self))
+      fun w hw => hu w (List.mem_cons_of_mem _ hw)
+
+theorem membersRead_checkableA {P : Val} (hP : P.CheckableA) (root : Val) : (P.membersRead root).CheckableA := by
+  unfold Val.membersRead
+  split
+  · refine foldl_meet_checkableA _ (neutral_checkableA hP) fun u hu => ?_
+    obtain ⟨p, -, hu⟩ := List.mem_flatMap.mp hu
+    exact instancesAt_checkableA hP p u hu
+  · exact hP
+
+theorem Decls.prepared_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (root : Val) : (ds.prepared S root).2.CheckableA :=
+  membersRead_checkableA (withRefers_checkableA (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb))
+    (withMoves_checkableA (placedT_checkableA hS []))) root
 
 /-- The term at a path in a term the checker can read is one it can read. -/
 theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p = some w → w.CheckableA
@@ -1484,14 +1936,14 @@ theorem Decls.rootsD_checkableA {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d
 
 /-- `vetA` computes `VetA` on every document whose bodies and schema
 read no pattern and no format. -/
-theorem vetA_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (v : Verdict) : vetA m ds S j = v ↔ VetA m ds S j v := by
+theorem vetA_iff {m : Mode} {ds : Decls} {S S' : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (hS' : S'.CheckableA) (v : Verdict) : vetA m ds S S' j = v ↔ VetA m ds S S' j v := by
   have hbS := Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsS_checkableA hb hS)
   have hvS := vet_iff (m := m) (ds := (ds.withPathsS S).1) (S := (ds.withPathsS S).2) (j := j) hbS
     (readR_checkableA hbS (pathsToAliases_checkableA hS))
-  have hbP := Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsD_checkableA (j := j) hb hS)
-  have hvP := vet_iff (m := m) (ds := (ds.withPaths S j).1) (S := (ds.withPaths S j).2) (j := j) hbP
-    (readR_checkableA hbP (pathsToAliases_checkableA hS))
+  have hbP := Decls.withPathsFrom_bodies_checkableA (S := S') hb (Decls.rootsD_checkableA (j := j) hb hS')
+  have hvP := vet_iff (m := m) (ds := (ds.withPaths S' j).1) (S := (ds.withPaths S' j).2) (j := j) hbP
+    (readR_checkableA hbP (pathsToAliases_checkableA hS'))
   unfold vetA
   by_cases hr : ds.resolvesB S = true
   · rw [if_pos hr]
@@ -1503,7 +1955,7 @@ theorem vetA_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
         reduceCtorEq]
     · rw [if_neg he]
       have hE : ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error := fun h => he ((hvS .error).mpr h)
-      cases hp : vet m (ds.withPaths S j).1 (ds.withPaths S j).2 j <;> cases v <;>
+      cases hp : vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j <;> cases v <;>
         simp only [VetA, hR, hE, ← hvP, hp, not_true_eq_false, not_false_eq_true,
           or_true, or_false, and_false, and_true, reduceCtorEq]
   · rw [if_neg hr]
@@ -1514,11 +1966,9 @@ theorem vetA_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
 read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
-  vetA_iff (ds := (ds.withRel.placed S).1)
-    (S := (ds.withRel.placed S).1.withRefers ((ds.withRel.placed S).1.withMoves (ds.withRel.placed S).2))
-    (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb))
-    (withRefers_checkableA (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb))
-      (withMoves_checkableA (placed_checkableA hS []))) v
+  vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (S' := ds.preparedD S j)
+    (Decls.placed_bodies_checkableA (S := S) (Decls.withRel_checkableA hb))
+    (Decls.prepared_checkableA hb hS _) (Decls.prepared_checkableA hb hS _) v
 
 /-! ## The output with paths -/
 
@@ -1546,27 +1996,28 @@ theorem outputA_iff {ds : Decls} {S : Val} {root : Data} (hg : (ds.withPathsS S)
   · rw [if_neg hr]
     exact ⟨fun h' => absurd h' (by simp), fun h' => absurd (Decls.resolvesB_iff.mpr h'.1) hr⟩
 
-/-- What a document with paths generates: the document prepared
-(`Decls.prepared`), the relation kind declared, its relative paths
-placed, the sources its moves read hidden and its links' templates met
-into their targets, what the document whose paths are absolute
+/-- What a document with paths generates: the document prepared before
+any data (`Decls.preparedS`), the relation kind declared, its relative
+paths placed, the sources its moves read hidden, its links' templates
+met into their targets and its spreads read at each member of the
+schema's own tree, what the document whose paths are absolute
 generates. -/
 def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
-  OutputA (ds.prepared S).1 root (ds.prepared S).2 j
+  OutputA (ds.preparedS S).1 root (ds.preparedS S).2 j
 
 /-- What a document with paths generates, computed. -/
 def outputP (ds : Decls) (S : Val) : Option Data :=
-  outputA (ds.prepared S).1 (ds.prepared S).2
+  outputA (ds.preparedS S).1 (ds.preparedS S).2
 
 /-- `outputP` computes `OutputP` where the reading of the placed
 document keeps the alias-cycle rule and the checker can read its bodies
 and its normal form. -/
 theorem outputP_iff {ds : Decls} {S : Val} {root : Data}
-    (hg : ((ds.prepared S).1.withPathsS (ds.prepared S).2).1.Guarded)
-    (hb : ∀ d, d ∈ ((ds.prepared S).1.withPathsS (ds.prepared S).2).1 → d.2.CheckableA)
-    (h : (normaliseD ((ds.prepared S).1.withPathsS (ds.prepared S).2).1
-      (((ds.prepared S).1.withPathsS (ds.prepared S).2).1.readR
-        ((ds.prepared S).1.withPathsS (ds.prepared S).2).2)).CheckableA)
+    (hg : ((ds.preparedS S).1.withPathsS (ds.preparedS S).2).1.Guarded)
+    (hb : ∀ d, d ∈ ((ds.preparedS S).1.withPathsS (ds.preparedS S).2).1 → d.2.CheckableA)
+    (h : (normaliseD ((ds.preparedS S).1.withPathsS (ds.preparedS S).2).1
+      (((ds.preparedS S).1.withPathsS (ds.preparedS S).2).1.readR
+        ((ds.preparedS S).1.withPathsS (ds.preparedS S).2).2)).CheckableA)
     (j : Data) : outputP ds S = some j ↔ OutputP ds root S j :=
   outputA_iff hg hb h j
 

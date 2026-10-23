@@ -1510,6 +1510,107 @@ theorem genLink_verdict_exact : ∀ c ∈ genLinkCases, ∀ (m : Mode) (v : Verd
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (genLinkCases_checkable c hc).1 (genLinkCases_checkable c hc).2 v
 
+/-- Spreads whose templates read their member's place, each read at each
+member there is: a relative path in a map's template, beside data that
+supplies its target, refuses it, fills it and supplies none; the
+template at a member the schema writes, with and without its target,
+which the data can't supply; a list's spread; paths that climb past the
+instance; `key()` and `key(2)` in a map's template and `key()` in a
+list's; a spread that is a relative path, read where it's written, and
+one that only holds one; an absolute path in a template, beside no
+member, a member the data supplies and one the schema writes; a
+template a path reference copies, read at the copy's members; a spread
+inside a template, at a member the template writes and at one the data
+supplies; and a spread met with a map. -/
+def spreadCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let ms (fs : List (String × Val)) (s : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some s) false
+  let ls (xs : List Val) (s : Val) : Val := .list xs (some s) false
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let host := m [("host", rel 1 ["name"])]
+  let h1 := m [("h", rel 1 ["name"])]
+  let nested := m [("w", ms [] (m [("h", rel 3 ["name"])]))]
+  let nestedF := m [("w", ms [("f", m [])] (m [("h", rel 3 ["name"])]))]
+  let bare := ms [] (rel 2 ["x"])
+  let copied := m [("x", int 1), ("T", bare), ("outer", m [("x", int 2), ("t", p ["T"])])]
+  let copiedNo := m [("x", int 1), ("T", bare), ("outer", m [("t", p ["T"])])]
+  let built := m [("global", str "x"), ("T", ms [] (m [("h", p ["global"])])), ("Source", m [("a", m [])]),
+    ("s", ms [("m", m [])] (m [("copy", .meet (p ["T"]) (p ["Source"]))]))]
+  let linked (spread : Val) (t : Val) (rest : List (String × Val)) : Val :=
+    m (rest ++ [("s", ms [] spread), ("r", .meet (.call .refer [t]) (.addr ⟨0, ["s"]⟩))])
+  let named := m [("a", m [("name", str "n")])]
+  let inCopy := m [("T", ms [] h1), ("s", ms [("m", m [])] (m [("copy", p ["T"])]))]
+  [([], m [("s", ms [] host)], dm [("s", dm [("a", dm [("name", .str "x"), ("host", .str "x")])])]),
+    ([], m [("s", ms [] host)], dm [("s", dm [("a", dm [("name", .str "x"), ("host", .str "y")])])]),
+    ([], m [("s", ms [] host)], dm [("s", dm [("a", dm [("name", .str "x")])])]),
+    ([], m [("s", ms [] host)], dm [("s", dm [("a", dm [])])]),
+    ([], m [("s", ms [("a", m [("name", str "x")])] host)], dm []),
+    ([], m [("s", ms [("a", m [("name", str "x")])] host)], dm [("s", dm [("a", dm [("host", .str "y")])])]),
+    ([], m [("s", ms [("a", m [("name", str "x")])] host)], dm [("s", dm [("b", dm [("name", .str "y")])])]),
+    ([], m [("s", ms [("a", m [("name", str "x")])] host)],
+      dm [("s", dm [("b", dm [("name", .str "y"), ("host", .str "z")])])]),
+    ([], m [("s", ms [("a", m [])] host)], dm []),
+    ([], m [("s", ms [("a", m [])] host)], dm [("s", dm [("a", dm [("name", .str "z")])])]),
+    ([], m [("s", ms [("a", m [("name", .string)])] host)], dm []),
+    ([], m [("l", ls [] host)], dm [("l", .list [dm [("name", .str "x")]])]),
+    ([], m [("l", ls [m [("n", int 1)]] (m [("h", rel 1 ["n"])]))], dm [("l", .list [dm [("h", j 2)]])]),
+    ([], m [("s", ms [("a", m [])] (m [("up", rel 3 ["top"])])), ("top", int 1)], dm []),
+    ([], m [("s", ms [] (m [("v", rel 2 ["x"])]))], dm [("s", dm [("a", dm [])])]),
+    ([], m [("s", ms [] (m [("v", rel 2 ["x"])]))], dm []),
+    ([], m [("s", ms [("b", m [])] (m [("v", rel 3 ["x"])]))], dm []),
+    ([], m [("s", ms [] (m [("k", .keyUp 1)]))], dm [("s", dm [("a", dm [])])]),
+    ([], m [("s", ms [] (m [("k", .keyUp 1)]))], dm [("s", dm [("a", dm [("k", .str "b")])])]),
+    ([], m [("s", ms [("a", m [])] (m [("k", .keyUp 1)]))], dm []),
+    ([], m [("s", ms [] (m [("k", .keyUp 2)]))], dm [("s", dm [("a", dm [("k", .str "s")])])]),
+    ([], m [("s", ms [] (m [("w", m [("k", .keyUp 2)])]))], dm [("s", dm [("a", dm [("w", dm [("k", .str "b")])])])]),
+    ([], m [("l", ls [] (m [("i", .keyUp 1)]))], dm [("l", .list [dm [], dm []])]),
+    ([], m [("s", ms [] (rel 1 ["x"]))], dm [("s", dm [("a", j 1)])]),
+    ([], m [("s", ms [] (rel 2 ["x"])), ("x", int 1)], dm [("s", dm [("a", j 2)])]),
+    ([], m [("s", ms [] (rel 2 ["x"]))], dm []),
+    ([], m [("s", ms [] (.meet (int 1) (rel 1 ["x"]))), ("x", int 1)], dm []),
+    ([], m [("s", ms [] (m [("z", p ["nosuch"])]))], dm []),
+    ([], m [("s", ms [] (m [("z", p ["nosuch"])]))], dm [("s", dm [("a", dm [])])]),
+    ([], m [("s", ms [("a", m [])] (m [("z", p ["nosuch"])]))], dm []),
+    ([], m [("T", ms [] h1), ("x", p ["T"])], dm [("x", dm [("a", dm [("name", .str "n"), ("h", .str "m")])])]),
+    ([], m [("T", ms [] h1), ("x", p ["T"])], dm [("x", dm [("a", dm [("name", .str "n")])])]),
+    ([], m [("T", ms [] (m [("z", p ["y"])])), ("y", int 1), ("x", p ["T"])], dm [("x", dm [("a", dm [("z", j 2)])])]),
+    ([], m [("T", ms [("a", m [("name", str "t")])] h1), ("x", p ["T"])], dm [("x", dm [("a", dm [("h", .str "u")])])]),
+    ([], m [("T", ms [("a", m [])] h1), ("x", p ["T"])], dm []),
+    ([], m [("s", ms [("a", m [("name", str "n")])] nestedF)],
+      dm [("s", dm [("a", dm [("w", dm [("f", dm [("h", .str "m")])])])])]),
+    ([], m [("s", ms [("a", m [("name", str "n")])] nestedF)], dm []),
+    ([], m [("s", ms [] nested)], dm [("s", dm [("a", dm [("name", .str "x"), ("w", dm [("b", dm [])])])])]),
+    ([], m [("s", ms [("a", m [("w", m [("b", m [])])])] nested)], dm []),
+    ([], m [("s", .meet (ms [] host) (m [("a", m [("name", str "x")])]))], dm [("s", dm [("a", dm [("host", .str "y")])])]),
+    ([], copied, dm [("outer", dm [("t", dm [("a", j 2)])])]),
+    ([], copied, dm [("outer", dm [("t", dm [("a", j 1)])])]),
+    ([], m [("T", bare), ("outer", m [("x", int 2), ("t", p ["T"])])], dm []),
+    ([], m [("x", int 1), ("T", ls [] (rel 2 ["x"])), ("outer", m [("x", int 2), ("t", p ["T"])])],
+      dm [("outer", dm [("t", .list [j 2])])]),
+    ([], copiedNo, dm []),
+    ([], copiedNo, dm [("outer", dm [("t", dm [("a", j 2)])])]),
+    ([], built, dm [("s", dm [("m", dm [("copy", dm [("a", dm [("h", .str "y")])])])])]),
+    ([], built, dm [("s", dm [("m", dm [("copy", dm [("a", dm [("h", .str "x")])])])])]),
+    ([], linked (m [("host", p ["global"])]) named [("global", str "x")], dm [("s", dm [("a", dm [("host", .str "y")])])]),
+    ([], linked (m [("host", p ["global"])]) named [("global", str "x")], dm [("s", dm [("a", dm [("host", .str "x")])])]),
+    ([], linked (m [("host", rel 3 ["g"])]) named [("g", str "x")], dm [("s", dm [("a", dm [("host", .str "y")])])]),
+    ([], linked host (m [("a", m [])]) [], dm []),
+    ([], inCopy, dm [("s", dm [("m", dm [("copy", dm [("a", dm [("name", .str "n"), ("h", .str "z")])])])])]),
+    ([("T", bare)], m [("x", int 1), ("a", .alias "T")], dm [("a", dm [("m", j 2)])]),
+    ([("T", bare)], m [("a", .alias "T")], dm [])]
+
+theorem spreadCases_checkable : ∀ c ∈ spreadCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem spread_verdict_exact : ∀ c ∈ spreadCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (spreadCases_checkable c hc).1 (spreadCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, the schema's braces dropped since neither CLI reads a braced
 map after a declaration, in the three modes, with the one class `vetP`
@@ -3513,7 +3614,7 @@ def varPathCases : List Val :=
 /-- A variable case read as the definition reads a document with paths:
 placed, then its paths read as names from the schema alone. -/
 def varReading (t : Val) : Decls × Val :=
-  (progDecls.prepared (docOf t)).1.withPathsS (progDecls.prepared (docOf t)).2
+  (progDecls.preparedS (docOf t)).1.withPathsS (progDecls.preparedS (docOf t)).2
 
 set_option maxRecDepth 16384 in
 theorem varPathCases_readable : ∀ t ∈ varPathCases,
@@ -3885,7 +3986,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# its target, in rows rf0 on. rel, a relation whose value holds a link at"
     IO.println "# each leaf, follows in rows rl0 on, and links read where they land, in a"
     IO.println "# spread's template or copied by a path reference, in rows ld0 on, and in a"
-    IO.println "# generator's template, at each member of its output, in rows lg0 on."
+    IO.println "# generator's template, at each member of its output, in rows lg0 on. Spreads"
+    IO.println "# whose templates read their member's place, each read at each member there"
+    IO.println "# is, follow in rows sp0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -3899,6 +4002,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "rl" relCases
     pathRows "ld" landCases
     pathRows "lg" genLinkCases
+    pathRows "sp" spreadCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

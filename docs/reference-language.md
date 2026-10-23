@@ -995,8 +995,10 @@ reads at the position it stands at, by `keyUpAt` in
 [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean): a template at the
 position its instance lands at, and a `filter`'s condition where the
 member it tries lands. At a spread's own position `key(1)` reads the
-container's key. The definition doesn't yet read a `key(n)` deeper in a
-spread.
+container's key. Deeper in a spread's template, `key(n)` reads at each
+member the spread holds, as a relative path there does:
+`Val.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+places the template at each member before `resolveD` reads it.
 
 ## Generating children: `pack` and `each`
 
@@ -1561,14 +1563,33 @@ A relative path names a place relative to where it's written. Its
 first dot names the map or list that holds it, and each further dot
 climbs a step, so `z:x:1 z:y:w:..x` gives `w:1`, `a:[1, .0]` gives
 `a:[1, 1]`, and a climb past the top resolves nowhere. An alias's body
-reads its relative paths at the alias's own
-place, `%` and its name as a key at the top: in `%T = {y: .x}` the path
-`.x` names `$.%T.x`, which no document holds, while `..x` there names
-the document's own `x`. The definition makes each relative path
-absolute where it stands, by `Val.placed` and `Decls.placed` in
-[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). It doesn't yet
-read one in a spread, a template or a `filter`'s condition, each of
-which stands at a position no written step names.
+reads its relative paths at the alias's own place, `%` and its name as
+a key at the top, and again at each use of the alias: in
+`%T = {y: .x}` the path `.x` names `$.%T.x`, which no document holds, so
+the document is an error, while `..x` there names the document's own `x`,
+and where `a: {x: 2, b: %T}` uses the body, `a`'s too. The definition
+makes each relative path absolute where it stands, by `Val.placed` and
+`Decls.placed` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
+and reads a body at its own place alone.
+
+A spread's template reads its paths at each member the spread holds,
+the member's own place: in `hosts: {&: {url: .name}}`, each member's `url`
+is that member's `name`. Both engines try a template only on the
+members there are, so a path in a template that names nothing is no
+error until a member reads it: an `error` where the schema writes the
+member, even where the data supplies what the path names, and
+`invalid` where only the data supplies the member. A spread that's
+itself a relative path, `&: ..x`, reads at each member too, so a path
+reference's copy reads it from where the copy stands, and it reads
+where it's written as well, so one that names nothing there is an
+`error` with no member at all. The definition reads a spread so by
+`Val.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
+at each member wherever the spread lands, at each place a path
+reference copies it to and at each member a link's template makes among
+them. It doesn't yet read a relative path
+in a template or a `filter`'s condition, each of which stands at a
+position no written step names, nor a spread's inside a disjunction, a
+selection, a generator's template or an alias's body.
 
 ### Recursive references (fixpoints)
 
