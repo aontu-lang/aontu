@@ -212,6 +212,12 @@ def Fn.name : Fn → String
   | .each => "each"
   | .pack => "pack"
   | .maybe => "maybe"
+  | .bnd .min => "min"
+  | .bnd .max => "max"
+  | .bnd .above => "above"
+  | .bnd .below => "below"
+  | .bnd .neq => "neq"
+  | .bnd .mulof => "mulof"
 
 mutual
 def Val.src : Val → Option String

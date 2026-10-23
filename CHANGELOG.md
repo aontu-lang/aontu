@@ -8,6 +8,39 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a bound written over terms
+
+Definition, generated rows, and documentation. No engine changes. A
+P8 slice.
+
+- `spec/Aontu/Arith.lean`: `Bnd` names the six bounds a call can write
+  over terms, `min`, `max`, `above`, `below`, `neq` and `mulof`, and
+  `Fn.bnd` is the call. `spec/Oracle/Print.lean` writes it as the
+  bound's name.
+- `spec/Aontu/Verdict.lean`: `bndOf` makes the bound once each
+  argument's normal form is a number or a string (`Val.boundEnd?`), so
+  `lo: 2, t: min($.lo)` reads `t` as `min(2)`. An argument that names no
+  end, a boolean, `null` or a container, refuses the bound
+  (`Val.noEnd`), as a `neq` over both numbers and strings does, which
+  makes the document an error but in a `filter`'s condition, where it
+  refuses each member. An argument that never settles leaves the call
+  waiting, which is an error too. `bndOf_checkableA` keeps what it makes readable by the
+  checker.
+- `test/spec/def-path.tsv` gains rows bd0 on, in the three modes of
+  `vet`, and rows bg0 on, a bound over a relative path in a
+  generator's template or a `filter`'s condition, read where its
+  instance lands. No other row changes. Both ports answer every row as
+  the definition does.
+- `len` takes a term already, so `len($.n)` reads as the size of the
+  count `n` names, and rows from bd81 on hold it.
+- Both ports read `mulof` over a path to zero or a negative number, and
+  `len` over a path to anything but a count, as an error, where the
+  same argument written as a literal admits nothing, which #509 tracks,
+  so no row holds one.
+- The definition tutorial's step 20, the reference's cross-field
+  bounds, the definition's README and the design note's P8 row say how
+  a bound over terms reads.
+
 ### A bound's relative argument reads where a generator's instance lands
 
 Both ports.

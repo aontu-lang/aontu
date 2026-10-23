@@ -1800,6 +1800,129 @@ theorem filterCond_verdict_exact : ∀ c ∈ filterCondCases, ∀ (m : Mode) (v 
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_reads (filterCondCases_reads c hc) v
 
+/-- Bounds written over terms: `min`, `max`, `above` and `below` over a
+path to a number and to a string, the empty string among them, over a
+relative path and over a call; two bounds over paths met; `neq` over
+paths to numbers, to strings and to both, which is refused; `mulof`
+over a path to a number and to a string; a path to a boolean, `null`,
+a map, a kind, a bound and a disjunction, which no bound reads, and one
+only the data supplies; and `len`, which takes a term already, over a
+path to a count, a relative one, one to a bound, and one only the data
+supplies. -/
+def boundArgCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let t (x : Data) : Data := dm [("t", x)]
+  let lo (v : Val) (b : Bnd := .min) : Val := m [("lo", v), ("t", bnd b [p ["lo"]])]
+  [([], lo (int 2), t (j 5)),
+    ([], lo (int 2), t (j 1)),
+    ([], lo (int 2), dm []),
+    ([], lo (str "b"), t (.str "c")),
+    ([], lo (str "b"), t (.str "a")),
+    ([], lo (str ""), t (.str "a")),
+    ([], lo (int 2) .above, t (j 2)),
+    ([], m [("hi", int 2), ("t", bnd .below [p ["hi"]])], t (j 1)),
+    ([], m [("a", m [("lim", int 2), ("t", bnd .max [rel 1 ["lim"]])])], dm [("a", t (j 3))]),
+    ([], m [("t", bnd .min [.call .add [int 1, int 1]])], t (j 1)),
+    ([], m [("lo", int 2), ("hi", int 4), ("t", .meet (bnd .min [p ["lo"]]) (bnd .max [p ["hi"]]))], t (j 5)),
+    ([], m [("a", int 1), ("b", int 2), ("t", bnd .neq [p ["a"], p ["b"]])], t (j 3)),
+    ([], m [("a", int 1), ("b", int 2), ("t", bnd .neq [p ["a"], p ["b"]])], t (j 2)),
+    ([], m [("a", str "p"), ("b", str "q"), ("t", bnd .neq [p ["a"], p ["b"]])], t (.str "p")),
+    ([], m [("a", int 1), ("t", bnd .neq [p ["a"]])], t (j 1)),
+    ([], m [("a", int 1), ("b", str "x"), ("t", bnd .neq [p ["a"], p ["b"]])], t (j 3)),
+    ([], m [("d", int 3), ("t", bnd .mulof [p ["d"]])], t (j 6)),
+    ([], m [("d", int 3), ("t", bnd .mulof [p ["d"]])], t (j 7)),
+    ([], m [("d", str "x"), ("t", bnd .mulof [p ["d"]])], t (j 3)),
+    ([], lo (.lit (.bool true)), t (j 1)),
+    ([], lo (.lit .null), t (j 1)),
+    ([], lo (m []), t (j 1)),
+    ([], lo .integer, t (j 1)),
+    ([], lo (.min (.num (.integer ⟨1, by decide⟩))), t (j 1)),
+    ([], lo (.or [(1, int 2), (0, int 3)]), t (j 1)),
+    ([], m [("t", bnd .min [p ["lo"]])], dm [("lo", j 2), ("t", j 1)]),
+    ([], lo .number, dm [("lo", j 2), ("t", j 1)]),
+    ([], m [("n", int 2), ("t", .len (p ["n"]))], dm [("t", .list [j 1, j 2])]),
+    ([], m [("n", int 2), ("t", .len (p ["n"]))], dm [("t", .list [j 1])]),
+    ([], m [("n", int 2), ("t", .len (p ["n"]))], dm [("t", .str "ab")]),
+    ([], m [("a", m [("n", int 2), ("t", .len (rel 1 ["n"]))])], dm [("a", dm [("t", .list [j 1, j 2])])]),
+    ([], m [("n", .min (.num (.integer ⟨1, by decide⟩))), ("t", .len (p ["n"]))], dm [("t", .list [j 1])]),
+    ([], m [("n", int 2), ("t", .len (p ["n"]))], dm []),
+    ([], m [("t", .len (p ["n"]))], dm [("n", j 2), ("t", .list [j 1, j 2])])]
+
+theorem boundArgCases_checkable : ∀ c ∈ boundArgCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem boundArg_verdict_exact : ∀ c ∈ boundArgCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (boundArgCases_checkable c hc).1 (boundArgCases_checkable c hc).2 v
+
+/-- Bounds over a relative path in a `filter`'s condition, each read
+where the member it tries lands: `min`, `above` and `neq` over a path
+past the member, which keep the members they admit, and a bound over a
+boolean, `null` or a map, and a `neq` over a number and a string, each
+refused, which refuses every member rather than making the document an
+error. -/
+def boundFilterCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let f (c : Val) := m [("a", m [("lim", int 2), ("l", l [int 1, int 2, int 3]), ("f", .filter (rel 1 ["l"]) c)])]
+  let out (xs : List Data) : Data := dm [("a", dm [("f", .list xs)])]
+  let g (lim c : Val) := m [("a", m [("lim", lim), ("l", l [int 1]), ("f", .filter (rel 1 ["l"]) c)])]
+  [([], f (bnd .min [rel 2 ["lim"]]), out [j 2, j 3]),
+    ([], f (bnd .min [rel 2 ["lim"]]), out [j 1]),
+    ([], f (bnd .above [rel 2 ["lim"]]), out [j 3]),
+    ([], f (bnd .neq [rel 2 ["lim"]]), out [j 1, j 3]),
+    ([], g (.lit (.bool true)) (bnd .min [rel 2 ["lim"]]), out []),
+    ([], g (.lit .null) (bnd .min [rel 2 ["lim"]]), out []),
+    ([], g (m []) (bnd .max [rel 2 ["lim"]]), out []),
+    ([], g (int 1) (bnd .neq [rel 2 ["lim"], .lit (.str "x")]), out [])]
+
+set_option maxRecDepth 16384 in
+/-- The checker can't read a `filter` before the reading makes it, so
+each case's readings are read whole (`Decls.readsPB`). -/
+theorem boundFilterCases_reads : ∀ c ∈ boundFilterCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+
+theorem boundFilter_verdict_exact : ∀ c ∈ boundFilterCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (boundFilterCases_reads c hc) v
+
+/-- Bounds over a relative path in a generator's template, each read
+where its instance lands: `min` over a path into the member, in an
+`each` and a `pack` whose instances each have a target of their own,
+one admitting and one refusing, and over an ancestor's member. -/
+def boundEachCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let lv (lim v : Val) : Val := m [("lim", lim), ("v", v)]
+  let tmpl := Val.meet .hole (m [("v", bnd .min [rel 1 ["lim"]])])
+  [([], m [("o", .call .each [l [lv (int 1) (int 1), lv (int 2) (int 2)], tmpl])], dm []),
+    ([], m [("o", .call .each [l [lv (int 2) (int 1), lv (int 1) (int 1)], tmpl])], dm []),
+    ([], m [("o", .call .pack [m [("a", lv (int 1) (int 1)), ("b", lv (int 2) (int 2))], tmpl])], dm []),
+    ([], m [("a", m [("lim", int 2), ("l", l [int 1]),
+        ("f", .call .each [rel 1 ["l"], .meet (m [("v", bnd .min [rel 3 ["lim"]])]) (m [("v", int 5)])])])], dm [])]
+
+theorem boundEachCases_checkable : ∀ c ∈ boundEachCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem boundEach_verdict_exact : ∀ c ∈ boundEachCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (boundEachCases_checkable c hc).1 (boundEachCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, a map's braces dropped since neither CLI reads a braced map
 after a declaration, in the three modes, with the one class `vetP`
@@ -4187,8 +4310,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# is, follow in rows sp0 on, and sources loaded in place, each a file of"
     IO.println "# test/spec/files the definition declares as a term, in rows lf0 on."
     IO.println "# Generators whose templates read their member's place through a relative"
-    IO.println "# path, each read at each member of the output, follow in rows gt0 on, and a"
-    IO.println "# filter's condition, read where the member it tries lands, in rows fc0 on."
+    IO.println "# path, each read at each member of the output, follow in rows gt0 on, a"
+    IO.println "# filter's condition, read where the member it tries lands, in rows fc0 on,"
+    IO.println "# bounds written over terms, each the bound its terms name, in rows bd0 on, and"
+    IO.println "# bounds over a relative path in a generator's template or a filter's"
+    IO.println "# condition, each read where its instance lands, in rows bg0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -4207,6 +4333,8 @@ def main (args : List String) : IO UInt32 := do
     pathRows "lf" loadCases
     pathRows "gt" genTemplateCases
     pathRows "fc" filterCondCases
+    pathRows "bd" boundArgCases
+    pathRows "bg" (boundFilterCases ++ boundEachCases)
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

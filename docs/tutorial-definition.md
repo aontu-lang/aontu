@@ -6133,6 +6133,49 @@ schema can't build, `add(1)`, `add(1, 2, 3)`, `sum([1], [2])` or
 `-(integer)`, is one both engines read as `invalid`, where the
 definition reads an error, which #426 tracks.
 
+### A bound over a path
+
+A bound's end can be a path or a call where step 4 wrote a number or
+a string, as in `lo: 2, t: min($.lo)`. The definition reads such a
+bound as a call, `Fn.bnd`, that makes the bound itself once each
+argument's normal form is a number or a string, so that `min($.lo)`
+there is `min(2)`:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
+  let ns := args.map fun a => (normaliseD ds a).unride
+  if ns.any Val.noEnd then .refused else
+  match ns.mapM Val.boundEnd?, b with
+  | none, _ => .waits
+```
+
+A boolean, `null` or a container names no end, so the definition
+refuses a bound over one, and a `neq` over a number and a string, and
+either makes the document an error, as both engines answer. In a
+`filter`'s condition the refusal refuses each member the condition
+tries instead, as a condition that names nothing does. An
+argument that never settles, a kind, a bound or a disjunction, leaves
+the call waiting, and a call no reading makes is an error too, which
+is what both engines answer for `lo: integer` and for a path to
+`*2 | 3`. So is a bound over a path that only the data supplies, since
+the schema's own tree names nothing there. A size needs no call:
+`len` takes a term already, so `n: 2, t: len($.n)` reads as `len(2)`.
+Both engines read `mulof` over a path to zero or a negative number,
+and `len` over a path to anything but a count, as an error, where the
+same argument written as a literal admits nothing, which #509 tracks.
+The definition reads a path to either as it reads the literal, and no
+row holds one. Rows from bd0 on of `test/spec/def-path.tsv` hold these
+readings in the three modes of `vet`, and both engines answer every
+one as the definition does.
+
+A bound in a generator's template or in a `filter`'s condition reads
+a relative path where its instance lands, as step 27 reads a template
+and step 9 a condition, so
+`each([{lim: 1, v: 1}, {lim: 2, v: 2}], _ & {v: min(.lim)})` reads
+each member's own `lim`. Rows from bg0 on hold these, and both engines
+answer them as the definition does.
+
 ## 21. Sums with `+`
 
 `+` adds numbers and joins text, and two lists it concatenates. The

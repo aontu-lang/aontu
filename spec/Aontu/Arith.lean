@@ -27,12 +27,20 @@ def Cmp.name : Cmp → String
   | .line => "line" | .fragment => "fragment" | .slot => "slot" | .inject => "inject"
   | .copyfiles => "copyfiles" | .listitems => "listitems"
 
+/-- A bound written over terms, which reads as the bound its terms
+name once they read as numbers or strings: `min`, `max`, `above`,
+`below`, `neq` and `mulof`. -/
+inductive Bnd where
+  | min | max | above | below | neq | mulof
+  deriving DecidableEq, Repr
+
 /-- The functions on numbers, the folds on a bag of them, `+`, the calls
 on bags and text, `join`, `pick`, `sort`, `upper`, `lower`,
 `translate`, `esc`, `usc`, `split`, `rep` and `nom`, `super`, `pref` and
 `move` written as calls, `refer` and `rel`, links, `path`, `abnf` and `parse`,
 `load`, the source `@"p"` loads, the components, the generators `each`
-and `pack`, and `maybe`, where absence is made. -/
+and `pack`, `maybe`, where absence is made, and a bound written over
+terms. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
@@ -41,6 +49,7 @@ inductive Fn where
   | cmp (c : Cmp)
   | each | pack
   | maybe
+  | bnd (b : Bnd)
   deriving DecidableEq, Repr
 
 /-- Whether a function folds the members of one bag. -/
