@@ -4183,13 +4183,17 @@ the dispatch, which takes a node the meet narrows nothing of, a kind
 and a map of kinds among them, refusing one it narrows and one whose
 meet holds a member it lacks, an optional key that generates nothing
 being no member, and taking a disjunction with no preference where any
-arm meets, under a rider too; a hole in a `match`, which matches
-nothing where it stands and is the value it meets in a meet or an arm;
-and each refusal both ports make an error: no template that matches,
-an empty table, a template without its `match` or its `body`, or with
-a body that is no list, read before the selection, two bodies, a
+arm meets, under a rider too, each rider of the node and the `match`
+read through, a member's among them, and a meet compared by its
+conjuncts; a hole in a `match`, which matches nothing where it stands,
+a spread among the places, and is the value it meets in a meet or an
+arm; a body's piece read in normal form before it splices; and each
+refusal both ports make an error: no template that matches, an empty
+table, a template without its `match` or its `body`, or with a body
+not written as a list, read before the selection, two bodies, a
 selection that is no bag, and a reference the node doesn't answer, a
-step up and a position past the end among them. -/
+step up, a position past the end and one in a part the reading drops
+among them, but one in a spread, which the ports leave unbound. -/
 def emitCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -4285,7 +4289,32 @@ def emitCases : List (Val × Data) :=
     (c .emit [lst [.ride .metadata (.or [(1, int 1), (0, int 2)]) []], rule (int 1) [str "x"]], jm []),
     (c .emit [lst [k1], rule (.map [("k", false, int 1), ("j", true, .integer)] none false) [str "x"]], jl [js "x"]),
     (c .emit [lst [k1], rule (.map [("k", false, int 1), ("j", true, mp [])] none false) [str "x"]], jl [js "x"]),
-    (c .emit [lst [.map [("k", false, int 1), ("j", true, .integer)] none false], rule k1 [str "x"]], jl [js "x"])]
+    (c .emit [lst [.map [("k", false, int 1), ("j", true, .integer)] none false], rule k1 [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule (.ride .metadata .integer []) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule (.ride .type .integer []) [str "x"]], jl [js "x"]),
+    (c .emit [lst [k1], rule (mp [("k", .ride .metadata (int 1) [])]) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule .any [.meet (lst [str "a"]) (lst [str "a"])]], jl [js "a"]),
+    (c .emit [lst [int 1], rule .any [.ride .metadata (lst [str "a"]) []]], jl [js "a"]),
+    (c .emit [lst [int 1], rule .any [.select (int 1) [(int 1, str "x")] (some (nd ["missing"]))]], jl [js "x"]),
+    (c .emit [lst [mp [("l", lst [mp [("x", int 1)]])]], rule .any [c .emit [nd ["l"], rule .any [nd ["x"]]]]],
+      jl [j 1]),
+    (c .emit [lst [], mp [("match", .any), ("body", c .each [lst [str "x"], .hole])]], jm []),
+    (c .emit [lst [int 1], mp [("match", .any), ("body", .meet (lst [str "x"]) (lst [str "x"]))]], jm []),
+    (c .emit [lst [.min (nb 1)], rule (.min (nb 1)) [str "x"]], jl [js "x"]),
+    (c .emit [lst [.min (nb 1)], rule (.min (nb 2)) [str "x"]], jm []),
+    (c .emit [lst [.meet .integer (.min (nb 1))], rule .integer [str "x"]], jl [js "x"]),
+    (c .emit [lst [k1], rule (.map [] (some .hole) false) [str "x"]], jm []),
+    (c .emit [lst [lst [int 1]], rule (.list [] (some .hole) false) [str "x"]], jm []),
+    (c .emit [lst [mp []], rule (.map [] (some .hole) false) [str "x"]], jl [js "x"]),
+    (c .emit [lst [k1], rule (.map [] (some (.meet .hole .integer)) false) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule .any [.select (int 1) [(int 1, str "x")] (some (.map [] (some (nd ["missing"])) false))]],
+      jl [js "x"]),
+    (c .emit [lst [int 1], rule .any [.select (int 1) [(int 1, str "x")] (some (.list [] (some (nd ["missing"])) false))]],
+      jl [js "x"]),
+    (c .emit [lst [int 1], rule .any [.select (int 1) [(int 1, str "x")] (some (mp [("a", nd ["missing"])]))]],
+      jl [js "x"]),
+    (c .emit [lst [mp [("a", int 1)]], rule .any [.map [("x", false, int 1)] (some (nd ["a"])) false]],
+      jl [.map [("x", j 1)]])]
 
 theorem emitCases_checkable : ∀ c ∈ emitCases, (vetDoc c).1.CheckableA := by decide
 
