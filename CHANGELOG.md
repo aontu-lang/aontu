@@ -8,6 +8,27 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a trial's eager argument as both ports do
+
+Definition, generated rows, and documentation. No engine changes.
+Closes #525.
+
+- `spec/Aontu/Verdict.lean`: both ports read some of a trial's
+  arguments as written, when they build the trial, and report a
+  conflict there as an error: a size, the condition of `must`, the
+  count of `nof` and of `contains`, the source of `filter` and the
+  scrutinee of `match`. `Val.illFormed` now reads each of those in
+  normal form, a dead one ill-formed, so `must(1 & 2, "m")`,
+  `len(1 & 2)` and `match(1 & 2, 1, 3)` are errors, as both ports
+  answer, where the definition answered `invalid`. The arguments both
+  read later, against a value, aren't read there: `when(1 & 2, 1)`
+  stands, and `nof(1, 1 & 2)`, `contains(1 & 2, 2)` and
+  `filter([1], 1 & 2)` refuse `1`.
+- `spec/Oracle.lean`: `eagerCases`, rows te0 to te32 of
+  `test/spec/def-trial.tsv`. Both ports answer every row as the
+  definition does.
+- The tutorial's step on the verdict describes the reading.
+
 ### The definition finds the meet's conflicts where both ports do
 
 Definition, generated rows, and documentation. No engine changes.

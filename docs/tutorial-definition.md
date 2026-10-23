@@ -4621,13 +4621,24 @@ def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 ```
 
 `illFormed` reads each size, and each of a meet's conjuncts as it reads
-a term:
+a term. Both engines read some of a trial's arguments as written, when
+they build the trial, and report a conflict there as an `error`: a size,
+the condition of `must`, the count of `nof` and of `contains`, the
+source of `filter` and the scrutinee of `match`. So the check reads each
+of those in normal form, and a dead one is ill-formed: `must(1 & 2, "m")`
+is an `error`, as both engines answer. The arguments they read later,
+against a value, aren't read here, so `when(1 & 2, 1)` stands and
+`nof(1, 1 & 2)` refuses `1` (#525):
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Val.illFormed : Val → Bool
   | .nil => true
-  | .len c => c.sizeIll
+  | .len c => c.sizeIll || (normalise c).dead
+  | .must c _ => (normalise c).dead
+  | .nof n _ => (normalise n).dead
+  | .contains _ n => (normalise n).dead
+  | .filter s _ => (normalise s).dead
   | .map fs _ _ => illFields fs
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
@@ -4638,7 +4649,7 @@ def Val.illFormed : Val → Bool
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
   | .call _ _ => true
-  | .select _ arms _ => illPats arms
+  | .select s arms _ => (normalise s).dead || illPats arms
   | _ => false
 ```
 

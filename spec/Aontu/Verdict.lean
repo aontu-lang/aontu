@@ -3173,14 +3173,21 @@ def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, a
-preference clash, a size that holds a disjunction or a preference, or
-a call the reading could not make. A `+` that waits stands where its
-operands do, and a `pref` that waits where its argument does. The
-verdict reads it of a term staged (`Val.staged`), so that a conflict
-the meet finds is a `nil`. -/
+preference clash, a size that holds a disjunction or a preference, a
+call the reading could not make, or a trial whose argument both ports
+read as written is dead in normal form: a size, `must`'s condition,
+the count of `nof` and `contains`, and the source of `filter` and the
+scrutinee of `match`. A `+` that waits stands where its operands do,
+and a `pref` that waits where its argument does. The verdict reads it
+of a term staged (`Val.staged`), so that a conflict the meet finds is
+a `nil`. -/
 def Val.illFormed : Val → Bool
   | .nil => true
-  | .len c => c.sizeIll
+  | .len c => c.sizeIll || (normalise c).dead
+  | .must c _ => (normalise c).dead
+  | .nof n _ => (normalise n).dead
+  | .contains _ n => (normalise n).dead
+  | .filter s _ => (normalise s).dead
   | .map fs _ _ => illFields fs
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
@@ -3191,7 +3198,7 @@ def Val.illFormed : Val → Bool
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
   | .call _ _ => true
-  | .select _ arms _ => illPats arms
+  | .select s arms _ => (normalise s).dead || illPats arms
   | _ => false
 
 def illFields : List (String × Bool × Val) → Bool
