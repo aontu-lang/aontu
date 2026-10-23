@@ -1536,6 +1536,15 @@ def spreadCases : List (Decls × Val × Data) :=
   let h1 := m [("h", rel 1 ["name"])]
   let nested := m [("w", ms [] (m [("h", rel 3 ["name"])]))]
   let nestedF := m [("w", ms [("f", m [])] (m [("h", rel 3 ["name"])]))]
+  let bare := ms [] (rel 2 ["x"])
+  let copied := m [("x", int 1), ("T", bare), ("outer", m [("x", int 2), ("t", p ["T"])])]
+  let copiedNo := m [("x", int 1), ("T", bare), ("outer", m [("t", p ["T"])])]
+  let built := m [("global", str "x"), ("T", ms [] (m [("h", p ["global"])])), ("Source", m [("a", m [])]),
+    ("s", ms [("m", m [])] (m [("copy", .meet (p ["T"]) (p ["Source"]))]))]
+  let linked (spread : Val) (t : Val) (rest : List (String × Val)) : Val :=
+    m (rest ++ [("s", ms [] spread), ("r", .meet (.call .refer [t]) (.addr ⟨0, ["s"]⟩))])
+  let named := m [("a", m [("name", str "n")])]
+  let inCopy := m [("T", ms [] h1), ("s", ms [("m", m [])] (m [("copy", p ["T"])]))]
   [([], m [("s", ms [] host)], dm [("s", dm [("a", dm [("name", .str "x"), ("host", .str "x")])])]),
     ([], m [("s", ms [] host)], dm [("s", dm [("a", dm [("name", .str "x"), ("host", .str "y")])])]),
     ([], m [("s", ms [] host)], dm [("s", dm [("a", dm [("name", .str "x")])])]),
@@ -1577,7 +1586,23 @@ def spreadCases : List (Decls × Val × Data) :=
     ([], m [("s", ms [("a", m [("name", str "n")])] nestedF)], dm []),
     ([], m [("s", ms [] nested)], dm [("s", dm [("a", dm [("name", .str "x"), ("w", dm [("b", dm [])])])])]),
     ([], m [("s", ms [("a", m [("w", m [("b", m [])])])] nested)], dm []),
-    ([], m [("s", .meet (ms [] host) (m [("a", m [("name", str "x")])]))], dm [("s", dm [("a", dm [("host", .str "y")])])])]
+    ([], m [("s", .meet (ms [] host) (m [("a", m [("name", str "x")])]))], dm [("s", dm [("a", dm [("host", .str "y")])])]),
+    ([], copied, dm [("outer", dm [("t", dm [("a", j 2)])])]),
+    ([], copied, dm [("outer", dm [("t", dm [("a", j 1)])])]),
+    ([], m [("T", bare), ("outer", m [("x", int 2), ("t", p ["T"])])], dm []),
+    ([], m [("x", int 1), ("T", ls [] (rel 2 ["x"])), ("outer", m [("x", int 2), ("t", p ["T"])])],
+      dm [("outer", dm [("t", .list [j 2])])]),
+    ([], copiedNo, dm []),
+    ([], copiedNo, dm [("outer", dm [("t", dm [("a", j 2)])])]),
+    ([], built, dm [("s", dm [("m", dm [("copy", dm [("a", dm [("h", .str "y")])])])])]),
+    ([], built, dm [("s", dm [("m", dm [("copy", dm [("a", dm [("h", .str "x")])])])])]),
+    ([], linked (m [("host", p ["global"])]) named [("global", str "x")], dm [("s", dm [("a", dm [("host", .str "y")])])]),
+    ([], linked (m [("host", p ["global"])]) named [("global", str "x")], dm [("s", dm [("a", dm [("host", .str "x")])])]),
+    ([], linked (m [("host", rel 3 ["g"])]) named [("g", str "x")], dm [("s", dm [("a", dm [("host", .str "y")])])]),
+    ([], linked host (m [("a", m [])]) [], dm []),
+    ([], inCopy, dm [("s", dm [("m", dm [("copy", dm [("a", dm [("name", .str "n"), ("h", .str "z")])])])])]),
+    ([("T", bare)], m [("x", int 1), ("a", .alias "T")], dm [("a", dm [("m", j 2)])]),
+    ([("T", bare)], m [("a", .alias "T")], dm [])]
 
 theorem spreadCases_checkable : ∀ c ∈ spreadCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
