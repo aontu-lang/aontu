@@ -388,6 +388,73 @@ def mlArms (k : String → Option Val) : List (ℕ × Val) → List (ℕ × Val)
   | (r, a) :: as => (r, a.mapLoads k) :: mlArms k as
 end
 
+/-- The name a declaration takes in the source named `q` that makes it:
+`%`, the source's name, `%` and the declaration's own name, which no
+document can write, since a name a document writes begins with a letter,
+and which no other source shares, so that two sources that declare one
+name hold two names. -/
+def scopedName (q n : String) : String := "%" ++ q ++ "%" ++ n
+
+/-- Whether a declaration's name is a source's own (`scopedName`). -/
+def scopedDecl (n : String) : Bool := n.toList.head? == some '%'
+
+mutual
+/-- A term written in the source named `q`, each alias it names read as
+the source's own (`scopedName`), as both ports scope a name to the file
+that declares it: the source reads its own declarations and none of the
+document's, and the document none of the source's. A variable, `$` and
+its name, is the calling program's and stays as it is. -/
+def Val.scoped (q : String) : Val → Val
+  | .alias n => if n.toList.head? == some '$' then .alias n else .alias (scopedName q n)
+  | .len c => .len (c.scoped q)
+  | .map fs spread closed => .map (scFields q fs) (scSpread q spread) closed
+  | .list items spread closed => .list (scItems q items) (scSpread q spread) closed
+  | .or arms => .or (scArms q arms)
+  | .pref r x => .pref r (x.scoped q)
+  | .meet a b => .meet (a.scoped q) (b.scoped q)
+  | .nof n cs => .nof (n.scoped q) (scItems q cs)
+  | .must c m => .must (c.scoped q) m
+  | .when c t e => .when (c.scoped q) (t.scoped q) (scSpread q e)
+  | .contains c n => .contains (c.scoped q) (n.scoped q)
+  | .rest t cs => .rest (t.scoped q) (scCovers q cs)
+  | .select s arms d => .select (s.scoped q) (scPairs q arms) (scSpread q d)
+  | .filter s c => .filter (s.scoped q) (c.scoped q)
+  | .call f args => .call f (scItems q args)
+  | .ride rd v r => .ride rd (v.scoped q) r
+  | v => v
+
+def scPairs (q : String) : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.scoped q, r.scoped q) :: scPairs q ps
+
+def scCovers (q : String) : List Cover → List Cover
+  | [] => []
+  | (c, ky, m) :: cs => (scSpread q c, scSpread q ky, scSpread q m) :: scCovers q cs
+
+def scFields (q : String) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (ky, o, v) :: fs => (ky, o, v.scoped q) :: scFields q fs
+
+def scItems (q : String) : List Val → List Val
+  | [] => []
+  | v :: vs => v.scoped q :: scItems q vs
+
+def scSpread (q : String) : Option Val → Option Val
+  | none => none
+  | some s => some (s.scoped q)
+
+def scArms (q : String) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.scoped q) :: scArms q as
+end
+
+/-- The declarations a source named `q` adds to a document that loads
+it: its term under `@` and its name, and each declaration it makes,
+`own`, under its own name (`scopedName`), each read in the source's
+scope (`Val.scoped`). -/
+def Decls.ofSource (q : String) (own : Decls) (t : Val) : Decls :=
+  ("@" ++ q, t.scoped q) :: own.map fun d => (scopedName q d.1, d.2.scoped q)
+
 /-- A term written in the source named `src` with the sources it loads
 read in, `n` deep, `seen` the sources it's being read into: each `@"p"`
 read as the term the document declares for the source it names

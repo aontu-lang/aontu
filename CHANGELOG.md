@@ -8,6 +8,31 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a source's own names in its own scope
+
+Definition, generated rows, and documentation. No engine changes. A
+P10 slice.
+
+- `spec/Aontu/Paths.lean`: `Decls.ofSource` gives the declarations a
+  source adds to the document that loads it: its term, and each name it
+  declares under a name of its own (`scopedName`), every name it
+  declares or uses read in its own scope (`Val.scoped`). A source reads
+  none of the document's names, the document none of the source's, and
+  two sources that declare one name hold two, as both ports scope a
+  name to the file that declares it. A variable stays the calling
+  program's.
+- `spec/Oracle.lean`: `scopeCases`, over the fixtures both ports' alias
+  rows load, writes rows ls0 on of `test/spec/def-path.tsv`, in the
+  three modes of `vet`, and no other row changes. Both ports answer
+  every row as the definition does.
+- No row holds a source that declares a name loaded under a key, which
+  both ports refuse and the definition reads as it reads one at the
+  root, nor a document that declares a name and loads such a source at
+  the root, where Go keeps the document's declaration in its output,
+  which #514 tracks.
+- The definition tutorial's step 39, the reference, the definition's
+  README and the design note's P10 row say how a source's names read.
+
 ### The definition reads a bound written over terms
 
 Definition, generated rows, and documentation. No engine changes. A
