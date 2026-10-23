@@ -637,7 +637,7 @@ def Fn.takes : Fn → ℕ → Bool
   | .add, n | .sub, n | .mul, n | .div, n | .mod, n | .rem, n | .plus, n | .pick, n
   | .split, n | .each, n | .pack, n | .emit, n => n == 2
   | .neg, n | .sum, n | .least, n | .greatest, n | .super, n | .pref, n | .move, n
-  | .abnf, n | .maybe, n => n == 1
+  | .abnf, n | .maybe, n | .copy, n => n == 1
   | .join, n | .esc, n | .usc, n | .parse, n => 1 ≤ n && n ≤ 2
   | .sort, n | .upper, n | .lower, n | .nom, n => 1 ≤ n && n ≤ 3
   | .translate, n => 2 ≤ n && n ≤ 3
