@@ -769,6 +769,46 @@ def parseOf (ds : Decls) (g : Val) (v : Option Val) : Made :=
   | .lit _ | .map _ _ _ | .list _ _ _ => .refused
   | _ => .waits
 
+/-- Whether a bound's end is a number. -/
+def Bound.isNum : Bound → Bool
+  | .num _ => true
+  | .str _ => false
+
+/-- The end of a bound a term in normal form names: a number or a
+string. -/
+def Val.boundEnd? : Val → Option Bound
+  | .lit (.num n) => some (.num n)
+  | .lit (.str s) => some (.str s)
+  | _ => none
+
+/-- Whether a term in normal form can name no bound's end at all: a
+boolean, `null`, a map or a list. -/
+def Val.noEnd : Val → Bool
+  | .lit (.bool _) | .lit .null | .map _ _ _ | .list _ _ _ => true
+  | _ => false
+
+/-- What a bound written over terms makes of them: the bound itself,
+`min($.lo)` being `min(2)` where `lo` is `2`, once each argument's normal
+form, its riders read through, is a number or a string, as both ports
+settle such a bound; refused where one is a boolean, `null` or a
+container, where `neq` takes both numbers and strings, where `mulof`
+takes a string, and where a bound takes another count of arguments than
+its own; waiting for anything else, a kind, a bound or a disjunction
+among them, as both ports wait. -/
+def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
+  let ns := args.map fun a => (normaliseD ds a).unride
+  if ns.any Val.noEnd then .refused else
+  match ns.mapM Val.boundEnd?, b with
+  | none, _ => .waits
+  | some [e], .min => .made (.min e)
+  | some [e], .max => .made (.max e)
+  | some [e], .above => .made (.above e)
+  | some [e], .below => .made (.beneath e)
+  | some [.num d], .mulof => .made (.mulof d)
+  | some es, .neq =>
+    if !es.isEmpty && (es.all Bound.isNum || es.all fun e => !e.isNum) then .made (.neq es) else .refused
+  | some _, _ => .refused
+
 /-- Whether a term is a scalar literal or an address, the leaves `pref`
 makes preferences of. -/
 def Val.prefLeaf : Val → Bool
@@ -859,8 +899,9 @@ form, as `super` reads it, so that a preference stays one, and a `move`
 the same, its source hidden where the document is read (`Decls.withMoves`);
 a `refer` the path kind, the link's own value, and a `rel` the relation
 kind, `relName`, its value's links, their template met into each
-target where the document is read (`Decls.withRefers`); any other
-call the number `callValue` computes, where it computes one, and itself
+target where the document is read (`Decls.withRefers`); a bound
+written over terms the bound `bndOf` makes of them; any other call the
+number `callValue` computes, where it computes one, and itself
 otherwise, which no reading makes. -/
 def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   match f, args with
@@ -902,6 +943,7 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .cmp c, args =>
     if c.takes args.length then (cmpOf ds c args.head? (args.drop 1).head?).term ds f args
     else .call f args
+  | .bnd b, args => (bndOf ds b args).term ds f args
   | _, _ =>
     match callValue ds f args with
     | some n => .lit (.num n)
@@ -1792,6 +1834,15 @@ theorem parseOf_checkableA {ds : Decls} {g : Val} {w : Option Val} {v : Val}
     | (cases h; done)
     | (obtain rfl := (Made.made.injEq _ _).mp h; first | exact .grammar | exact Data.term_checkableA _)
 
+theorem bndOf_checkableA {ds : Decls} {b : Bnd} {args : List Val} {v : Val} (h : bndOf ds b args = .made v) :
+    v.CheckableA := by
+  unfold bndOf at h
+  simp only at h
+  repeat' split at h
+  all_goals first
+    | (cases h; done)
+    | (obtain rfl := (Made.made.injEq _ _).mp h; constructor)
+
 theorem pathOf_checkableA {ds : Decls} {s v : Val} (h : pathOf ds s = .made v) : v.CheckableA := by
   unfold pathOf at h
   repeat' split at h
@@ -2028,6 +2079,7 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         (fun s hs => h s (List.mem_of_mem_head? hs))
         (fun k hk => h k (List.mem_of_mem_drop (List.mem_of_mem_head? hk))) hv
     · exact .call h
+  · exact Made.term_checkableA hd h fun v hv => bndOf_checkableA hv
   · split
     · exact .lit
     · exact .call h

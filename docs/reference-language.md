@@ -6388,6 +6388,22 @@ unresolved kind today; exhaustion of the pass budget while residuals
 are still refining is `budget_passes` ([the trust
 contract](trust.md), clause 2).
 
+The definition reads a bound over a term as the bound itself once each
+argument reads as a number or a string, by `bndOf` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), and as an
+error where an argument is a boolean, `null` or a container, where
+`neq` takes both numbers and strings, or where an argument never
+settles. Rows from bd0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it. A bound in a generator's template or in a `filter`'s condition
+reads a relative path where its instance lands, and rows from bg0 on
+hold both engines to that. A size over a path, `len($.n)`, reads as
+the size of the count it names, since `len` takes a term. Both engines
+read `mulof` over a path to zero or a negative number, and `len` over a
+path to anything but a count, as an error, where the same argument
+written as a literal admits nothing, which
+[#509](https://github.com/aontu-lang/aontu/issues/509) tracks.
+
 ### Formats: `format`
 
 `format(g)` admits a string the grammar `g` reads to its end. Like `re`,
