@@ -1007,7 +1007,11 @@ theorem key_path_verdict_exact : ∀ c ∈ keyPathCases, ∀ (m : Mode) (v : Ver
 of two steps and three, a key in quotes, an index into a sibling list,
 a list's element reading its sibling, a chain of relative paths, a
 relative path in a call, and a body's, read at the body's own place,
-`%` and its name as a key at the top, as both ports place it. -/
+`%` and its name as a key at the top, as both ports place it. A body
+is read there used or not, an error where a path names nothing there or
+meets a conflict there whatever its uses read, and a body that is itself
+a relative path is read there at each use too: both ports read these so
+in any order the document writes the alias and its use. -/
 def relPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1028,7 +1032,15 @@ def relPathCases : List (Decls × Val × Data) :=
     ([], m [("a", m [("x", int 1), ("y", rel 1 ["x"]), ("z", rel 1 ["y"])])], .map [("a", .map [("z", j 1)])]),
     ([], m [("a", m [("x", int 1), ("y", .call .plus [rel 1 ["x"], int 1])])], .map [("a", .map [("y", j 2)])]),
     ([("T", m [("y", rel 2 ["x"])])], m [("x", int 1), ("a", .alias "T")], .map [("a", .map [("y", j 1)])]),
-    ([("T", m [("y", rel 1 ["x"])])], m [("a", .meet (m [("x", int 1)]) (.alias "T"))], .map [("a", .map [("y", j 1)])])]
+    ([("T", m [("y", rel 1 ["x"])])], m [("a", .meet (m [("x", int 1)]) (.alias "T"))], .map [("a", .map [("y", j 1)])]),
+    ([("T", m [("v", rel 2 ["x"])])], m [("a", m [("x", int 2), ("b", .alias "T")])], .map []),
+    ([("T", m [("v", .meet (rel 2 ["x"]) (int 1))])], m [("x", int 2), ("a", m [("x", int 1), ("b", .alias "T")])],
+      .map []),
+    ([("T", m [("v", rel 2 ["x"])])], m [("y", int 1)], .map []),
+    ([("T", m [("v", rel 1 ["w"])])], m [("a", m [("b", .meet (.alias "T") (m [("w", int 3)]))])], .map []),
+    ([("T", rel 2 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map []),
+    ([("T", rel 1 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map [("a", .map [("b", j 1)])]),
+    ([("T", rel 1 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map [("a", .map [("b", j 2)])])]
 
 theorem relPathCases_checkable : ∀ c ∈ relPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### Where a copy reads a relative path, raised as a decision
+
+Generated rows and documentation. No definition or engine changes.
+
+- Both ports read a relative path inside an alias's body, or inside a
+  path reference's copy, either where it's written or where the copy
+  stands, by the order the document writes the two, and `aontu vet`
+  reads an alias's body at the use in either order, so it refuses the
+  output `aontu` generates for the same file, which #504 tracks. The
+  definition reads such a path where it's written, as before, and the
+  definition's design note raises which reading is the language's.
+- `test/spec/def-path.tsv` gains rows j39 on, in the three modes of
+  `vet`: a body read at the alias's own place, used or not, an error
+  where a path names nothing there or meets a conflict there, and a
+  body that's itself a relative path, which both ports read alike in
+  any order. No other row changes.
+- The reference and the definition tutorial no longer say both engines
+  read a body at each use: they say how the order decides.
+
 ### The definition reads a generator's template at each member
 
 Definition, generated rows, and documentation. No engine changes.

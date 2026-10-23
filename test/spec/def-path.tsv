@@ -349,6 +349,27 @@ j35	verdict	%T = {"y": ..x}\n"x": 1, "a": %T	{"a": {"y": 1}}	{"verdict":"valid",
 j36	verdict	%T = {"y": .x}\n"a": ({"x": 1}) & (%T)	{"a": {"y": 1}}	{"verdict":"error"}
 j37	verdict	%T = {"y": .x}\n"a": ({"x": 1}) & (%T)	{"a": {"y": 1}}	{"verdict":"error","opts":{"noFill":true}}
 j38	verdict	%T = {"y": .x}\n"a": ({"x": 1}) & (%T)	{"a": {"y": 1}}	{"verdict":"error","opts":{"partial":true}}
+j39	verdict	%T = {"v": ..x}\n"a": {"x": 2, "b": %T}	{}	{"verdict":"error"}
+j40	verdict	%T = {"v": ..x}\n"a": {"x": 2, "b": %T}	{}	{"verdict":"error","opts":{"noFill":true}}
+j41	verdict	%T = {"v": ..x}\n"a": {"x": 2, "b": %T}	{}	{"verdict":"error","opts":{"partial":true}}
+j42	verdict	%T = {"v": (..x) & (1)}\n"x": 2, "a": {"x": 1, "b": %T}	{}	{"verdict":"error"}
+j43	verdict	%T = {"v": (..x) & (1)}\n"x": 2, "a": {"x": 1, "b": %T}	{}	{"verdict":"error","opts":{"noFill":true}}
+j44	verdict	%T = {"v": (..x) & (1)}\n"x": 2, "a": {"x": 1, "b": %T}	{}	{"verdict":"error","opts":{"partial":true}}
+j45	verdict	%T = {"v": ..x}\n"y": 1	{}	{"verdict":"error"}
+j46	verdict	%T = {"v": ..x}\n"y": 1	{}	{"verdict":"error","opts":{"noFill":true}}
+j47	verdict	%T = {"v": ..x}\n"y": 1	{}	{"verdict":"error","opts":{"partial":true}}
+j48	verdict	%T = {"v": .w}\n"a": {"b": (%T) & ({"w": 3})}	{}	{"verdict":"error"}
+j49	verdict	%T = {"v": .w}\n"a": {"b": (%T) & ({"w": 3})}	{}	{"verdict":"error","opts":{"noFill":true}}
+j50	verdict	%T = {"v": .w}\n"a": {"b": (%T) & ({"w": 3})}	{}	{"verdict":"error","opts":{"partial":true}}
+j51	verdict	%T = ..x\n"x": 1, "a": {"x": 2, "b": %T}	{}	{"verdict":"error"}
+j52	verdict	%T = ..x\n"x": 1, "a": {"x": 2, "b": %T}	{}	{"verdict":"error","opts":{"noFill":true}}
+j53	verdict	%T = ..x\n"x": 1, "a": {"x": 2, "b": %T}	{}	{"verdict":"error","opts":{"partial":true}}
+j54	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"valid"}
+j55	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+j56	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+j57	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"invalid"}
+j58	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+j59	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
 mb0	verdict	"b": maybe($.gone)	{}	{"verdict":"valid"}
 mb1	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"noFill":true}}
 mb2	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"partial":true}}
