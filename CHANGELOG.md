@@ -20,15 +20,24 @@ Ruling 17 of the design note's §7.
   stand, whether or not anything reads it, as both ports answer:
   `%T = 1 & 2` beside `v: 1` is an `error`. A hole or a `key(n)` waits
   for the use that places it, so each body is read with the parts that
-  hold one as `any` (`Val.unplaced`, over `Val.holdsHole` and
-  `Val.holdsKey`): a conflict beside a hole is still an `error`, and a
-  body that names a template stands. A name a source publishes is read
-  where a destructure takes it, so not alone.
-- `spec/Oracle.lean`: `aliasCases` gains twenty-two cases, a dead or
+  hold one as `any` (`Val.unplaced`, over `Val.waits`, which leaves out
+  the hole and the `key(n)` an `each` or a `pack` binds in its
+  template): a conflict beside a hole is still an `error`, and a body
+  that names a template stands. A call or a trial that waits is `nil`
+  where an argument both ports read as written doesn't stand, a call's
+  own, a size, a count, `must`'s condition, or the data, scrutinee or
+  source of `each`, `match` and `filter`, so `%T = contains(upper(_),
+  1 & 2)` is an `error`, and in a disjunction it's an arm that dies. A
+  name a source publishes is read where a destructure takes it, so not
+  alone.
+- `spec/Oracle.lean`: `aliasCases` gains forty cases, a dead or
   ill-formed body alone, beside a name the schema uses, inside a
   recursive body and beside a hole or a `key(n)`, an error, and a body
   that stands, a literal short of its size, a template with a hole, a
-  body that names one and a call over a `key(n)` beside them, not.
+  body that names one and a call over a `key(n)` beside them, not; and
+  a waiting call or trial over a conflict its arguments read, an
+  error, over one only a trial or a template holds, not, and an `each`
+  or a `pack` over data written in place, read whole.
   Both ports answer every row as the definition does. A body that is
   an unbuilt call, `%T = add(1)`, or the literal `nil` holds no row:
   both ports answer it `invalid`, by the split #426 tracks, where the

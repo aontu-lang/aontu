@@ -823,10 +823,12 @@ each stands here until the phase that encodes it lands.
    (`Decls.readU`), as the name and as the body itself, each part that
    holds a hole or a `key(n)` read as `any` while it waits for the use
    that places it (`Val.unplaced`), so that a conflict beside one is
-   read and a body that names one waits too, and a name a source
-   publishes waits for the destructure that takes it; and
-   `Decls.illFormedR` makes the document an error where a body doesn't
-   stand. Twenty-two cases of the alias fragment hold it, and both
+   read and a body that names one waits too, a waiting call or trial
+   read as `nil` where an argument both ports read as written doesn't
+   stand, a template's hole and `key(n)` its member's (`Val.waits`),
+   and a name a source publishes waits for the destructure that takes
+   it; and `Decls.illFormedR` makes the document an error where a body
+   doesn't stand. Forty cases of the alias fragment hold it, and both
    ports answer every one as the definition does (#417).
 18. **A marked list element.** Raised 2026-10-21 by ruling 10's rows
    (#421). Both ports leave a `hide()` or `type()` element of a list out

@@ -4410,13 +4410,27 @@ waits for the use that places it, so the check reads each part that
 holds one as `any` (`Val.unplaced`), in every body at once. So
 `%T = upper(_) & (1 & 2)` is still an `error` for the conflict beside
 the hole, and `%T = %U` beside `%U = upper(_)` is not, as both engines
-answer. A name a source publishes is read where a destructure takes
-it, so not here:
+answer.
+
+A call or a trial that waits for its hole still reads the arguments
+both engines read as written: a call's own, a size, the count of `nof`
+and `contains`, the condition of `must`, and the data, scrutinee or
+source of `each`, `match` and `filter`. Where one of them doesn't
+stand, read against the bodies with each waiting part as `any`, the
+call is `nil`. So `%T = contains(upper(_), 1 & 2)` is an `error`, and
+`add(upper(_), 1 & 2) | 3` holds an arm that dies. A trial's branches
+and a template wait with the call, since the engines read them later,
+so `%T = when(upper(_), 1 & 2)` stands. A template's hole and `key(n)`
+are its member's (`Val.waits`), so the check reads
+`%T = each(["a"], upper(_) & (1 & 2))` whole, an `error`. A name a
+source publishes is read where a destructure takes it, so not here:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.bodyIll (ds : Decls) : Bool :=
-  let du : Decls := ds.map fun d => (d.1, d.2.unplaced)
+  let d0 : Decls := ds.map fun d => (d.1, d.2.unplaced fun _ => false)
+  let ill : Val → Bool := fun t => (normaliseD d0 (d0.readU t)).illFormed
+  let du : Decls := ds.map fun d => (d.1, d.2.unplaced ill)
   du.any fun d => d.1.toList.head? != some '!' &&
     ((normaliseD du (du.readU (.alias d.1))).illFormed || (normaliseD du (du.readU d.2)).illFormed)
 ```
