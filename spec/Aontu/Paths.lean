@@ -288,12 +288,36 @@ formats, each of which maps onto JSON, and text. -/
 def loadExts : List String :=
   ["aontu", "json", "jsonld", "jsonc", "json5", "jsonic", "jsc", "toml", "yaml", "yml", "ini", "txt"]
 
-/-- The name a source written `p` in the source named `src` loads: a
-`./` read from `src`'s own directory, `.aontu` supplied where the last
-step names no extension, and none where it names one no source may be
-loaded with. The document itself is the source named `""`. -/
+/-- A file's steps as both ports read them, `acc` the steps so far, the
+last first: a `.` and an empty step dropped, and a `..` taking back the
+step before it, or kept where there's none to take. -/
+def normSteps : List String → List String → List String
+  | acc, [] => acc.reverse
+  | acc, s :: ss =>
+    if s == "." || s == "" then normSteps acc ss
+    else if s == ".." then
+      match acc with
+      | t :: rest => if t == ".." then normSteps (s :: acc) ss else normSteps rest ss
+      | [] => normSteps [s] ss
+    else normSteps (s :: acc) ss
+
+/-- Whether a load names a module: it's written bare, with no `./`,
+`../` or `/` before it, and its first step holds a dot, a domain. -/
+def moduleRef (p : String) : Bool :=
+  !(p.startsWith "./" || p.startsWith "../" || p.startsWith "/") && ((p.splitOn "/").headD "").contains '.'
+
+/-- The name a source written `p` in the source named `src` loads: read
+from `src`'s own directory, or from the top where `p` begins with `/`,
+as both ports read it, its steps read as `normSteps` reads them, and
+`.aontu` supplied where the last step names no extension. None where
+the last step names one no source may be loaded with, and none for a
+module (`moduleRef`), which the definition doesn't read yet: both ports
+refuse one whose last step names an extension, as a file written
+without `./`. The document itself is the source named `""`. -/
 def loadPath (src p : String) : Option String :=
-  let q := if p.startsWith "./" then src.dropRightWhile (· ≠ '/') ++ p.drop 2 else p
+  let q := "/".intercalate
+    (normSteps [] ((if p.startsWith "/" then [] else (src.splitOn "/").dropLast) ++ p.splitOn "/"))
+  if moduleRef p then none else
   match ((q.splitOn "/").getLast?.getD "").splitOn "." with
   | [_] => some (q ++ ".aontu")
   | parts => if parts.getLast?.getD "" ∈ loadExts then some q else none
@@ -361,15 +385,18 @@ def mlArms (k : String → Option Val) : List (ℕ × Val) → List (ℕ × Val)
 end
 
 /-- A term written in the source named `src` with the sources it loads
-read in, `n` deep: each `@"p"` read as the term the document declares
-for the source it names (`loadPath`, `Decls.source?`), that term's own
-sources read in from there, one level less deep. A source the document
-declares no term for, one no source may be loaded with, and one deeper
-than `n`, so a cycle among them, stays as written: a call the reading
-can't make, which makes the document an `error`. -/
-def Decls.loadIn (ds : Decls) : ℕ → String → Val → Val
-  | 0, _, v => v
-  | n + 1, src, v => v.mapLoads fun p => (loadPath src p).bind fun q => (ds.source? q).map (ds.loadIn n q)
+read in, `n` deep, `seen` the sources it's being read into: each `@"p"`
+read as the term the document declares for the source it names
+(`loadPath`, `Decls.source?`), that term's own sources read in from
+there. A source the document declares no term for, one no source may be
+loaded with, and one `seen` holds, a cycle, stays as written: a load the
+reading can't make, which makes the document an `error`. Each step of a
+chain reads a source not yet seen, so a depth past the number of
+sources reads every chain to its end. -/
+def Decls.loadIn (ds : Decls) : ℕ → List String → String → Val → Val
+  | 0, _, _, v => v
+  | n + 1, seen, src, v => v.mapLoads fun p => (loadPath src p).bind fun q =>
+    if q ∈ seen then none else (ds.source? q).map (ds.loadIn n (q :: seen) q)
 
 /-- Whether a declaration's name is a source's: `@` and the name it's
 loaded by. -/
@@ -385,8 +412,60 @@ bodies and its schema read in from the document itself, and the
 sources no longer declared, so that a source nothing loads is no part
 of the document. -/
 def Decls.loaded (ds : Decls) (S : Val) : Decls × Val :=
-  ((ds.filter fun d => !sourceName d.1).map fun d => (d.1, ds.loadIn (ds.sourceCount + 1) "" d.2),
-    ds.loadIn (ds.sourceCount + 1) "" S)
+  ((ds.filter fun d => !sourceName d.1).map fun d => (d.1, ds.loadIn (ds.sourceCount + 1) [] "" d.2),
+    ds.loadIn (ds.sourceCount + 1) [] "" S)
+
+mutual
+/-- Whether a term holds a load, at any depth: once the sources are read
+in, one the reading couldn't make. -/
+def Val.holdsLoad : Val → Bool
+  | .call .load _ => true
+  | .call _ args => hlItems args
+  | .len c => c.holdsLoad
+  | .map fs spread _ => hlFields fs || hlSpread spread
+  | .list items spread _ => hlItems items || hlSpread spread
+  | .or arms => hlArms arms
+  | .pref _ x => x.holdsLoad
+  | .meet a b => a.holdsLoad || b.holdsLoad
+  | .nof n cs => n.holdsLoad || hlItems cs
+  | .must c _ => c.holdsLoad
+  | .when c t e => c.holdsLoad || t.holdsLoad || hlSpread e
+  | .contains c n => c.holdsLoad || n.holdsLoad
+  | .rest t cs => t.holdsLoad || hlCovers cs
+  | .select s arms d => s.holdsLoad || hlPairs arms || hlSpread d
+  | .filter s c => s.holdsLoad || c.holdsLoad
+  | .ride _ v _ => v.holdsLoad
+  | _ => false
+
+def hlFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.holdsLoad || hlFields fs
+
+def hlItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.holdsLoad || hlItems vs
+
+def hlSpread : Option Val → Bool
+  | none => false
+  | some s => s.holdsLoad
+
+def hlArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.holdsLoad || hlArms arms
+
+def hlPairs : List (Val × Val) → Bool
+  | [] => false
+  | (p, r) :: ps => p.holdsLoad || r.holdsLoad || hlPairs ps
+
+def hlCovers : List Cover → Bool
+  | [] => false
+  | (c, k, m) :: cs => hlSpread c || hlSpread k || hlSpread m || hlCovers cs
+end
+
+/-- Whether a document, its sources read in, still holds a load, in its
+schema or in a body: one the reading couldn't make. -/
+def Decls.loadsLeft (ds : Decls) (S : Val) : Bool :=
+  (ds.loaded S).2.holdsLoad || (ds.loaded S).1.any fun d => d.2.holdsLoad
 
 /-- A variable's step: the text of the scalar the calling program binds
 it to, a string as itself, a number as `Number.text` writes it and a
@@ -1397,13 +1476,16 @@ def vetL (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
 
 /-- The verdict of a document with paths: the document with the sources
 it loads read in where it loads them (`Decls.loaded`), and its verdict
-as `VetL` gives it. -/
+as `VetL` gives it; an `error` where a load is left the reading couldn't
+make (`Decls.loadsLeft`), wherever it stands, since both ports read
+every load before anything else reads the document, so a selection
+that leaves the load's arm out doesn't excuse it. -/
 def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  VetL m (ds.loaded S).1 (ds.loaded S).2 j v
+  if ds.loadsLeft S then v = .error else VetL m (ds.loaded S).1 (ds.loaded S).2 j v
 
 /-- The verdict with paths, computed. -/
 def vetP (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
-  vetL m (ds.loaded S).1 (ds.loaded S).2 j
+  if ds.loadsLeft S then .error else vetL m (ds.loaded S).1 (ds.loaded S).2 j
 
 /-! ## Paths read as names keep a term checkable -/
 
@@ -1936,25 +2018,28 @@ theorem Decls.source?_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Chec
   exact hb d (List.mem_of_find?_eq_some hd)
 
 theorem Decls.loadIn_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
-    ∀ (n : ℕ) (src : String) {v : Val}, v.CheckableA → (ds.loadIn n src v).CheckableA
-  | 0, _, _, h => h
-  | n + 1, src, _, h => by
+    ∀ (n : ℕ) (seen : List String) (src : String) {v : Val}, v.CheckableA → (ds.loadIn n seen src v).CheckableA
+  | 0, _, _, _, h => h
+  | n + 1, seen, src, _, h => by
     simp only [Decls.loadIn]
     refine mapLoads_checkableA (fun p w hw => ?_) h
-    simp only [Option.bind_eq_some_iff, Option.map_eq_some_iff] at hw
-    obtain ⟨q, -, t, ht, rfl⟩ := hw
-    exact Decls.loadIn_checkableA hb n q (Decls.source?_checkableA hb ht)
+    simp only [Option.bind_eq_some_iff] at hw
+    obtain ⟨q, -, hq⟩ := hw
+    split at hq
+    · exact nomatch hq
+    · obtain ⟨t, ht, rfl⟩ := Option.map_eq_some_iff.mp hq
+      exact Decls.loadIn_checkableA hb n (q :: seen) q (Decls.source?_checkableA hb ht)
 
 theorem Decls.loaded_bodies_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
     ∀ d, d ∈ (ds.loaded S).1 → d.2.CheckableA := by
   intro d hd
   simp only [Decls.loaded, List.mem_map, List.mem_filter] at hd
   obtain ⟨d', ⟨hd', -⟩, rfl⟩ := hd
-  exact Decls.loadIn_checkableA hb _ _ (hb d' hd')
+  exact Decls.loadIn_checkableA hb _ _ _ (hb d' hd')
 
 theorem Decls.loaded_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (ds.loaded S).2.CheckableA :=
-  Decls.loadIn_checkableA hb _ _ hS
+  Decls.loadIn_checkableA hb _ _ _ hS
 
 theorem mem_ptdFields {pos : List Seg} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
     (k, o, w) ∈ ptdFields pos fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.placedT (pos ++ [.key k]) := by
@@ -2280,8 +2365,13 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
 /-- `vetP` computes `VetP` on every document whose bodies, sources and
 schema read no pattern and no format. -/
 theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
-  vetL_iff (Decls.loaded_bodies_checkableA hb) (Decls.loaded_checkableA hb hS) v
+    (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v := by
+  unfold vetP VetP
+  by_cases hl : ds.loadsLeft S = true
+  · rw [if_pos hl, if_pos hl]
+    exact eq_comm
+  · rw [if_neg hl, if_neg hl]
+    exact vetL_iff (Decls.loaded_bodies_checkableA hb) (Decls.loaded_checkableA hb hS) v
 
 /-! ## The output with paths -/
 
@@ -2324,13 +2414,14 @@ def outputL (ds : Decls) (S : Val) : Option Data :=
   outputA (ds.preparedS S).1 (ds.preparedS S).2
 
 /-- What a document with paths generates: what the document with its
-sources read in generates (`Decls.loaded`, `OutputL`). -/
+sources read in generates (`Decls.loaded`, `OutputL`), where it holds
+no load the reading couldn't make. -/
 def OutputP (ds : Decls) (root : Data) (S : Val) (j : Data) : Prop :=
-  OutputL (ds.loaded S).1 root (ds.loaded S).2 j
+  ds.loadsLeft S = false ∧ OutputL (ds.loaded S).1 root (ds.loaded S).2 j
 
 /-- What a document with paths generates, computed. -/
 def outputP (ds : Decls) (S : Val) : Option Data :=
-  outputL (ds.loaded S).1 (ds.loaded S).2
+  if ds.loadsLeft S then none else outputL (ds.loaded S).1 (ds.loaded S).2
 
 /-- `outputL` computes `OutputL` where the reading of the placed
 document keeps the alias-cycle rule and the checker can read its bodies
@@ -2348,6 +2439,12 @@ theorem outputL_iff {ds : Decls} {S : Val} {root : Data}
 the document with its sources read in. -/
 theorem outputP_iff {ds : Decls} {S : Val} {root : Data} {j : Data}
     (h : outputL (ds.loaded S).1 (ds.loaded S).2 = some j ↔ OutputL (ds.loaded S).1 root (ds.loaded S).2 j) :
-    outputP ds S = some j ↔ OutputP ds root S j := h
+    outputP ds S = some j ↔ OutputP ds root S j := by
+  unfold outputP OutputP
+  by_cases hl : ds.loadsLeft S = true
+  · rw [if_pos hl]
+    exact ⟨fun h' => (nomatch h'), fun ⟨h1, _⟩ => by rw [hl] at h1; exact nomatch h1⟩
+  · rw [if_neg hl]
+    exact ⟨fun h' => ⟨by simpa using hl, h.mp h'⟩, fun h' => h.mpr h'.2⟩
 
 end Aontu

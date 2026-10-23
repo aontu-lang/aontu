@@ -1208,3 +1208,21 @@ lf59	verdict	(@"__FIXTURES__/list.json") & ({"x": 1})	{}	{"verdict":"error","opt
 lf60	verdict	"x": @"__FIXTURES__/foo"	{}	{"verdict":"valid"}
 lf61	verdict	"x": @"__FIXTURES__/foo"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 lf62	verdict	"x": @"__FIXTURES__/foo"	{}	{"verdict":"valid","opts":{"partial":true}}
+lf63	verdict	@"__FIXTURES__/defload/up.aontu"	{}	{"verdict":"valid"}
+lf64	verdict	@"__FIXTURES__/defload/up.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lf65	verdict	@"__FIXTURES__/defload/up.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lf66	verdict	@"__FIXTURES__/defload/up.aontu"	{"x": {"f": 12}}	{"verdict":"invalid"}
+lf67	verdict	@"__FIXTURES__/defload/up.aontu"	{"x": {"f": 12}}	{"verdict":"invalid","opts":{"noFill":true}}
+lf68	verdict	@"__FIXTURES__/defload/up.aontu"	{"x": {"f": 12}}	{"verdict":"invalid","opts":{"partial":true}}
+lf69	verdict	@"__FIXTURES__/defload/bare.aontu"	{}	{"verdict":"valid"}
+lf70	verdict	@"__FIXTURES__/defload/bare.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lf71	verdict	@"__FIXTURES__/defload/bare.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lf72	verdict	@"__FIXTURES__/defload/bare.aontu"	{"x": {"l": 2}}	{"verdict":"invalid"}
+lf73	verdict	@"__FIXTURES__/defload/bare.aontu"	{"x": {"l": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+lf74	verdict	@"__FIXTURES__/defload/bare.aontu"	{"x": {"l": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+lf75	verdict	"x": match(1, 1, 7, @"./missing.aontu")	{}	{"verdict":"error"}
+lf76	verdict	"x": match(1, 1, 7, @"./missing.aontu")	{}	{"verdict":"error","opts":{"noFill":true}}
+lf77	verdict	"x": match(1, 1, 7, @"./missing.aontu")	{}	{"verdict":"error","opts":{"partial":true}}
+lf78	verdict	"x": @"foo.aontu"	{}	{"verdict":"error"}
+lf79	verdict	"x": @"foo.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lf80	verdict	"x": @"foo.aontu"	{}	{"verdict":"error","opts":{"partial":true}}

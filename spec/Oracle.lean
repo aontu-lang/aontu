@@ -1642,7 +1642,10 @@ def loadCases : List (Decls × Val × Data) :=
       ("@" ++ fx "cycle_b.aontu", m [("y", ld "./cycle_b.aontu"), ("z", ld "./cycle_a.aontu")]),
       ("@" ++ fx "vocab.json", (Data.map [("a", j 1), ("b", .map [("c", j 2)])]).term),
       ("@" ++ fx "list.json", (Data.list [.str "a", j 1, .bool true]).term),
-      ("@" ++ fx "notes.txt", str "These are notes, not a document.\n")]
+      ("@" ++ fx "notes.txt", str "These are notes, not a document.\n"),
+      ("@" ++ fx "defload/up.aontu", m [("x", ld "../foo.aontu")]),
+      ("@" ++ fx "defload/bare.aontu", m [("x", ld "deep/leaf")]),
+      ("@" ++ fx "defload/deep/leaf.aontu", m [("l", int 1)])]
   [(files, ld (fx "foo.aontu"), dm []),
     (files, ld (fx "foo.aontu"), dm [("f", j 12)]),
     (files, .meet (ld (fx "foo.aontu")) (m [("c", int 3)]), dm []),
@@ -1663,7 +1666,13 @@ def loadCases : List (Decls × Val × Data) :=
     (files, m [("r", ld (fx "refs.aontu"))], dm []),
     (files, .meet (ld (fx "spread.aontu")) (m [("three", m [])]), dm [("three", dm [("active", .bool false)])]),
     (files, .meet (ld (fx "list.json")) (m [("x", int 1)]), dm []),
-    (files, m [("x", ld (fx "foo"))], dm [])]
+    (files, m [("x", ld (fx "foo"))], dm []),
+    (files, ld (fx "defload/up.aontu"), dm []),
+    (files, ld (fx "defload/up.aontu"), dm [("x", dm [("f", j 12)])]),
+    (files, ld (fx "defload/bare.aontu"), dm []),
+    (files, ld (fx "defload/bare.aontu"), dm [("x", dm [("l", j 2)])]),
+    (files, m [("x", .select (int 1) [(int 1, int 7)] (some (ld "./missing.aontu")))], dm []),
+    (files, m [("x", ld "foo.aontu")], dm [])]
 
 theorem loadCases_checkable : ∀ c ∈ loadCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
