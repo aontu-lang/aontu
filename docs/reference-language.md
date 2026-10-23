@@ -1572,8 +1572,11 @@ reference's copy, reads such a path. Both engines read a copy's
 relative paths where the copy stands or where they're written by the
 order the document writes the two: with `x: 1`, `a: {x: 2, b: %T}`
 and `%T = {v: ..x}`, `a.b.v` is 1 where the alias comes first and 2
-where it comes after, and `aontu vet` reads 2 in either order, which
-[#504](https://github.com/aontu-lang/aontu/issues/504) tracks. The
+where it comes after, and `aontu vet` reads 2 in either order. The
+engines split on a path in a call's argument. TypeScript reads it where
+it's written in either order, under `aontu vet` too, and Go reads it as
+it reads any other.
+[#504](https://github.com/aontu-lang/aontu/issues/504) tracks both. The
 definition makes each relative path absolute where it stands, by
 `Val.placed` and `Decls.placed` in
 [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so a use or a

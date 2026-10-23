@@ -1003,15 +1003,32 @@ theorem key_path_verdict_exact : ∀ c ∈ keyPathCases, ∀ (m : Mode) (v : Ver
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (keyPathCases_checkable c hc).1 (keyPathCases_checkable c hc).2 v
 
+/-- A body read at the alias's own place, `%` and its name as a key at
+the top, used or not: an error where a path names nothing there or meets
+a conflict there, whatever its uses read, and a body that is itself a
+relative path read there at each use too. Both ports read these alike in
+either order, so the rows hold them with each declaration written before
+the schema and again after it. -/
+def aliasPlaceCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  [([("T", m [("v", rel 2 ["x"])])], m [("a", m [("x", int 2), ("b", .alias "T")])], .map []),
+    ([("T", m [("v", .meet (rel 2 ["x"]) (int 1))])], m [("x", int 2), ("a", m [("x", int 1), ("b", .alias "T")])],
+      .map []),
+    ([("T", m [("v", rel 2 ["x"])])], m [("y", int 1)], .map []),
+    ([("T", m [("v", rel 1 ["w"])])], m [("a", m [("b", .meet (.alias "T") (m [("w", int 3)]))])], .map []),
+    ([("T", rel 2 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map []),
+    ([("T", rel 1 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map [("a", .map [("b", j 1)])]),
+    ([("T", rel 1 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map [("a", .map [("b", j 2)])])]
+
 /-- Relative paths, made absolute where each stands: a sibling, a climb
 of two steps and three, a key in quotes, an index into a sibling list,
 a list's element reading its sibling, a chain of relative paths, a
 relative path in a call, and a body's, read at the body's own place,
-`%` and its name as a key at the top, as both ports place it. A body
-is read there used or not, an error where a path names nothing there or
-meets a conflict there whatever its uses read, and a body that is itself
-a relative path is read there at each use too: both ports read these so
-in any order the document writes the alias and its use. -/
+`%` and its name as a key at the top, as both ports place it, with
+`aliasPlaceCases`. -/
 def relPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1032,15 +1049,8 @@ def relPathCases : List (Decls × Val × Data) :=
     ([], m [("a", m [("x", int 1), ("y", rel 1 ["x"]), ("z", rel 1 ["y"])])], .map [("a", .map [("z", j 1)])]),
     ([], m [("a", m [("x", int 1), ("y", .call .plus [rel 1 ["x"], int 1])])], .map [("a", .map [("y", j 2)])]),
     ([("T", m [("y", rel 2 ["x"])])], m [("x", int 1), ("a", .alias "T")], .map [("a", .map [("y", j 1)])]),
-    ([("T", m [("y", rel 1 ["x"])])], m [("a", .meet (m [("x", int 1)]) (.alias "T"))], .map [("a", .map [("y", j 1)])]),
-    ([("T", m [("v", rel 2 ["x"])])], m [("a", m [("x", int 2), ("b", .alias "T")])], .map []),
-    ([("T", m [("v", .meet (rel 2 ["x"]) (int 1))])], m [("x", int 2), ("a", m [("x", int 1), ("b", .alias "T")])],
-      .map []),
-    ([("T", m [("v", rel 2 ["x"])])], m [("y", int 1)], .map []),
-    ([("T", m [("v", rel 1 ["w"])])], m [("a", m [("b", .meet (.alias "T") (m [("w", int 3)]))])], .map []),
-    ([("T", rel 2 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map []),
-    ([("T", rel 1 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map [("a", .map [("b", j 1)])]),
-    ([("T", rel 1 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map [("a", .map [("b", j 2)])])]
+    ([("T", m [("y", rel 1 ["x"])])], m [("a", .meet (m [("x", int 1)]) (.alias "T"))], .map [("a", .map [("y", j 1)])])] ++
+  aliasPlaceCases
 
 theorem relPathCases_checkable : ∀ c ∈ relPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -1744,9 +1754,11 @@ theorem genTemplate_verdict_exact : ∀ c ∈ genTemplateCases, ∀ (m : Mode) (
 /-- The `paths` rows: each case's declarations and schema as one
 document, a map's braces dropped since neither CLI reads a braced map
 after a declaration, in the three modes, with the one class `vetP`
-gives. A source a case declares, `@` and its name, is a file the row
-loads, which the row doesn't write. -/
-def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) : IO Unit := do
+gives. The declarations come first, or after the schema where
+`declsLast` asks. A source a case declares, `@` and its name, is a file
+the row loads, which the row doesn't write. -/
+def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) (declsLast : Bool := false) :
+    IO Unit := do
   let mut i := 0
   for c in cases do
     let mut lines : List String := []
@@ -1755,7 +1767,8 @@ def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) :
       lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
     let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
     let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
-    let src := "\\n".intercalate (lines ++ [match c.2.1 with | .map _ _ _ => (ssrc.drop 1).dropRight 1 | _ => ssrc])
+    let body := match c.2.1 with | .map _ _ _ => (ssrc.drop 1).dropRight 1 | _ => ssrc
+    let src := "\\n".intercalate (if declsLast then body :: lines else lines ++ [body])
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
         (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
       IO.println (tag ++ toString i ++ "\tverdict\t" ++ src ++ "\t" ++ dsrc ++ "\t{\"verdict\":\""
@@ -4107,7 +4120,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
     IO.println "# Paths through the riders follow in rows q0 on, which a path reads through,"
     IO.println "# and key(n) reached through a path or a name, read where it lands, in rows r0 on."
-    IO.println "# Relative paths, made absolute where each stands, follow in rows j0 on, and"
+    IO.println "# Relative paths, made absolute where each stands, follow in rows j0 on, with"
+    IO.println "# the bodies read at an alias's own place written again after the schema in"
+    IO.println "# rows jl0 on, and"
     IO.println "# maybe, absence where all that is wrong with a path is that it names nothing,"
     IO.println "# in rows mb0 on, and pref, each literal a preference and each preference a"
     IO.println "# rank weaker, in rows pf0 on. Paths into a call's output, which resolve in the"
@@ -4128,6 +4143,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
     pathRows "j" relPathCases
+    pathRows "jl" aliasPlaceCases (declsLast := true)
     pathRows "mb" maybeCases
     pathRows "pf" prefCases
     pathRows "pc" callPathCases

@@ -8258,8 +8258,10 @@ read it where the copy stands or where it's written by the order the
 document writes the two: with `x: 1` at the top, `a: {x: 2, b: %T}`
 and `%T = {v: ..x}`, they set `a.b.v` to 1, the top's `x`, where the
 alias comes first, as the definition does, and to 2, `a`'s, where it
-comes after, and `aontu vet` reads 2 in either order, which #504
-tracks.
+comes after, and `aontu vet` reads 2 in either order. The engines split
+on a path in a call's argument. TypeScript reads it where it's written
+in either order, and Go reads it as it reads any other. #504 tracks
+both.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
