@@ -879,7 +879,7 @@ encodes it lands.
    both admit, and `upper(_) & "a"` admits only `"A"`, which `"a"`
    refuses. Nor is it associative: `upper(_) & "a" & "a"` is a conflict
    in both ports, since the first `"a"` fills the hole and the second
-   meets `"A"`, while `upper(_) & ("a" & "a")` is `"A"`. And `vet`
+   meets `"A"`. And `vet`
    reads `upper(_)` as admitting anything, `v: 1` among it. Either the
    meet takes the fill as a rule of its own, giving up
    `admits_meet_iff` and the order on terms built from it, or the fill
@@ -889,9 +889,24 @@ encodes it lands.
    member (`resolveD` with `b`), in the order the document groups it,
    and a hole alone admits every value, as it does now. The definition
    recommends the second, which keeps `&` a meet, matches both ports on
-   every shape probed, `vet` included, and reuses the binding that
-   `each` and `pack` already read. No generated row holds a hole outside
-   a template until it is ruled.
+   every shape with one peer, `vet` included, and reuses the binding
+   that `each` and `pack` already read. No generated row holds a hole
+   outside a template until it is ruled.
+
+   Probed again on 2026-10-23, both ports read a conjunction that holds
+   such a call in the order it's written, and parentheses change
+   nothing, so `upper(_) & ("a" & "a")` is a conflict too. A call
+   written after a peer takes that peer and meets the rest with its
+   output. Written first, a call on a scalar takes the next conjunct and
+   meets the rest, while a generator takes every later conjunct into its
+   data. So `each(_, upper(_)) & ["a"] & ["A"]` is an error where
+   `["a"] & each(_, upper(_)) & ["A"]` is `["A"]`, and `vet`, which
+   meets the data last, reads `o: each(_, {v: _}) & ["a"]` against
+   `{"o": [{"v": "a"}]}` as `invalid`, which #512 tracks. The
+   recommendation reads a conjunction as it groups, so it parts from
+   both ports wherever a call meets more than one peer. A call over a bag whose hole a peer fills,
+   `sum(_) & [1, 2]`, is `3` in Go and never generated in TypeScript,
+   which #511 tracks, so a row could hold no such call either.
 22. **A path into a generator's output.** Raised 2026-10-22 by P9's
    `key(n)` slice. Both ports read a key a path reaches where the path
    lands, so `a: {x: key()}` and `b: $.a` give `b: {x: "b"}`, and a
