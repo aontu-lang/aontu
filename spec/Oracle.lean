@@ -428,8 +428,9 @@ def verdictName : Verdict → String
 container literal, the size's upper half refusing the literal's count or
 admitting it, a literal short of its size, and members that arrive by
 the data or by a second literal, and an optional member whose value
-generates an empty map or list, which isn't counted (decision 19). No
-size is a disjunction, which both ports refuse as an argument (#413). -/
+generates an empty map or list, which isn't counted (decision 19); and
+a size that holds a disjunction or a preference, alone and met with a
+literal, ill-formed (decision 16). -/
 def lenCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
@@ -458,7 +459,15 @@ def lenCases : List (Val × Data) :=
     (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, mp [])]), .map [("x", j 1)]),
     (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, ls [])]), .map [("x", j 1)]),
     (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, mp [("z", false, int 1)])]),
-      .map [("x", j 1)])]
+      .map [("x", j 1)]),
+    (.len (.or [(0, int 1), (0, int 3)]), .list [j 1]),
+    (.len (.or [(0, int 1), (0, int 3)]), .list [j 1, j 2]),
+    (.meet (.len (.or [(0, int 1), (0, int 3)])) (ls [int 1]), .list [j 1]),
+    (.len (.or [(0, .min (nb 1)), (0, .max (nb 3))]), .list [j 1]),
+    (.len (.pref 1 (int 1)), .list [j 1]),
+    (.len (.or [(1, int 1), (0, int 3)]), .list [j 1]),
+    (.len (.meet (.min (nb 1)) (.or [(0, int 1), (0, int 3)])), .list [j 1]),
+    (.len (.meet (.min (nb 1)) (.max (nb 3))), .list [j 1])]
 
 theorem lenCases_checkable : ∀ c ∈ lenCases, (vetDoc c).1.CheckableA := by decide
 

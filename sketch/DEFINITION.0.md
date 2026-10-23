@@ -568,8 +568,9 @@ each stands here until the phase that encodes it lands.
    (`admits_meet`), since `len(neq(2)) & {x: 1, y: 2}` admits a map of
    three members; an ill-formed term admits it too, as a preference
    clash does. The verdict fragment gains 48 rows, l0 on, which both
-   ports answer as the definition does. They hold no disjunctive size,
-   which both ports refuse as an argument (decision 16).
+   ports answer as the definition does. A disjunctive size, which both
+   ports refuse as an argument, is ill-formed since decision 16 was
+   built on 2026-10-23, with rows of its own.
 10. **The marks in the definition.** Raised 2026-10-19 by P5.
    `type()` and `hide()` are no terms of the definition, which holds
    semantics only (§1), yet the `gen` profile of `subsume` compares
@@ -793,7 +794,11 @@ each stands here until the phase that encodes it lands.
    ill-formed, an `error` whatever it meets, as both ports answer; the
    ports stand. A size outside the integer domain, such as `len(any)`
    or `len(string)`, admits nothing in both ports, as decision 28 has
-   it.
+   it. **Built 2026-10-23**: `Val.sizeIll` in `spec/Aontu/Verdict.lean`
+   holds where a size holds a disjunction or a preference, and
+   `Val.illFormed` reads such a size as ill-formed. Rows l57 to l80
+   hold it, and both ports answer every one as the definition does
+   (#413).
 17. **A declaration nothing reads.** Raised 2026-10-21 by decision 14's
    rows (#417). Both ports evaluate every alias declaration, at `$.%T`,
    whether or not anything refers to it, so `%T = 1 & 2` beside `v: 1`

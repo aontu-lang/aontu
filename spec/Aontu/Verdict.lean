@@ -2551,14 +2551,26 @@ def sizeClash (cs : List Val) : Bool :=
         | _ => false
     else false
 
+/-- Whether a size, the argument of `len`, holds a disjunction or a
+preference: `len` takes a conjunction of integers, bounds, exclusions
+and multiples, as both ports read it (decision 16 of the design note's
+§7). -/
+def Val.sizeIll : Val → Bool
+  | .or _ => true
+  | .pref _ _ => true
+  | .meet a b => a.sizeIll || b.sizeIll
+  | _ => false
+
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, a
-preference clash, a size the meet's container literal breaks, or a
-call the reading could not make. A `+` that waits stands where its
-operands do, and a `pref` that waits where its argument does. -/
+preference clash, a size the meet's container literal breaks or that
+holds a disjunction or a preference, or a call the reading could not
+make. A `+` that waits stands where its operands do, and a `pref` that
+waits where its argument does. -/
 def Val.illFormed : Val → Bool
   | .nil => true
+  | .len c => c.sizeIll
   | .map fs _ _ => illFields fs
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
@@ -2577,6 +2589,7 @@ stands in having read its sizes once, whole. -/
 def illChain : Val → Bool
   | .meet a b => illChain a || illChain b
   | .nil => true
+  | .len c => c.sizeIll
   | .map fs _ _ => illFields fs
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms

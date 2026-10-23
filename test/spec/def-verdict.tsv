@@ -246,6 +246,30 @@ l53	verdict	v: (len(max(1))) & ({"x": 1, "y"?: []})	v: {"x": 1}	{"verdict":"vali
 l54	verdict	v: (len(max(1))) & ({"x": 1, "y"?: {"z": 1}})	v: {"x": 1}	{"verdict":"error"}
 l55	verdict	v: (len(max(1))) & ({"x": 1, "y"?: {"z": 1}})	v: {"x": 1}	{"verdict":"error","opts":{"noFill":true}}
 l56	verdict	v: (len(max(1))) & ({"x": 1, "y"?: {"z": 1}})	v: {"x": 1}	{"verdict":"error","opts":{"partial":true}}
+l57	verdict	v: len((1) | (3))	v: [1]	{"verdict":"error"}
+l58	verdict	v: len((1) | (3))	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+l59	verdict	v: len((1) | (3))	v: [1]	{"verdict":"error","opts":{"partial":true}}
+l60	verdict	v: len((1) | (3))	v: [1, 2]	{"verdict":"error"}
+l61	verdict	v: len((1) | (3))	v: [1, 2]	{"verdict":"error","opts":{"noFill":true}}
+l62	verdict	v: len((1) | (3))	v: [1, 2]	{"verdict":"error","opts":{"partial":true}}
+l63	verdict	v: (len((1) | (3))) & ([1])	v: [1]	{"verdict":"error"}
+l64	verdict	v: (len((1) | (3))) & ([1])	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+l65	verdict	v: (len((1) | (3))) & ([1])	v: [1]	{"verdict":"error","opts":{"partial":true}}
+l66	verdict	v: len((min(1)) | (max(3)))	v: [1]	{"verdict":"error"}
+l67	verdict	v: len((min(1)) | (max(3)))	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+l68	verdict	v: len((min(1)) | (max(3)))	v: [1]	{"verdict":"error","opts":{"partial":true}}
+l69	verdict	v: len(*(1))	v: [1]	{"verdict":"error"}
+l70	verdict	v: len(*(1))	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+l71	verdict	v: len(*(1))	v: [1]	{"verdict":"error","opts":{"partial":true}}
+l72	verdict	v: len(*(1) | (3))	v: [1]	{"verdict":"error"}
+l73	verdict	v: len(*(1) | (3))	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+l74	verdict	v: len(*(1) | (3))	v: [1]	{"verdict":"error","opts":{"partial":true}}
+l75	verdict	v: len((min(1)) & ((1) | (3)))	v: [1]	{"verdict":"error"}
+l76	verdict	v: len((min(1)) & ((1) | (3)))	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+l77	verdict	v: len((min(1)) & ((1) | (3)))	v: [1]	{"verdict":"error","opts":{"partial":true}}
+l78	verdict	v: len((min(1)) & (max(3)))	v: [1]	{"verdict":"valid"}
+l79	verdict	v: len((min(1)) & (max(3)))	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
+l80	verdict	v: len((min(1)) & (max(3)))	v: [1]	{"verdict":"valid","opts":{"partial":true}}
 h0	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid"}
 h1	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
 h2	verdict	v: {"a": hide(integer)}	v: {"a": 1}	{"verdict":"valid","opts":{"partial":true}}
