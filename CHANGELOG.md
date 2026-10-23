@@ -29,7 +29,10 @@ Ruling 17 of the design note's §7.
   recursive body and beside a hole or a `key(n)`, an error, and a body
   that stands, a literal short of its size, a template with a hole, a
   body that names one and a call over a `key(n)` beside them, not.
-  Both ports answer every row as the definition does.
+  Both ports answer every row as the definition does. A body that is
+  an unbuilt call, `%T = add(1)`, or the literal `nil` holds no row:
+  both ports answer it `invalid`, by the split #426 tracks, where the
+  definition reads it as it reads the schema's own, an `error`.
 - The tutorial quotes `Decls.illFormedR` as it now stands, and
   `Decls.bodyIll`; the definition's README no longer lists the gap
   (#417).
