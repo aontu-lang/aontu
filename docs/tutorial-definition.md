@@ -5428,7 +5428,13 @@ a selection whose arms hold a key, a call or a generator whose arguments
 hold one, and a `filter` whose condition does stay as written too, so
 that a path copies them to be read where it lands. A size over a term
 outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
-as a bound over one is (`bndOf`), so that both refuse at the meet. -/
+as a bound over one is (`bndOf`), so that both refuse at the meet. A
+trial both ports build as they read it is `nil` where an argument they
+read then is a conflict (`Decls.clashes`): a size, `must`'s condition
+and the count of `nof` and of `contains`; and so is a `filter` whose
+source and a selection whose scrutinee are dead, written `nil` or not.
+So such a trial is an error where it stands, an arm holding it drops,
+and a spread holding it refuses each member it's tried on. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
@@ -5436,7 +5442,8 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let d' := resolveSpread ds b here d
     match genD ds s' with
     | some x => if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
-    | none => if (normaliseD ds s').isAbsent then .absent else .select s' arms' d'
+    | none =>
+      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil else .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
     if here.isNone && c.holdsKey then .filter s' c else
@@ -5446,7 +5453,45 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     | some (.list xs) => (Data.list (keptAt (fun i x =>
         checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term
     | some _ => .nil
-    | none => if (normaliseD ds s').isAbsent then .absent else .filter s' (resolveD ds none none c)
+    | none =>
+      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
+      else .filter s' (resolveD ds none none c)
+```
+
+Both engines read some of a trial's arguments as they build the trial,
+and a conflict there makes the trial a conflict where it stands: a
+size, the condition of `must`, the count of `nof` and of `contains`,
+the source of `filter` and the scrutinee of `match`. So the reading
+makes such a trial `nil`. Under a key, at an optional key, in a
+generator's instance and in a body nothing reads, `must(1 & 2, "m")` is
+an `error`, as both engines answer. In an arm it drops, so
+`must(1 & 2, "m") | 4` admits `4`, and in a spread it refuses only a
+member it's tried on. The arguments both read later, against a value,
+are read as before: `when(1 & 2, 1)` stands, and `nof(1, 1 & 2)`
+refuses `1` (#525).
+
+A conflict is an argument that's dead in normal form but not written as
+`nil`. Both engines read a size, a condition of `must` or a count
+written as `nil` as a value that admits nothing, so `must(nil, "m")`
+and `len(nil)` refuse `1`, while `must(nil & 1, "m")` is an `error`. A
+`filter` over `nil` and a `match` on it are errors, as any dead source
+or scrutinee is:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.clashes (ds : Decls) : Val → Bool
+  | .nil => false
+  | v => (normaliseD ds v).dead
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+  | .nof n cs =>
+    if ds.clashes (resolveD ds b here n) then .nil else .nof (resolveD ds b here n) (resolveItems ds b here cs)
+  | .must c m => if ds.clashes (resolveD ds b here c) then .nil else .must (resolveD ds b here c) m
+  | .when c t e => .when (resolveD ds b here c) (resolveD ds b here t) (resolveSpread ds b here e)
+  | .contains c n =>
+    if ds.clashes (resolveD ds b here n) then .nil else .contains (resolveD ds b here c) (resolveD ds b here n)
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->

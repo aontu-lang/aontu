@@ -19,8 +19,9 @@
 # error. Regenerate with `make spec`; never edit by hand. The cases the ports
 # do not yet answer this way are listed in spec/ledger.tsv.
 # A spread that selects on key(0), the key of the member it is tried on, or
-# the position of the item, follows in rows y0 on, and contains over a
-# recursive name, which the meet reads as its body, in rows tc0 on.
+# the position of the item, follows in rows y0 on, contains over a recursive
+# name, which the meet reads as its body, in rows tc0 on, and a trial with a
+# dead argument both ports read as they build it in rows te0 on.
 t0	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid"}
 t1	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid","opts":{"noFill":true}}
 t2	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid","opts":{"partial":true}}
@@ -204,15 +205,15 @@ t179	verdict	"a": must({"x": 1}, "m")	{"a": {}}	{"verdict":"invalid","opts":{"pa
 t180	verdict	"a": (must({"x"?: number}, "m")) & ({})	{}	{"verdict":"valid"}
 t181	verdict	"a": (must({"x"?: number}, "m")) & ({})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 t182	verdict	"a": (must({"x"?: number}, "m")) & ({})	{}	{"verdict":"valid","opts":{"partial":true}}
-t183	verdict	"a": must((1) & (2), "m")	{"a": 1}	{"verdict":"invalid"}
-t184	verdict	"a": must((1) & (2), "m")	{"a": 1}	{"verdict":"invalid","opts":{"noFill":true}}
-t185	verdict	"a": must((1) & (2), "m")	{"a": 1}	{"verdict":"invalid","opts":{"partial":true}}
+t183	verdict	"a": must((1) & (2), "m")	{"a": 1}	{"verdict":"error"}
+t184	verdict	"a": must((1) & (2), "m")	{"a": 1}	{"verdict":"error","opts":{"noFill":true}}
+t185	verdict	"a": must((1) & (2), "m")	{"a": 1}	{"verdict":"error","opts":{"partial":true}}
 t186	verdict	"a": must(nil, "m")	{"a": 1}	{"verdict":"invalid"}
 t187	verdict	"a": must(nil, "m")	{"a": 1}	{"verdict":"invalid","opts":{"noFill":true}}
 t188	verdict	"a": must(nil, "m")	{"a": 1}	{"verdict":"invalid","opts":{"partial":true}}
-t189	verdict	"a": must((min(3)) & (max(1)), "m")	{"a": 2}	{"verdict":"invalid"}
-t190	verdict	"a": must((min(3)) & (max(1)), "m")	{"a": 2}	{"verdict":"invalid","opts":{"noFill":true}}
-t191	verdict	"a": must((min(3)) & (max(1)), "m")	{"a": 2}	{"verdict":"invalid","opts":{"partial":true}}
+t189	verdict	"a": must((min(3)) & (max(1)), "m")	{"a": 2}	{"verdict":"error"}
+t190	verdict	"a": must((min(3)) & (max(1)), "m")	{"a": 2}	{"verdict":"error","opts":{"noFill":true}}
+t191	verdict	"a": must((min(3)) & (max(1)), "m")	{"a": 2}	{"verdict":"error","opts":{"partial":true}}
 t192	verdict	"a": nof(1, must(string, "m"), number)	{"a": "x"}	{"verdict":"valid"}
 t193	verdict	"a": nof(1, must(string, "m"), number)	{"a": "x"}	{"verdict":"valid","opts":{"noFill":true}}
 t194	verdict	"a": nof(1, must(string, "m"), number)	{"a": "x"}	{"verdict":"valid","opts":{"partial":true}}
@@ -900,3 +901,87 @@ tc11	verdict	%A = {"next"?: %A}\n"t": (contains(%A, neq(0))) & ([{}])	{}	{"verdi
 tc12	verdict	%A = {"next"?: %A}\n"t": (contains(%A, neq(0))) & ([1])	{}	{"verdict":"error"}
 tc13	verdict	%A = {"next"?: %A}\n"t": (contains(%A, neq(0))) & ([1])	{}	{"verdict":"error","opts":{"noFill":true}}
 tc14	verdict	%A = {"next"?: %A}\n"t": (contains(%A, neq(0))) & ([1])	{}	{"verdict":"error","opts":{"partial":true}}
+te0	verdict	"v": must((1) & (2), "m")	{"v": 1}	{"verdict":"error"}
+te1	verdict	"v": must((1) & (2), "m")	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+te2	verdict	"v": must((1) & (2), "m")	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+te3	verdict	"v": nof((1) & (2), string)	{"v": 1}	{"verdict":"error"}
+te4	verdict	"v": nof((1) & (2), string)	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+te5	verdict	"v": nof((1) & (2), string)	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+te6	verdict	"v": contains(any, (1) & (2))	{"v": 1}	{"verdict":"error"}
+te7	verdict	"v": contains(any, (1) & (2))	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+te8	verdict	"v": contains(any, (1) & (2))	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+te9	verdict	"v": len((1) & (2))	{"v": 1}	{"verdict":"error"}
+te10	verdict	"v": len((1) & (2))	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+te11	verdict	"v": len((1) & (2))	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+te12	verdict	"v": filter((1) & (2), 1)	{"v": 1}	{"verdict":"error"}
+te13	verdict	"v": filter((1) & (2), 1)	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+te14	verdict	"v": filter((1) & (2), 1)	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+te15	verdict	"v": match((1) & (2), 1, 3)	{"v": 1}	{"verdict":"error"}
+te16	verdict	"v": match((1) & (2), 1, 3)	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+te17	verdict	"v": match((1) & (2), 1, 3)	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+te18	verdict	"v": {"a": must((1) & (2), "m")}	{"v": {"a": 1}}	{"verdict":"error"}
+te19	verdict	"v": {"a": must((1) & (2), "m")}	{"v": {"a": 1}}	{"verdict":"error","opts":{"noFill":true}}
+te20	verdict	"v": {"a": must((1) & (2), "m")}	{"v": {"a": 1}}	{"verdict":"error","opts":{"partial":true}}
+te21	verdict	"v": when((1) & (2), 1)	{"v": 1}	{"verdict":"valid"}
+te22	verdict	"v": when((1) & (2), 1)	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+te23	verdict	"v": when((1) & (2), 1)	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+te24	verdict	"v": nof(1, (1) & (2))	{"v": 1}	{"verdict":"invalid"}
+te25	verdict	"v": nof(1, (1) & (2))	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+te26	verdict	"v": nof(1, (1) & (2))	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+te27	verdict	"v": contains((1) & (2), 2)	{"v": 1}	{"verdict":"invalid"}
+te28	verdict	"v": contains((1) & (2), 2)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+te29	verdict	"v": contains((1) & (2), 2)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+te30	verdict	"v": filter([1], (1) & (2))	{"v": 1}	{"verdict":"invalid"}
+te31	verdict	"v": filter([1], (1) & (2))	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+te32	verdict	"v": filter([1], (1) & (2))	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+te33	verdict	"v": (must((1) & (2), "m")) | (4)	{"v": 4}	{"verdict":"valid"}
+te34	verdict	"v": (must((1) & (2), "m")) | (4)	{"v": 4}	{"verdict":"valid","opts":{"noFill":true}}
+te35	verdict	"v": (must((1) & (2), "m")) | (4)	{"v": 4}	{"verdict":"valid","opts":{"partial":true}}
+te36	verdict	"v": (match((1) & (2), 1, 3)) | (4)	{"v": 4}	{"verdict":"valid"}
+te37	verdict	"v": (match((1) & (2), 1, 3)) | (4)	{"v": 4}	{"verdict":"valid","opts":{"noFill":true}}
+te38	verdict	"v": (match((1) & (2), 1, 3)) | (4)	{"v": 4}	{"verdict":"valid","opts":{"partial":true}}
+te39	verdict	"v": (filter((1) & (2), 1)) | (4)	{"v": 4}	{"verdict":"valid"}
+te40	verdict	"v": (filter((1) & (2), 1)) | (4)	{"v": 4}	{"verdict":"valid","opts":{"noFill":true}}
+te41	verdict	"v": (filter((1) & (2), 1)) | (4)	{"v": 4}	{"verdict":"valid","opts":{"partial":true}}
+te42	verdict	"v": (len((1) & (2))) | (4)	{"v": 4}	{"verdict":"valid"}
+te43	verdict	"v": (len((1) & (2))) | (4)	{"v": 4}	{"verdict":"valid","opts":{"noFill":true}}
+te44	verdict	"v": (len((1) & (2))) | (4)	{"v": 4}	{"verdict":"valid","opts":{"partial":true}}
+te45	verdict	"v": {&: must((1) & (2), "m")}	{"v": {}}	{"verdict":"valid"}
+te46	verdict	"v": {&: must((1) & (2), "m")}	{"v": {}}	{"verdict":"valid","opts":{"noFill":true}}
+te47	verdict	"v": {&: must((1) & (2), "m")}	{"v": {}}	{"verdict":"valid","opts":{"partial":true}}
+te48	verdict	"v": {&: must((1) & (2), "m")}	{"v": {"a": 1}}	{"verdict":"invalid"}
+te49	verdict	"v": {&: must((1) & (2), "m")}	{"v": {"a": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+te50	verdict	"v": {&: must((1) & (2), "m")}	{"v": {"a": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+te51	verdict	"v": {"a"?: must((1) & (2), "m")}	{"v": {}}	{"verdict":"error"}
+te52	verdict	"v": {"a"?: must((1) & (2), "m")}	{"v": {}}	{"verdict":"error","opts":{"noFill":true}}
+te53	verdict	"v": {"a"?: must((1) & (2), "m")}	{"v": {}}	{"verdict":"error","opts":{"partial":true}}
+te54	verdict	"v": each([1], must((1) & (2), "m"))	{"v": [1]}	{"verdict":"error"}
+te55	verdict	"v": each([1], must((1) & (2), "m"))	{"v": [1]}	{"verdict":"error","opts":{"noFill":true}}
+te56	verdict	"v": each([1], must((1) & (2), "m"))	{"v": [1]}	{"verdict":"error","opts":{"partial":true}}
+te57	verdict	"v": each([], must((1) & (2), "m"))	{"v": []}	{"verdict":"valid"}
+te58	verdict	"v": each([], must((1) & (2), "m"))	{"v": []}	{"verdict":"valid","opts":{"noFill":true}}
+te59	verdict	"v": each([], must((1) & (2), "m"))	{"v": []}	{"verdict":"valid","opts":{"partial":true}}
+te60	verdict	%T = must((1) & (2), "m")\n"v": 1	{"v": 1}	{"verdict":"error"}
+te61	verdict	%T = must((1) & (2), "m")\n"v": 1	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+te62	verdict	%T = must((1) & (2), "m")\n"v": 1	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+te63	verdict	%T = len((1) & (2))\n"v": 1	{"v": 1}	{"verdict":"error"}
+te64	verdict	%T = len((1) & (2))\n"v": 1	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+te65	verdict	%T = len((1) & (2))\n"v": 1	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+te66	verdict	"v": nof(nil, string)	{"v": 1}	{"verdict":"invalid"}
+te67	verdict	"v": nof(nil, string)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+te68	verdict	"v": nof(nil, string)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+te69	verdict	"v": len(nil)	{"v": 1}	{"verdict":"invalid"}
+te70	verdict	"v": len(nil)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+te71	verdict	"v": len(nil)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+te72	verdict	"v": contains(any, nil)	{"v": 1}	{"verdict":"invalid"}
+te73	verdict	"v": contains(any, nil)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+te74	verdict	"v": contains(any, nil)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+te75	verdict	"v": must((nil) & (1), "m")	{"v": 1}	{"verdict":"error"}
+te76	verdict	"v": must((nil) & (1), "m")	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+te77	verdict	"v": must((nil) & (1), "m")	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+te78	verdict	"v": match(nil, 1, 3)	{"v": 1}	{"verdict":"error"}
+te79	verdict	"v": match(nil, 1, 3)	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+te80	verdict	"v": match(nil, 1, 3)	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+te81	verdict	"v": filter(nil, 1)	{"v": 1}	{"verdict":"error"}
+te82	verdict	"v": filter(nil, 1)	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+te83	verdict	"v": filter(nil, 1)	{"v": 1}	{"verdict":"error","opts":{"partial":true}}

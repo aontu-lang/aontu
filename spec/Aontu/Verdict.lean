@@ -1572,6 +1572,13 @@ def keptAt (keep : ℕ → Data → Bool) : ℕ → List Data → List Data
   | _, [] => []
   | i, x :: xs => if keep i x then x :: keptAt keep (i + 1) xs else keptAt keep i xs
 
+/-- Whether an argument both ports read as they build a trial is a
+conflict: dead in normal form, though not written as `nil`, which both
+read there as a value that admits nothing. -/
+def Decls.clashes (ds : Decls) : Val → Bool
+  | .nil => false
+  | v => (normaliseD ds v).dead
+
 mutual
 /-- A term with its selections made, `b` the member a generator's
 template is read for, which each hole in the template stands for, and
@@ -1609,7 +1616,13 @@ a selection whose arms hold a key, a call or a generator whose arguments
 hold one, and a `filter` whose condition does stay as written too, so
 that a path copies them to be read where it lands. A size over a term
 outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
-as a bound over one is (`bndOf`), so that both refuse at the meet. -/
+as a bound over one is (`bndOf`), so that both refuse at the meet. A
+trial both ports build as they read it is `nil` where an argument they
+read then is a conflict (`Decls.clashes`): a size, `must`'s condition
+and the count of `nof` and of `contains`; and so is a `filter` whose
+source and a selection whose scrutinee are dead, written `nil` or not.
+So such a trial is an error where it stands, an arm holding it drops,
+and a spread holding it refuses each member it's tried on. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
@@ -1617,7 +1630,8 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let d' := resolveSpread ds b here d
     match genD ds s' with
     | some x => if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
-    | none => if (normaliseD ds s').isAbsent then .absent else .select s' arms' d'
+    | none =>
+      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil else .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
     if here.isNone && c.holdsKey then .filter s' c else
@@ -1627,7 +1641,9 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     | some (.list xs) => (Data.list (keptAt (fun i x =>
         checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term
     | some _ => .nil
-    | none => if (normaliseD ds s').isAbsent then .absent else .filter s' (resolveD ds none none c)
+    | none =>
+      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
+      else .filter s' (resolveD ds none none c)
   | .call f args =>
     match f, args with
     | .each, [d, t] =>
@@ -1671,7 +1687,8 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
       else callTerm ds f (resolveItems ds b here args)
   | .len c =>
-    if (normaliseD ds (resolveD ds b here c)).unsized then .nothing else .len (resolveD ds b here c)
+    if (normaliseD ds (resolveD ds b here c)).unsized then .nothing
+    else if ds.clashes (resolveD ds b here c) then .nil else .len (resolveD ds b here c)
   | .map fs spread closed =>
     .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
   | .list items spread closed =>
@@ -1680,10 +1697,12 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
   | .or arms => .or (resolveArms ds b here arms)
   | .pref r x => .pref r (resolveD ds b here x)
   | .meet a c => .meet (resolveD ds b here a) (resolveD ds b here c)
-  | .nof n cs => .nof (resolveD ds b here n) (resolveItems ds b here cs)
-  | .must c m => .must (resolveD ds b here c) m
+  | .nof n cs =>
+    if ds.clashes (resolveD ds b here n) then .nil else .nof (resolveD ds b here n) (resolveItems ds b here cs)
+  | .must c m => if ds.clashes (resolveD ds b here c) then .nil else .must (resolveD ds b here c) m
   | .when c t e => .when (resolveD ds b here c) (resolveD ds b here t) (resolveSpread ds b here e)
-  | .contains c n => .contains (resolveD ds b here c) (resolveD ds b here n)
+  | .contains c n =>
+    if ds.clashes (resolveD ds b here n) then .nil else .contains (resolveD ds b here c) (resolveD ds b here n)
   | .rest t cs => .rest (resolveD ds b here t) (resolveCovers ds b here cs)
   | .ride k v r => .ride k (resolveD ds b here v) r
   | .keyUp n =>
@@ -2822,6 +2841,8 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   | len _ ih =>
     intro b here hb; simp only [resolveD]; split
     · exact .nothing
+    split
+    · exact .nil
     · exact .len (ih hb)
   | @map fs spread closed _ _ ihf ihs =>
     intro b here hb
@@ -2851,17 +2872,25 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   | nof _ _ ihn ihcs =>
     intro b here hb
     simp only [resolveD]
+    split
+    · exact .nil
     refine .nof (ihn hb) fun c hc => ?_
     obtain ⟨c₀, hc₀, rfl⟩ := mem_resolveItems hc
     exact ihcs c₀ hc₀ hb
-  | must _ ih => intro b here hb; simp only [resolveD]; exact .must (ih hb)
+  | must _ ih =>
+    intro b here hb; simp only [resolveD]; split
+    · exact .nil
+    · exact .must (ih hb)
   | when _ _ _ ihc iht ihe =>
     intro b here hb
     simp only [resolveD]
     refine .when (ihc hb) (iht hb) fun e he => ?_
     obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
     exact ihe e₀ he₀ hb
-  | contains _ _ ihc ihn => intro b here hb; simp only [resolveD]; exact .contains (ihc hb) (ihn hb)
+  | contains _ _ ihc ihn =>
+    intro b here hb; simp only [resolveD]; split
+    · exact .nil
+    · exact .contains (ihc hb) (ihn hb)
   | rest _ _ _ _ iht ih1 ih2 ih3 =>
     intro b here hb
     simp only [resolveD]
@@ -2885,13 +2914,15 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
           then Val.select .key (resolvePairs ds b here arms)
           (resolveSpread ds b here d) else selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)
-      | none => if (normaliseD ds .key).isAbsent then .absent
+      | none => if (normaliseD ds .key).isAbsent then .absent else if (normaliseD ds .key).dead then .nil
           else .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds .key = none := rfl
     rw [hg]
     dsimp only
     split
     · exact .absent
+    split
+    · exact .nil
     refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
     · obtain ⟨p₀, r₀, hm₀, rfl, -⟩ := mem_resolvePairs hm
       exact ihp p₀ r₀ hm₀ hb
@@ -2906,7 +2937,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
           then Val.select (.lit sc) (resolvePairs ds b here arms)
           (resolveSpread ds b here d) else selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)
-      | none => if (normaliseD ds (.lit sc)).isAbsent then .absent
+      | none => if (normaliseD ds (.lit sc)).isAbsent then .absent else if (normaliseD ds (.lit sc)).dead then .nil
           else .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds (.lit sc) = some sc.data := rfl
     rw [hg]
