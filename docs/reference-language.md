@@ -6393,7 +6393,8 @@ argument reads as a number or a string, by `bndOf` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), and as an
 error where an argument is a boolean, `null` or a container, where
 `neq` takes both numbers and strings, or where an argument never
-settles. Rows from bd0 on of
+settles. In a `filter`'s condition, a bound refused so refuses each
+member the condition tries instead. Rows from bd0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to it. A bound in a generator's template or in a `filter`'s condition
 reads a relative path where its instance lands, and rows from bg0 on

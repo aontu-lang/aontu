@@ -1864,7 +1864,10 @@ theorem boundArg_verdict_exact : ∀ c ∈ boundArgCases, ∀ (m : Mode) (v : Ve
 
 /-- Bounds over a relative path in a `filter`'s condition, each read
 where the member it tries lands: `min`, `above` and `neq` over a path
-past the member, which keep the members they admit. -/
+past the member, which keep the members they admit, and a bound over a
+boolean, `null` or a map, and a `neq` over a number and a string, each
+refused, which refuses every member rather than making the document an
+error. -/
 def boundFilterCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1875,10 +1878,15 @@ def boundFilterCases : List (Decls × Val × Data) :=
   let dm (fs : List (String × Data)) : Data := .map fs
   let f (c : Val) := m [("a", m [("lim", int 2), ("l", l [int 1, int 2, int 3]), ("f", .filter (rel 1 ["l"]) c)])]
   let out (xs : List Data) : Data := dm [("a", dm [("f", .list xs)])]
+  let g (lim c : Val) := m [("a", m [("lim", lim), ("l", l [int 1]), ("f", .filter (rel 1 ["l"]) c)])]
   [([], f (bnd .min [rel 2 ["lim"]]), out [j 2, j 3]),
     ([], f (bnd .min [rel 2 ["lim"]]), out [j 1]),
     ([], f (bnd .above [rel 2 ["lim"]]), out [j 3]),
-    ([], f (bnd .neq [rel 2 ["lim"]]), out [j 1, j 3])]
+    ([], f (bnd .neq [rel 2 ["lim"]]), out [j 1, j 3]),
+    ([], g (.lit (.bool true)) (bnd .min [rel 2 ["lim"]]), out []),
+    ([], g (.lit .null) (bnd .min [rel 2 ["lim"]]), out []),
+    ([], g (m []) (bnd .max [rel 2 ["lim"]]), out []),
+    ([], g (int 1) (bnd .neq [rel 2 ["lim"], .lit (.str "x")]), out [])]
 
 set_option maxRecDepth 16384 in
 /-- The checker can't read a `filter` before the reading makes it, so

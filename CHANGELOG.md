@@ -20,10 +20,11 @@ P8 slice.
 - `spec/Aontu/Verdict.lean`: `bndOf` makes the bound once each
   argument's normal form is a number or a string (`Val.boundEnd?`), so
   `lo: 2, t: min($.lo)` reads `t` as `min(2)`. An argument that names no
-  end, a boolean, `null` or a container, makes the document an error
-  (`Val.noEnd`), as a `neq` over both numbers and strings does, and an
-  argument that never settles leaves the call waiting, which is an
-  error too. `bndOf_checkableA` keeps what it makes readable by the
+  end, a boolean, `null` or a container, refuses the bound
+  (`Val.noEnd`), as a `neq` over both numbers and strings does, which
+  makes the document an error but in a `filter`'s condition, where it
+  refuses each member. An argument that never settles leaves the call
+  waiting, which is an error too. `bndOf_checkableA` keeps what it makes readable by the
   checker.
 - `test/spec/def-path.tsv` gains rows bd0 on, in the three modes of
   `vet`, and rows bg0 on, a bound over a relative path in a

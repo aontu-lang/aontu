@@ -6152,7 +6152,9 @@ def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
 
 A boolean, `null` or a container names no end, so the definition
 refuses a bound over one, and a `neq` over a number and a string, and
-either makes the document an error, as both engines answer. An
+either makes the document an error, as both engines answer. In a
+`filter`'s condition the refusal refuses each member the condition
+tries instead, as a condition that names nothing does. An
 argument that never settles, a kind, a bound or a disjunction, leaves
 the call waiting, and a call no reading makes is an error too, which
 is what both engines answer for `lo: integer` and for a path to
