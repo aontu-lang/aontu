@@ -423,8 +423,8 @@ on. The open items of P1 to P5 come before them:
 each read mode's reading of a number (P1), `open()` and the way out of
 a `type()` seal it gives (P2), two
 recursions of one shape under different names (P5), decisions 16 to
-18 and 21 to 26, still open, and #403, a selection inside a recursive
-name's body.
+18 and 21 to 28, each ruled on 2026-10-23 and built as §7 records it,
+and #403, a selection inside a recursive name's body.
 
 Outside the definition by design, whatever phase lands: text, which is
 the grammar's and each port's reader's (the lexical structure, the
@@ -909,8 +909,10 @@ each stands here until the phase that encodes it lands.
    second.** The fill is a reading before the meets: a meet with a free
    hole on one side and none on the other reads as that side with the
    hole bound to the other, in the order the document groups it, and a
-   hole alone admits every value, so that `&` stays a meet; the ports
-   stand.
+   hole alone admits every value, so that `&` stays a meet. The ports
+   stand where a call meets one peer, and move where it meets more,
+   reading the conjunction as it groups rather than as it's written,
+   which #512 tracks.
 
    Probed again on 2026-10-23, both ports read a conjunction that holds
    such a call in the order it's written, and parentheses change
@@ -951,7 +953,9 @@ each stands here until the phase that encodes it lands.
    generator's output until it is ruled. **Ruled 2026-10-23: the
    first.** Every path rereads its keys where it lands, a generator's
    output included, and both ports move for a path into generated
-   output.
+   output, and for a path that lands above its target, whose `key()`
+   they read wrong too: `y: $.x.a` over `x: {a: {n: key()}}` gives
+   `"n"` at `y.n`, not `"y"`. #520 tracks both.
 23. **A string constraint met with a path value.** Raised 2026-10-22 by
    P11's first slice (#474). ADR-016 gives a path value two rules. Two
    paths meet by the prefix rule, so `path($.a) & path($.a.b)` is
