@@ -1681,6 +1681,54 @@ theorem load_verdict_exact : ∀ c ∈ loadCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (loadCases_checkable c hc).1 (loadCases_checkable c hc).2 v
 
+/-- Generators whose templates read their member's place through a
+relative path, each read at each member of the generator's output:
+`each` and `pack` over a list a path names, beside data that refuses
+what the path reads, a path that names nothing, an empty source, a path
+that climbs out of the instance, `key(1)` beside a path, a path inside
+a call, a spread inside the template, and a generator inside another. -/
+def genTemplateCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let ms (fs : List (String × Val)) (sp : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some sp) false
+  let l (xs : List Val) : Val := .list xs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let each (d t : Val) : Val := .call .each [d, t]
+  let pack (d t : Val) : Val := .call .pack [d, t]
+  let named := m [("n", .hole), ("u", rel 1 ["n"])]
+  let url := m [("n", .hole), ("u", .call .plus [str "https://", rel 1 ["n"]])]
+  let keyed := m [("k", .keyUp 1), ("u", rel 1 ["k"])]
+  let spread := m [("n", .hole), ("s", ms [("x", m [])] (m [("h", rel 3 ["n"])]))]
+  let nested (u : Val) := m [("n", .hole), ("f", each (l [str "p"]) (m [("m", .hole), ("u", u)]))]
+  [([], m [("l", l [str "a", str "b"]), ("e", each (p ["l"]) named)], dm []),
+    ([], m [("l", l [str "a", str "b"]), ("e", each (p ["l"]) named)], dm [("e", .list [dm [("n", .str "a"), ("u", .str "z")]])]),
+    ([], m [("l", l [str "a", str "b"]), ("e", each (p ["l"]) (m [("n", .hole), ("u", rel 1 ["m"])]))], dm []),
+    ([], m [("l", l []), ("e", each (p ["l"]) (m [("n", .hole), ("u", rel 1 ["m"])]))], dm []),
+    ([], m [("l", l [str "a", str "b"]), ("x", int 9), ("e", each (p ["l"]) (m [("n", .hole), ("v", rel 3 ["x"])]))],
+      dm [("e", .list [dm [("v", j 8)]])]),
+    ([], m [("s", m [("x", int 5), ("e", each (l [str "a"]) (m [("v", rel 3 ["x"])]))])], dm [("s", dm [("e", .list [dm [("v", j 6)]])])]),
+    ([], m [("l", l [str "a"]), ("e", pack (p ["l"]) keyed)], dm []),
+    ([], m [("l", l [str "a"]), ("e", pack (p ["l"]) keyed)], dm [("e", dm [("a", dm [("u", .str "b")])])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) (m [("n", .hole), ("w", m [("k", rel 2 ["n"])])]))],
+      dm [("e", .list [dm [("w", dm [("k", .str "b")])]])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) url)], dm [("e", .list [dm [("u", .str "https://a")]])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) url)], dm [("e", .list [dm [("u", .str "http://a")]])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) spread)], dm []),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) spread)], dm [("e", .list [dm [("s", dm [("x", dm [("h", .str "z")])])]])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) (nested (rel 3 ["n"])))], dm [("e", .list [dm [("f", .list [dm [("u", .str "z")]])]])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) (nested (rel 1 ["m"])))], dm [("e", .list [dm [("f", .list [dm [("u", .str "z")]])]])])]
+
+theorem genTemplateCases_checkable : ∀ c ∈ genTemplateCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem genTemplate_verdict_exact : ∀ c ∈ genTemplateCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (genTemplateCases_checkable c hc).1 (genTemplateCases_checkable c hc).2 v
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, a map's braces dropped since neither CLI reads a braced map
 after a declaration, in the three modes, with the one class `vetP`
@@ -4062,6 +4110,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# whose templates read their member's place, each read at each member there"
     IO.println "# is, follow in rows sp0 on, and sources loaded in place, each a file of"
     IO.println "# test/spec/files the definition declares as a term, in rows lf0 on."
+    IO.println "# Generators whose templates read their member's place through a relative"
+    IO.println "# path, each read at each member of the output, follow in rows gt0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -4077,6 +4127,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "lg" genLinkCases
     pathRows "sp" spreadCases
     pathRows "lf" loadCases
+    pathRows "gt" genTemplateCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

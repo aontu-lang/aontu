@@ -1586,10 +1586,12 @@ where it's written as well, so one that names nothing there is an
 `Val.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
 at each member wherever the spread lands, at each place a path
 reference copies it to and at each member a link's template makes among
-them. It doesn't yet read a relative path
-in a template or a `filter`'s condition, each of which stands at a
-position no written step names, nor a spread's inside a disjunction, a
-selection, a generator's template or an alias's body.
+them. A generator's template reads its relative paths at each member of
+the generator's output in the same way: in `each($.names, {name: _,
+url: "https://" + .name})` each instance's `url` reads that instance's
+own `name`. It doesn't yet read a relative path in a `filter`'s
+condition, which stands at a position no written step names, nor a
+template's inside a disjunction, a selection or an alias's body.
 
 ### Recursive references (fixpoints)
 

@@ -26,6 +26,8 @@
 # whose templates read their member's place, each read at each member there
 # is, follow in rows sp0 on, and sources loaded in place, each a file of
 # test/spec/files the definition declares as a term, in rows lf0 on.
+# Generators whose templates read their member's place through a relative
+# path, each read at each member of the output, follow in rows gt0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -1226,3 +1228,48 @@ lf77	verdict	"x": match(1, 1, 7, @"./missing.aontu")	{}	{"verdict":"error","opts
 lf78	verdict	"x": @"foo.aontu"	{}	{"verdict":"error"}
 lf79	verdict	"x": @"foo.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
 lf80	verdict	"x": @"foo.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+gt0	verdict	"l": ["a", "b"], "e": each($.l, {"n": _, "u": .n})	{}	{"verdict":"valid"}
+gt1	verdict	"l": ["a", "b"], "e": each($.l, {"n": _, "u": .n})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gt2	verdict	"l": ["a", "b"], "e": each($.l, {"n": _, "u": .n})	{}	{"verdict":"valid","opts":{"partial":true}}
+gt3	verdict	"l": ["a", "b"], "e": each($.l, {"n": _, "u": .n})	{"e": [{"n": "a", "u": "z"}]}	{"verdict":"invalid"}
+gt4	verdict	"l": ["a", "b"], "e": each($.l, {"n": _, "u": .n})	{"e": [{"n": "a", "u": "z"}]}	{"verdict":"invalid","opts":{"noFill":true}}
+gt5	verdict	"l": ["a", "b"], "e": each($.l, {"n": _, "u": .n})	{"e": [{"n": "a", "u": "z"}]}	{"verdict":"invalid","opts":{"partial":true}}
+gt6	verdict	"l": ["a", "b"], "e": each($.l, {"n": _, "u": .m})	{}	{"verdict":"error"}
+gt7	verdict	"l": ["a", "b"], "e": each($.l, {"n": _, "u": .m})	{}	{"verdict":"error","opts":{"noFill":true}}
+gt8	verdict	"l": ["a", "b"], "e": each($.l, {"n": _, "u": .m})	{}	{"verdict":"error","opts":{"partial":true}}
+gt9	verdict	"l": [], "e": each($.l, {"n": _, "u": .m})	{}	{"verdict":"valid"}
+gt10	verdict	"l": [], "e": each($.l, {"n": _, "u": .m})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gt11	verdict	"l": [], "e": each($.l, {"n": _, "u": .m})	{}	{"verdict":"valid","opts":{"partial":true}}
+gt12	verdict	"l": ["a", "b"], "x": 9, "e": each($.l, {"n": _, "v": ...x})	{"e": [{"v": 8}]}	{"verdict":"invalid"}
+gt13	verdict	"l": ["a", "b"], "x": 9, "e": each($.l, {"n": _, "v": ...x})	{"e": [{"v": 8}]}	{"verdict":"invalid","opts":{"noFill":true}}
+gt14	verdict	"l": ["a", "b"], "x": 9, "e": each($.l, {"n": _, "v": ...x})	{"e": [{"v": 8}]}	{"verdict":"invalid","opts":{"partial":true}}
+gt15	verdict	"s": {"x": 5, "e": each(["a"], {"v": ...x})}	{"s": {"e": [{"v": 6}]}}	{"verdict":"invalid"}
+gt16	verdict	"s": {"x": 5, "e": each(["a"], {"v": ...x})}	{"s": {"e": [{"v": 6}]}}	{"verdict":"invalid","opts":{"noFill":true}}
+gt17	verdict	"s": {"x": 5, "e": each(["a"], {"v": ...x})}	{"s": {"e": [{"v": 6}]}}	{"verdict":"invalid","opts":{"partial":true}}
+gt18	verdict	"l": ["a"], "e": pack($.l, {"k": key(1), "u": .k})	{}	{"verdict":"valid"}
+gt19	verdict	"l": ["a"], "e": pack($.l, {"k": key(1), "u": .k})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gt20	verdict	"l": ["a"], "e": pack($.l, {"k": key(1), "u": .k})	{}	{"verdict":"valid","opts":{"partial":true}}
+gt21	verdict	"l": ["a"], "e": pack($.l, {"k": key(1), "u": .k})	{"e": {"a": {"u": "b"}}}	{"verdict":"invalid"}
+gt22	verdict	"l": ["a"], "e": pack($.l, {"k": key(1), "u": .k})	{"e": {"a": {"u": "b"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+gt23	verdict	"l": ["a"], "e": pack($.l, {"k": key(1), "u": .k})	{"e": {"a": {"u": "b"}}}	{"verdict":"invalid","opts":{"partial":true}}
+gt24	verdict	"l": ["a"], "e": each($.l, {"n": _, "w": {"k": ..n}})	{"e": [{"w": {"k": "b"}}]}	{"verdict":"invalid"}
+gt25	verdict	"l": ["a"], "e": each($.l, {"n": _, "w": {"k": ..n}})	{"e": [{"w": {"k": "b"}}]}	{"verdict":"invalid","opts":{"noFill":true}}
+gt26	verdict	"l": ["a"], "e": each($.l, {"n": _, "w": {"k": ..n}})	{"e": [{"w": {"k": "b"}}]}	{"verdict":"invalid","opts":{"partial":true}}
+gt27	verdict	"l": ["a"], "e": each($.l, {"n": _, "u": ("https://") + (.n)})	{"e": [{"u": "https://a"}]}	{"verdict":"valid"}
+gt28	verdict	"l": ["a"], "e": each($.l, {"n": _, "u": ("https://") + (.n)})	{"e": [{"u": "https://a"}]}	{"verdict":"incomplete","opts":{"noFill":true}}
+gt29	verdict	"l": ["a"], "e": each($.l, {"n": _, "u": ("https://") + (.n)})	{"e": [{"u": "https://a"}]}	{"verdict":"valid","opts":{"partial":true}}
+gt30	verdict	"l": ["a"], "e": each($.l, {"n": _, "u": ("https://") + (.n)})	{"e": [{"u": "http://a"}]}	{"verdict":"invalid"}
+gt31	verdict	"l": ["a"], "e": each($.l, {"n": _, "u": ("https://") + (.n)})	{"e": [{"u": "http://a"}]}	{"verdict":"invalid","opts":{"noFill":true}}
+gt32	verdict	"l": ["a"], "e": each($.l, {"n": _, "u": ("https://") + (.n)})	{"e": [{"u": "http://a"}]}	{"verdict":"invalid","opts":{"partial":true}}
+gt33	verdict	"l": ["a"], "e": each($.l, {"n": _, "s": {"x": {}, &: {"h": ...n}}})	{}	{"verdict":"valid"}
+gt34	verdict	"l": ["a"], "e": each($.l, {"n": _, "s": {"x": {}, &: {"h": ...n}}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+gt35	verdict	"l": ["a"], "e": each($.l, {"n": _, "s": {"x": {}, &: {"h": ...n}}})	{}	{"verdict":"valid","opts":{"partial":true}}
+gt36	verdict	"l": ["a"], "e": each($.l, {"n": _, "s": {"x": {}, &: {"h": ...n}}})	{"e": [{"s": {"x": {"h": "z"}}}]}	{"verdict":"invalid"}
+gt37	verdict	"l": ["a"], "e": each($.l, {"n": _, "s": {"x": {}, &: {"h": ...n}}})	{"e": [{"s": {"x": {"h": "z"}}}]}	{"verdict":"invalid","opts":{"noFill":true}}
+gt38	verdict	"l": ["a"], "e": each($.l, {"n": _, "s": {"x": {}, &: {"h": ...n}}})	{"e": [{"s": {"x": {"h": "z"}}}]}	{"verdict":"invalid","opts":{"partial":true}}
+gt39	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": ...n})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid"}
+gt40	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": ...n})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid","opts":{"noFill":true}}
+gt41	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": ...n})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid","opts":{"partial":true}}
+gt42	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": .m})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid"}
+gt43	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": .m})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid","opts":{"noFill":true}}
+gt44	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": .m})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid","opts":{"partial":true}}

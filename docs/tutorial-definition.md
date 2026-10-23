@@ -2991,11 +2991,13 @@ is an error, while `..x` in the same body climbs to the document's own
 `x`. The schema's spreads stay as written (`Val.placedT`), since a
 spread reads its relative paths at each member it holds, and a spread
 that's itself a relative path also reads where it's written, at the
-place `Val.bares` collects: step 38 comes to both. A template and a
-`filter`'s condition keep theirs as written: each stands at a position
-no written step names, and the definition has no rule for a relative
-path there yet. Once it reads in the sources a document loads, which
-step 39 comes to, the verdict of a document with paths prepares it: it
+place `Val.bares` collects: step 38 comes to both, and to a generator's
+template, which reads its relative paths at each member of its output.
+A `filter`'s condition keeps its relative paths as written: it stands
+at a position no written step names, and the definition has no rule
+for a relative path there yet. Once it reads in the sources a document
+loads, which step 39 comes to, the verdict of a document with paths
+prepares it: it
 declares the relation kind, which step 37 comes to, places the
 document, hides the sources its moves read, which step 35 comes to,
 meets its links' templates into their targets, which step 36 comes to,
@@ -8035,9 +8037,56 @@ $ echo $?
 1
 ```
 
-Rows from sp0 on of `test/spec/def-path.tsv` hold these readings in the
-three modes of `vet`, and both engines answer every one as the
-definition does.
+A generator's template reads its relative paths at each member of its
+output the same way. Write `each.aontu`:
+
+<!-- test: file each.aontu -->
+```aontu
+names: ["api.example" "web.example"]
+hosts: each($.names, { name:_ url:"https://" + .name })
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu each.aontu
+{
+  "hosts": [
+    {
+      "name": "api.example",
+      "url": "https://api.example"
+    },
+    {
+      "name": "web.example",
+      "url": "https://web.example"
+    }
+  ],
+  "names": [
+    "api.example",
+    "web.example"
+  ]
+}
+```
+
+The generator's own instance reads each term of its template that holds
+a relative path as `any` (`Val.relBlank`). The part of the template
+that holds one (`Val.relPart`) meets each member of the output, placed
+at the member, as a spread's template does:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Val.genInst (root u : Val) (p : List Seg) (t : Seg) : Option Val :=
+  root.putW (p ++ [t]) (u.placed (p ++ [t])).neutral
+```
+
+So `.name` reads each instance's own `name`, a path that climbs out of
+the instance reads from where the instance stands, and a spread or a
+generator inside the template reads at its own members in turn.
+
+Rows from sp0 on and from gt0 on of `test/spec/def-path.tsv` hold these
+readings in the three modes of `vet`, and both engines answer every one
+as the definition does.
 
 ## 39. Loading a source
 
@@ -8158,7 +8207,7 @@ two readings of a number that `--exact-numbers` switches between,
 which strings a pattern, a format or a grammar admits, the tree a
 grammar's parse builds, the built-in functions
 steps 20 to 26 and 33 to 37 don't walk through, a relative path in a
-template or a `filter`'s condition, generation with `emit`, a string
+`filter`'s condition, generation with `emit`, a string
 constraint met with a path value, and the graph atoms `inverse(k)` and
 `acyclic()`. [`aontu vet`](reference-api.md#aontu-vet) states which
 refusal is `invalid`, `incomplete` or `error`, and the shared test
@@ -8198,9 +8247,9 @@ template doesn't read the member, and the template lands at each
 member the generator's place holds, one another term writes there
 among them. The definition reads no link in a generator inside a
 declaration's body. A spread whose template reads its member's place,
-inside a disjunction, a selection, a generator's template or an
-alias's body, keeps its template as written, so a relative path in it
-resolves nowhere.
+inside a disjunction, a selection or an alias's body, keeps its
+template as written, so a relative path in it resolves nowhere, and so
+does a generator's template there.
 
 Nor does it read an alias's body at each use of the alias. A relative
 path in a body reads at the body's own place alone, where both engines
