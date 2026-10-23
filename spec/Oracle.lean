@@ -1336,6 +1336,65 @@ theorem pref_verdict_exact : ∀ c ∈ prefCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (prefCases_checkable c hc).1 (prefCases_checkable c hc).2 v
 
+/-- `copy` of a sealed map and a sealed list, beside data that adds to
+them and data that meets them, and of one inside a map and inside a
+meet; of a hidden and a typed literal, alone and under a key, beside
+data that writes the value and data that leaves it out, which the fill
+then supplies; of a path to a sealed map, a typed map and a hidden
+literal, and of a name for a sealed and a typed map; a copy met with
+another map; a literal one of whose members refers to another, alone,
+met with a map and copied twice, which reads where the copy lands; a
+hidden value met with absence, and one preferred in a disjunction; and,
+beside them, a path to the typed map, which a copy would open (decision
+27 of the design note's §7). -/
+def copyCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let sm (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none true
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let cp (v : Val) : Val := .call .copy [v]
+  let ab : Data := .map [("v", .map [("a", j 1), ("b", j 2)])]
+  let sib : List (String × Val) := [("a", .path [.up 1, .key "b"]), ("b", int 1)]
+  let s11 : Data := .map [("v", .map [("a", j 1), ("b", j 1)])]
+  let s112 : Data := .map [("v", .map [("a", j 1), ("b", j 1), ("c", j 2)])]
+  let hm : Val := .meet (.ride .hide (int 1) []) (.call .maybe [p ["missing"]])
+  [([], m [("v", cp (sm [("a", int 1)]))], ab),
+    ([], m [("v", cp (sm [("a", int 1)]))], .map [("v", .map [("a", j 1)])]),
+    ([], m [("v", cp (sm [("a", int 1)]))], .map [("v", .map [("a", j 2)])]),
+    ([], m [("v", cp (.list [int 1] none true))], .map [("v", .list [j 1, j 2])]),
+    ([], m [("v", cp (m [("a", sm [("x", int 1)])]))], .map [("v", .map [("a", .map [("x", j 1), ("y", j 2)])])]),
+    ([], m [("v", cp (.meet (sm [("a", int 1)]) (m [("a", int 1)])))], ab),
+    ([], m [("v", cp (.ride .hide (int 1) []))], .map [("v", j 1)]),
+    ([], m [("v", cp (.ride .hide (int 1) []))], .map []),
+    ([], m [("v", cp (.ride .type (int 1) []))], .map []),
+    ([], m [("v", cp (m [("a", .ride .hide (int 1) []), ("b", int 2)]))], .map [("v", .map [("b", j 2)])]),
+    ([], m [("v", cp (m [("a", .ride .hide (int 1) []), ("b", int 2)]))], ab),
+    ([], m [("v", cp (m [("a", .ride .type (m [("x", int 1)]) [])]))],
+      .map [("v", .map [("a", .map [("x", j 1), ("y", j 2)])])]),
+    ([], m [("v", cp (m [("a", .ride .type (m [("x", int 1)]) [])]))], .map [("v", .map [])]),
+    ([], m [("x", sm [("a", int 1)]), ("v", cp (p ["x"]))], ab),
+    ([], m [("x", .ride .type (m [("a", int 1)]) []), ("v", cp (p ["x"]))], ab),
+    ([], m [("x", .ride .type (m [("a", int 1)]) []), ("v", p ["x"])], ab),
+    ([], m [("x", .ride .hide (int 1) []), ("v", cp (p ["x"]))], .map [("v", j 1)]),
+    ([("T", sm [("a", int 1)])], m [("v", cp (.alias "T"))], ab),
+    ([("T", .ride .type (m [("a", int 1)]) [])], m [("v", cp (.alias "T"))], ab),
+    ([], m [("v", .meet (cp (sm [("a", int 1)])) (m [("b", int 2)]))], ab),
+    ([], m [("v", cp (m sib))], s11),
+    ([], m [("v", cp (m sib))], .map [("v", .map [("a", j 2), ("b", j 1)])]),
+    ([], m [("v", .meet (cp (m sib)) (m [("c", int 2)]))], s112),
+    ([], m [("v", cp (cp (m sib)))], s11),
+    ([], m [("v", cp (.or [(1, .ride .hide (int 1) []), (0, int 2)]))], .map [("v", j 1)]),
+    ([], m [("v", cp hm)], .map [("v", j 1)]),
+    ([], m [("v", cp hm)], .map [])]
+
+theorem copyCases_checkable : ∀ c ∈ copyCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem copy_verdict_exact : ∀ c ∈ copyCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (copyCases_checkable c hc).1 (copyCases_checkable c hc).2 v
+
 /-- Paths into a call's output, which resolve in the root with its calls
 made: a preference's map, a name's spellings, two lists added and a
 selection's result, beside data that agrees and data that refuses. -/
@@ -3137,7 +3196,7 @@ def forms : List (String × String × String) :=
     ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
     ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
     ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "pref"),
-    ("call", "call", "move"), ("call", "call", "refer"), ("call", "call", "rel"), ("call", "syntax", "@"), ("call", "call", "split"),
+    ("call", "call", "move"), ("call", "call", "copy"), ("call", "call", "refer"), ("call", "call", "rel"), ("call", "syntax", "@"), ("call", "call", "split"),
     ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "abnf"),
     ("call", "call", "parse"), ("call", "call", "project"),
     ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
@@ -3169,7 +3228,7 @@ def formSamples : List (String × Val) :=
     ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
     ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
     ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
-    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]), ("refer", .call .refer []), ("rel", .call .rel []),
+    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]), ("copy", .call .copy [.integer]), ("refer", .call .refer []), ("rel", .call .rel []),
     ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
     ("nom", .call .nom [.string]), ("path", .call .path [.string]), ("project", .call (.cmp .project) []),
     ("folder", .call (.cmp .folder) [.string]), ("file", .call (.cmp .file) [.string]),
@@ -4863,7 +4922,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# declare names of their own, each read in its own scope, follow in rows ls0 on,"
     IO.println "# and the names a source publishes, with the destructures that take them, in"
     IO.println "# rows lx0 on. The transformer emit over a selection a path names follows in"
-    IO.println "# rows em0 on."
+    IO.println "# rows em0 on, and copy, its argument with the marks and the seal cleared at"
+    IO.println "# every depth, in rows cp0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -4887,6 +4947,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "ls" scopeCases
     pathRows "lx" takeCases
     pathRows "em" (emitPathCases ++ emitFilterCases)
+    pathRows "cp" copyCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

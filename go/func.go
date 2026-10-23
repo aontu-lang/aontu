@@ -508,6 +508,47 @@ func pathEq(a, b []string) bool {
 	return true
 }
 
+// stripMarks reads a copy's argument as written: each hide(), type()
+// and close() call in it is its argument, and each reference in it is
+// the copy's, so nothing the argument reads where it lands marks or
+// seals it.
+func stripMarks(v Val) Val {
+	for {
+		fv, ok := v.(*FuncVal)
+		if !ok || 1 != len(fv.peg) || ("hide" != fv.name && "type" != fv.name && "close" != fv.name) {
+			break
+		}
+		v = fv.peg[0]
+	}
+	switch n := v.(type) {
+	case *RefVal:
+		n.copyFound = true
+	case *MapVal:
+		for _, k := range n.keys {
+			n.peg[k] = stripMarks(n.peg[k])
+		}
+	case *ListVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	case *ConjunctVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	case *DisjunctVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	case *PrefVal:
+		n.peg = stripMarks(n.peg)
+	case *FuncVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	}
+	return v
+}
+
 // resolve dispatches to the named function's implementation. base is
 // the location the func is being driven at (see Unify) — resolution
 // clones re-path to it, mirroring the ctx-path clones in TS.
@@ -526,7 +567,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			src.copyFound = true
 			return src
 		}
-		out := clonePath(args[0], cp(base))
+		out := stripMarks(clonePath(args[0], cp(base)))
 		walkMark(out, true, false, true, false) // copy clears marks
 		unsealTree(out)
 		return out
