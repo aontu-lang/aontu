@@ -334,9 +334,11 @@ text. -/
 def Decls.source? (ds : Decls) (q : String) : Option Val :=
   (ds.find? fun d => d.1 == "@" ++ q).map (·.2)
 
-/-- The text a load's argument writes, where it's one string. -/
+/-- The text a load's argument writes, where it's one string, and a
+destructure's, `{ %b: %a } = @"p"`, which writes the names it takes
+after it (`Decls.takeBinds`). -/
 def loadArg? : List Val → Option String
-  | [.lit (.str p)] => some p
+  | .lit (.str p) :: _ => some p
   | _ => none
 
 mutual
@@ -395,12 +397,14 @@ and which no other source shares, so that two sources that declare one
 name hold two names. -/
 def scopedName (q n : String) : String := "%" ++ q ++ "%" ++ n
 
-/-- Whether a declaration's name is a source's own (`scopedName`). -/
-def scopedDecl (n : String) : Bool := n.toList.head? == some '%'
+/-- Whether a declaration's name is a source's own (`scopedName`) or one
+it publishes (`exportName`). -/
+def scopedDecl (n : String) : Bool := n.toList.head? == some '%' || n.toList.head? == some '!'
 
-/-- The source a declaration's name scopes it to (`scopedName`): the
-name from its second character to its last `%`, since the declaration's
-own name holds none. None for a name no source scopes. -/
+/-- The source a declaration's name scopes it to (`scopedName`,
+`exportName`): the name from its second character to its last `%`,
+since the declaration's own name holds none. None for a name no source
+scopes. -/
 def scopeOf (n : String) : Option String :=
   if scopedDecl n then some ("%".intercalate ((n.drop 1).splitOn "%").dropLast) else none
 
@@ -454,12 +458,93 @@ def scArms (q : String) : List (ℕ × Val) → List (ℕ × Val)
   | (r, a) :: as => (r, a.scoped q) :: scArms q as
 end
 
+/-- The name under which the source named `q` publishes a name it
+declares: `!`, the source's name, `%` and the name, which no document
+can write. -/
+def exportName (q n : String) : String := "!" ++ q ++ "%" ++ n
+
 /-- The declarations a source named `q` adds to a document that loads
-it: its term under `@` and its name, and each declaration it makes,
-`own`, under its own name (`scopedName`), each read in the source's
-scope (`Val.scoped`). -/
-def Decls.ofSource (q : String) (own : Decls) (t : Val) : Decls :=
-  ("@" ++ q, t.scoped q) :: own.map fun d => (scopedName q d.1, d.2.scoped q)
+it: its term under `@` and its name; each declaration it makes, `own`,
+under its own name (`scopedName`), each read in the source's scope
+(`Val.scoped`); and each name it publishes, `export({ %a })`, under the
+name it publishes it by (`exportName`), naming its own. A name it
+exports that it doesn't declare, one that arrived through a load among
+them, it publishes as `nil`, which no destructure can take
+(`Decls.takesLeft`), as both ports refuse to take it. -/
+def Decls.ofSource (q : String) (own : Decls) (t : Val) (exports : List String := []) : Decls :=
+  ("@" ++ q, t.scoped q) :: own.map (fun d => (scopedName q d.1, d.2.scoped q)) ++
+    exports.map fun n => (exportName q n, if own.any (·.1 == n) then .alias (scopedName q n) else .nil)
+
+/-- The names a destructure takes from the source named `q`, each the
+document's name and the name the source publishes: `{ %b: %a }` takes
+`a` as `b`, written as the two strings `b` and `a`, and `{ % }`, written
+as `%`, takes each name the source publishes under its own. None for
+names written any other way. -/
+def Decls.takeNames (ds : Decls) (q : String) : List Val → Option (List (String × String))
+  | [.lit (.str "%")] => some (ds.filterMap fun d =>
+      if d.1.startsWith ("!" ++ q ++ "%") then some (d.1.drop (q.length + 2), d.1.drop (q.length + 2)) else none)
+  | [] => some []
+  | .lit (.str b) :: .lit (.str a) :: rest => (ds.takeNames q rest).map ((b, a) :: ·)
+  | _ => none
+
+mutual
+/-- The destructures a document writes, each the text of its load and
+the names it takes, wherever its values land while its names are the
+document's: at the top, in a side of a meet, under a key, in a map's or
+a list's spread, in an arm of a disjunction, under a preference or a
+rider, and in a call's argument, as both ports bind them. A list's
+element holds none, where the ports differ (#518). -/
+def Val.takes : Val → List (String × List Val)
+  | .call .load (.lit (.str p) :: names@(_ :: _)) => [(p, names)]
+  | .call _ args => takesItems args
+  | .meet a b => a.takes ++ b.takes
+  | .map fs spread _ => takesFields fs ++ takesSpread spread
+  | .list _ spread _ => takesSpread spread
+  | .or arms => takesArms arms
+  | .pref _ x => x.takes
+  | .ride _ v _ => v.takes
+  | _ => []
+
+def takesFields : List (String × Bool × Val) → List (String × List Val)
+  | [] => []
+  | (_, _, v) :: fs => v.takes ++ takesFields fs
+
+def takesItems : List Val → List (String × List Val)
+  | [] => []
+  | v :: vs => v.takes ++ takesItems vs
+
+def takesSpread : Option Val → List (String × List Val)
+  | none => []
+  | some s => s.takes
+
+def takesArms : List (ℕ × Val) → List (String × List Val)
+  | [] => []
+  | (_, a) :: as => a.takes ++ takesArms as
+end
+
+/-- The names a document's destructures bind: each name a destructure
+takes, under the document's name, naming what the source publishes
+(`exportName`), so that it meets any declaration the document makes of
+the same name. -/
+def Decls.takeBinds (ds : Decls) (S : Val) : Decls :=
+  S.takes.flatMap fun t => match loadPath "" t.1 with
+    | none => []
+    | some q => ((ds.takeNames q t.2).getD []).map fun n => (n.1, .alias (exportName q n.2))
+
+/-- Whether a document's destructure asks for a name its source doesn't
+publish, or publishes without declaring it (`nil`), which makes the
+document an error whether or not anything reads the name, as both ports
+refuse it: a wildcard, `{ % }`, asks for every name the source
+publishes. -/
+def Decls.takesLeft (ds : Decls) (S : Val) : Bool :=
+  S.takes.any fun t => match loadPath "" t.1 with
+    | none => true
+    | some q => match ds.takeNames q t.2 with
+      | none => true
+      | some ns => ns.any fun n => match ds.find? (·.1 == exportName q n.2) with
+        | some (_, .nil) => true
+        | some _ => false
+        | none => true
 
 /-- A term written in the source named `src` with the sources it loads
 read in, `n` deep, `seen` the sources it's being read into: each `@"p"`
@@ -552,8 +637,9 @@ no part of the document, nor are the names it declares
 def Decls.loaded (ds : Decls) (S : Val) : Decls × Val :=
   let read := (S :: (ds.filter fun d => !sourceName d.1 && !scopedDecl d.1).map (·.2)).flatMap
     (ds.sourcesRead (ds.sourceCount + 1) [] "")
-  ((ds.filter fun d => !sourceName d.1 && (scopeOf d.1).all read.contains).map fun d =>
-      (d.1, ds.loadIn (ds.sourceCount + 1) (scopeOf d.1).toList ((scopeOf d.1).getD "") d.2),
+  ((ds.filter fun d => !sourceName d.1 && (scopeOf d.1).all read.contains).map (fun d =>
+      (d.1, ds.loadIn (ds.sourceCount + 1) (scopeOf d.1).toList ((scopeOf d.1).getD "") d.2))
+      ++ ds.takeBinds S,
     ds.loadIn (ds.sourceCount + 1) [] "" S)
 
 /-- Whether a term holds a load, at any depth: once the sources are read
@@ -563,7 +649,7 @@ def Val.holdsLoad (v : Val) : Bool := !v.loads.isEmpty
 /-- Whether a document, its sources read in, still holds a load, in its
 schema or in a body: one the reading couldn't make. -/
 def Decls.loadsLeft (ds : Decls) (S : Val) : Bool :=
-  (ds.loaded S).2.holdsLoad || (ds.loaded S).1.any fun d => d.2.holdsLoad
+  (ds.loaded S).2.holdsLoad || ((ds.loaded S).1.any fun d => d.2.holdsLoad) || ds.takesLeft S
 
 /-- A variable's step: the text of the scalar the calling program binds
 it to, a string as itself, a number as `Number.text` writes it and a
@@ -2222,12 +2308,25 @@ theorem Decls.loadIn_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Check
     · obtain ⟨t, ht, rfl⟩ := Option.map_eq_some_iff.mp hq
       exact Decls.loadIn_checkableA hb n (q :: seen) q (Decls.source?_checkableA hb ht)
 
+theorem Decls.takeBinds_alias {ds : Decls} {S : Val} {d : String × Val} (h : d ∈ ds.takeBinds S) :
+    ∃ n, d.2 = .alias n := by
+  simp only [Decls.takeBinds, List.mem_flatMap] at h
+  obtain ⟨t, -, ht⟩ := h
+  split at ht
+  · simp at ht
+  · simp only [List.mem_map] at ht
+    obtain ⟨n, -, rfl⟩ := ht
+    exact ⟨_, rfl⟩
+
 theorem Decls.loaded_bodies_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
     ∀ d, d ∈ (ds.loaded S).1 → d.2.CheckableA := by
   intro d hd
-  simp only [Decls.loaded, List.mem_map, List.mem_filter] at hd
-  obtain ⟨d', ⟨hd', -⟩, rfl⟩ := hd
-  exact Decls.loadIn_checkableA hb _ _ _ (hb d' hd')
+  simp only [Decls.loaded, List.mem_append, List.mem_map, List.mem_filter] at hd
+  rcases hd with ⟨d', ⟨hd', -⟩, rfl⟩ | hd
+  · exact Decls.loadIn_checkableA hb _ _ _ (hb d' hd')
+  · obtain ⟨n, hn⟩ := Decls.takeBinds_alias hd
+    rw [hn]
+    exact .alias
 
 theorem Decls.loaded_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (ds.loaded S).2.CheckableA :=

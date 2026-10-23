@@ -1749,6 +1749,67 @@ theorem scope_verdict_exact : ∀ c ∈ scopeCases, ∀ (m : Mode) (v : Verdict)
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (scopeCases_checkable c hc).1 (scopeCases_checkable c hc).2 v
 
+/-- Names a source publishes, `export({ %a })`, and the destructures
+that take them, `{ %a } = @"p"`: a name taken by its own name, all of a
+source's names at once, and under another name; at the top and under a
+key, where the source's values land while its names are the document's;
+beside a declaration of the same name, which it meets; beside data that
+refuses it; a name the source declares but doesn't publish, used and
+not, one it publishes but declares only through a load, and one it
+never declares, each an error; a destructure under a rider, in a spread
+and under a preference, which binds its names as at a key, and an
+unexported name under a rider at the top, an error; and every name of a source
+that publishes one it doesn't declare, an error, beside the source
+loaded alone. -/
+def takeCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let ld (s : String) : Val := .call .load [.lit (.str s)]
+  let fx (s : String) : String := "__FIXTURES__/" ++ s
+  let take (s : String) (names : List String) : Val := .call .load (.lit (.str (fx s)) :: names.map str)
+  let files : Decls :=
+    Decls.ofSource (fx "alias_exports.aontu") [("uint8", int 255), ("secret", str "shh")]
+      (m [("defaults", m [("retries", int 3)])]) ["uint8"] ++
+    Decls.ofSource (fx "alias_exports_used.aontu")
+      [("port", .meet (.meet .integer (.min (.num (.integer ⟨1, by decide⟩))))
+        (.max (.num (.integer ⟨65535, by decide⟩))))]
+      (m [("listen", .meet (.alias "port") (int 8080))]) ["port"] ++
+    Decls.ofSource (fx "alias_reexport.aontu") [] (ld "./alias_declares_u.aontu") ["u"] ++
+    Decls.ofSource (fx "alias_declares_u.aontu") [("u", int 7)] (m [("y", int 1)])
+  [(files, .meet (take "alias_exports.aontu" ["uint8", "uint8"]) (m [("a", .alias "uint8")]), dm []),
+    (files, .meet (take "alias_exports.aontu" ["uint8", "uint8"]) (m [("a", .alias "uint8")]), dm [("a", j 254)]),
+    (files, .meet (take "alias_exports.aontu" ["%"]) (m [("a", .alias "uint8")]), dm []),
+    (files, .meet (take "alias_exports.aontu" ["u8", "uint8"]) (m [("a", .alias "u8")]), dm []),
+    (files, m [("svc", take "alias_exports.aontu" ["uint8", "uint8"]), ("a", .alias "uint8")],
+      dm [("svc", dm [("defaults", dm [("retries", j 3)])])]),
+    (files, m [("svc", take "alias_exports_used.aontu" ["port", "port"]), ("a", .meet (.alias "port") (int 443))], dm []),
+    (files, m [("svc", take "alias_exports_used.aontu" ["port", "port"]), ("a", .alias "port")], dm [("a", j 0)]),
+    (("uint8", .integer) :: files,
+      .meet (take "alias_exports.aontu" ["uint8", "uint8"]) (m [("a", .alias "uint8")]), dm []),
+    (("uint8", .integer) :: files,
+      .meet (take "alias_exports.aontu" ["uint8", "uint8"]) (m [("a", .alias "uint8")]), dm [("a", j 7)]),
+    (files, .meet (take "alias_exports.aontu" ["secret", "secret"]) (m [("a", .alias "secret")]), dm []),
+    (files, take "alias_exports.aontu" ["secret", "secret"], dm []),
+    (files, .meet (take "alias_reexport.aontu" ["u", "u"]) (m [("a", .alias "u")]), dm []),
+    (files, .meet (take "alias_exports.aontu" ["nosuch", "nosuch"]) (m [("a", .alias "nosuch")]), dm []),
+    (files, m [("a", .ride .type (take "alias_exports.aontu" ["uint8", "uint8"]) []), ("b", .alias "uint8")], dm []),
+    (files, .ride .type (take "alias_exports.aontu" ["secret", "secret"]) [], dm []),
+    (files, m [("a", .map [] (some (take "alias_exports.aontu" ["uint8", "uint8"])) false), ("b", .alias "uint8")],
+      dm []),
+    (files, m [("a", .pref 1 (take "alias_exports.aontu" ["uint8", "uint8"])), ("b", .alias "uint8")], dm []),
+    (files, take "alias_reexport.aontu" ["%"], dm []),
+    (files, ld (fx "alias_reexport.aontu"), dm [])]
+
+theorem takeCases_checkable : ∀ c ∈ takeCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem take_verdict_exact : ∀ c ∈ takeCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (takeCases_checkable c hc).1 (takeCases_checkable c hc).2 v
+
 /-- Generators whose templates read their member's place through a
 relative path, each read at each member of the generator's output:
 `each` and `pack` over a list a path names, beside data that refuses
@@ -1969,6 +2030,12 @@ theorem boundEach_verdict_exact : ∀ c ∈ boundEachCases, ∀ (m : Mode) (v : 
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (boundEachCases_checkable c hc).1 (boundEachCases_checkable c hc).2 v
 
+/-- Whether a term is a destructure, `{ %a } = @"p"`: a load that
+writes the names it takes after its path. -/
+def Aontu.Val.isTake : Val → Bool
+  | .call .load (.lit (.str _) :: _ :: _) => true
+  | _ => false
+
 /-- The `paths` rows: each case's declarations and schema as one
 document, a map's braces dropped since neither CLI reads a braced map
 after a declaration, in the three modes, with the one class `vetP`
@@ -1983,10 +2050,20 @@ def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) (
     for d in c.1.filter fun d => !sourceName d.1 && !scopedDecl d.1 do
       let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
       lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
-    let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
+    -- A destructure at the top is a statement of its own, so it takes a
+    -- line of its own, and the rest of the schema the line after.
+    let takes := c.2.1.conjuncts.filter Val.isTake
+    for t in takes do
+      let some tsrc := t.cell | throw (IO.userError "a destructure of the fragment has no text")
+      lines := lines ++ [tsrc]
+    let rest := if takes.isEmpty then [c.2.1] else c.2.1.conjuncts.filter fun v => !v.isTake
     let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
-    let body := match c.2.1 with | .map _ _ _ => (ssrc.drop 1).dropRight 1 | _ => ssrc
-    let src := "\\n".intercalate (if declsLast then body :: lines else lines ++ [body])
+    let mut body : List String := []
+    for s in rest.take 1 do
+      let some ssrc := ((rest.drop 1).foldl Val.meet s).cell
+        | throw (IO.userError "a schema of the fragment has no text")
+      body := [match s, rest.length with | .map _ _ _, 1 => (ssrc.drop 1).dropRight 1 | _, _ => ssrc]
+    let src := "\\n".intercalate (if declsLast then body ++ lines else lines ++ body)
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
         (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
       IO.println (tag ++ toString i ++ "\tverdict\t" ++ src ++ "\t" ++ dsrc ++ "\t{\"verdict\":\""
@@ -4361,7 +4438,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# bounds written over terms, each the bound its terms name, in rows bd0 on, and"
     IO.println "# bounds over a relative path in a generator's template or a filter's"
     IO.println "# condition, each read where its instance lands, in rows bg0 on. Sources that"
-    IO.println "# declare names of their own, each read in its own scope, follow in rows ls0 on."
+    IO.println "# declare names of their own, each read in its own scope, follow in rows ls0 on,"
+    IO.println "# and the names a source publishes, with the destructures that take them, in"
+    IO.println "# rows lx0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -4383,6 +4462,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "bd" boundArgCases
     pathRows "bg" (boundFilterCases ++ boundEachCases)
     pathRows "ls" scopeCases
+    pathRows "lx" takeCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"

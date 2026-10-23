@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads `export` and the destructure
+
+Definition, generated rows, and documentation. No engine changes. A
+P10 slice.
+
+- `spec/Aontu/Paths.lean`: `Decls.ofSource` takes the names a source
+  publishes, `export({ %a })`, and declares each under a name of the
+  source's own (`exportName`); a name the source exports and doesn't
+  declare it publishes as `nil`, which no destructure can take, so a
+  wildcard over such a source is an error, as in both ports. A
+  destructure, `{ %b: %a } = @"p"` or `{ % } = @"p"`, is the load with
+  the names it takes after its path: `Decls.takeBinds` binds each name
+  it takes in the document's scope, where it meets a declaration of
+  the same name, wherever the destructure stands but in a list's
+  element, where the ports differ (#518), and `Decls.takesLeft` makes a
+  name its source doesn't publish an error, used or not; under a key
+  the ports class it as `invalid` (#426).
+- `spec/Oracle/Print.lean` writes a destructure as the ports read it,
+  and the path rows write one at the top on a line of its own.
+- `spec/Oracle.lean`: `takeCases`, over the fixtures the shared alias
+  rows load, writes rows lx0 on of `test/spec/def-path.tsv`, in the
+  three modes of `vet`. Both ports answer every row as the definition
+  does.
+- `docs/reference-language.md`: a file that exports a name it didn't
+  declare publishes nothing, and both ports refuse a destructure that
+  asks for the name with `import_not_exported`. The page said both
+  ports refused the export itself.
+
 ### The definition reads a source's own names in its own scope
 
 Definition, generated rows, and documentation. No engine changes. A

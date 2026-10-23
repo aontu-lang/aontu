@@ -2054,9 +2054,10 @@ of the same name rather than replacing it, exactly as two declarations
 in one file meet.
 
 **A file publishes what it declares.** A name that merely arrived in a
-file through an include belongs to the file that wrote it, so
-re-exporting it is refused: publishing someone else's private name is
-not a file's to do.
+file through an include belongs to the file that wrote it, so exporting
+it publishes nothing, and a destructure that asks for it is refused with
+`import_not_exported`: publishing someone else's private name isn't a
+file's to do.
 
 **Rename what you take with `%local: %remote`.** Both sides carry the
 sigil, because both are names; the left is what this file calls it and
@@ -2124,6 +2125,14 @@ out of the argument's reach. That include fails with `conjunct`.
 `export` does not rename: a file publishes what it has, and the taking
 file renames what it takes, so `export({ %a: %b })` is refused with
 `export_arg`.
+
+The definition reads each name a file publishes, by `Decls.ofSource`,
+and each name a destructure takes, by `Decls.takeBinds`, both in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). A name that a
+destructure asks for and its file doesn't publish makes the document an
+error there too (`Decls.takesLeft`), and rows from lx0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to these readings.
 
 ## The `+` operator and grouping
 
