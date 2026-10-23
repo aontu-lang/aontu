@@ -2484,6 +2484,66 @@ et206	verdict	v: emit([{"k": 1}], {"match": {"k": 1, "j"?: {}}, "body": ["x"]})	
 et207	verdict	v: emit([{"k": 1, "j"?: integer}], {"match": {"k": 1}, "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
 et208	verdict	v: emit([{"k": 1, "j"?: integer}], {"match": {"k": 1}, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
 et209	verdict	v: emit([{"k": 1, "j"?: integer}], {"match": {"k": 1}, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et210	verdict	v: emit([1], {"match": meta(integer, {}), "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
+et211	verdict	v: emit([1], {"match": meta(integer, {}), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+et212	verdict	v: emit([1], {"match": meta(integer, {}), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et213	verdict	v: emit([1], {"match": type(integer), "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
+et214	verdict	v: emit([1], {"match": type(integer), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+et215	verdict	v: emit([1], {"match": type(integer), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et216	verdict	v: emit([{"k": 1}], {"match": {"k": meta(1, {})}, "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
+et217	verdict	v: emit([{"k": 1}], {"match": {"k": meta(1, {})}, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+et218	verdict	v: emit([{"k": 1}], {"match": {"k": meta(1, {})}, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et219	verdict	v: emit([1], {"match": any, "body": [(["a"]) & (["a"])]})	v: ["a"]	{"verdict":"valid"}
+et220	verdict	v: emit([1], {"match": any, "body": [(["a"]) & (["a"])]})	v: ["a"]	{"verdict":"valid","opts":{"noFill":true}}
+et221	verdict	v: emit([1], {"match": any, "body": [(["a"]) & (["a"])]})	v: ["a"]	{"verdict":"valid","opts":{"partial":true}}
+et222	verdict	v: emit([1], {"match": any, "body": [meta(["a"], {})]})	v: ["a"]	{"verdict":"valid"}
+et223	verdict	v: emit([1], {"match": any, "body": [meta(["a"], {})]})	v: ["a"]	{"verdict":"valid","opts":{"noFill":true}}
+et224	verdict	v: emit([1], {"match": any, "body": [meta(["a"], {})]})	v: ["a"]	{"verdict":"valid","opts":{"partial":true}}
+et225	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", .missing)]})	v: ["x"]	{"verdict":"error"}
+et226	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", .missing)]})	v: ["x"]	{"verdict":"error","opts":{"noFill":true}}
+et227	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", .missing)]})	v: ["x"]	{"verdict":"error","opts":{"partial":true}}
+et228	verdict	v: emit([{"l": [{"x": 1}]}], {"match": any, "body": [emit(.l, {"match": any, "body": [.x]})]})	v: [1]	{"verdict":"valid"}
+et229	verdict	v: emit([{"l": [{"x": 1}]}], {"match": any, "body": [emit(.l, {"match": any, "body": [.x]})]})	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
+et230	verdict	v: emit([{"l": [{"x": 1}]}], {"match": any, "body": [emit(.l, {"match": any, "body": [.x]})]})	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+et231	verdict	v: emit([], {"match": any, "body": each(["x"], _)})	v: {}	{"verdict":"error"}
+et232	verdict	v: emit([], {"match": any, "body": each(["x"], _)})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+et233	verdict	v: emit([], {"match": any, "body": each(["x"], _)})	v: {}	{"verdict":"error","opts":{"partial":true}}
+et234	verdict	v: emit([1], {"match": any, "body": (["x"]) & (["x"])})	v: {}	{"verdict":"error"}
+et235	verdict	v: emit([1], {"match": any, "body": (["x"]) & (["x"])})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+et236	verdict	v: emit([1], {"match": any, "body": (["x"]) & (["x"])})	v: {}	{"verdict":"error","opts":{"partial":true}}
+et237	verdict	v: emit([min(1)], {"match": min(1), "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
+et238	verdict	v: emit([min(1)], {"match": min(1), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+et239	verdict	v: emit([min(1)], {"match": min(1), "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et240	verdict	v: emit([min(1)], {"match": min(2), "body": ["x"]})	v: {}	{"verdict":"error"}
+et241	verdict	v: emit([min(1)], {"match": min(2), "body": ["x"]})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+et242	verdict	v: emit([min(1)], {"match": min(2), "body": ["x"]})	v: {}	{"verdict":"error","opts":{"partial":true}}
+et243	verdict	v: emit([(integer) & (min(1))], {"match": integer, "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
+et244	verdict	v: emit([(integer) & (min(1))], {"match": integer, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+et245	verdict	v: emit([(integer) & (min(1))], {"match": integer, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et246	verdict	v: emit([{"k": 1}], {"match": {&: _}, "body": ["x"]})	v: {}	{"verdict":"error"}
+et247	verdict	v: emit([{"k": 1}], {"match": {&: _}, "body": ["x"]})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+et248	verdict	v: emit([{"k": 1}], {"match": {&: _}, "body": ["x"]})	v: {}	{"verdict":"error","opts":{"partial":true}}
+et249	verdict	v: emit([[1]], {"match": [&: _], "body": ["x"]})	v: {}	{"verdict":"error"}
+et250	verdict	v: emit([[1]], {"match": [&: _], "body": ["x"]})	v: {}	{"verdict":"error","opts":{"noFill":true}}
+et251	verdict	v: emit([[1]], {"match": [&: _], "body": ["x"]})	v: {}	{"verdict":"error","opts":{"partial":true}}
+et252	verdict	v: emit([{}], {"match": {&: _}, "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
+et253	verdict	v: emit([{}], {"match": {&: _}, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+et254	verdict	v: emit([{}], {"match": {&: _}, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et255	verdict	v: emit([{"k": 1}], {"match": {&: (_) & (integer)}, "body": ["x"]})	v: ["x"]	{"verdict":"valid"}
+et256	verdict	v: emit([{"k": 1}], {"match": {&: (_) & (integer)}, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+et257	verdict	v: emit([{"k": 1}], {"match": {&: (_) & (integer)}, "body": ["x"]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et258	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {&: .missing})]})	v: ["x"]	{"verdict":"valid"}
+et259	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {&: .missing})]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+et260	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {&: .missing})]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et261	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", [&: .missing])]})	v: ["x"]	{"verdict":"valid"}
+et262	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", [&: .missing])]})	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+et263	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", [&: .missing])]})	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+et264	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {"a": .missing})]})	v: ["x"]	{"verdict":"error"}
+et265	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {"a": .missing})]})	v: ["x"]	{"verdict":"error","opts":{"noFill":true}}
+et266	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {"a": .missing})]})	v: ["x"]	{"verdict":"error","opts":{"partial":true}}
+et267	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error"}
+et268	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error","opts":{"noFill":true}}
+et269	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}

@@ -8,6 +8,38 @@ each change affects.
 
 ## Unreleased
 
+### The definition dispatches `emit` through riders and meets, and binds a body as written
+
+Definition, generated rows, and documentation. No engine changes. Six
+findings on #521.
+
+- `spec/Aontu/Verdict.lean`: `emitTakes` reads the node and its meet
+  with the `match` through their riders, a member's too, so
+  `meta(integer, {})` and `type(integer)` take the node `1`.
+  `Val.alike` compares two terms that aren't containers by their
+  conjuncts (`conjAlike`), so `min(1)` takes the node `min(1)` and
+  `integer` takes `integer & min(1)`, while `min(2)` refuses `min(1)`.
+- `Val.matchRead` reads a spread's hole as it reads a member's, so
+  `{&: _}` refuses the node `{"k": 1}` and takes `{}`, while
+  `{&: _ & integer}` takes `{"k": 1}`.
+- `emitSpliceF` reads each piece in normal form, a rider around it read
+  through, so `["a"] & ["a"]` and `meta(["a"], {})` in a body splice as
+  `["a"]` does.
+- `emitRawOk` refuses a template whose body isn't written as a list, so
+  `body: each(["x"], _)` and `body: ["x"] & ["x"]` are errors even over
+  an empty selection, as both ports answer.
+- `emitBound` reads a body's references into the node as written
+  (`Val.nodePaths`), so one in a part the reading drops still binds:
+  `match(1, 1, "x", .missing)` in a body is an error, as both ports
+  answer. A nested `emit`'s table, a generator's template and a
+  `filter`'s condition read their own nodes and members, so their
+  references are theirs, and both ports bind no spread, so
+  `match(1, 1, "x", {&: .missing})` in a body emits `"x"`.
+- `spec/Oracle.lean`: `emitCases` gains twenty cases, rows et210 to
+  et269 of `test/spec/def-call.tsv`. Both ports answer every row as the
+  definition does.
+- The tutorial's step 40 describes the readings.
+
 ### The definition reads a waiting body through its names, its keys as text and its arity
 
 Definition, generated rows, and documentation. No engine changes. A
