@@ -8271,8 +8271,15 @@ def Decls.ofSource (q : String) (own : Decls) (t : Val) : Decls :=
 So a source that declares `%u` and writes `y: 1` gives `{"y": 1}`
 wherever it's loaded, and a document that loads it and writes `z: %u`
 names a `%u` it never declared, an error. A variable belongs to the
-calling program and reads the same in every source. Rows from ls0 on hold these readings, and both engines answer
-every one as the definition does. Both engines refuse a source that
+calling program and reads the same in every source.
+
+A name a source declares reads its loads from the source's own
+directory, as the source's term does, and a load of the source itself
+is a cycle. A source the document never loads, not even through
+another source, adds none of its names, so a name it declares over
+nothing makes an error only of a document that loads it. Rows from ls0
+on hold these readings, and both engines answer every one as the
+definition does. Both engines refuse a source that
 declares a name when a document loads it under a key, which the
 definition reads as it reads one at the root. When a document declares
 a name and loads such a source at the root, Go keeps the document's

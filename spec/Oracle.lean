@@ -1707,7 +1707,10 @@ theorem load_verdict_exact : ∀ c ∈ loadCases, ∀ (m : Mode) (v : Verdict),
 scope (`Decls.ofSource`): a source whose name its own body uses, loaded
 alone and beside a document that names it, which can't read it; a
 source that names a name only the document declares, which it can't
-read; and two sources that declare one name, which stay two names. -/
+read; two sources that declare one name, which stay two names; a
+source whose name loads a source from its own directory; and a source
+whose name names nothing, which only a document that loads it is an
+error for. -/
 def scopeCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -1724,14 +1727,20 @@ def scopeCases : List (Decls × Val × Data) :=
     Decls.ofSource (fx "alias_row_b.aontu") [("row", m [("extra", .pref 1 (int 9))])]
       (m [("b", .meet (.alias "row") (m [("kind", str "y")]))]) ++
     Decls.ofSource (fx "alias_sigil.aontu") [("b", .meet .integer (.min (.num (.integer ⟨1, by decide⟩))))]
-      (m [("q", .meet (.alias "b") (int 7))])
+      (m [("q", .meet (.alias "b") (int 7))]) ++
+    Decls.ofSource (fx "defload/alias_loads.aontu") [("t", ld "./deep/leaf.aontu")] (m [("y", .alias "t")]) ++
+    [("@" ++ fx "defload/deep/leaf.aontu", m [("l", int 1)])] ++
+    Decls.ofSource (fx "alias_stray.aontu") [("s", .alias "nowhere")] (m [("y", int 1)])
   [(files, ld (fx "alias_declares_u.aontu"), dm []),
     (files, .meet (ld (fx "alias_declares_u.aontu")) (m [("z", .alias "u")]), dm []),
     (("t", int 42) :: files, m [("inner", ld (fx "alias_uses_t.aontu"))], dm []),
     (files, .meet (ld (fx "alias_row_a.aontu")) (ld (fx "alias_row_b.aontu")), dm []),
     (files, .meet (ld (fx "alias_row_a.aontu")) (ld (fx "alias_row_b.aontu")), dm [("a", dm [("extra", .str "s")])]),
     (files, .meet (ld (fx "alias_sigil.aontu")) (m [("x", int 1)]), dm []),
-    (files, .meet (ld (fx "alias_sigil.aontu")) (m [("x", int 1)]), dm [("q", j 0)])]
+    (files, .meet (ld (fx "alias_sigil.aontu")) (m [("x", int 1)]), dm [("q", j 0)]),
+    (files, ld (fx "defload/alias_loads.aontu"), dm []),
+    (files, ld (fx "defload/alias_loads.aontu"), dm [("y", dm [("l", j 2)])]),
+    (files, ld (fx "alias_stray.aontu"), dm [])]
 
 theorem scopeCases_checkable : ∀ c ∈ scopeCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

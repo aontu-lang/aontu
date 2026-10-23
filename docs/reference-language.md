@@ -1869,7 +1869,8 @@ The definition reads each name a file declares, and each name the file
 uses, under a name of that file's own, by `Decls.ofSource` in
 [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), and rows from ls0
 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
-engines to it.
+engines to it. A name a file declares reads its loads from that file's
+directory, and a file the document never loads adds no names.
 
 A name crosses where both files say so, and nowhere else: the declaring
 file publishes it with [`export`](#publishing-a-name-export), and the

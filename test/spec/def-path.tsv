@@ -1526,3 +1526,12 @@ ls17	verdict	(@"__FIXTURES__/alias_sigil.aontu") & ({"x": 1})	{}	{"verdict":"val
 ls18	verdict	(@"__FIXTURES__/alias_sigil.aontu") & ({"x": 1})	{"q": 0}	{"verdict":"invalid"}
 ls19	verdict	(@"__FIXTURES__/alias_sigil.aontu") & ({"x": 1})	{"q": 0}	{"verdict":"invalid","opts":{"noFill":true}}
 ls20	verdict	(@"__FIXTURES__/alias_sigil.aontu") & ({"x": 1})	{"q": 0}	{"verdict":"invalid","opts":{"partial":true}}
+ls21	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{}	{"verdict":"valid"}
+ls22	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ls23	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+ls24	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{"y": {"l": 2}}	{"verdict":"invalid"}
+ls25	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{"y": {"l": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+ls26	verdict	@"__FIXTURES__/defload/alias_loads.aontu"	{"y": {"l": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+ls27	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error"}
+ls28	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+ls29	verdict	@"__FIXTURES__/alias_stray.aontu"	{}	{"verdict":"error","opts":{"partial":true}}

@@ -1,0 +1,4 @@
+# Declares `%s` over a name nothing declares: a document that loads this
+# file is an error, and one that doesn't never reads it.
+%s = %nowhere
+y: 1
