@@ -1023,16 +1023,79 @@ def ntSpread : Option Val → Option Val
   | some s => some (if s.perMember then .any else s)
   | none => none
 
+/-- Whether a path is relative: its first step climbs from where it's
+written. -/
+def relPath : List Seg → Bool
+  | .up _ :: _ => true
+  | _ => false
+
+/-- Whether a term holds a relative path, at any depth. -/
+def Val.holdsRel (v : Val) : Bool := v.paths.any relPath
+
+/-- A term of a generator's template as the generator's own instance
+holds it: `any` where it holds a relative path. -/
+def relAny (v : Val) : Val := if v.holdsRel then .any else v
+
+mutual
+/-- A generator's template with each term that holds a relative path,
+other than a map, a list, a meet or a rider, read as `any` (`relAny`):
+what the generator's own instance holds, since the template's relative
+paths read at each member instead (`Val.relPart`). -/
+def Val.relBlank : Val → Val
+  | .map fs spread closed => .map (rbFields fs) spread closed
+  | .list items spread closed => .list (rbItems items) spread closed
+  | .meet a b => .meet a.relBlank b.relBlank
+  | .ride k v r => .ride k v.relBlank r
+  | v => relAny v
+
+def rbFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.relBlank) :: rbFields fs
+
+def rbItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.relBlank :: rbItems vs
+end
+
+/-- A term of a generator's template as the part met at each member holds
+it: whole where it holds a relative path, and `any` otherwise. -/
+def relWhole (v : Val) : Val := if v.holdsRel then v else .any
+
+mutual
+/-- The part of a generator's template that reads its member's place
+through a relative path, through maps by key, lists by index, meets and
+riders: a map's members that hold one, in an open map, a list's
+elements, and any other term that holds one, whole (`relWhole`). Met at
+a member of the generator's output, it asks of the member what the
+template's relative paths read there. -/
+def Val.relPart : Val → Val
+  | .map fs _ _ => .map (rpFields fs) none false
+  | .list items _ _ => .list (rpItems items) none false
+  | .meet a b => .meet a.relPart b.relPart
+  | .ride k v r => .ride k v.relPart r
+  | v => relWhole v
+
+def rpFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => if v.holdsRel then (k, o, v.relPart) :: rpFields fs else rpFields fs
+
+def rpItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.relPart :: rpItems vs
+end
+
 mutual
 /-- The term with each spread whose template reads its member's place
 left to admit any value (`ntSpread`), through maps by key, lists by
-index, meets and riders, where `landing` reads one: the schema each
-member's instance is met into. -/
+index, meets, riders and a generator's template, whose relative paths
+it reads as `any` (`Val.relBlank`), where `landing` reads one: the
+schema each member's instance is met into. -/
 def Val.neutral : Val → Val
   | .map fs spread closed => .map (ntFields fs) (ntSpread spread) closed
   | .list items spread closed => .list (ntItems items) (ntSpread spread) closed
   | .meet a b => .meet a.neutral b.neutral
   | .ride k v r => .ride k v.neutral r
+  | .call f args => .call f (ntArgs f args)
   | v => v
 
 def ntFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -1042,6 +1105,12 @@ def ntFields : List (String × Bool × Val) → List (String × Bool × Val)
 def ntItems : List Val → List Val
   | [] => []
   | v :: vs => v.neutral :: ntItems vs
+
+/-- A call's arguments, a generator's template neutral and with its
+relative paths read as `any` (`Val.relBlank`). -/
+def ntArgs (f : Fn) : List Val → List Val
+  | [d, t] => if f == .each || f == .pack then [d, t.neutral.relBlank] else [d, t]
+  | args => args
 end
 
 mutual
@@ -1052,6 +1121,7 @@ def Val.perMembers : Val → Bool
   | .list items spread _ => pmItems items || (spread.map Val.perMember).getD false
   | .meet a b => a.perMembers || b.perMembers
   | .ride _ v _ => v.perMembers
+  | .call f args => pmArgs f args
   | _ => false
 
 def pmFields : List (String × Bool × Val) → Bool
@@ -1061,6 +1131,12 @@ def pmFields : List (String × Bool × Val) → Bool
 def pmItems : List Val → Bool
   | [] => false
   | v :: vs => v.perMembers || pmItems vs
+
+/-- Whether a call is a generator whose template reads its member's
+place: through a relative path, or a spread that does. -/
+def pmArgs (f : Fn) : List Val → Bool
+  | [_, t] => (f == .each || f == .pack) && (t.holdsRel || t.perMembers)
+  | _ => false
 end
 
 /-- The spread a map or a list holds, where its template reads its
@@ -1085,20 +1161,38 @@ lands at its own members too, and met at the member's path in `root`
 def Val.spreadInst (root s : Val) (p : List Seg) (t : Seg) : Option Val :=
   root.putW (p ++ [t]) ((s.atKey t.text).placed (p ++ [t])).neutral
 
-/-- What the spreads that land at a position of `root` make there: for
-each spread whose template reads its member's place among the terms the
-schema `P` writes at the position (`landing`), whether written there,
-in a template that holds the position or where a path reference copies
-it from, its template at each member `root` holds there. -/
-def Val.instancesAt (P root : Val) (p : List Seg) : List Val :=
-  ((landing P ((P.size + p.length + 2) * (P.size + 2)) [(P, p)]).filterMap Val.memberSpread).flatMap
-    fun s => (root.membersAt p).filterMap (root.spreadInst s p)
+/-- A generator's template where it reads its member's place through a
+relative path, `each`'s or `pack`'s: the part that does (`Val.relPart`). -/
+def Val.genTemplate : Val → Option Val
+  | .call .each [_, t] | .call .pack [_, t] => if t.holdsRel then some t.relPart else none
+  | _ => none
 
-/-- The schema `P` with each spread whose template reads its member's
-place read at each member `root` holds wherever the spread lands
-(`Val.instancesAt`), at every position of `root`, and left to admit any
-other member (`Val.neutral`), as both ports try such a template only on
-the members there are, at the place each stands. -/
+/-- A generator's template part at the member `t` of its output at the
+position `p`: placed at the member, its own spreads and generators that
+read their member's place left as `Val.neutral` leaves them, and met at
+the member's path in `root` (`Val.putW`). -/
+def Val.genInst (root u : Val) (p : List Seg) (t : Seg) : Option Val :=
+  root.putW (p ++ [t]) (u.placed (p ++ [t])).neutral
+
+/-- What the templates that land at a position of `root` make there: for
+each term the schema `P` writes at the position (`landing`), whether
+written there, in a template that holds the position or where a path
+reference copies it from, the template of a spread on it that reads its
+member's place, and the part of a generator's template that reads its
+member's place through a relative path (`Val.genTemplate`), each at
+each member `root` holds there. -/
+def Val.instancesAt (P root : Val) (p : List Seg) : List Val :=
+  (landing P ((P.size + p.length + 2) * (P.size + 2)) [(P, p)]).flatMap fun w =>
+    (w.memberSpread.toList.flatMap fun s => (root.membersAt p).filterMap (root.spreadInst s p)) ++
+      w.genTemplate.toList.flatMap fun u => (root.membersAt p).filterMap (root.genInst u p)
+
+/-- The schema `P` with each template that reads its member's place, a
+spread's or the part of a generator's that does through a relative
+path, read at each member `root` holds wherever it lands
+(`Val.instancesAt`), at every position of `root`; the spread left to
+admit any other member, and the generator's own template its relative
+paths as `any` (`Val.neutral`), as both ports try such a template only
+on the members there are, at the place each stands. -/
 def Val.membersRead (P root : Val) : Val :=
   if P.perMembers then (root.positions.flatMap (P.instancesAt root)).foldl .meet P.neutral else P
 
@@ -2142,6 +2236,131 @@ theorem mem_ntItems {items : List Val} {w : Val} : w ∈ ntItems items ↔ ∃ v
       · exact .inl rfl
       · exact .inr ⟨u, hu, rfl⟩
 
+theorem relAny_checkableA {v : Val} (h : v.CheckableA) : (relAny v).CheckableA := by
+  unfold relAny
+  split
+  · exact .any
+  · exact h
+
+theorem relWhole_checkableA {v : Val} (h : v.CheckableA) : (relWhole v).CheckableA := by
+  unfold relWhole
+  split
+  · exact h
+  · exact .any
+
+theorem mem_rbFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+    (k, o, w) ∈ rbFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.relBlank := by
+  induction fs with
+  | nil => simp [rbFields]
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    simp only [rbFields, List.mem_cons, Prod.mk.injEq]
+    rintro (⟨rfl, rfl, rfl⟩ | hm)
+    · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := ih hm
+      exact ⟨v, Or.inr hv, rfl⟩
+
+theorem mem_rbItems {items : List Val} {w : Val} : w ∈ rbItems items → ∃ v, v ∈ items ∧ w = v.relBlank := by
+  induction items with
+  | nil => simp [rbItems]
+  | cons v vs ih =>
+    simp only [rbItems, List.mem_cons]
+    rintro (rfl | hm)
+    · exact ⟨v, Or.inl rfl, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := ih hm
+      exact ⟨u, Or.inr hu, rfl⟩
+
+theorem relBlank_checkableA {v : Val} (h : v.CheckableA) : v.relBlank.CheckableA := by
+  induction h with
+  | @map fs spread closed _ hs ihf _ =>
+    refine .map (fun k o w hm => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_rbFields hm
+    exact ihf k o v hv
+  | @list items spread closed _ hs ihi _ =>
+    refine .list (fun w hm => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_rbItems hm
+    exact ihi v hv
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | ride _ ih => exact .ride ih
+  | len hc _ => exact relAny_checkableA (.len hc)
+  | or ha _ => exact relAny_checkableA (.or ha)
+  | pref hx _ => exact relAny_checkableA (.pref hx)
+  | nof hn hcs _ _ => exact relAny_checkableA (.nof hn hcs)
+  | call ha _ => exact relAny_checkableA (.call ha)
+  | must hc _ => exact relAny_checkableA (.must hc)
+  | when hc ht he _ _ _ => exact relAny_checkableA (.when hc ht he)
+  | contains hc hn _ _ => exact relAny_checkableA (.contains hc hn)
+  | rest ht h1 h2 h3 _ _ _ _ => exact relAny_checkableA (.rest ht h1 h2 h3)
+  | selectKey hp hr hd _ _ _ => exact relAny_checkableA (.selectKey hp hr hd)
+  | selectLit hp hr hd _ _ _ => exact relAny_checkableA (.selectLit hp hr hd)
+  | _ => exact relAny_checkableA (by constructor)
+
+theorem mem_rpFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+    (k, o, w) ∈ rpFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.relPart := by
+  induction fs with
+  | nil => simp [rpFields]
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    simp only [rpFields]
+    split
+    · simp only [List.mem_cons, Prod.mk.injEq]
+      rintro (⟨rfl, rfl, rfl⟩ | hm)
+      · exact ⟨v', Or.inl ⟨rfl, rfl, rfl⟩, rfl⟩
+      · obtain ⟨v, hv, rfl⟩ := ih hm
+        exact ⟨v, Or.inr hv, rfl⟩
+    · intro hm
+      obtain ⟨v, hv, rfl⟩ := ih hm
+      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+
+theorem mem_rpItems {items : List Val} {w : Val} : w ∈ rpItems items → ∃ v, v ∈ items ∧ w = v.relPart := by
+  induction items with
+  | nil => simp [rpItems]
+  | cons v vs ih =>
+    simp only [rpItems, List.mem_cons]
+    rintro (rfl | hm)
+    · exact ⟨v, Or.inl rfl, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := ih hm
+      exact ⟨u, Or.inr hu, rfl⟩
+
+theorem relPart_checkableA {v : Val} (h : v.CheckableA) : v.relPart.CheckableA := by
+  induction h with
+  | @map fs spread closed _ hs ihf _ =>
+    refine .map (fun k o w hm => ?_) (fun _ h => nomatch h)
+    obtain ⟨v, hv, rfl⟩ := mem_rpFields hm
+    exact ihf k o v hv
+  | @list items spread closed _ hs ihi _ =>
+    refine .list (fun w hm => ?_) (fun _ h => nomatch h)
+    obtain ⟨v, hv, rfl⟩ := mem_rpItems hm
+    exact ihi v hv
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | ride _ ih => exact .ride ih
+  | len hc _ => exact relWhole_checkableA (.len hc)
+  | or ha _ => exact relWhole_checkableA (.or ha)
+  | pref hx _ => exact relWhole_checkableA (.pref hx)
+  | nof hn hcs _ _ => exact relWhole_checkableA (.nof hn hcs)
+  | call ha _ => exact relWhole_checkableA (.call ha)
+  | must hc _ => exact relWhole_checkableA (.must hc)
+  | when hc ht he _ _ _ => exact relWhole_checkableA (.when hc ht he)
+  | contains hc hn _ _ => exact relWhole_checkableA (.contains hc hn)
+  | rest ht h1 h2 h3 _ _ _ _ => exact relWhole_checkableA (.rest ht h1 h2 h3)
+  | selectKey hp hr hd _ _ _ => exact relWhole_checkableA (.selectKey hp hr hd)
+  | selectLit hp hr hd _ _ _ => exact relWhole_checkableA (.selectLit hp hr hd)
+  | _ => exact relWhole_checkableA (by constructor)
+
+theorem ntArgs_checkableA {f : Fn} {args : List Val} (ha : ∀ a, a ∈ args → a.CheckableA)
+    (iha : ∀ a, a ∈ args → a.neutral.CheckableA) : ∀ a, a ∈ ntArgs f args → a.CheckableA := by
+  intro a hm
+  unfold ntArgs at hm
+  split at hm
+  · rename_i d t
+    split at hm
+    · simp only [List.mem_cons, List.mem_nil_iff, or_false] at hm
+      rcases hm with rfl | rfl
+      · exact ha _ (by simp)
+      · exact relBlank_checkableA (iha t (by simp))
+    · exact ha a hm
+  · exact ha a hm
+
 theorem neutral_checkableA {v : Val} (h : v.CheckableA) : v.neutral.CheckableA := by
   induction h with
   | @map fs spread closed _ hs ihf _ =>
@@ -2158,7 +2377,7 @@ theorem neutral_checkableA {v : Val} (h : v.CheckableA) : v.neutral.CheckableA :
   | or ha _ => exact .or ha
   | pref hx _ => exact .pref hx
   | nof hn hcs _ _ => exact .nof hn hcs
-  | call ha _ => exact .call ha
+  | call ha iha => exact .call (ntArgs_checkableA ha iha)
   | must hc _ => exact .must hc
   | when hc ht he _ _ _ => exact .when hc ht he
   | contains hc hn _ _ => exact .contains hc hn
@@ -2184,16 +2403,37 @@ theorem memberSpread_checkableA {v s : Val} (h : v.CheckableA) (hs : v.memberSpr
     · exact nomatch hs
   · exact nomatch hs
 
+theorem genTemplate_checkableA {v u : Val} (h : v.CheckableA) (hg : v.genTemplate = some u) : u.CheckableA := by
+  unfold Val.genTemplate at hg
+  split at hg
+  · split at hg
+    · injection hg with hg
+      subst hg
+      cases h with
+      | call ha => exact relPart_checkableA (ha _ (by simp))
+    · exact nomatch hg
+  · split at hg
+    · injection hg with hg
+      subst hg
+      cases h with
+      | call ha => exact relPart_checkableA (ha _ (by simp))
+    · exact nomatch hg
+  · exact nomatch hg
+
 theorem instancesAt_checkableA {P root : Val} (hP : P.CheckableA) (p : List Seg) :
     ∀ u, u ∈ P.instancesAt root p → u.CheckableA := by
   intro u hu
-  simp only [Val.instancesAt, List.mem_flatMap, List.mem_filterMap] at hu
-  obtain ⟨s, ⟨w, hw, hs⟩, t, -, ht⟩ := hu
+  simp only [Val.instancesAt, List.mem_flatMap, List.mem_append, List.mem_filterMap] at hu
+  obtain ⟨w, hw, hu⟩ := hu
   have hw' := landing_checkableA hP _ [(P, p)] (fun i hi => by
     simp only [List.mem_cons, List.mem_nil_iff, or_false] at hi
     subst hi
     exact hP) w hw
-  exact putW_checkableA (neutral_checkableA (placed_checkableA ((memberSpread_checkableA hw' hs).atKey _) _)) _ ht
+  rcases hu with ⟨s, hs, t, -, ht⟩ | ⟨g, hg, t, -, ht⟩
+  · exact putW_checkableA (neutral_checkableA (placed_checkableA
+      ((memberSpread_checkableA hw' (Option.mem_toList.mp hs)).atKey _) _)) _ ht
+  · exact putW_checkableA (neutral_checkableA (placed_checkableA
+      (genTemplate_checkableA hw' (Option.mem_toList.mp hg)) _)) _ ht
 
 theorem foldl_meet_checkableA : ∀ (us : List Val) {acc : Val}, acc.CheckableA → (∀ u, u ∈ us → u.CheckableA) →
     (us.foldl .meet acc).CheckableA
