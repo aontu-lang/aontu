@@ -1192,6 +1192,12 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         out.pending = this.pending;
         if (null != this.pending) {
             out.dc = this.dc;
+            // An instance (`dup`) holds its own arguments: re-pathing one
+            // instance's `.lim` must not move the one its siblings read.
+            if (true === spec?.dup) {
+                out.peg = this.peg.map((a) => true === a?.isVal ? a.clone(ctx, { dup: true }) : a);
+                out.pending = { atom: this.pending.atom, args: atomArgs(this.pending.atom, out.peg) };
+            }
         }
         out.cjo = this.cjo;
         out.invalid = this.invalid;
