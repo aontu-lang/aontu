@@ -99,8 +99,6 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   so that a literal meeting a term under it stays undecided (P9);
 - a marked list element, which both ports leave out of the output
   where no reading by position admits the output (decision 18, #421);
-- a size that is a disjunction, which both ports refuse as an argument
-  (#413);
 - a declaration nothing reads, which both ports evaluate, so that a
   conflict inside it is an error (#417);
 - a link in a generator's template, which P11 reads as written: a

@@ -4461,13 +4461,38 @@ def sizeClash (cs : List Val) : Bool :=
 Only the lower end waits. The meet decides an exclusion or a multiple
 with the upper end, so `len(neq(2)) & {x: 1, y: 2}` is an `error`
 though the data `{"x": 1, "y": 2, "z": 3}` would meet it, as both
-engines answer. `illFormed` reads the sizes of a meet once, whole, and
-each of its conjuncts as it reads a term:
+engines answer. A size is a conjunction of integers, bounds, exclusions
+and multiples, so one that still holds a choice once in normal form,
+`len(1 | 3)`, `len(*1)` or `len(type(1 | 3))`, is ill-formed whatever
+it meets, as both engines answer too (decision 16 of the design note's
+§7). A choice the meet or a dead arm settles to one arm is that arm,
+and two arms written alike are one, so `len(1 & (1 | 3))` and
+`len(1 | 1)` are each `len(1)`:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.choiceLeft : Val → Bool
+  | .or ((0, a) :: arms) => arms.any fun p => p.1 != 0 || !a.sameArm p.2
+  | .or _ => true
+  | .pref _ _ => true
+  | .meet a b => a.choiceLeft || b.choiceLeft
+  | .ride _ v _ => v.choiceLeft
+  | _ => false
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
+```
+
+`illFormed` reads each size, the sizes of a meet once, whole, and each
+of the meet's conjuncts as it reads a term:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Val.illFormed : Val → Bool
   | .nil => true
+  | .len c => c.sizeIll
   | .map fs _ _ => illFields fs
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
