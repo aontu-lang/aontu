@@ -24,7 +24,8 @@
 # spread's template or copied by a path reference, in rows ld0 on, and in a
 # generator's template, at each member of its output, in rows lg0 on. Spreads
 # whose templates read their member's place, each read at each member there
-# is, follow in rows sp0 on.
+# is, follow in rows sp0 on, and sources loaded in place, each a file of
+# test/spec/files the definition declares as a term, in rows lf0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -1144,3 +1145,84 @@ sp161	verdict	%T = {&: ..x}\n"x": 1, "a": %T	{"a": {"m": 2}}	{"verdict":"invalid
 sp162	verdict	%T = {&: ..x}\n"a": %T	{}	{"verdict":"error"}
 sp163	verdict	%T = {&: ..x}\n"a": %T	{}	{"verdict":"error","opts":{"noFill":true}}
 sp164	verdict	%T = {&: ..x}\n"a": %T	{}	{"verdict":"error","opts":{"partial":true}}
+lf0	verdict	@"__FIXTURES__/foo.aontu"	{}	{"verdict":"valid"}
+lf1	verdict	@"__FIXTURES__/foo.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lf2	verdict	@"__FIXTURES__/foo.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lf3	verdict	@"__FIXTURES__/foo.aontu"	{"f": 12}	{"verdict":"invalid"}
+lf4	verdict	@"__FIXTURES__/foo.aontu"	{"f": 12}	{"verdict":"invalid","opts":{"noFill":true}}
+lf5	verdict	@"__FIXTURES__/foo.aontu"	{"f": 12}	{"verdict":"invalid","opts":{"partial":true}}
+lf6	verdict	(@"__FIXTURES__/foo.aontu") & ({"c": 3})	{}	{"verdict":"valid"}
+lf7	verdict	(@"__FIXTURES__/foo.aontu") & ({"c": 3})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lf8	verdict	(@"__FIXTURES__/foo.aontu") & ({"c": 3})	{}	{"verdict":"valid","opts":{"partial":true}}
+lf9	verdict	"a": @"__FIXTURES__/foo.aontu"	{"a": {"f": 11}}	{"verdict":"valid"}
+lf10	verdict	"a": @"__FIXTURES__/foo.aontu"	{"a": {"f": 11}}	{"verdict":"valid","opts":{"noFill":true}}
+lf11	verdict	"a": @"__FIXTURES__/foo.aontu"	{"a": {"f": 11}}	{"verdict":"valid","opts":{"partial":true}}
+lf12	verdict	"a": @"__FIXTURES__/foo.aontu"	{"a": {"f": 12}}	{"verdict":"invalid"}
+lf13	verdict	"a": @"__FIXTURES__/foo.aontu"	{"a": {"f": 12}}	{"verdict":"invalid","opts":{"noFill":true}}
+lf14	verdict	"a": @"__FIXTURES__/foo.aontu"	{"a": {"f": 12}}	{"verdict":"invalid","opts":{"partial":true}}
+lf15	verdict	"car": (@"__FIXTURES__/car.aontu") & ({"wheels": 4})	{}	{"verdict":"valid"}
+lf16	verdict	"car": (@"__FIXTURES__/car.aontu") & ({"wheels": 4})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lf17	verdict	"car": (@"__FIXTURES__/car.aontu") & ({"wheels": 4})	{}	{"verdict":"valid","opts":{"partial":true}}
+lf18	verdict	"car": (@"__FIXTURES__/car.aontu") & ({"doors": 5})	{}	{"verdict":"error"}
+lf19	verdict	"car": (@"__FIXTURES__/car.aontu") & ({"doors": 5})	{}	{"verdict":"error","opts":{"noFill":true}}
+lf20	verdict	"car": (@"__FIXTURES__/car.aontu") & ({"doors": 5})	{}	{"verdict":"error","opts":{"partial":true}}
+lf21	verdict	"a": @"nope-no-such-file"	{}	{"verdict":"error"}
+lf22	verdict	"a": @"nope-no-such-file"	{}	{"verdict":"error","opts":{"noFill":true}}
+lf23	verdict	"a": @"nope-no-such-file"	{}	{"verdict":"error","opts":{"partial":true}}
+lf24	verdict	"x": @"__FIXTURES__/vocab.json"	{"x": {"a": 2}}	{"verdict":"invalid"}
+lf25	verdict	"x": @"__FIXTURES__/vocab.json"	{"x": {"a": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+lf26	verdict	"x": @"__FIXTURES__/vocab.json"	{"x": {"a": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+lf27	verdict	"x": @"__FIXTURES__/vocab.json"	{}	{"verdict":"valid"}
+lf28	verdict	"x": @"__FIXTURES__/vocab.json"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lf29	verdict	"x": @"__FIXTURES__/vocab.json"	{}	{"verdict":"valid","opts":{"partial":true}}
+lf30	verdict	"x": @"__FIXTURES__/notes.txt"	{"x": "other"}	{"verdict":"invalid"}
+lf31	verdict	"x": @"__FIXTURES__/notes.txt"	{"x": "other"}	{"verdict":"invalid","opts":{"noFill":true}}
+lf32	verdict	"x": @"__FIXTURES__/notes.txt"	{"x": "other"}	{"verdict":"invalid","opts":{"partial":true}}
+lf33	verdict	"x": @"__FIXTURES__/notes.txt"	{}	{"verdict":"valid"}
+lf34	verdict	"x": @"__FIXTURES__/notes.txt"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lf35	verdict	"x": @"__FIXTURES__/notes.txt"	{}	{"verdict":"valid","opts":{"partial":true}}
+lf36	verdict	@"__FIXTURES__/cycle_a.aontu"	{}	{"verdict":"error"}
+lf37	verdict	@"__FIXTURES__/cycle_a.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lf38	verdict	@"__FIXTURES__/cycle_a.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lf39	verdict	"x": @"__FIXTURES__/conf.csv"	{}	{"verdict":"error"}
+lf40	verdict	"x": @"__FIXTURES__/conf.csv"	{}	{"verdict":"error","opts":{"noFill":true}}
+lf41	verdict	"x": @"__FIXTURES__/conf.csv"	{}	{"verdict":"error","opts":{"partial":true}}
+lf42	verdict	@"__FIXTURES__/nest_parent.aontu"	{"child": {"b": 3}}	{"verdict":"invalid"}
+lf43	verdict	@"__FIXTURES__/nest_parent.aontu"	{"child": {"b": 3}}	{"verdict":"invalid","opts":{"noFill":true}}
+lf44	verdict	@"__FIXTURES__/nest_parent.aontu"	{"child": {"b": 3}}	{"verdict":"invalid","opts":{"partial":true}}
+lf45	verdict	@"__FIXTURES__/nest_parent.aontu"	{}	{"verdict":"valid"}
+lf46	verdict	@"__FIXTURES__/nest_parent.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lf47	verdict	@"__FIXTURES__/nest_parent.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lf48	verdict	@"__FIXTURES__/refs.aontu"	{"b": 2}	{"verdict":"invalid"}
+lf49	verdict	@"__FIXTURES__/refs.aontu"	{"b": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+lf50	verdict	@"__FIXTURES__/refs.aontu"	{"b": 2}	{"verdict":"invalid","opts":{"partial":true}}
+lf51	verdict	"r": @"__FIXTURES__/refs.aontu"	{}	{"verdict":"error"}
+lf52	verdict	"r": @"__FIXTURES__/refs.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lf53	verdict	"r": @"__FIXTURES__/refs.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lf54	verdict	(@"__FIXTURES__/spread.aontu") & ({"three": {}})	{"three": {"active": false}}	{"verdict":"invalid"}
+lf55	verdict	(@"__FIXTURES__/spread.aontu") & ({"three": {}})	{"three": {"active": false}}	{"verdict":"invalid","opts":{"noFill":true}}
+lf56	verdict	(@"__FIXTURES__/spread.aontu") & ({"three": {}})	{"three": {"active": false}}	{"verdict":"invalid","opts":{"partial":true}}
+lf57	verdict	(@"__FIXTURES__/list.json") & ({"x": 1})	{}	{"verdict":"error"}
+lf58	verdict	(@"__FIXTURES__/list.json") & ({"x": 1})	{}	{"verdict":"error","opts":{"noFill":true}}
+lf59	verdict	(@"__FIXTURES__/list.json") & ({"x": 1})	{}	{"verdict":"error","opts":{"partial":true}}
+lf60	verdict	"x": @"__FIXTURES__/foo"	{}	{"verdict":"valid"}
+lf61	verdict	"x": @"__FIXTURES__/foo"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lf62	verdict	"x": @"__FIXTURES__/foo"	{}	{"verdict":"valid","opts":{"partial":true}}
+lf63	verdict	@"__FIXTURES__/defload/up.aontu"	{}	{"verdict":"valid"}
+lf64	verdict	@"__FIXTURES__/defload/up.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lf65	verdict	@"__FIXTURES__/defload/up.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lf66	verdict	@"__FIXTURES__/defload/up.aontu"	{"x": {"f": 12}}	{"verdict":"invalid"}
+lf67	verdict	@"__FIXTURES__/defload/up.aontu"	{"x": {"f": 12}}	{"verdict":"invalid","opts":{"noFill":true}}
+lf68	verdict	@"__FIXTURES__/defload/up.aontu"	{"x": {"f": 12}}	{"verdict":"invalid","opts":{"partial":true}}
+lf69	verdict	@"__FIXTURES__/defload/bare.aontu"	{}	{"verdict":"valid"}
+lf70	verdict	@"__FIXTURES__/defload/bare.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lf71	verdict	@"__FIXTURES__/defload/bare.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lf72	verdict	@"__FIXTURES__/defload/bare.aontu"	{"x": {"l": 2}}	{"verdict":"invalid"}
+lf73	verdict	@"__FIXTURES__/defload/bare.aontu"	{"x": {"l": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+lf74	verdict	@"__FIXTURES__/defload/bare.aontu"	{"x": {"l": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+lf75	verdict	"x": match(1, 1, 7, @"./missing.aontu")	{}	{"verdict":"error"}
+lf76	verdict	"x": match(1, 1, 7, @"./missing.aontu")	{}	{"verdict":"error","opts":{"noFill":true}}
+lf77	verdict	"x": match(1, 1, 7, @"./missing.aontu")	{}	{"verdict":"error","opts":{"partial":true}}
+lf78	verdict	"x": @"foo.aontu"	{}	{"verdict":"error"}
+lf79	verdict	"x": @"foo.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lf80	verdict	"x": @"foo.aontu"	{}	{"verdict":"error","opts":{"partial":true}}

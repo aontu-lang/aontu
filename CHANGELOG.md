@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a loaded source
+
+Definition, generated rows, and documentation. No engine changes.
+P10's fourth slice.
+
+- `spec/Aontu/Paths.lean`: `@"p"`, the call `load`, reads in place the
+  source it loads, before anything else reads the document
+  (`Decls.loaded`). A document declares each source it can load as a
+  term under `@` and the source's name, so the definition reads no
+  file: aontu's own term, the term data makes, or a string for text. A
+  load names its source from the directory of the source it's written
+  in (`loadPath`), a `.` dropped and a `..` taking back a step
+  (`normSteps`), `.aontu` supplied where the name has no extension, and
+  none for an extension no source may have or for a module, a bare name
+  whose first step holds a dot (`moduleRef`). A source's own loads read
+  in from there, a source the chain already holds stopping it
+  (`Decls.loadIn`). A source with no term, a refused extension, a module
+  and a cycle each leave the load unmade, and a load left unmade makes
+  the document an `error` wherever it stands, even in an arm a
+  selection leaves out (`Decls.loadsLeft`, `Val.holdsLoad`), as both
+  ports answer. The old verdict and output read the loaded document as
+  `VetL` and `OutputL`, and `vetP_iff` holds as before.
+- `test/spec/def-path.tsv` gains rows lf0 on, which load files of
+  `test/spec/files` that each case declares as the file's term, and no
+  other row changes. Both ports answer every row as the definition
+  does.
+- The definition tutorial gains step 39, which walks through loading.
+
 ### The definition reads a spread at each member
 
 Definition, generated rows, and documentation. No engine changes.

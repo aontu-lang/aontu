@@ -80,6 +80,7 @@ call	call	pref
 call	call	move
 call	call	refer
 call	call	rel
+call	syntax	@
 call	call	split
 call	call	rep
 call	call	nom

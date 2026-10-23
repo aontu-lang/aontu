@@ -2992,34 +2992,35 @@ is an error, while `..x` in the same body climbs to the document's own
 spread reads its relative paths at each member it holds, and a spread
 that's itself a relative path also reads where it's written, at the
 place `Val.bares` collects: step 38 comes to both. A template and a
-`filter`'s condition keep theirs as written: each stands at a position no written step names, and the
-definition has no rule for a relative path there yet. The verdict of a
-document with paths prepares it first: it declares the relation kind,
-which step 37 comes to, places the document, hides the sources its
-moves read, which step 35 comes to, meets its links' templates into
-their targets, which step 36 comes to, and reads its spreads at each
-member, which step 38 comes to:
+`filter`'s condition keep theirs as written: each stands at a position
+no written step names, and the definition has no rule for a relative
+path there yet. Once it reads in the sources a document loads, which
+step 39 comes to, the verdict of a document with paths prepares it: it
+declares the relation kind, which step 37 comes to, places the
+document, hides the sources its moves read, which step 35 comes to,
+meets its links' templates into their targets, which step 36 comes to,
+and reads its spreads at each member, which step 38 comes to:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The verdict of a document with paths: the document prepared
-(`Decls.prepared`), the relation kind declared, its relative paths
-placed, the sources its moves read hidden, its links' templates met
-into their targets and its spreads read at each member, the verdict of
-the document whose paths are absolute. The error class reads a spread
-at the members the schema's own tree holds, and the others at those of
-the tree the data reads in, so that a member the data alone supplies
-makes the document `invalid`, never an `error`. -/
-def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
+/-- The verdict of a document with paths whose sources are read in: the
+document prepared (`Decls.prepared`), the relation kind declared, its
+relative paths placed, the sources its moves read hidden, its links'
+templates met into their targets and its spreads read at each member,
+the verdict of the document whose paths are absolute. The error class
+reads a spread at the members the schema's own tree holds, and the
+others at those of the tree the data reads in, so that a member the
+data alone supplies makes the document `invalid`, never an `error`. -/
+def VetL (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
   VetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j) j v
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- `vetP` computes `VetP` on every document whose bodies and schema
+/-- `vetL` computes `VetL` on every document whose bodies and schema
 read no pattern and no format. -/
-theorem vetP_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v :=
+theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (S' := ds.preparedD S j)
     (Decls.placed_bodies_checkableA (S := S) (Decls.withRel_checkableA hb))
     (Decls.prepared_checkableA hb hS _) (Decls.prepared_checkableA hb hS _) v
@@ -8038,7 +8039,117 @@ Rows from sp0 on of `test/spec/def-path.tsv` hold these readings in the
 three modes of `vet`, and both engines answer every one as the
 definition does.
 
-## 39. What the definition doesn't say yet
+## 39. Loading a source
+
+`@"p"` loads another source and reads it in place: an aontu source's
+value, a data file's, or a text file's text, at the place the document
+writes the load. Write `parts.aontu`:
+
+<!-- test: scenario load -->
+<!-- test: file parts.aontu -->
+```aontu
+port: integer & 8080
+```
+
+and `main.aontu`, which loads it:
+
+<!-- test: file main.aontu -->
+```aontu
+server: @"./parts.aontu"
+server: host: "example.com"
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu main.aontu
+{
+  "server": {
+    "host": "example.com",
+    "port": 8080
+  }
+}
+```
+
+The definition reads no file. A document declares each source it can
+load as a term, under `@` and the source's name, which no document can
+write, since a name a document writes begins with a letter. A load
+names its source from the source it's written in: read from that
+source's directory, each `.` dropped and each `..` taking back a step,
+and `.aontu` supplied where the name has no extension. A bare name whose
+first step holds a dot names a module, which the definition doesn't
+read yet, so it names no source. Both engines refuse one whose last
+step names an extension, as a file written without `./`:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def loadPath (src p : String) : Option String :=
+  let q := "/".intercalate
+    (normSteps [] ((if p.startsWith "/" then [] else (src.splitOn "/").dropLast) ++ p.splitOn "/"))
+  if moduleRef p then none else
+  match ((q.splitOn "/").getLast?.getD "").splitOn "." with
+  | [_] => some (q ++ ".aontu")
+  | parts => if parts.getLast?.getD "" ∈ loadExts then some q else none
+```
+
+Before anything else reads the document, each load reads in its
+source's term, whose own loads read in from there, `seen` holding the
+chain of sources the load stands in:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.loadIn (ds : Decls) : ℕ → List String → String → Val → Val
+  | 0, _, _, v => v
+  | n + 1, seen, src, v => v.mapLoads fun p => (loadPath src p).bind fun q =>
+    if q ∈ seen then none else (ds.source? q).map (ds.loadIn n (q :: seen) q)
+```
+
+A source the document declares no term for, one whose extension no
+source may have, and one the chain already holds, a cycle, each leave
+the load as written, a load the reading can't make. The verdict reads
+the document with its sources read in, and is an `error` wherever a
+load remains, even in an arm a selection leaves out, since both engines
+read every load before anything else:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def VetP (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
+  if ds.loadsLeft S then v = .error else VetL m (ds.loaded S).1 (ds.loaded S).2 j v
+```
+
+A source refuses data as anything the document writes does. Write
+`main-data.aontu`:
+
+<!-- test: file main-data.aontu -->
+```aontu
+server: port: 80
+```
+
+and vet it:
+
+<!-- test: run -->
+```sh
+$ aontu vet main.aontu main-data.aontu
+verdict: invalid
+
+$.server.port: scalar_value [conflict]
+  [aontu/scalar_value]: Cannot unify values at path $.server.port
+  data: main-data.aontu:1:15 (80)
+  schema: parts.aontu:1:17 (8080)
+$ echo $?
+1
+```
+
+Rows from lf0 on of `test/spec/def-path.tsv` load the files of
+`test/spec/files`, which each case declares as the term the file holds,
+in the three modes of `vet`, and both engines answer every one as the
+definition does. The definition doesn't yet read a source's own
+declarations, the destructure `{ %a } = @"…"`, a module, or an
+extension the calling program adds to those read as text, as
+`--text-ext` does.
+
+## 40. What the definition doesn't say yet
 
 The definition covers what this page walked through, and has no rule
 for the rest of the language, so it says nothing about it. The
