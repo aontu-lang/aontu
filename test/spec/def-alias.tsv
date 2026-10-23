@@ -227,6 +227,126 @@ a206	verdict	%T = {"n": integer, "next"?: %T}\nv: %T	v: {"n": 1, "next": {"n": 2
 a207	verdict	%T = (%T) | (1)\nv: %T	v: 1	{"verdict":"error"}
 a208	verdict	%T = (%T) | (1)\nv: %T	v: 1	{"verdict":"error","opts":{"noFill":true}}
 a209	verdict	%T = (%T) | (1)\nv: %T	v: 1	{"verdict":"error","opts":{"partial":true}}
+a210	verdict	%T = (1) & (2)\nv: 1	v: 1	{"verdict":"error"}
+a211	verdict	%T = (1) & (2)\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a212	verdict	%T = (1) & (2)\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a213	verdict	%T = ({"a": 1}) & ({"a": 2})\nv: 1	v: 1	{"verdict":"error"}
+a214	verdict	%T = ({"a": 1}) & ({"a": 2})\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a215	verdict	%T = ({"a": 1}) & ({"a": 2})\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a216	verdict	%T = (close({"a": 1})) & ({"b": 2})\nv: 1	v: 1	{"verdict":"error"}
+a217	verdict	%T = (close({"a": 1})) & ({"b": 2})\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a218	verdict	%T = (close({"a": 1})) & ({"b": 2})\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a219	verdict	%T = (string) & (1)\nv: 1	v: 1	{"verdict":"error"}
+a220	verdict	%T = (string) & (1)\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a221	verdict	%T = (string) & (1)\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a222	verdict	%T = (*(1)) & (*(2))\nv: 1	v: 1	{"verdict":"error"}
+a223	verdict	%T = (*(1)) & (*(2))\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a224	verdict	%T = (*(1)) & (*(2))\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a225	verdict	%T = ([1]) & ([2])\nv: 1	v: 1	{"verdict":"error"}
+a226	verdict	%T = ([1]) & ([2])\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a227	verdict	%T = ([1]) & ([2])\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a228	verdict	%T = {"a"?: (1) & (2)}\nv: 1	v: 1	{"verdict":"error"}
+a229	verdict	%T = {"a"?: (1) & (2)}\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a230	verdict	%T = {"a"?: (1) & (2)}\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a231	verdict	%T = len((1) | (3))\nv: 1	v: 1	{"verdict":"error"}
+a232	verdict	%T = len((1) | (3))\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a233	verdict	%T = len((1) | (3))\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a234	verdict	%T = div(1, 0)\nv: 1	v: 1	{"verdict":"error"}
+a235	verdict	%T = div(1, 0)\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a236	verdict	%T = div(1, 0)\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a237	verdict	%T = (1) & (2)\n%U = integer\nv: %U	v: 1	{"verdict":"error"}
+a238	verdict	%T = (1) & (2)\n%U = integer\nv: %U	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a239	verdict	%T = (1) & (2)\n%U = integer\nv: %U	v: 1	{"verdict":"error","opts":{"partial":true}}
+a240	verdict	%T = {"x"?: %T, "y": (1) & (2)}\nv: 1	v: 1	{"verdict":"error"}
+a241	verdict	%T = {"x"?: %T, "y": (1) & (2)}\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a242	verdict	%T = {"x"?: %T, "y": (1) & (2)}\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a243	verdict	%T = (1) | (2)\nv: 1	v: 1	{"verdict":"valid"}
+a244	verdict	%T = (1) | (2)\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a245	verdict	%T = (1) | (2)\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a246	verdict	%T = ([1, 2]) & (len(3))\nv: 1	v: 1	{"verdict":"valid"}
+a247	verdict	%T = ([1, 2]) & (len(3))\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a248	verdict	%T = ([1, 2]) & (len(3))\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a249	verdict	%U = upper(_)\nv: 1	v: 1	{"verdict":"valid"}
+a250	verdict	%U = upper(_)\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a251	verdict	%U = upper(_)\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a252	verdict	%T = (upper(_)) & ((1) & (2))\nv: 1	v: 1	{"verdict":"error"}
+a253	verdict	%T = (upper(_)) & ((1) & (2))\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a254	verdict	%T = (upper(_)) & ((1) & (2))\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a255	verdict	%T = {"a": upper(_), "b": (1) & (2)}\nv: 1	v: 1	{"verdict":"error"}
+a256	verdict	%T = {"a": upper(_), "b": (1) & (2)}\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a257	verdict	%T = {"a": upper(_), "b": (1) & (2)}\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a258	verdict	%T = [upper(_), (1) & (2)]\nv: 1	v: 1	{"verdict":"error"}
+a259	verdict	%T = [upper(_), (1) & (2)]\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a260	verdict	%T = [upper(_), (1) & (2)]\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a261	verdict	%U = upper(_)\n%T = %U\nv: 1	v: 1	{"verdict":"valid"}
+a262	verdict	%U = upper(_)\n%T = %U\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a263	verdict	%U = upper(_)\n%T = %U\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a264	verdict	%U = upper(_)\n%T = (%U) & ((1) & (2))\nv: 1	v: 1	{"verdict":"error"}
+a265	verdict	%U = upper(_)\n%T = (%U) & ((1) & (2))\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a266	verdict	%U = upper(_)\n%T = (%U) & ((1) & (2))\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a267	verdict	%U = {"a": upper(_)}\n%T = (%U) & ({"a": "x"})\nv: 1	v: 1	{"verdict":"valid"}
+a268	verdict	%U = {"a": upper(_)}\n%T = (%U) & ({"a": "x"})\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a269	verdict	%U = {"a": upper(_)}\n%T = (%U) & ({"a": "x"})\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a270	verdict	%T = [key(1), (1) & (2)]\nv: 1	v: 1	{"verdict":"error"}
+a271	verdict	%T = [key(1), (1) & (2)]\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a272	verdict	%T = [key(1), (1) & (2)]\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a273	verdict	%T = upper(key(1))\nv: 1	v: 1	{"verdict":"valid"}
+a274	verdict	%T = upper(key(1))\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a275	verdict	%T = upper(key(1))\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a276	verdict	%T = contains(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"error"}
+a277	verdict	%T = contains(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a278	verdict	%T = contains(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a279	verdict	%T = contains(upper(_), 2)\nv: 1	v: 1	{"verdict":"valid"}
+a280	verdict	%T = contains(upper(_), 2)\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a281	verdict	%T = contains(upper(_), 2)\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a282	verdict	%T = add(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"error"}
+a283	verdict	%T = add(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a284	verdict	%T = add(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a285	verdict	%T = len((upper(_)) & ((1) & (2)))\nv: 1	v: 1	{"verdict":"error"}
+a286	verdict	%T = len((upper(_)) & ((1) & (2)))\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a287	verdict	%T = len((upper(_)) & ((1) & (2)))\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a288	verdict	%T = nof((1) & (2), upper(_))\nv: 1	v: 1	{"verdict":"error"}
+a289	verdict	%T = nof((1) & (2), upper(_))\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a290	verdict	%T = nof((1) & (2), upper(_))\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a291	verdict	%T = nof(1, upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid"}
+a292	verdict	%T = nof(1, upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a293	verdict	%T = nof(1, upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a294	verdict	%T = must((upper(_)) & ((1) & (2)), "m")\nv: 1	v: 1	{"verdict":"error"}
+a295	verdict	%T = must((upper(_)) & ((1) & (2)), "m")\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a296	verdict	%T = must((upper(_)) & ((1) & (2)), "m")\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a297	verdict	%T = when(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid"}
+a298	verdict	%T = when(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a299	verdict	%T = when(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a300	verdict	%T = match(1, upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid"}
+a301	verdict	%T = match(1, upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a302	verdict	%T = match(1, upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a303	verdict	%T = each(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid"}
+a304	verdict	%T = each(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a305	verdict	%T = each(upper(_), (1) & (2))\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a306	verdict	%T = each((upper(_)) & ((1) & (2)), 1)\nv: 1	v: 1	{"verdict":"error"}
+a307	verdict	%T = each((upper(_)) & ((1) & (2)), 1)\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a308	verdict	%T = each((upper(_)) & ((1) & (2)), 1)\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a309	verdict	%T = each(["a"], (upper(_)) & ((1) & (2)))\nv: 1	v: 1	{"verdict":"error"}
+a310	verdict	%T = each(["a"], (upper(_)) & ((1) & (2)))\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a311	verdict	%T = each(["a"], (upper(_)) & ((1) & (2)))\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a312	verdict	%T = pack(["a"], (upper(_)) & ((1) & (2)))\nv: 1	v: 1	{"verdict":"error"}
+a313	verdict	%T = pack(["a"], (upper(_)) & ((1) & (2)))\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a314	verdict	%T = pack(["a"], (upper(_)) & ((1) & (2)))\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a315	verdict	%T = each([1], {"a": key(0), "b": (1) & (2)})\nv: 1	v: 1	{"verdict":"error"}
+a316	verdict	%T = each([1], {"a": key(0), "b": (1) & (2)})\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a317	verdict	%T = each([1], {"a": key(0), "b": (1) & (2)})\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a318	verdict	%T = each([1], key(0))\nv: 1	v: 1	{"verdict":"valid"}
+a319	verdict	%T = each([1], key(0))\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a320	verdict	%T = each([1], key(0))\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a321	verdict	%T = (add(upper(_), (1) & (2))) | (3)\nv: 1	v: 1	{"verdict":"valid"}
+a322	verdict	%T = (add(upper(_), (1) & (2))) | (3)\nv: 1	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+a323	verdict	%T = (add(upper(_), (1) & (2))) | (3)\nv: 1	v: 1	{"verdict":"valid","opts":{"partial":true}}
+a324	verdict	%T = [add(upper(_), (1) & (2))]\nv: 1	v: 1	{"verdict":"error"}
+a325	verdict	%T = [add(upper(_), (1) & (2))]\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a326	verdict	%T = [add(upper(_), (1) & (2))]\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
+a327	verdict	%T = add(add(upper(_), (1) & (2)), 1)\nv: 1	v: 1	{"verdict":"error"}
+a328	verdict	%T = add(add(upper(_), (1) & (2)), 1)\nv: 1	v: 1	{"verdict":"error","opts":{"noFill":true}}
+a329	verdict	%T = add(add(upper(_), (1) & (2)), 1)\nv: 1	v: 1	{"verdict":"error","opts":{"partial":true}}
 r0	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid"}
 r1	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid","opts":{"noFill":true}}
 r2	verdict	v: meta(integer, {"title": "n"})	v: 1	{"verdict":"valid","opts":{"partial":true}}

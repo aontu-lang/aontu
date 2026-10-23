@@ -8,6 +8,44 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads every declaration
+
+Definition, generated rows, and documentation. No engine changes.
+Ruling 17 of the design note's §7.
+
+- `spec/Aontu/Verdict.lean`: `Decls.bodyIll` reads each declaration's
+  body where no place is yet (`Decls.readU`), as the name and as the
+  body itself, so that a recursive body is read too, and
+  `Decls.illFormedR` makes the document an error where one doesn't
+  stand, whether or not anything reads it, as both ports answer:
+  `%T = 1 & 2` beside `v: 1` is an `error`. A hole or a `key(n)` waits
+  for the use that places it, so each body is read with the parts that
+  hold one as `any` (`Val.unplaced`, over `Val.waits`, which leaves out
+  the hole and the `key(n)` an `each` or a `pack` binds in its
+  template): a conflict beside a hole is still an `error`, and a body
+  that names a template stands. A call or a trial that waits is `nil`
+  where an argument both ports read as written doesn't stand, a call's
+  own, a size, a count, `must`'s condition, or the data, scrutinee or
+  source of `each`, `match` and `filter`, so `%T = contains(upper(_),
+  1 & 2)` is an `error`, and in a disjunction it's an arm that dies. A
+  name a source publishes is read where a destructure takes it, so not
+  alone.
+- `spec/Oracle.lean`: `aliasCases` gains forty cases, a dead or
+  ill-formed body alone, beside a name the schema uses, inside a
+  recursive body and beside a hole or a `key(n)`, an error, and a body
+  that stands, a literal short of its size, a template with a hole, a
+  body that names one and a call over a `key(n)` beside them, not; and
+  a waiting call or trial over a conflict its arguments read, an
+  error, over one only a trial or a template holds, not, and an `each`
+  or a `pack` over data written in place, read whole.
+  Both ports answer every row as the definition does. A body that is
+  an unbuilt call, `%T = add(1)`, or the literal `nil` holds no row:
+  both ports answer it `invalid`, by the split #426 tracks, where the
+  definition reads it as it reads the schema's own, an `error`.
+- The tutorial quotes `Decls.illFormedR` as it now stands, and
+  `Decls.bodyIll`; the definition's README no longer lists the gap
+  (#417).
+
 ### The definition reads a disjunctive size as ill-formed
 
 Definition, generated rows, and documentation. No engine changes.
