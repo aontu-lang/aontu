@@ -2981,30 +2981,31 @@ as a key at the top, as both engines place it:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- A document with each relative path it writes made absolute where it
-stands: the schema from the top, and each body at its name's own place,
-`%` and the name as a key at the top, as both ports place a body. -/
 def Decls.placed (ds : Decls) (S : Val) : Decls × Val :=
-  (ds.map fun d => (d.1, d.2.placed [.key ("%" ++ d.1)]), S.placed [])
+  (ds.map (fun d => (d.1, d.2.placed [.key ("%" ++ d.1)])) ++ (S.bares []).map fun p => (bareName, .path p),
+    S.placedT [])
 ```
 
 So `%T = {y: .x}` reads `$.%T.x`, which no document holds, and the path
 is an error, while `..x` in the same body climbs to the document's own
-`x`. A spread reads its relative paths at each member it holds, which
-step 38 comes to. A template and a `filter`'s condition keep theirs as
-written: each stands at a position no written step names, and the
+`x`. The schema's spreads stay as written (`Val.placedT`), since a
+spread reads its relative paths at each member it holds, and a spread
+that's itself a relative path also reads where it's written, at the
+place `Val.bares` collects: step 38 comes to both. A template and a
+`filter`'s condition keep theirs as written: each stands at a position no written step names, and the
 definition has no rule for a relative path there yet. The verdict of a
 document with paths prepares it first: it declares the relation kind,
-which step 37 comes to, places the document, reads its spreads at each
-member, hides the sources its moves read, which step 35 comes to, and
-meets its links' templates into their targets, which step 36 comes to:
+which step 37 comes to, places the document, hides the sources its
+moves read, which step 35 comes to, meets its links' templates into
+their targets, which step 36 comes to, and reads its spreads at each
+member, which step 38 comes to:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The verdict of a document with paths: the document prepared
 (`Decls.prepared`), the relation kind declared, its relative paths
-placed, its spreads read at each member, the sources its moves read
-hidden and its links' templates met into their targets, the verdict of
+placed, the sources its moves read hidden, its links' templates met
+into their targets and its spreads read at each member, the verdict of
 the document whose paths are absolute. The error class reads a spread
 at the members the schema's own tree holds, and the others at those of
 the tree the data reads in, so that a member the data alone supplies
@@ -7959,6 +7960,7 @@ member there is, wherever it lands, where it reads its member's place:
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Val.perMember : Val → Bool
+  | .path (.up _ :: _) => true
   | .path _ => false
   | s => !s.paths.isEmpty || s.holdsKey
 ```
@@ -7982,7 +7984,17 @@ def Val.membersRead (P root : Val) : Val :=
 ```
 
 The tree is the schema's own for the error class, and the one the data
-reads in for the others, as step 9's `VetP` reads them:
+reads in for the others, as step 9's `VetP` reads them. The definition
+reads each with the document's links read first, so that it holds the
+members a link's template makes, and with each template blanked, its
+relative paths and `key()`s read as `any`, so that it holds what an
+absolute path in a template names, the same at every member:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.prepared (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
+  ((ds.linked S).1, (ds.linked S).2.membersRead root)
+```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -7994,8 +8006,12 @@ So a template whose path names nothing is no error until a member reads
 it: an `error` where the schema writes the member, even where the data
 supplies what the path names, and `invalid` where the data alone
 supplies the member. A spread that's itself a relative path, `&: ..x`,
-reads where it's written, the same place for every member, as both
-engines read it. A member the data supplies reads the template too.
+reads at each member too, so a path reference's copy reads it from
+where the copy stands. Both engines read it where it's written as well,
+so one that names nothing there is an `error` with no member at all:
+step 9's `Decls.placed` declares each such place under a name no term
+refers to, so that the path must name something. A member the data
+supplies reads the template too.
 Write `spread-data.aontu`:
 
 <!-- test: file spread-data.aontu -->
@@ -8061,6 +8077,10 @@ Nor does it read a link or a spread everywhere one can land. A `refer`
 or a `rel` inside a disjunction or a selection is no link the
 definition reads, so its template flows nowhere and its target needn't
 exist, where both engines read it in the arm the selection takes. A
+link inside another link's template is a call's argument, which no
+landing enters, and an address the data supplies flows nowhere, since
+the definition reads a link's address from the schema's own tree, where
+both engines read each. A
 link in a generator's template reads the template as written, not as
 each member instantiates it: a hole or a `key()` in the link's own
 template doesn't read the member, and the template lands at each
@@ -8070,6 +8090,12 @@ declaration's body. A spread whose template reads its member's place,
 inside a disjunction, a selection, a generator's template or an
 alias's body, keeps its template as written, so a relative path in it
 resolves nowhere.
+
+Nor does it read an alias's body at each use of the alias. A relative
+path in a body reads at the body's own place alone, where both engines
+read it at each use of the alias as well: with `%T = {v: ..x}`,
+`x: 1` at the top and `a: {x: 2, b: %T}`, the definition sets `a.b.v`
+to 1, the top's `x`, and both engines set it to 2, `a`'s.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
