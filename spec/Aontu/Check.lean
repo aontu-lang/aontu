@@ -1620,7 +1620,7 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .mulof d, j => match j with
     | .num x => decide d.Positive && decide (x.multipleOf d)
     | _ => false
-  | .len c, j => match j.size with
+  | .len c, j => if c.unsized then false else match j.size with
     | some n => if h : IntegerLeaf n then checkWith u none c (.num (.integer ⟨n, h⟩)) else false
     | none => false
   | .unique k, j => match j.members with
@@ -2947,15 +2947,19 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
     intro ky j hu
     refine judge_keyless rfl ?_
     simp only [checkWith]
-    cases hs : j.size with
-    | none => exact .lenNone hs
-    | some n =>
-      show Judge env root (if h : IntegerLeaf n then checkWith u none c (.num (.integer ⟨n, h⟩)) else false) (.len c) j
-      split
-      · rename_i h
-        exact .len h hs (ihc none _ hu.len)
-      · rename_i h
-        exact .lenBig hs h
+    cases hc : c.unsized with
+    | true => exact .lenOut hc
+    | false =>
+      simp only [Bool.false_eq_true, if_false]
+      cases hs : j.size with
+      | none => exact .lenNone hs
+      | some n =>
+        show Judge env root (if h : IntegerLeaf n then checkWith u none c (.num (.integer ⟨n, h⟩)) else false) (.len c) j
+        split
+        · rename_i h
+          exact .len h hc hs (ihc none _ hu.len)
+        · rename_i h
+          exact .lenBig hs h
   | @unique k =>
     intro ky j _
     refine judge_keyless rfl ?_

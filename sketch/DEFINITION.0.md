@@ -1107,7 +1107,13 @@ each stands here until the phase that encodes it lands.
    (`Val.isChoice`). Rows bd45 to bd71 and bd78 to bd80 read `invalid`
    where they read `error`, ten cases join them as rows bd102 to
    bd131, and both ports answer every row as the definition does
-   (#509).
+   (#509). A `neq` over a sole list that isn't empty reads the list's
+   elements, as both ports do, so a choice among them stays an error,
+   and both ports check the elements for one too. `len` over `any` or a
+   trial admits no size (`Val.unsized` in `spec/Aontu/Admits.lean`), as
+   both ports refuse either its argument, and `resolveD` makes such a
+   size `Val.nothing`, as `bndOf` makes a bound, so that it refuses at
+   the meet. Fourteen cases join the rows as bd132 to bd173.
 
 ## 8. Risks
 

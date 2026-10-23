@@ -940,9 +940,10 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 	built.mhide = c.mhide
 
 	if settled {
-		// A bound's residual stands against the top, but a choice in its
-		// arguments is no argument; any other peer meets the residual.
-		if (nil == peer || isTop(peer)) && boundAtom(c.pending.atom) && !holdsChoice(args) {
+		// A bound's residual stands against the top, but a choice in the
+		// arguments it reads, a sole list's elements among them, is no
+		// argument; any other peer meets the residual.
+		if (nil == peer || isTop(peer)) && boundAtom(c.pending.atom) && !holdsChoice(atomArgs(c.pending.atom, args)) {
 			return built
 		}
 		return built.Unify(peer, ctx)

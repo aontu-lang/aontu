@@ -1946,11 +1946,17 @@ preference and to a disjunction, a choice no bound takes, an error
 whether or not the data fills it (#413); one only the data supplies;
 and `len`, which takes a term already, over a path to a count, a
 relative one, one to a bound, one to a string, and one only the data
-supplies. -/
+supplies. Then a bound over a path to `true` met with a kind, an error
+as the literal is; `neq` over a sole list, written and through a path,
+which reads its elements, so that a choice among them is an error, a
+list among them admits nothing and so does an empty list; and `len`
+over `any`, written and through a path, and over a trial, which admit
+no size, a rider and a meet with `any` read through. -/
 def boundArgCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
   let p (ks : List String) : Val := .path (ks.map .key)
   let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
   let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
@@ -2001,7 +2007,21 @@ def boundArgCases : List (Decls × Val × Data) :=
     ([], lo (.or [(1, int 2), (0, int 3)]), dm [("lo", j 3), ("t", j 3)]),
     ([], lo (.meet (.min (.num (.integer ⟨1, by decide⟩))) (.max (.num (.integer ⟨3, by decide⟩)))), t (j 2)),
     ([], lo (.or [(0, int 1), (0, int 3)]), t (j 2)),
-    ([], lo (.or [(0, int 1), (0, int 3)]), dm [("lo", j 1), ("t", j 2)])]
+    ([], lo (.or [(0, int 1), (0, int 3)]), dm [("lo", j 1), ("t", j 2)]),
+    ([], m [("lo", .lit (.bool true)), ("t", .meet (bnd .min [p ["lo"]]) .integer)], t (j 1)),
+    ([], m [("x", l [int 1, int 3]), ("t", bnd .neq [p ["x"]])], dm [("x", .list [j 1, j 3]), ("t", j 2)]),
+    ([], m [("x", l [int 1, int 3]), ("t", bnd .neq [p ["x"]])], dm [("x", .list [j 1, j 3]), ("t", j 1)]),
+    ([], m [("t", bnd .neq [l [int 1, int 3]])], t (j 2)),
+    ([], m [("x", l [.or [(0, int 1), (0, int 3)]]), ("t", bnd .neq [p ["x"]])], dm [("x", .list [j 1]), ("t", j 2)]),
+    ([], m [("t", bnd .neq [l [.or [(0, int 1), (0, int 3)]]])], t (j 2)),
+    ([], m [("x", l [int 1, str "a"]), ("t", bnd .neq [p ["x"]])], t (j 2)),
+    ([], m [("x", l [l [int 1]]), ("t", bnd .neq [p ["x"]])], t (j 2)),
+    ([], m [("x", l []), ("t", bnd .neq [p ["x"]])], t (j 2)),
+    ([], m [("t", .len .any)], t (.list [j 1])),
+    ([], m [("n", .any), ("t", .len (p ["n"]))], t (.list [j 1])),
+    ([], m [("t", .len (.must .integer "m"))], t (.list [j 1])),
+    ([], m [("t", .len (.ride .metadata (int 1) []))], t (.list [j 1])),
+    ([], m [("t", .len (.meet .any (int 1)))], t (.list [j 1]))]
 
 theorem boundArgCases_checkable : ∀ c ∈ boundArgCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

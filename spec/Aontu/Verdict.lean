@@ -808,9 +808,13 @@ and where `mulof` takes a string, however the argument is written
 (decision 28 of the design note's §7); refused where an argument is a
 choice still to make, which both ports refuse as an argument whatever
 the bound meets (#413), and where a bound takes another count of
-arguments than its own; waiting for anything else. -/
+arguments than its own; waiting for anything else. A `neq` over a sole
+list that isn't empty reads its elements as its arguments, as both
+ports read `neq([1, 3])` as `neq(1, 3)`, a choice among them refused. -/
 def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
-  let ns := args.map fun a => (normaliseD ds a).unride
+  let ns := match b, args.map fun a => (normaliseD ds a).unride with
+    | .neq, [.list (x :: xs) _ _] => (x :: xs).map fun e => (normaliseD ds e).unride
+    | _, ns => ns
   if ns.any Val.isChoice then .refused else
   if ns.any Val.noEnd then .made .nothing else
   match ns.mapM Val.boundEnd?, b with
@@ -1196,7 +1200,9 @@ the member it tries lands, under its key or at the index it takes among
 those kept. A term read with no position keeps its keys as written, and
 a selection whose arms hold a key, a call or a generator whose arguments
 hold one, and a `filter` whose condition does stay as written too, so
-that a path copies them to be read where it lands. -/
+that a path copies them to be read where it lands. A size over a term
+outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
+as a bound over one is (`bndOf`), so that both refuse at the meet. -/
 def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val → Val
   | .select s arms d =>
     let s' := resolveD ds b here s
@@ -1244,7 +1250,8 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
       else callTerm ds f (resolveItems ds b here args)
-  | .len c => .len (resolveD ds b here c)
+  | .len c =>
+    if (normaliseD ds (resolveD ds b here c)).unsized then .nothing else .len (resolveD ds b here c)
   | .map fs spread closed =>
     .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
   | .list items spread closed =>
@@ -2149,7 +2156,10 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     (h : v.CheckableA) : ∀ {b : Option Val} {here : Option (List Step)}, (∀ m, b = some m → m.CheckableA) →
       (resolveD ds b here v).CheckableA := by
   induction h with
-  | len _ ih => intro b here hb; simp only [resolveD]; exact .len (ih hb)
+  | len _ ih =>
+    intro b here hb; simp only [resolveD]; split
+    · exact .nothing
+    · exact .len (ih hb)
   | @map fs spread closed _ _ ihf ihs =>
     intro b here hb
     simp only [resolveD]

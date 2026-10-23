@@ -886,12 +886,13 @@ theorem neq_le_neq {S T : List Bound} (h : ∀ v, v ∈ S → v ∈ T) : .neq T 
   | neqStr hT => exact .neqStr fun v hv => hT v (h v hv)
 
 /-- `len` follows its count: the reference's row reuses the table over
-the integers. -/
-theorem len_le_len {c d : Val} (h : d ⊑[env] c) : .len d ⊑[env] .len c := by
+the integers, where the general count is in `len`'s domain at all. -/
+theorem len_le_len {c d : Val} (hc : c.unsized = false) (h : d ⊑[env] c) :
+    .len d ⊑[env] .len c := by
   intro j ⟨hw, hj⟩
   refine ⟨hw, ?_⟩
   cases hj with
-  | len hil hsz hd => exact .len hil hsz (admits_of_le h .num hd)
+  | len hil _ hsz hd => exact .len hil hc hsz (admits_of_le h .num hd)
 
 /-! ## Deciding the order on the scalars
 
@@ -1171,9 +1172,11 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
     | .max (.str t), .max (.str u) => if h : t ≤ u then some ⟨(max_str_le_max_iff t u).2 h⟩ else none
     | .neq T, .neq S => if h : ∀ v, v ∈ S → v ∈ T then some ⟨neq_le_neq h⟩ else none
     | .len d, .len c =>
-      match leDecF env n d c with
-      | some ⟨h⟩ => some ⟨len_le_len h⟩
-      | none => none
+      if hc : c.unsized = false then
+        match leDecF env n d c with
+        | some ⟨h⟩ => some ⟨len_le_len hc h⟩
+        | none => none
+      else none
     | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
     | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean
     | .mapKind, .mapKind | .listKind, .listKind | .pathKind, .pathKind =>

@@ -6249,7 +6249,7 @@ atom's own arithmetic: `len(min(5) & max(3))` is empty at composition
 time whatever map it meets, because the inner interval is empty on its
 own.
 
-`len(c)` is a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), judging a string, a list or a map as `c` judges its size, an integer, and refusing a scalar, which has no size; `len_le_len` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carries the order of `c` to it, and a container literal longer than its size allows is a conflict of the schema, an `error`, as both engines answer. `sizeClash` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads the size with its lower ends dropped against the count of what the literal generates, so an exclusion or a multiple the count breaks is a conflict too, as in `len(neq(2)) & {x: 1, y: 2}`. Generation tries a literal shorter than its size, after the fills, and refuses it unless the data brings the members it lacks.
+`len(c)` is a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), judging a string, a list or a map as `c` judges its size, an integer, and refusing a scalar, which has no size; `len_le_len` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carries the order of `c` to it where the general `c` is in `len`'s domain, so `len(1)` is below `len(number)` but not below `len(any)`, which admits no size, and a container literal longer than its size allows is a conflict of the schema, an `error`, as both engines answer. `sizeClash` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads the size with its lower ends dropped against the count of what the literal generates, so an exclusion or a multiple the count breaks is a conflict too, as in `len(neq(2)) & {x: 1, y: 2}`. Generation tries a literal shorter than its size, after the fills, and refuses it unless the data brings the members it lacks.
 
 ### Sizing atoms fold last
 
@@ -6416,14 +6416,21 @@ fills reads as the value the data gives it, so
 `lo: number, t: min($.lo)` admits `{"lo": 2, "t": 3}`. A choice still
 to make, a disjunction or a preference, is no argument at all, an
 error whatever the bound meets, as a size that holds one is, and so
-is an argument that never settles. Rows from bd0 on of
+is an argument that never settles. A `neq` over a sole list that isn't
+empty reads its elements as its arguments, `neq([1, 3])` as
+`neq(1, 3)`, so a choice among them is an error too. The atom that
+admits nothing meets `any` as itself and anything else as a
+contradiction, so `min(true) & integer` is an error. Rows from bd0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to it. A bound in a generator's template or in a `filter`'s condition
 reads a relative path where its instance lands, and rows from bg0 on
 hold both engines to that. A size over a path, `len($.n)`, reads as
 the size of the count it names, since `len` takes a term, and one over
 a path to a string admits nothing, as `mulof` over a path to zero or a
-negative number does.
+negative number does. `len(any)` and `len` over a trial admit no size
+either, written or through a path: `any` and a trial name no count,
+though each admits numbers (`Val.unsized` in
+[`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean)).
 
 ### Formats: `format`
 

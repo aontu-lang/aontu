@@ -663,7 +663,8 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         if (settled) {
             // The residual the atom always meant, at this atom's site: a
-            // bound's stands against the top, unless an argument is a choice.
+            // bound's stands against the top, unless an argument it reads, a
+            // sole list's element among them, is a choice.
             const built = new ConstraintVal({ peg: args, atom: pend.atom }, ctx);
             built.path = this.path;
             built.site.row = this.site.row;
@@ -671,7 +672,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             built.site.url = this.site.url;
             (0, utility_1.propagateMarks)(this, built);
             if ((null == peer || peer.isTop) && BOUND_ATOMS.includes(pend.atom) &&
-                !args.some((a) => true === a.isDisjunct || true === a.isPref)) {
+                !atomArgs(pend.atom, args).some((a) => true === a?.isDisjunct || true === a?.isPref)) {
                 return built;
             }
             return built.unify(peer, ctx);
