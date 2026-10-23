@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### Go reads a bound's relative argument where a generator's instance lands
+
+Go only.
+
+- `go/generate.go`: `each`, `pack` and `filter` place each instance of
+  their template or condition with `setPaths` after `instanceClone`, as
+  a spread's instance already did and as TypeScript's `repathInstance`
+  does. A relative path in a bound's argument, `min(..lim)` in a
+  `filter`'s condition or `{v: min(...lim)}` in an `each` template,
+  read from where the document writes the template, so the bound named
+  nothing or the wrong value. It now reads where the instance lands, as
+  TypeScript reads it, and #506 has the cases.
+- `test/spec/gen-filter.tsv`, `gen-each.tsv` and `gen-pack.tsv` gain
+  eight rows, each expectation from both engines.
+
 ### The definition reads a generator's template at each member
 
 Definition, generated rows, and documentation. No engine changes.

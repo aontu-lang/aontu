@@ -111,3 +111,8 @@ each-bound-join-of	gens	m:{x:1,y:2}\no:join(each($.m,_ & integer),"+")\n	{"m":{"
 each-bound-template-conflict	errc	p:[1,x]\no:each($.p,_ & integer)\n	no_scalar_unify
 each-bound-key-template-conflict	errc	n:[a,b]\no:each($.n,_ & {k:key()})\n	scalar_kind
 each-bound-empty-template	errc	n:[a,b]\no:each($.n,_ & {})\n	scalar_kind
+#
+# A RELATIVE PATH IN A BOUND'S ARGUMENT reads where the instance lands,
+# as any other term of the template does (#506).
+each-bound-relative-arg	gens	a:{lim:2,l:[1],f:each(.l,{v:min(...lim)} & {v:5})}	{"a":{"f":[{"v":5}],"l":[1],"lim":2}}
+each-bound-relative-arg-refuses	errc	a:{lim:2,l:[1],f:each(.l,{v:min(...lim)} & {v:1})}	constraint
