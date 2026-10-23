@@ -8548,8 +8548,9 @@ $ aontu emit.aontu
 ```
 
 `resolveD` checks the table first, each template a map with its `match`
-and a list for its `body` (`emitRuleOk`), so that a bad table is an
-error even over an empty selection. It then reads the table once for
+and a list for its `body` (`emitRuleOk`), the body written as a list
+rather than a path or a call that makes one (`emitRawOk`), so that a bad
+table is an error even over an empty selection. It then reads the table once for
 each node of the selection, as it reads an `each`'s template once for
 each member: its `match`es for no node, and its bodies for the node:
 
@@ -8557,11 +8558,12 @@ each member: its `match`es for no node, and its bodies for the node:
 ```lean
     | .emit, [s, t] =>
       if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
-      if (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
+      if (emitTable t).any (fun r => !emitRawOk r) ||
+        (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
         .call .emit [resolveD ds b here s, t] else
       match (normaliseD ds (resolveD ds b here s)).members ds with
       | some ms =>
-        let pss := ms.map fun m => emitPieces ds m (resolveD ds none none t) (resolveD ds (some m) none t)
+        let pss := ms.map fun m => emitPieces ds m t (resolveD ds none none t) (resolveD ds (some m) none t)
         if pss.all Option.isSome then .list (pss.filterMap id).flatten none false
         else .call .emit [resolveD ds b here s, t]
       | none =>
@@ -8578,7 +8580,11 @@ and `close({k: 1})`. `{k: 1, j: 2}` doesn't take it, and neither does
 `{k: 1, j?: integer}` takes it: an optional key whose value generates
 nothing, or an empty map or list, is no member, as `Val.members` reads
 it (`memberField`). Where the node is a kind, `integer`, the `match`
-`integer` takes it and `1` refuses it. A disjunction with no preference
+`integer` takes it and `1` refuses it. Each side is read through its
+riders, a member's too, so `meta(integer, {})` and `type(integer)` take
+the node `1`. A meet is alike what meets the same conjuncts, so `min(1)`
+takes the node `min(1)` and `integer` takes `integer & min(1)`, while
+`min(2)` refuses `min(1)`. A disjunction with no preference
 among its arms takes the node where any arm meets it, under a rider
 too, as in `meta(1 | 2, {})`:
 
@@ -8586,19 +8592,24 @@ too, as in `meta(1 | 2, {})`:
 ```lean
 def emitTakes (ds : Decls) (pat m : Val) : Bool :=
   let met := normaliseD ds (meetD ds pat.matchRead m)
-  !met.dead && ((normaliseD ds m).freeChoice || (normaliseD ds m).kindless.alike ds met.one.kindless)
+  !met.dead && ((normaliseD ds m).freeChoice ||
+    (normaliseD ds m).unride.kindless.alike ds met.unride.one.kindless)
 ```
 
 No node binds a hole in a `match`, so `Val.matchRead` reads one as
 both engines do. A hole that stands at a position, the whole `match`,
-a member or an element, waits for a value that never comes and matches
-nothing. One in a meet or a disjunction's arm is the value it meets, so
-`_ & integer` takes `1` where `_` alone doesn't. A template that writes
+a member, an element or a spread, waits for a value that never comes and
+matches nothing, so `{&: _}` refuses the node `{"k": 1}` and takes `{}`,
+which gives the spread no member to try. One in a meet or a
+disjunction's arm is the value it meets, so `_ & integer` takes `1`
+where `_` alone doesn't. A template that writes
 `match` twice meets the two, and one that writes `body` twice makes no
 list.
 
 The answer splices in each list in the body, at any depth, so a
-nested `emit` adds its pieces where it stands. A table of one template
+nested `emit` adds its pieces where it stands. Each piece is read in
+normal form first, a rider around it read through, so `["a"] & ["a"]`
+and `meta(["a"], {})` splice as `["a"]` does. A table of one template
 may be the template itself. In a body, `_` is the node, and a relative
 reference such as `.pin` names a field of the node rather than a place,
 at any depth of the body. `.0` names a list node's first element, or a
@@ -8621,10 +8632,13 @@ A nested `emit` reads its selection, `.logs`, for the outer node, and
 its own table for each of its own nodes. An empty selection emits
 nothing, but both engines check its table all the same. Both refuse a
 selection that isn't a bag, a template without its `match` or its
-`body`, a body that isn't a list, a node no template takes, and a
+`body`, a body not written as a list, a node no template takes, and a
 reference the node doesn't answer. A step up is such a reference, and
-so is a position past the end. Each leaves the call unmade, which is an
-error. The
+so is a position past the end. So is one in a part the reading drops,
+as in `match(1, 1, "x", .missing)`, since both engines bind a body to
+the node before they read it (`emitBound`). They bind no spread, so
+`{&: .missing}` in the part dropped is no reference the node must
+answer. Each refusal leaves the call unmade, which is an error. The
 rows are et0 on, over selections written in place, and em0 on, where a
 path names the selection. Both engines answer every one as the
 definition does.
@@ -8634,7 +8648,10 @@ The definition doesn't yet read a table named apart from its call,
 a body, or a reference into the node inside an `each`, a `pack` or a
 `filter`'s condition in a body. It leaves a body that holds a `key(n)`
 unmade too, since the engines read it at different positions, as #524
-records.
+records, and one whose spread holds a reference into the node. Both
+engines leave such a spread unbound, so the reference reads nowhere and
+refuses a member the spread meets, but they pass a spread that meets
+no member, which the definition doesn't yet.
 
 ## 41. What the definition doesn't say yet
 
