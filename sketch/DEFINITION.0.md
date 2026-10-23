@@ -788,9 +788,12 @@ each stands here until the phase that encodes it lands.
    the meet is each arm's, as `Val.upperHalf` reads it. No generated
    row carries a disjunctive size until it is ruled.
    **Ruled 2026-10-23: the first.** `len` takes a conjunction of
-   bounds, exclusions and multiples, and the definition reads any other
-   size, a disjunction among them, as ill-formed, as both ports answer;
-   the ports stand.
+   integers, bounds, exclusions and multiples. A size that holds a
+   disjunction or a preference, `len(1 | 3)` or `len(*1)`, is
+   ill-formed, an `error` whatever it meets, as both ports answer; the
+   ports stand. A size outside the integer domain, such as `len(any)`
+   or `len(string)`, admits nothing in both ports, as decision 28 has
+   it.
 17. **A declaration nothing reads.** Raised 2026-10-21 by decision 14's
    rows (#417). Both ports evaluate every alias declaration, at `$.%T`,
    whether or not anything refers to it, so `%T = 1 & 2` beside `v: 1`
