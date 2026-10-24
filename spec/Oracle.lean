@@ -3619,7 +3619,7 @@ data, a list's in order and a map's in key order, the hole kept, met
 and left out, a nested `each` binding its own hole, and data that is no
 bag. No case holds a marked list element (decision 18), `key()` in a
 template, which both ports read as the member's key, or a hole outside
-a template, which both ports fill from the call's peer. A `filter`
+a template, which `holeFillVetCases` holds. A `filter`
 whose condition holds the hole follows in `filterCases`, and `split`
 at a pattern in `patternCases`. -/
 
@@ -4214,7 +4214,7 @@ def hostReads (v : Val) : Bool :=
 
 /-- A vet document whose one field is a call that reads to a term the
 checker can read reads to one itself. -/
-theorem readR_call_checkableA {t : Val}
+theorem readR_call_checkableA {t : Val} (hf : ∀ k, (expandF [] k t).filled = expandF [] k t)
     (h : ∀ k, (resolveD [] none (stepped (some []) (.seg (.key "v"))) (expandF [] k t)).CheckableA) :
     (Decls.readR [] (.map [("v", false, t)] none false)).CheckableA := by
   have hm : ∀ u, (resolveD [] none (stepped (some []) (.seg (.key "v"))) u).CheckableA →
@@ -4223,11 +4223,17 @@ theorem readR_call_checkableA {t : Val}
     simp only [resolveD, resolveFields, resolveSpread]
     exact .map (fun k o w hw => by simp at hw; obtain ⟨-, -, rfl⟩ := hw; exact hu)
       (fun _ hs => by cases hs)
-  have : ∀ n, (resolveD [] none (some []) (expandF [] n (.map [("v", false, t)] none false))).CheckableA := by
+  have : ∀ n, (resolveD [] none (some [])
+      (expandF [] n (.map [("v", false, t)] none false)).filled).CheckableA := by
     intro n
     cases n with
-    | zero => simpa [expandF] using hm t (by simpa [expandF] using h 0)
-    | succ k => simp only [expandF, List.map, Option.map]; exact hm _ (h k)
+    | zero =>
+      have h0 : t.filled = t := by simpa [expandF] using hf 0
+      simp only [expandF, Val.filled, filledFields, filledSpread, h0]
+      exact hm t (by simpa [expandF] using h 0)
+    | succ k =>
+      simp only [expandF, List.map, Option.map, Val.filled, filledFields, filledSpread, hf k]
+      exact hm _ (h k)
   exact this _
 
 /-- Calls handed a pattern, `re(p)`, which the checker cannot read as a
@@ -4276,17 +4282,58 @@ theorem inert_pending {ds : Decls} {bd : Option Val} {here : Option (List Step)}
 
 theorem patternSplits_inert : ∀ t ∈ patternSplits, t.1.inertB = true := by decide
 
+/-- An inert term holds no meet, so the fill leaves it as it is, expanded
+or not. -/
+theorem inert_filled : ∀ {x : Val}, x.inertB = true → x.filled = x
+  | .lit _, _ => rfl
+  | .re _, _ => rfl
+  | .integer, _ => rfl
+  | .ride _ v _, h => by simp only [Val.filled]; rw [inert_filled (x := v) h]
+
+theorem inert_expandF : ∀ {x : Val}, x.inertB = true → ∀ j, (expandF [] j x).inertB = true
+  | .lit _, _, j => by cases j <;> rfl
+  | .re _, _, j => by cases j <;> rfl
+  | .integer, _, j => by cases j <;> rfl
+  | .ride _ v _, h, j => by
+    cases j with
+    | zero => exact h
+    | succ j => simp only [expandF, Val.inertB]; exact inert_expandF (x := v) h j
+
+theorem filledItems_inert : ∀ {xs : List Val}, (∀ x ∈ xs, x.inertB = true) → filledItems xs = xs
+  | [], _ => rfl
+  | x :: xs, h => by
+    simp only [filledItems]
+    rw [inert_filled (h x List.mem_cons_self), filledItems_inert fun y hy => h y (List.mem_cons_of_mem _ hy)]
+
+/-- A `split` or a `rep` over inert terms holds no meet either. -/
+theorem filled_expandF_call {f : Fn} (hf : f = .split ∨ f = .rep) {args : List Val}
+    (h : ∀ x ∈ args, x.inertB = true) : ∀ k, (expandF [] k (.call f args)).filled = expandF [] k (.call f args) := by
+  have hm : ∀ k, filledItems (args.map (expandF [] k)) = args.map (expandF [] k) := fun k =>
+    filledItems_inert fun x hx => by
+      obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hx
+      exact inert_expandF (h y hy) k
+  rcases hf with rfl | rfl <;> intro k <;> cases k <;>
+    simp only [expandF, Val.filled, filledItems_inert h, hm]
+
 theorem patternCases_readable : ∀ c ∈ patternCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
   intro c hc
   rcases List.mem_append.mp hc with h | h
   · obtain ⟨⟨s, p, d⟩, hm, rfl⟩ := List.mem_map.mp h
-    refine readR_call_checkableA fun k => resolveD_expandF_split k fun j x hx => ?_
+    refine readR_call_checkableA (filled_expandF_call (.inl rfl) fun x hx => ?_)
+      fun k => resolveD_expandF_split k fun j x hx => ?_
+    · simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
+      rcases hx with rfl | rfl
+      · exact patternSplits_inert _ hm
+      · rfl
     simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
     rcases hx with rfl | rfl
     · exact inert_pending (patternSplits_inert _ hm) j
     · exact inert_pending (x := .re p) rfl j
   · rcases List.mem_singleton.mp h with rfl
-    refine readR_call_checkableA fun k => resolveD_expandF_rep k fun j x hx => ?_
+    refine readR_call_checkableA (filled_expandF_call (.inr rfl) fun x hx => ?_)
+      fun k => resolveD_expandF_rep k fun j x hx => ?_
+    · simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
+      rcases hx with rfl | rfl | rfl <;> rfl
     simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
     rcases hx with rfl | rfl | rfl
     · exact inert_pending (x := .lit (.str "a")) rfl j
@@ -4327,7 +4374,7 @@ theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c)
   intro c hc
   obtain ⟨⟨j, t, d⟩, hm, rfl⟩ := List.mem_map.mp hc
   have hj := filterSources_generate _ hm
-  refine readR_call_checkableA fun k => ?_
+  refine readR_call_checkableA (fun k => by cases k <;> rfl) fun k => ?_
   cases k with
   | zero => exact resolveD_filter_checkableA hj
   | succ k =>
@@ -4522,6 +4569,51 @@ theorem pack_verdict_exact : ∀ c ∈ packCases, ∀ (m : Mode) (v : Verdict),
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (packCases_checkable c hc)) v
+
+/-- A hole its call's peer fills, as a document reads it (decision 21 of
+the design note's §7), for the `verdict` rows hv0 on. A call on a string
+and on a number, written before its peer and after it, over a call, and
+with a second peer the document groups after the first, each against
+data that writes its output and data that doesn't; the hole alone; and,
+where the data leaves the member out so that the fill supplies it, the
+same call, a generator over a list written before its peer and after
+it, a fill inside a map and a list, and a second peer that refuses the
+output. Both ports read a generator's peer and the data as one
+conjunction, so a generator meets no data here. -/
+def holeFillVetCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let up (v : Val) : Val := .call .upper [v]
+  let la : Val := .list [s "a"] none false
+  let px : Val := .map [("x", false, n 1)] none false
+  let x (v : Val) : Val × Data := (.map [("x", false, v)] none false, .map [])
+  [(.meet (up .hole) (s "a"), .str "A"), (.meet (up .hole) (s "a"), .str "a"),
+    (.meet (s "a") (up .hole), .str "A"),
+    (.meet (.call .add [.hole, n 1]) (n 2), .integer 3),
+    (.meet (.call .add [.hole, n 1]) (n 2), .integer 4),
+    (.meet (n 2) (.call .add [.hole, n 1]), .integer 3),
+    (.meet .hole (s "a"), .str "a"),
+    (.meet (up (.call .lower [.hole])) (s "aB"), .str "AB"),
+    (.meet (.meet (up .hole) (s "a")) (s "A"), .str "A"),
+    (.meet (.meet (s "ab") (up .hole)) (s "AB"), .str "AB"),
+    x (.meet (up .hole) (s "a")),
+    x (.meet (.call .each [.hole, up .hole]) la), x (.meet la (.call .each [.hole, up .hole])),
+    x (.meet (.call .pack [.hole, px]) la), x (.meet la (.call .pack [.hole, px])),
+    x (.meet (.meet la (.call .each [.hole, up .hole])) (.list [s "A"] none false)),
+    x (.meet (.call .each [.hole, .map [("v", false, .hole)] none false]) la),
+    x (.meet (.call .each [.hole, .hole]) la),
+    x (.map [("a", false, .meet (up .hole) (s "x"))] none false),
+    x (.list [.meet (up .hole) (s "x")] none false),
+    x (.meet .hole (s "a")),
+    x (.meet (.meet (up .hole) (s "a")) (s "a"))]
+
+set_option maxRecDepth 8192 in
+theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
+
+theorem hole_fill_verdict_exact : ∀ c ∈ holeFillVetCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (holeFillVetCases_checkable c hc)) v
 
 /-- The transformer `emit`, over a selection written in place: the first
 template whose `match` takes a node taken, in the table's order, a map's
@@ -5455,7 +5547,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# The transformer emit follows in rows et0 on, over selections written in place:"
     IO.println "# for each node, the body of the first template whose match the node meets,"
     IO.println "# read for the node, each list in it spliced, and an error where no template"
-    IO.println "# matches or the body names what the node doesn't hold."
+    IO.println "# matches or the body names what the node doesn't hold. A hole its call's peer"
+    IO.println "# fills follows in rows hv0 on: a meet with a hole on one side and none on the"
+    IO.println "# other reads as that side with the hole bound to the other, as the document"
+    IO.println "# groups its meets."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
@@ -5480,6 +5575,7 @@ def main (args : List String) : IO UInt32 := do
         (oracleGrammars.drop 2).all (fun g => (oneLiteral g).isNone) do
       throw (IO.userError "a grammar of the rows the oracle's host does not read as every engine does")
     verdictRows "g" grammarCases
+    verdictRows "hv" holeFillVetCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"
