@@ -11,6 +11,8 @@
 # i0 on, read as names the calling program declares.
 # Path values follow in rows k0 on: path(p) generates its own address, two
 # meet by the prefix rule, the longer winning, and path admits each.
+# Lists that hold a marked element follow in rows gl0 on, read as a document
+# reads them: the list holds no position for the element.
 g0	gens	v: 1	{"v":1}
 g1	gens	v: *(1)	{"v":1}
 g5	gens	v: *(null)	{"v":null}
@@ -138,3 +140,13 @@ k14	gens	v: *(path($.a)) | (path($.b))	{"v":"$.a"}
 k15	gens	v: (path($.a)) & ((path($.a.b)) | (path($.c)))	{"v":"$.a.b"}
 k16	gens	v: {"x": path($.a), "y": path(.x)}	{"v":{"x":"$.a","y":".x"}}
 k17	gens	v: [path($.a), path(..b)]	{"v":["$.a","..b"]}
+gl0	gens	v: [1, hide(2), 3]	{"v":[1,3]}
+gl1	gens	v: [hide(1), 2]	{"v":[2]}
+gl2	gens	v: [type(integer), "a"]	{"v":["a"]}
+gl3	gens	v: [type(1), hide(2)]	{"v":[]}
+gl4	gens	v: [[hide(1)], 2]	{"v":[[],2]}
+gl5	gens	v: close([hide(1), 2])	{"v":[2]}
+gl6	gens	v: ([hide(1)]) & ([2])	{"v":[2]}
+gl7	gens	v: ([hide(1), 2]) & ([hide(3), 2])	{"v":[2]}
+gl8	gens	v: [*(hide(1)) | (hide(2)), 3]	{"v":[1,3]}
+gl9	gens	v: [(hide(1)) | ((2) & (3)), 3]	{"v":[3]}

@@ -558,7 +558,9 @@ A list is an ordered sequence.
   list (`[0:1]` is `[{"0":1}]`), and a chain nests (`[a:b:1]` is
   `[{a:{b:1}}]`).
 - Lists unify element-by-element by position (and support `&:` spreads,
-  below).
+  below). A list holds a position only for an element that stands: one
+  that `hide()` or `type()` marks, or one that is absence, holds none,
+  so `[1, hide(2), 3]` is `[1, 3]` for the meet as for the output.
 
 The pair form reads naturally for ordered records:
 
@@ -570,7 +572,7 @@ routes: [get:"/health" post:"/orders"]
 { "routes": [ { "get": "/health" }, { "post": "/orders" } ] }
 ```
 
-The definition's rule for a list is `admits_list_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): each position holds its item, every member is held to the spread where there is one, and a sealed list with no spread has exactly its positions.
+The definition's rule for a list is `admits_list_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): each position holds its item, every member is held to the spread where there is one, and a sealed list with no spread has exactly its positions. `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) drops a marked element and one that is absence as it reads the list.
 
 ## Container kinds: `map` and `list`
 
@@ -3167,7 +3169,7 @@ does from a plain list:
 <!-- test: run -->
 ```sh
 $ echo 'x: ["a", maybe($.gone)]' | aontu -c
-{"x":["a",maybe()]}
+{"x":["a"]}
 $ echo 'x: [&: string]  x: ["a", maybe($.gone)]' | aontu
 {
   "x": [
@@ -3191,8 +3193,14 @@ meet, an arm of a disjunction, or the value under a rider.
 admits every value, and `Val.leftOut` in
 [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) leaves an absent
 member out of the output. An absent element of a list holds no
-position in the definition, where both engines keep it at its position
-while the list meets another, which [#479](https://github.com/aontu-lang/aontu/issues/479) tracks.
+position, for the meet as for the output, so `[maybe($.gone), "a", 2]`
+admits `["a", 2]` and refuses `[7, "a", 2]`. A `key()` in a later
+element still reads the index the document writes in both engines,
+which [#539](https://github.com/aontu-lang/aontu/issues/539)
+tracks. The definition drops the absent element as `resolveD` reads the
+list, and rows la0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it.
 
 ## Ordering: `sort`
 
@@ -4298,9 +4306,21 @@ declaring the keys the body's maps declare, each optional and
 restricted in turn, and a sealed list the same by position. The seal
 follows a selection to the result it makes and stops at a disjunction
 or a preference, as it does at a kind and at a name. A recursive name
-takes none, as both engines read it. A marked list element, which both engines leave out of the
-output, is yet to enter the definition, the subject of decision 18 of
-the design note.
+takes none, as both engines read it.
+
+A list holds no position for an element a mark of its own leaves out,
+so `[hide(1), 2]` admits `[2]` and refuses `[1, 2]`, and a `key()` in a
+later element reads the index that element takes. The element is
+still read: one that's a conflict, alone or met with the list's
+spread, makes the list a conflict where it stands, so `[hide(1 & 2),
+3]` is an error and an arm holding it drops. A disjunction of marked
+arms carries no mark and holds its position, while one whose other
+arms are dead carries its live arm's. The definition drops the element
+as `resolveD` reads the list, `Decls.markClashes` finds the conflict,
+and rows hl0 on of
+[`test/spec/def-verdict.tsv`](../test/spec/def-verdict.tsv) and gl0 on
+of [`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both
+engines to it.
 
 `move(p)` hides its source with the same mark. In the definition,
 `Decls.withMoves` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
@@ -4310,7 +4330,8 @@ document generates the value once, at its new place. A `move` in a
 declaration's body hides its source too, whether a reference reads the
 body or not. The definition reads a rider around the path through, and
 a variable in the path names the member its value spells. A path into a list hides
-nothing, as a marked list element is yet to enter the definition. Rows
+nothing in the definition yet, where both engines drop the element from
+the list, as a marked element holds no position there. Rows
 mv0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold
 both engines to it. Data that sets the copy of a path under a
 rider splits the engines, which

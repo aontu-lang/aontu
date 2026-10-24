@@ -1579,6 +1579,13 @@ def Decls.clashes (ds : Decls) : Val → Bool
   | .nil => false
   | v => (normaliseD ds v).dead
 
+/-- Whether a list's marked element is a conflict, under the riders it
+carries, met with the list's spread `s`: both ports read the element
+and meet it with the spread before the list drops it (decision 18). -/
+def Decls.markClashes (ds : Decls) (s : Option Val) : Val → Bool
+  | .ride _ v _ => ds.markClashes s v
+  | v => ds.clashes (match s with | some t => .meet v t | none => v)
+
 mutual
 /-- A term with its selections made, `b` the member a generator's
 template is read for, which each hole in the template stands for, and
@@ -1602,7 +1609,11 @@ where a template lacks its `match` or a list for its `body`, the selection is no
 bag, or a member makes no pieces (`emitPieces`). A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
-no position for an element that is absence. A call or a generator
+no position for an element that is absence, nor for one a mark of its
+own, `hide()` or `type()`, leaves out (decision 18), each element after
+it read at the index it takes, though a list whose marked element is a
+conflict, alone or met with the list's spread, is `nil` where it stands
+(`Decls.markClashes`). A call or a generator
 handed a reference that names nothing yet (`Val.pending`) waits, as a
 later round of the paths may declare it. Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
@@ -1614,7 +1625,8 @@ the member it tries lands, under its key or at the index it takes among
 those kept. A term read with no position keeps its keys as written, and
 a selection whose arms hold a key, a call or a generator whose arguments
 hold one, and a `filter` whose condition does stay as written too, so
-that a path copies them to be read where it lands. A size over a term
+that a path copies them to be read where it lands, but a `refer` or a
+`rel`, whose value no argument decides. A size over a term
 outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
 as a bound over one is (`bndOf`), so that both refuse at the meet. A
 trial both ports build as they read it is `nil` where an argument they
@@ -1682,7 +1694,8 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
         if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
         else .call .emit [resolveD ds b here s, t]
     | f, args =>
-      if here.isNone && keyItems (resolveItems ds b here args) then .call f (resolveItems ds b here args)
+      if here.isNone && keyItems (resolveItems ds b here args) && f != .refer && f != .rel then
+        .call f (resolveItems ds b here args)
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
       else callTerm ds f (resolveItems ds b here args)
@@ -1692,7 +1705,10 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
   | .map fs spread closed =>
     .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
   | .list items spread closed =>
-    .list ((resolveElems ds b here 0 items).filter fun e => !(normaliseD ds e).isAbsent)
+    if (resolveElems ds b here 0 items).any (fun e => (normaliseD ds e).marked &&
+        ds.markClashes (resolveSpread ds none (stepped here .spread) spread) e) then .nil else
+    .list ((resolveElems ds b here 0 items).filter fun e =>
+        !(normaliseD ds e).isAbsent && !(normaliseD ds e).marked)
       (resolveSpread ds none (stepped here .spread) spread) closed
   | .or arms => .or (resolveArms ds b here arms)
   | .pref r x => .pref r (resolveD ds b here x)
@@ -1722,7 +1738,10 @@ def resolveFields (ds : Decls) (b : Option Val) (here : Option (List Step)) :
 
 def resolveElems (ds : Decls) (b : Option Val) (here : Option (List Step)) : ℕ → List Val → List Val
   | _, [] => []
-  | i, v :: vs => resolveD ds b (stepped here (.seg (.idx i))) v :: resolveElems ds b here (i + 1) vs
+  | i, v :: vs =>
+    resolveD ds b (stepped here (.seg (.idx i))) v :: resolveElems ds b here
+      (if (normaliseD ds (resolveD ds b (stepped here (.seg (.idx i))) v)).isAbsent ||
+        (normaliseD ds (resolveD ds b (stepped here (.seg (.idx i))) v)).marked then i else i + 1) vs
   termination_by structural _ vs => vs
 
 def resolveItems (ds : Decls) (b : Option Val) (here : Option (List Step)) : List Val → List Val
@@ -2855,6 +2874,8 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   | @list items spread closed _ _ ihi ihs =>
     intro b here hb
     simp only [resolveD]
+    split
+    · exact .nil
     refine .list (fun w hw => ?_) (fun s hs' => ?_)
     · obtain ⟨v, hv, i, rfl⟩ := mem_resolveElems (List.mem_filter.mp hw).1
       exact ihi v hv hb

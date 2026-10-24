@@ -282,10 +282,12 @@ the design note's §7). A mark rides every meet, as the riders do, so a
 term carries one where one rides it at its own position, through `&`
 and the other riders. -/
 
-/-- Whether a term carries the mark `m` at its own position. -/
+/-- Whether a term carries the mark `m` at its own position. A
+disjunction of one arm, its others dead, carries the arm's. -/
 def Val.hasMark (m : Rider) : Val → Bool
   | .ride k v _ => decide (k = m) || v.hasMark m
   | .meet a b => a.hasMark m || b.hasMark m
+  | .or [(_, a)] => a.hasMark m
   | _ => false
 
 /-- Whether a term carries a mark, `type()` or `hide()`, at its own position. -/

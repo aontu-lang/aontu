@@ -14,7 +14,8 @@
 # or list not counted.
 # The marks follow in rows h0 on: hide() and type() leave a member of a map
 # out of the output, the member still meeting the data, and --no-fill reads
-# the schema's visible part.
+# the schema's visible part. A list holds no position for an element a mark
+# of its own leaves out, in rows hl0 on.
 # Path values follow in rows k0 on: the fill supplies a path value the data
 # leaves out, and none admits the string the data writes for it, since no
 # JSON text reads as an address.
@@ -555,6 +556,96 @@ h113	verdict	v: {"a": (hide(1)) | (hide(2))}	v: {}	{"verdict":"valid","opts":{"p
 h114	verdict	v: {"a": *(hide(1)) | (integer)}	v: {}	{"verdict":"valid"}
 h115	verdict	v: {"a": *(hide(1)) | (integer)}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
 h116	verdict	v: {"a": *(hide(1)) | (integer)}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+h117	verdict	v: {"a": (hide(1)) | ((2) & (3))}	v: {}	{"verdict":"valid"}
+h118	verdict	v: {"a": (hide(1)) | ((2) & (3))}	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+h119	verdict	v: {"a": (hide(1)) | ((2) & (3))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+h120	verdict	v: {"a": (hide(1)) | ((2) & (3))}	v: {"a": 2}	{"verdict":"invalid"}
+h121	verdict	v: {"a": (hide(1)) | ((2) & (3))}	v: {"a": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+h122	verdict	v: {"a": (hide(1)) | ((2) & (3))}	v: {"a": 2}	{"verdict":"invalid","opts":{"partial":true}}
+hl0	verdict	v: [hide(1), 2]	v: [2]	{"verdict":"valid"}
+hl1	verdict	v: [hide(1), 2]	v: [2]	{"verdict":"valid","opts":{"noFill":true}}
+hl2	verdict	v: [hide(1), 2]	v: [2]	{"verdict":"valid","opts":{"partial":true}}
+hl3	verdict	v: [hide(1), 2]	v: [1, 2]	{"verdict":"invalid"}
+hl4	verdict	v: [hide(1), 2]	v: [1, 2]	{"verdict":"invalid","opts":{"noFill":true}}
+hl5	verdict	v: [hide(1), 2]	v: [1, 2]	{"verdict":"invalid","opts":{"partial":true}}
+hl6	verdict	v: [hide(1), 2]	v: []	{"verdict":"valid"}
+hl7	verdict	v: [hide(1), 2]	v: []	{"verdict":"incomplete","opts":{"noFill":true}}
+hl8	verdict	v: [hide(1), 2]	v: []	{"verdict":"valid","opts":{"partial":true}}
+hl9	verdict	v: [1, hide(2), 3]	v: [1, 3]	{"verdict":"valid"}
+hl10	verdict	v: [1, hide(2), 3]	v: [1, 3]	{"verdict":"valid","opts":{"noFill":true}}
+hl11	verdict	v: [1, hide(2), 3]	v: [1, 3]	{"verdict":"valid","opts":{"partial":true}}
+hl12	verdict	v: [1, hide(2), 3]	v: [1, 2, 3]	{"verdict":"invalid"}
+hl13	verdict	v: [1, hide(2), 3]	v: [1, 2, 3]	{"verdict":"invalid","opts":{"noFill":true}}
+hl14	verdict	v: [1, hide(2), 3]	v: [1, 2, 3]	{"verdict":"invalid","opts":{"partial":true}}
+hl15	verdict	v: [type(integer), "a"]	v: ["a"]	{"verdict":"valid"}
+hl16	verdict	v: [type(integer), "a"]	v: ["a"]	{"verdict":"valid","opts":{"noFill":true}}
+hl17	verdict	v: [type(integer), "a"]	v: ["a"]	{"verdict":"valid","opts":{"partial":true}}
+hl18	verdict	v: [hide(integer)]	v: ["x"]	{"verdict":"valid"}
+hl19	verdict	v: [hide(integer)]	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+hl20	verdict	v: [hide(integer)]	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+hl21	verdict	v: [type(1), hide(2)]	v: [5]	{"verdict":"valid"}
+hl22	verdict	v: [type(1), hide(2)]	v: [5]	{"verdict":"valid","opts":{"noFill":true}}
+hl23	verdict	v: [type(1), hide(2)]	v: [5]	{"verdict":"valid","opts":{"partial":true}}
+hl24	verdict	v: close([hide(1), 2])	v: [2]	{"verdict":"valid"}
+hl25	verdict	v: close([hide(1), 2])	v: [2]	{"verdict":"valid","opts":{"noFill":true}}
+hl26	verdict	v: close([hide(1), 2])	v: [2]	{"verdict":"valid","opts":{"partial":true}}
+hl27	verdict	v: close([hide(1), 2])	v: [2, 3]	{"verdict":"invalid"}
+hl28	verdict	v: close([hide(1), 2])	v: [2, 3]	{"verdict":"invalid","opts":{"noFill":true}}
+hl29	verdict	v: close([hide(1), 2])	v: [2, 3]	{"verdict":"invalid","opts":{"partial":true}}
+hl30	verdict	v: [hide(1), 2, &: integer]	v: [2, 3]	{"verdict":"valid"}
+hl31	verdict	v: [hide(1), 2, &: integer]	v: [2, 3]	{"verdict":"valid","opts":{"noFill":true}}
+hl32	verdict	v: [hide(1), 2, &: integer]	v: [2, 3]	{"verdict":"valid","opts":{"partial":true}}
+hl33	verdict	v: [hide(1), 2, &: integer]	v: [1, 2]	{"verdict":"invalid"}
+hl34	verdict	v: [hide(1), 2, &: integer]	v: [1, 2]	{"verdict":"invalid","opts":{"noFill":true}}
+hl35	verdict	v: [hide(1), 2, &: integer]	v: [1, 2]	{"verdict":"invalid","opts":{"partial":true}}
+hl36	verdict	v: ([hide(1)]) & ([2])	v: [2]	{"verdict":"valid"}
+hl37	verdict	v: ([hide(1)]) & ([2])	v: [2]	{"verdict":"valid","opts":{"noFill":true}}
+hl38	verdict	v: ([hide(1)]) & ([2])	v: [2]	{"verdict":"valid","opts":{"partial":true}}
+hl39	verdict	v: ([hide(1), 2]) & ([hide(3), 2])	v: [2]	{"verdict":"valid"}
+hl40	verdict	v: ([hide(1), 2]) & ([hide(3), 2])	v: [2]	{"verdict":"valid","opts":{"noFill":true}}
+hl41	verdict	v: ([hide(1), 2]) & ([hide(3), 2])	v: [2]	{"verdict":"valid","opts":{"partial":true}}
+hl42	verdict	v: [(hide(1)) & (1), 2]	v: [2]	{"verdict":"valid"}
+hl43	verdict	v: [(hide(1)) & (1), 2]	v: [2]	{"verdict":"valid","opts":{"noFill":true}}
+hl44	verdict	v: [(hide(1)) & (1), 2]	v: [2]	{"verdict":"valid","opts":{"partial":true}}
+hl45	verdict	v: [[hide(1)], 2]	v: [["x"], 2]	{"verdict":"valid"}
+hl46	verdict	v: [[hide(1)], 2]	v: [["x"], 2]	{"verdict":"valid","opts":{"noFill":true}}
+hl47	verdict	v: [[hide(1)], 2]	v: [["x"], 2]	{"verdict":"valid","opts":{"partial":true}}
+hl48	verdict	v: [hide({"a": integer}), 1]	v: [1]	{"verdict":"valid"}
+hl49	verdict	v: [hide({"a": integer}), 1]	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
+hl50	verdict	v: [hide({"a": integer}), 1]	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+hl51	verdict	v: [hide(*(1) | (integer)), 2]	v: []	{"verdict":"valid"}
+hl52	verdict	v: [hide(*(1) | (integer)), 2]	v: []	{"verdict":"incomplete","opts":{"noFill":true}}
+hl53	verdict	v: [hide(*(1) | (integer)), 2]	v: []	{"verdict":"valid","opts":{"partial":true}}
+hl54	verdict	v: [hide((1) & (2)), 3]	v: [3]	{"verdict":"error"}
+hl55	verdict	v: [hide((1) & (2)), 3]	v: [3]	{"verdict":"error","opts":{"noFill":true}}
+hl56	verdict	v: [hide((1) & (2)), 3]	v: [3]	{"verdict":"error","opts":{"partial":true}}
+hl57	verdict	v: [(hide(1)) & (2), 3]	v: [3]	{"verdict":"error"}
+hl58	verdict	v: [(hide(1)) & (2), 3]	v: [3]	{"verdict":"error","opts":{"noFill":true}}
+hl59	verdict	v: [(hide(1)) & (2), 3]	v: [3]	{"verdict":"error","opts":{"partial":true}}
+hl60	verdict	v: [hide("a"), 1, &: integer]	v: [1, 2]	{"verdict":"error"}
+hl61	verdict	v: [hide("a"), 1, &: integer]	v: [1, 2]	{"verdict":"error","opts":{"noFill":true}}
+hl62	verdict	v: [hide("a"), 1, &: integer]	v: [1, 2]	{"verdict":"error","opts":{"partial":true}}
+hl63	verdict	v: ([hide((1) & (2)), 3]) | ([4])	v: [4]	{"verdict":"valid"}
+hl64	verdict	v: ([hide((1) & (2)), 3]) | ([4])	v: [4]	{"verdict":"valid","opts":{"noFill":true}}
+hl65	verdict	v: ([hide((1) & (2)), 3]) | ([4])	v: [4]	{"verdict":"valid","opts":{"partial":true}}
+hl66	verdict	v: [(hide(1)) | (hide(2)), 3]	v: [3]	{"verdict":"invalid"}
+hl67	verdict	v: [(hide(1)) | (hide(2)), 3]	v: [3]	{"verdict":"invalid","opts":{"noFill":true}}
+hl68	verdict	v: [(hide(1)) | (hide(2)), 3]	v: [3]	{"verdict":"invalid","opts":{"partial":true}}
+hl69	verdict	v: [(hide(1)) | (hide(2)), 3]	v: [1, 3]	{"verdict":"valid"}
+hl70	verdict	v: [(hide(1)) | (hide(2)), 3]	v: [1, 3]	{"verdict":"valid","opts":{"noFill":true}}
+hl71	verdict	v: [(hide(1)) | (hide(2)), 3]	v: [1, 3]	{"verdict":"valid","opts":{"partial":true}}
+hl72	verdict	v: [(hide(1)) | ((2) & (3)), 3]	v: [3]	{"verdict":"valid"}
+hl73	verdict	v: [(hide(1)) | ((2) & (3)), 3]	v: [3]	{"verdict":"valid","opts":{"noFill":true}}
+hl74	verdict	v: [(hide(1)) | ((2) & (3)), 3]	v: [3]	{"verdict":"valid","opts":{"partial":true}}
+hl75	verdict	v: [hide(1), {"k": key(1)}]	v: [{"k": "0"}]	{"verdict":"valid"}
+hl76	verdict	v: [hide(1), {"k": key(1)}]	v: [{"k": "0"}]	{"verdict":"valid","opts":{"noFill":true}}
+hl77	verdict	v: [hide(1), {"k": key(1)}]	v: [{"k": "0"}]	{"verdict":"valid","opts":{"partial":true}}
+hl78	verdict	v: [hide(1), {"k": key(1)}]	v: [{"k": "1"}]	{"verdict":"invalid"}
+hl79	verdict	v: [hide(1), {"k": key(1)}]	v: [{"k": "1"}]	{"verdict":"invalid","opts":{"noFill":true}}
+hl80	verdict	v: [hide(1), {"k": key(1)}]	v: [{"k": "1"}]	{"verdict":"invalid","opts":{"partial":true}}
+hl81	verdict	v: [type(1), 5, {"k": key(1)}]	v: [5, {"k": "1"}]	{"verdict":"valid"}
+hl82	verdict	v: [type(1), 5, {"k": key(1)}]	v: [5, {"k": "1"}]	{"verdict":"valid","opts":{"noFill":true}}
+hl83	verdict	v: [type(1), 5, {"k": key(1)}]	v: [5, {"k": "1"}]	{"verdict":"valid","opts":{"partial":true}}
 k0	verdict	v: {"x": path($.a)}	v: {}	{"verdict":"valid"}
 k1	verdict	v: {"x": path($.a)}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
 k2	verdict	v: {"x": path($.a)}	v: {}	{"verdict":"valid","opts":{"partial":true}}
