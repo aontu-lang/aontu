@@ -1595,7 +1595,8 @@ where a template lacks its `match` or a list for its `body`, the selection is no
 bag, or a member makes no pieces (`emitPieces`). A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
-no position for an element that is absence. A call or a generator
+no position for an element that is absence, nor for one a mark of its
+own, `hide()` or `type()`, leaves out (decision 18). A call or a generator
 handed a reference that names nothing yet (`Val.pending`) waits, as a
 later round of the paths may declare it. Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
@@ -1675,7 +1676,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
   | .map fs spread closed =>
     .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
   | .list items spread closed =>
-    .list ((resolveElems ds b here 0 items).filter fun e => !(normaliseD ds e).isAbsent)
+    .list ((resolveElems ds b here 0 items).filter fun e => !(normaliseD ds e).isAbsent && !e.marked)
       (resolveSpread ds none (stepped here .spread) spread) closed
   | .or arms => .or (resolveArms ds b here arms)
   | .pref r x => .pref r (resolveD ds b here x)

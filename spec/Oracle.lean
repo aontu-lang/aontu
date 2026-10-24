@@ -2976,13 +2976,16 @@ theorem profile_rows_exact (g s : Val) (hs : s.Checkable) (hg : g.Checkable) :
 /-- The `subsumption` rows of some pairs of values under the `defaults`
 or the `gen` profile, each under the key `v`, the general first, with
 the answers the profile's contract allows; a pair the definition leaves
-undecided has no row. -/
+undecided has no row. Each value is judged as a document reads it
+(`Decls.readR`), so a marked list element is no element (decision 18). -/
 def profilePairRows (tag : String) (pr : Profile) (pairs : List (Val × Val)) : IO Unit := do
   let name := match pr with | .values => "values" | .defaults => "defaults" | .gen => "gen"
   let mut i := 0
-  for (g, s) in pairs do
-    let some gsrc := g.cell | throw (IO.userError "a value of the pool has no text")
-    let some ssrc := s.cell | throw (IO.userError "a value of the pool has no text")
+  for (g0, s0) in pairs do
+    let some gsrc := g0.cell | throw (IO.userError "a value of the pool has no text")
+    let some ssrc := s0.cell | throw (IO.userError "a value of the pool has no text")
+    let g := Decls.readR [] g0
+    let s := Decls.readR [] s0
     let ns := normalise s
     let ng := normalise g
     let dHolds := (leDecF .empty 64 s g).isSome && defaultsAt ns ng && defaultsBelow ns ng

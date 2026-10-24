@@ -135,8 +135,8 @@ the output, and the member still meets what arrives at its key
 key as at an optional one. What evaluation singles out is generated
 from the term's visible part, in which a marked member and a member
 that is absence are optional and hold anything, and so is a map's
-marked spread; neither changes what a term admits. A list's element
-keeps its mark's value (decision 18). -/
+marked spread; neither changes what a term admits. A list holds no
+position for a marked element, which the reading drops (decision 18). -/
 
 mutual
 /-- Whether a map's member is left out of the output: marked, or absence. -/
