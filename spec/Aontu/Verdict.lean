@@ -1823,9 +1823,9 @@ end
 mutual
 /-- The term with each meet that waits on a hole on one side and on none
 on the other read as that side with the hole bound to the other, the
-meets beneath it first, through maps, lists, disjunctions, preferences,
-riders and the arguments of calls, a generator's data but not its
-template, which binds its holes to each member. -/
+meets beneath it first, through every form but where a hole is bound: a
+generator's template, an `emit`'s table and a `filter`'s condition,
+which bind their holes to each member or node. -/
 def Val.filled : Val → Val
   | .meet a b =>
     let a' := a.filled
@@ -1838,6 +1838,14 @@ def Val.filled : Val → Val
   | .or arms => .or (filledArms arms)
   | .pref r x => .pref r x.filled
   | .ride k v r => .ride k v.filled r
+  | .len c => .len c.filled
+  | .nof n cs => .nof n.filled (filledItems cs)
+  | .must c m => .must c.filled m
+  | .when c t e => .when c.filled t.filled (filledSpread e)
+  | .contains c n => .contains c.filled n.filled
+  | .rest t cs => .rest t.filled (filledCovers cs)
+  | .select s arms d => .select s.filled (filledPairs arms) (filledSpread d)
+  | .filter s c => .filter s.filled c
   | .call .each args => .call .each (filledHead args)
   | .call .pack args => .call .pack (filledHead args)
   | .call .emit args => .call .emit (filledHead args)
@@ -1863,6 +1871,14 @@ def filledSpread : Option Val → Option Val
 def filledArms : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
   | (r, a) :: as => (r, a.filled) :: filledArms as
+
+def filledPairs : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: as => (p.filled, r.filled) :: filledPairs as
+
+def filledCovers : List Cover → List Cover
+  | [] => []
+  | (a, b, c) :: cs => (filledSpread a, filledSpread b, filledSpread c) :: filledCovers cs
 end
 
 
@@ -1943,6 +1959,26 @@ theorem mem_filledArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {b : Val},
     · obtain ⟨u, hu, rfl⟩ := mem_filledArms h
       exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
 
+theorem mem_filledPairs : ∀ {arms : List (Val × Val)} {p r : Val},
+    (p, r) ∈ filledPairs arms → ∃ p₀ r₀, (p₀, r₀) ∈ arms ∧ p = p₀.filled ∧ r = r₀.filled
+  | [], _, _, h => nomatch h
+  | (p', r') :: arms, p, r, h => by
+    simp only [filledPairs, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨p', r', List.mem_cons_self, rfl, rfl⟩
+    · obtain ⟨p₀, r₀, hm, rfl, rfl⟩ := mem_filledPairs h
+      exact ⟨p₀, r₀, List.mem_cons_of_mem _ hm, rfl, rfl⟩
+
+theorem mem_filledCovers : ∀ {cs : List Cover} {c : Cover}, c ∈ filledCovers cs →
+    ∃ c₀, c₀ ∈ cs ∧ c = (filledSpread c₀.1, filledSpread c₀.2.1, filledSpread c₀.2.2)
+  | [], _, h => nomatch h
+  | (a, b, d) :: cs, c, h => by
+    simp only [filledCovers, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨(a, b, d), List.mem_cons_self, rfl⟩
+    · obtain ⟨c₀, hm, rfl⟩ := mem_filledCovers h
+      exact ⟨c₀, List.mem_cons_of_mem _ hm, rfl⟩
+
 /-- The fill leaves a term the checker can read as one it can read. -/
 theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA := by
   induction h with
@@ -1975,6 +2011,46 @@ theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA := 
     exact ih r a ha
   | pref _ ih => exact .pref ih
   | ride _ ih => exact .ride ih
+  | len _ ih => exact .len ih
+  | must _ ih => exact .must ih
+  | contains _ _ ihc ihn => exact .contains ihc ihn
+  | @nof n cs _ _ ihn ihc =>
+    refine .nof ihn fun c hc => ?_
+    obtain ⟨u, hu, rfl⟩ := mem_filledItems hc
+    exact ihc u hu
+  | @when c t e _ _ _ ihc iht ihe =>
+    refine .when ihc iht fun e' he => ?_
+    obtain ⟨s, hs, rfl⟩ := filledSpread_some he
+    exact ihe s hs
+  | @rest t cs _ _ _ _ iht ih₁ ih₂ ih₃ =>
+    refine .rest iht ?_ ?_ ?_ <;> intro c hc v hv <;>
+      obtain ⟨c₀, hm₀, rfl⟩ := mem_filledCovers hc <;>
+      obtain ⟨s, hs, rfl⟩ := filledSpread_some hv
+    · exact ih₁ c₀ hm₀ s hs
+    · exact ih₂ c₀ hm₀ s hs
+    · exact ih₃ c₀ hm₀ s hs
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    refine .selectKey ?_ ?_ ?_
+    · intro p r hm
+      obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
+      exact ihp p₀ r₀ hm₀
+    · intro p r hm
+      obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
+      exact ihr p₀ r₀ hm₀
+    · intro e he
+      obtain ⟨s, hs, rfl⟩ := filledSpread_some he
+      exact ihd s hs
+  | @selectLit sc arms d _ _ _ ihp ihr ihd =>
+    refine .selectLit ?_ ?_ ?_
+    · intro p r hm
+      obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
+      exact ihp p₀ r₀ hm₀
+    · intro p r hm
+      obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
+      exact ihr p₀ r₀ hm₀
+    · intro e he
+      obtain ⟨s, hs, rfl⟩ := filledSpread_some he
+      exact ihd s hs
   | @call f args h ih =>
     have hi : ∀ a, a ∈ filledItems args → a.CheckableA := fun a ha => by
       obtain ⟨u, hu, rfl⟩ := mem_filledItems ha
@@ -1985,6 +2061,26 @@ theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA := 
       · exact ih u hu
     cases f <;> first | exact .call hh | exact .call hi
   | _ => simp only [Val.filled]; constructor <;> assumption
+
+mutual
+/-- A datum as a term holds no meet, so the fill leaves it as it is. -/
+theorem Data.term_filled : ∀ j : Data, j.term.filled = j.term
+  | .num _ => rfl
+  | .str _ => rfl
+  | .bool _ => rfl
+  | .null => rfl
+  | .addr _ => rfl
+  | .map fs => by simp only [Data.term, Val.filled, filledSpread, termMembers_filled fs]
+  | .list xs => by simp only [Data.term, Val.filled, filledSpread, termElems_filled xs]
+
+theorem termMembers_filled : ∀ fs : List (String × Data), filledFields (termMembers fs) = termMembers fs
+  | [] => rfl
+  | (_, x) :: fs => by simp only [termMembers, filledFields, Data.term_filled x, termMembers_filled fs]
+
+theorem termElems_filled : ∀ xs : List Data, filledItems (termElems xs) = termElems xs
+  | [] => rfl
+  | x :: xs => by simp only [termElems, filledItems, Data.term_filled x, termElems_filled xs]
+end
 
 /-- How a document reads: its term expanded and filled, with its
 selections made and each key placed, the document standing at the top. -/

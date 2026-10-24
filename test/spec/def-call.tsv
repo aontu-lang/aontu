@@ -2880,3 +2880,15 @@ hv62	verdict	v: {"x": (_) & ("a")}	v: {}	{"verdict":"valid","opts":{"partial":tr
 hv63	verdict	v: {"x": ((upper(_)) & ("a")) & ("a")}	v: {}	{"verdict":"error"}
 hv64	verdict	v: {"x": ((upper(_)) & ("a")) & ("a")}	v: {}	{"verdict":"error","opts":{"noFill":true}}
 hv65	verdict	v: {"x": ((upper(_)) & ("a")) & ("a")}	v: {}	{"verdict":"error","opts":{"partial":true}}
+hv66	verdict	v: match(true, true, (upper(_)) & ("a"), "b")	v: "A"	{"verdict":"valid"}
+hv67	verdict	v: match(true, true, (upper(_)) & ("a"), "b")	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+hv68	verdict	v: match(true, true, (upper(_)) & ("a"), "b")	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+hv69	verdict	v: match(true, true, (upper(_)) & ("a"), "b")	v: "a"	{"verdict":"invalid"}
+hv70	verdict	v: match(true, true, (upper(_)) & ("a"), "b")	v: "a"	{"verdict":"invalid","opts":{"noFill":true}}
+hv71	verdict	v: match(true, true, (upper(_)) & ("a"), "b")	v: "a"	{"verdict":"invalid","opts":{"partial":true}}
+hv72	verdict	v: match(true, false, "b", (upper(_)) & ("a"))	v: "A"	{"verdict":"valid"}
+hv73	verdict	v: match(true, false, "b", (upper(_)) & ("a"))	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+hv74	verdict	v: match(true, false, "b", (upper(_)) & ("a"))	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+hv75	verdict	v: match(true, false, "b", (upper(_)) & ("a"))	v: "b"	{"verdict":"invalid"}
+hv76	verdict	v: match(true, false, "b", (upper(_)) & ("a"))	v: "b"	{"verdict":"invalid","opts":{"noFill":true}}
+hv77	verdict	v: match(true, false, "b", (upper(_)) & ("a"))	v: "b"	{"verdict":"invalid","opts":{"partial":true}}

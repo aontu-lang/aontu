@@ -22,9 +22,16 @@ of #512.
 - A side waits on a hole if it's the hole, or a call over one through
   its arguments or a rider (`Val.fillable`). A generator waits through
   its data alone, and a container waits on no hole of its members.
+- The fill reads every form but where a hole is bound: a generator's
+  template, an `emit`'s table and a `filter`'s condition. A meet in a
+  `match`'s result, default, scrutinee or pattern, a `filter`'s source,
+  a size or a trial is filled too. Neither engine fills a meet in a
+  scrutinee, a pattern, `len` or `must`, and Go fills none in
+  `contains`, `rest`, `when` or `nof` (#549).
 - `spec/Oracle.lean`: `holeFillVetCases`, rows hv0 on of
-  `test/spec/def-call.tsv`, 22 cases in each of the three modes. Both
-  engines answer every row as the definition does.
+  `test/spec/def-call.tsv`, 26 cases in each of the three modes, a
+  `match`'s result and its default among them. Both engines answer
+  every row as the definition does.
 - Out of the rows: a hole a container's peer fills in a member or a
   spread, `[upper(_)] & ["a"]`, which both engines fill member by
   member; a call that meets more than one peer, which both engines

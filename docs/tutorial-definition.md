@@ -7336,6 +7336,14 @@ on no hole of its members, so the definition doesn't fill
 `[upper(_)] & ["a"]` or a spread `&: upper(_)` yet. Both engines fill
 them member by member, so the first is `["A"]`.
 
+The fill reads every meet but one where a hole is bound, in a
+generator's template, an `emit`'s table or a `filter`'s condition. So
+it fills a meet in a `match`'s result or default and in a `filter`'s
+source, as both engines do, and one in a `match`'s scrutinee or
+pattern, a size or a trial. Neither engine fills a meet in a
+scrutinee, a pattern, `len` or `must`, and Go fills none in
+`contains`, `rest`, `when` or `nof`, which #549 tracks.
+
 The fill follows the document's grouping: `upper(_) & ("a" & "a")`
 reads as `upper("a")`, which is `"A"`. Both engines read a conjunction
 in the order it's written instead, so they answer that with a

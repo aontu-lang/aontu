@@ -4374,7 +4374,8 @@ theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c)
   intro c hc
   obtain ⟨⟨j, t, d⟩, hm, rfl⟩ := List.mem_map.mp hc
   have hj := filterSources_generate _ hm
-  refine readR_call_checkableA (fun k => by cases k <;> rfl) fun k => ?_
+  refine readR_call_checkableA
+    (fun k => by cases k <;> simp only [expandF, Val.filled, expandF_term, Data.term_filled]) fun k => ?_
   cases k with
   | zero => exact resolveD_filter_checkableA hj
   | succ k =>
@@ -4578,8 +4579,9 @@ data that writes its output and data that doesn't; the hole alone; and,
 where the data leaves the member out so that the fill supplies it, the
 same call, a generator over a list written before its peer and after
 it, a fill inside a map and a list, and a second peer that refuses the
-output. Both ports read a generator's peer and the data as one
-conjunction, so a generator meets no data here. -/
+output; and a fill in a `match`'s result and in its default. Both ports
+read a generator's peer and the data as one conjunction, so a generator
+meets no data here. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4587,6 +4589,8 @@ def holeFillVetCases : List (Val × Data) :=
   let la : Val := .list [s "a"] none false
   let px : Val := .map [("x", false, n 1)] none false
   let x (v : Val) : Val × Data := (.map [("x", false, v)] none false, .map [])
+  let yes : Val := .lit (.bool true)
+  let sel (arms : List (Val × Val)) (d : Val) : Val := .select yes arms (some d)
   [(.meet (up .hole) (s "a"), .str "A"), (.meet (up .hole) (s "a"), .str "a"),
     (.meet (s "a") (up .hole), .str "A"),
     (.meet (.call .add [.hole, n 1]) (n 2), .integer 3),
@@ -4605,7 +4609,11 @@ def holeFillVetCases : List (Val × Data) :=
     x (.map [("a", false, .meet (up .hole) (s "x"))] none false),
     x (.list [.meet (up .hole) (s "x")] none false),
     x (.meet .hole (s "a")),
-    x (.meet (.meet (up .hole) (s "a")) (s "a"))]
+    x (.meet (.meet (up .hole) (s "a")) (s "a")),
+    (sel [(yes, .meet (up .hole) (s "a"))] (s "b"), .str "A"),
+    (sel [(yes, .meet (up .hole) (s "a"))] (s "b"), .str "a"),
+    (sel [(.lit (.bool false), s "b")] (.meet (up .hole) (s "a")), .str "A"),
+    (sel [(.lit (.bool false), s "b")] (.meet (up .hole) (s "a")), .str "b")]
 
 set_option maxRecDepth 8192 in
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
