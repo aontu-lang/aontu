@@ -7795,8 +7795,10 @@ first, so its text sits at `"$"` or above and below `"/"`.
 `"/" ≤ t`, which is `min_str_le_anyString` in
 [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), and above no
 pattern that matches an address's spelling, which is
-`re_not_le_anyString`. Both engines answer `subsumes` over every string
-bound and pattern, which #544 tracks.
+`re_not_le_anyString`. `string` refuses `""` too, and it's above
+`min(t)` where `"/" ≤ t`, which is `min_str_le_string`. Rows from ks0 on
+of `test/spec/def-subsume.tsv` hold nine string bounds under each, and
+both engines answer every one as the definition does.
 
 Both engines read the one address the value spells when the two meet,
 so where it doesn't pass they refuse it, and their answer depends on

@@ -215,6 +215,14 @@ function insideString(s) {
         (false === (0, ConstraintVal_1.constraintAdmitsScalar)(s, new StringVal_1.StringVal({ peg: '' })) &&
             'string' === typeof lo && 0x2e < (lo.codePointAt(0) ?? 0));
 }
+// No path passes: it met `string`, or its ends exclude spellings from `$` or `.`.
+function refusesPaths(s) {
+    const lo = s.lo?.v?.peg;
+    const hi = s.hi?.v?.peg;
+    return true === s.nonEmpty ||
+        ('string' === typeof lo && 0x2e < (lo.codePointAt(0) ?? 0)) ||
+        ('string' === typeof hi && (true === s.hi.open ? hi <= '$' : hi < '$'));
+}
 // Above `string` where nothing refuses a string it admits: no end but a
 // lower one at "", and no pattern, format, size, leaf or check.
 function aboveString(g, strict) {
@@ -331,8 +339,8 @@ function subsumeNode(state, path, g0, s0) {
                     (null != skind && (0, ScalarKindVal_1.kindSubsumes)(g.peg, skind)))) {
                 return 'yes';
             }
-            if ('string' === dom && String === g.peg &&
-                true !== s.pathKind && (!strict || insideString(s))) {
+            if ('string' === dom && String === g.peg && true !== s.pathKind &&
+                (strict ? insideString(s) : refusesPaths(s))) {
                 return 'yes';
             }
             if (ScalarKindVal_1.Path === g.peg && true === s.pathKind) {

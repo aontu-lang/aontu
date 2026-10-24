@@ -22,7 +22,9 @@
 # follows in rows w0 on, over values that carry marks, the marks compared at
 # every position both have, a spread's among them (`genLe_of_walk`,
 # `not_genLe_of_refutes`). Path values follow in rows k0 on: a prefix subsumes
-# its extensions, path every path value, and string none.
+# its extensions, path every path value, and string none. String bounds under
+# string and string & empty() follow in rows ks0 on: each is above a bound that
+# no path's spelling reaches, string where the bound refuses "" too.
 s0	subsumption	v: any	v: any	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
 s1	subsumption	v: any	v: nil	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
 s2	subsumption	v: any	v: integer	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
@@ -3428,6 +3430,24 @@ k77	subsumption	v: "$.a"	v: path(.a.b)	{"verdict":["does_not_subsume","undecided
 k78	subsumption	v: "$.a"	v: string	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
 k79	subsumption	v: "$.a"	v: any	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
 k80	subsumption	v: "$.a"	v: "$.a"	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+ks0	subsumption	v: string	v: min("")	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+ks1	subsumption	v: string	v: min("/")	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+ks2	subsumption	v: string	v: min("a")	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+ks3	subsumption	v: string	v: above("")	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+ks4	subsumption	v: string	v: above("/")	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+ks5	subsumption	v: string	v: max("b")	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+ks6	subsumption	v: string	v: max("#")	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+ks7	subsumption	v: string	v: below("b")	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+ks8	subsumption	v: string	v: below("$")	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+ks9	subsumption	v: string & empty()	v: min("")	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+ks10	subsumption	v: string & empty()	v: min("/")	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+ks11	subsumption	v: string & empty()	v: min("a")	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+ks12	subsumption	v: string & empty()	v: above("")	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+ks13	subsumption	v: string & empty()	v: above("/")	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+ks14	subsumption	v: string & empty()	v: max("b")	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+ks15	subsumption	v: string & empty()	v: max("#")	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
+ks16	subsumption	v: string & empty()	v: below("b")	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"values"}}
+ks17	subsumption	v: string & empty()	v: below("$")	{"verdict":["subsumes","undecided"],"opts":{"profile":"values"}}
 f0	subsumption	v: 1	v: 1	{"verdict":["subsumes","undecided"],"opts":{"profile":"defaults"}}
 f1	subsumption	v: 1	v: 2	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"defaults"}}
 f2	subsumption	v: 1	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"defaults"}}
