@@ -1614,7 +1614,8 @@ the member it tries lands, under its key or at the index it takes among
 those kept. A term read with no position keeps its keys as written, and
 a selection whose arms hold a key, a call or a generator whose arguments
 hold one, and a `filter` whose condition does stay as written too, so
-that a path copies them to be read where it lands. A size over a term
+that a path copies them to be read where it lands, but a `refer` or a
+`rel`, whose value no argument decides. A size over a term
 outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
 as a bound over one is (`bndOf`), so that both refuse at the meet. A
 trial both ports build as they read it is `nil` where an argument they
@@ -1682,7 +1683,8 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
         if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
         else .call .emit [resolveD ds b here s, t]
     | f, args =>
-      if here.isNone && keyItems (resolveItems ds b here args) then .call f (resolveItems ds b here args)
+      if here.isNone && keyItems (resolveItems ds b here args) && f != .refer && f != .rel then
+        .call f (resolveItems ds b here args)
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
       else callTerm ds f (resolveItems ds b here args)

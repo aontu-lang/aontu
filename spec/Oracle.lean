@@ -1751,6 +1751,67 @@ theorem genLink_verdict_exact : ∀ c ∈ genLinkCases, ∀ (m : Mode) (v : Verd
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (genLinkCases_checkable c hc).1 (genLinkCases_checkable c hc).2 v
 
+/-- Links whose templates read the member or the place where they land:
+a hole in `each`'s template standing for the member, alone and in a map,
+beside data the flow refuses and data it admits; `key()` and `key(2)` in
+a link's template, written in place, in `each`'s template and in a
+spread's, each read at the link's own place; `pack`'s member, over a list
+of names and over a map; a hole in a generator inside a generator's
+template; a generator that makes fewer instances than the list its
+output meets, whose template lands only at its own; a generator in a
+body no reference reads; and a generator over a name in a link's
+template, which reads the name's body. -/
+def linkTemplateCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ad (ks : List String) : Val := .addr ⟨0, ks⟩
+  let lst (vs : List Val) : Val := .list vs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rf (t : Val) (a : Val) : Val := .meet (.call .refer [t]) a
+  let k1 : Val := m [("k", int 1)]
+  let ak (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .map [("a", .map [("k", .integer n h)])]
+  let av (x : Data) : Data := .map [("a", .map [("v", x)])]
+  let an (x : String) : Data := .map [("a", .map [("n", .str x)])]
+  let bound : Val := m [("a", m []), ("l", lst [k1]), ("e", .call .each [p ["l"], rf .hole (ad ["a"])])]
+  let vhole : Val := m [("a", m []), ("l", lst [int 7]), ("e", .call .each [p ["l"], rf (m [("v", .hole)]) (ad ["a"])])]
+  let here (n : ℕ) : Val := m [("a", m []), ("x", m [("r", rf (m [("n", .keyUp n)]) (ad ["a"]))])]
+  let inEach (n : ℕ) : Val :=
+    m [("a", m []), ("l", lst [int 7]), ("e", .call .each [p ["l"], m [("r", rf (m [("n", .keyUp n)]) (ad ["a"]))]])]
+  let inSpread : Val :=
+    m [("a", m []), ("s", .map [("m", false, m [])] (some (m [("r", rf (m [("n", .keyUp 2)]) (ad ["a"]))])) false)]
+  let packNames : Val :=
+    m [("a", m []), ("n", lst [str "x"]), ("p", .call .pack [p ["n"], m [("r", rf (m [("v", .hole)]) (ad ["a"]))]])]
+  let packMap : Val :=
+    m [("a", m []), ("m", m [("x", int 1)]), ("p", .call .pack [p ["m"], m [("r", rf (m [("v", .hole)]) (ad ["a"]))]])]
+  let nested : Val :=
+    m [("a", m []), ("l", lst [lst [k1]]), ("e", .call .each [p ["l"], .call .each [.hole, rf .hole (ad ["a"])]])]
+  let none0 : Val := m [("a", m []), ("e", .meet (.call .each [lst [], .call .refer [k1]]) (lst [ad ["a"]]))]
+  let fewer : Val :=
+    m [("a", m []), ("b", m []), ("e", .meet (.call .each [lst [int 1], .call .refer [k1]]) (lst [ad ["a"], ad ["b"]]))]
+  let body : Decls := [("G", .call .each [lst [int 1], rf k1 (ad ["a"])])]
+  let named : Val := m [("a", lst []), ("r", rf (.call .each [.alias "L", .hole]) (ad ["a"]))]
+  [([], bound, ak 2), ([], bound, ak 1),
+    ([], vhole, av (j 8)), ([], vhole, av (j 7)),
+    ([], here 1, an "r"), ([], here 1, an "x"), ([], here 2, an "x"), ([], here 2, an "r"),
+    ([], inEach 1, an "r"), ([], inEach 2, an "0"), ([], inEach 2, an "e"),
+    ([], inSpread, an "m"), ([], inSpread, an "s"),
+    ([], packNames, av (.str "x")), ([], packNames, av (.str "y")),
+    ([], packMap, av (j 1)), ([], packMap, av (j 2)),
+    ([], nested, ak 1), ([], nested, ak 2),
+    ([], none0, ak 2),
+    ([], fewer, .map [("a", .map []), ("b", .map [("k", j 2)])]), ([], fewer, ak 2),
+    (body, m [("a", m [])], ak 2), (body, m [("a", m [])], .map [("a", .map [])]),
+    ([("L", lst [int 1])], named, .map [("a", .list [j 1])]), ([("L", lst [int 1])], named, .map [("a", .list [j 2])])]
+
+theorem linkTemplateCases_checkable : ∀ c ∈ linkTemplateCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem linkTemplate_verdict_exact : ∀ c ∈ linkTemplateCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (linkTemplateCases_checkable c hc).1 (linkTemplateCases_checkable c hc).2 v
+
 /-- Spreads whose templates read their member's place, each read at each
 member there is: a relative path in a map's template, beside data that
 supplies its target, refuses it, fills it and supplies none; the
@@ -4980,7 +5041,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# and the names a source publishes, with the destructures that take them, in"
     IO.println "# rows lx0 on. The transformer emit over a selection a path names follows in"
     IO.println "# rows em0 on, and copy, its argument with the marks and the seal cleared at"
-    IO.println "# every depth, in rows cp0 on."
+    IO.println "# every depth, in rows cp0 on. Links whose templates read the member or the"
+    IO.println "# place where they land, each read there and only at the instances its own"
+    IO.println "# generator makes, follow in rows lt0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -5005,6 +5068,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "lx" takeCases
     pathRows "em" (emitPathCases ++ emitFilterCases)
     pathRows "cp" copyCases
+    pathRows "lt" linkTemplateCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
