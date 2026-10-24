@@ -2446,9 +2446,11 @@ func schemaFromMap(sc *schemaCtx, path []string, v *MapVal) map[string]any {
 }
 
 func schemaFromList(sc *schemaCtx, path []string, v *ListVal) map[string]any {
+	// A marked element holds no position, and in a template it is still
+	// the call that marks it.
 	idx := []int{}
 	for i, el := range v.peg {
-		if !schemaSkipMarked(sc, append(append([]string{}, path...), itoa(i)), v, el) {
+		if !markCall(el) && !schemaSkipMarked(sc, append(append([]string{}, path...), itoa(i)), v, el) {
 			idx = append(idx, i)
 		}
 	}
