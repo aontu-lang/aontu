@@ -100,7 +100,7 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   it's written (#512);
 - a call over a hole that no peer in the document fills, which the
   definition reads as an error, where both ports' `vet` lets the data
-  fill it (decision 29);
+  fill it (decision 29, #548);
 - a path into a generator's output, which both ports read with the
   keys the generator wrote, where any other path rereads them where it
   lands (decision 22);

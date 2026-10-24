@@ -1313,8 +1313,8 @@ order it's written instead and answer a conflict, which
 [#512](https://github.com/aontu-lang/aontu/issues/512) tracks. Both
 engines' `vet` meets the data last, so the data fills a hole that no
 peer in the document fills: `v: upper(_)` passes against `v: "a"`,
-where the definition reads an error, which decision 29 of the
-definition's design note raises.
+where the definition reads an error, which
+[#548](https://github.com/aontu-lang/aontu/issues/548) tracks.
 
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:

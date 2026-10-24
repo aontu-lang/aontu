@@ -7342,9 +7342,8 @@ in the order it's written instead, so they answer that with a
 conflict, and `each(_, upper(_)) & ["a"] & ["A"]` with an error, which
 #512 tracks. A call over a hole that no peer in the document fills
 reads as an error. Both engines' `vet` lets the data fill it instead,
-so `v: upper(_)` passes against `v: "a"`, which decision 29 of the
-design note raises. The rows are hv0 on, and both engines answer every
-one as the definition does.
+so `v: upper(_)` passes against `v: "a"`, which #548 tracks. The rows
+are hv0 on, and both engines answer every one as the definition does.
 
 ## 28. A map from a template
 

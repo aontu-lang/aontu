@@ -1283,8 +1283,8 @@ until the phase that encodes it lands.
    Either the data is the peer of a hole the document leaves unfilled,
    so that `vet` reads the schema met with the data through the fill,
    as both ports read it, or such a call is an `error` whatever the
-   data, as the definition reads it now, and both ports' `vet` moves.
-   The definition recommends the second. The data is what `vet` judges
+   data, as the definition reads it now, and both ports' `vet` moves,
+   which #548 tracks. The definition recommends the second. The data is what `vet` judges
    and no part of the document, and a hole alone admits every value, so
    a call over it is a call over `any`, which both ports refuse. It
    keeps `valid` meaning that the data is an instance, which
