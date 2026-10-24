@@ -287,9 +287,13 @@ class ReferVal extends FeatureVal {
 }
 
 
-function holdsRelLeaf(v: any): boolean {
-  return 'rel_address' === v.addrcode ||
-    (true === v.isConjunct && v.peg.some(holdsRelLeaf))
+// A spread that holds addresses alone, which a leaf's link can join.
+function leafOnly(v: any): boolean {
+  return true === v.isPath || true === v.isPathKind || true === v.isPathFunc ||
+    (true === v.isConstraint && null == v.count && !v.uniq && null == v.pending &&
+      0 === v.uniqBy.length + v.musts.length + v.nofs.length + v.whens.length +
+        v.contains.length + v.rests.length) ||
+    (true === v.isConjunct && v.peg.every(leafOnly))
 }
 
 
@@ -372,9 +376,7 @@ class RelVal extends FeatureVal {
     if (!nested && null == sp.cj) {
       sp.cj = this.leafRefer(ctx, relkey)
     }
-    // A later leaf meets the value's own spread, so the link joins it.
-    else if (!nested && true !== sp.cj.isMap && true !== sp.cj.isList &&
-      !holdsRelLeaf(sp.cj)) {
+    else if (!nested && leafOnly(sp.cj)) {
       sp.cj = new ConjunctVal({ peg: [this.leafRefer(ctx, relkey), sp.cj] }, ctx)
     }
     return out

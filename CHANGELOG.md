@@ -21,12 +21,15 @@ design note's §7 (#496).
   `path & [path($.a)]` is, and `rel() & len(min(2)) & [path($.a)]`
   refuses its one address. A constraint on each address goes in the
   value's spread, `rel() & [&: re("sa$")]`.
-- Both ports: a spread the relation's value writes now holds each
-  leaf's link beside its own template, so a leaf that a later list or
-  map brings is a link. The template flows into its target, and a
-  target that names nothing is `rel_unresolved`. Before, such a leaf
-  was no link, so `rel({k: 1}) & [&: path]` met with `[path($.a)]` left
-  `a` without `k`, where the definition flows it.
+- Both ports: a spread the relation's value writes that holds
+  addresses alone, a path value, `path`, a constraint on scalars or a
+  meet of these, now holds each leaf's link beside it, so a leaf that a
+  later list or map brings is a link. The template flows into its
+  target, and a target that names nothing is `rel_unresolved`. Before,
+  such a leaf was no link, so `rel({k: 1}) & [&: path]` met with
+  `[path($.a)]` left `a` without `k`, where the definition flows it. A
+  spread that can hold a container keeps its elements as before, which
+  #542 tracks.
 - `spec/Oracle.lean`: `relHeldCases`, rows rh0 to rh41 of
   `test/spec/def-path.tsv`. Both ports answer every row as the
   definition does, which reads them as it did before.
@@ -34,8 +37,9 @@ design note's §7 (#496).
   `rel-held-refuses-a-leaf`, which read a held `re()` at each leaf, now
   write it in the spread, as `rel-spread-holds-each-leaf` and
   `rel-spread-refuses-a-leaf`. `rel-held-meets-the-list` holds the held
-  reading, and three rows hold a later leaf through a spread, each
-  expectation from both engines.
+  reading, three rows hold a later leaf through a spread, and four a
+  spread that can hold a container, each expectation from both
+  engines.
 - Docs: the reference's declared relations; the graph tutorial's
   `re()` step, which now writes the constraint in the spread; the
   definition tutorial's step 37; and decision 25 and the P11 row of the

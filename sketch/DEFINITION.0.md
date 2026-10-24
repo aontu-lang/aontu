@@ -1089,13 +1089,16 @@ each stands here until the phase that encodes it lands.
    relation's value, the list or map of addresses, where they met it
    with each leaf (`RelVal` in `ts/src/val/ReferFuncVal.ts` and
    `go/refer.go`), so `rel() & re("sa$") & [path($.sa)]` is an error,
-   as `re("sa$") & [path($.sa)]` is. A spread the value writes now
-   holds each leaf's link beside its own template, so a leaf a later
-   list brings is a link and the template flows into its target, as
-   the definition reads every leaf of the value; before, both ports
-   left such a leaf unlinked. Rows rh0 on of `test/spec/def-path.tsv`,
-   and the shared rows of `test/spec/rel.tsv` that read a held `re()`
-   at each leaf now write it in the spread.
+   as `re("sa$") & [path($.sa)]` is. A spread the value writes that
+   holds addresses alone now holds each leaf's link beside it, so a
+   leaf a later list brings is a link and the template flows into its
+   target, as the definition reads every leaf of the value; before,
+   both ports left such a leaf unlinked. Rows rh0 on of
+   `test/spec/def-path.tsv`, and the shared rows of `test/spec/rel.tsv`
+   that read a held `re()` at each leaf now write it in the spread. A
+   spread that can hold a container keeps a later element unlinked in
+   both ports, where the definition links every leaf of the value
+   (#542).
 26. **A relative path that a copy holds.** Raised 2026-10-23 by P3's
    alias bodies (#504). Both ports read a relative path inside a body
    that an alias or a path reference copies either where it's written

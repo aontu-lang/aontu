@@ -484,29 +484,35 @@ func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
 }
 
 func (r *RelVal) leafSpread(base []string, sp Val) Val {
-	switch sp.(type) {
-	case nil:
+	if nil == sp {
 		return r.leafRefer(base)
-	case *MapVal, *ListVal:
-		return sp
 	}
-	if holdsRelLeaf(sp) {
+	if !leafOnly(sp) {
 		return sp
 	}
 	// A later leaf meets the value's own spread, so the link joins it.
 	return newConjunct([]Val{r.leafRefer(base), sp})
 }
 
-func holdsRelLeaf(v Val) bool {
+// A spread that holds addresses alone, which a leaf's link can join.
+func leafOnly(v Val) bool {
 	switch n := v.(type) {
-	case *ReferVal:
-		return "rel_address" == n.addrCode
+	case *ScalarVal:
+		return KindPath == n.kind
+	case *ScalarKindVal:
+		return KindPath == n.kind
+	case *FuncVal:
+		return "path" == n.name
+	case *ConstraintVal:
+		return nil == n.count && !n.uniq && nil == n.pending &&
+			0 == len(n.uniqBy)+len(n.musts)+len(n.nofs)+len(n.whens)+len(n.contains)+len(n.rests)
 	case *ConjunctVal:
 		for _, t := range n.peg {
-			if holdsRelLeaf(t) {
-				return true
+			if !leafOnly(t) {
+				return false
 			}
 		}
+		return true
 	}
 	return false
 }
