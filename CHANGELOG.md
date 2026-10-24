@@ -64,6 +64,46 @@ Rulings 18 and 24 of the design note's §7 (#421, #479).
   P10 rows of the design note, and the definition's README record the
   build.
 
+### A link's template reads its member and its place, and a generator's lands only at its own instances
+
+Definition, generated rows, and documentation. No engine changes.
+Three of #497's findings.
+
+- `spec/Aontu/Paths.lean`: a link's landing (`linkLanding`, `linkStep`,
+  `linkItems`) carries, with each term it reaches, the member a
+  generator's template is read for and the place the term lands at,
+  which a reference's own path leaves where it was (`LinkItem`).
+  `Decls.linksAt` reads each link's template for its member, at its
+  place, its names expanded first, so a hole in a generator's template
+  stands for the member, `key(n)` reads the link's own place and a
+  generator over a name reads the name's body, as both ports read a
+  template where its link stands. So `each($.l, refer(_) & path($.a))` flows
+  each member of `l` into `a`, where the definition flowed `_`, and
+  `x: {r: refer({n: key()}) & path($.a)}` makes `a.n` `"r"`, where it
+  flowed nothing. `spec/Aontu/Verdict.lean`: `resolveD` makes a `refer`
+  or a `rel` whose template holds a `key(n)` in the schema's own tree
+  too, where keys read as written, since a link's value reads no
+  argument, so that the link's address is there to read.
+- A generator's template lands only at the instances the generator
+  makes (`genSteps`), so `each([], refer({k: 1})) & [path($.a)]` flows
+  nothing into `a`, as both ports answer, where the definition flowed
+  `{k: 1}` through the element the list it meets supplies.
+- `Decls.referPass` and `Decls.referCount` read the links that land in
+  each body at the positions of the body's own tree (`Decls.bodyRoot`),
+  through its generators, spreads and references, so a generator in a
+  body no reference reads flows its links' templates, as both ports
+  answer. `Val.refers`, which read a body's links through maps, lists,
+  meets and riders alone, is gone.
+- `spec/Oracle.lean`: `linkTemplateCases`, rows lt0 to lt77 of
+  `test/spec/def-path.tsv`. Both ports answer every row as the
+  definition does. A link that a path reference copies whole splits the
+  ports from the definition (#536), and no row holds one. The fourth
+  finding, a link in the template of a generator whose data another
+  link's template makes, isn't read yet.
+- The tutorial's step 36 quotes the landing and the reading of a
+  template; the definition's README and the P11 row of the design note
+  record the build.
+
 ### The definition reads a trial's eager argument as both ports do
 
 Definition, generated rows, and documentation. No engine changes.
