@@ -40,6 +40,38 @@ import { markSpread } from '../provenance'
 import { rides } from '../rider'
 
 
+// The elements a list holds a position for: none for absence, nor for
+// one its own mark leaves out, a mark the list doesn't carry. Undefined
+// while an element is undecided, since its answer moves every position
+// after it.
+function standing(list: Val, peg: Val[]): Val[] | undefined {
+  const out: Val[] = []
+  for (const key in peg) {
+    const e: any = peg[key]
+    if (undecided(e) || true === e.isHideFunc || true === e.isTypeFunc) {
+      return undefined
+    }
+    if (true !== e.isAbsent
+      && !(e.mark.hide && !list.mark.hide) && !(e.mark.type && !list.mark.type)) {
+      out.push(e)
+    }
+  }
+  return out
+}
+
+
+function placed(list: Val, kept: Val[], ctx: AontuContext): Val[] {
+  return kept.map((e: Val, i: number) => {
+    if (String(e.path[e.path.length - 1]) === String(i)) {
+      return e
+    }
+    const moved = e.clone(ctx)
+    repathInstance(moved, [...list.path, i as unknown as string])
+    return moved
+  })
+}
+
+
 class ListVal extends BagVal {
   isList = true
 
@@ -94,9 +126,12 @@ class ListVal extends BagVal {
     }
 
     if (true === ctx._trialMode && true === (peer as any).isList
-      && null == this.spread.cj && null == (peer as any).spread.cj
-      && this.peg.length !== (peer as any).peg.length) {
-      return makeNilErr(ctx, 'list_length', this, peer)
+      && null == this.spread.cj && null == (peer as any).spread.cj) {
+      const mineNow = standing(this, this.peg)
+      const theirsNow = standing(peer, (peer as any).peg)
+      if (undefined !== mineNow && undefined !== theirsNow && mineNow.length !== theirsNow.length) {
+        return makeNilErr(ctx, 'list_length', this, peer)
+      }
     }
 
     const te = ctx.explain && explainOpen(ctx, ctx.explain, 'List', this, peer)
@@ -190,7 +225,12 @@ class ListVal extends BagVal {
         done = (done && DONE === oval.dc)
       }
 
-      const allowedKeys: string[] = this.closed ? Object.keys(this.peg) : []
+      const mine = standing(this, out.peg)
+      if (undefined !== mine && mine.length !== Object.keys(out.peg).length) {
+        out.peg = placed(out, mine, ctx)
+      }
+
+      const allowedKeys: string[] = this.closed ? Object.keys(out.peg) : []
       let bad: NilVal | undefined = undefined
 
       if (peer instanceof ListVal) {
@@ -198,9 +238,22 @@ class ListVal extends BagVal {
           te ? ctx.clone({ explain: ec(te, 'PER') }) : ctx,
           peer, TOP, 'list-peer-list') as ListVal)
 
+        // Pairing by position waits until each list knows which of its
+        // elements stand, which a `maybe` knows only once the tree settles.
+        const theirs = standing(upeer, upeer.peg)
+        if ((undefined === mine || undefined === theirs) && !ctx.settle) {
+          out.dc = this.dc + 1
+          const held = new ConjunctVal({ peg: [out, upeer] }, ctx)
+          held.dc = out.dc
+          ctx.explain && explainClose(te, held)
+          return held
+        }
+        const peerpeg: Val[] = undefined === theirs || theirs.length === Object.keys(upeer.peg).length ?
+          upeer.peg : placed(upeer, theirs, ctx)
+
         // NOTE: peerkey is the index
-        for (let peerkey in upeer.peg) {
-          let peerchild = upeer.peg[peerkey]
+        for (let peerkey in peerpeg) {
+          let peerchild = peerpeg[peerkey]
 
           // A spread declares every element, so a closed list with one
           // fixes nothing here; the template judges the element.

@@ -97,13 +97,11 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - a path to a `filter` whose condition holds a key, which leaves the
   `filter` in the path's declaration, a body the checker can't read,
   so that a literal meeting a term under it stays undecided (P9);
-- a marked list element, which both ports leave out of the output
-  where no reading by position admits the output (decision 18, #421);
-- a link in a generator's template, which P11 reads as written: a
-  hole or a `key()` in the link's own template doesn't read the member,
-  the template lands at each member the generator's place holds, one
-  another term writes there among them, and the definition reads no
-  link in a generator inside a body;
+- a `move` of a list's element, which hides nothing yet, where both
+  ports drop the element from the list;
+- a link in the template of a generator whose data another link's
+  template makes, which P11 reads where the schema's own tree puts it
+  before any template flows (#497);
 - a source that declares a name of its own, loaded under a key, which
   both ports refuse and the definition reads as it reads one at the
   root;

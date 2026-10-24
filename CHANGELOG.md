@@ -8,6 +8,67 @@ each change affects.
 
 ## Unreleased
 
+### A list holds no position for a marked element or one that is absence
+
+Both engines, the definition, generated rows, and documentation.
+Rulings 18 and 24 of the design note's §7 (#421, #479).
+
+- TS (`ts/src/val/ListVal.ts`) and Go (`go/listval.go`, `standingOf`):
+  a list holds a position only for an element that stands, so an
+  element that is absence, or one a mark of its own, `hide()` or
+  `type()`, leaves out, moves every element after it up, for the meet
+  as for the output. `[1, hide(2), 3]` is `[1, 3]`, `[hide(1), 2]`
+  admits `[2]` and refuses `[1, 2]`, and `[1, maybe($.gone), 2] &
+  [1, 5, 2]` is a conflict, where before each element kept its
+  position and only the output dropped it. A list compacts once its own
+  elements are read, so a marked element still meets the list's
+  spread, and two lists pair by position only once each knows which of
+  its elements stand, which a `maybe` knows only once the tree settles.
+- TS (`ts/src/jsonschema.ts`) and Go (`go/jsonschema.go`): the JSON
+  Schema export holds no position for a marked element of a spread's
+  template either, and reports nothing lost for a list's marked
+  element, which is no element. The rows
+  `js-hidden-list-element-holds-no-position` and
+  `js-type-list-element-holds-no-position` replace the two that
+  reported it, beside two rows for a template's.
+- `spec/Aontu/Verdict.lean`: `resolveD` drops an element whose normal
+  form carries a mark of its own, as it drops absence, and reads a list
+  as `nil` where it stands when a marked element is a conflict, alone
+  or met with the list's spread (`Decls.markClashes`, new), so
+  `[hide(1 & 2), 3]` is an error, as both engines answer. Each element
+  after a dropped one is read at the index it takes among those that
+  hold a position (`resolveElems`), so a `key()` in it reads that index,
+  as both engines read it after a marked element.
+  `spec/Aontu/Paths.lean`: a link's landing finds a list's element
+  among those that hold a position (`Decls.holdsPlace`), so a link
+  after an absent or a marked element lands where its element stands,
+  as both engines read it, where the definition found the element the
+  document writes at that index and the template flowed nowhere.
+  `spec/Aontu/Syntax.lean`: `Val.hasMark` reads a disjunction of one
+  arm as the arm, so `a: hide(1) | 2 & 3` leaves `a` out of the
+  output, as both engines do, where the definition generated `1`.
+- `spec/Oracle.lean`: `markListCases`, rows hl0 to hl83 of
+  `test/spec/def-verdict.tsv`; `absentListCases`, rows la0 to la41 of
+  `test/spec/def-path.tsv`; `listGenVals`, rows gl0 to gl9 of
+  `test/spec/def-gen.tsv`, each value read as a document reads it
+  (`readGenRows`); and two `markCases`, rows h117 to h122, with a dead
+  arm beside a marked one. The profile rows of `test/spec/def-subsume.tsv` judge each value
+  as a document reads it, so `[hide(integer)]` over `[integer]` now
+  subsumes under `gen`, and the pair of `[hide(integer)]` with itself
+  gains a row, which renumbers the w rows after it. Both engines answer
+  every row as the definition does.
+- Shared rows: `hide-list-elem-canon` and
+  `maybe-in-both-alternatives-canon` read the compacted list. Both
+  engines' `allow` tests read a hidden entry as no entry, so
+  `allow: [hide("$")]` covers nothing.
+- Filed: #539, a `key()` after an absent element, which both engines
+  read at the index the document writes; and #540, a marked `nil`,
+  which both hold at its position.
+- The reference's list rules and its `maybe` and marks sections, the
+  tutorial's steps 13, 16 and 33, decisions 18 and 24 and the P9 and
+  P10 rows of the design note, and the definition's README record the
+  build.
+
 ### A link's template reads its member and its place, and a generator's lands only at its own instances
 
 Definition, generated rows, and documentation. No engine changes.

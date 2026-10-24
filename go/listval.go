@@ -110,9 +110,12 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		return pc.Unify(l, ctx)
 	}
 	if pl, ok := peer.(*ListVal); ok && nil != ctx && ctx.trial &&
-		nil == l.spread && nil == pl.spread &&
-		len(l.peg) != len(pl.peg) {
-		return makeNilErrFull(ctx, "list_length", l, peer, "", nil)
+		nil == l.spread && nil == pl.spread {
+		mineNow, mok := standingOf(l, l.peg)
+		theirsNow, tok := standingOf(pl, pl.peg)
+		if mok && tok && len(mineNow) != len(theirsNow) {
+			return makeNilErrFull(ctx, "list_length", l, peer, "", nil)
+		}
 	}
 	// A rel() peer drives for the same reason: the relation constraint
 	// rewrites this list leaf by leaf (RELATIONS.0.md §3.2).
@@ -210,6 +213,11 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
+	mine, mok := standingOf(l, out.peg)
+	if mok && len(mine) != len(out.peg) {
+		out.peg = placedAt(out, mine)
+	}
+
 	var bad Val
 	if pl, ok := peer.(*ListVal); ok {
 		out.closed = l.closed || pl.closed
@@ -221,7 +229,21 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 				pl = upl
 			}
 		}
-		for i, pe := range pl.peg {
+		// Pairing by position waits until each list knows which of its
+		// elements stand, which a maybe knows only once the tree settles.
+		theirs, tok := standingOf(pl, pl.peg)
+		if (!mok || !tok) && !ctx.settle {
+			out.setDc(l.dc + 1)
+			held := newConjunct([]Val{out, pl})
+			held.path = cp(l.path)
+			held.site.sp, held.site.spu, held.site.url = l.site.sp, l.site.spu, l.site.url
+			return held
+		}
+		peerPeg := pl.peg
+		if tok && len(theirs) != len(pl.peg) {
+			peerPeg = placedAt(pl, theirs)
+		}
+		for i, pe := range peerPeg {
 			// A spread declares every element; each past a closed list's end is refused.
 			if l.closed && l.spread == nil && i >= len(l.peg) {
 				bad = makeNilErr(ctx, "closed", pe, nil)
@@ -290,6 +312,41 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 	propagateMarks(l, out)
 	if !isTop(peer) {
 		propagateMarks(peer, out)
+	}
+	return out
+}
+
+// standingOf is the elements a list holds a position for: none for
+// absence, nor for one its own mark leaves out, a mark the list doesn't
+// carry. It is false while an element is undecided, since its answer
+// moves every position after it.
+func standingOf(marks *ListVal, peg []Val) ([]Val, bool) {
+	out := make([]Val, 0, len(peg))
+	for _, e := range peg {
+		if undecided(e) || markCall(e) {
+			return nil, false
+		}
+		if !isAbsent(e) && !(e.markedHide() && !marks.mhide) && !(e.markedType() && !marks.mtype) {
+			out = append(out, e)
+		}
+	}
+	return out, true
+}
+
+func markCall(v Val) bool {
+	f, ok := v.(*FuncVal)
+	return ok && ("hide" == f.name || "type" == f.name)
+}
+
+func placedAt(l *ListVal, kept []Val) []Val {
+	out := make([]Val, len(kept))
+	for i, e := range kept {
+		at := append(cp(l.path), itoa(i))
+		if pathEq(e.vpath(), at) {
+			out[i] = e
+		} else {
+			out[i] = clonePath(e, at)
+		}
 	}
 	return out
 }

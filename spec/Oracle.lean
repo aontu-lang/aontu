@@ -334,6 +334,27 @@ theorem gen_output_exact : ∀ v ∈ genVals, ∀ (env : Env) (root j : Data),
     output v = some j ↔ Output env root v j :=
   fun v hv _ _ j => output_iff (genVals_checkable v hv) j
 
+/-- Lists that hold a marked element (decision 18), which a document
+reads with no position for it, before, between and after the others,
+inside a list and beside a seal, met with a list, and a disjunction of
+marked arms beside one whose other arm is dead. -/
+def listGenVals : List Val :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let lst (xs : List Val) : Val := .list xs none false
+  [lst [int 1, hide (int 2), int 3], lst [hide (int 1), int 2], lst [type .integer, .lit (.str "a")],
+    lst [type (int 1), hide (int 2)], lst [lst [hide (int 1)], int 2], .list [hide (int 1), int 2] none true,
+    .meet (lst [hide (int 1)]) (lst [int 2]), .meet (lst [hide (int 1), int 2]) (lst [hide (int 3), int 2]),
+    lst [.or [(1, hide (int 1)), (0, hide (int 2))], int 3],
+    lst [.or [(0, hide (int 1)), (0, .meet (int 2) (int 3))], int 3]]
+
+theorem listGenVals_checkable : ∀ v ∈ listGenVals, (normalise (Decls.readR [] v)).Checkable := by decide
+
+theorem list_gen_output_exact : ∀ v ∈ listGenVals, ∀ (env : Env) (root j : Data),
+    output (Decls.readR [] v) = some j ↔ Output env root (Decls.readR [] v) j :=
+  fun v hv _ _ j => output_iff (listGenVals_checkable v hv) j
+
 /-- A term's text as a cell of a row, each backslash doubled, since the
 runners expand `\n`, `\t` and `\\` in a cell before they read it. -/
 def Aontu.Val.cell (v : Val) : Option String := v.src.map fun s => s.replace "\\" "\\\\"
@@ -349,6 +370,17 @@ def genRows (tag : String) (vals : List Val) : IO Unit := do
   for v in vals do
     let some src := v.cell | throw (IO.userError "a value of the fragment has no text")
     if let some j := output v then
+      let some json := j.json | throw (IO.userError "an output has no JSON")
+      IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ "\t{\"v\":" ++ json ++ "}")
+    i := i + 1
+
+/-- The `gens` rows of values read as a document reads them, so that a
+list holds no position for a marked element. -/
+def readGenRows (tag : String) (vals : List Val) : IO Unit := do
+  let mut i := 0
+  for v in vals do
+    let some src := v.cell | throw (IO.userError "a value of the fragment has no text")
+    if let some j := output (Decls.readR [] v) then
       let some json := j.json | throw (IO.userError "an output has no JSON")
       IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ "\t{\"v\":" ++ json ++ "}")
     i := i + 1
@@ -548,7 +580,8 @@ theorem len_verdict_exact : ∀ c ∈ lenCases, ∀ (m : Mode) (v : Verdict),
 member still meets the data, the member absent and present, in conflict,
 with a default, nested, beside a seal, as a spread, under a rider and in
 a meet, and on the value at `v` itself. A disjunction of marked arms
-carries no mark, and a refusal at generation reads a marked member. -/
+carries no mark, one whose other arms are dead carries its live arm's,
+and a refusal at generation reads a marked member. -/
 def markCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -584,7 +617,9 @@ def markCases : List (Val × Data) :=
     (a (hide (.nof (int 1) [.integer, .number])), da (j 1)),
     (a (hide (.nof (int 1) [.integer, .string])), da (j 1)),
     (a (.or [(0, hide (int 1)), (0, hide (int 2))]), .map []),
-    (a (.or [(1, hide (int 1)), (0, .integer)]), .map [])]
+    (a (.or [(1, hide (int 1)), (0, .integer)]), .map []),
+    (a (.or [(0, hide (int 1)), (0, .meet (int 2) (int 3))]), .map []),
+    (a (.or [(0, hide (int 1)), (0, .meet (int 2) (int 3))]), da (j 2))]
 
 theorem markCases_checkable : ∀ c ∈ markCases, (vetDoc c).1.CheckableA := by decide
 
@@ -592,6 +627,54 @@ theorem mark_verdict_exact : ∀ c ∈ markCases, ∀ (m : Mode) (v : Verdict),
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (markCases_checkable c hc)) v
+
+/-- The cases of decision 18 of the design note's §7: a list holds no
+position for an element a mark of its own leaves out, `hide()` or
+`type()`, so each element after it moves up, for the data, another
+list, a seal and a spread; a marked element before, between and after
+the others, inside a list and through a meet; a list whose marked
+element is a conflict, alone, met with the spread and in an arm; and a
+disjunction of marked arms, which carries no mark and holds its
+position, beside one whose other arm is dead, which carries its live
+arm's; and a `key()` after a marked element, which reads the index its
+element takes. -/
+def markListCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let lst (xs : List Val) : Val := .list xs none false
+  let dl (xs : List Data) : Data := .list xs
+  let h1 : Val := lst [hide (int 1), int 2]
+  let mid : Val := lst [int 1, hide (int 2), int 3]
+  let both : Val := .or [(0, hide (int 1)), (0, hide (int 2))]
+  [(h1, dl [j 2]), (h1, dl [j 1, j 2]), (h1, dl []),
+    (mid, dl [j 1, j 3]), (mid, dl [j 1, j 2, j 3]),
+    (lst [type .integer, .lit (.str "a")], dl [.str "a"]), (lst [hide .integer], dl [.str "x"]),
+    (lst [type (int 1), hide (int 2)], dl [j 5]),
+    (.list [hide (int 1), int 2] none true, dl [j 2]), (.list [hide (int 1), int 2] none true, dl [j 2, j 3]),
+    (.list [hide (int 1), int 2] (some .integer) false, dl [j 2, j 3]),
+    (.list [hide (int 1), int 2] (some .integer) false, dl [j 1, j 2]),
+    (.meet (lst [hide (int 1)]) (lst [int 2]), dl [j 2]), (.meet h1 (lst [hide (int 3), int 2]), dl [j 2]),
+    (lst [.meet (hide (int 1)) (int 1), int 2], dl [j 2]),
+    (lst [lst [hide (int 1)], int 2], dl [dl [.str "x"], j 2]),
+    (lst [hide (.map [("a", false, .integer)] none false), int 1], dl [j 1]),
+    (lst [hide (.or [(1, int 1), (0, .integer)]), int 2], dl []),
+    (lst [hide (.meet (int 1) (int 2)), int 3], dl [j 3]), (lst [.meet (hide (int 1)) (int 2), int 3], dl [j 3]),
+    (.list [hide (.lit (.str "a")), int 1] (some .integer) false, dl [j 1, j 2]),
+    (.or [(0, lst [hide (.meet (int 1) (int 2)), int 3]), (0, lst [int 4])], dl [j 4]),
+    (lst [both, int 3], dl [j 3]), (lst [both, int 3], dl [j 1, j 3]),
+    (lst [.or [(0, hide (int 1)), (0, .meet (int 2) (int 3))], int 3], dl [j 3]),
+    (lst [hide (int 1), .map [("k", false, .keyUp 1)] none false], dl [.map [("k", .str "0")]]),
+    (lst [hide (int 1), .map [("k", false, .keyUp 1)] none false], dl [.map [("k", .str "1")]]),
+    (lst [type (int 1), int 5, .map [("k", false, .keyUp 1)] none false], dl [j 5, .map [("k", .str "1")]])]
+
+theorem markListCases_checkable : ∀ c ∈ markListCases, (vetDoc c).1.CheckableA := by decide
+
+theorem mark_list_verdict_exact : ∀ c ∈ markListCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (markListCases_checkable c hc)) v
 
 /-- The `verdict` rows: each case in the default mode, without the fill
 and under `--partial`, with the one class `vet` gives. -/
@@ -1283,6 +1366,48 @@ theorem maybeCases_checkable : ∀ c ∈ maybeCases,
 theorem maybe_verdict_exact : ∀ c ∈ maybeCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (maybeCases_checkable c hc).1 (maybeCases_checkable c hc).2 v
+
+/-- The cases of decision 24 of the design note's §7: a list holds no
+position for an element that is absence, so each element after it moves
+up, for the data, another list and a spread; absence first, in the
+middle, beside a marked element, twice and alone; a `maybe` whose path
+names something, which holds its position; and a link after an element
+that's absence or marked, which lands at the index its element takes. -/
+def absentListCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let gone : Val := .call .maybe [p ["gone"]]
+  let hide (v : Val) : Val := .ride .hide v []
+  let first : Val := lst [gone, .lit (.str "a"), int 2]
+  let named : Val := m [("a", lst [.call .maybe [p ["b"]], int 2]), ("b", int 1)]
+  [([], m [("a", first)], .map [("a", .list [.str "a", j 2])]),
+    ([], m [("a", first)], .map [("a", .list [j 7, .str "a", j 2])]),
+    ([], m [("a", .meet (lst [int 1, gone, int 2]) (lst [int 1, int 5, int 2]))], .map []),
+    ([], m [("a", .meet (lst [gone, int 1]) (lst [int 1]))], .map [("a", .list [j 1])]),
+    ([], m [("a", lst [hide (int 1), gone, int 2])], .map [("a", .list [j 2])]),
+    ([], m [("a", lst [gone, gone, int 3])], .map [("a", .list [j 3])]),
+    ([], m [("a", lst [gone])], .map [("a", .list [.str "x"])]),
+    ([], m [("a", .list [gone, int 1] (some .integer) false)], .map [("a", .list [j 1, j 2])]),
+    ([], named, .map [("a", .list [j 1, j 2]), ("b", j 1)]),
+    ([], named, .map [("a", .list [j 2]), ("b", j 1)]),
+    ([], m [("a", m []), ("l", lst [gone, .meet (.call .rel [m [("k", int 1)]]) (lst [.addr ⟨0, ["a"]⟩])])],
+      .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("l", lst [gone, .meet (.call .rel [m [("k", int 1)]]) (lst [.addr ⟨0, ["a"]⟩])])],
+      .map [("a", .map [("k", j 1)])]),
+    ([], m [("a", m []), ("l", lst [hide (int 1), .meet (.call .refer [m [("k", int 1)]]) (.addr ⟨0, ["a"]⟩)])],
+      .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("l", lst [int 1, gone, .meet (.call .refer [m [("k", int 1)]]) (.addr ⟨0, ["a"]⟩)])],
+      .map [("a", .map [("k", j 2)])])]
+
+theorem absentListCases_checkable : ∀ c ∈ absentListCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem absent_list_verdict_exact : ∀ c ∈ absentListCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (absentListCases_checkable c hc).1 (absentListCases_checkable c hc).2 v
 
 /-- `pref` over a literal, a map, a list, a disjunction with a preferred
 arm and one with a kind, a kind, a bound, a preference, `null`, a
@@ -3094,13 +3219,16 @@ theorem profile_rows_exact (g s : Val) (hs : s.Checkable) (hg : g.Checkable) :
 /-- The `subsumption` rows of some pairs of values under the `defaults`
 or the `gen` profile, each under the key `v`, the general first, with
 the answers the profile's contract allows; a pair the definition leaves
-undecided has no row. -/
+undecided has no row. Each value is judged as a document reads it
+(`Decls.readR`), so a marked list element is no element (decision 18). -/
 def profilePairRows (tag : String) (pr : Profile) (pairs : List (Val × Val)) : IO Unit := do
   let name := match pr with | .values => "values" | .defaults => "defaults" | .gen => "gen"
   let mut i := 0
-  for (g, s) in pairs do
-    let some gsrc := g.cell | throw (IO.userError "a value of the pool has no text")
-    let some ssrc := s.cell | throw (IO.userError "a value of the pool has no text")
+  for (g0, s0) in pairs do
+    let some gsrc := g0.cell | throw (IO.userError "a value of the pool has no text")
+    let some ssrc := s0.cell | throw (IO.userError "a value of the pool has no text")
+    let g := Decls.readR [] g0
+    let s := Decls.readR [] s0
     let ns := normalise s
     let ng := normalise g
     let dHolds := (leDecF .empty 64 s g).isSome && defaultsAt ns ng && defaultsBelow ns ng
@@ -4945,9 +5073,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# i0 on, read as names the calling program declares."
     IO.println "# Path values follow in rows k0 on: path(p) generates its own address, two"
     IO.println "# meet by the prefix rule, the longer winning, and path admits each."
+    IO.println "# Lists that hold a marked element follow in rows gl0 on, read as a document"
+    IO.println "# reads them: the list holds no position for the element."
     genRows "g" genVals
     varRows "i"
     genRows "k" addrVals
+    readGenRows "gl" listGenVals
     return 0
   | ["verdict"] =>
     IO.println "# Generated by `lake exe oracle verdict` (spec/Oracle.lean) from the definition"
@@ -4966,13 +5097,15 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# or list not counted."
     IO.println "# The marks follow in rows h0 on: hide() and type() leave a member of a map"
     IO.println "# out of the output, the member still meeting the data, and --no-fill reads"
-    IO.println "# the schema's visible part."
+    IO.println "# the schema's visible part. A list holds no position for an element a mark"
+    IO.println "# of its own leaves out, in rows hl0 on."
     IO.println "# Path values follow in rows k0 on: the fill supplies a path value the data"
     IO.println "# leaves out, and none admits the string the data writes for it, since no"
     IO.println "# JSON text reads as an address."
     verdictRows "e"
     verdictRows "l" lenCases
     verdictRows "h" markCases
+    verdictRows "hl" markListCases
     verdictRows "k" addrVetCases
     return 0
   | ["alias"] =>
@@ -5018,7 +5151,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# the bodies read at an alias's own place written again after the schema in"
     IO.println "# rows jl0 on, and"
     IO.println "# maybe, absence where all that is wrong with a path is that it names nothing,"
-    IO.println "# in rows mb0 on, and pref, each literal a preference and each preference a"
+    IO.println "# in rows mb0 on, a list holding no position for absence in rows la0 on,"
+    IO.println "# and pref, each literal a preference and each preference a"
     IO.println "# rank weaker, in rows pf0 on. Paths into a call's output, which resolve in the"
     IO.println "# root with its calls made, follow in rows pc0 on, and move, a preference of"
     IO.println "# the value a path reads with its source hidden, in rows mv0 on. Paths into"
@@ -5050,6 +5184,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "j" relPathCases
     pathRows "jl" aliasPlaceCases (declsLast := true)
     pathRows "mb" maybeCases
+    pathRows "la" absentListCases
     pathRows "pf" prefCases
     pathRows "pc" callPathCases
     pathRows "mv" moveCases

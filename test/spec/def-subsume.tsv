@@ -3843,110 +3843,111 @@ w123	subsumption	v: [hide(integer)]	v: {"x": integer}	{"verdict":["does_not_subs
 w124	subsumption	v: [hide(integer)]	v: {"x": hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
 w125	subsumption	v: [hide(integer)]	v: {"x": type(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
 w126	subsumption	v: [hide(integer)]	v: {"x"?: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w127	subsumption	v: [hide(integer)]	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w128	subsumption	v: [hide(integer)]	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w129	subsumption	v: [hide(integer)]	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w130	subsumption	v: [hide(integer)]	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w131	subsumption	v: [hide(integer)]	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w132	subsumption	v: [hide(integer)]	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w133	subsumption	v: [hide(integer)]	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w134	subsumption	v: [hide(integer)]	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w135	subsumption	v: {"x": {"y": hide(1)}}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w136	subsumption	v: {"x": {"y": hide(1)}}	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w137	subsumption	v: {"x": {"y": hide(1)}}	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w138	subsumption	v: {"x": {"y": hide(1)}}	v: {"x": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w139	subsumption	v: {"x": {"y": hide(1)}}	v: {"x": hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w140	subsumption	v: {"x": {"y": hide(1)}}	v: {"x": type(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w141	subsumption	v: {"x": {"y": hide(1)}}	v: {"x"?: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w142	subsumption	v: {"x": {"y": hide(1)}}	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w143	subsumption	v: {"x": {"y": hide(1)}}	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w144	subsumption	v: {"x": {"y": hide(1)}}	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w145	subsumption	v: {"x": {"y": hide(1)}}	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w146	subsumption	v: {"x": {"y": hide(1)}}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w147	subsumption	v: {"x": {"y": hide(1)}}	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w148	subsumption	v: {"x": {"y": hide(1)}}	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w149	subsumption	v: {"x": {"y": hide(1)}}	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w150	subsumption	v: {"x": {"y": 1}}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w151	subsumption	v: {"x": {"y": 1}}	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w152	subsumption	v: {"x": {"y": 1}}	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w153	subsumption	v: {"x": {"y": 1}}	v: {"x": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w154	subsumption	v: {"x": {"y": 1}}	v: {"x": hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w155	subsumption	v: {"x": {"y": 1}}	v: {"x": type(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w156	subsumption	v: {"x": {"y": 1}}	v: {"x"?: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w157	subsumption	v: {"x": {"y": 1}}	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w158	subsumption	v: {"x": {"y": 1}}	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w159	subsumption	v: {"x": {"y": 1}}	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w160	subsumption	v: {"x": {"y": 1}}	v: {"x": {"y": 1}}	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
-w161	subsumption	v: {"x": {"y": 1}}	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w162	subsumption	v: {"x": {"y": 1}}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w163	subsumption	v: {"x": {"y": 1}}	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w164	subsumption	v: {"x": {"y": 1}}	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w165	subsumption	v: {"x": {"y": 1}}	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w166	subsumption	v: hide({"x": integer})	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w167	subsumption	v: hide({"x": integer})	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w168	subsumption	v: hide({"x": integer})	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w169	subsumption	v: hide({"x": integer})	v: {"x": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w170	subsumption	v: hide({"x": integer})	v: {"x": hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w171	subsumption	v: hide({"x": integer})	v: {"x": type(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w172	subsumption	v: hide({"x": integer})	v: {"x"?: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w173	subsumption	v: hide({"x": integer})	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w174	subsumption	v: hide({"x": integer})	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w175	subsumption	v: hide({"x": integer})	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w176	subsumption	v: hide({"x": integer})	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w177	subsumption	v: hide({"x": integer})	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w178	subsumption	v: hide({"x": integer})	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w179	subsumption	v: hide({"x": integer})	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w180	subsumption	v: hide({"x": integer})	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w181	subsumption	v: *(1) | (number)	v: integer	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
-w182	subsumption	v: *(1) | (number)	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w183	subsumption	v: *(1) | (number)	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w184	subsumption	v: *(1) | (number)	v: {"x": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w185	subsumption	v: *(1) | (number)	v: {"x": hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w186	subsumption	v: *(1) | (number)	v: {"x": type(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w187	subsumption	v: *(1) | (number)	v: {"x"?: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w188	subsumption	v: *(1) | (number)	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w189	subsumption	v: *(1) | (number)	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w190	subsumption	v: *(1) | (number)	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w191	subsumption	v: *(1) | (number)	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w192	subsumption	v: *(1) | (number)	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w193	subsumption	v: *(1) | (number)	v: *(1) | (number)	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
-w194	subsumption	v: *(1) | (number)	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w195	subsumption	v: *(1) | (number)	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w196	subsumption	v: *(1) | (number)	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w197	subsumption	v: {"x": hide(*(1) | (number))}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w198	subsumption	v: {"x": hide(*(1) | (number))}	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w199	subsumption	v: {"x": hide(*(1) | (number))}	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w200	subsumption	v: {"x": hide(*(1) | (number))}	v: {"x": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w201	subsumption	v: {"x": hide(*(1) | (number))}	v: {"x": type(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w202	subsumption	v: {"x": hide(*(1) | (number))}	v: {"x"?: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w203	subsumption	v: {"x": hide(*(1) | (number))}	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w204	subsumption	v: {"x": hide(*(1) | (number))}	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w205	subsumption	v: {"x": hide(*(1) | (number))}	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w206	subsumption	v: {"x": hide(*(1) | (number))}	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w207	subsumption	v: {"x": hide(*(1) | (number))}	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w208	subsumption	v: {"x": hide(*(1) | (number))}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w209	subsumption	v: {"x": hide(*(1) | (number))}	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w210	subsumption	v: {"x": hide(*(1) | (number))}	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w211	subsumption	v: {&: integer}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w212	subsumption	v: {&: integer}	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w213	subsumption	v: {&: integer}	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w214	subsumption	v: {&: integer}	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w215	subsumption	v: {&: integer}	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w216	subsumption	v: {&: integer}	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w217	subsumption	v: {&: integer}	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w218	subsumption	v: {&: integer}	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w219	subsumption	v: {&: integer}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w220	subsumption	v: {&: integer}	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w221	subsumption	v: {&: integer}	v: {&: integer}	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
-w222	subsumption	v: {&: integer}	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w223	subsumption	v: {&: hide(integer)}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w224	subsumption	v: {&: hide(integer)}	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w225	subsumption	v: {&: hide(integer)}	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w226	subsumption	v: {&: hide(integer)}	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w227	subsumption	v: {&: hide(integer)}	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w228	subsumption	v: {&: hide(integer)}	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w229	subsumption	v: {&: hide(integer)}	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w230	subsumption	v: {&: hide(integer)}	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w231	subsumption	v: {&: hide(integer)}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w232	subsumption	v: {&: hide(integer)}	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w233	subsumption	v: {&: hide(integer)}	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w127	subsumption	v: [hide(integer)]	v: [integer]	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
+w128	subsumption	v: [hide(integer)]	v: [hide(integer)]	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
+w129	subsumption	v: [hide(integer)]	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w130	subsumption	v: [hide(integer)]	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w131	subsumption	v: [hide(integer)]	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w132	subsumption	v: [hide(integer)]	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w133	subsumption	v: [hide(integer)]	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w134	subsumption	v: [hide(integer)]	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w135	subsumption	v: [hide(integer)]	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w136	subsumption	v: {"x": {"y": hide(1)}}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w137	subsumption	v: {"x": {"y": hide(1)}}	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w138	subsumption	v: {"x": {"y": hide(1)}}	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w139	subsumption	v: {"x": {"y": hide(1)}}	v: {"x": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w140	subsumption	v: {"x": {"y": hide(1)}}	v: {"x": hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w141	subsumption	v: {"x": {"y": hide(1)}}	v: {"x": type(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w142	subsumption	v: {"x": {"y": hide(1)}}	v: {"x"?: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w143	subsumption	v: {"x": {"y": hide(1)}}	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w144	subsumption	v: {"x": {"y": hide(1)}}	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w145	subsumption	v: {"x": {"y": hide(1)}}	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w146	subsumption	v: {"x": {"y": hide(1)}}	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w147	subsumption	v: {"x": {"y": hide(1)}}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w148	subsumption	v: {"x": {"y": hide(1)}}	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w149	subsumption	v: {"x": {"y": hide(1)}}	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w150	subsumption	v: {"x": {"y": hide(1)}}	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w151	subsumption	v: {"x": {"y": 1}}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w152	subsumption	v: {"x": {"y": 1}}	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w153	subsumption	v: {"x": {"y": 1}}	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w154	subsumption	v: {"x": {"y": 1}}	v: {"x": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w155	subsumption	v: {"x": {"y": 1}}	v: {"x": hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w156	subsumption	v: {"x": {"y": 1}}	v: {"x": type(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w157	subsumption	v: {"x": {"y": 1}}	v: {"x"?: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w158	subsumption	v: {"x": {"y": 1}}	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w159	subsumption	v: {"x": {"y": 1}}	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w160	subsumption	v: {"x": {"y": 1}}	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w161	subsumption	v: {"x": {"y": 1}}	v: {"x": {"y": 1}}	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
+w162	subsumption	v: {"x": {"y": 1}}	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w163	subsumption	v: {"x": {"y": 1}}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w164	subsumption	v: {"x": {"y": 1}}	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w165	subsumption	v: {"x": {"y": 1}}	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w166	subsumption	v: {"x": {"y": 1}}	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w167	subsumption	v: hide({"x": integer})	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w168	subsumption	v: hide({"x": integer})	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w169	subsumption	v: hide({"x": integer})	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w170	subsumption	v: hide({"x": integer})	v: {"x": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w171	subsumption	v: hide({"x": integer})	v: {"x": hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w172	subsumption	v: hide({"x": integer})	v: {"x": type(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w173	subsumption	v: hide({"x": integer})	v: {"x"?: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w174	subsumption	v: hide({"x": integer})	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w175	subsumption	v: hide({"x": integer})	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w176	subsumption	v: hide({"x": integer})	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w177	subsumption	v: hide({"x": integer})	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w178	subsumption	v: hide({"x": integer})	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w179	subsumption	v: hide({"x": integer})	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w180	subsumption	v: hide({"x": integer})	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w181	subsumption	v: hide({"x": integer})	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w182	subsumption	v: *(1) | (number)	v: integer	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
+w183	subsumption	v: *(1) | (number)	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w184	subsumption	v: *(1) | (number)	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w185	subsumption	v: *(1) | (number)	v: {"x": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w186	subsumption	v: *(1) | (number)	v: {"x": hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w187	subsumption	v: *(1) | (number)	v: {"x": type(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w188	subsumption	v: *(1) | (number)	v: {"x"?: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w189	subsumption	v: *(1) | (number)	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w190	subsumption	v: *(1) | (number)	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w191	subsumption	v: *(1) | (number)	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w192	subsumption	v: *(1) | (number)	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w193	subsumption	v: *(1) | (number)	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w194	subsumption	v: *(1) | (number)	v: *(1) | (number)	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
+w195	subsumption	v: *(1) | (number)	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w196	subsumption	v: *(1) | (number)	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w197	subsumption	v: *(1) | (number)	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w198	subsumption	v: {"x": hide(*(1) | (number))}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w199	subsumption	v: {"x": hide(*(1) | (number))}	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w200	subsumption	v: {"x": hide(*(1) | (number))}	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w201	subsumption	v: {"x": hide(*(1) | (number))}	v: {"x": integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w202	subsumption	v: {"x": hide(*(1) | (number))}	v: {"x": type(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w203	subsumption	v: {"x": hide(*(1) | (number))}	v: {"x"?: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w204	subsumption	v: {"x": hide(*(1) | (number))}	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w205	subsumption	v: {"x": hide(*(1) | (number))}	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w206	subsumption	v: {"x": hide(*(1) | (number))}	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w207	subsumption	v: {"x": hide(*(1) | (number))}	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w208	subsumption	v: {"x": hide(*(1) | (number))}	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w209	subsumption	v: {"x": hide(*(1) | (number))}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w210	subsumption	v: {"x": hide(*(1) | (number))}	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w211	subsumption	v: {"x": hide(*(1) | (number))}	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w212	subsumption	v: {&: integer}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w213	subsumption	v: {&: integer}	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w214	subsumption	v: {&: integer}	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w215	subsumption	v: {&: integer}	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w216	subsumption	v: {&: integer}	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w217	subsumption	v: {&: integer}	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w218	subsumption	v: {&: integer}	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w219	subsumption	v: {&: integer}	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w220	subsumption	v: {&: integer}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w221	subsumption	v: {&: integer}	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w222	subsumption	v: {&: integer}	v: {&: integer}	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
+w223	subsumption	v: {&: integer}	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w224	subsumption	v: {&: hide(integer)}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w225	subsumption	v: {&: hide(integer)}	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w226	subsumption	v: {&: hide(integer)}	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w227	subsumption	v: {&: hide(integer)}	v: [integer]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w228	subsumption	v: {&: hide(integer)}	v: [hide(integer)]	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w229	subsumption	v: {&: hide(integer)}	v: {"x": {"y": hide(1)}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w230	subsumption	v: {&: hide(integer)}	v: {"x": {"y": 1}}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w231	subsumption	v: {&: hide(integer)}	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w232	subsumption	v: {&: hide(integer)}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w233	subsumption	v: {&: hide(integer)}	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w234	subsumption	v: {&: hide(integer)}	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}

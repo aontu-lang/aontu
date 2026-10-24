@@ -4286,10 +4286,24 @@ def visibleFields : List (String × Bool × Val) → List (String × Bool × Val
   | (k, o, v) :: fs => (if v.leftOut then (k, true, .any) else (k, o, v.visible)) :: visibleFields fs
 ```
 
-A map's marked spread holds anything the same way. A mark on a list's
-element changes nothing. Both engines leave a marked element out of the
-output too, which no reading by position admits, and the definition has
-no rule for it yet. Both also drop a mark that a key's
+A map's marked spread holds anything the same way. A list holds no
+position for an element a mark of its own leaves out, as decision 18 of
+the design note rules: the reading of step 16 drops it, so
+`[1, hide(2), 3]` is `[1, 3]` for the meet as for the output, and step
+33 shows the rule at work. A disjunction of one arm, its others dead,
+carries the arm's mark, so `a: hide(1) | 2 & 3` leaves `a` out of the
+output, as both engines do:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+def Val.hasMark (m : Rider) : Val → Bool
+  | .ride k v _ => decide (k = m) || v.hasMark m
+  | .meet a b => a.hasMark m || b.hasMark m
+  | .or [(_, a)] => a.hasMark m
+  | _ => false
+```
+
+Both engines also drop a mark that a key's
 second declaration carries where the first declaration's value is the
 meet's answer, which #420 records, so `{a: integer} & {a: hide(integer)}`
 against `{}` is `incomplete` in both, and the ledger names the engines
@@ -5414,7 +5428,11 @@ where a template lacks its `match` or a list for its `body`, the selection is no
 bag, or a member makes no pieces (`emitPieces`). A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
-no position for an element that is absence. A call or a generator
+no position for an element that is absence, nor for one a mark of its
+own, `hide()` or `type()`, leaves out (decision 18), each element after
+it read at the index it takes, though a list whose marked element is a
+conflict, alone or met with the list's spread, is `nil` where it stands
+(`Decls.markClashes`). A call or a generator
 handed a reference that names nothing yet (`Val.pending`) waits, as a
 later round of the paths may declare it. Any other call, its
 arguments resolved, is the term `callTerm` makes of it. A spread has no
@@ -7364,15 +7382,23 @@ def keyUpAt (pos : List Step) (n : ℤ) : Val :=
 ```
 
 `resolveD` carries the position each term stands at. A map's member
-stands one key below the map, and a list's element one index below:
+stands one key below the map, and a list's element one index below, at
+the index it takes among the elements that hold a position:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
   | .map fs spread closed =>
     .map (resolveFields ds b here fs) (resolveSpread ds none (stepped here .spread) spread) closed
-  | .list items spread closed =>
-    .list ((resolveElems ds b here 0 items).filter fun e => !(normaliseD ds e).isAbsent)
-      (resolveSpread ds none (stepped here .spread) spread) closed
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def resolveElems (ds : Decls) (b : Option Val) (here : Option (List Step)) : ℕ → List Val → List Val
+  | _, [] => []
+  | i, v :: vs =>
+    resolveD ds b (stepped here (.seg (.idx i))) v :: resolveElems ds b here
+      (if (normaliseD ds (resolveD ds b (stepped here (.seg (.idx i))) v)).isAbsent ||
+        (normaliseD ds (resolveD ds b (stepped here (.seg (.idx i))) v)).marked then i else i + 1) vs
 ```
 
 and a key reads the position it stands at:
@@ -7875,8 +7901,34 @@ Absence admits every value, as `any` does, so where the two differ is
 generation. An absent member of a map is optional in the visible part
 of step 13, `leftOut`, so `vet` reads `port` as a key the data may
 leave out and the output leaves it out. A list holds no position for
-an absent element: `resolveD` drops it as it reads the list, so the
-second tag never meets anything. A call that takes
+an absent element, nor for one a mark of its own leaves out, step 13's:
+`resolveD` drops each as it reads the list, in normal form, so the
+second tag never meets anything. A marked element is still read, and
+one that's a conflict, alone or met with the list's spread, makes the
+list `nil` where it stands, since both engines read the element and
+meet it with the spread before they drop it:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.markClashes (ds : Decls) (s : Option Val) : Val → Bool
+  | .ride _ v _ => ds.markClashes s v
+  | v => ds.clashes (match s with | some t => .meet v t | none => v)
+```
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+  | .list items spread closed =>
+    if (resolveElems ds b here 0 items).any (fun e => (normaliseD ds e).marked &&
+        ds.markClashes (resolveSpread ds none (stepped here .spread) spread) e) then .nil else
+    .list ((resolveElems ds b here 0 items).filter fun e =>
+        !(normaliseD ds e).isAbsent && !(normaliseD ds e).marked)
+      (resolveSpread ds none (stepped here .spread) spread) closed
+```
+
+So `[hide(1), 2]` admits `[2]` and refuses `[1, 2]`, and
+`[hide(1 & 2), 3]` is an error. `[hide(1) | hide(2), 3]` refuses
+`[3]`, since a disjunction of marked arms carries no mark and holds its
+position. A call that takes
 absence makes it, so `upper(maybe($.gone))` is absence too, and so do
 `each`, `pack`, `match` and `filter`. Where a template reads as
 absence for a member, that instance holds no position either, so
@@ -7884,12 +7936,12 @@ absence for a member, that instance holds no position either, so
 its map.
 
 Rows from mb0 on of `test/spec/def-path.tsv` hold these readings in the
-three modes of `vet`, and both engines answer every row as the
-definition does. Where the engines read absence otherwise, no row
-holds the case, which #479 tracks: they forgive a conflict beside a
-missing path, they keep a list's absent element at its position while
-the list meets another, so that their output can fail their own `vet`,
-and decision 24 of the design note asks which reading is right.
+three modes of `vet`, rows la0 on a list's absent element, which
+decision 24 of the design note rules holds no position, and rows hl0 on
+of `test/spec/def-verdict.tsv` a list's marked element. Both engines
+answer every row as the definition does. Where the engines read
+absence otherwise, no row holds the case, which #479 tracks: they
+forgive a conflict beside a missing path.
 
 ## 34. A preference as a call
 
