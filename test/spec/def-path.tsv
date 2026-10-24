@@ -15,7 +15,8 @@
 # the bodies read at an alias's own place written again after the schema in
 # rows jl0 on, and
 # maybe, absence where all that is wrong with a path is that it names nothing,
-# in rows mb0 on, and pref, each literal a preference and each preference a
+# in rows mb0 on, a list holding no position for absence in rows la0 on,
+# and pref, each literal a preference and each preference a
 # rank weaker, in rows pf0 on. Paths into a call's output, which resolve in the
 # root with its calls made, follow in rows pc0 on, and move, a preference of
 # the value a path reads with its source hidden, in rows mv0 on. Paths into
@@ -522,6 +523,36 @@ mb116	verdict	"b": pack({"x": 1}, maybe($.gone))	{}	{"verdict":"valid","opts":{"
 mb117	verdict	"b": pack({"x": 1}, maybe($.gone))	{"b": {"x": 2}}	{"verdict":"valid"}
 mb118	verdict	"b": pack({"x": 1}, maybe($.gone))	{"b": {"x": 2}}	{"verdict":"valid","opts":{"noFill":true}}
 mb119	verdict	"b": pack({"x": 1}, maybe($.gone))	{"b": {"x": 2}}	{"verdict":"valid","opts":{"partial":true}}
+la0	verdict	"a": [maybe($.gone), "a", 2]	{"a": ["a", 2]}	{"verdict":"valid"}
+la1	verdict	"a": [maybe($.gone), "a", 2]	{"a": ["a", 2]}	{"verdict":"valid","opts":{"noFill":true}}
+la2	verdict	"a": [maybe($.gone), "a", 2]	{"a": ["a", 2]}	{"verdict":"valid","opts":{"partial":true}}
+la3	verdict	"a": [maybe($.gone), "a", 2]	{"a": [7, "a", 2]}	{"verdict":"invalid"}
+la4	verdict	"a": [maybe($.gone), "a", 2]	{"a": [7, "a", 2]}	{"verdict":"invalid","opts":{"noFill":true}}
+la5	verdict	"a": [maybe($.gone), "a", 2]	{"a": [7, "a", 2]}	{"verdict":"invalid","opts":{"partial":true}}
+la6	verdict	"a": ([1, maybe($.gone), 2]) & ([1, 5, 2])	{}	{"verdict":"error"}
+la7	verdict	"a": ([1, maybe($.gone), 2]) & ([1, 5, 2])	{}	{"verdict":"error","opts":{"noFill":true}}
+la8	verdict	"a": ([1, maybe($.gone), 2]) & ([1, 5, 2])	{}	{"verdict":"error","opts":{"partial":true}}
+la9	verdict	"a": ([maybe($.gone), 1]) & ([1])	{"a": [1]}	{"verdict":"valid"}
+la10	verdict	"a": ([maybe($.gone), 1]) & ([1])	{"a": [1]}	{"verdict":"valid","opts":{"noFill":true}}
+la11	verdict	"a": ([maybe($.gone), 1]) & ([1])	{"a": [1]}	{"verdict":"valid","opts":{"partial":true}}
+la12	verdict	"a": [hide(1), maybe($.gone), 2]	{"a": [2]}	{"verdict":"valid"}
+la13	verdict	"a": [hide(1), maybe($.gone), 2]	{"a": [2]}	{"verdict":"valid","opts":{"noFill":true}}
+la14	verdict	"a": [hide(1), maybe($.gone), 2]	{"a": [2]}	{"verdict":"valid","opts":{"partial":true}}
+la15	verdict	"a": [maybe($.gone), maybe($.gone), 3]	{"a": [3]}	{"verdict":"valid"}
+la16	verdict	"a": [maybe($.gone), maybe($.gone), 3]	{"a": [3]}	{"verdict":"valid","opts":{"noFill":true}}
+la17	verdict	"a": [maybe($.gone), maybe($.gone), 3]	{"a": [3]}	{"verdict":"valid","opts":{"partial":true}}
+la18	verdict	"a": [maybe($.gone)]	{"a": ["x"]}	{"verdict":"valid"}
+la19	verdict	"a": [maybe($.gone)]	{"a": ["x"]}	{"verdict":"valid","opts":{"noFill":true}}
+la20	verdict	"a": [maybe($.gone)]	{"a": ["x"]}	{"verdict":"valid","opts":{"partial":true}}
+la21	verdict	"a": [maybe($.gone), 1, &: integer]	{"a": [1, 2]}	{"verdict":"valid"}
+la22	verdict	"a": [maybe($.gone), 1, &: integer]	{"a": [1, 2]}	{"verdict":"valid","opts":{"noFill":true}}
+la23	verdict	"a": [maybe($.gone), 1, &: integer]	{"a": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+la24	verdict	"a": [maybe($.b), 2], "b": 1	{"a": [1, 2], "b": 1}	{"verdict":"valid"}
+la25	verdict	"a": [maybe($.b), 2], "b": 1	{"a": [1, 2], "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
+la26	verdict	"a": [maybe($.b), 2], "b": 1	{"a": [1, 2], "b": 1}	{"verdict":"valid","opts":{"partial":true}}
+la27	verdict	"a": [maybe($.b), 2], "b": 1	{"a": [2], "b": 1}	{"verdict":"invalid"}
+la28	verdict	"a": [maybe($.b), 2], "b": 1	{"a": [2], "b": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+la29	verdict	"a": [maybe($.b), 2], "b": 1	{"a": [2], "b": 1}	{"verdict":"invalid","opts":{"partial":true}}
 pf0	verdict	"b": pref(1)	{}	{"verdict":"valid"}
 pf1	verdict	"b": pref(1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 pf2	verdict	"b": pref(1)	{}	{"verdict":"valid","opts":{"partial":true}}
