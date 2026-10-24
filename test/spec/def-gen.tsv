@@ -10,7 +10,8 @@
 # Variables, each the value both runners bind for every row, follow in rows
 # i0 on, read as names the calling program declares.
 # Path values follow in rows k0 on: path(p) generates its own address, two
-# meet by the prefix rule, the longer winning, and path admits each.
+# meet by the prefix rule, the longer winning, and path admits each. A string
+# constraint reads an address by its spelling, in rows ks0 on.
 # Lists that hold a marked element follow in rows gl0 on, read as a document
 # reads them: the list holds no position for the element.
 g0	gens	v: 1	{"v":1}
@@ -140,6 +141,20 @@ k14	gens	v: *(path($.a)) | (path($.b))	{"v":"$.a"}
 k15	gens	v: (path($.a)) & ((path($.a.b)) | (path($.c)))	{"v":"$.a.b"}
 k16	gens	v: {"x": path($.a), "y": path(.x)}	{"v":{"x":"$.a","y":".x"}}
 k17	gens	v: [path($.a), path(..b)]	{"v":["$.a","..b"]}
+ks0	gens	v: (path($.a)) & (len(3))	{"v":"$.a"}
+ks1	gens	v: (len(3)) & (path($.a))	{"v":"$.a"}
+ks2	gens	v: (path($.a)) & (min("$"))	{"v":"$.a"}
+ks3	gens	v: (min("$.a")) & (path($.a))	{"v":"$.a"}
+ks4	gens	v: (path($.a.b)) & (above("$.a"))	{"v":"$.a.b"}
+ks5	gens	v: (path($.a)) & (max("$.b"))	{"v":"$.a"}
+ks6	gens	v: (max("$.b")) & (path($.a))	{"v":"$.a"}
+ks7	gens	v: (path($.a)) & (below("$.b"))	{"v":"$.a"}
+ks8	gens	v: ((path($.a.b)) & (path($.a))) & (above("$.a"))	{"v":"$.a.b"}
+ks9	gens	v: ((path($.a)) & (path($.a.b))) & (len(5))	{"v":"$.a.b"}
+ks10	gens	v: (path(.a)) & (len(2))	{"v":".a"}
+ks11	gens	v: ((path) & (len(3))) & (path($.a))	{"v":"$.a"}
+ks12	gens	v: (path($.a)) & (len(min(2)))	{"v":"$.a"}
+ks13	gens	v: ((path($.a)) & (min("$.a"))) & (max("$.b"))	{"v":"$.a"}
 gl0	gens	v: [1, hide(2), 3]	{"v":[1,3]}
 gl1	gens	v: [hide(1), 2]	{"v":[2]}
 gl2	gens	v: [type(integer), "a"]	{"v":["a"]}

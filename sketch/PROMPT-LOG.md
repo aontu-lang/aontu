@@ -377,3 +377,12 @@ The answers to the agent's questions, each question followed by the option chose
 Decision 23 (ruled: a string constraint holds of each address a path value admits, by its spelling, and a path that doesn't satisfy it yet reads `incomplete`). What about a constraint that NO address 
 → Incomplete, always (Recommended)
 ```
+
+## 2026-10-24 14:10:16 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 23 reads a path value's address that a string constraint refuses as `incomplete`, and this change builds that for `len(5) & path($.a)`. A trial over a path value is a different case, as in `path($.a) & must(len(5))`. Decision 8 reads a trial's refusal at generation as `invalid`, and both ports answer `invalid` for it today. Should a trial that refuses the address a path value spells read `incomplete` like the constraint, or `invalid` as decision 8 has it?
+→ Incomplete, as the constraint (Recommended)
+```

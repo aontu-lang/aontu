@@ -3686,16 +3686,26 @@ def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
 Both ports try a container when no member can still arrive, so a trial
 or a size refuses a container at generation, after the fills, where a
 scalar it refuses at the meet. The definition reads that moment as the
-value the normal form would single out with every trial and size unread,
-each `nof`, `must`, `len` and `unique` as `any`, and asks whether the
-normal form, read whole, refuses it. -/
+value the normal form would single out with every trial and size unread
+on a map or a list, and asks whether the normal form, read whole,
+refuses it. A trial or a size still reads a leaf, so an address it
+refuses leaves nothing to single out, which reads `incomplete`
+(decision 23 of the design note's §7). -/
+
+/-- What reads a leaf and leaves a map or a list unread: any map, any
+list, or what `v` admits. -/
+def Val.onLeaves (v : Val) : Val := .or [(0, .mapKind), (0, .listKind), (0, v)]
 
 mutual
-/-- A term with its trials and sizes unread: each `nof`, `must`, `len`
-and `unique` as `any`. -/
+/-- A term with its trials and sizes unread on a map or a list: each
+`contains`, `rest` and `unique`, a selection and a `filter` as `any`,
+and each `len`, `nof`, `must` and `when` read on a leaf alone. -/
 def Val.untried : Val → Val
-  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .len _
-  | .unique _ => .any
+  | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .unique _ => .any
+  | .len c => (Val.len c).onLeaves
+  | .nof n cs => (Val.nof n cs).onLeaves
+  | .must c m => (Val.must c m).onLeaves
+  | .when c y n => (Val.when c y n).onLeaves
   | .map fs spread closed => .map (untriedFields fs) (untriedSpread spread) closed
   | .list items spread closed => .list (untriedItems items) (untriedSpread spread) closed
   | .or arms => .or (untriedArms arms)
@@ -3770,10 +3780,21 @@ theorem mem_untriedArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
       · exact Or.inr ⟨a, hm, rfl⟩
 
 /-- A term the checker can read stays one with its trials unread. -/
+theorem onLeaves_checkableA {v : Val} (h : v.CheckableA) : v.onLeaves.CheckableA := by
+  refine .or fun r b hm => ?_
+  simp only [List.mem_cons, Prod.mk.injEq, List.mem_nil_iff, or_false] at hm
+  rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩ | ⟨-, rfl⟩
+  · exact .mapKind
+  · exact .listKind
+  · exact h
+
 theorem untried_checkableA {v : Val} (h : v.CheckableA) : v.untried.CheckableA := by
   induction h with
-  | len _ _ | unique | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _ =>
-    exact .any
+  | unique | contains _ _ _ _ | rest _ _ _ _ _ _ _ _ => exact .any
+  | len hc _ => exact onLeaves_checkableA (.len hc)
+  | nof hn hcs _ _ => exact onLeaves_checkableA (.nof hn hcs)
+  | must hc _ => exact onLeaves_checkableA (.must hc)
+  | when hc ht he _ _ _ => exact onLeaves_checkableA (.when hc ht he)
   | @map fs spread closed _ _ ihf ihs =>
     refine .map ?_ ?_
     · intro k o w hm

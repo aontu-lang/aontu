@@ -848,7 +848,7 @@ The engine calls a value of another leaf than the literal's a
 
 A bound holds a value to one side of an end, and the end decides the
 domain: a number at the end bounds numbers, and a string bounds
-strings.
+strings, and addresses by their spelling, which step 31 comes to.
 
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
@@ -859,25 +859,31 @@ inductive Bound where
   | str (s : String)
 ```
 
-Each of the four bounds has one rule for each kind of end, and one
-refusal for both. `min` and `max` first:
+Each of the four bounds has one rule for a number at its end, one for a
+string, one for an address a string end reads by its spelling, and one
+refusal for all three. `min` and `max` first:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
   /-- A bound with a number at its end admits a number, by exact value,
-  and one with a string at its end a string, in code-point order; the
+  and one with a string at its end a string, in code-point order, and an
+  address by its spelling (decision 23 of the design note's §7); the
   bound's domain is its end's, so `min(0)` admits no string and
   `max("b")` no number. It refuses a value of its domain that falls
   outside it, and every value outside its domain. -/
   | min {n x : Number} : n.le x → Judge env root true (.min (.num n)) (.num x)
   | minStr {b s : String} : b ≤ s → Judge env root true (.min (.str b)) (.str s)
+  | minAddr {b : String} {a : Addr} : b ≤ a.text → Judge env root true (.min (.str b)) (.addr a)
   | minNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ n.le x) → (∀ t s, b = .str t → j = .str s → ¬ t ≤ s) →
+      (∀ t a, b = .str t → j = .addr a → ¬ t ≤ a.text) →
       Judge env root false (.min b) j
   | max {n x : Number} : x.le n → Judge env root true (.max (.num n)) (.num x)
   | maxStr {b s : String} : s ≤ b → Judge env root true (.max (.str b)) (.str s)
+  | maxAddr {b : String} {a : Addr} : a.text ≤ b → Judge env root true (.max (.str b)) (.addr a)
   | maxNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ x.le n) → (∀ t s, b = .str t → j = .str s → ¬ s ≤ t) →
+      (∀ t a, b = .str t → j = .addr a → ¬ a.text ≤ t) →
       Judge env root false (.max b) j
 ```
 
@@ -1083,13 +1089,17 @@ $ echo $?
 ```lean
   | above {n x : Number} : n.lt x → Judge env root true (.above (.num n)) (.num x)
   | aboveStr {b s : String} : b < s → Judge env root true (.above (.str b)) (.str s)
+  | aboveAddr {b : String} {a : Addr} : b < a.text → Judge env root true (.above (.str b)) (.addr a)
   | aboveNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ n.lt x) → (∀ t s, b = .str t → j = .str s → ¬ t < s) →
+      (∀ t a, b = .str t → j = .addr a → ¬ t < a.text) →
       Judge env root false (.above b) j
   | beneath {n x : Number} : x.lt n → Judge env root true (.beneath (.num n)) (.num x)
   | beneathStr {b s : String} : s < b → Judge env root true (.beneath (.str b)) (.str s)
+  | beneathAddr {b : String} {a : Addr} : a.text < b → Judge env root true (.beneath (.str b)) (.addr a)
   | beneathNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ x.lt n) → (∀ t s, b = .str t → j = .str s → ¬ s < t) →
+      (∀ t a, b = .str t → j = .addr a → ¬ a.text < t) →
       Judge env root false (.beneath b) j
 ```
 
@@ -1114,14 +1124,14 @@ example : Instance .empty (.beneath (.num (.integer (.of 1)))) (.integer 0) :=
   ⟨by decide, .beneath (by decide)⟩
 ```
 
-Whatever is above an end is at least that end, for a number and for a
-string alike. `spec/Aontu/Order.lean` proves it as a law of the order
+Whatever is above an end is at least that end, for a number, a string
+and an address's spelling alike. `spec/Aontu/Order.lean` proves it as a law of the order
 step 10 defines:
 
 <!-- test: quote spec/Aontu/Order.lean -->
 ```lean
 /-- Whatever is above `b` is at least `b`: a strict bound is below its
-closed one, for numbers and for strings. -/
+closed one, for numbers, for strings and for addresses by spelling. -/
 theorem above_le_min (env : Env) (b : Bound) : .above b ⊑[env] .min b := by
 ```
 
@@ -1348,11 +1358,13 @@ The size is the value's own:
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- The size `len` counts: a string's characters, a list's elements,
-a map's members. A scalar has no size. -/
+a map's members, an address's characters as it's spelled (decision 23 of
+the design note's §7). Any other scalar has no size. -/
 def Data.size : Data → Option ℕ
   | .str s => some s.length
   | .list xs => some xs.length
   | .map fs => some fs.length
+  | .addr a => some a.text.length
   | _ => none
 ```
 
@@ -1662,25 +1674,31 @@ and `@[implemented_by]` gives the compiler `oracleHost` to run in its
 place, so the oracle computes with it and no proof can unfold `host`.
 The host holds the case conversion `upper` and `lower` use too, which
 step 23 reads, and where a pattern matches a text, which step 24's
-`split` and `rep` read. The two pattern rules read it:
+`split` and `rep` read. The rules of `re` and `format` read it, for a
+string and for an address's spelling:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
   /-- `re(p)` admits the strings the pattern matches, and `format(g)`
-  the strings the format reads, by the host's predicates; each admits
-  `""` exactly where its predicate holds of it, admits no other kind of
-  value, and refuses whatever it does not admit. -/
+  the strings the format reads, by the host's predicates, and each the
+  addresses whose spelling its predicate holds of (decision 23); each
+  admits `""` exactly where its predicate holds of it, admits no other
+  kind of value, and refuses whatever it does not admit. -/
   | re {p s : String} : host.pattern p s → Judge env root true (.re p) (.str s)
+  | reAddr {p : String} {a : Addr} : host.pattern p a.text → Judge env root true (.re p) (.addr a)
   | reNot {p : String} {j : Data} :
-      (∀ s, j = .str s → ¬ host.pattern p s) → Judge env root false (.re p) j
+      (∀ s, j = .str s → ¬ host.pattern p s) → (∀ a, j = .addr a → ¬ host.pattern p a.text) →
+      Judge env root false (.re p) j
   | format {g s : String} : host.format g s → Judge env root true (.format g) (.str s)
+  | formatAddr {g : String} {a : Addr} : host.format g a.text → Judge env root true (.format g) (.addr a)
   | formatNot {g : String} {j : Data} :
-      (∀ s, j = .str s → ¬ host.format g s) → Judge env root false (.format g) j
+      (∀ s, j = .str s → ¬ host.format g s) → (∀ a, j = .addr a → ¬ host.format g a.text) →
+      Judge env root false (.format g) j
 ```
 
 So the definition says what the rules say and no more: a pattern
-admits strings alone, two patterns met admit the strings both match,
-and nothing about any one pattern.
+admits strings, and addresses by their spelling, alone, two patterns
+met admit the strings both match, and nothing about any one pattern.
 
 <!-- test: quote spec/Aontu/Tour.lean -->
 ```lean
@@ -4669,15 +4687,30 @@ be the data, or in a meet alive that refuses, read whole, the value it
 gives with its trials and sizes unread. Both engines try a container once its
 members have all arrived, after the fills, where a scalar they try at
 the meet, and the definition reads that moment as the value the meet
-would single out with each `nof`, `must`, `len` and `unique` as `any`:
+would single out with each trial and size unread on a map or a list. A
+trial or a size still reads a leaf:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- A term with its trials and sizes unread: each `nof`, `must`, `len`
-and `unique` as `any`. -/
+/-- What reads a leaf and leaves a map or a list unread: any map, any
+list, or what `v` admits. -/
+def Val.onLeaves (v : Val) : Val := .or [(0, .mapKind), (0, .listKind), (0, v)]
+```
+
+So a path value whose address one refuses singles out nothing, which
+reads `incomplete`, as step 31 comes to:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+/-- A term with its trials and sizes unread on a map or a list: each
+`contains`, `rest` and `unique`, a selection and a `filter` as `any`,
+and each `len`, `nof`, `must` and `when` read on a leaf alone. -/
 def Val.untried : Val → Val
-  | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .len _
-  | .unique _ => .any
+  | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .unique _ => .any
+  | .len c => (Val.len c).onLeaves
+  | .nof n cs => (Val.nof n cs).onLeaves
+  | .must c m => (Val.must c m).onLeaves
+  | .when c y n => (Val.when c y n).onLeaves
   | .map fs spread closed => .map (untriedFields fs) (untriedSpread spread) closed
   | .list items spread closed => .list (untriedItems items) (untriedSpread spread) closed
   | .or arms => .or (untriedArms arms)
@@ -7729,20 +7762,52 @@ values generate, `test/spec/def-verdict.tsv` how `vet` judges data
 against them, and `test/spec/def-subsume.tsv` which one subsumes
 which. Both engines answer every row as the definition does.
 
-The definition doesn't read a string constraint on a path value yet.
-Both engines read a path value's spelling where `min`, `max`, `above`,
-`below`, `neq`, `len`, `re`, or `format` meets it, so
-`len(3) & path($.a)` is `"$.a"`. They read the one address the value
-spells, when the two meet, where the prefix rule has the value stand
-for every address it opens, and the answer depends on the order of the
-meets: `above("$.a") & path($.a) & path($.a.b)` refuses, while
-`path($.a.b) & path($.a) & above("$.a")` is `"$.a.b"`, which #474
-tracks. No
-reading by what each side admits gives both answers, so no string
-constraint admits an address in the definition yet, and no row meets a
-path value with one. Nor does the definition read the links `refer`
-and `rel`. It holds `path($."a.b")` as one step, a key with a dot in
-it, where both engines split it into two, which #475 tracks.
+A string constraint reads an address by its spelling, as decision 23
+of the design note rules: `min`, `max`, `above` and `below` with a
+string end, `len`, `re` and `format` each admit an address whose text
+they'd admit as a string:
+
+<!-- test: quote spec/Aontu/Admits.lean -->
+```lean
+  | minStr {b s : String} : b ≤ s → Judge env root true (.min (.str b)) (.str s)
+  | minAddr {b : String} {a : Addr} : b ≤ a.text → Judge env root true (.min (.str b)) (.addr a)
+```
+
+A path value admits each address it opens, so the meet admits those
+whose spelling passes, and generates the path value's own address where
+it passes, in every order of the meets: `len(3) & path($.a)` is
+`"$.a"`, and so is `path($.a) & len(3)`, and
+`path($.a) & path($.a.b) & len(5)` is `"$.a.b"`. Where the address the
+value spells doesn't pass, the meet generates nothing, which `vet`
+reads as `incomplete`, whether a longer address could pass or none
+could, so `len(5) & path($.a)` and `max("$.a") & path($.b)` are both
+incomplete. A trial reads it alike, as decision 23 rules too, so
+`path($.a) & must(len(5))` is incomplete, where step 14 reads a trial's
+refusal of a map or a list at generation as `invalid`: the schema
+writes the address, so no data can be at fault. Rows from ks0 on of
+`test/spec/def-gen.tsv` and `test/spec/def-verdict.tsv` hold the
+addresses that pass, and both engines answer every one as the
+definition does.
+
+The order follows the spellings. Every address spells with `$` or `.`
+first, so its text sits at `"$"` or above and below `"/"`.
+`string & empty()` admits no address, so it's above `min(t)` only where
+`"/" ≤ t`, which is `min_str_le_anyString` in
+[`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), and above no
+pattern that matches an address's spelling, which is
+`re_not_le_anyString`. Both engines answer `subsumes` over every string
+bound and pattern, which #544 tracks.
+
+Both engines read the one address the value spells when the two meet,
+so where it doesn't pass they refuse it, and their answer depends on
+the order of the meets: `above("$.a") & path($.a) & path($.a.b)`
+refuses, while `path($.a.b) & path($.a) & above("$.a")` is `"$.a.b"`,
+which #474 tracks. They answer `invalid` for a trial that refuses the
+address, and no row holds an address a constraint or a trial refuses.
+`neq` takes path values as its ends, rather than reading a spelling,
+which the definition doesn't hold yet. It holds `path($."a.b")` as one
+step, a key with a dot in it, where both engines split it into two,
+which #475 tracks.
 
 ## 32. Grammars
 

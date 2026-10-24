@@ -35,13 +35,14 @@ theorem lt_asymm_chars {l₁ l₂ : List Char} (h : l₁ < l₂) : ¬ l₂ < l�
   List.lt_asymm h
 
 /-- Whatever is above `b` is at least `b`: a strict bound is below its
-closed one, for numbers and for strings. -/
+closed one, for numbers, for strings and for addresses by spelling. -/
 theorem above_le_min (env : Env) (b : Bound) : .above b ⊑[env] .min b := by
   intro j ⟨hw, h⟩
   refine ⟨hw, ?_⟩
   cases h with
   | above h => exact .min (Int.le_of_lt h)
   | aboveStr h => exact .minStr (lt_asymm_chars h)
+  | aboveAddr h => exact .minAddr (lt_asymm_chars h)
 
 theorem beneath_le_max (env : Env) (b : Bound) : .beneath b ⊑[env] .max b := by
   intro j ⟨hw, h⟩
@@ -49,6 +50,7 @@ theorem beneath_le_max (env : Env) (b : Bound) : .beneath b ⊑[env] .max b := b
   cases h with
   | beneath h => exact .max (Int.le_of_lt h)
   | beneathStr h => exact .maxStr (lt_asymm_chars h)
+  | beneathAddr h => exact .maxAddr (lt_asymm_chars h)
 
 /-! ## The meet is the greatest lower bound -/
 
