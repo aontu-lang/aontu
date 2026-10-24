@@ -1370,8 +1370,9 @@ theorem maybe_verdict_exact : ∀ c ∈ maybeCases, ∀ (m : Mode) (v : Verdict)
 /-- The cases of decision 24 of the design note's §7: a list holds no
 position for an element that is absence, so each element after it moves
 up, for the data, another list and a spread; absence first, in the
-middle, beside a marked element, twice and alone; and a `maybe` whose
-path names something, which holds its position. -/
+middle, beside a marked element, twice and alone; a `maybe` whose path
+names something, which holds its position; and a link after an element
+that's absence or marked, which lands at the index its element takes. -/
 def absentListCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1391,7 +1392,15 @@ def absentListCases : List (Decls × Val × Data) :=
     ([], m [("a", lst [gone])], .map [("a", .list [.str "x"])]),
     ([], m [("a", .list [gone, int 1] (some .integer) false)], .map [("a", .list [j 1, j 2])]),
     ([], named, .map [("a", .list [j 1, j 2]), ("b", j 1)]),
-    ([], named, .map [("a", .list [j 2]), ("b", j 1)])]
+    ([], named, .map [("a", .list [j 2]), ("b", j 1)]),
+    ([], m [("a", m []), ("l", lst [gone, .meet (.call .rel [m [("k", int 1)]]) (lst [.addr ⟨0, ["a"]⟩])])],
+      .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("l", lst [gone, .meet (.call .rel [m [("k", int 1)]]) (lst [.addr ⟨0, ["a"]⟩])])],
+      .map [("a", .map [("k", j 1)])]),
+    ([], m [("a", m []), ("l", lst [hide (int 1), .meet (.call .refer [m [("k", int 1)]]) (.addr ⟨0, ["a"]⟩)])],
+      .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("l", lst [int 1, gone, .meet (.call .refer [m [("k", int 1)]]) (.addr ⟨0, ["a"]⟩)])],
+      .map [("a", .map [("k", j 2)])])]
 
 theorem absentListCases_checkable : ∀ c ∈ absentListCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

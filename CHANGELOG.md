@@ -39,11 +39,16 @@ Rulings 18 and 24 of the design note's §7 (#421, #479).
   after a dropped one is read at the index it takes among those that
   hold a position (`resolveElems`), so a `key()` in it reads that index,
   as both engines read it after a marked element.
+  `spec/Aontu/Paths.lean`: a link's landing finds a list's element
+  among those that hold a position (`Decls.holdsPlace`), so a link
+  after an absent or a marked element lands where its element stands,
+  as both engines read it, where the definition found the element the
+  document writes at that index and the template flowed nowhere.
   `spec/Aontu/Syntax.lean`: `Val.hasMark` reads a disjunction of one
   arm as the arm, so `a: hide(1) | 2 & 3` leaves `a` out of the
   output, as both engines do, where the definition generated `1`.
 - `spec/Oracle.lean`: `markListCases`, rows hl0 to hl83 of
-  `test/spec/def-verdict.tsv`; `absentListCases`, rows la0 to la29 of
+  `test/spec/def-verdict.tsv`; `absentListCases`, rows la0 to la41 of
   `test/spec/def-path.tsv`; `listGenVals`, rows gl0 to gl9 of
   `test/spec/def-gen.tsv`, each value read as a document reads it
   (`readGenRows`); and two `markCases`, rows h117 to h122, with a dead

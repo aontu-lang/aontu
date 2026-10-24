@@ -1050,13 +1050,20 @@ def genSteps (dp : Decls) (b : Option Val) (here : List Seg) (f : Fn) (d t : Val
     | none => []
   | _ => []
 
+/-- Whether a list's element as the schema writes it holds a position: it
+reads, under the paths `dp` declares, as neither absence nor a term a mark
+of its own leaves out (decisions 18 and 24). -/
+def Decls.holdsPlace (dp : Decls) (e : Val) : Bool :=
+  !(normaliseD dp (dp.readU e.pathsToAliases)).isAbsent && !(normaliseD dp (dp.readU e.pathsToAliases)).marked
+
 /-- What a term leaves a link's landing for the next step `s`, with the
 path `p` left after it: a map's member at the step and its spread,
-which holds every member, a list's element at the step and its spread,
-and a generator's template at each instance it makes there
-(`genSteps`), read for the instance's member, which a call that isn't a
-generator makes none of. A spread's template holds no hole, so it's read
-for no member. -/
+which holds every member, a list's element at the step, among those
+that hold a position (`Decls.holdsPlace`), and its spread, and a
+generator's template at each instance it makes there (`genSteps`), read
+for the instance's member, which a call that isn't a generator makes
+none of. A spread's template holds no hole, so it's read for no
+member. -/
 def linkItems (dp : Decls) (i : LinkItem) (s : Seg) (p : List Seg) : Val → List LinkItem
   | .map fs spread closed =>
     (match s.stepIn (.map fs spread closed) with
@@ -1065,7 +1072,7 @@ def linkItems (dp : Decls) (i : LinkItem) (s : Seg) (p : List Seg) : Val → Lis
       spread.toList.map fun sp => i.next sp p none ((s.stepIn (.map fs spread closed)).getD s)
   | .list items spread closed =>
     (match s.stepIn (.list items spread closed) with
-      | some (.idx n) => items[n]?.toList.map fun w => i.next w p i.member (.idx n)
+      | some (.idx n) => (items.filter dp.holdsPlace)[n]?.toList.map fun w => i.next w p i.member (.idx n)
       | _ => []) ++
       spread.toList.map fun sp => i.next sp p none ((s.stepIn (.list items spread closed)).getD s)
   | .call f [d, t] => (genSteps dp i.member i.place f d t s).map fun m => i.next t p (some m.1) m.2
@@ -2801,7 +2808,7 @@ theorem linkItems_checkableA {dp : Decls} (hdp : ∀ x, x ∈ dp → x.2.Checkab
     · split at hj
       · simp only [List.mem_map, Option.mem_toList] at hj
         obtain ⟨w, hw, rfl⟩ := hj
-        exact LinkItem.next_ok (hit w (List.mem_of_getElem? hw)) hi
+        exact LinkItem.next_ok (hit w (List.mem_filter.mp (List.mem_of_getElem? hw)).1) hi
       · simp at hj
     · simp only [List.mem_map, Option.mem_toList] at hj
       obtain ⟨sp, hsp, rfl⟩ := hj

@@ -555,6 +555,18 @@ la26	verdict	"a": [maybe($.b), 2], "b": 1	{"a": [1, 2], "b": 1}	{"verdict":"vali
 la27	verdict	"a": [maybe($.b), 2], "b": 1	{"a": [2], "b": 1}	{"verdict":"invalid"}
 la28	verdict	"a": [maybe($.b), 2], "b": 1	{"a": [2], "b": 1}	{"verdict":"invalid","opts":{"noFill":true}}
 la29	verdict	"a": [maybe($.b), 2], "b": 1	{"a": [2], "b": 1}	{"verdict":"invalid","opts":{"partial":true}}
+la30	verdict	"a": {}, "l": [maybe($.gone), (rel({"k": 1})) & ([path($.a)])]	{"a": {"k": 2}}	{"verdict":"invalid"}
+la31	verdict	"a": {}, "l": [maybe($.gone), (rel({"k": 1})) & ([path($.a)])]	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+la32	verdict	"a": {}, "l": [maybe($.gone), (rel({"k": 1})) & ([path($.a)])]	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+la33	verdict	"a": {}, "l": [maybe($.gone), (rel({"k": 1})) & ([path($.a)])]	{"a": {"k": 1}}	{"verdict":"valid"}
+la34	verdict	"a": {}, "l": [maybe($.gone), (rel({"k": 1})) & ([path($.a)])]	{"a": {"k": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+la35	verdict	"a": {}, "l": [maybe($.gone), (rel({"k": 1})) & ([path($.a)])]	{"a": {"k": 1}}	{"verdict":"valid","opts":{"partial":true}}
+la36	verdict	"a": {}, "l": [hide(1), (refer({"k": 1})) & (path($.a))]	{"a": {"k": 2}}	{"verdict":"invalid"}
+la37	verdict	"a": {}, "l": [hide(1), (refer({"k": 1})) & (path($.a))]	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+la38	verdict	"a": {}, "l": [hide(1), (refer({"k": 1})) & (path($.a))]	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+la39	verdict	"a": {}, "l": [1, maybe($.gone), (refer({"k": 1})) & (path($.a))]	{"a": {"k": 2}}	{"verdict":"invalid"}
+la40	verdict	"a": {}, "l": [1, maybe($.gone), (refer({"k": 1})) & (path($.a))]	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+la41	verdict	"a": {}, "l": [1, maybe($.gone), (refer({"k": 1})) & (path($.a))]	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
 pf0	verdict	"b": pref(1)	{}	{"verdict":"valid"}
 pf1	verdict	"b": pref(1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 pf2	verdict	"b": pref(1)	{}	{"verdict":"valid","opts":{"partial":true}}

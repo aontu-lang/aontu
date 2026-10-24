@@ -1090,8 +1090,8 @@ each stands here until the phase that encodes it lands.
    `test/spec/def-path.tsv`. A `key()` after an absent element still
    reads the index the document writes in both ports, where the
    definition reads the index the element takes, which #539 tracks.
-   The definition still reads a link after an absent element at the
-   index the document writes it at.
+   A link after an absent or a marked element lands at the index its
+   element takes (`Decls.holdsPlace`), as both ports read it.
 
 25. **A constraint met with `rel()` before its value.** Raised
    2026-10-22 by P11's fourth slice (#496). Both ports hold a

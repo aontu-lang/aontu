@@ -97,10 +97,6 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - a path to a `filter` whose condition holds a key, which leaves the
   `filter` in the path's declaration, a body the checker can't read,
   so that a literal meeting a term under it stays undecided (P9);
-- a link after a list's absent or marked element, which P11 reads at
-  the index the document writes it at, where both ports read it at the
-  index it takes once the element holds no position (decisions 18 and
-  24);
 - a `move` of a list's element, which hides nothing yet, where both
   ports drop the element from the list;
 - a link in the template of a generator whose data another link's
