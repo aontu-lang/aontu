@@ -8189,13 +8189,16 @@ read a template where its link stands. A hole in a generator's
 template stands for the member, so `each($.l, refer(_) & path($.a))`
 flows each member of `l` into `a`, and `key()` reads the link's own
 place, so `x: r: refer({ n:key() }) & path($.a)` makes `a.n` the
-string `"r"`:
+string `"r"`. The template's names are expanded first, so a generator
+over a name reads the name's body: with `%L = [1]`,
+`refer(each(%L, _)) & path($.a)` flows `[1]` into `a`:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.linksAt (ds dp : Decls) (S T : Val) (home pos : List Seg) : List (List Seg × Val × Bool) :=
   (linkLanding dp S ((S.size + T.size + pos.length + 2) * (S.size + 2)) [⟨T, pos, 0, none, home⟩]).flatMap
-    fun i => (callLinks pos i.term).map fun e => (e.1, resolveD ds i.member (some (i.place.map .seg)) e.2.1, e.2.2)
+    fun i => (callLinks pos i.term).map fun e =>
+      (e.1, resolveD ds i.member (some (i.place.map .seg)) (ds.read e.2.1), e.2.2)
 ```
 
 The definition reads the links that land in a body too, at a position

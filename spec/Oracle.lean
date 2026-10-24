@@ -1758,8 +1758,9 @@ a link's template, written in place, in `each`'s template and in a
 spread's, each read at the link's own place; `pack`'s member, over a list
 of names and over a map; a hole in a generator inside a generator's
 template; a generator that makes fewer instances than the list its
-output meets, whose template lands only at its own; and a generator in a
-body no reference reads. -/
+output meets, whose template lands only at its own; a generator in a
+body no reference reads; and a generator over a name in a link's
+template, which reads the name's body. -/
 def linkTemplateCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -1790,6 +1791,7 @@ def linkTemplateCases : List (Decls × Val × Data) :=
   let fewer : Val :=
     m [("a", m []), ("b", m []), ("e", .meet (.call .each [lst [int 1], .call .refer [k1]]) (lst [ad ["a"], ad ["b"]]))]
   let body : Decls := [("G", .call .each [lst [int 1], rf k1 (ad ["a"])])]
+  let named : Val := m [("a", lst []), ("r", rf (.call .each [.alias "L", .hole]) (ad ["a"]))]
   [([], bound, ak 2), ([], bound, ak 1),
     ([], vhole, av (j 8)), ([], vhole, av (j 7)),
     ([], here 1, an "r"), ([], here 1, an "x"), ([], here 2, an "x"), ([], here 2, an "r"),
@@ -1800,7 +1802,8 @@ def linkTemplateCases : List (Decls × Val × Data) :=
     ([], nested, ak 1), ([], nested, ak 2),
     ([], none0, ak 2),
     ([], fewer, .map [("a", .map []), ("b", .map [("k", j 2)])]), ([], fewer, ak 2),
-    (body, m [("a", m [])], ak 2), (body, m [("a", m [])], .map [("a", .map [])])]
+    (body, m [("a", m [])], ak 2), (body, m [("a", m [])], .map [("a", .map [])]),
+    ([("L", lst [int 1])], named, .map [("a", .list [j 1])]), ([("L", lst [int 1])], named, .map [("a", .list [j 2])])]
 
 theorem linkTemplateCases_checkable : ∀ c ∈ linkTemplateCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

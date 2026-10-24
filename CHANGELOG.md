@@ -18,9 +18,10 @@ Three of #497's findings.
   generator's template is read for and the place the term lands at,
   which a reference's own path leaves where it was (`LinkItem`).
   `Decls.linksAt` reads each link's template for its member, at its
-  place, so a hole in a generator's template stands for the member and
-  `key(n)` reads the link's own place, as both ports read a template
-  where its link stands. So `each($.l, refer(_) & path($.a))` flows
+  place, its names expanded first, so a hole in a generator's template
+  stands for the member, `key(n)` reads the link's own place and a
+  generator over a name reads the name's body, as both ports read a
+  template where its link stands. So `each($.l, refer(_) & path($.a))` flows
   each member of `l` into `a`, where the definition flowed `_`, and
   `x: {r: refer({n: key()}) & path($.a)}` makes `a.n` `"r"`, where it
   flowed nothing. `spec/Aontu/Verdict.lean`: `resolveD` makes a `refer`
@@ -37,7 +38,7 @@ Three of #497's findings.
   body no reference reads flows its links' templates, as both ports
   answer. `Val.refers`, which read a body's links through maps, lists,
   meets and riders alone, is gone.
-- `spec/Oracle.lean`: `linkTemplateCases`, rows lt0 to lt71 of
+- `spec/Oracle.lean`: `linkTemplateCases`, rows lt0 to lt77 of
   `test/spec/def-path.tsv`. Both ports answer every row as the
   definition does. A link that a path reference copies whole splits the
   ports from the definition (#536), and no row holds one. The fourth

@@ -1104,12 +1104,14 @@ call among the terms written there (`linkLanding`), whether written
 there, in a spread's template that holds the member, in a generator's
 template that makes it or where a path reference copies it from, read
 at that position. Its template is read for the member it lands with,
-at the place it lands at, so that a hole in a generator's template
-stands for the member and each `key(n)` reads the link's own place, as
+at the place it lands at, its names expanded first, so that a hole in a
+generator's template stands for the member, each `key(n)` reads the
+link's own place and a generator over a name reads the name's body, as
 both ports read a template where its link stands. -/
 def Decls.linksAt (ds dp : Decls) (S T : Val) (home pos : List Seg) : List (List Seg × Val × Bool) :=
   (linkLanding dp S ((S.size + T.size + pos.length + 2) * (S.size + 2)) [⟨T, pos, 0, none, home⟩]).flatMap
-    fun i => (callLinks pos i.term).map fun e => (e.1, resolveD ds i.member (some (i.place.map .seg)) e.2.1, e.2.2)
+    fun i => (callLinks pos i.term).map fun e =>
+      (e.1, resolveD ds i.member (some (i.place.map .seg)) (ds.read e.2.1), e.2.2)
 
 /-- The links that land in the term `T` written at `home`, at each
 position its tree `root` holds. -/
@@ -2891,7 +2893,7 @@ theorem Decls.landedLinks_checkableA {ds dp : Decls} (hb : ∀ d, d ∈ ds → d
   obtain ⟨pos, -, i, hi, e', he', rfl⟩ := he
   have hok := linkLanding_checkableA hdp hS _ _ (fun k hk => by
     simp only [List.mem_singleton] at hk; rw [hk]; exact ⟨hT, fun _ h => nomatch h⟩) i hi
-  exact resolveD_checkableA hb (callLinks_checkableA hok.1 e' he') hok.2
+  exact resolveD_checkableA hb (expand_checkableA hb (callLinks_checkableA hok.1 e' he')) hok.2
 
 theorem referFlow_checkableA {roots : List Val} {miss acc t : Val} {pos : List Seg} {a : Addr}
     (hm : miss.CheckableA) (hacc : acc.CheckableA) (ht : t.CheckableA) :
