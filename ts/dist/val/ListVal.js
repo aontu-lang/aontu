@@ -168,16 +168,16 @@ class ListVal extends BagVal_1.BagVal {
                 let upeer = peer.done ? peer : (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'PER') }) : ctx, peer, TOP, 'list-peer-list');
                 // Pairing by position waits until each list knows which of its
                 // elements stand, which a `maybe` knows only once the tree settles.
-                const theirs = upeer.isList ? standing(upeer, upeer.peg) : undefined;
-                if ((undefined === mine || undefined === theirs) && !ctx.settle && upeer.isList) {
+                const theirs = standing(upeer, upeer.peg);
+                if ((undefined === mine || undefined === theirs) && !ctx.settle) {
                     out.dc = this.dc + 1;
                     const held = new ConjunctVal_1.ConjunctVal({ peg: [out, upeer] }, ctx);
                     held.dc = out.dc;
                     ctx.explain && (0, utility_1.explainClose)(te, held);
                     return held;
                 }
-                const peerpeg = undefined === theirs ? upeer.peg :
-                    theirs.length === Object.keys(upeer.peg).length ? upeer.peg : placed(upeer, theirs, ctx);
+                const peerpeg = undefined === theirs || theirs.length === Object.keys(upeer.peg).length ?
+                    upeer.peg : placed(upeer, theirs, ctx);
                 // NOTE: peerkey is the index
                 for (let peerkey in peerpeg) {
                     let peerchild = peerpeg[peerkey];

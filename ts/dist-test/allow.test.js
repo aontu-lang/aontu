@@ -207,7 +207,8 @@ function failure(src, role = 'dev', path = '$.a') {
         Assert.equal(decision('dev', '$.x', 'roles: dev: hide({ allow: ["$"] })').reason, 'allow');
         Assert.equal(decision('dev', '$.x', 'roles: dev: type({ allow: ["$"] })').reason, 'allow');
         Assert.equal(decision('dev', '$.x', 'roles: dev: { allow: hide(["$"]) }').reason, 'allow');
-        Assert.equal(decision('dev', '$.x', 'roles: dev: { allow: [hide("$")] }').reason, 'allow');
+        // A hidden entry is no entry.
+        Assert.equal(decision('dev', '$.x', 'roles: dev: { allow: [hide("$")] }').reason, 'uncovered');
         const byRef = 'common: ["$.c"]\nroles: dev: { allow: [$.common.0] }';
         Assert.equal(decision('dev', '$.c.x', byRef).by, '$.roles.dev.allow.0');
         const pref = 'roles: dev: { allow: [*"$.p" | string] }';
@@ -221,9 +222,9 @@ function failure(src, role = 'dev', path = '$.a') {
         Assert.equal(kind.class, 'incomplete');
         Assert.equal(kind.message, '[aontu/no_gen]: Cannot resolve value at path $.roles.dev.allow.0');
         Assert.deepEqual(kind.sites, []);
-        // A hidden kind is no more concrete for being hidden, and the
+        // A hidden entry is no entry, so the list covers nothing, and the
         // second entry is where the deny list fails.
-        Assert.equal(failure('roles: dev: { allow: [hide(string)] }').code, 'no_gen');
+        Assert.equal(decision('dev', '$.a', 'roles: dev: { allow: [hide(string)] }').reason, 'uncovered');
         const deny = failure('roles: dev: { allow: ["$"] deny: ["$.a", string] }');
         Assert.equal(deny.code, 'no_gen');
         Assert.equal(deny.path, '$.roles.dev.deny.1');

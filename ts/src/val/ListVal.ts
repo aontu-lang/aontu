@@ -240,16 +240,16 @@ class ListVal extends BagVal {
 
         // Pairing by position waits until each list knows which of its
         // elements stand, which a `maybe` knows only once the tree settles.
-        const theirs = upeer.isList ? standing(upeer, upeer.peg) : undefined
-        if ((undefined === mine || undefined === theirs) && !ctx.settle && upeer.isList) {
+        const theirs = standing(upeer, upeer.peg)
+        if ((undefined === mine || undefined === theirs) && !ctx.settle) {
           out.dc = this.dc + 1
           const held = new ConjunctVal({ peg: [out, upeer] }, ctx)
           held.dc = out.dc
           ctx.explain && explainClose(te, held)
           return held
         }
-        const peerpeg: Val[] = undefined === theirs ? upeer.peg :
-          theirs.length === Object.keys(upeer.peg).length ? upeer.peg : placed(upeer, theirs, ctx)
+        const peerpeg: Val[] = undefined === theirs || theirs.length === Object.keys(upeer.peg).length ?
+          upeer.peg : placed(upeer, theirs, ctx)
 
         // NOTE: peerkey is the index
         for (let peerkey in peerpeg) {

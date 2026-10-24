@@ -279,11 +279,14 @@ func TestAllowTheListsAreReadFromTheTreeHiddenOrNot(t *testing.T) {
 		`roles: dev: hide({ allow: ["$"] })`,
 		`roles: dev: type({ allow: ["$"] })`,
 		`roles: dev: { allow: hide(["$"]) }`,
-		`roles: dev: { allow: [hide("$")] }`,
 	} {
 		if "allow" != allowDecision(t, "dev", "$.x", src).Reason {
 			t.Fatal(src)
 		}
+	}
+	// A hidden entry is no entry.
+	if "uncovered" != allowDecision(t, "dev", "$.x", `roles: dev: { allow: [hide("$")] }`).Reason {
+		t.Fatal("hidden entry")
 	}
 	byRef := "common: [\"$.c\"]\nroles: dev: { allow: [$.common.0] }"
 	if "$.roles.dev.allow.0" != allowDecision(t, "dev", "$.c.x", byRef).By {
@@ -303,9 +306,9 @@ func TestAllowAnEntryThatIsNotAConcreteStringIsAnError(t *testing.T) {
 		0 != len(kind.Sites) {
 		t.Fatalf("%+v", kind)
 	}
-	// A hidden kind is no more concrete for being hidden, and the
+	// A hidden entry is no entry, so the list covers nothing, and the
 	// second entry is where the deny list fails.
-	if "no_gen" != allowFailure(t, `roles: dev: { allow: [hide(string)] }`).Code {
+	if "uncovered" != allowDecision(t, "dev", "$.a", `roles: dev: { allow: [hide(string)] }`).Reason {
 		t.Fatal("hidden kind")
 	}
 	deny := allowFailure(t, `roles: dev: { allow: ["$"] deny: ["$.a", string] }`)

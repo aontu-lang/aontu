@@ -1316,8 +1316,7 @@ function fromMap(ctx, path, v) {
     return out;
 }
 function fromList(ctx, path, v) {
-    // A marked element holds no position, and in a template it is still
-    // the call that marks it.
+    // A template's marked element, no element, is still the call that marks it.
     const els = v.peg.filter((el, i) => true !== el.isHideFunc && true !== el.isTypeFunc &&
         !skipMarked(ctx, [...path, String(i)], v, el));
     const spr = v.spread?.cj;
