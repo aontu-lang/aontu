@@ -1296,6 +1296,26 @@ Two holes meeting is an error: neither has a value to fill the other.
 select is not then checked against that peer: see
 [Selecting](#selecting-filter-and-match).
 
+The definition reads the fill before any meet, so `&` stays a meet:
+`Val.filled` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)
+reads the meets beneath a meet first, and then reads a meet with one
+side waiting on a hole and the other not as the waiting side with the
+hole bound to the other. A side waits on a hole if it's the hole, or a
+call over one through its arguments or a rider, a generator through
+its data alone, and a container waits on no hole of its members. Rows
+from hv0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv)
+hold both engines to it where a call meets one peer. Both engines also
+fill a container's members, so `[upper(_)] & ["a"]` is `["A"]`, which
+the definition doesn't read yet. With more than one peer the fill
+follows the document's grouping, so `upper(_) & ("a" & "a")` reads as
+`upper("a")`, which is `"A"`. Both engines read a conjunction in the
+order it's written instead and answer a conflict, which
+[#512](https://github.com/aontu-lang/aontu/issues/512) tracks. Both
+engines' `vet` meets the data last, so the data fills a hole that no
+peer in the document fills: `v: upper(_)` passes against `v: "a"`,
+where the definition reads an error, which decision 29 of the
+definition's design note raises.
+
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:
 

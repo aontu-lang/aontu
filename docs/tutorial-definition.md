@@ -5564,9 +5564,9 @@ there for its flow to read:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- How a document reads: its term expanded, with its selections made and
-each key placed, the document standing at the top. -/
-def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.read S)
+/-- How a document reads: its term expanded and filled, with its
+selections made and each key placed, the document standing at the top. -/
+def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.read S).filled
 ```
 
 Step 14's `Vet` reads the schema so, and three theorems say what the
@@ -7270,13 +7270,81 @@ or a number is an error. A spread has no hole. A `filter` binds its
 own: it reads its condition once for each member it tries, so `loud`
 keeps `"WEB"`, which `upper(_)` doesn't change.
 
+The rows are x1809 on, and both engines answer every one as the
+definition does, but for two calls with the wrong number of arguments,
+which #426 tracks. Step 29 reads `key()` in a template.
+
 Outside a template, a hole no generator fills admits every value, as
-`any` does. Both engines also let a call's peer fill a hole in the
-call, so `upper(_) & "a"` is `"A"`. That isn't a meet, since `"a"`
-alone is no `"A"`, and the definition doesn't read it yet. Step 29
-reads `key()` in a template. The rows are x1809 on, and
-both engines answer every one as the definition does, but for two
-calls with the wrong number of arguments, which #426 tracks.
+`any` does, and a call's peer fills a hole in the call. Write
+`fill.aontu`:
+
+<!-- test: file fill.aontu -->
+```aontu
+loud: upper(_) & "a"
+next: 2 & add(_, 1)
+names: ["a" "b"] & each(_, upper(_))
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu fill.aontu
+{
+  "loud": "A",
+  "names": [
+    "A",
+    "B"
+  ],
+  "next": 3
+}
+```
+
+That isn't a meet, since `"a"` alone is no `"A"`. The definition reads
+the fill before any meet means anything, so `&` stays a meet.
+`Val.filled` reads the meets beneath a meet first, and then a meet
+with one side waiting on a hole and the other not as the waiting side
+with the hole bound to the other:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.filled : Val → Val
+  | .meet a b =>
+    let a' := a.filled
+    let b' := b.filled
+    if a'.fillable && !b'.fillable then a'.bindHole b'
+    else if b'.fillable && !a'.fillable then b'.bindHole a'
+    else .meet a' b'
+```
+
+A side waits on a hole if it's the hole, or a call over one through
+its arguments or a rider:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.fillable : Val → Bool
+  | .hole => true
+  | .call .each args | .call .pack args | .call .emit args => fillableHead args
+  | .call _ args => fillableItems args
+  | .ride _ v _ => v.fillable
+  | _ => false
+```
+
+A generator waits on a hole in its data, as `names` does, and never on
+one in its template, which it binds to each member. A container waits
+on no hole of its members, so the definition doesn't fill
+`[upper(_)] & ["a"]` or a spread `&: upper(_)` yet. Both engines fill
+them member by member, so the first is `["A"]`.
+
+The fill follows the document's grouping: `upper(_) & ("a" & "a")`
+reads as `upper("a")`, which is `"A"`. Both engines read a conjunction
+in the order it's written instead, so they answer that with a
+conflict, and `each(_, upper(_)) & ["a"] & ["A"]` with an error, which
+#512 tracks. A call over a hole that no peer in the document fills
+reads as an error. Both engines' `vet` lets the data fill it instead,
+so `v: upper(_)` passes against `v: "a"`, which decision 29 of the
+design note raises. The rows are hv0 on, and both engines answer every
+one as the definition does.
 
 ## 28. A map from a template
 
@@ -7483,13 +7551,13 @@ and the verdict reads the document with each key placed:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- How a document reads: its term expanded, with its selections made and
-each key placed, the document standing at the top. -/
-def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.read S)
+/-- How a document reads: its term expanded and filled, with its
+selections made and each key placed, the document standing at the top. -/
+def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.read S).filled
 
 /-- How a document reads with its keys as written: the root its paths
 read, so that a key a path reaches reads where the path lands. -/
-def Decls.readU (ds : Decls) (S : Val) : Val := resolveD ds none none (ds.read S)
+def Decls.readU (ds : Decls) (S : Val) : Val := resolveD ds none none (ds.read S).filled
 ```
 
 A literal meets an unplaced key as a pair, as it meets a call the
