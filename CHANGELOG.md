@@ -47,6 +47,39 @@ Three of #497's findings.
   template; the definition's README and the P11 row of the design note
   record the build.
 
+### The definition reads a trial's eager argument as both ports do
+
+Definition, generated rows, and documentation. No engine changes.
+Closes #525.
+
+- `spec/Aontu/Verdict.lean`: both ports read some of a trial's
+  arguments as they build the trial, and a conflict there makes the
+  trial a conflict where it stands: a size, the condition of `must`,
+  the count of `nof` and of `contains`, the source of `filter` and the
+  scrutinee of `match`. `resolveD` now makes such a trial `nil`, a
+  conflict being an argument dead in normal form though not written as
+  `nil` (`Decls.clashes`). So
+  `must(1 & 2, "m")`, `len(1 & 2)` and `match(1 & 2, 1, 3)` are errors
+  under a key, at an optional key, in a generator's instance and in a
+  body nothing reads, as both ports answer, where the definition
+  answered `invalid` under a key and `valid` at an optional key or in
+  a body. In an arm one drops, so `match(1 & 2, 1, 3) | 4` admits `4`
+  in every mode, where the definition answered `incomplete`, and in a
+  spread one refuses only a member it's tried on.
+  The arguments both read later, against a value, are read as before:
+  `when(1 & 2, 1)` stands, and `nof(1, 1 & 2)`, `contains(1 & 2, 2)`
+  and `filter([1], 1 & 2)` refuse `1`. A size, a condition of `must`
+  and a count written `nil` stay values that admit nothing, so
+  `must(nil, "m")` and `len(nil)` refuse `1`, as both ports answer,
+  while `must(nil & 1, "m")`, `filter(nil, 1)` and `match(nil, 1, 3)`
+  are errors.
+- `spec/Oracle.lean`: `eagerCases`, rows te0 to te83 of
+  `test/spec/def-trial.tsv`. Both ports answer every row as the
+  definition does. Rows t183 to t185 and t189 to t191, `must` over a
+  conflict, now read `error`, as both ports answer, and leave
+  `spec/ledger.tsv`.
+- The tutorial's step on the selections describes the reading.
+
 ### The definition finds the meet's conflicts where both ports do
 
 Definition, generated rows, and documentation. No engine changes.
