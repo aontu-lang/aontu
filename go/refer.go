@@ -472,26 +472,43 @@ func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
 	if pending {
 		out.setDc(0)
 	}
-	tmpl := func() Val {
-		lr := Val(r.leafRefer(base))
-		if nil == r.held {
-			return lr
-		}
-		return newConjunct([]Val{lr, r.held})
-	}
 	if !nested {
 		switch n := out.(type) {
 		case *MapVal:
-			if nil == n.spread {
-				n.spread = tmpl()
-			}
+			n.spread = r.leafSpread(base, n.spread)
 		case *ListVal:
-			if nil == n.spread {
-				n.spread = tmpl()
-			}
+			n.spread = r.leafSpread(base, n.spread)
 		}
 	}
 	return out
+}
+
+func (r *RelVal) leafSpread(base []string, sp Val) Val {
+	switch sp.(type) {
+	case nil:
+		return r.leafRefer(base)
+	case *MapVal, *ListVal:
+		return sp
+	}
+	if holdsRelLeaf(sp) {
+		return sp
+	}
+	// A later leaf meets the value's own spread, so the link joins it.
+	return newConjunct([]Val{r.leafRefer(base), sp})
+}
+
+func holdsRelLeaf(v Val) bool {
+	switch n := v.(type) {
+	case *ReferVal:
+		return "rel_address" == n.addrCode
+	case *ConjunctVal:
+		for _, t := range n.peg {
+			if holdsRelLeaf(t) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *RelVal) rewriteChild(ctx *Ctx, child Val, at []string) Val {
@@ -502,11 +519,7 @@ func (r *RelVal) rewriteChild(ctx *Ctx, child Val, at []string) Val {
 	case *MapVal, *ListVal:
 		return r.rewrite(ctx, child)
 	}
-	leaf := unite(ctx, r.leafRefer(at), child)
-	if nil != r.held {
-		leaf = unite(ctx, leaf, r.held)
-	}
-	return leaf
+	return unite(ctx, r.leafRefer(at), child)
 }
 
 func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
@@ -556,10 +569,14 @@ func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	// A SET OF LINKS: list or map, rewritten leaf by leaf; the held
-	// constraints ride into each leaf inside the rewrite.
+	// constraints meet the rewritten container, as any meet would.
 	switch peer.(type) {
 	case *MapVal, *ListVal:
-		return r.rewrite(ctx, peer)
+		out := r.rewrite(ctx, peer)
+		if nil == r.held {
+			return out
+		}
+		return unite(ctx, out, r.held)
 	}
 
 	// Everything else -- a reference still resolving, a kind, a

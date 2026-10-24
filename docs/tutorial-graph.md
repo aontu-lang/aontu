@@ -166,17 +166,20 @@ it into the declaration, in `spec.aontu`:
 spec: hide({
   Job: {
     kind: job
-    feeds?: rel($.spec.JobShape) & re("^\\$\\.pipeline\\.jobs\\.")
+    feeds?: rel($.spec.JobShape) & [&: re("^\\$\\.pipeline\\.jobs\\.")]
   }
 
   JobShape: kind: job
 })
 ```
 
-A constraint beside `rel()` constrains the **address string**, and
-it is held onto every element of the list. To watch it work, write
-a change request: a file that includes the model and layers a
-delta on at the path it applies to. Propose a new edge, `raw.aontu`:
+A constraint in the list's spread constrains each **address string**,
+every element of the list. Beside `rel()` it would meet the list
+itself, as any meet does, and a string constraint refuses a list
+([the rule](reference-language.md#declared-relations)). To watch it
+work, write a change request: a file that includes the model and
+layers a delta on at the path it applies to. Propose a new edge,
+`raw.aontu`:
 
 <!-- test: file raw.aontu -->
 ```aontu
@@ -203,9 +206,9 @@ $ echo $?
 ```
 
 `$.pipeline.dumps.raw` resolves, and it is even shaped like a job, but it
-is not *under* `jobs`, the held `re()` refuses the address, and the edge
-never exists. Conventions like this usually live in a wiki. This one is
-schema.
+is not *under* `jobs`, the spread's `re()` refuses the address, and the
+edge never exists. Conventions like this usually live in a wiki. This
+one is schema.
 
 ### The graph atoms: `acyclic()` and `inverse()`
 

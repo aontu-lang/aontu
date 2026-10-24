@@ -224,6 +224,10 @@ class ReferVal extends FeatureVal_1.FeatureVal {
     }
 }
 exports.ReferVal = ReferVal;
+function holdsRelLeaf(v) {
+    return 'rel_address' === v.addrcode ||
+        (true === v.isConjunct && v.peg.some(holdsRelLeaf));
+}
 class RelVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -276,10 +280,7 @@ class RelVal extends FeatureVal_1.FeatureVal {
                 pending = pending || true !== sub.done;
             }
             else if (undefined === child.link) {
-                let leaf = (0, unify_1.unite)(ctx.descend('' + k), this.leafRefer(ctx, relkey), child, 'rel-leaf');
-                if (null != this.held) {
-                    leaf = (0, unify_1.unite)(ctx.descend('' + k), leaf, this.held, 'rel-held');
-                }
+                const leaf = (0, unify_1.unite)(ctx.descend('' + k), this.leafRefer(ctx, relkey), child, 'rel-leaf');
                 peg[k] = leaf;
                 pending = pending || true !== leaf.done;
             }
@@ -287,13 +288,14 @@ class RelVal extends FeatureVal_1.FeatureVal {
         if (pending) {
             out.dc = 0;
         }
-        if (!nested && null == out.spread.cj) {
-            let tmpl = this.leafRefer(ctx, relkey);
-            if (null != this.held) {
-                tmpl = new ConjunctVal_1.ConjunctVal({ peg: [tmpl, this.held] }, ctx);
-            }
-            ;
-            out.spread.cj = tmpl;
+        const sp = out.spread;
+        if (!nested && null == sp.cj) {
+            sp.cj = this.leafRefer(ctx, relkey);
+        }
+        // A later leaf meets the value's own spread, so the link joins it.
+        else if (!nested && true !== sp.cj.isMap && true !== sp.cj.isList &&
+            !holdsRelLeaf(sp.cj)) {
+            sp.cj = new ConjunctVal_1.ConjunctVal({ peg: [this.leafRefer(ctx, relkey), sp.cj] }, ctx);
         }
         return out;
     }
@@ -323,9 +325,10 @@ class RelVal extends FeatureVal_1.FeatureVal {
                 : (0, unify_1.unite)(ctx, out, this.held, 'rel-held');
         }
         // A SET OF LINKS: list or map, rewritten leaf by leaf; the held
-        // constraints ride into each leaf inside the rewrite.
+        // constraints meet the rewritten container, as any meet would.
         if (true === p.isMap || true === p.isList) {
-            return this.rewrite(ctx, peer);
+            const out = this.rewrite(ctx, peer);
+            return null == this.held ? out : (0, unify_1.unite)(ctx, out, this.held, 'rel-held');
         }
         // A scalar that can never be an address.
         if (true === p.isScalar) {
