@@ -97,8 +97,12 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - a path to a `filter` whose condition holds a key, which leaves the
   `filter` in the path's declaration, a body the checker can't read,
   so that a literal meeting a term under it stays undecided (P9);
-- a marked list element, which both ports leave out of the output
-  where no reading by position admits the output (decision 18, #421);
+- a link after a list's absent or marked element, which P11 reads at
+  the index the document writes it at, where both ports read it at the
+  index it takes once the element holds no position (decisions 18 and
+  24);
+- a `move` of a list's element, which hides nothing yet, where both
+  ports drop the element from the list;
 - a link in a generator's template, which P11 reads as written: a
   hole or a `key()` in the link's own template doesn't read the member,
   the template lands at each member the generator's place holds, one
