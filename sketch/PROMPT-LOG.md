@@ -368,3 +368,12 @@ Rulings 18, 22, 23, 24, 25, 26 and #509 each need both engines to change for the
 Which definition work should come next? Pick any.
 → Build the rulings in Lean, Links in generator templates, Only moves that run, emit and modules
 ```
+
+## 2026-10-24 11:13:15 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 23 (ruled: a string constraint holds of each address a path value admits, by its spelling, and a path that doesn't satisfy it yet reads `incomplete`). What about a constraint that NO address 
+→ Incomplete, always (Recommended)
+```

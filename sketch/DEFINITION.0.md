@@ -1053,7 +1053,14 @@ each stands here until the phase that encodes it lands.
    address's spelling, so that every order of the meets answers alike;
    both ports hold such a constraint until the path settles, and where
    it asks more of a path than the path spells yet the answer is
-   `incomplete`.
+   `incomplete`. **Ruled 2026-10-24, where no address satisfies the
+   constraint**: an address a string constraint refuses reads
+   `incomplete`, whether or not a longer one could pass. So
+   `re("^y$") & path($.a)` and `max("$.a") & path($.b)`, which no
+   address under the path satisfies, read `incomplete` too, where both
+   ports answer `error`, and the definition needs no test of whether
+   some address under the path satisfies the constraint, which an
+   opaque pattern couldn't give.
 
 24. **A list element that is absence.** Raised 2026-10-22 by P10's
    third slice (#479). ADR-034 drops absence from a list without
