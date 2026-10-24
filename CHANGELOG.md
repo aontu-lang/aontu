@@ -8,6 +8,33 @@ each change affects.
 
 ## Unreleased
 
+### `subsume` reads `string & empty()` by the spellings a path can take
+
+TypeScript and Go, generated rows, and documentation. Fixes #544.
+
+- Both engines (`ts/src/subsume.ts`, `go/subsume.go`): `string & empty()`
+  refuses every path, so it covers a string residual only where the
+  residual refuses every path too: one that met `string`, or whose
+  lower end starts after `.`, or whose upper end is below `$`
+  (`refusesPaths`, `subRefusesPaths`). Before, it covered every string
+  bound, pattern and format, so it answered `subsumes` over `min("")`,
+  `above("")`, `max("b")`, `below("b")` and `re("x")`, each of which a
+  path value passes. Each now finds a path value as its failing case
+  and answers `does_not_subsume`, and a pattern no probe's path
+  matches is `undecided`.
+- `neq("a")` is no longer below `string & empty()` either, since both
+  engines read a path value as passing it. The definition doesn't read
+  `neq` over a path value yet, so no row holds it.
+- `spec/Aontu/Subsume.lean`: `string` is above `min(t)` and `above(t)`
+  where `"/" ≤ t` (`min_str_le_string`, `above_str_le_string`), as both
+  engines answer, and `leDecF` decides them.
+- `spec/Oracle.lean`: `spellSubPairs`, rows ks0 on of
+  `test/spec/def-subsume.tsv`, nine string bounds under `string` and
+  under `string & empty()`. Both engines answer every row as the
+  definition does.
+- Docs: the reference's subsumption table and the definition
+  tutorial's step 31.
+
 ### The definition reads a string constraint on an address by its spelling
 
 Definition, generated rows, and documentation. No engine changes.
@@ -46,8 +73,7 @@ Decision 23 of the design note's §7 (#474).
   `below(t)` where `t ≤ "$"`, and `leDecF` decides them under those
   conditions alone. A pattern or a format that matches an address's
   spelling isn't below it (`re_not_le_anyString`,
-  `format_not_le_anyString`). Both ports answer `subsumes` over each,
-  which #544 tracks, and no generated row compares these pairs.
+  `format_not_le_anyString`).
 - `spec/Oracle.lean`: `spellVals`, rows ks0 to ks13 of
   `test/spec/def-gen.tsv`, and `spellVetCases`, rows ks0 to ks8 of
   `test/spec/def-verdict.tsv`. Both ports answer every row as the

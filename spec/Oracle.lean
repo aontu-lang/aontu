@@ -5021,6 +5021,36 @@ theorem addr_subsume_rows_exact : ∀ g ∈ addrSubVals, ∀ s ∈ addrSubVals,
     not_le_of_witness (addrSubVals_checkable s hs) (addrSubVals_checkable g hg)
       (addrInstances_wellFormed j hj) h1 h2⟩
 
+/-- The pairs the `subsumption` rows ks0 on compare: string bounds that a
+path's spelling reaches and ones it can't, each under `string` and under
+`string & empty()`, which admit no path (#544). -/
+def spellSubPairs : List (Val × Val) :=
+  let bounds : List Val :=
+    [.min (.str ""), .min (.str "/"), .min (.str "a"), .above (.str ""), .above (.str "/"),
+      .max (.str "b"), .max (.str "#"), .beneath (.str "b"), .beneath (.str "$")]
+  [Val.string, .anyString].flatMap fun g => bounds.map fun s => (g, s)
+
+/-- The instances that may tell a pair apart: an address from the root
+and one from a relative start, and the strings at the bounds' ends. -/
+def spellSubInstances : List Data :=
+  [.addr ⟨0, ["a"]⟩, .addr ⟨1, ["x"]⟩, .str "", .str "a", .str "#"]
+
+theorem spellSubPairs_checkable : ∀ p ∈ spellSubPairs, p.1.Checkable ∧ p.2.Checkable := by
+  decide
+
+theorem spellSubInstances_wellFormed : ∀ j ∈ spellSubInstances, j.WellFormed := by decide
+
+/-- Every such row is the definition's, as `subsume_rows_exact` makes the
+others. -/
+theorem spell_subsume_rows_exact : ∀ p ∈ spellSubPairs,
+    ((leDecF .empty 64 p.2 p.1).isSome = true → p.2 ⊑[.empty] p.1) ∧
+    (∀ j ∈ spellSubInstances, check p.2 j = true → check p.1 j = false →
+      ¬ p.2 ⊑[.empty] p.1) := by
+  intro p hp
+  exact ⟨leDecF_sound, fun j hj h1 h2 =>
+    not_le_of_witness (spellSubPairs_checkable p hp).2 (spellSubPairs_checkable p hp).1
+      (spellSubInstances_wellFormed j hj) h1 h2⟩
+
 /-- `path` handed a string: its text converted to an address and met with
 the capture it must equal, or with one it can't, so that the row says
 which address the text spells; text that spells none, any other scalar
@@ -5348,10 +5378,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# follows in rows w0 on, over values that carry marks, the marks compared at"
     IO.println "# every position both have, a spread's among them (`genLe_of_walk`,"
     IO.println "# `not_genLe_of_refutes`). Path values follow in rows k0 on: a prefix subsumes"
-    IO.println "# its extensions, path every path value, and string none."
+    IO.println "# its extensions, path every path value, and string none. String bounds under"
+    IO.println "# string and string & empty() follow in rows ks0 on: each is above a bound that"
+    IO.println "# no path's spelling reaches, string where the bound refuses \"\" too."
     subsumeRows "s"
     subsumePairRows "m" kindPairs
     subsumePairRows "k" (addrSubVals.flatMap fun g => addrSubVals.map fun s => (g, s)) addrInstances
+    subsumePairRows "ks" spellSubPairs spellSubInstances
     profilePairRows "f" .defaults (defaultVals.flatMap fun g => defaultVals.map fun s => (g, s))
     profilePairRows "w" .gen (markVals.flatMap fun g => markVals.map fun s => (g, s))
     return 0

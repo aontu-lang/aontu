@@ -349,6 +349,21 @@ theorem max_str_not_le_string (t : String) : ¬ (.max (.str t) ⊑[env] .string)
   have h' := (hle (.str "") ⟨.str, .maxStr (String.empty_le t)⟩).2
   cases h' with | string hne => exact hne rfl
 
+/-- A lower bound at `/` or above refuses `""` and every spelling, so
+`string` is above it. -/
+theorem min_str_le_string {t : String} (ht : "/" ≤ t) : .min (.str t) ⊑[env] .string := by
+  intro j ⟨hw, h⟩
+  cases h with
+  | minStr hs => exact ⟨hw, .string fun he => by subst he; exact String.none_between ht hs (by decide)⟩
+  | minAddr h => exact (String.none_between_above (Addr.text_lt_slash _) ht h).elim
+
+theorem above_str_le_string {t : String} (ht : "/" ≤ t) : .above (.str t) ⊑[env] .string := by
+  intro j ⟨hw, h⟩
+  cases h with
+  | aboveStr hs => exact ⟨hw, .string fun he => by subst he; exact String.empty_le t hs⟩
+  | aboveAddr h =>
+    exact (String.none_between_above h (lt_asymm_chars (Addr.text_lt_slash _)) ht).elim
+
 /-! ## The table: disjunction, preference and the meet -/
 
 /-- An arm is below its disjunction. -/
@@ -1265,6 +1280,8 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
       if h : "/" ≤ t then some ⟨above_str_le_anyString h⟩ else none
     | .beneath (.str t), .anyString =>
       if h : t ≤ "$" then some ⟨beneath_str_le_anyString h⟩ else none
+    | .min (.str t), .string => if h : "/" ≤ t then some ⟨min_str_le_string h⟩ else none
+    | .above (.str t), .string => if h : "/" ≤ t then some ⟨above_str_le_string h⟩ else none
     | _, _ => none
 
 /-- The procedure's `some` is the order: what it returns is the proof. -/

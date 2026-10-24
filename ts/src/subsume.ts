@@ -330,6 +330,16 @@ function insideString(s: any): boolean {
 }
 
 
+// No path passes: it met `string`, or its ends exclude spellings from `$` or `.`.
+function refusesPaths(s: any): boolean {
+  const lo = s.lo?.v?.peg
+  const hi = s.hi?.v?.peg
+  return true === s.nonEmpty ||
+    ('string' === typeof lo && 0x2e < (lo.codePointAt(0) ?? 0)) ||
+    ('string' === typeof hi && (true === s.hi.open ? hi <= '$' : hi < '$'))
+}
+
+
 // Above `string` where nothing refuses a string it admits: no end but a
 // lower one at "", and no pattern, format, size, leaf or check.
 function aboveString(g: any, strict: boolean): boolean {
@@ -465,8 +475,8 @@ export function subsumeNode(
           (null != skind && kindSubsumes(g.peg, skind)))) {
         return 'yes'
       }
-      if ('string' === dom && String === g.peg &&
-        true !== (s as any).pathKind && (!strict || insideString(s))) {
+      if ('string' === dom && String === g.peg && true !== (s as any).pathKind &&
+        (strict ? insideString(s) : refusesPaths(s))) {
         return 'yes'
       }
       if (Path === g.peg && true === (s as any).pathKind) {
