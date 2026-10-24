@@ -8405,6 +8405,15 @@ two disagree once one container nests in another, which #492 tracks,
 and `eval` and `vet` disagree even with one, which #493 tracks, so no
 row holds a relative leaf.
 
+The links are read from the relation's value, the meet of all its
+terms, so a constraint met with `rel()` meets that value as any meet
+does, wherever it's written: `rel() & path & [path($.a)]` is an
+`error`, as `path & [path($.a)]` is. A constraint on each address is
+the value's spread, which holds every element the value comes to hold,
+and each of those is a link, so `rel({ k:1 }) & [&: path]` met with
+`[path($.a)]` flows `k` into `a`. Rows from rh0 on hold both, and both
+engines answer every one as the definition does.
+
 ## 38. A spread read at each member
 
 A spread's template holds every member of its map or list, and a path

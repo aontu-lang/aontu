@@ -4182,6 +4182,15 @@ b: usedBy: rel() & [path($.a)]
   type flows into each far end at the site, so a conflict or a hole is
   an ordinary located evaluation error.
 
+A constraint met with `rel()` meets the relation's value as any meet
+does, whichever is written first. So `rel() & path & [path($.a)]` is
+an `error`, as `path & [path($.a)]` is, and
+`rel() & len(min(2)) & [path($.a)]` refuses its one address. A
+constraint on each address goes in the value's spread,
+`rel() & [&: re("sa$")]`, which holds each element, one another list
+brings as well as one it writes, and each such element is a link, so
+`t` flows into its target.
+
 The atoms are **lattice-inert, deliberately.** Both properties are
 global and non-monotone: an acyclic graph becomes cyclic when one more
 edge unifies in, and an inverse that is present becomes absent when the
@@ -4208,7 +4217,8 @@ definition has no rule yet for `acyclic()` and `inverse(k)`, which
 `vet` doesn't check either
 ([#491](https://github.com/aontu-lang/aontu/issues/491)). Rows from rl0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
-to it. No row holds a relative address at a leaf of a list or a map,
+to it, and rows from rh0 on to a constraint met with `rel()` and to a
+spread over the value's addresses. No row holds a relative address at a leaf of a list or a map,
 which the engines read from different places
 ([#492](https://github.com/aontu-lang/aontu/issues/492),
 [#493](https://github.com/aontu-lang/aontu/issues/493)).

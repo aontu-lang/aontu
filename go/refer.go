@@ -472,26 +472,49 @@ func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
 	if pending {
 		out.setDc(0)
 	}
-	tmpl := func() Val {
-		lr := Val(r.leafRefer(base))
-		if nil == r.held {
-			return lr
-		}
-		return newConjunct([]Val{lr, r.held})
-	}
 	if !nested {
 		switch n := out.(type) {
 		case *MapVal:
-			if nil == n.spread {
-				n.spread = tmpl()
-			}
+			n.spread = r.leafSpread(base, n.spread)
 		case *ListVal:
-			if nil == n.spread {
-				n.spread = tmpl()
-			}
+			n.spread = r.leafSpread(base, n.spread)
 		}
 	}
 	return out
+}
+
+func (r *RelVal) leafSpread(base []string, sp Val) Val {
+	if nil == sp {
+		return r.leafRefer(base)
+	}
+	if !leafOnly(sp) {
+		return sp
+	}
+	// A later leaf meets the value's own spread, so the link joins it.
+	return newConjunct([]Val{r.leafRefer(base), sp})
+}
+
+// A spread that holds addresses alone, which a leaf's link can join.
+func leafOnly(v Val) bool {
+	switch n := v.(type) {
+	case *ScalarVal:
+		return KindPath == n.kind
+	case *ScalarKindVal:
+		return KindPath == n.kind
+	case *FuncVal:
+		return "path" == n.name
+	case *ConstraintVal:
+		return nil == n.count && !n.uniq && nil == n.pending &&
+			0 == len(n.uniqBy)+len(n.musts)+len(n.nofs)+len(n.whens)+len(n.contains)+len(n.rests)
+	case *ConjunctVal:
+		for _, t := range n.peg {
+			if !leafOnly(t) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 func (r *RelVal) rewriteChild(ctx *Ctx, child Val, at []string) Val {
@@ -502,11 +525,7 @@ func (r *RelVal) rewriteChild(ctx *Ctx, child Val, at []string) Val {
 	case *MapVal, *ListVal:
 		return r.rewrite(ctx, child)
 	}
-	leaf := unite(ctx, r.leafRefer(at), child)
-	if nil != r.held {
-		leaf = unite(ctx, leaf, r.held)
-	}
-	return leaf
+	return unite(ctx, r.leafRefer(at), child)
 }
 
 func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
@@ -556,10 +575,14 @@ func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	// A SET OF LINKS: list or map, rewritten leaf by leaf; the held
-	// constraints ride into each leaf inside the rewrite.
+	// constraints meet the rewritten container, as any meet would.
 	switch peer.(type) {
 	case *MapVal, *ListVal:
-		return r.rewrite(ctx, peer)
+		out := r.rewrite(ctx, peer)
+		if nil == r.held {
+			return out
+		}
+		return unite(ctx, out, r.held)
 	}
 
 	// Everything else -- a reference still resolving, a kind, a

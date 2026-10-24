@@ -1782,6 +1782,52 @@ theorem rel_verdict_exact : ∀ c ∈ relCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (relCases_checkable c hc).1 (relCases_checkable c hc).2 v
 
+/-- A constraint met with `rel()` before its value meets the relation's
+value as any meet does (decision 25 of the design note's §7), in either
+grouping: `path` refuses the list, as it does met with the list first,
+and `string` refuses it too; a size holds of the list, not of each leaf,
+written before the value and after it, beside a template that flows;
+and `path` met with a single address, which it admits. A constraint on
+each leaf is the value's spread, which holds a leaf another list brings
+as it holds its own, and each such leaf is a link: the template flows
+into a target only that list names, in a list and in a map, where the
+data refuses it or admits it, a target that names nothing is an error,
+and an address as the spread holds each leaf under it. -/
+def relHeldCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ad (ks : List String) : Val := .addr ⟨0, ks⟩
+  let r0 : Val := .call .rel []
+  let rk : Val := .call .rel [m [("k", int 1)]]
+  let la : Val := .list [ad ["a"]] none false
+  let doc (v : Val) : Val := m [("a", m []), ("r", v)]
+  [([], doc (.meet (.meet r0 .pathKind) la), .map []),
+    ([], doc (.meet r0 (.meet la .pathKind)), .map []),
+    ([], doc (.meet (.meet r0 .string) la), .map []),
+    ([], doc (.meet (.meet r0 (.len (.min (nb 1)))) la), .map []),
+    ([], doc (.meet (.meet r0 (.len (.min (nb 2)))) la), .map []),
+    ([], doc (.meet (.meet r0 la) (.len (.min (nb 2)))), .map []),
+    ([], doc (.meet (.meet rk (.len (.min (nb 1)))) la),
+      .map [("a", .map [("k", j 2)])]),
+    ([], doc (.meet (.meet r0 .pathKind) (ad ["a"])), .map []),
+    ([], doc (.meet (.meet rk (.list [] (some .pathKind) false)) la), .map [("a", .map [("k", j 2)])]),
+    ([], doc (.meet (.meet rk (.list [] (some .pathKind) false)) la), .map [("a", .map [("k", j 1)])]),
+    ([], doc (.meet rk (.list [ad ["a"]] (some .pathKind) false)), .map [("a", .map [("k", j 2)])]),
+    ([], doc (.meet (.meet rk (.map [] (some .pathKind) false)) (m [("x", ad ["a"])])),
+      .map [("a", .map [("k", j 2)])]),
+    ([], doc (.meet (.meet r0 (.list [] (some .pathKind) false)) (.list [ad ["noa"]] none false)), .map []),
+    ([], m [("s", m [("a", m [])]), ("r", .meet (.meet rk (.list [] (some (ad ["s"])) false))
+        (.list [ad ["s", "a"]] none false))], .map [("s", .map [("a", .map [("k", j 2)])])])]
+
+theorem relHeldCases_checkable : ∀ c ∈ relHeldCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem rel_held_verdict_exact : ∀ c ∈ relHeldCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (relHeldCases_checkable c hc).1 (relHeldCases_checkable c hc).2 v
+
 /-- Links read where they land: a `refer` in a `type()` that a path
 reference copies, beside a target the template admits, one it refuses,
 one that names nothing and data that refuses the template; a `refer` in
@@ -5159,12 +5205,14 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# what a call over a path makes, which resolve a round later, follow in rows"
     IO.println "# rn0 on, and refer, a link that keeps its address, its template met into"
     IO.println "# its target, in rows rf0 on. rel, a relation whose value holds a link at"
-    IO.println "# each leaf, follows in rows rl0 on, and links read where they land, in a"
-    IO.println "# spread's template or copied by a path reference, in rows ld0 on, and in a"
-    IO.println "# generator's template, at each member of its output, in rows lg0 on. Spreads"
-    IO.println "# whose templates read their member's place, each read at each member there"
-    IO.println "# is, follow in rows sp0 on, and sources loaded in place, each a file of"
-    IO.println "# test/spec/files the definition declares as a term, in rows lf0 on."
+    IO.println "# each leaf, follows in rows rl0 on, a constraint met with rel() before its"
+    IO.println "# value, which meets the value as any meet does, in rows rh0 on, and links"
+    IO.println "# read where they land, in a spread's template or copied by a path"
+    IO.println "# reference, in rows ld0 on, and in a generator's template, at each member"
+    IO.println "# of its output, in rows lg0 on. Spreads whose templates read their member's"
+    IO.println "# place, each read at each member there is, follow in rows sp0 on, and"
+    IO.println "# sources loaded in place, each a file of test/spec/files the definition"
+    IO.println "# declares as a term, in rows lf0 on."
     IO.println "# Generators whose templates read their member's place through a relative"
     IO.println "# path, each read at each member of the output, follow in rows gt0 on, a"
     IO.println "# filter's condition, read where the member it tries lands, in rows fc0 on,"
@@ -5191,6 +5239,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "rn" roundCases
     pathRows "rf" referCases
     pathRows "rl" relCases
+    pathRows "rh" relHeldCases
     pathRows "ld" landCases
     pathRows "lg" genLinkCases
     pathRows "sp" spreadCases
