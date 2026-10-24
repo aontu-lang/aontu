@@ -8,6 +8,39 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a hole its call's peer fills
+
+Definition, generated rows, and documentation. No engine changes. Part
+of #512.
+
+- Decision 21 of the design note's §7, built: the fill is a reading
+  before the meets, so `&` stays a meet. `Val.filled` in
+  `spec/Aontu/Verdict.lean` reads the meets beneath a meet first, then
+  a meet with one side waiting on a hole and the other not as the
+  waiting side with the hole bound to the other. `Decls.readR` and
+  `Decls.readU` read it before `resolveD`.
+- A side waits on a hole if it's the hole, or a call over one through
+  its arguments or a rider (`Val.fillable`). A generator waits through
+  its data alone, and a container waits on no hole of its members.
+- The fill reads every form but where a hole is bound: a generator's
+  template, an `emit`'s table and a `filter`'s condition. A meet in a
+  `match`'s result, default, scrutinee or pattern, a `filter`'s source,
+  a size or a trial is filled too. Neither engine fills a meet in a
+  scrutinee, a pattern, `len` or `must`, and Go fills none in
+  `contains`, `rest`, `when` or `nof` (#549).
+- `spec/Oracle.lean`: `holeFillVetCases`, rows hv0 on of
+  `test/spec/def-call.tsv`, 26 cases in each of the three modes, a
+  `match`'s result and its default among them. Both engines answer
+  every row as the definition does.
+- Out of the rows: a hole a container's peer fills in a member or a
+  spread, `[upper(_)] & ["a"]`, which both engines fill member by
+  member; a call that meets more than one peer, which both engines
+  read in the order it's written (#512); and a call over a hole the
+  document leaves unfilled, which both engines' `vet` lets the data
+  fill. Decision 29 raises the last.
+- Docs: the reference's placeholder section, the definition tutorial's
+  step 27, the definition's README and the design note.
+
 ### `subsume` reads `string & empty()` by the spellings a path can take
 
 TypeScript and Go, generated rows, and documentation. Fixes #544.

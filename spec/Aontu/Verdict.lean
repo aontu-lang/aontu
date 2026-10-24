@@ -1771,13 +1771,324 @@ def resolveCovers (ds : Decls) (b : Option Val) (here : Option (List Step)) : Li
   termination_by structural cs => cs
 end
 
-/-- How a document reads: its term expanded, with its selections made and
-each key placed, the document standing at the top. -/
-def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.read S)
+/-! ## A hole its call's peer fills
+
+Decision 21 of the design note's §7: a meet with a hole, or a call that
+waits on one, on one side and nothing waiting on the other reads as that
+side with the hole bound to the other, in the order the document groups
+its meets, before any meet means anything, so `upper(_) & "a"` reads as
+`upper("a")` and `&` stays a meet. A container waits on no hole of its
+members, and a generator's template binds its holes to each member. -/
+
+mutual
+/-- Whether a term waits on a hole its peer fills: the hole, or a call
+over one through its arguments, a generator's data but not its template,
+and through a rider, but never through a container. -/
+def Val.fillable : Val → Bool
+  | .hole => true
+  | .call .each args | .call .pack args | .call .emit args => fillableHead args
+  | .call _ args => fillableItems args
+  | .ride _ v _ => v.fillable
+  | _ => false
+
+def fillableHead : List Val → Bool
+  | [] => false
+  | d :: _ => d.fillable
+
+def fillableItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.fillable || fillableItems vs
+end
+
+mutual
+/-- The term with each hole `fillable` finds bound to `p`. -/
+def Val.bindHole : Val → Val → Val
+  | .hole, p => p
+  | .call .each args, p => .call .each (bindHead args p)
+  | .call .pack args, p => .call .pack (bindHead args p)
+  | .call .emit args, p => .call .emit (bindHead args p)
+  | .call f args, p => .call f (bindItems args p)
+  | .ride k v r, p => .ride k (v.bindHole p) r
+  | v, _ => v
+
+def bindHead : List Val → Val → List Val
+  | [], _ => []
+  | d :: ts, p => d.bindHole p :: ts
+
+def bindItems : List Val → Val → List Val
+  | [], _ => []
+  | v :: vs, p => v.bindHole p :: bindItems vs p
+end
+
+mutual
+/-- The term with each meet that waits on a hole on one side and on none
+on the other read as that side with the hole bound to the other, the
+meets beneath it first, through every form but where a hole is bound: a
+generator's template, an `emit`'s table and a `filter`'s condition,
+which bind their holes to each member or node. -/
+def Val.filled : Val → Val
+  | .meet a b =>
+    let a' := a.filled
+    let b' := b.filled
+    if a'.fillable && !b'.fillable then a'.bindHole b'
+    else if b'.fillable && !a'.fillable then b'.bindHole a'
+    else .meet a' b'
+  | .map fs spread closed => .map (filledFields fs) (filledSpread spread) closed
+  | .list items spread closed => .list (filledItems items) (filledSpread spread) closed
+  | .or arms => .or (filledArms arms)
+  | .pref r x => .pref r x.filled
+  | .ride k v r => .ride k v.filled r
+  | .len c => .len c.filled
+  | .nof n cs => .nof n.filled (filledItems cs)
+  | .must c m => .must c.filled m
+  | .when c t e => .when c.filled t.filled (filledSpread e)
+  | .contains c n => .contains c.filled n.filled
+  | .rest t cs => .rest t.filled (filledCovers cs)
+  | .select s arms d => .select s.filled (filledPairs arms) (filledSpread d)
+  | .filter s c => .filter s.filled c
+  | .call .each args => .call .each (filledHead args)
+  | .call .pack args => .call .pack (filledHead args)
+  | .call .emit args => .call .emit (filledHead args)
+  | .call f args => .call f (filledItems args)
+  | v => v
+
+def filledHead : List Val → List Val
+  | [] => []
+  | d :: ts => d.filled :: ts
+
+def filledFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.filled) :: filledFields fs
+
+def filledItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.filled :: filledItems vs
+
+def filledSpread : Option Val → Option Val
+  | none => none
+  | some s => some s.filled
+
+def filledArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.filled) :: filledArms as
+
+def filledPairs : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: as => (p.filled, r.filled) :: filledPairs as
+
+def filledCovers : List Cover → List Cover
+  | [] => []
+  | (a, b, c) :: cs => (filledSpread a, filledSpread b, filledSpread c) :: filledCovers cs
+end
+
+
+theorem mem_bindItems {p : Val} : ∀ {vs : List Val} {w : Val}, w ∈ bindItems vs p → ∃ v, v ∈ vs ∧ w = v.bindHole p
+  | [], _, h => nomatch h
+  | v :: vs, w, h => by
+    simp only [bindItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, List.mem_cons_self, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := mem_bindItems h
+      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+
+theorem mem_bindHead {p : Val} : ∀ {vs : List Val} {w : Val}, w ∈ bindHead vs p →
+    w ∈ vs ∨ ∃ v, v ∈ vs ∧ w = v.bindHole p
+  | [], _, h => nomatch h
+  | v :: vs, w, h => by
+    simp only [bindHead, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact .inr ⟨v, List.mem_cons_self, rfl⟩
+    · exact .inl (List.mem_cons_of_mem _ h)
+
+/-- Binding a hole to a term the checker can read leaves a term it can
+read. -/
+theorem bindHole_checkableA {p : Val} (hp : p.CheckableA) {v : Val} (h : v.CheckableA) :
+    (v.bindHole p).CheckableA := by
+  induction h with
+  | hole => exact hp
+  | @call f args h ih =>
+    have hi : ∀ a, a ∈ bindItems args p → a.CheckableA := fun a ha => by
+      obtain ⟨u, hu, rfl⟩ := mem_bindItems ha
+      exact ih u hu
+    have hh : ∀ a, a ∈ bindHead args p → a.CheckableA := fun a ha => by
+      rcases mem_bindHead ha with ha | ⟨u, hu, rfl⟩
+      · exact h a ha
+      · exact ih u hu
+    cases f <;> first | exact .call hh | exact .call hi
+  | ride _ ih => exact .ride ih
+  | _ => simp only [Val.bindHole]; constructor <;> assumption
+
+theorem mem_filledItems : ∀ {vs : List Val} {w : Val}, w ∈ filledItems vs → ∃ v, v ∈ vs ∧ w = v.filled
+  | [], _, h => nomatch h
+  | v :: vs, w, h => by
+    simp only [filledItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, List.mem_cons_self, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := mem_filledItems h
+      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+
+theorem mem_filledHead : ∀ {vs : List Val} {w : Val}, w ∈ filledHead vs → w ∈ vs ∨ ∃ v, v ∈ vs ∧ w = v.filled
+  | [], _, h => nomatch h
+  | v :: vs, w, h => by
+    simp only [filledHead, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact .inr ⟨v, List.mem_cons_self, rfl⟩
+    · exact .inl (List.mem_cons_of_mem _ h)
+
+theorem mem_filledFields : ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
+    (k, o, w) ∈ filledFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.filled
+  | [], _, _, _, h => nomatch h
+  | (k', o', v') :: fs, k, o, w, h => by
+    simp only [filledFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact ⟨v', List.mem_cons_self, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := mem_filledFields h
+      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+
+theorem filledSpread_some : ∀ {sp : Option Val} {t : Val}, filledSpread sp = some t → ∃ s, sp = some s ∧ t = s.filled
+  | none, _, h => nomatch h
+  | some s, t, h => by simp only [filledSpread, Option.some.injEq] at h; exact ⟨s, rfl, h.symm⟩
+
+theorem mem_filledArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {b : Val},
+    (r, b) ∈ filledArms arms → ∃ a, (r, a) ∈ arms ∧ b = a.filled
+  | [], _, _, h => nomatch h
+  | (r', a') :: arms, r, b, h => by
+    simp only [filledArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨a', List.mem_cons_self, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := mem_filledArms h
+      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+
+theorem mem_filledPairs : ∀ {arms : List (Val × Val)} {p r : Val},
+    (p, r) ∈ filledPairs arms → ∃ p₀ r₀, (p₀, r₀) ∈ arms ∧ p = p₀.filled ∧ r = r₀.filled
+  | [], _, _, h => nomatch h
+  | (p', r') :: arms, p, r, h => by
+    simp only [filledPairs, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨p', r', List.mem_cons_self, rfl, rfl⟩
+    · obtain ⟨p₀, r₀, hm, rfl, rfl⟩ := mem_filledPairs h
+      exact ⟨p₀, r₀, List.mem_cons_of_mem _ hm, rfl, rfl⟩
+
+theorem mem_filledCovers : ∀ {cs : List Cover} {c : Cover}, c ∈ filledCovers cs →
+    ∃ c₀, c₀ ∈ cs ∧ c = (filledSpread c₀.1, filledSpread c₀.2.1, filledSpread c₀.2.2)
+  | [], _, h => nomatch h
+  | (a, b, d) :: cs, c, h => by
+    simp only [filledCovers, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨(a, b, d), List.mem_cons_self, rfl⟩
+    · obtain ⟨c₀, hm, rfl⟩ := mem_filledCovers h
+      exact ⟨c₀, List.mem_cons_of_mem _ hm, rfl⟩
+
+/-- The fill leaves a term the checker can read as one it can read. -/
+theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA := by
+  induction h with
+  | meet _ _ iha ihb =>
+    simp only [Val.filled]
+    split
+    · exact bindHole_checkableA ihb iha
+    split
+    · exact bindHole_checkableA iha ihb
+    · exact .meet iha ihb
+  | @map fs spread closed _ _ ihf ihs =>
+    refine .map ?_ ?_
+    · intro k o w hm
+      obtain ⟨v, hv, rfl⟩ := mem_filledFields hm
+      exact ihf k o v hv
+    · intro t ht
+      obtain ⟨s, hs, rfl⟩ := filledSpread_some ht
+      exact ihs s hs
+  | @list items spread closed _ _ ihi ihs =>
+    refine .list ?_ ?_
+    · intro w hm
+      obtain ⟨v, hv, rfl⟩ := mem_filledItems hm
+      exact ihi v hv
+    · intro t ht
+      obtain ⟨s, hs, rfl⟩ := filledSpread_some ht
+      exact ihs s hs
+  | @or arms _ ih =>
+    refine .or fun r b hm => ?_
+    obtain ⟨a, ha, rfl⟩ := mem_filledArms hm
+    exact ih r a ha
+  | pref _ ih => exact .pref ih
+  | ride _ ih => exact .ride ih
+  | len _ ih => exact .len ih
+  | must _ ih => exact .must ih
+  | contains _ _ ihc ihn => exact .contains ihc ihn
+  | @nof n cs _ _ ihn ihc =>
+    refine .nof ihn fun c hc => ?_
+    obtain ⟨u, hu, rfl⟩ := mem_filledItems hc
+    exact ihc u hu
+  | @when c t e _ _ _ ihc iht ihe =>
+    refine .when ihc iht fun e' he => ?_
+    obtain ⟨s, hs, rfl⟩ := filledSpread_some he
+    exact ihe s hs
+  | @rest t cs _ _ _ _ iht ih₁ ih₂ ih₃ =>
+    refine .rest iht ?_ ?_ ?_ <;> intro c hc v hv <;>
+      obtain ⟨c₀, hm₀, rfl⟩ := mem_filledCovers hc <;>
+      obtain ⟨s, hs, rfl⟩ := filledSpread_some hv
+    · exact ih₁ c₀ hm₀ s hs
+    · exact ih₂ c₀ hm₀ s hs
+    · exact ih₃ c₀ hm₀ s hs
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    refine .selectKey ?_ ?_ ?_
+    · intro p r hm
+      obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
+      exact ihp p₀ r₀ hm₀
+    · intro p r hm
+      obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
+      exact ihr p₀ r₀ hm₀
+    · intro e he
+      obtain ⟨s, hs, rfl⟩ := filledSpread_some he
+      exact ihd s hs
+  | @selectLit sc arms d _ _ _ ihp ihr ihd =>
+    refine .selectLit ?_ ?_ ?_
+    · intro p r hm
+      obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
+      exact ihp p₀ r₀ hm₀
+    · intro p r hm
+      obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
+      exact ihr p₀ r₀ hm₀
+    · intro e he
+      obtain ⟨s, hs, rfl⟩ := filledSpread_some he
+      exact ihd s hs
+  | @call f args h ih =>
+    have hi : ∀ a, a ∈ filledItems args → a.CheckableA := fun a ha => by
+      obtain ⟨u, hu, rfl⟩ := mem_filledItems ha
+      exact ih u hu
+    have hh : ∀ a, a ∈ filledHead args → a.CheckableA := fun a ha => by
+      rcases mem_filledHead ha with ha | ⟨u, hu, rfl⟩
+      · exact h a ha
+      · exact ih u hu
+    cases f <;> first | exact .call hh | exact .call hi
+  | _ => simp only [Val.filled]; constructor <;> assumption
+
+mutual
+/-- A datum as a term holds no meet, so the fill leaves it as it is. -/
+theorem Data.term_filled : ∀ j : Data, j.term.filled = j.term
+  | .num _ => rfl
+  | .str _ => rfl
+  | .bool _ => rfl
+  | .null => rfl
+  | .addr _ => rfl
+  | .map fs => by simp only [Data.term, Val.filled, filledSpread, termMembers_filled fs]
+  | .list xs => by simp only [Data.term, Val.filled, filledSpread, termElems_filled xs]
+
+theorem termMembers_filled : ∀ fs : List (String × Data), filledFields (termMembers fs) = termMembers fs
+  | [] => rfl
+  | (_, x) :: fs => by simp only [termMembers, filledFields, Data.term_filled x, termMembers_filled fs]
+
+theorem termElems_filled : ∀ xs : List Data, filledItems (termElems xs) = termElems xs
+  | [] => rfl
+  | x :: xs => by simp only [termElems, filledItems, Data.term_filled x, termElems_filled xs]
+end
+
+/-- How a document reads: its term expanded and filled, with its
+selections made and each key placed, the document standing at the top. -/
+def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.read S).filled
 
 /-- How a document reads with its keys as written: the root its paths
 read, so that a key a path reaches reads where the path lands. -/
-def Decls.readU (ds : Decls) (S : Val) : Val := resolveD ds none none (ds.read S)
+def Decls.readU (ds : Decls) (S : Val) : Val := resolveD ds none none (ds.read S).filled
 
 theorem mem_resolveFields {ds : Decls} {b : Option Val} {here : Option (List Step)} :
     ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
@@ -3100,14 +3411,14 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
 theorem readR_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
     (ds.readR S).CheckableA := by
   unfold Decls.readR
-  exact resolveD_checkableA hb (expand_checkableA hb hS) fun _ h => nomatch h
+  exact resolveD_checkableA hb (filled_checkableA (expand_checkableA hb hS)) fun _ h => nomatch h
 
 /-- A document whose schema the checker can read reads, with its keys as
 written, as a term it can read too. -/
 theorem readU_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
     (ds.readU S).CheckableA := by
   unfold Decls.readU
-  exact resolveD_checkableA hb (expand_checkableA hb hS) fun _ h => nomatch h
+  exact resolveD_checkableA hb (filled_checkableA (expand_checkableA hb hS)) fun _ h => nomatch h
 
 /-- The first pattern the scrutinee's value satisfies selects its result. -/
 theorem selectArm_first {ds : Decls} {x : Data} {p r : Val} {arms : List (Val × Val)} {d : Option Val}
