@@ -3723,10 +3723,20 @@ a term that admits each address its own opens (`Addr.Opens`), so the
 prefix rule is the meet of what two path values admit, `addrMeet` in
 [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean). It reads the text a
 string converts from by `Addr.ofText?`, in the same module as
-`Data.addr`. It doesn't yet read
-a string constraint met with a path value. Both engines read the one
-address the value spells when the two meet, so their answer depends on
-the order of the meets, which [#474](https://github.com/aontu-lang/aontu/issues/474) tracks.
+`Data.addr`. A string constraint, `min`, `max`, `above` and `below`
+with a string end, `len`, `re` and `format`, admits an address by its
+spelling (`Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean)),
+so met with a path value it admits each address the value opens whose
+spelling passes. The meet generates the value's own address where that
+passes, in every order of the meets, so `len(3) & path($.a)` is
+`"$.a"`. Where it doesn't, the meet generates nothing and the verdict is
+`incomplete`, whether a longer address could pass or none could, as
+`max("$.a") & path($.b)` can't. A trial that refuses the address reads
+alike, so `path($.a) & must(len(5))` is `incomplete` too. Both engines
+read the one address the value spells when the two meet, so where it
+doesn't pass they refuse it, and their answer depends on the order of
+the meets, which [#474](https://github.com/aontu-lang/aontu/issues/474)
+tracks; a trial that refuses it they read as `invalid`.
 
 Pinned by [`test/spec/path.tsv`](../test/spec/path.tsv).
 

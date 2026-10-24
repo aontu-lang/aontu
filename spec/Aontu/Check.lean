@@ -1596,18 +1596,22 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .min b, j => match b, j with
     | .num n, .num x => decide (n.le x)
     | .str b, .str s => decide (b ≤ s)
+    | .str b, .addr a => decide (b ≤ a.text)
     | _, _ => false
   | .max b, j => match b, j with
     | .num n, .num x => decide (x.le n)
     | .str b, .str s => decide (s ≤ b)
+    | .str b, .addr a => decide (a.text ≤ b)
     | _, _ => false
   | .above b, j => match b, j with
     | .num n, .num x => decide (n.lt x)
     | .str b, .str s => decide (b < s)
+    | .str b, .addr a => decide (b < a.text)
     | _, _ => false
   | .beneath b, j => match b, j with
     | .num n, .num x => decide (x.lt n)
     | .str b, .str s => decide (s < b)
+    | .str b, .addr a => decide (a.text < b)
     | _, _ => false
   | .neq vs, j => match j with
     | .num x => vs.all fun v => match v with
@@ -2823,17 +2827,22 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
       | num x =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .min (of_decide_eq_true h))
-          (fun h => .minNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+          (fun h => .minNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h))
         cases hn; cases hx; exact of_decide_eq_false h
-      | _ => exact .minNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
+      | _ => exact .minNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .minStr (of_decide_eq_true h))
-          (fun h => .minNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+          (fun h => .minNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_) (fun _ _ _ h => nomatch h))
         cases hb; cases hs; exact of_decide_eq_false h
-      | _ => exact .minNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
+      | addr a =>
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .minAddr (of_decide_eq_true h))
+          (fun h => .minNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ hb ha => ?_))
+        cases hb; cases ha; exact of_decide_eq_false h
+      | _ => exact .minNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @max b =>
     intro ky j _
     refine judge_keyless rfl ?_
@@ -2843,17 +2852,22 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
       | num x =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .max (of_decide_eq_true h))
-          (fun h => .maxNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+          (fun h => .maxNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h))
         cases hn; cases hx; exact of_decide_eq_false h
-      | _ => exact .maxNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
+      | _ => exact .maxNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .maxStr (of_decide_eq_true h))
-          (fun h => .maxNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+          (fun h => .maxNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_) (fun _ _ _ h => nomatch h))
         cases hb; cases hs; exact of_decide_eq_false h
-      | _ => exact .maxNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
+      | addr a =>
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .maxAddr (of_decide_eq_true h))
+          (fun h => .maxNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ hb ha => ?_))
+        cases hb; cases ha; exact of_decide_eq_false h
+      | _ => exact .maxNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @above b =>
     intro ky j _
     refine judge_keyless rfl ?_
@@ -2863,17 +2877,22 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
       | num x =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .above (of_decide_eq_true h))
-          (fun h => .aboveNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+          (fun h => .aboveNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h))
         cases hn; cases hx; exact of_decide_eq_false h
-      | _ => exact .aboveNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
+      | _ => exact .aboveNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .aboveStr (of_decide_eq_true h))
-          (fun h => .aboveNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+          (fun h => .aboveNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_) (fun _ _ _ h => nomatch h))
         cases hb; cases hs; exact of_decide_eq_false h
-      | _ => exact .aboveNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
+      | addr a =>
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .aboveAddr (of_decide_eq_true h))
+          (fun h => .aboveNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ hb ha => ?_))
+        cases hb; cases ha; exact of_decide_eq_false h
+      | _ => exact .aboveNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @beneath b =>
     intro ky j _
     refine judge_keyless rfl ?_
@@ -2883,17 +2902,22 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
       | num x =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .beneath (of_decide_eq_true h))
-          (fun h => .beneathNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+          (fun h => .beneathNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h))
         cases hn; cases hx; exact of_decide_eq_false h
-      | _ => exact .beneathNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
+      | _ => exact .beneathNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .beneathStr (of_decide_eq_true h))
-          (fun h => .beneathNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+          (fun h => .beneathNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_) (fun _ _ _ h => nomatch h))
         cases hb; cases hs; exact of_decide_eq_false h
-      | _ => exact .beneathNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
+      | addr a =>
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .beneathAddr (of_decide_eq_true h))
+          (fun h => .beneathNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ hb ha => ?_))
+        cases hb; cases ha; exact of_decide_eq_false h
+      | _ => exact .beneathNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @neq vs =>
     intro ky j _
     refine judge_keyless rfl ?_

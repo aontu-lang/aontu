@@ -121,6 +121,13 @@ def Bound.dom : Bound → Dom
   | .num _ => .num
   | .str _ => .str
 
+/-- The domains a bound with this end admits a value in: a string end
+reads an address by its spelling too (decision 23 of the design note's
+§7). -/
+def Bound.doms : Bound → List Dom
+  | .num _ => [.num]
+  | .str _ => [.str, .addr]
+
 /-- The domains a term can admit a value in, read off its head: every
 domain where the head says nothing. Two terms whose domains share
 nothing admit no common value. -/
@@ -135,12 +142,13 @@ def Val.doms : Val → List Dom
   | .lit (.str _) => [.str]
   | .lit (.bool _) => [.bool]
   | .lit .null => [.null]
-  | .min b | .max b | .above b | .beneath b => [b.dom]
+  | .min b | .max b | .above b | .beneath b => b.doms
   | .neq (v :: _) => [v.dom]
   | .mulof _ => [.num]
-  | .len _ => [.str, .list, .map]
+  | .len _ => [.str, .list, .map, .addr]
   | .unique _ | .contains _ _ => [.list, .map]
-  | .re _ | .format _ | .grammar _ => [.str]
+  | .re _ | .format _ => [.str, .addr]
+  | .grammar _ => [.str]
   | .map _ _ _ => [.map]
   | .list _ _ _ => [.list]
   | .nil | .nothing => []
@@ -179,7 +187,7 @@ theorem dom_mem_doms {v : Val} {j : Data} (h : Admits env root v j) : j.dom ∈ 
   case len => cases j <;> simp_all [Data.size, Val.doms, Data.dom]
   case unique => cases j <;> simp_all [Data.members, Val.doms, Data.dom]
   case contains => cases j <;> simp_all [Data.members, Val.doms, Data.dom]
-  all_goals ((try cases j) <;> simp [Val.doms, Data.dom, Bound.dom])
+  all_goals ((try cases j) <;> simp [Val.doms, Data.dom, Bound.doms])
 
 theorem domsMeet_of_admits {a b : Val} {j : Data} (ha : Admits env root a j)
     (hb : Admits env root b j) : domsMeet a b = true := by
@@ -353,6 +361,8 @@ theorem emptyPair_sound {a b : Val} {j : Data} (ha : Admits env root a j)
           | max h₂ => simp [emptyBetween]; exact fun h => Number.none_between h₁ h₂ h
         | minStr h₁ => cases hb with
           | maxStr h₂ => simp [emptyBetween, -String.not_le]; exact fun h => String.none_between h₁ h₂ h
+        | minAddr h₁ => cases hb with
+          | maxAddr h₂ => simp [emptyBetween, -String.not_le]; exact fun h => String.none_between h₁ h₂ h
       · cases ha with
         | min h₁ => cases hb with
           | beneath h₂ =>
@@ -361,6 +371,11 @@ theorem emptyPair_sound {a b : Val} {j : Data} (ha : Admits env root a j)
               fun h => Number.none_between_beneath h₁ h₂ h⟩
         | minStr h₁ => cases hb with
           | beneathStr h₂ =>
+            simp [emptyBetween, -String.not_le]
+            exact ⟨fun h => String.none_between h₁ (String.le_of_lt h₂) h,
+              fun h => String.none_between_beneath h₁ h₂ h⟩
+        | minAddr h₁ => cases hb with
+          | beneathAddr h₂ =>
             simp [emptyBetween, -String.not_le]
             exact ⟨fun h => String.none_between h₁ (String.le_of_lt h₂) h,
               fun h => String.none_between_beneath h₁ h₂ h⟩
@@ -375,6 +390,11 @@ theorem emptyPair_sound {a b : Val} {j : Data} (ha : Admits env root a j)
             simp [emptyBetween, -String.not_le]
             exact ⟨fun h => String.none_between (String.le_of_lt h₁) h₂ h,
               fun h => String.none_between_above h₁ h₂ h⟩
+        | aboveAddr h₁ => cases hb with
+          | maxAddr h₂ =>
+            simp [emptyBetween, -String.not_le]
+            exact ⟨fun h => String.none_between (String.le_of_lt h₁) h₂ h,
+              fun h => String.none_between_above h₁ h₂ h⟩
       · cases ha with
         | above h₁ => cases hb with
           | beneath h₂ =>
@@ -383,6 +403,11 @@ theorem emptyPair_sound {a b : Val} {j : Data} (ha : Admits env root a j)
               fun h => Number.none_between_above h₁ (Number.le_of_lt h₂) h⟩
         | aboveStr h₁ => cases hb with
           | beneathStr h₂ =>
+            simp [emptyBetween, -String.not_le]
+            exact ⟨fun h => String.none_between (String.le_of_lt h₁) (String.le_of_lt h₂) h,
+              fun h => String.none_between_above h₁ (String.le_of_lt h₂) h⟩
+        | aboveAddr h₁ => cases hb with
+          | beneathAddr h₂ =>
             simp [emptyBetween, -String.not_le]
             exact ⟨fun h => String.none_between (String.le_of_lt h₁) (String.le_of_lt h₂) h,
               fun h => String.none_between_above h₁ (String.le_of_lt h₂) h⟩

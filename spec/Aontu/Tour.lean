@@ -966,7 +966,8 @@ example : Admits .empty .null (.nof (.lit (.num (.integer (.of 0)))) [.string]) 
 
 /-- `must(min(3), "m")` refuses `2`, as `min(3)` does… -/
 example : Refuses .empty .null (.must (.min (.num (.integer (.of 3)))) "m") (.integer 2) :=
-  .must (.minNot (fun _ _ hn hx => by cases hn; cases hx; decide) (fun _ _ h => nomatch h))
+  .must (.minNot (fun _ _ hn hx => by cases hn; cases hx; decide) (fun _ _ h => nomatch h)
+    (fun _ _ h => nomatch h))
 
 set_option maxRecDepth 8192 in
 /-- …and the document holding it is invalid. -/

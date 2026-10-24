@@ -8,6 +8,55 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a string constraint on an address by its spelling
+
+Definition, generated rows, and documentation. No engine changes.
+Decision 23 of the design note's §7 (#474).
+
+- `spec/Aontu/Admits.lean`: `min`, `max`, `above` and `below` with a
+  string end, `re` and `format` admit an address by its spelling
+  (`minAddr`, `maxAddr`, `aboveAddr`, `beneathAddr`, `reAddr`,
+  `formatAddr`), and `len` counts an address's characters as it's
+  spelled (`Data.size` in `spec/Aontu/Data.lean`). So a path value met
+  with one admits each address it opens whose spelling passes, and
+  generates its own address where that passes, in every order of the
+  meets: `len(3) & path($.a)` and `path($.a) & path($.a.b) & len(5)`
+  generate, where the definition read every such meet as `nil`.
+- Where the address the value spells doesn't pass, the meet generates
+  nothing and the verdict is `incomplete`, whether a longer address
+  could pass or none could, as ruled 2026-10-24: so
+  `max("$.a") & path($.b)` is `incomplete` too. A trial that refuses
+  the address reads alike, as ruled the same day, so
+  `path($.a) & must(len(5))` is `incomplete`. `Val.untried` in
+  `spec/Aontu/Verdict.lean` leaves a size and a trial unread on a map
+  or a list only (`Val.onLeaves`), so a refusal at generation never
+  falls on an address. Both ports refuse such an address by the one
+  the value spells, so their answer still depends on the order of the
+  meets, which #474 tracks; they read a trial's refusal as `invalid`;
+  and no row holds one.
+- `spec/Aontu/Meet.lean`, `Check.lean`, `Order.lean`: the domains a
+  string bound admits a value in hold addresses (`Bound.doms`), the
+  checker reads a bound's string end against an address, and the
+  proofs carry the new rules.
+- `spec/Aontu/Subsume.lean`: `string & empty()` admits no address, so
+  it's above a string bound only where no spelling reaches the bound.
+  Every spelling sits at `"$"` or above and below `"/"`
+  (`Addr.dollar_le_text`, `Addr.text_lt_slash`), so `min(t)` and
+  `above(t)` are below it where `"/" ≤ t`, `max(t)` where `t < "$"` and
+  `below(t)` where `t ≤ "$"`, and `leDecF` decides them under those
+  conditions alone. A pattern or a format that matches an address's
+  spelling isn't below it (`re_not_le_anyString`,
+  `format_not_le_anyString`). Both ports answer `subsumes` over each,
+  which #544 tracks, and no generated row compares these pairs.
+- `spec/Oracle.lean`: `spellVals`, rows ks0 to ks13 of
+  `test/spec/def-gen.tsv`, and `spellVetCases`, rows ks0 to ks8 of
+  `test/spec/def-verdict.tsv`. Both ports answer every row as the
+  definition does.
+- Docs: the reference's first-class paths; the definition tutorial's
+  step 31, which also drops a stale line that the definition reads no
+  link; decision 23 and the P11 row of the design note; and the
+  definition's README.
+
 ### A constraint met with `rel()` meets the relation's value
 
 TypeScript and Go, generated rows, and documentation. Ruling 25 of the

@@ -114,11 +114,15 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   where the copy stands or where it's written by the order the
   document writes the two, and `vet` reads an alias's body at the use
   in either order, which decision 26 raises and #504 tracks;
-- a string constraint met with a path value, which both ports read by
-  the one address the value spells when the two meet, so that their
-  answer depends on the order of the meets: no string constraint
-  admits an address here yet, which decision 23 raises and #474
-  tracks.
+- `string & empty()` over a string bound or a pattern that a path
+  value passes: the definition puts the bound below it only where no
+  address's spelling reaches the bound, and both ports answer
+  `subsumes` over each, which #544 tracks;
+- an address a string constraint or a trial refuses, which the
+  definition reads as `incomplete` (decision 23), where both ports refuse it by the one
+  address the value spells when the two meet, so that their answer
+  depends on the order of the meets, which #474 tracks; and `neq` with
+  path values as its ends.
 
 The rest of the language waits on phases P9 to P12 of the plan: a
 hole its call's peer fills, and the rest of generation with `emit`: a

@@ -260,29 +260,38 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   | addrNot {a : Addr} {j : Data} :
       (∀ b, j = .addr b → ¬ a.Opens b) → Judge env root false (.addr a) j
   /-- A bound with a number at its end admits a number, by exact value,
-  and one with a string at its end a string, in code-point order; the
+  and one with a string at its end a string, in code-point order, and an
+  address by its spelling (decision 23 of the design note's §7); the
   bound's domain is its end's, so `min(0)` admits no string and
   `max("b")` no number. It refuses a value of its domain that falls
   outside it, and every value outside its domain. -/
   | min {n x : Number} : n.le x → Judge env root true (.min (.num n)) (.num x)
   | minStr {b s : String} : b ≤ s → Judge env root true (.min (.str b)) (.str s)
+  | minAddr {b : String} {a : Addr} : b ≤ a.text → Judge env root true (.min (.str b)) (.addr a)
   | minNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ n.le x) → (∀ t s, b = .str t → j = .str s → ¬ t ≤ s) →
+      (∀ t a, b = .str t → j = .addr a → ¬ t ≤ a.text) →
       Judge env root false (.min b) j
   | max {n x : Number} : x.le n → Judge env root true (.max (.num n)) (.num x)
   | maxStr {b s : String} : s ≤ b → Judge env root true (.max (.str b)) (.str s)
+  | maxAddr {b : String} {a : Addr} : a.text ≤ b → Judge env root true (.max (.str b)) (.addr a)
   | maxNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ x.le n) → (∀ t s, b = .str t → j = .str s → ¬ s ≤ t) →
+      (∀ t a, b = .str t → j = .addr a → ¬ a.text ≤ t) →
       Judge env root false (.max b) j
   | above {n x : Number} : n.lt x → Judge env root true (.above (.num n)) (.num x)
   | aboveStr {b s : String} : b < s → Judge env root true (.above (.str b)) (.str s)
+  | aboveAddr {b : String} {a : Addr} : b < a.text → Judge env root true (.above (.str b)) (.addr a)
   | aboveNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ n.lt x) → (∀ t s, b = .str t → j = .str s → ¬ t < s) →
+      (∀ t a, b = .str t → j = .addr a → ¬ t < a.text) →
       Judge env root false (.above b) j
   | beneath {n x : Number} : x.lt n → Judge env root true (.beneath (.num n)) (.num x)
   | beneathStr {b s : String} : s < b → Judge env root true (.beneath (.str b)) (.str s)
+  | beneathAddr {b : String} {a : Addr} : a.text < b → Judge env root true (.beneath (.str b)) (.addr a)
   | beneathNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ x.lt n) → (∀ t s, b = .str t → j = .str s → ¬ s < t) →
+      (∀ t a, b = .str t → j = .addr a → ¬ a.text < t) →
       Judge env root false (.beneath b) j
   /-- `neq` excludes each of its ends by identity, a number by leaf and
   value, so `neq(1)` admits the float `1.0`; its domain is its ends',
@@ -335,15 +344,20 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
         ¬ x'.Same y') →
       Judge env root false (.unique k) j
   /-- `re(p)` admits the strings the pattern matches, and `format(g)`
-  the strings the format reads, by the host's predicates; each admits
-  `""` exactly where its predicate holds of it, admits no other kind of
-  value, and refuses whatever it does not admit. -/
+  the strings the format reads, by the host's predicates, and each the
+  addresses whose spelling its predicate holds of (decision 23); each
+  admits `""` exactly where its predicate holds of it, admits no other
+  kind of value, and refuses whatever it does not admit. -/
   | re {p s : String} : host.pattern p s → Judge env root true (.re p) (.str s)
+  | reAddr {p : String} {a : Addr} : host.pattern p a.text → Judge env root true (.re p) (.addr a)
   | reNot {p : String} {j : Data} :
-      (∀ s, j = .str s → ¬ host.pattern p s) → Judge env root false (.re p) j
+      (∀ s, j = .str s → ¬ host.pattern p s) → (∀ a, j = .addr a → ¬ host.pattern p a.text) →
+      Judge env root false (.re p) j
   | format {g s : String} : host.format g s → Judge env root true (.format g) (.str s)
+  | formatAddr {g : String} {a : Addr} : host.format g a.text → Judge env root true (.format g) (.addr a)
   | formatNot {g : String} {j : Data} :
-      (∀ s, j = .str s → ¬ host.format g s) → Judge env root false (.format g) j
+      (∀ s, j = .str s → ¬ host.format g s) → (∀ a, j = .addr a → ¬ host.format g a.text) →
+      Judge env root false (.format g) j
   /-- `parse(g)` admits the strings the host's parser reads whole under
   the grammar `g`, the empty string under none, and refuses every other
   value: a grammar that doesn't compile reads no string, so it admits
@@ -653,44 +667,60 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | addrNot _ => rfl
   | min h => intro b' h'; cases h' with
     | min _ => rfl
-    | minNot hn _ => exact absurd h (hn _ _ rfl rfl)
+    | minNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
   | minStr h => intro b' h'; cases h' with
     | minStr _ => rfl
-    | minNot _ hn => exact absurd h (hn _ _ rfl rfl)
-  | minNot hn hs => intro b' h'; cases h' with
+    | minNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
+  | minAddr h => intro b' h'; cases h' with
+    | minAddr _ => rfl
+    | minNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
+  | minNot hn hs ha => intro b' h'; cases h' with
     | min h => exact absurd h (hn _ _ rfl rfl)
     | minStr h => exact absurd h (hs _ _ rfl rfl)
-    | minNot _ _ => rfl
+    | minAddr h => exact absurd h (ha _ _ rfl rfl)
+    | minNot _ _ _ => rfl
   | max h => intro b' h'; cases h' with
     | max _ => rfl
-    | maxNot hn _ => exact absurd h (hn _ _ rfl rfl)
+    | maxNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
   | maxStr h => intro b' h'; cases h' with
     | maxStr _ => rfl
-    | maxNot _ hn => exact absurd h (hn _ _ rfl rfl)
-  | maxNot hn hs => intro b' h'; cases h' with
+    | maxNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
+  | maxAddr h => intro b' h'; cases h' with
+    | maxAddr _ => rfl
+    | maxNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
+  | maxNot hn hs ha => intro b' h'; cases h' with
     | max h => exact absurd h (hn _ _ rfl rfl)
     | maxStr h => exact absurd h (hs _ _ rfl rfl)
-    | maxNot _ _ => rfl
+    | maxAddr h => exact absurd h (ha _ _ rfl rfl)
+    | maxNot _ _ _ => rfl
   | above h => intro b' h'; cases h' with
     | above _ => rfl
-    | aboveNot hn _ => exact absurd h (hn _ _ rfl rfl)
+    | aboveNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
   | aboveStr h => intro b' h'; cases h' with
     | aboveStr _ => rfl
-    | aboveNot _ hn => exact absurd h (hn _ _ rfl rfl)
-  | aboveNot hn hs => intro b' h'; cases h' with
+    | aboveNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
+  | aboveAddr h => intro b' h'; cases h' with
+    | aboveAddr _ => rfl
+    | aboveNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
+  | aboveNot hn hs ha => intro b' h'; cases h' with
     | above h => exact absurd h (hn _ _ rfl rfl)
     | aboveStr h => exact absurd h (hs _ _ rfl rfl)
-    | aboveNot _ _ => rfl
+    | aboveAddr h => exact absurd h (ha _ _ rfl rfl)
+    | aboveNot _ _ _ => rfl
   | beneath h => intro b' h'; cases h' with
     | beneath _ => rfl
-    | beneathNot hn _ => exact absurd h (hn _ _ rfl rfl)
+    | beneathNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
   | beneathStr h => intro b' h'; cases h' with
     | beneathStr _ => rfl
-    | beneathNot _ hn => exact absurd h (hn _ _ rfl rfl)
-  | beneathNot hn hs => intro b' h'; cases h' with
+    | beneathNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
+  | beneathAddr h => intro b' h'; cases h' with
+    | beneathAddr _ => rfl
+    | beneathNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
+  | beneathNot hn hs ha => intro b' h'; cases h' with
     | beneath h => exact absurd h (hn _ _ rfl rfl)
     | beneathStr h => exact absurd h (hs _ _ rfl rfl)
-    | beneathNot _ _ => rfl
+    | beneathAddr h => exact absurd h (ha _ _ rfl rfl)
+    | beneathNot _ _ _ => rfl
   | neq h => intro b' h'; cases h' with
     | neq _ => rfl
     | neqNot hn _ =>
@@ -769,16 +799,24 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | uniqueDup _ _ => rfl
   | re h => intro b' h'; cases h' with
     | re _ => rfl
-    | reNot hn => exact absurd h (hn _ rfl)
-  | reNot hn => intro b' h'; cases h' with
+    | reNot hn _ => exact absurd h (hn _ rfl)
+  | reAddr h => intro b' h'; cases h' with
+    | reAddr _ => rfl
+    | reNot _ hn => exact absurd h (hn _ rfl)
+  | reNot hn ha => intro b' h'; cases h' with
     | re h => exact absurd h (hn _ rfl)
-    | reNot _ => rfl
+    | reAddr h => exact absurd h (ha _ rfl)
+    | reNot _ _ => rfl
   | format h => intro b' h'; cases h' with
     | format _ => rfl
-    | formatNot hn => exact absurd h (hn _ rfl)
-  | formatNot hn => intro b' h'; cases h' with
+    | formatNot hn _ => exact absurd h (hn _ rfl)
+  | formatAddr h => intro b' h'; cases h' with
+    | formatAddr _ => rfl
+    | formatNot _ hn => exact absurd h (hn _ rfl)
+  | formatNot hn ha => intro b' h'; cases h' with
     | format h => exact absurd h (hn _ rfl)
-    | formatNot _ => rfl
+    | formatAddr h => exact absurd h (ha _ rfl)
+    | formatNot _ _ => rfl
   | grammar hs ht => intro b' h'; cases h' with
     | grammar _ _ => rfl
     | grammarNot hn => exact absurd ht (by rw [hn _ rfl hs]; decide)
@@ -1022,15 +1060,19 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.addrNot <;> assumption)
     | (apply Judge.min <;> assumption)
     | (apply Judge.minStr <;> assumption)
+    | (apply Judge.minAddr <;> assumption)
     | (apply Judge.minNot <;> assumption)
     | (apply Judge.max <;> assumption)
     | (apply Judge.maxStr <;> assumption)
+    | (apply Judge.maxAddr <;> assumption)
     | (apply Judge.maxNot <;> assumption)
     | (apply Judge.above <;> assumption)
     | (apply Judge.aboveStr <;> assumption)
+    | (apply Judge.aboveAddr <;> assumption)
     | (apply Judge.aboveNot <;> assumption)
     | (apply Judge.beneath <;> assumption)
     | (apply Judge.beneathStr <;> assumption)
+    | (apply Judge.beneathAddr <;> assumption)
     | (apply Judge.beneathNot <;> assumption)
     | (apply Judge.neq <;> assumption)
     | (apply Judge.neqStr <;> assumption)
@@ -1046,8 +1088,10 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.uniqueBare <;> assumption)
     | (apply Judge.uniqueDup <;> assumption)
     | (apply Judge.re <;> assumption)
+    | (apply Judge.reAddr <;> assumption)
     | (apply Judge.reNot <;> assumption)
     | (apply Judge.format <;> assumption)
+    | (apply Judge.formatAddr <;> assumption)
     | (apply Judge.formatNot <;> assumption)
     | (apply Judge.grammar <;> assumption)
     | (apply Judge.grammarNot <;> assumption)

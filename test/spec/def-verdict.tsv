@@ -18,7 +18,8 @@
 # of its own leaves out, in rows hl0 on.
 # Path values follow in rows k0 on: the fill supplies a path value the data
 # leaves out, and none admits the string the data writes for it, since no
-# JSON text reads as an address.
+# JSON text reads as an address. A string constraint the address passes by
+# its spelling leaves the fill as it is, in rows ks0 on.
 e0	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error"}
 e1	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"noFill":true}}
 e2	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"partial":true}}
@@ -694,3 +695,12 @@ k44	verdict	v: {"x": (path) & (path($.a))}	v: {}	{"verdict":"valid","opts":{"par
 k45	verdict	v: {"x": [path($.a), path(..b)]}	v: {}	{"verdict":"valid"}
 k46	verdict	v: {"x": [path($.a), path(..b)]}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
 k47	verdict	v: {"x": [path($.a), path(..b)]}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+ks0	verdict	v: {"x": (path($.a)) & (len(3))}	v: {}	{"verdict":"valid"}
+ks1	verdict	v: {"x": (path($.a)) & (len(3))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+ks2	verdict	v: {"x": (path($.a)) & (len(3))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+ks3	verdict	v: {"x": (path($.a.b)) & (above("$.a"))}	v: {}	{"verdict":"valid"}
+ks4	verdict	v: {"x": (path($.a.b)) & (above("$.a"))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+ks5	verdict	v: {"x": (path($.a.b)) & (above("$.a"))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+ks6	verdict	v: {"x": (max("$.b")) & (path($.a))}	v: {}	{"verdict":"valid"}
+ks7	verdict	v: {"x": (max("$.b")) & (path($.a))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+ks8	verdict	v: {"x": (max("$.b")) & (path($.a))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
