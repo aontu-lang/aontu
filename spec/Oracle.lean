@@ -4229,11 +4229,11 @@ theorem readR_call_checkableA {t : Val} (hf : ∀ k, (expandF [] k t).filled = e
     cases n with
     | zero =>
       have h0 : t.filled = t := by simpa [expandF] using hf 0
-      simp only [expandF, Val.filled, filledFields, filledSpread, h0, joinFields_single, spreadFields_none]
+      simp only [expandF, Val.filled, filledFields, filledSpread, h0, joinFields_single, spreadAll_none]
       exact hm t (by simpa [expandF] using h 0)
     | succ k =>
       simp only [expandF, List.map, Option.map, Val.filled, filledFields, filledSpread, hf k, joinFields_single,
-        spreadFields_none]
+        spreadAll_none]
       exact hm _ (h k)
   exact this _
 
@@ -4595,13 +4595,20 @@ position, on either side and in an inner meet; and a spread whose
 template waits on a hole, met with a peer's members and its own, each
 once, on either side, through a meet, nested, with a member a later
 meet brings, with one it has filled, and beside a member that waits,
-in a map and in a list; and a spread that selects on the key, where an
-arm takes the member before the default that waits. Two spreads that
+in a map and in a list; a spread that selects on the key, where an arm
+takes the member before the default that waits; and a spread whose
+template holds its hole inside a container, a map or a list, met with a
+peer's members on either side, with its own, through a meet on either
+side, with a member a later meet brings and with one it has filled,
+nested, under a spread inside the template, with a member the data fills
+and one it leaves out, and beside a member that waits. Two spreads that
 both wait are out of them: both ports read them as one where their
-templates are alike, and as `place_pair` otherwise. A list whose one
-hole no peer element fills is out of them, since both ports' `vet` lets
-the data fill it (decision 29). Both ports read a generator's peer and
-the data as one conjunction, so a generator meets no data here. -/
+templates are alike, and as `place_pair` otherwise. So is a map spread's
+container template that a later meet reaches again, which both ports
+fill again (#556). A list whose one hole no peer element fills is the
+data's to fill, in rows dv0 on (decision 29). Both ports read a
+generator's peer and the data as one conjunction, so a generator meets
+no data here. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4695,7 +4702,32 @@ def holeFillVetCases : List (Val × Data) :=
     (.meet (spl [s "q"] (up .hole)) (lst [s "a", s "b"]), .list [.str "Q"]),
     (.meet (spl [] (up .hole)) (lst [hide (s "q"), s "b"]), .list [.str "B"]),
     (.meet (.meet (spl [] (add1 .hole)) (lst [n 1, n 2])) (lst [n 2, n 3]), .list [.integer 2, .integer 3]),
-    (.map [("a", false, s "x")] (some (.select .key [(.string, .any)] (some (up .hole)))) false, .map [("a", .str "x")])]
+    (.map [("a", false, s "x")] (some (.select .key [(.string, .any)] (some (up .hole)))) false, .map [("a", .str "x")]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", s "x")])]), .map [("a", .map [("n", .str "X")])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", s "x")])]), .map [("a", .map [("n", .str "x")])]),
+    (spm [] (mp [("n", up .hole)]), .map [("a", .map [("n", .str "x")])]),
+    (spm [] (mp [("n", up .hole)]), .map [("a", .map [])]),
+    (.meet (mp [("a", mp [("n", s "x")])]) (spm [] (mp [("n", up .hole)])), .map [("a", .map [("n", .str "X")])]),
+    (spm [("a", mp [("n", s "x")])] (mp [("n", up .hole)]), .map [("a", .map [("n", .str "X")])]),
+    (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 1)])]), .map [("a", .map [("n", .integer 2)])]),
+    (.meet (spl [] (mp [("n", up .hole)])) (lst [mp [("n", s "x")]]), .list [.map [("n", .str "X")]]),
+    (.meet (lst [mp [("n", s "x")]]) (spl [] (mp [("n", up .hole)])), .list [.map [("n", .str "X")]]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [])]), .map [("a", .map [("n", .str "x")])]),
+    (.meet (spm [] (mp [("n", up .hole), ("m", n 1)])) (mp [("a", mp [("n", s "x")])]),
+      .map [("a", .map [("n", .str "X"), ("m", .integer 1)])]),
+    (.meet (spm [] (lst [up .hole])) (mp [("a", lst [s "x"])]), .map [("a", .list [.str "X"])]),
+    (.meet (spm [] (spm [] (up .hole))) (mp [("a", mp [("b", s "x")])]), .map [("a", .map [("b", .str "X")])]),
+    (.meet (mp [("x", mp [("a", mp [("n", s "x")])])]) (mp [("x", spm [] (mp [("n", up .hole)]))]),
+      .map [("x", .map [("a", .map [("n", .str "X")])])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", s "x")]), ("b", mp [("n", s "y")])]),
+      .map [("a", .map [("n", .str "X")]), ("b", .map [("n", .str "Y")])]),
+    (.meet (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", s "x")])])) (mp [("b", mp [("n", s "y")])]),
+      .map [("a", .map [("n", .str "X")]), ("b", .map [("n", .str "Y")])]),
+    (.meet (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", s "x")])])) (mp [("a", mp [("n", s "X")])]),
+      .map [("a", .map [("n", .str "X")])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (.meet (mp [("a", mp [("n", s "x")])]) (mp [("b", mp [("n", s "y")])])),
+      .map [("a", .map [("n", .str "X")]), ("b", .map [("n", .str "Y")])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", up .hole)])]), .map [("a", .map [("n", .str "X")])])]
 
 set_option maxRecDepth 8192 in
 /-- A hole the document leaves unfilled, which the data fills, the data
