@@ -1402,13 +1402,15 @@ until the phase that encodes it lands.
    generator by its data alone, since its template is read at each
    member, so `each(_, upper({}))` passes `[]` as both ports answer; a
    disjunction is filled arm by arm (`fillArms`, `leafArms`), so
-   `upper(_) | "fallback"` passes `"a"`; and
+   `upper(_) | "fallback"` passes `"a"`, and an arm that does not stand
+   drops as a conflict's arm does (`Val.staged`), so `add(_, 1) | "x"`
+   passes `"x"` and `add("x", 1) | "x"` stands, as both ports answer; and
    two sides met that both wait, one of them more than the hole, are
    ill-formed (`Val.illFormed`), as both ports' `place_pair` is, while
    `_ & _` meets as one hole. Without the fill, the data is checked with
-   each waiting part read as `any` (`Val.waitAny`). Rows dv0 on, 33
-   cases in each mode, and both ports answer every row as the definition
-   does; no other row moved.
+   each waiting part read as `any` (`Val.waitAny`). Rows dv0 on, 39
+   cases in each mode, and rows da0 on, 10, and both ports answer every
+   row as the definition does; no other row moved.
 
 ## 8. Risks
 

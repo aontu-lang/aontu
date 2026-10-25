@@ -54,11 +54,17 @@ Definition, generated rows, and documentation. No engine changes.
   `v: "a"`, and `(upper(_) | "x") & "a"` is `"A"`. Without the fill, the data is
   checked against the schema with each waiting part read as `any`
   (`Val.waitAny`), and `vet_strict_valid_instance` says so.
-- `spec/Oracle.lean`: rows dv0 on of `test/spec/def-call.tsv`, 33 cases
-  in each of the three modes. Both engines answer every row as the
-  definition does, and no other row moves.
-- Docs: the definition tutorial's steps 9, 14 and 27, the reference's
-  placeholder section, the definition's README and the design note.
+- An arm that does not stand drops, as a conflict's arm does
+  (`Val.staged`), so `v: add(_, 1) | "x"` passes `v: "x"`, and
+  `add("x", 1) | "x"` stands though `add("x", 1)` alone is an error, as
+  both engines answer. A preference clash between the arms a
+  disjunction is read with stays the disjunction's.
+- `spec/Oracle.lean`: rows dv0 on of `test/spec/def-call.tsv`, 39 cases,
+  and rows da0 on, 10 cases, each in the three modes. Both engines
+  answer every row as the definition does, and no other row moves.
+- Docs: the definition tutorial's steps 9, 14 and 27 and its staging
+  passage, the reference's disjunction and placeholder sections, the
+  definition's README and the design note.
 
 ### The definition fills a spread's template from each member it meets
 

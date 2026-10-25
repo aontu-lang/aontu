@@ -4630,11 +4630,17 @@ def Val.staged (ds : Decls) : Val → Val
   | .meet a b => if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.staged ds) (b.staged ds)
   | .map fs spread closed => .map (stagedFields ds fs) spread closed
   | .list items spread closed => .list (stagedItems ds items) spread closed
-  | .or arms => mkOr (stagedArms ds arms)
+  | .or arms => mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
   | .pref r x => .pref r (x.staged ds)
   | .ride k v r => .ride k (v.staged ds) r
   | v => v
 ```
+
+An arm that does not stand (`Val.illFormed`) drops the same way, as
+both engines drop it, read with the arms it stands for flattened in
+(`flattenArm`). So `add("x", 1) | "x"` stands and generates `"x"`,
+though `add("x", 1)` alone is an `error`, and a preference clash
+between the arms, as in `(*1 | *2) | 3`, stays the disjunction's.
 
 A size is a conjunction of integers, bounds, exclusions and multiples,
 so one that still holds a choice once in normal form, `len(1 | 3)`,
@@ -7424,7 +7430,10 @@ A disjunction is met arm by arm, the other side met into each arm
 `upper("a") | ("x" & "a")`, which is `"A"`, as both engines answer.
 A call whose peer is the disjunction takes it whole, so
 `upper(_) & ("a" | "b")` is an error in the definition and in both
-engines.
+engines. An arm whose call the data leaves unmade drops, as a
+conflict's arm does, so `v: add(_, 1) | "x"` passes `v: "x"`: the
+data fills the first arm as `add("x", 1)`, which the reading can't
+make, and the second arm stands.
 
 A spread whose template waits on a hole fills each member it meets,
 once, as `caps` does: its own map's or list's members, and a peer's
@@ -7538,8 +7547,8 @@ leaves the call unmade (`Val.fails`), as both engines answer. A hole
 the data leaves out is `incomplete`, and `valid` under `--partial`. A
 call met with a hole, as in `upper(_) & _`, or with another call that
 waits is an error, since neither fills the other, though `_ & _` meets
-as one hole. The rows are dv0 on, and both engines answer every one as
-the definition does.
+as one hole. The rows are dv0 on, an arm that does not stand in rows
+da0 on, and both engines answer every one as the definition does.
 
 ## 28. A map from a template
 
