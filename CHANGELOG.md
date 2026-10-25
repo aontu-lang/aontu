@@ -20,8 +20,9 @@ Definition, generated rows, and documentation. No engine changes.
   the reading unable to make fails it (`Val.fails`). A hole the data
   leaves out is `incomplete`, `valid` under `--partial`.
 - A hole waits (`Val.pending`), so a call or a generator over one stays
-  unmade until the data fills it. A call that waits stands, and a call
-  met with a hole or with another call that waits is an error, though
+  unmade until the data fills it. A call that waits stands where it has
+  as many arguments as its function takes, and a call met with a hole
+  or with another call that waits is an error, though
   `_ & _` meets as one hole (`Val.illFormed`). Without the fill, the data is
   checked against the schema with each waiting part read as `any`
   (`Val.waitAny`), and `vet_strict_valid_instance` says so.

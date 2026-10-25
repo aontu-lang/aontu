@@ -1387,7 +1387,8 @@ until the phase that encodes it lands.
    is made. A hole waits (`Val.pending`), so a call or a generator over
    one stays unmade until the data fills it. A call the data leaves the
    reading unable to make fails it (`Val.fails`), `invalid`, as both
-   ports refuse `add(_, 1)` against `"a"`. A call that waits stands, and
+   ports refuse `add(_, 1)` against `"a"`. A call that waits stands where
+   it has as many arguments as its function takes (`Fn.takes`), and
    two sides met that both wait, one of them more than the hole, are
    ill-formed (`Val.illFormed`), as both ports' `place_pair` is, while
    `_ & _` meets as one hole. Without the fill, the data is checked with
