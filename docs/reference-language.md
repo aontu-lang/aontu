@@ -1328,9 +1328,14 @@ scrutinee or pattern, in `len` or in `must`, and Go fills none in
 fills a hole inside a call's list argument, so `sum([_, 1]) & 3` is
 `4`, where TypeScript reads a container as waiting on none, as the
 definition does, which
-[#553](https://github.com/aontu-lang/aontu/issues/553) tracks. Both
-engines also fill each member a spread `&: upper(_)` meets, once, which
-the definition doesn't read yet. With more than one peer the fill
+[#553](https://github.com/aontu-lang/aontu/issues/553) tracks. A
+spread whose template waits on a hole fills each member it meets, once,
+its own and a peer's, and then reads that key as `any`
+(`spreadFields`, `spreadWith`): `{&: upper(_)} & {a: "x"}` is
+`{a: "X"}`, and `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, as
+both engines answer. Both engines also fill a template that holds its
+hole inside a container, `{&: {n: upper(_)}}`, which the definition
+doesn't read yet. With more than one peer the fill
 follows the document's grouping, so `upper(_) & ("a" & "a")` reads as
 `upper("a")`, which is `"A"`. Both engines read a conjunction in the
 order it's written instead and answer a conflict, which
