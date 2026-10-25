@@ -7285,6 +7285,7 @@ pair: [upper(_) "z"] & ["a"]
 nest: ({ a:upper(_) } & { b:1 }) & { a:"x" }
 name: upper(_)
 name: "alice"
+caps: { &: upper(_) } & { a:"x" b:"y" }
 ```
 
 and evaluate it:
@@ -7293,6 +7294,10 @@ and evaluate it:
 ```sh
 $ aontu fill.aontu
 {
+  "caps": {
+    "a": "X",
+    "b": "Y"
+  },
   "loud": "A",
   "name": "ALICE",
   "names": [
@@ -7321,7 +7326,9 @@ of one key are a meet too, read in the order they're written
 ```lean
 def Val.filled : Val → Val
   | .meet a b => a.filled.meetFilled b.filled
-  | .map fs spread closed => .map (joinFields [] (filledFields fs)) (filledSpread spread) closed
+  | .map fs spread closed =>
+    .map (spreadFields (joinFields [] (filledFields fs)) (filledSpread spread)).1
+      (spreadFields (joinFields [] (filledFields fs)) (filledSpread spread)).2 closed
 ```
 
 It then reads a meet with one side waiting on a hole and the other not
@@ -7363,8 +7370,16 @@ def Val.fillMeet (a b : Val) : Val × Val :=
   if a.fillable && !b.fillable then (a.bindHole b, .any)
   else if b.fillable && !a.fillable then (.any, b.bindHole a)
   else match a with
-    | .map fs sa ca => (.map (fillFields fs b).1 sa ca, (fillFields fs b).2)
-    | .list xs sa ca => (.list (fillElems 0 xs b).1 sa ca, (fillElems 0 xs b).2)
+    | .map fs sa ca =>
+      let r := fillFields fs b
+      let s := spreadOnto sa r.2.keysAt r.2
+      let u := spreadFrom r.1 s.2
+      (.map u.1 s.1 ca, u.2)
+    | .list xs sa ca =>
+      let r := fillElems 0 xs b
+      let s := spreadOntoAt sa (List.range r.2.posAt) r.2
+      let u := spreadFromAt r.1 s.2
+      (.list u.1 s.1 ca, u.2)
     | .meet x y => (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
     | .ride k v r => (.ride k (v.fillMeet b).1 r, (v.fillMeet b).2)
     | _ => (a, b)
@@ -7398,8 +7413,23 @@ of its container. Neither engine reads through a rider, a mark or a
 seal around a container: both bind the whole peer to the hole, and
 answer each with an error, which #552 tracks.
 
-A spread `&: upper(_)` isn't filled yet. Both engines fill each member
-the spread meets, once.
+A spread whose template waits on a hole fills each member it meets,
+once, as `caps` does: its own map's or list's members, and a peer's
+(`spreadFields`, `spreadOnto`, `spreadFrom`). The member reads as the
+template with the hole bound to it, and the spread then reads the key
+as `any`:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def spreadWith (arms : List (Val × Val)) (t : Val) (k : String) : Val :=
+  .select .key ((.lit (.str k), .any) :: arms) (some t)
+```
+
+So `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, since the second
+`a` meets the filled `add(1, 1)`, and `({&: add(_, 1)} & {a: 1}) & {b: 5}`
+fills `b` with `6`, as both engines answer. A template that holds its
+hole inside a container, `{&: {n: upper(_)}}`, isn't filled yet. Both
+engines fill it member by member.
 
 The fill reads every meet but one where a hole is bound, in a
 generator's template, an `emit`'s table or a `filter`'s condition. So

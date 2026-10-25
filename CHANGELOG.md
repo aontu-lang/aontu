@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### The definition fills a spread's template from each member it meets
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: a spread whose template waits on a hole
+  fills each member it meets, once: its own map's or list's members
+  (`spreadFields`, `spreadItems`), a peer's (`spreadOnto`,
+  `spreadOntoAt`), and a peer's spread the map's own (`spreadFrom`,
+  `spreadFromAt`). The member reads as the template with the hole bound
+  to it, and the spread then reads the key as `any` (`spreadWith`). So
+  `{&: upper(_)} & {a: "x"}` is `{a: "X"}`, and
+  `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, as both engines
+  answer.
+- `spec/Oracle.lean`: rows hv168 on of `test/spec/def-call.tsv`, 20
+  cases in each of the three modes. Both engines answer every row as
+  the definition does.
+- A template that holds its hole inside a container,
+  `{&: {n: upper(_)}}`, isn't filled yet. Both engines fill it. Nor do
+  two spreads that both wait read as the engines read them, one where
+  their templates are alike and `place_pair` where they differ.
+- Docs: the definition tutorial's step 27, the reference's placeholder
+  section, the definition's README and the design note.
+
 ### The definition fills a hole in a container's members
 
 Definition, generated rows, and documentation. No engine changes.
@@ -38,9 +61,8 @@ Definition, generated rows, and documentation. No engine changes.
   `close([upper(_)]) & ["a"]` with an error, where the definition fills
   member by member (#552). Go fills a hole inside a call's list
   argument, where TypeScript and the definition don't (#553).
-- A spread's template, `{&: upper(_)} & {a: "x"}`, isn't filled yet.
-  Both engines fill each member the spread meets, once. Nor is an
-  element that reads as absence only once a path is read.
+- An element that reads as absence only once a path is read isn't
+  paired by the fill as both engines pair it.
 - Decision 29 is ruled: the data fills a hole the document leaves
   unfilled, as both engines read it (#548). It isn't built yet.
 - Docs: the definition tutorial's step 27, the reference's placeholder
