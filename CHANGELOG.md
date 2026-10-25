@@ -8,6 +8,44 @@ each change affects.
 
 ## Unreleased
 
+### The definition fills a hole in a container's members
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: `Val.fillMeet` meets a map or a list with
+  its peer member by member, by key or by position, so
+  `[upper(_)] & ["a"]` is `["A"]`, as both engines answer. Each side
+  reads through its own meets and riders, and finds the other's member
+  through the other's (`Val.memberAt`, `Val.putMember`, `Val.elemAt`,
+  `Val.putElem`), so `({a: upper(_)} & {b: 1}) & {a: "x"}` fills `a`.
+  The peer a member's hole takes is spent, and each container is kept
+  whole, so a seal and a spread stand. `fillMeet_checkableA` keeps both
+  sides readable.
+- A key's declarations in one map are merged into one, as the engines
+  merge them: met in the order they're written, optional only where
+  each is (`Val.meetFilled`, `joinFields`). So `v: upper(_)` beside
+  `v: "a"` is `"A"`, and a map that declares a key twice generates,
+  where it generated nothing before. A peer's member is the meet of all
+  its declarations (`declsAt`, `putField`). A list's elements are
+  paired among those that stand, so `[upper(_)] & [hide("a"), "b"]` is
+  `["B"]` (`standingAt`, `setStanding`).
+- `spec/Oracle.lean`: rows hv78 on of `test/spec/def-call.tsv`, 30
+  cases in each of the three modes. Both engines answer every row as
+  the definition does.
+- Neither engine reads through a rider, a mark or a seal around a
+  container: both bind the whole peer to the hole, so both answer
+  `meta({a: upper(_)}, {d: 1}) & {a: "x"}` and
+  `close([upper(_)]) & ["a"]` with an error, where the definition fills
+  member by member (#552). Go fills a hole inside a call's list
+  argument, where TypeScript and the definition don't (#553).
+- A spread's template, `{&: upper(_)} & {a: "x"}`, isn't filled yet.
+  Both engines fill each member the spread meets, once. Nor is an
+  element that reads as absence only once a path is read.
+- Decision 29 is ruled: the data fills a hole the document leaves
+  unfilled, as both engines read it (#548). It isn't built yet.
+- Docs: the definition tutorial's step 27, the reference's placeholder
+  section, the definition's README and the design note.
+
 ### The published pages cite no decision of the design note
 
 Documentation and tests. No engine changes.

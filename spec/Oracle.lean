@@ -4229,10 +4229,10 @@ theorem readR_call_checkableA {t : Val} (hf : ∀ k, (expandF [] k t).filled = e
     cases n with
     | zero =>
       have h0 : t.filled = t := by simpa [expandF] using hf 0
-      simp only [expandF, Val.filled, filledFields, filledSpread, h0]
+      simp only [expandF, Val.filled, filledFields, filledSpread, h0, joinFields_single]
       exact hm t (by simpa [expandF] using h 0)
     | succ k =>
-      simp only [expandF, List.map, Option.map, Val.filled, filledFields, filledSpread, hf k]
+      simp only [expandF, List.map, Option.map, Val.filled, filledFields, filledSpread, hf k, joinFields_single]
       exact hm _ (h k)
   exact this _
 
@@ -4370,12 +4370,15 @@ theorem filterSources_generate : ∀ x ∈ filterSources,
     (genD [] (resolveD [] none (stepped (some []) (.seg (.key "v"))) x.1.term)).isSome := by
   decide
 
+theorem filterSources_wf : ∀ x ∈ filterSources, x.1.wf = true := by decide
+
 theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
   intro c hc
   obtain ⟨⟨j, t, d⟩, hm, rfl⟩ := List.mem_map.mp hc
   have hj := filterSources_generate _ hm
+  have hw := Data.term_filled _ (filterSources_wf _ hm)
   refine readR_call_checkableA
-    (fun k => by cases k <;> simp only [expandF, Val.filled, expandF_term, Data.term_filled]) fun k => ?_
+    (fun k => by cases k <;> simp only [expandF, Val.filled, expandF_term, hw]) fun k => ?_
   cases k with
   | zero => exact resolveD_filter_checkableA hj
   | succ k =>
@@ -4579,9 +4582,19 @@ data that writes its output and data that doesn't; the hole alone; and,
 where the data leaves the member out so that the fill supplies it, the
 same call, a generator over a list written before its peer and after
 it, a fill inside a map and a list, and a second peer that refuses the
-output; and a fill in a `match`'s result and in its default. Both ports
-read a generator's peer and the data as one conjunction, so a generator
-meets no data here. -/
+output; a fill in a `match`'s result and in its default; and two lists
+or two maps met member by member, by position and by key, nested, with a
+member one side lacks, and with a member pair that both wait; a map
+met with a meet of maps, on either side and on both, a list's element
+among them; a key declared more than once, alone, in the peer and in
+the map itself, before the hole and after it, nested, and beside
+another key;
+and a list beside a peer that holds a marked element, which holds no
+position, on either side and in an inner meet. A list whose one hole
+no peer element fills is out of them, since both ports' `vet` lets the
+data fill it (decision 29). Both ports read a
+generator's peer and the data as one conjunction, so a generator meets
+no data here. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4589,8 +4602,12 @@ def holeFillVetCases : List (Val × Data) :=
   let la : Val := .list [s "a"] none false
   let px : Val := .map [("x", false, n 1)] none false
   let x (v : Val) : Val × Data := (.map [("x", false, v)] none false, .map [])
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
   let yes : Val := .lit (.bool true)
   let sel (arms : List (Val × Val)) (d : Val) : Val := .select yes arms (some d)
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
   [(.meet (up .hole) (s "a"), .str "A"), (.meet (up .hole) (s "a"), .str "a"),
     (.meet (s "a") (up .hole), .str "A"),
     (.meet (.call .add [.hole, n 1]) (n 2), .integer 3),
@@ -4613,7 +4630,42 @@ def holeFillVetCases : List (Val × Data) :=
     (sel [(yes, .meet (up .hole) (s "a"))] (s "b"), .str "A"),
     (sel [(yes, .meet (up .hole) (s "a"))] (s "b"), .str "a"),
     (sel [(.lit (.bool false), s "b")] (.meet (up .hole) (s "a")), .str "A"),
-    (sel [(.lit (.bool false), s "b")] (.meet (up .hole) (s "a")), .str "b")]
+    (sel [(.lit (.bool false), s "b")] (.meet (up .hole) (s "a")), .str "b"),
+    (.meet (lst [up .hole]) (lst [s "a"]), .list [.str "A"]),
+    (.meet (lst [up .hole]) (lst [s "a"]), .list [.str "a"]),
+    (.meet (lst [s "a"]) (lst [up .hole]), .list [.str "A"]),
+    (.meet (mp [("a", up .hole)]) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (mp [("a", up .hole), ("b", n 1)]) (mp [("a", s "x")]), .map [("a", .str "X"), ("b", .integer 1)]),
+    (.meet (lst [up .hole, .call .lower [.hole]]) (lst [s "a", s "B"]), .list [.str "A", .str "b"]),
+    (.meet (mp [("a", mp [("b", up .hole)])]) (mp [("a", mp [("b", s "x")])]), .map [("a", .map [("b", .str "X")])]),
+    (.meet (lst [up .hole]) (lst [s "a", s "b"]), .list [.str "A", .str "b"]),
+    (.meet (lst [up .hole, s "z"]) (lst [s "a"]), .list [.str "A", .str "z"]),
+    (.meet (mp [("a", up .hole)]) (mp [("a", up .hole)]), .map [("a", .str "X")]),
+    (.meet (.meet (lst [up .hole]) (lst [s "a"])) (lst [s "A"]), .list [.str "A"]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])) (mp [("a", s "x")]),
+      .map [("a", .str "X"), ("b", .integer 1)]),
+    (.meet (mp [("a", s "x")]) (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])),
+      .map [("a", .str "X"), ("b", .integer 1)]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", up .hole)])) (mp [("a", s "x"), ("b", s "y")]),
+      .map [("a", .str "X"), ("b", .str "Y")]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])) (.meet (mp [("a", s "x")]) (mp [("c", n 2)])),
+      .map [("a", .str "X"), ("b", .integer 1), ("c", .integer 2)]),
+    (.meet (.meet (lst [up .hole]) (lst [n 1])) (lst [s "a"]), .list [.str "A"]),
+    (.meet (.meet (mp [("a", lst [up .hole])]) (mp [("b", n 1)])) (mp [("a", lst [s "x"])]),
+      .map [("a", .list [.str "X"]), ("b", .integer 1)]),
+    (mp [("a", s "X"), ("a", s "X")], .map [("a", .str "X")]),
+    (.meet (mp [("a", up .hole)]) (mp [("a", s "x"), ("a", s "y")]), .map [("a", .str "X")]),
+    (.meet (mp [("a", up .hole)]) (mp [("a", s "x"), ("a", s "x")]), .map [("a", .str "X")]),
+    (mp [("a", s "x"), ("a", up .hole)], .map [("a", .str "X")]),
+    (mp [("a", up .hole), ("a", s "x"), ("a", s "X")], .map [("a", .str "X")]),
+    (mp [("a", s "x"), ("a", s "x"), ("a", up .hole)], .map [("a", .str "X")]),
+    (mp [("a", mp [("b", up .hole)]), ("a", mp [("b", s "x")])], .map [("a", .map [("b", .str "X")])]),
+    (.meet (mp [("a", s "x"), ("a", up .hole)]) (mp [("a", s "X")]), .map [("a", .str "X")]),
+    (mp [("a", up .hole), ("b", n 1), ("a", s "x")], .map [("a", .str "X"), ("b", .integer 1)]),
+    (.meet (lst [up .hole]) (lst [hide (s "a"), s "b"]), .list [.str "B"]),
+    (.meet (lst [up .hole, s "z"]) (lst [type (s "a"), s "b"]), .list [.str "B", .str "z"]),
+    (.meet (lst [hide (up .hole), s "z"]) (lst [s "a", s "b"]), .list [.str "z"]),
+    (.meet (.meet (lst [up .hole]) (lst [hide (s "a")])) (lst [s "b"]), .list [.str "B"])]
 
 set_option maxRecDepth 8192 in
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide

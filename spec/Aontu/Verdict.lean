@@ -1778,7 +1778,9 @@ waits on one, on one side and nothing waiting on the other reads as that
 side with the hole bound to the other, in the order the document groups
 its meets, before any meet means anything, so `upper(_) & "a"` reads as
 `upper("a")` and `&` stays a meet. A container waits on no hole of its
-members, and a generator's template binds its holes to each member. -/
+members, but two containers meet member by member, so that a member's
+hole is filled from the member it meets, and a generator's template
+binds its holes to each member. -/
 
 mutual
 /-- Whether a term waits on a hole its peer fills: the hole, or a call
@@ -1820,20 +1822,155 @@ def bindItems : List Val → Val → List Val
   | v :: vs, p => v.bindHole p :: bindItems vs p
 end
 
+/-- The meet of a key's declarations, in the order they're written. -/
+def declsAt (k : String) : List (String × Bool × Val) → Option Val
+  | [] => none
+  | (k', _, x) :: fs =>
+    match declsAt k fs with
+    | none => if k' == k then some x else none
+    | some q => if k' == k then some (.meet x q) else some q
+
+/-- A map's fields with a key's first declaration written `p` and each
+later one `any`. -/
+def putField (k : String) : Val → List (String × Bool × Val) → List (String × Bool × Val)
+  | _, [] => []
+  | p, (k', o, x) :: fs => if k' == k then (k', o, p) :: putField k .any fs else (k', o, x) :: putField k p fs
+
+/-- The element at a position among a list's elements that stand: not
+one that is marked or absence, which holds no position. -/
+def standingAt : List Val → ℕ → Option Val
+  | [], _ => none
+  | x :: xs, i =>
+    if x.marked || x.isAbsent then standingAt xs i
+    else match i with
+      | 0 => some x
+      | i + 1 => standingAt xs i
+
+/-- A list with its element at a position among those that stand written `p`. -/
+def setStanding : List Val → ℕ → Val → List Val
+  | [], _, _ => []
+  | x :: xs, i, p =>
+    if x.marked || x.isAbsent then x :: setStanding xs i p
+    else match i with
+      | 0 => p :: xs
+      | i + 1 => x :: setStanding xs i p
+
+/-- The member a term holds under a key, read through meets and riders:
+the meet of a map's declarations of it, or the meet of the members a
+meet's two sides hold. -/
+def Val.memberAt : Val → String → Option Val
+  | .map fs _ _, k => declsAt k fs
+  | .meet u v, k =>
+    match u.memberAt k, v.memberAt k with
+    | some p, some q => some (.meet p q)
+    | some p, none => some p
+    | none, q => q
+  | .ride _ v _, k => v.memberAt k
+  | _, _ => none
+
+/-- The term with its member under a key written: the first declaration,
+or the first side of a meet, that holds the key takes `p`, and each later
+one `any`. -/
+def Val.putMember : Val → String → Val → Val
+  | .map fs sa ca, k, p => .map (putField k p fs) sa ca
+  | .meet u v, k, p =>
+    match u.memberAt k with
+    | some _ => .meet (u.putMember k p) (v.putMember k .any)
+    | none => .meet u (v.putMember k p)
+  | .ride r v rec, k, p => .ride r (v.putMember k p) rec
+  | v, _, _ => v
+
+/-- The element a term holds at a position among those that stand, read
+through meets and riders. -/
+def Val.elemAt : Val → ℕ → Option Val
+  | .list xs _ _, i => standingAt xs i
+  | .meet u v, i =>
+    match u.elemAt i, v.elemAt i with
+    | some p, some q => some (.meet p q)
+    | some p, none => some p
+    | none, q => q
+  | .ride _ v _, i => v.elemAt i
+  | _, _ => none
+
+/-- The term with its element at a position written, as `putMember` writes a member. -/
+def Val.putElem : Val → ℕ → Val → Val
+  | .list xs sa ca, i, p => .list (setStanding xs i p) sa ca
+  | .meet u v, i, p =>
+    match u.elemAt i with
+    | some _ => .meet (u.putElem i p) (v.putElem i .any)
+    | none => .meet u (v.putElem i p)
+  | .ride r v rec, i, p => .ride r (v.putElem i p) rec
+  | v, _, _ => v
+
+mutual
+/-- Two terms met at one position, each with its own fills made: where
+one waits on a hole and the other doesn't, the hole bound to the other,
+which the call spends, so that it reads as `any`; and a map or a list,
+read through its meets and riders, met with the other's members by key
+or by position (`Val.memberAt`, `Val.elemAt`), each side kept whole, so
+that a seal and a spread stand. -/
+def Val.fillMeet (a b : Val) : Val × Val :=
+  if a.fillable && !b.fillable then (a.bindHole b, .any)
+  else if b.fillable && !a.fillable then (.any, b.bindHole a)
+  else match a with
+    | .map fs sa ca => (.map (fillFields fs b).1 sa ca, (fillFields fs b).2)
+    | .list xs sa ca => (.list (fillElems 0 xs b).1 sa ca, (fillElems 0 xs b).2)
+    | .meet x y => (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
+    | .ride k v r => (.ride k (v.fillMeet b).1 r, (v.fillMeet b).2)
+    | _ => (a, b)
+
+def fillFields : List (String × Bool × Val) → Val → List (String × Bool × Val) × Val
+  | [], b => ([], b)
+  | (k, o, x) :: fs, b =>
+    match b.memberAt k with
+    | some p =>
+      ((k, o, (x.fillMeet p).1) :: (fillFields fs (b.putMember k (x.fillMeet p).2)).1,
+        (fillFields fs (b.putMember k (x.fillMeet p).2)).2)
+    | none => ((k, o, x) :: (fillFields fs b).1, (fillFields fs b).2)
+
+def fillElems : ℕ → List Val → Val → List Val × Val
+  | _, [], b => ([], b)
+  | i, x :: xs, b =>
+    if x.marked || x.isAbsent then (x :: (fillElems i xs b).1, (fillElems i xs b).2) else
+    match b.elemAt i with
+    | some p =>
+      ((x.fillMeet p).1 :: (fillElems (i + 1) xs (b.putElem i (x.fillMeet p).2)).1,
+        (fillElems (i + 1) xs (b.putElem i (x.fillMeet p).2)).2)
+    | none => (x :: (fillElems (i + 1) xs b).1, (fillElems (i + 1) xs b).2)
+end
+
+/-- Two terms, each with its own fills made, met: where one waits on a
+hole and the other doesn't, the waiting one with the hole bound to the
+other, and otherwise the two met with each other's members. -/
+def Val.meetFilled (a b : Val) : Val :=
+  if a.fillable && !b.fillable then a.bindHole b
+  else if b.fillable && !a.fillable then b.bindHole a
+  else .meet (a.fillMeet b).1 (a.fillMeet b).2
+
+/-- A key's first declaration met with each later one, in the order
+they're written, and its flag, optional only where each declaration is. -/
+def joinAt (k : String) : Val × Bool → List (String × Bool × Val) → Val × Bool
+  | x, [] => x
+  | x, (k', o', y) :: fs => joinAt k (if k' == k then (x.1.meetFilled y, x.2 && o') else x) fs
+
+/-- A map's fields with each key declared more than once read as one
+declaration at its first, as the engines merge them: its declarations
+met in the order they're written, optional only where each is. -/
+def joinFields (seen : List String) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, x) :: fs =>
+    if seen.contains k then joinFields seen fs
+    else (k, (joinAt k (x, o) fs).2, (joinAt k (x, o) fs).1) :: joinFields (k :: seen) fs
+
 mutual
 /-- The term with each meet that waits on a hole on one side and on none
 on the other read as that side with the hole bound to the other, the
-meets beneath it first, through every form but where a hole is bound: a
-generator's template, an `emit`'s table and a `filter`'s condition,
-which bind their holes to each member or node. -/
+meets beneath it first, a map's declarations of a key among them,
+through every form but where a hole is bound: a generator's template,
+an `emit`'s table and a `filter`'s condition. -/
 def Val.filled : Val → Val
-  | .meet a b =>
-    let a' := a.filled
-    let b' := b.filled
-    if a'.fillable && !b'.fillable then a'.bindHole b'
-    else if b'.fillable && !a'.fillable then b'.bindHole a'
-    else .meet a' b'
-  | .map fs spread closed => .map (filledFields fs) (filledSpread spread) closed
+  | .meet a b => a.filled.meetFilled b.filled
+  | .map fs spread closed => .map (joinFields [] (filledFields fs)) (filledSpread spread) closed
   | .list items spread closed => .list (filledItems items) (filledSpread spread) closed
   | .or arms => .or (filledArms arms)
   | .pref r x => .pref r x.filled
@@ -1979,19 +2116,313 @@ theorem mem_filledCovers : ∀ {cs : List Cover} {c : Cover}, c ∈ filledCovers
     · obtain ⟨c₀, hm, rfl⟩ := mem_filledCovers h
       exact ⟨c₀, List.mem_cons_of_mem _ hm, rfl⟩
 
+theorem declsAt_checkableA {k : String} : ∀ {fs : List (String × Bool × Val)} {p : Val},
+    (∀ k o x, (k, o, x) ∈ fs → x.CheckableA) → declsAt k fs = some p → p.CheckableA
+  | [], _, _, h => by simp [declsAt] at h
+  | (k', o', x) :: fs, p, hf, h => by
+    have hf' : ∀ k o x, (k, o, x) ∈ fs → x.CheckableA := fun k o x h => hf k o x (List.mem_cons_of_mem _ h)
+    have hx : x.CheckableA := hf k' o' x List.mem_cons_self
+    simp only [declsAt] at h
+    split at h
+    · split at h
+      · simp only [Option.some.injEq] at h
+        subst h
+        exact hx
+      · exact absurd h (by simp)
+    · rename_i q hq
+      split at h
+      · simp only [Option.some.injEq] at h
+        subst h
+        exact .meet hx (declsAt_checkableA hf' hq)
+      · simp only [Option.some.injEq] at h
+        subst h
+        exact declsAt_checkableA hf' hq
+
+theorem putField_checkableA {k : String} : ∀ {fs : List (String × Bool × Val)} {p : Val},
+    p.CheckableA → (∀ k o x, (k, o, x) ∈ fs → x.CheckableA) →
+    ∀ k' o w, (k', o, w) ∈ putField k p fs → w.CheckableA
+  | [], _, _, _, _, _, _, h => by simp [putField] at h
+  | (k₁, o₁, x) :: fs, p, hp, hf, k', o, w, h => by
+    have hf' : ∀ k o x, (k, o, x) ∈ fs → x.CheckableA := fun k o x h => hf k o x (List.mem_cons_of_mem _ h)
+    simp only [putField] at h
+    split at h
+    · rcases List.mem_cons.mp h with h | h
+      · simp only [Prod.mk.injEq] at h
+        obtain ⟨-, -, rfl⟩ := h
+        exact hp
+      · exact putField_checkableA .any hf' _ _ _ h
+    · rcases List.mem_cons.mp h with h | h
+      · simp only [Prod.mk.injEq] at h
+        obtain ⟨-, -, rfl⟩ := h
+        exact hf _ _ _ List.mem_cons_self
+      · exact putField_checkableA hp hf' _ _ _ h
+
+theorem standingAt_mem : ∀ {xs : List Val} {i : ℕ} {p : Val}, standingAt xs i = some p → p ∈ xs
+  | [], _, _, h => by simp [standingAt] at h
+  | x :: xs, i, p, h => by
+    simp only [standingAt] at h
+    split at h
+    · exact List.mem_cons_of_mem _ (standingAt_mem h)
+    · split at h
+      · simp only [Option.some.injEq] at h
+        subst h
+        exact List.mem_cons_self
+      · exact List.mem_cons_of_mem _ (standingAt_mem h)
+
+theorem mem_setStanding {p : Val} : ∀ {xs : List Val} {i : ℕ} {v : Val}, v ∈ setStanding xs i p → v ∈ xs ∨ v = p
+  | [], _, _, h => by simp [setStanding] at h
+  | x :: xs, i, v, h => by
+    simp only [setStanding] at h
+    split at h
+    · rcases List.mem_cons.mp h with rfl | h
+      · exact .inl List.mem_cons_self
+      · exact (mem_setStanding h).imp (List.mem_cons_of_mem _) id
+    · split at h
+      · rcases List.mem_cons.mp h with rfl | h
+        · exact .inr rfl
+        · exact .inl (List.mem_cons_of_mem _ h)
+      · rcases List.mem_cons.mp h with rfl | h
+        · exact .inl List.mem_cons_self
+        · exact (mem_setStanding h).imp (List.mem_cons_of_mem _) id
+
+theorem memberAt_checkableA {b : Val} (hb : b.CheckableA) : ∀ {k : String} {p : Val},
+    b.memberAt k = some p → p.CheckableA := by
+  induction hb with
+  | @map fs sa ca hf _ _ _ =>
+    intro k p h
+    simp only [Val.memberAt] at h
+    exact declsAt_checkableA hf h
+  | @meet u v _ _ ihu ihv =>
+    intro k p h
+    simp only [Val.memberAt] at h
+    split at h
+    · rename_i p₁ q₁ h₁ h₂
+      simp only [Option.some.injEq] at h
+      subst h
+      exact .meet (ihu h₁) (ihv h₂)
+    · rename_i p₁ h₁ _
+      simp only [Option.some.injEq] at h
+      subst h
+      exact ihu h₁
+    · exact ihv h
+  | ride _ ih => intro k p h; exact ih h
+  | _ => intro k p h; simp [Val.memberAt] at h
+
+theorem putMember_checkableA {b : Val} (hb : b.CheckableA) : ∀ {k : String} {p : Val},
+    p.CheckableA → (b.putMember k p).CheckableA := by
+  induction hb with
+  | @map fs sa ca hf hs _ _ =>
+    intro k p hp
+    simp only [Val.putMember]
+    exact .map (putField_checkableA hp hf) hs
+  | @meet u v hu hv ihu ihv =>
+    intro k p hp
+    simp only [Val.putMember]
+    split
+    · exact .meet (ihu hp) (ihv .any)
+    · exact .meet hu (ihv hp)
+  | ride _ ih => intro k p hp; exact .ride (ih hp)
+  | _ => intro k p hp; simp only [Val.putMember]; constructor <;> assumption
+
+theorem elemAt_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Val},
+    b.elemAt i = some p → p.CheckableA := by
+  induction hb with
+  | @list xs sa ca hx _ _ _ =>
+    intro i p h
+    simp only [Val.elemAt] at h
+    exact hx p (standingAt_mem h)
+  | @meet u v _ _ ihu ihv =>
+    intro i p h
+    simp only [Val.elemAt] at h
+    split at h
+    · rename_i p₁ q₁ h₁ h₂
+      simp only [Option.some.injEq] at h
+      subst h
+      exact .meet (ihu h₁) (ihv h₂)
+    · rename_i p₁ h₁ _
+      simp only [Option.some.injEq] at h
+      subst h
+      exact ihu h₁
+    · exact ihv h
+  | ride _ ih => intro i p h; exact ih h
+  | _ => intro i p h; simp [Val.elemAt] at h
+
+theorem putElem_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Val},
+    p.CheckableA → (b.putElem i p).CheckableA := by
+  induction hb with
+  | @list xs sa ca hx hs _ _ =>
+    intro i p hp
+    simp only [Val.putElem]
+    refine .list (fun v h => ?_) hs
+    rcases mem_setStanding h with h | rfl
+    · exact hx v h
+    · exact hp
+  | @meet u v hu hv ihu ihv =>
+    intro i p hp
+    simp only [Val.putElem]
+    split
+    · exact .meet (ihu hp) (ihv .any)
+    · exact .meet hu (ihv hp)
+  | ride _ ih => intro i p hp; exact .ride (ih hp)
+  | _ => intro i p hp; simp only [Val.putElem]; constructor <;> assumption
+
+abbrev FillsReadably (x : Val) : Prop :=
+  ∀ {b : Val}, b.CheckableA → (x.fillMeet b).1.CheckableA ∧ (x.fillMeet b).2.CheckableA
+
+theorem fillFields_checkableA : ∀ {fs : List (String × Bool × Val)} {b : Val},
+    (∀ k o x, (k, o, x) ∈ fs → x.CheckableA) → (∀ k o x, (k, o, x) ∈ fs → FillsReadably x) →
+    b.CheckableA →
+    (∀ k o v, (k, o, v) ∈ (fillFields fs b).1 → v.CheckableA) ∧ (fillFields fs b).2.CheckableA
+  | [], b, _, _, hb => ⟨fun _ _ _ h => by simp [fillFields] at h, by simpa [fillFields] using hb⟩
+  | (k, o, x) :: fs, b, hf, ih, hb => by
+    have hf' : ∀ k o x, (k, o, x) ∈ fs → x.CheckableA := fun k o x h => hf k o x (List.mem_cons_of_mem _ h)
+    have ih' : ∀ k o x, (k, o, x) ∈ fs → FillsReadably x := fun k o x h => ih k o x (List.mem_cons_of_mem _ h)
+    have hx : x.CheckableA := hf k o x List.mem_cons_self
+    cases hm : b.memberAt k with
+    | none =>
+      simp only [fillFields, hm]
+      have r := fillFields_checkableA hf' ih' hb
+      refine ⟨fun k₁ o₁ v h => ?_, r.2⟩
+      rcases List.mem_cons.mp h with h | h
+      · simp only [Prod.mk.injEq] at h
+        obtain ⟨-, -, rfl⟩ := h
+        exact hx
+      · exact r.1 _ _ _ h
+    | some p =>
+      have hxp := ih k o x List.mem_cons_self (memberAt_checkableA hb hm)
+      have r := fillFields_checkableA hf' ih' (putMember_checkableA (k := k) hb hxp.2)
+      simp only [fillFields, hm]
+      refine ⟨fun k₁ o₁ v h => ?_, r.2⟩
+      rcases List.mem_cons.mp h with h | h
+      · simp only [Prod.mk.injEq] at h
+        obtain ⟨-, -, rfl⟩ := h
+        exact hxp.1
+      · exact r.1 _ _ _ h
+
+theorem fillElems_checkableA : ∀ {xs : List Val} {i : ℕ} {b : Val},
+    (∀ x, x ∈ xs → x.CheckableA) → (∀ x, x ∈ xs → FillsReadably x) → b.CheckableA →
+    (∀ v, v ∈ (fillElems i xs b).1 → v.CheckableA) ∧ (fillElems i xs b).2.CheckableA
+  | [], i, b, _, _, hb => ⟨fun _ h => by simp [fillElems] at h, by simpa [fillElems] using hb⟩
+  | x :: xs, i, b, hx, ih, hb => by
+    have hx' : ∀ v, v ∈ xs → v.CheckableA := fun v h => hx v (List.mem_cons_of_mem _ h)
+    have ih' : ∀ v, v ∈ xs → FillsReadably v := fun v h => ih v (List.mem_cons_of_mem _ h)
+    cases hk : (x.marked || x.isAbsent) with
+    | true =>
+      simp only [fillElems, hk, ↓reduceIte]
+      have r := fillElems_checkableA (i := i) hx' ih' hb
+      refine ⟨fun v h => ?_, r.2⟩
+      rcases List.mem_cons.mp h with rfl | h
+      · exact hx _ List.mem_cons_self
+      · exact r.1 _ h
+    | false =>
+    cases hm : b.elemAt i with
+    | none =>
+      simp only [fillElems, hk, Bool.false_eq_true, ↓reduceIte, hm]
+      have r := fillElems_checkableA (i := i + 1) hx' ih' hb
+      refine ⟨fun v h => ?_, r.2⟩
+      rcases List.mem_cons.mp h with rfl | h
+      · exact hx _ List.mem_cons_self
+      · exact r.1 _ h
+    | some p =>
+      have hxp := ih x List.mem_cons_self (elemAt_checkableA hb hm)
+      have r := fillElems_checkableA (i := i + 1) hx' ih' (putElem_checkableA (i := i) hb hxp.2)
+      simp only [fillElems, hk, Bool.false_eq_true, ↓reduceIte, hm]
+      refine ⟨fun v h => ?_, r.2⟩
+      rcases List.mem_cons.mp h with rfl | h
+      · exact hxp.1
+      · exact r.1 _ h
+
+theorem fillMeet_checkableA {a : Val} (ha : a.CheckableA) : FillsReadably a := by
+  induction ha with
+  | @map fs sa ca hf hs ihf _ =>
+    intro b hb
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (.map hf hs), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (.map hf hs) hb⟩
+    · have r := fillFields_checkableA hf ihf hb
+      exact ⟨.map r.1 hs, r.2⟩
+  | @list xs sa ca hx hs ihx _ =>
+    intro b hb
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (.list hx hs), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (.list hx hs) hb⟩
+    · have r := fillElems_checkableA (i := 0) hx ihx hb
+      exact ⟨.list r.1 hs, r.2⟩
+  | @meet x y hx hy ihx ihy =>
+    intro b hb
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (.meet hx hy), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (.meet hx hy) hb⟩
+    · have h₁ := ihx hb
+      have h₂ := ihy h₁.2
+      exact ⟨.meet h₁.1 h₂.1, h₂.2⟩
+  | @ride k v r hv ihv =>
+    intro b hb
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (.ride hv), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (.ride hv) hb⟩
+    · have h := ihv hb
+      exact ⟨.ride h.1, h.2⟩
+  | _ =>
+    intro b hb
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (by constructor <;> assumption), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (by constructor <;> assumption) hb⟩
+    · exact ⟨by constructor <;> assumption, hb⟩
+
+theorem meetFilled_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
+    (a.meetFilled b).CheckableA := by
+  unfold Val.meetFilled
+  split
+  · exact bindHole_checkableA hb ha
+  split
+  · exact bindHole_checkableA ha hb
+  · exact .meet (fillMeet_checkableA ha hb).1 (fillMeet_checkableA ha hb).2
+
+theorem joinAt_checkableA {k : String} : ∀ {fs : List (String × Bool × Val)} {x : Val × Bool},
+    x.1.CheckableA → (∀ k o y, (k, o, y) ∈ fs → y.CheckableA) → (joinAt k x fs).1.CheckableA
+  | [], _, hx, _ => hx
+  | (k', o', y) :: fs, x, hx, hf => by
+    have hf' : ∀ k o y, (k, o, y) ∈ fs → y.CheckableA := fun k o y h => hf k o y (List.mem_cons_of_mem _ h)
+    simp only [joinAt]
+    split
+    · exact joinAt_checkableA (x := (_, _)) (meetFilled_checkableA hx (hf k' o' y List.mem_cons_self)) hf'
+    · exact joinAt_checkableA hx hf'
+
+theorem joinFields_checkableA : ∀ {seen : List String} {fs : List (String × Bool × Val)},
+    (∀ k o x, (k, o, x) ∈ fs → x.CheckableA) → ∀ k o w, (k, o, w) ∈ joinFields seen fs → w.CheckableA
+  | _, [], _, _, _, _, h => by simp [joinFields] at h
+  | seen, (k₁, o₁, x) :: fs, hf, k, o, w, h => by
+    have hf' : ∀ k o x, (k, o, x) ∈ fs → x.CheckableA := fun k o x h => hf k o x (List.mem_cons_of_mem _ h)
+    have hx : x.CheckableA := hf k₁ o₁ x List.mem_cons_self
+    simp only [joinFields] at h
+    split at h
+    · exact joinFields_checkableA hf' _ _ _ h
+    · rcases List.mem_cons.mp h with h | h
+      · simp only [Prod.mk.injEq] at h
+        obtain ⟨-, -, rfl⟩ := h
+        exact joinAt_checkableA (x := (x, o₁)) hx hf'
+      · exact joinFields_checkableA hf' _ _ _ h
+
 /-- The fill leaves a term the checker can read as one it can read. -/
 theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA := by
   induction h with
   | meet _ _ iha ihb =>
     simp only [Val.filled]
-    split
-    · exact bindHole_checkableA ihb iha
-    split
-    · exact bindHole_checkableA iha ihb
-    · exact .meet iha ihb
+    exact meetFilled_checkableA iha ihb
   | @map fs spread closed _ _ ihf ihs =>
     refine .map ?_ ?_
-    · intro k o w hm
+    · refine joinFields_checkableA (fun k o x hm => ?_)
       obtain ⟨v, hv, rfl⟩ := mem_filledFields hm
       exact ihf k o v hv
     · intro t ht
@@ -2062,24 +2493,86 @@ theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA := 
     cases f <;> first | exact .call hh | exact .call hi
   | _ => simp only [Val.filled]; constructor <;> assumption
 
+theorem joinAt_absent {k : String} : ∀ {fs : List (String × Bool × Val)} {x : Val × Bool},
+    declared k fs = false → joinAt k x fs = x
+  | [], _, _ => rfl
+  | (k', o', y) :: fs, x, h => by
+    simp only [declared, List.any_cons, Bool.or_eq_false_iff] at h
+    simp only [joinAt, h.1, Bool.false_eq_true, ↓reduceIte]
+    exact joinAt_absent h.2
+
+/-- A map that declares each key once is joined as it stands. -/
+theorem joinFields_distinct : ∀ {seen : List String} {fs : List (String × Bool × Val)},
+    keysDistinct fs = true → (∀ k, seen.contains k = true → declared k fs = false) → joinFields seen fs = fs
+  | _, [], _, _ => rfl
+  | seen, (k, o, x) :: fs, hd, hs => by
+    simp only [keysDistinct, Bool.and_eq_true, Bool.not_eq_true'] at hd
+    have hk : seen.contains k = false := by
+      cases hc : seen.contains k with
+      | false => rfl
+      | true => have := hs k hc; simp [declared] at this
+    have hs' : ∀ k', (k :: seen).contains k' = true → declared k' fs = false := by
+      intro k' hc
+      rcases List.mem_cons.mp (List.contains_iff_mem.mp hc) with rfl | hm
+      · exact hd.1
+      · have := hs k' (List.contains_iff_mem.mpr hm)
+        simp only [declared, List.any_cons, Bool.or_eq_false_iff] at this
+        exact this.2
+    simp only [joinFields, hk, Bool.false_eq_true, ↓reduceIte, joinAt_absent hd.1, joinFields_distinct hd.2 hs']
+
+theorem joinFields_single {k : String} {o : Bool} {x : Val} : joinFields [] [(k, o, x)] = [(k, o, x)] := by
+  simp [joinFields, joinAt]
+
+theorem termMembers_declared {k : String} : ∀ {fs : List (String × Data)},
+    declared k (termMembers fs) = true → k ∈ fs.map Prod.fst
+  | [], h => by simp [termMembers, declared] at h
+  | (k', x) :: fs, h => by
+    simp only [termMembers, declared, List.any_cons, Bool.or_eq_true, beq_iff_eq] at h
+    rcases h with rfl | h
+    · exact List.mem_cons_self
+    · exact List.mem_cons_of_mem _ (termMembers_declared h)
+
+theorem termMembers_distinct : ∀ {fs : List (String × Data)}, (fs.map Prod.fst).Nodup →
+    keysDistinct (termMembers fs) = true
+  | [], _ => rfl
+  | (k, x) :: fs, h => by
+    rw [List.map_cons, List.nodup_cons] at h
+    have hk : declared k (termMembers fs) = false := by
+      cases hc : declared k (termMembers fs) with
+      | false => rfl
+      | true => exact absurd (termMembers_declared hc) h.1
+    simp only [termMembers, keysDistinct, hk, Bool.not_false, Bool.true_and]
+    exact termMembers_distinct h.2
+
 mutual
-/-- A datum as a term holds no meet, so the fill leaves it as it is. -/
-theorem Data.term_filled : ∀ j : Data, j.term.filled = j.term
-  | .num _ => rfl
-  | .str _ => rfl
-  | .bool _ => rfl
-  | .null => rfl
-  | .addr _ => rfl
-  | .map fs => by simp only [Data.term, Val.filled, filledSpread, termMembers_filled fs]
-  | .list xs => by simp only [Data.term, Val.filled, filledSpread, termElems_filled xs]
+/-- A value as a term holds no meet and no key twice, so the fill
+leaves it as it is. -/
+theorem Data.term_filled : ∀ j : Data, j.wf = true → j.term.filled = j.term
+  | .num _, _ => rfl
+  | .str _, _ => rfl
+  | .bool _, _ => rfl
+  | .null, _ => rfl
+  | .addr _, _ => rfl
+  | .map fs, h => by
+    simp only [Data.wf, Bool.and_eq_true, decide_eq_true_eq] at h
+    simp only [Data.term, Val.filled, filledSpread, termMembers_filled fs h.2,
+      joinFields_distinct (seen := []) (termMembers_distinct h.1) (fun _ hc => by simp at hc)]
+  | .list xs, h => by
+    simp only [Data.wf] at h
+    simp only [Data.term, Val.filled, filledSpread, termElems_filled xs h]
 
-theorem termMembers_filled : ∀ fs : List (String × Data), filledFields (termMembers fs) = termMembers fs
-  | [] => rfl
-  | (_, x) :: fs => by simp only [termMembers, filledFields, Data.term_filled x, termMembers_filled fs]
+theorem termMembers_filled : ∀ fs : List (String × Data), Data.wfMembers fs = true →
+    filledFields (termMembers fs) = termMembers fs
+  | [], _ => rfl
+  | (_, x) :: fs, h => by
+    simp only [Data.wfMembers, Bool.and_eq_true] at h
+    simp only [termMembers, filledFields, Data.term_filled x h.1, termMembers_filled fs h.2]
 
-theorem termElems_filled : ∀ xs : List Data, filledItems (termElems xs) = termElems xs
-  | [] => rfl
-  | x :: xs => by simp only [termElems, filledItems, Data.term_filled x, termElems_filled xs]
+theorem termElems_filled : ∀ xs : List Data, Data.wfAll xs = true → filledItems (termElems xs) = termElems xs
+  | [], _ => rfl
+  | x :: xs, h => by
+    simp only [Data.wfAll, Bool.and_eq_true] at h
+    simp only [termElems, filledItems, Data.term_filled x h.1, termElems_filled xs h.2]
 end
 
 /-- How a document reads: its term expanded and filled, with its
