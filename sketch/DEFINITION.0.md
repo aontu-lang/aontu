@@ -1086,14 +1086,21 @@ until the phase that encodes it lands.
    key as `any`, a selection on the key (`spreadWith`), so a later meet's
    member under that key meets the filled value, and a key a later meet
    brings is filled in turn. List elements are read by the positions
-   they hold among those that stand. Rows hv168 on, 19 cases in each
+   they hold among those that stand. Rows hv168 on, 20 cases in each
    mode, and both ports answer every row as the definition does. A
    template that holds its hole inside a container, `{&: {n: upper(_)}}`,
    isn't filled yet: it needs the fill to recurse through a template it
    draws out of the spread. `{&: upper(_)} & ({a: "x"} & {a: "x"})` is
    out of the rows, since the definition reads the peer's meet first, as
    the document groups it, and both ports read the conjunction as it's
-   written (#512).
+   written (#512). Two spreads that both wait on a hole are out too:
+   both ports read them as one where their templates are alike, so
+   `({&: add(_, 1)} & {a: 1}) & {&: add(_, 1)}` gives `a: 2`, and as
+   `place_pair` where they differ, while the definition fills a member
+   from each; reading them as one needs an equality of templates the
+   definition has no use for elsewhere. A selection on the key whose
+   arms aren't the filled keys' literals, `match(key(0), string, any,
+   upper(_))`, is no spread the fill has made (`Val.filledArm`).
 22. **A path into a generator's output.** Raised 2026-10-22 by P9's
    `key(n)` slice. Both ports read a key a path reaches where the path
    lands, so `a: {x: key()}` and `b: $.a` give `b: {x: "b"}`, and a

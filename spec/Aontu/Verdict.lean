@@ -1902,11 +1902,17 @@ def Val.putElem : Val → ℕ → Val → Val
   | .ride r v rec, i, p => .ride r (v.putElem i p) rec
   | v, _, _ => v
 
+/-- Whether a selection's arm reads a key the spread has filled: a key's
+literal, read as `any`. -/
+def Val.filledArm : Val × Val → Bool
+  | (.lit (.str _), .any) => true
+  | _ => false
+
 /-- A spread's template that waits on a hole, with the arms that read the
 keys it has already filled as `any`: one read under its key whose every
-arm is `any` and whose default waits, or one that waits. -/
+arm is a filled key's and whose default waits, or one that waits. -/
 def Val.waitingSpread : Val → Option (List (Val × Val) × Val)
-  | .select .key arms (some t) => if t.fillable && arms.all (·.2.isAny) then some (arms, t) else none
+  | .select .key arms (some t) => if t.fillable && arms.all Val.filledArm then some (arms, t) else none
   | t => if t.fillable then some ([], t) else none
 
 /-- The keys a spread's arms read, which it has filled. -/

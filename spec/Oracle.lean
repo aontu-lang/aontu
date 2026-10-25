@@ -4595,11 +4595,13 @@ position, on either side and in an inner meet; and a spread whose
 template waits on a hole, met with a peer's members and its own, each
 once, on either side, through a meet, nested, with a member a later
 meet brings, with one it has filled, and beside a member that waits,
-in a map and in a list. A list whose one hole
-no peer element fills is out of them, since both ports' `vet` lets the
-data fill it (decision 29). Both ports read a
-generator's peer and the data as one conjunction, so a generator meets
-no data here. -/
+in a map and in a list; and a spread that selects on the key, where an
+arm takes the member before the default that waits. Two spreads that
+both wait are out of them: both ports read them as one where their
+templates are alike, and as `place_pair` otherwise. A list whose one
+hole no peer element fills is out of them, since both ports' `vet` lets
+the data fill it (decision 29). Both ports read a generator's peer and
+the data as one conjunction, so a generator meets no data here. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4692,7 +4694,8 @@ def holeFillVetCases : List (Val × Data) :=
     (.meet (lst [s "a", s "b"]) (spl [] (up .hole)), .list [.str "A", .str "B"]),
     (.meet (spl [s "q"] (up .hole)) (lst [s "a", s "b"]), .list [.str "Q"]),
     (.meet (spl [] (up .hole)) (lst [hide (s "q"), s "b"]), .list [.str "B"]),
-    (.meet (.meet (spl [] (add1 .hole)) (lst [n 1, n 2])) (lst [n 2, n 3]), .list [.integer 2, .integer 3])]
+    (.meet (.meet (spl [] (add1 .hole)) (lst [n 1, n 2])) (lst [n 2, n 3]), .list [.integer 2, .integer 3]),
+    (.map [("a", false, s "x")] (some (.select .key [(.string, .any)] (some (up .hole)))) false, .map [("a", .str "x")])]
 
 set_option maxRecDepth 8192 in
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
