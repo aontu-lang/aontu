@@ -4715,7 +4715,9 @@ either side, an arm whose call the data leaves unmade dropping, as
 `add(_, 1) | "x"` passes `"x"`; and a lone preference over a call that
 waits, the data filling its preferred arm and meeting its parent arm,
 so that `*add(_, 1)` passes `"x"`, at the top, inside a map, which the
-data may leave out, and inside a list. -/
+data may leave out, and inside a list; and a disjunction of containers
+a container meets, met arm by arm on either side, at the top, as a
+member, in a list and beside a meet. -/
 def dataFillCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4751,7 +4753,15 @@ def dataFillCases : List (Val × Data) :=
     (.pref 1 (up .hole), .str "a"), (.pref 1 (up .hole), .integer 1),
     (.pref 1 (add1 .hole), .integer 2), (.pref 1 (add1 .hole), .str "x"),
     (mp [("a", .pref 1 (up .hole))], .map [("a", .str "a")]), (mp [("a", .pref 1 (up .hole))], .map []),
-    (lst [.pref 1 (up .hole)], .list [.str "a"])]
+    (lst [.pref 1 (up .hole)], .list [.str "a"]),
+    (.meet (mp [("a", up .hole)]) (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]), .map [("a", .str "A")]),
+    (.meet (mp [("a", up .hole)]) (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]), .map [("a", .str "C")]),
+    (.meet (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]) (mp [("a", up .hole)]), .map [("a", .str "A")]),
+    (.meet (mp [("x", mp [("a", up .hole)])]) (mp [("x", .or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])])]),
+      .map [("x", .map [("a", .str "A")])]),
+    (.meet (lst [up .hole]) (.or [(0, lst [s "a"]), (0, lst [s "b"])]), .list [.str "A"]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])) (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]),
+      .map [("a", .str "A"), ("b", .integer 1)])]
 
 theorem dataFillCases_checkable : ∀ c ∈ dataFillCases, (vetDoc c).1.CheckableA := by decide
 

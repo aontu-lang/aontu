@@ -7353,7 +7353,7 @@ as the waiting side, with the hole bound to the other:
 def Val.meetFilled (a b : Val) : Val :=
   if a.fillable && !b.fillable then a.bindHole b
   else if b.fillable && !a.fillable then b.bindHole a
-  else .meet (a.fillMeet b).1 (a.fillMeet b).2
+  else .meet (fillWith (fun q => a.fillMeet q) a.fillable b).1 (fillWith (fun q => a.fillMeet q) a.fillable b).2
 ```
 
 A side waits on a hole if it's the hole, or a call over one through
@@ -7439,7 +7439,11 @@ data fills the first arm as `add("x", 1)`, which the reading can't
 make, and the second arm stands. A lone preference is met as the two
 arms the meet reads it as, its preferred arm filled and its parent arm
 (`Val.super`) met, so `v: *upper(_)` passes `v: "a"`, and
-`v: *add(_, 1)` passes `v: "x"`, which the parent arm admits.
+`v: *add(_, 1)` passes `v: "x"`, which the parent arm admits. A
+disjunction on the other side is met arm by arm too, as the meet
+distributes it (`fillWith`), so `{a: upper(_)} & ({a: "a"} | {a: "b"})`
+fills each arm's member and passes `{a: "A"}`, as both engines answer.
+A term that waits on a hole takes the disjunction whole instead.
 
 A spread whose template waits on a hole fills each member it meets,
 once, as `caps` does: its own map's or list's members, and a peer's

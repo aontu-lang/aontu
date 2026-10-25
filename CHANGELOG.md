@@ -36,8 +36,10 @@ Definition, generated rows, and documentation. No engine changes.
   both engines answer. A preference clash between the arms a
   disjunction is read with stays the disjunction's. A lone preference
   is filled as the two arms the meet reads it as, its preferred arm
-  filled and its parent arm met, so `v: *upper(_)` passes `v: "a"`.
-- `spec/Oracle.lean`: rows dv0 on of `test/spec/def-call.tsv`, 46 cases,
+  filled and its parent arm met, so `v: *upper(_)` passes `v: "a"`. A
+  disjunction on the other side is met arm by arm too (`fillWith`), so
+  `v: {a: upper(_)} & ({a: "a"} | {a: "b"})` passes `v: {a: "A"}`.
+- `spec/Oracle.lean`: rows dv0 on of `test/spec/def-call.tsv`, 52 cases,
   and rows da0 on, 10 cases, each in the three modes. Both engines
   answer every row as the definition does, and no other row moves.
 - Docs: the definition tutorial's steps 9, 14 and 27 and its staging
