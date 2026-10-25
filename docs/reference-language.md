@@ -664,6 +664,20 @@ b: string|number
 {"a":2,"b":2}
 ```
 
+An alternative that does not stand drops out the same way, as a call
+that can't be made or a size that holds a choice does. A disjunction
+is an error only where no alternative stands, as both engines answer,
+so `a: add("x", 1)` alone is an error and this isn't:
+
+```aontu
+a: add("x", 1)|"x"
+b: len(1|3)|[1]
+```
+
+```json
+{"a":"x","b":[1]}
+```
+
 `&` binds tighter than `|`, so `c & b | a` parses as `(c & b) | a`.
 
 **An unresolved disjunction has no value**. More than one alternative
@@ -686,7 +700,7 @@ then the children).
 An optional key whose value is an unresolved disjunction is dropped
 rather than reported, as every other unresolved optional is.
 
-The definition's rule is `admits_or_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a disjunction admits what any arm admits, whatever the arms' ranks. What it generates is the rank rule of `Gen` in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean), and a disjunction left unresolved generates nothing, which `output_admits` and `Vet` read alike.
+The definition's rule is `admits_or_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a disjunction admits what any arm admits, whatever the arms' ranks. What it generates is the rank rule of `Gen` in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean), and a disjunction left unresolved generates nothing, which `output_admits` and `Vet` read alike. `Val.staged` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) drops each arm that does not stand (`Val.illFormed`), read with the arms it stands for flattened in, so that a preference clash between them stays the disjunction's. Rows from da0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold both engines to it.
 
 ## Preference / default `*`
 
@@ -1339,11 +1353,25 @@ doesn't read yet. With more than one peer the fill
 follows the document's grouping, so `upper(_) & ("a" & "a")` reads as
 `upper("a")`, which is `"A"`. Both engines read a conjunction in the
 order it's written instead and answer a conflict, which
-[#512](https://github.com/aontu-lang/aontu/issues/512) tracks. Both
-engines' `vet` meets the data last, so the data fills a hole that no
-peer in the document fills: `v: upper(_)` passes against `v: "a"`,
-where the definition reads an error, which
-[#548](https://github.com/aontu-lang/aontu/issues/548) tracks.
+[#512](https://github.com/aontu-lang/aontu/issues/512) tracks. `vet`
+meets the data last, so the data fills a hole that no peer in the
+document fills (`Decls.readJ`): the call takes the data as its argument
+rather than meeting it, so `v: upper(_)` passes against `v: "a"`, and
+`v: add(_, 1)` passes `v: 2` and refuses `v: "a"`. A hole the data
+leaves out is `incomplete`. A call met with a hole, as in
+`upper(_) & _`, or with another call that waits is an error, as both
+engines answer, though `_ & _` meets as one hole. A disjunction is
+filled arm by arm, so `v: upper(_) | "fallback"` passes `v: "a"`, and
+an arm whose call the data leaves unmade drops, so `v: add(_, 1) | "x"`
+passes `v: "x"`. A lone preference fills its preferred arm and meets
+the data with its parent arm, so `v: *upper(_)` passes `v: "a"`, and
+`v: *add(_, 1)` passes `v: "x"`. A disjunction a container meets is
+met arm by arm, so `v: {a: upper(_)} & ({a: "a"} | {a: "b"})` passes
+`v: {a: "A"}`. A
+generator waits on its data alone and reads its template only at each
+member it makes, so `v: each(_, upper({}))` passes `v: []`. Rows from
+dv0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold
+both engines to it.
 
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:

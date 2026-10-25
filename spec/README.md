@@ -105,9 +105,6 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   trial, which P9 fills, where neither port fills it in a scrutinee, a
   pattern, `len` or `must`, and Go fills none in `contains`, `rest`,
   `when` or `nof` (#549);
-- a call over a hole that no peer in the document fills, which the
-  definition reads as an error, where both ports' `vet` lets the data
-  fill it (decision 29, #548);
 - a hole in a container under a rider, a mark or a seal, which P9
   fills from the peer member by member, where both ports bind the whole
   peer to the hole (#552);

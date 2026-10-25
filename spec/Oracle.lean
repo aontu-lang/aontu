@@ -4698,6 +4698,110 @@ def holeFillVetCases : List (Val × Data) :=
     (.map [("a", false, s "x")] (some (.select .key [(.string, .any)] (some (up .hole)))) false, .map [("a", .str "x")])]
 
 set_option maxRecDepth 8192 in
+/-- A hole the document leaves unfilled, which the data fills, the data
+met last (decision 29 of the design note's §7), for the `verdict` rows
+dv0 on. A call on the data's value, which it takes as its argument
+rather than meets, so that `add(_, 1)` passes `2` and `3` alike, and
+refusing it; one the document's own peer fills first, which the data
+then meets; inside a map, the data leaving it out, which is incomplete
+but under `--partial`; inside a list, one whose peer's one element is
+marked and holds no position, and in a spread; a generator over
+the data; the hole alone, and two holes met, which meet as one; a
+call met with a hole or with a call that both wait, which neither
+fills, an error; a generator whose template no member reaches, read by
+its data alone; and a disjunction whose arm waits, met arm by arm, by
+the data, inside a map and a list, and by the document's own peer on
+either side, an arm whose call the data leaves unmade dropping, as
+`add(_, 1) | "x"` passes `"x"`; and a lone preference over a call that
+waits, the data filling its preferred arm and meeting its parent arm,
+so that `*add(_, 1)` passes `"x"`, at the top, inside a map, which the
+data may leave out, and inside a list; and a disjunction of containers
+a container meets, met arm by arm on either side, at the top, as a
+member, in a list and beside a meet. -/
+def dataFillCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let up (v : Val) : Val := .call .upper [v]
+  let add1 (v : Val) : Val := .call .add [v, n 1]
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  let spm (fs : List (String × Val)) (t : Val) : Val := .map (fs.map fun (k, v) => (k, false, v)) (some t) false
+  [(up .hole, .str "a"), (up .hole, .str "A"), (up .hole, .integer 1), (up .hole, .map [("a", .integer 1)]),
+    (add1 .hole, .integer 2), (add1 .hole, .integer 3), (add1 .hole, .str "a"),
+    (.meet (up .hole) (s "A"), .str "a"), (.meet (up .hole) (s "A"), .str "A"),
+    (mp [("a", up .hole)], .map [("a", .str "x")]), (mp [("a", up .hole)], .map []),
+    (lst [up .hole], .list [.str "a"]), (.meet (lst [up .hole]) (lst [.ride .hide (s "a") []]), .list [.str "A"]),
+    (spm [] (up .hole), .map [("a", .str "x")]),
+    (.call .each [.hole, up .hole], .list [.str "a", .str "b"]), (.hole, .str "a"),
+    (.meet .hole .hole, .str "a"), (.meet (up .hole) .hole, .str "A"), (.meet (up .hole) (up .hole), .str "A"),
+    (.call .each [.hole, up (mp [])], .list []), (.call .each [.hole, up (mp [])], .list [.str "a"]),
+    (mp [("a", .call .each [.hole, up (mp [])])], .map []),
+    (.call .pack [.hole, mp [("n", up (mp []))]], .list []),
+    (.or [(0, up .hole), (0, s "fallback")], .str "a"), (.or [(0, up .hole), (0, s "fallback")], .str "fallback"),
+    (.or [(0, up .hole), (0, s "fallback")], .integer 1), (.or [(0, add1 .hole), (0, s "z")], .integer 2),
+    (mp [("a", .or [(0, up .hole), (0, s "x")])], .map [("a", .str "y")]),
+    (lst [.or [(0, up .hole), (0, s "x")]], .list [.str "y"]),
+    (.meet (.or [(0, up .hole), (0, s "x")]) (s "a"), .str "A"),
+    (.meet (s "a") (.or [(0, up .hole), (0, s "x")]), .str "A"),
+    (.meet (mp [("a", .or [(0, up .hole), (0, s "x")])]) (mp [("a", s "y")]), .map [("a", .str "Y")]),
+    (.meet (mp [("a", s "y")]) (mp [("a", .or [(0, up .hole), (0, s "x")])]), .map [("a", .str "Y")]),
+    (.or [(0, add1 .hole), (0, s "x")], .str "x"), (.or [(0, add1 .hole), (0, s "x")], .integer 2),
+    (.or [(0, add1 .hole), (0, .call .add [.hole, n 2]), (0, s "x")], .str "x"),
+    (.or [(0, add1 .hole), (0, .call .add [.hole, n 2])], .str "x"),
+    (mp [("a", .or [(0, add1 .hole), (0, s "x")])], .map [("a", .str "x")]),
+    (lst [.or [(0, add1 .hole), (0, s "x")]], .list [.str "x"]),
+    (.pref 1 (up .hole), .str "a"), (.pref 1 (up .hole), .integer 1),
+    (.pref 1 (add1 .hole), .integer 2), (.pref 1 (add1 .hole), .str "x"),
+    (mp [("a", .pref 1 (up .hole))], .map [("a", .str "a")]), (mp [("a", .pref 1 (up .hole))], .map []),
+    (lst [.pref 1 (up .hole)], .list [.str "a"]),
+    (.meet (mp [("a", up .hole)]) (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]), .map [("a", .str "A")]),
+    (.meet (mp [("a", up .hole)]) (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]), .map [("a", .str "C")]),
+    (.meet (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]) (mp [("a", up .hole)]), .map [("a", .str "A")]),
+    (.meet (mp [("x", mp [("a", up .hole)])]) (mp [("x", .or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])])]),
+      .map [("x", .map [("a", .str "A")])]),
+    (.meet (lst [up .hole]) (.or [(0, lst [s "a"]), (0, lst [s "b"])]), .list [.str "A"]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])) (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]),
+      .map [("a", .str "A"), ("b", .integer 1)])]
+
+theorem dataFillCases_checkable : ∀ c ∈ dataFillCases, (vetDoc c).1.CheckableA := by decide
+
+theorem data_fill_verdict_exact : ∀ c ∈ dataFillCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (dataFillCases_checkable c hc)) v
+
+set_option maxRecDepth 8192 in
+/-- A disjunction's arm that does not stand, for the `verdict` rows da0
+on: a call the reading can't make, by its domain, its count of
+arguments or a call inside it, one inside a map or a list, and a size
+that holds a choice, each dropping as a
+conflict's arm does, so that the other arm stands; and an error where
+no arm stands, where the call stands alone, or where a preference clash
+is between the arms the disjunction is read with, as both ports answer. -/
+def illArmCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let up (v : Val) : Val := .call .upper [v]
+  let add1 (v : Val) : Val := .call .add [v, n 1]
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  [(.or [(0, add1 (s "x")), (0, s "x")], .str "x"), (add1 (s "x"), .str "x"),
+    (.or [(0, add1 (s "x")), (0, add1 (s "y"))], .str "x"),
+    (.or [(0, .call .add [.hole]), (0, s "x")], .str "x"),
+    (.or [(0, mp [("a", add1 (s "x"))]), (0, s "x")], .str "x"),
+    (.or [(0, lst [add1 (s "x")]), (0, s "x")], .str "x"),
+    (.or [(0, .call .add [.hole, add1 (s "x")]), (0, s "x")], .str "x"),
+    (.or [(0, .len (.or [(0, n 1), (0, n 3)])), (0, s "x")], .str "x"),
+    (.or [(0, mp [("a", .or [(1, n 1), (1, n 2)])]), (0, s "x")], .str "x"),
+    (.or [(0, .or [(1, n 1), (1, n 2)]), (0, s "x")], .str "x")]
+
+theorem illArmCases_checkable : ∀ c ∈ illArmCases, (vetDoc c).1.CheckableA := by decide
+
+theorem ill_arm_verdict_exact : ∀ c ∈ illArmCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (illArmCases_checkable c hc)) v
+
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
 
 theorem hole_fill_verdict_exact : ∀ c ∈ holeFillVetCases, ∀ (m : Mode) (v : Verdict),
@@ -5640,7 +5744,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# matches or the body names what the node doesn't hold. A hole its call's peer"
     IO.println "# fills follows in rows hv0 on: a meet with a hole on one side and none on the"
     IO.println "# other reads as that side with the hole bound to the other, as the document"
-    IO.println "# groups its meets."
+    IO.println "# groups its meets. A hole the document leaves unfilled, which the data fills,"
+    IO.println "# follows in rows dv0 on, and a disjunction's arm that does not stand, which"
+    IO.println "# drops as a conflict's arm does, in rows da0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
@@ -5666,6 +5772,8 @@ def main (args : List String) : IO UInt32 := do
       throw (IO.userError "a grammar of the rows the oracle's host does not read as every engine does")
     verdictRows "g" grammarCases
     verdictRows "hv" holeFillVetCases
+    verdictRows "dv" dataFillCases
+    verdictRows "da" illArmCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"

@@ -8,6 +8,44 @@ each change affects.
 
 ## Unreleased
 
+### The data fills a hole the document leaves unfilled
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: `vet` reads the schema against the data,
+  the data met last through the fill (`Decls.readJ`), as decision 29
+  rules (#548). The call takes the data as its argument rather than
+  meeting it, so `v: upper(_)` passes `v: "a"`, and `v: add(_, 1)`
+  passes `v: 2` and `v: 3` and refuses `v: "a"`: a call the data leaves
+  the reading unable to make fails it (`Val.fails`). A hole the data
+  leaves out is `incomplete`, `valid` under `--partial`.
+- A hole waits (`Val.pending`), so a call or a generator over one stays
+  unmade until the data fills it. A call that waits stands where it has
+  as many arguments as its function takes, and a call met with a hole
+  or with another call that waits is an error, though
+  `_ & _` meets as one hole (`Val.illFormed`). A generator waits on its
+  data alone, so its template is read only at each member it makes, and
+  `v: each(_, upper({}))` passes `v: []`. A disjunction is filled arm by
+  arm (`fillArms`, `leafArms`), so `v: upper(_) | "fallback"` passes
+  `v: "a"`, and `(upper(_) | "x") & "a"` is `"A"`. Without the fill, the data is
+  checked against the schema with each waiting part read as `any`
+  (`Val.waitAny`), and `vet_strict_valid_instance` says so.
+- An arm that does not stand drops, as a conflict's arm does
+  (`Val.staged`), so `v: add(_, 1) | "x"` passes `v: "x"`, and
+  `add("x", 1) | "x"` stands though `add("x", 1)` alone is an error, as
+  both engines answer. A preference clash between the arms a
+  disjunction is read with stays the disjunction's. A lone preference
+  is filled as the two arms the meet reads it as, its preferred arm
+  filled and its parent arm met, so `v: *upper(_)` passes `v: "a"`. A
+  disjunction on the other side is met arm by arm too (`fillWith`), so
+  `v: {a: upper(_)} & ({a: "a"} | {a: "b"})` passes `v: {a: "A"}`.
+- `spec/Oracle.lean`: rows dv0 on of `test/spec/def-call.tsv`, 52 cases,
+  and rows da0 on, 10 cases, each in the three modes. Both engines
+  answer every row as the definition does, and no other row moves.
+- Docs: the definition tutorial's steps 9, 14 and 27 and its staging
+  passage, the reference's disjunction and placeholder sections, the
+  definition's README and the design note.
+
 ### The definition fills a spread's template from each member it meets
 
 Definition, generated rows, and documentation. No engine changes.

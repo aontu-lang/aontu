@@ -2869,7 +2869,8 @@ it with its paths unread. Each round after declares each path as the
 term at it in the first root before that reaches it, and reads the
 document again. A call or a generator waits while a term it's handed
 waits on a reference that names nothing yet: a path not read, a name no
-round has declared, or a call that waits on one:
+round has declared, a hole, which the data fills (step 27), or a call
+that waits on one:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -2882,6 +2883,7 @@ def Val.pending (ds : Decls) : Val → Bool
   | .call _ args => pendingItems ds args
   | .select s _ _ => s.pending ds
   | .filter s _ => s.pending ds
+  | .hole => true
   | _ => false
 ```
 
@@ -4408,34 +4410,36 @@ the declarations `ds` and the mode `m`, the schema read as its
 expansion with its selections made: `error` where the document refers to a name it does not
 declare, where its names break the alias-cycle rule, where an
 `ident()` stands out of its place, or where the schema's normal form,
-staged, does not stand; `invalid` where the meet of the schema with the
-data as a term, staged (`Val.staged`) so that a conflict the meet finds
-is `nil` and an arm holding one drops, is dead, or refuses, read whole,
-the value it gives with its trials and sizes unread; `valid` where the
-staged meet singles out a value, and without the fill where the data as
-written is an instance of the visible part of the schema's normal form,
-staged, too, or where `--partial` lets the unresolved pass; and
-`incomplete` otherwise. -/
+staged, does not stand; `invalid` where the schema read against the data
+(`Decls.readJ`), the data filling each hole the schema leaves unfilled,
+staged (`Val.staged`) so that a conflict the meet finds is `nil` and an
+arm holding one drops, fails, dead or holding a call the data leaves it
+unable to make (`Val.fails`), or refuses, read whole, the value it gives
+with its trials and sizes unread; `valid` where it singles out a
+value, and without the fill where the data as written is an instance of
+the visible part of the schema's normal form, staged, each part that
+waits on a hole read as `any`, too, or where `--partial` lets the
+unresolved pass; and `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = true ∨
-        RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds))
+      (((normaliseD ds (ds.readJ S j)).staged ds).fails = true ∨
+        RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = false ∧
-      ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
+      ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       (m.lax = true ∨
-        ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧
-          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j))
+        ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
+          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = false ∧
-      ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
+      ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       m.lax = false ∧
-      ¬ ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧
-        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j)
+      ¬ ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
+        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j)
 ```
 
 Read the four in order. `error` is a document that refers to a name it
@@ -4626,11 +4630,17 @@ def Val.staged (ds : Decls) : Val → Val
   | .meet a b => if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.staged ds) (b.staged ds)
   | .map fs spread closed => .map (stagedFields ds fs) spread closed
   | .list items spread closed => .list (stagedItems ds items) spread closed
-  | .or arms => mkOr (stagedArms ds arms)
+  | .or arms => mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
   | .pref r x => .pref r (x.staged ds)
   | .ride k v r => .ride k (v.staged ds) r
   | v => v
 ```
+
+An arm that does not stand (`Val.illFormed`) drops the same way, as
+both engines drop it, read with the arms it stands for flattened in
+(`flattenArm`). So `add("x", 1) | "x"` stands and generates `"x"`,
+though `add("x", 1)` alone is an `error`, and a preference clash
+between the arms, as in `(*1 | *2) | 3`, stays the disjunction's.
 
 A size is a conjunction of integers, bounds, exclusions and multiples,
 so one that still holds a choice once in normal form, `len(1 | 3)`,
@@ -4668,12 +4678,14 @@ def Val.illFormed : Val → Bool
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
-  | .meet a b => a.illFormed || b.illFormed
+  | .meet a b => (a.fillable && b.fillable && !(a.isHole && b.isHole)) || a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
-  | .call _ _ => true
+  | .call .each args | .call .pack args | .call .emit args =>
+    if fillableHead args && args.length == 2 then illHead args else true
+  | .call f args => if (Val.call f args).fillable && f.takes args.length then illItems args else true
   | .select _ arms _ => illPats arms
   | _ => false
 ```
@@ -4741,10 +4753,11 @@ Three theorems say what the words mean:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- Without the fill, `valid` is `Instance`: the data as written is an
-instance of the visible part of the schema as read. -/
+instance of the visible part of the schema as read, each part that
+waits on a hole read as `any`, since the data fills it. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible j := by
+    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -4759,7 +4772,7 @@ theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (
 is an instance of the visible part of the schema met with the data. -/
 theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
     (h : Vet m ds S j .valid) :
-    ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧ Admits ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' := by
+    ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧ Admits ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' := by
   obtain ⟨-, -, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -4768,23 +4781,24 @@ theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.la
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- `invalid` refuses: the normal form of the schema met with the data,
-the conflicts the meet finds read (`Val.staged`), refuses the data as
-written, or, its trials and sizes unread, the value it would single out. -/
+/-- `invalid` refuses: the normal form of the schema read against the
+data, the conflicts the meet finds read (`Val.staged`), refuses the data
+as written, or, its trials and sizes unread, the value it would single
+out, or holds a call the data leaves the reading unable to make. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) j ∨
-      RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) := by
-  obtain ⟨-, -, -, hd | hr⟩ := h
-  · exact .inl (dead_refuses _ hd j)
-  · exact .inr hr
+    Refuses ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds) j ∨
+      RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∨
+      ((normaliseD ds (ds.readJ S j)).staged ds).illFormed = true := by
 ```
 
 So `vet --no-fill` answers `valid` exactly for an instance of the
 schema's visible part, step 2's question where the schema holds no
-mark; `vet` answers it for a filled value that is an instance of the
-visible part of the schema met with the data; and `invalid` refuses the data as written, the meet's conflicts read, or as filled,
-where a fill a trial refuses is `invalid` though the data as written
-may be an instance, as `{a?: 1} & nof(0, {a: 1})` against `{}` shows.
+mark and no part that waits on a hole, which the data fills (step 27);
+`vet` answers it for a filled value that is an instance of the visible
+part of the schema read against the data; and `invalid` refuses the
+data as written, the meet's conflicts read, or as filled, where a fill
+a trial refuses is `invalid` though the data as written may be an
+instance, as `{a?: 1} & nof(0, {a: 1})` against `{}` shows.
 The tour runs the
 verdicts of this step and the last by `decide`, under no declaration,
 where a document reads as itself:
@@ -4831,7 +4845,7 @@ example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .inco
 no declaration, where a document reads as itself, its visible part the
 normal form of `[*1]`, staged. -/
 example : Instance (Decls.envE [])
-    ((normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).staged []).visible
+    ((normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).staged []).visible.waitAny
     (.list [.integer 2]) :=
   vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
     ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))
@@ -7339,7 +7353,7 @@ as the waiting side, with the hole bound to the other:
 def Val.meetFilled (a b : Val) : Val :=
   if a.fillable && !b.fillable then a.bindHole b
   else if b.fillable && !a.fillable then b.bindHole a
-  else .meet (a.fillMeet b).1 (a.fillMeet b).2
+  else .meet (fillWith (fun q => a.fillMeet q) a.fillable b).1 (fillWith (fun q => a.fillMeet q) a.fillable b).2
 ```
 
 A side waits on a hole if it's the hole, or a call over one through
@@ -7382,7 +7396,8 @@ def Val.fillMeet (a b : Val) : Val × Val :=
       (.list u.1 s.1 ca, u.2)
     | .meet x y => (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
     | .ride k v r => (.ride k (v.fillMeet b).1 r, (v.fillMeet b).2)
-    | _ => (a, b)
+    | .pref r x => (.or [(r, .meet (x.fillMeet b).1 (x.fillMeet b).2), (0, .meet x.super b)], .any)
+    | .or arms => (.or (fillArms arms b), .any)
 ```
 
 The peer's member under a key is the meet of its declarations of the
@@ -7412,6 +7427,23 @@ So `meta({a: upper(_)}, {d: 1}) & {a: "x"}` reads as
 of its container. Neither engine reads through a rider, a mark or a
 seal around a container: both bind the whole peer to the hole, and
 answer each with an error, which #552 tracks.
+
+A disjunction is met arm by arm, the other side met into each arm
+(`fillArms`, `leafArms`), so `(upper(_) | "x") & "a"` reads as
+`upper("a") | ("x" & "a")`, which is `"A"`, as both engines answer.
+A call whose peer is the disjunction takes it whole, so
+`upper(_) & ("a" | "b")` is an error in the definition and in both
+engines. An arm whose call the data leaves unmade drops, as a
+conflict's arm does, so `v: add(_, 1) | "x"` passes `v: "x"`: the
+data fills the first arm as `add("x", 1)`, which the reading can't
+make, and the second arm stands. A lone preference is met as the two
+arms the meet reads it as, its preferred arm filled and its parent arm
+(`Val.super`) met, so `v: *upper(_)` passes `v: "a"`, and
+`v: *add(_, 1)` passes `v: "x"`, which the parent arm admits. A
+disjunction on the other side is met arm by arm too, as the meet
+distributes it (`fillWith`), so `{a: upper(_)} & ({a: "a"} | {a: "b"})`
+fills each arm's member and passes `{a: "A"}`, as both engines answer.
+A term that waits on a hole takes the disjunction whole instead.
 
 A spread whose template waits on a hole fills each member it meets,
 once, as `caps` does: its own map's or list's members, and a peer's
@@ -7446,10 +7478,51 @@ The fill follows the document's grouping: `upper(_) & ("a" & "a")`
 reads as `upper("a")`, which is `"A"`. Both engines read a conjunction
 in the order it's written instead, so they answer that with a
 conflict, and `each(_, upper(_)) & ["a"] & ["A"]` with an error, which
-#512 tracks. A call over a hole that no peer in the document fills
-reads as an error. Both engines' `vet` lets the data fill it instead,
-so `v: upper(_)` passes against `v: "a"`, which #548 tracks. The rows
-are hv0 on, and both engines answer every one as the definition does.
+#512 tracks. The rows are hv0 on, and both engines answer every one as
+the definition does.
+
+A hole that no peer in the document fills waits (`Val.pending`), and
+`vet` reads the schema against the data, the data met last, so the data
+fills it:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.readJ (ds : Decls) (S : Val) (j : Data) : Val :=
+  resolveD ds none (some []) ((ds.readR S).meetFilled j.term)
+```
+
+The call takes the data as its argument rather than meeting it, so the
+data passes wherever the call can be made over it. Write `wait.aontu`:
+
+<!-- test: file wait.aontu -->
+```aontu
+v: upper(_)
+n: add(_, 1)
+```
+
+and `wait-data.aontu`:
+
+<!-- test: file wait-data.aontu -->
+```aontu
+v: "a"
+n: 2
+```
+
+and vet the data against it:
+
+<!-- test: run -->
+```sh
+$ aontu vet wait.aontu wait-data.aontu
+verdict: valid
+```
+
+So `n: add(_, 1)` passes `n: 3` as well, and refuses `n: "b"`, which
+leaves the call unmade (`Val.fails`), as both engines answer. A hole
+the data leaves out is `incomplete`, and `valid` under `--partial`. A
+call met with a hole, as in `upper(_) & _`, or with another call that
+waits is an error, since neither fills the other, though `_ & _` meets
+as one hole. The rows are dv0 on, an arm that does not stand in rows
+da0 on, and both engines answer every one as the definition does.
 
 ## 28. A map from a template
 
