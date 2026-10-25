@@ -7283,6 +7283,8 @@ next: 2 & add(_, 1)
 names: ["a" "b"] & each(_, upper(_))
 pair: [upper(_) "z"] & ["a"]
 nest: ({ a:upper(_) } & { b:1 }) & { a:"x" }
+name: upper(_)
+name: "alice"
 ```
 
 and evaluate it:
@@ -7292,6 +7294,7 @@ and evaluate it:
 $ aontu fill.aontu
 {
   "loud": "A",
+  "name": "ALICE",
   "names": [
     "A",
     "B"
@@ -7310,19 +7313,26 @@ $ aontu fill.aontu
 
 That isn't a meet, since `"a"` alone is no `"A"`. The definition reads
 the fill before any meet means anything, so `&` stays a meet.
-`Val.filled` reads the meets beneath a meet first, and then a meet
-with one side waiting on a hole and the other not as the waiting side
-with the hole bound to the other:
+`Val.filled` reads the meets beneath a meet first. A map's declarations
+of one key are a meet too, read in the order they're written
+(`joinFields`), as `name` is:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Val.filled : Val → Val
-  | .meet a b =>
-    let a' := a.filled
-    let b' := b.filled
-    if a'.fillable && !b'.fillable then a'.bindHole b'
-    else if b'.fillable && !a'.fillable then b'.bindHole a'
-    else .meet (a'.fillMeet b').1 (a'.fillMeet b').2
+  | .meet a b => a.filled.meetFilled b.filled
+  | .map fs spread closed => .map (joinFields [] (filledFields fs)) (filledSpread spread) closed
+```
+
+It then reads a meet with one side waiting on a hole and the other not
+as the waiting side, with the hole bound to the other:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.meetFilled (a b : Val) : Val :=
+  if a.fillable && !b.fillable then a.bindHole b
+  else if b.fillable && !a.fillable then b.bindHole a
+  else .meet (a.fillMeet b).1 (a.fillMeet b).2
 ```
 
 A side waits on a hole if it's the hole, or a call over one through
@@ -7360,13 +7370,14 @@ def Val.fillMeet (a b : Val) : Val × Val :=
     | _ => (a, b)
 ```
 
-The peer's member under a key is the meet of the members its sides
-hold, read through a rider as through a meet:
+The peer's member under a key is the meet of its declarations of the
+key, or of the members its sides hold, read through a rider as through
+a meet:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Val.memberAt : Val → String → Option Val
-  | .map fs _ _, k => (fs.find? (·.1 == k)).map (·.2.2)
+  | .map fs _ _, k => declsAt k fs
   | .meet u v, k =>
     match u.memberAt k, v.memberAt k with
     | some p, some q => some (.meet p q)
@@ -7376,10 +7387,16 @@ def Val.memberAt : Val → String → Option Val
   | _, _ => none
 ```
 
+A list's element is found among the elements that stand, since a
+marked one holds no position, so `[upper(_)] & [hide("a"), "b"]` is
+`["B"]`, as both engines answer.
+
 So `meta({a: upper(_)}, {d: 1}) & {a: "x"}` reads as
-`meta({a: "X"}, {d: 1})`, since a rider is transparent. Neither engine
-reads through a rider or a mark around a container: both answer that
-with an error, which #552 tracks.
+`meta({a: "X"}, {d: 1})`, since a rider is transparent, and
+`close([upper(_)]) & ["a"]` as the sealed `["A"]`, since a seal is part
+of its container. Neither engine reads through a rider, a mark or a
+seal around a container: both bind the whole peer to the hole, and
+answer each with an error, which #552 tracks.
 
 A spread `&: upper(_)` isn't filled yet. Both engines fill each member
 the spread meets, once.
@@ -7390,7 +7407,10 @@ it fills a meet in a `match`'s result or default and in a `filter`'s
 source, as both engines do, and one in a `match`'s scrutinee or
 pattern, a size or a trial. Neither engine fills a meet in a
 scrutinee, a pattern, `len` or `must`, and Go fills none in
-`contains`, `rest`, `when` or `nof`, which #549 tracks.
+`contains`, `rest`, `when` or `nof`, which #549 tracks. Go also fills
+a hole inside a call's list argument, so `sum([_, 1]) & 3` is `4`,
+where TypeScript and the definition read a container as waiting on
+none, which #553 tracks.
 
 The fill follows the document's grouping: `upper(_) & ("a" & "a")`
 reads as `upper("a")`, which is `"A"`. Both engines read a conjunction

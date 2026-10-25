@@ -1307,10 +1307,15 @@ two containers meet member by member, by position or by key, so
 `[upper(_)] & ["a"]` is `["A"]` (`Val.fillMeet`). Each finds the
 other's member through its meets and riders (`Val.memberAt`,
 `Val.elemAt`), so `({a: upper(_)} & {b: 1}) & {a: "x"}` fills `a` too.
-The peer a member's hole takes is spent, and each container is kept
-whole, so a seal and a spread stand. Neither engine reads through a
-rider or a mark around a container, so both answer
-`meta({a: upper(_)}, {d: 1}) & {a: "x"}` with an error, which
+A key's declarations in one map are one meet, read in the order they're
+written, so `v: upper(_)` and `v: "a"`, two declarations of `v`, read
+as `"A"`, and a list's elements are paired among those that stand, so
+`[upper(_)] & [hide("a"), "b"]` is `["B"]`. The peer a member's hole
+takes is spent, and each container is kept whole, so a seal and a
+spread stand. Neither engine reads through a rider, a mark or a seal
+around a container: both bind the whole peer to the hole, so both
+answer `meta({a: upper(_)}, {d: 1}) & {a: "x"}` and
+`close([upper(_)]) & ["a"]` with an error, which
 [#552](https://github.com/aontu-lang/aontu/issues/552) tracks. The fill
 reads every meet but one in a generator's template, an `emit`'s table
 or a `filter`'s condition, whose holes those bind. Rows from hv0
@@ -1319,7 +1324,11 @@ engines to it where a call meets one peer, a `match`'s result and its
 default among them. Neither engine fills a meet in a `match`'s
 scrutinee or pattern, in `len` or in `must`, and Go fills none in
 `contains`, `rest`, `when` or `nof`, which
-[#549](https://github.com/aontu-lang/aontu/issues/549) tracks. Both
+[#549](https://github.com/aontu-lang/aontu/issues/549) tracks. Go also
+fills a hole inside a call's list argument, so `sum([_, 1]) & 3` is
+`4`, where TypeScript reads a container as waiting on none, as the
+definition does, which
+[#553](https://github.com/aontu-lang/aontu/issues/553) tracks. Both
 engines also fill each member a spread `&: upper(_)` meets, once, which
 the definition doesn't read yet. With more than one peer the fill
 follows the document's grouping, so `upper(_) & ("a" & "a")` reads as
