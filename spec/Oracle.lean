@@ -4701,9 +4701,11 @@ dv0 on. A call on the data's value, which it takes as its argument
 rather than meets, so that `add(_, 1)` passes `2` and `3` alike, and
 refusing it; one the document's own peer fills first, which the data
 then meets; inside a map, the data leaving it out, which is incomplete
-but under `--partial`; inside a list and in a spread; a generator over
-the data; the hole alone; and two calls met that both wait, which
-neither fills, an error. -/
+but under `--partial`; inside a list, one whose peer's one element is
+marked and holds no position, and in a spread; a generator over
+the data; the hole alone, and two holes met, which meet as one; and a
+call met with a hole or with a call that both wait, which neither
+fills, an error. -/
 def dataFillCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4716,9 +4718,10 @@ def dataFillCases : List (Val × Data) :=
     (add1 .hole, .integer 2), (add1 .hole, .integer 3), (add1 .hole, .str "a"),
     (.meet (up .hole) (s "A"), .str "a"), (.meet (up .hole) (s "A"), .str "A"),
     (mp [("a", up .hole)], .map [("a", .str "x")]), (mp [("a", up .hole)], .map []),
-    (lst [up .hole], .list [.str "a"]), (spm [] (up .hole), .map [("a", .str "x")]),
+    (lst [up .hole], .list [.str "a"]), (.meet (lst [up .hole]) (lst [.ride .hide (s "a") []]), .list [.str "A"]),
+    (spm [] (up .hole), .map [("a", .str "x")]),
     (.call .each [.hole, up .hole], .list [.str "a", .str "b"]), (.hole, .str "a"),
-    (.meet (up .hole) (up .hole), .str "A")]
+    (.meet .hole .hole, .str "a"), (.meet (up .hole) .hole, .str "A"), (.meet (up .hole) (up .hole), .str "A")]
 
 theorem dataFillCases_checkable : ∀ c ∈ dataFillCases, (vetDoc c).1.CheckableA := by decide
 

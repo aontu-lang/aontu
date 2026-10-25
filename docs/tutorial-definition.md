@@ -2869,7 +2869,8 @@ it with its paths unread. Each round after declares each path as the
 term at it in the first root before that reaches it, and reads the
 document again. A call or a generator waits while a term it's handed
 waits on a reference that names nothing yet: a path not read, a name no
-round has declared, or a call that waits on one:
+round has declared, a hole, which the data fills (step 27), or a call
+that waits on one:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -4671,7 +4672,7 @@ def Val.illFormed : Val → Bool
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
-  | .meet a b => (a.fillable && b.fillable) || a.illFormed || b.illFormed
+  | .meet a b => (a.fillable && b.fillable && !(a.isHole && b.isHole)) || a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
@@ -4784,10 +4785,12 @@ theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Ve
 
 So `vet --no-fill` answers `valid` exactly for an instance of the
 schema's visible part, step 2's question where the schema holds no
-mark; `vet` answers it for a filled value that is an instance of the
-visible part of the schema met with the data; and `invalid` refuses the data as written, the meet's conflicts read, or as filled,
-where a fill a trial refuses is `invalid` though the data as written
-may be an instance, as `{a?: 1} & nof(0, {a: 1})` against `{}` shows.
+mark and no part that waits on a hole, which the data fills (step 27);
+`vet` answers it for a filled value that is an instance of the visible
+part of the schema read against the data; and `invalid` refuses the
+data as written, the meet's conflicts read, or as filled, where a fill
+a trial refuses is `invalid` though the data as written may be an
+instance, as `{a?: 1} & nof(0, {a: 1})` against `{}` shows.
 The tour runs the
 verdicts of this step and the last by `decide`, under no declaration,
 where a document reads as itself:
@@ -7449,10 +7452,51 @@ The fill follows the document's grouping: `upper(_) & ("a" & "a")`
 reads as `upper("a")`, which is `"A"`. Both engines read a conjunction
 in the order it's written instead, so they answer that with a
 conflict, and `each(_, upper(_)) & ["a"] & ["A"]` with an error, which
-#512 tracks. A call over a hole that no peer in the document fills
-reads as an error. Both engines' `vet` lets the data fill it instead,
-so `v: upper(_)` passes against `v: "a"`, which #548 tracks. The rows
-are hv0 on, and both engines answer every one as the definition does.
+#512 tracks. The rows are hv0 on, and both engines answer every one as
+the definition does.
+
+A hole that no peer in the document fills waits (`Val.pending`), and
+`vet` reads the schema against the data, the data met last, so the data
+fills it:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.readJ (ds : Decls) (S : Val) (j : Data) : Val :=
+  resolveD ds none (some []) ((ds.readR S).meetFilled j.term)
+```
+
+The call takes the data as its argument rather than meeting it, so the
+data passes wherever the call can be made over it. Write `wait.aontu`:
+
+<!-- test: file wait.aontu -->
+```aontu
+v: upper(_)
+n: add(_, 1)
+```
+
+and `wait-data.aontu`:
+
+<!-- test: file wait-data.aontu -->
+```aontu
+v: "a"
+n: 2
+```
+
+and vet the data against it:
+
+<!-- test: run -->
+```sh
+$ aontu vet wait.aontu wait-data.aontu
+verdict: valid
+```
+
+So `n: add(_, 1)` passes `n: 3` as well, and refuses `n: "b"`, which
+leaves the call unmade (`Val.fails`), as both engines answer. A hole
+the data leaves out is `incomplete`, and `valid` under `--partial`. A
+call met with a hole, as in `upper(_) & _`, or with another call that
+waits is an error, since neither fills the other, though `_ & _` meets
+as one hole. The rows are dv0 on, and both engines answer every one as
+the definition does.
 
 ## 28. A map from a template
 

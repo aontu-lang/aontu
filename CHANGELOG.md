@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### The data fills a hole the document leaves unfilled
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: `vet` reads the schema against the data,
+  the data met last through the fill (`Decls.readJ`), as decision 29
+  rules (#548). The call takes the data as its argument rather than
+  meeting it, so `v: upper(_)` passes `v: "a"`, and `v: add(_, 1)`
+  passes `v: 2` and `v: 3` and refuses `v: "a"`: a call the data leaves
+  the reading unable to make fails it (`Val.fails`). A hole the data
+  leaves out is `incomplete`, `valid` under `--partial`.
+- A hole waits (`Val.pending`), so a call or a generator over one stays
+  unmade until the data fills it. A call that waits stands, and a call
+  met with a hole or with another call that waits is an error, though
+  `_ & _` meets as one hole (`Val.illFormed`). Without the fill, the data is
+  checked against the schema with each waiting part read as `any`
+  (`Val.waitAny`), and `vet_strict_valid_instance` says so.
+- `spec/Oracle.lean`: rows dv0 on of `test/spec/def-call.tsv`, 19 cases
+  in each of the three modes. Both engines answer every row as the
+  definition does, and no other row moves.
+- Docs: the definition tutorial's steps 9, 14 and 27, the reference's
+  placeholder section, the definition's README and the design note.
+
 ### The definition fills a spread's template from each member it meets
 
 Definition, generated rows, and documentation. No engine changes.

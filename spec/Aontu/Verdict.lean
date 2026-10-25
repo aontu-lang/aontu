@@ -4637,14 +4637,19 @@ settles to one arm, `len(1 & (1 | 3))` or `len(1 | (1 & 2))`, is that
 arm's size (decision 16 of the design note's §7). -/
 def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 
+/-- Whether a term is the hole itself. -/
+def Val.isHole : Val → Bool
+  | .hole => true
+  | _ => false
+
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, a
 preference clash, a size that holds a disjunction or a preference, a call the reading
-could not make, or two sides met that both wait on a hole, which
-neither fills. A call that waits on a hole stands, for the data to
-fill, a `+` that waits where its operands do, and a `pref` where its
-argument does. The
+could not make, or two sides met that both wait on a hole, one of them
+more than the hole, which neither fills, as `upper(_) & _`. A call
+that waits on a hole stands, for the data to fill, a `+` that waits
+where its operands do, and a `pref` where its argument does. The
 verdict reads it of a term staged (`Val.staged`), so that a conflict
 the meet finds is a `nil`. -/
 def Val.illFormed : Val → Bool
@@ -4654,7 +4659,7 @@ def Val.illFormed : Val → Bool
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
-  | .meet a b => (a.fillable && b.fillable) || a.illFormed || b.illFormed
+  | .meet a b => (a.fillable && b.fillable && !(a.isHole && b.isHole)) || a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args

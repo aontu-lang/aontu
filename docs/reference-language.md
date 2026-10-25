@@ -1339,11 +1339,16 @@ doesn't read yet. With more than one peer the fill
 follows the document's grouping, so `upper(_) & ("a" & "a")` reads as
 `upper("a")`, which is `"A"`. Both engines read a conjunction in the
 order it's written instead and answer a conflict, which
-[#512](https://github.com/aontu-lang/aontu/issues/512) tracks. Both
-engines' `vet` meets the data last, so the data fills a hole that no
-peer in the document fills: `v: upper(_)` passes against `v: "a"`,
-where the definition reads an error, which
-[#548](https://github.com/aontu-lang/aontu/issues/548) tracks.
+[#512](https://github.com/aontu-lang/aontu/issues/512) tracks. `vet`
+meets the data last, so the data fills a hole that no peer in the
+document fills (`Decls.readJ`): the call takes the data as its argument
+rather than meeting it, so `v: upper(_)` passes against `v: "a"`, and
+`v: add(_, 1)` passes `v: 2` and refuses `v: "a"`. A hole the data
+leaves out is `incomplete`. A call met with a hole, as in
+`upper(_) & _`, or with another call that waits is an error, as both
+engines answer, though `_ & _` meets as one hole. Rows from dv0 on of
+[`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold both
+engines to it.
 
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:
