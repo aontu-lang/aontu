@@ -2164,8 +2164,10 @@ which the call spends, so that it reads as `any`; and a map or a list,
 read through its meets and riders, met with the other's members by key
 or by position (`Val.memberAt`, `Val.elemAt`), and each spread that
 waits on a hole, or whose template holds a member that does, with the
-other side's members, each side kept whole; and a disjunction met arm
-by arm, the other side met into each arm. -/
+other side's members, each side kept whole; a disjunction met arm by
+arm, the other side met into each arm; and a lone preference met as
+the two arms the meet reads it as, its preferred arm filled and its
+parent arm (`Val.super`) met. -/
 def Val.fillMeet (a b : Val) : Val × Val :=
   if a.fillable && !b.fillable then (a.bindHole b, .any)
   else if b.fillable && !a.fillable then (.any, b.bindHole a)
@@ -2186,10 +2188,12 @@ def Val.fillMeet (a b : Val) : Val × Val :=
           | none => none)
     | .meet x y => (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
     | .ride k v r => (.ride k (v.fillMeet b).1 r, (v.fillMeet b).2)
+    | .pref r x => (.or [(r, .meet (x.fillMeet b).1 (x.fillMeet b).2), (0, .meet x.super b)], .any)
     | .or arms => (.or (fillArms arms b), .any)
     | _ =>
       match b with
       | .or arms => (.or (leafArms a arms), .any)
+      | .pref r y => (.or (leafArms a [(r, y), (0, y.super)]), .any)
       | _ => (a, b)
 termination_by structural a
 
@@ -3213,6 +3217,19 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
     split
     · exact ⟨.any, bindHole_checkableA (.or ha) hb⟩
     · exact ⟨.or (fillArms_checkableA (fun r x h => (iha r x h).1) hb), .any⟩
+  | @pref r x hx ihx =>
+    refine ⟨fun {b} hb => ?_, fun _ _ h => nomatch h⟩
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (.pref hx), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (.pref hx) hb⟩
+    · have h := ihx.1 hb
+      refine ⟨.or fun r' w hm => ?_, .any⟩
+      simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
+      rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩
+      · exact .meet h.1 h.2
+      · exact .meet hx.super hb
   | @selectKey arms d hp hr hd _ _ ihd =>
     refine ⟨fun {b} hb => ?_, fun _ t h => ?_⟩
     · unfold Val.fillMeet
@@ -3224,6 +3241,13 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
         split
         · cases hb with
           | or hy => exact ⟨.or (leafArms_checkableA (.selectKey hp hr hd) hy), .any⟩
+        · cases hb with
+          | pref hy =>
+            refine ⟨.or (leafArms_checkableA (.selectKey hp hr hd) fun r' y' hm => ?_), .any⟩
+            simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
+            rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩
+            · exact hy
+            · exact hy.super
         · exact ⟨.selectKey hp hr hd, hb⟩
     · cases h
       exact (ihd t rfl).1
@@ -3238,6 +3262,13 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
         split
         · cases hb with
           | or hy => exact ⟨.or (leafArms_checkableA (by constructor <;> assumption) hy), .any⟩
+        · cases hb with
+          | pref hy =>
+            refine ⟨.or (leafArms_checkableA (by constructor <;> assumption) fun r' y' hm => ?_), .any⟩
+            simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
+            rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩
+            · exact hy
+            · exact hy.super
         · exact ⟨by constructor <;> assumption, hb⟩
     · cases h
 

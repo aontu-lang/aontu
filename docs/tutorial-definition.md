@@ -7433,7 +7433,10 @@ A call whose peer is the disjunction takes it whole, so
 engines. An arm whose call the data leaves unmade drops, as a
 conflict's arm does, so `v: add(_, 1) | "x"` passes `v: "x"`: the
 data fills the first arm as `add("x", 1)`, which the reading can't
-make, and the second arm stands.
+make, and the second arm stands. A lone preference is met as the two
+arms the meet reads it as, its preferred arm filled and its parent arm
+(`Val.super`) met, so `v: *upper(_)` passes `v: "a"`, and
+`v: *add(_, 1)` passes `v: "x"`, which the parent arm admits.
 
 A spread whose template waits on a hole fills each member it meets,
 once, as `caps` does: its own map's or list's members, and a peer's

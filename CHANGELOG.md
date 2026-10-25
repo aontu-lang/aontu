@@ -58,8 +58,10 @@ Definition, generated rows, and documentation. No engine changes.
   (`Val.staged`), so `v: add(_, 1) | "x"` passes `v: "x"`, and
   `add("x", 1) | "x"` stands though `add("x", 1)` alone is an error, as
   both engines answer. A preference clash between the arms a
-  disjunction is read with stays the disjunction's.
-- `spec/Oracle.lean`: rows dv0 on of `test/spec/def-call.tsv`, 39 cases,
+  disjunction is read with stays the disjunction's. A lone preference
+  is filled as the two arms the meet reads it as, its preferred arm
+  filled and its parent arm met, so `v: *upper(_)` passes `v: "a"`.
+- `spec/Oracle.lean`: rows dv0 on of `test/spec/def-call.tsv`, 46 cases,
   and rows da0 on, 10 cases, each in the three modes. Both engines
   answer every row as the definition does, and no other row moves.
 - Docs: the definition tutorial's steps 9, 14 and 27 and its staging

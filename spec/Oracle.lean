@@ -4744,7 +4744,10 @@ fills, an error; a generator whose template no member reaches, read by
 its data alone; and a disjunction whose arm waits, met arm by arm, by
 the data, inside a map and a list, and by the document's own peer on
 either side, an arm whose call the data leaves unmade dropping, as
-`add(_, 1) | "x"` passes `"x"`. -/
+`add(_, 1) | "x"` passes `"x"`; and a lone preference over a call that
+waits, the data filling its preferred arm and meeting its parent arm,
+so that `*add(_, 1)` passes `"x"`, at the top, inside a map, which the
+data may leave out, and inside a list. -/
 def dataFillCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4776,7 +4779,11 @@ def dataFillCases : List (Val × Data) :=
     (.or [(0, add1 .hole), (0, .call .add [.hole, n 2]), (0, s "x")], .str "x"),
     (.or [(0, add1 .hole), (0, .call .add [.hole, n 2])], .str "x"),
     (mp [("a", .or [(0, add1 .hole), (0, s "x")])], .map [("a", .str "x")]),
-    (lst [.or [(0, add1 .hole), (0, s "x")]], .list [.str "x"])]
+    (lst [.or [(0, add1 .hole), (0, s "x")]], .list [.str "x"]),
+    (.pref 1 (up .hole), .str "a"), (.pref 1 (up .hole), .integer 1),
+    (.pref 1 (add1 .hole), .integer 2), (.pref 1 (add1 .hole), .str "x"),
+    (mp [("a", .pref 1 (up .hole))], .map [("a", .str "a")]), (mp [("a", .pref 1 (up .hole))], .map []),
+    (lst [.pref 1 (up .hole)], .list [.str "a"])]
 
 theorem dataFillCases_checkable : ∀ c ∈ dataFillCases, (vetDoc c).1.CheckableA := by decide
 
