@@ -1370,7 +1370,9 @@ filled arm by arm, so `v: upper(_) | "fallback"` passes `v: "a"`, and
 an arm whose call the data leaves unmade drops, so `v: add(_, 1) | "x"`
 passes `v: "x"`. A lone preference fills its preferred arm and meets
 the data with its parent arm, so `v: *upper(_)` passes `v: "a"`, and
-`v: *add(_, 1)` passes `v: "x"`. A
+`v: *add(_, 1)` passes `v: "x"`. A disjunction a container meets is
+met arm by arm, so `v: {a: upper(_)} & ({a: "a"} | {a: "b"})` passes
+`v: {a: "A"}`. A
 generator waits on its data alone and reads its template only at each
 member it makes, so `v: each(_, upper({}))` passes `v: []`. Rows from
 dv0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold
