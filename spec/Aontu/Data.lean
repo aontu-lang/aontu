@@ -381,8 +381,8 @@ inductive Data.WellFormed : Data → Prop
   | addr {a : Addr} : WellFormed (.addr a)
 
 /-- The size `len` counts: a string's characters, a list's elements,
-a map's members, an address's characters as it's spelled (decision 23 of
-the design note's §7). Any other scalar has no size. -/
+a map's members, an address's characters as it's spelled. Any other
+scalar has no size. -/
 def Data.size : Data → Option ℕ
   | .str s => some s.length
   | .list xs => some xs.length

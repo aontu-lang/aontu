@@ -1092,9 +1092,11 @@ corpusDescribe('docs-style', () => {
     [/capability-review/g, 'the capability review'],
     [/\bG\d+ phase \d+\b/g, 'a capability-review phase'],
     // A design note is cited by the bare relative href the pages once
-    // used, or by its folder, `sketch/`.
+    // used, by its folder, `sketch/`, by name, or by a numbered decision.
     [/\bdesign\/[A-Za-z0-9._-]+\.md/g, 'a design note'],
     [/\bsketch\//g, 'a working note'],
+    [/\bdesign note\b/gi, 'a design note'],
+    [/\b[Dd]ecisions? \d+\b/g, 'a numbered decision'],
     [/\bDIVERGENCE\.md\b/g, 'DIVERGENCE.md'],
     [/use-cases\/(?:BUGS|REVIEW)\.md/g, 'a defect ledger'],
     [/\bprogress\.md\b/g, 'the progress register'],

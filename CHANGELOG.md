@@ -8,6 +8,19 @@ each change affects.
 
 ## Unreleased
 
+### The published pages cite no decision of the design note
+
+Documentation and tests. No engine changes.
+
+- `ts/test/docs.test.ts`: the gate on internal references,
+  `no-internal-design-references`, catches the design note by name and
+  a numbered decision, as it already caught `sketch/` and the decision
+  records.
+- The definition tutorial and the reference state each rule a decision
+  made rather than citing the decision. Three docstrings the tutorial
+  quotes, in `spec/Aontu/Admits.lean`, `spec/Aontu/Data.lean` and
+  `spec/Aontu/Verdict.lean`, drop their citation too.
+
 ### The definition reads a hole its call's peer fills
 
 Definition, generated rows, and documentation. No engine changes. Part

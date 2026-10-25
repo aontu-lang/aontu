@@ -867,10 +867,9 @@ refusal for all three. `min` and `max` first:
 ```lean
   /-- A bound with a number at its end admits a number, by exact value,
   and one with a string at its end a string, in code-point order, and an
-  address by its spelling (decision 23 of the design note's §7); the
-  bound's domain is its end's, so `min(0)` admits no string and
-  `max("b")` no number. It refuses a value of its domain that falls
-  outside it, and every value outside its domain. -/
+  address by its spelling; the bound's domain is its end's, so `min(0)`
+  admits no string and `max("b")` no number. It refuses a value of its
+  domain that falls outside it, and every value outside its domain. -/
   | min {n x : Number} : n.le x → Judge env root true (.min (.num n)) (.num x)
   | minStr {b s : String} : b ≤ s → Judge env root true (.min (.str b)) (.str s)
   | minAddr {b : String} {a : Addr} : b ≤ a.text → Judge env root true (.min (.str b)) (.addr a)
@@ -1358,8 +1357,8 @@ The size is the value's own:
 <!-- test: quote spec/Aontu/Data.lean -->
 ```lean
 /-- The size `len` counts: a string's characters, a list's elements,
-a map's members, an address's characters as it's spelled (decision 23 of
-the design note's §7). Any other scalar has no size. -/
+a map's members, an address's characters as it's spelled. Any other
+scalar has no size. -/
 def Data.size : Data → Option ℕ
   | .str s => some s.length
   | .list xs => some xs.length
@@ -1681,9 +1680,9 @@ string and for an address's spelling:
 ```lean
   /-- `re(p)` admits the strings the pattern matches, and `format(g)`
   the strings the format reads, by the host's predicates, and each the
-  addresses whose spelling its predicate holds of (decision 23); each
-  admits `""` exactly where its predicate holds of it, admits no other
-  kind of value, and refuses whatever it does not admit. -/
+  addresses whose spelling its predicate holds of; each admits `""`
+  exactly where its predicate holds of it, admits no other kind of
+  value, and refuses whatever it does not admit. -/
   | re {p s : String} : host.pattern p s → Judge env root true (.re p) (.str s)
   | reAddr {p : String} {a : Addr} : host.pattern p a.text → Judge env root true (.re p) (.addr a)
   | reNot {p : String} {j : Data} :
@@ -4305,8 +4304,8 @@ def visibleFields : List (String × Bool × Val) → List (String × Bool × Val
 ```
 
 A map's marked spread holds anything the same way. A list holds no
-position for an element a mark of its own leaves out, as decision 18 of
-the design note rules: the reading of step 16 drops it, so
+position for an element a mark of its own leaves out: the reading of
+step 16 drops it, so
 `[1, hide(2), 3]` is `[1, 3]` for the meet as for the output, and step
 33 shows the rule at work. A disjunction of one arm, its others dead,
 carries the arm's mark, so `a: hide(1) | 2 & 3` leaves `a` out of the
@@ -4465,7 +4464,7 @@ def Decls.identMisplaced (ds : Decls) (S : Val) : Bool :=
 
 Every declaration's body is read too, whether or not a reference
 reaches it, so `%T = 1 & 2` beside `v: 1` is an `error`, as both
-engines answer (decision 17 of the design note's §7). The body is read
+engines answer. The body is read
 where no place is yet, as the roots that paths read are
 (`Decls.readU`, which step 29 comes to), as the name and as the body
 itself, so that a recursive body is read too. A hole or a `key(n)`
@@ -4636,7 +4635,7 @@ def Val.staged (ds : Decls) : Val → Val
 A size is a conjunction of integers, bounds, exclusions and multiples,
 so one that still holds a choice once in normal form, `len(1 | 3)`,
 `len(*1)` or `len(type(1 | 3))`, is ill-formed whatever it meets, as
-both engines answer too (decision 16 of the design note's §7). A choice
+both engines answer too. A choice
 the meet or a dead arm settles to one arm is that arm, and two arms
 written alike are one, so `len(1 & (1 | 3))` and `len(1 | 1)` are each
 `len(1)`:
@@ -5462,7 +5461,7 @@ bag, or a member makes no pieces (`emitPieces`). A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
 no position for an element that is absence, nor for one a mark of its
-own, `hide()` or `type()`, leaves out (decision 18), each element after
+own, `hide()` or `type()`, leaves out, each element after
 it read at the index it takes, though a list whose marked element is a
 conflict, alone or met with the list's spread, is `nil` where it stands
 (`Decls.markClashes`). A call or a generator
@@ -6453,11 +6452,11 @@ among them, and an empty list, name no end.
 A boolean, `null`, a container, a kind, a bound, a pattern or a meet
 names no end, and neither do a number and a string together under
 `neq`, so a bound over one is outside its domain and admits nothing,
-however its argument is written, as both engines answer (decision 28
-of the design note's §7). A choice still to make, a disjunction or a
+however its argument is written, as both engines answer. A choice
+still to make, a disjunction or a
 preference, is no argument at all: the bound is refused, and the
 document is an error whatever the bound meets, as a size that holds
-one is (decision 16). The atom that admits nothing is `Val.nothing`. It
+one is. The atom that admits nothing is `Val.nothing`. It
 stands, so a schema that holds one is no error, but it refuses every
 value and generates nothing, and the meet makes it `nil` against
 anything but `any`:
@@ -7086,8 +7085,7 @@ which #426 tracks.
 
 `copy` makes a value that carries nothing of where it came from: it
 clears the marks, `type()` and `hide()`, and the seal, at every depth,
-of any argument, a literal's as a reference's (decision 27 of the
-design note's §7). Write `copy.aontu`:
+of any argument, a literal's as a reference's. Write `copy.aontu`:
 
 <!-- test: scenario copy -->
 <!-- test: file copy.aontu -->
@@ -7837,8 +7835,8 @@ values generate, `test/spec/def-verdict.tsv` how `vet` judges data
 against them, and `test/spec/def-subsume.tsv` which one subsumes
 which. Both engines answer every row as the definition does.
 
-A string constraint reads an address by its spelling, as decision 23
-of the design note rules: `min`, `max`, `above` and `below` with a
+A string constraint reads an address by its spelling: `min`, `max`,
+`above` and `below` with a
 string end, `len`, `re` and `format` each admit an address whose text
 they'd admit as a string:
 
@@ -7856,7 +7854,7 @@ it passes, in every order of the meets: `len(3) & path($.a)` is
 value spells doesn't pass, the meet generates nothing, which `vet`
 reads as `incomplete`, whether a longer address could pass or none
 could, so `len(5) & path($.a)` and `max("$.a") & path($.b)` are both
-incomplete. A trial reads it alike, as decision 23 rules too, so
+incomplete. A trial reads it alike, so
 `path($.a) & must(len(5))` is incomplete, where step 14 reads a trial's
 refusal of a map or a list at generation as `invalid`: the schema
 writes the address, so no data can be at fault. Rows from ks0 on of
@@ -8078,8 +8076,8 @@ absence for a member, that instance holds no position either, so
 its map.
 
 Rows from mb0 on of `test/spec/def-path.tsv` hold these readings in the
-three modes of `vet`, rows la0 on a list's absent element, which
-decision 24 of the design note rules holds no position, and rows hl0 on
+three modes of `vet`, rows la0 on a list's absent element, which holds
+no position, and rows hl0 on
 of `test/spec/def-verdict.tsv` a list's marked element. Both engines
 answer every row as the definition does. Where the engines read
 absence otherwise, no row holds the case, which #479 tracks: they

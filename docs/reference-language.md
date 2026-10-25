@@ -916,7 +916,7 @@ x?: *b: 1                → [aontu/pref_implicit_bag] at $.x
 x?: {y: 1, z: *b: 1}     → [aontu/pref_implicit_bag] at $.x.z
 ```
 
-The definition reads an optional key in `admits_map_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a key the data leaves out is admitted only where every declaration of it is optional, and two declarations of one key meet as `merge_exact` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) says, optional only where both are. `genFields` in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) generates an optional key's member only where its value generates something other than an empty map or list, which decision 19 of the definition's design note rules.
+The definition reads an optional key in `admits_map_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a key the data leaves out is admitted only where every declaration of it is optional, and two declarations of one key meet as `merge_exact` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) says, optional only where both are. `genFields` in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) generates an optional key's member only where its value generates something other than an empty map or list.
 
 ## Spreads `&:`
 
