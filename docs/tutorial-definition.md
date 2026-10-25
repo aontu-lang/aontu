@@ -4677,7 +4677,7 @@ def Val.illFormed : Val → Bool
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
-  | .call f args => if (Val.call f args).fillable then illItems args else true
+  | .call f args => if (Val.call f args).fillable && f.takes args.length then illItems args else true
   | .select _ arms _ => illPats arms
   | _ => false
 ```

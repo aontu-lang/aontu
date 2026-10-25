@@ -5235,7 +5235,8 @@ in a spread, which the engines read only against a member, a
 preference clash, a size that holds a disjunction or a preference, a call the reading
 could not make, or two sides met that both wait on a hole, one of them
 more than the hole, which neither fills, as `upper(_) & _`. A call
-that waits on a hole stands, for the data to fill, a `+` that waits
+that waits on a hole stands, for the data to fill, where it has as
+many arguments as its function takes (`Fn.takes`), a `+` that waits
 where its operands do, and a `pref` where its argument does. The
 verdict reads it of a term staged (`Val.staged`), so that a conflict
 the meet finds is a `nil`. -/
@@ -5251,7 +5252,7 @@ def Val.illFormed : Val → Bool
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
-  | .call f args => if (Val.call f args).fillable then illItems args else true
+  | .call f args => if (Val.call f args).fillable && f.takes args.length then illItems args else true
   | .select _ arms _ => illPats arms
   | _ => false
 
