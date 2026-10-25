@@ -7281,6 +7281,7 @@ Outside a template, a hole no generator fills admits every value, as
 loud: upper(_) & "a"
 next: 2 & add(_, 1)
 names: ["a" "b"] & each(_, upper(_))
+pair: [upper(_) "z"] & ["a"]
 ```
 
 and evaluate it:
@@ -7294,7 +7295,11 @@ $ aontu fill.aontu
     "A",
     "B"
   ],
-  "next": 3
+  "next": 3,
+  "pair": [
+    "A",
+    "z"
+  ]
 }
 ```
 
@@ -7312,7 +7317,7 @@ def Val.filled : Val → Val
     let b' := b.filled
     if a'.fillable && !b'.fillable then a'.bindHole b'
     else if b'.fillable && !a'.fillable then b'.bindHole a'
-    else .meet a' b'
+    else .meet (a'.fillMeet b').1 (a'.fillMeet b').2
 ```
 
 A side waits on a hole if it's the hole, or a call over one through
@@ -7330,9 +7335,24 @@ def Val.fillable : Val → Bool
 
 A generator waits on a hole in its data, as `names` does, and never on
 one in its template, which it binds to each member. A container waits
-on no hole of its members, so the definition doesn't fill
-`[upper(_)] & ["a"]` or a spread `&: upper(_)` yet. Both engines fill
-them member by member, so the first is `["A"]`.
+on no hole of its members, but two containers meet member by member, by
+position or by key, as `pair` does. The peer a member's hole takes is
+spent, so it reads as `any`, and each container is kept whole, so a
+seal and a spread stand:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.fillMeet (a b : Val) : Val × Val :=
+  if a.fillable && !b.fillable then (a.bindHole b, .any)
+  else if b.fillable && !a.fillable then (.any, b.bindHole a)
+  else match a, b with
+    | .map fs sa ca, .map gs sb cb => (.map (fillFields fs gs).1 sa ca, .map (fillFields fs gs).2 sb cb)
+    | .list xs sa ca, .list ys sb cb => (.list (fillElems xs ys).1 sa ca, .list (fillElems xs ys).2 sb cb)
+    | _, _ => (a, b)
+```
+
+A spread `&: upper(_)` isn't filled yet. Both engines fill each member
+the spread meets, once.
 
 The fill reads every meet but one where a hole is bound, in a
 generator's template, an `emit`'s table or a `filter`'s condition. So

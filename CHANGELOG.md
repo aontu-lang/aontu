@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### The definition fills a hole in a container's members
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: `Val.fillMeet`, `fillFields` and
+  `fillElems`. Two maps or two lists met are met member by member, by
+  key or by position, so `[upper(_)] & ["a"]` is `["A"]`, as both
+  engines answer. The peer a member's hole takes is spent, and each
+  container is kept whole, so a seal and a spread stand.
+  `fillMeet_checkableA` keeps both sides readable.
+- `spec/Oracle.lean`: rows hv78 on of `test/spec/def-call.tsv`, 11
+  cases in each of the three modes. Both engines answer every row as
+  the definition does.
+- A spread's template, `{&: upper(_)} & {a: "x"}`, isn't filled yet.
+  Both engines fill each member the spread meets, once.
+- Decision 29 is ruled: the data fills a hole the document leaves
+  unfilled, as both engines read it (#548). It isn't built yet.
+- Docs: the definition tutorial's step 27, the reference's placeholder
+  section, the definition's README and the design note.
+
 ### The published pages cite no decision of the design note
 
 Documentation and tests. No engine changes.

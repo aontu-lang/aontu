@@ -1302,16 +1302,20 @@ reads the meets beneath a meet first, and then reads a meet with one
 side waiting on a hole and the other not as the waiting side with the
 hole bound to the other. A side waits on a hole if it's the hole, or a
 call over one through its arguments or a rider, a generator through
-its data alone, and a container waits on no hole of its members. The
-fill reads every meet but one in a generator's template, an `emit`'s
+its data alone, and a container waits on no hole of its members, but
+two containers meet member by member, by position or by key, so
+`[upper(_)] & ["a"]` is `["A"]` (`Val.fillMeet`). The peer a member's
+hole takes is spent, and each container is kept whole, so a seal and a
+spread stand. The fill reads every meet but one in a generator's
+template, an `emit`'s
 table or a `filter`'s condition, whose holes those bind. Rows from hv0
 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold both
 engines to it where a call meets one peer, a `match`'s result and its
 default among them. Neither engine fills a meet in a `match`'s
 scrutinee or pattern, in `len` or in `must`, and Go fills none in
 `contains`, `rest`, `when` or `nof`, which
-[#549](https://github.com/aontu-lang/aontu/issues/549) tracks. Both engines also
-fill a container's members, so `[upper(_)] & ["a"]` is `["A"]`, which
+[#549](https://github.com/aontu-lang/aontu/issues/549) tracks. Both
+engines also fill each member a spread `&: upper(_)` meets, once, which
 the definition doesn't read yet. With more than one peer the fill
 follows the document's grouping, so `upper(_) & ("a" & "a")` reads as
 `upper("a")`, which is `"A"`. Both engines read a conjunction in the
