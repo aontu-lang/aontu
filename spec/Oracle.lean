@@ -4706,9 +4706,12 @@ refusing it; one the document's own peer fills first, which the data
 then meets; inside a map, the data leaving it out, which is incomplete
 but under `--partial`; inside a list, one whose peer's one element is
 marked and holds no position, and in a spread; a generator over
-the data; the hole alone, and two holes met, which meet as one; and a
+the data; the hole alone, and two holes met, which meet as one; a
 call met with a hole or with a call that both wait, which neither
-fills, an error. -/
+fills, an error; a generator whose template no member reaches, read by
+its data alone; and a disjunction whose arm waits, met arm by arm, by
+the data, inside a map and a list, and by the document's own peer on
+either side. -/
 def dataFillCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4724,7 +4727,18 @@ def dataFillCases : List (Val × Data) :=
     (lst [up .hole], .list [.str "a"]), (.meet (lst [up .hole]) (lst [.ride .hide (s "a") []]), .list [.str "A"]),
     (spm [] (up .hole), .map [("a", .str "x")]),
     (.call .each [.hole, up .hole], .list [.str "a", .str "b"]), (.hole, .str "a"),
-    (.meet .hole .hole, .str "a"), (.meet (up .hole) .hole, .str "A"), (.meet (up .hole) (up .hole), .str "A")]
+    (.meet .hole .hole, .str "a"), (.meet (up .hole) .hole, .str "A"), (.meet (up .hole) (up .hole), .str "A"),
+    (.call .each [.hole, up (mp [])], .list []), (.call .each [.hole, up (mp [])], .list [.str "a"]),
+    (mp [("a", .call .each [.hole, up (mp [])])], .map []),
+    (.call .pack [.hole, mp [("n", up (mp []))]], .list []),
+    (.or [(0, up .hole), (0, s "fallback")], .str "a"), (.or [(0, up .hole), (0, s "fallback")], .str "fallback"),
+    (.or [(0, up .hole), (0, s "fallback")], .integer 1), (.or [(0, add1 .hole), (0, s "z")], .integer 2),
+    (mp [("a", .or [(0, up .hole), (0, s "x")])], .map [("a", .str "y")]),
+    (lst [.or [(0, up .hole), (0, s "x")]], .list [.str "y"]),
+    (.meet (.or [(0, up .hole), (0, s "x")]) (s "a"), .str "A"),
+    (.meet (s "a") (.or [(0, up .hole), (0, s "x")]), .str "A"),
+    (.meet (mp [("a", .or [(0, up .hole), (0, s "x")])]) (mp [("a", s "y")]), .map [("a", .str "Y")]),
+    (.meet (mp [("a", s "y")]) (mp [("a", .or [(0, up .hole), (0, s "x")])]), .map [("a", .str "Y")])]
 
 theorem dataFillCases_checkable : ∀ c ∈ dataFillCases, (vetDoc c).1.CheckableA := by decide
 

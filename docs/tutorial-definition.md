@@ -4677,6 +4677,8 @@ def Val.illFormed : Val → Bool
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
+  | .call .each args | .call .pack args | .call .emit args =>
+    if fillableHead args && args.length == 2 then illHead args else true
   | .call f args => if (Val.call f args).fillable && f.takes args.length then illItems args else true
   | .select _ arms _ => illPats arms
   | _ => false
@@ -7388,7 +7390,7 @@ def Val.fillMeet (a b : Val) : Val × Val :=
       (.list u.1 s.1 ca, u.2)
     | .meet x y => (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
     | .ride k v r => (.ride k (v.fillMeet b).1 r, (v.fillMeet b).2)
-    | _ => (a, b)
+    | .or arms => (.or (fillArms arms b), .any)
 ```
 
 The peer's member under a key is the meet of its declarations of the
@@ -7418,6 +7420,13 @@ So `meta({a: upper(_)}, {d: 1}) & {a: "x"}` reads as
 of its container. Neither engine reads through a rider, a mark or a
 seal around a container: both bind the whole peer to the hole, and
 answer each with an error, which #552 tracks.
+
+A disjunction is met arm by arm, the other side met into each arm
+(`fillArms`, `leafArms`), so `(upper(_) | "x") & "a"` reads as
+`upper("a") | ("x" & "a")`, which is `"A"`, as both engines answer.
+A call whose peer is the disjunction takes it whole, so
+`upper(_) & ("a" | "b")` is an error in the definition and in both
+engines.
 
 A spread whose template waits on a hole fills each member it meets,
 once, as `caps` does: its own map's or list's members, and a peer's

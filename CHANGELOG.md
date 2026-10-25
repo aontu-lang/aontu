@@ -23,10 +23,14 @@ Definition, generated rows, and documentation. No engine changes.
   unmade until the data fills it. A call that waits stands where it has
   as many arguments as its function takes, and a call met with a hole
   or with another call that waits is an error, though
-  `_ & _` meets as one hole (`Val.illFormed`). Without the fill, the data is
+  `_ & _` meets as one hole (`Val.illFormed`). A generator waits on its
+  data alone, so its template is read only at each member it makes, and
+  `v: each(_, upper({}))` passes `v: []`. A disjunction is filled arm by
+  arm (`fillArms`, `leafArms`), so `v: upper(_) | "fallback"` passes
+  `v: "a"`, and `(upper(_) | "x") & "a"` is `"A"`. Without the fill, the data is
   checked against the schema with each waiting part read as `any`
   (`Val.waitAny`), and `vet_strict_valid_instance` says so.
-- `spec/Oracle.lean`: rows dv0 on of `test/spec/def-call.tsv`, 19 cases
+- `spec/Oracle.lean`: rows dv0 on of `test/spec/def-call.tsv`, 33 cases
   in each of the three modes. Both engines answer every row as the
   definition does, and no other row moves.
 - Docs: the definition tutorial's steps 9, 14 and 27, the reference's
