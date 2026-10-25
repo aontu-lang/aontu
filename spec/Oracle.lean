@@ -4711,7 +4711,8 @@ call met with a hole or with a call that both wait, which neither
 fills, an error; a generator whose template no member reaches, read by
 its data alone; and a disjunction whose arm waits, met arm by arm, by
 the data, inside a map and a list, and by the document's own peer on
-either side. -/
+either side, an arm whose call the data leaves unmade dropping, as
+`add(_, 1) | "x"` passes `"x"`. -/
 def dataFillCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4738,7 +4739,12 @@ def dataFillCases : List (Val × Data) :=
     (.meet (.or [(0, up .hole), (0, s "x")]) (s "a"), .str "A"),
     (.meet (s "a") (.or [(0, up .hole), (0, s "x")]), .str "A"),
     (.meet (mp [("a", .or [(0, up .hole), (0, s "x")])]) (mp [("a", s "y")]), .map [("a", .str "Y")]),
-    (.meet (mp [("a", s "y")]) (mp [("a", .or [(0, up .hole), (0, s "x")])]), .map [("a", .str "Y")])]
+    (.meet (mp [("a", s "y")]) (mp [("a", .or [(0, up .hole), (0, s "x")])]), .map [("a", .str "Y")]),
+    (.or [(0, add1 .hole), (0, s "x")], .str "x"), (.or [(0, add1 .hole), (0, s "x")], .integer 2),
+    (.or [(0, add1 .hole), (0, .call .add [.hole, n 2]), (0, s "x")], .str "x"),
+    (.or [(0, add1 .hole), (0, .call .add [.hole, n 2])], .str "x"),
+    (mp [("a", .or [(0, add1 .hole), (0, s "x")])], .map [("a", .str "x")]),
+    (lst [.or [(0, add1 .hole), (0, s "x")]], .list [.str "x"])]
 
 theorem dataFillCases_checkable : ∀ c ∈ dataFillCases, (vetDoc c).1.CheckableA := by decide
 
@@ -4746,6 +4752,38 @@ theorem data_fill_verdict_exact : ∀ c ∈ dataFillCases, ∀ (m : Mode) (v : V
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (dataFillCases_checkable c hc)) v
+
+set_option maxRecDepth 8192 in
+/-- A disjunction's arm that does not stand, for the `verdict` rows da0
+on: a call the reading can't make, by its domain, its count of
+arguments or a call inside it, one inside a map or a list, and a size
+that holds a choice, each dropping as a
+conflict's arm does, so that the other arm stands; and an error where
+no arm stands, where the call stands alone, or where a preference clash
+is between the arms the disjunction is read with, as both ports answer. -/
+def illArmCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let up (v : Val) : Val := .call .upper [v]
+  let add1 (v : Val) : Val := .call .add [v, n 1]
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  [(.or [(0, add1 (s "x")), (0, s "x")], .str "x"), (add1 (s "x"), .str "x"),
+    (.or [(0, add1 (s "x")), (0, add1 (s "y"))], .str "x"),
+    (.or [(0, .call .add [.hole]), (0, s "x")], .str "x"),
+    (.or [(0, mp [("a", add1 (s "x"))]), (0, s "x")], .str "x"),
+    (.or [(0, lst [add1 (s "x")]), (0, s "x")], .str "x"),
+    (.or [(0, .call .add [.hole, add1 (s "x")]), (0, s "x")], .str "x"),
+    (.or [(0, .len (.or [(0, n 1), (0, n 3)])), (0, s "x")], .str "x"),
+    (.or [(0, mp [("a", .or [(1, n 1), (1, n 2)])]), (0, s "x")], .str "x"),
+    (.or [(0, .or [(1, n 1), (1, n 2)]), (0, s "x")], .str "x")]
+
+theorem illArmCases_checkable : ∀ c ∈ illArmCases, (vetDoc c).1.CheckableA := by decide
+
+theorem ill_arm_verdict_exact : ∀ c ∈ illArmCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (illArmCases_checkable c hc)) v
 
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
 
@@ -5689,7 +5727,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# matches or the body names what the node doesn't hold. A hole its call's peer"
     IO.println "# fills follows in rows hv0 on: a meet with a hole on one side and none on the"
     IO.println "# other reads as that side with the hole bound to the other, as the document"
-    IO.println "# groups its meets."
+    IO.println "# groups its meets. A hole the document leaves unfilled, which the data fills,"
+    IO.println "# follows in rows dv0 on, and a disjunction's arm that does not stand, which"
+    IO.println "# drops as a conflict's arm does, in rows da0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
@@ -5716,6 +5756,7 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "g" grammarCases
     verdictRows "hv" holeFillVetCases
     verdictRows "dv" dataFillCases
+    verdictRows "da" illArmCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"

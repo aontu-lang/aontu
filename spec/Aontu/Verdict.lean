@@ -4575,96 +4575,6 @@ def meetClash (ds : Decls) (cs : List Val) : Bool :=
   | none => false
   | some ms => cs.any (·.refusesAtMeet ds ms)
 
-mutual
-/-- A term in normal form with each meet whose conjuncts clash
-(`meetClash`) read as `nil`, and each arm so read dropped (`mkOr`): the
-conflicts both ports find at the meet, an arm's the arm's alone, and a
-member's its container's. -/
-def Val.staged (ds : Decls) : Val → Val
-  | .meet a b => if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.staged ds) (b.staged ds)
-  | .map fs spread closed => .map (stagedFields ds fs) spread closed
-  | .list items spread closed => .list (stagedItems ds items) spread closed
-  | .or arms => mkOr (stagedArms ds arms)
-  | .pref r x => .pref r (x.staged ds)
-  | .ride k v r => .ride k (v.staged ds) r
-  | v => v
-
-def stagedFields (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val)
-  | [] => []
-  | (k, o, v) :: fs => (k, o, v.staged ds) :: stagedFields ds fs
-
-def stagedItems (ds : Decls) : List Val → List Val
-  | [] => []
-  | v :: vs => v.staged ds :: stagedItems ds vs
-
-def stagedArms (ds : Decls) : List (ℕ × Val) → List (ℕ × Val)
-  | [] => []
-  | (r, a) :: arms => (r, a.staged ds) :: stagedArms ds arms
-end
-
-theorem mem_stagedFields {ds : Decls} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val}
-    (h : (k, o, w) ∈ stagedFields ds fs) : ∃ v, (k, o, v) ∈ fs ∧ w = v.staged ds := by
-  induction fs with
-  | nil => simp [stagedFields] at h
-  | cons f fs ih =>
-    obtain ⟨k', o', v'⟩ := f
-    simp only [stagedFields, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl, rfl⟩ | h
-    · exact ⟨v', .head _, rfl⟩
-    · obtain ⟨v, hv, rfl⟩ := ih h
-      exact ⟨v, .tail _ hv, rfl⟩
-
-theorem mem_stagedItems {ds : Decls} {items : List Val} {w : Val} (h : w ∈ stagedItems ds items) :
-    ∃ v, v ∈ items ∧ w = v.staged ds := by
-  induction items with
-  | nil => simp [stagedItems] at h
-  | cons v vs ih =>
-    simp only [stagedItems, List.mem_cons] at h
-    rcases h with rfl | h
-    · exact ⟨v, .head _, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := ih h
-      exact ⟨u, .tail _ hu, rfl⟩
-
-theorem mem_stagedArms {ds : Decls} {arms : List (ℕ × Val)} {p : ℕ × Val} (h : p ∈ stagedArms ds arms) :
-    ∃ a, (p.1, a) ∈ arms ∧ p.2 = a.staged ds := by
-  induction arms with
-  | nil => simp [stagedArms] at h
-  | cons q arms ih =>
-    obtain ⟨r, a⟩ := q
-    simp only [stagedArms, List.mem_cons] at h
-    rcases h with rfl | h
-    · exact ⟨a, .head _, rfl⟩
-    · obtain ⟨b, hb, he⟩ := ih h
-      exact ⟨b, .tail _ hb, he⟩
-
-/-- Staging keeps a term the checker reads one it reads. -/
-theorem staged_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (v.staged ds).CheckableA := by
-  induction h with
-  | meet _ _ iha ihb =>
-    simp only [Val.staged]
-    split
-    · exact .nil
-    · exact .meet iha ihb
-  | @map fs spread closed _ hs ihf _ =>
-    simp only [Val.staged]
-    refine .map (fun k o w hw => ?_) hs
-    obtain ⟨v, hv, rfl⟩ := mem_stagedFields hw
-    exact ihf k o v hv
-  | @list items spread closed _ hs ihi _ =>
-    simp only [Val.staged]
-    refine .list (fun w hw => ?_) hs
-    obtain ⟨v, hv, rfl⟩ := mem_stagedItems hw
-    exact ihi v hv
-  | @or arms _ ih =>
-    simp only [Val.staged]
-    refine mkOr_checkableA fun p hp => ?_
-    obtain ⟨a, ha, he⟩ := mem_stagedArms hp
-    rw [he]
-    exact ih p.1 a ha
-  | pref _ ih => simp only [Val.staged]; exact .pref ih
-  | ride _ ih => simp only [Val.staged]; exact .ride ih
-  | _ => simp only [Val.staged]; constructor <;> assumption
-
 /-- Whether two arms are written alike: the same literal, the same
 numeric kind or the same bound, which both ports read as one arm, so
 that `1 | 1` and `min(1) | min(1)` are each one size. -/
@@ -4751,6 +4661,101 @@ def illPats : List (Val × Val) → Bool
   | [] => false
   | (p, _) :: ps => p.illFormed || illPats ps
 end
+
+mutual
+/-- A term in normal form with each meet whose conjuncts clash
+(`meetClash`) read as `nil`, and each arm so read dropped (`mkOr`), as
+is each arm that does not stand (`Val.illFormed`): the conflicts both
+ports find at the meet, an arm's the arm's alone, and a member's its
+container's, and an arm that does not stand the arm's alone too, as
+both ports drop it. An arm is read with the arms it stands for
+flattened in (`flattenArm`), so that a preference clash between them
+stays the disjunction's. -/
+def Val.staged (ds : Decls) : Val → Val
+  | .meet a b => if meetClash ds (a.conjuncts ++ b.conjuncts) then .nil else .meet (a.staged ds) (b.staged ds)
+  | .map fs spread closed => .map (stagedFields ds fs) spread closed
+  | .list items spread closed => .list (stagedItems ds items) spread closed
+  | .or arms => mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
+  | .pref r x => .pref r (x.staged ds)
+  | .ride k v r => .ride k (v.staged ds) r
+  | v => v
+
+def stagedFields (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.staged ds) :: stagedFields ds fs
+
+def stagedItems (ds : Decls) : List Val → List Val
+  | [] => []
+  | v :: vs => v.staged ds :: stagedItems ds vs
+
+def stagedArms (ds : Decls) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.staged ds) :: stagedArms ds arms
+end
+
+theorem mem_stagedFields {ds : Decls} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val}
+    (h : (k, o, w) ∈ stagedFields ds fs) : ∃ v, (k, o, v) ∈ fs ∧ w = v.staged ds := by
+  induction fs with
+  | nil => simp [stagedFields] at h
+  | cons f fs ih =>
+    obtain ⟨k', o', v'⟩ := f
+    simp only [stagedFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact ⟨v', .head _, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := ih h
+      exact ⟨v, .tail _ hv, rfl⟩
+
+theorem mem_stagedItems {ds : Decls} {items : List Val} {w : Val} (h : w ∈ stagedItems ds items) :
+    ∃ v, v ∈ items ∧ w = v.staged ds := by
+  induction items with
+  | nil => simp [stagedItems] at h
+  | cons v vs ih =>
+    simp only [stagedItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, .head _, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := ih h
+      exact ⟨u, .tail _ hu, rfl⟩
+
+theorem mem_stagedArms {ds : Decls} {arms : List (ℕ × Val)} {p : ℕ × Val} (h : p ∈ stagedArms ds arms) :
+    ∃ a, (p.1, a) ∈ arms ∧ p.2 = a.staged ds := by
+  induction arms with
+  | nil => simp [stagedArms] at h
+  | cons q arms ih =>
+    obtain ⟨r, a⟩ := q
+    simp only [stagedArms, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨a, .head _, rfl⟩
+    · obtain ⟨b, hb, he⟩ := ih h
+      exact ⟨b, .tail _ hb, he⟩
+
+/-- Staging keeps a term the checker reads one it reads. -/
+theorem staged_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (v.staged ds).CheckableA := by
+  induction h with
+  | meet _ _ iha ihb =>
+    simp only [Val.staged]
+    split
+    · exact .nil
+    · exact .meet iha ihb
+  | @map fs spread closed _ hs ihf _ =>
+    simp only [Val.staged]
+    refine .map (fun k o w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_stagedFields hw
+    exact ihf k o v hv
+  | @list items spread closed _ hs ihi _ =>
+    simp only [Val.staged]
+    refine .list (fun w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_stagedItems hw
+    exact ihi v hv
+  | @or arms _ ih =>
+    simp only [Val.staged]
+    refine mkOr_checkableA fun p hp => ?_
+    obtain ⟨q, hq, hpq⟩ := List.mem_flatMap.mp (List.mem_filter.mp hp).1
+    obtain ⟨a, ha, he⟩ := mem_stagedArms hq
+    have hq' : q.2.CheckableA := by rw [he]; exact ih q.1 a ha
+    exact flattenArm_checkableA hq' p hpq
+  | pref _ ih => simp only [Val.staged]; exact .pref ih
+  | ride _ ih => simp only [Val.staged]; exact .ride ih
+  | _ => simp only [Val.staged]; constructor <;> assumption
 
 mutual
 /-- Whether a term holds an `ident()`, at any depth. -/
