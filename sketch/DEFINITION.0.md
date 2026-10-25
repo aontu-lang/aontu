@@ -1394,11 +1394,13 @@ until the phase that encodes it lands.
    disjunction is filled arm by arm (`fillArms`, `leafArms`), so
    `upper(_) | "fallback"` passes `"a"`, and an arm that does not stand
    drops as a conflict's arm does (`Val.staged`), so `add(_, 1) | "x"`
-   passes `"x"` and `add("x", 1) | "x"` stands, as both ports answer; and
+   passes `"x"` and `add("x", 1) | "x"` stands, as both ports answer; a
+   lone preference is filled as the meet reads it, its preferred arm
+   filled and its parent arm met, so `*upper(_)` passes `"a"`; and
    two sides met that both wait, one of them more than the hole, are
    ill-formed (`Val.illFormed`), as both ports' `place_pair` is, while
    `_ & _` meets as one hole. Without the fill, the data is checked with
-   each waiting part read as `any` (`Val.waitAny`). Rows dv0 on, 39
+   each waiting part read as `any` (`Val.waitAny`). Rows dv0 on, 46
    cases in each mode, and rows da0 on, 10, and both ports answer every
    row as the definition does; no other row moved.
 

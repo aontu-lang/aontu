@@ -2024,7 +2024,9 @@ which the call spends, so that it reads as `any`; and a map or a list,
 read through its meets and riders, met with the other's members by key
 or by position (`Val.memberAt`, `Val.elemAt`), and each spread that
 waits on a hole with the other side's members, each side kept whole;
-and a disjunction met arm by arm, the other side met into each arm. -/
+a disjunction met arm by arm, the other side met into each arm; and a
+lone preference met as the two arms the meet reads it as, its
+preferred arm filled and its parent arm (`Val.super`) met. -/
 def Val.fillMeet (a b : Val) : Val × Val :=
   if a.fillable && !b.fillable then (a.bindHole b, .any)
   else if b.fillable && !a.fillable then (.any, b.bindHole a)
@@ -2041,10 +2043,12 @@ def Val.fillMeet (a b : Val) : Val × Val :=
       (.list u.1 s.1 ca, u.2)
     | .meet x y => (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
     | .ride k v r => (.ride k (v.fillMeet b).1 r, (v.fillMeet b).2)
+    | .pref r x => (.or [(r, .meet (x.fillMeet b).1 (x.fillMeet b).2), (0, .meet x.super b)], .any)
     | .or arms => (.or (fillArms arms b), .any)
     | _ =>
       match b with
       | .or arms => (.or (leafArms a arms), .any)
+      | .pref r y => (.or (leafArms a [(r, y), (0, y.super)]), .any)
       | _ => (a, b)
 termination_by structural a
 
@@ -2742,6 +2746,19 @@ theorem fillMeet_checkableA {a : Val} (ha : a.CheckableA) : FillsReadably a := b
     split
     · exact ⟨.any, bindHole_checkableA (.or ha) hb⟩
     · exact ⟨.or (fillArms_checkableA iha hb), .any⟩
+  | @pref r x hx ihx =>
+    intro b hb
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (.pref hx), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (.pref hx) hb⟩
+    · have h := ihx hb
+      refine ⟨.or fun r' w hm => ?_, .any⟩
+      simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
+      rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩
+      · exact .meet h.1 h.2
+      · exact .meet hx.super hb
   | _ =>
     intro b hb
     unfold Val.fillMeet
@@ -2753,6 +2770,13 @@ theorem fillMeet_checkableA {a : Val} (ha : a.CheckableA) : FillsReadably a := b
       split
       · cases hb with
         | or hy => exact ⟨.or (leafArms_checkableA (by constructor <;> assumption) hy), .any⟩
+      · cases hb with
+        | pref hy =>
+          refine ⟨.or (leafArms_checkableA (by constructor <;> assumption) fun r' y' hm => ?_), .any⟩
+          simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
+          rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩
+          · exact hy
+          · exact hy.super
       · exact ⟨by constructor <;> assumption, hb⟩
 
 theorem meetFilled_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
