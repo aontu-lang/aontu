@@ -1092,8 +1092,9 @@ until the phase that encodes it lands.
    fills member by member, built later the same day: the template meets
    each member through `Val.fillMeet` itself, read inside the spread so
    that the recursion stays structural (`Val.holdsFill`, `heldOnto`,
-   `heldFields`, `Val.heldAt`), rows hv228 on, 19 cases in each mode,
-   both ports answering as the definition does. Both ports fill a map
+   `heldFields`, `Val.heldAt`), a member that is a disjunction met arm
+   by arm (`fillWith`), rows hv228 on, 24 cases in each mode, both ports
+   answering as the definition does. Both ports fill a map
    spread's container template again each time a later meet reaches the
    member (#556), and Go's `vet` reads that as a conflict between the
    template and itself (#557), so the rows hold only shapes where

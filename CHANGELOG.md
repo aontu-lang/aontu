@@ -19,9 +19,12 @@ Definition, generated rows, and documentation. No engine changes.
   `{&: {n: upper(_)}} & {a: {n: "x"}}` is `{a: {n: "X"}}`, as both
   engines answer. It reaches a peer's members (`heldOnto`), the map's
   own (`heldFields`) and the fields a peer's spread meets
-  (`Val.heldAt`), and the same for a list.
-- `spec/Oracle.lean`: rows hv228 to hv284 of `test/spec/def-call.tsv`,
-  19 cases in each of the three modes. Both engines answer every row as
+  (`Val.heldAt`), and the same for a list. A member that is a
+  disjunction is met arm by arm (`fillWith`), so
+  `{&: {n: upper(_)}} & {a: ({n: "x"} | {n: "y"})}` passes
+  `{a: {n: "X"}}`.
+- `spec/Oracle.lean`: rows hv228 to hv299 of `test/spec/def-call.tsv`,
+  24 cases in each of the three modes. Both engines answer every row as
   the definition does, and no other row moves.
 - Both engines fill a map spread's container template again each time a
   later meet reaches the member, so

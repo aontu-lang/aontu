@@ -2044,6 +2044,14 @@ def spreadFromAt : List Val → Val → List Val × Val
   | xs, .ride k v r => ((spreadFromAt xs v).1, .ride k (spreadFromAt xs v).2 r)
   | xs, b => (xs, b)
 
+/-- A term met with its peer through `f`, the term's own fill: a
+disjunction the term meets met arm by arm, as the meet distributes it,
+unless the term waits on a hole (`w`), which takes the disjunction
+whole. -/
+def fillWith (f : Val → Val × Val) (w : Bool) : Val → Val × Val
+  | .or arms => if w then f (.or arms) else (.or (arms.map fun q => (q.1, .meet (f q.2).1 (f q.2).2)), .any)
+  | p => f p
+
 /-- A spread whose template holds a member that waits on a hole met with
 a peer's member under each key given that it hasn't filled, once, at
 the member's first declaration: the member reads as the template met
@@ -2055,7 +2063,7 @@ def heldOnto (f : Val → Val × Val) : List (Val × Val) → List String → Va
     match b.memberAt k with
     | some p =>
       if (filledKeys arms).contains k then heldOnto f arms ks b
-      else heldOnto f ((.lit (.str k), .any) :: arms) ks (b.putMember k (.meet (f p).1 (f p).2))
+      else heldOnto f ((.lit (.str k), .any) :: arms) ks (b.putMember k (.meet (fillWith f false p).1 (fillWith f false p).2))
     | none => heldOnto f arms ks b
 
 /-- The same at each position given. -/
@@ -2065,7 +2073,7 @@ def heldOntoAt (f : Val → Val × Val) : List (Val × Val) → List ℕ → Val
     match b.elemAt i with
     | some p =>
       if (filledKeys arms).contains (toString i) then heldOntoAt f arms is b
-      else heldOntoAt f ((.lit (.str (toString i)), .any) :: arms) is (b.putElem i (.meet (f p).1 (f p).2))
+      else heldOntoAt f ((.lit (.str (toString i)), .any) :: arms) is (b.putElem i (.meet (fillWith f false p).1 (fillWith f false p).2))
     | none => heldOntoAt f arms is b
 
 /-- A spread whose template holds a member that waits on a hole, once it
@@ -2156,14 +2164,6 @@ met with it. -/
 def leafArms (a : Val) : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
   | (r, y) :: ys => (r, if y.fillable then y.bindHole a else .meet a y) :: leafArms a ys
-
-/-- A term met with its peer through `f`, the term's own fill: a
-disjunction the term meets met arm by arm, as the meet distributes it,
-unless the term waits on a hole (`w`), which takes the disjunction
-whole. -/
-def fillWith (f : Val → Val × Val) (w : Bool) : Val → Val × Val
-  | .or arms => if w then f (.or arms) else (.or (arms.map fun q => (q.1, .meet (f q.2).1 (f q.2).2)), .any)
-  | p => f p
 
 mutual
 /-- Two terms met at one position, each with its own fills made: where
@@ -2275,7 +2275,8 @@ def heldFields : List (String × Bool × Val) → Option Val → List (String ×
     match sp.bind Val.heldSpread with
     | some (arms, t) =>
       if (filledKeys arms).contains k then ((k, o, x) :: (heldFields fs sp).1, (heldFields fs sp).2)
-      else ((k, o, .meet (t.fillMeet x).1 (t.fillMeet x).2) :: (heldFields fs (some (spreadWith arms t k))).1,
+      else ((k, o, .meet (fillWith (fun q => t.fillMeet q) false x).1 (fillWith (fun q => t.fillMeet q) false x).2) ::
+          (heldFields fs (some (spreadWith arms t k))).1,
         (heldFields fs (some (spreadWith arms t k))).2)
     | none => ((k, o, x) :: fs, sp)
 
@@ -2289,7 +2290,8 @@ def heldItems : ℕ → List Val → Option Val → List Val × Option Val
     | some (arms, t) =>
       if (filledKeys arms).contains (toString i) then
         (x :: (heldItems (i + 1) xs sp).1, (heldItems (i + 1) xs sp).2)
-      else (.meet (t.fillMeet x).1 (t.fillMeet x).2 :: (heldItems (i + 1) xs (some (spreadWith arms t (toString i)))).1,
+      else (.meet (fillWith (fun q => t.fillMeet q) false x).1 (fillWith (fun q => t.fillMeet q) false x).2 ::
+          (heldItems (i + 1) xs (some (spreadWith arms t (toString i)))).1,
         (heldItems (i + 1) xs (some (spreadWith arms t (toString i)))).2)
     | none => (x :: xs, sp)
 
@@ -2835,6 +2837,22 @@ theorem bind_heldSpread {sp : Option Val} (hsp : ∀ s, sp = some s → s.Checka
     have r := heldSpread_checkableA (hsp s rfl) h
     exact ⟨r.1, r.2, fun _ => spreadWith_checkableA r.2 r.1⟩
 
+theorem fillWith_checkableA {f : Val → Val × Val} {w : Bool}
+    (hf : ∀ {q : Val}, q.CheckableA → (f q).1.CheckableA ∧ (f q).2.CheckableA) {p : Val} (hp : p.CheckableA) :
+    (fillWith f w p).1.CheckableA ∧ (fillWith f w p).2.CheckableA := by
+  unfold fillWith
+  split
+  · split
+    · exact hf hp
+    · cases hp with
+      | or ha =>
+        refine ⟨.or fun r y hm => ?_, .any⟩
+        obtain ⟨q, hq, he⟩ := List.mem_map.mp hm
+        simp only [Prod.mk.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        exact .meet (hf (ha q.1 q.2 hq)).1 (hf (ha q.1 q.2 hq)).2
+  · exact hf hp
+
 theorem heldOnto_checkableA {f : Val → Val × Val}
     (hf : ∀ p, p.CheckableA → (f p).1.CheckableA ∧ (f p).2.CheckableA) :
     ∀ {ks : List String} {arms : List (Val × Val)} {b : Val},
@@ -2845,7 +2863,7 @@ theorem heldOnto_checkableA {f : Val → Val × Val}
     cases hm : b.memberAt k with
     | none => simp only [heldOnto, hm]; exact heldOnto_checkableA hf ha hb
     | some p =>
-      have hp := hf p (memberAt_checkableA hb hm)
+      have hp := fillWith_checkableA (f := f) (w := false) (fun hq => hf _ hq) (memberAt_checkableA hb hm)
       simp only [heldOnto, hm]
       split
       · exact heldOnto_checkableA hf ha hb
@@ -2867,7 +2885,7 @@ theorem heldOntoAt_checkableA {f : Val → Val × Val}
     cases hm : b.elemAt i with
     | none => simp only [heldOntoAt, hm]; exact heldOntoAt_checkableA hf ha hb
     | some p =>
-      have hp := hf p (elemAt_checkableA hb hm)
+      have hp := fillWith_checkableA (f := f) (w := false) (fun hq => hf _ hq) (elemAt_checkableA hb hm)
       simp only [heldOntoAt, hm]
       split
       · exact heldOntoAt_checkableA hf ha hb
@@ -3062,22 +3080,6 @@ theorem fillArms_checkableA : ∀ {arms : List (ℕ × Val)} {b : Val},
     · have q := ih r x List.mem_cons_self hb
       exact .meet q.1 q.2
     · exact fillArms_checkableA (fun r x h => ih r x (List.mem_cons_of_mem _ h)) hb r' w h
-
-theorem fillWith_checkableA {f : Val → Val × Val} {w : Bool}
-    (hf : ∀ {q : Val}, q.CheckableA → (f q).1.CheckableA ∧ (f q).2.CheckableA) {p : Val} (hp : p.CheckableA) :
-    (fillWith f w p).1.CheckableA ∧ (fillWith f w p).2.CheckableA := by
-  unfold fillWith
-  split
-  · split
-    · exact hf hp
-    · cases hp with
-      | or ha =>
-        refine ⟨.or fun r y hm => ?_, .any⟩
-        obtain ⟨q, hq, he⟩ := List.mem_map.mp hm
-        simp only [Prod.mk.injEq] at he
-        obtain ⟨rfl, rfl⟩ := he
-        exact .meet (hf (ha q.1 q.2 hq)).1 (hf (ha q.1 q.2 hq)).2
-  · exact hf hp
 
 theorem fillFields_checkableA : ∀ {fs : List (String × Bool × Val)} {b : Val},
     (∀ k o x, (k, o, x) ∈ fs → x.CheckableA) → (∀ k o x, (k, o, x) ∈ fs → FillsReadably x) →
@@ -3342,7 +3344,7 @@ theorem heldFields_checkableA : ∀ {fs : List (String × Bool × Val)} {sp : Op
         rcases List.mem_cons.mp h with h | h
         · simp only [Prod.mk.injEq] at h
           obtain ⟨-, -, rfl⟩ := h
-          exact .meet (fillMeet_checkableA r.1 hx).1 (fillMeet_checkableA r.1 hx).2
+          exact .meet (fillWith_checkableA (fillMeet_checkableA r.1) hx).1 (fillWith_checkableA (fillMeet_checkableA r.1) hx).2
         · exact q.1 _ _ _ h
 
 theorem heldItems_checkableA : ∀ {xs : List Val} {i : ℕ} {sp : Option Val},
@@ -3379,7 +3381,7 @@ theorem heldItems_checkableA : ∀ {xs : List Val} {i : ℕ} {sp : Option Val},
             (fun s hs => by simp only [Option.some.injEq] at hs; subst hs; exact r.2.2 _)
           refine ⟨fun w h => ?_, q.2⟩
           rcases List.mem_cons.mp h with rfl | h
-          · exact .meet (fillMeet_checkableA r.1 h0).1 (fillMeet_checkableA r.1 h0).2
+          · exact .meet (fillWith_checkableA (fillMeet_checkableA r.1) h0).1 (fillWith_checkableA (fillMeet_checkableA r.1) h0).2
           · exact q.1 _ h
 
 theorem spreadAll_checkableA {fs : List (String × Bool × Val)} {sp : Option Val}

@@ -1349,7 +1349,10 @@ its own and a peer's, and then reads that key as `any`
 `{a: "X"}`, and `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, as
 both engines answer. A template that holds its hole inside a container
 fills each member the same way, member by member (`heldOnto`):
-`{&: {n: upper(_)}} & {a: {n: "x"}}` is `{a: {n: "X"}}`. Both engines
+`{&: {n: upper(_)}} & {a: {n: "x"}}` is `{a: {n: "X"}}`, and a member
+that is a disjunction is met arm by arm, so
+`{&: {n: upper(_)}} & {a: ({n: "x"} | {n: "y"})}` passes
+`{a: {n: "X"}}`. Both engines
 fill a map spread's container template again each time a later meet
 reaches the member, so `({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}`
 gives `n: 3`, where the definition fills it once, which

@@ -7491,7 +7491,10 @@ $ aontu held.aontu
 The `match` above reads the template inside the spread, so the fill's
 recursion stays on a part of the term (`Val.holdsFill`, `heldOnto`).
 It meets a peer's members, the map's own (`heldFields`), and the fields
-a peer's spread meets (`Val.heldAt`). Both engines fill a map spread's
+a peer's spread meets (`Val.heldAt`). A member that is a disjunction,
+a peer's or the map's own, is met arm by arm (`fillWith`), so
+`{&: {n: upper(_)}} & {a: ({n: "x"} | {n: "y"})}` passes
+`{a: {n: "X"}}`, as both engines answer. Both engines fill a map spread's
 container template again each time a later meet reaches the member, so
 `({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives `n: 3`, where the
 definition fills it once and gives `2`, which #556 tracks.

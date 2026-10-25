@@ -4601,7 +4601,8 @@ template holds its hole inside a container, a map or a list, met with a
 peer's members on either side, with its own, through a meet on either
 side, with a member a later meet brings and with one it has filled,
 nested, under a spread inside the template, with a member the data fills
-and one it leaves out, and beside a member that waits. Two spreads that
+and one it leaves out, beside a member that waits, and with a member, a
+peer's or its own, that is a disjunction, met arm by arm. Two spreads that
 both wait are out of them: both ports read them as one where their
 templates are alike, and as `place_pair` otherwise. So is a map spread's
 container template that a later meet reaches again, which both ports
@@ -4727,7 +4728,17 @@ def holeFillVetCases : List (Val × Data) :=
       .map [("a", .map [("n", .str "X")])]),
     (.meet (spm [] (mp [("n", up .hole)])) (.meet (mp [("a", mp [("n", s "x")])]) (mp [("b", mp [("n", s "y")])])),
       .map [("a", .map [("n", .str "X")]), ("b", .map [("n", .str "Y")])]),
-    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", up .hole)])]), .map [("a", .map [("n", .str "X")])])]
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", up .hole)])]), .map [("a", .map [("n", .str "X")])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", .or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])])]),
+      .map [("a", .map [("n", .str "X")])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", .or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])])]),
+      .map [("a", .map [("n", .str "Z")])]),
+    (spm [("a", .or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])])] (mp [("n", up .hole)]),
+      .map [("a", .map [("n", .str "Y")])]),
+    (.meet (mp [("a", .or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])])]) (spm [] (mp [("n", up .hole)])),
+      .map [("a", .map [("n", .str "X")])]),
+    (.meet (spl [] (mp [("n", up .hole)])) (lst [.or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])]]),
+      .list [.map [("n", .str "X")]])]
 
 set_option maxRecDepth 8192 in
 /-- A hole the document leaves unfilled, which the data fills, the data
