@@ -4695,6 +4695,38 @@ def holeFillVetCases : List (Val × Data) :=
     (.meet (.meet (spl [] (add1 .hole)) (lst [n 1, n 2])) (lst [n 2, n 3]), .list [.integer 2, .integer 3])]
 
 set_option maxRecDepth 8192 in
+/-- A hole the document leaves unfilled, which the data fills, the data
+met last (decision 29 of the design note's §7), for the `verdict` rows
+dv0 on. A call on the data's value, which it takes as its argument
+rather than meets, so that `add(_, 1)` passes `2` and `3` alike, and
+refusing it; one the document's own peer fills first, which the data
+then meets; inside a map, the data leaving it out, which is incomplete
+but under `--partial`; inside a list and in a spread; a generator over
+the data; the hole alone; and two calls met that both wait, which
+neither fills, an error. -/
+def dataFillCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let up (v : Val) : Val := .call .upper [v]
+  let add1 (v : Val) : Val := .call .add [v, n 1]
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  let spm (fs : List (String × Val)) (t : Val) : Val := .map (fs.map fun (k, v) => (k, false, v)) (some t) false
+  [(up .hole, .str "a"), (up .hole, .str "A"), (up .hole, .integer 1), (up .hole, .map [("a", .integer 1)]),
+    (add1 .hole, .integer 2), (add1 .hole, .integer 3), (add1 .hole, .str "a"),
+    (.meet (up .hole) (s "A"), .str "a"), (.meet (up .hole) (s "A"), .str "A"),
+    (mp [("a", up .hole)], .map [("a", .str "x")]), (mp [("a", up .hole)], .map []),
+    (lst [up .hole], .list [.str "a"]), (spm [] (up .hole), .map [("a", .str "x")]),
+    (.call .each [.hole, up .hole], .list [.str "a", .str "b"]), (.hole, .str "a"),
+    (.meet (up .hole) (up .hole), .str "A")]
+
+theorem dataFillCases_checkable : ∀ c ∈ dataFillCases, (vetDoc c).1.CheckableA := by decide
+
+theorem data_fill_verdict_exact : ∀ c ∈ dataFillCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (dataFillCases_checkable c hc)) v
+
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
 
 theorem hole_fill_verdict_exact : ∀ c ∈ holeFillVetCases, ∀ (m : Mode) (v : Verdict),
@@ -5663,6 +5695,7 @@ def main (args : List String) : IO UInt32 := do
       throw (IO.userError "a grammar of the rows the oracle's host does not read as every engine does")
     verdictRows "g" grammarCases
     verdictRows "hv" holeFillVetCases
+    verdictRows "dv" dataFillCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"

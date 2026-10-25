@@ -10,9 +10,10 @@ What `aontu vet` answers about a schema and a document of data: `valid`,
 `Output`. A schema whose normal form holds a `nil` anywhere but in a
 spread, or a preference clash, two preferred arms of one rank that
 single out different values, does not stand on its own: `error`,
-whatever the data. Otherwise the meet of the schema with the data as a
-term is dead, and the data is refused outright: `invalid`. Otherwise
-the meet singles out a value, the data filled by the schema's defaults:
+whatever the data. Otherwise the schema read against the data, the data
+filling each hole the schema leaves unfilled, is dead, and the data is
+refused outright: `invalid`. Otherwise it singles out a value, the data
+filled by the schema's defaults:
 `valid` in the default mode, and without the fill only where the data
 as written is an instance. What remains, a meet alive that singles out
 nothing, or a fill the data lacks, is `incomplete`, which `--partial`
@@ -1263,6 +1264,7 @@ def Val.pending (ds : Decls) : Val → Bool
   | .call _ args => pendingItems ds args
   | .select s _ _ => s.pending ds
   | .filter s _ => s.pending ds
+  | .hole => true
   | _ => false
 
 def pendingItems (ds : Decls) : List Val → Bool
@@ -2911,6 +2913,13 @@ def Decls.readR (ds : Decls) (S : Val) : Val := resolveD ds none (some []) (ds.r
 read, so that a key a path reaches reads where the path lands. -/
 def Decls.readU (ds : Decls) (S : Val) : Val := resolveD ds none none (ds.read S).filled
 
+/-- How a document reads against data: the schema as read, met with the
+data through the fill, the data last, so that the data fills a hole the
+schema leaves unfilled, and read again, so that a call the data fills
+is made. -/
+def Decls.readJ (ds : Decls) (S : Val) (j : Data) : Val :=
+  resolveD ds none (some []) ((ds.readR S).meetFilled j.term)
+
 theorem mem_resolveFields {ds : Decls} {b : Option Val} {here : Option (List Step)} :
     ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
     (k, o, w) ∈ resolveFields ds b here fs → ∃ v, (k, o, v) ∈ fs ∧ w = resolveD ds b (stepped here (.seg (.key k))) v
@@ -4234,6 +4243,12 @@ theorem readR_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.Ch
   unfold Decls.readR
   exact resolveD_checkableA hb (filled_checkableA (expand_checkableA hb hS)) fun _ h => nomatch h
 
+/-- A document read against data reads to a term the checker can read
+wherever the document alone does. -/
+theorem readJ_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : (ds.readR S).CheckableA) (j : Data) : (ds.readJ S j).CheckableA :=
+  resolveD_checkableA hb (meetFilled_checkableA hS (Data.term_checkableA j)) fun _ h => nomatch h
+
 /-- A document whose schema the checker can read reads, with its keys as
 written, as a term it can read too. -/
 theorem readU_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
@@ -4625,9 +4640,11 @@ def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, a
-preference clash, a size that holds a disjunction or a preference, or
-a call the reading could not make. A `+` that waits stands where its
-operands do, and a `pref` that waits where its argument does. The
+preference clash, a size that holds a disjunction or a preference, a call the reading
+could not make, or two sides met that both wait on a hole, which
+neither fills. A call that waits on a hole stands, for the data to
+fill, a `+` that waits where its operands do, and a `pref` where its
+argument does. The
 verdict reads it of a term staged (`Val.staged`), so that a conflict
 the meet finds is a `nil`. -/
 def Val.illFormed : Val → Bool
@@ -4637,12 +4654,12 @@ def Val.illFormed : Val → Bool
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
-  | .meet a b => a.illFormed || b.illFormed
+  | .meet a b => (a.fillable && b.fillable) || a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
-  | .call _ _ => true
+  | .call f args => if (Val.call f args).fillable then illItems args else true
   | .select _ arms _ => illPats arms
   | _ => false
 
@@ -4982,7 +4999,113 @@ theorem refusedAt_iff {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, 
     rw [(checkR_iff hg hb hv c).mpr hr]
     rfl
 
+/-! ## Waiting parts read as `any` -/
+
+mutual
+/-- The term with each part that waits on a hole read as `any`, as the
+check without the fill reads it: the data fills the hole, so the part
+admits what it takes. -/
+def Val.waitAny : Val → Val
+  | .map fs sp c => .map (waitFields fs) (waitSpread sp) c
+  | .list xs sp c => .list (waitItems xs) (waitSpread sp) c
+  | .meet a b => .meet a.waitAny b.waitAny
+  | .ride k v r => .ride k v.waitAny r
+  | .or arms => .or (waitArms arms)
+  | .select s arms d => .select s arms (waitSpread d)
+  | v => if v.fillable then .any else v
+
+def waitFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.waitAny) :: waitFields fs
+
+def waitItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.waitAny :: waitItems vs
+
+def waitSpread : Option Val → Option Val
+  | none => none
+  | some s => some s.waitAny
+
+def waitArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.waitAny) :: waitArms as
+end
+
+theorem mem_waitFields : ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
+    (k, o, w) ∈ waitFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.waitAny
+  | [], _, _, _, h => nomatch h
+  | (k', o', v') :: fs, k, o, w, h => by
+    simp only [waitFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact ⟨v', List.mem_cons_self, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := mem_waitFields h
+      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+
+theorem mem_waitItems : ∀ {vs : List Val} {w : Val}, w ∈ waitItems vs → ∃ v, v ∈ vs ∧ w = v.waitAny
+  | [], _, h => nomatch h
+  | v :: vs, w, h => by
+    simp only [waitItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, List.mem_cons_self, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := mem_waitItems h
+      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+
+theorem waitSpread_some : ∀ {sp : Option Val} {t : Val}, waitSpread sp = some t → ∃ s, sp = some s ∧ t = s.waitAny
+  | none, _, h => nomatch h
+  | some s, _, h => ⟨s, rfl, (Option.some.inj h).symm⟩
+
+theorem mem_waitArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {a : Val},
+    (r, a) ∈ waitArms arms → ∃ b, (r, b) ∈ arms ∧ a = b.waitAny
+  | [], _, _, h => nomatch h
+  | (r', b') :: arms, r, a, h => by
+    simp only [waitArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨b', List.mem_cons_self, rfl⟩
+    · obtain ⟨b, hb, rfl⟩ := mem_waitArms h
+      exact ⟨b, List.mem_cons_of_mem _ hb, rfl⟩
+
+/-- Reading the waiting parts as `any` leaves a term the checker can read. -/
+theorem waitAny_checkableA {v : Val} (h : v.CheckableA) : v.waitAny.CheckableA := by
+  induction h with
+  | @map fs sp c _ _ ihf ihs =>
+    refine .map (fun k o w hm => ?_) (fun t ht => ?_)
+    · obtain ⟨v, hv, rfl⟩ := mem_waitFields hm
+      exact ihf k o v hv
+    · obtain ⟨s, hs, rfl⟩ := waitSpread_some ht
+      exact ihs s hs
+  | @list xs sp c _ _ ihx ihs =>
+    refine .list (fun w hm => ?_) (fun t ht => ?_)
+    · obtain ⟨v, hv, rfl⟩ := mem_waitItems hm
+      exact ihx v hv
+    · obtain ⟨s, hs, rfl⟩ := waitSpread_some ht
+      exact ihs s hs
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | ride _ ih => exact .ride ih
+  | @or arms _ ih =>
+    refine .or fun r a hm => ?_
+    obtain ⟨b, hb, rfl⟩ := mem_waitArms hm
+    exact ih r b hb
+  | @selectKey arms d hp hr _ _ _ ihd =>
+    refine .selectKey hp hr fun e he => ?_
+    obtain ⟨s, hs, rfl⟩ := waitSpread_some he
+    exact ihd s hs
+  | @selectLit sc arms d hp hr _ _ _ ihd =>
+    refine .selectLit hp hr fun e he => ?_
+    obtain ⟨s, hs, rfl⟩ := waitSpread_some he
+    exact ihd s hs
+  | _ =>
+    simp only [Val.waitAny]
+    split
+    · exact .any
+    · constructor <;> assumption
+
 /-! ## The verdict -/
+
+/-- Whether the schema read against the data fails: dead, or holding a
+call the reading could not make, where the data's value lies outside
+the call's domain, as `add(_, 1)` against `"a"`, which the data's own
+refusal is. -/
+def Val.fails (v : Val) : Bool := v.dead || v.illFormed
 
 instance (ds : Decls) (S : Val) : Decidable (ds.Declares S) := decidable_of_iff _ Decls.declaresB_iff
 
@@ -4993,45 +5116,47 @@ the declarations `ds` and the mode `m`, the schema read as its
 expansion with its selections made: `error` where the document refers to a name it does not
 declare, where its names break the alias-cycle rule, where an
 `ident()` stands out of its place, or where the schema's normal form,
-staged, does not stand; `invalid` where the meet of the schema with the
-data as a term, staged (`Val.staged`) so that a conflict the meet finds
-is `nil` and an arm holding one drops, is dead, or refuses, read whole,
-the value it gives with its trials and sizes unread; `valid` where the
-staged meet singles out a value, and without the fill where the data as
-written is an instance of the visible part of the schema's normal form,
-staged, too, or where `--partial` lets the unresolved pass; and
-`incomplete` otherwise. -/
+staged, does not stand; `invalid` where the schema read against the data
+(`Decls.readJ`), the data filling each hole the schema leaves unfilled,
+staged (`Val.staged`) so that a conflict the meet finds is `nil` and an
+arm holding one drops, fails, dead or holding a call the data leaves it
+unable to make (`Val.fails`), or refuses, read whole, the value it gives
+with its trials and sizes unread; `valid` where it singles out a
+value, and without the fill where the data as written is an instance of
+the visible part of the schema's normal form, staged, each part that
+waits on a hole read as `any`, too, or where `--partial` lets the
+unresolved pass; and `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = true ∨
-        RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds))
+      (((normaliseD ds (ds.readJ S j)).staged ds).fails = true ∨
+        RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = false ∧
-      ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
+      ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       (m.lax = true ∨
-        ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧
-          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j))
+        ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
+          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = false ∧
-      ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
+      ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       m.lax = false ∧
-      ¬ ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧
-        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j)
+      ¬ ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
+        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j)
 
 /-- The verdict, computed. -/
 def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
   if !(ds.declaresB S && ds.guardedB) then .error
   else if ds.illFormedR S then .error
-  else if ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead then .invalid
-  else if refusedAt ds ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) then .invalid
+  else if ((normaliseD ds (ds.readJ S j)).staged ds).fails then .invalid
+  else if refusedAt ds ((normaliseD ds (ds.readJ S j)).staged ds) then .invalid
   else if m.lax then .valid
   else
-    match genD ds ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible with
-    | some _ => if m.fill || checkR ds ((normaliseD ds (ds.readR S)).staged ds).visible j then .valid else .incomplete
+    match genD ds ((normaliseD ds (ds.readJ S j)).staged ds).visible with
+    | some _ => if m.fill || checkR ds ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j then .valid else .incomplete
     | none => .incomplete
 
 section
@@ -5207,33 +5332,33 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
     obtain ⟨hdB, hgB⟩ := hok
     have hD := Decls.declaresB_iff.mp hdB
     have hG := Decls.guardedB_iff.mp hgB
-    have hS' : ((normaliseD ds (ds.readR S)).staged ds).visible.CheckableA :=
-      (staged_checkableA (ds := ds) (normaliseD_checkableA hb hS)).visible
-    have hM' := staged_checkableA (ds := ds) (normaliseD_checkableA hb (meetD_checkableA hb hS (Data.term_checkableA j)))
+    have hS' : ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny.CheckableA :=
+      waitAny_checkableA (staged_checkableA (ds := ds) (normaliseD_checkableA hb hS)).visible
+    have hM' := staged_checkableA (ds := ds) (normaliseD_checkableA hb (readJ_checkableA hb hS j))
     cases hi : ds.illFormedR S with
     | true => exact .inr (.inr hi)
     | false =>
       rw [if_neg Bool.false_ne_true]
-      cases hd : ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead with
+      cases hd : ((normaliseD ds (ds.readJ S j)).staged ds).fails with
       | true => exact ⟨hD, hG, hi, .inl hd⟩
       | false =>
         rw [if_neg Bool.false_ne_true]
-        cases hr : refusedAt ds ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) with
+        cases hr : refusedAt ds ((normaliseD ds (ds.readJ S j)).staged ds) with
         | true => exact ⟨hD, hG, hi, .inr ((refusedAt_iff hG hb hM').mp hr)⟩
         | false =>
           rw [if_neg Bool.false_ne_true]
-          have hnr : ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) := fun h => by
+          have hnr : ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) := fun h => by
             rw [(refusedAt_iff hG hb hM').mpr h] at hr
             exact nomatch hr
           cases hp : m.lax with
           | true => exact ⟨hD, hG, hi, hd, hnr, .inl hp⟩
           | false =>
             rw [if_neg Bool.false_ne_true]
-            cases ho : genD ds ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible with
+            cases ho : genD ds ((normaliseD ds (ds.readJ S j)).staged ds).visible with
             | some j' =>
-              have hout : Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' :=
+              have hout : Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' :=
                 (genWith_iff hM'.visible (fun _ j hw _ => checkR_iff hG hb hw j) j').mp ho
-              cases hc : (m.fill || checkR ds ((normaliseD ds (ds.readR S)).staged ds).visible j) with
+              cases hc : (m.fill || checkR ds ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j) with
               | true =>
                 rw [if_pos rfl]
                 refine ⟨hD, hG, hi, hd, hnr, .inr ⟨j', hout, ?_⟩⟩
@@ -5251,7 +5376,7 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
             | none =>
               refine ⟨hD, hG, hi, hd, hnr, hp, ?_⟩
               rintro ⟨j', hout, -⟩
-              have hg' : genD ds ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible = some j' :=
+              have hg' : genD ds ((normaliseD ds (ds.readJ S j)).staged ds).visible = some j' :=
                 (genWith_iff hM'.visible (fun _ j hw _ => checkR_iff hG hb hw j) j').mpr hout
               rw [hg'] at ho
               exact nomatch ho
@@ -5264,10 +5389,11 @@ theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ 
 /-! ## What the verdicts say -/
 
 /-- Without the fill, `valid` is `Instance`: the data as written is an
-instance of the visible part of the schema as read. -/
+instance of the visible part of the schema as read, each part that
+waits on a hole read as `any`, since the data fills it. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible j := by
+    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -5279,21 +5405,25 @@ theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (
 is an instance of the visible part of the schema met with the data. -/
 theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
     (h : Vet m ds S j .valid) :
-    ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧ Admits ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' := by
+    ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧ Admits ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' := by
   obtain ⟨-, -, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
   · exact ⟨j', hout, gen_admits _ _ hout⟩
 
-/-- `invalid` refuses: the normal form of the schema met with the data,
-the conflicts the meet finds read (`Val.staged`), refuses the data as
-written, or, its trials and sizes unread, the value it would single out. -/
+/-- `invalid` refuses: the normal form of the schema read against the
+data, the conflicts the meet finds read (`Val.staged`), refuses the data
+as written, or, its trials and sizes unread, the value it would single
+out, or holds a call the data leaves the reading unable to make. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) j ∨
-      RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) := by
+    Refuses ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds) j ∨
+      RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∨
+      ((normaliseD ds (ds.readJ S j)).staged ds).illFormed = true := by
   obtain ⟨-, -, -, hd | hr⟩ := h
-  · exact .inl (dead_refuses _ hd j)
-  · exact .inr hr
+  · rcases Bool.or_eq_true_iff.mp hd with hd | hi
+    · exact .inl (dead_refuses _ hd j)
+    · exact .inr (.inr hi)
+  · exact .inr (.inl hr)
 
 end
 

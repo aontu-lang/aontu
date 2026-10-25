@@ -2882,6 +2882,7 @@ def Val.pending (ds : Decls) : Val → Bool
   | .call _ args => pendingItems ds args
   | .select s _ _ => s.pending ds
   | .filter s _ => s.pending ds
+  | .hole => true
   | _ => false
 ```
 
@@ -4408,34 +4409,36 @@ the declarations `ds` and the mode `m`, the schema read as its
 expansion with its selections made: `error` where the document refers to a name it does not
 declare, where its names break the alias-cycle rule, where an
 `ident()` stands out of its place, or where the schema's normal form,
-staged, does not stand; `invalid` where the meet of the schema with the
-data as a term, staged (`Val.staged`) so that a conflict the meet finds
-is `nil` and an arm holding one drops, is dead, or refuses, read whole,
-the value it gives with its trials and sizes unread; `valid` where the
-staged meet singles out a value, and without the fill where the data as
-written is an instance of the visible part of the schema's normal form,
-staged, too, or where `--partial` lets the unresolved pass; and
-`incomplete` otherwise. -/
+staged, does not stand; `invalid` where the schema read against the data
+(`Decls.readJ`), the data filling each hole the schema leaves unfilled,
+staged (`Val.staged`) so that a conflict the meet finds is `nil` and an
+arm holding one drops, fails, dead or holding a call the data leaves it
+unable to make (`Val.fails`), or refuses, read whole, the value it gives
+with its trials and sizes unread; `valid` where it singles out a
+value, and without the fill where the data as written is an instance of
+the visible part of the schema's normal form, staged, each part that
+waits on a hole read as `any`, too, or where `--partial` lets the
+unresolved pass; and `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = true ∨
-        RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds))
+      (((normaliseD ds (ds.readJ S j)).staged ds).fails = true ∨
+        RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = false ∧
-      ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
+      ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       (m.lax = true ∨
-        ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧
-          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j))
+        ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
+          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).dead = false ∧
-      ¬ RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
+      ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       m.lax = false ∧
-      ¬ ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧
-        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j)
+      ¬ ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
+        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j)
 ```
 
 Read the four in order. `error` is a document that refers to a name it
@@ -4668,12 +4671,12 @@ def Val.illFormed : Val → Bool
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
-  | .meet a b => a.illFormed || b.illFormed
+  | .meet a b => (a.fillable && b.fillable) || a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
-  | .call _ _ => true
+  | .call f args => if (Val.call f args).fillable then illItems args else true
   | .select _ arms _ => illPats arms
   | _ => false
 ```
@@ -4741,10 +4744,11 @@ Three theorems say what the words mean:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- Without the fill, `valid` is `Instance`: the data as written is an
-instance of the visible part of the schema as read. -/
+instance of the visible part of the schema as read, each part that
+waits on a hole read as `any`, since the data fills it. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible j := by
+    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -4759,7 +4763,7 @@ theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (
 is an instance of the visible part of the schema met with the data. -/
 theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.lax = false)
     (h : Vet m ds S j .valid) :
-    ∃ j', Gen ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' ∧ Admits ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds).visible j' := by
+    ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧ Admits ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' := by
   obtain ⟨-, -, -, -, -, hp' | ⟨j', hout, -⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -4768,15 +4772,14 @@ theorem vet_valid_filled {m : Mode} {ds : Decls} {S : Val} {j : Data} (hp : m.la
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
-/-- `invalid` refuses: the normal form of the schema met with the data,
-the conflicts the meet finds read (`Val.staged`), refuses the data as
-written, or, its trials and sizes unread, the value it would single out. -/
+/-- `invalid` refuses: the normal form of the schema read against the
+data, the conflicts the meet finds read (`Val.staged`), refuses the data
+as written, or, its trials and sizes unread, the value it would single
+out, or holds a call the data leaves the reading unable to make. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) j ∨
-      RefusedAt ds j ((normaliseD ds (meetD ds (ds.readR S) j.term)).staged ds) := by
-  obtain ⟨-, -, -, hd | hr⟩ := h
-  · exact .inl (dead_refuses _ hd j)
-  · exact .inr hr
+    Refuses ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds) j ∨
+      RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∨
+      ((normaliseD ds (ds.readJ S j)).staged ds).illFormed = true := by
 ```
 
 So `vet --no-fill` answers `valid` exactly for an instance of the
@@ -4831,7 +4834,7 @@ example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .inco
 no declaration, where a document reads as itself, its visible part the
 normal form of `[*1]`, staged. -/
 example : Instance (Decls.envE [])
-    ((normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).staged []).visible
+    ((normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).staged []).visible.waitAny
     (.list [.integer 2]) :=
   vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
     ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))
