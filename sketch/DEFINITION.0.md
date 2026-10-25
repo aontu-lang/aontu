@@ -1398,11 +1398,15 @@ until the phase that encodes it lands.
    one stays unmade until the data fills it. A call the data leaves the
    reading unable to make fails it (`Val.fails`), `invalid`, as both
    ports refuse `add(_, 1)` against `"a"`. A call that waits stands where
-   it has as many arguments as its function takes (`Fn.takes`), and
+   it has as many arguments as its function takes (`Fn.takes`), a
+   generator by its data alone, since its template is read at each
+   member, so `each(_, upper({}))` passes `[]` as both ports answer; a
+   disjunction is filled arm by arm (`fillArms`, `leafArms`), so
+   `upper(_) | "fallback"` passes `"a"`; and
    two sides met that both wait, one of them more than the hole, are
    ill-formed (`Val.illFormed`), as both ports' `place_pair` is, while
    `_ & _` meets as one hole. Without the fill, the data is checked with
-   each waiting part read as `any` (`Val.waitAny`). Rows dv0 on, 19
+   each waiting part read as `any` (`Val.waitAny`). Rows dv0 on, 33
    cases in each mode, and both ports answer every row as the definition
    does; no other row moved.
 

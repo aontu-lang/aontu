@@ -3156,3 +3156,45 @@ dv53	verdict	v: (upper(_)) & (_)	v: "A"	{"verdict":"error","opts":{"partial":tru
 dv54	verdict	v: (upper(_)) & (upper(_))	v: "A"	{"verdict":"error"}
 dv55	verdict	v: (upper(_)) & (upper(_))	v: "A"	{"verdict":"error","opts":{"noFill":true}}
 dv56	verdict	v: (upper(_)) & (upper(_))	v: "A"	{"verdict":"error","opts":{"partial":true}}
+dv57	verdict	v: each(_, upper({}))	v: []	{"verdict":"valid"}
+dv58	verdict	v: each(_, upper({}))	v: []	{"verdict":"valid","opts":{"noFill":true}}
+dv59	verdict	v: each(_, upper({}))	v: []	{"verdict":"valid","opts":{"partial":true}}
+dv60	verdict	v: each(_, upper({}))	v: ["a"]	{"verdict":"invalid"}
+dv61	verdict	v: each(_, upper({}))	v: ["a"]	{"verdict":"invalid","opts":{"noFill":true}}
+dv62	verdict	v: each(_, upper({}))	v: ["a"]	{"verdict":"invalid","opts":{"partial":true}}
+dv63	verdict	v: {"a": each(_, upper({}))}	v: {}	{"verdict":"incomplete"}
+dv64	verdict	v: {"a": each(_, upper({}))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+dv65	verdict	v: {"a": each(_, upper({}))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+dv66	verdict	v: pack(_, {"n": upper({})})	v: []	{"verdict":"valid"}
+dv67	verdict	v: pack(_, {"n": upper({})})	v: []	{"verdict":"valid","opts":{"noFill":true}}
+dv68	verdict	v: pack(_, {"n": upper({})})	v: []	{"verdict":"valid","opts":{"partial":true}}
+dv69	verdict	v: (upper(_)) | ("fallback")	v: "a"	{"verdict":"valid"}
+dv70	verdict	v: (upper(_)) | ("fallback")	v: "a"	{"verdict":"valid","opts":{"noFill":true}}
+dv71	verdict	v: (upper(_)) | ("fallback")	v: "a"	{"verdict":"valid","opts":{"partial":true}}
+dv72	verdict	v: (upper(_)) | ("fallback")	v: "fallback"	{"verdict":"incomplete"}
+dv73	verdict	v: (upper(_)) | ("fallback")	v: "fallback"	{"verdict":"incomplete","opts":{"noFill":true}}
+dv74	verdict	v: (upper(_)) | ("fallback")	v: "fallback"	{"verdict":"valid","opts":{"partial":true}}
+dv75	verdict	v: (upper(_)) | ("fallback")	v: 1	{"verdict":"valid"}
+dv76	verdict	v: (upper(_)) | ("fallback")	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+dv77	verdict	v: (upper(_)) | ("fallback")	v: 1	{"verdict":"valid","opts":{"partial":true}}
+dv78	verdict	v: (add(_, 1)) | ("z")	v: 2	{"verdict":"valid"}
+dv79	verdict	v: (add(_, 1)) | ("z")	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+dv80	verdict	v: (add(_, 1)) | ("z")	v: 2	{"verdict":"valid","opts":{"partial":true}}
+dv81	verdict	v: {"a": (upper(_)) | ("x")}	v: {"a": "y"}	{"verdict":"valid"}
+dv82	verdict	v: {"a": (upper(_)) | ("x")}	v: {"a": "y"}	{"verdict":"valid","opts":{"noFill":true}}
+dv83	verdict	v: {"a": (upper(_)) | ("x")}	v: {"a": "y"}	{"verdict":"valid","opts":{"partial":true}}
+dv84	verdict	v: [(upper(_)) | ("x")]	v: ["y"]	{"verdict":"valid"}
+dv85	verdict	v: [(upper(_)) | ("x")]	v: ["y"]	{"verdict":"valid","opts":{"noFill":true}}
+dv86	verdict	v: [(upper(_)) | ("x")]	v: ["y"]	{"verdict":"valid","opts":{"partial":true}}
+dv87	verdict	v: ((upper(_)) | ("x")) & ("a")	v: "A"	{"verdict":"valid"}
+dv88	verdict	v: ((upper(_)) | ("x")) & ("a")	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+dv89	verdict	v: ((upper(_)) | ("x")) & ("a")	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+dv90	verdict	v: ("a") & ((upper(_)) | ("x"))	v: "A"	{"verdict":"valid"}
+dv91	verdict	v: ("a") & ((upper(_)) | ("x"))	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+dv92	verdict	v: ("a") & ((upper(_)) | ("x"))	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+dv93	verdict	v: ({"a": (upper(_)) | ("x")}) & ({"a": "y"})	v: {"a": "Y"}	{"verdict":"valid"}
+dv94	verdict	v: ({"a": (upper(_)) | ("x")}) & ({"a": "y"})	v: {"a": "Y"}	{"verdict":"valid","opts":{"noFill":true}}
+dv95	verdict	v: ({"a": (upper(_)) | ("x")}) & ({"a": "y"})	v: {"a": "Y"}	{"verdict":"valid","opts":{"partial":true}}
+dv96	verdict	v: ({"a": "y"}) & ({"a": (upper(_)) | ("x")})	v: {"a": "Y"}	{"verdict":"valid"}
+dv97	verdict	v: ({"a": "y"}) & ({"a": (upper(_)) | ("x")})	v: {"a": "Y"}	{"verdict":"valid","opts":{"noFill":true}}
+dv98	verdict	v: ({"a": "y"}) & ({"a": (upper(_)) | ("x")})	v: {"a": "Y"}	{"verdict":"valid","opts":{"partial":true}}

@@ -2150,6 +2150,13 @@ def Val.markHeldPos : Val → ℕ → Val
   | .ride r v rec, i => .ride r (v.markHeldPos i) rec
   | v, _ => v
 
+/-- A term that waits on no hole met with each arm of a disjunction: an
+arm that waits on one with its hole bound to the term, and any other
+met with it. -/
+def leafArms (a : Val) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, y) :: ys => (r, if y.fillable then y.bindHole a else .meet a y) :: leafArms a ys
+
 mutual
 /-- Two terms met at one position, each with its own fills made: where
 one waits on a hole and the other doesn't, the hole bound to the other,
@@ -2157,7 +2164,8 @@ which the call spends, so that it reads as `any`; and a map or a list,
 read through its meets and riders, met with the other's members by key
 or by position (`Val.memberAt`, `Val.elemAt`), and each spread that
 waits on a hole, or whose template holds a member that does, with the
-other side's members, each side kept whole. -/
+other side's members, each side kept whole; and a disjunction met arm
+by arm, the other side met into each arm. -/
 def Val.fillMeet (a b : Val) : Val × Val :=
   if a.fillable && !b.fillable then (a.bindHole b, .any)
   else if b.fillable && !a.fillable then (.any, b.bindHole a)
@@ -2178,7 +2186,12 @@ def Val.fillMeet (a b : Val) : Val × Val :=
           | none => none)
     | .meet x y => (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
     | .ride k v r => (.ride k (v.fillMeet b).1 r, (v.fillMeet b).2)
-    | _ => (a, b)
+    | .or arms => (.or (fillArms arms b), .any)
+    | _ =>
+      match b with
+      | .or arms => (.or (leafArms a arms), .any)
+      | _ => (a, b)
+termination_by structural a
 
 def fillFields : List (String × Bool × Val) → Val → List (String × Bool × Val) × Val
   | [], b => ([], b)
@@ -2208,6 +2221,11 @@ def fillElems : ℕ → List Val → Val → List Val × Val
         (.meet (x.fillMeet t).1 (x.fillMeet t).2 :: (fillElems (i + 1) xs (b.markHeldPos i)).1,
           (fillElems (i + 1) xs (b.markHeldPos i)).2)
       | none => (x :: (fillElems (i + 1) xs b).1, (fillElems (i + 1) xs b).2)
+
+def fillArms : List (ℕ × Val) → Val → List (ℕ × Val)
+  | [], _ => []
+  | (r, x) :: as, b => (r, .meet (x.fillMeet b).1 (x.fillMeet b).2) :: fillArms as b
+termination_by structural as => as
 end
 
 /-- Two terms, each with its own fills made, met: where one waits on a
@@ -3007,6 +3025,29 @@ its default, which the fill meets as a spread's template. -/
 abbrev FillsDeep (x : Val) : Prop :=
   FillsReadably x ∧ ∀ arms t, x = .select .key arms (some t) → FillsReadably t
 
+theorem leafArms_checkableA {a : Val} (ha : a.CheckableA) : ∀ {ys : List (ℕ × Val)},
+    (∀ r y, (r, y) ∈ ys → y.CheckableA) → ∀ r w, (r, w) ∈ leafArms a ys → w.CheckableA
+  | [], _, _, _, h => by simp [leafArms] at h
+  | (r, y) :: ys, hy, r', w, h => by
+    simp only [leafArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨-, rfl⟩ | h
+    · have hy0 := hy r y List.mem_cons_self
+      split
+      · exact bindHole_checkableA ha hy0
+      · exact .meet ha hy0
+    · exact leafArms_checkableA ha (fun r y h => hy r y (List.mem_cons_of_mem _ h)) r' w h
+
+theorem fillArms_checkableA : ∀ {arms : List (ℕ × Val)} {b : Val},
+    (∀ r x, (r, x) ∈ arms → FillsReadably x) → b.CheckableA →
+    ∀ r w, (r, w) ∈ fillArms arms b → w.CheckableA
+  | [], _, _, _, _, _, h => by simp [fillArms] at h
+  | (r, x) :: as, b, ih, hb, r', w, h => by
+    simp only [fillArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨-, rfl⟩ | h
+    · have q := ih r x List.mem_cons_self hb
+      exact .meet q.1 q.2
+    · exact fillArms_checkableA (fun r x h => ih r x (List.mem_cons_of_mem _ h)) hb r' w h
+
 theorem fillFields_checkableA : ∀ {fs : List (String × Bool × Val)} {b : Val},
     (∀ k o x, (k, o, x) ∈ fs → x.CheckableA) → (∀ k o x, (k, o, x) ∈ fs → FillsReadably x) →
     b.CheckableA →
@@ -3164,6 +3205,14 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
     · exact ⟨.any, bindHole_checkableA (.ride hv) hb⟩
     · have h := ihv.1 hb
       exact ⟨.ride h.1, h.2⟩
+  | @or arms ha iha =>
+    refine ⟨fun {b} hb => ?_, fun _ _ h => nomatch h⟩
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (.or ha), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (.or ha) hb⟩
+    · exact ⟨.or (fillArms_checkableA (fun r x h => (iha r x h).1) hb), .any⟩
   | @selectKey arms d hp hr hd _ _ ihd =>
     refine ⟨fun {b} hb => ?_, fun _ t h => ?_⟩
     · unfold Val.fillMeet
@@ -3171,7 +3220,11 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
       · exact ⟨bindHole_checkableA hb (.selectKey hp hr hd), .any⟩
       split
       · exact ⟨.any, bindHole_checkableA (.selectKey hp hr hd) hb⟩
-      · exact ⟨.selectKey hp hr hd, hb⟩
+      · dsimp only
+        split
+        · cases hb with
+          | or hy => exact ⟨.or (leafArms_checkableA (.selectKey hp hr hd) hy), .any⟩
+        · exact ⟨.selectKey hp hr hd, hb⟩
     · cases h
       exact (ihd t rfl).1
   | _ =>
@@ -3181,7 +3234,11 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
       · exact ⟨bindHole_checkableA hb (by constructor <;> assumption), .any⟩
       split
       · exact ⟨.any, bindHole_checkableA (by constructor <;> assumption) hb⟩
-      · exact ⟨by constructor <;> assumption, hb⟩
+      · dsimp only
+        split
+        · cases hb with
+          | or hy => exact ⟨.or (leafArms_checkableA (by constructor <;> assumption) hy), .any⟩
+        · exact ⟨by constructor <;> assumption, hb⟩
     · cases h
 
 theorem fillMeet_checkableA {a : Val} (ha : a.CheckableA) : FillsReadably a := (fillMeet_checkableA' ha).1
@@ -5236,7 +5293,8 @@ preference clash, a size that holds a disjunction or a preference, a call the re
 could not make, or two sides met that both wait on a hole, one of them
 more than the hole, which neither fills, as `upper(_) & _`. A call
 that waits on a hole stands, for the data to fill, where it has as
-many arguments as its function takes (`Fn.takes`), a `+` that waits
+many arguments as its function takes (`Fn.takes`), a generator read by
+its data alone, since its template is read at each member, a `+` that waits
 where its operands do, and a `pref` where its argument does. The
 verdict reads it of a term staged (`Val.staged`), so that a conflict
 the meet finds is a `nil`. -/
@@ -5252,6 +5310,8 @@ def Val.illFormed : Val → Bool
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
+  | .call .each args | .call .pack args | .call .emit args =>
+    if fillableHead args && args.length == 2 then illHead args else true
   | .call f args => if (Val.call f args).fillable && f.takes args.length then illItems args else true
   | .select _ arms _ => illPats arms
   | _ => false
@@ -5263,6 +5323,10 @@ def illFields : List (String × Bool × Val) → Bool
 def illItems : List Val → Bool
   | [] => false
   | v :: vs => v.illFormed || illItems vs
+
+def illHead : List Val → Bool
+  | [] => false
+  | d :: _ => d.illFormed
 
 def illArms : List (ℕ × Val) → Bool
   | [] => false

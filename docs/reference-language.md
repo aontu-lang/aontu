@@ -1351,9 +1351,12 @@ rather than meeting it, so `v: upper(_)` passes against `v: "a"`, and
 `v: add(_, 1)` passes `v: 2` and refuses `v: "a"`. A hole the data
 leaves out is `incomplete`. A call met with a hole, as in
 `upper(_) & _`, or with another call that waits is an error, as both
-engines answer, though `_ & _` meets as one hole. Rows from dv0 on of
-[`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold both
-engines to it.
+engines answer, though `_ & _` meets as one hole. A disjunction is
+filled arm by arm, so `v: upper(_) | "fallback"` passes `v: "a"`. A
+generator waits on its data alone and reads its template only at each
+member it makes, so `v: each(_, upper({}))` passes `v: []`. Rows from
+dv0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold
+both engines to it.
 
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:
