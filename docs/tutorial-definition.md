@@ -7333,8 +7333,8 @@ of one key are a meet too, read in the order they're written
 def Val.filled : Val → Val
   | .meet a b => a.filled.meetFilled b.filled
   | .map fs spread closed =>
-    .map (spreadFields (joinFields [] (filledFields fs)) (filledSpread spread)).1
-      (spreadFields (joinFields [] (filledFields fs)) (filledSpread spread)).2 closed
+    .map (spreadAll (joinFields [] (filledFields fs)) (filledSpread spread)).1
+      (spreadAll (joinFields [] (filledFields fs)) (filledSpread spread)).2 closed
 ```
 
 It then reads a meet with one side waiting on a hole and the other not
@@ -7377,19 +7377,17 @@ def Val.fillMeet (a b : Val) : Val × Val :=
   else if b.fillable && !a.fillable then (.any, b.bindHole a)
   else match a with
     | .map fs sa ca =>
-      let r := fillFields fs b
-      let s := spreadOnto sa r.2.keysAt r.2
-      let u := spreadFrom r.1 s.2
-      (.map u.1 s.1 ca, u.2)
-    | .list xs sa ca =>
-      let r := fillElems 0 xs b
-      let s := spreadOntoAt sa (List.range r.2.posAt) r.2
-      let u := spreadFromAt r.1 s.2
-      (.list u.1 s.1 ca, u.2)
-    | .meet x y => (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
-    | .ride k v r => (.ride k (v.fillMeet b).1 r, (v.fillMeet b).2)
-    | _ => (a, b)
+      fillMapWith sa ca (fillFields fs b)
+        (match sa with
+          | some (.select .key arms (some t)) =>
+            if t.holdsFill && arms.all Val.filledArm then some (arms, t, fun p => t.fillMeet p) else none
+          | some t => if t.holdsFill then some ([], t, fun p => t.fillMeet p) else none
+          | none => none)
 ```
+
+A list is read the same way by position (`fillListWith`), and a meet
+or a rider is read through. The `match` hands the map a spread's
+template that holds a member waiting on a hole, which comes later.
 
 The peer's member under a key is the meet of its declarations of the
 key, or of the members its sides hold, read through a rider as through
@@ -7433,9 +7431,45 @@ def spreadWith (arms : List (Val × Val)) (t : Val) (k : String) : Val :=
 
 So `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, since the second
 `a` meets the filled `add(1, 1)`, and `({&: add(_, 1)} & {a: 1}) & {b: 5}`
-fills `b` with `6`, as both engines answer. A template that holds its
-hole inside a container, `{&: {n: upper(_)}}`, isn't filled yet. Both
-engines fill it member by member.
+fills `b` with `6`, as both engines answer.
+
+A template that holds its hole inside a container fills each member
+the same way, once, but member by member: the template meets the
+member through `Val.fillMeet` itself. Write `held.aontu`:
+
+<!-- test: file held.aontu -->
+```aontu
+users: { &: { name:upper(_) } } & {
+  ann: name: "ann"
+  bob: { name:"bob" role:"admin" }
+}
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu held.aontu
+{
+  "users": {
+    "ann": {
+      "name": "ANN"
+    },
+    "bob": {
+      "name": "BOB",
+      "role": "admin"
+    }
+  }
+}
+```
+
+The `match` above reads the template inside the spread, so the fill's
+recursion stays on a part of the term (`Val.holdsFill`, `heldOnto`).
+It meets a peer's members, the map's own (`heldFields`), and the fields
+a peer's spread meets (`Val.heldAt`). Both engines fill a map spread's
+container template again each time a later meet reaches the member, so
+`({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives `n: 3`, where the
+definition fills it once and gives `2`, which #556 tracks.
 
 The fill reads every meet but one where a hole is bound, in a
 generator's template, an `emit`'s table or a `filter`'s condition. So

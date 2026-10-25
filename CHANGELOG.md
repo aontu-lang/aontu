@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### The definition fills a spread's container template from each member it meets
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: a spread whose template holds its hole
+  inside a container, a map or a list, fills each member it meets,
+  once, member by member: the template meets the member through
+  `Val.fillMeet`, and the spread then reads the key as `any`. So
+  `{&: {n: upper(_)}} & {a: {n: "x"}}` is `{a: {n: "X"}}`, as both
+  engines answer. It reaches a peer's members (`heldOnto`), the map's
+  own (`heldFields`) and the fields a peer's spread meets
+  (`Val.heldAt`), and the same for a list.
+- `spec/Oracle.lean`: rows hv228 to hv284 of `test/spec/def-call.tsv`,
+  19 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves.
+- Both engines fill a map spread's container template again each time a
+  later meet reaches the member, so
+  `({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives `n: 3`, where
+  the definition gives `2` (#556). Go's `vet` splits from TypeScript's
+  on `{&: {n: upper(_)}} & {a: {}}`, and both name the template's path
+  for the member it leaves unfilled (#557).
+- Docs: the definition tutorial's step 27, the reference's placeholder
+  section, the definition's README and the design note.
+
 ### The data fills a hole the document leaves unfilled
 
 Definition, generated rows, and documentation. No engine changes.
@@ -47,10 +71,8 @@ Definition, generated rows, and documentation. No engine changes.
 - `spec/Oracle.lean`: rows hv168 on of `test/spec/def-call.tsv`, 20
   cases in each of the three modes. Both engines answer every row as
   the definition does.
-- A template that holds its hole inside a container,
-  `{&: {n: upper(_)}}`, isn't filled yet. Both engines fill it. Nor do
-  two spreads that both wait read as the engines read them, one where
-  their templates are alike and `place_pair` where they differ.
+- Two spreads that both wait don't read as the engines read them, one
+  where their templates are alike and `place_pair` where they differ.
 - Docs: the definition tutorial's step 27, the reference's placeholder
   section, the definition's README and the design note.
 
