@@ -443,7 +443,7 @@ of §1, which waits on the marks of ruling 10.
 Each changes a rule. The first five were ruled on 2026-10-16, the
 next three on 2026-10-19, seven more on 2026-10-20, two on 2026-10-21
 and the rest on 2026-10-23, but decision 29, raised on 2026-10-24 and
-open. Each was raised by the phase that found it, and each stands here
+ruled on 2026-10-25. Each was raised by the phase that found it, and each stands here
 until the phase that encodes it lands.
 
 1. **The meaning of `%U = %U`.** Ruled 2026-10-16: ill-formed, an
@@ -1298,6 +1298,13 @@ until the phase that encodes it lands.
    `v: upper(_)` against `v: "a"` isn't, since what the schema makes of
    `"a"` is `"A"`. And it agrees with the reference, for which a hole
    unfilled at generation is an error.
+
+   **Ruled 2026-10-25: the first.** The data is the peer of a hole the
+   document leaves unfilled: `vet` reads the schema met with the data
+   through the fill, the data last, so `v: upper(_)` is `valid` against
+   `v: "a"`, `add(_, 1)` is `invalid` against `v: "a"`, and a call
+   whose position the data leaves out waits, `incomplete`. The ports
+   stand, and the definition moves.
 
 ## 8. Risks
 
