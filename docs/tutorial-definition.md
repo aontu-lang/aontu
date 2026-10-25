@@ -7282,6 +7282,7 @@ loud: upper(_) & "a"
 next: 2 & add(_, 1)
 names: ["a" "b"] & each(_, upper(_))
 pair: [upper(_) "z"] & ["a"]
+nest: ({ a:upper(_) } & { b:1 }) & { a:"x" }
 ```
 
 and evaluate it:
@@ -7295,6 +7296,10 @@ $ aontu fill.aontu
     "A",
     "B"
   ],
+  "nest": {
+    "a": "X",
+    "b": 1
+  },
   "next": 3,
   "pair": [
     "A",
@@ -7335,21 +7340,46 @@ def Val.fillable : Val → Bool
 
 A generator waits on a hole in its data, as `names` does, and never on
 one in its template, which it binds to each member. A container waits
-on no hole of its members, but two containers meet member by member, by
-position or by key, as `pair` does. The peer a member's hole takes is
-spent, so it reads as `any`, and each container is kept whole, so a
-seal and a spread stand:
+on no hole of its members, but it meets its peer member by member, by
+position or by key, as `pair` does. It reads through its own meets and
+riders, each side in turn, and finds the peer's member through the
+peer's, as `nest` does. The peer a member's hole takes is spent, so it
+reads as `any`, and each container is kept whole, so a seal and a
+spread stand:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Val.fillMeet (a b : Val) : Val × Val :=
   if a.fillable && !b.fillable then (a.bindHole b, .any)
   else if b.fillable && !a.fillable then (.any, b.bindHole a)
-  else match a, b with
-    | .map fs sa ca, .map gs sb cb => (.map (fillFields fs gs).1 sa ca, .map (fillFields fs gs).2 sb cb)
-    | .list xs sa ca, .list ys sb cb => (.list (fillElems xs ys).1 sa ca, .list (fillElems xs ys).2 sb cb)
-    | _, _ => (a, b)
+  else match a with
+    | .map fs sa ca => (.map (fillFields fs b).1 sa ca, (fillFields fs b).2)
+    | .list xs sa ca => (.list (fillElems 0 xs b).1 sa ca, (fillElems 0 xs b).2)
+    | .meet x y => (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
+    | .ride k v r => (.ride k (v.fillMeet b).1 r, (v.fillMeet b).2)
+    | _ => (a, b)
 ```
+
+The peer's member under a key is the meet of the members its sides
+hold, read through a rider as through a meet:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.memberAt : Val → String → Option Val
+  | .map fs _ _, k => (fs.find? (·.1 == k)).map (·.2.2)
+  | .meet u v, k =>
+    match u.memberAt k, v.memberAt k with
+    | some p, some q => some (.meet p q)
+    | some p, none => some p
+    | none, q => q
+  | .ride _ v _, k => v.memberAt k
+  | _, _ => none
+```
+
+So `meta({a: upper(_)}, {d: 1}) & {a: "x"}` reads as
+`meta({a: "X"}, {d: 1})`, since a rider is transparent. Neither engine
+reads through a rider or a mark around a container: both answer that
+with an error, which #552 tracks.
 
 A spread `&: upper(_)` isn't filled yet. Both engines fill each member
 the spread meets, once.

@@ -2925,3 +2925,21 @@ hv107	verdict	v: ({"a": upper(_)}) & ({"a": upper(_)})	v: {"a": "X"}	{"verdict":
 hv108	verdict	v: (([upper(_)]) & (["a"])) & (["A"])	v: ["A"]	{"verdict":"valid"}
 hv109	verdict	v: (([upper(_)]) & (["a"])) & (["A"])	v: ["A"]	{"verdict":"valid","opts":{"noFill":true}}
 hv110	verdict	v: (([upper(_)]) & (["a"])) & (["A"])	v: ["A"]	{"verdict":"valid","opts":{"partial":true}}
+hv111	verdict	v: (({"a": upper(_)}) & ({"b": 1})) & ({"a": "x"})	v: {"a": "X", "b": 1}	{"verdict":"valid"}
+hv112	verdict	v: (({"a": upper(_)}) & ({"b": 1})) & ({"a": "x"})	v: {"a": "X", "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
+hv113	verdict	v: (({"a": upper(_)}) & ({"b": 1})) & ({"a": "x"})	v: {"a": "X", "b": 1}	{"verdict":"valid","opts":{"partial":true}}
+hv114	verdict	v: ({"a": "x"}) & (({"a": upper(_)}) & ({"b": 1}))	v: {"a": "X", "b": 1}	{"verdict":"valid"}
+hv115	verdict	v: ({"a": "x"}) & (({"a": upper(_)}) & ({"b": 1}))	v: {"a": "X", "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
+hv116	verdict	v: ({"a": "x"}) & (({"a": upper(_)}) & ({"b": 1}))	v: {"a": "X", "b": 1}	{"verdict":"valid","opts":{"partial":true}}
+hv117	verdict	v: (({"a": upper(_)}) & ({"b": upper(_)})) & ({"a": "x", "b": "y"})	v: {"a": "X", "b": "Y"}	{"verdict":"valid"}
+hv118	verdict	v: (({"a": upper(_)}) & ({"b": upper(_)})) & ({"a": "x", "b": "y"})	v: {"a": "X", "b": "Y"}	{"verdict":"valid","opts":{"noFill":true}}
+hv119	verdict	v: (({"a": upper(_)}) & ({"b": upper(_)})) & ({"a": "x", "b": "y"})	v: {"a": "X", "b": "Y"}	{"verdict":"valid","opts":{"partial":true}}
+hv120	verdict	v: (({"a": upper(_)}) & ({"b": 1})) & (({"a": "x"}) & ({"c": 2}))	v: {"a": "X", "b": 1, "c": 2}	{"verdict":"valid"}
+hv121	verdict	v: (({"a": upper(_)}) & ({"b": 1})) & (({"a": "x"}) & ({"c": 2}))	v: {"a": "X", "b": 1, "c": 2}	{"verdict":"valid","opts":{"noFill":true}}
+hv122	verdict	v: (({"a": upper(_)}) & ({"b": 1})) & (({"a": "x"}) & ({"c": 2}))	v: {"a": "X", "b": 1, "c": 2}	{"verdict":"valid","opts":{"partial":true}}
+hv123	verdict	v: (([upper(_)]) & ([1])) & (["a"])	v: ["A"]	{"verdict":"error"}
+hv124	verdict	v: (([upper(_)]) & ([1])) & (["a"])	v: ["A"]	{"verdict":"error","opts":{"noFill":true}}
+hv125	verdict	v: (([upper(_)]) & ([1])) & (["a"])	v: ["A"]	{"verdict":"error","opts":{"partial":true}}
+hv126	verdict	v: (({"a": [upper(_)]}) & ({"b": 1})) & ({"a": ["x"]})	v: {"a": ["X"], "b": 1}	{"verdict":"valid"}
+hv127	verdict	v: (({"a": [upper(_)]}) & ({"b": 1})) & ({"a": ["x"]})	v: {"a": ["X"], "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
+hv128	verdict	v: (({"a": [upper(_)]}) & ({"b": 1})) & ({"a": ["x"]})	v: {"a": ["X"], "b": 1}	{"verdict":"valid","opts":{"partial":true}}

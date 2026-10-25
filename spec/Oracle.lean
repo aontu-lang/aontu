@@ -4581,7 +4581,9 @@ same call, a generator over a list written before its peer and after
 it, a fill inside a map and a list, and a second peer that refuses the
 output; a fill in a `match`'s result and in its default; and two lists
 or two maps met member by member, by position and by key, nested, with a
-member one side lacks, and with a member pair that both wait. Both ports
+member one side lacks, and with a member pair that both wait; and a map
+met with a meet of maps, on either side and on both, a list's element
+among them. Both ports
 read a generator's peer and the data as one conjunction, so a generator
 meets no data here. -/
 def holeFillVetCases : List (Val × Data) :=
@@ -4628,7 +4630,18 @@ def holeFillVetCases : List (Val × Data) :=
     (.meet (lst [up .hole]) (lst [s "a", s "b"]), .list [.str "A", .str "b"]),
     (.meet (lst [up .hole, s "z"]) (lst [s "a"]), .list [.str "A", .str "z"]),
     (.meet (mp [("a", up .hole)]) (mp [("a", up .hole)]), .map [("a", .str "X")]),
-    (.meet (.meet (lst [up .hole]) (lst [s "a"])) (lst [s "A"]), .list [.str "A"])]
+    (.meet (.meet (lst [up .hole]) (lst [s "a"])) (lst [s "A"]), .list [.str "A"]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])) (mp [("a", s "x")]),
+      .map [("a", .str "X"), ("b", .integer 1)]),
+    (.meet (mp [("a", s "x")]) (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])),
+      .map [("a", .str "X"), ("b", .integer 1)]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", up .hole)])) (mp [("a", s "x"), ("b", s "y")]),
+      .map [("a", .str "X"), ("b", .str "Y")]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])) (.meet (mp [("a", s "x")]) (mp [("c", n 2)])),
+      .map [("a", .str "X"), ("b", .integer 1), ("c", .integer 2)]),
+    (.meet (.meet (lst [up .hole]) (lst [n 1])) (lst [s "a"]), .list [.str "A"]),
+    (.meet (.meet (mp [("a", lst [up .hole])]) (mp [("b", n 1)])) (mp [("a", lst [s "x"])]),
+      .map [("a", .list [.str "X"]), ("b", .integer 1)])]
 
 set_option maxRecDepth 8192 in
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide

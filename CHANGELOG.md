@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### The definition's container fill reads through meets and riders
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: `Val.fillMeet` reads each side through its
+  meets and riders, and finds the other's member through the other's
+  (`Val.memberAt`, `Val.putMember`, `Val.elemAt`, `Val.putElem`), so
+  `({a: upper(_)} & {b: 1}) & {a: "x"}` fills `a`, as both engines
+  answer. `fillMeet_checkableA` keeps both sides readable.
+- `spec/Oracle.lean`: rows hv111 on of `test/spec/def-call.tsv`, 6
+  cases in each of the three modes. Both engines answer every row as
+  the definition does.
+- Neither engine reads through a rider or a mark around a container,
+  so both answer `meta({a: upper(_)}, {d: 1}) & {a: "x"}` with an
+  error, where the definition fills it (#552).
+- Docs: the definition tutorial's step 27, the reference's placeholder
+  section, the definition's README and the design note.
+
 ### The definition fills a hole in a container's members
 
 Definition, generated rows, and documentation. No engine changes.

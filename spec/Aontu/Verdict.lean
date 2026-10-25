@@ -1822,35 +1822,84 @@ def bindItems : List Val → Val → List Val
   | v :: vs, p => v.bindHole p :: bindItems vs p
 end
 
+/-- The member a term holds under a key, read through meets and riders:
+a map's member, or the meet of the members a meet's two sides hold. -/
+def Val.memberAt : Val → String → Option Val
+  | .map fs _ _, k => (fs.find? (·.1 == k)).map (·.2.2)
+  | .meet u v, k =>
+    match u.memberAt k, v.memberAt k with
+    | some p, some q => some (.meet p q)
+    | some p, none => some p
+    | none, q => q
+  | .ride _ v _, k => v.memberAt k
+  | _, _ => none
+
+/-- The term with its member under a key written: the first side of a meet
+that holds the key takes `p`, and each later side holding it `any`. -/
+def Val.putMember : Val → String → Val → Val
+  | .map fs sa ca, k, p => .map (fs.map fun f => if f.1 == k then (f.1, f.2.1, p) else f) sa ca
+  | .meet u v, k, p =>
+    match u.memberAt k with
+    | some _ => .meet (u.putMember k p) (v.putMember k .any)
+    | none => .meet u (v.putMember k p)
+  | .ride r v rec, k, p => .ride r (v.putMember k p) rec
+  | v, _, _ => v
+
+/-- The element a term holds at a position, read through meets and riders. -/
+def Val.elemAt : Val → ℕ → Option Val
+  | .list xs _ _, i => xs[i]?
+  | .meet u v, i =>
+    match u.elemAt i, v.elemAt i with
+    | some p, some q => some (.meet p q)
+    | some p, none => some p
+    | none, q => q
+  | .ride _ v _, i => v.elemAt i
+  | _, _ => none
+
+/-- The term with its element at a position written, as `putMember` writes a member. -/
+def Val.putElem : Val → ℕ → Val → Val
+  | .list xs sa ca, i, p => .list (xs.set i p) sa ca
+  | .meet u v, i, p =>
+    match u.elemAt i with
+    | some _ => .meet (u.putElem i p) (v.putElem i .any)
+    | none => .meet u (v.putElem i p)
+  | .ride r v rec, i, p => .ride r (v.putElem i p) rec
+  | v, _, _ => v
+
 mutual
 /-- Two terms met at one position, each with its own fills made: where
 one waits on a hole and the other doesn't, the hole bound to the other,
-which the call spends, so that it reads as `any`; and two maps or two
-lists met member by member, by key or by position, each kept whole, so
+which the call spends, so that it reads as `any`; and a map or a list,
+read through its meets and riders, met with the other's members by key
+or by position (`Val.memberAt`, `Val.elemAt`), each side kept whole, so
 that a seal and a spread stand. -/
 def Val.fillMeet (a b : Val) : Val × Val :=
   if a.fillable && !b.fillable then (a.bindHole b, .any)
   else if b.fillable && !a.fillable then (.any, b.bindHole a)
-  else match a, b with
-    | .map fs sa ca, .map gs sb cb => (.map (fillFields fs gs).1 sa ca, .map (fillFields fs gs).2 sb cb)
-    | .list xs sa ca, .list ys sb cb => (.list (fillElems xs ys).1 sa ca, .list (fillElems xs ys).2 sb cb)
-    | _, _ => (a, b)
+  else match a with
+    | .map fs sa ca => (.map (fillFields fs b).1 sa ca, (fillFields fs b).2)
+    | .list xs sa ca => (.list (fillElems 0 xs b).1 sa ca, (fillElems 0 xs b).2)
+    | .meet x y => (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
+    | .ride k v r => (.ride k (v.fillMeet b).1 r, (v.fillMeet b).2)
+    | _ => (a, b)
 
-def fillFields : List (String × Bool × Val) → List (String × Bool × Val) →
-    List (String × Bool × Val) × List (String × Bool × Val)
-  | [], gs => ([], gs)
-  | (k, o, x) :: fs, gs =>
-    match gs.find? (·.1 == k) with
-    | some (_, _, y) =>
-      ((k, o, (x.fillMeet y).1) ::
-          (fillFields fs (gs.map fun g => if g.1 == k then (g.1, g.2.1, (x.fillMeet y).2) else g)).1,
-        (fillFields fs (gs.map fun g => if g.1 == k then (g.1, g.2.1, (x.fillMeet y).2) else g)).2)
-    | none => ((k, o, x) :: (fillFields fs gs).1, (fillFields fs gs).2)
+def fillFields : List (String × Bool × Val) → Val → List (String × Bool × Val) × Val
+  | [], b => ([], b)
+  | (k, o, x) :: fs, b =>
+    match b.memberAt k with
+    | some p =>
+      ((k, o, (x.fillMeet p).1) :: (fillFields fs (b.putMember k (x.fillMeet p).2)).1,
+        (fillFields fs (b.putMember k (x.fillMeet p).2)).2)
+    | none => ((k, o, x) :: (fillFields fs b).1, (fillFields fs b).2)
 
-def fillElems : List Val → List Val → List Val × List Val
-  | [], ys => ([], ys)
-  | x :: xs, [] => (x :: xs, [])
-  | x :: xs, y :: ys => ((x.fillMeet y).1 :: (fillElems xs ys).1, (x.fillMeet y).2 :: (fillElems xs ys).2)
+def fillElems : ℕ → List Val → Val → List Val × Val
+  | _, [], b => ([], b)
+  | i, x :: xs, b =>
+    match b.elemAt i with
+    | some p =>
+      ((x.fillMeet p).1 :: (fillElems (i + 1) xs (b.putElem i (x.fillMeet p).2)).1,
+        (fillElems (i + 1) xs (b.putElem i (x.fillMeet p).2)).2)
+    | none => (x :: (fillElems (i + 1) xs b).1, (fillElems (i + 1) xs b).2)
 end
 
 mutual
@@ -2012,122 +2061,200 @@ theorem mem_filledCovers : ∀ {cs : List Cover} {c : Cover}, c ∈ filledCovers
     · obtain ⟨c₀, hm, rfl⟩ := mem_filledCovers h
       exact ⟨c₀, List.mem_cons_of_mem _ hm, rfl⟩
 
-theorem fillMeet_base {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA)
-    (hm : ∀ fs sa ca gs sb cb, a = .map fs sa ca → b = .map gs sb cb → False)
-    (hl : ∀ xs sa ca ys sb cb, a = .list xs sa ca → b = .list ys sb cb → False) :
-    (a.fillMeet b).1.CheckableA ∧ (a.fillMeet b).2.CheckableA := by
-  unfold Val.fillMeet
-  split
-  · exact ⟨bindHole_checkableA hb ha, .any⟩
-  split
-  · exact ⟨.any, bindHole_checkableA ha hb⟩
-  split
-  · exact (hm _ _ _ _ _ _ rfl rfl).elim
-  · exact (hl _ _ _ _ _ _ rfl rfl).elim
-  · exact ⟨ha, hb⟩
+theorem memberAt_checkableA {b : Val} (hb : b.CheckableA) : ∀ {k : String} {p : Val},
+    b.memberAt k = some p → p.CheckableA := by
+  induction hb with
+  | @map fs sa ca hf _ _ _ =>
+    intro k p h
+    simp only [Val.memberAt, Option.map_eq_some_iff] at h
+    obtain ⟨⟨k', o', v⟩, hfind, rfl⟩ := h
+    exact hf _ _ _ (List.mem_of_find?_eq_some hfind)
+  | @meet u v _ _ ihu ihv =>
+    intro k p h
+    simp only [Val.memberAt] at h
+    split at h
+    · rename_i p₁ q₁ h₁ h₂
+      simp only [Option.some.injEq] at h
+      subst h
+      exact .meet (ihu h₁) (ihv h₂)
+    · rename_i p₁ h₁ _
+      simp only [Option.some.injEq] at h
+      subst h
+      exact ihu h₁
+    · exact ihv h
+  | ride _ ih => intro k p h; exact ih h
+  | _ => intro k p h; simp [Val.memberAt] at h
 
+theorem putMember_checkableA {b : Val} (hb : b.CheckableA) : ∀ {k : String} {p : Val},
+    p.CheckableA → (b.putMember k p).CheckableA := by
+  induction hb with
+  | @map fs sa ca hf hs _ _ =>
+    intro k p hp
+    simp only [Val.putMember]
+    refine .map (fun k' o' v h => ?_) hs
+    obtain ⟨⟨k₁, o₁, w⟩, hw, he⟩ := List.mem_map.mp h
+    dsimp only at he
+    split at he
+    · simp only [Prod.mk.injEq] at he
+      obtain ⟨-, -, rfl⟩ := he
+      exact hp
+    · rw [he] at hw
+      exact hf _ _ _ hw
+  | @meet u v hu hv ihu ihv =>
+    intro k p hp
+    simp only [Val.putMember]
+    split
+    · exact .meet (ihu hp) (ihv .any)
+    · exact .meet hu (ihv hp)
+  | ride _ ih => intro k p hp; exact .ride (ih hp)
+  | _ => intro k p hp; simp only [Val.putMember]; constructor <;> assumption
 
-/-- The motive the fill's proof carries for a term: met with any term the
-checker can read, both sides stay readable. -/
+theorem elemAt_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Val},
+    b.elemAt i = some p → p.CheckableA := by
+  induction hb with
+  | @list xs sa ca hx _ _ _ =>
+    intro i p h
+    simp only [Val.elemAt] at h
+    exact hx p (List.mem_of_getElem? h)
+  | @meet u v _ _ ihu ihv =>
+    intro i p h
+    simp only [Val.elemAt] at h
+    split at h
+    · rename_i p₁ q₁ h₁ h₂
+      simp only [Option.some.injEq] at h
+      subst h
+      exact .meet (ihu h₁) (ihv h₂)
+    · rename_i p₁ h₁ _
+      simp only [Option.some.injEq] at h
+      subst h
+      exact ihu h₁
+    · exact ihv h
+  | ride _ ih => intro i p h; exact ih h
+  | _ => intro i p h; simp [Val.elemAt] at h
+
+theorem putElem_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Val},
+    p.CheckableA → (b.putElem i p).CheckableA := by
+  induction hb with
+  | @list xs sa ca hx hs _ _ =>
+    intro i p hp
+    simp only [Val.putElem]
+    refine .list (fun v h => ?_) hs
+    rcases List.mem_or_eq_of_mem_set h with h | rfl
+    · exact hx v h
+    · exact hp
+  | @meet u v hu hv ihu ihv =>
+    intro i p hp
+    simp only [Val.putElem]
+    split
+    · exact .meet (ihu hp) (ihv .any)
+    · exact .meet hu (ihv hp)
+  | ride _ ih => intro i p hp; exact .ride (ih hp)
+  | _ => intro i p hp; simp only [Val.putElem]; constructor <;> assumption
+
 abbrev FillsReadably (x : Val) : Prop :=
   ∀ {b : Val}, b.CheckableA → (x.fillMeet b).1.CheckableA ∧ (x.fillMeet b).2.CheckableA
 
-theorem fillElems_checkableA : ∀ {xs ys : List Val}, (∀ x, x ∈ xs → x.CheckableA) →
-    (∀ x, x ∈ xs → FillsReadably x) → (∀ y, y ∈ ys → y.CheckableA) →
-    (∀ v, v ∈ (fillElems xs ys).1 → v.CheckableA) ∧ (∀ v, v ∈ (fillElems xs ys).2 → v.CheckableA)
-  | [], ys, _, _, hy => ⟨fun _ h => by simp [fillElems] at h, fun v h => hy v (by simpa [fillElems] using h)⟩
-  | x :: xs, [], hx, _, _ => ⟨fun v h => hx v (by simpa [fillElems] using h), fun _ h => by simp [fillElems] at h⟩
-  | x :: xs, y :: ys, hx, ih, hy => by
-    have hxy := ih x List.mem_cons_self (hy y List.mem_cons_self)
-    have hr := fillElems_checkableA (xs := xs) (ys := ys) (fun v h => hx v (List.mem_cons_of_mem _ h))
-      (fun v h => ih v (List.mem_cons_of_mem _ h)) (fun v h => hy v (List.mem_cons_of_mem _ h))
-    simp only [fillElems]
-    refine ⟨fun v h => ?_, fun v h => ?_⟩ <;> rcases List.mem_cons.mp h with rfl | h
-    · exact hxy.1
-    · exact hr.1 v h
-    · exact hxy.2
-    · exact hr.2 v h
-
-theorem fillFields_checkableA : ∀ {fs gs : List (String × Bool × Val)},
+theorem fillFields_checkableA : ∀ {fs : List (String × Bool × Val)} {b : Val},
     (∀ k o x, (k, o, x) ∈ fs → x.CheckableA) → (∀ k o x, (k, o, x) ∈ fs → FillsReadably x) →
-    (∀ k o v, (k, o, v) ∈ gs → v.CheckableA) →
-    (∀ k o v, (k, o, v) ∈ (fillFields fs gs).1 → v.CheckableA) ∧
-      (∀ k o v, (k, o, v) ∈ (fillFields fs gs).2 → v.CheckableA)
-  | [], gs, _, _, hg => ⟨fun _ _ _ h => by simp [fillFields] at h, fun k o v h => hg k o v (by simpa [fillFields] using h)⟩
-  | (k, o, x) :: fs, gs, hf, ih, hg => by
+    b.CheckableA →
+    (∀ k o v, (k, o, v) ∈ (fillFields fs b).1 → v.CheckableA) ∧ (fillFields fs b).2.CheckableA
+  | [], b, _, _, hb => ⟨fun _ _ _ h => by simp [fillFields] at h, by simpa [fillFields] using hb⟩
+  | (k, o, x) :: fs, b, hf, ih, hb => by
     have hf' : ∀ k o x, (k, o, x) ∈ fs → x.CheckableA := fun k o x h => hf k o x (List.mem_cons_of_mem _ h)
     have ih' : ∀ k o x, (k, o, x) ∈ fs → FillsReadably x := fun k o x h => ih k o x (List.mem_cons_of_mem _ h)
     have hx : x.CheckableA := hf k o x List.mem_cons_self
-    cases hfind : gs.find? (·.1 == k) with
+    cases hm : b.memberAt k with
     | none =>
-      simp only [fillFields, hfind]
-      have hr := fillFields_checkableA hf' ih' hg
-      refine ⟨fun k₁ o₁ v h => ?_, hr.2⟩
+      simp only [fillFields, hm]
+      have r := fillFields_checkableA hf' ih' hb
+      refine ⟨fun k₁ o₁ v h => ?_, r.2⟩
       rcases List.mem_cons.mp h with h | h
       · simp only [Prod.mk.injEq] at h
         obtain ⟨-, -, rfl⟩ := h
         exact hx
-      · exact hr.1 _ _ _ h
-    | some g =>
-      obtain ⟨k', o', y⟩ := g
-      simp only [fillFields, hfind]
-      have hy : y.CheckableA := hg _ _ y (List.mem_of_find?_eq_some hfind)
-      have hxy := ih k o x List.mem_cons_self hy
-      have hg' : ∀ k₁ o₁ v, (k₁, o₁, v) ∈ gs.map (fun g => if g.1 == k then (g.1, g.2.1, (x.fillMeet y).2) else g) →
-          v.CheckableA := by
-        intro k₁ o₁ v hm
-        obtain ⟨⟨k₂, o₂, w⟩, hw, he⟩ := List.mem_map.mp hm
-        dsimp only at he
-        split at he
-        · simp only [Prod.mk.injEq] at he
-          obtain ⟨-, -, rfl⟩ := he
-          exact hxy.2
-        · rw [he] at hw
-          exact hg _ _ _ hw
-      have hr := fillFields_checkableA hf' ih' hg'
-      refine ⟨fun k₁ o₁ v h => ?_, hr.2⟩
+      · exact r.1 _ _ _ h
+    | some p =>
+      have hxp := ih k o x List.mem_cons_self (memberAt_checkableA hb hm)
+      have r := fillFields_checkableA hf' ih' (putMember_checkableA (k := k) hb hxp.2)
+      simp only [fillFields, hm]
+      refine ⟨fun k₁ o₁ v h => ?_, r.2⟩
       rcases List.mem_cons.mp h with h | h
       · simp only [Prod.mk.injEq] at h
         obtain ⟨-, -, rfl⟩ := h
-        exact hxy.1
-      · exact hr.1 _ _ _ h
+        exact hxp.1
+      · exact r.1 _ _ _ h
 
-/-- Met with a term the checker can read, a term it can read leaves two
-it can read. -/
+theorem fillElems_checkableA : ∀ {xs : List Val} {i : ℕ} {b : Val},
+    (∀ x, x ∈ xs → x.CheckableA) → (∀ x, x ∈ xs → FillsReadably x) → b.CheckableA →
+    (∀ v, v ∈ (fillElems i xs b).1 → v.CheckableA) ∧ (fillElems i xs b).2.CheckableA
+  | [], i, b, _, _, hb => ⟨fun _ h => by simp [fillElems] at h, by simpa [fillElems] using hb⟩
+  | x :: xs, i, b, hx, ih, hb => by
+    have hx' : ∀ v, v ∈ xs → v.CheckableA := fun v h => hx v (List.mem_cons_of_mem _ h)
+    have ih' : ∀ v, v ∈ xs → FillsReadably v := fun v h => ih v (List.mem_cons_of_mem _ h)
+    cases hm : b.elemAt i with
+    | none =>
+      simp only [fillElems, hm]
+      have r := fillElems_checkableA (i := i + 1) hx' ih' hb
+      refine ⟨fun v h => ?_, r.2⟩
+      rcases List.mem_cons.mp h with rfl | h
+      · exact hx _ List.mem_cons_self
+      · exact r.1 _ h
+    | some p =>
+      have hxp := ih x List.mem_cons_self (elemAt_checkableA hb hm)
+      have r := fillElems_checkableA (i := i + 1) hx' ih' (putElem_checkableA (i := i) hb hxp.2)
+      simp only [fillElems, hm]
+      refine ⟨fun v h => ?_, r.2⟩
+      rcases List.mem_cons.mp h with rfl | h
+      · exact hxp.1
+      · exact r.1 _ h
+
 theorem fillMeet_checkableA {a : Val} (ha : a.CheckableA) : FillsReadably a := by
   induction ha with
   | @map fs sa ca hf hs ihf _ =>
     intro b hb
-    cases b with
-    | map gs sb cb =>
-      cases hb with
-      | map hg hsb =>
-        have hr := fillFields_checkableA hf ihf hg
-        have e : (Val.map fs sa ca).fillMeet (.map gs sb cb) =
-            (.map (fillFields fs gs).1 sa ca, .map (fillFields fs gs).2 sb cb) := by
-          simp [Val.fillMeet, Val.fillable]
-        rw [e]
-        exact ⟨.map hr.1 hs, .map hr.2 hsb⟩
-    | _ =>
-      exact fillMeet_base (.map hf hs) hb (fun _ _ _ _ _ _ _ h => nomatch h) (fun _ _ _ _ _ _ h _ => nomatch h)
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (.map hf hs), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (.map hf hs) hb⟩
+    · have r := fillFields_checkableA hf ihf hb
+      exact ⟨.map r.1 hs, r.2⟩
   | @list xs sa ca hx hs ihx _ =>
     intro b hb
-    cases b with
-    | list ys sb cb =>
-      cases hb with
-      | list hy hsb =>
-        have hr := fillElems_checkableA hx ihx hy
-        have e : (Val.list xs sa ca).fillMeet (.list ys sb cb) =
-            (.list (fillElems xs ys).1 sa ca, .list (fillElems xs ys).2 sb cb) := by
-          simp [Val.fillMeet, Val.fillable]
-        rw [e]
-        exact ⟨.list hr.1 hs, .list hr.2 hsb⟩
-    | _ =>
-      exact fillMeet_base (.list hx hs) hb (fun _ _ _ _ _ _ h _ => nomatch h) (fun _ _ _ _ _ _ _ h => nomatch h)
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (.list hx hs), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (.list hx hs) hb⟩
+    · have r := fillElems_checkableA (i := 0) hx ihx hb
+      exact ⟨.list r.1 hs, r.2⟩
+  | @meet x y hx hy ihx ihy =>
+    intro b hb
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (.meet hx hy), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (.meet hx hy) hb⟩
+    · have h₁ := ihx hb
+      have h₂ := ihy h₁.2
+      exact ⟨.meet h₁.1 h₂.1, h₂.2⟩
+  | @ride k v r hv ihv =>
+    intro b hb
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (.ride hv), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (.ride hv) hb⟩
+    · have h := ihv hb
+      exact ⟨.ride h.1, h.2⟩
   | _ =>
     intro b hb
-    exact fillMeet_base (by constructor <;> assumption) hb (fun _ _ _ _ _ _ h _ => nomatch h)
-      (fun _ _ _ _ _ _ h _ => nomatch h)
+    unfold Val.fillMeet
+    split
+    · exact ⟨bindHole_checkableA hb (by constructor <;> assumption), .any⟩
+    split
+    · exact ⟨.any, bindHole_checkableA (by constructor <;> assumption) hb⟩
+    · exact ⟨by constructor <;> assumption, hb⟩
 
 /-- The fill leaves a term the checker can read as one it can read. -/
 theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA := by

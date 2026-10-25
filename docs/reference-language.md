@@ -1304,11 +1304,16 @@ hole bound to the other. A side waits on a hole if it's the hole, or a
 call over one through its arguments or a rider, a generator through
 its data alone, and a container waits on no hole of its members, but
 two containers meet member by member, by position or by key, so
-`[upper(_)] & ["a"]` is `["A"]` (`Val.fillMeet`). The peer a member's
-hole takes is spent, and each container is kept whole, so a seal and a
-spread stand. The fill reads every meet but one in a generator's
-template, an `emit`'s
-table or a `filter`'s condition, whose holes those bind. Rows from hv0
+`[upper(_)] & ["a"]` is `["A"]` (`Val.fillMeet`). Each finds the
+other's member through its meets and riders (`Val.memberAt`,
+`Val.elemAt`), so `({a: upper(_)} & {b: 1}) & {a: "x"}` fills `a` too.
+The peer a member's hole takes is spent, and each container is kept
+whole, so a seal and a spread stand. Neither engine reads through a
+rider or a mark around a container, so both answer
+`meta({a: upper(_)}, {d: 1}) & {a: "x"}` with an error, which
+[#552](https://github.com/aontu-lang/aontu/issues/552) tracks. The fill
+reads every meet but one in a generator's template, an `emit`'s table
+or a `filter`'s condition, whose holes those bind. Rows from hv0
 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold both
 engines to it where a call meets one peer, a `match`'s result and its
 default among them. Neither engine fills a meet in a `match`'s
