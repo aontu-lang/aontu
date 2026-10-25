@@ -4579,7 +4579,9 @@ data that writes its output and data that doesn't; the hole alone; and,
 where the data leaves the member out so that the fill supplies it, the
 same call, a generator over a list written before its peer and after
 it, a fill inside a map and a list, and a second peer that refuses the
-output; and a fill in a `match`'s result and in its default. Both ports
+output; a fill in a `match`'s result and in its default; and two lists
+or two maps met member by member, by position and by key, nested, with a
+member one side lacks, and with a member pair that both wait. Both ports
 read a generator's peer and the data as one conjunction, so a generator
 meets no data here. -/
 def holeFillVetCases : List (Val × Data) :=
@@ -4589,6 +4591,8 @@ def holeFillVetCases : List (Val × Data) :=
   let la : Val := .list [s "a"] none false
   let px : Val := .map [("x", false, n 1)] none false
   let x (v : Val) : Val × Data := (.map [("x", false, v)] none false, .map [])
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
   let yes : Val := .lit (.bool true)
   let sel (arms : List (Val × Val)) (d : Val) : Val := .select yes arms (some d)
   [(.meet (up .hole) (s "a"), .str "A"), (.meet (up .hole) (s "a"), .str "a"),
@@ -4613,7 +4617,18 @@ def holeFillVetCases : List (Val × Data) :=
     (sel [(yes, .meet (up .hole) (s "a"))] (s "b"), .str "A"),
     (sel [(yes, .meet (up .hole) (s "a"))] (s "b"), .str "a"),
     (sel [(.lit (.bool false), s "b")] (.meet (up .hole) (s "a")), .str "A"),
-    (sel [(.lit (.bool false), s "b")] (.meet (up .hole) (s "a")), .str "b")]
+    (sel [(.lit (.bool false), s "b")] (.meet (up .hole) (s "a")), .str "b"),
+    (.meet (lst [up .hole]) (lst [s "a"]), .list [.str "A"]),
+    (.meet (lst [up .hole]) (lst [s "a"]), .list [.str "a"]),
+    (.meet (lst [s "a"]) (lst [up .hole]), .list [.str "A"]),
+    (.meet (mp [("a", up .hole)]) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (mp [("a", up .hole), ("b", n 1)]) (mp [("a", s "x")]), .map [("a", .str "X"), ("b", .integer 1)]),
+    (.meet (lst [up .hole, .call .lower [.hole]]) (lst [s "a", s "B"]), .list [.str "A", .str "b"]),
+    (.meet (mp [("a", mp [("b", up .hole)])]) (mp [("a", mp [("b", s "x")])]), .map [("a", .map [("b", .str "X")])]),
+    (.meet (lst [up .hole]) (lst [s "a", s "b"]), .list [.str "A", .str "b"]),
+    (.meet (lst [up .hole, s "z"]) (lst [s "a"]), .list [.str "A", .str "z"]),
+    (.meet (mp [("a", up .hole)]) (mp [("a", up .hole)]), .map [("a", .str "X")]),
+    (.meet (.meet (lst [up .hole]) (lst [s "a"])) (lst [s "A"]), .list [.str "A"])]
 
 set_option maxRecDepth 8192 in
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
