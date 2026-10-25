@@ -3039,6 +3039,9 @@ hv221	verdict	v: ([&: upper(_)]) & ([hide("q"), "b"])	v: ["B"]	{"verdict":"valid
 hv222	verdict	v: (([&: add(_, 1)]) & ([1, 2])) & ([2, 3])	v: [2, 3]	{"verdict":"valid"}
 hv223	verdict	v: (([&: add(_, 1)]) & ([1, 2])) & ([2, 3])	v: [2, 3]	{"verdict":"valid","opts":{"noFill":true}}
 hv224	verdict	v: (([&: add(_, 1)]) & ([1, 2])) & ([2, 3])	v: [2, 3]	{"verdict":"valid","opts":{"partial":true}}
+hv225	verdict	v: {"a": "x", &: match(key(0), string, any, upper(_))}	v: {"a": "x"}	{"verdict":"valid"}
+hv226	verdict	v: {"a": "x", &: match(key(0), string, any, upper(_))}	v: {"a": "x"}	{"verdict":"valid","opts":{"noFill":true}}
+hv227	verdict	v: {"a": "x", &: match(key(0), string, any, upper(_))}	v: {"a": "x"}	{"verdict":"valid","opts":{"partial":true}}
 dv0	verdict	v: upper(_)	v: "a"	{"verdict":"valid"}
 dv1	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"noFill":true}}
 dv2	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"partial":true}}

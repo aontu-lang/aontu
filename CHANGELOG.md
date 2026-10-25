@@ -44,11 +44,13 @@ Definition, generated rows, and documentation. No engine changes.
   `{&: upper(_)} & {a: "x"}` is `{a: "X"}`, and
   `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, as both engines
   answer.
-- `spec/Oracle.lean`: rows hv168 on of `test/spec/def-call.tsv`, 19
+- `spec/Oracle.lean`: rows hv168 on of `test/spec/def-call.tsv`, 20
   cases in each of the three modes. Both engines answer every row as
   the definition does.
 - A template that holds its hole inside a container,
-  `{&: {n: upper(_)}}`, isn't filled yet. Both engines fill it.
+  `{&: {n: upper(_)}}`, isn't filled yet. Both engines fill it. Nor do
+  two spreads that both wait read as the engines read them, one where
+  their templates are alike and `place_pair` where they differ.
 - Docs: the definition tutorial's step 27, the reference's placeholder
   section, the definition's README and the design note.
 

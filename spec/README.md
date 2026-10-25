@@ -94,6 +94,10 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - a spread's template that holds its hole inside a container,
   `{&: {n: upper(_)}} & {a: {n: "x"}}`, which P9 leaves unfilled, where
   both ports fill each member the spread meets, once;
+- two spreads that both wait on a hole, which P9 fills a member from
+  each of, where both ports read them as one where their templates are
+  alike, so `({&: add(_, 1)} & {a: 1}) & {&: add(_, 1)}` gives `a: 2`,
+  and as `place_pair` where they differ;
 - a call that meets more than one peer, which P9 reads as the document
   groups its meets, where both ports read the conjunction in the order
   it's written (#512);
