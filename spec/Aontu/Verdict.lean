@@ -1610,7 +1610,7 @@ bag, or a member makes no pieces (`emitPieces`). A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
 no position for an element that is absence, nor for one a mark of its
-own, `hide()` or `type()`, leaves out (decision 18), each element after
+own, `hide()` or `type()`, leaves out, each element after
 it read at the index it takes, though a list whose marked element is a
 conflict, alone or met with the list's spread, is `nil` where it stands
 (`Decls.markClashes`). A call or a generator

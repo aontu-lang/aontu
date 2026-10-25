@@ -261,10 +261,9 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       (∀ b, j = .addr b → ¬ a.Opens b) → Judge env root false (.addr a) j
   /-- A bound with a number at its end admits a number, by exact value,
   and one with a string at its end a string, in code-point order, and an
-  address by its spelling (decision 23 of the design note's §7); the
-  bound's domain is its end's, so `min(0)` admits no string and
-  `max("b")` no number. It refuses a value of its domain that falls
-  outside it, and every value outside its domain. -/
+  address by its spelling; the bound's domain is its end's, so `min(0)`
+  admits no string and `max("b")` no number. It refuses a value of its
+  domain that falls outside it, and every value outside its domain. -/
   | min {n x : Number} : n.le x → Judge env root true (.min (.num n)) (.num x)
   | minStr {b s : String} : b ≤ s → Judge env root true (.min (.str b)) (.str s)
   | minAddr {b : String} {a : Addr} : b ≤ a.text → Judge env root true (.min (.str b)) (.addr a)
@@ -345,9 +344,9 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       Judge env root false (.unique k) j
   /-- `re(p)` admits the strings the pattern matches, and `format(g)`
   the strings the format reads, by the host's predicates, and each the
-  addresses whose spelling its predicate holds of (decision 23); each
-  admits `""` exactly where its predicate holds of it, admits no other
-  kind of value, and refuses whatever it does not admit. -/
+  addresses whose spelling its predicate holds of; each admits `""`
+  exactly where its predicate holds of it, admits no other kind of
+  value, and refuses whatever it does not admit. -/
   | re {p s : String} : host.pattern p s → Judge env root true (.re p) (.str s)
   | reAddr {p : String} {a : Addr} : host.pattern p a.text → Judge env root true (.re p) (.addr a)
   | reNot {p : String} {j : Data} :
