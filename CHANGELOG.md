@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a meet of two sides that both wait as an error, however the document groups it
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: two sides that both wait on a hole, one of
+  them more than the hole, meet as `nil` wherever the fill meets them
+  (`Val.fillMeet`), and so does a meet of two such sides. So
+  `(upper(_) & _) & "x"` is an error, as both engines answer, where the
+  definition read through the group and filled `upper(_)` from `"x"`,
+  and a disjunction drops an arm that holds one, so
+  `v: (upper(_) & _) | "x"` passes `v: "x"`. Two holes meet as one
+  (`Val.meetFilled`), so `(_ & _) & upper(_)` is an error too (#559).
+- `spec/Oracle.lean`: rows dg0 to dg71 of `test/spec/def-call.tsv`, 24
+  cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves.
+- Both engines bind each hole of a spread's template to the member, so
+  `{&: upper(_) & _}` passes `{a: "X"}`, where the definition reads the
+  template as `nil` (#561).
+- The design note records decision 30: `vet` reads a lone preference
+  over a call its peer fills as `eval` does, so both engines' `vet` is
+  to pass `v: "A"` against `v: *upper(_) & "a"` (#560).
+- Docs: the definition tutorial's step 27 and the reference's
+  placeholder section.
+
 ### The definition fills a spread's container template from each member it meets
 
 Definition, generated rows, and documentation. No engine changes.

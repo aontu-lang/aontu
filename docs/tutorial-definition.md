@@ -7346,13 +7346,15 @@ def Val.filled : Val → Val
 ```
 
 It then reads a meet with one side waiting on a hole and the other not
-as the waiting side, with the hole bound to the other:
+as the waiting side, with the hole bound to the other, and two holes as
+one:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Val.meetFilled (a b : Val) : Val :=
   if a.fillable && !b.fillable then a.bindHole b
   else if b.fillable && !a.fillable then b.bindHole a
+  else if a.isHole && b.isHole then .hole
   else .meet (fillWith (fun q => a.fillMeet q) a.fillable b).1 (fillWith (fun q => a.fillMeet q) a.fillable b).2
 ```
 
@@ -7376,13 +7378,15 @@ position or by key, as `pair` does. It reads through its own meets and
 riders, each side in turn, and finds the peer's member through the
 peer's, as `nest` does. The peer a member's hole takes is spent, so it
 reads as `any`, and each container is kept whole, so a seal and a
-spread stand:
+spread stand. Two sides that both wait meet as `nil`, which comes
+later:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Val.fillMeet (a b : Val) : Val × Val :=
   if a.fillable && !b.fillable then (a.bindHole b, .any)
   else if b.fillable && !a.fillable then (.any, b.bindHole a)
+  else if a.fillable && !(a.isHole && b.isHole) then (.nil, .any)
   else match a with
     | .map fs sa ca =>
       fillMapWith sa ca (fillFields fs b)
@@ -7436,7 +7440,9 @@ data fills the first arm as `add("x", 1)`, which the reading can't
 make, and the second arm stands. A lone preference is met as the two
 arms the meet reads it as, its preferred arm filled and its parent arm
 (`Val.super`) met, so `v: *upper(_)` passes `v: "a"`, and
-`v: *add(_, 1)` passes `v: "x"`, which the parent arm admits. A
+`v: *add(_, 1)` passes `v: "x"`, which the parent arm admits. Met with
+a peer, `*upper(_) & "a"` gives `"A"`, its preferred arm filled, yet
+both engines' `vet` refuses `v: "A"` against it, which #560 tracks. A
 disjunction on the other side is met arm by arm too, as the meet
 distributes it (`fillWith`), so `{a: upper(_)} & ({a: "a"} | {a: "b"})`
 fills each arm's member and passes `{a: "A"}`, as both engines answer.
@@ -7554,11 +7560,41 @@ verdict: valid
 
 So `n: add(_, 1)` passes `n: 3` as well, and refuses `n: "b"`, which
 leaves the call unmade (`Val.fails`), as both engines answer. A hole
-the data leaves out is `incomplete`, and `valid` under `--partial`. A
-call met with a hole, as in `upper(_) & _`, or with another call that
+the data leaves out is `incomplete`, and `valid` under `--partial`. The
+rows are dv0 on, an arm that does not stand in rows da0 on, and both
+engines answer every one as the definition does.
+
+A call met with a hole, as in `upper(_) & _`, or with another call that
 waits is an error, since neither fills the other, though `_ & _` meets
-as one hole. The rows are dv0 on, an arm that does not stand in rows
-da0 on, and both engines answer every one as the definition does.
+as one hole. The fill reads such a meet as `nil` wherever it meets two
+sides that wait, and a meet of two such sides as `nil` too
+(`Val.fillMeet`), so no grouping and no third side repairs it. Write
+`pair.aontu`:
+
+<!-- test: file pair.aontu -->
+```aontu
+v: (upper(_) & _)|"x"
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu pair.aontu
+{
+  "v": "x"
+}
+```
+
+The first arm is `nil`, so it drops as a conflict's arm does, as both
+engines answer. `(upper(_) & _) & "x"` is an error in the definition
+and in both engines, where reading through the group would fill
+`upper(_)` with `"x"`, and since two holes meet as one, so is
+`(_ & _) & upper(_)`. The rows are dg0 on, and both engines answer
+every one as the definition does. A spread's template of that shape,
+as in `{&: upper(_) & _}`, is `nil` at each member it meets,
+where both engines bind each of its holes to the member, which #561
+tracks.
 
 ## 28. A map from a template
 
