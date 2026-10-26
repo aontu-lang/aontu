@@ -398,3 +398,15 @@ Decision 29 (#548): what does a call over a hole that nothing in the schema fill
 Which work should come next? Pick any.
 → Fill holes in containers
 ```
+
+## 2026-10-26 15:53:46 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#560: how should `vet` read a lone preference over a call its peer fills, as in `v: *upper(_) & "a"`? Both engines' `eval` give `"A"`, but their `vet` refuses `"A"` and accepts `"a"`.
+→ As eval does (Recommended)
+
+What should I build next in the definition?
+→ #559: fill a group as written (Recommended)
+```

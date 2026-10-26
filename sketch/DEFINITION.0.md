@@ -443,7 +443,8 @@ of §1, which waits on the marks of ruling 10.
 Each changes a rule. The first five were ruled on 2026-10-16, the
 next three on 2026-10-19, seven more on 2026-10-20, two on 2026-10-21
 and the rest on 2026-10-23, but decision 29, raised on 2026-10-24 and
-ruled on 2026-10-25. Each was raised by the phase that found it, and each stands here
+ruled on 2026-10-25, and decision 30, raised on 2026-10-25 and ruled on
+2026-10-26. Each was raised by the phase that found it, and each stands here
 until the phase that encodes it lands.
 
 1. **The meaning of `%U = %U`.** Ruled 2026-10-16: ill-formed, an
@@ -1415,6 +1416,22 @@ until the phase that encodes it lands.
    each waiting part read as `any` (`Val.waitAny`). Rows dv0 on, 52
    cases in each mode, and rows da0 on, 10, and both ports answer every
    row as the definition does; no other row moved.
+30. **A lone preference over a call its peer fills.** Raised 2026-10-25
+   by decision 29's build (#560). Both ports' `eval` reads
+   `v: *upper(_) & "a"` as `"A"`, the peer filling the preferred arm's
+   hole, and their `vet` refuses `"A"` and passes `"a"`, as if the data
+   filled the hole and then met the call's output as well; without the
+   preference, `upper(_) & "a"`, `vet` passes the value `eval` gives.
+   Each port's `vet` answers the same in every mode. The definition
+   reads a lone preference as the two arms the meet reads it as, `*x & b`
+   as `*(x & b) | (super(x) & b)`, and fills the preferred arm from its
+   peer, as it fills `upper(_) & "a"`, so its `vet` passes `"A"` through
+   the preferred arm and `"a"` through the parent arm.
+
+   **Ruled 2026-10-26: as `eval` does.** `vet` passes the value `eval`
+   gives: the peer fills the preferred arm, so `*upper(_) & "a"` is
+   `"A"`, and `vet` passes `"A"`, and `"a"` through the parent arm. The
+   definition stands, and both ports' `vet` moves, which #560 tracks.
 
 ## 8. Risks
 
