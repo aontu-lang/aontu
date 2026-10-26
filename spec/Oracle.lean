@@ -4845,6 +4845,47 @@ theorem ill_arm_verdict_exact : ∀ c ∈ illArmCases, ∀ (m : Mode) (v : Verdi
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (illArmCases_checkable c hc)) v
 
+set_option maxRecDepth 8192 in
+/-- A meet of two sides that both wait on a hole, one of them more than
+the hole, for the `verdict` rows dg0 on: an error however the document
+groups it and whatever it meets, a literal, a hole, a disjunction or a
+preference's peer, two holes meeting as one first, and where a map's or
+a list's member meets another's, or a spread's template a member that
+waits; and a disjunction's arm that holds one dropping as a conflict's
+arm does, so that another arm stands, or an error where none does, as
+both ports answer. -/
+def groupCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let up (v : Val) : Val := .call .upper [v]
+  let lo (v : Val) : Val := .call .lower [v]
+  let g : Val := .meet (up .hole) .hole
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  [(.meet g (s "x"), .str "X"), (.meet (s "x") g, .str "X"), (.meet g .hole, .str "A"),
+    (.meet (.meet .hole .hole) (up .hole), .str "a"), (.meet (up .hole) (.meet .hole .hole), .str "a"),
+    (.meet (.meet (up .hole) (lo .hole)) (s "x"), .str "x"),
+    (.meet g (.or [(0, s "x"), (0, s "y")]), .str "X"), (.meet (.pref 1 g) (s "x"), .str "x"),
+    (.meet (mp [("a", g)]) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("a", .hole)])) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (.meet (lst [up .hole]) (lst [.hole])) (lst [s "x"]), .list [.str "X"]),
+    (.meet (.meet (.map [] (some (up .hole)) false) (mp [("a", .hole)])) (mp [("a", s "x")]),
+      .map [("a", .str "X")]),
+    (.or [(0, g), (0, s "x")], .str "x"), (.or [(0, g), (0, s "x")], .str "X"),
+    (.or [(0, .meet g (s "x")), (0, s "y")], .str "y"), (.or [(1, g), (0, s "x")], .str "x"),
+    (.meet (.or [(0, g), (0, s "x")]) (s "x"), .str "x"), (.meet (.or [(0, g), (0, s "x")]) (s "y"), .str "y"),
+    (.or [(0, g), (0, .meet (lo .hole) .hole)], .str "x"),
+    (.meet (mp [("a", up .hole)]) (.or [(0, mp [("a", .hole)]), (0, mp [("a", s "x")])]), .map [("a", .str "x")]),
+    (.or [(0, .meet (mp [("a", up .hole)]) (mp [("a", .hole)])), (0, s "x")], .str "x"),
+    (.or [(0, .meet .hole .hole), (0, s "x")], .str "a"), (lst [.or [(0, g), (0, s "x")]], .list [.str "x"]),
+    (.or [(0, .meet (.ride .type (up .hole) []) .hole), (0, s "x")], .str "x")]
+
+theorem groupCases_checkable : ∀ c ∈ groupCases, (vetDoc c).1.CheckableA := by decide
+
+theorem group_verdict_exact : ∀ c ∈ groupCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (groupCases_checkable c hc)) v
+
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
 
 theorem hole_fill_verdict_exact : ∀ c ∈ holeFillVetCases, ∀ (m : Mode) (v : Verdict),
@@ -5789,7 +5830,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# other reads as that side with the hole bound to the other, as the document"
     IO.println "# groups its meets. A hole the document leaves unfilled, which the data fills,"
     IO.println "# follows in rows dv0 on, and a disjunction's arm that does not stand, which"
-    IO.println "# drops as a conflict's arm does, in rows da0 on."
+    IO.println "# drops as a conflict's arm does, in rows da0 on. A meet of two sides that both"
+    IO.println "# wait on a hole, which is an error however it is grouped, follows in rows dg0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
@@ -5817,6 +5859,7 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "hv" holeFillVetCases
     verdictRows "dv" dataFillCases
     verdictRows "da" illArmCases
+    verdictRows "dg" groupCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"

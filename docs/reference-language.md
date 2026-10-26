@@ -1368,18 +1368,30 @@ rather than meeting it, so `v: upper(_)` passes against `v: "a"`, and
 `v: add(_, 1)` passes `v: 2` and refuses `v: "a"`. A hole the data
 leaves out is `incomplete`. A call met with a hole, as in
 `upper(_) & _`, or with another call that waits is an error, as both
-engines answer, though `_ & _` meets as one hole. A disjunction is
+engines answer, though `_ & _` meets as one hole. It stays an error
+however the document groups the meet and whatever else it meets, so
+`(upper(_) & _) & "x"` and `(_ & _) & upper(_)` are errors too, and a
+disjunction drops an arm that holds one, so `v: (upper(_) & _) | "x"`
+passes `v: "x"` (`Val.fillMeet`). Both engines read a spread's template
+of that shape, as in `{&: upper(_) & _}`, with each hole bound to the
+member, so it passes `{a: "X"}`, where the definition reads the
+template as `nil`, which
+[#561](https://github.com/aontu-lang/aontu/issues/561) tracks. A disjunction is
 filled arm by arm, so `v: upper(_) | "fallback"` passes `v: "a"`, and
 an arm whose call the data leaves unmade drops, so `v: add(_, 1) | "x"`
 passes `v: "x"`. A lone preference fills its preferred arm and meets
 the data with its parent arm, so `v: *upper(_)` passes `v: "a"`, and
-`v: *add(_, 1)` passes `v: "x"`. A disjunction a container meets is
+`v: *add(_, 1)` passes `v: "x"`. Met with a peer, `*upper(_) & "a"`
+gives `"A"`, yet both engines' `vet` refuses `v: "A"` against
+`v: *upper(_) & "a"` and passes `v: "a"`, which
+[#560](https://github.com/aontu-lang/aontu/issues/560) tracks. A disjunction a container meets is
 met arm by arm, so `v: {a: upper(_)} & ({a: "a"} | {a: "b"})` passes
 `v: {a: "A"}`. A
 generator waits on its data alone and reads its template only at each
 member it makes, so `v: each(_, upper({}))` passes `v: []`. Rows from
 dv0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold
-both engines to it.
+both engines to it, and rows from dg0 on to a meet of two sides that
+wait.
 
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:

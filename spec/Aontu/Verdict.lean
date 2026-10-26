@@ -1784,6 +1784,11 @@ members, but two containers meet member by member, so that a member's
 hole is filled from the member it meets, and a generator's template
 binds its holes to each member. -/
 
+/-- Whether a term is the hole itself. -/
+def Val.isHole : Val → Bool
+  | .hole => true
+  | _ => false
+
 mutual
 /-- Whether a term waits on a hole its peer fills: the hole, or a call
 over one through its arguments, a generator's data but not its template,
@@ -2168,7 +2173,9 @@ def leafArms (a : Val) : List (ℕ × Val) → List (ℕ × Val)
 mutual
 /-- Two terms met at one position, each with its own fills made: where
 one waits on a hole and the other doesn't, the hole bound to the other,
-which the call spends, so that it reads as `any`; and a map or a list,
+which the call spends, so that it reads as `any`; where both wait, one of
+them more than the hole, `nil`, since neither fills the other however
+the meet is grouped, and so of a meet of two such sides; a map or a list,
 read through its meets and riders, met with the other's members by key
 or by position (`Val.memberAt`, `Val.elemAt`), and each spread that
 waits on a hole, or whose template holds a member that does, with the
@@ -2179,6 +2186,7 @@ parent arm (`Val.super`) met. -/
 def Val.fillMeet (a b : Val) : Val × Val :=
   if a.fillable && !b.fillable then (a.bindHole b, .any)
   else if b.fillable && !a.fillable then (.any, b.bindHole a)
+  else if a.fillable && !(a.isHole && b.isHole) then (.nil, .any)
   else match a with
     | .map fs sa ca =>
       fillMapWith sa ca (fillFields fs b)
@@ -2194,7 +2202,9 @@ def Val.fillMeet (a b : Val) : Val × Val :=
             if t.holdsFill && arms.all Val.filledArm then some (arms, t, fun p => t.fillMeet p) else none
           | some t => if t.holdsFill then some ([], t, fun p => t.fillMeet p) else none
           | none => none)
-    | .meet x y => (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
+    | .meet x y =>
+      if x.fillable && y.fillable && !(x.isHole && y.isHole) then (.nil, .any)
+      else (.meet (x.fillMeet b).1 (y.fillMeet (x.fillMeet b).2).1, (y.fillMeet (x.fillMeet b).2).2)
     | .ride k v r => (.ride k (v.fillMeet b).1 r, (v.fillMeet b).2)
     | .pref r x => (.or [(r, .meet (x.fillMeet b).1 (x.fillMeet b).2), (0, .meet x.super b)], .any)
     | .or arms => (.or (fillArms arms b), .any)
@@ -2244,11 +2254,12 @@ end
 
 /-- Two terms, each with its own fills made, met: where one waits on a
 hole and the other doesn't, the waiting one with the hole bound to the
-other, and otherwise the two met with each other's members, a
-disjunction on the right met arm by arm (`fillWith`). -/
+other; two holes as one; and otherwise the two met with each other's
+members, a disjunction on the right met arm by arm (`fillWith`). -/
 def Val.meetFilled (a b : Val) : Val :=
   if a.fillable && !b.fillable then a.bindHole b
   else if b.fillable && !a.fillable then b.bindHole a
+  else if a.isHole && b.isHole then .hole
   else .meet (fillWith (fun q => a.fillMeet q) a.fillable b).1 (fillWith (fun q => a.fillMeet q) a.fillable b).2
 
 /-- A key's first declaration met with each later one, in the order
@@ -3168,6 +3179,7 @@ theorem fillElems_checkableA : ∀ {xs : List Val} {i : ℕ} {b : Val},
       · exact hxp.1
       · exact r.1 _ h
 
+set_option maxHeartbeats 1000000 in
 /-- The fill a spread's template that holds a member waiting on a hole
 hands the map and the list cases, read off the spread itself, is
 readable. -/
@@ -3180,6 +3192,8 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
     · exact ⟨bindHole_checkableA hb (.map hf hs), .any⟩
     split
     · exact ⟨.any, bindHole_checkableA (.map hf hs) hb⟩
+    split
+    · exact ⟨.nil, .any⟩
     · have r := fillFields_checkableA hf (fun k o x h => (ihf k o x h).1) hb
       refine fillMapWith_checkableA hs r.1 r.2 ?_
       intro arms t f h
@@ -3204,6 +3218,8 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
     · exact ⟨bindHole_checkableA hb (.list hx hs), .any⟩
     split
     · exact ⟨.any, bindHole_checkableA (.list hx hs) hb⟩
+    split
+    · exact ⟨.nil, .any⟩
     · have r := fillElems_checkableA (i := 0) hx (fun x h => (ihx x h).1) hb
       refine fillListWith_checkableA hs r.1 r.2 ?_
       intro arms t f h
@@ -3228,9 +3244,14 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
     · exact ⟨bindHole_checkableA hb (.meet hx hy), .any⟩
     split
     · exact ⟨.any, bindHole_checkableA (.meet hx hy) hb⟩
-    · have h₁ := ihx.1 hb
-      have h₂ := ihy.1 h₁.2
-      exact ⟨.meet h₁.1 h₂.1, h₂.2⟩
+    split
+    · exact ⟨.nil, .any⟩
+    · dsimp only
+      split
+      · exact ⟨.nil, .any⟩
+      · have h₁ := ihx.1 hb
+        have h₂ := ihy.1 h₁.2
+        exact ⟨.meet h₁.1 h₂.1, h₂.2⟩
   | @ride k v r hv ihv =>
     refine ⟨fun {b} hb => ?_, fun _ _ h => nomatch h⟩
     unfold Val.fillMeet
@@ -3238,6 +3259,8 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
     · exact ⟨bindHole_checkableA hb (.ride hv), .any⟩
     split
     · exact ⟨.any, bindHole_checkableA (.ride hv) hb⟩
+    split
+    · exact ⟨.nil, .any⟩
     · have h := ihv.1 hb
       exact ⟨.ride h.1, h.2⟩
   | @or arms ha iha =>
@@ -3247,6 +3270,8 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
     · exact ⟨bindHole_checkableA hb (.or ha), .any⟩
     split
     · exact ⟨.any, bindHole_checkableA (.or ha) hb⟩
+    split
+    · exact ⟨.nil, .any⟩
     · exact ⟨.or (fillArms_checkableA (fun r x h => (iha r x h).1) hb), .any⟩
   | @pref r x hx ihx =>
     refine ⟨fun {b} hb => ?_, fun _ _ h => nomatch h⟩
@@ -3255,6 +3280,8 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
     · exact ⟨bindHole_checkableA hb (.pref hx), .any⟩
     split
     · exact ⟨.any, bindHole_checkableA (.pref hx) hb⟩
+    split
+    · exact ⟨.nil, .any⟩
     · have h := ihx.1 hb
       refine ⟨.or fun r' w hm => ?_, .any⟩
       simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
@@ -3268,6 +3295,8 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
       · exact ⟨bindHole_checkableA hb (.selectKey hp hr hd), .any⟩
       split
       · exact ⟨.any, bindHole_checkableA (.selectKey hp hr hd) hb⟩
+      split
+      · exact ⟨.nil, .any⟩
       · dsimp only
         split
         · cases hb with
@@ -3289,6 +3318,8 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
       · exact ⟨bindHole_checkableA hb (by constructor <;> assumption), .any⟩
       split
       · exact ⟨.any, bindHole_checkableA (by constructor <;> assumption) hb⟩
+      split
+      · exact ⟨.nil, .any⟩
       · dsimp only
         split
         · cases hb with
@@ -3312,6 +3343,8 @@ theorem meetFilled_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA
   · exact bindHole_checkableA hb ha
   split
   · exact bindHole_checkableA ha hb
+  split
+  · exact .hole
   · exact .meet (fillWith_checkableA (fillMeet_checkableA ha) hb).1 (fillWith_checkableA (fillMeet_checkableA ha) hb).2
 
 theorem heldFields_checkableA : ∀ {fs : List (String × Bool × Val)} {sp : Option Val},
@@ -5252,11 +5285,6 @@ multiples, as both ports read it, so that `len(1 | 3)`, `len(*1)` and
 settles to one arm, `len(1 & (1 | 3))` or `len(1 | (1 & 2))`, is that
 arm's size (decision 16 of the design note's §7). -/
 def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
-
-/-- Whether a term is the hole itself. -/
-def Val.isHole : Val → Bool
-  | .hole => true
-  | _ => false
 
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
