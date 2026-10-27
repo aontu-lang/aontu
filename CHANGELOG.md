@@ -22,7 +22,15 @@ Definition, generated rows, and documentation. No engine changes.
   `{&: upper(_) & "a"}` refuses every member, and
   `{&: add(_, 1) & number}` refuses `{a: 1}`, as both engines answer,
   where the definition filled `{&: upper(_) & "a"}` as `{&: "A"}` (#561).
-- `spec/Oracle.lean`: rows dt0 to dt113 of `test/spec/def-call.tsv`, 38
+  A side that doesn't wait meets the member as two terms at one position
+  (`Val.fillMeet`), so a hole beneath a container side takes the
+  member's own member there: `{&: _ & {n: upper(_)}}` passes
+  `{a: {n: "X"}}` and refuses `{a: {n: "x"}}`. `Val.instAt` makes that
+  meet inside the fill's own recursion; a peer's spread meets the map's
+  own members through `Val.instWith` (`peerFill`), and a template that
+  waits at its own position is no longer also read as one that holds a
+  hole beneath it (`Val.heldSpread`).
+- `spec/Oracle.lean`: rows dt0 to dt209 of `test/spec/def-call.tsv`, 70
   cases in each of the three modes. Both engines answer every row as
   the definition does, and no other row moves.
 - The design note records decision 31: a hole in a spread's template is

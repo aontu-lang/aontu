@@ -3491,3 +3491,99 @@ dt110	verdict	v: {&: ((upper(_)) & (_)) | ({"n": (upper(_)) & ("a")})}	v: {"a": 
 dt111	verdict	v: {&: (_) & ({"n": (upper(_)) & ("a")})}	v: {"a": {"n": "A"}}	{"verdict":"valid"}
 dt112	verdict	v: {&: (_) & ({"n": (upper(_)) & ("a")})}	v: {"a": {"n": "A"}}	{"verdict":"valid","opts":{"noFill":true}}
 dt113	verdict	v: {&: (_) & ({"n": (upper(_)) & ("a")})}	v: {"a": {"n": "A"}}	{"verdict":"valid","opts":{"partial":true}}
+dt114	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid"}
+dt115	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt116	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"partial":true}}
+dt117	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": {"n": "x"}}	{"verdict":"invalid"}
+dt118	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": {"n": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+dt119	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": {"n": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+dt120	verdict	v: {&: ({"n": upper(_)}) & (_)}	v: {"a": {"n": "X"}}	{"verdict":"valid"}
+dt121	verdict	v: {&: ({"n": upper(_)}) & (_)}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt122	verdict	v: {&: ({"n": upper(_)}) & (_)}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"partial":true}}
+dt123	verdict	v: {&: ({"n": upper(_)}) & (_)}	v: {"a": {"n": "x"}}	{"verdict":"invalid"}
+dt124	verdict	v: {&: ({"n": upper(_)}) & (_)}	v: {"a": {"n": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+dt125	verdict	v: {&: ({"n": upper(_)}) & (_)}	v: {"a": {"n": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+dt126	verdict	v: {&: {"n": upper(_)}}	v: {"a": {"n": "X"}}	{"verdict":"valid"}
+dt127	verdict	v: {&: {"n": upper(_)}}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt128	verdict	v: {&: {"n": upper(_)}}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"partial":true}}
+dt129	verdict	v: {&: {"n": upper(_)}}	v: {"a": {"n": "x"}}	{"verdict":"valid"}
+dt130	verdict	v: {&: {"n": upper(_)}}	v: {"a": {"n": "x"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt131	verdict	v: {&: {"n": upper(_)}}	v: {"a": {"n": "x"}}	{"verdict":"valid","opts":{"partial":true}}
+dt132	verdict	v: {&: (_) & ([upper(_)])}	v: {"a": ["X"]}	{"verdict":"valid"}
+dt133	verdict	v: {&: (_) & ([upper(_)])}	v: {"a": ["X"]}	{"verdict":"valid","opts":{"noFill":true}}
+dt134	verdict	v: {&: (_) & ([upper(_)])}	v: {"a": ["X"]}	{"verdict":"valid","opts":{"partial":true}}
+dt135	verdict	v: {&: (_) & ([upper(_)])}	v: {"a": ["x"]}	{"verdict":"invalid"}
+dt136	verdict	v: {&: (_) & ([upper(_)])}	v: {"a": ["x"]}	{"verdict":"invalid","opts":{"noFill":true}}
+dt137	verdict	v: {&: (_) & ([upper(_)])}	v: {"a": ["x"]}	{"verdict":"invalid","opts":{"partial":true}}
+dt138	verdict	v: {&: (upper(_)) | ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid"}
+dt139	verdict	v: {&: (upper(_)) | ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt140	verdict	v: {&: (upper(_)) | ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"partial":true}}
+dt141	verdict	v: {&: (upper(_)) | ({"n": upper(_)})}	v: {"a": {"n": "x"}}	{"verdict":"valid"}
+dt142	verdict	v: {&: (upper(_)) | ({"n": upper(_)})}	v: {"a": {"n": "x"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt143	verdict	v: {&: (upper(_)) | ({"n": upper(_)})}	v: {"a": {"n": "x"}}	{"verdict":"valid","opts":{"partial":true}}
+dt144	verdict	v: {&: (_) & ({"n": {"m": upper(_)}})}	v: {"a": {"n": {"m": "X"}}}	{"verdict":"valid"}
+dt145	verdict	v: {&: (_) & ({"n": {"m": upper(_)}})}	v: {"a": {"n": {"m": "X"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dt146	verdict	v: {&: (_) & ({"n": {"m": upper(_)}})}	v: {"a": {"n": {"m": "X"}}}	{"verdict":"valid","opts":{"partial":true}}
+dt147	verdict	v: {&: (_) & ({"n": {"m": upper(_)}})}	v: {"a": {"n": {"m": "x"}}}	{"verdict":"invalid"}
+dt148	verdict	v: {&: (_) & ({"n": {"m": upper(_)}})}	v: {"a": {"n": {"m": "x"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dt149	verdict	v: {&: (_) & ({"n": {"m": upper(_)}})}	v: {"a": {"n": {"m": "x"}}}	{"verdict":"invalid","opts":{"partial":true}}
+dt150	verdict	v: [&: (_) & ({"n": upper(_)})]	v: [{"n": "X"}]	{"verdict":"valid"}
+dt151	verdict	v: [&: (_) & ({"n": upper(_)})]	v: [{"n": "X"}]	{"verdict":"valid","opts":{"noFill":true}}
+dt152	verdict	v: [&: (_) & ({"n": upper(_)})]	v: [{"n": "X"}]	{"verdict":"valid","opts":{"partial":true}}
+dt153	verdict	v: [&: (_) & ({"n": upper(_)})]	v: [{"n": "x"}]	{"verdict":"invalid"}
+dt154	verdict	v: [&: (_) & ({"n": upper(_)})]	v: [{"n": "x"}]	{"verdict":"invalid","opts":{"noFill":true}}
+dt155	verdict	v: [&: (_) & ({"n": upper(_)})]	v: [{"n": "x"}]	{"verdict":"invalid","opts":{"partial":true}}
+dt156	verdict	v: {&: (_) & ({"n": (upper(_)) & (_)})}	v: {"a": {"n": "X"}}	{"verdict":"invalid"}
+dt157	verdict	v: {&: (_) & ({"n": (upper(_)) & (_)})}	v: {"a": {"n": "X"}}	{"verdict":"invalid","opts":{"noFill":true}}
+dt158	verdict	v: {&: (_) & ({"n": (upper(_)) & (_)})}	v: {"a": {"n": "X"}}	{"verdict":"invalid","opts":{"partial":true}}
+dt159	verdict	v: {&: (_) & ({"n": (upper(_)) & (_)})}	v: {"a": {"n": "x"}}	{"verdict":"invalid"}
+dt160	verdict	v: {&: (_) & ({"n": (upper(_)) & (_)})}	v: {"a": {"n": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+dt161	verdict	v: {&: (_) & ({"n": (upper(_)) & (_)})}	v: {"a": {"n": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+dt162	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": "x"}	{"verdict":"invalid"}
+dt163	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": "x"}	{"verdict":"invalid","opts":{"noFill":true}}
+dt164	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": "x"}	{"verdict":"invalid","opts":{"partial":true}}
+dt165	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": {}}	{"verdict":"incomplete"}
+dt166	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+dt167	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+dt168	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {}	{"verdict":"valid"}
+dt169	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+dt170	verdict	v: {&: (_) & ({"n": upper(_)})}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+dt171	verdict	v: {"a": {"n": "X"}, &: (_) & ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid"}
+dt172	verdict	v: {"a": {"n": "X"}, &: (_) & ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt173	verdict	v: {"a": {"n": "X"}, &: (_) & ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"partial":true}}
+dt174	verdict	v: {"a": {"n": "x"}, &: (_) & ({"n": upper(_)})}	v: {"a": {"n": "x"}}	{"verdict":"error"}
+dt175	verdict	v: {"a": {"n": "x"}, &: (_) & ({"n": upper(_)})}	v: {"a": {"n": "x"}}	{"verdict":"error","opts":{"noFill":true}}
+dt176	verdict	v: {"a": {"n": "x"}, &: (_) & ({"n": upper(_)})}	v: {"a": {"n": "x"}}	{"verdict":"error","opts":{"partial":true}}
+dt177	verdict	v: ({"a": {"n": "X"}}) & ({&: (_) & ({"n": upper(_)})})	v: {"a": {"n": "X"}}	{"verdict":"valid"}
+dt178	verdict	v: ({"a": {"n": "X"}}) & ({&: (_) & ({"n": upper(_)})})	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt179	verdict	v: ({"a": {"n": "X"}}) & ({&: (_) & ({"n": upper(_)})})	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"partial":true}}
+dt180	verdict	v: ({"a": {"n": "x"}}) & ({&: (_) & ({"n": upper(_)})})	v: {"a": {"n": "x"}}	{"verdict":"error"}
+dt181	verdict	v: ({"a": {"n": "x"}}) & ({&: (_) & ({"n": upper(_)})})	v: {"a": {"n": "x"}}	{"verdict":"error","opts":{"noFill":true}}
+dt182	verdict	v: ({"a": {"n": "x"}}) & ({&: (_) & ({"n": upper(_)})})	v: {"a": {"n": "x"}}	{"verdict":"error","opts":{"partial":true}}
+dt183	verdict	v: ({&: (_) & ({"n": upper(_)})}) & ({"a": {"n": "X"}})	v: {"a": {"n": "X"}}	{"verdict":"valid"}
+dt184	verdict	v: ({&: (_) & ({"n": upper(_)})}) & ({"a": {"n": "X"}})	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt185	verdict	v: ({&: (_) & ({"n": upper(_)})}) & ({"a": {"n": "X"}})	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"partial":true}}
+dt186	verdict	v: ({&: (_) & ({"n": upper(_)})}) & ({"a": {"n": "x"}})	v: {"a": {"n": "x"}}	{"verdict":"error"}
+dt187	verdict	v: ({&: (_) & ({"n": upper(_)})}) & ({"a": {"n": "x"}})	v: {"a": {"n": "x"}}	{"verdict":"error","opts":{"noFill":true}}
+dt188	verdict	v: ({&: (_) & ({"n": upper(_)})}) & ({"a": {"n": "x"}})	v: {"a": {"n": "x"}}	{"verdict":"error","opts":{"partial":true}}
+dt189	verdict	v: {"a": {"n": "x"}, &: (upper(_)) | ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid"}
+dt190	verdict	v: {"a": {"n": "x"}, &: (upper(_)) | ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt191	verdict	v: {"a": {"n": "x"}, &: (upper(_)) | ({"n": upper(_)})}	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"partial":true}}
+dt192	verdict	v: ({"a": {"n": "x"}}) & ({&: (upper(_)) | ({"n": upper(_)})})	v: {"a": {"n": "X"}}	{"verdict":"valid"}
+dt193	verdict	v: ({"a": {"n": "x"}}) & ({&: (upper(_)) | ({"n": upper(_)})})	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt194	verdict	v: ({"a": {"n": "x"}}) & ({&: (upper(_)) | ({"n": upper(_)})})	v: {"a": {"n": "X"}}	{"verdict":"valid","opts":{"partial":true}}
+dt195	verdict	v: ([{"n": "X"}]) & ([&: (_) & ({"n": upper(_)})])	v: [{"n": "X"}]	{"verdict":"valid"}
+dt196	verdict	v: ([{"n": "X"}]) & ([&: (_) & ({"n": upper(_)})])	v: [{"n": "X"}]	{"verdict":"valid","opts":{"noFill":true}}
+dt197	verdict	v: ([{"n": "X"}]) & ([&: (_) & ({"n": upper(_)})])	v: [{"n": "X"}]	{"verdict":"valid","opts":{"partial":true}}
+dt198	verdict	v: ([{"n": "x"}]) & ([&: (_) & ({"n": upper(_)})])	v: [{"n": "x"}]	{"verdict":"error"}
+dt199	verdict	v: ([{"n": "x"}]) & ([&: (_) & ({"n": upper(_)})])	v: [{"n": "x"}]	{"verdict":"error","opts":{"noFill":true}}
+dt200	verdict	v: ([{"n": "x"}]) & ([&: (_) & ({"n": upper(_)})])	v: [{"n": "x"}]	{"verdict":"error","opts":{"partial":true}}
+dt201	verdict	v: ([&: (_) & ({"n": upper(_)})]) & ([{"n": "X"}])	v: [{"n": "X"}]	{"verdict":"valid"}
+dt202	verdict	v: ([&: (_) & ({"n": upper(_)})]) & ([{"n": "X"}])	v: [{"n": "X"}]	{"verdict":"valid","opts":{"noFill":true}}
+dt203	verdict	v: ([&: (_) & ({"n": upper(_)})]) & ([{"n": "X"}])	v: [{"n": "X"}]	{"verdict":"valid","opts":{"partial":true}}
+dt204	verdict	v: {&: ((_) & ({"n": upper(_)})) & ({"m": lower(_)})}	v: {"a": {"n": "X", "m": "y"}}	{"verdict":"valid"}
+dt205	verdict	v: {&: ((_) & ({"n": upper(_)})) & ({"m": lower(_)})}	v: {"a": {"n": "X", "m": "y"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt206	verdict	v: {&: ((_) & ({"n": upper(_)})) & ({"m": lower(_)})}	v: {"a": {"n": "X", "m": "y"}}	{"verdict":"valid","opts":{"partial":true}}
+dt207	verdict	v: {&: ((_) & ({"n": upper(_)})) & ({"m": lower(_)})}	v: {"a": {"n": "X", "m": "Y"}}	{"verdict":"invalid"}
+dt208	verdict	v: {&: ((_) & ({"n": upper(_)})) & ({"m": lower(_)})}	v: {"a": {"n": "X", "m": "Y"}}	{"verdict":"invalid","opts":{"noFill":true}}
+dt209	verdict	v: {&: ((_) & ({"n": upper(_)})) & ({"m": lower(_)})}	v: {"a": {"n": "X", "m": "Y"}}	{"verdict":"invalid","opts":{"partial":true}}

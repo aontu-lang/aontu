@@ -1354,7 +1354,11 @@ waits takes the member as its argument (`Val.instAt`). So
 `{&: upper(_) & _}` admits the members already in upper case,
 `{&: upper(_) & "a"}` refuses every member, and
 `{&: add(_, 1) & number}` refuses `{a: 1}`, since `number` meets `1`
-beside `add(1, 1)`, as both engines answer. A template that holds its hole inside a container
+beside `add(1, 1)`, as both engines answer. Any other side meets the
+member member by member, so a hole beneath it takes the member's own
+member there: `{&: _ & {n: upper(_)}}` passes `{a: {n: "X"}}` and
+refuses `{a: {n: "x"}}`, whether the spread meets the data, its own
+map's members or a peer's, as both engines answer. A template that holds its hole inside a container
 fills each member the same way, member by member (`heldOnto`):
 `{&: {n: upper(_)}} & {a: {n: "x"}}` is `{a: {n: "X"}}`, and a member
 that is a disjunction is met arm by arm, so

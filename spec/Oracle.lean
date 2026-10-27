@@ -4894,7 +4894,10 @@ so that `upper(_) & _` admits the members already in upper case and
 `upper(_) & "a"` none, in a map and a list, against the data and
 against a member the document writes, and a container inside the
 template, at its own position or beneath a side or an arm that waits,
-filled from its own meet first, as both ports answer. -/
+filled from its own meet first; a container side or arm met with the
+member member by member, a hole beneath it taking the member's member
+there, whether the spread meets the data, the map's own members, or a
+map or a list on either side of a meet; as both ports answer. -/
 def spreadTmplCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4905,6 +4908,10 @@ def spreadTmplCases : List (Val × Data) :=
   let sm (t : Val) : Val := .map [] (some t) false
   let sl (t : Val) : Val := .list [] (some t) false
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  let lm (t : String) : Val := mp [("n", s t)]
+  let nd (t : String) : Data := .map [("n", .str t)]
+  let tT : Val := .meet .hole (mp [("n", up .hole)])
+  let tA : Val := .or [(0, up .hole), (0, mp [("n", up .hole)])]
   [(sm g, .map [("a", .str "X")]), (sm g, .map [("a", .str "x")]), (sm g, .map []),
     (sl g, .list [.str "X"]), (sl g, .list [.str "X", .str "y"]),
     (sm g, .map [("a", .str "X"), ("b", .str "Y")]),
@@ -4932,7 +4939,31 @@ def spreadTmplCases : List (Val × Data) :=
     (sm (.or [(0, up .hole), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "A")])]),
     (sm (.or [(0, up .hole), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "a")])]),
     (sm (.or [(0, g), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "A")])]),
-    (sm (.meet .hole (mp [("n", .meet (up .hole) (s "a"))])), .map [("a", .map [("n", .str "A")])])]
+    (sm (.meet .hole (mp [("n", .meet (up .hole) (s "a"))])), .map [("a", .map [("n", .str "A")])]),
+    (sm tT, .map [("a", nd "X")]), (sm tT, .map [("a", nd "x")]),
+    (sm (.meet (mp [("n", up .hole)]) .hole), .map [("a", nd "X")]),
+    (sm (.meet (mp [("n", up .hole)]) .hole), .map [("a", nd "x")]),
+    (sm (mp [("n", up .hole)]), .map [("a", nd "X")]), (sm (mp [("n", up .hole)]), .map [("a", nd "x")]),
+    (sm (.meet .hole (.list [up .hole] none false)), .map [("a", .list [.str "X"])]),
+    (sm (.meet .hole (.list [up .hole] none false)), .map [("a", .list [.str "x"])]),
+    (sm tA, .map [("a", nd "X")]), (sm tA, .map [("a", nd "x")]),
+    (sm (.meet .hole (mp [("n", mp [("m", up .hole)])])), .map [("a", .map [("n", .map [("m", .str "X")])])]),
+    (sm (.meet .hole (mp [("n", mp [("m", up .hole)])])), .map [("a", .map [("n", .map [("m", .str "x")])])]),
+    (sl tT, .list [nd "X"]), (sl tT, .list [nd "x"]),
+    (sm (.meet .hole (mp [("n", g)])), .map [("a", nd "X")]), (sm (.meet .hole (mp [("n", g)])), .map [("a", nd "x")]),
+    (sm tT, .map [("a", .str "x")]), (sm tT, .map [("a", .map [])]), (sm tT, .map []),
+    (.map [("a", false, lm "X")] (some tT) false, .map [("a", nd "X")]),
+    (.map [("a", false, lm "x")] (some tT) false, .map [("a", nd "x")]),
+    (.meet (mp [("a", lm "X")]) (sm tT), .map [("a", nd "X")]), (.meet (mp [("a", lm "x")]) (sm tT), .map [("a", nd "x")]),
+    (.meet (sm tT) (mp [("a", lm "X")]), .map [("a", nd "X")]), (.meet (sm tT) (mp [("a", lm "x")]), .map [("a", nd "x")]),
+    (.map [("a", false, lm "x")] (some tA) false, .map [("a", nd "X")]),
+    (.meet (mp [("a", lm "x")]) (sm tA), .map [("a", nd "X")]),
+    (.meet (.list [lm "X"] none false) (sl tT), .list [nd "X"]), (.meet (.list [lm "x"] none false) (sl tT), .list [nd "x"]),
+    (.meet (sl tT) (.list [lm "X"] none false), .list [nd "X"]),
+    (sm (.meet (.meet .hole (mp [("n", up .hole)])) (mp [("m", lo .hole)])),
+      .map [("a", .map [("n", .str "X"), ("m", .str "y")])]),
+    (sm (.meet (.meet .hole (mp [("n", up .hole)])) (mp [("m", lo .hole)])),
+      .map [("a", .map [("n", .str "X"), ("m", .str "Y")])])]
 
 theorem spreadTmplCases_checkable : ∀ c ∈ spreadTmplCases, (vetDoc c).1.CheckableA := by decide
 
