@@ -4893,7 +4893,8 @@ met with the member, one that waits with its hole bound to the member,
 so that `upper(_) & _` admits the members already in upper case and
 `upper(_) & "a"` none, in a map and a list, against the data and
 against a member the document writes, and a container inside the
-template filled from its own meet first, as both ports answer. -/
+template, at its own position or beneath a side or an arm that waits,
+filled from its own meet first, as both ports answer. -/
 def spreadTmplCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4927,7 +4928,11 @@ def spreadTmplCases : List (Val × Data) :=
     (sm (.or [(0, add1 .hole), (0, s "x")]), .map [("a", .integer 1)]),
     (sm (.meet (.ride .type (up .hole) []) .hole), .map [("a", .str "X")]),
     (sm (mp [("n", .meet (up .hole) (s "a"))]), .map [("a", .map [("n", .str "A")])]),
-    (sm (mp [("n", g)]), .map [("a", .map [("n", .str "X")])])]
+    (sm (mp [("n", g)]), .map [("a", .map [("n", .str "X")])]),
+    (sm (.or [(0, up .hole), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "A")])]),
+    (sm (.or [(0, up .hole), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "a")])]),
+    (sm (.or [(0, g), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "A")])]),
+    (sm (.meet .hole (mp [("n", .meet (up .hole) (s "a"))])), .map [("a", .map [("n", .str "A")])])]
 
 theorem spreadTmplCases_checkable : ∀ c ∈ spreadTmplCases, (vetDoc c).1.CheckableA := by decide
 

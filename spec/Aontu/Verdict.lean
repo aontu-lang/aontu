@@ -1861,6 +1861,12 @@ def instArms : List (ℕ × Val) → Val → List (ℕ × Val)
   | (r, x) :: as, p => (r, x.instAt p) :: instArms as p
 end
 
+/-- Whether a term is a meet, a disjunction or a rider, the forms such a
+template keeps at its own position (`Val.tmplNode`). -/
+def Val.isTopNode : Val → Bool
+  | .meet _ _ | .or _ | .ride _ _ _ => true
+  | _ => false
+
 /-- The meet of a key's declarations, in the order they're written. -/
 def declsAt (k : String) : List (String × Bool × Val) → Option Val
   | [] => none
@@ -2397,10 +2403,23 @@ def filledSpread : Option Val → Option Val
   | some s => some s.filled
 
 /-- A spread's template filled, but one that waits on a hole at its own
-position kept as written, for each member to fill (`Val.instAt`). -/
+position kept as written there, for each member to fill (`Val.instAt`). -/
 def tmplSpread : Option Val → Option Val
   | none => none
-  | some s => some (if s.waitsTop then s else s.filled)
+  | some s => some (if s.waitsTop && s.isTopNode then s.tmplNode else s.filled)
+
+/-- Such a template with its meets, its arms and its riders as written,
+and each term beneath them filled. -/
+def Val.tmplNode : Val → Val
+  | .meet x y =>
+    .meet (if x.isTopNode then x.tmplNode else x.filled) (if y.isTopNode then y.tmplNode else y.filled)
+  | .or arms => .or (tmplArms arms)
+  | .ride k v r => .ride k (if v.isTopNode then v.tmplNode else v.filled) r
+  | v => v
+
+def tmplArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, x) :: as => (r, if x.isTopNode then x.tmplNode else x.filled) :: tmplArms as
 
 def filledArms : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
@@ -2484,13 +2503,23 @@ theorem filledSpread_some : ∀ {sp : Option Val} {t : Val}, filledSpread sp = s
   | some s, t, h => by simp only [filledSpread, Option.some.injEq] at h; exact ⟨s, rfl, h.symm⟩
 
 theorem tmplSpread_some : ∀ {sp : Option Val} {t : Val}, tmplSpread sp = some t →
-    ∃ s, sp = some s ∧ (t = s ∨ t = s.filled)
+    ∃ s, sp = some s ∧ (t = s.tmplNode ∨ t = s.filled)
   | none, _, h => nomatch h
   | some s, t, h => by
     simp only [tmplSpread, Option.some.injEq] at h
     split at h
     · exact ⟨s, rfl, .inl h.symm⟩
     · exact ⟨s, rfl, .inr h.symm⟩
+
+theorem mem_tmplArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
+    (r, w) ∈ tmplArms arms → ∃ x, (r, x) ∈ arms ∧ w = (if x.isTopNode then x.tmplNode else x.filled)
+  | [], _, _, h => nomatch h
+  | (r', x') :: arms, r, w, h => by
+    simp only [tmplArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨x', List.mem_cons_self, rfl⟩
+    · obtain ⟨x, hx, rfl⟩ := mem_tmplArms h
+      exact ⟨x, List.mem_cons_of_mem _ hx, rfl⟩
 
 theorem mem_filledArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {b : Val},
     (r, b) ∈ filledArms arms → ∃ a, (r, a) ∈ arms ∧ b = a.filled
@@ -3530,93 +3559,118 @@ theorem joinFields_checkableA : ∀ {seen : List String} {fs : List (String × B
         exact joinAt_checkableA (x := (x, o₁)) hx hf'
       · exact joinFields_checkableA hf' _ _ _ h
 
-/-- The fill leaves a term the checker can read as one it can read. -/
-theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA := by
+/-- The fill, and a spread's template kept at its own position, leave a
+term the checker can read. -/
+theorem filled_tmpl_checkableA {v : Val} (h : v.CheckableA) :
+    v.filled.CheckableA ∧ v.tmplNode.CheckableA := by
   induction h with
   | meet _ _ iha ihb =>
-    simp only [Val.filled]
-    exact meetFilled_checkableA iha ihb
-  | @map fs spread closed _ hs₀ ihf ihs =>
+    refine ⟨by simp only [Val.filled]; exact meetFilled_checkableA iha.1 ihb.1, ?_⟩
+    simp only [Val.tmplNode]
+    refine .meet ?_ ?_
+    · split
+      · exact iha.2
+      · exact iha.1
+    · split
+      · exact ihb.2
+      · exact ihb.1
+  | @map fs spread closed hf₀ hs₀ ihf ihs =>
     have hj : ∀ k o x, (k, o, x) ∈ joinFields [] (filledFields fs) → x.CheckableA :=
       joinFields_checkableA fun k o x hm => by
         obtain ⟨v, hv, rfl⟩ := mem_filledFields hm
-        exact ihf k o v hv
+        exact (ihf k o v hv).1
     have hsp : ∀ t, tmplSpread spread = some t → t.CheckableA := fun t ht => by
       obtain ⟨s, hs, h | h⟩ := tmplSpread_some ht
       · subst h
-        exact hs₀ _ hs
+        exact (ihs _ hs).2
       · subst h
-        exact ihs _ hs
+        exact (ihs _ hs).1
     have q := spreadAll_checkableA hj hsp
-    exact .map q.1 q.2
-  | @list items spread closed _ hs₀ ihi ihs =>
+    exact ⟨.map q.1 q.2, .map hf₀ hs₀⟩
+  | @list items spread closed hi₀ hs₀ ihi ihs =>
     have hi : ∀ x, x ∈ filledItems items → x.CheckableA := fun w hm => by
       obtain ⟨v, hv, rfl⟩ := mem_filledItems hm
-      exact ihi v hv
+      exact (ihi v hv).1
     have hsp : ∀ t, tmplSpread spread = some t → t.CheckableA := fun t ht => by
       obtain ⟨s, hs, h | h⟩ := tmplSpread_some ht
       · subst h
-        exact hs₀ _ hs
+        exact (ihs _ hs).2
       · subst h
-        exact ihs _ hs
+        exact (ihs _ hs).1
     have q := spreadAllItems_checkableA hi hsp
-    exact .list q.1 q.2
+    exact ⟨.list q.1 q.2, .list hi₀ hs₀⟩
   | @or arms _ ih =>
-    refine .or fun r b hm => ?_
-    obtain ⟨a, ha, rfl⟩ := mem_filledArms hm
-    exact ih r a ha
-  | pref _ ih => exact .pref ih
-  | ride _ ih => exact .ride ih
-  | len _ ih => exact .len ih
-  | must _ ih => exact .must ih
-  | contains _ _ ihc ihn => exact .contains ihc ihn
-  | @nof n cs _ _ ihn ihc =>
-    refine .nof ihn fun c hc => ?_
+    refine ⟨.or fun r b hm => ?_, ?_⟩
+    · obtain ⟨a, ha, rfl⟩ := mem_filledArms hm
+      exact (ih r a ha).1
+    · simp only [Val.tmplNode]
+      refine .or fun r b hm => ?_
+      obtain ⟨a, ha, rfl⟩ := mem_tmplArms hm
+      split
+      · exact (ih r a ha).2
+      · exact (ih r a ha).1
+  | pref hx ih => exact ⟨.pref ih.1, .pref hx⟩
+  | ride _ ih =>
+    refine ⟨.ride ih.1, ?_⟩
+    simp only [Val.tmplNode]
+    split
+    · exact .ride ih.2
+    · exact .ride ih.1
+  | len hc ih => exact ⟨.len ih.1, .len hc⟩
+  | must hc ih => exact ⟨.must ih.1, .must hc⟩
+  | contains hc hn ihc ihn => exact ⟨.contains ihc.1 ihn.1, .contains hc hn⟩
+  | @nof n cs hn hcs ihn ihc =>
+    refine ⟨.nof ihn.1 fun c hc => ?_, .nof hn hcs⟩
     obtain ⟨u, hu, rfl⟩ := mem_filledItems hc
-    exact ihc u hu
-  | @when c t e _ _ _ ihc iht ihe =>
-    refine .when ihc iht fun e' he => ?_
-    obtain ⟨s, hs, rfl⟩ := filledSpread_some he
-    exact ihe s hs
-  | @rest t cs _ _ _ _ iht ih₁ ih₂ ih₃ =>
-    refine .rest iht ?_ ?_ ?_ <;> intro c hc v hv <;>
+    exact (ihc u hu).1
+  | @when c t e hc ht he ihc iht ihe =>
+    refine ⟨.when ihc.1 iht.1 fun e' he' => ?_, .when hc ht he⟩
+    obtain ⟨s, hs, rfl⟩ := filledSpread_some he'
+    exact (ihe s hs).1
+  | @rest t cs ht h₁ h₂ h₃ iht ih₁ ih₂ ih₃ =>
+    refine ⟨.rest iht.1 ?_ ?_ ?_, .rest ht h₁ h₂ h₃⟩ <;> intro c hc v hv <;>
       obtain ⟨c₀, hm₀, rfl⟩ := mem_filledCovers hc <;>
       obtain ⟨s, hs, rfl⟩ := filledSpread_some hv
-    · exact ih₁ c₀ hm₀ s hs
-    · exact ih₂ c₀ hm₀ s hs
-    · exact ih₃ c₀ hm₀ s hs
-  | @selectKey arms d _ _ _ ihp ihr ihd =>
-    refine .selectKey ?_ ?_ ?_
+    · exact (ih₁ c₀ hm₀ s hs).1
+    · exact (ih₂ c₀ hm₀ s hs).1
+    · exact (ih₃ c₀ hm₀ s hs).1
+  | @selectKey arms d hp hr hd ihp ihr ihd =>
+    refine ⟨.selectKey ?_ ?_ ?_, .selectKey hp hr hd⟩
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact ihp p₀ r₀ hm₀
+      exact (ihp p₀ r₀ hm₀).1
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact ihr p₀ r₀ hm₀
+      exact (ihr p₀ r₀ hm₀).1
     · intro e he
       obtain ⟨s, hs, rfl⟩ := filledSpread_some he
-      exact ihd s hs
-  | @selectLit sc arms d _ _ _ ihp ihr ihd =>
-    refine .selectLit ?_ ?_ ?_
+      exact (ihd s hs).1
+  | @selectLit sc arms d hp hr hd ihp ihr ihd =>
+    refine ⟨.selectLit ?_ ?_ ?_, .selectLit hp hr hd⟩
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact ihp p₀ r₀ hm₀
+      exact (ihp p₀ r₀ hm₀).1
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact ihr p₀ r₀ hm₀
+      exact (ihr p₀ r₀ hm₀).1
     · intro e he
       obtain ⟨s, hs, rfl⟩ := filledSpread_some he
-      exact ihd s hs
+      exact (ihd s hs).1
   | @call f args h ih =>
     have hi : ∀ a, a ∈ filledItems args → a.CheckableA := fun a ha => by
       obtain ⟨u, hu, rfl⟩ := mem_filledItems ha
-      exact ih u hu
+      exact (ih u hu).1
     have hh : ∀ a, a ∈ filledHead args → a.CheckableA := fun a ha => by
       rcases mem_filledHead ha with ha | ⟨u, hu, rfl⟩
       · exact h a ha
-      · exact ih u hu
+      · exact (ih u hu).1
+    refine ⟨?_, .call h⟩
     cases f <;> first | exact .call hh | exact .call hi
-  | _ => simp only [Val.filled]; constructor <;> assumption
+  | _ => exact ⟨by simp only [Val.filled]; constructor <;> assumption, by constructor <;> assumption⟩
+
+/-- The fill leaves a term the checker can read as one it can read. -/
+theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA :=
+  (filled_tmpl_checkableA h).1
 
 theorem joinAt_absent {k : String} : ∀ {fs : List (String × Bool × Val)} {x : Val × Bool},
     declared k fs = false → joinAt k x fs = x

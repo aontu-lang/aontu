@@ -1465,15 +1465,17 @@ until the phase that encodes it lands.
 
    **Built 2026-10-27.** A spread's template that is a meet or a
    disjunction waits where one of its sides or arms does
-   (`Val.waitsTop`), the fill keeps it as written (`tmplSpread`), and the
+   (`Val.waitsTop`), the fill keeps its meets, arms and riders as written
+   and fills each term beneath them (`Val.tmplNode`), and the
    member meets each side and each arm in turn, one that waits taking the
    member as its argument (`Val.instAt`), as both ports read it: so
    `{&: add(_, 1) & number}` refuses `{a: 1}`, `number` meeting `1` beside
    `add(1, 1)`. The ports bind a hole so at the template's own position
    alone: a container inside the template fills from its own meets
    first, as any other term does, so `{&: {n: upper(_) & "a"}}` passes
-   `{a: {n: "A"}}`, as the definition already read it. Rows dt0 on, 34
-   cases in each mode, and both ports answer every row as the definition
+   `{a: {n: "A"}}`, as the definition already read it, and so does
+   `{&: upper(_) | {n: upper(_) & "a"}}`. Rows dt0 on, 38 cases in each
+   mode, and both ports answer every row as the definition
    does; no other row moved.
 
 ## 8. Risks

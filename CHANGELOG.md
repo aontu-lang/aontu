@@ -14,14 +14,15 @@ Definition, generated rows, and documentation. No engine changes.
 
 - `spec/Aontu/Verdict.lean`: a spread's template that is a meet or a
   disjunction waits where one of its sides or arms does
-  (`Val.waitsTop`), and the fill no longer fills it from its own meet
-  (`tmplSpread`). The member meets each side and each arm, and one that
+  (`Val.waitsTop`), and the fill keeps its meets, arms and riders as
+  written, filling each term beneath them (`Val.tmplNode`), rather than
+  filling it from its own meet. The member meets each side and each arm, and one that
   waits takes the member as its argument (`Val.instAt`). So
   `{&: upper(_) & _}` admits the members already in upper case,
   `{&: upper(_) & "a"}` refuses every member, and
   `{&: add(_, 1) & number}` refuses `{a: 1}`, as both engines answer,
   where the definition filled `{&: upper(_) & "a"}` as `{&: "A"}` (#561).
-- `spec/Oracle.lean`: rows dt0 to dt101 of `test/spec/def-call.tsv`, 34
+- `spec/Oracle.lean`: rows dt0 to dt113 of `test/spec/def-call.tsv`, 38
   cases in each of the three modes. Both engines answer every row as
   the definition does, and no other row moves.
 - The design note records decision 31: a hole in a spread's template is

@@ -7465,10 +7465,11 @@ So `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, since the second
 fills `b` with `6`, as both engines answer.
 
 When a template is a meet or a disjunction, it waits where one of its
-sides or arms does (`Val.waitsTop`), and the fill leaves it as written
-(`tmplSpread`), so that its own meet doesn't fill it. The member meets
-each side and each arm in turn, and one that waits takes the member as
-its argument:
+sides or arms does (`Val.waitsTop`). The fill then keeps its meets, its
+arms and its riders as written and fills each term beneath them
+(`Val.tmplNode`), so that its own meet doesn't fill a hole at its
+position. The member meets each side and each arm in turn, and one that
+waits takes the member as its argument:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -7505,7 +7506,9 @@ already in upper case, and `b: "api"` would be a conflict.
 `{&: add(_, 1) & number}` refuses `{a: 1}`, since `number` meets `1`
 beside `add(1, 1)`, as both engines answer. A container inside the
 template fills from its own meets first, as any other term does, so
-`{&: {n: upper(_) & "a"}}` passes `{a: {n: "A"}}`. The rows are dt0 on.
+`{&: {n: upper(_) & "a"}}` passes `{a: {n: "A"}}`, and so does
+`{&: upper(_) | {n: upper(_) & "a"}}`, whose second arm is `{n: "A"}`.
+The rows are dt0 on.
 
 A template that holds its hole inside a container fills each member
 the same way, once, but member by member: the template meets the
