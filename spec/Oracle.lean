@@ -4229,10 +4229,10 @@ theorem readR_call_checkableA {t : Val} (hf : ∀ k, (expandF [] k t).filled = e
     cases n with
     | zero =>
       have h0 : t.filled = t := by simpa [expandF] using hf 0
-      simp only [expandF, Val.filled, filledFields, filledSpread, h0, joinFields_single, spreadAll_none]
+      simp only [expandF, Val.filled, filledFields, tmplSpread, h0, joinFields_single, spreadAll_none]
       exact hm t (by simpa [expandF] using h 0)
     | succ k =>
-      simp only [expandF, List.map, Option.map, Val.filled, filledFields, filledSpread, hf k, joinFields_single,
+      simp only [expandF, List.map, Option.map, Val.filled, filledFields, tmplSpread, hf k, joinFields_single,
         spreadAll_none]
       exact hm _ (h k)
   exact this _
@@ -4885,6 +4885,92 @@ theorem group_verdict_exact : ∀ c ∈ groupCases, ∀ (m : Mode) (v : Verdict)
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (groupCases_checkable c hc)) v
+
+set_option maxRecDepth 8192 in
+/-- A spread's template that waits on a hole at its own position, for the
+`verdict` rows dt0 on: each side of a meet and each arm of a disjunction
+met with the member, one that waits with its hole bound to the member,
+so that `upper(_) & _` admits the members already in upper case and
+`upper(_) & "a"` none, in a map and a list, against the data and
+against a member the document writes, and a container inside the
+template, at its own position or beneath a side or an arm that waits,
+filled from its own meet first; a container side or arm met with the
+member member by member, a hole beneath it taking the member's member
+there, whether the spread meets the data, the map's own members, or a
+map or a list on either side of a meet; as both ports answer. -/
+def spreadTmplCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let up (v : Val) : Val := .call .upper [v]
+  let lo (v : Val) : Val := .call .lower [v]
+  let add1 (v : Val) : Val := .call .add [v, n 1]
+  let g : Val := .meet (up .hole) .hole
+  let sm (t : Val) : Val := .map [] (some t) false
+  let sl (t : Val) : Val := .list [] (some t) false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  let lm (t : String) : Val := mp [("n", s t)]
+  let nd (t : String) : Data := .map [("n", .str t)]
+  let tT : Val := .meet .hole (mp [("n", up .hole)])
+  let tA : Val := .or [(0, up .hole), (0, mp [("n", up .hole)])]
+  [(sm g, .map [("a", .str "X")]), (sm g, .map [("a", .str "x")]), (sm g, .map []),
+    (sl g, .list [.str "X"]), (sl g, .list [.str "X", .str "y"]),
+    (sm g, .map [("a", .str "X"), ("b", .str "Y")]),
+    (.meet (sm g) (mp [("a", s "X")]), .map [("a", .str "X")]),
+    (.meet (sm g) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (.meet (sm g) (mp [("a", s "X")])) (mp [("a", s "Y")]), .map [("a", .str "X")]),
+    (.map [("b", false, s "Q")] (some g) false, .map [("b", .str "Q")]),
+    (.map [("b", false, s "q")] (some g) false, .map [("b", .str "q")]),
+    (sm (.meet (up .hole) (s "a")), .map [("b", .str "A")]), (sm (.meet (up .hole) (s "a")), .map [("b", .str "a")]),
+    (sm (.meet (up .hole) (s "a")), .map []),
+    (.meet (sm (.meet (up .hole) (s "a"))) (mp [("b", s "A")]), .map [("b", .str "A")]),
+    (sl (.meet (up .hole) (s "a")), .list [.str "A"]), (sm (.meet (s "a") (up .hole)), .map [("b", .str "A")]),
+    (sm (.meet (up .hole) (lo .hole)), .map [("a", .str "x")]), (sm (.meet (lo .hole) .hole), .map [("a", .str "x")]),
+    (sm (.meet .hole .hole), .map [("a", .integer 1)]), (sm (.meet .hole (s "a")), .map [("b", .str "b")]),
+    (sm (.meet (add1 .hole) .hole), .map [("a", .integer 1)]), (sm (.meet (add1 .hole) .number), .map [("a", .integer 1)]),
+    (sm (.meet .number (add1 .hole)), .map [("a", .integer 1)]),
+    (sm (.meet (up .hole) .string), .map [("a", .str "X")]), (sm (.meet (up .hole) .string), .map [("a", .str "x")]),
+    (sm (.or [(0, g), (0, s "y")]), .map [("a", .str "Y")]), (sm (.or [(0, g), (0, s "y")]), .map [("a", .str "y")]),
+    (sm (.or [(0, g), (0, s "y")]), .map [("a", .str "z")]),
+    (sm (.or [(0, up .hole), (0, s "y")]), .map [("a", .str "y")]),
+    (sm (.or [(0, add1 .hole), (0, s "x")]), .map [("a", .integer 1)]),
+    (sm (.meet (.ride .type (up .hole) []) .hole), .map [("a", .str "X")]),
+    (sm (mp [("n", .meet (up .hole) (s "a"))]), .map [("a", .map [("n", .str "A")])]),
+    (sm (mp [("n", g)]), .map [("a", .map [("n", .str "X")])]),
+    (sm (.or [(0, up .hole), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "A")])]),
+    (sm (.or [(0, up .hole), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "a")])]),
+    (sm (.or [(0, g), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "A")])]),
+    (sm (.meet .hole (mp [("n", .meet (up .hole) (s "a"))])), .map [("a", .map [("n", .str "A")])]),
+    (sm tT, .map [("a", nd "X")]), (sm tT, .map [("a", nd "x")]),
+    (sm (.meet (mp [("n", up .hole)]) .hole), .map [("a", nd "X")]),
+    (sm (.meet (mp [("n", up .hole)]) .hole), .map [("a", nd "x")]),
+    (sm (mp [("n", up .hole)]), .map [("a", nd "X")]), (sm (mp [("n", up .hole)]), .map [("a", nd "x")]),
+    (sm (.meet .hole (.list [up .hole] none false)), .map [("a", .list [.str "X"])]),
+    (sm (.meet .hole (.list [up .hole] none false)), .map [("a", .list [.str "x"])]),
+    (sm tA, .map [("a", nd "X")]), (sm tA, .map [("a", nd "x")]),
+    (sm (.meet .hole (mp [("n", mp [("m", up .hole)])])), .map [("a", .map [("n", .map [("m", .str "X")])])]),
+    (sm (.meet .hole (mp [("n", mp [("m", up .hole)])])), .map [("a", .map [("n", .map [("m", .str "x")])])]),
+    (sl tT, .list [nd "X"]), (sl tT, .list [nd "x"]),
+    (sm (.meet .hole (mp [("n", g)])), .map [("a", nd "X")]), (sm (.meet .hole (mp [("n", g)])), .map [("a", nd "x")]),
+    (sm tT, .map [("a", .str "x")]), (sm tT, .map [("a", .map [])]), (sm tT, .map []),
+    (.map [("a", false, lm "X")] (some tT) false, .map [("a", nd "X")]),
+    (.map [("a", false, lm "x")] (some tT) false, .map [("a", nd "x")]),
+    (.meet (mp [("a", lm "X")]) (sm tT), .map [("a", nd "X")]), (.meet (mp [("a", lm "x")]) (sm tT), .map [("a", nd "x")]),
+    (.meet (sm tT) (mp [("a", lm "X")]), .map [("a", nd "X")]), (.meet (sm tT) (mp [("a", lm "x")]), .map [("a", nd "x")]),
+    (.map [("a", false, lm "x")] (some tA) false, .map [("a", nd "X")]),
+    (.meet (mp [("a", lm "x")]) (sm tA), .map [("a", nd "X")]),
+    (.meet (.list [lm "X"] none false) (sl tT), .list [nd "X"]), (.meet (.list [lm "x"] none false) (sl tT), .list [nd "x"]),
+    (.meet (sl tT) (.list [lm "X"] none false), .list [nd "X"]),
+    (sm (.meet (.meet .hole (mp [("n", up .hole)])) (mp [("m", lo .hole)])),
+      .map [("a", .map [("n", .str "X"), ("m", .str "y")])]),
+    (sm (.meet (.meet .hole (mp [("n", up .hole)])) (mp [("m", lo .hole)])),
+      .map [("a", .map [("n", .str "X"), ("m", .str "Y")])])]
+
+theorem spreadTmplCases_checkable : ∀ c ∈ spreadTmplCases, (vetDoc c).1.CheckableA := by decide
+
+theorem spread_tmpl_verdict_exact : ∀ c ∈ spreadTmplCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (spreadTmplCases_checkable c hc)) v
 
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
 
@@ -5832,6 +5918,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# follows in rows dv0 on, and a disjunction's arm that does not stand, which"
     IO.println "# drops as a conflict's arm does, in rows da0 on. A meet of two sides that both"
     IO.println "# wait on a hole, which is an error however it is grouped, follows in rows dg0 on."
+    IO.println "# A spread's template that waits on a hole at its own position, each of its sides"
+    IO.println "# and arms met with the member and a hole bound to it, follows in rows dt0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
@@ -5860,6 +5948,7 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "dv" dataFillCases
     verdictRows "da" illArmCases
     verdictRows "dg" groupCases
+    verdictRows "dt" spreadTmplCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"

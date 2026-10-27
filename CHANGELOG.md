@@ -8,6 +8,36 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a spread's template that waits at its own position as both engines do
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: a spread's template that is a meet or a
+  disjunction waits where one of its sides or arms does
+  (`Val.waitsTop`), and the fill keeps its meets, arms and riders as
+  written, filling each term beneath them (`Val.tmplNode`), rather than
+  filling it from its own meet. The member meets each side and each arm, and one that
+  waits takes the member as its argument (`Val.instAt`). So
+  `{&: upper(_) & _}` admits the members already in upper case,
+  `{&: upper(_) & "a"}` refuses every member, and
+  `{&: add(_, 1) & number}` refuses `{a: 1}`, as both engines answer,
+  where the definition filled `{&: upper(_) & "a"}` as `{&: "A"}` (#561).
+  A side that doesn't wait meets the member as two terms at one position
+  (`Val.fillMeet`), so a hole beneath a container side takes the
+  member's own member there: `{&: _ & {n: upper(_)}}` passes
+  `{a: {n: "X"}}` and refuses `{a: {n: "x"}}`. `Val.instAt` makes that
+  meet inside the fill's own recursion; a peer's spread meets the map's
+  own members through `Val.instWith` (`peerFill`), and a template that
+  waits at its own position is no longer also read as one that holds a
+  hole beneath it (`Val.heldSpread`).
+- `spec/Oracle.lean`: rows dt0 to dt209 of `test/spec/def-call.tsv`, 70
+  cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves.
+- The design note records decision 31: a hole in a spread's template is
+  the member's, as both engines read it.
+- Docs: the definition tutorial's step 27 and the reference's
+  placeholder section.
+
 ### The definition reads a meet of two sides that both wait as an error, however the document groups it
 
 Definition, generated rows, and documentation. No engine changes.
@@ -24,8 +54,8 @@ Definition, generated rows, and documentation. No engine changes.
   cases in each of the three modes. Both engines answer every row as
   the definition does, and no other row moves.
 - Both engines bind each hole of a spread's template to the member, so
-  `{&: upper(_) & _}` passes `{a: "X"}`, where the definition reads the
-  template as `nil` (#561).
+  `{&: upper(_) & _}` passes `{a: "X"}`, where this change read the
+  template as `nil` (#561); the entry above builds the engines' reading.
 - The design note records decision 30: `vet` reads a lone preference
   over a call its peer fills as `eval` does, so both engines' `vet` is
   to pass `v: "A"` against `v: *upper(_) & "a"` (#560).

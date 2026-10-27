@@ -1829,6 +1829,48 @@ def bindItems : List Val → Val → List Val
   | v :: vs, p => v.bindHole p :: bindItems vs p
 end
 
+mutual
+/-- Whether a spread's template waits on a hole at its own position: as
+`Val.fillable` finds one, or in a side of a meet or an arm of a
+disjunction, through a rider, so that each member fills it
+(`Val.instAt`). -/
+def Val.waitsTop : Val → Bool
+  | .meet x y => x.waitsTop || y.waitsTop
+  | .or arms => armsWaitTop arms
+  | .ride _ v _ => v.waitsTop
+  | v => v.fillable
+
+def armsWaitTop : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, x) :: as => x.waitsTop || armsWaitTop as
+end
+
+mutual
+/-- Such a template met with a member, as both ports read it, given how
+a side that doesn't wait meets the member (`f`): each side of a meet
+and each arm of a disjunction met with the member in turn, one that
+waits on a hole with the hole bound to the member, which it spends,
+through a rider, and any other met with it through `f`, side first.
+`Val.instAt` is the same reading with each side met as two terms at one
+position. -/
+def Val.instWith (f : Val → Val × Val) : Val → Val → Val
+  | .meet x y, p => .meet (x.instWith f p) (y.instWith f p)
+  | .or arms, p => .or (instArmsWith f arms p)
+  | .ride k v r, p =>
+    if v.waitsTop then .ride k (v.instWith f p) r else .meet (f (.ride k v r)).1 (f (.ride k v r)).2
+  | x, p => if x.fillable then x.bindHole p else .meet (f x).1 (f x).2
+
+def instArmsWith (f : Val → Val × Val) : List (ℕ × Val) → Val → List (ℕ × Val)
+  | [], _ => []
+  | (r, x) :: as, p => (r, x.instWith f p) :: instArmsWith f as p
+end
+
+/-- Whether a term is a meet, a disjunction or a rider, the forms such a
+template keeps at its own position (`Val.tmplNode`). -/
+def Val.isTopNode : Val → Bool
+  | .meet _ _ | .or _ | .ride _ _ _ => true
+  | _ => false
+
 /-- The meet of a key's declarations, in the order they're written. -/
 def declsAt (k : String) : List (String × Bool × Val) → Option Val
   | [] => none
@@ -1942,19 +1984,23 @@ def spreadHoldsFill : Option Val → Bool
   | some t => t.fillable || t.holdsFill
 end
 
-/-- A spread's template that holds a member waiting on a hole, with the
-arms that read the keys it has already filled as `any`, as
-`Val.waitingSpread` reads a template that waits itself. -/
+/-- A spread's template that holds a member waiting on a hole but
+doesn't wait at its own position, with the arms that read the keys it
+has already filled as `any`, as `Val.waitingSpread` reads a template
+that waits there, whose sides meet each member member by member
+themselves (`Val.instAt`). -/
 def Val.heldSpread : Val → Option (List (Val × Val) × Val)
-  | .select .key arms (some t) => if t.holdsFill && arms.all Val.filledArm then some (arms, t) else none
-  | t => if t.holdsFill then some ([], t) else none
+  | .select .key arms (some t) =>
+    if t.holdsFill && !t.waitsTop && arms.all Val.filledArm then some (arms, t) else none
+  | t => if t.holdsFill && !t.waitsTop then some ([], t) else none
 
-/-- A spread's template that waits on a hole, with the arms that read the
-keys it has already filled as `any`: one read under its key whose every
-arm is a filled key's and whose default waits, or one that waits. -/
+/-- A spread's template that waits on a hole at its own position
+(`Val.waitsTop`), with the arms that read the keys it has already filled
+as `any`: one read under its key whose every arm is a filled key's and
+whose default waits, or one that waits. -/
 def Val.waitingSpread : Val → Option (List (Val × Val) × Val)
-  | .select .key arms (some t) => if t.fillable && arms.all Val.filledArm then some (arms, t) else none
-  | t => if t.fillable then some ([], t) else none
+  | .select .key arms (some t) => if t.waitsTop && arms.all Val.filledArm then some (arms, t) else none
+  | t => if t.waitsTop then some ([], t) else none
 
 /-- The keys a spread's arms read, which it has filled. -/
 def filledKeys : List (Val × Val) → List String
@@ -1965,37 +2011,6 @@ def filledKeys : List (Val × Val) → List String
 /-- A spread that waits on a hole, with one more key read as `any`. -/
 def spreadWith (arms : List (Val × Val)) (t : Val) (k : String) : Val :=
   .select .key ((.lit (.str k), .any) :: arms) (some t)
-
-/-- A spread's template met with a member: the template with its hole
-bound to the member, or, where the member waits too, the two met. -/
-def Val.spreadMeet (t p : Val) : Val := if p.fillable then .meet t p else t.bindHole p
-
-/-- Fields met with a spread that waits on a hole, each once: where the
-spread hasn't filled a field's key, the field is the template met with
-it, and the spread then reads the key as `any`. -/
-def spreadFields : List (String × Bool × Val) → Option Val → List (String × Bool × Val) × Option Val
-  | [], sp => ([], sp)
-  | (k, o, x) :: fs, sp =>
-    match sp.bind Val.waitingSpread with
-    | some (arms, t) =>
-      if (filledKeys arms).contains k then ((k, o, x) :: (spreadFields fs sp).1, (spreadFields fs sp).2)
-      else ((k, o, t.spreadMeet x) :: (spreadFields fs (some (spreadWith arms t k))).1,
-        (spreadFields fs (some (spreadWith arms t k))).2)
-    | none => ((k, o, x) :: fs, sp)
-
-/-- Elements met with a spread that waits on a hole, each once, under
-the position it holds among the elements that stand. -/
-def spreadItems : ℕ → List Val → Option Val → List Val × Option Val
-  | _, [], sp => ([], sp)
-  | i, x :: xs, sp =>
-    if x.marked || x.isAbsent then (x :: (spreadItems i xs sp).1, (spreadItems i xs sp).2) else
-    match sp.bind Val.waitingSpread with
-    | some (arms, t) =>
-      if (filledKeys arms).contains (toString i) then
-        (x :: (spreadItems (i + 1) xs sp).1, (spreadItems (i + 1) xs sp).2)
-      else (t.spreadMeet x :: (spreadItems (i + 1) xs (some (spreadWith arms t (toString i)))).1,
-        (spreadItems (i + 1) xs (some (spreadWith arms t (toString i)))).2)
-    | none => (x :: xs, sp)
 
 /-- The keys a term declares, read through meets and riders. -/
 def Val.keysAt : Val → List String
@@ -2012,42 +2027,28 @@ def Val.posAt : Val → ℕ
   | _ => 0
 
 /-- A spread that waits on a hole met with a peer's member under each key
-given that it hasn't filled, once, at the member's first declaration. -/
-def spreadOnto : Option Val → List String → Val → Option Val × Val
+given that it hasn't filled, once, at the member's first declaration:
+the member, where it doesn't wait too, read as the template met with it
+(`ι`, `Val.instAt` for the spread's own template). -/
+def spreadOnto (ι : Val → Val) : Option Val → List String → Val → Option Val × Val
   | sp, [], b => (sp, b)
   | sp, k :: ks, b =>
     match sp.bind Val.waitingSpread, b.memberAt k with
     | some (arms, t), some p =>
-      if (filledKeys arms).contains k then spreadOnto sp ks b
-      else spreadOnto (some (spreadWith arms t k)) ks (b.putMember k (t.spreadMeet p))
-    | _, _ => spreadOnto sp ks b
+      if (filledKeys arms).contains k then spreadOnto ι sp ks b
+      else spreadOnto ι (some (spreadWith arms t k)) ks (b.putMember k (if p.fillable then .meet t p else ι p))
+    | _, _ => spreadOnto ι sp ks b
 
 /-- The same at each position given. -/
-def spreadOntoAt : Option Val → List ℕ → Val → Option Val × Val
+def spreadOntoAt (ι : Val → Val) : Option Val → List ℕ → Val → Option Val × Val
   | sp, [], b => (sp, b)
   | sp, i :: is, b =>
     match sp.bind Val.waitingSpread, b.elemAt i with
     | some (arms, t), some p =>
-      if (filledKeys arms).contains (toString i) then spreadOntoAt sp is b
-      else spreadOntoAt (some (spreadWith arms t (toString i))) is (b.putElem i (t.spreadMeet p))
-    | _, _ => spreadOntoAt sp is b
-
-/-- Fields met with each spread of a peer that waits on a hole, read
-through its meets and riders. -/
-def spreadFrom : List (String × Bool × Val) → Val → List (String × Bool × Val) × Val
-  | fs, .map gs sb cb => ((spreadFields fs sb).1, .map gs (spreadFields fs sb).2 cb)
-  | fs, .meet u v =>
-    ((spreadFrom (spreadFrom fs u).1 v).1, .meet (spreadFrom fs u).2 (spreadFrom (spreadFrom fs u).1 v).2)
-  | fs, .ride k v r => ((spreadFrom fs v).1, .ride k (spreadFrom fs v).2 r)
-  | fs, b => (fs, b)
-
-/-- The same with elements. -/
-def spreadFromAt : List Val → Val → List Val × Val
-  | xs, .list ys sb cb => ((spreadItems 0 xs sb).1, .list ys (spreadItems 0 xs sb).2 cb)
-  | xs, .meet u v =>
-    ((spreadFromAt (spreadFromAt xs u).1 v).1, .meet (spreadFromAt xs u).2 (spreadFromAt (spreadFromAt xs u).1 v).2)
-  | xs, .ride k v r => ((spreadFromAt xs v).1, .ride k (spreadFromAt xs v).2 r)
-  | xs, b => (xs, b)
+      if (filledKeys arms).contains (toString i) then spreadOntoAt ι sp is b
+      else spreadOntoAt ι (some (spreadWith arms t (toString i))) is
+        (b.putElem i (if p.fillable then .meet t p else ι p))
+    | _, _ => spreadOntoAt ι sp is b
 
 /-- A term met with its peer through `f`, the term's own fill: a
 disjunction the term meets met arm by arm, as the meet distributes it,
@@ -2087,81 +2088,91 @@ template where it has filled none. -/
 def heldSel (arms : List (Val × Val)) (t : Val) : Val := if arms.isEmpty then t else .select .key arms (some t)
 
 /-- The map case of `Val.fillMeet`, given the map's fields met with the
-peer's members (`r`) and, for a spread whose template holds a member
-that waits on a hole, the arms it has filled, the template and its fill
-(`g`): the spread that waits on a hole met with the peer's members,
-then the one that holds one, then the peer's spreads with the fields. -/
-def fillMapWith (sa : Option Val) (ca : Bool) (r : List (String × Bool × Val) × Val)
+peer's members and the peer's spreads (`r`), its template met with a
+member (`ι`) and, for a spread whose template holds a member that waits
+on a hole, the arms it has filled, the template and its fill (`g`): the
+spread that waits on a hole met with the peer's members, then the one
+that holds one. -/
+def fillMapWith (sa : Option Val) (ca : Bool) (r : List (String × Bool × Val) × Val) (ι : Val → Val)
     (g : Option (List (Val × Val) × Val × (Val → Val × Val))) : Val × Val :=
-  let s := spreadOnto sa r.2.keysAt r.2
+  let s := spreadOnto ι sa r.2.keysAt r.2
   let h : Option Val × Val := match g with
     | some (arms, t, f) => (some (heldSel (heldOnto f arms s.2.keysAt s.2).1 t), (heldOnto f arms s.2.keysAt s.2).2)
     | none => s
-  let u := spreadFrom r.1 h.2
-  (.map u.1 h.1 ca, u.2)
+  (.map r.1 h.1 ca, h.2)
 
 /-- The same with a list's elements. -/
-def fillListWith (sa : Option Val) (ca : Bool) (r : List Val × Val)
+def fillListWith (sa : Option Val) (ca : Bool) (r : List Val × Val) (ι : Val → Val)
     (g : Option (List (Val × Val) × Val × (Val → Val × Val))) : Val × Val :=
-  let s := spreadOntoAt sa (List.range r.2.posAt) r.2
+  let s := spreadOntoAt ι sa (List.range r.2.posAt) r.2
   let h : Option Val × Val := match g with
     | some (arms, t, f) =>
       (some (heldSel (heldOntoAt f arms (List.range s.2.posAt) s.2).1 t), (heldOntoAt f arms (List.range s.2.posAt) s.2).2)
     | none => s
-  let u := spreadFromAt r.1 h.2
-  (.list u.1 h.1 ca, u.2)
+  (.list r.1 h.1 ca, h.2)
 
 /-- The meet of the templates of the map spreads a term holds, read
-through its meets and riders, that hold a member waiting on a hole and
-haven't filled a key. -/
-def Val.heldAt : Val → String → Option Val
+through its meets and riders, that `sel` reads, as `Val.waitingSpread`
+or `Val.heldSpread`, and that haven't filled a key. -/
+def Val.tmplAt (sel : Val → Option (List (Val × Val) × Val)) : Val → String → Option Val
   | .map _ sp _, k =>
-    match sp.bind Val.heldSpread with
+    match sp.bind sel with
     | some (arms, t) => if (filledKeys arms).contains k then none else some t
     | none => none
   | .meet u v, k =>
-    match u.heldAt k, v.heldAt k with
+    match u.tmplAt sel k, v.tmplAt sel k with
     | some p, some q => some (.meet p q)
     | some p, none => some p
     | none, q => q
-  | .ride _ v _, k => v.heldAt k
+  | .ride _ v _, k => v.tmplAt sel k
   | _, _ => none
 
 /-- The term with each of those spreads reading the key as `any`. -/
-def Val.markHeld : Val → String → Val
+def Val.markAt (sel : Val → Option (List (Val × Val) × Val)) : Val → String → Val
   | .map fs sp ca, k =>
-    match sp.bind Val.heldSpread with
+    match sp.bind sel with
     | some (arms, t) => if (filledKeys arms).contains k then .map fs sp ca else .map fs (some (spreadWith arms t k)) ca
     | none => .map fs sp ca
-  | .meet u v, k => .meet (u.markHeld k) (v.markHeld k)
-  | .ride r v rec, k => .ride r (v.markHeld k) rec
+  | .meet u v, k => .meet (u.markAt sel k) (v.markAt sel k)
+  | .ride r v rec, k => .ride r (v.markAt sel k) rec
   | v, _ => v
 
 /-- The same with the list spreads a term holds, at a position. -/
-def Val.heldAtPos : Val → ℕ → Option Val
+def Val.tmplAtPos (sel : Val → Option (List (Val × Val) × Val)) : Val → ℕ → Option Val
   | .list _ sp _, i =>
-    match sp.bind Val.heldSpread with
+    match sp.bind sel with
     | some (arms, t) => if (filledKeys arms).contains (toString i) then none else some t
     | none => none
   | .meet u v, i =>
-    match u.heldAtPos i, v.heldAtPos i with
+    match u.tmplAtPos sel i, v.tmplAtPos sel i with
     | some p, some q => some (.meet p q)
     | some p, none => some p
     | none, q => q
-  | .ride _ v _, i => v.heldAtPos i
+  | .ride _ v _, i => v.tmplAtPos sel i
   | _, _ => none
 
 /-- The term with each of those list spreads reading the position as `any`. -/
-def Val.markHeldPos : Val → ℕ → Val
+def Val.markAtPos (sel : Val → Option (List (Val × Val) × Val)) : Val → ℕ → Val
   | .list xs sp ca, i =>
-    match sp.bind Val.heldSpread with
+    match sp.bind sel with
     | some (arms, t) =>
       if (filledKeys arms).contains (toString i) then .list xs sp ca
       else .list xs (some (spreadWith arms t (toString i))) ca
     | none => .list xs sp ca
-  | .meet u v, i => .meet (u.markHeldPos i) (v.markHeldPos i)
-  | .ride r v rec, i => .ride r (v.markHeldPos i) rec
+  | .meet u v, i => .meet (u.markAtPos sel i) (v.markAtPos sel i)
+  | .ride r v rec, i => .ride r (v.markAtPos sel i) rec
   | v, _ => v
+
+/-- A term's member under a key the peer doesn't declare, met with the
+peer's spreads that haven't filled the key: the template that waits on
+a hole (`w`) through `fw`, and the one that holds a member that does
+(`h`) through `fh`. -/
+def peerFill (x : Val) (w h : Option Val) (fw fh : Val → Val) : Val :=
+  match w, h with
+  | some t, some u => .meet (fw t) (fh u)
+  | some t, none => fw t
+  | none, some u => fh u
+  | none, none => x
 
 /-- A term that waits on no hole met with each arm of a disjunction: an
 arm that waits on one with its hole bound to the term, and any other
@@ -2191,16 +2202,26 @@ def Val.fillMeet (a b : Val) : Val × Val :=
     | .map fs sa ca =>
       fillMapWith sa ca (fillFields fs b)
         (match sa with
+          | some (.select .key _ (some t)) => fun p => t.instAt p
+          | some t => fun p => t.instAt p
+          | none => id)
+        (match sa with
           | some (.select .key arms (some t)) =>
-            if t.holdsFill && arms.all Val.filledArm then some (arms, t, fun p => t.fillMeet p) else none
-          | some t => if t.holdsFill then some ([], t, fun p => t.fillMeet p) else none
+            if t.holdsFill && !t.waitsTop && arms.all Val.filledArm then some (arms, t, fun p => t.fillMeet p)
+            else none
+          | some t => if t.holdsFill && !t.waitsTop then some ([], t, fun p => t.fillMeet p) else none
           | none => none)
     | .list xs sa ca =>
       fillListWith sa ca (fillElems 0 xs b)
         (match sa with
+          | some (.select .key _ (some t)) => fun p => t.instAt p
+          | some t => fun p => t.instAt p
+          | none => id)
+        (match sa with
           | some (.select .key arms (some t)) =>
-            if t.holdsFill && arms.all Val.filledArm then some (arms, t, fun p => t.fillMeet p) else none
-          | some t => if t.holdsFill then some ([], t, fun p => t.fillMeet p) else none
+            if t.holdsFill && !t.waitsTop && arms.all Val.filledArm then some (arms, t, fun p => t.fillMeet p)
+            else none
+          | some t => if t.holdsFill && !t.waitsTop then some ([], t, fun p => t.fillMeet p) else none
           | none => none)
     | .meet x y =>
       if x.fillable && y.fillable && !(x.isHole && y.isHole) then (.nil, .any)
@@ -2215,6 +2236,35 @@ def Val.fillMeet (a b : Val) : Val × Val :=
       | _ => (a, b)
 termination_by structural a
 
+/-- A spread's template that waits on a hole at its own position met
+with a member, as `Val.instWith` reads it, each side that doesn't wait
+met with the member as two terms at one position, so that a hole a
+member of the side waits on is filled by the member's member there. -/
+def Val.instAt : Val → Val → Val
+  | .meet x y, p =>
+    .meet
+      (if x.isTopNode then x.instAt p else if x.fillable then x.bindHole p
+        else .meet (fillWith (fun q => x.fillMeet q) false p).1 (fillWith (fun q => x.fillMeet q) false p).2)
+      (if y.isTopNode then y.instAt p else if y.fillable then y.bindHole p
+        else .meet (fillWith (fun q => y.fillMeet q) false p).1 (fillWith (fun q => y.fillMeet q) false p).2)
+  | .or arms, p => .or (instArms arms p)
+  | .ride k v r, p =>
+    if v.waitsTop then
+      .ride k (if v.isTopNode then v.instAt p else if v.fillable then v.bindHole p
+        else .meet (fillWith (fun q => v.fillMeet q) false p).1 (fillWith (fun q => v.fillMeet q) false p).2) r
+    else .meet (fillWith (fun q => (.ride k (v.fillMeet q).1 r, (v.fillMeet q).2)) false p).1
+      (fillWith (fun q => (.ride k (v.fillMeet q).1 r, (v.fillMeet q).2)) false p).2
+  | x, p => if x.fillable then x.bindHole p else .meet x p
+termination_by structural t => t
+
+def instArms : List (ℕ × Val) → Val → List (ℕ × Val)
+  | [], _ => []
+  | (r, x) :: as, p =>
+    (r, if x.isTopNode then x.instAt p else if x.fillable then x.bindHole p
+      else .meet (fillWith (fun q => x.fillMeet q) false p).1 (fillWith (fun q => x.fillMeet q) false p).2) ::
+      instArms as p
+termination_by structural as => as
+
 def fillFields : List (String × Bool × Val) → Val → List (String × Bool × Val) × Val
   | [], b => ([], b)
   | (k, o, x) :: fs, b =>
@@ -2224,11 +2274,11 @@ def fillFields : List (String × Bool × Val) → Val → List (String × Bool �
           (fillFields fs (b.putMember k (fillWith (fun q => x.fillMeet q) x.fillable p).2)).1,
         (fillFields fs (b.putMember k (fillWith (fun q => x.fillMeet q) x.fillable p).2)).2)
     | none =>
-      match b.heldAt k with
-      | some t =>
-        ((k, o, .meet (x.fillMeet t).1 (x.fillMeet t).2) :: (fillFields fs (b.markHeld k)).1,
-          (fillFields fs (b.markHeld k)).2)
-      | none => ((k, o, x) :: (fillFields fs b).1, (fillFields fs b).2)
+      ((k, o, peerFill x (b.tmplAt Val.waitingSpread k) (b.tmplAt Val.heldSpread k)
+          (fun t => if x.fillable then .meet t x else t.instWith (fun y => ((x.fillMeet y).2, (x.fillMeet y).1)) x)
+          (fun u => .meet (x.fillMeet u).1 (x.fillMeet u).2)) ::
+          (fillFields fs ((b.markAt Val.waitingSpread k).markAt Val.heldSpread k)).1,
+        (fillFields fs ((b.markAt Val.waitingSpread k).markAt Val.heldSpread k)).2)
 
 def fillElems : ℕ → List Val → Val → List Val × Val
   | _, [], b => ([], b)
@@ -2240,11 +2290,11 @@ def fillElems : ℕ → List Val → Val → List Val × Val
           (fillElems (i + 1) xs (b.putElem i (fillWith (fun q => x.fillMeet q) x.fillable p).2)).1,
         (fillElems (i + 1) xs (b.putElem i (fillWith (fun q => x.fillMeet q) x.fillable p).2)).2)
     | none =>
-      match b.heldAtPos i with
-      | some t =>
-        (.meet (x.fillMeet t).1 (x.fillMeet t).2 :: (fillElems (i + 1) xs (b.markHeldPos i)).1,
-          (fillElems (i + 1) xs (b.markHeldPos i)).2)
-      | none => (x :: (fillElems (i + 1) xs b).1, (fillElems (i + 1) xs b).2)
+      (peerFill x (b.tmplAtPos Val.waitingSpread i) (b.tmplAtPos Val.heldSpread i)
+          (fun t => if x.fillable then .meet t x else t.instWith (fun y => ((x.fillMeet y).2, (x.fillMeet y).1)) x)
+          (fun u => .meet (x.fillMeet u).1 (x.fillMeet u).2) ::
+          (fillElems (i + 1) xs ((b.markAtPos Val.waitingSpread i).markAtPos Val.heldSpread i)).1,
+        (fillElems (i + 1) xs ((b.markAtPos Val.waitingSpread i).markAtPos Val.heldSpread i)).2)
 
 def fillArms : List (ℕ × Val) → Val → List (ℕ × Val)
   | [], _ => []
@@ -2276,6 +2326,37 @@ def joinFields (seen : List String) : List (String × Bool × Val) → List (Str
   | (k, o, x) :: fs =>
     if seen.contains k then joinFields seen fs
     else (k, (joinAt k (x, o) fs).2, (joinAt k (x, o) fs).1) :: joinFields (k :: seen) fs
+
+/-- A spread's template met with a member: the template filled by the
+member (`Val.instAt`), or, where the member waits too, the two met. -/
+def Val.spreadMeet (t p : Val) : Val := if p.fillable then .meet t p else t.instAt p
+
+/-- Fields met with a spread that waits on a hole, each once: where the
+spread hasn't filled a field's key, the field is the template met with
+it, and the spread then reads the key as `any`. -/
+def spreadFields : List (String × Bool × Val) → Option Val → List (String × Bool × Val) × Option Val
+  | [], sp => ([], sp)
+  | (k, o, x) :: fs, sp =>
+    match sp.bind Val.waitingSpread with
+    | some (arms, t) =>
+      if (filledKeys arms).contains k then ((k, o, x) :: (spreadFields fs sp).1, (spreadFields fs sp).2)
+      else ((k, o, t.spreadMeet x) :: (spreadFields fs (some (spreadWith arms t k))).1,
+        (spreadFields fs (some (spreadWith arms t k))).2)
+    | none => ((k, o, x) :: fs, sp)
+
+/-- Elements met with a spread that waits on a hole, each once, under
+the position it holds among the elements that stand. -/
+def spreadItems : ℕ → List Val → Option Val → List Val × Option Val
+  | _, [], sp => ([], sp)
+  | i, x :: xs, sp =>
+    if x.marked || x.isAbsent then (x :: (spreadItems i xs sp).1, (spreadItems i xs sp).2) else
+    match sp.bind Val.waitingSpread with
+    | some (arms, t) =>
+      if (filledKeys arms).contains (toString i) then
+        (x :: (spreadItems (i + 1) xs sp).1, (spreadItems (i + 1) xs sp).2)
+      else (t.spreadMeet x :: (spreadItems (i + 1) xs (some (spreadWith arms t (toString i)))).1,
+        (spreadItems (i + 1) xs (some (spreadWith arms t (toString i)))).2)
+    | none => (x :: xs, sp)
 
 /-- Fields met with a spread whose template holds a member that waits on
 a hole, each once, as `spreadFields` meets them with one that waits:
@@ -2320,15 +2401,16 @@ mutual
 on the other read as that side with the hole bound to the other, the
 meets beneath it first, a map's declarations of a key among them,
 through every form but where a hole is bound: a generator's template,
-an `emit`'s table and a `filter`'s condition. -/
+an `emit`'s table, a `filter`'s condition and a spread's template that
+waits on a hole at its own position (`tmplSpread`). -/
 def Val.filled : Val → Val
   | .meet a b => a.filled.meetFilled b.filled
   | .map fs spread closed =>
-    .map (spreadAll (joinFields [] (filledFields fs)) (filledSpread spread)).1
-      (spreadAll (joinFields [] (filledFields fs)) (filledSpread spread)).2 closed
+    .map (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).1
+      (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).2 closed
   | .list items spread closed =>
-    .list (spreadAllItems (filledItems items) (filledSpread spread)).1
-      (spreadAllItems (filledItems items) (filledSpread spread)).2 closed
+    .list (spreadAllItems (filledItems items) (tmplSpread spread)).1
+      (spreadAllItems (filledItems items) (tmplSpread spread)).2 closed
   | .or arms => .or (filledArms arms)
   | .pref r x => .pref r x.filled
   | .ride k v r => .ride k v.filled r
@@ -2361,6 +2443,25 @@ def filledItems : List Val → List Val
 def filledSpread : Option Val → Option Val
   | none => none
   | some s => some s.filled
+
+/-- A spread's template filled, but one that waits on a hole at its own
+position kept as written there, for each member to fill (`Val.instAt`). -/
+def tmplSpread : Option Val → Option Val
+  | none => none
+  | some s => some (if s.waitsTop && s.isTopNode then s.tmplNode else s.filled)
+
+/-- Such a template with its meets, its arms and its riders as written,
+and each term beneath them filled. -/
+def Val.tmplNode : Val → Val
+  | .meet x y =>
+    .meet (if x.isTopNode then x.tmplNode else x.filled) (if y.isTopNode then y.tmplNode else y.filled)
+  | .or arms => .or (tmplArms arms)
+  | .ride k v r => .ride k (if v.isTopNode then v.tmplNode else v.filled) r
+  | v => v
+
+def tmplArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, x) :: as => (r, if x.isTopNode then x.tmplNode else x.filled) :: tmplArms as
 
 def filledArms : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
@@ -2442,6 +2543,25 @@ theorem mem_filledFields : ∀ {fs : List (String × Bool × Val)} {k : String} 
 theorem filledSpread_some : ∀ {sp : Option Val} {t : Val}, filledSpread sp = some t → ∃ s, sp = some s ∧ t = s.filled
   | none, _, h => nomatch h
   | some s, t, h => by simp only [filledSpread, Option.some.injEq] at h; exact ⟨s, rfl, h.symm⟩
+
+theorem tmplSpread_some : ∀ {sp : Option Val} {t : Val}, tmplSpread sp = some t →
+    ∃ s, sp = some s ∧ (t = s.tmplNode ∨ t = s.filled)
+  | none, _, h => nomatch h
+  | some s, t, h => by
+    simp only [tmplSpread, Option.some.injEq] at h
+    split at h
+    · exact ⟨s, rfl, .inl h.symm⟩
+    · exact ⟨s, rfl, .inr h.symm⟩
+
+theorem mem_tmplArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
+    (r, w) ∈ tmplArms arms → ∃ x, (r, x) ∈ arms ∧ w = (if x.isTopNode then x.tmplNode else x.filled)
+  | [], _, _, h => nomatch h
+  | (r', x') :: arms, r, w, h => by
+    simp only [tmplArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨x', List.mem_cons_self, rfl⟩
+    · obtain ⟨x, hx, rfl⟩ := mem_tmplArms h
+      exact ⟨x, List.mem_cons_of_mem _ hx, rfl⟩
 
 theorem mem_filledArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {b : Val},
     (r, b) ∈ filledArms arms → ∃ a, (r, a) ∈ arms ∧ b = a.filled
@@ -2659,12 +2779,37 @@ theorem spreadWith_checkableA {arms : List (Val × Val)} {t : Val} {k : String}
     subst he
     exact ht
 
-theorem spreadMeet_checkableA {t p : Val} (ht : t.CheckableA) (hp : p.CheckableA) :
-    (t.spreadMeet p).CheckableA := by
-  unfold Val.spreadMeet
-  split
-  · exact .meet ht hp
-  · exact bindHole_checkableA hp ht
+theorem mem_instArmsWith {f : Val → Val × Val} {p : Val} : ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
+    (r, w) ∈ instArmsWith f arms p → ∃ x, (r, x) ∈ arms ∧ w = x.instWith f p
+  | [], _, _, h => nomatch h
+  | (r', x') :: arms, r, w, h => by
+    simp only [instArmsWith, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨x', List.mem_cons_self, rfl⟩
+    · obtain ⟨x, hx, rfl⟩ := mem_instArmsWith h
+      exact ⟨x, List.mem_cons_of_mem _ hx, rfl⟩
+
+/-- A template met with a member through a readable fill of its sides
+leaves a term the checker can read. -/
+theorem instWith_checkableA {f : Val → Val × Val}
+    (hf : ∀ y, y.CheckableA → (f y).1.CheckableA ∧ (f y).2.CheckableA) {p : Val} (hp : p.CheckableA)
+    {v : Val} (h : v.CheckableA) : (v.instWith f p).CheckableA := by
+  induction h with
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | @or arms _ ih =>
+    refine .or fun r w hm => ?_
+    obtain ⟨x, hx, rfl⟩ := mem_instArmsWith hm
+    exact ih r x hx
+  | ride hv ih =>
+    simp only [Val.instWith]
+    split
+    · exact .ride ih
+    · exact .meet (hf _ (.ride hv)).1 (hf _ (.ride hv)).2
+  | _ =>
+    simp only [Val.instWith]
+    split
+    · exact bindHole_checkableA hp (by constructor <;> assumption)
+    · exact .meet (hf _ (by constructor <;> assumption)).1 (hf _ (by constructor <;> assumption)).2
 
 theorem bind_waitingSpread {sp : Option Val} (hsp : ∀ s, sp = some s → s.CheckableA)
     {arms : List (Val × Val)} {t : Val} (h : sp.bind Val.waitingSpread = some (arms, t)) :
@@ -2675,151 +2820,53 @@ theorem bind_waitingSpread {sp : Option Val} (hsp : ∀ s, sp = some s → s.Che
     have r := waitingSpread_checkableA (hsp s rfl) h
     exact ⟨r.1, fun _ => spreadWith_checkableA r.2 r.1⟩
 
-theorem spreadFields_checkableA : ∀ {fs : List (String × Bool × Val)} {sp : Option Val},
-    (∀ k o x, (k, o, x) ∈ fs → x.CheckableA) → (∀ s, sp = some s → s.CheckableA) →
-    (∀ k o w, (k, o, w) ∈ (spreadFields fs sp).1 → w.CheckableA) ∧
-      ∀ s, (spreadFields fs sp).2 = some s → s.CheckableA
-  | [], _, _, hsp => ⟨fun _ _ _ h => by simp [spreadFields] at h, by simpa [spreadFields] using hsp⟩
-  | (k, o, x) :: fs, sp, hf, hsp => by
-    have hf' : ∀ k o x, (k, o, x) ∈ fs → x.CheckableA := fun k o x h => hf k o x (List.mem_cons_of_mem _ h)
-    have hx : x.CheckableA := hf k o x List.mem_cons_self
-    cases hw : sp.bind Val.waitingSpread with
-    | none =>
-      simp only [spreadFields, hw]
-      exact ⟨hf, hsp⟩
-    | some at' =>
-      obtain ⟨arms, t⟩ := at'
-      have r := bind_waitingSpread hsp hw
-      simp only [spreadFields, hw]
-      split
-      · have q := spreadFields_checkableA hf' hsp
-        refine ⟨fun k' o' w h => ?_, q.2⟩
-        rcases List.mem_cons.mp h with h | h
-        · simp only [Prod.mk.injEq] at h
-          obtain ⟨-, -, rfl⟩ := h
-          exact hx
-        · exact q.1 _ _ _ h
-      · have q := spreadFields_checkableA (sp := some (spreadWith arms t k)) hf'
-          (fun s hs => by simp only [Option.some.injEq] at hs; subst hs; exact r.2 k)
-        refine ⟨fun k' o' w h => ?_, q.2⟩
-        rcases List.mem_cons.mp h with h | h
-        · simp only [Prod.mk.injEq] at h
-          obtain ⟨-, -, rfl⟩ := h
-          exact spreadMeet_checkableA r.1 hx
-        · exact q.1 _ _ _ h
-
-theorem spreadItems_checkableA : ∀ {xs : List Val} {i : ℕ} {sp : Option Val},
-    (∀ x, x ∈ xs → x.CheckableA) → (∀ s, sp = some s → s.CheckableA) →
-    (∀ w, w ∈ (spreadItems i xs sp).1 → w.CheckableA) ∧ ∀ s, (spreadItems i xs sp).2 = some s → s.CheckableA
-  | [], _, _, _, hsp => ⟨fun _ h => by simp [spreadItems] at h, by simpa [spreadItems] using hsp⟩
-  | x :: xs, i, sp, hx, hsp => by
-    have hx' : ∀ v, v ∈ xs → v.CheckableA := fun v h => hx v (List.mem_cons_of_mem _ h)
-    have h0 : x.CheckableA := hx x List.mem_cons_self
-    cases hk : (x.marked || x.isAbsent) with
-    | true =>
-      simp only [spreadItems, hk, ↓reduceIte]
-      have q := spreadItems_checkableA (i := i) hx' hsp
-      refine ⟨fun w h => ?_, q.2⟩
-      rcases List.mem_cons.mp h with rfl | h
-      · exact h0
-      · exact q.1 _ h
-    | false =>
-      cases hw : sp.bind Val.waitingSpread with
-      | none =>
-        simp only [spreadItems, hk, Bool.false_eq_true, ↓reduceIte, hw]
-        exact ⟨hx, hsp⟩
-      | some at' =>
-        obtain ⟨arms, t⟩ := at'
-        have r := bind_waitingSpread hsp hw
-        simp only [spreadItems, hk, Bool.false_eq_true, ↓reduceIte, hw]
-        split
-        · have q := spreadItems_checkableA (i := i + 1) hx' hsp
-          refine ⟨fun w h => ?_, q.2⟩
-          rcases List.mem_cons.mp h with rfl | h
-          · exact h0
-          · exact q.1 _ h
-        · have q := spreadItems_checkableA (i := i + 1) (sp := some (spreadWith arms t (toString i))) hx'
-            (fun s hs => by simp only [Option.some.injEq] at hs; subst hs; exact r.2 _)
-          refine ⟨fun w h => ?_, q.2⟩
-          rcases List.mem_cons.mp h with rfl | h
-          · exact spreadMeet_checkableA r.1 h0
-          · exact q.1 _ h
-
-theorem spreadOnto_checkableA : ∀ {ks : List String} {sp : Option Val} {b : Val},
+theorem spreadOnto_checkableA {ι : Val → Val} (hι : ∀ p, p.CheckableA → (ι p).CheckableA) :
+    ∀ {ks : List String} {sp : Option Val} {b : Val},
     (∀ s, sp = some s → s.CheckableA) → b.CheckableA →
-    (∀ s, (spreadOnto sp ks b).1 = some s → s.CheckableA) ∧ (spreadOnto sp ks b).2.CheckableA
+    (∀ s, (spreadOnto ι sp ks b).1 = some s → s.CheckableA) ∧ (spreadOnto ι sp ks b).2.CheckableA
   | [], _, _, hsp, hb => ⟨by simpa [spreadOnto] using hsp, by simpa [spreadOnto] using hb⟩
   | k :: ks, sp, b, hsp, hb => by
     cases hw : sp.bind Val.waitingSpread with
-    | none => simp only [spreadOnto, hw]; exact spreadOnto_checkableA hsp hb
+    | none => simp only [spreadOnto, hw]; exact spreadOnto_checkableA hι hsp hb
     | some at' =>
       obtain ⟨arms, t⟩ := at'
       cases hm : b.memberAt k with
-      | none => simp only [spreadOnto, hw, hm]; exact spreadOnto_checkableA hsp hb
+      | none => simp only [spreadOnto, hw, hm]; exact spreadOnto_checkableA hι hsp hb
       | some p =>
         have r := bind_waitingSpread hsp hw
+        have hp := memberAt_checkableA hb hm
         simp only [spreadOnto, hw, hm]
         split
-        · exact spreadOnto_checkableA hsp hb
-        · exact spreadOnto_checkableA (fun s hs => by simp only [Option.some.injEq] at hs; subst hs; exact r.2 k)
-            (putMember_checkableA hb (spreadMeet_checkableA r.1 (memberAt_checkableA hb hm)))
+        · exact spreadOnto_checkableA hι hsp hb
+        · refine spreadOnto_checkableA hι (fun s hs => by simp only [Option.some.injEq] at hs; subst hs; exact r.2 k)
+            (putMember_checkableA hb ?_)
+          split
+          · exact .meet r.1 hp
+          · exact hι p hp
 
-theorem spreadOntoAt_checkableA : ∀ {is : List ℕ} {sp : Option Val} {b : Val},
+theorem spreadOntoAt_checkableA {ι : Val → Val} (hι : ∀ p, p.CheckableA → (ι p).CheckableA) :
+    ∀ {is : List ℕ} {sp : Option Val} {b : Val},
     (∀ s, sp = some s → s.CheckableA) → b.CheckableA →
-    (∀ s, (spreadOntoAt sp is b).1 = some s → s.CheckableA) ∧ (spreadOntoAt sp is b).2.CheckableA
+    (∀ s, (spreadOntoAt ι sp is b).1 = some s → s.CheckableA) ∧ (spreadOntoAt ι sp is b).2.CheckableA
   | [], _, _, hsp, hb => ⟨by simpa [spreadOntoAt] using hsp, by simpa [spreadOntoAt] using hb⟩
   | i :: is, sp, b, hsp, hb => by
     cases hw : sp.bind Val.waitingSpread with
-    | none => simp only [spreadOntoAt, hw]; exact spreadOntoAt_checkableA hsp hb
+    | none => simp only [spreadOntoAt, hw]; exact spreadOntoAt_checkableA hι hsp hb
     | some at' =>
       obtain ⟨arms, t⟩ := at'
       cases hm : b.elemAt i with
-      | none => simp only [spreadOntoAt, hw, hm]; exact spreadOntoAt_checkableA hsp hb
+      | none => simp only [spreadOntoAt, hw, hm]; exact spreadOntoAt_checkableA hι hsp hb
       | some p =>
         have r := bind_waitingSpread hsp hw
+        have hp := elemAt_checkableA hb hm
         simp only [spreadOntoAt, hw, hm]
         split
-        · exact spreadOntoAt_checkableA hsp hb
-        · exact spreadOntoAt_checkableA (fun s hs => by simp only [Option.some.injEq] at hs; subst hs; exact r.2 _)
-            (putElem_checkableA hb (spreadMeet_checkableA r.1 (elemAt_checkableA hb hm)))
-
-theorem spreadFrom_checkableA {b : Val} (hb : b.CheckableA) : ∀ {fs : List (String × Bool × Val)},
-    (∀ k o x, (k, o, x) ∈ fs → x.CheckableA) →
-    (∀ k o w, (k, o, w) ∈ (spreadFrom fs b).1 → w.CheckableA) ∧ (spreadFrom fs b).2.CheckableA := by
-  induction hb with
-  | @map gs sb cb hg hs _ _ =>
-    intro fs hf
-    have q := spreadFields_checkableA hf hs
-    exact ⟨q.1, .map hg q.2⟩
-  | @meet u v hu hv ihu ihv =>
-    intro fs hf
-    have q₁ := ihu hf
-    have q₂ := ihv q₁.1
-    exact ⟨q₂.1, .meet q₁.2 q₂.2⟩
-  | ride _ ih =>
-    intro fs hf
-    have q := ih hf
-    exact ⟨q.1, .ride q.2⟩
-  | _ => intro fs hf; simp only [spreadFrom]; exact ⟨hf, by constructor <;> assumption⟩
-
-theorem spreadFromAt_checkableA {b : Val} (hb : b.CheckableA) : ∀ {xs : List Val},
-    (∀ x, x ∈ xs → x.CheckableA) →
-    (∀ w, w ∈ (spreadFromAt xs b).1 → w.CheckableA) ∧ (spreadFromAt xs b).2.CheckableA := by
-  induction hb with
-  | @list ys sb cb hy hs _ _ =>
-    intro xs hx
-    have q := spreadItems_checkableA (i := 0) hx hs
-    exact ⟨q.1, .list hy q.2⟩
-  | @meet u v hu hv ihu ihv =>
-    intro xs hx
-    have q₁ := ihu hx
-    have q₂ := ihv q₁.1
-    exact ⟨q₂.1, .meet q₁.2 q₂.2⟩
-  | ride _ ih =>
-    intro xs hx
-    have q := ih hx
-    exact ⟨q.1, .ride q.2⟩
-  | _ => intro xs hx; simp only [spreadFromAt]; exact ⟨hx, by constructor <;> assumption⟩
+        · exact spreadOntoAt_checkableA hι hsp hb
+        · refine spreadOntoAt_checkableA hι (fun s hs => by simp only [Option.some.injEq] at hs; subst hs; exact r.2 _)
+            (putElem_checkableA hb ?_)
+          split
+          · exact .meet r.1 hp
+          · exact hι p hp
 
 theorem heldSpread_checkableA {s : Val} (hs : s.CheckableA) {arms : List (Val × Val)} {t : Val}
     (h : s.heldSpread = some (arms, t)) :
@@ -2926,64 +2973,77 @@ abbrev HeldReadably (g : Option (List (Val × Val) × Val × (Val → Val × Val
     ∀ p, p.CheckableA → (f p).1.CheckableA ∧ (f p).2.CheckableA
 
 theorem fillMapWith_checkableA {sa : Option Val} {ca : Bool} {r : List (String × Bool × Val) × Val}
-    {g : Option (List (Val × Val) × Val × (Val → Val × Val))}
+    {ι : Val → Val} {g : Option (List (Val × Val) × Val × (Val → Val × Val))}
     (hs : ∀ s, sa = some s → s.CheckableA) (hr : ∀ k o v, (k, o, v) ∈ r.1 → v.CheckableA)
-    (hr2 : r.2.CheckableA) (hg : HeldReadably g) :
-    (fillMapWith sa ca r g).1.CheckableA ∧ (fillMapWith sa ca r g).2.CheckableA := by
-  have s := spreadOnto_checkableA (ks := r.2.keysAt) hs hr2
+    (hr2 : r.2.CheckableA) (hι : ∀ p, p.CheckableA → (ι p).CheckableA) (hg : HeldReadably g) :
+    (fillMapWith sa ca r ι g).1.CheckableA ∧ (fillMapWith sa ca r ι g).2.CheckableA := by
+  have s := spreadOnto_checkableA hι (ks := r.2.keysAt) hs hr2
   unfold fillMapWith
   cases g with
-  | none =>
-    have u := spreadFrom_checkableA s.2 hr
-    exact ⟨.map u.1 s.1, u.2⟩
+  | none => exact ⟨.map hr s.1, s.2⟩
   | some g =>
     obtain ⟨arms, t, f⟩ := g
     obtain ⟨ht, ha, hf⟩ := hg arms t f rfl
-    have q := heldOnto_checkableA hf (ks := (spreadOnto sa r.2.keysAt r.2).2.keysAt) ha s.2
-    have u := spreadFrom_checkableA q.2 hr
-    refine ⟨.map u.1 fun x hx => ?_, u.2⟩
+    have q := heldOnto_checkableA hf (ks := (spreadOnto ι sa r.2.keysAt r.2).2.keysAt) ha s.2
+    refine ⟨.map hr fun x hx => ?_, q.2⟩
     simp only [Option.some.injEq] at hx
     subst hx
     exact heldSel_checkableA q.1 ht
 
 theorem fillListWith_checkableA {sa : Option Val} {ca : Bool} {r : List Val × Val}
-    {g : Option (List (Val × Val) × Val × (Val → Val × Val))}
+    {ι : Val → Val} {g : Option (List (Val × Val) × Val × (Val → Val × Val))}
     (hs : ∀ s, sa = some s → s.CheckableA) (hr : ∀ v, v ∈ r.1 → v.CheckableA)
-    (hr2 : r.2.CheckableA) (hg : HeldReadably g) :
-    (fillListWith sa ca r g).1.CheckableA ∧ (fillListWith sa ca r g).2.CheckableA := by
-  have s := spreadOntoAt_checkableA (is := List.range r.2.posAt) hs hr2
+    (hr2 : r.2.CheckableA) (hι : ∀ p, p.CheckableA → (ι p).CheckableA) (hg : HeldReadably g) :
+    (fillListWith sa ca r ι g).1.CheckableA ∧ (fillListWith sa ca r ι g).2.CheckableA := by
+  have s := spreadOntoAt_checkableA hι (is := List.range r.2.posAt) hs hr2
   unfold fillListWith
   cases g with
-  | none =>
-    have u := spreadFromAt_checkableA s.2 hr
-    exact ⟨.list u.1 s.1, u.2⟩
+  | none => exact ⟨.list hr s.1, s.2⟩
   | some g =>
     obtain ⟨arms, t, f⟩ := g
     obtain ⟨ht, ha, hf⟩ := hg arms t f rfl
-    have q := heldOntoAt_checkableA hf (is := List.range (spreadOntoAt sa (List.range r.2.posAt) r.2).2.posAt) ha s.2
-    have u := spreadFromAt_checkableA q.2 hr
-    refine ⟨.list u.1 fun x hx => ?_, u.2⟩
+    have q := heldOntoAt_checkableA hf (is := List.range (spreadOntoAt ι sa (List.range r.2.posAt) r.2).2.posAt) ha s.2
+    refine ⟨.list hr fun x hx => ?_, q.2⟩
     simp only [Option.some.injEq] at hx
     subst hx
     exact heldSel_checkableA q.1 ht
 
-theorem heldAt_checkableA {k : String} {b : Val} (hb : b.CheckableA) :
-    ∀ {t : Val}, b.heldAt k = some t → t.CheckableA := by
+/-- What reading a spread's template off the spread hands back: the
+template and the arms it reads, readable where the spread is. -/
+abbrev SelReadably (sel : Val → Option (List (Val × Val) × Val)) : Prop :=
+  ∀ {s : Val} {arms : List (Val × Val)} {t : Val}, s.CheckableA → sel s = some (arms, t) →
+    t.CheckableA ∧ ∀ p r, (p, r) ∈ arms → p.CheckableA ∧ r.CheckableA
+
+theorem waitingSpread_sel : SelReadably Val.waitingSpread := fun hs h => waitingSpread_checkableA hs h
+
+theorem heldSpread_sel : SelReadably Val.heldSpread := fun hs h => heldSpread_checkableA hs h
+
+theorem bind_sel {sel : Val → Option (List (Val × Val) × Val)} (hsel : SelReadably sel) {sp : Option Val}
+    (hsp : ∀ s, sp = some s → s.CheckableA) {arms : List (Val × Val)} {t : Val}
+    (h : sp.bind sel = some (arms, t)) : t.CheckableA ∧ ∀ k, (spreadWith arms t k).CheckableA := by
+  cases sp with
+  | none => exact absurd h (by simp)
+  | some s =>
+    have r := hsel (hsp s rfl) h
+    exact ⟨r.1, fun _ => spreadWith_checkableA r.2 r.1⟩
+
+theorem tmplAt_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hsel : SelReadably sel)
+    {k : String} {b : Val} (hb : b.CheckableA) : ∀ {t : Val}, b.tmplAt sel k = some t → t.CheckableA := by
   induction hb with
   | @map fs sp ca hf hs _ _ =>
     intro t h
-    unfold Val.heldAt at h
+    unfold Val.tmplAt at h
     split at h
     · rename_i arms t' hw
       split at h
       · exact absurd h (by simp)
       · simp only [Option.some.injEq] at h
         subst h
-        exact (bind_heldSpread hs hw).1
+        exact (bind_sel hsel hs hw).1
     · exact absurd h (by simp)
   | @meet u v hu hv ihu ihv =>
     intro t h
-    unfold Val.heldAt at h
+    unfold Val.tmplAt at h
     split at h
     · rename_i p q hp hq
       simp only [Option.some.injEq] at h
@@ -2994,13 +3054,14 @@ theorem heldAt_checkableA {k : String} {b : Val} (hb : b.CheckableA) :
       subst h
       exact ihu hp
     · exact ihv h
-  | ride _ ih => intro t h; unfold Val.heldAt at h; exact ih h
-  | _ => intro t h; unfold Val.heldAt at h; exact absurd h (by simp)
+  | ride _ ih => intro t h; unfold Val.tmplAt at h; exact ih h
+  | _ => intro t h; unfold Val.tmplAt at h; exact absurd h (by simp)
 
-theorem markHeld_checkableA {k : String} {b : Val} (hb : b.CheckableA) : (b.markHeld k).CheckableA := by
+theorem markAt_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hsel : SelReadably sel)
+    {k : String} {b : Val} (hb : b.CheckableA) : (b.markAt sel k).CheckableA := by
   induction hb with
   | @map fs sp ca hf hs _ _ =>
-    unfold Val.markHeld
+    unfold Val.markAt
     split
     · rename_i arms t hw
       split
@@ -3008,29 +3069,29 @@ theorem markHeld_checkableA {k : String} {b : Val} (hb : b.CheckableA) : (b.mark
       · refine .map hf fun s h => ?_
         simp only [Option.some.injEq] at h
         subst h
-        exact (bind_heldSpread hs hw).2.2 k
+        exact (bind_sel hsel hs hw).2 k
     · exact .map hf hs
   | meet _ _ ihu ihv => exact .meet ihu ihv
   | ride _ ih => exact .ride ih
-  | _ => unfold Val.markHeld; constructor <;> assumption
+  | _ => unfold Val.markAt; constructor <;> assumption
 
-theorem heldAtPos_checkableA {i : ℕ} {b : Val} (hb : b.CheckableA) :
-    ∀ {t : Val}, b.heldAtPos i = some t → t.CheckableA := by
+theorem tmplAtPos_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hsel : SelReadably sel)
+    {i : ℕ} {b : Val} (hb : b.CheckableA) : ∀ {t : Val}, b.tmplAtPos sel i = some t → t.CheckableA := by
   induction hb with
   | @list xs sp ca hx hs _ _ =>
     intro t h
-    unfold Val.heldAtPos at h
+    unfold Val.tmplAtPos at h
     split at h
     · rename_i arms t' hw
       split at h
       · exact absurd h (by simp)
       · simp only [Option.some.injEq] at h
         subst h
-        exact (bind_heldSpread hs hw).1
+        exact (bind_sel hsel hs hw).1
     · exact absurd h (by simp)
   | @meet u v hu hv ihu ihv =>
     intro t h
-    unfold Val.heldAtPos at h
+    unfold Val.tmplAtPos at h
     split at h
     · rename_i p q hp hq
       simp only [Option.some.injEq] at h
@@ -3041,13 +3102,14 @@ theorem heldAtPos_checkableA {i : ℕ} {b : Val} (hb : b.CheckableA) :
       subst h
       exact ihu hp
     · exact ihv h
-  | ride _ ih => intro t h; unfold Val.heldAtPos at h; exact ih h
-  | _ => intro t h; unfold Val.heldAtPos at h; exact absurd h (by simp)
+  | ride _ ih => intro t h; unfold Val.tmplAtPos at h; exact ih h
+  | _ => intro t h; unfold Val.tmplAtPos at h; exact absurd h (by simp)
 
-theorem markHeldPos_checkableA {i : ℕ} {b : Val} (hb : b.CheckableA) : (b.markHeldPos i).CheckableA := by
+theorem markAtPos_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hsel : SelReadably sel)
+    {i : ℕ} {b : Val} (hb : b.CheckableA) : (b.markAtPos sel i).CheckableA := by
   induction hb with
   | @list xs sp ca hx hs _ _ =>
-    unfold Val.markHeldPos
+    unfold Val.markAtPos
     split
     · rename_i arms t hw
       split
@@ -3055,19 +3117,63 @@ theorem markHeldPos_checkableA {i : ℕ} {b : Val} (hb : b.CheckableA) : (b.mark
       · refine .list hx fun s h => ?_
         simp only [Option.some.injEq] at h
         subst h
-        exact (bind_heldSpread hs hw).2.2 _
+        exact (bind_sel hsel hs hw).2 _
     · exact .list hx hs
   | meet _ _ ihu ihv => exact .meet ihu ihv
   | ride _ ih => exact .ride ih
-  | _ => unfold Val.markHeldPos; constructor <;> assumption
+  | _ => unfold Val.markAtPos; constructor <;> assumption
+
+theorem peerFill_checkableA {x : Val} {w h : Option Val} {fw fh : Val → Val} (hx : x.CheckableA)
+    (hw : ∀ t, w = some t → (fw t).CheckableA) (hh : ∀ u, h = some u → (fh u).CheckableA) :
+    (peerFill x w h fw fh).CheckableA := by
+  cases w with
+  | none =>
+    cases h with
+    | none => exact hx
+    | some u => exact hh u rfl
+  | some t =>
+    cases h with
+    | none => exact hw t rfl
+    | some u => exact .meet (hw t rfl) (hh u rfl)
 
 abbrev FillsReadably (x : Val) : Prop :=
   ∀ {b : Val}, b.CheckableA → (x.fillMeet b).1.CheckableA ∧ (x.fillMeet b).2.CheckableA
 
-/-- `FillsReadably` of a term and, where it's a selection on the key, of
-its default, which the fill meets as a spread's template. -/
+/-- A term met with a member as a spread's template that waits on a
+hole leaves a term the checker can read. -/
+abbrev InstReadably (x : Val) : Prop :=
+  ∀ {p : Val}, p.CheckableA → (x.instAt p).CheckableA
+
+/-- `FillsReadably` and `InstReadably` of a term and, where it's a
+selection on the key, of its default, which the fill meets as a
+spread's template. -/
 abbrev FillsDeep (x : Val) : Prop :=
-  FillsReadably x ∧ ∀ arms t, x = .select .key arms (some t) → FillsReadably t
+  FillsReadably x ∧ InstReadably x ∧ ∀ arms t, x = .select .key arms (some t) → FillsReadably t ∧ InstReadably t
+
+/-- A side of such a template met with a member, as `Val.instAt` reads
+it, is readable where the side's own fill and instantiation are. -/
+theorem instSide_checkableA {x p : Val} (hx : x.CheckableA) (hp : p.CheckableA)
+    (hfx : FillsReadably x) (hix : InstReadably x) :
+    (if x.isTopNode then x.instAt p else if x.fillable then x.bindHole p
+      else Val.meet (fillWith (fun q => x.fillMeet q) false p).1
+        (fillWith (fun q => x.fillMeet q) false p).2).CheckableA := by
+  split
+  · exact hix hp
+  · split
+    · exact bindHole_checkableA hp hx
+    · exact .meet (fillWith_checkableA hfx hp).1 (fillWith_checkableA hfx hp).2
+
+theorem mem_instArms {p : Val} : ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
+    (r, w) ∈ instArms arms p → ∃ x, (r, x) ∈ arms ∧
+      w = (if x.isTopNode then x.instAt p else if x.fillable then x.bindHole p
+        else Val.meet (fillWith (fun q => x.fillMeet q) false p).1 (fillWith (fun q => x.fillMeet q) false p).2)
+  | [], _, _, h => nomatch h
+  | (r', x') :: arms, r, w, h => by
+    simp only [instArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨x', List.mem_cons_self, rfl⟩
+    · obtain ⟨x, hx, rfl⟩ := mem_instArms h
+      exact ⟨x, List.mem_cons_of_mem _ hx, rfl⟩
 
 theorem leafArms_checkableA {a : Val} (ha : a.CheckableA) : ∀ {ys : List (ℕ × Val)},
     (∀ r y, (r, y) ∈ ys → y.CheckableA) → ∀ r w, (r, w) ∈ leafArms a ys → w.CheckableA
@@ -3103,26 +3209,28 @@ theorem fillFields_checkableA : ∀ {fs : List (String × Bool × Val)} {b : Val
     have hx : x.CheckableA := hf k o x List.mem_cons_self
     cases hm : b.memberAt k with
     | none =>
-      cases hh : b.heldAt k with
-      | none =>
-        simp only [fillFields, hm, hh]
-        have r := fillFields_checkableA hf' ih' hb
-        refine ⟨fun k₁ o₁ v h => ?_, r.2⟩
-        rcases List.mem_cons.mp h with h | h
-        · simp only [Prod.mk.injEq] at h
-          obtain ⟨-, -, rfl⟩ := h
-          exact hx
-        · exact r.1 _ _ _ h
-      | some t =>
-        have hxt := ih k o x List.mem_cons_self (heldAt_checkableA hb hh)
-        have r := fillFields_checkableA hf' ih' (markHeld_checkableA (k := k) hb)
-        simp only [fillFields, hm, hh]
-        refine ⟨fun k₁ o₁ v h => ?_, r.2⟩
-        rcases List.mem_cons.mp h with h | h
-        · simp only [Prod.mk.injEq] at h
-          obtain ⟨-, -, rfl⟩ := h
-          exact .meet hxt.1 hxt.2
-        · exact r.1 _ _ _ h
+      have hw : ∀ t, b.tmplAt Val.waitingSpread k = some t →
+          (if x.fillable then Val.meet t x
+            else t.instWith (fun y => ((x.fillMeet y).2, (x.fillMeet y).1)) x).CheckableA := by
+        intro t ht
+        have htc := tmplAt_checkableA waitingSpread_sel hb ht
+        split
+        · exact .meet htc hx
+        · exact instWith_checkableA
+            (fun y hy => ⟨(ih k o x List.mem_cons_self hy).2, (ih k o x List.mem_cons_self hy).1⟩) hx htc
+      have hh : ∀ u, b.tmplAt Val.heldSpread k = some u →
+          (Val.meet (x.fillMeet u).1 (x.fillMeet u).2).CheckableA :=
+        fun u hu => .meet (ih k o x List.mem_cons_self (tmplAt_checkableA heldSpread_sel hb hu)).1
+          (ih k o x List.mem_cons_self (tmplAt_checkableA heldSpread_sel hb hu)).2
+      have r := fillFields_checkableA hf' ih'
+        (markAt_checkableA heldSpread_sel (k := k) (markAt_checkableA waitingSpread_sel (k := k) hb))
+      simp only [fillFields, hm]
+      refine ⟨fun k₁ o₁ v h => ?_, r.2⟩
+      rcases List.mem_cons.mp h with h | h
+      · simp only [Prod.mk.injEq] at h
+        obtain ⟨-, -, rfl⟩ := h
+        exact peerFill_checkableA hx hw hh
+      · exact r.1 _ _ _ h
     | some p =>
       have hxp := fillWith_checkableA (f := fun q => x.fillMeet q) (w := x.fillable)
         (ih k o x List.mem_cons_self) (memberAt_checkableA hb hm)
@@ -3153,22 +3261,27 @@ theorem fillElems_checkableA : ∀ {xs : List Val} {i : ℕ} {b : Val},
     | false =>
     cases hm : b.elemAt i with
     | none =>
-      cases hh : b.heldAtPos i with
-      | none =>
-        simp only [fillElems, hk, Bool.false_eq_true, ↓reduceIte, hm, hh]
-        have r := fillElems_checkableA (i := i + 1) hx' ih' hb
-        refine ⟨fun v h => ?_, r.2⟩
-        rcases List.mem_cons.mp h with rfl | h
-        · exact hx _ List.mem_cons_self
-        · exact r.1 _ h
-      | some t =>
-        have hxt := ih x List.mem_cons_self (heldAtPos_checkableA hb hh)
-        have r := fillElems_checkableA (i := i + 1) hx' ih' (markHeldPos_checkableA (i := i) hb)
-        simp only [fillElems, hk, Bool.false_eq_true, ↓reduceIte, hm, hh]
-        refine ⟨fun v h => ?_, r.2⟩
-        rcases List.mem_cons.mp h with rfl | h
-        · exact .meet hxt.1 hxt.2
-        · exact r.1 _ h
+      have h0 : x.CheckableA := hx x List.mem_cons_self
+      have hw : ∀ t, b.tmplAtPos Val.waitingSpread i = some t →
+          (if x.fillable then Val.meet t x
+            else t.instWith (fun y => ((x.fillMeet y).2, (x.fillMeet y).1)) x).CheckableA := by
+        intro t ht
+        have htc := tmplAtPos_checkableA waitingSpread_sel hb ht
+        split
+        · exact .meet htc h0
+        · exact instWith_checkableA
+            (fun y hy => ⟨(ih x List.mem_cons_self hy).2, (ih x List.mem_cons_self hy).1⟩) h0 htc
+      have hh : ∀ u, b.tmplAtPos Val.heldSpread i = some u →
+          (Val.meet (x.fillMeet u).1 (x.fillMeet u).2).CheckableA :=
+        fun u hu => .meet (ih x List.mem_cons_self (tmplAtPos_checkableA heldSpread_sel hb hu)).1
+          (ih x List.mem_cons_self (tmplAtPos_checkableA heldSpread_sel hb hu)).2
+      have r := fillElems_checkableA (i := i + 1) hx' ih'
+        (markAtPos_checkableA heldSpread_sel (i := i) (markAtPos_checkableA waitingSpread_sel (i := i) hb))
+      simp only [fillElems, hk, Bool.false_eq_true, ↓reduceIte, hm]
+      refine ⟨fun v h => ?_, r.2⟩
+      rcases List.mem_cons.mp h with rfl | h
+      · exact peerFill_checkableA h0 hw hh
+      · exact r.1 _ h
     | some p =>
       have hxp := fillWith_checkableA (f := fun q => x.fillMeet q) (w := x.fillable)
         (ih x List.mem_cons_self) (elemAt_checkableA hb hm)
@@ -3182,114 +3295,154 @@ theorem fillElems_checkableA : ∀ {xs : List Val} {i : ℕ} {b : Val},
 set_option maxHeartbeats 1000000 in
 /-- The fill a spread's template that holds a member waiting on a hole
 hands the map and the list cases, read off the spread itself, is
-readable. -/
+readable, and so is a template that waits on one met with a member. -/
 theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
   induction ha with
   | @map fs sa ca hf hs ihf ihs =>
-    refine ⟨fun {b} hb => ?_, fun _ _ h => nomatch h⟩
-    unfold Val.fillMeet
-    split
-    · exact ⟨bindHole_checkableA hb (.map hf hs), .any⟩
-    split
-    · exact ⟨.any, bindHole_checkableA (.map hf hs) hb⟩
-    split
-    · exact ⟨.nil, .any⟩
-    · have r := fillFields_checkableA hf (fun k o x h => (ihf k o x h).1) hb
-      refine fillMapWith_checkableA hs r.1 r.2 ?_
-      intro arms t f h
-      split at h
-      · split at h
-        · simp only [Option.some.injEq, Prod.mk.injEq] at h
-          obtain ⟨rfl, rfl, rfl⟩ := h
-          cases hs _ rfl with
-          | selectKey hp hr hd =>
-            exact ⟨hd _ rfl, fun p r hm => ⟨hp p r hm, hr p r hm⟩, fun _ hp' => (ihs _ rfl).2 _ _ rfl hp'⟩
-        · exact absurd h (by simp)
-      · split at h
-        · simp only [Option.some.injEq, Prod.mk.injEq] at h
-          obtain ⟨rfl, rfl, rfl⟩ := h
-          exact ⟨hs _ rfl, fun _ _ hm => absurd hm List.not_mem_nil, fun _ hp' => (ihs _ rfl).1 hp'⟩
-        · exact absurd h (by simp)
-      · exact absurd h (by simp)
-  | @list xs sa ca hx hs ihx ihs =>
-    refine ⟨fun {b} hb => ?_, fun _ _ h => nomatch h⟩
-    unfold Val.fillMeet
-    split
-    · exact ⟨bindHole_checkableA hb (.list hx hs), .any⟩
-    split
-    · exact ⟨.any, bindHole_checkableA (.list hx hs) hb⟩
-    split
-    · exact ⟨.nil, .any⟩
-    · have r := fillElems_checkableA (i := 0) hx (fun x h => (ihx x h).1) hb
-      refine fillListWith_checkableA hs r.1 r.2 ?_
-      intro arms t f h
-      split at h
-      · split at h
-        · simp only [Option.some.injEq, Prod.mk.injEq] at h
-          obtain ⟨rfl, rfl, rfl⟩ := h
-          cases hs _ rfl with
-          | selectKey hp hr hd =>
-            exact ⟨hd _ rfl, fun p r hm => ⟨hp p r hm, hr p r hm⟩, fun _ hp' => (ihs _ rfl).2 _ _ rfl hp'⟩
-        · exact absurd h (by simp)
-      · split at h
-        · simp only [Option.some.injEq, Prod.mk.injEq] at h
-          obtain ⟨rfl, rfl, rfl⟩ := h
-          exact ⟨hs _ rfl, fun _ _ hm => absurd hm List.not_mem_nil, fun _ hp' => (ihs _ rfl).1 hp'⟩
-        · exact absurd h (by simp)
-      · exact absurd h (by simp)
-  | @meet x y hx hy ihx ihy =>
-    refine ⟨fun {b} hb => ?_, fun _ _ h => nomatch h⟩
-    unfold Val.fillMeet
-    split
-    · exact ⟨bindHole_checkableA hb (.meet hx hy), .any⟩
-    split
-    · exact ⟨.any, bindHole_checkableA (.meet hx hy) hb⟩
-    split
-    · exact ⟨.nil, .any⟩
-    · dsimp only
+    refine ⟨fun {b} hb => ?_, fun {q} hq => ?_, fun _ _ h => nomatch h⟩
+    · unfold Val.fillMeet
+      split
+      · exact ⟨bindHole_checkableA hb (.map hf hs), .any⟩
+      split
+      · exact ⟨.any, bindHole_checkableA (.map hf hs) hb⟩
       split
       · exact ⟨.nil, .any⟩
-      · have h₁ := ihx.1 hb
-        have h₂ := ihy.1 h₁.2
-        exact ⟨.meet h₁.1 h₂.1, h₂.2⟩
+      · have r := fillFields_checkableA hf (fun k o x h => (ihf k o x h).1) hb
+        refine fillMapWith_checkableA hs r.1 r.2 ?_ ?_
+        · intro m hm
+          split
+          · exact ((ihs _ rfl).2.2 _ _ rfl).2 hm
+          · exact (ihs _ rfl).2.1 hm
+          · exact hm
+        · intro arms t f h
+          split at h
+          · split at h
+            · simp only [Option.some.injEq, Prod.mk.injEq] at h
+              obtain ⟨rfl, rfl, rfl⟩ := h
+              cases hs _ rfl with
+              | selectKey hp hr hd =>
+                exact ⟨hd _ rfl, fun p r hm => ⟨hp p r hm, hr p r hm⟩,
+                  fun _ hp' => ((ihs _ rfl).2.2 _ _ rfl).1 hp'⟩
+            · exact absurd h (by simp)
+          · split at h
+            · simp only [Option.some.injEq, Prod.mk.injEq] at h
+              obtain ⟨rfl, rfl, rfl⟩ := h
+              exact ⟨hs _ rfl, fun _ _ hm => absurd hm List.not_mem_nil, fun _ hp' => (ihs _ rfl).1 hp'⟩
+            · exact absurd h (by simp)
+          · exact absurd h (by simp)
+    · simp only [Val.instAt]
+      split
+      · exact bindHole_checkableA hq (.map hf hs)
+      · exact .meet (.map hf hs) hq
+  | @list xs sa ca hx hs ihx ihs =>
+    refine ⟨fun {b} hb => ?_, fun {q} hq => ?_, fun _ _ h => nomatch h⟩
+    · unfold Val.fillMeet
+      split
+      · exact ⟨bindHole_checkableA hb (.list hx hs), .any⟩
+      split
+      · exact ⟨.any, bindHole_checkableA (.list hx hs) hb⟩
+      split
+      · exact ⟨.nil, .any⟩
+      · have r := fillElems_checkableA (i := 0) hx (fun x h => (ihx x h).1) hb
+        refine fillListWith_checkableA hs r.1 r.2 ?_ ?_
+        · intro m hm
+          split
+          · exact ((ihs _ rfl).2.2 _ _ rfl).2 hm
+          · exact (ihs _ rfl).2.1 hm
+          · exact hm
+        · intro arms t f h
+          split at h
+          · split at h
+            · simp only [Option.some.injEq, Prod.mk.injEq] at h
+              obtain ⟨rfl, rfl, rfl⟩ := h
+              cases hs _ rfl with
+              | selectKey hp hr hd =>
+                exact ⟨hd _ rfl, fun p r hm => ⟨hp p r hm, hr p r hm⟩,
+                  fun _ hp' => ((ihs _ rfl).2.2 _ _ rfl).1 hp'⟩
+            · exact absurd h (by simp)
+          · split at h
+            · simp only [Option.some.injEq, Prod.mk.injEq] at h
+              obtain ⟨rfl, rfl, rfl⟩ := h
+              exact ⟨hs _ rfl, fun _ _ hm => absurd hm List.not_mem_nil, fun _ hp' => (ihs _ rfl).1 hp'⟩
+            · exact absurd h (by simp)
+          · exact absurd h (by simp)
+    · simp only [Val.instAt]
+      split
+      · exact bindHole_checkableA hq (.list hx hs)
+      · exact .meet (.list hx hs) hq
+  | @meet x y hx hy ihx ihy =>
+    refine ⟨fun {b} hb => ?_, fun {q} hq => ?_, fun _ _ h => nomatch h⟩
+    · unfold Val.fillMeet
+      split
+      · exact ⟨bindHole_checkableA hb (.meet hx hy), .any⟩
+      split
+      · exact ⟨.any, bindHole_checkableA (.meet hx hy) hb⟩
+      split
+      · exact ⟨.nil, .any⟩
+      · dsimp only
+        split
+        · exact ⟨.nil, .any⟩
+        · have h₁ := ihx.1 hb
+          have h₂ := ihy.1 h₁.2
+          exact ⟨.meet h₁.1 h₂.1, h₂.2⟩
+    · simp only [Val.instAt]
+      exact .meet (instSide_checkableA hx hq ihx.1 ihx.2.1) (instSide_checkableA hy hq ihy.1 ihy.2.1)
   | @ride k v r hv ihv =>
-    refine ⟨fun {b} hb => ?_, fun _ _ h => nomatch h⟩
-    unfold Val.fillMeet
-    split
-    · exact ⟨bindHole_checkableA hb (.ride hv), .any⟩
-    split
-    · exact ⟨.any, bindHole_checkableA (.ride hv) hb⟩
-    split
-    · exact ⟨.nil, .any⟩
-    · have h := ihv.1 hb
-      exact ⟨.ride h.1, h.2⟩
+    refine ⟨fun {b} hb => ?_, fun {q} hq => ?_, fun _ _ h => nomatch h⟩
+    · unfold Val.fillMeet
+      split
+      · exact ⟨bindHole_checkableA hb (.ride hv), .any⟩
+      split
+      · exact ⟨.any, bindHole_checkableA (.ride hv) hb⟩
+      split
+      · exact ⟨.nil, .any⟩
+      · have h := ihv.1 hb
+        exact ⟨.ride h.1, h.2⟩
+    · simp only [Val.instAt]
+      split
+      · exact .ride (instSide_checkableA hv hq ihv.1 ihv.2.1)
+      · have hf' : ∀ {m : Val}, m.CheckableA →
+            (Val.ride k (v.fillMeet m).1 r).CheckableA ∧ (v.fillMeet m).2.CheckableA :=
+          fun hm => ⟨.ride (ihv.1 hm).1, (ihv.1 hm).2⟩
+        exact .meet (fillWith_checkableA (f := fun m => (Val.ride k (v.fillMeet m).1 r, (v.fillMeet m).2))
+          (w := false) hf' hq).1
+          (fillWith_checkableA (f := fun m => (Val.ride k (v.fillMeet m).1 r, (v.fillMeet m).2))
+          (w := false) hf' hq).2
   | @or arms ha iha =>
-    refine ⟨fun {b} hb => ?_, fun _ _ h => nomatch h⟩
-    unfold Val.fillMeet
-    split
-    · exact ⟨bindHole_checkableA hb (.or ha), .any⟩
-    split
-    · exact ⟨.any, bindHole_checkableA (.or ha) hb⟩
-    split
-    · exact ⟨.nil, .any⟩
-    · exact ⟨.or (fillArms_checkableA (fun r x h => (iha r x h).1) hb), .any⟩
+    refine ⟨fun {b} hb => ?_, fun {q} hq => ?_, fun _ _ h => nomatch h⟩
+    · unfold Val.fillMeet
+      split
+      · exact ⟨bindHole_checkableA hb (.or ha), .any⟩
+      split
+      · exact ⟨.any, bindHole_checkableA (.or ha) hb⟩
+      split
+      · exact ⟨.nil, .any⟩
+      · exact ⟨.or (fillArms_checkableA (fun r x h => (iha r x h).1) hb), .any⟩
+    · simp only [Val.instAt]
+      refine .or fun r w hm => ?_
+      obtain ⟨x, hx, rfl⟩ := mem_instArms hm
+      exact instSide_checkableA (ha r x hx) hq (iha r x hx).1 (iha r x hx).2.1
   | @pref r x hx ihx =>
-    refine ⟨fun {b} hb => ?_, fun _ _ h => nomatch h⟩
-    unfold Val.fillMeet
-    split
-    · exact ⟨bindHole_checkableA hb (.pref hx), .any⟩
-    split
-    · exact ⟨.any, bindHole_checkableA (.pref hx) hb⟩
-    split
-    · exact ⟨.nil, .any⟩
-    · have h := ihx.1 hb
-      refine ⟨.or fun r' w hm => ?_, .any⟩
-      simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
-      rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩
-      · exact .meet h.1 h.2
-      · exact .meet hx.super hb
+    refine ⟨fun {b} hb => ?_, fun {q} hq => ?_, fun _ _ h => nomatch h⟩
+    · unfold Val.fillMeet
+      split
+      · exact ⟨bindHole_checkableA hb (.pref hx), .any⟩
+      split
+      · exact ⟨.any, bindHole_checkableA (.pref hx) hb⟩
+      split
+      · exact ⟨.nil, .any⟩
+      · have h := ihx.1 hb
+        refine ⟨.or fun r' w hm => ?_, .any⟩
+        simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hm
+        rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩
+        · exact .meet h.1 h.2
+        · exact .meet hx.super hb
+    · simp only [Val.instAt]
+      split
+      · exact bindHole_checkableA hq (.pref hx)
+      · exact .meet (.pref hx) hq
   | @selectKey arms d hp hr hd _ _ ihd =>
-    refine ⟨fun {b} hb => ?_, fun _ t h => ?_⟩
+    refine ⟨fun {b} hb => ?_, fun {q} hq => ?_, fun _ t h => ?_⟩
     · unfold Val.fillMeet
       split
       · exact ⟨bindHole_checkableA hb (.selectKey hp hr hd), .any⟩
@@ -3309,10 +3462,14 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
             · exact hy
             · exact hy.super
         · exact ⟨.selectKey hp hr hd, hb⟩
+    · simp only [Val.instAt]
+      split
+      · exact bindHole_checkableA hq (.selectKey hp hr hd)
+      · exact .meet (.selectKey hp hr hd) hq
     · cases h
-      exact (ihd t rfl).1
+      exact ⟨(ihd t rfl).1, (ihd t rfl).2.1⟩
   | _ =>
-    refine ⟨fun {b} hb => ?_, fun _ _ h => ?_⟩
+    refine ⟨fun {b} hb => ?_, fun {q} hq => ?_, fun _ _ h => ?_⟩
     · unfold Val.fillMeet
       split
       · exact ⟨bindHole_checkableA hb (by constructor <;> assumption), .any⟩
@@ -3332,9 +3489,18 @@ theorem fillMeet_checkableA' {a : Val} (ha : a.CheckableA) : FillsDeep a := by
             · exact hy
             · exact hy.super
         · exact ⟨by constructor <;> assumption, hb⟩
+    · simp only [Val.instAt]
+      split
+      · exact bindHole_checkableA hq (by constructor <;> assumption)
+      · exact .meet (by constructor <;> assumption) hq
     · cases h
 
 theorem fillMeet_checkableA {a : Val} (ha : a.CheckableA) : FillsReadably a := (fillMeet_checkableA' ha).1
+
+/-- A spread's template that waits on a hole met with a member leaves a
+term the checker can read. -/
+theorem instAt_checkableA {t p : Val} (ht : t.CheckableA) (hp : p.CheckableA) : (t.instAt p).CheckableA :=
+  (fillMeet_checkableA' ht).2.1 hp
 
 theorem meetFilled_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
     (a.meetFilled b).CheckableA := by
@@ -3346,6 +3512,83 @@ theorem meetFilled_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA
   split
   · exact .hole
   · exact .meet (fillWith_checkableA (fillMeet_checkableA ha) hb).1 (fillWith_checkableA (fillMeet_checkableA ha) hb).2
+
+theorem spreadMeet_checkableA {t p : Val} (ht : t.CheckableA) (hp : p.CheckableA) :
+    (t.spreadMeet p).CheckableA := by
+  unfold Val.spreadMeet
+  split
+  · exact .meet ht hp
+  · exact instAt_checkableA ht hp
+
+theorem spreadFields_checkableA : ∀ {fs : List (String × Bool × Val)} {sp : Option Val},
+    (∀ k o x, (k, o, x) ∈ fs → x.CheckableA) → (∀ s, sp = some s → s.CheckableA) →
+    (∀ k o w, (k, o, w) ∈ (spreadFields fs sp).1 → w.CheckableA) ∧
+      ∀ s, (spreadFields fs sp).2 = some s → s.CheckableA
+  | [], _, _, hsp => ⟨fun _ _ _ h => by simp [spreadFields] at h, by simpa [spreadFields] using hsp⟩
+  | (k, o, x) :: fs, sp, hf, hsp => by
+    have hf' : ∀ k o x, (k, o, x) ∈ fs → x.CheckableA := fun k o x h => hf k o x (List.mem_cons_of_mem _ h)
+    have hx : x.CheckableA := hf k o x List.mem_cons_self
+    cases hw : sp.bind Val.waitingSpread with
+    | none =>
+      simp only [spreadFields, hw]
+      exact ⟨hf, hsp⟩
+    | some at' =>
+      obtain ⟨arms, t⟩ := at'
+      have r := bind_waitingSpread hsp hw
+      simp only [spreadFields, hw]
+      split
+      · have q := spreadFields_checkableA hf' hsp
+        refine ⟨fun k' o' w h => ?_, q.2⟩
+        rcases List.mem_cons.mp h with h | h
+        · simp only [Prod.mk.injEq] at h
+          obtain ⟨-, -, rfl⟩ := h
+          exact hx
+        · exact q.1 _ _ _ h
+      · have q := spreadFields_checkableA (sp := some (spreadWith arms t k)) hf'
+          (fun s hs => by simp only [Option.some.injEq] at hs; subst hs; exact r.2 k)
+        refine ⟨fun k' o' w h => ?_, q.2⟩
+        rcases List.mem_cons.mp h with h | h
+        · simp only [Prod.mk.injEq] at h
+          obtain ⟨-, -, rfl⟩ := h
+          exact spreadMeet_checkableA r.1 hx
+        · exact q.1 _ _ _ h
+
+theorem spreadItems_checkableA : ∀ {xs : List Val} {i : ℕ} {sp : Option Val},
+    (∀ x, x ∈ xs → x.CheckableA) → (∀ s, sp = some s → s.CheckableA) →
+    (∀ w, w ∈ (spreadItems i xs sp).1 → w.CheckableA) ∧ ∀ s, (spreadItems i xs sp).2 = some s → s.CheckableA
+  | [], _, _, _, hsp => ⟨fun _ h => by simp [spreadItems] at h, by simpa [spreadItems] using hsp⟩
+  | x :: xs, i, sp, hx, hsp => by
+    have hx' : ∀ v, v ∈ xs → v.CheckableA := fun v h => hx v (List.mem_cons_of_mem _ h)
+    have h0 : x.CheckableA := hx x List.mem_cons_self
+    cases hk : (x.marked || x.isAbsent) with
+    | true =>
+      simp only [spreadItems, hk, ↓reduceIte]
+      have q := spreadItems_checkableA (i := i) hx' hsp
+      refine ⟨fun w h => ?_, q.2⟩
+      rcases List.mem_cons.mp h with rfl | h
+      · exact h0
+      · exact q.1 _ h
+    | false =>
+      cases hw : sp.bind Val.waitingSpread with
+      | none =>
+        simp only [spreadItems, hk, Bool.false_eq_true, ↓reduceIte, hw]
+        exact ⟨hx, hsp⟩
+      | some at' =>
+        obtain ⟨arms, t⟩ := at'
+        have r := bind_waitingSpread hsp hw
+        simp only [spreadItems, hk, Bool.false_eq_true, ↓reduceIte, hw]
+        split
+        · have q := spreadItems_checkableA (i := i + 1) hx' hsp
+          refine ⟨fun w h => ?_, q.2⟩
+          rcases List.mem_cons.mp h with rfl | h
+          · exact h0
+          · exact q.1 _ h
+        · have q := spreadItems_checkableA (i := i + 1) (sp := some (spreadWith arms t (toString i))) hx'
+            (fun s hs => by simp only [Option.some.injEq] at hs; subst hs; exact r.2 _)
+          refine ⟨fun w h => ?_, q.2⟩
+          rcases List.mem_cons.mp h with rfl | h
+          · exact spreadMeet_checkableA r.1 h0
+          · exact q.1 _ h
 
 theorem heldFields_checkableA : ∀ {fs : List (String × Bool × Val)} {sp : Option Val},
     (∀ k o x, (k, o, x) ∈ fs → x.CheckableA) → (∀ s, sp = some s → s.CheckableA) →
@@ -3452,87 +3695,118 @@ theorem joinFields_checkableA : ∀ {seen : List String} {fs : List (String × B
         exact joinAt_checkableA (x := (x, o₁)) hx hf'
       · exact joinFields_checkableA hf' _ _ _ h
 
-/-- The fill leaves a term the checker can read as one it can read. -/
-theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA := by
+/-- The fill, and a spread's template kept at its own position, leave a
+term the checker can read. -/
+theorem filled_tmpl_checkableA {v : Val} (h : v.CheckableA) :
+    v.filled.CheckableA ∧ v.tmplNode.CheckableA := by
   induction h with
   | meet _ _ iha ihb =>
-    simp only [Val.filled]
-    exact meetFilled_checkableA iha ihb
-  | @map fs spread closed _ _ ihf ihs =>
+    refine ⟨by simp only [Val.filled]; exact meetFilled_checkableA iha.1 ihb.1, ?_⟩
+    simp only [Val.tmplNode]
+    refine .meet ?_ ?_
+    · split
+      · exact iha.2
+      · exact iha.1
+    · split
+      · exact ihb.2
+      · exact ihb.1
+  | @map fs spread closed hf₀ hs₀ ihf ihs =>
     have hj : ∀ k o x, (k, o, x) ∈ joinFields [] (filledFields fs) → x.CheckableA :=
       joinFields_checkableA fun k o x hm => by
         obtain ⟨v, hv, rfl⟩ := mem_filledFields hm
-        exact ihf k o v hv
-    have hsp : ∀ t, filledSpread spread = some t → t.CheckableA := fun t ht => by
-      obtain ⟨s, hs, rfl⟩ := filledSpread_some ht
-      exact ihs s hs
+        exact (ihf k o v hv).1
+    have hsp : ∀ t, tmplSpread spread = some t → t.CheckableA := fun t ht => by
+      obtain ⟨s, hs, h | h⟩ := tmplSpread_some ht
+      · subst h
+        exact (ihs _ hs).2
+      · subst h
+        exact (ihs _ hs).1
     have q := spreadAll_checkableA hj hsp
-    exact .map q.1 q.2
-  | @list items spread closed _ _ ihi ihs =>
+    exact ⟨.map q.1 q.2, .map hf₀ hs₀⟩
+  | @list items spread closed hi₀ hs₀ ihi ihs =>
     have hi : ∀ x, x ∈ filledItems items → x.CheckableA := fun w hm => by
       obtain ⟨v, hv, rfl⟩ := mem_filledItems hm
-      exact ihi v hv
-    have hsp : ∀ t, filledSpread spread = some t → t.CheckableA := fun t ht => by
-      obtain ⟨s, hs, rfl⟩ := filledSpread_some ht
-      exact ihs s hs
+      exact (ihi v hv).1
+    have hsp : ∀ t, tmplSpread spread = some t → t.CheckableA := fun t ht => by
+      obtain ⟨s, hs, h | h⟩ := tmplSpread_some ht
+      · subst h
+        exact (ihs _ hs).2
+      · subst h
+        exact (ihs _ hs).1
     have q := spreadAllItems_checkableA hi hsp
-    exact .list q.1 q.2
+    exact ⟨.list q.1 q.2, .list hi₀ hs₀⟩
   | @or arms _ ih =>
-    refine .or fun r b hm => ?_
-    obtain ⟨a, ha, rfl⟩ := mem_filledArms hm
-    exact ih r a ha
-  | pref _ ih => exact .pref ih
-  | ride _ ih => exact .ride ih
-  | len _ ih => exact .len ih
-  | must _ ih => exact .must ih
-  | contains _ _ ihc ihn => exact .contains ihc ihn
-  | @nof n cs _ _ ihn ihc =>
-    refine .nof ihn fun c hc => ?_
+    refine ⟨.or fun r b hm => ?_, ?_⟩
+    · obtain ⟨a, ha, rfl⟩ := mem_filledArms hm
+      exact (ih r a ha).1
+    · simp only [Val.tmplNode]
+      refine .or fun r b hm => ?_
+      obtain ⟨a, ha, rfl⟩ := mem_tmplArms hm
+      split
+      · exact (ih r a ha).2
+      · exact (ih r a ha).1
+  | pref hx ih => exact ⟨.pref ih.1, .pref hx⟩
+  | ride _ ih =>
+    refine ⟨.ride ih.1, ?_⟩
+    simp only [Val.tmplNode]
+    split
+    · exact .ride ih.2
+    · exact .ride ih.1
+  | len hc ih => exact ⟨.len ih.1, .len hc⟩
+  | must hc ih => exact ⟨.must ih.1, .must hc⟩
+  | contains hc hn ihc ihn => exact ⟨.contains ihc.1 ihn.1, .contains hc hn⟩
+  | @nof n cs hn hcs ihn ihc =>
+    refine ⟨.nof ihn.1 fun c hc => ?_, .nof hn hcs⟩
     obtain ⟨u, hu, rfl⟩ := mem_filledItems hc
-    exact ihc u hu
-  | @when c t e _ _ _ ihc iht ihe =>
-    refine .when ihc iht fun e' he => ?_
-    obtain ⟨s, hs, rfl⟩ := filledSpread_some he
-    exact ihe s hs
-  | @rest t cs _ _ _ _ iht ih₁ ih₂ ih₃ =>
-    refine .rest iht ?_ ?_ ?_ <;> intro c hc v hv <;>
+    exact (ihc u hu).1
+  | @when c t e hc ht he ihc iht ihe =>
+    refine ⟨.when ihc.1 iht.1 fun e' he' => ?_, .when hc ht he⟩
+    obtain ⟨s, hs, rfl⟩ := filledSpread_some he'
+    exact (ihe s hs).1
+  | @rest t cs ht h₁ h₂ h₃ iht ih₁ ih₂ ih₃ =>
+    refine ⟨.rest iht.1 ?_ ?_ ?_, .rest ht h₁ h₂ h₃⟩ <;> intro c hc v hv <;>
       obtain ⟨c₀, hm₀, rfl⟩ := mem_filledCovers hc <;>
       obtain ⟨s, hs, rfl⟩ := filledSpread_some hv
-    · exact ih₁ c₀ hm₀ s hs
-    · exact ih₂ c₀ hm₀ s hs
-    · exact ih₃ c₀ hm₀ s hs
-  | @selectKey arms d _ _ _ ihp ihr ihd =>
-    refine .selectKey ?_ ?_ ?_
+    · exact (ih₁ c₀ hm₀ s hs).1
+    · exact (ih₂ c₀ hm₀ s hs).1
+    · exact (ih₃ c₀ hm₀ s hs).1
+  | @selectKey arms d hp hr hd ihp ihr ihd =>
+    refine ⟨.selectKey ?_ ?_ ?_, .selectKey hp hr hd⟩
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact ihp p₀ r₀ hm₀
+      exact (ihp p₀ r₀ hm₀).1
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact ihr p₀ r₀ hm₀
+      exact (ihr p₀ r₀ hm₀).1
     · intro e he
       obtain ⟨s, hs, rfl⟩ := filledSpread_some he
-      exact ihd s hs
-  | @selectLit sc arms d _ _ _ ihp ihr ihd =>
-    refine .selectLit ?_ ?_ ?_
+      exact (ihd s hs).1
+  | @selectLit sc arms d hp hr hd ihp ihr ihd =>
+    refine ⟨.selectLit ?_ ?_ ?_, .selectLit hp hr hd⟩
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact ihp p₀ r₀ hm₀
+      exact (ihp p₀ r₀ hm₀).1
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact ihr p₀ r₀ hm₀
+      exact (ihr p₀ r₀ hm₀).1
     · intro e he
       obtain ⟨s, hs, rfl⟩ := filledSpread_some he
-      exact ihd s hs
+      exact (ihd s hs).1
   | @call f args h ih =>
     have hi : ∀ a, a ∈ filledItems args → a.CheckableA := fun a ha => by
       obtain ⟨u, hu, rfl⟩ := mem_filledItems ha
-      exact ih u hu
+      exact (ih u hu).1
     have hh : ∀ a, a ∈ filledHead args → a.CheckableA := fun a ha => by
       rcases mem_filledHead ha with ha | ⟨u, hu, rfl⟩
       · exact h a ha
-      · exact ih u hu
+      · exact (ih u hu).1
+    refine ⟨?_, .call h⟩
     cases f <;> first | exact .call hh | exact .call hi
-  | _ => simp only [Val.filled]; constructor <;> assumption
+  | _ => exact ⟨by simp only [Val.filled]; constructor <;> assumption, by constructor <;> assumption⟩
+
+/-- The fill leaves a term the checker can read as one it can read. -/
+theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA :=
+  (filled_tmpl_checkableA h).1
 
 theorem joinAt_absent {k : String} : ∀ {fs : List (String × Bool × Val)} {x : Val × Bool},
     declared k fs = false → joinAt k x fs = x
@@ -3624,11 +3898,11 @@ theorem Data.term_filled : ∀ j : Data, j.wf = true → j.term.filled = j.term
   | .addr _, _ => rfl
   | .map fs, h => by
     simp only [Data.wf, Bool.and_eq_true, decide_eq_true_eq] at h
-    simp only [Data.term, Val.filled, filledSpread, termMembers_filled fs h.2,
+    simp only [Data.term, Val.filled, tmplSpread, termMembers_filled fs h.2,
       joinFields_distinct (seen := []) (termMembers_distinct h.1) (fun _ hc => by simp at hc), spreadAll_none]
   | .list xs, h => by
     simp only [Data.wf] at h
-    simp only [Data.term, Val.filled, filledSpread, termElems_filled xs h, spreadAllItems_none]
+    simp only [Data.term, Val.filled, tmplSpread, termElems_filled xs h, spreadAllItems_none]
 
 theorem termMembers_filled : ∀ fs : List (String × Data), Data.wfMembers fs = true →
     filledFields (termMembers fs) = termMembers fs
