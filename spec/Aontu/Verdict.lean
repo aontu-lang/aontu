@@ -1829,6 +1829,38 @@ def bindItems : List Val → Val → List Val
   | v :: vs, p => v.bindHole p :: bindItems vs p
 end
 
+mutual
+/-- Whether a spread's template waits on a hole at its own position: as
+`Val.fillable` finds one, or in a side of a meet or an arm of a
+disjunction, through a rider, so that each member fills it
+(`Val.instAt`). -/
+def Val.waitsTop : Val → Bool
+  | .meet x y => x.waitsTop || y.waitsTop
+  | .or arms => armsWaitTop arms
+  | .ride _ v _ => v.waitsTop
+  | v => v.fillable
+
+def armsWaitTop : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, x) :: as => x.waitsTop || armsWaitTop as
+end
+
+mutual
+/-- Such a template met with a member, as both ports read it: each side
+of a meet and each arm of a disjunction met with the member in turn,
+one that waits on a hole with the hole bound to the member, which it
+spends, through a rider. -/
+def Val.instAt : Val → Val → Val
+  | .meet x y, p => .meet (x.instAt p) (y.instAt p)
+  | .or arms, p => .or (instArms arms p)
+  | .ride k v r, p => if v.waitsTop then .ride k (v.instAt p) r else .meet (.ride k v r) p
+  | x, p => if x.fillable then x.bindHole p else .meet x p
+
+def instArms : List (ℕ × Val) → Val → List (ℕ × Val)
+  | [], _ => []
+  | (r, x) :: as, p => (r, x.instAt p) :: instArms as p
+end
+
 /-- The meet of a key's declarations, in the order they're written. -/
 def declsAt (k : String) : List (String × Bool × Val) → Option Val
   | [] => none
@@ -1949,12 +1981,13 @@ def Val.heldSpread : Val → Option (List (Val × Val) × Val)
   | .select .key arms (some t) => if t.holdsFill && arms.all Val.filledArm then some (arms, t) else none
   | t => if t.holdsFill then some ([], t) else none
 
-/-- A spread's template that waits on a hole, with the arms that read the
-keys it has already filled as `any`: one read under its key whose every
-arm is a filled key's and whose default waits, or one that waits. -/
+/-- A spread's template that waits on a hole at its own position
+(`Val.waitsTop`), with the arms that read the keys it has already filled
+as `any`: one read under its key whose every arm is a filled key's and
+whose default waits, or one that waits. -/
 def Val.waitingSpread : Val → Option (List (Val × Val) × Val)
-  | .select .key arms (some t) => if t.fillable && arms.all Val.filledArm then some (arms, t) else none
-  | t => if t.fillable then some ([], t) else none
+  | .select .key arms (some t) => if t.waitsTop && arms.all Val.filledArm then some (arms, t) else none
+  | t => if t.waitsTop then some ([], t) else none
 
 /-- The keys a spread's arms read, which it has filled. -/
 def filledKeys : List (Val × Val) → List String
@@ -1966,9 +1999,9 @@ def filledKeys : List (Val × Val) → List String
 def spreadWith (arms : List (Val × Val)) (t : Val) (k : String) : Val :=
   .select .key ((.lit (.str k), .any) :: arms) (some t)
 
-/-- A spread's template met with a member: the template with its hole
-bound to the member, or, where the member waits too, the two met. -/
-def Val.spreadMeet (t p : Val) : Val := if p.fillable then .meet t p else t.bindHole p
+/-- A spread's template met with a member: the template filled by the
+member (`Val.instAt`), or, where the member waits too, the two met. -/
+def Val.spreadMeet (t p : Val) : Val := if p.fillable then .meet t p else t.instAt p
 
 /-- Fields met with a spread that waits on a hole, each once: where the
 spread hasn't filled a field's key, the field is the template met with
@@ -2320,15 +2353,16 @@ mutual
 on the other read as that side with the hole bound to the other, the
 meets beneath it first, a map's declarations of a key among them,
 through every form but where a hole is bound: a generator's template,
-an `emit`'s table and a `filter`'s condition. -/
+an `emit`'s table, a `filter`'s condition and a spread's template that
+waits on a hole at its own position (`tmplSpread`). -/
 def Val.filled : Val → Val
   | .meet a b => a.filled.meetFilled b.filled
   | .map fs spread closed =>
-    .map (spreadAll (joinFields [] (filledFields fs)) (filledSpread spread)).1
-      (spreadAll (joinFields [] (filledFields fs)) (filledSpread spread)).2 closed
+    .map (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).1
+      (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).2 closed
   | .list items spread closed =>
-    .list (spreadAllItems (filledItems items) (filledSpread spread)).1
-      (spreadAllItems (filledItems items) (filledSpread spread)).2 closed
+    .list (spreadAllItems (filledItems items) (tmplSpread spread)).1
+      (spreadAllItems (filledItems items) (tmplSpread spread)).2 closed
   | .or arms => .or (filledArms arms)
   | .pref r x => .pref r x.filled
   | .ride k v r => .ride k v.filled r
@@ -2361,6 +2395,12 @@ def filledItems : List Val → List Val
 def filledSpread : Option Val → Option Val
   | none => none
   | some s => some s.filled
+
+/-- A spread's template filled, but one that waits on a hole at its own
+position kept as written, for each member to fill (`Val.instAt`). -/
+def tmplSpread : Option Val → Option Val
+  | none => none
+  | some s => some (if s.waitsTop then s else s.filled)
 
 def filledArms : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
@@ -2442,6 +2482,15 @@ theorem mem_filledFields : ∀ {fs : List (String × Bool × Val)} {k : String} 
 theorem filledSpread_some : ∀ {sp : Option Val} {t : Val}, filledSpread sp = some t → ∃ s, sp = some s ∧ t = s.filled
   | none, _, h => nomatch h
   | some s, t, h => by simp only [filledSpread, Option.some.injEq] at h; exact ⟨s, rfl, h.symm⟩
+
+theorem tmplSpread_some : ∀ {sp : Option Val} {t : Val}, tmplSpread sp = some t →
+    ∃ s, sp = some s ∧ (t = s ∨ t = s.filled)
+  | none, _, h => nomatch h
+  | some s, t, h => by
+    simp only [tmplSpread, Option.some.injEq] at h
+    split at h
+    · exact ⟨s, rfl, .inl h.symm⟩
+    · exact ⟨s, rfl, .inr h.symm⟩
 
 theorem mem_filledArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {b : Val},
     (r, b) ∈ filledArms arms → ∃ a, (r, a) ∈ arms ∧ b = a.filled
@@ -2659,12 +2708,41 @@ theorem spreadWith_checkableA {arms : List (Val × Val)} {t : Val} {k : String}
     subst he
     exact ht
 
+theorem mem_instArms {p : Val} : ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
+    (r, w) ∈ instArms arms p → ∃ x, (r, x) ∈ arms ∧ w = x.instAt p
+  | [], _, _, h => nomatch h
+  | (r', x') :: arms, r, w, h => by
+    simp only [instArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨x', List.mem_cons_self, rfl⟩
+    · obtain ⟨x, hx, rfl⟩ := mem_instArms h
+      exact ⟨x, List.mem_cons_of_mem _ hx, rfl⟩
+
+theorem instAt_checkableA {p : Val} (hp : p.CheckableA) {v : Val} (h : v.CheckableA) :
+    (v.instAt p).CheckableA := by
+  induction h with
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | @or arms _ ih =>
+    refine .or fun r w hm => ?_
+    obtain ⟨x, hx, rfl⟩ := mem_instArms hm
+    exact ih r x hx
+  | ride hv ih =>
+    simp only [Val.instAt]
+    split
+    · exact .ride ih
+    · exact .meet (.ride hv) hp
+  | _ =>
+    simp only [Val.instAt]
+    split
+    · exact bindHole_checkableA hp (by constructor <;> assumption)
+    · exact .meet (by constructor <;> assumption) hp
+
 theorem spreadMeet_checkableA {t p : Val} (ht : t.CheckableA) (hp : p.CheckableA) :
     (t.spreadMeet p).CheckableA := by
   unfold Val.spreadMeet
   split
   · exact .meet ht hp
-  · exact bindHole_checkableA hp ht
+  · exact instAt_checkableA hp ht
 
 theorem bind_waitingSpread {sp : Option Val} (hsp : ∀ s, sp = some s → s.CheckableA)
     {arms : List (Val × Val)} {t : Val} (h : sp.bind Val.waitingSpread = some (arms, t)) :
@@ -3458,23 +3536,29 @@ theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA := 
   | meet _ _ iha ihb =>
     simp only [Val.filled]
     exact meetFilled_checkableA iha ihb
-  | @map fs spread closed _ _ ihf ihs =>
+  | @map fs spread closed _ hs₀ ihf ihs =>
     have hj : ∀ k o x, (k, o, x) ∈ joinFields [] (filledFields fs) → x.CheckableA :=
       joinFields_checkableA fun k o x hm => by
         obtain ⟨v, hv, rfl⟩ := mem_filledFields hm
         exact ihf k o v hv
-    have hsp : ∀ t, filledSpread spread = some t → t.CheckableA := fun t ht => by
-      obtain ⟨s, hs, rfl⟩ := filledSpread_some ht
-      exact ihs s hs
+    have hsp : ∀ t, tmplSpread spread = some t → t.CheckableA := fun t ht => by
+      obtain ⟨s, hs, h | h⟩ := tmplSpread_some ht
+      · subst h
+        exact hs₀ _ hs
+      · subst h
+        exact ihs _ hs
     have q := spreadAll_checkableA hj hsp
     exact .map q.1 q.2
-  | @list items spread closed _ _ ihi ihs =>
+  | @list items spread closed _ hs₀ ihi ihs =>
     have hi : ∀ x, x ∈ filledItems items → x.CheckableA := fun w hm => by
       obtain ⟨v, hv, rfl⟩ := mem_filledItems hm
       exact ihi v hv
-    have hsp : ∀ t, filledSpread spread = some t → t.CheckableA := fun t ht => by
-      obtain ⟨s, hs, rfl⟩ := filledSpread_some ht
-      exact ihs s hs
+    have hsp : ∀ t, tmplSpread spread = some t → t.CheckableA := fun t ht => by
+      obtain ⟨s, hs, h | h⟩ := tmplSpread_some ht
+      · subst h
+        exact hs₀ _ hs
+      · subst h
+        exact ihs _ hs
     have q := spreadAllItems_checkableA hi hsp
     exact .list q.1 q.2
   | @or arms _ ih =>
@@ -3624,11 +3708,11 @@ theorem Data.term_filled : ∀ j : Data, j.wf = true → j.term.filled = j.term
   | .addr _, _ => rfl
   | .map fs, h => by
     simp only [Data.wf, Bool.and_eq_true, decide_eq_true_eq] at h
-    simp only [Data.term, Val.filled, filledSpread, termMembers_filled fs h.2,
+    simp only [Data.term, Val.filled, tmplSpread, termMembers_filled fs h.2,
       joinFields_distinct (seen := []) (termMembers_distinct h.1) (fun _ hc => by simp at hc), spreadAll_none]
   | .list xs, h => by
     simp only [Data.wf] at h
-    simp only [Data.term, Val.filled, filledSpread, termElems_filled xs h, spreadAllItems_none]
+    simp only [Data.term, Val.filled, tmplSpread, termElems_filled xs h, spreadAllItems_none]
 
 theorem termMembers_filled : ∀ fs : List (String × Data), Data.wfMembers fs = true →
     filledFields (termMembers fs) = termMembers fs

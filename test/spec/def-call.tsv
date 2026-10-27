@@ -41,6 +41,8 @@
 # follows in rows dv0 on, and a disjunction's arm that does not stand, which
 # drops as a conflict's arm does, in rows da0 on. A meet of two sides that both
 # wait on a hole, which is an error however it is grouped, follows in rows dg0 on.
+# A spread's template that waits on a hole at its own position, each of its sides
+# and arms met with the member and a hole bound to it, follows in rows dt0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -3375,3 +3377,105 @@ dg68	verdict	v: [((upper(_)) & (_)) | ("x")]	v: ["x"]	{"verdict":"valid","opts":
 dg69	verdict	v: ((type(upper(_))) & (_)) | ("x")	v: "x"	{"verdict":"valid"}
 dg70	verdict	v: ((type(upper(_))) & (_)) | ("x")	v: "x"	{"verdict":"valid","opts":{"noFill":true}}
 dg71	verdict	v: ((type(upper(_))) & (_)) | ("x")	v: "x"	{"verdict":"valid","opts":{"partial":true}}
+dt0	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "X"}	{"verdict":"valid"}
+dt1	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "X"}	{"verdict":"valid","opts":{"noFill":true}}
+dt2	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "X"}	{"verdict":"valid","opts":{"partial":true}}
+dt3	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "x"}	{"verdict":"invalid"}
+dt4	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "x"}	{"verdict":"invalid","opts":{"noFill":true}}
+dt5	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "x"}	{"verdict":"invalid","opts":{"partial":true}}
+dt6	verdict	v: {&: (upper(_)) & (_)}	v: {}	{"verdict":"valid"}
+dt7	verdict	v: {&: (upper(_)) & (_)}	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+dt8	verdict	v: {&: (upper(_)) & (_)}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+dt9	verdict	v: [&: (upper(_)) & (_)]	v: ["X"]	{"verdict":"valid"}
+dt10	verdict	v: [&: (upper(_)) & (_)]	v: ["X"]	{"verdict":"valid","opts":{"noFill":true}}
+dt11	verdict	v: [&: (upper(_)) & (_)]	v: ["X"]	{"verdict":"valid","opts":{"partial":true}}
+dt12	verdict	v: [&: (upper(_)) & (_)]	v: ["X", "y"]	{"verdict":"invalid"}
+dt13	verdict	v: [&: (upper(_)) & (_)]	v: ["X", "y"]	{"verdict":"invalid","opts":{"noFill":true}}
+dt14	verdict	v: [&: (upper(_)) & (_)]	v: ["X", "y"]	{"verdict":"invalid","opts":{"partial":true}}
+dt15	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "X", "b": "Y"}	{"verdict":"valid"}
+dt16	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "X", "b": "Y"}	{"verdict":"valid","opts":{"noFill":true}}
+dt17	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "X", "b": "Y"}	{"verdict":"valid","opts":{"partial":true}}
+dt18	verdict	v: ({&: (upper(_)) & (_)}) & ({"a": "X"})	v: {"a": "X"}	{"verdict":"valid"}
+dt19	verdict	v: ({&: (upper(_)) & (_)}) & ({"a": "X"})	v: {"a": "X"}	{"verdict":"valid","opts":{"noFill":true}}
+dt20	verdict	v: ({&: (upper(_)) & (_)}) & ({"a": "X"})	v: {"a": "X"}	{"verdict":"valid","opts":{"partial":true}}
+dt21	verdict	v: ({&: (upper(_)) & (_)}) & ({"a": "x"})	v: {"a": "X"}	{"verdict":"error"}
+dt22	verdict	v: ({&: (upper(_)) & (_)}) & ({"a": "x"})	v: {"a": "X"}	{"verdict":"error","opts":{"noFill":true}}
+dt23	verdict	v: ({&: (upper(_)) & (_)}) & ({"a": "x"})	v: {"a": "X"}	{"verdict":"error","opts":{"partial":true}}
+dt24	verdict	v: (({&: (upper(_)) & (_)}) & ({"a": "X"})) & ({"a": "Y"})	v: {"a": "X"}	{"verdict":"error"}
+dt25	verdict	v: (({&: (upper(_)) & (_)}) & ({"a": "X"})) & ({"a": "Y"})	v: {"a": "X"}	{"verdict":"error","opts":{"noFill":true}}
+dt26	verdict	v: (({&: (upper(_)) & (_)}) & ({"a": "X"})) & ({"a": "Y"})	v: {"a": "X"}	{"verdict":"error","opts":{"partial":true}}
+dt27	verdict	v: {"b": "Q", &: (upper(_)) & (_)}	v: {"b": "Q"}	{"verdict":"valid"}
+dt28	verdict	v: {"b": "Q", &: (upper(_)) & (_)}	v: {"b": "Q"}	{"verdict":"valid","opts":{"noFill":true}}
+dt29	verdict	v: {"b": "Q", &: (upper(_)) & (_)}	v: {"b": "Q"}	{"verdict":"valid","opts":{"partial":true}}
+dt30	verdict	v: {"b": "q", &: (upper(_)) & (_)}	v: {"b": "q"}	{"verdict":"error"}
+dt31	verdict	v: {"b": "q", &: (upper(_)) & (_)}	v: {"b": "q"}	{"verdict":"error","opts":{"noFill":true}}
+dt32	verdict	v: {"b": "q", &: (upper(_)) & (_)}	v: {"b": "q"}	{"verdict":"error","opts":{"partial":true}}
+dt33	verdict	v: {&: (upper(_)) & ("a")}	v: {"b": "A"}	{"verdict":"invalid"}
+dt34	verdict	v: {&: (upper(_)) & ("a")}	v: {"b": "A"}	{"verdict":"invalid","opts":{"noFill":true}}
+dt35	verdict	v: {&: (upper(_)) & ("a")}	v: {"b": "A"}	{"verdict":"invalid","opts":{"partial":true}}
+dt36	verdict	v: {&: (upper(_)) & ("a")}	v: {"b": "a"}	{"verdict":"invalid"}
+dt37	verdict	v: {&: (upper(_)) & ("a")}	v: {"b": "a"}	{"verdict":"invalid","opts":{"noFill":true}}
+dt38	verdict	v: {&: (upper(_)) & ("a")}	v: {"b": "a"}	{"verdict":"invalid","opts":{"partial":true}}
+dt39	verdict	v: {&: (upper(_)) & ("a")}	v: {}	{"verdict":"valid"}
+dt40	verdict	v: {&: (upper(_)) & ("a")}	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+dt41	verdict	v: {&: (upper(_)) & ("a")}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+dt42	verdict	v: ({&: (upper(_)) & ("a")}) & ({"b": "A"})	v: {"b": "A"}	{"verdict":"error"}
+dt43	verdict	v: ({&: (upper(_)) & ("a")}) & ({"b": "A"})	v: {"b": "A"}	{"verdict":"error","opts":{"noFill":true}}
+dt44	verdict	v: ({&: (upper(_)) & ("a")}) & ({"b": "A"})	v: {"b": "A"}	{"verdict":"error","opts":{"partial":true}}
+dt45	verdict	v: [&: (upper(_)) & ("a")]	v: ["A"]	{"verdict":"invalid"}
+dt46	verdict	v: [&: (upper(_)) & ("a")]	v: ["A"]	{"verdict":"invalid","opts":{"noFill":true}}
+dt47	verdict	v: [&: (upper(_)) & ("a")]	v: ["A"]	{"verdict":"invalid","opts":{"partial":true}}
+dt48	verdict	v: {&: ("a") & (upper(_))}	v: {"b": "A"}	{"verdict":"invalid"}
+dt49	verdict	v: {&: ("a") & (upper(_))}	v: {"b": "A"}	{"verdict":"invalid","opts":{"noFill":true}}
+dt50	verdict	v: {&: ("a") & (upper(_))}	v: {"b": "A"}	{"verdict":"invalid","opts":{"partial":true}}
+dt51	verdict	v: {&: (upper(_)) & (lower(_))}	v: {"a": "x"}	{"verdict":"invalid"}
+dt52	verdict	v: {&: (upper(_)) & (lower(_))}	v: {"a": "x"}	{"verdict":"invalid","opts":{"noFill":true}}
+dt53	verdict	v: {&: (upper(_)) & (lower(_))}	v: {"a": "x"}	{"verdict":"invalid","opts":{"partial":true}}
+dt54	verdict	v: {&: (lower(_)) & (_)}	v: {"a": "x"}	{"verdict":"valid"}
+dt55	verdict	v: {&: (lower(_)) & (_)}	v: {"a": "x"}	{"verdict":"valid","opts":{"noFill":true}}
+dt56	verdict	v: {&: (lower(_)) & (_)}	v: {"a": "x"}	{"verdict":"valid","opts":{"partial":true}}
+dt57	verdict	v: {&: (_) & (_)}	v: {"a": 1}	{"verdict":"valid"}
+dt58	verdict	v: {&: (_) & (_)}	v: {"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
+dt59	verdict	v: {&: (_) & (_)}	v: {"a": 1}	{"verdict":"valid","opts":{"partial":true}}
+dt60	verdict	v: {&: (_) & ("a")}	v: {"b": "b"}	{"verdict":"invalid"}
+dt61	verdict	v: {&: (_) & ("a")}	v: {"b": "b"}	{"verdict":"invalid","opts":{"noFill":true}}
+dt62	verdict	v: {&: (_) & ("a")}	v: {"b": "b"}	{"verdict":"invalid","opts":{"partial":true}}
+dt63	verdict	v: {&: (add(_, 1)) & (_)}	v: {"a": 1}	{"verdict":"invalid"}
+dt64	verdict	v: {&: (add(_, 1)) & (_)}	v: {"a": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+dt65	verdict	v: {&: (add(_, 1)) & (_)}	v: {"a": 1}	{"verdict":"invalid","opts":{"partial":true}}
+dt66	verdict	v: {&: (add(_, 1)) & (number)}	v: {"a": 1}	{"verdict":"invalid"}
+dt67	verdict	v: {&: (add(_, 1)) & (number)}	v: {"a": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+dt68	verdict	v: {&: (add(_, 1)) & (number)}	v: {"a": 1}	{"verdict":"invalid","opts":{"partial":true}}
+dt69	verdict	v: {&: (number) & (add(_, 1))}	v: {"a": 1}	{"verdict":"invalid"}
+dt70	verdict	v: {&: (number) & (add(_, 1))}	v: {"a": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+dt71	verdict	v: {&: (number) & (add(_, 1))}	v: {"a": 1}	{"verdict":"invalid","opts":{"partial":true}}
+dt72	verdict	v: {&: (upper(_)) & (string)}	v: {"a": "X"}	{"verdict":"valid"}
+dt73	verdict	v: {&: (upper(_)) & (string)}	v: {"a": "X"}	{"verdict":"valid","opts":{"noFill":true}}
+dt74	verdict	v: {&: (upper(_)) & (string)}	v: {"a": "X"}	{"verdict":"valid","opts":{"partial":true}}
+dt75	verdict	v: {&: (upper(_)) & (string)}	v: {"a": "x"}	{"verdict":"invalid"}
+dt76	verdict	v: {&: (upper(_)) & (string)}	v: {"a": "x"}	{"verdict":"invalid","opts":{"noFill":true}}
+dt77	verdict	v: {&: (upper(_)) & (string)}	v: {"a": "x"}	{"verdict":"invalid","opts":{"partial":true}}
+dt78	verdict	v: {&: ((upper(_)) & (_)) | ("y")}	v: {"a": "Y"}	{"verdict":"valid"}
+dt79	verdict	v: {&: ((upper(_)) & (_)) | ("y")}	v: {"a": "Y"}	{"verdict":"valid","opts":{"noFill":true}}
+dt80	verdict	v: {&: ((upper(_)) & (_)) | ("y")}	v: {"a": "Y"}	{"verdict":"valid","opts":{"partial":true}}
+dt81	verdict	v: {&: ((upper(_)) & (_)) | ("y")}	v: {"a": "y"}	{"verdict":"valid"}
+dt82	verdict	v: {&: ((upper(_)) & (_)) | ("y")}	v: {"a": "y"}	{"verdict":"valid","opts":{"noFill":true}}
+dt83	verdict	v: {&: ((upper(_)) & (_)) | ("y")}	v: {"a": "y"}	{"verdict":"valid","opts":{"partial":true}}
+dt84	verdict	v: {&: ((upper(_)) & (_)) | ("y")}	v: {"a": "z"}	{"verdict":"invalid"}
+dt85	verdict	v: {&: ((upper(_)) & (_)) | ("y")}	v: {"a": "z"}	{"verdict":"invalid","opts":{"noFill":true}}
+dt86	verdict	v: {&: ((upper(_)) & (_)) | ("y")}	v: {"a": "z"}	{"verdict":"invalid","opts":{"partial":true}}
+dt87	verdict	v: {&: (upper(_)) | ("y")}	v: {"a": "y"}	{"verdict":"incomplete"}
+dt88	verdict	v: {&: (upper(_)) | ("y")}	v: {"a": "y"}	{"verdict":"incomplete","opts":{"noFill":true}}
+dt89	verdict	v: {&: (upper(_)) | ("y")}	v: {"a": "y"}	{"verdict":"valid","opts":{"partial":true}}
+dt90	verdict	v: {&: (add(_, 1)) | ("x")}	v: {"a": 1}	{"verdict":"valid"}
+dt91	verdict	v: {&: (add(_, 1)) | ("x")}	v: {"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
+dt92	verdict	v: {&: (add(_, 1)) | ("x")}	v: {"a": 1}	{"verdict":"valid","opts":{"partial":true}}
+dt93	verdict	v: {&: (type(upper(_))) & (_)}	v: {"a": "X"}	{"verdict":"valid"}
+dt94	verdict	v: {&: (type(upper(_))) & (_)}	v: {"a": "X"}	{"verdict":"valid","opts":{"noFill":true}}
+dt95	verdict	v: {&: (type(upper(_))) & (_)}	v: {"a": "X"}	{"verdict":"valid","opts":{"partial":true}}
+dt96	verdict	v: {&: {"n": (upper(_)) & ("a")}}	v: {"a": {"n": "A"}}	{"verdict":"valid"}
+dt97	verdict	v: {&: {"n": (upper(_)) & ("a")}}	v: {"a": {"n": "A"}}	{"verdict":"valid","opts":{"noFill":true}}
+dt98	verdict	v: {&: {"n": (upper(_)) & ("a")}}	v: {"a": {"n": "A"}}	{"verdict":"valid","opts":{"partial":true}}
+dt99	verdict	v: {&: {"n": (upper(_)) & (_)}}	v: {"a": {"n": "X"}}	{"verdict":"invalid"}
+dt100	verdict	v: {&: {"n": (upper(_)) & (_)}}	v: {"a": {"n": "X"}}	{"verdict":"invalid","opts":{"noFill":true}}
+dt101	verdict	v: {&: {"n": (upper(_)) & (_)}}	v: {"a": {"n": "X"}}	{"verdict":"invalid","opts":{"partial":true}}

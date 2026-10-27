@@ -7341,8 +7341,8 @@ of one key are a meet too, read in the order they're written
 def Val.filled : Val → Val
   | .meet a b => a.filled.meetFilled b.filled
   | .map fs spread closed =>
-    .map (spreadAll (joinFields [] (filledFields fs)) (filledSpread spread)).1
-      (spreadAll (joinFields [] (filledFields fs)) (filledSpread spread)).2 closed
+    .map (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).1
+      (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).2 closed
 ```
 
 It then reads a meet with one side waiting on a hole and the other not
@@ -7463,6 +7463,49 @@ def spreadWith (arms : List (Val × Val)) (t : Val) (k : String) : Val :=
 So `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, since the second
 `a` meets the filled `add(1, 1)`, and `({&: add(_, 1)} & {a: 1}) & {b: 5}`
 fills `b` with `6`, as both engines answer.
+
+When a template is a meet or a disjunction, it waits where one of its
+sides or arms does (`Val.waitsTop`), and the fill leaves it as written
+(`tmplSpread`), so that its own meet doesn't fill it. The member meets
+each side and each arm in turn, and one that waits takes the member as
+its argument:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.instAt : Val → Val → Val
+  | .meet x y, p => .meet (x.instAt p) (y.instAt p)
+  | .or arms, p => .or (instArms arms p)
+  | .ride k v r, p => if v.waitsTop then .ride k (v.instAt p) r else .meet (.ride k v r) p
+  | x, p => if x.fillable then x.bindHole p else .meet x p
+```
+
+Write `loud.aontu`:
+
+<!-- test: file loud.aontu -->
+```aontu
+names: { &: upper(_) & _ } & { a:"WEB" b:"API" }
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu loud.aontu
+{
+  "names": {
+    "a": "WEB",
+    "b": "API"
+  }
+}
+```
+
+Each member meets `upper` of itself, so the template admits the members
+already in upper case, and `b: "api"` would be a conflict.
+`{&: upper(_) & "a"}` admits none, since `upper(p)` is never `"a"`, and
+`{&: add(_, 1) & number}` refuses `{a: 1}`, since `number` meets `1`
+beside `add(1, 1)`, as both engines answer. A container inside the
+template fills from its own meets first, as any other term does, so
+`{&: {n: upper(_) & "a"}}` passes `{a: {n: "A"}}`. The rows are dt0 on.
 
 A template that holds its hole inside a container fills each member
 the same way, once, but member by member: the template meets the
@@ -7591,10 +7634,10 @@ engines answer. `(upper(_) & _) & "x"` is an error in the definition
 and in both engines, where reading through the group would fill
 `upper(_)` with `"x"`, and since two holes meet as one, so is
 `(_ & _) & upper(_)`. The rows are dg0 on, and both engines answer
-every one as the definition does. A spread's template of that shape,
-as in `{&: upper(_) & _}`, is `nil` at each member it meets,
-where both engines bind each of its holes to the member, which #561
-tracks.
+every one as the definition does. The definition reads a spread's
+template of that shape, as in `{&: upper(_) & _}`, as a template
+instead, each member meeting each side, as `Val.instAt` has it earlier
+in this step.
 
 ## 28. A map from a template
 
