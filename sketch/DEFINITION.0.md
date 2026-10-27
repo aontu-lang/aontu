@@ -1446,6 +1446,15 @@ until the phase that encodes it lands.
    gives: the peer fills the preferred arm, so `*upper(_) & "a"` is
    `"A"`, and `vet` passes `"A"`, and `"a"` through the parent arm. The
    definition stands, and both ports' `vet` moves, which #560 tracks.
+
+   **Ported 2026-10-27.** The cause was the meet, not `vet`: met with a
+   peer, a preference narrowed the space that may still replace it with
+   a meet that records, so a peer that emptied that space reported a
+   conflict though the preferred arm stood, and the data `"A"` met
+   `*"A"` over a space of `"a"`. Both ports now narrow it by trial
+   (`PrefVal.unify`, `PrefVal.Unify`), an empty space kept as a quiet
+   nil that the nil collector leaves alone. Rows dv156 on, 13 cases in
+   each mode, both ports answering every row as the definition does.
 31. **A hole in a spread's template that is a meet.** Raised 2026-10-26
    by #559's build (#561). Both ports bind each hole of a spread's
    template to the member the template is tried on, at the hole's
@@ -1496,7 +1505,18 @@ until the phase that encodes it lands.
    side to the whole member, `{&: _ & type({n: upper(_)})}`, which #552
    records, and neither fills a disjunction a peer gives the hole beside
    a container side, since `_` on the right of a meet fills nothing
-   there, which #564 records; no row holds either shape.
+   there, which #565 records; no row holds either shape.
+
+   A bare `_` as the template, alone or under a rider, ported the same
+   day (#564): both ports met the member with the hole as a value, a
+   `scalar_kind` conflict, and now let the hole lead that meet, so
+   `{&: _} & {a: 1}` is `{a: 1}`. The dispatch of `emit` keeps the old order
+   while it tests a `match`, where a hole standing in the pattern
+   matches nothing (`Val.matchRead`). Rows dt210 on, 10 cases in each
+   mode, both ports answering every row as the definition does. A hole
+   on the right of any other meet fills nothing in either port, so
+   `1 & _` is an error where the definition reads `1`, which #565
+   records.
 
 ## 8. Risks
 

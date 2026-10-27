@@ -8,6 +8,31 @@ each change affects.
 
 ## Unreleased
 
+### Both engines' vet passes the value eval gives a preference its peer fills, and a bare hole template takes each member
+
+TypeScript and Go, generated rows, and documentation.
+
+- A preference met with a peer narrows the space that may still replace
+  it by trial (`PrefVal.unify`, `PrefVal.Unify`), and a peer that
+  empties that space leaves the preference standing rather than
+  reporting a conflict. So `v: *upper(_) & "a"` passes `v: "A"`, the
+  value `eval` gives, as well as `v: "a"` through the parent arm, where
+  both engines refused `v: "A"` with `scalar_value` (#560). The nil
+  collector leaves a standing preference's override space alone.
+- A bare `_` as a spread's template leads its meet with the member, so
+  `{&: _} & {a: 1}` is `{a: 1}`, `[&: _] & [1]` is `[1]`, and
+  `{&: type(_)}` reads the same, where both engines failed with
+  `scalar_kind` (#564). The dispatch of `emit` keeps the old order while it
+  tests a `match`, where a hole standing in the pattern matches nothing.
+- Both engines still fill nothing from a hole on the right of any other
+  meet, so `1 & _` and `{a: 1} & {a: _}` are errors (#565).
+- `spec/Oracle.lean`: rows dv156 to dv194 and dt210 to dt239 of
+  `test/spec/def-call.tsv`, 23 cases in each of the three modes. Both
+  engines answer every row as the definition does, and no other row
+  moves.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
 ### The definition reads a spread's template that waits at its own position as both engines do
 
 Definition, generated rows, and documentation. No engine changes.

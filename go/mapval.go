@@ -637,7 +637,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		} else {
 			sc := spreadCloneFor(spreadCj, kslot, ctx)
 			ctx.slot = kslot
-			cv = unite(ctx, child, sc)
+			cv = meetTemplate(ctx, child, sc)
 			if !isTop(spreadCj) && !cv.Nil() {
 				setSprOn(cv, spreadCj)
 			}
@@ -707,7 +707,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				!out.isAliasKey(pk) {
 				sc := spreadCloneFor(spreadCj, pkslot, ctx)
 				ctx.slot = pkslot
-				uv = unite(ctx, uv, sc)
+				uv = meetTemplate(ctx, uv, sc)
 				if !isTop(spreadCj) && !uv.Nil() {
 					setSprOn(uv, spreadCj)
 				}

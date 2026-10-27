@@ -453,9 +453,15 @@ class Unify {
 } /* node:coverage ignore next 10 */
 
 
+const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string): Val =>
+  true === (tmpl as any).isPlace && true !== ctx._matchRead ? unite(ctx, tmpl, member, whence)
+    : unite(ctx, member, tmpl, whence)
+
+
 export {
   Unify,
   unite,
+  meetTemplate,
   withDepth,
   applyFlows,
   ride,

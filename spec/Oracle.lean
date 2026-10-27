@@ -4758,7 +4758,11 @@ either side, an arm whose call the data leaves unmade dropping, as
 `add(_, 1) | "x"` passes `"x"`; and a lone preference over a call that
 waits, the data filling its preferred arm and meeting its parent arm,
 so that `*add(_, 1)` passes `"x"`, at the top, inside a map, which the
-data may leave out, and inside a list; and a disjunction of containers
+data may leave out, and inside a list, and one the document's own peer
+fills, whose filled arm the data passes as `eval` gives it (decision
+30), so that `*upper(_) & "a"` passes `"A"`, on either side, after a
+later peer that leaves nothing to replace it, and beside the data's own
+value through its parent arm; and a disjunction of containers
 a container meets, met arm by arm on either side, at the top, as a
 member, in a list and beside a meet. -/
 def dataFillCases : List (Val × Data) :=
@@ -4804,7 +4808,17 @@ def dataFillCases : List (Val × Data) :=
       .map [("x", .map [("a", .str "A")])]),
     (.meet (lst [up .hole]) (.or [(0, lst [s "a"]), (0, lst [s "b"])]), .list [.str "A"]),
     (.meet (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])) (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]),
-      .map [("a", .str "A"), ("b", .integer 1)])]
+      .map [("a", .str "A"), ("b", .integer 1)]),
+    (.meet (.pref 1 (up .hole)) (s "a"), .str "A"), (.meet (.pref 1 (up .hole)) (s "a"), .str "a"),
+    (.meet (.pref 1 (up .hole)) (s "a"), .str "b"),
+    (.meet (s "a") (.pref 1 (up .hole)), .str "A"), (.meet (s "a") (.pref 1 (up .hole)), .str "a"),
+    (.meet (.pref 1 (add1 .hole)) (n 1), .integer 2), (.meet (.pref 1 (add1 .hole)) (n 1), .integer 1),
+    (.meet (.pref 1 (add1 .hole)) (n 1), .integer 3),
+    (mp [("a", .meet (.pref 1 (up .hole)) (s "a"))], .map [("a", .str "A")]),
+    (mp [("a", .meet (.pref 1 (up .hole)) (s "a"))], .map [("a", .str "a")]),
+    (lst [.meet (.pref 1 (up .hole)) (s "a")], .list [.str "A"]),
+    (.meet (.meet (.pref 1 (up .hole)) (s "a")) (s "A"), .str "A"),
+    (.meet (.meet (.pref 1 (up .hole)) (s "a")) (s "A"), .str "a")]
 
 theorem dataFillCases_checkable : ∀ c ∈ dataFillCases, (vetDoc c).1.CheckableA := by decide
 
@@ -4897,7 +4911,8 @@ template, at its own position or beneath a side or an arm that waits,
 filled from its own meet first; a container side or arm met with the
 member member by member, a hole beneath it taking the member's member
 there, whether the spread meets the data, the map's own members, or a
-map or a list on either side of a meet; as both ports answer. -/
+map or a list on either side of a meet; and a bare hole, alone or under
+a rider, which takes each member as it stands; as both ports answer. -/
 def spreadTmplCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4963,7 +4978,16 @@ def spreadTmplCases : List (Val × Data) :=
     (sm (.meet (.meet .hole (mp [("n", up .hole)])) (mp [("m", lo .hole)])),
       .map [("a", .map [("n", .str "X"), ("m", .str "y")])]),
     (sm (.meet (.meet .hole (mp [("n", up .hole)])) (mp [("m", lo .hole)])),
-      .map [("a", .map [("n", .str "X"), ("m", .str "Y")])])]
+      .map [("a", .map [("n", .str "X"), ("m", .str "Y")])]),
+    (sm .hole, .map [("a", .integer 1)]), (sm .hole, .map [("a", .str "a")]),
+    (.meet (sm .hole) (mp [("a", n 1)]), .map [("a", .integer 1)]),
+    (.meet (sm .hole) (mp [("a", n 1)]), .map [("a", .integer 2)]),
+    (.meet (sl .hole) (.list [n 1] none false), .list [.integer 1]),
+    (.meet (sl .hole) (.list [n 1] none false), .list [.integer 2]),
+    (.meet (sm (.ride .type .hole [])) (mp [("a", n 1)]), .map [("a", .integer 1)]),
+    (.meet (mp [("a", n 1)]) (sm .hole), .map [("a", .integer 1)]),
+    (.meet (.list [n 1] none false) (sl .hole), .list [.integer 1]),
+    (.meet (sm .hole) (mp [("a", mp [("x", n 1)])]), .map [("a", .map [("x", .integer 1)])])]
 
 theorem spreadTmplCases_checkable : ∀ c ∈ spreadTmplCases, (vetDoc c).1.CheckableA := by decide
 

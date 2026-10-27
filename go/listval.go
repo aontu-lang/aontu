@@ -198,7 +198,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		} else {
 			sc := spreadCloneFor(spreadCj, islot, ctx)
 			ctx.slot = islot
-			ev = unite(ctx, e, sc)
+			ev = meetTemplate(ctx, e, sc)
 			if !isTop(spreadCj) && !ev.Nil() {
 				setSprOn(ev, spreadCj)
 			}
@@ -270,7 +270,7 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 				} else if l.spread != nil && !isAbsent(uv) {
 					sc := spreadCloneFor(spreadCj, islot, ctx)
 					ctx.slot = islot
-					uv = unite(ctx, uv, sc)
+					uv = meetTemplate(ctx, uv, sc)
 					if !isTop(spreadCj) && !uv.Nil() {
 						setSprOn(uv, spreadCj)
 					}

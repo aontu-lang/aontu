@@ -7448,8 +7448,9 @@ make, and the second arm stands. A lone preference is met as the two
 arms the meet reads it as, its preferred arm filled and its parent arm
 (`Val.super`) met, so `v: *upper(_)` passes `v: "a"`, and
 `v: *add(_, 1)` passes `v: "x"`, which the parent arm admits. Met with
-a peer, `*upper(_) & "a"` gives `"A"`, its preferred arm filled, yet
-both engines' `vet` refuses `v: "A"` against it, which #560 tracks. A
+a peer, `*upper(_) & "a"` gives `"A"`, its preferred arm filled, so
+`vet` passes `v: "A"` against it, and `v: "a"` through the parent arm,
+as both engines answer. A
 disjunction on the other side is met arm by arm too, as the meet
 distributes it (`fillWith`), so `{a: upper(_)} & ({a: "a"} | {a: "b"})`
 fills each arm's member and passes `{a: "A"}`, as both engines answer.
@@ -7523,8 +7524,8 @@ template fills from its own meets first, as any other term does, so
 `{&: {n: upper(_) & "a"}}` passes `{a: {n: "A"}}`, and so does
 `{&: upper(_) | {n: upper(_) & "a"}}`, whose second arm is `{n: "A"}`.
 
-A container side meets the member member by member, so a hole beneath
-it takes the member's own member there. Write `codes.aontu`:
+A container side and the member meet member by member, so a hole
+beneath the side takes the member's own member there. Write `codes.aontu`:
 
 <!-- test: file codes.aontu -->
 ```aontu
@@ -7552,7 +7553,8 @@ The hole beside the container takes the whole member, and the one
 beneath it the member's `n`, so `a:n:"web"` would be a conflict,
 `"web"` meeting `"WEB"`. The same holds where the spread is the data's,
 the map's own or a peer's on either side of a meet, and in a list, as
-both engines answer. The rows are dt0 on.
+both engines answer. A bare `_` as the template takes each member as
+it stands, so `{&: _} & {a: 1}` is `{a: 1}`. The rows are dt0 on.
 
 A template that holds its hole inside a container fills each member
 the same way, once, but member by member: the template meets the

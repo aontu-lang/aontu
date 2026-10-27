@@ -10,6 +10,7 @@ const utility_1 = require("../utility");
 const top_1 = require("./top");
 const FeatureVal_1 = require("./FeatureVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+const NilVal_1 = require("./NilVal");
 const SuperFuncVal_1 = require("./SuperFuncVal");
 function prefInnerPeg(v) {
     let out = v;
@@ -91,7 +92,12 @@ class PrefVal extends FeatureVal_1.FeatureVal {
             why += 'super-';
             const met = (0, FuncBaseVal_1.trialUnify)(ctx, prefInnerPeg(this).clone(ctx), peer);
             if (undefined !== met) {
-                const gate = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'GATE') }) : ctx, this.superpeg.clone(ctx), peer, 'pref-gate/' + this.id);
+                // An override space the peer empties leaves the preference
+                // standing with nothing left to replace it, not a conflict.
+                const space = (0, FuncBaseVal_1.trialUnify)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'GATE') }) : ctx, this.superpeg.clone(ctx), peer);
+                const gate = undefined !== space ? space
+                    : true === this.superpeg.isNil ? this.superpeg
+                        : new NilVal_1.NilVal({ why: 'empty' }, ctx);
                 // Unchanged on both counts is the SAME preference, returned as
                 // itself: minting a new one every pass would keep the fixpoint
                 // moving for ever.

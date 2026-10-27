@@ -770,8 +770,13 @@ func emitDispatch(ctx *Ctx, base []string, node Val,
 		// The trial is against CLONES: unite refines a bag in place
 		// against a TOP peer, and a pattern that failed must be
 		// untouched for the next node.
+		// A hole standing in a pattern matches nothing, so a bare-hole
+		// spread template here doesn't take the member as meetTemplate does.
+		savedRead := ctx.matchRead
+		ctx.matchRead = true
 		met := trialUnify(ctx, clonePath(node, base),
 			clonePath(templates[i].match, base))
+		ctx.matchRead = savedRead
 		if nil != met && sameMembers(node, met, ctx) {
 			return &templates[i], nil
 		}

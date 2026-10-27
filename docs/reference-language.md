@@ -1354,9 +1354,9 @@ waits takes the member as its argument (`Val.instAt`). So
 `{&: upper(_) & _}` admits the members already in upper case,
 `{&: upper(_) & "a"}` refuses every member, and
 `{&: add(_, 1) & number}` refuses `{a: 1}`, since `number` meets `1`
-beside `add(1, 1)`, as both engines answer. Any other side meets the
-member member by member, so a hole beneath it takes the member's own
-member there: `{&: _ & {n: upper(_)}}` passes `{a: {n: "X"}}` and
+beside `add(1, 1)`, as both engines answer. Any other side and the
+member meet member by member, so a hole beneath the side takes the
+member's own member there: `{&: _ & {n: upper(_)}}` passes `{a: {n: "X"}}` and
 refuses `{a: {n: "x"}}`, whether the spread meets the data, its own
 map's members or a peer's, as both engines answer. A template that holds its hole inside a container
 fills each member the same way, member by member (`heldOnto`):
@@ -1385,15 +1385,20 @@ however the document groups the meet and whatever else it meets, so
 disjunction drops an arm that holds one, so `v: (upper(_) & _) | "x"`
 passes `v: "x"` (`Val.fillMeet`). A spread's template of that shape,
 as in `{&: upper(_) & _}`, reads as a template instead, each hole
-taking the member, so it passes `{a: "X"}`. A disjunction is
+taking the member, so it passes `{a: "X"}`, and a bare `_` as a
+template takes each member as it stands, so `{&: _} & {a: 1}` is
+`{a: 1}`. Both engines fill a hole on the right of any other meet
+with nothing, so `1 & _` and `{a: 1} & {a: _}` are errors, where the
+definition reads both as filled, which
+[#565](https://github.com/aontu-lang/aontu/issues/565) tracks. A disjunction is
 filled arm by arm, so `v: upper(_) | "fallback"` passes `v: "a"`, and
 an arm whose call the data leaves unmade drops, so `v: add(_, 1) | "x"`
 passes `v: "x"`. A lone preference fills its preferred arm and meets
 the data with its parent arm, so `v: *upper(_)` passes `v: "a"`, and
 `v: *add(_, 1)` passes `v: "x"`. Met with a peer, `*upper(_) & "a"`
-gives `"A"`, yet both engines' `vet` refuses `v: "A"` against
-`v: *upper(_) & "a"` and passes `v: "a"`, which
-[#560](https://github.com/aontu-lang/aontu/issues/560) tracks. A disjunction a container meets is
+gives `"A"`, and `vet` passes the value `eval` gives: `v: "A"` against
+`v: *upper(_) & "a"` through the preferred arm, and `v: "a"` through
+the parent arm. A disjunction a container meets is
 met arm by arm, so `v: {a: upper(_)} & ({a: "a"} | {a: "b"})` passes
 `v: {a: "A"}`. A
 generator waits on its data alone and reads its template only at each

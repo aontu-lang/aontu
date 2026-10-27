@@ -74,6 +74,11 @@ function collectNils(root, seen) {
         for (const c of trialSchemas(v)) {
             walked.add(c);
         }
+        // A standing preference's override space only says what may still
+        // replace it, so an empty one is no finding.
+        if (true === v.isPref && null != v.superpeg) {
+            walked.add(v.superpeg);
+        }
         // A pending match's arms are what it returns where one is chosen, and
         // a nil arm is a choice, not yet a value.
         if (true === v.isMatchFunc) {

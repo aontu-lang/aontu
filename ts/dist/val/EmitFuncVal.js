@@ -356,7 +356,11 @@ class EmitFuncVal extends FuncBaseVal_1.FuncBaseVal {
             // The trial is against CLONES: `unite` refines a bag in place
             // against a TOP peer, and a pattern that failed must be untouched
             // for the next node.
-            const met = (0, FuncBaseVal_1.trialUnify)(ctx, node.clone(ctx), tmpl.match.clone(ctx));
+            // A hole standing in a pattern matches nothing, so a bare-hole
+            // spread template here doesn't take the member as meetTemplate does.
+            const pctx = ctx.clone({});
+            pctx._matchRead = true;
+            const met = (0, FuncBaseVal_1.trialUnify)(pctx, node.clone(pctx), tmpl.match.clone(pctx));
             if (undefined !== met && (0, FuncBaseVal_1.sameMembers)(node, met, ctx)) {
                 return tmpl;
             }
