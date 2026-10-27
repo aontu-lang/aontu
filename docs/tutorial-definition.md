@@ -7524,8 +7524,8 @@ template fills from its own meets first, as any other term does, so
 `{&: {n: upper(_) & "a"}}` passes `{a: {n: "A"}}`, and so does
 `{&: upper(_) | {n: upper(_) & "a"}}`, whose second arm is `{n: "A"}`.
 
-A container side meets the member member by member, so a hole beneath
-it takes the member's own member there. Write `codes.aontu`:
+A container side and the member meet member by member, so a hole
+beneath the side takes the member's own member there. Write `codes.aontu`:
 
 <!-- test: file codes.aontu -->
 ```aontu
