@@ -443,8 +443,9 @@ of §1, which waits on the marks of ruling 10.
 Each changes a rule. The first five were ruled on 2026-10-16, the
 next three on 2026-10-19, seven more on 2026-10-20, two on 2026-10-21
 and the rest on 2026-10-23, but decision 29, raised on 2026-10-24 and
-ruled on 2026-10-25, and decision 30, raised on 2026-10-25 and ruled on
-2026-10-26. Each was raised by the phase that found it, and each stands here
+ruled on 2026-10-25, decision 30, raised on 2026-10-25 and ruled on
+2026-10-26, and decision 31, raised on 2026-10-26 and ruled on
+2026-10-27. Each was raised by the phase that found it, and each stands here
 until the phase that encodes it lands.
 
 1. **The meaning of `%U = %U`.** Ruled 2026-10-16: ill-formed, an
@@ -1445,6 +1446,23 @@ until the phase that encodes it lands.
    gives: the peer fills the preferred arm, so `*upper(_) & "a"` is
    `"A"`, and `vet` passes `"A"`, and `"a"` through the parent arm. The
    definition stands, and both ports' `vet` moves, which #560 tracks.
+31. **A hole in a spread's template that is a meet.** Raised 2026-10-26
+   by #559's build (#561). Both ports bind each hole of a spread's
+   template to the member the template is tried on, at the hole's
+   position, as a generator's template binds its holes, so
+   `{&: upper(_) & _}` passes `{a: "X"}`, `upper("X") & "X"`, and
+   `{&: upper(_) & "a"}` refuses every member, `upper("A") & "a"` a
+   conflict. The definition fills a spread's template from its own meet
+   first, as it fills every other meet (decision 21), so
+   `{&: upper(_) & "a"}` is `{&: "A"}`, and `upper(_) & _`, two sides that
+   both wait, refuses every member it meets.
+
+   **Ruled 2026-10-27: the member.** Each hole of a spread's template
+   takes the member's value at its position, as both ports read it and
+   as `_` reads in a generator's template: `{&: upper(_) & _}` admits the
+   members already in upper case, and `{&: upper(_) & "a"}` refuses every
+   member. The ports stand, and the definition stops filling a spread's
+   template from its own meet.
 
 ## 8. Risks
 

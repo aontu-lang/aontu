@@ -410,3 +410,15 @@ The answers to the agent's questions, each question followed by the option chose
 What should I build next in the definition?
 → #559: fill a group as written (Recommended)
 ```
+
+## 2026-10-27 14:55:36 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#561: in a spread's template that is a meet, as in `{&: upper(_) & _}` or `{&: upper(_) & "a"}`, what does a hole stand for? Both engines bind each hole to the member the template is tried on. The definition fills it from the template's own meet first.
+→ The member (Recommended)
+
+What should I build next?
+→ Build the #561 ruling (Recommended)
+```
