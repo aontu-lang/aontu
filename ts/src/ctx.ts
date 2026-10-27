@@ -108,8 +108,6 @@ class AontuContext {
 
   _trialMode?: boolean
 
-  // Set while emit tests a template's match, where a hole standing in
-  // the pattern matches nothing, a spread's template among them.
   _matchRead?: boolean
 
   _childCache?: Map<string, AontuContext>

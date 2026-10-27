@@ -453,8 +453,6 @@ class Unify {
 } /* node:coverage ignore next 10 */
 
 
-// A bare hole as a spread's template is the member it meets, so the
-// hole leads the meet rather than meeting the member as a value.
 const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string): Val =>
   true === (tmpl as any).isPlace && true !== ctx._matchRead ? unite(ctx, tmpl, member, whence)
     : unite(ctx, member, tmpl, whence)

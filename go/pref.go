@@ -102,8 +102,7 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 
 			inner := prefInnerPeg(p)
 			if met := trialUnify(ctx, clonePath(inner, cp(p.path)), peer); nil != met {
-				// An override space the peer empties leaves the preference
-				// standing with nothing left to replace it, not a conflict.
+				// A peer that empties the override space leaves the preference standing.
 				gate := trialUnify(ctx, clonePath(p.superpeg, cp(p.path)), peer)
 				if nil == gate {
 					if p.superpeg.Nil() {

@@ -8,8 +8,7 @@ import (
 	"strings"
 )
 
-// A bare hole as a spread's template is the member it meets, so the
-// hole leads the meet rather than meeting the member as a value.
+// A bare hole as a spread's template leads its meet: it is the member.
 func meetTemplate(ctx *Ctx, member, tmpl Val) Val {
 	if _, ok := tmpl.(*PlaceVal); ok && !ctx.matchRead {
 		return unite(ctx, tmpl, member)
