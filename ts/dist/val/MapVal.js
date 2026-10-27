@@ -205,7 +205,7 @@ class MapVal extends BagVal_1.BagVal {
                                 key_spread_cj.isTop && !(0, rider_1.rides)(key_spread_cj) && child.done
                                     && undefined === keyctx.prov ? child :
                                     child.isTop && !(0, rider_1.rides)(child) && key_spread_cj.done ? key_spread_cj :
-                                        (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, key_spread_cj, 'map-own');
+                                        (0, unify_1.meetTemplate)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, key_spread_cj, 'map-own');
                     if (!spread_cj.isTop && !oval.isNil) {
                         ;
                         oval._spr = (0, Val_1.spreadId)(spread_cj);
@@ -272,7 +272,7 @@ class MapVal extends BagVal_1.BagVal {
                                 (0, provenance_1.markSpread)(key_spread_cj);
                             }
                             oval = out.peg[peerkey] =
-                                (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'PSP:' + peerkey) }) : peerctx, oval, key_spread_cj, 'map-peer-spread');
+                                (0, unify_1.meetTemplate)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'PSP:' + peerkey) }) : peerctx, oval, key_spread_cj, 'map-peer-spread');
                             if (!spread_cj.isTop && !oval.isNil) {
                                 ;
                                 oval._spr = (0, Val_1.spreadId)(spread_cj);

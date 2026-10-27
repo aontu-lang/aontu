@@ -122,6 +122,12 @@ func collectNils(v Val, out *[]*NilVal, seen map[Val]bool) {
 			if t.spread != nil {
 				walked[t.spread] = true
 			}
+		// A standing preference's override space only says what may still
+		// replace it, so an empty one is no finding.
+		case *PrefVal:
+			if t.superpeg != nil {
+				walked[t.superpeg] = true
+			}
 		// A trial schema is no instance value, and a nil one admits nothing.
 		case *ConstraintVal:
 			for _, b := range trialSchemas(t) {

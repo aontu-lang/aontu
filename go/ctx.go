@@ -18,6 +18,9 @@ type Ctx struct {
 	depth int // unite recursion depth (cycle guard)
 	cc    int // current fixpoint pass (for late-resolving funcs)
 	trial bool
+	// Set while emit tests a template's match, where a hole standing in
+	// the pattern matches nothing, a spread's template among them.
+	matchRead bool
 	reldecls map[string]*relDecl
 	fixroot Val
 	settle bool

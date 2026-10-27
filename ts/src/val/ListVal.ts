@@ -13,7 +13,7 @@ import {
 } from '../type'
 
 import { AontuContext } from '../ctx'
-import { unite } from '../unify'
+import { meetTemplate, unite } from '../unify'
 
 import { sealChild } from './SealVal'
 
@@ -212,7 +212,7 @@ class ListVal extends BagVal {
                   key_spread_cj.isTop && !rides(key_spread_cj) && child.done
                     && undefined === keyctx.prov ? child :
                     child.isTop && !rides(child) && key_spread_cj.done ? key_spread_cj :
-                      unite(te ? keyctx.clone({ explain: ec(te, 'PEG:' + key) }) : keyctx,
+                      meetTemplate(te ? keyctx.clone({ explain: ec(te, 'PEG:' + key) }) : keyctx,
                         child, key_spread_cj, 'list-own')
 
           if (!spread_cj.isTop && !oval.isNil) {
@@ -297,7 +297,7 @@ class ListVal extends BagVal {
             }
 
             oval = out.peg[peerkey] =
-              unite(te ? peerctx.clone({ explain: ec(te, 'PSP:' + peerkey) }) : peerctx,
+              meetTemplate(te ? peerctx.clone({ explain: ec(te, 'PSP:' + peerkey) }) : peerctx,
                 out.peg[peerkey], key_spread_cj, 'list-spread')
             if (!spread_cj.isTop && !oval.isNil) {
               ; (oval as any)._spr = spreadId(spread_cj)

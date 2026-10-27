@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2021-2023 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.withDepth = exports.unite = exports.Unify = void 0;
+exports.withDepth = exports.meetTemplate = exports.unite = exports.Unify = void 0;
 exports.applyFlows = applyFlows;
 exports.ride = ride;
 exports.rideOn = rideOn;
@@ -372,4 +372,9 @@ class Unify {
     }
 } /* node:coverage ignore next 10 */
 exports.Unify = Unify;
+// A bare hole as a spread's template is the member it meets, so the
+// hole leads the meet rather than meeting the member as a value.
+const meetTemplate = (ctx, member, tmpl, whence) => true === tmpl.isPlace && true !== ctx._matchRead ? unite(ctx, tmpl, member, whence)
+    : unite(ctx, member, tmpl, whence);
+exports.meetTemplate = meetTemplate;
 //# sourceMappingURL=unify.js.map
