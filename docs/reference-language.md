@@ -1347,7 +1347,18 @@ spread whose template waits on a hole fills each member it meets, once,
 its own and a peer's, and then reads that key as `any`
 (`spreadFields`, `spreadWith`): `{&: upper(_)} & {a: "x"}` is
 `{a: "X"}`, and `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, as
-both engines answer. A template that holds its hole inside a container
+both engines answer. When a template is a meet or a disjunction, it
+waits where one of its sides or arms does (`Val.waitsTop`), and its own meet
+doesn't fill it: the member meets each side and each arm, and one that
+waits takes the member as its argument (`Val.instAt`). So
+`{&: upper(_) & _}` admits the members already in upper case,
+`{&: upper(_) & "a"}` refuses every member, and
+`{&: add(_, 1) & number}` refuses `{a: 1}`, since `number` meets `1`
+beside `add(1, 1)`, as both engines answer. Any other side meets the
+member member by member, so a hole beneath it takes the member's own
+member there: `{&: _ & {n: upper(_)}}` passes `{a: {n: "X"}}` and
+refuses `{a: {n: "x"}}`, whether the spread meets the data, its own
+map's members or a peer's, as both engines answer. A template that holds its hole inside a container
 fills each member the same way, member by member (`heldOnto`):
 `{&: {n: upper(_)}} & {a: {n: "x"}}` is `{a: {n: "X"}}`, and a member
 that is a disjunction is met arm by arm, so
@@ -1372,11 +1383,9 @@ engines answer, though `_ & _` meets as one hole. It stays an error
 however the document groups the meet and whatever else it meets, so
 `(upper(_) & _) & "x"` and `(_ & _) & upper(_)` are errors too, and a
 disjunction drops an arm that holds one, so `v: (upper(_) & _) | "x"`
-passes `v: "x"` (`Val.fillMeet`). Both engines read a spread's template
-of that shape, as in `{&: upper(_) & _}`, with each hole bound to the
-member, so it passes `{a: "X"}`, where the definition reads the
-template as `nil`, which
-[#561](https://github.com/aontu-lang/aontu/issues/561) tracks. A disjunction is
+passes `v: "x"` (`Val.fillMeet`). A spread's template of that shape,
+as in `{&: upper(_) & _}`, reads as a template instead, each hole
+taking the member, so it passes `{a: "X"}`. A disjunction is
 filled arm by arm, so `v: upper(_) | "fallback"` passes `v: "a"`, and
 an arm whose call the data leaves unmade drops, so `v: add(_, 1) | "x"`
 passes `v: "x"`. A lone preference fills its preferred arm and meets
@@ -1390,8 +1399,9 @@ met arm by arm, so `v: {a: upper(_)} & ({a: "a"} | {a: "b"})` passes
 generator waits on its data alone and reads its template only at each
 member it makes, so `v: each(_, upper({}))` passes `v: []`. Rows from
 dv0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold
-both engines to it, and rows from dg0 on to a meet of two sides that
-wait.
+both engines to it, rows from dg0 on to a meet of two sides that wait,
+and rows from dt0 on to a spread's template that waits at its own
+position.
 
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:
