@@ -106,3 +106,19 @@ place-hole-in-list-arg-member	errc	a:{k:sum([_,1])} & {k:3}\n	mapval_no_gen
 place-hole-binds-own-only	errc	a:add(_,sum([_,1])) & 2\n	mapval_no_gen
 place-hole-sep-binds-own-only	errc	a:join([_,"b"],_) & "-"\n	mapval_no_gen
 place-hole-peer-container	errc	a:upper(_) & [_]\n	mapval_no_gen
+
+# A call over a container whose argument is the hole takes its peer as
+# that argument, as any call does, and computes from it once the peer
+# settles: on either side, over a map, for each such call, and with the
+# hole as `join`'s separator. A peer the call refuses is refused as the
+# argument.
+place-agg-hole-peer-right	gens	o:[1,2] & sum(_)\n	{"o":3}
+place-agg-hole-peer-left	gens	o:sum(_) & [1,2]\n	{"o":3}
+place-agg-hole-map	gens	o:{a:1,b:2} & sum(_)\n	{"o":3}
+place-agg-hole-least	gens	o:[1,2] & least(_)\n	{"o":1}
+place-agg-hole-greatest	gens	o:[1,2] & greatest(_)\n	{"o":2}
+place-agg-hole-sort	gens	o:["b","a"] & sort(_)\n	{"o":["a","b"]}
+place-agg-hole-pick	gens	o:[{a:1}] & pick(_,"a")\n	{"o":[1]}
+place-agg-hole-join	gens	o:["a","b"] & join(_,"-")\n	{"o":"a-b"}
+place-agg-hole-join-sep	gens	o:join(["a","b"],_) & "-"\n	{"o":"a-b"}
+place-agg-hole-refuses	errc	o:["a","b"] & sum(_)\n	invalid-arg

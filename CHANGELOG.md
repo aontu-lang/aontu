@@ -8,6 +8,27 @@ each change affects.
 
 ## Unreleased
 
+### TypeScript's calls over a container take a peer into their hole
+
+TypeScript, generated rows, and documentation.
+
+- `sum`, `least`, `greatest`, `sort`, `pick` and `join` wait on a hole
+  in their arguments that the peer fills, as Go's do and as
+  TypeScript's own generators do, where TypeScript waited for every
+  argument to settle and so never made the call (#511). So
+  `[1, 2] & sum(_)` and `sum(_) & [1, 2]` are `3`,
+  `["b", "a"] & sort(_)` is `["a", "b"]`, `join(["a", "b"], _) & "-"`
+  is `"a-b"`, and `["a", "b"] & sum(_)` refuses the list, as Go
+  answers. In `vet` the data fills such a hole: `v: sum(_)` passes
+  `v: [1, 2]` and refuses `v: 3`, where TypeScript answered
+  `incomplete`.
+- `spec/Oracle.lean`: rows dv201 to dv236 and hv381 to hv383 of
+  `test/spec/def-call.tsv`, 13 cases in each of the three modes. Both
+  engines answer every row as the definition does, and no other row
+  moves. `test/spec/place.tsv` holds the evaluation shapes.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
 ### A call waits on no hole a container argument holds
 
 TypeScript and Go, generated rows, and documentation.
