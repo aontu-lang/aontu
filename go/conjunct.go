@@ -108,7 +108,6 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 
 	var carried []Val
 	terms := norm(c.peg, &carried)
-	done := true
 
 	// Unify each term against the peer.
 	upeer := make([]Val, len(terms))
@@ -118,9 +117,6 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		} else {
 			ctx.slot = slot
 			upeer[i] = unite(ctx, t, peer)
-		}
-		if upeer[i].Dc() != DONE {
-			done = false
 		}
 		if upeer[i].Nil() {
 			return upeer[i]
@@ -146,9 +142,6 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 		ctx.slot = slot
 		val := unite(ctx, t0, t1)
-		if val.Dc() != DONE {
-			done = false
-		}
 		_, t0dj := t0.(*DisjunctVal)
 		_, t1dj := t1.(*DisjunctVal)
 		_, _, residue := sizingResidue(val)
@@ -182,6 +175,11 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		nc.path = cp(c.path)
 		nc.site.sp, nc.site.spu, nc.site.url = c.site.sp, c.site.spu, c.site.url
 		out = nc
+	}
+	// Only the terms left after the fold decide.
+	done := true
+	for _, v := range outvals {
+		done = done && v.Dc() == DONE
 	}
 	if done {
 		out.setDc(DONE)

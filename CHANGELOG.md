@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### Both engines settle a size or a trial over a meet that fills a hole
+
+TypeScript and Go, generated rows, and documentation.
+
+- A meet whose terms fold into one value is done when that value is,
+  where both engines had kept it waiting because one of its terms had
+  waited before the fold (#549). So a size, a trial or a `match` over a
+  meet that fills a hole settles as it would written filled:
+  `["a"] & len(add(_, 1) & 2)` is refused as `len(3)` refuses it, where
+  both engines passed `["a"]`; `"A" & must(upper(_) & "a", "m")` is
+  `"A"`, and `match(upper(_) & "a", "A", 1, 2)` is `1`, where both
+  failed with `mapval_no_gen`; and Go refuses `[2]` against
+  `contains(add(_, 1) & 0)` and `{a: 2}` against `rest(add(_, 1) & 0)`,
+  and reads `when` and `nof` over such a meet, as TypeScript did.
+- `spec/Oracle.lean`: rows hv411 to hv449 of `test/spec/def-call.tsv`,
+  13 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves. `test/spec/place.tsv`
+  holds the evaluation shapes, a `match`'s scrutinee among them.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
 ### Both engines name a spread's unmade member where it stands
 
 TypeScript and Go, and shared rows.

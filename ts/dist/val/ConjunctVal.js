@@ -48,7 +48,6 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
             }
         }
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Conjunct', this, peer);
-        let done = true;
         const carried = [];
         this.peg = norm(this.peg, carried);
         // Unify each term of conjunct against peer
@@ -66,7 +65,6 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
                 (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'OWN') }) : ctx, this.peg[vI], peer, 'cj-own');
             upeer[vI].mark.type = newtype = newtype || upeer[vI].mark.type;
             upeer[vI].mark.hide = newhide = newhide || upeer[vI].mark.hide;
-            done = done && (type_1.DONE === upeer[vI].dc);
             if (upeer[vI].isNil) {
                 return upeer[vI];
             }
@@ -98,7 +96,6 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
             }
             else {
                 val = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'DEF') }) : ctx, t0, t1, 'cj-peer-t0t1');
-                done = done && type_1.DONE === val.dc;
                 newtype = this.mark.type || val.mark.type;
                 newhide = this.mark.hide || val.mark.hide;
                 // A conjunct answer is no progress, unless it is a sizing residue
@@ -137,7 +134,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
             out.site.len = this.site.len;
             out.site.src = this.site.src;
         }
-        out.dc = done ? type_1.DONE : this.dc + 1;
+        out.dc = outvals.every((v) => type_1.DONE === v.dc) ? type_1.DONE : this.dc + 1;
         // A meet flattened in leaves its riders on the whole (ADR-052).
         for (const c of carried) {
             out = (0, unify_1.rideOn)(ctx, out, c, undefined);

@@ -138,3 +138,14 @@ place-spread-once-still-constrains	errc	v:({&:{m:string}} & {a:{n:1}}) & {a:{m:1
 # template's own position.
 place-spread-unfilled-path	err	v:{&:{n:upper(_)}} & {a:{}}\n	[aontu/mapval_no_gen]: Cannot resolve value at path $.v.a.n
 place-spread-list-unfilled-path	err	v:[&:{n:upper(_)}] & [{}]\n	[aontu/mapval_no_gen]: Cannot resolve value at path $.v.0.n
+
+# A meet that fills a hole inside a size, a trial or a match settles as
+# it would written filled, so the size or trial it stands in reads its
+# value: in len, must, a match's scrutinee and its pattern, contains and
+# rest.
+place-fill-in-len	errc	v:["a"] & len(add(_,1) & 2)\n	constraint
+place-fill-in-must	gens	v:"A" & must(upper(_) & "a","m")\n	{"v":"A"}
+place-fill-in-match-scrutinee	gens	v:match(upper(_) & "a","A",1,2)\n	{"v":1}
+place-fill-in-match-pattern	gens	v:match("A",upper(_) & "a",1,2)\n	{"v":1}
+place-fill-in-contains	errc	v:[2] & contains(add(_,1) & 0)\n	constraint
+place-fill-in-rest	errc	v:{a:2} & rest(add(_,1) & 0)\n	rest

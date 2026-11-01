@@ -3230,6 +3230,45 @@ hv407	verdict	v: ({&: {"n": upper(_)}}) & ({"a": {}})	v: {"a": {}}	{"verdict":"v
 hv408	verdict	v: ((({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})) & ({"a": {}})	v: {"a": {"n": 2}}	{"verdict":"valid"}
 hv409	verdict	v: ((({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})) & ({"a": {}})	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"noFill":true}}
 hv410	verdict	v: ((({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})) & ({"a": {}})	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"partial":true}}
+hv411	verdict	v: len((add(_, 1)) & (2))	v: ["a"]	{"verdict":"invalid"}
+hv412	verdict	v: len((add(_, 1)) & (2))	v: ["a"]	{"verdict":"invalid","opts":{"noFill":true}}
+hv413	verdict	v: len((add(_, 1)) & (2))	v: ["a"]	{"verdict":"invalid","opts":{"partial":true}}
+hv414	verdict	v: len((add(_, 1)) & (2))	v: ["a", "b", "c"]	{"verdict":"valid"}
+hv415	verdict	v: len((add(_, 1)) & (2))	v: ["a", "b", "c"]	{"verdict":"valid","opts":{"noFill":true}}
+hv416	verdict	v: len((add(_, 1)) & (2))	v: ["a", "b", "c"]	{"verdict":"valid","opts":{"partial":true}}
+hv417	verdict	v: must((upper(_)) & ("a"), "m")	v: "A"	{"verdict":"valid"}
+hv418	verdict	v: must((upper(_)) & ("a"), "m")	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+hv419	verdict	v: must((upper(_)) & ("a"), "m")	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+hv420	verdict	v: must((upper(_)) & ("a"), "m")	v: "a"	{"verdict":"invalid"}
+hv421	verdict	v: must((upper(_)) & ("a"), "m")	v: "a"	{"verdict":"invalid","opts":{"noFill":true}}
+hv422	verdict	v: must((upper(_)) & ("a"), "m")	v: "a"	{"verdict":"invalid","opts":{"partial":true}}
+hv423	verdict	v: match("A", (upper(_)) & ("a"), 1, 2)	v: 1	{"verdict":"valid"}
+hv424	verdict	v: match("A", (upper(_)) & ("a"), 1, 2)	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+hv425	verdict	v: match("A", (upper(_)) & ("a"), 1, 2)	v: 1	{"verdict":"valid","opts":{"partial":true}}
+hv426	verdict	v: when(string, (upper(_)) & ("a"))	v: "A"	{"verdict":"valid"}
+hv427	verdict	v: when(string, (upper(_)) & ("a"))	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+hv428	verdict	v: when(string, (upper(_)) & ("a"))	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+hv429	verdict	v: when(string, (upper(_)) & ("a"))	v: "a"	{"verdict":"invalid"}
+hv430	verdict	v: when(string, (upper(_)) & ("a"))	v: "a"	{"verdict":"invalid","opts":{"noFill":true}}
+hv431	verdict	v: when(string, (upper(_)) & ("a"))	v: "a"	{"verdict":"invalid","opts":{"partial":true}}
+hv432	verdict	v: contains((add(_, 1)) & (0))	v: [2]	{"verdict":"invalid"}
+hv433	verdict	v: contains((add(_, 1)) & (0))	v: [2]	{"verdict":"invalid","opts":{"noFill":true}}
+hv434	verdict	v: contains((add(_, 1)) & (0))	v: [2]	{"verdict":"invalid","opts":{"partial":true}}
+hv435	verdict	v: contains((add(_, 1)) & (0))	v: [1]	{"verdict":"valid"}
+hv436	verdict	v: contains((add(_, 1)) & (0))	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
+hv437	verdict	v: contains((add(_, 1)) & (0))	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+hv438	verdict	v: rest((add(_, 1)) & (0))	v: {"a": 2}	{"verdict":"invalid"}
+hv439	verdict	v: rest((add(_, 1)) & (0))	v: {"a": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+hv440	verdict	v: rest((add(_, 1)) & (0))	v: {"a": 2}	{"verdict":"invalid","opts":{"partial":true}}
+hv441	verdict	v: rest((add(_, 1)) & (0))	v: {"a": 1}	{"verdict":"valid"}
+hv442	verdict	v: rest((add(_, 1)) & (0))	v: {"a": 1}	{"verdict":"valid","opts":{"noFill":true}}
+hv443	verdict	v: rest((add(_, 1)) & (0))	v: {"a": 1}	{"verdict":"valid","opts":{"partial":true}}
+hv444	verdict	v: nof(1, (add(_, 1)) & (0), 5)	v: 1	{"verdict":"valid"}
+hv445	verdict	v: nof(1, (add(_, 1)) & (0), 5)	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+hv446	verdict	v: nof(1, (add(_, 1)) & (0), 5)	v: 1	{"verdict":"valid","opts":{"partial":true}}
+hv447	verdict	v: nof(1, (add(_, 1)) & (0), 5)	v: 2	{"verdict":"invalid"}
+hv448	verdict	v: nof(1, (add(_, 1)) & (0), 5)	v: 2	{"verdict":"invalid","opts":{"noFill":true}}
+hv449	verdict	v: nof(1, (add(_, 1)) & (0), 5)	v: 2	{"verdict":"invalid","opts":{"partial":true}}
 dv0	verdict	v: upper(_)	v: "a"	{"verdict":"valid"}
 dv1	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"noFill":true}}
 dv2	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"partial":true}}
