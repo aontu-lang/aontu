@@ -4612,7 +4612,12 @@ generator's peer and the data as one conjunction, so a generator meets
 no data here. Last, a hole on the right of a meet, which takes its peer
 as one on the left does: after a literal, a kind and a container's
 member or element, and after a meet whose call its own peer has filled;
-and a kind on the right of a hole. -/
+and a kind on the right of a hole. And a container under a rider, a
+mark or a seal, met member by member as it would be bare: under `meta`
+on either side, around a map and a list, under `deprecate`, `hide` and
+`type`, sealed, where a key the peer adds is refused, met with a list,
+which it conflicts with, under two riders, and met with a peer whose
+member waits too; and a hole alone under a rider. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4629,6 +4634,7 @@ def holeFillVetCases : List (Val × Data) :=
   let spm (fs : List (String × Val)) (t : Val) : Val := .map (fs.map fun (k, v) => (k, false, v)) (some t) false
   let spl (xs : List Val) (t : Val) : Val := .list xs (some t) false
   let add1 (v : Val) : Val := .call .add [v, n 1]
+  let md (v : Val) : Val := .ride .metadata v [("d", .integer 1)]
   [(.meet (up .hole) (s "a"), .str "A"), (.meet (up .hole) (s "a"), .str "a"),
     (.meet (s "a") (up .hole), .str "A"),
     (.meet (.call .add [.hole, n 1]) (n 2), .integer 3),
@@ -4747,7 +4753,21 @@ def holeFillVetCases : List (Val × Data) :=
     (.meet (lst [n 1]) (lst [.hole]), .list [.integer 1]),
     (.meet .number .hole, .integer 1), (.meet .hole .number, .integer 1), (.meet .string .hole, .integer 1),
     (.meet (mp [("a", .number)]) (mp [("a", .hole)]), .map [("a", .integer 1)]),
-    (.meet (.meet (s "x") (up .hole)) .hole, .str "X")]
+    (.meet (.meet (s "x") (up .hole)) .hole, .str "X"),
+    (.meet (md (mp [("a", up .hole)])) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (mp [("a", s "x")]) (md (mp [("a", up .hole)])), .map [("a", .str "X")]),
+    (.meet (md (lst [up .hole])) (lst [s "a"]), .list [.str "A"]),
+    (.meet (.ride .deprecate (mp [("a", up .hole)]) []) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (hide (mp [("a", up .hole)])) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (type (mp [("a", up .hole)])) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (.list [up .hole] none true) (lst [s "a"]), .list [.str "A"]),
+    (.meet (.map [("a", false, up .hole)] none true) (mp [("a", s "x"), ("b", s "y")]),
+      .map [("a", .str "X"), ("b", .str "y")]),
+    (.meet (md (mp [("a", .call .sum [.hole])])) (lst [n 1, n 2]), .map [("a", .integer 3)]),
+    (.meet (.ride .metadata (md (mp [("a", up .hole)])) [("e", .integer 2)]) (mp [("a", s "x")]),
+      .map [("a", .str "X")]),
+    (.meet (md (mp [("a", up .hole)])) (mp [("a", .hole)]), .map [("a", .str "x")]),
+    (.meet (md .hole) (s "x"), .str "x")]
 
 set_option maxRecDepth 8192 in
 /-- A hole the document leaves unfilled, which the data fills, the data
@@ -4949,8 +4969,10 @@ there, whether the spread meets the data, the map's own members, or a
 map or a list on either side of a meet; and a bare hole, alone or under
 a rider, which takes each member as it stands, a member that is a hole
 among them, which the data fills; and a template that is a hole beside a
-container, met with a member that is a disjunction, arm by arm; as both
-ports answer. -/
+container, met with a member that is a disjunction, arm by arm; and a
+container side under a rider or a mark, met with the member member by
+member as it would be bare, against the data and a member the document
+writes; as both ports answer. -/
 def spreadTmplCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4965,6 +4987,8 @@ def spreadTmplCases : List (Val × Data) :=
   let nd (t : String) : Data := .map [("n", .str t)]
   let tT : Val := .meet .hole (mp [("n", up .hole)])
   let tA : Val := .or [(0, up .hole), (0, mp [("n", up .hole)])]
+  let tR : Val := .meet .hole (.ride .type (mp [("n", up .hole)]) [])
+  let tM : Val := .meet .hole (.ride .metadata (mp [("n", up .hole)]) [("d", .integer 1)])
   [(sm g, .map [("a", .str "X")]), (sm g, .map [("a", .str "x")]), (sm g, .map []),
     (sl g, .list [.str "X"]), (sl g, .list [.str "X", .str "y"]),
     (sm g, .map [("a", .str "X"), ("b", .str "Y")]),
@@ -5027,7 +5051,10 @@ def spreadTmplCases : List (Val × Data) :=
     (.meet (.list [n 1] none false) (sl .hole), .list [.integer 1]),
     (.meet (sm .hole) (mp [("a", mp [("x", n 1)])]), .map [("a", .map [("x", .integer 1)])]),
     (.meet (sm .hole) (mp [("a", .hole)]), .map [("a", .str "x")]),
-    (.meet (sm tT) (mp [("a", .or [(0, lm "X"), (0, lm "Y")])]), .map [("a", nd "X")])]
+    (.meet (sm tT) (mp [("a", .or [(0, lm "X"), (0, lm "Y")])]), .map [("a", nd "X")]),
+    (sm tR, .map [("a", nd "X")]), (sm tR, .map [("a", nd "x")]),
+    (.meet (sm tM) (mp [("a", lm "X")]), .map [("a", nd "X")]),
+    (.meet (sm tM) (mp [("a", lm "x")]), .map [("a", nd "X")])]
 
 theorem spreadTmplCases_checkable : ∀ c ∈ spreadTmplCases, (vetDoc c).1.CheckableA := by decide
 
@@ -5036,6 +5063,7 @@ theorem spread_tmpl_verdict_exact : ∀ c ∈ spreadTmplCases, ∀ (m : Mode) (v
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (spreadTmplCases_checkable c hc)) v
 
+set_option maxRecDepth 8192 in
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
 
 theorem hole_fill_verdict_exact : ∀ c ∈ holeFillVetCases, ∀ (m : Mode) (v : Verdict),
