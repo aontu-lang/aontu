@@ -69,6 +69,11 @@ function trialUnify(ctx, a, b) {
     }
     return 0 < trialErr.length || out.isNil ? undefined : out;
 }
+const WRAPPERS = new Set(['meta', 'deprecate', 'ident', 'type', 'hide', 'close', 'open']);
+function wrapsBag(v) {
+    const inner = true === v?.isFunc && WRAPPERS.has(v.funcname()) ? v.peg[0] : undefined;
+    return null != inner && (true === inner.isMap || true === inner.isList || wrapsBag(inner));
+}
 class FuncBaseVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -146,7 +151,11 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
         if (this.staged && !ctx.settle) {
             return this.residuate(peer, ctx);
         }
-        if (!peer.isTop && !peer.isNil && this.id !== peer.id && (0, PlaceVal_1.hasPlace)(this)) {
+        const fill = !peer.isTop && !peer.isNil && this.id !== peer.id && (0, PlaceVal_1.hasPlace)(this);
+        // A rider, a mark or a seal around a container reads through to it,
+        // so the peer meets the container member by member, not one hole.
+        const through = fill && wrapsBag(this);
+        if (fill && !through) {
             if ((0, PlaceVal_1.hasPlace)(peer)) {
                 return (0, err_1.makeNilErr)(ctx, 'place_pair', this, peer);
             }
@@ -190,7 +199,7 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                 // ABSENCE PROPAGATES (ADR-034), ahead of deferResolve.
                 const gone = this.forgives ? undefined :
                     newpeg.find((a) => true === a.isAbsent);
-                if (pegdone &&
+                if ((pegdone || through) &&
                     (undefined !== gone || !this.deferResolve(ctx, newpeg))) {
                     // THE SIGNATURE GATE (sketch/SIGNATURES.0.md): the
                     // driven arguments against the declared signature, before

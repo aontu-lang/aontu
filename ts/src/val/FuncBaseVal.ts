@@ -99,6 +99,16 @@ function trialUnify(ctx: AontuContext, a: Val, b: Val): Val | undefined {
 }
 
 
+
+const WRAPPERS = new Set(['meta', 'deprecate', 'ident', 'type', 'hide', 'close', 'open'])
+
+
+function wrapsBag(v: any): boolean {
+  const inner = true === v?.isFunc && WRAPPERS.has(v.funcname()) ? v.peg[0] : undefined
+  return null != inner && (true === inner.isMap || true === inner.isList || wrapsBag(inner))
+}
+
+
 class FuncBaseVal extends FeatureVal {
   isFunc = true
 
@@ -204,7 +214,13 @@ class FuncBaseVal extends FeatureVal {
       return this.residuate(peer, ctx)
     }
 
-    if (!peer.isTop && !peer.isNil && this.id !== peer.id && hasPlace(this)) {
+    const fill = !peer.isTop && !peer.isNil && this.id !== peer.id && hasPlace(this)
+
+    // A rider, a mark or a seal around a container reads through to it,
+    // so the peer meets the container member by member, not one hole.
+    const through = fill && wrapsBag(this)
+
+    if (fill && !through) {
       if (hasPlace(peer)) {
         return makeNilErr(ctx, 'place_pair', this, peer)
       }
@@ -263,7 +279,7 @@ class FuncBaseVal extends FeatureVal {
         const gone = this.forgives ? undefined :
           newpeg.find((a: Val) => true === (a as any).isAbsent)
 
-        if (pegdone &&
+        if ((pegdone || through) &&
           (undefined !== gone || !this.deferResolve(ctx, newpeg))) {
           // THE SIGNATURE GATE (sketch/SIGNATURES.0.md): the
           // driven arguments against the declared signature, before
