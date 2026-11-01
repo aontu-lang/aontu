@@ -1521,20 +1521,21 @@ until the phase that encodes it lands.
    **Ported 2026-11-01 (#565).** A hole on the right of a meet takes its
    peer in both ports, as one on the left does, where the peer doesn't
    wait on a hole itself and the meet isn't an `emit` dispatch's test of
-   a `match`. That exposed rows dg3 to dg5, `"x" & (upper(_) & _)`, which
-   both ports had answered `error` only because the hole on the right
-   failed: they flatten a group into the meet around it, so the literal
-   filled the call before the group's own two sides met. Both ports now
-   refuse a group of two sides that both wait, where they stand or as a
-   pair of members of two maps or two lists, before they flatten it, as
-   the further build of decision 29 has it (#559), and TypeScript reads
-   a kind met with `any` as the kind, so `_ & number` is `number`.
-   Rows hv300 on,
-   dv195 on, dg72 on and dt240 on, 29 cases in each mode, both ports
+   a `match`. That exposed rows dg3 to dg5, `"x" & (upper(_) & _)`,
+   which both ports had answered `error` only because the hole on the
+   right failed: they flatten a group into the meet around it, so the
+   literal filled the call before the group's own two sides met. Both
+   ports now refuse a group of two sides that both wait, where they
+   stand or as a pair of members of two maps or two lists, before they
+   flatten it, as the further build of decision 29 has it (#559), a side
+   waiting where it's a hole, a call over one or a meet whose every side
+   waits, so that `_ & "X"` pairs nothing, and TypeScript reads a kind
+   met with `any` as the kind, so `_ & number` is `number`. Rows hv300
+   on, dv195 on, dg72 on and dt240 on, 32 cases in each mode, both ports
    answering every row as the definition does; no other row moved. A
    group that holds a hole and only one side that waits is still
-   flattened, so a call with more than one peer reads as the
-   conjunction is written, as #512 records.
+   flattened, so a call with more than one peer reads as the conjunction
+   is written, as #512 records.
 
 ## 8. Risks
 

@@ -233,7 +233,7 @@ func waitPair(g *ConjunctVal) (Val, Val) {
 func pairAt(c, o Val) (Val, Val) {
 	switch n := c.(type) {
 	case *FuncVal, *PlusOpVal:
-		if hasPlace(c) && hasPlace(o) {
+		if hasPlace(c) && waits(o) {
 			return c, o
 		}
 	case *MapVal:
@@ -256,6 +256,25 @@ func pairAt(c, o Val) (Val, Val) {
 		}
 	}
 	return nil, nil
+}
+
+// A meet waits only where every side does, as `_ & _` does and
+// `_ & "a"`, which fills its own hole, doesn't.
+func waits(v Val) bool {
+	switch n := v.(type) {
+	case *PlaceVal:
+		return true
+	case *FuncVal, *PlusOpVal:
+		return hasPlace(v)
+	case *ConjunctVal:
+		for _, t := range n.peg {
+			if !waits(t) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // norm flattens nested conjuncts and orders terms by cjo so that
