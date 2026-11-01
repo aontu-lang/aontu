@@ -7603,9 +7603,10 @@ The fill reads every meet but one where a hole is bound, in a
 generator's template, an `emit`'s table or a `filter`'s condition. So
 it fills a meet in a `match`'s result or default and in a `filter`'s
 source, as both engines do, and one in a `match`'s scrutinee or
-pattern, a size or a trial. Neither engine fills a meet in a
-scrutinee, a pattern, `len` or `must`, and Go fills none in
-`contains`, `rest`, `when` or `nof`, which #549 tracks. A call waits
+pattern, a size or a trial. Both engines fill those too:
+`len(add(_, 1) & 2)` refuses `["a"]` as `len(3)` does, and
+`contains(add(_, 1) & 0)` refuses `[2]`, in the rows from hv411 on. A
+call waits
 on no hole that a container argument holds (`Val.fillable`), and its
 peer fills only the holes the call waits on (`Val.bindHole`). So
 `sum([_, 1]) & 3` is an error, `join([_, "b"], _) & "-"` binds `"-"` as

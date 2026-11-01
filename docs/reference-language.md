@@ -1335,10 +1335,10 @@ reads every meet but one in a generator's template, an `emit`'s table
 or a `filter`'s condition, whose holes those bind. Rows from hv0
 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold both
 engines to it where a call meets one peer, a `match`'s result and its
-default among them. Neither engine fills a meet in a `match`'s
-scrutinee or pattern, in `len` or in `must`, and Go fills none in
-`contains`, `rest`, `when` or `nof`, which
-[#549](https://github.com/aontu-lang/aontu/issues/549) tracks. A call
+default among them. A meet in a size, a trial or a `match`'s scrutinee
+or pattern settles as it would written filled, so
+`len(add(_, 1) & 2)` refuses `["a"]` as `len(3)` does, and
+`match(upper(_) & "a", "A", 1, 2)` is `1`, as both engines answer. A call
 waits on no hole that a container argument holds, so its peer leaves
 that hole open and nothing makes the call: `sum([_, 1]) & 3` and
 `upper([_]) & "a"` are errors. A call that also waits on a hole of its

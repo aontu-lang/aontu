@@ -4626,7 +4626,12 @@ after it has filled the member, against data that writes that and data
 that writes it filled again, before the member's value arrives, over a
 meet of members, over its own map's member, with a list template, beside
 a key a later meet brings, against data that leaves a hole open, and
-after two later meets. -/
+after two later meets. And a meet that fills a hole inside a size, a
+trial or a `match`, which settles as it would written filled: in `len`,
+`must`, a `match`'s pattern, `when`'s branch, `contains`, `rest` and a
+branch of `nof`, against data that passes and data that doesn't. One
+in a `match`'s scrutinee is out of them, as the checker reads no
+scrutinee that waits. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4799,7 +4804,19 @@ def holeFillVetCases : List (Val × Data) :=
       .map [("a", .map [("n", .integer 2)]), ("b", .map [("n", .integer 6)])]),
     (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [])]), .map [("a", .map [])]),
     (.meet (.meet (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 1)])])) (mp [("a", mp [])]))
-      (mp [("a", mp [])]), .map [("a", .map [("n", .integer 2)])])]
+      (mp [("a", mp [])]), .map [("a", .map [("n", .integer 2)])]),
+    (.len (.meet (add1 .hole) (n 2)), .list [.str "a"]),
+    (.len (.meet (add1 .hole) (n 2)), .list [.str "a", .str "b", .str "c"]),
+    (.must (.meet (up .hole) (s "a")) "m", .str "A"), (.must (.meet (up .hole) (s "a")) "m", .str "a"),
+    (.select (s "A") [(.meet (up .hole) (s "a"), n 1)] (some (n 2)), .integer 1),
+    (.when .string (.meet (up .hole) (s "a")) none, .str "A"),
+    (.when .string (.meet (up .hole) (s "a")) none, .str "a"),
+    (.contains (.meet (add1 .hole) (n 0)) (.min (.num one)), .list [.integer 2]),
+    (.contains (.meet (add1 .hole) (n 0)) (.min (.num one)), .list [.integer 1]),
+    (.rest (.meet (add1 .hole) (n 0)) [], .map [("a", .integer 2)]),
+    (.rest (.meet (add1 .hole) (n 0)) [], .map [("a", .integer 1)]),
+    (.nof (n 1) [.meet (add1 .hole) (n 0), n 5], .integer 1),
+    (.nof (n 1) [.meet (add1 .hole) (n 0), n 5], .integer 2)]
 
 set_option maxRecDepth 8192 in
 /-- A hole the document leaves unfilled, which the data fills, the data

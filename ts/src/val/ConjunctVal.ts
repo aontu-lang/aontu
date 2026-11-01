@@ -83,7 +83,6 @@ class ConjunctVal extends JunctionVal {
 
     const te = ctx.explain && explainOpen(ctx, ctx.explain, 'Conjunct', this, peer)
 
-    let done = true
 
     const carried: Val[] = []
     this.peg = norm(this.peg, carried)
@@ -110,7 +109,6 @@ class ConjunctVal extends JunctionVal {
       upeer[vI].mark.type = newtype = newtype || upeer[vI].mark.type
       upeer[vI].mark.hide = newhide = newhide || upeer[vI].mark.hide
 
-      done = done && (DONE === upeer[vI].dc)
 
       if (upeer[vI].isNil) {
         return upeer[vI]
@@ -155,7 +153,6 @@ class ConjunctVal extends JunctionVal {
 
       else {
         val = unite(te ? ctx.clone({ explain: ec(te, 'DEF') }) : ctx, t0, t1, 'cj-peer-t0t1')
-        done = done && DONE === val.dc
         newtype = this.mark.type || val.mark.type
         newhide = this.mark.hide || val.mark.hide
 
@@ -201,7 +198,7 @@ class ConjunctVal extends JunctionVal {
       out.site.src = this.site.src
     }
 
-    out.dc = done ? DONE : this.dc + 1
+    out.dc = outvals.every((v: Val) => DONE === v.dc) ? DONE : this.dc + 1
 
     // A meet flattened in leaves its riders on the whole (ADR-052).
     for (const c of carried) {
