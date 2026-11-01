@@ -1381,16 +1381,17 @@ leaves out is `incomplete`. A call met with a hole, as in
 `upper(_) & _`, or with another call that waits is an error, as both
 engines answer, though `_ & _` meets as one hole. It stays an error
 however the document groups the meet and whatever else it meets, so
-`(upper(_) & _) & "x"` and `(_ & _) & upper(_)` are errors too, and a
+`(upper(_) & _) & "x"`, `"x" & (upper(_) & _)` and `(_ & _) & upper(_)`
+are errors too, as is such a pair of two maps' members,
+`{a: "x"} & ({a: upper(_)} & {a: _})`, and a
 disjunction drops an arm that holds one, so `v: (upper(_) & _) | "x"`
 passes `v: "x"` (`Val.fillMeet`). A spread's template of that shape,
 as in `{&: upper(_) & _}`, reads as a template instead, each hole
 taking the member, so it passes `{a: "X"}`, and a bare `_` as a
 template takes each member as it stands, so `{&: _} & {a: 1}` is
-`{a: 1}`. Both engines fill a hole on the right of any other meet
-with nothing, so `1 & _` and `{a: 1} & {a: _}` are errors, where the
-definition reads both as filled, which
-[#565](https://github.com/aontu-lang/aontu/issues/565) tracks. A disjunction is
+`{a: 1}`. A hole takes its peer on either side of a meet, so `1 & _`
+is `1`, `{a: 1} & {a: _}` is `{a: 1}` and `number & _` is `number`, as
+both engines answer. A disjunction is
 filled arm by arm, so `v: upper(_) | "fallback"` passes `v: "a"`, and
 an arm whose call the data leaves unmade drops, so `v: add(_, 1) | "x"`
 passes `v: "x"`. A lone preference fills its preferred arm and meets

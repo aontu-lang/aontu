@@ -202,10 +202,12 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
         unified = true
         why = 'bv'
       }
-      // These do not know their peers, so they answer from either side.
+      // These answer from either side, but a hole in a match matches nothing.
       else if ((true === (b as any).isConstraintKind
         || true === (b as any).isEmptyConstraint
-        || true === (b as any).isSeal) && !drives(a)) {
+        || true === (b as any).isSeal
+        || (true === (b as any).isPlace && true !== ctx._matchRead))
+        && !drives(a)) {
         out = b.unify(a, te ? ctx.clone({ explain: ec(te, 'BK') }) : ctx)
         unified = true
         why = 'bk'

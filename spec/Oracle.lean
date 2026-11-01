@@ -4609,7 +4609,10 @@ container template that a later meet reaches again, which both ports
 fill again (#556). A list whose one hole no peer element fills is the
 data's to fill, in rows dv0 on (decision 29). Both ports read a
 generator's peer and the data as one conjunction, so a generator meets
-no data here. -/
+no data here. Last, a hole on the right of a meet, which takes its peer
+as one on the left does: after a literal, a kind and a container's
+member or element, and after a meet whose call its own peer has filled;
+and a kind on the right of a hole. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4738,7 +4741,13 @@ def holeFillVetCases : List (Val × Data) :=
     (.meet (mp [("a", .or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])])]) (spm [] (mp [("n", up .hole)])),
       .map [("a", .map [("n", .str "X")])]),
     (.meet (spl [] (mp [("n", up .hole)])) (lst [.or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])]]),
-      .list [.map [("n", .str "X")]])]
+      .list [.map [("n", .str "X")]]),
+    (.meet (n 1) .hole, .integer 1), (.meet (n 1) .hole, .integer 2), (.meet (s "a") .hole, .str "a"),
+    (.meet (mp [("a", n 1)]) (mp [("a", .hole)]), .map [("a", .integer 1)]),
+    (.meet (lst [n 1]) (lst [.hole]), .list [.integer 1]),
+    (.meet .number .hole, .integer 1), (.meet .hole .number, .integer 1), (.meet .string .hole, .integer 1),
+    (.meet (mp [("a", .number)]) (mp [("a", .hole)]), .map [("a", .integer 1)]),
+    (.meet (.meet (s "x") (up .hole)) .hole, .str "X")]
 
 set_option maxRecDepth 8192 in
 /-- A hole the document leaves unfilled, which the data fills, the data
@@ -4764,7 +4773,8 @@ fills, whose filled arm the data passes as `eval` gives it (decision
 later peer that leaves nothing to replace it, and beside the data's own
 value through its parent arm; and a disjunction of containers
 a container meets, met arm by arm on either side, at the top, as a
-member, in a list and beside a meet. -/
+member, in a list and beside a meet; and a member that is a hole, which
+an empty map met on either side leaves for the data. -/
 def dataFillCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4818,7 +4828,9 @@ def dataFillCases : List (Val × Data) :=
     (mp [("a", .meet (.pref 1 (up .hole)) (s "a"))], .map [("a", .str "a")]),
     (lst [.meet (.pref 1 (up .hole)) (s "a")], .list [.str "A"]),
     (.meet (.meet (.pref 1 (up .hole)) (s "a")) (s "A"), .str "A"),
-    (.meet (.meet (.pref 1 (up .hole)) (s "a")) (s "A"), .str "a")]
+    (.meet (.meet (.pref 1 (up .hole)) (s "a")) (s "A"), .str "a"),
+    (.meet (mp []) (mp [("a", .hole)]), .map [("a", .str "x")]),
+    (.meet (mp [("a", .hole)]) (mp []), .map [("a", .str "x")])]
 
 theorem dataFillCases_checkable : ∀ c ∈ dataFillCases, (vetDoc c).1.CheckableA := by decide
 
@@ -4865,11 +4877,21 @@ the hole, for the `verdict` rows dg0 on: an error however the document
 groups it and whatever it meets, a literal, a hole, a disjunction or a
 preference's peer, two holes meeting as one first, and where a map's or
 a list's member meets another's, or a spread's template a member that
-waits; and a disjunction's arm that holds one dropping as a conflict's
-arm does, so that another arm stands, or an error where none does, as
-both ports answer. -/
+waits; such a group after a literal, its call and its hole in either
+order, and two maps' or two lists' members that are such a pair, beside
+a member or an element only one side writes; a group whose call its own
+other side fills, which then meets a literal it conflicts with, and a
+group of a container and a hole; a sum over a hole and a hole; a
+group that waits on one side only, a call over no hole beside a hole
+and two containers whose members pair no such sides, which reads as
+the meet does, among them a member whose meet fills its own hole; a
+call beside two holes, which meet as one; and a disjunction's arm that
+holds one
+dropping as a conflict's arm does, so that another arm stands, or an
+error where none does, as both ports answer. -/
 def groupCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
   let up (v : Val) : Val := .call .upper [v]
   let lo (v : Val) : Val := .call .lower [v]
   let g : Val := .meet (up .hole) .hole
@@ -4891,7 +4913,26 @@ def groupCases : List (Val × Data) :=
     (.meet (mp [("a", up .hole)]) (.or [(0, mp [("a", .hole)]), (0, mp [("a", s "x")])]), .map [("a", .str "x")]),
     (.or [(0, .meet (mp [("a", up .hole)]) (mp [("a", .hole)])), (0, s "x")], .str "x"),
     (.or [(0, .meet .hole .hole), (0, s "x")], .str "a"), (lst [.or [(0, g), (0, s "x")]], .list [.str "x"]),
-    (.or [(0, .meet (.ride .type (up .hole) []) .hole), (0, s "x")], .str "x")]
+    (.or [(0, .meet (.ride .type (up .hole) []) .hole), (0, s "x")], .str "x"),
+    (.meet (s "X") g, .str "X"), (.meet (s "x") (.meet .hole (up .hole)), .str "X"),
+    (.meet (s "x") (.meet (up .hole) (s "y")), .str "Y"),
+    (.meet (mp [("a", s "x")]) (.meet (mp [("a", up .hole)]) (mp [("a", .hole)])), .map [("a", .str "X")]),
+    (.meet (mp [("a", s "x")]) (.meet (mp [("b", s "b"), ("a", up .hole)]) (mp [("a", .hole)])),
+      .map [("a", .str "X"), ("b", .str "b")]),
+    (.meet (lst [s "x"]) (.meet (lst [up .hole]) (lst [.hole])), .list [.str "X"]),
+    (.meet (lst [s "x", s "y"]) (.meet (lst [up .hole, s "y"]) (lst [.hole])), .list [.str "X", .str "y"]),
+    (.meet (s "x") (.meet (mp [("a", up .hole)]) .hole), .str "x"),
+    (.meet (n 1) (.meet (.call .plus [.hole, n 1]) .hole), .integer 2),
+    (.meet (lst [s "y", s "x"]) (.meet (lst [s "y", up .hole]) (lst [.hole, .hole])), .list [.str "y", .str "X"]),
+    (.meet (s "x") (.meet (lst [up .hole]) .hole), .str "x"),
+    (.meet (s "A") (.meet (up (s "a")) .hole), .str "A"),
+    (.meet (mp [("a", s "x")]) (.meet (mp [("a", s "x")]) (mp [("a", .hole)])), .map [("a", .str "x")]),
+    (.meet (lst [s "x"]) (.meet (lst [s "x"]) (lst [.hole])), .list [.str "x"]),
+    (.meet (lst [s "x", s "y"]) (.meet (lst [s "x", s "y"]) (lst [.hole])), .list [.str "x", .str "y"]),
+    (.meet (mp [("a", s "X")]) (.meet (mp [("a", up .hole)]) (mp [("a", .meet .hole (s "X"))])),
+      .map [("a", .str "X")]),
+    (.meet (lst [s "X"]) (.meet (lst [up .hole]) (lst [.meet .hole (s "X")])), .list [.str "X"]),
+    (.meet (s "x") (.meet (up .hole) (.meet .hole .hole)), .str "X")]
 
 theorem groupCases_checkable : ∀ c ∈ groupCases, (vetDoc c).1.CheckableA := by decide
 
@@ -4912,7 +4953,10 @@ filled from its own meet first; a container side or arm met with the
 member member by member, a hole beneath it taking the member's member
 there, whether the spread meets the data, the map's own members, or a
 map or a list on either side of a meet; and a bare hole, alone or under
-a rider, which takes each member as it stands; as both ports answer. -/
+a rider, which takes each member as it stands, a member that is a hole
+among them, which the data fills; and a template that is a hole beside a
+container, met with a member that is a disjunction, arm by arm; as both
+ports answer. -/
 def spreadTmplCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4987,7 +5031,9 @@ def spreadTmplCases : List (Val × Data) :=
     (.meet (sm (.ride .type .hole [])) (mp [("a", n 1)]), .map [("a", .integer 1)]),
     (.meet (mp [("a", n 1)]) (sm .hole), .map [("a", .integer 1)]),
     (.meet (.list [n 1] none false) (sl .hole), .list [.integer 1]),
-    (.meet (sm .hole) (mp [("a", mp [("x", n 1)])]), .map [("a", .map [("x", .integer 1)])])]
+    (.meet (sm .hole) (mp [("a", mp [("x", n 1)])]), .map [("a", .map [("x", .integer 1)])]),
+    (.meet (sm .hole) (mp [("a", .hole)]), .map [("a", .str "x")]),
+    (.meet (sm tT) (mp [("a", .or [(0, lm "X"), (0, lm "Y")])]), .map [("a", nd "X")])]
 
 theorem spreadTmplCases_checkable : ∀ c ∈ spreadTmplCases, (vetDoc c).1.CheckableA := by decide
 
