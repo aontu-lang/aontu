@@ -111,10 +111,14 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 	if drives(b) {
 		return drive(b, a)
 	}
-	// These do not know their peers, so they answer from either side.
+	// These answer from either side, but a hole in a match matches nothing.
 	switch b.(type) {
 	case *ConstraintKindVal, *EmptyVal, *SealVal:
 		if !drives(a) {
+			return drive(b, a)
+		}
+	case *PlaceVal:
+		if !drives(a) && !ctx.matchRead {
 			return drive(b, a)
 		}
 	}

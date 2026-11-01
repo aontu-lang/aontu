@@ -9,6 +9,7 @@ const unify_1 = require("../unify");
 const rider_1 = require("../rider");
 const err_2 = require("../err");
 const JunctionVal_1 = require("./JunctionVal");
+const PlaceVal_1 = require("./PlaceVal");
 const BagVal_1 = require("./BagVal");
 const utility_1 = require("../utility");
 const top_1 = require("./top");
@@ -36,6 +37,16 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
     }
     unify(peer, ctx) {
         peer = peer ?? (0, top_1.top)();
+        // A group of sides that wait on a hole fills nothing whatever stands
+        // beside it, so it is refused before its sides are flattened in.
+        if (peer.isTop) {
+            for (const t of this.peg) {
+                const pair = true === t.isConjunct ? waitPair(t) : undefined;
+                if (undefined !== pair) {
+                    return (0, err_1.makeNilErr)(ctx, 'place_pair', pair[0], pair[1]);
+                }
+            }
+        }
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Conjunct', this, peer);
         let done = true;
         const carried = [];
@@ -161,6 +172,42 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
     }
 }
 exports.ConjunctVal = ConjunctVal;
+// A call over a hole beside another side that holds a hole, where they
+// stand in a group or at a key or an index its containers share.
+function waitPair(cj) {
+    const terms = cj.peg;
+    for (const c of terms) {
+        for (const o of terms) {
+            const pair = c === o ? undefined : pairAt(c, o);
+            if (undefined !== pair) {
+                return pair;
+            }
+        }
+    }
+    return undefined;
+}
+function pairAt(c, o) {
+    if (true === c.isFunc || true === c.isOp) {
+        return (0, PlaceVal_1.hasPlace)(c) && (0, PlaceVal_1.hasPlace)(o) ? [c, o] : undefined;
+    }
+    if (true === c.isMap && true === o.isMap) {
+        for (const k of Object.keys(c.peg)) {
+            const pair = undefined === o.peg[k] ? undefined : pairAt(c.peg[k], o.peg[k]);
+            if (undefined !== pair) {
+                return pair;
+            }
+        }
+    }
+    else if (true === c.isList && true === o.isList) {
+        for (let i = 0; i < c.peg.length && i < o.peg.length; i++) {
+            const pair = pairAt(c.peg[i], o.peg[i]);
+            if (undefined !== pair) {
+                return pair;
+            }
+        }
+    }
+    return undefined;
+}
 function sameTerms(cj, t0, t1) {
     return 2 === cj.peg.length && cj.peg.includes(t0) && cj.peg.includes(t1);
 }

@@ -91,6 +91,17 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	if peer == nil {
 		peer = top()
 	}
+	// A group of sides that wait on a hole fills nothing whatever stands
+	// beside it, so it is refused before its sides are flattened in.
+	if isTop(peer) {
+		for _, t := range c.peg {
+			if g, ok := t.(*ConjunctVal); ok {
+				if a, b := waitPair(g); nil != a {
+					return makeNilErr(ctx, "place_pair", a, b)
+				}
+			}
+		}
+	}
 	// The conjunct's members are driven at the conjunct's own location
 	// (TS folds with the same undescended ctx).
 	slot := ctx.slot
@@ -202,6 +213,49 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 func sameTerms(cj *ConjunctVal, t0, t1 Val) bool {
 	has := func(t Val) bool { return cj.peg[0] == t || cj.peg[1] == t }
 	return 2 == len(cj.peg) && has(t0) && has(t1)
+}
+
+// A call over a hole beside another side that holds a hole, where they
+// stand in a group or at a key or an index its containers share.
+func waitPair(g *ConjunctVal) (Val, Val) {
+	for _, c := range g.peg {
+		for _, o := range g.peg {
+			if c != o {
+				if a, b := pairAt(c, o); nil != a {
+					return a, b
+				}
+			}
+		}
+	}
+	return nil, nil
+}
+
+func pairAt(c, o Val) (Val, Val) {
+	switch n := c.(type) {
+	case *FuncVal, *PlusOpVal:
+		if hasPlace(c) && hasPlace(o) {
+			return c, o
+		}
+	case *MapVal:
+		if m, ok := o.(*MapVal); ok {
+			for _, k := range n.keys {
+				if v, ok := m.peg[k]; ok {
+					if a, b := pairAt(n.peg[k], v); nil != a {
+						return a, b
+					}
+				}
+			}
+		}
+	case *ListVal:
+		if l, ok := o.(*ListVal); ok {
+			for i := 0; i < len(n.peg) && i < len(l.peg); i++ {
+				if a, b := pairAt(n.peg[i], l.peg[i]); nil != a {
+					return a, b
+				}
+			}
+		}
+	}
+	return nil, nil
 }
 
 // norm flattens nested conjuncts and orders terms by cjo so that

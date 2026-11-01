@@ -22,6 +22,7 @@ import {
 
 
 import { JunctionVal } from './JunctionVal'
+import { hasPlace } from './PlaceVal'
 import { sizingResidue } from './BagVal'
 
 import {
@@ -68,6 +69,17 @@ class ConjunctVal extends JunctionVal {
 
   unify(peer: Val, ctx: AontuContext): Val {
     peer = peer ?? top()
+
+    // A group of sides that wait on a hole fills nothing whatever stands
+    // beside it, so it is refused before its sides are flattened in.
+    if (peer.isTop) {
+      for (const t of this.peg) {
+        const pair = true === t.isConjunct ? waitPair(t) : undefined
+        if (undefined !== pair) {
+          return makeNilErr(ctx, 'place_pair', pair[0], pair[1])
+        }
+      }
+    }
 
     const te = ctx.explain && explainOpen(ctx, ctx.explain, 'Conjunct', this, peer)
 
@@ -240,6 +252,46 @@ class ConjunctVal extends JunctionVal {
 
     return undefined
   }
+}
+
+
+// A call over a hole beside another side that holds a hole, where they
+// stand in a group or at a key or an index its containers share.
+function waitPair(cj: Val): [Val, Val] | undefined {
+  const terms: Val[] = cj.peg
+  for (const c of terms) {
+    for (const o of terms) {
+      const pair = c === o ? undefined : pairAt(c, o)
+      if (undefined !== pair) {
+        return pair
+      }
+    }
+  }
+  return undefined
+}
+
+
+function pairAt(c: any, o: any): [Val, Val] | undefined {
+  if (true === c.isFunc || true === c.isOp) {
+    return hasPlace(c) && hasPlace(o) ? [c, o] : undefined
+  }
+  if (true === c.isMap && true === o.isMap) {
+    for (const k of Object.keys(c.peg)) {
+      const pair = undefined === o.peg[k] ? undefined : pairAt(c.peg[k], o.peg[k])
+      if (undefined !== pair) {
+        return pair
+      }
+    }
+  }
+  else if (true === c.isList && true === o.isList) {
+    for (let i = 0; i < c.peg.length && i < o.peg.length; i++) {
+      const pair = pairAt(c.peg[i], o.peg[i])
+      if (undefined !== pair) {
+        return pair
+      }
+    }
+  }
+  return undefined
 }
 
 
