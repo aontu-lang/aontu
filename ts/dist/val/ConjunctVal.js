@@ -188,7 +188,7 @@ function waitPair(cj) {
 }
 function pairAt(c, o) {
     if (true === c.isFunc || true === c.isOp) {
-        return (0, PlaceVal_1.hasPlace)(c) && (0, PlaceVal_1.hasPlace)(o) ? [c, o] : undefined;
+        return (0, PlaceVal_1.hasPlace)(c) && waits(o) ? [c, o] : undefined;
     }
     if (true === c.isMap && true === o.isMap) {
         for (const k of Object.keys(c.peg)) {
@@ -207,6 +207,13 @@ function pairAt(c, o) {
         }
     }
     return undefined;
+}
+// A meet waits only where every side does, as `_ & _` does and
+// `_ & "a"`, which fills its own hole, doesn't.
+function waits(v) {
+    return true === v.isPlace
+        || ((true === v.isFunc || true === v.isOp) && (0, PlaceVal_1.hasPlace)(v))
+        || (true === v.isConjunct && v.peg.every(waits));
 }
 function sameTerms(cj, t0, t1) {
     return 2 === cj.peg.length && cj.peg.includes(t0) && cj.peg.includes(t1);

@@ -4904,7 +4904,9 @@ other side fills, which then meets a literal it conflicts with, and a
 group of a container and a hole; a sum over a hole and a hole; a
 group that waits on one side only, a call over no hole beside a hole
 and two containers whose members pair no such sides, which reads as
-the meet does; and a disjunction's arm that holds one
+the meet does, among them a member whose meet fills its own hole; a
+call beside two holes, which meet as one; and a disjunction's arm that
+holds one
 dropping as a conflict's arm does, so that another arm stands, or an
 error where none does, as both ports answer. -/
 def groupCases : List (Val × Data) :=
@@ -4946,7 +4948,11 @@ def groupCases : List (Val × Data) :=
     (.meet (s "A") (.meet (up (s "a")) .hole), .str "A"),
     (.meet (mp [("a", s "x")]) (.meet (mp [("a", s "x")]) (mp [("a", .hole)])), .map [("a", .str "x")]),
     (.meet (lst [s "x"]) (.meet (lst [s "x"]) (lst [.hole])), .list [.str "x"]),
-    (.meet (lst [s "x", s "y"]) (.meet (lst [s "x", s "y"]) (lst [.hole])), .list [.str "x", .str "y"])]
+    (.meet (lst [s "x", s "y"]) (.meet (lst [s "x", s "y"]) (lst [.hole])), .list [.str "x", .str "y"]),
+    (.meet (mp [("a", s "X")]) (.meet (mp [("a", up .hole)]) (mp [("a", .meet .hole (s "X"))])),
+      .map [("a", .str "X")]),
+    (.meet (lst [s "X"]) (.meet (lst [up .hole]) (lst [.meet .hole (s "X")])), .list [.str "X"]),
+    (.meet (s "x") (.meet (up .hole) (.meet .hole .hole)), .str "X")]
 
 theorem groupCases_checkable : ∀ c ∈ groupCases, (vetDoc c).1.CheckableA := by decide
 

@@ -44,12 +44,16 @@ TypeScript and Go, generated rows, and documentation.
   it is flattened, so `"x" & (upper(_) & _)` stays an error however the
   document groups it, and so does such a pair of two maps' or two lists'
   members, `{a: "x"} & ({a: upper(_)} & {a: _})`. Both engines had
-  answered these `error` only because the hole on the right failed.
+  answered these `error` only because the hole on the right failed. A
+  side waits where it's a hole, a call over one or a meet whose every
+  side waits, so a meet that fills its own hole, `_ & "X"`, pairs
+  nothing, and `{a: "X"} & ({a: upper(_)} & {a: _ & "X"})` passes
+  `v: {a: "X"}`.
 - TypeScript: `number & _` and `_ & number` are `number`, where
   TypeScript failed with `not-scalar-type` in either order: a later pass
   met the kind with `any`, which the kind refused.
 - `spec/Oracle.lean`: rows hv300 to hv329, dv195 to dv200, dg72 to
-  dg116 and dt240 to dt245 of `test/spec/def-call.tsv`, 29 cases in each
+  dg125 and dt240 to dt245 of `test/spec/def-call.tsv`, 32 cases in each
   of the three modes. Both engines answer every row as the definition
   does, and no other row moves.
 - Docs: the reference's placeholder section and the definition
