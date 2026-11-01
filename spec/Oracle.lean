@@ -4604,9 +4604,7 @@ nested, under a spread inside the template, with a member the data fills
 and one it leaves out, beside a member that waits, and with a member, a
 peer's or its own, that is a disjunction, met arm by arm. Two spreads that
 both wait are out of them: both ports read them as one where their
-templates are alike, and as `place_pair` otherwise. So is a map spread's
-container template that a later meet reaches again, which both ports
-fill again (#556). A list whose one hole no peer element fills is the
+templates are alike, and as `place_pair` otherwise. A list whose one hole no peer element fills is the
 data's to fill, in rows dv0 on (decision 29). Both ports read a
 generator's peer and the data as one conjunction, so a generator meets
 no data here. Last, a hole on the right of a meet, which takes its peer
@@ -4622,7 +4620,13 @@ list a call takes, which the call doesn't wait on, so its peer doesn't
 fill it: in a `join`'s list, after a member and before one, against
 data that writes the output a fill would make and data that writes the
 peer, and as a map's member; and `sum` over a hole its peer, a list of
-strings, fills, which the sum refuses. -/
+strings, fills, which the sum refuses. And a map spread's container
+template that a later meet reaches again, which fills its member once:
+after it has filled the member, against data that writes that and data
+that writes it filled again, before the member's value arrives, over a
+meet of members, over its own map's member, with a list template, beside
+a key a later meet brings, against data that leaves a hole open, and
+after two later meets. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4778,7 +4782,24 @@ def holeFillVetCases : List (Val × Data) :=
     (.meet (.call .join [lst [s "a", .hole], s "-"]) (s "b"), .str "b"),
     (.meet (.call .join [lst [s "a", .hole], s "-"]) (s "a-b"), .str "a-b"),
     (.meet (mp [("a", .call .join [lst [s "x", .hole], s "-"])]) (mp [("a", s "y")]), .map [("a", .str "x-y")]),
-    (.meet (lst [s "a", s "b"]) (.call .sum [.hole]), .integer 3)]
+    (.meet (lst [s "a", s "b"]) (.call .sum [.hole]), .integer 3),
+    (.meet (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 1)])])) (mp [("a", mp [])]),
+      .map [("a", .map [("n", .integer 2)])]),
+    (.meet (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 1)])])) (mp [("a", mp [])]),
+      .map [("a", .map [("n", .integer 3)])]),
+    (.meet (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [])])) (mp [("a", mp [("n", n 1)])]),
+      .map [("a", .map [("n", .integer 2)])]),
+    (.meet (spm [] (mp [("n", add1 .hole)])) (.meet (mp [("a", mp [("n", n 1)])]) (mp [("a", mp [])])),
+      .map [("a", .map [("n", .integer 2)])]),
+    (.meet (spm [("a", mp [("n", n 1)])] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 2)])]),
+      .map [("a", .map [("n", .integer 2)])]),
+    (.meet (.meet (spm [] (lst [add1 .hole])) (mp [("a", lst [n 1])])) (mp [("a", lst [n 2])]),
+      .map [("a", .list [.integer 2])]),
+    (.meet (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 1)])])) (mp [("b", mp [("n", n 5)])]),
+      .map [("a", .map [("n", .integer 2)]), ("b", .map [("n", .integer 6)])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [])]), .map [("a", .map [])]),
+    (.meet (.meet (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 1)])])) (mp [("a", mp [])]))
+      (mp [("a", mp [])]), .map [("a", .map [("n", .integer 2)])])]
 
 set_option maxRecDepth 8192 in
 /-- A hole the document leaves unfilled, which the data fills, the data

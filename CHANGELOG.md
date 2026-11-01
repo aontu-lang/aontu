@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### Both engines fill a map spread's container template once
+
+TypeScript and Go, generated rows, and documentation.
+
+- A map spread's template meets each member once, as a list spread's
+  already did, so a later meet adds to a member the template has filled
+  and doesn't fill it again (#556).
+  `({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives `n: 2`, where
+  both engines gave `3`, and each further meet had added one more. The
+  template still constrains what a later value adds to the member.
+- So Go's `vet` no longer reads such a member as a conflict between the
+  template and itself: `v: {&: {n: upper(_)}} & {a: {}}` against
+  `v: {a: {}}` is `incomplete`, and `valid` with `--partial`, where Go
+  answered `invalid` with `place_pair` (#557).
+- A default a spread's template holds no longer comes back when a later
+  meet reaches the member: `w: {&: {L: *warn | string}, a: {L: info}}`
+  met with `w: {a: {L: ***info | string}}` generates `L: "info"` in
+  either order, as the definition reads it, where both engines gave
+  `"warn"` when the spread came first. Three rows of
+  `test/spec/file.tsv` that held `"warn"` now hold what both engines
+  answer; their canonical forms still show which side folded first.
+- `spec/Oracle.lean`: rows hv384 to hv410 of `test/spec/def-call.tsv`,
+  9 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves. `test/spec/place.tsv`
+  holds the evaluation shapes.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
 ### TypeScript's calls over a container take a peer into their hole
 
 TypeScript, generated rows, and documentation.

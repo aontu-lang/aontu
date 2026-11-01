@@ -7594,10 +7594,10 @@ It meets a peer's members, the map's own (`heldFields`), and the fields
 a peer's spread meets (`Val.tmplAt`). A member that is a disjunction,
 a peer's or the map's own, is met arm by arm (`fillWith`), so
 `{&: {n: upper(_)}} & {a: ({n: "x"} | {n: "y"})}` passes
-`{a: {n: "X"}}`, as both engines answer. Both engines fill a map spread's
-container template again each time a later meet reaches the member, so
-`({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives `n: 3`, where the
-definition fills it once and gives `2`, which #556 tracks.
+`{a: {n: "X"}}`, as both engines answer. The template meets each
+member once, so a later meet adds to a member it has filled and doesn't
+fill it again: `({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives
+`n: 2`, as both engines answer in the rows from hv384 on.
 
 The fill reads every meet but one where a hole is bound, in a
 generator's template, an `emit`'s table or a `filter`'s condition. So

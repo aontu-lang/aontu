@@ -3203,6 +3203,33 @@ hv380	verdict	v: ({"a": join(["x", _], "-")}) & ({"a": "y"})	v: {"a": "x-y"}	{"v
 hv381	verdict	v: (["a", "b"]) & (sum(_))	v: 3	{"verdict":"error"}
 hv382	verdict	v: (["a", "b"]) & (sum(_))	v: 3	{"verdict":"error","opts":{"noFill":true}}
 hv383	verdict	v: (["a", "b"]) & (sum(_))	v: 3	{"verdict":"error","opts":{"partial":true}}
+hv384	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})	v: {"a": {"n": 2}}	{"verdict":"valid"}
+hv385	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+hv386	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"partial":true}}
+hv387	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})	v: {"a": {"n": 3}}	{"verdict":"invalid"}
+hv388	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})	v: {"a": {"n": 3}}	{"verdict":"invalid","opts":{"noFill":true}}
+hv389	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})	v: {"a": {"n": 3}}	{"verdict":"invalid","opts":{"partial":true}}
+hv390	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {}})) & ({"a": {"n": 1}})	v: {"a": {"n": 2}}	{"verdict":"valid"}
+hv391	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {}})) & ({"a": {"n": 1}})	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+hv392	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {}})) & ({"a": {"n": 1}})	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"partial":true}}
+hv393	verdict	v: ({&: {"n": add(_, 1)}}) & (({"a": {"n": 1}}) & ({"a": {}}))	v: {"a": {"n": 2}}	{"verdict":"valid"}
+hv394	verdict	v: ({&: {"n": add(_, 1)}}) & (({"a": {"n": 1}}) & ({"a": {}}))	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+hv395	verdict	v: ({&: {"n": add(_, 1)}}) & (({"a": {"n": 1}}) & ({"a": {}}))	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"partial":true}}
+hv396	verdict	v: ({"a": {"n": 1}, &: {"n": add(_, 1)}}) & ({"a": {"n": 2}})	v: {"a": {"n": 2}}	{"verdict":"valid"}
+hv397	verdict	v: ({"a": {"n": 1}, &: {"n": add(_, 1)}}) & ({"a": {"n": 2}})	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+hv398	verdict	v: ({"a": {"n": 1}, &: {"n": add(_, 1)}}) & ({"a": {"n": 2}})	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"partial":true}}
+hv399	verdict	v: (({&: [add(_, 1)]}) & ({"a": [1]})) & ({"a": [2]})	v: {"a": [2]}	{"verdict":"valid"}
+hv400	verdict	v: (({&: [add(_, 1)]}) & ({"a": [1]})) & ({"a": [2]})	v: {"a": [2]}	{"verdict":"valid","opts":{"noFill":true}}
+hv401	verdict	v: (({&: [add(_, 1)]}) & ({"a": [1]})) & ({"a": [2]})	v: {"a": [2]}	{"verdict":"valid","opts":{"partial":true}}
+hv402	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"b": {"n": 5}})	v: {"a": {"n": 2}, "b": {"n": 6}}	{"verdict":"valid"}
+hv403	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"b": {"n": 5}})	v: {"a": {"n": 2}, "b": {"n": 6}}	{"verdict":"valid","opts":{"noFill":true}}
+hv404	verdict	v: (({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"b": {"n": 5}})	v: {"a": {"n": 2}, "b": {"n": 6}}	{"verdict":"valid","opts":{"partial":true}}
+hv405	verdict	v: ({&: {"n": upper(_)}}) & ({"a": {}})	v: {"a": {}}	{"verdict":"incomplete"}
+hv406	verdict	v: ({&: {"n": upper(_)}}) & ({"a": {}})	v: {"a": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+hv407	verdict	v: ({&: {"n": upper(_)}}) & ({"a": {}})	v: {"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+hv408	verdict	v: ((({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})) & ({"a": {}})	v: {"a": {"n": 2}}	{"verdict":"valid"}
+hv409	verdict	v: ((({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})) & ({"a": {}})	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+hv410	verdict	v: ((({&: {"n": add(_, 1)}}) & ({"a": {"n": 1}})) & ({"a": {}})) & ({"a": {}})	v: {"a": {"n": 2}}	{"verdict":"valid","opts":{"partial":true}}
 dv0	verdict	v: upper(_)	v: "a"	{"verdict":"valid"}
 dv1	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"noFill":true}}
 dv2	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"partial":true}}

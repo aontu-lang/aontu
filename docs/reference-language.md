@@ -1372,11 +1372,11 @@ fills each member the same way, member by member (`heldOnto`):
 `{&: {n: upper(_)}} & {a: {n: "x"}}` is `{a: {n: "X"}}`, and a member
 that is a disjunction is met arm by arm, so
 `{&: {n: upper(_)}} & {a: ({n: "x"} | {n: "y"})}` passes
-`{a: {n: "X"}}`. Both engines
-fill a map spread's container template again each time a later meet
-reaches the member, so `({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}`
-gives `n: 3`, where the definition fills it once, which
-[#556](https://github.com/aontu-lang/aontu/issues/556) tracks. With
+`{a: {n: "X"}}`. The template
+meets each member once, so a later meet adds to the member it has
+filled and doesn't fill it again:
+`({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives `n: 2`, as both
+engines answer. With
 more than one peer the fill
 follows the document's grouping, so `upper(_) & ("a" & "a")` reads as
 `upper("a")`, which is `"A"`. Both engines read a conjunction in the
