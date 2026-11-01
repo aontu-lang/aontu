@@ -8,6 +8,20 @@ each change affects.
 
 ## Unreleased
 
+### Both engines name a spread's unmade member where it stands
+
+TypeScript and Go, and shared rows.
+
+- A value a spread's template leaves unmade is named at the member it
+  stands in: `v: {&: {n: upper(_)}} & {a: {}}` fails at `$.v.a.n`, and
+  `vet` of `v: {&: {n: upper(_)}}` against `v: {a: {}}` reports
+  `$.v.a.n`, where both engines named the template's own position,
+  `$.v.n` (#557). In a list, `v: [&: {n: upper(_)}] & [{}]` fails at
+  `$.v.0.n`, where TypeScript named `$.v.&.n` and Go `$.v.n`. A
+  generation error now takes the position the walk reached, so a value
+  a template shares with its members reports the member's.
+- `test/spec/place.tsv` and `test/spec/vet.tsv` hold the paths.
+
 ### Both engines fill a map spread's container template once
 
 TypeScript and Go, generated rows, and documentation.
