@@ -16,6 +16,39 @@ import (
 // record beside it.
 var riderFuncs = map[string]bool{"meta": true, "deprecate": true}
 
+var wrapperFuncs = map[string]bool{"meta": true, "deprecate": true, "ident": true,
+	"type": true, "hide": true, "close": true, "open": true}
+
+func wrapsBag(v Val) bool {
+	f, ok := v.(*FuncVal)
+	if !ok || !wrapperFuncs[f.name] || 0 == len(f.peg) {
+		return false
+	}
+	switch f.peg[0].(type) {
+	case *MapVal, *ListVal:
+		return hasPlace(f.peg[0])
+	}
+	return wrapsBag(f.peg[0])
+}
+
+func wrapSettled(args []Val) bool {
+	for _, a := range args[1:] {
+		if a.Dc() != DONE {
+			return false
+		}
+	}
+	return !wrapsBag(args[0]) || wrapSettled(args[0].(*FuncVal).peg)
+}
+
+// An outer seal reaches the container once the wrappers inside resolve.
+func openWrap(ctx *Ctx, base []string, v Val) Val {
+	f, ok := v.(*FuncVal)
+	if !ok || !wrapsBag(f) {
+		return v
+	}
+	return f.resolve(ctx, base, append([]Val{openWrap(ctx, base, f.peg[0])}, f.peg[1:]...))
+}
+
 var funcSet = map[string]bool{
 	"upper": true, "lower": true, "copy": true, "key": true,
 	"pref": true, "super": true, "type": true, "hide": true,
@@ -294,7 +327,12 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
-	if !isTop(peer) && !peer.Nil() && Val(f) != peer && hasPlace(f) {
+	fill := !isTop(peer) && !peer.Nil() && Val(f) != peer && hasPlace(f)
+
+	// A rider, a mark or a seal around a container reads through to it.
+	through := fill && wrapsBag(f)
+
+	if fill && !through {
 		if hasPlace(peer) {
 			return makeNilErr(ctx, "place_pair", f, peer)
 		}
@@ -399,7 +437,10 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		pegdone = false
 	}
 
-	if pegdone {
+	if pegdone || (through && wrapSettled(newpeg)) {
+		if through {
+			newpeg = append([]Val{openWrap(ctx, base, newpeg[0])}, newpeg[1:]...)
+		}
 		result := absent
 		if nil == result {
 			result = sigRefuse(ctx, f, newpeg)

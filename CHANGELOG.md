@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### Both engines read a rider, a mark or a seal around a container through
+
+TypeScript and Go, generated rows, and documentation.
+
+- A rider, a mark or a seal around a container that holds a hole meets
+  its peer member by member, as the container would bare, where both
+  engines bound the whole peer to the first hole inside it (#552). So
+  `meta({a: upper(_)}, {d: 1}) & {a: "x"}` is `meta({a: "X"}, {d: 1})`,
+  `close([upper(_)]) & ["a"]` is the sealed `["A"]`, and
+  `meta({a: sum(_)}, {d: 1}) & [1, 2]` is a conflict between a map and a
+  list, where both engines gave `{a: 3}`. A seal still refuses a key
+  the peer adds, a rider around a rider reads through both, and a
+  spread's template side under one, `{&: _ & type({n: upper(_)})}`,
+  passes `{a: {n: "X"}}`.
+- `spec/Oracle.lean`: rows hv330 to hv365 and dt246 to dt257 of
+  `test/spec/def-call.tsv`, 16 cases in each of the three modes. Both
+  engines answer every row as the definition does, and no other row
+  moves. `test/spec/place.tsv` holds a seal around a rider, which seals
+  the container the rider wraps, and a hole in a rider's record, which
+  the peer fills as it fills any call's.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
 ### Both engines fill a hole on the right of a meet
 
 TypeScript and Go, generated rows, and documentation.
