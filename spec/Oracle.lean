@@ -4621,7 +4621,8 @@ member waits too; and a hole alone under a rider. And a hole inside a
 list a call takes, which the call doesn't wait on, so its peer doesn't
 fill it: in a `join`'s list, after a member and before one, against
 data that writes the output a fill would make and data that writes the
-peer, and as a map's member. -/
+peer, and as a map's member; and `sum` over a hole its peer, a list of
+strings, fills, which the sum refuses. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4776,7 +4777,8 @@ def holeFillVetCases : List (Val × Data) :=
     (.meet (.call .join [lst [.hole, s "b"], s "-"]) (s "a"), .str "a-b"),
     (.meet (.call .join [lst [s "a", .hole], s "-"]) (s "b"), .str "b"),
     (.meet (.call .join [lst [s "a", .hole], s "-"]) (s "a-b"), .str "a-b"),
-    (.meet (mp [("a", .call .join [lst [s "x", .hole], s "-"])]) (mp [("a", s "y")]), .map [("a", .str "x-y")])]
+    (.meet (mp [("a", .call .join [lst [s "x", .hole], s "-"])]) (mp [("a", s "y")]), .map [("a", .str "x-y")]),
+    (.meet (lst [s "a", s "b"]) (.call .sum [.hole]), .integer 3)]
 
 set_option maxRecDepth 8192 in
 /-- A hole the document leaves unfilled, which the data fills, the data
@@ -4803,7 +4805,12 @@ later peer that leaves nothing to replace it, and beside the data's own
 value through its parent arm; and a disjunction of containers
 a container meets, met arm by arm on either side, at the top, as a
 member, in a list and beside a meet; and a member that is a hole, which
-an empty map met on either side leaves for the data. -/
+an empty map met on either side leaves for the data. Last, a call over
+a container whose argument is the hole, which takes the data as its
+argument as any call does: `sum` over a list and a map, and refusing a
+number and a list of strings, `least` over a list and refusing an empty
+one, `greatest`, `sort`, `pick` and `join` over a list, a hole as
+`join`'s separator, and `sum` as a member. -/
 def dataFillCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4859,7 +4866,17 @@ def dataFillCases : List (Val × Data) :=
     (.meet (.meet (.pref 1 (up .hole)) (s "a")) (s "A"), .str "A"),
     (.meet (.meet (.pref 1 (up .hole)) (s "a")) (s "A"), .str "a"),
     (.meet (mp []) (mp [("a", .hole)]), .map [("a", .str "x")]),
-    (.meet (mp [("a", .hole)]) (mp []), .map [("a", .str "x")])]
+    (.meet (mp [("a", .hole)]) (mp []), .map [("a", .str "x")]),
+    (.call .sum [.hole], .list [.integer 1, .integer 2]), (.call .sum [.hole], .integer 3),
+    (.call .sum [.hole], .map [("a", .integer 1), ("b", .integer 2)]),
+    (.call .sum [.hole], .list [.str "a", .str "b"]),
+    (.call .least [.hole], .list [.integer 1, .integer 2]), (.call .least [.hole], .list []),
+    (.call .greatest [.hole], .list [.integer 1, .integer 2]),
+    (.call .sort [.hole], .list [.str "b", .str "a"]),
+    (.call .pick [.hole, s "a"], .list [.map [("a", .integer 1)]]),
+    (.call .join [.hole, s "-"], .list [.str "a", .str "b"]),
+    (.call .join [lst [s "a", s "b"], .hole], .str "-"),
+    (mp [("k", .call .sum [.hole])], .map [("k", .list [.integer 1, .integer 2])])]
 
 theorem dataFillCases_checkable : ∀ c ∈ dataFillCases, (vetDoc c).1.CheckableA := by decide
 

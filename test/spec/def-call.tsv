@@ -3200,6 +3200,9 @@ hv377	verdict	v: (join(["a", _], "-")) & ("a-b")	v: "a-b"	{"verdict":"valid","op
 hv378	verdict	v: ({"a": join(["x", _], "-")}) & ({"a": "y"})	v: {"a": "x-y"}	{"verdict":"invalid"}
 hv379	verdict	v: ({"a": join(["x", _], "-")}) & ({"a": "y"})	v: {"a": "x-y"}	{"verdict":"invalid","opts":{"noFill":true}}
 hv380	verdict	v: ({"a": join(["x", _], "-")}) & ({"a": "y"})	v: {"a": "x-y"}	{"verdict":"invalid","opts":{"partial":true}}
+hv381	verdict	v: (["a", "b"]) & (sum(_))	v: 3	{"verdict":"error"}
+hv382	verdict	v: (["a", "b"]) & (sum(_))	v: 3	{"verdict":"error","opts":{"noFill":true}}
+hv383	verdict	v: (["a", "b"]) & (sum(_))	v: 3	{"verdict":"error","opts":{"partial":true}}
 dv0	verdict	v: upper(_)	v: "a"	{"verdict":"valid"}
 dv1	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"noFill":true}}
 dv2	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"partial":true}}
@@ -3401,6 +3404,42 @@ dv197	verdict	v: ({}) & ({"a": _})	v: {"a": "x"}	{"verdict":"valid","opts":{"par
 dv198	verdict	v: ({"a": _}) & ({})	v: {"a": "x"}	{"verdict":"valid"}
 dv199	verdict	v: ({"a": _}) & ({})	v: {"a": "x"}	{"verdict":"valid","opts":{"noFill":true}}
 dv200	verdict	v: ({"a": _}) & ({})	v: {"a": "x"}	{"verdict":"valid","opts":{"partial":true}}
+dv201	verdict	v: sum(_)	v: [1, 2]	{"verdict":"valid"}
+dv202	verdict	v: sum(_)	v: [1, 2]	{"verdict":"valid","opts":{"noFill":true}}
+dv203	verdict	v: sum(_)	v: [1, 2]	{"verdict":"valid","opts":{"partial":true}}
+dv204	verdict	v: sum(_)	v: 3	{"verdict":"invalid"}
+dv205	verdict	v: sum(_)	v: 3	{"verdict":"invalid","opts":{"noFill":true}}
+dv206	verdict	v: sum(_)	v: 3	{"verdict":"invalid","opts":{"partial":true}}
+dv207	verdict	v: sum(_)	v: {"a": 1, "b": 2}	{"verdict":"valid"}
+dv208	verdict	v: sum(_)	v: {"a": 1, "b": 2}	{"verdict":"valid","opts":{"noFill":true}}
+dv209	verdict	v: sum(_)	v: {"a": 1, "b": 2}	{"verdict":"valid","opts":{"partial":true}}
+dv210	verdict	v: sum(_)	v: ["a", "b"]	{"verdict":"invalid"}
+dv211	verdict	v: sum(_)	v: ["a", "b"]	{"verdict":"invalid","opts":{"noFill":true}}
+dv212	verdict	v: sum(_)	v: ["a", "b"]	{"verdict":"invalid","opts":{"partial":true}}
+dv213	verdict	v: least(_)	v: [1, 2]	{"verdict":"valid"}
+dv214	verdict	v: least(_)	v: [1, 2]	{"verdict":"valid","opts":{"noFill":true}}
+dv215	verdict	v: least(_)	v: [1, 2]	{"verdict":"valid","opts":{"partial":true}}
+dv216	verdict	v: least(_)	v: []	{"verdict":"invalid"}
+dv217	verdict	v: least(_)	v: []	{"verdict":"invalid","opts":{"noFill":true}}
+dv218	verdict	v: least(_)	v: []	{"verdict":"invalid","opts":{"partial":true}}
+dv219	verdict	v: greatest(_)	v: [1, 2]	{"verdict":"valid"}
+dv220	verdict	v: greatest(_)	v: [1, 2]	{"verdict":"valid","opts":{"noFill":true}}
+dv221	verdict	v: greatest(_)	v: [1, 2]	{"verdict":"valid","opts":{"partial":true}}
+dv222	verdict	v: sort(_)	v: ["b", "a"]	{"verdict":"valid"}
+dv223	verdict	v: sort(_)	v: ["b", "a"]	{"verdict":"valid","opts":{"noFill":true}}
+dv224	verdict	v: sort(_)	v: ["b", "a"]	{"verdict":"valid","opts":{"partial":true}}
+dv225	verdict	v: pick(_, "a")	v: [{"a": 1}]	{"verdict":"valid"}
+dv226	verdict	v: pick(_, "a")	v: [{"a": 1}]	{"verdict":"valid","opts":{"noFill":true}}
+dv227	verdict	v: pick(_, "a")	v: [{"a": 1}]	{"verdict":"valid","opts":{"partial":true}}
+dv228	verdict	v: join(_, "-")	v: ["a", "b"]	{"verdict":"valid"}
+dv229	verdict	v: join(_, "-")	v: ["a", "b"]	{"verdict":"valid","opts":{"noFill":true}}
+dv230	verdict	v: join(_, "-")	v: ["a", "b"]	{"verdict":"valid","opts":{"partial":true}}
+dv231	verdict	v: join(["a", "b"], _)	v: "-"	{"verdict":"valid"}
+dv232	verdict	v: join(["a", "b"], _)	v: "-"	{"verdict":"valid","opts":{"noFill":true}}
+dv233	verdict	v: join(["a", "b"], _)	v: "-"	{"verdict":"valid","opts":{"partial":true}}
+dv234	verdict	v: {"k": sum(_)}	v: {"k": [1, 2]}	{"verdict":"valid"}
+dv235	verdict	v: {"k": sum(_)}	v: {"k": [1, 2]}	{"verdict":"valid","opts":{"noFill":true}}
+dv236	verdict	v: {"k": sum(_)}	v: {"k": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
 da0	verdict	v: (add("x", 1)) | ("x")	v: "x"	{"verdict":"valid"}
 da1	verdict	v: (add("x", 1)) | ("x")	v: "x"	{"verdict":"valid","opts":{"noFill":true}}
 da2	verdict	v: (add("x", 1)) | ("x")	v: "x"	{"verdict":"valid","opts":{"partial":true}}

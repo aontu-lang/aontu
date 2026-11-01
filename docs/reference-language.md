@@ -1348,6 +1348,10 @@ list's hole open, and a rider's record is a container argument too, so
 rows from hv366 on hold them to it. Both engines still take the peer of `+` into a hole that an
 operand list holds, where the definition joins the lists as written,
 which [#570](https://github.com/aontu-lang/aontu/issues/570) tracks. A
+call over a container whose argument is the hole takes its peer as any
+call does, so `sum(_) & [1, 2]` is `3`, `["a", "b"] & join(_, "-")` is
+`"a-b"`, `join(["a", "b"], _) & "-"` is `"a-b"` too, and
+`["a", "b"] & sum(_)` is an error, as both engines answer. A
 spread whose template waits on a hole fills each member it meets, once,
 its own and a peer's, and then reads that key as `any`
 (`spreadFields`, `spreadWith`): `{&: upper(_)} & {a: "x"}` is

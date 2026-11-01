@@ -7613,7 +7613,12 @@ the separator and leaves the list's hole open, and
 `v: join(["a", _], "-") & "b"` refuses `v: "a-b"`, as both engines
 answer in the rows from hv366 on. Both engines still take the peer of `+` into a
 hole that an operand list holds, where the definition joins the lists
-as written (`plusOf`), which #570 tracks.
+as written (`plusOf`), which #570 tracks. A call over a container whose
+argument is the hole waits on it like any other, so `sum(_) & [1, 2]`
+is `3`, and so does `join(["a", "b"], _)`, whose separator is the hole.
+The data fills such a hole in `vet` too, so `v: sum(_)` passes
+`v: [1, 2]` and refuses `v: 3`, as both engines answer in the rows from
+dv201 on.
 
 The fill follows the document's grouping: `upper(_) & ("a" & "a")`
 reads as `upper("a")`, which is `"A"`. Both engines read a conjunction
