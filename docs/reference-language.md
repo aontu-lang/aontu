@@ -1326,11 +1326,11 @@ written, so `v: upper(_)` and `v: "a"`, two declarations of `v`, read
 as `"A"`, and a list's elements are paired among those that stand, so
 `[upper(_)] & [hide("a"), "b"]` is `["B"]`. The peer a member's hole
 takes is spent, and each container is kept whole, so a seal and a
-spread stand. Neither engine reads through a rider, a mark or a seal
-around a container: both bind the whole peer to the hole, so both
-answer `meta({a: upper(_)}, {d: 1}) & {a: "x"}` and
-`close([upper(_)]) & ["a"]` with an error, which
-[#552](https://github.com/aontu-lang/aontu/issues/552) tracks. The fill
+spread stand. The fill reads through a rider, a mark or a seal around
+a container, so `meta({a: upper(_)}, {d: 1}) & {a: "x"}` is
+`meta({a: "X"}, {d: 1})`, `close([upper(_)]) & ["a"]` is the sealed
+`["A"]`, and `close({a: upper(_)}) & {a: "x", b: "y"}` is an error,
+since the seal refuses `b`, as both engines answer. The fill
 reads every meet but one in a generator's template, an `emit`'s table
 or a `filter`'s condition, whose holes those bind. Rows from hv0
 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold both

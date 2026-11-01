@@ -7436,9 +7436,7 @@ marked one holds no position, so `[upper(_)] & [hide("a"), "b"]` is
 So `meta({a: upper(_)}, {d: 1}) & {a: "x"}` reads as
 `meta({a: "X"}, {d: 1})`, since a rider is transparent, and
 `close([upper(_)]) & ["a"]` as the sealed `["A"]`, since a seal is part
-of its container. Neither engine reads through a rider, a mark or a
-seal around a container: both bind the whole peer to the hole, and
-answer each with an error, which #552 tracks.
+of its container, as both engines answer.
 
 A disjunction is met arm by arm, the other side met into each arm
 (`fillArms`, `leafArms`), so `(upper(_) | "x") & "a"` reads as
