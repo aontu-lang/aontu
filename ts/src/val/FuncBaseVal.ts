@@ -30,7 +30,7 @@ import {
 
 import { ConjunctVal } from '../val/ConjunctVal'
 import { FeatureVal } from '../val/FeatureVal'
-import { hasPlace, fillPlace } from '../val/PlaceVal'
+import { hasPlace, waitsOnHole, bindHole } from '../val/PlaceVal'
 import { bagMembers } from './members'
 
 
@@ -174,7 +174,7 @@ class FuncBaseVal extends FeatureVal {
 
   stagedReady(peer: Val, ctx: AontuContext, count: number): boolean {
     const ready = this.driveStagedArgs(ctx, count)
-    return (ready || (!peer.isTop && hasPlace(this))) && true === ctx.settle
+    return (ready || (!peer.isTop && waitsOnHole(this))) && true === ctx.settle
   }
 
 
@@ -227,16 +227,17 @@ class FuncBaseVal extends FeatureVal {
       return this.residuate(peer, ctx)
     }
 
-    const fill = !peer.isTop && !peer.isNil && this.id !== peer.id && hasPlace(this)
+    const reach = !peer.isTop && !peer.isNil && this.id !== peer.id
+    const fill = reach && waitsOnHole(this)
 
     // A rider, a mark or a seal around a container reads through to it.
-    const through = fill && wrapsBag(this)
+    const through = reach && wrapsBag(this)
 
     if (fill && !through) {
-      if (hasPlace(peer)) {
+      if (waitsOnHole(peer)) {
         return makeNilErr(ctx, 'place_pair', this, peer)
       }
-      return fillPlace(this, peer, ctx).unify(top(), ctx)
+      return bindHole(this, peer, ctx).unify(top(), ctx)
     }
 
     const TOP = top()

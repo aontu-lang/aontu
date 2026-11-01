@@ -7605,10 +7605,15 @@ it fills a meet in a `match`'s result or default and in a `filter`'s
 source, as both engines do, and one in a `match`'s scrutinee or
 pattern, a size or a trial. Neither engine fills a meet in a
 scrutinee, a pattern, `len` or `must`, and Go fills none in
-`contains`, `rest`, `when` or `nof`, which #549 tracks. Go also fills
-a hole inside a call's list argument, so `sum([_, 1]) & 3` is `4`,
-where TypeScript and the definition read a container as waiting on
-none, which #553 tracks.
+`contains`, `rest`, `when` or `nof`, which #549 tracks. A call waits
+on no hole that a container argument holds (`Val.fillable`), and its
+peer fills only the holes the call waits on (`Val.bindHole`). So
+`sum([_, 1]) & 3` is an error, `join([_, "b"], _) & "-"` binds `"-"` as
+the separator and leaves the list's hole open, and
+`v: join(["a", _], "-") & "b"` refuses `v: "a-b"`, as both engines
+answer in the rows from hv366 on. Both engines still take the peer of `+` into a
+hole that an operand list holds, where the definition joins the lists
+as written (`plusOf`), which #570 tracks.
 
 The fill follows the document's grouping: `upper(_) & ("a" & "a")`
 reads as `upper("a")`, which is `"A"`. Both engines read a conjunction

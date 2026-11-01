@@ -118,7 +118,7 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     }
     stagedReady(peer, ctx, count) {
         const ready = this.driveStagedArgs(ctx, count);
-        return (ready || (!peer.isTop && (0, PlaceVal_1.hasPlace)(this))) && true === ctx.settle;
+        return (ready || (!peer.isTop && (0, PlaceVal_1.waitsOnHole)(this))) && true === ctx.settle;
     }
     clone(ctx, spec) {
         const out = super.clone(ctx, spec);
@@ -160,14 +160,15 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
         if (this.staged && !ctx.settle) {
             return this.residuate(peer, ctx);
         }
-        const fill = !peer.isTop && !peer.isNil && this.id !== peer.id && (0, PlaceVal_1.hasPlace)(this);
+        const reach = !peer.isTop && !peer.isNil && this.id !== peer.id;
+        const fill = reach && (0, PlaceVal_1.waitsOnHole)(this);
         // A rider, a mark or a seal around a container reads through to it.
-        const through = fill && wrapsBag(this);
+        const through = reach && wrapsBag(this);
         if (fill && !through) {
-            if ((0, PlaceVal_1.hasPlace)(peer)) {
+            if ((0, PlaceVal_1.waitsOnHole)(peer)) {
                 return (0, err_1.makeNilErr)(ctx, 'place_pair', this, peer);
             }
-            return (0, PlaceVal_1.fillPlace)(this, peer, ctx).unify((0, top_1.top)(), ctx);
+            return (0, PlaceVal_1.bindHole)(this, peer, ctx).unify((0, top_1.top)(), ctx);
         }
         const TOP = (0, top_1.top)();
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Func:' + this.funcname(), this, peer);

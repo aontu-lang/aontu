@@ -1338,11 +1338,16 @@ engines to it where a call meets one peer, a `match`'s result and its
 default among them. Neither engine fills a meet in a `match`'s
 scrutinee or pattern, in `len` or in `must`, and Go fills none in
 `contains`, `rest`, `when` or `nof`, which
-[#549](https://github.com/aontu-lang/aontu/issues/549) tracks. Go also
-fills a hole inside a call's list argument, so `sum([_, 1]) & 3` is
-`4`, where TypeScript reads a container as waiting on none, as the
-definition does, which
-[#553](https://github.com/aontu-lang/aontu/issues/553) tracks. A
+[#549](https://github.com/aontu-lang/aontu/issues/549) tracks. A call
+waits on no hole that a container argument holds, so its peer leaves
+that hole open and nothing makes the call: `sum([_, 1]) & 3` and
+`upper([_]) & "a"` are errors. A call that also waits on a hole of its
+own binds its peer there alone, so `join([_, "b"], _) & "-"` leaves the
+list's hole open, and a rider's record is a container argument too, so
+`meta({x: 1}, {d: _}) & 2` is an error, as both engines answer, and
+rows from hv366 on hold them to it. Both engines still take the peer of `+` into a hole that an
+operand list holds, where the definition joins the lists as written,
+which [#570](https://github.com/aontu-lang/aontu/issues/570) tracks. A
 spread whose template waits on a hole fills each member it meets, once,
 its own and a peer's, and then reads that key as `any`
 (`spreadFields`, `spreadWith`): `{&: upper(_)} & {a: "x"}` is

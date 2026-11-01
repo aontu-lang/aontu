@@ -5,7 +5,9 @@ exports.PlaceVal = void 0;
 exports.boundArgStart = boundArgStart;
 exports.rebuild = rebuild;
 exports.hasPlace = hasPlace;
+exports.waitsOnHole = waitsOnHole;
 exports.fillPlace = fillPlace;
+exports.bindHole = bindHole;
 const Val_1 = require("./Val");
 class PlaceVal extends Val_1.Val {
     constructor(spec, ctx) {
@@ -38,25 +40,36 @@ function boundArgStart(v) {
         true === v.isFormFunc ? 1 : Infinity;
 }
 function hasPlace(v) {
+    return holeIn(v, true);
+}
+// A call waits on a hole in its arguments, not on one a container
+// argument holds, which that container's own meet fills.
+function waitsOnHole(v) {
+    return holeIn(v, false);
+}
+function holeIn(v, bags) {
     if (true === v.isPlace) {
         return true;
+    }
+    if (!bags && (true === v.isMap || true === v.isList)) {
+        return false;
     }
     const peg = v.peg;
     const bound = boundArgStart(v);
     if (Array.isArray(peg)) {
         for (let cI = 0; cI < peg.length && cI < bound; cI++) {
             const c = peg[cI];
-            if (true === c?.isVal && hasPlace(c)) {
+            if (true === c?.isVal && holeIn(c, bags)) {
                 return true;
             }
         }
     }
     else if (true === peg?.isVal) {
-        return hasPlace(peg);
+        return holeIn(peg, bags);
     }
     else if (null != peg && 'object' === typeof peg) {
         for (const k of Object.keys(peg)) {
-            if (true === peg[k]?.isVal && hasPlace(peg[k])) {
+            if (true === peg[k]?.isVal && holeIn(peg[k], bags)) {
                 return true;
             }
         }
@@ -64,8 +77,19 @@ function hasPlace(v) {
     return false;
 }
 function fillPlace(v, fill, ctx) {
+    return fillIn(v, fill, ctx, true);
+}
+// The holes a call waits on, bound to its peer: a container argument
+// keeps its own.
+function bindHole(v, fill, ctx) {
+    return fillIn(v, fill, ctx, false);
+}
+function fillIn(v, fill, ctx, bags) {
     if (true === v.isPlace) {
         return fill.clone(ctx, { path: [...v.path] });
+    }
+    if (!bags && (true === v.isMap || true === v.isList)) {
+        return v;
     }
     const peg = v.peg;
     const bound = boundArgStart(v);
@@ -75,14 +99,14 @@ function fillPlace(v, fill, ctx) {
             if (true !== c?.isVal || bound <= cI) {
                 return c;
             }
-            const f = fillPlace(c, fill, ctx);
+            const f = fillIn(c, fill, ctx, bags);
             changed = changed || f !== c;
             return f;
         });
         return changed ? rebuild(v, out, ctx) : v;
     }
     if (true === peg?.isVal) {
-        const f = fillPlace(peg, fill, ctx);
+        const f = fillIn(peg, fill, ctx, bags);
         return f === peg ? v : rebuild(v, f, ctx);
     }
     if (null != peg && 'object' === typeof peg) {
@@ -91,9 +115,9 @@ function fillPlace(v, fill, ctx) {
         for (const k of Object.keys(peg)) {
             const c = peg[k];
             // No isVal guard: a slot holding something that is not a Val
-            // answers itself, because fillPlace's own first tests -- is it a
-            // hole, has it a peg -- are both false for one.
-            const f = fillPlace(c, fill, ctx);
+            // answers itself, because fillIn's own first tests -- is it a
+            // hole, a container, has it a peg -- are all false for one.
+            const f = fillIn(c, fill, ctx, bags);
             changed = changed || f !== c;
             out[k] = f;
         }

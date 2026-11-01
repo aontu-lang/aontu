@@ -4617,7 +4617,11 @@ mark or a seal, met member by member as it would be bare: under `meta`
 on either side, around a map and a list, under `deprecate`, `hide` and
 `type`, sealed, where a key the peer adds is refused, met with a list,
 which it conflicts with, under two riders, and met with a peer whose
-member waits too; and a hole alone under a rider. -/
+member waits too; and a hole alone under a rider. And a hole inside a
+list a call takes, which the call doesn't wait on, so its peer doesn't
+fill it: in a `join`'s list, after a member and before one, against
+data that writes the output a fill would make and data that writes the
+peer, and as a map's member. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4767,7 +4771,12 @@ def holeFillVetCases : List (Val × Data) :=
     (.meet (.ride .metadata (md (mp [("a", up .hole)])) [("e", .integer 2)]) (mp [("a", s "x")]),
       .map [("a", .str "X")]),
     (.meet (md (mp [("a", up .hole)])) (mp [("a", .hole)]), .map [("a", .str "x")]),
-    (.meet (md .hole) (s "x"), .str "x")]
+    (.meet (md .hole) (s "x"), .str "x"),
+    (.meet (.call .join [lst [s "a", .hole], s "-"]) (s "b"), .str "a-b"),
+    (.meet (.call .join [lst [.hole, s "b"], s "-"]) (s "a"), .str "a-b"),
+    (.meet (.call .join [lst [s "a", .hole], s "-"]) (s "b"), .str "b"),
+    (.meet (.call .join [lst [s "a", .hole], s "-"]) (s "a-b"), .str "a-b"),
+    (.meet (mp [("a", .call .join [lst [s "x", .hole], s "-"])]) (mp [("a", s "y")]), .map [("a", .str "x-y")])]
 
 set_option maxRecDepth 8192 in
 /-- A hole the document leaves unfilled, which the data fills, the data

@@ -22,7 +22,7 @@ import {
 
 
 import { JunctionVal } from './JunctionVal'
-import { hasPlace } from './PlaceVal'
+import { hasPlace, waitsOnHole } from './PlaceVal'
 import { sizingResidue } from './BagVal'
 
 import {
@@ -255,8 +255,7 @@ class ConjunctVal extends JunctionVal {
 }
 
 
-// A call over a hole beside another side that holds a hole, where they
-// stand in a group or at a key or an index its containers share.
+// A call over a hole beside a side that holds one, in a group or at a shared key or index.
 function waitPair(cj: Val): [Val, Val] | undefined {
   const terms: Val[] = cj.peg
   for (const c of terms) {
@@ -273,7 +272,7 @@ function waitPair(cj: Val): [Val, Val] | undefined {
 
 function pairAt(c: any, o: any): [Val, Val] | undefined {
   if (true === c.isFunc || true === c.isOp) {
-    return hasPlace(c) && waits(o) ? [c, o] : undefined
+    return waitsOn(c) && waits(o) ? [c, o] : undefined
   }
   if (true === c.isMap && true === o.isMap) {
     for (const k of Object.keys(c.peg)) {
@@ -299,8 +298,14 @@ function pairAt(c: any, o: any): [Val, Val] | undefined {
 // `_ & "a"`, which fills its own hole, doesn't.
 function waits(v: any): boolean {
   return true === v.isPlace
-    || ((true === v.isFunc || true === v.isOp) && hasPlace(v))
+    || ((true === v.isFunc || true === v.isOp) && waitsOn(v))
     || (true === v.isConjunct && v.peg.every(waits))
+}
+
+
+// A call waits on no hole in a container argument; an operator still does.
+function waitsOn(v: any): boolean {
+  return true === v.isOp ? hasPlace(v) : waitsOnHole(v)
 }
 
 
