@@ -327,9 +327,8 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			if ev, ok := child.(*ExpectVal); ok {
 				code = "mapval_spread_required"
 				if ev.parent != nil {
-					// place() copies the parent's whole site — position
-					// AND url (the clone mark), which gates the operand
-					// order exactly as in TS.
+					// place() copies the parent's whole site, url (the clone
+					// mark) too, which gates the operand order as in TS.
 					nb := newNil("")
 					nb.site.sp = ev.parent.pos()
 					nb.site.spu = ev.parent.posu()
@@ -340,9 +339,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			}
 			details := map[string]string{"key": k}
 			n := makeNilErrFull(ctx, code, va, vb, "", details)
-			if nil != vb {
-				n.path = append(cp(m.path), k)
-			}
+			n.path = append(cp(m.path), k)
 			break
 		}
 

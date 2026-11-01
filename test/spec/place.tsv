@@ -133,6 +133,12 @@ place-spread-once-own	gens	v:{&:{n:add(_,1)},a:{n:1}} & {a:{n:2}}\n	{"v":{"a":{"
 place-spread-once-list-template	gens	v:({&:[add(_,1)]} & {a:[1]}) & {a:[2]}\n	{"v":{"a":[2]}}
 place-spread-once-still-constrains	errc	v:({&:{m:string}} & {a:{n:1}}) & {a:{m:1}}\n	no_scalar_unify
 
+# A value a spread's template leaves unmade is named at the member it
+# stands in, in a map and in a list, where both engines had named the
+# template's own position.
+place-spread-unfilled-path	err	v:{&:{n:upper(_)}} & {a:{}}\n	[aontu/mapval_no_gen]: Cannot resolve value at path $.v.a.n
+place-spread-list-unfilled-path	err	v:[&:{n:upper(_)}] & [{}]\n	[aontu/mapval_no_gen]: Cannot resolve value at path $.v.0.n
+
 # A meet that fills a hole inside a size, a trial or a match settles as
 # it would written filled, so the size or trial it stands in reads its
 # value: in len, must, a match's scrutinee and its pattern, contains and
