@@ -64,6 +64,30 @@ function hasPlace(v: Val): boolean {
 }
 
 
+// Done but for the holes it waits on, which settle only when filled.
+function doneButHoles(v: any): boolean {
+  if (v.done || true === v.isPlace) {
+    return true
+  }
+  if (true === v.isFunc || true === v.isOp) {
+    return waitsOnHole(v) && v.peg.slice(0, boundArgStart(v)).every(doneButHoles)
+  }
+  if (true === v.isConjunct || true === v.isDisjunct) {
+    return v.peg.every(doneButHoles)
+  }
+  if (true === v.isPref) {
+    return doneButHoles(v.peg)
+  }
+  if (true === v.isList) {
+    return null == v.spread.cj && v.peg.every(doneButHoles)
+  }
+  if (true === v.isMap) {
+    return null == v.spread.cj && Object.values(v.peg).every(doneButHoles)
+  }
+  return false
+}
+
+
 // A call waits on a hole in its arguments, not on one a container
 // argument holds, which that container's own meet fills.
 function waitsOnHole(v: Val): boolean {
@@ -180,6 +204,7 @@ export {
   boundArgStart,
   rebuild,
   hasPlace,
+  doneButHoles,
   waitsOnHole,
   fillPlace,
   bindHole,

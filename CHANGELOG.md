@@ -8,6 +8,33 @@ each change affects.
 
 ## Unreleased
 
+### `+` joins two lists whatever their elements hold
+
+TypeScript and Go, generated rows, and documentation.
+
+- `+` joins two lists as they stand, whatever their elements hold, so a
+  hole that an operand list holds is the joined list's, which the meet
+  fills member by member (#570): `(["a", _] + ["c"]) & ["a", "b", "c"]`
+  is `["a", "b", "c"]`, where both engines took the peer into the hole
+  and gave `["a", ["a", "b", "c"], "c"]`, and `["a", _] + ["c"]` fails
+  on the hole at `$.v.1` with `listval_no_gen`, where both failed on
+  the whole `+` with `mapval_no_gen`.
+- A `+` waits only on a hole among its operands and binds its peer
+  there alone, as a call does, so `([_] + _) & ["a"]` is `[_, "a"]`,
+  whose hole stays open, where both engines gave `[["a"], "a"]`. In
+  `vet` with `--no-fill`, Go passes `v: ["a", "b", "c"]` against
+  `v: ["a", _] + ["c"]`, as TypeScript did, where Go answered
+  `incomplete`.
+- `spec/Oracle.lean`: rows hv450 to hv467 of `test/spec/def-call.tsv`,
+  6 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves. `test/spec/place.tsv`
+  holds the evaluation shapes.
+- The definition fills a meet before `+` joins its lists, so a call over
+  a hole in an operand list stays open there, where both engines fill it
+  from its member (#576).
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
 ### Both engines settle a size or a trial over a meet that fills a hole
 
 TypeScript and Go, generated rows, and documentation.
@@ -111,8 +138,6 @@ TypeScript and Go, generated rows, and documentation.
   `meta({x: 1}, {d: _}) & 2` is an error, where both engines filled the
   record's hole and gave `{x: 1}`. The row that held that fill now holds
   the error.
-- `+` keeps its reading, its peer filling a hole that an operand list
-  holds, where the definition joins the lists as written (#570).
 - `spec/Oracle.lean`: rows hv366 to hv380 of `test/spec/def-call.tsv`,
   5 cases in each of the three modes. Both engines answer every row as
   the definition does, and no other row moves. `test/spec/place.tsv`

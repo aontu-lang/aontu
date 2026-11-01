@@ -46,6 +46,50 @@ func boundArgStart(v Val) int {
 
 func hasPlace(v Val) bool { return holeIn(v, true) }
 
+// Done but for the holes it waits on, which settle only when filled.
+func doneButHoles(v Val) bool {
+	if v.Dc() == DONE {
+		return true
+	}
+	switch n := v.(type) {
+	case *PlaceVal:
+		return true
+	case *FuncVal:
+		bound := boundArgStart(n)
+		return waitsOnHole(n) && allDoneButHoles(n.peg[:min(bound, len(n.peg))])
+	case *PlusOpVal:
+		return waitsOnHole(n) && allDoneButHoles(n.peg)
+	case *ConjunctVal:
+		return allDoneButHoles(n.peg)
+	case *DisjunctVal:
+		return allDoneButHoles(n.peg)
+	case *PrefVal:
+		return doneButHoles(n.peg)
+	case *ListVal:
+		return n.spread == nil && allDoneButHoles(n.peg)
+	case *MapVal:
+		if n.spread != nil {
+			return false
+		}
+		for _, k := range n.keys {
+			if !doneButHoles(n.peg[k]) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func allDoneButHoles(vs []Val) bool {
+	for _, v := range vs {
+		if !doneButHoles(v) {
+			return false
+		}
+	}
+	return true
+}
+
 // A call waits on a hole outside its container arguments, which fill their own.
 func waitsOnHole(v Val) bool { return holeIn(v, false) }
 

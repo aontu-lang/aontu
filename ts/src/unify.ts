@@ -11,7 +11,7 @@ import { makeNilErr } from './err'
 import { findAt } from './val/ReferFuncVal'
 
 import { NilVal } from './val/NilVal'
-import { hasPlace } from './val/PlaceVal'
+import { waitsOnHole } from './val/PlaceVal'
 import { expandAliases } from './alias'
 import { riderText, rides, unionRecords, unionVia } from './rider'
 
@@ -92,7 +92,7 @@ function drives(v: any): boolean {
     || v.isExpect
     || v.isRefer
     // An op DRIVES while an operand has not decided (ADR-037).
-    || (v.isOp && (hasPlace(v) || v.holdsStaged))
+    || (v.isOp && (waitsOnHole(v) || v.holdsStaged))
     // A graph atom DRIVES (RELATIONS P2): its peer is the value it rides
     // beside -- a container, a rel, a scalar -- and none of them know
     // the atom; the atom knows to residuate.

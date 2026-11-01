@@ -4631,7 +4631,14 @@ trial or a `match`, which settles as it would written filled: in `len`,
 `must`, a `match`'s pattern, `when`'s branch, `contains`, `rest` and a
 branch of `nof`, against data that passes and data that doesn't. One
 in a `match`'s scrutinee is out of them, as the checker reads no
-scrutinee that waits. -/
+scrutinee that waits. And a `+` over a list that holds a hole, which
+joins the lists as written and waits only on a hole among its operands:
+met with a list that fills the hole member by member, against data
+that writes that and data that writes the list bound to the hole; a
+`+` whose own operand is the hole beside a list that holds one,
+against data that fills the list's hole and data that leaves it out;
+the `+` alone, whose hole the data fills; and a `+` over a hole and a
+list. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4816,7 +4823,15 @@ def holeFillVetCases : List (Val × Data) :=
     (.rest (.meet (add1 .hole) (n 0)) [], .map [("a", .integer 2)]),
     (.rest (.meet (add1 .hole) (n 0)) [], .map [("a", .integer 1)]),
     (.nof (n 1) [.meet (add1 .hole) (n 0), n 5], .integer 1),
-    (.nof (n 1) [.meet (add1 .hole) (n 0), n 5], .integer 2)]
+    (.nof (n 1) [.meet (add1 .hole) (n 0), n 5], .integer 2),
+    (.meet (.call .plus [lst [s "a", .hole], lst [s "c"]]) (lst [s "a", s "b", s "c"]),
+      .list [.str "a", .str "b", .str "c"]),
+    (.meet (.call .plus [lst [s "a", .hole], lst [s "c"]]) (lst [s "a", s "b", s "c"]),
+      .list [.str "a", .list [.str "a", .str "b", .str "c"], .str "c"]),
+    (.meet (.call .plus [lst [.hole], .hole]) (lst [s "a"]), .list [.str "a"]),
+    (.meet (.call .plus [lst [.hole], .hole]) (lst [s "a"]), .list [.list [.str "a"], .str "a"]),
+    (.call .plus [lst [s "a", .hole], lst [s "c"]], .list [.str "a", .str "b", .str "c"]),
+    (.meet (.call .plus [.hole, lst [s "c"]]) (lst [s "a"]), .list [.str "a", .str "c"])]
 
 set_option maxRecDepth 8192 in
 /-- A hole the document leaves unfilled, which the data fills, the data

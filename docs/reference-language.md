@@ -1345,9 +1345,13 @@ that hole open and nothing makes the call: `sum([_, 1]) & 3` and
 own binds its peer there alone, so `join([_, "b"], _) & "-"` leaves the
 list's hole open, and a rider's record is a container argument too, so
 `meta({x: 1}, {d: _}) & 2` is an error, as both engines answer, and
-rows from hv366 on hold them to it. Both engines still take the peer of `+` into a hole that an
-operand list holds, where the definition joins the lists as written,
-which [#570](https://github.com/aontu-lang/aontu/issues/570) tracks. A
+rows from hv366 on hold them to it. `+` joins two lists as they stand,
+whatever their elements hold, so a hole that an operand list holds is
+the joined list's, which the meet fills member by member:
+`(["a", _] + ["c"]) & ["a", "b", "c"]` is `["a", "b", "c"]`. A `+`
+waits only on a hole among its operands and binds its peer there alone,
+so `([_] + _) & ["a"]` is `[_, "a"]`, whose hole stays open, as both
+engines answer in the rows from hv450 on. A
 call over a container whose argument is the hole takes its peer as any
 call does, so `sum(_) & [1, 2]` is `3`, `["a", "b"] & join(_, "-")` is
 `"a-b"`, `join(["a", "b"], _) & "-"` is `"a-b"` too, and
