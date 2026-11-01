@@ -8,6 +8,32 @@ each change affects.
 
 ## Unreleased
 
+### Both engines fill a hole on the right of a meet
+
+TypeScript and Go, generated rows, and documentation.
+
+- A hole on the right of a meet takes its peer, as one on the left
+  does, so `1 & _` is `1`, `{a: 1} & {a: _}` is `{a: 1}`, `[1] & [_]` is
+  `[1]`, and `v: {} & {a: _}` passes `v: {a: "x"}`, where both engines
+  failed with `scalar_kind` or refused the data (#565). A peer that
+  waits on a hole itself still leads, so `upper(_) & _` stays an error,
+  and in the dispatch of `emit` a hole standing in a `match` still
+  matches nothing.
+- A group of two sides that both wait is refused before the meet around
+  it is flattened, so `"x" & (upper(_) & _)` stays an error however the
+  document groups it, and so does such a pair of two maps' or two lists'
+  members, `{a: "x"} & ({a: upper(_)} & {a: _})`. Both engines had
+  answered these `error` only because the hole on the right failed.
+- TypeScript: `number & _` and `_ & number` are `number`, where
+  TypeScript failed with `not-scalar-type` in either order: a later pass
+  met the kind with `any`, which the kind refused.
+- `spec/Oracle.lean`: rows hv300 to hv329, dv195 to dv200, dg72 to
+  dg116 and dt240 to dt245 of `test/spec/def-call.tsv`, 29 cases in each
+  of the three modes. Both engines answer every row as the definition
+  does, and no other row moves.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
 ### Both engines' vet passes the value eval gives a preference its peer fills, and a bare hole template takes each member
 
 TypeScript and Go, generated rows, and documentation.
@@ -24,8 +50,6 @@ TypeScript and Go, generated rows, and documentation.
   `{&: type(_)}` reads the same, where both engines failed with
   `scalar_kind` (#564). The dispatch of `emit` keeps the old order while it
   tests a `match`, where a hole standing in the pattern matches nothing.
-- Both engines still fill nothing from a hole on the right of any other
-  meet, so `1 & _` and `{a: 1} & {a: _}` are errors (#565).
 - `spec/Oracle.lean`: rows dv156 to dv194 and dt210 to dt239 of
   `test/spec/def-call.tsv`, 23 cases in each of the three modes. Both
   engines answer every row as the definition does, and no other row

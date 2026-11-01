@@ -7358,6 +7358,10 @@ def Val.meetFilled (a b : Val) : Val :=
   else .meet (fillWith (fun q => a.fillMeet q) a.fillable b).1 (fillWith (fun q => a.fillMeet q) a.fillable b).2
 ```
 
+Either side of the meet may be the one that waits, so `1 & _` is `1`,
+as `_ & 1` is, and `{a: 1} & {a: _}` is `{a: 1}`, as both engines
+answer.
+
 A side waits on a hole if it's the hole, or a call over one through
 its arguments or a rider:
 
@@ -7682,7 +7686,9 @@ The first arm is `nil`, so it drops as a conflict's arm does, as both
 engines answer. `(upper(_) & _) & "x"` is an error in the definition
 and in both engines, where reading through the group would fill
 `upper(_)` with `"x"`, and since two holes meet as one, so is
-`(_ & _) & upper(_)`. The rows are dg0 on, and both engines answer
+`(_ & _) & upper(_)`. So is `"x" & (upper(_) & _)`, the literal written
+first: both engines refuse such a group before they flatten the meet
+around it. The rows are dg0 on, and both engines answer
 every one as the definition does. The definition reads a spread's
 template of that shape, as in `{&: upper(_) & _}`, as a template
 instead, each member meeting each side, as `Val.instAt` has it earlier
