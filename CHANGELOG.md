@@ -25,7 +25,9 @@ TypeScript and Go, generated rows, and documentation.
 - `spec/Oracle.lean`: rows hv330 to hv365 and dt246 to dt257 of
   `test/spec/def-call.tsv`, 16 cases in each of the three modes. Both
   engines answer every row as the definition does, and no other row
-  moves.
+  moves. `test/spec/place.tsv` holds a seal around a rider, which seals
+  the container the rider wraps, and a hole in a rider's record, which
+  the peer fills as it fills any call's.
 - Docs: the reference's placeholder section and the definition
   tutorial's step 27.
 

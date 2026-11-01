@@ -105,7 +105,14 @@ const WRAPPERS = new Set(['meta', 'deprecate', 'ident', 'type', 'hide', 'close',
 
 function wrapsBag(v: any): boolean {
   const inner = true === v?.isFunc && WRAPPERS.has(v.funcname()) ? v.peg[0] : undefined
-  return null != inner && (true === inner.isMap || true === inner.isList || wrapsBag(inner))
+  return null != inner &&
+    (true === inner.isMap || true === inner.isList ? hasPlace(inner) : wrapsBag(inner))
+}
+
+
+// An outer seal reaches the container once the wrappers inside resolve.
+function openWrap(ctx: AontuContext, v: any): Val {
+  return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v
 }
 
 
@@ -216,8 +223,7 @@ class FuncBaseVal extends FeatureVal {
 
     const fill = !peer.isTop && !peer.isNil && this.id !== peer.id && hasPlace(this)
 
-    // A rider, a mark or a seal around a container reads through to it,
-    // so the peer meets the container member by member, not one hole.
+    // A rider, a mark or a seal around a container reads through to it.
     const through = fill && wrapsBag(this)
 
     if (fill && !through) {
@@ -285,6 +291,9 @@ class FuncBaseVal extends FeatureVal {
           // driven arguments against the declared signature, before
           // the builtin's own logic sees them. See siggate.ts for
           // what the gate owns and what stays with the builtins.
+          if (through) {
+            newpeg = [openWrap(ctx, newpeg[0]), ...newpeg.slice(1)]
+          }
           const resolved = gone ?? sigRefuse(ctx, this, newpeg) ??
             this.resolve(ctx, newpeg)
 

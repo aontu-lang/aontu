@@ -26,9 +26,18 @@ func wrapsBag(v Val) bool {
 	}
 	switch f.peg[0].(type) {
 	case *MapVal, *ListVal:
-		return true
+		return hasPlace(f.peg[0])
 	}
 	return wrapsBag(f.peg[0])
+}
+
+// An outer seal reaches the container once the wrappers inside resolve.
+func openWrap(ctx *Ctx, base []string, v Val) Val {
+	f, ok := v.(*FuncVal)
+	if !ok || !wrapsBag(f) {
+		return v
+	}
+	return f.resolve(ctx, base, append([]Val{openWrap(ctx, base, f.peg[0])}, f.peg[1:]...))
 }
 
 var funcSet = map[string]bool{
@@ -311,8 +320,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 
 	fill := !isTop(peer) && !peer.Nil() && Val(f) != peer && hasPlace(f)
 
-	// A rider, a mark or a seal around a container reads through to it,
-	// so the peer meets the container member by member, not one hole.
+	// A rider, a mark or a seal around a container reads through to it.
 	through := fill && wrapsBag(f)
 
 	if fill && !through {
@@ -421,6 +429,9 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	if pegdone || through {
+		if through {
+			newpeg = append([]Val{openWrap(ctx, base, newpeg[0])}, newpeg[1:]...)
+		}
 		result := absent
 		if nil == result {
 			result = sigRefuse(ctx, f, newpeg)
