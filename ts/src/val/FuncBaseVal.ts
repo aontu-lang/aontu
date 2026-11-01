@@ -110,6 +110,12 @@ function wrapsBag(v: any): boolean {
 }
 
 
+function wrapSettled(args: any[]): boolean {
+  return args.slice(1).every((a: Val) => a.done) &&
+    (!wrapsBag(args[0]) || wrapSettled(args[0].peg))
+}
+
+
 // An outer seal reaches the container once the wrappers inside resolve.
 function openWrap(ctx: AontuContext, v: any): Val {
   return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v
@@ -285,7 +291,7 @@ class FuncBaseVal extends FeatureVal {
         const gone = this.forgives ? undefined :
           newpeg.find((a: Val) => true === (a as any).isAbsent)
 
-        if ((pegdone || through) &&
+        if ((pegdone || (through && wrapSettled(newpeg))) &&
           (undefined !== gone || !this.deferResolve(ctx, newpeg))) {
           // THE SIGNATURE GATE (sketch/SIGNATURES.0.md): the
           // driven arguments against the declared signature, before

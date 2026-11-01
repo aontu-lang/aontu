@@ -83,8 +83,11 @@ place-hole-as-inner-data-tmpl	gens	m:{a:{x:1,y:2}}\nd:pack($.m,{inner:each(_,_ &
 # A rider, a mark or a seal around a container that holds a hole reads
 # through to it, so the peer meets the container member by member. A
 # seal around a rider seals the container the rider wraps, so it still
-# refuses a key the peer adds. A hole elsewhere in the call, in a
-# rider's record, is filled as any call's is, by the peer.
+# refuses a key the peer adds, and a rider's record settles first. A
+# hole elsewhere in the call, in a rider's record, is filled as any
+# call's is, by the peer.
 place-seal-around-rider	gens	a:close(meta({x:upper(_)},{d:1})) & {x:"q"}\n	{"a":{"x":"Q"}}
 place-seal-around-rider-refuses	errc	a:close(meta({x:upper(_)},{d:1})) & {x:"q",y:2}\n	closed
 place-rider-record-hole	gens	a:meta({x:1},{d:_}) & 2\n	{"a":{"x":1}}
+place-rider-record-settles	gens	a:meta({x:_},{d:sum([1,2])}) & {x:1}\n	{"a":{"x":1}}
+place-seal-around-rider-record-settles	gens	a:close(meta({x:upper(_)},{d:sum([1,2])})) & {x:"q"}\n	{"a":{"x":"Q"}}

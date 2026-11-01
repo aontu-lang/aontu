@@ -31,6 +31,15 @@ func wrapsBag(v Val) bool {
 	return wrapsBag(f.peg[0])
 }
 
+func wrapSettled(args []Val) bool {
+	for _, a := range args[1:] {
+		if a.Dc() != DONE {
+			return false
+		}
+	}
+	return !wrapsBag(args[0]) || wrapSettled(args[0].(*FuncVal).peg)
+}
+
 // An outer seal reaches the container once the wrappers inside resolve.
 func openWrap(ctx *Ctx, base []string, v Val) Val {
 	f, ok := v.(*FuncVal)
@@ -428,7 +437,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		pegdone = false
 	}
 
-	if pegdone || through {
+	if pegdone || (through && wrapSettled(newpeg)) {
 		if through {
 			newpeg = append([]Val{openWrap(ctx, base, newpeg[0])}, newpeg[1:]...)
 		}
