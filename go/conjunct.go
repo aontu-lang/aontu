@@ -230,12 +230,8 @@ func waitPair(g *ConjunctVal) (Val, Val) {
 
 func pairAt(c, o Val) (Val, Val) {
 	switch n := c.(type) {
-	case *FuncVal:
+	case *FuncVal, *PlusOpVal:
 		if waitsOnHole(c) && waits(o) {
-			return c, o
-		}
-	case *PlusOpVal:
-		if hasPlace(c) && waits(o) {
 			return c, o
 		}
 	case *MapVal:
@@ -266,10 +262,8 @@ func waits(v Val) bool {
 	switch n := v.(type) {
 	case *PlaceVal:
 		return true
-	case *FuncVal:
+	case *FuncVal, *PlusOpVal:
 		return waitsOnHole(v)
-	case *PlusOpVal:
-		return hasPlace(v)
 	case *ConjunctVal:
 		for _, t := range n.peg {
 			if !waits(t) {

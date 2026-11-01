@@ -184,7 +184,7 @@ function waitPair(cj) {
 }
 function pairAt(c, o) {
     if (true === c.isFunc || true === c.isOp) {
-        return waitsOn(c) && waits(o) ? [c, o] : undefined;
+        return (0, PlaceVal_1.waitsOnHole)(c) && waits(o) ? [c, o] : undefined;
     }
     if (true === c.isMap && true === o.isMap) {
         for (const k of Object.keys(c.peg)) {
@@ -208,12 +208,8 @@ function pairAt(c, o) {
 // `_ & "a"`, which fills its own hole, doesn't.
 function waits(v) {
     return true === v.isPlace
-        || ((true === v.isFunc || true === v.isOp) && waitsOn(v))
+        || ((true === v.isFunc || true === v.isOp) && (0, PlaceVal_1.waitsOnHole)(v))
         || (true === v.isConjunct && v.peg.every(waits));
-}
-// A call waits on no hole in a container argument; an operator still does.
-function waitsOn(v) {
-    return true === v.isOp ? (0, PlaceVal_1.hasPlace)(v) : (0, PlaceVal_1.waitsOnHole)(v);
 }
 function sameTerms(cj, t0, t1) {
     return 2 === cj.peg.length && cj.peg.includes(t0) && cj.peg.includes(t1);

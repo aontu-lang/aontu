@@ -5,6 +5,7 @@ exports.PlaceVal = void 0;
 exports.boundArgStart = boundArgStart;
 exports.rebuild = rebuild;
 exports.hasPlace = hasPlace;
+exports.doneButHoles = doneButHoles;
 exports.waitsOnHole = waitsOnHole;
 exports.fillPlace = fillPlace;
 exports.bindHole = bindHole;
@@ -41,6 +42,28 @@ function boundArgStart(v) {
 }
 function hasPlace(v) {
     return holeIn(v, true);
+}
+// Done but for the holes it waits on, which settle only when filled.
+function doneButHoles(v) {
+    if (v.done || true === v.isPlace) {
+        return true;
+    }
+    if (true === v.isFunc || true === v.isOp) {
+        return waitsOnHole(v) && v.peg.slice(0, boundArgStart(v)).every(doneButHoles);
+    }
+    if (true === v.isConjunct || true === v.isDisjunct) {
+        return v.peg.every(doneButHoles);
+    }
+    if (true === v.isPref) {
+        return doneButHoles(v.peg);
+    }
+    if (true === v.isList) {
+        return null == v.spread.cj && v.peg.every(doneButHoles);
+    }
+    if (true === v.isMap) {
+        return null == v.spread.cj && Object.values(v.peg).every(doneButHoles);
+    }
+    return false;
 }
 // A call waits on a hole in its arguments, not on one a container
 // argument holds, which that container's own meet fills.

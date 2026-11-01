@@ -149,3 +149,27 @@ place-fill-in-match-scrutinee	gens	v:match(upper(_) & "a","A",1,2)\n	{"v":1}
 place-fill-in-match-pattern	gens	v:match("A",upper(_) & "a",1,2)\n	{"v":1}
 place-fill-in-contains	errc	v:[2] & contains(add(_,1) & 0)\n	constraint
 place-fill-in-rest	errc	v:{a:2} & rest(add(_,1) & 0)\n	rest
+
+# `+` joins two lists as they stand, whatever their elements hold, so a
+# hole an operand list holds is the joined list's, which the meet fills
+# member by member: on either side, from a longer list and a shorter
+# one, with a hole in each operand, met again and through a second `+`.
+# Left unmet, the hole stands where the join puts it. The lists join once
+# only their holes wait, so a `key()` an operand list holds reads where
+# it's written, in that list. The `+` waits only on a hole among its
+# operands, which its peer fills alone, so a hole an operand list holds
+# beside it stays open.
+place-plus-join-hole	gens	v:(["a",_] + ["c"]) & ["a","b","c"]\n	{"v":["a","b","c"]}
+place-plus-join-hole-right	gens	v:["a","b","c"] & (["a",_] + ["c"])\n	{"v":["a","b","c"]}
+place-plus-join-hole-longer	gens	v:(["a",_] + ["c"]) & ["a","b","c","d"]\n	{"v":["a","b","c","d"]}
+place-plus-join-hole-shorter	gens	v:(["a",_] + ["c"]) & ["a","b"]\n	{"v":["a","b","c"]}
+place-plus-join-holes	gens	v:(["a",_] + [_]) & ["a","b","c"]\n	{"v":["a","b","c"]}
+place-plus-join-hole-again	gens	v:((["a",_] + ["c"]) & ["a","b","c"]) & ["a","b","c"]\n	{"v":["a","b","c"]}
+place-plus-join-hole-chain	gens	v:(["a",_] + ["c"] + ["d"]) & ["a","b","c","d"]\n	{"v":["a","b","c","d"]}
+place-plus-join-hole-unmet	err	v:["a",_] + ["c"]\n	[aontu/listval_no_gen]: Cannot resolve value at path $.v.1
+place-plus-join-key	gens	l:[5] + [{n:key()}]\n	{"l":[5,{"n":"0"}]}
+place-plus-join-key-lists	gens	l:[[key()]] + [[key()]]\n	{"l":[["0"],["0"]]}
+place-plus-join-key-hole	gens	l:(["a",_] + [{n:key()}]) & ["a","b"]\n	{"l":["a","b",{"n":"0"}]}
+place-plus-operand-hole	gens	v:(_ + ["c"]) & ["a"]\n	{"v":["a","c"]}
+place-plus-operand-hole-right	gens	v:["a"] & (_ + ["c"])\n	{"v":["a","c"]}
+place-plus-operand-hole-own-only	err	v:([_] + _) & ["a"]\n	[aontu/listval_no_gen]: Cannot resolve value at path $.v.0

@@ -271,5 +271,5 @@ func residuePaths(v Val, max int) []string {
 // phase 3, see place.go) or an operand that has not decided.
 func isDrivingOp(v Val) bool {
 	_, ok := v.(*PlusOpVal)
-	return ok && (hasPlace(v) || holdsStaged(v))
+	return ok && (waitsOnHole(v) || holdsStaged(v))
 }

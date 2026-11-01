@@ -7612,9 +7612,16 @@ peer fills only the holes the call waits on (`Val.bindHole`). So
 `sum([_, 1]) & 3` is an error, `join([_, "b"], _) & "-"` binds `"-"` as
 the separator and leaves the list's hole open, and
 `v: join(["a", _], "-") & "b"` refuses `v: "a-b"`, as both engines
-answer in the rows from hv366 on. Both engines still take the peer of `+` into a
-hole that an operand list holds, where the definition joins the lists
-as written (`plusOf`), which #570 tracks. A call over a container whose
+answer in the rows from hv366 on. `+` joins two lists as written
+(`plusOf`), whatever their elements hold, so the meet fills a hole that
+an operand list holds member by member, and a `+` waits only on a hole
+among its operands. So `(["a", _] + ["c"]) & ["a", "b", "c"]` is
+`["a", "b", "c"]`, and `([_] + _) & ["a"]` binds `["a"]` as the second
+operand and leaves the first list's hole for the data to fill, as both
+engines answer in the rows from hv450 on. The fill reads the document
+before `+` joins, so a call over a hole in an operand list stays open
+in the definition, where both engines fill it from its member, which
+#576 tracks. A call over a container whose
 argument is the hole waits on it like any other, so `sum(_) & [1, 2]`
 is `3`, and so does `join(["a", "b"], _)`, whose separator is the hole.
 The data fills such a hole in `vet` too, so `v: sum(_)` passes

@@ -69,7 +69,7 @@ function drives(v) {
         || v.isExpect
         || v.isRefer
         // An op DRIVES while an operand has not decided (ADR-037).
-        || (v.isOp && ((0, PlaceVal_1.hasPlace)(v) || v.holdsStaged))
+        || (v.isOp && ((0, PlaceVal_1.waitsOnHole)(v) || v.holdsStaged))
         // A graph atom DRIVES (RELATIONS P2): its peer is the value it rides
         // beside -- a container, a rel, a scalar -- and none of them know
         // the atom; the atom knows to residuate.
