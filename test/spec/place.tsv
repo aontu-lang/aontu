@@ -122,3 +122,13 @@ place-agg-hole-pick	gens	o:[{a:1}] & pick(_,"a")\n	{"o":[1]}
 place-agg-hole-join	gens	o:["a","b"] & join(_,"-")\n	{"o":"a-b"}
 place-agg-hole-join-sep	gens	o:join(["a","b"],_) & "-"\n	{"o":"a-b"}
 place-agg-hole-refuses	errc	o:["a","b"] & sum(_)\n	invalid-arg
+
+# A map spread's container template meets each member once, as a list
+# spread's does: a member it has filled meets a later value as it
+# stands, so the template's call is never applied to its own output.
+# The template still constrains what a later value adds to the member.
+place-spread-once-later-meet	gens	v:({&:{n:add(_,1)}} & {a:{n:1}}) & {a:{}}\n	{"v":{"a":{"n":2}}}
+place-spread-once-before	gens	v:({&:{n:add(_,1)}} & {a:{}}) & {a:{n:1}}\n	{"v":{"a":{"n":2}}}
+place-spread-once-own	gens	v:{&:{n:add(_,1)},a:{n:1}} & {a:{n:2}}\n	{"v":{"a":{"n":2}}}
+place-spread-once-list-template	gens	v:({&:[add(_,1)]} & {a:[1]}) & {a:[2]}\n	{"v":{"a":[2]}}
+place-spread-once-still-constrains	errc	v:({&:{m:string}} & {a:{n:1}}) & {a:{m:1}}\n	no_scalar_unify

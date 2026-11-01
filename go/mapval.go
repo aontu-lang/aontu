@@ -687,6 +687,10 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				} else {
 					uv = unite(ctx, ex, pc)
 				}
+				// A member the spread has met keeps its mark, as a list's element does.
+				if !isTop(spreadCj) && !uv.Nil() && (sprOf(ex) == spreadCj || sprOf(pc) == spreadCj) {
+					setSprOn(uv, spreadCj)
+				}
 			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() &&
 				!m.markedType() && !m.markedHide() && !pm.isAliasKey(pk) {
 				peg := pc
