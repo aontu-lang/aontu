@@ -44,7 +44,12 @@ func boundArgStart(v Val) int {
 	return int(^uint(0) >> 1) // max int
 }
 
-func hasPlace(v Val) bool {
+func hasPlace(v Val) bool { return holeIn(v, true) }
+
+// A call waits on a hole outside its container arguments, which fill their own.
+func waitsOnHole(v Val) bool { return holeIn(v, false) }
+
+func holeIn(v Val, bags bool) bool {
 	switch n := v.(type) {
 	case *PlaceVal:
 		return true
@@ -54,39 +59,39 @@ func hasPlace(v Val) bool {
 			if bound <= i {
 				break
 			}
-			if hasPlace(a) {
+			if holeIn(a, bags) {
 				return true
 			}
 		}
 	case *PlusOpVal:
 		for _, a := range n.peg {
-			if hasPlace(a) {
+			if holeIn(a, bags) {
 				return true
 			}
 		}
 	case *ConjunctVal:
 		for _, a := range n.peg {
-			if hasPlace(a) {
+			if holeIn(a, bags) {
 				return true
 			}
 		}
 	case *DisjunctVal:
 		for _, a := range n.peg {
-			if hasPlace(a) {
+			if holeIn(a, bags) {
 				return true
 			}
 		}
 	case *PrefVal:
-		return hasPlace(n.peg)
+		return holeIn(n.peg, bags)
 	case *MapVal:
 		for _, k := range n.keys {
-			if hasPlace(n.peg[k]) {
+			if bags && holeIn(n.peg[k], bags) {
 				return true
 			}
 		}
 	case *ListVal:
 		for _, e := range n.peg {
-			if hasPlace(e) {
+			if bags && holeIn(e, bags) {
 				return true
 			}
 		}
@@ -94,7 +99,12 @@ func hasPlace(v Val) bool {
 	return false
 }
 
-func fillPlace(v Val, fill Val) Val {
+func fillPlace(v Val, fill Val) Val { return fillIn(v, fill, true) }
+
+// The peer, bound to the holes the call waits on and no others.
+func bindHole(v Val, fill Val) Val { return fillIn(v, fill, false) }
+
+func fillIn(v Val, fill Val, bags bool) Val {
 	if p, ok := v.(*PlaceVal); ok {
 		// A FILL IS A POSITION: the hole knows where it sits in the
 		// instance, the datum arriving in it does not. Mirrors
@@ -103,7 +113,7 @@ func fillPlace(v Val, fill Val) Val {
 		out.setvpath(cp(p.path))
 		return out
 	}
-	if !hasPlace(v) {
+	if !holeIn(v, bags) {
 		return v
 	}
 
@@ -113,27 +123,27 @@ func fillPlace(v Val, fill Val) Val {
 		// A generator's binding arguments are left untouched
 		// (boundArgStart): those holes are the inner generator's to
 		// fill with its OWN source children when it fires.
-		out.peg = fillPlaceArgs(n.peg, fill, boundArgStart(n))
+		out.peg = fillPlaceArgs(n.peg, fill, boundArgStart(n), bags)
 		out.dc = 0
 		return &out
 	case *PlusOpVal:
 		out := *n
-		out.peg = fillPlaceEach(n.peg, fill)
+		out.peg = fillPlaceEach(n.peg, fill, bags)
 		out.dc = 0
 		return &out
 	case *ConjunctVal:
 		out := *n
-		out.peg = fillPlaceEach(n.peg, fill)
+		out.peg = fillPlaceEach(n.peg, fill, bags)
 		out.dc = 0
 		return &out
 	case *DisjunctVal:
 		out := *n
-		out.peg = fillPlaceEach(n.peg, fill)
+		out.peg = fillPlaceEach(n.peg, fill, bags)
 		out.dc = 0
 		return &out
 	case *PrefVal:
 		out := *n
-		out.peg = fillPlace(n.peg, fill)
+		out.peg = fillIn(n.peg, fill, bags)
 		out.dc = 0
 		return &out
 	case *MapVal:
@@ -141,38 +151,37 @@ func fillPlace(v Val, fill Val) Val {
 		out.keys = cp(n.keys)
 		out.peg = map[string]Val{}
 		for _, k := range n.keys {
-			out.peg[k] = fillPlace(n.peg[k], fill)
+			out.peg[k] = fillIn(n.peg[k], fill, bags)
 		}
 		out.dc = 0
 		return &out
 	case *ListVal:
 		out := *n
-		out.peg = fillPlaceEach(n.peg, fill)
+		out.peg = fillPlaceEach(n.peg, fill, bags)
 		out.dc = 0
 		return &out
 	}
 
-	// UNREACHABLE: hasPlace above answered true, and it answers true
-	// only for the kinds this switch covers. The return is here because
-	// Go needs one.
-	return v //coverage:ignore hasPlace true implies a case above
+	// UNREACHABLE: holeIn answered true, which it does only for the
+	// kinds this switch covers; the return is here because Go needs one.
+	return v //coverage:ignore holeIn true implies a case above
 }
 
-func fillPlaceEach(vals []Val, fill Val) []Val {
-	return fillPlaceArgs(vals, fill, len(vals))
+func fillPlaceEach(vals []Val, fill Val, bags bool) []Val {
+	return fillPlaceArgs(vals, fill, len(vals), bags)
 }
 
 // fillPlaceArgs fills holes in the first `bound` values and carries the
 // rest through unchanged — the generator-template boundary of the
 // FuncVal arm above.
-func fillPlaceArgs(vals []Val, fill Val, bound int) []Val {
+func fillPlaceArgs(vals []Val, fill Val, bound int, bags bool) []Val {
 	out := make([]Val, 0, len(vals))
 	for i, v := range vals {
 		if bound <= i {
 			out = append(out, v)
 			continue
 		}
-		out = append(out, fillPlace(v, fill))
+		out = append(out, fillIn(v, fill, bags))
 	}
 	return out
 }

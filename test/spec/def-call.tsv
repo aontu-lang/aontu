@@ -3185,6 +3185,21 @@ hv362	verdict	v: (meta({"a": upper(_)}, {"d": 1})) & ({"a": _})	v: {"a": "x"}	{"
 hv363	verdict	v: (meta(_, {"d": 1})) & ("x")	v: "x"	{"verdict":"valid"}
 hv364	verdict	v: (meta(_, {"d": 1})) & ("x")	v: "x"	{"verdict":"valid","opts":{"noFill":true}}
 hv365	verdict	v: (meta(_, {"d": 1})) & ("x")	v: "x"	{"verdict":"valid","opts":{"partial":true}}
+hv366	verdict	v: (join(["a", _], "-")) & ("b")	v: "a-b"	{"verdict":"invalid"}
+hv367	verdict	v: (join(["a", _], "-")) & ("b")	v: "a-b"	{"verdict":"invalid","opts":{"noFill":true}}
+hv368	verdict	v: (join(["a", _], "-")) & ("b")	v: "a-b"	{"verdict":"invalid","opts":{"partial":true}}
+hv369	verdict	v: (join([_, "b"], "-")) & ("a")	v: "a-b"	{"verdict":"invalid"}
+hv370	verdict	v: (join([_, "b"], "-")) & ("a")	v: "a-b"	{"verdict":"invalid","opts":{"noFill":true}}
+hv371	verdict	v: (join([_, "b"], "-")) & ("a")	v: "a-b"	{"verdict":"invalid","opts":{"partial":true}}
+hv372	verdict	v: (join(["a", _], "-")) & ("b")	v: "b"	{"verdict":"incomplete"}
+hv373	verdict	v: (join(["a", _], "-")) & ("b")	v: "b"	{"verdict":"incomplete","opts":{"noFill":true}}
+hv374	verdict	v: (join(["a", _], "-")) & ("b")	v: "b"	{"verdict":"valid","opts":{"partial":true}}
+hv375	verdict	v: (join(["a", _], "-")) & ("a-b")	v: "a-b"	{"verdict":"incomplete"}
+hv376	verdict	v: (join(["a", _], "-")) & ("a-b")	v: "a-b"	{"verdict":"incomplete","opts":{"noFill":true}}
+hv377	verdict	v: (join(["a", _], "-")) & ("a-b")	v: "a-b"	{"verdict":"valid","opts":{"partial":true}}
+hv378	verdict	v: ({"a": join(["x", _], "-")}) & ({"a": "y"})	v: {"a": "x-y"}	{"verdict":"invalid"}
+hv379	verdict	v: ({"a": join(["x", _], "-")}) & ({"a": "y"})	v: {"a": "x-y"}	{"verdict":"invalid","opts":{"noFill":true}}
+hv380	verdict	v: ({"a": join(["x", _], "-")}) & ({"a": "y"})	v: {"a": "x-y"}	{"verdict":"invalid","opts":{"partial":true}}
 dv0	verdict	v: upper(_)	v: "a"	{"verdict":"valid"}
 dv1	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"noFill":true}}
 dv2	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"partial":true}}

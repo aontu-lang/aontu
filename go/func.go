@@ -319,7 +319,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 
 	if stagedFuncs[f.name] {
 		driven := stagedDrive(ctx, f, base)
-		fillable := !isTop(peer) && hasPlace(f) && "match" != f.name
+		fillable := !isTop(peer) && waitsOnHole(f) && "match" != f.name
 		ready := (driven || fillable) && ctx.settle
 
 		if !ready {
@@ -327,17 +327,18 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
-	fill := !isTop(peer) && !peer.Nil() && Val(f) != peer && hasPlace(f)
+	reach := !isTop(peer) && !peer.Nil() && Val(f) != peer
+	fill := reach && waitsOnHole(f)
 
 	// A rider, a mark or a seal around a container reads through to it.
-	through := fill && wrapsBag(f)
+	through := reach && wrapsBag(f)
 
 	if fill && !through {
-		if hasPlace(peer) {
+		if waitsOnHole(peer) {
 			return makeNilErr(ctx, "place_pair", f, peer)
 		}
 		ctx.slot = base
-		return unite(ctx, fillPlace(f, peer), top())
+		return unite(ctx, bindHole(f, peer), top())
 	}
 
 	if isTop(peer) && (f.mtype || f.mhide) {

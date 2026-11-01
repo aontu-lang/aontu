@@ -8,6 +8,35 @@ each change affects.
 
 ## Unreleased
 
+### A call waits on no hole a container argument holds
+
+TypeScript and Go, generated rows, and documentation.
+
+- A call waits on a hole among its own arguments, and through a call or
+  a rider among them, but not on one that a container argument holds,
+  which that container's own meet fills (#553). So the call's peer
+  leaves such a hole open and the call can't be made: `sum([_, 1]) & 3`
+  is an error, where Go gave `4`, and `upper([_]) & "a"` is an error
+  about the hole, where both engines filled the list and refused it as
+  `upper`'s argument. A call that also waits on a hole of its own binds
+  its peer there alone, so `add(_, sum([_, 1])) & 2` is an error, where
+  both engines gave `5`, and `join([_, "b"], _) & "-"` leaves the list's
+  hole open, where Go gave `"--b"`. A container met with a waiting call
+  is that call's argument, so `upper(_) & [_]` fails on the hole, not
+  with `place_pair`.
+- A rider's record is a container argument too, so
+  `meta({x: 1}, {d: _}) & 2` is an error, where both engines filled the
+  record's hole and gave `{x: 1}`. The row that held that fill now holds
+  the error.
+- `+` keeps its reading, its peer filling a hole that an operand list
+  holds, where the definition joins the lists as written (#570).
+- `spec/Oracle.lean`: rows hv366 to hv380 of `test/spec/def-call.tsv`,
+  5 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves. `test/spec/place.tsv`
+  holds the evaluation shapes.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
 ### Both engines read a rider, a mark or a seal around a container through
 
 TypeScript and Go, generated rows, and documentation.

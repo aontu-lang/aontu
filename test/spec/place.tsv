@@ -84,10 +84,25 @@ place-hole-as-inner-data-tmpl	gens	m:{a:{x:1,y:2}}\nd:pack($.m,{inner:each(_,_ &
 # through to it, so the peer meets the container member by member. A
 # seal around a rider seals the container the rider wraps, so it still
 # refuses a key the peer adds, and a rider's record settles first. A
-# hole elsewhere in the call, in a rider's record, is filled as any
-# call's is, by the peer.
+# rider's record is a container argument, so a hole in it is the
+# record's, which the peer leaves unfilled.
 place-seal-around-rider	gens	a:close(meta({x:upper(_)},{d:1})) & {x:"q"}\n	{"a":{"x":"Q"}}
 place-seal-around-rider-refuses	errc	a:close(meta({x:upper(_)},{d:1})) & {x:"q",y:2}\n	closed
-place-rider-record-hole	gens	a:meta({x:1},{d:_}) & 2\n	{"a":{"x":1}}
+place-rider-record-hole	errc	a:meta({x:1},{d:_}) & 2\n	mapval_no_gen
 place-rider-record-settles	gens	a:meta({x:_},{d:sum([1,2])}) & {x:1}\n	{"a":{"x":1}}
 place-seal-around-rider-record-settles	gens	a:close(meta({x:upper(_)},{d:sum([1,2])})) & {x:"q"}\n	{"a":{"x":"Q"}}
+
+# A call waits on a hole among its own arguments, and through a call or
+# a rider among them, but not on one a container argument holds: that
+# hole is the container's, which its own meet fills. So the peer leaves
+# it unfilled and the call can't be made. Where the call waits on a hole
+# of its own as well, the peer fills that one alone, and a container
+# met with a waiting call is the call's argument, not a second hole.
+place-hole-in-list-arg	errc	a:sum([_,1]) & 3\n	mapval_no_gen
+place-hole-in-list-arg-join	errc	a:join(["a",_],"-") & "b"\n	mapval_no_gen
+place-hole-in-list-arg-scalar	errc	a:upper([_]) & "a"\n	mapval_no_gen
+place-hole-in-map-arg	errc	a:upper({k:_}) & "a"\n	mapval_no_gen
+place-hole-in-list-arg-member	errc	a:{k:sum([_,1])} & {k:3}\n	mapval_no_gen
+place-hole-binds-own-only	errc	a:add(_,sum([_,1])) & 2\n	mapval_no_gen
+place-hole-sep-binds-own-only	errc	a:join([_,"b"],_) & "-"\n	mapval_no_gen
+place-hole-peer-container	errc	a:upper(_) & [_]\n	mapval_no_gen
