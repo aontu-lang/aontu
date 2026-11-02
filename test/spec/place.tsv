@@ -191,3 +191,16 @@ place-plus-join-call-key-left	gens	v:([{n:key()}] + [upper(_)]) & [{},"a"]\n	{"v
 place-plus-join-call-key-right	gens	v:([upper(_)] + [{n:key()}]) & ["a"]\n	{"v":["A",{"n":"0"}]}
 place-plus-join-spread	errc	v:([&: string, 1] + [])\n	no_scalar_unify
 place-plus-join-spread-hole	gens	v:([&: upper(_), "a"] + ["b"])\n	{"v":["A","b"]}
+
+# A group that fills its own hole is read first, as it's grouped, so a
+# call it meets takes the group's value: a hole met with a literal, a
+# call its own other side fills, beside a literal, as a map's member and
+# a list's element, and over a number. A literal the call's output
+# conflicts with is refused.
+place-group-fills-own	gens	v:upper(_) & (_ & "A")\n	{"v":"A"}
+place-group-fills-own-literal	gens	v:"A" & (upper(_) & (_ & "A"))\n	{"v":"A"}
+place-group-fills-own-call	gens	v:upper(_) & (upper(_) & "a")\n	{"v":"A"}
+place-group-fills-own-member	gens	v:{a:upper(_) & (_ & "A")}\n	{"v":{"a":"A"}}
+place-group-fills-own-element	gens	v:[upper(_) & (_ & "A")]\n	{"v":["A"]}
+place-group-fills-own-number	gens	v:add(_,1) & (_ & 2)\n	{"v":3}
+place-group-fills-own-conflict	errc	v:upper(_) & (_ & "A") & "a"\n	scalar_value

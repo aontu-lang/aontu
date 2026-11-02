@@ -3707,6 +3707,24 @@ dg122	verdict	v: (["X"]) & (([upper(_)]) & ([(_) & ("X")]))	v: ["X"]	{"verdict":
 dg123	verdict	v: ("x") & ((upper(_)) & ((_) & (_)))	v: "X"	{"verdict":"error"}
 dg124	verdict	v: ("x") & ((upper(_)) & ((_) & (_)))	v: "X"	{"verdict":"error","opts":{"noFill":true}}
 dg125	verdict	v: ("x") & ((upper(_)) & ((_) & (_)))	v: "X"	{"verdict":"error","opts":{"partial":true}}
+dg126	verdict	v: (upper(_)) & ((_) & ("A"))	v: "A"	{"verdict":"valid"}
+dg127	verdict	v: (upper(_)) & ((_) & ("A"))	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+dg128	verdict	v: (upper(_)) & ((_) & ("A"))	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+dg129	verdict	v: (upper(_)) & ((_) & ("A"))	v: "a"	{"verdict":"invalid"}
+dg130	verdict	v: (upper(_)) & ((_) & ("A"))	v: "a"	{"verdict":"invalid","opts":{"noFill":true}}
+dg131	verdict	v: (upper(_)) & ((_) & ("A"))	v: "a"	{"verdict":"invalid","opts":{"partial":true}}
+dg132	verdict	v: ((_) & ("A")) & (upper(_))	v: "A"	{"verdict":"valid"}
+dg133	verdict	v: ((_) & ("A")) & (upper(_))	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+dg134	verdict	v: ((_) & ("A")) & (upper(_))	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+dg135	verdict	v: ("A") & ((upper(_)) & ((_) & ("A")))	v: "A"	{"verdict":"valid"}
+dg136	verdict	v: ("A") & ((upper(_)) & ((_) & ("A")))	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+dg137	verdict	v: ("A") & ((upper(_)) & ((_) & ("A")))	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+dg138	verdict	v: ("A") & (((_) & ("A")) & (upper(_)))	v: "A"	{"verdict":"valid"}
+dg139	verdict	v: ("A") & (((_) & ("A")) & (upper(_)))	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+dg140	verdict	v: ("A") & (((_) & ("A")) & (upper(_)))	v: "A"	{"verdict":"valid","opts":{"partial":true}}
+dg141	verdict	v: (upper(_)) & ((upper(_)) & ("a"))	v: "A"	{"verdict":"valid"}
+dg142	verdict	v: (upper(_)) & ((upper(_)) & ("a"))	v: "A"	{"verdict":"valid","opts":{"noFill":true}}
+dg143	verdict	v: (upper(_)) & ((upper(_)) & ("a"))	v: "A"	{"verdict":"valid","opts":{"partial":true}}
 dt0	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "X"}	{"verdict":"valid"}
 dt1	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "X"}	{"verdict":"valid","opts":{"noFill":true}}
 dt2	verdict	v: {&: (upper(_)) & (_)}	v: {"a": "X"}	{"verdict":"valid","opts":{"partial":true}}

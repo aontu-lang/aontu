@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### Both engines read a group that fills its own hole first
+
+TypeScript and Go, generated rows, and documentation.
+
+- A group that holds a hole and fills it itself settles before the meet
+  around it flattens it in, as the definition reads the meet beneath
+  first (`Val.fillMeet`). So `upper(_) & (_ & "A")` is `"A"`, where both
+  engines answered `place_pair`, having met `upper(_)` with the group's
+  bare `_` before `_ & "A"` filled it (#568). The same holds for such a
+  meet as a map's member or a list's element, and `add(_, 1) & (_ & 2)`
+  is `3`.
+- A group that holds no hole is still flattened, so
+  `upper(_) & ("a" & "a")` still reads as the conjunction is written
+  (#512).
+- Go has read `"A" & (upper(_) & (_ & "A"))` as `"A"` since #549, where
+  #568 found it `incomplete`; a row now holds it.
+- `spec/Oracle.lean`: rows dg126 to dg143 of `test/spec/def-call.tsv`,
+  6 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves. `test/spec/place.tsv`
+  holds the evaluation shapes.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
 ### The definition joins a `+` over two lists before it fills the meet around it
 
 The definition, generated rows, and documentation.
