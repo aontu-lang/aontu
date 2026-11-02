@@ -1567,9 +1567,16 @@ until the phase that encodes it lands.
    met with `any` as the kind, so `_ & number` is `number`. Rows hv300
    on, dv195 on, dg72 on and dt240 on, 32 cases in each mode, both ports
    answering every row as the definition does; no other row moved. A
-   group that holds a hole and only one side that waits is still
-   flattened, so a call with more than one peer reads as the conjunction
-   is written, as #512 records.
+   group that holds a hole and only one side that waits was still
+   flattened, so `upper(_) & (_ & "A")` was `place_pair` (#568).
+   **Ported 2026-11-01 (#568):** both ports settle such a group before
+   they flatten it, as `Val.fillMeet` reads the meet beneath first, so
+   `upper(_) & (_ & "A")` is `"A"`; rows dg126 on, 6 cases in each mode,
+   both ports answering every row as the definition does, Go's
+   `"A" & (upper(_) & (_ & "A"))` among them, which #549 had already
+   made. A group that holds no hole is still flattened, so a call with
+   more than one peer, as in `upper(_) & ("a" & "a")`, reads as the
+   conjunction is written, as #512 records.
 
 ## 8. Risks
 

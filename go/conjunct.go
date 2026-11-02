@@ -93,6 +93,10 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	// A group of sides that wait on a hole fills nothing whatever stands
 	// beside it, so it is refused before its sides are flattened in.
+	// The conjunct's members are driven at the conjunct's own location
+	// (TS folds with the same undescended ctx).
+	slot := ctx.slot
+	own := c.peg
 	if isTop(peer) {
 		for _, t := range c.peg {
 			if g, ok := t.(*ConjunctVal); ok {
@@ -101,13 +105,23 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 				}
 			}
 		}
+
+		// A group that fills its own hole settles first, as it's grouped.
+		own = append([]Val(nil), c.peg...)
+		for i, t := range own {
+			if g, ok := t.(*ConjunctVal); ok && hasPlace(g) && !waits(g) {
+				ctx.slot = slot
+				settled := unite(ctx, g, top())
+				if settled.Nil() {
+					return settled
+				}
+				own[i] = settled
+			}
+		}
 	}
-	// The conjunct's members are driven at the conjunct's own location
-	// (TS folds with the same undescended ctx).
-	slot := ctx.slot
 
 	var carried []Val
-	terms := norm(c.peg, &carried)
+	terms := norm(own, &carried)
 
 	// Unify each term against the peer.
 	upeer := make([]Val, len(terms))

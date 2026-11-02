@@ -7632,8 +7632,10 @@ The fill follows the document's grouping: `upper(_) & ("a" & "a")`
 reads as `upper("a")`, which is `"A"`. Both engines read a conjunction
 in the order it's written instead, so they answer that with a
 conflict, and `each(_, upper(_)) & ["a"] & ["A"]` with an error, which
-#512 tracks. The rows are hv0 on, and both engines answer every one as
-the definition does.
+#512 tracks. A group that fills its own hole is one both engines read
+first, as it's grouped (`Val.fillMeet`), so `upper(_) & (_ & "A")` is
+`"A"`, in the rows from dg126 on. The rows are hv0 on, and both engines
+answer every one as the definition does.
 
 A hole that no peer in the document fills waits (`Val.pending`), and
 `vet` reads the schema against the data, the data met last, so the data

@@ -173,3 +173,16 @@ place-plus-join-key-hole	gens	l:(["a",_] + [{n:key()}]) & ["a","b"]\n	{"l":["a",
 place-plus-operand-hole	gens	v:(_ + ["c"]) & ["a"]\n	{"v":["a","c"]}
 place-plus-operand-hole-right	gens	v:["a"] & (_ + ["c"])\n	{"v":["a","c"]}
 place-plus-operand-hole-own-only	err	v:([_] + _) & ["a"]\n	[aontu/listval_no_gen]: Cannot resolve value at path $.v.0
+
+# A group that fills its own hole is read first, as it's grouped, so a
+# call it meets takes the group's value: a hole met with a literal, a
+# call its own other side fills, beside a literal, as a map's member and
+# a list's element, and over a number. A literal the call's output
+# conflicts with is refused.
+place-group-fills-own	gens	v:upper(_) & (_ & "A")\n	{"v":"A"}
+place-group-fills-own-literal	gens	v:"A" & (upper(_) & (_ & "A"))\n	{"v":"A"}
+place-group-fills-own-call	gens	v:upper(_) & (upper(_) & "a")\n	{"v":"A"}
+place-group-fills-own-member	gens	v:{a:upper(_) & (_ & "A")}\n	{"v":{"a":"A"}}
+place-group-fills-own-element	gens	v:[upper(_) & (_ & "A")]\n	{"v":["A"]}
+place-group-fills-own-number	gens	v:add(_,1) & (_ & 2)\n	{"v":3}
+place-group-fills-own-conflict	errc	v:upper(_) & (_ & "A") & "a"\n	scalar_value

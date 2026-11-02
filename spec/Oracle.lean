@@ -4987,7 +4987,11 @@ the meet does, among them a member whose meet fills its own hole; a
 call beside two holes, which meet as one; and a disjunction's arm that
 holds one
 dropping as a conflict's arm does, so that another arm stands, or an
-error where none does, as both ports answer. -/
+error where none does, as both ports answer. And a call met with a
+group that fills its own hole, which reads as the group's value: on
+the call's right, against data the call's output passes and data it
+refuses, and on its left, each beside a literal too, and a group that
+is a call its own other side fills. -/
 def groupCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5031,7 +5035,13 @@ def groupCases : List (Val × Data) :=
     (.meet (mp [("a", s "X")]) (.meet (mp [("a", up .hole)]) (mp [("a", .meet .hole (s "X"))])),
       .map [("a", .str "X")]),
     (.meet (lst [s "X"]) (.meet (lst [up .hole]) (lst [.meet .hole (s "X")])), .list [.str "X"]),
-    (.meet (s "x") (.meet (up .hole) (.meet .hole .hole)), .str "X")]
+    (.meet (s "x") (.meet (up .hole) (.meet .hole .hole)), .str "X"),
+    (.meet (up .hole) (.meet .hole (s "A")), .str "A"),
+    (.meet (up .hole) (.meet .hole (s "A")), .str "a"),
+    (.meet (.meet .hole (s "A")) (up .hole), .str "A"),
+    (.meet (s "A") (.meet (up .hole) (.meet .hole (s "A"))), .str "A"),
+    (.meet (s "A") (.meet (.meet .hole (s "A")) (up .hole)), .str "A"),
+    (.meet (up .hole) (.meet (up .hole) (s "a")), .str "A")]
 
 theorem groupCases_checkable : ∀ c ∈ groupCases, (vetDoc c).1.CheckableA := by decide
 
