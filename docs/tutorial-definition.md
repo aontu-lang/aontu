@@ -7611,7 +7611,17 @@ peer fills only the holes the call waits on (`Val.bindHole`). So
 `sum([_, 1]) & 3` is an error, `join([_, "b"], _) & "-"` binds `"-"` as
 the separator and leaves the list's hole open, and
 `v: join(["a", _], "-") & "b"` refuses `v: "a-b"`, as both engines
-answer in the rows from hv366 on. `+` joins two lists as written
+answer in the rows from hv366 on. Nothing makes a call that computes
+from its arguments' values over such a list, so the schema doesn't
+stand (`Val.illFormed`), and `v: sum([_, 1])` is an error against any data,
+as both engines answer in the rows from dh0 on. A disjunction drops
+such an arm, and the list's own meet fills its hole, so
+`v: sum([_, 1]) | 4` passes `v: 4` and `v: sum([_, 1] & [2, 1])` passes
+`v: 3`. A `join` over such a list stands, as `Val.illFormed` exempts
+it, which is why the preceding `join` refuses rather than fails. A hole a
+path names is the data's to fill in both engines, so `v: sum($.x)`
+beside `x: [_, 1]` passes data that writes `x`, where the definition
+reads an error, which #585 tracks. `+` joins two lists as written
 (`plusOf`), whatever their elements hold, so the meet fills a hole that
 an operand list holds member by member, and a `+` waits only on a hole
 among its operands. So `(["a", _] + ["c"]) & ["a", "b", "c"]` is

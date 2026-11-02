@@ -383,6 +383,11 @@ emit_ref	errcode	conflict	0.57.0
 # there is nothing to pick between them. A hole with a value on the
 # other side is not an error at all -- it is the whole point.
 place_pair	errcode	conflict	0.53.0
+# `place_container` is a call over a list or a map that holds a hole:
+# the call waits on no hole a container argument holds, as that hole is
+# the container's, so no peer of the call fills it, and once the
+# arguments are settled the call can't be made.
+place_container	errcode	conflict	0.77.0
 # MODULES (G6 phase 2). Three codes are class `parse`: a module import
 # is resolved while the source is READ. `module_path` is a module path
 # that is domain-shaped and carries a major -- so it ROUTES here -- but

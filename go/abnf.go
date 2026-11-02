@@ -59,6 +59,9 @@ func constrainParse(ctx *Ctx, f *FuncVal, base []string, peer Val) Val {
 
 	gsrc, gok := stringPeg(f.peg[0])
 	if !gok {
+		if unfillable(ctx, f, f.peg) {
+			return makeNilErrFull(ctx, "place_container", f, nil, "make", nil)
+		}
 		return residuate(f, base, peer)
 	}
 

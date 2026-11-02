@@ -323,6 +323,9 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		ready := (driven || fillable) && ctx.settle
 
 		if !ready {
+			if unfillable(ctx, f, f.peg) {
+				return makeNilErrFull(ctx, "place_container", f, nil, "make", nil)
+			}
 			return residuate(f, base, peer)
 		}
 	}
@@ -488,6 +491,8 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 				out.setSrctext(f.srctext())
 			}
 		}
+	} else if unfillable(ctx, f, newpeg) {
+		out = makeNilErrFull(ctx, "place_container", f, nil, "make", nil)
 	} else if isTop(peer) {
 		f.notdone()
 		nf := newFunc(f.name, newpeg)

@@ -443,3 +443,15 @@ The answers to the agent's questions, each question followed by the option chose
 All the hole issues you picked are merged in aontu (#571–#575: #553, #511, #556, #557, #549) and the site is synced (web#123–#125). Every new row agrees with both engines and the definition. What should I build next?
 → Hole follow-ups (Recommended)
 ```
+
+## 2026-11-02 17:55:30 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#570, #576, #568 and #426 are all merged (aontu #577, #579, #580, #582), and the site is synced (web#126). Every new row agrees with both engines and the definition. Three follow-ups are filed: #578, #581, and #512 for grouping. What should I build next?
+→ #581 next (Recommended)
+
+Two PRs from other sessions are still open, and neither has landed. aontu#436 (2026-10-21) makes DEV-PROCESS.md generic, adds an admin/ folder and generalises the comment gate to comment syntaxes. web#67 (2026-09-15) cuts web's AGENTS.md from about 10,000 words to a gated index of under 1,200. Both are far behind main. What should I do with them?
+→ Update and merge both (Recommended)
+```

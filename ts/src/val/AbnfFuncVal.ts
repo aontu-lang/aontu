@@ -22,6 +22,10 @@ class AbnfFuncVal extends FuncBaseVal {
     super(spec, ctx)
   }
 
+  make(_ctx: AontuContext, spec: ValSpec): Val {
+    return new AbnfFuncVal(spec)
+  }
+
   funcname() {
     return 'abnf'
   }
@@ -74,6 +78,10 @@ class ParseFuncVal extends FuncBaseVal {
 
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super(spec, ctx)
+  }
+
+  make(_ctx: AontuContext, spec: ValSpec): Val {
+    return new ParseFuncVal(spec)
   }
 
   funcname() {

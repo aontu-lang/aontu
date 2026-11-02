@@ -16,11 +16,20 @@ import { Val as ValBase } from './Val'
 class PlaceVal extends ValBase {
   isPlace = true
 
+  held = false
+
   constructor(
     spec: ValSpec,
     ctx?: AontuContext
   ) {
     super(spec, ctx)
+  }
+
+
+  clone(ctx: AontuContext, spec?: ValSpec): Val {
+    const out = super.clone(ctx, spec) as PlaceVal
+    out.held = this.held
+    return out
   }
 
 
@@ -129,6 +138,70 @@ function holeIn(v: Val, bags: boolean): boolean {
 }
 
 
+// The calls that compute from their arguments' values, so are made only
+// once those values are whole, by the first argument whose holes they
+// hold: a join over a list that holds a hole stands, as the definition
+// reads it, so its separator is the first.
+const HOLDING: Record<string, number> = {
+  add: 0, sub: 0, mul: 0, div: 0, mod: 0, rem: 0, sum: 0, least: 0,
+  greatest: 0, pick: 0, sort: 0, join: 1, upper: 0, lower: 0, esc: 0,
+  usc: 0, rep: 0, split: 0, translate: 0, nom: 0, path: 0, abnf: 0,
+  parse: 0, project: 0, folder: 0, file: 0, content: 0, line: 0,
+  fragment: 0, slot: 0, inject: 0, copyfiles: 0, listitems: 0,
+}
+
+
+// A hole in a container a call takes is held: no peer of the call fills it.
+function holdHoles(v: any, bagged: boolean): void {
+  if (true === v?.isPlace) {
+    v.held = v.held || bagged
+    return
+  }
+
+  const bag = bagged || true === v?.isMap || true === v?.isList
+  const peg: any = v?.peg
+  const bound = boundArgStart(v)
+
+  if (Array.isArray(peg)) {
+    peg.slice(0, bound).forEach((c: any) => true === c?.isVal && holdHoles(c, bag))
+  }
+  else if (true === peg?.isVal) {
+    holdHoles(peg, bag)
+  }
+  else if (null != peg && 'object' === typeof peg) {
+    Object.values(peg).forEach((c: any) => true === c?.isVal && holdHoles(c, bag))
+  }
+}
+
+
+function heldIn(v: any): boolean {
+  if (true === v?.isPlace) {
+    return true === v.held
+  }
+
+  const peg: any = v?.peg
+  const bound = boundArgStart(v)
+
+  if (Array.isArray(peg)) {
+    return peg.slice(0, bound).some((c: any) => true === c?.isVal && heldIn(c))
+  }
+  if (true === peg?.isVal) {
+    return heldIn(peg)
+  }
+  if (null != peg && 'object' === typeof peg) {
+    return Object.values(peg).some((c: any) => true === c?.isVal && heldIn(c))
+  }
+  return false
+}
+
+
+// Settled but for a hole its own container holds, which nothing fills.
+function unfillable(ctx: AontuContext, call: any, args: Val[]): boolean {
+  return true === ctx.settle && undefined !== HOLDING[call.funcname()] &&
+    !waitsOnHole(call) && args.every(doneButHoles) && args.some(heldIn)
+}
+
+
 function fillPlace(v: Val, fill: Val, ctx: AontuContext): Val {
   return fillIn(v, fill, ctx, true)
 }
@@ -204,6 +277,9 @@ export {
   boundArgStart,
   rebuild,
   hasPlace,
+  HOLDING,
+  holdHoles,
+  unfillable,
   doneButHoles,
   waitsOnHole,
   fillPlace,

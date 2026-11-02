@@ -371,6 +371,7 @@ const hints: Record<string, string> = {
   split_sep: 'The separator given to split() is neither a string nor a pattern.\nA plain string is a LITERAL and an `re(…)` argument is a pattern — the\nasymmetry with rep() is deliberate, since splitting is usually on a\nliteral, and it removes the trap where `split(v, ".")` silently cuts\nbetween every character.\n \nExamples:\n  split("a,b", ",")        -> [..]  # A literal separator;\n  split("a1b", re("[0-9]")) -> [..]  # ... or a pattern;\n  split("a,b", 1)          -> nil   # ... but not a number.',
 
   place_pair: 'Two placeholders met, and neither has a value to fill the other.\n`_` is a HOLE: it is filled by whatever the call is unified with, so\na call holding one needs a peer that does not. Give one side a\nvalue.\n \nExamples:\n  upper(_) & hello        -> "HELLO"  # The peer fills the hole;\n  _ + 2 & 1               -> 3        # ... whatever the call is;\n  upper(_) & lower(_)     -> nil      # ... but two holes fill nothing.',
+  place_container: 'A hole sits in a list or a map the call takes, and nothing fills it.\nA call waits on a hole among its own arguments, which its peer\nfills, but a hole a container holds is the container\'s, which only\nthe container\'s own meet fills. So the call can\'t be made. Write the\nhole as the call\'s own argument, or meet the container with a value.\n \nExamples:\n  sum(_) & [2, 1]          -> 3    # The call\'s own hole takes the peer;\n  sum([_, 1] & [2, 1])     -> 3    # ... the list\'s meet fills its own;\n  sum([_, 1]) & 3          -> nil  # ... but nothing fills this one.',
 
 
   module_path: 'A module import is domain-shaped, but its path cannot be a\ndirectory on every platform the toolchain runs on -- so it is refused\nbefore anything is built from it. An element may not be empty, may not\nbegin or end with `.` (which is what forbids `..`), and may not be a\nreserved device name. These are Go\'s module-path rules, for Go\'s\nreason: a package path becomes a real directory.\n \nExamples:\n  @"corp.example/s"        -> {..} # An ordinary path is fine;\n  @"corp.example/../s"     -> nil  # ... `..` would escape the store;\n  @"corp.example/nul"      -> nil  # ... and Windows has no such file.',
@@ -1047,6 +1048,7 @@ const codeClasses: Record<string, string> = {
   form_data: 'parse',
 
   place_pair: 'conflict',
+  place_container: 'conflict',
 
   // G6 phase 2 -- modules. Both are class `parse`: a module import is
   // resolved while the source is READ, and neither a module that is

@@ -1,10 +1,12 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PlaceVal = void 0;
+exports.PlaceVal = exports.HOLDING = void 0;
 exports.boundArgStart = boundArgStart;
 exports.rebuild = rebuild;
 exports.hasPlace = hasPlace;
+exports.holdHoles = holdHoles;
+exports.unfillable = unfillable;
 exports.doneButHoles = doneButHoles;
 exports.waitsOnHole = waitsOnHole;
 exports.fillPlace = fillPlace;
@@ -14,6 +16,12 @@ class PlaceVal extends Val_1.Val {
     constructor(spec, ctx) {
         super(spec, ctx);
         this.isPlace = true;
+        this.held = false;
+    }
+    clone(ctx, spec) {
+        const out = super.clone(ctx, spec);
+        out.held = this.held;
+        return out;
     }
     unify(peer, _ctx) {
         // The peer FILLS the hole. Against TOP there is nothing to fill it
@@ -98,6 +106,59 @@ function holeIn(v, bags) {
         }
     }
     return false;
+}
+// The calls that compute from their arguments' values, so are made only
+// once those values are whole, by the first argument whose holes they
+// hold: a join over a list that holds a hole stands, as the definition
+// reads it, so its separator is the first.
+const HOLDING = {
+    add: 0, sub: 0, mul: 0, div: 0, mod: 0, rem: 0, sum: 0, least: 0,
+    greatest: 0, pick: 0, sort: 0, join: 1, upper: 0, lower: 0, esc: 0,
+    usc: 0, rep: 0, split: 0, translate: 0, nom: 0, path: 0, abnf: 0,
+    parse: 0, project: 0, folder: 0, file: 0, content: 0, line: 0,
+    fragment: 0, slot: 0, inject: 0, copyfiles: 0, listitems: 0,
+};
+exports.HOLDING = HOLDING;
+// A hole in a container a call takes is held: no peer of the call fills it.
+function holdHoles(v, bagged) {
+    if (true === v?.isPlace) {
+        v.held = v.held || bagged;
+        return;
+    }
+    const bag = bagged || true === v?.isMap || true === v?.isList;
+    const peg = v?.peg;
+    const bound = boundArgStart(v);
+    if (Array.isArray(peg)) {
+        peg.slice(0, bound).forEach((c) => true === c?.isVal && holdHoles(c, bag));
+    }
+    else if (true === peg?.isVal) {
+        holdHoles(peg, bag);
+    }
+    else if (null != peg && 'object' === typeof peg) {
+        Object.values(peg).forEach((c) => true === c?.isVal && holdHoles(c, bag));
+    }
+}
+function heldIn(v) {
+    if (true === v?.isPlace) {
+        return true === v.held;
+    }
+    const peg = v?.peg;
+    const bound = boundArgStart(v);
+    if (Array.isArray(peg)) {
+        return peg.slice(0, bound).some((c) => true === c?.isVal && heldIn(c));
+    }
+    if (true === peg?.isVal) {
+        return heldIn(peg);
+    }
+    if (null != peg && 'object' === typeof peg) {
+        return Object.values(peg).some((c) => true === c?.isVal && heldIn(c));
+    }
+    return false;
+}
+// Settled but for a hole its own container holds, which nothing fills.
+function unfillable(ctx, call, args) {
+    return true === ctx.settle && undefined !== HOLDING[call.funcname()] &&
+        !waitsOnHole(call) && args.every(doneButHoles) && args.some(heldIn);
 }
 function fillPlace(v, fill, ctx) {
     return fillIn(v, fill, ctx, true);

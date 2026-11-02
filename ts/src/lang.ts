@@ -151,7 +151,7 @@ import {
   SumFuncVal, LeastFuncVal, GreatestFuncVal, PickFuncVal, SortFuncVal,
   JoinFuncVal,
 } from './val/AggFuncVal'
-import { PlaceVal } from './val/PlaceVal'
+import { PlaceVal, HOLDING, holdHoles } from './val/PlaceVal'
 import { MoveFuncVal } from './val/MoveFuncVal'
 import { PathFuncVal } from './val/PathFuncVal'
 import { MapKindVal, ListKindVal } from './val/ContainerKindVal'
@@ -951,6 +951,10 @@ help isolate the syntax error.`,
     const val: any = null == funcval ?
       new NilVal({ why: 'unknown_function' }) :
       new funcval({ peg: args })
+
+    if (undefined !== HOLDING[fname]) {
+      args.slice(HOLDING[fname]).forEach((a: any) => holdHoles(a, false))
+    }
 
     return val
   }
