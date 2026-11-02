@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### TypeScript fills a hole in `abnf` and `parse`
+
+TypeScript, and shared rows.
+
+- TypeScript's `abnf` and `parse` calls couldn't be rebuilt while they
+  waited, so a call over a hole met with its peer failed with
+  `func:abnf` or `func:parse` before the peer could fill it (#583).
+  `g: abnf(_) & "v = %x30-39\n"` is now the grammar, and
+  `p: parse("v = %x30-39\n", _) & "7"` and
+  `p: parse(_, "7") & "v = %x30-39\n"` are the tree, as Go reads
+  them.
+- Rows `place-abnf-hole`, `place-parse-hole-text`,
+  `place-parse-hole-grammar` and `place-parse-hole-refuses` of
+  `test/spec/place.tsv`.
+
 ### `vet` reads a call the schema can't build as an error wherever it stands
 
 TypeScript and Go, shared rows, and documentation.

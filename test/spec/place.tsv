@@ -123,6 +123,14 @@ place-agg-hole-join	gens	o:["a","b"] & join(_,"-")\n	{"o":"a-b"}
 place-agg-hole-join-sep	gens	o:join(["a","b"],_) & "-"\n	{"o":"a-b"}
 place-agg-hole-refuses	errc	o:["a","b"] & sum(_)\n	invalid-arg
 
+# A grammar call takes its peer as the hole it waits on, as any call
+# does: abnf's grammar, and either of parse's two arguments. A text the
+# grammar refuses is refused as the argument.
+place-abnf-hole	gens	g:abnf(_) & "v = %x30-39\\n"\n	{"g":"v = %x30-39\\n"}
+place-parse-hole-text	gens	p:parse("v = %x30-39\\n",_) & "7"\n	{"p":{"kids":[],"rule":"v","src":"7"}}
+place-parse-hole-grammar	gens	p:parse(_,"7") & "v = %x30-39\\n"\n	{"p":{"kids":[],"rule":"v","src":"7"}}
+place-parse-hole-refuses	errc	p:parse("v = %x30-39\\n",_) & "a"\n	parse_failed
+
 # A map spread's container template meets each member once, as a list
 # spread's does: a member it has filled meets a later value as it
 # stands, so the template's call is never applied to its own output.

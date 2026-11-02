@@ -16,6 +16,9 @@ class AbnfFuncVal extends FuncBaseVal_1.FuncBaseVal {
         super(spec, ctx);
         this.isAbnfFunc = true;
     }
+    make(_ctx, spec) {
+        return new AbnfFuncVal(spec);
+    }
     funcname() {
         return 'abnf';
     }
@@ -55,6 +58,9 @@ class ParseFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
         this.isParseFunc = true;
+    }
+    make(_ctx, spec) {
+        return new ParseFuncVal(spec);
     }
     funcname() {
         return 'parse';
