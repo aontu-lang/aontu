@@ -236,6 +236,32 @@ I read "add the agent guides and DEV-PROCESS.md" as: say in AGENTS.md and DEV-PR
 → Yes, as done
 ```
 
+## 2026-10-20 18:11:37 UTC · Claude Code · session_016yMzMBxz57NmgRx74LKLFg
+
+```text
+We do NOT use npm script hooks ever, they are a security risk
+```
+
+## 2026-10-20 19:01:12 UTC · Claude Code · session_016yMzMBxz57NmgRx74LKLFg
+
+```text
+Merge as needed
+```
+
+## 2026-10-21 11:32:14 UTC · Claude Code · session_016yMzMBxz57NmgRx74LKLFg
+
+```text
+work in aontu, make sure you have the latest main; update the DEV-PROCESS as follows:
+
+* it should be generic as it will be used in other projects
+* a top level admin folder shall contain administration, maintenance and build notes, trackers and scripts - note this in DEV-PROCESS
+* rewrite the comments ADR-032 and move it into DEV-PROCESS with appropriate scripting references to the admin/scripts folder; ensure it is programming language neutral
+```
+
+## 2026-10-21 12:36:41 UTC · Claude Code · session_016yMzMBxz57NmgRx74LKLFg
+
+```text
+move the adrs too, leave the scripts alone for the moment
 ## 2026-10-21 19:34:11 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 ```text

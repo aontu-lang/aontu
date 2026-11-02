@@ -107,5 +107,5 @@ go/metaschemas/** text eol=lf
 *.aontu   linguist-language=YAML -linguist-detectable
 *.aontu linguist-language=YAML -linguist-detectable
 # The prompt log only grows: two branches that each appended an entry
-# keep both (ADR-076).
+# keep both (DEV-PROCESS.md, "The prompt log").
 sketch/PROMPT-LOG.md merge=union

@@ -1097,6 +1097,9 @@ corpusDescribe('docs-style', () => {
     [/\bsketch\//g, 'a working note'],
     [/\bdesign note\b/gi, 'a design note'],
     [/\b[Dd]ecisions? \d+\b/g, 'a numbered decision'],
+    // The repository's own folder, bare or climbed to from a page, not an
+    // example path that ends in one.
+    [/(?<![\w./-])(?:\.\.\/)*admin\//g, 'an admin note'],
     [/\bDIVERGENCE\.md\b/g, 'DIVERGENCE.md'],
     [/use-cases\/(?:BUGS|REVIEW)\.md/g, 'a defect ledger'],
     [/\bprogress\.md\b/g, 'the progress register'],
@@ -1323,6 +1326,15 @@ corpusDescribe('docs-style', () => {
     claim(cites('sugar removed in G8 phase 4'), 'a capability-review phase')
     claim(cites('ADR-018 removed the pipe'), 'a numbered decision record')
     claim(!cites('a G8 grammar'), 'a phase needs its number')
+    claim(cites('the steps in admin/scripts'), 'the admin folder')
+    claim(cites('[the gate](../admin/scripts/comment-gate.cjs)'),
+      'the admin folder climbed to from a page')
+    claim(cites('[a tracker](../../admin/README.md)'),
+      'the admin folder climbed to from a nested page')
+    claim(!cites('a model at services/admin/roles.aontu'),
+      'a path that ends in admin/')
+    claim(!cites('a model at ../services/admin/roles.aontu'),
+      'a climbed path that ends in admin/')
 
     Assert.deepEqual(faults, [],
       `these rules no longer catch what they claim:\n${faults.join('\n')}`)

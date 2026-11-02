@@ -1,5 +1,6 @@
 #!/bin/sh
-# ADR-032: the comment gate runs before the push, not after CI is spent.
+# The comment gate (DEV-PROCESS.md) runs before the push, not after CI
+# is spent.
 # Bypass with `git push --no-verify`; CI runs the same checker anyway.
 
 set -e
@@ -7,8 +8,8 @@ set -e
 REPO=$(git rev-parse --show-toplevel)
 
 if ! command -v node >/dev/null 2>&1; then
-	echo "pre-push: node is not on PATH, skipping the comment gate (ADR-032)" >&2
+	echo "pre-push: node is not on PATH, skipping the comment gate" >&2
 	exit 0
 fi
 
-exec node "$REPO/ts/scripts/comment-gate.cjs"
+exec node "$REPO/admin/scripts/comment-gate.cjs"
