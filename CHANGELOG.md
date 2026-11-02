@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### The definition joins a `+` over two lists before it fills the meet around it
+
+The definition, generated rows, and documentation.
+
+- The definition's fill joins a `+` over two lists written as lists
+  before it meets them (`joinedArgs` in `spec/Aontu/Verdict.lean`), so a
+  call over a hole in an operand list is filled from its member (#576):
+  `([upper(_)] + ["c"]) & ["a", "c"]` is `["A", "c"]`, as both engines
+  answer, where the definition gave no output.
+- The fill keeps a `+` whose right list holds a `key(n)` as written, as
+  the definition reads `key(n)` by position after the fill, so its index
+  reads where it's written. A call over a hole beside it stays open in
+  the definition, where both engines fill it (#578).
+- It keeps a `+` over a list with a spread as written too, as the
+  spread meets the list's elements before the join, so
+  `[&: string, 1] + []` is still an error, as both engines answer.
+- `spec/Oracle.lean`: rows hv468 to hv494 of `test/spec/def-call.tsv`,
+  9 cases in each of the three modes, a `key()` in the right list and a
+  list with a spread among them. Both engines answer every row as the definition does, and no
+  other row of any fragment moves. `test/spec/place.tsv` holds the
+  evaluation shapes.
+- Docs: the definition tutorial's step 27.
+
 ### `+` joins two lists whatever their elements hold
 
 TypeScript and Go, generated rows, and documentation.
@@ -29,9 +52,6 @@ TypeScript and Go, generated rows, and documentation.
   6 cases in each of the three modes. Both engines answer every row as
   the definition does, and no other row moves. `test/spec/place.tsv`
   holds the evaluation shapes.
-- The definition fills a meet before `+` joins its lists, so a call over
-  a hole in an operand list stays open there, where both engines fill it
-  from its member (#576).
 - Docs: the reference's placeholder section and the definition
   tutorial's step 27.
 
