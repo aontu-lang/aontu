@@ -23,7 +23,8 @@
 # a string names an index by its digits alone, from row x2025, and translate
 # writes U+FFFD for a surrogate its to range names, from row x2055. The generator
 # pack, its template read for each member of its data under the member's key,
-# follows from row x2064, and key(n), read where it stands, from row x2121. A
+# follows from row x2064, key(n), read where it stands, from row x2121, and a
+# call the schema can't build, an error wherever it stands, from row x2238. A
 # call on a name follows in rows z0 on, and a call handed a pattern, re(p), in
 # rows v0 on. path handed a string follows in rows k0 on: its text converted to
 # an address, text with no start read from one dot, and refused where it spells
@@ -2282,6 +2283,21 @@ x2234	verdict	v: filter(["0", "b", "2"], key(0))	v: ["0"]	{"verdict":"valid","op
 x2235	verdict	v: filter({"a": {"n": "a"}, "b": {"n": "c"}}, {"n": key(1)})	v: {"a": {"n": "a"}}	{"verdict":"valid"}
 x2236	verdict	v: filter({"a": {"n": "a"}, "b": {"n": "c"}}, {"n": key(1)})	v: {"a": {"n": "a"}}	{"verdict":"valid","opts":{"noFill":true}}
 x2237	verdict	v: filter({"a": {"n": "a"}, "b": {"n": "c"}}, {"n": key(1)})	v: {"a": {"n": "a"}}	{"verdict":"valid","opts":{"partial":true}}
+x2238	verdict	v: type(add(1))	v: 1	{"verdict":"error"}
+x2239	verdict	v: type(add(1))	v: 1	{"verdict":"error","opts":{"noFill":true}}
+x2240	verdict	v: type(add(1))	v: 1	{"verdict":"error","opts":{"partial":true}}
+x2241	verdict	v: hide(add(1))	v: 1	{"verdict":"error"}
+x2242	verdict	v: hide(add(1))	v: 1	{"verdict":"error","opts":{"noFill":true}}
+x2243	verdict	v: hide(add(1))	v: 1	{"verdict":"error","opts":{"partial":true}}
+x2244	verdict	v: {"a"?: add(1)}	v: {}	{"verdict":"error"}
+x2245	verdict	v: {"a"?: add(1)}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+x2246	verdict	v: {"a"?: add(1)}	v: {}	{"verdict":"error","opts":{"partial":true}}
+x2247	verdict	v: [add(1)]	v: [1]	{"verdict":"error"}
+x2248	verdict	v: [add(1)]	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+x2249	verdict	v: [add(1)]	v: [1]	{"verdict":"error","opts":{"partial":true}}
+x2250	verdict	v: {&: add(1)}	v: {}	{"verdict":"valid"}
+x2251	verdict	v: {&: add(1)}	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+x2252	verdict	v: {&: add(1)}	v: {}	{"verdict":"valid","opts":{"partial":true}}
 et0	verdict	v: emit([{"k": 1}], {"match": {"k": 1}, "body": ["a"]})	v: ["a"]	{"verdict":"valid"}
 et1	verdict	v: emit([{"k": 1}], {"match": {"k": 1}, "body": ["a"]})	v: ["a"]	{"verdict":"valid","opts":{"noFill":true}}
 et2	verdict	v: emit([{"k": 1}], {"match": {"k": 1}, "body": ["a"]})	v: ["a"]	{"verdict":"valid","opts":{"partial":true}}

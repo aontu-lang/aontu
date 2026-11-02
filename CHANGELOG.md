@@ -8,6 +8,43 @@ each change affects.
 
 ## Unreleased
 
+### `vet` reads a call the schema can't build as an error wherever it stands
+
+TypeScript and Go, shared rows, and documentation.
+
+- Both engines' `vet` read the schema alone first and answer `error`
+  where it doesn't stand, but they looked only at the errors the
+  reading collects and at a root that is `nil`. A failure built as the
+  schema is read, such as a call with the wrong number of arguments, a
+  non-number negated or an unknown function, stands in the tree
+  instead, so under a key the data took the blame and the verdict was
+  `invalid` (#426). Both now read the first failure the schema holds,
+  by key and by index, as the schema's own: `v: add(1)`,
+  `v: -(integer)`, `v: nosuchfn(1)` and `%T = add(_)` are `error`
+  against any data, under `type()`, `hide()`, an optional key and in a
+  list too.
+- A written `nil` is a value, not a failure, so `v: {x?: nil}` still
+  passes `v: {}`, and a disjunction still drops an arm that fails, so
+  `v: add(1) | 1` passes `v: 1`. A spread's template is read only at a
+  member, as the definition reads it, so `v: {&: add(1)}` still passes
+  `v: {}`. An atom over an argument outside its domain admits nothing,
+  as ruling 28 of the design note's §7 has it, so `v: re(1)` stays
+  `invalid`.
+- `spec/ledger.tsv` drops its 81 rows under #426, whose cases both
+  engines now answer as the definition does, and its bound falls from
+  198 to 111. `spec/Oracle.lean`: rows x2238 to x2252 of
+  `test/spec/def-call.tsv`, 5 cases in each of the three modes, the
+  failure under a mark, as an optional member and in a list, and a
+  spread's template no member meets. Both engines answer every row as
+  the definition does, and no other row moves. Rows `vet-optional-parse-refusal` and
+  `vet-optional-parse-refusal-nested` of `test/spec/vet.tsv`, a
+  parser's refusal beneath an optional key, move from `invalid` to
+  `error`.
+- A call over a container that holds a hole is still read as
+  `incomplete`, where the definition reads an error (#581).
+- Docs: the reference's arithmetic section and the definition
+  tutorial's steps on calls.
+
 ### Both engines read a group that fills its own hole first
 
 TypeScript and Go, generated rows, and documentation.
