@@ -9,6 +9,7 @@ const unify_1 = require("../unify");
 const rider_1 = require("../rider");
 const err_2 = require("../err");
 const JunctionVal_1 = require("./JunctionVal");
+const PlaceVal_1 = require("./PlaceVal");
 const BagVal_1 = require("./BagVal");
 const utility_1 = require("../utility");
 const top_1 = require("./top");
@@ -36,8 +37,28 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
     }
     unify(peer, ctx) {
         peer = peer ?? (0, top_1.top)();
+        // A group of sides that wait on a hole fills nothing whatever stands
+        // beside it, so it is refused before its sides are flattened in.
+        if (peer.isTop) {
+            for (const t of this.peg) {
+                const pair = true === t.isConjunct ? waitPair(t) : undefined;
+                if (undefined !== pair) {
+                    return (0, err_1.makeNilErr)(ctx, 'place_pair', pair[0], pair[1]);
+                }
+            }
+            // A group that fills its own hole settles first, as it's grouped.
+            for (let tI = 0; tI < this.peg.length; tI++) {
+                const t = this.peg[tI];
+                if (true === t.isConjunct && (0, PlaceVal_1.hasPlace)(t) && !waits(t)) {
+                    const settled = (0, unify_1.unite)(ctx, t, (0, top_1.top)(), 'cj-group');
+                    if (settled.isNil) {
+                        return settled;
+                    }
+                    this.peg[tI] = settled;
+                }
+            }
+        }
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Conjunct', this, peer);
-        let done = true;
         const carried = [];
         this.peg = norm(this.peg, carried);
         // Unify each term of conjunct against peer
@@ -55,7 +76,6 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
                 (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'OWN') }) : ctx, this.peg[vI], peer, 'cj-own');
             upeer[vI].mark.type = newtype = newtype || upeer[vI].mark.type;
             upeer[vI].mark.hide = newhide = newhide || upeer[vI].mark.hide;
-            done = done && (type_1.DONE === upeer[vI].dc);
             if (upeer[vI].isNil) {
                 return upeer[vI];
             }
@@ -87,7 +107,6 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
             }
             else {
                 val = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'DEF') }) : ctx, t0, t1, 'cj-peer-t0t1');
-                done = done && type_1.DONE === val.dc;
                 newtype = this.mark.type || val.mark.type;
                 newhide = this.mark.hide || val.mark.hide;
                 // A conjunct answer is no progress, unless it is a sizing residue
@@ -126,7 +145,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
             out.site.len = this.site.len;
             out.site.src = this.site.src;
         }
-        out.dc = done ? type_1.DONE : this.dc + 1;
+        out.dc = outvals.every((v) => type_1.DONE === v.dc) ? type_1.DONE : this.dc + 1;
         // A meet flattened in leaves its riders on the whole (ADR-052).
         for (const c of carried) {
             out = (0, unify_1.rideOn)(ctx, out, c, undefined);
@@ -161,6 +180,48 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
     }
 }
 exports.ConjunctVal = ConjunctVal;
+// A call over a hole beside a side that holds one, in a group or at a shared key or index.
+function waitPair(cj) {
+    const terms = cj.peg;
+    for (const c of terms) {
+        for (const o of terms) {
+            const pair = c === o ? undefined : pairAt(c, o);
+            if (undefined !== pair) {
+                return pair;
+            }
+        }
+    }
+    return undefined;
+}
+function pairAt(c, o) {
+    if (true === c.isFunc || true === c.isOp) {
+        return (0, PlaceVal_1.waitsOnHole)(c) && waits(o) ? [c, o] : undefined;
+    }
+    if (true === c.isMap && true === o.isMap) {
+        for (const k of Object.keys(c.peg)) {
+            const pair = undefined === o.peg[k] ? undefined : pairAt(c.peg[k], o.peg[k]);
+            if (undefined !== pair) {
+                return pair;
+            }
+        }
+    }
+    else if (true === c.isList && true === o.isList) {
+        for (let i = 0; i < c.peg.length && i < o.peg.length; i++) {
+            const pair = pairAt(c.peg[i], o.peg[i]);
+            if (undefined !== pair) {
+                return pair;
+            }
+        }
+    }
+    return undefined;
+}
+// A meet waits only where every side does, as `_ & _` does and
+// `_ & "a"`, which fills its own hole, doesn't.
+function waits(v) {
+    return true === v.isPlace
+        || ((true === v.isFunc || true === v.isOp) && (0, PlaceVal_1.waitsOnHole)(v))
+        || (true === v.isConjunct && v.peg.every(waits));
+}
 function sameTerms(cj, t0, t1) {
     return 2 === cj.peg.length && cj.peg.includes(t0) && cj.peg.includes(t1);
 }

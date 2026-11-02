@@ -108,6 +108,8 @@ class AontuContext {
 
   _trialMode?: boolean
 
+  _matchRead?: boolean
+
   _childCache?: Map<string, AontuContext>
 
 

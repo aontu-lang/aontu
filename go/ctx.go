@@ -18,6 +18,7 @@ type Ctx struct {
 	depth int // unite recursion depth (cycle guard)
 	cc    int // current fixpoint pass (for late-resolving funcs)
 	trial bool
+	matchRead bool
 	reldecls map[string]*relDecl
 	fixroot Val
 	settle bool

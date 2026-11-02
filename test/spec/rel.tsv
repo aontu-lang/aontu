@@ -54,8 +54,20 @@ rel-at-root-unresolved	errc	rel() & path($.nosuch)	rel_unresolved
 rel-at-root-container	errc	rel() & {primary: path($.nosuch)}	rel_unresolved
 rel-restated-after-container	gens	a: {}\ns: {d: rel()}\ns: {d: [path($.a)]}\ns: {d: rel()}	{"a":{},"s":{"d":["$.a"]}}
 rel-over-linked-copy	gens	a: {}\ns: {d: rel() & [path($.a)]}\nt: $.s.d & rel()	{"a":{},"s":{"d":["$.a"]},"t":["$.a"]}
-rel-held-flows-per-leaf	gens	sa: {}\ns: {d: rel() & re("sa$") & [path($.sa)]}	{"s":{"d":["$.sa"]},"sa":{}}
-rel-held-refuses-a-leaf	errc	qa: {}\ns: {d: rel() & re("sa$") & [path($.qa)]}	constraint
+# A constraint met with rel() meets the relation's value as any meet does,
+# so a string constraint refuses a list; one on each address is the
+# value's spread, which also holds a leaf a later list brings, as a link.
+# A spread that can hold a container keeps its elements as they come.
+rel-held-meets-the-list	errc	sa: {}\ns: {d: rel() & re("sa$") & [path($.sa)]}	constraint
+rel-spread-holds-each-leaf	gens	sa: {}\ns: {d: rel() & [&: re("sa$"), path($.sa)]}	{"s":{"d":["$.sa"]},"sa":{}}
+rel-spread-refuses-a-leaf	errc	qa: {}\ns: {d: rel() & [&: re("sa$"), path($.qa)]}	constraint
+rel-spread-flows-a-later-leaf	gens	sa: {}\ns: {d: rel({k:1}) & [&: re("sa$")]}\ns: {d: [path($.sa)]}	{"s":{"d":["$.sa"]},"sa":{"k":1}}
+rel-spread-flows-a-later-member	gens	sa: {}\ns: {d: rel({k:1}) & {&: re("sa$")}}\ns: {d: {x: path($.sa)}}	{"s":{"d":{"x":"$.sa"}},"sa":{"k":1}}
+rel-spread-links-a-later-leaf	errc	sa: {}\ns: {d: [path($.nosa)]}\ns: {d: rel({k:1}) & [&: re("sa$")]}	rel_unresolved
+rel-spread-of-maps-by-reference	gens	q: {}\nE: type({k: path})\ns: {d: rel() & [&: $.E]}\ns: {d: [{k: path($.q)}]}	{"q":{},"s":{"d":[{"k":"$.q"}]}}
+rel-spread-of-maps-by-alias	gens	q: {}\n%E = {k: path}\ns: {d: rel() & [&: %E]}\ns: {d: [{k: path($.q)}]}	{"q":{},"s":{"d":[{"k":"$.q"}]}}
+rel-spread-of-maps-met	gens	q: {}\ns: {d: rel() & [&: {k: path} & {k: path}]}\ns: {d: [{k: path($.q)}]}	{"q":{},"s":{"d":[{"k":"$.q"}]}}
+rel-spread-of-lists-by-size	gens	a: {}\nb: {}\ns: {d: rel() & [&: len(2)]}\ns: {d: [[path($.a), path($.b)]]}	{"a":{},"b":{},"s":{"d":[["$.a","$.b"]]}}
 # A RELATIVE address in a rel() is resolved at the LEAF's own position,
 # so a schema applied by a spread gives each destination its own edge.
 rel-relative-per-destination	gens	spec: hide({Job: {kind: job, feeds?: rel($.spec.JobShape)}, JobShape: {kind: job}})\np: jobs: {&: $.spec.Job, a: {feeds: [path(..b)]}, b: {}}	{"p":{"jobs":{"a":{"feeds":["..b"],"kind":"job"},"b":{"kind":"job"}}}}

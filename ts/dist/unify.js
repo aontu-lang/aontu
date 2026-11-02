@@ -1,7 +1,7 @@
 "use strict";
 /* Copyright (c) 2021-2023 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.withDepth = exports.unite = exports.Unify = void 0;
+exports.withDepth = exports.meetTemplate = exports.unite = exports.Unify = void 0;
 exports.applyFlows = applyFlows;
 exports.ride = ride;
 exports.rideOn = rideOn;
@@ -69,7 +69,7 @@ function drives(v) {
         || v.isExpect
         || v.isRefer
         // An op DRIVES while an operand has not decided (ADR-037).
-        || (v.isOp && ((0, PlaceVal_1.hasPlace)(v) || v.holdsStaged))
+        || (v.isOp && ((0, PlaceVal_1.waitsOnHole)(v) || v.holdsStaged))
         // A graph atom DRIVES (RELATIONS P2): its peer is the value it rides
         // beside -- a container, a rel, a scalar -- and none of them know
         // the atom; the atom knows to residuate.
@@ -171,10 +171,12 @@ const unite = (ctx, a, b, whence) => {
                 unified = true;
                 why = 'bv';
             }
-            // These do not know their peers, so they answer from either side.
+            // These answer from either side, but a hole in a match matches nothing.
             else if ((true === b.isConstraintKind
                 || true === b.isEmptyConstraint
-                || true === b.isSeal) && !drives(a)) {
+                || true === b.isSeal
+                || (true === b.isPlace && true !== ctx._matchRead))
+                && !drives(a)) {
                 out = b.unify(a, te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'BK') }) : ctx);
                 unified = true;
                 why = 'bk';
@@ -372,4 +374,7 @@ class Unify {
     }
 } /* node:coverage ignore next 10 */
 exports.Unify = Unify;
+const meetTemplate = (ctx, member, tmpl, whence) => true === tmpl.isPlace && true !== ctx._matchRead ? unite(ctx, tmpl, member, whence)
+    : unite(ctx, member, tmpl, whence);
+exports.meetTemplate = meetTemplate;
 //# sourceMappingURL=unify.js.map

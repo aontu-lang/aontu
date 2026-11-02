@@ -250,8 +250,10 @@ open Aontu
 
 /-- The values of the `gen` fragment: literals, kinds, preferences and
 disjunctions with their ranks, maps with required, optional and
-defaulted keys and spreads, lists with spreads, and meets of these, the
-fill of a schema with data among them. No value here splits the ports
+defaulted keys and spreads, an optional key whose value generates an
+empty map or list and so is absent (decision 19 of the design note's
+§7), lists with spreads, and meets of these, the fill of a schema with
+data among them. No value here splits the ports
 (#348) or writes a `nil` under an optional key, where the engines
 answer `error` and the definition drops the key. -/
 def genVals : List Val :=
@@ -309,7 +311,20 @@ def genVals : List Val :=
       (0, .map [("b", false, int 2), ("a", false, int 1)] none false)],
     .or [(0, key "x" false (.meet (int 1) (int 2))), (0, int 1)],
     .or [(0, .list [.meet (int 1) (int 2)] none false), (0, int 1)],
-    .or [(0, .nil), (0, int 1)]]
+    .or [(0, .nil), (0, int 1)],
+    key "a" true (.map [] none false), key "a" true (.list [] none false),
+    key "a" false (.map [] none false), key "a" false (.list [] none false),
+    key "a" true (key "b" true .integer), key "a" true (key "b" true (.map [] none false)),
+    key "a" false (key "b" true (.map [] none false)), key "a" true (.map [] none true),
+    key "a" true (.map [] (some .integer) false), key "a" true (.list [] (some .integer) false),
+    key "a" true (.pref 1 (.map [] none false)),
+    key "a" true (.or [(1, .list [] none false), (0, .list [int 1] none false)]),
+    key "a" true (.or [(1, .map [] none false), (0, key "x" false (int 1))]),
+    key "a" true (.or [(1, .list [int 1] none false), (0, .list [] none false)]),
+    key "a" true (.meet (.map [] none false) (key "b" true (int 1))),
+    .map [("a", true, .map [] none false), ("b", false, int 1)] none false,
+    .meet (key "a" true (.map [] none false)) (key "a" false (.map [] none false)),
+    .list [key "a" true (.map [] none false)] none false]
 
 /-- Every value of the `gen` fragment normalises to a checkable one, so
 `output` is `Output` on it, by `output_iff`. -/
@@ -319,14 +334,53 @@ theorem gen_output_exact : ∀ v ∈ genVals, ∀ (env : Env) (root j : Data),
     output v = some j ↔ Output env root v j :=
   fun v hv _ _ j => output_iff (genVals_checkable v hv) j
 
+/-- Lists that hold a marked element (decision 18), which a document
+reads with no position for it, before, between and after the others,
+inside a list and beside a seal, met with a list, and a disjunction of
+marked arms beside one whose other arm is dead. -/
+def listGenVals : List Val :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let lst (xs : List Val) : Val := .list xs none false
+  [lst [int 1, hide (int 2), int 3], lst [hide (int 1), int 2], lst [type .integer, .lit (.str "a")],
+    lst [type (int 1), hide (int 2)], lst [lst [hide (int 1)], int 2], .list [hide (int 1), int 2] none true,
+    .meet (lst [hide (int 1)]) (lst [int 2]), .meet (lst [hide (int 1), int 2]) (lst [hide (int 3), int 2]),
+    lst [.or [(1, hide (int 1)), (0, hide (int 2))], int 3],
+    lst [.or [(0, hide (int 1)), (0, .meet (int 2) (int 3))], int 3]]
+
+theorem listGenVals_checkable : ∀ v ∈ listGenVals, (normalise (Decls.readR [] v)).Checkable := by decide
+
+theorem list_gen_output_exact : ∀ v ∈ listGenVals, ∀ (env : Env) (root j : Data),
+    output (Decls.readR [] v) = some j ↔ Output env root (Decls.readR [] v) j :=
+  fun v hv _ _ j => output_iff (listGenVals_checkable v hv) j
+
+/-- A term's text as a cell of a row, each backslash doubled, since the
+runners expand `\n`, `\t` and `\\` in a cell before they read it. -/
+def Aontu.Val.cell (v : Val) : Option String := v.src.map fun s => s.replace "\\" "\\\\"
+
+/-- Data's text as a cell of a row, as `Val.cell` writes a term's. -/
+def Aontu.Data.cell (d : Data) : Option String := d.src.map fun s => s.replace "\\" "\\\\"
+
 /-- The `gens` rows: each value under the key `v` that generates, with
 the JSON the engines must write for it. A value that generates nothing
 has no row, since the definition gives no code for it until P5. -/
 def genRows (tag : String) (vals : List Val) : IO Unit := do
   let mut i := 0
   for v in vals do
-    let some src := v.src | throw (IO.userError "a value of the fragment has no text")
+    let some src := v.cell | throw (IO.userError "a value of the fragment has no text")
     if let some j := output v then
+      let some json := j.json | throw (IO.userError "an output has no JSON")
+      IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ "\t{\"v\":" ++ json ++ "}")
+    i := i + 1
+
+/-- The `gens` rows of values read as a document reads them, so that a
+list holds no position for a marked element. -/
+def readGenRows (tag : String) (vals : List Val) : IO Unit := do
+  let mut i := 0
+  for v in vals do
+    let some src := v.cell | throw (IO.userError "a value of the fragment has no text")
+    if let some j := output (Decls.readR [] v) then
       let some json := j.json | throw (IO.userError "an output has no JSON")
       IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ "\t{\"v\":" ++ json ++ "}")
     i := i + 1
@@ -405,8 +459,18 @@ def verdictName : Verdict → String
 /-- The cases of decision 9 of the design note's §7: a size met with a
 container literal, the size's upper half refusing the literal's count or
 admitting it, a literal short of its size, and members that arrive by
-the data or by a second literal. No size is a disjunction, which both
-ports refuse as an argument (#413). -/
+the data or by a second literal, and an optional member whose value
+generates an empty map or list, which isn't counted (decision 19); and
+a size that holds a disjunction or a preference, alone, met with a
+literal and under a rider, ill-formed (decision 16), beside a choice
+the meet, a dead arm or arms written alike settle to one arm, which
+is that arm's size; and, beside a member that generates nothing, what
+the meet refuses where it reads a container (#529): the data's
+container too long for a size, two members alike under `unique()` or
+at `unique("k")`'s key, and more than `contains` counts, each refused
+at the meet, while a literal short of its size waits; a literal whose
+member generates nothing yet, which waits, a nested container, which
+counts, a clashing arm, which drops, and a clashing optional member. -/
 def lenCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
@@ -416,6 +480,9 @@ def lenCases : List (Val × Data) :=
   let xy : Val := mp [("x", false, int 1), ("y", false, int 2)]
   let dxy : Data := .map [("x", j 1), ("y", j 2)]
   let dxyz : Data := .map [("x", j 1), ("y", j 2), ("z", j 3)]
+  let nt (t : Val) : Val := mp [("n", false, .any), ("t", false, t)]
+  let dt (x : Data) : Data := .map [("t", x)]
+  let d0 : Data := .map []
   [(.meet (.len (.max (nb 1))) xy, dxy),
     (.meet (.len (.max (nb 1))) (mp [("x", true, int 1), ("y", true, int 2)]), .map []),
     (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, .integer)]), .map [("x", j 1)]),
@@ -431,7 +498,75 @@ def lenCases : List (Val × Data) :=
     (.meet (.len (.neq [nb 2])) (.meet xy (mp [("z", false, int 3)])), dxyz),
     (.meet (.len (.mulof (.integer ⟨3, by decide⟩))) (ls [int 1, int 2]), .list [j 1, j 2, j 3]),
     (.meet (.len (.above (nb 5))) (ls [int 1]), .list [j 1]),
-    (.meet (.len (.max (nb 1))) (.list [] (some .integer) false), .list [j 1, j 2])]
+    (.meet (.len (.max (nb 1))) (.list [] (some .integer) false), .list [j 1, j 2]),
+    (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, mp [])]), .map [("x", j 1)]),
+    (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, ls [])]), .map [("x", j 1)]),
+    (.meet (.len (.max (nb 1))) (mp [("x", false, int 1), ("y", true, mp [("z", false, int 1)])]),
+      .map [("x", j 1)]),
+    (.len (.or [(0, int 1), (0, int 3)]), .list [j 1]),
+    (.len (.or [(0, int 1), (0, int 3)]), .list [j 1, j 2]),
+    (.meet (.len (.or [(0, int 1), (0, int 3)])) (ls [int 1]), .list [j 1]),
+    (.len (.or [(0, .min (nb 1)), (0, .max (nb 3))]), .list [j 1]),
+    (.len (.pref 1 (int 1)), .list [j 1]),
+    (.len (.or [(1, int 1), (0, int 3)]), .list [j 1]),
+    (.len (.meet (.min (nb 1)) (.or [(0, int 1), (0, int 3)])), .list [j 1]),
+    (.len (.meet (.min (nb 1)) (.max (nb 3))), .list [j 1]),
+    (.len (.ride .type (.or [(0, int 1), (0, int 3)]) []), .list [j 1]),
+    (.len (.ride .metadata (.or [(0, int 1), (0, int 3)]) []), .list [j 1]),
+    (.len (.ride .type (.pref 1 (int 1)) []), .list [j 1]),
+    (.len (.ride .type (int 1) []), .list [j 1]),
+    (.len (.ride .type (int 1) []), .list [j 1, j 2]),
+    (.len (.or [(0, int 1), (0, int 1)]), .list [j 1]),
+    (.len (.or [(0, int 1), (0, int 1)]), .list [j 1, j 2]),
+    (.len (.meet (int 1) (.or [(0, int 1), (0, int 3)])), .list [j 1]),
+    (.len (.or [(0, int 1), (0, .meet (int 1) (int 2))]), .list [j 1]),
+    (.len (.or [(0, .meet (int 1) (int 2)), (0, int 3)]), .list [j 1]),
+    (.len (.meet (.pref 1 (int 1)) (int 1)), .list [j 1]),
+    (.len (.or [(0, .min (nb 1)), (0, .min (nb 1))]), .list [j 1]),
+    (.len (.or [(0, .integer), (0, .integer)]), .list [j 1]),
+    (.len (.or [(0, int 1), (0, .lit (.num (.float (.dyadic 1 0))))]), .list [j 1]),
+    (.len (.or [(0, .meet (.min (nb 1)) (.max (nb 1))), (0, int 1)]), .list [j 1]),
+    (.len (.or [(0, .meet (.min (nb 1)) (.max (nb 0))), (0, int 1)]), .list [j 1]),
+    (nt (.len (int 1)), dt (.list [j 1, j 2])),
+    (nt (.len (int 1)), dt (.map [("a", j 1), ("b", j 2)])),
+    (nt (.len (int 3)), dt (.list [j 1, j 2])),
+    (nt (.len (.neq [nb 2])), dt (.list [j 1, j 2])),
+    (nt (.len (.beneath (nb 2))), dt (.list [j 1, j 2])),
+    (nt (.len (.above (nb 2))), dt (.list [j 1, j 2])),
+    (nt (ls [.len (int 1)]), dt (.list [.list [j 1, j 2]])),
+    (nt (.meet (.len (int 1)) (.list [] (some .integer) false)), dt (.list [j 1, j 2])),
+    (nt (.meet (.len (int 2)) (mp [("a", false, int 1)])), dt (.map [("b", j 2), ("c", j 3)])),
+    (nt (.len (int 3)), dt (.str "ab")),
+    (nt (.unique none), dt (.list [j 1, j 1])),
+    (nt (.unique none), dt (.list [j 1, j 2])),
+    (nt (.meet (.unique none) (ls [int 1, .integer])), dt (.list [j 1, j 1])),
+    (nt (.unique (some "k")), dt (.list [.map [("k", j 1)], .map [("k", j 1)]])),
+    (nt (.contains (int 1) (.max (nb 1))), dt (.list [j 1, j 1])),
+    (nt (.contains (int 1) (int 0)), dt (.list [j 1])),
+    (nt (.contains (int 1) (.min (nb 1))), dt (.list [j 2])),
+    (nt (.meet (.contains (int 1) (.max (nb 1))) (ls [int 1, .integer])), dt (.list [j 1, j 1])),
+    (nt (.meet (.len (int 1)) (ls [int 1, .integer])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, .string])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, .or [(0, int 2), (0, int 3)]])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, .or [(1, int 2), (0, int 3)]])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, mp [("a", false, .integer)]])), d0),
+    (nt (.meet (.len (int 1)) (ls [int 1, ls [.integer]])), d0),
+    (nt (.meet (.len (int 1)) (mp [("a", false, int 1), ("b", true, .integer)])), d0),
+    (nt (.meet (.unique none) (ls [int 1, int 1])), d0),
+    (nt (.meet (.unique none) (ls [.integer, .integer])), d0),
+    (nt (.meet (.unique none) (ls [.or [(1, int 1), (0, int 2)], int 1])), d0),
+    (nt (.meet (.unique none) (ls [mp [("a", false, .integer)], mp [("a", false, .integer)]])), d0),
+    (nt (.meet (.unique (some "k")) (ls [mp [("k", false, int 1)], mp [("k", false, int 1)]])), d0),
+    (nt (.meet (.contains (int 1) (.max (nb 1))) (ls [int 1, int 1])), d0),
+    (nt (.meet (.contains (int 1) (.max (nb 1))) (ls [.integer, .integer])), d0),
+    (nt (.or [(0, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)]), d0),
+    (nt (.or [(0, .len (int 1)), (0, .listKind)]), dt (.list [j 1, j 2])),
+    (nt (.or [(0, .len (int 1)), (0, .string)]), dt (.list [j 1, j 2])),
+    (nt (.map [("a", true, .meet (.len (int 1)) (ls [int 1, int 2]))] none false), d0),
+    (mp [("t", false, .len (int 1))], dt (.list [j 1, j 2])),
+    (mp [("t", false, .or [(0, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)])], d0),
+    (mp [("t", false, .or [(1, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)])], d0),
+    (mp [("t", false, .or [(1, .meet (.len (int 1)) (ls [int 1, int 2])), (0, int 3)])], dt (j 3))]
 
 theorem lenCases_checkable : ∀ c ∈ lenCases, (vetDoc c).1.CheckableA := by decide
 
@@ -445,7 +580,8 @@ theorem len_verdict_exact : ∀ c ∈ lenCases, ∀ (m : Mode) (v : Verdict),
 member still meets the data, the member absent and present, in conflict,
 with a default, nested, beside a seal, as a spread, under a rider and in
 a meet, and on the value at `v` itself. A disjunction of marked arms
-carries no mark, and a refusal at generation reads a marked member. -/
+carries no mark, one whose other arms are dead carries its live arm's,
+and a refusal at generation reads a marked member. -/
 def markCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -481,7 +617,9 @@ def markCases : List (Val × Data) :=
     (a (hide (.nof (int 1) [.integer, .number])), da (j 1)),
     (a (hide (.nof (int 1) [.integer, .string])), da (j 1)),
     (a (.or [(0, hide (int 1)), (0, hide (int 2))]), .map []),
-    (a (.or [(1, hide (int 1)), (0, .integer)]), .map [])]
+    (a (.or [(1, hide (int 1)), (0, .integer)]), .map []),
+    (a (.or [(0, hide (int 1)), (0, .meet (int 2) (int 3))]), .map []),
+    (a (.or [(0, hide (int 1)), (0, .meet (int 2) (int 3))]), da (j 2))]
 
 theorem markCases_checkable : ∀ c ∈ markCases, (vetDoc c).1.CheckableA := by decide
 
@@ -490,13 +628,61 @@ theorem mark_verdict_exact : ∀ c ∈ markCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (markCases_checkable c hc)) v
 
+/-- The cases of decision 18 of the design note's §7: a list holds no
+position for an element a mark of its own leaves out, `hide()` or
+`type()`, so each element after it moves up, for the data, another
+list, a seal and a spread; a marked element before, between and after
+the others, inside a list and through a meet; a list whose marked
+element is a conflict, alone, met with the spread and in an arm; and a
+disjunction of marked arms, which carries no mark and holds its
+position, beside one whose other arm is dead, which carries its live
+arm's; and a `key()` after a marked element, which reads the index its
+element takes. -/
+def markListCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let lst (xs : List Val) : Val := .list xs none false
+  let dl (xs : List Data) : Data := .list xs
+  let h1 : Val := lst [hide (int 1), int 2]
+  let mid : Val := lst [int 1, hide (int 2), int 3]
+  let both : Val := .or [(0, hide (int 1)), (0, hide (int 2))]
+  [(h1, dl [j 2]), (h1, dl [j 1, j 2]), (h1, dl []),
+    (mid, dl [j 1, j 3]), (mid, dl [j 1, j 2, j 3]),
+    (lst [type .integer, .lit (.str "a")], dl [.str "a"]), (lst [hide .integer], dl [.str "x"]),
+    (lst [type (int 1), hide (int 2)], dl [j 5]),
+    (.list [hide (int 1), int 2] none true, dl [j 2]), (.list [hide (int 1), int 2] none true, dl [j 2, j 3]),
+    (.list [hide (int 1), int 2] (some .integer) false, dl [j 2, j 3]),
+    (.list [hide (int 1), int 2] (some .integer) false, dl [j 1, j 2]),
+    (.meet (lst [hide (int 1)]) (lst [int 2]), dl [j 2]), (.meet h1 (lst [hide (int 3), int 2]), dl [j 2]),
+    (lst [.meet (hide (int 1)) (int 1), int 2], dl [j 2]),
+    (lst [lst [hide (int 1)], int 2], dl [dl [.str "x"], j 2]),
+    (lst [hide (.map [("a", false, .integer)] none false), int 1], dl [j 1]),
+    (lst [hide (.or [(1, int 1), (0, .integer)]), int 2], dl []),
+    (lst [hide (.meet (int 1) (int 2)), int 3], dl [j 3]), (lst [.meet (hide (int 1)) (int 2), int 3], dl [j 3]),
+    (.list [hide (.lit (.str "a")), int 1] (some .integer) false, dl [j 1, j 2]),
+    (.or [(0, lst [hide (.meet (int 1) (int 2)), int 3]), (0, lst [int 4])], dl [j 4]),
+    (lst [both, int 3], dl [j 3]), (lst [both, int 3], dl [j 1, j 3]),
+    (lst [.or [(0, hide (int 1)), (0, .meet (int 2) (int 3))], int 3], dl [j 3]),
+    (lst [hide (int 1), .map [("k", false, .keyUp 1)] none false], dl [.map [("k", .str "0")]]),
+    (lst [hide (int 1), .map [("k", false, .keyUp 1)] none false], dl [.map [("k", .str "1")]]),
+    (lst [type (int 1), int 5, .map [("k", false, .keyUp 1)] none false], dl [j 5, .map [("k", .str "1")]])]
+
+theorem markListCases_checkable : ∀ c ∈ markListCases, (vetDoc c).1.CheckableA := by decide
+
+theorem mark_list_verdict_exact : ∀ c ∈ markListCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (markListCases_checkable c hc)) v
+
 /-- The `verdict` rows: each case in the default mode, without the fill
 and under `--partial`, with the one class `vet` gives. -/
 def verdictRows (tag : String) (cases : List (Val × Data) := vetCases) : IO Unit := do
   let mut i := 0
   for c in cases do
-    let some ssrc := c.1.src | throw (IO.userError "a schema of the fragment has no text")
-    let some dsrc := c.2.src | throw (IO.userError "a document of the fragment has no text")
+    let some ssrc := c.1.cell | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.cell | throw (IO.userError "a document of the fragment has no text")
     let (S, D) := vetDoc c
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
         (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
@@ -510,7 +696,25 @@ replaced as the document reads, and recursive ones, left as residuals
 that the data expands, a linked list, a tree, a spread of itself, a
 pair that refer to each other. The cases that break the alias-cycle
 rule or refer to a name declared nowhere are errors before anything
-else is asked, and `%T = %T | 1`, which the engines run, is one. -/
+else is asked, and `%T = %T | 1`, which the engines run, is one. A
+declaration nothing reads is read too (decision 17): a dead or
+ill-formed body is an error, alone, beside a name the schema uses and
+inside a recursive body, and beside a hole or a `key(n)` its use would
+place; while one that stands, a literal short of its size, a template
+whose hole its use would fill, a body that names one and a call over a
+`key(n)` are not. A call or a trial that waits for its hole is an error
+where an argument both ports read as written doesn't stand, a count,
+a size, a condition, a call's own or an `each`'s data, and stands where
+only a trial or a template does, which both read later; in a
+disjunction such a call is an arm that dies. A template's hole and
+`key(n)` are its member's, so an `each` or a `pack` over data written
+in place is read whole, and an `emit`'s table its node's, so an `emit`
+over a selection written in place is too. A name whose body waits makes
+a body that names it wait too, through a call and through another name,
+so `add(%U, 1)` stands where `%U` waits and `add(%U, 1 & 2)` doesn't,
+while the name itself reads what its body fixes, so `%U & 2` is an
+error beside `%U = _ & 1`; and a waiting `key(n)` is any string, so
+`key(1) & 1` is an error and `key(1) & ""` stands. -/
 def aliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -518,6 +722,8 @@ def aliasCases : List (Decls × Val × Data) :=
   let min (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .min (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let p : Val := .alias "p"
+  let up : Val := .call .upper [.hole]
+  let x12 : Val := .meet (int 1) (int 2)
   [([("p", .meet .integer (min 1))], p, j 5), ([("p", .meet .integer (min 1))], p, j 0),
     ([("p", .meet .integer (min 1))], p, .str "a"),
     ([("p", .pref 1 (int 1))], key "x" false p, .map []),
@@ -606,13 +812,77 @@ def aliasCases : List (Decls × Val × Data) :=
       .alias "T", .map [("n", j 1)]),
     ([("T", .map [("n", false, .integer), ("next", true, .alias "T")] none false)], .alias "T",
       .map [("n", j 1), ("next", .map [("n", j 2), ("next", .map [("n", j 3), ("next", .map [("n", j 4)])])])]),
-    ([("T", .or [(0, .alias "T"), (0, int 1)])], .alias "T", j 1)]
+    ([("T", .or [(0, .alias "T"), (0, int 1)])], .alias "T", j 1),
+    ([("T", .meet (int 1) (int 2))], int 1, j 1),
+    ([("T", .meet (key "a" false (int 1)) (key "a" false (int 2)))], int 1, j 1),
+    ([("T", .meet (.map [("a", false, int 1)] none true) (key "b" false (int 2)))], int 1, j 1),
+    ([("T", .meet .string (int 1))], int 1, j 1),
+    ([("T", .meet (.pref 1 (int 1)) (.pref 1 (int 2)))], int 1, j 1),
+    ([("T", .meet (.list [int 1] none false) (.list [int 2] none false))], int 1, j 1),
+    ([("T", key "a" true (.meet (int 1) (int 2)))], int 1, j 1),
+    ([("T", .len (.or [(0, int 1), (0, int 3)]))], int 1, j 1),
+    ([("T", .call .div [int 1, int 0])], int 1, j 1),
+    ([("T", .meet (int 1) (int 2)), ("U", .integer)], .alias "U", j 1),
+    ([("T", .map [("x", true, .alias "T"), ("y", false, .meet (int 1) (int 2))] none false)], int 1, j 1),
+    ([("T", .or [(0, int 1), (0, int 2)])], int 1, j 1),
+    ([("T", .meet (.list [int 1, int 2] none false) (.len (int 3)))], int 1, j 1),
+    ([("U", .call .upper [.hole])], int 1, j 1),
+    ([("T", .meet (.call .upper [.hole]) (.meet (int 1) (int 2)))], int 1, j 1),
+    ([("T", .map [("a", false, .call .upper [.hole]), ("b", false, .meet (int 1) (int 2))] none false)], int 1, j 1),
+    ([("T", .list [.call .upper [.hole], .meet (int 1) (int 2)] none false)], int 1, j 1),
+    ([("U", .call .upper [.hole]), ("T", .alias "U")], int 1, j 1),
+    ([("U", .call .upper [.hole]), ("T", .meet (.alias "U") (.meet (int 1) (int 2)))], int 1, j 1),
+    ([("U", .map [("a", false, .call .upper [.hole])] none false),
+      ("T", .meet (.alias "U") (.map [("a", false, str "x")] none false))], int 1, j 1),
+    ([("T", .list [.keyUp 1, .meet (int 1) (int 2)] none false)], int 1, j 1),
+    ([("T", .call .upper [.keyUp 1])], int 1, j 1),
+    ([("T", .contains up x12)], int 1, j 1),
+    ([("T", .contains up (int 2))], int 1, j 1),
+    ([("T", .call .add [up, x12])], int 1, j 1),
+    ([("T", .len (.meet up x12))], int 1, j 1),
+    ([("T", .nof x12 [up])], int 1, j 1),
+    ([("T", .nof (int 1) [up, x12])], int 1, j 1),
+    ([("T", .must (.meet up x12) "m")], int 1, j 1),
+    ([("T", .when up x12 none)], int 1, j 1),
+    ([("T", .select (int 1) [(up, x12)] none)], int 1, j 1),
+    ([("T", .call .each [up, x12])], int 1, j 1),
+    ([("T", .call .each [.meet up x12, int 1])], int 1, j 1),
+    ([("T", .call .each [.list [str "a"] none false, .meet up x12])], int 1, j 1),
+    ([("T", .call .pack [.list [str "a"] none false, .meet up x12])], int 1, j 1),
+    ([("T", .call .each [.list [int 1] none false, .map [("a", false, .keyUp 0), ("b", false, x12)] none false])],
+      int 1, j 1),
+    ([("T", .call .each [.list [int 1] none false, .keyUp 0])], int 1, j 1),
+    ([("T", .or [(0, .call .add [up, x12]), (0, int 3)])], int 1, j 1),
+    ([("T", .list [.call .add [up, x12]] none false)], int 1, j 1),
+    ([("T", .call .add [.call .add [up, x12], int 1])], int 1, j 1),
+    ([("T", .call .emit [up, .map [("match", false, .any), ("body", false, .list [x12] none false)] none false])],
+      int 1, j 1),
+    ([("T", .call .emit [.meet up x12, .map [("match", false, .any), ("body", false, .list [str "x"] none false)] none false])],
+      int 1, j 1),
+    ([("T", .call .emit [.list [int 1] none false,
+      .map [("match", false, .any), ("body", false, .list [.meet up x12] none false)] none false])], int 1, j 1),
+    ([("T", .call .emit [.list [int 1] none false,
+      .map [("match", false, .hole), ("body", false, .list [str "x"] none false)] none false])], int 1, j 1),
+    ([("U", up), ("T", .call .add [.alias "U", int 1])], int 1, j 1),
+    ([("U", up), ("T", .call .add [.alias "U", x12])], int 1, j 1),
+    ([("U", up), ("T", .call .add [.alias "U", int 1]), ("V", .alias "T")], int 1, j 1),
+    ([("T", .meet (.keyUp 1) (int 1))], int 1, j 1),
+    ([("T", .meet (.keyUp 1) .integer)], int 1, j 1),
+    ([("T", .meet (.keyUp 1) (.map [] none false))], int 1, j 1),
+    ([("T", .meet (.keyUp 1) (str ""))], int 1, j 1),
+    ([("T", .meet (.keyUp 1) .string)], int 1, j 1),
+    ([("T", .map [("a", false, .meet (.keyUp 0) (str "a"))] none false)], int 1, j 1),
+    ([("U", .meet .hole (int 1)), ("T", .meet (.alias "U") (int 2))], int 1, j 1),
+    ([("U", .meet .hole (int 1)), ("T", .meet (.alias "U") (int 1))], int 1, j 1),
+    ([("U", .map [("a", false, .hole), ("b", false, int 1)] none false),
+      ("T", .meet (.alias "U") (.map [("b", false, int 2)] none false))], int 1, j 1)]
 
 /-- The schema and data of a case, each under the key `v`, as the rows
 write them. -/
 def aliasDoc (c : Decls × Val × Data) : Val × Data :=
   (.map [("v", false, c.2.1)] none false, .map [("v", c.2.2)])
 
+set_option maxRecDepth 4096 in
 /-- Every case's bodies and schema hold no path, no pattern and no
 format, so `vet` is `Vet` on it, by `vet_iff`. -/
 theorem aliasCases_checkable : ∀ c ∈ aliasCases,
@@ -789,10 +1059,10 @@ def aliasRows (tag : String) (cases : List (Decls × Val × Data) := aliasCases)
   for c in cases do
     let mut lines : List String := []
     for d in c.1 do
-      let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+      let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
       lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
-    let some ssrc := c.2.1.src | throw (IO.userError "a schema of the fragment has no text")
-    let some dsrc := c.2.2.src | throw (IO.userError "a document of the fragment has no text")
+    let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
     let src := "\\n".intercalate (lines ++ ["v: " ++ ssrc])
     let (S, D) := aliasDoc c
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
@@ -804,7 +1074,9 @@ def aliasRows (tag : String) (cases : List (Decls × Val × Data) := aliasCases)
 /-! ## The seventh fragment: paths -/
 
 /-- Documents with paths: each case its declarations, a schema that is
-a map with paths in it, and a document, run in the three modes. -/
+a map with paths in it, and a document, run in the three modes. A
+step's text reads a map by key and a list by the index it spells in
+canonical decimal. -/
 def pathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -877,7 +1149,12 @@ def pathCases : List (Decls × Val × Data) :=
     ([], step false, .map [("doc", .map [("label", .str "a")])]),
     ([], m [("a", .meet (m [("x", int 1)]) (m [("y", int 2)])), ("b", p ["a", "y"])], .map [("b", j 2)]),
     ([], m [("a", .or [(0, m [("v", int 1)]), (0, m [("v", int 2)])]), ("b", p ["a", "v"])], .map [("a", .map [("v", j 1)]), ("b", j 1)]),
-    ([], m [("a", m [("x", int 1), ("y", int 2)]), ("b", .meet pa (m [("x", int 2)]))], .map [("b", .map [("x", j 2), ("y", j 2)])])]
+    ([], m [("a", m [("x", int 1), ("y", int 2)]), ("b", .meet pa (m [("x", int 2)]))], .map [("b", .map [("x", j 2), ("y", j 2)])]),
+    ([], m [("q", m [("0", int 3)]), ("x", .path [.key "q", .idx 0])], .map [("x", j 3)]),
+    ([], m [("q", m [("0", int 3)]), ("x", .path [.key "q", .idx 0])], .map [("x", j 4)]),
+    ([], m [("q", .list [int 5, int 6] none false), ("x", .path [.key "q", .key "1"])], .map [("x", j 6)]),
+    ([], m [("q", .list [int 5, int 6] none false), ("x", .path [.key "q", .key "1"])], .map [("x", j 5)]),
+    ([], m [("q", .list [int 5, int 6] none false), ("x", .path [.key "q", .key "01"])], .map [("x", j 5)])]
 
 /-- Every case's bodies and schema hold no pattern and no format, so
 `vetP` is `VetP` on it, by `vetP_iff`. -/
@@ -916,20 +1193,1412 @@ theorem rider_path_verdict_exact : ∀ c ∈ riderPathCases, ∀ (m : Mode) (v :
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (riderPathCases_checkable c hc).1 (riderPathCases_checkable c hc).2 v
 
+/-- `key(n)` reached through a path or a name, read where the path or
+the name lands: a path at the depth its target stands or deeper, the
+data at the target met with the term it copies, a generator a path
+copies whole, a name read at each place it stands, and a selection, a
+call and a generator that compute with the key, which the root a path
+reads keeps as written. -/
+def keyPathCases : List (Decls × Val × Data) :=
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let k (n : ℤ) : Val := .keyUp n
+  let sel := m [("a", .select (str "b") [(k 1, .lit (.num (.integer ⟨1, by decide⟩)))]
+    (some (.lit (.num (.integer ⟨2, by decide⟩))))), ("b", m [("c", p ["a"])])]
+  let plus := m [("a", .call .plus [str "q", k 1]), ("b", m [("c", p ["a"])])]
+  let gen := m [("a", .call .each [m [("x", k 0)], .hole]), ("b", m [("c", p ["a"])])]
+  let pk := m [("a", .call .pack [lst [k 1], m [("v", .lit (.num (.integer ⟨1, by decide⟩)))]]),
+    ("b", m [("c", p ["a"])])]
+  let up := m [("a", .call .upper [k 1]), ("b", m [("c", p ["a"])])]
+  [([], m [("a", m [("x", k 1)]), ("b", p ["a"])], .map [("b", .map [("x", js "b")])]),
+    ([], m [("a", m [("x", k 1)]), ("b", p ["a"])], .map []),
+    ([], m [("a", m [("x", k 1)]), ("b", p ["a"])], .map [("b", .map [("x", js "a")])]),
+    ([], m [("a", m [("x", k 1)]), ("b", p ["a"])], .map [("a", .map [("x", js "a")]), ("b", .map [("x", js "b")])]),
+    ([], m [("a", m [("x", k 0)]), ("b", p ["a"])], .map [("a", .map [("x", js "x")]), ("b", .map [("x", js "x")])]),
+    ([], m [("a", m [("x", k 1)]), ("c", m [("d", p ["a", "x"])])], .map [("c", .map [("d", js "c")])]),
+    ([], m [("t", m [("x", k 1)]), ("a", m [("b", m [("c", p ["t"])])])],
+      .map [("a", .map [("b", .map [("c", .map [("x", js "c")])])])]),
+    ([], m [("a", .call .pack [lst [str "x"], m [("n", k 2)]]), ("b", p ["a"])],
+      .map [("b", .map [("x", .map [("n", js "b")])])]),
+    ([], m [("a", .call .pack [lst [str "x"], m [("n", k 1)]]), ("b", m [("q", p ["a"])])],
+      .map [("b", .map [("q", .map [("x", .map [("n", js "x")])])])]),
+    ([("T", m [("x", k 1)])], m [("a", .alias "T"), ("b", .alias "T")],
+      .map [("a", .map [("x", js "a")]), ("b", .map [("x", js "b")])]),
+    ([("T", m [("x", k 2)])], m [("a", m [("b", .alias "T")])], .map [("a", .map [("b", .map [("x", js "a")])])]),
+    ([], sel, .map [("b", .map [("c", .integer 1)])]),
+    ([], sel, .map [("b", .map [("c", .integer 2)])]),
+    ([], plus, .map [("b", .map [("c", js "qb")])]),
+    ([], plus, .map [("b", .map [("c", js "q")])]),
+    ([], gen, .map [("b", .map [("c", .list [js "x"])])]),
+    ([], gen, .map [("b", .map [("c", .list [js "c"])])]),
+    ([], pk, .map [("b", .map [("c", .map [("c", .map [("v", .integer 1)])])])]),
+    ([], pk, .map [("b", .map [("c", .map [("c", .map [("v", .integer 2)])])])]),
+    ([], up, .map [("b", .map [("c", js "B")])]),
+    ([], up, .map [("b", .map [("c", js "A")])])]
+
+theorem keyPathCases_checkable : ∀ c ∈ keyPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem key_path_verdict_exact : ∀ c ∈ keyPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (keyPathCases_checkable c hc).1 (keyPathCases_checkable c hc).2 v
+
+/-- A body read at the alias's own place, `%` and its name as a key at
+the top, used or not: an error where a path names nothing there or meets
+a conflict there, whatever its uses read, and a body that is itself a
+relative path read there at each use too. Both ports read these alike in
+either order, so the rows hold them with each declaration written before
+the schema and again after it. -/
+def aliasPlaceCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  [([("T", m [("v", rel 2 ["x"])])], m [("a", m [("x", int 2), ("b", .alias "T")])], .map []),
+    ([("T", m [("v", .meet (rel 2 ["x"]) (int 1))])], m [("x", int 2), ("a", m [("x", int 1), ("b", .alias "T")])],
+      .map []),
+    ([("T", m [("v", rel 2 ["x"])])], m [("y", int 1)], .map []),
+    ([("T", m [("v", rel 1 ["w"])])], m [("a", m [("b", .meet (.alias "T") (m [("w", int 3)]))])], .map []),
+    ([("T", rel 2 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map []),
+    ([("T", rel 1 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map [("a", .map [("b", j 1)])]),
+    ([("T", rel 1 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map [("a", .map [("b", j 2)])])]
+
+/-- Relative paths, made absolute where each stands: a sibling, a climb
+of two steps and three, a key in quotes, an index into a sibling list,
+a list's element reading its sibling, a chain of relative paths, a
+relative path in a call, and a body's, read at the body's own place,
+`%` and its name as a key at the top, as both ports place it, with
+`aliasPlaceCases`. -/
+def relPathCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let sib := m [("z", m [("x", m [("a", int 62)]), ("y", rel 1 ["x", "a"])])]
+  [([], sib, .map [("z", .map [("y", j 62)])]),
+    ([], sib, .map [("z", .map [("y", j 61)])]),
+    ([], m [("z", m [("x", int 1), ("y", m [("w", rel 2 ["x"])])])], .map [("z", .map [("y", .map [("w", j 1)])])]),
+    ([], m [("x", int 1), ("y", rel 1 ["x"])], .map [("y", j 1)]),
+    ([], m [("a", rel 3 ["x"])], .map []),
+    ([], m [("a", m [("k k", int 1), ("y", rel 1 ["k k"])])], .map [("a", .map [("y", j 1)])]),
+    ([], m [("a", m [("x", lst [int 1, int 2]), ("y", .path [.up 1, .key "x", .idx 1])])],
+      .map [("a", .map [("y", j 2)])]),
+    ([], m [("a", lst [int 1, .path [.up 1, .idx 0]])], .map [("a", .list [j 1, j 1])]),
+    ([], m [("a", m [("b", lst [int 5, rel 2 ["c"]]), ("c", int 7)])], .map [("a", .map [("b", .list [j 5, j 7])])]),
+    ([], m [("a", m [("x", int 1), ("y", rel 1 ["x"]), ("z", rel 1 ["y"])])], .map [("a", .map [("z", j 1)])]),
+    ([], m [("a", m [("x", int 1), ("y", .call .plus [rel 1 ["x"], int 1])])], .map [("a", .map [("y", j 2)])]),
+    ([("T", m [("y", rel 2 ["x"])])], m [("x", int 1), ("a", .alias "T")], .map [("a", .map [("y", j 1)])]),
+    ([("T", m [("y", rel 1 ["x"])])], m [("a", .meet (m [("x", int 1)]) (.alias "T"))], .map [("a", .map [("y", j 1)])])] ++
+  aliasPlaceCases
+
+theorem relPathCases_checkable : ∀ c ∈ relPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem rel_path_verdict_exact : ∀ c ∈ relPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (relPathCases_checkable c hc).1 (relPathCases_checkable c hc).2 v
+
+/-- `maybe` over paths that name something and paths that name nothing:
+absence at a required key and at an optional one, as a list's element,
+an arm and a call's argument, and met with a literal and a kind, beside
+data that supplies the key and data that supplies the path; a path to
+an optional key and into a scalar, and a name declared nowhere; a
+missing path met with a literal, an arm it kills and a conflict inside
+the argument, a missing path that stands under a call, and a template
+that is absence. -/
+def maybeCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let mb (v : Val) : Val := .call .maybe [v]
+  let gone : Val := mb (p ["gone"])
+  [([], m [("b", gone)], .map []),
+    ([], m [("b", gone)], .map [("b", j 1)]),
+    ([], m [("b", gone)], .map [("gone", j 5)]),
+    ([], m [("b", gone)], .map [("gone", j 5), ("b", j 5)]),
+    ([], m [("b", gone)], .map [("gone", j 5), ("b", j 6)]),
+    ([], m [("a", int 1), ("b", mb (p ["a"]))], .map []),
+    ([], m [("a", int 1), ("b", mb (p ["a"]))], .map [("a", j 1), ("b", j 1)]),
+    ([], m [("a", int 1), ("b", mb (p ["a"]))], .map [("a", j 1), ("b", j 2)]),
+    ([], m [("b", mb (p ["x"])), ("x", int 1)], .map []),
+    ([], m [("b", .meet gone .string)], .map []),
+    ([], m [("b", .meet gone .string)], .map [("b", .str "x")]),
+    ([], m [("b", .meet gone .string)], .map [("b", j 1)]),
+    ([], m [("b", .meet (int 1) gone)], .map []),
+    ([], m [("b", .meet (int 1) gone)], .map [("b", j 2)]),
+    ([], m [("b", mb (.meet (p ["gone"]) (int 1)))], .map []),
+    ([], m [("b", mb (.meet (p ["gone"]) (int 1)))], .map [("b", j 2)]),
+    ([], m [("b", mb (.meet (p ["gone"]) (int 1)))], .map [("gone", j 1)]),
+    ([], m [("b", mb (.meet (p ["gone"]) (int 1)))], .map [("gone", j 2)]),
+    ([], m [("b", mb (.or [(0, p ["gone"]), (0, int 1)]))], .map []),
+    ([], m [("b", mb (.or [(0, p ["gone"]), (0, int 1)]))], .map [("b", j 2)]),
+    ([], m [("b", mb (.meet (int 1) (int 2)))], .map []),
+    ([], m [("b", mb (p ["x", "y"])), ("x", mo [("y", true, int 1)])], .map []),
+    ([], m [("b", mb (p ["x", "y"])), ("x", int 1)], .map []),
+    ([], m [("b", mb (.alias "U"))], .map []),
+    ([], mo [("b", true, gone)], .map []),
+    ([], m [("b", lst [int 1, gone])], .map []),
+    ([], m [("b", lst [int 1, gone])], .map [("b", .list [j 1])]),
+    ([], m [("b", lst [int 1, gone])], .map [("b", .list [j 1, j 7])]),
+    ([], m [("b", .call .upper [gone])], .map []),
+    ([], m [("b", .call .upper [gone])], .map [("b", .str "x")]),
+    ([], m [("b", .call .add [int 1, gone])], .map []),
+    ([], m [("b", .call .each [gone, m [("t", .hole)]])], .map []),
+    ([], m [("b", .or [(0, gone), (0, int 1)])], .map []),
+    ([], m [("b", .or [(0, gone), (0, int 1)])], .map [("b", j 1)]),
+    ([], m [("b", .or [(1, gone), (0, int 1)])], .map []),
+    ([], m [("b", mb (.call .upper [p ["gone"]]))], .map []),
+    ([], m [("b", .call .each [lst [int 1], gone])], .map []),
+    ([], m [("b", .call .each [lst [int 1], gone])], .map [("b", .list [])]),
+    ([], m [("b", .call .pack [m [("x", int 1)], gone])], .map []),
+    ([], m [("b", .call .pack [m [("x", int 1)], gone])], .map [("b", .map [("x", j 2)])])]
+
+theorem maybeCases_checkable : ∀ c ∈ maybeCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem maybe_verdict_exact : ∀ c ∈ maybeCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (maybeCases_checkable c hc).1 (maybeCases_checkable c hc).2 v
+
+/-- The cases of decision 24 of the design note's §7: a list holds no
+position for an element that is absence, so each element after it moves
+up, for the data, another list and a spread; absence first, in the
+middle, beside a marked element, twice and alone; a `maybe` whose path
+names something, which holds its position; and a link after an element
+that's absence or marked, which lands at the index its element takes. -/
+def absentListCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let gone : Val := .call .maybe [p ["gone"]]
+  let hide (v : Val) : Val := .ride .hide v []
+  let first : Val := lst [gone, .lit (.str "a"), int 2]
+  let named : Val := m [("a", lst [.call .maybe [p ["b"]], int 2]), ("b", int 1)]
+  [([], m [("a", first)], .map [("a", .list [.str "a", j 2])]),
+    ([], m [("a", first)], .map [("a", .list [j 7, .str "a", j 2])]),
+    ([], m [("a", .meet (lst [int 1, gone, int 2]) (lst [int 1, int 5, int 2]))], .map []),
+    ([], m [("a", .meet (lst [gone, int 1]) (lst [int 1]))], .map [("a", .list [j 1])]),
+    ([], m [("a", lst [hide (int 1), gone, int 2])], .map [("a", .list [j 2])]),
+    ([], m [("a", lst [gone, gone, int 3])], .map [("a", .list [j 3])]),
+    ([], m [("a", lst [gone])], .map [("a", .list [.str "x"])]),
+    ([], m [("a", .list [gone, int 1] (some .integer) false)], .map [("a", .list [j 1, j 2])]),
+    ([], named, .map [("a", .list [j 1, j 2]), ("b", j 1)]),
+    ([], named, .map [("a", .list [j 2]), ("b", j 1)]),
+    ([], m [("a", m []), ("l", lst [gone, .meet (.call .rel [m [("k", int 1)]]) (lst [.addr ⟨0, ["a"]⟩])])],
+      .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("l", lst [gone, .meet (.call .rel [m [("k", int 1)]]) (lst [.addr ⟨0, ["a"]⟩])])],
+      .map [("a", .map [("k", j 1)])]),
+    ([], m [("a", m []), ("l", lst [hide (int 1), .meet (.call .refer [m [("k", int 1)]]) (.addr ⟨0, ["a"]⟩)])],
+      .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("l", lst [int 1, gone, .meet (.call .refer [m [("k", int 1)]]) (.addr ⟨0, ["a"]⟩)])],
+      .map [("a", .map [("k", j 2)])])]
+
+theorem absentListCases_checkable : ∀ c ∈ absentListCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem absent_list_verdict_exact : ∀ c ∈ absentListCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (absentListCases_checkable c hc).1 (absentListCases_checkable c hc).2 v
+
+/-- `pref` over a literal, a map, a list, a disjunction with a preferred
+arm and one with a kind, a kind, a bound, a preference, `null`, a
+boolean and a map arm beside a literal; over a path, a call and
+absence; over a literal, a preference and a map under a rider; and met
+with a preference. -/
+def prefCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let pf (v : Val) : Val := .call .pref [v]
+  [([], m [("b", pf (int 1))], .map []),
+    ([], m [("b", pf (int 1))], .map [("b", j 2)]),
+    ([], m [("b", pf (int 1))], .map [("b", .str "x")]),
+    ([], m [("b", pf (m [("x", int 1)]))], .map []),
+    ([], m [("b", pf (m [("x", int 1)]))], .map [("b", .map [("x", j 2)])]),
+    ([], m [("b", pf (m [("x", int 1)]))], .map [("b", .map [("x", .str "y")])]),
+    ([], m [("b", pf (lst [int 1, int 2]))], .map []),
+    ([], m [("b", pf (lst [int 1, int 2]))], .map [("b", .list [j 3, j 4])]),
+    ([], m [("b", pf (lst [int 1, int 2]))], .map [("b", .list [j 3])]),
+    ([], m [("b", pf (.or [(1, int 1), (0, int 2)]))], .map []),
+    ([], m [("b", pf (.or [(1, int 1), (0, int 2)]))], .map [("b", j 1)]),
+    ([], m [("b", pf (.or [(0, int 1), (0, .number)]))], .map []),
+    ([], m [("b", pf (.or [(0, int 1), (0, .number)]))], .map [("b", j 5)]),
+    ([], m [("b", pf .integer)], .map []),
+    ([], m [("b", pf .integer)], .map [("b", j 3)]),
+    ([], m [("b", pf .integer)], .map [("b", .num (.float (.dyadic 3 (-1))))]),
+    ([], m [("b", pf (.above (.num (.integer (.of 1)))))], .map [("b", j 0)]),
+    ([], m [("b", pf (.pref 2 (int 1)))], .map []),
+    ([], m [("b", .meet (pf (.pref 1 (int 1))) (.pref 1 (int 2)))], .map []),
+    ([], m [("b", .meet (pf (int 1)) (pf (int 2)))], .map []),
+    ([], m [("b", pf (.lit .null))], .map [("b", j 1)]),
+    ([], m [("b", pf (.lit (.bool true)))], .map [("b", .bool false)]),
+    ([], m [("b", pf (.or [(0, m [("x", int 1)]), (0, int 2)]))], .map []),
+    ([], m [("a", int 1), ("b", pf (p ["a"]))], .map []),
+    ([], m [("a", int 1), ("b", pf (p ["a"]))], .map [("b", j 2)]),
+    ([], m [("b", pf (.call .add [int 1, int 2]))], .map []),
+    ([], m [("b", pf (.call .add [int 1, int 2]))], .map [("b", j 4)]),
+    ([], m [("b", pf (.call .maybe [p ["gone"]]))], .map []),
+    ([], m [("b", pf (.ride .hide (int 1) []))], .map []),
+    ([], m [("b", pf (.ride .metadata (int 1) [("x", j 2)]))], .map [("b", j 3)]),
+    ([], m [("b", pf (.ride .hide (.pref 1 (int 1)) []))], .map []),
+    ([], m [("b", pf (.ride .hide (m [("x", int 1)]) []))], .map [])]
+
+theorem prefCases_checkable : ∀ c ∈ prefCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem pref_verdict_exact : ∀ c ∈ prefCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (prefCases_checkable c hc).1 (prefCases_checkable c hc).2 v
+
+/-- `copy` of a sealed map and a sealed list, beside data that adds to
+them and data that meets them, and of one inside a map and inside a
+meet; of a hidden and a typed literal, alone and under a key, beside
+data that writes the value and data that leaves it out, which the fill
+then supplies; of a path to a sealed map, a typed map and a hidden
+literal, and of a name for a sealed and a typed map; a copy met with
+another map; a literal one of whose members refers to another, alone,
+met with a map and copied twice, which reads where the copy lands; a
+hidden value met with absence, and one preferred in a disjunction; and,
+beside them, a path to the typed map, which a copy would open (decision
+27 of the design note's §7). -/
+def copyCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let sm (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none true
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let cp (v : Val) : Val := .call .copy [v]
+  let ab : Data := .map [("v", .map [("a", j 1), ("b", j 2)])]
+  let sib : List (String × Val) := [("a", .path [.up 1, .key "b"]), ("b", int 1)]
+  let s11 : Data := .map [("v", .map [("a", j 1), ("b", j 1)])]
+  let s112 : Data := .map [("v", .map [("a", j 1), ("b", j 1), ("c", j 2)])]
+  let hm : Val := .meet (.ride .hide (int 1) []) (.call .maybe [p ["missing"]])
+  [([], m [("v", cp (sm [("a", int 1)]))], ab),
+    ([], m [("v", cp (sm [("a", int 1)]))], .map [("v", .map [("a", j 1)])]),
+    ([], m [("v", cp (sm [("a", int 1)]))], .map [("v", .map [("a", j 2)])]),
+    ([], m [("v", cp (.list [int 1] none true))], .map [("v", .list [j 1, j 2])]),
+    ([], m [("v", cp (m [("a", sm [("x", int 1)])]))], .map [("v", .map [("a", .map [("x", j 1), ("y", j 2)])])]),
+    ([], m [("v", cp (.meet (sm [("a", int 1)]) (m [("a", int 1)])))], ab),
+    ([], m [("v", cp (.ride .hide (int 1) []))], .map [("v", j 1)]),
+    ([], m [("v", cp (.ride .hide (int 1) []))], .map []),
+    ([], m [("v", cp (.ride .type (int 1) []))], .map []),
+    ([], m [("v", cp (m [("a", .ride .hide (int 1) []), ("b", int 2)]))], .map [("v", .map [("b", j 2)])]),
+    ([], m [("v", cp (m [("a", .ride .hide (int 1) []), ("b", int 2)]))], ab),
+    ([], m [("v", cp (m [("a", .ride .type (m [("x", int 1)]) [])]))],
+      .map [("v", .map [("a", .map [("x", j 1), ("y", j 2)])])]),
+    ([], m [("v", cp (m [("a", .ride .type (m [("x", int 1)]) [])]))], .map [("v", .map [])]),
+    ([], m [("x", sm [("a", int 1)]), ("v", cp (p ["x"]))], ab),
+    ([], m [("x", .ride .type (m [("a", int 1)]) []), ("v", cp (p ["x"]))], ab),
+    ([], m [("x", .ride .type (m [("a", int 1)]) []), ("v", p ["x"])], ab),
+    ([], m [("x", .ride .hide (int 1) []), ("v", cp (p ["x"]))], .map [("v", j 1)]),
+    ([("T", sm [("a", int 1)])], m [("v", cp (.alias "T"))], ab),
+    ([("T", .ride .type (m [("a", int 1)]) [])], m [("v", cp (.alias "T"))], ab),
+    ([], m [("v", .meet (cp (sm [("a", int 1)])) (m [("b", int 2)]))], ab),
+    ([], m [("v", cp (m sib))], s11),
+    ([], m [("v", cp (m sib))], .map [("v", .map [("a", j 2), ("b", j 1)])]),
+    ([], m [("v", .meet (cp (m sib)) (m [("c", int 2)]))], s112),
+    ([], m [("v", cp (cp (m sib)))], s11),
+    ([], m [("v", cp (.or [(1, .ride .hide (int 1) []), (0, int 2)]))], .map [("v", j 1)]),
+    ([], m [("v", cp hm)], .map [("v", j 1)]),
+    ([], m [("v", cp hm)], .map [])]
+
+theorem copyCases_checkable : ∀ c ∈ copyCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem copy_verdict_exact : ∀ c ∈ copyCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (copyCases_checkable c hc).1 (copyCases_checkable c hc).2 v
+
+/-- Paths into a call's output, which resolve in the root with its calls
+made: a preference's map, a name's spellings, two lists added and a
+selection's result, beside data that agrees and data that refuses. -/
+def callPathCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let pfx : Val := .call .pref [m [("x", int 1)]]
+  let nm : Val := .call .nom [.lit (.str "ab_cd")]
+  let sum : Val := .call .plus [lst [int 1], lst [int 2]]
+  let sel : Val := .select (int 1) [(int 1, m [("x", int 2)])] none
+  [([], m [("b", pfx), ("c", p ["b", "x"])], .map []),
+    ([], m [("b", pfx), ("c", p ["b", "x"])], .map [("c", j 2)]),
+    ([], m [("b", pfx), ("c", p ["b", "x"])], .map [("b", .map [("x", j 5)])]),
+    ([], m [("b", nm), ("c", p ["b", "camel"])], .map []),
+    ([], m [("b", nm), ("c", p ["b", "camel"])], .map [("c", .str "x")]),
+    ([], m [("a", sum), ("b", .path [.key "a", .idx 1])], .map []),
+    ([], m [("a", sum), ("b", .path [.key "a", .idx 1])], .map [("b", j 3)]),
+    ([], m [("a", sel), ("b", p ["a", "x"])], .map []),
+    ([], m [("a", sel), ("b", p ["a", "x"])], .map [("b", j 3)])]
+
+theorem callPathCases_checkable : ∀ c ∈ callPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem call_path_verdict_exact : ∀ c ∈ callPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (callPathCases_checkable c hc).1 (callPathCases_checkable c hc).2 v
+
+/-- `move` of a path to a scalar, beside data that supplies the source,
+data that refuses it and data that overrides the copy; of a path into a
+map; of a path to a list; of a value written in place; of a path to
+nothing; in a body, used and not; and of a path under a rider. -/
+def moveCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let mv (v : Val) : Val := .call .move [v]
+  [([], m [("a", int 1), ("b", mv (p ["a"]))], .map []),
+    ([], m [("a", int 1), ("b", mv (p ["a"]))], .map [("a", j 1)]),
+    ([], m [("a", int 1), ("b", mv (p ["a"]))], .map [("a", j 2)]),
+    ([], m [("a", int 1), ("b", mv (p ["a"]))], .map [("b", j 2)]),
+    ([], m [("a", m [("c", int 1), ("d", int 2)]), ("b", mv (p ["a", "c"]))], .map []),
+    ([], m [("a", m [("c", int 1), ("d", int 2)]), ("b", mv (p ["a", "c"]))],
+      .map [("a", .map [("d", j 2)]), ("b", j 1)]),
+    ([], m [("a", lst [int 1, int 2]), ("b", mv (p ["a"]))], .map []),
+    ([], m [("b", mv (m [("x", int 1)]))], .map []),
+    ([], m [("b", mv (p ["gone"]))], .map []),
+    ([("T", m [("y", mv (p ["x"]))])], m [("x", int 1), ("a", .alias "T")], .map []),
+    ([("T", m [("y", mv (p ["x"]))])], m [("x", int 1), ("a", .alias "T")], .map [("a", .map [("y", j 1)])]),
+    ([("T", m [("y", mv (p ["x"]))])], m [("x", int 1)], .map []),
+    ([("T", m [("y", mv (p ["x"]))])], m [("x", int 1)], .map [("x", j 2)]),
+    ([], m [("x", int 1), ("y", mv (.ride .metadata (p ["x"]) [("q", j 1)]))], .map []),
+    ([], m [("x", int 1), ("y", mv (.ride .metadata (p ["x"]) [("q", j 1)]))], .map [("x", j 2)]),
+    ([], m [("x", int 1), ("y", mv (.ride .hide (p ["x"]) []))], .map []),
+    ([], m [("x", int 1), ("y", mv (.ride .hide (p ["x"]) []))], .map [("y", j 1)])]
+
+theorem moveCases_checkable : ∀ c ∈ moveCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem move_verdict_exact : ∀ c ∈ moveCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (moveCases_checkable c hc).1 (moveCases_checkable c hc).2 v
+
+/-- Paths into what a call over a path makes, which resolve a round after
+the call's path does: a name's spellings, two chained, two lists added
+and a string split, beside data that agrees and data that refuses; a
+key the call doesn't make; a preference of a path's map; a call, and a
+call around it, waiting on a path the round before didn't reach where a
+path first reaches them; and paths to a call's and a generator's own
+value. -/
+def roundCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (t : String) : Val := .lit (.str t)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let nm (v : Val) : Val := .call .nom [v]
+  let one : List (String × Val) := [("a", str "ab_cd"), ("b", nm (p ["a"])), ("c", p ["b", "camel"])]
+  let two : List (String × Val) := one ++ [("d", nm (p ["c"])), ("e", p ["d", "snake"])]
+  let sum : List (String × Val) :=
+    [("a", lst [int 1]), ("b", .call .plus [p ["a"], lst [int 2]]), ("c", .path [.key "b", .idx 1])]
+  let cut : List (String × Val) :=
+    [("a", str "x,y"), ("b", .call .split [p ["a"], str ","]), ("c", .path [.key "b", .idx 1])]
+  let pr : List (String × Val) := [("a", m [("x", int 1)]), ("b", .call .pref [p ["a"]]), ("c", p ["b", "x"])]
+  let late : List (String × Val) :=
+    [("a", str "ab_cd"), ("u", nm (p ["a"])), ("b", m [("x", nm (p ["u", "camel"]))]), ("c", p ["b", "x"])]
+  let nested : List (String × Val) := [("a", str "ab_cd"), ("u", nm (p ["a"])),
+    ("b", m [("x", .call .upper [.call .nom [p ["u", "camel"], str "snake"]])]), ("c", p ["b", "x"])]
+  [([], m one, .map []),
+    ([], m one, .map [("c", .str "abCd")]),
+    ([], m one, .map [("c", .str "x")]),
+    ([], m one, .map [("b", .map [("camel", .str "x")])]),
+    ([], m two, .map []),
+    ([], m two, .map [("e", .str "ab_cd")]),
+    ([], m two, .map [("e", .str "x")]),
+    ([], m sum, .map []),
+    ([], m sum, .map [("c", j 2)]),
+    ([], m sum, .map [("c", j 3)]),
+    ([], m cut, .map []),
+    ([], m cut, .map [("c", .str "z")]),
+    ([], m [("a", str "ab_cd"), ("b", nm (p ["a"])), ("c", p ["b", "nope"])], .map []),
+    ([], m pr, .map []),
+    ([], m pr, .map [("c", j 2)]),
+    ([], m late, .map []),
+    ([], m late, .map [("c", .map [("snake", .str "ab_cd")])]),
+    ([], m late, .map [("c", .map [("snake", .str "x")])]),
+    ([], m nested, .map [("c", .str "AB_CD")]),
+    ([], m [("a", str "ab_cd"), ("b", nm (p ["a"])), ("c", p ["b"])], .map []),
+    ([], m [("a", str "ab_cd"), ("b", nm (p ["a"])), ("c", p ["b"])], .map [("c", .map [("camel", .str "x")])]),
+    ([], m [("l", lst [int 1, int 2]), ("e", .call .each [p ["l"], m [("v", .hole)]]), ("c", p ["e"])], .map []),
+    ([], m [("l", lst [int 1, int 2]), ("e", .call .each [p ["l"], m [("v", .hole)]]),
+      ("c", .path [.key "e", .idx 1, .key "v"])], .map [("c", j 2)])]
+
+theorem roundCases_checkable : ∀ c ∈ roundCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem round_verdict_exact : ∀ c ∈ roundCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (roundCases_checkable c hc).1 (roundCases_checkable c hc).2 v
+
+/-- `refer` of a path value: its template met into the target, beside
+data that agrees with it, data that refuses it and data that writes the
+link as a string; a template that clashes with the target; no
+template; a target that names nothing, one only the data supplies, a
+relative one, one that climbs past the top, a scalar and a list
+element; a string where an address must be; a link with no address;
+a link in a body, used and not, read at the body's own place; a
+template whose marks the flow clears, at its top and inside it; and
+links whose templates make each other's targets, in either order,
+three deep, from a body, under data a template refuses, and in a cycle
+that makes neither. -/
+def referCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
+  let rf (t : Val) (a : Val) : Val := .meet (.call .refer [t]) a
+  let rf0 (a : Val) : Val := .meet (.call .refer []) a
+  let a1 : Val := m [("p", int 1)]
+  let r3 : Val := rf (m [("r", int 3)]) (ad 0 ["a"])
+  let svc (t : Val) : Val := m [("s", m [("auth", m [("k", int 1)]), ("billing", m [("dep", rf t (ad 2 ["auth"]))])])]
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let k1 : Val := m [("k", int 1)]
+  let x2 : Val := rf (m [("p", int 1)]) (ad 0 ["h", "z"])
+  let y2 : Val := rf (m [("z", m [])]) (ad 0 ["h"])
+  [([], m [("a", a1), ("b", r3)], .map []),
+    ([], m [("a", a1), ("b", r3)], .map [("a", .map [("r", j 3)])]),
+    ([], m [("a", a1), ("b", r3)], .map [("a", .map [("r", j 4)])]),
+    ([], m [("a", a1), ("b", r3)], .map [("b", .str "$.a")]),
+    ([], m [("a", a1), ("b", rf (m [("p", int 2)]) (ad 0 ["a"]))], .map []),
+    ([], m [("a", a1), ("b", rf0 (ad 0 ["a"]))], .map []),
+    ([], m [("a", m [("p", .integer)]), ("b", rf (m [("p", int 1)]) (ad 0 ["a"]))], .map []),
+    ([], m [("a", m [("p", .integer)]), ("b", rf (m [("p", int 1)]) (ad 0 ["a"]))], .map [("a", .map [("p", j 2)])]),
+    ([], m [("b", rf0 (ad 0 ["gone"]))], .map []),
+    ([], m [("a", m []), ("b", rf0 (ad 0 ["a", "x"]))], .map [("a", .map [("x", j 1)])]),
+    ([], svc (m [("m", int 2)]), .map []),
+    ([], svc (m [("m", int 2)]), .map [("s", .map [("auth", .map [("m", j 3)])])]),
+    ([], m [("b", rf0 (ad 3 ["a"]))], .map []),
+    ([], m [("a", int 1), ("b", rf0 (ad 2 ["a"]))], .map []),
+    ([], m [("a", a1), ("b", rf .integer (ad 0 ["a", "p"]))], .map []),
+    ([], m [("a", a1), ("b", rf .string (ad 0 ["a", "p"]))], .map []),
+    ([], m [("a", .list [int 1, int 2] none false), ("b", rf .integer (ad 0 ["a", "1"]))], .map []),
+    ([], m [("a", .list [int 1, int 2] none false), ("b", rf .string (ad 0 ["a", "1"]))], .map []),
+    ([], m [("a", .list [int 1, int 2] none false), ("b", rf0 (ad 0 ["a", "5"]))], .map []),
+    ([], m [("a", int 1), ("b", .meet (.call .refer []) (.lit (.str "$.a")))], .map []),
+    ([], m [("b", .call .refer [])], .map []),
+    ([("L", r3)], m [("a", a1), ("b", .alias "L")], .map []),
+    ([("L", r3)], m [("a", a1), ("b", .alias "L")], .map [("a", .map [("r", j 4)])]),
+    ([("L", r3)], m [("a", a1)], .map [("a", .map [("r", j 4)])]),
+    ([("L", rf0 (ad 1 ["auth"]))], m [("auth", m [("k", int 1)])], .map []),
+    ([("L", rf0 (ad 1 ["auth"]))], m [("s", m [("auth", m [("k", int 1)]), ("b", .alias "L")])], .map []),
+    ([("L", rf (type k1) (ad 0 ["a"]))], m [("a", m [])], .map []),
+    ([("L", rf (hide k1) (ad 0 ["a"]))], m [("a", m [])], .map []),
+    ([("L", rf (m [("x", type k1)]) (ad 0 ["a"]))], m [("a", m [])], .map [("a", .map [])]),
+    ([("L", rf (type k1) (ad 0 ["a"]))], m [("a", m [])], .map [("a", .map [("k", j 1)])]),
+    ([], m [("h", m []), ("y", y2), ("x", .meet (.call .refer [m [("p", int 1)]]) (rf (m [("q", int 2)]) (ad 0 ["h", "z"])))],
+      .map []),
+    ([], m [("x", x2), ("h", m []), ("y", y2)], .map []),
+    ([], m [("x", x2), ("h", m []), ("y", y2)], .map [("h", .map [("z", .map [("p", j 2)])])]),
+    ([], m [("v", rf (m [("q", int 1)]) (ad 0 ["h", "z", "w", "u"])), ("x", rf (m [("u", m [])]) (ad 0 ["h", "z", "w"])),
+      ("h", m []), ("y", rf (m [("z", m [("w", m [])])]) (ad 0 ["h"]))], .map []),
+    ([("L", y2)], m [("h", m []), ("x", x2)], .map []),
+    ([], m [("h", m []), ("x", rf (m [("p", m [])]) (ad 0 ["h", "q"])), ("y", rf (m [("q", m [])]) (ad 0 ["h", "p"]))],
+      .map [])]
+
+theorem referCases_checkable : ∀ c ∈ referCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem refer_verdict_exact : ∀ c ∈ referCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (referCases_checkable c hc).1 (referCases_checkable c hc).2 v
+
+/-- `rel` over each shape of value: one address, a list, a map, a map
+and a list nested in each other, and none, an empty list and an empty
+map; its template met into each target, beside data that refuses it,
+and a template that refuses a target; a leaf that names nothing, a
+leaf that isn't an address, and a string or `true` where an address
+must be; data that writes the addresses as strings or a number; a
+relation with no value, required and optional, and one met with
+`path`; the value from a second meet; two relations' templates at one
+field; a relation in a body no reference reads; a relation's template
+making another relation's target, and one relation's leaf making its
+own other leaf's target, each beside data the flow refuses; and a
+`refer` and a `rel` at one target. -/
+def relCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
+  let lst (vs : List Val) : Val := .list vs none false
+  let rl (t : Val) (v : Val) : Val := .meet (.call .rel [t]) v
+  let rl0 (v : Val) : Val := .meet (.call .rel []) v
+  let svc : Val := m [("kind", str "svc")]
+  let chain : Val := m [("x", rl (m [("p", int 1)]) (lst [ad 0 ["h", "z"]])), ("h", m []),
+    ("y", rl (m [("z", m [])]) (lst [ad 0 ["h"]]))]
+  let own : Val := m [("h", m []), ("d", rl (m [("z", m [])]) (lst [ad 0 ["h"], ad 0 ["h", "z"]]))]
+  [([], m [("p", m [("k", int 1)]), ("q", m [("h", rl0 (ad 0 ["p"]))])], .map []),
+    ([], m [("a", m []), ("b", m []), ("s", m [("d", rl0 (lst [ad 0 ["a"], ad 0 ["b"]]))])], .map []),
+    ([], m [("a", m []), ("s", m [("u", rl0 (m [("primary", ad 0 ["a"])]))])], .map []),
+    ([], m [("a", m []), ("s", m [("u", rl0 (m [("t1", m [("primary", ad 0 ["a"])])]))])], .map []),
+    ([], m [("a", m []), ("d", rl0 (lst [lst [ad 0 ["a"]]]))], .map []),
+    ([], m [("a", m []), ("d", rl0 (m [("x", lst [ad 0 ["a"]])]))], .map []),
+    ([], m [("a", m []), ("b", m []), ("s", m [("d", rl svc (lst [ad 0 ["a"], ad 0 ["b"]]))])], .map []),
+    ([], m [("a", m []), ("b", m []), ("s", m [("d", rl svc (lst [ad 0 ["a"], ad 0 ["b"]]))])],
+      .map [("b", .map [("kind", .str "db")])]),
+    ([], m [("a", m [("kind", str "db")]), ("s", m [("d", rl svc (lst [ad 0 ["a"]]))])], .map []),
+    ([], m [("a", m []), ("s", m [("d", rl0 (lst [ad 0 ["a"], ad 0 ["nosuch"]]))])], .map []),
+    ([], m [("a", m []), ("d", rl0 (lst [ad 0 ["a"], int 7]))], .map []),
+    ([], m [("a", m []), ("d", rl0 (str "x"))], .map []),
+    ([], m [("a", m []), ("s", m [("d", .call .rel [])])], .map [("s", .map [("d", .list [.str "$.a"])])]),
+    ([], m [("a", m []), ("s", m [("d", .call .rel [])])], .map [("s", .map [("d", j 7)])]),
+    ([], m [("d", .call .rel [])], .map []),
+    ([], .map [("d", true, .call .rel [])] none false, .map []),
+    ([], m [("a", m []), ("d", rl0 (lst []))], .map []),
+    ([], m [("a", m []), ("d", rl0 (m []))], .map []),
+    ([], m [("x", m []), ("s", .meet (m [("d", .call .rel [])]) (m [("d", lst [ad 0 ["x"]])]))], .map []),
+    ([], m [("x", m []), ("s", m [("d", .meet (.call .rel [m [("p", int 1)]]) (rl (m [("q", int 2)]) (lst [ad 0 ["x"]])))])],
+      .map [("x", .map [("p", j 1), ("q", j 3)])]),
+    ([("L", rl (m [("k", int 1)]) (lst [ad 0 ["a"]]))], m [("a", m [])], .map [("a", .map [("k", j 2)])]),
+    ([], chain, .map []),
+    ([], chain, .map [("h", .map [("z", .map [("p", j 2)])])]),
+    ([], own, .map []),
+    ([], own, .map [("h", .map [("z", .map [("z", j 5)])])]),
+    ([], m [("a", m []), ("d", .meet (.call .rel []) .pathKind)], .map []),
+    ([], m [("a", m []), ("b", .meet (.call .refer [m [("p", int 1)]]) (ad 0 ["a"])),
+      ("d", rl (m [("q", int 2)]) (lst [ad 0 ["a"]]))], .map [("a", .map [("p", j 1), ("q", j 2)])]),
+    ([], m [("a", m []), ("d", rl0 (.lit (.bool true)))], .map [])]
+
+theorem relCases_checkable : ∀ c ∈ relCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem rel_verdict_exact : ∀ c ∈ relCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (relCases_checkable c hc).1 (relCases_checkable c hc).2 v
+
+/-- A constraint met with `rel()` before its value meets the relation's
+value as any meet does (decision 25 of the design note's §7), in either
+grouping: `path` refuses the list, as it does met with the list first,
+and `string` refuses it too; a size holds of the list, not of each leaf,
+written before the value and after it, beside a template that flows;
+and `path` met with a single address, which it admits. A constraint on
+each leaf is the value's spread, which holds a leaf another list brings
+as it holds its own, and each such leaf is a link: the template flows
+into a target only that list names, in a list and in a map, where the
+data refuses it or admits it, a target that names nothing is an error,
+and an address as the spread holds each leaf under it. -/
+def relHeldCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ad (ks : List String) : Val := .addr ⟨0, ks⟩
+  let r0 : Val := .call .rel []
+  let rk : Val := .call .rel [m [("k", int 1)]]
+  let la : Val := .list [ad ["a"]] none false
+  let doc (v : Val) : Val := m [("a", m []), ("r", v)]
+  [([], doc (.meet (.meet r0 .pathKind) la), .map []),
+    ([], doc (.meet r0 (.meet la .pathKind)), .map []),
+    ([], doc (.meet (.meet r0 .string) la), .map []),
+    ([], doc (.meet (.meet r0 (.len (.min (nb 1)))) la), .map []),
+    ([], doc (.meet (.meet r0 (.len (.min (nb 2)))) la), .map []),
+    ([], doc (.meet (.meet r0 la) (.len (.min (nb 2)))), .map []),
+    ([], doc (.meet (.meet rk (.len (.min (nb 1)))) la),
+      .map [("a", .map [("k", j 2)])]),
+    ([], doc (.meet (.meet r0 .pathKind) (ad ["a"])), .map []),
+    ([], doc (.meet (.meet rk (.list [] (some .pathKind) false)) la), .map [("a", .map [("k", j 2)])]),
+    ([], doc (.meet (.meet rk (.list [] (some .pathKind) false)) la), .map [("a", .map [("k", j 1)])]),
+    ([], doc (.meet rk (.list [ad ["a"]] (some .pathKind) false)), .map [("a", .map [("k", j 2)])]),
+    ([], doc (.meet (.meet rk (.map [] (some .pathKind) false)) (m [("x", ad ["a"])])),
+      .map [("a", .map [("k", j 2)])]),
+    ([], doc (.meet (.meet r0 (.list [] (some .pathKind) false)) (.list [ad ["noa"]] none false)), .map []),
+    ([], m [("s", m [("a", m [])]), ("r", .meet (.meet rk (.list [] (some (ad ["s"])) false))
+        (.list [ad ["s", "a"]] none false))], .map [("s", .map [("a", .map [("k", j 2)])])])]
+
+theorem relHeldCases_checkable : ∀ c ∈ relHeldCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem rel_held_verdict_exact : ∀ c ∈ relHeldCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (relHeldCases_checkable c hc).1 (relHeldCases_checkable c hc).2 v
+
+/-- Links read where they land: a `refer` in a `type()` that a path
+reference copies, beside a target the template admits, one it refuses,
+one that names nothing and data that refuses the template; a `refer` in
+a spread's template, at a target that names nothing, and beside data
+the template's flow refuses and none; a `rel` in a `type()` that a path
+reference copies, at a target, one that names nothing and beside data
+that refuses its template; a path reference to a link and to a map
+holding one, and one to a map holding a link to nothing; a relative
+link in a spread's template, read from each member it lands at, beside
+data the flow refuses; and a list's spread holding a link that a path
+reference copies. -/
+def landCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let ms (fs : List (String × Val)) (s : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some s) false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
+  let lst (vs : List Val) : Val := .list vs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let type (v : Val) : Val := .ride .type v []
+  let rf (t : Val) (a : Val) : Val := .meet (.call .refer [t]) a
+  let k1 : Val := m [("k", int 1)]
+  let K := type (m [("k", .integer)])
+  let T := type (m [("p", .call .refer [p ["K"]])])
+  let sp := ms [("s1", m []), ("s2", m [])] (m [("d", rf k1 (ad 0 ["a"]))])
+  let Srel (t : List Val) := type (.map [("dependsOn", true, .call .rel t)] none false)
+  let jobs := ms [("a", m []), ("b", m [])] (m [("feeds", rf (m [("kind", str "job")]) (ad 2 ["b"]))])
+  [([], m [("K", K), ("T", T), ("svc", k1), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))], .map []),
+    ([], m [("K", K), ("T", T), ("svc", m [("k", str "no")]), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))], .map []),
+    ([], m [("K", K), ("T", T), ("x", .meet (p ["T"]) (m [("p", ad 0 ["nosuch"])]))], .map []),
+    ([], m [("T", type (m [("p", .call .refer [k1])])), ("svc", m []), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))],
+      .map [("svc", .map [("k", j 2)])]),
+    ([], m [("T", ms [("s1", m [])] (m [("d", .meet (.call .refer []) (ad 0 ["nosuch"]))]))], .map []),
+    ([], m [("a", m []), ("T", sp)], .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("T", sp)], .map []),
+    ([], m [("S", Srel []), ("a", m []), ("s", .meet (p ["S"]) (m [("dependsOn", lst [ad 0 ["a"]])]))], .map []),
+    ([], m [("S", Srel []), ("s", .meet (p ["S"]) (m [("dependsOn", lst [ad 0 ["nosuch"]])]))], .map []),
+    ([], m [("S", Srel [k1]), ("a", m []), ("s", .meet (p ["S"]) (m [("dependsOn", lst [ad 0 ["a"]])]))],
+      .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("L", rf k1 (ad 0 ["a"])), ("x", p ["L"])], .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("L", m [("d", rf k1 (ad 0 ["a"]))]), ("x", p ["L"])], .map []),
+    ([], m [("L", m [("d", .meet (.call .refer []) (ad 0 ["nosuch"]))]), ("x", p ["L"])], .map []),
+    ([], m [("jobs", jobs)], .map []),
+    ([], m [("jobs", jobs)], .map [("jobs", .map [("b", .map [("kind", .str "svc")])])]),
+    ([], m [("a", m []), ("l", .list [] (some (rf k1 (ad 0 ["a"]))) false), ("m", .meet (p ["l"]) (lst [ad 0 ["a"]]))],
+      .map [("a", .map [("k", j 2)])])]
+
+theorem landCases_checkable : ∀ c ∈ landCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem land_verdict_exact : ∀ c ∈ landCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (landCases_checkable c hc).1 (landCases_checkable c hc).2 v
+
+/-- Links in a generator's template, read at each member of its output:
+`each` over a list, beside data the template's flow refuses and none,
+at a target that names nothing, and over an empty list, where no member
+reads it; `pack` the same; a `rel` in `each`'s template; a link that is
+the template itself; and `each` over a map. -/
+def genLinkCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ad (up : ℕ) (ks : List String) : Val := .addr ⟨up, ks⟩
+  let lst (vs : List Val) : Val := .list vs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rf (t : Val) (a : Val) : Val := .meet (.call .refer [t]) a
+  let k1 : Val := m [("k", int 1)]
+  let a2 : Data := .map [("a", .map [("k", j 2)])]
+  let gone : Val := m [("r", .meet (.call .refer []) (ad 0 ["nosuch"]))]
+  [([], m [("a", m []), ("l", lst [int 1, int 2]), ("e", .call .each [p ["l"], m [("r", rf k1 (ad 0 ["a"]))]])], a2),
+    ([], m [("a", m []), ("l", lst [int 1, int 2]), ("e", .call .each [p ["l"], m [("r", rf k1 (ad 0 ["a"]))]])],
+      .map []),
+    ([], m [("l", lst [int 1]), ("e", .call .each [p ["l"], gone])], .map []),
+    ([], m [("l", lst []), ("e", .call .each [p ["l"], gone])], .map []),
+    ([], m [("a", m []), ("n", lst [str "x", str "y"]), ("p", .call .pack [p ["n"], m [("r", rf k1 (ad 0 ["a"]))]])],
+      a2),
+    ([], m [("n", lst [str "x"]), ("p", .call .pack [p ["n"], gone])], .map []),
+    ([], m [("n", lst []), ("p", .call .pack [p ["n"], gone])], .map []),
+    ([], m [("a", m []), ("l", lst [int 1]),
+      ("e", .call .each [p ["l"], m [("d", .meet (.call .rel [k1]) (lst [ad 0 ["a"]]))]])], a2),
+    ([], m [("a", m []), ("l", lst [int 1]), ("e", .call .each [p ["l"], rf k1 (ad 0 ["a"])])], a2),
+    ([], m [("a", m []), ("m", m [("x", int 1), ("y", int 2)]), ("e", .call .each [p ["m"], m [("r", rf k1 (ad 0 ["a"]))]])],
+      a2)]
+
+theorem genLinkCases_checkable : ∀ c ∈ genLinkCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem genLink_verdict_exact : ∀ c ∈ genLinkCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (genLinkCases_checkable c hc).1 (genLinkCases_checkable c hc).2 v
+
+/-- Links whose templates read the member or the place where they land:
+a hole in `each`'s template standing for the member, alone and in a map,
+beside data the flow refuses and data it admits; `key()` and `key(2)` in
+a link's template, written in place, in `each`'s template and in a
+spread's, each read at the link's own place; `pack`'s member, over a list
+of names and over a map; a hole in a generator inside a generator's
+template; a generator that makes fewer instances than the list its
+output meets, whose template lands only at its own; a generator in a
+body no reference reads; and a generator over a name in a link's
+template, which reads the name's body. -/
+def linkTemplateCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ad (ks : List String) : Val := .addr ⟨0, ks⟩
+  let lst (vs : List Val) : Val := .list vs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rf (t : Val) (a : Val) : Val := .meet (.call .refer [t]) a
+  let k1 : Val := m [("k", int 1)]
+  let ak (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .map [("a", .map [("k", .integer n h)])]
+  let av (x : Data) : Data := .map [("a", .map [("v", x)])]
+  let an (x : String) : Data := .map [("a", .map [("n", .str x)])]
+  let bound : Val := m [("a", m []), ("l", lst [k1]), ("e", .call .each [p ["l"], rf .hole (ad ["a"])])]
+  let vhole : Val := m [("a", m []), ("l", lst [int 7]), ("e", .call .each [p ["l"], rf (m [("v", .hole)]) (ad ["a"])])]
+  let here (n : ℕ) : Val := m [("a", m []), ("x", m [("r", rf (m [("n", .keyUp n)]) (ad ["a"]))])]
+  let inEach (n : ℕ) : Val :=
+    m [("a", m []), ("l", lst [int 7]), ("e", .call .each [p ["l"], m [("r", rf (m [("n", .keyUp n)]) (ad ["a"]))]])]
+  let inSpread : Val :=
+    m [("a", m []), ("s", .map [("m", false, m [])] (some (m [("r", rf (m [("n", .keyUp 2)]) (ad ["a"]))])) false)]
+  let packNames : Val :=
+    m [("a", m []), ("n", lst [str "x"]), ("p", .call .pack [p ["n"], m [("r", rf (m [("v", .hole)]) (ad ["a"]))]])]
+  let packMap : Val :=
+    m [("a", m []), ("m", m [("x", int 1)]), ("p", .call .pack [p ["m"], m [("r", rf (m [("v", .hole)]) (ad ["a"]))]])]
+  let nested : Val :=
+    m [("a", m []), ("l", lst [lst [k1]]), ("e", .call .each [p ["l"], .call .each [.hole, rf .hole (ad ["a"])]])]
+  let none0 : Val := m [("a", m []), ("e", .meet (.call .each [lst [], .call .refer [k1]]) (lst [ad ["a"]]))]
+  let fewer : Val :=
+    m [("a", m []), ("b", m []), ("e", .meet (.call .each [lst [int 1], .call .refer [k1]]) (lst [ad ["a"], ad ["b"]]))]
+  let body : Decls := [("G", .call .each [lst [int 1], rf k1 (ad ["a"])])]
+  let named : Val := m [("a", lst []), ("r", rf (.call .each [.alias "L", .hole]) (ad ["a"]))]
+  [([], bound, ak 2), ([], bound, ak 1),
+    ([], vhole, av (j 8)), ([], vhole, av (j 7)),
+    ([], here 1, an "r"), ([], here 1, an "x"), ([], here 2, an "x"), ([], here 2, an "r"),
+    ([], inEach 1, an "r"), ([], inEach 2, an "0"), ([], inEach 2, an "e"),
+    ([], inSpread, an "m"), ([], inSpread, an "s"),
+    ([], packNames, av (.str "x")), ([], packNames, av (.str "y")),
+    ([], packMap, av (j 1)), ([], packMap, av (j 2)),
+    ([], nested, ak 1), ([], nested, ak 2),
+    ([], none0, ak 2),
+    ([], fewer, .map [("a", .map []), ("b", .map [("k", j 2)])]), ([], fewer, ak 2),
+    (body, m [("a", m [])], ak 2), (body, m [("a", m [])], .map [("a", .map [])]),
+    ([("L", lst [int 1])], named, .map [("a", .list [j 1])]), ([("L", lst [int 1])], named, .map [("a", .list [j 2])])]
+
+theorem linkTemplateCases_checkable : ∀ c ∈ linkTemplateCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem linkTemplate_verdict_exact : ∀ c ∈ linkTemplateCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (linkTemplateCases_checkable c hc).1 (linkTemplateCases_checkable c hc).2 v
+
+/-- Spreads whose templates read their member's place, each read at each
+member there is: a relative path in a map's template, beside data that
+supplies its target, refuses it, fills it and supplies none; the
+template at a member the schema writes, with and without its target,
+which the data can't supply; a list's spread; paths that climb past the
+instance; `key()` and `key(2)` in a map's template and `key()` in a
+list's; a spread that is a relative path, read where it's written, and
+one that only holds one; an absolute path in a template, beside no
+member, a member the data supplies and one the schema writes; a
+template a path reference copies, read at the copy's members; a spread
+inside a template, at a member the template writes and at one the data
+supplies; and a spread met with a map. -/
+def spreadCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let ms (fs : List (String × Val)) (s : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some s) false
+  let ls (xs : List Val) (s : Val) : Val := .list xs (some s) false
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let host := m [("host", rel 1 ["name"])]
+  let h1 := m [("h", rel 1 ["name"])]
+  let nested := m [("w", ms [] (m [("h", rel 3 ["name"])]))]
+  let nestedF := m [("w", ms [("f", m [])] (m [("h", rel 3 ["name"])]))]
+  let bare := ms [] (rel 2 ["x"])
+  let copied := m [("x", int 1), ("T", bare), ("outer", m [("x", int 2), ("t", p ["T"])])]
+  let copiedNo := m [("x", int 1), ("T", bare), ("outer", m [("t", p ["T"])])]
+  let built := m [("global", str "x"), ("T", ms [] (m [("h", p ["global"])])), ("Source", m [("a", m [])]),
+    ("s", ms [("m", m [])] (m [("copy", .meet (p ["T"]) (p ["Source"]))]))]
+  let linked (spread : Val) (t : Val) (rest : List (String × Val)) : Val :=
+    m (rest ++ [("s", ms [] spread), ("r", .meet (.call .refer [t]) (.addr ⟨0, ["s"]⟩))])
+  let named := m [("a", m [("name", str "n")])]
+  let inCopy := m [("T", ms [] h1), ("s", ms [("m", m [])] (m [("copy", p ["T"])]))]
+  [([], m [("s", ms [] host)], dm [("s", dm [("a", dm [("name", .str "x"), ("host", .str "x")])])]),
+    ([], m [("s", ms [] host)], dm [("s", dm [("a", dm [("name", .str "x"), ("host", .str "y")])])]),
+    ([], m [("s", ms [] host)], dm [("s", dm [("a", dm [("name", .str "x")])])]),
+    ([], m [("s", ms [] host)], dm [("s", dm [("a", dm [])])]),
+    ([], m [("s", ms [("a", m [("name", str "x")])] host)], dm []),
+    ([], m [("s", ms [("a", m [("name", str "x")])] host)], dm [("s", dm [("a", dm [("host", .str "y")])])]),
+    ([], m [("s", ms [("a", m [("name", str "x")])] host)], dm [("s", dm [("b", dm [("name", .str "y")])])]),
+    ([], m [("s", ms [("a", m [("name", str "x")])] host)],
+      dm [("s", dm [("b", dm [("name", .str "y"), ("host", .str "z")])])]),
+    ([], m [("s", ms [("a", m [])] host)], dm []),
+    ([], m [("s", ms [("a", m [])] host)], dm [("s", dm [("a", dm [("name", .str "z")])])]),
+    ([], m [("s", ms [("a", m [("name", .string)])] host)], dm []),
+    ([], m [("l", ls [] host)], dm [("l", .list [dm [("name", .str "x")]])]),
+    ([], m [("l", ls [m [("n", int 1)]] (m [("h", rel 1 ["n"])]))], dm [("l", .list [dm [("h", j 2)]])]),
+    ([], m [("s", ms [("a", m [])] (m [("up", rel 3 ["top"])])), ("top", int 1)], dm []),
+    ([], m [("s", ms [] (m [("v", rel 2 ["x"])]))], dm [("s", dm [("a", dm [])])]),
+    ([], m [("s", ms [] (m [("v", rel 2 ["x"])]))], dm []),
+    ([], m [("s", ms [("b", m [])] (m [("v", rel 3 ["x"])]))], dm []),
+    ([], m [("s", ms [] (m [("k", .keyUp 1)]))], dm [("s", dm [("a", dm [])])]),
+    ([], m [("s", ms [] (m [("k", .keyUp 1)]))], dm [("s", dm [("a", dm [("k", .str "b")])])]),
+    ([], m [("s", ms [("a", m [])] (m [("k", .keyUp 1)]))], dm []),
+    ([], m [("s", ms [] (m [("k", .keyUp 2)]))], dm [("s", dm [("a", dm [("k", .str "s")])])]),
+    ([], m [("s", ms [] (m [("w", m [("k", .keyUp 2)])]))], dm [("s", dm [("a", dm [("w", dm [("k", .str "b")])])])]),
+    ([], m [("l", ls [] (m [("i", .keyUp 1)]))], dm [("l", .list [dm [], dm []])]),
+    ([], m [("s", ms [] (rel 1 ["x"]))], dm [("s", dm [("a", j 1)])]),
+    ([], m [("s", ms [] (rel 2 ["x"])), ("x", int 1)], dm [("s", dm [("a", j 2)])]),
+    ([], m [("s", ms [] (rel 2 ["x"]))], dm []),
+    ([], m [("s", ms [] (.meet (int 1) (rel 1 ["x"]))), ("x", int 1)], dm []),
+    ([], m [("s", ms [] (m [("z", p ["nosuch"])]))], dm []),
+    ([], m [("s", ms [] (m [("z", p ["nosuch"])]))], dm [("s", dm [("a", dm [])])]),
+    ([], m [("s", ms [("a", m [])] (m [("z", p ["nosuch"])]))], dm []),
+    ([], m [("T", ms [] h1), ("x", p ["T"])], dm [("x", dm [("a", dm [("name", .str "n"), ("h", .str "m")])])]),
+    ([], m [("T", ms [] h1), ("x", p ["T"])], dm [("x", dm [("a", dm [("name", .str "n")])])]),
+    ([], m [("T", ms [] (m [("z", p ["y"])])), ("y", int 1), ("x", p ["T"])], dm [("x", dm [("a", dm [("z", j 2)])])]),
+    ([], m [("T", ms [("a", m [("name", str "t")])] h1), ("x", p ["T"])], dm [("x", dm [("a", dm [("h", .str "u")])])]),
+    ([], m [("T", ms [("a", m [])] h1), ("x", p ["T"])], dm []),
+    ([], m [("s", ms [("a", m [("name", str "n")])] nestedF)],
+      dm [("s", dm [("a", dm [("w", dm [("f", dm [("h", .str "m")])])])])]),
+    ([], m [("s", ms [("a", m [("name", str "n")])] nestedF)], dm []),
+    ([], m [("s", ms [] nested)], dm [("s", dm [("a", dm [("name", .str "x"), ("w", dm [("b", dm [])])])])]),
+    ([], m [("s", ms [("a", m [("w", m [("b", m [])])])] nested)], dm []),
+    ([], m [("s", .meet (ms [] host) (m [("a", m [("name", str "x")])]))], dm [("s", dm [("a", dm [("host", .str "y")])])]),
+    ([], copied, dm [("outer", dm [("t", dm [("a", j 2)])])]),
+    ([], copied, dm [("outer", dm [("t", dm [("a", j 1)])])]),
+    ([], m [("T", bare), ("outer", m [("x", int 2), ("t", p ["T"])])], dm []),
+    ([], m [("x", int 1), ("T", ls [] (rel 2 ["x"])), ("outer", m [("x", int 2), ("t", p ["T"])])],
+      dm [("outer", dm [("t", .list [j 2])])]),
+    ([], copiedNo, dm []),
+    ([], copiedNo, dm [("outer", dm [("t", dm [("a", j 2)])])]),
+    ([], built, dm [("s", dm [("m", dm [("copy", dm [("a", dm [("h", .str "y")])])])])]),
+    ([], built, dm [("s", dm [("m", dm [("copy", dm [("a", dm [("h", .str "x")])])])])]),
+    ([], linked (m [("host", p ["global"])]) named [("global", str "x")], dm [("s", dm [("a", dm [("host", .str "y")])])]),
+    ([], linked (m [("host", p ["global"])]) named [("global", str "x")], dm [("s", dm [("a", dm [("host", .str "x")])])]),
+    ([], linked (m [("host", rel 3 ["g"])]) named [("g", str "x")], dm [("s", dm [("a", dm [("host", .str "y")])])]),
+    ([], linked host (m [("a", m [])]) [], dm []),
+    ([], inCopy, dm [("s", dm [("m", dm [("copy", dm [("a", dm [("name", .str "n"), ("h", .str "z")])])])])]),
+    ([("T", bare)], m [("x", int 1), ("a", .alias "T")], dm [("a", dm [("m", j 2)])]),
+    ([("T", bare)], m [("a", .alias "T")], dm [])]
+
+theorem spreadCases_checkable : ∀ c ∈ spreadCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem spread_verdict_exact : ∀ c ∈ spreadCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (spreadCases_checkable c hc).1 (spreadCases_checkable c hc).2 v
+
+/-- Sources loaded in place, each a file of `test/spec/files` the case
+declares as a term: an aontu source at the root, alone and met with a
+map, and under a key, beside data that agrees and data that doesn't; a
+source met with a map that refuses it; a source that names nothing; a
+JSON map and text under a key; a cycle of sources; an extension no
+source may be loaded with; a chain of sources, each read from the one
+before it; a path in a source loaded at the root and in one loaded
+under a key; a spread in a source met with a map; a JSON list met with
+a map at the root; and the extension supplied. -/
+def loadCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let ms (fs : List (String × Val)) (s : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some s) false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let ld (s : String) : Val := .call .load [.lit (.str s)]
+  let fx (s : String) : String := "__FIXTURES__/" ++ s
+  let files : Decls :=
+    [("@" ++ fx "foo.aontu", m [("f", int 11)]),
+      ("@" ++ fx "car.aontu", m [("color", str "silver"), ("doors", int 4)]),
+      ("@" ++ fx "refs.aontu", m [("a", m [("x", int 1)]), ("b", p ["a", "x"])]),
+      ("@" ++ fx "spread.aontu", ms [("one", m []), ("two", m [])] (m [("active", .lit (.bool true))])),
+      ("@" ++ fx "nest_parent.aontu", m [("a", int 1), ("child", ld "./nest_child.aontu")]),
+      ("@" ++ fx "nest_child.aontu", m [("b", int 2), ("grand", ld "./nest_grand.aontu")]),
+      ("@" ++ fx "nest_grand.aontu", m [("c", int 3)]),
+      ("@" ++ fx "cycle_a.aontu", m [("x", ld "./cycle_b.aontu")]),
+      ("@" ++ fx "cycle_b.aontu", m [("y", ld "./cycle_b.aontu"), ("z", ld "./cycle_a.aontu")]),
+      ("@" ++ fx "vocab.json", (Data.map [("a", j 1), ("b", .map [("c", j 2)])]).term),
+      ("@" ++ fx "list.json", (Data.list [.str "a", j 1, .bool true]).term),
+      ("@" ++ fx "notes.txt", str "These are notes, not a document.\n"),
+      ("@" ++ fx "defload/up.aontu", m [("x", ld "../foo.aontu")]),
+      ("@" ++ fx "defload/bare.aontu", m [("x", ld "deep/leaf")]),
+      ("@" ++ fx "defload/deep/leaf.aontu", m [("l", int 1)])]
+  [(files, ld (fx "foo.aontu"), dm []),
+    (files, ld (fx "foo.aontu"), dm [("f", j 12)]),
+    (files, .meet (ld (fx "foo.aontu")) (m [("c", int 3)]), dm []),
+    (files, m [("a", ld (fx "foo.aontu"))], dm [("a", dm [("f", j 11)])]),
+    (files, m [("a", ld (fx "foo.aontu"))], dm [("a", dm [("f", j 12)])]),
+    (files, m [("car", .meet (ld (fx "car.aontu")) (m [("wheels", int 4)]))], dm []),
+    (files, m [("car", .meet (ld (fx "car.aontu")) (m [("doors", int 5)]))], dm []),
+    (files, m [("a", ld "nope-no-such-file")], dm []),
+    (files, m [("x", ld (fx "vocab.json"))], dm [("x", dm [("a", j 2)])]),
+    (files, m [("x", ld (fx "vocab.json"))], dm []),
+    (files, m [("x", ld (fx "notes.txt"))], dm [("x", .str "other")]),
+    (files, m [("x", ld (fx "notes.txt"))], dm []),
+    (files, ld (fx "cycle_a.aontu"), dm []),
+    (files, m [("x", ld (fx "conf.csv"))], dm []),
+    (files, ld (fx "nest_parent.aontu"), dm [("child", dm [("b", j 3)])]),
+    (files, ld (fx "nest_parent.aontu"), dm []),
+    (files, ld (fx "refs.aontu"), dm [("b", j 2)]),
+    (files, m [("r", ld (fx "refs.aontu"))], dm []),
+    (files, .meet (ld (fx "spread.aontu")) (m [("three", m [])]), dm [("three", dm [("active", .bool false)])]),
+    (files, .meet (ld (fx "list.json")) (m [("x", int 1)]), dm []),
+    (files, m [("x", ld (fx "foo"))], dm []),
+    (files, ld (fx "defload/up.aontu"), dm []),
+    (files, ld (fx "defload/up.aontu"), dm [("x", dm [("f", j 12)])]),
+    (files, ld (fx "defload/bare.aontu"), dm []),
+    (files, ld (fx "defload/bare.aontu"), dm [("x", dm [("l", j 2)])]),
+    (files, m [("x", .select (int 1) [(int 1, int 7)] (some (ld "./missing.aontu")))], dm []),
+    (files, m [("x", ld "foo.aontu")], dm [])]
+
+theorem loadCases_checkable : ∀ c ∈ loadCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem load_verdict_exact : ∀ c ∈ loadCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (loadCases_checkable c hc).1 (loadCases_checkable c hc).2 v
+
+/-- Sources that declare names of their own, each source read in its own
+scope (`Decls.ofSource`): a source whose name its own body uses, loaded
+alone and beside a document that names it, which can't read it; a
+source that names a name only the document declares, which it can't
+read; two sources that declare one name, which stay two names; a
+source whose name loads a source from its own directory; and a source
+whose name names nothing, which only a document that loads it is an
+error for. -/
+def scopeCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let ld (s : String) : Val := .call .load [.lit (.str s)]
+  let fx (s : String) : String := "__FIXTURES__/" ++ s
+  let files : Decls :=
+    Decls.ofSource (fx "alias_declares_u.aontu") [("u", int 7)] (m [("y", int 1)]) ++
+    Decls.ofSource (fx "alias_uses_t.aontu") [] (m [("x", .alias "t")]) ++
+    Decls.ofSource (fx "alias_row_a.aontu") [("row", m [("kind", .string)])]
+      (m [("a", .meet (.alias "row") (m [("kind", str "x")]))]) ++
+    Decls.ofSource (fx "alias_row_b.aontu") [("row", m [("extra", .pref 1 (int 9))])]
+      (m [("b", .meet (.alias "row") (m [("kind", str "y")]))]) ++
+    Decls.ofSource (fx "alias_sigil.aontu") [("b", .meet .integer (.min (.num (.integer ⟨1, by decide⟩))))]
+      (m [("q", .meet (.alias "b") (int 7))]) ++
+    Decls.ofSource (fx "defload/alias_loads.aontu") [("t", ld "./deep/leaf.aontu")] (m [("y", .alias "t")]) ++
+    [("@" ++ fx "defload/deep/leaf.aontu", m [("l", int 1)])] ++
+    Decls.ofSource (fx "alias_stray.aontu") [("s", .alias "nowhere")] (m [("y", int 1)])
+  [(files, ld (fx "alias_declares_u.aontu"), dm []),
+    (files, .meet (ld (fx "alias_declares_u.aontu")) (m [("z", .alias "u")]), dm []),
+    (("t", int 42) :: files, m [("inner", ld (fx "alias_uses_t.aontu"))], dm []),
+    (files, .meet (ld (fx "alias_row_a.aontu")) (ld (fx "alias_row_b.aontu")), dm []),
+    (files, .meet (ld (fx "alias_row_a.aontu")) (ld (fx "alias_row_b.aontu")), dm [("a", dm [("extra", .str "s")])]),
+    (files, .meet (ld (fx "alias_sigil.aontu")) (m [("x", int 1)]), dm []),
+    (files, .meet (ld (fx "alias_sigil.aontu")) (m [("x", int 1)]), dm [("q", j 0)]),
+    (files, ld (fx "defload/alias_loads.aontu"), dm []),
+    (files, ld (fx "defload/alias_loads.aontu"), dm [("y", dm [("l", j 2)])]),
+    (files, ld (fx "alias_stray.aontu"), dm [])]
+
+theorem scopeCases_checkable : ∀ c ∈ scopeCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem scope_verdict_exact : ∀ c ∈ scopeCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (scopeCases_checkable c hc).1 (scopeCases_checkable c hc).2 v
+
+/-- Names a source publishes, `export({ %a })`, and the destructures
+that take them, `{ %a } = @"p"`: a name taken by its own name, all of a
+source's names at once, and under another name; at the top and under a
+key, where the source's values land while its names are the document's;
+beside a declaration of the same name, which it meets; beside data that
+refuses it; a name the source declares but doesn't publish, used and
+not, one it publishes but declares only through a load, and one it
+never declares, each an error; a destructure under a rider, in a spread
+and under a preference, which binds its names as at a key, and an
+unexported name under a rider at the top, an error; and every name of a source
+that publishes one it doesn't declare, an error, beside the source
+loaded alone. -/
+def takeCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let ld (s : String) : Val := .call .load [.lit (.str s)]
+  let fx (s : String) : String := "__FIXTURES__/" ++ s
+  let take (s : String) (names : List String) : Val := .call .load (.lit (.str (fx s)) :: names.map str)
+  let files : Decls :=
+    Decls.ofSource (fx "alias_exports.aontu") [("uint8", int 255), ("secret", str "shh")]
+      (m [("defaults", m [("retries", int 3)])]) ["uint8"] ++
+    Decls.ofSource (fx "alias_exports_used.aontu")
+      [("port", .meet (.meet .integer (.min (.num (.integer ⟨1, by decide⟩))))
+        (.max (.num (.integer ⟨65535, by decide⟩))))]
+      (m [("listen", .meet (.alias "port") (int 8080))]) ["port"] ++
+    Decls.ofSource (fx "alias_reexport.aontu") [] (ld "./alias_declares_u.aontu") ["u"] ++
+    Decls.ofSource (fx "alias_declares_u.aontu") [("u", int 7)] (m [("y", int 1)])
+  [(files, .meet (take "alias_exports.aontu" ["uint8", "uint8"]) (m [("a", .alias "uint8")]), dm []),
+    (files, .meet (take "alias_exports.aontu" ["uint8", "uint8"]) (m [("a", .alias "uint8")]), dm [("a", j 254)]),
+    (files, .meet (take "alias_exports.aontu" ["%"]) (m [("a", .alias "uint8")]), dm []),
+    (files, .meet (take "alias_exports.aontu" ["u8", "uint8"]) (m [("a", .alias "u8")]), dm []),
+    (files, m [("svc", take "alias_exports.aontu" ["uint8", "uint8"]), ("a", .alias "uint8")],
+      dm [("svc", dm [("defaults", dm [("retries", j 3)])])]),
+    (files, m [("svc", take "alias_exports_used.aontu" ["port", "port"]), ("a", .meet (.alias "port") (int 443))], dm []),
+    (files, m [("svc", take "alias_exports_used.aontu" ["port", "port"]), ("a", .alias "port")], dm [("a", j 0)]),
+    (("uint8", .integer) :: files,
+      .meet (take "alias_exports.aontu" ["uint8", "uint8"]) (m [("a", .alias "uint8")]), dm []),
+    (("uint8", .integer) :: files,
+      .meet (take "alias_exports.aontu" ["uint8", "uint8"]) (m [("a", .alias "uint8")]), dm [("a", j 7)]),
+    (files, .meet (take "alias_exports.aontu" ["secret", "secret"]) (m [("a", .alias "secret")]), dm []),
+    (files, take "alias_exports.aontu" ["secret", "secret"], dm []),
+    (files, .meet (take "alias_reexport.aontu" ["u", "u"]) (m [("a", .alias "u")]), dm []),
+    (files, .meet (take "alias_exports.aontu" ["nosuch", "nosuch"]) (m [("a", .alias "nosuch")]), dm []),
+    (files, m [("a", .ride .type (take "alias_exports.aontu" ["uint8", "uint8"]) []), ("b", .alias "uint8")], dm []),
+    (files, .ride .type (take "alias_exports.aontu" ["secret", "secret"]) [], dm []),
+    (files, m [("a", .map [] (some (take "alias_exports.aontu" ["uint8", "uint8"])) false), ("b", .alias "uint8")],
+      dm []),
+    (files, m [("a", .pref 1 (take "alias_exports.aontu" ["uint8", "uint8"])), ("b", .alias "uint8")], dm []),
+    (files, take "alias_reexport.aontu" ["%"], dm []),
+    (files, ld (fx "alias_reexport.aontu"), dm [])]
+
+theorem takeCases_checkable : ∀ c ∈ takeCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem take_verdict_exact : ∀ c ∈ takeCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (takeCases_checkable c hc).1 (takeCases_checkable c hc).2 v
+
+/-- The transformer `emit` in a document with paths: a selection a path
+names, and a body that reads the node and the root, beside data that
+agrees and data that refuses. -/
+def emitPathCases : List (Decls × Val × Data) :=
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let rule (mt : Val) (b : List Val) : Val := m [("match", mt), ("body", l b)]
+  let sel := l [m [("k", str "sqs"), ("p", str "x")], m [("k", str "http"), ("u", str "/y")]]
+  let table := l [rule (m [("k", str "sqs")]) [.call .plus [str "L:", nd ["p"]]],
+    rule (m [("k", str "http")]) [.call .plus [str "S:", nd ["u"]]]]
+  [([], m [("s", sel), ("o", .call .emit [p ["s"], table])], dm []),
+    ([], m [("s", sel), ("o", .call .emit [p ["s"], table])], dm [("o", .list [.str "L:x", .str "S:/y"])]),
+    ([], m [("s", sel), ("o", .call .emit [p ["s"], table])], dm [("o", .list [.str "x"])]),
+    ([], m [("z", str "Z"), ("s", sel), ("o", .call .emit [p ["s"], rule (m [("k", .string)]) [p ["z"], nd ["k"]]])],
+      dm [])]
+
+theorem emitPathCases_checkable : ∀ c ∈ emitPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem emitPath_verdict_exact : ∀ c ∈ emitPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (emitPathCases_checkable c hc).1 (emitPathCases_checkable c hc).2 v
+
+/-- The transformer `emit` over the members a `filter` keeps, beside
+data that agrees and data that refuses. -/
+def emitFilterCases : List (Decls × Val × Data) :=
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let sel := l [m [("k", str "sqs"), ("p", str "x")], m [("k", str "http"), ("u", str "/y")]]
+  let o := .call .emit [.filter (p ["s"]) (m [("k", str "sqs")]),
+    m [("match", m [("k", .string)]), ("body", l [nd ["p"]])]]
+  [([], m [("s", sel), ("o", o)], dm [("o", .list [.str "x"])]),
+    ([], m [("s", sel), ("o", o)], dm [("o", .list [.str "y"])])]
+
+/-- The checker can't read a `filter` before the reading makes it, so
+each case's readings are read whole (`Decls.readsPB`). -/
+theorem emitFilterCases_reads : ∀ c ∈ emitFilterCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+
+theorem emitFilter_verdict_exact : ∀ c ∈ emitFilterCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (emitFilterCases_reads c hc) v
+
+/-- Generators whose templates read their member's place through a
+relative path, each read at each member of the generator's output:
+`each` and `pack` over a list a path names, beside data that refuses
+what the path reads, a path that names nothing, an empty source, a path
+that climbs out of the instance, `key(1)` beside a path, a path inside
+a call, a spread inside the template, and a generator inside another. -/
+def genTemplateCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let ms (fs : List (String × Val)) (sp : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some sp) false
+  let l (xs : List Val) : Val := .list xs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let each (d t : Val) : Val := .call .each [d, t]
+  let pack (d t : Val) : Val := .call .pack [d, t]
+  let named := m [("n", .hole), ("u", rel 1 ["n"])]
+  let url := m [("n", .hole), ("u", .call .plus [str "https://", rel 1 ["n"]])]
+  let keyed := m [("k", .keyUp 1), ("u", rel 1 ["k"])]
+  let spread := m [("n", .hole), ("s", ms [("x", m [])] (m [("h", rel 3 ["n"])]))]
+  let nested (u : Val) := m [("n", .hole), ("f", each (l [str "p"]) (m [("m", .hole), ("u", u)]))]
+  [([], m [("l", l [str "a", str "b"]), ("e", each (p ["l"]) named)], dm []),
+    ([], m [("l", l [str "a", str "b"]), ("e", each (p ["l"]) named)], dm [("e", .list [dm [("n", .str "a"), ("u", .str "z")]])]),
+    ([], m [("l", l [str "a", str "b"]), ("e", each (p ["l"]) (m [("n", .hole), ("u", rel 1 ["m"])]))], dm []),
+    ([], m [("l", l []), ("e", each (p ["l"]) (m [("n", .hole), ("u", rel 1 ["m"])]))], dm []),
+    ([], m [("l", l [str "a", str "b"]), ("x", int 9), ("e", each (p ["l"]) (m [("n", .hole), ("v", rel 3 ["x"])]))],
+      dm [("e", .list [dm [("v", j 8)]])]),
+    ([], m [("s", m [("x", int 5), ("e", each (l [str "a"]) (m [("v", rel 3 ["x"])]))])], dm [("s", dm [("e", .list [dm [("v", j 6)]])])]),
+    ([], m [("l", l [str "a"]), ("e", pack (p ["l"]) keyed)], dm []),
+    ([], m [("l", l [str "a"]), ("e", pack (p ["l"]) keyed)], dm [("e", dm [("a", dm [("u", .str "b")])])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) (m [("n", .hole), ("w", m [("k", rel 2 ["n"])])]))],
+      dm [("e", .list [dm [("w", dm [("k", .str "b")])]])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) url)], dm [("e", .list [dm [("u", .str "https://a")]])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) url)], dm [("e", .list [dm [("u", .str "http://a")]])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) spread)], dm []),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) spread)], dm [("e", .list [dm [("s", dm [("x", dm [("h", .str "z")])])]])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) (nested (rel 3 ["n"])))], dm [("e", .list [dm [("f", .list [dm [("u", .str "z")]])]])]),
+    ([], m [("l", l [str "a"]), ("e", each (p ["l"]) (nested (rel 1 ["m"])))], dm [("e", .list [dm [("f", .list [dm [("u", .str "z")]])]])])]
+
+theorem genTemplateCases_checkable : ∀ c ∈ genTemplateCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem genTemplate_verdict_exact : ∀ c ∈ genTemplateCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (genTemplateCases_checkable c hc).1 (genTemplateCases_checkable c hc).2 v
+
+/-- A `filter`'s condition, standing where the member it tries lands: a
+relative path that climbs out of the member, to the filter's map, past
+it to the top and into a sibling list, over a list and a map, inside a
+map and a call; one that stays inside the member, and one that names
+the filter's own output, each naming nothing; and a path, a relative
+one past the top and a name that name nothing, each of which refuses
+every member rather than making the document an error, as both ports
+read them, and a path the data supplies. -/
+def filterCondCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let f (c : Val) := m [("a", m [("lim", int 2), ("l", l [int 1, int 2, int 3]), ("f", .filter (rel 1 ["l"]) c)])]
+  let out (xs : List Data) : Data := dm [("a", dm [("f", .list xs)])]
+  let ns := l [m [("n", int 1), ("m", int 1)], m [("n", int 2), ("m", int 3)]]
+  let fn (c : Val) := m [("a", m [("lim", int 2), ("l", ns), ("f", .filter (rel 1 ["l"]) c)])]
+  [([], f (rel 2 ["lim"]), out [j 2]),
+    ([], f (rel 2 ["lim"]), out [j 1]),
+    ([], m [("lim", int 3), ("a", m [("lim", int 2), ("l", l [int 1, int 2, int 3]), ("f", .filter (rel 1 ["l"]) (rel 3 ["lim"]))])],
+      out [j 3]),
+    ([], f (.path [.up 2, .key "l", .idx 0]), out [j 1]),
+    ([], m [("a", m [("lim", int 2), ("l", m [("p", int 1), ("q", int 2)]), ("f", .filter (rel 1 ["l"]) (rel 2 ["lim"]))])],
+      dm [("a", dm [("f", dm [("q", j 2)])])]),
+    ([], fn (m [("n", rel 3 ["lim"])]), out [dm [("n", j 2), ("m", j 3)]]),
+    ([], f (.call .add [rel 2 ["lim"], int 0]), out [j 2]),
+    ([], fn (m [("n", rel 1 ["m"])]), out []),
+    ([], fn (m [("n", .path [.up 2, .idx 0, .key "n"])]), out []),
+    ([], f (rel 1 ["lim"]), out []),
+    ([], f (p ["nope"]), out []),
+    ([], f (rel 4 ["lim"]), out []),
+    ([], f (.alias "Nope"), out []),
+    ([], m [("a", m [("l", l [int 1, int 2]), ("f", .filter (rel 1 ["l"]) (p ["lim"]))])],
+      dm [("lim", j 2), ("a", dm [("f", .list [j 2])])]),
+    ([], m [("a", m [("l", l [int 1, int 2]), ("f", .filter (rel 1 ["l"]) (p ["lim"]))])],
+      dm [("lim", j 2), ("a", dm [("f", .list [j 1])])])]
+
+set_option maxRecDepth 16384 in
+/-- The checker can't read a `filter` before the reading makes it, so
+each case's readings are read whole (`Decls.readsPB`). -/
+theorem filterCondCases_reads : ∀ c ∈ filterCondCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+
+theorem filterCond_verdict_exact : ∀ c ∈ filterCondCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (filterCondCases_reads c hc) v
+
+/-- Bounds written over terms: `min`, `max`, `above` and `below` over a
+path to a number and to a string, the empty string among them, over a
+relative path and over a call; two bounds over paths met; `neq` over
+paths to numbers, to strings and to both; `mulof` over a path to a
+number, to a string, to `0` and to a negative number; a path to a
+boolean, `null`, a map, a kind, a bound and a meet, which no bound
+reads, so that the bound admits nothing, however its argument is
+written (decision 28), and a kind and `any` the data fills; a path to a
+preference and to a disjunction, a choice no bound takes, an error
+whether or not the data fills it (#413); one only the data supplies;
+and `len`, which takes a term already, over a path to a count, a
+relative one, one to a bound, one to a string, and one only the data
+supplies. Then a bound over a path to `true` met with a kind, an error
+as the literal is; `neq` over a sole list, written and through a path,
+which reads its elements, so that a choice among them is an error, a
+list among them admits nothing and so does an empty list; and `len`
+over `any`, written and through a path, and over a trial, which admit
+no size, a rider and a meet with `any` read through. -/
+def boundArgCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let t (x : Data) : Data := dm [("t", x)]
+  let lo (v : Val) (b : Bnd := .min) : Val := m [("lo", v), ("t", bnd b [p ["lo"]])]
+  [([], lo (int 2), t (j 5)),
+    ([], lo (int 2), t (j 1)),
+    ([], lo (int 2), dm []),
+    ([], lo (str "b"), t (.str "c")),
+    ([], lo (str "b"), t (.str "a")),
+    ([], lo (str ""), t (.str "a")),
+    ([], lo (int 2) .above, t (j 2)),
+    ([], m [("hi", int 2), ("t", bnd .below [p ["hi"]])], t (j 1)),
+    ([], m [("a", m [("lim", int 2), ("t", bnd .max [rel 1 ["lim"]])])], dm [("a", t (j 3))]),
+    ([], m [("t", bnd .min [.call .add [int 1, int 1]])], t (j 1)),
+    ([], m [("lo", int 2), ("hi", int 4), ("t", .meet (bnd .min [p ["lo"]]) (bnd .max [p ["hi"]]))], t (j 5)),
+    ([], m [("a", int 1), ("b", int 2), ("t", bnd .neq [p ["a"], p ["b"]])], t (j 3)),
+    ([], m [("a", int 1), ("b", int 2), ("t", bnd .neq [p ["a"], p ["b"]])], t (j 2)),
+    ([], m [("a", str "p"), ("b", str "q"), ("t", bnd .neq [p ["a"], p ["b"]])], t (.str "p")),
+    ([], m [("a", int 1), ("t", bnd .neq [p ["a"]])], t (j 1)),
+    ([], m [("a", int 1), ("b", str "x"), ("t", bnd .neq [p ["a"], p ["b"]])], t (j 3)),
+    ([], m [("d", int 3), ("t", bnd .mulof [p ["d"]])], t (j 6)),
+    ([], m [("d", int 3), ("t", bnd .mulof [p ["d"]])], t (j 7)),
+    ([], m [("d", str "x"), ("t", bnd .mulof [p ["d"]])], t (j 3)),
+    ([], lo (.lit (.bool true)), t (j 1)),
+    ([], lo (.lit .null), t (j 1)),
+    ([], lo (m []), t (j 1)),
+    ([], lo .integer, t (j 1)),
+    ([], lo (.min (.num (.integer ⟨1, by decide⟩))), t (j 1)),
+    ([], lo (.or [(1, int 2), (0, int 3)]), t (j 1)),
+    ([], m [("t", bnd .min [p ["lo"]])], dm [("lo", j 2), ("t", j 1)]),
+    ([], lo .number, dm [("lo", j 2), ("t", j 1)]),
+    ([], m [("n", int 2), ("t", .len (p ["n"]))], dm [("t", .list [j 1, j 2])]),
+    ([], m [("n", int 2), ("t", .len (p ["n"]))], dm [("t", .list [j 1])]),
+    ([], m [("n", int 2), ("t", .len (p ["n"]))], dm [("t", .str "ab")]),
+    ([], m [("a", m [("n", int 2), ("t", .len (rel 1 ["n"]))])], dm [("a", dm [("t", .list [j 1, j 2])])]),
+    ([], m [("n", .min (.num (.integer ⟨1, by decide⟩))), ("t", .len (p ["n"]))], dm [("t", .list [j 1])]),
+    ([], m [("n", int 2), ("t", .len (p ["n"]))], dm []),
+    ([], m [("t", .len (p ["n"]))], dm [("n", j 2), ("t", .list [j 1, j 2])]),
+    ([], m [("d", int 0), ("t", bnd .mulof [p ["d"]])], t (j 7)),
+    ([], m [("d", int (-3)), ("t", bnd .mulof [p ["d"]])], t (j 6)),
+    ([], m [("s", str "a"), ("t", .len (p ["s"]))], t (.str "abc")),
+    ([], lo (.pref 1 (int 2)), t (j 3)),
+    ([], lo .number, dm [("lo", j 2), ("t", j 3)]),
+    ([], lo .any, dm [("lo", j 2), ("t", j 3)]),
+    ([], lo (.or [(1, int 2), (0, int 3)]), dm [("lo", j 3), ("t", j 3)]),
+    ([], lo (.meet (.min (.num (.integer ⟨1, by decide⟩))) (.max (.num (.integer ⟨3, by decide⟩)))), t (j 2)),
+    ([], lo (.or [(0, int 1), (0, int 3)]), t (j 2)),
+    ([], lo (.or [(0, int 1), (0, int 3)]), dm [("lo", j 1), ("t", j 2)]),
+    ([], m [("lo", .lit (.bool true)), ("t", .meet (bnd .min [p ["lo"]]) .integer)], t (j 1)),
+    ([], m [("x", l [int 1, int 3]), ("t", bnd .neq [p ["x"]])], dm [("x", .list [j 1, j 3]), ("t", j 2)]),
+    ([], m [("x", l [int 1, int 3]), ("t", bnd .neq [p ["x"]])], dm [("x", .list [j 1, j 3]), ("t", j 1)]),
+    ([], m [("t", bnd .neq [l [int 1, int 3]])], t (j 2)),
+    ([], m [("x", l [.or [(0, int 1), (0, int 3)]]), ("t", bnd .neq [p ["x"]])], dm [("x", .list [j 1]), ("t", j 2)]),
+    ([], m [("t", bnd .neq [l [.or [(0, int 1), (0, int 3)]]])], t (j 2)),
+    ([], m [("x", l [int 1, str "a"]), ("t", bnd .neq [p ["x"]])], t (j 2)),
+    ([], m [("x", l [l [int 1]]), ("t", bnd .neq [p ["x"]])], t (j 2)),
+    ([], m [("x", l []), ("t", bnd .neq [p ["x"]])], t (j 2)),
+    ([], m [("t", .len .any)], t (.list [j 1])),
+    ([], m [("n", .any), ("t", .len (p ["n"]))], t (.list [j 1])),
+    ([], m [("t", .len (.must .integer "m"))], t (.list [j 1])),
+    ([], m [("t", .len (.ride .metadata (int 1) []))], t (.list [j 1])),
+    ([], m [("t", .len (.meet .any (int 1)))], t (.list [j 1]))]
+
+theorem boundArgCases_checkable : ∀ c ∈ boundArgCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem boundArg_verdict_exact : ∀ c ∈ boundArgCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (boundArgCases_checkable c hc).1 (boundArgCases_checkable c hc).2 v
+
+/-- Bounds over a relative path in a `filter`'s condition, each read
+where the member it tries lands: `min`, `above` and `neq` over a path
+past the member, which keep the members they admit, and a bound over a
+boolean, `null` or a map, and a `neq` over a number and a string, each
+refused, which refuses every member rather than making the document an
+error. -/
+def boundFilterCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let f (c : Val) := m [("a", m [("lim", int 2), ("l", l [int 1, int 2, int 3]), ("f", .filter (rel 1 ["l"]) c)])]
+  let out (xs : List Data) : Data := dm [("a", dm [("f", .list xs)])]
+  let g (lim c : Val) := m [("a", m [("lim", lim), ("l", l [int 1]), ("f", .filter (rel 1 ["l"]) c)])]
+  [([], f (bnd .min [rel 2 ["lim"]]), out [j 2, j 3]),
+    ([], f (bnd .min [rel 2 ["lim"]]), out [j 1]),
+    ([], f (bnd .above [rel 2 ["lim"]]), out [j 3]),
+    ([], f (bnd .neq [rel 2 ["lim"]]), out [j 1, j 3]),
+    ([], g (.lit (.bool true)) (bnd .min [rel 2 ["lim"]]), out []),
+    ([], g (.lit .null) (bnd .min [rel 2 ["lim"]]), out []),
+    ([], g (m []) (bnd .max [rel 2 ["lim"]]), out []),
+    ([], g (int 1) (bnd .neq [rel 2 ["lim"], .lit (.str "x")]), out [])]
+
+set_option maxRecDepth 16384 in
+/-- The checker can't read a `filter` before the reading makes it, so
+each case's readings are read whole (`Decls.readsPB`). -/
+theorem boundFilterCases_reads : ∀ c ∈ boundFilterCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+
+theorem boundFilter_verdict_exact : ∀ c ∈ boundFilterCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (boundFilterCases_reads c hc) v
+
+/-- Bounds over a relative path in a generator's template, each read
+where its instance lands: `min` over a path into the member, in an
+`each` and a `pack` whose instances each have a target of their own,
+one admitting and one refusing, and over an ancestor's member. -/
+def boundEachCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let lv (lim v : Val) : Val := m [("lim", lim), ("v", v)]
+  let tmpl := Val.meet .hole (m [("v", bnd .min [rel 1 ["lim"]])])
+  [([], m [("o", .call .each [l [lv (int 1) (int 1), lv (int 2) (int 2)], tmpl])], dm []),
+    ([], m [("o", .call .each [l [lv (int 2) (int 1), lv (int 1) (int 1)], tmpl])], dm []),
+    ([], m [("o", .call .pack [m [("a", lv (int 1) (int 1)), ("b", lv (int 2) (int 2))], tmpl])], dm []),
+    ([], m [("a", m [("lim", int 2), ("l", l [int 1]),
+        ("f", .call .each [rel 1 ["l"], .meet (m [("v", bnd .min [rel 3 ["lim"]])]) (m [("v", int 5)])])])], dm [])]
+
+theorem boundEachCases_checkable : ∀ c ∈ boundEachCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem boundEach_verdict_exact : ∀ c ∈ boundEachCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (boundEachCases_checkable c hc).1 (boundEachCases_checkable c hc).2 v
+
+/-- Whether a term is a destructure, `{ %a } = @"p"`: a load that
+writes the names it takes after its path. -/
+def Aontu.Val.isTake : Val → Bool
+  | .call .load (.lit (.str _) :: _ :: _) => true
+  | _ => false
+
 /-- The `paths` rows: each case's declarations and schema as one
-document, the schema's braces dropped since neither CLI reads a braced
-map after a declaration, in the three modes, with the one class `vetP`
-gives. -/
-def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) : IO Unit := do
+document, a map's braces dropped since neither CLI reads a braced map
+after a declaration, in the three modes, with the one class `vetP`
+gives. The declarations come first, or after the schema where
+`declsLast` asks. A source a case declares, `@` and its name, is a file
+the row loads, which the row doesn't write. -/
+def pathRows (tag : String) (cases : List (Decls × Val × Data) := pathCases) (declsLast : Bool := false) :
+    IO Unit := do
   let mut i := 0
   for c in cases do
     let mut lines : List String := []
-    for d in c.1 do
-      let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+    for d in c.1.filter fun d => !sourceName d.1 && !scopedDecl d.1 do
+      let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
       lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
-    let some ssrc := c.2.1.src | throw (IO.userError "a schema of the fragment has no text")
-    let some dsrc := c.2.2.src | throw (IO.userError "a document of the fragment has no text")
-    let src := "\\n".intercalate (lines ++ [(ssrc.drop 1).dropRight 1])
+    -- A destructure at the top is a statement of its own, so it takes a
+    -- line of its own, and the rest of the schema the line after.
+    let takes := c.2.1.conjuncts.filter Val.isTake
+    for t in takes do
+      let some tsrc := t.cell | throw (IO.userError "a destructure of the fragment has no text")
+      lines := lines ++ [tsrc]
+    let rest := if takes.isEmpty then [c.2.1] else c.2.1.conjuncts.filter fun v => !v.isTake
+    let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
+    let mut body : List String := []
+    for s in rest.take 1 do
+      let some ssrc := ((rest.drop 1).foldl Val.meet s).cell
+        | throw (IO.userError "a schema of the fragment has no text")
+      body := [match s, rest.length with | .map _ _ _, 1 => (ssrc.drop 1).dropRight 1 | _, _ => ssrc]
+    let src := "\\n".intercalate (if declsLast then body ++ lines else lines ++ body)
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
         (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
       IO.println (tag ++ toString i ++ "\tverdict\t" ++ src ++ "\t" ++ dsrc ++ "\t{\"verdict\":\""
@@ -1334,6 +3003,88 @@ theorem key_verdict_exact : ∀ c ∈ keyCases, ∀ (m : Mode) (v : Verdict),
     vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vet_iff (keyCases_checkable c hc).1 (keyCases_checkable c hc).2 v
 
+/-- The arguments of a trial both ports read as they build the trial,
+each dead: a size, `must`'s condition, the count of `nof` and
+`contains`, `filter`'s source and `match`'s scrutinee, which make the
+document an error, alone, under a key, at an optional key, in a
+generator's instance and in a body nothing reads; in an arm, which
+drops; in a spread, which refuses only a member it's tried on; beside
+the arguments both read later, against a value, `when`'s condition, a
+branch of `nof` and the conditions of `contains` and `filter`, which a
+dead one doesn't make an error; and a size and the counts of `nof` and
+`contains` written `nil`, which both read as a value that admits
+nothing, beside `nil` met with `1`, a `filter` over `nil` and a
+selection on it, which are errors (#525). -/
+def eagerCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let c12 : Val := .meet (int 1) (int 2)
+  let mu : Val := .must c12 "m"
+  let mt : Val := .select c12 [(int 1, int 3)] none
+  let dv : Data := .map [("v", .integer 1)]
+  let d4 : Data := .map [("v", .integer 4)]
+  let or4 (a : Val) : Val := .or [(0, a), (0, int 4)]
+  [([], m [("v", mu)], dv),
+    ([], m [("v", .nof c12 [.string])], dv),
+    ([], m [("v", .contains .any c12)], dv),
+    ([], m [("v", .len c12)], dv),
+    ([], m [("v", .filter c12 (int 1))], dv),
+    ([], m [("v", mt)], dv),
+    ([], m [("v", m [("a", mu)])], .map [("v", .map [("a", .integer 1)])]),
+    ([], m [("v", .when c12 (int 1) none)], dv),
+    ([], m [("v", .nof (int 1) [c12])], dv),
+    ([], m [("v", .contains c12 (int 2))], dv),
+    ([], m [("v", .filter (.list [int 1] none false) c12)], dv),
+    ([], m [("v", or4 mu)], d4),
+    ([], m [("v", or4 mt)], d4),
+    ([], m [("v", or4 (.filter c12 (int 1)))], d4),
+    ([], m [("v", or4 (.len c12))], d4),
+    ([], m [("v", .map [] (some mu) false)], .map [("v", .map [])]),
+    ([], m [("v", .map [] (some mu) false)], .map [("v", .map [("a", .integer 1)])]),
+    ([], m [("v", .map [("a", true, mu)] none false)], .map [("v", .map [])]),
+    ([], m [("v", .call .each [.list [int 1] none false, mu])], .map [("v", .list [.integer 1])]),
+    ([], m [("v", .call .each [.list [] none false, mu])], .map [("v", .list [])]),
+    ([("T", mu)], m [("v", int 1)], dv),
+    ([("T", .len c12)], m [("v", int 1)], dv),
+    ([], m [("v", .nof .nil [.string])], dv),
+    ([], m [("v", .len .nil)], dv),
+    ([], m [("v", .contains .any .nil)], dv),
+    ([], m [("v", .must (.meet .nil (int 1)) "m")], dv),
+    ([], m [("v", .select .nil [(int 1, int 3)] none)], dv),
+    ([], m [("v", .filter .nil (int 1))], dv)]
+
+theorem eagerCases_checkable : ∀ c ∈ eagerCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem eager_verdict_exact : ∀ c ∈ eagerCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (eagerCases_checkable c hc).1 (eagerCases_checkable c hc).2 v
+
+/-- `contains` over a recursive name met with a list, which the meet
+counts reading the name as its body, as both ports do: a member that
+matches, beside a count that admits it and one that refuses it, against
+data and met with the schema's own literal, and a member that doesn't
+match (#534's review). -/
+def meetNameCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
+  let a : Decls := [("A", .map [("next", true, .alias "A")] none false)]
+  let t (v : Val) : Val := .map [("t", false, v)] none false
+  let d1 : Data := .map [("t", .list [.map []])]
+  [(a, t (.contains (.alias "A") (.neq [nb 0])), d1),
+    (a, t (.contains (.alias "A") (.max (nb 0))), d1),
+    (a, t (.meet (.contains (.alias "A") (.max (nb 0))) (.list [.map [] none false] none false)), .map []),
+    (a, t (.meet (.contains (.alias "A") (.neq [nb 0])) (.list [.map [] none false] none false)), .map []),
+    (a, t (.meet (.contains (.alias "A") (.neq [nb 0])) (.list [int 1] none false)), .map [])]
+
+theorem meetNameCases_checkable : ∀ c ∈ meetNameCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem meetName_verdict_exact : ∀ c ∈ meetNameCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (meetNameCases_checkable c hc).1
+    (readR_checkableA (meetNameCases_checkable c hc).1 (meetNameCases_checkable c hc).2) v
+
 /-- The `trials` rows: each case's declarations and schema as one
 document, the schema a map written without its braces, in the three
 modes, with the one class `vet` gives. -/
@@ -1343,10 +3094,10 @@ def trialRows (tag : String) (cases : List (Decls × Val × Data) := trialCases 
   for c in cases do
     let mut lines : List String := []
     for d in c.1 do
-      let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+      let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
       lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
-    let some ssrc := c.2.1.src | throw (IO.userError "a schema of the fragment has no text")
-    let some dsrc := c.2.2.src | throw (IO.userError "a document of the fragment has no text")
+    let some ssrc := c.2.1.cell | throw (IO.userError "a schema of the fragment has no text")
+    let some dsrc := c.2.2.cell | throw (IO.userError "a document of the fragment has no text")
     let src := "\\n".intercalate (lines ++ [(ssrc.drop 1).dropRight 1])
     for (m, opts) in [(({} : Mode), ""), (({ fill := false } : Mode), ",\"opts\":{\"noFill\":true}"),
         (({ lax := true } : Mode), ",\"opts\":{\"partial\":true}")] do
@@ -1404,16 +3155,18 @@ theorem subsume_rows_exact : ∀ g ∈ subVals, ∀ s ∈ subVals,
       (subInstances_wellFormed j hj) h1 h2⟩
 
 /-- The `subsumption` rows of some pairs of values, each under the key `v`,
-the general first, with the answers the `values` contract allows; a pair
-the definition leaves undecided has no row. -/
-def subsumePairRows (tag : String) (pairs : List (Val × Val)) : IO Unit := do
+the general first, with the answers the `values` contract allows, an
+instance of `pool` telling a pair apart; a pair the definition leaves
+undecided has no row. -/
+def subsumePairRows (tag : String) (pairs : List (Val × Val)) (pool : List Data := subInstances) :
+    IO Unit := do
   let mut i := 0
   for (g, s) in pairs do
-    let some gsrc := g.src | throw (IO.userError "a value of the fragment has no text")
-    let some ssrc := s.src | throw (IO.userError "a value of the fragment has no text")
+    let some gsrc := g.cell | throw (IO.userError "a value of the fragment has no text")
+    let some ssrc := s.cell | throw (IO.userError "a value of the fragment has no text")
     let want? : Option String :=
       if (leDecF .empty 64 s g).isSome then some "[\"subsumes\",\"undecided\"]"
-      else if subInstances.any (fun j => check s j && !(check g j)) then
+      else if pool.any (fun j => check s j && !(check g j)) then
         some "[\"does_not_subsume\",\"undecided\"]"
       else none
     if let some want := want? then
@@ -1512,13 +3265,16 @@ theorem profile_rows_exact (g s : Val) (hs : s.Checkable) (hg : g.Checkable) :
 /-- The `subsumption` rows of some pairs of values under the `defaults`
 or the `gen` profile, each under the key `v`, the general first, with
 the answers the profile's contract allows; a pair the definition leaves
-undecided has no row. -/
+undecided has no row. Each value is judged as a document reads it
+(`Decls.readR`), so a marked list element is no element (decision 18). -/
 def profilePairRows (tag : String) (pr : Profile) (pairs : List (Val × Val)) : IO Unit := do
   let name := match pr with | .values => "values" | .defaults => "defaults" | .gen => "gen"
   let mut i := 0
-  for (g, s) in pairs do
-    let some gsrc := g.src | throw (IO.userError "a value of the pool has no text")
-    let some ssrc := s.src | throw (IO.userError "a value of the pool has no text")
+  for (g0, s0) in pairs do
+    let some gsrc := g0.cell | throw (IO.userError "a value of the pool has no text")
+    let some ssrc := s0.cell | throw (IO.userError "a value of the pool has no text")
+    let g := Decls.readR [] g0
+    let s := Decls.readR [] s0
     let ns := normalise s
     let ng := normalise g
     let dHolds := (leDecF .empty 64 s g).isSome && defaultsAt ns ng && defaultsBelow ns ng
@@ -1673,9 +3429,9 @@ theorem subsume_doc_rows_exact : ∀ g ∈ docCases, ∀ s ∈ docCases, ∀ j �
 def docSrc (c : Decls × Val) : IO String := do
   let mut lines : List String := []
   for d in c.1 do
-    let some bsrc := d.2.src | throw (IO.userError "a body of the fragment has no text")
+    let some bsrc := d.2.cell | throw (IO.userError "a body of the fragment has no text")
     lines := lines ++ ["%" ++ d.1 ++ " = " ++ bsrc]
-  let some tsrc := c.2.src | throw (IO.userError "a term of the fragment has no text")
+  let some tsrc := c.2.cell | throw (IO.userError "a term of the fragment has no text")
   pure ("\\n".intercalate (lines ++ ["v: " ++ tsrc]))
 
 /-- The rows of the tenth fragment: each pair of documents, the general
@@ -1711,23 +3467,35 @@ def forms : List (String × String × String) :=
     ("biginteger", "word", "biginteger"), ("bigdecimal", "word", "bigdecimal"),
     ("number", "word", "number"), ("string", "word", "string"), ("anyString", "call", "empty"),
     ("boolean", "word", "boolean"), ("mapKind", "word", "map"), ("listKind", "word", "list"),
-    ("lit", "word", "true"), ("lit", "word", "false"),
+    ("pathKind", "word", "path"), ("lit", "word", "true"), ("lit", "word", "false"),
     ("lit", "word", "null"), ("min", "call", "min"), ("max", "call", "max"),
     ("above", "call", "above"), ("beneath", "call", "below"), ("neq", "call", "neq"),
     ("mulof", "call", "mulof"), ("len", "call", "len"), ("unique", "call", "unique"),
-    ("re", "call", "re"), ("format", "call", "format"), ("any", "word", "any"),
+    ("re", "call", "re"), ("format", "call", "format"), ("grammar", "call", "parse"),
+    ("any", "word", "any"),
     ("nil", "word", "nil"), ("map", "syntax", "{}"), ("map", "call", "close"),
     ("list", "syntax", "[]"),
     ("or", "syntax", "|"), ("pref", "syntax", "*"), ("meet", "syntax", "&"),
-    ("alias", "syntax", "%"), ("path", "syntax", "$"), ("nof", "call", "nof"),
+    ("alias", "syntax", "%"), ("path", "syntax", "$"), ("addr", "call", "path"), ("nof", "call", "nof"),
     ("must", "call", "must"), ("when", "call", "when"), ("contains", "call", "contains"),
     ("rest", "call", "rest"), ("select", "call", "match"), ("filter", "call", "filter"),
     ("ride", "call", "meta"), ("ride", "call", "deprecate"), ("ride", "call", "ident"),
-    ("ride", "call", "type"), ("ride", "call", "hide"), ("key", "call", "key"),
+    ("ride", "call", "type"), ("ride", "call", "hide"), ("key", "call", "key"), ("keyUp", "call", "key"),
     ("call", "call", "add"), ("call", "call", "sub"), ("call", "call", "mul"),
     ("call", "call", "div"), ("call", "call", "mod"), ("call", "call", "rem"),
     ("call", "syntax", "-"), ("call", "call", "sum"), ("call", "call", "least"),
-    ("call", "call", "greatest")]
+    ("call", "call", "greatest"), ("call", "syntax", "+"), ("call", "call", "join"),
+    ("call", "call", "pick"), ("call", "call", "sort"), ("call", "call", "upper"),
+    ("call", "call", "lower"), ("call", "call", "translate"), ("call", "call", "esc"),
+    ("call", "call", "usc"), ("call", "call", "super"), ("call", "call", "pref"),
+    ("call", "call", "move"), ("call", "call", "copy"), ("call", "call", "refer"), ("call", "call", "rel"), ("call", "syntax", "@"), ("call", "call", "split"),
+    ("call", "call", "rep"), ("call", "call", "nom"), ("call", "call", "path"), ("call", "call", "abnf"),
+    ("call", "call", "parse"), ("call", "call", "project"),
+    ("call", "call", "folder"), ("call", "call", "file"), ("call", "call", "content"),
+    ("call", "call", "line"), ("call", "call", "fragment"), ("call", "call", "slot"),
+    ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems"),
+    ("call", "call", "each"), ("call", "call", "pack"), ("call", "call", "maybe"),
+    ("call", "call", "emit"), ("absent", "call", "maybe"), ("hole", "syntax", "_")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -1735,18 +3503,33 @@ def formSamples : List (String × Val) :=
   [("min", .min (.num one)), ("max", .max (.num one)), ("above", .above (.num one)),
     ("below", .beneath (.num one)), ("neq", .neq [.num one]), ("mulof", .mulof one),
     ("len", .len .integer), ("unique", .unique none), ("re", .re "a"), ("format", .format "email"),
+    ("parse", .grammar "v = \"a\""), ("abnf", .call .abnf [.string]), ("parse", .call .parse [.string]),
     ("close", .list [.integer] none true), ("nof", .nof .integer [.integer]),
     ("must", .must .integer "m"), ("when", .when .integer .integer none),
     ("contains", .contains .integer (.min (.num one))), ("rest", .rest .integer []),
     ("match", .select .integer [] none), ("filter", .filter .integer .integer),
     ("meta", .ride .metadata .integer []), ("deprecate", .ride .deprecate .integer []),
     ("ident", .ride .ident .integer []), ("type", .ride .type .integer []),
-    ("hide", .ride .hide .integer []), ("key", .key),
+    ("hide", .ride .hide .integer []), ("key", .key), ("key", .keyUp 1), ("path", .addr ⟨0, ["a"]⟩),
     ("add", .call .add [.integer, .integer]), ("sub", .call .sub [.integer, .integer]),
     ("mul", .call .mul [.integer, .integer]), ("div", .call .div [.integer, .integer]),
     ("mod", .call .mod [.integer, .integer]), ("rem", .call .rem [.integer, .integer]),
     ("-", .call .neg [.integer]), ("sum", .call .sum [.listKind]),
-    ("least", .call .least [.listKind]), ("greatest", .call .greatest [.listKind])]
+    ("least", .call .least [.listKind]), ("greatest", .call .greatest [.listKind]),
+    ("join", .call .join [.listKind]), ("pick", .call .pick [.listKind, .string]),
+    ("sort", .call .sort [.listKind]), ("upper", .call .upper [.string]),
+    ("lower", .call .lower [.string]), ("translate", .call .translate [.string, .string]),
+    ("esc", .call .esc [.string]), ("usc", .call .usc [.string]), ("super", .call .super [.integer]),
+    ("pref", .call .pref [.integer]), ("move", .call .move [.integer]), ("copy", .call .copy [.integer]), ("refer", .call .refer []), ("rel", .call .rel []),
+    ("split", .call .split [.string, .string]), ("rep", .call .rep [.string, .string, .string]),
+    ("nom", .call .nom [.string]), ("path", .call .path [.string]), ("project", .call (.cmp .project) []),
+    ("folder", .call (.cmp .folder) [.string]), ("file", .call (.cmp .file) [.string]),
+    ("content", .call (.cmp .content) [.string]), ("line", .call (.cmp .line) [.string]),
+    ("fragment", .call (.cmp .fragment) [.string]), ("slot", .call (.cmp .slot) [.string]),
+    ("inject", .call (.cmp .inject) [.string]), ("copyfiles", .call (.cmp .copyfiles) [.string]),
+    ("listitems", .call (.cmp .listitems) [.mapKind]), ("each", .call .each [.listKind, .hole]),
+    ("pack", .call .pack [.listKind, .hole]), ("maybe", .call .maybe [.string]),
+    ("emit", .call .emit [.listKind, .mapKind])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -1767,9 +3550,9 @@ def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit 
   let mut i := 0
   for block in blocks do
     for v in vals do
-      let some src := v.src | throw (IO.userError "a value of the fragment has no text")
+      let some src := v.cell | throw (IO.userError "a value of the fragment has no text")
       for j in block do
-        let some jsrc := j.src | throw (IO.userError "an instance has no text")
+        let some jsrc := j.cell | throw (IO.userError "an instance has no text")
         let want := if check v j then "\"valid\"" else "[\"invalid\",\"incomplete\",\"error\"]"
         IO.println (tag ++ toString i ++ "\tverdict\tv: " ++ src ++ "\tv: " ++ jsrc
           ++ "\t" ++ head ++ want ++ "}")
@@ -1788,7 +3571,57 @@ holds a marked list element (decision 18) or an optional member whose
 value generates an empty map or list (decision 19), and no bag is met
 with a kind, which the normal form keeps beside it. A lone preference as
 an argument or a member, and an `ident()` inside a call, follow from row
-x273. -/
+x273, and `+` from row x300: two numbers by `add`, a string beside a
+scalar as the two texts, two lists, two booleans, the riders and a lone
+preference read through, and the operands it does not take, where it
+waits. A bag a mark lifts, a rider inside a lone preference, and a
+`match` whose pattern holds a call follow from row x480, and `join`
+from row x507: the members' texts as `+` writes them, a member or a
+separator with no text, a value that is no bag, and the members and
+separators it waits on. `pick` and `sort` follow from row x597: a
+projector as a key in a map member and as an index in a list member,
+the two orders and the two directions, equal keys in their order, and
+the arguments they refuse, `projectorCases` a projector or a direction
+through a rider or a mark, and `indexCases` the strings that name an
+index otherwise than by their digits, and `""` as `pick`'s projector. `upper` and `lower` follow from row x816: the run of code points
+a start and a length select, an index of either leaf, and a number
+rounded in its own leaf. Their strings are ASCII, the letters on which
+the oracle's host and every engine's case conversion agree, and
+`asciiCase` refuses a row that reads another, and no case holds a big
+integer index between 2 ^ 53 and 2 ^ 63 (#439). `translate` follows
+from row x966: ranges, a `-` that stands for itself, a short `to` and an
+empty one, a character named twice, code points beyond ASCII, and a
+range across the surrogates in `from`, and `surrogateCases` one in
+`to`, which writes U+FFFD for each surrogate. `esc` and `usc` follow
+from row x1068: each convention both ways, the text each `usc` has no
+original for, the variants and the arguments. `super` follows from row
+x1221: a scalar's kind, a kind's parent, a container of its members'
+parents, a preference read as its default at any depth, a meet that
+holds a kind, a disjunction, a seal, the riders. `split` follows from
+row x1332, and `rep` from row x1404: the matches a scan reads, an empty
+one among them, each `$` form, the groups a pattern has and has not
+got, and patterns outside the subset. Their patterns are fixed text,
+with groups, on which the oracle's host and every engine's regex
+engine agree, or outside the subset, which every engine refuses, and
+`hostReads` refuses a row that hands the host another. A replacement
+that names something its pattern lacks, over a text with no match,
+follows in `repSubCases`. `nom` follows from row x1521: each spelling, the
+words a name holds, an acronym list, the sealed map of every spelling,
+and the arguments it refuses, but no style written as `""`, which Go
+reads as no style (#451). The components follow from row x1677: each
+component's node, its seal and its open props and children, a bare
+string as a line, nested lists spliced, a hand-written node as a
+child, and the props and children each component refuses, but no
+`close()` above a node, which both ports hold its props and children
+open against and the definition, holding no `open()`, leaves unsaid.
+`each` follows from row x1803: its template read for each member of its
+data, a list's in order and a map's in key order, the hole kept, met
+and left out, a nested `each` binding its own hole, and data that is no
+bag. No case holds a marked list element (decision 18), `key()` in a
+template, which both ports read as the member's key, or a hole outside
+a template, which `holeFillVetCases` holds. A `filter`
+whose condition holds the hole follows in `filterCases`, and `split`
+at a pattern in `patternCases`. -/
 
 def callCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -1806,6 +3639,16 @@ def callCases : List (Val × Data) :=
   let c (f : Fn) (args : List Val) : Val := .call f args
   let lst (xs : List Val) : Val := .list xs none false
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let p (a b : Val) : Val := .call .plus [a, b]
+  let jm (fs : List (String × Data)) : Data := .map fs
+  let kv (k : ℤ) (s : String) (h : IntegerLeaf k := by decide) : Val := mp [("k", int k h), ("v", str s)]
+  let jkv (k : ℤ) (s : String) (h : IntegerLeaf k := by decide) : Data := jm [("k", j k h), ("v", js s)]
+  let node (cmp : String) (props : List (String × Data)) (kids : List Data) : Data :=
+    jm [("cmp", js cmp), ("props", jm props), ("children", jl kids)]
+  let lineD (s : String) : Data := node "Line" [("src", js s)] []
   [(c .add [int 1, int 2], j 3), (c .add [int 1, int 2], j 4),
     (c .sub [int 10, int 3], j 7), (c .mul [int 6, int 7], j 42),
     (c .div [int 7, int 2], j 3), (c .div [int (-7), int 2], j (-3)),
@@ -1876,7 +3719,443 @@ def callCases : List (Val × Data) :=
     (c .least [lst [.pref 1 (int 3), int 2]], j 2),
     (c .sum [.pref 1 (lst [int 1, int 2])], j 3),
     (c .add [.ride .ident (int 1) [("id", .str "x")], int 2], j 3),
-    (c .sum [lst [.ride .ident (int 1) [("id", .str "x")]]], j 1)]
+    (c .sum [lst [.ride .ident (int 1) [("id", .str "x")]]], j 1),
+    (p (int 1) (int 2), j 3), (p (int 1) (int 2), j 4),
+    (p (int 1) (flt 2 1), jf 3 1), (p (int 1) (flt 2 1), j 3),
+    (p (int 1) (big 2), jbig 3),
+    (p (dec 5 1) (dec 5 1), jdec 1 0), (p (dec 5 1) (dec 5 1), jbig 1),
+    (p (flt 1 1) (big 2), j 1),
+    (p (int 9007199254740992) (int 1), j 1),
+    (p (int 9007199254740992) (int 2), j 9007199254740994),
+    (p (flt (10 ^ 308) 1) (flt (10 ^ 308) 1), j 1),
+    (p (str "a") (str "b"), js "ab"),
+    (p (str "a") (int 1), js "a1"), (p (int 1) (str "a"), js "1a"),
+    (p (str "a") (flt 15 10), js "a1.5"), (p (str "a") (flt 1 1), js "a1"),
+    (p (str "a") (flt (10 ^ 21) 1), js "a1e+21"),
+    (p (str "a") (flt (10 ^ 20) 1), js "a100000000000000000000"),
+    (p (str "a") (flt 1 1000000), js "a0.000001"), (p (str "a") (flt 1 10000000), js "a1e-7"),
+    (p (str "a") (flt 15 100000000), js "a1.5e-7"), (p (str "a") (flt (-5) 10), js "a-0.5"),
+    (p (str "a") (flt 12345678901234567890 1), js "a12345678901234567000"),
+    (p (str "a") (dec 1 (-3)), js "a1000.0"), (p (str "a") (dec 15 1), js "a1.5"),
+    (p (str "a") (dec 1 10), js "a0.0000000001"),
+    (p (str "a") (big 123456789012345678901234567890), js "a123456789012345678901234567890"),
+    (p (str "a") (.lit (.bool true)), js "atrue"), (p (.lit (.bool true)) (str "a"), js "truea"),
+    (p (str "a") (.lit .null), js "a"),
+    (p (.lit (.bool true)) (.lit (.bool false)), .bool true),
+    (p (.lit (.bool false)) (.lit (.bool false)), .bool false),
+    (p (.lit (.bool true)) (int 1), .bool true),
+    (p (lst [int 1]) (lst [int 2]), jl [j 1, j 2]), (p (lst [int 1]) (lst [int 2]), jl [j 1]),
+    (p (lst [int 1]) (lst [int 2]), jl [j 1, j 2, j 3]), (p (lst []) (lst []), jl []),
+    (p (lst [int 1]) (int 2), j 1), (p (int 2) (lst [int 1]), j 1),
+    (p (str "a") (lst [int 1]), js "a"),
+    (p (mp [("a", int 1)]) (mp [("b", int 2)]), .map [("a", j 1), ("b", j 2)]),
+    (p .integer (int 1), j 2), (p .string (str "a"), js "ba"),
+    (p (.or [(1, int 1), (0, .number)]) (int 1), j 2),
+    (p (.pref 1 (int 1)) (int 1), j 2), (p (int 1) (.pref 2 (int 2)), j 3),
+    (p (.ride .metadata (int 1) []) (int 1), j 2), (p (.ride .type (int 1) []) (int 1), j 2),
+    (p (.ride .metadata (lst [int 1]) []) (lst [int 2]), jl [j 1, j 2]),
+    (p (lst [int 1]) (lst [.pref 1 (int 2)]), jl [j 1, j 2]),
+    (p (.meet (.list [] (some .integer) false) (lst [int 1])) (lst [str "x"]), jl [j 1, js "x"]),
+    (p (.list [int 1] none true) (lst [int 2]), jl [j 1, j 2]),
+    (p (p (str "a") (str "b")) (int 1), js "ab1"), (p (p (int 1) (int 2)) (str "a"), js "3a"),
+    (p (.meet (int 1) .integer) (int 1), j 2), (p (str "") (str ""), js ""),
+    (p (c .add [int 1, int 2]) (int 1), j 4), (p (c .sum [lst [int 1, int 2]]) (str "a"), js "3a"),
+    (p (p .integer (int 1)) (str "a"), j 1), (p (.meet (int 1) (int 2)) .integer, j 1),
+    (c .sum [.ride .type (mp [("a", .ride .hide (int 1) []), ("b", int 2)]) []], j 3),
+    (c .sum [.ride .hide (mp [("a", .ride .hide (int 1) []), ("b", int 2)]) []], j 3),
+    (c .sum [.ride .metadata (.ride .type (mp [("a", .ride .hide (int 1) []), ("b", int 2)]) []) []], j 3),
+    (c .add [.pref 1 (.ride .metadata (int 1) []), int 2], j 3),
+    (c .sum [lst [.pref 1 (.ride .metadata (int 1) []), int 2]], j 3),
+    (p (.pref 1 (.ride .metadata (int 1) [])) (int 1), j 2),
+    (.select (int 1) [(p .integer (int 1), str "yes")] (some (str "no")), js "no"),
+    (.select (int 2) [(p (int 1) (int 1), str "yes")] (some (str "no")), js "yes"),
+    (.select (int 1) [(c .add [.integer, int 1], str "yes")] (some (str "no")), js "no"),
+    (c .join [lst [str "a", str "b"], str "-"], js "a-b"),
+    (c .join [lst [str "a", str "b"], str "-"], js "ab"),
+    (c .join [lst [str "a", str "b"]], js "ab"), (c .join [lst []], js ""),
+    (c .join [lst [int 1, flt 2 1, dec 5 1, .lit (.bool true)], str "|"], js "1|2|0.5|true"),
+    (c .join [mp [("b", str "B"), ("a", str "A")], str ","], js "A,B"),
+    (c .join [lst [mp [("x", int 1)]], str ","], js "a"),
+    (c .join [lst [.lit .null], str ","], js "a"), (c .join [lst [lst [int 1]], str ","], js "a"),
+    (c .join [lst [.string], str ","], js "a"), (c .join [lst [str "a"], int 5], js "a"),
+    (c .join [int 3, str ","], js "a"), (c .join [lst [str "a"], .string], js "a"),
+    (c .join [lst [str "a", .pref 1 (str "b")], str ""], js "ab"),
+    (c .join [lst [str "a", .or [(1, str "b"), (0, str "c")]], str ""], js "ab"),
+    (c .join [mp [("a", str "x"), ("b", .ride .hide (str "y") [])], str "-"], js "x"),
+    (c .join [.map [("a", true, .string), ("b", false, str "y")] none false, str "-"], js "y"),
+    (c .join [lst [str "a"], str ",", str ";"], js "a"),
+    (c .join [lst [str "a", flt (10 ^ 21) 1], str ""], js "a1e+21"),
+    (c .join [lst [.ride .metadata (str "a") [], str "b"], str ""], js "ab"),
+    (c .join [lst [mp [("x", int 1)], .string], str ","], js "a"),
+    (c .join [lst [.string], int 5], js "a"), (c .join [lst [mp [("x", int 1)]], .string], js "a"),
+    (c .join [int 3, .string], js "a"), (c .join [lst [str "a"], .pref 1 (str ",")], js "a"),
+    (c .join [lst [str "a", str "b"], .ride .metadata (str "-") []], js "a-b"),
+    (c .join [.meet (lst [str "x"]) (lst [.string]), str ","], js "x"),
+    (c .join [lst [str "a"], .or [(0, str ","), (0, str ";")]], js "a"),
+    (c .join [.pref 1 (lst [str "a"]), str ","], js "a"),
+    (c .join [lst [p (str "a") (int 1), c .sum [lst [int 1, int 2]]], str "-"], js "a1-3"),
+    (c .pick [lst [mp [("a", int 1)], mp [("a", int 2)]], str "a"], jl [j 1, j 2]),
+    (c .pick [lst [mp [("a", int 1)], mp [("a", int 2)]], str "a"], jl [j 1, j 3]),
+    (c .pick [lst [mp [("a", int 1)], mp [("b", int 2)]], str "a"], jl [j 1]),
+    (c .pick [lst [lst [int 9, int 8], lst [int 7, int 6]], int 0], jl [j 9, j 7]),
+    (c .pick [lst [lst [int 9, int 8], lst [int 7]], int 1], jl [j 8]),
+    (c .pick [lst [lst [int 9]], int (-1)], jl [j 9]), (c .pick [lst [int 1, int 2], str "a"], jl []),
+    (c .pick [lst [.integer], str "a"], jl []), (c .pick [int 3, str "a"], jl []),
+    (c .pick [lst [mp [("a", int 1)]], flt 0 1], jl [j 1]),
+    (c .pick [lst [mp [("a", int 1)]], .string], jl [j 1]),
+    (c .pick [lst [mp [("a", int 1)]], .pref 1 (str "a")], jl [j 1]),
+    (c .pick [lst [mp [("a", int 1)]], .lit (.bool true)], jl [j 1]),
+    (c .pick [lst [lst [int 5]], big 0], jl [j 5]),
+    (c .pick [lst [], str "a"], jl []), (c .pick [mp [], str "a"], jl []),
+    (c .pick [mp [("y", mp [("a", int 2)]), ("x", mp [("a", int 1)])], str "a"], jl [j 1, j 2]),
+    (c .pick [mp [("y", mp [("a", int 2)]), ("x", mp [("a", int 1)])], str "a"], jl [j 2, j 1]),
+    (c .pick [lst [mp [("a", .integer)]], str "a"], jl [j 1]),
+    (c .pick [lst [.map [("a", true, int 1)] none false], str "a"], jl [j 1]),
+    (c .pick [mp [("a", mp [("n", int 1)]), ("b", .ride .hide (mp [("n", int 2)]) [])], str "n"],
+      jl [j 1]),
+    (c .pick [lst [mp [("a", mp [("b", int 1)])]], str "a"], jl [jm [("b", j 1)]]),
+    (c .pick [c .pick [lst [mp [("a", mp [("b", int 1)])]], str "a"], str "b"], jl [j 1]),
+    (c .pick [lst [.ride .metadata (mp [("a", int 1)]) []], str "a"], jl [j 1]),
+    (c .pick [lst [lst [int 1, int 2]], str "1"], jl [j 2]),
+    (c .pick [lst [lst [int 1, int 2]], str "01"], jl [j 2]),
+    (c .pick [lst [lst [int 1, int 2]], str "-0"], jl [j 1]),
+    (c .pick [lst [lst [int 1, int 2]], str "-1"], jl [j 1]),
+    (c .pick [lst [mp [("0", int 5)]], int 0], jl [j 5]),
+    (c .pick [lst [mp [("-1", int 5)]], int (-1)], jl [j 5]),
+    (c .pick [lst [mp [("00", int 5)]], int 0], jl [j 5]),
+    (c .pick [lst [mp [("a", int 1)]], int 0], jl [j 1]),
+    (c .pick [mp [("a", lst [int 1, int 2]), ("b", lst [int 3, int 4])], int 1], jl [j 2, j 4]),
+    (c .pick [lst [mp [("a", int 1)]], str "a", str "b"], jl [j 1]),
+    (c .pick [lst [mp [("a", int 1)]]], jl [j 1]),
+    (c .sort [lst [int 3, int 1, int 2]], jl [j 1, j 2, j 3]),
+    (c .sort [lst [int 3, int 1, int 2]], jl [j 3, j 1, j 2]),
+    (c .sort [lst [int 2, int 1]], jl [j 1, j 2, j 3]),
+    (c .sort [mp [("x", str "c"), ("y", str "a")]], jl [js "a", js "c"]),
+    (c .sort [lst [mp [("n", str "b")], mp [("n", str "a")]], str "n"],
+      jl [jm [("n", js "a")], jm [("n", js "b")]]),
+    (c .sort [lst [mp [("n", int 1)], mp [("n", int 3)]], str "n", str "desc"],
+      jl [jm [("n", j 3)], jm [("n", j 1)]]),
+    (c .sort [lst [int 1, int 3, int 2], str "", str "desc"], jl [j 3, j 2, j 1]),
+    (c .sort [lst [int 2, int 1], str "", str "asc"], jl [j 1, j 2]),
+    (c .sort [lst [kv 1 "a", kv 1 "b", kv 0 "c"], str "k", str "desc"],
+      jl [jkv 1 "a", jkv 1 "b", jkv 0 "c"]),
+    (c .sort [lst [kv 1 "a", kv 0 "c", kv 1 "b"], str "k"], jl [jkv 0 "c", jkv 1 "a", jkv 1 "b"]),
+    (c .sort [lst [big 9007199254740993, int 9007199254740992]],
+      jl [j 9007199254740992, jbig 9007199254740993]),
+    (c .sort [lst [dec 15 1, int 1, flt 125 100]], jl [j 1, jf 125 100, jdec 15 1]),
+    (c .sort [lst [str "b", str "a", str "B"]], jl [js "B", js "a", js "b"]),
+    (c .sort [lst [str "é", str "z", str "e"]], jl [js "e", js "z", js "é"]),
+    (c .sort [lst [int 1, str "a"]], jl []), (c .sort [lst [.lit (.bool true), .lit (.bool false)]], jl []),
+    (c .sort [lst [.lit .null]], jl []), (c .sort [lst [lst [int 1], lst [int 2]]], jl []),
+    (c .sort [lst [.integer, int 1]], jl [j 1, j 1]), (c .sort [lst [int 1, int 2], int 0], jl [j 1, j 2]),
+    (c .sort [lst [int 2, int 1], str "desc"], jl [j 2, j 1]),
+    (c .sort [lst [int 2, int 1], str "", str "DESC"], jl [j 2, j 1]),
+    (c .sort [lst [int 2, int 1], str "", .pref 1 (str "desc")], jl [j 2, j 1]),
+    (c .sort [lst [int 2, int 1], flt 0 1], jl [j 1, j 2]),
+    (c .sort [lst [mp [("", int 2)], mp [("", int 1)]], str ""], jl []),
+    (c .sort [lst []], jl []), (c .sort [mp []], jl []), (c .sort [int 3], jl []),
+    (c .sort [lst [int 3, .pref 1 (int 2)]], jl [j 2, j 3]),
+    (c .sort [lst [mp [("a", .pref 1 (int 2))], mp [("a", int 1)]], str "a"],
+      jl [jm [("a", j 1)], jm [("a", j 2)]]),
+    (c .sort [lst [.ride .metadata (int 2) [], int 1]], jl [j 1, j 2]),
+    (c .sort [lst [lst [int 2, int 9], lst [int 1, int 8]], int 0], jl [jl [j 1, j 8], jl [j 2, j 9]]),
+    (c .sort [lst [lst [int 2, int 9], lst [int 1, int 8]], int 1, str "desc"],
+      jl [jl [j 2, j 9], jl [j 1, j 8]]),
+    (c .sort [lst [lst [int 2], lst [int 1]], str "0"], jl [jl [j 1], jl [j 2]]),
+    (c .sort [lst [mp [("0", int 2)], mp [("0", int 1)]], int 0], jl [jm [("0", j 1)], jm [("0", j 2)]]),
+    (c .sort [mp [("b", int 2), ("a", .ride .hide (int 1) []), ("c", int 0)]], jl [j 0, j 2]),
+    (c .sort [lst [int 2, int 1], str "", str "desc", str "x"], jl [j 2, j 1]),
+    (c .join [c .pick [c .sort [lst [mp [("n", str "id")], mp [("n", str "age")]], str "n"], str "n"],
+      str ", "], js "age, id"),
+    (c .upper [str "abc"], js "ABC"), (c .upper [str "abc"], js "abc"),
+    (c .lower [str "ABC"], js "abc"), (c .lower [str ""], js ""),
+    (c .upper [str "foo", int 0, int 1], js "Foo"), (c .upper [str "foo", int 1], js "fOO"),
+    (c .upper [str "foo", int (-1), int 2], js "FOo"),
+    (c .lower [str "FOOBAR", int (-3), int (-1)], js "fooBAR"),
+    (c .lower [str "FOO", int 1, int (-1)], js "Foo"), (c .upper [str "foo", int 5], js "foo"),
+    (c .upper [str "foo", int (-5), int 2], js "foo"), (c .upper [str "foo", int 0, int 0], js "foo"),
+    (c .upper [str "foo", int 0, int (-2)], js "FOO"), (c .upper [str "foo", int 1, int 5], js "fOO"),
+    (c .lower [str "ABC", big 1, big 1], js "AbC"),
+    (c .upper [str "foo", big 9007199254740991], js "foo"),
+    (c .upper [str "foo", big 99999999999999999999], js "foo"),
+    (c .upper [str "foo", int 9007199254740992], js "foo"),
+    (c .upper [str "foo", flt 1 1], js "fOO"), (c .upper [str "foo", .pref 1 (int 1)], js "fOO"),
+    (c .upper [str "foo", .integer], js "foo"),
+    (c .upper [str "foo", .ride .metadata (int 1) []], js "fOO"),
+    (c .upper [.ride .metadata (str "a") []], js "A"), (c .upper [.pref 1 (str "a")], js "A"),
+    (c .upper [.or [(0, str "a"), (0, str "b")]], js "A"), (c .upper [.lit (.bool true)], js "TRUE"),
+    (c .upper [.lit .null], js "NULL"), (c .upper [lst [int 1]], jl [j 1]), (c .upper [.string], js "A"),
+    (c .upper [.number], j 1),
+    (c .upper [flt 11 10], jf 2 1), (c .upper [flt 11 10], j 2), (c .upper [int 2], j 2),
+    (c .upper [flt (-5) 10], jf 0 1), (c .lower [flt 5 10], jf 0 1), (c .lower [flt 19 10], jf 1 1),
+    (c .upper [flt 25 10], jf 3 1), (c .lower [flt (-25) 10], jf (-3) 1),
+    (c .upper [dec 11 1], jdec 2 0), (c .upper [dec 11 1], jbig 2), (c .lower [dec (-15) 1], jdec (-2) 0),
+    (c .upper [dec (-5) 1], jdec 0 0), (c .upper [big 5], jbig 5),
+    (c .upper [flt 15 10, int 0], jf 2 1), (c .upper [int 1, int 0], j 1),
+    (c .upper [str "a", int 0, int 1, int 2], js "A"), (c .upper [], js "A"),
+    (p (c .upper [str "abc"]) (str "def"), js "ABCdef"), (p (c .lower [flt 11 10]) (int 2), jf 3 1),
+    (c .upper [c .join [lst [str "a", str "b"], str "-"]], js "A-B"),
+    (c .translate [str "a-b-c", str "-", str "_"], js "a_b_c"),
+    (c .translate [str "a-b-c", str "-", str "_"], js "a-b-c"),
+    (c .translate [str "hello", str "a-y", str "b-z"], js "ifmmp"),
+    (c .translate [str "hello", str "lo"], js "he"), (c .translate [str "hello", str "lo", str ""], js "he"),
+    (c .translate [str "hello", str "elo", str "x"], js "hxxxx"),
+    (c .translate [str "aaa", str "aa", str "xy"], js "yyy"),
+    (c .translate [str "abc", str "z-a", str "x"], js "abc"),
+    (c .translate [str "abc", str "a", str "z-a"], js "abc"),
+    (c .translate [str "abc", str "c-a-z", str "x"], js "abc"),
+    (c .translate [str "a-b", str "-a", str "xy"], js "yxb"),
+    (c .translate [str "a-b", str "a-", str "xy"], js "xyb"),
+    (c .translate [str "abcde-", str "a-c-e", str "x"], js "xxxdxx"),
+    (c .translate [str "abc", str "--a", str "x"], js "xbc"),
+    (c .translate [str "a-", str "-", str ""], js "a"),
+    (c .translate [str "abc", str "", str "x"], js "abc"), (c .translate [str "", str "a", str "b"], js ""),
+    (c .translate [str "abc", str "a-c", str "A-C"], js "ABC"),
+    (c .translate [str "abc", str "a-a", str "x"], js "xbc"),
+    (c .translate [str "a😀b", str "😀", str "x"], js "axb"), (c .translate [str "é", str "a-z", str "x"], js "é"),
+    (c .translate [str "abc", str "a-c", str "é"], js "ééé"),
+    (c .translate [int 1, str "a"], js "1"), (c .translate [str "a", int 1], js "a"),
+    (c .translate [str "a", str "a", int 1], js "1"), (c .translate [.string, str "a"], js "a"),
+    (c .translate [.ride .metadata (str "abc") [], str "a", str "x"], js "xbc"),
+    (c .translate [.pref 1 (str "abc"), str "a", str "x"], js "xbc"),
+    (c .translate [str "abc", str "a", .ride .metadata (str "x") []], js "xbc"),
+    (c .translate [str "a"], js "a"), (c .translate [str "a", str "b", str "c", str "d"], js "a"),
+    (c .upper [c .translate [str "a-b", str "-", str "_"]], js "A_B"),
+    (c .translate [str "\uE000", str "\uD7FF-\uE000", str "xyz"], js "z"),
+    (c .translate [str "\uFFFD", str "\uD7FF-\uE000", str "xyz"], js "\uFFFD"),
+    (c .esc [str "plain text"], js "plain text"),
+    -- A control character before `z`, not a hexadecimal digit: Lean 4.24 writes it into
+    -- the compiled oracle as a C `\x01` escape, which a hexadecimal digit after it would extend.
+    (c .esc [str "a\"b\\c\nd\te\x01z"], js "a\\\"b\\\\c\\nd\\te\\u0001z"),
+    (c .esc [str "a\"b\\c\nd\te\x01z"], js "a\"b\\c\nd\te\x01z"),
+    (c .esc [str "é😀\x7f"], js "é😀\x7f"), (c .esc [str "it's \"q\"", str "sq"], js "it\\'s \"q\""),
+    (c .usc [str "\\\"x\\u00e9\\u00E9"], js "\"xéé"), (c .usc [str "\\'"], js "'"),
+    (c .usc [str "\\/"], js "/"), (c .usc [str "\\uD83D\\uDE00"], js "😀"), (c .usc [str "\\uDE00"], js "a"),
+    (c .usc [str "\\uD83D"], js "a"), (c .usc [str "\\x41"], js "A"), (c .usc [str "a\\"], js "a"),
+    (c .usc [str "\\u12"], js "a"), (c .usc [str "\\'", str "sq"], js "'"),
+    (c .esc [str "o'brien", str "sql"], js "o''brien"), (c .usc [str "o'brien", str "sql"], js "o'brien"),
+    (c .usc [str "o''brien", str "sql"], js "o'brien"), (c .esc [str "it's", str "shell"], js "it'\\''s"),
+    (c .usc [str "it'\\''s", str "shell"], js "it's"), (c .usc [str "it's", str "shell"], js "it's"),
+    (c .esc [str "<a>&\"'", str "xml"], js "&lt;a&gt;&amp;&quot;&apos;"),
+    (c .usc [str "&amp;&lt;&gt;&quot;&apos;", str "xml"], js "&<>\"'"),
+    (c .usc [str "&#39;", str "xml"], js "'"), (c .usc [str "a&b", str "xml"], js "a&b"),
+    (c .esc [str "a b/c~-._é😀+", str "uri"], js "a%20b%2Fc~-._%C3%A9%F0%9F%98%80%2B"),
+    (c .usc [str "%c3%a9%C3%A9+", str "uri"], js "éé+"), (c .usc [str "%C3", str "uri"], js "a"),
+    (c .usc [str "%E0%80%80", str "uri"], js "a"), (c .usc [str "%ED%A0%80", str "uri"], js "a"),
+    (c .usc [str "%F4%90%80%80", str "uri"], js "a"), (c .usc [str "%", str "uri"], js "%"),
+    (c .usc [str "%zz", str "uri"], js "a"), (c .usc [str "é", str "uri"], js "é"),
+    (c .esc [str "a.b-c\\/", str "regex"], js "a\\.b-c\\\\\\/"),
+    (c .usc [str "a\\.b", str "regex"], js "a.b"), (c .usc [str "a\\-b", str "regex"], js "a-b"),
+    (c .esc [str "a", str "nope"], js "a"), (c .usc [str "a", str "nope"], js "a"),
+    (c .esc [str "a", str ""], js "a"), (c .usc [str "x", str "none"], js "x"),
+    (c .esc [int 1], js "1"), (c .esc [.string], js "a"), (c .esc [.ride .metadata (str "a") []], js "a"),
+    (c .esc [.pref 1 (str "a")], js "a"), (c .esc [str "a'", .ride .metadata (str "sq") []], js "a\\'"),
+    (c .esc [], js "a"), (c .usc [str "a", str "sq", str "x"], js "a"),
+    (c .usc [c .esc [str "a'\n\"<&é😀", str "sq"], str "sq"], js "a'\n\"<&é😀"),
+    (c .usc [c .esc [str "a b/é", str "uri"], str "uri"], js "a b/é"),
+    (c .esc [c .upper [str "a b"], str "uri"], js "A%20B"),
+    (c .super [int 1], j 5), (c .super [int 1], js "a"), (c .super [int 1], jf 15 10),
+    (c .super [mp [("a", int 1)]], jm [("a", j 7)]),
+    (c .super [mp [("a", int 1)]], jm [("a", j 2), ("b", j 3)]),
+    (c .super [.pref 1 (int 1)], j 5), (c .super [.pref 1 (int 1)], jf 15 10),
+    (c .super [str ""], js ""), (c .super [str ""], js "a"), (c .super [str "a"], js ""),
+    (c .super [.integer], jf 15 10), (c .super [.number], js "a"), (c .super [.lit .null], .null),
+    (c .super [.lit (.bool true)], .bool false), (c .super [lst [int 1, str "a"]], jl [j 2, js "b"]),
+    (c .super [.min (.num (.integer ⟨3, by decide⟩))], j 1),
+    (c .super [.or [(0, int 1), (0, str "a")]], j 5), (c .super [.or [(0, int 1), (0, str "a")]], js "b"),
+    (c .super [.or [(0, int 1), (0, str "a")]], .bool true),
+    (c .super [.meet .integer (.min (.num (.integer ⟨3, by decide⟩)))], j 1),
+    (c .super [.meet .integer (.min (.num (.integer ⟨3, by decide⟩)))], jf 15 10),
+    (c .super [.or [(1, int 1), (0, flt 25 10)]], jf 15 10), (c .super [.pref 1 (str "a")], js ""),
+    (c .super [mp [("a", .pref 1 (int 1))]], jm [("a", j 2)]),
+    (c .super [mp [("a", .pref 1 (int 1))]], jm [("a", jf 15 10)]),
+    (c .super [.string], j 1), (c .super [lst [int 1]], jl [j 2, j 3]),
+    (c .super [.map [("a", false, int 1)] none true], jm [("a", j 2), ("b", j 3)]),
+    (c .super [.ride .hide (int 1) []], j 2), (c .super [.ride .metadata (int 1) []], j 2),
+    (c .super [c .super [int 1]], jf 15 10), (c .super [c .add [int 1, int 2]], j 7),
+    (c .super [.any], j 1), (c .super [dec 15 1], jdec 25 1), (c .super [flt 15 10], j 2),
+    (c .super [], j 1), (c .super [int 1, int 2], j 1),
+    (c .split [str "a,,b", str ","], jl [js "a", js "", js "b"]),
+    (c .split [str "a,,b", str ","], jl [js "a", js "b"]),
+    (c .split [str "abc", str ""], jl [js "a", js "b", js "c"]), (c .split [str "abc", str ","], jl [js "abc"]),
+    (c .split [str "", str ","], jl [js ""]), (c .split [str "", str ""], jl []),
+    (c .split [str "a--b", str "--"], jl [js "a", js "b"]), (c .split [str "aaa", str "aa"], jl [js "", js "a"]),
+    (c .split [str "a😀b", str ""], jl [js "a", js "😀", js "b"]),
+    (c .split [str ",a,", str ","], jl [js "", js "a", js ""]),
+    (c .split [str "aababc", str "abc"], jl [js "aab", js ""]),
+    (c .split [str "é,😀", str ","], jl [js "é", js "😀"]),
+    (c .split [str "a,b", str ","], jl [js "a", js "b", js "c"]),
+    (c .split [int 1, str ","], jl [js "1"]), (c .split [str "a", int 1], jl [js "a"]),
+    (c .split [str "a", .string], jl [js "a"]),
+    (c .split [.ride .metadata (str "a,b") [], str ","], jl [js "a", js "b"]),
+    (c .split [str "a,b", .ride .metadata (str ",") []], jl [js "a", js "b"]),
+    (c .split [.pref 1 (str "a,b"), str ","], jl [js "a", js "b"]),
+    (c .split [str "a,b", .pref 1 (str ",")], jl [js "a", js "b"]),
+    (c .split [str "a"], jl [js "a"]), (c .split [str "a", str ",", str ","], jl [js "a"]),
+    (c .join [c .split [str "a,,b", str ","], str ","], js "a,,b"),
+    (c .split [c .upper [str "a-b"], str "-"], jl [js "A", js "B"]),
+    (c .rep [str "a1b1", str "1", str "_"], js "a_b_"),
+    (c .rep [str "a1b1", str "1", str "_"], js "a_b1"),
+    (c .rep [str "aaa", str "aa", str "-"], js "-a"),
+    (c .rep [str "abc", str "", str "-"], js "-a-b-c-"),
+    (c .rep [str "", str "", str "-"], js "-"), (c .rep [str "", str "x", str "-"], js ""),
+    (c .rep [str "abc", str "x", str "-"], js "abc"),
+    (c .rep [str "a😀b", str "", str "-"], js "-a-😀-b-"),
+    (c .rep [str "a😀b", str "😀", str "é"], js "aéb"),
+    (c .rep [str "abc", str "b", str "[$&]"], js "a[b]c"),
+    (c .rep [str "x-y", str "-", str "$&$&"], js "x--y"),
+    (c .rep [str "abc", str "b", str "$$"], js "a$c"),
+    (c .rep [str "abc", str "(b)", str "<$1>"], js "a<b>c"),
+    (c .rep [str "2026-09-04", str "(2026)-(09)-(04)", str "$3/$2/$1"], js "04/09/2026"),
+    (c .rep [str "abab", str "(a)(b)", str "$2$1"], js "baba"),
+    (c .rep [str "abc", str "(b)", str "$10"], js "ab0c"),
+    (c .rep [str "abc", str "b", str "$1"], js "a$1c"),
+    (c .rep [str "abc", str "(b)", str "$2"], js "ac"),
+    (c .rep [str "abc", str "b", str "$"], js "a$c"),
+    (c .rep [str "abc", str "b", str "x$"], js "ax$c"),
+    (c .rep [str "abc", str "b", str "$x"], js "a$xc"),
+    (c .rep [str "abc", str "b", str "$0"], js "a$0c"),
+    (c .rep [str "abc", str "(?<n>b)", str "-"], js "a-c"),
+    (c .rep [str "abc", str "(?=b)", str "-"], js "a-bc"),
+    (c .rep [str "abc", str "\\p{L}", str "-"], js "---"),
+    (c .rep [str "abab", str "(a)\\1", str "-"], js "abab"),
+    (c .rep [int 1, str "1", str "2"], js "2"), (c .rep [str "a", int 1, str "b"], js "a"),
+    (c .rep [str "a", str "a", int 1], js "1"), (c .rep [.string, str "a", str "b"], js "b"),
+    (c .rep [.ride .metadata (str "a1") [], str "1", str "_"], js "a_"),
+    (c .rep [str "a1", .ride .metadata (str "1") [], str "_"], js "a_"),
+    (c .rep [str "a1", str "1", .ride .metadata (str "_") []], js "a_"),
+    (c .rep [.pref 1 (str "a1"), str "1", str "_"], js "a_"),
+    (c .rep [str "a", str "a"], js "a"), (c .rep [str "a", str "a", str "b", str "c"], js "b"),
+    (c .rep [c .upper [str "a-b"], str "-", str "_"], js "A_B"),
+    (c .split [c .rep [str "a1b", str "1", str ","], str ","], jl [js "a", js "b"]),
+    (c .rep [c .join [lst [str "a", str "b"], str "-"], str "-", str ""], js "ab"),
+    (c .nom [str "planet_body", str "pascal"], js "PlanetBody"),
+    (c .nom [str "planet_body", str "pascal"], js "planetBody"),
+    (c .nom [str "planet_body", str "camel"], js "planetBody"),
+    (c .nom [str "planet_body", str "snake"], js "planet_body"),
+    (c .nom [str "planet_body", str "kebab"], js "planet-body"),
+    (c .nom [str "planet_body", str "dot"], js "planet.body"),
+    (c .nom [str "planet_body", str "path"], js "planet/body"),
+    (c .nom [str "planet_body", str "upper"], js "PLANET_BODY"),
+    (c .nom [str "planet_body", str "title"], js "Planet Body"),
+    (c .nom [str "planet_body", str "text"], js "Planet body"),
+    (c .nom [str "HTTPServer", str "snake"], js "http_server"),
+    (c .nom [str "v2Api", str "kebab"], js "v-2-api"), (c .nom [str "aB1c", str "snake"], js "a_b_1_c"),
+    (c .nom [str "ABc", str "snake"], js "a_bc"), (c .nom [str "aBC", str "snake"], js "a_bc"),
+    (c .nom [str "x__y--z  w", str "dot"], js "x.y.z.w"), (c .nom [str "a.b/c", str "snake"], js "a_b_c"),
+    (c .nom [str "_a", str "pascal"], js "A"), (c .nom [str "a1", str "camel"], js "a1"),
+    (c .nom [str "Ünïcode_name", str "pascal"], js "ÜnïcodeName"),
+    (c .nom [str "éA", str "snake"], js "éa"),
+    (c .nom [str "user_id", str "pascal", lst [str "ID"]], js "UserID"),
+    (c .nom [str "user id", str "camel", lst [str "ID"]], js "userID"),
+    (c .nom [str "id_user", str "camel", lst [str "ID"]], js "idUser"),
+    (c .nom [str "user_id", str "text", lst [str "ID"]], js "User ID"),
+    (c .nom [str "ID_user", str "text", lst [str "ID"]], js "ID user"),
+    (c .nom [str "user_id", str "pascal", lst [str "Id", str "ID"]], js "UserId"),
+    (c .nom [str "user_id", str "camel", lst []], js "userId"),
+    (c .nom [str "user_id"], jm [("camel", js "userId"), ("dot", js "user.id"), ("kebab", js "user-id"),
+      ("pascal", js "UserId"), ("path", js "user/id"), ("snake", js "user_id"), ("text", js "User id"),
+      ("title", js "User Id"), ("upper", js "USER_ID")]),
+    (c .nom [str "user_id", lst [str "ID"]], jm [("camel", js "userID"), ("dot", js "user.id"),
+      ("kebab", js "user-id"), ("pascal", js "UserID"), ("path", js "user/id"), ("snake", js "user_id"),
+      ("text", js "User ID"), ("title", js "User ID"), ("upper", js "USER_ID")]),
+    (c .nom [str "user_id"], jm [("camel", js "userId"), ("dot", js "user.id"), ("kebab", js "user-id"),
+      ("pascal", js "UserId"), ("path", js "user/id"), ("snake", js "user_id"), ("text", js "User id"),
+      ("title", js "User Id"), ("upper", js "USER_ID"), ("x", js "y")]),
+    (c .nom [str "user_id"], jm [("camel", js "userId")]),
+    (c .nom [str "user_id", lst []], jm [("camel", js "userId"), ("dot", js "user.id"), ("kebab", js "user-id"),
+      ("pascal", js "UserId"), ("path", js "user/id"), ("snake", js "user_id"), ("text", js "User id"),
+      ("title", js "User Id"), ("upper", js "USER_ID")]),
+    (c .nom [str ""], js "a"), (c .nom [str "___"], js "a"), (c .nom [str "user_id", str "nope"], js "a"),
+    (c .nom [str "user_id", lst [str "ID"], str "x"], js "a"),
+    (c .nom [str "user_id", str "pascal", lst [str "id", str ""]], js "UserId"),
+    (c .nom [str "user_id", str "pascal", str "ID"], js "UserID"), (c .nom [int 1], js "1"),
+    (c .nom [str "user_id", int 1], js "a"), (c .nom [str "a", str "pascal", lst [int 1]], js "A"),
+    (c .nom [.string], js "a"), (c .nom [.pref 1 (str "user_id"), str "pascal"], js "UserId"),
+    (c .nom [.ride .metadata (str "user_id") [], str "pascal"], js "UserId"),
+    (c .nom [str "user_id", .ride .metadata (str "pascal") []], js "UserId"),
+    (c .nom [str "user_id", str "pascal", .ride .metadata (lst [str "ID"]) []], js "UserID"),
+    (c .nom [str "user_id", str "pascal", lst [.ride .metadata (str "ID") []]], js "UserID"),
+    (c .nom [], js "a"), (c .nom [str "a", str "camel", lst [], str "x"], js "a"),
+    (c .nom [c .join [lst [str "user", str "id"], str "_"], str "camel"], js "userId"),
+    (c .upper [c .nom [str "user_id", str "kebab"]], js "USER-ID"),
+    (c (.cmp .folder) [str "src"], node "Folder" [("name", js "src")] []),
+    (c (.cmp .folder) [str "src"], node "Folder" [("name", js "x")] []),
+    (c (.cmp .folder) [str "src"],
+      jm [("cmp", js "Folder"), ("props", jm [("name", js "src")]), ("children", jl []), ("x", j 1)]),
+    (c (.cmp .folder) [str "src"], node "Folder" [("name", js "src"), ("x", j 1)] []),
+    (c (.cmp .folder) [str "src"], node "Folder" [("name", js "src")] [j 1]),
+    (c (.cmp .folder) [str "src"], jm []),
+    (c (.cmp .folder) [mp [("name", str "src")]], node "Folder" [("name", js "src")] []),
+    (c (.cmp .folder) [str "src", lst [c (.cmp .file) [str "a"]]],
+      node "Folder" [("name", js "src")] [node "File" [("name", js "a")] []]),
+    (c (.cmp .file) [str "f", lst [str "x"]], node "File" [("name", js "f")] [lineD "x"]),
+    (c (.cmp .file) [str "f", lst [str "x", lst [str "y", c (.cmp .line) [str "z"]]]],
+      node "File" [("name", js "f")] [lineD "x", lineD "y", lineD "z"]),
+    (c (.cmp .line) [str ""], lineD ""), (c (.cmp .content) [str "x"], node "Content" [("src", js "x")] []),
+    (c (.cmp .copyfiles) [str "assets"], node "CopyFiles" [("from", js "assets")] []),
+    (c (.cmp .fragment) [str "head.ts", lst [c (.cmp .slot) [str "body"]]],
+      node "Fragment" [("from", js "head.ts")] [node "Slot" [("name", js "body")] []]),
+    (c (.cmp .inject) [str "routes", lst [c (.cmp .line) [str "app.use(r)"]]],
+      node "Inject" [("name", js "routes")] [lineD "app.use(r)"]),
+    (c (.cmp .listitems) [mp [("item", lst [int 1, int 2])], lst [c (.cmp .line) [str "x"]]],
+      node "ListItems" [("item", jl [j 1, j 2])] [lineD "x"]),
+    (c (.cmp .project) [], node "Project" [] []),
+    (c (.cmp .project) [str "./build", lst [c (.cmp .folder) [str "src"]]],
+      node "Project" [("folder", js "./build")] [node "Folder" [("name", js "src")] []]),
+    (c (.cmp .project) [mp [("name", str "p")]], node "Project" [("name", js "p")] []),
+    (c (.cmp .file) [mp [("name", str "f"), ("mode", int 420)]],
+      node "File" [("name", js "f"), ("mode", j 420)] []),
+    (c (.cmp .folder) [str "src", lst [mp [("cmp", str "File"), ("props", mp [("name", str "x")]),
+        ("children", lst [])]]],
+      node "Folder" [("name", js "src")] [node "File" [("name", js "x")] []]),
+    (c (.cmp .folder) [str ""], jm []), (c (.cmp .folder) [mp []], jm []),
+    (c (.cmp .folder) [mp [("name", str "src"), ("x", int 1)]], jm []),
+    (c (.cmp .project) [mp [("folder", str "")]], jm []),
+    (c (.cmp .listitems) [mp [("item", str "x")]], jm []), (c (.cmp .listitems) [mp []], jm []),
+    (c (.cmp .listitems) [str "x"], jm []),
+    (c (.cmp .folder) [str "src", lst [str "x"]], jm []),
+    (c (.cmp .folder) [str "src", lst [c (.cmp .line) [str "x"]]], jm []),
+    (c (.cmp .folder) [str "src", lst [mp [("cmp", str "Nope")]]], jm []),
+    (c (.cmp .folder) [str "src", str "x"], jm []), (c (.cmp .folder) [int 1], jm []),
+    (c (.cmp .folder) [.pref 1 (str "src")], jm []),
+    (c (.cmp .folder) [str "src", lst [.pref 1 (str "x")]], jm []),
+    (c (.cmp .folder) [mp [("name", .string)]], jm []),
+    (c (.cmp .folder) [.ride .metadata (str "src") []], node "Folder" [("name", js "src")] []),
+    (c (.cmp .folder) [mp [("name", .ride .metadata (str "src") [])]], node "Folder" [("name", js "src")] []),
+    (c (.cmp .folder) [str "src", .ride .metadata (lst [c (.cmp .file) [str "x"]]) []],
+      node "Folder" [("name", js "src")] [node "File" [("name", js "x")] []]),
+    (c (.cmp .folder) [], jm []), (c (.cmp .content) [str "x", lst []], jm []),
+    (c (.cmp .folder) [str "a", lst [], int 1], jm []),
+    (c .upper [c (.cmp .folder) [str "src"]], js "SRC"),
+    (c (.cmp .folder) [c .join [lst [str "s", str "rc"], str ""]], node "Folder" [("name", js "src")] []),
+    (c .each [lst [int 1, int 2], .hole], jl [j 1, j 2]), (c .each [lst [int 1, int 2], .hole], jl [j 1, j 3]),
+    (c .each [lst [int 1, int 2], .hole], jl [j 1, j 2, j 3]), (c .each [lst [int 1, int 2], .hole], jl [j 1]),
+    (c .each [mp [("b", int 2), ("a", int 1)], .hole], jl [j 1, j 2]),
+    (c .each [lst [str "x", str "y"], c .upper [.hole]], jl [js "X", js "Y"]),
+    (c .each [lst [int 1, int 2], mp [("v", .hole)]], jl [jm [("v", j 1)], jm [("v", j 2)]]),
+    (c .each [lst [mp [("p", int 1)]], .meet .hole (mp [("q", int 2)])], jl [jm [("p", j 1), ("q", j 2)]]),
+    (c .each [lst [mp [("p", int 1)]], mp [("q", int 2)]], jl [jm [("q", j 2)]]),
+    (c .each [lst [mp [("p", int 1)]], mp [("q", int 2)]], jl [jm [("p", j 1), ("q", j 2)]]),
+    (c .each [lst [int 1, int 2], int 7], jl [j 7, j 7]),
+    (c .each [lst [], .hole], jl []), (c .each [mp [], .hole], jl []),
+    (c .each [str "x", .hole], jl []), (c .each [int 1, .hole], jl []), (c .each [.listKind, .hole], jl []),
+    (c .each [.pref 1 (lst [int 1]), .hole], jl [j 1]),
+    (c .each [.map [("a", true, int 1), ("b", false, int 2)] none false, .hole], jl [j 1, j 2]),
+    (c .each [lst [lst [int 1, int 2], lst [int 3]], c .each [.hole, p .hole (int 1)]],
+      jl [jl [j 2, j 3], jl [j 4]]),
+    (c .each [lst [int 1, int 2], .meet .hole .string], jl [j 1, j 2]),
+    (c .each [lst [int 1, int 2], p .hole (int 1)], jl [j 2, j 3]),
+    (c .join [c .each [c .split [str "index-build", str "-"], c .upper [.hole]], str "_"], js "INDEX_BUILD"),
+    (c .each [.ride .metadata (lst [int 1]) [], .hole], jl [j 1]),
+    (c .each [lst [.ride .metadata (int 1) []], .hole], jl [j 1]),
+    (c .each [mp [("b", mp [("x", int 1)]), ("a", mp [("x", int 2)])], .meet .hole (mp [("y", int 3)])],
+      jl [jm [("x", j 2), ("y", j 3)], jm [("x", j 1), ("y", j 3)]]),
+    (c .each [lst [int 1], lst [.hole, .hole]], jl [jl [j 1, j 1]]),
+    (c .each [lst [.or [(1, int 1), (0, int 2)]], .hole], jl [j 1]),
+    (c .each [lst [int 1, int 2], .pref 1 .hole], jl [j 1, j 2]),
+    (c .each [lst [int 1], c .each [lst [int 2], .hole]], jl [jl [j 2]]),
+    (c .each [lst [int 1, int 2]], jl []), (c .each [lst [int 1, int 2], .hole, int 3], jl [])]
 
 set_option maxRecDepth 8192 in
 set_option exponentiation.threshold 2200 in
@@ -1887,6 +4166,1377 @@ theorem call_verdict_exact : ∀ c ∈ callCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (callCases_checkable c hc)) v
 
+/-- Whether a row whose call converts case reads ASCII only, the letters
+on which the oracle's host and every engine's case conversion agree. -/
+def asciiCase (src : String) : Bool :=
+  ((src.splitOn "upper(").length == 1 && (src.splitOn "lower(").length == 1) ||
+    src.all (·.toNat < 128)
+
+/-- The terms directly inside a term. -/
+def Aontu.Val.kids : Val → List Val
+  | .len c | .must c _ | .pref _ c | .ride _ c _ => [c]
+  | .map fs sp _ => fs.map (fun f => f.2.2) ++ sp.toList
+  | .list items sp _ => items ++ sp.toList
+  | .or arms => arms.map (fun a => a.2)
+  | .meet a b | .contains a b | .filter a b => [a, b]
+  | .nof n cs => n :: cs
+  | .when c t e => c :: t :: e.toList
+  | .rest t cs => t :: cs.flatMap fun c => c.1.toList ++ c.2.1.toList ++ c.2.2.toList
+  | .select s arms d => s :: (arms.flatMap fun a => [a.1, a.2]) ++ d.toList
+  | .call _ args => args
+  | _ => []
+
+/-- Every term inside a term, the term itself first. -/
+partial def Aontu.Val.subterms (v : Val) : List Val := v :: v.kids.flatMap Aontu.Val.subterms
+
+/-- Patterns the reference puts outside the subset, which every engine
+refuses: a named group, a lookahead, a Unicode property and a
+backreference. -/
+def outsideSubset : List String := ["(?<n>b)", "(?=b)", "\\p{L}", "(a)\\1"]
+
+/-- Whether the oracle's host reads a pattern as every engine does: a
+fixed pattern, or one outside the subset. -/
+def hostReadsPattern (q : String) : Bool := (fixedPieces q).isSome || outsideSubset.contains q
+
+/-- Whether every pattern a term hands the host's regex engine is one
+the oracle's host reads as every engine does: `rep`'s, which must be a
+literal for the oracle to see it, and `split`'s at `re(p)`. -/
+def hostReads (v : Val) : Bool :=
+  v.subterms.all fun
+    | .call .rep (_ :: q :: _) => match q.unride with
+      | .lit (.str q) => hostReadsPattern q
+      | .lit _ | .re _ | .pref _ _ | .string | .number | .integer => true
+      | _ => false
+    | .call .split [_, sep] => match sep.unride with
+      | .re q => hostReadsPattern q
+      | _ => true
+    | _ => true
+
+/-- A vet document whose one field is a call that reads to a term the
+checker can read reads to one itself. -/
+theorem readR_call_checkableA {t : Val} (hf : ∀ k, (expandF [] k t).filled = expandF [] k t)
+    (h : ∀ k, (resolveD [] none (stepped (some []) (.seg (.key "v"))) (expandF [] k t)).CheckableA) :
+    (Decls.readR [] (.map [("v", false, t)] none false)).CheckableA := by
+  have hm : ∀ u, (resolveD [] none (stepped (some []) (.seg (.key "v"))) u).CheckableA →
+      (resolveD [] none (some []) (.map [("v", false, u)] none false)).CheckableA := by
+    intro u hu
+    simp only [resolveD, resolveFields, resolveSpread]
+    exact .map (fun k o w hw => by simp at hw; obtain ⟨-, -, rfl⟩ := hw; exact hu)
+      (fun _ hs => by cases hs)
+  have : ∀ n, (resolveD [] none (some [])
+      (expandF [] n (.map [("v", false, t)] none false)).filled).CheckableA := by
+    intro n
+    cases n with
+    | zero =>
+      have h0 : t.filled = t := by simpa [expandF] using hf 0
+      simp only [expandF, Val.filled, filledFields, tmplSpread, h0, joinFields_single, spreadAll_none]
+      exact hm t (by simpa [expandF] using h 0)
+    | succ k =>
+      simp only [expandF, List.map, Option.map, Val.filled, filledFields, tmplSpread, hf k, joinFields_single,
+        spreadAll_none]
+      exact hm _ (h k)
+  exact this _
+
+/-- Calls handed a pattern, `re(p)`, which the checker cannot read as a
+term: `split` at a pattern, rows v0 on in `def-call.tsv`, and `rep`
+handed one as its pattern, which it refuses, since its pattern is a
+string. The patterns are fixed text, with groups, or outside the
+subset, and none splits the empty text (#447). Neither call waits, so
+each reads to a term the checker can read, and `vet` is `Vet` on it. -/
+def patternSplits : List (Val × String × Data) :=
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  [(str "a1b1c", "1", jl [js "a", js "b", js "c"]), (str "a1b1c", "1", jl [js "a1b1c"]),
+    (str "1a1", "1", jl [js "", js "a", js ""]), (str "a11b", "1", jl [js "a", js "", js "b"]),
+    (str "aaa", "aa", jl [js "", js "a"]), (str "ab", "", jl [js "a", js "b"]),
+    (str "a😀b", "", jl [js "a", js "😀", js "b"]), (str "abc", "x", jl [js "abc"]),
+    (str "aXbXc", "(X)", jl [js "a", js "b", js "c"]), (str "abc", "(?<n>b)", jl [js "a", js "c"]),
+    (.ride .metadata (str "a1b") [], "1", jl [js "a", js "b"]),
+    (.integer, "1", jl [js "1"])]
+
+def patternCases : List (Val × Data) :=
+  (patternSplits.map fun (s, p, d) => (.call .split [s, .re p], d)) ++
+    [(.call .rep [.lit (.str "a"), .re "a", .lit (.str "b")], .str "b")]
+
+/-- A term the patterns' cases hand a call: a literal, a pattern, a kind
+or a rider around one, holding no reference, call or selection. -/
+def Aontu.Val.inertB : Val → Bool
+  | .lit _ | .re _ | .integer => true
+  | .ride _ v _ => v.inertB
+  | _ => false
+
+/-- A term that holds no reference waits on none, whatever reads it. -/
+theorem inert_pending {ds : Decls} {bd : Option Val} {here : Option (List Step)} :
+    ∀ {x : Val}, x.inertB = true → ∀ j, (resolveD ds bd here (expandF ds j x)).pending ds = false
+  | .lit _, _, j => by cases j <;> simp [expandF, resolveD, Val.pending]
+  | .re _, _, j => by cases j <;> simp [expandF, resolveD, Val.pending]
+  | .integer, _, j => by cases j <;> simp [expandF, resolveD, Val.pending]
+  | .ride _ v _, h, j => by
+    cases j with
+    | zero =>
+      simp only [expandF, resolveD, Val.pending]
+      exact inert_pending (x := v) h 0
+    | succ j =>
+      simp only [expandF, resolveD, Val.pending]
+      exact inert_pending (x := v) h j
+
+theorem patternSplits_inert : ∀ t ∈ patternSplits, t.1.inertB = true := by decide
+
+/-- An inert term holds no meet, so the fill leaves it as it is, expanded
+or not. -/
+theorem inert_filled : ∀ {x : Val}, x.inertB = true → x.filled = x
+  | .lit _, _ => rfl
+  | .re _, _ => rfl
+  | .integer, _ => rfl
+  | .ride _ v _, h => by simp only [Val.filled]; rw [inert_filled (x := v) h]
+
+theorem inert_expandF : ∀ {x : Val}, x.inertB = true → ∀ j, (expandF [] j x).inertB = true
+  | .lit _, _, j => by cases j <;> rfl
+  | .re _, _, j => by cases j <;> rfl
+  | .integer, _, j => by cases j <;> rfl
+  | .ride _ v _, h, j => by
+    cases j with
+    | zero => exact h
+    | succ j => simp only [expandF, Val.inertB]; exact inert_expandF (x := v) h j
+
+theorem filledItems_inert : ∀ {xs : List Val}, (∀ x ∈ xs, x.inertB = true) → filledItems xs = xs
+  | [], _ => rfl
+  | x :: xs, h => by
+    simp only [filledItems]
+    rw [inert_filled (h x List.mem_cons_self), filledItems_inert fun y hy => h y (List.mem_cons_of_mem _ hy)]
+
+/-- A `split` or a `rep` over inert terms holds no meet either. -/
+theorem filled_expandF_call {f : Fn} (hf : f = .split ∨ f = .rep) {args : List Val}
+    (h : ∀ x ∈ args, x.inertB = true) : ∀ k, (expandF [] k (.call f args)).filled = expandF [] k (.call f args) := by
+  have hm : ∀ k, filledItems (args.map (expandF [] k)) = args.map (expandF [] k) := fun k =>
+    filledItems_inert fun x hx => by
+      obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hx
+      exact inert_expandF (h y hy) k
+  rcases hf with rfl | rfl <;> intro k <;> cases k <;>
+    simp only [expandF, Val.filled, filledItems_inert h, hm]
+
+theorem patternCases_readable : ∀ c ∈ patternCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
+  intro c hc
+  rcases List.mem_append.mp hc with h | h
+  · obtain ⟨⟨s, p, d⟩, hm, rfl⟩ := List.mem_map.mp h
+    refine readR_call_checkableA (filled_expandF_call (.inl rfl) fun x hx => ?_)
+      fun k => resolveD_expandF_split k fun j x hx => ?_
+    · simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
+      rcases hx with rfl | rfl
+      · exact patternSplits_inert _ hm
+      · rfl
+    simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
+    rcases hx with rfl | rfl
+    · exact inert_pending (patternSplits_inert _ hm) j
+    · exact inert_pending (x := .re p) rfl j
+  · rcases List.mem_singleton.mp h with rfl
+    refine readR_call_checkableA (filled_expandF_call (.inr rfl) fun x hx => ?_)
+      fun k => resolveD_expandF_rep k fun j x hx => ?_
+    · simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
+      rcases hx with rfl | rfl | rfl <;> rfl
+    simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
+    rcases hx with rfl | rfl | rfl
+    · exact inert_pending (x := .lit (.str "a")) rfl j
+    · exact inert_pending (x := .re "a") rfl j
+    · exact inert_pending (x := .lit (.str "b")) rfl j
+
+theorem pattern_verdict_exact : ∀ c ∈ patternCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil)) (patternCases_readable c hc) v
+
+/-- A `filter` whose condition holds the hole, its condition read for
+each member it tries: over a list and a map, a call on the member, a
+meet with it and a disjunction beside it, the hole alone, and a member
+the call does not take. Each source is data, so it generates, and each
+`filter` reads to the members it admits, which the checker can read
+whatever host converts the case. -/
+def filterSources : List (Data × Val × Data) :=
+  let s (t : String) : Data := .str t
+  let n (i : ℤ) (h : IntegerLeaf i := by decide) : Data := .integer i h
+  let up : Val := .call .upper [.hole]
+  let twice : Val := .call .mul [.hole, .lit (.num (.integer ⟨2, by decide⟩))]
+  [(.list [s "A", s "b"], up, .list [s "A"]), (.list [s "A", s "b"], up, .list []),
+    (.list [s "A", s "b"], .meet .hole up, .list [s "A"]),
+    (.map [("a", s "A"), ("b", s "b")], up, .map [("a", s "A")]),
+    (.list [s "a", s "B"], .call .lower [.hole], .list [s "a"]),
+    (.list [s "A", s "b"], .or [(0, up), (0, .lit (.str "b"))], .list [s "A", s "b"]),
+    (.list [n 1, n 2], .hole, .list [n 1, n 2]),
+    (.list [.map [("n", s "A")], .map [("n", s "b")]], .map [("n", false, up)] none false, .list []),
+    (.list [n 0, n 1, n 2], twice, .list [n 0]), (.map [("a", n 0), ("b", n 1)], twice, .map [("a", n 0)])]
+
+def filterCases : List (Val × Data) := filterSources.map fun (j, t, d) => (.filter j.term t, d)
+
+theorem filterSources_generate : ∀ x ∈ filterSources,
+    (genD [] (resolveD [] none (stepped (some []) (.seg (.key "v"))) x.1.term)).isSome := by
+  decide
+
+theorem filterSources_wf : ∀ x ∈ filterSources, x.1.wf = true := by decide
+
+theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
+  intro c hc
+  obtain ⟨⟨j, t, d⟩, hm, rfl⟩ := List.mem_map.mp hc
+  have hj := filterSources_generate _ hm
+  have hw := Data.term_filled _ (filterSources_wf _ hm)
+  refine readR_call_checkableA
+    (fun k => by cases k <;> simp only [expandF, Val.filled, expandF_term, hw]) fun k => ?_
+  cases k with
+  | zero => exact resolveD_filter_checkableA hj
+  | succ k =>
+    simp only [expandF, expandF_term]
+    exact resolveD_filter_checkableA hj
+
+/-- A `filter` in an `each` template binds its own hole, and its source
+reads the template's member. The condition is arithmetic, so the reading
+is decided whole. -/
+def filterEachCases : List (Val × Data) :=
+  let int (i : ℤ) (h : IntegerLeaf i := by decide) : Val := .lit (.num (.integer ⟨i, h⟩))
+  let j (i : ℤ) (h : IntegerLeaf i := by decide) : Data := .integer i h
+  let lst (xs : List Val) : Val := .list xs none false
+  [(.call .each [lst [lst [int 0, int 1], lst [int 2]], .filter .hole (.call .mul [.hole, int 2])],
+      .list [.list [j 0], .list []])]
+
+set_option maxRecDepth 8192 in
+theorem filterEachCases_readable : ∀ c ∈ filterEachCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
+  decide
+
+theorem filter_verdict_exact : ∀ c ∈ filterCases ++ filterEachCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v := by
+  intro c hc _ v
+  have hr : (Decls.readR [] (vetDoc c).1).CheckableA := by
+    rcases List.mem_append.mp hc with h | h
+    · exact filterCases_readable c h
+    · exact filterEachCases_readable c h
+  exact vet_iff (fun _ h => absurd h (List.not_mem_nil)) hr v
+
+/-- A call reads none of a bag's optional members whose value generates
+an empty map or list (decision 19 of the design note's §7), so `sum`
+adds the others and `each` and `join` skip it. An optional member whose
+value generates more stays. -/
+def optionalCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  [(c .sum [mp [("a", true, mp []), ("b", false, int 2)]], j 2),
+    (c .sum [mp [("a", true, lst []), ("b", false, int 2)]], j 2),
+    (c .sum [mp [("a", true, .or [(1, lst []), (0, lst [int 1])]), ("b", false, int 2)]], j 2),
+    (c .each [mp [("a", true, mp []), ("b", false, int 1)], .hole], .list [j 1]),
+    (c .each [mp [("a", true, mp [("b", true, .integer)]), ("c", false, int 1)], .hole], .list [j 1]),
+    (c .each [mp [("a", true, mp [("b", false, int 1)]), ("c", false, int 2)], .hole],
+      .list [.map [("b", j 1)], j 2]),
+    (c .each [mp [("a", true, .or [(1, lst [int 1]), (0, lst [])]), ("b", false, int 2)], .hole],
+      .list [.list [j 1], j 2]),
+    (c .join [mp [("a", true, lst []), ("b", false, str "x")], str "-"], .str "x")]
+
+theorem optionalCases_checkable : ∀ c ∈ optionalCases, (vetDoc c).1.CheckableA := by decide
+
+theorem optional_verdict_exact : ∀ c ∈ optionalCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (optionalCases_checkable c hc)) v
+
+/-- A replacement is read against its pattern's groups before the text
+is scanned (decision 20 of the design note's §7), so one that names a
+group the pattern lacks, a `$0`, a lone `$` or a `$` before a letter is
+an error over a text with no match too, the empty text among them, and
+one that names only what the pattern has leaves such a text as it is. -/
+def repSubCases : List (Val × Data) :=
+  let str (s : String) : Val := .lit (.str s)
+  let rep (t p r : String) : Val := .call .rep [str t, str p, str r]
+  [(rep "abc" "x" "$9", .str "abc"), (rep "abc" "x" "$", .str "abc"),
+    (rep "abc" "x" "x$", .str "abc"), (rep "abc" "x" "$x", .str "abc"),
+    (rep "abc" "x" "$0", .str "abc"), (rep "abc" "x" "$1", .str "abc"),
+    (rep "abc" "(x)" "$2", .str "abc"), (rep "" "a" "$1", .str ""),
+    (rep "abc" "(x)" "$1", .str "abc"), (rep "abc" "(x)(y)" "$2$1", .str "abc"),
+    (rep "abc" "x" "$$$&", .str "abc"), (rep "" "(a)" "[$1]", .str "")]
+
+theorem repSubCases_checkable : ∀ c ∈ repSubCases, (vetDoc c).1.CheckableA := by decide
+
+theorem repSub_verdict_exact : ∀ c ∈ repSubCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (repSubCases_checkable c hc)) v
+
+/-- A projector and a direction read as their values, through a rider
+or a mark, as both ports read them (#435); a lone preference stays
+neither, and so does `null`, which is no absent projector. -/
+def projectorCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let rd (v : Val) : Val := .ride .metadata v []
+  [(c .pick [lst [mp [("a", int 1)]], rd (str "a")], .list [j 1]),
+    (c .pick [lst [lst [int 9, int 8]], rd (int 1)], .list [j 8]),
+    (c .pick [lst [mp [("a", int 1)]], .ride .type (str "a") []], .list [j 1]),
+    (c .sort [lst [mp [("n", int 2)], mp [("n", int 1)]], rd (str "n")],
+      .list [.map [("n", j 1)], .map [("n", j 2)]]),
+    (c .sort [lst [int 1, int 2], rd (str ""), str "desc"], .list [j 2, j 1]),
+    (c .sort [lst [int 1, int 2], str "", rd (str "desc")], .list [j 2, j 1]),
+    (c .sort [lst [int 1, int 2], str "", .ride .type (str "desc") []], .list [j 2, j 1]),
+    (c .sort [lst [int 1, int 2], str "", .pref 1 (str "desc")], .list [j 2, j 1]),
+    (c .sort [lst [int 2, int 1], .lit .null], .list [j 1, j 2]),
+    (c .sort [lst [int 2, int 1], rd (.lit .null)], .list [j 1, j 2])]
+
+theorem projectorCases_checkable : ∀ c ∈ projectorCases, (vetDoc c).1.CheckableA := by decide
+
+theorem projector_verdict_exact : ∀ c ∈ projectorCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (projectorCases_checkable c hc)) v
+
+/-- A string names a list member's index by its digits after one
+optional sign and by nothing else, so a space, a point, an exponent or
+a hexadecimal prefix names none, and `""` names no key in `pick`, as
+both ports read them (#437). -/
+def indexCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let ab : Val := lst [lst [int 1, int 2]]
+  [(c .pick [ab, str "+1"], .list [j 2]), (c .pick [ab, str " 0"], .list [j 1]),
+    (c .pick [ab, str "0 "], .list [j 1]), (c .pick [ab, str "1.0"], .list [j 2]),
+    (c .pick [ab, str "1e0"], .list [j 2]), (c .pick [ab, str "0x1"], .list [j 2]),
+    (c .pick [ab, str ""], .list [j 1]),
+    (c .pick [lst [.map [("", false, int 1)] none false], str ""], .list [j 1]),
+    (c .sort [lst [lst [int 2], lst [int 1]], str "0"], .list [.list [j 1], .list [j 2]]),
+    (c .sort [lst [lst [int 2], lst [int 1]], str " 0"], .list [.list [j 1], .list [j 2]])]
+
+theorem indexCases_checkable : ∀ c ∈ indexCases, (vetDoc c).1.CheckableA := by decide
+
+theorem index_verdict_exact : ∀ c ∈ indexCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (indexCases_checkable c hc)) v
+
+/-- A range in `translate`'s `to` through the surrogate block writes
+U+FFFD for each surrogate it names, as both ports write it (#442). -/
+def surrogateCases : List (Val × Data) :=
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let str (s : String) : Val := .lit (.str s)
+  [(c .translate [str "b", str "a-b", str "\uD7FF-\uE000"], .str "\uFFFD"),
+    (c .translate [str "abc", str "a-c", str "\uD7FF-\uE000"], .str "\uD7FF\uFFFD\uFFFD"),
+    (c .translate [str "z", str "a-z", str "\uD7FF-\uE000"], .str "\uFFFD")]
+
+theorem surrogateCases_checkable : ∀ c ∈ surrogateCases, (vetDoc c).1.CheckableA := by decide
+
+theorem surrogate_verdict_exact : ∀ c ∈ surrogateCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (surrogateCases_checkable c hc)) v
+
+/-- The generator `pack`: the open map of its template read for each
+member of its data under the member's key, a list's strings each its
+own key and a map's keys theirs; the hole kept, met and left out; a
+map member skipped as a fold skips it; a key a list repeats made once,
+its instances met;
+a list holding anything but a string, and data that is no bag. No
+template holds `key()`, which waits on `key()` at any position. -/
+def packCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jm (fs : List (String × Data)) : Data := .map fs
+  [(c .pack [lst [str "a", str "b"], mp [("x", .hole)]], jm [("a", jm [("x", js "a")]), ("b", jm [("x", js "b")])]),
+    (c .pack [mp [("p", int 1), ("q", int 2)], .meet .hole .integer], jm [("p", j 1), ("q", j 2)]),
+    (c .pack [mp [("p", int 1), ("q", int 2)], .hole], jm [("p", j 1), ("q", j 2)]),
+    (c .pack [mp [("p", int 1), ("q", int 2)], mp [("n", .hole)]],
+      jm [("p", jm [("n", j 1)]), ("q", jm [("n", j 2)])]),
+    (c .pack [lst [], mp [("x", int 1)]], jm []), (c .pack [mp [], mp [("x", int 1)]], jm []),
+    (c .pack [lst [int 1], mp [("x", int 1)]], jm []), (c .pack [str "a", mp [("x", int 1)]], jm []),
+    (c .pack [lst [str "a", str "a"], mp [("x", .hole)]], jm [("a", jm [("x", js "a")])]),
+    (c .pack [lst [str "b", str "a"], int 1], jm [("a", j 1), ("b", j 1)]),
+    (c .pack [mp [("p", int 1), ("q", .ride .hide (int 2) [])], .hole], jm [("p", j 1)]),
+    (c .pack [.map [("p", false, int 1), ("q", true, .integer)] none false, .hole], jm [("p", j 1)]),
+    (c .pack [.map [("p", false, int 1), ("q", true, mp [])] none false, .hole], jm [("p", j 1)]),
+    (c .pack [lst [str "a"], c .upper [.hole]], jm [("a", js "A")]),
+    (c .pack [lst [str "a"], mp [("x", int 1)]], jm [("a", jm [("x", j 1)]), ("b", j 2)]),
+    (c .pack [mp [("p", lst [int 1, int 2])], c .each [.hole, .meet .hole .integer]],
+      jm [("p", .list [j 1, j 2])]),
+    (c .pack [lst [str "a", str "b"], .pref 1 (int 1)], jm [("a", j 1), ("b", j 1)]),
+    (c .pack [lst [.pref 1 (str "a")], int 1], jm [("a", j 1)]),
+    (c .pack [lst [.ride .metadata (str "a") []], int 1], jm [("a", j 1)])]
+
+theorem packCases_checkable : ∀ c ∈ packCases, (vetDoc c).1.CheckableA := by decide
+
+theorem pack_verdict_exact : ∀ c ∈ packCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (packCases_checkable c hc)) v
+
+/-- A hole its call's peer fills, as a document reads it (decision 21 of
+the design note's §7), for the `verdict` rows hv0 on. A call on a string
+and on a number, written before its peer and after it, over a call, and
+with a second peer the document groups after the first, each against
+data that writes its output and data that doesn't; the hole alone; and,
+where the data leaves the member out so that the fill supplies it, the
+same call, a generator over a list written before its peer and after
+it, a fill inside a map and a list, and a second peer that refuses the
+output; a fill in a `match`'s result and in its default; and two lists
+or two maps met member by member, by position and by key, nested, with a
+member one side lacks, and with a member pair that both wait; a map
+met with a meet of maps, on either side and on both, a list's element
+among them; a key declared more than once, alone, in the peer and in
+the map itself, before the hole and after it, nested, and beside
+another key;
+and a list beside a peer that holds a marked element, which holds no
+position, on either side and in an inner meet; and a spread whose
+template waits on a hole, met with a peer's members and its own, each
+once, on either side, through a meet, nested, with a member a later
+meet brings, with one it has filled, and beside a member that waits,
+in a map and in a list; a spread that selects on the key, where an arm
+takes the member before the default that waits; and a spread whose
+template holds its hole inside a container, a map or a list, met with a
+peer's members on either side, with its own, through a meet on either
+side, with a member a later meet brings and with one it has filled,
+nested, under a spread inside the template, with a member the data fills
+and one it leaves out, beside a member that waits, and with a member, a
+peer's or its own, that is a disjunction, met arm by arm. Two spreads that
+both wait are out of them: both ports read them as one where their
+templates are alike, and as `place_pair` otherwise. A list whose one hole no peer element fills is the
+data's to fill, in rows dv0 on (decision 29). Both ports read a
+generator's peer and the data as one conjunction, so a generator meets
+no data here. Last, a hole on the right of a meet, which takes its peer
+as one on the left does: after a literal, a kind and a container's
+member or element, and after a meet whose call its own peer has filled;
+and a kind on the right of a hole. And a container under a rider, a
+mark or a seal, met member by member as it would be bare: under `meta`
+on either side, around a map and a list, under `deprecate`, `hide` and
+`type`, sealed, where a key the peer adds is refused, met with a list,
+which it conflicts with, under two riders, and met with a peer whose
+member waits too; and a hole alone under a rider. And a hole inside a
+list a call takes, which the call doesn't wait on, so its peer doesn't
+fill it: in a `join`'s list, after a member and before one, against
+data that writes the output a fill would make and data that writes the
+peer, and as a map's member; and `sum` over a hole its peer, a list of
+strings, fills, which the sum refuses. And a map spread's container
+template that a later meet reaches again, which fills its member once:
+after it has filled the member, against data that writes that and data
+that writes it filled again, before the member's value arrives, over a
+meet of members, over its own map's member, with a list template, beside
+a key a later meet brings, against data that leaves a hole open, and
+after two later meets. And a meet that fills a hole inside a size, a
+trial or a `match`, which settles as it would written filled: in `len`,
+`must`, a `match`'s pattern, `when`'s branch, `contains`, `rest` and a
+branch of `nof`, against data that passes and data that doesn't. One
+in a `match`'s scrutinee is out of them, as the checker reads no
+scrutinee that waits. And a `+` over a list that holds a hole, which
+joins the lists as written and waits only on a hole among its operands:
+met with a list that fills the hole member by member, against data
+that writes that and data that writes the list bound to the hole; a
+`+` whose own operand is the hole beside a list that holds one,
+against data that fills the list's hole and data that leaves it out;
+the `+` alone, whose hole the data fills; and a `+` over a hole and a
+list. And a `+` whose operand list holds a call over a hole, which the
+meet fills once the lists are joined: on the left of the meet, against
+data that writes the call's output and data that writes the peer, on
+the right, in the right list, and inside a map; and a `+` whose right
+list holds a `key()`, which reads its index where it's written, against
+data that writes that index and data that writes the joined one; and a
+`+` over a list with a spread, which meets its elements before the
+join, one that refuses an element and one that waits on a hole. -/
+def holeFillVetCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let up (v : Val) : Val := .call .upper [v]
+  let la : Val := .list [s "a"] none false
+  let px : Val := .map [("x", false, n 1)] none false
+  let x (v : Val) : Val × Data := (.map [("x", false, v)] none false, .map [])
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  let yes : Val := .lit (.bool true)
+  let sel (arms : List (Val × Val)) (d : Val) : Val := .select yes arms (some d)
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let spm (fs : List (String × Val)) (t : Val) : Val := .map (fs.map fun (k, v) => (k, false, v)) (some t) false
+  let spl (xs : List Val) (t : Val) : Val := .list xs (some t) false
+  let add1 (v : Val) : Val := .call .add [v, n 1]
+  let md (v : Val) : Val := .ride .metadata v [("d", .integer 1)]
+  [(.meet (up .hole) (s "a"), .str "A"), (.meet (up .hole) (s "a"), .str "a"),
+    (.meet (s "a") (up .hole), .str "A"),
+    (.meet (.call .add [.hole, n 1]) (n 2), .integer 3),
+    (.meet (.call .add [.hole, n 1]) (n 2), .integer 4),
+    (.meet (n 2) (.call .add [.hole, n 1]), .integer 3),
+    (.meet .hole (s "a"), .str "a"),
+    (.meet (up (.call .lower [.hole])) (s "aB"), .str "AB"),
+    (.meet (.meet (up .hole) (s "a")) (s "A"), .str "A"),
+    (.meet (.meet (s "ab") (up .hole)) (s "AB"), .str "AB"),
+    x (.meet (up .hole) (s "a")),
+    x (.meet (.call .each [.hole, up .hole]) la), x (.meet la (.call .each [.hole, up .hole])),
+    x (.meet (.call .pack [.hole, px]) la), x (.meet la (.call .pack [.hole, px])),
+    x (.meet (.meet la (.call .each [.hole, up .hole])) (.list [s "A"] none false)),
+    x (.meet (.call .each [.hole, .map [("v", false, .hole)] none false]) la),
+    x (.meet (.call .each [.hole, .hole]) la),
+    x (.map [("a", false, .meet (up .hole) (s "x"))] none false),
+    x (.list [.meet (up .hole) (s "x")] none false),
+    x (.meet .hole (s "a")),
+    x (.meet (.meet (up .hole) (s "a")) (s "a")),
+    (sel [(yes, .meet (up .hole) (s "a"))] (s "b"), .str "A"),
+    (sel [(yes, .meet (up .hole) (s "a"))] (s "b"), .str "a"),
+    (sel [(.lit (.bool false), s "b")] (.meet (up .hole) (s "a")), .str "A"),
+    (sel [(.lit (.bool false), s "b")] (.meet (up .hole) (s "a")), .str "b"),
+    (.meet (lst [up .hole]) (lst [s "a"]), .list [.str "A"]),
+    (.meet (lst [up .hole]) (lst [s "a"]), .list [.str "a"]),
+    (.meet (lst [s "a"]) (lst [up .hole]), .list [.str "A"]),
+    (.meet (mp [("a", up .hole)]) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (mp [("a", up .hole), ("b", n 1)]) (mp [("a", s "x")]), .map [("a", .str "X"), ("b", .integer 1)]),
+    (.meet (lst [up .hole, .call .lower [.hole]]) (lst [s "a", s "B"]), .list [.str "A", .str "b"]),
+    (.meet (mp [("a", mp [("b", up .hole)])]) (mp [("a", mp [("b", s "x")])]), .map [("a", .map [("b", .str "X")])]),
+    (.meet (lst [up .hole]) (lst [s "a", s "b"]), .list [.str "A", .str "b"]),
+    (.meet (lst [up .hole, s "z"]) (lst [s "a"]), .list [.str "A", .str "z"]),
+    (.meet (mp [("a", up .hole)]) (mp [("a", up .hole)]), .map [("a", .str "X")]),
+    (.meet (.meet (lst [up .hole]) (lst [s "a"])) (lst [s "A"]), .list [.str "A"]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])) (mp [("a", s "x")]),
+      .map [("a", .str "X"), ("b", .integer 1)]),
+    (.meet (mp [("a", s "x")]) (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])),
+      .map [("a", .str "X"), ("b", .integer 1)]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", up .hole)])) (mp [("a", s "x"), ("b", s "y")]),
+      .map [("a", .str "X"), ("b", .str "Y")]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])) (.meet (mp [("a", s "x")]) (mp [("c", n 2)])),
+      .map [("a", .str "X"), ("b", .integer 1), ("c", .integer 2)]),
+    (.meet (.meet (lst [up .hole]) (lst [n 1])) (lst [s "a"]), .list [.str "A"]),
+    (.meet (.meet (mp [("a", lst [up .hole])]) (mp [("b", n 1)])) (mp [("a", lst [s "x"])]),
+      .map [("a", .list [.str "X"]), ("b", .integer 1)]),
+    (mp [("a", s "X"), ("a", s "X")], .map [("a", .str "X")]),
+    (.meet (mp [("a", up .hole)]) (mp [("a", s "x"), ("a", s "y")]), .map [("a", .str "X")]),
+    (.meet (mp [("a", up .hole)]) (mp [("a", s "x"), ("a", s "x")]), .map [("a", .str "X")]),
+    (mp [("a", s "x"), ("a", up .hole)], .map [("a", .str "X")]),
+    (mp [("a", up .hole), ("a", s "x"), ("a", s "X")], .map [("a", .str "X")]),
+    (mp [("a", s "x"), ("a", s "x"), ("a", up .hole)], .map [("a", .str "X")]),
+    (mp [("a", mp [("b", up .hole)]), ("a", mp [("b", s "x")])], .map [("a", .map [("b", .str "X")])]),
+    (.meet (mp [("a", s "x"), ("a", up .hole)]) (mp [("a", s "X")]), .map [("a", .str "X")]),
+    (mp [("a", up .hole), ("b", n 1), ("a", s "x")], .map [("a", .str "X"), ("b", .integer 1)]),
+    (.meet (lst [up .hole]) (lst [hide (s "a"), s "b"]), .list [.str "B"]),
+    (.meet (lst [up .hole, s "z"]) (lst [type (s "a"), s "b"]), .list [.str "B", .str "z"]),
+    (.meet (lst [hide (up .hole), s "z"]) (lst [s "a", s "b"]), .list [.str "z"]),
+    (.meet (.meet (lst [up .hole]) (lst [hide (s "a")])) (lst [s "b"]), .list [.str "B"]),
+    (.meet (spm [] (up .hole)) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (spm [] (up .hole)) (mp [("a", s "x"), ("b", s "y")]), .map [("a", .str "X"), ("b", .str "Y")]),
+    (.meet (mp [("a", s "x")]) (spm [] (up .hole)), .map [("a", .str "X")]),
+    (spm [("a", s "x")] (up .hole), .map [("a", .str "X")]),
+    (.meet (spm [("a", s "x")] (up .hole)) (mp [("b", s "y")]), .map [("a", .str "X"), ("b", .str "Y")]),
+    (.meet (spm [] (up .hole)) (.meet (mp [("a", s "x")]) (mp [("b", s "y")])), .map [("a", .str "X"), ("b", .str "Y")]),
+    (.meet (.meet (spm [] (up .hole)) (mp [("c", n 1)])) (mp [("a", s "x")]), .map [("a", .str "X"), ("c", .integer 1)]),
+    (.meet (.meet (spm [] (add1 .hole)) (mp [("a", n 1)])) (mp [("a", n 2)]), .map [("a", .integer 2)]),
+    (.meet (.meet (spm [] (add1 .hole)) (mp [("a", n 1)])) (mp [("b", n 5)]), .map [("a", .integer 2), ("b", .integer 6)]),
+    (.meet (.meet (spm [] (up .hole)) (mp [("a", s "x")])) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (spm [("a", n 1)] (add1 .hole)) (mp [("a", n 2)]), .map [("a", .integer 2)]),
+    (.meet (spm [] (up .hole)) (mp [("a", up .hole)]), .map [("a", .str "X")]),
+    (mp [("n", .meet (spm [] (up .hole)) (mp [("a", s "x")]))], .map [("n", .map [("a", .str "X")])]),
+    (.meet (mp [("n", spm [] (up .hole))]) (mp [("n", mp [("a", s "x")])]), .map [("n", .map [("a", .str "X")])]),
+    (.meet (spl [] (up .hole)) (lst [s "a", s "b"]), .list [.str "A", .str "B"]),
+    (.meet (lst [s "a", s "b"]) (spl [] (up .hole)), .list [.str "A", .str "B"]),
+    (.meet (spl [s "q"] (up .hole)) (lst [s "a", s "b"]), .list [.str "Q"]),
+    (.meet (spl [] (up .hole)) (lst [hide (s "q"), s "b"]), .list [.str "B"]),
+    (.meet (.meet (spl [] (add1 .hole)) (lst [n 1, n 2])) (lst [n 2, n 3]), .list [.integer 2, .integer 3]),
+    (.map [("a", false, s "x")] (some (.select .key [(.string, .any)] (some (up .hole)))) false, .map [("a", .str "x")]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", s "x")])]), .map [("a", .map [("n", .str "X")])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", s "x")])]), .map [("a", .map [("n", .str "x")])]),
+    (spm [] (mp [("n", up .hole)]), .map [("a", .map [("n", .str "x")])]),
+    (spm [] (mp [("n", up .hole)]), .map [("a", .map [])]),
+    (.meet (mp [("a", mp [("n", s "x")])]) (spm [] (mp [("n", up .hole)])), .map [("a", .map [("n", .str "X")])]),
+    (spm [("a", mp [("n", s "x")])] (mp [("n", up .hole)]), .map [("a", .map [("n", .str "X")])]),
+    (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 1)])]), .map [("a", .map [("n", .integer 2)])]),
+    (.meet (spl [] (mp [("n", up .hole)])) (lst [mp [("n", s "x")]]), .list [.map [("n", .str "X")]]),
+    (.meet (lst [mp [("n", s "x")]]) (spl [] (mp [("n", up .hole)])), .list [.map [("n", .str "X")]]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [])]), .map [("a", .map [("n", .str "x")])]),
+    (.meet (spm [] (mp [("n", up .hole), ("m", n 1)])) (mp [("a", mp [("n", s "x")])]),
+      .map [("a", .map [("n", .str "X"), ("m", .integer 1)])]),
+    (.meet (spm [] (lst [up .hole])) (mp [("a", lst [s "x"])]), .map [("a", .list [.str "X"])]),
+    (.meet (spm [] (spm [] (up .hole))) (mp [("a", mp [("b", s "x")])]), .map [("a", .map [("b", .str "X")])]),
+    (.meet (mp [("x", mp [("a", mp [("n", s "x")])])]) (mp [("x", spm [] (mp [("n", up .hole)]))]),
+      .map [("x", .map [("a", .map [("n", .str "X")])])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", s "x")]), ("b", mp [("n", s "y")])]),
+      .map [("a", .map [("n", .str "X")]), ("b", .map [("n", .str "Y")])]),
+    (.meet (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", s "x")])])) (mp [("b", mp [("n", s "y")])]),
+      .map [("a", .map [("n", .str "X")]), ("b", .map [("n", .str "Y")])]),
+    (.meet (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", s "x")])])) (mp [("a", mp [("n", s "X")])]),
+      .map [("a", .map [("n", .str "X")])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (.meet (mp [("a", mp [("n", s "x")])]) (mp [("b", mp [("n", s "y")])])),
+      .map [("a", .map [("n", .str "X")]), ("b", .map [("n", .str "Y")])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [("n", up .hole)])]), .map [("a", .map [("n", .str "X")])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", .or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])])]),
+      .map [("a", .map [("n", .str "X")])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", .or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])])]),
+      .map [("a", .map [("n", .str "Z")])]),
+    (spm [("a", .or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])])] (mp [("n", up .hole)]),
+      .map [("a", .map [("n", .str "Y")])]),
+    (.meet (mp [("a", .or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])])]) (spm [] (mp [("n", up .hole)])),
+      .map [("a", .map [("n", .str "X")])]),
+    (.meet (spl [] (mp [("n", up .hole)])) (lst [.or [(0, mp [("n", s "x")]), (0, mp [("n", s "y")])]]),
+      .list [.map [("n", .str "X")]]),
+    (.meet (n 1) .hole, .integer 1), (.meet (n 1) .hole, .integer 2), (.meet (s "a") .hole, .str "a"),
+    (.meet (mp [("a", n 1)]) (mp [("a", .hole)]), .map [("a", .integer 1)]),
+    (.meet (lst [n 1]) (lst [.hole]), .list [.integer 1]),
+    (.meet .number .hole, .integer 1), (.meet .hole .number, .integer 1), (.meet .string .hole, .integer 1),
+    (.meet (mp [("a", .number)]) (mp [("a", .hole)]), .map [("a", .integer 1)]),
+    (.meet (.meet (s "x") (up .hole)) .hole, .str "X"),
+    (.meet (md (mp [("a", up .hole)])) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (mp [("a", s "x")]) (md (mp [("a", up .hole)])), .map [("a", .str "X")]),
+    (.meet (md (lst [up .hole])) (lst [s "a"]), .list [.str "A"]),
+    (.meet (.ride .deprecate (mp [("a", up .hole)]) []) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (hide (mp [("a", up .hole)])) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (type (mp [("a", up .hole)])) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (.list [up .hole] none true) (lst [s "a"]), .list [.str "A"]),
+    (.meet (.map [("a", false, up .hole)] none true) (mp [("a", s "x"), ("b", s "y")]),
+      .map [("a", .str "X"), ("b", .str "y")]),
+    (.meet (md (mp [("a", .call .sum [.hole])])) (lst [n 1, n 2]), .map [("a", .integer 3)]),
+    (.meet (.ride .metadata (md (mp [("a", up .hole)])) [("e", .integer 2)]) (mp [("a", s "x")]),
+      .map [("a", .str "X")]),
+    (.meet (md (mp [("a", up .hole)])) (mp [("a", .hole)]), .map [("a", .str "x")]),
+    (.meet (md .hole) (s "x"), .str "x"),
+    (.meet (.call .join [lst [s "a", .hole], s "-"]) (s "b"), .str "a-b"),
+    (.meet (.call .join [lst [.hole, s "b"], s "-"]) (s "a"), .str "a-b"),
+    (.meet (.call .join [lst [s "a", .hole], s "-"]) (s "b"), .str "b"),
+    (.meet (.call .join [lst [s "a", .hole], s "-"]) (s "a-b"), .str "a-b"),
+    (.meet (mp [("a", .call .join [lst [s "x", .hole], s "-"])]) (mp [("a", s "y")]), .map [("a", .str "x-y")]),
+    (.meet (lst [s "a", s "b"]) (.call .sum [.hole]), .integer 3),
+    (.meet (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 1)])])) (mp [("a", mp [])]),
+      .map [("a", .map [("n", .integer 2)])]),
+    (.meet (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 1)])])) (mp [("a", mp [])]),
+      .map [("a", .map [("n", .integer 3)])]),
+    (.meet (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [])])) (mp [("a", mp [("n", n 1)])]),
+      .map [("a", .map [("n", .integer 2)])]),
+    (.meet (spm [] (mp [("n", add1 .hole)])) (.meet (mp [("a", mp [("n", n 1)])]) (mp [("a", mp [])])),
+      .map [("a", .map [("n", .integer 2)])]),
+    (.meet (spm [("a", mp [("n", n 1)])] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 2)])]),
+      .map [("a", .map [("n", .integer 2)])]),
+    (.meet (.meet (spm [] (lst [add1 .hole])) (mp [("a", lst [n 1])])) (mp [("a", lst [n 2])]),
+      .map [("a", .list [.integer 2])]),
+    (.meet (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 1)])])) (mp [("b", mp [("n", n 5)])]),
+      .map [("a", .map [("n", .integer 2)]), ("b", .map [("n", .integer 6)])]),
+    (.meet (spm [] (mp [("n", up .hole)])) (mp [("a", mp [])]), .map [("a", .map [])]),
+    (.meet (.meet (.meet (spm [] (mp [("n", add1 .hole)])) (mp [("a", mp [("n", n 1)])])) (mp [("a", mp [])]))
+      (mp [("a", mp [])]), .map [("a", .map [("n", .integer 2)])]),
+    (.len (.meet (add1 .hole) (n 2)), .list [.str "a"]),
+    (.len (.meet (add1 .hole) (n 2)), .list [.str "a", .str "b", .str "c"]),
+    (.must (.meet (up .hole) (s "a")) "m", .str "A"), (.must (.meet (up .hole) (s "a")) "m", .str "a"),
+    (.select (s "A") [(.meet (up .hole) (s "a"), n 1)] (some (n 2)), .integer 1),
+    (.when .string (.meet (up .hole) (s "a")) none, .str "A"),
+    (.when .string (.meet (up .hole) (s "a")) none, .str "a"),
+    (.contains (.meet (add1 .hole) (n 0)) (.min (.num one)), .list [.integer 2]),
+    (.contains (.meet (add1 .hole) (n 0)) (.min (.num one)), .list [.integer 1]),
+    (.rest (.meet (add1 .hole) (n 0)) [], .map [("a", .integer 2)]),
+    (.rest (.meet (add1 .hole) (n 0)) [], .map [("a", .integer 1)]),
+    (.nof (n 1) [.meet (add1 .hole) (n 0), n 5], .integer 1),
+    (.nof (n 1) [.meet (add1 .hole) (n 0), n 5], .integer 2),
+    (.meet (.call .plus [lst [s "a", .hole], lst [s "c"]]) (lst [s "a", s "b", s "c"]),
+      .list [.str "a", .str "b", .str "c"]),
+    (.meet (.call .plus [lst [s "a", .hole], lst [s "c"]]) (lst [s "a", s "b", s "c"]),
+      .list [.str "a", .list [.str "a", .str "b", .str "c"], .str "c"]),
+    (.meet (.call .plus [lst [.hole], .hole]) (lst [s "a"]), .list [.str "a"]),
+    (.meet (.call .plus [lst [.hole], .hole]) (lst [s "a"]), .list [.list [.str "a"], .str "a"]),
+    (.call .plus [lst [s "a", .hole], lst [s "c"]], .list [.str "a", .str "b", .str "c"]),
+    (.meet (.call .plus [.hole, lst [s "c"]]) (lst [s "a"]), .list [.str "a", .str "c"]),
+    (.meet (.call .plus [lst [up .hole], lst [s "c"]]) (lst [s "a", s "c"]), .list [.str "A", .str "c"]),
+    (.meet (.call .plus [lst [up .hole], lst [s "c"]]) (lst [s "a", s "c"]), .list [.str "a", .str "c"]),
+    (.meet (lst [s "a", s "c"]) (.call .plus [lst [up .hole], lst [s "c"]]), .list [.str "A", .str "c"]),
+    (.meet (.call .plus [lst [s "a"], lst [up .hole]]) (lst [s "a", s "c"]), .list [.str "a", .str "C"]),
+    (.meet (.call .plus [lst [mp [("k", up .hole)]], lst [s "c"]]) (lst [mp [("k", s "a")], s "c"]),
+      .list [.map [("k", .str "A")], .str "c"]),
+    (.call .plus [lst [n 5], lst [mp [("n", .keyUp 1)]]], .list [.integer 5, .map [("n", .str "0")]]),
+    (.call .plus [lst [n 5], lst [mp [("n", .keyUp 1)]]], .list [.integer 5, .map [("n", .str "1")]]),
+    (.call .plus [.list [n 1] (some .string) false, lst []], .list [.integer 1]),
+    (.call .plus [.list [s "a"] (some (up .hole)) false, lst [s "b"]], .list [.str "A", .str "b"])]
+
+set_option maxRecDepth 8192 in
+/-- A hole the document leaves unfilled, which the data fills, the data
+met last (decision 29 of the design note's §7), for the `verdict` rows
+dv0 on. A call on the data's value, which it takes as its argument
+rather than meets, so that `add(_, 1)` passes `2` and `3` alike, and
+refusing it; one the document's own peer fills first, which the data
+then meets; inside a map, the data leaving it out, which is incomplete
+but under `--partial`; inside a list, one whose peer's one element is
+marked and holds no position, and in a spread; a generator over
+the data; the hole alone, and two holes met, which meet as one; a
+call met with a hole or with a call that both wait, which neither
+fills, an error; a generator whose template no member reaches, read by
+its data alone; and a disjunction whose arm waits, met arm by arm, by
+the data, inside a map and a list, and by the document's own peer on
+either side, an arm whose call the data leaves unmade dropping, as
+`add(_, 1) | "x"` passes `"x"`; and a lone preference over a call that
+waits, the data filling its preferred arm and meeting its parent arm,
+so that `*add(_, 1)` passes `"x"`, at the top, inside a map, which the
+data may leave out, and inside a list, and one the document's own peer
+fills, whose filled arm the data passes as `eval` gives it (decision
+30), so that `*upper(_) & "a"` passes `"A"`, on either side, after a
+later peer that leaves nothing to replace it, and beside the data's own
+value through its parent arm; and a disjunction of containers
+a container meets, met arm by arm on either side, at the top, as a
+member, in a list and beside a meet; and a member that is a hole, which
+an empty map met on either side leaves for the data. Last, a call over
+a container whose argument is the hole, which takes the data as its
+argument as any call does: `sum` over a list and a map, and refusing a
+number and a list of strings, `least` over a list and refusing an empty
+one, `greatest`, `sort`, `pick` and `join` over a list, a hole as
+`join`'s separator, and `sum` as a member. -/
+def dataFillCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let up (v : Val) : Val := .call .upper [v]
+  let add1 (v : Val) : Val := .call .add [v, n 1]
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  let spm (fs : List (String × Val)) (t : Val) : Val := .map (fs.map fun (k, v) => (k, false, v)) (some t) false
+  [(up .hole, .str "a"), (up .hole, .str "A"), (up .hole, .integer 1), (up .hole, .map [("a", .integer 1)]),
+    (add1 .hole, .integer 2), (add1 .hole, .integer 3), (add1 .hole, .str "a"),
+    (.meet (up .hole) (s "A"), .str "a"), (.meet (up .hole) (s "A"), .str "A"),
+    (mp [("a", up .hole)], .map [("a", .str "x")]), (mp [("a", up .hole)], .map []),
+    (lst [up .hole], .list [.str "a"]), (.meet (lst [up .hole]) (lst [.ride .hide (s "a") []]), .list [.str "A"]),
+    (spm [] (up .hole), .map [("a", .str "x")]),
+    (.call .each [.hole, up .hole], .list [.str "a", .str "b"]), (.hole, .str "a"),
+    (.meet .hole .hole, .str "a"), (.meet (up .hole) .hole, .str "A"), (.meet (up .hole) (up .hole), .str "A"),
+    (.call .each [.hole, up (mp [])], .list []), (.call .each [.hole, up (mp [])], .list [.str "a"]),
+    (mp [("a", .call .each [.hole, up (mp [])])], .map []),
+    (.call .pack [.hole, mp [("n", up (mp []))]], .list []),
+    (.or [(0, up .hole), (0, s "fallback")], .str "a"), (.or [(0, up .hole), (0, s "fallback")], .str "fallback"),
+    (.or [(0, up .hole), (0, s "fallback")], .integer 1), (.or [(0, add1 .hole), (0, s "z")], .integer 2),
+    (mp [("a", .or [(0, up .hole), (0, s "x")])], .map [("a", .str "y")]),
+    (lst [.or [(0, up .hole), (0, s "x")]], .list [.str "y"]),
+    (.meet (.or [(0, up .hole), (0, s "x")]) (s "a"), .str "A"),
+    (.meet (s "a") (.or [(0, up .hole), (0, s "x")]), .str "A"),
+    (.meet (mp [("a", .or [(0, up .hole), (0, s "x")])]) (mp [("a", s "y")]), .map [("a", .str "Y")]),
+    (.meet (mp [("a", s "y")]) (mp [("a", .or [(0, up .hole), (0, s "x")])]), .map [("a", .str "Y")]),
+    (.or [(0, add1 .hole), (0, s "x")], .str "x"), (.or [(0, add1 .hole), (0, s "x")], .integer 2),
+    (.or [(0, add1 .hole), (0, .call .add [.hole, n 2]), (0, s "x")], .str "x"),
+    (.or [(0, add1 .hole), (0, .call .add [.hole, n 2])], .str "x"),
+    (mp [("a", .or [(0, add1 .hole), (0, s "x")])], .map [("a", .str "x")]),
+    (lst [.or [(0, add1 .hole), (0, s "x")]], .list [.str "x"]),
+    (.pref 1 (up .hole), .str "a"), (.pref 1 (up .hole), .integer 1),
+    (.pref 1 (add1 .hole), .integer 2), (.pref 1 (add1 .hole), .str "x"),
+    (mp [("a", .pref 1 (up .hole))], .map [("a", .str "a")]), (mp [("a", .pref 1 (up .hole))], .map []),
+    (lst [.pref 1 (up .hole)], .list [.str "a"]),
+    (.meet (mp [("a", up .hole)]) (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]), .map [("a", .str "A")]),
+    (.meet (mp [("a", up .hole)]) (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]), .map [("a", .str "C")]),
+    (.meet (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]) (mp [("a", up .hole)]), .map [("a", .str "A")]),
+    (.meet (mp [("x", mp [("a", up .hole)])]) (mp [("x", .or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])])]),
+      .map [("x", .map [("a", .str "A")])]),
+    (.meet (lst [up .hole]) (.or [(0, lst [s "a"]), (0, lst [s "b"])]), .list [.str "A"]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("b", n 1)])) (.or [(0, mp [("a", s "a")]), (0, mp [("a", s "b")])]),
+      .map [("a", .str "A"), ("b", .integer 1)]),
+    (.meet (.pref 1 (up .hole)) (s "a"), .str "A"), (.meet (.pref 1 (up .hole)) (s "a"), .str "a"),
+    (.meet (.pref 1 (up .hole)) (s "a"), .str "b"),
+    (.meet (s "a") (.pref 1 (up .hole)), .str "A"), (.meet (s "a") (.pref 1 (up .hole)), .str "a"),
+    (.meet (.pref 1 (add1 .hole)) (n 1), .integer 2), (.meet (.pref 1 (add1 .hole)) (n 1), .integer 1),
+    (.meet (.pref 1 (add1 .hole)) (n 1), .integer 3),
+    (mp [("a", .meet (.pref 1 (up .hole)) (s "a"))], .map [("a", .str "A")]),
+    (mp [("a", .meet (.pref 1 (up .hole)) (s "a"))], .map [("a", .str "a")]),
+    (lst [.meet (.pref 1 (up .hole)) (s "a")], .list [.str "A"]),
+    (.meet (.meet (.pref 1 (up .hole)) (s "a")) (s "A"), .str "A"),
+    (.meet (.meet (.pref 1 (up .hole)) (s "a")) (s "A"), .str "a"),
+    (.meet (mp []) (mp [("a", .hole)]), .map [("a", .str "x")]),
+    (.meet (mp [("a", .hole)]) (mp []), .map [("a", .str "x")]),
+    (.call .sum [.hole], .list [.integer 1, .integer 2]), (.call .sum [.hole], .integer 3),
+    (.call .sum [.hole], .map [("a", .integer 1), ("b", .integer 2)]),
+    (.call .sum [.hole], .list [.str "a", .str "b"]),
+    (.call .least [.hole], .list [.integer 1, .integer 2]), (.call .least [.hole], .list []),
+    (.call .greatest [.hole], .list [.integer 1, .integer 2]),
+    (.call .sort [.hole], .list [.str "b", .str "a"]),
+    (.call .pick [.hole, s "a"], .list [.map [("a", .integer 1)]]),
+    (.call .join [.hole, s "-"], .list [.str "a", .str "b"]),
+    (.call .join [lst [s "a", s "b"], .hole], .str "-"),
+    (mp [("k", .call .sum [.hole])], .map [("k", .list [.integer 1, .integer 2])])]
+
+theorem dataFillCases_checkable : ∀ c ∈ dataFillCases, (vetDoc c).1.CheckableA := by decide
+
+theorem data_fill_verdict_exact : ∀ c ∈ dataFillCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (dataFillCases_checkable c hc)) v
+
+set_option maxRecDepth 8192 in
+/-- A disjunction's arm that does not stand, for the `verdict` rows da0
+on: a call the reading can't make, by its domain, its count of
+arguments or a call inside it, one inside a map or a list, and a size
+that holds a choice, each dropping as a
+conflict's arm does, so that the other arm stands; and an error where
+no arm stands, where the call stands alone, or where a preference clash
+is between the arms the disjunction is read with, as both ports answer. -/
+def illArmCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let up (v : Val) : Val := .call .upper [v]
+  let add1 (v : Val) : Val := .call .add [v, n 1]
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  [(.or [(0, add1 (s "x")), (0, s "x")], .str "x"), (add1 (s "x"), .str "x"),
+    (.or [(0, add1 (s "x")), (0, add1 (s "y"))], .str "x"),
+    (.or [(0, .call .add [.hole]), (0, s "x")], .str "x"),
+    (.or [(0, mp [("a", add1 (s "x"))]), (0, s "x")], .str "x"),
+    (.or [(0, lst [add1 (s "x")]), (0, s "x")], .str "x"),
+    (.or [(0, .call .add [.hole, add1 (s "x")]), (0, s "x")], .str "x"),
+    (.or [(0, .len (.or [(0, n 1), (0, n 3)])), (0, s "x")], .str "x"),
+    (.or [(0, mp [("a", .or [(1, n 1), (1, n 2)])]), (0, s "x")], .str "x"),
+    (.or [(0, .or [(1, n 1), (1, n 2)]), (0, s "x")], .str "x")]
+
+theorem illArmCases_checkable : ∀ c ∈ illArmCases, (vetDoc c).1.CheckableA := by decide
+
+theorem ill_arm_verdict_exact : ∀ c ∈ illArmCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (illArmCases_checkable c hc)) v
+
+set_option maxRecDepth 8192 in
+/-- A meet of two sides that both wait on a hole, one of them more than
+the hole, for the `verdict` rows dg0 on: an error however the document
+groups it and whatever it meets, a literal, a hole, a disjunction or a
+preference's peer, two holes meeting as one first, and where a map's or
+a list's member meets another's, or a spread's template a member that
+waits; such a group after a literal, its call and its hole in either
+order, and two maps' or two lists' members that are such a pair, beside
+a member or an element only one side writes; a group whose call its own
+other side fills, which then meets a literal it conflicts with, and a
+group of a container and a hole; a sum over a hole and a hole; a
+group that waits on one side only, a call over no hole beside a hole
+and two containers whose members pair no such sides, which reads as
+the meet does, among them a member whose meet fills its own hole; a
+call beside two holes, which meet as one; and a disjunction's arm that
+holds one
+dropping as a conflict's arm does, so that another arm stands, or an
+error where none does, as both ports answer. And a call met with a
+group that fills its own hole, which reads as the group's value: on
+the call's right, against data the call's output passes and data it
+refuses, and on its left, each beside a literal too, and a group that
+is a call its own other side fills. -/
+def groupCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let up (v : Val) : Val := .call .upper [v]
+  let lo (v : Val) : Val := .call .lower [v]
+  let g : Val := .meet (up .hole) .hole
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  [(.meet g (s "x"), .str "X"), (.meet (s "x") g, .str "X"), (.meet g .hole, .str "A"),
+    (.meet (.meet .hole .hole) (up .hole), .str "a"), (.meet (up .hole) (.meet .hole .hole), .str "a"),
+    (.meet (.meet (up .hole) (lo .hole)) (s "x"), .str "x"),
+    (.meet g (.or [(0, s "x"), (0, s "y")]), .str "X"), (.meet (.pref 1 g) (s "x"), .str "x"),
+    (.meet (mp [("a", g)]) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (.meet (mp [("a", up .hole)]) (mp [("a", .hole)])) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (.meet (lst [up .hole]) (lst [.hole])) (lst [s "x"]), .list [.str "X"]),
+    (.meet (.meet (.map [] (some (up .hole)) false) (mp [("a", .hole)])) (mp [("a", s "x")]),
+      .map [("a", .str "X")]),
+    (.or [(0, g), (0, s "x")], .str "x"), (.or [(0, g), (0, s "x")], .str "X"),
+    (.or [(0, .meet g (s "x")), (0, s "y")], .str "y"), (.or [(1, g), (0, s "x")], .str "x"),
+    (.meet (.or [(0, g), (0, s "x")]) (s "x"), .str "x"), (.meet (.or [(0, g), (0, s "x")]) (s "y"), .str "y"),
+    (.or [(0, g), (0, .meet (lo .hole) .hole)], .str "x"),
+    (.meet (mp [("a", up .hole)]) (.or [(0, mp [("a", .hole)]), (0, mp [("a", s "x")])]), .map [("a", .str "x")]),
+    (.or [(0, .meet (mp [("a", up .hole)]) (mp [("a", .hole)])), (0, s "x")], .str "x"),
+    (.or [(0, .meet .hole .hole), (0, s "x")], .str "a"), (lst [.or [(0, g), (0, s "x")]], .list [.str "x"]),
+    (.or [(0, .meet (.ride .type (up .hole) []) .hole), (0, s "x")], .str "x"),
+    (.meet (s "X") g, .str "X"), (.meet (s "x") (.meet .hole (up .hole)), .str "X"),
+    (.meet (s "x") (.meet (up .hole) (s "y")), .str "Y"),
+    (.meet (mp [("a", s "x")]) (.meet (mp [("a", up .hole)]) (mp [("a", .hole)])), .map [("a", .str "X")]),
+    (.meet (mp [("a", s "x")]) (.meet (mp [("b", s "b"), ("a", up .hole)]) (mp [("a", .hole)])),
+      .map [("a", .str "X"), ("b", .str "b")]),
+    (.meet (lst [s "x"]) (.meet (lst [up .hole]) (lst [.hole])), .list [.str "X"]),
+    (.meet (lst [s "x", s "y"]) (.meet (lst [up .hole, s "y"]) (lst [.hole])), .list [.str "X", .str "y"]),
+    (.meet (s "x") (.meet (mp [("a", up .hole)]) .hole), .str "x"),
+    (.meet (n 1) (.meet (.call .plus [.hole, n 1]) .hole), .integer 2),
+    (.meet (lst [s "y", s "x"]) (.meet (lst [s "y", up .hole]) (lst [.hole, .hole])), .list [.str "y", .str "X"]),
+    (.meet (s "x") (.meet (lst [up .hole]) .hole), .str "x"),
+    (.meet (s "A") (.meet (up (s "a")) .hole), .str "A"),
+    (.meet (mp [("a", s "x")]) (.meet (mp [("a", s "x")]) (mp [("a", .hole)])), .map [("a", .str "x")]),
+    (.meet (lst [s "x"]) (.meet (lst [s "x"]) (lst [.hole])), .list [.str "x"]),
+    (.meet (lst [s "x", s "y"]) (.meet (lst [s "x", s "y"]) (lst [.hole])), .list [.str "x", .str "y"]),
+    (.meet (mp [("a", s "X")]) (.meet (mp [("a", up .hole)]) (mp [("a", .meet .hole (s "X"))])),
+      .map [("a", .str "X")]),
+    (.meet (lst [s "X"]) (.meet (lst [up .hole]) (lst [.meet .hole (s "X")])), .list [.str "X"]),
+    (.meet (s "x") (.meet (up .hole) (.meet .hole .hole)), .str "X"),
+    (.meet (up .hole) (.meet .hole (s "A")), .str "A"),
+    (.meet (up .hole) (.meet .hole (s "A")), .str "a"),
+    (.meet (.meet .hole (s "A")) (up .hole), .str "A"),
+    (.meet (s "A") (.meet (up .hole) (.meet .hole (s "A"))), .str "A"),
+    (.meet (s "A") (.meet (.meet .hole (s "A")) (up .hole)), .str "A"),
+    (.meet (up .hole) (.meet (up .hole) (s "a")), .str "A")]
+
+theorem groupCases_checkable : ∀ c ∈ groupCases, (vetDoc c).1.CheckableA := by decide
+
+theorem group_verdict_exact : ∀ c ∈ groupCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (groupCases_checkable c hc)) v
+
+set_option maxRecDepth 8192 in
+/-- A spread's template that waits on a hole at its own position, for the
+`verdict` rows dt0 on: each side of a meet and each arm of a disjunction
+met with the member, one that waits with its hole bound to the member,
+so that `upper(_) & _` admits the members already in upper case and
+`upper(_) & "a"` none, in a map and a list, against the data and
+against a member the document writes, and a container inside the
+template, at its own position or beneath a side or an arm that waits,
+filled from its own meet first; a container side or arm met with the
+member member by member, a hole beneath it taking the member's member
+there, whether the spread meets the data, the map's own members, or a
+map or a list on either side of a meet; and a bare hole, alone or under
+a rider, which takes each member as it stands, a member that is a hole
+among them, which the data fills; and a template that is a hole beside a
+container, met with a member that is a disjunction, arm by arm; and a
+container side under a rider or a mark, met with the member member by
+member as it would be bare, against the data and a member the document
+writes; as both ports answer. -/
+def spreadTmplCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let up (v : Val) : Val := .call .upper [v]
+  let lo (v : Val) : Val := .call .lower [v]
+  let add1 (v : Val) : Val := .call .add [v, n 1]
+  let g : Val := .meet (up .hole) .hole
+  let sm (t : Val) : Val := .map [] (some t) false
+  let sl (t : Val) : Val := .list [] (some t) false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  let lm (t : String) : Val := mp [("n", s t)]
+  let nd (t : String) : Data := .map [("n", .str t)]
+  let tT : Val := .meet .hole (mp [("n", up .hole)])
+  let tA : Val := .or [(0, up .hole), (0, mp [("n", up .hole)])]
+  let tR : Val := .meet .hole (.ride .type (mp [("n", up .hole)]) [])
+  let tM : Val := .meet .hole (.ride .metadata (mp [("n", up .hole)]) [("d", .integer 1)])
+  [(sm g, .map [("a", .str "X")]), (sm g, .map [("a", .str "x")]), (sm g, .map []),
+    (sl g, .list [.str "X"]), (sl g, .list [.str "X", .str "y"]),
+    (sm g, .map [("a", .str "X"), ("b", .str "Y")]),
+    (.meet (sm g) (mp [("a", s "X")]), .map [("a", .str "X")]),
+    (.meet (sm g) (mp [("a", s "x")]), .map [("a", .str "X")]),
+    (.meet (.meet (sm g) (mp [("a", s "X")])) (mp [("a", s "Y")]), .map [("a", .str "X")]),
+    (.map [("b", false, s "Q")] (some g) false, .map [("b", .str "Q")]),
+    (.map [("b", false, s "q")] (some g) false, .map [("b", .str "q")]),
+    (sm (.meet (up .hole) (s "a")), .map [("b", .str "A")]), (sm (.meet (up .hole) (s "a")), .map [("b", .str "a")]),
+    (sm (.meet (up .hole) (s "a")), .map []),
+    (.meet (sm (.meet (up .hole) (s "a"))) (mp [("b", s "A")]), .map [("b", .str "A")]),
+    (sl (.meet (up .hole) (s "a")), .list [.str "A"]), (sm (.meet (s "a") (up .hole)), .map [("b", .str "A")]),
+    (sm (.meet (up .hole) (lo .hole)), .map [("a", .str "x")]), (sm (.meet (lo .hole) .hole), .map [("a", .str "x")]),
+    (sm (.meet .hole .hole), .map [("a", .integer 1)]), (sm (.meet .hole (s "a")), .map [("b", .str "b")]),
+    (sm (.meet (add1 .hole) .hole), .map [("a", .integer 1)]), (sm (.meet (add1 .hole) .number), .map [("a", .integer 1)]),
+    (sm (.meet .number (add1 .hole)), .map [("a", .integer 1)]),
+    (sm (.meet (up .hole) .string), .map [("a", .str "X")]), (sm (.meet (up .hole) .string), .map [("a", .str "x")]),
+    (sm (.or [(0, g), (0, s "y")]), .map [("a", .str "Y")]), (sm (.or [(0, g), (0, s "y")]), .map [("a", .str "y")]),
+    (sm (.or [(0, g), (0, s "y")]), .map [("a", .str "z")]),
+    (sm (.or [(0, up .hole), (0, s "y")]), .map [("a", .str "y")]),
+    (sm (.or [(0, add1 .hole), (0, s "x")]), .map [("a", .integer 1)]),
+    (sm (.meet (.ride .type (up .hole) []) .hole), .map [("a", .str "X")]),
+    (sm (mp [("n", .meet (up .hole) (s "a"))]), .map [("a", .map [("n", .str "A")])]),
+    (sm (mp [("n", g)]), .map [("a", .map [("n", .str "X")])]),
+    (sm (.or [(0, up .hole), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "A")])]),
+    (sm (.or [(0, up .hole), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "a")])]),
+    (sm (.or [(0, g), (0, mp [("n", .meet (up .hole) (s "a"))])]), .map [("a", .map [("n", .str "A")])]),
+    (sm (.meet .hole (mp [("n", .meet (up .hole) (s "a"))])), .map [("a", .map [("n", .str "A")])]),
+    (sm tT, .map [("a", nd "X")]), (sm tT, .map [("a", nd "x")]),
+    (sm (.meet (mp [("n", up .hole)]) .hole), .map [("a", nd "X")]),
+    (sm (.meet (mp [("n", up .hole)]) .hole), .map [("a", nd "x")]),
+    (sm (mp [("n", up .hole)]), .map [("a", nd "X")]), (sm (mp [("n", up .hole)]), .map [("a", nd "x")]),
+    (sm (.meet .hole (.list [up .hole] none false)), .map [("a", .list [.str "X"])]),
+    (sm (.meet .hole (.list [up .hole] none false)), .map [("a", .list [.str "x"])]),
+    (sm tA, .map [("a", nd "X")]), (sm tA, .map [("a", nd "x")]),
+    (sm (.meet .hole (mp [("n", mp [("m", up .hole)])])), .map [("a", .map [("n", .map [("m", .str "X")])])]),
+    (sm (.meet .hole (mp [("n", mp [("m", up .hole)])])), .map [("a", .map [("n", .map [("m", .str "x")])])]),
+    (sl tT, .list [nd "X"]), (sl tT, .list [nd "x"]),
+    (sm (.meet .hole (mp [("n", g)])), .map [("a", nd "X")]), (sm (.meet .hole (mp [("n", g)])), .map [("a", nd "x")]),
+    (sm tT, .map [("a", .str "x")]), (sm tT, .map [("a", .map [])]), (sm tT, .map []),
+    (.map [("a", false, lm "X")] (some tT) false, .map [("a", nd "X")]),
+    (.map [("a", false, lm "x")] (some tT) false, .map [("a", nd "x")]),
+    (.meet (mp [("a", lm "X")]) (sm tT), .map [("a", nd "X")]), (.meet (mp [("a", lm "x")]) (sm tT), .map [("a", nd "x")]),
+    (.meet (sm tT) (mp [("a", lm "X")]), .map [("a", nd "X")]), (.meet (sm tT) (mp [("a", lm "x")]), .map [("a", nd "x")]),
+    (.map [("a", false, lm "x")] (some tA) false, .map [("a", nd "X")]),
+    (.meet (mp [("a", lm "x")]) (sm tA), .map [("a", nd "X")]),
+    (.meet (.list [lm "X"] none false) (sl tT), .list [nd "X"]), (.meet (.list [lm "x"] none false) (sl tT), .list [nd "x"]),
+    (.meet (sl tT) (.list [lm "X"] none false), .list [nd "X"]),
+    (sm (.meet (.meet .hole (mp [("n", up .hole)])) (mp [("m", lo .hole)])),
+      .map [("a", .map [("n", .str "X"), ("m", .str "y")])]),
+    (sm (.meet (.meet .hole (mp [("n", up .hole)])) (mp [("m", lo .hole)])),
+      .map [("a", .map [("n", .str "X"), ("m", .str "Y")])]),
+    (sm .hole, .map [("a", .integer 1)]), (sm .hole, .map [("a", .str "a")]),
+    (.meet (sm .hole) (mp [("a", n 1)]), .map [("a", .integer 1)]),
+    (.meet (sm .hole) (mp [("a", n 1)]), .map [("a", .integer 2)]),
+    (.meet (sl .hole) (.list [n 1] none false), .list [.integer 1]),
+    (.meet (sl .hole) (.list [n 1] none false), .list [.integer 2]),
+    (.meet (sm (.ride .type .hole [])) (mp [("a", n 1)]), .map [("a", .integer 1)]),
+    (.meet (mp [("a", n 1)]) (sm .hole), .map [("a", .integer 1)]),
+    (.meet (.list [n 1] none false) (sl .hole), .list [.integer 1]),
+    (.meet (sm .hole) (mp [("a", mp [("x", n 1)])]), .map [("a", .map [("x", .integer 1)])]),
+    (.meet (sm .hole) (mp [("a", .hole)]), .map [("a", .str "x")]),
+    (.meet (sm tT) (mp [("a", .or [(0, lm "X"), (0, lm "Y")])]), .map [("a", nd "X")]),
+    (sm tR, .map [("a", nd "X")]), (sm tR, .map [("a", nd "x")]),
+    (.meet (sm tM) (mp [("a", lm "X")]), .map [("a", nd "X")]),
+    (.meet (sm tM) (mp [("a", lm "x")]), .map [("a", nd "X")])]
+
+theorem spreadTmplCases_checkable : ∀ c ∈ spreadTmplCases, (vetDoc c).1.CheckableA := by decide
+
+theorem spread_tmpl_verdict_exact : ∀ c ∈ spreadTmplCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (spreadTmplCases_checkable c hc)) v
+
+set_option maxRecDepth 8192 in
+theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
+
+theorem hole_fill_verdict_exact : ∀ c ∈ holeFillVetCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (holeFillVetCases_checkable c hc)) v
+
+/-- The transformer `emit`, over a selection written in place: the first
+template whose `match` takes a node taken, in the table's order, a map's
+members in key order, and a table of one template written as the
+template; a body's hole and its references into the node, in a map of
+the body, through a map of the node and at a position of a list, a
+map's key in digits among them; a list in a body spliced at any depth,
+a nested `emit` among them, whose selection reads the outer node; an
+empty selection and an empty body; a template's `match` fields met;
+the dispatch, which takes a node the meet narrows nothing of, a kind
+and a map of kinds among them, refusing one it narrows and one whose
+meet holds a member it lacks, an optional key that generates nothing
+being no member, and taking a disjunction with no preference where any
+arm meets, under a rider too, each rider of the node and the `match`
+read through, a member's among them, and a meet compared by its
+conjuncts; a hole in a `match`, which matches nothing where it stands,
+a spread among the places, and is the value it meets in a meet or an
+arm; a body's piece read in normal form before it splices; and each
+refusal both ports make an error: no template that matches, an empty
+table, a template without its `match` or its `body`, or with a body
+not written as a list, read before the selection, two bodies, a
+selection that is no bag, and a reference the node doesn't answer, a
+step up, a position past the end and one in a part the reading drops
+among them, but one in a spread, which the ports leave unbound. -/
+def emitCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let jm (fs : List (String × Data)) : Data := .map fs
+  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
+  let nb (n : ℤ) (h : IntegerLeaf n := by decide) : Bound := .num (.integer ⟨n, h⟩)
+  let rule (m : Val) (b : List Val) : Val := mp [("match", m), ("body", lst b)]
+  let k1 : Val := mp [("k", int 1)]
+  [(c .emit [lst [k1], rule k1 [str "a"]], jl [js "a"]),
+    (c .emit [lst [k1], rule k1 [str "a"]], jl [js "b"]),
+    (c .emit [lst [mp [("k", str "sqs"), ("p", str "x")], mp [("k", str "http"), ("u", str "/y")]],
+      lst [rule (mp [("k", str "sqs")]) [c .plus [str "L:", nd ["p"]]],
+        rule (mp [("k", str "http")]) [c .plus [str "S:", nd ["u"]]]]], jl [js "L:x", js "S:/y"]),
+    (c .emit [lst [mp [("k", str "sqs")]], lst [rule (mp []) [str "first"], rule (mp [("k", str "sqs")]) [str "second"]]],
+      jl [js "first"]),
+    (c .emit [mp [("b", mp [("k", int 2)]), ("a", k1)], rule (mp [("k", .integer)]) [nd ["k"]]], jl [j 1, j 2]),
+    (c .emit [mp [("b", mp [("k", int 2)]), ("a", k1)], rule (mp [("k", .integer)]) [nd ["k"]]], jl [j 2, j 1]),
+    (c .emit [lst [], rule (mp []) [str "x"]], jl []),
+    (c .emit [mp [], rule (mp []) [str "x"]], jl []),
+    (c .emit [lst [k1], rule k1 [lst [str "a", str "b"], str "c"]], jl [js "a", js "b", js "c"]),
+    (c .emit [lst [k1], rule k1 [.hole]], jl [jm [("k", j 1)]]),
+    (c .emit [lst [mp [("k", int 1), ("c", lst [mp [("n", str "x")], mp [("n", str "y")]])]],
+      rule k1 [str "open", c .emit [nd ["c"], rule (mp [("n", .string)]) [nd ["n"]]], str "close"]],
+      jl [js "open", js "x", js "y", js "close"]),
+    (c .emit [lst [k1], rule k1 [mp [("a", nd ["k"])]]], jl [jm [("a", j 1)]]),
+    (c .emit [lst [mp [("m", mp [("p", str "x")])]], rule (mp [("m", mp [("p", .string)])]) [nd ["m", "p"]]],
+      jl [js "x"]),
+    (c .emit [lst [k1, mp [("p", str "q")]],
+      lst [rule (mp [("p", .string)]) [nd ["p"]], rule (mp [("k", .integer)]) [nd ["k"]]]], jl [j 1, js "q"]),
+    (c .emit [lst [k1], rule k1 []], jl []),
+    (c .emit [lst [k1], rule (mp [("k", int 2)]) [str "x"]], jm []),
+    (c .emit [lst [k1], lst []], jm []),
+    (c .emit [lst [k1], mp [("match", k1)]], jm []),
+    (c .emit [lst [k1], mp [("body", lst [str "x"])]], jm []),
+    (c .emit [lst [k1], mp [("match", k1), ("body", str "x")]], jm []),
+    (c .emit [int 1, rule (mp []) [str "x"]], jm []),
+    (c .emit [lst [k1], rule k1 [nd ["nope"]]], jm []),
+    (c .emit [lst [k1, mp [("p", str "q")]],
+      lst [rule (mp [("k", .integer)]) [nd ["k"]], rule (mp [("p", .string)]) [nd ["p"], nd ["k"]]]], jm []),
+    (c .emit [lst [k1], rule k1 [.path [.node, .up 2, .key "k"]]], jm []),
+    (c .emit [lst [lst [int 10]], rule .listKind [.path [.node, .idx 0]]], jl [j 10]),
+    (c .emit [lst [mp [("a", lst [int 5, int 6])]], rule .mapKind [.path [.node, .key "a", .idx 1]]], jl [j 6]),
+    (c .emit [lst [mp [("a", mp [("b", lst [int 7])])]], rule .mapKind [.path [.node, .key "a", .key "b", .idx 0]]],
+      jl [j 7]),
+    (c .emit [lst [mp [("0", int 5)]], rule .mapKind [.path [.node, .idx 0]]], jl [j 5]),
+    (c .emit [lst [lst [int 10]], rule .listKind [.path [.node, .idx 2]]], jm []),
+    (c .emit [lst [int 1], rule .any [lst [lst [str "a"]]]], jl [js "a"]),
+    (c .emit [lst [int 1], rule .any [lst [str "a", lst [str "b"]]]], jl [js "a", js "b"]),
+    (c .emit [lst [], mp [("match", .any)]], jm []),
+    (c .emit [lst [], mp [("body", lst [str "x"])]], jm []),
+    (c .emit [lst [], lst []], jl []),
+    (c .emit [lst [], lst [rule (int 1) []]], jl []),
+    (c .emit [lst [k1], .map [("match", false, k1), ("match", false, mp [("k", int 2)]),
+      ("body", false, lst [str "x"])] none false], jm []),
+    (c .emit [lst [mp [("k", int 1), ("j", int 2)]], .map [("match", false, k1), ("match", false, mp [("j", int 2)]),
+      ("body", false, lst [str "x"])] none false], jl [js "x"]),
+    (c .emit [lst [int 1], .map [("match", false, .integer), ("body", false, lst [str "a"]),
+      ("body", false, lst [str "a"])] none false], jm []),
+    (c .emit [lst [.integer], rule .integer [str "x"]], jl [js "x"]),
+    (c .emit [lst [.integer], rule .string [str "x"]], jm []),
+    (c .emit [lst [mp [("a", .integer)]], rule (mp [("a", .integer)]) [str "x"]], jl [js "x"]),
+    (c .emit [lst [mp [("a", .integer)]], rule (mp [("a", int 1)]) [str "x"]], jm []),
+    (c .emit [lst [.min (nb 1)], rule (int 5) [str "x"]], jm []),
+    (c .emit [lst [int 1], rule (.min (nb 0)) [str "x"]], jl [js "x"]),
+    (c .emit [lst [k1], rule (mp [("k", int 1), ("j", int 2)]) [str "x"]], jm []),
+    (c .emit [lst [k1], rule (.map [("k", false, int 1), ("j", true, int 2)] none false) [str "x"]], jm []),
+    (c .emit [lst [k1], rule (.map [("k", false, int 1)] none true) [str "x"]], jl [js "x"]),
+    (c .emit [lst [mp [("k", int 1), ("j", int 2)]], rule k1 [str "x"]], jl [js "x"]),
+    (c .emit [lst [lst [int 1]], rule (lst [.integer]) [str "x"]], jl [js "x"]),
+    (c .emit [lst [.or [(0, int 1), (0, int 2)]], rule (int 1) [str "x"]], jl [js "x"]),
+    (c .emit [lst [.or [(1, int 1), (0, int 2)]], rule (int 1) [str "x"]], jm []),
+    (c .emit [lst [k1], rule (.or [(0, k1), (0, mp [("j", int 2)])]) [str "x"]], jm []),
+    (c .emit [lst [int 1], rule .hole [str "yes"]], jm []),
+    (c .emit [lst [k1], rule (mp [("k", .hole)]) [str "yes"]], jm []),
+    (c .emit [lst [lst [int 1]], rule (lst [.hole]) [str "x"]], jm []),
+    (c .emit [lst [int 1], rule (.meet .hole .integer) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule (.meet .integer .hole) [str "x"]], jl [js "x"]),
+    (c .emit [lst [k1], rule (mp [("k", .meet .hole .integer)]) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule (.or [(0, .hole), (0, int 2)]) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], lst [rule .hole [str "a"], rule .any [str "b"]]], jl [js "b"]),
+    (c .emit [lst [mp [("a", int 1)]], rule (mp [("a", nd ["a"])]) [str "x"]], jm []),
+    (c .emit [lst [], mp [("match", .any), ("body", str "x")]], jm []),
+    (c .emit [lst [], lst [rule .any [str "a"], mp [("match", int 1), ("body", int 2)]]], jm []),
+    (c .emit [lst [.ride .metadata (.or [(0, int 1), (0, int 2)]) []], rule (int 1) [str "x"]], jl [js "x"]),
+    (c .emit [lst [.ride .deprecate (.or [(0, int 1), (0, int 2)]) []], rule (int 1) [str "x"]], jl [js "x"]),
+    (c .emit [lst [.ride .metadata (.or [(0, int 1), (0, int 2)]) []], rule (int 3) [str "x"]], jm []),
+    (c .emit [lst [.ride .metadata (.or [(1, int 1), (0, int 2)]) []], rule (int 1) [str "x"]], jm []),
+    (c .emit [lst [k1], rule (.map [("k", false, int 1), ("j", true, .integer)] none false) [str "x"]], jl [js "x"]),
+    (c .emit [lst [k1], rule (.map [("k", false, int 1), ("j", true, mp [])] none false) [str "x"]], jl [js "x"]),
+    (c .emit [lst [.map [("k", false, int 1), ("j", true, .integer)] none false], rule k1 [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule (.ride .metadata .integer []) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule (.ride .type .integer []) [str "x"]], jl [js "x"]),
+    (c .emit [lst [k1], rule (mp [("k", .ride .metadata (int 1) [])]) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule .any [.meet (lst [str "a"]) (lst [str "a"])]], jl [js "a"]),
+    (c .emit [lst [int 1], rule .any [.ride .metadata (lst [str "a"]) []]], jl [js "a"]),
+    (c .emit [lst [int 1], rule .any [.select (int 1) [(int 1, str "x")] (some (nd ["missing"]))]], jl [js "x"]),
+    (c .emit [lst [mp [("l", lst [mp [("x", int 1)]])]], rule .any [c .emit [nd ["l"], rule .any [nd ["x"]]]]],
+      jl [j 1]),
+    (c .emit [lst [], mp [("match", .any), ("body", c .each [lst [str "x"], .hole])]], jm []),
+    (c .emit [lst [int 1], mp [("match", .any), ("body", .meet (lst [str "x"]) (lst [str "x"]))]], jm []),
+    (c .emit [lst [.min (nb 1)], rule (.min (nb 1)) [str "x"]], jl [js "x"]),
+    (c .emit [lst [.min (nb 1)], rule (.min (nb 2)) [str "x"]], jm []),
+    (c .emit [lst [.meet .integer (.min (nb 1))], rule .integer [str "x"]], jl [js "x"]),
+    (c .emit [lst [k1], rule (.map [] (some .hole) false) [str "x"]], jm []),
+    (c .emit [lst [lst [int 1]], rule (.list [] (some .hole) false) [str "x"]], jm []),
+    (c .emit [lst [mp []], rule (.map [] (some .hole) false) [str "x"]], jl [js "x"]),
+    (c .emit [lst [k1], rule (.map [] (some (.meet .hole .integer)) false) [str "x"]], jl [js "x"]),
+    (c .emit [lst [int 1], rule .any [.select (int 1) [(int 1, str "x")] (some (.map [] (some (nd ["missing"])) false))]],
+      jl [js "x"]),
+    (c .emit [lst [int 1], rule .any [.select (int 1) [(int 1, str "x")] (some (.list [] (some (nd ["missing"])) false))]],
+      jl [js "x"]),
+    (c .emit [lst [int 1], rule .any [.select (int 1) [(int 1, str "x")] (some (mp [("a", nd ["missing"])]))]],
+      jl [js "x"]),
+    (c .emit [lst [mp [("a", int 1)]], rule .any [.map [("x", false, int 1)] (some (nd ["a"])) false]],
+      jl [.map [("x", j 1)]])]
+
+theorem emitCases_checkable : ∀ c ∈ emitCases, (vetDoc c).1.CheckableA := by decide
+
+theorem emit_verdict_exact : ∀ c ∈ emitCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (emitCases_checkable c hc)) v
+
+/-- `key(n)` read where it stands: at a key and at an index, at its
+levels to the top and past it, under a meet, a call, a rider and a
+disjunction, and where the fill writes it; in a template, the member's
+key or index and the levels above the call, through nested generators;
+at a spread's own position, the key the spread reads and the levels
+above it. -/
+def keyUpCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jm (fs : List (String × Data)) : Data := .map fs
+  let jl (xs : List Data) : Data := .list xs
+  let k (n : ℤ) : Val := .keyUp n
+  [(k 0, js "v"), (k 0, js "x"), (k 1, js ""), (k 2, js ""), (k (-1), js ""),
+    (mp [("a", k 1)], jm [("a", js "v")]), (mp [("a", k 0)], jm [("a", js "a")]),
+    (mp [("a", k 0)], jm []),
+    (mp [("a", mp [("b", k 1)])], jm [("a", jm [("b", js "a")])]),
+    (mp [("a", mp [("b", k 2)])], jm [("a", jm [("b", js "v")])]),
+    (mp [("a", mp [("b", k 2)])], jm [("a", jm [("b", js "a")])]),
+    (mp [("a", mp [("b", k 3)])], jm [("a", jm [("b", js "")])]),
+    (lst [k 0, k 1], jl [js "0", js "v"]),
+    (lst [mp [("x", k 1)], mp [("x", k 1)]], jl [jm [("x", js "0")], jm [("x", js "1")]]),
+    (mp [("a", c .upper [k 0])], jm [("a", js "A")]),
+    (mp [("a", c .plus [str "x-", k 0])], jm [("a", js "x-a")]),
+    (mp [("a", .meet (k 0) .string)], jm [("a", js "a")]),
+    (mp [("a", .ride .metadata (k 0) [("t", j 1)])], jm [("a", js "a")]),
+    (mp [("a", .or [(0, k 0), (0, str "x")])], jm [("a", js "a")]),
+    (mp [("a", .or [(0, k 0), (0, str "x")])], jm [("a", js "y")]),
+    (c .pack [lst [str "web", str "auth"], mp [("n", k 1), ("t", k 2)]],
+      jm [("auth", jm [("n", js "auth"), ("t", js "v")]), ("web", jm [("n", js "web"), ("t", js "v")])]),
+    (c .pack [lst [str "a"], k 0], jm [("a", js "a")]),
+    (c .pack [lst [str "a"], c .plus [str "acme/", k 0]], jm [("a", js "acme/a")]),
+    (c .each [lst [str "p", str "q"], mp [("k", k 1)]], jl [jm [("k", js "0")], jm [("k", js "1")]]),
+    (c .each [lst [str "p", str "q"], k 0], jl [js "0", js "1"]),
+    (c .each [mp [("b", int 1), ("a", int 2)], mp [("k", k 1), ("v", .hole)]],
+      jl [jm [("k", js "0"), ("v", j 2)], jm [("k", js "1"), ("v", j 1)]]),
+    (c .pack [lst [str "a"], mp [("i", c .pack [lst [str "b"], mp [("x", k 1), ("y", k 2), ("z", k 3)]])]],
+      jm [("a", jm [("i", jm [("b", jm [("x", js "b"), ("y", js "i"), ("z", js "a")])])])]),
+    (c .pack [lst [str "a"], mp [("i", c .each [lst [str "b"], mp [("x", k 1), ("w", k 4)]])]],
+      jm [("a", jm [("i", jl [jm [("x", js "0"), ("w", js "v")]])])]),
+    (c .each [lst [int 1, int 2], lst [k 0, k 1]], jl [jl [js "0", js "0"], jl [js "0", js "1"]]),
+    (.map [("c", false, .string)] (some (k 1)) false, jm [("c", js "v")]),
+    (.map [("c", false, .string)] (some (k 0)) false, jm [("c", js "c")]),
+    (mp [("s", .map [("c", false, .string)] (some (k 1)) false)], jm [("s", jm [("c", js "s")])]),
+    (.list [] (some (k 1)) false, jl [js "v", js "v"]),
+    (c .pack [lst [str "a"], .map [("q", false, .string)] (some (k 1)) false], jm [("a", jm [("q", js "a")])]),
+    (c .pack [lst [str "a"], .map [("q", false, .string)] (some (k 0)) false], jm [("a", jm [("q", js "q")])])]
+
+theorem keyUpCases_checkable : ∀ c ∈ keyUpCases, (vetDoc c).1.CheckableA := by decide
+
+/-- A `filter`'s condition holding `key(n)`, read where each member it
+tries lands: under a map member's key, and at the index a list member
+takes among those kept. -/
+def keyUpFilterCases : List (Val × Data) :=
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  [(.filter (mp [("a", str "a"), ("b", str "c")]) (.keyUp 0), .map [("a", js "a")]),
+    (.filter (lst [str "x", str "0", str "1"]) (.keyUp 0), .list [js "0", js "1"]),
+    (.filter (lst [str "0", str "b", str "2"]) (.keyUp 0), .list [js "0"]),
+    (.filter (mp [("a", mp [("n", str "a")]), ("b", mp [("n", str "c")])]) (mp [("n", .keyUp 1)]),
+      .map [("a", .map [("n", js "a")])])]
+
+set_option maxRecDepth 8192 in
+theorem keyUpFilterCases_readable : ∀ c ∈ keyUpFilterCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
+  decide
+
+theorem keyUp_verdict_exact : ∀ c ∈ keyUpCases ++ keyUpFilterCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v := by
+  intro c hc _ v
+  have hr : (Decls.readR [] (vetDoc c).1).CheckableA := by
+    rcases List.mem_append.mp hc with h | h
+    · exact readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (keyUpCases_checkable c h)
+    · exact keyUpFilterCases_readable c h
+  exact vet_iff (fun _ h => absurd h (List.not_mem_nil)) hr v
+
+/-- A call the schema can't build, which fails the schema wherever it
+stands, for the `verdict` rows from x2238 on: under `type()` and under
+`hide()`, as an optional member, and as a list's element; and, read
+nowhere, as the template of a spread that meets no member, which
+passes. -/
+def heldFailCases : List (Val × Data) :=
+  let bad : Val := .call .add [.lit (.num (.integer ⟨1, by decide⟩))]
+  [(.ride .type bad [], .integer 1), (.ride .hide bad [], .integer 1),
+    (.map [("a", true, bad)] none false, .map []),
+    (.list [bad] none false, .list [.integer 1]),
+    (.map [] (some bad) false, .map [])]
+
+theorem heldFailCases_checkable : ∀ c ∈ heldFailCases, (vetDoc c).1.CheckableA := by decide
+
+theorem held_fail_verdict_exact : ∀ c ∈ heldFailCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (heldFailCases_checkable c hc)) v
+
+/-! ## Variables
+
+A variable is a name the calling program declares. Both runners bind the
+same variables for every row, `specVars` in `go/spec_test.go` and
+`makeVarsCtx` in `ts/test/spec.test.ts`, and a `gens` row reads them. -/
+
+/-- The runners' bindings, as the calling program makes them: data,
+each as its term, and the kind `integer`, since a binding is any value. -/
+def progVars : List (String × Val) :=
+  (([("foo", .integer 11), ("bar", .str "hello"), ("flag", .bool true), ("obj", .map [("x", .integer 1)]),
+    ("big", .integer 1152921504606846976), ("half", .num (.float (.dyadic 3 (-1)))),
+    ("off", .bool false), ("bigi", .num (.biginteger ⟨5⟩)), ("bigd", .num (.bigdecimal (.of 15 1))),
+    ("nul", .null), ("PARENT", .str "q")] : List (String × Data)).map fun v => (v.1, v.2.term)) ++
+    [("kint", .integer)]
+
+/-- The declarations the bindings make, beside a document that declares none. -/
+def progDecls : Decls := Decls.withVars [] progVars
+
+/-- Variables read as the values the program binds: each binding alone,
+met with a kind, a map and itself, in a list and a map, in a call, as a
+default, and as the data a generator reads, and a kind the program binds
+met with a number. A float, a big integer and a big decimal bind too,
+and have no row, since `Data.json` writes no number but an integer. -/
+def varCases : List Val :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let v (n : String) : Val := .var n
+  [v "foo", v "bar", v "flag", v "obj", v "big", v "off", v "nul", v "PARENT",
+    .meet (v "foo") .integer, .meet (v "foo") .number, .meet (v "big") .integer,
+    .meet (v "obj") .mapKind, .meet (v "obj") (mp [("y", int 2)]), .meet (v "foo") (v "foo"),
+    lst [v "foo", v "bar"], mp [("a", v "foo"), ("b", v "foo")],
+    .call .plus [v "foo", int 1], .call .upper [v "bar"], .or [(1, v "foo"), (0, int 1)],
+    .call .pack [lst [v "PARENT"], mp [("n", .hole)]],
+    .meet (v "kint") (v "foo"), .meet (v "kint") (int 2)]
+
+set_option maxRecDepth 16384 in
+theorem varCases_readable : progDecls.guardedB = true ∧ progDecls.bodiesCheckableB = true ∧
+    ∀ t ∈ varCases, (normaliseD progDecls (progDecls.readR (docOf t))).checkableAB = true := by decide
+
+/-- What each case generates is the definition's output under the
+program's declarations, by `outputD_iff`. -/
+theorem var_output_exact : ∀ t ∈ varCases, ∀ (root j : Data),
+    outputD progDecls (progDecls.readR (docOf t)) = some j ↔
+      OutputD progDecls root (progDecls.readR (docOf t)) j :=
+  fun t ht _ j => outputD_iff (Decls.guardedB_iff.mp varCases_readable.1)
+    (Decls.bodiesCheckableB_iff.mp varCases_readable.2.1)
+    ((Val.checkableAB_iff _).mp (varCases_readable.2.2 t ht)) j
+
+/-- Variables as a path's steps, each read as its value's text: a map
+read by key and a list by the index the text spells, a variable as the
+first step, two variables in one path, and a `move` that hides the
+member a variable names. -/
+def varPathCases : List Val :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let keyed (k n : String) : Val := mp [("q", mp [(k, int 3)]), ("x", .path [.key "v", .key "q", .var n])]
+  [keyed "11" "foo", keyed "hello" "bar", keyed "true" "flag", keyed "false" "off",
+    keyed "1152921504606846976" "big", keyed "1.5" "half", keyed "5" "bigi", keyed "1.5" "bigd",
+    mp [("q", lst [int 0, int 1, int 2, int 3, int 4, int 5, int 6, int 7, int 8, int 9, int 10, int 11, int 12]),
+      ("x", .path [.key "v", .key "q", .var "foo"])],
+    mp [("q", lst [int 5, int 6, int 7, int 8, int 9, int 10]), ("x", .path [.key "v", .key "q", .var "bigi"])],
+    mp [("q", mp [("c", int 5)]), ("a", mp [("b", .path [.key "v", .var "PARENT", .key "c"])])],
+    mp [("q", mp [("hello", mp [("q", int 4)])]), ("x", .path [.key "v", .key "q", .var "bar", .var "PARENT"])],
+    mp [("q", mp [("hello", int 1)]), ("x", .call .move [.path [.key "v", .key "q", .var "bar"]])]]
+
+/-- A variable case read as the definition reads a document with paths:
+placed, then its paths read as names from the schema alone. -/
+def varReading (t : Val) : Decls × Val :=
+  ((progDecls.loaded (docOf t)).1.preparedS (progDecls.loaded (docOf t)).2).1.withPathsS
+    ((progDecls.loaded (docOf t)).1.preparedS (progDecls.loaded (docOf t)).2).2
+
+set_option maxRecDepth 16384 in
+theorem varPathCases_readable : ∀ t ∈ varPathCases,
+    (varReading t).1.guardedB = true ∧ (varReading t).1.bodiesCheckableB = true ∧
+    (normaliseD (varReading t).1 ((varReading t).1.readR (varReading t).2)).checkableAB = true := by
+  decide
+
+/-- What each case generates is the definition's output with paths
+under the program's declarations, by `outputP_iff`. -/
+theorem var_path_output_exact : ∀ t ∈ varPathCases, ∀ (root j : Data),
+    outputP progDecls (docOf t) = some j ↔ OutputP progDecls root (docOf t) j :=
+  fun t ht _ j => outputP_iff (outputL_iff (Decls.guardedB_iff.mp (varPathCases_readable t ht).1)
+    (Decls.bodiesCheckableB_iff.mp (varPathCases_readable t ht).2.1)
+    ((Val.checkableAB_iff _).mp (varPathCases_readable t ht).2.2) j)
+
+/-- The `gens` rows of the variables: each case under the key `v`, with
+the JSON the engines must write for it under the runners' bindings,
+the cases with paths read by `outputP`. -/
+def varRows (tag : String) : IO Unit := do
+  let mut i := 0
+  for (t, out) in varCases.map (fun t => (t, outputD progDecls (progDecls.readR (docOf t)))) ++
+      varPathCases.map (fun t => (t, outputP progDecls (docOf t))) do
+    let some src := t.cell | throw (IO.userError "a variable case has no text")
+    match out with
+    | some (.map [("v", x)]) =>
+      let some json := x.json | throw (IO.userError "an output has no JSON")
+      IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ "\t{\"v\":" ++ json ++ "}")
+    | _ => throw (IO.userError s!"a variable case generates nothing: {src}")
+    i := i + 1
+
 /-- A call on a name, the name read before the call is made. -/
 def callAliasCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
@@ -1896,7 +5546,21 @@ def callAliasCases : List (Decls × Val × Data) :=
     ([("A", .integer)], .call .add [.alias "A", int 1], j 2),
     ([("L", .list [int 1, int 2, int 3] none false)], .call .sum [.alias "L"], j 6),
     ([("M", .map [("a", false, int 1), ("b", false, int 2)] none false)],
-      .call .greatest [.alias "M"], j 2)]
+      .call .greatest [.alias "M"], j 2),
+    ([("L", .list [.map [("a", false, int 1)] none false, .map [("a", false, int 2)] none false]
+        none false)], .call .pick [.alias "L", .lit (.str "a")], .list [j 1, j 2]),
+    ([("L", .list [int 3, int 1, int 2] none false)], .call .sort [.alias "L"], .list [j 1, j 2, j 3]),
+    ([("S", .lit (.str "ab"))], .call .upper [.alias "S"], .str "AB"),
+    ([("N", int 1)], .call .upper [.lit (.str "foo"), .alias "N"], .str "fOO"),
+    ([("F", .lit (.str "a"))], .call .translate [.lit (.str "abc"), .alias "F", .lit (.str "x")],
+      .str "xbc"),
+    ([("K", .lit (.str "a"))], .call .pick [.list [.map [("a", false, int 1)] none false] none false,
+      .alias "K"], .list [j 1]),
+    ([("P", .lit (.str "n"))], .call .sort [.list [.map [("n", false, int 2)] none false,
+      .map [("n", false, int 1)] none false] none false, .alias "P"],
+      .list [.map [("n", j 1)], .map [("n", j 2)]]),
+    ([("D", .lit (.str "desc"))], .call .sort [.list [int 1, int 2] none false, .lit (.str ""),
+      .alias "D"], .list [j 2, j 1])]
 
 theorem callAliasCases_checkable : ∀ c ∈ callAliasCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
@@ -1905,6 +5569,251 @@ theorem call_alias_verdict_exact : ∀ c ∈ callAliasCases, ∀ (m : Mode) (v :
     vet m c.1 (aliasDoc c).1 (aliasDoc c).2 = v ↔ Vet m c.1 (aliasDoc c).1 (aliasDoc c).2 v :=
   fun c hc _ v => vet_iff (callAliasCases_checkable c hc).1
     (readR_checkableA (callAliasCases_checkable c hc).1 (callAliasCases_checkable c hc).2) v
+
+/-! ## Path values
+
+`path(p)` holds an address as data: it admits each address its own
+opens, generates its own, and meets another by the prefix rule. The
+rows read each the three ways the definition does: what it generates,
+how `vet` judges data against it, and what it subsumes. No row meets a
+path value with a string constraint, whose reading decision 23 of the
+design note's §7 leaves open (#474). -/
+
+/-- A path value: `path($.a.b)` from the root is `addrAt 0 ["a", "b"]`,
+and `path(..a)` is `addrAt 2 ["a"]`. -/
+def addrAt (up : ℕ) (steps : List String) : Val := .addr ⟨up, steps⟩
+
+/-- Path values alone, met with each other by the prefix rule and with
+`path` and `any`, in a disjunction and behind a preference, and in a
+map and a list, for the `gens` rows k0 on. -/
+def addrVals : List Val :=
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  [addrAt 0 ["a"], addrAt 0 ["a", "b"], addrAt 1 ["a"], addrAt 2 ["a", "b"], addrAt 0 ["a", "0"],
+    .meet (addrAt 0 ["a"]) (addrAt 0 ["a", "b"]), .meet (addrAt 0 ["a", "b"]) (addrAt 0 ["a"]),
+    .meet (addrAt 1 ["a"]) (addrAt 1 ["a", "b"]), .meet (addrAt 0 ["a"]) (addrAt 0 ["a"]),
+    .meet .pathKind (addrAt 0 ["a"]), .meet (addrAt 0 ["a"]) .pathKind, .meet .any (addrAt 0 ["a"]),
+    .meet (.meet .pathKind (addrAt 0 ["a", "b"])) (addrAt 0 ["a"]),
+    .or [(1, addrAt 0 ["a"]), (0, .pathKind)], .or [(1, addrAt 0 ["a"]), (0, addrAt 0 ["b"])],
+    .meet (addrAt 0 ["a"]) (.or [(0, addrAt 0 ["a", "b"]), (0, addrAt 0 ["c"])]),
+    mp [("x", addrAt 0 ["a"]), ("y", addrAt 1 ["x"])],
+    .list [addrAt 0 ["a"], addrAt 2 ["b"]] none false]
+
+theorem addrVals_checkable : ∀ v ∈ addrVals, (normalise v).Checkable := by decide
+
+theorem addr_output_exact : ∀ v ∈ addrVals, ∀ (env : Env) (root j : Data),
+    output v = some j ↔ Output env root v j :=
+  fun v hv _ _ j => output_iff (addrVals_checkable v hv) j
+
+/-- Path values met with a string constraint that reads each address by
+its spelling (decision 23 of the design note's §7), where the address the
+path value spells passes: a size, written before the path and after it,
+beside `path` and over a bound of its own, each bound with a string end,
+beside another path value and a relative one, for the `gens` rows ks0
+on. -/
+def spellVals : List Val :=
+  let s (b : String) : Bound := .str b
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  [.meet (addrAt 0 ["a"]) (.len (n 3)), .meet (.len (n 3)) (addrAt 0 ["a"]),
+    .meet (addrAt 0 ["a"]) (.min (s "$")), .meet (.min (s "$.a")) (addrAt 0 ["a"]),
+    .meet (addrAt 0 ["a", "b"]) (.above (s "$.a")), .meet (addrAt 0 ["a"]) (.max (s "$.b")),
+    .meet (.max (s "$.b")) (addrAt 0 ["a"]), .meet (addrAt 0 ["a"]) (.beneath (s "$.b")),
+    .meet (.meet (addrAt 0 ["a", "b"]) (addrAt 0 ["a"])) (.above (s "$.a")),
+    .meet (.meet (addrAt 0 ["a"]) (addrAt 0 ["a", "b"])) (.len (n 5)),
+    .meet (addrAt 1 ["a"]) (.len (n 2)),
+    .meet (.meet .pathKind (.len (n 3))) (addrAt 0 ["a"]),
+    .meet (addrAt 0 ["a"]) (.len (.min (.num (.integer ⟨2, by decide⟩)))),
+    .meet (.meet (addrAt 0 ["a"]) (.min (s "$.a"))) (.max (s "$.b"))]
+
+theorem spellVals_checkable : ∀ v ∈ spellVals, (normalise v).Checkable := by decide
+
+theorem spell_output_exact : ∀ v ∈ spellVals, ∀ (env : Env) (root j : Data),
+    output v = some j ↔ Output env root v j :=
+  fun v hv _ _ j => output_iff (spellVals_checkable v hv) j
+
+/-- Schemas that hold a path value met with a string constraint the
+address passes by its spelling, for the `verdict` rows ks0 on: the fill
+supplies the address the data leaves out. -/
+def spellVetCases : List (Val × Data) :=
+  let x (v : Val) : Val := .map [("x", false, v)] none false
+  let n3 : Val := .lit (.num (.integer ⟨3, by decide⟩))
+  [(x (.meet (addrAt 0 ["a"]) (.len n3)), .map []),
+    (x (.meet (addrAt 0 ["a", "b"]) (.above (.str "$.a"))), .map []),
+    (x (.meet (.max (.str "$.b")) (addrAt 0 ["a"])), .map [])]
+
+theorem spellVetCases_checkable : ∀ c ∈ spellVetCases, (vetDoc c).1.CheckableA := by decide
+
+theorem spell_verdict_exact : ∀ c ∈ spellVetCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (spellVetCases_checkable c hc)) v
+
+/-- Schemas that hold a path value against data, for the `verdict` rows k0
+on: a path the data leaves out, which the fill supplies, and a string
+the data writes for it, which no path value admits, since no JSON text
+reads as an address; `path` alone; and meets no value satisfies. -/
+def addrVetCases : List (Val × Data) :=
+  let x (v : Val) : Val := .map [("x", false, v)] none false
+  [(x (addrAt 0 ["a"]), .map []), (addrAt 0 ["a"], .str "$.a"), (x .pathKind, .map []),
+    (.pathKind, .str "$.a"), (.map [("x", true, addrAt 0 ["a"])] none false, .map []),
+    (x (.meet (addrAt 0 ["a"]) (addrAt 0 ["a", "b"])), .map []),
+    (x (.meet (addrAt 0 ["a"]) (addrAt 0 ["b"])), .map []),
+    (x (.meet (addrAt 0 ["a"]) (.lit (.str "$.a"))), .map []),
+    (x (.meet .string (addrAt 0 ["a"])), .map []),
+    (x (.meet .pathKind (.lit (.num (.integer (.of 1))))), .map []),
+    (x (.or [(1, addrAt 0 ["a"]), (0, .pathKind)]), .map []),
+    (x (.or [(0, addrAt 0 ["a"]), (0, addrAt 0 ["b"])]), .map []),
+    (x (addrAt 1 ["a"]), .map []), (addrAt 0 ["a"], .integer 1),
+    (x (.meet .pathKind (addrAt 0 ["a"])), .map []),
+    (x (.list [addrAt 0 ["a"], addrAt 2 ["b"]] none false), .map [])]
+
+theorem addrVetCases_checkable : ∀ c ∈ addrVetCases, (vetDoc c).1.CheckableA := by decide
+
+theorem addr_verdict_exact : ∀ c ∈ addrVetCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (addrVetCases_checkable c hc)) v
+
+/-- The values the `subsumption` rows k0 on compare: path values from the
+root and from a relative start, one the prefix of another, `path`,
+`string`, `any` and a string that spells an address. -/
+def addrSubVals : List Val :=
+  [.pathKind, addrAt 0 ["a"], addrAt 0 ["a", "b"], addrAt 0 ["b"], addrAt 1 ["a"],
+    addrAt 1 ["a", "b"], .string, .any, .lit (.str "$.a")]
+
+/-- The instances that may tell two of them apart: an address for each
+value, and a string. -/
+def addrInstances : List Data :=
+  [.addr ⟨0, ["a"]⟩, .addr ⟨0, ["a", "b"]⟩, .addr ⟨0, ["b"]⟩, .addr ⟨1, ["a"]⟩,
+    .addr ⟨1, ["a", "b"]⟩, .str "$.a", .str "a"]
+
+theorem addrSubVals_checkable : ∀ v ∈ addrSubVals, v.Checkable := by decide
+
+theorem addrInstances_wellFormed : ∀ j ∈ addrInstances, j.WellFormed := by decide
+
+/-- Every path `subsumption` row is the definition's, as
+`subsume_rows_exact` makes the others. -/
+theorem addr_subsume_rows_exact : ∀ g ∈ addrSubVals, ∀ s ∈ addrSubVals,
+    ((leDecF .empty 64 s g).isSome = true → s ⊑[.empty] g) ∧
+    (∀ j ∈ addrInstances, check s j = true → check g j = false → ¬ s ⊑[.empty] g) := by
+  intro g hg s hs
+  exact ⟨leDecF_sound, fun j hj h1 h2 =>
+    not_le_of_witness (addrSubVals_checkable s hs) (addrSubVals_checkable g hg)
+      (addrInstances_wellFormed j hj) h1 h2⟩
+
+/-- The pairs the `subsumption` rows ks0 on compare: string bounds that a
+path's spelling reaches and ones it can't, each under `string` and under
+`string & empty()`, which admit no path (#544). -/
+def spellSubPairs : List (Val × Val) :=
+  let bounds : List Val :=
+    [.min (.str ""), .min (.str "/"), .min (.str "a"), .above (.str ""), .above (.str "/"),
+      .max (.str "b"), .max (.str "#"), .beneath (.str "b"), .beneath (.str "$")]
+  [Val.string, .anyString].flatMap fun g => bounds.map fun s => (g, s)
+
+/-- The instances that may tell a pair apart: an address from the root
+and one from a relative start, and the strings at the bounds' ends. -/
+def spellSubInstances : List Data :=
+  [.addr ⟨0, ["a"]⟩, .addr ⟨1, ["x"]⟩, .str "", .str "a", .str "#"]
+
+theorem spellSubPairs_checkable : ∀ p ∈ spellSubPairs, p.1.Checkable ∧ p.2.Checkable := by
+  decide
+
+theorem spellSubInstances_wellFormed : ∀ j ∈ spellSubInstances, j.WellFormed := by decide
+
+/-- Every such row is the definition's, as `subsume_rows_exact` makes the
+others. -/
+theorem spell_subsume_rows_exact : ∀ p ∈ spellSubPairs,
+    ((leDecF .empty 64 p.2 p.1).isSome = true → p.2 ⊑[.empty] p.1) ∧
+    (∀ j ∈ spellSubInstances, check p.2 j = true → check p.1 j = false →
+      ¬ p.2 ⊑[.empty] p.1) := by
+  intro p hp
+  exact ⟨leDecF_sound, fun j hj h1 h2 =>
+    not_le_of_witness (spellSubPairs_checkable p hp).2 (spellSubPairs_checkable p hp).1
+      (spellSubInstances_wellFormed j hj) h1 h2⟩
+
+/-- `path` handed a string: its text converted to an address and met with
+the capture it must equal, or with one it can't, so that the row says
+which address the text spells; text that spells none, any other scalar
+and a container, each refused; a string a call computes, converted once
+it's settled; a preference, which only waits; and a path value, handed
+back as it is, behind a rider too, where `path` alone waits. -/
+def pathCallCases : List (Val × Data) :=
+  let x (v : Val) : Val := .map [("x", false, v)] none false
+  let str (s : String) : Val := .lit (.str s)
+  let p (s : String) : Val := .call .path [str s]
+  let one : Val := .lit (.num (.integer (.of 1)))
+  [(x (.meet (p "$.a") (addrAt 0 ["a"])), .map []), (x (.meet (p "$.a") (addrAt 1 ["a"])), .map []),
+    (x (.meet (p "a") (addrAt 1 ["a"])), .map []), (x (.meet (p "a") (addrAt 0 ["a"])), .map []),
+    (x (.meet (p "a.b") (addrAt 1 ["a", "b"])), .map []), (x (.meet (p "..a") (addrAt 2 ["a"])), .map []),
+    (x (.meet (p "$.0") (addrAt 0 ["0"])), .map []), (x (p "$.a-b_1"), .map []),
+    (x (.meet (p "$.a") (addrAt 0 ["a", "b"])), .map []),
+    (x (p "$"), .map []), (x (p "$x"), .map []), (x (p ""), .map []), (x (p "."), .map []),
+    (x (p "a."), .map []), (x (p "a..b"), .map []), (x (p "a b"), .map []), (x (p "Ü"), .map []),
+    (x (.meet (.call .path [.call .plus [str "$.", str "a"]]) (addrAt 0 ["a"])), .map []),
+    (x (.meet (.call .path [.call .upper [str "a"]]) (addrAt 1 ["A"])), .map []),
+    (x (.meet (.call .path [.ride .metadata (str "a") [("x", .integer 1)]]) (addrAt 1 ["a"])), .map []),
+    (x (.call .path [one]), .map []), (x (.call .path [.lit (.bool true)]), .map []),
+    (x (.call .path [.lit .null]), .map []), (x (.call .path [.list [one] none false]), .map []),
+    (x (.call .path [.map [("a", false, one)] none false]), .map []),
+    (x (.call .path [.pref 1 (str "a")]), .map []), (x (.call .path [.string]), .map []),
+    (x (.meet (p "$.a") (str "$.a")), .map []), (p "$.a", .str "$.a"),
+    (x (.meet (.call .path [p "$.a"]) (addrAt 0 ["a"])), .map []),
+    (x (.meet (.call .path [.ride .metadata (p "a") []]) (addrAt 1 ["a"])), .map []),
+    (x (.meet (.call .path [addrAt 0 ["a"]]) (addrAt 0 ["a"])), .map []),
+    (x (.meet (.call .path [.meet (addrAt 0 ["a"]) (addrAt 0 ["a", "b"])]) (addrAt 0 ["a", "b"])), .map []),
+    (x (.call .path [.meet (addrAt 0 ["a"]) (addrAt 0 ["b"])]), .map []),
+    (x (.call .path [.pathKind]), .map [])]
+
+set_option maxRecDepth 8192 in
+theorem pathCallCases_checkable : ∀ c ∈ pathCallCases, (vetDoc c).1.CheckableA := by decide
+
+theorem path_call_verdict_exact : ∀ c ∈ pathCallCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (pathCallCases_checkable c hc)) v
+
+/-- The grammars the rows hand `abnf` and `parse`: one rule of one
+literal, matched without regard to case and, after `%s`, exactly, which
+the oracle's host reads as every engine does, and two texts that compile
+in no engine, the empty text and a lone name. -/
+def oracleGrammars : List String := ["v = \"a\"\n", "v = %s\"ab\"", "", "v"]
+
+/-- `abnf`, which answers a grammar's source where it compiles; `parse`
+of a grammar and a string, the tree as data, met with the tree it must
+be; and `parse` of a grammar alone, the constraint of the strings it
+parses whole, against data. Each grammar is one of `oracleGrammars`. -/
+def grammarCases : List (Val × Data) :=
+  let x (v : Val) : Val := .map [("x", false, v)] none false
+  let str (s : String) : Val := .lit (.str s)
+  let one : Val := .lit (.num (.integer (.of 1)))
+  let gi := str "v = \"a\"\n"
+  let gs := str "v = %s\"ab\""
+  let tree (s : String) : Val :=
+    .map [("kids", false, .list [] none false), ("rule", false, str "v"), ("src", false, str s)] none false
+  let abnf (g : Val) : Val := .call .abnf [g]
+  let parse (g : Val) (v : Val) : Val := .call .parse [g, v]
+  let parse1 (g : Val) : Val := .call .parse [g]
+  [(x (.meet (abnf gi) gi), .map []), (x (abnf (str "")), .map []), (x (abnf (str "v")), .map []),
+    (x (abnf one), .map []),
+    (x (.meet (parse gi (str "a")) (tree "a")), .map []), (x (.meet (parse gi (str "A")) (tree "A")), .map []),
+    (x (.meet (parse gs (str "ab")) (tree "ab")), .map []), (x (parse gs (str "aB")), .map []),
+    (x (parse gi (str "b")), .map []), (x (parse gi (str "")), .map []), (x (parse (str "") (str "a")), .map []),
+    (x (parse one (str "a")), .map []), (x (parse gi one), .map []),
+    (x (.meet (parse (abnf gi) (str "a")) (tree "a")), .map []),
+    (x (.meet (parse gi (str "a")) (.map [("rule", false, str "w")] none false)), .map []),
+    (x (parse gi (str "a")), .map [("x", .map [("kids", .list []), ("rule", .str "v"), ("src", .str "a")])]),
+    (parse1 gi, .str "a"), (parse1 gi, .str "A"), (parse1 gi, .str "b"), (parse1 gi, .str ""),
+    (parse1 gs, .str "ab"), (parse1 gs, .str "AB"), (parse1 (str ""), .str "a"),
+    (x (parse1 gi), .map []), (x (.or [(1, str ""), (0, parse1 gi)]), .map []),
+    (x (.meet (parse1 gi) (str "A")), .map []), (x (.meet (parse1 gi) (str "b")), .map []),
+    (parse1 (abnf gi), .str "a")]
+
+set_option maxRecDepth 8192 in
+theorem grammarCases_checkable : ∀ c ∈ grammarCases, (vetDoc c).1.CheckableA := by decide
+
+theorem grammar_verdict_exact : ∀ c ∈ grammarCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (grammarCases_checkable c hc)) v
 
 def main (args : List String) : IO UInt32 := do
   match args with
@@ -1958,7 +5867,18 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# evaluation on a document with the one key `v`."
     IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
+    IO.println "# Variables, each the value both runners bind for every row, follow in rows"
+    IO.println "# i0 on, read as names the calling program declares."
+    IO.println "# Path values follow in rows k0 on: path(p) generates its own address, two"
+    IO.println "# meet by the prefix rule, the longer winning, and path admits each. A string"
+    IO.println "# constraint reads an address by its spelling, in rows ks0 on."
+    IO.println "# Lists that hold a marked element follow in rows gl0 on, read as a document"
+    IO.println "# reads them: the list holds no position for the element."
     genRows "g" genVals
+    varRows "i"
+    genRows "k" addrVals
+    genRows "ks" spellVals
+    readGenRows "gl" listGenVals
     return 0
   | ["verdict"] =>
     IO.println "# Generated by `lake exe oracle verdict` (spec/Oracle.lean) from the definition"
@@ -1973,13 +5893,22 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
     IO.println "# A size met with a container literal follows in rows l0 on: an error where"
     IO.println "# the size's upper half refuses the literal's count, the lower end waiting"
-    IO.println "# for generation."
+    IO.println "# for generation, and an optional member whose value generates an empty map"
+    IO.println "# or list not counted."
     IO.println "# The marks follow in rows h0 on: hide() and type() leave a member of a map"
     IO.println "# out of the output, the member still meeting the data, and --no-fill reads"
-    IO.println "# the schema's visible part."
+    IO.println "# the schema's visible part. A list holds no position for an element a mark"
+    IO.println "# of its own leaves out, in rows hl0 on."
+    IO.println "# Path values follow in rows k0 on: the fill supplies a path value the data"
+    IO.println "# leaves out, and none admits the string the data writes for it, since no"
+    IO.println "# JSON text reads as an address. A string constraint the address passes by"
+    IO.println "# its spelling leaves the fill as it is, in rows ks0 on."
     verdictRows "e"
     verdictRows "l" lenCases
     verdictRows "h" markCases
+    verdictRows "hl" markListCases
+    verdictRows "k" addrVetCases
+    verdictRows "ks" spellVetCases
     return 0
   | ["alias"] =>
     IO.println "# Generated by `lake exe oracle alias` (spec/Oracle.lean) from the definition"
@@ -2018,9 +5947,68 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# path to nothing is an error, as is a document that reads only by its own"
     IO.println "# paths. Regenerate with `make spec`; never edit by hand. The cases the ports"
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
-    IO.println "# Paths through the riders follow in rows q0 on, which a path reads through."
+    IO.println "# Paths through the riders follow in rows q0 on, which a path reads through,"
+    IO.println "# and key(n) reached through a path or a name, read where it lands, in rows r0 on."
+    IO.println "# Relative paths, made absolute where each stands, follow in rows j0 on, with"
+    IO.println "# the bodies read at an alias's own place written again after the schema in"
+    IO.println "# rows jl0 on, and"
+    IO.println "# maybe, absence where all that is wrong with a path is that it names nothing,"
+    IO.println "# in rows mb0 on, a list holding no position for absence in rows la0 on,"
+    IO.println "# and pref, each literal a preference and each preference a"
+    IO.println "# rank weaker, in rows pf0 on. Paths into a call's output, which resolve in the"
+    IO.println "# root with its calls made, follow in rows pc0 on, and move, a preference of"
+    IO.println "# the value a path reads with its source hidden, in rows mv0 on. Paths into"
+    IO.println "# what a call over a path makes, which resolve a round later, follow in rows"
+    IO.println "# rn0 on, and refer, a link that keeps its address, its template met into"
+    IO.println "# its target, in rows rf0 on. rel, a relation whose value holds a link at"
+    IO.println "# each leaf, follows in rows rl0 on, a constraint met with rel() before its"
+    IO.println "# value, which meets the value as any meet does, in rows rh0 on, and links"
+    IO.println "# read where they land, in a spread's template or copied by a path"
+    IO.println "# reference, in rows ld0 on, and in a generator's template, at each member"
+    IO.println "# of its output, in rows lg0 on. Spreads whose templates read their member's"
+    IO.println "# place, each read at each member there is, follow in rows sp0 on, and"
+    IO.println "# sources loaded in place, each a file of test/spec/files the definition"
+    IO.println "# declares as a term, in rows lf0 on."
+    IO.println "# Generators whose templates read their member's place through a relative"
+    IO.println "# path, each read at each member of the output, follow in rows gt0 on, a"
+    IO.println "# filter's condition, read where the member it tries lands, in rows fc0 on,"
+    IO.println "# bounds written over terms, each the bound its terms name, in rows bd0 on, and"
+    IO.println "# bounds over a relative path in a generator's template or a filter's"
+    IO.println "# condition, each read where its instance lands, in rows bg0 on. Sources that"
+    IO.println "# declare names of their own, each read in its own scope, follow in rows ls0 on,"
+    IO.println "# and the names a source publishes, with the destructures that take them, in"
+    IO.println "# rows lx0 on. The transformer emit over a selection a path names follows in"
+    IO.println "# rows em0 on, and copy, its argument with the marks and the seal cleared at"
+    IO.println "# every depth, in rows cp0 on. Links whose templates read the member or the"
+    IO.println "# place where they land, each read there and only at the instances its own"
+    IO.println "# generator makes, follow in rows lt0 on."
     pathRows "p"
     pathRows "q" riderPathCases
+    pathRows "r" keyPathCases
+    pathRows "j" relPathCases
+    pathRows "jl" aliasPlaceCases (declsLast := true)
+    pathRows "mb" maybeCases
+    pathRows "la" absentListCases
+    pathRows "pf" prefCases
+    pathRows "pc" callPathCases
+    pathRows "mv" moveCases
+    pathRows "rn" roundCases
+    pathRows "rf" referCases
+    pathRows "rl" relCases
+    pathRows "rh" relHeldCases
+    pathRows "ld" landCases
+    pathRows "lg" genLinkCases
+    pathRows "sp" spreadCases
+    pathRows "lf" loadCases
+    pathRows "gt" genTemplateCases
+    pathRows "fc" filterCondCases
+    pathRows "bd" boundArgCases
+    pathRows "bg" (boundFilterCases ++ boundEachCases)
+    pathRows "ls" scopeCases
+    pathRows "lx" takeCases
+    pathRows "em" (emitPathCases ++ emitFilterCases)
+    pathRows "cp" copyCases
+    pathRows "lt" linkTemplateCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
@@ -2068,9 +6056,14 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# one position refutes it (`not_defaultsLe_of_refutes`). The `gen` profile"
     IO.println "# follows in rows w0 on, over values that carry marks, the marks compared at"
     IO.println "# every position both have, a spread's among them (`genLe_of_walk`,"
-    IO.println "# `not_genLe_of_refutes`)."
+    IO.println "# `not_genLe_of_refutes`). Path values follow in rows k0 on: a prefix subsumes"
+    IO.println "# its extensions, path every path value, and string none. String bounds under"
+    IO.println "# string and string & empty() follow in rows ks0 on: each is above a bound that"
+    IO.println "# no path's spelling reaches, string where the bound refuses \"\" too."
     subsumeRows "s"
     subsumePairRows "m" kindPairs
+    subsumePairRows "k" (addrSubVals.flatMap fun g => addrSubVals.map fun s => (g, s)) addrInstances
+    subsumePairRows "ks" spellSubPairs spellSubInstances
     profilePairRows "f" .defaults (defaultVals.flatMap fun g => defaultVals.map fun s => (g, s))
     profilePairRows "w" .gen (markVals.flatMap fun g => markVals.map fun s => (g, s))
     return 0
@@ -2096,9 +6089,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# error. Regenerate with `make spec`; never edit by hand. The cases the ports"
     IO.println "# do not yet answer this way are listed in spec/ledger.tsv."
     IO.println "# A spread that selects on key(0), the key of the member it is tried on, or"
-    IO.println "# the position of the item, follows in rows y0 on."
+    IO.println "# the position of the item, follows in rows y0 on, contains over a recursive"
+    IO.println "# name, which the meet reads as its body, in rows tc0 on, and a trial with a"
+    IO.println "# dead argument both ports read as they build it in rows te0 on."
     trialRows "t"
     trialRows "y" keyCases
+    trialRows "tc" meetNameCases
+    trialRows "te" eagerCases
     return 0
   | ["calls"] =>
     IO.println "# Generated by `lake exe oracle calls` (spec/Oracle.lean) from the definition"
@@ -2110,11 +6107,73 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# by the tower's rules (spec/Aontu/Arith.lean); any other call, an argument"
     IO.println "# outside the function's domain, a zero divisor, an answer no leaf holds or the"
     IO.println "# wrong number of arguments, is an error. The folds sum, least and greatest,"
-    IO.println "# over a list or a map whose members are numbers, follow from row x129. A call"
-    IO.println "# on a name follows in rows z0 on."
+    IO.println "# over a list or a map whose members are numbers, follow from row x129, and +"
+    IO.println "# from row x300, which waits where it does not take its operands, so that the"
+    IO.println "# document is incomplete, and join from row x507, which waits on a member or a"
+    IO.println "# separator not yet settled. pick and sort, which never wait, follow from row"
+    IO.println "# x597, upper and lower from row x816, translate from row x966, and esc and usc"
+    IO.println "# from row x1068, super from row x1221, split from row x1332, rep from row"
+    IO.println "# x1404, nom from row x1521, the components of the component tree from row"
+    IO.println "# x1677, the generator each, its template read for each member of its data,"
+    IO.println "# from row x1803, and a filter whose condition holds the hole, read for each"
+    IO.println "# member it tries, from row x1902. A call skips an optional member whose value"
+    IO.println "# generates an empty map or list, from row x1935, rep reads its replacement"
+    IO.println "# against its pattern's groups before the text, from row x1959, pick and sort"
+    IO.println "# read a projector and a direction through a rider or a mark, from row x1995,"
+    IO.println "# a string names an index by its digits alone, from row x2025, and translate"
+    IO.println "# writes U+FFFD for a surrogate its to range names, from row x2055. The generator"
+    IO.println "# pack, its template read for each member of its data under the member's key,"
+    IO.println "# follows from row x2064, key(n), read where it stands, from row x2121, and a"
+    IO.println "# call the schema can't build, an error wherever it stands, from row x2238. A"
+    IO.println "# call on a name follows in rows z0 on, and a call handed a pattern, re(p), in"
+    IO.println "# rows v0 on. path handed a string follows in rows k0 on: its text converted to"
+    IO.println "# an address, text with no start read from one dot, and refused where it spells"
+    IO.println "# none, as is any other scalar and a container. abnf and parse follow in rows"
+    IO.println "# g0 on, over grammars of one rule of one literal, which the oracle's host"
+    IO.println "# reads as every engine does: abnf answers a grammar's source where it compiles,"
+    IO.println "# parse(g, v) the tree as data, and parse(g) admits the strings g parses whole."
+    IO.println "# The transformer emit follows in rows et0 on, over selections written in place:"
+    IO.println "# for each node, the body of the first template whose match the node meets,"
+    IO.println "# read for the node, each list in it spliced, and an error where no template"
+    IO.println "# matches or the body names what the node doesn't hold. A hole its call's peer"
+    IO.println "# fills follows in rows hv0 on: a meet with a hole on one side and none on the"
+    IO.println "# other reads as that side with the hole bound to the other, as the document"
+    IO.println "# groups its meets. A hole the document leaves unfilled, which the data fills,"
+    IO.println "# follows in rows dv0 on, and a disjunction's arm that does not stand, which"
+    IO.println "# drops as a conflict's arm does, in rows da0 on. A meet of two sides that both"
+    IO.println "# wait on a hole, which is an error however it is grouped, follows in rows dg0 on."
+    IO.println "# A spread's template that waits on a hole at its own position, each of its sides"
+    IO.println "# and arms met with the member and a hole bound to it, follows in rows dt0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
-    verdictRows "x" callCases
+    for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
+        projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
+        heldFailCases ++ pathCallCases do
+      unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
+        throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
+      unless hostReads v do
+        throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
+    for (_, v, _) in callAliasCases do
+      unless hostReads v do
+        throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
+    for (v, _) in patternCases do
+      unless hostReads v do
+        throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
+    verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
+      projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
+      heldFailCases)
+    verdictRows "et" emitCases
     aliasRows "z" callAliasCases
+    verdictRows "v" patternCases
+    verdictRows "k" pathCallCases
+    unless (oracleGrammars.take 2).all (fun g => (oneLiteral g).isSome) &&
+        (oracleGrammars.drop 2).all (fun g => (oneLiteral g).isNone) do
+      throw (IO.userError "a grammar of the rows the oracle's host does not read as every engine does")
+    verdictRows "g" grammarCases
+    verdictRows "hv" holeFillVetCases
+    verdictRows "dv" dataFillCases
+    verdictRows "da" illArmCases
+    verdictRows "dg" groupCases
+    verdictRows "dt" spreadTmplCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"

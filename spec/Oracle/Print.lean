@@ -77,13 +77,28 @@ def prefSrc (r : ℕ) (s : String) : String :=
   let stars := String.mk (List.replicate r '*')
   if s.startsWith "{" || s.startsWith "[" then stars ++ s else stars ++ s!"({s})"
 
+/-- A step of an address as the grammar spells it, where it can: a plain
+name, or a position. -/
+def plainStep (k : String) : Bool :=
+  k.length > 0 && (k.all Char.isDigit || (k.all (fun c => c.isAlphanum || c == '_') && !k.front.isDigit))
+
+/-- A path value as the call that captures it: `path($.a.b)`, `path(.b)`,
+where its text spells it, every step a plain name or a position and at
+least one step after its start. -/
+def Addr.src (a : Addr) : Option String :=
+  if a.steps.length > 0 && a.steps.all plainStep then some s!"path({a.text})" else none
+
 /-- A step of a path as the grammar spells it: a key that is a plain
-name, or a position; a key that needs quoting has no text here. -/
+name, a key in quotes, a position, a variable, or a climb, whose last
+dot the step after it writes. -/
 def segSrc : Seg → Option String
   | .key k =>
     if k.length > 0 && k.all (fun c => c.isAlphanum || c == '_') && !k.front.isDigit
-    then some ("." ++ k) else none
+    then some ("." ++ k) else some ("." ++ quote k)
   | .idx i => some ("." ++ toString i)
+  | .var n => some (".$" ++ n)
+  | .up n => some (String.mk (List.replicate (n - 1) '.'))
+  | .node => some ""
 
 mutual
 def Data.src : Data → Option String
@@ -93,6 +108,7 @@ def Data.src : Data → Option String
   | .null => some "null"
   | .map fs => do pure ("{" ++ ", ".intercalate (← membersSrc fs) ++ "}")
   | .list xs => do pure ("[" ++ ", ".intercalate (← elemsSrc xs) ++ "]")
+  | .addr _ => none
 
 def membersSrc : List (String × Data) → Option (List String)
   | [] => some []
@@ -172,6 +188,50 @@ def Fn.name : Fn → String
   | .sum => "sum"
   | .least => "least"
   | .greatest => "greatest"
+  | .plus => "+"
+  | .join => "join"
+  | .pick => "pick"
+  | .sort => "sort"
+  | .upper => "upper"
+  | .lower => "lower"
+  | .translate => "translate"
+  | .esc => "esc"
+  | .usc => "usc"
+  | .super => "super"
+  | .pref => "pref"
+  | .move => "move"
+  | .copy => "copy"
+  | .refer => "refer"
+  | .rel => "rel"
+  | .path => "path"
+  | .abnf => "abnf"
+  | .parse => "parse"
+  | .load => "@"
+  | .split => "split"
+  | .rep => "rep"
+  | .nom => "nom"
+  | .cmp c => c.name
+  | .each => "each"
+  | .pack => "pack"
+  | .emit => "emit"
+  | .maybe => "maybe"
+  | .bnd .min => "min"
+  | .bnd .max => "max"
+  | .bnd .above => "above"
+  | .bnd .below => "below"
+  | .bnd .neq => "neq"
+  | .bnd .mulof => "mulof"
+
+/-- The names a destructure takes, as it writes them: `%a` where the
+document's name is the source's, `%b: %a` where it takes `a` as `b`,
+and `%` for every name the source publishes. -/
+def takeNamesSrc : List Val → Option (List String)
+  | [.lit (.str "%")] => some ["%"]
+  | [] => some []
+  | .lit (.str b) :: .lit (.str a) :: rest => do
+    let r ← takeNamesSrc rest
+    pure ((if b == a then "%" ++ a else "%" ++ b ++ ": %" ++ a) :: r)
+  | _ => none
 
 mutual
 def Val.src : Val → Option String
@@ -185,7 +245,9 @@ def Val.src : Val → Option String
   | .boolean => some "boolean"
   | .mapKind => some "map"
   | .listKind => some "list"
+  | .pathKind => some "path"
   | .lit s => s.src
+  | .addr a => a.src
   | .min b => do pure s!"min({← b.src})"
   | .max b => do pure s!"max({← b.src})"
   | .above b => do pure s!"above({← b.src})"
@@ -197,8 +259,10 @@ def Val.src : Val → Option String
   | .unique (some k) => some s!"unique({quote k})"
   | .re p => some s!"re({quote p})"
   | .format g => some s!"format({quote g})"
+  | .grammar g => some s!"parse({quote g})"
   | .any => some "any"
   | .nil => some "nil"
+  | .absent | .nothing => none
   | .map fs spread closed => do
     let entries ← fieldsSrc fs
     let rest ← spreadSrc spread
@@ -216,9 +280,12 @@ def Val.src : Val → Option String
   | .or arms => do pure (" | ".intercalate (← armsSrc arms))
   | .pref r x => do pure (prefSrc r (← x.src))
   | .meet a b => do pure s!"({← a.src}) & ({← b.src})"
-  | .alias n => some ("%" ++ n)
+  | .alias n => some (if n.startsWith "$" then n else "%" ++ n)
   | .key => some "key(0)"
-  | .path p => do pure ("$" ++ String.join (← p.mapM segSrc))
+  | .keyUp n => some s!"key({n})"
+  | .hole => some "_"
+  | .path p => do
+    pure ((if p.head? matches some (.up _) | some .node then "" else "$") ++ String.join (← p.mapM segSrc))
   | .nof n cs => do pure s!"nof({← n.src}, {", ".intercalate (← itemsSrc cs)})"
   | .must c m => do pure s!"must({← c.src}, {quote m})"
   | .when c t e => do pure s!"when({", ".intercalate ([← c.src, ← t.src] ++ (← elseSrc e))})"
@@ -229,6 +296,10 @@ def Val.src : Val → Option String
   | .rest t cs => do pure s!"rest({", ".intercalate ([← t.src] ++ (← coversSrc cs))})"
   | .select s arms d => do pure s!"match({", ".intercalate ([← s.src] ++ (← pairsSrc arms) ++ (← elseSrc d))})"
   | .filter s c => do pure s!"filter({← s.src}, {← c.src})"
+  | .call .plus [a, b] => do pure s!"({← a.src}) + ({← b.src})"
+  | .call .load [.lit (.str p)] => some ("@" ++ quote p)
+  | .call .load (.lit (.str p) :: names) => do
+    pure ("{ " ++ ", ".intercalate (← takeNamesSrc names) ++ " } = @" ++ quote p)
   | .call f args => do pure s!"{f.name}({", ".intercalate (← itemsSrc args)})"
   | .ride .type v [] => do pure s!"type({← v.src})"
   | .ride .hide v [] => do pure s!"hide({← v.src})"
@@ -295,6 +366,7 @@ def Data.json : Data → Option String
   | .null => some "null"
   | .map fs => do pure ("{" ++ ",".intercalate (← membersJson fs) ++ "}")
   | .list xs => do pure ("[" ++ ",".intercalate (← elemsJson xs) ++ "]")
+  | .addr a => some (quote a.text)
 
 def membersJson : List (String × Data) → Option (List String)
   | [] => some []

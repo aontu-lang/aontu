@@ -160,6 +160,19 @@ theorem list_le_listKind (items : List Val) (spread : Option Val) (closed : Bool
   cases h
   exact ⟨hw, .listKind⟩
 
+/-- A path value is below every path value whose address opens its own,
+so a prefix subsumes its extensions, and every path value is below
+`path`. -/
+theorem addr_le_addr {a b : Addr} (h : a.Opens b) : .addr b ⊑[env] .addr a := by
+  intro j ⟨hw, hj⟩
+  cases hj with
+  | addr hc => exact ⟨hw, .addr (h.trans hc)⟩
+
+theorem addr_le_pathKind (a : Addr) : .addr a ⊑[env] .pathKind := by
+  intro j ⟨hw, h⟩
+  cases h
+  exact ⟨hw, .pathKind⟩
+
 /-- `{}` and `[]`, open and with no spread, admit every map and every
 list, so each kind is below them: the kind and its empty literal admit
 the same values, and only `Output` tells them apart. -/
@@ -244,29 +257,76 @@ theorem mulof_le_mulof {a b : Number} (hb : b.Positive) (hab : a.multipleOf b) :
   cases hj with
   | mulof _ hx => exact ⟨hw, .mulof hb (Number.multipleOf_trans hx hab)⟩
 
-theorem min_str_le_anyString (t : String) : .min (.str t) ⊑[env] .anyString := by
-  intro j ⟨hw, h⟩
-  cases h with | minStr _ => exact ⟨hw, .anyString⟩
+/-- An address spells with `$` from the root and with `.` from a
+relative start. -/
+theorem Addr.text_head (a : Addr) : ∃ cs, a.text.data = '$' :: cs ∨ a.text.data = '.' :: cs := by
+  obtain ⟨up, steps⟩ := a
+  cases up with
+  | zero => exact ⟨_, .inl rfl⟩
+  | succ n => exact ⟨_, .inr rfl⟩
 
-theorem max_str_le_anyString (t : String) : .max (.str t) ⊑[env] .anyString := by
-  intro j ⟨hw, h⟩
-  cases h with | maxStr _ => exact ⟨hw, .anyString⟩
+/-- So every spelling sits at `$` or above, and below `/`, the
+character after `.`. -/
+theorem Addr.dollar_le_text (a : Addr) : "$" ≤ a.text := by
+  intro h
+  have h' : a.text.data < ['$'] := h
+  obtain ⟨cs, hd | hd⟩ := a.text_head <;> rw [hd] at h'
+  · cases h' with
+    | rel hc => exact absurd hc (by decide)
+    | cons h'' => cases h''
+  · cases h' with
+    | rel hc => exact absurd hc (by decide)
 
-theorem above_str_le_anyString (t : String) : .above (.str t) ⊑[env] .anyString := by
-  intro j ⟨hw, h⟩
-  cases h with | aboveStr _ => exact ⟨hw, .anyString⟩
+theorem Addr.text_lt_slash (a : Addr) : a.text < "/" := by
+  show a.text.data < ['/']
+  obtain ⟨cs, hd | hd⟩ := a.text_head <;> rw [hd]
+  · exact List.Lex.rel (by decide)
+  · exact List.Lex.rel (by decide)
 
-theorem beneath_str_le_anyString (t : String) : .beneath (.str t) ⊑[env] .anyString := by
+/-- A string bound admits an address by its spelling (decision 23 of
+the design note's §7), so it is below `string & empty()` only where no
+spelling reaches it: a lower end at `/` or above, an upper end below
+`$`. -/
+theorem min_str_le_anyString {t : String} (ht : "/" ≤ t) : .min (.str t) ⊑[env] .anyString := by
   intro j ⟨hw, h⟩
-  cases h with | beneathStr _ => exact ⟨hw, .anyString⟩
+  cases h with
+  | minStr _ => exact ⟨hw, .anyString⟩
+  | minAddr h => exact (String.none_between_above (Addr.text_lt_slash _) ht h).elim
 
-theorem re_le_anyString (p : String) : .re p ⊑[env] .anyString := by
+theorem max_str_le_anyString {t : String} (ht : t < "$") : .max (.str t) ⊑[env] .anyString := by
   intro j ⟨hw, h⟩
-  cases h with | re _ => exact ⟨hw, .anyString⟩
+  cases h with
+  | maxStr _ => exact ⟨hw, .anyString⟩
+  | maxAddr h => exact (String.none_between (Addr.dollar_le_text _) h ht).elim
 
-theorem format_le_anyString (g : String) : .format g ⊑[env] .anyString := by
+theorem above_str_le_anyString {t : String} (ht : "/" ≤ t) :
+    .above (.str t) ⊑[env] .anyString := by
   intro j ⟨hw, h⟩
-  cases h with | format _ => exact ⟨hw, .anyString⟩
+  cases h with
+  | aboveStr _ => exact ⟨hw, .anyString⟩
+  | aboveAddr h =>
+    exact (String.none_between_above h (lt_asymm_chars (Addr.text_lt_slash _)) ht).elim
+
+theorem beneath_str_le_anyString {t : String} (ht : t ≤ "$") :
+    .beneath (.str t) ⊑[env] .anyString := by
+  intro j ⟨hw, h⟩
+  cases h with
+  | beneathStr _ => exact ⟨hw, .anyString⟩
+  | beneathAddr h => exact (String.none_between_beneath (Addr.dollar_le_text _) h ht).elim
+
+/-- A pattern or a format that reads an address's spelling admits the
+address, which `string & empty()` refuses. -/
+theorem re_not_le_anyString {p : String} {a : Addr} (h : host.pattern p a.text) :
+    ¬ (.re p ⊑[env] .anyString) := by
+  intro hle
+  have h' := (hle (.addr a) ⟨.addr, .reAddr h⟩).2
+  cases h'
+
+theorem format_not_le_anyString {g : String} {a : Addr} (h : host.format g a.text) :
+    ¬ (.format g ⊑[env] .anyString) := by
+  intro hle
+  have h' := (hle (.addr a) ⟨.addr, .formatAddr h⟩).2
+  cases h'
 
 /-- `string` is not above a pattern that matches `""`: the reference's
 "`string` admits any pattern residual" holds of a pattern only where it
@@ -288,6 +348,21 @@ theorem max_str_not_le_string (t : String) : ¬ (.max (.str t) ⊑[env] .string)
   intro hle
   have h' := (hle (.str "") ⟨.str, .maxStr (String.empty_le t)⟩).2
   cases h' with | string hne => exact hne rfl
+
+/-- A lower bound at `/` or above refuses `""` and every spelling, so
+`string` is above it. -/
+theorem min_str_le_string {t : String} (ht : "/" ≤ t) : .min (.str t) ⊑[env] .string := by
+  intro j ⟨hw, h⟩
+  cases h with
+  | minStr hs => exact ⟨hw, .string fun he => by subst he; exact String.none_between ht hs (by decide)⟩
+  | minAddr h => exact (String.none_between_above (Addr.text_lt_slash _) ht h).elim
+
+theorem above_str_le_string {t : String} (ht : "/" ≤ t) : .above (.str t) ⊑[env] .string := by
+  intro j ⟨hw, h⟩
+  cases h with
+  | aboveStr hs => exact ⟨hw, .string fun he => by subst he; exact String.empty_le t hs⟩
+  | aboveAddr h =>
+    exact (String.none_between_above h (lt_asymm_chars (Addr.text_lt_slash _)) ht).elim
 
 /-! ## The table: disjunction, preference and the meet -/
 
@@ -853,7 +928,9 @@ theorem min_str_le_min_iff (t u : String) : .min (.str t) ⊑[env] .min (.str u)
     cases h' with | minStr h' => exact h'
   · intro hle j ⟨hw, hj⟩
     refine ⟨hw, ?_⟩
-    cases hj with | minStr h' => exact .minStr (String.le_trans hle h')
+    cases hj with
+    | minStr h' => exact .minStr (String.le_trans hle h')
+    | minAddr h' => exact .minAddr (String.le_trans hle h')
 
 theorem max_str_le_max_iff (t u : String) : .max (.str t) ⊑[env] .max (.str u) ↔ t ≤ u := by
   constructor
@@ -862,7 +939,9 @@ theorem max_str_le_max_iff (t u : String) : .max (.str t) ⊑[env] .max (.str u)
     cases h' with | maxStr h' => exact h'
   · intro hle j ⟨hw, hj⟩
     refine ⟨hw, ?_⟩
-    cases hj with | maxStr h' => exact .maxStr (String.le_trans h' hle)
+    cases hj with
+    | maxStr h' => exact .maxStr (String.le_trans h' hle)
+    | maxAddr h' => exact .maxAddr (String.le_trans h' hle)
 
 /-- Excluding fewer values is more general: `neq(1) ⊒ neq(1, 2)`. -/
 theorem neq_le_neq {S T : List Bound} (h : ∀ v, v ∈ S → v ∈ T) : .neq T ⊑[env] .neq S := by
@@ -873,12 +952,13 @@ theorem neq_le_neq {S T : List Bound} (h : ∀ v, v ∈ S → v ∈ T) : .neq T 
   | neqStr hT => exact .neqStr fun v hv => hT v (h v hv)
 
 /-- `len` follows its count: the reference's row reuses the table over
-the integers. -/
-theorem len_le_len {c d : Val} (h : d ⊑[env] c) : .len d ⊑[env] .len c := by
+the integers, where the general count is in `len`'s domain at all. -/
+theorem len_le_len {c d : Val} (hc : c.unsized = false) (h : d ⊑[env] c) :
+    .len d ⊑[env] .len c := by
   intro j ⟨hw, hj⟩
   refine ⟨hw, ?_⟩
   cases hj with
-  | len hil hsz hd => exact .len hil hsz (admits_of_le h .num hd)
+  | len hil _ hsz hd => exact .len hil hc hsz (admits_of_le h .num hd)
 
 /-! ## Deciding the order on the scalars
 
@@ -1158,13 +1238,17 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
     | .max (.str t), .max (.str u) => if h : t ≤ u then some ⟨(max_str_le_max_iff t u).2 h⟩ else none
     | .neq T, .neq S => if h : ∀ v, v ∈ S → v ∈ T then some ⟨neq_le_neq h⟩ else none
     | .len d, .len c =>
-      match leDecF env n d c with
-      | some ⟨h⟩ => some ⟨len_le_len h⟩
-      | none => none
+      if hc : c.unsized = false then
+        match leDecF env n d c with
+        | some ⟨h⟩ => some ⟨len_le_len hc h⟩
+        | none => none
+      else none
     | .integer, .integer | .float, .float | .biginteger, .biginteger | .bigdecimal, .bigdecimal
     | .number, .number | .string, .string | .anyString, .anyString | .boolean, .boolean
-    | .mapKind, .mapKind | .listKind, .listKind =>
+    | .mapKind, .mapKind | .listKind, .listKind | .pathKind, .pathKind =>
       some ⟨Le.refl env _⟩
+    | .addr b, .addr a => if h : a.Opens b then some ⟨addr_le_addr h⟩ else none
+    | .addr a, .pathKind => some ⟨addr_le_pathKind a⟩
     | .map fs sp cl, .mapKind => some ⟨map_le_mapKind fs sp cl⟩
     | .list is sp cl, .listKind => some ⟨list_le_listKind is sp cl⟩
     | .mapKind, .map [] none false => some ⟨mapKind_le_open_map⟩
@@ -1190,12 +1274,14 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
     | .mulof d, .number => some ⟨mulof_le_number d⟩
     | .mulof a, .mulof b =>
       if h : b.Positive ∧ a.multipleOf b then some ⟨mulof_le_mulof h.1 h.2⟩ else none
-    | .min (.str t), .anyString => some ⟨min_str_le_anyString t⟩
-    | .max (.str t), .anyString => some ⟨max_str_le_anyString t⟩
-    | .above (.str t), .anyString => some ⟨above_str_le_anyString t⟩
-    | .beneath (.str t), .anyString => some ⟨beneath_str_le_anyString t⟩
-    | .re p, .anyString => some ⟨re_le_anyString p⟩
-    | .format g, .anyString => some ⟨format_le_anyString g⟩
+    | .min (.str t), .anyString => if h : "/" ≤ t then some ⟨min_str_le_anyString h⟩ else none
+    | .max (.str t), .anyString => if h : t < "$" then some ⟨max_str_le_anyString h⟩ else none
+    | .above (.str t), .anyString =>
+      if h : "/" ≤ t then some ⟨above_str_le_anyString h⟩ else none
+    | .beneath (.str t), .anyString =>
+      if h : t ≤ "$" then some ⟨beneath_str_le_anyString h⟩ else none
+    | .min (.str t), .string => if h : "/" ≤ t then some ⟨min_str_le_string h⟩ else none
+    | .above (.str t), .string => if h : "/" ≤ t then some ⟨above_str_le_string h⟩ else none
     | _, _ => none
 
 /-- The procedure's `some` is the order: what it returns is the proof. -/
@@ -1351,6 +1437,9 @@ theorem defaults_walk_sound : ∀ (p : List Seg) {a b wa wb : Val},
         · exact absurd hb (by simp)
       · exact absurd ha (by simp)
     · exact absurd ha (by simp)
+  | .var _ :: _, _, _, _, _, _, _, ha, _ => by simp [Val.at] at ha
+  | .up _ :: _, _, _, _, _, _, _, ha, _ => by simp [Val.at] at ha
+  | .node :: _, _, _, _, _, _, _, ha, _ => by simp [Val.at] at ha
 
 /-- The `defaults` profile's order where the order holds and the walk
 fails nowhere. -/

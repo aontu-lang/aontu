@@ -69,7 +69,9 @@ func packFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		} else if l, ok := data.(*ListVal); ok {
 			source = l.peg[ki]
 		}
-		child := fillPlace(instanceClone(tmpl, kslot), source)
+		inst := instanceClone(tmpl, kslot)
+		setPaths(inst, kslot)
+		child := fillPlace(inst, source)
 		if prev, seen := out.peg[key]; seen {
 			// Duplicate generated keys are not an error: the colliding
 			// children unify, exactly as duplicate source keys merge.
@@ -158,7 +160,9 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 
 	keeps := func(child Val, slot []string) bool {
 		ctx.slot = slot
-		test := fillPlace(instanceClone(cond, slot), child)
+		inst := instanceClone(cond, slot)
+		setPaths(inst, slot)
+		test := fillPlace(inst, child)
 		met := trialUnify(ctx, clonePath(child, slot), test)
 		return nil != met && sameMembers(child, met, ctx)
 	}
@@ -766,8 +770,13 @@ func emitDispatch(ctx *Ctx, base []string, node Val,
 		// The trial is against CLONES: unite refines a bag in place
 		// against a TOP peer, and a pattern that failed must be
 		// untouched for the next node.
+		// A hole standing in a pattern matches nothing, so a bare-hole
+		// spread template here doesn't take the member as meetTemplate does.
+		savedRead := ctx.matchRead
+		ctx.matchRead = true
 		met := trialUnify(ctx, clonePath(node, base),
 			clonePath(templates[i].match, base))
+		ctx.matchRead = savedRead
 		if nil != met && sameMembers(node, met, ctx) {
 			return &templates[i], nil
 		}
@@ -915,7 +924,9 @@ func eachFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		// A full instance per element, to the leaves (instanceClone,
 		// ADR-005), at the element's own position, with `_` bound to
 		// the source child and NOTHING met into it.
-		elems = append(elems, fillPlace(instanceClone(tmpl, islot), v))
+		inst := instanceClone(tmpl, islot)
+		setPaths(inst, islot)
+		elems = append(elems, fillPlace(inst, v))
 	}
 	out := newList(elems)
 	out.setvpath(cp(base))

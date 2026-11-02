@@ -59,6 +59,7 @@ const NumberVal_1 = require("../dist/val/NumberVal");
 const NullVal_1 = require("../dist/val/NullVal");
 const BigIntegerVal_1 = require("../dist/val/BigIntegerVal");
 const BigDecimalVal_1 = require("../dist/val/BigDecimalVal");
+const ScalarKindVal_1 = require("../dist/val/ScalarKindVal");
 const Decimal_1 = require("../dist/val/Decimal");
 const SPEC_DIR = Path.join(__dirname, '..', '..', 'test', 'spec');
 // Use forward slashes even on Windows: this path is spliced into Aontu
@@ -66,7 +67,7 @@ const SPEC_DIR = Path.join(__dirname, '..', '..', 'test', 'spec');
 // as string escapes (\t -> tab, \a -> a, ...) and corrupt the path.
 const FIXTURES_DIR = Path.join(SPEC_DIR, 'files').replaceAll('\\', '/');
 const LEDGER = Path.join(SPEC_DIR, '..', '..', 'spec', 'ledger.tsv');
-const LEDGER_BOUND = 127;
+const LEDGER_BOUND = 111;
 function loadLedger() {
     const names = new Set();
     if (!Fs.existsSync(LEDGER)) {
@@ -701,6 +702,8 @@ function makeVarsCtx(a0) {
     ctx.vars.bigd = new BigDecimalVal_1.BigDecimalVal({ peg: new Decimal_1.Decimal(15n, 1) });
     ctx.vars.nul = new NullVal_1.NullVal({ peg: null });
     ctx.vars.PARENT = new StringVal_1.StringVal({ peg: 'q' });
+    // A kind: a binding is any value the program builds.
+    ctx.vars.kint = new ScalarKindVal_1.ScalarKindVal({ peg: ScalarKindVal_1.Integer });
     return ctx;
 }
 //# sourceMappingURL=spec.test.js.map

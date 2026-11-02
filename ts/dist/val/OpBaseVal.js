@@ -36,11 +36,11 @@ class OpBaseVal extends FeatureVal_1.FeatureVal {
         // `x: {&: {m: _ + 2}}` meeting `1` is `3`. Same rule as
         // FuncBaseVal's -- the peer fills the hole and the operation is
         // what answers.
-        if (!peer.isTop && !peer.isNil && this.id !== peer.id && (0, PlaceVal_1.hasPlace)(this)) {
-            if ((0, PlaceVal_1.hasPlace)(peer)) {
+        if (!peer.isTop && !peer.isNil && this.id !== peer.id && (0, PlaceVal_1.waitsOnHole)(this)) {
+            if ((0, PlaceVal_1.waitsOnHole)(peer)) {
                 return (0, err_1.makeNilErr)(ctx, 'place_pair', this, peer);
             }
-            return (0, PlaceVal_1.fillPlace)(this, peer, ctx).unify((0, top_1.top)(), ctx);
+            return (0, PlaceVal_1.bindHole)(this, peer, ctx).unify((0, top_1.top)(), ctx);
         }
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Op:' + this.opname(), this, peer);
         let out;
@@ -58,7 +58,9 @@ class OpBaseVal extends FeatureVal_1.FeatureVal {
             newpeg.push(arg);
         }
         // console.log('OPVAL', this.id, this.opname(), pegdone, newpeg.map(p => p.canon))
-        if (pegdone) {
+        // Lists join once only their holes wait, as only a fill settles a hole.
+        if (pegdone || (true === newpeg[0]?.isList && true === newpeg[1]?.isList
+            && newpeg.every(PlaceVal_1.doneButHoles))) {
             // `|| this` makes result truthy, so an op that cannot compute yet
             // takes the OpBaseVal arm below rather than a separate null arm.
             let result = this.operate(ctx, newpeg) || this;

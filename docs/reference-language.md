@@ -558,7 +558,9 @@ A list is an ordered sequence.
   list (`[0:1]` is `[{"0":1}]`), and a chain nests (`[a:b:1]` is
   `[{a:{b:1}}]`).
 - Lists unify element-by-element by position (and support `&:` spreads,
-  below).
+  below). A list holds a position only for an element that stands: one
+  that `hide()` or `type()` marks, or one that is absence, holds none,
+  so `[1, hide(2), 3]` is `[1, 3]` for the meet as for the output.
 
 The pair form reads naturally for ordered records:
 
@@ -570,7 +572,7 @@ routes: [get:"/health" post:"/orders"]
 { "routes": [ { "get": "/health" }, { "post": "/orders" } ] }
 ```
 
-The definition's rule for a list is `admits_list_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): each position holds its item, every member is held to the spread where there is one, and a sealed list with no spread has exactly its positions.
+The definition's rule for a list is `admits_list_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): each position holds its item, every member is held to the spread where there is one, and a sealed list with no spread has exactly its positions. `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) drops a marked element and one that is absence as it reads the list.
 
 ## Container kinds: `map` and `list`
 
@@ -662,6 +664,20 @@ b: string|number
 {"a":2,"b":2}
 ```
 
+An alternative that does not stand drops out the same way, as a call
+that can't be made or a size that holds a choice does. A disjunction
+is an error only where no alternative stands, as both engines answer,
+so `a: add("x", 1)` alone is an error and this isn't:
+
+```aontu
+a: add("x", 1)|"x"
+b: len(1|3)|[1]
+```
+
+```json
+{"a":"x","b":[1]}
+```
+
 `&` binds tighter than `|`, so `c & b | a` parses as `(c & b) | a`.
 
 **An unresolved disjunction has no value**. More than one alternative
@@ -684,7 +700,7 @@ then the children).
 An optional key whose value is an unresolved disjunction is dropped
 rather than reported, as every other unresolved optional is.
 
-The definition's rule is `admits_or_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a disjunction admits what any arm admits, whatever the arms' ranks. What it generates is the rank rule of `Gen` in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean), and a disjunction left unresolved generates nothing, which `output_admits` and `Vet` read alike.
+The definition's rule is `admits_or_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a disjunction admits what any arm admits, whatever the arms' ranks. What it generates is the rank rule of `Gen` in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean), and a disjunction left unresolved generates nothing, which `output_admits` and `Vet` read alike. `Val.staged` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) drops each arm that does not stand (`Val.illFormed`), read with the arms it stands for flattened in, so that a preference clash between them stays the disjunction's. Rows from da0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold both engines to it.
 
 ## Preference / default `*`
 
@@ -708,7 +724,8 @@ The preference survives in canonical form (`a` above canons as
 resolved value.
 
 Defaults propagate through nesting and spreads. `pref(x)` is the
-function form of `*x` (canon `*x`). Preferences can be ranked: `**`
+function form of `*x` (canon `*x`) on a scalar, and reads a container
+member by member. Preferences can be ranked: `**`
 has a higher rank number than `*`, and the lowest rank wins when two
 preferred values meet (`*1|**2` is `1`). A ranked preference meets its peers exactly as rank 1
 does: the **rank-uniform meet**: `a:**1.5 & float` is `1.5` just as
@@ -836,6 +853,8 @@ spelling when you mean "a map whose `x` defaults to 1", and it is what
 
 In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, and the rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
 
+`pref(v)` is `Val.prefer` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), read on the argument before its normal form, so a preference stays one. Each scalar literal becomes a preference of rank one, and each preference a rank weaker, so `pref(*1 | 2)` is `**1 | *2`, which generates `2`. A kind and a bound stay as written. Rows from pf0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. They answer `pref(1 | 2)` `invalid` where `*1 | *2` is an `error`, which [#482](https://github.com/aontu-lang/aontu/issues/482) tracks.
+
 ## Optional keys `?`
 
 A key suffixed with `?` is optional. If it never receives a concrete
@@ -859,6 +878,13 @@ c: {y:11}
 
 The unresolved `x?` is dropped, `b`'s filled `y` is kept, and `c`'s
 default still applies beside the filled key.
+
+**An empty container supplies nothing.** An optional key whose value
+generates an empty map or list leaves no member either, so
+`{a?: {b?: integer}}` and `{a?: *[] | [1]}` each give `{}`: an optional
+structure of optional members that nothing supplies writes no empty
+container into the output. A required key keeps its empty container,
+and `{a: {}}` gives `{"a":{}}`.
 
 Optionality survives references: a referenced map drops its unresolved
 optional keys too.
@@ -904,7 +930,7 @@ x?: *b: 1                → [aontu/pref_implicit_bag] at $.x
 x?: {y: 1, z: *b: 1}     → [aontu/pref_implicit_bag] at $.x.z
 ```
 
-The definition reads an optional key in `admits_map_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a key the data leaves out is admitted only where every declaration of it is optional, and two declarations of one key meet as `merge_exact` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) says, optional only where both are.
+The definition reads an optional key in `admits_map_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean): a key the data leaves out is admitted only where every declaration of it is optional, and two declarations of one key meet as `merge_exact` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean) says, optional only where both are. `genFields` in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) generates an optional key's member only where its value generates something other than an empty map or list.
 
 ## Spreads `&:`
 
@@ -979,7 +1005,16 @@ position written as a string, `"0"` first: `Val.atKey` in
 [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) writes the key in
 at the spread's own position, through `&`, the riders and the scrutinee
 of a `match`. So `&: match(key(0), p, any, nil)` admits the members
-whose keys `p` admits. The definition reads `key()` nowhere else.
+whose keys `p` admits. Anywhere else, `key(n)` is the term `keyUp n`,
+which `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)
+reads at the position it stands at, by `keyUpAt` in
+[`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean): a template at the
+position its instance lands at, and a `filter`'s condition where the
+member it tries lands. At a spread's own position `key(1)` reads the
+container's key. Deeper in a spread's template, `key(n)` reads at each
+member the spread holds, as a relative path there does:
+`Val.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+places the template at each member before `resolveD` reads it.
 
 ## Generating children: `pack` and `each`
 
@@ -1065,6 +1100,8 @@ Neither can recurse. Both iterate a finite bag that already exists, so
 the number of children either can produce is fixed by the data:
 evaluation still terminates by construction.
 
+The definition reads `pack` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member `Val.keyedMembers` reads, under the member's key, into an open map, the instances of a list's repeated key met, as colliding children unify. A `key(n)` in the template reads the instance's position, as anywhere else.
+
 ### `each`, the order-preserving map
 
 `each(data, tmpl)` makes one **list element** per child of `data`,
@@ -1099,6 +1136,8 @@ or an index in the model's order would come out alphabetised. With
 shows. Like `pack`, it waits for the model to settle and fires once; a
 `_` inside its template is its own to bind, never an enclosing
 generator's.
+
+The definition reads `each` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member of the data, in the order `Val.members` reads them, each hole in it standing for that member.
 
 ### The `_ & …` idiom: construction and bound
 
@@ -1271,6 +1310,121 @@ Two holes meeting is an error: neither has a value to fill the other.
 select is not then checked against that peer: see
 [Selecting](#selecting-filter-and-match).
 
+The definition reads the fill before any meet, so `&` stays a meet:
+`Val.filled` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)
+reads the meets beneath a meet first, and then reads a meet with one
+side waiting on a hole and the other not as the waiting side with the
+hole bound to the other. A side waits on a hole if it's the hole, or a
+call over one through its arguments or a rider, a generator through
+its data alone, and a container waits on no hole of its members, but
+two containers meet member by member, by position or by key, so
+`[upper(_)] & ["a"]` is `["A"]` (`Val.fillMeet`). Each finds the
+other's member through its meets and riders (`Val.memberAt`,
+`Val.elemAt`), so `({a: upper(_)} & {b: 1}) & {a: "x"}` fills `a` too.
+A key's declarations in one map are one meet, read in the order they're
+written, so `v: upper(_)` and `v: "a"`, two declarations of `v`, read
+as `"A"`, and a list's elements are paired among those that stand, so
+`[upper(_)] & [hide("a"), "b"]` is `["B"]`. The peer a member's hole
+takes is spent, and each container is kept whole, so a seal and a
+spread stand. The fill reads through a rider, a mark or a seal around
+a container, so `meta({a: upper(_)}, {d: 1}) & {a: "x"}` is
+`meta({a: "X"}, {d: 1})`, `close([upper(_)]) & ["a"]` is the sealed
+`["A"]`, and `close({a: upper(_)}) & {a: "x", b: "y"}` is an error,
+since the seal refuses `b`, as both engines answer. The fill
+reads every meet but one in a generator's template, an `emit`'s table
+or a `filter`'s condition, whose holes those bind. Rows from hv0
+on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold both
+engines to it where a call meets one peer, a `match`'s result and its
+default among them. A meet in a size, a trial or a `match`'s scrutinee
+or pattern settles as it would written filled, so
+`len(add(_, 1) & 2)` refuses `["a"]` as `len(3)` does, and
+`match(upper(_) & "a", "A", 1, 2)` is `1`, as both engines answer. A call
+waits on no hole that a container argument holds, so its peer leaves
+that hole open and nothing makes the call: `sum([_, 1]) & 3` and
+`upper([_]) & "a"` are errors. A call that also waits on a hole of its
+own binds its peer there alone, so `join([_, "b"], _) & "-"` leaves the
+list's hole open, and a rider's record is a container argument too, so
+`meta({x: 1}, {d: _}) & 2` is an error, as both engines answer, and
+rows from hv366 on hold them to it. `+` joins two lists as they stand,
+whatever their elements hold, so a hole that an operand list holds is
+the joined list's, which the meet fills member by member:
+`(["a", _] + ["c"]) & ["a", "b", "c"]` is `["a", "b", "c"]`. A `+`
+waits only on a hole among its operands and binds its peer there alone,
+so `([_] + _) & ["a"]` is `[_, "a"]`, whose hole stays open, as both
+engines answer in the rows from hv450 on. A
+call over a container whose argument is the hole takes its peer as any
+call does, so `sum(_) & [1, 2]` is `3`, `["a", "b"] & join(_, "-")` is
+`"a-b"`, `join(["a", "b"], _) & "-"` is `"a-b"` too, and
+`["a", "b"] & sum(_)` is an error, as both engines answer. A
+spread whose template waits on a hole fills each member it meets, once,
+its own and a peer's, and then reads that key as `any`
+(`spreadFields`, `spreadWith`): `{&: upper(_)} & {a: "x"}` is
+`{a: "X"}`, and `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, as
+both engines answer. When a template is a meet or a disjunction, it
+waits where one of its sides or arms does (`Val.waitsTop`), and its own meet
+doesn't fill it: the member meets each side and each arm, and one that
+waits takes the member as its argument (`Val.instAt`). So
+`{&: upper(_) & _}` admits the members already in upper case,
+`{&: upper(_) & "a"}` refuses every member, and
+`{&: add(_, 1) & number}` refuses `{a: 1}`, since `number` meets `1`
+beside `add(1, 1)`, as both engines answer. Any other side and the
+member meet member by member, so a hole beneath the side takes the
+member's own member there: `{&: _ & {n: upper(_)}}` passes `{a: {n: "X"}}` and
+refuses `{a: {n: "x"}}`, whether the spread meets the data, its own
+map's members or a peer's, as both engines answer. A template that holds its hole inside a container
+fills each member the same way, member by member (`heldOnto`):
+`{&: {n: upper(_)}} & {a: {n: "x"}}` is `{a: {n: "X"}}`, and a member
+that is a disjunction is met arm by arm, so
+`{&: {n: upper(_)}} & {a: ({n: "x"} | {n: "y"})}` passes
+`{a: {n: "X"}}`. The template
+meets each member once, so a later meet adds to the member it has
+filled and doesn't fill it again:
+`({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives `n: 2`, as both
+engines answer. With
+more than one peer the fill
+follows the document's grouping, so `upper(_) & ("a" & "a")` reads as
+`upper("a")`, which is `"A"`. Both engines read a conjunction in the
+order it's written instead and answer a conflict, which
+[#512](https://github.com/aontu-lang/aontu/issues/512) tracks. A group
+that fills its own hole is one both engines read first, as it's
+grouped, so `upper(_) & (_ & "A")` is `"A"`, and rows from dg126 on
+hold them to it. `vet`
+meets the data last, so the data fills a hole that no peer in the
+document fills (`Decls.readJ`): the call takes the data as its argument
+rather than meeting it, so `v: upper(_)` passes against `v: "a"`, and
+`v: add(_, 1)` passes `v: 2` and refuses `v: "a"`. A hole the data
+leaves out is `incomplete`. A call met with a hole, as in
+`upper(_) & _`, or with another call that waits is an error, as both
+engines answer, though `_ & _` meets as one hole. It stays an error
+however the document groups the meet and whatever else it meets, so
+`(upper(_) & _) & "x"`, `"x" & (upper(_) & _)` and `(_ & _) & upper(_)`
+are errors too, as is such a pair of two maps' members,
+`{a: "x"} & ({a: upper(_)} & {a: _})`, and a
+disjunction drops an arm that holds one, so `v: (upper(_) & _) | "x"`
+passes `v: "x"` (`Val.fillMeet`). A spread's template of that shape,
+as in `{&: upper(_) & _}`, reads as a template instead, each hole
+taking the member, so it passes `{a: "X"}`, and a bare `_` as a
+template takes each member as it stands, so `{&: _} & {a: 1}` is
+`{a: 1}`. A hole takes its peer on either side of a meet, so `1 & _`
+is `1`, `{a: 1} & {a: _}` is `{a: 1}` and `number & _` is `number`, as
+both engines answer. A disjunction is
+filled arm by arm, so `v: upper(_) | "fallback"` passes `v: "a"`, and
+an arm whose call the data leaves unmade drops, so `v: add(_, 1) | "x"`
+passes `v: "x"`. A lone preference fills its preferred arm and meets
+the data with its parent arm, so `v: *upper(_)` passes `v: "a"`, and
+`v: *add(_, 1)` passes `v: "x"`. Met with a peer, `*upper(_) & "a"`
+gives `"A"`, and `vet` passes the value `eval` gives: `v: "A"` against
+`v: *upper(_) & "a"` through the preferred arm, and `v: "a"` through
+the parent arm. A disjunction a container meets is
+met arm by arm, so `v: {a: upper(_)} & ({a: "a"} | {a: "b"})` passes
+`v: {a: "A"}`. A
+generator waits on its data alone and reads its template only at each
+member it makes, so `v: each(_, upper({}))` passes `v: []`. Rows from
+dv0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold
+both engines to it, rows from dg0 on to a meet of two sides that wait,
+and rows from dt0 on to a spread's template that waits at its own
+position.
+
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:
 
@@ -1381,6 +1535,18 @@ lines: emit($.services, {
 tried, rather than an empty answer or a copy of the node. A template
 whose `match` is `any`, written last, is how a document says the rest
 of the selection was meant to be allowed.
+
+The definition reads `emit` by `resolveD` and `emitPieces` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), each body
+read for its node, and rows from et0 on of
+[`test/spec/def-call.tsv`](../test/spec/def-call.tsv) and from em0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it. A template's `match` takes a node where the meet of the two
+narrows nothing of the node (`emitTakes`), as both engines dispatch, so
+`{k: 1}` takes `{"k": 1}` and `{k: 1, j?: 2}` doesn't. It doesn't yet
+read a named table, `replace` in a body, or a `key(n)` in a body, which
+the two engines read at different positions
+([#524](https://github.com/aontu-lang/aontu/issues/524)).
 
 ### A named table
 
@@ -1505,6 +1671,13 @@ That is why `$.a.1.0` is the two segments `1` and `0` (how a nested list
 index is written (`a:[[1,2],[3,4]] b:$.a.1.0` → `b:3`)) rather than a
 key spelled `1.0`.
 
+The definition reads each segment as text, by the container it meets:
+`Val.atW` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). A map
+reads the key the text spells, and a list the index it spells in
+canonical decimal, `0` or digits that don't begin with `0`. So
+`$.a."1"` indexes a list as `$.a.1` does, and `$.a.01` reaches a map's
+key `01` and no list index.
+
 References compose with unification and each other: cross-references,
 chains, and a referenced map met with extra keys:
 
@@ -1528,6 +1701,58 @@ w: b: $.q.a & { y:2 z:3 }
 
 An unresolvable path is an error: `a:$.nope` →
 `Cannot resolve value: $.nope`.
+
+A relative path names a place relative to where it's written. Its
+first dot names the map or list that holds it, and each further dot
+climbs a step, so `z:x:1 z:y:w:..x` gives `w:1`, `a:[1, .0]` gives
+`a:[1, 1]`, and a climb past the top resolves nowhere. An alias's body
+reads its relative paths at the alias's own place, `%` and its name as
+a key at the top, whether or not anything uses it: in `%T = {y: .x}`
+the path `.x` names `$.%T.x`, which no document holds, so the document
+is an error, while `..x` there names the document's own `x`. The
+language doesn't yet say where a use of the alias, or a path
+reference's copy, reads such a path. Both engines read a copy's
+relative paths where the copy stands or where they're written by the
+order the document writes the two: with `x: 1`, `a: {x: 2, b: %T}`
+and `%T = {v: ..x}`, `a.b.v` is 1 where the alias comes first and 2
+where it comes after, and `aontu vet` reads 2 in either order. The
+engines split on a path in a call's argument. TypeScript reads it where
+it's written in either order, under `aontu vet` too, and Go reads it as
+it reads any other.
+[#504](https://github.com/aontu-lang/aontu/issues/504) tracks both. The
+definition makes each relative path absolute where it stands, by
+`Val.placed` and `Decls.placed` in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so a use or a
+copy holds what the path reads where it's written.
+
+A spread's template reads its paths at each member the spread holds,
+the member's own place: in `hosts: {&: {url: .name}}`, each member's `url`
+is that member's `name`. Both engines try a template only on the
+members there are, so a path in a template that names nothing is no
+error until a member reads it: an `error` where the schema writes the
+member, even where the data supplies what the path names, and
+`invalid` where only the data supplies the member. A spread that's
+itself a relative path, `&: ..x`, reads at each member too, so a path
+reference's copy reads it from where the copy stands, and it reads
+where it's written as well, so one that names nothing there is an
+`error` with no member at all. The definition reads a spread so by
+`Val.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
+at each member wherever the spread lands, at each place a path
+reference copies it to and at each member a link's template makes among
+them. A generator's template reads its relative paths at each member of
+the generator's output in the same way: in `each($.names, {name: _,
+url: "https://" + .name})` each instance's `url` reads that instance's
+own `name`. A `filter`'s condition stands where the member it tries
+lands, a step no written path names, so a relative path that climbs out
+of the member names the same place for every member: in `a: {lim: 2,
+l: [1, 2, 3], f: filter(.l, ..lim)}` the condition reads `a`'s `lim`,
+and `f` is `[2]`. A path that stays inside the member names nothing.
+Both engines try the condition on each member, so a condition that
+names nothing, a path, an alias or a variable, refuses each member
+rather than making the document an error. The definition places a
+condition so in `Val.placed`, and `Val.forgive` exempts it from the
+references that must name something. It doesn't yet read a template's
+relative paths inside a disjunction, a selection or an alias's body.
 
 ### Recursive references (fixpoints)
 
@@ -1632,6 +1857,16 @@ An unknown variable is a `Cannot resolve` error. A `$` followed by
 anything but a name or a path (`${b: 1}`, `$1`) is refused where it is
 written, with `[aontu/var_name]`; a `$` that ends a line takes the
 next line as its operand, which is the usual way this arises.
+
+The definition reads a variable as a name that the calling program
+declares. `Val.var` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean)
+is the alias `$name`, which no document can write, and `Decls.withVars`,
+in the same module, sets the program's bindings beside the document's
+declarations. A binding is any value the program builds, a kind as
+well as data. A variable as a path's segment names the text of the
+scalar it's bound to, by `Decls.bindSeg` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
+and any other binding, such as a kind, `null`, a map or a disjunction,
+names none.
 
 ## Aliases `%`
 
@@ -1772,6 +2007,13 @@ meet. A reference resolves where it
 was written rather than where it lands, so a spread template written in
 one file still names its own file's declaration when it is instantiated
 against another file's data.
+
+The definition reads each name a file declares, and each name the file
+uses, under a name of that file's own, by `Decls.ofSource` in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), and rows from ls0
+on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
+engines to it. A name a file declares reads its loads from that file's
+directory, and a file the document never loads adds no names.
 
 A name crosses where both files say so, and nowhere else: the declaring
 file publishes it with [`export`](#publishing-a-name-export), and the
@@ -1955,9 +2197,10 @@ of the same name rather than replacing it, exactly as two declarations
 in one file meet.
 
 **A file publishes what it declares.** A name that merely arrived in a
-file through an include belongs to the file that wrote it, so
-re-exporting it is refused: publishing someone else's private name is
-not a file's to do.
+file through an include belongs to the file that wrote it, so exporting
+it publishes nothing, and a destructure that asks for it is refused with
+`import_not_exported`: publishing someone else's private name isn't a
+file's to do.
 
 **Rename what you take with `%local: %remote`.** Both sides carry the
 sigil, because both are names; the left is what this file calls it and
@@ -2025,6 +2268,14 @@ out of the argument's reach. That include fails with `conjunct`.
 `export` does not rename: a file publishes what it has, and the taking
 file renames what it takes, so `export({ %a: %b })` is refused with
 `export_arg`.
+
+The definition reads each name a file publishes, by `Decls.ofSource`,
+and each name a destructure takes, by `Decls.takeBinds`, both in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). A name that a
+destructure asks for and its file doesn't publish makes the document an
+error there too (`Decls.takesLeft`), and rows from lx0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to these readings.
 
 ## The `+` operator and grouping
 
@@ -2191,6 +2442,8 @@ Unary `-` negates a numeric operand exactly. It binds tighter than
 `+`, `&` and `|` (`-1 & integer` is `(-1) & integer`) and, like `+`,
 never narrows the kind and never yields `-0`.
 
+The definition holds `+` as the call `plus`, which `callTerm` and `plusOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) make from the operands' normal forms. Each operand reads through its riders first, then through a lone preference. Two numbers add by `add`'s rules, `Number.binary` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean), and a sum no leaf holds is `nil`, an error. A string beside a scalar joins the two texts, a number written as `Number.text` writes it. Two lists concatenate, `plusOf_lists` and `plusOf_nil_list`, and a list beside a scalar is no sum, `plusOf_list_lit`. Any other pair of operands leaves the `+` waiting: it generates nothing and refuses nothing, so `vet` reads the document as incomplete, and a literal meets it as a pair, `Val.callAt` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean). A sum of an absence waits on `maybe`, which the definition lacks.
+
 ## Functions
 
 aontu provides a fixed set of built-in functions. There are no
@@ -2266,7 +2519,11 @@ Example: `content("export const N = 1\n")`
 
 ### `copy(v: any) : any`
 
-Deep copy of a value or referenced node; clears `type`/`hide` marks.
+Deep copy of a value or referenced node. It clears the `type` and
+`hide` marks and any seal, at every depth, of any argument, a literal's
+as a reference's, so the copy is visible and open. The definition holds
+it (`callTerm` in `spec/Aontu/Verdict.lean`), rows cp0 on of
+`test/spec/def-path.tsv`.
 
 Example: `copy({a:1,b:2})`→`{a:1,b:2}`; `copy($.x)`
 
@@ -2396,6 +2653,8 @@ The ancestor key `n` levels up (`0` = own key, default `1` = parent). `n` must b
 
 Example: at `a:b:c`: `key()`→`"b"`, `key(0)`→`"c"`, `key(2)`→`"a"`, `key(2.0)`→error
 
+The definition reads `key(n)` by `keyUpAt` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), at the position `resolveD` carries.
+
 ### `least(d: map|list) : number`
 
 Return the least numeric member, preserving its kind. An empty collection is refused. See [aggregates](#aggregating-sum-least-greatest).
@@ -2513,6 +2772,8 @@ is named: `camel`, `dot`, `kebab`, `pascal`, `path`, `snake`,
 `text`, `title` and `upper`. An acronym list keeps `id` as `ID`.
 
 Example: `nom("planet_body", pascal)` → `"PlanetBody"`
+
+The definition computes `nom` as `nomOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), and the words of a name and their spellings as `nameWords` and `NameStyle.write` in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean). Their case changes the letters `a` to `z` and `A` to `Z` alone.
 
 ### `open(m?: any) : any`
 
@@ -2643,6 +2904,8 @@ Map the characters of `s` from one set to another. A range expands
 
 Example: `translate("a-b-c", "-", "_")` → `"a_b_c"`
 
+The definition computes `translate` as `translateOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). `expandSet` reads each set, where a range that descends is an error, and `translateChar` writes each code point by its last naming in `from`. A range counts every code point it crosses, the surrogates too, and a surrogate in `to` writes `U+FFFD` in both engines, since no string holds one.
+
 ### `type(t: any) : any`
 
 Mark `x` as a type/schema value: a definition, whose instances (a copy
@@ -2734,6 +2997,8 @@ spelling of a lift that is itself recursive) which generation
 refuses like any unresolved call, and `super(null)` answers the null
 kind, which canon prints as `null`, the same spelling as the value.
 
+The definition answers `super` with `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), which `callTerm` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) applies to the argument before its normal form. A preference therefore lifts to its value's parent at any depth, so `super({a: *1})` is `{a: integer}`.
+
 ### Rounding numbers
 
 `upper()` and `lower()` round a number without narrowing it: the result
@@ -2752,6 +3017,8 @@ x:upper(0d1.1) & biginteger → error   (rounding does not change the leaf)
 
 A bigdecimal result is still a bigdecimal, so it keeps the one decimal
 place its leaf always renders, even when the value is whole.
+
+The definition computes `upper` and `lower` as `caseOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). A number with no range rounds up or down in its own leaf, exactly, by `Number.round` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean). A string converts the run of code points `caseSpan` selects as a whole and keeps the rest as it stands. The case conversion itself belongs to `Host` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), which the definition leaves to the engines as it leaves patterns and formats. Both engines apply Unicode's default case conversion, and the version of their tables can differ. A range argument reads through its riders as an `integer`, or as a `biginteger` that 64 bits hold. The TypeScript engine refuses a `biginteger` index from 2^53 on, which [#439](https://github.com/aontu-lang/aontu/issues/439) tracks.
 
 ### Composing calls
 
@@ -2856,7 +3123,7 @@ An exact result that will not store is refused too, exactly as a sum is
 error rather than a rounded answer, and `0d` operands compute it
 exactly.
 
-The definition holds a call as the term `call` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) and computes it by `Number.arith` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean). Two integers compute exactly, with no answer where the result leaves the integer leaf. Anything with a float computes the nearest double, ties to even, with no answer where it overflows, and a float with a big integer or a big decimal has no answer. Anything else computes exactly, in the wider leaf, a big decimal never divided and held to a budget of 4096 digits, and a zero divisor has no answer in any leaf. `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) makes a call once every argument reads as a number, and a call no reading makes leaves the schema ill-formed, an `error` for `vet`. Both engines answer `invalid` instead where a call has the wrong number of arguments or negates something other than a number, which #426 tracks.
+The definition holds a call as the term `call` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) and computes it by `Number.arith` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean). Two integers compute exactly, with no answer where the result leaves the integer leaf. Anything with a float computes the nearest double, ties to even, with no answer where it overflows, and a float with a big integer or a big decimal has no answer. Anything else computes exactly, in the wider leaf, a big decimal never divided and held to a budget of 4096 digits, and a zero divisor has no answer in any leaf. `resolveD` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) makes a call once every argument reads as a number, and a call no reading makes leaves the schema ill-formed, an `error` for `vet`. Both engines answer `error` for such a call wherever it stands in the schema, one with the wrong number of arguments or one that negates something other than a number among them.
 
 ## Projecting fields: `pick`
 
@@ -2919,6 +3186,8 @@ $ echo $?
 A non-collection input is `aggregate_data`. The key must be a string
 name or an `integer` index; a float such as `0.0`, a kind, or a list is
 `invalid-arg`. A missing argument is `func_arity`.
+
+The definition computes `pick` as `pickOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), over the members `Val.members` reads. A projector reads through its riders. In a map member it names a key, an integer by its digits, so `pick([{"0": 5}], 0)` is `[5]`. In a list member it names an index, a string by its digits after one optional sign, so `pick([[1, 2]], "1")` is `[2]`. `Val.project?` reads both, and `""` names no key. Both engines read a projector as its value, through a rider, a name or a path, as they read the bag. A string names an index by its digits alone, so `" 0"` and `"1e0"` name none, and `""` names no key: `pick([{"": 1}], "")` is `invalid-arg`.
 
 A projector names one key, not a dotted path expression. Project twice
 to select through two levels:
@@ -3029,7 +3298,7 @@ does from a plain list:
 <!-- test: run -->
 ```sh
 $ echo 'x: ["a", maybe($.gone)]' | aontu -c
-{"x":["a",maybe()]}
+{"x":["a"]}
 $ echo 'x: [&: string]  x: ["a", maybe($.gone)]' | aontu
 {
   "x": [
@@ -3043,6 +3312,24 @@ A member that answers a value meets the template like any other, so
 a schema DECLARES is a different case: `{a:string, b:string}` against
 `{a:"p", b:maybe($.gone)}` is `mapval_no_gen`, because the document
 declines to supply a key the schema requires.
+
+The definition reads `maybe` in `maybeOf`, in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): absence where
+a reference at the top of the argument names nothing, and nothing else
+is wrong with the argument. The top is the argument itself, a side of a
+meet, an arm of a disjunction, or the value under a rider.
+`Judge.absent` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean)
+admits every value, and `Val.leftOut` in
+[`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) leaves an absent
+member out of the output. An absent element of a list holds no
+position, for the meet as for the output, so `[maybe($.gone), "a", 2]`
+admits `["a", 2]` and refuses `[7, "a", 2]`. A `key()` in a later
+element still reads the index the document writes in both engines,
+which [#539](https://github.com/aontu-lang/aontu/issues/539)
+tracks. The definition drops the absent element as `resolveD` reads the
+list, and rows la0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it.
 
 ## Ordering: `sort`
 
@@ -3118,6 +3405,8 @@ $ echo 'cols: [{n:"id"}, {n:"age"}]  sql: join(pick(sort($.cols, n), n), ", ")' 
 {"cols":[{"n":"id"},{"n":"age"}],"sql":"age, id"}
 ```
 
+The definition computes `sort` as `sortOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), over the members `Val.members` reads. It orders them by the key the projector names in each, read as `pick` reads it, or by the member itself where the projector is absent or `""`. Keys compare by exact value or by code point, `sortLt`, and a bag whose keys mix the two, or hold anything else, has no order. The sort is a stable merge sort under `sortLe`, which lets two equal keys stand either way round, so equal keys keep their order in both directions. Both engines read the projector and the direction as their values, through a rider, a mark, a name or a path, so `sort([1, 2], "", type("desc"))` is `[2, 1]`.
+
 ## Aggregating: `sum` `least` `greatest`
 
 `len()` counts a bag; these three fold one. Each takes a **single
@@ -3182,7 +3471,7 @@ function, and this language has no user functions to give it. These
 three are total because the bag is finite, the operation is fixed, and
 each child is visited once: the same argument that makes `each` safe.
 
-The definition computes the three as `Number.fold` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean), over the members `Val.members` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads, each a number in its normal form. `sum` adds them from the left, from the integer zero, each step an `add`, so a step no leaf holds leaves the sum without an answer. `least` answers the first member no other is below, and `greatest` the first no other exceeds, and `Number.least_mem` and `Number.least_lowest` hold that `least` answers a member and that no member is below it. A bag met with a size or another constraint is no bag in its normal form, as both engines answer. Both engines also leave out an optional member whose value generates an empty map or list, which the definition holds, and which #428 tracks.
+The definition computes the three as `Number.fold` in [`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean), over the members `Val.members` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads, each a number in its normal form. `sum` adds them from the left, from the integer zero, each step an `add`, so a step no leaf holds leaves the sum without an answer. `least` answers the first member no other is below, and `greatest` the first no other exceeds, and `Number.least_mem` and `Number.least_lowest` hold that `least` answers a member and that no member is below it. A bag met with a size or another constraint is no bag in its normal form, as both engines answer. An optional member whose value generates an empty map or list is no member either, so `sum({a?: {}, b: 2})` is `2`.
 
 ## Folding to a string: `join`
 
@@ -3210,7 +3499,8 @@ $ echo 'a: join([x, y, z])  b: join([x, y, z], ", ")' | aontu -c
 **A fold sees the members generation emits.** `join`, and with it
 `each`, `emit`, `filter`, `pack`, `pick` and the aggregates, read a
 bag's *members*: a `hide()`- or `type()`-marked child is not one, and
-an optional key whose value generates nothing is not one, so a value
+an optional key whose value generates nothing, or an empty map or list,
+is not one, so a value
 the document withholds from its output never reaches a string or a
 total the document computes. Canon still shows the whole document; the
 fold does not.
@@ -3293,6 +3583,8 @@ the fold but the parameter naming the text between members, and
 A value that is not a bag is `aggregate_data`, as it is for the
 aggregates.
 
+The definition computes `join` as `joinOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), over the members `Val.members` reads, each member's text the one `+` writes, `Scalar.plusText?`. Where the bag is one and its separator or a member has no settled value yet, the call waits, so the document is incomplete. Otherwise the call refuses a separator other than a string and a value other than a bag, and a member with no text too, each an error.
+
 ## Text: `esc` `usc` `rep` `split`
 
 Four ordinary string functions. They return values and compose with
@@ -3346,6 +3638,8 @@ escape, an escape the convention does not define, a lone quote where the
 convention doubles it) is refused (`usc_malformed`) rather than answered
 with a different string.
 
+The definition holds the conventions in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean), each a function on a string's code points and a partial inverse, `Escape.esc` and `Escape.usc`, and computes both calls as `escOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). Percent-encoding writes a character's UTF-8 bytes, and `utf8Decode` reads bytes back strictly, refusing an overlong form, a surrogate, a value past U+10FFFF and a sequence cut short.
+
 ### `rep(s, pattern, sub)`
 
 Every match of `pattern` in `s` replaced by `sub`. The pattern is a
@@ -3374,7 +3668,12 @@ the wrong thing in a generator that normalises separators, and anchoring
 the pattern is how a document asks for one. A `$` naming nothing, or a group the pattern
 has not got, is refused (`rep_sub`) rather than expanded to the empty
 string: a file written with a hole in it and no complaint is the failure
-that refusal exists to close.
+that refusal exists to close. `rep` reads the substitution against the
+pattern before it scans the text, and refuses `rep("abc", "x", "$9")`
+though nothing matches: a generator that runs clean on today's data and
+fails on tomorrow's is the same failure.
+
+The definition computes `rep` as `repOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). Where a match falls is the host's to say, as which strings a pattern admits is, so `Host` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) holds the leftmost match at or after a position and which patterns lie in the subset. Which matches `rep` replaces is the definition's: `scanMatches` in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean) scans from the left, resumes where the last match stopped, and skips an empty match that starts there, so `rep("aa", "a*", "-")` is `"-"`. `subReads` reads the replacement against the number of groups `Host` counts in the pattern before any match, and `expandSub` writes it for each match.
 
 ### `split(s, sep)`
 
@@ -3399,6 +3698,8 @@ Empty fields are **preserved**, so `join` is the inverse:
 `join(split(s, sep), sep)` is `s`. An empty separator yields the code
 points, and a separator that does not occur yields the whole string as
 one field.
+
+The definition computes `split` as `splitOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), a string separator by `splitText`, which cuts at each occurrence from the left. A pattern cuts at its matches, which `cutFields` in [`spec/Aontu/Text.lean`](../spec/Aontu/Text.lean) reads as `rep` does.
 
 ## Linking: the tree is the namespace
 
@@ -3540,6 +3841,32 @@ hosts: h1: {}
 { "db": {"host": "$.hosts.h1"}, "hosts": {"h1": {}} }
 ```
 
+A path value generates its address as a JSON string, and no JSON text
+reads back as an address, so `aontu vet` refuses the string that data
+writes for a path value: data that holds addresses is an aontu
+document, which writes each as `path(...)`.
+
+The definition holds an address as a datum of its own, `Data.addr` in
+[`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean), and a path value as
+a term that admits each address its own opens (`Addr.Opens`), so the
+prefix rule is the meet of what two path values admit, `addrMeet` in
+[`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean). It reads the text a
+string converts from by `Addr.ofText?`, in the same module as
+`Data.addr`. A string constraint, `min`, `max`, `above` and `below`
+with a string end, `len`, `re` and `format`, admits an address by its
+spelling (`Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean)),
+so met with a path value it admits each address the value opens whose
+spelling passes. The meet generates the value's own address where that
+passes, in every order of the meets, so `len(3) & path($.a)` is
+`"$.a"`. Where it doesn't, the meet generates nothing and the verdict is
+`incomplete`, whether a longer address could pass or none could, as
+`max("$.a") & path($.b)` can't. A trial that refuses the address reads
+alike, so `path($.a) & must(len(5))` is `incomplete` too. Both engines
+read the one address the value spells when the two meet, so where it
+doesn't pass they refuse it, and their answer depends on the order of
+the meets, which [#474](https://github.com/aontu-lang/aontu/issues/474)
+tracks; a trial that refuses it they read as `invalid`.
+
 Pinned by [`test/spec/path.tsv`](../test/spec/path.tsv).
 
 ## Checked links: `refer(t?)`
@@ -3630,6 +3957,27 @@ Constraints written *alongside* a refer constrain the **link**, not the
 target: `refer() & string & re("auth$") & path($.services.auth)` checks the
 address itself. They are held until the address arrives, and then meet
 it.
+
+In the definition, `refer(t)` reads as the path kind, and
+`Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+meets each link's template, its marks cleared, at the target its
+address names from where the link stands. It reads the targets in
+passes, so one link's template can make another link's target,
+whichever the document writes first. It reads each link where it
+lands: where the document writes it, at each member a spread's template
+holds, at each member a generator's template makes, and wherever a path
+reference copies it, each place reading the relative address from where
+it stands. It reads a generator's template as written, though, not as
+each member instantiates it, so a link whose own template holds `_` or
+a `key()` doesn't flow what both engines flow, and it reads no link in
+a generator inside a declaration's body. Where a target names nothing in
+the schema's own tree, the document is an `error`. The definition reads a link in a
+declaration's body at the body's own place, whether a reference reads
+the body or not. Rows from rf0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it. With data, both engines also read a body's relative link from
+each place that uses the body, which
+[#488](https://github.com/aontu-lang/aontu/issues/488) tracks.
 
 ### The argument is a template, not an address
 
@@ -3973,6 +4321,15 @@ b: usedBy: rel() & [path($.a)]
   type flows into each far end at the site, so a conflict or a hole is
   an ordinary located evaluation error.
 
+A constraint met with `rel()` meets the relation's value as any meet
+does, whichever is written first. So `rel() & path & [path($.a)]` is
+an `error`, as `path & [path($.a)]` is, and
+`rel() & len(min(2)) & [path($.a)]` refuses its one address. A
+constraint on each address goes in the value's spread,
+`rel() & [&: re("sa$")]`, which holds each element, one another list
+brings as well as one it writes, and each such element is a link, so
+`t` flows into its target.
+
 The atoms are **lattice-inert, deliberately.** Both properties are
 global and non-monotone: an acyclic graph becomes cyclic when one more
 edge unifies in, and an inverse that is present becomes absent when the
@@ -3987,6 +4344,23 @@ exactly as an unmet sizing atom refuses. `aontu relations <file>`
 reports the same findings without generating, and the library exposes
 `relationCheck(src)`. The closure question (does `a` reach `b` at any
 remove?) is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches).
+
+In the definition, `rel(t)` reads as the relation kind, `relKind` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): an address, or
+a list or a map of addresses nested to any depth, so a string, a number
+or `true` where an address must be is an `error`. Each leaf of the
+value is a link, which `Decls.withRefers` in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean) reads as it reads a
+`refer`, the leaf's address read from the relation's own position. The
+definition has no rule yet for `acyclic()` and `inverse(k)`, which
+`vet` doesn't check either
+([#491](https://github.com/aontu-lang/aontu/issues/491)). Rows from rl0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it, and rows from rh0 on to a constraint met with `rel()` and to a
+spread over the value's addresses. No row holds a relative address at a leaf of a list or a map,
+which the engines read from different places
+([#492](https://github.com/aontu-lang/aontu/issues/492),
+[#493](https://github.com/aontu-lang/aontu/issues/493)).
 
 There is no reserved `relations:` key: a document that writes one has
 written ordinary data. The tree is user space at every level.
@@ -4007,8 +4381,9 @@ or propagated by conjunction):
 In both cases, **a map field whose value is type- or hide-marked is
 omitted when the enclosing map is generated**, while still participating
 in unification. A bare marked value at the top level still generates
-(`type(1) & number`→`1`). `copy()` of a referenced node clears both
-marks and any seal, making the result emittable and open again:
+(`type(1) & number`→`1`). `copy()` clears both marks and any seal of
+what it copies, a referenced node or a literal, making the result
+emittable and open again:
 
 ```aontu
 x: type({})
@@ -4070,9 +4445,36 @@ declaring the keys the body's maps declare, each optional and
 restricted in turn, and a sealed list the same by position. The seal
 follows a selection to the result it makes and stops at a disjunction
 or a preference, as it does at a kind and at a name. A recursive name
-takes none, as both engines read it. A marked list element, which both engines leave out of the
-output, is yet to enter the definition, the subject of decision 18 of
-the design note.
+takes none, as both engines read it.
+
+A list holds no position for an element a mark of its own leaves out,
+so `[hide(1), 2]` admits `[2]` and refuses `[1, 2]`, and a `key()` in a
+later element reads the index that element takes. The element is
+still read: one that's a conflict, alone or met with the list's
+spread, makes the list a conflict where it stands, so `[hide(1 & 2),
+3]` is an error and an arm holding it drops. A disjunction of marked
+arms carries no mark and holds its position, while one whose other
+arms are dead carries its live arm's. The definition drops the element
+as `resolveD` reads the list, `Decls.markClashes` finds the conflict,
+and rows hl0 on of
+[`test/spec/def-verdict.tsv`](../test/spec/def-verdict.tsv) and gl0 on
+of [`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both
+engines to it.
+
+`move(p)` hides its source with the same mark. In the definition,
+`Decls.withMoves` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+meets the schema with `hide(any)` at each path a `move` reads, and the
+call reads as `pref` of the value the path names, `Val.prefer`, so the
+document generates the value once, at its new place. A `move` in a
+declaration's body hides its source too, whether a reference reads the
+body or not. The definition reads a rider around the path through, and
+a variable in the path names the member its value spells. A path into a list hides
+nothing in the definition yet, where both engines drop the element from
+the list, as a marked element holds no position there. Rows
+mv0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold
+both engines to it. Data that sets the copy of a path under a
+rider splits the engines, which
+[#486](https://github.com/aontu-lang/aontu/issues/486) tracks.
 
 ## Annotations: `meta`
 
@@ -4540,6 +4942,24 @@ the filesystem, then package resolution (see
 value and a local one is a normal unification
 error.
 
+In the definition, a document declares each source it can load as a
+term, under `@` and the source's name, which no document can write:
+aontu's own term for a source in the language, the term `Data.term`
+makes of data, or a string for text, so that the definition reads no
+file.
+`Decls.loaded` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+reads each load in place before anything else reads the document. It
+reads the name with `loadPath`, from the directory of the source that
+writes the load, and reads the source's own loads in from there. A
+source the document declares no term for, an extension the table
+refuses, a module, and a source the chain of loads already holds, a
+cycle, each leave the load unmade, which makes the document an `error` wherever
+the load stands, even in an arm a selection leaves out. Rows from lf0
+on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
+engines to it. The definition doesn't yet read a source's own
+declarations, the destructure `{ %a } = @"…"`, a module, or an
+extension `--text-ext` adds to those read as text.
+
 ### Modules
 
 An import whose path is **domain-shaped** is a module import rather than
@@ -4985,6 +5405,8 @@ up: `Project`, `CopyFiles`, `ListItems`, and the rest.
 [jostraca](https://github.com/jostraca/jostraca) is one such runtime,
 and reads the tree directly.
 
+The definition builds each node as `cmpOf` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), from one table of the props each component admits and the components each holds, `Cmp.props` and `Cmp.kids`.
+
 `generate` / `Generate` produces a native value (JSON-compatible) and
 requires the model to be **fully concrete**:
 
@@ -5068,7 +5490,7 @@ Neither guess is safe: a gate that wrongly reports "compatible" ships
 the break, and one that wrongly reports "breaking" sends its reader
 after a failure that isn't there.
 
-The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`. `DefaultsLe` counts only a default a term declares, as this page's effective default does, so a literal's own value is none, and `integer` over `1` holds under it, as `DefaultsLe.of_lit` proves. `GenLe` adds `MarksAgree`: the marks agree at every position both sides have, a container's spread among them, so `hide(integer)` and `integer` are below each other in the order and not under `gen`, as `hide_not_genLe` proves. The definition decides both profiles position by position: `defaultsLe_of_walk` and `genLe_of_walk` prove the profile's order where `leDecF` proves the order and the walk of `defaultsAt` or `marksAt` fails nowhere, and `not_defaultsLe_of_refutes` and `not_genLe_of_refutes` refute it at one position. The rows f0 on and w0 on of [`test/spec/def-subsume.tsv`](../test/spec/def-subsume.tsv) hold both engines to them.
+The contract any `subsume` must meet is `SubsumeCorrect` in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean): `subsumes` only where the order `⊑` holds, `does_not_subsume` only where it fails, and `undecided` anywhere. One contract per profile is `ProfileCorrect` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean), `DefaultsLe` for `defaults` and `GenLe` for `gen`. `DefaultsLe` counts only a default a term declares, as this page's effective default does, so a literal's own value is none, and `integer` over `1` holds under it, as `DefaultsLe.of_lit` proves. `GenLe` adds `MarksAgree`: the marks agree at every position both sides have, a container's spread among them, so `hide(integer)` and `integer` are below each other in the order and not under `gen`, as `hide_not_genLe` proves. The definition decides both profiles position by position: `defaultsLe_of_walk` and `genLe_of_walk` prove the profile's order where `leDecF` proves the order and the walk of `defaultsAt` or `marksAt` fails nowhere, and `not_defaultsLe_of_refutes` and `not_genLe_of_refutes` refute it at one position. The rows from f0 on and w0 on of [`test/spec/def-subsume.tsv`](../test/spec/def-subsume.tsv) hold both engines to them.
 
 ### Profiles
 
@@ -5100,7 +5522,7 @@ generable documents materialise differently or become incomplete.
 | anything | disjunction | yes where the two are identical; otherwise every specific alternative must be admitted by A, a concrete failing alternative is a witness (`compat_narrowed`), and a non-concrete one is `undecided` (`sub_disjunct_distribution`) |
 | disjunction | non-disjunction | some general alternative must admit B member-wise; failure with concrete B is a witness, otherwise `undecided` (`sub_disjunct_distribution`): member-wise failure is not proof, the distribution case |
 | scalar kind | scalar kind or scalar | the general kind admits the specific kind (`number ⊒ integer`) or the scalar's kind; distinct leaves are disjoint |
-| scalar kind | constraint residual | the kind covers the residual's domain: `number` admits any numeric residual, a numeric leaf kind admits a residual pinned to that leaf, and `string & empty()` admits any string bound, pattern or format. `string` refuses `""` and every path, and a string bound reads a path's spelling, which starts with `$` or `.`. So `string` covers a residual that refuses `""` and whose lower end starts after `.`, as `min("a")` does. Anywhere else a failing case decides, `""` for `re(".*")` and `path(.x)` for `above("")`, or the pair is `undecided` |
+| scalar kind | constraint residual | the kind covers the residual's domain: `number` admits any numeric residual, and a numeric leaf kind admits a residual pinned to that leaf. `string & empty()` and `string` refuse every path, and a string bound reads a path's spelling, which starts with `$` or `.`. So `string & empty()` covers a string residual that refuses every path: one that met `string`, or whose lower end starts after `.`, as `min("a")` does, or whose upper end is below `$`, as `max("#")` is. `string` refuses `""` too, so it covers a residual that refuses `""` and whose lower end starts after `.`. Anywhere else a failing case decides, `""` for `re(".*")` and `path(.x)` for `above("")` and `min("")`, or the pair is `undecided` |
 | constraint residual | scalar kind | a numeric kind compares as the residual it names. The residual covers `string` where nothing in it refuses a non-empty string: no end but a lower one at `""`, no excluded string but `""`, and no pattern, format, size or leaf, as in `above("") ⊒ string`. Anywhere else a failing case decides, or the pair is `undecided` |
 | constraint residual | constraint residual | per the constraint algebra's own [subsumption table](#subsumption-1); a `must` on the general side is `undecided` (`sub_evaluate_only`) unless the two are identical |
 | constraint residual | scalar | membership, with `must` again `undecided`; `unique()` admits no scalar, and a length demand admits a string or a path whose length in code points it admits |
@@ -5388,6 +5810,14 @@ digit              = "0" / positive-digit
 a `0` is always the same token wherever it appears. Spell it as the
 class and `numeric-identifier`'s `"0"` branch is never reached, so
 `1.0.0` stops parsing while `1.2.3` still does.
+
+The definition leaves compiling a grammar and parsing a string to the
+host, as it leaves a pattern's matches. `abnfOf` and `parseOf` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) make the two
+calls, and `Judge.grammar` in
+[`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean) says what
+`parse(g)` admits: a string the grammar parses whole, and not the empty
+string.
 
 ### A grammar reads better in backticks
 
@@ -5961,7 +6391,8 @@ members. `min(2) & unique()` and `re("^a") & unique()` are empty for the
 same reason.
 
 **`length` counts what generates.** An optional key that never resolves
-is dropped at generation, so it does not count. The constraint is a
+is dropped at generation, so it does not count, and neither does one
+whose value generates an empty map or list. The constraint is a
 claim about the data, and the data is what comes out:
 
 ```aontu
@@ -6005,7 +6436,7 @@ atom's own arithmetic: `len(min(5) & max(3))` is empty at composition
 time whatever map it meets, because the inner interval is empty on its
 own.
 
-`len(c)` is a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), judging a string, a list or a map as `c` judges its size, an integer, and refusing a scalar, which has no size; `len_le_len` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carries the order of `c` to it, and a container literal longer than its size allows is a conflict of the schema, an `error`, as both engines answer. `sizeClash` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads the size with its lower ends dropped against the count of what the literal generates, so an exclusion or a multiple the count breaks is a conflict too, as in `len(neq(2)) & {x: 1, y: 2}`. Generation tries a literal shorter than its size, after the fills, and refuses it unless the data brings the members it lacks.
+`len(c)` is a rule of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), judging a string, a list or a map as `c` judges its size, an integer, and refusing a scalar, which has no size; `len_le_len` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carries the order of `c` to it where the general `c` is in `len`'s domain, so `len(1)` is below `len(number)` but not below `len(any)`, which admits no size, and a container literal longer than its size allows is a conflict of the schema, an `error`, as both engines answer. `meetClash` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean) reads the size with its lower ends dropped against the count of the members a container holds where the meet reads it, each one it requires a container or a value that generates, so an exclusion or a multiple the count breaks is a conflict too, as in `len(neq(2)) & {x: 1, y: 2}`, while `len(1) & [1, integer]` waits for its second member. `Val.staged` reads each such conflict as `nil` where it stands, so a clashing arm drops, and a container the data gives too long for its size is `invalid` at the meet whatever else is incomplete. Generation tries a literal shorter than its size, after the fills, and refuses it unless the data brings the members it lacks.
 
 ### Sizing atoms fold last
 
@@ -6137,7 +6568,7 @@ needs the same key on the specific side (distinctness on `port` says
 nothing about distinctness on `name`) while a specific that adds a
 key still subsumes, because more distinctness is narrower.
 
-`unique()` and `unique(k)` are rules of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), comparing members, or the values under `k`, as values by `Data.Same` in [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean), and refusing a scalar, which has no members.
+`unique()` and `unique(k)` are rules of `Judge` in [`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean), comparing members, or the values under `k`, as values by `Data.Same` in [`spec/Aontu/Data.lean`](../spec/Aontu/Data.lean), and refusing a scalar, which has no members. Where the meet reads a container's members, two written alike are a conflict there (`Val.refusesAtMeet`), so `unique() & [1, 1]` is an `error` and `unique()` against the data `[1, 1]` is `invalid` whatever else is incomplete.
 
 ### Cross-field bounds and residuation
 
@@ -6159,6 +6590,34 @@ A residual that survives to generation is an error, exactly like an
 unresolved kind today; exhaustion of the pass budget while residuals
 are still refining is `budget_passes` ([the trust
 contract](trust.md), clause 2).
+
+The definition reads a bound over a term as the bound itself once each
+argument reads as a number or a string, by `bndOf` in
+[`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). An argument
+outside the bound's domain, a boolean, `null`, a container, a kind, a
+bound, a pattern or a meet, or a number and a string together under
+`neq`, makes a bound that admits nothing, however the argument is
+written, so data that meets it is `invalid`, and in a `filter`'s
+condition it refuses each member the condition tries. A kind the data
+fills reads as the value the data gives it, so
+`lo: number, t: min($.lo)` admits `{"lo": 2, "t": 3}`. A choice still
+to make, a disjunction or a preference, is no argument at all, an
+error whatever the bound meets, as a size that holds one is, and so
+is an argument that never settles. A `neq` over a sole list that isn't
+empty reads its elements as its arguments, `neq([1, 3])` as
+`neq(1, 3)`, so a choice among them is an error too. The atom that
+admits nothing meets `any` as itself and anything else as a
+contradiction, so `min(true) & integer` is an error. Rows from bd0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it. A bound in a generator's template or in a `filter`'s condition
+reads a relative path where its instance lands, and rows from bg0 on
+hold both engines to that. A size over a path, `len($.n)`, reads as
+the size of the count it names, since `len` takes a term, and one over
+a path to a string admits nothing, as `mulof` over a path to zero or a
+negative number does. `len(any)` and `len` over a trial admit no size
+either, written or through a path: `any` and a trial name no count,
+though each admits numbers (`Val.unsized` in
+[`spec/Aontu/Admits.lean`](../spec/Aontu/Admits.lean)).
 
 ### Formats: `format`
 
@@ -6336,7 +6795,7 @@ compares members as aontu values: read through `vet --exact-numbers`,
 `1.0` in the data is `1`, so a list of both is refused as JSON Schema
 refuses it.
 
-`contains(c, n)` counts the members `c` admits and judges the count as `n` judges it: `judge_contains_empty` and `contains_refuses_scalar` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean).
+`contains(c, n)` counts the members `c` admits and judges the count as `n` judges it: `judge_contains_empty` and `contains_refuses_scalar` in [`spec/Aontu/Trial.lean`](../spec/Aontu/Trial.lean). Where the meet reads a container's members, a count above `n`'s upper end is a conflict there (`Val.refusesAtMeet`), as `contains(number, max(1)) & [1, 2]` is.
 
 ### Band B: `rest`
 

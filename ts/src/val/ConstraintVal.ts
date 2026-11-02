@@ -522,6 +522,8 @@ function lateAtom(atom: string): boolean {
 
 const BAND_B = ['must', 'nof', 'when']
 
+const BOUND_ATOMS = ['min', 'max', 'above', 'below', 'neq', 'mulof', 'len']
+
 // The atoms whose arguments are trial schemas, which may not move.
 const TRIAL_ATOMS = [...BAND_B, 'contains', 'rest']
 
@@ -878,14 +880,18 @@ class ConstraintVal extends FeatureVal {
     }
 
     if (settled) {
-      // Build the residual the atom always meant, at this atom's site,
-      // then let the ordinary ladder meet it with the peer.
+      // The residual the atom always meant, at this atom's site: a bound's
+      // stands against the top, unless an argument it reads is a choice.
       const built = new ConstraintVal({ peg: args, atom: pend.atom }, ctx)
       built.path = this.path
       built.site.row = this.site.row
       built.site.col = this.site.col
       built.site.url = this.site.url
       propagateMarks(this, built)
+      if ((null == peer || (peer as any).isTop) && BOUND_ATOMS.includes(pend.atom) &&
+        !atomArgs(pend.atom, args).some((a: any) => true === a?.isDisjunct || true === a?.isPref)) {
+        return built
+      }
       return built.unify(peer, ctx)
     }
 
@@ -1471,6 +1477,13 @@ class ConstraintVal extends FeatureVal {
     out.pending = this.pending
     if (null != this.pending) {
       out.dc = this.dc
+      // An instance (`dup`) holds its own arguments: re-pathing one
+      // instance's `.lim` must not move the one its siblings read.
+      if (true === spec?.dup) {
+        out.peg = this.peg.map((a: any) =>
+          true === a?.isVal ? a.clone(ctx, { dup: true }) : a)
+        out.pending = { atom: this.pending.atom, args: atomArgs(this.pending.atom, out.peg) }
+      }
     }
     out.cjo = this.cjo
     out.invalid = this.invalid

@@ -8,6 +8,14 @@ import (
 	"strings"
 )
 
+// A bare hole as a spread's template leads its meet: it is the member.
+func meetTemplate(ctx *Ctx, member, tmpl Val) Val {
+	if _, ok := tmpl.(*PlaceVal); ok && !ctx.matchRead {
+		return unite(ctx, tmpl, member)
+	}
+	return unite(ctx, member, tmpl)
+}
+
 func unite(ctx *Ctx, a, b Val) Val {
 	var provPath []string
 	if nil != ctx.prov {
@@ -103,10 +111,14 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 	if drives(b) {
 		return drive(b, a)
 	}
-	// These do not know their peers, so they answer from either side.
+	// These answer from either side, but a hole in a match matches nothing.
 	switch b.(type) {
 	case *ConstraintKindVal, *EmptyVal, *SealVal:
 		if !drives(a) {
+			return drive(b, a)
+		}
+	case *PlaceVal:
+		if !drives(a) && !ctx.matchRead {
 			return drive(b, a)
 		}
 	}
@@ -259,5 +271,5 @@ func residuePaths(v Val, max int) []string {
 // phase 3, see place.go) or an operand that has not decided.
 func isDrivingOp(v Val) bool {
 	_, ok := v.(*PlusOpVal)
-	return ok && (hasPlace(v) || holdsStaged(v))
+	return ok && (waitsOnHole(v) || holdsStaged(v))
 }

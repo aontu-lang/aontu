@@ -288,16 +288,16 @@ example (j : Data) : ¬ Instance .empty (.neq [.num (.integer (.of 1)), .str "a"
 
 /-- `len(1)` admits `"𝄞"`, one character in four bytes. -/
 example : Instance .empty (.len (.lit (.num (.integer (.of 1))))) (.str "𝄞") :=
-  ⟨by decide, .len (n := 1) (by decide) (by decide) .num⟩
+  ⟨by decide, .len (n := 1) (by decide) rfl (by decide) .num⟩
 
 /-- `len(0)` admits `""`, which `string` refuses. -/
 example : Instance .empty (.len (.lit (.num (.integer (.of 0))))) (.str "") :=
-  ⟨by decide, .len (n := 0) (by decide) (by decide) .num⟩
+  ⟨by decide, .len (n := 0) (by decide) rfl (by decide) .num⟩
 
 /-- `len(min(2))` admits `{"x": 1, "y": 2}`… -/
 example : Instance .empty (.len (.min (.num (.integer (.of 2)))))
     (.map [("x", .integer 1), ("y", .integer 2)]) :=
-  ⟨by decide, .len (n := 2) (by decide) (by decide) (.min (by decide))⟩
+  ⟨by decide, .len (n := 2) (by decide) rfl (by decide) (.min (by decide))⟩
 
 /-- …and refuses `[1]`. -/
 example : ¬ Instance .empty (.len (.min (.num (.integer (.of 2))))) (.list [.integer 1]) :=
@@ -307,7 +307,7 @@ example : ¬ Instance .empty (.len (.min (.num (.integer (.of 2))))) (.list [.in
 example : ¬ Instance .empty (.len (.lit (.num (.integer (.of 1))))) (.integer 5) := by
   rintro ⟨-, h⟩
   cases h with
-  | len _ hs _ => cases hs
+  | len _ _ hs _ => cases hs
 
 /-! ## Distinct members -/
 
@@ -881,9 +881,9 @@ example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .inco
 
 /-- Without the fill, `valid` is `Instance`: `[*1]` against `[2]`, under
 no declaration, where a document reads as itself, its visible part the
-normal form of `[*1]`. -/
+normal form of `[*1]`, staged. -/
 example : Instance (Decls.envE [])
-    (normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).visible
+    ((normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).staged []).visible.waitAny
     (.list [.integer 2]) :=
   vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
     ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))
@@ -966,7 +966,8 @@ example : Admits .empty .null (.nof (.lit (.num (.integer (.of 0)))) [.string]) 
 
 /-- `must(min(3), "m")` refuses `2`, as `min(3)` does… -/
 example : Refuses .empty .null (.must (.min (.num (.integer (.of 3)))) "m") (.integer 2) :=
-  .must (.minNot (fun _ _ hn hx => by cases hn; cases hx; decide) (fun _ _ h => nomatch h))
+  .must (.minNot (fun _ _ hn hx => by cases hn; cases hx; decide) (fun _ _ h => nomatch h)
+    (fun _ _ h => nomatch h))
 
 set_option maxRecDepth 8192 in
 /-- …and the document holding it is invalid. -/
@@ -1046,6 +1047,29 @@ abbrev kept : Val :=
 set_option maxRecDepth 8192 in
 /-- The filter keeps `1` and `2`, and the document is valid. -/
 example : vet {} [] kept (.map [("d", .list [.integer 1, .integer 2])]) = .valid := by decide
+
+/-! ## Path values -/
+
+/-- `path($.a)` and `path($.a.b)`, the second's address one step past
+the first's. -/
+abbrev pathA : Val := .addr ⟨0, ["a"]⟩
+abbrev pathAB : Val := .addr ⟨0, ["a", "b"]⟩
+
+/-- `path($.a)` admits `$.a.b`, an address its own opens… -/
+example : Instance .empty pathA (.addr ⟨0, ["a", "b"]⟩) := ⟨by decide, .addr ⟨rfl, by decide⟩⟩
+
+/-- …and refuses the string `"$.a"`, which no address is. -/
+example : ¬ Instance .empty pathA (.str "$.a") := fun ⟨_, h⟩ => nomatch h
+
+/-- The two meet in the longer, which generates its own address. -/
+example : output (.meet pathA pathAB) = some (.addr ⟨0, ["a", "b"]⟩) := by decide
+
+/-- A prefix subsumes its extensions. -/
+example : pathAB ⊑[.empty] pathA := addr_le_addr ⟨rfl, by decide⟩
+
+/-- `path` is a kind of its own, so `path & boolean` has `any` for its
+parent, as `string & boolean` has. -/
+example : (Val.meet .pathKind .boolean).super = .any := rfl
 
 /-! ## What a `subsume` must answer -/
 

@@ -60,8 +60,47 @@ function boundArgStart(v: any): number {
 
 
 function hasPlace(v: Val): boolean {
+  return holeIn(v, true)
+}
+
+
+// Done but for the holes it waits on, which settle only when filled.
+function doneButHoles(v: any): boolean {
+  if (v.done || true === v.isPlace) {
+    return true
+  }
+  if (true === v.isFunc || true === v.isOp) {
+    return waitsOnHole(v) && v.peg.slice(0, boundArgStart(v)).every(doneButHoles)
+  }
+  if (true === v.isConjunct || true === v.isDisjunct) {
+    return v.peg.every(doneButHoles)
+  }
+  if (true === v.isPref) {
+    return doneButHoles(v.peg)
+  }
+  if (true === v.isList) {
+    return null == v.spread.cj && v.peg.every(doneButHoles)
+  }
+  if (true === v.isMap) {
+    return null == v.spread.cj && Object.values(v.peg).every(doneButHoles)
+  }
+  return false
+}
+
+
+// A call waits on a hole in its arguments, not on one a container
+// argument holds, which that container's own meet fills.
+function waitsOnHole(v: Val): boolean {
+  return holeIn(v, false)
+}
+
+
+function holeIn(v: Val, bags: boolean): boolean {
   if (true === (v as any).isPlace) {
     return true
+  }
+  if (!bags && (true === (v as any).isMap || true === (v as any).isList)) {
+    return false
   }
 
   const peg: any = (v as any).peg
@@ -70,17 +109,17 @@ function hasPlace(v: Val): boolean {
   if (Array.isArray(peg)) {
     for (let cI = 0; cI < peg.length && cI < bound; cI++) {
       const c = peg[cI]
-      if (true === c?.isVal && hasPlace(c)) {
+      if (true === c?.isVal && holeIn(c, bags)) {
         return true
       }
     }
   }
   else if (true === peg?.isVal) {
-    return hasPlace(peg)
+    return holeIn(peg, bags)
   }
   else if (null != peg && 'object' === typeof peg) {
     for (const k of Object.keys(peg)) {
-      if (true === peg[k]?.isVal && hasPlace(peg[k])) {
+      if (true === peg[k]?.isVal && holeIn(peg[k], bags)) {
         return true
       }
     }
@@ -91,8 +130,23 @@ function hasPlace(v: Val): boolean {
 
 
 function fillPlace(v: Val, fill: Val, ctx: AontuContext): Val {
+  return fillIn(v, fill, ctx, true)
+}
+
+
+// The holes a call waits on, bound to its peer: a container argument
+// keeps its own.
+function bindHole(v: Val, fill: Val, ctx: AontuContext): Val {
+  return fillIn(v, fill, ctx, false)
+}
+
+
+function fillIn(v: Val, fill: Val, ctx: AontuContext, bags: boolean): Val {
   if (true === (v as any).isPlace) {
     return fill.clone(ctx, { path: [...(v as any).path] })
+  }
+  if (!bags && (true === (v as any).isMap || true === (v as any).isList)) {
+    return v
   }
 
   const peg: any = (v as any).peg
@@ -104,7 +158,7 @@ function fillPlace(v: Val, fill: Val, ctx: AontuContext): Val {
       if (true !== c?.isVal || bound <= cI) {
         return c
       }
-      const f = fillPlace(c, fill, ctx)
+      const f = fillIn(c, fill, ctx, bags)
       changed = changed || f !== c
       return f
     })
@@ -112,7 +166,7 @@ function fillPlace(v: Val, fill: Val, ctx: AontuContext): Val {
   }
 
   if (true === peg?.isVal) {
-    const f = fillPlace(peg, fill, ctx)
+    const f = fillIn(peg, fill, ctx, bags)
     return f === peg ? v : rebuild(v, f, ctx)
   }
 
@@ -122,9 +176,9 @@ function fillPlace(v: Val, fill: Val, ctx: AontuContext): Val {
     for (const k of Object.keys(peg)) {
       const c = peg[k]
       // No isVal guard: a slot holding something that is not a Val
-      // answers itself, because fillPlace's own first tests -- is it a
-      // hole, has it a peg -- are both false for one.
-      const f = fillPlace(c, fill, ctx)
+      // answers itself, because fillIn's own first tests -- is it a
+      // hole, a container, has it a peg -- are all false for one.
+      const f = fillIn(c, fill, ctx, bags)
       changed = changed || f !== c
       out[k] = f
     }
@@ -150,6 +204,9 @@ export {
   boundArgStart,
   rebuild,
   hasPlace,
+  doneButHoles,
+  waitsOnHole,
   fillPlace,
+  bindHole,
   PlaceVal,
 }

@@ -100,7 +100,7 @@ maybe-template-closed-list-present-refuses	errc	v: {k:"a", z:1}\nx: [&: close({k
 # compared as they generate, kinds included.
 maybe-in-alternative-kinds-differ	errc	x: [maybe($.gone), 1] | [1.0]	disjunct_no_gen
 maybe-in-both-alternatives-collapses	gens	x: [maybe($.gone), 1] | [maybe($.gone), 1]	{"x":[1]}
-maybe-in-both-alternatives-canon	canon	x: [maybe($.gone), 1] | [maybe($.gone), 1]	{"x":[maybe(),1]}
+maybe-in-both-alternatives-canon	canon	x: [maybe($.gone), 1] | [maybe($.gone), 1]	{"x":[1]}
 maybe-in-both-alternatives-kinds-differ	errc	x: [maybe($.gone), 1] | [maybe($.gone), 1.0]	disjunct_no_gen
 maybe-in-alternative-still-two-values	errc	x: [maybe($.gone), 1] | [2]	disjunct_no_gen
 two-absences-are-one-member	canon	x: maybe($.gone) | maybe($.gone)	{"x":maybe()}

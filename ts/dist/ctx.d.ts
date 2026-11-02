@@ -75,6 +75,7 @@ declare class AontuContext {
         capability: string;
     }[];
     _trialMode?: boolean;
+    _matchRead?: boolean;
     _childCache?: Map<string, AontuContext>;
     constructor(cfg: AontuContextConfig);
     clone(cfg: {

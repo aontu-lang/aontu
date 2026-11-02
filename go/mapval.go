@@ -327,9 +327,8 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			if ev, ok := child.(*ExpectVal); ok {
 				code = "mapval_spread_required"
 				if ev.parent != nil {
-					// place() copies the parent's whole site — position
-					// AND url (the clone mark), which gates the operand
-					// order exactly as in TS.
+					// place() copies the parent's whole site, url (the clone
+					// mark) too, which gates the operand order as in TS.
 					nb := newNil("")
 					nb.site.sp = ev.parent.pos()
 					nb.site.spu = ev.parent.posu()
@@ -340,9 +339,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			}
 			details := map[string]string{"key": k}
 			n := makeNilErrFull(ctx, code, va, vb, "", details)
-			if nil != vb {
-				n.path = append(cp(m.path), k)
-			}
+			n.path = append(cp(m.path), k)
 			break
 		}
 
@@ -637,7 +634,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		} else {
 			sc := spreadCloneFor(spreadCj, kslot, ctx)
 			ctx.slot = kslot
-			cv = unite(ctx, child, sc)
+			cv = meetTemplate(ctx, child, sc)
 			if !isTop(spreadCj) && !cv.Nil() {
 				setSprOn(cv, spreadCj)
 			}
@@ -687,6 +684,10 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				} else {
 					uv = unite(ctx, ex, pc)
 				}
+				// A member the spread has met keeps its mark, as a list's element does.
+				if !isTop(spreadCj) && !uv.Nil() && (sprOf(ex) == spreadCj || sprOf(pc) == spreadCj) {
+					setSprOn(uv, spreadCj)
+				}
 			} else if !expectGenable(pc) && !pcIsOp && !pc.markedType() && !pc.markedHide() &&
 				!m.markedType() && !m.markedHide() && !pm.isAliasKey(pk) {
 				peg := pc
@@ -707,7 +708,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				!out.isAliasKey(pk) {
 				sc := spreadCloneFor(spreadCj, pkslot, ctx)
 				ctx.slot = pkslot
-				uv = unite(ctx, uv, sc)
+				uv = meetTemplate(ctx, uv, sc)
 				if !isTop(spreadCj) && !uv.Nil() {
 					setSprOn(uv, spreadCj)
 				}

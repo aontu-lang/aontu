@@ -428,6 +428,28 @@ func subInsideString(s *ConstraintVal) bool {
 	return 0 < n && '.' < r
 }
 
+// subRefusesPaths: below `string & empty()`, which refuses every path: a
+// residual that met `string`, or whose ends leave no spelling, which
+// starts with `$` or `.`.
+func subRefusesPaths(s *ConstraintVal) bool {
+	if s.nonEmpty {
+		return true
+	}
+	if nil != s.lo {
+		if lo, ok := s.lo.v.peg.(string); ok {
+			if r, n := utf8.DecodeRuneInString(lo); 0 < n && '.' < r {
+				return true
+			}
+		}
+	}
+	if nil != s.hi {
+		if hi, ok := s.hi.v.peg.(string); ok {
+			return (s.hi.open && hi <= "$") || (!s.hi.open && hi < "$")
+		}
+	}
+	return false
+}
+
 // subAboveString: a residual is above `string` where nothing in it
 // refuses a string the kind admits: no end but a lower one at "", no
 // excluded string the kind admits, and no pattern, format, size, leaf or
@@ -574,7 +596,7 @@ func subsumeNode(st *subState, path []string, g0, s0 Val) string {
 				return subYes
 			}
 			if "string" == sn.domain && KindString == gk.kind && !sn.pathKind &&
-				(!strict || subInsideString(sn)) {
+				((strict && subInsideString(sn)) || (!strict && subRefusesPaths(sn))) {
 				return subYes
 			}
 			if KindPath == gk.kind && sn.pathKind {

@@ -29,8 +29,7 @@ class AggFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return null;
     }
     unify(peer, ctx) {
-        const ready = this.driveStagedArgs(ctx, 1);
-        if (!ready || !ctx.settle) {
+        if (!this.stagedReady(peer, ctx, 1)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);
@@ -97,15 +96,14 @@ class PickFuncVal extends FuncBaseVal_1.FuncBaseVal {
     funcname() {
         return 'pick';
     }
-    // The base drives neither argument: the DATA is driven by hand below
-    // (a staged func must advance what it waits on every pass), and the
-    // KEY is a bare word, which the parser has already made a string.
+    // The base drives neither argument: `unify` drives both by hand, as a
+    // staged func must advance what it waits on every pass, so a key given
+    // through a rider, a name or a path is read as its value.
     prepare(_ctx, _args) {
         return null;
     }
     unify(peer, ctx) {
-        const ready = this.driveStagedArgs(ctx, 1);
-        if (!ready || !ctx.settle) {
+        if (!this.stagedReady(peer, ctx, 2)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);
@@ -123,15 +121,13 @@ class PickFuncVal extends FuncBaseVal_1.FuncBaseVal {
             'string' === typeof key.peg ? key.peg :
                 'number' === typeof key.peg && key.isInteger ? String(key.peg) :
                     undefined;
-        if (undefined === name) {
+        // `""` names no key: it is `sort`'s spelling of the member itself.
+        if (undefined === name || '' === name) {
             return this.place((0, err_1.makeNilErr)(ctx, 'invalid-arg', this, undefined, 'pick'));
         }
         const peg = [];
         for (const child of children) {
-            const c = child;
-            const got = true === c?.isMap ? c.peg[name] :
-                true === c?.isList ? c.peg[Number(name)] :
-                    undefined;
+            const got = fieldOf(child, name);
             if (null == got) {
                 return this.place((0, err_1.makeNilErr)(ctx, 'pick_key', this, undefined, 'pick', { key: name }));
             }
@@ -144,7 +140,9 @@ exports.PickFuncVal = PickFuncVal;
 // `pick`'s rule, plus: the empty string is the member itself, which is
 // how a keyless descending sort is spelled.
 function projectorName(key) {
-    if (null == key || null == key.peg) {
+    // Only an absent projector is the member itself: a supplied `null`,
+    // written or reached through a rider or a path, is none.
+    if (undefined === key) {
         return ['', true];
     }
     if ('string' === typeof key.peg) {
@@ -155,14 +153,17 @@ function projectorName(key) {
     }
     return ['', false];
 }
+// A list member's index is the string's digits after one optional sign,
+// as Go's strconv.Atoi reads them, never what Number() makes of it.
 function fieldOf(child, name) {
     return true === child?.isMap ? child.peg[name] :
-        true === child?.isList ? child.peg[Number(name)] :
+        true === child?.isList && /^[+-]?[0-9]+$/.test(name) ?
+            child.peg[Number(name)] :
             undefined;
 }
 const SORT_DIRECTIONS = { asc: 1, desc: -1 };
 function directionOf(v) {
-    if (null == v || null == v.peg) {
+    if (undefined === v) {
         return 1;
     }
     return 'string' === typeof v.peg ? SORT_DIRECTIONS[v.peg] : undefined;
@@ -188,14 +189,13 @@ class SortFuncVal extends FuncBaseVal_1.FuncBaseVal {
     funcname() {
         return 'sort';
     }
-    // The base drives no argument: the DATA is driven by hand below, and
-    // the projector is a bare word the parser has already made a string.
+    // The base drives no argument: `unify` drives all three by hand, as
+    // `pick` drives its key.
     prepare(_ctx, _args) {
         return null;
     }
     unify(peer, ctx) {
-        const ready = this.driveStagedArgs(ctx, 1);
-        if (!ready || !ctx.settle) {
+        if (!this.stagedReady(peer, ctx, 3)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);
@@ -283,8 +283,7 @@ class JoinFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return null;
     }
     unify(peer, ctx) {
-        const ready = this.driveStagedArgs(ctx, 2);
-        if (!ready || !ctx.settle) {
+        if (!this.stagedReady(peer, ctx, 2)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);

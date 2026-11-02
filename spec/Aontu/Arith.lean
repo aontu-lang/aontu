@@ -15,10 +15,41 @@ members: `sum` adds them from the left, from the integer zero, and
 `least` and `greatest` answer the first of them no other is below or
 above, by exact value. -/
 
-/-- The functions on numbers, and the folds on a bag of them. -/
+/-- The components of the component tree, each a function that builds
+a node of it. -/
+inductive Cmp where
+  | project | folder | file | content | line | fragment | slot | inject | copyfiles | listitems
+  deriving DecidableEq, Repr
+
+/-- A component's function name. -/
+def Cmp.name : Cmp → String
+  | .project => "project" | .folder => "folder" | .file => "file" | .content => "content"
+  | .line => "line" | .fragment => "fragment" | .slot => "slot" | .inject => "inject"
+  | .copyfiles => "copyfiles" | .listitems => "listitems"
+
+/-- A bound written over terms, which reads as the bound its terms
+name once they read as numbers or strings: `min`, `max`, `above`,
+`below`, `neq` and `mulof`. -/
+inductive Bnd where
+  | min | max | above | below | neq | mulof
+  deriving DecidableEq, Repr
+
+/-- The functions on numbers, the folds on a bag of them, `+`, the calls
+on bags and text, `join`, `pick`, `sort`, `upper`, `lower`,
+`translate`, `esc`, `usc`, `split`, `rep` and `nom`, `super`, `pref`, `copy` and
+`move` written as calls, `refer` and `rel`, links, `path`, `abnf` and `parse`,
+`load`, the source `@"p"` loads, the components, the generators `each`
+and `pack`, `maybe`, where absence is made, and a bound written over
+terms. -/
 inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
+  | plus | join | pick | sort | upper | lower | translate | esc | usc | split | rep | nom
+  | super | pref | move | copy | refer | rel | path | abnf | parse | load
+  | cmp (c : Cmp)
+  | each | pack | emit
+  | maybe
+  | bnd (b : Bnd)
   deriving DecidableEq, Repr
 
 /-- Whether a function folds the members of one bag. -/
@@ -185,5 +216,59 @@ def Number.fold : Fn → List Number → Option Number
   | .least, xs => Number.least xs
   | .greatest, xs => Number.greatest xs
   | _, _ => none
+
+/-- A number rounded to a whole one in its own leaf, up to its ceiling or
+down to its floor, exactly: an integer and a big integer stand as they
+are, and a float's whole neighbour is a float, the zero unsigned. -/
+def Number.round (up : Bool) (x : Number) : Option Number :=
+  let k : ℤ :=
+    if up then -((-x.value.1).fdiv x.value.2) else x.value.1.fdiv x.value.2
+  match x with
+  | .integer _ | .biginteger _ => some x
+  | .float _ => (Float.nearest k 1).map .float
+  | .bigdecimal _ => some (.bigdecimal (BigDecimal.normal k 0))
+
+/-! ## A number as text
+
+The text `+` writes for a number beside a string: an integer's digits,
+a big decimal's with its point and one place after it at least, and a
+float's as JavaScript writes a number, the shortest digits that read
+back as it, plain where the point falls within twenty-one places and
+in exponent form otherwise. -/
+
+def zeros (n : ℕ) : String := String.mk (List.replicate n '0')
+
+/-- A big decimal's digits, its point where its scale puts it. -/
+def BigDecimal.text (x : BigDecimal) : String :=
+  let sign := if x.coef < 0 then "-" else ""
+  let ds := toString x.coef.natAbs
+  if x.scale ≤ 0 then sign ++ ds ++ zeros x.scale.natAbs ++ ".0"
+  else
+    let s := x.scale.toNat
+    if s < ds.length then sign ++ ds.take (ds.length - s) ++ "." ++ ds.drop (ds.length - s)
+    else sign ++ "0." ++ zeros (s - ds.length) ++ ds
+
+/-- A float's shortest digits, placed as JavaScript places them. -/
+def Float.text (x : Float) : String :=
+  let (c, k) := x.shortest
+  if c = 0 then "0" else
+  let sign := if c < 0 then "-" else ""
+  let ds := toString c.natAbs
+  let len : ℤ := ds.length
+  let n := k + len
+  if len ≤ n ∧ n ≤ 21 then sign ++ ds ++ zeros (n - len).toNat
+  else if 0 < n ∧ n ≤ 21 then sign ++ ds.take n.toNat ++ "." ++ ds.drop n.toNat
+  else if -6 < n ∧ n ≤ 0 then sign ++ "0." ++ zeros n.natAbs ++ ds
+  else
+    let e := n - 1
+    let es := (if e < 0 then "-" else "+") ++ toString e.natAbs
+    if ds.length = 1 then sign ++ ds ++ "e" ++ es
+    else sign ++ ds.take 1 ++ "." ++ ds.drop 1 ++ "e" ++ es
+
+def Number.text : Number → String
+  | .integer x => toString x.value
+  | .float x => x.text
+  | .biginteger x => toString x.value
+  | .bigdecimal x => x.text
 
 end Aontu

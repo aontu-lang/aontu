@@ -931,11 +931,14 @@ corpusDescribe('docs-style', () => {
         [/capability-review/g, 'the capability review'],
         [/\bG\d+ phase \d+\b/g, 'a capability-review phase'],
         // A design note is cited by the bare relative href the pages once
-        // used, or by its folder, `sketch/`.
+        // used, by its folder, `sketch/`, by name, or by a numbered decision.
         [/\bdesign\/[A-Za-z0-9._-]+\.md/g, 'a design note'],
         [/\bsketch\//g, 'a working note'],
-        // The repository's own folder, not an example path that ends in one.
-        [/(?<![\w./-])admin\//g, 'an admin note'],
+        [/\bdesign note\b/gi, 'a design note'],
+        [/\b[Dd]ecisions? \d+\b/g, 'a numbered decision'],
+        // The repository's own folder, bare or climbed to from a page, not an
+        // example path that ends in one.
+        [/(?<![\w./-])(?:\.\.\/)*admin\//g, 'an admin note'],
         [/\bDIVERGENCE\.md\b/g, 'DIVERGENCE.md'],
         [/use-cases\/(?:BUGS|REVIEW)\.md/g, 'a defect ledger'],
         [/\bprogress\.md\b/g, 'the progress register'],
@@ -1120,7 +1123,10 @@ corpusDescribe('docs-style', () => {
         claim(cites('ADR-018 removed the pipe'), 'a numbered decision record');
         claim(!cites('a G8 grammar'), 'a phase needs its number');
         claim(cites('the steps in admin/scripts'), 'the admin folder');
+        claim(cites('[the gate](../admin/scripts/comment-gate.cjs)'), 'the admin folder climbed to from a page');
+        claim(cites('[a tracker](../../admin/README.md)'), 'the admin folder climbed to from a nested page');
         claim(!cites('a model at services/admin/roles.aontu'), 'a path that ends in admin/');
+        claim(!cites('a model at ../services/admin/roles.aontu'), 'a climbed path that ends in admin/');
         Assert.deepEqual(faults, [], `these rules no longer catch what they claim:\n${faults.join('\n')}`);
     });
     (0, node_test_1.test)('the-committed-figures-are-what-the-engine-draws', () => {

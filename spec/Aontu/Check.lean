@@ -24,6 +24,7 @@ def Data.wf : Data → Bool
   | .null => true
   | .map fs => decide (fs.map Prod.fst).Nodup && Data.wfMembers fs
   | .list xs => Data.wfAll xs
+  | .addr _ => true
 
 def Data.wfAll : List Data → Bool
   | [] => true
@@ -48,6 +49,7 @@ theorem Data.wf_iff : ∀ j : Data, j.wf = true ↔ j.WellFormed
     simp only [Data.wf]
     rw [Data.wfAll_iff xs]
     exact ⟨.list, fun h => by cases h; assumption⟩
+  | .addr _ => ⟨fun _ => .addr, fun _ => rfl⟩
 
 theorem Data.wfAll_iff : ∀ xs : List Data, Data.wfAll xs = true ↔ ∀ x, x ∈ xs → x.WellFormed
   | [] => by simp [Data.wfAll]
@@ -82,6 +84,7 @@ def Data.same : Data → Data → Bool
   | .null, .null => true
   | .map fs, .map gs => Data.sameMembers gs [] fs && gs.all fun m => (lookup m.1 fs).isSome
   | .list xs, .list ys => Data.sameElems xs ys
+  | .addr a, .addr b => decide (a = b)
   | _, _ => false
 
 /-- Each key of `fs` not yet seen gives, in `gs`, the same value it
@@ -179,6 +182,12 @@ theorem Data.same_iff : ∀ j j' : Data, j.same j' = true ↔ j.Same j'
       simp only [Data.same]
       rw [Data.sameElems_iff xs ys]
       exact ⟨fun ⟨h1, h2⟩ => .list h1 h2, fun h => by cases h; exact ⟨‹_›, ‹_›⟩⟩
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .addr a, j' => by
+    cases j' with
+    | addr b =>
+      simp only [Data.same, decide_eq_true_eq]
+      exact ⟨fun h => by subst h; exact .addr, fun h => by cases h; rfl⟩
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
 
 theorem Data.sameMembers_iff (gs : List (String × Data)) :
@@ -298,7 +307,9 @@ inductive Val.Checkable : Val → Prop
   | boolean : Checkable .boolean
   | mapKind : Checkable .mapKind
   | listKind : Checkable .listKind
+  | pathKind : Checkable .pathKind
   | lit {s : Scalar} : Checkable (.lit s)
+  | addr {a : Addr} : Checkable (.addr a)
   | min {b : Bound} : Checkable (.min b)
   | max {b : Bound} : Checkable (.max b)
   | above {b : Bound} : Checkable (.above b)
@@ -307,8 +318,12 @@ inductive Val.Checkable : Val → Prop
   | mulof {d : Number} : Checkable (.mulof d)
   | len {c : Val} : Checkable c → Checkable (.len c)
   | unique {k : Option String} : Checkable (.unique k)
+  | grammar {g : String} : Checkable (.grammar g)
   | any : Checkable .any
+  | absent : Checkable .absent
+  | hole : Checkable .hole
   | nil : Checkable .nil
+  | nothing : Checkable .nothing
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
       (∀ k o v, (k, o, v) ∈ fs → Checkable v) → (∀ s, spread = some s → Checkable s) →
       Checkable (.map fs spread closed)
@@ -332,6 +347,7 @@ inductive Val.Checkable : Val → Prop
       Checkable (.rest t cs)
   | ride {k : Rider} {v : Val} {r : Record} : Checkable v → Checkable (.ride k v r)
   | key : Checkable .key
+  | keyUp {n : ℤ} : Checkable (.keyUp n)
   | selectKey {arms : List (Val × Val)} {d : Option Val} :
       (∀ p r, (p, r) ∈ arms → Checkable p) → (∀ p r, (p, r) ∈ arms → Checkable r) →
       (∀ e, d = some e → Checkable e) → Checkable (.select .key arms d)
@@ -396,7 +412,9 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .boolean => ⟨fun _ => .boolean, fun _ => rfl⟩
   | .mapKind => ⟨fun _ => .mapKind, fun _ => rfl⟩
   | .listKind => ⟨fun _ => .listKind, fun _ => rfl⟩
+  | .pathKind => ⟨fun _ => .pathKind, fun _ => rfl⟩
   | .lit _ => ⟨fun _ => .lit, fun _ => rfl⟩
+  | .addr _ => ⟨fun _ => .addr, fun _ => rfl⟩
   | .min _ => ⟨fun _ => .min, fun _ => rfl⟩
   | .max _ => ⟨fun _ => .max, fun _ => rfl⟩
   | .above _ => ⟨fun _ => .above, fun _ => rfl⟩
@@ -404,8 +422,12 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .neq _ => ⟨fun _ => .neq, fun _ => rfl⟩
   | .mulof _ => ⟨fun _ => .mulof, fun _ => rfl⟩
   | .unique _ => ⟨fun _ => .unique, fun _ => rfl⟩
+  | .grammar _ => ⟨fun _ => .grammar, fun _ => rfl⟩
   | .any => ⟨fun _ => .any, fun _ => rfl⟩
+  | .absent => ⟨fun _ => .absent, fun _ => rfl⟩
+  | .hole => ⟨fun _ => .hole, fun _ => rfl⟩
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
+  | .nothing => ⟨fun _ => .nothing, fun _ => rfl⟩
   | .re _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .format _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .select s arms d => by
@@ -423,6 +445,7 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
   | .alias _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .path _ => ⟨fun _ => .path, fun _ => rfl⟩
   | .key => ⟨fun _ => .key, fun _ => rfl⟩
+  | .keyUp _ => ⟨fun _ => .keyUp, fun _ => rfl⟩
   | .len c => by
     simp only [Val.checkableB]
     rw [Val.checkableB_iff c]
@@ -590,7 +613,7 @@ end
 theorem Data.weight_pos : ∀ j : Data, 1 ≤ j.weight
   | .map _ => Nat.le_add_left _ _
   | .list _ => Nat.le_add_left _ _
-  | .num _ | .str _ | .bool _ | .null => Nat.le_refl _
+  | .num _ | .str _ | .bool _ | .null | .addr _ => Nat.le_refl _
 
 theorem weightMembers_ge : ∀ {fs : List (String × Data)} {m : String × Data}, m ∈ fs →
     m.2.weight ≤ weightMembers fs
@@ -1014,7 +1037,9 @@ inductive Val.CheckableA : Val → Prop
   | boolean : CheckableA .boolean
   | mapKind : CheckableA .mapKind
   | listKind : CheckableA .listKind
+  | pathKind : CheckableA .pathKind
   | lit {s : Scalar} : CheckableA (.lit s)
+  | addr {a : Addr} : CheckableA (.addr a)
   | min {b : Bound} : CheckableA (.min b)
   | max {b : Bound} : CheckableA (.max b)
   | above {b : Bound} : CheckableA (.above b)
@@ -1023,8 +1048,12 @@ inductive Val.CheckableA : Val → Prop
   | mulof {d : Number} : CheckableA (.mulof d)
   | len {c : Val} : CheckableA c → CheckableA (.len c)
   | unique {k : Option String} : CheckableA (.unique k)
+  | grammar {g : String} : CheckableA (.grammar g)
   | any : CheckableA .any
+  | absent : CheckableA .absent
+  | hole : CheckableA .hole
   | nil : CheckableA .nil
+  | nothing : CheckableA .nothing
   | map {fs : List (String × Bool × Val)} {spread : Option Val} {closed : Bool} :
       (∀ k o v, (k, o, v) ∈ fs → CheckableA v) → (∀ s, spread = some s → CheckableA s) →
       CheckableA (.map fs spread closed)
@@ -1049,6 +1078,7 @@ inductive Val.CheckableA : Val → Prop
       CheckableA (.rest t cs)
   | ride {k : Rider} {v : Val} {r : Record} : CheckableA v → CheckableA (.ride k v r)
   | key : CheckableA .key
+  | keyUp {n : ℤ} : CheckableA (.keyUp n)
   | selectKey {arms : List (Val × Val)} {d : Option Val} :
       (∀ p r, (p, r) ∈ arms → CheckableA p) → (∀ p r, (p, r) ∈ arms → CheckableA r) →
       (∀ e, d = some e → CheckableA e) → CheckableA (.select .key arms d)
@@ -1113,7 +1143,9 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .boolean => ⟨fun _ => .boolean, fun _ => rfl⟩
   | .mapKind => ⟨fun _ => .mapKind, fun _ => rfl⟩
   | .listKind => ⟨fun _ => .listKind, fun _ => rfl⟩
+  | .pathKind => ⟨fun _ => .pathKind, fun _ => rfl⟩
   | .lit _ => ⟨fun _ => .lit, fun _ => rfl⟩
+  | .addr _ => ⟨fun _ => .addr, fun _ => rfl⟩
   | .min _ => ⟨fun _ => .min, fun _ => rfl⟩
   | .max _ => ⟨fun _ => .max, fun _ => rfl⟩
   | .above _ => ⟨fun _ => .above, fun _ => rfl⟩
@@ -1121,8 +1153,12 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .neq _ => ⟨fun _ => .neq, fun _ => rfl⟩
   | .mulof _ => ⟨fun _ => .mulof, fun _ => rfl⟩
   | .unique _ => ⟨fun _ => .unique, fun _ => rfl⟩
+  | .grammar _ => ⟨fun _ => .grammar, fun _ => rfl⟩
   | .any => ⟨fun _ => .any, fun _ => rfl⟩
+  | .absent => ⟨fun _ => .absent, fun _ => rfl⟩
+  | .hole => ⟨fun _ => .hole, fun _ => rfl⟩
   | .nil => ⟨fun _ => .nil, fun _ => rfl⟩
+  | .nothing => ⟨fun _ => .nothing, fun _ => rfl⟩
   | .alias _ => ⟨fun _ => .alias, fun _ => rfl⟩
   | .re _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .format _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
@@ -1140,6 +1176,7 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
   | .filter _ _ => ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
   | .path _ => ⟨fun _ => .path, fun _ => rfl⟩
   | .key => ⟨fun _ => .key, fun _ => rfl⟩
+  | .keyUp _ => ⟨fun _ => .keyUp, fun _ => rfl⟩
   | .len c => by
     simp only [Val.checkableAB]
     rw [Val.checkableAB_iff c]
@@ -1308,7 +1345,9 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | boolean => exact .boolean
   | mapKind => exact .mapKind
   | listKind => exact .listKind
+  | pathKind => exact .pathKind
   | lit => exact .lit
+  | addr => exact .addr
   | min => exact .min
   | max => exact .max
   | above => exact .above
@@ -1317,8 +1356,12 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | mulof => exact .mulof
   | len _ ih => exact .len ih
   | unique => exact .unique
+  | grammar => exact .grammar
   | any => exact .any
+  | absent => exact .absent
+  | hole => exact .hole
   | nil => exact .nil
+  | nothing => exact .nothing
   | map _ _ ihf ihs => exact .map ihf ihs
   | list _ _ ihi ihs => exact .list ihi ihs
   | or _ ih => exact .or ih
@@ -1333,6 +1376,7 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | contains _ _ ihc ihn => exact .contains ihc ihn
   | rest _ _ _ _ iht ih1 ih2 ih3 => exact .rest iht ih1 ih2 ih3
   | key => exact .key
+  | keyUp => exact .keyUp
   | selectKey _ _ _ ihp ihr ihd => exact .selectKey ihp ihr ihd
   | selectLit _ _ _ ihp ihr ihd => exact .selectLit ihp ihr ihd
 
@@ -1537,6 +1581,12 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .listKind, j => match j with
     | .list _ => true
     | _ => false
+  | .pathKind, j => match j with
+    | .addr _ => true
+    | _ => false
+  | .addr a, j => match j with
+    | .addr b => decide (a.Opens b)
+    | _ => false
   | .lit s, j => match s, j with
     | .num x, .num y => decide (x = y)
     | .str s, .str s' => decide (s = s')
@@ -1546,18 +1596,22 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .min b, j => match b, j with
     | .num n, .num x => decide (n.le x)
     | .str b, .str s => decide (b ≤ s)
+    | .str b, .addr a => decide (b ≤ a.text)
     | _, _ => false
   | .max b, j => match b, j with
     | .num n, .num x => decide (x.le n)
     | .str b, .str s => decide (s ≤ b)
+    | .str b, .addr a => decide (a.text ≤ b)
     | _, _ => false
   | .above b, j => match b, j with
     | .num n, .num x => decide (n.lt x)
     | .str b, .str s => decide (b < s)
+    | .str b, .addr a => decide (b < a.text)
     | _, _ => false
   | .beneath b, j => match b, j with
     | .num n, .num x => decide (x.lt n)
     | .str b, .str s => decide (s < b)
+    | .str b, .addr a => decide (a.text < b)
     | _, _ => false
   | .neq vs, j => match j with
     | .num x => vs.all fun v => match v with
@@ -1570,14 +1624,17 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .mulof d, j => match j with
     | .num x => decide d.Positive && decide (x.multipleOf d)
     | _ => false
-  | .len c, j => match j.size with
+  | .len c, j => if c.unsized then false else match j.size with
     | some n => if h : IntegerLeaf n then checkWith u none c (.num (.integer ⟨n, h⟩)) else false
     | none => false
   | .unique k, j => match j.members with
     | some ms => ms.all (fun x => (x.project k).isSome) && distinct k ms
     | none => false
   | .any, _ => true
+  | .absent, _ => true
+  | .hole, _ => true
   | .nil, _ => false
+  | .nothing, _ => false
   | .map fs spread closed, j => match j with
     | .map jfs =>
       checkFieldsWith u fs jfs && jfs.all (fun m => checkKeySpreadWith u m.1 spread m.2) &&
@@ -1595,6 +1652,9 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .meet a b, j => checkWith u k a j && checkWith u k b j
   | .re _, _ => false
   | .format _, _ => false
+  | .grammar g, j => match j with
+    | .str s => decide (s ≠ "") && (host.tree g s).isSome
+    | _ => false
   | .select .key arms d, j => match k with
     | some k' => (checkArmsSelectWith u (.str k') arms j).getD (checkOptWith u d j)
     | none => false
@@ -1605,6 +1665,7 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .key, j => match k, j with
     | some k', .str s => decide (k' = s)
     | _, _ => false
+  | .keyUp _, _ => false
   | .alias n, j => u n j
   | .path _, _ => false
   | .nof n cs, j =>
@@ -1682,7 +1743,11 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
     | .num _ => true
     | _ => false
   | .number, _ | .string, _ | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _
-  | .any, _ => true
+  | .pathKind, _ | .any, _ | .absent, _ | .nothing, _ => true
+  | .addr _, j => match j with
+    | .addr _ => true
+    | _ => false
+  | .hole, _ => true
   | .nil, _ => false
   | .lit s, j => match s, j with
     | .num x, .num y => decide (x.leaf = y.leaf)
@@ -1697,7 +1762,7 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
     | .num _ => true
     | _ => false
   | .len _, _ | .unique _, _ => true
-  | .re _, j | .format _, j => match j with
+  | .re _, j | .format _, j | .grammar _, j => match j with
     | .str t => decide (t ≠ "")
     | _ => false
   | .map fs spread closed, j => match j with
@@ -1721,7 +1786,7 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
   | .path _, _ => false
   | .nof _ _, _ | .must _ _, _ | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _
   | .select _ _ _, _ | .filter _ _, _ | .call _ _, _ => true
-  | .key, j => match j with
+  | .key, j | .keyUp _, j => match j with
     | .str _ => true
     | _ => false
 
@@ -2405,6 +2470,37 @@ theorem judge_listKind (j : Data) : Judge env root (checkWith u none .listKind j
   | list xs => exact .listKind
   | _ => exact .listKindNot fun _ h => nomatch h
 
+theorem judge_grammar (g : String) (j : Data) :
+    Judge env root (checkWith u none (.grammar g) j) (.grammar g) j := by
+  cases j with
+  | str s =>
+    simp only [checkWith]
+    by_cases hs : s = ""
+    · subst hs
+      simp only [ne_eq, not_true_eq_false, decide_false, Bool.false_and]
+      exact .grammarNot fun _ e h => by cases e; exact absurd rfl h
+    · by_cases ht : (host.tree g s).isSome = true
+      · rw [decide_eq_true hs, ht]
+        exact .grammar hs ht
+      · rw [Bool.not_eq_true] at ht
+        rw [decide_eq_true hs, ht]
+        exact .grammarNot fun _ e _ => by cases e; exact ht
+  | _ => exact .grammarNot fun _ h => nomatch h
+
+theorem judge_pathKind (j : Data) : Judge env root (checkWith u none .pathKind j) .pathKind j := by
+  cases j with
+  | addr a => exact .pathKind
+  | _ => exact .pathKindNot fun _ h => nomatch h
+
+theorem judge_addr (a : Addr) (j : Data) : Judge env root (checkWith u none (.addr a) j) (.addr a) j := by
+  cases j with
+  | addr b =>
+    simp only [checkWith]
+    by_cases h : a.Opens b
+    · rw [decide_eq_true h]; exact .addr h
+    · rw [decide_eq_false h]; exact .addrNot fun _ e => by cases e; exact h
+  | _ => exact .addrNot fun _ h => nomatch h
+
 /-- The checker judges a kind as the definition does. -/
 theorem check_kind_judge {v : Val} (hk : v.isKind = true) (j : Data) :
     Judge env root (checkWith u none v j) v j := by
@@ -2420,6 +2516,7 @@ theorem check_kind_judge {v : Val} (hk : v.isKind = true) (j : Data) :
     | exact judge_string j
     | exact judge_anyString j
     | exact judge_boolean j
+    | exact judge_pathKind j
 
 set_option linter.unusedVariables false in
 /-- The checker by the parent type judges by it, for every value it can
@@ -2432,7 +2529,17 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     cases j with
     | num x => exact .number
     | _ => exact .numberNot fun _ h => nomatch h
-  | number | string | anyString | boolean | mapKind | listKind | any => intro j _; exact .any
+  | number | string | anyString | boolean | mapKind | listKind | pathKind | any | absent | nothing | hole =>
+    intro j _; exact .any
+  | addr =>
+    intro j _
+    cases j with
+    | addr b => exact .pathKind
+    | _ => exact .pathKindNot fun _ h => nomatch h
+  | grammar =>
+    intro j _
+    have h := judge_string (env := env) (root := root) (u := u) j
+    cases j <;> simp only [checkWith] at h <;> simp only [checkSuperWith, Val.super] <;> exact h
   | nil => intro j _; exact .nil
   | @lit s =>
     intro j _
@@ -2592,7 +2699,7 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     exact .path
   | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
   | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ | call _ _ => intro j _; exact .any
-  | key =>
+  | key | keyUp =>
     intro j _
     cases j with
     | str s => exact .anyString
@@ -2660,7 +2767,11 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
       Judge env root (checkWith u ky v j) (v.atKeyO ky) j := by
   induction h with
   | any => intro ky j _; refine judge_keyless rfl ?_; exact .any
+  | absent => intro ky j _; refine judge_keyless rfl ?_; exact .absent
+  | hole => intro ky j _; refine judge_keyless rfl ?_; exact .hole
+  | keyUp => intro ky j _; refine judge_keyless rfl ?_; exact .keyUp
   | nil => intro ky j _; refine judge_keyless rfl ?_; exact .nil
+  | nothing => intro ky j _; refine judge_keyless rfl ?_; exact .nothing
   | call _ _ => intro ky j _; refine judge_keyless rfl ?_; exact .call
   | integer => intro ky j _; refine judge_keyless rfl ?_; exact judge_integer j
   | float => intro ky j _; refine judge_keyless rfl ?_; exact judge_float j
@@ -2672,6 +2783,9 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
   | boolean => intro ky j _; refine judge_keyless rfl ?_; exact judge_boolean j
   | mapKind => intro ky j _; refine judge_keyless rfl ?_; exact judge_mapKind j
   | listKind => intro ky j _; refine judge_keyless rfl ?_; exact judge_listKind j
+  | pathKind => intro ky j _; refine judge_keyless rfl ?_; exact judge_pathKind j
+  | @addr a => intro ky j _; refine judge_keyless rfl ?_; exact judge_addr a j
+  | @grammar g => intro ky j _; refine judge_keyless rfl ?_; exact judge_grammar g j
   | @lit s =>
     intro ky j _
     refine judge_keyless rfl ?_
@@ -2713,17 +2827,22 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
       | num x =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .min (of_decide_eq_true h))
-          (fun h => .minNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+          (fun h => .minNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h))
         cases hn; cases hx; exact of_decide_eq_false h
-      | _ => exact .minNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
+      | _ => exact .minNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .minStr (of_decide_eq_true h))
-          (fun h => .minNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+          (fun h => .minNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_) (fun _ _ _ h => nomatch h))
         cases hb; cases hs; exact of_decide_eq_false h
-      | _ => exact .minNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
+      | addr a =>
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .minAddr (of_decide_eq_true h))
+          (fun h => .minNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ hb ha => ?_))
+        cases hb; cases ha; exact of_decide_eq_false h
+      | _ => exact .minNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @max b =>
     intro ky j _
     refine judge_keyless rfl ?_
@@ -2733,17 +2852,22 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
       | num x =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .max (of_decide_eq_true h))
-          (fun h => .maxNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+          (fun h => .maxNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h))
         cases hn; cases hx; exact of_decide_eq_false h
-      | _ => exact .maxNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
+      | _ => exact .maxNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .maxStr (of_decide_eq_true h))
-          (fun h => .maxNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+          (fun h => .maxNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_) (fun _ _ _ h => nomatch h))
         cases hb; cases hs; exact of_decide_eq_false h
-      | _ => exact .maxNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
+      | addr a =>
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .maxAddr (of_decide_eq_true h))
+          (fun h => .maxNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ hb ha => ?_))
+        cases hb; cases ha; exact of_decide_eq_false h
+      | _ => exact .maxNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @above b =>
     intro ky j _
     refine judge_keyless rfl ?_
@@ -2753,17 +2877,22 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
       | num x =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .above (of_decide_eq_true h))
-          (fun h => .aboveNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+          (fun h => .aboveNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h))
         cases hn; cases hx; exact of_decide_eq_false h
-      | _ => exact .aboveNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
+      | _ => exact .aboveNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .aboveStr (of_decide_eq_true h))
-          (fun h => .aboveNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+          (fun h => .aboveNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_) (fun _ _ _ h => nomatch h))
         cases hb; cases hs; exact of_decide_eq_false h
-      | _ => exact .aboveNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
+      | addr a =>
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .aboveAddr (of_decide_eq_true h))
+          (fun h => .aboveNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ hb ha => ?_))
+        cases hb; cases ha; exact of_decide_eq_false h
+      | _ => exact .aboveNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @beneath b =>
     intro ky j _
     refine judge_keyless rfl ?_
@@ -2773,17 +2902,22 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
       | num x =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .beneath (of_decide_eq_true h))
-          (fun h => .beneathNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h))
+          (fun h => .beneathNot (fun _ _ hn hx => ?_) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h))
         cases hn; cases hx; exact of_decide_eq_false h
-      | _ => exact .beneathNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h)
+      | _ => exact .beneathNot (fun _ _ _ h => nomatch h) (fun _ _ h => nomatch h) (fun _ _ h => nomatch h)
     | str b =>
       cases j with
       | str s =>
         simp only [checkWith]
         refine judge_of_bool (fun h => .beneathStr (of_decide_eq_true h))
-          (fun h => .beneathNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_))
+          (fun h => .beneathNot (fun _ _ h => nomatch h) (fun _ _ hb hs => ?_) (fun _ _ _ h => nomatch h))
         cases hb; cases hs; exact of_decide_eq_false h
-      | _ => exact .beneathNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
+      | addr a =>
+        simp only [checkWith]
+        refine judge_of_bool (fun h => .beneathAddr (of_decide_eq_true h))
+          (fun h => .beneathNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ hb ha => ?_))
+        cases hb; cases ha; exact of_decide_eq_false h
+      | _ => exact .beneathNot (fun _ _ h => nomatch h) (fun _ _ _ h => nomatch h) (fun _ _ _ h => nomatch h)
   | @neq vs =>
     intro ky j _
     refine judge_keyless rfl ?_
@@ -2837,15 +2971,19 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
     intro ky j hu
     refine judge_keyless rfl ?_
     simp only [checkWith]
-    cases hs : j.size with
-    | none => exact .lenNone hs
-    | some n =>
-      show Judge env root (if h : IntegerLeaf n then checkWith u none c (.num (.integer ⟨n, h⟩)) else false) (.len c) j
-      split
-      · rename_i h
-        exact .len h hs (ihc none _ hu.len)
-      · rename_i h
-        exact .lenBig hs h
+    cases hc : c.unsized with
+    | true => exact .lenOut hc
+    | false =>
+      simp only [Bool.false_eq_true, if_false]
+      cases hs : j.size with
+      | none => exact .lenNone hs
+      | some n =>
+        show Judge env root (if h : IntegerLeaf n then checkWith u none c (.num (.integer ⟨n, h⟩)) else false) (.len c) j
+        split
+        · rename_i h
+          exact .len h hc hs (ihc none _ hu.len)
+        · rename_i h
+          exact .lenBig hs h
   | @unique k =>
     intro ky j _
     refine judge_keyless rfl ?_

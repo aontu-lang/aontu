@@ -13,10 +13,10 @@ of the live arms, those of the lowest positive rank, or every arm where
 none has one. A preference generates what its value does. A meet left
 as written generates what its left side generates and its right admits,
 or, where the left generates nothing, the other way about. A kind, a
-bound, `any`, `nil`, an alias and a path generate nothing. `Output env
-root v j` reads `Gen` off the normal form `normalise v`, where every
-meet is computed and every dead arm dropped, which is the shape the
-engines evaluate. `output_admits` says what evaluation singles out is
+bound, `any`, absence, `nil`, an alias and a path generate nothing.
+`Output env root v j` reads `Gen` off the normal form `normalise v`,
+where every meet is computed and every dead arm dropped, which is the
+shape the engines evaluate. `output_admits` says what evaluation singles out is
 an instance; `output_unique` that it is one value; and `gen` computes
 it, admitted by `gen_iff`.
 -/
@@ -77,6 +77,7 @@ mutual
 /-- `v` generates `j`. -/
 def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .lit s, j => j = s.data
+  | .addr a, j => j = .addr a
   | .map fs spread _, j =>
     keysDistinct fs = true ∧ ∃ ms, genFields env root spread fs ms ∧ j = .map (sortMembers ms)
   | .list items spread _, j => ∃ xs, genItems env root spread 0 items xs ∧ j = .list xs
@@ -87,25 +88,27 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
     (Gen env root a j ∧ Admits env root b j) ∨
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
   | .integer, _ | .float, _ | .biginteger, _ | .bigdecimal, _ | .number, _ | .string, _
-  | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .min _, _ | .max _, _
+  | .anyString, _ | .boolean, _ | .mapKind, _ | .listKind, _ | .pathKind, _ | .min _, _ | .max _, _
   | .above _, _ | .beneath _, _ | .neq _, _ | .mulof _, _ | .len _, _ | .unique _, _
-  | .re _, _ | .format _, _
-  | .any, _ | .nil, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
+  | .re _, _ | .format _, _ | .grammar _, _
+  | .any, _ | .absent, _ | .nil, _ | .nothing, _ | .alias _, _ | .path _, _ | .nof _ _, _ | .must _ _, _
   | .when _ _ _, _ | .contains _ _, _ | .rest _ _, _ | .select _ _ _, _ | .filter _ _, _
-  | .key, _ | .call _ _, _ => False
+  | .key, _ | .keyUp _, _ | .call _ _, _ | .hole, _ => False
 
 /-- The members a map's declarations generate, in declaration order: a
 key whose value generates one the spread admits under the key, with it;
-an optional key whose value generates none such, absent; a required key
-whose value generates none such, no members at all. -/
+an optional key whose value generates none such, or an empty map or list
+(decision 19 of the design note's §7), absent; a required key whose
+value generates none such, no members at all. -/
 def genFields (env : Env) (root : Data) (spread : Option Val) :
     List (String × Bool × Val) → List (String × Data) → Prop
   | [], ms => ms = []
   | (k, o, v) :: fs, ms =>
     (∃ x rest, Gen env root v x ∧ (∀ s, spread = some s → Admits env root (s.atKey k) x) ∧
-      genFields env root spread fs rest ∧ ms = (k, x) :: rest) ∨
+      (o = false ∨ x.emptyBag = false) ∧ genFields env root spread fs rest ∧ ms = (k, x) :: rest) ∨
     (o = true ∧
-      (∀ x, Gen env root v x → (∀ s, spread = some s → Admits env root (s.atKey k) x) → False) ∧
+      (∀ x, Gen env root v x → (∀ s, spread = some s → Admits env root (s.atKey k) x) →
+        x.emptyBag = true) ∧
       genFields env root spread fs ms)
 
 /-- The elements a list's positions generate, from the position `i` on,
@@ -128,16 +131,20 @@ end
 
 A mark, `type()` or `hide()`, leaves the member of a map it rides out of
 the output, and the member still meets what arrives at its key
-(decision 10 of the design note's §7). What evaluation singles out is
-generated from the term's visible part, in which a marked member is
-optional and holds anything, and so is a map's marked spread; the marks
-change no admission. A list's element keeps its mark's value
-(decision 18). -/
+(decision 10 of the design note's §7). So does absence, at a required
+key as at an optional one. What evaluation singles out is generated
+from the term's visible part, in which a marked member and a member
+that is absence are optional and hold anything, and so is a map's
+marked spread; neither changes what a term admits. A list holds no
+position for a marked element, which the reading drops (decision 18). -/
 
 mutual
-/-- The visible part of a term: each marked member of a map optional
-and `any`, a map's marked spread `any`, through the containers, `|`,
-`*`, `&` and the riders. -/
+/-- Whether a map's member is left out of the output: marked, or absence. -/
+def Val.leftOut (v : Val) : Bool := v.marked || v.isAbsent
+
+/-- The visible part of a term: each member of a map left out of the
+output optional and `any`, a map's marked spread `any`, through the
+containers, `|`, `*`, `&` and the riders. -/
 def Val.visible : Val → Val
   | .map fs spread closed => .map (visibleFields fs) (visibleSpread spread) closed
   | .list items spread closed => .list (visibleItems items) (visibleElems spread) closed
@@ -149,7 +156,7 @@ def Val.visible : Val → Val
 
 def visibleFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
-  | (k, o, v) :: fs => (if v.marked then (k, true, .any) else (k, o, v.visible)) :: visibleFields fs
+  | (k, o, v) :: fs => (if v.leftOut then (k, true, .any) else (k, o, v.visible)) :: visibleFields fs
 
 def visibleSpread : Option Val → Option Val
   | none => none
@@ -171,7 +178,7 @@ end
 theorem mem_visibleFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
     (k, o, w) ∈ visibleFields fs ↔
       ∃ o' v, (k, o', v) ∈ fs ∧
-        ((v.marked = true ∧ o = true ∧ w = .any) ∨ (v.marked = false ∧ o = o' ∧ w = v.visible)) := by
+        ((v.leftOut = true ∧ o = true ∧ w = .any) ∨ (v.leftOut = false ∧ o = o' ∧ w = v.visible)) := by
   induction fs with
   | nil => simp [visibleFields]
   | cons f fs ih =>
@@ -179,7 +186,7 @@ theorem mem_visibleFields {fs : List (String × Bool × Val)} {k : String} {o : 
     rw [visibleFields, List.mem_cons, ih]
     constructor
     · rintro (h | ⟨o'', v, hm, hc⟩)
-      · cases hv : v'.marked
+      · cases hv : v'.leftOut
         · rw [hv] at h
           simp only [Bool.false_eq_true, ↓reduceIte, Prod.mk.injEq] at h
           obtain ⟨rfl, rfl, rfl⟩ := h
@@ -319,7 +326,7 @@ theorem genFields_mem {spread : Option Val} :
     exact absurd hm (List.not_mem_nil)
   | (k', o', v') :: fs, ms, h, k, x, hm => by
     rw [genFields] at h
-    rcases h with ⟨y, rest, hg, hs, hrest, rfl⟩ | ⟨-, -, hrest⟩
+    rcases h with ⟨y, rest, hg, hs, -, hrest, rfl⟩ | ⟨-, -, hrest⟩
     · rcases List.mem_cons.mp hm with he | hm'
       · cases he
         exact ⟨o', v', List.mem_cons_self, hg, hs⟩
@@ -345,7 +352,7 @@ theorem genFields_nodup {spread : Option Val} :
   | (k, o, v) :: fs, ms, hd, h => by
     obtain ⟨hd₁, hd₂⟩ := keysDistinct_cons hd
     rw [genFields] at h
-    rcases h with ⟨x, rest, -, -, hrest, rfl⟩ | ⟨-, -, hrest⟩
+    rcases h with ⟨x, rest, -, -, -, hrest, rfl⟩ | ⟨-, -, hrest⟩
     · rw [List.map_cons, List.nodup_cons]
       refine ⟨fun hk => ?_, genFields_nodup hd₂ hrest⟩
       obtain ⟨⟨k', y⟩, hmem, hk'⟩ := List.mem_map.mp hk
@@ -364,7 +371,7 @@ theorem genFields_lookup_some {spread : Option Val} :
   | (k', o', v') :: fs, ms, hd, h, k, o, v, x, hm, hl => by
     obtain ⟨hd₁, hd₂⟩ := keysDistinct_cons hd
     rw [genFields] at h
-    rcases h with ⟨y, rest, hg, hs, hrest, rfl⟩ | ⟨-, -, hrest⟩
+    rcases h with ⟨y, rest, hg, hs, -, hrest, rfl⟩ | ⟨-, -, hrest⟩
     · rcases List.mem_cons.mp hm with he | hm'
       · cases he
         simp only [lookup, if_true, Option.some.injEq] at hl
@@ -389,7 +396,7 @@ theorem genFields_lookup_none {spread : Option Val} :
   | (k', o', v') :: fs, ms, hd, h, k, o, v, hm, hl => by
     obtain ⟨hd₁, hd₂⟩ := keysDistinct_cons hd
     rw [genFields] at h
-    rcases h with ⟨y, rest, -, -, hrest, rfl⟩ | ⟨ho, -, hrest⟩
+    rcases h with ⟨y, rest, -, -, -, hrest, rfl⟩ | ⟨ho, -, hrest⟩
     · rcases List.mem_cons.mp hm with he | hm'
       · cases he
         simp [lookup] at hl
@@ -489,6 +496,10 @@ theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env r
     rw [Gen] at h
     subst h
     exact admits_lit_iff.mpr rfl
+  | .addr a, j, h => by
+    rw [Gen] at h
+    subst h
+    exact .addr (Addr.opens_refl a)
   | .map fs spread closed, j, h => by
     rw [Gen] at h
     obtain ⟨hd, ms, hg, rfl⟩ := h
@@ -536,10 +547,11 @@ theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env r
     · exact .meet ha (gen_admits b j hb)
   | .integer, _, h | .float, _, h | .biginteger, _, h | .bigdecimal, _, h | .number, _, h
   | .string, _, h | .anyString, _, h | .boolean, _, h | .mapKind, _, h | .listKind, _, h
-  | .min _, _, h | .max _, _, h
+  | .pathKind, _, h | .min _, _, h | .max _, _, h
   | .above _, _, h | .beneath _, _, h | .neq _, _, h | .mulof _, _, h | .len _, _, h
-  | .unique _, _, h | .re _, _, h | .format _, _, h | .any, _, h | .nil, _, h
-  | .alias _, _, h | .path _, _, h | .call _ _, _, h => by rw [Gen] at h; exact h.elim
+  | .unique _, _, h | .re _, _, h | .format _, _, h | .grammar _, _, h | .any, _, h | .nil, _, h
+  | .alias _, _, h | .path _, _, h | .call _ _, _, h | .hole, _, h | .keyUp _, _, h => by
+    rw [Gen] at h; exact h.elim
 
 theorem fields_admits : ∀ fs : List (String × Bool × Val), ∀ k o v, (k, o, v) ∈ fs →
     ∀ x, Gen env root v x → Admits env root v x
@@ -586,12 +598,20 @@ theorem genFields_unique {spread : Option Val} :
     rw [genFields] at h h'
     have hu' : ∀ k o v, (k, o, v) ∈ fs → ∀ x x', Gen env root v x → Gen env root v x' → x = x' :=
       fun k o v hm => hu k o v (List.mem_cons_of_mem _ hm)
-    rcases h with ⟨x, rest, hg, hs, hrest, rfl⟩ | ⟨-, hnone, hrest⟩ <;>
-      rcases h' with ⟨x', rest', hg', hs', hrest', rfl⟩ | ⟨-, hnone', hrest'⟩
+    rcases h with ⟨x, rest, hg, hs, he, hrest, rfl⟩ | ⟨ho, hnone, hrest⟩ <;>
+      rcases h' with ⟨x', rest', hg', hs', he', hrest', rfl⟩ | ⟨ho', hnone', hrest'⟩
     · obtain rfl := hu k o v (List.mem_cons_self) x x' hg hg'
       rw [genFields_unique hu' hrest hrest']
-    · exact absurd hs (hnone' x hg)
-    · exact absurd hs' (hnone x' hg')
+    · exfalso
+      have hx := hnone' x hg hs
+      rcases he with h0 | h0
+      · exact Bool.false_ne_true (h0.symm.trans ho')
+      · exact Bool.false_ne_true (h0.symm.trans hx)
+    · exfalso
+      have hx := hnone x' hg' hs'
+      rcases he' with h0 | h0
+      · exact Bool.false_ne_true (h0.symm.trans ho)
+      · exact Bool.false_ne_true (h0.symm.trans hx)
     · exact genFields_unique hu' hrest hrest'
 
 theorem genItems_unique {spread : Option Val} {i : ℕ} :
@@ -611,6 +631,9 @@ theorem genItems_unique {spread : Option Val} {i : ℕ} :
 mutual
 theorem gen_unique : ∀ (v : Val) (j j' : Data), Gen env root v j → Gen env root v j' → j = j'
   | .lit s, j, j', h, h' => by
+    rw [Gen] at h h'
+    rw [h, h']
+  | .addr a, j, j', h, h' => by
     rw [Gen] at h h'
     rw [h, h']
   | .map fs spread closed, j, j', h, h' => by
@@ -644,11 +667,14 @@ theorem gen_unique : ∀ (v : Val) (j j' : Data), Gen env root v j → Gen env r
     · exact gen_unique b j j' hb hb'
   | .integer, _, _, h, _ | .float, _, _, h, _ | .biginteger, _, _, h, _ | .bigdecimal, _, _, h, _
   | .number, _, _, h, _ | .string, _, _, h, _ | .anyString, _, _, h, _ | .boolean, _, _, h, _
-  | .mapKind, _, _, h, _ | .listKind, _, _, h, _
+  | .mapKind, _, _, h, _ | .listKind, _, _, h, _ | .pathKind, _, _, h, _
   | .min _, _, _, h, _ | .max _, _, _, h, _ | .above _, _, _, h, _ | .beneath _, _, _, h, _
   | .neq _, _, _, h, _ | .mulof _, _, _, h, _ | .len _, _, _, h, _ | .unique _, _, _, h, _
-  | .re _, _, _, h, _ | .format _, _, _, h, _ | .any, _, _, h, _ | .nil, _, _, h, _
-  | .alias _, _, _, h, _ | .path _, _, _, h, _ | .call _ _, _, _, h, _ => by rw [Gen] at h; exact h.elim
+  | .re _, _, _, h, _ | .format _, _, _, h, _ | .grammar _, _, _, h, _ | .any, _, _, h, _
+  | .nil, _, _, h, _
+  | .alias _, _, _, h, _ | .path _, _, _, h, _ | .call _ _, _, _, h, _ | .hole, _, _, h, _
+  | .keyUp _, _, _, h, _ => by
+    rw [Gen] at h; exact h.elim
 
 theorem fields_unique : ∀ fs : List (String × Bool × Val), ∀ k o v, (k, o, v) ∈ fs →
     ∀ x x', Gen env root v x → Gen env root v x' → x = x'
@@ -696,6 +722,7 @@ mutual
 /-- What `v` generates, computed. -/
 def genWith (chk : Val → Data → Bool) : Val → Option Data
   | .lit s => some s.data
+  | .addr a => some (.addr a)
   | .map fs spread _ =>
     if keysDistinct fs then (genFieldsWith chk spread fs).map fun ms => .map (sortMembers ms) else none
   | .list items spread _ => (genItemsWith chk spread 0 items).map .list
@@ -713,19 +740,23 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
       | some y => if chk a y then some y else none
       | none => none
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
-  | .mapKind | .listKind
+  | .mapKind | .listKind | .pathKind
   | .min _ | .max _ | .above _ | .beneath _ | .neq _ | .mulof _ | .len _ | .unique _
-  | .re _ | .format _ | .any | .nil | .alias _ | .path _ | .nof _ _ | .must _ _
-  | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .key | .call _ _ => none
+  | .re _ | .format _ | .grammar _ | .any | .absent | .nil | .nothing | .alias _ | .path _ | .nof _ _
+  | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .key | .keyUp _
+  | .call _ _ | .hole => none
 
 /-- The members the declarations generate, or `none` where a required
-key's value generates none the spread admits. -/
+key's value generates none the spread admits. An optional key whose
+value generates an empty map or list is absent. -/
 def genFieldsWith (chk : Val → Data → Bool) (spread : Option Val) : List (String × Bool × Val) → Option (List (String × Data))
   | [] => some []
   | (k, o, v) :: fs =>
     match genWith chk v with
     | some x =>
-      if spreadOk chk k spread x then (genFieldsWith chk spread fs).map ((k, x) :: ·)
+      if spreadOk chk k spread x then
+        if o && x.emptyBag then genFieldsWith chk spread fs
+        else (genFieldsWith chk spread fs).map ((k, x) :: ·)
       else if o then genFieldsWith chk spread fs else none
     | none => if o then genFieldsWith chk spread fs else none
 
@@ -796,8 +827,8 @@ theorem genFieldsWith_iff {spread : Option Val}
         rw [if_pos rfl, ihfs]
         constructor
         · intro h
-          exact .inr ⟨rfl, fun x hx _ => hnone x hx, h⟩
-        · rintro (⟨x, rest, hx, -, -, -⟩ | ⟨-, -, h⟩)
+          exact .inr ⟨rfl, fun x hx _ => (hnone x hx).elim, h⟩
+        · rintro (⟨x, rest, hx, -, -, -, -⟩ | ⟨-, -, h⟩)
           · exact absurd hx (hnone x)
           · exact h
       | false =>
@@ -805,7 +836,7 @@ theorem genFieldsWith_iff {spread : Option Val}
         constructor
         · intro h
           exact nomatch h
-        · rintro (⟨x, rest, hx, -, -, -⟩ | ⟨h, -, -⟩)
+        · rintro (⟨x, rest, hx, -, -, -, -⟩ | ⟨h, -, -⟩)
           · exact absurd hx (hnone x)
           · exact nomatch h
     | some x =>
@@ -818,14 +849,31 @@ theorem genFieldsWith_iff {spread : Option Val}
         have hspOK : ∀ s, spread = some s → Admits env root (s.atKey k) x :=
           (spreadOk_iff (fun s h => hs s h k) x).mp hsp
         rw [if_pos rfl]
-        constructor
-        · intro h
-          obtain ⟨rest, hrest, rfl⟩ := Option.map_eq_some_iff.mp h
-          exact .inl ⟨x, rest, hgen, hspOK, (ihfs rest).mp hrest, rfl⟩
-        · rintro (⟨x', rest, hx', -, hrest, rfl⟩ | ⟨-, hno, -⟩)
-          · obtain rfl := huniq x' hx'
-            exact Option.map_eq_some_iff.mpr ⟨rest, (ihfs rest).mpr hrest, rfl⟩
-          · exact absurd hspOK (hno x hgen)
+        cases o <;> cases hx : x.emptyBag <;> split <;> rename_i hc
+        all_goals first
+          | exact absurd hc (by decide)
+          | constructor
+            · intro h
+              obtain ⟨rest, hrest, rfl⟩ := Option.map_eq_some_iff.mp h
+              exact .inl ⟨x, rest, hgen, hspOK, by simp [hx], (ihfs rest).mp hrest, rfl⟩
+            · rintro (⟨x', rest, hx', -, -, hrest, rfl⟩ | ⟨ho, hno, -⟩)
+              · obtain rfl := huniq x' hx'
+                exact Option.map_eq_some_iff.mpr ⟨rest, (ihfs rest).mpr hrest, rfl⟩
+              · first
+                  | exact absurd ho (by decide)
+                  | exact absurd ((hno x hgen hspOK).symm.trans hx) (by decide)
+          | rw [ihfs]
+            constructor
+            · intro h
+              refine .inr ⟨rfl, fun y hy _ => ?_, h⟩
+              obtain rfl := huniq y hy
+              exact hx
+            · rintro (⟨x', rest, hx', -, he, -, -⟩ | ⟨-, -, h⟩)
+              · obtain rfl := huniq x' hx'
+                rcases he with h0 | h0
+                · exact absurd h0 (by decide)
+                · exact absurd (hx.symm.trans h0) (by decide)
+              · exact h
       | false =>
         have hspNo : ¬ ∀ s, spread = some s → Admits env root (s.atKey k) x := fun h => by
           have := (spreadOk_iff (fun s h => hs s h k) x).mpr h
@@ -839,8 +887,8 @@ theorem genFieldsWith_iff {spread : Option Val}
           · intro h
             refine .inr ⟨rfl, fun y hy hsp' => ?_, h⟩
             obtain rfl := huniq y hy
-            exact hspNo hsp'
-          · rintro (⟨x', rest, hx', hsp', -, -⟩ | ⟨-, -, h⟩)
+            exact (hspNo hsp').elim
+          · rintro (⟨x', rest, hx', hsp', -, -, -⟩ | ⟨-, -, h⟩)
             · obtain rfl := huniq x' hx'
               exact absurd hsp' hspNo
             · exact h
@@ -849,7 +897,7 @@ theorem genFieldsWith_iff {spread : Option Val}
           constructor
           · intro h
             exact nomatch h
-          · rintro (⟨x', rest, hx', hsp', -, -⟩ | ⟨h, -, -⟩)
+          · rintro (⟨x', rest, hx', hsp', -, -, -⟩ | ⟨h, -, -⟩)
             · obtain rfl := huniq x' hx'
               exact absurd hsp' hspNo
             · exact nomatch h
@@ -987,17 +1035,18 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
     ∀ j, genWith chk v = some j ↔ Gen env root v j := by
   induction h with
   | integer | float | biginteger | bigdecimal | number | string | anyString | boolean
-  | mapKind | listKind
-  | min | max | above | beneath | neq | mulof | unique | any | nil | alias | path =>
+  | mapKind | listKind | pathKind
+  | min | max | above | beneath | neq | mulof | unique | grammar | any | absent | nil | nothing | alias
+  | path =>
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩
   | len _ _ | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
-  | key | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ | call _ _ =>
+  | key | keyUp | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ | call _ _ | hole =>
     intro j
     rw [genWith, Gen]
     exact ⟨(fun h => nomatch h), False.elim⟩
-  | lit =>
+  | lit | addr =>
     intro j
     rw [genWith, Gen]
     exact ⟨fun h => (Option.some.inj h).symm, fun h => by rw [h]⟩

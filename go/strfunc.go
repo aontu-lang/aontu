@@ -76,7 +76,27 @@ func compileSubsetRe(src string) (*regexp.Regexp, string) {
 	return re, ""
 }
 
-func expandSub(sub string, src string, m []int, groups int) (string, bool) {
+// subNames is read before the scan: a $ the pattern cannot fill fails
+// on any text.
+func subNames(sub string, groups int) bool {
+	r := []rune(sub)
+	for i := 0; i < len(r); i++ {
+		if '$' != r[i] {
+			continue
+		}
+		i++
+		if len(r) <= i {
+			return false
+		}
+		n := r[i]
+		if '$' != n && '&' != n && ('1' > n || '9' < n || groups < int(n-'0')) {
+			return false
+		}
+	}
+	return true
+}
+
+func expandSub(sub string, src string, m []int) string {
 	var out strings.Builder
 	r := []rune(sub)
 
@@ -92,30 +112,18 @@ func expandSub(sub string, src string, m []int, groups int) (string, bool) {
 			out.WriteRune(r[i])
 			continue
 		}
-
-		if len(r) <= i+1 {
-			return "", false
-		}
-		n := r[i+1]
-
-		switch {
-		case '$' == n:
-			out.WriteRune('$')
-		case '&' == n:
-			out.WriteString(group(0))
-		case '1' <= n && '9' >= n:
-			g := int(n - '0')
-			if groups < g {
-				return "", false
-			}
-			out.WriteString(group(g))
-		default:
-			return "", false
-		}
 		i++
+		switch r[i] {
+		case '$':
+			out.WriteRune('$')
+		case '&':
+			out.WriteString(group(0))
+		default:
+			out.WriteString(group(int(r[i] - '0')))
+		}
 	}
 
-	return out.String(), true
+	return out.String()
 }
 
 func escFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
@@ -159,17 +167,15 @@ func repFunc(ctx *Ctx, f *FuncVal, args []Val) Val {
 		return makeNilErr(ctx, bad, f, nil)
 	}
 
-	groups := reGroupCount(re.String())
+	if !subNames(sub, reGroupCount(re.String())) {
+		return makeNilErr(ctx, "rep_sub", f, nil)
+	}
 
 	var out strings.Builder
 	at := 0
 	for _, m := range re.FindAllStringSubmatchIndex(src, -1) {
-		piece, ok := expandSub(sub, src, m, groups)
-		if !ok {
-			return makeNilErr(ctx, "rep_sub", f, nil)
-		}
 		out.WriteString(src[at:m[0]])
-		out.WriteString(piece)
+		out.WriteString(expandSub(sub, src, m))
 		at = m[1]
 	}
 	out.WriteString(src[at:])

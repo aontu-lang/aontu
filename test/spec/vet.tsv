@@ -460,9 +460,13 @@ vet-required-wins	vet	a:{x?:integer}&{x:integer}	a:{}	{"findings":[{"class":"inc
 vet-optional-nil-absent-passes	vet	a:{k?:nil}	a:{}	{"findings":[],"truncated":false,"verdict":"valid"}
 vet-optional-nil-supplied-refused	vet	a:{k?:nil}	a:{k:1}	{"findings":[{"class":"conflict","code":"literal_nil","path":"$.a.k","pointer":"/a/k","severity":"error","sites":[{"col":6,"file":"data","len":1,"role":"data","row":1,"src":"1","value":"1"},{"col":7,"file":"schema","len":3,"role":"schema","row":1,"src":"nil","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
 # A refusal the parser made beneath an optional key is a finding, and the
-# evaluator raises it too, so the two surfaces agree (#312).
-vet-optional-parse-refusal	vet	x?: *b: 1	{}	{"findings":[{"class":"parse","code":"pref_implicit_bag","path":"$.x","pointer":"/x","severity":"error","sites":[{"col":5,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
-vet-optional-parse-refusal-nested	vet	x?: {y: 1, z: *b: 1}	{}	{"findings":[{"class":"parse","code":"pref_implicit_bag","path":"$.x.z","pointer":"/x/z","severity":"error","sites":[{"col":15,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"nil"}]}],"truncated":false,"verdict":"invalid"}
+# evaluator raises it too, so the two surfaces agree (#312). It is the
+# schema's own wherever it stands, so the verdict is `error` (#426).
+vet-optional-parse-refusal	vet	x?: *b: 1	{}	{"findings":[{"class":"parse","code":"pref_implicit_bag","path":"$.x","pointer":"/x","severity":"error","sites":[{"col":5,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"nil"}]}],"truncated":false,"verdict":"error"}
+vet-optional-parse-refusal-nested	vet	x?: {y: 1, z: *b: 1}	{}	{"findings":[{"class":"parse","code":"pref_implicit_bag","path":"$.x.z","pointer":"/x/z","severity":"error","sites":[{"col":15,"file":"schema","len":1,"role":"schema","row":1,"src":"*","value":"nil"}]}],"truncated":false,"verdict":"error"}
+# The first failure the schema holds is the one reported, its members read
+# in the order of their keys, as both engines read them.
+vet-schema-failure-first-by-key	vet	"2": add(1), "1": nosuchfn(1)	{}	{"findings":[{"class":"reference","code":"unknown_function","path":"$.1","pointer":"/1","severity":"error","sites":[{"col":19,"file":"schema","len":8,"role":"schema","row":1,"src":"nosuchfn","value":"nil"}]}],"truncated":false,"verdict":"error"}
 vet-optional-conflict-beneath	vet	x?: {a: 1 & 2}	{}	{"findings":[{"class":"conflict","code":"scalar_value","path":"$.x.a","pointer":"/x/a","severity":"error","sites":[{"col":13,"file":"schema","len":1,"role":"schema","row":1,"src":"2","value":"2"},{"col":9,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"1"}]}],"truncated":false,"verdict":"error"}
 # --no-fill and --exact-numbers (G12): the data must be an instance as
 # written, and its numbers are read by value. A filled optional member
@@ -509,3 +513,6 @@ vet-no-fill-data-that-needs-the-schema	vet	b: 1	a: $.b	{"findings":[{"class":"re
 vet-data-reference-that-names-nothing	vet	any	[0.1.2]	{"findings":[{"class":"reference","code":"ref","path":"$.0","pointer":"/0","severity":"error","sites":[{"col":2,"file":"data","len":3,"role":"data","row":1,"src":"0.1","value":".0.1.2"}]}],"truncated":false,"verdict":"invalid"}
 # An absent optional key does not reach a guarded spread's nil arm.
 vet-an-absent-optional-key-skips-a-match-nil-arm	vet	{ foo?:any &: match(key(0),"foo",any,nil) } & { bar?:any }	{"foo":1}	{"findings":[],"truncated":false,"verdict":"valid"}
+# A spread's template that leaves a member's hole open is named at the
+# member it stands in, not at the template.
+vet-spread-unfilled-member-path	vet	v:{&:{n:upper(_)}}	v:{a:{}}	{"findings":[{"class":"incomplete","code":"mapval_no_gen","path":"$.v.a.n","pointer":"/v/a/n","severity":"error","sites":[{"col":9,"file":"schema","len":5,"role":"schema","row":1,"src":"upper","value":"upper(_)"}]}],"truncated":false,"verdict":"incomplete"}

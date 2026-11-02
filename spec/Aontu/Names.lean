@@ -18,6 +18,24 @@ the order written. A name declared twice is declared as the meet of its
 declarations. -/
 abbrev Decls := List (String × Val)
 
+/-! ## Variables
+
+A variable, `$name`, is a name the calling program declares where the
+document declares an alias: the reading is the document's with the
+program's declarations beside its own, each under `$` and the name,
+which no alias can be written as, since an alias begins with a letter.
+A variable no program declares is a name declared nowhere, an error. -/
+
+/-- The variable `$n`: the name the calling program declares it under. -/
+def Val.var (n : String) : Val := .alias ("$" ++ n)
+
+/-- The declarations a document reads under the bindings `vs` the
+calling program makes: its own, and each variable's value under its
+name, as `Val.var` reads it. A binding is any value the program builds,
+a kind as well as data. -/
+def Decls.withVars (ds : Decls) (vs : List (String × Val)) : Decls :=
+  ds ++ vs.map fun v => ("$" ++ v.1, v.2)
+
 /-- A declaration's body as a reference reads it: an `ident()` at its
 top, or on a term of its top meet, left behind, and one inside it kept.
 That is the one place an identity stands (decision 14 of the design
@@ -147,6 +165,71 @@ def refsArms : List (ℕ × Val) → List String
 end
 
 mutual
+/-- A term with each reference `maybe` forgives read as `any`, `top`
+saying whether the term stands at the top of `maybe`'s argument: the
+argument itself, a side of a meet, an arm of a disjunction or the value
+under a rider, where a reference that names nothing makes absence
+rather than an error. A `filter`'s condition reads as `any` too, every
+reference in it, since a condition that names nothing refuses the
+member it tries rather than making the document an error, as both
+ports read it. -/
+def Val.forgiveAt (top : Bool) : Val → Val
+  | .alias n => if top then .any else .alias n
+  | .path p => if top then .any else .path p
+  | .call .maybe [v] => .call .maybe [v.forgiveAt true]
+  | .meet a b => .meet (a.forgiveAt top) (b.forgiveAt top)
+  | .or arms => .or (forgiveArms top arms)
+  | .ride k v r => .ride k (v.forgiveAt top) r
+  | .len c => .len (c.forgiveAt false)
+  | .map fs spread closed => .map (forgiveFields fs) (forgiveSpread spread) closed
+  | .list items spread closed => .list (forgiveItems items) (forgiveSpread spread) closed
+  | .pref r x => .pref r (x.forgiveAt false)
+  | .nof n cs => .nof (n.forgiveAt false) (forgiveItems cs)
+  | .must c m => .must (c.forgiveAt false) m
+  | .when c t e => .when (c.forgiveAt false) (t.forgiveAt false) (forgiveSpread e)
+  | .contains c n => .contains (c.forgiveAt false) (n.forgiveAt false)
+  | .rest t cs => .rest (t.forgiveAt false) (forgiveCovers cs)
+  | .select s arms d => .select (s.forgiveAt false) (forgivePairs arms) (forgiveSpread d)
+  | .filter s _ => .filter (s.forgiveAt false) .any
+  | .call f args => .call f (forgiveItems args)
+  | v => v
+  termination_by structural v => v
+
+def forgivePairs : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.forgiveAt false, r.forgiveAt false) :: forgivePairs ps
+  termination_by structural ps => ps
+
+def forgiveCovers : List Cover → List Cover
+  | [] => []
+  | (c, k, m) :: cs => (forgiveSpread c, forgiveSpread k, forgiveSpread m) :: forgiveCovers cs
+  termination_by structural cs => cs
+
+def forgiveFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.forgiveAt false) :: forgiveFields fs
+  termination_by structural fs => fs
+
+def forgiveItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.forgiveAt false :: forgiveItems vs
+  termination_by structural vs => vs
+
+def forgiveSpread : Option Val → Option Val
+  | none => none
+  | some s => some (s.forgiveAt false)
+  termination_by structural s => s
+
+def forgiveArms (top : Bool) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.forgiveAt top) :: forgiveArms top arms
+  termination_by structural arms => arms
+end
+
+/-- A term with each reference `maybe` forgives read as `any`. -/
+def Val.forgive (v : Val) : Val := v.forgiveAt false
+
+mutual
 /-- The names a value refers to with no key and no element between:
 through `&`, `|`, `*` and `len`, and through the count and the
 branches of a trial, which hold the whole of a value, and never through
@@ -213,9 +296,11 @@ element between, so that every recursion consumes data. `%U = %U`,
 next?: %N}` keeps it. -/
 def Guarded (ds : Decls) : Prop := ∀ n, ¬ Relation.TransGen ds.RefersUnguarded n n
 
-/-- Every name a value and the declarations refer to is declared. -/
+/-- Every name a value and the declarations refer to is declared, but
+one `maybe` or a `filter`'s condition forgives (`Val.forgive`). -/
 def Declares (ds : Decls) (v : Val) : Prop :=
-  (∀ n, n ∈ v.refs → ds.bodies n ≠ []) ∧ ∀ d, d ∈ ds → ∀ n, n ∈ d.2.refs → ds.bodies n ≠ []
+  (∀ n, n ∈ v.forgive.refs → ds.bodies n ≠ []) ∧
+    ∀ d, d ∈ ds → ∀ n, n ∈ d.2.forgive.refs → ds.bodies n ≠ []
 
 /-- The names a name refers to, computed. -/
 def succ (ds : Decls) (a : String) : List String := (ds.bodies a).flatMap Val.refs
@@ -645,8 +730,8 @@ def guardedB (ds : Decls) : Bool := ds.names.all fun n => !ds.unguardedB n
 /-- Whether every name a value and the declarations refer to is
 declared, computed. -/
 def declaresB (ds : Decls) (v : Val) : Bool :=
-  (v.refs.all fun n => !(ds.bodies n).isEmpty) &&
-    ds.all fun d => d.2.refs.all fun n => !(ds.bodies n).isEmpty
+  (v.forgive.refs.all fun n => !(ds.bodies n).isEmpty) &&
+    ds.all fun d => d.2.forgive.refs.all fun n => !(ds.bodies n).isEmpty
 
 /-- `reach` holds exactly the names reached from `n`, for a `succ` that
 stays among the names mentioned. -/

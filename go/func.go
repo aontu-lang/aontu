@@ -16,6 +16,39 @@ import (
 // record beside it.
 var riderFuncs = map[string]bool{"meta": true, "deprecate": true}
 
+var wrapperFuncs = map[string]bool{"meta": true, "deprecate": true, "ident": true,
+	"type": true, "hide": true, "close": true, "open": true}
+
+func wrapsBag(v Val) bool {
+	f, ok := v.(*FuncVal)
+	if !ok || !wrapperFuncs[f.name] || 0 == len(f.peg) {
+		return false
+	}
+	switch f.peg[0].(type) {
+	case *MapVal, *ListVal:
+		return hasPlace(f.peg[0])
+	}
+	return wrapsBag(f.peg[0])
+}
+
+func wrapSettled(args []Val) bool {
+	for _, a := range args[1:] {
+		if a.Dc() != DONE {
+			return false
+		}
+	}
+	return !wrapsBag(args[0]) || wrapSettled(args[0].(*FuncVal).peg)
+}
+
+// An outer seal reaches the container once the wrappers inside resolve.
+func openWrap(ctx *Ctx, base []string, v Val) Val {
+	f, ok := v.(*FuncVal)
+	if !ok || !wrapsBag(f) {
+		return v
+	}
+	return f.resolve(ctx, base, append([]Val{openWrap(ctx, base, f.peg[0])}, f.peg[1:]...))
+}
+
 var funcSet = map[string]bool{
 	"upper": true, "lower": true, "copy": true, "key": true,
 	"pref": true, "super": true, "type": true, "hide": true,
@@ -286,7 +319,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 
 	if stagedFuncs[f.name] {
 		driven := stagedDrive(ctx, f, base)
-		fillable := !isTop(peer) && hasPlace(f) && "match" != f.name
+		fillable := !isTop(peer) && waitsOnHole(f) && "match" != f.name
 		ready := (driven || fillable) && ctx.settle
 
 		if !ready {
@@ -294,12 +327,18 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
-	if !isTop(peer) && !peer.Nil() && Val(f) != peer && hasPlace(f) {
-		if hasPlace(peer) {
+	reach := !isTop(peer) && !peer.Nil() && Val(f) != peer
+	fill := reach && waitsOnHole(f)
+
+	// A rider, a mark or a seal around a container reads through to it.
+	through := reach && wrapsBag(f)
+
+	if fill && !through {
+		if waitsOnHole(peer) {
 			return makeNilErr(ctx, "place_pair", f, peer)
 		}
 		ctx.slot = base
-		return unite(ctx, fillPlace(f, peer), top())
+		return unite(ctx, bindHole(f, peer), top())
 	}
 
 	if isTop(peer) && (f.mtype || f.mhide) {
@@ -399,7 +438,10 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		pegdone = false
 	}
 
-	if pegdone {
+	if pegdone || (through && wrapSettled(newpeg)) {
+		if through {
+			newpeg = append([]Val{openWrap(ctx, base, newpeg[0])}, newpeg[1:]...)
+		}
 		result := absent
 		if nil == result {
 			result = sigRefuse(ctx, f, newpeg)
@@ -508,6 +550,47 @@ func pathEq(a, b []string) bool {
 	return true
 }
 
+// stripMarks reads a copy's argument as written: each hide(), type()
+// and close() call in it is its argument, and each reference in it is
+// the copy's, so nothing the argument reads where it lands marks or
+// seals it.
+func stripMarks(v Val) Val {
+	for {
+		fv, ok := v.(*FuncVal)
+		if !ok || 1 != len(fv.peg) || ("hide" != fv.name && "type" != fv.name && "close" != fv.name) {
+			break
+		}
+		v = fv.peg[0]
+	}
+	switch n := v.(type) {
+	case *RefVal:
+		n.copyFound = true
+	case *MapVal:
+		for _, k := range n.keys {
+			n.peg[k] = stripMarks(n.peg[k])
+		}
+	case *ListVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	case *ConjunctVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	case *DisjunctVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	case *PrefVal:
+		n.peg = stripMarks(n.peg)
+	case *FuncVal:
+		for i := range n.peg {
+			n.peg[i] = stripMarks(n.peg[i])
+		}
+	}
+	return v
+}
+
 // resolve dispatches to the named function's implementation. base is
 // the location the func is being driven at (see Unify) — resolution
 // clones re-path to it, mirroring the ctx-path clones in TS.
@@ -526,7 +609,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 			src.copyFound = true
 			return src
 		}
-		out := clonePath(args[0], cp(base))
+		out := stripMarks(clonePath(args[0], cp(base)))
 		walkMark(out, true, false, true, false) // copy clears marks
 		unsealTree(out)
 		return out

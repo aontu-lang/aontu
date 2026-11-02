@@ -205,7 +205,7 @@ class MapVal extends BagVal_1.BagVal {
                                 key_spread_cj.isTop && !(0, rider_1.rides)(key_spread_cj) && child.done
                                     && undefined === keyctx.prov ? child :
                                     child.isTop && !(0, rider_1.rides)(child) && key_spread_cj.done ? key_spread_cj :
-                                        (0, unify_1.unite)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, key_spread_cj, 'map-own');
+                                        (0, unify_1.meetTemplate)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, key_spread_cj, 'map-own');
                     if (!spread_cj.isTop && !oval.isNil) {
                         ;
                         oval._spr = (0, Val_1.spreadId)(spread_cj);
@@ -259,20 +259,26 @@ class MapVal extends BagVal_1.BagVal {
                                     peerchild.isNil ? (literalNilRefuses(peerchild, child) ?
                                         (0, err_1.makeNilErr)(peerctx, 'literal_nil', peerchild, child) : peerchild) :
                                         (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'CHD') }) : peerctx, child, peerchild, 'map-peer');
+                    // A member the spread has met keeps its mark, as a list's element does.
+                    if (undefined !== child && !spread_cj.isTop && !oval.isNil &&
+                        (child._spr === (0, Val_1.spreadId)(spread_cj) ||
+                            peerchild._spr === (0, Val_1.spreadId)(spread_cj))) {
+                        ;
+                        oval._spr = (0, Val_1.spreadId)(spread_cj);
+                    }
                     if (this.spread.cj && (0, BagVal_1.undecided)(oval)) {
                         done = false;
                     }
                     else if (this.spread.cj && !oval.isAbsent && !out.aliasKeys.includes(peerkey)) {
-                        // Same apply-once discipline as the own-key loop: once the
-                        // constraint is merged into the value (marked with the
-                        // constraint's id), later passes only self-unify.
+                        // Applied once, as in the own-key loop: a value marked with
+                        // the constraint's id only self-unifies in later passes.
                         if (oval._spr !== (0, Val_1.spreadId)(spread_cj)) {
                             let key_spread_cj = spread_cj.spreadClone(peerctx);
                             if (undefined !== peerctx.prov) {
                                 (0, provenance_1.markSpread)(key_spread_cj);
                             }
                             oval = out.peg[peerkey] =
-                                (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'PSP:' + peerkey) }) : peerctx, oval, key_spread_cj, 'map-peer-spread');
+                                (0, unify_1.meetTemplate)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'PSP:' + peerkey) }) : peerctx, oval, key_spread_cj, 'map-peer-spread');
                             if (!spread_cj.isTop && !oval.isNil) {
                                 ;
                                 oval._spr = (0, Val_1.spreadId)(spread_cj);

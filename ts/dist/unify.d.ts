@@ -15,4 +15,5 @@ declare class Unify {
     lang: Lang;
     constructor(root: Val | string, lang?: Lang, ctx?: AontuContext | any, src?: any);
 }
-export { Unify, unite, withDepth, applyFlows, ride, rideOn, };
+declare const meetTemplate: (ctx: AontuContext, member: Val, tmpl: Val, whence: string) => Val;
+export { Unify, unite, meetTemplate, withDepth, applyFlows, ride, rideOn, };

@@ -22,6 +22,7 @@ import {
 
 
 import { JunctionVal } from './JunctionVal'
+import { hasPlace, waitsOnHole } from './PlaceVal'
 import { sizingResidue } from './BagVal'
 
 import {
@@ -69,9 +70,31 @@ class ConjunctVal extends JunctionVal {
   unify(peer: Val, ctx: AontuContext): Val {
     peer = peer ?? top()
 
+    // A group of sides that wait on a hole fills nothing whatever stands
+    // beside it, so it is refused before its sides are flattened in.
+    if (peer.isTop) {
+      for (const t of this.peg) {
+        const pair = true === t.isConjunct ? waitPair(t) : undefined
+        if (undefined !== pair) {
+          return makeNilErr(ctx, 'place_pair', pair[0], pair[1])
+        }
+      }
+
+      // A group that fills its own hole settles first, as it's grouped.
+      for (let tI = 0; tI < this.peg.length; tI++) {
+        const t = this.peg[tI]
+        if (true === t.isConjunct && hasPlace(t) && !waits(t)) {
+          const settled = unite(ctx, t, top(), 'cj-group')
+          if (settled.isNil) {
+            return settled
+          }
+          this.peg[tI] = settled
+        }
+      }
+    }
+
     const te = ctx.explain && explainOpen(ctx, ctx.explain, 'Conjunct', this, peer)
 
-    let done = true
 
     const carried: Val[] = []
     this.peg = norm(this.peg, carried)
@@ -98,7 +121,6 @@ class ConjunctVal extends JunctionVal {
       upeer[vI].mark.type = newtype = newtype || upeer[vI].mark.type
       upeer[vI].mark.hide = newhide = newhide || upeer[vI].mark.hide
 
-      done = done && (DONE === upeer[vI].dc)
 
       if (upeer[vI].isNil) {
         return upeer[vI]
@@ -143,7 +165,6 @@ class ConjunctVal extends JunctionVal {
 
       else {
         val = unite(te ? ctx.clone({ explain: ec(te, 'DEF') }) : ctx, t0, t1, 'cj-peer-t0t1')
-        done = done && DONE === val.dc
         newtype = this.mark.type || val.mark.type
         newhide = this.mark.hide || val.mark.hide
 
@@ -189,7 +210,7 @@ class ConjunctVal extends JunctionVal {
       out.site.src = this.site.src
     }
 
-    out.dc = done ? DONE : this.dc + 1
+    out.dc = outvals.every((v: Val) => DONE === v.dc) ? DONE : this.dc + 1
 
     // A meet flattened in leaves its riders on the whole (ADR-052).
     for (const c of carried) {
@@ -240,6 +261,54 @@ class ConjunctVal extends JunctionVal {
 
     return undefined
   }
+}
+
+
+// A call over a hole beside a side that holds one, in a group or at a shared key or index.
+function waitPair(cj: Val): [Val, Val] | undefined {
+  const terms: Val[] = cj.peg
+  for (const c of terms) {
+    for (const o of terms) {
+      const pair = c === o ? undefined : pairAt(c, o)
+      if (undefined !== pair) {
+        return pair
+      }
+    }
+  }
+  return undefined
+}
+
+
+function pairAt(c: any, o: any): [Val, Val] | undefined {
+  if (true === c.isFunc || true === c.isOp) {
+    return waitsOnHole(c) && waits(o) ? [c, o] : undefined
+  }
+  if (true === c.isMap && true === o.isMap) {
+    for (const k of Object.keys(c.peg)) {
+      const pair = undefined === o.peg[k] ? undefined : pairAt(c.peg[k], o.peg[k])
+      if (undefined !== pair) {
+        return pair
+      }
+    }
+  }
+  else if (true === c.isList && true === o.isList) {
+    for (let i = 0; i < c.peg.length && i < o.peg.length; i++) {
+      const pair = pairAt(c.peg[i], o.peg[i])
+      if (undefined !== pair) {
+        return pair
+      }
+    }
+  }
+  return undefined
+}
+
+
+// A meet waits only where every side does, as `_ & _` does and
+// `_ & "a"`, which fills its own hole, doesn't.
+function waits(v: any): boolean {
+  return true === v.isPlace
+    || ((true === v.isFunc || true === v.isOp) && waitsOnHole(v))
+    || (true === v.isConjunct && v.peg.every(waits))
 }
 
 

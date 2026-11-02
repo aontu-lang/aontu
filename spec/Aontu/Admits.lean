@@ -1,4 +1,5 @@
 import Aontu.Syntax
+import Aontu.Text
 
 /-!
 # What a value admits, and what it refuses
@@ -32,17 +33,118 @@ namespace Aontu
 
 /-- What the definition leaves to the engines: which strings a pattern
 matches, and which strings a format, a name or a grammar, reads to its
-end. Each is a predicate on two strings, and nothing here says what
-either holds of, so a theorem about `re` or `format` holds whatever they
-are. -/
+end, each a predicate on two strings; which patterns lie in the subset
+that `rep` and `split` hand to the host's own regex engine, a subset
+the reference states on a pattern's syntax, which the definition does
+not hold, how many groups such a pattern captures, which the engines
+count on its text before any match is read, and where its leftmost
+match at or after a code point of a text falls; how a string
+changes case, Unicode's default case conversion at the version of each
+engine's tables; and which grammars an RFC 5234 compiler compiles, as
+`abnf` asks, and the tree its parser builds of a string a grammar reads
+whole, as `parse` asks, none where it doesn't. Nothing here says what
+any of them holds of, so a theorem about `re`, `format`, `rep`, `split`,
+`upper`, `lower`, `abnf` or `parse` holds whatever they are. -/
 structure Host where
   pattern : String → String → Prop
   format : String → String → Prop
+  portable : String → Bool
+  groups : String → ℕ
+  find : String → String → ℕ → Option Match
+  upper : String → String
+  lower : String → String
+  compiles : String → Bool
+  tree : String → String → Option Data
 
-instance : Inhabited Host := ⟨⟨fun _ _ => True, fun _ _ => True⟩⟩
+instance : Inhabited Host :=
+  ⟨⟨fun _ _ => True, fun _ _ => True, fun _ => false, fun _ => 0, fun _ _ _ => none, id, id,
+    fun _ => false, fun _ _ => none⟩⟩
 
-/-- The predicates behind `re` and `format`: a constant no proof can
-unfold, so they are read and never computed. -/
+/-- Whether a pattern reads a character as itself alone. -/
+def plainChar (c : Char) : Bool := !"\\^$.|?*+()[]{}".contains c
+
+/-- A pattern read as fixed text: runs of characters it reads as
+themselves, each with whether a group captures it, the groups neither
+nested nor empty; `none` for any other pattern. -/
+def fixedPieces (p : String) : Option (List (Bool × List Char)) :=
+  let step : Option (List (Bool × List Char) × Option (List Char)) → Char →
+      Option (List (Bool × List Char) × Option (List Char))
+    | some (acc, none), '(' => some (acc, some [])
+    | some (acc, none), c => if plainChar c then some (acc ++ [(false, [c])], none) else none
+    | some (acc, some g), ')' => if g = [] then none else some (acc ++ [(true, g)], none)
+    | some (acc, some g), c => if plainChar c then some (acc, some (g ++ [c])) else none
+    | none, _ => none
+  match p.toList.foldl step (some ([], none)) with
+  | some (acc, none) => some acc
+  | _ => none
+
+/-- The leftmost match of a fixed pattern at or after a code point of a
+text, each group capturing its own run; none for any other pattern. -/
+def fixedFind (p t : String) (i : ℕ) : Option Match :=
+  (fixedPieces p).bind fun ps =>
+    let lit := ps.flatMap (·.2)
+    let ts := t.toList
+    (List.range (ts.length + 1 - i)).findSome? fun k =>
+      if lit.isPrefixOf (ts.drop (i + k)) then
+        some ⟨i + k, i + k + lit.length,
+          (ps.filter (·.1)).map fun g => some (String.mk g.2)⟩
+      else none
+
+/-- Whether a character stands for itself in a quoted ABNF literal the
+oracle's host reads: printable ASCII but the quote. -/
+def literalChar (c : Char) : Bool := 0x20 ≤ c.toNat && c.toNat ≤ 0x7E && c != '"'
+
+/-- A grammar of one rule whose body is one quoted literal, as the
+oracle's host reads it: `name = "lit"`, the name a letter and then
+letters, digits or `-`, the literal one or more characters, matched
+without regard to ASCII case, or exactly after `%s`, a newline after it
+or not. The rule's name, whether case counts, and the literal; `none`
+for any other grammar. -/
+def oneLiteral (g : String) : Option (String × Bool × List Char) :=
+  let cs := g.toList
+  let name := cs.takeWhile fun c => c.isAlphanum || c == '-'
+  let rest := cs.drop name.length
+  let body (exact : Bool) (r : List Char) : Option (String × Bool × List Char) :=
+    match r with
+    | '"' :: r =>
+      let lit := r.takeWhile literalChar
+      match r.drop lit.length with
+      | ['"'] | ['"', '\n'] =>
+        if lit.isEmpty then none else some (String.mk name, exact, lit)
+      | _ => none
+    | _ => none
+  match name, rest with
+  | c :: _, ' ' :: '=' :: ' ' :: '%' :: 's' :: r => if c.isAlpha then body true r else none
+  | c :: _, ' ' :: '=' :: ' ' :: r => if c.isAlpha then body false r else none
+  | _, _ => none
+
+/-- The tree the oracle's host builds of a string a grammar of one
+literal reads whole: the rule, the text it matched and no children. -/
+def oneLiteralTree (g s : String) : Option Data :=
+  (oneLiteral g).bind fun (name, exact, lit) =>
+    let low (l : List Char) := l.map Char.toLower
+    if (if exact then s.toList = lit else low s.toList = low lit) then
+      some (.map [("kids", .list []), ("rule", .str name), ("src", .str s)])
+    else none
+
+/-- The host the oracle computes with, whose case conversion changes the
+ASCII letters only, as every engine's does on a string of them, whose
+regex engine reads fixed patterns alone, as every engine reads them, and
+whose grammars are each one rule of one literal: a row reads no other
+letter, no other pattern but one outside the subset, and no other
+grammar but one that compiles in no engine. -/
+def oracleHost : Host :=
+  ⟨fun _ _ => True, fun _ _ => True, fun p => (fixedPieces p).isSome,
+    fun p => ((fixedPieces p).map fun ps => (ps.filter (·.1)).length).getD 0, fixedFind,
+    String.map Char.toUpper, String.map Char.toLower,
+    fun g => (oneLiteral g).isSome, oneLiteralTree⟩
+
+/-- The predicates behind `re` and `format`, the subset, the groups and
+the matches behind `rep` and `split` at a pattern, the case conversion
+behind `upper` and `lower`, and the compiler and parser behind `abnf`
+and `parse`: a constant no proof can unfold, so no theorem rests on what
+they are, and which the oracle runs as `oracleHost`. -/
+@[implemented_by oracleHost]
 opaque host : Host
 
 /-- Two predicates that agree on a list hold of all of it alike. -/
@@ -107,6 +209,16 @@ theorem evaluatedBy_congr {cs : List Cover} {gc gc' : Cover → Bool} {gk gk' : 
     | some v => exact hm c hcs v h
   rw [e1, e2, e3]
 
+/-- Whether a term lies outside `len`'s domain though it may admit a
+number: `any` or a trial, under any rider, or a meet of two such terms,
+as both ports refuse `len(any)` and `len(must(integer, "m"))` their
+argument (decision 28 of the design note's §7). -/
+def Val.unsized : Val → Bool
+  | .any | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ => true
+  | .ride _ v _ => v.unsized
+  | .meet a b => a.unsized && b.unsized
+  | _ => false
+
 inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   /-- A kind admits the values of its kind, and refuses every other
   value. -/
@@ -132,6 +244,8 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   | mapKindNot {j : Data} : (∀ fs, j ≠ .map fs) → Judge env root false .mapKind j
   | listKind {xs : List Data} : Judge env root true .listKind (.list xs)
   | listKindNot {j : Data} : (∀ xs, j ≠ .list xs) → Judge env root false .listKind j
+  | pathKind {a : Addr} : Judge env root true .pathKind (.addr a)
+  | pathKindNot {j : Data} : (∀ a, j ≠ .addr a) → Judge env root false .pathKind j
   /-- A literal admits its own value alone, of its own leaf, and refuses
   every other. -/
   | num {x : Number} : Judge env root true (.lit (.num x)) (.num x)
@@ -139,30 +253,44 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   | bool {b : Bool} : Judge env root true (.lit (.bool b)) (.bool b)
   | null : Judge env root true (.lit .null) .null
   | litNot {s : Scalar} {j : Data} : j ≠ s.data → Judge env root false (.lit s) j
+  /-- A path value admits each address its own opens: itself, and every
+  address that adds steps to it, so that two paths meet by the prefix
+  rule. It refuses every other value. -/
+  | addr {a b : Addr} : a.Opens b → Judge env root true (.addr a) (.addr b)
+  | addrNot {a : Addr} {j : Data} :
+      (∀ b, j = .addr b → ¬ a.Opens b) → Judge env root false (.addr a) j
   /-- A bound with a number at its end admits a number, by exact value,
-  and one with a string at its end a string, in code-point order; the
-  bound's domain is its end's, so `min(0)` admits no string and
-  `max("b")` no number. It refuses a value of its domain that falls
-  outside it, and every value outside its domain. -/
+  and one with a string at its end a string, in code-point order, and an
+  address by its spelling; the bound's domain is its end's, so `min(0)`
+  admits no string and `max("b")` no number. It refuses a value of its
+  domain that falls outside it, and every value outside its domain. -/
   | min {n x : Number} : n.le x → Judge env root true (.min (.num n)) (.num x)
   | minStr {b s : String} : b ≤ s → Judge env root true (.min (.str b)) (.str s)
+  | minAddr {b : String} {a : Addr} : b ≤ a.text → Judge env root true (.min (.str b)) (.addr a)
   | minNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ n.le x) → (∀ t s, b = .str t → j = .str s → ¬ t ≤ s) →
+      (∀ t a, b = .str t → j = .addr a → ¬ t ≤ a.text) →
       Judge env root false (.min b) j
   | max {n x : Number} : x.le n → Judge env root true (.max (.num n)) (.num x)
   | maxStr {b s : String} : s ≤ b → Judge env root true (.max (.str b)) (.str s)
+  | maxAddr {b : String} {a : Addr} : a.text ≤ b → Judge env root true (.max (.str b)) (.addr a)
   | maxNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ x.le n) → (∀ t s, b = .str t → j = .str s → ¬ s ≤ t) →
+      (∀ t a, b = .str t → j = .addr a → ¬ a.text ≤ t) →
       Judge env root false (.max b) j
   | above {n x : Number} : n.lt x → Judge env root true (.above (.num n)) (.num x)
   | aboveStr {b s : String} : b < s → Judge env root true (.above (.str b)) (.str s)
+  | aboveAddr {b : String} {a : Addr} : b < a.text → Judge env root true (.above (.str b)) (.addr a)
   | aboveNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ n.lt x) → (∀ t s, b = .str t → j = .str s → ¬ t < s) →
+      (∀ t a, b = .str t → j = .addr a → ¬ t < a.text) →
       Judge env root false (.above b) j
   | beneath {n x : Number} : x.lt n → Judge env root true (.beneath (.num n)) (.num x)
   | beneathStr {b s : String} : s < b → Judge env root true (.beneath (.str b)) (.str s)
+  | beneathAddr {b : String} {a : Addr} : a.text < b → Judge env root true (.beneath (.str b)) (.addr a)
   | beneathNot {b : Bound} {j : Data} :
       (∀ n x, b = .num n → j = .num x → ¬ x.lt n) → (∀ t s, b = .str t → j = .str s → ¬ s < t) →
+      (∀ t a, b = .str t → j = .addr a → ¬ a.text < t) →
       Judge env root false (.beneath b) j
   /-- `neq` excludes each of its ends by identity, a number by leaf and
   value, so `neq(1)` admits the float `1.0`; its domain is its ends',
@@ -186,12 +314,15 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
       (∀ x, j = .num x → d.Positive → ¬ x.multipleOf d) → Judge env root false (.mulof d) j
   /-- `len(c)` judges a string, a list, or a map as `c` judges its size,
   an integer; `len(0)` admits `""`, and a scalar has no size, so `len`
-  refuses it, as it refuses a size no integer leaf holds. -/
+  refuses it, as it refuses a size no integer leaf holds. A `c` outside
+  `len`'s domain, `any` or a trial (`Val.unsized`), admits no size. -/
   | len {b : Bool} {c : Val} {j : Data} {n : ℕ} (h : IntegerLeaf n) :
-      j.size = some n → Judge env root b c (.num (.integer ⟨n, h⟩)) → Judge env root b (.len c) j
+      c.unsized = false → j.size = some n → Judge env root b c (.num (.integer ⟨n, h⟩)) →
+        Judge env root b (.len c) j
   | lenNone {c : Val} {j : Data} : j.size = none → Judge env root false (.len c) j
   | lenBig {c : Val} {j : Data} {n : ℕ} :
       j.size = some n → ¬ IntegerLeaf n → Judge env root false (.len c) j
+  | lenOut {c : Val} {j : Data} : c.unsized = true → Judge env root false (.len c) j
   /-- `unique()` admits a list or a map whose members are pairwise
   distinct as values, and `unique("k")` one whose members each give
   `k` a value and whose values at `k` are; a member that is no map, or
@@ -212,17 +343,40 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
         ¬ x'.Same y') →
       Judge env root false (.unique k) j
   /-- `re(p)` admits the strings the pattern matches, and `format(g)`
-  the strings the format reads, by the host's predicates; each admits
-  `""` exactly where its predicate holds of it, admits no other kind of
+  the strings the format reads, by the host's predicates, and each the
+  addresses whose spelling its predicate holds of; each admits `""`
+  exactly where its predicate holds of it, admits no other kind of
   value, and refuses whatever it does not admit. -/
   | re {p s : String} : host.pattern p s → Judge env root true (.re p) (.str s)
+  | reAddr {p : String} {a : Addr} : host.pattern p a.text → Judge env root true (.re p) (.addr a)
   | reNot {p : String} {j : Data} :
-      (∀ s, j = .str s → ¬ host.pattern p s) → Judge env root false (.re p) j
+      (∀ s, j = .str s → ¬ host.pattern p s) → (∀ a, j = .addr a → ¬ host.pattern p a.text) →
+      Judge env root false (.re p) j
   | format {g s : String} : host.format g s → Judge env root true (.format g) (.str s)
+  | formatAddr {g : String} {a : Addr} : host.format g a.text → Judge env root true (.format g) (.addr a)
   | formatNot {g : String} {j : Data} :
-      (∀ s, j = .str s → ¬ host.format g s) → Judge env root false (.format g) j
+      (∀ s, j = .str s → ¬ host.format g s) → (∀ a, j = .addr a → ¬ host.format g a.text) →
+      Judge env root false (.format g) j
+  /-- `parse(g)` admits the strings the host's parser reads whole under
+  the grammar `g`, the empty string under none, and refuses every other
+  value: a grammar that doesn't compile reads no string, so it admits
+  nothing. -/
+  | grammar {g s : String} :
+      s ≠ "" → (host.tree g s).isSome = true → Judge env root true (.grammar g) (.str s)
+  | grammarNot {g : String} {j : Data} :
+      (∀ s, j = .str s → s ≠ "" → (host.tree g s).isSome = false) →
+      Judge env root false (.grammar g) j
   | any {j : Data} : Judge env root true .any j
+  /-- Absence admits every value, as `any` does: it differs from `any`
+  in what it generates, and nothing else. -/
+  | absent {j : Data} : Judge env root true .absent j
+  /-- `_`, a hole no generator filled, admits every value, as `any`
+  does: the value is the one that fills it. -/
+  | hole {j : Data} : Judge env root true .hole j
   | nil {j : Data} : Judge env root false .nil j
+  /-- An atom over an argument outside its domain refuses every value,
+  though it stands: only what it meets finds the refusal. -/
+  | nothing {j : Data} : Judge env root false .nothing j
   /-- A call the reading could not make, outside its function's domain,
   refuses every value; `vet` reads a document that holds one as an
   error before it judges. -/
@@ -392,6 +546,9 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   value, as a path left unread does: in a spread, `Val.atKey` reads it
   first. -/
   | key {j : Data} : Judge env root false .key j
+  /-- A `key(n)` no reading placed refuses every value, as `key` does: the
+  reading writes in the key where it knows the position. -/
+  | keyUp {n : ℤ} {j : Data} : Judge env root false (.keyUp n) j
   | selectKey {arms : List (Val × Val)} {d : Option Val} {j : Data} :
       Judge env root false (.select .key arms d) j
 
@@ -480,6 +637,12 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | listKindNot hn => intro b' h'; cases h' with
     | listKind => exact absurd rfl (hn _)
     | listKindNot _ => rfl
+  | pathKind => intro b' h'; cases h' with
+    | pathKind => rfl
+    | pathKindNot hn => exact absurd rfl (hn _)
+  | pathKindNot hn => intro b' h'; cases h' with
+    | pathKind => exact absurd rfl (hn _)
+    | pathKindNot _ => rfl
   | num => intro b' h'; cases h' with
     | num => rfl
     | litNot hn => exact absurd rfl hn
@@ -495,46 +658,68 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | @litNot s j hn => intro b' h'; cases h' with
     | num | str | bool | null => exact absurd rfl hn
     | litNot _ => rfl
+  | addr h => intro b' h'; cases h' with
+    | addr _ => rfl
+    | addrNot hn => exact absurd h (hn _ rfl)
+  | addrNot hn => intro b' h'; cases h' with
+    | addr h => exact absurd h (hn _ rfl)
+    | addrNot _ => rfl
   | min h => intro b' h'; cases h' with
     | min _ => rfl
-    | minNot hn _ => exact absurd h (hn _ _ rfl rfl)
+    | minNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
   | minStr h => intro b' h'; cases h' with
     | minStr _ => rfl
-    | minNot _ hn => exact absurd h (hn _ _ rfl rfl)
-  | minNot hn hs => intro b' h'; cases h' with
+    | minNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
+  | minAddr h => intro b' h'; cases h' with
+    | minAddr _ => rfl
+    | minNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
+  | minNot hn hs ha => intro b' h'; cases h' with
     | min h => exact absurd h (hn _ _ rfl rfl)
     | minStr h => exact absurd h (hs _ _ rfl rfl)
-    | minNot _ _ => rfl
+    | minAddr h => exact absurd h (ha _ _ rfl rfl)
+    | minNot _ _ _ => rfl
   | max h => intro b' h'; cases h' with
     | max _ => rfl
-    | maxNot hn _ => exact absurd h (hn _ _ rfl rfl)
+    | maxNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
   | maxStr h => intro b' h'; cases h' with
     | maxStr _ => rfl
-    | maxNot _ hn => exact absurd h (hn _ _ rfl rfl)
-  | maxNot hn hs => intro b' h'; cases h' with
+    | maxNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
+  | maxAddr h => intro b' h'; cases h' with
+    | maxAddr _ => rfl
+    | maxNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
+  | maxNot hn hs ha => intro b' h'; cases h' with
     | max h => exact absurd h (hn _ _ rfl rfl)
     | maxStr h => exact absurd h (hs _ _ rfl rfl)
-    | maxNot _ _ => rfl
+    | maxAddr h => exact absurd h (ha _ _ rfl rfl)
+    | maxNot _ _ _ => rfl
   | above h => intro b' h'; cases h' with
     | above _ => rfl
-    | aboveNot hn _ => exact absurd h (hn _ _ rfl rfl)
+    | aboveNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
   | aboveStr h => intro b' h'; cases h' with
     | aboveStr _ => rfl
-    | aboveNot _ hn => exact absurd h (hn _ _ rfl rfl)
-  | aboveNot hn hs => intro b' h'; cases h' with
+    | aboveNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
+  | aboveAddr h => intro b' h'; cases h' with
+    | aboveAddr _ => rfl
+    | aboveNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
+  | aboveNot hn hs ha => intro b' h'; cases h' with
     | above h => exact absurd h (hn _ _ rfl rfl)
     | aboveStr h => exact absurd h (hs _ _ rfl rfl)
-    | aboveNot _ _ => rfl
+    | aboveAddr h => exact absurd h (ha _ _ rfl rfl)
+    | aboveNot _ _ _ => rfl
   | beneath h => intro b' h'; cases h' with
     | beneath _ => rfl
-    | beneathNot hn _ => exact absurd h (hn _ _ rfl rfl)
+    | beneathNot hn _ _ => exact absurd h (hn _ _ rfl rfl)
   | beneathStr h => intro b' h'; cases h' with
     | beneathStr _ => rfl
-    | beneathNot _ hn => exact absurd h (hn _ _ rfl rfl)
-  | beneathNot hn hs => intro b' h'; cases h' with
+    | beneathNot _ hn _ => exact absurd h (hn _ _ rfl rfl)
+  | beneathAddr h => intro b' h'; cases h' with
+    | beneathAddr _ => rfl
+    | beneathNot _ _ hn => exact absurd h (hn _ _ rfl rfl)
+  | beneathNot hn hs ha => intro b' h'; cases h' with
     | beneath h => exact absurd h (hn _ _ rfl rfl)
     | beneathStr h => exact absurd h (hs _ _ rfl rfl)
-    | beneathNot _ _ => rfl
+    | beneathAddr h => exact absurd h (ha _ _ rfl rfl)
+    | beneathNot _ _ _ => rfl
   | neq h => intro b' h'; cases h' with
     | neq _ => rfl
     | neqNot hn _ =>
@@ -563,18 +748,26 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | mulofNot hn => intro b' h'; cases h' with
     | mulof hp hm => exact absurd hm (hn _ rfl hp)
     | mulofNot _ => rfl
-  | len h hs _ ih => intro b' h'; cases h' with
-    | len h' hs' hc' => rw [hs] at hs'; cases hs'; exact ih hc'
+  | len h hu hs _ ih => intro b' h'; cases h' with
+    | len h' _ hs' hc' => rw [hs] at hs'; cases hs'; exact ih hc'
     | lenNone hs' => rw [hs] at hs'; cases hs'
     | lenBig hs' hn => rw [hs] at hs'; cases hs'; exact absurd h hn
+    | lenOut hu' => rw [hu] at hu'; cases hu'
   | lenNone hs => intro b' h'; cases h' with
-    | len _ hs' _ => rw [hs] at hs'; cases hs'
+    | len _ _ hs' _ => rw [hs] at hs'; cases hs'
     | lenNone _ => rfl
     | lenBig _ _ => rfl
+    | lenOut _ => rfl
   | lenBig hs hn => intro b' h'; cases h' with
-    | len h hs' _ => rw [hs] at hs'; cases hs'; exact absurd h hn
+    | len h _ hs' _ => rw [hs] at hs'; cases hs'; exact absurd h hn
     | lenNone _ => rfl
     | lenBig _ _ => rfl
+    | lenOut _ => rfl
+  | lenOut hu => intro b' h'; cases h' with
+    | len _ hu' _ _ => rw [hu] at hu'; cases hu'
+    | lenNone _ => rfl
+    | lenBig _ _ => rfl
+    | lenOut _ => rfl
   | unique hm h1 h2 => intro b' h'; cases h' with
     | unique _ _ _ => rfl
     | uniqueNone hm' => rw [hm] at hm'; cases hm'
@@ -605,20 +798,40 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | uniqueDup _ _ => rfl
   | re h => intro b' h'; cases h' with
     | re _ => rfl
-    | reNot hn => exact absurd h (hn _ rfl)
-  | reNot hn => intro b' h'; cases h' with
+    | reNot hn _ => exact absurd h (hn _ rfl)
+  | reAddr h => intro b' h'; cases h' with
+    | reAddr _ => rfl
+    | reNot _ hn => exact absurd h (hn _ rfl)
+  | reNot hn ha => intro b' h'; cases h' with
     | re h => exact absurd h (hn _ rfl)
-    | reNot _ => rfl
+    | reAddr h => exact absurd h (ha _ rfl)
+    | reNot _ _ => rfl
   | format h => intro b' h'; cases h' with
     | format _ => rfl
-    | formatNot hn => exact absurd h (hn _ rfl)
-  | formatNot hn => intro b' h'; cases h' with
+    | formatNot hn _ => exact absurd h (hn _ rfl)
+  | formatAddr h => intro b' h'; cases h' with
+    | formatAddr _ => rfl
+    | formatNot _ hn => exact absurd h (hn _ rfl)
+  | formatNot hn ha => intro b' h'; cases h' with
     | format h => exact absurd h (hn _ rfl)
-    | formatNot _ => rfl
+    | formatAddr h => exact absurd h (ha _ rfl)
+    | formatNot _ _ => rfl
+  | grammar hs ht => intro b' h'; cases h' with
+    | grammar _ _ => rfl
+    | grammarNot hn => exact absurd ht (by rw [hn _ rfl hs]; decide)
+  | grammarNot hn => intro b' h'; cases h' with
+    | grammar hs ht => exact absurd ht (by rw [hn _ rfl hs]; decide)
+    | grammarNot _ => rfl
   | any => intro b' h'; cases h' with
     | any => rfl
+  | absent => intro b' h'; cases h' with
+    | absent => rfl
+  | hole => intro b' h'; cases h' with
+    | hole => rfl
   | nil => intro b' h'; cases h' with
     | nil => rfl
+  | nothing => intro b' h'; cases h' with
+    | nothing => rfl
   | call => intro b' h'; cases h' with
     | call => rfl
   | map h1 h2 h3 h4 ih1 ih3 => intro b' h'; cases h' with
@@ -805,6 +1018,8 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | selectNone _ => rfl
   | key => intro b' h'; cases h' with
     | key => rfl
+  | keyUp => intro b' h'; cases h' with
+    | keyUp => rfl
   | selectKey => intro b' h'; cases h' with
     | selectKey => rfl
 
@@ -833,22 +1048,30 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.mapKindNot <;> assumption)
     | (apply Judge.listKind <;> assumption)
     | (apply Judge.listKindNot <;> assumption)
+    | (apply Judge.pathKind <;> assumption)
+    | (apply Judge.pathKindNot <;> assumption)
     | (apply Judge.num <;> assumption)
     | (apply Judge.str <;> assumption)
     | (apply Judge.bool <;> assumption)
     | (apply Judge.null <;> assumption)
     | (apply Judge.litNot <;> assumption)
+    | (apply Judge.addr <;> assumption)
+    | (apply Judge.addrNot <;> assumption)
     | (apply Judge.min <;> assumption)
     | (apply Judge.minStr <;> assumption)
+    | (apply Judge.minAddr <;> assumption)
     | (apply Judge.minNot <;> assumption)
     | (apply Judge.max <;> assumption)
     | (apply Judge.maxStr <;> assumption)
+    | (apply Judge.maxAddr <;> assumption)
     | (apply Judge.maxNot <;> assumption)
     | (apply Judge.above <;> assumption)
     | (apply Judge.aboveStr <;> assumption)
+    | (apply Judge.aboveAddr <;> assumption)
     | (apply Judge.aboveNot <;> assumption)
     | (apply Judge.beneath <;> assumption)
     | (apply Judge.beneathStr <;> assumption)
+    | (apply Judge.beneathAddr <;> assumption)
     | (apply Judge.beneathNot <;> assumption)
     | (apply Judge.neq <;> assumption)
     | (apply Judge.neqStr <;> assumption)
@@ -858,16 +1081,24 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.len <;> assumption)
     | (apply Judge.lenNone <;> assumption)
     | (apply Judge.lenBig <;> assumption)
+    | (apply Judge.lenOut <;> assumption)
     | (apply Judge.unique <;> assumption)
     | (apply Judge.uniqueNone <;> assumption)
     | (apply Judge.uniqueBare <;> assumption)
     | (apply Judge.uniqueDup <;> assumption)
     | (apply Judge.re <;> assumption)
+    | (apply Judge.reAddr <;> assumption)
     | (apply Judge.reNot <;> assumption)
     | (apply Judge.format <;> assumption)
+    | (apply Judge.formatAddr <;> assumption)
     | (apply Judge.formatNot <;> assumption)
+    | (apply Judge.grammar <;> assumption)
+    | (apply Judge.grammarNot <;> assumption)
     | (apply Judge.any <;> assumption)
+    | (apply Judge.absent <;> assumption)
+    | (apply Judge.hole <;> assumption)
     | (apply Judge.nil <;> assumption)
+    | (apply Judge.nothing <;> assumption)
     | (apply Judge.map <;> assumption)
     | (apply Judge.mapNot <;> assumption)
     | (apply Judge.mapField <;> assumption)
@@ -907,6 +1138,7 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.selectElse <;> assumption)
     | (apply Judge.selectNone <;> assumption)
     | (apply Judge.key <;> assumption)
+    | (apply Judge.keyUp <;> assumption)
     | (apply Judge.selectKey <;> assumption)
     | exact Judge.call
 

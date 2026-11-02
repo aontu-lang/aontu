@@ -98,21 +98,26 @@ function allMatches(src: string, re: RegExp): RegExpExecArray[] {
 }
 
 
-function expandSub(sub: string, m: RegExpExecArray, groups: number)
-  : string | undefined {
+// Read before the scan: a `$` the pattern cannot fill fails on any text.
+function subNames(sub: string, groups: number): boolean {
+  for (let i = 0; i < sub.length; i++) {
+    if ('$' !== sub[i]) { continue }
+    const n = sub[++i]
+    if ('$' !== n && '&' !== n &&
+      (undefined === n || '1' > n || '9' < n || groups < n.charCodeAt(0) - 0x30)) {
+      return false
+    }
+  }
+  return true
+}
+
+
+function expandSub(sub: string, m: RegExpExecArray): string {
   let out = ''
   for (let i = 0; i < sub.length; i++) {
     if ('$' !== sub[i]) { out += sub[i]; continue }
-
-    const n = sub[i + 1]
-    if ('$' === n) { out += '$'; i++; continue }
-    if ('&' === n) { out += m[0]; i++; continue }
-
-    if (undefined === n || '1' > n || '9' < n) { return undefined }
-    const g = n.charCodeAt(0) - 0x30
-    if (groups < g) { return undefined }
-    out += m[g] ?? ''
-    i++
+    const n = sub[++i]
+    out += '$' === n ? '$' : '&' === n ? m[0] : (m[n.charCodeAt(0) - 0x30] ?? '')
   }
   return out
 }
@@ -224,14 +229,14 @@ class RepFuncVal extends FuncBaseVal {
     const re = compileRe(pat)
     if ('string' === typeof re) { return makeNilErr(ctx, re, this) }
 
-    const groups = reGroupCount(re.source)
+    if (!subNames(sub, reGroupCount(re.source))) {
+      return makeNilErr(ctx, 'rep_sub', this)
+    }
 
     let out = ''
     let at = 0
     for (const m of allMatches(src, re)) {
-      const piece = expandSub(sub, m, groups)
-      if (undefined === piece) { return makeNilErr(ctx, 'rep_sub', this) }
-      out += src.slice(at, m.index) + piece
+      out += src.slice(at, m.index) + expandSub(sub, m)
       at = m.index + m[0].length
     }
     out += src.slice(at)

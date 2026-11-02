@@ -30,7 +30,7 @@ import {
 
 import { ConjunctVal } from '../val/ConjunctVal'
 import { FeatureVal } from '../val/FeatureVal'
-import { hasPlace, fillPlace } from '../val/PlaceVal'
+import { hasPlace, waitsOnHole, bindHole } from '../val/PlaceVal'
 import { bagMembers } from './members'
 
 
@@ -99,6 +99,29 @@ function trialUnify(ctx: AontuContext, a: Val, b: Val): Val | undefined {
 }
 
 
+
+const WRAPPERS = new Set(['meta', 'deprecate', 'ident', 'type', 'hide', 'close', 'open'])
+
+
+function wrapsBag(v: any): boolean {
+  const inner = true === v?.isFunc && WRAPPERS.has(v.funcname()) ? v.peg[0] : undefined
+  return null != inner &&
+    (true === inner.isMap || true === inner.isList ? hasPlace(inner) : wrapsBag(inner))
+}
+
+
+function wrapSettled(args: any[]): boolean {
+  return args.slice(1).every((a: Val) => a.done) &&
+    (!wrapsBag(args[0]) || wrapSettled(args[0].peg))
+}
+
+
+// An outer seal reaches the container once the wrappers inside resolve.
+function openWrap(ctx: AontuContext, v: any): Val {
+  return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v
+}
+
+
 class FuncBaseVal extends FeatureVal {
   isFunc = true
 
@@ -151,7 +174,7 @@ class FuncBaseVal extends FeatureVal {
 
   stagedReady(peer: Val, ctx: AontuContext, count: number): boolean {
     const ready = this.driveStagedArgs(ctx, count)
-    return (ready || (!peer.isTop && hasPlace(this))) && true === ctx.settle
+    return (ready || (!peer.isTop && waitsOnHole(this))) && true === ctx.settle
   }
 
 
@@ -204,11 +227,17 @@ class FuncBaseVal extends FeatureVal {
       return this.residuate(peer, ctx)
     }
 
-    if (!peer.isTop && !peer.isNil && this.id !== peer.id && hasPlace(this)) {
-      if (hasPlace(peer)) {
+    const reach = !peer.isTop && !peer.isNil && this.id !== peer.id
+    const fill = reach && waitsOnHole(this)
+
+    // A rider, a mark or a seal around a container reads through to it.
+    const through = reach && wrapsBag(this)
+
+    if (fill && !through) {
+      if (waitsOnHole(peer)) {
         return makeNilErr(ctx, 'place_pair', this, peer)
       }
-      return fillPlace(this, peer, ctx).unify(top(), ctx)
+      return bindHole(this, peer, ctx).unify(top(), ctx)
     }
 
     const TOP = top()
@@ -263,12 +292,15 @@ class FuncBaseVal extends FeatureVal {
         const gone = this.forgives ? undefined :
           newpeg.find((a: Val) => true === (a as any).isAbsent)
 
-        if (pegdone &&
+        if ((pegdone || (through && wrapSettled(newpeg))) &&
           (undefined !== gone || !this.deferResolve(ctx, newpeg))) {
           // THE SIGNATURE GATE (sketch/SIGNATURES.0.md): the
           // driven arguments against the declared signature, before
           // the builtin's own logic sees them. See siggate.ts for
           // what the gate owns and what stays with the builtins.
+          if (through) {
+            newpeg = [openWrap(ctx, newpeg[0]), ...newpeg.slice(1)]
+          }
           const resolved = gone ?? sigRefuse(ctx, this, newpeg) ??
             this.resolve(ctx, newpeg)
 

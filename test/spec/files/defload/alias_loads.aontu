@@ -1,0 +1,5 @@
+# Declares `%t` as a load written from this file's own directory, so it
+# reads defload/deep/leaf.aontu wherever the document that loads this
+# file stands.
+%t = @"./deep/leaf.aontu"
+y: %t

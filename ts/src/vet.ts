@@ -619,6 +619,25 @@ export function vetCoverage(
 }
 
 
+// The first failure a schema holds by key and index, but a written `nil`:
+// one built as the schema is read stands in its tree, not among its errors.
+function nilWithin(v: any): any {
+  if (true === v?.isNil) {
+    return 'literal_nil' === v.why ? undefined : v
+  }
+  const members: any[] = true === v?.isMap ?
+    Object.keys(v.peg).sort(cmpCodePoint).map((k) => v.peg[k]) :
+    true === v?.isList ? v.peg : []
+  for (const m of members) {
+    const held = nilWithin(m)
+    if (undefined !== held) {
+      return held
+    }
+  }
+  return undefined
+}
+
+
 export function vet(
   schemaSrc: string, dataSrc: string, opts?: VetOptions): VetReport {
   const options = opts ?? {}
@@ -638,9 +657,11 @@ export function vet(
   //    is never blamed for it.
   const schemaCtx = aontu.ctx({ collect: true })
   const schemaVal: any = aontu.unify(schemaSrc, schemaOpts, schemaCtx)
-  if (0 < schemaCtx.err.length || true === schemaVal?.isNil) {
+  const held = nilWithin(schemaVal)
+  if (0 < schemaCtx.err.length || true === schemaVal?.isNil || undefined !== held) {
     const failure: any =
-      0 < schemaCtx.err.length ? schemaCtx.err[0] : schemaVal
+      0 < schemaCtx.err.length ? schemaCtx.err[0] :
+        true === schemaVal?.isNil ? schemaVal : held
     stampUrl(schemaVal, schemaUrl)
     stampUrl(failure, schemaUrl)
     materialise(failure, schemaCtx)

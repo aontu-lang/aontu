@@ -24,7 +24,7 @@ class CopyFuncVal extends FuncBaseVal_1.FuncBaseVal {
     }
     resolve(ctx, args) {
         const val = args?.[0];
-        const out = null == val || null == ctx ?
+        let out = null == val || null == ctx ?
             (0, err_1.makeNilErr)(ctx, 'invalid-arg', this) :
             val.clone(ctx);
         if (out.isRef) {
@@ -32,9 +32,19 @@ class CopyFuncVal extends FuncBaseVal_1.FuncBaseVal {
             out.copyFound = true;
         }
         else {
-            (0, utility_1.walk)(out, (_key, val) => {
+            // The argument lands as written: each hide(), type() and close()
+            // in it is its argument, and each reference in it is the copy's,
+            // so nothing it reads where it lands marks or seals it.
+            out = (0, utility_1.walk)(out, (_key, val) => {
+                while ((true === val.isHideFunc || true === val.isTypeFunc || true === val.isCloseFunc)
+                    && 1 === val.peg?.length) {
+                    val = val.peg[0];
+                }
                 val.mark.type = false;
                 val.mark.hide = false;
+                if (true === val.isRef) {
+                    val.copyFound = true;
+                }
                 return val;
             });
             (0, SealVal_1.unsealTree)(out);

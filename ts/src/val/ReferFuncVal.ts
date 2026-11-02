@@ -287,6 +287,16 @@ class ReferVal extends FeatureVal {
 }
 
 
+// A spread that holds addresses alone, which a leaf's link can join.
+function leafOnly(v: any): boolean {
+  return true === v.isPath || true === v.isPathKind || true === v.isPathFunc ||
+    (true === v.isConstraint && null == v.count && !v.uniq && null == v.pending &&
+      0 === v.uniqBy.length + v.musts.length + v.nofs.length + v.whens.length +
+        v.contains.length + v.rests.length) ||
+    (true === v.isConjunct && v.peg.every(leafOnly))
+}
+
+
 class RelVal extends FeatureVal {
   isRel = true
   isGenable = true
@@ -294,9 +304,8 @@ class RelVal extends FeatureVal {
 
   // The type to flow into each target; TOP when `rel()` has none.
   tval: Val
-  // Container-level constraints met before the container arrived
-  // (`rel() & len(min(1)) & [...]`): they meet the REWRITTEN
-  // container, exactly as refer's held meets the link.
+  // Constraints met before the value arrived (`rel() & len(min(1))`):
+  // they meet the rewritten value, as refer's held meets the link.
   held?: Val
 
   constructor(spec: ValSpec, ctx?: AontuContext) {
@@ -354,11 +363,8 @@ class RelVal extends FeatureVal {
         pending = pending || true !== sub.done
       }
       else if (undefined === child.link) {
-        let leaf = unite(ctx.descend('' + k), this.leafRefer(ctx, relkey),
+        const leaf = unite(ctx.descend('' + k), this.leafRefer(ctx, relkey),
           child, 'rel-leaf')
-        if (null != this.held) {
-          leaf = unite(ctx.descend('' + k), leaf, this.held, 'rel-held')
-        }
         peg[k] = leaf
         pending = pending || true !== leaf.done
       }
@@ -366,12 +372,12 @@ class RelVal extends FeatureVal {
     if (pending) {
       out.dc = 0
     }
-    if (!nested && null == (out as any).spread.cj) {
-      let tmpl: Val = this.leafRefer(ctx, relkey)
-      if (null != this.held) {
-        tmpl = new ConjunctVal({ peg: [tmpl, this.held] }, ctx)
-      }
-      ; (out as any).spread.cj = tmpl
+    const sp: any = (out as any).spread
+    if (!nested && null == sp.cj) {
+      sp.cj = this.leafRefer(ctx, relkey)
+    }
+    else if (!nested && leafOnly(sp.cj)) {
+      sp.cj = new ConjunctVal({ peg: [this.leafRefer(ctx, relkey), sp.cj] }, ctx)
     }
     return out
   }
@@ -407,9 +413,10 @@ class RelVal extends FeatureVal {
     }
 
     // A SET OF LINKS: list or map, rewritten leaf by leaf; the held
-    // constraints ride into each leaf inside the rewrite.
+    // constraints meet the rewritten container, as any meet would.
     if (true === p.isMap || true === p.isList) {
-      return this.rewrite(ctx, peer)
+      const out = this.rewrite(ctx, peer)
+      return null == this.held ? out : unite(ctx, out, this.held, 'rel-held')
     }
 
     // A scalar that can never be an address.

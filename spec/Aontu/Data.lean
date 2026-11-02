@@ -254,12 +254,84 @@ on what it is (`test/spec/divergent.tsv`). Two strings are ordered as
 Lean orders them, character by character by code point, and a string
 is below any longer string it begins: `"b" < "ba"`. -/
 
+/-! ## Addresses -/
+
+/-- An address, what a path value is (`path(p)`): where it starts, `0`
+for the document's root `$` and `n` for the `n` dots a relative path
+starts with, and its steps, each the text it's written with. -/
+structure Addr where
+  up : ℕ
+  steps : List String
+  deriving DecidableEq
+
+/-- An address as text: `$` with each step after a dot from the root,
+and from a relative start its dots, then its steps between dots, so
+`.b` from the map or list that holds the path and `..b` a step up. -/
+def Addr.text (a : Addr) : String :=
+  match a.up with
+  | 0 => "$" ++ String.join (a.steps.map ("." ++ ·))
+  | n => String.mk (List.replicate n '.') ++ ".".intercalate a.steps
+
+/-- `a` opens `b`: they start alike, and `a`'s steps begin `b`'s, so
+`b` is `a` told as precisely or more. -/
+def Addr.Opens (a b : Addr) : Prop := a.up = b.up ∧ a.steps <+: b.steps
+
+instance : DecidableRel Addr.Opens :=
+  fun a b => inferInstanceAs (Decidable (a.up = b.up ∧ a.steps <+: b.steps))
+
+theorem Addr.opens_refl (a : Addr) : a.Opens a := ⟨rfl, List.prefix_refl _⟩
+
+theorem Addr.Opens.trans {a b c : Addr} (h₁ : a.Opens b) (h₂ : b.Opens c) : a.Opens c :=
+  ⟨h₁.1.trans h₂.1, h₁.2.trans h₂.2⟩
+
+/-- Two addresses that open one address open each other, one way or the
+other. -/
+theorem Addr.opens_or_opens {a b c : Addr} (ha : a.Opens c) (hb : b.Opens c) :
+    a.Opens b ∨ b.Opens a := by
+  rcases List.prefix_or_prefix_of_prefix ha.2 hb.2 with h | h
+  · exact .inl ⟨ha.1.trans hb.1.symm, h⟩
+  · exact .inr ⟨hb.1.trans ha.1.symm, h⟩
+
+/-! ## Address text
+
+Text read as an address, as both ports read the string `path(s)` is
+handed: `$.` and its steps from the root, or dots and their steps from a
+relative start, each step one or more letters, digits, `_` or `-`. Text
+with no start reads from one dot, and `$` alone, the root, addresses
+nothing. -/
+
+/-- A character a step of address text may hold. -/
+def addrChar (c : Char) : Bool := c.isAlphanum || c == '_' || c == '-'
+
+/-- The steps of address text, split at its dots, `acc` the step so far,
+reversed; no step is empty. -/
+def addrSteps : List Char → List Char → Option (List String)
+  | acc, [] => if acc.isEmpty then none else some [String.mk acc.reverse]
+  | acc, c :: cs =>
+    if c = '.' then
+      if acc.isEmpty then none else (addrSteps [] cs).map (String.mk acc.reverse :: ·)
+    else if addrChar c then addrSteps (c :: acc) cs else none
+
+/-- The dots text starts with, counted, and the text after them. -/
+def leadDots : List Char → ℕ × List Char
+  | '.' :: cs => ((leadDots cs).1 + 1, (leadDots cs).2)
+  | cs => (0, cs)
+
+/-- Address text read as an address. -/
+def Addr.ofText? (t : String) : Option Addr :=
+  match t.toList with
+  | '$' :: '.' :: cs => (addrSteps [] cs).map (Addr.mk 0)
+  | '$' :: _ => none
+  | '.' :: cs => (addrSteps [] (leadDots cs).2).map (Addr.mk ((leadDots cs).1 + 1))
+  | cs => (addrSteps [] cs).map (Addr.mk 1)
+
 /-! ## The data -/
 
-/-- The data: a number, a string, a boolean, null, a map, or a list. A
-map is the set of its members: Lean lists them, the order of the list
-is no part of the value, and a map gives each key once
-(`Data.WellFormed`). -/
+/-- The data: a number, a string, a boolean, null, a map, a list, or an
+address. A map is the set of its members: Lean lists them, the order of
+the list is no part of the value, and a map gives each key once
+(`Data.WellFormed`). JSON writes an address as its text, and no JSON
+text reads as one. -/
 inductive Data where
   | num (x : Number)
   | str (s : String)
@@ -267,6 +339,7 @@ inductive Data where
   | null
   | map (fs : List (String × Data))
   | list (xs : List Data)
+  | addr (a : Addr)
 
 /-- The integer `n`, for an `n` the leaf holds: `Data.integer 3` is the
 `integer` three. -/
@@ -293,6 +366,7 @@ inductive Data.Same : Data → Data → Prop
       xs.length = ys.length →
       (∀ (i : ℕ) (x y : Data), xs[i]? = some x → ys[i]? = some y → Same x y) →
       Same (.list xs) (.list ys)
+  | addr {a : Addr} : Same (.addr a) (.addr a)
 
 /-- A Lean `Data` is a value when each of its maps gives each key once.
 Every number is one already: each leaf's type holds only its own. -/
@@ -304,14 +378,24 @@ inductive Data.WellFormed : Data → Prop
   | map {fs : List (String × Data)} :
       (fs.map Prod.fst).Nodup → (∀ k x, (k, x) ∈ fs → WellFormed x) → WellFormed (.map fs)
   | list {xs : List Data} : (∀ x, x ∈ xs → WellFormed x) → WellFormed (.list xs)
+  | addr {a : Addr} : WellFormed (.addr a)
 
 /-- The size `len` counts: a string's characters, a list's elements,
-a map's members. A scalar has no size. -/
+a map's members, an address's characters as it's spelled. Any other
+scalar has no size. -/
 def Data.size : Data → Option ℕ
   | .str s => some s.length
   | .list xs => some xs.length
   | .map fs => some fs.length
+  | .addr a => some a.text.length
   | _ => none
+
+/-- Whether a value is an empty map or an empty list: what an optional
+member whose value generates it leaves out of the output (decision 19
+of the design note's §7). -/
+def Data.emptyBag : Data → Bool
+  | .map [] | .list [] => true
+  | _ => false
 
 /-- The members `unique` compares: a list's elements, or a map's
 values. A scalar has no members. -/
@@ -376,10 +460,18 @@ theorem mem_namedItems : ∀ {i : ℕ} {xs : List Data} {k : String} {x : Data},
     · exact List.mem_cons_self
     · exact List.mem_cons_of_mem _ (mem_namedItems h)
 
-/-- A step of a path: a member's key, or a position in a list. -/
+/-- A step of a path: a member's key, a position in a list, a variable
+the calling program binds, whose value names the step, the climb a
+relative path starts with, a step up for each of its dots, or the step
+into the node a body of `emit` is read for, which a relative reference
+in a body starts with, since it names a field of the node rather than a
+place. -/
 inductive Seg where
   | key (k : String)
   | idx (i : ℕ)
+  | var (n : String)
+  | up (n : ℕ)
+  | node
   deriving DecidableEq
 
 /-- The part of a value a path names. -/
@@ -391,6 +483,9 @@ def Data.at (j : Data) : List Seg → Option Data
   | .idx i :: p => match j with
     | .list xs => xs[i]?.bind (·.at p)
     | _ => none
+  | .var _ :: _ => none
+  | .up _ :: _ => none
+  | .node :: _ => none
 
 /-! ## Values, told apart -/
 
@@ -404,6 +499,7 @@ def Data.eqb : Data → Data → Bool
   | .null, .null => true
   | .map fs, .map gs => Data.eqbMembers fs gs
   | .list xs, .list ys => Data.eqbList xs ys
+  | .addr a, .addr b => decide (a = b)
   | _, _ => false
 
 def Data.eqbMembers : List (String × Data) → List (String × Data) → Bool
@@ -446,6 +542,10 @@ theorem Data.eqb_iff : ∀ x y : Data, x.eqb y = true ↔ x = y
     | list ys =>
       simp only [Data.eqb, Data.list.injEq]
       exact Data.eqbList_iff xs ys
+    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
+  | .addr a, y => by
+    cases y with
+    | addr b => simp [Data.eqb]
     | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
 
 theorem Data.eqbMembers_iff : ∀ fs gs : List (String × Data),

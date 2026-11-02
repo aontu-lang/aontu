@@ -1,4 +1,5 @@
 import Aontu.Data
+import Aontu.Text
 import Aontu.Syntax
 import Aontu.Admits
 import Aontu.Names

@@ -11,7 +11,7 @@ import { makeNilErr } from './err'
 import { findAt } from './val/ReferFuncVal'
 
 import { NilVal } from './val/NilVal'
-import { hasPlace } from './val/PlaceVal'
+import { waitsOnHole } from './val/PlaceVal'
 import { expandAliases } from './alias'
 import { riderText, rides, unionRecords, unionVia } from './rider'
 
@@ -92,7 +92,7 @@ function drives(v: any): boolean {
     || v.isExpect
     || v.isRefer
     // An op DRIVES while an operand has not decided (ADR-037).
-    || (v.isOp && (hasPlace(v) || v.holdsStaged))
+    || (v.isOp && (waitsOnHole(v) || v.holdsStaged))
     // A graph atom DRIVES (RELATIONS P2): its peer is the value it rides
     // beside -- a container, a rel, a scalar -- and none of them know
     // the atom; the atom knows to residuate.
@@ -202,10 +202,12 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
         unified = true
         why = 'bv'
       }
-      // These do not know their peers, so they answer from either side.
+      // These answer from either side, but a hole in a match matches nothing.
       else if ((true === (b as any).isConstraintKind
         || true === (b as any).isEmptyConstraint
-        || true === (b as any).isSeal) && !drives(a)) {
+        || true === (b as any).isSeal
+        || (true === (b as any).isPlace && true !== ctx._matchRead))
+        && !drives(a)) {
         out = b.unify(a, te ? ctx.clone({ explain: ec(te, 'BK') }) : ctx)
         unified = true
         why = 'bk'
@@ -453,9 +455,15 @@ class Unify {
 } /* node:coverage ignore next 10 */
 
 
+const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string): Val =>
+  true === (tmpl as any).isPlace && true !== ctx._matchRead ? unite(ctx, tmpl, member, whence)
+    : unite(ctx, member, tmpl, whence)
+
+
 export {
   Unify,
   unite,
+  meetTemplate,
   withDepth,
   applyFlows,
   ride,

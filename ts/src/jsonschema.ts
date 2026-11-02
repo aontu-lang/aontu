@@ -1608,7 +1608,9 @@ function fromMap(ctx: Ctx, path: string[], v: any): any {
 
 
 function fromList(ctx: Ctx, path: string[], v: any): any {
+  // A template's marked element, no element, is still the call that marks it.
   const els: any[] = v.peg.filter((el: any, i: number) =>
+    true !== el.isHideFunc && true !== el.isTypeFunc &&
     !skipMarked(ctx, [...path, String(i)], v, el))
   const spr: any = v.spread?.cj
 

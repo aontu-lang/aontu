@@ -43,12 +43,12 @@ func (o *PlusOpVal) Unify(peer Val, ctx *Ctx) Val {
 	// the same undescended ctx; the slot hint is single-use per unite).
 	slot := ctx.slot
 
-	if !isTop(peer) && !peer.Nil() && hasPlace(o) {
-		if hasPlace(peer) {
+	if !isTop(peer) && !peer.Nil() && waitsOnHole(o) {
+		if waitsOnHole(peer) {
 			return makeNilErr(ctx, "place_pair", o, peer)
 		}
 		ctx.slot = slot
-		return unite(ctx, fillPlace(o, peer), top())
+		return unite(ctx, bindHole(o, peer), top())
 	}
 
 	var out Val = o
@@ -65,7 +65,10 @@ func (o *PlusOpVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
-	if pegdone {
+	// Lists join once only their holes wait, as only a fill settles a hole.
+	_, alist := newpeg[0].(*ListVal)
+	_, blist := newpeg[1].(*ListVal)
+	if pegdone || (alist && blist && allDoneButHoles(newpeg)) {
 		result := o.operate(ctx, newpeg)
 		if result == nil {
 			switch {

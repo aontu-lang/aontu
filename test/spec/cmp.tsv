@@ -12,6 +12,13 @@ cmp-line-string	gens	x: line("a")	{"x":{"children":[],"cmp":"Line","props":{"src
 cmp-folder-string	gens	x: folder("src")	{"x":{"children":[],"cmp":"Folder","props":{"name":"src"}}}
 cmp-copyfiles-string	gens	x: copyfiles("assets")	{"x":{"children":[],"cmp":"CopyFiles","props":{"from":"assets"}}}
 cmp-map-spec	gens	x: file({name: "a.ts", mode: 420})	{"x":{"children":[],"cmp":"File","props":{"mode":420,"name":"a.ts"}}}
+# A STRING SPEC FILLS THE PROP WITH ITSELF, its riders riding into the
+# node, as a map spec's do (#454). Go once filled the prop with a new
+# string and dropped them; the JSON is the same either way, so only the
+# canonical form sees it.
+cmp-string-spec-rider	canon	x: folder(meta("src", {title: "x"}))	{"x":{"children":[],"cmp":"Folder","props":{"name":meta("src",{"title":"x"})}}}
+cmp-string-spec-deprecate	canon	x: file(deprecate("a.ts", "old"))	{"x":{"children":[],"cmp":"File","props":{"name":deprecate("a.ts")}}}
+cmp-map-spec-rider	canon	x: folder(meta({name: "src"}, {title: "x"}))	{"x":{"children":[],"cmp":"Folder","props":meta({"name":"src"},{"title":"x"})}}
 cmp-project-bare	gens	x: project()	{"x":{"children":[],"cmp":"Project","props":{}}}
 cmp-project-folder	gens	x: project("./build")	{"x":{"children":[],"cmp":"Project","props":{"folder":"./build"}}}
 cmp-children	gens	x: folder("s", [file("a.ts") file("b.ts")])	{"x":{"children":[{"children":[],"cmp":"File","props":{"name":"a.ts"}},{"children":[],"cmp":"File","props":{"name":"b.ts"}}],"cmp":"Folder","props":{"name":"s"}}}
@@ -38,6 +45,12 @@ translate-pads-with-the-last	gens	x: translate("abc", "abc", "z")	{"x":"zzz"}
 translate-deletes-without-to	gens	x: translate("a-b-c", "-")	{"x":"abc"}
 translate-last-mapping-wins	gens	x: translate("a", "aa", "xy")	{"x":"y"}
 translate-leaves-the-unnamed	gens	x: translate("abc", "b", "B")	{"x":"aBc"}
+# A RANGE COUNTS EVERY CODE POINT IT CROSSES, the surrogates too, and
+# writes U+FFFD for a surrogate in `to`, which no string can hold (#442).
+# No source character matches a surrogate in `from`.
+translate-to-surrogate	gens	x: translate("b", "a-b", "\\ud7ff-\\ue000")	{"x":"�"}
+translate-to-across-the-surrogates	gens	x: translate("abc", "a-c", "\\ud7ff-\\ue000")	{"x":"퟿��"}
+translate-from-across-the-surrogates	gens	x: translate("\\ue000", "\\ud7ff-\\ue000", "xyz")	{"x":"z"}
 cmp-child-not-admitted	errc	x: folder("s", [content("a")])	invalid-arg
 cmp-leaf-takes-no-children	errc	x: content("a", [line("b")])	func_arity
 cmp-folder-needs-a-name	errc	x: folder({})	invalid-arg

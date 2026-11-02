@@ -56,3 +56,10 @@ filter-list-skips-a-hidden-element	gens	l: ["a", hide("b"), "c"]\nf: filter($.l,
 filter-list-spread-already-satisfies	gens	d:filter([[1,2]],[&:integer])	{"d":[[1,2]]}
 filter-preferred-disjunct-reads-the-preference	gens	d:filter([*{a:1}|{c:3}],{c:3})	{"d":[]}
 filter-alias-decl-is-not-a-member	gens	d:filter([{}],{%a=integer})	{"d":[{}]}
+#
+# A RELATIVE PATH IN A BOUND'S ARGUMENT reads where the member a
+# condition tries lands, as any other term of the condition does (#506).
+filter-bound-relative-arg	gens	a:{lim:2,l:[1,2,3],f:filter(.l,min(..lim))}	{"a":{"f":[2,3],"l":[1,2,3],"lim":2}}
+filter-bound-relative-arg-names-nothing	gens	a:{lim:2,l:[1,2,3],f:filter(.l,min(.lim))}	{"a":{"f":[],"l":[1,2,3],"lim":2}}
+filter-above-relative-arg	gens	a:{lim:2,l:[1,2,3],f:filter(.l,above(..lim))}	{"a":{"f":[3],"l":[1,2,3],"lim":2}}
+filter-neq-relative-arg	gens	a:{lim:2,l:[1,2,3],f:filter(.l,neq(..lim))}	{"a":{"f":[1,3],"l":[1,2,3],"lim":2}}

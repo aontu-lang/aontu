@@ -897,6 +897,23 @@ func (c *ConstraintVal) beside(peer Val) Val {
 	return out
 }
 
+func boundAtom(atom string) bool {
+	switch atom {
+	case "min", "max", "above", "below", "neq", "mulof", "len":
+		return true
+	}
+	return false
+}
+
+func holdsChoice(args []Val) bool {
+	for _, a := range args {
+		if isDisjunct(a) || isPref(a) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 	settled, moved := true, false
 	args := make([]Val, 0, len(c.pending.args))
@@ -923,8 +940,11 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 	built.mhide = c.mhide
 
 	if settled {
-		// The residual the atom always meant; the ordinary ladder now
-		// meets it with the peer.
+		// A bound's residual stands against the top, but a choice in the
+		// arguments it reads is no argument; any other peer meets it.
+		if (nil == peer || isTop(peer)) && boundAtom(c.pending.atom) && !holdsChoice(atomArgs(c.pending.atom, args)) {
+			return built
+		}
 		return built.Unify(peer, ctx)
 	}
 

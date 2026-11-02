@@ -123,7 +123,10 @@ rep-unmatched-group-is-empty	gens	o: rep("b", "(a)|(b)", "[$1$2]")\n	{"o":"[b]"}
 # A SUBSTITUTION NAMING NOTHING IS A REFUSAL, not an expansion to the
 # empty string: a generator that writes a file with a hole in it and
 # says nothing is the failure this refusal exists to close. `$0` names
-# nothing -- the whole match is `$&`.
+# nothing -- the whole match is `$&`. The substitution is read against
+# the pattern's groups before the text is scanned, so a text with no
+# match is refused alike: a generator that runs clean on today's data
+# fails on tomorrow's otherwise.
 # THE PATTERN IS THE PORTABLE SUBSET. rep() and split() need where a
 # match falls, which aontu's own matcher does not say (it answers only
 # whether a pattern matches, ADR-060), so each port's host engine runs
@@ -163,6 +166,10 @@ rep-pattern-brace-unterminated	errc	o: rep("a", "a{2", "x")\n	rep_pattern
 rep-sub-missing-group	errc	o: rep("a", "a", "$1")\n	rep_sub
 rep-sub-dangling-dollar	errc	o: rep("a", "a", "x$")\n	rep_sub
 rep-sub-zero-group	errc	o: rep("a", "(a)", "$0")\n	rep_sub
+rep-sub-missing-group-no-match	errc	o: rep("abc", "x", "$9")\n	rep_sub
+rep-sub-dangling-dollar-no-match	errc	o: rep("abc", "x", "x$")\n	rep_sub
+rep-sub-missing-group-empty-text	errc	o: rep("", "a", "$1")\n	rep_sub
+rep-sub-group-it-has-no-match	gens	o: rep("abc", "(x)", "$1")\n	{"o":"abc"}
 rep-source-not-a-string	errc	o: rep(1, "a", "b")\n	func_arg
 rep-pattern-not-a-string	errc	o: rep("a", 1, "b")\n	invalid-arg
 rep-sub-not-a-string	errc	o: rep("a", "a", 1)\n	invalid-arg

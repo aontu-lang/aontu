@@ -978,7 +978,7 @@ func specVetGolden(t *testing.T, report VetReport) string {
 // The cases the definition's rows (test/spec/def-fragment.tsv) expect and
 // the engine does not yet answer, spec/ledger.tsv: each must keep failing
 // until its cause is fixed, and a name the rows do not carry is stale.
-const specLedgerBound = 127
+const specLedgerBound = 111
 
 func specLedger(t *testing.T, specDir string) map[string]bool {
 	t.Helper()
@@ -1245,6 +1245,8 @@ func specVars() map[string]Val {
 		"bigd":   newBigDecimal(newDecimal(big.NewInt(15), 1)),
 		"nul":    newNull(),
 		"PARENT": newString("q"),
+		// A kind: a binding is any value the program builds.
+		"kint": newScalarKind(KindInteger),
 	}
 }
 

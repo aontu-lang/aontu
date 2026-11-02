@@ -65,6 +65,7 @@ inductive Val where
   | boolean                                 -- `boolean`
   | mapKind                                 -- `map`, every map
   | listKind                                -- `list`, every list
+  | pathKind                                -- `path`, every address
   | lit (s : Scalar)                        -- a literal: `3`, `1.5`, `0d5`, `0d1.5`, `"a"`, `true`, `null`
   | min (b : Bound)                         -- `min(b)`
   | max (b : Bound)                         -- `max(b)`
@@ -76,8 +77,11 @@ inductive Val where
   | unique (k : Option String)              -- `unique()`, or `unique("k")`
   | re (p : String)                         -- `re(p)`, the strings the pattern matches
   | format (g : String)                     -- `format(g)`, the strings the format reads
+  | grammar (g : String)                    -- `parse(g)`, the strings the grammar `g` parses whole
   | any                                     -- `any`
   | nil                                     -- `nil`
+  | absent                                  -- absence, what `maybe(v)` is where `v` names nothing; `maybe()` in the residual
+  | nothing                                 -- what an atom over an argument outside its domain is, `min(true)`: it stands, and admits nothing
   | map (fs : List (String × Bool × Val)) (spread : Option Val) (closed : Bool)
                                             -- `{k: v, k?: v, &: s}`, sealed by `close()`
   | list (items : List Val) (spread : Option Val) (closed : Bool)
@@ -87,6 +91,7 @@ inductive Val where
   | meet (a b : Val)                        -- `a & b`
   | alias (n : String)                      -- `%n`
   | path (p : List Seg)                     -- `$.a.b`
+  | addr (a : Addr)                         -- `path($.a.b)`, the address `a` and every address it opens
   | nof (n : Val) (cs : List Val)           -- `nof(n, c₁, …, cₖ)`, the branches that admit counted by `n`
   | must (c : Val) (msg : String)           -- `must(c, "msg")`, which asks what `nof(1, c)` asks
   | when (c t : Val) (e : Option Val)       -- `when(c, t)` or `when(c, t, e)`: `t` where `c` admits, else `e`, or nothing
@@ -96,6 +101,8 @@ inductive Val where
   | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
   | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`, `type(v)`, `hide(v)`: `v` carrying `r`
   | key                                     -- `key(0)`, the key of the member a spread is tried on
+  | keyUp (n : ℤ)                           -- `key(n)` as written, the key `n` levels above where it stands; `key()` is `key(1)`
+  | hole                                    -- `_`, the placeholder a generator's template binds to its member
   | call (f : Fn) (args : List Val)         -- `add(a, b)`, `-(a)`, …: the value `f` computes from the values of `args`
 
 /-! The language reads `|` and `*` by position, and the reader, not a
@@ -203,7 +210,8 @@ def Bound.domain : Bound → Val
 /-- A kind: a term that admits scalars by their kind alone. `any` is no
 kind here, since `any & x` is `x`, whose parent is `x`'s own. -/
 def Val.isKind : Val → Bool
-  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean => true
+  | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
+  | .pathKind => true
   | .ride _ v _ => v.isKind
   | _ => false
 
@@ -221,7 +229,8 @@ each side. A reference lifts as itself, a residual the engines keep
 symbolic too. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
-  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .any => .any
+  | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
+  | .nothing => .any
   | .nil => .nil
   | .lit (.num x) => x.leaf.kind
   | .lit (.str s) => if s = "" then .anyString else .string
@@ -232,7 +241,7 @@ def Val.super : Val → Val
   | .neq [] => .any
   | .mulof _ => .number
   | .len _ | .unique _ => .any
-  | .re _ | .format _ => .string
+  | .re _ | .format _ | .grammar _ => .string
   | .map fs spread closed => .map (superFields fs) (superSpread spread) closed
   | .list items spread closed => .list (superItems items) (superSpread spread) closed
   | .or arms => .or (superArms arms)
@@ -242,10 +251,12 @@ def Val.super : Val → Val
     else if b.isKind then b else .meet a.super b.super
   | .alias n => .alias n
   | .path p => .path p
+  | .addr _ => .pathKind
   | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _
   | .call _ _ => .any
   | .ride _ v _ => v.super
-  | .key => .anyString
+  | .key | .keyUp _ => .anyString
+  | .hole => .any
 
 def superFields : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
@@ -271,14 +282,31 @@ the design note's §7). A mark rides every meet, as the riders do, so a
 term carries one where one rides it at its own position, through `&`
 and the other riders. -/
 
-/-- Whether a term carries the mark `m` at its own position. -/
+/-- Whether a term carries the mark `m` at its own position. A
+disjunction of one arm, its others dead, carries the arm's. -/
 def Val.hasMark (m : Rider) : Val → Bool
   | .ride k v _ => decide (k = m) || v.hasMark m
   | .meet a b => a.hasMark m || b.hasMark m
+  | .or [(_, a)] => a.hasMark m
   | _ => false
 
 /-- Whether a term carries a mark, `type()` or `hide()`, at its own position. -/
 def Val.marked (v : Val) : Bool := v.hasMark .type || v.hasMark .hide
+
+/-- Whether a term is absence, through the riders it carries. -/
+def Val.isAbsent : Val → Bool
+  | .absent => true
+  | .ride _ v _ => v.isAbsent
+  | _ => false
+
+/-- Whether a term is a call or a `key(n)` at its own position, through
+`&` and the riders: a value the reading has not made, which a literal
+meets as a pair rather than by the checker. -/
+def Val.callAt : Val → Bool
+  | .call _ _ | .keyUp _ => true
+  | .meet a b => a.callAt || b.callAt
+  | .ride _ v _ => v.callAt
+  | _ => false
 
 /-! ## The key a spread is tried under
 
@@ -338,10 +366,10 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
   | .min b | .max b | .above b | .beneath b | .neq (b :: _) => by
     simp only [Val.super]; cases b <;> rfl
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
-  | .mapKind | .listKind | .lit (.bool _) | .lit .null | .neq [] | .mulof _
-  | .len _ | .unique _ | .re _ | .format _ | .any | .nil | .map _ _ _ | .list _ _ _ | .or _
-  | .alias _ | .path _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
-  | .select _ _ _ | .filter _ _ | .key | .call _ _ => rfl
+  | .mapKind | .listKind | .pathKind | .lit (.bool _) | .lit .null | .neq [] | .mulof _
+  | .len _ | .unique _ | .re _ | .format _ | .grammar _ | .any | .nil | .absent | .nothing | .map _ _ _ | .list _ _ _
+  | .or _ | .alias _ | .path _ | .addr _ | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _
+  | .select _ _ _ | .filter _ _ | .key | .keyUp _ | .call _ _ | .hole => rfl
 
 /-- A term with no `key` at its own position is its own reading under
 any key. -/
@@ -358,5 +386,46 @@ theorem Val.atKey_of_keyed (k : String) {v : Val} (h : v.keyed = false) : v.atKe
     simp only [Val.keyed] at h
     simp only [Val.atKey, ih h]
   | case5 v h1 h2 h3 h4 => exact Val.atKey.eq_5 k v h1 h2 h3 h4
+
+/-! ## The key a term reads where it stands
+
+`key(n)` reads the key `n` levels above the position it stands at: `0`
+its own key, `key()` its parent's, and `""` above the top or below the
+bottom. A position is the steps from the top of the document, each a
+map's key or a list's index, where the document writes it. The member a
+spread holds is a step no position names until the spread is tried on
+it, which is where `Val.atKey` reads a `key` standing at the spread's
+own position. -/
+
+/-- A step of a position: a key or an index the document writes, or the
+member a spread holds. -/
+inductive Step where
+  | seg (s : Seg)
+  | spread
+  deriving DecidableEq
+
+/-- A step's text, as `key()` answers it: a key, or an index in decimal,
+and a variable, a climb or the step into a node as written, which no
+position holds. -/
+def Seg.text : Seg → String
+  | .key k => k
+  | .idx i => toString i
+  | .var n => "$" ++ n
+  | .up n => String.mk (List.replicate n '.')
+  | .node => ""
+
+/-- `key(n)` read at the position `pos`, outermost step first: the text of
+the step `n` levels up, `""` where there is none, and, where that step is
+the member a spread holds, the `key` the spread reads at its own position,
+or `key(n)` still beneath it. -/
+def keyUpAt (pos : List Step) (n : ℤ) : Val :=
+  if n < 0 then .lit (.str "") else
+  match pos.reverse[n.toNat]? with
+  | some (.seg s) => .lit (.str s.text)
+  | some .spread => if n = 0 then .key else .keyUp n
+  | none => .lit (.str "")
+
+/-- A position one step down, where there is one. -/
+def stepped (here : Option (List Step)) (s : Step) : Option (List Step) := here.map (· ++ [s])
 
 end Aontu

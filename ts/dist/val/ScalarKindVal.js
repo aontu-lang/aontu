@@ -107,6 +107,9 @@ class ScalarKindVal extends FeatureVal_1.FeatureVal {
                 out = (0, err_1.makeNilErr)(ctx, 'scalar-type', this, peer);
             }
         }
+        else if (peer.isTop) {
+            out = this;
+        }
         else {
             out = (0, err_1.makeNilErr)(ctx, 'not-scalar-type', this, peer);
         }

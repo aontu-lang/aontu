@@ -8,6 +8,2220 @@ each change affects.
 
 ## Unreleased
 
+### `vet` reads a call the schema can't build as an error wherever it stands
+
+TypeScript and Go, shared rows, and documentation.
+
+- Both engines' `vet` read the schema alone first and answer `error`
+  where it doesn't stand, but they looked only at the errors the
+  reading collects and at a root that is `nil`. A failure built as the
+  schema is read, such as a call with the wrong number of arguments, a
+  non-number negated or an unknown function, stands in the tree
+  instead, so under a key the data took the blame and the verdict was
+  `invalid` (#426). Both now read the first failure the schema holds,
+  by key and by index, as the schema's own: `v: add(1)`,
+  `v: -(integer)`, `v: nosuchfn(1)` and `%T = add(_)` are `error`
+  against any data, under `type()`, `hide()`, an optional key and in a
+  list too.
+- A written `nil` is a value, not a failure, so `v: {x?: nil}` still
+  passes `v: {}`, and a disjunction still drops an arm that fails, so
+  `v: add(1) | 1` passes `v: 1`. A spread's template is read only at a
+  member, as the definition reads it, so `v: {&: add(1)}` still passes
+  `v: {}`. An atom over an argument outside its domain admits nothing,
+  as ruling 28 of the design note's §7 has it, so `v: re(1)` stays
+  `invalid`.
+- `spec/ledger.tsv` drops its 81 rows under #426, whose cases both
+  engines now answer as the definition does, and its bound falls from
+  198 to 111. `spec/Oracle.lean`: rows x2238 to x2252 of
+  `test/spec/def-call.tsv`, 5 cases in each of the three modes, the
+  failure under a mark, as an optional member and in a list, and a
+  spread's template no member meets. Both engines answer every row as
+  the definition does, and no other row moves. Rows `vet-optional-parse-refusal` and
+  `vet-optional-parse-refusal-nested` of `test/spec/vet.tsv`, a
+  parser's refusal beneath an optional key, move from `invalid` to
+  `error`.
+- A call over a container that holds a hole is still read as
+  `incomplete`, where the definition reads an error (#581).
+- Docs: the reference's arithmetic section and the definition
+  tutorial's steps on calls.
+
+### Both engines read a group that fills its own hole first
+
+TypeScript and Go, generated rows, and documentation.
+
+- A group that holds a hole and fills it itself settles before the meet
+  around it flattens it in, as the definition reads the meet beneath
+  first (`Val.fillMeet`). So `upper(_) & (_ & "A")` is `"A"`, where both
+  engines answered `place_pair`, having met `upper(_)` with the group's
+  bare `_` before `_ & "A"` filled it (#568). The same holds for such a
+  meet as a map's member or a list's element, and `add(_, 1) & (_ & 2)`
+  is `3`.
+- A group that holds no hole is still flattened, so
+  `upper(_) & ("a" & "a")` still reads as the conjunction is written
+  (#512).
+- Go has read `"A" & (upper(_) & (_ & "A"))` as `"A"` since #549, where
+  #568 found it `incomplete`; a row now holds it.
+- `spec/Oracle.lean`: rows dg126 to dg143 of `test/spec/def-call.tsv`,
+  6 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves. `test/spec/place.tsv`
+  holds the evaluation shapes.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
+### The definition joins a `+` over two lists before it fills the meet around it
+
+The definition, generated rows, and documentation.
+
+- The definition's fill joins a `+` over two lists written as lists
+  before it meets them (`joinedArgs` in `spec/Aontu/Verdict.lean`), so a
+  call over a hole in an operand list is filled from its member (#576):
+  `([upper(_)] + ["c"]) & ["a", "c"]` is `["A", "c"]`, as both engines
+  answer, where the definition gave no output.
+- The fill keeps a `+` whose right list holds a `key(n)` as written, as
+  the definition reads `key(n)` by position after the fill, so its index
+  reads where it's written. A call over a hole beside it stays open in
+  the definition, where both engines fill it (#578).
+- It keeps a `+` over a list with a spread as written too, as the
+  spread meets the list's elements before the join, so
+  `[&: string, 1] + []` is still an error, as both engines answer.
+- `spec/Oracle.lean`: rows hv468 to hv494 of `test/spec/def-call.tsv`,
+  9 cases in each of the three modes, a `key()` in the right list and a
+  list with a spread among them. Both engines answer every row as the definition does, and no
+  other row of any fragment moves. `test/spec/place.tsv` holds the
+  evaluation shapes.
+- Docs: the definition tutorial's step 27.
+
+### `+` joins two lists whatever their elements hold
+
+TypeScript and Go, generated rows, and documentation.
+
+- `+` joins two lists as they stand, whatever their elements hold, so a
+  hole that an operand list holds is the joined list's, which the meet
+  fills member by member (#570): `(["a", _] + ["c"]) & ["a", "b", "c"]`
+  is `["a", "b", "c"]`, where both engines took the peer into the hole
+  and gave `["a", ["a", "b", "c"], "c"]`, and `["a", _] + ["c"]` fails
+  on the hole at `$.v.1` with `listval_no_gen`, where both failed on
+  the whole `+` with `mapval_no_gen`.
+- A `+` waits only on a hole among its operands and binds its peer
+  there alone, as a call does, so `([_] + _) & ["a"]` is `[_, "a"]`,
+  whose hole stays open, where both engines gave `[["a"], "a"]`. In
+  `vet` with `--no-fill`, Go passes `v: ["a", "b", "c"]` against
+  `v: ["a", _] + ["c"]`, as TypeScript did, where Go answered
+  `incomplete`.
+- `spec/Oracle.lean`: rows hv450 to hv467 of `test/spec/def-call.tsv`,
+  6 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves. `test/spec/place.tsv`
+  holds the evaluation shapes.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
+### Both engines settle a size or a trial over a meet that fills a hole
+
+TypeScript and Go, generated rows, and documentation.
+
+- A meet whose terms fold into one value is done when that value is,
+  where both engines had kept it waiting because one of its terms had
+  waited before the fold (#549). So a size, a trial or a `match` over a
+  meet that fills a hole settles as it would written filled:
+  `["a"] & len(add(_, 1) & 2)` is refused as `len(3)` refuses it, where
+  both engines passed `["a"]`; `"A" & must(upper(_) & "a", "m")` is
+  `"A"`, and `match(upper(_) & "a", "A", 1, 2)` is `1`, where both
+  failed with `mapval_no_gen`; and Go refuses `[2]` against
+  `contains(add(_, 1) & 0)` and `{a: 2}` against `rest(add(_, 1) & 0)`,
+  and reads `when` and `nof` over such a meet, as TypeScript did.
+- `spec/Oracle.lean`: rows hv411 to hv449 of `test/spec/def-call.tsv`,
+  13 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves. `test/spec/place.tsv`
+  holds the evaluation shapes, a `match`'s scrutinee among them.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+### Both engines name a spread's unmade member where it stands
+
+TypeScript and Go, and shared rows.
+
+- A value a spread's template leaves unmade is named at the member it
+  stands in: `v: {&: {n: upper(_)}} & {a: {}}` fails at `$.v.a.n`, and
+  `vet` of `v: {&: {n: upper(_)}}` against `v: {a: {}}` reports
+  `$.v.a.n`, where both engines named the template's own position,
+  `$.v.n` (#557). In a list, `v: [&: {n: upper(_)}] & [{}]` fails at
+  `$.v.0.n`, where TypeScript named `$.v.&.n` and Go `$.v.n`. A
+  generation error now takes the position the walk reached, so a value
+  a template shares with its members reports the member's.
+- `test/spec/place.tsv` and `test/spec/vet.tsv` hold the paths.
+
+### Both engines fill a map spread's container template once
+
+TypeScript and Go, generated rows, and documentation.
+
+- A map spread's template meets each member once, as a list spread's
+  already did, so a later meet adds to a member the template has filled
+  and doesn't fill it again (#556).
+  `({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives `n: 2`, where
+  both engines gave `3`, and each further meet had added one more. The
+  template still constrains what a later value adds to the member.
+- So Go's `vet` no longer reads such a member as a conflict between the
+  template and itself: `v: {&: {n: upper(_)}} & {a: {}}` against
+  `v: {a: {}}` is `incomplete`, and `valid` with `--partial`, where Go
+  answered `invalid` with `place_pair` (#557).
+- A default a spread's template holds no longer comes back when a later
+  meet reaches the member: `w: {&: {L: *warn | string}, a: {L: info}}`
+  met with `w: {a: {L: ***info | string}}` generates `L: "info"` in
+  either order, as the definition reads it, where both engines gave
+  `"warn"` when the spread came first. Three rows of
+  `test/spec/file.tsv` that held `"warn"` now hold what both engines
+  answer; their canonical forms still show which side folded first.
+- `spec/Oracle.lean`: rows hv384 to hv410 of `test/spec/def-call.tsv`,
+  9 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves. `test/spec/place.tsv`
+  holds the evaluation shapes.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
+### TypeScript's calls over a container take a peer into their hole
+
+TypeScript, generated rows, and documentation.
+
+- `sum`, `least`, `greatest`, `sort`, `pick` and `join` wait on a hole
+  in their arguments that the peer fills, as Go's do and as
+  TypeScript's own generators do, where TypeScript waited for every
+  argument to settle and so never made the call (#511). So
+  `[1, 2] & sum(_)` and `sum(_) & [1, 2]` are `3`,
+  `["b", "a"] & sort(_)` is `["a", "b"]`, `join(["a", "b"], _) & "-"`
+  is `"a-b"`, and `["a", "b"] & sum(_)` refuses the list, as Go
+  answers. In `vet` the data fills such a hole: `v: sum(_)` passes
+  `v: [1, 2]` and refuses `v: 3`, where TypeScript answered
+  `incomplete`.
+- `spec/Oracle.lean`: rows dv201 to dv236 and hv381 to hv383 of
+  `test/spec/def-call.tsv`, 13 cases in each of the three modes. Both
+  engines answer every row as the definition does, and no other row
+  moves. `test/spec/place.tsv` holds the evaluation shapes.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
+### A call waits on no hole a container argument holds
+
+TypeScript and Go, generated rows, and documentation.
+
+- A call waits on a hole among its own arguments, and through a call or
+  a rider among them, but not on one that a container argument holds,
+  which that container's own meet fills (#553). So the call's peer
+  leaves such a hole open and the call can't be made: `sum([_, 1]) & 3`
+  is an error, where Go gave `4`, and `upper([_]) & "a"` is an error
+  about the hole, where both engines filled the list and refused it as
+  `upper`'s argument. A call that also waits on a hole of its own binds
+  its peer there alone, so `add(_, sum([_, 1])) & 2` is an error, where
+  both engines gave `5`, and `join([_, "b"], _) & "-"` leaves the list's
+  hole open, where Go gave `"--b"`. A container met with a waiting call
+  is that call's argument, so `upper(_) & [_]` fails on the hole, not
+  with `place_pair`.
+- A rider's record is a container argument too, so
+  `meta({x: 1}, {d: _}) & 2` is an error, where both engines filled the
+  record's hole and gave `{x: 1}`. The row that held that fill now holds
+  the error.
+- `spec/Oracle.lean`: rows hv366 to hv380 of `test/spec/def-call.tsv`,
+  5 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves. `test/spec/place.tsv`
+  holds the evaluation shapes.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
+### Both engines read a rider, a mark or a seal around a container through
+
+TypeScript and Go, generated rows, and documentation.
+
+- A rider, a mark or a seal around a container that holds a hole meets
+  its peer member by member, as the container would bare, where both
+  engines bound the whole peer to the first hole inside it (#552). So
+  `meta({a: upper(_)}, {d: 1}) & {a: "x"}` is `meta({a: "X"}, {d: 1})`,
+  `close([upper(_)]) & ["a"]` is the sealed `["A"]`, and
+  `meta({a: sum(_)}, {d: 1}) & [1, 2]` is a conflict between a map and a
+  list, where both engines gave `{a: 3}`. A seal still refuses a key
+  the peer adds, a rider around a rider reads through both, and a
+  spread's template side under one, `{&: _ & type({n: upper(_)})}`,
+  passes `{a: {n: "X"}}`.
+- `spec/Oracle.lean`: rows hv330 to hv365 and dt246 to dt257 of
+  `test/spec/def-call.tsv`, 16 cases in each of the three modes. Both
+  engines answer every row as the definition does, and no other row
+  moves. `test/spec/place.tsv` holds a seal around a rider, which seals
+  the container the rider wraps, and a hole in a rider's record, which
+  the peer fills as it fills any call's.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
+### Both engines fill a hole on the right of a meet
+
+TypeScript and Go, generated rows, and documentation.
+
+- A hole on the right of a meet takes its peer, as one on the left
+  does, so `1 & _` is `1`, `{a: 1} & {a: _}` is `{a: 1}`, `[1] & [_]` is
+  `[1]`, and `v: {} & {a: _}` passes `v: {a: "x"}`, where both engines
+  failed with `scalar_kind` or refused the data (#565). A peer that
+  waits on a hole itself still leads, so `upper(_) & _` stays an error,
+  and in the dispatch of `emit` a hole standing in a `match` still
+  matches nothing.
+- A group of two sides that both wait is refused before the meet around
+  it is flattened, so `"x" & (upper(_) & _)` stays an error however the
+  document groups it, and so does such a pair of two maps' or two lists'
+  members, `{a: "x"} & ({a: upper(_)} & {a: _})`. Both engines had
+  answered these `error` only because the hole on the right failed. A
+  side waits where it's a hole, a call over one or a meet whose every
+  side waits, so a meet that fills its own hole, `_ & "X"`, pairs
+  nothing, and `{a: "X"} & ({a: upper(_)} & {a: _ & "X"})` passes
+  `v: {a: "X"}`.
+- TypeScript: `number & _` and `_ & number` are `number`, where
+  TypeScript failed with `not-scalar-type` in either order: a later pass
+  met the kind with `any`, which the kind refused.
+- `spec/Oracle.lean`: rows hv300 to hv329, dv195 to dv200, dg72 to
+  dg125 and dt240 to dt245 of `test/spec/def-call.tsv`, 32 cases in each
+  of the three modes. Both engines answer every row as the definition
+  does, and no other row moves.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
+### Both engines' vet passes the value eval gives a preference its peer fills, and a bare hole template takes each member
+
+TypeScript and Go, generated rows, and documentation.
+
+- A preference met with a peer narrows the space that may still replace
+  it by trial (`PrefVal.unify`, `PrefVal.Unify`), and a peer that
+  empties that space leaves the preference standing rather than
+  reporting a conflict. So `v: *upper(_) & "a"` passes `v: "A"`, the
+  value `eval` gives, as well as `v: "a"` through the parent arm, where
+  both engines refused `v: "A"` with `scalar_value` (#560). The nil
+  collector leaves a standing preference's override space alone.
+- A bare `_` as a spread's template leads its meet with the member, so
+  `{&: _} & {a: 1}` is `{a: 1}`, `[&: _] & [1]` is `[1]`, and
+  `{&: type(_)}` reads the same, where both engines failed with
+  `scalar_kind` (#564). The dispatch of `emit` keeps the old order while it
+  tests a `match`, where a hole standing in the pattern matches nothing.
+- `spec/Oracle.lean`: rows dv156 to dv194 and dt210 to dt239 of
+  `test/spec/def-call.tsv`, 23 cases in each of the three modes. Both
+  engines answer every row as the definition does, and no other row
+  moves.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step 27.
+
+### The definition reads a spread's template that waits at its own position as both engines do
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: a spread's template that is a meet or a
+  disjunction waits where one of its sides or arms does
+  (`Val.waitsTop`), and the fill keeps its meets, arms and riders as
+  written, filling each term beneath them (`Val.tmplNode`), rather than
+  filling it from its own meet. The member meets each side and each arm, and one that
+  waits takes the member as its argument (`Val.instAt`). So
+  `{&: upper(_) & _}` admits the members already in upper case,
+  `{&: upper(_) & "a"}` refuses every member, and
+  `{&: add(_, 1) & number}` refuses `{a: 1}`, as both engines answer,
+  where the definition filled `{&: upper(_) & "a"}` as `{&: "A"}` (#561).
+  A side that doesn't wait meets the member as two terms at one position
+  (`Val.fillMeet`), so a hole beneath a container side takes the
+  member's own member there: `{&: _ & {n: upper(_)}}` passes
+  `{a: {n: "X"}}` and refuses `{a: {n: "x"}}`. `Val.instAt` makes that
+  meet inside the fill's own recursion; a peer's spread meets the map's
+  own members through `Val.instWith` (`peerFill`), and a template that
+  waits at its own position is no longer also read as one that holds a
+  hole beneath it (`Val.heldSpread`).
+- `spec/Oracle.lean`: rows dt0 to dt209 of `test/spec/def-call.tsv`, 70
+  cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves.
+- The design note records decision 31: a hole in a spread's template is
+  the member's, as both engines read it.
+- Docs: the definition tutorial's step 27 and the reference's
+  placeholder section.
+
+### The definition reads a meet of two sides that both wait as an error, however the document groups it
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: two sides that both wait on a hole, one of
+  them more than the hole, meet as `nil` wherever the fill meets them
+  (`Val.fillMeet`), and so does a meet of two such sides. So
+  `(upper(_) & _) & "x"` is an error, as both engines answer, where the
+  definition read through the group and filled `upper(_)` from `"x"`,
+  and a disjunction drops an arm that holds one, so
+  `v: (upper(_) & _) | "x"` passes `v: "x"`. Two holes meet as one
+  (`Val.meetFilled`), so `(_ & _) & upper(_)` is an error too (#559).
+- `spec/Oracle.lean`: rows dg0 to dg71 of `test/spec/def-call.tsv`, 24
+  cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves.
+- Both engines bind each hole of a spread's template to the member, so
+  `{&: upper(_) & _}` passes `{a: "X"}`, where this change read the
+  template as `nil` (#561); the entry above builds the engines' reading.
+- The design note records decision 30: `vet` reads a lone preference
+  over a call its peer fills as `eval` does, so both engines' `vet` is
+  to pass `v: "A"` against `v: *upper(_) & "a"` (#560).
+- Docs: the definition tutorial's step 27 and the reference's
+  placeholder section.
+
+### The definition fills a spread's container template from each member it meets
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: a spread whose template holds its hole
+  inside a container, a map or a list, fills each member it meets,
+  once, member by member: the template meets the member through
+  `Val.fillMeet`, and the spread then reads the key as `any`. So
+  `{&: {n: upper(_)}} & {a: {n: "x"}}` is `{a: {n: "X"}}`, as both
+  engines answer. It reaches a peer's members (`heldOnto`), the map's
+  own (`heldFields`) and the fields a peer's spread meets
+  (`Val.heldAt`), and the same for a list. A member that is a
+  disjunction is met arm by arm (`fillWith`), so
+  `{&: {n: upper(_)}} & {a: ({n: "x"} | {n: "y"})}` passes
+  `{a: {n: "X"}}`.
+- `spec/Oracle.lean`: rows hv228 to hv299 of `test/spec/def-call.tsv`,
+  24 cases in each of the three modes. Both engines answer every row as
+  the definition does, and no other row moves.
+- Both engines fill a map spread's container template again each time a
+  later meet reaches the member, so
+  `({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives `n: 3`, where
+  the definition gives `2` (#556). Go's `vet` splits from TypeScript's
+  on `{&: {n: upper(_)}} & {a: {}}`, and both name the template's path
+  for the member it leaves unfilled (#557).
+- Docs: the definition tutorial's step 27, the reference's placeholder
+  section, the definition's README and the design note.
+
+### The data fills a hole the document leaves unfilled
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: `vet` reads the schema against the data,
+  the data met last through the fill (`Decls.readJ`), as decision 29
+  rules (#548). The call takes the data as its argument rather than
+  meeting it, so `v: upper(_)` passes `v: "a"`, and `v: add(_, 1)`
+  passes `v: 2` and `v: 3` and refuses `v: "a"`: a call the data leaves
+  the reading unable to make fails it (`Val.fails`). A hole the data
+  leaves out is `incomplete`, `valid` under `--partial`.
+- A hole waits (`Val.pending`), so a call or a generator over one stays
+  unmade until the data fills it. A call that waits stands where it has
+  as many arguments as its function takes, and a call met with a hole
+  or with another call that waits is an error, though
+  `_ & _` meets as one hole (`Val.illFormed`). A generator waits on its
+  data alone, so its template is read only at each member it makes, and
+  `v: each(_, upper({}))` passes `v: []`. A disjunction is filled arm by
+  arm (`fillArms`, `leafArms`), so `v: upper(_) | "fallback"` passes
+  `v: "a"`, and `(upper(_) | "x") & "a"` is `"A"`. Without the fill, the data is
+  checked against the schema with each waiting part read as `any`
+  (`Val.waitAny`), and `vet_strict_valid_instance` says so.
+- An arm that does not stand drops, as a conflict's arm does
+  (`Val.staged`), so `v: add(_, 1) | "x"` passes `v: "x"`, and
+  `add("x", 1) | "x"` stands though `add("x", 1)` alone is an error, as
+  both engines answer. A preference clash between the arms a
+  disjunction is read with stays the disjunction's. A lone preference
+  is filled as the two arms the meet reads it as, its preferred arm
+  filled and its parent arm met, so `v: *upper(_)` passes `v: "a"`. A
+  disjunction on the other side is met arm by arm too (`fillWith`), so
+  `v: {a: upper(_)} & ({a: "a"} | {a: "b"})` passes `v: {a: "A"}`.
+- `spec/Oracle.lean`: rows dv0 on of `test/spec/def-call.tsv`, 52 cases,
+  and rows da0 on, 10 cases, each in the three modes. Both engines
+  answer every row as the definition does, and no other row moves.
+- Docs: the definition tutorial's steps 9, 14 and 27 and its staging
+  passage, the reference's disjunction and placeholder sections, the
+  definition's README and the design note.
+
+### The definition fills a spread's template from each member it meets
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: a spread whose template waits on a hole
+  fills each member it meets, once: its own map's or list's members
+  (`spreadFields`, `spreadItems`), a peer's (`spreadOnto`,
+  `spreadOntoAt`), and a peer's spread the map's own (`spreadFrom`,
+  `spreadFromAt`). The member reads as the template with the hole bound
+  to it, and the spread then reads the key as `any` (`spreadWith`). So
+  `{&: upper(_)} & {a: "x"}` is `{a: "X"}`, and
+  `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, as both engines
+  answer.
+- `spec/Oracle.lean`: rows hv168 on of `test/spec/def-call.tsv`, 20
+  cases in each of the three modes. Both engines answer every row as
+  the definition does.
+- Two spreads that both wait don't read as the engines read them, one
+  where their templates are alike and `place_pair` where they differ.
+- Docs: the definition tutorial's step 27, the reference's placeholder
+  section, the definition's README and the design note.
+
+### The definition fills a hole in a container's members
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Verdict.lean`: `Val.fillMeet` meets a map or a list with
+  its peer member by member, by key or by position, so
+  `[upper(_)] & ["a"]` is `["A"]`, as both engines answer. Each side
+  reads through its own meets and riders, and finds the other's member
+  through the other's (`Val.memberAt`, `Val.putMember`, `Val.elemAt`,
+  `Val.putElem`), so `({a: upper(_)} & {b: 1}) & {a: "x"}` fills `a`.
+  The peer a member's hole takes is spent, and each container is kept
+  whole, so a seal and a spread stand. `fillMeet_checkableA` keeps both
+  sides readable.
+- A key's declarations in one map are merged into one, as the engines
+  merge them: met in the order they're written, optional only where
+  each is (`Val.meetFilled`, `joinFields`). So `v: upper(_)` beside
+  `v: "a"` is `"A"`, and a map that declares a key twice generates,
+  where it generated nothing before. A peer's member is the meet of all
+  its declarations (`declsAt`, `putField`). A list's elements are
+  paired among those that stand, so `[upper(_)] & [hide("a"), "b"]` is
+  `["B"]` (`standingAt`, `setStanding`).
+- `spec/Oracle.lean`: rows hv78 on of `test/spec/def-call.tsv`, 30
+  cases in each of the three modes. Both engines answer every row as
+  the definition does.
+- Neither engine reads through a rider, a mark or a seal around a
+  container: both bind the whole peer to the hole, so both answer
+  `meta({a: upper(_)}, {d: 1}) & {a: "x"}` and
+  `close([upper(_)]) & ["a"]` with an error, where the definition fills
+  member by member (#552). Go fills a hole inside a call's list
+  argument, where TypeScript and the definition don't (#553).
+- An element that reads as absence only once a path is read isn't
+  paired by the fill as both engines pair it.
+- Decision 29 is ruled: the data fills a hole the document leaves
+  unfilled, as both engines read it (#548). It isn't built yet.
+- Docs: the definition tutorial's step 27, the reference's placeholder
+  section, the definition's README and the design note.
+
+### The published pages cite no decision of the design note
+
+Documentation and tests. No engine changes.
+
+- `ts/test/docs.test.ts`: the gate on internal references,
+  `no-internal-design-references`, catches the design note by name and
+  a numbered decision, as it already caught `sketch/` and the decision
+  records.
+- The definition tutorial and the reference state each rule a decision
+  made rather than citing the decision. Three docstrings the tutorial
+  quotes, in `spec/Aontu/Admits.lean`, `spec/Aontu/Data.lean` and
+  `spec/Aontu/Verdict.lean`, drop their citation too.
+
+### The definition reads a hole its call's peer fills
+
+Definition, generated rows, and documentation. No engine changes. Part
+of #512.
+
+- Decision 21 of the design note's §7, built: the fill is a reading
+  before the meets, so `&` stays a meet. `Val.filled` in
+  `spec/Aontu/Verdict.lean` reads the meets beneath a meet first, then
+  a meet with one side waiting on a hole and the other not as the
+  waiting side with the hole bound to the other. `Decls.readR` and
+  `Decls.readU` read it before `resolveD`.
+- A side waits on a hole if it's the hole, or a call over one through
+  its arguments or a rider (`Val.fillable`). A generator waits through
+  its data alone, and a container waits on no hole of its members.
+- The fill reads every form but where a hole is bound: a generator's
+  template, an `emit`'s table and a `filter`'s condition. A meet in a
+  `match`'s result, default, scrutinee or pattern, a `filter`'s source,
+  a size or a trial is filled too. Neither engine fills a meet in a
+  scrutinee, a pattern, `len` or `must`, and Go fills none in
+  `contains`, `rest`, `when` or `nof` (#549).
+- `spec/Oracle.lean`: `holeFillVetCases`, rows hv0 on of
+  `test/spec/def-call.tsv`, 26 cases in each of the three modes, a
+  `match`'s result and its default among them. Both engines answer
+  every row as the definition does.
+- Out of the rows: a hole a container's peer fills in a member or a
+  spread, `[upper(_)] & ["a"]`, which both engines fill member by
+  member; a call that meets more than one peer, which both engines
+  read in the order it's written (#512); and a call over a hole the
+  document leaves unfilled, which both engines' `vet` lets the data
+  fill. Decision 29 raises the last.
+- Docs: the reference's placeholder section, the definition tutorial's
+  step 27, the definition's README and the design note.
+
+### `subsume` reads `string & empty()` by the spellings a path can take
+
+TypeScript and Go, generated rows, and documentation. Fixes #544.
+
+- Both engines (`ts/src/subsume.ts`, `go/subsume.go`): `string & empty()`
+  refuses every path, so it covers a string residual only where the
+  residual refuses every path too: one that met `string`, or whose
+  lower end starts after `.`, or whose upper end is below `$`
+  (`refusesPaths`, `subRefusesPaths`). Before, it covered every string
+  bound, pattern and format, so it answered `subsumes` over `min("")`,
+  `above("")`, `max("b")`, `below("b")` and `re("x")`, each of which a
+  path value passes. Each now finds a path value as its failing case
+  and answers `does_not_subsume`, and a pattern no probe's path
+  matches is `undecided`.
+- `neq("a")` is no longer below `string & empty()` either, since both
+  engines read a path value as passing it. The definition doesn't read
+  `neq` over a path value yet, so no row holds it.
+- `spec/Aontu/Subsume.lean`: `string` is above `min(t)` and `above(t)`
+  where `"/" ≤ t` (`min_str_le_string`, `above_str_le_string`), as both
+  engines answer, and `leDecF` decides them.
+- `spec/Oracle.lean`: `spellSubPairs`, rows ks0 on of
+  `test/spec/def-subsume.tsv`, nine string bounds under `string` and
+  under `string & empty()`. Both engines answer every row as the
+  definition does.
+- Docs: the reference's subsumption table and the definition
+  tutorial's step 31.
+
+### The definition reads a string constraint on an address by its spelling
+
+Definition, generated rows, and documentation. No engine changes.
+Decision 23 of the design note's §7 (#474).
+
+- `spec/Aontu/Admits.lean`: `min`, `max`, `above` and `below` with a
+  string end, `re` and `format` admit an address by its spelling
+  (`minAddr`, `maxAddr`, `aboveAddr`, `beneathAddr`, `reAddr`,
+  `formatAddr`), and `len` counts an address's characters as it's
+  spelled (`Data.size` in `spec/Aontu/Data.lean`). So a path value met
+  with one admits each address it opens whose spelling passes, and
+  generates its own address where that passes, in every order of the
+  meets: `len(3) & path($.a)` and `path($.a) & path($.a.b) & len(5)`
+  generate, where the definition read every such meet as `nil`.
+- Where the address the value spells doesn't pass, the meet generates
+  nothing and the verdict is `incomplete`, whether a longer address
+  could pass or none could, as ruled 2026-10-24: so
+  `max("$.a") & path($.b)` is `incomplete` too. A trial that refuses
+  the address reads alike, as ruled the same day, so
+  `path($.a) & must(len(5))` is `incomplete`. `Val.untried` in
+  `spec/Aontu/Verdict.lean` leaves a size and a trial unread on a map
+  or a list only (`Val.onLeaves`), so a refusal at generation never
+  falls on an address. Both ports refuse such an address by the one
+  the value spells, so their answer still depends on the order of the
+  meets, which #474 tracks; they read a trial's refusal as `invalid`;
+  and no row holds one.
+- `spec/Aontu/Meet.lean`, `Check.lean`, `Order.lean`: the domains a
+  string bound admits a value in hold addresses (`Bound.doms`), the
+  checker reads a bound's string end against an address, and the
+  proofs carry the new rules.
+- `spec/Aontu/Subsume.lean`: `string & empty()` admits no address, so
+  it's above a string bound only where no spelling reaches the bound.
+  Every spelling sits at `"$"` or above and below `"/"`
+  (`Addr.dollar_le_text`, `Addr.text_lt_slash`), so `min(t)` and
+  `above(t)` are below it where `"/" ≤ t`, `max(t)` where `t < "$"` and
+  `below(t)` where `t ≤ "$"`, and `leDecF` decides them under those
+  conditions alone. A pattern or a format that matches an address's
+  spelling isn't below it (`re_not_le_anyString`,
+  `format_not_le_anyString`).
+- `spec/Oracle.lean`: `spellVals`, rows ks0 to ks13 of
+  `test/spec/def-gen.tsv`, and `spellVetCases`, rows ks0 to ks8 of
+  `test/spec/def-verdict.tsv`. Both ports answer every row as the
+  definition does.
+- Docs: the reference's first-class paths; the definition tutorial's
+  step 31, which also drops a stale line that the definition reads no
+  link; decision 23 and the P11 row of the design note; and the
+  definition's README.
+
+### A constraint met with `rel()` meets the relation's value
+
+TypeScript and Go, generated rows, and documentation. Ruling 25 of the
+design note's §7 (#496).
+
+- `ts/src/val/ReferFuncVal.ts`, `go/refer.go`: a constraint met with
+  `rel()` before the relation's value meets that value, the list or map
+  of addresses, as any meet does, where both ports held it and met it
+  with each leaf. So `rel() & re("sa$") & [path($.sa)]` and
+  `rel() & path & [path($.a)]` are errors in either grouping, as
+  `path & [path($.a)]` is, and `rel() & len(min(2)) & [path($.a)]`
+  refuses its one address. A constraint on each address goes in the
+  value's spread, `rel() & [&: re("sa$")]`.
+- Both ports: a spread the relation's value writes that holds
+  addresses alone, a path value, `path`, a constraint on scalars or a
+  meet of these, now holds each leaf's link beside it, so a leaf that a
+  later list or map brings is a link. The template flows into its
+  target, and a target that names nothing is `rel_unresolved`. Before,
+  such a leaf was no link, so `rel({k: 1}) & [&: path]` met with
+  `[path($.a)]` left `a` without `k`, where the definition flows it. A
+  spread that can hold a container keeps its elements as before, which
+  #542 tracks.
+- `spec/Oracle.lean`: `relHeldCases`, rows rh0 to rh41 of
+  `test/spec/def-path.tsv`. Both ports answer every row as the
+  definition does, which reads them as it did before.
+- `test/spec/rel.tsv`: `rel-held-flows-per-leaf` and
+  `rel-held-refuses-a-leaf`, which read a held `re()` at each leaf, now
+  write it in the spread, as `rel-spread-holds-each-leaf` and
+  `rel-spread-refuses-a-leaf`. `rel-held-meets-the-list` holds the held
+  reading, three rows hold a later leaf through a spread, and four a
+  spread that can hold a container, each expectation from both
+  engines.
+- Docs: the reference's declared relations; the graph tutorial's
+  `re()` step, which now writes the constraint in the spread; the
+  definition tutorial's step 37; and decision 25 and the P11 row of the
+  design note.
+
+### A list holds no position for a marked element or one that is absence
+
+Both engines, the definition, generated rows, and documentation.
+Rulings 18 and 24 of the design note's §7 (#421, #479).
+
+- TS (`ts/src/val/ListVal.ts`) and Go (`go/listval.go`, `standingOf`):
+  a list holds a position only for an element that stands, so an
+  element that is absence, or one a mark of its own, `hide()` or
+  `type()`, leaves out, moves every element after it up, for the meet
+  as for the output. `[1, hide(2), 3]` is `[1, 3]`, `[hide(1), 2]`
+  admits `[2]` and refuses `[1, 2]`, and `[1, maybe($.gone), 2] &
+  [1, 5, 2]` is a conflict, where before each element kept its
+  position and only the output dropped it. A list compacts once its own
+  elements are read, so a marked element still meets the list's
+  spread, and two lists pair by position only once each knows which of
+  its elements stand, which a `maybe` knows only once the tree settles.
+- TS (`ts/src/jsonschema.ts`) and Go (`go/jsonschema.go`): the JSON
+  Schema export holds no position for a marked element of a spread's
+  template either, and reports nothing lost for a list's marked
+  element, which is no element. The rows
+  `js-hidden-list-element-holds-no-position` and
+  `js-type-list-element-holds-no-position` replace the two that
+  reported it, beside two rows for a template's.
+- `spec/Aontu/Verdict.lean`: `resolveD` drops an element whose normal
+  form carries a mark of its own, as it drops absence, and reads a list
+  as `nil` where it stands when a marked element is a conflict, alone
+  or met with the list's spread (`Decls.markClashes`, new), so
+  `[hide(1 & 2), 3]` is an error, as both engines answer. Each element
+  after a dropped one is read at the index it takes among those that
+  hold a position (`resolveElems`), so a `key()` in it reads that index,
+  as both engines read it after a marked element.
+  `spec/Aontu/Paths.lean`: a link's landing finds a list's element
+  among those that hold a position (`Decls.holdsPlace`), so a link
+  after an absent or a marked element lands where its element stands,
+  as both engines read it, where the definition found the element the
+  document writes at that index and the template flowed nowhere.
+  `spec/Aontu/Syntax.lean`: `Val.hasMark` reads a disjunction of one
+  arm as the arm, so `a: hide(1) | 2 & 3` leaves `a` out of the
+  output, as both engines do, where the definition generated `1`.
+- `spec/Oracle.lean`: `markListCases`, rows hl0 to hl83 of
+  `test/spec/def-verdict.tsv`; `absentListCases`, rows la0 to la41 of
+  `test/spec/def-path.tsv`; `listGenVals`, rows gl0 to gl9 of
+  `test/spec/def-gen.tsv`, each value read as a document reads it
+  (`readGenRows`); and two `markCases`, rows h117 to h122, with a dead
+  arm beside a marked one. The profile rows of `test/spec/def-subsume.tsv` judge each value
+  as a document reads it, so `[hide(integer)]` over `[integer]` now
+  subsumes under `gen`, and the pair of `[hide(integer)]` with itself
+  gains a row, which renumbers the w rows after it. Both engines answer
+  every row as the definition does.
+- Shared rows: `hide-list-elem-canon` and
+  `maybe-in-both-alternatives-canon` read the compacted list. Both
+  engines' `allow` tests read a hidden entry as no entry, so
+  `allow: [hide("$")]` covers nothing.
+- Filed: #539, a `key()` after an absent element, which both engines
+  read at the index the document writes; and #540, a marked `nil`,
+  which both hold at its position.
+- The reference's list rules and its `maybe` and marks sections, the
+  tutorial's steps 13, 16 and 33, decisions 18 and 24 and the P9 and
+  P10 rows of the design note, and the definition's README record the
+  build.
+
+### A link's template reads its member and its place, and a generator's lands only at its own instances
+
+Definition, generated rows, and documentation. No engine changes.
+Three of #497's findings.
+
+- `spec/Aontu/Paths.lean`: a link's landing (`linkLanding`, `linkStep`,
+  `linkItems`) carries, with each term it reaches, the member a
+  generator's template is read for and the place the term lands at,
+  which a reference's own path leaves where it was (`LinkItem`).
+  `Decls.linksAt` reads each link's template for its member, at its
+  place, its names expanded first, so a hole in a generator's template
+  stands for the member, `key(n)` reads the link's own place and a
+  generator over a name reads the name's body, as both ports read a
+  template where its link stands. So `each($.l, refer(_) & path($.a))` flows
+  each member of `l` into `a`, where the definition flowed `_`, and
+  `x: {r: refer({n: key()}) & path($.a)}` makes `a.n` `"r"`, where it
+  flowed nothing. `spec/Aontu/Verdict.lean`: `resolveD` makes a `refer`
+  or a `rel` whose template holds a `key(n)` in the schema's own tree
+  too, where keys read as written, since a link's value reads no
+  argument, so that the link's address is there to read.
+- A generator's template lands only at the instances the generator
+  makes (`genSteps`), so `each([], refer({k: 1})) & [path($.a)]` flows
+  nothing into `a`, as both ports answer, where the definition flowed
+  `{k: 1}` through the element the list it meets supplies.
+- `Decls.referPass` and `Decls.referCount` read the links that land in
+  each body at the positions of the body's own tree (`Decls.bodyRoot`),
+  through its generators, spreads and references, so a generator in a
+  body no reference reads flows its links' templates, as both ports
+  answer. `Val.refers`, which read a body's links through maps, lists,
+  meets and riders alone, is gone.
+- `spec/Oracle.lean`: `linkTemplateCases`, rows lt0 to lt77 of
+  `test/spec/def-path.tsv`. Both ports answer every row as the
+  definition does. A link that a path reference copies whole splits the
+  ports from the definition (#536), and no row holds one. The fourth
+  finding, a link in the template of a generator whose data another
+  link's template makes, isn't read yet.
+- The tutorial's step 36 quotes the landing and the reading of a
+  template; the definition's README and the P11 row of the design note
+  record the build.
+
+### The definition reads a trial's eager argument as both ports do
+
+Definition, generated rows, and documentation. No engine changes.
+Closes #525.
+
+- `spec/Aontu/Verdict.lean`: both ports read some of a trial's
+  arguments as they build the trial, and a conflict there makes the
+  trial a conflict where it stands: a size, the condition of `must`,
+  the count of `nof` and of `contains`, the source of `filter` and the
+  scrutinee of `match`. `resolveD` now makes such a trial `nil`, a
+  conflict being an argument dead in normal form though not written as
+  `nil` (`Decls.clashes`). So
+  `must(1 & 2, "m")`, `len(1 & 2)` and `match(1 & 2, 1, 3)` are errors
+  under a key, at an optional key, in a generator's instance and in a
+  body nothing reads, as both ports answer, where the definition
+  answered `invalid` under a key and `valid` at an optional key or in
+  a body. In an arm one drops, so `match(1 & 2, 1, 3) | 4` admits `4`
+  in every mode, where the definition answered `incomplete`, and in a
+  spread one refuses only a member it's tried on.
+  The arguments both read later, against a value, are read as before:
+  `when(1 & 2, 1)` stands, and `nof(1, 1 & 2)`, `contains(1 & 2, 2)`
+  and `filter([1], 1 & 2)` refuse `1`. A size, a condition of `must`
+  and a count written `nil` stay values that admit nothing, so
+  `must(nil, "m")` and `len(nil)` refuse `1`, as both ports answer,
+  while `must(nil & 1, "m")`, `filter(nil, 1)` and `match(nil, 1, 3)`
+  are errors.
+- `spec/Oracle.lean`: `eagerCases`, rows te0 to te83 of
+  `test/spec/def-trial.tsv`. Both ports answer every row as the
+  definition does. Rows t183 to t185 and t189 to t191, `must` over a
+  conflict, now read `error`, as both ports answer, and leave
+  `spec/ledger.tsv`.
+- The tutorial's step on the selections describes the reading.
+
+### The definition finds the meet's conflicts where both ports do
+
+Definition, generated rows, and documentation. No engine changes.
+Closes #529.
+
+- `spec/Aontu/Verdict.lean`: both ports decide a size, `unique` and
+  `contains`'s upper count at the meet once they can read a container's
+  members, and the definition now reads them there too, in place of
+  `sizeClash`. `Val.meetMembers` reads the members of a container
+  literal, each one it requires a container or a value that generates,
+  a marked member counting for nothing, and waits where a member
+  generates nothing yet, so `len(1) & [1, integer]` stands while
+  `len(1) & [1, {a: integer}]` is an error. `Val.refusesAtMeet` and
+  `meetClash` find a size's upper half refusing the count, two members
+  alike under `unique()` or at `unique("k")`'s key, and more members
+  than `contains` counts, so `unique() & [1, 1]` is an error. Each
+  reads a member and a condition under the declarations (`genD`,
+  `checkR`), so `contains(%A, neq(0))` over a recursive `%A` counts a
+  member the name admits, as both ports do.
+- `Val.staged` reads each such conflict as `nil` where it stands, and
+  the verdict reads the normal form so staged: `Decls.illFormedR` and
+  `Decls.bodyIll` for the error class, and for the meet with the data
+  its dead check, its refusal, its output and the unfilled check. A
+  clashing arm drops, so `(len(1) & [1, 2]) | 3` stands and generates
+  `3` against `{}`, as both ports answer, and a container the data
+  gives too long for its size is `invalid` at the meet whatever else is
+  incomplete: `n: any, t: len(1)` against `{"t": [1, 2]}` is `invalid`
+  in every mode, as both ports answer, where the definition answered
+  `incomplete`. `vet_invalid_refuses` states the refusal of the staged
+  form.
+- `spec/Oracle.lean`: `lenCases` gains 40 cases, rows l129 to l248 of
+  `test/spec/def-verdict.tsv`, and `meetNameCases` five, rows tc0 to
+  tc14 of `test/spec/def-trial.tsv`. Both ports answer every row as the
+  definition does, and no other row changes.
+- The tutorial's step on the verdict, the reference's `len`, `unique`
+  and `contains` notes, the definition's README and decision 9 of the
+  design note's §7 describe the reading.
+
+### `copy` clears the marks and the seal of any argument
+
+Both engines, the definition, generated rows, and documentation.
+Ruling 27 of the design note's §7 (#445).
+
+- TS (`ts/src/val/CopyFuncVal.ts`) and Go (`go/func.go`, `stripMarks`):
+  `copy` copies its argument as written, so that each reference in it
+  reads where the copy lands, and drops each `hide()`, `type()` and
+  `close()` the argument writes, at every depth, reading each reference
+  in it as the copy's, which clears the marks and the seal of what it
+  brings. A literal's marks and seal now clear as a reference's always
+  did: `copy(hide(1))` is visible, and `copy(close({a: 1}))` admits
+  `{a: 1, b: 2}` and meets `{b: 2}`, where before it was sealed. A
+  member that refers to its sibling still reads, so `copy({a: .b, b: 1})`
+  is `{"a": 1, "b": 1}`, and `copy(close({a: .b, b: 1}))`, which was an
+  error, reads so too.
+- `spec/Aontu/Arith.lean`: `Fn.copy`. `spec/Aontu/Verdict.lean`:
+  `callTerm` makes a `copy` its argument's normal form, with its marks
+  cleared (`Val.unmark`) and every map and list in it unsealed
+  (`Val.unseal`, new, with `Val.CheckableA.unseal`).
+- `spec/Oracle.lean`: `copyCases`, rows cp0 to cp80 of
+  `test/spec/def-path.tsv`, a sealed map and list, a seal at depth and
+  in a meet, a hidden and a typed value alone and under a key, a path
+  to a sealed, a typed and a hidden value, a name for a sealed and a
+  typed map, a copy met with a map, a literal whose member refers to
+  its sibling, alone, met with a map and copied twice, and a hidden
+  value met with absence and preferred in a disjunction. Both ports
+  answer every row as the definition does. The forms list gains `copy`.
+- The tutorial's step 25 holds `copy`; the reference's `copy` entry
+  and its marks section state that it unseals any argument; decision
+  27, the P8 row and the definition's README record the build.
+
+### The definition dispatches `emit` through riders and meets, and binds a body as written
+
+Definition, generated rows, and documentation. No engine changes. Six
+findings on #521.
+
+- `spec/Aontu/Verdict.lean`: `emitTakes` reads the node and its meet
+  with the `match` through their riders, a member's too, so
+  `meta(integer, {})` and `type(integer)` take the node `1`.
+  `Val.alike` compares two terms that aren't containers by their
+  conjuncts (`conjAlike`), so `min(1)` takes the node `min(1)` and
+  `integer` takes `integer & min(1)`, while `min(2)` refuses `min(1)`.
+- `Val.matchRead` reads a spread's hole as it reads a member's, so
+  `{&: _}` refuses the node `{"k": 1}` and takes `{}`, while
+  `{&: _ & integer}` takes `{"k": 1}`.
+- `emitSpliceF` reads each piece in normal form, a rider around it read
+  through, so `["a"] & ["a"]` and `meta(["a"], {})` in a body splice as
+  `["a"]` does.
+- `emitRawOk` refuses a template whose body isn't written as a list, so
+  `body: each(["x"], _)` and `body: ["x"] & ["x"]` are errors even over
+  an empty selection, as both ports answer.
+- `emitBound` reads a body's references into the node as written
+  (`Val.nodePaths`), so one in a part the reading drops still binds:
+  `match(1, 1, "x", .missing)` in a body is an error, as both ports
+  answer. A nested `emit`'s table, a generator's template and a
+  `filter`'s condition read their own nodes and members, so their
+  references are theirs, and both ports bind no spread, so
+  `match(1, 1, "x", {&: .missing})` in a body emits `"x"`.
+- `spec/Oracle.lean`: `emitCases` gains twenty cases, rows et210 to
+  et269 of `test/spec/def-call.tsv`. Both ports answer every row as the
+  definition does.
+- The tutorial's step 40 describes the readings.
+
+### The definition reads a waiting body through its names, its keys as text and its arity
+
+Definition, generated rows, and documentation. No engine changes. A
+follow-up to ruling 17, decision 17 of the design note's §7, from
+three Codex findings on #523.
+
+- `spec/Aontu/Verdict.lean`: `Decls.waitNames`, the names whose bodies
+  wait for a place, a body that names one of them waiting too, read to
+  a fixed point, and `Val.waits` reads a name through them. So
+  `%T = add(%U, 1)` beside `%U = upper(_)` stands, as both ports
+  answer, and `%T = add(%U, 1 & 2)` is an error. The name itself stays
+  a name, so what its body fixes holds: `%T = %U & 2` beside
+  `%U = _ & 1` is an error, as both ports answer.
+- `Val.unplaced` reads a waiting `key(n)` as any string rather than
+  `any`, since a key is text wherever it lands, so `%T = key(1) & 1` is
+  an error, as both ports answer, while `%T = key(1) & ""` stands.
+- A waiting call with another count of arguments than its function
+  takes is `nil` (`Fn.takes`, each function's count as both ports'
+  signatures give it). So the definition reads `%T = add(_)` as an
+  error, as it reads `v: add(1)`, where both ports answer `invalid`,
+  the split #426 tracks; no row holds it.
+- `spec/Oracle.lean`: `aliasCases` gains twelve cases, rows a342 to a377
+  of `test/spec/def-alias.tsv`. Both ports answer every row as the
+  definition does.
+- Both ports read a waiting `key(n)` at the declaration's own name,
+  `%T@<file>`, so `%T = key(0) & "x"` used at `x` is an error in both;
+  that's #528. Both skip a conflict met with a call that waits through
+  a name, so `%T = add(%U, 1) & (1 & 2)` is `valid` in both; that's
+  #530. No row holds either.
+- The tutorial's step on declarations describes the reading.
+
+### An atom over an argument outside its domain admits nothing, however the argument is written
+
+Both engines, the definition, generated rows, and documentation.
+Ruling 28 of the design note's §7 (#509).
+
+- TS (`ts/src/val/ConstraintVal.ts`) and Go (`go/constraint.go`): a
+  pending atom that settles with an argument outside its domain, such
+  as `mulof($.d)` where `d` is `0` or `len($.s)` where `s` is a string,
+  leaves a residual that admits nothing, as the same argument written
+  as a literal does, rather than an error in the schema alone. So `vet`
+  reads it as `invalid` against data that meets it, and evaluation
+  answers `mapval_no_gen`, as for the literal. The same holds of an
+  argument an expression computes, `min(min(1) & max(3))` among them. A
+  choice still to make, a disjunction or a preference, stays an error
+  whatever the atom meets, as ruling 16 has it of a size (#413). The
+  check reads the arguments the atom reads, so a choice in a sole list
+  under `neq`, `x: [1 | 3], t: neq($.x)`, is an error too.
+- `spec/Aontu/Admits.lean`: `Val.unsized`, `any` and the trials, which
+  admit numbers but name no count, so `len` over one admits no size
+  (`Judge.lenOut`), as both engines refuse `len(any)` and
+  `len(must(integer, "m"))` their argument. The checker reads it so
+  too, and `len_le_len` in `spec/Aontu/Subsume.lean` needs the general
+  count in `len`'s domain.
+- `spec/Aontu/Syntax.lean`: `Val.nothing`, the atom that admits
+  nothing. It stands, refuses every value (`Judge.nothing`), generates
+  nothing, and is `nil` met with anything but `any` (`nothingOr`).
+- `spec/Aontu/Verdict.lean`: `bndOf` makes `Val.nothing` of a bound over
+  an argument outside its domain, `Val.noEnd` reading a kind, a bound, a
+  pattern and a meet as one too, and refuses a bound over a choice
+  (`Val.isChoice`). A `neq` over a sole list that isn't empty reads the
+  list's elements as its arguments, as both engines read `neq([1, 3])`
+  as `neq(1, 3)`. `resolveD` makes a size over a term outside `len`'s
+  domain `Val.nothing` too, so that it refuses at the meet, as both
+  engines do, even beside a field that generates nothing.
+- `spec/Oracle.lean`: `boundArgCases` gains ten cases, rows bd102 to
+  bd131 of `test/spec/def-path.tsv`. `mulof` over a path to `0` and to
+  `-3`, `len` over a path to a string and `min` over a path to a meet
+  of bounds are each `invalid`. A kind and `any` the data fills are
+  `valid`. A preference, a disjunction, and a disjunction the data
+  fills are each an `error`. Rows bd45 to bd71 and bd78 to bd80 read
+  `invalid` where they read `error`, as both engines now answer, and
+  both answer every row as the definition does. Fourteen more cases,
+  rows bd132 to bd173, hold `min($.lo) & integer` over a path to `true`
+  an error, as `min(true) & integer` is; `neq` over a sole list, written
+  and through a path, a choice among its elements an error and a list
+  among them or an empty list admitting nothing; and `len` over `any`,
+  written and through a path, and over a trial, admitting no size, a
+  rider and a meet with `any` read through.
+- The tutorial and the reference describe the reading, and the
+  reference no longer cites #509.
+
+### The definition reads `emit`
+
+Definition, generated rows, and documentation. No engine changes. A P9
+slice.
+
+- `spec/Aontu/Data.lean`: `Seg.node`, the step a relative reference in
+  a body of `emit` starts with, since it names a field of the node
+  rather than a place.
+- `spec/Aontu/Verdict.lean`: `resolveD` checks an `emit`'s table, each
+  template a map with its `match` and a list for its `body`
+  (`emitRuleOk`), then reads it once for each node of its selection, in the order
+  `Val.members` reads them, its `match`es for no node and its bodies for
+  the node. `emitPieces` takes the body of the first template whose
+  `match` takes the node, as both ports dispatch (`emitTakes`): the node
+  met with the `match` doesn't die and is alike the node (`Val.alike`),
+  its members counted as `Val.members` reads them (`memberField`), so
+  that the meet narrows nothing, a disjunction with no preference, under
+  any rider, taken where any arm meets. A hole in a `match` matches nothing where
+  it stands and is the value it meets in a meet or an arm
+  (`Val.matchRead`), and a template's `match` fields meet. The answer
+  splices in each list in the body, at any depth (`emitSpliceF`). A
+  body's hole and
+  its references into the node read the node, by `nodeRef` and
+  `Val.fieldAt`, a position of a list node and a map's key in digits
+  among them. A selection other than a bag, a template without its
+  `match` or its `body`, a body other than a list, a node no template
+  takes and a reference the node doesn't answer leave the call unmade,
+  an error, as both ports refuse each. The definition leaves a body
+  that holds a `key(n)` unmade, since the ports read it at different
+  positions, as #524 records.
+- `spec/Aontu/Verdict.lean`, ruling 17's reading of a declaration:
+  `Val.waits` reads an `emit`'s table as a template, its holes the
+  node's, and `Val.unplaced` reads its selection as the argument both
+  ports read as written, so `%T = emit(upper(_), t)` waits whatever
+  `t` holds, and the check reads `%T = emit([1], t)` whole.
+- `spec/Aontu/Paths.lean`: placing a document, reading its paths as
+  names and the paths that must name something leave a reference into
+  the node as written (`placePath`).
+- `spec/Oracle.lean`: `aliasCases` gains four cases of an `emit` in a
+  declaration, rows a330 to a341. `emitCases` writes rows et0 on of
+  `test/spec/def-call.tsv`, and `emitPathCases` rows em0 on of
+  `test/spec/def-path.tsv`, where a path names the selection. Both
+  ports answer every row as the definition does. The forms list gains
+  `emit`.
+- `docs/tutorial-definition.md` gains step 40, "Rules over nodes"; the
+  last step is now 41. The reference's `emit` section cites the
+  definition.
+
+### The definition reads every declaration
+
+Definition, generated rows, and documentation. No engine changes.
+Ruling 17 of the design note's §7.
+
+- `spec/Aontu/Verdict.lean`: `Decls.bodyIll` reads each declaration's
+  body where no place is yet (`Decls.readU`), as the name and as the
+  body itself, so that a recursive body is read too, and
+  `Decls.illFormedR` makes the document an error where one doesn't
+  stand, whether or not anything reads it, as both ports answer:
+  `%T = 1 & 2` beside `v: 1` is an `error`. A hole or a `key(n)` waits
+  for the use that places it, so each body is read with the parts that
+  hold one as `any` (`Val.unplaced`, over `Val.waits`, which leaves out
+  the hole and the `key(n)` an `each` or a `pack` binds in its
+  template): a conflict beside a hole is still an `error`, and a body
+  that names a template stands. A call or a trial that waits is `nil`
+  where an argument both ports read as written doesn't stand, a call's
+  own, a size, a count, `must`'s condition, or the data, scrutinee or
+  source of `each`, `match` and `filter`, so `%T = contains(upper(_),
+  1 & 2)` is an `error`, and in a disjunction it's an arm that dies. A
+  name a source publishes is read where a destructure takes it, so not
+  alone.
+- `spec/Oracle.lean`: `aliasCases` gains forty cases, a dead or
+  ill-formed body alone, beside a name the schema uses, inside a
+  recursive body and beside a hole or a `key(n)`, an error, and a body
+  that stands, a literal short of its size, a template with a hole, a
+  body that names one and a call over a `key(n)` beside them, not; and
+  a waiting call or trial over a conflict its arguments read, an
+  error, over one only a trial or a template holds, not, and an `each`
+  or a `pack` over data written in place, read whole.
+  Both ports answer every row as the definition does. A body that is
+  an unbuilt call, `%T = add(1)`, or the literal `nil` holds no row:
+  both ports answer it `invalid`, by the split #426 tracks, where the
+  definition reads it as it reads the schema's own, an `error`.
+- The tutorial quotes `Decls.illFormedR` as it now stands, and
+  `Decls.bodyIll`; the definition's README no longer lists the gap
+  (#417).
+
+### The definition reads a disjunctive size as ill-formed
+
+Definition, generated rows, and documentation. No engine changes.
+Ruling 16 of the design note's §7.
+
+- `spec/Aontu/Verdict.lean`: `Val.sizeIll` holds where a size, the
+  argument of `len`, still holds a choice once in normal form
+  (`Val.choiceLeft`), a disjunction or a preference, through `&` and
+  the riders, and `Val.illFormed` reads such a size as ill-formed, so
+  `len(1 | 3)`, `len(*1)` and `len(type(1 | 3))` are an `error` whatever
+  they meet, as in both ports. `len` takes a conjunction of integers,
+  bounds, exclusions and multiples. A choice the meet or a dead arm
+  settles to one arm is that arm's size, and arms written alike
+  (`Val.sameArm`) are one, so `len(1 & (1 | 3))` and `len(1 | 1)` are
+  each `len(1)`, as both ports read them.
+- `spec/Oracle.lean`: `lenCases` gains twenty-five cases, a disjunctive
+  size alone, met with a literal, of bounds, with a preference among
+  its arms and in a conjunction, a preference alone, a choice under
+  `type()` and `meta()`, choices the meet, a dead arm or arms written
+  alike settle, and a conjunction of bounds beside them, written as
+  rows l57 to l128 of `test/spec/def-verdict.tsv` in the three modes
+  of `vet`. Every other fragment regenerates unchanged, and both ports
+  answer every row as the definition does.
+- The tutorial quotes `Val.sizeIll` and `Val.illFormed` as they now
+  stand; the definition's README no longer lists the disjunctive size
+  as a gap (#413).
+
+### The definition reads `export` and the destructure
+
+Definition, generated rows, and documentation. No engine changes. A
+P10 slice.
+
+- `spec/Aontu/Paths.lean`: `Decls.ofSource` takes the names a source
+  publishes, `export({ %a })`, and declares each under a name of the
+  source's own (`exportName`); a name the source exports and doesn't
+  declare it publishes as `nil`, which no destructure can take, so a
+  wildcard over such a source is an error, as in both ports. A
+  destructure, `{ %b: %a } = @"p"` or `{ % } = @"p"`, is the load with
+  the names it takes after its path: `Decls.takeBinds` binds each name
+  it takes in the document's scope, where it meets a declaration of
+  the same name, wherever the destructure stands but in a list's
+  element, where the ports differ (#518), and `Decls.takesLeft` makes a
+  name its source doesn't publish an error, used or not; under a key
+  the ports class it as `invalid` (#426).
+- `spec/Oracle/Print.lean` writes a destructure as the ports read it,
+  and the path rows write one at the top on a line of its own.
+- `spec/Oracle.lean`: `takeCases`, over the fixtures the shared alias
+  rows load, writes rows lx0 on of `test/spec/def-path.tsv`, in the
+  three modes of `vet`. Both ports answer every row as the definition
+  does.
+- `docs/reference-language.md`: a file that exports a name it didn't
+  declare publishes nothing, and both ports refuse a destructure that
+  asks for the name with `import_not_exported`. The page said both
+  ports refused the export itself.
+
+### The definition reads a source's own names in its own scope
+
+Definition, generated rows, and documentation. No engine changes. A
+P10 slice.
+
+- `spec/Aontu/Paths.lean`: `Decls.ofSource` gives the declarations a
+  source adds to the document that loads it: its term, and each name it
+  declares under a name of its own (`scopedName`), every name it
+  declares or uses read in its own scope (`Val.scoped`). A source reads
+  none of the document's names, the document none of the source's, and
+  two sources that declare one name hold two, as both ports scope a
+  name to the file that declares it. A variable stays the calling
+  program's. `Decls.loaded` reads the loads in a name a source declares
+  from the source's own directory, and adds the names of only the
+  sources the document reads (`Decls.sourcesRead`), so that a source
+  nothing loads declares nothing.
+- `spec/Oracle.lean`: `scopeCases`, over the fixtures both ports' alias
+  rows load, writes rows ls0 on of `test/spec/def-path.tsv`, in the
+  three modes of `vet`, and no other row changes. Two new fixtures
+  join them: `defload/alias_loads.aontu`, whose name loads a source
+  from its own directory, and `alias_stray.aontu`, whose name names
+  nothing. Both ports answer every row as the definition does.
+- No row holds a source that declares a name loaded under a key, which
+  both ports refuse and the definition reads as it reads one at the
+  root, nor a document that declares a name and loads such a source at
+  the root, where Go keeps the document's declaration in its output,
+  which #514 tracks.
+- The definition tutorial's step 39, the reference, the definition's
+  README and the design note's P10 row say how a source's names read.
+
+### The definition reads a bound written over terms
+
+Definition, generated rows, and documentation. No engine changes. A
+P8 slice.
+
+- `spec/Aontu/Arith.lean`: `Bnd` names the six bounds a call can write
+  over terms, `min`, `max`, `above`, `below`, `neq` and `mulof`, and
+  `Fn.bnd` is the call. `spec/Oracle/Print.lean` writes it as the
+  bound's name.
+- `spec/Aontu/Verdict.lean`: `bndOf` makes the bound once each
+  argument's normal form is a number or a string (`Val.boundEnd?`), so
+  `lo: 2, t: min($.lo)` reads `t` as `min(2)`. An argument that names no
+  end, a boolean, `null` or a container, refuses the bound
+  (`Val.noEnd`), as a `neq` over both numbers and strings does, which
+  makes the document an error but in a `filter`'s condition, where it
+  refuses each member. An argument that never settles leaves the call
+  waiting, which is an error too. `bndOf_checkableA` keeps what it makes readable by the
+  checker.
+- `test/spec/def-path.tsv` gains rows bd0 on, in the three modes of
+  `vet`, and rows bg0 on, a bound over a relative path in a
+  generator's template or a `filter`'s condition, read where its
+  instance lands. No other row changes. Both ports answer every row as
+  the definition does.
+- `len` takes a term already, so `len($.n)` reads as the size of the
+  count `n` names, and rows from bd81 on hold it.
+- Both ports read `mulof` over a path to zero or a negative number, and
+  `len` over a path to anything but a count, as an error, where the
+  same argument written as a literal admits nothing, which #509 tracks,
+  so no row holds one.
+- The definition tutorial's step 20, the reference's cross-field
+  bounds, the definition's README and the design note's P8 row say how
+  a bound over terms reads.
+
+### A bound's relative argument reads where a generator's instance lands
+
+Both ports.
+
+- `go/generate.go`: `each`, `pack` and `filter` place each instance of
+  their template or condition with `setPaths` after `instanceClone`, as
+  a spread's instance already did and as TypeScript's `repathInstance`
+  does. A relative path in a bound's argument, `min(..lim)` in a
+  `filter`'s condition or `{v: min(...lim)}` in an `each` template,
+  read from where the document writes the template, so the bound named
+  nothing or the wrong value. It now reads where the instance lands, as
+  TypeScript reads it, and #506 has the cases.
+- `ts/src/val/ConstraintVal.ts`: an instance's copy of a waiting bound
+  holds copies of its arguments. Every instance shared one argument, so
+  the last instance's re-pathing moved it for all of them, and
+  `each([{lim: 1, v: 1}, {lim: 2, v: 2}], _ & {v: min(.lim)})` read the
+  second member's `lim` at the first and refused it.
+- `test/spec/gen-filter.tsv`, `gen-each.tsv` and `gen-pack.tsv` gain
+  twelve rows, each expectation from both engines; four give each
+  instance a target of its own.
+
+### The definition reads a relative path in a filter's condition
+
+Definition, generated rows, and documentation. No engine changes.
+P9's seventh slice.
+
+- `spec/Aontu/Paths.lean`: a `filter`'s condition stands where the
+  member it tries lands, one step below the filter, a step no written
+  path names (`Val.placed`). A relative path that climbs out of the
+  member names the same place for every member, and one that stays
+  inside it names nothing, as both ports read it.
+- `spec/Aontu/Names.lean`: `Val.forgive` exempts a `filter`'s
+  condition from the references that must name something, so a
+  condition whose path, alias or variable names nothing refuses each
+  member rather than making the document an error, as both ports
+  answer.
+- `vetA_iff_of`, `vetA_iff_reads` and `vetP_iff_reads` hold the
+  verdict wherever the checker can read the two documents it hands
+  `vet` (`Decls.readsAB`, `Decls.readsPB`), as it can a document whose
+  `filter` reads its source, so the oracle's path rows can hold one.
+  `vetA_iff` and `vetP_iff` hold as before.
+- `test/spec/def-path.tsv` gains rows fc0 on, in the three modes of
+  `vet`, and no other row changes. Both ports answer every row as the
+  definition does.
+- The definition tutorial's step 9 and the reference say how a
+  condition reads its relative paths, and the gap lists no longer name
+  it.
+
+### Where a copy reads a relative path, raised as a decision
+
+Generated rows and documentation. No definition or engine changes.
+
+- Both ports read a relative path inside an alias's body, or inside a
+  path reference's copy, either where it's written or where the copy
+  stands, by the order the document writes the two, and `aontu vet`
+  reads an alias's body at the use in either order, so it refuses the
+  output `aontu` generates for the same file, which #504 tracks. A path
+  in a call's argument splits the ports, and `test/spec/divergent.tsv`
+  records it. The definition reads such a path where it's written, as
+  before, and the definition's design note raises which reading is the
+  language's.
+- `test/spec/def-path.tsv` gains rows j39 on, in the three modes of
+  `vet`: a body read at the alias's own place, used or not, an error
+  where a path names nothing there or meets a conflict there, and a
+  body that's itself a relative path, which both ports read alike in
+  any order. Rows jl0 on hold the same documents with each declaration
+  after the schema. No other row changes.
+- The reference and the definition tutorial no longer say both engines
+  read a body at each use: they say how the order decides.
+
+### The definition reads a generator's template at each member
+
+Definition, generated rows, and documentation. No engine changes.
+P9's sixth slice.
+
+- `spec/Aontu/Paths.lean`: a relative path in `each`'s or `pack`'s
+  template reads at each member of the generator's output, as both
+  ports read it. The generator's own instance reads each term of its
+  template that holds a relative path as `any` (`Val.relBlank`), and
+  the part of the template that holds one (`Val.relPart`) meets each
+  member of the output, placed there (`Val.genTemplate`,
+  `Val.genInst`), wherever the generator lands. A spread or a generator
+  inside the template reads at its own members in turn, so a spread in
+  a generator's template no longer resolves nowhere. `vetP_iff` holds
+  as before.
+- `test/spec/def-path.tsv` gains rows gt0 on, in the three modes of
+  `vet`, and no other row changes. Both ports answer every row as the
+  definition does.
+- The definition tutorial's step 38 shows a generator's template read
+  at each member, and the reference, the README and the gap lists say
+  that a relative path in a `filter`'s condition is what's left.
+
+### The definition reads a loaded source
+
+Definition, generated rows, and documentation. No engine changes.
+P10's fourth slice.
+
+- `spec/Aontu/Paths.lean`: `@"p"`, the call `load`, reads in place the
+  source it loads, before anything else reads the document
+  (`Decls.loaded`). A document declares each source it can load as a
+  term under `@` and the source's name, so the definition reads no
+  file: aontu's own term, the term data makes, or a string for text. A
+  load names its source from the directory of the source it's written
+  in (`loadPath`), a `.` dropped and a `..` taking back a step
+  (`normSteps`), `.aontu` supplied where the name has no extension, and
+  none for an extension no source may have or for a module, a bare name
+  whose first step holds a dot (`moduleRef`). A source's own loads read
+  in from there, a source the chain already holds stopping it
+  (`Decls.loadIn`). A source with no term, a refused extension, a module
+  and a cycle each leave the load unmade, and a load left unmade makes
+  the document an `error` wherever it stands, even in an arm a
+  selection leaves out (`Decls.loadsLeft`, `Val.holdsLoad`), as both
+  ports answer. The old verdict and output read the loaded document as
+  `VetL` and `OutputL`, and `vetP_iff` holds as before.
+- `test/spec/def-path.tsv` gains rows lf0 on, which load files of
+  `test/spec/files` that each case declares as the file's term, and no
+  other row changes. Both ports answer every row as the definition
+  does.
+- The definition tutorial gains step 39, which walks through loading.
+
+### The definition reads a spread at each member
+
+Definition, generated rows, and documentation. No engine changes.
+P9's fifth slice.
+
+- `spec/Aontu/Paths.lean`: a spread's template that holds a path or a
+  `key(n)` reads at each member it's tried on, placed at the member,
+  wherever the spread lands, a path reference's copy among them
+  (`Val.membersRead`). The error class reads it at the members the
+  schema's own tree holds and the other classes at those of the tree
+  the data reads in, so a template whose path names nothing is an
+  `error` at a member the schema writes and makes a member the data
+  alone supplies `invalid`, as both ports answer. A spread that's a
+  relative path reads at each member too, so a path reference's copy
+  reads it where the copy stands, and where the schema writes it, which
+  `Decls.placed` declares under a name no term refers to, so that one
+  naming nothing there is an `error` (`Val.bares`). The definition
+  reads the tree a spread reads its members in with the document's
+  links read first, so a member a link's template makes reads the
+  template too
+  (`Decls.linked`), and it keeps what an absolute path in a template
+  names (`Val.blank`). `VetA` takes the two schemas, and `vetP_iff`
+  holds as before.
+- `test/spec/def-path.tsv` gains rows sp0 on, in the three modes of
+  `vet`, and no other row changes. Both ports answer every row as the
+  definition does. Probing found two shapes where both ports report
+  `no_path` for a template's relative path at a member it holds, filed
+  as #500, and one where TypeScript alone does, filed as #501. No row
+  holds either.
+- The definition tutorial gains step 38, which walks through the
+  reading, and the language reference says how a spread reads its
+  paths and a `key(n)` deeper in its template.
+
+### The definition reads a link in a generator's template
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Paths.lean`: `Val.stepItems` lands a generator's
+  template, `each`'s or `pack`'s, at each member of the generator's
+  output, so a `refer` or `rel` in the template reads at each member, as
+  both ports read it, and a generator with no members reads none.
+- `test/spec/def-path.tsv` gains rows lg0 on, in the three modes of
+  `vet`, and no other row changes. Both ports answer every row as the
+  definition does.
+- The definition tutorial's last step now lists only a link in a
+  disjunction or a selection among what the definition doesn't read.
+
+### The definition reads a link where it lands
+
+Definition, generated rows, and documentation. No engine changes.
+P11's fifth slice.
+
+- `spec/Aontu/Paths.lean`: `Decls.withRefers` read the schema's links
+  only where the document writes them, so a link in a `type()` that a
+  path reference copies, or in a spread's template, flowed nowhere and
+  needed no target, where both ports read it at each place it lands.
+  Now, at each position the schema's normal form holds
+  (`Val.positions`), `landing` reads the terms the schema writes there:
+  through meets, riders, a map's member and its spread, a list's
+  element and its spread, and a path reference's target, within a
+  budget that ends a cycle of references. Each `refer` and `rel` among
+  them is a link at that position (`Val.landedLinks`), its relative
+  address read from there. A body's links are still read at the body's
+  own place.
+- `test/spec/def-path.tsv` gains rows ld0 on, in the three modes of
+  `vet`, and no other row changes. Both ports answer every row as the
+  definition does.
+- The definition tutorial's step 36 quotes `landStep` and the new
+  `Decls.referPass`, and its last step no longer lists a link in a
+  spread or copied by a path reference among what the definition
+  doesn't read. The reference's section on checked links says where a
+  link lands.
+
+### The definition reads `rel`
+
+Definition, generated rows, and documentation. No engine changes.
+P11's fourth slice.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `rel`. `spec/Aontu/Verdict.lean`
+  reads it as the relation kind, `relKind`: an address, or a list or a
+  map whose elements or members are each the relation kind, declared
+  under `relName`, a name no document can write. A string, a number or
+  `true` where an address must be is an `error`, and data that writes
+  the addresses as strings is `invalid`.
+- `spec/Aontu/Paths.lean`: `Decls.withRel` declares the relation kind
+  for every document `Decls.prepared` reads. `Val.refers` reads a `rel`
+  as it reads a `refer`, and each leaf of the relation's value
+  (`Val.addrs`, `linkAddrs`) is a link that `Decls.withRefers` meets the
+  template into, its address read from the relation's own position. The
+  passes count one for each address the links hold
+  (`Decls.referCount`), so a relation's leaf can make another leaf's
+  target.
+- `test/spec/def-path.tsv` gains rows rl0 on, in the three modes of
+  `vet`. Both ports answer every row as the definition does. No row
+  holds a relative address at a leaf of a list or a map: TypeScript and
+  Go read one from different places once containers nest, which #492
+  tracks, and `eval` and `vet` read it from different places even at
+  one level, in both ports, which #493 tracks. #489 now also covers the
+  `rel_unresolved` hint's examples.
+- The definition tutorial gains step 37, relations, and the last step
+  becomes 38, which now lists the links the definition doesn't read
+  where they land: one in a spread's template, or copied by a path
+  reference. The reference's section on declared relations cites
+  `relKind` and `Decls.withRefers`.
+
+### The definition reads `refer`
+
+Definition, generated rows, and documentation. No engine changes.
+P11's third slice.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `refer`. `spec/Aontu/Verdict.lean`
+  reads it as the path kind, the link's own value, so a string where an
+  address must be is an `error`.
+- `spec/Aontu/Paths.lean`: `Decls.withRefers` meets each link's template,
+  its marks cleared as a reference's are, into the target its address
+  names from where the link stands (`Addr.from`, `Val.putW`). It reads
+  the targets in passes (`Decls.referPasses`), so that one link's
+  template can make another link's target, whichever comes first. A
+  target that names nothing in the schema's
+  own tree, or an address that climbs past the top, makes the schema
+  `nil`, an `error`. `Val.refers` reads the schema's links where
+  they're written, and a body's at the body's own place, used or not.
+  `Decls.prepared` meets the links' templates after the moves hide their
+  sources; `vetP_iff` carries the checker's precondition through
+  (`withRefers_checkableA`).
+- `test/spec/def-path.tsv` gains rows rf0 on, in the three modes of
+  `vet`. Both ports answer every row as the definition does. With data,
+  both ports also read a body's relative link from each place that uses
+  the body, which #488 tracks, and no row holds such a link. #489 tracks
+  the `refer_unresolved` hint's examples, which write a string where an
+  address must be.
+- The definition tutorial gains step 36, checked links, and the last
+  step becomes 37. The reference's section on checked links cites
+  `Decls.withRefers`.
+
+### The definition reads a document's roots in rounds
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Paths.lean`: the definition reads the roots a document's
+  paths read in rounds (`Decls.rounds`). The first round reads the
+  document with its paths unread, and each round after declares each
+  path as the term at it in the first root before that reaches it
+  (`Decls.pathIn`). The schema's own tree (`Decls.rootsS`) and the tree
+  the data reads in (`Decls.rootsD`) each take as many rounds as the
+  document writes paths. Before, the definition read one root, so a
+  call over a path made nothing, and a path into what it makes, as
+  `$.b.camel` beside `b: nom($.a)`, was an `error` where both ports
+  read it.
+- A path keeps the term the first round that reaches it holds there,
+  so every row a path read before keeps its class. A call or a
+  generator handed a reference that names nothing yet, a path not read
+  or a name no round has declared, waits (`Val.pending`), so that term
+  holds the call, which a later round makes. Before, the call refused
+  the reference, and a path that reached it kept `nil`.
+- `Decls.Resolves`, `Decls.withPathsS`, `Decls.withPaths` and
+  `Decls.withMoves` read these roots; `vetA_iff` carries the checker's
+  precondition through every round (`Decls.rounds_checkableA`).
+- `test/spec/def-path.tsv` gains rows rn0 on, in the three modes of
+  `vet`. Both ports answer every row as the definition does.
+- The definition tutorial's step 9 explains the rounds.
+
+### The definition reads `move`
+
+Definition, generated rows, and documentation. No engine changes.
+P10's fourth slice.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `move`.
+- `spec/Aontu/Verdict.lean`: `move(p)` reads as `pref` of the value
+  the path names (`Val.prefer`).
+- `spec/Aontu/Paths.lean`: `VetP` and `OutputP` read the placed schema
+  met with `hide(any)` at each path a `move` reads that names something
+  (`Decls.withMoves`, `hideAt`, `Decls.prepared`). So the document generates the value once, at its new
+  place. The data needn't supply the source, but the source still
+  refuses data that disagrees. A `move` in a body hides its source,
+  whether a reference reads the body or not. `movedSrc` reads a rider
+  around the path through, and `Val.stepsW` reads the path's steps in
+  the root, each by the container it meets with its variables bound. A
+  path into a list hides nothing.
+- `test/spec/def-path.tsv` gains rows mv0 on, in the three modes of
+  `vet`, and `test/spec/def-gen.tsv` row i34, a `move` whose path holds
+  a variable. Both ports answer every row as the definition does. Data
+  that sets the copy of a path under a rider splits the ports, which
+  #486 tracks.
+- The definition tutorial gains step 35, moving a value, and the last
+  step becomes 36, which says the definition doesn't yet read which of
+  a document's moves the reading makes. The reference's section on
+  marks cites `Decls.withMoves`.
+
+### The definition resolves a path into a call's output
+
+Definition, generated rows, and documentation. No engine changes.
+
+- `spec/Aontu/Paths.lean`: `Decls.Resolves` reads the schema with its
+  calls made (`Decls.readU`), the root its paths read from. Before, it
+  read the schema before making any call, so a path into a call's
+  output, `$.b.x` beside `b: pref({x: 1})`, named nothing, an `error`,
+  where both ports resolve it.
+- `test/spec/def-path.tsv` gains rows pc0 on, in the three modes of
+  `vet`: paths into a preference's map, a name's spellings, two lists
+  added and a selection's result. Both ports answer every row as the
+  definition does.
+
+### The definition reads `pref`
+
+Definition, generated rows, and documentation. No engine changes.
+P8's fourteenth slice.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `pref`.
+- `spec/Aontu/Verdict.lean`: `Val.prefer` makes `pref(v)` of the
+  argument read before its normal form, as both ports walk it. Each scalar literal
+  and each address becomes a preference of rank one, and each
+  preference and each preferred arm a rank weaker. `pref` prefers a
+  leaf or a preference under a rider whole, rider and all, as both
+  ports carry a rider on the value it rides. The same reading reaches a
+  map's and a list's members, a meet's sides and the value under any
+  other rider. A kind and a bound stay as written. A path not read yet and
+  a call that waits read as `pref` of themselves, which waits, and a
+  `pref` that waits stands where its argument does (`Val.illFormed`).
+- `test/spec/def-path.tsv` gains rows pf0 on, in the three modes of
+  `vet`. Both ports answer every row as the definition does. #482
+  lists the cases where they don't: `pref(1 | 2)` is `*1 | *2`, a
+  clash, which both ports answer `invalid` where `*1 | *2` written so
+  is an `error`.
+- The definition tutorial gains step 34, a preference as a call, and
+  the last step becomes 35. The reference cites `Val.prefer`.
+
+### The definition reads `maybe`
+
+Definition, generated rows, and documentation. No engine changes.
+P10's third slice.
+
+- `spec/Aontu/Syntax.lean`: `Val` gains `absent`, absence, and `Fn`
+  gains `maybe`.
+- `spec/Aontu/Verdict.lean`: `maybeOf` makes `maybe(v)` absence where a
+  reference at the top of `v` names nothing and nothing else is wrong
+  with `v`, which is dead with each such reference read as `nil` and
+  live with each read as `any`. Otherwise `maybe(v)` is `v` with each
+  such reference read as `nil`, so an arm a missing path kills drops,
+  and a conflict stays the document's. A call, a generator, a selection
+  or a `filter` that takes absence makes it, a list holds no position
+  for it, nor does an `each` for an instance that reads as absence, and
+  a fold skips it.
+- `spec/Aontu/Names.lean` and `spec/Aontu/Paths.lean`: a reference
+  `maybe` forgives needn't name anything (`Val.forgive`), in `Declares`
+  and in `Decls.Resolves`.
+- `spec/Aontu/Admits.lean`, `spec/Aontu/Meet.lean` and
+  `spec/Aontu/Output.lean`: absence admits every value, is the unit of
+  the meet but met with `any` stays absence, generates nothing, and is
+  left out of a map's output at a required key as at an optional one
+  (`Val.leftOut`).
+- `test/spec/def-path.tsv` gains rows mb0 on, in the three modes of
+  `vet`. Both ports answer every row as the definition does. #479
+  lists the cases where they don't, and decision 24 of the design note
+  asks whether a list's absent element holds a position.
+- The definition tutorial gains step 33, optional input, and the last
+  step becomes 34. The quotes of earlier steps follow the code, and the
+  reference's section on `maybe`, the design note's P10 row and the
+  definition's README follow.
+
+### The definition reads `abnf` and `parse`
+
+Definition, generated rows, and documentation. No engine changes.
+P12's first slice.
+
+- `spec/Aontu/Admits.lean`: `Host` gains `compiles`, the grammars its
+  compiler compiles, and `tree`, the tree its parser builds of a string
+  a grammar reads whole, none where it doesn't. `parse(g)` alone admits
+  the non-empty strings the grammar parses whole, by `Judge.grammar`,
+  and none where it doesn't compile. The oracle's host reads grammars
+  of one rule of one literal, matched without regard to case or, after
+  `%s`, exactly.
+- `spec/Aontu/Syntax.lean`: `Val` gains `grammar g`, the constraint
+  `parse(g)` is, and `Fn` gains `abnf` and `parse`.
+- `spec/Aontu/Verdict.lean`: `abnfOf` makes a grammar's source where
+  it compiles and refuses it where it doesn't. `parseOf` with a string
+  makes the tree as data, refused for the empty string and a string the
+  grammar doesn't read. The checker reads `parse(g)`, since the host's
+  tree is a function.
+- `test/spec/def-call.tsv` gains rows g0 to g83: `abnf` of a grammar,
+  of texts that compile in no engine and of a number; `parse` of a
+  grammar and a string, met with the tree it must be, and its refusals;
+  and `parse` alone, against data, as a default's alternative and met
+  with a string. Both ports answer every row as the definition does.
+- The definition tutorial gains step 32, grammars, and the last step
+  becomes 33. The reference's section on grammars, the design note's
+  P12 row and the definition's README follow.
+
+### The definition converts a string to an address
+
+Definition, generated rows, and documentation. No engine changes.
+P11's second slice.
+
+- `spec/Aontu/Data.lean`: `Addr.ofText?` reads address text as both
+  ports read the string `path(s)` is handed: `$.` and its steps from
+  the root, or dots and their steps from a relative start, each step
+  one or more letters, digits, `_` or `-`. Text with no start reads from
+  one dot, and `$` alone addresses nothing.
+- `spec/Aontu/Arith.lean` and `spec/Aontu/Verdict.lean`: `Fn` gains
+  `path`, and `pathOf` makes the call: the address a string spells,
+  through its riders, refused where the text spells none, the path value
+  it's handed as it is, refused for any other scalar and for a
+  container, and waiting for anything else. A string a call computes
+  converts once it's settled.
+- `test/spec/def-call.tsv` gains rows k0 to k104: each conversion met
+  with the capture it must equal, or with one it can't, the texts that
+  spell no address, the arguments refused, a computed string, and a path
+  value handed back. Both ports answer every row as the definition does.
+- The definition tutorial's step 31 reads a string's conversion. The
+  reference's section on first-class paths, the design note's P11 row
+  and the definition's README follow.
+
+### The definition holds path values
+
+Definition, generated rows, and documentation. No engine changes.
+P11's first slice.
+
+- `spec/Aontu/Data.lean`: `Addr`, an address, where it starts and its
+  steps as written, and `Data.addr`, an address as a datum. JSON writes
+  an address as its text, and no JSON text reads as one, so `vet`
+  refuses the string that data writes for a path value, as both ports
+  do.
+- `spec/Aontu/Syntax.lean`: `Val` gains `addr a`, the value `path(p)`
+  holds, and `pathKind`, the word `path`.
+- `spec/Aontu/Admits.lean`: a path value admits each address its own
+  opens, itself and every address that adds steps to it, as
+  `Addr.Opens` says, and `path` admits every address.
+- `spec/Aontu/Meet.lean`: two path values meet by the prefix rule, in
+  the longer where one opens the other and in `nil` where neither does,
+  by `addrMeet`, and `path` shares no value with another kind.
+- `spec/Aontu/Output.lean`: a path value generates its own address.
+- `spec/Aontu/Subsume.lean`: a prefix subsumes its extensions, by
+  `addr_le_addr`, and `path` subsumes every path value, by
+  `addr_le_pathKind`.
+- `test/spec/def-gen.tsv` gains rows k0 to k17,
+  `test/spec/def-verdict.tsv` rows k0 to k47, and
+  `test/spec/def-subsume.tsv` rows k0 to k80. Both ports answer every
+  row as the definition does. No row meets a path value with a string
+  constraint, which both ports read by the one address the value
+  spells, so that their answer depends on the order of the meets, which
+  #474 tracks.
+- The definition tutorial gains step 31, path values, and the last step
+  becomes 32. The reference's section on first-class paths, the design
+  note's P11 row and the definition's README follow.
+
+### The definition reads a relative path where it's written
+
+Definition, generated rows and documentation. No engine changes. P9's
+fourth slice.
+
+- `spec/Aontu/Data.lean`: `Seg` gains `up n`, the climb a relative
+  path starts with, a step up for each of its dots.
+- `spec/Aontu/Paths.lean`: `Val.placed` makes each relative path a
+  term writes absolute where it stands, a map's member one key down and
+  a list's element one index down, as `resolveD` places a key. A climb
+  past the top stays as written and resolves nowhere. `Decls.placed`
+  places the schema from the top and each body at its name's own place:
+  `%` and the name, as a key at the top, as both ports place a body. A
+  spread, a template and a `filter`'s condition keep their relative
+  paths as written, since each stands at a position no written step
+  names. `VetP` and `OutputP` place a document before reading it, over
+  `VetA` and `OutputA`, the reading of a document whose paths are
+  absolute, and `placed_checkableA` carries `vetP_iff` through.
+- `test/spec/def-path.tsv` gains rows j0 to j38: a sibling, climbs of
+  two and three steps, one past the top, a key in quotes, an index, a
+  list's element reading its sibling, a chain, a relative path in a
+  call, and a body's, read at the body's own place. Both ports answer
+  every row as the definition does.
+- The definition tutorial's step 9 reads a relative path. The
+  reference's path section, the design note's P9 row and the
+  definition's README follow.
+
+### The definition reads a path's steps as text, and a variable as a step
+
+Definition, generated rows and documentation; no engine changes. P10's
+second slice.
+
+- `spec/Aontu/Data.lean`: `Seg` gains `var n`, a variable as a path's
+  step, as in `$.q.$foo`.
+- `spec/Aontu/Paths.lean`: `Val.atW` reads a written path step by step
+  as text, by the container each step meets, as both ports read it. A
+  map reads the key the text spells, and a list the index it spells in
+  canonical decimal (`Seg.stepIn`, `indexOf?`). So `$.q.0` reads a map's
+  key `"0"`, `$.q."1"` a list's index `1`, and `$.q."01"` nothing.
+  `Decls.bindSeg` reads a variable's step as the text of the scalar the
+  program binds: a string as itself, a number as `Number.text` writes
+  it, and a boolean as its word. Any other binding, such as a kind,
+  `null`, a map or a term that only generates text, names no step, as in
+  both ports, so the path is an error. `OutputP`
+  and `outputP_iff` say what a document with paths generates.
+- `test/spec/def-gen.tsv` gains rows i22 to i33, variables as path
+  steps under the runners' bindings, and `test/spec/def-path.tsv` rows
+  p180 to p194, written steps read by the container they meet. Both
+  ports answer every row as the definition does.
+- The definition tutorial's step 9 reads a written step, and step 30 a
+  variable as a step. The reference's path and variables sections, the
+  design note's P10 row and the definition's README follow.
+
+### The definition holds variables
+
+Definition, generated rows and documentation; no engine changes. P10's
+first slice.
+
+- `spec/Aontu/Names.lean`: `Val.var n` is `$n`, a name the calling
+  program declares where a document declares an alias, the alias
+  `"$n"`, which no document can write. `Decls.withVars` sets the
+  program's bindings beside the document's declarations, so a variable
+  no program binds is a name declared nowhere, an error. A binding is
+  any value the program builds, a kind as well as data.
+- `test/spec/def-gen.tsv` gains rows i0 to i21, which read the variables
+  both runners bind for every row. Both runners now bind the kind
+  `integer` as `kint` too. Both ports answer every row as the
+  definition does.
+- The definition tutorial gains step 30, variables, and the last step
+  becomes 31. The reference's variables section, the design note's P10
+  row and the definition's README follow.
+
+### The definition reads `key(n)` where it stands
+
+Definition, generated rows and documentation; no engine changes. P9's
+third slice.
+
+- `spec/Aontu/Syntax.lean`: `Val` gains `keyUp n`, `key(n)` as written,
+  which refuses every value until a reading places it. `keyUpAt` reads
+  it at a position, the `Step`s from the top: the key or index `n`
+  levels up, `""` past the top or the bottom, and at a spread's
+  own position the term `key` that ruling 13 reads.
+- `spec/Aontu/Verdict.lean`: `resolveD` carries the position each term
+  stands at. A template stands where its instance lands, under the
+  member's key or at its index, and a `filter`'s condition where the
+  member it tries lands, under its key or at the index it takes among
+  those kept, as `keptAt` counts. `Decls.readR` reads from the top, and
+  `Decls.readU` places nothing: it keeps as written each selection whose
+  arms hold a key, each call and each generator whose arguments hold
+  one, and each `filter` whose condition does (`Val.holdsKey`), so that
+  a path copies the computation, to be made where the path lands.
+- `spec/Aontu/Paths.lean`: the roots paths read come from
+  `Decls.readU`, so a key a path reaches reads where the path lands, as
+  both ports read it. `Val.callAt` lets a literal meet an unplaced key
+  as a pair.
+- `test/spec/def-call.tsv` gains 39 cases in rows x2121 to x2237, and
+  `test/spec/def-path.tsv` 21 in rows r0 to r62. Both ports answer
+  every row as the definition does. No row holds a key deeper in a
+  spread, a path shallower than its target, which #463 records, a
+  preference on a key, which #465 records, a path to a call whose list
+  argument holds a key, which changes the call's own value and which
+  #468 records, a path to a `filter` whose condition holds a key, whose
+  declaration the checker can't read, or a path into a generator's
+  output, which decision 22 of the design note raises.
+- The definition tutorial gains step 29, a key where it stands, and the
+  last step becomes 30. The reference's spread and generator sections
+  and `key()` entry, the design note's P9 row and §7, and the
+  definition's README follow.
+
+### The definition holds `pack`
+
+Definition, generated rows and documentation; no engine changes. P9's
+second slice.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `pack`.
+- `spec/Aontu/Verdict.lean`: `pack(d, t)` is the open map of `t` read
+  for each member `Val.keyedMembers` reads, under the member's key: a
+  map's keys, in key order, a member a fold skips left out, and a
+  list's strings, each its own key, riders read through, a key the
+  list repeats making one member, its instances met (`mergeKeys`), as
+  colliding children unify. It's `nil` where a list holds anything but
+  a string or the data is no bag. `Val.keyedMembers_checkableA` and
+  `mergeKeys_checkableA` carry `resolveD_checkableA` through it.
+- `test/spec/def-call.tsv` gains 19 cases in rows x2064 to x2120, and
+  `spec/forms.tsv` gains `pack`. Both ports answer every row as the
+  definition does. No row holds `key()` in a template, which waits on
+  `key()` at any position.
+- The definition tutorial gains step 28, a map from a template, and the
+  last step becomes 29. The reference's generators section, the design
+  note's P9 row and the definition's README follow.
+
+### A component's string spec keeps its riders in Go
+
+Go, shared rows, and documentation; no TypeScript change (#454).
+
+- Go filled the prop a string spec fills with a new string, so a rider
+  on the spec was lost, where TypeScript fills it with the spec itself.
+  Go now does the same, so `folder(meta("src", {title: "x"}))` is
+  `{"name": meta("src", {"title": "x"})}` in both ports' canonical
+  form. The generated JSON was the same in both and doesn't change.
+- `test/spec/cmp.tsv` gains three canonical rows, each answered alike
+  by both ports.
+- The definition tutorial's component step says the riders ride into
+  the prop.
+
+### `translate` writes U+FFFD for a surrogate in `to`
+
+TypeScript, shared and generated rows, and documentation; no Go change
+(#442).
+
+- A range in `translate`'s `to` that crosses the surrogate block names
+  each surrogate, and TypeScript wrote it as a lone surrogate, which no
+  string can hold. It now writes U+FFFD, as Go does:
+  `translate("b", "a-b", "\ud7ff-\ue000")` is `"\ufffd"` in both.
+  A surrogate in `from` still matches no source character.
+- `test/spec/cmp.tsv` gains three rows, and `test/spec/def-call.tsv`
+  three cases in rows x2055 to x2063. Both ports answer every one
+  alike, and as the definition does.
+- The definition tutorial's step 23 and the reference's `translate`
+  section follow.
+
+### A string names a `pick` or `sort` index by its digits alone
+
+TypeScript, shared and generated rows, and documentation; no Go change
+(#437).
+
+- TypeScript reads a string as a list member's index by its digits
+  after one optional sign, as Go's `strconv.Atoi` reads it, where it
+  read it as JavaScript's `Number()` does. `pick([[1, 2]], " 0")`,
+  `pick([[1, 2]], "1e0")` and `sort([[2], [1]], " 0")` are `pick_key`
+  and `sort_key` in both ports, and `"+1"` and `"01"` still name index 1.
+- TypeScript refuses `""` as `pick`'s key, `invalid-arg`, as Go does:
+  it is `sort`'s spelling of the member itself, and names no key.
+- `test/spec/agg.tsv` and `test/spec/sort.tsv` gain 11 rows, and
+  `test/spec/def-call.tsv` ten cases in rows x2025 to x2054. Both ports
+  answer every one alike, and as the definition does.
+- The definition tutorial's step 22 and the reference's `pick` section
+  follow.
+
+### `pick` and `sort` read their projector and direction as values
+
+TypeScript, shared and generated rows, and documentation; no Go change
+(#435).
+
+- TypeScript drives `pick`'s key and `sort`'s projector and direction
+  before it reads them, as it drives the bag and `join`'s separator, so
+  a projector or a direction given through a rider, a mark, a name or a
+  path reads as its value, as Go reads it. `pick([{a: 1}], meta("a", {}))`
+  is `[1]` and `sort([1, 2], "", %D)` with `%D = "desc"` is `[2, 1]`,
+  where TypeScript answered `invalid-arg` and `sort_dir`. A lone
+  preference stays no projector and no direction in both ports.
+- Only an absent projector or direction reads as none in TypeScript. A
+  supplied `null`, written or reached through a rider or a path, is
+  `invalid-arg`, as Go answers, where TypeScript read
+  `sort([2, 1], null)` as `sort([2, 1])`.
+- `test/spec/agg.tsv` and `test/spec/sort.tsv` gain 16 rows, and
+  `test/spec/def-call.tsv` ten cases in rows x1995 to x2024 and three
+  calls on a name in rows z30 to z38. Both ports answer every one alike,
+  and as the definition does.
+- A refusal renders a driven argument by its value in TypeScript and
+  as written in Go, which #457 records; this widens it to the projector
+  and the direction.
+- The definition tutorial's step 22 and the reference's `pick` and
+  `sort` sections follow.
+
+### `rep` reads its replacement before it scans the text
+
+Definition, both ports, shared and generated rows, and documentation.
+Decision 20 of the design note, ruled 2026-10-21 (#449).
+
+- Both ports: `rep` reads its replacement against the pattern's groups
+  before it scans the text, so `rep("abc", "x", "$9")`,
+  `rep("abc", "x", "x$")` and `rep("", "a", "$1")` are `rep_sub`, where
+  they answered the text unchanged. A replacement that names only what
+  the pattern has leaves a text with no match as it is.
+- `spec/Aontu/Admits.lean`: `Host` gains `groups`, how many groups a
+  pattern of the subset captures. `spec/Aontu/Text.lean`: `subReads`
+  reads a replacement against that count, and `repOf` refuses one it
+  doesn't read.
+- `test/spec/str.tsv` gains four rows, and `test/spec/def-call.tsv` 12
+  cases in rows x1959 to x1994. Both ports answer every one alike, and
+  as the definition does.
+- The definition tutorial's step 24 quotes `subReads`, and the
+  reference's `rep` section follows.
+
+### An optional member that generates an empty container is absent
+
+Definition, TypeScript, generated rows and documentation; no Go change.
+Decision 19 of the design note, ruled 2026-10-21 (#428).
+
+- `spec/Aontu/Output.lean`: `genFields` and `genFieldsWith` leave out
+  an optional member whose value generates an empty map or list
+  (`Data.emptyBag`), as Go does, so `{a?: {}}`, `{a?: {b?: integer}}`
+  and `{a?: *[] | [1]}` give `{}`.
+- `spec/Aontu/Verdict.lean`: `Val.members` skips such a member, so
+  `sum({a?: {}, b: 2})` is `2`, and `Val.genCount` doesn't count it, so
+  `len(max(1)) & {x: 1, y?: {}}` admits `{x: 1}`.
+- TypeScript drops an optional disjunction whose default is an empty
+  map or list, as it drops any other optional member's (`BagVal.gen`),
+  so `{a?: *[] | [1]}` gives `{}` as Go gives it.
+- The generated rows gain 18 values for generation, rows g75 to g92,
+  three sizes, rows l48 to l56, and eight calls on a bag with such a
+  member, rows x1935 to x1958. Both ports answer every one as the
+  definition does.
+- The definition tutorial's steps 13 and 20, the definition's README
+  and the language reference's aggregates section follow.
+
+### The definition holds the hole and `each`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes. P9's first slice.
+
+- `spec/Aontu/Syntax.lean`: `Val` gains `hole`, the placeholder `_`.
+  Where no generator fills it, it admits every value, refuses none and
+  generates nothing (`Judge.hole`).
+- `spec/Aontu/Verdict.lean`: `resolveD` reads a term for the member a
+  generator's template is read for, and each hole reads as that member.
+  A spread is read for none, and a `filter` reads its condition for each
+  member it tries, so `filter(["A", "b"], upper(_))` is `["A"]`.
+- `each(d, t)` is the open list of `t` read for each member of `d`, in
+  the order `Val.members` reads them, and `nil` where `d` is no bag. A
+  nested `each` binds its own hole, and its data is read for the outer
+  member. The resolve functions recurse on their term with the member
+  beside it (`termination_by structural`).
+- `test/spec/def-call.tsv` gains 42 cases in rows x1809 to x1934, 11 of
+  them a `filter` whose condition holds the hole. Both ports answer every
+  row as the definition does but six, a wrong number of arguments
+  (#426). `spec/ledger.tsv` lists them, and its bound rises from 192 to
+  198. `spec/forms.tsv` gains `each` and the hole.
+- No row holds a marked list element (decision 18), `key()` in a
+  template, which both ports read as the member's key, or a hole
+  outside a template, which both ports fill from the call's peer.
+- The definition tutorial gains step 27, a list from a template, and
+  the language reference's `each` section cites the rule.
+
+### The definition holds the component functions
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Arith.lean`: `Fn` gains `cmp`, over the ten components
+  of the component tree (`Cmp`).
+- `spec/Aontu/Verdict.lean`: `cmpOf` builds each node, the sealed map
+  of its component's name, its props and its children, from the table
+  both ports keep:
+  - the prop a string spec fills, written wherever it is required, and
+    `""` only where it is a span of text;
+  - `listitems`'s `item` a list, and the props each component admits;
+  - the components each holds. Each nested list of children is spliced
+    into its place, a bare string is a line where the component holds
+    lines, and a node is any map whose `cmp` names a component.
+- Both ports hold a node's props and children open against a
+  `close()` from above, which the definition, holding no `open()`,
+  leaves unsaid. No row closes a node.
+- `test/spec/def-call.tsv` gains 44 cases in rows x1677 to x1808. Both
+  ports answer every row as the definition does but nine, a wrong
+  number of arguments (#426). `spec/ledger.tsv` lists them, and its
+  bound rises from 183 to 192. `spec/forms.tsv` gains the ten
+  components.
+- The definition tutorial gains step 26, the component tree, and the
+  language reference's Generation section cites the rule.
+
+### The definition holds `nom`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Text.lean` holds a name's words and the nine spellings
+  `nom` writes them in, all of it in ASCII case, so none of it is the
+  host's:
+  - `nameWords` cuts a name at `_`, `-` and spaces, and again where
+    `wordStarts`, so `HTTPServer` is `HTTP` and `Server`;
+  - `capitalise` writes a word that matches an acronym as the acronym
+    is written;
+  - `NameStyle.write` spells the words, and `nomName` reads `.` and `/`
+    as `_` first.
+- `spec/Aontu/Verdict.lean`: `nomOf` answers the name in one spelling,
+  or, with no style named, the sealed map of all nine. A style that
+  names no spelling, a bad acronym list, and a name with no word are
+  errors.
+- `test/spec/def-call.tsv` gains 52 cases in rows x1521 to x1676. Both
+  ports answer every row as the definition does but six, a wrong number
+  of arguments (#426). `spec/ledger.tsv` lists them, and its bound rises
+  from 177 to 183. `spec/forms.tsv` gains `nom`.
+- No row writes the style as `""`, which Go reads as no style and TS
+  refuses (#451).
+- The definition tutorial's step 23 gains spelling a name, and the
+  language reference's `nom` entry cites the rule.
+
+### The definition holds `rep`, and `split` reads a pattern's matches
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Admits.lean`: `Host` no longer cuts a string at a
+  pattern. It says which patterns lie in the subset that `rep` and
+  `split` hand the host's pattern engine (`portable`), and where such a
+  pattern's leftmost match at or after a code point falls, with what its
+  groups captured (`find`).
+- `spec/Aontu/Text.lean` holds what the calls make of the matches, read
+  as Go's regexp reads them:
+  - a scan from the left that resumes where the last match stopped, one
+    code point on after an empty match, and skips an empty match that
+    starts where the last one stopped (`scanMatches`);
+  - the fields the matches cut (`cutFields`). A pattern other than `""`
+    cuts the empty text into one empty field (`Host.cut`);
+  - a replacement's `$1` to `$9`, `$&` and `$$`, any other `$` refused
+    (`expandSub`).
+- `spec/Aontu/Verdict.lean`: `repOf` makes `rep`, and `splitOf` refuses
+  a pattern outside the subset. Neither call waits, so a call handed a
+  pattern, which the checker can't read as a term, still reads to one it
+  can (`resolveD_expandF_split`, `resolveD_expandF_rep`).
+- The oracle's host reads fixed patterns alone, text with unnested
+  groups, and `hostReads` refuses a row that hands the host another
+  pattern but four outside the subset.
+- `test/spec/def-call.tsv` gains `rep` in rows x1404 to x1520 and `split`
+  at a pattern in rows v0 to v38. Both ports answer every row as the
+  definition does but six, a wrong number of arguments (#426).
+  `spec/ledger.tsv` lists them, and its bound rises from 171 to 177.
+  `spec/forms.tsv` gains `rep`.
+- No row splits the empty text at a pattern, where TS answers no field
+  and Go one (#447). No row holds a replacement that names a missing
+  group over a text with no match, which both ports answer and the
+  reference may refuse (decision 20, #449).
+- The definition tutorial's step 24 gains matches of a pattern, and the
+  language reference's `rep` and `split` sections cite the rules.
+
+### The definition holds `split`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `splitOf` makes the call, which never
+  waits. The text and the separator read through their riders.
+  - A string separator cuts the text at each occurrence from the left,
+    the occurrences never overlapping, and keeps the empty fields
+    (`splitText`). `""` cuts between every two code points.
+  - A pattern separator, `re(p)`, cuts at the pattern's matches. Where
+    they fall is the host's to say, so `Host` in
+    `spec/Aontu/Admits.lean` gains `split`. The oracle's host splits at
+    no pattern, and no row holds one.
+  - Anything else is an error, a lone preference among them.
+- `test/spec/def-call.tsv` gains 24 cases in rows x1332 to x1403. Both
+  ports answer every row as the definition does but six, a wrong number
+  of arguments (#426). `spec/ledger.tsv` lists them, and its bound rises
+  from 165 to 171. `spec/forms.tsv` gains `split`.
+- The definition tutorial's step 24, now escaping and splitting text,
+  gains `split`, and the language reference's `split` section cites the
+  rule. Step 4's quote of `Host` is refreshed.
+
+### The definition holds `super` as a call
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `callTerm` answers `super(x)` with
+  `Val.super` of the argument as `resolveD` leaves it, before the normal
+  form, so that a preference reads as its default at any depth, as both
+  ports read it: `super(*1)` is `integer`, and `super({a: *1})` is
+  `{a: integer}`.
+- `test/spec/def-call.tsv` gains 37 cases in rows x1221 to x1331. Both
+  ports answer every row as the definition does but six, a wrong number
+  of arguments (#426). `spec/ledger.tsv` lists them, and its bound rises
+  from 159 to 165. `spec/forms.tsv` gains `super`.
+- `copy` waits on #445. The reference says it clears the marks, and
+  both ports clear none on a literal argument, only through a reference.
+- The definition tutorial gains step 25, the parent type, and the
+  language reference's parent types section cites the rule.
+
+### The definition holds `esc` and `usc`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Text.lean`, a new module, holds the seven escaping
+  conventions on a string's code points. With no variant, the
+  convention is C and JSON in double quotes. The others are
+  single-quoted C, standard SQL, POSIX shell quoting, XML's five
+  entities, percent-encoding over UTF-8, and a pattern's
+  metacharacters.
+  - Each is a function from text to text and a partial inverse, which
+    refuses text no text escapes to.
+  - The C escape writes a control character below U+0020 that has no
+    short form as `\u` and four lowercase hexadecimal digits, as JSON
+    writes it. Its inverse reads a surrogate pair whole and refuses a
+    lone surrogate.
+  - Percent-encoding reads bytes back as strict UTF-8 (`utf8Decode`).
+    It refuses an overlong form, a surrogate, a value past U+10FFFF and
+    a sequence cut short.
+- `spec/Aontu/Verdict.lean`: `escOf` makes both calls. The text and the
+  variant are strings, read through their riders. An unknown variant is
+  an error, and so is `usc`'s text where it has no original.
+- The oracle doubles each backslash in a row's cells, which the runners
+  expand, and every earlier fragment regenerates byte-identically.
+- `test/spec/def-call.tsv` gains 51 cases in rows x1068 to x1220. Both
+  ports answer every row as the definition does but six, a wrong number
+  of arguments (#426). `spec/ledger.tsv` lists them, and its bound
+  rises from 153 to 159. `spec/forms.tsv` gains `esc` and `usc`.
+- The definition tutorial gains step 24, escaping text, and the
+  language reference's `esc` and `usc` section cites the rules.
+
+### The definition holds `translate`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `translateOf` makes the call, which never
+  waits. Each argument is a string, read through its riders.
+  - `expandSet` reads a set left to right. A character, a `-` and a
+    character form a range, and a `-` with nothing on one side stands
+    for itself. A range that descends is an error.
+  - `translateChar` writes a code point the set names as the `to`
+    character at the position of its last naming, or `to`'s last where
+    `to` is shorter. Where `to` is empty or absent it writes nothing.
+  - A range counts every code point it crosses, the surrogates too, as
+    both ports do, and a surrogate written from `to` is U+FFFD, as Go
+    writes it. TS writes a lone surrogate (#442).
+- `test/spec/def-call.tsv` gains 34 cases in rows x966 to x1067 and one
+  on a name. Both ports answer every row as the definition does but
+  six, a wrong number of arguments (#426). `spec/ledger.tsv` lists
+  them, and its bound rises from 147 to 153. `spec/forms.tsv` gains
+  `translate`.
+- The definition tutorial's step 23, now changing case and characters,
+  gains `translate`, and the language reference's `translate` entry
+  cites the rule.
+
+### The definition holds `upper` and `lower`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `caseOf` makes both calls. Neither waits.
+  - On a string, the run of code points a start and a length select,
+    `caseSpan`, converts as a whole, and the rest stands. A start of
+    zero or more reaches forward, and a negative one ends the run that
+    far from the end. A negative length is the whole string, and both
+    ends clamp.
+  - A range argument is an integer, or a big integer that 64 bits hold,
+    read through its riders.
+  - On a number with no range, the call rounds up or down in the
+    number's own leaf, exactly: `Number.round` in
+    `spec/Aontu/Arith.lean`.
+  - The argument reads through its riders but not through a lone
+    preference, and anything but a string or a number is an error.
+- `spec/Aontu/Admits.lean`: `Host` gains the case conversion, which the
+  definition leaves to the engines as it leaves patterns. Both engines
+  apply Unicode's default case conversion, at their own table version,
+  which `DIVERGENCE.md` records. The oracle runs the host as
+  `oracleHost`, through `implemented_by`, converting ASCII letters
+  only, so the logical default stays free of axioms. `asciiCase`
+  refuses a row that converts any other letter.
+- `test/spec/def-call.tsv` gains 50 cases in rows x816 to x965 and two
+  on names. Both ports answer every row as the definition does but six,
+  a wrong number of arguments (#426). `spec/ledger.tsv` lists them, and
+  its bound rises from 141 to 147. `spec/forms.tsv` gains `upper` and
+  `lower`.
+- No row holds a big integer index from 2^53 to 2^63, which TS refuses
+  and Go reads (#439).
+- The definition tutorial gains step 23, changing case, and the
+  language reference's rounding section cites the rule. The tutorial's
+  quote of `Host` is refreshed.
+
+### The definition holds `pick` and `sort`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `pickOf` and `sortOf` read the members as
+  the folds read them. Neither waits: each call is the list it makes,
+  or an error.
+  - A projector is a string or an integer, read through its riders. In
+    a map member it names a key, an integer by its digits, so
+    `pick([{"0": 5}], 0)` is `[5]`. In a list member it names an index,
+    a string by its digits after one optional sign, so
+    `pick([[1, 2]], "1")` is `[2]`. `""` names no key in `pick`, and in
+    `sort` it orders the members themselves.
+  - `sort` orders by exact value or by code point, and a bag whose keys
+    mix the two, or hold anything else, is an error. Equal keys keep
+    their order in both directions, and the direction is `asc` or
+    `desc`, read through its riders.
+- `Val.unride` moves from `spec/Aontu/Paths.lean` to
+  `spec/Aontu/Verdict.lean`, beside the proofs that what both calls
+  make is a term the checker reads.
+- `test/spec/def-call.tsv` gains 72 cases in rows x597 to x812 and two
+  on names. Both ports answer every row as the definition does but nine,
+  a wrong number of arguments, which both read as `invalid` (#426).
+  `spec/ledger.tsv` lists them, and its bound rises from 132 to 141.
+  `spec/forms.tsv` gains `pick` and `sort`.
+- No row holds a projector or a direction with a rider or given through
+  a name, which TS reads before evaluating it and so refuses, where Go
+  reads through it (#435). Nor does a row hold a string TS reads as an
+  index as JavaScript's `Number()` does, such as `"1e0"`, or `""` as
+  `pick`'s projector, which TS reads as a key (#437).
+- The definition tutorial gains step 22, picking and sorting, and the
+  language reference's `pick` and `sort` sections cite the rules. Step
+  12's two references to the output now name step 13, which reads it,
+  and step 21's `join` paragraph is its own paragraph again.
+
+### The definition holds `join`
+
+Definition, generated rows, the ledger and its bound in both runners,
+and documentation; no engine changes.
+
+- `spec/Aontu/Verdict.lean`: `joinOf` folds a bag into one string. It
+  reads the members as the folds read them, each member's text the one
+  `+` writes, joined by the separator, `""` where there is none.
+  - Where the bag is one and its separator or a member is not settled,
+    `join` waits, so the document is incomplete: `join([string], ",")`.
+  - Otherwise a separator that is no string, a value that is no bag and
+    a member with no text, `null`, a map or a list, are errors.
+- `Made`, which was `Plus`, is the outcome of a call that can wait, and
+  `Made.term` reads it as a term.
+- `test/spec/def-call.tsv` gains 30 joins, rows x507 on. Both ports
+  answer every row as the definition does but three, `join` with three
+  arguments, which both read as `invalid` (#426). `spec/ledger.tsv`
+  lists them, and its bound rises from 129 to 132. `spec/forms.tsv`
+  gains `join`.
+- The definition tutorial's step 21 and the language reference's
+  `join` section cite the rule.
+
+### The definition holds the `+` operator
+
+Definition, generated rows, ADR-037's status and documentation; no
+engine changes.
+
+- `spec/Aontu/Verdict.lean`: `callTerm` makes every call, and `plusOf`
+  makes a `+` from its operands' normal forms, each read through its
+  riders and a lone preference first, so `*1 + 1` is `2`.
+  - Two numbers add by `add`'s rules, and a sum no leaf holds is `nil`,
+    an error.
+  - A string beside a scalar with text joins the two texts. A number
+    reads as `Number.text` in `spec/Aontu/Arith.lean` writes it: an
+    integer's digits, a big decimal with its point, and a float as
+    JavaScript writes a number, so `"x" + 1e21` is `"x1e+21"`.
+  - Two lists concatenate and two booleans give either.
+  - Anything else waits: a kind, `null`, a map, a list beside a scalar,
+    a boolean beside a number. A `+` that waits generates nothing and
+    refuses nothing, so `vet` reads the document as incomplete. A
+    literal meets it as a pair, `Val.callAt` in
+    `spec/Aontu/Syntax.lean`, rather than by the checker.
+- `plusOf_lists`, `plusOf_nil_list` and `plusOf_list_lit` state
+  ADR-037's rules for lists, and ADR-037 moves to the definition in
+  part. Its sum of an absence waits on `maybe`.
+- `test/spec/def-call.tsv` gains 60 sums, rows x300 on, which both
+  ports answer as the definition does, and `spec/forms.tsv` gains `+`.
+- Review on #430 adds three rules, each as both ports answer:
+  - A bag that carries a mark lifts its members' marks, so
+    `sum(type({a: hide(1), b: 2}))` is `3`.
+  - A rider inside a lone preference reads through, so
+    `add(*(meta(1, {})), 2)` is `3`.
+  - A `match` whose pattern holds a call stays unmade, so an unmade
+    call there is an error.
+- A `+` that waits inside a `match` pattern still reads as refusing,
+  where both ports wait (#432). Rows x480 on hold the three rules and
+  this case, and `spec/ledger.tsv` lists the case with the definition
+  moving, its bound rising from 127 to 129.
+- The definition tutorial gains step 21, sums with `+`, and the
+  language reference's `+` section cites the rules.
+
 ### The definition holds the folds `sum`, `least` and `greatest`
 
 Definition, generated rows, the ledger and its bound in both runners,

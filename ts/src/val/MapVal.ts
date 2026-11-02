@@ -12,7 +12,7 @@ import {
 } from '../type'
 
 import { AontuContext } from '../ctx'
-import { unite } from '../unify'
+import { meetTemplate, unite } from '../unify'
 
 import { sealChild } from './SealVal'
 
@@ -277,7 +277,7 @@ class MapVal extends BagVal {
                   key_spread_cj.isTop && !rides(key_spread_cj) && child.done
                     && undefined === keyctx.prov ? child :
                     child.isTop && !rides(child) && key_spread_cj.done ? key_spread_cj :
-                      unite(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
+                      meetTemplate(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
                         child, key_spread_cj, 'map-own')
 
           if (!spread_cj.isTop && !oval.isNil) {
@@ -349,13 +349,19 @@ class MapVal extends BagVal {
                     unite(te ? peerctx.clone({ explain: ec(te, 'CHD') }) : peerctx,
                       child, peerchild, 'map-peer')
 
+          // A member the spread has met keeps its mark, as a list's element does.
+          if (undefined !== child && !spread_cj.isTop && !oval.isNil &&
+            ((child as any)._spr === spreadId(spread_cj) ||
+              (peerchild as any)._spr === spreadId(spread_cj))) {
+            ; (oval as any)._spr = spreadId(spread_cj)
+          }
+
           if (this.spread.cj && undecided(oval)) {
             done = false
           }
           else if (this.spread.cj && !oval.isAbsent && !out.aliasKeys.includes(peerkey)) {
-            // Same apply-once discipline as the own-key loop: once the
-            // constraint is merged into the value (marked with the
-            // constraint's id), later passes only self-unify.
+            // Applied once, as in the own-key loop: a value marked with
+            // the constraint's id only self-unifies in later passes.
             if ((oval as any)._spr !== spreadId(spread_cj)) {
               let key_spread_cj = spread_cj.spreadClone(peerctx)
 
@@ -364,7 +370,7 @@ class MapVal extends BagVal {
               }
 
               oval = out.peg[peerkey] =
-                unite(te ? peerctx.clone({ explain: ec(te, 'PSP:' + peerkey) }) : peerctx,
+                meetTemplate(te ? peerctx.clone({ explain: ec(te, 'PSP:' + peerkey) }) : peerctx,
                   oval, key_spread_cj, 'map-peer-spread')
 
               if (!spread_cj.isTop && !oval.isNil) {

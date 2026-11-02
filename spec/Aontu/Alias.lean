@@ -971,10 +971,11 @@ theorem Decls.bodiesCheckableB_iff {ds : Decls} :
 the term admits its value and `nil` where it refuses it, decided by the
 checker that reads the names wherever the names keep the alias-cycle
 rule and the bodies and the term read no pattern and no format; and the
-pair where that cannot be computed, or where the term writes a path,
-which is read by declaration later and until then is left as written. -/
+pair where that cannot be computed, where the term writes a path,
+which is read by declaration later and until then is left as written,
+or where the term is a call the reading has not made. -/
 def litMeetD (ds : Decls) (s : Scalar) (b : Val) : Val :=
-  if ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty then
+  if ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty && !b.callAt then
     (if checkR ds b s.data then .lit s else .nil)
   else .meet (.lit s) b
 
@@ -982,10 +983,11 @@ theorem admits_litMeetD {ds : Decls} {root : Data} (s : Scalar) (b : Val) (j : D
     Admits ds.envE root (litMeetD ds s b) j ↔
       Admits ds.envE root (.lit s) j ∧ Admits ds.envE root b j := by
   unfold litMeetD
-  by_cases hc : (ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty) = true
+  by_cases hc : (ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty &&
+      !b.callAt) = true
   · rw [if_pos hc]
     simp only [Bool.and_eq_true] at hc
-    obtain ⟨⟨⟨hg, hb⟩, hcb⟩, -⟩ := hc
+    obtain ⟨⟨⟨⟨hg, hb⟩, hcb⟩, -⟩, -⟩ := hc
     have hg' := Decls.guardedB_iff.mp hg
     have hb' := Decls.bodiesCheckableB_iff.mp hb
     have hcb' := (Val.checkableAB_iff b).mp hcb
@@ -1150,7 +1152,7 @@ theorem Kind.val_checkableA (k : Kind) : k.val.CheckableA := by
 theorem Kind.meet_checkableA (ka kb : Kind) : (ka.meet kb).CheckableA := by
   cases ka <;> cases kb <;> first
     | exact .nil | exact .integer | exact .float | exact .biginteger | exact .bigdecimal
-    | exact .number | exact .string | exact .anyString | exact .boolean
+    | exact .number | exact .string | exact .anyString | exact .boolean | exact .pathKind
 
 theorem litMeet_checkableA (s : Scalar) {b : Val} (hb : b.CheckableA) : (litMeet s b).CheckableA := by
   unfold litMeet
@@ -1171,12 +1173,26 @@ theorem aliasMeet_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA)
     · exact .meet ha hb
     · exact .nil
 
+theorem pathMeet_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
+    (pathMeet a b).CheckableA := by
+  unfold pathMeet
+  split
+  · unfold addrMeet
+    split
+    · exact .addr
+    · split
+      · exact .addr
+      · exact .nil
+  · exact .addr
+  · exact .addr
+  · exact aliasMeet_checkableA ha hb
+
 theorem atomMeet_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
     (atomMeet a b).CheckableA := by
   unfold atomMeet
   split
   · exact Kind.meet_checkableA _ _
-  · exact aliasMeet_checkableA ha hb
+  · exact pathMeet_checkableA ha hb
 
 theorem meetBase_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.CheckableA → (lm s b).CheckableA)
     {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) : (meetBase lm a b).CheckableA := by
@@ -1227,12 +1243,15 @@ theorem mem_superItems {items : List Val} {w : Val} :
 theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA := by
   induction h with
   | integer | float | biginteger | bigdecimal => exact .number
-  | number | string | anyString | boolean | mapKind | listKind | any => exact .any
+  | number | string | anyString | boolean | mapKind | listKind | pathKind | any | absent | nothing | hole =>
+    exact .any
+  | addr => exact .pathKind
+  | grammar => exact .string
   | nil => exact .nil
   | path => exact .path
   | nof _ _ _ _ | must _ _ | when _ _ _ _ _ _ | contains _ _ _ _ | rest _ _ _ _ _ _ _ _
   | selectKey _ _ _ _ _ _ | selectLit _ _ _ _ _ _ | call _ _ => exact .any
-  | key => exact .anyString
+  | key | keyUp => exact .anyString
   | @lit s =>
     cases s with
     | num x =>
@@ -1420,6 +1439,21 @@ theorem meetList_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m 
 
 end
 
+/-- A meet with absence keeps a term the checker can read. -/
+theorem absentOr_checkableA {v : Val} (h : v.CheckableA) : (absentOr v).CheckableA := by
+  unfold absentOr
+  split
+  · exact .absent
+  · exact h
+
+/-- A meet with an atom that admits nothing is a term the checker can
+read. -/
+theorem nothingOr_checkableA (v : Val) : (nothingOr v).CheckableA := by
+  unfold nothingOr
+  split
+  · exact .nothing
+  · exact .nil
+
 section
 variable {rec : Val → Val → Val} (hr : ∀ a b, a.CheckableA → b.CheckableA → (rec a b).CheckableA)
 include hr
@@ -1497,6 +1531,9 @@ theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
     .list (fun _ h => absurd h (List.not_mem_nil)) (fun _ h => nomatch h)
   cases a <;> cases b <;> (unfold meetStep; dsimp only) <;> first
     | exact .nil
+    | exact absentOr_checkableA (hr _ _ .any hb)
+    | exact absentOr_checkableA (hr _ _ ha .any)
+    | exact nothingOr_checkableA _
     | exact meetBase_checkableA hl ha hb
     | exact (match ha with | .meet h₁ h₂ => hr _ _ h₁ (hr _ _ h₂ hb))
     | exact meetRight_checkableA hr ha hb

@@ -122,11 +122,11 @@ class BagVal extends FeatureVal_1.FeatureVal {
                     out.push(v);
                 }
             };
-            // Optional unresolved disjuncts are not an error, just dropped.
+            // An optional disjunct is dropped unresolved or empty, as any optional is.
             if (child.isDisjunct && optional) {
                 const dctx = ctx.clone({ err: [], collect: true });
                 let cval = child.gen(dctx);
-                if (raiseParse(dctx, child, ctx) || undefined === cval) {
+                if (raiseParse(dctx, child, ctx) || undefined === cval || (0, Val_1.empty)(cval)) {
                     continue;
                 }
                 put(cval);
@@ -165,9 +165,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
                 }
                 const details = { key: p };
                 const nerr = (0, err_1.makeNilErr)(ctx, code, va, vb, undefined, details);
-                if (true === va.isTop || undefined !== vb) {
-                    nerr.path = [...this.path, p];
-                }
+                nerr.path = [...this.path, p];
                 break;
             }
         }
