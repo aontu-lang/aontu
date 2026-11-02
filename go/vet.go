@@ -842,7 +842,9 @@ func nilWithin(v Val) *NilVal {
 		}
 		return n
 	case *MapVal:
-		for _, k := range n.keys {
+		keys := append([]string(nil), n.keys...)
+		sort.Strings(keys)
+		for _, k := range keys {
 			members = append(members, n.peg[k])
 		}
 	case *ListVal:

@@ -433,7 +433,8 @@ function nilWithin(v) {
     if (true === v?.isNil) {
         return 'literal_nil' === v.why ? undefined : v;
     }
-    const members = true === v?.isMap ? Object.values(v.peg) :
+    const members = true === v?.isMap ?
+        Object.keys(v.peg).sort(keyorder_1.cmpCodePoint).map((k) => v.peg[k]) :
         true === v?.isList ? v.peg : [];
     for (const m of members) {
         const held = nilWithin(m);
