@@ -5175,6 +5175,66 @@ theorem spread_tmpl_verdict_exact : ∀ c ∈ spreadTmplCases, ∀ (m : Mode) (v
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (spreadTmplCases_checkable c hc)) v
 
+/-- A call over a container that holds a hole, which the call doesn't
+wait on, so no peer of the call fills it, for the `verdict` rows dh0 on:
+a call made from its arguments' values can't be made, so the schema
+doesn't stand, whatever the data writes. Each function over a list that
+holds a hole, at its first argument and at a later one, a `join` at its
+separator and over a `join` that holds one; `sum` over a map, over a
+nested list and over a call that waits on its own hole inside the list;
+met with the value a fill would make, with a list, with a hole and with
+itself; as a list's element, under `type()` and `hide()`, as an
+optional member and under `pref`; beside the call's own hole, which the
+peer fills; and as an arm of a disjunction, which drops. And a `join`
+over a list that holds a hole, which stands, as a list's element and
+under a `join`; the list's own meet, which fills its hole, so the call is
+made; and a spread's template, against data that writes a member and
+data that writes none; as both ports answer. -/
+def heldHoleCases : List (Val × Data) :=
+  let s (t : String) : Val := .lit (.str t)
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let lst (xs : List Val) : Val := .list xs none false
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false
+  let h1 : Val := lst [.hole]
+  let hs : Val := .call .sum [lst [.hole, n 1]]
+  let ja : Val := .call .join [lst [s "a", .hole]]
+  let x : Data := .str "x"
+  [(.call .add [h1, n 1], x), (.call .sub [h1, n 1], x), (.call .mul [h1, n 1], x),
+    (.call .div [h1, n 1], x), (.call .mod [h1, n 1], x), (.call .rem [h1, n 1], x),
+    (.call .add [n 1, h1], x), (.call .add [n 1, mp [("k", .hole)]], x),
+    (.call .sum [h1], x), (.call .least [h1], x), (.call .greatest [h1], x),
+    (.call .upper [h1], x), (.call .lower [h1], x), (.call .upper [s "x", h1], x),
+    (.call .esc [h1], x), (.call .esc [s "x", h1], x), (.call .usc [h1], x),
+    (.call .rep [h1, s "a", s "b"], x),
+    (.call .split [h1, s ","], x), (.call .translate [h1, s "a", s "b"], x),
+    (.call .nom [h1], x), (.call .pick [h1, s "a"], x),
+    (.call .pick [lst [mp [("a", n 1)]], h1], x), (.call .sort [h1], x),
+    (.call .sort [lst [n 1], h1], x), (.call .path [h1], x), (.call .abnf [h1], x),
+    (.call .parse [h1], x), (.call (.cmp .line) [h1], x),
+    (.call .join [lst [s "a"], h1], x),
+    (.call .upper [.call .join [h1]], x), (.call .split [ja, s ","], x),
+    (hs, .integer 3), (.call .upper [h1], .str "A"),
+    (.call .sum [mp [("k", .hole)]], .integer 3), (.call .sum [lst [h1, n 1]], .integer 3),
+    (.call .sum [lst [.call .upper [.hole], n 1]], .integer 3),
+    (.meet hs (n 3), .integer 3), (.meet hs (n 3), .integer 4),
+    (.meet hs (lst [n 2, n 1]), .integer 3), (.meet hs .hole, .integer 3),
+    (.meet hs hs, .integer 3),
+    (lst [hs], .list [.integer 3]), (.ride .type hs [], .integer 3), (.ride .hide hs [], .integer 3),
+    (.map [("a", true, hs)] none false, .map []), (.call .pref [hs], .integer 3),
+    (.meet (.call .add [.hole, hs]) (n 2), .integer 3),
+    (.or [(0, hs), (0, n 4)], .integer 4), (.or [(0, hs), (0, n 4)], .integer 3),
+    (lst [ja], .list [.str "a"]), (.call .join [lst [ja]], x),
+    (.call .sum [.meet (lst [.hole, n 1]) (lst [n 2, n 1])], .integer 3),
+    (.map [] (some hs) false, .map [("a", .integer 3)]), (.map [] (some hs) false, .map [])]
+
+set_option maxRecDepth 8192 in
+theorem heldHoleCases_checkable : ∀ c ∈ heldHoleCases, (vetDoc c).1.CheckableA := by decide
+
+theorem held_hole_verdict_exact : ∀ c ∈ heldHoleCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (heldHoleCases_checkable c hc)) v
+
 set_option maxRecDepth 8192 in
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
 
@@ -6144,10 +6204,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# wait on a hole, which is an error however it is grouped, follows in rows dg0 on."
     IO.println "# A spread's template that waits on a hole at its own position, each of its sides"
     IO.println "# and arms met with the member and a hole bound to it, follows in rows dt0 on."
+    IO.println "# A call over a container that holds a hole, which no peer of the call fills, so"
+    IO.println "# that a call made from its arguments' values can't be made, follows in rows dh0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
-        heldFailCases ++ pathCallCases do
+        heldFailCases ++ pathCallCases ++ heldHoleCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -6174,6 +6236,7 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "da" illArmCases
     verdictRows "dg" groupCases
     verdictRows "dt" spreadTmplCases
+    verdictRows "dh" heldHoleCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"

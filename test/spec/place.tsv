@@ -95,15 +95,17 @@ place-seal-around-rider-record-settles	gens	a:close(meta({x:upper(_)},{d:sum([1,
 # A call waits on a hole among its own arguments, and through a call or
 # a rider among them, but not on one a container argument holds: that
 # hole is the container's, which its own meet fills. So the peer leaves
-# it unfilled and the call can't be made. Where the call waits on a hole
-# of its own as well, the peer fills that one alone, and a container
-# met with a waiting call is the call's argument, not a second hole.
-place-hole-in-list-arg	errc	a:sum([_,1]) & 3\n	mapval_no_gen
+# it unfilled, and a call that computes from its arguments' values fails
+# once they settle, as it can't be made. A join stands, as the
+# definition reads it. Where the call waits on a hole of its own as
+# well, the peer fills that one alone, and a container met with a
+# waiting call is the call's argument, not a second hole.
+place-hole-in-list-arg	errc	a:sum([_,1]) & 3\n	place_container
 place-hole-in-list-arg-join	errc	a:join(["a",_],"-") & "b"\n	mapval_no_gen
-place-hole-in-list-arg-scalar	errc	a:upper([_]) & "a"\n	mapval_no_gen
-place-hole-in-map-arg	errc	a:upper({k:_}) & "a"\n	mapval_no_gen
-place-hole-in-list-arg-member	errc	a:{k:sum([_,1])} & {k:3}\n	mapval_no_gen
-place-hole-binds-own-only	errc	a:add(_,sum([_,1])) & 2\n	mapval_no_gen
+place-hole-in-list-arg-scalar	errc	a:upper([_]) & "a"\n	place_container
+place-hole-in-map-arg	errc	a:upper({k:_}) & "a"\n	place_container
+place-hole-in-list-arg-member	errc	a:{k:sum([_,1])} & {k:3}\n	place_container
+place-hole-binds-own-only	errc	a:add(_,sum([_,1])) & 2\n	place_container
 place-hole-sep-binds-own-only	errc	a:join([_,"b"],_) & "-"\n	mapval_no_gen
 place-hole-peer-container	errc	a:upper(_) & [_]\n	mapval_no_gen
 

@@ -703,6 +703,9 @@ help isolate the syntax error.`,
         const val = null == funcval ?
             new NilVal_1.NilVal({ why: 'unknown_function' }) :
             new funcval({ peg: args });
+        if (undefined !== PlaceVal_1.HOLDING[fname]) {
+            args.slice(PlaceVal_1.HOLDING[fname]).forEach((a) => (0, PlaceVal_1.holdHoles)(a, false));
+        }
         return val;
     };
     let opmap = {

@@ -4,7 +4,10 @@ package aontu
 
 
 // PlaceVal is the hole.
-type PlaceVal struct{ base }
+type PlaceVal struct {
+	base
+	held bool
+}
 
 func newPlace() *PlaceVal {
 	p := &PlaceVal{}
@@ -141,6 +144,100 @@ func holeIn(v Val, bags bool) bool {
 		}
 	}
 	return false
+}
+
+// holdingFuncs compute from their arguments' values, so are made only
+// once those values are whole, by the first argument whose holes they
+// hold: a join over a list that holds a hole stands, as the definition
+// reads it, so its separator is the first.
+var holdingFuncs = map[string]int{
+	"add": 0, "sub": 0, "mul": 0, "div": 0, "mod": 0, "rem": 0, "sum": 0,
+	"least": 0, "greatest": 0, "pick": 0, "sort": 0, "join": 1, "upper": 0,
+	"lower": 0, "esc": 0, "usc": 0, "rep": 0, "split": 0, "translate": 0,
+	"nom": 0, "path": 0, "abnf": 0, "parse": 0, "project": 0, "folder": 0,
+	"file": 0, "content": 0, "line": 0, "fragment": 0, "slot": 0,
+	"inject": 0, "copyfiles": 0, "listitems": 0,
+}
+
+// A hole in a container a call takes is held: no peer of the call fills it.
+func holdHoles(v Val, bagged bool) {
+	switch n := v.(type) {
+	case *PlaceVal:
+		n.held = n.held || bagged
+	case *FuncVal:
+		bound := boundArgStart(n)
+		for i, a := range n.peg {
+			if bound <= i {
+				break
+			}
+			holdHoles(a, bagged)
+		}
+	case *PlusOpVal:
+		for _, a := range n.peg {
+			holdHoles(a, bagged)
+		}
+	case *ConjunctVal:
+		for _, a := range n.peg {
+			holdHoles(a, bagged)
+		}
+	case *DisjunctVal:
+		for _, a := range n.peg {
+			holdHoles(a, bagged)
+		}
+	case *PrefVal:
+		holdHoles(n.peg, bagged)
+	case *MapVal:
+		for _, k := range n.keys {
+			holdHoles(n.peg[k], true)
+		}
+	case *ListVal:
+		for _, e := range n.peg {
+			holdHoles(e, true)
+		}
+	}
+}
+
+func heldIn(v Val) bool {
+	switch n := v.(type) {
+	case *PlaceVal:
+		return n.held
+	case *FuncVal:
+		bound := boundArgStart(n)
+		return anyHeld(n.peg[:min(bound, len(n.peg))])
+	case *PlusOpVal:
+		return anyHeld(n.peg)
+	case *ConjunctVal:
+		return anyHeld(n.peg)
+	case *DisjunctVal:
+		return anyHeld(n.peg)
+	case *PrefVal:
+		return heldIn(n.peg)
+	case *ListVal:
+		return anyHeld(n.peg)
+	case *MapVal:
+		for _, k := range n.keys {
+			if heldIn(n.peg[k]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func anyHeld(vs []Val) bool {
+	for _, v := range vs {
+		if heldIn(v) {
+			return true
+		}
+	}
+	return false
+}
+
+// Settled but for a hole its own container holds, which nothing fills.
+func unfillable(ctx *Ctx, f *FuncVal, args []Val) bool {
+	_, holds := holdingFuncs[f.name]
+	return ctx.settle && holds && !waitsOnHole(f) &&
+		allDoneButHoles(args) && anyHeld(args)
 }
 
 func fillPlace(v Val, fill Val) Val { return fillIn(v, fill, true) }

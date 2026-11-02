@@ -44,13 +44,13 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **196** codes across
+There are seven classes, and the registry holds **197** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
 | `parse` | 57 | the text is not a document |
-| `conflict` | 62 | two values cannot both hold |
+| `conflict` | 63 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 36 | a name or path resolves to nothing |
 | `compat` | 14 | a change breaks an earlier version |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 196 codes have hint text. `aontu explain --list`
+**Hint text.** All 197 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -294,6 +294,7 @@ twenty rows have no such section and carry no link.
 | `operate` | 0.51.0 | The operation could not be performed over the values given. |
 | `parse_failed` | 0.63.0 | The text does not parse under the grammar given, so the field is refused. ([Grammars: `abnf()` and `parse()`](reference-language.md#grammars-abnf-and-parse)) |
 | `pick_key` | 0.53.0 | A child of the bag has no key for `pick` to project. ([Missing fields and invalid arguments](reference-language.md#missing-fields-and-invalid-arguments)) |
+| `place_container` | 0.77.0 | A call made from its arguments' values takes a list or a map that holds a hole, which nothing fills. ([The placeholder `_`](reference-language.md#the-placeholder-_)) |
 | `place_pair` | 0.53.0 | Two placeholders met, and neither has a value to fill the other. ([The placeholder `_`](reference-language.md#the-placeholder-_)) |
 | `pref_rank_clash` | 0.54.0 | Two defaults of the same rank disagree. ([Preference / default `*`](reference-language.md#preference--default-)) |
 | `relation_cycle` | 0.53.0 | A relation declared `acyclic()`, and its edges form a cycle. ([Declared relations](reference-language.md#declared-relations)) |

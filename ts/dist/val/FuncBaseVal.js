@@ -131,8 +131,12 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     // loop keeps going; unchanged against TOP, so nothing reads an answer
     // it has not given; and collapsed against an identical twin at the
     // same position, so `key() & key()` does not grow a conjunct per pass.
+    // A wait nothing can end is the call's failure instead.
     residuate(peer, ctx) {
         this.notdone();
+        if ((0, PlaceVal_1.unfillable)(ctx, this, this.peg)) {
+            return (0, err_1.makeNilErr)(ctx, 'place_container', this, undefined, 'make');
+        }
         if (peer.isTop || (peer.id === this.id)) {
             // Cloned rather than returned: a driver that met the same object
             // twice in one pass would charge the revisit budget and report
@@ -235,6 +239,10 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                     out.path = true === peer.isMap && 0 < peer.aliasKeys.length ?
                         peer.path : this.path;
                     why += 'pegdone';
+                }
+                else if ((0, PlaceVal_1.unfillable)(ctx, this, newpeg)) {
+                    out = (0, err_1.makeNilErr)(ctx, 'place_container', this, undefined, 'make');
+                    why += 'held';
                 }
                 else if (peer.isTop) {
                     this.notdone();

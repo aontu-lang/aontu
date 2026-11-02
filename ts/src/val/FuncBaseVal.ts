@@ -30,7 +30,7 @@ import {
 
 import { ConjunctVal } from '../val/ConjunctVal'
 import { FeatureVal } from '../val/FeatureVal'
-import { hasPlace, waitsOnHole, bindHole } from '../val/PlaceVal'
+import { hasPlace, waitsOnHole, bindHole, unfillable } from '../val/PlaceVal'
 import { bagMembers } from './members'
 
 
@@ -191,8 +191,13 @@ class FuncBaseVal extends FeatureVal {
   // loop keeps going; unchanged against TOP, so nothing reads an answer
   // it has not given; and collapsed against an identical twin at the
   // same position, so `key() & key()` does not grow a conjunct per pass.
+  // A wait nothing can end is the call's failure instead.
   residuate(peer: Val, ctx: AontuContext): Val {
     this.notdone()
+
+    if (unfillable(ctx, this, this.peg)) {
+      return makeNilErr(ctx, 'place_container', this, undefined, 'make')
+    }
 
     if (peer.isTop || (peer.id === this.id)) {
       // Cloned rather than returned: a driver that met the same object
@@ -323,6 +328,10 @@ class FuncBaseVal extends FeatureVal {
             peer.path : this.path
 
           why += 'pegdone'
+        }
+        else if (unfillable(ctx, this, newpeg)) {
+          out = makeNilErr(ctx, 'place_container', this, undefined, 'make')
+          why += 'held'
         }
         else if (peer.isTop) {
           this.notdone()

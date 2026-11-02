@@ -8,6 +8,45 @@ each change affects.
 
 ## Unreleased
 
+### `vet` reads a call over a container that holds a hole as an error
+
+TypeScript and Go, generated rows, shared rows, and documentation.
+
+- A call waits on no hole that a container argument holds, as that
+  hole is the container's, so no peer of the call fills it. Both
+  engines left such a call waiting, so `vet` answered `incomplete`, or
+  `invalid` where the data conflicted with a peer, where the definition
+  reads a schema that doesn't stand (#581). A call made from its
+  arguments' values, the arithmetic, the folds, the string calls,
+  `pick`, `sort`, `path`, `abnf`, `parse` and the components, now fails
+  as `place_container` once its arguments settle: `v: sum([_, 1])`,
+  `v: upper([_])` and `v: add(_, sum([_, 1])) & 2` are `error` against
+  any data, under `type()`, `hide()`, an optional key and in a list too,
+  and `a: sum([_, 1]) & 3` fails with `place_container` rather than
+  `mapval_no_gen`.
+- A disjunction drops such an arm, so `v: sum([_, 1]) | 4` passes
+  `v: 4`, and the list's own meet still fills its hole, so
+  `v: sum([_, 1] & [2, 1])` passes `v: 3`. A `join` over a list that
+  holds a hole stands, as the definition reads it, so
+  `v: join(["a", _], "-") & "b"` stays `incomplete`, while both engines
+  hold a hole in its separator, so `v: join(["a"], [_])` is `error`. A
+  generator still fills its template member by member, so
+  `each([1, 2], sum([_, 1]))` is `[2, 3]`.
+- A hole a path names stays the data's to fill, so `v: sum($.x)` beside
+  `x: [_, 1]` passes `{v: 3, x: [2, 1]}`, where the definition reads an
+  error (#585), and `super`, `pref`, `move`, `refer`, `rel` and `min`
+  over such a container still wait (#584).
+- New error code `place_container`, class `conflict`, in
+  `test/spec/errcodes.tsv`. `spec/Oracle.lean`: rows dh0 on of
+  `test/spec/def-call.tsv`, 55 cases in each of the three modes, which
+  both engines answer as the definition does, and no other row moves.
+  Rows `place-hole-in-list-arg`, `place-hole-in-list-arg-scalar`,
+  `place-hole-in-map-arg`, `place-hole-in-list-arg-member` and
+  `place-hole-binds-own-only` of `test/spec/place.tsv` move from
+  `mapval_no_gen` to `place_container`.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step on holes.
+
 ### TypeScript fills a hole in `abnf` and `parse`
 
 TypeScript, and shared rows.
@@ -55,8 +94,6 @@ TypeScript and Go, shared rows, and documentation.
   `vet-optional-parse-refusal-nested` of `test/spec/vet.tsv`, a
   parser's refusal beneath an optional key, move from `invalid` to
   `error`.
-- A call over a container that holds a hole is still read as
-  `incomplete`, where the definition reads an error (#581).
 - Docs: the reference's arithmetic section and the definition
   tutorial's steps on calls.
 
