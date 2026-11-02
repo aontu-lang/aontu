@@ -22,7 +22,7 @@ import {
 
 
 import { JunctionVal } from './JunctionVal'
-import { waitsOnHole } from './PlaceVal'
+import { hasPlace, waitsOnHole } from './PlaceVal'
 import { sizingResidue } from './BagVal'
 
 import {
@@ -77,6 +77,18 @@ class ConjunctVal extends JunctionVal {
         const pair = true === t.isConjunct ? waitPair(t) : undefined
         if (undefined !== pair) {
           return makeNilErr(ctx, 'place_pair', pair[0], pair[1])
+        }
+      }
+
+      // A group that fills its own hole settles first, as it's grouped.
+      for (let tI = 0; tI < this.peg.length; tI++) {
+        const t = this.peg[tI]
+        if (true === t.isConjunct && hasPlace(t) && !waits(t)) {
+          const settled = unite(ctx, t, top(), 'cj-group')
+          if (settled.isNil) {
+            return settled
+          }
+          this.peg[tI] = settled
         }
       }
     }

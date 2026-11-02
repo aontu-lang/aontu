@@ -4638,7 +4638,14 @@ that writes that and data that writes the list bound to the hole; a
 `+` whose own operand is the hole beside a list that holds one,
 against data that fills the list's hole and data that leaves it out;
 the `+` alone, whose hole the data fills; and a `+` over a hole and a
-list. -/
+list. And a `+` whose operand list holds a call over a hole, which the
+meet fills once the lists are joined: on the left of the meet, against
+data that writes the call's output and data that writes the peer, on
+the right, in the right list, and inside a map; and a `+` whose right
+list holds a `key()`, which reads its index where it's written, against
+data that writes that index and data that writes the joined one; and a
+`+` over a list with a spread, which meets its elements before the
+join, one that refuses an element and one that waits on a hole. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4831,7 +4838,17 @@ def holeFillVetCases : List (Val × Data) :=
     (.meet (.call .plus [lst [.hole], .hole]) (lst [s "a"]), .list [.str "a"]),
     (.meet (.call .plus [lst [.hole], .hole]) (lst [s "a"]), .list [.list [.str "a"], .str "a"]),
     (.call .plus [lst [s "a", .hole], lst [s "c"]], .list [.str "a", .str "b", .str "c"]),
-    (.meet (.call .plus [.hole, lst [s "c"]]) (lst [s "a"]), .list [.str "a", .str "c"])]
+    (.meet (.call .plus [.hole, lst [s "c"]]) (lst [s "a"]), .list [.str "a", .str "c"]),
+    (.meet (.call .plus [lst [up .hole], lst [s "c"]]) (lst [s "a", s "c"]), .list [.str "A", .str "c"]),
+    (.meet (.call .plus [lst [up .hole], lst [s "c"]]) (lst [s "a", s "c"]), .list [.str "a", .str "c"]),
+    (.meet (lst [s "a", s "c"]) (.call .plus [lst [up .hole], lst [s "c"]]), .list [.str "A", .str "c"]),
+    (.meet (.call .plus [lst [s "a"], lst [up .hole]]) (lst [s "a", s "c"]), .list [.str "a", .str "C"]),
+    (.meet (.call .plus [lst [mp [("k", up .hole)]], lst [s "c"]]) (lst [mp [("k", s "a")], s "c"]),
+      .list [.map [("k", .str "A")], .str "c"]),
+    (.call .plus [lst [n 5], lst [mp [("n", .keyUp 1)]]], .list [.integer 5, .map [("n", .str "0")]]),
+    (.call .plus [lst [n 5], lst [mp [("n", .keyUp 1)]]], .list [.integer 5, .map [("n", .str "1")]]),
+    (.call .plus [.list [n 1] (some .string) false, lst []], .list [.integer 1]),
+    (.call .plus [.list [s "a"] (some (up .hole)) false, lst [s "b"]], .list [.str "A", .str "b"])]
 
 set_option maxRecDepth 8192 in
 /-- A hole the document leaves unfilled, which the data fills, the data
@@ -4987,7 +5004,11 @@ the meet does, among them a member whose meet fills its own hole; a
 call beside two holes, which meet as one; and a disjunction's arm that
 holds one
 dropping as a conflict's arm does, so that another arm stands, or an
-error where none does, as both ports answer. -/
+error where none does, as both ports answer. And a call met with a
+group that fills its own hole, which reads as the group's value: on
+the call's right, against data the call's output passes and data it
+refuses, and on its left, each beside a literal too, and a group that
+is a call its own other side fills. -/
 def groupCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5031,7 +5052,13 @@ def groupCases : List (Val × Data) :=
     (.meet (mp [("a", s "X")]) (.meet (mp [("a", up .hole)]) (mp [("a", .meet .hole (s "X"))])),
       .map [("a", .str "X")]),
     (.meet (lst [s "X"]) (.meet (lst [up .hole]) (lst [.meet .hole (s "X")])), .list [.str "X"]),
-    (.meet (s "x") (.meet (up .hole) (.meet .hole .hole)), .str "X")]
+    (.meet (s "x") (.meet (up .hole) (.meet .hole .hole)), .str "X"),
+    (.meet (up .hole) (.meet .hole (s "A")), .str "A"),
+    (.meet (up .hole) (.meet .hole (s "A")), .str "a"),
+    (.meet (.meet .hole (s "A")) (up .hole), .str "A"),
+    (.meet (s "A") (.meet (up .hole) (.meet .hole (s "A"))), .str "A"),
+    (.meet (s "A") (.meet (.meet .hole (s "A")) (up .hole)), .str "A"),
+    (.meet (up .hole) (.meet (up .hole) (s "a")), .str "A")]
 
 theorem groupCases_checkable : ∀ c ∈ groupCases, (vetDoc c).1.CheckableA := by decide
 

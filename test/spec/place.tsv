@@ -173,3 +173,34 @@ place-plus-join-key-hole	gens	l:(["a",_] + [{n:key()}]) & ["a","b"]\n	{"l":["a",
 place-plus-operand-hole	gens	v:(_ + ["c"]) & ["a"]\n	{"v":["a","c"]}
 place-plus-operand-hole-right	gens	v:["a"] & (_ + ["c"])\n	{"v":["a","c"]}
 place-plus-operand-hole-own-only	err	v:([_] + _) & ["a"]\n	[aontu/listval_no_gen]: Cannot resolve value at path $.v.0
+
+# A call over a hole in an operand list of `+` meets its member once the
+# lists are joined, and the meet fills it: on either side of the meet,
+# in the right list, inside a map, in both lists, and from a shorter
+# peer. Met again, the filled member conflicts with the peer's. A `key()`
+# reads its index where it's written, in either list, and a list's spread
+# meets its elements before the lists join.
+place-plus-join-call	gens	v:([upper(_)] + ["c"]) & ["a","c"]\n	{"v":["A","c"]}
+place-plus-join-call-right	gens	v:["a","c"] & ([upper(_)] + ["c"])\n	{"v":["A","c"]}
+place-plus-join-call-in-right	gens	v:(["a"] + [upper(_)]) & ["a","c"]\n	{"v":["a","C"]}
+place-plus-join-call-member	gens	v:([{k:upper(_)}] + ["c"]) & [{k:"a"},"c"]\n	{"v":[{"k":"A"},"c"]}
+place-plus-join-calls	gens	v:([upper(_)] + [lower(_)]) & ["a","B"]\n	{"v":["A","b"]}
+place-plus-join-call-shorter	gens	v:([upper(_)] + ["c"]) & ["a"]\n	{"v":["A","c"]}
+place-plus-join-call-again	errc	v:(([upper(_)] + ["c"]) & ["a","c"]) & ["a","c"]\n	scalar_value
+place-plus-join-call-key-left	gens	v:([{n:key()}] + [upper(_)]) & [{},"a"]\n	{"v":[{"n":"0"},"A"]}
+place-plus-join-call-key-right	gens	v:([upper(_)] + [{n:key()}]) & ["a"]\n	{"v":["A",{"n":"0"}]}
+place-plus-join-spread	errc	v:([&: string, 1] + [])\n	no_scalar_unify
+place-plus-join-spread-hole	gens	v:([&: upper(_), "a"] + ["b"])\n	{"v":["A","b"]}
+
+# A group that fills its own hole is read first, as it's grouped, so a
+# call it meets takes the group's value: a hole met with a literal, a
+# call its own other side fills, beside a literal, as a map's member and
+# a list's element, and over a number. A literal the call's output
+# conflicts with is refused.
+place-group-fills-own	gens	v:upper(_) & (_ & "A")\n	{"v":"A"}
+place-group-fills-own-literal	gens	v:"A" & (upper(_) & (_ & "A"))\n	{"v":"A"}
+place-group-fills-own-call	gens	v:upper(_) & (upper(_) & "a")\n	{"v":"A"}
+place-group-fills-own-member	gens	v:{a:upper(_) & (_ & "A")}\n	{"v":{"a":"A"}}
+place-group-fills-own-element	gens	v:[upper(_) & (_ & "A")]\n	{"v":["A"]}
+place-group-fills-own-number	gens	v:add(_,1) & (_ & 2)\n	{"v":3}
+place-group-fills-own-conflict	errc	v:upper(_) & (_ & "A") & "a"\n	scalar_value

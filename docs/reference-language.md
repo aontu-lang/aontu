@@ -1385,7 +1385,10 @@ more than one peer the fill
 follows the document's grouping, so `upper(_) & ("a" & "a")` reads as
 `upper("a")`, which is `"A"`. Both engines read a conjunction in the
 order it's written instead and answer a conflict, which
-[#512](https://github.com/aontu-lang/aontu/issues/512) tracks. `vet`
+[#512](https://github.com/aontu-lang/aontu/issues/512) tracks. A group
+that fills its own hole is one both engines read first, as it's
+grouped, so `upper(_) & (_ & "A")` is `"A"`, and rows from dg126 on
+hold them to it. `vet`
 meets the data last, so the data fills a hole that no peer in the
 document fills (`Decls.readJ`): the call takes the data as its argument
 rather than meeting it, so `v: upper(_)` passes against `v: "a"`, and

@@ -46,6 +46,17 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
                     return (0, err_1.makeNilErr)(ctx, 'place_pair', pair[0], pair[1]);
                 }
             }
+            // A group that fills its own hole settles first, as it's grouped.
+            for (let tI = 0; tI < this.peg.length; tI++) {
+                const t = this.peg[tI];
+                if (true === t.isConjunct && (0, PlaceVal_1.hasPlace)(t) && !waits(t)) {
+                    const settled = (0, unify_1.unite)(ctx, t, (0, top_1.top)(), 'cj-group');
+                    if (settled.isNil) {
+                        return settled;
+                    }
+                    this.peg[tI] = settled;
+                }
+            }
         }
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Conjunct', this, peer);
         const carried = [];

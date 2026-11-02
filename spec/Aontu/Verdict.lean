@@ -2396,11 +2396,22 @@ def spreadAll (fs : List (String × Bool × Val)) (sp : Option Val) : List (Stri
 def spreadAllItems (xs : List Val) (sp : Option Val) : List Val × Option Val :=
   heldItems 0 (spreadItems 0 xs sp).1 (spreadItems 0 xs sp).2
 
+/-- `+` over two lists written as lists with no spread, joined as
+`plusOf` joins them, so that a meet around it pairs the joined list's
+members with its peer's; but one whose right list holds a `key(n)`,
+which reads its index where it's written, one over a list whose spread
+is still to meet its elements, and any other `+`, kept as the call. -/
+def joinedArgs (args : List Val) : Val :=
+  match args with
+  | [.list xs none _, .list ys none _] => if keyItems ys then .call .plus args else .list (xs ++ ys) none false
+  | _ => .call .plus args
+
 mutual
 /-- The term with each meet that waits on a hole on one side and on none
 on the other read as that side with the hole bound to the other, the
-meets beneath it first, a map's declarations of a key among them,
-through every form but where a hole is bound: a generator's template,
+meets beneath it first, a map's declarations of a key among them and
+a `+` over two lists joined, through every form but where a hole is
+bound: a generator's template,
 an `emit`'s table, a `filter`'s condition and a spread's template that
 waits on a hole at its own position (`tmplSpread`). -/
 def Val.filled : Val → Val
@@ -2425,6 +2436,7 @@ def Val.filled : Val → Val
   | .call .each args => .call .each (filledHead args)
   | .call .pack args => .call .pack (filledHead args)
   | .call .emit args => .call .emit (filledHead args)
+  | .call .plus args => joinedArgs (filledItems args)
   | .call f args => .call f (filledItems args)
   | v => v
 
@@ -3695,6 +3707,25 @@ theorem joinFields_checkableA : ∀ {seen : List String} {fs : List (String × B
         exact joinAt_checkableA (x := (x, o₁)) hx hf'
       · exact joinFields_checkableA hf' _ _ _ h
 
+/-- Joining two lists the checker can read leaves one it can read. -/
+theorem joinedArgs_checkableA {vs : List Val} (h : ∀ a, a ∈ vs → a.CheckableA) :
+    (joinedArgs vs).CheckableA := by
+  unfold joinedArgs
+  split
+  · split
+    · exact .call h
+    · have hx := h _ (List.mem_cons_self ..)
+      have hy := h _ (List.mem_cons_of_mem _ (List.mem_cons_self ..))
+      cases hx with
+      | list hxs _ =>
+        cases hy with
+        | list hys _ =>
+          refine .list (fun v hv => ?_) (fun _ hs => absurd hs (by simp))
+          rcases List.mem_append.mp hv with hv | hv
+          · exact hxs v hv
+          · exact hys v hv
+  · exact .call h
+
 /-- The fill, and a spread's template kept at its own position, leave a
 term the checker can read. -/
 theorem filled_tmpl_checkableA {v : Val} (h : v.CheckableA) :
@@ -3801,7 +3832,7 @@ theorem filled_tmpl_checkableA {v : Val} (h : v.CheckableA) :
       · exact h a ha
       · exact (ih u hu).1
     refine ⟨?_, .call h⟩
-    cases f <;> first | exact .call hh | exact .call hi
+    cases f <;> first | exact .call hh | exact .call hi | exact joinedArgs_checkableA hi
   | _ => exact ⟨by simp only [Val.filled]; constructor <;> assumption, by constructor <;> assumption⟩
 
 /-- The fill leaves a term the checker can read as one it can read. -/
