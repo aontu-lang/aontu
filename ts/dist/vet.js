@@ -427,6 +427,22 @@ function vetCoverage(anchor, dataVal, coverageAt, root) {
         vacuous: 0 === checked && 0 < leaves,
     };
 }
+// The first failure a schema holds by key and index, but a written `nil`:
+// one built as the schema is read stands in its tree, not among its errors.
+function nilWithin(v) {
+    if (true === v?.isNil) {
+        return 'literal_nil' === v.why ? undefined : v;
+    }
+    const members = true === v?.isMap ? Object.values(v.peg) :
+        true === v?.isList ? v.peg : [];
+    for (const m of members) {
+        const held = nilWithin(m);
+        if (undefined !== held) {
+            return held;
+        }
+    }
+    return undefined;
+}
 function vet(schemaSrc, dataSrc, opts) {
     const options = opts ?? {};
     const schemaUrl = options.schemaUrl ?? DEFAULT_SCHEMA_URL;
@@ -443,8 +459,10 @@ function vet(schemaSrc, dataSrc, opts) {
     //    is never blamed for it.
     const schemaCtx = aontu.ctx({ collect: true });
     const schemaVal = aontu.unify(schemaSrc, schemaOpts, schemaCtx);
-    if (0 < schemaCtx.err.length || true === schemaVal?.isNil) {
-        const failure = 0 < schemaCtx.err.length ? schemaCtx.err[0] : schemaVal;
+    const held = nilWithin(schemaVal);
+    if (0 < schemaCtx.err.length || true === schemaVal?.isNil || undefined !== held) {
+        const failure = 0 < schemaCtx.err.length ? schemaCtx.err[0] :
+            true === schemaVal?.isNil ? schemaVal : held;
         stampUrl(schemaVal, schemaUrl);
         stampUrl(failure, schemaUrl);
         materialise(failure, schemaCtx);

@@ -5389,6 +5389,25 @@ theorem keyUp_verdict_exact : ∀ c ∈ keyUpCases ++ keyUpFilterCases, ∀ (m :
     · exact keyUpFilterCases_readable c h
   exact vet_iff (fun _ h => absurd h (List.not_mem_nil)) hr v
 
+/-- A call the schema can't build, which fails the schema wherever it
+stands, for the `verdict` rows from x2238 on: under `type()` and under
+`hide()`, as an optional member, and as a list's element; and, read
+nowhere, as the template of a spread that meets no member, which
+passes. -/
+def heldFailCases : List (Val × Data) :=
+  let bad : Val := .call .add [.lit (.num (.integer ⟨1, by decide⟩))]
+  [(.ride .type bad [], .integer 1), (.ride .hide bad [], .integer 1),
+    (.map [("a", true, bad)] none false, .map []),
+    (.list [bad] none false, .list [.integer 1]),
+    (.map [] (some bad) false, .map [])]
+
+theorem heldFailCases_checkable : ∀ c ∈ heldFailCases, (vetDoc c).1.CheckableA := by decide
+
+theorem held_fail_verdict_exact : ∀ c ∈ heldFailCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (heldFailCases_checkable c hc)) v
+
 /-! ## Variables
 
 A variable is a name the calling program declares. Both runners bind the
@@ -6077,7 +6096,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# a string names an index by its digits alone, from row x2025, and translate"
     IO.println "# writes U+FFFD for a surrogate its to range names, from row x2055. The generator"
     IO.println "# pack, its template read for each member of its data under the member's key,"
-    IO.println "# follows from row x2064, and key(n), read where it stands, from row x2121. A"
+    IO.println "# follows from row x2064, key(n), read where it stands, from row x2121, and a"
+    IO.println "# call the schema can't build, an error wherever it stands, from row x2238. A"
     IO.println "# call on a name follows in rows z0 on, and a call handed a pattern, re(p), in"
     IO.println "# rows v0 on. path handed a string follows in rows k0 on: its text converted to"
     IO.println "# an address, text with no start read from one dot, and refused where it spells"
@@ -6100,7 +6120,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
-        pathCallCases do
+        heldFailCases ++ pathCallCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -6112,7 +6132,8 @@ def main (args : List String) : IO UInt32 := do
       unless hostReads v do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
-      projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases)
+      projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
+      heldFailCases)
     verdictRows "et" emitCases
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases

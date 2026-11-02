@@ -550,8 +550,12 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	schemaCtx := &Ctx{root: schemaParsed, src: schemaSrc, collect: true}
 	schemaVal := unifyRoot(schemaParsed, schemaCtx)
 	schemaCtx.root = schemaVal
-	if 0 < len(schemaCtx.err) || schemaVal.Nil() {
+	held := nilWithin(schemaVal)
+	if 0 < len(schemaCtx.err) || schemaVal.Nil() || nil != held {
 		failure, _ := schemaVal.(*NilVal)
+		if nil != held {
+			failure = held
+		}
 		if 0 < len(schemaCtx.err) {
 			failure = schemaCtx.err[0]
 		}
@@ -825,4 +829,29 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 		Coverage: coverage, Verdict: verdict,
 		Truncated: truncated, Findings: kept,
 	}
+}
+
+// The first failure a schema holds by key and index, but a written `nil`:
+// one built as the schema is read stands in its tree, not among its errors.
+func nilWithin(v Val) *NilVal {
+	var members []Val
+	switch n := v.(type) {
+	case *NilVal:
+		if "literal_nil" == n.why {
+			return nil
+		}
+		return n
+	case *MapVal:
+		for _, k := range n.keys {
+			members = append(members, n.peg[k])
+		}
+	case *ListVal:
+		members = n.peg
+	}
+	for _, m := range members {
+		if held := nilWithin(m); nil != held {
+			return held
+		}
+	}
+	return nil
 }

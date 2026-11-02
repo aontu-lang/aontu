@@ -4498,8 +4498,8 @@ scrutinee or source of `each`, `emit`, `match` and `filter`. Where one
 of them doesn't stand, read against the bodies with each waiting part
 read so, the call is `nil`, and so is a call with another count of
 arguments than its function takes (`Fn.takes`). So the definition
-reads `%T = add(_)` as an `error`, as it reads `v: add(1)`, where both
-engines answer `invalid`, the split #426 tracks. So `%T = contains(upper(_), 1 & 2)` is an `error`, and
+reads `%T = add(_)` as an `error`, as it reads `v: add(1)`, and both
+engines answer `error` too. So `%T = contains(upper(_), 1 & 2)` is an `error`, and
 `add(upper(_), 1 & 2) | 3` holds an arm that dies. A trial's branches
 and a template wait with the call, since the engines read them later,
 so `%T = when(upper(_), 1 & 2)` stands. A template's hole and `key(n)`
@@ -6431,10 +6431,10 @@ would give a number. A bag met with a size, `[1, 2] & len(2)`, isn't a
 bag in normal form, and the engines refuse it too.
 
 The calls have rows of their own, `test/spec/def-call.tsv`, and both
-engines answer them as the definition does but twelve. A call the
+engines answer them as the definition does. A call the
 schema can't build, `add(1)`, `add(1, 2, 3)`, `sum([1], [2])` or
-`-(integer)`, is one both engines read as `invalid`, where the
-definition reads an error, which #426 tracks.
+`-(integer)`, is one both engines read as an error of the schema,
+wherever it stands, as the definition does.
 
 ### A bound over a path
 
@@ -6621,7 +6621,7 @@ def joinOf (ds : Decls) (b : Val) (sep : Option Val) : Made :=
 
 The sums have rows of their own, x300 on in `test/spec/def-call.tsv`,
 and the joins x507 on. Both engines answer every one as the definition
-does, but for a `join` with three arguments, which #426 tracks. The
+does, a `join` with three arguments among them. The
 language's other rule for `+`, that a sum of an absence is absent,
 waits on `maybe`, which the definition doesn't hold yet.
 
@@ -6720,9 +6720,8 @@ The picks and sorts have rows of their own, x597 on in
 or a mark reads as its value, rows from x1995 on, as one through a name does
 in rows from z30 on. A string names an index by its digits alone, so
 `" 0"` and `"1e0"` name none, and `""` names no key in `pick`, rows
-x2025 on. Both engines answer every row as the definition does, but
-for three calls with the wrong number of arguments, which #426
-tracks.
+x2025 on. Both engines answer every row as the definition does, three
+calls with the wrong number of arguments among them.
 
 ## 23. Changing case and characters
 
@@ -6795,8 +6794,8 @@ preference such as `*"a"`, which `upper` doesn't read through as
 arithmetic does.
 
 The rows are x816 on in `test/spec/def-call.tsv`. Both engines answer
-every one as the definition does, but for two calls with the wrong
-number of arguments, which #426 tracks. TypeScript refuses a big integer
+every one as the definition does, two calls with the wrong number of
+arguments among them. TypeScript refuses a big integer
 index from 2^53 on, where Go reads it, so no row holds one, which #439
 tracks.
 
@@ -6825,8 +6824,8 @@ every code point it crosses, the surrogates too, which is why the set
 holds code point numbers, and `scalar` writes `U+FFFD` for a surrogate,
 which is no character. Its rows are x966 on, and x2055 on for a
 surrogate written from `to`. Both engines answer every one as the
-definition does, but for two calls with the wrong number of arguments,
-which #426 tracks.
+definition does, two calls with the wrong number of arguments among
+them.
 
 ### Spelling a name
 
@@ -6886,8 +6885,8 @@ any other letter keeps its case and starts no word, and nothing here
 is the host's.
 
 The rows are x1521 on. Both engines answer every one as the definition
-does, but for two calls with the wrong number of arguments, which #426
-tracks. Go reads a style written as `""` as no style and answers the
+does, two calls with the wrong number of arguments among them.
+Go reads a style written as `""` as no style and answers the
 map, where TypeScript refuses it, so no row holds one, which #451
 tracks.
 
@@ -6954,8 +6953,8 @@ def uscSql : List Char → Option (List Char)
 
 An unknown variant is an error, and so is any argument but a string,
 read through its riders. The rows are x1068 on, and both engines answer
-every one as the definition does, but for two calls with the wrong
-number of arguments, which #426 tracks.
+every one as the definition does, two calls with the wrong number of
+arguments among them.
 
 `split` cuts a string into fields at a separator and keeps the empty
 ones, so `split("a,,b", ",")` is `["a", "", "b"]` and
@@ -6970,8 +6969,8 @@ def splitText (s sep : String) : List String :=
 ```
 
 The rows are x1332 on, and both engines answer every one as the
-definition does, but for two calls with the wrong number of arguments,
-which #426 tracks.
+definition does, two calls with the wrong number of arguments among
+them.
 
 ### Matches of a pattern
 
@@ -7049,8 +7048,8 @@ The oracle's host reads fixed patterns alone, so the rows hold no
 other pattern but four that the subset excludes. The rows are x1404 on
 for `rep` and v0 on for `split` at a pattern, and x1959 on for a
 replacement over a text with no match. Both engines answer every one as
-the definition does, but for two calls with the wrong number of
-arguments, which #426 tracks.
+the definition does, two calls with the wrong number of arguments among
+them.
 
 ## 25. The parent type
 
@@ -7094,8 +7093,8 @@ form, so a preference reads as its default at any depth:
 `super({ n: *1 })` is `{ n: integer }`, and `n: 1.5` is invalid.
 
 The rows are x1221 on, and both engines answer every one as the
-definition does, but for two calls with the wrong number of arguments,
-which #426 tracks.
+definition does, two calls with the wrong number of arguments among
+them.
 
 `copy` makes a value that carries nothing of where it came from: it
 clears the marks, `type()` and `hide()`, and the seal, at every depth,
@@ -7204,8 +7203,8 @@ The node's seal makes data with another key beside `cmp`, `props` and
 also hold them open against an enclosing `close()`, which needs
 `open()`, and the definition doesn't hold `open()` yet, so no row
 closes a node. The rows are x1677 on, and both engines answer every one
-as the definition does, but for three calls with the wrong number of
-arguments, which #426 tracks.
+as the definition does, three calls with the wrong number of arguments
+among them.
 
 ## 27. A list from a template
 
@@ -7283,8 +7282,8 @@ own: it reads its condition once for each member it tries, so `loud`
 keeps `"WEB"`, which `upper(_)` doesn't change.
 
 The rows are x1809 on, and both engines answer every one as the
-definition does, but for two calls with the wrong number of arguments,
-which #426 tracks. Step 29 reads `key()` in a template.
+definition does, two calls with the wrong number of arguments among
+them. Step 29 reads `key()` in a template.
 
 Outside a template, a hole no generator fills admits every value, as
 `any` does, and a call's peer fills a hole in the call. Write
@@ -9244,9 +9243,8 @@ these readings, and both engines answer every one as the definition
 does. A destructure in a list's element binds no name in the
 definition, since the engines read it differently, which #518 tracks.
 Under a key, both engines class a take of a name the source doesn't
-publish as `invalid` rather than `error`, as they class a call the
-schema can't build, which #426 tracks, so the rows take such a name
-only at the top.
+publish as an `error`, as they class a call the schema can't build,
+and the rows take such a name only at the top.
 
 The definition doesn't yet read a destructure that a source or a body
 writes, one over a term that isn't a load, a module, or an extension the
