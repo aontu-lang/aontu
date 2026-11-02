@@ -7618,10 +7618,17 @@ an operand list holds member by member, and a `+` waits only on a hole
 among its operands. So `(["a", _] + ["c"]) & ["a", "b", "c"]` is
 `["a", "b", "c"]`, and `([_] + _) & ["a"]` binds `["a"]` as the second
 operand and leaves the first list's hole for the data to fill, as both
-engines answer in the rows from hv450 on. The fill reads the document
-before `+` joins, so a call over a hole in an operand list stays open
-in the definition, where both engines fill it from its member, which
-#576 tracks. A call over a container whose
+engines answer in the rows from hv450 on. The fill joins a `+` over two
+lists before it meets them (`joinedArgs`), so the meet fills a call's
+hole in an operand list from its member:
+`([upper(_)] + ["c"]) & ["a", "c"]` is `["A", "c"]`, as both engines
+answer in the rows from hv468 on. The fill keeps a `+` whose right list
+holds a `key()` as written, as the definition reads `key()` by position
+after the fill, so its index reads where it's written, and a call over a
+hole beside it stays open, where both engines fill it, which #578
+tracks. It keeps a `+` over a list with a spread as written too, as the
+spread meets the list's elements before the join, so
+`[&: string, 1] + []` is an error, as both engines answer. A call over a container whose
 argument is the hole waits on it like any other, so `sum(_) & [1, 2]`
 is `3`, and so does `join(["a", "b"], _)`, whose separator is the hole.
 The data fills such a hole in `vet` too, so `v: sum(_)` passes
