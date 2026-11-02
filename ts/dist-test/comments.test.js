@@ -90,6 +90,13 @@ function render(findings) {
             Assert.ok(Fs.existsSync(Path.join(REPO, listed)), `listed and gone: ${listed}`);
         }
     });
+    (0, node_test_1.test)('explicit-paths', () => {
+        const model = 'aontu/view/view.aontu';
+        for (const spelled of [model, './' + model, Path.join(REPO, 'aontu', 'view', 'view.aontu')]) {
+            Assert.equal(gate.repoPath(spelled), model, spelled);
+            Assert.doesNotThrow(() => gate.checkFile(gate.repoPath(spelled)), spelled);
+        }
+    });
     (0, node_test_1.test)('lexer', () => {
         const source = [
             'const url = "http://x/y" // trailing',

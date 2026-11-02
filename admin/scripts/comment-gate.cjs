@@ -401,6 +401,13 @@ function checkAll(files = sourceFiles(), opts = {}) {
 }
 
 
+// A path as the configuration names one: from the repository, with
+// forward slashes, however the command line spells it.
+function repoPath(arg) {
+  return Path.relative(REPO, Path.resolve(REPO, arg)).split(Path.sep).join('/')
+}
+
+
 function totals(reports) {
   const t = {
     files: reports.length,
@@ -430,13 +437,13 @@ function totals(reports) {
 
 module.exports = {
   sourceFiles, checkFile, checkText, checkAll, totals, lex, blocks, prose,
-  MAX_BLOCK_LINES, MAX_DENSITY,
+  repoPath, MAX_BLOCK_LINES, MAX_DENSITY,
 }
 
 
 if (require.main === module) {
   const args = process.argv.slice(2)
-  const only = args.filter((a) => !a.startsWith('--'))
+  const only = args.filter((a) => !a.startsWith('--')).map(repoPath)
   const files = only.length > 0 ? only : sourceFiles()
   const opts = { skipSymbols: args.includes('--no-symbols') }
   let reports

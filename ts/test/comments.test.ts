@@ -80,6 +80,15 @@ describe('comments', () => {
   })
 
 
+  test('explicit-paths', () => {
+    const model = 'aontu/view/view.aontu'
+    for (const spelled of [model, './' + model, Path.join(REPO, 'aontu', 'view', 'view.aontu')]) {
+      Assert.equal(gate.repoPath(spelled), model, spelled)
+      Assert.doesNotThrow(() => gate.checkFile(gate.repoPath(spelled)), spelled)
+    }
+  })
+
+
   test('lexer', () => {
     const source = [
       'const url = "http://x/y" // trailing',

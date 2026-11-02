@@ -131,7 +131,7 @@ gate's syntax table.
 
 | Rule | Fails when |
 |------|-----------|
-| `long-block` | a comment block runs longer than 5 lines, where consecutive line comments at one indentation are one block |
+| `long-block` | a comment block runs longer than 5 lines, where consecutive line comments, each alone on its line, are one block |
 | `dense-file` | comment lines exceed 12 % of a file's code lines, in a file with more than 8 comment lines |
 | `narrative` | first person, history, or a reference to a review, an issue or a commit |
 | `requirements` | requirement or business-rule vocabulary |
