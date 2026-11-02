@@ -7626,7 +7626,9 @@ answer in the rows from hv468 on. The fill keeps a `+` whose right list
 holds a `key()` as written, as the definition reads `key()` by position
 after the fill, so its index reads where it's written, and a call over a
 hole beside it stays open, where both engines fill it, which #578
-tracks. A call over a container whose
+tracks. It keeps a `+` over a list with a spread as written too, as the
+spread meets the list's elements before the join, so
+`[&: string, 1] + []` is an error, as both engines answer. A call over a container whose
 argument is the hole waits on it like any other, so `sum(_) & [1, 2]`
 is `3`, and so does `join(["a", "b"], _)`, whose separator is the hole.
 The data fills such a hole in `vet` too, so `v: sum(_)` passes

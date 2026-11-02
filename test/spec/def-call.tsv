@@ -3308,6 +3308,12 @@ hv485	verdict	v: ([5]) + ([{"n": key(1)}])	v: [5, {"n": "0"}]	{"verdict":"valid"
 hv486	verdict	v: ([5]) + ([{"n": key(1)}])	v: [5, {"n": "1"}]	{"verdict":"invalid"}
 hv487	verdict	v: ([5]) + ([{"n": key(1)}])	v: [5, {"n": "1"}]	{"verdict":"invalid","opts":{"noFill":true}}
 hv488	verdict	v: ([5]) + ([{"n": key(1)}])	v: [5, {"n": "1"}]	{"verdict":"invalid","opts":{"partial":true}}
+hv489	verdict	v: ([1, &: string]) + ([])	v: [1]	{"verdict":"error"}
+hv490	verdict	v: ([1, &: string]) + ([])	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+hv491	verdict	v: ([1, &: string]) + ([])	v: [1]	{"verdict":"error","opts":{"partial":true}}
+hv492	verdict	v: (["a", &: upper(_)]) + (["b"])	v: ["A", "b"]	{"verdict":"valid"}
+hv493	verdict	v: (["a", &: upper(_)]) + (["b"])	v: ["A", "b"]	{"verdict":"valid","opts":{"noFill":true}}
+hv494	verdict	v: (["a", &: upper(_)]) + (["b"])	v: ["A", "b"]	{"verdict":"valid","opts":{"partial":true}}
 dv0	verdict	v: upper(_)	v: "a"	{"verdict":"valid"}
 dv1	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"noFill":true}}
 dv2	verdict	v: upper(_)	v: "a"	{"verdict":"valid","opts":{"partial":true}}

@@ -1108,11 +1108,12 @@ until the phase that encodes it lands.
    **Built 2026-11-01 (#576):** the fill joins a `+` over two lists
    written as lists before it meets them (`joinedArgs`), so a call over a
    hole in an operand list is filled from its member, as both ports fill
-   it; rows hv468 on, 7 cases in each mode, both ports answering every
+   it; rows hv468 on, 9 cases in each mode, both ports answering every
    row as the definition does. The fill keeps a `+` whose right list
    holds a `key(n)` as written, its index read where it's written, so a
    call over a hole beside it stays open in the definition, where both
-   ports fill it (#578).
+   ports fill it (#578), and a `+` over a list with a spread, which
+   meets the list's elements before the join.
 
    A spread whose template waits on a hole was built next. It fills
    each member it meets, once: its own map's or list's members in

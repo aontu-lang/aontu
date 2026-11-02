@@ -21,9 +21,12 @@ The definition, generated rows, and documentation.
   the definition reads `key(n)` by position after the fill, so its index
   reads where it's written. A call over a hole beside it stays open in
   the definition, where both engines fill it (#578).
-- `spec/Oracle.lean`: rows hv468 to hv488 of `test/spec/def-call.tsv`,
-  7 cases in each of the three modes, a `key()` in the right list among
-  them. Both engines answer every row as the definition does, and no
+- It keeps a `+` over a list with a spread as written too, as the
+  spread meets the list's elements before the join, so
+  `[&: string, 1] + []` is still an error, as both engines answer.
+- `spec/Oracle.lean`: rows hv468 to hv494 of `test/spec/def-call.tsv`,
+  9 cases in each of the three modes, a `key()` in the right list and a
+  list with a spread among them. Both engines answer every row as the definition does, and no
   other row of any fragment moves. `test/spec/place.tsv` holds the
   evaluation shapes.
 - Docs: the definition tutorial's step 27.

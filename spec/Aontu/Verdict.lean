@@ -2396,13 +2396,14 @@ def spreadAll (fs : List (String × Bool × Val)) (sp : Option Val) : List (Stri
 def spreadAllItems (xs : List Val) (sp : Option Val) : List Val × Option Val :=
   heldItems 0 (spreadItems 0 xs sp).1 (spreadItems 0 xs sp).2
 
-/-- `+` over two lists written as lists, joined as `plusOf` joins them,
-so that a meet around it pairs the joined list's members with its
-peer's; but one whose right list holds a `key(n)`, which reads its
-index where it's written, and any other `+`, kept as the call. -/
+/-- `+` over two lists written as lists with no spread, joined as
+`plusOf` joins them, so that a meet around it pairs the joined list's
+members with its peer's; but one whose right list holds a `key(n)`,
+which reads its index where it's written, one over a list whose spread
+is still to meet its elements, and any other `+`, kept as the call. -/
 def joinedArgs (args : List Val) : Val :=
   match args with
-  | [.list xs _ _, .list ys _ _] => if keyItems ys then .call .plus args else .list (xs ++ ys) none false
+  | [.list xs none _, .list ys none _] => if keyItems ys then .call .plus args else .list (xs ++ ys) none false
   | _ => .call .plus args
 
 mutual

@@ -4643,7 +4643,9 @@ meet fills once the lists are joined: on the left of the meet, against
 data that writes the call's output and data that writes the peer, on
 the right, in the right list, and inside a map; and a `+` whose right
 list holds a `key()`, which reads its index where it's written, against
-data that writes that index and data that writes the joined one. -/
+data that writes that index and data that writes the joined one; and a
+`+` over a list with a spread, which meets its elements before the
+join, one that refuses an element and one that waits on a hole. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -4844,7 +4846,9 @@ def holeFillVetCases : List (Val × Data) :=
     (.meet (.call .plus [lst [mp [("k", up .hole)]], lst [s "c"]]) (lst [mp [("k", s "a")], s "c"]),
       .list [.map [("k", .str "A")], .str "c"]),
     (.call .plus [lst [n 5], lst [mp [("n", .keyUp 1)]]], .list [.integer 5, .map [("n", .str "0")]]),
-    (.call .plus [lst [n 5], lst [mp [("n", .keyUp 1)]]], .list [.integer 5, .map [("n", .str "1")]])]
+    (.call .plus [lst [n 5], lst [mp [("n", .keyUp 1)]]], .list [.integer 5, .map [("n", .str "1")]]),
+    (.call .plus [.list [n 1] (some .string) false, lst []], .list [.integer 1]),
+    (.call .plus [.list [s "a"] (some (up .hole)) false, lst [s "b"]], .list [.str "A", .str "b"])]
 
 set_option maxRecDepth 8192 in
 /-- A hole the document leaves unfilled, which the data fills, the data
