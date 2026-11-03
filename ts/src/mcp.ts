@@ -400,7 +400,7 @@ const TOOLS: ToolDef[] = [
       'lattice, with the document\'s own values placed on it), ' +
       'tree (the dependency tree of a relation), matrix (the ' +
       'dependency matrix, canon or partition order, --closure), graph ' +
-      '(node-link, as mermaid, dot or er), layer (the architecture ' +
+      '(node-link, as mermaid, dot, er or svg), layer (the architecture ' +
       'layers as stacked bands, groupBy naming the layer field), sets ' +
       '(the set-intersection ' +
       'panel over a set family), layers (which document contributed ' +

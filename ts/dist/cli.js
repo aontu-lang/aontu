@@ -353,16 +353,18 @@ View options:
   --as <profile>    text | mermaid | dot | er | svg, per kind: doc,
                     lattice, tree, matrix, sets and layers draw text
                     (default) or svg; graph draws mermaid (default),
-                    dot or er; layer draws text (default), mermaid or
-                    svg; ladder and poset draw mermaid (default) or dot;
-                    state, sequence, lane and treemap draw mermaid
-                    (default) or text
+                    dot, er or svg; layer draws text (default), mermaid
+                    or svg; ladder and poset draw mermaid (default), dot
+                    or svg; state, sequence, lane and treemap draw
+                    mermaid (default), text or svg
   --at <path>       Restrict the figure to nodes under this path; the
                     subtree doc draws; the subtree the lattice counts;
                     the path the ladder draws; where the poset compares
   --views <path>    Draw every figure the document declares at this
                     path, one evaluation, all or nothing; each
-                    declaration names its own kind and out file
+                    declaration names its own kind, out file and every
+                    other option of its figure, and --style is the
+                    set's
   -o, --out <file>  Write the figure here instead of stdout
   --check           Exit 1 if --out differs from what would be drawn;
                     nothing is written

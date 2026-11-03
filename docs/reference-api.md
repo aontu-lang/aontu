@@ -1065,34 +1065,46 @@ one thing no report holds:
 | `lattice` | the language's value lattice, with a count at every node the document reaches | the anchor walk, and each value's own kind | `text`, `svg` |
 | `tree` | the dependency tree of a relation: roots derived, repeats elided, cycles marked | the edge set | `text`, `svg` |
 | `matrix` | the dependency-structure matrix over one relation, in `canon` or `partition` order, with `--closure` | the edge set and the relation declarations | `text`, `svg` |
-| `graph` | the node-link drawing, grouped and labelled by fields of the nodes | the edge set, the declarations, the node values | `mermaid`, `dot`, `er` |
+| `graph` | the node-link drawing, grouped and labelled by fields of the nodes | the edge set, the declarations, the node values | `mermaid`, `dot`, `er`, `svg` |
 | `layer` | the architecture layers: one band per value of `--group-by`, upward edges named | the edge set and the node values | `text`, `mermaid`, `svg` |
 | `sets` | the set-intersection panel over a family of sets (UpSet) | the generated value | `text`, `svg` |
 | `layers` | which document contributed which path | the provenance record | `text`, `svg` |
-| `ladder` | the meet ladder at one path: every contribution as a rung, in rank order | the [`why`](#aontu-model-why) record | `mermaid`, `dot` |
-| `poset` | the subsumption order over several documents | [`subsume`](#aontu-subsume), pairwise | `mermaid`, `dot` |
-| `state` | a lifecycle: states, and the events that move between them | the edge set | `mermaid`, `text` |
-| `lane` | a flow in swim lanes: one lane per value of `--group-by`, one column per step | the edge set and the node values | `mermaid`, `text` |
-| `sequence` | who sends what to whom, in the order a list of steps gives | the generated steps | `mermaid`, `text` |
-| `treemap` | the model's bulk, nested: each part weighed by what it holds | the anchor walk | `mermaid`, `text` |
+| `ladder` | the meet ladder at one path: every contribution as a rung, in rank order | the [`why`](#aontu-model-why) record | `mermaid`, `dot`, `svg` |
+| `poset` | the subsumption order over several documents | [`subsume`](#aontu-subsume), pairwise | `mermaid`, `dot`, `svg` |
+| `state` | a lifecycle: states, and the events that move between them | the edge set | `mermaid`, `text`, `svg` |
+| `lane` | a flow in swim lanes: one lane per value of `--group-by`, one column per step | the edge set and the node values | `mermaid`, `text`, `svg` |
+| `sequence` | who sends what to whom, in the order a list of steps gives | the generated steps | `mermaid`, `text`, `svg` |
+| `treemap` | the model's bulk, nested: each part weighed by what it holds | the anchor walk | `mermaid`, `text`, `svg` |
 
-The first profile listed is the kind's default; asking for another is
-a refusal (`view_profile_unknown`), because there is no text form of a
-node-link drawing and no Mermaid form of a matrix.
+The first profile listed is the kind's default; asking for one the kind
+does not list is a refusal (`view_profile_unknown`), because there is
+no text form of a node-link drawing and no Mermaid form of a matrix.
 
-`--as svg` draws the cell-based kinds (every kind whose text form is
-a grid of character cells) as a standalone SVG with the same
-geometry: 8 units per character and 20 per line, every coordinate a
-whole number, so no font is measured and both ports emit the same
-bytes. The figure carries its own style block (dropped by
-`--style none`, below); a host page sets the
+`--as svg` draws every kind as a standalone SVG: 8 units per character
+and 20 per line, every coordinate a whole number, so no font is
+measured and both ports emit the same bytes. The figure carries its own
+style block (dropped by `--style none`, below); a host page sets the
 colours through CSS variables (`--av-ink`, `--av-muted`, `--av-bg`,
 `--av-rule`, `--av-rule-faint`, `--av-closure`, `--av-warn`,
 `--av-alert`, `--av-bar`), and the defaults stand where it sets none.
+
+A kind whose text form is a grid of character cells draws that grid.
 The matrix fills a direct cell, tints a closure cell, marks an
 unmirrored edge, and rules the diagonal; the layers draw each upward
-edge as a dashed arrow; the panel draws its bars and dots. The
-node-link kinds stay Mermaid and DOT, whose renderers lay them out.
+edge as a dashed arrow; the panel draws its bars and dots. The lane
+draws an arrow to each next step and routes every other edge below the
+lanes, a back edge dashed; the sequence draws its lifelines and
+messages; the treemap draws its rows with their bars.
+
+The node-link kinds (`graph`, `state`, `poset`) draw one box per node
+on a row of its own, in the order the figure emits, with a band around
+each group, and each edge as a bracket on a track of its own to the
+right, its label between rows. The shortest edges take the nearest
+tracks, so the drawing crosses exactly as often as the `crossings` row
+counts, and no node is moved to cross less. The state marks an initial
+state with an arrow and a final one with a double border, and the
+poset runs every cover up and dashes an undecided pair. The ladder is a
+column from `any` through each rung to the value.
 
 Draw the `system.aontu` model above over its `dependsOn` relation, first
 as the tree, then as the matrix in partition order:
@@ -1525,7 +1537,11 @@ unless every figure rendered: N figures of one model are only
 meaningful together, so a set whose third figure refuses leaves the
 first two off disk, and its exit code is the worst of the figures'.
 `--check` compares the whole set and names every difference; `--strict`
-turns any figure's loss into exit `1`. A declaration that names an
+turns any figure's loss into exit `1`. An option that shapes one figure
+(`--as`, `--at`, `--relation` and the rest) is refused beside `--views`,
+since each declaration gives its own. `--style` is the set's, and
+reaches every figure: `--style none` drops the style block from each
+SVG, and a style a figure's profile cannot carry refuses that figure. A declaration that names an
 option that is not one, gives a value of the wrong shape, or leaves out
 `kind` or `out` is `view_document_shape`, reported for every faulty
 declaration at once and before anything is drawn. The `poset` is

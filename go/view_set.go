@@ -361,7 +361,7 @@ func (a *Aontu) ViewSet(src string, opts *ViewOptions) ViewSetReport {
 		} else if refused := viewSplitRefusal(plan.kind, &each); nil != refused {
 			ferrs = []VetFinding{*refused}
 		} else if "ladder" == plan.kind {
-			text, ferrs = a.drawLadder(src, each.At, plan.as, plan.max)
+			text, ferrs = a.drawLadder(src, each.At, plan.as, viewStyleOf(each.Style, plan.as), plan.max)
 		} else {
 			// A Val tree generates once: the declarations were generated
 			// from this one, so a figure that generates draws from a fresh

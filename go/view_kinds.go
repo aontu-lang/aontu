@@ -293,6 +293,7 @@ func viewErColumns(root Val, node *graphNode, field string, unplaced *[]string) 
 type viewGraphOpts struct {
 	relations          []string
 	groupBy, label, as string
+	style              string
 	members            []string
 	ghosts             viewGhosts
 	columns            string
@@ -427,7 +428,7 @@ func drawGraph(triples []viewTriple, decls map[string]*relDecl, root Val,
 
 	if o.collapse {
 		viewUnresolvedLoss(unresolved, loss)
-		return viewCollapseGraph(groups, loose, edges, byPath, o.as, loss), nil
+		return viewCollapseGraph(groups, loose, edges, byPath, o.as, o.style, loss), nil
 	}
 
 	at := map[string]int{}
@@ -487,6 +488,20 @@ func drawGraph(triples []viewTriple, decls map[string]*relDecl, root Val,
 	}
 	viewUnresolvedLoss(unresolved, loss)
 
+	if "svg" == o.as {
+		nodes, bands, arcs := []arcNode{}, []arcGroup{}, []arcEdge{}
+		for _, n := range emitted {
+			nodes = append(nodes, arcNode{label: n.label, ghost: n.ghost})
+		}
+		for _, g := range groups {
+			bands = append(bands, arcGroup{title: g.title, first: at[g.nodes[0].path], count: len(g.nodes)})
+		}
+		for _, e := range drawn {
+			arcs = append(arcs, arcEdge{from: at[e.from], to: at[e.to], label: e.key})
+		}
+		return arcSvg(nodes, bands, arcs, nil, "Node-link graph: "+strconv.Itoa(len(emitted))+
+			" nodes, "+strconv.Itoa(len(drawn))+" edges", o.style), nil
+	}
 	out := []viewEmitEdge{}
 	for _, e := range drawn {
 		out = append(out, viewEmitEdge{from: byPath[e.from].id, to: byPath[e.to].id, label: e.key})
@@ -499,7 +514,7 @@ func drawGraph(triples []viewTriple, decls map[string]*relDecl, root Val,
 // how many edges it stands for. An edge inside one group is not drawn,
 // and is counted.
 func viewCollapseGraph(groups []viewGroup, loose []*graphNode, edges []viewTriple,
-	byPath map[string]*graphNode, as string, loss *[]ViewLoss) string {
+	byPath map[string]*graphNode, as, style string, loss *[]ViewLoss) string {
 	type place struct{ id, label string }
 	home := map[string]place{}
 	for _, g := range groups {
@@ -550,6 +565,19 @@ func viewCollapseGraph(groups []viewGroup, loose []*graphNode, edges []viewTripl
 		t := tallies[k]
 		out = append(out, viewEmitEdge{from: t.from, to: t.to, label: t.key + " (" + strconv.Itoa(t.n) + ")"})
 	}
+	if "svg" == as {
+		at := map[string]int{}
+		nodes, arcs := []arcNode{}, []arcEdge{}
+		for i, n := range shown {
+			at[n.id] = i
+			nodes = append(nodes, arcNode{label: n.label, ghost: n.ghost})
+		}
+		for _, d := range out {
+			arcs = append(arcs, arcEdge{from: at[d.from], to: at[d.to], label: d.label})
+		}
+		return arcSvg(nodes, nil, arcs, nil, "Surface map: "+strconv.Itoa(len(shown))+
+			" nodes, "+strconv.Itoa(len(out))+" edges", style)
+	}
 	var columns map[string][]string
 	if "er" == as {
 		columns = map[string][]string{}
@@ -560,7 +588,7 @@ func viewCollapseGraph(groups []viewGroup, loose []*graphNode, edges []viewTripl
 // ---------------------------------------------------------------------
 // The lifecycle: states and the events between them
 
-func drawState(triples []viewTriple, root Val, relations []string, labelField, as string,
+func drawState(triples []viewTriple, root Val, relations []string, labelField, as, style string,
 	members []string, ghosts viewGhosts, roots []string, named bool, max int,
 	loss *[]ViewLoss) (string, []VetFinding) {
 	edges, kerr := viewKeep(triples, relations)
@@ -592,10 +620,12 @@ func drawState(triples []viewTriple, root Val, relations []string, labelField, a
 	// state enters; a final state one that leaves to no other. A ghost is
 	// neither: its own edges are drawn where it lives.
 	initial, final := []*graphNode{}, []*graphNode{}
+	real := 0
 	for _, n := range nodes {
 		if n.ghost {
 			continue
 		}
+		real++
 		entered, left := false, false
 		for _, e := range edges {
 			if e.to == n.path && e.from != n.path {
@@ -624,6 +654,21 @@ func drawState(triples []viewTriple, root Val, relations []string, labelField, a
 		return byPath[a.to].label < byPath[b.to].label
 	})
 
+	if "svg" == as {
+		at := map[string]int{}
+		arcs := []arcNode{}
+		for i, n := range nodes {
+			at[n.path] = i
+			arcs = append(arcs, arcNode{label: n.label, ghost: n.ghost,
+				initial: containsNode(initial, n), final: containsNode(final, n)})
+		}
+		edges := []arcEdge{}
+		for _, e := range drawn {
+			edges = append(edges, arcEdge{from: at[e.from], to: at[e.to], label: e.key})
+		}
+		return arcSvg(arcs, nil, edges, nil, "State diagram: "+strconv.Itoa(real)+" states, "+
+			strconv.Itoa(len(drawn))+" transitions", style), nil
+	}
 	out := []string{}
 	if "mermaid" == as {
 		esc := func(s string) string { return viewEscape(s, mermaidEsc) }
@@ -654,12 +699,22 @@ func drawState(triples []viewTriple, root Val, relations []string, labelField, a
 	return strings.Join(out, "\n"), nil
 }
 
+func containsNode(ns []*graphNode, n *graphNode) bool {
+	for _, m := range ns {
+		if m == n {
+			return true
+		}
+	}
+	return false
+}
+
 // ---------------------------------------------------------------------
 // The swim lanes: a flow's steps, one lane per actor
 
 type viewLaneOpts struct {
 	relations          []string
 	groupBy, label, as string
+	style              string
 	layers             []string
 	members            []string
 	ghosts             viewGhosts
@@ -816,23 +871,6 @@ func drawLane(triples []viewTriple, root Val, o viewLaneOpts, max int,
 		}
 		cols = append(cols, c)
 	}
-	trim := func(s string) string { return strings.TrimRight(s, " ") }
-	head := []string{}
-	for i := range steps {
-		head = append(head, viewPad(strconv.Itoa(i+1), cols[i]))
-	}
-	out := []string{trim(viewPad("", w) + "  " + strings.Join(head, "  "))}
-	for _, l := range lanes {
-		cells := []string{}
-		for i, p := range steps {
-			cell := "."
-			if lane(byPath[p]) == l.name {
-				cell = byPath[p].label
-			}
-			cells = append(cells, viewPad(cell, cols[i]))
-		}
-		out = append(out, trim(viewPad(l.title, w)+"  "+strings.Join(cells, "  ")))
-	}
 	across, back := 0, 0
 	notes := []string{}
 	for _, e := range drawn {
@@ -852,10 +890,43 @@ func drawLane(triples []viewTriple, root Val, o viewLaneOpts, max int,
 			notes = append(notes, "# "+way+": "+byPath[e.from].label+" -> "+byPath[e.to].label+" ("+e.key+")")
 		}
 	}
-	out = append(out, "# "+strconv.Itoa(len(drawn))+" edges, "+strconv.Itoa(across)+
-		" across lanes, "+strconv.Itoa(back)+" back")
-	out = append(out, notes...)
-	return strings.Join(out, "\n"), nil
+	footer := append([]string{"# " + strconv.Itoa(len(drawn)) + " edges, " + strconv.Itoa(across) +
+		" across lanes, " + strconv.Itoa(back) + " back"}, notes...)
+	if "svg" == o.as {
+		laneOf := map[string]int{}
+		for li, l := range lanes {
+			laneOf[l.name] = li
+		}
+		placed := []laneStep{}
+		for _, p := range steps {
+			placed = append(placed, laneStep{label: byPath[p].label, ghost: byPath[p].ghost,
+				lane: laneOf[lane(byPath[p])]})
+		}
+		edges := [][2]int{}
+		for _, e := range drawn {
+			edges = append(edges, [2]int{at[e.from], at[e.to]})
+		}
+		return laneSvg(titles, placed, cols, edges, footer, "Swim lanes: "+strconv.Itoa(len(lanes))+
+			" lanes, "+strconv.Itoa(len(steps))+" steps", o.style), nil
+	}
+	trim := func(s string) string { return strings.TrimRight(s, " ") }
+	head := []string{}
+	for i := range steps {
+		head = append(head, viewPad(strconv.Itoa(i+1), cols[i]))
+	}
+	out := []string{trim(viewPad("", w) + "  " + strings.Join(head, "  "))}
+	for _, l := range lanes {
+		cells := []string{}
+		for i, p := range steps {
+			cell := "."
+			if lane(byPath[p]) == l.name {
+				cell = byPath[p].label
+			}
+			cells = append(cells, viewPad(cell, cols[i]))
+		}
+		out = append(out, trim(viewPad(l.title, w)+"  "+strings.Join(cells, "  ")))
+	}
+	return strings.Join(append(out, footer...), "\n"), nil
 }
 
 // ---------------------------------------------------------------------
@@ -867,7 +938,7 @@ type viewMsg struct {
 }
 
 func drawSequence(list any, at, from, to, labelField, splitBy string, budget int,
-	as string, max int, loss *[]ViewLoss, parts *[]ViewPart) (string, []VetFinding) {
+	as, style string, max int, loss *[]ViewLoss, parts *[]ViewPart) (string, []VetFinding) {
 	steps, isList := list.([]any)
 	if !isList {
 		return "", []VetFinding{viewFinding("view_steps_shape", "reference", at,
@@ -978,6 +1049,10 @@ func drawSequence(list any, at, from, to, labelField, splitBy string, budget int
 		for _, m := range steps {
 			drawn = append(drawn, viewMsg{local[m.a], local[m.b], m.text})
 		}
+		if "svg" == as {
+			return sequenceSvg(names, drawn, "Sequence: "+strconv.Itoa(len(mine))+" participants, "+
+				strconv.Itoa(len(steps))+" messages", style)
+		}
 		return viewSequenceText(names, drawn)
 	}
 	if !splitting {
@@ -1013,15 +1088,12 @@ func drawSequence(list any, at, from, to, labelField, splitBy string, budget int
 	return viewJoinParts(as, drawn, parts)
 }
 
-// viewSequenceText is THE LIFELINE GRID. Lifeline i sits at column
-// x[i]; each gap is wide enough for the name above it and for every
-// message spanning it, the shortfall of a span going to its last gap,
-// so the counts alone set the columns.
-func viewSequenceText(names []string, msgs []viewMsg) string {
+// viewLifelines is THE LIFELINE GRID. Lifeline i sits at column x[i];
+// each gap is wide enough for the name above it and for every message
+// spanning it, the shortfall of a span going to its last gap, so the
+// counts alone set the columns.
+func viewLifelines(names []string, msgs []viewMsg) ([]int, int) {
 	n := len(names)
-	if 0 == n {
-		return ""
-	}
 	gap := []int{}
 	for _, s := range names {
 		g := viewLen(s) + 2
@@ -1075,6 +1147,14 @@ func viewSequenceText(names []string, msgs []viewMsg) string {
 	if last := xs[n-1] + viewLen(names[n-1]); last > width {
 		width = last
 	}
+	return xs, width
+}
+
+func viewSequenceText(names []string, msgs []viewMsg) string {
+	if 0 == len(names) {
+		return ""
+	}
+	xs, width := viewLifelines(names, msgs)
 	blank := func() []rune {
 		row := []rune(strings.Repeat(" ", width))
 		for _, c := range xs {
@@ -1337,23 +1417,21 @@ func viewTreemapTop(root Val, o viewTreemapOpts, loss *[]ViewLoss) (*viewTile, *
 // the top is drawn as one section, so Mermaid shows where it sits.
 func viewTreemapFigure(top *viewTile, at, as, style string, max int,
 	wrap bool) (string, []VetFinding) {
-	type row struct {
-		prefix, name string
-		weight       int
-	}
-	rows := []row{}
-	var walk func(t *viewTile, prefix, kidPrefix string)
-	walk = func(t *viewTile, prefix, kidPrefix string) {
-		rows = append(rows, row{prefix, t.name, t.weight})
+	rows := []treemapRow{}
+	var walk func(t *viewTile, prefix, kidPrefix string, depth, parent int)
+	walk = func(t *viewTile, prefix, kidPrefix string, depth, parent int) {
+		self := len(rows)
+		rows = append(rows, treemapRow{prefix: prefix, name: t.name, weight: t.weight,
+			depth: depth, parent: parent})
 		for i, k := range t.kids {
 			if i == len(t.kids)-1 {
-				walk(k, kidPrefix+"└── ", kidPrefix+"    ")
+				walk(k, kidPrefix+"└── ", kidPrefix+"    ", depth+1, self)
 			} else {
-				walk(k, kidPrefix+"├── ", kidPrefix+"│   ")
+				walk(k, kidPrefix+"├── ", kidPrefix+"│   ", depth+1, self)
 			}
 		}
 	}
-	walk(top, "", "")
+	walk(top, "", "", 0, 0)
 	if max < len(rows) {
 		return "", []VetFinding{viewRowsFinding(len(rows), max, "--at or --depth", true)}
 	}
@@ -1390,23 +1468,23 @@ func viewTreemapFigure(top *viewTile, at, as, style string, max int,
 	paint := newPainter(style)
 	total := top.weight
 	heads, weights := []string{}, []string{}
-	for _, r := range rows {
+	for i, r := range rows {
 		heads = append(heads, r.prefix+r.name)
 		weights = append(weights, strconv.Itoa(r.weight))
+		if 0 != total {
+			rows[i].bar = maxInt(1, r.weight*viewTreemapBar/total)
+		}
+	}
+	if "svg" == as {
+		return treemapSvg(rows, "Treemap of "+at+": "+strconv.Itoa(len(rows))+
+			" tiles weighing "+strconv.Itoa(total), style), nil
 	}
 	w, nw := viewWidest(heads), viewWidest(weights)
 	out := []string{}
 	for _, r := range rows {
-		bar := 0
-		if 0 != total {
-			bar = r.weight * viewTreemapBar / total
-			if 1 > bar {
-				bar = 1
-			}
-		}
 		out = append(out, paint.paint("rule", r.prefix)+r.name+
 			strings.Repeat(" ", w-viewLen(r.prefix+r.name))+"  "+
-			viewLpad(strconv.Itoa(r.weight), nw)+"  "+paint.paint("bar", strings.Repeat("█", bar)))
+			viewLpad(strconv.Itoa(r.weight), nw)+"  "+paint.paint("bar", strings.Repeat("█", r.bar)))
 	}
 	return strings.Join(out, "\n"), nil
 }

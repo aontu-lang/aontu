@@ -1617,6 +1617,10 @@ for any profile. Anyone who needs a byte-stable IMAGE in the repository
 needs a layout algorithm emitted to SVG, and that is a different
 project with a different bias.
 
+*Status: ADR-078 (2026-11-03) emits one: a closed-form layout over
+counts for every kind, so the SVG bytes are pinned. The picture a
+browser draws from them is still not.*
+
 Everything below that line is fully pinned.
 
 ### The nine sites where two ports could disagree
@@ -1738,6 +1742,13 @@ Each refusal names the measurement or the rule that decided it.
   coordinate is an integer from the counts that lay the text figure
   out, and the shared suite pins the bytes. The escape table has four
   entries. The node-link kinds stay Mermaid and DOT.*
+
+  *Status: extended by ADR-078 (2026-11-03): every kind draws SVG.
+  `graph`, `state` and `poset` draw the arc drawing (a box per node on
+  a row, each edge a bracket on a track taken shortest span first, so
+  the crossings are exactly the `crossings` count); the ladder is a
+  column; `lane`, `sequence` and `treemap` draw on their text grids.
+  Still no renderer subprocess and no layout search.*
 
 - **No `why` diagram.** VERIFIED: `aontu why
   '$.deploy.regions.eu1.clusters.core.workloads.payments.replicas'

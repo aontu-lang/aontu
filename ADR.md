@@ -121,6 +121,7 @@ rule now lives and where its record is in the history.
 | [ADR-075](#adr-075--local-testing-takes-minutes-and-the-long-runs-are-the-daily-cis) | Local testing takes minutes, and the long runs are the daily CI's | Moved to [DEV-PROCESS.md](DEV-PROCESS.md#testing) |
 | [ADR-076](#adr-076--every-prompt-is-logged) | Every prompt is logged | Moved to [DEV-PROCESS.md](DEV-PROCESS.md#the-prompt-log) |
 | [ADR-077](#adr-077--the-definition-is-pinned-to-lean-4241) | The definition is pinned to Lean 4.24.1 | Accepted |
+| [ADR-078](#adr-078--every-figure-draws-svg-from-a-layout-aontu-owns) | Every figure draws SVG, from a layout aontu owns | Accepted |
 
 ---
 
@@ -6849,3 +6850,74 @@ proof the core library proves with `Classical.propDecidable`, so on
   loader already refuses and lasts only while Apple keeps the epoch.
 - Enforced by `spec/lean-toolchain`, the pinned digest in `spec.yml`
   and `spec/Aontu/Axioms.lean`.
+
+## ADR-078 — Every figure draws SVG, from a layout aontu owns
+
+**Date:** 2026-11-03
+**Status:** Accepted
+
+### Context
+
+`aontu view` drew SVG for the kinds whose text form is a grid of
+character cells: `doc`, `lattice`, `tree`, `matrix`, `layer`, `sets`
+and `layers`. The rest wrote Mermaid, DOT or text and left the picture
+to a renderer the reader runs: the node-link kinds `graph`, `ladder`
+and `poset`, and `state`, `sequence`, `lane` and `treemap`. The design
+notes ([`sketch/VIEWS.0.md`](sketch/VIEWS.0.md),
+[`sketch/VIEWS-ORDER.0.md`](sketch/VIEWS-ORDER.0.md)) refused SVG for
+them on two grounds. A renderer subprocess (`dot -Tsvg`, `mmdc`,
+Kroki) makes a figure's bytes depend on a program neither port pins,
+which [ADR-001](#adr-001--typescript-and-go-stay-at-full-parity-driven-by-a-shared-spec)
+cannot hold. And an owned layout means choosing where each node goes,
+which for a node-link drawing is crossing minimisation, NP-hard, and a
+heuristic owned in two ports under
+[ADR-002](#adr-002--test-coverage-stays-at-100--in-both-implementations).
+
+So a reader who wanted a picture of a lifecycle, a flow or a
+subsumption order for a page or a review had none from aontu, and one
+drawn by their own renderer is not what `aontu view --check` holds.
+
+### Decision
+
+1. **Every kind draws SVG.** `--as svg` is a profile of each of the
+   kinds, in both ports. Each kind's default profile is unchanged.
+2. **No renderer subprocess.** aontu writes every byte of the figure
+   itself, and the shared spec pins the SVG as it pins the other
+   profiles.
+3. **Every layout is a closed form over counts, not an optimiser.**
+   Every coordinate is a whole number, as the integer rule already
+   required of the cell-based kinds:
+   - `graph`, `state` and `poset` draw the **arc drawing**: a box per
+     node on a row of its own, in the order the figure already emits,
+     a band around each group, and each edge a bracket on a vertical
+     track of its own right of the boxes. Edges take tracks shortest
+     span first, each the first track no edge it overlaps holds, so
+     nested edges never cross and interleaving edges cross exactly
+     once. The drawing therefore has as many crossings as the graph's
+     `crossings` row already counted for every profile. The state marks
+     its initial and final states; the poset ranks its classes by the
+     longest chain of covers below them, so every cover runs up, and
+     draws an undecided pair dashed.
+   - The `ladder` is a column: `any`, each rung in rank order, and the
+     value.
+   - `lane`, `sequence` and `treemap` draw on the grid their text form
+     lays out.
+4. **Crossings are counted, never minimised.** No layout searches for
+   a better order, so none can disagree between the ports.
+
+### Consequences
+
+- A figure of every kind can be committed as SVG and held by `--check`,
+  and either port writes the same bytes.
+- The node-link drawings are legible rather than compact: a dense graph
+  grows a track for each edge that overlaps another. A reader who wants
+  a laid-out picture still has Mermaid and DOT.
+- An edge's label sits between rows on its own track, where no line
+  runs, so no label is drawn over an edge or another label.
+- This amends the boundary of the design notes above. ADR-001 and
+  ADR-002 are unchanged, and they are why the layout is a closed form.
+- Pinned by the `graph-svg-*`, `state-svg-*`, `ladder-svg-*`,
+  `poset-svg-*`, `lane-svg-*`, `sequence-svg-*` and `treemap-svg-*`
+  rows of `test/spec/view.tsv` and by
+  `views-the-node-link-kinds-draw-svg` of `test/spec/views.tsv`, each
+  obtained from both engines agreeing.

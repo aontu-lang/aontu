@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### `aontu view` draws SVG for every kind
+
+Both implementations, the shared rows, and documentation.
+
+- `--as svg` is a profile of every figure kind now, not only the kinds
+  whose text form is a grid of character cells. `graph`, `state` and
+  `poset` draw one box per node on a row of its own and each edge as a
+  bracket on a track of its own to the right, its label between rows.
+  The shortest edges take the nearest tracks, so the drawing crosses
+  exactly as often as the graph's `crossings` row counts. The state
+  marks its initial and final states, the poset runs every cover up and
+  dashes an undecided pair, the `ladder` is a column, and `lane`,
+  `sequence` and `treemap` draw on the grid of their text form. Every
+  coordinate is a whole number, no layout is searched for, and both
+  ports write the same bytes (ADR-078).
+- `test/spec/view.tsv`: 18 `*-svg-*` rows for the new profiles, and
+  `graph-profile-must-be-declared` re-measured, its note now listing
+  `svg`; `views-the-node-link-kinds-draw-svg` in `test/spec/views.tsv`.
+  Every expectation is from both engines agreeing.
+- Docs: the view reference's profile table and SVG section, the "Draw a
+  model" how-to, which listed five of the seven kinds that already drew
+  SVG, both CLIs' `--help`, and the MCP `view` tool's description.
+
 ### The definition reads a hole a path names as the data's to fill
 
 The definition, generated rows, and documentation.

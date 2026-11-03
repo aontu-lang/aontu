@@ -159,7 +159,7 @@ func TestViewPosetInjectedVerdicts(t *testing.T) {
 		return SubsumeNo, "compat_narrowed"
 	}
 	loss := []ViewLoss{}
-	text, errs := New().drawPoset(docs, "", "", "mermaid", 60, &loss, compare)
+	text, errs := New().drawPoset(docs, "", "", "mermaid", "", 60, &loss, compare)
 	if nil != errs || !strings.Contains(text, "n1 --> n0\n  n2 --> n1") {
 		t.Fatalf("poset = %q %v", text, errs)
 	}
@@ -168,7 +168,7 @@ func TestViewPosetInjectedVerdicts(t *testing.T) {
 	}
 
 	bad := []viewPosetDoc{{src: "a", label: "a\nb"}}
-	if _, errs = New().drawPoset(bad, "", "", "dot", 60, &loss, compare); nil == errs ||
+	if _, errs = New().drawPoset(bad, "", "", "dot", "", 60, &loss, compare); nil == errs ||
 		"view_line_break" != errs[0].Code {
 		t.Fatalf("line break = %v", errs)
 	}
