@@ -502,3 +502,9 @@ agent-info is intended to be a reference for standard repo guide files and scrip
 ```text
 merge
 ```
+
+## 2026-11-03 17:25:10 UTC · Claude Code · session_01D35vdcJCr6PTGR6aUYHRBn
+
+```text
+there should not be any mention of aontu in agent-info; remove the note that repos may not change the files themselves - this is a template
+```
