@@ -496,3 +496,9 @@ aontu#588 (#581, #583) and #436 are merged, and so are web#127 and web#128 (whic
 ```text
 agent-info is intended to be a reference for standard repo guide files and scripts. the files are available to be copied into a given repo, and can be updated regularly. update the guide files in agent-info to be generic. they are based on files in aontu. copy over missing scripts as needed
 ```
+
+## 2026-11-03 15:12:15 UTC · Claude Code · session_01D35vdcJCr6PTGR6aUYHRBn
+
+```text
+merge
+```
