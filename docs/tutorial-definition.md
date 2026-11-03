@@ -4414,7 +4414,9 @@ staged, does not stand; `invalid` where the schema read against the data
 (`Decls.readJ`), the data filling each hole the schema leaves unfilled,
 staged (`Val.staged`) so that a conflict the meet finds is `nil` and an
 arm holding one drops, fails, dead or holding a call the data leaves it
-unable to make (`Val.fails`), or refuses, read whole, the value it gives
+unable to make (`Val.fails`), a call that waits only through a path
+whose body holds a hole read as waiting for the data (`Decls.dataS`),
+or refuses, read whole, the value it gives
 with its trials and sizes unread; `valid` where it singles out a
 value, and without the fill where the data as written is an instance of
 the visible part of the schema's normal form, staged, each part that
@@ -4424,18 +4426,18 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (((normaliseD ds (ds.readJ S j)).staged ds).fails = true ∨
+      (((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = true ∨
         RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
+      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       (m.lax = true ∨
         ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
           (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
+      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       m.lax = false ∧
       ¬ ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
@@ -4451,7 +4453,7 @@ aren't about names are one check:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || ((normaliseD ds (ds.readR S)).staged ds).illFormed
+  ds.identMisplaced S || ds.bodyIll || ((normaliseD ds (ds.readR (ds.dataS S))).staged ds).illFormed
 ```
 
 An `ident()`'s place belongs to the text, so the check reads the
@@ -4681,7 +4683,8 @@ def Val.illFormed : Val → Bool
   | .meet a b => (a.fillable && b.fillable && !(a.isHole && b.isHole)) || a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
-  | .call .join args => (args.length != 1 && args.length != 2) || illItems args
+  | .call .join args => (args.length != 1 && args.length != 2) || illItems args ||
+    (!(Val.call .join args).fillable && joinSepHeld args)
   | .call .pref args => args.length != 1 || illItems args
   | .call .each args | .call .pack args | .call .emit args =>
     if fillableHead args && args.length == 2 then illHead args else true
@@ -4691,7 +4694,11 @@ def Val.illFormed : Val → Bool
 ```
 
 The schema is read, `Decls.readR`, as its expansion with its
-selections made, which step 16 comes to. `invalid` is a schema that
+selections made, which step 16 comes to. A call that waits only
+through a path to a hole waits for the data, which writes the place
+the path names, so the check reads the schema through `Decls.dataS`
+first, as step 27 comes to, and so does the test of whether the data
+leaves a call unmade. `invalid` is a schema that
 stands met with the data as a term,
 `Data.term`, in a meet that is dead once staged, so that nothing could
 be the data, or in a meet alive that refuses, read whole, the value it
@@ -4786,9 +4793,9 @@ data, the conflicts the meet finds read (`Val.staged`), refuses the data
 as written, or, its trials and sizes unread, the value it would single
 out, or holds a call the data leaves the reading unable to make. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds) j ∨
+    Refuses ds.envE j ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds) j ∨
       RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∨
-      ((normaliseD ds (ds.readJ S j)).staged ds).illFormed = true := by
+      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).illFormed = true := by
 ```
 
 So `vet --no-fill` answers `valid` exactly for an instance of the
