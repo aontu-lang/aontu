@@ -83,6 +83,15 @@ function wrapSettled(args) {
 function openWrap(ctx, v) {
     return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v;
 }
+// The calls that take their argument as the value it is, so read a list
+// or a map that holds a hole as that container once nothing else settles.
+const VALUED = new Set(['super', 'pref', 'refer', 'rel']);
+function asValue(ctx, call, args) {
+    return true === ctx.settle && VALUED.has(call.funcname()) &&
+        args.some((a) => true !== a.done) &&
+        args.every((a) => true === a.done ||
+            ((true === a.isList || true === a.isMap) && (0, PlaceVal_1.bagHoles)(a, false)));
+}
 class FuncBaseVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -212,7 +221,7 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                 // ABSENCE PROPAGATES (ADR-034), ahead of deferResolve.
                 const gone = this.forgives ? undefined :
                     newpeg.find((a) => true === a.isAbsent);
-                if ((pegdone || (through && wrapSettled(newpeg))) &&
+                if ((pegdone || (through && wrapSettled(newpeg)) || asValue(ctx, this, newpeg)) &&
                     (undefined !== gone || !this.deferResolve(ctx, newpeg))) {
                     // THE SIGNATURE GATE (sketch/SIGNATURES.0.md): the
                     // driven arguments against the declared signature, before

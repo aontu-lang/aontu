@@ -99,6 +99,7 @@ declare class ConstraintVal extends FeatureVal {
     constructor(spec: ValSpec & {
         atom?: string;
         state?: ConstraintState;
+        whole?: boolean;
     }, ctx?: AontuContext);
     private fromAtom;
     unify(peer: Val, ctx: AontuContext): Val;

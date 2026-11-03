@@ -1557,7 +1557,8 @@ that fills it alone, no data, and data that writes another sum; over a
 list that holds a path to a hole, against the same; over a path to a
 path to such a list; and a call over such a call. A path to a list that
 holds a `key(n)` is read as written, so the call over it is an error
-still. -/
+still, and so is one over a list that holds a written hole beside a path
+to a hole, against data that fills the path and data that writes nothing. -/
 def dataPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1568,12 +1569,14 @@ def dataPathCases : List (Decls × Val × Data) :=
   let dA : Val := m [("v", .call .sum [p ["x"]]), ("x", lst [.hole, int 1])]
   let dB : Val := m [("v", .call .sum [lst [p ["h"], int 1]]), ("h", .hole)]
   let dD : Val := m [("v", .call .sum [p ["y"]]), ("y", p ["x"]), ("x", lst [.hole, int 1])]
+  let dW : Val := m [("v", .call .sum [lst [.hole, p ["h"]]]), ("h", .hole)]
   [([], dA, .map [("v", j 3), ("x", x21)]), ([], dA, .map [("x", x21)]), ([], dA, .map []),
     ([], dA, .map [("v", j 4), ("x", x21)]),
     ([], dB, .map [("v", j 3), ("h", j 2)]), ([], dB, .map [("h", j 2)]), ([], dB, .map []),
     ([], dD, .map [("v", j 3), ("x", x21), ("y", x21)]), ([], dD, .map []),
     ([], m [("v", .call .upper [.call .sum [p ["x"]]]), ("x", lst [.hole, int 1])], .map [("x", x21)]),
-    ([], m [("v", .call .sum [p ["x"]]), ("x", lst [.keyUp 1, int 1])], .map [])]
+    ([], m [("v", .call .sum [p ["x"]]), ("x", lst [.keyUp 1, int 1])], .map []),
+    ([], dW, .map [("v", j 3), ("h", j 2)]), ([], dW, .map [])]
 
 theorem dataPathCases_checkable : ∀ c ∈ dataPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -5270,6 +5273,38 @@ theorem held_hole_verdict_exact : ∀ c ∈ heldHoleCases, ∀ (m : Mode) (v : V
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (heldHoleCases_checkable c hc)) v
 
+/-- A call that takes its argument as the value it is, over a list or a
+map that holds a hole, for the `verdict` rows dr0 on: `super`, `pref`
+and `move` read as the container, which the data fills, `refer` and
+`rel` as the link and the relation they make of it, and a bound as an
+atom over an argument outside its domain, which admits nothing; but
+`neq` reads the list's members as the values it refuses, so a hole
+among them is one nothing fills, and the schema doesn't stand; as both
+ports answer. -/
+def readThroughCases : List (Val × Data) :=
+  let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
+  let lst (xs : List Val) : Val := .list xs none false
+  let h1 : Val := lst [.hole]
+  let hk : Val := .map [("k", false, .hole)] none false
+  let x : Data := .str "x"
+  let l1 : Data := .list [.integer 1]
+  let k1 : Data := .map [("k", .integer 1)]
+  [(.call .super [h1], x), (.call .super [h1], l1), (.call .super [hk], k1),
+    (.call .pref [h1], x), (.call .pref [h1], l1), (.call .move [h1], x), (.call .move [h1], l1),
+    (.call .refer [h1], x), (.call .refer [h1], l1), (.call .rel [h1], x),
+    (.call (.bnd .min) [h1], x), (.call (.bnd .min) [h1], l1), (.call (.bnd .max) [hk], k1),
+    (.call (.bnd .above) [h1], l1), (.call (.bnd .below) [h1], x), (.call (.bnd .mulof) [h1], l1),
+    (.call (.bnd .neq) [h1], l1), (.call (.bnd .neq) [lst [n 1, .hole]], .integer 3),
+    (.call (.bnd .neq) [lst [h1]], .integer 3)]
+
+set_option maxRecDepth 8192 in
+theorem readThroughCases_checkable : ∀ c ∈ readThroughCases, (vetDoc c).1.CheckableA := by decide
+
+theorem read_through_verdict_exact : ∀ c ∈ readThroughCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (readThroughCases_checkable c hc)) v
+
 set_option maxRecDepth 8192 in
 theorem holeFillVetCases_checkable : ∀ c ∈ holeFillVetCases, (vetDoc c).1.CheckableA := by decide
 
@@ -6243,10 +6278,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# and arms met with the member and a hole bound to it, follows in rows dt0 on."
     IO.println "# A call over a container that holds a hole, which no peer of the call fills, so"
     IO.println "# that a call made from its arguments' values can't be made, follows in rows dh0 on."
+    IO.println "# A call that takes its argument as the value it is, over a container that holds"
+    IO.println "# a hole, which it reads as that container, follows in rows dr0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
-        heldFailCases ++ pathCallCases ++ heldHoleCases do
+        heldFailCases ++ pathCallCases ++ heldHoleCases ++ readThroughCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -6274,6 +6311,7 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "dg" groupCases
     verdictRows "dt" spreadTmplCases
     verdictRows "dh" heldHoleCases
+    verdictRows "dr" readThroughCases
     return 0
   | _ =>
     IO.eprintln "usage: oracle [bounds | choice | gen | verdict | alias | paths | trials | calls]"
