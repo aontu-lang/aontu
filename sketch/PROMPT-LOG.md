@@ -508,3 +508,9 @@ merge
 ```text
 there should not be any mention of aontu in agent-info; remove the note that repos may not change the files themselves - this is a template
 ```
+
+## 2026-11-03 17:29:43 UTC · Claude Code · session_01D35vdcJCr6PTGR6aUYHRBn
+
+```text
+does the repo mention using diataxis for the documentation, BUT ensuring NOT to mention it in the actual docs themselves
+```
