@@ -2067,18 +2067,9 @@ func (a *Aontu) View(src string, opts *ViewOptions) ViewReport {
 			"The "+kind+" figure does not render as "+as+".",
 			"profiles: "+strings.Join(profiles, ", "))})
 	}
-	style := viewStyleOf(options.Style, as)
-	carrier, mechanism := viewStyleCarrier[style]
-	if mechanism && carrier != as {
-		return done("", []VetFinding{viewFinding("view_style_profile", "reference", "$",
-			"The "+as+" profile cannot carry --style "+style+".",
-			style+" is the "+carrier+" profile's mechanism")})
+	if refused := viewStyleRefusal(options.Style, as); nil != refused {
+		return done("", []VetFinding{*refused})
 	}
-	if !mechanism && "none" != style {
-		return done("", []VetFinding{viewFinding("view_style_unknown", "reference", "$",
-			style+" is not a style.", "styles: auto, none, ansi, css")})
-	}
-
 	if refused := viewSplitRefusal(kind, &options); nil != refused {
 		return done("", []VetFinding{*refused})
 	}

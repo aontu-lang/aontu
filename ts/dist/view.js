@@ -2961,19 +2961,7 @@ function view(src, opts, hooks) {
             errors: [finding('view_profile_unknown', 'reference', '$', `The ${kind} figure does not render as ${as}.`, `profiles: ${profiles.join(', ')}`)],
         });
     }
-    const style = styleOf(options.style, as);
-    const carrier = { ansi: 'text', css: 'svg' };
-    if (undefined !== carrier[style] && carrier[style] !== as) {
-        return done({
-            errors: [finding('view_style_profile', 'reference', '$', `The ${as} profile cannot carry --style ${style}.`, `${style} is the ${carrier[style]} profile's mechanism`)],
-        });
-    }
-    if (undefined === carrier[style] && 'none' !== style) {
-        return done({
-            errors: [finding('view_style_unknown', 'reference', '$', `${style} is not a style.`, 'styles: auto, none, ansi, css')],
-        });
-    }
-    const refused = splitRefusal(kind, options);
+    const refused = styleRefusal(options.style, as) ?? splitRefusal(kind, options);
     if (undefined !== refused) {
         return done({ errors: [refused] });
     }
@@ -2998,6 +2986,18 @@ function view(src, opts, hooks) {
         return done({ errors: loaded.errors });
     }
     return done(drawLoaded(loaded.root, loaded.ctx, prov, kind, as, options, max, loss));
+}
+// Each style is one profile's mechanism, and `none` is every profile's.
+function styleRefusal(given, as) {
+    const style = styleOf(given, as);
+    const carrier = { ansi: 'text', css: 'svg' };
+    if (undefined !== carrier[style] && carrier[style] !== as) {
+        return finding('view_style_profile', 'reference', '$', `The ${as} profile cannot carry --style ${style}.`, `${style} is the ${carrier[style]} profile's mechanism`);
+    }
+    if (undefined === carrier[style] && 'none' !== style) {
+        return finding('view_style_unknown', 'reference', '$', `${style} is not a style.`, 'styles: auto, none, ansi, css');
+    }
+    return undefined;
 }
 // The options naming a field or a path. An empty name is no name, as
 // the Go port's zero value is.
@@ -3366,16 +3366,18 @@ function viewSet(src, opts, hooks) {
     }
     const views = plans.map((plan) => {
         const loss = [];
+        // The style is the set's, since a declaration cannot name one.
         const each = {
             ...plan.opts, path: options.path, trust: options.trust,
-            textExt: options.textExt,
+            textExt: options.textExt, style: options.style,
         };
         // A Val tree generates once: the declarations were generated from
         // this one, so a figure that generates draws from a fresh
         // evaluation of the same source, which stands up as this one did.
         const own = 'sets' === plan.kind || 'sequence' === plan.kind
             ? load(src, options.path, options, undefined) : loaded;
-        const refused = splitRefusal(plan.kind, each);
+        const refused = styleRefusal(options.style, plan.as) ??
+            splitRefusal(plan.kind, each);
         const fig = undefined !== refused ? { errors: [refused] }
             : 'ladder' === plan.kind
                 ? drawLadder(src, each, plan.as, plan.max)

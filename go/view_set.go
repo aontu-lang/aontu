@@ -350,11 +350,15 @@ func (a *Aontu) ViewSet(src string, opts *ViewOptions) ViewSetReport {
 	views := []ViewFigure{}
 	for _, plan := range plans {
 		loss := []ViewLoss{}
+		// The style is the set's, since a declaration cannot name one.
 		each := plan.opts
+		each.Style = options.Style
 		var text string
 		var ferrs []VetFinding
 		parts := []ViewPart{}
-		if refused := viewSplitRefusal(plan.kind, &each); nil != refused {
+		if refused := viewStyleRefusal(options.Style, plan.as); nil != refused {
+			ferrs = []VetFinding{*refused}
+		} else if refused := viewSplitRefusal(plan.kind, &each); nil != refused {
 			ferrs = []VetFinding{*refused}
 		} else if "ladder" == plan.kind {
 			text, ferrs = a.drawLadder(src, each.At, plan.as, plan.max)

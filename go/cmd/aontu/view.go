@@ -107,6 +107,14 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 	// The style ASKED FOR, which may be `auto` -- a word ViewOptions
 	// does not carry, because resolving it is the command's job.
 	style := ""
+	// The first option that shapes one figure, which a view document
+	// refuses: its declarations shape their own.
+	figureFlag := ""
+	figure := func(flag string) {
+		if "" == figureFlag {
+			figureFlag = flag
+		}
+	}
 	counted := map[string]*int{
 		"--max-rows": &opts.MaxRows, "--max-cols": &opts.MaxCols,
 		"--min-degree": &opts.MinDegree, "--min-size": &opts.MinSize,
@@ -133,6 +141,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 				return 2
 			}
 			relations = append(relations, argv[i])
+			figure(arg)
 		case "--root" == arg:
 			i++
 			if len(argv) <= i {
@@ -140,6 +149,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 				return 2
 			}
 			roots = append(roots, argv[i])
+			figure(arg)
 		case "-o" == arg, "--out" == arg:
 			i++
 			if len(argv) <= i {
@@ -147,6 +157,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 				return 2
 			}
 			out = argv[i]
+			figure("--out")
 		case "--style" == arg:
 			i++
 			if len(argv) <= i || !hasString(viewStyles, argv[i]) {
@@ -161,6 +172,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 			strict = true
 		case nil != flagged[arg]:
 			*flagged[arg] = true
+			figure(arg)
 		case "--layers" == arg:
 			i++
 			if len(argv) <= i || "" == argv[i] {
@@ -168,6 +180,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 				return 2
 			}
 			opts.Layers = strings.Split(argv[i], ",")
+			figure(arg)
 		case nil != valued[arg]:
 			i++
 			if len(argv) <= i || "" == argv[i] {
@@ -175,6 +188,9 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 				return 2
 			}
 			*valued[arg] = argv[i]
+			if "--views" != arg {
+				figure(arg)
+			}
 		case nil != counted[arg]:
 			i++
 			n, err := -1, error(nil)
@@ -186,6 +202,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 				return 2
 			}
 			*counted[arg] = n
+			figure(arg)
 		case strings.HasPrefix(arg, "-"):
 			io.WriteString(stderr,
 				"aontu: unknown view option "+arg+" (try --help)\n")
@@ -205,7 +222,7 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 	// names no kind: the declarations do, one each.
 	if "" != opts.Views {
 		opts.Style = viewStyleFor(style, "", stdout)
-		return runViewSet(rest, &opts, trust, format, check, strict, out, stdout, stderr)
+		return runViewSet(rest, &opts, trust, format, check, strict, figureFlag, stdout, stderr)
 	}
 
 	if 2 > len(rest) {
@@ -341,15 +358,15 @@ func runView(argv []string, stdout, stderr io.Writer) int {
 }
 
 func runViewSet(rest []string, opts *aontu.ViewOptions, trust trustArg,
-	format string, check, strict bool, out string,
+	format string, check, strict bool, flag string,
 	stdout, stderr io.Writer) int {
 	if 1 != len(rest) {
 		io.WriteString(stderr, "aontu: view --views takes one file\n")
 		return 2
 	}
-	if "" != out {
-		io.WriteString(stderr,
-			"aontu: --out is per figure in a view document; each declares its own\n")
+	if "" != flag {
+		io.WriteString(stderr, "aontu: "+flag+" is per figure in a view "+
+			"document; each declares its own\n")
 		return 2
 	}
 	file := rest[0]

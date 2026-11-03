@@ -3889,23 +3889,7 @@ export function view(
         `profiles: ${profiles.join(', ')}`)],
     })
   }
-  const style: ViewStyle = styleOf(options.style, as)
-  const carrier: Record<string, ViewProfile> = { ansi: 'text', css: 'svg' }
-  if (undefined !== carrier[style] && carrier[style] !== as) {
-    return done({
-      errors: [finding('view_style_profile', 'reference', '$',
-        `The ${as} profile cannot carry --style ${style}.`,
-        `${style} is the ${carrier[style]} profile's mechanism`)],
-    })
-  }
-  if (undefined === carrier[style] && 'none' !== style) {
-    return done({
-      errors: [finding('view_style_unknown', 'reference', '$',
-        `${style} is not a style.`, 'styles: auto, none, ansi, css')],
-    })
-  }
-
-  const refused = splitRefusal(kind, options)
+  const refused = styleRefusal(options.style, as) ?? splitRefusal(kind, options)
   if (undefined !== refused) {
     return done({ errors: [refused] })
   }
@@ -3934,6 +3918,25 @@ export function view(
   }
   return done(drawLoaded(loaded.root, loaded.ctx, prov,
     kind, as, options, max, loss))
+}
+
+
+// Each style is one profile's mechanism, and `none` is every profile's.
+function styleRefusal(
+  given: ViewStyle | undefined, as: ViewProfile
+): VetFinding | undefined {
+  const style = styleOf(given, as)
+  const carrier: Record<string, ViewProfile> = { ansi: 'text', css: 'svg' }
+  if (undefined !== carrier[style] && carrier[style] !== as) {
+    return finding('view_style_profile', 'reference', '$',
+      `The ${as} profile cannot carry --style ${style}.`,
+      `${style} is the ${carrier[style]} profile's mechanism`)
+  }
+  if (undefined === carrier[style] && 'none' !== style) {
+    return finding('view_style_unknown', 'reference', '$',
+      `${style} is not a style.`, 'styles: auto, none, ansi, css')
+  }
+  return undefined
 }
 
 
@@ -4364,16 +4367,18 @@ export function viewSet(
 
   const views: ViewFigure[] = plans.map((plan) => {
     const loss: ViewLoss[] = []
+    // The style is the set's, since a declaration cannot name one.
     const each: ViewOptions = {
       ...plan.opts, path: options.path, trust: options.trust,
-      textExt: options.textExt,
+      textExt: options.textExt, style: options.style,
     }
     // A Val tree generates once: the declarations were generated from
     // this one, so a figure that generates draws from a fresh
     // evaluation of the same source, which stands up as this one did.
     const own = 'sets' === plan.kind || 'sequence' === plan.kind
       ? load(src, options.path, options, undefined) : loaded
-    const refused = splitRefusal(plan.kind, each)
+    const refused = styleRefusal(options.style, plan.as) ??
+      splitRefusal(plan.kind, each)
     const fig: Figure = undefined !== refused ? { errors: [refused] }
       : 'ladder' === plan.kind
         ? drawLadder(src, each, plan.as, plan.max)
