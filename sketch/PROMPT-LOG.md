@@ -481,3 +481,12 @@ The answers to the agent's questions, each question followed by the option chose
 Two PRs from other sessions are still open, and neither has landed. aontu#436 (2026-10-21) makes DEV-PROCESS.md generic, adds an admin/ folder and generalises the comment gate to comment syntaxes. web#67 (2026-09-15) cuts web's AGENTS.md from about 10,000 words to a gated index of under 1,200. Both are far behind main. What should I do with them?
 → Update and merge both (Recommended)
 ```
+
+## 2026-11-03 10:37:17 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+aontu#588 (#581, #583) and #436 are merged, and so are web#127 and web#128 (which replaced web#67). While measuring #581 I filed follow-ups: #584, #585, #586 and #587. Which should I build next?
+→ #585 + #587, definition (Recommended)
+```

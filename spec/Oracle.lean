@@ -1550,6 +1550,38 @@ theorem call_path_verdict_exact : ∀ c ∈ callPathCases, ∀ (m : Mode) (v : V
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (callPathCases_checkable c hc).1 (callPathCases_checkable c hc).2 v
 
+/-- A call over a hole that a path names, which the data fills, as it
+fills a hole the document leaves unfilled: `sum` over a path to a list
+that holds one, against data that fills it and writes the sum, data
+that fills it alone, no data, and data that writes another sum; over a
+list that holds a path to a hole, against the same; over a path to a
+path to such a list; and a call over such a call. A path to a list that
+holds a `key(n)` is read as written, so the call over it is an error
+still. -/
+def dataPathCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let x21 : Data := .list [j 2, j 1]
+  let dA : Val := m [("v", .call .sum [p ["x"]]), ("x", lst [.hole, int 1])]
+  let dB : Val := m [("v", .call .sum [lst [p ["h"], int 1]]), ("h", .hole)]
+  let dD : Val := m [("v", .call .sum [p ["y"]]), ("y", p ["x"]), ("x", lst [.hole, int 1])]
+  [([], dA, .map [("v", j 3), ("x", x21)]), ([], dA, .map [("x", x21)]), ([], dA, .map []),
+    ([], dA, .map [("v", j 4), ("x", x21)]),
+    ([], dB, .map [("v", j 3), ("h", j 2)]), ([], dB, .map [("h", j 2)]), ([], dB, .map []),
+    ([], dD, .map [("v", j 3), ("x", x21), ("y", x21)]), ([], dD, .map []),
+    ([], m [("v", .call .upper [.call .sum [p ["x"]]]), ("x", lst [.hole, int 1])], .map [("x", x21)]),
+    ([], m [("v", .call .sum [p ["x"]]), ("x", lst [.keyUp 1, int 1])], .map [])]
+
+theorem dataPathCases_checkable : ∀ c ∈ dataPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem data_path_verdict_exact : ∀ c ∈ dataPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (dataPathCases_checkable c hc).1 (dataPathCases_checkable c hc).2 v
+
 /-- `move` of a path to a scalar, beside data that supplies the source,
 data that refuses it and data that overrides the copy; of a path into a
 map; of a path to a list; of a value written in place; of a path to
@@ -5180,7 +5212,9 @@ wait on, so no peer of the call fills it, for the `verdict` rows dh0 on:
 a call made from its arguments' values can't be made, so the schema
 doesn't stand, whatever the data writes. Each function over a list that
 holds a hole, at its first argument and at a later one, a `join` at its
-separator and over a `join` that holds one; `sum` over a map, over a
+separator, whether its list holds a hole or not, and over a `join` that
+holds one, and a `join` whose list is its own hole, which the data fills
+with a list it then refuses at the separator; `sum` over a map, over a
 nested list and over a call that waits on its own hole inside the list;
 met with the value a fill would make, with a list, with a hole and with
 itself; as a list's element, under `type()` and `hide()`, as an
@@ -5211,7 +5245,8 @@ def heldHoleCases : List (Val × Data) :=
     (.call .pick [lst [mp [("a", n 1)]], h1], x), (.call .sort [h1], x),
     (.call .sort [lst [n 1], h1], x), (.call .path [h1], x), (.call .abnf [h1], x),
     (.call .parse [h1], x), (.call (.cmp .line) [h1], x),
-    (.call .join [lst [s "a"], h1], x),
+    (.call .join [lst [s "a"], h1], x), (.call .join [lst [s "a", .hole], h1], x),
+    (.call .join [.hole, h1], .list [.str "a"]),
     (.call .upper [.call .join [h1]], x), (.call .split [ja, s ","], x),
     (hs, .integer 3), (.call .upper [h1], .str "A"),
     (.call .sum [mp [("k", .hole)]], .integer 3), (.call .sum [lst [h1, n 1]], .integer 3),
@@ -6041,7 +6076,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# rows em0 on, and copy, its argument with the marks and the seal cleared at"
     IO.println "# every depth, in rows cp0 on. Links whose templates read the member or the"
     IO.println "# place where they land, each read there and only at the instances its own"
-    IO.println "# generator makes, follow in rows lt0 on."
+    IO.println "# generator makes, follow in rows lt0 on. A call over a hole that a path names,"
+    IO.println "# which the data fills, so that the call stands until it does, follows in rows dp0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -6051,6 +6087,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "la" absentListCases
     pathRows "pf" prefCases
     pathRows "pc" callPathCases
+    pathRows "dp" dataPathCases
     pathRows "mv" moveCases
     pathRows "rn" roundCases
     pathRows "rf" referCases

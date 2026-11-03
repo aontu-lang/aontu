@@ -8,6 +8,37 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a hole a path names as the data's to fill
+
+The definition, generated rows, and documentation.
+
+- A hole at a place the document writes is the data's to fill, as the
+  data fills a hole the document leaves unfilled, and a path reaches
+  that place. So `v: sum($.x)` beside `x: [_, 1]`, and
+  `v: sum([$.h, 1])` beside `h: _`, wait for the data, as both engines
+  read them: `valid` against data that fills the hole, `incomplete`
+  against data that doesn't. The definition read the schema alone, found
+  the call unmade over the hole it copied in, and answered `error`
+  (#585). It now reads a call that computes from its arguments' values
+  and waits only through such a path as waiting for the data
+  (`Decls.dataS`), both where it asks whether the schema stands and where
+  it asks whether the data leaves a call unmade. A hole the call's own
+  argument holds is one no data reaches, so `v: sum([_, 1])` stays an
+  error, and a path to a list that holds a `key(n)` is read as written.
+- A `join` that waits on no hole of its own and whose separator is a
+  list or a map that holds a hole doesn't stand, whether its list holds
+  a hole or not, so `v: join(["a", _], [_])` is an `error` in the
+  definition, as both engines answer (#587).
+- `spec/Oracle.lean`: rows dp0 on of `test/spec/def-path.tsv`, 11 cases
+  in each of the three modes, and two `join` cases more in rows dh0 on
+  of `test/spec/def-call.tsv`, which both engines answer as the
+  definition does. No other row moves.
+- A call over a list that holds a written hole beside a path to one,
+  `v: sum([_, $.h])`, is an error in the definition and `invalid` in
+  both engines (#589).
+- Docs: the reference's placeholder section and the definition
+  tutorial's step on holes.
+
 ### `vet` reads a call over a container that holds a hole as an error
 
 TypeScript and Go, generated rows, shared rows, and documentation.
