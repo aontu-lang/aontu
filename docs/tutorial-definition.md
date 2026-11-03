@@ -7618,10 +7618,19 @@ as both engines answer in the rows from dh0 on. A disjunction drops
 such an arm, and the list's own meet fills its hole, so
 `v: sum([_, 1]) | 4` passes `v: 4` and `v: sum([_, 1] & [2, 1])` passes
 `v: 3`. A `join` over such a list stands, as `Val.illFormed` exempts
-it, which is why the preceding `join` refuses rather than fails. A hole a
-path names is the data's to fill in both engines, so `v: sum($.x)`
-beside `x: [_, 1]` passes data that writes `x`, where the definition
-reads an error, which #585 tracks. `+` joins two lists as written
+it, which is why the preceding `join` refuses rather than fails, but a
+`join` whose separator is a list or a map that holds a hole doesn't
+stand where it waits on no hole of its own (`joinSepHeld`), so
+`v: join(["a", _], [_])` is an error. A hole a path names is the
+data's to fill, as the data writes the place the path names. So the
+verdict reads the schema with each call that waits only through such a
+path read as waiting for the data (`Decls.dataS`, through
+`Val.dataRead` and `Decls.dataNames`), both where it asks whether the
+schema stands and where it asks whether the data leaves a call unmade.
+Then `v: sum($.x)` beside `x: [_, 1]` passes data that writes `x` and is
+`incomplete` against data that doesn't, as both engines answer in the
+rows from dp0 on. The verdict reads a path to a list that holds a
+`key(n)` as written, so a call over one stays an error. `+` joins two lists as written
 (`plusOf`), whatever their elements hold, so the meet fills a hole that
 an operand list holds member by member, and a `+` waits only on a hole
 among its operands. So `(["a", _] + ["c"]) & ["a", "b", "c"]` is

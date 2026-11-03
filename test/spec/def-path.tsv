@@ -43,7 +43,8 @@
 # rows em0 on, and copy, its argument with the marks and the seal cleared at
 # every depth, in rows cp0 on. Links whose templates read the member or the
 # place where they land, each read there and only at the instances its own
-# generator makes, follow in rows lt0 on.
+# generator makes, follow in rows lt0 on. A call over a hole that a path names,
+# which the data fills, so that the call stands until it does, follows in rows dp0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -692,6 +693,39 @@ pc23	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{}	{"verdict":"valid","opts"
 pc24	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{"b": 3}	{"verdict":"invalid"}
 pc25	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{"b": 3}	{"verdict":"invalid","opts":{"noFill":true}}
 pc26	verdict	"a": match(1, 1, {"x": 2}), "b": $.a.x	{"b": 3}	{"verdict":"invalid","opts":{"partial":true}}
+dp0	verdict	"v": sum($.x), "x": [_, 1]	{"v": 3, "x": [2, 1]}	{"verdict":"valid"}
+dp1	verdict	"v": sum($.x), "x": [_, 1]	{"v": 3, "x": [2, 1]}	{"verdict":"valid","opts":{"noFill":true}}
+dp2	verdict	"v": sum($.x), "x": [_, 1]	{"v": 3, "x": [2, 1]}	{"verdict":"valid","opts":{"partial":true}}
+dp3	verdict	"v": sum($.x), "x": [_, 1]	{"x": [2, 1]}	{"verdict":"valid"}
+dp4	verdict	"v": sum($.x), "x": [_, 1]	{"x": [2, 1]}	{"verdict":"incomplete","opts":{"noFill":true}}
+dp5	verdict	"v": sum($.x), "x": [_, 1]	{"x": [2, 1]}	{"verdict":"valid","opts":{"partial":true}}
+dp6	verdict	"v": sum($.x), "x": [_, 1]	{}	{"verdict":"incomplete"}
+dp7	verdict	"v": sum($.x), "x": [_, 1]	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+dp8	verdict	"v": sum($.x), "x": [_, 1]	{}	{"verdict":"valid","opts":{"partial":true}}
+dp9	verdict	"v": sum($.x), "x": [_, 1]	{"v": 4, "x": [2, 1]}	{"verdict":"invalid"}
+dp10	verdict	"v": sum($.x), "x": [_, 1]	{"v": 4, "x": [2, 1]}	{"verdict":"invalid","opts":{"noFill":true}}
+dp11	verdict	"v": sum($.x), "x": [_, 1]	{"v": 4, "x": [2, 1]}	{"verdict":"invalid","opts":{"partial":true}}
+dp12	verdict	"v": sum([$.h, 1]), "h": _	{"v": 3, "h": 2}	{"verdict":"valid"}
+dp13	verdict	"v": sum([$.h, 1]), "h": _	{"v": 3, "h": 2}	{"verdict":"valid","opts":{"noFill":true}}
+dp14	verdict	"v": sum([$.h, 1]), "h": _	{"v": 3, "h": 2}	{"verdict":"valid","opts":{"partial":true}}
+dp15	verdict	"v": sum([$.h, 1]), "h": _	{"h": 2}	{"verdict":"valid"}
+dp16	verdict	"v": sum([$.h, 1]), "h": _	{"h": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+dp17	verdict	"v": sum([$.h, 1]), "h": _	{"h": 2}	{"verdict":"valid","opts":{"partial":true}}
+dp18	verdict	"v": sum([$.h, 1]), "h": _	{}	{"verdict":"incomplete"}
+dp19	verdict	"v": sum([$.h, 1]), "h": _	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+dp20	verdict	"v": sum([$.h, 1]), "h": _	{}	{"verdict":"valid","opts":{"partial":true}}
+dp21	verdict	"v": sum($.y), "y": $.x, "x": [_, 1]	{"v": 3, "x": [2, 1], "y": [2, 1]}	{"verdict":"valid"}
+dp22	verdict	"v": sum($.y), "y": $.x, "x": [_, 1]	{"v": 3, "x": [2, 1], "y": [2, 1]}	{"verdict":"valid","opts":{"noFill":true}}
+dp23	verdict	"v": sum($.y), "y": $.x, "x": [_, 1]	{"v": 3, "x": [2, 1], "y": [2, 1]}	{"verdict":"valid","opts":{"partial":true}}
+dp24	verdict	"v": sum($.y), "y": $.x, "x": [_, 1]	{}	{"verdict":"incomplete"}
+dp25	verdict	"v": sum($.y), "y": $.x, "x": [_, 1]	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+dp26	verdict	"v": sum($.y), "y": $.x, "x": [_, 1]	{}	{"verdict":"valid","opts":{"partial":true}}
+dp27	verdict	"v": upper(sum($.x)), "x": [_, 1]	{"x": [2, 1]}	{"verdict":"valid"}
+dp28	verdict	"v": upper(sum($.x)), "x": [_, 1]	{"x": [2, 1]}	{"verdict":"incomplete","opts":{"noFill":true}}
+dp29	verdict	"v": upper(sum($.x)), "x": [_, 1]	{"x": [2, 1]}	{"verdict":"valid","opts":{"partial":true}}
+dp30	verdict	"v": sum($.x), "x": [key(1), 1]	{}	{"verdict":"error"}
+dp31	verdict	"v": sum($.x), "x": [key(1), 1]	{}	{"verdict":"error","opts":{"noFill":true}}
+dp32	verdict	"v": sum($.x), "x": [key(1), 1]	{}	{"verdict":"error","opts":{"partial":true}}
 mv0	verdict	"a": 1, "b": move($.a)	{}	{"verdict":"valid"}
 mv1	verdict	"a": 1, "b": move($.a)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 mv2	verdict	"a": 1, "b": move($.a)	{}	{"verdict":"valid","opts":{"partial":true}}

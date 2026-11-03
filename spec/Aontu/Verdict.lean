@@ -648,6 +648,16 @@ def Fn.takes : Fn → ℕ → Bool
   | .load, n | .bnd .neq, n => 1 ≤ n
   | .bnd _, n => n == 1
 
+/-- Whether a function computes its value from its arguments' values, so
+that a call over a hole the data fills is made once the data fills it:
+the arithmetic, the folds, the calls on bags and text but `join`, `path`,
+`abnf`, `parse` and the components, as both ports read them. -/
+def Fn.computes : Fn → Bool
+  | .add | .sub | .mul | .div | .mod | .rem | .neg | .sum | .least | .greatest
+  | .pick | .sort | .upper | .lower | .translate | .esc | .usc | .split | .rep | .nom
+  | .path | .abnf | .parse | .cmp _ => true
+  | _ => false
+
 /-- A node of the component tree: the sealed map of its component's
 name, its props and its children. -/
 def cmpNode (c : Cmp) (props : Val) (kids : List Val) : Val :=
@@ -5591,6 +5601,15 @@ settles to one arm, `len(1 & (1 | 3))` or `len(1 | (1 & 2))`, is that
 arm's size (decision 16 of the design note's §7). -/
 def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 
+/-- Whether a `join`'s separator is a list or a map that holds a hole,
+which no peer of the call fills, since the call waits on no hole a
+container argument holds, and no value of the list's own hole can make a
+container a separator. -/
+def joinSepHeld : List Val → Bool
+  | [_, .list items spread c] => (Val.list items spread c).waits (fun _ => false) && !(Val.list items spread c).holdsKey
+  | [_, .map fs spread c] => (Val.map fs spread c).waits (fun _ => false) && !(Val.map fs spread c).holdsKey
+  | _ => false
+
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, a
@@ -5600,9 +5619,11 @@ more than the hole, which neither fills, as `upper(_) & _`. A call
 that waits on a hole stands, for the data to fill, where it has as
 many arguments as its function takes (`Fn.takes`), a generator read by
 its data alone, since its template is read at each member, a `+` that waits
-where its operands do, and a `pref` where its argument does. The
-verdict reads it of a term staged (`Val.staged`), so that a conflict
-the meet finds is a `nil`. -/
+where its operands do, and a `pref` where its argument does. A `join`
+stands where its list holds a hole, but not where it waits on no hole
+of its own and its separator is a list or a map that holds one
+(`joinSepHeld`). The verdict reads it of a term staged (`Val.staged`),
+so that a conflict the meet finds is a `nil`. -/
 def Val.illFormed : Val → Bool
   | .nil => true
   | .len c => c.sizeIll
@@ -5613,7 +5634,8 @@ def Val.illFormed : Val → Bool
   | .meet a b => (a.fillable && b.fillable && !(a.isHole && b.isHole)) || a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
-  | .call .join args => (args.length != 1 && args.length != 2) || illItems args
+  | .call .join args => (args.length != 1 && args.length != 2) || illItems args ||
+    (!(Val.call .join args).fillable && joinSepHeld args)
   | .call .pref args => args.length != 1 || illItems args
   | .call .each args | .call .pack args | .call .emit args =>
     if fillableHead args && args.length == 2 then illHead args else true
@@ -5881,11 +5903,69 @@ def Decls.bodyIll (ds : Decls) : Bool :=
   du.any fun d => d.1.toList.head? != some '!' &&
     (((normaliseD du (du.readU (.alias d.1))).staged du).illFormed || ((normaliseD du (du.readU d.2)).staged du).illFormed)
 
+/-- The names of the paths whose bodies hold a hole the data fills, at
+any depth or through a path whose body holds one, and no `key(n)`, read
+to a fixed point as `Decls.waitNames` reads the names that wait. A path's
+name begins with `$` (`pathName`), and a hole at the place a path names
+is one the data writes, as the data fills a hole the document leaves
+unfilled (decision 29 of the design note's §7). -/
+def Decls.dataNames (ds : Decls) : List String :=
+  (List.range ds.length).foldl
+    (fun ws _ => (ds.filter fun d => d.1.startsWith "$" && !d.2.holdsKey &&
+      d.2.waits fun n => ws.contains n).map (·.1)) []
+
+mutual
+/-- A term with each call that computes from its arguments' values
+(`Fn.computes`) and waits only through a name `w` reads as waiting, on no
+hole or `key(n)` of its own, read as what the data could make of it,
+`any`, since the data fills what the name holds and the call is made
+then; such a call reads as `nil` instead where it takes another count of
+arguments (`Fn.takes`), or where an argument doesn't stand by `ill`.
+Every other call keeps its reading, its arguments read so. -/
+def Val.dataRead (w : String → Bool) (ill : Val → Bool) : Val → Val
+  | .call f args =>
+    if f.computes && (Val.call f args).waits w && !(Val.call f args).waits (fun _ => false) then
+      if !f.takes args.length || dataArgsIll w ill args then .nil else .any
+    else .call f (dataItems w ill args)
+  | .map fs spread closed => .map (dataFields w ill fs) spread closed
+  | .list items spread closed => .list (dataItems w ill items) spread closed
+  | .meet a b => .meet (a.dataRead w ill) (b.dataRead w ill)
+  | .or arms => .or (dataArms w ill arms)
+  | .pref r x => .pref r (x.dataRead w ill)
+  | .ride k v r => .ride k (v.dataRead w ill) r
+  | v => v
+
+def dataFields (w : String → Bool) (ill : Val → Bool) :
+    List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.dataRead w ill) :: dataFields w ill fs
+
+def dataItems (w : String → Bool) (ill : Val → Bool) : List Val → List Val
+  | [] => []
+  | v :: vs => v.dataRead w ill :: dataItems w ill vs
+
+def dataArms (w : String → Bool) (ill : Val → Bool) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.dataRead w ill) :: dataArms w ill arms
+
+def dataArgsIll (w : String → Bool) (ill : Val → Bool) : List Val → Bool
+  | [] => false
+  | v :: vs => ill (v.dataRead w ill) || dataArgsIll w ill vs
+end
+
+/-- The schema with each call that waits only through a path whose body
+holds a hole read as waiting for the data (`Val.dataRead`,
+`Decls.dataNames`), so that `sum($.x)` beside `x: [_, 1]` stands, as the
+data writes the hole at `x`, while a hole the call's own argument holds
+is one no data reaches. -/
+def Decls.dataS (ds : Decls) (S : Val) : Val :=
+  S.dataRead (fun n => ds.dataNames.contains n) fun t => ((normaliseD ds (ds.readR t)).staged ds).illFormed
+
 /-- Whether a document does not stand: an `ident()` out of its place, a
-declaration's body that does not stand, or the schema, read, with a
-normal form that does not stand. -/
+declaration's body that does not stand, or the schema, read as the data
+would fill it (`Decls.dataS`), with a normal form that does not stand. -/
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || ((normaliseD ds (ds.readR S)).staged ds).illFormed
+  ds.identMisplaced S || ds.bodyIll || ((normaliseD ds (ds.readR (ds.dataS S))).staged ds).illFormed
 
 /-! ## The value a document gives with its trials unread
 
@@ -6177,7 +6257,9 @@ staged, does not stand; `invalid` where the schema read against the data
 (`Decls.readJ`), the data filling each hole the schema leaves unfilled,
 staged (`Val.staged`) so that a conflict the meet finds is `nil` and an
 arm holding one drops, fails, dead or holding a call the data leaves it
-unable to make (`Val.fails`), or refuses, read whole, the value it gives
+unable to make (`Val.fails`), a call that waits only through a path
+whose body holds a hole read as waiting for the data (`Decls.dataS`),
+or refuses, read whole, the value it gives
 with its trials and sizes unread; `valid` where it singles out a
 value, and without the fill where the data as written is an instance of
 the visible part of the schema's normal form, staged, each part that
@@ -6187,18 +6269,18 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (((normaliseD ds (ds.readJ S j)).staged ds).fails = true ∨
+      (((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = true ∨
         RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
+      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       (m.lax = true ∨
         ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
           (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
+      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       m.lax = false ∧
       ¬ ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
@@ -6208,7 +6290,7 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
   if !(ds.declaresB S && ds.guardedB) then .error
   else if ds.illFormedR S then .error
-  else if ((normaliseD ds (ds.readJ S j)).staged ds).fails then .invalid
+  else if ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails then .invalid
   else if refusedAt ds ((normaliseD ds (ds.readJ S j)).staged ds) then .invalid
   else if m.lax then .valid
   else
@@ -6396,7 +6478,7 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
     | true => exact .inr (.inr hi)
     | false =>
       rw [if_neg Bool.false_ne_true]
-      cases hd : ((normaliseD ds (ds.readJ S j)).staged ds).fails with
+      cases hd : ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails with
       | true => exact ⟨hD, hG, hi, .inl hd⟩
       | false =>
         rw [if_neg Bool.false_ne_true]
@@ -6473,9 +6555,9 @@ data, the conflicts the meet finds read (`Val.staged`), refuses the data
 as written, or, its trials and sizes unread, the value it would single
 out, or holds a call the data leaves the reading unable to make. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds) j ∨
+    Refuses ds.envE j ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds) j ∨
       RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∨
-      ((normaliseD ds (ds.readJ S j)).staged ds).illFormed = true := by
+      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).illFormed = true := by
   obtain ⟨-, -, -, hd | hr⟩ := h
   · rcases Bool.or_eq_true_iff.mp hd with hd | hi
     · exact .inl (dead_refuses _ hd j)

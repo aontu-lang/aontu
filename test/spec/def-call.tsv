@@ -4091,78 +4091,84 @@ dh86	verdict	v: line([_])	v: "x"	{"verdict":"error","opts":{"partial":true}}
 dh87	verdict	v: join(["a"], [_])	v: "x"	{"verdict":"error"}
 dh88	verdict	v: join(["a"], [_])	v: "x"	{"verdict":"error","opts":{"noFill":true}}
 dh89	verdict	v: join(["a"], [_])	v: "x"	{"verdict":"error","opts":{"partial":true}}
-dh90	verdict	v: upper(join([_]))	v: "x"	{"verdict":"error"}
-dh91	verdict	v: upper(join([_]))	v: "x"	{"verdict":"error","opts":{"noFill":true}}
-dh92	verdict	v: upper(join([_]))	v: "x"	{"verdict":"error","opts":{"partial":true}}
-dh93	verdict	v: split(join(["a", _]), ",")	v: "x"	{"verdict":"error"}
-dh94	verdict	v: split(join(["a", _]), ",")	v: "x"	{"verdict":"error","opts":{"noFill":true}}
-dh95	verdict	v: split(join(["a", _]), ",")	v: "x"	{"verdict":"error","opts":{"partial":true}}
-dh96	verdict	v: sum([_, 1])	v: 3	{"verdict":"error"}
-dh97	verdict	v: sum([_, 1])	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh98	verdict	v: sum([_, 1])	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh99	verdict	v: upper([_])	v: "A"	{"verdict":"error"}
-dh100	verdict	v: upper([_])	v: "A"	{"verdict":"error","opts":{"noFill":true}}
-dh101	verdict	v: upper([_])	v: "A"	{"verdict":"error","opts":{"partial":true}}
-dh102	verdict	v: sum({"k": _})	v: 3	{"verdict":"error"}
-dh103	verdict	v: sum({"k": _})	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh104	verdict	v: sum({"k": _})	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh105	verdict	v: sum([[_], 1])	v: 3	{"verdict":"error"}
-dh106	verdict	v: sum([[_], 1])	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh107	verdict	v: sum([[_], 1])	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh108	verdict	v: sum([upper(_), 1])	v: 3	{"verdict":"error"}
-dh109	verdict	v: sum([upper(_), 1])	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh110	verdict	v: sum([upper(_), 1])	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh111	verdict	v: (sum([_, 1])) & (3)	v: 3	{"verdict":"error"}
-dh112	verdict	v: (sum([_, 1])) & (3)	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh113	verdict	v: (sum([_, 1])) & (3)	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh114	verdict	v: (sum([_, 1])) & (3)	v: 4	{"verdict":"error"}
-dh115	verdict	v: (sum([_, 1])) & (3)	v: 4	{"verdict":"error","opts":{"noFill":true}}
-dh116	verdict	v: (sum([_, 1])) & (3)	v: 4	{"verdict":"error","opts":{"partial":true}}
-dh117	verdict	v: (sum([_, 1])) & ([2, 1])	v: 3	{"verdict":"error"}
-dh118	verdict	v: (sum([_, 1])) & ([2, 1])	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh119	verdict	v: (sum([_, 1])) & ([2, 1])	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh120	verdict	v: (sum([_, 1])) & (_)	v: 3	{"verdict":"error"}
-dh121	verdict	v: (sum([_, 1])) & (_)	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh122	verdict	v: (sum([_, 1])) & (_)	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh123	verdict	v: (sum([_, 1])) & (sum([_, 1]))	v: 3	{"verdict":"error"}
-dh124	verdict	v: (sum([_, 1])) & (sum([_, 1]))	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh125	verdict	v: (sum([_, 1])) & (sum([_, 1]))	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh126	verdict	v: [sum([_, 1])]	v: [3]	{"verdict":"error"}
-dh127	verdict	v: [sum([_, 1])]	v: [3]	{"verdict":"error","opts":{"noFill":true}}
-dh128	verdict	v: [sum([_, 1])]	v: [3]	{"verdict":"error","opts":{"partial":true}}
-dh129	verdict	v: type(sum([_, 1]))	v: 3	{"verdict":"error"}
-dh130	verdict	v: type(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh131	verdict	v: type(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh132	verdict	v: hide(sum([_, 1]))	v: 3	{"verdict":"error"}
-dh133	verdict	v: hide(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh134	verdict	v: hide(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh135	verdict	v: {"a"?: sum([_, 1])}	v: {}	{"verdict":"error"}
-dh136	verdict	v: {"a"?: sum([_, 1])}	v: {}	{"verdict":"error","opts":{"noFill":true}}
-dh137	verdict	v: {"a"?: sum([_, 1])}	v: {}	{"verdict":"error","opts":{"partial":true}}
-dh138	verdict	v: pref(sum([_, 1]))	v: 3	{"verdict":"error"}
-dh139	verdict	v: pref(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh140	verdict	v: pref(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh141	verdict	v: (add(_, sum([_, 1]))) & (2)	v: 3	{"verdict":"error"}
-dh142	verdict	v: (add(_, sum([_, 1]))) & (2)	v: 3	{"verdict":"error","opts":{"noFill":true}}
-dh143	verdict	v: (add(_, sum([_, 1]))) & (2)	v: 3	{"verdict":"error","opts":{"partial":true}}
-dh144	verdict	v: (sum([_, 1])) | (4)	v: 4	{"verdict":"valid"}
-dh145	verdict	v: (sum([_, 1])) | (4)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
-dh146	verdict	v: (sum([_, 1])) | (4)	v: 4	{"verdict":"valid","opts":{"partial":true}}
-dh147	verdict	v: (sum([_, 1])) | (4)	v: 3	{"verdict":"invalid"}
-dh148	verdict	v: (sum([_, 1])) | (4)	v: 3	{"verdict":"invalid","opts":{"noFill":true}}
-dh149	verdict	v: (sum([_, 1])) | (4)	v: 3	{"verdict":"invalid","opts":{"partial":true}}
-dh150	verdict	v: [join(["a", _])]	v: ["a"]	{"verdict":"incomplete"}
-dh151	verdict	v: [join(["a", _])]	v: ["a"]	{"verdict":"incomplete","opts":{"noFill":true}}
-dh152	verdict	v: [join(["a", _])]	v: ["a"]	{"verdict":"valid","opts":{"partial":true}}
-dh153	verdict	v: join([join(["a", _])])	v: "x"	{"verdict":"incomplete"}
-dh154	verdict	v: join([join(["a", _])])	v: "x"	{"verdict":"incomplete","opts":{"noFill":true}}
-dh155	verdict	v: join([join(["a", _])])	v: "x"	{"verdict":"valid","opts":{"partial":true}}
-dh156	verdict	v: sum(([_, 1]) & ([2, 1]))	v: 3	{"verdict":"valid"}
-dh157	verdict	v: sum(([_, 1]) & ([2, 1]))	v: 3	{"verdict":"valid","opts":{"noFill":true}}
-dh158	verdict	v: sum(([_, 1]) & ([2, 1]))	v: 3	{"verdict":"valid","opts":{"partial":true}}
-dh159	verdict	v: {&: sum([_, 1])}	v: {"a": 3}	{"verdict":"invalid"}
-dh160	verdict	v: {&: sum([_, 1])}	v: {"a": 3}	{"verdict":"invalid","opts":{"noFill":true}}
-dh161	verdict	v: {&: sum([_, 1])}	v: {"a": 3}	{"verdict":"invalid","opts":{"partial":true}}
-dh162	verdict	v: {&: sum([_, 1])}	v: {}	{"verdict":"valid"}
-dh163	verdict	v: {&: sum([_, 1])}	v: {}	{"verdict":"valid","opts":{"noFill":true}}
-dh164	verdict	v: {&: sum([_, 1])}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+dh90	verdict	v: join(["a", _], [_])	v: "x"	{"verdict":"error"}
+dh91	verdict	v: join(["a", _], [_])	v: "x"	{"verdict":"error","opts":{"noFill":true}}
+dh92	verdict	v: join(["a", _], [_])	v: "x"	{"verdict":"error","opts":{"partial":true}}
+dh93	verdict	v: join(_, [_])	v: ["a"]	{"verdict":"invalid"}
+dh94	verdict	v: join(_, [_])	v: ["a"]	{"verdict":"invalid","opts":{"noFill":true}}
+dh95	verdict	v: join(_, [_])	v: ["a"]	{"verdict":"invalid","opts":{"partial":true}}
+dh96	verdict	v: upper(join([_]))	v: "x"	{"verdict":"error"}
+dh97	verdict	v: upper(join([_]))	v: "x"	{"verdict":"error","opts":{"noFill":true}}
+dh98	verdict	v: upper(join([_]))	v: "x"	{"verdict":"error","opts":{"partial":true}}
+dh99	verdict	v: split(join(["a", _]), ",")	v: "x"	{"verdict":"error"}
+dh100	verdict	v: split(join(["a", _]), ",")	v: "x"	{"verdict":"error","opts":{"noFill":true}}
+dh101	verdict	v: split(join(["a", _]), ",")	v: "x"	{"verdict":"error","opts":{"partial":true}}
+dh102	verdict	v: sum([_, 1])	v: 3	{"verdict":"error"}
+dh103	verdict	v: sum([_, 1])	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh104	verdict	v: sum([_, 1])	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh105	verdict	v: upper([_])	v: "A"	{"verdict":"error"}
+dh106	verdict	v: upper([_])	v: "A"	{"verdict":"error","opts":{"noFill":true}}
+dh107	verdict	v: upper([_])	v: "A"	{"verdict":"error","opts":{"partial":true}}
+dh108	verdict	v: sum({"k": _})	v: 3	{"verdict":"error"}
+dh109	verdict	v: sum({"k": _})	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh110	verdict	v: sum({"k": _})	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh111	verdict	v: sum([[_], 1])	v: 3	{"verdict":"error"}
+dh112	verdict	v: sum([[_], 1])	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh113	verdict	v: sum([[_], 1])	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh114	verdict	v: sum([upper(_), 1])	v: 3	{"verdict":"error"}
+dh115	verdict	v: sum([upper(_), 1])	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh116	verdict	v: sum([upper(_), 1])	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh117	verdict	v: (sum([_, 1])) & (3)	v: 3	{"verdict":"error"}
+dh118	verdict	v: (sum([_, 1])) & (3)	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh119	verdict	v: (sum([_, 1])) & (3)	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh120	verdict	v: (sum([_, 1])) & (3)	v: 4	{"verdict":"error"}
+dh121	verdict	v: (sum([_, 1])) & (3)	v: 4	{"verdict":"error","opts":{"noFill":true}}
+dh122	verdict	v: (sum([_, 1])) & (3)	v: 4	{"verdict":"error","opts":{"partial":true}}
+dh123	verdict	v: (sum([_, 1])) & ([2, 1])	v: 3	{"verdict":"error"}
+dh124	verdict	v: (sum([_, 1])) & ([2, 1])	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh125	verdict	v: (sum([_, 1])) & ([2, 1])	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh126	verdict	v: (sum([_, 1])) & (_)	v: 3	{"verdict":"error"}
+dh127	verdict	v: (sum([_, 1])) & (_)	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh128	verdict	v: (sum([_, 1])) & (_)	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh129	verdict	v: (sum([_, 1])) & (sum([_, 1]))	v: 3	{"verdict":"error"}
+dh130	verdict	v: (sum([_, 1])) & (sum([_, 1]))	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh131	verdict	v: (sum([_, 1])) & (sum([_, 1]))	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh132	verdict	v: [sum([_, 1])]	v: [3]	{"verdict":"error"}
+dh133	verdict	v: [sum([_, 1])]	v: [3]	{"verdict":"error","opts":{"noFill":true}}
+dh134	verdict	v: [sum([_, 1])]	v: [3]	{"verdict":"error","opts":{"partial":true}}
+dh135	verdict	v: type(sum([_, 1]))	v: 3	{"verdict":"error"}
+dh136	verdict	v: type(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh137	verdict	v: type(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh138	verdict	v: hide(sum([_, 1]))	v: 3	{"verdict":"error"}
+dh139	verdict	v: hide(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh140	verdict	v: hide(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh141	verdict	v: {"a"?: sum([_, 1])}	v: {}	{"verdict":"error"}
+dh142	verdict	v: {"a"?: sum([_, 1])}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+dh143	verdict	v: {"a"?: sum([_, 1])}	v: {}	{"verdict":"error","opts":{"partial":true}}
+dh144	verdict	v: pref(sum([_, 1]))	v: 3	{"verdict":"error"}
+dh145	verdict	v: pref(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh146	verdict	v: pref(sum([_, 1]))	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh147	verdict	v: (add(_, sum([_, 1]))) & (2)	v: 3	{"verdict":"error"}
+dh148	verdict	v: (add(_, sum([_, 1]))) & (2)	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dh149	verdict	v: (add(_, sum([_, 1]))) & (2)	v: 3	{"verdict":"error","opts":{"partial":true}}
+dh150	verdict	v: (sum([_, 1])) | (4)	v: 4	{"verdict":"valid"}
+dh151	verdict	v: (sum([_, 1])) | (4)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
+dh152	verdict	v: (sum([_, 1])) | (4)	v: 4	{"verdict":"valid","opts":{"partial":true}}
+dh153	verdict	v: (sum([_, 1])) | (4)	v: 3	{"verdict":"invalid"}
+dh154	verdict	v: (sum([_, 1])) | (4)	v: 3	{"verdict":"invalid","opts":{"noFill":true}}
+dh155	verdict	v: (sum([_, 1])) | (4)	v: 3	{"verdict":"invalid","opts":{"partial":true}}
+dh156	verdict	v: [join(["a", _])]	v: ["a"]	{"verdict":"incomplete"}
+dh157	verdict	v: [join(["a", _])]	v: ["a"]	{"verdict":"incomplete","opts":{"noFill":true}}
+dh158	verdict	v: [join(["a", _])]	v: ["a"]	{"verdict":"valid","opts":{"partial":true}}
+dh159	verdict	v: join([join(["a", _])])	v: "x"	{"verdict":"incomplete"}
+dh160	verdict	v: join([join(["a", _])])	v: "x"	{"verdict":"incomplete","opts":{"noFill":true}}
+dh161	verdict	v: join([join(["a", _])])	v: "x"	{"verdict":"valid","opts":{"partial":true}}
+dh162	verdict	v: sum(([_, 1]) & ([2, 1]))	v: 3	{"verdict":"valid"}
+dh163	verdict	v: sum(([_, 1]) & ([2, 1]))	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+dh164	verdict	v: sum(([_, 1]) & ([2, 1]))	v: 3	{"verdict":"valid","opts":{"partial":true}}
+dh165	verdict	v: {&: sum([_, 1])}	v: {"a": 3}	{"verdict":"invalid"}
+dh166	verdict	v: {&: sum([_, 1])}	v: {"a": 3}	{"verdict":"invalid","opts":{"noFill":true}}
+dh167	verdict	v: {&: sum([_, 1])}	v: {"a": 3}	{"verdict":"invalid","opts":{"partial":true}}
+dh168	verdict	v: {&: sum([_, 1])}	v: {}	{"verdict":"valid"}
+dh169	verdict	v: {&: sum([_, 1])}	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+dh170	verdict	v: {&: sum([_, 1])}	v: {}	{"verdict":"valid","opts":{"partial":true}}

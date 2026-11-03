@@ -1349,10 +1349,15 @@ it. A disjunction drops such an arm, so `v: sum([_, 1]) | 4` passes
 `v: 4`, and the list's own meet fills its hole, so
 `v: sum([_, 1] & [2, 1])` passes `v: 3`. A `join` over a list that
 holds a hole stands, as the definition reads it, so
-`v: join(["a", _], "-") & "b"` is `incomplete`. A hole that a path
-names is the data's to fill, so `v: sum($.x)` beside `x: [_, 1]`
-passes data that writes `x: [2, 1]`, as both engines answer, where the
-definition reads an error. A call that also waits on a hole of its
+`v: join(["a", _], "-") & "b"` is `incomplete`, though a separator that
+holds a hole is one nothing fills, so `v: join(["a", _], [_])` is an
+error. A hole that a path names is the data's to fill, as the data
+fills a hole the document leaves unfilled, so `v: sum($.x)` beside
+`x: [_, 1]` passes data that writes `x: [2, 1]`, and so does
+`v: sum([$.h, 1])` beside `h: _` against data that writes `h`, while
+against data that writes neither each is `incomplete`. Rows from dp0
+on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
+engines to the definition's reading (`Decls.dataS`). A call that also waits on a hole of its
 own binds its peer there alone, so `join([_, "b"], _) & "-"` leaves the
 list's hole open, and a rider's record is a container argument too, so
 `meta({x: 1}, {d: _}) & 2` is an error, as both engines answer, and
