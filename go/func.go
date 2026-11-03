@@ -49,6 +49,31 @@ func openWrap(ctx *Ctx, base []string, v Val) Val {
 	return f.resolve(ctx, base, append([]Val{openWrap(ctx, base, f.peg[0])}, f.peg[1:]...))
 }
 
+// valueFuncs take their argument as the value it is, so read a list or
+// a map that holds a hole as that container once nothing else settles.
+var valueFuncs = map[string]bool{"super": true, "pref": true, "refer": true, "rel": true}
+
+func asValue(ctx *Ctx, f *FuncVal, args []Val) bool {
+	if !ctx.settle || !valueFuncs[f.name] {
+		return false
+	}
+	waits := false
+	for _, a := range args {
+		if a.Dc() == DONE {
+			continue
+		}
+		switch a.(type) {
+		case *ListVal, *MapVal:
+			if bagHoles(a, false) {
+				waits = true
+				continue
+			}
+		}
+		return false
+	}
+	return waits
+}
+
 var funcSet = map[string]bool{
 	"upper": true, "lower": true, "copy": true, "key": true,
 	"pref": true, "super": true, "type": true, "hide": true,
@@ -441,7 +466,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		pegdone = false
 	}
 
-	if pegdone || (through && wrapSettled(newpeg)) {
+	if pegdone || (through && wrapSettled(newpeg)) || asValue(ctx, f, newpeg) {
 		if through {
 			newpeg = append([]Val{openWrap(ctx, base, newpeg[0])}, newpeg[1:]...)
 		}

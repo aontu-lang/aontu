@@ -30,7 +30,7 @@ import {
 
 import { ConjunctVal } from '../val/ConjunctVal'
 import { FeatureVal } from '../val/FeatureVal'
-import { hasPlace, waitsOnHole, bindHole, unfillable } from '../val/PlaceVal'
+import { bagHoles, hasPlace, waitsOnHole, bindHole, unfillable } from '../val/PlaceVal'
 import { bagMembers } from './members'
 
 
@@ -119,6 +119,19 @@ function wrapSettled(args: any[]): boolean {
 // An outer seal reaches the container once the wrappers inside resolve.
 function openWrap(ctx: AontuContext, v: any): Val {
   return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v
+}
+
+
+// The calls that take their argument as the value it is, so read a list
+// or a map that holds a hole as that container once nothing else settles.
+const VALUED = new Set(['super', 'pref', 'refer', 'rel'])
+
+
+function asValue(ctx: AontuContext, call: any, args: any[]): boolean {
+  return true === ctx.settle && VALUED.has(call.funcname()) &&
+    args.some((a: any) => true !== a.done) &&
+    args.every((a: any) => true === a.done ||
+      ((true === a.isList || true === a.isMap) && bagHoles(a, false)))
 }
 
 
@@ -297,7 +310,7 @@ class FuncBaseVal extends FeatureVal {
         const gone = this.forgives ? undefined :
           newpeg.find((a: Val) => true === (a as any).isAbsent)
 
-        if ((pegdone || (through && wrapSettled(newpeg))) &&
+        if ((pegdone || (through && wrapSettled(newpeg)) || asValue(ctx, this, newpeg)) &&
           (undefined !== gone || !this.deferResolve(ctx, newpeg))) {
           // THE SIGNATURE GATE (sketch/SIGNATURES.0.md): the
           // driven arguments against the declared signature, before

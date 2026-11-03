@@ -233,11 +233,81 @@ func anyHeld(vs []Val) bool {
 	return false
 }
 
-// Settled but for a hole its own container holds, which nothing fills.
+// A held hole no meet reaches, under lists, maps and calls alone.
+func stuckIn(v Val) bool {
+	switch n := v.(type) {
+	case *PlaceVal:
+		return n.held
+	case *ListVal:
+		return n.spread == nil && anyStuck(n.peg)
+	case *MapVal:
+		if n.spread != nil {
+			return false
+		}
+		for _, k := range n.keys {
+			if stuckIn(n.peg[k]) {
+				return true
+			}
+		}
+	case *FuncVal:
+		return anyStuck(n.peg[:min(boundArgStart(n), len(n.peg))])
+	}
+	return false
+}
+
+func anyStuck(vs []Val) bool {
+	for _, v := range vs {
+		if stuckIn(v) {
+			return true
+		}
+	}
+	return false
+}
+
+// Settled but for the holes a list or a map holds, or only the held
+// ones where held asks, since no peer of the call fills them.
+func bagHoles(v Val, held bool) bool {
+	if v.Dc() == DONE {
+		return true
+	}
+	switch n := v.(type) {
+	case *PlaceVal:
+		return !held || n.held
+	case *ListVal:
+		if n.spread != nil {
+			return false
+		}
+		for _, e := range n.peg {
+			if !bagHoles(e, held) {
+				return false
+			}
+		}
+		return true
+	case *MapVal:
+		if n.spread != nil {
+			return false
+		}
+		for _, k := range n.keys {
+			if !bagHoles(n.peg[k], held) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// The bounds whose list or map argument holds its holes as a call's does.
+var heldBounds = map[string]bool{
+	"min": true, "max": true, "above": true, "below": true, "neq": true, "mulof": true,
+}
+
+// Settled but for a hole its own container holds, which nothing fills,
+// or holding one no meet reaches, whatever else it waits on.
 func unfillable(ctx *Ctx, f *FuncVal, args []Val) bool {
 	_, holds := holdingFuncs[f.name]
 	return ctx.settle && holds && !waitsOnHole(f) &&
-		allDoneButHoles(args) && anyHeld(args)
+		(anyStuck(args) || (allDoneButHoles(args) && anyHeld(args)))
 }
 
 func fillPlace(v Val, fill Val) Val { return fillIn(v, fill, true) }

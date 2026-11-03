@@ -109,6 +109,24 @@ place-hole-binds-own-only	errc	a:add(_,sum([_,1])) & 2\n	place_container
 place-hole-sep-binds-own-only	errc	a:join([_,"b"],_) & "-"\n	mapval_no_gen
 place-hole-peer-container	errc	a:upper(_) & [_]\n	mapval_no_gen
 
+# A held hole no meet reaches fails the call though another argument
+# still waits, here on a path to a hole. A call that takes its argument
+# as the value it is reads a list or a map that holds a hole as that
+# container, so its peer fills the hole, and a bound reads one as outside
+# its domain; but neq reads the members as the values it refuses, so a
+# hole among them is one nothing fills. A call or a bound whose list
+# also holds a call that waits on its own hole waits still.
+place-held-beside-path	errc	a:sum([$.h,_]) h:_\n	place_container
+place-super-list-hole	gens	a:super([1,_]) & [1,2]\n	{"a":[1,2]}
+place-super-map-hole	gens	a:super({k:_}) & {k:1}\n	{"a":{"k":1}}
+place-super-nested-hole	gens	a:super([[_]]) & [[1]]\n	{"a":[[1]]}
+place-pref-list-hole	gens	a:pref([_]) & [1]\n	{"a":[1]}
+place-bound-list-hole	errc	a:min([_]) & 1\n	invalid-arg
+place-neq-list-hole	errc	a:neq([_]) & 1\n	place_container
+place-neq-list-hole-beside	errc	a:neq([1,_]) & 2\n	place_container
+place-super-hole-beside-call	errc	a:super([_,$.b]) b:upper(_)\n	mapval_no_gen
+place-bound-hole-beside-call	errc	a:min([_,$.b]) b:upper(_)\n	mapval_no_gen
+
 # A call over a container whose argument is the hole takes its peer as
 # that argument, as any call does, and computes from it once the peer
 # settles: on either side, over a map, for each such call, and with the
