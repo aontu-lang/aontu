@@ -703,8 +703,8 @@ help isolate the syntax error.`,
         const val = null == funcval ?
             new NilVal_1.NilVal({ why: 'unknown_function' }) :
             new funcval({ peg: args });
-        if (undefined !== PlaceVal_1.HOLDING[fname]) {
-            args.slice(PlaceVal_1.HOLDING[fname]).forEach((a) => (0, PlaceVal_1.holdHoles)(a, false));
+        if (undefined !== PlaceVal_1.HOLDING[fname] || PlaceVal_1.HELD_BOUNDS.has(fname)) {
+            args.slice(PlaceVal_1.HOLDING[fname] ?? 0).forEach((a) => (0, PlaceVal_1.holdHoles)(a, false));
         }
         return val;
     };

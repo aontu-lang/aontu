@@ -7624,7 +7624,13 @@ stand (`Val.illFormed`), and `v: sum([_, 1])` is an error against any data,
 as both engines answer in the rows from dh0 on. A disjunction drops
 such an arm, and the list's own meet fills its hole, so
 `v: sum([_, 1]) | 4` passes `v: 4` and `v: sum([_, 1] & [2, 1])` passes
-`v: 3`. A `join` over such a list stands, as `Val.illFormed` exempts
+`v: 3`. A call that takes its argument as a value makes it whatever the
+list holds, so `v: super([_])` passes `v: [1]` and refuses `v: "x"`,
+and a bound reads such a list as outside its domain, which admits
+nothing. But `neq` reads the list's members as the values it refuses,
+so a hole among them is one nothing fills, and `v: neq([1, _])` is an
+error, as both engines answer in the rows from dr0 on
+(`readThroughCases`). A `join` over such a list stands, as `Val.illFormed` exempts
 it, which is why the preceding `join` refuses rather than fails, but a
 `join` whose separator is a list or a map that holds a hole doesn't
 stand where it waits on no hole of its own (`joinSepHeld`), so
@@ -7637,7 +7643,10 @@ schema stands and where it asks whether the data leaves a call unmade.
 Then `v: sum($.x)` beside `x: [_, 1]` passes data that writes `x` and is
 `incomplete` against data that doesn't, as both engines answer in the
 rows from dp0 on. The verdict reads a path to a list that holds a
-`key(n)` as written, so a call over one stays an error. `+` joins two lists as written
+`key(n)` as written, so a call over one stays an error, and so does a
+call over a list that holds a written hole beside such a path,
+`v: sum([_, $.h])` beside `h: _`, as the written hole is one no data
+reaches. `+` joins two lists as written
 (`plusOf`), whatever their elements hold, so the meet fills a hole that
 an operand list holds member by member, and a `+` waits only on a hole
 among its operands. So `(["a", _] + ["c"]) & ["a", "b", "c"]` is

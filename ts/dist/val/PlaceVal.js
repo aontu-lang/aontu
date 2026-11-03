@@ -1,7 +1,8 @@
 "use strict";
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PlaceVal = exports.HOLDING = void 0;
+exports.PlaceVal = exports.HOLDING = exports.HELD_BOUNDS = void 0;
+exports.bagHoles = bagHoles;
 exports.boundArgStart = boundArgStart;
 exports.rebuild = rebuild;
 exports.hasPlace = hasPlace;
@@ -155,11 +156,40 @@ function heldIn(v) {
     }
     return false;
 }
-// Settled but for a hole its own container holds, which nothing fills.
+// A held hole no meet reaches, under lists, maps and calls alone.
+function stuckIn(v) {
+    if (true === v?.isPlace) {
+        return true === v.held;
+    }
+    if ((true === v?.isList || true === v?.isMap) && null == v.spread?.cj) {
+        return Object.values(v.peg).some((c) => true === c?.isVal && stuckIn(c));
+    }
+    if (true === v?.isFunc) {
+        return v.peg.slice(0, boundArgStart(v)).some((c) => true === c?.isVal && stuckIn(c));
+    }
+    return false;
+}
+// Settled but for the holes a list or a map holds, or only the held
+// ones where `held` asks, since no peer of the call fills them.
+function bagHoles(v, held) {
+    if (true === v?.done) {
+        return true;
+    }
+    if (true === v?.isPlace) {
+        return !held || true === v.held;
+    }
+    return (true === v?.isList || true === v?.isMap) && null == v.spread?.cj &&
+        Object.values(v.peg).every((c) => bagHoles(c, held));
+}
+// Settled but for a hole its own container holds, which nothing fills,
+// or holding one no meet reaches, whatever else it waits on.
 function unfillable(ctx, call, args) {
     return true === ctx.settle && undefined !== HOLDING[call.funcname()] &&
-        !waitsOnHole(call) && args.every(doneButHoles) && args.some(heldIn);
+        !waitsOnHole(call) && (args.some(stuckIn) || (args.every(doneButHoles) && args.some(heldIn)));
 }
+// The bounds whose list or map argument holds its holes as a call's does.
+const HELD_BOUNDS = new Set(['min', 'max', 'above', 'below', 'neq', 'mulof']);
+exports.HELD_BOUNDS = HELD_BOUNDS;
 function fillPlace(v, fill, ctx) {
     return fillIn(v, fill, ctx, true);
 }

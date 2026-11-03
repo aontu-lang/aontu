@@ -1357,7 +1357,18 @@ fills a hole the document leaves unfilled, so `v: sum($.x)` beside
 `v: sum([$.h, 1])` beside `h: _` against data that writes `h`, while
 against data that writes neither each is `incomplete`. Rows from dp0
 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
-engines to the definition's reading (`Decls.dataS`). A call that also waits on a hole of its
+engines to the definition's reading (`Decls.dataS`). A hole written in
+the call's own list is one nothing fills, even beside such a path, so
+`v: sum([_, $.h])` beside `h: _` is an `error` whatever the data
+writes, in the rows from dp33 on. A call that takes its argument as a
+value reads a list or a map that holds a hole as that container, which
+the data fills: `v: super([_])`, `v: pref([_])` and
+`v: move([_])` pass `v: [1]` and refuse `v: "x"`, and `refer([_])` and
+`rel([_])` make their link and their relation of the list. A bound
+reads such a container as outside its domain, so `v: min([_])` admits
+nothing, but `neq` reads a list's members as the values it refuses, so
+`v: neq([1, _])` is an error, as both engines answer in the rows from
+dr0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv). A call that also waits on a hole of its
 own binds its peer there alone, so `join([_, "b"], _) & "-"` leaves the
 list's hole open, and a rider's record is a container argument too, so
 `meta({x: 1}, {d: _}) & 2` is an error, as both engines answer, and
