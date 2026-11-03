@@ -31,6 +31,23 @@ Both implementations, the shared rows, and documentation.
   model" how-to, which listed five of the seven kinds that already drew
   SVG, both CLIs' `--help`, and the MCP `view` tool's description.
 
+### The view document refuses the options it would ignore
+
+Both implementations.
+
+- `aontu view --views` drew every figure from its declaration and
+  dropped the other options the command line gave it: `--as svg`,
+  `--at`, `--style none` and the rest exited 0 and changed nothing.
+  Only `--out` was refused. Now an option that shapes one figure is
+  refused as `--out` is, naming the first one given.
+- `--style` is the set's, since a declaration cannot name one, and it
+  reaches every figure: `--style none` drops the style block from each
+  SVG figure, and a figure whose profile cannot carry the style is
+  refused (`view_style_profile`) as one drawn alone would be.
+- Rows `views-the-style-is-the-sets` and
+  `views-a-style-a-figure-cannot-carry-is-refused` of
+  `test/spec/views.tsv`, and the refusals in both CLIs' view tests.
+
 ### The definition reads a hole a path names as the data's to fill
 
 The definition, generated rows, and documentation.
