@@ -7311,8 +7311,8 @@ beside `x: each([1, 2], [hide(_), _])`, both `x` and `v: $.x` generate
 `[[1], [2]]`, and beside `x: sum([hide(1), 2])`, `v: $.x` is `2`, the
 sum of the list the call reads. Rows from rn69 on of
 `test/spec/def-path.tsv` hold a list's, a map's and a `pack`'s
-template, a fold and a mark around the whole template, and both
-engines answer every one as the definition does.
+template, a fold, a mark around the whole template and a preference,
+and both engines answer every one as the definition does.
 
 Outside a template, a hole no generator fills admits every value, as
 `any` does, and a call's peer fills a hole in the call. Write

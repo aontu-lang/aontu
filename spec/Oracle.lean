@@ -1659,7 +1659,8 @@ member hidden however a path copies it, and where the member is a map's,
 the copy shows it. A list holds no position for a marked element, so a
 copy has none to show: of a list template, of an instance, of a list a
 fold reads, or of the instances a mark around the whole template
-leaves out. -/
+leaves out. A preference in such a copy is the copy's own, so the
+value it copies keeps its hidden member. -/
 def roundCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (t : String) : Val := .lit (.str t)
@@ -1683,6 +1684,8 @@ def roundCases : List (Decls × Val × Data) :=
   let el : Val := .call .each [lst [int 1, int 2], lst [hd .hole, .hole]]
   let em : Val := .call .each [lst [int 1], m [("a", hd .hole), ("b", .hole)]]
   let pk : Val := .call .pack [lst [str "a"], hd .hole]
+  let held : Val := m [("a", .or [(1, m [("b", hd (int 1)), ("c", int 2)]), (0, m [])]),
+    ("k", .call .sum [lst [int 1, int 2]])]
   [([], m one, .map []),
     ([], m one, .map [("c", .str "abCd")]),
     ([], m one, .map [("c", .str "x")]),
@@ -1725,7 +1728,10 @@ def roundCases : List (Decls × Val × Data) :=
     ([], m [("x", .call .sum [lst [hd (int 1), int 2]]), ("v", p ["x"])], .map [("x", j 2), ("v", j 2)]),
     ([], m [("x", .call .sum [lst [hd (int 1), int 2]]), ("v", p ["x"])], .map [("x", j 2), ("v", j 3)]),
     ([], m [("x", .call .each [lst [int 1], hd (lst [.hole, .hole])]), ("v", p ["x"])],
-      .map [("x", .list []), ("v", .list [])])]
+      .map [("x", .list []), ("v", .list [])]),
+    ([], m [("x", held), ("v", p ["x"])],
+      .map [("x", .map [("a", .map [("c", j 2)]), ("k", j 3)]),
+        ("v", .map [("a", .map [("b", j 1), ("c", j 2)]), ("k", j 3)])])]
 
 theorem roundCases_checkable : ∀ c ∈ roundCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

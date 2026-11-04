@@ -21,9 +21,13 @@ Both engines, and shared rows.
   `3`. The copy now drops each list element its own mark leaves out,
   and keeps the mark around an `each`'s whole template, which leaves
   every instance out. Fixes #625.
-- Eighteen `verdict` rows from the definition, rn84 on in
-  `test/spec/def-path.tsv`, hold a list template, an instance, a fold
-  and a mark around the whole template.
+- Go's copy also takes its own value for a preference, which a staged
+  copy shared. So a path to
+  `x: {a: *{b: hide(1), c: 2} | {}, k: sum([1, 2])}` no longer clears
+  the mark on `x`'s own `b`, which Go then generated.
+- Twenty-one `verdict` rows from the definition, rn84 on in
+  `test/spec/def-path.tsv`, hold a list template, an instance, a fold,
+  a mark around the whole template and a preference.
 
 ### The definition leaves out a generator's marked instance
 

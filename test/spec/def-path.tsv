@@ -945,6 +945,9 @@ rn98	verdict	"x": sum([hide(1), 2]), "v": $.x	{"x": 2, "v": 3}	{"verdict":"inval
 rn99	verdict	"x": each([1], hide([_, _])), "v": $.x	{"x": [], "v": []}	{"verdict":"valid"}
 rn100	verdict	"x": each([1], hide([_, _])), "v": $.x	{"x": [], "v": []}	{"verdict":"valid","opts":{"noFill":true}}
 rn101	verdict	"x": each([1], hide([_, _])), "v": $.x	{"x": [], "v": []}	{"verdict":"valid","opts":{"partial":true}}
+rn102	verdict	"x": {"a": *{"b": hide(1), "c": 2} | ({}), "k": sum([1, 2])}, "v": $.x	{"x": {"a": {"c": 2}, "k": 3}, "v": {"a": {"b": 1, "c": 2}, "k": 3}}	{"verdict":"valid"}
+rn103	verdict	"x": {"a": *{"b": hide(1), "c": 2} | ({}), "k": sum([1, 2])}, "v": $.x	{"x": {"a": {"c": 2}, "k": 3}, "v": {"a": {"b": 1, "c": 2}, "k": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+rn104	verdict	"x": {"a": *{"b": hide(1), "c": 2} | ({}), "k": sum([1, 2])}, "v": $.x	{"x": {"a": {"c": 2}, "k": 3}, "v": {"a": {"b": 1, "c": 2}, "k": 3}}	{"verdict":"valid","opts":{"partial":true}}
 rf0	verdict	"a": {"p": 1}, "b": (refer({"r": 3})) & (path($.a))	{}	{"verdict":"valid"}
 rf1	verdict	"a": {"p": 1}, "b": (refer({"r": 3})) & (path($.a))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 rf2	verdict	"a": {"p": 1}, "b": (refer({"r": 3})) & (path($.a))	{}	{"verdict":"valid","opts":{"partial":true}}
