@@ -128,6 +128,7 @@ place-neq-list-hole-beside	errc	a:neq([1,_]) & 2\n	place_container
 place-super-hole-beside-call	errc	a:super([_,$.b]) b:upper(_)\n	listval_no_gen
 place-super-list-call	gens	a:super([upper(_)]) & ["x"]\n	{"a":["x"]}
 place-super-map-call	gens	a:super({k:upper(_)}) & {k:1}\n	{"a":{"k":1}}
+place-super-list-ranged-call	gens	a:super([upper("a",_)]) & [3]\n	{"a":[3]}
 place-bound-hole-beside-call	errc	a:min([_,$.b]) b:upper(_)\n	mapval_no_gen
 
 # A call over a container whose argument is the hole takes its peer as

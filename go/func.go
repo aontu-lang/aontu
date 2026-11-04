@@ -993,6 +993,11 @@ func superOf(path []string, v Val) Val {
 		}
 		return top()
 
+	// A call here is one still waiting on a hole, and an unmade call's
+	// parent type is any, whatever its superior() says it would make.
+	case *FuncVal, *PlusOpVal:
+		return top()
+
 	// A kind argument climbs the KIND lattice -- super(integer) and
 	// super(float) are `number`, super(number) is top. The struct's
 	// own superior() cannot answer this: it is also PrefVal's

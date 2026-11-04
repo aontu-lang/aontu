@@ -4273,3 +4273,9 @@ dr95	verdict	v: super({"k": upper(_)})	v: {}	{"verdict":"valid","opts":{"partial
 dr96	verdict	v: super([(_) + (1)])	v: [3]	{"verdict":"valid"}
 dr97	verdict	v: super([(_) + (1)])	v: [3]	{"verdict":"valid","opts":{"noFill":true}}
 dr98	verdict	v: super([(_) + (1)])	v: [3]	{"verdict":"valid","opts":{"partial":true}}
+dr99	verdict	v: super([upper("a", _)])	v: [3]	{"verdict":"valid"}
+dr100	verdict	v: super([upper("a", _)])	v: [3]	{"verdict":"valid","opts":{"noFill":true}}
+dr101	verdict	v: super([upper("a", _)])	v: [3]	{"verdict":"valid","opts":{"partial":true}}
+dr102	verdict	v: super([lower("A", _)])	v: [3]	{"verdict":"valid"}
+dr103	verdict	v: super([lower("A", _)])	v: [3]	{"verdict":"valid","opts":{"noFill":true}}
+dr104	verdict	v: super([lower("A", _)])	v: [3]	{"verdict":"valid","opts":{"partial":true}}

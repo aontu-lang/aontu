@@ -1158,7 +1158,7 @@ until the phase that encodes it lands.
    rows rl84 on; #594 read it without. **Ported 2026-11-04 (#595):**
    `super` over a list or a map that holds a call waiting on its own
    hole reads the call as any, as `Val.super` reads a call it can't
-   make, and makes the container at the settle pass, rows dr57 on, 14
+   make, and makes the container at the settle pass, rows dr57 on, 16
    cases in each mode, both ports answering every row as the definition
    does. `pref` over such a list still waits in both ports, where the
    definition prefers each member (#604).

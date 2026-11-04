@@ -5289,7 +5289,8 @@ atom over an argument outside its domain, which admits nothing; but
 among them is one nothing fills, and the schema doesn't stand; and
 `super` over a list or a map that holds a call waiting on its own hole,
 whose parent type is any, beside a settled member and a hole, nested,
-and for `+` too; as both ports answer. -/
+for `+`, and for `upper` and `lower` whose string is settled; as both
+ports answer. -/
 def readThroughCases : List (Val × Data) :=
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
   let lst (xs : List Val) : Val := .list xs none false
@@ -5315,7 +5316,9 @@ def readThroughCases : List (Val × Data) :=
     (.call .super [lst [lst [up]]], .list [l3]), (.call .super [lst [lst [up]]], l3),
     (.call .super [.map [("k", false, up)] none false], k1),
     (.call .super [.map [("k", false, up)] none false], .map []),
-    (.call .super [lst [.call .plus [.hole, n 1]]], l3)]
+    (.call .super [lst [.call .plus [.hole, n 1]]], l3),
+    (.call .super [lst [.call .upper [.lit (.str "a"), .hole]]], l3),
+    (.call .super [lst [.call .lower [.lit (.str "A"), .hole]]], l3)]
 
 set_option maxRecDepth 8192 in
 theorem readThroughCases_checkable : ∀ c ∈ readThroughCases, (vetDoc c).1.CheckableA := by decide

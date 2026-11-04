@@ -17,19 +17,20 @@ TypeScript and Go, generated rows, shared rows, and documentation.
   so it makes the container once the document settles:
   `v: super([upper(_)])` passes `v: [3]` and `v: ["x"]` and refuses
   `v: 3`, where both engines answered `incomplete` (#595). The same
-  holds for a `+` over a hole, in a nested list and in a map, and a
-  settled member or a hole beside such a call reads as before. A bound
+  holds for `upper("a", _)`, whose string is settled, for a `+` over a
+  hole, in a nested list and in a map, and a settled member or a hole
+  beside such a call reads as before. A bound
   over such a list still waits, and so does `pref`, which the
   definition reads otherwise (#604).
 - `rel(t)` against data that writes a list: read with the relation
   kind declared, as its rows are, the definition answers as both
   engines do, `invalid` for every template but against the empty list
   (#594).
-- `spec/Oracle.lean`: rows dr57 on of `test/spec/def-call.tsv`, 14
+- `spec/Oracle.lean`: rows dr57 on of `test/spec/def-call.tsv`, 16
   cases in each of the three modes, and rows rl84 on of
   `test/spec/def-path.tsv`, 24 cases, which both engines answer as the
   definition does. In `test/spec/place.tsv`, `a:super([_,$.b])` beside
-  `b:upper(_)` now fails on its hole, `listval_no_gen`, and two rows
+  `b:upper(_)` now fails on its hole, `listval_no_gen`, and three rows
   show `super` making such a container.
 - Docs: the reference's placeholder and declared-relations sections,
   and the definition tutorial's steps on holes and relations.
