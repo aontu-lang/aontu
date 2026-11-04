@@ -224,13 +224,22 @@ class ReferVal extends FeatureVal_1.FeatureVal {
     }
 }
 exports.ReferVal = ReferVal;
-// A spread that holds addresses alone, which a leaf's link can join.
-function leafOnly(v) {
+// A spread that holds addresses alone, which a leaf's link can join, an
+// alias read as the value it names.
+function leafOnly(v, decls, seen = new Set()) {
+    if (true === v.isRef) {
+        const key = v.aliasKey;
+        if (undefined === key || seen.has(key) || null == decls?.[key]) {
+            return false;
+        }
+        seen.add(key);
+        return leafOnly(decls[key], decls, seen);
+    }
     return true === v.isPath || true === v.isPathKind || true === v.isPathFunc ||
         (true === v.isConstraint && null == v.count && !v.uniq && null == v.pending &&
             0 === v.uniqBy.length + v.musts.length + v.nofs.length + v.whens.length +
                 v.contains.length + v.rests.length) ||
-        (true === v.isConjunct && v.peg.every(leafOnly));
+        (true === v.isConjunct && v.peg.every((t) => leafOnly(t, decls, seen)));
 }
 class RelVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
@@ -296,7 +305,7 @@ class RelVal extends FeatureVal_1.FeatureVal {
         if (!nested && null == sp.cj) {
             sp.cj = this.leafRefer(ctx, relkey);
         }
-        else if (!nested && leafOnly(sp.cj)) {
+        else if (!nested && leafOnly(sp.cj, ctx.root?.peg)) {
             sp.cj = new ConjunctVal_1.ConjunctVal({ peg: [this.leafRefer(ctx, relkey), sp.cj] }, ctx);
         }
         return out;

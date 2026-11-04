@@ -222,8 +222,10 @@ func (s *ScalarVal) Unify(peer Val, ctx *Ctx) Val {
 			if !mok {
 				return makeNilErr(ctx, "scalar_value", s, peer)
 			}
+			// Of one address met twice, the side a link made keeps the edge.
 			out, other := s, ps
-			if merged != s.peg.(string) {
+			if merged != s.peg.(string) || (merged == ps.peg.(string) &&
+				"" == s.link && "" != ps.link) {
 				out, other = ps, s
 			}
 			if other.mtype {

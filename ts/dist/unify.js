@@ -93,6 +93,7 @@ const unite = (ctx, a, b, whence) => {
                 if (a.constructor === b.constructor && a.peg === b.peg
                     && a.emptyOk === b.emptyOk
                     && a.needsNonEmpty === b.needsNonEmpty
+                    && a.link === b.link
                     && !a.isNil && !b.isNil
                     && !a.isMap && !a.isList
                     && !a.isConjunct && !a.isDisjunct
@@ -184,6 +185,7 @@ const unite = (ctx, a, b, whence) => {
             else if (a.constructor === b.constructor && a.peg === b.peg
                 && a.emptyOk === b.emptyOk
                 && a.needsNonEmpty === b.needsNonEmpty
+                && a.link === b.link
                 && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
                 out = update(a, b);
                 why = 'up';
