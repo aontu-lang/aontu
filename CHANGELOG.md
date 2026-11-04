@@ -8,6 +8,20 @@ each change affects.
 
 ## Unreleased
 
+### Go's `super` names a lifted member where it stands
+
+Go only, and shared rows.
+
+- `super` over a list or a map lifts each member to its parent type,
+  and Go's leaves came back without a place: a call, a bound, a kind
+  and a `+` had neither path nor site, and a scalar had no path. So
+  `v: super([upper(_)])` reported its unmade member at `$` and
+  `<no-file>:-1:-1`, where TypeScript reports `$.v.0` at `1:10`. Each
+  leaf now stands at the member's path and at the site of the value it
+  lifts, as TypeScript's do. Fixes #620.
+- Six `vet` rows of `test/spec/super.tsv` pin the finding's path and
+  site for each kind of member.
+
 ### `pref` reads a call waiting on its own hole as that call preferred
 
 TypeScript and Go, and rows of the definition.
