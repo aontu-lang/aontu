@@ -575,3 +575,9 @@ analyse the technical writing resources listed here: https://technicalwriterhq.c
 ```text
 generate a report here for this session
 ```
+
+## 2026-11-04 15:32:44 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
+
+```text
+consolidate the advice of the articles, using the report analysis as a structure, into a set of writing advice, and add them to the style guide
+```
