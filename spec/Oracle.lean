@@ -1653,7 +1653,10 @@ and a string split, beside data that agrees and data that refuses; a
 key the call doesn't make; a preference of a path's map; a call, and a
 call around it, waiting on a path the round before didn't reach where a
 path first reaches them; and paths to a call's and a generator's own
-value. -/
+value, among them generators whose template hides a member, at a list's
+position, in a map and as the whole template, whose own value keeps the
+member hidden however a path copies it, and where the member is a map's,
+the copy shows it. -/
 def roundCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (t : String) : Val := .lit (.str t)
@@ -1673,6 +1676,10 @@ def roundCases : List (Decls × Val × Data) :=
     [("a", str "ab_cd"), ("u", nm (p ["a"])), ("b", m [("x", nm (p ["u", "camel"]))]), ("c", p ["b", "x"])]
   let nested : List (String × Val) := [("a", str "ab_cd"), ("u", nm (p ["a"])),
     ("b", m [("x", .call .upper [.call .nom [p ["u", "camel"], str "snake"]])]), ("c", p ["b", "x"])]
+  let hd (v : Val) : Val := .ride .hide v []
+  let el : Val := .call .each [lst [int 1, int 2], lst [hd .hole, .hole]]
+  let em : Val := .call .each [lst [int 1], m [("a", hd .hole), ("b", .hole)]]
+  let pk : Val := .call .pack [lst [str "a"], hd .hole]
   [([], m one, .map []),
     ([], m one, .map [("c", .str "abCd")]),
     ([], m one, .map [("c", .str "x")]),
@@ -1696,7 +1703,15 @@ def roundCases : List (Decls × Val × Data) :=
     ([], m [("a", str "ab_cd"), ("b", nm (p ["a"])), ("c", p ["b"])], .map [("c", .map [("camel", .str "x")])]),
     ([], m [("l", lst [int 1, int 2]), ("e", .call .each [p ["l"], m [("v", .hole)]]), ("c", p ["e"])], .map []),
     ([], m [("l", lst [int 1, int 2]), ("e", .call .each [p ["l"], m [("v", .hole)]]),
-      ("c", .path [.key "e", .idx 1, .key "v"])], .map [("c", j 2)])]
+      ("c", .path [.key "e", .idx 1, .key "v"])], .map [("c", j 2)]),
+    ([], m [("x", el), ("v", p ["x"])], .map [("x", .list [.list [j 1], .list [j 2]]),
+      ("v", .list [.list [j 1, j 1], .list [j 2, j 2]])]),
+    ([], m [("x", em), ("v", p ["x"])], .map [("x", .list [.map [("b", j 1)]]),
+      ("v", .list [.map [("a", j 1), ("b", j 1)]])]),
+    ([], m [("x", em), ("v", p ["x"])], .map [("x", .list [.map [("b", j 1)]]),
+      ("v", .list [.map [("b", j 1)]])]),
+    ([], m [("x", pk), ("v", p ["x"])], .map [("x", .map []), ("v", .map [("a", .str "a")])]),
+    ([], m [("x", pk), ("v", p ["x"])], .map [("x", .map []), ("v", .map [])])]
 
 theorem roundCases_checkable : ∀ c ∈ roundCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

@@ -58,6 +58,21 @@ function dropPendingMarkWrappers(v: Val): Val {
 }
 
 
+// A staged call's copy shares its arguments with the call it copies, so
+// each call in the copy takes its own before the copy's marks are cleared.
+function ownArgs(ctx: AontuContext, v: Val): Val {
+  return walk(v, (_key: string | number | undefined, val: any) => {
+    if (true !== val.isFunc || !Array.isArray(val.peg)) {
+      return val
+    }
+    const out: any = val.clone(ctx, { path: [...val.path] })
+    out.peg = val.peg.map((a: any) =>
+      true === a?.isVal ? a.clone(ctx, { path: [...a.path] }) : a)
+    return out
+  })
+}
+
+
 function pendingMarkWrapper(v: any): boolean {
   if (true === v.isTypeFunc || true === v.isHideFunc) {
     return !v.done
@@ -523,9 +538,13 @@ class RefVal extends FeatureVal {
             || true === out.mark.type || true === out.mark.hide
           const typed = true === out.mark.type
 
-          out = undeclared(out.clone(ctx, { dup: !out.holdsStaged }))
+          const staged = out.holdsStaged
+          out = undeclared(out.clone(ctx, { dup: !staged }))
 
           if (lifted) {
+            if (staged) {
+              out = ownArgs(ctx, out)
+            }
             // The copy carries a held constraint without its type.
             out = walk(out, (_key: string | number | undefined, val: Val) => {
               val.mark.type = false

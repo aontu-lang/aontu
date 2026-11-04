@@ -24,6 +24,26 @@ The definition, and shared rows.
   members and a conflict. Both engines answer every one as the
   definition does.
 
+### A path to a generator's value leaves the generator's marks alone
+
+Both engines, and shared rows.
+
+- A path copies what it names with its marks cleared, and a generator's
+  value lost its own marks to the copy. Beside
+  `x: each([1], {a: hide(_), b: _})`, the path `v: $.x` made `x`
+  generate `[{"a": 1, "b": 1}]` where it generates `[{"b": 1}]`. The
+  same held for a list template, and in Go for `pack`. Each call in
+  the copy now holds its own arguments before the copy's marks are
+  cleared, so `x` keeps its member hidden and `v` shows it. Fixes #624.
+- A list template's copy still shows its marked element, where a
+  marked element holds no position, which #625 tracks.
+- Fifteen `verdict` rows from the definition, in
+  `test/spec/def-path.tsv`, hold it for a list's, a map's and a
+  `pack`'s template.
+- Six `canon` rows of `test/spec/func.tsv` and `test/spec/spread.tsv`
+  change: the source a `move` hides keeps its own value, where it took
+  the destination's `key()` through the arguments the two shared.
+
 ### Ten more of Go's coverage gaps close
 
 Go only, and shared rows.

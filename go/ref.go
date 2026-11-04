@@ -353,6 +353,20 @@ func dropPendingMarkWrappers(v Val) Val {
 	return v
 }
 
+// A staged call's copy shares its arguments with the call it copies, so
+// each call in the copy takes its own before the copy's marks are cleared.
+func ownArgs(v Val) {
+	walkMarkVals(v, func(n Val) {
+		if f, ok := n.(*FuncVal); ok {
+			args := make([]Val, len(f.peg))
+			for i, a := range f.peg {
+				args[i] = clonePath(a, a.vpath())
+			}
+			f.peg = args
+		}
+	})
+}
+
 func dropEach(vals []Val) {
 	for i, e := range vals {
 		vals[i] = dropMarkWrapper(e)
@@ -542,13 +556,17 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 	lifted := !ctx.argsnap || node.markedType() || node.markedHide()
 	typed := node.markedType()
 	var out Val
-	if holdsStaged(node) {
+	staged := holdsStaged(node)
+	if staged {
 		out = clonePath(node, cp(rv.path))
 	} else {
 		out = instanceClone(node, cp(rv.path))
 	}
 	out = undeclared(out)
 	if lifted {
+		if staged {
+			ownArgs(out)
+		}
 		walkMark(out, true, false, true, false)
 		out = unwrapConstraintKind(out)
 		out = dropPendingMarkWrappers(out)

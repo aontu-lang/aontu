@@ -7302,6 +7302,17 @@ The rows are x1809 on, and both engines answer every one as the
 definition does, two calls with the wrong number of arguments among
 them. Step 29 reads `key()` in a template.
 
+A path to an `each` copies its value as a reference does, with its
+marks cleared, and the generator's own value keeps them: beside
+`x: each([1], {a: hide(_), b: _})`, the path `v: $.x` generates
+`[{"a": 1, "b": 1}]`, and `x` still generates `[{"b": 1}]`. A marked
+element holds no position in a list, so the copy has none to show:
+beside `x: each([1, 2], [hide(_), _])`, both `x` and `v: $.x` generate
+`[[1], [2]]`. Both engines show the element in the copy, which #625
+tracks. Rows from rn69 on of `test/spec/def-path.tsv` hold a list's,
+a map's and a `pack`'s template, and both engines answer every one as
+the definition does.
+
 Outside a template, a hole no generator fills admits every value, as
 `any` does, and a call's peer fills a hole in the call. Write
 `fill.aontu`:

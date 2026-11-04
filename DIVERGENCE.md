@@ -171,7 +171,10 @@ Kept because how each was closed is worth remembering.
 > resolves against a non-TOP peer (spread clones re-driving hidden
 > children behave exactly as in TS). Chained moves wrap the moved copy
 > in a pref() func immediately (TS MoveFuncVal), so intermediate frozen
-> ghosts render `pref($.x.a)` / `pref({"k":"c"})` identically. Ref
+> ghosts render `pref($.x.a)` / `pref({"k":key()})` identically. A
+> reference's copy of a staged call gives each call its own arguments
+> before its marks are cleared (#624), so a ghost keeps its own unmade
+> `key()` rather than the key its copy takes. Ref
 > spreads are snapshotted once per canon+site (the TS snapshotRefSpread
 > port), and spread constraint roots are pathed under a literal `&`
 > segment so relative refs used as spreads resolve one level deeper,

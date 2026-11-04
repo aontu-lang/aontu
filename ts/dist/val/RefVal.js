@@ -31,6 +31,18 @@ function dropPendingMarkWrappers(v) {
         (true === val.isTypeFunc || true === val.isHideFunc) && !val.done &&
         null != val.peg?.[0] ? val.peg[0] : val);
 }
+// A staged call's copy shares its arguments with the call it copies, so
+// each call in the copy takes its own before the copy's marks are cleared.
+function ownArgs(ctx, v) {
+    return (0, utility_1.walk)(v, (_key, val) => {
+        if (true !== val.isFunc || !Array.isArray(val.peg)) {
+            return val;
+        }
+        const out = val.clone(ctx, { path: [...val.path] });
+        out.peg = val.peg.map((a) => true === a?.isVal ? a.clone(ctx, { path: [...a.path] }) : a);
+        return out;
+    });
+}
 function pendingMarkWrapper(v) {
     if (true === v.isTypeFunc || true === v.isHideFunc) {
         return !v.done;
@@ -423,8 +435,12 @@ class RefVal extends FeatureVal_1.FeatureVal {
                     const lifted = true !== ctx.argsnap
                         || true === out.mark.type || true === out.mark.hide;
                     const typed = true === out.mark.type;
-                    out = (0, IdentFuncVal_1.undeclared)(out.clone(ctx, { dup: !out.holdsStaged }));
+                    const staged = out.holdsStaged;
+                    out = (0, IdentFuncVal_1.undeclared)(out.clone(ctx, { dup: !staged }));
                     if (lifted) {
+                        if (staged) {
+                            out = ownArgs(ctx, out);
+                        }
                         // The copy carries a held constraint without its type.
                         out = (0, utility_1.walk)(out, (_key, val) => {
                             val.mark.type = false;
