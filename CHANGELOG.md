@@ -8,6 +8,22 @@ each change affects.
 
 ## Unreleased
 
+### The definition leaves out a generator's marked instance
+
+The definition, and shared rows.
+
+- A list holds no position for an element that carries a mark of its
+  own (decision 18), and the definition read a written list so but
+  kept such an instance in an `each`'s output. So
+  `each([1, 2], hide(_))` generated `[1, 2]` in the definition and
+  `[]` in both engines. The definition now leaves the instance out, and
+  reads a marked instance that is a conflict as `nil`, as it reads
+  `[hide(1 & 2)]`. Fixes #626.
+- Eighteen `verdict` rows, x2253 on in `test/spec/def-call.tsv`, hold a
+  mark around a list template and around the hole, `type()`, a map's
+  members and a conflict. Both engines answer every one as the
+  definition does.
+
 ### A path to a generator's value leaves the generator's marks alone
 
 Both engines, and shared rows.

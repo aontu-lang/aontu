@@ -3699,9 +3699,10 @@ open against and the definition, holding no `open()`, leaves unsaid.
 `each` follows from row x1803: its template read for each member of its
 data, a list's in order and a map's in key order, the hole kept, met
 and left out, a nested `each` binding its own hole, and data that is no
-bag. No case holds a marked list element (decision 18), `key()` in a
-template, which both ports read as the member's key, or a hole outside
-a template, which `holeFillVetCases` holds. A `filter`
+bag. An instance that carries a mark of its own follows in
+`markedEachCases`. No case holds `key()` in a template, which both
+ports read as the member's key, or a hole outside a template, which
+`holeFillVetCases` holds. A `filter`
 whose condition holds the hole follows in `filterCases`, and `split`
 at a pattern in `patternCases`. -/
 
@@ -5628,6 +5629,31 @@ theorem held_fail_verdict_exact : ∀ c ∈ heldFailCases, ∀ (m : Mode) (v : V
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (heldFailCases_checkable c hc)) v
 
+/-- An `each` whose instances carry a mark of their own, for the
+`verdict` rows from x2253 on, which a list holds no position for
+(decision 18): `hide()` around a list template, around the hole and
+over a map's members, `type()` around the hole, beside data that an
+instance holding a position would refuse, and a marked instance that
+is a conflict, which makes the list `nil`, as a written one is. -/
+def markedEachCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let lst (xs : List Val) : Val := .list xs none false
+  let hd (v : Val) : Val := .ride .hide v []
+  let each (d t : Val) : Val := .call .each [d, t]
+  [(each (lst [int 1]) (hd (lst [.hole, .hole])), .list []),
+    (each (lst [int 1]) (hd (lst [.hole, .hole])), .list [.list [.integer 2]]),
+    (each (lst [int 1, int 2]) (hd .hole), .list []),
+    (each (lst [int 1, int 2]) (.ride .type .hole []), .list []),
+    (each (.map [("a", false, int 1)] none false) (hd .hole), .list []),
+    (each (lst [int 1]) (hd (.meet .hole (int 2))), .list [])]
+
+theorem markedEachCases_checkable : ∀ c ∈ markedEachCases, (vetDoc c).1.CheckableA := by decide
+
+theorem marked_each_verdict_exact : ∀ c ∈ markedEachCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (markedEachCases_checkable c hc)) v
+
 /-! ## Variables
 
 A variable is a name the calling program declares. Both runners bind the
@@ -6319,7 +6345,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# writes U+FFFD for a surrogate its to range names, from row x2055. The generator"
     IO.println "# pack, its template read for each member of its data under the member's key,"
     IO.println "# follows from row x2064, key(n), read where it stands, from row x2121, and a"
-    IO.println "# call the schema can't build, an error wherever it stands, from row x2238. A"
+    IO.println "# call the schema can't build, an error wherever it stands, from row x2238. An"
+    IO.println "# each whose instances carry a mark of their own, which a list holds no position"
+    IO.println "# for, follows from row x2253. A"
     IO.println "# call on a name follows in rows z0 on, and a call handed a pattern, re(p), in"
     IO.println "# rows v0 on. path handed a string follows in rows k0 on: its text converted to"
     IO.println "# an address, text with no start read from one dot, and refused where it spells"
@@ -6346,7 +6374,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
-        heldFailCases ++ pathCallCases ++ heldHoleCases ++ readThroughCases do
+        heldFailCases ++ markedEachCases ++ pathCallCases ++ heldHoleCases ++ readThroughCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -6359,7 +6387,7 @@ def main (args : List String) : IO UInt32 := do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
       projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
-      heldFailCases)
+      heldFailCases ++ markedEachCases)
     verdictRows "et" emitCases
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases

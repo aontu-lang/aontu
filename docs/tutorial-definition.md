@@ -5468,8 +5468,9 @@ members its condition admits, as a term, or `nil` where the source
 generates a scalar, which has no members. One whose scrutinee or source
 generates nothing stays, and generates nothing. An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
-reads them, less each reading that is absence, and `nil` where the data
-is no bag. A `pack` is the open map
+reads them, less each reading that is absence or carries a mark of its
+own, as a list holds no position for either, and `nil` where the data
+is no bag or a marked reading is a conflict. A `pack` is the open map
 of its template read for each member `Val.keyedMembers` reads, under the
 member's key, the instances of a repeated key met, and `nil` where the
 data is no bag or a list holds anything but a string. An `emit` is the
@@ -7272,8 +7273,10 @@ and an `each` reads its template once for each member of its data:
       if here.isNone && (resolveD ds b here d).holdsKey then .call .each [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).members ds with
       | some ms =>
+        if (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).any
+            (fun e => (normaliseD ds e).marked && ds.markClashes none e) then .nil else
         .list ((ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).filter
-          fun e => !(normaliseD ds e).isAbsent) none false
+          fun e => !(normaliseD ds e).isAbsent && !(normaliseD ds e).marked) none false
       | none =>
         if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
         else if (resolveD ds b here d).pending ds then .call .each [resolveD ds b here d, t]
@@ -7287,6 +7290,13 @@ shows. A nested `each` binds its own hole, and an `each` over a string
 or a number is an error. A spread has no hole. A `filter` binds its
 own: it reads its condition once for each member it tries, so `loud`
 keeps `"WEB"`, which `upper(_)` doesn't change.
+
+An instance that carries a mark of its own holds no position in the
+list, as a written list's marked element holds none, so
+`each([1, 2], hide(_))` is `[]`, and a marked instance that clashes
+makes the list `nil`, as `[hide(1 & 2)]` is. Rows from
+x2253 on of `test/spec/def-call.tsv` hold these, and both engines
+answer every one as the definition does.
 
 The rows are x1809 on, and both engines answer every one as the
 definition does, two calls with the wrong number of arguments among
