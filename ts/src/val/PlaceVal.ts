@@ -211,16 +211,20 @@ function stuckIn(v: any): boolean {
 
 
 // Settled but for the holes a list or a map holds, or only the held
-// ones where `held` asks, since no peer of the call fills them.
-function bagHoles(v: any, held: boolean): boolean {
+// ones where `held` asks, since no peer of the call fills them, and
+// where `calls` asks, the calls there that wait on a hole of their own.
+function bagHoles(v: any, held: boolean, calls = false): boolean {
   if (true === v?.done) {
     return true
   }
   if (true === v?.isPlace) {
     return !held || true === v.held
   }
+  if (calls && (true === v?.isFunc || true === v?.isOp)) {
+    return doneButHoles(v)
+  }
   return (true === v?.isList || true === v?.isMap) && null == v.spread?.cj &&
-    Object.values(v.peg).every((c: any) => bagHoles(c, held))
+    Object.values(v.peg).every((c: any) => bagHoles(c, held, calls))
 }
 
 

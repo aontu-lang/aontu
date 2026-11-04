@@ -51,6 +51,7 @@ func openWrap(ctx *Ctx, base []string, v Val) Val {
 
 // valueFuncs take their argument as the value it is, so read a list or
 // a map that holds a hole as that container once nothing else settles.
+// super reads a call there that waits on a hole too, as any.
 var valueFuncs = map[string]bool{"super": true, "pref": true, "refer": true, "rel": true}
 
 func asValue(ctx *Ctx, f *FuncVal, args []Val) bool {
@@ -64,7 +65,7 @@ func asValue(ctx *Ctx, f *FuncVal, args []Val) bool {
 		}
 		switch a.(type) {
 		case *ListVal, *MapVal:
-			if bagHoles(a, false) {
+			if bagHoles(a, false, "super" == f.name) {
 				waits = true
 				continue
 			}
@@ -990,6 +991,11 @@ func superOf(path []string, v Val) Val {
 		if "string" == tv.domain {
 			return newScalarKind(KindString)
 		}
+		return top()
+
+	// A call here is one still waiting on a hole, and an unmade call's
+	// parent type is any, whatever its superior() says it would make.
+	case *FuncVal, *PlusOpVal:
 		return top()
 
 	// A kind argument climbs the KIND lattice -- super(integer) and

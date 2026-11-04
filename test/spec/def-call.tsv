@@ -4231,3 +4231,51 @@ dr53	verdict	v: neq([1, _])	v: 3	{"verdict":"error","opts":{"partial":true}}
 dr54	verdict	v: neq([[_]])	v: 3	{"verdict":"invalid"}
 dr55	verdict	v: neq([[_]])	v: 3	{"verdict":"invalid","opts":{"noFill":true}}
 dr56	verdict	v: neq([[_]])	v: 3	{"verdict":"invalid","opts":{"partial":true}}
+dr57	verdict	v: super([upper(_)])	v: 3	{"verdict":"invalid"}
+dr58	verdict	v: super([upper(_)])	v: 3	{"verdict":"invalid","opts":{"noFill":true}}
+dr59	verdict	v: super([upper(_)])	v: 3	{"verdict":"invalid","opts":{"partial":true}}
+dr60	verdict	v: super([upper(_)])	v: "x"	{"verdict":"invalid"}
+dr61	verdict	v: super([upper(_)])	v: "x"	{"verdict":"invalid","opts":{"noFill":true}}
+dr62	verdict	v: super([upper(_)])	v: "x"	{"verdict":"invalid","opts":{"partial":true}}
+dr63	verdict	v: super([upper(_)])	v: [3]	{"verdict":"valid"}
+dr64	verdict	v: super([upper(_)])	v: [3]	{"verdict":"valid","opts":{"noFill":true}}
+dr65	verdict	v: super([upper(_)])	v: [3]	{"verdict":"valid","opts":{"partial":true}}
+dr66	verdict	v: super([upper(_)])	v: ["x"]	{"verdict":"valid"}
+dr67	verdict	v: super([upper(_)])	v: ["x"]	{"verdict":"valid","opts":{"noFill":true}}
+dr68	verdict	v: super([upper(_)])	v: ["x"]	{"verdict":"valid","opts":{"partial":true}}
+dr69	verdict	v: super([upper(_)])	v: []	{"verdict":"incomplete"}
+dr70	verdict	v: super([upper(_)])	v: []	{"verdict":"incomplete","opts":{"noFill":true}}
+dr71	verdict	v: super([upper(_)])	v: []	{"verdict":"valid","opts":{"partial":true}}
+dr72	verdict	v: super([upper(_), 1])	v: [3]	{"verdict":"incomplete"}
+dr73	verdict	v: super([upper(_), 1])	v: [3]	{"verdict":"incomplete","opts":{"noFill":true}}
+dr74	verdict	v: super([upper(_), 1])	v: [3]	{"verdict":"valid","opts":{"partial":true}}
+dr75	verdict	v: super([upper(_), 1])	v: [3, 4]	{"verdict":"valid"}
+dr76	verdict	v: super([upper(_), 1])	v: [3, 4]	{"verdict":"valid","opts":{"noFill":true}}
+dr77	verdict	v: super([upper(_), 1])	v: [3, 4]	{"verdict":"valid","opts":{"partial":true}}
+dr78	verdict	v: super([upper(_), _])	v: [3]	{"verdict":"incomplete"}
+dr79	verdict	v: super([upper(_), _])	v: [3]	{"verdict":"incomplete","opts":{"noFill":true}}
+dr80	verdict	v: super([upper(_), _])	v: [3]	{"verdict":"valid","opts":{"partial":true}}
+dr81	verdict	v: super([upper(_), _])	v: [3, 4]	{"verdict":"valid"}
+dr82	verdict	v: super([upper(_), _])	v: [3, 4]	{"verdict":"valid","opts":{"noFill":true}}
+dr83	verdict	v: super([upper(_), _])	v: [3, 4]	{"verdict":"valid","opts":{"partial":true}}
+dr84	verdict	v: super([[upper(_)]])	v: [[3]]	{"verdict":"valid"}
+dr85	verdict	v: super([[upper(_)]])	v: [[3]]	{"verdict":"valid","opts":{"noFill":true}}
+dr86	verdict	v: super([[upper(_)]])	v: [[3]]	{"verdict":"valid","opts":{"partial":true}}
+dr87	verdict	v: super([[upper(_)]])	v: [3]	{"verdict":"invalid"}
+dr88	verdict	v: super([[upper(_)]])	v: [3]	{"verdict":"invalid","opts":{"noFill":true}}
+dr89	verdict	v: super([[upper(_)]])	v: [3]	{"verdict":"invalid","opts":{"partial":true}}
+dr90	verdict	v: super({"k": upper(_)})	v: {"k": 1}	{"verdict":"valid"}
+dr91	verdict	v: super({"k": upper(_)})	v: {"k": 1}	{"verdict":"valid","opts":{"noFill":true}}
+dr92	verdict	v: super({"k": upper(_)})	v: {"k": 1}	{"verdict":"valid","opts":{"partial":true}}
+dr93	verdict	v: super({"k": upper(_)})	v: {}	{"verdict":"incomplete"}
+dr94	verdict	v: super({"k": upper(_)})	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+dr95	verdict	v: super({"k": upper(_)})	v: {}	{"verdict":"valid","opts":{"partial":true}}
+dr96	verdict	v: super([(_) + (1)])	v: [3]	{"verdict":"valid"}
+dr97	verdict	v: super([(_) + (1)])	v: [3]	{"verdict":"valid","opts":{"noFill":true}}
+dr98	verdict	v: super([(_) + (1)])	v: [3]	{"verdict":"valid","opts":{"partial":true}}
+dr99	verdict	v: super([upper("a", _)])	v: [3]	{"verdict":"valid"}
+dr100	verdict	v: super([upper("a", _)])	v: [3]	{"verdict":"valid","opts":{"noFill":true}}
+dr101	verdict	v: super([upper("a", _)])	v: [3]	{"verdict":"valid","opts":{"partial":true}}
+dr102	verdict	v: super([lower("A", _)])	v: [3]	{"verdict":"valid"}
+dr103	verdict	v: super([lower("A", _)])	v: [3]	{"verdict":"valid","opts":{"noFill":true}}
+dr104	verdict	v: super([lower("A", _)])	v: [3]	{"verdict":"valid","opts":{"partial":true}}
