@@ -130,6 +130,12 @@ place-super-list-call	gens	a:super([upper(_)]) & ["x"]\n	{"a":["x"]}
 place-super-map-call	gens	a:super({k:upper(_)}) & {k:1}\n	{"a":{"k":1}}
 place-super-list-ranged-call	gens	a:super([upper("a",_)]) & [3]\n	{"a":[3]}
 place-bound-hole-beside-call	errc	a:min([_,$.b]) b:upper(_)\n	mapval_no_gen
+# A held hole under a choice of arms leaves the call over its container
+# unmade: a call, a `+`, a map and a list there, each held as written.
+place-held-call-in-arm	errc	a:sum([upper(_) | 1])\n	place_container
+place-held-plus-in-arm	errc	a:sum([(_ + 1) | 2])\n	place_container
+place-held-map-in-arm	errc	a:sum([{k: _} | 1])\n	place_container
+place-held-list-in-arm	errc	a:sum(([_] | [1]) & [_])\n	place_container
 
 # A call over a container whose argument is the hole takes its peer as
 # that argument, as any call does, and computes from it once the peer

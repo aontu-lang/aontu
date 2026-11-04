@@ -8,6 +8,18 @@ each change affects.
 
 ## Unreleased
 
+### Go's walk for a held hole is covered under a choice
+
+Go only, and shared rows.
+
+- Four rows of `test/spec/place.tsv` hold both engines to `sum` over a
+  list whose member is a choice with a held hole in an arm: under a
+  call, a `+`, a map, or a list met with one. Each is refused
+  `place_container`, and each reaches an arm of Go's `heldIn` that no
+  row reached before.
+- `heldIn`'s meet arm is gone. A meet whose terms all wait only on
+  holes reduces, or is refused as `place_pair`, before anything asks.
+
 ### Go's `super` names a lifted member where it stands
 
 Go only, and shared rows.
