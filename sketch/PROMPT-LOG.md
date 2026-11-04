@@ -554,3 +554,12 @@ does the repo mention using diataxis for the documentation, BUT ensuring NOT to 
 ```text
 Merge
 ```
+
+## 2026-11-04 10:29:02 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+aontu#598 (parse now matches an ABNF numeric value such as %x78 exactly, in both engines, closing #586) and its web sync are merged. While fixing it I filed #597: abnf("v = %d1A\n"), whose digit is wrong for its base, compiles in TypeScript and is refused in Go. Which should I take up next?
+→ #597, malformed digits (Recommended)
+```
