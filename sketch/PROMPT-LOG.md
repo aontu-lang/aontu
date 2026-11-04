@@ -581,3 +581,9 @@ generate a report here for this session
 ```text
 consolidate the advice of the articles, using the report analysis as a structure, into a set of writing advice, and add them to the style guide
 ```
+
+## 2026-11-04 16:07:45 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
+
+```text
+the source of the guides is not relevant - the style-guide needs to be compact and terse, focused only on writing, not background or history about the guide itself
+```
