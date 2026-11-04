@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### Ten more of Go's coverage gaps close
+
+Go only, and shared rows.
+
+- Two `relation` rows of `test/spec/relation.tsv`: a relation's spread
+  that meets two aliases, and one whose alias names a path value. Both
+  are read as address constraints, so `acyclic()` sees the cycle, and
+  each reaches an arm of Go's `leafOnly` that no row reached.
+- A `subsume` row: `string & empty()` subsumes `string & min("b")`,
+  which reaches Go's reading of a residual that met `string`.
+- A Go unit test: a call's parent type and a `+`'s are `any`. `super`
+  stopped asking either once it read an unmade call as `any` (#595).
+- Two rows of `test/spec/place.tsv`: a group whose own meet fails,
+  `(_ & 1 & 2)`, is refused `scalar_value` on either side of the meet
+  around it, which reaches Go's refusal of a group as it settles.
+- Four more rows there: a spread whose template is `any` leaves a hole
+  member unfilled, so `super`, `min` and `sum` over a container holding
+  one are never made, in both engines. They reach Go's arms for a list
+  and a map with a spread in `bagHoles` and `stuckIn`.
+- Two more: only `super` and `pref` read a call that waits on its own
+  hole as settled there, so `refer` and `min` over a map holding one
+  are never made either, which reaches `bagHoles`' refusal of a member.
+
 ### Go's walk for a held hole is covered under a choice
 
 Go only, and shared rows.

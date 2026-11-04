@@ -194,6 +194,8 @@ inverse-met-beside-spread	relation	a: {dependsOn: rel() & [&: path] & inverse(us
 # is not an address constraint, and fails as it did.
 acyclic-beside-alias-spread	relation	%A = re("^[$]")\na: {dependsOn: rel() & [&: %A] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
 acyclic-beside-alias-chain-spread	relation	%A = %B\n%B = path\na: {dependsOn: rel() & [&: %A] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-beside-alias-meet-spread	relation	%A = re("^[$]")\n%B = re("[ab]$")\na: {dependsOn: rel() & [&: %A & %B] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-beside-alias-path-spread	relation	%P = path($.b)\na: {dependsOn: rel() & [&: %P] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
 rel-spread-alias-undeclared	errc	a: {dependsOn: rel() & [&: %Nope] & [path($.b)]}\nb: {}	no_path
 rel-spread-alias-self	errc	%A = %A\na: {dependsOn: rel() & [&: %A] & [path($.b)]}\nb: {}	unify_cycle
 rel-spread-alias-map	errc	%M = {k: 1}\na: {dependsOn: rel() & [&: %M] & [path($.b)]}\nb: {}	map
