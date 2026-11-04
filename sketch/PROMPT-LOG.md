@@ -634,3 +634,21 @@ The answers to the agent's questions, each question followed by the option chose
 ```text
 push and merge
 ```
+
+## 2026-11-04 17:14:18 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
+
+```text
+does the style guide include a rule to avoid trying to compress information into single sentences? do we have section expresssing strunks traditional style guide for writing?
+```
+
+## 2026-11-04 17:17:23 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
+
+```text
+add them to agent-info
+```
+
+## 2026-11-04 17:19:18 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
+
+````text
+this is the current opening sentence on the aless site: "" aless reads JSON, YAML, TOML, CSV, XML, Markdown and many formats more into one kind of tree, and shows it in your terminal with the keys of jless. Several files open in tabs, and a directory opens as an explorer. When a file changes on disk, aless reads it again and keeps your place. "" - how do you feel about this? would the style guide affect this sentence?
+````
