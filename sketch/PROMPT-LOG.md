@@ -537,4 +537,20 @@ The answers to the agent's questions, each question followed by the option chose
 ```text
 aontu#596 (both engines now read a hole in a call's list or map as the definition does, closing #584 and #589) and its web sync are merged. Two new issues need a ruling on which side moves: #594 (rel against a list) and #595 (super over a list holding a waiting call). Which should I take up next?
 → #586, parse case (Recommended)
+## 2026-11-03 17:25:10 UTC · Claude Code · session_01D35vdcJCr6PTGR6aUYHRBn
+
+```text
+there should not be any mention of aontu in agent-info; remove the note that repos may not change the files themselves - this is a template
+```
+
+## 2026-11-03 17:29:43 UTC · Claude Code · session_01D35vdcJCr6PTGR6aUYHRBn
+
+```text
+does the repo mention using diataxis for the documentation, BUT ensuring NOT to mention it in the actual docs themselves
+```
+
+## 2026-11-04 09:38:15 UTC · Claude Code · session_01D35vdcJCr6PTGR6aUYHRBn
+
+```text
+Merge
 ```
