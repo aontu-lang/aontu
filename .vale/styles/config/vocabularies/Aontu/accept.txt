@@ -213,6 +213,7 @@ superset
 supertype
 templated
 toolchain
+treemap
 TS's
 typo'd
 unescaped
