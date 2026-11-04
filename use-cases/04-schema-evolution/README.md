@@ -189,11 +189,21 @@ graph BT
   n5["v3-remove-phone"]
   n1 --> n2
   n5 --> n2
+  n0 -.->|"sub_no_witness"| n2
 ```
 
 Drawn by `aontu view poset --at '$.profile'` over the seven documents,
 from `subsume` alone, and pinned as a golden by `check.sh`. An edge
 means the upper document **admits everything** the lower one does.
+
+A dashed edge is a pair `subsume` leaves undecided. `narrow-email`
+narrows v2's email pattern, so v2 does admit every address
+`narrow-email` admits. But `subsume` compares two patterns by their
+text, not by what they match, and none of the strings it tries is one
+`narrow-email` admits and v2 refuses. So it answers `undecided`, with
+reason `sub_no_witness`, rather than a no. The gate in step 12 asks the
+other way round, whether `narrow-email` admits everything v2 does, and
+finds its failing case among the strings v2's pattern matches.
 
 Three things a reader gets here that seven `subsume` runs do not:
 
