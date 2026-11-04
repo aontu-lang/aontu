@@ -529,3 +529,21 @@ The answers to the agent's questions, each question followed by the option chose
 aontu#590 (the definition reads a hole a path names as the data's to fill) and its web sync are merged. Which should I take up next?
 → #589 + #584, both ports (Recommended)
 ```
+
+## 2026-11-03 17:25:10 UTC · Claude Code · session_01D35vdcJCr6PTGR6aUYHRBn
+
+```text
+there should not be any mention of aontu in agent-info; remove the note that repos may not change the files themselves - this is a template
+```
+
+## 2026-11-03 17:29:43 UTC · Claude Code · session_01D35vdcJCr6PTGR6aUYHRBn
+
+```text
+does the repo mention using diataxis for the documentation, BUT ensuring NOT to mention it in the actual docs themselves
+```
+
+## 2026-11-04 09:38:15 UTC · Claude Code · session_01D35vdcJCr6PTGR6aUYHRBn
+
+```text
+Merge
+```
