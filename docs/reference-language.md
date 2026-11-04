@@ -5821,7 +5821,8 @@ These rules govern a grammar:
   matches either case, so `"x"` matches `X` too. Both host engines
   match a numeric value that names a letter from `A` to `Z` in either
   case, so each port hands the host such a letter as the case-sensitive
-  string `%s"x"`.
+  string `%s"x"`. A numeric value with a digit its base lacks, such as
+  `%d1A`, names no code point, so `abnf` and `parse` refuse its grammar.
 - **A character class must not contain a literal used elsewhere.**
   Write `digit = "0" / positive-digit`, never `digit = %x30-39`, when
   `"0"` also appears on its own. Where a class overlaps a literal the

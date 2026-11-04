@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### A grammar with a malformed numeric value is refused in both engines
+
+TypeScript and Go, shared rows, and documentation.
+
+- A numeric value whose digits its base lacks, such as `%d1A` or `%b12`,
+  is malformed in RFC 5234. TypeScript's host grammar library read such
+  a value as far as its digits went, so `abnf("v = %d1A\n")` compiled
+  and matched U+0001, while Go's refused it (#597). Each engine now
+  refuses such a grammar before its host sees it, as `abnf_grammar`,
+  with the same message, `a numeric value is malformed: %d1A`: a single
+  value, a dotted run, a range, and the constraint form of `parse`. A
+  quoted string or a comment that spells one is no numeric value.
+- Six rows of `test/spec/abnf.tsv`, which both engines answer alike, and
+  two more rewrites in each engine's own table.
+- Docs: the reference's rules for a grammar, and the definition
+  tutorial's step on grammars.
+
 ### `parse` matches a numeric value exactly
 
 TypeScript and Go, shared rows, and documentation.
