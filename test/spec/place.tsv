@@ -127,6 +127,10 @@ place-super-list-spread-hole	errc	a:super([&: any, _])\n	mapval_no_gen
 place-super-map-spread-hole	errc	a:super({&: any, a: _})\n	mapval_no_gen
 place-bound-list-spread-hole	errc	a:min([&: any, _])\n	mapval_no_gen
 place-held-map-spread-hole	errc	a:sum([{&: any, a: _}])\n	mapval_no_gen
+# Only super and pref read a call that waits on its own hole there as
+# settled, so refer and a bound over a map holding one are never made.
+place-refer-map-call	errc	a:refer({k: upper(_)})\n	mapval_no_gen
+place-bound-map-call	errc	a:min({k: upper(_)})\n	mapval_no_gen
 place-pref-list-hole	gens	a:pref([_]) & [1]\n	{"a":[1]}
 place-bound-list-hole	errc	a:min([_]) & 1\n	invalid-arg
 place-neq-list-hole	errc	a:neq([_]) & 1\n	place_container

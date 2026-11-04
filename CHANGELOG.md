@@ -8,7 +8,7 @@ each change affects.
 
 ## Unreleased
 
-### Nine more of Go's coverage gaps close
+### Ten more of Go's coverage gaps close
 
 Go only, and shared rows.
 
@@ -27,6 +27,9 @@ Go only, and shared rows.
   member unfilled, so `super`, `min` and `sum` over a container holding
   one are never made, in both engines. They reach Go's arms for a list
   and a map with a spread in `bagHoles` and `stuckIn`.
+- Two more: only `super` and `pref` read a call that waits on its own
+  hole as settled there, so `refer` and `min` over a map holding one
+  are never made either, which reaches `bagHoles`' refusal of a member.
 
 ### Go's walk for a held hole is covered under a choice
 
