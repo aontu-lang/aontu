@@ -563,3 +563,9 @@ The answers to the agent's questions, each question followed by the option chose
 aontu#598 (parse now matches an ABNF numeric value such as %x78 exactly, in both engines, closing #586) and its web sync are merged. While fixing it I filed #597: abnf("v = %d1A\n"), whose digit is wrong for its base, compiles in TypeScript and is refused in Go. Which should I take up next?
 → #597, malformed digits (Recommended)
 ```
+
+## 2026-11-04 12:21:11 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
+
+```text
+analyse the technical writing resources listed here: https://technicalwriterhq.co/10-technical-writer-style-guide-examples-to-improve-content-quality-a10e0747c7a4 - catalogue the techniques and advice into a set of buckets and report on their frequency
+```
