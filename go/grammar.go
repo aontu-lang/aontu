@@ -5,6 +5,9 @@ package aontu
 // The grammar seam, ADR-033. Twin of ts/src/grammar.ts.
 
 import (
+	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -28,6 +31,105 @@ var (
 	grammarCache = map[string]*grammarEntry{}
 	parseSteps   int
 )
+
+var numberRe = regexp.MustCompile(`^%([xXdDbB])([0-9A-Fa-f]+)(?:-([0-9A-Fa-f]+)|((?:\.[0-9A-Fa-f]+)+))?`)
+
+var numberBase = map[byte]int{'x': 16, 'd': 10, 'b': 2}
+
+var numberDigits = map[int]*regexp.Regexp{
+	16: regexp.MustCompile(`^[0-9A-Fa-f]+$`),
+	10: regexp.MustCompile(`^[0-9]+$`),
+	2:  regexp.MustCompile(`^[01]+$`),
+}
+
+// A numeric value is exactly the code points it names in RFC 5234,
+// but the host matches one that holds an ASCII letter in either case,
+// so each such letter goes to the host as the string `%s` keeps exact.
+func numValsExact(src string) string {
+	var out strings.Builder
+	i := 0
+	for i < len(src) {
+		c := src[i]
+		close := byte(0)
+		switch c {
+		case '"':
+			close = '"'
+		case '<':
+			close = '>'
+		case ';':
+			close = '\n'
+		}
+		if 0 != close {
+			end := strings.IndexByte(src[i+1:], close)
+			stop := len(src)
+			if 0 <= end {
+				stop = i + 1 + end
+				if '\n' != close {
+					stop++
+				}
+			}
+			out.WriteString(src[i:stop])
+			i = stop
+			continue
+		}
+		var m []string
+		if '%' == c {
+			m = numberRe.FindStringSubmatch(src[i:])
+		}
+		if nil == m {
+			out.WriteByte(c)
+			i++
+			continue
+		}
+		out.WriteString(numValExact(m))
+		i += len(m[0])
+	}
+	return out.String()
+}
+
+func numValExact(m []string) string {
+	base := numberBase[strings.ToLower(m[1])[0]]
+	parts := []string{m[2]}
+	if "" != m[3] {
+		parts = append(parts, m[3])
+	}
+	if "" != m[4] {
+		parts = append(parts, strings.Split(m[4][1:], ".")...)
+	}
+	cps := make([]int64, len(parts))
+	whole := true
+	for k, p := range parts {
+		n, err := strconv.ParseInt(p, base, 64)
+		if !numberDigits[base].MatchString(p) || nil != err || 0x10ffff < n {
+			whole = false
+		}
+		cps[k] = n
+	}
+	letter := func(cp int64) bool { return (0x41 <= cp && cp <= 0x5a) || (0x61 <= cp && cp <= 0x7a) }
+	one := "" == m[3] || cps[0] == cps[1]
+	if "" != m[3] {
+		cps = cps[:1]
+	}
+	anyLetter := false
+	for _, cp := range cps {
+		anyLetter = anyLetter || letter(cp)
+	}
+	if !one || !whole || !anyLetter {
+		return m[0]
+	}
+	pieces := make([]string, len(cps))
+	for k, cp := range cps {
+		if letter(cp) {
+			pieces[k] = `%s"` + string(rune(cp)) + `"`
+		} else {
+			pieces[k] = fmt.Sprintf("%%x%X", cp)
+		}
+	}
+	if 1 == len(pieces) {
+		return pieces[0]
+	}
+	return "(" + strings.Join(pieces, " ") + ")"
+}
 
 func compileGrammar(src string) (*tabnas.Tabnas, string) {
 	grammarMu.Lock()
@@ -53,7 +155,7 @@ func compileGrammar(src string) (*tabnas.Tabnas, string) {
 		}},
 	})
 
-	if _, err := tabnasabnf.Install(tn, src, nil, nil); err != nil {
+	if _, err := tabnasabnf.Install(tn, numValsExact(src), nil, nil); err != nil {
 		entry.why = firstLine(err.Error())
 	} else {
 		entry.tn = tn

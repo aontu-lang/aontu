@@ -679,6 +679,27 @@ func TestAsValRawScalars(t *testing.T) {
 	}
 }
 
+// The same table as ts/test/coverage3.test.ts.
+func TestNumValsExact(t *testing.T) {
+	table := [][2]string{
+		{"v = %d1A\n", "v = %d1A\n"},
+		{"v = %x110000\n", "v = %x110000\n"},
+		{"v = %x61-7A\n", "v = %x61-7A\n"},
+		{"v = %x30\n", "v = %x30\n"},
+		{"v = %x78\n", "v = %s\"x\"\n"},
+		{"v = %x78-78\n", "v = %s\"x\"\n"},
+		{"v = %x78.30\n", "v = (%s\"x\" %x30)\n"},
+		{"v = \"%x78\" <%x78> ; %x78\n", "v = \"%x78\" <%x78> ; %x78\n"},
+		{"v = \"x", "v = \"x"},
+		{"v = %s\"x\"\n", "v = %s\"x\"\n"},
+	}
+	for _, c := range table {
+		if got := numValsExact(c[0]); got != c[1] {
+			t.Fatalf("numValsExact(%q) = %q, want %q", c[0], got, c[1])
+		}
+	}
+}
+
 // Grammar-action guards and arms, driven with constructed rules: the
 // current engine happens not to hand these shapes to the actions, but
 // the action is the contract, not the engine's current habits.

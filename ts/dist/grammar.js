@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PARSE_CHECK_EVERY = exports.PARSE_STEP_MAX = void 0;
 exports.compileGrammar = compileGrammar;
+exports.numValsExact = numValsExact;
 exports.parseWith = parseWith;
 // The grammar seam, ADR-033. Twin of go/grammar.go.
 const parser_1 = require("@tabnas/parser");
@@ -14,6 +15,46 @@ const PARSE_CHECK_EVERY = 100;
 exports.PARSE_CHECK_EVERY = PARSE_CHECK_EVERY;
 const cache = new Map();
 const steps = { n: 0 };
+const NUMBER = /%([xXdDbB])([0-9A-Fa-f]+)(?:-([0-9A-Fa-f]+)|((?:\.[0-9A-Fa-f]+)+))?/y;
+const BASE = { x: 16, d: 10, b: 2 };
+const DIGITS = { 16: /^[0-9A-Fa-f]+$/, 10: /^[0-9]+$/, 2: /^[01]+$/ };
+// A numeric value is exactly the code points it names in RFC 5234,
+// but the host matches one that holds an ASCII letter in either case,
+// so each such letter goes to the host as the string `%s` keeps exact.
+function numValsExact(src) {
+    let out = '';
+    let i = 0;
+    while (i < src.length) {
+        const c = src[i];
+        const close = '"' === c ? '"' : '<' === c ? '>' : ';' === c ? '\n' : undefined;
+        if (undefined !== close) {
+            const end = src.indexOf(close, i + 1);
+            const stop = end < 0 ? src.length : '\n' === close ? end : end + 1;
+            out += src.slice(i, stop);
+            i = stop;
+            continue;
+        }
+        NUMBER.lastIndex = i;
+        const m = '%' === c ? NUMBER.exec(src) : null;
+        out += null == m ? c : numValExact(m);
+        i += null == m ? 1 : m[0].length;
+    }
+    return out;
+}
+function numValExact(m) {
+    const base = BASE[m[1].toLowerCase()];
+    const parts = [m[2], ...(undefined === m[3] ? [] : [m[3]]),
+        ...(undefined === m[4] ? [] : m[4].slice(1).split('.'))];
+    const cps = parts.map((p) => DIGITS[base].test(p) ? parseInt(p, base) : NaN);
+    const one = undefined === m[3] || cps[0] === cps[1];
+    const letter = (cp) => (0x41 <= cp && cp <= 0x5a) || (0x61 <= cp && cp <= 0x7a);
+    if (!one || !cps.every((cp) => cp <= 0x10ffff) || !cps.some(letter)) {
+        return m[0];
+    }
+    const pieces = (undefined === m[3] ? cps : [cps[0]]).map((cp) => letter(cp) ?
+        '%s"' + String.fromCodePoint(cp) + '"' : '%x' + cp.toString(16).toUpperCase());
+    return 1 === pieces.length ? pieces[0] : '(' + pieces.join(' ') + ')';
+}
 function compileGrammar(src) {
     const hit = cache.get(src);
     if (undefined !== hit) {
@@ -33,7 +74,7 @@ function compileGrammar(src) {
             }
         });
         tn.use(abnf_1.abnf);
-        tn.abnf(src);
+        tn.abnf(numValsExact(src));
         out = [tn, undefined];
     }
     catch (e) {

@@ -20,6 +20,52 @@ const cache = new Map<string, [any, string | undefined]>()
 const steps = { n: 0 }
 
 
+const NUMBER = /%([xXdDbB])([0-9A-Fa-f]+)(?:-([0-9A-Fa-f]+)|((?:\.[0-9A-Fa-f]+)+))?/y
+const BASE: Record<string, number> = { x: 16, d: 10, b: 2 }
+const DIGITS: Record<number, RegExp> = { 16: /^[0-9A-Fa-f]+$/, 10: /^[0-9]+$/, 2: /^[01]+$/ }
+
+
+// A numeric value is exactly the code points it names in RFC 5234,
+// but the host matches one that holds an ASCII letter in either case,
+// so each such letter goes to the host as the string `%s` keeps exact.
+function numValsExact(src: string): string {
+  let out = ''
+  let i = 0
+  while (i < src.length) {
+    const c = src[i]
+    const close = '"' === c ? '"' : '<' === c ? '>' : ';' === c ? '\n' : undefined
+    if (undefined !== close) {
+      const end = src.indexOf(close, i + 1)
+      const stop = end < 0 ? src.length : '\n' === close ? end : end + 1
+      out += src.slice(i, stop)
+      i = stop
+      continue
+    }
+    NUMBER.lastIndex = i
+    const m = '%' === c ? NUMBER.exec(src) : null
+    out += null == m ? c : numValExact(m)
+    i += null == m ? 1 : m[0].length
+  }
+  return out
+}
+
+
+function numValExact(m: RegExpExecArray): string {
+  const base = BASE[m[1].toLowerCase()]
+  const parts = [m[2], ...(undefined === m[3] ? [] : [m[3]]),
+    ...(undefined === m[4] ? [] : m[4].slice(1).split('.'))]
+  const cps = parts.map((p) => DIGITS[base].test(p) ? parseInt(p, base) : NaN)
+  const one = undefined === m[3] || cps[0] === cps[1]
+  const letter = (cp: number): boolean => (0x41 <= cp && cp <= 0x5a) || (0x61 <= cp && cp <= 0x7a)
+  if (!one || !cps.every((cp) => cp <= 0x10ffff) || !cps.some(letter)) {
+    return m[0]
+  }
+  const pieces = (undefined === m[3] ? cps : [cps[0]]).map((cp) => letter(cp) ?
+    '%s"' + String.fromCodePoint(cp) + '"' : '%x' + cp.toString(16).toUpperCase())
+  return 1 === pieces.length ? pieces[0] : '(' + pieces.join(' ') + ')'
+}
+
+
 function compileGrammar(src: string): [any, string | undefined] {
   const hit = cache.get(src)
   if (undefined !== hit) {
@@ -40,7 +86,7 @@ function compileGrammar(src: string): [any, string | undefined] {
       }
     })
     tn.use(abnf)
-    tn.abnf(src)
+    tn.abnf(numValsExact(src))
     out = [tn, undefined]
   }
   catch (e: any) {
@@ -66,6 +112,7 @@ function parseWith(grammar: any, text: string, _ctx: AontuContext):
 
 export {
   compileGrammar,
+  numValsExact,
   parseWith,
   PARSE_STEP_MAX,
   PARSE_CHECK_EVERY,

@@ -8359,7 +8359,12 @@ literal, which ABNF matches without regard to case, or exactly after
 children. Rows g0 to g83 of `test/spec/def-call.tsv` hold `abnf`,
 `parse` with a string, and `parse` alone over such grammars, and over
 two texts that compile in no engine. Both engines answer every row as
-the definition does.
+the definition does. A numeric value, such as `%x78`, is the host's to
+read too. Both engines rewrite a grammar before their host compiles it,
+so a numeric value that names a letter matches that one code point, as
+the standard reads it, where the host library would match either case.
+The rows of `test/spec/abnf.tsv` hold both engines to that, and no
+oracle row does.
 
 ## 33. Optional input
 
