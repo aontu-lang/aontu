@@ -264,14 +264,7 @@ func newFunc(name string, args []Val) *FuncVal {
 	return f
 }
 
-func (f *FuncVal) superior() Val {
-	if (f.name == "upper" || f.name == "lower") && len(f.peg) > 0 {
-		if sv, ok := f.peg[0].(*ScalarVal); ok {
-			return newScalarKind(sv.kind)
-		}
-	}
-	return top()
-}
+func (f *FuncVal) superior() Val { return top() }
 
 func (f *FuncVal) Canon() string {
 	parts := make([]string, len(f.peg))
@@ -1021,8 +1014,7 @@ func superOf(path []string, v Val) Val {
 	return liftAt(path, v, top())
 }
 
-// A leaf super makes stands where the value it lifts did, as the
-// containers it rebuilds do, so a refusal of it names that place.
+// A leaf super makes stands where the value it lifts did, as a container does.
 func liftAt(path []string, v Val, out Val) Val {
 	out.setvpath(cp(path))
 	out.setPos(v.pos())

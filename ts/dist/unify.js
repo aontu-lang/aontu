@@ -374,9 +374,9 @@ class Unify {
         }
         this.res = res;
     }
-} /* node:coverage ignore next 10 */
+}
 exports.Unify = Unify;
 const meetTemplate = (ctx, member, tmpl, whence) => true === tmpl.isPlace && true !== ctx._matchRead ? unite(ctx, tmpl, member, whence)
-    : unite(ctx, member, tmpl, whence);
+    : unite(ctx, member, tmpl, whence); /* node:coverage ignore next 11 */
 exports.meetTemplate = meetTemplate;
 //# sourceMappingURL=unify.js.map

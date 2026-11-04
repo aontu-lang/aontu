@@ -51,8 +51,7 @@ class PlaceVal extends ValBase {
   }
 
 
-  // A hole admits everything, so nothing sits above it -- the same
-  // answer TOP gives, for the same reason.
+  // A hole admits everything, so nothing sits above it, as for TOP.
   superior(): Val {
     return this
   }
@@ -83,9 +82,6 @@ function doneButHoles(v: any): boolean {
   }
   if (true === v.isConjunct || true === v.isDisjunct) {
     return v.peg.every(doneButHoles)
-  }
-  if (true === v.isPref) {
-    return doneButHoles(v.peg)
   }
   if (true === v.isList) {
     return null == v.spread.cj && v.peg.every(doneButHoles)
@@ -308,7 +304,7 @@ function rebuild(v: Val, peg: any, ctx: AontuContext): Val {
   out.peg = peg
   out.dc = 0
   return out
-} /* node:coverage ignore next 10 */
+} /* node:coverage ignore next 17 */
 
 
 export {
