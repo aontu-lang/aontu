@@ -1608,8 +1608,9 @@ members its condition admits, as a term, or `nil` where the source
 generates a scalar, which has no members. One whose scrutinee or source
 generates nothing stays, and generates nothing. An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
-reads them, less each reading that is absence, and `nil` where the data
-is no bag. A `pack` is the open map
+reads them, less each reading that is absence or carries a mark of its
+own, as a list holds no position for either, and `nil` where the data
+is no bag or a marked reading is a conflict. A `pack` is the open map
 of its template read for each member `Val.keyedMembers` reads, under the
 member's key, the instances of a repeated key met, and `nil` where the
 data is no bag or a list holds anything but a string. An `emit` is the
@@ -1674,8 +1675,10 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       if here.isNone && (resolveD ds b here d).holdsKey then .call .each [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).members ds with
       | some ms =>
+        if (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).any
+            (fun e => (normaliseD ds e).marked && ds.markClashes none e) then .nil else
         .list ((ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).filter
-          fun e => !(normaliseD ds e).isAbsent) none false
+          fun e => !(normaliseD ds e).isAbsent && !(normaliseD ds e).marked) none false
       | none =>
         if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
         else if (resolveD ds b here d).pending ds then .call .each [resolveD ds b here d, t]
@@ -5185,6 +5188,8 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         · rw [h]; exact hargs t (by simp)
       split
       · rename_i ms hms
+        split
+        · exact .nil
         refine .list (fun w hw => ?_) (fun _ hs => by cases hs)
         obtain ⟨m, hm, rfl⟩ := List.mem_map.mp (List.mem_filter.mp hw).1
         have hn := normaliseD_checkableA hd (ih d (by simp) (here := here) hb)

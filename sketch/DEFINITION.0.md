@@ -895,6 +895,10 @@ until the phase that encodes it lands.
    subsumption fragment judge each value as a document reads it, so
    `[hide(integer)]` over `[integer]` subsumes under `gen`. Rows hl0 on
    in `test/spec/def-verdict.tsv` and gl0 on in `test/spec/def-gen.tsv`.
+   An `each` leaves out an instance that carries a mark of its own the
+   same way, and is `nil` where such an instance is a conflict, as both
+   ports read it (#626, 2026-11-04): rows x2253 on in
+   `test/spec/def-call.tsv`.
    Both ports move, each list compacting once its own elements are
    read, and answer every row as the definition does. A marked `nil`
    still holds its position in both, which #540 tracks.
