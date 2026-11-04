@@ -43,7 +43,7 @@ Both implementations, the shared rows, and documentation.
   `sequence` and `treemap` draw on the grid of their text form. Every
   coordinate is a whole number, no layout is searched for, and both
   ports write the same bytes (ADR-078).
-- `test/spec/view.tsv`: 18 `*-svg-*` rows for the new profiles, and
+- `test/spec/view.tsv`: 17 `*-svg-*` rows for the new profiles, and
   `graph-profile-must-be-declared` re-measured, its note now listing
   `svg`; `views-the-node-link-kinds-draw-svg` in `test/spec/views.tsv`.
   Every expectation is from both engines agreeing.
