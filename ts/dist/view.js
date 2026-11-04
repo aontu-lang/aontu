@@ -34,16 +34,16 @@ const PROFILES = {
     lattice: ['text', 'svg'],
     tree: ['text', 'svg'],
     matrix: ['text', 'svg'],
-    graph: ['mermaid', 'dot', 'er'],
+    graph: ['mermaid', 'dot', 'er', 'svg'],
     layer: ['text', 'mermaid', 'svg'],
     sets: ['text', 'svg'],
     layers: ['text', 'svg'],
-    ladder: ['mermaid', 'dot'],
-    poset: ['mermaid', 'dot'],
-    state: ['mermaid', 'text'],
-    sequence: ['mermaid', 'text'],
-    lane: ['mermaid', 'text'],
-    treemap: ['mermaid', 'text'],
+    ladder: ['mermaid', 'dot', 'svg'],
+    poset: ['mermaid', 'dot', 'svg'],
+    state: ['mermaid', 'text', 'svg'],
+    sequence: ['mermaid', 'text', 'svg'],
+    lane: ['mermaid', 'text', 'svg'],
+    treemap: ['mermaid', 'text', 'svg'],
 };
 // The profile a kind draws into when none is asked for. The CLI needs
 // it to resolve `--style auto` BEFORE the library runs, since the
@@ -188,10 +188,16 @@ function reachOf(nodes, succ) {
     return out;
 }
 // ---------------------------------------------------------------------
-// Text helpers, all on code units, none formatting a number
-const pad = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
-const lpad = (s, n) => ' '.repeat(Math.max(0, n - s.length)) + s;
-const widest = (ss) => ss.reduce((w, s) => Math.max(w, s.length), 0);
+// Text helpers, all on code points, none formatting a number
+// A cell holds one character, so a string's width is its code points:
+// a character past the Basic Multilingual Plane is one cell, though a
+// JavaScript string spells it as a surrogate pair.
+const cpLen = (s) => [...s].length;
+const pad = (s, n) => s + ' '.repeat(Math.max(0, n - cpLen(s)));
+const lpad = (s, n) => ' '.repeat(Math.max(0, n - cpLen(s))) + s;
+const widest = (ss) => ss.reduce((w, s) => Math.max(w, cpLen(s)), 0);
+// The first n characters of a string, by code point.
+const cpCut = (s, n) => [...s].slice(0, n).join('');
 // ---------------------------------------------------------------------
 // Identifiers and escapes (VIEWS.0.md, "The renderers and the profiles")
 function ident(name) {
@@ -273,6 +279,110 @@ function svgRect(x, y, w, h, cls) {
 }
 function svgPath(d, cls) {
     return `<path d="${d}" class="${cls}"/>`;
+}
+const SVG_TIPS = '<defs>' +
+    '<marker id="av-arrow" viewBox="0 0 8 8" refX="8" refY="4" ' +
+    'markerWidth="8" markerHeight="8" orient="auto">' +
+    '<path d="M0 0L8 4L0 8Z" fill="var(--av-alert,#d1242f)"/></marker>' +
+    '<marker id="av-tip" viewBox="0 0 8 8" refX="8" refY="4" ' +
+    'markerWidth="8" markerHeight="8" orient="auto">' +
+    '<path d="M0 0L8 4L0 8Z" fill="var(--av-rule,#8c959f)"/></marker>' +
+    '</defs>';
+// An edge drawn with its tip; an alerting edge is dashed in the alert
+// colour.
+function svgArrow(d, alert) {
+    return `<path d="${d}" class="${alert ? 'av-up' : 'av-line'}" ` +
+        `marker-end="url(#${alert ? 'av-arrow' : 'av-tip'})"/>`;
+}
+function svgCircle(x, y, r, cls) {
+    return `<circle cx="${x}" cy="${y}" r="${r}" class="${cls}"/>`;
+}
+// THE TRACKS. Spans are placed shortest first, each on the first track
+// no span it overlaps holds. A span inside another then holds a track
+// nearer than the one around it, so drawn as brackets they never
+// cross, and spans that interleave cross exactly once.
+function tracksOf(spans) {
+    const order = spans.map((_s, i) => i).sort((a, b) => (spans[a][1] - spans[a][0]) - (spans[b][1] - spans[b][0]) || a - b);
+    const track = spans.map(() => 0);
+    const placed = [];
+    for (const i of order) {
+        const [lo, hi] = spans[i];
+        const held = new Set(placed
+            .filter((j) => spans[j][0] <= hi && lo <= spans[j][1])
+            .map((j) => track[j]));
+        let t = 0;
+        while (held.has(t)) {
+            t++;
+        }
+        track[i] = t;
+        placed.push(i);
+    }
+    return track;
+}
+const ROW = 32;
+function arcSvg(nodes, groups, edges, head, about, style) {
+    const row = [];
+    const bands = [];
+    let rows = 0;
+    nodes.forEach((_n, i) => {
+        const g = groups.find((x) => x.first === i);
+        if (undefined !== g) {
+            bands.push({ title: g.title, at: rows++, count: g.count });
+        }
+        row.push(rows++);
+    });
+    const marks = nodes.some((n) => true === n.initial);
+    const x0 = 4 + (marks ? 24 : 0) + (0 < groups.length ? 8 : 0);
+    const bw = widest([...nodes.map((n) => n.label),
+        ...groups.map((g) => g.title)]) * CH + 12;
+    const right = x0 + bw;
+    const top = 4 + head.length * LH;
+    const cy = (r) => top + r * ROW + 16;
+    const tw = widest(edges.map((e) => e.label)) * CH + 16;
+    const track = tracksOf(edges.map((e) => row[e.from] < row[e.to]
+        ? [row[e.from], row[e.to]] : [row[e.to], row[e.from]]));
+    const x = (t) => right + 16 + t * tw;
+    let width = 0 === edges.length ? right + 8 : x(Math.max(...track) + 1);
+    for (const h of head) {
+        width = Math.max(width, 4 + cpLen(h) * CH);
+    }
+    const parts = head.map((h, i) => svgText(4, 4 + i * LH + 14, 'av-m', h));
+    for (const b of bands) {
+        parts.push(svgRect(x0 - 8, top + b.at * ROW + 2, bw + 16, (b.count + 1) * ROW - 4, 'av-cell'));
+        parts.push(svgText(x0, top + b.at * ROW + 20, 'av-m', b.title));
+    }
+    nodes.forEach((n, i) => {
+        const y = top + row[i] * ROW + 4;
+        parts.push(svgRect(x0, y, bw, 24, true === n.ghost ? 'av-hole' : 'av-box'));
+        if (true === n.final) {
+            parts.push(svgRect(x0 + 3, y + 3, bw - 6, 18, 'av-line'));
+        }
+        parts.push(svgText(x0 + 6, y + 16, true === n.ghost ? 'av-m' : 'av-t', n.label));
+    });
+    if (0 < edges.length || marks) {
+        parts.push(SVG_TIPS);
+    }
+    nodes.forEach((n, i) => {
+        if (true === n.initial) {
+            parts.push(svgCircle(x0 - 20, cy(row[i]), 3, 'av-dot'), svgArrow(`M${x0 - 17} ${cy(row[i])}H${x0}`, false));
+        }
+    });
+    // An edge leaves and enters its boxes on the sides facing each other,
+    // so edges meeting at a box share its port rather than crossing.
+    edges.forEach((e, i) => {
+        const a = row[e.from];
+        const b = row[e.to];
+        const y1 = cy(a) + (a < b ? 5 : -5);
+        const y2 = cy(b) + (a < b ? -5 : 5);
+        parts.push(svgArrow(`M${right} ${y1}H${x(track[i])}V${y2}H${right}`, true === e.alert));
+    });
+    // A label sits between rows, where no edge runs across its track.
+    edges.forEach((e, i) => {
+        if ('' !== e.label) {
+            parts.push(svgText(x(track[i]) + 6, top + (Math.min(row[e.from], row[e.to]) + 1) * ROW + 5, 'av-m', e.label));
+        }
+    });
+    return svgDoc(width + PAD, top + rows * ROW + PAD, about, parts, style);
 }
 function collapse(triples, relation) {
     const pairs = new Map();
@@ -424,7 +534,7 @@ function treeSvg(rows, about, style) {
             ? svgText(x, y + 14, 'av-t', r.text)
             : `<text x="${x}" y="${y + 14}"><tspan class="av-t">${svgEsc(r.text)}` +
                 `</tspan><tspan class="av-m">${svgEsc(r.mark)}</tspan></text>`);
-        width = Math.max(width, x + (r.text.length + r.mark.length) * CH);
+        width = Math.max(width, x + cpLen(r.text + r.mark) * CH);
     });
     return svgDoc(width + PAD, rows.length * LH + PAD, about, parts, style);
 }
@@ -736,7 +846,7 @@ function throughDoc(v) {
 // since the figure is the shape and not the data.
 function docLeaf(v) {
     const canon = throughDoc(v).canon;
-    return 32 < canon.length ? canon.slice(0, 29) + '...' : canon;
+    return 32 < cpLen(canon) ? cpCut(canon, 29) + '...' : canon;
 }
 // A part of a divided document is anchored below `at` by its chain of
 // keys, walked as keys rather than re-read as a path, and keeps `only`
@@ -1146,7 +1256,7 @@ function erColumns(root, node, field, unplaced) {
             ? key : 'q_' + spell(key, /[A-Za-z0-9]/);
         const note = name !== key ? key
             : fk || type === canon || true === v.isMap || true === v.isList
-                ? '' : 32 < canon.length ? canon.slice(0, 29) + '...' : canon;
+                ? '' : 32 < cpLen(canon) ? cpCut(canon, 29) + '...' : canon;
         return `${type} ${name}` + (fk ? ' FK' : '') +
             ('' === note ? '' : ` "${esc(note)}"`);
     });
@@ -1219,7 +1329,7 @@ function drawGraph(triples, decls, root, o, max, loss) {
     const node = (p) => byPath.get(p);
     if (true === o.collapse) {
         unresolvedLoss(unresolved, loss);
-        return collapseGraph(groups, loose, edges, node, o.as, loss);
+        return collapseGraph(groups, loose, edges, node, o.as, o.style, loss);
     }
     const at = new Map(emitted.map((n, i) => [n.path, i]));
     const drawn = edges.slice().sort((a, b) => (0, keyorder_1.cmpCodePoint)(node(a.from).label, node(b.from).label)
@@ -1261,6 +1371,18 @@ function drawGraph(triples, decls, root, o, max, loss) {
         }
     }
     unresolvedLoss(unresolved, loss);
+    if ('svg' === o.as) {
+        const bands = groups.map((g) => ({
+            title: g.title, first: emitted.indexOf(g.nodes[0]), count: g.nodes.length,
+        }));
+        return {
+            text: arcSvg(emitted.map((n) => ({ label: n.label, ghost: n.ghost })), bands, drawn.map((e) => ({
+                from: at.get(e.from), to: at.get(e.to),
+                label: e.key,
+            })), [], `Node-link graph: ${emitted.length} nodes, ` +
+                `${drawn.length} edges`, o.style),
+        };
+    }
     return {
         text: emitGraph(o.as, {
             groups, loose, columns,
@@ -1273,7 +1395,7 @@ function drawGraph(triples, decls, root, o, max, loss) {
 // THE SURFACE MAP: one node per group, titled with its count, and one
 // edge per (group, relation, group) labelled with how many edges it
 // stands for. An edge inside one group is not drawn, and is counted.
-function collapseGraph(groups, loose, edges, node, as, loss) {
+function collapseGraph(groups, loose, edges, node, as, style, loss) {
     const home = new Map();
     for (const g of groups) {
         for (const n of g.nodes) {
@@ -1309,13 +1431,22 @@ function collapseGraph(groups, loose, edges, node, as, loss) {
         ...groups.map((g) => ({ path: g.id, id: g.id, label: g.title })),
         ...loose,
     ];
+    const drawn = [...tally.values()]
+        .sort((x, y) => (0, keyorder_1.cmpCodePoint)(x.order, y.order))
+        .map((t) => ({ from: t.from, to: t.to, label: `${t.key} (${t.n})` }));
+    if ('svg' === as) {
+        const at = new Map(shown.map((n, i) => [n.id, i]));
+        return {
+            text: arcSvg(shown.map((n) => ({ label: n.label, ghost: n.ghost })), [], drawn.map((d) => ({
+                from: at.get(d.from), to: at.get(d.to),
+                label: d.label,
+            })), [], `Surface map: ${shown.length} nodes, ${drawn.length} edges`, style),
+        };
+    }
     return {
         text: emitGraph(as, {
             groups: [], loose: shown,
-            columns: 'er' === as ? new Map() : undefined,
-            edges: [...tally.values()]
-                .sort((x, y) => (0, keyorder_1.cmpCodePoint)(x.order, y.order))
-                .map((t) => ({ from: t.from, to: t.to, label: `${t.key} (${t.n})` })),
+            columns: 'er' === as ? new Map() : undefined, edges: drawn,
         }),
     };
 }
@@ -1456,7 +1587,7 @@ function drawLayer(triples, root, o, max, loss) {
             const bare = pad(bands[i].name, w) + '  ' +
                 bands[i].nodes.map((n) => n.label).join('  ');
             out.push(paint('rule', '|') + ' ' + row +
-                ' '.repeat(inner - bare.length) + ' ' + paint('rule', '|'), rule);
+                ' '.repeat(inner - cpLen(bare)) + ' ' + paint('rule', '|'), rule);
         });
         // The first footer line counts; the rest name one edge each, and
         // an upward edge is the violation the bands cannot show.
@@ -1491,14 +1622,14 @@ function layerSvg(bands, shown, footer, about, style) {
     bands.forEach((b, i) => {
         let x = gutter;
         for (const n of b.nodes) {
-            const w = n.label.length * CH + 12;
+            const w = cpLen(n.label) * CH + 12;
             box.set(n.path, { x, y: 4 + i * BH + 10, w });
             x += w + 10;
         }
         width = Math.max(width, x - 10);
     });
     for (const f of footer) {
-        width = Math.max(width, 4 + f.length * CH);
+        width = Math.max(width, 4 + cpLen(f) * CH);
     }
     width += PAD;
     const parts = [];
@@ -1513,14 +1644,7 @@ function layerSvg(bands, shown, footer, about, style) {
         }
     });
     if (0 < shown.length) {
-        parts.push('<defs>' +
-            '<marker id="av-arrow" viewBox="0 0 8 8" refX="8" refY="4" ' +
-            'markerWidth="8" markerHeight="8" orient="auto">' +
-            '<path d="M0 0L8 4L0 8Z" fill="var(--av-alert,#d1242f)"/></marker>' +
-            '<marker id="av-tip" viewBox="0 0 8 8" refX="8" refY="4" ' +
-            'markerWidth="8" markerHeight="8" orient="auto">' +
-            '<path d="M0 0L8 4L0 8Z" fill="var(--av-rule,#8c959f)"/></marker>' +
-            '</defs>');
+        parts.push(SVG_TIPS);
     }
     for (const c of shown) {
         const from = box.get(c.edge.from);
@@ -1528,18 +1652,15 @@ function layerSvg(bands, shown, footer, about, style) {
         const fx = from.x + Math.floor(from.w / 2);
         const tx = to.x + Math.floor(to.w / 2);
         if ('upward' === c.way) {
-            parts.push(`<path d="M${fx} ${from.y}L${tx} ${to.y + 24}" ` +
-                'class="av-up" marker-end="url(#av-arrow)"/>');
+            parts.push(svgArrow(`M${fx} ${from.y}L${tx} ${to.y + 24}`, true));
         }
         else if ('downward' === c.way) {
-            parts.push(`<path d="M${fx} ${from.y + 24}L${tx} ${to.y}" ` +
-                'class="av-line" marker-end="url(#av-tip)"/>');
+            parts.push(svgArrow(`M${fx} ${from.y + 24}L${tx} ${to.y}`, false));
         }
         else {
             // Below the boxes and back up, staying inside the band.
             const y = from.y + 24;
-            parts.push(`<path d="M${fx} ${y}V${y + 6}H${tx}V${y}" ` +
-                'class="av-line" marker-end="url(#av-tip)"/>');
+            parts.push(svgArrow(`M${fx} ${y}V${y + 6}H${tx}V${y}`, false));
         }
     }
     const y1 = 4 + bands.length * BH + 4;
@@ -1657,7 +1778,7 @@ function panelSvg(p, about, style) {
     lines.forEach((l, i) => {
         parts.push(svgText(4, yI + i * LH + 14, 'av-t', l));
     });
-    const width = Math.max(gx + p.cols.length * 20, gx + (p.bars ? most * 10 + 8 : 0) + 3 * CH, 4 + widest(lines) * CH, 4 + p.header.length * CH) + PAD;
+    const width = Math.max(gx + p.cols.length * 20, gx + (p.bars ? most * 10 + 8 : 0) + 3 * CH, 4 + widest(lines) * CH, 4 + cpLen(p.header) * CH) + PAD;
     return svgDoc(width, yI + lines.length * LH + PAD, about, parts, style);
 }
 // The panel, or with a budget its pages of at most that many columns,
@@ -1849,6 +1970,11 @@ function drawLadder(src, options, as, max) {
         return { errors: [rowsFinding(rungs.length, max, 'a narrower --at')] };
     }
     const where = (c) => `${(0, node_path_1.basename)(c.site.file)}:${c.site.row}:${c.site.col}`;
+    if ('svg' === as) {
+        return {
+            text: ladderSvg(rungs.map((c) => [c.canon, `${c.role} | ${where(c)}`]), rep.record.value, `Meet ladder at ${options.at}: ${rungs.length} rungs`, styleOf(options.style, as)),
+        };
+    }
     const out = [];
     if ('mermaid' === as) {
         const esc = (s) => escape(s, MERMAID_ESC);
@@ -1879,6 +2005,22 @@ function drawLadder(src, options, as, max) {
         out.push(`  ${prev} -> val;`, '}');
     }
     return { text: out.join('\n') };
+}
+// The ladder as a column: `any` above, each rung a box of its canon and
+// its role, and the value below them all.
+function ladderSvg(rungs, value, about, style) {
+    const w = widest(['any', value, ...rungs.flat()]) * CH + 24;
+    const mid = 4 + w / 2;
+    const parts = [svgCircle(mid, 20, 16, 'av-box'),
+        svgText(mid, 24, 'av-t', 'any', 'middle'), SVG_TIPS];
+    let y = 36;
+    for (const [canon, role] of rungs) {
+        parts.push(svgArrow(`M${mid} ${y}V${y + 16}`, false), svgRect(4, y + 16, w, 44, 'av-box'), svgText(10, y + 34, 'av-t', canon), svgText(10, y + 52, 'av-m', role));
+        y += 60;
+    }
+    parts.push(svgArrow(`M${mid} ${y}V${y + 16}`, false), svgPath(`M4 ${y + 30}L16 ${y + 16}H${w - 8}L${w + 4} ${y + 30}` +
+        `L${w - 8} ${y + 44}H16Z`, 'av-box'), svgText(mid, y + 34, 'av-t', value, 'middle'));
+    return svgDoc(w + 4 + PAD, y + 44 + PAD, about, parts, style);
 }
 const compareBySubsume = (general, specific, options) => {
     const r = (0, subsume_1.subsume)(general.src, specific.src, {
@@ -2001,6 +2143,24 @@ function drawPoset(docs, options, as, max, loss, compare) {
         (undefined === options.at ? '' : `  at=${options.at}`) +
         `  profile=${options.profile ?? 'defaults'}` +
         `  documents=${n}  nodes=${k}`;
+    if ('svg' === as) {
+        // A class is ranked by the longest chain of covers below it, so
+        // drawn in rank order every cover runs up to the general class.
+        const rank = classes.map(() => 0);
+        for (let pass = 0; pass < k; pass++) {
+            for (const [lo, hi] of covers) {
+                rank[hi] = Math.max(rank[hi], rank[lo] + 1);
+            }
+        }
+        const order = classes.map((_c, i) => i).sort((a, b) => rank[b] - rank[a] || (0, keyorder_1.cmpCodePoint)(classes[a].label, classes[b].label));
+        const at = (c) => order.indexOf(c);
+        return {
+            text: arcSvg(order.map((c) => ({ label: classes[c].label })), [], [
+                ...covers.map(([lo, hi]) => ({ from: at(lo), to: at(hi), label: '' })),
+                ...dashed.map(([sp, g, c]) => ({ from: at(sp), to: at(g), label: c, alert: true })),
+            ], [head], `Subsumption poset: ${k} nodes, ${covers.length} covers`, styleOf(options.style, as)),
+        };
+    }
     const out = [];
     if ('mermaid' === as) {
         const esc = (s) => escape(s, MERMAID_ESC);
@@ -2074,6 +2234,19 @@ function drawState(triples, root, o, max, loss) {
     const drawn = edges.slice().sort((a, b) => (0, keyorder_1.cmpCodePoint)(node(a.from).label, node(b.from).label)
         || (0, keyorder_1.cmpCodePoint)(a.key, b.key)
         || (0, keyorder_1.cmpCodePoint)(node(a.to).label, node(b.to).label));
+    if ('svg' === o.as) {
+        const at = new Map(nodes.map((n, i) => [n.path, i]));
+        return {
+            text: arcSvg(nodes.map((n) => ({
+                label: n.label, ghost: n.ghost,
+                initial: initial.includes(n), final: final.includes(n),
+            })), [], drawn.map((e) => ({
+                from: at.get(e.from), to: at.get(e.to),
+                label: e.key,
+            })), [], `State diagram: ${real.length} states, ` +
+                `${drawn.length} transitions`, o.style),
+        };
+    }
     const out = [];
     if ('mermaid' === o.as) {
         const esc = (s) => escape(s, MERMAID_ESC);
@@ -2190,7 +2363,24 @@ function drawLane(triples, root, o, max, loss) {
     // One row per lane and one column per step, so each step is alone in
     // its column and the grid needs no placement beyond the flow order.
     const w = widest(lanes.map((l) => l.title));
-    const cols = steps.map((p, i) => Math.max(node(p).label.length, String(i + 1).length));
+    const cols = steps.map((p, i) => Math.max(cpLen(node(p).label), String(i + 1).length));
+    const back = drawn.filter((e) => at.get(e.to) <= at.get(e.from));
+    const footer = [`# ${drawn.length} edges, ${across.length} across lanes, ` +
+            `${back.length} back`];
+    for (const e of drawn.filter((d) => across.includes(d) || back.includes(d))) {
+        footer.push(`# ${back.includes(e) ? 'back' : 'across'}: ` +
+            `${node(e.from).label} -> ${node(e.to).label} (${e.key})`);
+    }
+    if ('svg' === o.as) {
+        return {
+            text: laneSvg(lanes.map((l) => l.title), steps.map((p) => ({
+                label: node(p).label, ghost: true === node(p).ghost,
+                lane: lanes.findIndex((l) => l.name === lane(node(p))),
+            })), cols, drawn.map((e) => ({
+                from: at.get(e.from), to: at.get(e.to),
+            })), footer, `Swim lanes: ${lanes.length} lanes, ${steps.length} steps`, o.style),
+        };
+    }
     const cell = (s, i) => pad(s, cols[i]);
     const trim = (s) => s.replace(/ +$/, '');
     const out = [trim(pad('', w) + '  ' +
@@ -2198,14 +2388,55 @@ function drawLane(triples, root, o, max, loss) {
     for (const l of lanes) {
         out.push(trim(pad(l.title, w) + '  ' + steps.map((p, i) => cell(lane(node(p)) === l.name ? node(p).label : '.', i)).join('  ')));
     }
-    const back = drawn.filter((e) => at.get(e.to) <= at.get(e.from));
-    out.push(`# ${drawn.length} edges, ${across.length} across lanes, ` +
-        `${back.length} back`);
-    for (const e of drawn.filter((d) => across.includes(d) || back.includes(d))) {
-        out.push(`# ${back.includes(e) ? 'back' : 'across'}: ` +
-            `${node(e.from).label} -> ${node(e.to).label} (${e.key})`);
+    return { text: out.concat(footer).join('\n') };
+}
+// The lanes as bands and the steps as boxes in the text grid's columns.
+// An edge to the next step is drawn across the gap between them; any
+// other runs on a track below the lanes, through cells no step holds.
+function laneSvg(titles, steps, cols, edges, footer, about, style) {
+    const top = 4 + LH;
+    const xs = [];
+    let x = 4 + widest(titles) * CH + 16;
+    for (const c of cols) {
+        xs.push(x);
+        x += c * CH + 36;
     }
-    return { text: out.join('\n') };
+    const bw = (i) => cols[i] * CH + 12;
+    const cx = (i) => xs[i] + bw(i) / 2;
+    const cy = (i) => top + steps[i].lane * ROW + 16;
+    const below = top + titles.length * ROW;
+    const far = edges.filter((e) => e.to !== e.from + 1);
+    const track = tracksOf(far.map((e) => e.from < e.to ? [e.from, e.to] : [e.to, e.from]));
+    const yf = below + (0 === far.length ? 0 : 12 * Math.max(...track) + 20);
+    let width = x - 24;
+    for (const f of footer) {
+        width = Math.max(width, 4 + cpLen(f) * CH);
+    }
+    const parts = cols.map((_c, i) => svgText(xs[i] + 6, 18, 'av-m', String(i + 1)));
+    titles.forEach((t, li) => {
+        parts.push(svgRect(4, top + li * ROW, width - 4, ROW, 'av-cell'), svgText(12, top + li * ROW + 20, 'av-m', t));
+    });
+    steps.forEach((st, i) => {
+        const y = top + st.lane * ROW + 4;
+        parts.push(svgRect(xs[i], y, bw(i), 24, st.ghost ? 'av-hole' : 'av-box'), svgText(xs[i] + 6, y + 16, st.ghost ? 'av-m' : 'av-t', st.label));
+    });
+    if (0 < edges.length) {
+        parts.push(SVG_TIPS);
+    }
+    for (const e of edges.filter((d) => d.to === d.from + 1)) {
+        parts.push(svgArrow(`M${xs[e.from] + bw(e.from)} ${cy(e.from)}` +
+            `L${xs[e.to]} ${cy(e.to)}`, false));
+    }
+    far.forEach((e, i) => {
+        const out = cx(e.from) + (e.from < e.to ? 5 : -5);
+        const into = cx(e.to) + (e.from < e.to ? -5 : 5);
+        parts.push(svgArrow(`M${out} ${cy(e.from) + 12}V${below + 12 + 12 * track[i]}` +
+            `H${into}V${cy(e.to) + 12}`, e.to <= e.from));
+    });
+    footer.forEach((f, i) => {
+        parts.push(svgText(4, yf + i * LH + 14, 'av-m', f));
+    });
+    return svgDoc(width + PAD, yf + footer.length * LH + PAD, about, parts, style);
 }
 // ---------------------------------------------------------------------
 // The sequence: who sends what to whom, in the order the steps list it
@@ -2279,7 +2510,10 @@ function drawSequence(list, o, max, loss) {
             }
             return out.join('\n');
         }
-        return sequenceText(mine.map(name), steps.map((m) => ({
+        const draw = 'svg' === o.as
+            ? (n, ms) => sequenceSvg(n, ms, `Sequence: ${mine.length} participants, ${steps.length} messages`, o.style)
+            : sequenceText;
+        return draw(mine.map(name), steps.map((m) => ({
             a: mine.indexOf(m.a), b: mine.indexOf(m.b), text: m.text,
         })));
     };
@@ -2303,12 +2537,9 @@ function drawSequence(list, o, max, loss) {
 // enough for the name above it and for every message spanning it, the
 // shortfall of a span going to its last gap, so the counts alone set
 // the columns.
-function sequenceText(names, msgs) {
+function lifelines(names, msgs) {
     const n = names.length;
-    if (0 === n) {
-        return '';
-    }
-    const len = (s) => [...s].length;
+    const len = cpLen;
     const gap = names.map((s) => Math.max(len(s) + 2, 3));
     const x = () => {
         const xs = [0];
@@ -2335,6 +2566,14 @@ function sequenceText(names, msgs) {
     const xs = x();
     const width = xs[n - 1] + Math.max(len(names[n - 1]), 1 + msgs.reduce((w, m) => m.a === m.b && m.a === n - 1
         ? Math.max(w, len(m.text) + 5) : w, 0));
+    return { xs, width };
+}
+function sequenceText(names, msgs) {
+    if (0 === names.length) {
+        return '';
+    }
+    const len = cpLen;
+    const { xs, width } = lifelines(names, msgs);
     const blank = () => {
         const row = Array(width).fill(' ');
         for (const c of xs) {
@@ -2376,6 +2615,40 @@ function sequenceText(names, msgs) {
     }
     out.push(line(blank()));
     return out.join('\n');
+}
+// The lifeline grid in SVG: each message a line above its arrow, on the
+// rows and columns the text figure lays out.
+function sequenceSvg(names, msgs, about, style) {
+    if (0 === names.length) {
+        return svgDoc(PAD, PAD, about, [], style);
+    }
+    const { xs, width } = lifelines(names, msgs);
+    const cx = (i) => 8 + xs[i] * CH;
+    const rows = 3 + msgs.reduce((n, m) => n + (m.a === m.b ? 2 : 1), 0);
+    const parts = names.map((s, i) => svgText(4 + xs[i] * CH, 18, 'av-t', s));
+    for (const c of xs.map((_x, i) => cx(i))) {
+        parts.push(svgPath(`M${c} ${4 + LH}V${4 + rows * LH}`, 'av-cell'));
+    }
+    if (0 < msgs.length) {
+        parts.push(SVG_TIPS);
+    }
+    let y = 4 + 2 * LH;
+    for (const m of msgs) {
+        if ('' !== m.text) {
+            parts.push(svgText(Math.min(cx(m.a), cx(m.b)) + 12, y + 11, 'av-t', m.text));
+        }
+        if (m.a === m.b) {
+            const loop = cx(m.a) + (3 + ('' === m.text ? 0 : cpLen(m.text) + 2)) * CH;
+            parts.push(svgArrow(`M${cx(m.a)} ${y + 15}H${loop}V${y + LH + 15}` +
+                `H${cx(m.a)}`, false));
+            y += 2 * LH;
+        }
+        else {
+            parts.push(svgArrow(`M${cx(m.a)} ${y + 15}H${cx(m.b)}`, false));
+            y += LH;
+        }
+    }
+    return svgDoc(4 + width * CH + PAD, 4 + rows * LH + PAD, about, parts, style);
 }
 const TREEMAP_BAR = 40;
 // A container weighs the scalar leaves under it, however deep.
@@ -2478,14 +2751,15 @@ function treemapTop(root, o, loss) {
 // one section, so Mermaid shows where it sits.
 function treemapFigure(top, at, o, max, wrap) {
     const rows = [];
-    const walk = (t, prefix, kidPrefix) => {
-        rows.push({ prefix, name: t.name, weight: t.weight });
+    const walk = (t, prefix, kidPrefix, depth, parent) => {
+        const self = rows.length;
+        rows.push({ prefix, name: t.name, weight: t.weight, depth, parent });
         t.kids.forEach((k, i) => {
             const last = i === t.kids.length - 1;
-            walk(k, kidPrefix + (last ? '└── ' : '├── '), kidPrefix + (last ? '    ' : '│   '));
+            walk(k, kidPrefix + (last ? '└── ' : '├── '), kidPrefix + (last ? '    ' : '│   '), depth + 1, self);
         });
     };
-    walk(top, '', '');
+    walk(top, '', '', 0, 0);
     if (max < rows.length) {
         return { errors: [rowsFinding(rows.length, max, '--at or --depth', true)] };
     }
@@ -2516,15 +2790,43 @@ function treemapFigure(top, at, o, max, wrap) {
     const total = top.weight;
     const w = widest(rows.map((r) => r.prefix + r.name));
     const nw = widest(rows.map((r) => String(r.weight)));
+    const barOf = (weight) => 0 === total ? 0
+        : Math.max(1, Math.floor(weight * TREEMAP_BAR / total));
+    if ('svg' === o.as) {
+        return {
+            text: treemapSvg(rows.map((r) => ({ ...r, bar: barOf(r.weight) })), `Treemap of ${at}: ${rows.length} tiles weighing ${total}`, o.style),
+        };
+    }
     return {
         text: rows.map((r) => {
-            const bar = 0 === total ? 0
-                : Math.max(1, Math.floor(r.weight * TREEMAP_BAR / total));
+            const bar = barOf(r.weight);
             return paint('rule', r.prefix) + r.name +
-                ' '.repeat(w - (r.prefix + r.name).length) + '  ' +
+                ' '.repeat(w - cpLen(r.prefix + r.name)) + '  ' +
                 lpad(String(r.weight), nw) + '  ' + paint('bar', '█'.repeat(bar));
         }).join('\n'),
     };
+}
+// The treemap's rows as the tree draws its own, each with its weight and
+// a bar of whole cells.
+function treemapSvg(rows, about, style) {
+    const U = 24;
+    const end = Math.max(...rows.map((r) => r.depth * U + 4 + cpLen(r.name) * CH));
+    const wx = end + 16 + widest(rows.map((r) => String(r.weight))) * CH;
+    const parts = [];
+    rows.forEach((r, i) => {
+        const y = i * LH;
+        const x = r.depth * U + 4;
+        if (0 < r.depth) {
+            parts.push(svgPath(`M${(r.depth - 1) * U + 8} ${r.parent * LH + LH}` +
+                `V${y + 10}H${x - 2}`, 'av-line'));
+        }
+        parts.push(svgText(x, y + 14, 'av-t', r.name), svgText(wx, y + 14, 'av-m', String(r.weight), 'end'));
+        if (0 < r.bar) {
+            parts.push(svgRect(wx + 8, y + 5, r.bar * CH, 10, 'av-bar'));
+        }
+    });
+    const bars = Math.max(...rows.map((r) => r.bar));
+    return svgDoc(wx + 8 + bars * CH + PAD, rows.length * LH + PAD, about, parts, style);
 }
 function drawTreemap(root, o, max, loss) {
     const built = treemapTop(root, o, loss);
@@ -2961,19 +3263,7 @@ function view(src, opts, hooks) {
             errors: [finding('view_profile_unknown', 'reference', '$', `The ${kind} figure does not render as ${as}.`, `profiles: ${profiles.join(', ')}`)],
         });
     }
-    const style = styleOf(options.style, as);
-    const carrier = { ansi: 'text', css: 'svg' };
-    if (undefined !== carrier[style] && carrier[style] !== as) {
-        return done({
-            errors: [finding('view_style_profile', 'reference', '$', `The ${as} profile cannot carry --style ${style}.`, `${style} is the ${carrier[style]} profile's mechanism`)],
-        });
-    }
-    if (undefined === carrier[style] && 'none' !== style) {
-        return done({
-            errors: [finding('view_style_unknown', 'reference', '$', `${style} is not a style.`, 'styles: auto, none, ansi, css')],
-        });
-    }
-    const refused = splitRefusal(kind, options);
+    const refused = styleRefusal(options.style, as) ?? splitRefusal(kind, options);
     if (undefined !== refused) {
         return done({ errors: [refused] });
     }
@@ -2998,6 +3288,18 @@ function view(src, opts, hooks) {
         return done({ errors: loaded.errors });
     }
     return done(drawLoaded(loaded.root, loaded.ctx, prov, kind, as, options, max, loss));
+}
+// Each style is one profile's mechanism, and `none` is every profile's.
+function styleRefusal(given, as) {
+    const style = styleOf(given, as);
+    const carrier = { ansi: 'text', css: 'svg' };
+    if (undefined !== carrier[style] && carrier[style] !== as) {
+        return finding('view_style_profile', 'reference', '$', `The ${as} profile cannot carry --style ${style}.`, `${style} is the ${carrier[style]} profile's mechanism`);
+    }
+    if (undefined === carrier[style] && 'none' !== style) {
+        return finding('view_style_unknown', 'reference', '$', `${style} is not a style.`, 'styles: auto, none, ansi, css');
+    }
+    return undefined;
 }
 // The options naming a field or a path. An empty name is no name, as
 // the Go port's zero value is.
@@ -3053,7 +3355,7 @@ function drawLoaded(root, ctx, prov, kind, as, given, max, loss) {
             }
             return drawSequence(listed, {
                 from: options.from, to: options.to,
-                label: options.label, at: options.steps, as,
+                label: options.label, at: options.steps, as, style,
                 splitBy: options.splitBy, budget: options.budget,
             }, max, loss);
         }
@@ -3115,21 +3417,21 @@ function drawLoaded(root, ctx, prov, kind, as, given, max, loss) {
         if ('graph' === kind) {
             return drawGraph(s.triples, decls, root, {
                 relations: rels, groupBy: options.groupBy, label: options.label, as,
-                members, ghosts: s.ghosts, columns: options.columns,
+                style, members, ghosts: s.ghosts, columns: options.columns,
                 counts: options.counts, countBy: options.countBy,
                 collapse: options.collapse,
             }, rows, into);
         }
         if ('state' === kind) {
             return drawState(s.triples, root, {
-                relations: rels, label: options.label, as, members, ghosts: s.ghosts,
-                roots: partRoots, named: 0 < roots.length,
+                relations: rels, label: options.label, as, style, members,
+                ghosts: s.ghosts, roots: partRoots, named: 0 < roots.length,
             }, rows, into);
         }
         if ('lane' === kind) {
             return drawLane(s.triples, root, {
                 relations: rels, groupBy: options.groupBy, label: options.label,
-                layers: options.layers ?? [], as, members, ghosts: s.ghosts,
+                layers: options.layers ?? [], as, style, members, ghosts: s.ghosts,
                 counts: options.counts, countBy: options.countBy,
             }, rows, into);
         }
@@ -3366,16 +3668,18 @@ function viewSet(src, opts, hooks) {
     }
     const views = plans.map((plan) => {
         const loss = [];
+        // The style is the set's, since a declaration cannot name one.
         const each = {
             ...plan.opts, path: options.path, trust: options.trust,
-            textExt: options.textExt,
+            textExt: options.textExt, style: options.style,
         };
         // A Val tree generates once: the declarations were generated from
         // this one, so a figure that generates draws from a fresh
         // evaluation of the same source, which stands up as this one did.
         const own = 'sets' === plan.kind || 'sequence' === plan.kind
             ? load(src, options.path, options, undefined) : loaded;
-        const refused = splitRefusal(plan.kind, each);
+        const refused = styleRefusal(options.style, plan.as) ??
+            splitRefusal(plan.kind, each);
         const fig = undefined !== refused ? { errors: [refused] }
             : 'ladder' === plan.kind
                 ? drawLadder(src, each, plan.as, plan.max)

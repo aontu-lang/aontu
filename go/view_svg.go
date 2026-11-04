@@ -4,6 +4,7 @@ package aontu
 
 
 import (
+	"sort"
 	"strings"
 )
 
@@ -69,6 +70,390 @@ func svgPath(d, cls string) string {
 	return "<path d=\"" + d + "\" class=\"" + cls + "\"/>"
 }
 
+const svgTips = "<defs>" +
+	"<marker id=\"av-arrow\" viewBox=\"0 0 8 8\" refX=\"8\" refY=\"4\" " +
+	"markerWidth=\"8\" markerHeight=\"8\" orient=\"auto\">" +
+	"<path d=\"M0 0L8 4L0 8Z\" fill=\"var(--av-alert,#d1242f)\"/></marker>" +
+	"<marker id=\"av-tip\" viewBox=\"0 0 8 8\" refX=\"8\" refY=\"4\" " +
+	"markerWidth=\"8\" markerHeight=\"8\" orient=\"auto\">" +
+	"<path d=\"M0 0L8 4L0 8Z\" fill=\"var(--av-rule,#8c959f)\"/></marker>" +
+	"</defs>"
+
+// svgArrow is an edge drawn with its tip; an alerting edge is dashed in
+// the alert colour.
+func svgArrow(d string, alert bool) string {
+	cls, tip := "av-line", "av-tip"
+	if alert {
+		cls, tip = "av-up", "av-arrow"
+	}
+	return "<path d=\"" + d + "\" class=\"" + cls + "\" marker-end=\"url(#" + tip + ")\"/>"
+}
+
+func svgCircle(x, y, r int, cls string) string {
+	return "<circle cx=\"" + itoa(x) + "\" cy=\"" + itoa(y) + "\" r=\"" + itoa(r) +
+		"\" class=\"" + cls + "\"/>"
+}
+
+// viewTracksOf is THE TRACKS. Spans are placed shortest first, each on
+// the first track no span it overlaps holds. A span inside another then
+// holds a track nearer than the one around it, so drawn as brackets they
+// never cross, and spans that interleave cross exactly once.
+func viewTracksOf(spans [][2]int) []int {
+	order := make([]int, len(spans))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(i, j int) bool {
+		a, b := order[i], order[j]
+		if da, db := spans[a][1]-spans[a][0], spans[b][1]-spans[b][0]; da != db {
+			return da < db
+		}
+		return a < b
+	})
+	track := make([]int, len(spans))
+	placed := []int{}
+	for _, i := range order {
+		held := map[int]bool{}
+		for _, j := range placed {
+			if spans[j][0] <= spans[i][1] && spans[i][0] <= spans[j][1] {
+				held[track[j]] = true
+			}
+		}
+		t := 0
+		for held[t] {
+			t++
+		}
+		track[i] = t
+		placed = append(placed, i)
+	}
+	return track
+}
+
+// viewMostTrack is the farthest track held, or -1 when there is none.
+func viewMostTrack(track []int) int {
+	most := -1
+	for _, t := range track {
+		most = maxInt(most, t)
+	}
+	return most
+}
+
+// The arc drawing of the node-link kinds: a box per node on a row of
+// its own, a band around each run of grouped rows, and each edge a
+// bracket on its track right of the boxes.
+type arcNode struct {
+	label                 string
+	ghost, initial, final bool
+}
+
+type arcGroup struct {
+	title        string
+	first, count int
+}
+
+type arcEdge struct {
+	from, to int
+	label    string
+	alert    bool
+}
+
+const svgROW = 32
+
+func arcSvg(nodes []arcNode, groups []arcGroup, edges []arcEdge, head []string,
+	about, style string) string {
+	type band struct {
+		title     string
+		at, count int
+	}
+	row := make([]int, len(nodes))
+	bands := []band{}
+	rows := 0
+	marks := false
+	labels := []string{}
+	for i, n := range nodes {
+		for _, g := range groups {
+			if g.first == i {
+				bands = append(bands, band{g.title, rows, g.count})
+				rows++
+				break
+			}
+		}
+		row[i] = rows
+		rows++
+		marks = marks || n.initial
+		labels = append(labels, n.label)
+	}
+	for _, g := range groups {
+		labels = append(labels, g.title)
+	}
+	x0 := 4
+	if marks {
+		x0 += 24
+	}
+	if 0 < len(groups) {
+		x0 += 8
+	}
+	bw := viewWidest(labels)*svgCH + 12
+	right := x0 + bw
+	top := 4 + len(head)*svgLH
+	cy := func(r int) int { return top + r*svgROW + 16 }
+	spans, names := [][2]int{}, []string{}
+	for _, e := range edges {
+		a, b := row[e.from], row[e.to]
+		if b < a {
+			a, b = b, a
+		}
+		spans = append(spans, [2]int{a, b})
+		names = append(names, e.label)
+	}
+	tw := viewWidest(names)*svgCH + 16
+	track := viewTracksOf(spans)
+	x := func(t int) int { return right + 16 + t*tw }
+	width := right + 8
+	if 0 < len(edges) {
+		width = x(viewMostTrack(track) + 1)
+	}
+	for _, h := range head {
+		width = maxInt(width, 4+viewLen(h)*svgCH)
+	}
+
+	parts := []string{}
+	for i, h := range head {
+		parts = append(parts, svgText(4, 4+i*svgLH+14, "av-m", h, ""))
+	}
+	for _, b := range bands {
+		parts = append(parts, svgRect(x0-8, top+b.at*svgROW+2, bw+16, (b.count+1)*svgROW-4, "av-cell"),
+			svgText(x0, top+b.at*svgROW+20, "av-m", b.title, ""))
+	}
+	for i, n := range nodes {
+		y := top + row[i]*svgROW + 4
+		box, ink := "av-box", "av-t"
+		if n.ghost {
+			box, ink = "av-hole", "av-m"
+		}
+		parts = append(parts, svgRect(x0, y, bw, 24, box))
+		if n.final {
+			parts = append(parts, svgRect(x0+3, y+3, bw-6, 18, "av-line"))
+		}
+		parts = append(parts, svgText(x0+6, y+16, ink, n.label, ""))
+	}
+	if 0 < len(edges) || marks {
+		parts = append(parts, svgTips)
+	}
+	for i, n := range nodes {
+		if n.initial {
+			parts = append(parts, svgCircle(x0-20, cy(row[i]), 3, "av-dot"),
+				svgArrow("M"+itoa(x0-17)+" "+itoa(cy(row[i]))+"H"+itoa(x0), false))
+		}
+	}
+	// An edge leaves and enters its boxes on the sides facing each other,
+	// so edges meeting at a box share its port rather than crossing.
+	for i, e := range edges {
+		a, b := row[e.from], row[e.to]
+		y1, y2 := cy(a)-5, cy(b)+5
+		if a < b {
+			y1, y2 = cy(a)+5, cy(b)-5
+		}
+		parts = append(parts, svgArrow("M"+itoa(right)+" "+itoa(y1)+"H"+itoa(x(track[i]))+
+			"V"+itoa(y2)+"H"+itoa(right), e.alert))
+	}
+	// A label sits between rows, where no edge runs across its track.
+	for i, e := range edges {
+		if "" != e.label {
+			parts = append(parts, svgText(x(track[i])+6, top+(spans[i][0]+1)*svgROW+5, "av-m",
+				e.label, ""))
+		}
+	}
+	return svgDoc(width+svgPAD, top+rows*svgROW+svgPAD, about, parts, style)
+}
+
+// ladderSvg is the ladder as a column: `any` above, each rung a box of
+// its canon and its role, and the value below them all.
+func ladderSvg(rungs [][2]string, value, about, style string) string {
+	words := []string{"any", value}
+	for _, r := range rungs {
+		words = append(words, r[0], r[1])
+	}
+	w := viewWidest(words)*svgCH + 24
+	mid := 4 + w/2
+	parts := []string{svgCircle(mid, 20, 16, "av-box"),
+		svgText(mid, 24, "av-t", "any", "middle"), svgTips}
+	y := 36
+	for _, r := range rungs {
+		parts = append(parts, svgArrow("M"+itoa(mid)+" "+itoa(y)+"V"+itoa(y+16), false),
+			svgRect(4, y+16, w, 44, "av-box"),
+			svgText(10, y+34, "av-t", r[0], ""), svgText(10, y+52, "av-m", r[1], ""))
+		y += 60
+	}
+	parts = append(parts, svgArrow("M"+itoa(mid)+" "+itoa(y)+"V"+itoa(y+16), false),
+		svgPath("M4 "+itoa(y+30)+"L16 "+itoa(y+16)+"H"+itoa(w-8)+"L"+itoa(w+4)+" "+itoa(y+30)+
+			"L"+itoa(w-8)+" "+itoa(y+44)+"H16Z", "av-box"),
+		svgText(mid, y+34, "av-t", value, "middle"))
+	return svgDoc(w+4+svgPAD, y+44+svgPAD, about, parts, style)
+}
+
+// laneStep is one step of the swim lanes, on the row of its lane.
+type laneStep struct {
+	label string
+	ghost bool
+	lane  int
+}
+
+// laneSvg is the lanes as bands and the steps as boxes in the text
+// grid's columns. An edge to the next step is drawn across the gap
+// between them; any other runs on a track below the lanes, through
+// cells no step holds.
+func laneSvg(titles []string, steps []laneStep, cols []int, edges [][2]int,
+	footer []string, about, style string) string {
+	top := 4 + svgLH
+	xs := []int{}
+	x := 4 + viewWidest(titles)*svgCH + 16
+	for _, c := range cols {
+		xs = append(xs, x)
+		x += c*svgCH + 36
+	}
+	bw := func(i int) int { return cols[i]*svgCH + 12 }
+	cx := func(i int) int { return xs[i] + bw(i)/2 }
+	cy := func(i int) int { return top + steps[i].lane*svgROW + 16 }
+	below := top + len(titles)*svgROW
+	far, spans := [][2]int{}, [][2]int{}
+	for _, e := range edges {
+		if e[1] != e[0]+1 {
+			far = append(far, e)
+			spans = append(spans, [2]int{minInt(e[0], e[1]), maxInt(e[0], e[1])})
+		}
+	}
+	track := viewTracksOf(spans)
+	yf := below
+	if 0 < len(far) {
+		yf = below + 12*viewMostTrack(track) + 20
+	}
+	width := x - 24
+	for _, f := range footer {
+		width = maxInt(width, 4+viewLen(f)*svgCH)
+	}
+
+	parts := []string{}
+	for i := range cols {
+		parts = append(parts, svgText(xs[i]+6, 18, "av-m", itoa(i+1), ""))
+	}
+	for li, t := range titles {
+		parts = append(parts, svgRect(4, top+li*svgROW, width-4, svgROW, "av-cell"),
+			svgText(12, top+li*svgROW+20, "av-m", t, ""))
+	}
+	for i, st := range steps {
+		y := top + st.lane*svgROW + 4
+		box, ink := "av-box", "av-t"
+		if st.ghost {
+			box, ink = "av-hole", "av-m"
+		}
+		parts = append(parts, svgRect(xs[i], y, bw(i), 24, box),
+			svgText(xs[i]+6, y+16, ink, st.label, ""))
+	}
+	if 0 < len(edges) {
+		parts = append(parts, svgTips)
+	}
+	for _, e := range edges {
+		if e[1] == e[0]+1 {
+			parts = append(parts, svgArrow("M"+itoa(xs[e[0]]+bw(e[0]))+" "+itoa(cy(e[0]))+
+				"L"+itoa(xs[e[1]])+" "+itoa(cy(e[1])), false))
+		}
+	}
+	for i, e := range far {
+		out, into := cx(e[0])-5, cx(e[1])+5
+		if e[0] < e[1] {
+			out, into = cx(e[0])+5, cx(e[1])-5
+		}
+		parts = append(parts, svgArrow("M"+itoa(out)+" "+itoa(cy(e[0])+12)+
+			"V"+itoa(below+12+12*track[i])+"H"+itoa(into)+"V"+itoa(cy(e[1])+12), e[1] <= e[0]))
+	}
+	for i, f := range footer {
+		parts = append(parts, svgText(4, yf+i*svgLH+14, "av-m", f, ""))
+	}
+	return svgDoc(width+svgPAD, yf+len(footer)*svgLH+svgPAD, about, parts, style)
+}
+
+// sequenceSvg is the lifeline grid in SVG: each message a line above
+// its arrow, on the rows and columns the text figure lays out.
+func sequenceSvg(names []string, msgs []viewMsg, about, style string) string {
+	if 0 == len(names) {
+		return svgDoc(svgPAD, svgPAD, about, nil, style)
+	}
+	xs, width := viewLifelines(names, msgs)
+	cx := func(i int) int { return 8 + xs[i]*svgCH }
+	rows := 3
+	for _, m := range msgs {
+		rows++
+		if m.a == m.b {
+			rows++
+		}
+	}
+	parts := []string{}
+	for i, s := range names {
+		parts = append(parts, svgText(4+xs[i]*svgCH, 18, "av-t", s, ""))
+	}
+	for i := range xs {
+		parts = append(parts, svgPath("M"+itoa(cx(i))+" "+itoa(4+svgLH)+"V"+itoa(4+rows*svgLH), "av-cell"))
+	}
+	if 0 < len(msgs) {
+		parts = append(parts, svgTips)
+	}
+	y := 4 + 2*svgLH
+	for _, m := range msgs {
+		if "" != m.text {
+			parts = append(parts, svgText(minInt(cx(m.a), cx(m.b))+12, y+11, "av-t", m.text, ""))
+		}
+		if m.a == m.b {
+			loop := cx(m.a) + 3*svgCH
+			if "" != m.text {
+				loop += (viewLen(m.text) + 2) * svgCH
+			}
+			parts = append(parts, svgArrow("M"+itoa(cx(m.a))+" "+itoa(y+15)+"H"+itoa(loop)+
+				"V"+itoa(y+svgLH+15)+"H"+itoa(cx(m.a)), false))
+			y += 2 * svgLH
+		} else {
+			parts = append(parts, svgArrow("M"+itoa(cx(m.a))+" "+itoa(y+15)+"H"+itoa(cx(m.b)), false))
+			y += svgLH
+		}
+	}
+	return svgDoc(4+width*svgCH+svgPAD, 4+rows*svgLH+svgPAD, about, parts, style)
+}
+
+// treemapRow is one row of the treemap: its tile, its depth and the row
+// of its parent, and its bar in whole cells.
+type treemapRow struct {
+	prefix, name             string
+	weight, depth, parent, bar int
+}
+
+// treemapSvg is the treemap's rows as the tree draws its own, each with
+// its weight and a bar of whole cells.
+func treemapSvg(rows []treemapRow, about, style string) string {
+	const U = 24
+	end, weights, bars := 0, []string{}, 0
+	for _, r := range rows {
+		end = maxInt(end, r.depth*U+4+viewLen(r.name)*svgCH)
+		weights = append(weights, itoa(r.weight))
+		bars = maxInt(bars, r.bar)
+	}
+	wx := end + 16 + viewWidest(weights)*svgCH
+	parts := []string{}
+	for i, r := range rows {
+		y := i * svgLH
+		x := r.depth*U + 4
+		if 0 < r.depth {
+			parts = append(parts, svgPath("M"+itoa((r.depth-1)*U+8)+" "+itoa(r.parent*svgLH+svgLH)+
+				"V"+itoa(y+10)+"H"+itoa(x-2), "av-line"))
+		}
+		parts = append(parts, svgText(x, y+14, "av-t", r.name, ""),
+			svgText(wx, y+14, "av-m", itoa(r.weight), "end"))
+		if 0 < r.bar {
+			parts = append(parts, svgRect(wx+8, y+5, r.bar*svgCH, 10, "av-bar"))
+		}
+	}
+	return svgDoc(wx+8+bars*svgCH+svgPAD, len(rows)*svgLH+svgPAD, about, parts, style)
+}
+
 // svgOver is the relation a figure is over, for its description; a
 // document with no edges has none to name.
 func svgOver(relation string) string {
@@ -76,6 +461,13 @@ func svgOver(relation string) string {
 		return ""
 	}
 	return " over " + relation
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func maxInt(a, b int) int {
@@ -218,29 +610,22 @@ func layerSvg(bands []viewBand, shown []viewDrawing, footer []string, about, sty
 		}
 	}
 	if 0 < len(shown) {
-		parts = append(parts, "<defs>"+
-			"<marker id=\"av-arrow\" viewBox=\"0 0 8 8\" refX=\"8\" refY=\"4\" "+
-			"markerWidth=\"8\" markerHeight=\"8\" orient=\"auto\">"+
-			"<path d=\"M0 0L8 4L0 8Z\" fill=\"var(--av-alert,#d1242f)\"/></marker>"+
-			"<marker id=\"av-tip\" viewBox=\"0 0 8 8\" refX=\"8\" refY=\"4\" "+
-			"markerWidth=\"8\" markerHeight=\"8\" orient=\"auto\">"+
-			"<path d=\"M0 0L8 4L0 8Z\" fill=\"var(--av-rule,#8c959f)\"/></marker>"+
-			"</defs>")
+		parts = append(parts, svgTips)
 	}
 	for _, c := range shown {
 		from, to := box[c.edge.from], box[c.edge.to]
 		fx, tx := from.x+from.w/2, to.x+to.w/2
 		if "upward" == c.way {
-			parts = append(parts, "<path d=\"M"+itoa(fx)+" "+itoa(from.y)+
-				"L"+itoa(tx)+" "+itoa(to.y+24)+"\" class=\"av-up\" marker-end=\"url(#av-arrow)\"/>")
+			parts = append(parts, svgArrow("M"+itoa(fx)+" "+itoa(from.y)+
+				"L"+itoa(tx)+" "+itoa(to.y+24), true))
 		} else if "downward" == c.way {
-			parts = append(parts, "<path d=\"M"+itoa(fx)+" "+itoa(from.y+24)+
-				"L"+itoa(tx)+" "+itoa(to.y)+"\" class=\"av-line\" marker-end=\"url(#av-tip)\"/>")
+			parts = append(parts, svgArrow("M"+itoa(fx)+" "+itoa(from.y+24)+
+				"L"+itoa(tx)+" "+itoa(to.y), false))
 		} else {
 			// Below the boxes and back up, staying inside the band.
 			y := from.y + 24
-			parts = append(parts, "<path d=\"M"+itoa(fx)+" "+itoa(y)+"V"+itoa(y+6)+
-				"H"+itoa(tx)+"V"+itoa(y)+"\" class=\"av-line\" marker-end=\"url(#av-tip)\"/>")
+			parts = append(parts, svgArrow("M"+itoa(fx)+" "+itoa(y)+"V"+itoa(y+6)+
+				"H"+itoa(tx)+"V"+itoa(y), false))
 		}
 	}
 	y1 := 4 + len(bands)*BH + 4

@@ -378,6 +378,26 @@ func TestViewDocumentUsageErrors(t *testing.T) {
 		{[]string{"--views", "$.views", file, file}, "view --views takes one file"},
 		{[]string{"--views", "$.views", "--out", "x.txt", file},
 			"--out is per figure in a view document"},
+		{[]string{"--views", "$.views", "-o", "x.txt", file},
+			"--out is per figure in a view document"},
+		// Every option that shapes one figure is the declarations' to
+		// give, and the first one given is named.
+		{[]string{"--views", "$.views", "--as", "svg", file},
+			"--as is per figure in a view document"},
+		{[]string{"--as", "svg", "--views", "$.views", file},
+			"--as is per figure in a view document"},
+		{[]string{"--views", "$.views", "--at", "$.a", "--as", "svg", file},
+			"--at is per figure in a view document"},
+		{[]string{"--views", "$.views", "--relation", "r", file},
+			"--relation is per figure in a view document"},
+		{[]string{"--views", "$.views", "--root", "$.a", file},
+			"--root is per figure in a view document"},
+		{[]string{"--views", "$.views", "--closure", file},
+			"--closure is per figure in a view document"},
+		{[]string{"--views", "$.views", "--layers", "a,b", file},
+			"--layers is per figure in a view document"},
+		{[]string{"--views", "$.views", "--max-rows", "5", file},
+			"--max-rows is per figure in a view document"},
 		{[]string{"--views", "$.views", filepath.Join(dir, "nope.aontu")}, "cannot read"},
 	} {
 		if _, errs, code := viewRun(c.args...); 2 != code || !strings.Contains(errs, c.want) {

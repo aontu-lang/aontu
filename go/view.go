@@ -158,16 +158,16 @@ var viewProfiles = map[string][]string{
 	"lattice": {"text", "svg"},
 	"tree":    {"text", "svg"},
 	"matrix":  {"text", "svg"},
-	"graph":   {"mermaid", "dot", "er"},
+	"graph":   {"mermaid", "dot", "er", "svg"},
 	"layer":   {"text", "mermaid", "svg"},
 	"sets":    {"text", "svg"},
 	"layers":  {"text", "svg"},
-	"ladder":  {"mermaid", "dot"},
-	"poset":   {"mermaid", "dot"},
-	"state":    {"mermaid", "text"},
-	"sequence": {"mermaid", "text"},
-	"lane":     {"mermaid", "text"},
-	"treemap":  {"mermaid", "text"},
+	"ladder":  {"mermaid", "dot", "svg"},
+	"poset":   {"mermaid", "dot", "svg"},
+	"state":    {"mermaid", "text", "svg"},
+	"sequence": {"mermaid", "text", "svg"},
+	"lane":     {"mermaid", "text", "svg"},
+	"treemap":  {"mermaid", "text", "svg"},
 }
 
 // Loss codes that describe the drawing rather than a gap in it.
@@ -1690,7 +1690,7 @@ func drawLayers(prov *Provenance, root Val, entry, at string, minSize, maxCols, 
 // ---------------------------------------------------------------------
 // The meet ladder
 
-func (a *Aontu) drawLadder(src, at, as string, max int) (string, []VetFinding) {
+func (a *Aontu) drawLadder(src, at, as, style string, max int) (string, []VetFinding) {
 	if "" == at {
 		return "", []VetFinding{viewFinding("view_at_required", "reference", "$",
 			"The ladder needs the path to draw; name it with --at.", "")}
@@ -1732,6 +1732,14 @@ func (a *Aontu) drawLadder(src, at, as string, max int) (string, []VetFinding) {
 		return file + ":" + strconv.Itoa(c.Site.Row) + ":" + strconv.Itoa(c.Site.Col)
 	}
 
+	if "svg" == as {
+		drawn := [][2]string{}
+		for _, c := range rungs {
+			drawn = append(drawn, [2]string{c.Canon, c.Role + " | " + where(c)})
+		}
+		return ladderSvg(drawn, rep.Record.Value, "Meet ladder at "+at+": "+
+			strconv.Itoa(len(rungs))+" rungs", style), nil
+	}
 	out := []string{}
 	if "mermaid" == as {
 		esc := func(s string) string { return viewEscape(s, mermaidEsc) }
@@ -1795,7 +1803,7 @@ func (a *Aontu) compareBySubsume(at, profile string) viewCompare {
 	}
 }
 
-func (a *Aontu) drawPoset(docs []viewPosetDoc, at, profile, as string, max int,
+func (a *Aontu) drawPoset(docs []viewPosetDoc, at, profile, as, style string, max int,
 	loss *[]ViewLoss, compare viewCompare) (string, []VetFinding) {
 	n := len(docs)
 	verdict := make([][]string, n)
@@ -1939,6 +1947,42 @@ func (a *Aontu) drawPoset(docs []viewPosetDoc, at, profile, as string, max int,
 		head += "  at=" + at
 	}
 	head += "  profile=" + profile + "  documents=" + strconv.Itoa(n) + "  nodes=" + strconv.Itoa(k)
+	if "svg" == as {
+		// A class is ranked by the longest chain of covers below it, so
+		// drawn in rank order every cover runs up to the general class.
+		rank := make([]int, k)
+		for pass := 0; pass < k; pass++ {
+			for _, cv := range covers {
+				rank[cv[1]] = maxInt(rank[cv[1]], rank[cv[0]]+1)
+			}
+		}
+		order := make([]int, k)
+		for i := range order {
+			order[i] = i
+		}
+		sort.SliceStable(order, func(i, j int) bool {
+			x, y := order[i], order[j]
+			if rank[x] != rank[y] {
+				return rank[x] > rank[y]
+			}
+			return classes[x].label < classes[y].label
+		})
+		row := make([]int, k)
+		nodes := []arcNode{}
+		for i, c := range order {
+			row[c] = i
+			nodes = append(nodes, arcNode{label: classes[c].label})
+		}
+		edges := []arcEdge{}
+		for _, cv := range covers {
+			edges = append(edges, arcEdge{from: row[cv[0]], to: row[cv[1]]})
+		}
+		for _, d := range dashed {
+			edges = append(edges, arcEdge{from: row[d.s], to: row[d.g], label: d.code, alert: true})
+		}
+		return arcSvg(nodes, nil, edges, []string{head}, "Subsumption poset: "+strconv.Itoa(k)+
+			" nodes, "+strconv.Itoa(len(covers))+" covers", style), nil
+	}
 	out := []string{}
 	if "mermaid" == as {
 		esc := func(s string) string { return viewEscape(s, mermaidEsc) }
@@ -2067,18 +2111,9 @@ func (a *Aontu) View(src string, opts *ViewOptions) ViewReport {
 			"The "+kind+" figure does not render as "+as+".",
 			"profiles: "+strings.Join(profiles, ", "))})
 	}
-	style := viewStyleOf(options.Style, as)
-	carrier, mechanism := viewStyleCarrier[style]
-	if mechanism && carrier != as {
-		return done("", []VetFinding{viewFinding("view_style_profile", "reference", "$",
-			"The "+as+" profile cannot carry --style "+style+".",
-			style+" is the "+carrier+" profile's mechanism")})
+	if refused := viewStyleRefusal(options.Style, as); nil != refused {
+		return done("", []VetFinding{*refused})
 	}
-	if !mechanism && "none" != style {
-		return done("", []VetFinding{viewFinding("view_style_unknown", "reference", "$",
-			style+" is not a style.", "styles: auto, none, ansi, css")})
-	}
-
 	if refused := viewSplitRefusal(kind, &options); nil != refused {
 		return done("", []VetFinding{*refused})
 	}
@@ -2101,11 +2136,11 @@ func (a *Aontu) View(src string, opts *ViewOptions) ViewReport {
 			}
 			docs = append(docs, viewPosetDoc{src: d.Src, path: d.Path, label: label})
 		}
-		return done(a.drawPoset(docs, options.At, options.Profile, as, max, &loss,
+		return done(a.drawPoset(docs, options.At, options.Profile, as, viewStyleOf(options.Style, as), max, &loss,
 			a.compareBySubsume(options.At, options.Profile)))
 	}
 	if "ladder" == kind {
-		return done(a.drawLadder(src, options.At, as, max))
+		return done(a.drawLadder(src, options.At, as, viewStyleOf(options.Style, as), max))
 	}
 
 	var prov *Provenance
@@ -2166,7 +2201,7 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
 				return "", queryFailed(gerr, "$").Findings
 			}
 			return drawSequence(listed, options.Steps, options.From, options.To,
-				options.Label, options.SplitBy, options.Budget, as, max, loss, parts)
+				options.Label, options.SplitBy, options.Budget, as, style, max, loss, parts)
 		}
 		// GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
 		// generated values, so a document that is not concrete is an
@@ -2225,16 +2260,16 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
 		case "graph":
 			return drawGraph(s.triples, decls, root, viewGraphOpts{
 				relations: relations, groupBy: options.GroupBy, label: options.Label, as: as,
-				members: s.members, ghosts: s.ghosts, columns: options.Columns,
+				style: style, members: s.members, ghosts: s.ghosts, columns: options.Columns,
 				counts: options.Counts, countBy: options.CountBy, collapse: options.Collapse,
 			}, rows, into)
 		case "state":
-			return drawState(s.triples, root, relations, options.Label, as,
+			return drawState(s.triples, root, relations, options.Label, as, style,
 				s.members, s.ghosts, partRoots, 0 < len(options.Roots), rows, into)
 		case "lane":
 			return drawLane(s.triples, root, viewLaneOpts{
 				relations: relations, groupBy: options.GroupBy, label: options.Label,
-				layers: options.Layers, as: as, members: s.members, ghosts: s.ghosts,
+				layers: options.Layers, as: as, style: style, members: s.members, ghosts: s.ghosts,
 				counts: options.Counts, countBy: options.CountBy,
 			}, rows, into)
 		case "matrix":

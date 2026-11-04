@@ -1228,6 +1228,26 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
             [['--views', '$.views', file, file], /view --views takes one file/],
             [['--views', '$.views', '--out', 'x.txt', file],
                 /--out is per figure in a view document/],
+            [['--views', '$.views', '-o', 'x.txt', file],
+                /--out is per figure in a view document/],
+            // Every option that shapes one figure is the declarations' to
+            // give, and the first one given is named.
+            [['--views', '$.views', '--as', 'svg', file],
+                /--as is per figure in a view document/],
+            [['--as', 'svg', '--views', '$.views', file],
+                /--as is per figure in a view document/],
+            [['--views', '$.views', '--at', '$.a', '--as', 'svg', file],
+                /--at is per figure in a view document/],
+            [['--views', '$.views', '--relation', 'r', file],
+                /--relation is per figure in a view document/],
+            [['--views', '$.views', '--root', '$.a', file],
+                /--root is per figure in a view document/],
+            [['--views', '$.views', '--closure', file],
+                /--closure is per figure in a view document/],
+            [['--views', '$.views', '--layers', 'a,b', file],
+                /--layers is per figure in a view document/],
+            [['--views', '$.views', '--max-rows', '5', file],
+                /--max-rows is per figure in a view document/],
             [['--views', '$.views', Path.join(dir, 'nope.aontu')], /cannot read/],
         ]) {
             const got = vetCapture(() => Assert.equal((0, cli_1.runView)(args), 2));

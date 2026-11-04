@@ -8,6 +8,66 @@ each change affects.
 
 ## Unreleased
 
+### Both engines measure a figure's text in characters
+
+Both implementations' behaviour now agrees; the TypeScript one changed,
+plus the shared rows and documentation.
+
+- TypeScript measured a label's width in UTF-16 code units and the Go
+  port in code points, so a character past the Basic Multilingual
+  Plane (an emoji, a mathematical letter) counted twice in TypeScript
+  and once in Go. Any figure that pads, aligns or sizes by a label then
+  differed between the ports: the matrix, layer, lane, sets and
+  treemap text figures, and the SVG of every kind that sizes a box or
+  a width by its labels. A long canon in a `doc` figure or an ER column
+  was cut after 29 UTF-16 units, which could split an emoji in two.
+  TypeScript now counts and cuts by code point, as Go and its own
+  sequence grid already did.
+- `test/spec/view.tsv`: 24 `wide-*` rows, each making such a label the
+  widest its figure measures, from both engines agreeing; 19 of them
+  differed between the ports before this change.
+- Docs: the view reference says what a cell holds.
+
+### `aontu view` draws SVG for every kind
+
+Both implementations, the shared rows, and documentation.
+
+- `--as svg` is a profile of every figure kind now, not only the kinds
+  whose text form is a grid of character cells. `graph`, `state` and
+  `poset` draw one box per node on a row of its own and each edge as a
+  bracket on a track of its own to the right, its label between rows.
+  The shortest edges take the nearest tracks, so the drawing crosses
+  exactly as often as the graph's `crossings` row counts. The state
+  marks its initial and final states, the poset runs every cover up and
+  dashes an undecided pair, the `ladder` is a column, and `lane`,
+  `sequence` and `treemap` draw on the grid of their text form. Every
+  coordinate is a whole number, no layout is searched for, and both
+  ports write the same bytes (ADR-078).
+- `test/spec/view.tsv`: 17 `*-svg-*` rows for the new profiles, and
+  `graph-profile-must-be-declared` re-measured, its note now listing
+  `svg`; `views-the-node-link-kinds-draw-svg` in `test/spec/views.tsv`.
+  Every expectation is from both engines agreeing.
+- Docs: the view reference's profile table and SVG section, the "Draw a
+  model" how-to, which listed five of the seven kinds that already drew
+  SVG, both CLIs' `--help`, and the MCP `view` tool's description.
+
+### The view document refuses the options it would ignore
+
+Both implementations.
+
+- `aontu view --views` drew every figure from its declaration and
+  dropped the other options the command line gave it: `--as svg`,
+  `--at`, `--style none` and the rest exited 0 and changed nothing.
+  Only `--out` was refused. Now an option that shapes one figure is
+  refused as `--out` is, naming the first one given.
+- `--style` is the set's, since a declaration cannot name one, and it
+  reaches every figure: `--style none` drops the style block from each
+  SVG figure, and a figure whose profile cannot carry the style is
+  refused (`view_style_profile`) as one drawn alone would be.
+- Rows `views-the-style-is-the-sets` and
+  `views-a-style-a-figure-cannot-carry-is-refused` of
+  `test/spec/views.tsv`, and the refusals in both CLIs' view tests.
+
 ### A grammar with a malformed numeric value is refused in both engines
 
 TypeScript and Go, shared rows, and documentation.
