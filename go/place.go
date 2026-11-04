@@ -204,8 +204,6 @@ func heldIn(v Val) bool {
 		return anyHeld(n.peg[:min(bound, len(n.peg))])
 	case *PlusOpVal:
 		return anyHeld(n.peg)
-	case *ConjunctVal:
-		return anyHeld(n.peg)
 	case *DisjunctVal:
 		return anyHeld(n.peg)
 	case *PrefVal:
