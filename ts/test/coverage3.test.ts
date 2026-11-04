@@ -1915,9 +1915,10 @@ describe('coverage3-staging', () => {
 
 
   // Go's TestNumValsExact holds the same table.
-  test('numvals-exact-rewrites-only-a-letter', () => {
-    const table: [string, string][] = [
-      ['v = %d1A\n', 'v = %d1A\n'],
+  test('numvals-exact-rewrites-a-letter-and-refuses-a-wrong-digit', () => {
+    const table: [string, string, string?][] = [
+      ['v = %d1A\n', 'v = %d1A\n', 'a numeric value is malformed: %d1A'],
+      ['v = %b12.1\n', 'v = %b12.1\n', 'a numeric value is malformed: %b12.1'],
       ['v = %x110000\n', 'v = %x110000\n'],
       ['v = %x61-7A\n', 'v = %x61-7A\n'],
       ['v = %x30\n', 'v = %x30\n'],
@@ -1928,8 +1929,8 @@ describe('coverage3-staging', () => {
       ['v = "x', 'v = "x'],
       ['v = %s"x"\n', 'v = %s"x"\n'],
     ]
-    for (const [src, want] of table) {
-      Assert.equal(numValsExact(src), want, src)
+    for (const [src, want, bad] of table) {
+      Assert.deepEqual(numValsExact(src), [want, bad], src)
     }
   })
 

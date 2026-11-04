@@ -21,6 +21,8 @@ const DIGITS = { 16: /^[0-9A-Fa-f]+$/, 10: /^[0-9]+$/, 2: /^[01]+$/ };
 // A numeric value is exactly the code points it names in RFC 5234,
 // but the host matches one that holds an ASCII letter in either case,
 // so each such letter goes to the host as the string `%s` keeps exact.
+// One with a digit its base lacks is refused here, as one host reads it
+// as far as its digits go.
 function numValsExact(src) {
     let out = '';
     let i = 0;
@@ -36,16 +38,23 @@ function numValsExact(src) {
         }
         NUMBER.lastIndex = i;
         const m = '%' === c ? NUMBER.exec(src) : null;
-        out += null == m ? c : numValExact(m);
+        const exact = null == m ? c : numValExact(m);
+        if (undefined === exact) {
+            return [src, 'a numeric value is malformed: ' + m[0]];
+        }
+        out += exact;
         i += null == m ? 1 : m[0].length;
     }
-    return out;
+    return [out, undefined];
 }
 function numValExact(m) {
     const base = BASE[m[1].toLowerCase()];
     const parts = [m[2], ...(undefined === m[3] ? [] : [m[3]]),
         ...(undefined === m[4] ? [] : m[4].slice(1).split('.'))];
-    const cps = parts.map((p) => DIGITS[base].test(p) ? parseInt(p, base) : NaN);
+    if (!parts.every((p) => DIGITS[base].test(p))) {
+        return undefined;
+    }
+    const cps = parts.map((p) => parseInt(p, base));
     const one = undefined === m[3] || cps[0] === cps[1];
     const letter = (cp) => (0x41 <= cp && cp <= 0x5a) || (0x61 <= cp && cp <= 0x7a);
     if (!one || !cps.every((cp) => cp <= 0x10ffff) || !cps.some(letter)) {
@@ -73,8 +82,12 @@ function compileGrammar(src) {
                 }
             }
         });
+        const [text, bad] = numValsExact(src);
+        if (undefined !== bad) {
+            throw new Error(bad);
+        }
         tn.use(abnf_1.abnf);
-        tn.abnf(numValsExact(src));
+        tn.abnf(text);
         out = [tn, undefined];
     }
     catch (e) {

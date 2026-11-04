@@ -64,6 +64,18 @@ abnf-refuses-an-unclosed-string	errc	a: abnf("v = \\"x")	abnf_grammar
 abnf-refuses-an-unclosed-prose-value	errc	a: abnf("v = <x")	abnf_grammar
 abnf-refuses-a-numeric-value-past-unicode	errc	a: abnf("v = %x110000\\n")	abnf_grammar
 format-numeric-value-is-exact	errc	a: format("v = %x78\\n") & "X"	parse_failed
+# A NUMERIC VALUE WHOSE DIGITS ITS BASE LACKS IS MALFORMED, so the
+# grammar doesn't compile. One host reads such a value as far as its
+# digits go and the other refuses it, so each port refuses it before
+# either host sees the grammar: a single value, a binary value, a run, a
+# range and the constraint form. A string or a comment that spells one
+# is no numeric value.
+abnf-refuses-a-digit-outside-its-base	errc	a: abnf("v = %d1A\\n")	abnf_grammar
+parse-refuses-a-binary-digit-outside-its-base	errc	a: parse("v = %b12\\n", "x")	abnf_grammar
+parse-refuses-a-run-with-a-digit-outside-its-base	errc	a: parse("v = %d65.6A\\n", "A")	abnf_grammar
+parse-refuses-a-range-with-a-digit-outside-its-base	errc	a: parse("v = %d65-6A\\n", "A")	abnf_grammar
+parse-constraint-refuses-a-digit-outside-its-base	errc	a: "x" & parse("v = %d1A\\n")	abnf_grammar
+parse-reads-no-digit-in-a-string-or-a-comment	gens	a: parse("v = \\"%d1A\\" ; %b2\\n", "%D1a")	{"a":{"kids":[],"rule":"v","src":"%D1a"}}
 # A grammar that does not compile is refused where it is DECLARED, with
 # the compiler's own first line as the reason.
 abnf-refuses-a-grammar-that-does-not-compile	errc	a: abnf("bad ::= x")	abnf_grammar

@@ -1564,9 +1564,10 @@ function capture(fn) {
         Assert.equal(d.gen(CTX()), 7);
     });
     // Go's TestNumValsExact holds the same table.
-    (0, node_test_1.test)('numvals-exact-rewrites-only-a-letter', () => {
+    (0, node_test_1.test)('numvals-exact-rewrites-a-letter-and-refuses-a-wrong-digit', () => {
         const table = [
-            ['v = %d1A\n', 'v = %d1A\n'],
+            ['v = %d1A\n', 'v = %d1A\n', 'a numeric value is malformed: %d1A'],
+            ['v = %b12.1\n', 'v = %b12.1\n', 'a numeric value is malformed: %b12.1'],
             ['v = %x110000\n', 'v = %x110000\n'],
             ['v = %x61-7A\n', 'v = %x61-7A\n'],
             ['v = %x30\n', 'v = %x30\n'],
@@ -1577,8 +1578,8 @@ function capture(fn) {
             ['v = "x', 'v = "x'],
             ['v = %s"x"\n', 'v = %s"x"\n'],
         ];
-        for (const [src, want] of table) {
-            Assert.equal((0, grammar_1.numValsExact)(src), want, src);
+        for (const [src, want, bad] of table) {
+            Assert.deepEqual((0, grammar_1.numValsExact)(src), [want, bad], src);
         }
     });
 });

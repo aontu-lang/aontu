@@ -45,7 +45,9 @@ var numberDigits = map[int]*regexp.Regexp{
 // A numeric value is exactly the code points it names in RFC 5234,
 // but the host matches one that holds an ASCII letter in either case,
 // so each such letter goes to the host as the string `%s` keeps exact.
-func numValsExact(src string) string {
+// One with a digit its base lacks is refused here, as one host reads it
+// as far as its digits go.
+func numValsExact(src string) (string, string) {
 	var out strings.Builder
 	i := 0
 	for i < len(src) {
@@ -81,13 +83,17 @@ func numValsExact(src string) string {
 			i++
 			continue
 		}
-		out.WriteString(numValExact(m))
+		exact, ok := numValExact(m)
+		if !ok {
+			return src, "a numeric value is malformed: " + m[0]
+		}
+		out.WriteString(exact)
 		i += len(m[0])
 	}
-	return out.String()
+	return out.String(), ""
 }
 
-func numValExact(m []string) string {
+func numValExact(m []string) (string, bool) {
 	base := numberBase[strings.ToLower(m[1])[0]]
 	parts := []string{m[2]}
 	if "" != m[3] {
@@ -99,8 +105,11 @@ func numValExact(m []string) string {
 	cps := make([]int64, len(parts))
 	whole := true
 	for k, p := range parts {
+		if !numberDigits[base].MatchString(p) {
+			return "", false
+		}
 		n, err := strconv.ParseInt(p, base, 64)
-		if !numberDigits[base].MatchString(p) || nil != err || 0x10ffff < n {
+		if nil != err || 0x10ffff < n {
 			whole = false
 		}
 		cps[k] = n
@@ -115,7 +124,7 @@ func numValExact(m []string) string {
 		anyLetter = anyLetter || letter(cp)
 	}
 	if !one || !whole || !anyLetter {
-		return m[0]
+		return m[0], true
 	}
 	pieces := make([]string, len(cps))
 	for k, cp := range cps {
@@ -126,9 +135,9 @@ func numValExact(m []string) string {
 		}
 	}
 	if 1 == len(pieces) {
-		return pieces[0]
+		return pieces[0], true
 	}
-	return "(" + strings.Join(pieces, " ") + ")"
+	return "(" + strings.Join(pieces, " ") + ")", true
 }
 
 func compileGrammar(src string) (*tabnas.Tabnas, string) {
@@ -155,7 +164,9 @@ func compileGrammar(src string) (*tabnas.Tabnas, string) {
 		}},
 	})
 
-	if _, err := tabnasabnf.Install(tn, numValsExact(src), nil, nil); err != nil {
+	if text, bad := numValsExact(src); "" != bad {
+		entry.why = bad
+	} else if _, err := tabnasabnf.Install(tn, text, nil, nil); err != nil {
 		entry.why = firstLine(err.Error())
 	} else {
 		entry.tn = tn
