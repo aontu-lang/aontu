@@ -634,3 +634,15 @@ The answers to the agent's questions, each question followed by the option chose
 ```text
 push and merge
 ```
+
+## 2026-11-04 17:19:52 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+The daily CI has been red on main since at least Nov 2, and #606's ruling work is now done and waiting on CI. Three use cases fail: 04-schema-evolution (its release poset gains a sub_no_witness edge), 08-feature-flags (a meet-ladder rung is labelled pref where its golden says spread), and 18-role-permissions (`set` accepted a replica count of 0, which may be a real regression). The coverage gate also hit its 30-minute limit on Nov 4. #607 fixes the daily's prose job. What should I take on next?
+→ Daily's red jobs (Recommended)
+
+#604: pref([upper(_)]) waits in both engines (incomplete everywhere). The definition reads it as [pref(upper(_))], which both engines already answer for that written form: [3] and ["x"] pass, 3 and [[3]] are refused. Which side should move?
+→ Engines move (Recommended)
+```
