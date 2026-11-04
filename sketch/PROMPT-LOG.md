@@ -583,3 +583,24 @@ The answers to the agent's questions, each question followed by the option chose
 aontu#598 (parse now matches an ABNF numeric value such as %x78 exactly, in both engines, closing #586) and its web sync are merged. While fixing it I filed #597: abnf("v = %d1A\n"), whose digit is wrong for its base, compiles in TypeScript and is refused in Go. Which should I take up next?
 → #597, malformed digits (Recommended)
 ```
+
+## 2026-11-04 12:22:19 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+aontu#600 (both engines refuse a grammar whose numeric value has a digit wrong for its base, closing #597) and its web sync are merged. The grammar issues are clear. Which should I take up next?
+→ #594 + #595: investigate (Recommended)
+```
+
+## 2026-11-04 15:36:04 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#594 (rel(t) against a list) turns out to be no divergence. I measured it with the path-free verdict, which never declares rel's kind, so rel's name stayed unresolved and the definition answered incomplete. With the path-aware verdict, which rel's own shared rows use, the definition agrees with both engines on every case: invalid against "x", 3, [1] and ["a"], valid against [], incomplete with no data. What should happen to #594?
+→ Close it, add rows (Recommended)
+
+#595: in super([upper(_)]), the hole is inside super's list, so no peer ever fills it and upper(_) is never made. super(upper("a")), super(upper(_)) and super([_]) already agree everywhere; only this case differs. Which reading should both engines and the definition share?
+→ Unmade call reads as any (Recommended)
+```
