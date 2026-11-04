@@ -8,7 +8,7 @@ each change affects.
 
 ## Unreleased
 
-### Six more of Go's coverage gaps close
+### Nine more of Go's coverage gaps close
 
 Go only, and shared rows.
 
@@ -23,6 +23,10 @@ Go only, and shared rows.
 - Two rows of `test/spec/place.tsv`: a group whose own meet fails,
   `(_ & 1 & 2)`, is refused `scalar_value` on either side of the meet
   around it, which reaches Go's refusal of a group as it settles.
+- Four more rows there: a spread whose template is `any` leaves a hole
+  member unfilled, so `super`, `min` and `sum` over a container holding
+  one are never made, in both engines. They reach Go's arms for a list
+  and a map with a spread in `bagHoles` and `stuckIn`.
 
 ### Go's walk for a held hole is covered under a choice
 

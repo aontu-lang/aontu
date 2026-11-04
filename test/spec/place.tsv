@@ -121,6 +121,12 @@ place-held-beside-path	errc	a:sum([$.h,_]) h:_\n	place_container
 place-super-list-hole	gens	a:super([1,_]) & [1,2]\n	{"a":[1,2]}
 place-super-map-hole	gens	a:super({k:_}) & {k:1}\n	{"a":{"k":1}}
 place-super-nested-hole	gens	a:super([[_]]) & [[1]]\n	{"a":[[1]]}
+# A spread whose template leaves a hole member unfilled keeps its
+# container unsettled, so a call over it is never made.
+place-super-list-spread-hole	errc	a:super([&: any, _])\n	mapval_no_gen
+place-super-map-spread-hole	errc	a:super({&: any, a: _})\n	mapval_no_gen
+place-bound-list-spread-hole	errc	a:min([&: any, _])\n	mapval_no_gen
+place-held-map-spread-hole	errc	a:sum([{&: any, a: _}])\n	mapval_no_gen
 place-pref-list-hole	gens	a:pref([_]) & [1]\n	{"a":[1]}
 place-bound-list-hole	errc	a:min([_]) & 1\n	invalid-arg
 place-neq-list-hole	errc	a:neq([_]) & 1\n	place_container
