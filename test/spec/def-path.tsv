@@ -912,6 +912,21 @@ rn65	verdict	"l": [1, 2], "e": each($.l, {"v": _}), "c": $.e	{}	{"verdict":"vali
 rn66	verdict	"l": [1, 2], "e": each($.l, {"v": _}), "c": $.e.1.v	{"c": 2}	{"verdict":"valid"}
 rn67	verdict	"l": [1, 2], "e": each($.l, {"v": _}), "c": $.e.1.v	{"c": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
 rn68	verdict	"l": [1, 2], "e": each($.l, {"v": _}), "c": $.e.1.v	{"c": 2}	{"verdict":"valid","opts":{"partial":true}}
+rn69	verdict	"x": each([1, 2], [hide(_), _]), "v": $.x	{"x": [[1], [2]], "v": [[1, 1], [2, 2]]}	{"verdict":"valid"}
+rn70	verdict	"x": each([1, 2], [hide(_), _]), "v": $.x	{"x": [[1], [2]], "v": [[1, 1], [2, 2]]}	{"verdict":"valid","opts":{"noFill":true}}
+rn71	verdict	"x": each([1, 2], [hide(_), _]), "v": $.x	{"x": [[1], [2]], "v": [[1, 1], [2, 2]]}	{"verdict":"valid","opts":{"partial":true}}
+rn72	verdict	"x": each([1], {"a": hide(_), "b": _}), "v": $.x	{"x": [{"b": 1}], "v": [{"a": 1, "b": 1}]}	{"verdict":"valid"}
+rn73	verdict	"x": each([1], {"a": hide(_), "b": _}), "v": $.x	{"x": [{"b": 1}], "v": [{"a": 1, "b": 1}]}	{"verdict":"valid","opts":{"noFill":true}}
+rn74	verdict	"x": each([1], {"a": hide(_), "b": _}), "v": $.x	{"x": [{"b": 1}], "v": [{"a": 1, "b": 1}]}	{"verdict":"valid","opts":{"partial":true}}
+rn75	verdict	"x": each([1], {"a": hide(_), "b": _}), "v": $.x	{"x": [{"b": 1}], "v": [{"b": 1}]}	{"verdict":"valid"}
+rn76	verdict	"x": each([1], {"a": hide(_), "b": _}), "v": $.x	{"x": [{"b": 1}], "v": [{"b": 1}]}	{"verdict":"incomplete","opts":{"noFill":true}}
+rn77	verdict	"x": each([1], {"a": hide(_), "b": _}), "v": $.x	{"x": [{"b": 1}], "v": [{"b": 1}]}	{"verdict":"valid","opts":{"partial":true}}
+rn78	verdict	"x": pack(["a"], hide(_)), "v": $.x	{"x": {}, "v": {"a": "a"}}	{"verdict":"valid"}
+rn79	verdict	"x": pack(["a"], hide(_)), "v": $.x	{"x": {}, "v": {"a": "a"}}	{"verdict":"valid","opts":{"noFill":true}}
+rn80	verdict	"x": pack(["a"], hide(_)), "v": $.x	{"x": {}, "v": {"a": "a"}}	{"verdict":"valid","opts":{"partial":true}}
+rn81	verdict	"x": pack(["a"], hide(_)), "v": $.x	{"x": {}, "v": {}}	{"verdict":"valid"}
+rn82	verdict	"x": pack(["a"], hide(_)), "v": $.x	{"x": {}, "v": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rn83	verdict	"x": pack(["a"], hide(_)), "v": $.x	{"x": {}, "v": {}}	{"verdict":"valid","opts":{"partial":true}}
 rf0	verdict	"a": {"p": 1}, "b": (refer({"r": 3})) & (path($.a))	{}	{"verdict":"valid"}
 rf1	verdict	"a": {"p": 1}, "b": (refer({"r": 3})) & (path($.a))	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 rf2	verdict	"a": {"p": 1}, "b": (refer({"r": 3})) & (path($.a))	{}	{"verdict":"valid","opts":{"partial":true}}
