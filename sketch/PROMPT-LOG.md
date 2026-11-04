@@ -546,6 +546,13 @@ aontu#590 (the definition reads a hole a path names as the data's to fill) and i
 → #589 + #584, both ports (Recommended)
 ```
 
+## 2026-11-04 09:39:51 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+aontu#596 (both engines now read a hole in a call's list or map as the definition does, closing #584 and #589) and its web sync are merged. Two new issues need a ruling on which side moves: #594 (rel against a list) and #595 (super over a list holding a waiting call). Which should I take up next?
+→ #586, parse case (Recommended)
 ## 2026-11-03 17:25:10 UTC · Claude Code · session_01D35vdcJCr6PTGR6aUYHRBn
 
 ```text
@@ -568,4 +575,11 @@ Merge
 
 ```text
 merge it
+## 2026-11-04 10:29:02 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+aontu#598 (parse now matches an ABNF numeric value such as %x78 exactly, in both engines, closing #586) and its web sync are merged. While fixing it I filed #597: abnf("v = %d1A\n"), whose digit is wrong for its base, compiles in TypeScript and is refused in Go. Which should I take up next?
+→ #597, malformed digits (Recommended)
 ```

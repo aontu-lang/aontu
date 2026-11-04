@@ -33,6 +33,49 @@ parse-refuses-a-trailing-remainder	errc	G: abnf("v = 1*d\\nd = %x30-39\\n")\na: 
 # parse(g, "") succeed under EVERY grammar; a validator whose whole job
 # is to refuse malformed input cannot have that.
 parse-refuses-the-empty-string	errc	G: abnf("v = 1*d\\nd = %x30-39\\n")\na: parse($.G, "")	parse_failed
+# A NUMERIC VALUE IS EXACTLY THE CODE POINTS IT NAMES (RFC 5234 2.3),
+# where a quoted string matches either case. Both host engines match a
+# value that holds an ASCII letter in either case, so each port hands
+# the host each such letter as a case-sensitive %s string: a single
+# value in any base, a dotted run, which a repeat takes whole, and a
+# range whose bounds are one code point. A range of more than one code
+# point, a value with no ASCII letter, a quoted string, a comment and a
+# prose value go to the host as written.
+parse-numeric-value-is-exact	errc	a: parse("v = %x78\\n", "X")	parse_failed
+parse-numeric-value-matches-its-code-point	gens	a: parse("v = %x78\\n", "x")	{"a":{"kids":[],"rule":"v","src":"x"}}
+parse-numeric-value-upper-is-exact	errc	a: parse("v = %x41\\n", "a")	parse_failed
+parse-numeric-value-decimal-is-exact	errc	a: parse("v = %d120\\n", "X")	parse_failed
+parse-numeric-value-binary-is-exact	errc	a: parse("v = %b1111000\\n", "X")	parse_failed
+parse-numeric-value-upper-base-is-exact	errc	a: parse("v = %X78\\n", "X")	parse_failed
+parse-numeric-run-is-exact	errc	a: parse("v = %x78.79\\n", "XY")	parse_failed
+parse-numeric-run-matches-its-code-points	gens	a: parse("v = %x78.79\\n", "xy")	{"a":{"kids":[],"rule":"v","src":"xy"}}
+parse-numeric-run-repeats-whole	gens	a: parse("v = 2%x78.79\\n", "xyxy")	{"a":{"kids":[],"rule":"v","src":"xyxy"}}
+parse-numeric-run-mixed-is-exact	errc	a: parse("v = %x41.30\\n", "a0")	parse_failed
+parse-numeric-run-mixed-matches	gens	a: parse("v = %x41.30\\n", "A0")	{"a":{"kids":[],"rule":"v","src":"A0"}}
+parse-numeric-one-point-range-is-exact	errc	a: parse("v = %x78-78\\n", "X")	parse_failed
+parse-numeric-range-stays-a-range	gens	a: parse("v = %x61-7A\\n", "q")	{"a":{"kids":[],"rule":"v","src":"q"}}
+parse-numeric-value-without-a-letter	gens	a: parse("v = %x30\\n", "0")	{"a":{"kids":[],"rule":"v","src":"0"}}
+parse-numeric-values-each-exact	errc	a: parse("v = %x78 %x79\\n", "xY")	parse_failed
+parse-quoted-string-stays-insensitive	gens	a: parse("v = \\"x\\" ; %x78\\n", "X")	{"a":{"kids":[],"rule":"v","src":"X"}}
+parse-numeric-value-before-a-comment	gens	a: parse("v = %x78 ; c", "x")	{"a":{"kids":[],"rule":"v","src":"x"}}
+parse-case-sensitive-string-is-exact	errc	a: parse("v = %s\\"x\\"\\n", "X")	parse_failed
+parse-refuses-a-prose-value	errc	a: parse("v = <x %x78>\\n", "x")	abnf_grammar
+abnf-refuses-an-unclosed-string	errc	a: abnf("v = \\"x")	abnf_grammar
+abnf-refuses-an-unclosed-prose-value	errc	a: abnf("v = <x")	abnf_grammar
+abnf-refuses-a-numeric-value-past-unicode	errc	a: abnf("v = %x110000\\n")	abnf_grammar
+format-numeric-value-is-exact	errc	a: format("v = %x78\\n") & "X"	parse_failed
+# A NUMERIC VALUE WHOSE DIGITS ITS BASE LACKS IS MALFORMED, so the
+# grammar doesn't compile. One host reads such a value as far as its
+# digits go and the other refuses it, so each port refuses it before
+# either host sees the grammar: a single value, a binary value, a run, a
+# range and the constraint form. A string or a comment that spells one
+# is no numeric value.
+abnf-refuses-a-digit-outside-its-base	errc	a: abnf("v = %d1A\\n")	abnf_grammar
+parse-refuses-a-binary-digit-outside-its-base	errc	a: parse("v = %b12\\n", "x")	abnf_grammar
+parse-refuses-a-run-with-a-digit-outside-its-base	errc	a: parse("v = %d65.6A\\n", "A")	abnf_grammar
+parse-refuses-a-range-with-a-digit-outside-its-base	errc	a: parse("v = %d65-6A\\n", "A")	abnf_grammar
+parse-constraint-refuses-a-digit-outside-its-base	errc	a: "x" & parse("v = %d1A\\n")	abnf_grammar
+parse-reads-no-digit-in-a-string-or-a-comment	gens	a: parse("v = \\"%d1A\\" ; %b2\\n", "%D1a")	{"a":{"kids":[],"rule":"v","src":"%D1a"}}
 # A grammar that does not compile is refused where it is DECLARED, with
 # the compiler's own first line as the reason.
 abnf-refuses-a-grammar-that-does-not-compile	errc	a: abnf("bad ::= x")	abnf_grammar

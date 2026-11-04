@@ -68,6 +68,45 @@ Both implementations.
   `views-a-style-a-figure-cannot-carry-is-refused` of
   `test/spec/views.tsv`, and the refusals in both CLIs' view tests.
 
+### A grammar with a malformed numeric value is refused in both engines
+
+TypeScript and Go, shared rows, and documentation.
+
+- A numeric value whose digits its base lacks, such as `%d1A` or `%b12`,
+  is malformed in RFC 5234. TypeScript's host grammar library read such
+  a value as far as its digits went, so `abnf("v = %d1A\n")` compiled
+  and matched U+0001, while Go's refused it (#597). Each engine now
+  refuses such a grammar before its host sees it, as `abnf_grammar`,
+  with the same message, `a numeric value is malformed: %d1A`: a single
+  value, a dotted run, a range, and the constraint form of `parse`. A
+  quoted string or a comment that spells one is no numeric value.
+- Six rows of `test/spec/abnf.tsv`, which both engines answer alike, and
+  two more rewrites in each engine's own table.
+- Docs: the reference's rules for a grammar, and the definition
+  tutorial's step on grammars.
+
+### `parse` matches a numeric value exactly
+
+TypeScript and Go, shared rows, and documentation.
+
+- A numeric value in a grammar, `%x78`, `%d120`, `%b1111000` or a dotted
+  run such as `%x78.79`, is exactly the code points it names, as
+  RFC 5234 reads it, while a quoted string matches either case. Both
+  engines' `parse(g, v)` and `parse(g)` matched a numeric value that
+  names an ASCII letter in either case, so `parse("v = %x78\n", "X")`
+  answered a tree where `format(g)` refused it (#586).
+- Each engine now rewrites a grammar before its host library compiles
+  it: each code point of a numeric value that is an ASCII letter goes
+  to the host as RFC 7405's case-sensitive `%s"x"`, a dotted run as a
+  group of such pieces, which a repeat takes whole, and a range whose
+  bounds are one code point as that code point. A range of more than
+  one code point, a value with no ASCII letter, a quoted string, a
+  comment and a prose value go to the host as written.
+- 23 rows of `test/spec/abnf.tsv`, which both engines answer alike, and
+  the same table of rewrites in each engine's own tests.
+- Docs: the reference's rules for a grammar, and the definition
+  tutorial's step on grammars.
+
 ### Both engines read a hole in a call's list or map as the definition does
 
 TypeScript and Go, generated rows, shared rows, and documentation.

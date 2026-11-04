@@ -44,6 +44,7 @@ const ctx_1 = require("../dist/ctx");
 const err_1 = require("../dist/err");
 const lang_1 = require("../dist/lang");
 const site_1 = require("../dist/site");
+const grammar_1 = require("../dist/grammar");
 const CloseFuncVal_1 = require("../dist/val/CloseFuncVal");
 const OpenFuncVal_1 = require("../dist/val/OpenFuncVal");
 const CopyFuncVal_1 = require("../dist/val/CopyFuncVal");
@@ -1561,6 +1562,25 @@ function capture(fn) {
     (0, node_test_1.test)('disjunct-single-member-generates', () => {
         const d = new DisjunctVal_1.DisjunctVal({ peg: [new IntegerVal_1.IntegerVal({ peg: 7 })] });
         Assert.equal(d.gen(CTX()), 7);
+    });
+    // Go's TestNumValsExact holds the same table.
+    (0, node_test_1.test)('numvals-exact-rewrites-a-letter-and-refuses-a-wrong-digit', () => {
+        const table = [
+            ['v = %d1A\n', 'v = %d1A\n', 'a numeric value is malformed: %d1A'],
+            ['v = %b12.1\n', 'v = %b12.1\n', 'a numeric value is malformed: %b12.1'],
+            ['v = %x110000\n', 'v = %x110000\n'],
+            ['v = %x61-7A\n', 'v = %x61-7A\n'],
+            ['v = %x30\n', 'v = %x30\n'],
+            ['v = %x78\n', 'v = %s"x"\n'],
+            ['v = %x78-78\n', 'v = %s"x"\n'],
+            ['v = %x78.30\n', 'v = (%s"x" %x30)\n'],
+            ['v = "%x78" <%x78> ; %x78\n', 'v = "%x78" <%x78> ; %x78\n'],
+            ['v = "x', 'v = "x'],
+            ['v = %s"x"\n', 'v = %s"x"\n'],
+        ];
+        for (const [src, want, bad] of table) {
+            Assert.deepEqual((0, grammar_1.numValsExact)(src), [want, bad], src);
+        }
     });
 });
 //# sourceMappingURL=coverage3.test.js.map

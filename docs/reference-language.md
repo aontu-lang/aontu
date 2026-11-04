@@ -5805,7 +5805,7 @@ have to carry the grammar that produced it for a second meet to mean
 anything, and nothing needs that yet. `aontu:system`'s `Semver` is the
 worked use: see [The `aontu:system` vocabulary](#the-aontusystem-vocabulary).
 
-Four things govern a grammar:
+These rules govern a grammar:
 
 - **Whitespace is not skipped.** The grammars run here describe strings
   with no spaces in them, so `1 . 2` does not parse as `1.2`.
@@ -5816,6 +5816,13 @@ Four things govern a grammar:
   refused rather than run, so no input can stall the evaluator.
 - **`src` is the text the rule matched**, assembled from what the
   grammar consumed rather than sliced out of the input.
+- **A numeric value is exactly the code points it names.** `%x78`
+  matches `x` and not `X`, and so does `%x78-78`, while a quoted string
+  matches either case, so `"x"` matches `X` too. Both host engines
+  match a numeric value that names a letter from `A` to `Z` in either
+  case, so each port hands the host such a letter as the case-sensitive
+  string `%s"x"`. A numeric value with a digit its base lacks, such as
+  `%d1A`, names no code point, so `abnf` and `parse` refuse its grammar.
 - **A character class must not contain a literal used elsewhere.**
   Write `digit = "0" / positive-digit`, never `digit = %x30-39`, when
   `"0"` also appears on its own. Where a class overlaps a literal the

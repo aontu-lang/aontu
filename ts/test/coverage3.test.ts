@@ -12,6 +12,7 @@ import { AontuContext } from '../dist/ctx'
 import { AontuError, makeNilErr, descErr } from '../dist/err'
 import { Lang, Site as LangSite } from '../dist/lang'
 import { Site } from '../dist/site'
+import { numValsExact } from '../dist/grammar'
 import { CloseFuncVal } from '../dist/val/CloseFuncVal'
 import { OpenFuncVal } from '../dist/val/OpenFuncVal'
 import { CopyFuncVal } from '../dist/val/CopyFuncVal'
@@ -1910,6 +1911,27 @@ describe('coverage3-staging', () => {
   test('disjunct-single-member-generates', () => {
     const d: any = new DisjunctVal({ peg: [new IntegerVal({ peg: 7 })] })
     Assert.equal(d.gen(CTX()), 7)
+  })
+
+
+  // Go's TestNumValsExact holds the same table.
+  test('numvals-exact-rewrites-a-letter-and-refuses-a-wrong-digit', () => {
+    const table: [string, string, string?][] = [
+      ['v = %d1A\n', 'v = %d1A\n', 'a numeric value is malformed: %d1A'],
+      ['v = %b12.1\n', 'v = %b12.1\n', 'a numeric value is malformed: %b12.1'],
+      ['v = %x110000\n', 'v = %x110000\n'],
+      ['v = %x61-7A\n', 'v = %x61-7A\n'],
+      ['v = %x30\n', 'v = %x30\n'],
+      ['v = %x78\n', 'v = %s"x"\n'],
+      ['v = %x78-78\n', 'v = %s"x"\n'],
+      ['v = %x78.30\n', 'v = (%s"x" %x30)\n'],
+      ['v = "%x78" <%x78> ; %x78\n', 'v = "%x78" <%x78> ; %x78\n'],
+      ['v = "x', 'v = "x'],
+      ['v = %s"x"\n', 'v = %s"x"\n'],
+    ]
+    for (const [src, want, bad] of table) {
+      Assert.deepEqual(numValsExact(src), [want, bad], src)
+    }
   })
 
 })
