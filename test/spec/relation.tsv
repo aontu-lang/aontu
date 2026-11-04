@@ -179,3 +179,21 @@ inverse-name-digits-and-hyphen-inside	errc	d: rel() & inverse("a_b-c1")	mapval_n
 # object rather than mint a fresh atom per pass, or the enclosing bags
 # re-open every pass and the model never converges.
 atom-holds-a-chained-reference	canon	d: acyclic() & $.a\na: $.b\nb: $.c\nc: ["$.q"]\nq: {}	{"a":["$.q"],"b":["$.q"],"c":["$.q"],"d":["$.q"]&acyclic(),"q":{}}
+
+# A constraint on each address goes in the relation's spread (ruling 25),
+# and an element met with that spread is still a link the graph atoms
+# read, in either order of the spread and the atom.
+acyclic-beside-spread	relation	a: {dependsOn: rel() & [&: re("^[$]")] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & [&: re("^[$]")] & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-beside-path-spread	relation	a: {dependsOn: rel() & [&: path] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-spread-after-atom	relation	a: {dependsOn: rel() & acyclic() & [&: path] & [path($.b)]}\nb: {dependsOn: rel() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+inverse-missing-beside-spread	relation	a: {dependsOn: rel() & [&: path] & inverse(usedBy) & [path($.b)]}\nb: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","usedBy"]}]}
+inverse-met-beside-spread	relation	a: {dependsOn: rel() & [&: path] & inverse(usedBy) & [path($.b)]}\nb: {usedBy: rel() & [&: path] & [path($.a)]}	{"verdict":"pass","findings":[]}
+
+# An alias in the spread is read as the value it names, through a
+# chain of aliases; one that names nothing, names itself or names a map
+# is not an address constraint, and fails as it did.
+acyclic-beside-alias-spread	relation	%A = re("^[$]")\na: {dependsOn: rel() & [&: %A] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-beside-alias-chain-spread	relation	%A = %B\n%B = path\na: {dependsOn: rel() & [&: %A] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+rel-spread-alias-undeclared	errc	a: {dependsOn: rel() & [&: %Nope] & [path($.b)]}\nb: {}	no_path
+rel-spread-alias-self	errc	%A = %A\na: {dependsOn: rel() & [&: %A] & [path($.b)]}\nb: {}	unify_cycle
+rel-spread-alias-map	errc	%M = {k: 1}\na: {dependsOn: rel() & [&: %M] & [path($.b)]}\nb: {}	map

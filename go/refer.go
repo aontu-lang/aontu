@@ -475,28 +475,37 @@ func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
 	if !nested {
 		switch n := out.(type) {
 		case *MapVal:
-			n.spread = r.leafSpread(base, n.spread)
+			n.spread = r.leafSpread(ctx, base, n.spread)
 		case *ListVal:
-			n.spread = r.leafSpread(base, n.spread)
+			n.spread = r.leafSpread(ctx, base, n.spread)
 		}
 	}
 	return out
 }
 
-func (r *RelVal) leafSpread(base []string, sp Val) Val {
+func (r *RelVal) leafSpread(ctx *Ctx, base []string, sp Val) Val {
 	if nil == sp {
 		return r.leafRefer(base)
 	}
-	if !leafOnly(sp) {
+	if !leafOnly(ctx.root, sp, map[string]bool{}) {
 		return sp
 	}
 	// A later leaf meets the value's own spread, so the link joins it.
 	return newConjunct([]Val{r.leafRefer(base), sp})
 }
 
-// A spread that holds addresses alone, which a leaf's link can join.
-func leafOnly(v Val) bool {
+// A spread that holds addresses alone, which a leaf's link can join, an
+// alias read as the value it names.
+func leafOnly(root Val, v Val, seen map[string]bool) bool {
 	switch n := v.(type) {
+	case *RefVal:
+		key, alias := n.aliasKey()
+		m, isMap := root.(*MapVal)
+		if !alias || !isMap || seen[key] || nil == m.peg[key] {
+			return false
+		}
+		seen[key] = true
+		return leafOnly(root, m.peg[key], seen)
 	case *ScalarVal:
 		return KindPath == n.kind
 	case *ScalarKindVal:
@@ -508,7 +517,7 @@ func leafOnly(v Val) bool {
 			0 == len(n.uniqBy)+len(n.musts)+len(n.nofs)+len(n.whens)+len(n.contains)+len(n.rests)
 	case *ConjunctVal:
 		for _, t := range n.peg {
-			if !leafOnly(t) {
+			if !leafOnly(root, t, seen) {
 				return false
 			}
 		}

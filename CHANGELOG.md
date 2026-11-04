@@ -25,6 +25,35 @@ TypeScript and Go, and rows of the definition.
   definition, hold both engines to it in the three modes of `vet`,
   those from pf138 on a call with other arguments.
 
+### A relation's spread keeps its elements' links
+
+TypeScript and Go, and shared rows.
+
+- Ruling 25 has a constraint met with `rel()` meet the relation's value
+  as a whole, so a constraint on each address goes in the value's
+  spread, `rel() & [&: re(...)]`. But an element met with such a spread
+  lost its link where the spread came before `rel()`'s own, so
+  `acyclic()` and `inverse()` saw no edge and `aontu relations`
+  answered `pass` on a cycle. Of one address met twice, the side a link
+  made now keeps it. Fixes #615.
+- An alias in the spread, `[&: %Addr]`, is read as the value it names,
+  through a chain of aliases, so its elements are links too.
+- Use case 01-service-catalog moves its `%CatalogAddr` into the spread,
+  as ruling 25 asks. Its eval had failed since Oct 24, and its planted
+  cycle is reported again.
+- Ten rows of `test/spec/relation.tsv`.
+
+### The coverage gate reports while it runs
+
+TypeScript tooling only. `ts/test/covrun.js` printed nothing while it
+ran the suite under coverage, and printed the gaps only after its third
+pass. The daily's coverage job stops at thirty minutes, and since
+Oct 21 every run has reached that limit before the third pass ended,
+so two weeks of runs named no TypeScript gap. The driver now prints a
+status line every twenty seconds with the tests done, prints the gaps
+after every pass that comes up short, and prints the failed tests when
+the suite fails.
+
 ### A default a spread's template narrows keeps the template's bound
 
 TypeScript and Go, and shared rows.

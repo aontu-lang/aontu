@@ -4362,7 +4362,10 @@ an `error`, as `path & [path($.a)]` is, and
 constraint on each address goes in the value's spread,
 `rel() & [&: re("sa$")]`, which holds each element, one another list
 brings as well as one it writes, and each such element is a link, so
-`t` flows into its target.
+`t` flows into its target and `acyclic()` and `inverse()` read it as an
+edge. An alias in the spread stands for the value it names, so
+`[&: %Addr]` beside `%Addr = re("sa$")` holds its elements as links
+too.
 
 The atoms are **lattice-inert, deliberately.** Both properties are
 global and non-monotone: an acyclic graph becomes cyclic when one more
