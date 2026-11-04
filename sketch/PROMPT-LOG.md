@@ -563,3 +563,12 @@ The answers to the agent's questions, each question followed by the option chose
 aontu#598 (parse now matches an ABNF numeric value such as %x78 exactly, in both engines, closing #586) and its web sync are merged. While fixing it I filed #597: abnf("v = %d1A\n"), whose digit is wrong for its base, compiles in TypeScript and is refused in Go. Which should I take up next?
 → #597, malformed digits (Recommended)
 ```
+
+## 2026-11-04 12:22:19 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+aontu#600 (both engines refuse a grammar whose numeric value has a digit wrong for its base, closing #597) and its web sync are merged. The grammar issues are clear. Which should I take up next?
+→ #594 + #595: investigate (Recommended)
+```
