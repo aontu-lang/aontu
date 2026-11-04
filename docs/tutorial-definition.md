@@ -8581,6 +8581,10 @@ A rider rides the value it's written on, so `pref(meta(1, r))` is
 marks no member, so `pref(hide(1))` is visible, as `*hide(1)` is, where
 `pref(hide({ x:1 }))` keeps its map hidden.
 A kind and a bound stay as written, so `pref(integer)` is `integer`.
+A call that waits on its own hole is `pref` of itself, so
+`pref([upper(_)])` is `[pref(upper(_))]`, which `[3]` passes and `3`
+and `[[3]]` don't. The call's other arguments stay as written, so
+`pref([upper(_, 0, 1)])` passes `["abc"]`.
 `pref` reads a path first, so `pref($.a)` is the preference of what
 `$.a` names, and a `pref` that waits on one stands where its argument does.
 A path into its output reads the preference, so `$.b.x` beside
@@ -8589,8 +8593,10 @@ A path into its output reads the preference, so `$.b.x` beside
 clash as step 14 reads it: an `error`, as `*1 | *2` written so is.
 
 Rows from pf0 on of `test/spec/def-path.tsv` hold these readings in the
-three modes of `vet`, rows from pc0 on hold paths into a call's output, and
-both engines answer every one as the definition does. They answer
+three modes of `vet`, those from pf96 on a list and a map that hold a call
+waiting on its own hole, those from pf138 on such a call with other
+arguments, rows from pc0 on hold paths into a call's output,
+and both engines answer every one as the definition does. They answer
 `pref(1 | 2)` `invalid` where they answer
 `*1 | *2` an `error`, and no row holds that case, which #482 tracks.
 

@@ -12,12 +12,24 @@ import {
 
 import { makeNilErr } from '../err'
 
-import {
-  walk
-} from '../utility'
-
 import { PrefVal } from '../val/PrefVal'
 import { FuncBaseVal } from './FuncBaseVal'
+
+
+// A call is left as written: preferring its arguments would change what it
+// computes, where pref changes only what it defaults to.
+function prefer(ctx: AontuContext, val: Val): Val {
+  if (val.isScalar || val.isPref) {
+    return new PrefVal({ peg: val }, ctx)
+  }
+  if (val.isMap || val.isList || val.isConjunct || val.isDisjunct) {
+    const peg: any = val.peg
+    for (const k of Object.keys(peg)) {
+      peg[k] = prefer(ctx, peg[k])
+    }
+  }
+  return val
+}
 
 
 class PrefFuncVal extends FuncBaseVal {
@@ -44,20 +56,7 @@ class PrefFuncVal extends FuncBaseVal {
     let out = args[0] ?? makeNilErr(ctx, 'arg', this)
 
     if (!out.isNil) {
-      out = out.clone(ctx)
-
-      // Wrap every child val in a PrefVal
-      out = walk(out, (_key: string | number | undefined, val: Val) => {
-        let oval = val
-        if (
-          val.isScalar
-          || val.isPref
-        ) {
-          oval = new PrefVal({ peg: val }, ctx)
-        }
-
-        return oval
-      })
+      out = prefer(ctx, out.clone(ctx))
     }
 
     return out

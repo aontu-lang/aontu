@@ -122,13 +122,14 @@ function openWrap(ctx: AontuContext, v: any): Val {
 }
 
 
-// The calls that take their argument as a value read a list or a map that
-// holds a hole, or for `super` a call waiting on one, as that container.
+// The calls that take their argument as a value read a list or a map
+// holding a hole as that container, and CALLS one holding a waiting call.
 const VALUED = new Set(['super', 'pref', 'refer', 'rel'])
+const CALLS = new Set(['super', 'pref'])
 
 
 function asValue(ctx: AontuContext, call: any, args: any[]): boolean {
-  const calls = 'super' === call.funcname()
+  const calls = CALLS.has(call.funcname())
   return true === ctx.settle && VALUED.has(call.funcname()) &&
     args.some((a: any) => true !== a.done) &&
     args.every((a: any) => true === a.done ||

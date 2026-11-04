@@ -83,11 +83,12 @@ function wrapSettled(args) {
 function openWrap(ctx, v) {
     return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v;
 }
-// The calls that take their argument as a value read a list or a map that
-// holds a hole, or for `super` a call waiting on one, as that container.
+// The calls that take their argument as a value read a list or a map
+// holding a hole as that container, and CALLS one holding a waiting call.
 const VALUED = new Set(['super', 'pref', 'refer', 'rel']);
+const CALLS = new Set(['super', 'pref']);
 function asValue(ctx, call, args) {
-    const calls = 'super' === call.funcname();
+    const calls = CALLS.has(call.funcname());
     return true === ctx.settle && VALUED.has(call.funcname()) &&
         args.some((a) => true !== a.done) &&
         args.every((a) => true === a.done ||
