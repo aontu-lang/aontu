@@ -3,7 +3,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LowerFuncVal = void 0;
 const err_1 = require("../err");
-const ScalarKindVal_1 = require("../val/ScalarKindVal");
 const valutil_1 = require("../val/valutil");
 const Decimal_1 = require("../val/Decimal");
 const caserange_1 = require("./caserange");
@@ -44,18 +43,9 @@ class LowerFuncVal extends FuncBaseVal_1.FuncBaseVal {
             (0, err_1.makeNilErr)(ctx, 'invalid-arg', this) :
             // The floor keeps the ARGUMENT's kind (lower(2) is an integer 2,
             // lower(1.9) is a number 1) — the function must not narrow
-            // number to integer, and this also makes the actual result kind
-            // agree with the superior() advertised below.
+            // number to integer.
             (0, valutil_1.makeScalarLike)(peg, arg));
         return out;
-    }
-    superior() {
-        const arg = this.peg?.[0];
-        return arg?.isScalar ?
-            this.place(new ScalarKindVal_1.ScalarKindVal({
-                peg: arg.kind
-            })) :
-            super.superior();
     }
 } /* node:coverage ignore next 6 */
 exports.LowerFuncVal = LowerFuncVal;

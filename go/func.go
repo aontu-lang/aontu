@@ -264,14 +264,7 @@ func newFunc(name string, args []Val) *FuncVal {
 	return f
 }
 
-func (f *FuncVal) superior() Val {
-	if (f.name == "upper" || f.name == "lower") && len(f.peg) > 0 {
-		if sv, ok := f.peg[0].(*ScalarVal); ok {
-			return newScalarKind(sv.kind)
-		}
-	}
-	return top()
-}
+func (f *FuncVal) superior() Val { return top() }
 
 func (f *FuncVal) Canon() string {
 	parts := make([]string, len(f.peg))

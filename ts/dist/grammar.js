@@ -104,5 +104,5 @@ function parseWith(grammar, text, _ctx) {
     catch (e) {
         return [undefined, String(e?.message ?? e).split('\n')[0]];
     }
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 9 */
 //# sourceMappingURL=grammar.js.map

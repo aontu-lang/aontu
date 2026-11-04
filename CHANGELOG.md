@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### The coverage gaps of the daily's first full pass close
+
+TypeScript and Go, tests and unreachable code only.
+
+- Four TypeScript export blocks had outgrown the lines their coverage
+  exclusion names, and `meetTemplate` in `ts/src/unify.ts` sat inside
+  one, so its own lines went unmeasured. Each exclusion now names its
+  block, and `meetTemplate` is measured.
+- Code no input reaches is gone: `upper` and `lower`'s own parent type,
+  which `super` stopped asking for once it read an unmade call as `any`
+  (#595); the preference arm of `doneButHoles`, since a preference is
+  settled before anything asks; and, in TypeScript, a guard on an
+  atom's arguments, which are always values.
+- Five rows of `test/spec/place.tsv` hold both engines to a `+` that
+  joins a list whose member waits only on a hole: a choice holding one,
+  a meet beside a value still being made, and a map with a spread once
+  its path resolves.
+
 ### `pref` reads a call waiting on its own hole as that call preferred
 
 TypeScript and Go, and rows of the definition.
