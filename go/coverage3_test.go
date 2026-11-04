@@ -427,6 +427,15 @@ func TestPrefRankArms(t *testing.T) {
 	}
 }
 
+func TestCallSuperiorIsTop(t *testing.T) {
+	if !isTop(newFunc("upper", []Val{newString("x")}).superior()) {
+		t.Fatalf("a call's superior must be top")
+	}
+	if !isTop(newPlusOp(newInteger(1), newInteger(2)).superior()) {
+		t.Fatalf("a +'s superior must be top")
+	}
+}
+
 func TestPrefSuperiorIsTop(t *testing.T) {
 	p := newPref(newInteger(1))
 	if !isTop(p.superior()) {

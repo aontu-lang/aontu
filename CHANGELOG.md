@@ -8,6 +8,19 @@ each change affects.
 
 ## Unreleased
 
+### Five more of Go's coverage gaps close
+
+Go only, and shared rows.
+
+- Two `relation` rows of `test/spec/relation.tsv`: a relation's spread
+  that meets two aliases, and one whose alias names a path value. Both
+  are read as address constraints, so `acyclic()` sees the cycle, and
+  each reaches an arm of Go's `leafOnly` that no row reached.
+- A `subsume` row: `string & empty()` subsumes `string & min("b")`,
+  which reaches Go's reading of a residual that met `string`.
+- A Go unit test: a call's parent type and a `+`'s are `any`. `super`
+  stopped asking either once it read an unmade call as `any` (#595).
+
 ### Go's walk for a held hole is covered under a choice
 
 Go only, and shared rows.
