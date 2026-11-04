@@ -726,6 +726,12 @@ dp29	verdict	"v": upper(sum($.x)), "x": [_, 1]	{"x": [2, 1]}	{"verdict":"valid",
 dp30	verdict	"v": sum($.x), "x": [key(1), 1]	{}	{"verdict":"error"}
 dp31	verdict	"v": sum($.x), "x": [key(1), 1]	{}	{"verdict":"error","opts":{"noFill":true}}
 dp32	verdict	"v": sum($.x), "x": [key(1), 1]	{}	{"verdict":"error","opts":{"partial":true}}
+dp33	verdict	"v": sum([_, $.h]), "h": _	{"v": 3, "h": 2}	{"verdict":"error"}
+dp34	verdict	"v": sum([_, $.h]), "h": _	{"v": 3, "h": 2}	{"verdict":"error","opts":{"noFill":true}}
+dp35	verdict	"v": sum([_, $.h]), "h": _	{"v": 3, "h": 2}	{"verdict":"error","opts":{"partial":true}}
+dp36	verdict	"v": sum([_, $.h]), "h": _	{}	{"verdict":"error"}
+dp37	verdict	"v": sum([_, $.h]), "h": _	{}	{"verdict":"error","opts":{"noFill":true}}
+dp38	verdict	"v": sum([_, $.h]), "h": _	{}	{"verdict":"error","opts":{"partial":true}}
 mv0	verdict	"a": 1, "b": move($.a)	{}	{"verdict":"valid"}
 mv1	verdict	"a": 1, "b": move($.a)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 mv2	verdict	"a": 1, "b": move($.a)	{}	{"verdict":"valid","opts":{"partial":true}}

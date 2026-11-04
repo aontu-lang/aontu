@@ -68,6 +68,37 @@ Both implementations.
   `views-a-style-a-figure-cannot-carry-is-refused` of
   `test/spec/views.tsv`, and the refusals in both CLIs' view tests.
 
+### Both engines read a hole in a call's list or map as the definition does
+
+TypeScript and Go, generated rows, shared rows, and documentation.
+
+- A hole written in a list or a map that a call takes, under lists,
+  maps and calls alone, is one no meet reaches. So a call made from its
+  arguments' values now fails as `place_container` once the document
+  settles, whatever its other arguments still wait on:
+  `v: sum([_, $.h])` beside `h: _` is an `error` against any data,
+  where both engines answered `invalid` once the data filled `h` (#589).
+- `super`, `pref`, `move`, `refer` and `rel` take their argument as a
+  value, so each now reads a list or a map that holds a hole as that
+  container, and the data fills it: `v: super([_])` passes `v: [1]` and
+  refuses `v: "x"`, where both engines answered `incomplete`. A bound
+  reads such a container as outside its domain, which admits nothing,
+  so `v: min([_])` refuses `v: [1]`, which both engines passed. `neq`
+  reads a list's members as the values it refuses, so a hole among them
+  is one nothing fills, and `v: neq([1, _])` is an `error` (#584).
+- `rel(t)` against data that writes a list reads `invalid` in both
+  engines, or `valid` for the empty list, where the definition answers
+  `incomplete` for every template (#594). `super` over a list that
+  holds a call waiting on its own hole still waits in both engines,
+  where the definition reads it through (#595).
+- `spec/Oracle.lean`: rows dr0 on of `test/spec/def-call.tsv`, 19 cases
+  in each of the three modes, and rows dp33 on of
+  `test/spec/def-path.tsv`, two cases, which both engines answer as the
+  definition does, and ten rows of `test/spec/place.tsv`. No other row
+  moves.
+- Docs: the reference's placeholder section and the definition
+  tutorial's step on holes.
+
 ### The definition reads a hole a path names as the data's to fill
 
 The definition, generated rows, and documentation.

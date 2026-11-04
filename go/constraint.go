@@ -614,6 +614,12 @@ func cmpConstraintVal(domain string, a, b *ScalarVal) int {
 // must be concrete orderable scalars in phase 1; reference-valued
 // arguments are phase 4 (residuation).
 func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
+	return makeConstraint(atom, args, sp, false)
+}
+
+// makeConstraint reads whole arguments as they stand, though a hole a
+// container of theirs holds is unfilled.
+func makeConstraint(atom string, args []Val, sp int, whole bool) *ConstraintVal {
 	c := &ConstraintVal{kind: KindTop}
 	c.site.sp = sp
 
@@ -634,7 +640,7 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 	}
 
 	for _, a := range args {
-		if DONE != a.Dc() {
+		if DONE != a.Dc() && !whole {
 			c.pending = &constraintPending{atom: atom, args: args}
 			c.notdone()
 			return c
@@ -932,14 +938,29 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 		args = append(args, next)
 	}
 
-	built := newConstraint(c.pending.atom, args, c.site.sp)
+	// A hole a bound's list or map holds is one nothing fills: among
+	// neq's values it fails the bound, and any other bound reads the
+	// container as outside its domain, as it reads one written whole.
+	whole := !settled && ctx.settle && heldBounds[c.pending.atom]
+	for _, a := range args {
+		whole = whole && bagHoles(a, true)
+	}
+	if whole {
+		for _, a := range args {
+			if _, isPlace := a.(*PlaceVal); isPlace {
+				return makeNilErrFull(ctx, "place_container", c, nil, "make", nil)
+			}
+		}
+	}
+
+	built := makeConstraint(c.pending.atom, args, c.site.sp, whole)
 	built.path = cp(c.path)
 	built.site.spu = c.site.spu
 	built.site.url = c.site.url
 	built.mtype = c.mtype
 	built.mhide = c.mhide
 
-	if settled {
+	if settled || whole {
 		// A bound's residual stands against the top, but a choice in the
 		// arguments it reads is no argument; any other peer meets it.
 		if (nil == peer || isTop(peer)) && boundAtom(c.pending.atom) && !holdsChoice(atomArgs(c.pending.atom, args)) {

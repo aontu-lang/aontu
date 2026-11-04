@@ -46,6 +46,7 @@ import type { Inst } from '../regex'
 import { codeClass } from '../hints'
 
 import { FeatureVal } from './FeatureVal'
+import { bagHoles, HELD_BOUNDS } from './PlaceVal'
 import { Site } from '../site'
 
 import {
@@ -566,7 +567,7 @@ class ConstraintVal extends FeatureVal {
   sites: Map<any, Site> = new Map()
 
   constructor(
-    spec: ValSpec & { atom?: string, state?: ConstraintState },
+    spec: ValSpec & { atom?: string, state?: ConstraintState, whole?: boolean },
     ctx?: AontuContext
   ) {
     super({ ...spec, peg: spec.peg ?? [] }, ctx)
@@ -601,7 +602,7 @@ class ConstraintVal extends FeatureVal {
       if (TRIAL_ATOMS.includes(spec.atom) && args.some((a: any) => holdsMove(a))) {
         this.invalid = 'invalid-arg'
       }
-      else if (args.some((a: any) => true !== a?.done)) {
+      else if (true !== spec.whole && args.some((a: any) => true !== a?.done)) {
         this.pending = { atom: spec.atom, args }
       }
       else {
@@ -879,10 +880,17 @@ class ConstraintVal extends FeatureVal {
       args.push(next)
     }
 
-    if (settled) {
+    // An unfillable held hole fails neq; other bounds read its container as out of domain.
+    const whole = !settled && true === ctx.settle && HELD_BOUNDS.has(pend.atom) &&
+      args.every((a: any) => bagHoles(a, true))
+    if (whole && args.some((a: any) => true === a?.isPlace)) {
+      return makeNilErr(ctx, 'place_container', this, undefined, 'make')
+    }
+
+    if (settled || whole) {
       // The residual the atom always meant, at this atom's site: a bound's
       // stands against the top, unless an argument it reads is a choice.
-      const built = new ConstraintVal({ peg: args, atom: pend.atom }, ctx)
+      const built = new ConstraintVal({ peg: args, atom: pend.atom, whole }, ctx)
       built.path = this.path
       built.site.row = this.site.row
       built.site.col = this.site.col

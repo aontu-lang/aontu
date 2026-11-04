@@ -46,6 +46,8 @@
 # and arms met with the member and a hole bound to it, follows in rows dt0 on.
 # A call over a container that holds a hole, which no peer of the call fills, so
 # that a call made from its arguments' values can't be made, follows in rows dh0 on.
+# A call that takes its argument as the value it is, over a container that holds
+# a hole, which it reads as that container, follows in rows dr0 on.
 # Regenerate with `make spec`; never edit by hand.
 x0	verdict	v: add(1, 2)	v: 3	{"verdict":"valid"}
 x1	verdict	v: add(1, 2)	v: 3	{"verdict":"valid","opts":{"noFill":true}}
@@ -4172,3 +4174,60 @@ dh167	verdict	v: {&: sum([_, 1])}	v: {"a": 3}	{"verdict":"invalid","opts":{"part
 dh168	verdict	v: {&: sum([_, 1])}	v: {}	{"verdict":"valid"}
 dh169	verdict	v: {&: sum([_, 1])}	v: {}	{"verdict":"valid","opts":{"noFill":true}}
 dh170	verdict	v: {&: sum([_, 1])}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+dr0	verdict	v: super([_])	v: "x"	{"verdict":"invalid"}
+dr1	verdict	v: super([_])	v: "x"	{"verdict":"invalid","opts":{"noFill":true}}
+dr2	verdict	v: super([_])	v: "x"	{"verdict":"invalid","opts":{"partial":true}}
+dr3	verdict	v: super([_])	v: [1]	{"verdict":"valid"}
+dr4	verdict	v: super([_])	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
+dr5	verdict	v: super([_])	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+dr6	verdict	v: super({"k": _})	v: {"k": 1}	{"verdict":"valid"}
+dr7	verdict	v: super({"k": _})	v: {"k": 1}	{"verdict":"valid","opts":{"noFill":true}}
+dr8	verdict	v: super({"k": _})	v: {"k": 1}	{"verdict":"valid","opts":{"partial":true}}
+dr9	verdict	v: pref([_])	v: "x"	{"verdict":"invalid"}
+dr10	verdict	v: pref([_])	v: "x"	{"verdict":"invalid","opts":{"noFill":true}}
+dr11	verdict	v: pref([_])	v: "x"	{"verdict":"invalid","opts":{"partial":true}}
+dr12	verdict	v: pref([_])	v: [1]	{"verdict":"valid"}
+dr13	verdict	v: pref([_])	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
+dr14	verdict	v: pref([_])	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+dr15	verdict	v: move([_])	v: "x"	{"verdict":"invalid"}
+dr16	verdict	v: move([_])	v: "x"	{"verdict":"invalid","opts":{"noFill":true}}
+dr17	verdict	v: move([_])	v: "x"	{"verdict":"invalid","opts":{"partial":true}}
+dr18	verdict	v: move([_])	v: [1]	{"verdict":"valid"}
+dr19	verdict	v: move([_])	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
+dr20	verdict	v: move([_])	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+dr21	verdict	v: refer([_])	v: "x"	{"verdict":"invalid"}
+dr22	verdict	v: refer([_])	v: "x"	{"verdict":"invalid","opts":{"noFill":true}}
+dr23	verdict	v: refer([_])	v: "x"	{"verdict":"invalid","opts":{"partial":true}}
+dr24	verdict	v: refer([_])	v: [1]	{"verdict":"invalid"}
+dr25	verdict	v: refer([_])	v: [1]	{"verdict":"invalid","opts":{"noFill":true}}
+dr26	verdict	v: refer([_])	v: [1]	{"verdict":"invalid","opts":{"partial":true}}
+dr27	verdict	v: rel([_])	v: "x"	{"verdict":"invalid"}
+dr28	verdict	v: rel([_])	v: "x"	{"verdict":"invalid","opts":{"noFill":true}}
+dr29	verdict	v: rel([_])	v: "x"	{"verdict":"invalid","opts":{"partial":true}}
+dr30	verdict	v: min([_])	v: "x"	{"verdict":"invalid"}
+dr31	verdict	v: min([_])	v: "x"	{"verdict":"invalid","opts":{"noFill":true}}
+dr32	verdict	v: min([_])	v: "x"	{"verdict":"invalid","opts":{"partial":true}}
+dr33	verdict	v: min([_])	v: [1]	{"verdict":"invalid"}
+dr34	verdict	v: min([_])	v: [1]	{"verdict":"invalid","opts":{"noFill":true}}
+dr35	verdict	v: min([_])	v: [1]	{"verdict":"invalid","opts":{"partial":true}}
+dr36	verdict	v: max({"k": _})	v: {"k": 1}	{"verdict":"invalid"}
+dr37	verdict	v: max({"k": _})	v: {"k": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+dr38	verdict	v: max({"k": _})	v: {"k": 1}	{"verdict":"invalid","opts":{"partial":true}}
+dr39	verdict	v: above([_])	v: [1]	{"verdict":"invalid"}
+dr40	verdict	v: above([_])	v: [1]	{"verdict":"invalid","opts":{"noFill":true}}
+dr41	verdict	v: above([_])	v: [1]	{"verdict":"invalid","opts":{"partial":true}}
+dr42	verdict	v: below([_])	v: "x"	{"verdict":"invalid"}
+dr43	verdict	v: below([_])	v: "x"	{"verdict":"invalid","opts":{"noFill":true}}
+dr44	verdict	v: below([_])	v: "x"	{"verdict":"invalid","opts":{"partial":true}}
+dr45	verdict	v: mulof([_])	v: [1]	{"verdict":"invalid"}
+dr46	verdict	v: mulof([_])	v: [1]	{"verdict":"invalid","opts":{"noFill":true}}
+dr47	verdict	v: mulof([_])	v: [1]	{"verdict":"invalid","opts":{"partial":true}}
+dr48	verdict	v: neq([_])	v: [1]	{"verdict":"error"}
+dr49	verdict	v: neq([_])	v: [1]	{"verdict":"error","opts":{"noFill":true}}
+dr50	verdict	v: neq([_])	v: [1]	{"verdict":"error","opts":{"partial":true}}
+dr51	verdict	v: neq([1, _])	v: 3	{"verdict":"error"}
+dr52	verdict	v: neq([1, _])	v: 3	{"verdict":"error","opts":{"noFill":true}}
+dr53	verdict	v: neq([1, _])	v: 3	{"verdict":"error","opts":{"partial":true}}
+dr54	verdict	v: neq([[_]])	v: 3	{"verdict":"invalid"}
+dr55	verdict	v: neq([[_]])	v: 3	{"verdict":"invalid","opts":{"noFill":true}}
+dr56	verdict	v: neq([[_]])	v: 3	{"verdict":"invalid","opts":{"partial":true}}
