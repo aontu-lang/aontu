@@ -663,6 +663,8 @@ The daily CI has been red on main since at least Nov 2, and #606's ruling work i
 
 #604: pref([upper(_)]) waits in both engines (incomplete everywhere). The definition reads it as [pref(upper(_))], which both engines already answer for that written form: [3] and ["x"] pass, 3 and [[3]] are refused. Which side should move?
 → Engines move (Recommended)
+```
+
 ## 2026-11-04 17:26:36 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
 
 ```text
