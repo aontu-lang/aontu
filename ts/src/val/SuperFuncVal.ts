@@ -128,6 +128,12 @@ function superOf(ctx: AontuContext, v: any): Val {
     return v.place(top())
   }
 
+  // A call here is one still waiting on a hole, and an unmade call's
+  // parent type is any, whatever its superior() says it would make.
+  if (true === v.isFunc || true === v.isOp) {
+    return v.place(top())
+  }
+
   const sup = v.superior()
   if (null != sup && true !== (sup as any).isTop) {
     return sup

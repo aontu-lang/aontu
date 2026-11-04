@@ -1364,7 +1364,11 @@ writes, in the rows from dp33 on. A call that takes its argument as a
 value reads a list or a map that holds a hole as that container, which
 the data fills: `v: super([_])`, `v: pref([_])` and
 `v: move([_])` pass `v: [1]` and refuse `v: "x"`, and `refer([_])` and
-`rel([_])` make their link and their relation of the list. A bound
+`rel([_])` make their link and their relation of the list. `super`
+reads a call there that waits on its own hole as `any`, so
+`v: super([upper(_)])` passes `v: [3]` and `v: ["x"]` and refuses
+`v: 3`, in the rows from dr57 on, though `pref` waits on such a list
+([#604](https://github.com/aontu-lang/aontu/issues/604)). A bound
 reads such a container as outside its domain, so `v: min([_])` admits
 nothing, but `neq` reads a list's members as the values it refuses, so
 `v: neq([1, _])` is an error, as both engines answer in the rows from
@@ -4384,7 +4388,10 @@ definition has no rule yet for `acyclic()` and `inverse(k)`, which
 ([#491](https://github.com/aontu-lang/aontu/issues/491)). Rows from rl0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to it, and rows from rh0 on to a constraint met with `rel()` and to a
-spread over the value's addresses. No row holds a relative address at a leaf of a list or a map,
+spread over the value's addresses. Data writes no address, so whatever
+the template, a relation refuses data that writes a list of anything,
+the spelling `"$.a"` among them, and passes an empty list, in the rows
+from rl84 on. No row holds a relative address at a leaf of a list or a map,
 which the engines read from different places
 ([#492](https://github.com/aontu-lang/aontu/issues/492),
 [#493](https://github.com/aontu-lang/aontu/issues/493)).

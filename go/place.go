@@ -265,20 +265,23 @@ func anyStuck(vs []Val) bool {
 }
 
 // Settled but for the holes a list or a map holds, or only the held
-// ones where held asks, since no peer of the call fills them.
-func bagHoles(v Val, held bool) bool {
+// ones where held asks, since no peer of the call fills them, and
+// where calls asks, the calls there that wait on a hole of their own.
+func bagHoles(v Val, held, calls bool) bool {
 	if v.Dc() == DONE {
 		return true
 	}
 	switch n := v.(type) {
 	case *PlaceVal:
 		return !held || n.held
+	case *FuncVal, *PlusOpVal:
+		return calls && doneButHoles(v)
 	case *ListVal:
 		if n.spread != nil {
 			return false
 		}
 		for _, e := range n.peg {
-			if !bagHoles(e, held) {
+			if !bagHoles(e, held, calls) {
 				return false
 			}
 		}
@@ -288,7 +291,7 @@ func bagHoles(v Val, held bool) bool {
 			return false
 		}
 		for _, k := range n.keys {
-			if !bagHoles(n.peg[k], held) {
+			if !bagHoles(n.peg[k], held, calls) {
 				return false
 			}
 		}
