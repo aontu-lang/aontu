@@ -8,7 +8,7 @@ import {
   Site
 } from '../site'
 
-import { INNER_OF, WRITTEN } from '../provenance'
+import { FROM_SPREAD, INNER_OF, WRITTEN } from '../provenance'
 
 
 // THE DISPATCH RECORD (RENDER.0.md D11, P7): the address of the node
@@ -292,6 +292,9 @@ abstract class Val {
 
     if (true === (this as any)[WRITTEN]) {
       (out as any)[WRITTEN] = true
+    }
+    if (true === (this as any)[FROM_SPREAD]) {
+      (out as any)[FROM_SPREAD] = true
     }
     if (null != (this as any)[INNER_OF]) {
       (out as any)[INNER_OF] = (this as any)[INNER_OF]

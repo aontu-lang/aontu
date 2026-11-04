@@ -28,7 +28,7 @@ export type WhyRecord = {
 
 
 // Set on a spread template's per-key clone, at the one place a spread
-// is applied (MapVal/ListVal.unify). Nothing else reads it.
+// is applied (MapVal/ListVal.unify), and carried by a clone of it.
 export const FROM_SPREAD = '_fromSpread'
 
 

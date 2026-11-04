@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Provenance = exports.INNER_OF = exports.WRITTEN = exports.FROM_SPREAD = void 0;
 exports.markSpread = markSpread;
 // Set on a spread template's per-key clone, at the one place a spread
-// is applied (MapVal/ListVal.unify). Nothing else reads it.
+// is applied (MapVal/ListVal.unify), and carried by a clone of it.
 exports.FROM_SPREAD = '_fromSpread';
 exports.WRITTEN = '_written';
 exports.INNER_OF = '_innerOf';

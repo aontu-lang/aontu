@@ -131,6 +131,9 @@ class Val {
         if (true === this[provenance_1.WRITTEN]) {
             out[provenance_1.WRITTEN] = true;
         }
+        if (true === this[provenance_1.FROM_SPREAD]) {
+            out[provenance_1.FROM_SPREAD] = true;
+        }
         if (null != this[provenance_1.INNER_OF]) {
             out[provenance_1.INNER_OF] = this[provenance_1.INNER_OF];
         }
