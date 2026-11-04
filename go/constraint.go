@@ -943,7 +943,7 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 	// container as outside its domain, as it reads one written whole.
 	whole := !settled && ctx.settle && heldBounds[c.pending.atom]
 	for _, a := range args {
-		whole = whole && bagHoles(a, true)
+		whole = whole && bagHoles(a, true, false)
 	}
 	if whole {
 		for _, a := range args {

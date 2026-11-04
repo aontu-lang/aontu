@@ -83,14 +83,15 @@ function wrapSettled(args) {
 function openWrap(ctx, v) {
     return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v;
 }
-// The calls that take their argument as the value it is, so read a list
-// or a map that holds a hole as that container once nothing else settles.
+// The calls that take their argument as a value read a list or a map that
+// holds a hole, or for `super` a call waiting on one, as that container.
 const VALUED = new Set(['super', 'pref', 'refer', 'rel']);
 function asValue(ctx, call, args) {
+    const calls = 'super' === call.funcname();
     return true === ctx.settle && VALUED.has(call.funcname()) &&
         args.some((a) => true !== a.done) &&
         args.every((a) => true === a.done ||
-            ((true === a.isList || true === a.isMap) && (0, PlaceVal_1.bagHoles)(a, false)));
+            ((true === a.isList || true === a.isMap) && (0, PlaceVal_1.bagHoles)(a, false, calls)));
 }
 class FuncBaseVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
