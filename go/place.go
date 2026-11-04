@@ -66,8 +66,6 @@ func doneButHoles(v Val) bool {
 		return allDoneButHoles(n.peg)
 	case *DisjunctVal:
 		return allDoneButHoles(n.peg)
-	case *PrefVal:
-		return doneButHoles(n.peg)
 	case *ListVal:
 		return n.spread == nil && allDoneButHoles(n.peg)
 	case *MapVal:

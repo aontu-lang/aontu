@@ -120,7 +120,7 @@ function parseWith(grammar: any, text: string, _ctx: AontuContext):
   catch (e: any) {
     return [undefined, String(e?.message ?? e).split('\n')[0]]
   }
-} /* node:coverage ignore next 8 */
+} /* node:coverage ignore next 9 */
 
 
 export {

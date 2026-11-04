@@ -1488,8 +1488,7 @@ class ConstraintVal extends FeatureVal {
       // An instance (`dup`) holds its own arguments: re-pathing one
       // instance's `.lim` must not move the one its siblings read.
       if (true === spec?.dup) {
-        out.peg = this.peg.map((a: any) =>
-          true === a?.isVal ? a.clone(ctx, { dup: true }) : a)
+        out.peg = this.peg.map((a: any) => a.clone(ctx, { dup: true }))
         out.pending = { atom: this.pending.atom, args: atomArgs(this.pending.atom, out.peg) }
       }
     }
@@ -2401,7 +2400,7 @@ class UniqueConstraintVal extends ConstraintVal {
   constructor(spec: ValSpec, ctx?: AontuContext) {
     super({ ...spec, atom: 'unique' }, ctx)
   }
-} /* node:coverage ignore next 29 */
+} /* node:coverage ignore next 30 */
 
 
 export {

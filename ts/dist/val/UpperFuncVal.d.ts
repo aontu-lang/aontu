@@ -7,6 +7,5 @@ declare class UpperFuncVal extends FuncBaseVal {
     make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): string;
     resolve(ctx: AontuContext | undefined, args: Val[]): Val;
-    superior(): Val;
 }
 export { UpperFuncVal, };

@@ -13,7 +13,6 @@ import {
 import { makeNilErr } from '../err'
 
 
-import { ScalarKindVal } from '../val/ScalarKindVal'
 import { makeScalarLike } from '../val/valutil'
 import { Decimal } from '../val/Decimal'
 import { caseRange, rangeArg } from './caserange'
@@ -69,21 +68,10 @@ class LowerFuncVal extends FuncBaseVal {
         makeNilErr(ctx, 'invalid-arg', this) :
         // The floor keeps the ARGUMENT's kind (lower(2) is an integer 2,
         // lower(1.9) is a number 1) — the function must not narrow
-        // number to integer, and this also makes the actual result kind
-        // agree with the superior() advertised below.
+        // number to integer.
         makeScalarLike(peg, arg)
     )
     return out
-  }
-
-
-  superior() {
-    const arg = this.peg?.[0]
-    return arg?.isScalar ?
-      this.place(new ScalarKindVal({
-        peg: arg.kind
-      })) :
-      super.superior()
   }
 
 } /* node:coverage ignore next 6 */
