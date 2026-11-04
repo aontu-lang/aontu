@@ -78,7 +78,9 @@ class PathVal extends ScalarVal_1.ScalarVal {
             if (undefined === merged) {
                 return (0, err_1.makeNilErr)(ctx, 'scalar_value', this, peer);
             }
-            const out = merged === this.peg ? this : p;
+            // Of one address met twice, the side a link made keeps the edge.
+            const out = merged !== this.peg || (merged === p.peg
+                && undefined === this.link && undefined !== p.link) ? p : this;
             const other = out === this ? p : this;
             (0, utility_1.propagateMarks)(other, out);
             return out;

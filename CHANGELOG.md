@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### A relation's spread keeps its elements' links
+
+TypeScript and Go, and shared rows.
+
+- Ruling 25 has a constraint met with `rel()` meet the relation's value
+  as a whole, so a constraint on each address goes in the value's
+  spread, `rel() & [&: re(...)]`. But an element met with such a spread
+  lost its link where the spread came before `rel()`'s own, so
+  `acyclic()` and `inverse()` saw no edge and `aontu relations`
+  answered `pass` on a cycle. Of one address met twice, the side a link
+  made now keeps it. Fixes #615.
+- An alias in the spread, `[&: %Addr]`, is read as the value it names,
+  through a chain of aliases, so its elements are links too.
+- Use case 01-service-catalog moves its `%CatalogAddr` into the spread,
+  as ruling 25 asks. Its eval had failed since Oct 24, and its planted
+  cycle is reported again.
+- Ten rows of `test/spec/relation.tsv`.
+
 ### The coverage gate reports while it runs
 
 TypeScript tooling only. `ts/test/covrun.js` printed nothing while it

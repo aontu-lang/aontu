@@ -117,6 +117,7 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
         if (a.constructor === b.constructor && a.peg === b.peg
             && (a as any).emptyOk === (b as any).emptyOk
             && (a as any).needsNonEmpty === (b as any).needsNonEmpty
+            && (a as any).link === (b as any).link
             && !a.isNil && !b.isNil
             && !a.isMap && !a.isList
             && !a.isConjunct && !a.isDisjunct
@@ -215,6 +216,7 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
       else if (a.constructor === b.constructor && a.peg === b.peg
         && (a as any).emptyOk === (b as any).emptyOk
         && (a as any).needsNonEmpty === (b as any).needsNonEmpty
+        && (a as any).link === (b as any).link
         && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
         out = update(a, b)
         why = 'up'

@@ -77,8 +77,8 @@ Relations are declared on the field that holds them. In `spec.aontu`:
 ```aontu
 %CatalogAddr = re("^\\$[.]catalog[.]")
 
-dependsOn?: rel($.aontu.System.Service) & %CatalogAddr & acyclic() & inverse(dependedOnBy)
-dependedOnBy?: rel($.aontu.System.Service) & %CatalogAddr
+dependsOn?: rel($.aontu.System.Service) & [&: %CatalogAddr] & acyclic() & inverse(dependedOnBy)
+dependedOnBy?: rel($.aontu.System.Service) & [&: %CatalogAddr]
 ```
 
 `%CatalogAddr` is an **alias**: `%name = value` at the top level of the
@@ -97,8 +97,10 @@ reintroduce the reference that gap is about.
 
 The key is the predicate. `rel($.aontu.System.Service)` types every far end,
 and the type flows into each target instead of being repeated at every
-link site; the held `re()` constrains every address, so a service may
-depend on a catalog entry and never on a workload; `acyclic()` and
+link site; the `re()` in the value's spread constrains every address,
+so a service may depend on a catalog entry and never on a workload. (A
+constraint met with `rel()` itself meets the whole list, so the spread is
+where a constraint on each address goes.) `acyclic()` and
 `inverse(dependedOnBy)` declare the graph properties the engine
 checks. Data documents stay plain lists of `path(...)` values. The
 inverse is written on every target, and `aontu relations` checks that
