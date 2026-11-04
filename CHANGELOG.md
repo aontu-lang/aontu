@@ -8,6 +8,19 @@ each change affects.
 
 ## Unreleased
 
+### `pref` reads a call waiting on its own hole as that call preferred
+
+TypeScript and Go, and rows of the definition.
+
+- `pref` over a list or a map that holds a call waiting on its own
+  hole waited in both engines, so `v: pref([upper(_)])` was
+  `incomplete` against any data. It now reads the call as `pref` of
+  itself, as the definition's `Val.prefer` does, so `pref([upper(_)])`
+  is `[pref(upper(_))]`: data `[3]` passes it, and `3` and `[[3]]`
+  don't. `super` already read such a call, as `any` (#595). Fixes #604.
+- Rows from pf96 on of `test/spec/def-path.tsv`, generated from the
+  definition, hold both engines to it in the three modes of `vet`.
+
 ### A default a spread's template narrows keeps the template's bound
 
 TypeScript and Go, and shared rows.

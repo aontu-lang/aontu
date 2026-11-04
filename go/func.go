@@ -51,8 +51,10 @@ func openWrap(ctx *Ctx, base []string, v Val) Val {
 
 // valueFuncs take their argument as the value it is, so read a list or
 // a map that holds a hole as that container once nothing else settles.
-// super reads a call there that waits on a hole too, as any.
+// super reads a call there that waits on a hole too, as any, and pref
+// as that call preferred.
 var valueFuncs = map[string]bool{"super": true, "pref": true, "refer": true, "rel": true}
+var callFuncs = map[string]bool{"super": true, "pref": true}
 
 func asValue(ctx *Ctx, f *FuncVal, args []Val) bool {
 	if !ctx.settle || !valueFuncs[f.name] {
@@ -65,7 +67,7 @@ func asValue(ctx *Ctx, f *FuncVal, args []Val) bool {
 		}
 		switch a.(type) {
 		case *ListVal, *MapVal:
-			if bagHoles(a, false, "super" == f.name) {
+			if bagHoles(a, false, callFuncs[f.name]) {
 				waits = true
 				continue
 			}

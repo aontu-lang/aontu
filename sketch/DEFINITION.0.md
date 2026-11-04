@@ -1160,8 +1160,10 @@ until the phase that encodes it lands.
    hole reads the call as any, as `Val.super` reads a call it can't
    make, and makes the container at the settle pass, rows dr57 on, 16
    cases in each mode, both ports answering every row as the definition
-   does. `pref` over such a list still waits in both ports, where the
-   definition prefers each member (#604).
+   does. **Ported 2026-11-04 (#604):** `pref` over such a list or map
+   reads the call as `pref` of itself, as `Val.prefer` does, rows pf96
+   on, 14 cases in each mode, both ports answering every row as the
+   definition does.
 
    A spread whose template waits on a hole was built next. It fills
    each member it meets, once: its own map's or list's members in

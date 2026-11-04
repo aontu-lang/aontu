@@ -1367,8 +1367,10 @@ the data fills: `v: super([_])`, `v: pref([_])` and
 `rel([_])` make their link and their relation of the list. `super`
 reads a call there that waits on its own hole as `any`, so
 `v: super([upper(_)])` passes `v: [3]` and `v: ["x"]` and refuses
-`v: 3`, in the rows from dr57 on, though `pref` waits on such a list
-([#604](https://github.com/aontu-lang/aontu/issues/604)). A bound
+`v: 3`, in the rows from dr57 on, and `pref` reads it as that call
+preferred, so `v: pref([upper(_)])` passes `v: [3]` and refuses `v: 3`
+and `v: [[3]]`, in the rows from pf96 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv). A bound
 reads such a container as outside its domain, so `v: min([_])` admits
 nothing, but `neq` reads a list's members as the values it refuses, so
 `v: neq([1, _])` is an error, as both engines answer in the rows from
