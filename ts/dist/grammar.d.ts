@@ -1,7 +1,7 @@
 import { AontuContext } from './ctx';
 declare const PARSE_STEP_MAX = 100000;
 declare const PARSE_CHECK_EVERY = 100;
-declare function numValsExact(src: string): string;
+declare function numValsExact(src: string): [string, string | undefined];
 declare function compileGrammar(src: string): [any, string | undefined];
 declare function parseWith(grammar: any, text: string, _ctx: AontuContext): [
     any,
