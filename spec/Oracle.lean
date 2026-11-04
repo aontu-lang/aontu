@@ -1656,7 +1656,10 @@ path first reaches them; and paths to a call's and a generator's own
 value, among them generators whose template hides a member, at a list's
 position, in a map and as the whole template, whose own value keeps the
 member hidden however a path copies it, and where the member is a map's,
-the copy shows it. -/
+the copy shows it. A list holds no position for a marked element, so a
+copy has none to show: of a list template, of an instance, of a list a
+fold reads, or of the instances a mark around the whole template
+leaves out. -/
 def roundCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (t : String) : Val := .lit (.str t)
@@ -1711,7 +1714,18 @@ def roundCases : List (Decls × Val × Data) :=
     ([], m [("x", em), ("v", p ["x"])], .map [("x", .list [.map [("b", j 1)]]),
       ("v", .list [.map [("b", j 1)]])]),
     ([], m [("x", pk), ("v", p ["x"])], .map [("x", .map []), ("v", .map [("a", .str "a")])]),
-    ([], m [("x", pk), ("v", p ["x"])], .map [("x", .map []), ("v", .map [])])]
+    ([], m [("x", pk), ("v", p ["x"])], .map [("x", .map []), ("v", .map [])]),
+    ([], m [("x", el), ("v", p ["x"])], .map [("x", .list [.list [j 1], .list [j 2]]),
+      ("v", .list [.list [j 1], .list [j 2]])]),
+    ([], m [("x", el), ("v", p ["x"])], .map [("x", .list [.list [j 1], .list [j 2]]),
+      ("v", .list [.list [j 1, j 3], .list [j 2, j 3]])]),
+    ([], m [("x", .call .each [lst [int 1], lst [hd .hole, .hole]]), ("v", p ["x"]),
+      ("w", .path [.key "x", .idx 0])],
+      .map [("x", .list [.list [j 1]]), ("v", .list [.list [j 1]]), ("w", .list [j 1])]),
+    ([], m [("x", .call .sum [lst [hd (int 1), int 2]]), ("v", p ["x"])], .map [("x", j 2), ("v", j 2)]),
+    ([], m [("x", .call .sum [lst [hd (int 1), int 2]]), ("v", p ["x"])], .map [("x", j 2), ("v", j 3)]),
+    ([], m [("x", .call .each [lst [int 1], hd (lst [.hole, .hole])]), ("v", p ["x"])],
+      .map [("x", .list []), ("v", .list [])])]
 
 theorem roundCases_checkable : ∀ c ∈ roundCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

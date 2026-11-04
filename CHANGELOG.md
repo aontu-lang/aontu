@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### A path's copy of a call drops a marked list element
+
+Both engines, and shared rows.
+
+- A path to a call not yet made copies the call and clears the copy's
+  marks, and the engines cleared a `hide()` or `type()` on a list
+  element by unwrapping it, so the copy held an element a marked one
+  holds no position for. Beside `x: each([1, 2], [hide(_), _])`, the
+  path `v: $.x` generated `[[1, 1], [2, 2]]` where `x` generates
+  `[[1], [2]]`, and in Go `v: $.x` beside `x: sum([hide(1), 2])` was
+  `3`. The copy now drops each list element its own mark leaves out,
+  and keeps the mark around an `each`'s whole template, which leaves
+  every instance out. Fixes #625.
+- Eighteen `verdict` rows from the definition, rn84 on in
+  `test/spec/def-path.tsv`, hold a list template, an instance, a fold
+  and a mark around the whole template.
+
 ### The definition leaves out a generator's marked instance
 
 The definition, and shared rows.
@@ -35,8 +52,6 @@ Both engines, and shared rows.
   same held for a list template, and in Go for `pack`. Each call in
   the copy now holds its own arguments before the copy's marks are
   cleared, so `x` keeps its member hidden and `v` shows it. Fixes #624.
-- A list template's copy still shows its marked element, where a
-  marked element holds no position, which #625 tracks.
 - Fifteen `verdict` rows from the definition, in
   `test/spec/def-path.tsv`, hold it for a list's, a map's and a
   `pack`'s template.
