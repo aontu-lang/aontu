@@ -90,6 +90,20 @@ class PrefVal extends FeatureVal {
   }
 
 
+  // A peer of one rank meets the override space too: either's bound holds.
+  private overMet(peer: PrefVal, met: PrefVal, ctx: AontuContext): PrefVal {
+    const gate = this.superpeg.canon === peer.superpeg.canon ? this.superpeg :
+      trialUnify(ctx, this.superpeg.clone(ctx), peer.superpeg)
+    if (undefined === gate || met.superpeg.canon === gate.canon) {
+      return met
+    }
+    const stood = this.restand(prefInnerPeg(met), ctx) as PrefVal
+    stood.narrowed = gate
+    stood.superpeg = gate
+    return stood
+  }
+
+
   // PrefVal unify always returns a PrefVal
   // PrefVals can only be removed by becoming Nil in a Disjunct
   unify(peer: Val, ctx: AontuContext): Val {
@@ -116,7 +130,7 @@ class PrefVal extends FeatureVal {
 
       // Avoid MAXCYCLE errors
       else if (this.peg.id === peer.peg.id) {
-        out = this
+        out = this.overMet(peer, this, ctx)
         why += 'same-peg'
       }
 
@@ -135,7 +149,7 @@ class PrefVal extends FeatureVal {
 
         out = undefined === peg
           ? makeNilErr(ctx, 'pref_rank_clash', this, peer, 'unify')
-          : this.restand(peg, ctx)
+          : this.overMet(peer, this.restand(peg, ctx) as PrefVal, ctx)
         why += 'rank-same'
       }
     }

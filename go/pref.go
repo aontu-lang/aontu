@@ -42,6 +42,22 @@ func (p *PrefVal) restand(met Val) Val {
 	return out
 }
 
+// A preference met with another of its rank meets their override
+// spaces as well, so a bound that narrowed either holds of the meet.
+func (p *PrefVal) overMet(ctx *Ctx, pp *PrefVal, met Val) Val {
+	mp := met.(*PrefVal)
+	gate := p.superpeg
+	if p.superpeg.Canon() != pp.superpeg.Canon() {
+		gate = trialUnify(ctx, clonePath(p.superpeg, cp(p.path)), pp.superpeg)
+	}
+	if nil == gate || mp.superpeg.Canon() == gate.Canon() {
+		return met
+	}
+	mp.narrowed = gate
+	mp.superpeg = gate
+	return mp
+}
+
 func prefInnerPeg(v Val) Val {
 	out := v
 	for {
@@ -89,7 +105,7 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 			if nil == peg {
 				out = makeNilErr(ctx, "pref_rank_clash", p, peer)
 			} else {
-				out = p.restand(peg)
+				out = p.overMet(ctx, pp, p.restand(peg))
 			}
 		}
 	default:

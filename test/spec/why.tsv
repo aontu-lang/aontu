@@ -122,3 +122,4 @@ why-spread-split-statements	why	services: &:{replicas: *1|integer}\nservices: {a
 why-spread-split-untouched	why	services: &:{replicas: *1|integer}\nservices: {db: {}}	$.services.db.replicas	{"conjuncts":[{"canon":"*1|integer","role":"spread","site":{"col":24,"file":"","len":1,"row":1},"src":"*"}],"value":"*1|integer"}
 
 why-pref-rank	why	a: *1\na: **2\na: integer	$.a	{"conjuncts":[{"canon":"*1","rank":0,"role":"pref","site":{"col":4,"file":"","len":1,"row":1},"src":"*"},{"canon":"**2","rank":1,"role":"pref","site":{"col":4,"file":"","len":1,"row":2},"src":"*"},{"canon":"integer","role":"literal","site":{"col":4,"file":"","len":7,"row":3},"src":"integer"}],"value":"*1"}
+why-spread-copied	why	f: {&:{r: ***0}, a: {}}\ne: $.f & {a: {r: *25}}	$.e.a.r	{"conjuncts":[{"canon":"***0","rank":2,"role":"spread","site":{"col":11,"file":"","len":1,"row":1},"src":"*"},{"canon":"*25","rank":0,"role":"pref","site":{"col":18,"file":"","len":1,"row":2},"src":"*"}],"value":"*25"}

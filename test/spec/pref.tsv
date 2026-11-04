@@ -208,3 +208,11 @@ pref-braced-disjunct	canon	*{x:1}|*{y:2}	*{"x":1,"y":2}
 # that says the guard reads the operand's braces, not the `*`.
 pref-scalar-untouched	canon	a: *1	{"a":*1}
 pref-scalar-disjunct-untouched	canon	a: *1|2	{"a":*1|2}
+
+# A default a spread's template narrows keeps the template's bound when a
+# later value overrides it: the template meets the member once, so the
+# meet of the default with each of the template's terms holds the bound.
+pref-spread-bound-kept-map	errc	r:{&:integer & min(1)} r:{a:*3} r:a:0	empty
+pref-spread-bound-kept-list	errc	r:[&:integer & min(1)] r:[*3] r:[0]	empty
+pref-spread-bound-kept-pass	gen	r:{&:integer & min(1)} r:{a:*3} r:a:5	{"r":{"a":5}}
+pref-spread-bound-kept-default	gen	r:{&:integer & min(1)} r:{a:*3}	{"r":{"a":3}}

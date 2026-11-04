@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### A default a spread's template narrows keeps the template's bound
+
+TypeScript and Go, and shared rows.
+
+- A spread's template meets a member once (#573), so the bound it puts
+  on a default has to hold through the member's later meets. A template
+  written as a meet of terms, such as `integer & min(1)`, meets a
+  default term by term, and when the two narrowed copies of the default
+  met, both engines kept the one without the bound. So
+  `r: {&: integer & min(1)} r: {a: *3} r: a: 0` passed where it is
+  refused, and so did its list form. A preference met with another of
+  its rank now meets their override spaces as well. Use case
+  18-role-permissions failed on this, as `aontu model set` accepted a
+  replica count of 0.
+- TypeScript's copy of a value dropped the mark that says it came from
+  a spread's template, so `aontu model why` and the meet ladder named
+  such a contribution a `pref` once a reference carried it, where Go
+  names it a `spread`. A copy keeps the mark now, as Go's does. Use
+  case 08-feature-flags failed on this, as its ladder drifted.
+- Four rows of `test/spec/pref.tsv` and one of `test/spec/why.tsv`,
+  which both engines answer alike.
+
 ### Both engines measure a figure's text in characters
 
 Both implementations' behaviour now agrees; the TypeScript one changed,
