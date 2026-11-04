@@ -960,7 +960,7 @@ func superOf(path []string, v Val) Val {
 		for _, a := range tv.peg {
 			lift := superOf(path, a)
 			if isTop(lift) {
-				return top()
+				return liftAt(path, tv, top())
 			}
 			c := lift.Canon()
 			if !seen[c] {
@@ -969,7 +969,7 @@ func superOf(path []string, v Val) Val {
 			}
 		}
 		if 1 == len(arms) {
-			return arms[0]
+			return liftAt(path, tv, arms[0])
 		}
 		out := newDisjunct(arms)
 		out.path = cp(path)
@@ -978,20 +978,20 @@ func superOf(path []string, v Val) Val {
 
 	case *ConstraintVal:
 		if tv.kind != KindTop {
-			return newScalarKind(tv.kind)
+			return liftAt(path, tv, newScalarKind(tv.kind))
 		}
 		if "number" == tv.domain {
-			return newScalarKind(KindNumber)
+			return liftAt(path, tv, newScalarKind(KindNumber))
 		}
 		if "string" == tv.domain {
-			return newScalarKind(KindString)
+			return liftAt(path, tv, newScalarKind(KindString))
 		}
-		return top()
+		return liftAt(path, tv, top())
 
 	// A call here is one still waiting on a hole, and an unmade call's
 	// parent type is any, whatever its superior() says it would make.
 	case *FuncVal, *PlusOpVal:
-		return top()
+		return liftAt(path, v, top())
 
 	// A kind argument climbs the KIND lattice -- super(integer) and
 	// super(float) are `number`, super(number) is top. The struct's
@@ -999,9 +999,9 @@ func superOf(path []string, v Val) Val {
 	// narrowing gate and must stay top there.
 	case *ScalarKindVal:
 		if p, has := kindParent(tv.kind); has {
-			return newScalarKind(p)
+			return liftAt(path, tv, newScalarKind(p))
 		}
-		return top()
+		return liftAt(path, tv, top())
 	}
 
 	// The lattice primitive answers for the forms it always served: a
@@ -1009,9 +1009,19 @@ func superOf(path []string, v Val) Val {
 	// it has no meaningful answer (superior() defaults to top), top is
 	// the honest remainder.
 	if sup := v.superior(); sup != nil && !isTop(sup) {
-		return sup
+		return liftAt(path, v, sup)
 	}
-	return top()
+	return liftAt(path, v, top())
+}
+
+// A leaf super makes stands where the value it lifts did, as a container does.
+func liftAt(path []string, v Val, out Val) Val {
+	out.setvpath(cp(path))
+	out.setPos(v.pos())
+	out.setPosu(v.posu())
+	out.setSrcurl(v.srcurl())
+	out.setSrctext(v.srctext())
+	return out
 }
 
 func caseUpper(s string) string {

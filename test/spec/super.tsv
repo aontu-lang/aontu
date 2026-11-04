@@ -69,3 +69,13 @@ super-null-ladder-canon	canon	x:super(super(null))	{"x":any}
 # -- change the ladder and this fails, which is the reminder that the
 # figure has to grow or lose a node with it.
 super-kind-ladder-canon	canon	string: super(string)\npath: super(path)\nnumber: super(number)\ninteger: super(integer)\nfloat: super(float)\nbiginteger: super(biginteger)\nbigdecimal: super(bigdecimal)\nboolean: super(boolean)\nnull: super(super(null))	{"bigdecimal":number,"biginteger":number,"boolean":any,"float":number,"integer":number,"null":any,"number":any,"path":any,"string":any}
+
+# A leaf that super lifts inside a container stands where the value it
+# lifts did, so the refusal of it names that member and that site: a
+# call, a bound, a kind, a scalar and a `+` in a list, and a call in a map.
+super-site-list-call	vet	v:super([upper(_)])	{}	{"findings":[{"class":"incomplete","code":"listval_no_gen","path":"$.v.0","pointer":"/v/0","severity":"error","sites":[{"col":10,"file":"schema","len":5,"role":"schema","row":1,"src":"upper","value":"any"}]}],"truncated":false,"verdict":"incomplete"}
+super-site-map-call	vet	v:super({k:upper(_)})	{}	{"findings":[{"class":"incomplete","code":"mapval_no_gen","path":"$.v.k","pointer":"/v/k","severity":"error","sites":[{"col":12,"file":"schema","len":5,"role":"schema","row":1,"src":"upper","value":"any"}]}],"truncated":false,"verdict":"incomplete"}
+super-site-list-bound	vet	v:super([min(1)])	{}	{"findings":[{"class":"incomplete","code":"listval_no_gen","path":"$.v.0","pointer":"/v/0","severity":"error","sites":[{"col":10,"file":"schema","len":3,"role":"schema","row":1,"src":"min","value":"number"}]}],"truncated":false,"verdict":"incomplete"}
+super-site-list-kind	vet	v:super([integer])	{}	{"findings":[{"class":"incomplete","code":"listval_no_gen","path":"$.v.0","pointer":"/v/0","severity":"error","sites":[{"col":10,"file":"schema","len":7,"role":"schema","row":1,"src":"integer","value":"number"}]}],"truncated":false,"verdict":"incomplete"}
+super-site-list-scalar	vet	v:super([1])	{}	{"findings":[{"class":"incomplete","code":"listval_no_gen","path":"$.v.0","pointer":"/v/0","severity":"error","sites":[{"col":10,"file":"schema","len":1,"role":"schema","row":1,"src":"1","value":"integer"}]}],"truncated":false,"verdict":"incomplete"}
+super-site-list-plus	vet	v:super([upper(_) + "x"])	{}	{"findings":[{"class":"incomplete","code":"listval_no_gen","path":"$.v.0","pointer":"/v/0","severity":"error","sites":[{"col":10,"file":"schema","len":-1,"role":"schema","row":1,"src":"","value":"any"}]}],"truncated":false,"verdict":"incomplete"}
