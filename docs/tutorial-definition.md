@@ -7630,7 +7630,10 @@ and a bound reads such a list as outside its domain, which admits
 nothing. But `neq` reads the list's members as the values it refuses,
 so a hole among them is one nothing fills, and `v: neq([1, _])` is an
 error, as both engines answer in the rows from dr0 on
-(`readThroughCases`). A `join` over such a list stands, as `Val.illFormed` exempts
+(`readThroughCases`). `Val.super` reads a call that waits as `any`, so
+`super` makes a list that holds one too: `v: super([upper(_)])` passes
+`v: [3]` and `v: ["x"]` and refuses `v: 3`, in the rows from dr57 on.
+A `join` over such a list stands, as `Val.illFormed` exempts
 it, which is why the preceding `join` refuses rather than fails, but a
 `join` whose separator is a list or a map that holds a hole doesn't
 stand where it waits on no hole of its own (`joinSepHeld`), so
@@ -8948,7 +8951,10 @@ def linkAddrs (src : Val) (e : List Seg × Val × Bool) : List Addr :=
 So each leaf's target must exist, and the template meets each target,
 in the passes step 36 walked through. Rows from rl0 on of
 `test/spec/def-path.tsv` hold these readings in the three modes of
-`vet`, and both engines answer every one as the definition does. The
+`vet`, and both engines answer every one as the definition does.
+Against data that writes a list, the template makes no difference:
+`rel()`, `rel([])`, `rel([1])` and `rel([_])` each refuse `v: [1]` and
+`v: ["a"]` and pass `v: []`, in the rows from rl84 on. The
 engines read a relative address at a leaf from different places: the
 two disagree once one container nests in another, which #492 tracks,
 and `eval` and `vet` disagree even with one, which #493 tracks, so no
