@@ -708,6 +708,24 @@ pf134	verdict	"b": pref({"k": upper(_)})	{"b": {"k": [3]}}	{"verdict":"invalid",
 pf135	verdict	"b": pref({"k": upper(_)})	{"b": 3}	{"verdict":"invalid"}
 pf136	verdict	"b": pref({"k": upper(_)})	{"b": 3}	{"verdict":"invalid","opts":{"noFill":true}}
 pf137	verdict	"b": pref({"k": upper(_)})	{"b": 3}	{"verdict":"invalid","opts":{"partial":true}}
+pf138	verdict	"b": pref([upper(_, 0, 1)])	{}	{"verdict":"incomplete"}
+pf139	verdict	"b": pref([upper(_, 0, 1)])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf140	verdict	"b": pref([upper(_, 0, 1)])	{}	{"verdict":"valid","opts":{"partial":true}}
+pf141	verdict	"b": pref([upper(_, 0, 1)])	{"b": ["abc"]}	{"verdict":"valid"}
+pf142	verdict	"b": pref([upper(_, 0, 1)])	{"b": ["abc"]}	{"verdict":"valid","opts":{"noFill":true}}
+pf143	verdict	"b": pref([upper(_, 0, 1)])	{"b": ["abc"]}	{"verdict":"valid","opts":{"partial":true}}
+pf144	verdict	"b": pref([upper(_, 0, 1)])	{"b": [3]}	{"verdict":"invalid"}
+pf145	verdict	"b": pref([upper(_, 0, 1)])	{"b": [3]}	{"verdict":"invalid","opts":{"noFill":true}}
+pf146	verdict	"b": pref([upper(_, 0, 1)])	{"b": [3]}	{"verdict":"invalid","opts":{"partial":true}}
+pf147	verdict	"b": pref({"k": upper(_, 0, 1)})	{"b": {"k": "abc"}}	{"verdict":"valid"}
+pf148	verdict	"b": pref({"k": upper(_, 0, 1)})	{"b": {"k": "abc"}}	{"verdict":"valid","opts":{"noFill":true}}
+pf149	verdict	"b": pref({"k": upper(_, 0, 1)})	{"b": {"k": "abc"}}	{"verdict":"valid","opts":{"partial":true}}
+pf150	verdict	"b": pref([rep(_, "a", "b")])	{}	{"verdict":"incomplete"}
+pf151	verdict	"b": pref([rep(_, "a", "b")])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+pf152	verdict	"b": pref([rep(_, "a", "b")])	{}	{"verdict":"valid","opts":{"partial":true}}
+pf153	verdict	"b": pref([rep(_, "a", "b")])	{"b": ["xa"]}	{"verdict":"valid"}
+pf154	verdict	"b": pref([rep(_, "a", "b")])	{"b": ["xa"]}	{"verdict":"valid","opts":{"noFill":true}}
+pf155	verdict	"b": pref([rep(_, "a", "b")])	{"b": ["xa"]}	{"verdict":"valid","opts":{"partial":true}}
 pc0	verdict	"b": pref({"x": 1}), "c": $.b.x	{}	{"verdict":"valid"}
 pc1	verdict	"b": pref({"x": 1}), "c": $.b.x	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 pc2	verdict	"b": pref({"x": 1}), "c": $.b.x	{}	{"verdict":"valid","opts":{"partial":true}}

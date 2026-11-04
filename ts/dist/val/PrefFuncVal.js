@@ -3,9 +3,22 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PrefFuncVal = void 0;
 const err_1 = require("../err");
-const utility_1 = require("../utility");
 const PrefVal_1 = require("../val/PrefVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+// A call is left as written: preferring its arguments would change what it
+// computes, where pref changes only what it defaults to.
+function prefer(ctx, val) {
+    if (val.isScalar || val.isPref) {
+        return new PrefVal_1.PrefVal({ peg: val }, ctx);
+    }
+    if (val.isMap || val.isList || val.isConjunct || val.isDisjunct) {
+        const peg = val.peg;
+        for (const k of Object.keys(peg)) {
+            peg[k] = prefer(ctx, peg[k]);
+        }
+    }
+    return val;
+}
 class PrefFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -20,16 +33,7 @@ class PrefFuncVal extends FuncBaseVal_1.FuncBaseVal {
     resolve(ctx, args) {
         let out = args[0] ?? (0, err_1.makeNilErr)(ctx, 'arg', this);
         if (!out.isNil) {
-            out = out.clone(ctx);
-            // Wrap every child val in a PrefVal
-            out = (0, utility_1.walk)(out, (_key, val) => {
-                let oval = val;
-                if (val.isScalar
-                    || val.isPref) {
-                    oval = new PrefVal_1.PrefVal({ peg: val }, ctx);
-                }
-                return oval;
-            });
+            out = prefer(ctx, out.clone(ctx));
         }
         return out;
     }

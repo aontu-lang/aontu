@@ -1415,7 +1415,7 @@ boolean and a map arm beside a literal; over a path, a call and
 absence; over a literal, a preference and a map under a rider; met
 with a preference; and over a list and a map that hold a call waiting on
 its own hole, which each member preferred reads as `pref` of that call
-(#604). -/
+(#604), the call's other arguments left as written. -/
 def prefCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1424,6 +1424,8 @@ def prefCases : List (Decls × Val × Data) :=
   let p (ks : List String) : Val := .path (ks.map .key)
   let pf (v : Val) : Val := .call .pref [v]
   let up : Val := .call .upper [.hole]
+  let up2 : Val := .call .upper [.hole, int 0, int 1]
+  let rp : Val := .call .rep [.hole, .lit (.str "a"), .lit (.str "b")]
   [([], m [("b", pf (int 1))], .map []),
     ([], m [("b", pf (int 1))], .map [("b", j 2)]),
     ([], m [("b", pf (int 1))], .map [("b", .str "x")]),
@@ -1469,7 +1471,13 @@ def prefCases : List (Decls × Val × Data) :=
     ([], m [("b", pf (m [("k", up)]))], .map []),
     ([], m [("b", pf (m [("k", up)]))], .map [("b", .map [("k", .str "x")])]),
     ([], m [("b", pf (m [("k", up)]))], .map [("b", .map [("k", .list [j 3])])]),
-    ([], m [("b", pf (m [("k", up)]))], .map [("b", j 3)])]
+    ([], m [("b", pf (m [("k", up)]))], .map [("b", j 3)]),
+    ([], m [("b", pf (lst [up2]))], .map []),
+    ([], m [("b", pf (lst [up2]))], .map [("b", .list [.str "abc"])]),
+    ([], m [("b", pf (lst [up2]))], .map [("b", .list [j 3])]),
+    ([], m [("b", pf (m [("k", up2)]))], .map [("b", .map [("k", .str "abc")])]),
+    ([], m [("b", pf (lst [rp]))], .map []),
+    ([], m [("b", pf (lst [rp]))], .map [("b", .list [.str "xa"])])]
 
 theorem prefCases_checkable : ∀ c ∈ prefCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

@@ -18,8 +18,12 @@ TypeScript and Go, and rows of the definition.
   itself, as the definition's `Val.prefer` does, so `pref([upper(_)])`
   is `[pref(upper(_))]`: data `[3]` passes it, and `3` and `[[3]]`
   don't. `super` already read such a call, as `any` (#595). Fixes #604.
+- TypeScript also preferred such a call's other arguments, so
+  `v: pref([upper(_, 0, 1)])` refused `v: ["abc"]` where Go passed it.
+  It now leaves a call as written, as Go and the definition do.
 - Rows from pf96 on of `test/spec/def-path.tsv`, generated from the
-  definition, hold both engines to it in the three modes of `vet`.
+  definition, hold both engines to it in the three modes of `vet`,
+  those from pf138 on a call with other arguments.
 
 ### A default a spread's template narrows keeps the template's bound
 
