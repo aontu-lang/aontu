@@ -170,16 +170,20 @@ function stuckIn(v) {
     return false;
 }
 // Settled but for the holes a list or a map holds, or only the held
-// ones where `held` asks, since no peer of the call fills them.
-function bagHoles(v, held) {
+// ones where `held` asks, since no peer of the call fills them, and
+// where `calls` asks, the calls there that wait on a hole of their own.
+function bagHoles(v, held, calls = false) {
     if (true === v?.done) {
         return true;
     }
     if (true === v?.isPlace) {
         return !held || true === v.held;
     }
+    if (calls && (true === v?.isFunc || true === v?.isOp)) {
+        return doneButHoles(v);
+    }
     return (true === v?.isList || true === v?.isMap) && null == v.spread?.cj &&
-        Object.values(v.peg).every((c) => bagHoles(c, held));
+        Object.values(v.peg).every((c) => bagHoles(c, held, calls));
 }
 // Settled but for a hole its own container holds, which nothing fills,
 // or holding one no meet reaches, whatever else it waits on.

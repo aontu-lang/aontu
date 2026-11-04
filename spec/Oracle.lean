@@ -1763,8 +1763,12 @@ relation with no value, required and optional, and one met with
 `path`; the value from a second meet; two relations' templates at one
 field; a relation in a body no reference reads; a relation's template
 making another relation's target, and one relation's leaf making its
-own other leaf's target, each beside data the flow refuses; and a
-`refer` and a `rel` at one target. -/
+own other leaf's target, each beside data the flow refuses; a
+`refer` and a `rel` at one target; and a relation with no template,
+an empty list, a list of a number and a list of a hole for its
+template, beside data that writes a string, a number, a list of
+each, an empty list, and no value, which refuses all but the empty
+list and the absent value. -/
 def relCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -1808,7 +1812,10 @@ def relCases : List (Decls × Val × Data) :=
     ([], m [("a", m []), ("d", .meet (.call .rel []) .pathKind)], .map []),
     ([], m [("a", m []), ("b", .meet (.call .refer [m [("p", int 1)]]) (ad 0 ["a"])),
       ("d", rl (m [("q", int 2)]) (lst [ad 0 ["a"]]))], .map [("a", .map [("p", j 1), ("q", j 2)])]),
-    ([], m [("a", m []), ("d", rl0 (.lit (.bool true)))], .map [])]
+    ([], m [("a", m []), ("d", rl0 (.lit (.bool true)))], .map [])] ++
+  ([[], [lst []], [lst [int 1]], [lst [.hole]]].flatMap fun t =>
+    [some (.str "x"), some (j 3), some (.list [j 1]), some (.list [.str "a"]), some (.list []), none].map
+      fun d => ([], m [("v", .call .rel t)], match d with | some x => .map [("v", x)] | none => .map []))
 
 theorem relCases_checkable : ∀ c ∈ relCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -5279,7 +5286,10 @@ and `move` read as the container, which the data fills, `refer` and
 `rel` as the link and the relation they make of it, and a bound as an
 atom over an argument outside its domain, which admits nothing; but
 `neq` reads the list's members as the values it refuses, so a hole
-among them is one nothing fills, and the schema doesn't stand; as both
+among them is one nothing fills, and the schema doesn't stand; and
+`super` over a list or a map that holds a call waiting on its own hole,
+whose parent type is any, beside a settled member and a hole, nested,
+for `+`, and for `upper` and `lower` whose string is settled; as both
 ports answer. -/
 def readThroughCases : List (Val × Data) :=
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5289,13 +5299,26 @@ def readThroughCases : List (Val × Data) :=
   let x : Data := .str "x"
   let l1 : Data := .list [.integer 1]
   let k1 : Data := .map [("k", .integer 1)]
+  let up : Val := .call .upper [.hole]
+  let l3 : Data := .list [.integer 3]
+  let l34 : Data := .list [.integer 3, .integer 4]
   [(.call .super [h1], x), (.call .super [h1], l1), (.call .super [hk], k1),
     (.call .pref [h1], x), (.call .pref [h1], l1), (.call .move [h1], x), (.call .move [h1], l1),
     (.call .refer [h1], x), (.call .refer [h1], l1), (.call .rel [h1], x),
     (.call (.bnd .min) [h1], x), (.call (.bnd .min) [h1], l1), (.call (.bnd .max) [hk], k1),
     (.call (.bnd .above) [h1], l1), (.call (.bnd .below) [h1], x), (.call (.bnd .mulof) [h1], l1),
     (.call (.bnd .neq) [h1], l1), (.call (.bnd .neq) [lst [n 1, .hole]], .integer 3),
-    (.call (.bnd .neq) [lst [h1]], .integer 3)]
+    (.call (.bnd .neq) [lst [h1]], .integer 3),
+    (.call .super [lst [up]], .integer 3), (.call .super [lst [up]], x), (.call .super [lst [up]], l3),
+    (.call .super [lst [up]], .list [x]), (.call .super [lst [up]], .list []),
+    (.call .super [lst [up, n 1]], l3), (.call .super [lst [up, n 1]], l34),
+    (.call .super [lst [up, .hole]], l3), (.call .super [lst [up, .hole]], l34),
+    (.call .super [lst [lst [up]]], .list [l3]), (.call .super [lst [lst [up]]], l3),
+    (.call .super [.map [("k", false, up)] none false], k1),
+    (.call .super [.map [("k", false, up)] none false], .map []),
+    (.call .super [lst [.call .plus [.hole, n 1]]], l3),
+    (.call .super [lst [.call .upper [.lit (.str "a"), .hole]]], l3),
+    (.call .super [lst [.call .lower [.lit (.str "A"), .hole]]], l3)]
 
 set_option maxRecDepth 8192 in
 theorem readThroughCases_checkable : ∀ c ∈ readThroughCases, (vetDoc c).1.CheckableA := by decide

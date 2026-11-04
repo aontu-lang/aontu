@@ -30,6 +30,34 @@ TypeScript and Go, and shared rows.
 - Four rows of `test/spec/pref.tsv` and one of `test/spec/why.tsv`,
   which both engines answer alike.
 
+### `super` reads a call that waits on its own hole as any
+
+TypeScript and Go, generated rows, shared rows, and documentation.
+
+- `super` over a list or a map that holds a call waiting on its own
+  hole reads that call's parent type as any, as the definition does,
+  so it makes the container once the document settles:
+  `v: super([upper(_)])` passes `v: [3]` and `v: ["x"]` and refuses
+  `v: 3`, where both engines answered `incomplete` (#595). The same
+  holds for `upper("a", _)`, whose string is settled, for a `+` over a
+  hole, in a nested list and in a map, and a settled member or a hole
+  beside such a call reads as before. A bound
+  over such a list still waits, and so does `pref`, which the
+  definition reads otherwise (#604).
+- `rel(t)` against data that writes a list: read with the relation
+  kind declared, as its rows are, the definition answers as both
+  engines do, `invalid` for every template but against the empty list
+  (#594).
+- `spec/Oracle.lean`: rows dr57 on of `test/spec/def-call.tsv`, 16
+  cases in each of the three modes, and rows rl84 on of
+  `test/spec/def-path.tsv`, 24 cases, which both engines answer as the
+  definition does. In `test/spec/place.tsv`, `a:super([_,$.b])` beside
+  `b:upper(_)` now fails on its hole, `listval_no_gen`, and three rows
+  show `super` making such a container.
+- Docs: the reference's placeholder and declared-relations sections,
+  and the definition tutorial's steps on holes and relations.
+
+
 ### Both engines measure a figure's text in characters
 
 Both implementations' behaviour now agrees; the TypeScript one changed,
@@ -90,6 +118,7 @@ Both implementations.
   `views-a-style-a-figure-cannot-carry-is-refused` of
   `test/spec/views.tsv`, and the refusals in both CLIs' view tests.
 
+
 ### A grammar with a malformed numeric value is refused in both engines
 
 TypeScript and Go, shared rows, and documentation.
@@ -147,11 +176,6 @@ TypeScript and Go, generated rows, shared rows, and documentation.
   so `v: min([_])` refuses `v: [1]`, which both engines passed. `neq`
   reads a list's members as the values it refuses, so a hole among them
   is one nothing fills, and `v: neq([1, _])` is an `error` (#584).
-- `rel(t)` against data that writes a list reads `invalid` in both
-  engines, or `valid` for the empty list, where the definition answers
-  `incomplete` for every template (#594). `super` over a list that
-  holds a call waiting on its own hole still waits in both engines,
-  where the definition reads it through (#595).
 - `spec/Oracle.lean`: rows dr0 on of `test/spec/def-call.tsv`, 19 cases
   in each of the three modes, and rows dp33 on of
   `test/spec/def-path.tsv`, two cases, which both engines answer as the

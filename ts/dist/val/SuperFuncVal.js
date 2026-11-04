@@ -99,6 +99,11 @@ function superOf(ctx, v) {
         }
         return v.place((0, top_1.top)());
     }
+    // A call here is one still waiting on a hole, and an unmade call's
+    // parent type is any, whatever its superior() says it would make.
+    if (true === v.isFunc || true === v.isOp) {
+        return v.place((0, top_1.top)());
+    }
     const sup = v.superior();
     if (null != sup && true !== sup.isTop) {
         return sup;
