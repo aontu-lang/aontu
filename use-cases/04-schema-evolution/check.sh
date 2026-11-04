@@ -264,7 +264,10 @@ say "the release history, drawn as a subsumption poset"
 # then draws the cover relation. Seven documents, six nodes: v2 is a
 # true generalisation of v1, v3 is comparable with nothing, and two
 # independently written proposals turn out to make the identical schema
-# change (sketch/VIEWS-ORDER.0.md).
+# change (sketch/VIEWS-ORDER.0.md). narrow-email hangs from v2 by a
+# dashed edge, a pair subsume leaves undecided: it compares the two
+# email patterns as text, and none of the strings it tries is one
+# narrow-email admits and v2 refuses.
 $AONTU view poset --at '$.profile' \
   "$DIR/profile-v1.aontu" "$DIR/profile-v2.aontu" "$DIR/profile-v3.aontu" \
   "$DIR/proposals/narrow-email.aontu" "$DIR/proposals/require-loyalty.aontu" \
