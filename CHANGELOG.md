@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### Both engines measure a figure's text in characters
+
+Both implementations' behaviour now agrees; the TypeScript one changed,
+plus the shared rows and documentation.
+
+- TypeScript measured a label's width in UTF-16 code units and the Go
+  port in code points, so a character past the Basic Multilingual
+  Plane (an emoji, a mathematical letter) counted twice in TypeScript
+  and once in Go. Any figure that pads, aligns or sizes by a label then
+  differed between the ports: the matrix, layer, lane, sets and
+  treemap text figures, and the SVG of every kind that sizes a box or
+  a width by its labels. A long canon in a `doc` figure or an ER column
+  was cut after 29 UTF-16 units, which could split an emoji in two.
+  TypeScript now counts and cuts by code point, as Go and its own
+  sequence grid already did.
+- `test/spec/view.tsv`: 24 `wide-*` rows, each making such a label the
+  widest its figure measures, from both engines agreeing; 19 of them
+  differed between the ports before this change.
+- Docs: the view reference says what a cell holds.
+
 ### `aontu view` draws SVG for every kind
 
 Both implementations, the shared rows, and documentation.

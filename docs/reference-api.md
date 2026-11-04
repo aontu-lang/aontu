@@ -1082,7 +1082,10 @@ no text form of a node-link drawing and no Mermaid form of a matrix.
 
 `--as svg` draws every kind as a standalone SVG: 8 units per character
 and 20 per line, every coordinate a whole number, so no font is
-measured and both ports emit the same bytes. The figure carries its own
+measured and both ports emit the same bytes. A character is one code
+point, in the text figures and the SVG alike, so an emoji is one cell
+wide; a terminal or font that draws it wider pushes the rest of its
+line along. The figure carries its own
 style block (dropped by `--style none`, below); a host page sets the
 colours through CSS variables (`--av-ink`, `--av-muted`, `--av-bg`,
 `--av-rule`, `--av-rule-faint`, `--av-closure`, `--av-warn`,

@@ -188,10 +188,16 @@ function reachOf(nodes, succ) {
     return out;
 }
 // ---------------------------------------------------------------------
-// Text helpers, all on code units, none formatting a number
-const pad = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
-const lpad = (s, n) => ' '.repeat(Math.max(0, n - s.length)) + s;
-const widest = (ss) => ss.reduce((w, s) => Math.max(w, s.length), 0);
+// Text helpers, all on code points, none formatting a number
+// A cell holds one character, so a string's width is its code points:
+// a character past the Basic Multilingual Plane is one cell, though a
+// JavaScript string spells it as a surrogate pair.
+const cpLen = (s) => [...s].length;
+const pad = (s, n) => s + ' '.repeat(Math.max(0, n - cpLen(s)));
+const lpad = (s, n) => ' '.repeat(Math.max(0, n - cpLen(s))) + s;
+const widest = (ss) => ss.reduce((w, s) => Math.max(w, cpLen(s)), 0);
+// The first n characters of a string, by code point.
+const cpCut = (s, n) => [...s].slice(0, n).join('');
 // ---------------------------------------------------------------------
 // Identifiers and escapes (VIEWS.0.md, "The renderers and the profiles")
 function ident(name) {
@@ -338,7 +344,7 @@ function arcSvg(nodes, groups, edges, head, about, style) {
     const x = (t) => right + 16 + t * tw;
     let width = 0 === edges.length ? right + 8 : x(Math.max(...track) + 1);
     for (const h of head) {
-        width = Math.max(width, 4 + h.length * CH);
+        width = Math.max(width, 4 + cpLen(h) * CH);
     }
     const parts = head.map((h, i) => svgText(4, 4 + i * LH + 14, 'av-m', h));
     for (const b of bands) {
@@ -528,7 +534,7 @@ function treeSvg(rows, about, style) {
             ? svgText(x, y + 14, 'av-t', r.text)
             : `<text x="${x}" y="${y + 14}"><tspan class="av-t">${svgEsc(r.text)}` +
                 `</tspan><tspan class="av-m">${svgEsc(r.mark)}</tspan></text>`);
-        width = Math.max(width, x + (r.text.length + r.mark.length) * CH);
+        width = Math.max(width, x + cpLen(r.text + r.mark) * CH);
     });
     return svgDoc(width + PAD, rows.length * LH + PAD, about, parts, style);
 }
@@ -840,7 +846,7 @@ function throughDoc(v) {
 // since the figure is the shape and not the data.
 function docLeaf(v) {
     const canon = throughDoc(v).canon;
-    return 32 < canon.length ? canon.slice(0, 29) + '...' : canon;
+    return 32 < cpLen(canon) ? cpCut(canon, 29) + '...' : canon;
 }
 // A part of a divided document is anchored below `at` by its chain of
 // keys, walked as keys rather than re-read as a path, and keeps `only`
@@ -1250,7 +1256,7 @@ function erColumns(root, node, field, unplaced) {
             ? key : 'q_' + spell(key, /[A-Za-z0-9]/);
         const note = name !== key ? key
             : fk || type === canon || true === v.isMap || true === v.isList
-                ? '' : 32 < canon.length ? canon.slice(0, 29) + '...' : canon;
+                ? '' : 32 < cpLen(canon) ? cpCut(canon, 29) + '...' : canon;
         return `${type} ${name}` + (fk ? ' FK' : '') +
             ('' === note ? '' : ` "${esc(note)}"`);
     });
@@ -1581,7 +1587,7 @@ function drawLayer(triples, root, o, max, loss) {
             const bare = pad(bands[i].name, w) + '  ' +
                 bands[i].nodes.map((n) => n.label).join('  ');
             out.push(paint('rule', '|') + ' ' + row +
-                ' '.repeat(inner - bare.length) + ' ' + paint('rule', '|'), rule);
+                ' '.repeat(inner - cpLen(bare)) + ' ' + paint('rule', '|'), rule);
         });
         // The first footer line counts; the rest name one edge each, and
         // an upward edge is the violation the bands cannot show.
@@ -1616,14 +1622,14 @@ function layerSvg(bands, shown, footer, about, style) {
     bands.forEach((b, i) => {
         let x = gutter;
         for (const n of b.nodes) {
-            const w = n.label.length * CH + 12;
+            const w = cpLen(n.label) * CH + 12;
             box.set(n.path, { x, y: 4 + i * BH + 10, w });
             x += w + 10;
         }
         width = Math.max(width, x - 10);
     });
     for (const f of footer) {
-        width = Math.max(width, 4 + f.length * CH);
+        width = Math.max(width, 4 + cpLen(f) * CH);
     }
     width += PAD;
     const parts = [];
@@ -1772,7 +1778,7 @@ function panelSvg(p, about, style) {
     lines.forEach((l, i) => {
         parts.push(svgText(4, yI + i * LH + 14, 'av-t', l));
     });
-    const width = Math.max(gx + p.cols.length * 20, gx + (p.bars ? most * 10 + 8 : 0) + 3 * CH, 4 + widest(lines) * CH, 4 + p.header.length * CH) + PAD;
+    const width = Math.max(gx + p.cols.length * 20, gx + (p.bars ? most * 10 + 8 : 0) + 3 * CH, 4 + widest(lines) * CH, 4 + cpLen(p.header) * CH) + PAD;
     return svgDoc(width, yI + lines.length * LH + PAD, about, parts, style);
 }
 // The panel, or with a budget its pages of at most that many columns,
@@ -2357,7 +2363,7 @@ function drawLane(triples, root, o, max, loss) {
     // One row per lane and one column per step, so each step is alone in
     // its column and the grid needs no placement beyond the flow order.
     const w = widest(lanes.map((l) => l.title));
-    const cols = steps.map((p, i) => Math.max(node(p).label.length, String(i + 1).length));
+    const cols = steps.map((p, i) => Math.max(cpLen(node(p).label), String(i + 1).length));
     const back = drawn.filter((e) => at.get(e.to) <= at.get(e.from));
     const footer = [`# ${drawn.length} edges, ${across.length} across lanes, ` +
             `${back.length} back`];
@@ -2404,7 +2410,7 @@ function laneSvg(titles, steps, cols, edges, footer, about, style) {
     const yf = below + (0 === far.length ? 0 : 12 * Math.max(...track) + 20);
     let width = x - 24;
     for (const f of footer) {
-        width = Math.max(width, 4 + f.length * CH);
+        width = Math.max(width, 4 + cpLen(f) * CH);
     }
     const parts = cols.map((_c, i) => svgText(xs[i] + 6, 18, 'av-m', String(i + 1)));
     titles.forEach((t, li) => {
@@ -2527,14 +2533,13 @@ function drawSequence(list, o, max, loss) {
     }
     return joinParts(o.as, parts);
 }
-const seqLen = (s) => [...s].length;
 // THE LIFELINE GRID. Lifeline i sits at column x[i]; each gap is wide
 // enough for the name above it and for every message spanning it, the
 // shortfall of a span going to its last gap, so the counts alone set
 // the columns.
 function lifelines(names, msgs) {
     const n = names.length;
-    const len = seqLen;
+    const len = cpLen;
     const gap = names.map((s) => Math.max(len(s) + 2, 3));
     const x = () => {
         const xs = [0];
@@ -2567,7 +2572,7 @@ function sequenceText(names, msgs) {
     if (0 === names.length) {
         return '';
     }
-    const len = seqLen;
+    const len = cpLen;
     const { xs, width } = lifelines(names, msgs);
     const blank = () => {
         const row = Array(width).fill(' ');
@@ -2633,7 +2638,7 @@ function sequenceSvg(names, msgs, about, style) {
             parts.push(svgText(Math.min(cx(m.a), cx(m.b)) + 12, y + 11, 'av-t', m.text));
         }
         if (m.a === m.b) {
-            const loop = cx(m.a) + (3 + ('' === m.text ? 0 : seqLen(m.text) + 2)) * CH;
+            const loop = cx(m.a) + (3 + ('' === m.text ? 0 : cpLen(m.text) + 2)) * CH;
             parts.push(svgArrow(`M${cx(m.a)} ${y + 15}H${loop}V${y + LH + 15}` +
                 `H${cx(m.a)}`, false));
             y += 2 * LH;
@@ -2796,7 +2801,7 @@ function treemapFigure(top, at, o, max, wrap) {
         text: rows.map((r) => {
             const bar = barOf(r.weight);
             return paint('rule', r.prefix) + r.name +
-                ' '.repeat(w - (r.prefix + r.name).length) + '  ' +
+                ' '.repeat(w - cpLen(r.prefix + r.name)) + '  ' +
                 lpad(String(r.weight), nw) + '  ' + paint('bar', '█'.repeat(bar));
         }).join('\n'),
     };
@@ -2805,7 +2810,7 @@ function treemapFigure(top, at, o, max, wrap) {
 // a bar of whole cells.
 function treemapSvg(rows, about, style) {
     const U = 24;
-    const end = Math.max(...rows.map((r) => r.depth * U + 4 + r.name.length * CH));
+    const end = Math.max(...rows.map((r) => r.depth * U + 4 + cpLen(r.name) * CH));
     const wx = end + 16 + widest(rows.map((r) => String(r.weight))) * CH;
     const parts = [];
     rows.forEach((r, i) => {
