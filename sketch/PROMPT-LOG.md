@@ -503,6 +503,22 @@ agent-info is intended to be a reference for standard repo guide files and scrip
 merge
 ```
 
+## 2026-11-03 18:33:09 UTC · Claude Code · session_0167vhgTbLmpfdkz53WKQi37
+
+```text
+is aontu view able to optionally generate all diagrams in svg format?
+```
+
+## 2026-11-03 18:55:25 UTC · Claude Code · session_0167vhgTbLmpfdkz53WKQi37
+
+```text
+do both 1 and 2; add svg export support to all diagrams
+```
+
+## 2026-11-04 09:56:36 UTC · Claude Code · session_0167vhgTbLmpfdkz53WKQi37
+
+```text
+open a PR and fix the emoji width bug
 ## 2026-10-23 10:43:50 UTC · Claude Code · session_016yMzMBxz57NmgRx74LKLFg
 
 ```text
@@ -555,6 +571,10 @@ does the repo mention using diataxis for the documentation, BUT ensuring NOT to 
 Merge
 ```
 
+## 2026-11-04 15:40:33 UTC · Claude Code · session_0167vhgTbLmpfdkz53WKQi37
+
+```text
+merge it
 ## 2026-11-04 10:29:02 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 The answers to the agent's questions, each question followed by the option chosen or the answer typed:
@@ -586,4 +606,25 @@ consolidate the advice of the articles, using the report analysis as a structure
 
 ```text
 the source of the guides is not relevant - the style-guide needs to be compact and terse, focused only on writing, not background or history about the guide itself
+```
+
+## 2026-11-04 12:22:19 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+aontu#600 (both engines refuse a grammar whose numeric value has a digit wrong for its base, closing #597) and its web sync are merged. The grammar issues are clear. Which should I take up next?
+→ #594 + #595: investigate (Recommended)
+```
+
+## 2026-11-04 15:36:04 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#594 (rel(t) against a list) turns out to be no divergence. I measured it with the path-free verdict, which never declares rel's kind, so rel's name stayed unresolved and the definition answered incomplete. With the path-aware verdict, which rel's own shared rows use, the definition agrees with both engines on every case: invalid against "x", 3, [1] and ["a"], valid against [], incomplete with no data. What should happen to #594?
+→ Close it, add rows (Recommended)
+
+#595: in super([upper(_)]), the hole is inside super's list, so no peer ever fills it and upper(_) is never made. super(upper("a")), super(upper(_)) and super([_]) already agree everywhere; only this case differs. Which reading should both engines and the definition share?
+→ Unmade call reads as any (Recommended)
 ```

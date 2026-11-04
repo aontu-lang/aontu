@@ -53,6 +53,25 @@ func viewStyleOf(style, as string) string {
 	return "none"
 }
 
+// viewStyleRefusal: each style is one profile's mechanism, and `none`
+// is every profile's.
+func viewStyleRefusal(given, as string) *VetFinding {
+	style := viewStyleOf(given, as)
+	carrier, mechanism := viewStyleCarrier[style]
+	if mechanism && carrier != as {
+		f := viewFinding("view_style_profile", "reference", "$",
+			"The "+as+" profile cannot carry --style "+style+".",
+			style+" is the "+carrier+" profile's mechanism")
+		return &f
+	}
+	if !mechanism && "none" != style {
+		f := viewFinding("view_style_unknown", "reference", "$",
+			style+" is not a style.", "styles: auto, none, ansi, css")
+		return &f
+	}
+	return nil
+}
+
 func ViewDefaultProfile(kind string) string {
 	if ps, ok := viewProfiles[kind]; ok && 0 < len(ps) {
 		return ps[0]

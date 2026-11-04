@@ -400,6 +400,11 @@ emitted text is doubled in the cell because the escape pass runs first
 - **No SVG for the poset or the ladder.** The bounds panel gets
   geometry because its geometry has a closed form over a canonical
   sort, and for no other reason.
+
+  *Status: amended by ADR-078 (2026-11-03). The poset draws SVG with
+  no x to choose: its classes in a column, ranked by the longest chain
+  of covers below them so every cover runs up, and each edge a bracket
+  on a track. The ladder is a column. Still no layout search.*
 - **No Euler or Venn generation** — every generator is an iterative
   optimiser, and the question aontu has is above the family's
   scalability ceiling. VIEWS.0.md's intersection matrix answers it.

@@ -81,10 +81,8 @@ wants.
 
 ## Get an SVG for a web page
 
-The kinds whose text form is a grid of character cells (`tree`,
-`matrix`, `layer`, `sets` and `layers`) also render as a standalone
-SVG that carries its own style block and takes its colours from CSS
-variables, so a page can theme it:
+Every kind also renders as a standalone SVG that carries its own style
+block and takes its colours from CSS variables, so a page can theme it:
 
 <!-- test: run -->
 ```sh
@@ -93,8 +91,19 @@ $ echo $?
 0
 ```
 
-The node-link kinds (`graph`, `ladder`, `poset`) render as Mermaid or
-DOT, which have renderers of their own.
+The node-link kinds draw one box per node on a row of its own and each
+edge on a track to the right, with no renderer of your own to install.
+The services as a graph, one band per tier:
+
+<!-- test: run -->
+```sh
+$ aontu view graph --relation dependsOn --group-by tier --as svg --out graph.svg system.aontu
+$ echo $?
+0
+```
+
+Both are the same bytes from the TypeScript and the Go CLI, so a
+committed SVG is gated like any other figure.
 
 ## Gate the figures in CI
 
@@ -119,7 +128,10 @@ without the dashes) and `@"aontu:view"` is the schema for one, so a
 misspelled option or a kind that is not a kind is refused when the
 document is evaluated.
 
-Draw them all from one evaluation, then gate them:
+Draw them all from one evaluation, then gate them. A declaration holds
+every option of its figure, so an option that shapes one figure is
+refused beside `--views`; `--style` is the exception, and applies to
+every figure:
 
 <!-- test: run -->
 ```sh

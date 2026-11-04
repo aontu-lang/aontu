@@ -353,16 +353,18 @@ View options:
   --as <profile>    text | mermaid | dot | er | svg, per kind: doc,
                     lattice, tree, matrix, sets and layers draw text
                     (default) or svg; graph draws mermaid (default),
-                    dot or er; layer draws text (default), mermaid or
-                    svg; ladder and poset draw mermaid (default) or dot;
-                    state, sequence, lane and treemap draw mermaid
-                    (default) or text
+                    dot, er or svg; layer draws text (default), mermaid
+                    or svg; ladder and poset draw mermaid (default), dot
+                    or svg; state, sequence, lane and treemap draw
+                    mermaid (default), text or svg
   --at <path>       Restrict the figure to nodes under this path; the
                     subtree doc draws; the subtree the lattice counts;
                     the path the ladder draws; where the poset compares
   --views <path>    Draw every figure the document declares at this
                     path, one evaluation, all or nothing; each
-                    declaration names its own kind and out file
+                    declaration names its own kind, out file and every
+                    other option of its figure, and --style is the
+                    set's
   -o, --out <file>  Write the figure here instead of stdout
   --check           Exit 1 if --out differs from what would be drawn;
                     nothing is written
@@ -3050,6 +3052,9 @@ function runView(argv) {
     // The style ASKED FOR, which may be `auto` -- a word ViewStyle does
     // not have, because resolving it is the CLI's job.
     let style = undefined;
+    // The first option that shapes one figure, which a view document
+    // refuses: its declarations shape their own.
+    let figureFlag = undefined;
     // A flag that takes a value, read into `opts` by name.
     const valued = {
         '--as': 'as', '--at': 'at', '--order': 'order', '--group-by': 'groupBy',
@@ -3089,6 +3094,7 @@ function runView(argv) {
                 return 2;
             }
             relations.push(relation);
+            figureFlag ??= arg;
         }
         else if ('--root' === arg) {
             const root = argv[++i];
@@ -3097,6 +3103,7 @@ function runView(argv) {
                 return 2;
             }
             roots.push(root);
+            figureFlag ??= arg;
         }
         else if ('-o' === arg || '--out' === arg) {
             out = argv[++i];
@@ -3104,6 +3111,7 @@ function runView(argv) {
                 process.stderr.write('aontu: --out needs a file\n');
                 return 2;
             }
+            figureFlag ??= '--out';
         }
         else if ('--style' === arg) {
             style = argv[++i];
@@ -3120,6 +3128,7 @@ function runView(argv) {
         }
         else if (undefined !== flagged[arg]) {
             opts[flagged[arg]] = true;
+            figureFlag ??= arg;
         }
         else if ('--layers' === arg) {
             const v = argv[++i];
@@ -3128,6 +3137,7 @@ function runView(argv) {
                 return 2;
             }
             opts.layers = v.split(',');
+            figureFlag ??= arg;
         }
         else if (undefined !== valued[arg]) {
             const v = argv[++i];
@@ -3136,6 +3146,9 @@ function runView(argv) {
                 return 2;
             }
             opts[valued[arg]] = v;
+            if ('--views' !== arg) {
+                figureFlag ??= arg;
+            }
         }
         else if (undefined !== counted[arg]) {
             const v = argv[++i];
@@ -3144,6 +3157,7 @@ function runView(argv) {
                 return 2;
             }
             opts[counted[arg]] = parseInt(v, 10);
+            figureFlag ??= arg;
         }
         else if (arg.startsWith('-')) {
             process.stderr.write(`aontu: unknown view option ${arg} (try --help)\n`);
@@ -3161,7 +3175,7 @@ function runView(argv) {
     // names no kind: the declarations do, one each.
     if (undefined !== opts.views) {
         opts.style = viewStyleOf(style, undefined);
-        return runViewSet(rest, opts, trust, { format, check, strict, out });
+        return runViewSet(rest, opts, trust, { format, check, strict, flag: figureFlag });
     }
     if (2 > rest.length) {
         process.stderr.write(`aontu: view needs a kind and a file\n${VIEW_HELP}\n`);
@@ -3276,8 +3290,9 @@ function runViewSet(rest, opts, trust, how) {
         process.stderr.write('aontu: view --views takes one file\n');
         return 2;
     }
-    if (undefined !== how.out) {
-        process.stderr.write('aontu: --out is per figure in a view document; each declares its own\n');
+    if (undefined !== how.flag) {
+        process.stderr.write(`aontu: ${how.flag} is per figure in a view ` +
+            'document; each declares its own\n');
         return 2;
     }
     const file = rest[0];
