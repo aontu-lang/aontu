@@ -8,6 +8,17 @@ each change affects.
 
 ## Unreleased
 
+### The coverage gate reports while it runs
+
+TypeScript tooling only. `ts/test/covrun.js` printed nothing while it
+ran the suite under coverage, and printed the gaps only after its third
+pass. The daily's coverage job stops at thirty minutes, and since
+Oct 21 every run has reached that limit before the third pass ended,
+so two weeks of runs named no TypeScript gap. The driver now prints a
+status line every twenty seconds with the tests done, prints the gaps
+after every pass that comes up short, and prints the failed tests when
+the suite fails.
+
 ### A default a spread's template narrows keeps the template's bound
 
 TypeScript and Go, and shared rows.

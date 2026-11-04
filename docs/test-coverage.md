@@ -97,6 +97,14 @@ counts:
   The spawned-binary cases in `cli.test.ts` also no longer pass
   `NODE_V8_COVERAGE` to their children: those assert the packaged
   binary's behaviour, while the same paths are measured in-process.
+- **The run reports while it runs.** A pass under coverage takes many
+  minutes, so `covrun.js` adds a second reporter, `dot`, and counts
+  the tests as they finish. Every twenty seconds it prints the pass,
+  the time so far and the tests done, from the second pass on as a
+  share of the first pass's count. A pass that comes up short prints
+  its gaps before the next one starts, so a job cut off at its time
+  limit still names them. A suite that fails prints the tests that
+  failed.
 - **What the union keys on decides whether it can hide a gap.** A line
   number identifies a line, so line counts union safely, and a gap in
   code no test exercises is short in every run. A branch arm's block

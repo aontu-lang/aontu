@@ -40,21 +40,41 @@
 // rows written together to cover isHexDigit (src/val/ConstraintVal.ts)
 // left an arm of it untaken in one run, and test/covcheck.js rightly
 // lets no run that reports fewer arms at that line vouch for it.
+//
+// A PASS REPORTS WHILE IT RUNS. A second reporter, dot, counts the
+// tests as they finish, and every pass that comes up short prints its
+// gaps: the daily's job is cut off at its time limit, and a pass that
+// printed nothing then leaves nothing to fix.
 
-const { spawnSync } = require('node:child_process')
+const { spawn, spawnSync } = require('node:child_process')
 const Fs = require('node:fs')
 const Os = require('node:os')
 const Path = require('node:path')
 
 const MAX_RUNS = 3
+const BEAT_MS = 20000
 
 const tsDir = Path.join(__dirname, '..')
 const covDir = Path.join(tsDir, 'coverage')
 
 
-function runSuite(n) {
+function clock(ms) {
+  const s = Math.round(ms / 1000)
+  return `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`
+}
+
+
+function progress(done, expected) {
+  return null == expected
+    ? `${done} tests done`
+    : `${done}/${expected} tests, ${Math.min(99, Math.floor(100 * done / expected))}%`
+}
+
+
+function runSuite(n, expected) {
   const out = Path.join(covDir, `lcov-${n}.info`)
-  const res = spawnSync(process.execPath, [
+  const start = Date.now()
+  const child = spawn(process.execPath, [
     '--enable-source-maps',
     '--experimental-test-coverage',
     '--test-coverage-exclude=dist-test/**',
@@ -63,49 +83,76 @@ function runSuite(n) {
     `--test-concurrency=${Os.availableParallelism()}`,
     '--test-reporter=lcov',
     `--test-reporter-destination=${out}`,
+    '--test-reporter=dot',
+    '--test-reporter-destination=stdout',
     '--test',
     'dist-test/**/*.test.js',
   ], {
     cwd: tsDir,
-    stdio: ['ignore', 'ignore', 'inherit'],
+    stdio: ['ignore', 'pipe', 'inherit'],
     env: { ...process.env, AONTU_SPEC_SHARES: '1' },
   })
 
-  if (0 !== res.status) {
-    process.stderr.write(`covrun: the suite failed (exit ${res.status})\n`)
-    process.exit(res.status ?? 1)
-  }
-  return out
+  let done = 0
+  let text = ''
+  child.stdout.setEncoding('utf8')
+  child.stdout.on('data', (chunk) => {
+    text += chunk
+    for (const ch of chunk) {
+      if ('.' === ch || 'X' === ch) done++
+    }
+  })
+
+  const beat = setInterval(() => process.stdout.write(
+    `covrun: pass ${n}/${MAX_RUNS}, ${clock(Date.now() - start)}, ` +
+    `${progress(done, expected)}\n`), BEAT_MS)
+
+  return new Promise((resolve) => child.on('close', (status) => {
+    clearInterval(beat)
+    if (0 !== status) {
+      process.stdout.write(text.split('\n')
+        .filter((line) => !/^[.X]*$/.test(line)).join('\n') + '\n')
+      process.stderr.write(`covrun: the suite failed (exit ${status})\n`)
+      process.exit(status ?? 1)
+    }
+    process.stdout.write(`covrun: pass ${n} ran ${done} tests ` +
+      `in ${clock(Date.now() - start)}\n`)
+    resolve({ out, done })
+  }))
 }
 
 
-function check(reports, quiet) {
+function check(reports) {
   const res = spawnSync(process.execPath,
     [Path.join(__dirname, 'covcheck.js'), ...reports],
-    { cwd: tsDir, stdio: quiet ? ['ignore', 'pipe', 'pipe'] : 'inherit' })
+    { cwd: tsDir, stdio: 'inherit' })
   return 0 === res.status
 }
 
 
-function main() {
+async function main() {
   Fs.mkdirSync(covDir, { recursive: true })
   const reports = []
+  let expected
 
   for (let n = 1; n <= MAX_RUNS; n++) {
-    reports.push(runSuite(n))
-    const last = n === MAX_RUNS
-    if (check(reports, !last)) {
+    const run = await runSuite(n, expected)
+    expected = expected ?? run.done
+    reports.push(run.out)
+
+    if (check(reports)) {
       if (1 < n) {
         process.stdout.write(`covrun: reached 100% after ${n} runs ` +
           '(the runner dropped observations in an earlier one)\n')
       }
-      check(reports, false)
       return
     }
-    if (last) {
-      process.exit(1)
+    if (n < MAX_RUNS) {
+      process.stdout.write(`covrun: the union of ${n} pass(es) is short; ` +
+        'running again, as the runner can drop observations\n')
     }
   }
+  process.exit(1)
 }
 
 
