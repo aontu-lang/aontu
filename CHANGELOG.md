@@ -8,7 +8,7 @@ each change affects.
 
 ## Unreleased
 
-### Five more of Go's coverage gaps close
+### Six more of Go's coverage gaps close
 
 Go only, and shared rows.
 
@@ -20,6 +20,9 @@ Go only, and shared rows.
   which reaches Go's reading of a residual that met `string`.
 - A Go unit test: a call's parent type and a `+`'s are `any`. `super`
   stopped asking either once it read an unmade call as `any` (#595).
+- Two rows of `test/spec/place.tsv`: a group whose own meet fails,
+  `(_ & 1 & 2)`, is refused `scalar_value` on either side of the meet
+  around it, which reaches Go's refusal of a group as it settles.
 
 ### Go's walk for a held hole is covered under a choice
 

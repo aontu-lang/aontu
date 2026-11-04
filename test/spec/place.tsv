@@ -243,7 +243,8 @@ place-plus-join-spread-hole	gens	v:([&: upper(_), "a"] + ["b"])\n	{"v":["A","b"]
 # call it meets takes the group's value: a hole met with a literal, a
 # call its own other side fills, beside a literal, as a map's member and
 # a list's element, and over a number. A literal the call's output
-# conflicts with is refused.
+# conflicts with is refused, and so is a group whose own meet fails, on
+# either side.
 place-group-fills-own	gens	v:upper(_) & (_ & "A")\n	{"v":"A"}
 place-group-fills-own-literal	gens	v:"A" & (upper(_) & (_ & "A"))\n	{"v":"A"}
 place-group-fills-own-call	gens	v:upper(_) & (upper(_) & "a")\n	{"v":"A"}
@@ -251,3 +252,5 @@ place-group-fills-own-member	gens	v:{a:upper(_) & (_ & "A")}\n	{"v":{"a":"A"}}
 place-group-fills-own-element	gens	v:[upper(_) & (_ & "A")]\n	{"v":["A"]}
 place-group-fills-own-number	gens	v:add(_,1) & (_ & 2)\n	{"v":3}
 place-group-fills-own-conflict	errc	v:upper(_) & (_ & "A") & "a"\n	scalar_value
+place-group-own-refused	errc	v:(_ & 1 & 2) & 3\n	scalar_value
+place-group-own-refused-right	errc	v:3 & (_ & 1 & 2)\n	scalar_value
