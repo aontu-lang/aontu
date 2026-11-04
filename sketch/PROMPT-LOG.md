@@ -584,6 +584,30 @@ aontu#598 (parse now matches an ABNF numeric value such as %x78 exactly, in both
 → #597, malformed digits (Recommended)
 ```
 
+## 2026-11-04 12:21:11 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
+
+```text
+analyse the technical writing resources listed here: https://technicalwriterhq.co/10-technical-writer-style-guide-examples-to-improve-content-quality-a10e0747c7a4 - catalogue the techniques and advice into a set of buckets and report on their frequency
+```
+
+## 2026-11-04 13:34:19 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
+
+```text
+generate a report here for this session
+```
+
+## 2026-11-04 15:32:44 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
+
+```text
+consolidate the advice of the articles, using the report analysis as a structure, into a set of writing advice, and add them to the style guide
+```
+
+## 2026-11-04 16:07:45 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
+
+```text
+the source of the guides is not relevant - the style-guide needs to be compact and terse, focused only on writing, not background or history about the guide itself
+```
+
 ## 2026-11-04 12:22:19 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 The answers to the agent's questions, each question followed by the option chosen or the answer typed:
@@ -603,4 +627,10 @@ The answers to the agent's questions, each question followed by the option chose
 
 #595: in super([upper(_)]), the hole is inside super's list, so no peer ever fills it and upper(_) is never made. super(upper("a")), super(upper(_)) and super([_]) already agree everywhere; only this case differs. Which reading should both engines and the definition share?
 → Unmade call reads as any (Recommended)
+```
+
+## 2026-11-04 16:45:18 UTC · Claude Code · session_01D35vdaNPZq319H6qEPLqvq
+
+```text
+push and merge
 ```
