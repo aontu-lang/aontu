@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### `filter` and `match` admit a value that leaves out an optional member
+
+Both engines, and shared rows.
+
+- `filter` keeps a member, and `match` takes a pattern, where the meet
+  with the condition adds nothing. Both engines counted a condition's
+  optional member whose value generates, such as `c?: 3`, as a member
+  the meet added, so `filter([{}], {c?: 3})` kept nothing and
+  `match({}, {c?: 3}, 1, 2)` was `2`. A member the condition makes
+  optional, which the value leaves out, is now no member, as the
+  definition reads a map's optional keys. `emit`'s dispatch, where the
+  meet must narrow nothing, is as it was. Fixes #638.
+- 24 `verdict` rows from the definition, x2298 on in
+  `test/spec/def-call.tsv`.
+
 ### A trial, `filter` and `match` admit what one arm admits
 
 Both engines, and shared rows.

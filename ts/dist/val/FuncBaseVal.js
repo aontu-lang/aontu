@@ -16,29 +16,35 @@ const PlaceVal_1 = require("../val/PlaceVal");
 const members_1 = require("./members");
 // Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
 // not raw keys, so an unfilled optional is not something to add.
-function sameKids(a, b, ctx, arms) {
-    if (arms && true === b?.isDisjunct && true !== a?.isDisjunct && Array.isArray(b.peg)) {
-        return b.peg.some((arm) => sameKids(a, true === arm?.isPref ? arm.peg : arm, ctx, arms));
+function sameKids(a, b, ctx, admit) {
+    if (admit && true === b?.isDisjunct && true !== a?.isDisjunct && Array.isArray(b.peg)) {
+        return b.peg.some((arm) => sameKids(a, true === arm?.isPref ? arm.peg : arm, ctx, admit));
     }
     if (true === a?.isMap || true === a?.isList) {
         const am = (0, members_1.bagMembers)(a, ctx);
-        const bm = (0, members_1.bagMembers)(b, ctx);
-        if (null == am || null == bm || am.length !== bm.length) {
+        let bm = (0, members_1.bagMembers)(b, ctx);
+        if (null == am || null == bm) {
+            return false;
+        }
+        if (admit && true === b.isMap) {
+            bm = bm.filter((m) => !b.optionalKeys.includes(m.key) || am.some((n) => n.key === m.key));
+        }
+        if (am.length !== bm.length) {
             return false;
         }
         const peers = new Map(bm.map((m) => [m.key, m.val]));
-        return am.every((m) => peers.has(m.key) && sameKids(m.val, peers.get(m.key), ctx, arms));
+        return am.every((m) => peers.has(m.key) && sameKids(m.val, peers.get(m.key), ctx, admit));
     }
     return a?.canon === b?.canon;
 }
 // A pref-free disjunction is several values at once: any match counts.
-// A condition that admits reads the meet's disjunction by any arm.
-function sameMembers(a, b, ctx, arms = false) {
+// Admitting, it reads the meet by arm, and an optional member the value lacks as none.
+function sameMembers(a, b, ctx, admit = false) {
     if (true === a?.isDisjunct && Array.isArray(a.peg) &&
         !a.peg.some((m) => true === m?.isPref)) {
         return true;
     }
-    return sameKids(a, b, ctx, arms);
+    return sameKids(a, b, ctx, admit);
 }
 function trialUnify(ctx, a, b) {
     const savedErr = ctx.err;

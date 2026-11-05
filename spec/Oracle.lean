@@ -5827,6 +5827,31 @@ def armCallCases : List (Val × Data) :=
     (.filter (lst [mp [("b", int 2)]]) (.or [(1, b1), (0, mp [("a", mp [])])]), .list []),
     (.select (mp [("b", int 2)]) [(.or [(1, b1), (0, mp [("c", int 1)])], int 1)] (some (int 2)), j 2)]
 
+/-- `filter` and `match` over a condition with an optional member, which
+admits a value that leaves the member out, as a map admits a value
+without its optional keys, for the `verdict` rows from x2298 on: the
+member's value a literal and a kind, beside a required member, under a
+key, over a map's member, and a value that holds the member, which the
+condition admits and refuses (#638). Each `filter` is met with the size
+it answers, beside data with no member, so the filter alone supplies
+what it keeps: data that holds the member would supply it to an open
+container. -/
+def optCallCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let c3 : Val := .map [("c", true, int 3)] none false
+  let sized (f : Val) (n : Val := int 1) : Val := .meet f (.len n)
+  [(sized (.filter (lst [mp []]) c3), .list []), (.select (mp []) [(c3, int 1)] (some (int 2)), j 1),
+    (sized (.filter (lst [mp []]) (.map [("c", true, .integer)] none false)), .list []),
+    (sized (.filter (lst [mp [("b", int 1)]]) (.map [("b", false, int 1), ("c", true, int 3)] none false)),
+      .list []),
+    (sized (.filter (lst [mp [("a", mp [])]]) (mp [("a", c3)])), .list []),
+    (sized (.filter (mp [("k", mp [])]) c3), .map []),
+    (sized (.filter (lst [mp [("c", int 3)]]) c3), .list []),
+    (sized (.filter (lst [mp [("c", int 4)]]) c3) (int 0), .list [])]
+
 /-! ## Variables
 
 A variable is a name the calling program declares. Both runners bind the
@@ -6529,7 +6554,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# call the schema can't build, an error wherever it stands, from row x2238. An"
     IO.println "# each whose instances carry a mark of their own, which a list holds no position"
     IO.println "# for, follows from row x2253, and filter and match over a disjunction, which"
-    IO.println "# admits what any arm admits, whatever its rank, from row x2271. A"
+    IO.println "# admits what any arm admits, whatever its rank, from row x2271, and over a"
+    IO.println "# condition with an optional member, which admits a value that leaves the"
+    IO.println "# member out, from row x2298. A"
     IO.println "# call on a name follows in rows z0 on, and a call handed a pattern, re(p), in"
     IO.println "# rows v0 on. path handed a string follows in rows k0 on: its text converted to"
     IO.println "# an address, text with no start read from one dot, and refused where it spells"
@@ -6556,7 +6583,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
-        heldFailCases ++ markedEachCases ++ armCallCases ++ pathCallCases ++ heldHoleCases ++ readThroughCases do
+        heldFailCases ++ markedEachCases ++ armCallCases ++ optCallCases ++ pathCallCases ++ heldHoleCases ++
+        readThroughCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -6569,7 +6597,7 @@ def main (args : List String) : IO UInt32 := do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
       projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
-      heldFailCases ++ markedEachCases ++ armCallCases)
+      heldFailCases ++ markedEachCases ++ armCallCases ++ optCallCases)
     verdictRows "et" emitCases
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases

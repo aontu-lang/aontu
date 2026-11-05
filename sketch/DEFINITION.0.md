@@ -1667,10 +1667,12 @@ until the phase that encodes it lands.
    both ports and the definition read it (`emitTakes`), so a `match`
    whose arms differ takes no node. Rows ta0 on, 13 cases in each mode,
    and x2271 on, 7 cases in each mode, both ports answering every row as
-   the definition does. Two shapes still part the ports from the
-   definition: a preference arm over a map or a list falls back to its
-   parent type (#637), and `filter` and `match` count a condition's
-   optional member as one the meet adds (#638).
+   the definition does. Two shapes parted the ports from the definition
+   after it, and both closed the same day: a preference arm over a map
+   or a list fell back to its parent type (#637, in #640), and `filter`
+   and `match` counted a condition's optional member, which the value
+   leaves out, as one the meet adds (#638). Rows x2298 on, 8 cases in
+   each mode, hold the second.
 
 ## 8. Risks
 
