@@ -318,6 +318,13 @@ function residuePaths(v: Val, max: number): string[] {
 }
 
 
+function recordFlow(ctx: AontuContext, key: string, flow: Val): void {
+  const flows: Map<string, Val> = (ctx as any).referflows ?? new Map<string, Val>()
+  const prev = flows.get(key)
+  flows.set(key, null == prev ? flow : unite(ctx, prev, flow, 'refer-flow-record'))
+}
+
+
 function applyFlows(ctx: AontuContext, root: Val): Val {
   const flows: Map<string, Val> | undefined = (ctx as any).referflows
   // NOTHING TO APPLY is the common case -- a document with no links
@@ -467,6 +474,7 @@ export {
   unite,
   meetTemplate,
   withDepth,
+  recordFlow,
   applyFlows,
   ride,
   rideOn,

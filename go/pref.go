@@ -117,7 +117,16 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 
 			inner := prefInnerPeg(p)
-			if met := trialUnify(ctx, clonePath(inner, cp(p.path)), peer); nil != met {
+			// The value's flows reach their targets only if the value stands.
+			saved := ctx.referflows
+			staged := map[string]Val{}
+			ctx.referflows = staged
+			met := trialUnify(ctx, clonePath(inner, cp(p.path)), peer)
+			ctx.referflows = saved
+			if nil != met {
+				for guard, flow := range staged {
+					recordFlow(ctx, guard, flow)
+				}
 				// A peer that empties the override space leaves the preference standing.
 				gate := trialUnify(ctx, clonePath(p.superpeg, cp(p.path)), peer)
 				if nil == gate {

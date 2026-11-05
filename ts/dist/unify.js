@@ -2,6 +2,7 @@
 /* Copyright (c) 2021-2023 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.withDepth = exports.meetTemplate = exports.unite = exports.Unify = void 0;
+exports.recordFlow = recordFlow;
 exports.applyFlows = applyFlows;
 exports.ride = ride;
 exports.rideOn = rideOn;
@@ -273,6 +274,11 @@ function residuePaths(v, max) {
     };
     visit(v, true);
     return out;
+}
+function recordFlow(ctx, key, flow) {
+    const flows = ctx.referflows ?? new Map();
+    const prev = flows.get(key);
+    flows.set(key, null == prev ? flow : unite(ctx, prev, flow, 'refer-flow-record'));
 }
 function applyFlows(ctx, root) {
     const flows = ctx.referflows;

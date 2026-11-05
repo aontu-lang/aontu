@@ -329,14 +329,7 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 			walkMark(flow, true, false, true, false)
 		}
 
-		if nil == ctx.referflows {
-			ctx.referflows = map[string]Val{}
-		}
-		if prev, seen := ctx.referflows[guard]; seen {
-			ctx.referflows[guard] = unite(ctx, prev, flow)
-		} else {
-			ctx.referflows[guard] = flow
-		}
+		recordFlow(ctx, guard, flow)
 
 		if !ctx.referflow[guard] {
 			if bad := func() Val {
@@ -374,6 +367,17 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 		return out
 	}
 	return unite(ctx, out, r.held)
+}
+
+func recordFlow(ctx *Ctx, guard string, flow Val) {
+	if nil == ctx.referflows {
+		ctx.referflows = map[string]Val{}
+	}
+	if prev, seen := ctx.referflows[guard]; seen {
+		ctx.referflows[guard] = unite(ctx, prev, flow)
+	} else {
+		ctx.referflows[guard] = flow
+	}
 }
 
 type RelVal struct {
