@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### A reference inside a preference resolves when its map meets another map
+
+Both engines, and shared rows.
+
+- Both engines marked every preference done once it had met anything,
+  and a map doesn't revisit a member that is done. So where the map
+  holding a preference met another map, a reference in the
+  preference's value that couldn't resolve on the first pass never
+  did: `{x: *{k: $.y}, y: 1} & {}` failed with `ref` at `$.x.k`, and
+  `vet` meets every schema with its data, so a default holding a
+  reference failed there too. A preference whose value still waits now
+  stays open for the next pass, until the settling pass freezes it as
+  before, so a reference that never resolves reports as it did. Fixes
+  #643.
+- 9 `verdict` rows from the definition, p201 on in
+  `test/spec/def-path.tsv`.
+
 ### A preference sends its own links only where its value stands
 
 Both engines, and shared rows.

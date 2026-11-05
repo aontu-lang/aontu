@@ -83,16 +83,18 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 	// the same undescended ctx).
 	slot := ctx.slot
 	// Resolve the preferred value (e.g. a function) before comparing.
-	if p.peg.Dc() != DONE {
+	if p.peg.Dc() != DONE && !(ctx.settle && 0 < p.Dc()) {
 		ctx.slot = slot
 		p.peg = unite(ctx, p.peg, top())
 		p.regate(ctx)
 	}
 
 	var out Val
+	waits := false
 	switch pp := peer.(type) {
 	case nil:
 		out = p
+		waits = p.peg.Dc() != DONE
 	case *PrefVal:
 		switch {
 		case p.rank < pp.rank:
@@ -111,6 +113,7 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 	default:
 		if isTop(peer) {
 			out = p
+			waits = p.peg.Dc() != DONE
 		} else {
 			if nil == p.superpeg {
 				p.regate(ctx)
@@ -124,6 +127,7 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 			met := trialUnify(ctx, clonePath(inner, cp(p.path)), peer)
 			ctx.referflows = saved
 			if nil != met {
+				waits = met.Dc() != DONE
 				for guard, flow := range staged {
 					recordFlow(ctx, guard, flow)
 				}
@@ -161,10 +165,15 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 		}
 	}
-	// TS PrefVal.unify stamps DONE on every result (its `done` flag is
-	// never cleared) — even a stuck conjunct from the superior-unify
-	// (`&:*hello, b:key()` leaves b as key()&string DONE, never
-	// re-driven). Mirror that exactly.
-	out.setDc(DONE)
+	// TS PrefVal.unify stamps DONE on every result — even a stuck
+	// conjunct from the superior-unify (`&:*hello, b:key()` leaves b as
+	// key()&string DONE, never re-driven) — but one whose own value still
+	// waits, as a reference does before its target stands: a later pass
+	// reads it, until the settling pass freezes it. Mirror that exactly.
+	if waits && !ctx.settle {
+		out.setDc(p.Dc() + 1)
+	} else {
+		out.setDc(DONE)
+	}
 	return out
 }

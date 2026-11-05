@@ -1145,7 +1145,9 @@ def aliasRows (tag : String) (cases : List (Decls × Val × Data) := aliasCases)
 a map with paths in it, and a document, run in the three modes. A
 step's text reads a map by key and a list by the index it spells in
 canonical decimal. A path's copy clears the marks of what it names, a
-preference's value among them, and what it names keeps them. -/
+preference's value among them, and what it names keeps them. A path in
+a preference's own value reads its target as any path does, beside data
+that supplies nothing, as `vet` meets every schema with its data (#643). -/
 def pathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1228,7 +1230,10 @@ def pathCases : List (Decls × Val × Data) :=
     ([], m [("x", hidden), ("v", p ["x"])],
       .map [("x", .map [("a", .map [("c", j 2)])]), ("v", .map [("a", .map [("b", j 1), ("c", j 2)])])]),
     ([], m [("x", hidden), ("v", p ["x"])],
-      .map [("x", .map [("a", .map [("c", j 2)])]), ("v", .map [("a", .map [("c", j 2)])])])]
+      .map [("x", .map [("a", .map [("c", j 2)])]), ("v", .map [("a", .map [("c", j 2)])])]),
+    ([], m [("x", .pref 1 (m [("k", p ["y"])])), ("y", int 1)], .map []),
+    ([], m [("x", .pref 1 (p ["y"])), ("y", int 1)], .map []),
+    ([], m [("a", m [("x", .pref 1 (m [("k", p ["a", "y"])])), ("y", int 1)])], .map [])]
 
 /-- Every case's bodies and schema hold no pattern and no format, so
 `vetP` is `VetP` on it, by `vetP_iff`. -/
