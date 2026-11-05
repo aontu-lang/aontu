@@ -21,7 +21,8 @@
 # A spread that selects on key(0), the key of the member it is tried on, or
 # the position of the item, follows in rows y0 on, contains over a recursive
 # name, which the meet reads as its body, in rows tc0 on, and a trial with a
-# dead argument both ports read as they build it in rows te0 on.
+# dead argument both ports read as they build it in rows te0 on. A trial over a
+# disjunction admits what any arm admits, whatever its rank, in rows ta0 on.
 t0	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid"}
 t1	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid","opts":{"noFill":true}}
 t2	verdict	"a": nof(1, string, number)	{"a": "x"}	{"verdict":"valid","opts":{"partial":true}}
@@ -985,3 +986,45 @@ te80	verdict	"v": match(nil, 1, 3)	{"v": 1}	{"verdict":"error","opts":{"partial"
 te81	verdict	"v": filter(nil, 1)	{"v": 1}	{"verdict":"error"}
 te82	verdict	"v": filter(nil, 1)	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
 te83	verdict	"v": filter(nil, 1)	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+ta0	verdict	"a": contains(*{"b": 1} | ({}))	{"a": [{}]}	{"verdict":"valid"}
+ta1	verdict	"a": contains(*{"b": 1} | ({}))	{"a": [{}]}	{"verdict":"valid","opts":{"noFill":true}}
+ta2	verdict	"a": contains(*{"b": 1} | ({}))	{"a": [{}]}	{"verdict":"valid","opts":{"partial":true}}
+ta3	verdict	"a": contains(({"b": 1}) | ({}))	{"a": [{}]}	{"verdict":"valid"}
+ta4	verdict	"a": contains(({"b": 1}) | ({}))	{"a": [{}]}	{"verdict":"valid","opts":{"noFill":true}}
+ta5	verdict	"a": contains(({"b": 1}) | ({}))	{"a": [{}]}	{"verdict":"valid","opts":{"partial":true}}
+ta6	verdict	"a": contains(*{"b": 1} | ({}), 1)	{"a": [{}, {"b": 1}]}	{"verdict":"invalid"}
+ta7	verdict	"a": contains(*{"b": 1} | ({}), 1)	{"a": [{}, {"b": 1}]}	{"verdict":"invalid","opts":{"noFill":true}}
+ta8	verdict	"a": contains(*{"b": 1} | ({}), 1)	{"a": [{}, {"b": 1}]}	{"verdict":"invalid","opts":{"partial":true}}
+ta9	verdict	"a": contains(*{"b": 1} | ({}), 2)	{"a": [{}, {"b": 1}]}	{"verdict":"valid"}
+ta10	verdict	"a": contains(*{"b": 1} | ({}), 2)	{"a": [{}, {"b": 1}]}	{"verdict":"valid","opts":{"noFill":true}}
+ta11	verdict	"a": contains(*{"b": 1} | ({}), 2)	{"a": [{}, {"b": 1}]}	{"verdict":"valid","opts":{"partial":true}}
+ta12	verdict	"a": nof(1, *{"b": 1} | ({}))	{"a": {}}	{"verdict":"valid"}
+ta13	verdict	"a": nof(1, *{"b": 1} | ({}))	{"a": {}}	{"verdict":"valid","opts":{"noFill":true}}
+ta14	verdict	"a": nof(1, *{"b": 1} | ({}))	{"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+ta15	verdict	"a": nof(1, ({"b": 1}) | ({}), {"c": 1})	{"a": {}}	{"verdict":"valid"}
+ta16	verdict	"a": nof(1, ({"b": 1}) | ({}), {"c": 1})	{"a": {}}	{"verdict":"valid","opts":{"noFill":true}}
+ta17	verdict	"a": nof(1, ({"b": 1}) | ({}), {"c": 1})	{"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+ta18	verdict	"a": must(*{"b": 1} | ({}), "m")	{"a": {}}	{"verdict":"valid"}
+ta19	verdict	"a": must(*{"b": 1} | ({}), "m")	{"a": {}}	{"verdict":"valid","opts":{"noFill":true}}
+ta20	verdict	"a": must(*{"b": 1} | ({}), "m")	{"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+ta21	verdict	"a": must(*{"b": 1} | ({"c"?: 1}), "m")	{"a": {}}	{"verdict":"valid"}
+ta22	verdict	"a": must(*{"b": 1} | ({"c"?: 1}), "m")	{"a": {}}	{"verdict":"valid","opts":{"noFill":true}}
+ta23	verdict	"a": must(*{"b": 1} | ({"c"?: 1}), "m")	{"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+ta24	verdict	"a": when(*{"b": 1} | ({}), {}, 1)	{"a": {}}	{"verdict":"valid"}
+ta25	verdict	"a": when(*{"b": 1} | ({}), {}, 1)	{"a": {}}	{"verdict":"valid","opts":{"noFill":true}}
+ta26	verdict	"a": when(*{"b": 1} | ({}), {}, 1)	{"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+ta27	verdict	"a": rest(*{"b": 1} | ({}))	{"a": {"x": {}}}	{"verdict":"valid"}
+ta28	verdict	"a": rest(*{"b": 1} | ({}))	{"a": {"x": {}}}	{"verdict":"valid","opts":{"noFill":true}}
+ta29	verdict	"a": rest(*{"b": 1} | ({}))	{"a": {"x": {}}}	{"verdict":"valid","opts":{"partial":true}}
+ta30	verdict	"a": contains([*{"b": 1} | ({})])	{"a": [[{}]]}	{"verdict":"valid"}
+ta31	verdict	"a": contains([*{"b": 1} | ({})])	{"a": [[{}]]}	{"verdict":"valid","opts":{"noFill":true}}
+ta32	verdict	"a": contains([*{"b": 1} | ({})])	{"a": [[{}]]}	{"verdict":"valid","opts":{"partial":true}}
+ta33	verdict	"a": contains({"a": *{"b": 1} | ({})})	{"a": [{"a": {}}]}	{"verdict":"valid"}
+ta34	verdict	"a": contains({"a": *{"b": 1} | ({})})	{"a": [{"a": {}}]}	{"verdict":"valid","opts":{"noFill":true}}
+ta35	verdict	"a": contains({"a": *{"b": 1} | ({})})	{"a": [{"a": {}}]}	{"verdict":"valid","opts":{"partial":true}}
+ta36	verdict	"a": contains(*{"b": 1} | (null))	{"a": [null]}	{"verdict":"valid"}
+ta37	verdict	"a": contains(*{"b": 1} | (null))	{"a": [null]}	{"verdict":"valid","opts":{"noFill":true}}
+ta38	verdict	"a": contains(*{"b": 1} | (null))	{"a": [null]}	{"verdict":"valid","opts":{"partial":true}}
+ta39	verdict	"a": contains(*{"b": 1} | ({"a": {}}))	{"a": [{"b": 2}]}	{"verdict":"invalid"}
+ta40	verdict	"a": contains(*{"b": 1} | ({"a": {}}))	{"a": [{"b": 2}]}	{"verdict":"invalid","opts":{"noFill":true}}
+ta41	verdict	"a": contains(*{"b": 1} | ({"a": {}}))	{"a": [{"b": 2}]}	{"verdict":"invalid","opts":{"partial":true}}

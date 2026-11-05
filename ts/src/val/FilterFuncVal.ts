@@ -66,7 +66,7 @@ class FilterFuncVal extends FuncBaseVal {
       repathInstance(inst, inst.path)
       const test = fillPlace(inst, child, kctx)
       const met = trialUnify(kctx, child.clone(kctx), test)
-      return undefined !== met && sameMembers(child, met, kctx)
+      return undefined !== met && sameMembers(child, met, kctx, true)
     }
 
     // The candidates are the bag's MEMBERS -- what generation would

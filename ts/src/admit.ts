@@ -9,16 +9,16 @@ import type { Val } from './type'
 
 import { Aontu } from './aontu'
 import { ConjunctVal } from './val/ConjunctVal'
-import { admitsJson, fillDiff } from './val/admission'
+import { admitsJson, fillDiff, genToward } from './val/admission'
 
 
 export { fillDiff }
 
 
-function generated(aontu: Aontu, v: Val): any {
+function generated(aontu: Aontu, v: Val, own?: any): any {
   const ctx: any = aontu.ctx({ collect: true })
   ctx.root = v
-  const out = (v as any).gen(ctx)
+  const out = undefined === own ? (v as any).gen(ctx) : genToward(v, ctx, own)
   return 0 === ctx.err.length ? out : undefined
 }
 
@@ -31,9 +31,9 @@ export function admits(aontu: Aontu, trial: Val, value: Val): boolean {
   if (0 < ctx.err.length || true === met?.isNil) {
     return false
   }
-  const out = generated(aontu, met)
   const ownCtx: any = aontu.ctx({ collect: true })
   const settled: any = aontu.unify(value.clone(ownCtx), undefined, ownCtx)
   const own = 0 === ownCtx.err.length ? generated(aontu, settled) : undefined
-  return undefined !== out && undefined !== own && admitsJson(met, out, own)
+  const out = undefined === own ? undefined : generated(aontu, met, own)
+  return undefined !== out && admitsJson(met, out, own)
 }

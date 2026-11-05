@@ -3277,6 +3277,47 @@ theorem meetName_verdict_exact : ∀ c ∈ meetNameCases, ∀ (m : Mode) (v : Ve
   fun c hc _ v => vet_iff (meetNameCases_checkable c hc).1
     (readR_checkableA (meetNameCases_checkable c hc).1 (meetNameCases_checkable c hc).2) v
 
+/-- The trials over a disjunction, which admits what any arm admits,
+whatever the arm's rank, as admission does anywhere (decision 32):
+`contains` over an arm beside the default and over two plain arms,
+counted by a number the arms' members meet and one they don't; `nof`
+and `must` over the same, beside a branch that refuses, and with an
+optional member; `when`, whose condition picks its then-branch through
+such an arm; `rest`; and `contains` over a list and a map holding the
+disjunction, and over an arm of `null` (#635); and `contains` over a
+preference arm its member refuses, beside an arm that adds a member,
+which admits nothing, since the arm has no parent type (#637). -/
+def armTrialCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let mp (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let a (v : Val) : Val := mp [("a", false, v)]
+  let da (x : Data) : Data := .map [("a", x)]
+  let b1 : Val := mp [("b", false, int 1)]
+  let pick : Val := .or [(1, b1), (0, mp [])]
+  let plain : Val := .or [(0, b1), (0, mp [])]
+  let cnt (c : Val) (n : Val := .min (.num (.integer (.of 1)))) : Val := .contains c n
+  let two : Data := .list [.map [], .map [("b", j 1)]]
+  [([], a (cnt pick), da (.list [.map []])), ([], a (cnt plain), da (.list [.map []])),
+    ([], a (cnt pick (int 1)), da two), ([], a (cnt pick (int 2)), da two),
+    ([], a (.nof (int 1) [pick]), da (.map [])),
+    ([], a (.nof (int 1) [plain, mp [("c", false, int 1)]]), da (.map [])),
+    ([], a (.must pick "m"), da (.map [])),
+    ([], a (.must (.or [(1, b1), (0, mp [("c", true, int 1)])]) "m"), da (.map [])),
+    ([], a (.when pick (mp []) (some (int 1))), da (.map [])),
+    ([], a (.rest pick []), da (.map [("x", .map [])])),
+    ([], a (cnt (.list [pick] none false)), da (.list [.list [.map []]])),
+    ([], a (cnt (mp [("a", false, pick)])), da (.list [.map [("a", .map [])]])),
+    ([], a (cnt (.or [(1, b1), (0, .lit .null)])), da (.list [.null])),
+    ([], a (cnt (.or [(1, b1), (0, mp [("a", false, mp [])])])), da (.list [.map [("b", j 2)]]))]
+
+theorem armTrialCases_checkable : ∀ c ∈ armTrialCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
+
+theorem arm_trial_verdict_exact : ∀ c ∈ armTrialCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 c.2.1 c.2.2 = v ↔ Vet m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vet_iff (armTrialCases_checkable c hc).1 (armTrialCases_checkable c hc).2 v
+
 /-- The `trials` rows: each case's declarations and schema as one
 document, the schema a map written without its braces, in the three
 modes, with the one class `vet` gives. -/
@@ -5764,6 +5805,28 @@ theorem marked_each_verdict_exact : ∀ c ∈ markedEachCases, ∀ (m : Mode) (v
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (markedEachCases_checkable c hc)) v
 
+/-- `filter` and `match` over a disjunction, which admits what any arm
+admits, whatever the arm's rank (decision 32), for the `verdict` rows
+from x2271 on: a member an arm beside the default admits, one both arms
+admit, two plain arms, a map's member, one no arm admits, and a pattern
+of each kind (#635); and a preference arm the member refuses, beside an
+arm that adds a member, which keeps nothing and matches nothing, since
+the arm has no parent type (#637). -/
+def armCallCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let b1 : Val := mp [("b", int 1)]
+  let pick : Val := .or [(1, b1), (0, mp [])]
+  let plain : Val := .or [(0, b1), (0, mp [])]
+  [(.filter (lst [mp []]) pick, .list [.map []]), (.filter (lst [b1]) pick, .list [.map [("b", j 1)]]),
+    (.filter (lst [mp []]) plain, .list [.map []]), (.filter (mp [("k", mp [])]) pick, .map [("k", .map [])]),
+    (.filter (lst [mp [("c", int 2)]]) (.or [(0, b1), (0, mp [("c", int 1)])]), .list []),
+    (.select (mp []) [(plain, int 1)] (some (int 2)), j 1), (.select (mp []) [(pick, int 1)] (some (int 2)), j 1),
+    (.filter (lst [mp [("b", int 2)]]) (.or [(1, b1), (0, mp [("a", mp [])])]), .list []),
+    (.select (mp [("b", int 2)]) [(.or [(1, b1), (0, mp [("c", int 1)])], int 1)] (some (int 2)), j 2)]
+
 /-! ## Variables
 
 A variable is a name the calling program declares. Both runners bind the
@@ -6428,11 +6491,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A spread that selects on key(0), the key of the member it is tried on, or"
     IO.println "# the position of the item, follows in rows y0 on, contains over a recursive"
     IO.println "# name, which the meet reads as its body, in rows tc0 on, and a trial with a"
-    IO.println "# dead argument both ports read as they build it in rows te0 on."
+    IO.println "# dead argument both ports read as they build it in rows te0 on. A trial over a"
+    IO.println "# disjunction admits what any arm admits, whatever its rank, in rows ta0 on."
     trialRows "t"
     trialRows "y" keyCases
     trialRows "tc" meetNameCases
     trialRows "te" eagerCases
+    trialRows "ta" armTrialCases
     return 0
   | ["calls"] =>
     IO.println "# Generated by `lake exe oracle calls` (spec/Oracle.lean) from the definition"
@@ -6463,7 +6528,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# follows from row x2064, key(n), read where it stands, from row x2121, and a"
     IO.println "# call the schema can't build, an error wherever it stands, from row x2238. An"
     IO.println "# each whose instances carry a mark of their own, which a list holds no position"
-    IO.println "# for, follows from row x2253. A"
+    IO.println "# for, follows from row x2253, and filter and match over a disjunction, which"
+    IO.println "# admits what any arm admits, whatever its rank, from row x2271. A"
     IO.println "# call on a name follows in rows z0 on, and a call handed a pattern, re(p), in"
     IO.println "# rows v0 on. path handed a string follows in rows k0 on: its text converted to"
     IO.println "# an address, text with no start read from one dot, and refused where it spells"
@@ -6490,7 +6556,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
-        heldFailCases ++ markedEachCases ++ pathCallCases ++ heldHoleCases ++ readThroughCases do
+        heldFailCases ++ markedEachCases ++ armCallCases ++ pathCallCases ++ heldHoleCases ++ readThroughCases do
       unless asciiCase ((v.src.getD "") ++ (j.src.getD "")) do
         throw (IO.userError s!"a case conversion reads a letter beyond ASCII: {v.src}")
       unless hostReads v do
@@ -6503,7 +6569,7 @@ def main (args : List String) : IO UInt32 := do
         throw (IO.userError s!"a pattern the oracle's host does not read as every engine does: {v.src}")
     verdictRows "x" (callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
       projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
-      heldFailCases ++ markedEachCases)
+      heldFailCases ++ markedEachCases ++ armCallCases)
     verdictRows "et" emitCases
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases

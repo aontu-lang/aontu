@@ -8,6 +8,22 @@ each change affects.
 
 ## Unreleased
 
+### A trial, `filter` and `match` admit what one arm admits
+
+Both engines, and shared rows.
+
+- When a trial asked whether a value is admitted, both engines generated
+  the meet and committed a disjunction to its default, or generated
+  nothing where it had none, so `contains(*{b: 1} | {})` refused `[{}]`
+  and `filter([{}], {b: 1} | {})` kept nothing. The trials (`contains`,
+  `nof`, `must`, `when`, `rest`) and the library's `admits` now
+  generate toward the value, as `--no-fill` does, and `filter` and
+  `match` read a disjunction their meet leaves arm by arm. `emit`'s
+  dispatch, where the meet must narrow nothing, is as it was. Fixes
+  #635.
+- 60 `verdict` rows from the definition, ta0 on in
+  `test/spec/def-trial.tsv` and x2271 on in `test/spec/def-call.tsv`.
+
 ### A preference arm has no parent type
 
 Both engines, and shared rows.

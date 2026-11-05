@@ -404,10 +404,10 @@ func TestSameKidsDeclinesWhatDiffers(t *testing.T) {
 	one := newString("x")
 	two := newString("y")
 
-	if !sameKids(nil, nil, ctx) {
+	if !sameKids(nil, nil, ctx, false) {
 		t.Error("two absent members differ")
 	}
-	if sameKids(nil, one, ctx) || sameKids(one, nil, ctx) {
+	if sameKids(nil, one, ctx, false) || sameKids(one, nil, ctx, false) {
 		t.Error("an absent member matched a present one")
 	}
 
@@ -415,25 +415,25 @@ func TestSameKidsDeclinesWhatDiffers(t *testing.T) {
 	am.set("k", one)
 	bm := newMap()
 	bm.set("k", two)
-	if sameKids(am, bm, ctx) {
+	if sameKids(am, bm, ctx, false) {
 		t.Error("a differing child matched")
 	}
 	cm := newMap()
 	cm.set("other", one)
-	if sameKids(am, cm, ctx) {
+	if sameKids(am, cm, ctx, false) {
 		t.Error("a different key of the same count matched")
 	}
-	if sameKids(am, newList([]Val{one}), ctx) {
+	if sameKids(am, newList([]Val{one}), ctx, false) {
 		t.Error("a map matched a list")
 	}
-	if sameKids(am, one, ctx) {
+	if sameKids(am, one, ctx, false) {
 		t.Error("a bag matched a scalar")
 	}
 
-	if sameKids(newList([]Val{one}), newList([]Val{one, two}), ctx) {
+	if sameKids(newList([]Val{one}), newList([]Val{one, two}), ctx, false) {
 		t.Error("lists of different lengths matched")
 	}
-	if sameKids(newList([]Val{one}), newList([]Val{two}), ctx) {
+	if sameKids(newList([]Val{one}), newList([]Val{two}), ctx, false) {
 		t.Error("a differing element matched")
 	}
 }
