@@ -714,6 +714,36 @@ theorem arm_verdict_exact : ∀ c ∈ armCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (armCases_checkable c hc)) v
 
+/-- A preference as an arm of a disjunction, which is the arm `x` of
+rank one, read by position, with no parent type (#637): a map and a
+list the data refuses beside an arm that refuses it too, and beside an
+arm that admits it; a scalar; the arm that admits the data itself; the
+same arm under a key and at a position of a list; and a lone
+preference, which keeps its parent type, so `*{b: 1}` admits
+`{b: 2}`. -/
+def prefArmCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let mp (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let b1 : Val := mp [("b", false, int 1)]
+  let z : Val := .lit (.str "z")
+  let b2 : Data := .map [("b", j 2)]
+  [(.or [(1, b1), (0, z)], b2), (.or [(1, .list [int 1] none true), (0, z)], .list [j 2]),
+    (.or [(1, b1), (0, mp [("c", false, int 1)])], b2),
+    (.or [(1, .lit (.str "q")), (0, int 5)], .str "r"),
+    (.or [(1, b1), (0, mp [("c", false, int 1)])], .map [("b", j 1)]),
+    (.or [(1, b1), (0, mp [("b", false, .integer)])], b2),
+    (mp [("a", false, .or [(1, b1), (0, z)])], .map [("a", b2)]),
+    (.list [.or [(1, b1), (0, z)]] none false, .list [b2]),
+    (.pref 1 b1, b2)]
+
+theorem prefArmCases_checkable : ∀ c ∈ prefArmCases, (vetDoc c).1.CheckableA := by decide
+
+theorem pref_arm_verdict_exact : ∀ c ∈ prefArmCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (prefArmCases_checkable c hc)) v
+
 /-- The `verdict` rows: each case in the default mode, without the fill
 and under `--partial`, with the one class `vet` gives. -/
 def verdictRows (tag : String) (cases : List (Val × Data) := vetCases) : IO Unit := do
@@ -1798,7 +1828,10 @@ a link in a body, used and not, read at the body's own place; a
 template whose marks the flow clears, at its top and inside it; and
 links whose templates make each other's targets, in either order,
 three deep, from a body, under data a template refuses, and in a cycle
-that makes neither. -/
+that makes neither; and a link in a preference arm its peer refuses,
+beside an arm whose link stands, with a third arm or without, whose
+template doesn't reach the target, since the arm is dead, so a target
+or a standing template that refuses it is no clash (#637). -/
 def referCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1814,6 +1847,9 @@ def referCases : List (Decls × Val × Data) :=
   let k1 : Val := m [("k", int 1)]
   let x2 : Val := rf (m [("p", int 1)]) (ad 0 ["h", "z"])
   let y2 : Val := rf (m [("z", m [])]) (ad 0 ["h"])
+  let kd1 (t : Val) : Val := .map [("k", false, int 1), ("d", true, .call .refer [t])] none false
+  let kd2 (t : Val) : Val := .map [("k", false, int 2), ("d", true, .call .refer [t])] none false
+  let peer : Val := m [("k", int 2), ("d", ad 0 ["y"])]
   [([], m [("a", a1), ("b", r3)], .map []),
     ([], m [("a", a1), ("b", r3)], .map [("a", .map [("r", j 3)])]),
     ([], m [("a", a1), ("b", r3)], .map [("a", .map [("r", j 4)])]),
@@ -1852,7 +1888,13 @@ def referCases : List (Decls × Val × Data) :=
       ("h", m []), ("y", rf (m [("z", m [("w", m [])])]) (ad 0 ["h"]))], .map []),
     ([("L", y2)], m [("h", m []), ("x", x2)], .map []),
     ([], m [("h", m []), ("x", rf (m [("p", m [])]) (ad 0 ["h", "q"])), ("y", rf (m [("q", m [])]) (ad 0 ["h", "p"]))],
-      .map [])]
+      .map []),
+    ([], m [("x", .meet (.or [(1, kd1 (m [("z", int 1)])), (0, kd2 (m [("w", int 2)]))]) peer),
+      ("y", m [("z", int 2)])], .map []),
+    ([], m [("x", .meet (.or [(1, kd1 (m [("z", int 1)])), (0, kd2 (m [("z", int 2)]))]) peer), ("y", m [])],
+      .map []),
+    ([], m [("x", .meet (.or [(1, kd1 (m [("z", int 1)])), (0, kd2 (m [("w", int 2)])), (0, .lit (.str "s"))]) peer),
+      ("y", m [("z", int 2)])], .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -6192,7 +6234,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# its spelling leaves the fill as it is, in rows ks0 on."
     IO.println "# Without the fill, a disjunction admits what any arm admits, whatever its"
     IO.println "# rank, so an arm beside the default that admits the data as written is"
-    IO.println "# enough, in rows na0 on."
+    IO.println "# enough, in rows na0 on. A preference as an arm is its value alone, with no"
+    IO.println "# parent type, which a lone preference keeps, in rows pa0 on."
     verdictRows "e"
     verdictRows "l" lenCases
     verdictRows "h" markCases
@@ -6200,6 +6243,7 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "k" addrVetCases
     verdictRows "ks" spellVetCases
     verdictRows "na" armCases
+    verdictRows "pa" prefArmCases
     return 0
   | ["alias"] =>
     IO.println "# Generated by `lake exe oracle alias` (spec/Oracle.lean) from the definition"

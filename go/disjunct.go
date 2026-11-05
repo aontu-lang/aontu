@@ -107,41 +107,28 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 			if r.Dc() != DONE {
 				done = false
 			}
-			if pm, ok := m.(*PrefVal); ok && !peerIsPref && !isTop(peer) {
-				if _, sc := prefInnerPeg(pm).(*ScalarVal); sc {
-					// A candidate for the admission gate below: a
-					// non-pref, non-top peer met a scalar preference
-					// inside this disjunction.
-					gate = append(gate, i)
-				}
+			if _, ok := m.(*PrefVal); ok && !peerIsPref && !isTop(peer) {
+				// A candidate for the admission gate below: a non-pref,
+				// non-top peer met a preference inside this disjunction.
+				gate = append(gate, i)
 			}
 		}
 	}
 
+	// An arm `*x` is the arm `x` of rank one, with no parent type: a peer
+	// its own value refuses kills it.
 	for _, gI := range gate {
-		admitted := false
-		for kI := range oval {
-			// Sibling alternatives only: a pref member cannot admit its
-			// own override (post-rankPrefs at most one pref stands at
-			// this level, so this is defensive).
-			if kI == gI || nil == oval[kI] {
-				continue
-			}
-			if _, kPref := d.peg[kI].(*PrefVal); kPref {
-				continue
-			}
-			admitted = true
-			break
-		}
-		if !admitted {
-			// The trial is against a CLONE: the preferred value must
-			// stay pristine for the surviving preference (the matchFunc
-			// precedent in generate.go).
-			inner := prefInnerPeg(d.peg[gI].(*PrefVal))
-			ctx.slot = slot
-			if nil == trialUnify(ctx, clonePath(inner, cp(d.path)), peer) {
-				oval[gI] = nil
-			}
+		// The trial is against a CLONE: the preferred value must stay
+		// pristine for the surviving preference (the matchFunc precedent
+		// in generate.go).
+		inner := prefInnerPeg(d.peg[gI].(*PrefVal))
+		ctx.slot = slot
+		// The arm's own flows are staged above; this trial's are dropped.
+		ctx.referflows = map[string]Val{}
+		met := trialUnify(ctx, clonePath(inner, cp(d.path)), clonePath(peer, cp(d.path)))
+		ctx.referflows = savedFlows
+		if nil == met {
+			oval[gI] = nil
 		}
 	}
 

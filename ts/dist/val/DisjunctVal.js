@@ -78,36 +78,31 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     oval[vI] = NilVal_1.TRIAL_NIL;
                 }
                 else if (v instanceof PrefVal_1.PrefVal &&
-                    !peer.isPref && !peer.isTop &&
-                    true === (0, PrefVal_1.prefInnerPeg)(v).isScalar) {
+                    !peer.isPref && !peer.isTop) {
                     // A candidate for the admission gate below: a non-pref,
-                    // non-top peer met a scalar preference inside this
-                    // disjunction.
+                    // non-top peer met a preference inside this disjunction.
                     ;
                     (gate = gate ?? []).push(vI);
                 }
                 done = done && type_1.DONE === oval[vI].dc;
             }
             if (undefined !== gate) {
+                // An arm `*x` is the arm `x` of rank one, with no parent type:
+                // a peer its own value refuses kills it.
                 for (const gI of gate) {
-                    let admitted = false;
-                    for (let kI = 0; kI < oval.length && !admitted; kI++) {
-                        // Sibling alternatives only: a pref member cannot admit
-                        // its own override (post-rankPrefs at most one pref
-                        // stands at this level, so this is defensive).
-                        admitted = kI !== gI && !oval[kI].isNil &&
-                            !this.peg[kI].isPref;
+                    const admitErr = [];
+                    ctx.err = admitErr;
+                    // The arm's own flows are staged above; this trial's are dropped.
+                    if (undefined !== savedFlows) {
+                        ;
+                        ctx.referflows = new Map();
                     }
-                    if (!admitted) {
-                        const admitErr = [];
-                        ctx.err = admitErr;
-                        // The trial is against a CLONE: the preferred value must
-                        // stay pristine for the surviving preference (the
-                        // MatchFuncVal.resolve precedent).
-                        const met = (0, unify_1.unite)(ctx, (0, PrefVal_1.prefInnerPeg)(this.peg[gI]).clone(ctx), peer, 'dj-admit');
-                        if (0 < admitErr.length || met.isNil) {
-                            oval[gI] = NilVal_1.TRIAL_NIL;
-                        }
+                    // The trial is against a CLONE: the preferred value must
+                    // stay pristine for the surviving preference (the
+                    // MatchFuncVal.resolve precedent).
+                    const met = (0, unify_1.unite)(ctx, (0, PrefVal_1.prefInnerPeg)(this.peg[gI]).clone(ctx), peer.clone(ctx), 'dj-admit');
+                    if (0 < admitErr.length || met.isNil) {
+                        oval[gI] = NilVal_1.TRIAL_NIL;
                     }
                 }
             }
