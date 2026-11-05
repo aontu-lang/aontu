@@ -21,8 +21,13 @@ Both engines, and shared rows.
   its kind and whatever its siblings do. So the second document is
   `{"b": 2, "c": 1}`. A lone preference keeps its parent type:
   `*{b: 1}` still admits `{b: 2}`. Fixes #637 and #365.
+- A `refer()` in an arm the peer kills no longer sends its template to
+  the target. In `(*{k: 1, d?: refer({z: 1})} | {k: 2, d?: refer({w: 2})})
+  & {k: 2, d: path($.y)}`, `y` is now `{"w": 2}`, where TypeScript gave
+  `{"z": 1}` and Go `{"w": 2, "z": 1}`.
 - 27 `verdict` rows from the definition, pa0 on in
-  `test/spec/def-verdict.tsv`. Rows t348 and t351 of
+  `test/spec/def-verdict.tsv`, and 9 more, rf108 on in
+  `test/spec/def-path.tsv`. Rows t348 and t351 of
   `test/spec/def-trial.tsv` now agree with the definition and leave
   the ledger, whose bound falls to 109.
 

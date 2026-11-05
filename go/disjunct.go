@@ -123,7 +123,11 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		// in generate.go).
 		inner := prefInnerPeg(d.peg[gI].(*PrefVal))
 		ctx.slot = slot
-		if nil == trialUnify(ctx, clonePath(inner, cp(d.path)), clonePath(peer, cp(d.path))) {
+		// The arm's own flows are staged above; this trial's are dropped.
+		ctx.referflows = map[string]Val{}
+		met := trialUnify(ctx, clonePath(inner, cp(d.path)), clonePath(peer, cp(d.path)))
+		ctx.referflows = savedFlows
+		if nil == met {
 			oval[gI] = nil
 		}
 	}
