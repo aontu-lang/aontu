@@ -36,32 +36,38 @@ import { bagMembers } from './members'
 
 // Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
 // not raw keys, so an unfilled optional is not something to add.
-function sameKids(a: any, b: any, ctx: AontuContext, arms: boolean): boolean {
-  if (arms && true === b?.isDisjunct && true !== a?.isDisjunct && Array.isArray(b.peg)) {
-    return b.peg.some((arm: any) => sameKids(a, true === arm?.isPref ? arm.peg : arm, ctx, arms))
+function sameKids(a: any, b: any, ctx: AontuContext, admit: boolean): boolean {
+  if (admit && true === b?.isDisjunct && true !== a?.isDisjunct && Array.isArray(b.peg)) {
+    return b.peg.some((arm: any) => sameKids(a, true === arm?.isPref ? arm.peg : arm, ctx, admit))
   }
   if (true === a?.isMap || true === a?.isList) {
     const am = bagMembers(a, ctx)
-    const bm = bagMembers(b, ctx)
-    if (null == am || null == bm || am.length !== bm.length) {
+    let bm = bagMembers(b, ctx)
+    if (null == am || null == bm) {
+      return false
+    }
+    if (admit && true === b.isMap) {
+      bm = bm.filter((m) => !b.optionalKeys.includes(m.key) || am.some((n) => n.key === m.key))
+    }
+    if (am.length !== bm.length) {
       return false
     }
     const peers = new Map(bm.map((m) => [m.key, m.val]))
     return am.every((m) =>
-      peers.has(m.key) && sameKids(m.val, peers.get(m.key), ctx, arms))
+      peers.has(m.key) && sameKids(m.val, peers.get(m.key), ctx, admit))
   }
   return a?.canon === b?.canon
 }
 
 
 // A pref-free disjunction is several values at once: any match counts.
-// A condition that admits reads the meet's disjunction by any arm.
-function sameMembers(a: any, b: any, ctx: AontuContext, arms: boolean = false): boolean {
+// Admitting, it reads the meet by arm, and an optional member the value lacks as none.
+function sameMembers(a: any, b: any, ctx: AontuContext, admit: boolean = false): boolean {
   if (true === a?.isDisjunct && Array.isArray(a.peg) &&
     !a.peg.some((m: any) => true === m?.isPref)) {
     return true
   }
-  return sameKids(a, b, ctx, arms)
+  return sameKids(a, b, ctx, admit)
 }
 
 

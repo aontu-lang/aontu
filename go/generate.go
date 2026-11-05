@@ -107,17 +107,17 @@ func trialUnify(ctx *Ctx, a, b Val) Val {
 
 // Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
 // not raw keys, so an unfilled optional is not something to add.
-func sameKids(a, b Val, ctx *Ctx, arms bool) bool {
+func sameKids(a, b Val, ctx *Ctx, admit bool) bool {
 	if nil == a || nil == b {
 		return nil == a && nil == b
 	}
-	if d, ok := b.(*DisjunctVal); ok && arms {
+	if d, ok := b.(*DisjunctVal); ok && admit {
 		if _, both := a.(*DisjunctVal); !both {
 			for _, arm := range d.peg {
 				if p, isPref := arm.(*PrefVal); isPref {
 					arm = p.peg
 				}
-				if sameKids(a, arm, ctx, arms) {
+				if sameKids(a, arm, ctx, admit) {
 					return true
 				}
 			}
@@ -130,6 +130,9 @@ func sameKids(a, b Val, ctx *Ctx, arms bool) bool {
 		}
 		am := bagMembers(a, ctx)
 		bm := bagMembers(b, ctx)
+		if bmap, isMap := b.(*MapVal); isMap && admit {
+			bm = heldMembers(bmap, am, bm)
+		}
 		if len(am) != len(bm) {
 			return false
 		}
@@ -139,7 +142,7 @@ func sameKids(a, b Val, ctx *Ctx, arms bool) bool {
 		}
 		for _, m := range am {
 			peer, has := peers[m.key]
-			if !has || !sameKids(m.val, peer, ctx, arms) {
+			if !has || !sameKids(m.val, peer, ctx, admit) {
 				return false
 			}
 		}
@@ -148,19 +151,35 @@ func sameKids(a, b Val, ctx *Ctx, arms bool) bool {
 	return a.Canon() == b.Canon()
 }
 
+// The meet's members but those it makes optional and the value leaves out.
+func heldMembers(b *MapVal, am, bm []member) []member {
+	held := make(map[string]bool, len(am))
+	for _, m := range am {
+		held[m.key] = true
+	}
+	out := make([]member, 0, len(bm))
+	for _, m := range bm {
+		if held[m.key] || !b.isOptional(m.key) {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
 // A pref-free disjunction is several values at once: any match counts.
-// A condition that admits reads the meet's disjunction by any arm, which
-// emit's dispatch, a meet that narrows nothing, doesn't.
-func sameMembers(a, b Val, ctx *Ctx, arms bool) bool {
+// A condition that admits reads the meet's disjunction by any arm, and a
+// member it makes optional, which the value leaves out, as no member;
+// emit's dispatch, a meet that narrows nothing, does neither.
+func sameMembers(a, b Val, ctx *Ctx, admit bool) bool {
 	if d, isDis := a.(*DisjunctVal); isDis {
 		for _, m := range d.peg {
 			if _, isPref := m.(*PrefVal); isPref {
-				return sameKids(a, b, ctx, arms)
+				return sameKids(a, b, ctx, admit)
 			}
 		}
 		return true
 	}
-	return sameKids(a, b, ctx, arms)
+	return sameKids(a, b, ctx, admit)
 }
 
 func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {

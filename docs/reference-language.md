@@ -1236,7 +1236,8 @@ atoms compose with it: `filter($.deploy, {replicas:min(3)})`. A
 condition that's a disjunction keeps a child where one of its arms
 changes nothing, whatever the arm's rank, so
 `filter([{}, {b: 1}], *{b: 1} | {})` keeps both children: the arm `{}`
-changes neither.
+changes neither. A child that leaves out the condition's optional member
+gains nothing from it, so `filter([{}], {c?: 3})` keeps `{}`.
 
 `match(v, p1, r1, …, d?)` is a **bounded conditional**. The first
 pattern in argument order that `v` **already satisfies** selects its
