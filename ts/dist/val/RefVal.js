@@ -25,11 +25,29 @@ const BigDecimalVal_1 = require("./BigDecimalVal");
 // match, which turns a silent path-shortening bug into a visible miss.
 const UNSPELLABLE_SEGMENT = '\u0000unspellable';
 // A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
-// wrapper is left for the caller, which defers on it.
+// wrapper is left for the caller, which defers on it. So is an `each`'s
+// template, whose mark leaves every instance out of the list it makes.
 function dropPendingMarkWrappers(v) {
-    return (0, utility_1.walk)(v, (key, val) => undefined !== key &&
+    return (0, utility_1.walk)(v, (key, val, parent) => undefined !== key && !(true === parent?.isEachFunc && 1 === Number(key)) &&
         (true === val.isTypeFunc || true === val.isHideFunc) && !val.done &&
         null != val.peg?.[0] ? val.peg[0] : val);
+}
+// A list holds no position for an element its own mark leaves out, so a
+// copy drops the element where clearing the mark would show it.
+function dropMarkedElements(v) {
+    return (0, utility_1.walk)(v, (_key, val) => {
+        if (true === val.isList && Array.isArray(val.peg)) {
+            val.peg = val.peg.filter((e) => !markedElement(val, e));
+        }
+        return val;
+    });
+}
+function markedElement(list, e) {
+    if (true === e?.isTypeFunc || true === e?.isHideFunc) {
+        return !e.done;
+    }
+    return (true === e?.mark?.hide && true !== list.mark.hide) ||
+        (true === e?.mark?.type && true !== list.mark.type);
 }
 // A staged call's copy shares its arguments with the call it copies, so
 // each call in the copy takes its own before the copy's marks are cleared.
@@ -441,6 +459,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         if (staged) {
                             out = ownArgs(ctx, out);
                         }
+                        out = dropMarkedElements(out);
                         // The copy carries a held constraint without its type.
                         out = (0, utility_1.walk)(out, (_key, val) => {
                             val.mark.type = false;

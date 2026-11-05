@@ -334,7 +334,8 @@ func pendingMarkWrapper(v Val) bool {
 }
 
 // A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
-// wrapper is left for the caller, which defers on it.
+// wrapper is left for the caller, which defers on it. So is an `each`'s
+// template, whose mark leaves every instance out of the list it makes.
 func dropPendingMarkWrappers(v Val) Val {
 	switch n := v.(type) {
 	case *MapVal:
@@ -348,21 +349,54 @@ func dropPendingMarkWrappers(v Val) Val {
 	case *DisjunctVal:
 		dropEach(n.peg)
 	case *FuncVal:
-		dropEach(n.peg)
+		if "each" == n.name && 2 == len(n.peg) {
+			n.peg[0] = dropMarkWrapper(n.peg[0])
+			n.peg[1] = dropPendingMarkWrappers(n.peg[1])
+		} else {
+			dropEach(n.peg)
+		}
 	}
 	return v
 }
 
-// A staged call's copy shares its arguments with the call it copies, so
-// each call in the copy takes its own before the copy's marks are cleared.
+// A list holds no position for an element its own mark leaves out, so a
+// copy drops the element where clearing the mark would show it.
+func dropMarkedElements(v Val) {
+	walkMarkVals(v, func(n Val) {
+		l, ok := n.(*ListVal)
+		if !ok {
+			return
+		}
+		kept := make([]Val, 0, len(l.peg))
+		for _, e := range l.peg {
+			if !markedElement(l, e) {
+				kept = append(kept, e)
+			}
+		}
+		l.peg = kept
+	})
+}
+
+func markedElement(l *ListVal, e Val) bool {
+	if f, ok := e.(*FuncVal); ok && ("hide" == f.name || "type" == f.name) {
+		return DONE != f.dc
+	}
+	return (e.markedHide() && !l.mhide) || (e.markedType() && !l.mtype)
+}
+
+// A staged call's copy shares its arguments with the call it copies, and
+// a preference its value, so each takes its own before the copy changes.
 func ownArgs(v Val) {
 	walkMarkVals(v, func(n Val) {
-		if f, ok := n.(*FuncVal); ok {
+		switch f := n.(type) {
+		case *FuncVal:
 			args := make([]Val, len(f.peg))
 			for i, a := range f.peg {
 				args[i] = clonePath(a, a.vpath())
 			}
 			f.peg = args
+		case *PrefVal:
+			f.peg = clonePath(f.peg, f.peg.vpath())
 		}
 	})
 }
@@ -567,6 +601,7 @@ func (rv *RefVal) find(ctx *Ctx, snap bool) Val {
 		if staged {
 			ownArgs(out)
 		}
+		dropMarkedElements(out)
 		walkMark(out, true, false, true, false)
 		out = unwrapConstraintKind(out)
 		out = dropPendingMarkWrappers(out)

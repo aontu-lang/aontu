@@ -49,12 +49,34 @@ const UNSPELLABLE_SEGMENT = '\u0000unspellable'
 
 
 // A copy takes `x` from a pending NESTED `hide(x)`/`type(x)`; a root
-// wrapper is left for the caller, which defers on it.
+// wrapper is left for the caller, which defers on it. So is an `each`'s
+// template, whose mark leaves every instance out of the list it makes.
 function dropPendingMarkWrappers(v: Val): Val {
-  return walk(v, (key: string | number | undefined, val: any) =>
-    undefined !== key &&
+  return walk(v, (key: string | number | undefined, val: any, parent: any) =>
+    undefined !== key && !(true === parent?.isEachFunc && 1 === Number(key)) &&
       (true === val.isTypeFunc || true === val.isHideFunc) && !val.done &&
       null != val.peg?.[0] ? val.peg[0] : val)
+}
+
+
+// A list holds no position for an element its own mark leaves out, so a
+// copy drops the element where clearing the mark would show it.
+function dropMarkedElements(v: Val): Val {
+  return walk(v, (_key: string | number | undefined, val: any) => {
+    if (true === val.isList && Array.isArray(val.peg)) {
+      val.peg = val.peg.filter((e: any) => !markedElement(val, e))
+    }
+    return val
+  })
+}
+
+
+function markedElement(list: any, e: any): boolean {
+  if (true === e?.isTypeFunc || true === e?.isHideFunc) {
+    return !e.done
+  }
+  return (true === e?.mark?.hide && true !== list.mark.hide) ||
+    (true === e?.mark?.type && true !== list.mark.type)
 }
 
 
@@ -545,6 +567,7 @@ class RefVal extends FeatureVal {
             if (staged) {
               out = ownArgs(ctx, out)
             }
+            out = dropMarkedElements(out)
             // The copy carries a held constraint without its type.
             out = walk(out, (_key: string | number | undefined, val: Val) => {
               val.mark.type = false
