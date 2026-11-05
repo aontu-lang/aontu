@@ -32,10 +32,21 @@ function dropPendingMarkWrappers(v) {
         (true === val.isTypeFunc || true === val.isHideFunc) && !val.done &&
         null != val.peg?.[0] ? val.peg[0] : val);
 }
+// The walk stops at a preference, whose value is a Val, so a pass over a
+// copy steps into it here.
+function walkPrefs(v, fn) {
+    return (0, utility_1.walk)(v, (key, val) => {
+        const out = fn(key, val);
+        if (true === out?.isPref && true === out.peg?.isVal) {
+            out.peg = walkPrefs(out.peg, fn);
+        }
+        return out;
+    });
+}
 // A list holds no position for an element its own mark leaves out, so a
 // copy drops the element where clearing the mark would show it.
 function dropMarkedElements(v) {
-    return (0, utility_1.walk)(v, (_key, val) => {
+    return walkPrefs(v, (_key, val) => {
         if (true === val.isList && Array.isArray(val.peg)) {
             val.peg = val.peg.filter((e) => !markedElement(val, e));
         }
@@ -49,10 +60,15 @@ function markedElement(list, e) {
     return (true === e?.mark?.hide && true !== list.mark.hide) ||
         (true === e?.mark?.type && true !== list.mark.type);
 }
-// A staged call's copy shares its arguments with the call it copies, so
-// each call in the copy takes its own before the copy's marks are cleared.
+// A staged call's copy shares its arguments with the call it copies, and
+// a preference its value, so each takes its own before the copy changes.
 function ownArgs(ctx, v) {
     return (0, utility_1.walk)(v, (_key, val) => {
+        if (true === val.isPref && true === val.peg?.isVal) {
+            const pref = val.clone(ctx, { path: [...val.path] });
+            pref.peg = ownArgs(ctx, val.peg.clone(ctx, { path: [...val.peg.path] }));
+            return pref;
+        }
         if (true !== val.isFunc || !Array.isArray(val.peg)) {
             return val;
         }
@@ -461,7 +477,7 @@ class RefVal extends FeatureVal_1.FeatureVal {
                         }
                         out = dropMarkedElements(out);
                         // The copy carries a held constraint without its type.
-                        out = (0, utility_1.walk)(out, (_key, val) => {
+                        out = walkPrefs(out, (_key, val) => {
                             val.mark.type = false;
                             val.mark.hide = false;
                             const held = val.held;

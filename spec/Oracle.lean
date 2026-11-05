@@ -1076,7 +1076,8 @@ def aliasRows (tag : String) (cases : List (Decls × Val × Data) := aliasCases)
 /-- Documents with paths: each case its declarations, a schema that is
 a map with paths in it, and a document, run in the three modes. A
 step's text reads a map by key and a list by the index it spells in
-canonical decimal. -/
+canonical decimal. A path's copy clears the marks of what it names, a
+preference's value among them, and what it names keeps them. -/
 def pathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1087,6 +1088,7 @@ def pathCases : List (Decls × Val × Data) :=
   let pb : Val := .path [.key "b"]
   let p (ks : List String) : Val := .path (ks.map .key)
   let step (o : Bool) : Val := m [("schema", m [("Step", mo [("label", false, .string), ("then", o, p ["schema", "Step"])])]), ("doc", p ["schema", "Step"])]
+  let hidden : Val := m [("a", .or [(1, m [("b", .ride .hide (int 1) []), ("c", int 2)]), (0, int 5)])]
   [([], m [("a", int 1), ("b", pa)], .map [("a", j 1), ("b", j 1)]),
     ([], m [("a", int 1), ("b", pa)], .map [("a", j 1), ("b", j 2)]),
     ([], m [("a", int 1), ("b", pa)], .map [("a", j 1)]),
@@ -1154,7 +1156,11 @@ def pathCases : List (Decls × Val × Data) :=
     ([], m [("q", m [("0", int 3)]), ("x", .path [.key "q", .idx 0])], .map [("x", j 4)]),
     ([], m [("q", .list [int 5, int 6] none false), ("x", .path [.key "q", .key "1"])], .map [("x", j 6)]),
     ([], m [("q", .list [int 5, int 6] none false), ("x", .path [.key "q", .key "1"])], .map [("x", j 5)]),
-    ([], m [("q", .list [int 5, int 6] none false), ("x", .path [.key "q", .key "01"])], .map [("x", j 5)])]
+    ([], m [("q", .list [int 5, int 6] none false), ("x", .path [.key "q", .key "01"])], .map [("x", j 5)]),
+    ([], m [("x", hidden), ("v", p ["x"])],
+      .map [("x", .map [("a", .map [("c", j 2)])]), ("v", .map [("a", .map [("b", j 1), ("c", j 2)])])]),
+    ([], m [("x", hidden), ("v", p ["x"])],
+      .map [("x", .map [("a", .map [("c", j 2)])]), ("v", .map [("a", .map [("c", j 2)])])])]
 
 /-- Every case's bodies and schema hold no pattern and no format, so
 `vetP` is `VetP` on it, by `vetP_iff`. -/
@@ -1660,7 +1666,7 @@ the copy shows it. A list holds no position for a marked element, so a
 copy has none to show: of a list template, of an instance, of a list a
 fold reads, or of the instances a mark around the whole template
 leaves out. A preference in such a copy is the copy's own, so the
-value it copies keeps its hidden member. -/
+value it copies keeps its hidden member, which the copy shows. -/
 def roundCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (t : String) : Val := .lit (.str t)
@@ -1685,6 +1691,8 @@ def roundCases : List (Decls × Val × Data) :=
   let em : Val := .call .each [lst [int 1], m [("a", hd .hole), ("b", .hole)]]
   let pk : Val := .call .pack [lst [str "a"], hd .hole]
   let held : Val := m [("a", .or [(1, m [("b", hd (int 1)), ("c", int 2)]), (0, m [])]),
+    ("k", .call .sum [lst [int 1, int 2]])]
+  let held5 : Val := m [("a", .or [(1, m [("b", hd (int 1)), ("c", int 2)]), (0, int 5)]),
     ("k", .call .sum [lst [int 1, int 2]])]
   [([], m one, .map []),
     ([], m one, .map [("c", .str "abCd")]),
@@ -1731,7 +1739,9 @@ def roundCases : List (Decls × Val × Data) :=
       .map [("x", .list []), ("v", .list [])]),
     ([], m [("x", held), ("v", p ["x"])],
       .map [("x", .map [("a", .map [("c", j 2)]), ("k", j 3)]),
-        ("v", .map [("a", .map [("b", j 1), ("c", j 2)]), ("k", j 3)])])]
+        ("v", .map [("a", .map [("b", j 1), ("c", j 2)]), ("k", j 3)])]),
+    ([], m [("x", held5), ("v", p ["x"])],
+      .map [("x", .map [("a", .map [("c", j 2)]), ("k", j 3)]), ("v", .map [("a", .map [("c", j 2)]), ("k", j 3)])])]
 
 theorem roundCases_checkable : ∀ c ∈ roundCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

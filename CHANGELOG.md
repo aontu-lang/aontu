@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### TypeScript's copy clears the marks under a preference
+
+TypeScript only, and shared rows.
+
+- A reference clears the marks of what it copies at every depth, and
+  TypeScript's copy stopped at a preference, whose value its walk did
+  not step into. Beside `x: {a: *{b: hide(1), c: 2} | {}}`, the path
+  `v: $.x` generated `{"a": {"c": 2}}` where Go and the definition give
+  `{"a": {"b": 1, "c": 2}}`. The copy now steps into a preference's
+  value, and in a staged copy gives the preference its own value first,
+  so `x` keeps `b` hidden. Fixes #630.
+- Six `verdict` rows from the definition, p195 on and rn105 on in
+  `test/spec/def-path.tsv`, hold a preference in a plain copy and in a
+  staged one.
+
 ### A path's copy of a call drops a marked list element
 
 Both engines, and shared rows.

@@ -59,10 +59,23 @@ function dropPendingMarkWrappers(v: Val): Val {
 }
 
 
+// The walk stops at a preference, whose value is a Val, so a pass over a
+// copy steps into it here.
+function walkPrefs(v: Val, fn: (key: string | number | undefined, val: any) => Val): Val {
+  return walk(v, (key: string | number | undefined, val: any) => {
+    const out: any = fn(key, val)
+    if (true === out?.isPref && true === out.peg?.isVal) {
+      out.peg = walkPrefs(out.peg, fn)
+    }
+    return out
+  })
+}
+
+
 // A list holds no position for an element its own mark leaves out, so a
 // copy drops the element where clearing the mark would show it.
 function dropMarkedElements(v: Val): Val {
-  return walk(v, (_key: string | number | undefined, val: any) => {
+  return walkPrefs(v, (_key: string | number | undefined, val: any) => {
     if (true === val.isList && Array.isArray(val.peg)) {
       val.peg = val.peg.filter((e: any) => !markedElement(val, e))
     }
@@ -80,10 +93,15 @@ function markedElement(list: any, e: any): boolean {
 }
 
 
-// A staged call's copy shares its arguments with the call it copies, so
-// each call in the copy takes its own before the copy's marks are cleared.
+// A staged call's copy shares its arguments with the call it copies, and
+// a preference its value, so each takes its own before the copy changes.
 function ownArgs(ctx: AontuContext, v: Val): Val {
   return walk(v, (_key: string | number | undefined, val: any) => {
+    if (true === val.isPref && true === val.peg?.isVal) {
+      const pref: any = val.clone(ctx, { path: [...val.path] })
+      pref.peg = ownArgs(ctx, val.peg.clone(ctx, { path: [...val.peg.path] }))
+      return pref
+    }
     if (true !== val.isFunc || !Array.isArray(val.peg)) {
       return val
     }
@@ -569,7 +587,7 @@ class RefVal extends FeatureVal {
             }
             out = dropMarkedElements(out)
             // The copy carries a held constraint without its type.
-            out = walk(out, (_key: string | number | undefined, val: Val) => {
+            out = walkPrefs(out, (_key: string | number | undefined, val: Val) => {
               val.mark.type = false
               val.mark.hide = false
               const held = (val as any).held
