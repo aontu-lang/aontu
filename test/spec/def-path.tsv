@@ -1065,6 +1065,15 @@ rf104	verdict	%L = (refer({"z": {}})) & (path($.h))\n"h": {}, "x": (refer({"p": 
 rf105	verdict	"h": {}, "x": (refer({"p": {}})) & (path($.h.q)), "y": (refer({"q": {}})) & (path($.h.p))	{}	{"verdict":"error"}
 rf106	verdict	"h": {}, "x": (refer({"p": {}})) & (path($.h.q)), "y": (refer({"q": {}})) & (path($.h.p))	{}	{"verdict":"error","opts":{"noFill":true}}
 rf107	verdict	"h": {}, "x": (refer({"p": {}})) & (path($.h.q)), "y": (refer({"q": {}})) & (path($.h.p))	{}	{"verdict":"error","opts":{"partial":true}}
+rf108	verdict	"x": (*{"k": 1, "d"?: refer({"z": 1})} | ({"k": 2, "d"?: refer({"w": 2})})) & ({"k": 2, "d": path($.y)}), "y": {"z": 2}	{}	{"verdict":"valid"}
+rf109	verdict	"x": (*{"k": 1, "d"?: refer({"z": 1})} | ({"k": 2, "d"?: refer({"w": 2})})) & ({"k": 2, "d": path($.y)}), "y": {"z": 2}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rf110	verdict	"x": (*{"k": 1, "d"?: refer({"z": 1})} | ({"k": 2, "d"?: refer({"w": 2})})) & ({"k": 2, "d": path($.y)}), "y": {"z": 2}	{}	{"verdict":"valid","opts":{"partial":true}}
+rf111	verdict	"x": (*{"k": 1, "d"?: refer({"z": 1})} | ({"k": 2, "d"?: refer({"z": 2})})) & ({"k": 2, "d": path($.y)}), "y": {}	{}	{"verdict":"valid"}
+rf112	verdict	"x": (*{"k": 1, "d"?: refer({"z": 1})} | ({"k": 2, "d"?: refer({"z": 2})})) & ({"k": 2, "d": path($.y)}), "y": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rf113	verdict	"x": (*{"k": 1, "d"?: refer({"z": 1})} | ({"k": 2, "d"?: refer({"z": 2})})) & ({"k": 2, "d": path($.y)}), "y": {}	{}	{"verdict":"valid","opts":{"partial":true}}
+rf114	verdict	"x": (*{"k": 1, "d"?: refer({"z": 1})} | ({"k": 2, "d"?: refer({"w": 2})}) | ("s")) & ({"k": 2, "d": path($.y)}), "y": {"z": 2}	{}	{"verdict":"valid"}
+rf115	verdict	"x": (*{"k": 1, "d"?: refer({"z": 1})} | ({"k": 2, "d"?: refer({"w": 2})}) | ("s")) & ({"k": 2, "d": path($.y)}), "y": {"z": 2}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rf116	verdict	"x": (*{"k": 1, "d"?: refer({"z": 1})} | ({"k": 2, "d"?: refer({"w": 2})}) | ("s")) & ({"k": 2, "d": path($.y)}), "y": {"z": 2}	{}	{"verdict":"valid","opts":{"partial":true}}
 rl0	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"valid"}
 rl1	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 rl2	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"valid","opts":{"partial":true}}

@@ -140,6 +140,10 @@ class DisjunctVal extends JunctionVal {
         for (const gI of gate) {
           const admitErr: any[] = []
           ctx.err = admitErr
+          // The arm's own flows are staged above; this trial's are dropped.
+          if (undefined !== savedFlows) {
+            ;(ctx as any).referflows = new Map()
+          }
           // The trial is against a CLONE: the preferred value must
           // stay pristine for the surviving preference (the
           // MatchFuncVal.resolve precedent).

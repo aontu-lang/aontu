@@ -1828,7 +1828,10 @@ a link in a body, used and not, read at the body's own place; a
 template whose marks the flow clears, at its top and inside it; and
 links whose templates make each other's targets, in either order,
 three deep, from a body, under data a template refuses, and in a cycle
-that makes neither. -/
+that makes neither; and a link in a preference arm its peer refuses,
+beside an arm whose link stands, with a third arm or without, whose
+template doesn't reach the target, since the arm is dead, so a target
+or a standing template that refuses it is no clash (#637). -/
 def referCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1844,6 +1847,9 @@ def referCases : List (Decls × Val × Data) :=
   let k1 : Val := m [("k", int 1)]
   let x2 : Val := rf (m [("p", int 1)]) (ad 0 ["h", "z"])
   let y2 : Val := rf (m [("z", m [])]) (ad 0 ["h"])
+  let kd1 (t : Val) : Val := .map [("k", false, int 1), ("d", true, .call .refer [t])] none false
+  let kd2 (t : Val) : Val := .map [("k", false, int 2), ("d", true, .call .refer [t])] none false
+  let peer : Val := m [("k", int 2), ("d", ad 0 ["y"])]
   [([], m [("a", a1), ("b", r3)], .map []),
     ([], m [("a", a1), ("b", r3)], .map [("a", .map [("r", j 3)])]),
     ([], m [("a", a1), ("b", r3)], .map [("a", .map [("r", j 4)])]),
@@ -1882,7 +1888,13 @@ def referCases : List (Decls × Val × Data) :=
       ("h", m []), ("y", rf (m [("z", m [("w", m [])])]) (ad 0 ["h"]))], .map []),
     ([("L", y2)], m [("h", m []), ("x", x2)], .map []),
     ([], m [("h", m []), ("x", rf (m [("p", m [])]) (ad 0 ["h", "q"])), ("y", rf (m [("q", m [])]) (ad 0 ["h", "p"]))],
-      .map [])]
+      .map []),
+    ([], m [("x", .meet (.or [(1, kd1 (m [("z", int 1)])), (0, kd2 (m [("w", int 2)]))]) peer),
+      ("y", m [("z", int 2)])], .map []),
+    ([], m [("x", .meet (.or [(1, kd1 (m [("z", int 1)])), (0, kd2 (m [("z", int 2)]))]) peer), ("y", m [])],
+      .map []),
+    ([], m [("x", .meet (.or [(1, kd1 (m [("z", int 1)])), (0, kd2 (m [("w", int 2)])), (0, .lit (.str "s"))]) peer),
+      ("y", m [("z", int 2)])], .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
