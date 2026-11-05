@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### A preference arm has no parent type
+
+Both engines, and shared rows.
+
+- Inside a disjunction, both engines let a preference arm over a map or
+  a list fall back to its parent type where the value it met refused its
+  own value, so `*{b: 1} | "z"` admitted `{b: 2}`, and
+  `(*{b: 1} | {c: 1}) & {b: 2}` was two arms that generated nothing. An
+  arm `*x` is now the arm `x` of rank one, as the definition and the
+  reference read it: a value its own value refuses kills it, whatever
+  its kind and whatever its siblings do. So the second document is
+  `{"b": 2, "c": 1}`. A lone preference keeps its parent type:
+  `*{b: 1}` still admits `{b: 2}`. Fixes #637 and #365.
+- 27 `verdict` rows from the definition, pa0 on in
+  `test/spec/def-verdict.tsv`. Rows t348 and t351 of
+  `test/spec/def-trial.tsv` now agree with the definition and leave
+  the ledger, whose bound falls to 109.
+
 ### `--no-fill` passes data that one arm admits as written
 
 Both engines, and shared rows.

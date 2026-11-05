@@ -22,7 +22,8 @@
 # its spelling leaves the fill as it is, in rows ks0 on.
 # Without the fill, a disjunction admits what any arm admits, whatever its
 # rank, so an arm beside the default that admits the data as written is
-# enough, in rows na0 on.
+# enough, in rows na0 on. A preference as an arm is its value alone, with no
+# parent type, which a lone preference keeps, in rows pa0 on.
 e0	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error"}
 e1	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"noFill":true}}
 e2	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"partial":true}}
@@ -749,3 +750,30 @@ na38	verdict	v: *{"b": 1} | ({})	v: {"b": 1}	{"verdict":"valid","opts":{"partial
 na39	verdict	v: ({"b": 1}) | ({})	v: {}	{"verdict":"incomplete"}
 na40	verdict	v: ({"b": 1}) | ({})	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
 na41	verdict	v: ({"b": 1}) | ({})	v: {}	{"verdict":"valid","opts":{"partial":true}}
+pa0	verdict	v: *{"b": 1} | ("z")	v: {"b": 2}	{"verdict":"invalid"}
+pa1	verdict	v: *{"b": 1} | ("z")	v: {"b": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+pa2	verdict	v: *{"b": 1} | ("z")	v: {"b": 2}	{"verdict":"invalid","opts":{"partial":true}}
+pa3	verdict	v: *(close([1])) | ("z")	v: [2]	{"verdict":"invalid"}
+pa4	verdict	v: *(close([1])) | ("z")	v: [2]	{"verdict":"invalid","opts":{"noFill":true}}
+pa5	verdict	v: *(close([1])) | ("z")	v: [2]	{"verdict":"invalid","opts":{"partial":true}}
+pa6	verdict	v: *{"b": 1} | ({"c": 1})	v: {"b": 2}	{"verdict":"valid"}
+pa7	verdict	v: *{"b": 1} | ({"c": 1})	v: {"b": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+pa8	verdict	v: *{"b": 1} | ({"c": 1})	v: {"b": 2}	{"verdict":"valid","opts":{"partial":true}}
+pa9	verdict	v: *("q") | (5)	v: "r"	{"verdict":"invalid"}
+pa10	verdict	v: *("q") | (5)	v: "r"	{"verdict":"invalid","opts":{"noFill":true}}
+pa11	verdict	v: *("q") | (5)	v: "r"	{"verdict":"invalid","opts":{"partial":true}}
+pa12	verdict	v: *{"b": 1} | ({"c": 1})	v: {"b": 1}	{"verdict":"valid"}
+pa13	verdict	v: *{"b": 1} | ({"c": 1})	v: {"b": 1}	{"verdict":"valid","opts":{"noFill":true}}
+pa14	verdict	v: *{"b": 1} | ({"c": 1})	v: {"b": 1}	{"verdict":"valid","opts":{"partial":true}}
+pa15	verdict	v: *{"b": 1} | ({"b": integer})	v: {"b": 2}	{"verdict":"valid"}
+pa16	verdict	v: *{"b": 1} | ({"b": integer})	v: {"b": 2}	{"verdict":"valid","opts":{"noFill":true}}
+pa17	verdict	v: *{"b": 1} | ({"b": integer})	v: {"b": 2}	{"verdict":"valid","opts":{"partial":true}}
+pa18	verdict	v: {"a": *{"b": 1} | ("z")}	v: {"a": {"b": 2}}	{"verdict":"invalid"}
+pa19	verdict	v: {"a": *{"b": 1} | ("z")}	v: {"a": {"b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+pa20	verdict	v: {"a": *{"b": 1} | ("z")}	v: {"a": {"b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+pa21	verdict	v: [*{"b": 1} | ("z")]	v: [{"b": 2}]	{"verdict":"invalid"}
+pa22	verdict	v: [*{"b": 1} | ("z")]	v: [{"b": 2}]	{"verdict":"invalid","opts":{"noFill":true}}
+pa23	verdict	v: [*{"b": 1} | ("z")]	v: [{"b": 2}]	{"verdict":"invalid","opts":{"partial":true}}
+pa24	verdict	v: *{"b": 1}	v: {"b": 2}	{"verdict":"valid"}
+pa25	verdict	v: *{"b": 1}	v: {"b": 2}	{"verdict":"valid","opts":{"noFill":true}}
+pa26	verdict	v: *{"b": 1}	v: {"b": 2}	{"verdict":"valid","opts":{"partial":true}}
