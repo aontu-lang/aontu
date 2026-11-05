@@ -1025,3 +1025,6 @@ ta35	verdict	"a": contains({"a": *{"b": 1} | ({})})	{"a": [{"a": {}}]}	{"verdict
 ta36	verdict	"a": contains(*{"b": 1} | (null))	{"a": [null]}	{"verdict":"valid"}
 ta37	verdict	"a": contains(*{"b": 1} | (null))	{"a": [null]}	{"verdict":"valid","opts":{"noFill":true}}
 ta38	verdict	"a": contains(*{"b": 1} | (null))	{"a": [null]}	{"verdict":"valid","opts":{"partial":true}}
+ta39	verdict	"a": contains(*{"b": 1} | ({"a": {}}))	{"a": [{"b": 2}]}	{"verdict":"invalid"}
+ta40	verdict	"a": contains(*{"b": 1} | ({"a": {}}))	{"a": [{"b": 2}]}	{"verdict":"invalid","opts":{"noFill":true}}
+ta41	verdict	"a": contains(*{"b": 1} | ({"a": {}}))	{"a": [{"b": 2}]}	{"verdict":"invalid","opts":{"partial":true}}

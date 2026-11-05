@@ -3272,7 +3272,9 @@ counted by a number the arms' members meet and one they don't; `nof`
 and `must` over the same, beside a branch that refuses, and with an
 optional member; `when`, whose condition picks its then-branch through
 such an arm; `rest`; and `contains` over a list and a map holding the
-disjunction, and over an arm of `null` (#635). -/
+disjunction, and over an arm of `null` (#635); and `contains` over a
+preference arm its member refuses, beside an arm that adds a member,
+which admits nothing, since the arm has no parent type (#637). -/
 def armTrialCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -3294,7 +3296,8 @@ def armTrialCases : List (Decls × Val × Data) :=
     ([], a (.rest pick []), da (.map [("x", .map [])])),
     ([], a (cnt (.list [pick] none false)), da (.list [.list [.map []]])),
     ([], a (cnt (mp [("a", false, pick)])), da (.list [.map [("a", .map [])]])),
-    ([], a (cnt (.or [(1, b1), (0, .lit .null)])), da (.list [.null]))]
+    ([], a (cnt (.or [(1, b1), (0, .lit .null)])), da (.list [.null])),
+    ([], a (cnt (.or [(1, b1), (0, mp [("a", false, mp [])])])), da (.list [.map [("b", j 2)]]))]
 
 theorem armTrialCases_checkable : ∀ c ∈ armTrialCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
@@ -5794,7 +5797,9 @@ theorem marked_each_verdict_exact : ∀ c ∈ markedEachCases, ∀ (m : Mode) (v
 admits, whatever the arm's rank (decision 32), for the `verdict` rows
 from x2271 on: a member an arm beside the default admits, one both arms
 admit, two plain arms, a map's member, one no arm admits, and a pattern
-of each kind (#635). -/
+of each kind (#635); and a preference arm the member refuses, beside an
+arm that adds a member, which keeps nothing and matches nothing, since
+the arm has no parent type (#637). -/
 def armCallCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -5806,7 +5811,9 @@ def armCallCases : List (Val × Data) :=
   [(.filter (lst [mp []]) pick, .list [.map []]), (.filter (lst [b1]) pick, .list [.map [("b", j 1)]]),
     (.filter (lst [mp []]) plain, .list [.map []]), (.filter (mp [("k", mp [])]) pick, .map [("k", .map [])]),
     (.filter (lst [mp [("c", int 2)]]) (.or [(0, b1), (0, mp [("c", int 1)])]), .list []),
-    (.select (mp []) [(plain, int 1)] (some (int 2)), j 1), (.select (mp []) [(pick, int 1)] (some (int 2)), j 1)]
+    (.select (mp []) [(plain, int 1)] (some (int 2)), j 1), (.select (mp []) [(pick, int 1)] (some (int 2)), j 1),
+    (.filter (lst [mp [("b", int 2)]]) (.or [(1, b1), (0, mp [("a", mp [])])]), .list []),
+    (.select (mp [("b", int 2)]) [(.or [(1, b1), (0, mp [("c", int 1)])], int 1)] (some (int 2)), j 2)]
 
 /-! ## Variables
 

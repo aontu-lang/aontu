@@ -2344,6 +2344,12 @@ x2288	verdict	v: match({}, ({"b": 1}) | ({}), 1, 2)	v: 1	{"verdict":"valid","opt
 x2289	verdict	v: match({}, *{"b": 1} | ({}), 1, 2)	v: 1	{"verdict":"valid"}
 x2290	verdict	v: match({}, *{"b": 1} | ({}), 1, 2)	v: 1	{"verdict":"valid","opts":{"noFill":true}}
 x2291	verdict	v: match({}, *{"b": 1} | ({}), 1, 2)	v: 1	{"verdict":"valid","opts":{"partial":true}}
+x2292	verdict	v: filter([{"b": 2}], *{"b": 1} | ({"a": {}}))	v: []	{"verdict":"valid"}
+x2293	verdict	v: filter([{"b": 2}], *{"b": 1} | ({"a": {}}))	v: []	{"verdict":"valid","opts":{"noFill":true}}
+x2294	verdict	v: filter([{"b": 2}], *{"b": 1} | ({"a": {}}))	v: []	{"verdict":"valid","opts":{"partial":true}}
+x2295	verdict	v: match({"b": 2}, *{"b": 1} | ({"c": 1}), 1, 2)	v: 2	{"verdict":"valid"}
+x2296	verdict	v: match({"b": 2}, *{"b": 1} | ({"c": 1}), 1, 2)	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+x2297	verdict	v: match({"b": 2}, *{"b": 1} | ({"c": 1}), 1, 2)	v: 2	{"verdict":"valid","opts":{"partial":true}}
 et0	verdict	v: emit([{"k": 1}], {"match": {"k": 1}, "body": ["a"]})	v: ["a"]	{"verdict":"valid"}
 et1	verdict	v: emit([{"k": 1}], {"match": {"k": 1}, "body": ["a"]})	v: ["a"]	{"verdict":"valid","opts":{"noFill":true}}
 et2	verdict	v: emit([{"k": 1}], {"match": {"k": 1}, "body": ["a"]})	v: ["a"]	{"verdict":"valid","opts":{"partial":true}}
