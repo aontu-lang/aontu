@@ -32,7 +32,7 @@ func bagMembers(bag Val, ctx *Ctx) []member {
 	l := bag.(*ListVal)
 	out := make([]member, 0, len(l.peg))
 	for i, v := range l.peg {
-		if !lifted && (v.markedHide() || v.markedType()) {
+		if !lifted && (v.markedHide() || v.markedType()) { //coverage:ignore an unmarked list drops a marked element as it unifies (ruling 18), before any call reads it
 			continue
 		}
 		out = append(out, member{key: itoa(i), val: v})
