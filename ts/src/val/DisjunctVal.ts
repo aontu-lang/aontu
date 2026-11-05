@@ -125,11 +125,9 @@ class DisjunctVal extends JunctionVal {
           oval[vI] = TRIAL_NIL
         }
         else if (v instanceof PrefVal &&
-          !(peer as any).isPref && !peer.isTop &&
-          true === (prefInnerPeg(v) as any).isScalar) {
+          !(peer as any).isPref && !peer.isTop) {
           // A candidate for the admission gate below: a non-pref,
-          // non-top peer met a scalar preference inside this
-          // disjunction.
+          // non-top peer met a preference inside this disjunction.
           ; (gate = gate ?? []).push(vI)
         }
 
@@ -137,27 +135,19 @@ class DisjunctVal extends JunctionVal {
       }
 
       if (undefined !== gate) {
+        // An arm `*x` is the arm `x` of rank one, with no parent type:
+        // a peer its own value refuses kills it.
         for (const gI of gate) {
-          let admitted = false
-          for (let kI = 0; kI < oval.length && !admitted; kI++) {
-            // Sibling alternatives only: a pref member cannot admit
-            // its own override (post-rankPrefs at most one pref
-            // stands at this level, so this is defensive).
-            admitted = kI !== gI && !oval[kI].isNil &&
-              !(this.peg[kI] as any).isPref
-          }
-          if (!admitted) {
-            const admitErr: any[] = []
-            ctx.err = admitErr
-            // The trial is against a CLONE: the preferred value must
-            // stay pristine for the surviving preference (the
-            // MatchFuncVal.resolve precedent).
-            const met = unite(ctx,
-              prefInnerPeg(this.peg[gI] as PrefVal).clone(ctx), peer,
-              'dj-admit')
-            if (0 < admitErr.length || met.isNil) {
-              oval[gI] = TRIAL_NIL
-            }
+          const admitErr: any[] = []
+          ctx.err = admitErr
+          // The trial is against a CLONE: the preferred value must
+          // stay pristine for the surviving preference (the
+          // MatchFuncVal.resolve precedent).
+          const met = unite(ctx,
+            prefInnerPeg(this.peg[gI] as PrefVal).clone(ctx), peer.clone(ctx),
+            'dj-admit')
+          if (0 < admitErr.length || met.isNil) {
+            oval[gI] = TRIAL_NIL
           }
         }
       }

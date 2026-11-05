@@ -215,7 +215,7 @@ load-ext-toml-dates	gen	x:@"__FIXTURES__/dates.toml"	{"x":{"day":"1979-05-27","p
 # and it must answer what -before answers.
 include-in-place-before	canon	@"__FIXTURES__/pref_base.aontu" w: {a: { L: ***info | string }}	{"w":{&:{"L":*"warn"|string},"a":{"L":***"info"|"info"}}}
 include-in-place-before-gen	gen	@"__FIXTURES__/pref_base.aontu" w: {a: { L: ***info | string }}	{"w":{"a":{"L":"info"}}}
-include-in-place-after	canon	w: {a: { L: ***info | string }} @"__FIXTURES__/pref_base.aontu"	{"w":{&:{"L":*"warn"|string},"a":{"L":"info"|***"info"}}}
+include-in-place-after	canon	w: {a: { L: ***info | string }} @"__FIXTURES__/pref_base.aontu"	{"w":{&:{"L":*"warn"|string},"a":{"L":***"info"|"info"}}}
 include-in-place-after-gen	gen	w: {a: { L: ***info | string }} @"__FIXTURES__/pref_base.aontu"	{"w":{"a":{"L":"info"}}}
 include-in-place-inline	gen	w: { &: { L: *warn | string } a: L: info } w: {a: { L: ***info | string }}	{"w":{"a":{"L":"info"}}}
 # Two includes and three local pairs fold into ONE map in statement order.
