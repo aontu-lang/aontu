@@ -1233,7 +1233,7 @@ is open, so `{port:81}` unifies with `{debug:true}` by *gaining* the
 key, and a filter that kept everything that could be made to match would
 keep everything. The condition is an ordinary value, so the constraint
 atoms compose with it: `filter($.deploy, {replicas:min(3)})`. A
-condition that's a disjunction is satisfied where one of its arms
+condition that's a disjunction keeps a child where one of its arms
 changes nothing, whatever the arm's rank, so
 `filter([{}, {b: 1}], *{b: 1} | {})` keeps both children: the arm `{}`
 changes neither.
