@@ -26,7 +26,8 @@
 # follows from row x2064, key(n), read where it stands, from row x2121, and a
 # call the schema can't build, an error wherever it stands, from row x2238. An
 # each whose instances carry a mark of their own, which a list holds no position
-# for, follows from row x2253. A
+# for, follows from row x2253, and filter and match over a disjunction, which
+# admits what any arm admits, whatever its rank, from row x2271. A
 # call on a name follows in rows z0 on, and a call handed a pattern, re(p), in
 # rows v0 on. path handed a string follows in rows k0 on: its text converted to
 # an address, text with no start read from one dot, and refused where it spells
@@ -2322,6 +2323,27 @@ x2267	verdict	v: each({"a": 1}, hide(_))	v: []	{"verdict":"valid","opts":{"parti
 x2268	verdict	v: each([1], hide((_) & (2)))	v: []	{"verdict":"error"}
 x2269	verdict	v: each([1], hide((_) & (2)))	v: []	{"verdict":"error","opts":{"noFill":true}}
 x2270	verdict	v: each([1], hide((_) & (2)))	v: []	{"verdict":"error","opts":{"partial":true}}
+x2271	verdict	v: filter([{}], *{"b": 1} | ({}))	v: [{}]	{"verdict":"valid"}
+x2272	verdict	v: filter([{}], *{"b": 1} | ({}))	v: [{}]	{"verdict":"valid","opts":{"noFill":true}}
+x2273	verdict	v: filter([{}], *{"b": 1} | ({}))	v: [{}]	{"verdict":"valid","opts":{"partial":true}}
+x2274	verdict	v: filter([{"b": 1}], *{"b": 1} | ({}))	v: [{"b": 1}]	{"verdict":"valid"}
+x2275	verdict	v: filter([{"b": 1}], *{"b": 1} | ({}))	v: [{"b": 1}]	{"verdict":"valid","opts":{"noFill":true}}
+x2276	verdict	v: filter([{"b": 1}], *{"b": 1} | ({}))	v: [{"b": 1}]	{"verdict":"valid","opts":{"partial":true}}
+x2277	verdict	v: filter([{}], ({"b": 1}) | ({}))	v: [{}]	{"verdict":"valid"}
+x2278	verdict	v: filter([{}], ({"b": 1}) | ({}))	v: [{}]	{"verdict":"valid","opts":{"noFill":true}}
+x2279	verdict	v: filter([{}], ({"b": 1}) | ({}))	v: [{}]	{"verdict":"valid","opts":{"partial":true}}
+x2280	verdict	v: filter({"k": {}}, *{"b": 1} | ({}))	v: {"k": {}}	{"verdict":"valid"}
+x2281	verdict	v: filter({"k": {}}, *{"b": 1} | ({}))	v: {"k": {}}	{"verdict":"valid","opts":{"noFill":true}}
+x2282	verdict	v: filter({"k": {}}, *{"b": 1} | ({}))	v: {"k": {}}	{"verdict":"valid","opts":{"partial":true}}
+x2283	verdict	v: filter([{"c": 2}], ({"b": 1}) | ({"c": 1}))	v: []	{"verdict":"valid"}
+x2284	verdict	v: filter([{"c": 2}], ({"b": 1}) | ({"c": 1}))	v: []	{"verdict":"valid","opts":{"noFill":true}}
+x2285	verdict	v: filter([{"c": 2}], ({"b": 1}) | ({"c": 1}))	v: []	{"verdict":"valid","opts":{"partial":true}}
+x2286	verdict	v: match({}, ({"b": 1}) | ({}), 1, 2)	v: 1	{"verdict":"valid"}
+x2287	verdict	v: match({}, ({"b": 1}) | ({}), 1, 2)	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+x2288	verdict	v: match({}, ({"b": 1}) | ({}), 1, 2)	v: 1	{"verdict":"valid","opts":{"partial":true}}
+x2289	verdict	v: match({}, *{"b": 1} | ({}), 1, 2)	v: 1	{"verdict":"valid"}
+x2290	verdict	v: match({}, *{"b": 1} | ({}), 1, 2)	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+x2291	verdict	v: match({}, *{"b": 1} | ({}), 1, 2)	v: 1	{"verdict":"valid","opts":{"partial":true}}
 et0	verdict	v: emit([{"k": 1}], {"match": {"k": 1}, "body": ["a"]})	v: ["a"]	{"verdict":"valid"}
 et1	verdict	v: emit([{"k": 1}], {"match": {"k": 1}, "body": ["a"]})	v: ["a"]	{"verdict":"valid","opts":{"noFill":true}}
 et2	verdict	v: emit([{"k": 1}], {"match": {"k": 1}, "body": ["a"]})	v: ["a"]	{"verdict":"valid","opts":{"partial":true}}
