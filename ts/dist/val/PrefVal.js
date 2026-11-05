@@ -68,7 +68,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Pref', this, peer);
         let out = this;
         let why = '';
-        if (!this.peg.done) {
+        if (!this.peg.done && !(true === ctx.settle && 0 < this.dc)) {
             const resolved = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'RES') }) : ctx, this.peg, (0, top_1.top)(), 'pref/resolve');
             this.peg = resolved;
             this.resuper(ctx);
@@ -129,7 +129,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
                 }
                 why += 'stands';
                 (0, utility_1.explainClose)(te, out);
-                out.dc = type_1.DONE;
+                out.dc = met.done || true === ctx.settle ? type_1.DONE : this.dc + 1;
                 return out;
             }
             // The override arm is trialled too: its failure is not the
@@ -147,9 +147,9 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         else {
             why += 'none';
         }
-        // Every pref result is DONE, including a stuck conjunct from the
-        // superior-unify (mirrored by PrefVal.Unify in go/pref.go).
-        out.dc = type_1.DONE;
+        // Every pref result is DONE (as in go/pref.go), but one whose own
+        // value still waits, as a reference may: until the settling pass.
+        out.dc = peer.isTop && !this.peg.done && true !== ctx.settle ? this.dc + 1 : type_1.DONE;
         ctx.explain && (0, utility_1.explainClose)(te, out);
         return out;
     }

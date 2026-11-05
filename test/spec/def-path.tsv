@@ -246,6 +246,15 @@ p197	verdict	"x": {"a": *{"b": hide(1), "c": 2} | (5)}, "v": $.x	{"x": {"a": {"c
 p198	verdict	"x": {"a": *{"b": hide(1), "c": 2} | (5)}, "v": $.x	{"x": {"a": {"c": 2}}, "v": {"a": {"c": 2}}}	{"verdict":"valid"}
 p199	verdict	"x": {"a": *{"b": hide(1), "c": 2} | (5)}, "v": $.x	{"x": {"a": {"c": 2}}, "v": {"a": {"c": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
 p200	verdict	"x": {"a": *{"b": hide(1), "c": 2} | (5)}, "v": $.x	{"x": {"a": {"c": 2}}, "v": {"a": {"c": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+p201	verdict	"x": *{"k": $.y}, "y": 1	{}	{"verdict":"valid"}
+p202	verdict	"x": *{"k": $.y}, "y": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+p203	verdict	"x": *{"k": $.y}, "y": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+p204	verdict	"x": *($.y), "y": 1	{}	{"verdict":"valid"}
+p205	verdict	"x": *($.y), "y": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+p206	verdict	"x": *($.y), "y": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+p207	verdict	"a": {"x": *{"k": $.a.y}, "y": 1}	{}	{"verdict":"valid"}
+p208	verdict	"a": {"x": *{"k": $.a.y}, "y": 1}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+p209	verdict	"a": {"x": *{"k": $.a.y}, "y": 1}	{}	{"verdict":"valid","opts":{"partial":true}}
 q0	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid"}
 q1	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 q2	verdict	"a": meta({"x": 1}, {}), "b": $.a.x	{"a": {"x": 1}, "b": 1}	{"verdict":"valid","opts":{"partial":true}}

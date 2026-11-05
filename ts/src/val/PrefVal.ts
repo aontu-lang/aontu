@@ -113,7 +113,7 @@ class PrefVal extends FeatureVal {
     let out: Val = this
     let why = ''
 
-    if (!this.peg.done) {
+    if (!this.peg.done && !(true === ctx.settle && 0 < this.dc)) {
       const resolved = unite(te ? ctx.clone({ explain: ec(te, 'RES') }) : ctx,
         this.peg, top(), 'pref/resolve')
       this.peg = resolved
@@ -187,7 +187,7 @@ class PrefVal extends FeatureVal {
 
         why += 'stands'
         explainClose(te, out)
-        out.dc = DONE
+        out.dc = met.done || true === ctx.settle ? DONE : this.dc + 1
         return out
       }
 
@@ -210,9 +210,9 @@ class PrefVal extends FeatureVal {
       why += 'none'
     }
 
-    // Every pref result is DONE, including a stuck conjunct from the
-    // superior-unify (mirrored by PrefVal.Unify in go/pref.go).
-    out.dc = DONE
+    // Every pref result is DONE (as in go/pref.go), but one whose own
+    // value still waits, as a reference may: until the settling pass.
+    out.dc = peer.isTop && !this.peg.done && true !== ctx.settle ? this.dc + 1 : DONE
 
 
     ctx.explain && explainClose(te, out)
