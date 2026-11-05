@@ -107,9 +107,22 @@ func trialUnify(ctx *Ctx, a, b Val) Val {
 
 // Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
 // not raw keys, so an unfilled optional is not something to add.
-func sameKids(a, b Val, ctx *Ctx) bool {
+func sameKids(a, b Val, ctx *Ctx, arms bool) bool {
 	if nil == a || nil == b {
 		return nil == a && nil == b
+	}
+	if d, ok := b.(*DisjunctVal); ok && arms {
+		if _, both := a.(*DisjunctVal); !both {
+			for _, arm := range d.peg {
+				if p, isPref := arm.(*PrefVal); isPref {
+					arm = p.peg
+				}
+				if sameKids(a, arm, ctx, arms) {
+					return true
+				}
+			}
+			return false
+		}
 	}
 	if isBag(a) {
 		if !isBag(b) {
@@ -126,7 +139,7 @@ func sameKids(a, b Val, ctx *Ctx) bool {
 		}
 		for _, m := range am {
 			peer, has := peers[m.key]
-			if !has || !sameKids(m.val, peer, ctx) {
+			if !has || !sameKids(m.val, peer, ctx, arms) {
 				return false
 			}
 		}
@@ -136,16 +149,18 @@ func sameKids(a, b Val, ctx *Ctx) bool {
 }
 
 // A pref-free disjunction is several values at once: any match counts.
-func sameMembers(a, b Val, ctx *Ctx) bool {
+// A condition that admits reads the meet's disjunction by any arm, which
+// emit's dispatch, a meet that narrows nothing, doesn't.
+func sameMembers(a, b Val, ctx *Ctx, arms bool) bool {
 	if d, isDis := a.(*DisjunctVal); isDis {
 		for _, m := range d.peg {
 			if _, isPref := m.(*PrefVal); isPref {
-				return sameKids(a, b, ctx)
+				return sameKids(a, b, ctx, arms)
 			}
 		}
 		return true
 	}
-	return sameKids(a, b, ctx)
+	return sameKids(a, b, ctx, arms)
 }
 
 func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
@@ -164,7 +179,7 @@ func filterFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		setPaths(inst, slot)
 		test := fillPlace(inst, child)
 		met := trialUnify(ctx, clonePath(child, slot), test)
-		return nil != met && sameMembers(child, met, ctx)
+		return nil != met && sameMembers(child, met, ctx, true)
 	}
 
 	// The candidates are the bag's MEMBERS -- what generation would
@@ -238,7 +253,7 @@ func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 		ctx.slot = base
 		met := trialUnify(ctx,
 			clonePath(scrutinee, base), clonePath(args[i], base))
-		if nil != met && sameMembers(scrutinee, met, ctx) {
+		if nil != met && sameMembers(scrutinee, met, ctx, true) {
 			// The RESULT is the answer: a match MAPS a value to another
 			// value rather than narrowing the scrutinee by the arm (see
 			// the TS MatchFuncVal header for why the design's `v & p & r`
@@ -777,7 +792,7 @@ func emitDispatch(ctx *Ctx, base []string, node Val,
 		met := trialUnify(ctx, clonePath(node, base),
 			clonePath(templates[i].match, base))
 		ctx.matchRead = savedRead
-		if nil != met && sameMembers(node, met, ctx) {
+		if nil != met && sameMembers(node, met, ctx, false) {
 			return &templates[i], nil
 		}
 	}

@@ -189,6 +189,6 @@ function trialVerdict(ctx: AontuContext, trial: Val, value: Val, own: any): bool
   if (true === met.isNil || 0 < tctx.err.length) {
     return false
   }
-  const out = met.gen(tctx)
+  const out = genToward(met, tctx, own)
   return 0 === tctx.err.length && undefined !== out && admitsJson(met, out, own)
 }

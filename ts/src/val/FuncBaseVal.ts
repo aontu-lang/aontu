@@ -36,7 +36,10 @@ import { bagMembers } from './members'
 
 // Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
 // not raw keys, so an unfilled optional is not something to add.
-function sameKids(a: any, b: any, ctx: AontuContext): boolean {
+function sameKids(a: any, b: any, ctx: AontuContext, arms: boolean): boolean {
+  if (arms && true === b?.isDisjunct && true !== a?.isDisjunct && Array.isArray(b.peg)) {
+    return b.peg.some((arm: any) => sameKids(a, true === arm?.isPref ? arm.peg : arm, ctx, arms))
+  }
   if (true === a?.isMap || true === a?.isList) {
     const am = bagMembers(a, ctx)
     const bm = bagMembers(b, ctx)
@@ -45,19 +48,20 @@ function sameKids(a: any, b: any, ctx: AontuContext): boolean {
     }
     const peers = new Map(bm.map((m) => [m.key, m.val]))
     return am.every((m) =>
-      peers.has(m.key) && sameKids(m.val, peers.get(m.key), ctx))
+      peers.has(m.key) && sameKids(m.val, peers.get(m.key), ctx, arms))
   }
   return a?.canon === b?.canon
 }
 
 
 // A pref-free disjunction is several values at once: any match counts.
-function sameMembers(a: any, b: any, ctx: AontuContext): boolean {
+// A condition that admits reads the meet's disjunction by any arm.
+function sameMembers(a: any, b: any, ctx: AontuContext, arms: boolean = false): boolean {
   if (true === a?.isDisjunct && Array.isArray(a.peg) &&
     !a.peg.some((m: any) => true === m?.isPref)) {
     return true
   }
-  return sameKids(a, b, ctx)
+  return sameKids(a, b, ctx, arms)
 }
 
 

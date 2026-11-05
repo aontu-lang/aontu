@@ -5374,6 +5374,36 @@ $ aontu -c nof.aontu
 so one branch admits each. `3` would be admitted by both, and `nof`
 refuses it, as the second example proves.
 
+A trial tries the value as admission does anywhere, so a disjunction
+in a trial admits what any arm admits, whatever the arm's rank. Write
+`arm-trial.aontu`:
+
+<!-- test: file arm-trial.aontu -->
+```aontu
+some: contains(*{ b:1 }|{})
+```
+
+and `arm-trial-data.aontu`:
+
+<!-- test: file arm-trial-data.aontu -->
+```aontu
+some: [{}]
+```
+
+and vet the data:
+
+<!-- test: run -->
+```sh
+$ aontu vet arm-trial.aontu arm-trial-data.aontu
+verdict: valid
+```
+
+The member `{}` doesn't carry `b`, and the arm `{}` admits it as
+written, so `contains` counts it. The default `{b: 1}` picks what
+evaluation writes, and takes no part in what the trial counts. The
+rows `ta0` on of `test/spec/def-trial.tsv` hold both engines to this,
+for `nof`, `must`, `when` and `rest` too.
+
 A conditional `vet` decides the same way:
 
 <!-- test: quote spec/Aontu/Tour.lean -->

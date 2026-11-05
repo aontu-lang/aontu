@@ -280,7 +280,7 @@ func trialVerdict(ctx *Ctx, trial, value Val, own any, path []string) bool {
 	if 0 < len(nils) {
 		return false
 	}
-	out, err := met.Gen(tctx)
+	out, err := genToward(met, tctx, own)
 	return nil == err && 0 == len(tctx.err) &&
 		0 == len(fillDiff(out, own, met, nil, nil)) &&
 		sameJSON(withoutOptionalFills(out, own), own)
@@ -310,15 +310,16 @@ func Admits(trial, value Val) bool {
 	if !held {
 		return false
 	}
-	out, ok := generatedOf(met, "")
-	if !ok {
-		return false
-	}
 	own := instanceClone(value, nil)
 	ownCtx := &Ctx{root: own, collect: true}
 	settled := unifyRoot(own, ownCtx)
 	mine, ok := generatedOf(settled, "")
 	if !ok || 0 < len(ownCtx.err) {
+		return false
+	}
+	gctx := &Ctx{root: met, collect: true}
+	out, err := genToward(met, gctx, mine)
+	if nil != err || 0 < len(gctx.err) {
 		return false
 	}
 	return 0 == len(fillDiff(out, mine, met, nil, nil)) &&

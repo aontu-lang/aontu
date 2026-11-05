@@ -1232,7 +1232,11 @@ information the child did not have. Mere unifiability would not do: a map
 is open, so `{port:81}` unifies with `{debug:true}` by *gaining* the
 key, and a filter that kept everything that could be made to match would
 keep everything. The condition is an ordinary value, so the constraint
-atoms compose with it: `filter($.deploy, {replicas:min(3)})`.
+atoms compose with it: `filter($.deploy, {replicas:min(3)})`. A
+condition that's a disjunction is satisfied where one of its arms
+changes nothing, whatever the arm's rank, so
+`filter([{}, {b: 1}], *{b: 1} | {})` keeps both children: the arm `{}`
+changes neither.
 
 `match(v, p1, r1, …, d?)` is a **bounded conditional**. The first
 pattern in argument order that `v` **already satisfies** selects its

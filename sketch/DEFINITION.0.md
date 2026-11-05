@@ -1660,6 +1660,19 @@ until the phase that encodes it lands.
    trials ask the same question and still read a disjunction by its
    default, or not at all, which #635 records.
 
+   **Ported to the trials 2026-11-05 (#635).** The trials and the
+   library's `admits` generate the meet toward the value they try, and
+   `filter` and `match` read a disjunction their meet leaves arm by arm,
+   so a member one arm admits as written is admitted. `emit`'s dispatch
+   isn't admission: it takes a node where the meet narrows nothing, as
+   both ports and the definition read it (`emitTakes`), so a `match`
+   whose arms differ takes no node. Rows ta0 on, 13 cases in each mode,
+   and x2271 on, 7 cases in each mode, both ports answering every row as
+   the definition does. Two shapes still part the ports from the
+   definition: a preference arm over a map or a list falls back to its
+   parent type (#637), and `filter` and `match` count a condition's
+   optional member as one the meet adds (#638).
+
 ## 8. Risks
 
 | Risk | Mitigation |
