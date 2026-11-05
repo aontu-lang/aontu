@@ -1831,7 +1831,9 @@ three deep, from a body, under data a template refuses, and in a cycle
 that makes neither; and a link in a preference arm its peer refuses,
 beside an arm whose link stands, with a third arm or without, whose
 template doesn't reach the target, since the arm is dead, so a target
-or a standing template that refuses it is no clash (#637). -/
+or a standing template that refuses it is no clash (#637); and the same
+link in a lone preference's own value, which its peer refuses, so the
+preference stands as its parent type, which holds no link (#641). -/
 def referCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1894,7 +1896,8 @@ def referCases : List (Decls × Val × Data) :=
     ([], m [("x", .meet (.or [(1, kd1 (m [("z", int 1)])), (0, kd2 (m [("z", int 2)]))]) peer), ("y", m [])],
       .map []),
     ([], m [("x", .meet (.or [(1, kd1 (m [("z", int 1)])), (0, kd2 (m [("w", int 2)])), (0, .lit (.str "s"))]) peer),
-      ("y", m [("z", int 2)])], .map [])]
+      ("y", m [("z", int 2)])], .map []),
+    ([], m [("x", .meet (.pref 1 (kd1 (m [("z", int 1)]))) peer), ("y", m [("z", int 2)])], .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

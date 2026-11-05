@@ -25,7 +25,7 @@ import {
 } from './PathVal'
 import { FeatureVal } from './FeatureVal'
 import { ConjunctVal } from './ConjunctVal'
-import { unite } from '../unify'
+import { unite, recordFlow } from '../unify'
 import { top } from './top'
 import { propagateMarks, walk } from '../utility'
 
@@ -241,12 +241,7 @@ class ReferVal extends FeatureVal {
     if (!this.tval.isTop) {
       const flow = concreteFlow(ctx, this.tval)
 
-      const flows: Map<string, Val> = (ctx as any).referflows ??
-        new Map<string, Val>()
-      const key = target.join('\x00')
-      const prev = flows.get(key)
-      flows.set(key, null == prev ? flow : unite(ctx, prev, flow,
-        'refer-flow-record'))
+      recordFlow(ctx, target.join('\x00'), flow)
 
       if (!flowing.has(guard)) {
         flowing.add(guard)

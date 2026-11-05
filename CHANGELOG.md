@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### A preference sends its own links only where its value stands
+
+Both engines, and shared rows.
+
+- A lone preference trials its own value against its peer, and stands
+  as its parent type where the peer refuses that value. Both engines
+  kept the flows the failed trial recorded, so a `refer()` in the
+  refused value still sent its template to its target: in
+  `*{k: 1, d?: refer({z: 1})} & {k: 2, d: path($.y)}`, `y` was
+  `{"z": 1}`. The trial now records its flows apart, and they reach
+  their targets only where the value stands, as the definition reads
+  `*x` as `x | super(x)`. Fixes #641.
+- 3 `verdict` rows from the definition, rf117 on in
+  `test/spec/def-path.tsv`, and 2 `gens` rows in
+  `test/spec/refer.tsv`, `pref-own-link-stands` and
+  `pref-own-link-refused`.
+
 ### `filter` and `match` admit a value that leaves out an optional member
 
 Both engines, and shared rows.

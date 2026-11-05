@@ -183,11 +183,7 @@ class ReferVal extends FeatureVal_1.FeatureVal {
         const flowing = ctx._referflow ?? new Set();
         if (!this.tval.isTop) {
             const flow = concreteFlow(ctx, this.tval);
-            const flows = ctx.referflows ??
-                new Map();
-            const key = target.join('\x00');
-            const prev = flows.get(key);
-            flows.set(key, null == prev ? flow : (0, unify_1.unite)(ctx, prev, flow, 'refer-flow-record'));
+            (0, unify_1.recordFlow)(ctx, target.join('\x00'), flow);
             if (!flowing.has(guard)) {
                 flowing.add(guard);
                 try {

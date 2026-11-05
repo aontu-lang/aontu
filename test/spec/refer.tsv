@@ -278,3 +278,8 @@ flow-forward	gens	b: refer({k:1}) & path($.a)\na: {}	{"a":{"k":1},"b":"$.a"}
 # link keeps the address the author wrote.
 flow-target-moved-away	errc	a: {t: {}}\nb: refer({k:1}) & path($.a.t)\na: move($.a.t)	refer_unresolved
 flow-lands-then-its-parent-moves	gens	a: {t: {}}\nb: refer({k:1}) & path($.a.t)\nc: move($.a)	{"b":"$.a.t","c":{"t":{"k":1}}}
+# A preference sends the links in its own value only where that value stands:
+# beside a peer that refuses it the preference stands as its parent type, which
+# holds no link (#641).
+pref-own-link-stands	gens	x: *{k: 1, d?: refer({z: 1})} & {k: 1, d: path($.y)}\ny: {}	{"x":{"d":"$.y","k":1},"y":{"z":1}}
+pref-own-link-refused	gens	x: *{k: 1, d?: refer({z: 1})} & {k: 2, d: path($.y)}\ny: {}	{"x":{"d":"$.y","k":2},"y":{}}
