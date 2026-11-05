@@ -3858,6 +3858,42 @@ $ echo $?
 1
 ```
 
+The same reading makes an arm `*x` the value `x` and nothing wider.
+Alone, `*x` also admits what the parent type of `x` admits, as the
+next section shows. As an arm it doesn't, so `*{b: 1} | "z"` refuses
+`{b: 2}`: neither arm admits it. Write `pref-arm-schema.aontu`:
+
+<!-- test: file pref-arm-schema.aontu -->
+```aontu
+v: *{ b:1 }|"z"
+```
+
+and `pref-arm-data.aontu`:
+
+<!-- test: file pref-arm-data.aontu -->
+```aontu
+v: b: 2
+```
+
+Both engines refuse the data, and say that the default is no instance
+of an arm that remains:
+
+<!-- test: run -->
+```sh
+$ aontu vet pref-arm-schema.aontu pref-arm-data.aontu
+verdict: invalid
+
+$.v: empty [conflict]
+  [aontu/empty]: Cannot unify values at path $.v
+  data: pref-arm-data.aontu:1:4 ({"b":2})
+  schema: pref-arm-schema.aontu:1:4 (*{"b":1}|"z")
+$.v: pref_not_instance [compat]
+  the default {"b":1} is not an instance of any remaining alternative of *{"b":1}|"z"
+  schema: pref-arm-schema.aontu:1:5 ({"b":1})
+$ echo $?
+1
+```
+
 ### A preference alone
 
 `*x` outside a disjunction is a default its type can override: it
