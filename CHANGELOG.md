@@ -8,6 +8,18 @@ each change affects.
 
 ## Unreleased
 
+### Two more of Go's coverage gaps close
+
+Go only, and a shared row.
+
+- A `trace` row of `test/spec/trace.tsv`: an `emit` whose selection
+  member is a copy names the node by the address the copy was read
+  from, `$.t`, in both engines. Before #627 a row reached Go's arm for
+  that only through arguments a copy shared with the call it copied.
+- Go's `bagMembers` keeps its skip of a marked element in an unmarked
+  list, which no call reaches, since such a list drops the element as
+  it unifies (ruling 18); a coverage marker says so.
+
 ### TypeScript's copy clears the marks under a preference
 
 TypeScript only, and shared rows.
