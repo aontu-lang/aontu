@@ -20,6 +20,9 @@
 # leaves out, and none admits the string the data writes for it, since no
 # JSON text reads as an address. A string constraint the address passes by
 # its spelling leaves the fill as it is, in rows ks0 on.
+# Without the fill, a disjunction admits what any arm admits, whatever its
+# rank, so an arm beside the default that admits the data as written is
+# enough, in rows na0 on.
 e0	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error"}
 e1	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"noFill":true}}
 e2	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"partial":true}}
@@ -704,3 +707,45 @@ ks5	verdict	v: {"x": (path($.a.b)) & (above("$.a"))}	v: {}	{"verdict":"valid","o
 ks6	verdict	v: {"x": (max("$.b")) & (path($.a))}	v: {}	{"verdict":"valid"}
 ks7	verdict	v: {"x": (max("$.b")) & (path($.a))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
 ks8	verdict	v: {"x": (max("$.b")) & (path($.a))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+na0	verdict	v: *{"b": 1} | ({})	v: {}	{"verdict":"valid"}
+na1	verdict	v: *{"b": 1} | ({})	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+na2	verdict	v: *{"b": 1} | ({})	v: {}	{"verdict":"valid","opts":{"partial":true}}
+na3	verdict	v: *{"b": 1, "c": 2} | ({})	v: {"c": 2}	{"verdict":"valid"}
+na4	verdict	v: *{"b": 1, "c": 2} | ({})	v: {"c": 2}	{"verdict":"valid","opts":{"noFill":true}}
+na5	verdict	v: *{"b": 1, "c": 2} | ({})	v: {"c": 2}	{"verdict":"valid","opts":{"partial":true}}
+na6	verdict	v: *(1) | (integer)	v: 2	{"verdict":"valid"}
+na7	verdict	v: *(1) | (integer)	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+na8	verdict	v: *(1) | (integer)	v: 2	{"verdict":"valid","opts":{"partial":true}}
+na9	verdict	v: *{"b": 1, "c": 2} | (5)	v: {"c": 2}	{"verdict":"valid"}
+na10	verdict	v: *{"b": 1, "c": 2} | (5)	v: {"c": 2}	{"verdict":"incomplete","opts":{"noFill":true}}
+na11	verdict	v: *{"b": 1, "c": 2} | (5)	v: {"c": 2}	{"verdict":"valid","opts":{"partial":true}}
+na12	verdict	v: {"a": *{"b": 1} | ({}), "x": 1}	v: {"a": {}}	{"verdict":"valid"}
+na13	verdict	v: {"a": *{"b": 1} | ({}), "x": 1}	v: {"a": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
+na14	verdict	v: {"a": *{"b": 1} | ({}), "x": 1}	v: {"a": {}}	{"verdict":"valid","opts":{"partial":true}}
+na15	verdict	v: [*{"b": 1} | ({})]	v: [{}]	{"verdict":"valid"}
+na16	verdict	v: [*{"b": 1} | ({})]	v: [{}]	{"verdict":"valid","opts":{"noFill":true}}
+na17	verdict	v: [*{"b": 1} | ({})]	v: [{}]	{"verdict":"valid","opts":{"partial":true}}
+na18	verdict	v: [*{"b": 1} | (null), 2]	v: [null]	{"verdict":"valid"}
+na19	verdict	v: [*{"b": 1} | (null), 2]	v: [null]	{"verdict":"incomplete","opts":{"noFill":true}}
+na20	verdict	v: [*{"b": 1} | (null), 2]	v: [null]	{"verdict":"valid","opts":{"partial":true}}
+na21	verdict	v: *{"b": 1} | ({"c"?: 2})	v: {}	{"verdict":"valid"}
+na22	verdict	v: *{"b": 1} | ({"c"?: 2})	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+na23	verdict	v: *{"b": 1} | ({"c"?: 2})	v: {}	{"verdict":"valid","opts":{"partial":true}}
+na24	verdict	v: *{"b": 1} | (null)	v: null	{"verdict":"valid"}
+na25	verdict	v: *{"b": 1} | (null)	v: null	{"verdict":"valid","opts":{"noFill":true}}
+na26	verdict	v: *{"b": 1} | (null)	v: null	{"verdict":"valid","opts":{"partial":true}}
+na27	verdict	v: *{"b": *(1) | ({"c": 2})} | ({"b": {}})	v: {"b": {}}	{"verdict":"valid"}
+na28	verdict	v: *{"b": *(1) | ({"c": 2})} | ({"b": {}})	v: {"b": {}}	{"verdict":"valid","opts":{"noFill":true}}
+na29	verdict	v: *{"b": *(1) | ({"c": 2})} | ({"b": {}})	v: {"b": {}}	{"verdict":"valid","opts":{"partial":true}}
+na30	verdict	v: **{"b": 1} | *{"c": 1} | ({})	v: {}	{"verdict":"valid"}
+na31	verdict	v: **{"b": 1} | *{"c": 1} | ({})	v: {}	{"verdict":"valid","opts":{"noFill":true}}
+na32	verdict	v: **{"b": 1} | *{"c": 1} | ({})	v: {}	{"verdict":"valid","opts":{"partial":true}}
+na33	verdict	v: *{"b": 1} | ({"b": integer})	v: {"b": 2}	{"verdict":"valid"}
+na34	verdict	v: *{"b": 1} | ({"b": integer})	v: {"b": 2}	{"verdict":"valid","opts":{"noFill":true}}
+na35	verdict	v: *{"b": 1} | ({"b": integer})	v: {"b": 2}	{"verdict":"valid","opts":{"partial":true}}
+na36	verdict	v: *{"b": 1} | ({})	v: {"b": 1}	{"verdict":"valid"}
+na37	verdict	v: *{"b": 1} | ({})	v: {"b": 1}	{"verdict":"valid","opts":{"noFill":true}}
+na38	verdict	v: *{"b": 1} | ({})	v: {"b": 1}	{"verdict":"valid","opts":{"partial":true}}
+na39	verdict	v: ({"b": 1}) | ({})	v: {}	{"verdict":"incomplete"}
+na40	verdict	v: ({"b": 1}) | ({})	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+na41	verdict	v: ({"b": 1}) | ({})	v: {}	{"verdict":"valid","opts":{"partial":true}}

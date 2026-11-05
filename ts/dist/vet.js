@@ -22,6 +22,7 @@ const utility_1 = require("./utility");
 const subsume_1 = require("./subsume");
 const query_1 = require("./query");
 const admit_1 = require("./admit");
+const admission_1 = require("./val/admission");
 const keyorder_1 = require("./keyorder");
 const sourcemap_1 = require("./sourcemap");
 // The default cap, exported because the CLI applies it to the WHOLE
@@ -618,9 +619,11 @@ function vet(schemaSrc, dataSrc, opts) {
         const ownGen = 0 === ownCtx.err.length ? own.gen(genOwn) : undefined;
         // Under --at the paths are the anchor's, as every other finding's are.
         const anchorPath = ctx.path ?? [];
+        const towardCtx = genCtx.clone({ err: [], collect: true });
+        const toward = undefined === ownGen ? undefined : (0, admission_1.genToward)(unified, towardCtx, ownGen);
         // Data the schema must complete at its root is filled there.
         const filled = 0 === ownCtx.err.length && undefined === ownGen ? [[]] :
-            (0, admit_1.fillDiff)(generated, ownGen, unified);
+            (0, admit_1.fillDiff)(0 === towardCtx.err.length && undefined !== toward ? toward : generated, ownGen, unified);
         for (const path of filled) {
             findings.push(pointed(fromRegistry({
                 code: 'vet_filled',

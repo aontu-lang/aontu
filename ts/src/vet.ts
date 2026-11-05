@@ -21,6 +21,7 @@ import { collectDeprecations, walkBagVals, deprecationMessage,
 import { subsumeNode, effectiveDefault, newPairs } from './subsume'
 import { noPathFinding } from './query'
 import { fillDiff } from './admit'
+import { genToward } from './val/admission'
 import { cmpCodePoint } from './keyorder'
 import { pointerOf } from './sourcemap'
 
@@ -826,9 +827,12 @@ export function vet(
     const ownGen = 0 === ownCtx.err.length ? own.gen(genOwn) : undefined
     // Under --at the paths are the anchor's, as every other finding's are.
     const anchorPath: string[] = (ctx as any).path ?? []
+    const towardCtx = genCtx.clone({ err: [], collect: true })
+    const toward = undefined === ownGen ? undefined : genToward(unified, towardCtx, ownGen)
     // Data the schema must complete at its root is filled there.
     const filled = 0 === ownCtx.err.length && undefined === ownGen ? [[]] :
-      fillDiff(generated, ownGen, unified)
+      fillDiff(0 === towardCtx.err.length && undefined !== toward ? toward : generated,
+        ownGen, unified)
     for (const path of filled) {
       findings.push(pointed(fromRegistry({
         code: 'vet_filled',

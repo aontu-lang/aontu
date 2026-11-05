@@ -1637,6 +1637,28 @@ until the phase that encodes it lands.
    made. A group that holds no hole is still flattened, so a call with
    more than one peer, as in `upper(_) & ("a" & "a")`, reads as the
    conjunction is written, as #512 records.
+32. **`--no-fill` and an arm beside the default.** Raised 2026-11-05 by
+   #630's rows (#631). Under `--no-fill` both ports reported each member
+   a preference's default supplies as `vet_filled`, even where another
+   arm admits the data as written, so `a: *{b: 1} | {}` against
+   `{"a": {}}` was `incomplete`. The definition reads `--no-fill` as the
+   question whether the data is an instance of the schema's visible
+   part, and a disjunction admits what any arm admits, whatever its
+   rank, so it answered `valid`. The API reference said both things.
+
+   **Ruled 2026-11-05: an instance of any arm.** The data as written
+   passes `--no-fill` where it's an instance of the schema, and a
+   default adds nothing it must carry, as JSON Schema's `default` takes
+   no part in validation. The definition stands, and both ports move.
+
+   **Ported 2026-11-05.** Under `--no-fill` both ports now compare the
+   data with a generation toward it (`genToward`): a disjunction with an
+   arm that admits the data at its place generates the data there,
+   whatever its default, and a member the data lacks elsewhere is still
+   `vet_filled`. Rows na0 on, 14 cases in each mode, both ports
+   answering every row as the definition does; no other row moved. The
+   trials ask the same question and still read a disjunction by its
+   default, or not at all, which #635 records.
 
 ## 8. Risks
 

@@ -32,6 +32,7 @@ import {
 
 import { TRIAL_NIL } from '../val/NilVal'
 import { PrefVal, prefInnerPeg } from '../val/PrefVal'
+import { armAdmits } from '../val/admission'
 import { JunctionVal } from '../val/JunctionVal'
 
 
@@ -339,6 +340,12 @@ class DisjunctVal extends JunctionVal {
       // it is what guarantees at most one preference stands here.
       if (!this.prefsRanked) {
         this.rankPrefs(ctx)
+      }
+
+      const toward = ctx?._toward
+      if (undefined !== toward && 1 < this.peg.length && this.peg.some((arm: any) =>
+        armAdmits(true === arm.isPref ? arm.peg : arm, ctx, toward.v))) {
+        return toward.v
       }
 
       const prefs = this.peg.filter((v: Val) => v instanceof PrefVal)

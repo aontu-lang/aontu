@@ -236,6 +236,9 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 
 func (d *DisjunctVal) Gen(ctx *Ctx) (any, error) {
 	val, unresolved := d.forGen(ctx)
+	if d.admitsToward(ctx) {
+		return ctx.toward.v, nil
+	}
 	if unresolved {
 		if out, same := d.genSame(ctx); same {
 			return out, nil
@@ -250,6 +253,20 @@ func (d *DisjunctVal) Gen(ctx *Ctx) (any, error) {
 		return nil, &AontuError{Msg: "Cannot generate value: empty disjunct", Code: "empty"}
 	}
 	return val.Gen(ctx)
+}
+
+// admitsToward is whether, in a generation toward the data, an arm admits
+// the data at this place as written.
+func (d *DisjunctVal) admitsToward(ctx *Ctx) bool {
+	if nil == ctx || nil == ctx.toward || len(d.peg) < 2 {
+		return false
+	}
+	for _, arm := range d.peg {
+		if armAdmits(arm, ctx) {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *DisjunctVal) forGen(ctx *Ctx) (Val, bool) {

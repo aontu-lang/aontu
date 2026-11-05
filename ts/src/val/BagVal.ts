@@ -16,6 +16,7 @@ import {
 import { makeNilErr } from '../err'
 import { parseNilIn } from '../walk'
 import { empty, repathInstance } from './Val'
+import { towardMember } from './admission'
 
 import { Val } from './Val'
 import { NilVal } from './NilVal'
@@ -162,7 +163,7 @@ abstract class BagVal extends FeatureVal {
       if (child.isDisjunct && optional) {
         const dctx = ctx.clone({ err: [], collect: true })
 
-        let cval = child.gen(dctx)
+        let cval = child.gen(towardAt(this, dctx, p, out))
 
         if (raiseParse(dctx, child, ctx) || undefined === cval || empty(cval)) {
           continue
@@ -174,7 +175,7 @@ abstract class BagVal extends FeatureVal {
       else if (bagGenable(child)) {
         const cctx = optional ? ctx.clone({ err: [], collect: true }) : ctx
 
-        let cval = child.gen(cctx)
+        let cval = child.gen(towardAt(this, cctx, p, out))
 
         if (optional &&
           (raiseParse(cctx, child, ctx) || undefined === cval || empty(cval))) {
@@ -227,6 +228,12 @@ abstract class BagVal extends FeatureVal {
 
 export {
   BagVal,
+}
+
+
+function towardAt(bag: BagVal, ctx: AontuContext, p: any, out: any): AontuContext {
+  return undefined === ctx?._toward ? ctx :
+    towardMember(ctx, bag.isMap ? String(p) : out.length)
 }
 
 

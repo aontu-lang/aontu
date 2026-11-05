@@ -8,6 +8,22 @@ each change affects.
 
 ## Unreleased
 
+### `--no-fill` passes data that one arm admits as written
+
+Both engines, and shared rows.
+
+- Under `vet --no-fill`, a default's members were `vet_filled` findings
+  even where another arm of the disjunction admits the data as written,
+  so `a: *{b: 1} | {}` against `{"a": {}}` was `incomplete`. The data
+  now passes where it's an instance of the schema, as the definition
+  reads it, and a default adds nothing it must carry. A member the data
+  lacks elsewhere is still a finding. Fixes #631, ruled as decision 32.
+- 42 `verdict` rows from the definition, na0 on in
+  `test/spec/def-verdict.tsv`, cover an arm beside the default, under a
+  key, in a list, beside a member the data lacks, with an optional
+  member or `null`, inside another arm, and where no arm admits the
+  data.
+
 ### Two more of Go's coverage gaps close
 
 Go only, and a shared row.

@@ -682,3 +682,12 @@ also add a rule that a small amount of redundancy and repetition is desirable an
 ```text
 push and merge
 ```
+
+## 2026-11-05 12:58:18 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#631: under `vet --no-fill`, `a: *{b: 1} | {}` against `{"a": {}}` — the definition answers `valid` (the `{}` arm admits the data as written), both engines answer `incomplete` (they report the default's `b` as a member the schema supplies, `vet_filled`). Which reading should `--no-fill` have?
+→ Instance of any arm (Recommended)
+```

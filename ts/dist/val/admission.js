@@ -5,6 +5,9 @@ exports.fillDiff = fillDiff;
 exports.sameJson = sameJson;
 exports.withoutOptionalFills = withoutOptionalFills;
 exports.admitsJson = admitsJson;
+exports.genToward = genToward;
+exports.towardMember = towardMember;
+exports.armAdmits = armAdmits;
 exports.ownJson = ownJson;
 exports.admitsSettled = admitsSettled;
 const type_1 = require("../type");
@@ -85,6 +88,29 @@ function withoutOptionalFills(generated, data) {
 function admitsJson(met, out, own) {
     return 0 === fillDiff(out, own, met).length &&
         sameJson(withoutOptionalFills(out, own), own);
+}
+// The generation an admission reads: a disjunction with an arm that
+// admits the data as written generates the data there, whatever its
+// default, since a rank picks the output and takes no part in admission.
+function genToward(value, ctx, own) {
+    const tctx = ctx.clone({});
+    tctx._toward = { v: own };
+    return value.gen(tctx);
+}
+function towardMember(ctx, key) {
+    const data = ctx._toward?.v;
+    const tctx = ctx.clone({});
+    tctx._toward = undefined;
+    if ('number' === typeof key ? Array.isArray(data) && key < data.length :
+        isObject(data) && hasOwn(data, key)) {
+        tctx._toward = { v: data[key] };
+    }
+    return tctx;
+}
+function armAdmits(arm, ctx, own) {
+    const actx = ctx.clone({ err: [], collect: true });
+    const out = arm.gen(actx);
+    return 0 === actx.err.length && undefined !== out && admitsJson(arm, out, own);
 }
 function ownJson(value, ctx) {
     const gctx = ctx.clone({ err: [], collect: true });

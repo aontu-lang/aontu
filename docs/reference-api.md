@@ -208,7 +208,11 @@ member the schema supplies, from a default or a literal, fills in
 silently. Under `--no-fill` each such member is a `vet_filled` finding,
 class `incomplete`, at the member's path, and so is data the schema must
 complete before it generates, such as `integer` against `1`, at `$`. An
-optional member is the schema's to supply and is not a finding. This is the question JSON
+optional member is the schema's to supply and is not a finding. Nor is
+a default's member where another arm admits the data as written: against
+`{"x": {}}`, `x: *{b: 1} | {}` is `valid`, since the arm `{}` admits
+`{}`. The default picks what evaluation writes, and takes no part in
+whether the data is an instance. This is the question JSON
 Schema asks, and the one a schema imported by `aontu jsonschema import`
 is checked with.
 

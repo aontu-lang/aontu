@@ -10,6 +10,7 @@ const utility_1 = require("../utility");
 const top_1 = require("./top");
 const NilVal_1 = require("../val/NilVal");
 const PrefVal_1 = require("../val/PrefVal");
+const admission_1 = require("../val/admission");
 const JunctionVal_1 = require("../val/JunctionVal");
 class DisjunctVal extends JunctionVal_1.JunctionVal {
     constructor(spec, ctx, _sites) {
@@ -265,6 +266,10 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             // it is what guarantees at most one preference stands here.
             if (!this.prefsRanked) {
                 this.rankPrefs(ctx);
+            }
+            const toward = ctx?._toward;
+            if (undefined !== toward && 1 < this.peg.length && this.peg.some((arm) => (0, admission_1.armAdmits)(true === arm.isPref ? arm.peg : arm, ctx, toward.v))) {
+                return toward.v;
             }
             const prefs = this.peg.filter((v) => v instanceof PrefVal_1.PrefVal);
             if (0 === prefs.length && 1 < this.peg.length) {
