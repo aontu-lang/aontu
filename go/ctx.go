@@ -31,6 +31,8 @@ type Ctx struct {
 	referflow map[string]bool
 	slot []string
 
+	toward *towardData
+
 	argsnap bool
 
 	budgetPasses int

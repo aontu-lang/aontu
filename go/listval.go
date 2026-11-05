@@ -86,7 +86,7 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 			makeNilErrFull(ctx, code, va, vb, "", details)
 			break
 		}
-		ev, err := e.Gen(ctx)
+		ev, err := genAt(e, ctx, len(out))
 		if err != nil {
 			if ctx != nil && ctx.collect {
 				ctx.dropped = true
@@ -94,7 +94,7 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 			}
 			return nil, err
 		}
-		if ev == nil && !gensNull(ctx, e) {
+		if ev == nil && !gensNullAt(ctx, e, len(out)) {
 			continue
 		}
 		out = append(out, ev)

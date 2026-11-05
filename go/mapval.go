@@ -355,7 +355,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			gctx = &c2
 		}
 
-		cv, err := child.Gen(gctx)
+		cv, err := genAt(child, gctx, k)
 		// An optional key drops what does not resolve, never a refusal
 		// the parser made: the one vet reports there is raised instead.
 		if gctx != ctx && (nil != err || 0 < len(gctx.err) || gctx.dropped) {
@@ -381,7 +381,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		}
 		// A JSON null child survives even when optional (`b?:null` keeps
 		// b: null); other nils and optional empties contribute nothing.
-		if cv == nil && gensNull(ctx, child) {
+		if cv == nil && gensNullAt(ctx, child, k) {
 			out[k] = nil
 			continue
 		}

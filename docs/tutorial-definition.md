@@ -4869,6 +4869,36 @@ optional key. The sizes met with container literals follow in rows
 `l0` on, the cases of `lenCases`, and both engines answer every one as
 the definition does.
 
+Without the fill, a disjunction still admits what any arm admits,
+whatever the arm's rank, as step 12 showed. So an arm beside the
+default that admits the data as written is enough. Write
+`arm-schema.aontu`:
+
+<!-- test: file arm-schema.aontu -->
+```aontu
+v: x: *{ b:1 }|{}
+```
+
+and `arm-data.aontu`:
+
+<!-- test: file arm-data.aontu -->
+```aontu
+v: x: {}
+```
+
+Now vet the data without the fill:
+
+<!-- test: run -->
+```sh
+$ aontu vet --no-fill arm-schema.aontu arm-data.aontu
+verdict: valid
+```
+
+Evaluation writes the default `{b: 1}` for `x`. The data doesn't carry
+`b`, and it doesn't need to, since the arm `{}` admits `{}` as written.
+The cases of `armCases` follow in rows `na0` on, and both engines
+answer every one as the definition does.
+
 ## 15. Where the definition and the engines differ
 
 Both engines' test suites run rows the definition generates, as step 17 shows, and on a few of them the engines don't answer as the

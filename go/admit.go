@@ -147,6 +147,74 @@ func trialCtx(ctx *Ctx) *Ctx {
 	return trial
 }
 
+type towardData struct {
+	v any
+}
+
+// genToward is the generation an admission reads: a disjunction with an
+// arm that admits the data as written generates the data there.
+func genToward(v Val, ctx *Ctx, own any) (any, error) {
+	prev := ctx.toward
+	ctx.toward = &towardData{v: own}
+	defer func() { ctx.toward = prev }()
+	return v.Gen(ctx)
+}
+
+func towardMember(tw *towardData, key any) *towardData {
+	switch k := key.(type) {
+	case string:
+		if m, ok := tw.v.(map[string]any); ok {
+			if v, has := m[k]; has {
+				return &towardData{v: v}
+			}
+		}
+	case int:
+		if l, ok := tw.v.([]any); ok && k < len(l) {
+			return &towardData{v: l[k]}
+		}
+	}
+	return nil
+}
+
+func genAt(child Val, ctx *Ctx, key any) (any, error) {
+	if nil == ctx || nil == ctx.toward {
+		return child.Gen(ctx)
+	}
+	prev := ctx.toward
+	ctx.toward = towardMember(prev, key)
+	defer func() { ctx.toward = prev }()
+	return child.Gen(ctx)
+}
+
+func gensNullAt(ctx *Ctx, child Val, key any) bool {
+	if nil == ctx || nil == ctx.toward {
+		return gensNull(ctx, child)
+	}
+	at := *ctx
+	at.toward = towardMember(ctx.toward, key)
+	return gensNullToward(&at, child)
+}
+
+// A disjunction that generated the data's own null stands for JSON null,
+// whatever its default.
+func gensNullToward(ctx *Ctx, v Val) bool {
+	if d, ok := v.(*DisjunctVal); ok && nil != ctx.toward && nil == ctx.toward.v && d.admitsToward(ctx) {
+		return true
+	}
+	return gensNull(ctx, v)
+}
+
+func armAdmits(arm Val, ctx *Ctx) bool {
+	if p, ok := arm.(*PrefVal); ok {
+		arm = p.peg
+	}
+	actx := trialCtx(ctx)
+	out, err := arm.Gen(actx)
+	return nil == err && 0 == len(actx.err) && (nil != out || gensNullToward(actx, arm)) &&
+		0 == len(fillDiff(out, ctx.toward.v, arm, nil, nil)) &&
+		sameJSON(withoutOptionalFills(out, ctx.toward.v), ctx.toward.v)
+}
+
 func ownJSON(v Val, ctx *Ctx, path []string) (any, bool) {
 	gctx := trialCtx(ctx)
 	out, err := clonePath(v, path).Gen(gctx)

@@ -103,6 +103,35 @@ export function admitsJson(met: any, out: any, own: any): boolean {
 }
 
 
+// The generation an admission reads: a disjunction with an arm that
+// admits the data as written generates the data there, whatever its
+// default, since a rank picks the output and takes no part in admission.
+export function genToward(value: Val, ctx: AontuContext, own: any): any {
+  const tctx = ctx.clone({})
+  tctx._toward = { v: own }
+  return value.gen(tctx)
+}
+
+
+export function towardMember(ctx: AontuContext, key: string | number): AontuContext {
+  const data = ctx._toward?.v
+  const tctx = ctx.clone({})
+  tctx._toward = undefined
+  if ('number' === typeof key ? Array.isArray(data) && key < data.length :
+    isObject(data) && hasOwn(data, key)) {
+    tctx._toward = { v: data[key] }
+  }
+  return tctx
+}
+
+
+export function armAdmits(arm: Val, ctx: AontuContext, own: any): boolean {
+  const actx = ctx.clone({ err: [], collect: true })
+  const out = arm.gen(actx)
+  return 0 === actx.err.length && undefined !== out && admitsJson(arm, out, own)
+}
+
+
 export function ownJson(value: Val, ctx: AontuContext): any {
   const gctx = ctx.clone({ err: [], collect: true })
   const own = value.clone(gctx).gen(gctx)

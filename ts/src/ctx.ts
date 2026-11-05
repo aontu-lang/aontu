@@ -110,6 +110,9 @@ class AontuContext {
 
   _matchRead?: boolean
 
+  // The data's JSON here, in a generation an admission reads.
+  _toward?: { v: any }
+
   _childCache?: Map<string, AontuContext>
 
 

@@ -4,5 +4,8 @@ export declare function fillDiff(generated: any, data: any, val: any, path?: str
 export declare function sameJson(a: any, b: any): boolean;
 export declare function withoutOptionalFills(generated: any, data: any): any;
 export declare function admitsJson(met: any, out: any, own: any): boolean;
+export declare function genToward(value: Val, ctx: AontuContext, own: any): any;
+export declare function towardMember(ctx: AontuContext, key: string | number): AontuContext;
+export declare function armAdmits(arm: Val, ctx: AontuContext, own: any): boolean;
 export declare function ownJson(value: Val, ctx: AontuContext): any;
 export declare function admitsSettled(ctx: AontuContext, trial: Val, value: Val, own: any, path: string[]): boolean | undefined;

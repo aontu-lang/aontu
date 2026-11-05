@@ -11,6 +11,7 @@ const utility_1 = require("../utility");
 const err_1 = require("../err");
 const walk_1 = require("../walk");
 const Val_1 = require("./Val");
+const admission_1 = require("./admission");
 const NilVal_1 = require("./NilVal");
 const FeatureVal_1 = require("./FeatureVal");
 const ExpectVal_1 = require("./ExpectVal");
@@ -125,7 +126,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
             // An optional disjunct is dropped unresolved or empty, as any optional is.
             if (child.isDisjunct && optional) {
                 const dctx = ctx.clone({ err: [], collect: true });
-                let cval = child.gen(dctx);
+                let cval = child.gen(towardAt(this, dctx, p, out));
                 if (raiseParse(dctx, child, ctx) || undefined === cval || (0, Val_1.empty)(cval)) {
                     continue;
                 }
@@ -133,7 +134,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
             }
             else if (bagGenable(child)) {
                 const cctx = optional ? ctx.clone({ err: [], collect: true }) : ctx;
-                let cval = child.gen(cctx);
+                let cval = child.gen(towardAt(this, cctx, p, out));
                 if (optional &&
                     (raiseParse(cctx, child, ctx) || undefined === cval || (0, Val_1.empty)(cval))) {
                     continue;
@@ -173,6 +174,10 @@ class BagVal extends FeatureVal_1.FeatureVal {
     }
 } /* node:coverage ignore next 6 */
 exports.BagVal = BagVal;
+function towardAt(bag, ctx, p, out) {
+    return undefined === ctx?._toward ? ctx :
+        (0, admission_1.towardMember)(ctx, bag.isMap ? String(p) : out.length);
+}
 // An optional key drops what does not resolve, never a parse refusal.
 function raiseParse(gctx, child, ctx) {
     const refusal = 0 < gctx.err.length ? (0, walk_1.parseNilIn)(child) : undefined;
