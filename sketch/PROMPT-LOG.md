@@ -700,3 +700,24 @@ The answers to the agent's questions, each question followed by the option chose
 A refer() or rel() link written inside a default `*x` or an arm of `a | b`: when should its template reach its target? Both engines send it from every arm the meet keeps. The definition's link walk never enters `*` or `|`, so it sends nothing, and the two read `x: *{d: refer({z: 1}) & path($.y)}` beside `y: {z: integer}` differently: valid vs incomplete. (An arm the meet refuses sends nothing under any rule; the engines' eval leak there is filed as #647.) Which rule should the definition and both engines share?
 → Arms the output picks (Recommended)
 ```
+
+## 2026-11-06 13:33:34 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+what is our overall status - how complete are we?
+```
+
+## 2026-11-06 13:33:34 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+is it normal for a lean description like this to be so large? does this indicate the aontu language is underspecified? Have we just created lots and lots of special cases?
+```
+
+## 2026-11-06 13:33:34 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+The Lean definition's special cases cluster in the features whose meaning depends on where or when a term is read: holes filled by a peer, generators, relative paths and key(n), copies, move, and links whose templates flow into other nodes. They make up about 46% of the definition lines, and about a third of the 33 rulings are interaction rules among them. How should I proceed?
+→ Consolidation study first (Recommended)
+```
