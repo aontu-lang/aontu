@@ -1381,6 +1381,7 @@ each `len(1)`:
 def Val.unsized : Val → Bool
   | .any | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ => true
   | .ride _ v _ => v.unsized
+  | .link v _ => v.unsized
   | .meet a b => a.unsized && b.unsized
   | _ => false
 ```
@@ -2880,6 +2881,7 @@ def Val.pending (ds : Decls) : Val → Bool
   | .meet a b => a.pending ds || b.pending ds
   | .or arms => pendingArms ds arms
   | .ride _ v _ => v.pending ds
+  | .link v _ => v.pending ds
   | .call _ args => pendingItems ds args
   | .select s _ _ => s.pending ds
   | .filter s _ => s.pending ds
@@ -3286,6 +3288,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
   | .ride k v r, b => .ride k (rec v b) r
   | a, .ride k v r => .ride k (rec a v) r
+  | .link v t, b => .link (rec v b) t
+  | a, .link v t => .link (rec a v) t
   | .or arms, b => mkOr (arms.map fun p => (p.1, rec p.2 b))
   | a, .or arms => mkOr (arms.map fun p => (p.1, rec a p.2))
   | .pref r x, b => mkOr [(r, rec x b), (0, rec x.super b)]
@@ -3461,6 +3465,7 @@ def Val.declaresDefault : Val → Bool
   | .pref _ _ => true
   | .or arms => (pickRank arms).isSome
   | .ride _ v _ => v.declaresDefault
+  | .link v _ => v.declaresDefault
   | _ => false
 ```
 
@@ -4121,6 +4126,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .or arms, j => arms.any (picked arms) = true ∧ genArms env root arms arms j
   | .pref _ x, j => Gen env root x j
   | .ride _ v _, j => Gen env root v j
+  | .link v _, j => Gen env root v j
   | .meet a b, j =>
     (Gen env root a j ∧ Admits env root b j) ∨
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
@@ -4353,6 +4359,7 @@ output, as both engines do:
 ```lean
 def Val.hasMark (m : Rider) : Val → Bool
   | .ride k v _ => decide (k = m) || v.hasMark m
+  | .link v _ => v.hasMark m
   | .meet a b => a.hasMark m || b.hasMark m
   | .or [(_, a)] => a.hasMark m
   | _ => false
@@ -4671,6 +4678,7 @@ def Val.staged (ds : Decls) : Val → Val
   | .or arms => mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
   | .pref r x => .pref r (x.staged ds)
   | .ride k v r => .ride k (v.staged ds) r
+  | .link v lt => .link (v.staged ds) lt
   | v => v
 ```
 
@@ -4696,6 +4704,7 @@ def Val.choiceLeft : Val → Bool
   | .pref _ _ => true
   | .meet a b => a.choiceLeft || b.choiceLeft
   | .ride _ v _ => v.choiceLeft
+  | .link v _ => v.choiceLeft
   | _ => false
 ```
 
@@ -4718,6 +4727,7 @@ def Val.illFormed : Val → Bool
   | .pref _ x => x.illFormed
   | .meet a b => (a.fillable && b.fillable && !(a.isHole && b.isHole)) || a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
+  | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args ||
     (!(Val.call .join args).fillable && joinSepHeld args)
@@ -4771,6 +4781,7 @@ def Val.untried : Val → Val
   | .pref r x => .pref r x.untried
   | .meet a b => .meet a.untried b.untried
   | .ride k v r => .ride k v.untried r
+  | .link v lt => .link v.untried lt
   | v => v
 ```
 
@@ -6364,6 +6375,7 @@ def Val.atKey (k : String) : Val → Val
   | .meet a b => .meet (a.atKey k) (b.atKey k)
   | .select s arms d => .select (s.atKey k) arms d
   | .ride t v r => .ride t (v.atKey k) r
+  | .link v t => .link (v.atKey k) t
   | v => v
 ```
 
@@ -6522,6 +6534,7 @@ the output reads it, so `sum({a?: {}, b: 2})` is `2`:
 ```lean
 def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val)
   | .ride k v _ => v.members ds (lifted || decide (k = .type) || decide (k = .hide))
+  | .link v _ => v.members ds lifted
   | .list items _ _ => some items
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
       if (!lifted && m.2.2.marked) || m.2.2.isAbsent || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
@@ -6681,6 +6694,7 @@ def Val.callAt : Val → Bool
   | .call _ _ | .keyUp _ => true
   | .meet a b => a.callAt || b.callAt
   | .ride _ v _ => v.callAt
+  | .link v _ => v.callAt
   | _ => false
 ```
 
@@ -7496,6 +7510,7 @@ def Val.fillable : Val → Bool
   | .call .each args | .call .pack args | .call .emit args => fillableHead args
   | .call _ args => fillableItems args
   | .ride _ v _ => v.fillable
+  | .link v _ => v.fillable
   | _ => false
 ```
 
@@ -7550,6 +7565,7 @@ def Val.memberAt : Val → String → Option Val
     | some p, none => some p
     | none, q => q
   | .ride _ v _, k => v.memberAt k
+  | .link v _, k => v.memberAt k
   | _, _ => none
 ```
 
@@ -8582,6 +8598,7 @@ meet it with the spread before they drop it:
 ```lean
 def Decls.markClashes (ds : Decls) (s : Option Val) : Val → Bool
   | .ride _ v _ => ds.markClashes s v
+  | .link v _ => ds.markClashes s v
   | v => ds.clashes (match s with | some t => .meet v t | none => v)
 ```
 
@@ -8669,6 +8686,11 @@ def Val.prefer : Val → Val
     else match v.prefOf? with
       | some (s, x) => .pref (s + 1) (.ride k x r)
       | none => .ride k v.prefer r
+  | .link v t =>
+    if v.unride.prefLeaf then .pref 1 (.link v t)
+    else match v.prefOf? with
+      | some (s, x) => .pref (s + 1) (.link x t)
+      | none => .link v.prefer t
   | .path p => .call .pref [.path p]
   | .call f args => .call .pref [.call f args]
   | v => v
@@ -8887,6 +8909,7 @@ def linkStep (dp : Decls) (S R : Val) (i : LinkItem) : List LinkItem × List Lin
     match i.term with
     | .meet a b => ([], [{ i with term := a }, { i with term := b }])
     | .ride _ v _ => ([], [{ i with term := v }])
+    | .link v _ => ([], [{ i with term := v }])
     | .path q => ([], [⟨S, q ++ i.left, q.length + i.skip, none, i.place,
         if q.isEmpty then i.nf else R, if q.isEmpty then i.back else (i.skip, i.nf) :: i.back⟩])
     | .pref r x => ([], (dp.pickedAt i.nf [(r, x)]).map fun a => { i with term := a })
