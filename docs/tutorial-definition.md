@@ -8890,7 +8890,7 @@ def linkStep (dp : Decls) (S R : Val) (i : LinkItem) : List LinkItem × List Lin
     | .path q => ([], [⟨S, q ++ i.left, q.length + i.skip, none, i.place,
         if q.isEmpty then i.nf else R, if q.isEmpty then i.back else (i.skip, i.nf) :: i.back⟩])
     | .pref r x => ([], (dp.pickedAt i.nf [(r, x)]).map fun a => { i with term := a })
-    | .or arms => ([], (dp.pickedAt i.nf arms).map fun a => { i with term := a })
+    | .or arms => ([], (dp.pickedAt i.nf (arms.flatMap flattenArm)).map fun a => { i with term := a })
     | _ => linkLeaf dp i
 ```
 

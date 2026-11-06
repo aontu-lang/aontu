@@ -1149,7 +1149,9 @@ otherwise, a meet's two sides and a rider's term on the same path, a
 path reference's target read from the top of `S` along the reference's
 own path, for no member, standing in `R` until that path is read, a
 preference's value where it's live and the arms of a disjunction the
-rank rule picks (`Decls.pickedAt`), since a link in an arm sends only
+rank rule picks (`Decls.pickedAt`), each arm of rank `0` that is a
+disjunction opened into its own (`flattenArm`) as the normal form opens
+it, since a link in an arm sends only
 where the output takes the arm (decision 33 of the design note's §7),
 and any other term as `linkLeaf` reads it. -/
 def linkStep (dp : Decls) (S R : Val) (i : LinkItem) : List LinkItem × List LinkItem :=
@@ -1162,7 +1164,7 @@ def linkStep (dp : Decls) (S R : Val) (i : LinkItem) : List LinkItem × List Lin
     | .path q => ([], [⟨S, q ++ i.left, q.length + i.skip, none, i.place,
         if q.isEmpty then i.nf else R, if q.isEmpty then i.back else (i.skip, i.nf) :: i.back⟩])
     | .pref r x => ([], (dp.pickedAt i.nf [(r, x)]).map fun a => { i with term := a })
-    | .or arms => ([], (dp.pickedAt i.nf arms).map fun a => { i with term := a })
+    | .or arms => ([], (dp.pickedAt i.nf (arms.flatMap flattenArm)).map fun a => { i with term := a })
     | _ => linkLeaf dp i
 
 /-- The items a link's landing reaches with their paths spent, read
@@ -2982,7 +2984,8 @@ theorem linkStep_checkableA {dp : Decls} (hdp : ∀ x, x ∈ dp → x.2.Checkabl
         simp only [List.mem_map] at hj
         obtain ⟨a, ha, rfl⟩ := hj
         obtain ⟨r', hr'⟩ := Decls.mem_pickedAt ha
-        exact ⟨harms r' a hr', hm⟩
+        obtain ⟨p, hp, hq⟩ := List.mem_flatMap.mp hr'
+        exact ⟨flattenArm_checkableA (harms p.1 p.2 hp) (r', a) hq, hm⟩
     next => exact linkLeaf_checkableA hdp hi hm
 
 /-- What a link's landing reaches, from items the checker can read, read
