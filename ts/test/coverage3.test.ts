@@ -20,7 +20,7 @@ import { HideFuncVal } from '../dist/val/HideFuncVal'
 import { MoveFuncVal } from '../dist/val/MoveFuncVal'
 import { PrefFuncVal } from '../dist/val/PrefFuncVal'
 import { TypeFuncVal } from '../dist/val/TypeFuncVal'
-import { Unify, applyFlows } from '../dist/unify'
+import { Unify } from '../dist/unify'
 import { main as cliMain, evalSource } from '../dist/cli'
 import { main as lspMain } from '../dist/lsp-server'
 import { computeDiagnostics, computeHover, LspHandler } from '../dist/lsp'
@@ -1631,44 +1631,6 @@ describe('coverage3-residual-shapes', () => {
 })
 
 
-describe('coverage3-apply-flows', () => {
-
-  test('apply-flows-skips-a-record-that-stops-resolving', () => {
-    const a0 = new Aontu()
-    const ctx: any = a0.ctx({ collect: true })
-    const target: any = new MapVal({ peg: {} }, ctx)
-    const root: any = new MapVal({ peg: { a: target } }, ctx)
-
-    ctx.referflows = new Map<string, any>([
-      ['a', new MapVal({ peg: { k: new IntegerVal({ peg: 1 }, ctx) } }, ctx)],
-      ['gone', new MapVal({ peg: {} }, ctx)],
-      ['a\x00k\x00deeper', new MapVal({ peg: {} }, ctx)],
-      ['nosuch\x00x', new MapVal({ peg: {} }, ctx)],
-    ])
-
-    const out: any = applyFlows(ctx, root)
-    Assert.strictEqual(out, root)
-    // The resolvable record landed ...
-    Assert.strictEqual(out.peg.a.peg.k.peg, 1)
-    // ... and the unresolvable ones added nothing.
-    Assert.strictEqual(out.peg.gone, undefined)
-    Assert.strictEqual(out.peg.nosuch, undefined)
-  })
-
-  test('apply-flows-is-a-no-op-without-records', () => {
-    // The common case: a document with no links pays one property load
-    // per pass and the walk never runs.
-    const a0 = new Aontu()
-    const ctx: any = a0.ctx({ collect: true })
-    const root: any = new MapVal({ peg: {} }, ctx)
-    Assert.strictEqual(applyFlows(ctx, root), root)
-    ctx.referflows = new Map()
-    Assert.strictEqual(applyFlows(ctx, root), root)
-  })
-
-})
-
-
 describe('coverage3-refer', () => {
 
   test('find-at-walks-into-non-bags', () => {
@@ -1707,10 +1669,11 @@ describe('coverage3-refer', () => {
     r.addr = parseAddress('$.q')
     r.addrsrc = '$.q'
     const refined: any = r.unify(new PathVal({ peg: '$.q.r' }, ctx), ctx)
-    Assert.strictEqual(refined.addrsrc, '$.q.r')
-    // The prefix rule is symmetric in which side is pending.
+    Assert.strictEqual(refined.peg, '$.q.r')
+    Assert.deepStrictEqual(refined.linkto, ['q', 'r'])
+    // The prefix rule is symmetric in which side is the link.
     const kept: any = refined.unify(new PathVal({ peg: '$.q' }, ctx), ctx)
-    Assert.strictEqual(kept.addrsrc, '$.q.r')
+    Assert.strictEqual(kept.peg, '$.q.r')
     const nil: any = r.unify(new PathVal({ peg: '$.z' }, ctx), ctx)
     Assert.strictEqual(true, nil.isNil)
   })
@@ -1729,17 +1692,24 @@ describe('coverage3-refer', () => {
     Assert.strictEqual(true, true !== r2.held.isNil)
   })
 
-  test('refer-flow-refusal-is-the-nil', () => {
+  test('refer-settles-to-a-link-carrying-its-template', () => {
+    // The template rides the path value; the target is read once the
+    // document is evaluated, so the link settles whether or not the
+    // root holds it yet.
     const a0 = new Aontu()
     const ctx: any = a0.ctx({ collect: true })
-    const m: any = new MapVal({ peg: { k: new IntegerVal({ peg: 1 }, ctx) } }, ctx)
-    ctx.root = new MapVal({ peg: { x: m } }, ctx)
+    ctx.root = new MapVal({ peg: {} }, ctx)
 
     const r: any = new ReferVal({}, ctx)
     r.tval = new IntegerVal({ peg: 1 }, ctx)
     r.addr = parseAddress('$.x')
     r.addrsrc = '$.x'
-    Assert.strictEqual(r.settle(ctx, r).isNil, true)
+    const out: any = r.settle(ctx, r)
+    Assert.strictEqual(out.isPath, true)
+    Assert.deepStrictEqual(out.linkto, ['x'])
+    Assert.strictEqual(out.flows.length, 1)
+    Assert.strictEqual(out.flows[0][0], 'x')
+    Assert.strictEqual(out.flows[0][1].peg, 1)
   })
 
   test('refer-climb-off-the-top-refuses', () => {

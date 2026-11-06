@@ -52,7 +52,8 @@ abstract class BagVal extends FeatureVal {
 
   clone(ctx: AontuContext, spec?: ValSpec): Val {
     const bag = super.clone(ctx, spec) as BagVal
-    bag.spread = this.spread
+    // Its own spread, so a template the clone is given stays the clone's.
+    bag.spread = { cj: this.spread.cj }
     return bag
   }
 
@@ -147,9 +148,8 @@ abstract class BagVal extends FeatureVal {
 
       const optional = this.optionalKeys.includes('' + p)
 
-      // Lists append compactly: a skipped element (hidden, dropped
-      // optional) must not leave a hole/null at its index (matches the
-      // Go port, which also drops skipped elements).
+      // Lists append compactly, as in Go: a skipped element (hidden, a
+      // dropped optional) leaves no hole at its index.
       const put = (v: any) => {
         if (this.isMap) {
           putKey(out, String(p), v)

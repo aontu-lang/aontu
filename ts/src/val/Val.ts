@@ -153,6 +153,11 @@ abstract class Val {
   identity?: Record<string, any[]>
 
   link?: string
+  // A link's target path, its own missing-target code where it isn't
+  // refer()'s, and its templates, each with the target it meets.
+  linkto?: string[]
+  linkcode?: string
+  flows?: [string, Val][]
 
   origin?: string
 
@@ -262,6 +267,15 @@ abstract class Val {
     // link is still a link.
     if (null != this.link) {
       out.link = this.link
+    }
+    if (null != this.linkto) {
+      out.linkto = this.linkto
+    }
+    if (null != this.linkcode) {
+      out.linkcode = this.linkcode
+    }
+    if (null != this.flows) {
+      out.flows = this.flows
     }
     if (null != this.deprecation) {
       out.deprecation = this.deprecation

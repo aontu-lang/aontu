@@ -2,14 +2,15 @@
 /* Copyright (c) 2021-2023 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.withDepth = exports.meetTemplate = exports.unite = exports.Unify = void 0;
-exports.recordFlow = recordFlow;
-exports.applyFlows = applyFlows;
 exports.ride = ride;
 exports.rideOn = rideOn;
 const ctx_1 = require("./ctx");
 const type_1 = require("./type");
 const err_1 = require("./err");
 const ReferFuncVal_1 = require("./val/ReferFuncVal");
+const ConjunctVal_1 = require("./val/ConjunctVal");
+const ListVal_1 = require("./val/ListVal");
+const MapVal_1 = require("./val/MapVal");
 const PlaceVal_1 = require("./val/PlaceVal");
 const alias_1 = require("./alias");
 const rider_1 = require("./rider");
@@ -95,6 +96,7 @@ const unite = (ctx, a, b, whence) => {
                     && a.emptyOk === b.emptyOk
                     && a.needsNonEmpty === b.needsNonEmpty
                     && a.link === b.link
+                    && a.flows === b.flows
                     && !a.isNil && !b.isNil
                     && !a.isMap && !a.isList
                     && !a.isConjunct && !a.isDisjunct
@@ -187,6 +189,7 @@ const unite = (ctx, a, b, whence) => {
                 && a.emptyOk === b.emptyOk
                 && a.needsNonEmpty === b.needsNonEmpty
                 && a.link === b.link
+                && a.flows === b.flows
                 && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
                 out = update(a, b);
                 why = 'up';
@@ -275,29 +278,109 @@ function residuePaths(v, max) {
     visit(v, true);
     return out;
 }
-function recordFlow(ctx, key, flow) {
-    const flows = ctx.referflows ?? new Map();
-    const prev = flows.get(key);
-    flows.set(key, null == prev ? flow : unite(ctx, prev, flow, 'refer-flow-record'));
-}
-function applyFlows(ctx, root) {
-    const flows = ctx.referflows;
-    // NOTHING TO APPLY is the common case -- a document with no links
-    // pays one property load per pass, and the walk never runs.
-    if (null == flows || 0 === flows.size) {
-        return root;
-    }
-    for (const key of [...flows.keys()].sort()) {
-        const path = key.split('\x00');
-        const found = (0, ReferFuncVal_1.findAt)(root, path);
-        if (undefined === found) {
-            continue;
+// The links a result holds where the output reads them: through maps,
+// lists, marks and meets, the value a preference stands as, and the arms
+// of a disjunction the rank rule picks, those of the lowest rank where
+// any has one and every arm where none has. A spread's template holds
+// no position, so its links are its members'.
+function linksOf(root) {
+    const out = [];
+    const visit = (node, put) => {
+        if (true === node.isPath) {
+            if (undefined !== node.linkto) {
+                out.push({ link: node, put });
+            }
         }
-        const { parent, key: pkey, val: node } = found;
-        const merged = unite(ctx.descend(pkey), node, flows.get(key), 'refer-flow');
-        parent.peg[pkey] = merged;
+        else if (true === node.isMap || true === node.isList) {
+            const peg = node.peg;
+            for (const k of Object.keys(peg)) {
+                visit(peg[k], (v) => { peg[k] = v; });
+            }
+        }
+        else if (true === node.isDisjunct || true === node.isConjunct) {
+            const arms = node.peg;
+            const ranks = true === node.isDisjunct
+                ? arms.filter((a) => true === a.isPref).map((a) => a.rank) : [];
+            const rank = 0 === ranks.length ? undefined : Math.min(...ranks);
+            arms.forEach((a, i) => {
+                if (undefined === rank || (true === a.isPref && rank === a.rank)) {
+                    visit(a, (v) => { arms[i] = v; });
+                }
+            });
+        }
+        else if (true === node.isPref) {
+            visit(node.peg, (v) => { node.peg = v; });
+        }
+        else if (true === node.isGraphAtom && undefined !== node.held) {
+            visit(node.held, (v) => { node.held = v; });
+        }
+    };
+    visit(root, () => undefined);
+    return out;
+}
+// The templates of the links the output takes whose targets the result
+// holds, each once, in a fixed order.
+function flowsOf(root, links) {
+    const seen = new Map();
+    for (const { link } of links) {
+        for (const [key, t] of link.flows ?? []) {
+            const id = key + '\x01' + t.canon;
+            const to = key.split('\x00');
+            if (!seen.has(id) && undefined !== (0, ReferFuncVal_1.findAt)(root, to)) {
+                seen.set(id, { to, t, id });
+            }
+        }
     }
-    return root;
+    return [...seen.keys()].sort().map((id) => seen.get(id));
+}
+// What meets each template at its target and asks nothing else: an open
+// map holding the step's key as optional, or a list holding `any` before
+// the step's position, as the result holds the container, down to the
+// template.
+function flowDoc(ctx, root, flows, depth) {
+    const here = flows.filter((f) => depth === f.to.length)
+        .map((f) => f.t.clone(ctx, { dup: true }));
+    const below = flows.filter((f) => depth < f.to.length);
+    if (0 < below.length) {
+        const steps = [...new Set(below.map((f) => f.to[depth]))];
+        const path = below[0].to.slice(0, depth);
+        const inner = (k) => flowDoc(ctx, root.peg[k], below.filter((f) => k === f.to[depth]), depth + 1);
+        if (true === root.isList) {
+            const last = Math.max(...steps.map(Number));
+            const items = [];
+            for (let i = 0; i <= last; i++) {
+                items.push(steps.includes('' + i) ? inner('' + i) : (0, top_1.top)());
+            }
+            here.push(new ListVal_1.ListVal({ peg: items, path }, ctx));
+        }
+        else {
+            const peg = {};
+            for (const k of steps) {
+                peg[k] = inner(k);
+            }
+            const m = new MapVal_1.MapVal({ peg, path }, ctx);
+            m.optionalKeys = steps;
+            here.push(m);
+        }
+    }
+    return 1 === here.length ? here[0] : new ConjunctVal_1.ConjunctVal({ peg: here }, ctx);
+}
+// Whether a tree holds a link anywhere, so that its evaluation has to
+// start again with templates met in.
+function holdsLink(v, seen = new Set()) {
+    if (null == v || true !== v.isVal || seen.has(v)) {
+        return false;
+    }
+    seen.add(v);
+    if (true === v.isReferFunc || true === v.isRelFunc || true === v.isRefer
+        || true === v.isRel || undefined !== v.linkto) {
+        return true;
+    }
+    const peg = v.peg;
+    return (null != peg && 'object' === typeof peg &&
+        (true === peg.isVal ? holdsLink(peg, seen)
+            : Object.values(peg).some((c) => holdsLink(c, seen))))
+        || holdsLink(v.spread?.cj, seen);
 }
 class Unify {
     constructor(root, lang, ctx, src) {
@@ -335,42 +418,67 @@ class Unify {
             }
             uctx.err = this.err;
             uctx.explain = this.explain;
-            uctx.snapmap = new Map();
-            uctx.referflows = new Map();
-            uctx._referflow = new Set();
             const explain = null == ctx?.explain ? undefined : ctx?.explain;
             const te = explain && (0, utility_1.explainOpen)(uctx, explain, 'root', res);
-            // NOTE: if true === res.done already, then this loop never needs to run.
-            let maxcc = uctx.budget.passes;
-            let prevCanon = undefined;
-            let lastCanon = undefined;
-            let settle = false;
-            for (; this.cc < maxcc && type_1.DONE !== res.dc; this.cc++) {
-                uctx.cc = this.cc;
-                uctx.seen = {};
-                uctx.settle = settle;
-                if (this.cc === maxcc - 1) {
-                    prevCanon = lastCanon ?? res.canon;
+            // A document with links is evaluated in rounds: each round the
+            // document as written, with the templates of the links the last
+            // round's output takes met at their targets, until no template is
+            // new. A copy of the first tree is kept for the rounds after it.
+            const errBase = this.err.length;
+            const pristine = holdsLink(res) ? res.clone(uctx, { dup: true }) : undefined;
+            let applied = '';
+            let links = [];
+            for (let round = 0;; round++) {
+                // Ref-spread snapshot store (see snapshotRefSpread in MapVal):
+                // keyed by ref canon + source site, shared across a round's passes.
+                ;
+                uctx.snapmap = new Map();
+                // NOTE: if true === res.done already, then this loop never needs to run.
+                const maxcc = uctx.budget.passes;
+                let prevCanon = undefined;
+                let lastCanon = undefined;
+                let settle = false;
+                for (this.cc = 0; this.cc < maxcc && type_1.DONE !== res.dc; this.cc++) {
+                    uctx.cc = this.cc;
+                    uctx.seen = {};
+                    uctx.settle = settle;
+                    if (this.cc === maxcc - 1) {
+                        prevCanon = lastCanon ?? res.canon;
+                    }
+                    res = unite(te ? uctx.clone({ explain: (0, utility_1.ec)(te, 'run') }) : uctx, res, (0, top_1.top)(), 'unify');
+                    if (type_1.DONE !== res.dc) {
+                        const nowCanon = res.canon;
+                        settle = undefined !== lastCanon && lastCanon === nowCanon;
+                        lastCanon = nowCanon;
+                    }
+                    uctx = uctx.clone({ root: res });
                 }
-                res = unite(te ? uctx.clone({ explain: (0, utility_1.ec)(te, 'run') }) : uctx, res, (0, top_1.top)(), 'unify');
-                // The recorded type flows, re-applied to the tree THIS pass
-                // built: a pass rebuilds subtrees, and a flow written into the
-                // previous pass's tree does not survive that.
-                res = applyFlows(uctx, res);
-                if (type_1.DONE !== res.dc) {
-                    const nowCanon = res.canon;
-                    settle = undefined !== lastCanon && lastCanon === nowCanon;
-                    lastCanon = nowCanon;
+                if (maxcc <= this.cc && type_1.DONE !== res.dc && 0 === uctx.err.length
+                    && undefined !== prevCanon && prevCanon !== res.canon) {
+                    (0, err_1.makeNilErr)(uctx, 'budget_passes', undefined, undefined, 'resolve', {
+                        budget: 'passes',
+                        limit: maxcc,
+                        paths: residuePaths(res, 4).join(' ') || '$',
+                    });
                 }
+                links = linksOf(res);
+                const flows = undefined === pristine ? [] : flowsOf(res, links);
+                const ids = flows.map((f) => f.id).join('\n');
+                if (ids === applied || uctx.budget.passes <= round) {
+                    break;
+                }
+                applied = ids;
+                this.err.length = errBase;
+                res = new ConjunctVal_1.ConjunctVal({
+                    peg: [pristine.clone(uctx, { dup: true }), flowDoc(uctx, res, flows, 0)],
+                }, uctx);
                 uctx = uctx.clone({ root: res });
             }
-            if (maxcc <= this.cc && type_1.DONE !== res.dc && 0 === uctx.err.length
-                && undefined !== prevCanon && prevCanon !== res.canon) {
-                (0, err_1.makeNilErr)(uctx, 'budget_passes', undefined, undefined, 'resolve', {
-                    budget: 'passes',
-                    limit: maxcc,
-                    paths: residuePaths(res, 4).join(' ') || '$',
-                });
+            // A link the output takes names something the document holds.
+            for (const { link, put } of links) {
+                if (undefined === (0, ReferFuncVal_1.findAt)(res, link.linkto)) {
+                    put((0, err_1.makeNilErr)(uctx, link.linkcode ?? 'refer_unresolved', link, undefined, 'refer', { addr: link.peg }));
+                }
             }
             // The settled tree's alias references canon as the values they
             // name (ts/src/alias.ts): attached here, once, after the last

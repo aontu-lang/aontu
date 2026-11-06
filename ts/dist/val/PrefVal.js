@@ -102,13 +102,8 @@ class PrefVal extends FeatureVal_1.FeatureVal {
         }
         else if (!peer.isTop) {
             why += 'super-';
-            // The value's flows reach their targets only if the value stands.
-            const tctx = ctx.clone({});
-            const staged = new Map();
-            tctx.referflows = staged;
-            const met = (0, FuncBaseVal_1.trialUnify)(tctx, prefInnerPeg(this).clone(ctx), peer);
+            const met = (0, FuncBaseVal_1.trialUnify)(ctx, prefInnerPeg(this).clone(ctx), peer);
             if (undefined !== met) {
-                staged.forEach((flow, key) => (0, unify_1.recordFlow)(ctx, key, flow));
                 // An override space the peer empties leaves the preference
                 // standing with nothing left to replace it, not a conflict.
                 const space = (0, FuncBaseVal_1.trialUnify)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'GATE') }) : ctx, this.superpeg.clone(ctx), peer);

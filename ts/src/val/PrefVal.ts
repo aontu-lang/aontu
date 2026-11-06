@@ -10,7 +10,7 @@ import {
 } from '../type'
 
 import { AontuContext } from '../ctx'
-import { unite, recordFlow } from '../unify'
+import { unite } from '../unify'
 import { AontuError, makeNilErr } from '../err'
 
 import {
@@ -156,14 +156,9 @@ class PrefVal extends FeatureVal {
     else if (!peer.isTop) {
       why += 'super-'
 
-      // The value's flows reach their targets only if the value stands.
-      const tctx = ctx.clone({})
-      const staged = new Map<string, Val>()
-      ;(tctx as any).referflows = staged
-      const met = trialUnify(tctx, prefInnerPeg(this).clone(ctx), peer)
+      const met = trialUnify(ctx, prefInnerPeg(this).clone(ctx), peer)
 
       if (undefined !== met) {
-        staged.forEach((flow, key) => recordFlow(ctx, key, flow))
         // An override space the peer empties leaves the preference
         // standing with nothing left to replace it, not a conflict.
         const space = trialUnify(te ? ctx.clone({ explain: ec(te, 'GATE') }) : ctx,

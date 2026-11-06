@@ -5,8 +5,6 @@ declare const withDepth: (ctx: AontuContext, a: any, b: any, run: () => any) => 
 declare function ride(out: any, a: any, b: any): void;
 declare function rideOn(ctx: AontuContext, out: any, a: any, b: any): any;
 declare const unite: (ctx: AontuContext, a: any, b: any, whence: string) => any;
-declare function recordFlow(ctx: AontuContext, key: string, flow: Val): void;
-declare function applyFlows(ctx: AontuContext, root: Val): Val;
 declare class Unify {
     root: Val;
     res: Val;
@@ -17,4 +15,4 @@ declare class Unify {
     constructor(root: Val | string, lang?: Lang, ctx?: AontuContext | any, src?: any);
 }
 declare const meetTemplate: (ctx: AontuContext, member: Val, tmpl: Val, whence: string) => Val;
-export { Unify, unite, meetTemplate, withDepth, recordFlow, applyFlows, ride, rideOn, };
+export { Unify, unite, meetTemplate, withDepth, ride, rideOn, };

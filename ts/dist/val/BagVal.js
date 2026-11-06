@@ -34,7 +34,8 @@ class BagVal extends FeatureVal_1.FeatureVal {
     }
     clone(ctx, spec) {
         const bag = super.clone(ctx, spec);
-        bag.spread = this.spread;
+        // Its own spread, so a template the clone is given stays the clone's.
+        bag.spread = { cj: this.spread.cj };
         return bag;
     }
     handleExpectedVal(key, val, parent, ctx) {
@@ -112,9 +113,8 @@ class BagVal extends FeatureVal_1.FeatureVal {
                 continue;
             }
             const optional = this.optionalKeys.includes('' + p);
-            // Lists append compactly: a skipped element (hidden, dropped
-            // optional) must not leave a hole/null at its index (matches the
-            // Go port, which also drops skipped elements).
+            // Lists append compactly, as in Go: a skipped element (hidden, a
+            // dropped optional) leaves no hole at its index.
             const put = (v) => {
                 if (this.isMap) {
                     putKey(out, String(p), v);

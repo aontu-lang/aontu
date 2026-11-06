@@ -12,6 +12,7 @@ const NilVal_1 = require("../val/NilVal");
 const PrefVal_1 = require("../val/PrefVal");
 const admission_1 = require("../val/admission");
 const JunctionVal_1 = require("../val/JunctionVal");
+const PathVal_1 = require("../val/PathVal");
 class DisjunctVal extends JunctionVal_1.JunctionVal {
     constructor(spec, ctx, _sites) {
         super(spec, ctx);
@@ -60,8 +61,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
         const savedTrialMode = ctx._trialMode;
         const ownErr = Object.prototype.hasOwnProperty.call(ctx, 'err');
         const ownTrialMode = Object.prototype.hasOwnProperty.call(ctx, '_trialMode');
-        const savedFlows = ctx.referflows;
-        const staged = [];
         ctx._trialMode = true;
         let gate = undefined;
         try {
@@ -69,10 +68,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 const v = this.peg[vI];
                 const trialErr = [];
                 ctx.err = trialErr;
-                if (undefined !== savedFlows) {
-                    staged[vI] = new Map();
-                    ctx.referflows = staged[vI];
-                }
                 oval[vI] = (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'DIST:' + vI) }) : ctx, v, member, 'dj-peer');
                 if (0 < trialErr.length) {
                     oval[vI] = NilVal_1.TRIAL_NIL;
@@ -92,11 +87,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                 for (const gI of gate) {
                     const admitErr = [];
                     ctx.err = admitErr;
-                    // The arm's own flows are staged above; this trial's are dropped.
-                    if (undefined !== savedFlows) {
-                        ;
-                        ctx.referflows = new Map();
-                    }
                     // The trial is against a CLONE: the preferred value must
                     // stay pristine for the surviving preference (the
                     // MatchFuncVal.resolve precedent).
@@ -120,8 +110,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             else {
                 delete ctx.err;
             }
-            ;
-            ctx.referflows = savedFlows;
         }
         if (true === peer.isPref) {
             const want = (0, PrefVal_1.prefInnerPeg)(peer);
@@ -132,21 +120,6 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     wrapped.rank = peer.rank;
                     peer.place(wrapped);
                     oval[vI] = wrapped;
-                }
-            }
-        }
-        // An arm the dedup below drops as equal to another sends its own
-        // links all the same, as Go's merge does.
-        if (undefined !== savedFlows) {
-            for (let vI = 0; vI < staged.length; vI++) {
-                const st = staged[vI];
-                if (undefined === st || true === oval[vI].isNil) {
-                    continue;
-                }
-                for (const [k, fv] of st) {
-                    const prev = savedFlows.get(k);
-                    savedFlows.set(k, undefined === prev ? fv
-                        : (0, unify_1.unite)(ctx, prev, fv, 'refer-flow-record'));
                 }
             }
         }
@@ -323,6 +296,11 @@ function keepRiders(ctx, keep, drop) {
     }
     const out = keep.clone(ctx);
     (0, unify_1.ride)(out, keep, drop);
+    // Both twins are arms the output takes where neither outranks the
+    // other, so both send their links.
+    if (!(true === keep.isPref && true === drop.isPref && keep.rank !== drop.rank)) {
+        out.flows = (0, PathVal_1.joinFlows)(out.flows, drop.flows);
+    }
     if (true === drop.isPref && true !== out.isPref) {
         // A twin of a higher rank holds one more preference layer.
         return keepRiders(ctx, out, drop.peg);
@@ -338,7 +316,7 @@ function keepRiders(ctx, keep, drop) {
     return out;
 }
 function ridden(v) {
-    return null != v.deprecation || null != v.meta ||
+    return null != v.deprecation || null != v.meta || null != v.flows ||
         (true === v.isBag && Object.values(v.peg).some(ridden)) ||
         (true === v.isPref && ridden(v.peg));
 }
