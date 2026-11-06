@@ -1723,6 +1723,18 @@ until the phase that encodes it lands.
    carrying an arm's flows with its value until the arm is final, which
    the consolidation study takes up.
 
+   **Restated in the definition 2026-11-06** (the study's step 4.1,
+   `sketch/CORE.0.md`). A link's template rides the value the link
+   meets (`Val.link` in `spec/Aontu/Syntax.lean`), and the definition
+   reads a document's links from its normal form (`Val.links`,
+   `Decls.nfLinks` in `spec/Aontu/Paths.lean`), within the arms the
+   rank rule picks, so this ruling is a property of the normal form and
+   the walk with its clause per form is gone. Every row regenerates as
+   before. The same reading sends from the arm a selection takes,
+   which the walk had no clause for, as both ports send it (rows rf150
+   to rf158); rows rf159 to rf170 pin what the walk already read in
+   generators and bodies.
+
 34. **A hole outside a generator, and the meet as application.** Raised
    2026-11-06 by the consolidation study (`sketch/CORE.0.md`, §4.2).
    Rulings 21, 29, 30 and 31 read a meet with a hole on one side as

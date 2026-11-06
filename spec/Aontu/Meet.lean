@@ -153,8 +153,8 @@ def Val.doms : Val → List Dom
   | .list _ _ _ => [.list]
   | .nil | .nothing => []
   | .neq [] | .any | .absent | .or _ | .pref _ _ | .meet _ _ | .alias _ | .path _ | .nof _ _
-  | .must _ _ | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ | .key | .keyUp _
-  | .call _ _ | .hole =>
+  | .must _ _ | .when _ _ _ | .rest _ _ | .select _ _ _ | .filter _ _ | .ride _ _ _ | .link _ _ | .key
+  | .keyUp _ | .call _ _ | .hole =>
     [.num, .str, .bool, .null, .map, .list, .addr]
 
 /-- The domain a value is in. -/
@@ -632,6 +632,7 @@ def Val.selectNow : Val → Val
     if arms.all (fun q => q.1.checkableB) then pickArm s arms d else .select (.lit s) arms d
   | .meet a b => .meet a.selectNow b.selectNow
   | .ride t v r => .ride t v.selectNow r
+  | .link v t => .link v.selectNow t
   | v => v
 
 theorem admits_selectNow (v : Val) (j : Data) :
@@ -648,7 +649,10 @@ theorem admits_selectNow (v : Val) (j : Data) :
   | case4 t v r ih =>
     simp only [Val.selectNow]
     exact judge_ride_iff.trans ((ih j).trans judge_ride_iff.symm)
-  | case5 v h1 h2 h3 => rw [Val.selectNow.eq_4 v h1 h2 h3]
+  | case5 v t ih =>
+    simp only [Val.selectNow]
+    exact judge_link_iff.trans ((ih j).trans judge_link_iff.symm)
+  | case6 v h1 h2 h3 h4 => rw [Val.selectNow.eq_5 v h1 h2 h3 h4]
 
 theorem Val.CheckableA.selectNow {v : Val} (h : v.CheckableA) : v.selectNow.CheckableA := by
   induction v using Val.selectNow.induct with
@@ -670,7 +674,10 @@ theorem Val.CheckableA.selectNow {v : Val} (h : v.CheckableA) : v.selectNow.Chec
   | case4 t v r ih =>
     simp only [Val.selectNow]
     cases h with | ride hv => exact .ride (ih hv)
-  | case5 v h1 h2 h3 => rw [Val.selectNow.eq_4 v h1 h2 h3]; exact h
+  | case5 v t ih =>
+    simp only [Val.selectNow]
+    cases h with | link hv ht => exact .link (ih hv) ht
+  | case6 v h1 h2 h3 h4 => rw [Val.selectNow.eq_5 v h1 h2 h3 h4]; exact h
 
 /-- A literal's scalar, if the term is one. -/
 def Val.lit? : Val → Option Scalar
@@ -746,6 +753,7 @@ def Val.dead : Val → Bool
   | .or arms => allDead arms
   | .meet a b => a.dead || b.dead
   | .ride _ v _ => v.dead
+  | .link v _ => v.dead
   | _ => false
 
 def deadField : List (String × Bool × Val) → Bool
@@ -782,6 +790,9 @@ theorem dead_sound : ∀ v : Val, v.dead = true → ∀ j, ¬ Admits env root v 
   | .ride _ v _, hd, j, h => by
     cases h with
     | ride h => exact dead_sound v hd j h
+  | .link v _, hd, j, h => by
+    cases h with
+    | link h => exact dead_sound v hd j h
   | .integer, hd, _, _ | .float, hd, _, _ | .biginteger, hd, _, _ | .bigdecimal, hd, _, _
   | .number, hd, _, _ | .string, hd, _, _ | .anyString, hd, _, _ | .boolean, hd, _, _
   | .lit _, hd, _, _ | .min _, hd, _, _ | .max _, hd, _, _ | .above _, hd, _, _
@@ -857,6 +868,7 @@ theorem dead_refuses : ∀ v : Val, v.dead = true → ∀ j, Refuses env root v 
     · exact .meetLeft (dead_refuses a hda j)
     · exact .meetRight (dead_refuses b hdb j)
   | .ride _ v _, hd, j => .ride (dead_refuses v hd j)
+  | .link v _, hd, j => .link (dead_refuses v hd j)
   | .integer, hd, _ | .float, hd, _ | .biginteger, hd, _ | .bigdecimal, hd, _
   | .number, hd, _ | .string, hd, _ | .anyString, hd, _ | .boolean, hd, _
   | .lit _, hd, _ | .min _, hd, _ | .max _, hd, _ | .above _, hd, _
@@ -1935,6 +1947,32 @@ theorem admits_ride_right {m : Val → Val → Val}
     cases h with
     | ride h => exact .ride ((hm a v j).mpr ⟨ha, h⟩)
 
+/-- A link met with a value carries the meet of its own: the template
+rides the result. -/
+theorem admits_link_left {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (v t : Val) (b : Val) (j : Data) :
+    Admits env root (.link (m v b) t) j ↔ Admits env root (.link v t) j ∧ Admits env root b j := by
+  constructor
+  · intro h
+    cases h with
+    | link h => exact ⟨.link ((hm v b j).mp h).1, ((hm v b j).mp h).2⟩
+  · rintro ⟨h, hb⟩
+    cases h with
+    | link h => exact .link ((hm v b j).mpr ⟨h, hb⟩)
+
+theorem admits_link_right {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a : Val) (v t : Val) (j : Data) :
+    Admits env root (.link (m a v) t) j ↔ Admits env root a j ∧ Admits env root (.link v t) j := by
+  constructor
+  · intro h
+    cases h with
+    | link h => exact ⟨((hm a v j).mp h).1, .link ((hm a v j).mp h).2⟩
+  · rintro ⟨ha, h⟩
+    cases h with
+    | link h => exact .link ((hm a v j).mpr ⟨ha, h⟩)
+
 theorem admits_absent_left {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
     (b : Val) (j : Data) :
@@ -2017,6 +2055,7 @@ def Val.beq : Val → Val → Bool
   | .select s as d, .select s' as' d' => s.beq s' && beqPairs as as' && beqSpread d d'
   | .filter s c, .filter s' c' => s.beq s' && c.beq c'
   | .ride k v r, .ride k' v' r' => decide (k = k') && v.beq v' && decide (r = r')
+  | .link v t, .link v' t' => v.beq v' && t.beq t'
   | .key, .key => true
   | .keyUp m, .keyUp n => decide (m = n)
   | .call f args, .call g bs => decide (f = g) && beqItems args bs
@@ -2094,6 +2133,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
   | .ride k v r, b => .ride k (rec v b) r
   | a, .ride k v r => .ride k (rec a v) r
+  | .link v t, b => .link (rec v b) t
+  | a, .link v t => .link (rec a v) t
   | .or arms, b => mkOr (arms.map fun p => (p.1, rec p.2 b))
   | a, .or arms => mkOr (arms.map fun p => (p.1, rec a p.2))
   | .pref r x, b => mkOr [(r, rec x b), (0, rec x.super b)]
@@ -2160,6 +2201,8 @@ theorem admits_meetStep {lm : Scalar → Val → Val} {rec : Val → Val → Val
     | exact admits_meetRight hr ..
     | exact admits_ride_left hr ..
     | exact admits_ride_right hr ..
+    | exact admits_link_left hr ..
+    | exact admits_link_right hr ..
     | (simp only [hr, admits_meet_iff, and_assoc, iff_self]; done)
 
 /-- Whatever the budget, the meet admits what both of its sides admit. -/

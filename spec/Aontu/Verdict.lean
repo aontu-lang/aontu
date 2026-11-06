@@ -122,6 +122,7 @@ def Val.lonePref : Val → Val
 /-- A term with its riders and a lone `*` read through. -/
 def Val.unwrap : Val → Val
   | .ride _ v _ => v.unwrap
+  | .link v _ => v.unwrap
   | .pref _ x => x.unwrap
   | v => v
 
@@ -144,6 +145,7 @@ output, unless the bag carries a mark itself, which lifts its members'
 marks. -/
 def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val)
   | .ride k v _ => v.members ds (lifted || decide (k = .type) || decide (k = .hide))
+  | .link v _ => v.members ds lifted
   | .list items _ _ => some items
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
       if (!lifted && m.2.2.marked) || m.2.2.isAbsent || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
@@ -232,6 +234,7 @@ def joinOf (ds : Decls) (b : Val) (sep : Option Val) : Made :=
 /-- A term without the riders around it. -/
 def Val.unride : Val → Val
   | .ride _ v _ => v.unride
+  | .link v _ => v.unride
   | v => v
 
 /-- A projector in normal form, its riders read through: a string or an
@@ -419,6 +422,7 @@ through; none where a list holds anything but a string, or the value is
 no bag. -/
 def Val.keyedMembers (ds : Decls) (lifted : Bool := false) : Val → Option (List (String × Val))
   | .ride k v _ => v.keyedMembers ds (lifted || decide (k = .type) || decide (k = .hide))
+  | .link v _ => v.keyedMembers ds lifted
   | .list items _ _ => items.mapM fun (i : Val) => i.string?.map fun s => (s, i)
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
       if (!lifted && m.2.2.marked) || m.2.2.isAbsent || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
@@ -894,6 +898,11 @@ def Val.prefer : Val → Val
     else match v.prefOf? with
       | some (s, x) => .pref (s + 1) (.ride k x r)
       | none => .ride k v.prefer r
+  | .link v t =>
+    if v.unride.prefLeaf then .pref 1 (.link v t)
+    else match v.prefOf? with
+      | some (s, x) => .pref (s + 1) (.link x t)
+      | none => .link v.prefer t
   | .path p => .call .pref [.path p]
   | .call f args => .call .pref [.call f args]
   | v => v
@@ -929,6 +938,7 @@ def Val.unseal : Val → Val
   | .pref r x => .pref r x.unseal
   | .meet a b => .meet a.unseal b.unseal
   | .ride k v r => .ride k v.unseal r
+  | .link v lt => .link v.unseal lt
   | v => v
   termination_by structural v => v
 
@@ -981,9 +991,11 @@ form, as `super` reads it, so that a preference stays one, and a `move`
 the same, its source hidden where the document is read (`Decls.withMoves`);
 a `copy` its argument's normal form with its marks cleared and every
 map and list in it unsealed (`Val.unmark`, `Val.unseal`);
-a `refer` the path kind, the link's own value, and a `rel` the relation
-kind, `relName`, its value's links, their template met into each
-target where the document is read (`Decls.withRefers`); a bound
+a `refer` the path kind and a `rel` the relation kind, `relName`, each
+carrying its template (`Val.link`), so that the template rides the
+value the link meets, in every arm and copy the value is in, and is
+met into each target the normal form names where the document is read
+(`Decls.withRefers`); a bound
 written over terms the bound `bndOf` makes of them; any other call the
 number `callValue` computes, where it computes one, and itself
 otherwise, which no reading makes. -/
@@ -1012,10 +1024,10 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .pref, [x] => x.prefer
   | .move, [x] => x.prefer
   | .copy, [x] => (normaliseD ds x).unmark.unseal
-  | .refer, [] => .pathKind
-  | .refer, [_] => .pathKind
-  | .rel, [] => .alias relName
-  | .rel, [_] => .alias relName
+  | .refer, [] => .link .pathKind .any
+  | .refer, [t] => .link .pathKind t
+  | .rel, [] => .link (.alias relName) .any
+  | .rel, [t] => .link (.alias relName) t
   | .split, [s, sep] => (splitOf ds s sep).term ds f args
   | .rep, [s, p, r] => (repOf ds s p r).term ds f args
   | .nom, [n] => (nomOf ds n none none).term ds f args
@@ -1040,6 +1052,7 @@ waits, or a call no reading made. -/
 def Val.holdsCall : Val → Bool
   | .call _ _ => true
   | .ride _ v _ => v.holdsCall
+  | .link v _ => v.holdsCall
   | .len c => c.holdsCall
   | .map fs spread _ => callFields fs || callSpread spread
   | .list items spread _ => callItems items || callSpread spread
@@ -1088,6 +1101,7 @@ def Val.holdsKey : Val → Bool
   | .keyUp _ => true
   | .call _ args => keyItems args
   | .ride _ v _ => v.holdsKey
+  | .link v _ => v.holdsKey
   | .len c => c.holdsKey
   | .map fs spread _ => keyFields fs || keySpread spread
   | .list items spread _ => keyItems items || keySpread spread
@@ -1140,6 +1154,7 @@ def Val.waits (w : String → Bool) : Val → Bool
   | .call .each args | .call .pack args | .call .emit args => waitsHead w args
   | .call _ args => waitsItems w args
   | .ride _ v _ => v.waits w
+  | .link v _ => v.waits w
   | .len c => c.waits w
   | .map fs spread _ => waitsFields w fs || waitsSpread w spread
   | .list items spread _ => waitsItems w items || waitsSpread w spread
@@ -1203,6 +1218,7 @@ def Val.pathTop : Val → Bool
   | .meet a b => a.pathTop || b.pathTop
   | .or arms => pathTopArms arms
   | .ride _ v _ => v.pathTop
+  | .link v _ => v.pathTop
   | _ => false
   termination_by structural v => v
 
@@ -1219,6 +1235,7 @@ def Val.missingTop (ds : Decls) : Val → Bool
   | .meet a b => a.missingTop ds || b.missingTop ds
   | .or arms => missingTopArms ds arms
   | .ride _ v _ => v.missingTop ds
+  | .link v _ => v.missingTop ds
   | _ => false
   termination_by structural v => v
 
@@ -1236,6 +1253,7 @@ def fillTop (ds : Decls) (w : Val) : Val → Val
   | .meet a b => .meet (fillTop ds w a) (fillTop ds w b)
   | .or arms => .or (fillTopArms ds w arms)
   | .ride k v r => .ride k (fillTop ds w v) r
+  | .link v lt => .link (fillTop ds w v) lt
   | v => v
   termination_by structural v => v
 
@@ -1271,6 +1289,7 @@ def Val.pending (ds : Decls) : Val → Bool
   | .meet a b => a.pending ds || b.pending ds
   | .or arms => pendingArms ds arms
   | .ride _ v _ => v.pending ds
+  | .link v _ => v.pending ds
   | .call _ args => pendingItems ds args
   | .select s _ _ => s.pending ds
   | .filter s _ => s.pending ds
@@ -1402,6 +1421,7 @@ def Val.matchRead : Val → Val
   | .map fs spread closed => .map (matchFields fs) (matchSpread spread) closed
   | .list items spread closed => .list (matchItems items) (matchSpread spread) closed
   | .ride k v r => .ride k v.matchRead r
+  | .link v lt => .link v.matchRead lt
   | v => v
 
 def matchSpread : Option Val → Option Val
@@ -1467,6 +1487,7 @@ a container of its kind (`Val.kindless`), and any other pair meeting the
 same conjuncts (`conjAlike`). -/
 def Val.alike (ds : Decls) : Val → Val → Bool
   | .ride _ v _, b => v.alike ds b
+  | .link v _, b => v.alike ds b
   | .map fs _ _, .map gs _ _ =>
     (fs.filter (memberField ds)).length == (gs.filter (memberField ds)).length && alikeIn ds fs gs
   | .list xs _ _, .list ys _ _ => alikeItems ds xs ys
@@ -1492,6 +1513,7 @@ dispatch a node under a rider as the node. -/
 def Val.freeChoice : Val → Bool
   | .or arms => arms.all (·.1 == 0)
   | .ride _ v _ => v.freeChoice
+  | .link v _ => v.freeChoice
   | _ => false
 
 /-- Whether a template's `match` takes the node `m`, as both ports
@@ -1527,6 +1549,7 @@ def Val.nodePaths : Val → List (List Seg)
   | .rest t cs => t.nodePaths ++ nodeCovers cs
   | .select s arms d => s.nodePaths ++ nodePairs arms ++ nodeSpread d
   | .ride _ v _ => v.nodePaths
+  | .link v _ => v.nodePaths
   | _ => []
 
 def nodePairs : List (Val × Val) → List (List Seg)
@@ -1596,6 +1619,7 @@ carries, met with the list's spread `s`: both ports read the element
 and meet it with the spread before the list drops it (decision 18). -/
 def Decls.markClashes (ds : Decls) (s : Option Val) : Val → Bool
   | .ride _ v _ => ds.markClashes s v
+  | .link v _ => ds.markClashes s v
   | v => ds.clashes (match s with | some t => .meet v t | none => v)
 
 mutual
@@ -1736,6 +1760,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     if ds.clashes (resolveD ds b here n) then .nil else .contains (resolveD ds b here c) (resolveD ds b here n)
   | .rest t cs => .rest (resolveD ds b here t) (resolveCovers ds b here cs)
   | .ride k v r => .ride k (resolveD ds b here v) r
+  | .link v lt => .link (resolveD ds b here v) lt
   | .keyUp n =>
     match here with
     | some pos => keyUpAt pos n
@@ -1811,6 +1836,7 @@ def Val.fillable : Val → Bool
   | .call .each args | .call .pack args | .call .emit args => fillableHead args
   | .call _ args => fillableItems args
   | .ride _ v _ => v.fillable
+  | .link v _ => v.fillable
   | _ => false
 
 def fillableHead : List Val → Bool
@@ -1831,6 +1857,7 @@ def Val.bindHole : Val → Val → Val
   | .call .emit args, p => .call .emit (bindHead args p)
   | .call f args, p => .call f (bindItems args p)
   | .ride k v r, p => .ride k (v.bindHole p) r
+  | .link v lt, p => .link (v.bindHole p) lt
   | v, _ => v
 
 def bindHead : List Val → Val → List Val
@@ -1851,6 +1878,7 @@ def Val.waitsTop : Val → Bool
   | .meet x y => x.waitsTop || y.waitsTop
   | .or arms => armsWaitTop arms
   | .ride _ v _ => v.waitsTop
+  | .link v _ => v.waitsTop
   | v => v.fillable
 
 def armsWaitTop : List (ℕ × Val) → Bool
@@ -1928,6 +1956,7 @@ def Val.memberAt : Val → String → Option Val
     | some p, none => some p
     | none, q => q
   | .ride _ v _, k => v.memberAt k
+  | .link v _, k => v.memberAt k
   | _, _ => none
 
 /-- The term with its member under a key written: the first declaration,
@@ -1940,6 +1969,7 @@ def Val.putMember : Val → String → Val → Val
     | some _ => .meet (u.putMember k p) (v.putMember k .any)
     | none => .meet u (v.putMember k p)
   | .ride r v rec, k, p => .ride r (v.putMember k p) rec
+  | .link v lt, k, p => .link (v.putMember k p) lt
   | v, _, _ => v
 
 /-- The element a term holds at a position among those that stand, read
@@ -1952,6 +1982,7 @@ def Val.elemAt : Val → ℕ → Option Val
     | some p, none => some p
     | none, q => q
   | .ride _ v _, i => v.elemAt i
+  | .link v _, i => v.elemAt i
   | _, _ => none
 
 /-- The term with its element at a position written, as `putMember` writes a member. -/
@@ -1962,6 +1993,7 @@ def Val.putElem : Val → ℕ → Val → Val
     | some _ => .meet (u.putElem i p) (v.putElem i .any)
     | none => .meet u (v.putElem i p)
   | .ride r v rec, i, p => .ride r (v.putElem i p) rec
+  | .link v lt, i, p => .link (v.putElem i p) lt
   | v, _, _ => v
 
 /-- Whether a selection's arm reads a key the spread has filled: a key's
@@ -1981,6 +2013,7 @@ def Val.holdsFill : Val → Bool
   | .list xs sp _ => itemsHoldFill xs || spreadHoldsFill sp
   | .meet x y => x.holdsFill || y.holdsFill
   | .ride _ v _ => v.holdsFill
+  | .link v _ => v.holdsFill
   | .select .key arms d => arms.all Val.filledArm && spreadHoldsFill d
   | _ => false
 
@@ -2030,6 +2063,7 @@ def Val.keysAt : Val → List String
   | .map fs _ _ => fs.map (·.1)
   | .meet u v => u.keysAt ++ v.keysAt
   | .ride _ v _ => v.keysAt
+  | .link v _ => v.keysAt
   | _ => []
 
 /-- The positions a term holds, read through meets and riders. -/
@@ -2037,6 +2071,7 @@ def Val.posAt : Val → ℕ
   | .list xs _ _ => (xs.filter fun x => !(x.marked || x.isAbsent)).length
   | .meet u v => Nat.max u.posAt v.posAt
   | .ride _ v _ => v.posAt
+  | .link v _ => v.posAt
   | _ => 0
 
 /-- A spread that waits on a hole met with a peer's member under each key
@@ -2138,6 +2173,7 @@ def Val.tmplAt (sel : Val → Option (List (Val × Val) × Val)) : Val → Strin
     | some p, none => some p
     | none, q => q
   | .ride _ v _, k => v.tmplAt sel k
+  | .link v _, k => v.tmplAt sel k
   | _, _ => none
 
 /-- The term with each of those spreads reading the key as `any`. -/
@@ -2148,6 +2184,7 @@ def Val.markAt (sel : Val → Option (List (Val × Val) × Val)) : Val → Strin
     | none => .map fs sp ca
   | .meet u v, k => .meet (u.markAt sel k) (v.markAt sel k)
   | .ride r v rec, k => .ride r (v.markAt sel k) rec
+  | .link v lt, k => .link (v.markAt sel k) lt
   | v, _ => v
 
 /-- The same with the list spreads a term holds, at a position. -/
@@ -2162,6 +2199,7 @@ def Val.tmplAtPos (sel : Val → Option (List (Val × Val) × Val)) : Val → �
     | some p, none => some p
     | none, q => q
   | .ride _ v _, i => v.tmplAtPos sel i
+  | .link v _, i => v.tmplAtPos sel i
   | _, _ => none
 
 /-- The term with each of those list spreads reading the position as `any`. -/
@@ -2174,6 +2212,7 @@ def Val.markAtPos (sel : Val → Option (List (Val × Val) × Val)) : Val → �
     | none => .list xs sp ca
   | .meet u v, i => .meet (u.markAtPos sel i) (v.markAtPos sel i)
   | .ride r v rec, i => .ride r (v.markAtPos sel i) rec
+  | .link v lt, i => .link (v.markAtPos sel i) lt
   | v, _ => v
 
 /-- A term's member under a key the peer doesn't declare, met with the
@@ -2438,6 +2477,7 @@ def Val.filled : Val → Val
   | .or arms => .or (filledArms arms)
   | .pref r x => .pref r x.filled
   | .ride k v r => .ride k v.filled r
+  | .link v lt => .link v.filled lt
   | .len c => .len c.filled
   | .nof n cs => .nof n.filled (filledItems cs)
   | .must c m => .must c.filled m
@@ -2482,6 +2522,7 @@ def Val.tmplNode : Val → Val
     .meet (if x.isTopNode then x.tmplNode else x.filled) (if y.isTopNode then y.tmplNode else y.filled)
   | .or arms => .or (tmplArms arms)
   | .ride k v r => .ride k (if v.isTopNode then v.tmplNode else v.filled) r
+  | .link v lt => .link (if v.isTopNode then v.tmplNode else v.filled) lt
   | v => v
 
 def tmplArms : List (ℕ × Val) → List (ℕ × Val)
@@ -2536,6 +2577,7 @@ theorem bindHole_checkableA {p : Val} (hp : p.CheckableA) {v : Val} (h : v.Check
       · exact ih u hu
     cases f <;> first | exact .call hh | exact .call hi
   | ride _ ih => exact .ride ih
+  | link _ ht ih _ => exact .link ih ht
   | _ => simp only [Val.bindHole]; constructor <;> assumption
 
 theorem mem_filledItems : ∀ {vs : List Val} {w : Val}, w ∈ filledItems vs → ∃ v, v ∈ vs ∧ w = v.filled
@@ -2708,6 +2750,7 @@ theorem memberAt_checkableA {b : Val} (hb : b.CheckableA) : ∀ {k : String} {p 
       exact ihu h₁
     · exact ihv h
   | ride _ ih => intro k p h; exact ih h
+  | link _ _ ih _ => intro k p h; exact ih h
   | _ => intro k p h; simp [Val.memberAt] at h
 
 theorem putMember_checkableA {b : Val} (hb : b.CheckableA) : ∀ {k : String} {p : Val},
@@ -2724,6 +2767,7 @@ theorem putMember_checkableA {b : Val} (hb : b.CheckableA) : ∀ {k : String} {p
     · exact .meet (ihu hp) (ihv .any)
     · exact .meet hu (ihv hp)
   | ride _ ih => intro k p hp; exact .ride (ih hp)
+  | link _ ht ih _ => intro k p hp; exact .link (ih hp) ht
   | _ => intro k p hp; simp only [Val.putMember]; constructor <;> assumption
 
 theorem elemAt_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Val},
@@ -2747,6 +2791,7 @@ theorem elemAt_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Val
       exact ihu h₁
     · exact ihv h
   | ride _ ih => intro i p h; exact ih h
+  | link _ _ ih _ => intro i p h; exact ih h
   | _ => intro i p h; simp [Val.elemAt] at h
 
 theorem putElem_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Val},
@@ -2766,6 +2811,7 @@ theorem putElem_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Va
     · exact .meet (ihu hp) (ihv .any)
     · exact .meet hu (ihv hp)
   | ride _ ih => intro i p hp; exact .ride (ih hp)
+  | link _ ht ih _ => intro i p hp; exact .link (ih hp) ht
   | _ => intro i p hp; simp only [Val.putElem]; constructor <;> assumption
 
 theorem waitingSpread_checkableA {s : Val} (hs : s.CheckableA) {arms : List (Val × Val)} {t : Val}
@@ -3080,6 +3126,7 @@ theorem tmplAt_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hse
       exact ihu hp
     · exact ihv h
   | ride _ ih => intro t h; unfold Val.tmplAt at h; exact ih h
+  | link _ _ ih _ => intro t h; unfold Val.tmplAt at h; exact ih h
   | _ => intro t h; unfold Val.tmplAt at h; exact absurd h (by simp)
 
 theorem markAt_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hsel : SelReadably sel)
@@ -3098,6 +3145,7 @@ theorem markAt_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hse
     · exact .map hf hs
   | meet _ _ ihu ihv => exact .meet ihu ihv
   | ride _ ih => exact .ride ih
+  | link _ ht ih _ => exact .link ih ht
   | _ => unfold Val.markAt; constructor <;> assumption
 
 theorem tmplAtPos_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hsel : SelReadably sel)
@@ -3128,6 +3176,7 @@ theorem tmplAtPos_checkableA {sel : Val → Option (List (Val × Val) × Val)} (
       exact ihu hp
     · exact ihv h
   | ride _ ih => intro t h; unfold Val.tmplAtPos at h; exact ih h
+  | link _ _ ih _ => intro t h; unfold Val.tmplAtPos at h; exact ih h
   | _ => intro t h; unfold Val.tmplAtPos at h; exact absurd h (by simp)
 
 theorem markAtPos_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hsel : SelReadably sel)
@@ -3146,6 +3195,7 @@ theorem markAtPos_checkableA {sel : Val → Option (List (Val × Val) × Val)} (
     · exact .list hx hs
   | meet _ _ ihu ihv => exact .meet ihu ihv
   | ride _ ih => exact .ride ih
+  | link _ ht ih _ => exact .link ih ht
   | _ => unfold Val.markAtPos; constructor <;> assumption
 
 theorem peerFill_checkableA {x : Val} {w h : Option Val} {fw fh : Val → Val} (hx : x.CheckableA)
@@ -3796,6 +3846,12 @@ theorem filled_tmpl_checkableA {v : Val} (h : v.CheckableA) :
     split
     · exact .ride ih.2
     · exact .ride ih.1
+  | link _ ht ih _ =>
+    refine ⟨.link ih.1 ht, ?_⟩
+    simp only [Val.tmplNode]
+    split
+    · exact .link ih.2 ht
+    · exact .link ih.1 ht
   | len hc ih => exact ⟨.len ih.1, .len hc⟩
   | must hc ih => exact ⟨.must ih.1, .must hc⟩
   | contains hc hn ihc ihn => exact ⟨.contains ihc.1 ihn.1, .contains hc hn⟩
@@ -4090,6 +4146,7 @@ theorem Val.lonePref_checkableA {v : Val} (h : v.CheckableA) : v.lonePref.Checka
 
 theorem Val.unwrap_checkableA : ∀ {v : Val}, v.CheckableA → v.unwrap.CheckableA
   | .ride _ v _, .ride h => show v.unwrap.CheckableA from Val.unwrap_checkableA h
+  | .link v _, .link h _ => show v.unwrap.CheckableA from Val.unwrap_checkableA h
   | .pref _ x, .pref h => show x.unwrap.CheckableA from Val.unwrap_checkableA h
   | .integer, h | .float, h | .biginteger, h | .bigdecimal, h | .number, h | .string, h
   | .anyString, h | .boolean, h | .mapKind, h | .listKind, h | .pathKind, h | .lit _, h
@@ -4107,7 +4164,8 @@ theorem Val.operand_checkableA {v : Val} (h : v.CheckableA) : v.operand.Checkabl
 theorem Val.checkableA_unride {v : Val} (h : v.CheckableA) : v.unride.CheckableA := by
   induction v using Val.unride.induct with
   | case1 k v r ih => cases h with | ride h => exact ih h
-  | case2 v h1 => rw [Val.unride.eq_2 v h1]; exact h
+  | case2 v t ih => cases h with | link h _ => exact ih h
+  | case3 v h1 h2 => rw [Val.unride.eq_3 v h1 h2]; exact h
 
 /-- What an `Option` `mapM` makes holds what each of its results holds. -/
 theorem mapM_some_forall {α β : Type} {f : α → Option β} {P : β → Prop} :
@@ -4138,6 +4196,7 @@ theorem Val.members_checkableA {ds : Decls} :
     ∀ {lifted : Bool} {v : Val} {ms : List Val}, v.CheckableA → v.members ds lifted = some ms →
       ∀ m, m ∈ ms → m.CheckableA
   | _, .ride _ _ _, _, .ride h, hm => Val.members_checkableA h hm
+  | _, .link _ _, _, .link h _, hm => Val.members_checkableA h hm
   | _, .list _ _ _, _, .list hi _, hm => by
     simp only [Val.members, Option.some.injEq] at hm
     exact hm ▸ hi
@@ -4349,6 +4408,7 @@ theorem Val.keyedMembers_checkableA {ds : Decls} :
     ∀ {lifted : Bool} {v : Val} {ms : List (String × Val)}, v.CheckableA →
       v.keyedMembers ds lifted = some ms → ∀ m, m ∈ ms → m.2.CheckableA
   | _, .ride _ _ _, _, .ride h, hm => Val.keyedMembers_checkableA h hm
+  | _, .link _ _, _, .link h _, hm => Val.keyedMembers_checkableA h hm
   | _, .list _ _ _, _, .list hi _, hm => by
     simp only [Val.keyedMembers] at hm
     intro m hm'
@@ -4872,6 +4932,14 @@ theorem prefer_checkableA {v : Val} (h : v.CheckableA) : v.prefer.CheckableA := 
       · rename_i s x hp
         exact .pref (.ride (Val.prefOf?_checkableA h hp))
       · exact .ride ih
+  | link h ht ih _ =>
+    simp only [Val.prefer]
+    split
+    · exact .pref (.link h ht)
+    · split
+      · rename_i s x hp
+        exact .pref (.link (Val.prefOf?_checkableA h hp) ht)
+      · exact .link ih ht
   | path =>
     simp only [Val.prefer]
     refine .call fun a ha => ?_
@@ -4944,6 +5012,7 @@ theorem Val.CheckableA.unseal {v : Val} (h : v.CheckableA) : v.unseal.CheckableA
   | pref _ ih => simp only [Val.unseal]; exact .pref ih
   | meet _ _ iha ihb => simp only [Val.unseal]; exact .meet iha ihb
   | ride _ ih => simp only [Val.unseal]; exact .ride ih
+  | link _ ht ih _ => simp only [Val.unseal]; exact .link ih ht
   | call hargs _ => simp only [Val.unseal]; exact .call hargs
   | len h _ => simp only [Val.unseal]; exact .len h
   | nof hn hcs _ _ => simp only [Val.unseal]; exact .nof hn hcs
@@ -4985,10 +5054,10 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact prefer_checkableA (h _ (by simp))
   · exact prefer_checkableA (h _ (by simp))
   · exact (normaliseD_checkableA (ds := ds) hd (h _ (by simp))).unmark.unseal
-  · exact .pathKind
-  · exact .pathKind
-  · exact .alias
-  · exact .alias
+  · exact .link .pathKind .any
+  · exact .link .pathKind (h _ (by simp))
+  · exact .link .alias .any
+  · exact .link .alias (h _ (by simp))
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => repOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
@@ -5036,6 +5105,7 @@ theorem fillTop_checkableA {ds : Decls} {w : Val} (hw : w.CheckableA) {v : Val} 
     obtain ⟨a, ha, rfl⟩ := mem_fillTopArms hx
     exact ih r a ha
   | ride _ ih => simp only [fillTop]; exact .ride ih
+  | link _ ht ih _ => simp only [fillTop]; exact .link ih ht
   | _ => simp only [fillTop]; constructor <;> assumption
 
 /-- What `maybe` makes of a term the checker can read is one it can read. -/
@@ -5087,6 +5157,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     exact ih r a ha hb
   | pref _ ih => intro b here hb; simp only [resolveD]; exact .pref (ih hb)
   | ride _ ih => intro b here hb; simp only [resolveD]; exact .ride (ih hb)
+  | link _ ht ih _ => intro b here hb; simp only [resolveD]; exact .link (ih hb) ht
   | meet _ _ iha ihb => intro b here hb; simp only [resolveD]; exact .meet (iha hb) (ihb hb)
   | nof _ _ ihn ihcs =>
     intro b here hb
@@ -5520,6 +5591,7 @@ meet counts whatever it holds, as both ports count a container. -/
 def Val.bagLike : Val → Bool
   | .map _ _ _ | .list _ _ _ => true
   | .ride _ v _ => v.bagLike
+  | .link v _ => v.bagLike
   | _ => false
 
 /-- The members a container literal holds where the meet reads it, as
@@ -5545,6 +5617,7 @@ def dupAlike : List Val → Bool
 def Val.keyVal (k : String) : Val → Option Val
   | .map fs _ _ => (fs.find? (·.1 == k)).map (·.2.2)
   | .ride _ v _ => v.keyVal k
+  | .link v _ => v.keyVal k
   | _ => none
 
 /-- Whether an atom refuses, where the meet reads them, the members of a
@@ -5596,6 +5669,7 @@ def Val.choiceLeft : Val → Bool
   | .pref _ _ => true
   | .meet a b => a.choiceLeft || b.choiceLeft
   | .ride _ v _ => v.choiceLeft
+  | .link v _ => v.choiceLeft
   | _ => false
 
 /-- Whether a size, the argument of `len`, holds a choice once in normal
@@ -5638,6 +5712,7 @@ def Val.illFormed : Val → Bool
   | .pref _ x => x.illFormed
   | .meet a b => (a.fillable && b.fillable && !(a.isHole && b.isHole)) || a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
+  | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args ||
     (!(Val.call .join args).fillable && joinSepHeld args)
@@ -5685,6 +5760,7 @@ def Val.staged (ds : Decls) : Val → Val
   | .or arms => mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
   | .pref r x => .pref r (x.staged ds)
   | .ride k v r => .ride k (v.staged ds) r
+  | .link v lt => .link (v.staged ds) lt
   | v => v
 
 def stagedFields (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val)
@@ -5762,6 +5838,7 @@ theorem staged_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (v.staged 
     exact flattenArm_checkableA hq' p hpq
   | pref _ ih => simp only [Val.staged]; exact .pref ih
   | ride _ ih => simp only [Val.staged]; exact .ride ih
+  | link _ ht ih _ => simp only [Val.staged]; exact .link ih ht
   | _ => simp only [Val.staged]; constructor <;> assumption
 
 mutual
@@ -5769,6 +5846,7 @@ mutual
 def Val.idents : Val → Bool
   | .ride .ident _ _ => true
   | .ride _ v _ => v.idents
+  | .link v _ => v.idents
   | .len c => c.idents
   | .map fs spread _ => identsFields fs || identsSpread spread
   | .list items spread _ => identsItems items || identsSpread spread
@@ -5839,6 +5917,7 @@ def Val.unplaced (w : String → Bool) (ill : Val → Bool) : Val → Val
   | .or arms => .or (unplacedArms w ill arms)
   | .pref r x => .pref r (x.unplaced w ill)
   | .ride k v r => .ride k (v.unplaced w ill) r
+  | .link v lt => .link (v.unplaced w ill) lt
   | .call f args =>
     if !(Val.call f args).waits w then .call f args
     else if !f.takes args.length || (match f with
@@ -5938,6 +6017,7 @@ def Val.dataRead (w : String → Bool) (ill : Val → Bool) : Val → Val
   | .or arms => .or (dataArms w ill arms)
   | .pref r x => .pref r (x.dataRead w ill)
   | .ride k v r => .ride k (v.dataRead w ill) r
+  | .link v lt => .link (v.dataRead w ill) lt
   | v => v
 
 def dataFields (w : String → Bool) (ill : Val → Bool) :
@@ -6003,6 +6083,7 @@ def Val.untried : Val → Val
   | .pref r x => .pref r x.untried
   | .meet a b => .meet a.untried b.untried
   | .ride k v r => .ride k v.untried r
+  | .link v lt => .link v.untried lt
   | v => v
 
 def untriedFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -6109,6 +6190,7 @@ theorem untried_checkableA {v : Val} (h : v.CheckableA) : v.untried.CheckableA :
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
+  | link _ ht ih _ => exact .link ih ht
   | call h _ => simp only [Val.untried]; exact .call h
   | _ => simp only [Val.untried]; constructor
 
@@ -6152,6 +6234,7 @@ def Val.waitAny : Val → Val
   | .list xs sp c => .list (waitItems xs) (waitSpread sp) c
   | .meet a b => .meet a.waitAny b.waitAny
   | .ride k v r => .ride k v.waitAny r
+  | .link v lt => .link v.waitAny lt
   | .or arms => .or (waitArms arms)
   | .select s arms d => .select s arms (waitSpread d)
   | v => if v.fillable then .any else v
@@ -6223,6 +6306,7 @@ theorem waitAny_checkableA {v : Val} (h : v.CheckableA) : v.waitAny.CheckableA :
       exact ihs s hs
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
+  | link _ ht ih _ => exact .link ih ht
   | @or arms _ ih =>
     refine .or fun r a hm => ?_
     obtain ⟨b, hb, rfl⟩ := mem_waitArms hm

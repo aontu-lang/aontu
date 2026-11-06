@@ -100,7 +100,8 @@ inductive Val where
   | select (s : Val) (arms : List (Val × Val)) (d : Option Val)  -- `match(s, p₁, r₁, …, d?)`, the first `rᵢ` whose `pᵢ` admits the value of `s`, else `d`; Lean keeps `match`
   | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
   | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`, `type(v)`, `hide(v)`: `v` carrying `r`
-  | key                                     -- `key(0)`, the key of the member a spread is tried on
+  | link (v t : Val)                        -- `refer(t)` met with `v`: `v` carrying a link whose target meets `t`
+  | key                                  -- `key(0)`, the key of the member a spread is tried on
   | keyUp (n : ℤ)                           -- `key(n)` as written, the key `n` levels above where it stands; `key()` is `key(1)`
   | hole                                    -- `_`, the placeholder a generator's template binds to its member
   | call (f : Fn) (args : List Val)         -- `add(a, b)`, `-(a)`, …: the value `f` computes from the values of `args`
@@ -146,6 +147,7 @@ def Val.size : Val → ℕ
   | .select s arms d => s.size + sizePairs arms + sizeSpread d + 1
   | .filter s c => s.size + c.size + 1
   | .ride _ v _ => v.size + 1
+  | .link v t => v.size + t.size + 1
   | .call _ args => sizeItems args + 1
   | _ => 1
 
@@ -213,12 +215,14 @@ def Val.isKind : Val → Bool
   | .integer | .float | .biginteger | .bigdecimal | .number | .string | .anyString | .boolean
   | .pathKind => true
   | .ride _ v _ => v.isKind
+  | .link v _ => v.isKind
   | _ => false
 
 /-- One of the four numeric leaves. -/
 def Val.isLeaf : Val → Bool
   | .integer | .float | .biginteger | .bigdecimal => true
   | .ride _ v _ => v.isLeaf
+  | .link v _ => v.isLeaf
   | _ => false
 
 mutual
@@ -255,6 +259,7 @@ def Val.super : Val → Val
   | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _
   | .call _ _ => .any
   | .ride _ v _ => v.super
+  | .link v _ => v.super
   | .key | .keyUp _ => .anyString
   | .hole => .any
 
@@ -286,6 +291,7 @@ and the other riders. -/
 disjunction of one arm, its others dead, carries the arm's. -/
 def Val.hasMark (m : Rider) : Val → Bool
   | .ride k v _ => decide (k = m) || v.hasMark m
+  | .link v _ => v.hasMark m
   | .meet a b => a.hasMark m || b.hasMark m
   | .or [(_, a)] => a.hasMark m
   | _ => false
@@ -297,6 +303,7 @@ def Val.marked (v : Val) : Bool := v.hasMark .type || v.hasMark .hide
 def Val.isAbsent : Val → Bool
   | .absent => true
   | .ride _ v _ => v.isAbsent
+  | .link v _ => v.isAbsent
   | _ => false
 
 /-- Whether a term is a call or a `key(n)` at its own position, through
@@ -306,6 +313,7 @@ def Val.callAt : Val → Bool
   | .call _ _ | .keyUp _ => true
   | .meet a b => a.callAt || b.callAt
   | .ride _ v _ => v.callAt
+  | .link v _ => v.callAt
   | _ => false
 
 /-! ## The key a spread is tried under
@@ -324,6 +332,7 @@ def Val.atKey (k : String) : Val → Val
   | .meet a b => .meet (a.atKey k) (b.atKey k)
   | .select s arms d => .select (s.atKey k) arms d
   | .ride t v r => .ride t (v.atKey k) r
+  | .link v t => .link (v.atKey k) t
   | v => v
 
 /-- A term read under a key, where one is given. -/
@@ -337,13 +346,13 @@ def Val.keyed : Val → Bool
   | .meet a b => a.keyed || b.keyed
   | .select s _ _ => s.keyed
   | .ride _ v _ => v.keyed
+  | .link v _ => v.keyed
   | _ => false
 
 /-- A kind holds no `key`. -/
 theorem Val.keyed_of_isKind {v : Val} (h : v.isKind = true) : v.keyed = false := by
   cases v <;> simp_all [Val.isKind, Val.keyed]
-  rename_i v _
-  exact Val.keyed_of_isKind h
+  all_goals (rename_i v _; exact Val.keyed_of_isKind h)
 
 /-- No parent type holds a `key`: the parent of `key` is every string, so a
 spread's parent reads the same under any key. -/
@@ -360,6 +369,7 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
       · exact Val.keyed_of_isKind ‹_›
       · simp only [Val.keyed, Val.keyed_super a, Val.keyed_super b, Bool.or_self]
   | .ride _ v _ => by simp only [Val.super]; exact Val.keyed_super v
+  | .link v _ => by simp only [Val.super]; exact Val.keyed_super v
   | .pref _ x => by simp only [Val.super]; exact Val.keyed_super x
   | .lit (.num x) => by simp only [Val.super]; cases x.leaf <;> rfl
   | .lit (.str s) => by simp only [Val.super]; split <;> rfl
@@ -385,7 +395,10 @@ theorem Val.atKey_of_keyed (k : String) {v : Val} (h : v.keyed = false) : v.atKe
   | case4 t v r ih =>
     simp only [Val.keyed] at h
     simp only [Val.atKey, ih h]
-  | case5 v h1 h2 h3 h4 => exact Val.atKey.eq_5 k v h1 h2 h3 h4
+  | case5 v t ih =>
+    simp only [Val.keyed] at h
+    simp only [Val.atKey, ih h]
+  | case6 v h1 h2 h3 h4 h5 => exact Val.atKey.eq_6 k v h1 h2 h3 h4 h5
 
 /-! ## The key a term reads where it stands
 

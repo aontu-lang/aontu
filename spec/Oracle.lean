@@ -1923,7 +1923,22 @@ def referCases : List (Decls × Val × Data) :=
         (0, .map [("d", true, .call .refer [m [("z", int 2)]])] none false)]) (m [("d", ad 0 ["y"])])),
       ("y", m [("z", .integer)])], .map []),
     ([], m [("x", .meet (.or [(1, m [("k", int 1)]), (0, m [("k", int 2), ("d", rf (m [("z", int 1)]) (ad 0 ["y"]))])])
-        (m [("k", int 2)])), ("y", m [("z", .integer)])], .map [])]
+        (m [("k", int 2)])), ("y", m [("z", .integer)])], .map []),
+    ([], m [("x", .select (.lit (.str "a")) [(.lit (.str "a"), m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]),
+        (.lit (.str "b"), m [("d", rf (m [("z", int 2)]) (ad 0 ["y"]))])] none), ("y", m [("z", .integer)])], .map []),
+    ([], m [("x", .select (.lit (.str "c")) [(.lit (.str "a"), m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))])]
+        (some (m [("d", rf (m [("z", int 2)]) (ad 0 ["y"]))]))), ("y", m [("z", .integer)])], .map []),
+    ([], m [("x", .select (.lit (.str "a")) [(.lit (.str "a"), m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]),
+        (.lit (.str "b"), m [("d", rf (m [("z", int 2)]) (ad 0 ["y"]))])] none), ("y", m [])],
+      .map [("y", .map [("z", j 2)])]),
+    ([], m [("x", .meet (.call .pack [.list [.lit (.str "a")] none false, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]])
+        (m [("b", m [("d", ad 0 ["w"])])])), ("y", m [("z", .integer)]), ("w", m [("z", .integer)])], .map []),
+    ([], m [("x", .call .pack [.list [.lit (.str "a")] none false, m [("d", rf (m [("n", .keyUp 2)]) (ad 0 ["y"]))]]),
+        ("y", m [("n", .string)])], .map []),
+    ([], m [("x", .call .each [.list [int 1] none false, m [("d", rf (m [("v", .hole)]) (ad 0 ["y"]))]]),
+        ("y", m [("v", .integer)])], .map []),
+    ([("B", .call .each [.list [int 1] none false, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]])],
+      m [("y", m [("z", .integer)])], .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

@@ -216,6 +216,7 @@ argument (decision 28 of the design note's §7). -/
 def Val.unsized : Val → Bool
   | .any | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ => true
   | .ride _ v _ => v.unsized
+  | .link v _ => v.unsized
   | .meet a b => a.unsized && b.unsized
   | _ => false
 
@@ -524,6 +525,10 @@ inductive Judge (env : Env) (root : Data) : Bool → Val → Data → Prop
   nothing. -/
   | ride {b : Bool} {k : Rider} {v : Val} {r : Record} {j : Data} :
       Judge env root b v j → Judge env root b (.ride k v r) j
+  /-- A link judges as its value: the template it carries asks
+  something of its target, and nothing of the value. -/
+  | link {b : Bool} {v t : Val} {j : Data} :
+      Judge env root b v j → Judge env root b (.link v t) j
   /-- A selection on a literal, as a spread's `key` reads one: judged as
   the result of the first arm whose pattern admits the literal's value,
   each pattern before it refusing it; as its default where every
@@ -999,6 +1004,8 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
     | restNone _ => rfl
   | ride _ ih => intro b' h'; cases h' with
     | ride h' => exact ih h'
+  | link _ ih => intro b' h'; cases h' with
+    | link h' => exact ih h'
   | @selectArm _ _ _ _ i _ _ _ hi _ _ _ ihpre ihp ihr => intro b' h'; cases h' with
     | @selectArm _ _ _ _ i' _ _ _ hi' hpre' hp' hr' =>
       rcases Nat.lt_trichotomy i i' with hlt | heq | hgt
@@ -1134,6 +1141,7 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.rest <;> assumption)
     | (apply Judge.restNone <;> assumption)
     | (apply Judge.ride <;> assumption)
+    | (apply Judge.link <;> assumption)
     | (apply Judge.selectArm <;> assumption)
     | (apply Judge.selectElse <;> assumption)
     | (apply Judge.selectNone <;> assumption)
@@ -1152,5 +1160,10 @@ theorem Judge.toIff {env : Env} {root : Data} {c : Bool} {v : Val} {j : Data}
 theorem judge_ride_iff {env : Env} {root : Data} {b : Bool} {k : Rider} {v : Val} {r : Record}
     {j : Data} : Judge env root b (.ride k v r) j ↔ Judge env root b v j :=
   ⟨fun h => by cases h with | ride h => exact h, .ride⟩
+
+/-- A link judges every datum as its value does. -/
+theorem judge_link_iff {env : Env} {root : Data} {b : Bool} {v t : Val}
+    {j : Data} : Judge env root b (.link v t) j ↔ Judge env root b v j :=
+  ⟨fun h => by cases h with | link h => exact h, .link⟩
 
 end Aontu

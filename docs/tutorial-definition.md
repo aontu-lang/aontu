@@ -1381,6 +1381,7 @@ each `len(1)`:
 def Val.unsized : Val → Bool
   | .any | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ => true
   | .ride _ v _ => v.unsized
+  | .link v _ => v.unsized
   | .meet a b => a.unsized && b.unsized
   | _ => false
 ```
@@ -2880,6 +2881,7 @@ def Val.pending (ds : Decls) : Val → Bool
   | .meet a b => a.pending ds || b.pending ds
   | .or arms => pendingArms ds arms
   | .ride _ v _ => v.pending ds
+  | .link v _ => v.pending ds
   | .call _ args => pendingItems ds args
   | .select s _ _ => s.pending ds
   | .filter s _ => s.pending ds
@@ -3286,6 +3288,8 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .meet b₁ b₂ => meetRight rec a b₁ b₂
   | .ride k v r, b => .ride k (rec v b) r
   | a, .ride k v r => .ride k (rec a v) r
+  | .link v t, b => .link (rec v b) t
+  | a, .link v t => .link (rec a v) t
   | .or arms, b => mkOr (arms.map fun p => (p.1, rec p.2 b))
   | a, .or arms => mkOr (arms.map fun p => (p.1, rec a p.2))
   | .pref r x, b => mkOr [(r, rec x b), (0, rec x.super b)]
@@ -3461,6 +3465,7 @@ def Val.declaresDefault : Val → Bool
   | .pref _ _ => true
   | .or arms => (pickRank arms).isSome
   | .ride _ v _ => v.declaresDefault
+  | .link v _ => v.declaresDefault
   | _ => false
 ```
 
@@ -4121,6 +4126,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .or arms, j => arms.any (picked arms) = true ∧ genArms env root arms arms j
   | .pref _ x, j => Gen env root x j
   | .ride _ v _, j => Gen env root v j
+  | .link v _, j => Gen env root v j
   | .meet a b, j =>
     (Gen env root a j ∧ Admits env root b j) ∨
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
@@ -4353,6 +4359,7 @@ output, as both engines do:
 ```lean
 def Val.hasMark (m : Rider) : Val → Bool
   | .ride k v _ => decide (k = m) || v.hasMark m
+  | .link v _ => v.hasMark m
   | .meet a b => a.hasMark m || b.hasMark m
   | .or [(_, a)] => a.hasMark m
   | _ => false
@@ -4671,6 +4678,7 @@ def Val.staged (ds : Decls) : Val → Val
   | .or arms => mkOr (((stagedArms ds arms).flatMap flattenArm).filter fun p => !p.2.illFormed)
   | .pref r x => .pref r (x.staged ds)
   | .ride k v r => .ride k (v.staged ds) r
+  | .link v lt => .link (v.staged ds) lt
   | v => v
 ```
 
@@ -4696,6 +4704,7 @@ def Val.choiceLeft : Val → Bool
   | .pref _ _ => true
   | .meet a b => a.choiceLeft || b.choiceLeft
   | .ride _ v _ => v.choiceLeft
+  | .link v _ => v.choiceLeft
   | _ => false
 ```
 
@@ -4718,6 +4727,7 @@ def Val.illFormed : Val → Bool
   | .pref _ x => x.illFormed
   | .meet a b => (a.fillable && b.fillable && !(a.isHole && b.isHole)) || a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
+  | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args ||
     (!(Val.call .join args).fillable && joinSepHeld args)
@@ -4771,6 +4781,7 @@ def Val.untried : Val → Val
   | .pref r x => .pref r x.untried
   | .meet a b => .meet a.untried b.untried
   | .ride k v r => .ride k v.untried r
+  | .link v lt => .link v.untried lt
   | v => v
 ```
 
@@ -6364,6 +6375,7 @@ def Val.atKey (k : String) : Val → Val
   | .meet a b => .meet (a.atKey k) (b.atKey k)
   | .select s arms d => .select (s.atKey k) arms d
   | .ride t v r => .ride t (v.atKey k) r
+  | .link v t => .link (v.atKey k) t
   | v => v
 ```
 
@@ -6522,6 +6534,7 @@ the output reads it, so `sum({a?: {}, b: 2})` is `2`:
 ```lean
 def Val.members (ds : Decls) (lifted : Bool := false) : Val → Option (List Val)
   | .ride k v _ => v.members ds (lifted || decide (k = .type) || decide (k = .hide))
+  | .link v _ => v.members ds lifted
   | .list items _ _ => some items
   | .map fs _ _ => some ((fs.mergeSort fun a b => decide (a.1 ≤ b.1)).filterMap fun m =>
       if (!lifted && m.2.2.marked) || m.2.2.isAbsent || (m.2.1 && (genD ds m.2.2).all Data.emptyBag) then none
@@ -6681,6 +6694,7 @@ def Val.callAt : Val → Bool
   | .call _ _ | .keyUp _ => true
   | .meet a b => a.callAt || b.callAt
   | .ride _ v _ => v.callAt
+  | .link v _ => v.callAt
   | _ => false
 ```
 
@@ -7496,6 +7510,7 @@ def Val.fillable : Val → Bool
   | .call .each args | .call .pack args | .call .emit args => fillableHead args
   | .call _ args => fillableItems args
   | .ride _ v _ => v.fillable
+  | .link v _ => v.fillable
   | _ => false
 ```
 
@@ -7550,6 +7565,7 @@ def Val.memberAt : Val → String → Option Val
     | some p, none => some p
     | none, q => q
   | .ride _ v _, k => v.memberAt k
+  | .link v _, k => v.memberAt k
   | _, _ => none
 ```
 
@@ -8582,6 +8598,7 @@ meet it with the spread before they drop it:
 ```lean
 def Decls.markClashes (ds : Decls) (s : Option Val) : Val → Bool
   | .ride _ v _ => ds.markClashes s v
+  | .link v _ => ds.markClashes s v
   | v => ds.clashes (match s with | some t => .meet v t | none => v)
 ```
 
@@ -8669,6 +8686,11 @@ def Val.prefer : Val → Val
     else match v.prefOf? with
       | some (s, x) => .pref (s + 1) (.ride k x r)
       | none => .ride k v.prefer r
+  | .link v t =>
+    if v.unride.prefLeaf then .pref 1 (.link v t)
+    else match v.prefOf? with
+      | some (s, x) => .pref (s + 1) (.link x t)
+      | none => .link v.prefer t
   | .path p => .call .pref [.path p]
   | .call f args => .call .pref [.call f args]
   | v => v
@@ -8863,35 +8885,36 @@ target with its marks cleared, as a reference copies a value, so
 A link reads where it lands, not where it's written: a `type()` that
 holds a link reaches each place that uses it through a path reference,
 a spread's template reaches each member, and a generator's template
-each member of its output. So at each position the schema's normal
-form holds, the definition reads the terms the schema writes there,
-through meets, riders, a map's member and its spread, a list's element
-and its spread, a generator's template, and a path reference's target.
-Each item it reads carries the member a generator's template is read
-for, the place the item lands at, which a reference's own path leaves
-where it was, and the normal form the item stands in there, which holds
-the link's address. A link in an arm of a disjunction, or in a
-preference's value, lands only where the output takes the arm. The
-rank rule that picks what evaluation generates picks among the arms the
-meet keeps: the default where there is one, and each kept arm where
-there isn't. So where the normal form is a disjunction, the item reads
-on in each arm the rule picks, and at a disjunction the schema writes,
-in each written arm the rule picks against that normal form:
+each member of its output. The definition gets this from the meet.
+Making `refer(t)` gives the path kind carrying `t`, a value form of its
+own:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+  | link (v t : Val)                        -- `refer(t)` met with `v`: `v` carrying a link whose target meets `t`
+```
+
+The meet carries a link as it carries a rider, onto the meet of its
+value, so the template is wherever the value is: in each copy, member
+and instance, and in an arm exactly where the value is. The definition
+reads a document's links from its normal form, under each member's key
+and each element's index, through riders and meets, and within each
+arm of a disjunction that the rank rule picks. The rank rule that picks
+what evaluation generates picks among the arms the meet keeps: the
+default where there is one, and each kept arm where there isn't. So a
+link in an arm of a disjunction, or in a preference's value, sends only
+where the output takes the arm:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def linkStep (dp : Decls) (S R : Val) (i : LinkItem) : List LinkItem × List LinkItem :=
-  match i.nf.unride with
-  | .or arms => ([], (arms.filter (picked arms)).map fun a => { i with nf := a.2 })
-  | _ =>
-    match i.term with
-    | .meet a b => ([], [{ i with term := a }, { i with term := b }])
-    | .ride _ v _ => ([], [{ i with term := v }])
-    | .path q => ([], [⟨S, q ++ i.left, q.length + i.skip, none, i.place,
-        if q.isEmpty then i.nf else R, if q.isEmpty then i.back else (i.skip, i.nf) :: i.back⟩])
-    | .pref r x => ([], (dp.pickedAt i.nf [(r, x)]).map fun a => { i with term := a })
-    | .or arms => ([], (dp.pickedAt i.nf (arms.flatMap flattenArm)).map fun a => { i with term := a })
-    | _ => linkLeaf dp i
+def Val.links (pos : List Seg) : Val → List (List Seg × Val × Val)
+  | .map fs _ _ => linksFields pos fs
+  | .list items _ _ => linksItems pos 0 items
+  | .ride _ v _ => v.links pos
+  | .link v t => (v.pickedLeaves.map fun w => (pos, t, w)) ++ v.links pos
+  | .meet a b => a.links pos ++ b.links pos
+  | .or arms => linksArms pos arms arms
+  | _ => []
 ```
 
 A default that holds a link sends its template while it stands. Write
@@ -8924,60 +8947,33 @@ and neither does an arm the rule passes over, such as
 `{ d:refer({ w:2 }) & path($.y) }` written beside the default in
 `refer-arm.aontu`.
 
-A generator's template lands only at the instances the generator
-makes, each read for its member: `each`'s at an index among those that
-aren't absence, and `pack`'s under a key. So
+A generator's template sends only from the instances the generator
+makes, since only those stand in the normal form: `each`'s at an index
+among those that aren't absence, and `pack`'s under a key. So
 `each([], refer({ k:1 })) & [path($.a)]` flows nothing into `a`,
-though the list the generator meets has an element:
+though the list the generator meets has an element.
 
-<!-- test: quote spec/Aontu/Paths.lean -->
-```lean
-def genSteps (dp : Decls) (b : Option Val) (here : List Seg) (f : Fn) (d t : Val) (s : Seg) :
-    List (Val × Seg) :=
-  match f with
-  | .each =>
-    match (normaliseD dp (resolveD dp b (some (here.map .seg)) (dp.read d.pathsToAliases))).members dp with
-    | some ms =>
-      match s.stepIn (.list [] none false) with
-      | some (.idx i) =>
-        ((ms.zipIdx.filter fun m => !(normaliseD dp (resolveD dp (some m.1)
-            (some ((here ++ [Seg.idx m.2]).map .seg)) (dp.read t.pathsToAliases))).isAbsent)[i]?).toList.map
-          fun m => (m.1, .idx m.2)
-      | _ => []
-    | none => []
-  | .pack =>
-    match (normaliseD dp (resolveD dp b (some (here.map .seg)) (dp.read d.pathsToAliases))).keyedMembers dp with
-    | some ms => (ms.filter fun m => m.1 == s.text).map fun m => (m.2, .key m.1)
-    | none => []
-  | _ => []
-```
-
-Each `refer` among the terms the landing reaches is a link at that
-position, its relative address read from there, so that each place a
-spread or a reference puts it reads its own. Its template is read for
-the member it lands with, at the place it lands at, as both engines
-read a template where its link stands. A hole in a generator's
-template stands for the member, so `each($.l, refer(_) & path($.a))`
-flows each member of `l` into `a`, and `key()` reads the link's own
-place, so `x: r: refer({ n:key() }) & path($.a)` makes `a.n` the
-string `"r"`. The template's names are expanded first, so a generator
-over a name reads the name's body: with `%L = [1]`,
-`refer(each(%L, _)) & path($.a)` flows `[1]` into `a`. Each link comes
-with the normal form its item stands in, and reads its address there,
+Each link reads its relative address from its own position, so that
+each place a spread or a reference puts it reads its own. Its template
+is read at that position too, as both engines read a template where
+its link stands. A hole in a generator's template stands for the
+member, so `each($.l, refer(_) & path($.a))` flows each member of `l`
+into `a`, and `key()` reads the link's own place, so
+`x: r: refer({ n:key() }) & path($.a)` makes `a.n` the string `"r"`.
+The template's names are expanded first, so a generator over a name
+reads the name's body: with `%L = [1]`, `refer(each(%L, _)) & path($.a)`
+flows `[1]` into `a`. Each link comes with each value it stands in that
+the rank rule picks (`Val.pickedLeaves`), and reads its address there,
 so a link in an arm reads its own arm's address:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.linksAt (ds dp : Decls) (S R T root : Val) (home pos : List Seg) :
-    List (List Seg × Val × Bool × Val) :=
-  (linkLanding dp S R ((S.size + T.size + pos.length + 2) * (S.size + 2))
-      [⟨T, pos, 0, none, home, root, []⟩]).flatMap
-    fun i => (callLinks pos i.term).map fun e =>
-      (e.1, resolveD ds i.member (some (i.place.map .seg)) (ds.read e.2.1), e.2.2, i.nf)
+def Decls.nfLinks (ds : Decls) (root : Val) (home : List Seg) : List (List Seg × Val × Val) :=
+  (root.links []).map fun e => (e.1, resolveD ds none (some ((home ++ e.1).map .seg)) e.2.1, e.2.2)
 ```
 
-The definition reads the links that land in a body too, at a position
-of the body's own tree, and at the body's own place, `%` and the name
+The definition reads the links in a body too, from the body's own
+tree, and at the body's own place, `%` and the name
 as a key at the top, whether a reference reads the body or not. So a
 generator in a body no reference reads still flows its links'
 templates:
@@ -8988,9 +8984,9 @@ def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val
   let own := ds.rootsS S
   let dp := (ds.withPathsFrom S own).1
   let R := own.getLast?.getD .any
-  ds.foldl (fun acc d => (ds.landedLinks dp S R d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
+  ds.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
       (referStep roots miss [.key ("%" ++ d.1)]) acc)
-    ((ds.landedLinks dp S R S R []).foldl (referStep roots miss []) S)
+    ((ds.nfLinks R []).foldl (referStep roots miss []) S)
 ```
 
 One link's template can make another link's target:
@@ -9116,13 +9112,12 @@ So a string, a number or `true` where an address must be is an
 `error`, as `rel() & "x"` is, and data that writes the addresses as
 strings is `invalid`, as data that writes a path value as a string
 is. Each leaf of the relation's value is a link, as a `refer` is, read
-from the relation's own position, in the normal form the link stands
-in:
+from the relation's own position, at the leaves of the value the link
+stands in:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def linkAddrs (e : List Seg × Val × Bool × Val) : List Addr :=
-  if e.2.2.1 then e.2.2.2.addrs else e.2.2.2.addrOf?.toList
+def linkAddrs (e : List Seg × Val × Val) : List Addr := e.2.2.addrs
 ```
 
 So each leaf's target must exist, and the template meets each target,
@@ -9663,20 +9658,12 @@ Nor does it say which of a document's moves the reading makes. A
 `move` in an arm no selection takes, or in a template no member
 instantiates, still hides its source, where both engines keep it.
 
-Nor does it read a link or a spread everywhere one can land. A `refer`
-or a `rel` inside a disjunction or a selection is no link the
-definition reads, so its template flows nowhere and its target needn't
-exist, where both engines read it in the arm the selection takes. A
-link inside another link's template is a call's argument, which no
-landing enters, and an address the data supplies flows nowhere, since
-the definition reads a link's address from the schema's own tree, where
-both engines read each. A
-link in a generator's template reads the template as written, not as
-each member instantiates it: a hole or a `key()` in the link's own
-template doesn't read the member, and the template lands at each
-member the generator's place holds, one another term writes there
-among them. The definition reads no link in a generator inside a
-declaration's body. A spread whose template reads its member's place,
+Nor does it read a link or a spread everywhere one can land. A link
+inside another link's template, or inside a call's argument, is part of
+that term, and the definition reads no link from either, and an address
+the data supplies flows nowhere, since the definition reads a
+document's links from the normal form of the schema's own tree, where
+both engines read each. A spread whose template reads its member's place,
 inside a disjunction, a selection or an alias's body, keeps its
 template as written, so a relative path in it resolves nowhere, and so
 does a generator's template there.
