@@ -346,6 +346,7 @@ inductive Val.Checkable : Val → Prop
       (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → Checkable v) →
       Checkable (.rest t cs)
   | ride {k : Rider} {v : Val} {r : Record} : Checkable v → Checkable (.ride k v r)
+  | link {v t : Val} : Checkable v → Checkable (.link v t)
   | key : Checkable .key
   | keyUp {n : ℤ} : Checkable (.keyUp n)
   | selectKey {arms : List (Val × Val)} {d : Option Val} :
@@ -373,6 +374,7 @@ def Val.checkableB : Val → Bool
   | .contains c n => c.checkableB && n.checkableB
   | .rest t cs => t.checkableB && coversCheckable cs
   | .ride _ v _ => v.checkableB
+  | .link v _ => v.checkableB
   | _ => true
 
 def fieldsCheckable : List (String × Bool × Val) → Bool
@@ -470,6 +472,10 @@ theorem Val.checkableB_iff : ∀ v : Val, v.checkableB = true ↔ v.Checkable
     simp only [Val.checkableB]
     rw [Val.checkableB_iff v]
     exact ⟨.ride, fun h => by cases h; assumption⟩
+  | .link v t => by
+    simp only [Val.checkableB]
+    rw [Val.checkableB_iff v]
+    exact ⟨.link, fun h => by cases h; assumption⟩
   | .meet a b => by
     simp only [Val.checkableB, Bool.and_eq_true]
     rw [Val.checkableB_iff a, Val.checkableB_iff b]
@@ -932,6 +938,10 @@ theorem HookOk.ride {k : Rider} {v : Val} {r : Record} {j : Data} (h : HookOk u 
     HookOk u env root v j :=
   h.same (fun n hn => by simpa [Val.refs] using hn) (fun n hn => by simpa [Val.unguardedRefs] using hn)
 
+theorem HookOk.link {v t : Val} {j : Data} (h : HookOk u env root (.link v t) j) :
+    HookOk u env root v j :=
+  h.same (fun n hn => by simpa [Val.refs] using hn) (fun n hn => by simpa [Val.unguardedRefs] using hn)
+
 theorem HookOk.meetLeft {a b : Val} {j : Data} (h : HookOk u env root (.meet a b) j) :
     HookOk u env root a j :=
   h.same (fun n hn => by simp only [Val.refs, List.mem_append]; exact .inl hn)
@@ -1077,6 +1087,7 @@ inductive Val.CheckableA : Val → Prop
       (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → CheckableA v) →
       CheckableA (.rest t cs)
   | ride {k : Rider} {v : Val} {r : Record} : CheckableA v → CheckableA (.ride k v r)
+  | link {v t : Val} : CheckableA v → CheckableA (.link v t)
   | key : CheckableA .key
   | keyUp {n : ℤ} : CheckableA (.keyUp n)
   | selectKey {arms : List (Val × Val)} {d : Option Val} :
@@ -1104,6 +1115,7 @@ def Val.checkableAB : Val → Bool
   | .contains c n => c.checkableAB && n.checkableAB
   | .rest t cs => t.checkableAB && coversCheckableA cs
   | .ride _ v _ => v.checkableAB
+  | .link v _ => v.checkableAB
   | _ => true
 
 def fieldsCheckableA : List (String × Bool × Val) → Bool
@@ -1201,6 +1213,10 @@ theorem Val.checkableAB_iff : ∀ v : Val, v.checkableAB = true ↔ v.CheckableA
     simp only [Val.checkableAB]
     rw [Val.checkableAB_iff v]
     exact ⟨.ride, fun h => by cases h; assumption⟩
+  | .link v t => by
+    simp only [Val.checkableAB]
+    rw [Val.checkableAB_iff v]
+    exact ⟨.link, fun h => by cases h; assumption⟩
   | .meet a b => by
     simp only [Val.checkableAB, Bool.and_eq_true]
     rw [Val.checkableAB_iff a, Val.checkableAB_iff b]
@@ -1310,6 +1326,7 @@ theorem Val.CheckableA.atKey {v : Val} (h : v.CheckableA) (k : String) : (v.atKe
   | key => exact .lit
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
+  | link _ ih => exact .link ih
   | selectKey hp hr hd => exact .selectLit hp hr hd
   | selectLit hp hr hd => exact .selectLit hp hr hd
   | _ => rw [Val.atKey_of_keyed k rfl]; first | (constructor <;> assumption) | constructor
@@ -1319,6 +1336,7 @@ theorem Val.Checkable.atKey {v : Val} (h : v.Checkable) (k : String) : (v.atKey 
   | key => exact .lit
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
+  | link _ ih => exact .link ih
   | selectKey hp hr hd => exact .selectLit hp hr hd
   | selectLit hp hr hd => exact .selectLit hp hr hd
   | _ => rw [Val.atKey_of_keyed k rfl]; first | (constructor <;> assumption) | constructor
@@ -1330,7 +1348,8 @@ theorem Val.refs_atKey (k : String) (v : Val) : (v.atKey k).refs = v.refs := by
   | case2 a b iha ihb => simp only [Val.atKey, Val.refs, iha, ihb]
   | case3 s arms d ih => simp only [Val.atKey, Val.refs, ih]
   | case4 t v r ih => simp only [Val.atKey, Val.refs, ih]
-  | case5 v h1 h2 h3 h4 => rw [Val.atKey.eq_5 k v h1 h2 h3 h4]
+  | case5 v t ih => simp only [Val.atKey, Val.refs, ih]
+  | case6 v h1 h2 h3 h4 h5 => rw [Val.atKey.eq_6 k v h1 h2 h3 h4 h5]
 
 /-- A checkable value is checkable given any hook. -/
 theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
@@ -1367,6 +1386,7 @@ theorem Val.Checkable.toA {v : Val} (h : v.Checkable) : v.CheckableA := by
   | or _ ih => exact .or ih
   | pref _ ih => exact .pref ih
   | ride _ ih => exact .ride ih
+  | link _ ih => exact .link ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | path => exact .path
   | nof _ _ ihn ihcs => exact .nof ihn ihcs
@@ -1402,6 +1422,7 @@ theorem Val.CheckableA.toChecked {v : Val} (h : v.CheckableA) (hn : ∀ n, n ∉
       simp only [Val.refs]; exact mem_refsArms.mpr ⟨r, a, hm, hn'⟩)
   | pref _ ih => exact .pref (ih fun n hn' => hn n (by simpa [Val.refs] using hn'))
   | ride _ ih => exact .ride (ih fun n hn' => hn n (by simpa [Val.refs] using hn'))
+  | link _ ih => exact .link (ih fun n hn' => hn n (by simpa [Val.refs] using hn'))
   | meet _ _ iha ihb =>
     exact .meet (iha fun n hn' => hn n (by simp only [Val.refs, List.mem_append]; exact .inl hn'))
       (ihb fun n hn' => hn n (by simp only [Val.refs, List.mem_append]; exact .inr hn'))
@@ -1477,6 +1498,7 @@ theorem Val.Checkable.no_refs {v : Val} (h : v.Checkable) : ∀ n, n ∉ v.refs 
     exact ih r a hm n ha
   | pref _ ih => intro n hn; exact ih n (by simpa [Val.refs] using hn)
   | ride _ ih => intro n hn; exact ih n (by simpa [Val.refs] using hn)
+  | link _ ih => intro n hn; exact ih n (by simpa [Val.refs] using hn)
   | meet _ _ iha ihb =>
     intro n hn
     simp only [Val.refs, List.mem_append] at hn
@@ -1649,6 +1671,7 @@ def checkWith (u : String → Data → Bool) (k : Option String) : Val → Data 
   | .or arms, j => checkArmsWith u arms j
   | .pref _ x, j => checkWith u none x j || checkSuperWith u x j
   | .ride _ v _, j => checkWith u k v j
+  | .link v _, j => checkWith u k v j
   | .meet a b, j => checkWith u k a j && checkWith u k b j
   | .re _, _ => false
   | .format _, _ => false
@@ -1779,6 +1802,7 @@ def checkSuperWith (u : String → Data → Bool) : Val → Data → Bool
   | .or arms, j => checkSuperArmsWith u arms j
   | .pref _ x, j => checkSuperWith u x j
   | .ride _ v _, j => checkSuperWith u v j
+  | .link v _, j => checkSuperWith u v j
   | .meet a b, j =>
     if a.isKind then (if b.isKind then (if a.isLeaf then checkSuperWith u a j else checkSuperWith u b j) else checkWith u none a j)
     else if b.isKind then checkWith u none b j else checkSuperWith u a j && checkSuperWith u b j
@@ -2506,6 +2530,7 @@ theorem check_kind_judge {v : Val} (hk : v.isKind = true) (j : Data) :
     Judge env root (checkWith u none v j) v j := by
   cases v
   case ride k v r => exact .ride (check_kind_judge (v := v) hk j)
+  case link v t => exact .link (check_kind_judge (v := v) hk j)
   all_goals simp [Val.isKind] at hk <;>
     first
     | exact judge_integer j
@@ -2689,6 +2714,7 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
       exact checkSuperArmsWith_false iha h r a hm'
   | @pref r x _ ihx => intro j hu; exact ihx j hu.pref
   | @ride k v r _ ihv => intro j hu; exact ihv j hu.ride
+  | @link v t _ ihv => intro j hu; exact ihv j hu.link
   | @alias k =>
     intro j hu
     simp only [checkSuperWith, Val.super]
@@ -2742,13 +2768,17 @@ theorem checkWith_keyless {v : Val} (hv : v.keyed = false) (ky : Option String) 
   | case4 t v r ih =>
     simp only [Val.keyed] at hv
     simp only [checkWith, ih hv]
-  | case5 v h1 h2 h3 h4 =>
+  | case5 v t ih =>
+    simp only [Val.keyed] at hv
+    simp only [checkWith, ih hv]
+  | case6 v h1 h2 h3 h4 h5 =>
     cases v <;> first
       | rfl
       | exact absurd rfl h1
       | exact (h2 _ _ rfl).elim
       | exact (h3 _ _ _ rfl).elim
       | exact (h4 _ _ _ rfl).elim
+      | exact (h5 _ _ rfl).elim
 
 theorem judge_keyless {v : Val} (hv : v.keyed = false) {ky : Option String} {j : Data}
     (h : Judge env root (checkWith u none v j) v j) :
@@ -3164,6 +3194,12 @@ theorem checkWithKey_judge {v : Val} (h : v.CheckableA) :
     rw [e]
     simp only [checkWith]
     exact .ride (ihv ky j hu.ride)
+  | @link v t _ ihv =>
+    intro ky j hu
+    have e : (Val.link v t).atKeyO ky = .link (v.atKeyO ky) t := by cases ky <;> rfl
+    rw [e]
+    simp only [checkWith]
+    exact .link (ihv ky j hu.link)
   | @meet a b _ _ iha ihb =>
     intro ky j hu
     have e : (Val.meet a b).atKeyO ky = .meet (a.atKeyO ky) (b.atKeyO ky) := by cases ky <;> rfl

@@ -67,6 +67,7 @@ def Val.unmark : Val → Val
   | .ride .type v _ => v.unmark
   | .ride .hide v _ => v.unmark
   | .ride k v r => .ride k v.unmark r
+  | .link v t => .link v.unmark t
   | v => v
 
 def unmarkFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -137,6 +138,7 @@ def Val.refs : Val → List String
   | .filter s c => s.refs ++ c.refs
   | .call _ args => refsItems args
   | .ride _ v _ => v.refs
+  | .link v _ => v.refs
   | _ => []
 
 def refsPairs : List (Val × Val) → List String
@@ -180,6 +182,7 @@ def Val.forgiveAt (top : Bool) : Val → Val
   | .meet a b => .meet (a.forgiveAt top) (b.forgiveAt top)
   | .or arms => .or (forgiveArms top arms)
   | .ride k v r => .ride k (v.forgiveAt top) r
+  | .link v t => .link (v.forgiveAt top) t
   | .len c => .len (c.forgiveAt false)
   | .map fs spread closed => .map (forgiveFields fs) (forgiveSpread spread) closed
   | .list items spread closed => .list (forgiveItems items) (forgiveSpread spread) closed
@@ -253,6 +256,7 @@ def Val.unguardedRefs : Val → List String
   | .filter s c => s.unguardedRefs ++ c.unguardedRefs
   | .call _ args => unguardedItems args
   | .ride _ v _ => v.unguardedRefs
+  | .link v _ => v.unguardedRefs
   | _ => []
 
 def unguardedPairs : List (Val × Val) → List String
@@ -573,9 +577,9 @@ theorem Val.unguardedRefs_unmark (v : Val) : v.unmark.unguardedRefs = v.unguarde
     | type => exact absurd rfl h1
     | hide => exact absurd rfl h2
     | _ => simp only [Val.unmark, Val.unguardedRefs, ih]
-  case case18 =>
-    rename_i v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16 h17
-    rw [Val.unmark.eq_18 v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16 h17]
+  case case19 =>
+    rename_i v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16 h17 h18
+    rw [Val.unmark.eq_19 v h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 h14 h15 h16 h17 h18]
   all_goals first
     | trivial
     | simp_all only [Val.unmark, unmarkItems, unmarkArms, unmarkPairs, unmarkCovers,
@@ -595,6 +599,7 @@ theorem unguardedRefs_sub_refs : ∀ (v : Val) (n : String), n ∈ v.unguardedRe
   | .or arms, n, h => unguardedArms_sub_refsArms arms n h
   | .pref _ x, n, h => unguardedRefs_sub_refs x n h
   | .ride _ v _, n, h => unguardedRefs_sub_refs v n h
+  | .link v _, n, h => unguardedRefs_sub_refs v n h
   | .meet a b, n, h => by
     simp only [Val.unguardedRefs, List.mem_append] at h
     simp only [Val.refs, List.mem_append]
@@ -838,6 +843,7 @@ def Val.paths : Val → List (List Seg)
   | .filter s c => s.paths ++ c.paths
   | .call _ args => pathsItems args
   | .ride _ v _ => v.paths
+  | .link v _ => v.paths
   | _ => []
 
 def pathsPairs : List (Val × Val) → List (List Seg)

@@ -38,6 +38,7 @@ scrutinee and patterns, of the restrictions of its results. -/
 def Val.sealConjuncts : Val → List Val
   | .meet a b => a.sealConjuncts ++ b.sealConjuncts
   | .ride _ v _ => v.sealConjuncts
+  | .link v _ => v.sealConjuncts
   | v => [v]
 
 /-- The keys the maps among some terms declare, each once. -/
@@ -120,9 +121,15 @@ theorem Val.sealConjuncts_checkableA {v : Val} (h : v.CheckableA) :
       intro c hc
       simp only [Val.sealConjuncts] at hc
       exact ih hv c hc
-  | case3 v h1 h2 =>
+  | case3 v t ih =>
+    cases h with
+    | link hv =>
+      intro c hc
+      simp only [Val.sealConjuncts] at hc
+      exact ih hv c hc
+  | case4 v h1 h2 h3 =>
     intro c hc
-    rw [Val.sealConjuncts.eq_3 v h1 h2, List.mem_singleton] at hc
+    rw [Val.sealConjuncts.eq_4 v h1 h2 h3, List.mem_singleton] at hc
     exact hc ▸ h
 
 theorem Val.sealConjuncts_unguardedRefs {v c : Val} (hc : c ∈ v.sealConjuncts) {n : String}
@@ -138,8 +145,12 @@ theorem Val.sealConjuncts_unguardedRefs {v c : Val} (hc : c ∈ v.sealConjuncts)
     simp only [Val.sealConjuncts] at hc
     simp only [Val.unguardedRefs]
     exact ih hc
-  | case3 v h1 h2 =>
-    rw [Val.sealConjuncts.eq_3 v h1 h2, List.mem_singleton] at hc
+  | case3 v t ih =>
+    simp only [Val.sealConjuncts] at hc
+    simp only [Val.unguardedRefs]
+    exact ih hc
+  | case4 v h1 h2 h3 =>
+    rw [Val.sealConjuncts.eq_4 v h1 h2 h3, List.mem_singleton] at hc
     exact hc ▸ hn
 
 theorem valuesAt_checkableA {k : String} {cs : List Val} (h : ∀ c ∈ cs, c.CheckableA) :
@@ -308,6 +319,7 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .filter s c => .filter (expandF ds k s) (expandF ds k c)
     | .call f args => .call f (args.map (expandF ds k))
     | .ride t v r => .ride t (expandF ds k v) r
+    | .link v t => .link (expandF ds k v) t
     | v => v
 
 /-- The expansion of a term: enough turns for every chain of names that
@@ -474,6 +486,9 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
       simp only [expandF, Val.unguardedRefs] at h ⊢
       exact unguardedRefs_expandF f x h
     | ride t v r =>
+      simp only [expandF, Val.unguardedRefs] at h ⊢
+      exact unguardedRefs_expandF f v h
+    | link v t =>
       simp only [expandF, Val.unguardedRefs] at h ⊢
       exact unguardedRefs_expandF f v h
     | meet a b =>
@@ -704,6 +719,7 @@ theorem Val.CheckableA.unmark {v : Val} (h : v.CheckableA) : v.unmark.CheckableA
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | @ride k v r _ ih => cases k <;> first | exact ih | exact .ride ih
+  | @link v t _ ih => exact .link ih
   | len _ ih => exact .len ih
   | @nof n cs _ _ ihn ihc =>
     refine .nof ihn fun w hm => ?_
@@ -813,6 +829,7 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       exact expandF_checkableA hb f a (ha r' a ha')
     | pref hx => exact .pref (expandF_checkableA hb f _ hx)
     | ride hv => exact .ride (expandF_checkableA hb f _ hv)
+    | link hv => exact .link (expandF_checkableA hb f _ hv)
     | meet ha hb' => exact .meet (expandF_checkableA hb f _ ha) (expandF_checkableA hb f _ hb')
     | nof hn hcs =>
       refine .nof (expandF_checkableA hb f _ hn) ?_
@@ -958,6 +975,7 @@ against: everything but `any`, `nil`, a reference and a connective. -/
 def Val.concrete : Val → Bool
   | .any | .nil | .alias _ | .path _ | .meet _ _ | .or _ | .pref _ _ => false
   | .ride _ v _ => v.concrete
+  | .link v _ => v.concrete
   | _ => true
 
 /-- Whether every body reads no path, no pattern and no format. -/
@@ -1292,6 +1310,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
     exact ih r a ha
   | pref _ ih => exact ih
   | ride _ ih => exact ih
+  | link _ ih => exact ih
   | @meet a b ha hb iha ihb =>
     show (if a.isKind then (if b.isKind then (if a.isLeaf then a.super else b.super) else a)
       else if b.isKind then b else Val.meet a.super b.super).CheckableA
@@ -1539,6 +1558,8 @@ theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
     | exact meetRight_checkableA hr ha hb
     | exact (match ha with | .ride h => .ride (hr _ _ h hb))
     | exact (match hb with | .ride h => .ride (hr _ _ ha h))
+    | exact (match ha with | .link h => .link (hr _ _ h hb))
+    | exact (match hb with | .link h => .link (hr _ _ ha h))
     | exact mkOr_or_left hr ha hb
     | exact mkOr_or_right hr ha hb
     | exact mkOr_pref_left hr ha hb

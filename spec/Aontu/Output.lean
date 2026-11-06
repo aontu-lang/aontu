@@ -84,6 +84,7 @@ def Gen (env : Env) (root : Data) : Val → Data → Prop
   | .or arms, j => arms.any (picked arms) = true ∧ genArms env root arms arms j
   | .pref _ x, j => Gen env root x j
   | .ride _ v _, j => Gen env root v j
+  | .link v _, j => Gen env root v j
   | .meet a b, j =>
     (Gen env root a j ∧ Admits env root b j) ∨
       ((∀ j', ¬ Gen env root a j') ∧ Gen env root b j ∧ Admits env root a j)
@@ -152,6 +153,7 @@ def Val.visible : Val → Val
   | .pref r x => .pref r x.visible
   | .meet a b => .meet a.visible b.visible
   | .ride k v r => .ride k v.visible r
+  | .link v t => .link v.visible t
   | v => v
 
 def visibleFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -274,6 +276,7 @@ theorem Val.CheckableA.visible {v : Val} (h : v.CheckableA) : v.visible.Checkabl
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
+  | link _ ih => exact .link ih
   | _ => simp only [Val.visible]; constructor <;> assumption
 
 theorem Val.Checkable.visible {v : Val} (h : v.Checkable) : v.visible.Checkable := by
@@ -303,6 +306,7 @@ theorem Val.Checkable.visible {v : Val} (h : v.Checkable) : v.visible.Checkable 
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
+  | link _ ih => exact .link ih
   | _ => simp only [Val.visible]; constructor <;> assumption
 
 /-- What evaluation singles out for `v`: what the visible part of the
@@ -540,6 +544,9 @@ theorem gen_admits : ∀ (v : Val) (j : Data), Gen env root v j → Admits env r
   | .ride _ v _, j, h => by
     rw [Gen] at h
     exact .ride (gen_admits v j h)
+  | .link v _, j, h => by
+    rw [Gen] at h
+    exact .link (gen_admits v j h)
   | .meet a b, j, h => by
     rw [Gen] at h
     rcases h with ⟨ha, hb⟩ | ⟨-, hb, ha⟩
@@ -658,6 +665,9 @@ theorem gen_unique : ∀ (v : Val) (j j' : Data), Gen env root v j → Gen env r
   | .ride _ v _, j, j', h, h' => by
     rw [Gen] at h h'
     exact gen_unique v j j' h h'
+  | .link v _, j, j', h, h' => by
+    rw [Gen] at h h'
+    exact gen_unique v j j' h h'
   | .meet a b, j, j', h, h' => by
     rw [Gen] at h h'
     rcases h with ⟨ha, -⟩ | ⟨hna, hb, -⟩ <;> rcases h' with ⟨ha', -⟩ | ⟨hna', hb', -⟩
@@ -732,6 +742,7 @@ def genWith (chk : Val → Data → Bool) : Val → Option Data
     | _ => none
   | .pref _ x => genWith chk x
   | .ride _ v _ => genWith chk v
+  | .link v _ => genWith chk v
   | .meet a b =>
     match genWith chk a with
     | some x => if chk b x then some x else none
@@ -1119,6 +1130,10 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
     rw [genWith, Gen]
     exact ih (fun w j hw hsub => hchk w j hw fun n hn => by simpa [Val.refs] using hsub n hn) j
   | @ride k v r _ ih =>
+    intro j
+    rw [genWith, Gen]
+    exact ih (fun w j hw hsub => hchk w j hw fun n hn => by simpa [Val.refs] using hsub n hn) j
+  | @link v t _ ih =>
     intro j
     rw [genWith, Gen]
     exact ih (fun w j hw hsub => hchk w j hw fun n hn => by simpa [Val.refs] using hsub n hn) j

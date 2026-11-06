@@ -147,6 +147,7 @@ def openBelow : Val → Bool
   | .select s arms d => openBelow s || openPairs arms || openSpread d
   | .filter s c => openBelow s || openBelow c
   | .ride _ v _ => openBelow v
+  | .link v _ => openBelow v
   | .call _ args => openItems args
   | .alias _ | .path _ => true
   | _ => false
@@ -305,6 +306,7 @@ def Val.src : Val → Option String
   | .ride .hide v [] => do pure s!"hide({← v.src})"
   | .ride .type _ _ | .ride .hide _ _ => none
   | .ride k v r => do pure s!"{k.name}({← v.src}, {← (Data.map r).src})"
+  | .link v t => do pure s!"(refer({← t.src})) & ({← v.src})"
 
 def fieldsSrc : List (String × Bool × Val) → Option (List String)
   | [] => some []

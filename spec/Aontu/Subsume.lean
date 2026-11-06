@@ -451,6 +451,7 @@ def Val.declaresDefault : Val → Bool
   | .pref _ _ => true
   | .or arms => (pickRank arms).isSome
   | .ride _ v _ => v.declaresDefault
+  | .link v _ => v.declaresDefault
   | _ => false
 
 /-- The `defaults` profile's order: `a`, the specific side, below `b`,
@@ -1332,6 +1333,7 @@ mutual
 have, as `Val.at` reads them. -/
 def defaultsBelow : Val → Val → Bool
   | .ride _ v _, b => defaultsBelow v b
+  | .link v _, b => defaultsBelow v b
   | .map fs _ _, b =>
     match b.unride with
     | .map gs _ _ => defaultsFields fs gs
@@ -1357,7 +1359,8 @@ end
 theorem defaultsBelow_unride (a b : Val) : defaultsBelow a b = defaultsBelow a.unride b := by
   induction a using Val.unride.induct with
   | case1 k v r ih => simp only [defaultsBelow, Val.unride, ih]
-  | case2 v h1 => rw [Val.unride.eq_2 v h1]
+  | case2 v t ih => simp only [defaultsBelow, Val.unride, ih]
+  | case3 v h1 h2 => rw [Val.unride.eq_3 v h1 h2]
 
 theorem defaultsFields_mem {fs gs : List (String × Bool × Val)} (h : defaultsFields fs gs = true)
     {f g : String × Bool × Val} (hf : f ∈ fs) (hg : gs.find? (fun g => g.1 == f.1) = some g) :
@@ -1489,6 +1492,7 @@ mutual
 `Val.atM` reads them, a spread's among them. -/
 def marksBelow : Val → Val → Bool
   | .ride _ v _, b => marksBelow v b
+  | .link v _, b => marksBelow v b
   | .map fs s _, b =>
     match b.unride with
     | .map gs t _ => marksFields fs gs && marksSpread s t
@@ -1520,7 +1524,8 @@ end
 theorem marksBelow_unride (a b : Val) : marksBelow a b = marksBelow a.unride b := by
   induction a using Val.unride.induct with
   | case1 k v r ih => simp only [marksBelow, Val.unride, ih]
-  | case2 v h1 => rw [Val.unride.eq_2 v h1]
+  | case2 v t ih => simp only [marksBelow, Val.unride, ih]
+  | case3 v h1 h2 => rw [Val.unride.eq_3 v h1 h2]
 
 theorem marksFields_mem {fs gs : List (String × Bool × Val)} (h : marksFields fs gs = true)
     {f g : String × Bool × Val} (hf : f ∈ fs) (hg : gs.find? (fun g => g.1 == f.1) = some g) :

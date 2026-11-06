@@ -114,6 +114,7 @@ def Val.pathsToAliases : Val → Val
   | .filter s c => .filter s.pathsToAliases c.pathsToAliases
   | .call f args => .call f (ptaItems args)
   | .ride k v r => .ride k v.pathsToAliases r
+  | .link v lt => .link v.pathsToAliases lt
   | v => v
 
 def ptaPairs : List (Val × Val) → List (Val × Val)
@@ -188,6 +189,7 @@ def Val.placed (pos : List Seg) : Val → Val
   | .filter s c => .filter (s.placed pos) (c.placed (pos ++ [.up 0]))
   | .call f args => .call f (plArgs pos f args)
   | .ride k v r => .ride k (v.placed pos) r
+  | .link v lt => .link (v.placed pos) lt
   | v => v
 
 def plPairs (pos : List Seg) : List (Val × Val) → List (Val × Val)
@@ -236,6 +238,7 @@ def Val.placedT (pos : List Seg) : Val → Val
   | .list items spread closed => .list (ptdElems pos 0 items) spread closed
   | .meet a b => .meet (a.placedT pos) (b.placedT pos)
   | .ride k v r => .ride k (v.placedT pos) r
+  | .link v lt => .link (v.placedT pos) lt
   | v => v.placed pos
 
 def ptdFields (pos : List Seg) : List (String × Bool × Val) → List (String × Bool × Val)
@@ -261,6 +264,7 @@ def Val.bares (pos : List Seg) : Val → List (List Seg)
   | .list items spread _ => bareAt pos spread ++ baElems pos 0 items
   | .meet a b => a.bares pos ++ b.bares pos
   | .ride _ v _ => v.bares pos
+  | .link v _ => v.bares pos
   | _ => []
 
 def baFields (pos : List Seg) : List (String × Bool × Val) → List (List Seg)
@@ -367,6 +371,7 @@ def Val.mapLoads (k : String → Option Val) : Val → Val
     | .load, some p => (k p).getD (.call f args)
     | _, _ => .call f (mlItems k args)
   | .ride rd v r => .ride rd (v.mapLoads k) r
+  | .link v lt => .link (v.mapLoads k) lt
   | v => v
 
 def mlPairs (k : String → Option Val) : List (Val × Val) → List (Val × Val)
@@ -435,6 +440,7 @@ def Val.scoped (q : String) : Val → Val
   | .filter s c => .filter (s.scoped q) (c.scoped q)
   | .call f args => .call f (scItems q args)
   | .ride rd v r => .ride rd (v.scoped q) r
+  | .link v lt => .link (v.scoped q) lt
   | v => v
 
 def scPairs (q : String) : List (Val × Val) → List (Val × Val)
@@ -507,6 +513,7 @@ def Val.takes : Val → List (String × List Val)
   | .or arms => takesArms arms
   | .pref _ x => x.takes
   | .ride _ v _ => v.takes
+  | .link v _ => v.takes
   | _ => []
 
 def takesFields : List (String × Bool × Val) → List (String × List Val)
@@ -590,6 +597,7 @@ def Val.loads : Val → List (List Val)
   | .select s arms d => s.loads ++ ldPairs arms ++ ldSpread d
   | .filter s c => s.loads ++ c.loads
   | .ride _ v _ => v.loads
+  | .link v _ => v.loads
   | _ => []
 
 def ldFields : List (String × Bool × Val) → List (List Val)
@@ -821,6 +829,7 @@ def Val.moved : Val → List (List Seg)
   | .filter s c => s.moved ++ c.moved
   | .call f args => movedSrc f args ++ movedItems args
   | .ride _ v _ => v.moved
+  | .link v _ => v.moved
   | _ => []
 
 def movedPairs : List (Val × Val) → List (List Seg)
@@ -912,6 +921,7 @@ def Val.addrs : Val → List Addr
   | .map fs _ _ => addrsFields fs
   | .meet a b => a.addrs ++ b.addrs
   | .ride _ v _ => v.addrs
+  | .link v _ => v.addrs
   | .or arms => addrsArms arms
   | _ => []
 
@@ -942,6 +952,7 @@ def Val.positions : Val → List (List Seg)
   | .map fs _ _ => [] :: positionsFields fs
   | .list items _ _ => [] :: positionsItems 0 items
   | .ride _ v _ => v.positions
+  | .link v _ => v.positions
   | _ => [[]]
 
 def positionsFields : List (String × Bool × Val) → List (List Seg)
@@ -962,6 +973,7 @@ def Val.positionsP : Val → List (List Seg)
   | .map fs _ _ => [] :: positionsFieldsP fs
   | .list items _ _ => [] :: positionsItemsP 0 items
   | .ride _ v _ => v.positionsP
+  | .link v _ => v.positionsP
   | .or arms => [] :: positionsArmsP arms arms
   | _ => [[]]
 
@@ -1013,6 +1025,7 @@ def landStep (S : Val) (i : Val × List Seg) : List Val × List (Val × List Seg
   match i.1 with
   | .meet a b => ([], [(a, i.2), (b, i.2)])
   | .ride _ v _ => ([], [(v, i.2)])
+  | .link v _ => ([], [(v, i.2)])
   | .path q => ([], [(S, q ++ i.2)])
   | _ => landLeaf i.1 i.2
 
@@ -1161,6 +1174,7 @@ def linkStep (dp : Decls) (S R : Val) (i : LinkItem) : List LinkItem × List Lin
     match i.term with
     | .meet a b => ([], [{ i with term := a }, { i with term := b }])
     | .ride _ v _ => ([], [{ i with term := v }])
+    | .link v _ => ([], [{ i with term := v }])
     | .path q => ([], [⟨S, q ++ i.left, q.length + i.skip, none, i.place,
         if q.isEmpty then i.nf else R, if q.isEmpty then i.back else (i.skip, i.nf) :: i.back⟩])
     | .pref r x => ([], (dp.pickedAt i.nf [(r, x)]).map fun a => { i with term := a })
@@ -1333,6 +1347,7 @@ def Val.blank : Val → Val
   | .filter s c => .filter s.blank c.blank
   | .call f args => .call f (blItems args)
   | .ride k v r => .ride k v.blank r
+  | .link v lt => .link v.blank lt
   | v => v
 
 def blPairs : List (Val × Val) → List (Val × Val)
@@ -1374,6 +1389,7 @@ def Val.opened : Val → Val
   | .list items spread closed => .list (opItems items) (opSpread spread) closed
   | .meet a b => .meet a.opened b.opened
   | .ride k v r => .ride k v.opened r
+  | .link v lt => .link v.opened lt
   | v => v
 
 def opFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -1414,6 +1430,7 @@ def Val.relBlank : Val → Val
   | .list items spread closed => .list (rbItems items) spread closed
   | .meet a b => .meet a.relBlank b.relBlank
   | .ride k v r => .ride k v.relBlank r
+  | .link v lt => .link v.relBlank lt
   | v => relAny v
 
 def rbFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -1441,6 +1458,7 @@ def Val.relPart : Val → Val
   | .list items _ _ => .list (rpItems items) none false
   | .meet a b => .meet a.relPart b.relPart
   | .ride k v r => .ride k v.relPart r
+  | .link v lt => .link v.relPart lt
   | v => relWhole v
 
 def rpFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -1463,6 +1481,7 @@ def Val.neutral : Val → Val
   | .list items spread closed => .list (ntItems items) (ntSpread spread) closed
   | .meet a b => .meet a.neutral b.neutral
   | .ride k v r => .ride k v.neutral r
+  | .link v lt => .link v.neutral lt
   | .call f args => .call f (ntArgs f args)
   | v => v
 
@@ -1489,6 +1508,7 @@ def Val.perMembers : Val → Bool
   | .list items spread _ => pmItems items || (spread.map Val.perMember).getD false
   | .meet a b => a.perMembers || b.perMembers
   | .ride _ v _ => v.perMembers
+  | .link v _ => v.perMembers
   | .call f args => pmArgs f args
   | _ => false
 
@@ -1753,6 +1773,13 @@ theorem landStep_checkableA {S : Val} (hS : S.CheckableA) {i : Val × List Seg}
       refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
       simp only [List.mem_singleton] at hj
       rw [hj]; exact hv
+  next v t heq =>
+    rw [heq] at hi
+    cases hi with
+    | link hv =>
+      refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
+      simp only [List.mem_singleton] at hj
+      rw [hj]; exact hv
   next =>
     refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
     simp only [List.mem_singleton] at hj
@@ -1928,6 +1955,7 @@ theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliase
     exact ih r a ha
   | pref _ ih => exact .pref ih
   | ride _ ih => exact .ride ih
+  | link _ ih => exact .link ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | path => simp only [Val.pathsToAliases]; split <;> constructor
   | @nof n cs _ _ ihn ihcs =>
@@ -2116,6 +2144,7 @@ theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos)
     exact ih r a ha pos
   | pref _ ih => intro pos; exact .pref (ih pos)
   | ride _ ih => intro pos; exact .ride (ih pos)
+  | link _ ih => intro pos; exact .link (ih pos)
   | meet _ _ iha ihb => intro pos; exact .meet (iha pos) (ihb pos)
   | @path p =>
     intro pos
@@ -2290,6 +2319,7 @@ theorem mapLoads_checkableA {ld : String → Option Val} (hk : ∀ p w, ld p = s
     exact ih r a ha
   | pref _ ih => exact .pref ih
   | ride _ ih => exact .ride ih
+  | link _ ih => exact .link ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | @nof n cs _ _ ihn ihcs =>
     refine .nof ihn fun w hm => ?_
@@ -2424,6 +2454,7 @@ theorem placedT_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placedT po
     exact ihi v hv _
   | meet _ _ iha ihb => intro pos; exact .meet (iha pos) (ihb pos)
   | ride _ ih => intro pos; exact .ride (ih pos)
+  | link _ ih => intro pos; exact .link (ih pos)
   | len hc _ => intro pos; exact placed_checkableA (.len hc) pos
   | or ha _ => intro pos; exact placed_checkableA (.or ha) pos
   | pref hx _ => intro pos; exact placed_checkableA (.pref hx) pos
@@ -2533,6 +2564,7 @@ theorem relBlank_checkableA {v : Val} (h : v.CheckableA) : v.relBlank.CheckableA
     exact ihi v hv
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
+  | link _ ih => exact .link ih
   | len hc _ => exact relAny_checkableA (.len hc)
   | or ha _ => exact relAny_checkableA (.or ha)
   | pref hx _ => exact relAny_checkableA (.pref hx)
@@ -2585,6 +2617,7 @@ theorem relPart_checkableA {v : Val} (h : v.CheckableA) : v.relPart.CheckableA :
     exact ihi v hv
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
+  | link _ ih => exact .link ih
   | len hc _ => exact relWhole_checkableA (.len hc)
   | or ha _ => exact relWhole_checkableA (.or ha)
   | pref hx _ => exact relWhole_checkableA (.pref hx)
@@ -2624,6 +2657,7 @@ theorem neutral_checkableA {v : Val} (h : v.CheckableA) : v.neutral.CheckableA :
     exact ihi v hv
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
+  | link _ ih => exact .link ih
   | len hc _ => exact .len hc
   | or ha _ => exact .or ha
   | pref hx _ => exact .pref hx
@@ -2959,6 +2993,13 @@ theorem linkStep_checkableA {dp : Decls} (hdp : ∀ x, x ∈ dp → x.2.Checkabl
       rw [heq] at hi
       cases hi with
       | ride hv =>
+        refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
+        simp only [List.mem_singleton] at hj
+        rw [hj]; exact ⟨hv, hm⟩
+    next v t heq =>
+      rw [heq] at hi
+      cases hi with
+      | link hv =>
         refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
         simp only [List.mem_singleton] at hj
         rw [hj]; exact ⟨hv, hm⟩
