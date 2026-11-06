@@ -8868,18 +8868,61 @@ form holds, the definition reads the terms the schema writes there,
 through meets, riders, a map's member and its spread, a list's element
 and its spread, a generator's template, and a path reference's target.
 Each item it reads carries the member a generator's template is read
-for and the place the item lands at, which a reference's own path
-leaves where it was:
+for, the place the item lands at, which a reference's own path leaves
+where it was, and the normal form the item stands in there, which holds
+the link's address. A link in an arm of a disjunction, or in a
+preference's value, lands only where the output takes the arm. The
+rank rule that picks what evaluation generates picks among the arms the
+meet keeps: the default where there is one, and each kept arm where
+there isn't. So where the normal form is a disjunction, the item reads
+on in each arm the rule picks, and at a disjunction the schema writes,
+in each written arm the rule picks against that normal form:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def linkStep (dp : Decls) (S : Val) (i : LinkItem) : List LinkItem × List LinkItem :=
-  match i.term with
-  | .meet a b => ([], [{ i with term := a }, { i with term := b }])
-  | .ride _ v _ => ([], [{ i with term := v }])
-  | .path q => ([], [⟨S, q ++ i.left, q.length + i.skip, none, i.place⟩])
-  | _ => linkLeaf dp i
+def linkStep (dp : Decls) (S R : Val) (i : LinkItem) : List LinkItem × List LinkItem :=
+  match i.nf.unride with
+  | .or arms => ([], (arms.filter (picked arms)).map fun a => { i with nf := a.2 })
+  | _ =>
+    match i.term with
+    | .meet a b => ([], [{ i with term := a }, { i with term := b }])
+    | .ride _ v _ => ([], [{ i with term := v }])
+    | .path q => ([], [⟨S, q ++ i.left, q.length + i.skip, none, i.place,
+        if q.isEmpty then i.nf else R, if q.isEmpty then i.back else (i.skip, i.nf) :: i.back⟩])
+    | .pref r x => ([], (dp.pickedAt i.nf [(r, x)]).map fun a => { i with term := a })
+    | .or arms => ([], (dp.pickedAt i.nf (arms.flatMap flattenArm)).map fun a => { i with term := a })
+    | _ => linkLeaf dp i
 ```
+
+A default that holds a link sends its template while it stands. Write
+`refer-arm.aontu`:
+
+<!-- test: file refer-arm.aontu -->
+```aontu
+x: *{ d:refer({ z:1 }) & path($.y) }|{ e:1 }
+y: z: integer
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu refer-arm.aontu
+{
+  "x": {
+    "d": "$.y"
+  },
+  "y": {
+    "z": 1
+  }
+}
+```
+
+An arm the meet refuses sends nothing, as the first arm of
+`({ d:refer({ z:1 }) & path($.y), k:1 } | { k:2 }) & { k:2 }` doesn't,
+and neither does an arm the rule passes over, such as
+`{ d:refer({ w:2 }) & path($.y) }` written beside the default in
+`refer-arm.aontu`.
 
 A generator's template lands only at the instances the generator
 makes, each read for its member: `each`'s at an index among those that
@@ -8919,14 +8962,18 @@ flows each member of `l` into `a`, and `key()` reads the link's own
 place, so `x: r: refer({ n:key() }) & path($.a)` makes `a.n` the
 string `"r"`. The template's names are expanded first, so a generator
 over a name reads the name's body: with `%L = [1]`,
-`refer(each(%L, _)) & path($.a)` flows `[1]` into `a`:
+`refer(each(%L, _)) & path($.a)` flows `[1]` into `a`. Each link comes
+with the normal form its item stands in, and reads its address there,
+so a link in an arm reads its own arm's address:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.linksAt (ds dp : Decls) (S T : Val) (home pos : List Seg) : List (List Seg × Val × Bool) :=
-  (linkLanding dp S ((S.size + T.size + pos.length + 2) * (S.size + 2)) [⟨T, pos, 0, none, home⟩]).flatMap
+def Decls.linksAt (ds dp : Decls) (S R T root : Val) (home pos : List Seg) :
+    List (List Seg × Val × Bool × Val) :=
+  (linkLanding dp S R ((S.size + T.size + pos.length + 2) * (S.size + 2))
+      [⟨T, pos, 0, none, home, root, []⟩]).flatMap
     fun i => (callLinks pos i.term).map fun e =>
-      (e.1, resolveD ds i.member (some (i.place.map .seg)) (ds.read e.2.1), e.2.2)
+      (e.1, resolveD ds i.member (some (i.place.map .seg)) (ds.read e.2.1), e.2.2, i.nf)
 ```
 
 The definition reads the links that land in a body too, at a position
@@ -8940,10 +8987,10 @@ templates:
 def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val :=
   let own := ds.rootsS S
   let dp := (ds.withPathsFrom S own).1
-  ds.foldl (fun acc d => (ds.landedLinks dp S d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
-      (referStep roots miss [.key ("%" ++ d.1)] (dp.bodyRoot d)) acc)
-    ((ds.landedLinks dp S S (own.getLast?.getD .any) []).foldl
-      (referStep roots miss [] (own.getLast?.getD .any)) S)
+  let R := own.getLast?.getD .any
+  ds.foldl (fun acc d => (ds.landedLinks dp S R d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
+      (referStep roots miss [.key ("%" ++ d.1)]) acc)
+    ((ds.landedLinks dp S R S R []).foldl (referStep roots miss []) S)
 ```
 
 One link's template can make another link's target:
@@ -8996,11 +9043,17 @@ $ echo $?
 Rows from rf0 on of `test/spec/def-path.tsv` hold these readings in the
 three modes of `vet`, rows from ld0 on hold links that land through a
 spread or a path reference, rows from lg0 on links in a generator's
-template, and rows from lt0 on templates that read the member or the
-place where their link lands. Both engines answer every one as the
-definition does. With data, both engines read a body's relative link a
-second time, from each place that uses the body, which #488 tracks, and
-no row holds such a link. Both engines flow a link that a path
+template, rows from lt0 on templates that read the member or the place
+where their link lands, and rows from rf120 on links in an arm of a
+disjunction or a preference. Both engines answer every one as the
+definition does. Three readings part from the engines, so no row holds
+them yet: both engines still send from a kept arm the rank rule passes
+over, as #648 records, TypeScript drops the links of an arm the meet
+makes equal to another, as #649 records, and `eval` in both engines
+sends from an arm a later meet refuses, as #647 records. With data,
+both engines read a body's relative link a second time, from each
+place that uses the body, which #488 tracks, and no row holds such a
+link. Both engines flow a link that a path
 reference copies whole once, its template read at one copy's place,
 which the order of the document picks, where the definition reads each
 copy as a link of its own, which #536 tracks. The definition reads the
@@ -9064,12 +9117,13 @@ So a string, a number or `true` where an address must be is an
 `error`, as `rel() & "x"` is, and data that writes the addresses as
 strings is `invalid`, as data that writes a path value as a string
 is. Each leaf of the relation's value is a link, as a `refer` is, read
-from the relation's own position:
+from the relation's own position, in the normal form the link stands
+in:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def linkAddrs (src : Val) (e : List Seg × Val × Bool) : List Addr :=
-  ((src.at e.1).map fun v => if e.2.2 then v.addrs else v.addrOf?.toList).getD []
+def linkAddrs (e : List Seg × Val × Bool × Val) : List Addr :=
+  if e.2.2.1 then e.2.2.2.addrs else e.2.2.2.addrOf?.toList
 ```
 
 So each leaf's target must exist, and the template meets each target,

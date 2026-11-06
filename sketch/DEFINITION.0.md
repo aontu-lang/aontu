@@ -1673,6 +1673,42 @@ until the phase that encodes it lands.
    and `match` counted a condition's optional member, which the value
    leaves out, as one the meet adds (#638). Rows x2298 on, 8 cases in
    each mode, hold the second.
+33. **A link inside a preference or an arm of a disjunction.** Raised
+   2026-11-05 while writing rows for #643. Both ports sent a link's
+   template from inside `*x` and from each arm of `|` that the meet
+   keeps (bug 66 of `use-cases/BUGS.md`, #644), so
+   `x: *{d: refer({z: 1}) & path($.y)}` beside `y: {z: integer}` put
+   `z: 1` in `y` and was `valid`. The definition's link walk (`linkStep`
+   in `spec/Aontu/Paths.lean`) entered neither `*x` nor an arm of `|`,
+   so it read that document `incomplete`. Both ports also sent from a
+   kept arm the output passes over:
+   `x: *{d: refer({z: 1}) & path($.y)} | {d: refer({w: 2}) & path($.y)}`
+   gave `y` both `z` and `w`. Their `eval` sent from an arm the meet
+   refuses, too, once the conjunct had met it with `any` on the way
+   (#647).
+
+   **Ruled 2026-11-06: the arms the output picks.** A link inside an arm
+   sends its template where the rank rule that picks the output
+   (`picked` in `spec/Aontu/Output.lean`) takes that arm: the default
+   among the arms the meet keeps, or every kept arm where none is
+   ranked. A kept arm the rule passes over sends nothing, and an arm the
+   meet refuses sends nothing. A lone `*x` is `x | super(x)`, and the
+   parent type holds no link, so the links in `x` send wherever `x`
+   stands. The definition moves: its link walk enters `*` and `|`. Both
+   ports move for a kept arm the rule passes over, and for #647.
+
+   **Built in the definition 2026-11-06.** Each item of a link's
+   landing carries the normal form it stands in (`LinkItem.nf`), and
+   reads on in each arm the rank rule picks where that normal form is a
+   disjunction. At a preference or a disjunction the schema writes, it
+   follows the written arms the rule picks against that normal form
+   (`Decls.pickedAt`), and the positions it reads go inside the picked
+   arms (`Val.positionsP`), so each link reads its address in its own
+   arm. Rows rf120 on, 8 cases in each mode, both ports answering every
+   row as the definition does; no other row moved. Two more cases wait
+   on the ports: a kept arm the rule passes over still sends in both
+   (#648), and TypeScript drops the links of an arm the meet makes
+   equal to another, where Go sends them (#649).
 
 ## 8. Risks
 
