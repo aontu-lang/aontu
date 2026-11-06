@@ -108,6 +108,7 @@ func (r *RecurseVal) Unify(peer Val, ctx *Ctx) Val {
 			out := newConjunct([]Val{r, peer})
 			copyMarks(out, r)
 			out.path = cp(r.path)
+			out.waits = true
 			return out
 		}
 		level := undeclared(instanceClone(bodyv, cp(r.path)))

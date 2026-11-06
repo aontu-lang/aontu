@@ -26,6 +26,12 @@ rel-schema-optional-absent	gens	S: type({dependsOn?: rel() k: integer})\ns: $.S 
 rel-unmet-canon	canon	S: type({dependsOn?: rel()})\nz: 1	{"S":{"dependsOn"?:rel()},"z":1}
 rel-flow-admits	gens	a: {kind: svc}\ns: {dependsOn: rel({kind: svc}) & [path($.a)]}	{"a":{"kind":"svc"},"s":{"dependsOn":["$.a"]}}
 rel-flow-refuses	errc	a: {kind: db}\ns: {dependsOn: rel({kind: svc}) & [path($.a)]}	scalar_value
+# A graph atom beside the relation carries its value, links and templates
+# with it.
+rel-flow-beside-a-graph-atom	gens	a: {dependsOn: rel({k:1}) & acyclic() & [path($.b)]}\nb: {}	{"a":{"dependsOn":["$.b"]},"b":{"k":1}}
+rel-dangling-beside-a-graph-atom	errc	a: {dependsOn: rel() & acyclic() & [path($.gone)]}	rel_unresolved
+rel-dangling-beside-a-graph-atom-msg	err	a: {dependsOn: rel() & acyclic() & [path($.gone)]}	Cannot refer value at path $.a.dependsOn.0
+rel-over-a-late-reference	gens	later: path($.a)\na: {}\ns: rel({k:1}) & [$.later]	{"a":{"k":1},"later":"$.a","s":["$.a"]}
 rel-address-not-a-string	errc	s: {dependsOn: rel() & [7]}	rel_address
 rel-address-scalar-direct	errc	s: {hostedOn: rel() & 7}	rel_address
 rel-address-unanchored	errc	a: {}\ns: {dependsOn: rel() & [a]}	rel_address

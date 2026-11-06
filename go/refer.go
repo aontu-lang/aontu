@@ -233,6 +233,15 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	if nil == peer || isTop(peer) {
+		// A held value still resolving may be the address, so it meets the
+		// link again once it moves.
+		if nil == r.addr && nil != r.held && DONE != r.held.Dc() {
+			if held := unite(ctx, r.held, top()); held.Canon() != r.held.Canon() {
+				bare := r.reshape()
+				bare.held = nil
+				return bare.Unify(held, ctx)
+			}
+		}
 		return r.settle(ctx, r)
 	}
 	if peer.Nil() {
@@ -287,79 +296,73 @@ func (r *ReferVal) reshape() *ReferVal {
 	return &out
 }
 
-// settle answers the address if the evaluation can, and stays pending
-// if it cannot YET. site is the value whose position the resolved
-// string should take.
+// linkInfo is a link's record on its path value: the node it names, its
+// own missing-target code, and its templates with the targets they meet.
+type linkInfo struct {
+	to    []string
+	code  string
+	flows []*linkFlow
+}
+
+type linkFlow struct {
+	key string
+	t   Val
+}
+
+// joinFlows is the templates of the links met at one position, each once.
+func joinFlows(a, b []*linkFlow) []*linkFlow {
+	out := a
+	for _, f := range b {
+		seen := false
+		for _, g := range a {
+			seen = seen || f == g
+		}
+		if !seen {
+			out = append(append([]*linkFlow{}, out...), f)
+		}
+	}
+	return out
+}
+
+// settle answers the address as a path value carrying the link and its
+// template, which meet their target once the document is evaluated
+// (unifyRoot). site is the value whose position the string takes.
 func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 	if nil == r.addr {
 		r.dc = DONE
+		if nil != r.held && DONE != r.held.Dc() {
+			r.dc = 0
+		}
 		return r
 	}
 
-	// The address is a TREE PATH, resolved from the link's own position
-	// for a relative one. A climb off the top of the tree can never be
-	// repaired by a later pass, so it refuses at once.
+	// A relative address climbing off the top of the tree refuses at once.
 	target, tok := addressPath(*r.addr, r.path)
 	if !tok {
 		return makeNilErrFull(ctx, r.unresolvedCode, r, nil, "refer",
 			map[string]string{"addr": r.addrsrc})
 	}
-	found, ok := findAt(ctx.root, target)
-	if !ok {
-		maxcc := ctx.budgetPasses
-		if 0 == maxcc {
-			maxcc = 9
-		}
-		if ctx.cc+1 >= maxcc {
-			return makeNilErrFull(ctx, r.unresolvedCode, r, nil, "refer",
-				map[string]string{"addr": r.addrsrc})
-		}
-		r.dc = 0
-		return r
-	}
 
-	if nil == ctx.referflow {
-		ctx.referflow = map[string]bool{}
+	li := linkInfo{to: target}
+	if "refer_unresolved" != r.unresolvedCode {
+		li.code = r.unresolvedCode
 	}
-	guard := strings.Join(target, "\x00")
+	if sv, ok := site.(*ScalarVal); ok && KindPath == sv.kind {
+		li.flows = sv.lk.flows
+	}
 	if nil != r.tval && !isTop(r.tval) {
 		flow := r.tval
 		if hasMark(flow) {
 			flow = clonePath(flow, cp(flow.vpath()))
 			walkMark(flow, true, false, true, false)
 		}
-
-		recordFlow(ctx, guard, flow)
-
-		if !ctx.referflow[guard] {
-			if bad := func() Val {
-				ctx.referflow[guard] = true
-				defer delete(ctx.referflow, guard)
-
-				merged := unite(ctx, found.val, flow)
-				if merged.Nil() {
-					return merged
-				}
-				if !ctx.trial {
-					switch p := found.parent.(type) {
-					case *MapVal:
-						p.set(found.key, merged)
-					case *ListVal:
-						if i, err := strconv.Atoi(found.key); nil == err {
-							p.peg[i] = merged
-						}
-					}
-				}
-				return nil
-			}(); nil != bad {
-				return bad
-			}
-		}
+		li.flows = joinFlows(li.flows, []*linkFlow{{key: strings.Join(target, "\x00"), t: flow}})
 	}
 
 	out := newPath(r.addrsrc)
 	copyMarks(out, r)
 	out.setLinkAddr("$." + strings.Join(target, "."))
+	out.lk = li
 	out.relkey = r.relpred
 	out.site.sp, out.site.spu, out.site.url = site.pos(), site.posu(), site.srcurl()
 	out.path = cp(r.path)
@@ -367,17 +370,6 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 		return out
 	}
 	return unite(ctx, out, r.held)
-}
-
-func recordFlow(ctx *Ctx, guard string, flow Val) {
-	if nil == ctx.referflows {
-		ctx.referflows = map[string]Val{}
-	}
-	if prev, seen := ctx.referflows[guard]; seen {
-		ctx.referflows[guard] = unite(ctx, prev, flow)
-	} else {
-		ctx.referflows[guard] = flow
-	}
 }
 
 type RelVal struct {

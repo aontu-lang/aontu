@@ -96,6 +96,8 @@ type Val interface {
 	setEmitOrig(o *emitOrigin)
 	linkAddr() string
 	setLinkAddr(addr string)
+	linkInfo() linkInfo
+	setLinkInfo(li linkInfo)
 	markedHide() bool
 	setMarkType(v bool)
 	setMarkHide(v bool)
@@ -141,6 +143,7 @@ type base struct {
 	origin  string
 	emitted *emitOrigin
 	link    string
+	lk      linkInfo
 	relkey  string
 	spr     Val
 	pdep    int8
@@ -235,6 +238,8 @@ func (b *base) setEmitOrig(o *emitOrigin) { b.emitted = o }
 func (b *base) linkAddr() string        { return b.link }
 func (b *base) relKey() string          { return b.relkey }
 func (b *base) setLinkAddr(addr string) { b.link = addr }
+func (b *base) linkInfo() linkInfo        { return b.lk }
+func (b *base) setLinkInfo(li linkInfo)   { b.lk = li }
 func (b *base) markedHide() bool        { return b.mhide }
 func (b *base) fromSpread() bool        { return b.fspr }
 func (b *base) setFromSpread()          { b.fspr = true }

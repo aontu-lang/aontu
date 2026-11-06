@@ -68,6 +68,15 @@ budget-chain-9-resolves	gens	a:$.b b:$.c c:$.d d:$.e e:$.f f:$.g g:$.h h:$.i i:$
 budget-chain-10-exhausts	errc	a:$.b b:$.c c:$.d d:$.e e:$.f f:$.g g:$.h h:$.i i:$.j j:$.k k:1	budget_passes
 budget-chain-10-msg	err	a:$.b b:$.c c:$.d d:$.e e:$.f f:$.g g:$.h h:$.i i:$.j j:$.k k:1	The evaluation budget of 9 fixpoint passes was spent before
 #
+# A link a template carries makes its own link the round after the template
+# lands, so links nested in each other's templates take a round each, and the
+# rounds have the pass budget too: nine fit, and the tenth link's template,
+# found in the last round, is the budget's, where it was left out unsent.
+budget-nested-links-9-resolve	errc	s: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({k:1}) & path($.t9)}) & path($.t8)}) & path($.t7)}) & path($.t6)}) & path($.t5)}) & path($.t4)}) & path($.t3)}) & path($.t2)}) & path($.t1) t1: {} t2: {} t3: {} t4: {} t5: {} t6: {} t7: {} t8: {} t9: {k:2}	scalar_value
+budget-nested-links-9-msg	err	s: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({k:1}) & path($.t9)}) & path($.t8)}) & path($.t7)}) & path($.t6)}) & path($.t5)}) & path($.t4)}) & path($.t3)}) & path($.t2)}) & path($.t1) t1: {} t2: {} t3: {} t4: {} t5: {} t6: {} t7: {} t8: {} t9: {k:2}	at path $.t9.k
+budget-nested-links-10-exhaust	errc	s: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({k:1}) & path($.t10)}) & path($.t9)}) & path($.t8)}) & path($.t7)}) & path($.t6)}) & path($.t5)}) & path($.t4)}) & path($.t3)}) & path($.t2)}) & path($.t1) t1: {} t2: {} t3: {} t4: {} t5: {} t6: {} t7: {} t8: {} t9: {} t10: {k:1}	budget_passes
+budget-nested-links-10-msg	err	s: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({n: refer({k:1}) & path($.t10)}) & path($.t9)}) & path($.t8)}) & path($.t7)}) & path($.t6)}) & path($.t5)}) & path($.t4)}) & path($.t3)}) & path($.t2)}) & path($.t1) t1: {} t2: {} t3: {} t4: {} t5: {} t6: {} t7: {} t8: {} t9: {} t10: {k:1}	still refining: $.t10
+#
 # LARGE BUT LEGAL -- the false-positive guard. The per-pair revisit
 # bound (MAXCYCLE = 999, ts/src/unify.ts) counts (Val, path) pairs per
 # pass, and a conjunct fold used to re-run the TOP self-unify once per

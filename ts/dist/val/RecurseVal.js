@@ -66,6 +66,7 @@ class RecurseVal extends FeatureVal_1.FeatureVal {
                 const out = new ConjunctVal_1.ConjunctVal({ peg: [this, peer] }, ctx);
                 (0, utility_1.propagateMarks)(this, out);
                 out.path = this.path;
+                out.waits = true;
                 return out;
             }
             const level = (0, IdentFuncVal_1.undeclared)(body.clone(ctx, {

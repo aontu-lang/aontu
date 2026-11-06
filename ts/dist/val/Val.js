@@ -102,6 +102,15 @@ class Val {
         if (null != this.link) {
             out.link = this.link;
         }
+        if (null != this.linkto) {
+            out.linkto = this.linkto;
+        }
+        if (null != this.linkcode) {
+            out.linkcode = this.linkcode;
+        }
+        if (null != this.flows) {
+            out.flows = this.flows;
+        }
         if (null != this.deprecation) {
             out.deprecation = this.deprecation;
         }

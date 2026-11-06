@@ -4,6 +4,7 @@
 package aontu
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -106,13 +107,13 @@ func TestReferValLateDeliveryArms(t *testing.T) {
 	r := newRefer(nil)
 	addr, _ := parseAddress("$.q")
 	r.addr, r.addrsrc = &addr, "$.q"
-	refined, ok := r.Unify(newPath("$.q.r"), ctx).(*ReferVal)
-	if !ok || "$.q.r" != refined.addrsrc {
+	refined, ok := r.Unify(newPath("$.q.r"), ctx).(*ScalarVal)
+	if !ok || "$.q.r" != refined.peg || "q.r" != strings.Join(refined.lk.to, ".") {
 		t.Fatalf("refined address = %v", refined)
 	}
-	// The prefix rule is symmetric in which side is pending.
-	kept, ok := refined.Unify(newPath("$.q"), ctx).(*ReferVal)
-	if !ok || "$.q.r" != kept.addrsrc {
+	// The prefix rule is symmetric in which side is the link.
+	kept, ok := refined.Unify(newPath("$.q"), ctx).(*ScalarVal)
+	if !ok || "$.q.r" != kept.peg {
 		t.Fatalf("kept address = %v", kept)
 	}
 	if out := r.Unify(newPath("$.z"), ctx); !out.Nil() {
@@ -168,8 +169,8 @@ func TestReferMergeNilCombinations(t *testing.T) {
 	addr, _ := parseAddress("$.svc_x")
 	sited := newRefer(nil)
 	sited.addr, sited.addrsrc = &addr, "$.svc_x"
-	if out := bare.Unify(sited, ctx).(*ReferVal); "$.svc_x" != out.addrsrc {
-		t.Errorf("the address should carry across the merge, got %q", out.addrsrc)
+	if out := bare.Unify(sited, ctx).(*ScalarVal); "$.svc_x" != out.peg {
+		t.Errorf("the address should carry across the merge, got %v", out.peg)
 	}
 }
 
@@ -227,19 +228,57 @@ func TestAddressPathClimbsOffTheTop(t *testing.T) {
 	}
 }
 
-func TestReferFlowRefusalIsTheNil(t *testing.T) {
-	ctx := &Ctx{}
-	m := newMap()
-	m.set("k", newInteger(1))
-	root := newMap()
-	root.set("x", m)
-	ctx.root = root
-
+func TestReferSettlesToALinkCarryingItsTemplate(t *testing.T) {
+	// The template rides the path value; the target is read once the
+	// document is evaluated, so the link settles whether or not the root
+	// holds it yet.
+	ctx := &Ctx{root: newMap()}
 	addr, _ := parseAddress("$.x")
 	r := newRefer(newInteger(1))
 	r.addr, r.addrsrc = &addr, "$.x"
-	if out := r.settle(ctx, r); !out.Nil() {
-		t.Fatalf("expected a nil, got %s", out.Canon())
+	out, ok := r.settle(ctx, r).(*ScalarVal)
+	if !ok || "x" != strings.Join(out.lk.to, ".") || 1 != len(out.lk.flows) ||
+		"x" != out.lk.flows[0].key || "1" != out.lk.flows[0].t.Canon() {
+		t.Fatalf("expected a link carrying its template, got %v", out)
+	}
+}
+
+func TestHoldsLinkAlreadySettled(t *testing.T) {
+	// A tree a caller evaluated before, as vet's anchor under --at is,
+	// holds a refer() or rel() value, or a link, where a parse holds the
+	// call.
+	if !holdsLink(newRefer(nil), map[Val]bool{}) || !holdsLink(newRel(nil), map[Val]bool{}) {
+		t.Fatal("a refer() or rel() value holds a link")
+	}
+	link := newPath("$.a")
+	link.lk.to = []string{"a"}
+	m := newMap()
+	m.set("b", link)
+	plain := newMap()
+	plain.set("b", newPath("$.a"))
+	if !holdsLink(m, map[Val]bool{}) || holdsLink(plain, map[Val]bool{}) {
+		t.Fatal("a link holds a link and a plain path does not")
+	}
+}
+
+func TestLinksOfPutsThroughAMeetAndAGraphAtom(t *testing.T) {
+	// A link a meet or a graph atom holds as itself is put back there.
+	link := func() *ScalarVal {
+		l := newPath("$.gone")
+		l.lk.to = []string{"gone"}
+		return l
+	}
+	cj := newConjunct([]Val{link(), newScalarKind(KindString)})
+	ga := newGraphAtom("acyclic", "", link())
+	for _, root := range []Val{cj, ga} {
+		sites := linksOf(root)
+		if 1 != len(sites) {
+			t.Fatalf("expected one link in %s, got %d", root.Canon(), len(sites))
+		}
+		sites[0].put(newNil("gone"))
+	}
+	if !cj.peg[0].Nil() || !ga.held.Nil() {
+		t.Fatal("each link's place should hold what was put there")
 	}
 }
 

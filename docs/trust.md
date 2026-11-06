@@ -102,7 +102,7 @@ Every evaluation halts within deterministic budgets counted in
 
 | budget     | counts                                   | current state |
 |------------|------------------------------------------|-----------------|
-| `passes`   | fixpoint passes over the whole model     | 9 (`ctx.budget.passes`, `ts/src/ctx.ts`, read as `maxcc` in `ts/src/unify.ts`; `go/unify.go`) |
+| `passes`   | fixpoint passes over the whole model, and the rounds that evaluate a document with links | 9 (`ctx.budget.passes`, `ts/src/ctx.ts`, read as `maxcc` in `ts/src/unify.ts`; `go/unify.go`) |
 | `revisits` | same-pair re-unifications within a pass  | 999 (`ctx.budget.revisits`, `ts/src/ctx.ts`) |
 | `depth`    | structural recursion depth               | 1000 (`ctx.budget.depth`, `ts/src/ctx.ts`; `maxUniteDepth`, `go/unify.go`). Shared: both engines report `unify_cycle` past it, and `test/spec/budget.tsv` pins the boundary from both sides. Before parsing, an entry source whose brackets nest past twice this budget is refused with `max_depth` in both engines (`findDeepNesting`), because the parser's path tracking grows with the square of the depth; a bracket in a string or a comment does not count, and an included source is not scanned. A parsed tree deeper than the same bound, such as a chain of keys that nests with no bracket, is refused with `max_depth` too, before anything recurses into it. |
 | `trials`   | admission trials, once for each position, trial schema and value | 100000 (`ctx.budget.trials`, `ts/src/ctx.ts`; `trialBudget`, `go/admit.go`). A repeated trial reads its first verdict and is not counted again. Shared: both engines report `trial_budget` past it, and `test/spec/budget.tsv` pins the boundary from both sides. |
@@ -155,13 +155,19 @@ a `rep()` or `split()` pattern with a large but polynomial backtracking
 cost is still admitted in the TypeScript port, and pattern matching
 remains outside the event-counted budgets above.
 
-Two notes on how the budgets behave, and one caveat:
+Three notes on how the budgets behave, and one caveat:
 
 - A chain of plain references resolves one link per pass from the tail
   in **both** engines, so the pass budget is part of the shared
   language surface: nine links fit, ten exhaust it as `budget_passes`,
   pinned by the shared `budget-chain-*` rows in
   [test/spec/budget.tsv](../test/spec/budget.tsv).
+- The engines evaluate a document with links again, in rounds, until
+  no link's template is new, and the rounds have the pass budget as
+  well. A link a template carries sends its own template the round
+  after the template lands, so links nested in each other's templates
+  take a round each: nine fit, and ten exhaust the budget as
+  `budget_passes`, pinned by the shared `budget-nested-links-*` rows.
 -  A cycle wearing a function call is the same cycle: `a:$.b
   b:upper($.a)` is `path_cycle` in both ports, which follow function
   arguments when detecting the cycle. The shape is pinned by the shared
@@ -311,7 +317,7 @@ Guarantees are as much about what will never be added:
 | claim | pin |
 |-------|-----|
 | cycle/no-path taxonomy codes | [test/spec/budget.tsv](../test/spec/budget.tsv) (`errc` + substring rows, both engines) |
-| `budget_passes` code, class and "evaluation budget" substring | shared rows: [test/spec/budget.tsv](../test/spec/budget.tsv) `budget-chain-*` (verdicts, code and message substring, both engines); `ts/test/unify.test.ts` and `go/hints_test.go` keep the per-port err-shape guards |
+| `budget_passes` code, class and "evaluation budget" substring | shared rows: [test/spec/budget.tsv](../test/spec/budget.tsv) `budget-chain-*` and `budget-nested-links-*` (verdicts, code and message substring, both engines); `ts/test/unify.test.ts` and `go/hints_test.go` keep the per-port err-shape guards |
 | code → class registry | [test/spec/errcodes.tsv](../test/spec/errcodes.tsv) + set-equality tests in both runners |
 | canon byte-stability | every `canon` row (strict equality, both runners) |
 | generated-JSON byte-stability | `gens` rows (both runners) |

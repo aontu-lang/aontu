@@ -19,3 +19,9 @@
 # writes that repro differently in the two ports -- the split
 # spelling kept in TypeScript, the merged one in Go.
 a: b: { c:d:e:$.a.b.f f:{ &: { n:key() } x:{} } }
+
+# FIXED 2026-11-06: Go was right. A map's clone wrote its copy of the
+# template into the spread record it shared with the original, so the
+# reference's copy replaced f's own template. A bag's clone now has a
+# spread record of its own. Pinned by test/spec/gen-key.tsv
+# key-spread-through-ref-merged-2..5.

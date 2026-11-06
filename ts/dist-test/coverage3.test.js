@@ -1332,37 +1332,6 @@ function capture(fn) {
         Assert.strictEqual((0, RecurseVal_1.containsRecurseOf)(mk(['n', 'm']), ['n'], 0), false);
     });
 });
-(0, node_test_1.describe)('coverage3-apply-flows', () => {
-    (0, node_test_1.test)('apply-flows-skips-a-record-that-stops-resolving', () => {
-        const a0 = new aontu_1.Aontu();
-        const ctx = a0.ctx({ collect: true });
-        const target = new MapVal_1.MapVal({ peg: {} }, ctx);
-        const root = new MapVal_1.MapVal({ peg: { a: target } }, ctx);
-        ctx.referflows = new Map([
-            ['a', new MapVal_1.MapVal({ peg: { k: new IntegerVal_1.IntegerVal({ peg: 1 }, ctx) } }, ctx)],
-            ['gone', new MapVal_1.MapVal({ peg: {} }, ctx)],
-            ['a\x00k\x00deeper', new MapVal_1.MapVal({ peg: {} }, ctx)],
-            ['nosuch\x00x', new MapVal_1.MapVal({ peg: {} }, ctx)],
-        ]);
-        const out = (0, unify_1.applyFlows)(ctx, root);
-        Assert.strictEqual(out, root);
-        // The resolvable record landed ...
-        Assert.strictEqual(out.peg.a.peg.k.peg, 1);
-        // ... and the unresolvable ones added nothing.
-        Assert.strictEqual(out.peg.gone, undefined);
-        Assert.strictEqual(out.peg.nosuch, undefined);
-    });
-    (0, node_test_1.test)('apply-flows-is-a-no-op-without-records', () => {
-        // The common case: a document with no links pays one property load
-        // per pass and the walk never runs.
-        const a0 = new aontu_1.Aontu();
-        const ctx = a0.ctx({ collect: true });
-        const root = new MapVal_1.MapVal({ peg: {} }, ctx);
-        Assert.strictEqual((0, unify_1.applyFlows)(ctx, root), root);
-        ctx.referflows = new Map();
-        Assert.strictEqual((0, unify_1.applyFlows)(ctx, root), root);
-    });
-});
 (0, node_test_1.describe)('coverage3-refer', () => {
     (0, node_test_1.test)('find-at-walks-into-non-bags', () => {
         const ctx = new aontu_1.Aontu().ctx({});
@@ -1397,10 +1366,11 @@ function capture(fn) {
         r.addr = (0, PathVal_1.parseAddress)('$.q');
         r.addrsrc = '$.q';
         const refined = r.unify(new PathVal_1.PathVal({ peg: '$.q.r' }, ctx), ctx);
-        Assert.strictEqual(refined.addrsrc, '$.q.r');
-        // The prefix rule is symmetric in which side is pending.
+        Assert.strictEqual(refined.peg, '$.q.r');
+        Assert.deepStrictEqual(refined.linkto, ['q', 'r']);
+        // The prefix rule is symmetric in which side is the link.
         const kept = refined.unify(new PathVal_1.PathVal({ peg: '$.q' }, ctx), ctx);
-        Assert.strictEqual(kept.addrsrc, '$.q.r');
+        Assert.strictEqual(kept.peg, '$.q.r');
         const nil = r.unify(new PathVal_1.PathVal({ peg: '$.z' }, ctx), ctx);
         Assert.strictEqual(true, nil.isNil);
     });
@@ -1417,16 +1387,82 @@ function capture(fn) {
         Assert.strictEqual(true, null != r2.held);
         Assert.strictEqual(true, true !== r2.held.isNil);
     });
-    (0, node_test_1.test)('refer-flow-refusal-is-the-nil', () => {
+    (0, node_test_1.test)('refer-settles-to-a-link-carrying-its-template', () => {
+        // The template rides the path value; the target is read once the
+        // document is evaluated, so the link settles whether or not the
+        // root holds it yet.
         const a0 = new aontu_1.Aontu();
         const ctx = a0.ctx({ collect: true });
-        const m = new MapVal_1.MapVal({ peg: { k: new IntegerVal_1.IntegerVal({ peg: 1 }, ctx) } }, ctx);
-        ctx.root = new MapVal_1.MapVal({ peg: { x: m } }, ctx);
+        ctx.root = new MapVal_1.MapVal({ peg: {} }, ctx);
         const r = new ReferFuncVal_1.ReferVal({}, ctx);
         r.tval = new IntegerVal_1.IntegerVal({ peg: 1 }, ctx);
         r.addr = (0, PathVal_1.parseAddress)('$.x');
         r.addrsrc = '$.x';
-        Assert.strictEqual(r.settle(ctx, r).isNil, true);
+        const out = r.settle(ctx, r);
+        Assert.strictEqual(out.isPath, true);
+        Assert.deepStrictEqual(out.linkto, ['x']);
+        Assert.strictEqual(out.flows.length, 1);
+        Assert.strictEqual(out.flows[0][0], 'x');
+        Assert.strictEqual(out.flows[0][1].peg, 1);
+    });
+    (0, node_test_1.test)('a-tree-holds-a-link-it-has-already-settled', () => {
+        // A tree a caller evaluated before, as vet's anchor under --at is,
+        // holds a refer() or rel() value, or a link, where a parse holds
+        // the call.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        Assert.strictEqual((0, unify_1.holdsLink)(new ReferFuncVal_1.ReferVal({}, ctx)), true);
+        Assert.strictEqual((0, unify_1.holdsLink)(new ReferFuncVal_1.RelVal({}, ctx)), true);
+        const link = new PathVal_1.PathVal({ peg: '$.a' }, ctx);
+        link.linkto = ['a'];
+        Assert.strictEqual((0, unify_1.holdsLink)(new MapVal_1.MapVal({ peg: { b: link } }, ctx)), true);
+        Assert.strictEqual((0, unify_1.holdsLink)(new MapVal_1.MapVal({ peg: { b: new PathVal_1.PathVal({ peg: '$.a' }, ctx) } }, ctx)), false);
+    });
+    (0, node_test_1.test)('links-are-put-back-through-a-meet-and-a-graph-atom', () => {
+        // A link a meet or a graph atom holds as itself is put back there.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        const link = () => {
+            const l = new PathVal_1.PathVal({ peg: '$.gone' }, ctx);
+            l.linkto = ['gone'];
+            return l;
+        };
+        const cj = new ConjunctVal_1.ConjunctVal({ peg: [link(), new ScalarKindVal_1.ScalarKindVal({ peg: String }, ctx)] }, ctx);
+        const ga = new GraphAtomVal_1.GraphAtomVal({ akind: 'acyclic', held: link() }, ctx);
+        for (const root of [cj, ga]) {
+            const sites = (0, unify_1.linksOf)(root);
+            Assert.strictEqual(sites.length, 1);
+            sites[0].put(new NilVal_1.NilVal({ why: 'gone' }, ctx));
+        }
+        Assert.strictEqual(cj.peg[0].isNil, true);
+        Assert.strictEqual(ga.held.isNil, true);
+    });
+    (0, node_test_1.test)('join-flows-keeps-each-template-once', () => {
+        const p1 = ['a', null];
+        const p2 = ['b', null];
+        const a = [p1];
+        Assert.strictEqual((0, PathVal_1.joinFlows)(a, undefined), a);
+        Assert.strictEqual((0, PathVal_1.joinFlows)(a, a), a);
+        Assert.strictEqual((0, PathVal_1.joinFlows)(undefined, a), a);
+        Assert.strictEqual((0, PathVal_1.joinFlows)(a, [p1]), a);
+        Assert.deepStrictEqual((0, PathVal_1.joinFlows)(a, [p1, p2]), [p1, p2]);
+    });
+    (0, node_test_1.test)('refer-meets-refer-as-one-link', () => {
+        // Two refer() values at one position before either has an address:
+        // one link, both templates, the address and the held constraints of
+        // either side.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        ctx.root = new MapVal_1.MapVal({ peg: {} }, ctx);
+        const a = new ReferFuncVal_1.ReferVal({}, ctx);
+        a.tval = new MapVal_1.MapVal({ peg: { p: new IntegerVal_1.IntegerVal({ peg: 1 }, ctx) } }, ctx);
+        const b = new ReferFuncVal_1.ReferVal({}, ctx);
+        b.tval = new MapVal_1.MapVal({ peg: { q: new IntegerVal_1.IntegerVal({ peg: 2 }, ctx) } }, ctx);
+        b.held = new ScalarKindVal_1.ScalarKindVal({ peg: String }, ctx);
+        const both = a.unify(b, ctx);
+        Assert.strictEqual(both.isRefer, true);
+        Assert.strictEqual(both.tval.canon, '{"p":1,"q":2}');
+        Assert.strictEqual(both.held, b.held);
+        const c = new ReferFuncVal_1.ReferVal({}, ctx);
+        c.held = new ScalarKindVal_1.ScalarKindVal({ peg: String }, ctx);
+        Assert.strictEqual(true !== both.unify(c, ctx).held.isNil, true);
     });
     (0, node_test_1.test)('refer-climb-off-the-top-refuses', () => {
         // A relative address with more parent steps than the link has

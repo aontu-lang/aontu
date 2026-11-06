@@ -34,6 +34,7 @@ import { TRIAL_NIL } from '../val/NilVal'
 import { PrefVal, prefInnerPeg } from '../val/PrefVal'
 import { armAdmits } from '../val/admission'
 import { JunctionVal } from '../val/JunctionVal'
+import { joinFlows } from '../val/PathVal'
 
 
 class DisjunctVal extends JunctionVal {
@@ -105,8 +106,6 @@ class DisjunctVal extends JunctionVal {
     const ownErr = Object.prototype.hasOwnProperty.call(ctx, 'err')
     const ownTrialMode =
       Object.prototype.hasOwnProperty.call(ctx, '_trialMode')
-    const savedFlows: Map<string, Val> | undefined = (ctx as any).referflows
-    const staged: (Map<string, Val> | undefined)[] = []
     ctx._trialMode = true
     let gate: number[] | undefined = undefined
     try {
@@ -114,10 +113,6 @@ class DisjunctVal extends JunctionVal {
         const v = this.peg[vI]
         const trialErr: any[] = []
         ctx.err = trialErr
-        if (undefined !== savedFlows) {
-          staged[vI] = new Map()
-          ;(ctx as any).referflows = staged[vI]
-        }
 
         oval[vI] = unite(te ? ctx.clone({ explain: ec(te, 'DIST:' + vI) }) : ctx, v, member, 'dj-peer')
 
@@ -140,10 +135,6 @@ class DisjunctVal extends JunctionVal {
         for (const gI of gate) {
           const admitErr: any[] = []
           ctx.err = admitErr
-          // The arm's own flows are staged above; this trial's are dropped.
-          if (undefined !== savedFlows) {
-            ;(ctx as any).referflows = new Map()
-          }
           // The trial is against a CLONE: the preferred value must
           // stay pristine for the surviving preference (the
           // MatchFuncVal.resolve precedent).
@@ -169,7 +160,6 @@ class DisjunctVal extends JunctionVal {
       else {
         delete (ctx as any).err
       }
-      ;(ctx as any).referflows = savedFlows
     }
 
     if (true === (peer as any).isPref) {
@@ -181,22 +171,6 @@ class DisjunctVal extends JunctionVal {
           wrapped.rank = (peer as PrefVal).rank
           ;(peer as PrefVal).place(wrapped)
           oval[vI] = wrapped
-        }
-      }
-    }
-
-    // An arm the dedup below drops as equal to another sends its own
-    // links all the same, as Go's merge does.
-    if (undefined !== savedFlows) {
-      for (let vI = 0; vI < staged.length; vI++) {
-        const st = staged[vI]
-        if (undefined === st || true === oval[vI].isNil) {
-          continue
-        }
-        for (const [k, fv] of st) {
-          const prev = savedFlows.get(k)
-          savedFlows.set(k, undefined === prev ? fv
-            : unite(ctx, prev, fv, 'refer-flow-record'))
         }
       }
     }
@@ -400,30 +374,35 @@ class DisjunctVal extends JunctionVal {
 // `1.0` generate the same digits, and are still different values.
 // A member dropped as a duplicate leaves its riders on the survivor, at
 // every depth, so the join is as order-free as the meet (ADR-052).
-function keepRiders(ctx: AontuContext, keep: Val, drop: any): Val {
+function keepRiders(ctx: AontuContext, keep: Val, drop: any, sends: boolean = true): Val {
   if (!ridden(drop)) {
     return keep
   }
   const out: any = keep.clone(ctx)
   ride(out, keep, drop)
+  // The twins' links are both sent only where neither outranks the other.
+  sends = sends && !(true === keep.isPref && true === drop.isPref && (keep as any).rank !== drop.rank)
+  if (sends) {
+    out.flows = joinFlows(out.flows, drop.flows)
+  }
   if (true === drop.isPref && true !== out.isPref) {
     // A twin of a higher rank holds one more preference layer.
-    return keepRiders(ctx, out, drop.peg)
+    return keepRiders(ctx, out, drop.peg, sends)
   }
   if (true === out.isBag) {
     for (const k of Object.keys(out.peg)) {
-      out.peg[k] = keepRiders(ctx, out.peg[k], drop.peg[k])
+      out.peg[k] = keepRiders(ctx, out.peg[k], drop.peg[k], sends)
     }
   }
   else if (true === out.isPref) {
-    out.peg = keepRiders(ctx, out.peg, drop.peg)
+    out.peg = keepRiders(ctx, out.peg, drop.peg, sends)
   }
   return out
 }
 
 
 function ridden(v: any): boolean {
-  return null != v.deprecation || null != v.meta ||
+  return null != v.deprecation || null != v.meta || null != v.flows ||
     (true === v.isBag && Object.values(v.peg).some(ridden)) ||
     (true === v.isPref && ridden(v.peg))
 }

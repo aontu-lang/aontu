@@ -9028,8 +9028,8 @@ and vet it:
 $ aontu vet refer.aontu refer-data.aontu
 verdict: invalid
 
-$.billing.dep.kind: scalar_value [conflict]
-  [aontu/scalar_value]: Cannot unify values at path $.billing.dep.kind
+$.services.auth.kind: scalar_value [conflict]
+  [aontu/scalar_value]: Cannot unify values at path $.services.auth.kind
   data: refer-data.aontu:1:23 ("client")
   schema: refer.aontu:2:28 ("service")
 $ echo $?
@@ -9041,11 +9041,10 @@ three modes of `vet`, rows from ld0 on hold links that land through a
 spread or a path reference, rows from lg0 on links in a generator's
 template, rows from lt0 on templates that read the member or the place
 where their link lands, and rows from rf120 on links in an arm of a
-disjunction or a preference. Both engines answer every one as the
-definition does. Two readings part from the engines, so no row holds
-them yet: both engines still send from a kept arm the rank rule passes
-over, as #648 records, and `eval` in both engines sends from an arm a
-later meet refuses, as #647 records. With data,
+disjunction or a preference, rows from rf171 on a kept arm the rank
+rule passes over and a link to nothing in an arm the output takes, and
+rows from rf186 on a path reference to a link's target. Both engines
+answer every one as the definition does. With data,
 both engines read a body's relative link a second time, from each
 place that uses the body, which #488 tracks, and no row holds such a
 link. Both engines flow a link that a path

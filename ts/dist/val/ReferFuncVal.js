@@ -113,6 +113,16 @@ class ReferVal extends FeatureVal_1.FeatureVal {
             }, this);
         }
         if (null == peer || true === p.isTop) {
+            // A held value still resolving may be the address, so it meets
+            // the link again once it moves.
+            if (undefined === this.addr && null != this.held && !this.held.done) {
+                const held = (0, unify_1.unite)(ctx, this.held, (0, top_1.top)(), 'refer-held');
+                if (held.canon !== this.held.canon) {
+                    const bare = this.with(ctx, {}, this);
+                    bare.held = undefined;
+                    return bare.unify(held, ctx);
+                }
+            }
             return this.settle(ctx, this);
         }
         if (true === p.isNil) {
@@ -154,55 +164,28 @@ class ReferVal extends FeatureVal_1.FeatureVal {
         out.path = this.path;
         return out.settle(ctx, site);
     }
-    // settle answers the address if the evaluation can, and stays
-    // pending if it cannot YET. `site` is the value whose position the
-    // resolved string should take.
+    // settle answers the address as a path value carrying the link and its
+    // template, which meet their target once the document is evaluated
+    // (`Unify`). `site` is the value whose position the string takes.
     settle(ctx, site) {
         if (undefined === this.addr) {
-            this.dc = type_1.DONE;
+            this.dc = null != this.held && !this.held.done ? 0 : type_1.DONE;
             return this;
         }
-        // The address is a TREE PATH, resolved from the link's own
-        // position for a relative one. A climb off the top of the tree can
-        // never be repaired by a later pass, so it refuses at once.
+        // A relative address climbing off the top of the tree refuses at once.
         const target = addressPath(this.addr, this.path);
         if (undefined === target) {
             return (0, err_1.makeNilErr)(ctx, this.unresolvedcode, this, undefined, 'refer', { addr: this.addrsrc });
         }
-        const found = findAt(ctx?.root, target);
-        if (undefined === found) {
-            if (ctx.cc + 1 >= ctx.budget.passes) {
-                return (0, err_1.makeNilErr)(ctx, this.unresolvedcode, this, undefined, 'refer', { addr: this.addrsrc });
-            }
-            this.dc = 0;
-            return this;
-        }
-        const guard = target.join('.');
-        // Seeded on the unify root (ts/src/unify.ts): a `??=` here would
-        // make a fresh set on whichever descended context asked first.
-        const flowing = ctx._referflow ?? new Set();
-        if (!this.tval.isTop) {
-            const flow = concreteFlow(ctx, this.tval);
-            (0, unify_1.recordFlow)(ctx, target.join('\x00'), flow);
-            if (!flowing.has(guard)) {
-                flowing.add(guard);
-                try {
-                    const merged = (0, unify_1.unite)(ctx, found.val, flow, 'refer-flow');
-                    if (true === merged.isNil) {
-                        return merged;
-                    }
-                    if (true !== ctx._trialMode) {
-                        found.parent.peg[found.key] = merged;
-                    }
-                }
-                finally {
-                    flowing.delete(guard);
-                }
-            }
-        }
         const out = new PathVal_1.PathVal({ peg: this.addrsrc }, ctx);
         out.dc = type_1.DONE;
         out.link = '$.' + target.join('.');
+        out.linkto = target;
+        if ('refer_unresolved' !== this.unresolvedcode) {
+            out.linkcode = this.unresolvedcode;
+        }
+        out.flows = (0, PathVal_1.joinFlows)(site.isPath ? site.flows : undefined, this.tval.isTop ? undefined
+            : [[target.join('\x00'), concreteFlow(ctx, this.tval)]]);
         if (undefined !== this.relkey) {
             out.relkey = this.relkey;
         }

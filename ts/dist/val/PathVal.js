@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PathKindVal = exports.PathVal = void 0;
 exports.parseAddress = parseAddress;
 exports.textAddress = textAddress;
+exports.joinFlows = joinFlows;
 exports.prefixMeet = prefixMeet;
 const err_1 = require("../err");
 const utility_1 = require("../utility");
@@ -51,6 +52,17 @@ function parseAddress(s) {
 function textAddress(s) {
     return ('$' === s[0] || '.' === s[0]) ? s : '.' + s;
 }
+// The templates of the links met at one position, each once.
+function joinFlows(a, b) {
+    if (undefined === b || a === b) {
+        return a;
+    }
+    if (undefined === a) {
+        return b;
+    }
+    const more = b.filter((f) => !a.includes(f));
+    return 0 === more.length ? a : a.concat(more);
+}
 function prefixMeet(a, b) {
     const pa = parseAddress(a);
     const pb = parseAddress(b);
@@ -79,9 +91,14 @@ class PathVal extends ScalarVal_1.ScalarVal {
                 return (0, err_1.makeNilErr)(ctx, 'scalar_value', this, peer);
             }
             // Of one address met twice, the side a link made keeps the edge.
-            const out = merged !== this.peg || (merged === p.peg
+            let out = merged !== this.peg || (merged === p.peg
                 && undefined === this.link && undefined !== p.link) ? p : this;
             const other = out === this ? p : this;
+            const flows = joinFlows(out.flows, other.flows);
+            if (flows !== out.flows) {
+                out = out.clone(ctx);
+                out.flows = flows;
+            }
             (0, utility_1.propagateMarks)(other, out);
             return out;
         }

@@ -76,6 +76,21 @@ export function textAddress(s: string): string {
 }
 
 
+// The templates of the links met at one position, each once.
+export function joinFlows(
+  a: [string, Val][] | undefined, b: [string, Val][] | undefined
+): [string, Val][] | undefined {
+  if (undefined === b || a === b) {
+    return a
+  }
+  if (undefined === a) {
+    return b
+  }
+  const more = b.filter((f) => !a.includes(f))
+  return 0 === more.length ? a : a.concat(more)
+}
+
+
 export function prefixMeet(a: string, b: string): string | undefined {
   const pa = parseAddress(a) as Address
   const pb = parseAddress(b) as Address
@@ -111,9 +126,14 @@ class PathVal extends ScalarVal {
         return makeNilErr(ctx, 'scalar_value', this, peer)
       }
       // Of one address met twice, the side a link made keeps the edge.
-      const out = merged !== this.peg || (merged === p.peg
+      let out = merged !== this.peg || (merged === p.peg
         && undefined === this.link && undefined !== p.link) ? p : this
       const other = out === this ? p : this
+      const flows = joinFlows(out.flows, other.flows)
+      if (flows !== out.flows) {
+        out = out.clone(ctx)
+        out.flows = flows
+      }
       propagateMarks(other, out)
       return out
     }

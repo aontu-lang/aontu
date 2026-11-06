@@ -11,6 +11,10 @@ import { makeNilErr } from './err'
 import { findAt } from './val/ReferFuncVal'
 
 import { NilVal } from './val/NilVal'
+import { ConjunctVal } from './val/ConjunctVal'
+import { ListVal } from './val/ListVal'
+import { MapVal } from './val/MapVal'
+import { keyTable } from './val/BagVal'
 import { waitsOnHole } from './val/PlaceVal'
 import { expandAliases } from './alias'
 import { riderText, rides, unionRecords, unionVia } from './rider'
@@ -118,6 +122,7 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
             && (a as any).emptyOk === (b as any).emptyOk
             && (a as any).needsNonEmpty === (b as any).needsNonEmpty
             && (a as any).link === (b as any).link
+            && (a as any).flows === (b as any).flows
             && !a.isNil && !b.isNil
             && !a.isMap && !a.isList
             && !a.isConjunct && !a.isDisjunct
@@ -217,6 +222,7 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
         && (a as any).emptyOk === (b as any).emptyOk
         && (a as any).needsNonEmpty === (b as any).needsNonEmpty
         && (a as any).link === (b as any).link
+        && (a as any).flows === (b as any).flows
         && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
         out = update(a, b)
         why = 'up'
@@ -318,32 +324,140 @@ function residuePaths(v: Val, max: number): string[] {
 }
 
 
-function recordFlow(ctx: AontuContext, key: string, flow: Val): void {
-  const flows: Map<string, Val> = (ctx as any).referflows ?? new Map<string, Val>()
-  const prev = flows.get(key)
-  flows.set(key, null == prev ? flow : unite(ctx, prev, flow, 'refer-flow-record'))
+// A link the output takes, where it stands, and how to put a value in
+// its place.
+type LinkSite = { link: any, at: string[], put: (v: Val) => void }
+
+
+// The links a result holds where the output reads them: through maps,
+// lists, marks and meets, the value a preference stands as, and the arms
+// of a disjunction the rank rule picks, those of the lowest rank where
+// any has one and every arm where none has. A spread's template holds
+// no position, so its links are its members'.
+function linksOf(root: Val): LinkSite[] {
+  const out: LinkSite[] = []
+  const visit = (node: any, put: (v: Val) => void, at: string[]): void => {
+    if (true === node.isPath) {
+      if (undefined !== node.linkto) {
+        out.push({ link: node, at, put })
+      }
+    }
+    else if (true === node.isMap || true === node.isList) {
+      const peg = node.peg
+      for (const k of Object.keys(peg)) {
+        visit(peg[k], (v: Val) => { peg[k] = v }, [...at, k])
+      }
+    }
+    else if (true === node.isDisjunct || true === node.isConjunct) {
+      const arms: any[] = node.peg
+      const ranks: number[] = true === node.isDisjunct
+        ? arms.filter((a: any) => true === a.isPref).map((a: any) => a.rank) : []
+      const rank = 0 === ranks.length ? undefined : Math.min(...ranks)
+      arms.forEach((a: any, i: number) => {
+        if (undefined === rank || (true === a.isPref && rank === a.rank)) {
+          visit(a, (v: Val) => { arms[i] = v }, at)
+        }
+      })
+    }
+    else if (true === node.isPref) {
+      visit(node.peg, (v: Val) => { node.peg = v }, at)
+    }
+    else if (true === node.isGraphAtom && undefined !== node.held) {
+      visit(node.held, (v: Val) => { node.held = v }, at)
+    }
+  }
+  visit(root, () => undefined, [])
+  return out
 }
 
 
-function applyFlows(ctx: AontuContext, root: Val): Val {
-  const flows: Map<string, Val> | undefined = (ctx as any).referflows
-  // NOTHING TO APPLY is the common case -- a document with no links
-  // pays one property load per pass, and the walk never runs.
-  if (null == flows || 0 === flows.size) {
-    return root
-  }
-  for (const key of [...flows.keys()].sort()) {
-    const path = key.split('\x00')
-    const found = findAt(root, path)
-    if (undefined === found) {
-      continue
+type Flow = { to: string[], t: Val, id: string }
+
+
+// The templates of the links the output takes whose targets the result
+// holds, each once, in a fixed order.
+function flowsOf(root: Val, links: LinkSite[]): Flow[] {
+  const seen = new Map<string, Flow>()
+  for (const { link } of links) {
+    for (const [key, t] of link.flows ?? []) {
+      const id = flowId(key, t, new Set())
+      const to = key.split('\x00')
+      if (!seen.has(id) && undefined !== findAt(root, to)) {
+        seen.set(id, { to, t, id })
+      }
     }
-    const { parent, key: pkey, val: node } = found
-    const merged = unite(ctx.descend(pkey as string), node,
-      flows.get(key) as Val, 'refer-flow')
-    parent.peg[pkey as string] = merged
   }
-  return root
+  return [...seen.keys()].sort().map((id) => seen.get(id) as Flow)
+}
+
+
+// A template is the same as another only with the same templates in the
+// links it holds, which its canon leaves out.
+function flowId(key: string, t: Val, open: Set<Val>): string {
+  // No document builds a template that holds its own link.
+  /* node:coverage ignore next 3 */
+  if (open.has(t)) {
+    return key
+  }
+  open.add(t)
+  const inner = linksOf(t).flatMap(({ link }) => (link.flows ?? [])
+    .map(([k, n]: [string, Val]) => flowId(k, n, open))).sort()
+  open.delete(t)
+  return key + '\x01' + t.canon + (0 === inner.length ? '' : '\x02' + inner.join('\x03'))
+}
+
+
+// What meets each template at its target and asks nothing else: an open
+// map holding the step's key as optional, or a list holding `any` before
+// the step's position, as the result holds the container, down to the
+// template.
+function flowDoc(ctx: AontuContext, root: any, flows: Flow[], depth: number): Val {
+  const here = flows.filter((f) => depth === f.to.length)
+    .map((f) => f.t.clone(ctx, { dup: true }))
+  const below = flows.filter((f) => depth < f.to.length)
+  if (0 < below.length) {
+    const steps = [...new Set(below.map((f) => f.to[depth]))]
+    const path = below[0].to.slice(0, depth)
+    const inner = (k: string) => flowDoc(ctx, root.peg[k],
+      below.filter((f) => k === f.to[depth]), depth + 1)
+    if (true === root.isList) {
+      const last = Math.max(...steps.map(Number))
+      const items: Val[] = []
+      for (let i = 0; i <= last; i++) {
+        items.push(steps.includes('' + i) ? inner('' + i) : top())
+      }
+      here.push(new ListVal({ peg: items, path } as any, ctx))
+    }
+    else {
+      const peg: Record<string, Val> = keyTable()
+      for (const k of steps) {
+        peg[k] = inner(k)
+      }
+      const m = new MapVal({ peg, path }, ctx)
+      m.optionalKeys = steps
+      here.push(m)
+    }
+  }
+  return 1 === here.length ? here[0] : new ConjunctVal({ peg: here }, ctx)
+}
+
+
+// Whether a tree holds a link anywhere, so that its evaluation has to
+// start again with templates met in.
+function holdsLink(v: any, seen: Set<any> = new Set()): boolean {
+  if (null == v || true !== v.isVal || seen.has(v)) {
+    return false
+  }
+  seen.add(v)
+  if (true === v.isReferFunc || true === v.isRelFunc || true === v.isRefer
+    || true === v.isRel || undefined !== v.linkto) {
+    return true
+  }
+  const peg = v.peg
+  return (null != peg && 'object' === typeof peg &&
+    (true === peg.isVal ? holdsLink(peg, seen)
+      : Object.values(peg).some((c: any) => holdsLink(c, seen))))
+    || holdsLink(v.spread?.cj, seen)
 }
 
 
@@ -397,58 +511,91 @@ class Unify {
       uctx.err = this.err
       uctx.explain = this.explain
 
-      // Ref-spread snapshot store (see snapshotRefSpread in MapVal):
-      // keyed by ref canon + source site, shared across all passes.
-      ; (uctx as any).snapmap = new Map()
-
-      ; (uctx as any).referflows = new Map()
-
-      // The re-entrancy guard for those flows: the set of target paths
-      // a flow is currently inside. Same placement, same reason.
-      ; (uctx as any)._referflow = new Set()
-
       const explain = null == ctx?.explain ? undefined : ctx?.explain
       const te = explain && explainOpen(uctx, explain, 'root', res)
 
-      // NOTE: if true === res.done already, then this loop never needs to run.
-      let maxcc = uctx.budget.passes
-      let prevCanon: string | undefined = undefined
-      let lastCanon: string | undefined = undefined
-      let settle = false
-      for (; this.cc < maxcc && DONE !== res.dc; this.cc++) {
-        uctx.cc = this.cc
-        uctx.seen = {}
+      // A document with links is evaluated in rounds: each round the
+      // document as written, with the templates of the links the last
+      // round's output takes met at their targets, until no template is
+      // new. A copy of the first tree is kept for the rounds after it.
+      const errBase = this.err.length
+      const pristine = holdsLink(res) ? res.clone(uctx, { dup: true }) : undefined
+      let applied = ''
+      let links: LinkSite[] = []
+      for (let round = 0; ; round++) {
+        // Ref-spread snapshot store (see snapshotRefSpread in MapVal):
+        // keyed by ref canon + source site, shared across a round's passes.
+        ; (uctx as any).snapmap = new Map()
 
-        uctx.settle = settle
+        // NOTE: if true === res.done already, then this loop never needs to run.
+        const maxcc = uctx.budget.passes
+        let prevCanon: string | undefined = undefined
+        let lastCanon: string | undefined = undefined
+        let settle = false
+        for (this.cc = 0; this.cc < maxcc && DONE !== res.dc; this.cc++) {
+          uctx.cc = this.cc
+          uctx.seen = {}
 
-        if (this.cc === maxcc - 1) {
-          prevCanon = lastCanon ?? res.canon
+          uctx.settle = settle
+
+          if (this.cc === maxcc - 1) {
+            prevCanon = lastCanon ?? res.canon
+          }
+
+          res = unite(te ? uctx.clone({ explain: ec(te, 'run') }) : uctx, res, top(), 'unify')
+
+          if (DONE !== res.dc) {
+            const nowCanon = res.canon
+            settle = undefined !== lastCanon && lastCanon === nowCanon
+            lastCanon = nowCanon
+          }
+
+          uctx = uctx.clone({ root: res })
         }
 
-        res = unite(te ? uctx.clone({ explain: ec(te, 'run') }) : uctx, res, top(), 'unify')
-
-
-        // The recorded type flows, re-applied to the tree THIS pass
-        // built: a pass rebuilds subtrees, and a flow written into the
-        // previous pass's tree does not survive that.
-        res = applyFlows(uctx, res)
-
-        if (DONE !== res.dc) {
-          const nowCanon = res.canon
-          settle = undefined !== lastCanon && lastCanon === nowCanon
-          lastCanon = nowCanon
+        if (maxcc <= this.cc && DONE !== res.dc && 0 === uctx.err.length
+          && undefined !== prevCanon && prevCanon !== res.canon) {
+          makeNilErr(uctx, 'budget_passes', undefined, undefined, 'resolve', {
+            budget: 'passes',
+            limit: maxcc,
+            paths: residuePaths(res, 4).join(' ') || '$',
+          })
         }
 
+        links = linksOf(res)
+        const flows = undefined === pristine ? [] : flowsOf(res, links)
+        const ids = flows.map((f) => f.id).join('\n')
+        if (ids === applied) {
+          break
+        }
+        if (uctx.budget.passes <= round) {
+          if (0 === uctx.err.length) {
+            const sent = applied.split('\n')
+            makeNilErr(uctx, 'budget_passes', undefined, undefined, 'resolve', {
+              budget: 'passes',
+              limit: uctx.budget.passes,
+              paths: [...new Set(flows.filter((f) => !sent.includes(f.id))
+                .map((f) => '$.' + f.to.join('.')))].join(' '),
+            })
+          }
+          break
+        }
+        applied = ids
+        this.err.length = errBase
+        res = new ConjunctVal({
+          peg: [(pristine as Val).clone(uctx, { dup: true }), flowDoc(uctx, res, flows, 0)],
+        }, uctx)
         uctx = uctx.clone({ root: res })
       }
 
-      if (maxcc <= this.cc && DONE !== res.dc && 0 === uctx.err.length
-        && undefined !== prevCanon && prevCanon !== res.canon) {
-        makeNilErr(uctx, 'budget_passes', undefined, undefined, 'resolve', {
-          budget: 'passes',
-          limit: maxcc,
-          paths: residuePaths(res, 4).join(' ') || '$',
-        })
+      // A link the output takes names something the document holds.
+      for (const { link, at, put } of links) {
+        if (undefined === findAt(res, link.linkto)) {
+          const nil = makeNilErr(uctx, link.linkcode ?? 'refer_unresolved', link, undefined,
+            'refer', { addr: link.peg })
+          nil.path = at
+          put(nil)
+        }
       }
 
       // The settled tree's alias references canon as the values they
@@ -471,11 +618,11 @@ const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string)
 
 export {
   Unify,
+  holdsLink,
+  linksOf,
   unite,
   meetTemplate,
   withDepth,
-  recordFlow,
-  applyFlows,
   ride,
   rideOn,
 }

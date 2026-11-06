@@ -3965,12 +3965,18 @@ refused outright: no later pass can grow a tree upwards.
 
 ### Existence is decided, not deferred
 
-A `refer` **residuates**: a target may be introduced by a later
-conjunct, include or spread, so the constraint retries each pass
-exactly as a forward reference does. But within one evaluation the
+A later conjunct, include or spread, or another link's template, may
+bring a target, so the engine checks an address once it has evaluated
+the document, with every template in place. Within one evaluation the
 document-set is fixed, so existence *is* decidable: an address that
-still names nothing at the last pass is a located error
+names nothing in the evaluated document is a located error
 (`refer_unresolved`), not something to check later.
+
+The links checked are the ones the output takes, so a link to nothing
+in an arm the output takes is an error, not a refusal of the arm.
+`x: (refer() & path($.gone)) | 1` is an `error`, since neither arm
+outranks the other and the output takes both, and
+`x: (refer() & path($.gone)) | *1` is `{"x": 1}`.
 
 ### Constraints flow through links
 
@@ -3987,10 +3993,23 @@ b: refer({ r:3 }) & path($.a)
 ```
 
 Referring to something as a `Service` makes it one, and if it cannot
-be, the conflict is an ordinary located error. Check-only semantics
-would be non-monotone (true, then false as the target grows), and the
-lattice guarantee is that more information never falsifies what has
-already been observed.
+be, the conflict is an ordinary error, located at the target. Check-only
+semantics would be non-monotone (true, then false as the target grows),
+and the lattice guarantee is that more information never falsifies what
+has already been observed.
+
+The template is part of the document, so a reference reads the target
+with it, whichever the document writes first:
+
+```aontu
+c: $.a
+a: {}
+b: refer({ k:1 }) & path($.a)
+```
+
+```json
+{"a": {"k": 1}, "b": "$.a", "c": {"k": 1}}
+```
 
 Constraints written *alongside* a refer constrain the **link**, not the
 target: `refer() & string & re("auth$") & path($.services.auth)` checks the
@@ -4028,12 +4047,8 @@ stands in an arm exactly where that value does, and the definition
 reads a document's links from its normal form, within the arms the rank
 rule picks (`Val.links` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)),
 each link reading its address in its own arm. Rows from rf120 on hold
-both engines to it. Both engines still send from a kept arm the rank
-rule passes over
-([#648](https://github.com/aontu-lang/aontu/issues/648)), and `eval` in
-both engines sends from an arm a later meet refuses
-([#647](https://github.com/aontu-lang/aontu/issues/647)). With data, both engines also read a body's relative link from
-each place that uses the body, which
+both engines to it. With data, both engines also read a body's relative
+link from each place that uses the body, which
 [#488](https://github.com/aontu-lang/aontu/issues/488) tracks.
 
 ### The argument is a template, not an address

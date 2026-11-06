@@ -27,8 +27,6 @@ type Ctx struct {
 	dropped bool
 	probe bool
 	snapmap map[string]Val
-	referflows map[string]Val
-	referflow map[string]bool
 	slot []string
 
 	toward *towardData

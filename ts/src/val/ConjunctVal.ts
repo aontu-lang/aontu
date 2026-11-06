@@ -42,6 +42,7 @@ class ConjunctVal extends JunctionVal {
   isConjunct = true
   isGenable = true
   cjo = 40000
+  waits = false
 
   constructor(
     spec: ValSpec,
@@ -134,6 +135,7 @@ class ConjunctVal extends JunctionVal {
 
     let outvals: Val[] = []
     let val: Val
+    let open = false
 
 
     let t0 = upeer[0]
@@ -174,6 +176,7 @@ class ConjunctVal extends JunctionVal {
         const moved = undefined !== sizingResidue(val) && !sameTerms(val, t0, t1)
         if (val.isConjunct && !moved &&
           (!(t0.isDisjunct || t1.isDisjunct) || sameTerms(val, t0, t1))) {
+          open = open || true === (val as any).waits
           outvals.push(t0)
           t0 = t1
         }
@@ -210,7 +213,8 @@ class ConjunctVal extends JunctionVal {
       out.site.src = this.site.src
     }
 
-    out.dc = outvals.every((v: Val) => DONE === v.dc) ? DONE : this.dc + 1
+    // A residual still waiting for its definition keeps the meet open.
+    out.dc = !open && outvals.every((v: Val) => DONE === v.dc) ? DONE : this.dc + 1
 
     // A meet flattened in leaves its riders on the whole (ADR-052).
     for (const c of carried) {

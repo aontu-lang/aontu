@@ -40,3 +40,13 @@ key-spread-through-ref-2	gens	a: b: e: $.a.b.f\na: b: f: &: {n: key()}\na: b: f:
 key-spread-through-ref-3	gens	a: b: c: e: $.a.b.f\na: b: f: &: {n: key()}\na: b: f: {x: {}}	{"a":{"b":{"c":{"e":{"x":{"n":"x"}}},"f":{"x":{"n":"x"}}}}}
 key-spread-through-ref-4	gens	a: b: c: d: e: $.a.b.f\na: b: f: &: {n: key()}\na: b: f: {x: {}}	{"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
 key-spread-through-ref-5	gens	a: b: c: d: g: e: $.a.b.f\na: b: f: &: {n: key()}\na: b: f: {x: {}}	{"a":{"b":{"c":{"d":{"g":{"e":{"x":{"n":"x"}}}}},"f":{"x":{"n":"x"}}}}}
+#
+# The same ladder written as one map, the spelling `aontu fmt` writes
+# for the three statements (BUGS.md §76). TypeScript answered "n" at
+# four levels and "e" at five until a bag's clone had a spread record
+# of its own: a map's clone wrote its copy of the template into the
+# record it shared with the original.
+key-spread-through-ref-merged-2	gens	a: b: { e:$.a.b.f f: { &: { n:key() } x: {} } }	{"a":{"b":{"e":{"x":{"n":"x"}},"f":{"x":{"n":"x"}}}}}
+key-spread-through-ref-merged-3	gens	a: b: { c:e:$.a.b.f f: { &: { n:key() } x: {} } }	{"a":{"b":{"c":{"e":{"x":{"n":"x"}}},"f":{"x":{"n":"x"}}}}}
+key-spread-through-ref-merged-4	gens	a: b: { c:d:e:$.a.b.f f: { &: { n:key() } x: {} } }	{"a":{"b":{"c":{"d":{"e":{"x":{"n":"x"}}}},"f":{"x":{"n":"x"}}}}}
+key-spread-through-ref-merged-5	gens	a: b: { c:d:g:e:$.a.b.f f: { &: { n:key() } x: {} } }	{"a":{"b":{"c":{"d":{"g":{"e":{"x":{"n":"x"}}}}},"f":{"x":{"n":"x"}}}}}

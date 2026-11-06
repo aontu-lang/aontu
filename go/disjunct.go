@@ -76,11 +76,6 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 	oval := make([]Val, len(d.peg))
-	if nil == ctx.referflows {
-		ctx.referflows = map[string]Val{}
-	}
-	savedFlows := ctx.referflows
-	staged := make([]map[string]Val, len(d.peg))
 	for i, m := range d.peg {
 		// Try the member against peer in isolation: a failed trial
 		// must not pollute the real error list, so swap in a throwaway
@@ -91,15 +86,10 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		ctx.err = trial
 		ctx.trial = true
 		ctx.slot = slot
-		if nil != savedFlows {
-			staged[i] = map[string]Val{}
-			ctx.referflows = staged[i]
-		}
 		r := unite(ctx, m, member)
 		failed := len(ctx.err) > 0 || r.Nil()
 		ctx.err = saved
 		ctx.trial = savedTrial
-		ctx.referflows = savedFlows
 		if failed {
 			oval[i] = nil
 		} else {
@@ -123,10 +113,7 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		// in generate.go).
 		inner := prefInnerPeg(d.peg[gI].(*PrefVal))
 		ctx.slot = slot
-		// The arm's own flows are staged above; this trial's are dropped.
-		ctx.referflows = map[string]Val{}
 		met := trialUnify(ctx, clonePath(inner, cp(d.path)), clonePath(peer, cp(d.path)))
-		ctx.referflows = savedFlows
 		if nil == met {
 			oval[gI] = nil
 		}
@@ -153,24 +140,6 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 			wrapped.site.src = pp.site.src
 			wrapped.path = cp(got.vpath())
 			oval[vI] = wrapped
-		}
-	}
-
-	// THE SURVIVORS' FLOWS, AND ONLY THEIRS. Members knocked out by the
-	// trial or by the admission gate above are nil here, so this runs
-	// after both and before they are dropped.
-	if nil != savedFlows {
-		for i, st := range staged {
-			if nil == st || nil == oval[i] {
-				continue
-			}
-			for k, fv := range st {
-				if prev, seen := savedFlows[k]; seen {
-					savedFlows[k] = unite(ctx, prev, fv)
-				} else {
-					savedFlows[k] = fv
-				}
-			}
 		}
 	}
 
@@ -377,7 +346,7 @@ func dedup(vals []Val) []Val {
 		for eI, e := range out {
 			if valSame(e, v) {
 				dup = true
-				out[eI] = keepRiders(e, v)
+				out[eI] = keepRiders(e, v, true)
 				break
 			}
 			ep, eok := e.(*PrefVal)
@@ -385,9 +354,9 @@ func dedup(vals []Val) []Val {
 			if eok && vok && valSame(prefInnerPeg(ep), prefInnerPeg(vp)) {
 				dup = true
 				if vp.rank < ep.rank {
-					out[eI] = keepRiders(v, e)
+					out[eI] = keepRiders(v, e, true)
 				} else {
-					out[eI] = keepRiders(e, v)
+					out[eI] = keepRiders(e, v, true)
 				}
 				break
 			}
@@ -400,36 +369,47 @@ func dedup(vals []Val) []Val {
 }
 
 // keepRiders gives a dedup's survivor the dropped member's riders, at
-// every depth, so the join is as order-free as the meet (ADR-052).
-func keepRiders(keep, drop Val) Val {
+// every depth, so the join is as order-free as the meet (ADR-052), and
+// its links' templates where the output takes both twins alike.
+func keepRiders(keep, drop Val, sends bool) Val {
 	if !ridden(drop) {
 		return keep
 	}
 	out := clonePath(keep, keep.vpath())
 	ride(out, keep, drop)
+	if kp, ok := keep.(*PrefVal); ok {
+		if dp, ok := drop.(*PrefVal); ok && kp.rank != dp.rank {
+			sends = false
+		}
+	}
+	if sends {
+		li := out.linkInfo()
+		li.flows = joinFlows(li.flows, drop.linkInfo().flows)
+		out.setLinkInfo(li)
+	}
 	if dp, ok := drop.(*PrefVal); ok {
 		if _, kp := out.(*PrefVal); !kp {
 			// A twin of a higher rank holds one more preference layer.
-			return keepRiders(out, dp.peg)
+			return keepRiders(out, dp.peg, sends)
 		}
 	}
 	switch o := out.(type) {
 	case *MapVal:
 		for _, k := range o.keys {
-			o.peg[k] = keepRiders(o.peg[k], drop.(*MapVal).peg[k])
+			o.peg[k] = keepRiders(o.peg[k], drop.(*MapVal).peg[k], sends)
 		}
 	case *ListVal:
 		for i := range o.peg {
-			o.peg[i] = keepRiders(o.peg[i], drop.(*ListVal).peg[i])
+			o.peg[i] = keepRiders(o.peg[i], drop.(*ListVal).peg[i], sends)
 		}
 	case *PrefVal:
-		o.peg = keepRiders(o.peg, drop.(*PrefVal).peg)
+		o.peg = keepRiders(o.peg, drop.(*PrefVal).peg, sends)
 	}
 	return out
 }
 
 func ridden(v Val) bool {
-	if nil != v.deprecRec() || nil != v.metaRec() {
+	if nil != v.deprecRec() || nil != v.metaRec() || 0 < len(v.linkInfo().flows) {
 		return true
 	}
 	switch n := v.(type) {

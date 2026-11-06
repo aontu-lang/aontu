@@ -5,7 +5,10 @@
 is decision 34 of
 [DEFINITION.0.md §7](DEFINITION.0.md#7-decisions-ruled-and-open). 4.1
 is built in the definition (links carried in the normal form, the walk
-removed, every row as before); its engine half and `move` wait. The study asks whether the definition's special
+removed, every row as before) and in both engines (the template in the
+path value, links collected from the result, rounds from a copy of the
+document, the recording, live write and staging removed); `move`
+waits. The study asks whether the definition's special
 cases can be cut by restating a few features as a small core plus
 translations into it. Rulings stay in §7.
 
