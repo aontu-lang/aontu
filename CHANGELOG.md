@@ -43,10 +43,17 @@ Both implementations, and shared rows.
 - A relation's error names the edge's own place, as both engines did
   before the change, for a link a model's spread copies.
 - A map or list's clone has a spread of its own in TypeScript, where it
-  shared the original's.
+  shared the original's. A map's clone wrote its copy of the template
+  into the shared record, so `a: b: { c:d:e:$.a.b.f f: { &: { n:key() }
+  x: {} } }` gave `f.x.n` the value `"n"`, where Go gives `"x"`
+  (use-cases/BUGS.md §76). `aontu fmt` now writes that document's
+  merged spelling in both ports.
+- Links nested in each other's templates take a round each, and the
+  rounds have the pass budget: nine fit, and ten answer `budget_passes`,
+  where the engines sent each template at any depth.
 - 36 `verdict` rows from the definition, rf171 to rf200 and rl156 to
-  rl161 in `test/spec/def-path.tsv`, and 14 rows in `refer.tsv` and
-  `rel.tsv` that both engines agree on.
+  rl161 in `test/spec/def-path.tsv`, and 29 rows in `refer.tsv`,
+  `rel.tsv`, `gen-key.tsv` and `budget.tsv` that both engines agree on.
 
 ### The definition carries a link's template in the normal form
 

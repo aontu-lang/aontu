@@ -11,6 +11,8 @@ import (
 type ConjunctVal struct {
 	base
 	peg []Val
+	// waits: a residual's meet before its definition has assembled.
+	waits bool
 }
 
 func newConjunct(terms []Val) *ConjunctVal {
@@ -141,6 +143,7 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 
 	// Fold the terms together left to right.
 	var outvals []Val
+	open := false
 	if len(upeer) == 0 {
 		return top()
 	}
@@ -165,6 +168,7 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 			// A conjunct answer is no progress, unless it is a sizing
 			// residue of other terms: a decided disjunction or one level
 			// of an expanded recursion is the meet so far.
+			open = open || cj.waits
 			outvals = append(outvals, t0)
 			t0 = t1
 		} else if val.Nil() {
@@ -190,8 +194,9 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 		nc.site.sp, nc.site.spu, nc.site.url = c.site.sp, c.site.spu, c.site.url
 		out = nc
 	}
-	// Only the terms left after the fold decide.
-	done := true
+	// Only the terms left after the fold decide, and a residual still
+	// waiting for its definition keeps the meet open.
+	done := !open
 	for _, v := range outvals {
 		done = done && v.Dc() == DONE
 	}

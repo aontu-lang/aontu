@@ -14,6 +14,7 @@ import { NilVal } from './val/NilVal'
 import { ConjunctVal } from './val/ConjunctVal'
 import { ListVal } from './val/ListVal'
 import { MapVal } from './val/MapVal'
+import { keyTable } from './val/BagVal'
 import { waitsOnHole } from './val/PlaceVal'
 import { expandAliases } from './alias'
 import { riderText, rides, unionRecords, unionVia } from './rider'
@@ -379,7 +380,7 @@ function flowsOf(root: Val, links: LinkSite[]): Flow[] {
   const seen = new Map<string, Flow>()
   for (const { link } of links) {
     for (const [key, t] of link.flows ?? []) {
-      const id = key + '\x01' + t.canon
+      const id = flowId(key, t, new Set())
       const to = key.split('\x00')
       if (!seen.has(id) && undefined !== findAt(root, to)) {
         seen.set(id, { to, t, id })
@@ -387,6 +388,22 @@ function flowsOf(root: Val, links: LinkSite[]): Flow[] {
     }
   }
   return [...seen.keys()].sort().map((id) => seen.get(id) as Flow)
+}
+
+
+// A template is the same as another only with the same templates in the
+// links it holds, which its canon leaves out.
+function flowId(key: string, t: Val, open: Set<Val>): string {
+  // No document builds a template that holds its own link.
+  /* node:coverage ignore next 3 */
+  if (open.has(t)) {
+    return key
+  }
+  open.add(t)
+  const inner = linksOf(t).flatMap(({ link }) => (link.flows ?? [])
+    .map(([k, n]: [string, Val]) => flowId(k, n, open))).sort()
+  open.delete(t)
+  return key + '\x01' + t.canon + (0 === inner.length ? '' : '\x02' + inner.join('\x03'))
 }
 
 
@@ -412,7 +429,7 @@ function flowDoc(ctx: AontuContext, root: any, flows: Flow[], depth: number): Va
       here.push(new ListVal({ peg: items, path } as any, ctx))
     }
     else {
-      const peg: Record<string, Val> = {}
+      const peg: Record<string, Val> = keyTable()
       for (const k of steps) {
         peg[k] = inner(k)
       }
@@ -548,7 +565,19 @@ class Unify {
         links = linksOf(res)
         const flows = undefined === pristine ? [] : flowsOf(res, links)
         const ids = flows.map((f) => f.id).join('\n')
-        if (ids === applied || uctx.budget.passes <= round) {
+        if (ids === applied) {
+          break
+        }
+        if (uctx.budget.passes <= round) {
+          if (0 === uctx.err.length) {
+            const sent = applied.split('\n')
+            makeNilErr(uctx, 'budget_passes', undefined, undefined, 'resolve', {
+              budget: 'passes',
+              limit: uctx.budget.passes,
+              paths: [...new Set(flows.filter((f) => !sent.includes(f.id))
+                .map((f) => '$.' + f.to.join('.')))].join(' '),
+            })
+          }
           break
         }
         applied = ids

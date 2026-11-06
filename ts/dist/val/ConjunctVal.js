@@ -19,6 +19,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         this.isConjunct = true;
         this.isGenable = true;
         this.cjo = 40000;
+        this.waits = false;
         this.mark.type = !!spec.mark?.type;
         this.mark.hide = !!spec.mark?.hide;
         this.peg = (Array.isArray(this.peg) ? this.peg : [])
@@ -85,6 +86,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         // Unify terms against each other
         let outvals = [];
         let val;
+        let open = false;
         let t0 = upeer[0];
         // next_term:
         for (let pI = 0; pI < upeer.length; pI++) {
@@ -115,6 +117,7 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
                 const moved = undefined !== (0, BagVal_1.sizingResidue)(val) && !sameTerms(val, t0, t1);
                 if (val.isConjunct && !moved &&
                     (!(t0.isDisjunct || t1.isDisjunct) || sameTerms(val, t0, t1))) {
+                    open = open || true === val.waits;
                     outvals.push(t0);
                     t0 = t1;
                 }
@@ -145,7 +148,8 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
             out.site.len = this.site.len;
             out.site.src = this.site.src;
         }
-        out.dc = outvals.every((v) => type_1.DONE === v.dc) ? type_1.DONE : this.dc + 1;
+        // A residual still waiting for its definition keeps the meet open.
+        out.dc = !open && outvals.every((v) => type_1.DONE === v.dc) ? type_1.DONE : this.dc + 1;
         // A meet flattened in leaves its riders on the whole (ADR-052).
         for (const c of carried) {
             out = (0, unify_1.rideOn)(ctx, out, c, undefined);

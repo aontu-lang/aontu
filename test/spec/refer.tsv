@@ -289,3 +289,15 @@ twin-defaults-send-the-lower-rank	gens	x: **{d: refer({z: 2}) & path($.y)} | *{d
 # A held reference that resolves to the address later makes the link then, beside
 # a template too.
 refer-over-a-late-reference	gens	s: refer({k:1}) & $.later\nlater: path($.a)\na: {}	{"a":{"k":1},"later":"$.a","s":"$.a"}
+# A template is the same as another only with the same templates in the links
+# it holds, so two alike but for those both send.
+nested-templates-differ-only-in-their-links	errc	a: {}\ny: {}\nx: refer({d: refer({z:1}) & path($.y)}) & path($.a)\nw: refer({d: refer({z:2}) & path($.y)}) & path($.a)	scalar_value
+nested-templates-differ-only-in-their-links-msg	err	a: {}\ny: {}\nx: refer({d: refer({z:1}) & path($.y)}) & path($.a)\nw: refer({d: refer({z:2}) & path($.y)}) & path($.a)	at path $.y.z
+nested-templates-alike-send-once	gens	a: {}\ny: {}\nx: refer({d: refer({z:1}) & path($.y)}) & path($.a)\nw: refer({d: refer({z:1}) & path($.y)}) & path($.a)	{"a":{"d":"$.y"},"w":"$.a","x":"$.a","y":{"z":1}}
+# A target named __proto__ is a key like any other.
+link-to-a-proto-key	errc	"__proto__": {k:2}\nx: refer({k:1}) & path($.__proto__)	scalar_value
+link-to-a-proto-key-msg	err	"__proto__": {k:2}\nx: refer({k:1}) & path($.__proto__)	at path $.__proto__.k
+link-into-a-proto-key	gens	"__proto__": {}\nx: refer({k:1}) & path($.__proto__)	{"__proto__":{"k":1},"x":"$.__proto__"}
+# A copy's link can send a template that reads the copy as recursion: the
+# residual meets the other link's template once the definition has assembled.
+copy-of-a-link-whose-template-reads-the-copy	gens	w: {a: refer({x: $.v}) & path($.b)}\nv: $.w\nb: {}	{"b":{"x":{"a":"$.b"}},"v":{"a":"$.b"},"w":{"a":"$.b"}}

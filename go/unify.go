@@ -196,6 +196,28 @@ func linksOf(root Val) []linkSite {
 	return out
 }
 
+// flowID: a template is the same as another only with the same
+// templates in the links it holds, which its canon leaves out.
+func flowID(key string, t Val, open map[Val]bool) string {
+	if open[t] { //coverage:ignore a template is made before the link that carries it
+		return key
+	}
+	open[t] = true
+	var inner []string
+	for _, l := range linksOf(t) {
+		for _, f := range l.link.lk.flows {
+			inner = append(inner, flowID(f.key, f.t, open))
+		}
+	}
+	delete(open, t)
+	sort.Strings(inner)
+	id := key + "\x01" + t.Canon()
+	if 0 < len(inner) {
+		id += "\x02" + strings.Join(inner, "\x03")
+	}
+	return id
+}
+
 type flowAt struct {
 	to []string
 	t  Val
@@ -208,7 +230,7 @@ func flowsOf(root Val, links []linkSite) []flowAt {
 	seen := map[string]flowAt{}
 	for _, l := range links {
 		for _, f := range l.link.lk.flows {
-			id := f.key + "\x01" + f.t.Canon()
+			id := flowID(f.key, f.t, map[Val]bool{})
 			to := strings.Split(f.key, "\x00")
 			if _, dup := seen[id]; !dup {
 				if _, ok := findAt(root, to); ok {
@@ -417,10 +439,26 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 		for _, f := range flows {
 			ids = append(ids, f.id)
 		}
-		if strings.Join(ids, "\n") == applied || maxcc <= round {
+		now := strings.Join(ids, "\n")
+		if now == applied {
 			break
 		}
-		applied = strings.Join(ids, "\n")
+		if maxcc <= round {
+			if 0 == len(ctx.err) {
+				sent := strings.Split(applied, "\n")
+				var paths []string
+				for _, f := range flows {
+					p := "$." + strings.Join(f.to, ".")
+					if !slices.Contains(sent, f.id) && !slices.Contains(paths, p) {
+						paths = append(paths, p)
+					}
+				}
+				makeNilErrFull(ctx, "budget_passes", nil, nil, "resolve",
+					map[string]string{"limit": strconv.Itoa(maxcc), "paths": strings.Join(paths, " ")})
+			}
+			break
+		}
+		applied = now
 		ctx.err = ctx.err[:errBase]
 		ctx.snapmap = map[string]Val{}
 		res = newConjunct([]Val{instanceClone(pristine, pristine.vpath()), flowDoc(res, flows, 0)})

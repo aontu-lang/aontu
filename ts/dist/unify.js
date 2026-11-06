@@ -13,6 +13,7 @@ const ReferFuncVal_1 = require("./val/ReferFuncVal");
 const ConjunctVal_1 = require("./val/ConjunctVal");
 const ListVal_1 = require("./val/ListVal");
 const MapVal_1 = require("./val/MapVal");
+const BagVal_1 = require("./val/BagVal");
 const PlaceVal_1 = require("./val/PlaceVal");
 const alias_1 = require("./alias");
 const rider_1 = require("./rider");
@@ -326,7 +327,7 @@ function flowsOf(root, links) {
     const seen = new Map();
     for (const { link } of links) {
         for (const [key, t] of link.flows ?? []) {
-            const id = key + '\x01' + t.canon;
+            const id = flowId(key, t, new Set());
             const to = key.split('\x00');
             if (!seen.has(id) && undefined !== (0, ReferFuncVal_1.findAt)(root, to)) {
                 seen.set(id, { to, t, id });
@@ -334,6 +335,20 @@ function flowsOf(root, links) {
         }
     }
     return [...seen.keys()].sort().map((id) => seen.get(id));
+}
+// A template is the same as another only with the same templates in the
+// links it holds, which its canon leaves out.
+function flowId(key, t, open) {
+    // No document builds a template that holds its own link.
+    /* node:coverage ignore next 3 */
+    if (open.has(t)) {
+        return key;
+    }
+    open.add(t);
+    const inner = linksOf(t).flatMap(({ link }) => (link.flows ?? [])
+        .map(([k, n]) => flowId(k, n, open))).sort();
+    open.delete(t);
+    return key + '\x01' + t.canon + (0 === inner.length ? '' : '\x02' + inner.join('\x03'));
 }
 // What meets each template at its target and asks nothing else: an open
 // map holding the step's key as optional, or a list holding `any` before
@@ -356,7 +371,7 @@ function flowDoc(ctx, root, flows, depth) {
             here.push(new ListVal_1.ListVal({ peg: items, path }, ctx));
         }
         else {
-            const peg = {};
+            const peg = (0, BagVal_1.keyTable)();
             for (const k of steps) {
                 peg[k] = inner(k);
             }
@@ -466,7 +481,19 @@ class Unify {
                 links = linksOf(res);
                 const flows = undefined === pristine ? [] : flowsOf(res, links);
                 const ids = flows.map((f) => f.id).join('\n');
-                if (ids === applied || uctx.budget.passes <= round) {
+                if (ids === applied) {
+                    break;
+                }
+                if (uctx.budget.passes <= round) {
+                    if (0 === uctx.err.length) {
+                        const sent = applied.split('\n');
+                        (0, err_1.makeNilErr)(uctx, 'budget_passes', undefined, undefined, 'resolve', {
+                            budget: 'passes',
+                            limit: uctx.budget.passes,
+                            paths: [...new Set(flows.filter((f) => !sent.includes(f.id))
+                                    .map((f) => '$.' + f.to.join('.')))].join(' '),
+                        });
+                    }
                     break;
                 }
                 applied = ids;

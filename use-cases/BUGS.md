@@ -3510,7 +3510,7 @@ same kinds of failure, or the statement keeps its spelling before. The
 check is the engine's agreement, and where the two engines disagree
 the formatted text differs by port. One such disagreement so far.
 
-### 76. §50's document written as one map answers differently in TypeScript [major]
+### 76. §50's document written as one map answers differently in TypeScript [FIXED 2026-11-06]
 
 Found 2026-09-03 by the formatter's check over the repro of §50, which
 the check refused to merge in TypeScript and merged in Go.
@@ -3558,6 +3558,20 @@ entry when it is fixed.
 
 Repro:
 [`repros/key-func/spread-key-through-deep-ref-merged.aontu`](repros/key-func/spread-key-through-deep-ref-merged.aontu).
+
+Status: FIXED 2026-11-06 in TypeScript, and Go was right. A bag's
+clone shared the original's spread record (`BagVal.clone`), and a
+map's clone then wrote its own copy of the template into that record
+(`MapVal.clone`), so the reference's copy of `f` replaced the template
+of `f` itself. A bag's clone now has a spread record of its own. On the build before the fix, that one line
+alone turns `"n"` into `"x"`. It was found while making `rel()`'s
+rewrite of a clone's spread stop changing the original's, the same
+sharing (aontu#657).
+
+Pins: `test/spec/gen-key.tsv`, `key-spread-through-ref-merged-2` to
+`-5`, where TypeScript answered `"n"` at four levels and `"e"` at
+five. The formatter's tests named above now expect the merged
+spelling in both ports.
 
 ### 77. A key written in a second statement is an expectation, so its residue names a spread that exists nowhere [major]
 

@@ -5,6 +5,7 @@ declare class ConjunctVal extends JunctionVal {
     isConjunct: boolean;
     isGenable: boolean;
     cjo: number;
+    waits: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
     append(peer: Val): ConjunctVal;
     unify(peer: Val, ctx: AontuContext): Val;
