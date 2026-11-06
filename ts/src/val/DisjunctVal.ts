@@ -185,15 +185,12 @@ class DisjunctVal extends JunctionVal {
       }
     }
 
-    // Only the arms the rank rule picks send their links, and an arm the
-    // dedup below drops sends its own all the same.
+    // An arm the dedup below drops as equal to another sends its own
+    // links all the same, as Go's merge does.
     if (undefined !== savedFlows) {
-      const ranks = oval.map((v: any) => true === v.isNil ? undefined : armRank(v))
-      const low = ranks.reduce((m: number | undefined, r) =>
-        undefined === r || (undefined !== m && m <= r) ? m : r, undefined)
       for (let vI = 0; vI < staged.length; vI++) {
         const st = staged[vI]
-        if (undefined === st || true === oval[vI].isNil || (undefined !== low && low !== ranks[vI])) {
+        if (undefined === st || true === oval[vI].isNil) {
           continue
         }
         for (const [k, fv] of st) {
@@ -422,20 +419,6 @@ function keepRiders(ctx: AontuContext, keep: Val, drop: any): Val {
     out.peg = keepRiders(ctx, out.peg, drop.peg)
   }
   return out
-}
-
-
-// The rank the rule picks an arm by: a preference's own, and a nested
-// disjunction's lowest among its preferences.
-function armRank(v: any): number | undefined {
-  if (true === v.isPref) {
-    return v.rank
-  }
-  if (true !== v.isDisjunct) {
-    return undefined
-  }
-  const ranks = v.peg.map(armRank).filter((r: number | undefined) => undefined !== r)
-  return 0 === ranks.length ? undefined : Math.min(...ranks)
 }
 
 

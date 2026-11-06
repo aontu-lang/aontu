@@ -160,18 +160,8 @@ func (d *DisjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	// trial or by the admission gate above are nil here, so this runs
 	// after both and before they are dropped.
 	if nil != savedFlows {
-		// Only the arms the rank rule picks send their links.
-		low, ranked := 0, false
-		for _, v := range oval {
-			if r, ok := armRank(v); ok && (!ranked || r < low) {
-				low, ranked = r, true
-			}
-		}
 		for i, st := range staged {
 			if nil == st || nil == oval[i] {
-				continue
-			}
-			if r, ok := armRank(oval[i]); ranked && (!ok || r != low) {
 				continue
 			}
 			for k, fv := range st {
@@ -294,24 +284,6 @@ func (d *DisjunctVal) forGen(ctx *Ctx) (Val, bool) {
 		}
 	}
 	return best, false
-}
-
-// The rank the rule picks an arm by: a preference's own, and a nested
-// disjunction's lowest among its preferences.
-func armRank(v Val) (int, bool) {
-	switch a := v.(type) {
-	case *PrefVal:
-		return a.rank, true
-	case *DisjunctVal:
-		low, ranked := 0, false
-		for _, m := range a.peg {
-			if r, ok := armRank(m); ok && (!ranked || r < low) {
-				low, ranked = r, true
-			}
-		}
-		return low, ranked
-	}
-	return 0, false
 }
 
 func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
