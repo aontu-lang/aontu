@@ -851,7 +851,7 @@ spelling when you mean "a map whose `x` defaults to 1", and it is what
 `pref({x:1})` produces. Pinned by the `pref-struct-*` rows in
 [`test/spec/pref.tsv`](../test/spec/pref.tsv).
 
-In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, with no parent type: `*{b: 1}` alone admits `{b: 2}`, and `*{b: 1} | "z"` refuses it, since neither arm does. A link in the value `x` sends its template only where `x` stands, so in `*{k: 1, d?: refer({z: 1})} & {k: 2, d: path($.y)}` the preference stands as its parent type and `y` gains nothing. The rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
+In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, with no parent type: `*{b: 1}` alone admits `{b: 2}`, and `*{b: 1} | "z"` refuses it, since neither arm does. A link in the value `x` sends its template only where `x` stands, so in `*{k: 1, d?: refer({z: 1})} & {k: 2, d: path($.y)}` the preference stands as its parent type and `y` gains nothing, and with `k: 1` on both sides it stands as `x` and `y` gains `z: 1`. A link in an arm of a disjunction sends where the output takes the arm, which [Checked links](#checked-links-refert) describes. The rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
 
 `pref(v)` is `Val.prefer` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), read on the argument before its normal form, so a preference stays one. Each scalar literal becomes a preference of rank one, and each preference a rank weaker, so `pref(*1 | 2)` is `**1 | *2`, which generates `2`. A kind and a bound stay as written. Rows from pf0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. They answer `pref(1 | 2)` `invalid` where `*1 | *2` is an `error`, which [#482](https://github.com/aontu-lang/aontu/issues/482) tracks.
 
@@ -4014,7 +4014,25 @@ the schema's own tree, the document is an `error`. The definition reads a link i
 declaration's body at the body's own place, whether a reference reads
 the body or not. Rows from rf0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
-to it. With data, both engines also read a body's relative link from
+to it.
+
+A link written in an arm of a disjunction, or in a preference's value,
+sends its template only where the output takes that arm. Among the
+arms the meet keeps, the rank rule takes the default where there is
+one, and every kept arm where there isn't. So
+`x: *{d: refer({z: 1}) & path($.y)} | {e: 1}` gives `y` the member
+`z: 1`, and `x: ({d: refer({z: 1}) & path($.y), k: 1} | {k: 2}) & {k: 2}`
+gives it nothing, since `k: 2` refuses the arm. The definition's link
+walk reads the arms the rank rule picks (`linkStep`, `Decls.pickedAt` and
+`Val.positionsP` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)),
+each link reading its address in its own arm. Rows from rf120 on hold
+both engines to it. Both engines still send from a kept arm the rank
+rule passes over
+([#648](https://github.com/aontu-lang/aontu/issues/648)), TypeScript drops
+the links of an arm the meet makes equal to another
+([#649](https://github.com/aontu-lang/aontu/issues/649)), and `eval` in
+both engines sends from an arm a later meet refuses
+([#647](https://github.com/aontu-lang/aontu/issues/647)). With data, both engines also read a body's relative link from
 each place that uses the body, which
 [#488](https://github.com/aontu-lang/aontu/issues/488) tracks.
 

@@ -1697,6 +1697,19 @@ until the phase that encodes it lands.
    stands. The definition moves: its link walk enters `*` and `|`. Both
    ports move for a kept arm the rule passes over, and for #647.
 
+   **Built in the definition 2026-11-06.** Each item of a link's
+   landing carries the normal form it stands in (`LinkItem.nf`), and
+   reads on in each arm the rank rule picks where that normal form is a
+   disjunction. At a preference or a disjunction the schema writes, it
+   follows the written arms the rule picks against that normal form
+   (`Decls.pickedAt`), and the positions it reads go inside the picked
+   arms (`Val.positionsP`), so each link reads its address in its own
+   arm. Rows rf120 on, 8 cases in each mode, both ports answering every
+   row as the definition does; no other row moved. Two more cases wait
+   on the ports: a kept arm the rule passes over still sends in both
+   (#648), and TypeScript drops the links of an arm the meet makes
+   equal to another, where Go sends them (#649).
+
 ## 8. Risks
 
 | Risk | Mitigation |

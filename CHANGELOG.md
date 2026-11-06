@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a link in an arm where the output takes the arm
+
+The definition, and shared rows.
+
+- A `refer()` or `rel()` written in an arm of a disjunction, or in a
+  preference's value, now sends its template in the definition where
+  the rank rule that picks the output takes the arm: the default among
+  the arms the meet keeps, or every kept arm where none is ranked
+  (ruling 33). Its link walk entered neither `*` nor `|` before, so
+  `x: *{d: refer({z: 1}) & path($.y)}` beside `y: {z: integer}` read
+  `incomplete` there, where both engines give `y` the member `z: 1`.
+  Each link reads its address in the arm it stands in.
+- 24 `verdict` rows from the definition, rf120 on in
+  `test/spec/def-path.tsv`. Both engines answer every one as the
+  definition does. They still send from a kept arm the rank rule passes
+  over (#648), TypeScript drops the links of an arm the meet makes equal
+  to another (#649), and `eval` in both sends from an arm a later meet
+  refuses (#647).
+
 ### A reference inside a preference resolves when its map meets another map
 
 Both engines, and shared rows.

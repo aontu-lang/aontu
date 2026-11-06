@@ -1902,7 +1902,23 @@ def referCases : List (Decls × Val × Data) :=
       .map []),
     ([], m [("x", .meet (.or [(1, kd1 (m [("z", int 1)])), (0, kd2 (m [("w", int 2)])), (0, .lit (.str "s"))]) peer),
       ("y", m [("z", int 2)])], .map []),
-    ([], m [("x", .meet (.pref 1 (kd1 (m [("z", int 1)]))) peer), ("y", m [("z", int 2)])], .map [])]
+    ([], m [("x", .meet (.pref 1 (kd1 (m [("z", int 1)]))) peer), ("y", m [("z", int 2)])], .map []),
+    ([], m [("x", .meet (.pref 1 (kd1 (m [("z", int 1)]))) (m [("k", int 1), ("d", ad 0 ["y"])])),
+      ("y", m [("z", .integer)])], .map []),
+    ([], m [("x", .meet (.pref 1 (kd1 (m [("z", int 1)]))) (m [("k", int 1), ("d", ad 0 ["y"])])), ("y", m [])],
+      .map [("y", .map [("z", j 2)])]),
+    ([], m [("x", .pref 1 (m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))])), ("y", m [("z", .integer)])], .map []),
+    ([], m [("x", .or [(1, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]), (0, m [("e", int 1)])]),
+      ("y", m [("z", .integer)])], .map []),
+    ([], m [("x", .meet (.pref 1 (m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))])) (m [("d", ad 0 ["w"])])),
+      ("y", m [("z", .integer)]), ("w", m [])], .map []),
+    ([], m [("x", .meet (.or [(0, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"])), ("k", int 1)]), (0, m [("k", int 2)])])
+        (m [("k", int 2)])), ("y", m [("z", .integer)])], .map []),
+    ([], m [("x", .meet (.or [(0, m [("k", int 1)]), (0, m [("k", int 2)])])
+        (m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))])), ("y", m [("z", .integer)])],
+      .map [("x", .map [("k", j 1)])]),
+    ([], m [("w", .or [(1, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]), (0, m [("e", int 1)])]),
+      ("x", .path [.key "w"]), ("y", m [("z", .integer)])], .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -5937,7 +5953,7 @@ set_option maxRecDepth 16384 in
 theorem varPathCases_readable : ∀ t ∈ varPathCases,
     (varReading t).1.guardedB = true ∧ (varReading t).1.bodiesCheckableB = true ∧
     (normaliseD (varReading t).1 ((varReading t).1.readR (varReading t).2)).checkableAB = true := by
-  decide
+  decide +kernel
 
 /-- What each case generates is the definition's output with paths
 under the program's declarations, by `outputP_iff`. -/

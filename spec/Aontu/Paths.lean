@@ -928,10 +928,11 @@ def addrsFields : List (String × Bool × Val) → List Addr
   | (_, _, v) :: fs => v.addrs ++ addrsFields fs
 end
 
-/-- The addresses a link written in `src` holds at its position: a
-`refer`'s one, and one at each leaf of a relation's value. -/
-def linkAddrs (src : Val) (e : List Seg × Val × Bool) : List Addr :=
-  ((src.at e.1).map fun v => if e.2.2 then v.addrs else v.addrOf?.toList).getD []
+/-- The addresses a link holds at its position, in the normal form it
+stands in there: a `refer`'s one, and one at each leaf of a relation's
+value. -/
+def linkAddrs (e : List Seg × Val × Bool × Val) : List Addr :=
+  if e.2.2.1 then e.2.2.2.addrs else e.2.2.2.addrOf?.toList
 
 mutual
 /-- The positions a term holds, as `Val.at` reads them: the empty path,
@@ -950,6 +951,31 @@ def positionsFields : List (String × Bool × Val) → List (List Seg)
 def positionsItems : ℕ → List Val → List (List Seg)
   | _, [] => []
   | i, v :: vs => v.positions.map (.idx i :: ·) ++ positionsItems (i + 1) vs
+end
+
+mutual
+/-- The positions a term holds as a link reads them: as `Val.positions`
+reads them, and within each arm of a disjunction that the rank rule
+picks (`picked`), since a link in an arm sends where the output takes
+the arm (decision 33 of the design note's §7). -/
+def Val.positionsP : Val → List (List Seg)
+  | .map fs _ _ => [] :: positionsFieldsP fs
+  | .list items _ _ => [] :: positionsItemsP 0 items
+  | .ride _ v _ => v.positionsP
+  | .or arms => [] :: positionsArmsP arms arms
+  | _ => [[]]
+
+def positionsFieldsP : List (String × Bool × Val) → List (List Seg)
+  | [] => []
+  | (k, _, v) :: fs => v.positionsP.map (.key k :: ·) ++ positionsFieldsP fs
+
+def positionsItemsP : ℕ → List Val → List (List Seg)
+  | _, [] => []
+  | i, v :: vs => v.positionsP.map (.idx i :: ·) ++ positionsItemsP (i + 1) vs
+
+def positionsArmsP (all : List (ℕ × Val)) : List (ℕ × Val) → List (List Seg)
+  | [] => []
+  | (r, a) :: rest => (if picked all (r, a) then a.positionsP else []) ++ positionsArmsP all rest
 end
 
 /-- What a term leaves for the next step of a path, each with the path
@@ -1006,20 +1032,42 @@ def callLinks (pos : List Seg) : Val → List (List Seg × Val × Bool)
 
 /-- An item of a link's landing: a term, the path left below it, how
 many of that path's first steps a reference's own path takes, the
-member a generator's template is read for, and the place the term lands
-at, which the steps of a reference's own path leave as it was. -/
+member a generator's template is read for, the place the term lands
+at, which the steps of a reference's own path leave as it was, the
+normal form the term stands in, and, for each reference whose own path
+is still being read, the steps that will be left when it's read and the
+normal form the reference stands in, which the term stands in again
+then. -/
 structure LinkItem where
   term : Val
   left : List Seg
   skip : ℕ
   member : Option Val
   place : List Seg
+  nf : Val
+  back : List (ℕ × Val)
+
+/-- The normal form one step below the normal form `v`: the term
+`Val.at` reads at the step, the step read as its text (`Seg.stepIn`),
+and `nil` where it names nothing there. -/
+def Val.nfStep (v : Val) (s : Seg) : Val :=
+  match s.stepIn v with
+  | some t => (v.at [t]).getD .nil
+  | none => .nil
 
 /-- An item one step on, at the term `w` with the path `p` left, read
 for the member `b`: the step `t` further along the place it lands at,
-or at the same place where the step is a reference's own. -/
-def LinkItem.next (i : LinkItem) (w : Val) (p : List Seg) (b : Option Val) (t : Seg) : LinkItem :=
-  if i.skip = 0 then ⟨w, p, 0, b, i.place ++ [t]⟩ else ⟨w, p, i.skip - 1, b, i.place⟩
+or at the same place where the step is a reference's own, standing in
+the normal form the path's step `s` reaches, or in the reference's own
+once the step ends the reference's path. -/
+def LinkItem.next (i : LinkItem) (w : Val) (p : List Seg) (b : Option Val) (s t : Seg) : LinkItem :=
+  if i.skip = 0 then ⟨w, p, 0, b, i.place ++ [t], i.nf.nfStep s, i.back⟩
+  else
+    match i.back with
+    | (k, v) :: rest =>
+      if i.skip - 1 = k then ⟨w, p, k, b, i.place, v, rest⟩
+      else ⟨w, p, i.skip - 1, b, i.place, i.nf.nfStep s, i.back⟩
+    | [] => ⟨w, p, i.skip - 1, b, i.place, i.nf.nfStep s, []⟩
 
 /-- The instances a generator writing the template `t` over the data `d`
 makes at a step, each with the member it's read for and the step it
@@ -1067,15 +1115,15 @@ member. -/
 def linkItems (dp : Decls) (i : LinkItem) (s : Seg) (p : List Seg) : Val → List LinkItem
   | .map fs spread closed =>
     (match s.stepIn (.map fs spread closed) with
-      | some (.key k) => (fs.filter fun f => f.1 == k).map fun f => i.next f.2.2 p i.member (.key k)
+      | some (.key k) => (fs.filter fun f => f.1 == k).map fun f => i.next f.2.2 p i.member s (.key k)
       | _ => []) ++
-      spread.toList.map fun sp => i.next sp p none ((s.stepIn (.map fs spread closed)).getD s)
+      spread.toList.map fun sp => i.next sp p none s ((s.stepIn (.map fs spread closed)).getD s)
   | .list items spread closed =>
     (match s.stepIn (.list items spread closed) with
-      | some (.idx n) => (items.filter dp.holdsPlace)[n]?.toList.map fun w => i.next w p i.member (.idx n)
+      | some (.idx n) => (items.filter dp.holdsPlace)[n]?.toList.map fun w => i.next w p i.member s (.idx n)
       | _ => []) ++
-      spread.toList.map fun sp => i.next sp p none ((s.stepIn (.list items spread closed)).getD s)
-  | .call f [d, t] => (genSteps dp i.member i.place f d t s).map fun m => i.next t p (some m.1) m.2
+      spread.toList.map fun sp => i.next sp p none s ((s.stepIn (.list items spread closed)).getD s)
+  | .call f [d, t] => (genSteps dp i.member i.place f d t s).map fun m => i.next t p (some m.1) s m.2
   | _ => []
 
 /-- An item on a link's landing whose term no meet, rider or reference
@@ -1086,24 +1134,44 @@ def linkLeaf (dp : Decls) (i : LinkItem) : List LinkItem × List LinkItem :=
   | [] => ([i], [])
   | s :: p => ([], linkItems dp i s p i.term)
 
-/-- One step of a link's landing in the schema `S`, on an item: a
-meet's two sides and a rider's term on the same path, a path
-reference's target read from the top of `S` along the reference's own
-path, for no member, and any other term as `linkLeaf` reads it. -/
-def linkStep (dp : Decls) (S : Val) (i : LinkItem) : List LinkItem × List LinkItem :=
-  match i.term with
-  | .meet a b => ([], [{ i with term := a }, { i with term := b }])
-  | .ride _ v _ => ([], [{ i with term := v }])
-  | .path q => ([], [⟨S, q ++ i.left, q.length + i.skip, none, i.place⟩])
-  | _ => linkLeaf dp i
+/-- The arms of a disjunction as written that the rank rule picks where
+it stands in the normal form `v`: each arm met with `v` is live where
+that meet isn't dead, and of the live arms those of the lowest rank
+above `0`, or every one where none has such a rank (`picked`). -/
+def Decls.pickedAt (dp : Decls) (v : Val) (arms : List (ℕ × Val)) : List Val :=
+  let met := arms.map fun p => (p.1, normaliseD dp (dp.readU (Val.meet p.2 v).pathsToAliases))
+  (arms.zip met).filterMap fun q => if picked met q.2 then some q.1.2 else none
+
+/-- One step of a link's landing in the schema `S`, whose normal form is
+`R`, on an item: where the normal form the item stands in is a
+disjunction, one item standing in each arm the rank rule picks; and
+otherwise, a meet's two sides and a rider's term on the same path, a
+path reference's target read from the top of `S` along the reference's
+own path, for no member, standing in `R` until that path is read, a
+preference's value where it's live and the arms of a disjunction the
+rank rule picks (`Decls.pickedAt`), since a link in an arm sends only
+where the output takes the arm (decision 33 of the design note's §7),
+and any other term as `linkLeaf` reads it. -/
+def linkStep (dp : Decls) (S R : Val) (i : LinkItem) : List LinkItem × List LinkItem :=
+  match i.nf.unride with
+  | .or arms => ([], (arms.filter (picked arms)).map fun a => { i with nf := a.2 })
+  | _ =>
+    match i.term with
+    | .meet a b => ([], [{ i with term := a }, { i with term := b }])
+    | .ride _ v _ => ([], [{ i with term := v }])
+    | .path q => ([], [⟨S, q ++ i.left, q.length + i.skip, none, i.place,
+        if q.isEmpty then i.nf else R, if q.isEmpty then i.back else (i.skip, i.nf) :: i.back⟩])
+    | .pref r x => ([], (dp.pickedAt i.nf [(r, x)]).map fun a => { i with term := a })
+    | .or arms => ([], (dp.pickedAt i.nf arms).map fun a => { i with term := a })
+    | _ => linkLeaf dp i
 
 /-- The items a link's landing reaches with their paths spent, read
 from the items within `n` steps (`linkStep`), so that a cycle of
 references reads to the end of the budget and no further. -/
-def linkLanding (dp : Decls) (S : Val) : ℕ → List LinkItem → List LinkItem
+def linkLanding (dp : Decls) (S R : Val) : ℕ → List LinkItem → List LinkItem
   | 0, _ => []
   | _, [] => []
-  | n + 1, i :: rest => (linkStep dp S i).1 ++ linkLanding dp S n ((linkStep dp S i).2 ++ rest)
+  | n + 1, i :: rest => (linkStep dp S R i).1 ++ linkLanding dp S R n ((linkStep dp S R i).2 ++ rest)
 
 /-- The links that land at the position `pos` of the term `T`, written
 at `home` in the document whose schema is `S`: each `refer` and `rel`
@@ -1114,16 +1182,23 @@ at that position. Its template is read for the member it lands with,
 at the place it lands at, its names expanded first, so that a hole in a
 generator's template stands for the member, each `key(n)` reads the
 link's own place and a generator over a name reads the name's body, as
-both ports read a template where its link stands. -/
-def Decls.linksAt (ds dp : Decls) (S T : Val) (home pos : List Seg) : List (List Seg × Val × Bool) :=
-  (linkLanding dp S ((S.size + T.size + pos.length + 2) * (S.size + 2)) [⟨T, pos, 0, none, home⟩]).flatMap
+both ports read a template where its link stands. Each comes with the
+normal form it stands in, in the tree `root` or in the normal form `R`
+of `S` that a reference reads, within the arms the rank rule picks,
+which holds its address. -/
+def Decls.linksAt (ds dp : Decls) (S R T root : Val) (home pos : List Seg) :
+    List (List Seg × Val × Bool × Val) :=
+  (linkLanding dp S R ((S.size + T.size + pos.length + 2) * (S.size + 2))
+      [⟨T, pos, 0, none, home, root, []⟩]).flatMap
     fun i => (callLinks pos i.term).map fun e =>
-      (e.1, resolveD ds i.member (some (i.place.map .seg)) (ds.read e.2.1), e.2.2)
+      (e.1, resolveD ds i.member (some (i.place.map .seg)) (ds.read e.2.1), e.2.2, i.nf)
 
 /-- The links that land in the term `T` written at `home`, at each
-position its tree `root` holds. -/
-def Decls.landedLinks (ds dp : Decls) (S T root : Val) (home : List Seg) : List (List Seg × Val × Bool) :=
-  root.positions.flatMap (ds.linksAt dp S T home)
+position its tree `root` holds, within the arms the rank rule picks
+(`Val.positionsP`). -/
+def Decls.landedLinks (ds dp : Decls) (S R T root : Val) (home : List Seg) :
+    List (List Seg × Val × Bool × Val) :=
+  root.positionsP.flatMap (ds.linksAt dp S R T root home)
 
 /-- The tree a body's links land in: the body's normal form, read under
 `dp`, which declares the document's paths as names. -/
@@ -1172,16 +1247,16 @@ def referFlow (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : 
   | some u => .meet acc u
   | none => .meet acc miss
 
-/-- One link's part in the schema, the link written in `src` at `home`:
-for each address `src`'s normal form holds at the link's position
+/-- One link's part in the schema, the link written at `home`: for each
+address the normal form it stands in holds at its position
 (`linkAddrs`), the template with its marks cleared (`Val.unmark`), as a
 reference copies it, met at the address's target read from where the
 link stands, a relation's every leaf read from the relation's own
 position. A link whose position holds no address has no target yet,
 and meets nothing. -/
-def referStep (roots : List Val) (miss : Val) (home : List Seg) (src : Val) (acc : Val)
-    (e : List Seg × Val × Bool) : Val :=
-  (linkAddrs src e).foldl (referFlow roots miss (home ++ e.1) e.2.1.unmark) acc
+def referStep (roots : List Val) (miss : Val) (home : List Seg) (acc : Val)
+    (e : List Seg × Val × Bool × Val) : Val :=
+  (linkAddrs e).foldl (referFlow roots miss (home ++ e.1) e.2.1.unmark) acc
 
 /-- The schema with each link's template met into its target as `roots`
 hold it, and `miss` for each link whose target they don't hold: each
@@ -1193,20 +1268,20 @@ it's declared, used or not. -/
 def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val :=
   let own := ds.rootsS S
   let dp := (ds.withPathsFrom S own).1
-  ds.foldl (fun acc d => (ds.landedLinks dp S d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
-      (referStep roots miss [.key ("%" ++ d.1)] (dp.bodyRoot d)) acc)
-    ((ds.landedLinks dp S S (own.getLast?.getD .any) []).foldl
-      (referStep roots miss [] (own.getLast?.getD .any)) S)
+  let R := own.getLast?.getD .any
+  ds.foldl (fun acc d => (ds.landedLinks dp S R d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
+      (referStep roots miss [.key ("%" ++ d.1)]) acc)
+    ((ds.landedLinks dp S R S R []).foldl (referStep roots miss []) S)
 
 /-- The flows a document's links make, one for each address they hold:
 the schema's and its bodies', each read as `Decls.referPass` reads it. -/
 def Decls.referCount (ds : Decls) (S : Val) : ℕ :=
   let own := ds.rootsS S
   let dp := (ds.withPathsFrom S own).1
-  ds.foldl (fun n d => n + ((ds.landedLinks dp S d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).map fun e =>
-      (linkAddrs (dp.bodyRoot d) e).length).sum)
-    ((ds.landedLinks dp S S (own.getLast?.getD .any) []).map fun e =>
-      (linkAddrs (own.getLast?.getD .any) e).length).sum
+  let R := own.getLast?.getD .any
+  ds.foldl (fun n d => n + ((ds.landedLinks dp S R d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).map fun e =>
+      (linkAddrs e).length).sum)
+    ((ds.landedLinks dp S R S R []).map fun e => (linkAddrs e).length).sum
 
 /-- The schema after `n` passes, each meeting the templates of the links
 whose targets the roots of the last pass's schema hold, so that one
@@ -2745,13 +2820,28 @@ theorem callLinks_checkableA {pos : List Seg} {t : Val} (ht : t.CheckableA) :
   case call f args hargs => exact referSrc_checkableA hargs e he
   all_goals simp [callLinks] at he
 
-theorem LinkItem.next_ok {i : LinkItem} {w : Val} {p : List Seg} {b : Option Val} {t : Seg}
+theorem LinkItem.next_ok {i : LinkItem} {w : Val} {p : List Seg} {b : Option Val} {s t : Seg}
     (hw : w.CheckableA) (hb : ∀ m, b = some m → m.CheckableA) :
-    (i.next w p b t).term.CheckableA ∧ ∀ m, (i.next w p b t).member = some m → m.CheckableA := by
+    (i.next w p b s t).term.CheckableA ∧ ∀ m, (i.next w p b s t).member = some m → m.CheckableA := by
   unfold LinkItem.next
   split
   · exact ⟨hw, hb⟩
-  · exact ⟨hw, hb⟩
+  · split
+    · split
+      · exact ⟨hw, hb⟩
+      · exact ⟨hw, hb⟩
+    · exact ⟨hw, hb⟩
+
+/-- Each arm the rank rule picks is an arm of the disjunction. -/
+theorem Decls.mem_pickedAt {dp : Decls} {v a : Val} {arms : List (ℕ × Val)}
+    (h : a ∈ dp.pickedAt v arms) : ∃ r, (r, a) ∈ arms := by
+  unfold Decls.pickedAt at h
+  simp only [List.mem_filterMap] at h
+  obtain ⟨q, hq, hs⟩ := h
+  split at hs
+  · cases hs
+    exact ⟨q.1.1, (List.of_mem_zip hq).1⟩
+  · cases hs
 
 /-- Each member a generator over data the checker can read makes an
 instance for is one it can read. -/
@@ -2841,45 +2931,71 @@ theorem linkLeaf_checkableA {dp : Decls} (hdp : ∀ x, x ∈ dp → x.2.Checkabl
 /-- One step of a link's landing, on an item the checker can read, read
 for a member it can read, in a schema it can read, reaches only such
 items. -/
-theorem linkStep_checkableA {dp : Decls} (hdp : ∀ x, x ∈ dp → x.2.CheckableA) {S : Val}
+theorem linkStep_checkableA {dp : Decls} (hdp : ∀ x, x ∈ dp → x.2.CheckableA) {S R : Val}
     (hS : S.CheckableA) {i : LinkItem} (hi : i.term.CheckableA) (hm : ∀ m, i.member = some m → m.CheckableA) :
-    (∀ j, j ∈ (linkStep dp S i).1 → j.term.CheckableA ∧ ∀ m, j.member = some m → m.CheckableA) ∧
-      (∀ j, j ∈ (linkStep dp S i).2 → j.term.CheckableA ∧ ∀ m, j.member = some m → m.CheckableA) := by
+    (∀ j, j ∈ (linkStep dp S R i).1 → j.term.CheckableA ∧ ∀ m, j.member = some m → m.CheckableA) ∧
+      (∀ j, j ∈ (linkStep dp S R i).2 → j.term.CheckableA ∧ ∀ m, j.member = some m → m.CheckableA) := by
   unfold linkStep
   split
-  next a b heq =>
-    rw [heq] at hi
-    cases hi with
-    | meet ha hb =>
-      refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
-      simp only [List.mem_cons, List.mem_nil_iff, or_false] at hj
-      rcases hj with rfl | rfl
-      · exact ⟨ha, hm⟩
-      · exact ⟨hb, hm⟩
-  next k v r heq =>
-    rw [heq] at hi
-    cases hi with
-    | ride hv =>
-      refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
-      simp only [List.mem_singleton] at hj
-      rw [hj]; exact ⟨hv, hm⟩
   next =>
     refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
-    simp only [List.mem_singleton] at hj
-    rw [hj]; exact ⟨hS, fun _ h => nomatch h⟩
-  next => exact linkLeaf_checkableA hdp hi hm
+    simp only [List.mem_map] at hj
+    obtain ⟨_, -, rfl⟩ := hj
+    exact ⟨hi, hm⟩
+  next =>
+    split
+    next a b heq =>
+      rw [heq] at hi
+      cases hi with
+      | meet ha hb =>
+        refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
+        simp only [List.mem_cons, List.mem_nil_iff, or_false] at hj
+        rcases hj with rfl | rfl
+        · exact ⟨ha, hm⟩
+        · exact ⟨hb, hm⟩
+    next k v r heq =>
+      rw [heq] at hi
+      cases hi with
+      | ride hv =>
+        refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
+        simp only [List.mem_singleton] at hj
+        rw [hj]; exact ⟨hv, hm⟩
+    next =>
+      refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
+      simp only [List.mem_singleton] at hj
+      rw [hj]; exact ⟨hS, fun _ h => nomatch h⟩
+    next r x heq =>
+      rw [heq] at hi
+      cases hi with
+      | pref hx =>
+        refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
+        simp only [List.mem_map] at hj
+        obtain ⟨a, ha, rfl⟩ := hj
+        obtain ⟨r', hr'⟩ := Decls.mem_pickedAt ha
+        simp only [List.mem_singleton, Prod.mk.injEq] at hr'
+        rw [hr'.2]; exact ⟨hx, hm⟩
+    next arms heq =>
+      rw [heq] at hi
+      cases hi with
+      | or harms =>
+        refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
+        simp only [List.mem_map] at hj
+        obtain ⟨a, ha, rfl⟩ := hj
+        obtain ⟨r', hr'⟩ := Decls.mem_pickedAt ha
+        exact ⟨harms r' a hr', hm⟩
+    next => exact linkLeaf_checkableA hdp hi hm
 
 /-- What a link's landing reaches, from items the checker can read, read
 for members it can read, in a schema it can read, is too. -/
-theorem linkLanding_checkableA {dp : Decls} (hdp : ∀ x, x ∈ dp → x.2.CheckableA) {S : Val}
+theorem linkLanding_checkableA {dp : Decls} (hdp : ∀ x, x ∈ dp → x.2.CheckableA) {S R : Val}
     (hS : S.CheckableA) :
     ∀ (n : ℕ) (items : List LinkItem),
       (∀ i, i ∈ items → i.term.CheckableA ∧ ∀ m, i.member = some m → m.CheckableA) →
-      ∀ j, j ∈ linkLanding dp S n items → j.term.CheckableA ∧ ∀ m, j.member = some m → m.CheckableA
+      ∀ j, j ∈ linkLanding dp S R n items → j.term.CheckableA ∧ ∀ m, j.member = some m → m.CheckableA
   | 0, _, _, _, h => by simp [linkLanding] at h
   | _ + 1, [], _, _, h => by simp [linkLanding] at h
   | n + 1, i :: rest, hi, j, h => by
-    have hs := linkStep_checkableA hdp hS (hi i List.mem_cons_self).1 (hi i List.mem_cons_self).2
+    have hs := linkStep_checkableA (R := R) hdp hS (hi i List.mem_cons_self).1 (hi i List.mem_cons_self).2
     simp only [linkLanding, List.mem_append] at h
     rcases h with h | h
     · exact hs.1 j h
@@ -2893,12 +3009,12 @@ theorem linkLanding_checkableA {dp : Decls} (hdp : ∀ x, x ∈ dp → x.2.Check
 can read, under bodies it can read, has a template it can read, read for
 its member at its place. -/
 theorem Decls.landedLinks_checkableA {ds dp : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hdp : ∀ x, x ∈ dp → x.2.CheckableA) {S T root : Val} {home : List Seg} (hS : S.CheckableA)
-    (hT : T.CheckableA) : ∀ e, e ∈ ds.landedLinks dp S T root home → e.2.1.CheckableA := by
+    (hdp : ∀ x, x ∈ dp → x.2.CheckableA) {S R T root : Val} {home : List Seg} (hS : S.CheckableA)
+    (hT : T.CheckableA) : ∀ e, e ∈ ds.landedLinks dp S R T root home → e.2.1.CheckableA := by
   intro e he
   simp only [Decls.landedLinks, Decls.linksAt, List.mem_flatMap, List.mem_map] at he
   obtain ⟨pos, -, i, hi, e', he', rfl⟩ := he
-  have hok := linkLanding_checkableA hdp hS _ _ (fun k hk => by
+  have hok := linkLanding_checkableA (R := R) hdp hS _ _ (fun k hk => by
     simp only [List.mem_singleton] at hk; rw [hk]; exact ⟨hT, fun _ h => nomatch h⟩) i hi
   exact resolveD_checkableA hb (expand_checkableA hb (callLinks_checkableA hok.1 e' he')) hok.2
 
@@ -2924,26 +3040,26 @@ theorem foldl_referFlow_checkableA {roots : List Val} {miss t : Val} {pos : List
   | [], _, h => h
   | _ :: as, _, h => foldl_referFlow_checkableA hm ht as (referFlow_checkableA hm h ht)
 
-theorem referStep_checkableA {roots : List Val} {miss acc src : Val} {home : List Seg}
-    {e : List Seg × Val × Bool} (hm : miss.CheckableA) (hacc : acc.CheckableA)
-    (he : e.2.1.CheckableA) : (referStep roots miss home src acc e).CheckableA :=
+theorem referStep_checkableA {roots : List Val} {miss acc : Val} {home : List Seg}
+    {e : List Seg × Val × Bool × Val} (hm : miss.CheckableA) (hacc : acc.CheckableA)
+    (he : e.2.1.CheckableA) : (referStep roots miss home acc e).CheckableA :=
   foldl_referFlow_checkableA hm he.unmark _ hacc
 
-theorem foldl_referStep_checkableA {roots : List Val} {miss src : Val} {home : List Seg}
+theorem foldl_referStep_checkableA {roots : List Val} {miss : Val} {home : List Seg}
     (hm : miss.CheckableA) :
-    ∀ (es : List (List Seg × Val × Bool)) {acc : Val}, acc.CheckableA → (∀ e, e ∈ es → e.2.1.CheckableA) →
-      (es.foldl (referStep roots miss home src) acc).CheckableA
+    ∀ (es : List (List Seg × Val × Bool × Val)) {acc : Val}, acc.CheckableA → (∀ e, e ∈ es → e.2.1.CheckableA) →
+      (es.foldl (referStep roots miss home) acc).CheckableA
   | [], _, h, _ => h
   | e :: es, _, h, he =>
     foldl_referStep_checkableA hm es (referStep_checkableA hm h (he e List.mem_cons_self))
       fun e' h' => he e' (List.mem_cons_of_mem _ h')
 
-theorem foldl_bodyLinks_checkableA {ds dp : Decls} {S : Val} {roots : List Val} {miss : Val}
+theorem foldl_bodyLinks_checkableA {ds dp : Decls} {S R : Val} {roots : List Val} {miss : Val}
     (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hdp : ∀ x, x ∈ dp → x.2.CheckableA) (hS : S.CheckableA)
     (hm : miss.CheckableA) :
     ∀ (bs : Decls) {acc : Val}, acc.CheckableA → (∀ d, d ∈ bs → d.2.CheckableA) →
-      (bs.foldl (fun acc d => (ds.landedLinks dp S d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
-        (referStep roots miss [.key ("%" ++ d.1)] (dp.bodyRoot d)) acc) acc).CheckableA
+      (bs.foldl (fun acc d => (ds.landedLinks dp S R d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
+        (referStep roots miss [.key ("%" ++ d.1)]) acc) acc).CheckableA
   | [], _, h, _ => h
   | d :: bs, _, h, hd =>
     foldl_bodyLinks_checkableA hb hdp hS hm bs
