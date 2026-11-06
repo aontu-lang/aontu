@@ -1710,6 +1710,19 @@ until the phase that encodes it lands.
    (#648), and TypeScript drops the links of an arm the meet makes
    equal to another, where Go sends them (#649).
 
+   **Ported in part 2026-11-06 (#649).** TypeScript merges the arms'
+   flows before its dedup, as Go does, so an arm dropped there as equal
+   to another still sends its links. Rows rf144 on, 2 cases in each
+   mode, both ports answering every row as the definition does; no
+   other row moved. Merging only the arms the rank rule picks (#648) was
+   built and taken back on review (#651): a conjunct meets a disjunction
+   with `any` before its other sides, so a fallback arm's flow was
+   dropped while the default still stood, and a reference records its
+   flow once, so the later meet that took the fallback had nothing to
+   send. The second row holds that case. Both #648 and #647 wait on
+   carrying an arm's flows with its value until the arm is final, which
+   the consolidation study takes up.
+
 ## 8. Risks
 
 | Risk | Mitigation |

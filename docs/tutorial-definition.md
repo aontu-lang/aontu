@@ -9046,11 +9046,10 @@ spread or a path reference, rows from lg0 on links in a generator's
 template, rows from lt0 on templates that read the member or the place
 where their link lands, and rows from rf120 on links in an arm of a
 disjunction or a preference. Both engines answer every one as the
-definition does. Three readings part from the engines, so no row holds
+definition does. Two readings part from the engines, so no row holds
 them yet: both engines still send from a kept arm the rank rule passes
-over, as #648 records, TypeScript drops the links of an arm the meet
-makes equal to another, as #649 records, and `eval` in both engines
-sends from an arm a later meet refuses, as #647 records. With data,
+over, as #648 records, and `eval` in both engines sends from an arm a
+later meet refuses, as #647 records. With data,
 both engines read a body's relative link a second time, from each
 place that uses the body, which #488 tracks, and no row holds such a
 link. Both engines flow a link that a path

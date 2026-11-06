@@ -185,6 +185,22 @@ class DisjunctVal extends JunctionVal {
       }
     }
 
+    // An arm the dedup below drops as equal to another sends its own
+    // links all the same, as Go's merge does.
+    if (undefined !== savedFlows) {
+      for (let vI = 0; vI < staged.length; vI++) {
+        const st = staged[vI]
+        if (undefined === st || true === oval[vI].isNil) {
+          continue
+        }
+        for (const [k, fv] of st) {
+          const prev = savedFlows.get(k)
+          savedFlows.set(k, undefined === prev ? fv
+            : unite(ctx, prev, fv, 'refer-flow-record'))
+        }
+      }
+    }
+
     // Remove duplicates, and normalize
     if (1 < oval.length) {
       for (let vI = 0; vI < oval.length; vI++) {
@@ -218,20 +234,6 @@ class DisjunctVal extends JunctionVal {
               break
             }
           }
-        }
-      }
-    }
-
-    if (undefined !== savedFlows) {
-      for (let vI = 0; vI < staged.length; vI++) {
-        const st = staged[vI]
-        if (undefined === st || true === oval[vI]?.isNil) {
-          continue
-        }
-        for (const [k, fv] of st) {
-          const prev = savedFlows.get(k)
-          savedFlows.set(k, undefined === prev ? fv
-            : unite(ctx, prev, fv, 'refer-flow-record'))
         }
       }
     }

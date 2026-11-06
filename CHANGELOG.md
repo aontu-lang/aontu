@@ -8,6 +8,20 @@ each change affects.
 
 ## Unreleased
 
+### TypeScript sends the links of an arm its dedup drops
+
+TypeScript, and shared rows.
+
+- TypeScript dropped the links of an arm the meet made equal to another,
+  so `({d?: refer({z: 1})} | {d?: refer({z: 2})}) & {d: path($.y)}`
+  sent only `z: 1`. It now merges the arms' flows before it drops the
+  duplicate, as Go does, and both templates reach `y`, where they
+  clash. Fixes #649.
+- 6 `verdict` rows from the definition, rf144 on in
+  `test/spec/def-path.tsv`: the document above, and a fallback arm the
+  meet picks after the conjunct met the disjunction with `any`, whose
+  link still sends.
+
 ### The definition reads a link in an arm where the output takes the arm
 
 The definition, and shared rows.
@@ -23,9 +37,8 @@ The definition, and shared rows.
 - 24 `verdict` rows from the definition, rf120 on in
   `test/spec/def-path.tsv`. Both engines answer every one as the
   definition does. They still send from a kept arm the rank rule passes
-  over (#648), TypeScript drops the links of an arm the meet makes equal
-  to another (#649), and `eval` in both sends from an arm a later meet
-  refuses (#647).
+  over (#648), and `eval` in both sends from an arm a later meet refuses
+  (#647).
 
 ### A reference inside a preference resolves when its map meets another map
 
