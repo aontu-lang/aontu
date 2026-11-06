@@ -286,3 +286,6 @@ link-to-nothing-beside-a-sizing-constraint-msg	err	x: unique() & [&: refer() & p
 # Twin defaults met as one keep the lower rank's template, which the output takes,
 # and drop the other's.
 twin-defaults-send-the-lower-rank	gens	x: **{d: refer({z: 2}) & path($.y)} | *{d: refer({z: 1}) & path($.y)}\ny: {}	{"x":{"d":"$.y"},"y":{"z":1}}
+# A held reference that resolves to the address later makes the link then, beside
+# a template too.
+refer-over-a-late-reference	gens	s: refer({k:1}) & $.later\nlater: path($.a)\na: {}	{"a":{"k":1},"later":"$.a","s":"$.a"}

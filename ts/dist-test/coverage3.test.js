@@ -1445,6 +1445,25 @@ function capture(fn) {
         Assert.strictEqual((0, PathVal_1.joinFlows)(a, [p1]), a);
         Assert.deepStrictEqual((0, PathVal_1.joinFlows)(a, [p1, p2]), [p1, p2]);
     });
+    (0, node_test_1.test)('refer-meets-refer-as-one-link', () => {
+        // Two refer() values at one position before either has an address:
+        // one link, both templates, the address and the held constraints of
+        // either side.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        ctx.root = new MapVal_1.MapVal({ peg: {} }, ctx);
+        const a = new ReferFuncVal_1.ReferVal({}, ctx);
+        a.tval = new MapVal_1.MapVal({ peg: { p: new IntegerVal_1.IntegerVal({ peg: 1 }, ctx) } }, ctx);
+        const b = new ReferFuncVal_1.ReferVal({}, ctx);
+        b.tval = new MapVal_1.MapVal({ peg: { q: new IntegerVal_1.IntegerVal({ peg: 2 }, ctx) } }, ctx);
+        b.held = new ScalarKindVal_1.ScalarKindVal({ peg: String }, ctx);
+        const both = a.unify(b, ctx);
+        Assert.strictEqual(both.isRefer, true);
+        Assert.strictEqual(both.tval.canon, '{"p":1,"q":2}');
+        Assert.strictEqual(both.held, b.held);
+        const c = new ReferFuncVal_1.ReferVal({}, ctx);
+        c.held = new ScalarKindVal_1.ScalarKindVal({ peg: String }, ctx);
+        Assert.strictEqual(true !== both.unify(c, ctx).held.isNil, true);
+    });
     (0, node_test_1.test)('refer-climb-off-the-top-refuses', () => {
         // A relative address with more parent steps than the link has
         // ancestors. No later pass can grow the tree upwards, so this

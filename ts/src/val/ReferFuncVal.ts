@@ -160,6 +160,16 @@ class ReferVal extends FeatureVal {
     }
 
     if (null == peer || true === p.isTop) {
+      // A held value still resolving may be the address, so it meets
+      // the link again once it moves.
+      if (undefined === this.addr && null != this.held && !this.held.done) {
+        const held = unite(ctx, this.held, top(), 'refer-held')
+        if (held.canon !== this.held.canon) {
+          const bare: any = this.with(ctx, {}, this)
+          bare.held = undefined
+          return bare.unify(held, ctx)
+        }
+      }
       return this.settle(ctx, this)
     }
 
@@ -214,7 +224,7 @@ class ReferVal extends FeatureVal {
   // (`Unify`). `site` is the value whose position the string takes.
   settle(ctx: AontuContext, site: Val): Val {
     if (undefined === this.addr) {
-      this.dc = DONE
+      this.dc = null != this.held && !this.held.done ? 0 : DONE
       return this
     }
     // A relative address climbing off the top of the tree refuses at once.

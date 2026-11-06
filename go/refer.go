@@ -233,6 +233,15 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	if nil == peer || isTop(peer) {
+		// A held value still resolving may be the address, so it meets the
+		// link again once it moves.
+		if nil == r.addr && nil != r.held && DONE != r.held.Dc() {
+			if held := unite(ctx, r.held, top()); held.Canon() != r.held.Canon() {
+				bare := r.reshape()
+				bare.held = nil
+				return bare.Unify(held, ctx)
+			}
+		}
 		return r.settle(ctx, r)
 	}
 	if peer.Nil() {
@@ -288,8 +297,7 @@ func (r *ReferVal) reshape() *ReferVal {
 }
 
 // linkInfo is a link's record on its path value: the node it names, its
-// own missing-target code where it isn't refer()'s, and its templates,
-// each with the target it meets (unifyRoot collects them).
+// own missing-target code, and its templates with the targets they meet.
 type linkInfo struct {
 	to    []string
 	code  string
@@ -322,6 +330,9 @@ func joinFlows(a, b []*linkFlow) []*linkFlow {
 func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 	if nil == r.addr {
 		r.dc = DONE
+		if nil != r.held && DONE != r.held.Dc() {
+			r.dc = 0
+		}
 		return r
 	}
 

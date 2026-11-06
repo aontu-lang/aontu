@@ -1755,6 +1755,26 @@ describe('coverage3-refer', () => {
     Assert.deepStrictEqual(joinFlows(a, [p1, p2]), [p1, p2])
   })
 
+  test('refer-meets-refer-as-one-link', () => {
+    // Two refer() values at one position before either has an address:
+    // one link, both templates, the address and the held constraints of
+    // either side.
+    const ctx: any = new Aontu().ctx({ collect: true })
+    ctx.root = new MapVal({ peg: {} }, ctx)
+    const a: any = new ReferVal({}, ctx)
+    a.tval = new MapVal({ peg: { p: new IntegerVal({ peg: 1 }, ctx) } }, ctx)
+    const b: any = new ReferVal({}, ctx)
+    b.tval = new MapVal({ peg: { q: new IntegerVal({ peg: 2 }, ctx) } }, ctx)
+    b.held = new ScalarKindVal({ peg: String }, ctx)
+    const both: any = a.unify(b, ctx)
+    Assert.strictEqual(both.isRefer, true)
+    Assert.strictEqual(both.tval.canon, '{"p":1,"q":2}')
+    Assert.strictEqual(both.held, b.held)
+    const c: any = new ReferVal({}, ctx)
+    c.held = new ScalarKindVal({ peg: String }, ctx)
+    Assert.strictEqual(true !== both.unify(c, ctx).held.isNil, true)
+  })
+
   test('refer-climb-off-the-top-refuses', () => {
     // A relative address with more parent steps than the link has
     // ancestors. No later pass can grow the tree upwards, so this

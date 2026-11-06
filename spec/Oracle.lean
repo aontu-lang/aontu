@@ -1950,7 +1950,8 @@ def referCases : List (Decls × Val × Data) :=
     ([], m [("c", .path [.key "a", .key "k"]), ("a", m []), ("b", rf k1 (ad 0 ["a"]))], .map []),
     ([], m [("c", .path [.key "a", .key "k"]), ("a", m []), ("b", rf k1 (ad 0 ["a"]))], .map [("c", j 2)]),
     ([], m [("x", .or [(1, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]), (2, m [("d", rf (m [("z", int 2)]) (ad 0 ["y"]))])]),
-      ("y", m [])], .map [])]
+      ("y", m [])], .map []),
+    ([], m [("s", rf (m [("k", int 1)]) (.path [.key "later"])), ("later", ad 0 ["a"]), ("a", m [])], .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -2021,7 +2022,10 @@ def relCases : List (Decls × Val × Data) :=
     ([], m [("a", m []), ("d", rl0 (.lit (.bool true)))], .map [])] ++
   ([[], [lst []], [lst [int 1]], [lst [.hole]]].flatMap fun t =>
     [some (.str "x"), some (j 3), some (.list [j 1]), some (.list [.str "a"]), some (.list []), none].map
-      fun d => ([], m [("v", .call .rel t)], match d with | some x => .map [("v", x)] | none => .map []))
+      fun d => ([], m [("v", .call .rel t)], match d with | some x => .map [("v", x)] | none => .map [])) ++
+  [([], m [("later", ad 0 ["a"]), ("a", m []), ("s", rl (m [("k", int 1)]) (lst [.path [.key "later"]]))], .map []),
+    ([], m [("later", ad 0 ["a"]), ("a", m []), ("s", rl (m [("k", int 1)]) (lst [.path [.key "later"]]))],
+      .map [("a", .map [("k", j 2)])])]
 
 theorem relCases_checkable : ∀ c ∈ relCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
