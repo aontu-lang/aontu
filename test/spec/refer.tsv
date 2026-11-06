@@ -277,3 +277,12 @@ link-to-nothing-in-a-taken-arm	errc	x: (refer() & path($.gone)) | 1	refer_unreso
 # A template is part of the document, so a reference reads the target with it
 # whichever is written first (#655).
 copy-of-target-before-its-link	gens	c: $.a\na: {}\nb: refer({k:1}) & path($.a)	{"a":{"k":1},"b":"$.a","c":{"k":1}}
+# Two links met at one position, each declared once and used only there,
+# keep both templates.
+two-declared-links-at-one-position	gens	%L1 = refer({a:1}) & path($.t)\n%L2 = refer({b:2}) & path($.t)\nt: {}\nx: %L1 & %L2	{"t":{"a":1,"b":2},"x":"$.t"}
+# A link to nothing beside a sizing constraint is refused where it stands.
+link-to-nothing-beside-a-sizing-constraint	errc	x: unique() & [&: refer() & path] & [path($.gone)]	refer_unresolved
+link-to-nothing-beside-a-sizing-constraint-msg	err	x: unique() & [&: refer() & path] & [path($.gone)]	Cannot refer value at path $.x.0
+# Twin defaults met as one keep the lower rank's template, which the output takes,
+# and drop the other's.
+twin-defaults-send-the-lower-rank	gens	x: **{d: refer({z: 2}) & path($.y)} | *{d: refer({z: 1}) & path($.y)}\ny: {}	{"x":{"d":"$.y"},"y":{"z":1}}

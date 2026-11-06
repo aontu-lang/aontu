@@ -1948,7 +1948,9 @@ def referCases : List (Decls × Val × Data) :=
     ([], m [("x", .or [(0, rf0 (ad 0 ["gone"])), (1, int 1)])], .map []),
     ([], m [("c", .path [.key "a"]), ("a", m []), ("b", rf k1 (ad 0 ["a"]))], .map [("c", .map [("k", j 2)])]),
     ([], m [("c", .path [.key "a", .key "k"]), ("a", m []), ("b", rf k1 (ad 0 ["a"]))], .map []),
-    ([], m [("c", .path [.key "a", .key "k"]), ("a", m []), ("b", rf k1 (ad 0 ["a"]))], .map [("c", j 2)])]
+    ([], m [("c", .path [.key "a", .key "k"]), ("a", m []), ("b", rf k1 (ad 0 ["a"]))], .map [("c", j 2)]),
+    ([], m [("x", .or [(1, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]), (2, m [("d", rf (m [("z", int 2)]) (ad 0 ["y"]))])]),
+      ("y", m [])], .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

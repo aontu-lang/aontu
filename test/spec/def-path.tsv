@@ -1161,6 +1161,9 @@ rf191	verdict	"c": $.a.k, "a": {}, "b": (refer({"k": 1})) & (path($.a))	{}	{"ver
 rf192	verdict	"c": $.a.k, "a": {}, "b": (refer({"k": 1})) & (path($.a))	{"c": 2}	{"verdict":"invalid"}
 rf193	verdict	"c": $.a.k, "a": {}, "b": (refer({"k": 1})) & (path($.a))	{"c": 2}	{"verdict":"invalid","opts":{"noFill":true}}
 rf194	verdict	"c": $.a.k, "a": {}, "b": (refer({"k": 1})) & (path($.a))	{"c": 2}	{"verdict":"invalid","opts":{"partial":true}}
+rf195	verdict	"x": *{"d": (refer({"z": 1})) & (path($.y))} | **{"d": (refer({"z": 2})) & (path($.y))}, "y": {}	{}	{"verdict":"valid"}
+rf196	verdict	"x": *{"d": (refer({"z": 1})) & (path($.y))} | **{"d": (refer({"z": 2})) & (path($.y))}, "y": {}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rf197	verdict	"x": *{"d": (refer({"z": 1})) & (path($.y))} | **{"d": (refer({"z": 2})) & (path($.y))}, "y": {}	{}	{"verdict":"valid","opts":{"partial":true}}
 rl0	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"valid"}
 rl1	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 rl2	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"valid","opts":{"partial":true}}
