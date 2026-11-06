@@ -1253,6 +1253,60 @@ def Val.putW : Val → List Seg → Val → Option Val
     | _ => none
 termination_by structural _ p _ => p
 
+mutual
+/-- The values a term holds within the arms of a disjunction that the
+rank rule picks (`picked`), through the riders: where a link's address
+is read, as the output takes its arm. -/
+def Val.pickedLeaves : Val → List Val
+  | .or arms => pickedLeavesArms arms arms
+  | .ride _ v _ => v.pickedLeaves
+  | v => [v]
+
+def pickedLeavesArms (all : List (ℕ × Val)) : List (ℕ × Val) → List Val
+  | [] => []
+  | (r, a) :: rest => (if picked all (r, a) then a.pickedLeaves else []) ++ pickedLeavesArms all rest
+end
+
+mutual
+/-- The links a normal form holds below `pos`, each with its position,
+its template, whether it reads every leaf of its value's addresses,
+which a relation does and a single address answers the same, and each
+value it stands in that the rank rule picks: a member's under its key,
+an element's under its position, through riders and meets, and within
+each arm of a disjunction the rule picks, since a link in an arm sends
+where the output takes the arm (decision 33 of the design note's §7).
+A spread's template holds no position, so its links send from the
+members it reaches. -/
+def Val.links (pos : List Seg) : Val → List (List Seg × Val × Bool × Val)
+  | .map fs _ _ => linksFields pos fs
+  | .list items _ _ => linksItems pos 0 items
+  | .ride _ v _ => v.links pos
+  | .link v t => (v.pickedLeaves.map fun w => (pos, t, true, w)) ++ v.links pos
+  | .meet a b => a.links pos ++ b.links pos
+  | .or arms => linksArms pos arms arms
+  | _ => []
+
+def linksFields (pos : List Seg) : List (String × Bool × Val) → List (List Seg × Val × Bool × Val)
+  | [] => []
+  | (k, _, v) :: fs => v.links (pos ++ [.key k]) ++ linksFields pos fs
+
+def linksItems (pos : List Seg) : ℕ → List Val → List (List Seg × Val × Bool × Val)
+  | _, [] => []
+  | i, v :: vs => v.links (pos ++ [.idx i]) ++ linksItems pos (i + 1) vs
+
+def linksArms (pos : List Seg) (all : List (ℕ × Val)) :
+    List (ℕ × Val) → List (List Seg × Val × Bool × Val)
+  | [] => []
+  | (r, a) :: rest => (if picked all (r, a) then a.links pos else []) ++ linksArms pos all rest
+end
+
+/-- The links a tree holds, read from its normal form (`Val.links`),
+the tree standing at `home`: each template read where its link stands,
+each `key(n)` reading the link's own place, as both ports read a
+template where its link stands. -/
+def Decls.nfLinks (ds : Decls) (root : Val) (home : List Seg) : List (List Seg × Val × Bool × Val) :=
+  (root.links []).map fun e => (e.1, resolveD ds none (some ((home ++ e.1).map .seg)) e.2.1, e.2.2.1, e.2.2.2)
+
 /-- One address's part in the schema: `t` met at the path the address
 names from `pos` (`Addr.from`, `Val.putW`) in the first of `roots` it
 names something in, or `miss` where it names nothing in them or climbs
@@ -1285,9 +1339,9 @@ def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val
   let own := ds.rootsS S
   let dp := (ds.withPathsFrom S own).1
   let R := own.getLast?.getD .any
-  ds.foldl (fun acc d => (ds.landedLinks dp S R d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
+  ds.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
       (referStep roots miss [.key ("%" ++ d.1)]) acc)
-    ((ds.landedLinks dp S R S R []).foldl (referStep roots miss []) S)
+    ((ds.nfLinks R []).foldl (referStep roots miss []) S)
 
 /-- The flows a document's links make, one for each address they hold:
 the schema's and its bodies', each read as `Decls.referPass` reads it. -/
@@ -1295,9 +1349,9 @@ def Decls.referCount (ds : Decls) (S : Val) : ℕ :=
   let own := ds.rootsS S
   let dp := (ds.withPathsFrom S own).1
   let R := own.getLast?.getD .any
-  ds.foldl (fun n d => n + ((ds.landedLinks dp S R d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).map fun e =>
+  ds.foldl (fun n d => n + ((ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).map fun e =>
       (linkAddrs e).length).sum)
-    ((ds.landedLinks dp S R S R []).map fun e => (linkAddrs e).length).sum
+    ((ds.nfLinks R []).map fun e => (linkAddrs e).length).sum
 
 /-- The schema after `n` passes, each meeting the templates of the links
 whose targets the roots of the last pass's schema hold, so that one
@@ -3098,16 +3152,103 @@ theorem foldl_referStep_checkableA {roots : List Val} {miss : Val} {home : List 
     foldl_referStep_checkableA hm es (referStep_checkableA hm h (he e List.mem_cons_self))
       fun e' h' => he e' (List.mem_cons_of_mem _ h')
 
-theorem foldl_bodyLinks_checkableA {ds dp : Decls} {S R : Val} {roots : List Val} {miss : Val}
-    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hdp : ∀ x, x ∈ dp → x.2.CheckableA) (hS : S.CheckableA)
+theorem mem_linksFields {pos : List Seg} {e : List Seg × Val × Bool × Val} :
+    ∀ {fs : List (String × Bool × Val)}, e ∈ linksFields pos fs →
+      ∃ k o v, (k, o, v) ∈ fs ∧ e ∈ v.links (pos ++ [.key k])
+  | [], h => by simp [linksFields] at h
+  | (k, o, v) :: fs, h => by
+    simp only [linksFields, List.mem_append] at h
+    rcases h with h | h
+    · exact ⟨k, o, v, List.mem_cons_self, h⟩
+    · obtain ⟨k', o', v', hm, h'⟩ := mem_linksFields h
+      exact ⟨k', o', v', List.mem_cons_of_mem _ hm, h'⟩
+
+theorem mem_linksItems {pos : List Seg} {e : List Seg × Val × Bool × Val} :
+    ∀ {i : ℕ} {vs : List Val}, e ∈ linksItems pos i vs → ∃ j v, v ∈ vs ∧ e ∈ v.links (pos ++ [.idx j])
+  | _, [], h => by simp [linksItems] at h
+  | i, v :: vs, h => by
+    simp only [linksItems, List.mem_append] at h
+    rcases h with h | h
+    · exact ⟨i, v, List.mem_cons_self, h⟩
+    · obtain ⟨j, w, hm, h'⟩ := mem_linksItems h
+      exact ⟨j, w, List.mem_cons_of_mem _ hm, h'⟩
+
+theorem mem_linksArms {pos : List Seg} {all : List (ℕ × Val)} {e : List Seg × Val × Bool × Val} :
+    ∀ {arms : List (ℕ × Val)}, e ∈ linksArms pos all arms → ∃ r a, (r, a) ∈ arms ∧ e ∈ a.links pos
+  | [], h => by simp [linksArms] at h
+  | (r, a) :: rest, h => by
+    simp only [linksArms, List.mem_append] at h
+    rcases h with h | h
+    · split at h
+      · exact ⟨r, a, List.mem_cons_self, h⟩
+      · simp at h
+    · obtain ⟨r', a', hm, h'⟩ := mem_linksArms h
+      exact ⟨r', a', List.mem_cons_of_mem _ hm, h'⟩
+
+/-- Each template a normal form the checker can read holds, it can
+read too. -/
+theorem Val.links_checkableA {v : Val} (h : v.CheckableA) :
+    ∀ (pos : List Seg) e, e ∈ v.links pos → e.2.1.CheckableA := by
+  induction h with
+  | map _ _ ihf _ =>
+    intro pos e he
+    simp only [Val.links] at he
+    obtain ⟨k, o, w, hm, h'⟩ := mem_linksFields he
+    exact ihf k o w hm _ e h'
+  | list _ _ ihi _ =>
+    intro pos e he
+    simp only [Val.links] at he
+    obtain ⟨j, w, hm, h'⟩ := mem_linksItems he
+    exact ihi w hm _ e h'
+  | ride _ ih =>
+    intro pos e he
+    simp only [Val.links] at he
+    exact ih pos e he
+  | @link v t _ ht ihv _ =>
+    intro pos e he
+    simp only [Val.links, List.mem_append, List.mem_map] at he
+    rcases he with ⟨w, -, rfl⟩ | he
+    · exact ht
+    · exact ihv pos e he
+  | meet _ _ iha ihb =>
+    intro pos e he
+    simp only [Val.links, List.mem_append] at he
+    exact he.elim (iha pos e) (ihb pos e)
+  | or _ ih =>
+    intro pos e he
+    simp only [Val.links] at he
+    obtain ⟨r, a, hm, h'⟩ := mem_linksArms he
+    exact ih r a hm pos e h'
+  | _ => intro pos e he; simp [Val.links] at he
+
+theorem Decls.nfLinks_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {root : Val}
+    (hr : root.CheckableA) (home : List Seg) : ∀ e, e ∈ ds.nfLinks root home → e.2.1.CheckableA := by
+  intro e he
+  simp only [Decls.nfLinks, List.mem_map] at he
+  obtain ⟨e', he', rfl⟩ := he
+  exact resolveD_checkableA hb (Val.links_checkableA hr [] e' he') fun _ h => nomatch h
+
+theorem Decls.bodyRoot_checkableA {dp : Decls} (hdp : ∀ x, x ∈ dp → x.2.CheckableA)
+    {d : String × Val} (hd : d.2.CheckableA) : (dp.bodyRoot d).CheckableA :=
+  normaliseD_checkableA hdp (readU_checkableA hdp (pathsToAliases_checkableA hd))
+
+theorem getLastD_any_checkableA {rs : List Val} (h : ∀ r, r ∈ rs → r.CheckableA) :
+    (rs.getLast?.getD .any).CheckableA := by
+  cases hl : rs.getLast? with
+  | none => exact .any
+  | some r => exact h r (List.mem_of_getLast? hl)
+
+theorem foldl_bodyLinks_checkableA {ds dp : Decls} {roots : List Val} {miss : Val}
+    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hdp : ∀ x, x ∈ dp → x.2.CheckableA)
     (hm : miss.CheckableA) :
     ∀ (bs : Decls) {acc : Val}, acc.CheckableA → (∀ d, d ∈ bs → d.2.CheckableA) →
-      (bs.foldl (fun acc d => (ds.landedLinks dp S R d.2 (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
+      (bs.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
         (referStep roots miss [.key ("%" ++ d.1)]) acc) acc).CheckableA
   | [], _, h, _ => h
   | d :: bs, _, h, hd =>
-    foldl_bodyLinks_checkableA hb hdp hS hm bs
-      (foldl_referStep_checkableA hm _ h (Decls.landedLinks_checkableA hb hdp hS (hd d List.mem_cons_self)))
+    foldl_bodyLinks_checkableA hb hdp hm bs
+      (foldl_referStep_checkableA hm _ h
+        (Decls.nfLinks_checkableA hb (Decls.bodyRoot_checkableA hdp (hd d List.mem_cons_self)) _))
       fun d' h' => hd d' (List.mem_cons_of_mem _ h')
 
 /-- A schema the checker can read, under bodies it can read, reads with
@@ -3116,9 +3257,10 @@ whatever roots the pass reads. -/
 theorem referPass_checkableA {ds : Decls} {S miss : Val} {roots : List Val}
     (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) (hm : miss.CheckableA) :
     (ds.referPass S roots miss).CheckableA := by
-  have hdp := Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsS_checkableA hb hS)
-  exact foldl_bodyLinks_checkableA hb hdp hS hm ds
-    (foldl_referStep_checkableA hm _ hS (Decls.landedLinks_checkableA hb hdp hS hS)) hb
+  have hr := Decls.rootsS_checkableA hb hS
+  have hdp := Decls.withPathsFrom_bodies_checkableA (S := S) hb hr
+  exact foldl_bodyLinks_checkableA hb hdp hm ds
+    (foldl_referStep_checkableA hm _ hS (Decls.nfLinks_checkableA hb (getLastD_any_checkableA hr) _)) hb
 
 theorem withRefers_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (ds.withRefers S).CheckableA :=

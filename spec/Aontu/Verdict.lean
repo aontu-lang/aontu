@@ -991,9 +991,11 @@ form, as `super` reads it, so that a preference stays one, and a `move`
 the same, its source hidden where the document is read (`Decls.withMoves`);
 a `copy` its argument's normal form with its marks cleared and every
 map and list in it unsealed (`Val.unmark`, `Val.unseal`);
-a `refer` the path kind, the link's own value, and a `rel` the relation
-kind, `relName`, its value's links, their template met into each
-target where the document is read (`Decls.withRefers`); a bound
+a `refer` the path kind and a `rel` the relation kind, `relName`, each
+carrying its template (`Val.link`), so that the template rides the
+value the link meets, in every arm and copy the value is in, and is
+met into each target the normal form names where the document is read
+(`Decls.withRefers`); a bound
 written over terms the bound `bndOf` makes of them; any other call the
 number `callValue` computes, where it computes one, and itself
 otherwise, which no reading makes. -/
@@ -1022,10 +1024,10 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .pref, [x] => x.prefer
   | .move, [x] => x.prefer
   | .copy, [x] => (normaliseD ds x).unmark.unseal
-  | .refer, [] => .pathKind
-  | .refer, [_] => .pathKind
-  | .rel, [] => .alias relName
-  | .rel, [_] => .alias relName
+  | .refer, [] => .link .pathKind .any
+  | .refer, [t] => .link .pathKind t
+  | .rel, [] => .link (.alias relName) .any
+  | .rel, [t] => .link (.alias relName) t
   | .split, [s, sep] => (splitOf ds s sep).term ds f args
   | .rep, [s, p, r] => (repOf ds s p r).term ds f args
   | .nom, [n] => (nomOf ds n none none).term ds f args
@@ -5052,10 +5054,10 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact prefer_checkableA (h _ (by simp))
   · exact prefer_checkableA (h _ (by simp))
   · exact (normaliseD_checkableA (ds := ds) hd (h _ (by simp))).unmark.unseal
-  · exact .pathKind
-  · exact .pathKind
-  · exact .alias
-  · exact .alias
+  · exact .link .pathKind .any
+  · exact .link .pathKind (h _ (by simp))
+  · exact .link .alias .any
+  · exact .link .alias (h _ (by simp))
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => repOf_checkableA hv
   · exact Made.term_checkableA hd h fun v hv => nomOf_checkableA hv
