@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### Only the arms the output takes send their links
+
+Both engines, and shared rows.
+
+- Both engines sent a link's template from every arm of a disjunction
+  the meet kept, so in
+  `x: *{d: refer({z: 1}) & path($.y)} | {d: refer({w: 2}) & path($.y)}`
+  `y` gained `w: 2` from the arm the output passes over, and two
+  clashing templates made the document fail. Only the arms the rank
+  rule picks send now: the default among the kept arms, a nested
+  disjunction ranked by its own default, or every kept arm where none
+  is ranked. Fixes #648.
+- TypeScript dropped the links of an arm the meet made equal to another,
+  so `({d?: refer({z: 1})} | {d?: refer({z: 2})}) & {d: path($.y)}`
+  sent only `z: 1`. It now merges the arms' flows before it drops the
+  duplicate, as Go does, and both templates reach `y`, where they
+  clash. Fixes #649.
+- 15 `verdict` rows from the definition, rf144 on in
+  `test/spec/def-path.tsv`.
+
 ### The definition reads a link in an arm where the output takes the arm
 
 The definition, and shared rows.
@@ -22,9 +42,7 @@ The definition, and shared rows.
   Each link reads its address in the arm it stands in.
 - 24 `verdict` rows from the definition, rf120 on in
   `test/spec/def-path.tsv`. Both engines answer every one as the
-  definition does. They still send from a kept arm the rank rule passes
-  over (#648), TypeScript drops the links of an arm the meet makes equal
-  to another (#649), and `eval` in both sends from an arm a later meet
+  definition does. `eval` in both still sends from an arm a later meet
   refuses (#647).
 
 ### A reference inside a preference resolves when its map meets another map

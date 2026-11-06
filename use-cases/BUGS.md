@@ -3104,7 +3104,9 @@ Status: FIXED 2026-08-31, both ports. A member's flow is part of that
 member: the flow record is STAGED per trial, exactly as the error list
 is, and only the survivors' records are merged into the real one —
 after the admission gate and the dedup, so a member knocked out there
-is excluded too. The write into the live tree waits for the trial to
+is excluded too. Revised 2026-11-06 (#648, #649): only the arms the
+rank rule picks merge theirs, and the merge runs before the dedup, so
+an arm dropped there as equal to another still sends its own. The write into the live tree waits for the trial to
 end; the `unite` that computes it still runs, because its nil is how a
 member legitimately fails. Pinned by
 `flow-from-a-discarded-alternative-does-not-land`,

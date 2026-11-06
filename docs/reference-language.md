@@ -4026,12 +4026,8 @@ gives it nothing, since `k: 2` refuses the arm. The definition's link
 walk reads the arms the rank rule picks (`linkStep`, `Decls.pickedAt` and
 `Val.positionsP` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)),
 each link reading its address in its own arm. Rows from rf120 on hold
-both engines to it. Both engines still send from a kept arm the rank
-rule passes over
-([#648](https://github.com/aontu-lang/aontu/issues/648)), TypeScript drops
-the links of an arm the meet makes equal to another
-([#649](https://github.com/aontu-lang/aontu/issues/649)), and `eval` in
-both engines sends from an arm a later meet refuses
+both engines to it. `eval` in both engines still sends from an arm a
+later meet refuses
 ([#647](https://github.com/aontu-lang/aontu/issues/647)). With data, both engines also read a body's relative link from
 each place that uses the body, which
 [#488](https://github.com/aontu-lang/aontu/issues/488) tracks.

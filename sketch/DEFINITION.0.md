@@ -1710,6 +1710,14 @@ until the phase that encodes it lands.
    (#648), and TypeScript drops the links of an arm the meet makes
    equal to another, where Go sends them (#649).
 
+   **Ported 2026-11-06 (#648, #649).** Both ports merge the flows of
+   the arms the rank rule picks among the survivors, a nested
+   disjunction ranked by its own lowest preference, and TypeScript
+   merges them before its dedup, as Go does. Rows rf144 on, 5 cases in
+   each mode, both ports answering every row as the definition does; no
+   other row moved. `eval` still sends from an arm a later meet refuses
+   in both ports (#647), which `vet` doesn't.
+
 ## 8. Risks
 
 | Risk | Mitigation |
