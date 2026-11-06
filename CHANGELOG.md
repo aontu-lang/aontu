@@ -8,6 +8,36 @@ each change affects.
 
 ## Unreleased
 
+### The engines carry a link's template in its path value
+
+Both implementations, and shared rows.
+
+- `refer()` and `rel()` settle to a path value carrying the link: the
+  node it names and its template. Nothing is written into the target
+  while the document evaluates. The engine collects the links of the
+  result where the output reads them, within the arms the rank rule
+  picks, and evaluates a document with links again, met with each
+  template at its target, until no template is new. The recording, the
+  live write into the target and its re-entry guard, and the flow
+  staging in the disjunction, its admission gate and the preference are
+  gone.
+- A link in an arm the meet refuses, or in a value a preference stands
+  without, sends nothing in `eval` either, where it sent its template
+  (#647). A kept arm the rank rule passes over sends nothing (#648).
+- A link to nothing in an arm the output takes is an `error`, where the
+  engines refused the arm: `x: (refer() & path($.gone)) | 1` (#654).
+- A reference to a link's target reads it with the template, whichever
+  the document writes first, so `c: $.a` before `b: refer({k: 1}) &
+  path($.a)` gives `c` the member `k: 1`, and `$.a.k` resolves (#655).
+- A template that conflicts with its target is reported at the target,
+  `$.a.kind` in `a: {kind: 1}` beside `b: refer({kind: 2}) & path($.a)`,
+  where it was reported at the link, `$.b.kind`.
+- A map or list's clone has a spread of its own in TypeScript, where it
+  shared the original's.
+- 24 `verdict` rows from the definition, rf171 to rf194 in
+  `test/spec/def-path.tsv`, and seven rows in `refer.tsv` and `rel.tsv`
+  that both engines agree on.
+
 ### The definition carries a link's template in the normal form
 
 The definition, and shared rows.
