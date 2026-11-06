@@ -64,12 +64,11 @@ flow-conflict-msg	err	a: {kind:1}\nb: refer({kind:2}) & path($.a)	Cannot unify v
 flow-two-refers	gens	a: {k:1}\nb: refer({k:integer}) & refer({j:2}) & path($.a)	{"a":{"j":2,"k":1},"b":"$.a"}
 
 # A MEMBER'S FLOW IS PART OF THAT MEMBER. `refer(t)` asserts `t` on
-# ANOTHER node, so it may only take effect if the alternative making it
-# survives. Committing every alternative's flow put `t_A & t_B` on the
-# target -- more constrained than either alternative allows, which no
-# reading of `A | B` licenses -- because a disjunct member trial was
-# transactional over the error list and not over the flow record. Here
-# `k:1` refuses the second alternative, so only `{z:1}` may land.
+# ANOTHER node, so it takes effect only where the output takes the
+# alternative making it. Committing every alternative's flow put
+# `t_A & t_B` on the target -- more constrained than either alternative
+# allows, which no reading of `A | B` licenses. Here `k:1` refuses the
+# second alternative, so only `{z:1}` may land.
 flow-from-a-discarded-alternative-does-not-land	gens	x: ({k:1, d?: refer({z:1})} | {k:2, d?: refer({w:2})}) & {k:1, d: path($.y)}\ny: {}	{"x":{"d":"$.y","k":1},"y":{"z":1}}
 # The same, with the two alternatives asking for CONFLICTING types at
 # one key: the surviving alternative's type lands and the discarded
@@ -78,25 +77,19 @@ flow-from-a-discarded-alternative-does-not-land	gens	x: ({k:1, d?: refer({z:1})}
 flow-discarded-alternative-does-not-conflict	gens	x: ({k:1, d?: refer({z:1})} | {k:2, d?: refer({z:2})}) & {k:1, d: path($.y)}\ny: {}	{"x":{"d":"$.y","k":1},"y":{"z":1}}
 # The surviving alternative still flows when it is the SECOND one.
 flow-from-the-second-alternative-lands	gens	x: ({k:1, d?: refer({z:1})} | {k:2, d?: refer({w:2})}) & {k:2, d: path($.y)}\ny: {}	{"x":{"d":"$.y","k":2},"y":{"w":2}}
-# A SURVIVOR'S FLOW MEETS WHAT IS ALREADY RECORDED for the same
-# target: one statement flows into `$.t` outside any trial, and the
+# A SURVIVOR'S FLOW MEETS ANOTHER LINK'S at the same target: one
+# statement flows into `$.t` outside any disjunction, and the
 # alternative that survives inside the disjunction adds to it. Both
 # reach the target, which is the same rule two plain refers follow
 # (flow-two-refers above) with one of them inside a disjunction.
 flow-survivor-merges-with-an-existing-record	gens	a: refer({p:1}) & path($.t)\nb: ({k:1, d?: refer({q:2})} | {k:2, d?: refer({r:3})}) & {k:1, d: path($.t)}\nt: {}	{"a":"$.t","b":{"d":"$.t","k":1},"t":{"p":1,"q":2}}
 
-# A FLOW NESTED INSIDE ANOTHER ONE STILL REACHES ITS TARGET. The meet
-# is skipped where it would re-enter a target a flow is already inside
-# -- that is what stops the evaluator running its own stack out -- and
-# the skip used to take the RECORD with it, on the reasoning that the
-# outer flow delivers the same information one frame up. That is true
-# of the outer flow's TYPE and false of a nested flow carrying a
-# different one, which was then lost for good: whichever link the
-# evaluator happened to reach first decided what the model said, so
-# the same document accepted or refused depending on the order its
-# statements were written in (BUGS.md 69). The record is written
-# whether or not the meet is skipped, so the flow lands through
-# applyFlows instead.
+# A FLOW NESTED INSIDE ANOTHER ONE STILL REACHES ITS TARGET. Whichever
+# link the evaluator happened to reach first once decided what the model
+# said, so the same document accepted or refused depending on the order
+# its statements were written in (BUGS.md 69). Each round of the
+# evaluation meets every template the last round's output holds at its
+# target, so the order decides nothing.
 #
 # Here `a.r` flows {v:1} into `$.b`, whose own `v` is 2. Unsatisfiable,
 # and refused whichever of `a` and `c` is written first.
@@ -110,11 +103,11 @@ flow-nested-in-another-flow-lands-both-ways	gens	c: {r: rel({t:1}) & [path($.b)]
 #
 # Integrity is a UNIFICATION-time property, not a vet-time one. Within
 # one evaluation the document-set is fixed, so existence IS decidable:
-# a refer residuates while a node might still be introduced -- by a
-# later conjunct, include or spread, as `link-forward` shows -- and the
-# LAST pass is where the question is answered. A relative address that
-# climbs off the any of the tree is the one shape refused AT ONCE: no
-# later pass can grow a tree upwards.
+# the target is looked for once the document is evaluated, so a node a
+# later conjunct, include, spread or another link's template brings
+# counts, as `link-forward` shows. A relative address that climbs off
+# the top of the tree is the one shape refused AT ONCE: nothing can grow
+# a tree upwards.
 unresolved-node	errc	a: {port:8080}\nb: refer() & path($.nope)	refer_unresolved
 unresolved-node-msg	err	a: {port:8080}\nb: refer() & path($.nope)	Cannot refer value at path $.b
 unresolved-inside-a-node	errc	a: {port:8080}\nb: refer() & path($.a.nope)	refer_unresolved
@@ -135,10 +128,6 @@ unresolved-empty-document	errc	b: refer() & path($.nope)	refer_unresolved
 # integer})`, `type({p: path})` and `type({p: min(1)})` all settled;
 # only a link did not. G4 phase 4 recorded the cost against
 # `type({from: refer($.aontu.System.Port)})`, which the last three rows here are.
-#
-# Not-done still governs the OTHER pending state -- an address whose
-# target has not appeared -- which the Existence rows above pin, and
-# which is what keeps the pass loop reaching the pass that decides.
 schema-type-body-holds-a-link	gens	T: type({ p: refer() })\nb: 1	{"b":1}
 schema-type-body-link-canons	canon	T: type({ p: refer() })\nb: 1	{"T":{"p":refer()},"b":1}
 schema-closed-type-body-holds-a-link	gens	T: type({ S: close({ p: refer() & path }) })\nx: $.T.S & { p: path($.b) }\nb: 1	{"b":1,"x":{"p":"$.b"}}
@@ -248,9 +237,9 @@ flow-hide-mark-cleared	gens	a: {}\nb: refer(hide({k:1})) & path($.a)	{"a":{"k":1
 # unify_cycle on a model whose meet is a fixpoint on sight
 # ({kind:service} meeting {kind:service}). Every inverse relation pair
 # has this shape, so typing both ends was inexpressible and use case 01
-# shipped the asymmetric workaround. A flow that would re-enter a node
-# is now skipped -- the flow it is nested in is already uniting that
-# node -- and what each contributes is unchanged, as the
+# shipped the asymmetric workaround. Each template now meets its target
+# as part of the document, once the document is evaluated, so a pair
+# linked at each other is a fixpoint like any other meet, as the
 # differs-each-way and cycle-of-three rows show. Parity-probed.
 refer-typed-inverse-pair	gens	a: { kind: service, dependsOn:    [&: refer({kind: service}), path($.b)] }\nb: { kind: service, dependedOnBy: [&: refer({kind: service}), path($.a)] }\n	{"a":{"dependsOn":["$.b"],"kind":"service"},"b":{"dependedOnBy":["$.a"],"kind":"service"}}
 refer-typed-flow-both-ways	gens	a: { to: [&: refer({k:1}), path($.b)] }\nb: { to: [&: refer({k:1}), path($.a)] }\n	{"a":{"k":1,"to":["$.b"]},"b":{"k":1,"to":["$.a"]}}
@@ -261,22 +250,15 @@ refer-typed-self-link	gens	a: { to: [&: refer({k:1}), path($.a)] }\n	{"a":{"k":1
 # one, so it is refused separately too.
 address-relative-bad-char	errc	a: {}\nb: refer() & ".a b"	refer_address
 address-relative-slash	errc	a: {}\nb: refer() & ".a/b"	refer_address
-# A FORWARD link that also FLOWS: the recorded flow is replayed onto
-# each pass, and on the pass that records it the target is not in the
-# tree the replay walks yet.
+# A FORWARD link that also FLOWS: the target is written after the link,
+# and the template meets it all the same.
 flow-forward	gens	b: refer({k:1}) & path($.a)\na: {}	{"a":{"k":1},"b":"$.a"}
-# A FLOW WHOSE TARGET GOES AWAY. The flow is recorded when the address
-# resolves, and replayed onto every later pass; a `move` that takes the
-# target out from under it leaves the record naming a position that is
-# no longer there.
-#
-# The two shapes differ in WHEN the move lands. Moving the target
-# itself takes it before the address ever resolves, so nothing is
-# recorded and the link refuses -- the address, not the flow, is what
-# the document got wrong. Moving the target's PARENT lets the flow
-# resolve and land first, and the replay then finds nothing at the
-# recorded path and skips it: the value went with the move, and the
-# link keeps the address the author wrote.
+# A FLOW WHOSE TARGET GOES AWAY. Moving the target itself leaves its
+# parent unsettled, so the address names nothing in the evaluated
+# document and the link refuses -- the address, not the flow, is what
+# the document got wrong. Moving the target's PARENT hides the parent
+# where it stands, so the address still names the node, the template
+# meets it, and the moved copy carries it.
 flow-target-moved-away	errc	a: {t: {}}\nb: refer({k:1}) & path($.a.t)\na: move($.a.t)	refer_unresolved
 flow-lands-then-its-parent-moves	gens	a: {t: {}}\nb: refer({k:1}) & path($.a.t)\nc: move($.a)	{"b":"$.a.t","c":{"t":{"k":1}}}
 # A preference sends the links in its own value only where that value stands:
@@ -284,3 +266,14 @@ flow-lands-then-its-parent-moves	gens	a: {t: {}}\nb: refer({k:1}) & path($.a.t)\
 # holds no link (#641).
 pref-own-link-stands	gens	x: *{k: 1, d?: refer({z: 1})} & {k: 1, d: path($.y)}\ny: {}	{"x":{"d":"$.y","k":1},"y":{"z":1}}
 pref-own-link-refused	gens	x: *{k: 1, d?: refer({z: 1})} & {k: 2, d: path($.y)}\ny: {}	{"x":{"d":"$.y","k":2},"y":{}}
+# A link sends its template only from an arm the output takes. An arm the meet
+# refuses sends nothing (#647), nor does a value a preference stands without,
+# nor a kept arm the rank rule passes over (#648); and a link to nothing in an
+# arm the output takes is an error, not a refusal of the arm (#654).
+link-in-refused-arm-sends-nothing	gens	x: ({d: refer({z: 1}) & path($.y), k: 1} | {k: 2}) & {k: 2}\ny: {z: *0 | integer}	{"x":{"k":2},"y":{"z":0}}
+link-in-refused-pref-value-sends-nothing	gens	x: *{d: refer({z: 1}) & path($.y)} & {d: path($.w)}\ny: {z: *0 | integer}\nw: {}	{"w":{},"x":{"d":"$.w"},"y":{"z":0}}
+link-in-passed-over-arm-sends-nothing	gens	x: *{d: refer({z: 1}) & path($.y)} | {d: refer({w: 2}) & path($.y)}\ny: {}	{"x":{"d":"$.y"},"y":{"z":1}}
+link-to-nothing-in-a-taken-arm	errc	x: (refer() & path($.gone)) | 1	refer_unresolved
+# A template is part of the document, so a reference reads the target with it
+# whichever is written first (#655).
+copy-of-target-before-its-link	gens	c: $.a\na: {}\nb: refer({k:1}) & path($.a)	{"a":{"k":1},"b":"$.a","c":{"k":1}}

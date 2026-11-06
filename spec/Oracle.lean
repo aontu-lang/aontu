@@ -1938,7 +1938,17 @@ def referCases : List (Decls × Val × Data) :=
     ([], m [("x", .call .each [.list [int 1] none false, m [("d", rf (m [("v", .hole)]) (ad 0 ["y"]))]]),
         ("y", m [("v", .integer)])], .map []),
     ([("B", .call .each [.list [int 1] none false, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]])],
-      m [("y", m [("z", .integer)])], .map [])]
+      m [("y", m [("z", .integer)])], .map []),
+    ([], m [("x", .or [(1, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]), (0, m [("d", rf (m [("z", int 2)]) (ad 0 ["y"]))])]),
+      ("y", m [])], .map []),
+    ([], m [("x", .or [(1, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]), (0, m [("d", rf (m [("z", int 2)]) (ad 0 ["y"]))])]),
+      ("y", m [])], .map [("y", .map [("z", j 2)])]),
+    ([], m [("x", .or [(0, rf0 (ad 0 ["gone"])), (0, int 1)])], .map []),
+    ([], m [("x", .or [(1, rf0 (ad 0 ["gone"])), (0, int 1)])], .map []),
+    ([], m [("x", .or [(0, rf0 (ad 0 ["gone"])), (1, int 1)])], .map []),
+    ([], m [("c", .path [.key "a"]), ("a", m []), ("b", rf k1 (ad 0 ["a"]))], .map [("c", .map [("k", j 2)])]),
+    ([], m [("c", .path [.key "a", .key "k"]), ("a", m []), ("b", rf k1 (ad 0 ["a"]))], .map []),
+    ([], m [("c", .path [.key "a", .key "k"]), ("a", m []), ("b", rf k1 (ad 0 ["a"]))], .map [("c", j 2)])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
