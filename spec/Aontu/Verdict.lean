@@ -2575,7 +2575,7 @@ theorem bindHole_checkableA {p : Val} (hp : p.CheckableA) {v : Val} (h : v.Check
       · exact ih u hu
     cases f <;> first | exact .call hh | exact .call hi
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | _ => simp only [Val.bindHole]; constructor <;> assumption
 
 theorem mem_filledItems : ∀ {vs : List Val} {w : Val}, w ∈ filledItems vs → ∃ v, v ∈ vs ∧ w = v.filled
@@ -2748,7 +2748,7 @@ theorem memberAt_checkableA {b : Val} (hb : b.CheckableA) : ∀ {k : String} {p 
       exact ihu h₁
     · exact ihv h
   | ride _ ih => intro k p h; exact ih h
-  | link _ ih => intro k p h; exact ih h
+  | link _ _ ih _ => intro k p h; exact ih h
   | _ => intro k p h; simp [Val.memberAt] at h
 
 theorem putMember_checkableA {b : Val} (hb : b.CheckableA) : ∀ {k : String} {p : Val},
@@ -2765,7 +2765,7 @@ theorem putMember_checkableA {b : Val} (hb : b.CheckableA) : ∀ {k : String} {p
     · exact .meet (ihu hp) (ihv .any)
     · exact .meet hu (ihv hp)
   | ride _ ih => intro k p hp; exact .ride (ih hp)
-  | link _ ih => intro k p hp; exact .link (ih hp)
+  | link _ ht ih _ => intro k p hp; exact .link (ih hp) ht
   | _ => intro k p hp; simp only [Val.putMember]; constructor <;> assumption
 
 theorem elemAt_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Val},
@@ -2789,7 +2789,7 @@ theorem elemAt_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Val
       exact ihu h₁
     · exact ihv h
   | ride _ ih => intro i p h; exact ih h
-  | link _ ih => intro i p h; exact ih h
+  | link _ _ ih _ => intro i p h; exact ih h
   | _ => intro i p h; simp [Val.elemAt] at h
 
 theorem putElem_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Val},
@@ -2809,7 +2809,7 @@ theorem putElem_checkableA {b : Val} (hb : b.CheckableA) : ∀ {i : ℕ} {p : Va
     · exact .meet (ihu hp) (ihv .any)
     · exact .meet hu (ihv hp)
   | ride _ ih => intro i p hp; exact .ride (ih hp)
-  | link _ ih => intro i p hp; exact .link (ih hp)
+  | link _ ht ih _ => intro i p hp; exact .link (ih hp) ht
   | _ => intro i p hp; simp only [Val.putElem]; constructor <;> assumption
 
 theorem waitingSpread_checkableA {s : Val} (hs : s.CheckableA) {arms : List (Val × Val)} {t : Val}
@@ -3124,7 +3124,7 @@ theorem tmplAt_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hse
       exact ihu hp
     · exact ihv h
   | ride _ ih => intro t h; unfold Val.tmplAt at h; exact ih h
-  | link _ ih => intro t h; unfold Val.tmplAt at h; exact ih h
+  | link _ _ ih _ => intro t h; unfold Val.tmplAt at h; exact ih h
   | _ => intro t h; unfold Val.tmplAt at h; exact absurd h (by simp)
 
 theorem markAt_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hsel : SelReadably sel)
@@ -3143,7 +3143,7 @@ theorem markAt_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hse
     · exact .map hf hs
   | meet _ _ ihu ihv => exact .meet ihu ihv
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | _ => unfold Val.markAt; constructor <;> assumption
 
 theorem tmplAtPos_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hsel : SelReadably sel)
@@ -3174,7 +3174,7 @@ theorem tmplAtPos_checkableA {sel : Val → Option (List (Val × Val) × Val)} (
       exact ihu hp
     · exact ihv h
   | ride _ ih => intro t h; unfold Val.tmplAtPos at h; exact ih h
-  | link _ ih => intro t h; unfold Val.tmplAtPos at h; exact ih h
+  | link _ _ ih _ => intro t h; unfold Val.tmplAtPos at h; exact ih h
   | _ => intro t h; unfold Val.tmplAtPos at h; exact absurd h (by simp)
 
 theorem markAtPos_checkableA {sel : Val → Option (List (Val × Val) × Val)} (hsel : SelReadably sel)
@@ -3193,7 +3193,7 @@ theorem markAtPos_checkableA {sel : Val → Option (List (Val × Val) × Val)} (
     · exact .list hx hs
   | meet _ _ ihu ihv => exact .meet ihu ihv
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | _ => unfold Val.markAtPos; constructor <;> assumption
 
 theorem peerFill_checkableA {x : Val} {w h : Option Val} {fw fh : Val → Val} (hx : x.CheckableA)
@@ -3844,12 +3844,12 @@ theorem filled_tmpl_checkableA {v : Val} (h : v.CheckableA) :
     split
     · exact .ride ih.2
     · exact .ride ih.1
-  | link _ ih =>
-    refine ⟨.link ih.1, ?_⟩
+  | link _ ht ih _ =>
+    refine ⟨.link ih.1 ht, ?_⟩
     simp only [Val.tmplNode]
     split
-    · exact .link ih.2
-    · exact .link ih.1
+    · exact .link ih.2 ht
+    · exact .link ih.1 ht
   | len hc ih => exact ⟨.len ih.1, .len hc⟩
   | must hc ih => exact ⟨.must ih.1, .must hc⟩
   | contains hc hn ihc ihn => exact ⟨.contains ihc.1 ihn.1, .contains hc hn⟩
@@ -4144,7 +4144,7 @@ theorem Val.lonePref_checkableA {v : Val} (h : v.CheckableA) : v.lonePref.Checka
 
 theorem Val.unwrap_checkableA : ∀ {v : Val}, v.CheckableA → v.unwrap.CheckableA
   | .ride _ v _, .ride h => show v.unwrap.CheckableA from Val.unwrap_checkableA h
-  | .link v _, .link h => show v.unwrap.CheckableA from Val.unwrap_checkableA h
+  | .link v _, .link h _ => show v.unwrap.CheckableA from Val.unwrap_checkableA h
   | .pref _ x, .pref h => show x.unwrap.CheckableA from Val.unwrap_checkableA h
   | .integer, h | .float, h | .biginteger, h | .bigdecimal, h | .number, h | .string, h
   | .anyString, h | .boolean, h | .mapKind, h | .listKind, h | .pathKind, h | .lit _, h
@@ -4162,7 +4162,7 @@ theorem Val.operand_checkableA {v : Val} (h : v.CheckableA) : v.operand.Checkabl
 theorem Val.checkableA_unride {v : Val} (h : v.CheckableA) : v.unride.CheckableA := by
   induction v using Val.unride.induct with
   | case1 k v r ih => cases h with | ride h => exact ih h
-  | case2 v t ih => cases h with | link h => exact ih h
+  | case2 v t ih => cases h with | link h _ => exact ih h
   | case3 v h1 h2 => rw [Val.unride.eq_3 v h1 h2]; exact h
 
 /-- What an `Option` `mapM` makes holds what each of its results holds. -/
@@ -4194,7 +4194,7 @@ theorem Val.members_checkableA {ds : Decls} :
     ∀ {lifted : Bool} {v : Val} {ms : List Val}, v.CheckableA → v.members ds lifted = some ms →
       ∀ m, m ∈ ms → m.CheckableA
   | _, .ride _ _ _, _, .ride h, hm => Val.members_checkableA h hm
-  | _, .link _ _, _, .link h, hm => Val.members_checkableA h hm
+  | _, .link _ _, _, .link h _, hm => Val.members_checkableA h hm
   | _, .list _ _ _, _, .list hi _, hm => by
     simp only [Val.members, Option.some.injEq] at hm
     exact hm ▸ hi
@@ -4406,7 +4406,7 @@ theorem Val.keyedMembers_checkableA {ds : Decls} :
     ∀ {lifted : Bool} {v : Val} {ms : List (String × Val)}, v.CheckableA →
       v.keyedMembers ds lifted = some ms → ∀ m, m ∈ ms → m.2.CheckableA
   | _, .ride _ _ _, _, .ride h, hm => Val.keyedMembers_checkableA h hm
-  | _, .link _ _, _, .link h, hm => Val.keyedMembers_checkableA h hm
+  | _, .link _ _, _, .link h _, hm => Val.keyedMembers_checkableA h hm
   | _, .list _ _ _, _, .list hi _, hm => by
     simp only [Val.keyedMembers] at hm
     intro m hm'
@@ -4930,14 +4930,14 @@ theorem prefer_checkableA {v : Val} (h : v.CheckableA) : v.prefer.CheckableA := 
       · rename_i s x hp
         exact .pref (.ride (Val.prefOf?_checkableA h hp))
       · exact .ride ih
-  | link h ih =>
+  | link h ht ih _ =>
     simp only [Val.prefer]
     split
-    · exact .pref (.link h)
+    · exact .pref (.link h ht)
     · split
       · rename_i s x hp
-        exact .pref (.link (Val.prefOf?_checkableA h hp))
-      · exact .link ih
+        exact .pref (.link (Val.prefOf?_checkableA h hp) ht)
+      · exact .link ih ht
   | path =>
     simp only [Val.prefer]
     refine .call fun a ha => ?_
@@ -5010,7 +5010,7 @@ theorem Val.CheckableA.unseal {v : Val} (h : v.CheckableA) : v.unseal.CheckableA
   | pref _ ih => simp only [Val.unseal]; exact .pref ih
   | meet _ _ iha ihb => simp only [Val.unseal]; exact .meet iha ihb
   | ride _ ih => simp only [Val.unseal]; exact .ride ih
-  | link _ ih => simp only [Val.unseal]; exact .link ih
+  | link _ ht ih _ => simp only [Val.unseal]; exact .link ih ht
   | call hargs _ => simp only [Val.unseal]; exact .call hargs
   | len h _ => simp only [Val.unseal]; exact .len h
   | nof hn hcs _ _ => simp only [Val.unseal]; exact .nof hn hcs
@@ -5103,7 +5103,7 @@ theorem fillTop_checkableA {ds : Decls} {w : Val} (hw : w.CheckableA) {v : Val} 
     obtain ⟨a, ha, rfl⟩ := mem_fillTopArms hx
     exact ih r a ha
   | ride _ ih => simp only [fillTop]; exact .ride ih
-  | link _ ih => simp only [fillTop]; exact .link ih
+  | link _ ht ih _ => simp only [fillTop]; exact .link ih ht
   | _ => simp only [fillTop]; constructor <;> assumption
 
 /-- What `maybe` makes of a term the checker can read is one it can read. -/
@@ -5155,7 +5155,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     exact ih r a ha hb
   | pref _ ih => intro b here hb; simp only [resolveD]; exact .pref (ih hb)
   | ride _ ih => intro b here hb; simp only [resolveD]; exact .ride (ih hb)
-  | link _ ih => intro b here hb; simp only [resolveD]; exact .link (ih hb)
+  | link _ ht ih _ => intro b here hb; simp only [resolveD]; exact .link (ih hb) ht
   | meet _ _ iha ihb => intro b here hb; simp only [resolveD]; exact .meet (iha hb) (ihb hb)
   | nof _ _ ihn ihcs =>
     intro b here hb
@@ -5836,7 +5836,7 @@ theorem staged_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (v.staged 
     exact flattenArm_checkableA hq' p hpq
   | pref _ ih => simp only [Val.staged]; exact .pref ih
   | ride _ ih => simp only [Val.staged]; exact .ride ih
-  | link _ ih => simp only [Val.staged]; exact .link ih
+  | link _ ht ih _ => simp only [Val.staged]; exact .link ih ht
   | _ => simp only [Val.staged]; constructor <;> assumption
 
 mutual
@@ -6188,7 +6188,7 @@ theorem untried_checkableA {v : Val} (h : v.CheckableA) : v.untried.CheckableA :
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | call h _ => simp only [Val.untried]; exact .call h
   | _ => simp only [Val.untried]; constructor
 
@@ -6304,7 +6304,7 @@ theorem waitAny_checkableA {v : Val} (h : v.CheckableA) : v.waitAny.CheckableA :
       exact ihs s hs
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | @or arms _ ih =>
     refine .or fun r a hm => ?_
     obtain ⟨b, hb, rfl⟩ := mem_waitArms hm

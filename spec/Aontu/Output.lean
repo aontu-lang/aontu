@@ -276,7 +276,7 @@ theorem Val.CheckableA.visible {v : Val} (h : v.CheckableA) : v.visible.Checkabl
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | _ => simp only [Val.visible]; constructor <;> assumption
 
 theorem Val.Checkable.visible {v : Val} (h : v.Checkable) : v.visible.Checkable := by
@@ -306,7 +306,7 @@ theorem Val.Checkable.visible {v : Val} (h : v.Checkable) : v.visible.Checkable 
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | _ => simp only [Val.visible]; constructor <;> assumption
 
 /-- What evaluation singles out for `v`: what the visible part of the
@@ -1133,10 +1133,11 @@ theorem genWith_iff {v : Val} (h : v.CheckableA)
     intro j
     rw [genWith, Gen]
     exact ih (fun w j hw hsub => hchk w j hw fun n hn => by simpa [Val.refs] using hsub n hn) j
-  | @link v t _ ih =>
+  | @link v t _ _ ih _ =>
     intro j
     rw [genWith, Gen]
-    exact ih (fun w j hw hsub => hchk w j hw fun n hn => by simpa [Val.refs] using hsub n hn) j
+    exact ih (fun w j hw hsub => hchk w j hw fun n hn => by
+      simp only [Val.refs, List.mem_append]; exact .inl (hsub n hn)) j
   | @meet a b ha hb iha ihb =>
     intro j
     rw [genWith, Gen]

@@ -67,7 +67,7 @@ def Val.unmark : Val → Val
   | .ride .type v _ => v.unmark
   | .ride .hide v _ => v.unmark
   | .ride k v r => .ride k v.unmark r
-  | .link v t => .link v.unmark t
+  | .link v t => .link v.unmark t.unmark
   | v => v
 
 def unmarkFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -138,7 +138,7 @@ def Val.refs : Val → List String
   | .filter s c => s.refs ++ c.refs
   | .call _ args => refsItems args
   | .ride _ v _ => v.refs
-  | .link v _ => v.refs
+  | .link v t => v.refs ++ t.refs
   | _ => []
 
 def refsPairs : List (Val × Val) → List String
@@ -256,7 +256,7 @@ def Val.unguardedRefs : Val → List String
   | .filter s c => s.unguardedRefs ++ c.unguardedRefs
   | .call _ args => unguardedItems args
   | .ride _ v _ => v.unguardedRefs
-  | .link v _ => v.unguardedRefs
+  | .link v t => v.unguardedRefs ++ t.unguardedRefs
   | _ => []
 
 def unguardedPairs : List (Val × Val) → List String
@@ -599,7 +599,10 @@ theorem unguardedRefs_sub_refs : ∀ (v : Val) (n : String), n ∈ v.unguardedRe
   | .or arms, n, h => unguardedArms_sub_refsArms arms n h
   | .pref _ x, n, h => unguardedRefs_sub_refs x n h
   | .ride _ v _, n, h => unguardedRefs_sub_refs v n h
-  | .link v _, n, h => unguardedRefs_sub_refs v n h
+  | .link v t, n, h => by
+    simp only [Val.unguardedRefs, List.mem_append] at h
+    simp only [Val.refs, List.mem_append]
+    exact h.elim (fun h => .inl (unguardedRefs_sub_refs v n h)) (fun h => .inr (unguardedRefs_sub_refs t n h))
   | .meet a b, n, h => by
     simp only [Val.unguardedRefs, List.mem_append] at h
     simp only [Val.refs, List.mem_append]
@@ -843,7 +846,7 @@ def Val.paths : Val → List (List Seg)
   | .filter s c => s.paths ++ c.paths
   | .call _ args => pathsItems args
   | .ride _ v _ => v.paths
-  | .link v _ => v.paths
+  | .link v t => v.paths ++ t.paths
   | _ => []
 
 def pathsPairs : List (Val × Val) → List (List Seg)

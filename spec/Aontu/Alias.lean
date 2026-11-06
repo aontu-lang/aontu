@@ -123,7 +123,7 @@ theorem Val.sealConjuncts_checkableA {v : Val} (h : v.CheckableA) :
       exact ih hv c hc
   | case3 v t ih =>
     cases h with
-    | link hv =>
+    | link hv _ =>
       intro c hc
       simp only [Val.sealConjuncts] at hc
       exact ih hv c hc
@@ -147,8 +147,8 @@ theorem Val.sealConjuncts_unguardedRefs {v c : Val} (hc : c ∈ v.sealConjuncts)
     exact ih hc
   | case3 v t ih =>
     simp only [Val.sealConjuncts] at hc
-    simp only [Val.unguardedRefs]
-    exact ih hc
+    simp only [Val.unguardedRefs, List.mem_append]
+    exact .inl (ih hc)
   | case4 v h1 h2 h3 =>
     rw [Val.sealConjuncts.eq_4 v h1 h2 h3, List.mem_singleton] at hc
     exact hc ▸ hn
@@ -319,7 +319,7 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .filter s c => .filter (expandF ds k s) (expandF ds k c)
     | .call f args => .call f (args.map (expandF ds k))
     | .ride t v r => .ride t (expandF ds k v) r
-    | .link v t => .link (expandF ds k v) t
+    | .link v t => .link (expandF ds k v) (expandF ds k t)
     | v => v
 
 /-- The expansion of a term: enough turns for every chain of names that
@@ -489,8 +489,14 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
       simp only [expandF, Val.unguardedRefs] at h ⊢
       exact unguardedRefs_expandF f v h
     | link v t =>
-      simp only [expandF, Val.unguardedRefs] at h ⊢
-      exact unguardedRefs_expandF f v h
+      simp only [expandF, Val.unguardedRefs, List.mem_append] at h ⊢
+      rcases h with h | h
+      · rcases unguardedRefs_expandF f v h with h' | ⟨m, hm, hmn⟩
+        · exact .inl (.inl h')
+        · exact .inr ⟨m, .inl hm, hmn⟩
+      · rcases unguardedRefs_expandF f t h with h' | ⟨m, hm, hmn⟩
+        · exact .inl (.inr h')
+        · exact .inr ⟨m, .inr hm, hmn⟩
     | meet a b =>
       simp only [expandF, Val.unguardedRefs, List.mem_append] at h ⊢
       rcases h with h | h
@@ -719,7 +725,7 @@ theorem Val.CheckableA.unmark {v : Val} (h : v.CheckableA) : v.unmark.CheckableA
   | pref _ ih => exact .pref ih
   | meet _ _ iha ihb => exact .meet iha ihb
   | @ride k v r _ ih => cases k <;> first | exact ih | exact .ride ih
-  | @link v t _ ih => exact .link ih
+  | @link v t _ _ ihv iht => exact .link ihv iht
   | len _ ih => exact .len ih
   | @nof n cs _ _ ihn ihc =>
     refine .nof ihn fun w hm => ?_
@@ -829,7 +835,7 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       exact expandF_checkableA hb f a (ha r' a ha')
     | pref hx => exact .pref (expandF_checkableA hb f _ hx)
     | ride hv => exact .ride (expandF_checkableA hb f _ hv)
-    | link hv => exact .link (expandF_checkableA hb f _ hv)
+    | link hv ht => exact .link (expandF_checkableA hb f _ hv) (expandF_checkableA hb f _ ht)
     | meet ha hb' => exact .meet (expandF_checkableA hb f _ ha) (expandF_checkableA hb f _ hb')
     | nof hn hcs =>
       refine .nof (expandF_checkableA hb f _ hn) ?_
@@ -1310,7 +1316,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
     exact ih r a ha
   | pref _ ih => exact ih
   | ride _ ih => exact ih
-  | link _ ih => exact ih
+  | link _ _ ih _ => exact ih
   | @meet a b ha hb iha ihb =>
     show (if a.isKind then (if b.isKind then (if a.isLeaf then a.super else b.super) else a)
       else if b.isKind then b else Val.meet a.super b.super).CheckableA
@@ -1558,8 +1564,8 @@ theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
     | exact meetRight_checkableA hr ha hb
     | exact (match ha with | .ride h => .ride (hr _ _ h hb))
     | exact (match hb with | .ride h => .ride (hr _ _ ha h))
-    | exact (match ha with | .link h => .link (hr _ _ h hb))
-    | exact (match hb with | .link h => .link (hr _ _ ha h))
+    | exact (match ha with | .link h ht => .link (hr _ _ h hb) ht)
+    | exact (match hb with | .link h ht => .link (hr _ _ ha h) ht)
     | exact mkOr_or_left hr ha hb
     | exact mkOr_or_right hr ha hb
     | exact mkOr_pref_left hr ha hb

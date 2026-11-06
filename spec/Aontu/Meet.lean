@@ -676,7 +676,7 @@ theorem Val.CheckableA.selectNow {v : Val} (h : v.CheckableA) : v.selectNow.Chec
     cases h with | ride hv => exact .ride (ih hv)
   | case5 v t ih =>
     simp only [Val.selectNow]
-    cases h with | link hv => exact .link (ih hv)
+    cases h with | link hv ht => exact .link (ih hv) ht
   | case6 v h1 h2 h3 h4 => rw [Val.selectNow.eq_5 v h1 h2 h3 h4]; exact h
 
 /-- A literal's scalar, if the term is one. -/

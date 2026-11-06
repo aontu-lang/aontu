@@ -1776,7 +1776,7 @@ theorem landStep_checkableA {S : Val} (hS : S.CheckableA) {i : Val × List Seg}
   next v t heq =>
     rw [heq] at hi
     cases hi with
-    | link hv =>
+    | link hv _ =>
       refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
       simp only [List.mem_singleton] at hj
       rw [hj]; exact hv
@@ -1955,7 +1955,7 @@ theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliase
     exact ih r a ha
   | pref _ ih => exact .pref ih
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | meet _ _ iha ihb => exact .meet iha ihb
   | path => simp only [Val.pathsToAliases]; split <;> constructor
   | @nof n cs _ _ ihn ihcs =>
@@ -2144,7 +2144,7 @@ theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos)
     exact ih r a ha pos
   | pref _ ih => intro pos; exact .pref (ih pos)
   | ride _ ih => intro pos; exact .ride (ih pos)
-  | link _ ih => intro pos; exact .link (ih pos)
+  | link _ ht ih _ => intro pos; exact .link (ih pos) ht
   | meet _ _ iha ihb => intro pos; exact .meet (iha pos) (ihb pos)
   | @path p =>
     intro pos
@@ -2319,7 +2319,7 @@ theorem mapLoads_checkableA {ld : String → Option Val} (hk : ∀ p w, ld p = s
     exact ih r a ha
   | pref _ ih => exact .pref ih
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | meet _ _ iha ihb => exact .meet iha ihb
   | @nof n cs _ _ ihn ihcs =>
     refine .nof ihn fun w hm => ?_
@@ -2454,7 +2454,7 @@ theorem placedT_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placedT po
     exact ihi v hv _
   | meet _ _ iha ihb => intro pos; exact .meet (iha pos) (ihb pos)
   | ride _ ih => intro pos; exact .ride (ih pos)
-  | link _ ih => intro pos; exact .link (ih pos)
+  | link _ ht ih _ => intro pos; exact .link (ih pos) ht
   | len hc _ => intro pos; exact placed_checkableA (.len hc) pos
   | or ha _ => intro pos; exact placed_checkableA (.or ha) pos
   | pref hx _ => intro pos; exact placed_checkableA (.pref hx) pos
@@ -2564,7 +2564,7 @@ theorem relBlank_checkableA {v : Val} (h : v.CheckableA) : v.relBlank.CheckableA
     exact ihi v hv
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | len hc _ => exact relAny_checkableA (.len hc)
   | or ha _ => exact relAny_checkableA (.or ha)
   | pref hx _ => exact relAny_checkableA (.pref hx)
@@ -2617,7 +2617,7 @@ theorem relPart_checkableA {v : Val} (h : v.CheckableA) : v.relPart.CheckableA :
     exact ihi v hv
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | len hc _ => exact relWhole_checkableA (.len hc)
   | or ha _ => exact relWhole_checkableA (.or ha)
   | pref hx _ => exact relWhole_checkableA (.pref hx)
@@ -2657,7 +2657,7 @@ theorem neutral_checkableA {v : Val} (h : v.CheckableA) : v.neutral.CheckableA :
     exact ihi v hv
   | meet _ _ iha ihb => exact .meet iha ihb
   | ride _ ih => exact .ride ih
-  | link _ ih => exact .link ih
+  | link _ ht ih _ => exact .link ih ht
   | len hc _ => exact .len hc
   | or ha _ => exact .or ha
   | pref hx _ => exact .pref hx
@@ -2999,7 +2999,7 @@ theorem linkStep_checkableA {dp : Decls} (hdp : ∀ x, x ∈ dp → x.2.Checkabl
     next v t heq =>
       rw [heq] at hi
       cases hi with
-      | link hv =>
+      | link hv _ =>
         refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
         simp only [List.mem_singleton] at hj
         rw [hj]; exact ⟨hv, hm⟩
