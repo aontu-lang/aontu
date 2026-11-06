@@ -165,8 +165,15 @@ What it removes from the definition: the link walk (`LinkItem`,
 `Decls.pickedAt`, `callLinks`, `referSrc`), 73 definition lines and
 161 proof lines, the walk of `Val.moved`, 33 more, and the parked work
 on `match` arms. The flows' meet into their targets (`referFlow`,
-`Val.putW`, the rounds) stays. The definition shrinks by about 2%; the
-gain is that a link's place is read from the value, not re-derived.
+`Val.putW`, the rounds) stays. Carrying the template costs about as
+much as the walk. Today the normal form drops it (`callTerm` makes
+`refer(t)` the path kind), and a rider can't hold it, since a rider's
+record is data and `Rider` comes before `Val`. So the template needs a
+value form of its own, `.link v t`, transparent wherever a rider is:
+about one arm beside each of the 114 arms the riders have, and the
+proof cases that go with them. The size stays about where it is. The
+gain is that no form needs a link clause again: ruling 33, and the
+`match` case being written, become properties of the normal form.
 
 What it removes from the engines: about 160 lines in each, the
 recording, the live write and its re-entry guard in `ReferVal.settle`,
@@ -276,7 +283,7 @@ and the settling-pass checks.
 
 | Step | Language change | Definition | Engines | Closes |
 |---|---|---|---|---|
-| 4.1 links and moves as obligations | none; three small rulings | S | M | #542, #647, #648; #536 with 4.3; limit 17, part of 19; the `match` work |
+| 4.1 links and moves as obligations | none; three small rulings | M, about size-neutral | M | #542, #647, #648; #536 with 4.3; limit 17, part of 19; the `match` work |
 | 4.2 (a) `_` bound, application explicit | yes: fill by peer moves to a new form | S, mostly deletion | M | rulings 21, 29 to 31; limits 6 to 13; #432, #512, #530, #578 |
 | 4.2 (b) plain fill only | yes: some shapes become errors | S | S | limits 6 to 9, 12; #512 |
 | 4.3 one placement | none: builds rulings 22 and 26 | M | L | 13 issues, #524 with a ruling; limit 20 |
@@ -291,10 +298,12 @@ The sizes are the register's S, M and L.
   region of the definition. Under (a) `&` is a meet everywhere, so a
   document's meaning can't depend on the order of its meets, which is
   what a unifier promises. (b) is the cautious alternative.
-- **Build 4.1 first.** It is the smallest, it needs no change to the
-  language, and it fixes defects (#647, #648) that the present design
-  can't fix without carrying an arm's flows with its value, which is
-  4.1.
+- **Build 4.1 first.** It needs no change to the language and no
+  further decision, and it fixes defects (#647, #648) that the present
+  design can't fix without carrying an arm's flows with its value,
+  which is 4.1. It isn't the smallest step: in the definition it is
+  about size-neutral, where 4.2 (a) is mostly deletion, but 4.2 waits
+  on the syntax of its application form.
 - **Then 4.2, as decided, then 4.3.** Under (a), 4.2 goes before 4.3,
   since it deletes the fill that 4.3 would otherwise have to carry
   through every placement. 4.3 is the largest step and is best taken
