@@ -37,11 +37,16 @@ Both implementations, and shared rows.
   a `type()` model.
 - Of twin defaults of different ranks, only the lower one's templates
   send, in TypeScript as in Go.
+- A link that meets a reference before it resolves makes the link once
+  it does, so `rel({k: 1}) & [$.later]` beside `later: path($.a)` flows
+  `k: 1` into `a` in `vet` too (#656).
+- A relation's error names the edge's own place, as both engines did
+  before the change, for a link a model's spread copies.
 - A map or list's clone has a spread of its own in TypeScript, where it
   shared the original's.
-- 27 `verdict` rows from the definition, rf171 to rf197 in
-  `test/spec/def-path.tsv`, and 12 rows in `refer.tsv` and `rel.tsv`
-  that both engines agree on.
+- 36 `verdict` rows from the definition, rf171 to rf200 and rl156 to
+  rl161 in `test/spec/def-path.tsv`, and 14 rows in `refer.tsv` and
+  `rel.tsv` that both engines agree on.
 
 ### The definition carries a link's template in the normal form
 

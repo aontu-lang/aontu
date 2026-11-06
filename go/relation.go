@@ -173,8 +173,10 @@ func relationErrors(ctx *Ctx, root Val) error {
 	}
 	for _, f := range findings {
 		node := root
+		var at []string
 		if 2 < len(f.At) {
-			for _, seg := range strings.Split(f.At[2:], ".") {
+			at = strings.Split(f.At[2:], ".")
+			for _, seg := range at {
 				// Graph atoms hold the field's value -- possibly nested,
 				// one atom carrying another -- and the path steps through
 				// them exactly as the graph walk does.
@@ -194,10 +196,12 @@ func relationErrors(ctx *Ctx, root Val) error {
 				}
 			}
 		}
-		makeNilErrFull(ctx, f.Code, node, nil, "relate", map[string]string{
+		n := makeNilErrFull(ctx, f.Code, node, nil, "relate", map[string]string{
 			"relation": f.Relation,
 			"detail":   strings.Join(f.Detail, " -> "),
 		})
+		// The edge's own place, which a link copied from a model may not carry.
+		n.path = at
 	}
 	return &AontuError{Msg: ctx.errmsg(), Code: findings[0].Code}
 }

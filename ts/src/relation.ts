@@ -176,7 +176,8 @@ export function relationErrors(ctx: any, root: any): void {
   const findings = relationFindings(decls, graphOf(root))
   for (const f of findings) {
     let node: any = root
-    for (const seg of f.at.slice(2).split('.')) {
+    const at = f.at.slice(2).split('.')
+    for (const seg of at) {
       // Graph atoms hold the field's value -- possibly nested, one
       // atom carrying another -- and the path steps through them
       // exactly as the graph walk does.
@@ -185,10 +186,12 @@ export function relationErrors(ctx: any, root: any): void {
       }
       node = node?.peg?.[seg]
     }
-    ctx.adderr(makeNilErr(ctx, f.code, node, undefined, 'relate', {
+    const nil = makeNilErr(ctx, f.code, node, undefined, 'relate', {
       relation: f.relation,
       detail: f.detail.join(' -> '),
-    }))
+    })
+    nil.path = at
+    ctx.adderr(nil)
   }
 }
 

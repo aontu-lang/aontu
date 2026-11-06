@@ -119,7 +119,8 @@ function relationErrors(ctx, root) {
     const findings = relationFindings(decls, (0, graph_1.graphOf)(root));
     for (const f of findings) {
         let node = root;
-        for (const seg of f.at.slice(2).split('.')) {
+        const at = f.at.slice(2).split('.');
+        for (const seg of at) {
             // Graph atoms hold the field's value -- possibly nested, one
             // atom carrying another -- and the path steps through them
             // exactly as the graph walk does.
@@ -128,10 +129,12 @@ function relationErrors(ctx, root) {
             }
             node = node?.peg?.[seg];
         }
-        ctx.adderr((0, err_1.makeNilErr)(ctx, f.code, node, undefined, 'relate', {
+        const nil = (0, err_1.makeNilErr)(ctx, f.code, node, undefined, 'relate', {
             relation: f.relation,
             detail: f.detail.join(' -> '),
-        }));
+        });
+        nil.path = at;
+        ctx.adderr(nil);
     }
 }
 // The relation checks for one document: evaluate, then report the
