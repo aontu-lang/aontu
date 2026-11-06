@@ -1723,6 +1723,35 @@ until the phase that encodes it lands.
    carrying an arm's flows with its value until the arm is final, which
    the consolidation study takes up.
 
+34. **A hole outside a generator, and the meet as application.** Raised
+   2026-11-06 by the consolidation study (`sketch/CORE.0.md`, §4.2).
+   Rulings 21, 29, 30 and 31 read a meet with a hole on one side as
+   application: `upper(_) & "hello"` is `"HELLO"`, read before any meet
+   means anything (`Val.filled` in `spec/Aontu/Verdict.lean`). That
+   reading is the largest special region of the definition: 319
+   definition lines and 902 proof lines, four rulings, limits 6 to 13 of
+   `spec/README.md`, and #432, #512, #530 and #578, where `&` doesn't
+   commute around a call whose argument is the hole. No use case fills a
+   hole from its peer. Of the 40 holes in the use cases, 39 are a
+   generator's placeholder, and the one that isn't, `match(_, …)` as a
+   discriminated union in use case 07, is kept there as a failed
+   attempt. Either application is made explicit, so `_` is a variable
+   that a generator or an application form binds and `&` is a meet
+   everywhere; or fill by peer is kept for one call over a hole met with
+   values, and any other shape is an error; or it stays as it is.
+
+   **Ruled 2026-11-06: application is explicit.** `_` is bound only by
+   a generator or by a form that hands a call a value, whose syntax is a
+   choice of its own; the study names it `apply(v, f)` to have a name.
+   `&` meets a call over a hole with its peer as it meets any two
+   values, and a spread's template binds no hole: a spread whose
+   template holds one gives way to a generator. Rulings 21, 29, 30 and
+   31 are superseded once this is built, and limits 6 to 13 go with
+   them. What a call over a hole that nothing binds answers where the
+   output reads it is settled with the rows that build this. The
+   definition and both ports move after the study's first step, links
+   as obligations (`sketch/CORE.0.md`, §6).
+
 ## 8. Risks
 
 | Risk | Mitigation |
