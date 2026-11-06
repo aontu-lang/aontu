@@ -3965,9 +3965,9 @@ refused outright: no later pass can grow a tree upwards.
 
 ### Existence is decided, not deferred
 
-A target may be introduced by a later conjunct, include or spread, or
-by another link's template, so an address is checked once the document
-is evaluated, with every template in place. Within one evaluation the
+A later conjunct, include or spread, or another link's template, may
+bring a target, so the engine checks an address once it has evaluated
+the document, with every template in place. Within one evaluation the
 document-set is fixed, so existence *is* decidable: an address that
 names nothing in the evaluated document is a located error
 (`refer_unresolved`), not something to check later.

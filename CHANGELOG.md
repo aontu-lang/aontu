@@ -13,8 +13,8 @@ each change affects.
 Both implementations, and shared rows.
 
 - `refer()` and `rel()` settle to a path value carrying the link: the
-  node it names and its template. Nothing is written into the target
-  while the document evaluates. The engine collects the links of the
+  node it names and its template. Nothing writes into the target while
+  the document evaluates. The engine collects the links of the
   result where the output reads them, within the arms the rank rule
   picks, and evaluates a document with links again, met with each
   template at its target, until no template is new. The recording, the
@@ -29,13 +29,18 @@ Both implementations, and shared rows.
 - A reference to a link's target reads it with the template, whichever
   the document writes first, so `c: $.a` before `b: refer({k: 1}) &
   path($.a)` gives `c` the member `k: 1`, and `$.a.k` resolves (#655).
-- A template that conflicts with its target is reported at the target,
-  `$.a.kind` in `a: {kind: 1}` beside `b: refer({kind: 2}) & path($.a)`,
-  where it was reported at the link, `$.b.kind`.
+- The engines report a template that conflicts with its target at the
+  target, `$.a.kind` in `a: {kind: 1}` beside
+  `b: refer({kind: 2}) & path($.a)`, where they reported it at the link,
+  `$.b.kind`. They report a link to nothing where it stands in the
+  result, so the two name the same place for a relation reached through
+  a `type()` model.
+- Of twin defaults of different ranks, only the lower one's templates
+  send, in TypeScript as in Go.
 - A map or list's clone has a spread of its own in TypeScript, where it
   shared the original's.
-- 24 `verdict` rows from the definition, rf171 to rf194 in
-  `test/spec/def-path.tsv`, and seven rows in `refer.tsv` and `rel.tsv`
+- 27 `verdict` rows from the definition, rf171 to rf197 in
+  `test/spec/def-path.tsv`, and 12 rows in `refer.tsv` and `rel.tsv`
   that both engines agree on.
 
 ### The definition carries a link's template in the normal form
