@@ -691,3 +691,12 @@ The answers to the agent's questions, each question followed by the option chose
 #631: under `vet --no-fill`, `a: *{b: 1} | {}` against `{"a": {}}` — the definition answers `valid` (the `{}` arm admits the data as written), both engines answer `incomplete` (they report the default's `b` as a member the schema supplies, `vet_filled`). Which reading should `--no-fill` have?
 → Instance of any arm (Recommended)
 ```
+
+## 2026-11-06 11:02:55 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+A refer() or rel() link written inside a default `*x` or an arm of `a | b`: when should its template reach its target? Both engines send it from every arm the meet keeps. The definition's link walk never enters `*` or `|`, so it sends nothing, and the two read `x: *{d: refer({z: 1}) & path($.y)}` beside `y: {z: integer}` differently: valid vs incomplete. (An arm the meet refuses sends nothing under any rule; the engines' eval leak there is filed as #647.) Which rule should the definition and both engines share?
+→ Arms the output picks (Recommended)
+```
