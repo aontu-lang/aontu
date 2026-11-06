@@ -290,28 +290,28 @@ exports.DisjunctVal = DisjunctVal;
 // `1.0` generate the same digits, and are still different values.
 // A member dropped as a duplicate leaves its riders on the survivor, at
 // every depth, so the join is as order-free as the meet (ADR-052).
-function keepRiders(ctx, keep, drop) {
+function keepRiders(ctx, keep, drop, sends = true) {
     if (!ridden(drop)) {
         return keep;
     }
     const out = keep.clone(ctx);
     (0, unify_1.ride)(out, keep, drop);
-    // Both twins are arms the output takes where neither outranks the
-    // other, so both send their links.
-    if (!(true === keep.isPref && true === drop.isPref && keep.rank !== drop.rank)) {
+    // The twins' links are both sent only where neither outranks the other.
+    sends = sends && !(true === keep.isPref && true === drop.isPref && keep.rank !== drop.rank);
+    if (sends) {
         out.flows = (0, PathVal_1.joinFlows)(out.flows, drop.flows);
     }
     if (true === drop.isPref && true !== out.isPref) {
         // A twin of a higher rank holds one more preference layer.
-        return keepRiders(ctx, out, drop.peg);
+        return keepRiders(ctx, out, drop.peg, sends);
     }
     if (true === out.isBag) {
         for (const k of Object.keys(out.peg)) {
-            out.peg[k] = keepRiders(ctx, out.peg[k], drop.peg[k]);
+            out.peg[k] = keepRiders(ctx, out.peg[k], drop.peg[k], sends);
         }
     }
     else if (true === out.isPref) {
-        out.peg = keepRiders(ctx, out.peg, drop.peg);
+        out.peg = keepRiders(ctx, out.peg, drop.peg, sends);
     }
     return out;
 }

@@ -243,6 +243,45 @@ func TestReferSettlesToALinkCarryingItsTemplate(t *testing.T) {
 	}
 }
 
+func TestHoldsLinkAlreadySettled(t *testing.T) {
+	// A tree a caller evaluated before, as vet's anchor under --at is,
+	// holds a refer() or rel() value, or a link, where a parse holds the
+	// call.
+	if !holdsLink(newRefer(nil), map[Val]bool{}) || !holdsLink(newRel(nil), map[Val]bool{}) {
+		t.Fatal("a refer() or rel() value holds a link")
+	}
+	link := newPath("$.a")
+	link.lk.to = []string{"a"}
+	m := newMap()
+	m.set("b", link)
+	plain := newMap()
+	plain.set("b", newPath("$.a"))
+	if !holdsLink(m, map[Val]bool{}) || holdsLink(plain, map[Val]bool{}) {
+		t.Fatal("a link holds a link and a plain path does not")
+	}
+}
+
+func TestLinksOfPutsThroughAMeetAndAGraphAtom(t *testing.T) {
+	// A link a meet or a graph atom holds as itself is put back there.
+	link := func() *ScalarVal {
+		l := newPath("$.gone")
+		l.lk.to = []string{"gone"}
+		return l
+	}
+	cj := newConjunct([]Val{link(), newScalarKind(KindString)})
+	ga := newGraphAtom("acyclic", "", link())
+	for _, root := range []Val{cj, ga} {
+		sites := linksOf(root)
+		if 1 != len(sites) {
+			t.Fatalf("expected one link in %s, got %d", root.Canon(), len(sites))
+		}
+		sites[0].put(newNil("gone"))
+	}
+	if !cj.peg[0].Nil() || !ga.held.Nil() {
+		t.Fatal("each link's place should hold what was put there")
+	}
+}
+
 func TestRecurseBudgetBackstop(t *testing.T) {
 	ctx := &Ctx{root: newMap(), collect: true}
 	rec := newRecurse([]string{"n"}, maxUniteDepth)

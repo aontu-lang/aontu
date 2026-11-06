@@ -20,7 +20,7 @@ import { HideFuncVal } from '../dist/val/HideFuncVal'
 import { MoveFuncVal } from '../dist/val/MoveFuncVal'
 import { PrefFuncVal } from '../dist/val/PrefFuncVal'
 import { TypeFuncVal } from '../dist/val/TypeFuncVal'
-import { Unify } from '../dist/unify'
+import { Unify, holdsLink, linksOf } from '../dist/unify'
 import { main as cliMain, evalSource } from '../dist/cli'
 import { main as lspMain } from '../dist/lsp-server'
 import { computeDiagnostics, computeHover, LspHandler } from '../dist/lsp'
@@ -34,7 +34,7 @@ import { Provenance, markSpread } from '../dist/provenance'
 import { ReferVal, RelVal, RelFuncVal, addressPath, findAt } from '../dist/val/ReferFuncVal'
 import { EmptyVal } from '../dist/val/EmptyVal'
 import { SealVal, sealTree, sealBag, sealChild } from '../dist/val/SealVal'
-import { parseAddress, PathVal } from '../dist/val/PathVal'
+import { joinFlows, parseAddress, PathVal } from '../dist/val/PathVal'
 import { graphOf } from '../dist/graph'
 import { canonRiders } from '../dist/utility'
 import {
@@ -1710,6 +1710,49 @@ describe('coverage3-refer', () => {
     Assert.strictEqual(out.flows.length, 1)
     Assert.strictEqual(out.flows[0][0], 'x')
     Assert.strictEqual(out.flows[0][1].peg, 1)
+  })
+
+  test('a-tree-holds-a-link-it-has-already-settled', () => {
+    // A tree a caller evaluated before, as vet's anchor under --at is,
+    // holds a refer() or rel() value, or a link, where a parse holds
+    // the call.
+    const ctx: any = new Aontu().ctx({ collect: true })
+    Assert.strictEqual(holdsLink(new ReferVal({}, ctx)), true)
+    Assert.strictEqual(holdsLink(new RelVal({}, ctx)), true)
+    const link: any = new PathVal({ peg: '$.a' }, ctx)
+    link.linkto = ['a']
+    Assert.strictEqual(holdsLink(new MapVal({ peg: { b: link } }, ctx)), true)
+    Assert.strictEqual(holdsLink(new MapVal({ peg: { b: new PathVal({ peg: '$.a' }, ctx) } }, ctx)), false)
+  })
+
+  test('links-are-put-back-through-a-meet-and-a-graph-atom', () => {
+    // A link a meet or a graph atom holds as itself is put back there.
+    const ctx: any = new Aontu().ctx({ collect: true })
+    const link = (): any => {
+      const l: any = new PathVal({ peg: '$.gone' }, ctx)
+      l.linkto = ['gone']
+      return l
+    }
+    const cj: any = new ConjunctVal({ peg: [link(), new ScalarKindVal({ peg: String }, ctx)] }, ctx)
+    const ga: any = new GraphAtomVal({ akind: 'acyclic', held: link() } as any, ctx)
+    for (const root of [cj, ga]) {
+      const sites = linksOf(root)
+      Assert.strictEqual(sites.length, 1)
+      sites[0].put(new NilVal({ why: 'gone' }, ctx))
+    }
+    Assert.strictEqual(cj.peg[0].isNil, true)
+    Assert.strictEqual(ga.held.isNil, true)
+  })
+
+  test('join-flows-keeps-each-template-once', () => {
+    const p1: any = ['a', null]
+    const p2: any = ['b', null]
+    const a: any = [p1]
+    Assert.strictEqual(joinFlows(a, undefined), a)
+    Assert.strictEqual(joinFlows(a, a), a)
+    Assert.strictEqual(joinFlows(undefined, a), a)
+    Assert.strictEqual(joinFlows(a, [p1]), a)
+    Assert.deepStrictEqual(joinFlows(a, [p1, p2]), [p1, p2])
   })
 
   test('refer-climb-off-the-top-refuses', () => {

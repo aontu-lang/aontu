@@ -323,8 +323,9 @@ function residuePaths(v: Val, max: number): string[] {
 }
 
 
-// A link the output takes, and how to put a value in its place.
-type LinkSite = { link: any, put: (v: Val) => void }
+// A link the output takes, where it stands, and how to put a value in
+// its place.
+type LinkSite = { link: any, at: string[], put: (v: Val) => void }
 
 
 // The links a result holds where the output reads them: through maps,
@@ -334,16 +335,16 @@ type LinkSite = { link: any, put: (v: Val) => void }
 // no position, so its links are its members'.
 function linksOf(root: Val): LinkSite[] {
   const out: LinkSite[] = []
-  const visit = (node: any, put: (v: Val) => void): void => {
+  const visit = (node: any, put: (v: Val) => void, at: string[]): void => {
     if (true === node.isPath) {
       if (undefined !== node.linkto) {
-        out.push({ link: node, put })
+        out.push({ link: node, at, put })
       }
     }
     else if (true === node.isMap || true === node.isList) {
       const peg = node.peg
       for (const k of Object.keys(peg)) {
-        visit(peg[k], (v: Val) => { peg[k] = v })
+        visit(peg[k], (v: Val) => { peg[k] = v }, [...at, k])
       }
     }
     else if (true === node.isDisjunct || true === node.isConjunct) {
@@ -353,18 +354,18 @@ function linksOf(root: Val): LinkSite[] {
       const rank = 0 === ranks.length ? undefined : Math.min(...ranks)
       arms.forEach((a: any, i: number) => {
         if (undefined === rank || (true === a.isPref && rank === a.rank)) {
-          visit(a, (v: Val) => { arms[i] = v })
+          visit(a, (v: Val) => { arms[i] = v }, at)
         }
       })
     }
     else if (true === node.isPref) {
-      visit(node.peg, (v: Val) => { node.peg = v })
+      visit(node.peg, (v: Val) => { node.peg = v }, at)
     }
     else if (true === node.isGraphAtom && undefined !== node.held) {
-      visit(node.held, (v: Val) => { node.held = v })
+      visit(node.held, (v: Val) => { node.held = v }, at)
     }
   }
-  visit(root, () => undefined)
+  visit(root, () => undefined, [])
   return out
 }
 
@@ -559,10 +560,12 @@ class Unify {
       }
 
       // A link the output takes names something the document holds.
-      for (const { link, put } of links) {
+      for (const { link, at, put } of links) {
         if (undefined === findAt(res, link.linkto)) {
-          put(makeNilErr(uctx, link.linkcode ?? 'refer_unresolved', link, undefined,
-            'refer', { addr: link.peg }))
+          const nil = makeNilErr(uctx, link.linkcode ?? 'refer_unresolved', link, undefined,
+            'refer', { addr: link.peg })
+          nil.path = at
+          put(nil)
         }
       }
 
@@ -586,6 +589,8 @@ const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string)
 
 export {
   Unify,
+  holdsLink,
+  linksOf,
   unite,
   meetTemplate,
   withDepth,

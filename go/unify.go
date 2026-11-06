@@ -133,9 +133,11 @@ func drives(v Val) bool {
 
 const maxUniteDepth = 1000
 
-// linkSite is a link the output takes, and how to put a value in its place.
+// linkSite is a link the output takes, where it stands, and how to put a
+// value in its place.
 type linkSite struct {
 	link *ScalarVal
+	at   []string
 	put  func(Val)
 }
 
@@ -146,27 +148,27 @@ type linkSite struct {
 // spread's template holds no position, so its links are its members'.
 func linksOf(root Val) []linkSite {
 	var out []linkSite
-	var visit func(n Val, put func(Val))
-	visit = func(n Val, put func(Val)) {
+	var visit func(n Val, put func(Val), at []string)
+	visit = func(n Val, put func(Val), at []string) {
 		switch v := n.(type) {
 		case *ScalarVal:
 			if nil != v.lk.to {
-				out = append(out, linkSite{v, put})
+				out = append(out, linkSite{v, at, put})
 			}
 		case *MapVal:
 			for _, k := range v.keys {
 				k := k
-				visit(v.peg[k], func(x Val) { v.peg[k] = x })
+				visit(v.peg[k], func(x Val) { v.peg[k] = x }, append(cp(at), k))
 			}
 		case *ListVal:
 			for i := range v.peg {
 				i := i
-				visit(v.peg[i], func(x Val) { v.peg[i] = x })
+				visit(v.peg[i], func(x Val) { v.peg[i] = x }, append(cp(at), itoa(i)))
 			}
 		case *ConjunctVal:
 			for i := range v.peg {
 				i := i
-				visit(v.peg[i], func(x Val) { v.peg[i] = x })
+				visit(v.peg[i], func(x Val) { v.peg[i] = x }, at)
 			}
 		case *DisjunctVal:
 			rank := -1
@@ -179,18 +181,18 @@ func linksOf(root Val) []linkSite {
 				p, ok := a.(*PrefVal)
 				if 0 > rank || (ok && rank == p.rank) {
 					i := i
-					visit(a, func(x Val) { v.peg[i] = x })
+					visit(a, func(x Val) { v.peg[i] = x }, at)
 				}
 			}
 		case *PrefVal:
-			visit(v.peg, func(x Val) { v.peg = x })
+			visit(v.peg, func(x Val) { v.peg = x }, at)
 		case *GraphAtomVal:
 			if nil != v.held {
-				visit(v.held, func(x Val) { v.held = x })
+				visit(v.held, func(x Val) { v.held = x }, at)
 			}
 		}
 	}
-	visit(root, func(Val) {})
+	visit(root, func(Val) {}, nil)
 	return out
 }
 
@@ -431,8 +433,10 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 			if "" == code {
 				code = "refer_unresolved"
 			}
-			l.put(makeNilErrFull(ctx, code, l.link, nil, "refer",
-				map[string]string{"addr": l.link.peg.(string)}))
+			n := makeNilErrFull(ctx, code, l.link, nil, "refer",
+				map[string]string{"addr": l.link.peg.(string)})
+			n.path = l.at
+			l.put(n)
 		}
 	}
 

@@ -2,6 +2,8 @@
 /* Copyright (c) 2021-2023 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.withDepth = exports.meetTemplate = exports.unite = exports.Unify = void 0;
+exports.holdsLink = holdsLink;
+exports.linksOf = linksOf;
 exports.ride = ride;
 exports.rideOn = rideOn;
 const ctx_1 = require("./ctx");
@@ -285,16 +287,16 @@ function residuePaths(v, max) {
 // no position, so its links are its members'.
 function linksOf(root) {
     const out = [];
-    const visit = (node, put) => {
+    const visit = (node, put, at) => {
         if (true === node.isPath) {
             if (undefined !== node.linkto) {
-                out.push({ link: node, put });
+                out.push({ link: node, at, put });
             }
         }
         else if (true === node.isMap || true === node.isList) {
             const peg = node.peg;
             for (const k of Object.keys(peg)) {
-                visit(peg[k], (v) => { peg[k] = v; });
+                visit(peg[k], (v) => { peg[k] = v; }, [...at, k]);
             }
         }
         else if (true === node.isDisjunct || true === node.isConjunct) {
@@ -304,18 +306,18 @@ function linksOf(root) {
             const rank = 0 === ranks.length ? undefined : Math.min(...ranks);
             arms.forEach((a, i) => {
                 if (undefined === rank || (true === a.isPref && rank === a.rank)) {
-                    visit(a, (v) => { arms[i] = v; });
+                    visit(a, (v) => { arms[i] = v; }, at);
                 }
             });
         }
         else if (true === node.isPref) {
-            visit(node.peg, (v) => { node.peg = v; });
+            visit(node.peg, (v) => { node.peg = v; }, at);
         }
         else if (true === node.isGraphAtom && undefined !== node.held) {
-            visit(node.held, (v) => { node.held = v; });
+            visit(node.held, (v) => { node.held = v; }, at);
         }
     };
-    visit(root, () => undefined);
+    visit(root, () => undefined, []);
     return out;
 }
 // The templates of the links the output takes whose targets the result
@@ -475,9 +477,11 @@ class Unify {
                 uctx = uctx.clone({ root: res });
             }
             // A link the output takes names something the document holds.
-            for (const { link, put } of links) {
+            for (const { link, at, put } of links) {
                 if (undefined === (0, ReferFuncVal_1.findAt)(res, link.linkto)) {
-                    put((0, err_1.makeNilErr)(uctx, link.linkcode ?? 'refer_unresolved', link, undefined, 'refer', { addr: link.peg }));
+                    const nil = (0, err_1.makeNilErr)(uctx, link.linkcode ?? 'refer_unresolved', link, undefined, 'refer', { addr: link.peg });
+                    nil.path = at;
+                    put(nil);
                 }
             }
             // The settled tree's alias references canon as the values they

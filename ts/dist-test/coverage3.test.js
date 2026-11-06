@@ -1405,6 +1405,46 @@ function capture(fn) {
         Assert.strictEqual(out.flows[0][0], 'x');
         Assert.strictEqual(out.flows[0][1].peg, 1);
     });
+    (0, node_test_1.test)('a-tree-holds-a-link-it-has-already-settled', () => {
+        // A tree a caller evaluated before, as vet's anchor under --at is,
+        // holds a refer() or rel() value, or a link, where a parse holds
+        // the call.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        Assert.strictEqual((0, unify_1.holdsLink)(new ReferFuncVal_1.ReferVal({}, ctx)), true);
+        Assert.strictEqual((0, unify_1.holdsLink)(new ReferFuncVal_1.RelVal({}, ctx)), true);
+        const link = new PathVal_1.PathVal({ peg: '$.a' }, ctx);
+        link.linkto = ['a'];
+        Assert.strictEqual((0, unify_1.holdsLink)(new MapVal_1.MapVal({ peg: { b: link } }, ctx)), true);
+        Assert.strictEqual((0, unify_1.holdsLink)(new MapVal_1.MapVal({ peg: { b: new PathVal_1.PathVal({ peg: '$.a' }, ctx) } }, ctx)), false);
+    });
+    (0, node_test_1.test)('links-are-put-back-through-a-meet-and-a-graph-atom', () => {
+        // A link a meet or a graph atom holds as itself is put back there.
+        const ctx = new aontu_1.Aontu().ctx({ collect: true });
+        const link = () => {
+            const l = new PathVal_1.PathVal({ peg: '$.gone' }, ctx);
+            l.linkto = ['gone'];
+            return l;
+        };
+        const cj = new ConjunctVal_1.ConjunctVal({ peg: [link(), new ScalarKindVal_1.ScalarKindVal({ peg: String }, ctx)] }, ctx);
+        const ga = new GraphAtomVal_1.GraphAtomVal({ akind: 'acyclic', held: link() }, ctx);
+        for (const root of [cj, ga]) {
+            const sites = (0, unify_1.linksOf)(root);
+            Assert.strictEqual(sites.length, 1);
+            sites[0].put(new NilVal_1.NilVal({ why: 'gone' }, ctx));
+        }
+        Assert.strictEqual(cj.peg[0].isNil, true);
+        Assert.strictEqual(ga.held.isNil, true);
+    });
+    (0, node_test_1.test)('join-flows-keeps-each-template-once', () => {
+        const p1 = ['a', null];
+        const p2 = ['b', null];
+        const a = [p1];
+        Assert.strictEqual((0, PathVal_1.joinFlows)(a, undefined), a);
+        Assert.strictEqual((0, PathVal_1.joinFlows)(a, a), a);
+        Assert.strictEqual((0, PathVal_1.joinFlows)(undefined, a), a);
+        Assert.strictEqual((0, PathVal_1.joinFlows)(a, [p1]), a);
+        Assert.deepStrictEqual((0, PathVal_1.joinFlows)(a, [p1, p2]), [p1, p2]);
+    });
     (0, node_test_1.test)('refer-climb-off-the-top-refuses', () => {
         // A relative address with more parent steps than the link has
         // ancestors. No later pass can grow the tree upwards, so this
