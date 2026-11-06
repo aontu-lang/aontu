@@ -3997,19 +3997,19 @@ target: `refer() & string & re("auth$") & path($.services.auth)` checks the
 address itself. They are held until the address arrives, and then meet
 it.
 
-In the definition, `refer(t)` reads as the path kind, and
-`Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+In the definition, `refer(t)` reads as the path kind carrying its
+template, and `Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
 meets each link's template, its marks cleared, at the target its
 address names from where the link stands. It reads the targets in
 passes, so one link's template can make another link's target,
-whichever the document writes first. It reads each link where it
-lands: where the document writes it, at each member a spread's template
-holds, at each member a generator's template makes, and wherever a path
-reference copies it, each place reading the relative address from where
-it stands. It reads a generator's template as written, though, not as
-each member instantiates it, so a link whose own template holds `_` or
-a `key()` doesn't flow what both engines flow, and it reads no link in
-a generator inside a declaration's body. Where a target names nothing in
+whichever the document writes first. Since the template rides the value
+the link meets, the definition reads each link where it lands: where
+the document writes it, at each member a spread's template holds, at
+each member a generator makes, and wherever a path reference copies
+it, each place reading the relative address from where it stands. A
+link whose own template holds `_` or a `key()` reads the member a
+generator makes it for, and a link in a generator inside a
+declaration's body sends too, as both engines read each. Where a target names nothing in
 the schema's own tree, the document is an `error`. The definition reads a link in a
 declaration's body at the body's own place, whether a reference reads
 the body or not. Rows from rf0 on of
@@ -4022,9 +4022,11 @@ arms the meet keeps, the rank rule takes the default where there is
 one, and every kept arm where there isn't. So
 `x: *{d: refer({z: 1}) & path($.y)} | {e: 1}` gives `y` the member
 `z: 1`, and `x: ({d: refer({z: 1}) & path($.y), k: 1} | {k: 2}) & {k: 2}`
-gives it nothing, since `k: 2` refuses the arm. The definition's link
-walk reads the arms the rank rule picks (`linkStep`, `Decls.pickedAt` and
-`Val.positionsP` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)),
+gives it nothing, since `k: 2` refuses the arm. In the definition a
+link's template rides the value the link meets (`Val.link`), so it
+stands in an arm exactly where that value does, and the definition
+reads a document's links from its normal form, within the arms the rank
+rule picks (`Val.links` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)),
 each link reading its address in its own arm. Rows from rf120 on hold
 both engines to it. Both engines still send from a kept arm the rank
 rule passes over

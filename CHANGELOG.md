@@ -8,6 +8,30 @@ each change affects.
 
 ## Unreleased
 
+### The definition carries a link's template in the normal form
+
+The definition, and shared rows.
+
+- `refer(t)` now makes the path kind carrying `t`, and `rel(t)` the
+  relation kind carrying it (`Val.link`), so the template rides the
+  value the link meets, through each arm, copy and generator instance
+  the value is in. The definition reads a document's links from its
+  normal form within the arms the rank rule picks (`Val.links`,
+  `Decls.nfLinks`), where before it walked the written schema beside
+  the tree, with a clause for each form a link can sit in. The walk is
+  gone. Every row regenerates byte for byte.
+- The same reading sends from the arm a `match` takes, which the walk
+  had no clause for, so `x: match("a", "a", {d: refer({z: 1}) & path($.y)})`
+  beside `y: {z: integer}` reads `valid` where it read `incomplete`, as
+  both engines answer. 9 `verdict` rows, rf150 to rf158 in
+  `test/spec/def-path.tsv`.
+- 12 more rows, rf159 to rf170, pin what the walk already read and the
+  tutorial and the reference listed as gaps: a hole or a `key()` in a
+  link's own template inside a generator reads the member, a generator
+  in a body that nothing reads still sends, and a member another term
+  writes beside a generator's instance holds none of the generator's
+  links. Both engines answer every new row as the definition does.
+
 ### TypeScript sends the links of an arm its dedup drops
 
 TypeScript, and shared rows.

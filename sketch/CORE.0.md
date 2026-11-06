@@ -3,8 +3,9 @@
 **Status:** ACCEPTED, 2026-11-06: restructure in the three steps of
 §6, 4.1 first, and for holes, option (a), explicit application, which
 is decision 34 of
-[DEFINITION.0.md §7](DEFINITION.0.md#7-decisions-ruled-and-open). Nothing
-below is built yet. The study asks whether the definition's special
+[DEFINITION.0.md §7](DEFINITION.0.md#7-decisions-ruled-and-open). 4.1
+is built in the definition (links carried in the normal form, the walk
+removed, every row as before); its engine half and `move` wait. The study asks whether the definition's special
 cases can be cut by restating a few features as a small core plus
 translations into it. Rulings stay in §7.
 
