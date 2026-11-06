@@ -228,6 +228,11 @@ func (s *ScalarVal) Unify(peer Val, ctx *Ctx) Val {
 				"" == s.link && "" != ps.link) {
 				out, other = ps, s
 			}
+			if flows := joinFlows(out.lk.flows, other.lk.flows); len(flows) != len(out.lk.flows) {
+				c := *out
+				c.lk.flows = flows
+				out = &c
+			}
 			if other.mtype {
 				out.mtype = true
 			}

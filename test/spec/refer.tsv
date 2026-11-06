@@ -51,7 +51,8 @@ relative-climb-off-the-top	errc	dep: refer() & path(..a)	refer_unresolved
 #
 # `refer(t)` does not merely TEST the target against `t`, it unifies `t`
 # INTO it: referring to something as a Service makes it one, and if it
-# cannot be, the conflict is an ordinary located error. Check-only
+# cannot be, the conflict is an ordinary error, located at the target the
+# template meets. Check-only
 # semantics would be non-monotone -- true, then false as the target
 # grows -- and the lattice guarantee is that more information never
 # falsifies what has been observed.
@@ -59,7 +60,7 @@ flow-adds-to-target	gens	a: {port:8080}\nb: refer({kind:service}) & path($.a)	{"
 flow-inside-a-node	gens	a: {p:{q:1}}\nb: refer({r:2}) & path($.a.p)	{"a":{"p":{"q":1,"r":2}},"b":"$.a.p"}
 flow-kind-constrains	gens	a: {k:1}\nb: refer({k:integer}) & path($.a)	{"a":{"k":1},"b":"$.a"}
 flow-conflict	errc	a: {kind:1}\nb: refer({kind:2}) & path($.a)	scalar_value
-flow-conflict-msg	err	a: {kind:1}\nb: refer({kind:2}) & path($.a)	Cannot unify values at path $.b.kind
+flow-conflict-msg	err	a: {kind:1}\nb: refer({kind:2}) & path($.a)	Cannot unify values at path $.a.kind
 flow-two-refers	gens	a: {k:1}\nb: refer({k:integer}) & refer({j:2}) & path($.a)	{"a":{"j":2,"k":1},"b":"$.a"}
 
 # A MEMBER'S FLOW IS PART OF THAT MEMBER. `refer(t)` asserts `t` on

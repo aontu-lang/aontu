@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -132,34 +133,205 @@ func drives(v Val) bool {
 
 const maxUniteDepth = 1000
 
-func applyFlows(ctx *Ctx, root Val) Val {
-	// NOTHING TO APPLY is the common case -- a document with no links
-	// pays one map length per pass, and the walk never runs.
-	if 0 == len(ctx.referflows) {
-		return root
-	}
-	keys := make([]string, 0, len(ctx.referflows))
-	for k := range ctx.referflows {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		path := strings.Split(key, "\x00")
-		site, ok := findAt(root, path)
-		if !ok { //coverage:ignore a recorded path always resolves; see above
-			continue
-		}
-		merged := unite(ctx, site.val, ctx.referflows[key])
-		switch p := site.parent.(type) {
+// linkSite is a link the output takes, and how to put a value in its place.
+type linkSite struct {
+	link *ScalarVal
+	put  func(Val)
+}
+
+// linksOf is the links a result holds where the output reads them:
+// through maps, lists, marks and meets, the value a preference stands
+// as, and the arms of a disjunction the rank rule picks, those of the
+// lowest rank where any has one and every arm where none has. A
+// spread's template holds no position, so its links are its members'.
+func linksOf(root Val) []linkSite {
+	var out []linkSite
+	var visit func(n Val, put func(Val))
+	visit = func(n Val, put func(Val)) {
+		switch v := n.(type) {
+		case *ScalarVal:
+			if nil != v.lk.to {
+				out = append(out, linkSite{v, put})
+			}
 		case *MapVal:
-			p.set(site.key, merged)
+			for _, k := range v.keys {
+				k := k
+				visit(v.peg[k], func(x Val) { v.peg[k] = x })
+			}
 		case *ListVal:
-			if i, err := strconv.Atoi(site.key); nil == err {
-				p.peg[i] = merged
+			for i := range v.peg {
+				i := i
+				visit(v.peg[i], func(x Val) { v.peg[i] = x })
+			}
+		case *ConjunctVal:
+			for i := range v.peg {
+				i := i
+				visit(v.peg[i], func(x Val) { v.peg[i] = x })
+			}
+		case *DisjunctVal:
+			rank := -1
+			for _, a := range v.peg {
+				if p, ok := a.(*PrefVal); ok && (0 > rank || p.rank < rank) {
+					rank = p.rank
+				}
+			}
+			for i, a := range v.peg {
+				p, ok := a.(*PrefVal)
+				if 0 > rank || (ok && rank == p.rank) {
+					i := i
+					visit(a, func(x Val) { v.peg[i] = x })
+				}
+			}
+		case *PrefVal:
+			visit(v.peg, func(x Val) { v.peg = x })
+		case *GraphAtomVal:
+			if nil != v.held {
+				visit(v.held, func(x Val) { v.held = x })
 			}
 		}
 	}
-	return root
+	visit(root, func(Val) {})
+	return out
+}
+
+type flowAt struct {
+	to []string
+	t  Val
+	id string
+}
+
+// flowsOf is the templates of the links the output takes whose targets
+// the result holds, each once, in a fixed order.
+func flowsOf(root Val, links []linkSite) []flowAt {
+	seen := map[string]flowAt{}
+	for _, l := range links {
+		for _, f := range l.link.lk.flows {
+			id := f.key + "\x01" + f.t.Canon()
+			to := strings.Split(f.key, "\x00")
+			if _, dup := seen[id]; !dup {
+				if _, ok := findAt(root, to); ok {
+					seen[id] = flowAt{to, f.t, id}
+				}
+			}
+		}
+	}
+	ids := make([]string, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	out := make([]flowAt, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, seen[id])
+	}
+	return out
+}
+
+// flowDoc is what meets each template at its target and asks nothing
+// else: an open map holding the step's key as optional, or a list
+// holding `any` before the step's position, as the result holds the
+// container, down to the template.
+func flowDoc(root Val, flows []flowAt, depth int) Val {
+	var here []Val
+	var below []flowAt
+	for _, f := range flows {
+		if depth == len(f.to) {
+			here = append(here, instanceClone(f.t, f.t.vpath()))
+		} else {
+			below = append(below, f)
+		}
+	}
+	if 0 < len(below) {
+		var steps []string
+		for _, f := range below {
+			if !slices.Contains(steps, f.to[depth]) {
+				steps = append(steps, f.to[depth])
+			}
+		}
+		path := cp(below[0].to[:depth])
+		inner := func(k string) Val {
+			var sub []flowAt
+			for _, f := range below {
+				if k == f.to[depth] {
+					sub = append(sub, f)
+				}
+			}
+			at, _ := findAt(root, []string{k})
+			return flowDoc(at.val, sub, depth+1)
+		}
+		if _, ok := root.(*ListVal); ok {
+			last := 0
+			for _, k := range steps {
+				i, _ := strconv.Atoi(k)
+				last = max(last, i)
+			}
+			items := make([]Val, 0, last+1)
+			for i := 0; i <= last; i++ {
+				if slices.Contains(steps, itoa(i)) {
+					items = append(items, inner(itoa(i)))
+				} else {
+					items = append(items, top())
+				}
+			}
+			l := newList(items)
+			l.path = path
+			here = append(here, l)
+		} else {
+			m := newMap()
+			for _, k := range steps {
+				m.set(k, inner(k))
+			}
+			m.optional = steps
+			m.path = path
+			here = append(here, m)
+		}
+	}
+	if 1 == len(here) {
+		return here[0]
+	}
+	return newConjunct(here)
+}
+
+// holdsLink is whether a tree holds a link anywhere, so that its
+// evaluation has to start again with templates met in.
+func holdsLink(v Val, seen map[Val]bool) bool {
+	if nil == v || seen[v] {
+		return false
+	}
+	seen[v] = true
+	var kids []Val
+	switch n := v.(type) {
+	case *ReferVal, *RelVal:
+		return true
+	case *ScalarVal:
+		return nil != n.lk.to
+	case *FuncVal:
+		if "refer" == n.name || "rel" == n.name {
+			return true
+		}
+		kids = n.peg
+	case *MapVal:
+		for _, k := range n.keys {
+			kids = append(kids, n.peg[k])
+		}
+		kids = append(kids, n.spread)
+	case *ListVal:
+		kids = append(append(kids, n.peg...), n.spread)
+	case *ConjunctVal:
+		kids = n.peg
+	case *DisjunctVal:
+		kids = n.peg
+	case *PlusOpVal:
+		kids = n.peg
+	case *PrefVal:
+		kids = []Val{n.peg}
+	}
+	for _, k := range kids {
+		if holdsLink(k, seen) {
+			return true
+		}
+	}
+	return false
 }
 
 func unifyRoot(root Val, ctx *Ctx) Val {
@@ -180,53 +352,90 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	if 0 == maxcc {
 		maxcc = 9
 	}
-	prevCanon := ""
-	sawPrev := false
-	lastCanon := ""
-	sawLast := false
-	settle := false
-	for cc := 0; cc < maxcc && res.Dc() != DONE; cc++ {
-		ctx.root = res
-		ctx.depth = 0
-		ctx.cc = cc
+	// A document with links is evaluated in rounds: each round the
+	// document as written, with the templates of the links the last
+	// round's output takes met at their targets, until no template is
+	// new. A copy of the first tree is kept for the rounds after it.
+	errBase := len(ctx.err)
+	var pristine Val
+	if holdsLink(root, map[Val]bool{}) {
+		pristine = instanceClone(root, root.vpath())
+	}
+	applied := ""
+	var links []linkSite
+	for round := 0; ; round++ {
+		prevCanon := ""
+		sawPrev := false
+		lastCanon := ""
+		sawLast := false
+		settle := false
+		for cc := 0; cc < maxcc && res.Dc() != DONE; cc++ {
+			ctx.root = res
+			ctx.depth = 0
+			ctx.cc = cc
 
-		ctx.settle = settle
+			ctx.settle = settle
 
-		if cc == maxcc-1 {
-			if sawLast {
-				prevCanon = lastCanon
-			} else {
-				prevCanon = res.Canon()
+			if cc == maxcc-1 {
+				if sawLast {
+					prevCanon = lastCanon
+				} else {
+					prevCanon = res.Canon()
+				}
+				sawPrev = true
 			}
-			sawPrev = true
+
+			res = unite(ctx, res, top())
+
+			if res.Dc() != DONE {
+				nowCanon := res.Canon()
+				settle = sawLast && lastCanon == nowCanon
+				lastCanon = nowCanon
+				sawLast = true
+			}
+		}
+		if res.Dc() != DONE && len(ctx.err) == 0 && sawPrev && prevCanon != res.Canon() {
+			// The hint names the budget and the still-refining paths
+			// ({limit}/{paths}), as the TS residuePaths details do.
+			paths := residuePaths(res, 4)
+			joined := strings.Join(paths, " ")
+			if joined == "" {
+				joined = "$"
+			}
+			makeNilErrFull(ctx, "budget_passes", nil, nil, "resolve",
+				map[string]string{"limit": strconv.Itoa(maxcc), "paths": joined})
 		}
 
-		res = unite(ctx, res, top())
+		links = linksOf(res)
+		var flows []flowAt
+		if nil != pristine {
+			flows = flowsOf(res, links)
+		}
+		ids := make([]string, 0, len(flows))
+		for _, f := range flows {
+			ids = append(ids, f.id)
+		}
+		if strings.Join(ids, "\n") == applied || maxcc <= round {
+			break
+		}
+		applied = strings.Join(ids, "\n")
+		ctx.err = ctx.err[:errBase]
+		ctx.snapmap = map[string]Val{}
+		res = newConjunct([]Val{instanceClone(pristine, pristine.vpath()), flowDoc(res, flows, 0)})
+	}
 
-		// The recorded type flows, re-applied to the tree THIS pass
-		// built: a pass rebuilds subtrees, and a flow written into the
-		// previous pass's tree does not survive that. Mirrors the
-		// applyFlows call in the TS pass loop.
-		res = applyFlows(ctx, res)
-
-		if res.Dc() != DONE {
-			nowCanon := res.Canon()
-			settle = sawLast && lastCanon == nowCanon
-			lastCanon = nowCanon
-			sawLast = true
+	// A link the output takes names something the document holds.
+	for _, l := range links {
+		if _, ok := findAt(res, l.link.lk.to); !ok {
+			code := l.link.lk.code
+			if "" == code {
+				code = "refer_unresolved"
+			}
+			l.put(makeNilErrFull(ctx, code, l.link, nil, "refer",
+				map[string]string{"addr": l.link.peg.(string)}))
 		}
 	}
-	if res.Dc() != DONE && len(ctx.err) == 0 && sawPrev && prevCanon != res.Canon() {
-		// The hint names the budget and the still-refining paths
-		// ({limit}/{paths}), as the TS residuePaths details do.
-		paths := residuePaths(res, 4)
-		joined := strings.Join(paths, " ")
-		if joined == "" {
-			joined = "$"
-		}
-		makeNilErrFull(ctx, "budget_passes", nil, nil, "resolve",
-			map[string]string{"limit": strconv.Itoa(maxcc), "paths": joined})
-	}
+
 	// The settled tree's alias references canon as the values they name
 	// (go/alias.go): attached once, after the last pass, from the
 	// snapshot store this run kept.
