@@ -1,10 +1,12 @@
 # A core and its translations: a consolidation study
 
-**Status:** PROPOSED, 2026-11-06. A study: nothing below is built. It
-asks whether the definition's special cases can be cut by restating a
-few features as a small core plus translations into it, and it ends in
-a choice for the maintainer. Rulings stay in
-[DEFINITION.0.md §7](DEFINITION.0.md#7-decisions-ruled-and-open).
+**Status:** ACCEPTED, 2026-11-06: restructure in the three steps of
+§6, 4.1 first, and for holes, option (a), explicit application, which
+is decision 34 of
+[DEFINITION.0.md §7](DEFINITION.0.md#7-decisions-ruled-and-open). Nothing
+below is built yet. The study asks whether the definition's special
+cases can be cut by restating a few features as a small core plus
+translations into it. Rulings stay in §7.
 
 **Origin:** the maintainer, 2026-11-06 (`sketch/PROMPT-LOG.md`): *"is
 it normal for a lean description like this to be so large? does this

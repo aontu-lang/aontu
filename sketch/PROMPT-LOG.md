@@ -721,3 +721,15 @@ The answers to the agent's questions, each question followed by the option chose
 The Lean definition's special cases cluster in the features whose meaning depends on where or when a term is read: holes filled by a peer, generators, relative paths and key(n), copies, move, and links whose templates flow into other nodes. They make up about 46% of the definition lines, and about a third of the 33 rulings are interaction rules among them. How should I proceed?
 → Consolidation study first (Recommended)
 ```
+
+## 2026-11-06 14:26:08 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+The consolidation study (sketch/CORE.0.md, PR #652) proposes restating three features as a small core: links and moves as obligations a value carries (4.1), `_` as a bound variable with explicit application (4.2), and one placement rule for relative paths, key() and relative addresses (4.3). Each comes with what it removes and what the engines need. Restructure?
+→ Yes, all three, 4.1 first (Recommended)
+
+How should a hole `_` outside a generator work? Today `upper(_) & "hello"` is "HELLO": the meet applies the call. That makes `&` depend on how meets are grouped (#512), and holes hold 8 of the definition's 21 known limits. Of the use cases' 40 holes, 39 are generator placeholders; the one fill by peer is use case 07's failed discriminated-union attempt.
+→ (a) Explicit application (Recommended)
+```
