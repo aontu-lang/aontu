@@ -1345,6 +1345,26 @@ def aliasPlaceCases : List (Decls × Val × Data) :=
     ([("T", rel 1 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map [("a", .map [("b", j 1)])]),
     ([("T", rel 1 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map [("a", .map [("b", j 2)])])]
 
+/-- Relative paths in a body that name the body's own members, read at
+the body's own place, `%` and its name as a key at the top, where both
+ports hold the body: used and not, met with a conflict there and at a
+use, through a list, a member that isn't concrete, and a name declared
+twice. -/
+def bodyPlaceCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let xy : Val := m [("x", int 1), ("y", rel 1 ["x"])]
+  [([("T", xy)], m [], .map []),
+    ([("T", xy)], m [("z", .alias "T")], .map []),
+    ([("T", m [("x", int 1), ("y", .meet (rel 1 ["x"]) (int 2))])], m [], .map []),
+    ([("T", m [("x", m [("a", int 1)]), ("y", rel 1 ["x"])])],
+      m [("z", .meet (.alias "T") (m [("x", m [("b", int 2)])]))], .map []),
+    ([("T", .list [int 1, .path [.up 1, .idx 0]] none false)], m [("z", .alias "T")], .map []),
+    ([("T", m [("x", .string), ("y", rel 1 ["x"])])], m [("z", .alias "T")], .map []),
+    ([("T", xy)], m [("z", .meet (.alias "T") (m [("x", int 2)]))], .map []),
+    ([("T", m [("x", int 1)]), ("T", m [("y", rel 1 ["x"])])], m [], .map [])]
+
 /-- Relative paths, made absolute where each stands: a sibling, a climb
 of two steps and three, a key in quotes, an index into a sibling list,
 a list's element reading its sibling, a chain of relative paths, a
@@ -1372,7 +1392,7 @@ def relPathCases : List (Decls × Val × Data) :=
     ([], m [("a", m [("x", int 1), ("y", .call .plus [rel 1 ["x"], int 1])])], .map [("a", .map [("y", j 2)])]),
     ([("T", m [("y", rel 2 ["x"])])], m [("x", int 1), ("a", .alias "T")], .map [("a", .map [("y", j 1)])]),
     ([("T", m [("y", rel 1 ["x"])])], m [("a", .meet (m [("x", int 1)]) (.alias "T"))], .map [("a", .map [("y", j 1)])])] ++
-  aliasPlaceCases
+  aliasPlaceCases ++ bodyPlaceCases
 
 theorem relPathCases_checkable : ∀ c ∈ relPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -1968,7 +1988,10 @@ def referCases : List (Decls × Val × Data) :=
         ("x", .call .each [.path [.key "a", .key "l"], rf (m [("v", .hole)]) (ad 0 ["y"])]), ("y", m [])], .map []),
     ([], m [("a", m []), ("b", rf (m [("l", .list [int 1] none false)]) (ad 0 ["a"])),
         ("x", .call .each [.path [.key "a", .key "l"], rf (m [("v", .hole)]) (ad 0 ["y"])]),
-        ("y", m [("v", int 2)])], .map [])]
+        ("y", m [("v", int 2)])], .map []),
+    ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"]))])], m [], .map []),
+    ([("T", m [("m", m [("k", int 2)]), ("n", rf k1 (ad 1 ["m"]))])], m [], .map []),
+    ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"]))])], m [("x", .alias "T")], .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

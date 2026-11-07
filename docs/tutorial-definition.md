@@ -2897,9 +2897,10 @@ as the call itself, which waits on `$.a`. The second reads `$.a` as
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The term a written path names in the first of the roots it names
-something in. -/
+something in, or at a body's own place (`Decls.bodyAt`), which no root
+holds. -/
 def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) : Option Val :=
-  roots.findSome? fun root => ds.pathAt root p
+  (roots.findSome? fun root => ds.pathAt root p).or (ds.bodyAt p)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -3035,9 +3036,27 @@ def Decls.placed (ds : Decls) (S : Val) : Decls × Val :=
     S.placedT [])
 ```
 
-So `%T = {y: .x}` reads `$.%T.x`, which no document holds, and the path
-is an error, while `..x` in the same body climbs to the document's own
-`x`. The schema's spreads stay as written (`Val.placedT`), since a
+So `%T = {y: .x}` reads `$.%T.x`. No root holds a body's own place, so
+a path there reads in the normal form of the name's bodies, met, as
+both engines read a body there:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.bodyAt (ds : Decls) : List Seg → Option Val
+  | .key k :: p =>
+    match ds.filter (fun d => "%" ++ d.1 == k) with
+    | [] => none
+    | bs => ds.pathAt (normaliseD ds (ds.readU (bs.foldl (fun acc d => .meet acc d.2) .any))) p
+  | _ => none
+```
+
+So `%T = {x: 1, y: .x}` reads the body's own `x`, used or not, while
+`%T = {y: .x}` reads a member the body lacks, and the path is an error,
+and `..x` in the same body climbs to the document's own `x`. The
+definition reads that normal form once, not in rounds, so a path there
+that reads through another path, `.x.k` with `x: $.a`, names nothing
+yet, where both engines read `$.a`'s `k`, which #664 tracks. The
+schema's spreads stay as written (`Val.placedT`), since a
 spread reads its relative paths at each member it holds, and a spread
 that's itself a relative path also reads where it's written, at the
 place `Val.bares` collects: step 38 comes to both, and to a generator's
@@ -3051,9 +3070,10 @@ the member names nothing. Both engines try a condition on each member
 and keep the members it admits, so a condition that names nothing
 refuses each member rather than making the document an error, and the
 definition forgives every reference in a condition as it forgives the
-one at the top of `maybe`. Rows from fc0 on of
-`test/spec/def-path.tsv` hold these readings in the three modes of
-`vet`, and both engines answer every one as the definition does. Once it
+one at the top of `maybe`. Rows from j60 on of
+`test/spec/def-path.tsv` hold a body's paths to its own members, and
+rows from fc0 on these readings, each in the three modes of `vet`, and
+both engines answer every one as the definition does. Once it
 reads in the sources a document
 loads, which step 39 comes to, the verdict of a document with paths
 prepares it: it
@@ -8986,9 +9006,32 @@ def Decls.referPass (ds : Decls) (S L : Val) (miss : Val) : Val :=
   let dp := (ds.withPathsFrom L own).1
   let R := own.getLast?.getD .any
   ds.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
-      (referStep own miss [.key ("%" ++ d.1)]) acc)
-    ((ds.nfLinks R []).foldl (referStep own miss []) S)
+      (referStep ds own miss [.key ("%" ++ d.1)]) acc)
+    ((ds.nfLinks R []).foldl (referStep ds own miss []) S)
 ```
+
+A link at a body's own place can name a member of the body, as
+`%T = {m: {}, n: refer({k: 1}) & path(.m)}` names `$.%T.m`. The output
+holds no such place, so the template meets nothing the schema holds,
+but one that conflicts with the body's member there is an `error`, as
+both engines read it. The conflict meets `miss`, which only the last
+pass reads as `nil`:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def referFlow (ds : Decls) (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val)
+    (a : Addr) : Val :=
+  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p t with
+  | some u => .meet acc u
+  | none =>
+    match (a.from pos).bind ds.bodyAt with
+    | some w => if ((normaliseD ds (ds.readU (.meet w t))).staged ds).illFormed then .meet acc miss else acc
+    | none => .meet acc miss
+```
+
+A path in the body that reads the template the link meets there,
+`z: .m.k`, names nothing yet, where both engines read `1`, which #664
+tracks.
 
 One link's template can make another link's target:
 `y: refer({ z:{} }) & path($.h)` makes `h.z` for
@@ -9050,11 +9093,12 @@ disjunction or a preference, rows from rf171 on a kept arm the rank
 rule passes over and a link to nothing in an arm the output takes,
 rows from rf186 on a path reference to a link's target, and rows from
 rf201 on a link a template carries and a generator whose data another
-link's template makes. Both engines answer every one as the definition
-does. With data,
-both engines read a body's relative link a second time, from each
-place that uses the body, which #488 tracks, and no row holds such a
-link. Both engines flow a link that a path
+link's template makes, and rows from rf228 on a body's link to the
+body's own member. Both engines answer every one as the definition
+does. Both engines read a body's relative link at the body's own place
+or where each use stands, by the order the document writes the two,
+which #504 tracks, and each row writes the body before its use. Both
+engines flow a link that a path
 reference copies whole once, its template read at one copy's place,
 which the order of the document picks, where the definition reads each
 copy as a link of its own, which #536 tracks.

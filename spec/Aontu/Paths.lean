@@ -682,10 +682,22 @@ variable bound (`Decls.bindSeg`), read by `Val.atW`. -/
 def Decls.pathAt (ds : Decls) (root : Val) (p : List Seg) : Option Val :=
   (p.mapM ds.bindSeg).bind root.atW
 
+/-- The term a written path names at a body's own place, `%` and a
+declared name its first step, as both ports read a body there: the rest
+of the path read in the normal form of that name's bodies met, the
+body's own members among them. -/
+def Decls.bodyAt (ds : Decls) : List Seg → Option Val
+  | .key k :: p =>
+    match ds.filter (fun d => "%" ++ d.1 == k) with
+    | [] => none
+    | bs => ds.pathAt (normaliseD ds (ds.readU (bs.foldl (fun acc d => .meet acc d.2) .any))) p
+  | _ => none
+
 /-- The term a written path names in the first of the roots it names
-something in. -/
+something in, or at a body's own place (`Decls.bodyAt`), which no root
+holds. -/
 def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) : Option Val :=
-  roots.findSome? fun root => ds.pathAt root p
+  (roots.findSome? fun root => ds.pathAt root p).or (ds.bodyAt p)
 
 /-- The declarations a document's paths make: each path's name, declared
 as the term at the path in the first of the roots it names something
@@ -1086,13 +1098,18 @@ def Decls.nfLinks (ds : Decls) (root : Val) (home : List Seg) : List (List Seg �
 
 /-- One address's part in the schema: `t` met at the path the address
 names from `pos` (`Addr.from`, `Val.putW`) in the first of `roots` it
-names something in, or `miss` where it names nothing in them or climbs
-past the top. -/
-def referFlow (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val) (a : Addr) :
-    Val :=
+names something in; at a body's own place (`Decls.bodyAt`), which the
+schema doesn't hold, nothing, or `miss` where `t` conflicts with what
+the body holds there, as both ports meet a template into a body's own
+place; and `miss` where it names nothing or climbs past the top. -/
+def referFlow (ds : Decls) (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val)
+    (a : Addr) : Val :=
   match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p t with
   | some u => .meet acc u
-  | none => .meet acc miss
+  | none =>
+    match (a.from pos).bind ds.bodyAt with
+    | some w => if ((normaliseD ds (ds.readU (.meet w t))).staged ds).illFormed then .meet acc miss else acc
+    | none => .meet acc miss
 
 /-- One link's part in the schema, the link written at `home`: for each
 address the normal form it stands in holds at its position
@@ -1101,9 +1118,9 @@ reference copies it, met at the address's target read from where the
 link stands, a relation's every leaf read from the relation's own
 position. A link whose position holds no address has no target yet,
 and meets nothing. -/
-def referStep (roots : List Val) (miss : Val) (home : List Seg) (acc : Val)
+def referStep (ds : Decls) (roots : List Val) (miss : Val) (home : List Seg) (acc : Val)
     (e : List Seg × Val × Val) : Val :=
-  (linkAddrs e).foldl (referFlow roots miss (home ++ e.1) e.2.1.unmark) acc
+  (linkAddrs e).foldl (referFlow ds roots miss (home ++ e.1) e.2.1.unmark) acc
 
 /-- The schema with each link's template met into its target as the
 tree `L` reads hold it, and `miss` for each link whose target they
@@ -1118,8 +1135,8 @@ def Decls.referPass (ds : Decls) (S L : Val) (miss : Val) : Val :=
   let dp := (ds.withPathsFrom L own).1
   let R := own.getLast?.getD .any
   ds.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
-      (referStep own miss [.key ("%" ++ d.1)]) acc)
-    ((ds.nfLinks R []).foldl (referStep own miss []) S)
+      (referStep ds own miss [.key ("%" ++ d.1)]) acc)
+    ((ds.nfLinks R []).foldl (referStep ds own miss []) S)
 
 /-- The flows a document's links make, one for each address they hold:
 the schema's and its bodies', each read as `Decls.referPass` reads it. -/
@@ -2660,12 +2677,38 @@ theorem Decls.pathAt_checkableA {ds : Decls} {root w : Val} {p : List Seg} (hr :
   | none => rw [hq] at h; exact absurd h (by simp)
   | some q => rw [hq] at h; exact atW_checkableA q hr h
 
-theorem Decls.pathIn_checkableA {ds : Decls} {roots : List Val} {w : Val} {p : List Seg}
-    (hr : ∀ root, root ∈ roots → root.CheckableA) (h : ds.pathIn roots p = some w) : w.CheckableA := by
-  obtain ⟨root, hm, hw⟩ := List.exists_of_findSome?_eq_some h
-  exact Decls.pathAt_checkableA (hr root hm) hw
+theorem foldl_meetBodies_checkableA :
+    ∀ (bs : Decls) {acc : Val}, acc.CheckableA → (∀ d, d ∈ bs → d.2.CheckableA) →
+      (bs.foldl (fun acc d => .meet acc d.2) acc).CheckableA
+  | [], _, h, _ => h
+  | b :: bs, _, h, hb =>
+    foldl_meetBodies_checkableA bs (.meet h (hb b List.mem_cons_self)) fun d hd => hb d (List.mem_cons_of_mem _ hd)
 
-theorem Decls.ofPaths_checkableA {ds : Decls} {roots : List Val} (hr : ∀ root, root ∈ roots → root.CheckableA)
+theorem Decls.bodyAt_checkableA {ds : Decls} {w : Val} {p : List Seg}
+    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (h : ds.bodyAt p = some w) : w.CheckableA := by
+  unfold Decls.bodyAt at h
+  split at h
+  · split at h
+    · exact absurd h (by simp)
+    · exact Decls.pathAt_checkableA (normaliseD_checkableA hb (readU_checkableA hb
+        (foldl_meetBodies_checkableA _ .any fun d hd => hb d (List.mem_filter.mp hd).1))) h
+  · exact absurd h (by simp)
+
+theorem Decls.pathIn_checkableA {ds : Decls} {roots : List Val} {w : Val} {p : List Seg}
+    (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hr : ∀ root, root ∈ roots → root.CheckableA) (h : ds.pathIn roots p = some w) : w.CheckableA := by
+  unfold Decls.pathIn at h
+  cases hf : roots.findSome? (fun root => ds.pathAt root p) with
+  | none =>
+    rw [hf, Option.none_or] at h
+    exact Decls.bodyAt_checkableA hb h
+  | some u =>
+    rw [hf, Option.some_or, Option.some.injEq] at h
+    obtain ⟨root, hm, hw⟩ := List.exists_of_findSome?_eq_some hf
+    exact h ▸ Decls.pathAt_checkableA (hr root hm) hw
+
+theorem Decls.ofPaths_checkableA {ds : Decls} {roots : List Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hr : ∀ root, root ∈ roots → root.CheckableA)
     (ps : List (List Seg)) : ∀ d, d ∈ ds.ofPaths roots ps → d.2.CheckableA := by
   intro d hd
   simp only [Decls.ofPaths, List.mem_filterMap] at hd
@@ -2676,7 +2719,7 @@ theorem Decls.ofPaths_checkableA {ds : Decls} {roots : List Val} (hr : ∀ root,
     rw [hw] at hp
     simp only [Option.map_some, Option.some.injEq] at hp
     rw [← hp]
-    exact pathsToAliases_checkableA (Decls.pathIn_checkableA hr hw)
+    exact pathsToAliases_checkableA (Decls.pathIn_checkableA hb hr hw)
 
 theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {roots : List Val}
     (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hr : ∀ root, root ∈ roots → root.CheckableA) :
@@ -2685,7 +2728,7 @@ theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {roots : Li
   simp only [Decls.withPathsFrom, List.mem_append, List.mem_map] at hd
   rcases hd with ⟨d', hd', rfl⟩ | hd
   · exact pathsToAliases_checkableA (hb d' hd')
-  · exact Decls.ofPaths_checkableA hr _ d hd
+  · exact Decls.ofPaths_checkableA hb hr _ d hd
 
 /-- Every round's root is one the checker can read, where `r` reads a
 document the checker can read to one. -/
@@ -2717,9 +2760,9 @@ theorem Decls.rootsD_checkableA {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d
 
 /-! ## Reading the links keeps a term checkable -/
 
-theorem referFlow_checkableA {roots : List Val} {miss acc t : Val} {pos : List Seg} {a : Addr}
-    (hm : miss.CheckableA) (hacc : acc.CheckableA) (ht : t.CheckableA) :
-    (referFlow roots miss pos t acc a).CheckableA := by
+theorem referFlow_checkableA {ds : Decls} {roots : List Val} {miss acc t : Val} {pos : List Seg}
+    {a : Addr} (hm : miss.CheckableA) (hacc : acc.CheckableA) (ht : t.CheckableA) :
+    (referFlow ds roots miss pos t acc a).CheckableA := by
   unfold referFlow
   split
   next u hu =>
@@ -2730,24 +2773,29 @@ theorem referFlow_checkableA {roots : List Val} {miss acc t : Val} {pos : List S
       simp only [Option.bind_some] at hu
       obtain ⟨root, -, hr⟩ := List.exists_of_findSome?_eq_some hu
       exact .meet hacc (putW_checkableA ht p hr)
-  next => exact .meet hacc hm
+  next =>
+    split
+    · split
+      · exact .meet hacc hm
+      · exact hacc
+    · exact .meet hacc hm
 
-theorem foldl_referFlow_checkableA {roots : List Val} {miss t : Val} {pos : List Seg}
+theorem foldl_referFlow_checkableA {ds : Decls} {roots : List Val} {miss t : Val} {pos : List Seg}
     (hm : miss.CheckableA) (ht : t.CheckableA) :
     ∀ (as : List Addr) {acc : Val}, acc.CheckableA →
-      (as.foldl (referFlow roots miss pos t) acc).CheckableA
+      (as.foldl (referFlow ds roots miss pos t) acc).CheckableA
   | [], _, h => h
   | _ :: as, _, h => foldl_referFlow_checkableA hm ht as (referFlow_checkableA hm h ht)
 
-theorem referStep_checkableA {roots : List Val} {miss acc : Val} {home : List Seg}
+theorem referStep_checkableA {ds : Decls} {roots : List Val} {miss acc : Val} {home : List Seg}
     {e : List Seg × Val × Val} (hm : miss.CheckableA) (hacc : acc.CheckableA)
-    (he : e.2.1.CheckableA) : (referStep roots miss home acc e).CheckableA :=
+    (he : e.2.1.CheckableA) : (referStep ds roots miss home acc e).CheckableA :=
   foldl_referFlow_checkableA hm he.unmark _ hacc
 
-theorem foldl_referStep_checkableA {roots : List Val} {miss : Val} {home : List Seg}
+theorem foldl_referStep_checkableA {ds : Decls} {roots : List Val} {miss : Val} {home : List Seg}
     (hm : miss.CheckableA) :
     ∀ (es : List (List Seg × Val × Val)) {acc : Val}, acc.CheckableA → (∀ e, e ∈ es → e.2.1.CheckableA) →
-      (es.foldl (referStep roots miss home) acc).CheckableA
+      (es.foldl (referStep ds roots miss home) acc).CheckableA
   | [], _, h, _ => h
   | e :: es, _, h, he =>
     foldl_referStep_checkableA hm es (referStep_checkableA hm h (he e List.mem_cons_self))
@@ -2844,7 +2892,7 @@ theorem foldl_bodyLinks_checkableA {ds dp : Decls} {roots : List Val} {miss : Va
     (hm : miss.CheckableA) :
     ∀ (bs : Decls) {acc : Val}, acc.CheckableA → (∀ d, d ∈ bs → d.2.CheckableA) →
       (bs.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
-        (referStep roots miss [.key ("%" ++ d.1)]) acc) acc).CheckableA
+        (referStep ds roots miss [.key ("%" ++ d.1)]) acc) acc).CheckableA
   | [], _, h, _ => h
   | d :: bs, _, h, hd =>
     foldl_bodyLinks_checkableA hb hdp hm bs

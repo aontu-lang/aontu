@@ -8,6 +8,26 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a body's own members at the body's place
+
+The definition, and shared rows. Neither engine changes.
+
+- A relative path in a declaration's body that names the body's own
+  member now reads it at the body's place, `$.%T`, as both engines do:
+  `%T = {x: 1, y: .x}` is valid, used or not, where the definition
+  answered `error` (#660). `Decls.bodyAt` in `spec/Aontu/Paths.lean`
+  reads the rest of such a path in the normal form of the name's
+  bodies, met, and `Decls.pathIn` turns to it where no root names the
+  path.
+- A link at a body's own place that names a member of the body meets
+  nothing the schema holds, and a template that conflicts with that
+  member is an `error`, as in both engines (`referFlow`).
+- 33 `verdict` rows from the definition, j60 to j83 and rf228 to rf236
+  in `test/spec/def-path.tsv`. Both engines answer all 33.
+- What a body's own place still lacks is #664: a path there through
+  another path, and one to a template a link meets there. #663 is a
+  recursive name in a `refer` or a `copy` that its own body holds.
+
 ### The definition reads a link another link's template carries
 
 The definition, and shared rows. Neither engine changes.
