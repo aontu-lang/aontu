@@ -8997,13 +8997,16 @@ first. A template can carry a link of its own, too:
 `s: refer({ n:refer({ k:1 }) & path($.t2) }) & path($.t1)` sends
 `{ k:1 }` into `t2` once its template lands in `t1`. So the definition
 reads the links and their targets in passes, each reading the tree the
-last pass made:
+last pass made and meeting its templates into that tree, so that a
+flow once found stays. A flow that conflicts with its own link,
+`s: refer(1) & path($.s)`, leaves the link `nil`, with no address to
+read again, and the conflict stands all the same:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
   | 0 => S
-  | n + 1 => ds.referPass S (ds.referPasses S n) .any
+  | n + 1 => ds.referPass (ds.referPasses S n) (ds.referPasses S n) .any
 ```
 
 A last pass reads each link and its target in the tree those passes
@@ -9014,8 +9017,8 @@ even where the data supplies it, as a path to nothing is:
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.withRefers (ds : Decls) (S : Val) : Val :=
-  ds.referPass S (ds.referPasses S
-    (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)) .nil
+  let L := ds.referPasses S (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)
+  ds.referPass L L .nil
 ```
 
 The template meets the target, so the target refuses the data the
@@ -9050,7 +9053,8 @@ disjunction or a preference, rows from rf171 on a kept arm the rank
 rule passes over and a link to nothing in an arm the output takes,
 rows from rf186 on a path reference to a link's target, and rows from
 rf201 on a link a template carries and a generator whose data another
-link's template makes. Both engines answer every one as the definition
+link's template makes, and rows from rf228 on a flow that conflicts
+with its own link. Both engines answer every one as the definition
 does. With data,
 both engines read a body's relative link a second time, from each
 place that uses the body, which #488 tracks, and no row holds such a

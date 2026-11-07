@@ -1182,10 +1182,12 @@ end
 
 /-- The schema after `n` passes, each meeting the templates of the links
 the last pass's tree holds into the targets it holds, so that one link's
-template can make another link's target, or carry another link. -/
+template can make another link's target, or carry another link, and
+meeting them into that tree, so that a flow once found stays, even one
+whose conflict leaves its own link no address to read again. -/
 def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
   | 0 => S
-  | n + 1 => ds.referPass S (ds.referPasses S n) .any
+  | n + 1 => ds.referPass (ds.referPasses S n) (ds.referPasses S n) .any
 
 /-- The schema with each link's template met into its target, so that
 the template flows into the target and a link to nothing is an error:
@@ -1194,8 +1196,8 @@ as the document writes links, so that links whose templates make each
 other's targets, or carry each other, resolve in any order, a link
 whose target is still missing meeting `nil`. -/
 def Decls.withRefers (ds : Decls) (S : Val) : Val :=
-  ds.referPass S (ds.referPasses S
-    (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)) .nil
+  let L := ds.referPasses S (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)
+  ds.referPass L L .nil
 
 /-! ## A spread read at each member -/
 
@@ -2866,11 +2868,11 @@ theorem referPass_checkableA {ds : Decls} {S L miss : Val}
 theorem referPasses_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : ∀ n, (ds.referPasses S n).CheckableA
   | 0 => hS
-  | n + 1 => referPass_checkableA hb hS (referPasses_checkableA hb hS n) .any
+  | n + 1 => referPass_checkableA hb (referPasses_checkableA hb hS n) (referPasses_checkableA hb hS n) .any
 
 theorem withRefers_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (ds.withRefers S).CheckableA :=
-  referPass_checkableA hb hS (referPasses_checkableA hb hS _) .nil
+  referPass_checkableA hb (referPasses_checkableA hb hS _) (referPasses_checkableA hb hS _) .nil
 
 theorem Decls.prepared_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (root : Val) : (ds.prepared S root).2.CheckableA :=

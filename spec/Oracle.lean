@@ -1968,7 +1968,10 @@ def referCases : List (Decls × Val × Data) :=
         ("x", .call .each [.path [.key "a", .key "l"], rf (m [("v", .hole)]) (ad 0 ["y"])]), ("y", m [])], .map []),
     ([], m [("a", m []), ("b", rf (m [("l", .list [int 1] none false)]) (ad 0 ["a"])),
         ("x", .call .each [.path [.key "a", .key "l"], rf (m [("v", .hole)]) (ad 0 ["y"])]),
-        ("y", m [("v", int 2)])], .map [])]
+        ("y", m [("v", int 2)])], .map []),
+    ([], m [("s", rf (int 1) (ad 0 ["s"])), ("u", .call .refer [])], .map []),
+    ([], m [("s", rf (int 1) (ad 0 ["s"]))], .map []),
+    ([], m [("s", rf (m [("n", rf (int 1) (ad 0 ["t", "n"]))]) (ad 0 ["t"])), ("t", m [])], .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
