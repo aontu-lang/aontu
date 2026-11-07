@@ -3950,7 +3950,9 @@ and a constraint's domain. Its first cases:
 for its parent, as `integer & min(3)` is a constraint on integers; a
 meet of two kinds has the lower kind's parent; any other meet lifts
 each side. A reference lifts as itself, a residual the engines keep
-symbolic too. -/
+symbolic too. A rider is left behind, but the one a `move` makes
+(`Rider.move`), so that each arm a moved preference reads as carries
+it. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
   | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
@@ -8804,18 +8806,44 @@ def hideAt : List Seg → Val
   | _ :: _ => .any
 ```
 
-The definition reads the steps of the source's path in the first of
-the schema's roots that names it, each by the container it meets and
-each variable bound first, as it reads the term a path names, so
-`move($.q.$name)` hides the member the variable's value spells. A
-`move` in a declaration's body hides its source as one in the schema
-does, whether a reference reads the body or not, since both engines
-read a body where it's declared:
+Only a `move` the reading makes hides its source, as in both engines,
+so one in an arm no selection takes, or in a template no member
+instantiates, hides nothing. Where the definition reads a path as a
+name, a `move` keeps the name as a rider around the reference, and the
+value the call makes carries it into the normal form, as it carries
+any rider:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.withMoves (ds : Decls) (S : Val) : Val :=
-  ((S.moved ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.moved) []).filterMap fun p =>
+def ptaCall : Fn → List Val → List Val
+  | .move, [v] =>
+    match v.unride with
+    | .path p => [.ride (.move (pathName p)) v.pathsToAliases []]
+    | _ => [v.pathsToAliases]
+  | _, [] => []
+  | _, v :: vs => v.pathsToAliases :: ptaItems vs
+```
+
+The parent type of a moved preference keeps the rider too, so data
+that overrides the copy keeps the move. `Val.moves` collects the names
+the normal form holds, under each member and element, through riders,
+links and meets, and in every arm of a disjunction, since both engines
+make a `move` in each, though not from a spread's template, which
+makes a `move` only in the members it instantiates. `Decls.movesMade`
+reads them in the last root, and in each body that writes a `move`,
+read with the paths the roots declare, whether a reference reads the
+body or not, since both engines read a body where it's declared. The
+definition hides the source of each `move` the document writes whose
+name is among them, and reads the steps of its path in the first of
+the schema's roots that names it, each by the container it meets and
+each variable bound first, as it reads the term a path names, so
+`move($.q.$name)` hides the member the variable's value spells:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.withMoves (ds : Decls) (r : Decls → Val → List Val) (S : Val) : Val :=
+  (((S.moved ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.moved) []).filter fun p =>
+      pathName p ∈ ds.movesMade r S).filterMap fun p =>
       (p.mapM ds.bindSeg).bind fun q => (ds.rootsS S).findSome? fun root => root.stepsW q).foldl
     (fun acc p => .meet acc (hideAt p)) S
 ```
@@ -8851,7 +8879,10 @@ and reads as `pref`, and a path that names nothing is an `error`, as
 any path is. The definition reads a rider around the path through, so
 `move(meta($.x, r))` hides `x` and reads as `*meta(1, r)`. Rows from mv0 on
 of `test/spec/def-path.tsv` hold these readings in the three modes of
-`vet`, and both engines answer every one as the definition does. Data
+`vet`, those from mv51 on a `move` in the arm a selection takes and in
+one it passes by, in a template with a member and with none, in an arm
+the data passes by and in a body, and both engines answer every one as
+the definition does. Data
 that sets the copy of a path under a rider splits the engines, and
 no row holds it, which #486 tracks.
 
@@ -9744,10 +9775,6 @@ The language needs only the power to represent a JSON Schema: what
 Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker
 of step 17 reads unmade. Neither has a rule yet.
-
-Nor does it say which of a document's moves the reading makes. A
-`move` in an arm no selection takes, or in a template no member
-instantiates, still hides its source, where both engines keep it.
 
 Nor does it read a link or a spread everywhere one can land. A link in
 a `filter`'s source sends nothing, since the definition makes a

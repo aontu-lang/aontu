@@ -8,6 +8,22 @@ each change affects.
 
 ## Unreleased
 
+### The definition hides only the moves the reading makes
+
+The definition, and shared rows. Neither engine changes.
+
+- A `move` in an arm no selection takes, or in a template no member
+  instantiates, hides nothing in the definition, as in both engines,
+  so with `a: 1, b: match(2, 1, move($.a), 2)` the data must supply
+  `a` under `--no-fill`. The value a `move` makes carries the name of
+  its path as a rider (`Rider.move` in `spec/Aontu/Syntax.lean`), kept
+  on a moved preference's parent type, and `Decls.withMoves` hides the
+  source of each `move` whose name the normal form holds
+  (`Decls.movesMade`, `Val.moves`).
+- Rows mv51 to mv80 of `test/spec/def-path.tsv` hold a `move` in the
+  arm a selection takes and in one it passes by, in a template with a
+  member and with none, in an arm the data passes by, and in a body.
+
 ### The definition reads an address the data supplies
 
 The definition, and shared rows. Neither engine changes.
