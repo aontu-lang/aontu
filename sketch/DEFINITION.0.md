@@ -1764,6 +1764,52 @@ until the phase that encodes it lands.
    definition and both ports move after the study's first step, links
    as obligations (`sketch/CORE.0.md`, §6).
 
+35. **A link in a declaration nothing uses.** Raised 2026-11-06 by the
+   consolidation study (`sketch/CORE.0.md`, §4.1), and put with 36 and
+   37 in one question, which numbered them 34 to 36. A declaration's
+   body is read whether the document uses it or not (ruling 17), at
+   its own place. A link in it, `%L = refer({k:1}) & path($.t)` beside
+   `t: {}`, sends its template in both engines and in the definition,
+   so `t` gets `k: 1`. Either the link keeps sending, read in the
+   body's own normal form, or it sends only from the places that use
+   the declaration.
+
+   **Ruled 2026-11-07: it keeps sending.** A link in a declaration's
+   body sends from the body's own place whether the document uses the
+   declaration or not, as the rest of the body is read. Nothing moves:
+   the definition collects each body's links from the body's own
+   normal form, as both engines do.
+
+36. **A link inside a call's argument.** Raised 2026-11-06 by the
+   consolidation study (§4.1). A call can return a value that holds its
+   argument: `x: close({p: refer({k:1}) & path($.a)})`. Both engines
+   send the link's template, so `a` gets `k: 1`. The definition reads a
+   document's links from the normal form of the schema's own tree,
+   where this link is still a call's argument, and sends nothing (limit
+   19 of `spec/README.md`). Either a link sends wherever the made call's
+   value holds it, or a call's argument holds no link.
+
+   **Ruled 2026-11-07: it sends where the call's value holds it.** A
+   document's links are read from its normal form with its calls made,
+   so a link a call's value holds sends as any other link does. Both
+   engines keep their reading, and the definition moves; that part of
+   limit 19 goes once it is built.
+
+37. **An address the data supplies.** Raised 2026-11-06 by the
+   consolidation study (§4.1). A link can take its address from the
+   data: schema `b: refer({r: 3})`, data `b: path($.a)`. Both engines
+   read the data's address, check it and meet the template into its
+   target, so data `a: {p: 1, r: 4}` is invalid. The definition reads a
+   document's links from the schema's own tree, before the data meets
+   it, so nothing the data supplies counts (limit 19). Either links are
+   read from the document the data meets, or only an address the
+   schema writes counts.
+
+   **Ruled 2026-11-07: it counts.** A document's links are read from
+   the document the data meets, so an address the data supplies is
+   checked, and the template meets its target, as in both engines. The
+   definition moves; the last part of limit 19 goes once it is built.
+
 ## 8. Risks
 
 | Risk | Mitigation |

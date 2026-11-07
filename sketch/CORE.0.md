@@ -8,7 +8,9 @@ is built in the definition (links carried in the normal form, the walk
 removed, every row as before) and in both engines (the template in the
 path value, links collected from the result, rounds from a copy of the
 document, the recording, live write and staging removed); `move`
-waits. The study asks whether the definition's special
+waits. Its three rulings are 35 to 37 of §7, ruled 2026-11-07: a link
+in an unused declaration keeps sending, a link a call's value holds
+sends, and an address the data supplies counts. The study asks whether the definition's special
 cases can be cut by restating a few features as a small core plus
 translations into it. Rulings stay in §7.
 
@@ -195,8 +197,9 @@ holds its links, since the leaves are read from the normal form), and
 a link inside another link's template, since each round reads the
 links of its own normal form.
 
-Three choices need a ruling. A link in a declaration's body sends
-today whether the body is used or not; collecting each body's own
+Three choices needed a ruling, now rulings 35 to 37 of DEFINITION.0.md
+§7, each ruled the way both engines read. A link in a declaration's
+body sends whether the body is used or not; collecting each body's own
 normal form keeps that. A link in a call's argument, which no landing
 enters, sends in both engines and not in the definition (limit 19).
 An address the data supplies counts in both engines and not in the
