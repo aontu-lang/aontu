@@ -8,7 +8,7 @@ exports.subsumeNode = subsumeNode;
 exports.subsume = subsume;
 /* Copyright (c) 2025 Richard Rodger, MIT License */
 const utility_1 = require("./utility");
-const aontu_1 = require("./aontu");
+const engine_1 = require("./engine");
 const vet_1 = require("./vet");
 const hcanon_1 = require("./hcanon");
 const ConstraintVal_1 = require("./val/ConstraintVal");
@@ -709,7 +709,7 @@ function subsume(generalSrc, specificSrc, opts) {
         pairs: newPairs(),
     };
     const load = (src, path) => {
-        const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
+        const aontu = (0, engine_1.sharedEngine)((0, utility_1.includeOpts)(options));
         const ctx = aontu.ctx({ collect: true });
         const v = aontu.unify(src, null == path ? undefined : { path }, ctx);
         if (0 < ctx.err.length || true === v?.isNil) {

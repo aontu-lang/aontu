@@ -45,6 +45,7 @@ const relation_1 = require("../dist/relation");
 const subsume_1 = require("../dist/subsume");
 const aontu_1 = require("../dist/aontu");
 const RefVal_1 = require("../dist/val/RefVal");
+const engine_1 = require("../dist/engine");
 const SCHEMA = 'service: { name: string, port: integer }';
 (0, node_test_1.describe)('vet-site-span', () => {
     const DATA = 'port: 0x1F\n';
@@ -125,6 +126,19 @@ const SCHEMA = 'service: { name: string, port: integer }';
         const site = siteOfFirstDataFinding();
         const line = DATA.split('\n')[site.row - 1];
         Assert.equal(line.substr(site.col - 1, site.len), site.src);
+    });
+});
+(0, node_test_1.describe)('vet-shared-engine', () => {
+    (0, node_test_1.test)('one-engine-per-option-set', () => {
+        Assert.strictEqual((0, engine_1.sharedEngine)({}), (0, engine_1.sharedEngine)({}));
+        Assert.notStrictEqual((0, engine_1.sharedEngine)({ textExt: ['txt'] }), (0, engine_1.sharedEngine)({}));
+    });
+    (0, node_test_1.test)('the-oldest-engine-goes-past-the-bound', () => {
+        const first = (0, engine_1.sharedEngine)({ textExt: ['e0'] });
+        for (let i = 1; i <= engine_1.MAX_ENGINES; i++) {
+            (0, engine_1.sharedEngine)({ textExt: ['e' + i] });
+        }
+        Assert.notStrictEqual((0, engine_1.sharedEngine)({ textExt: ['e0'] }), first);
     });
 });
 (0, node_test_1.describe)('vet-verdicts', () => {

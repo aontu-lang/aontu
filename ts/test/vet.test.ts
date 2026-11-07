@@ -12,6 +12,7 @@ import { relationCheck } from '../dist/relation'
 import { subsume } from '../dist/subsume'
 import { vet as vetFromPackage } from '../dist/aontu'
 import { RefVal } from '../dist/val/RefVal'
+import { sharedEngine, MAX_ENGINES } from '../dist/engine'
 
 
 const SCHEMA = 'service: { name: string, port: integer }'
@@ -110,6 +111,23 @@ describe('vet-site-span', () => {
     Assert.equal(line.substr(site.col - 1, site.len), site.src)
   })
 
+})
+
+
+describe('vet-shared-engine', () => {
+
+  test('one-engine-per-option-set', () => {
+    Assert.strictEqual(sharedEngine({}), sharedEngine({}))
+    Assert.notStrictEqual(sharedEngine({ textExt: ['txt'] }), sharedEngine({}))
+  })
+
+  test('the-oldest-engine-goes-past-the-bound', () => {
+    const first = sharedEngine({ textExt: ['e0'] })
+    for (let i = 1; i <= MAX_ENGINES; i++) {
+      sharedEngine({ textExt: ['e' + i] })
+    }
+    Assert.notStrictEqual(sharedEngine({ textExt: ['e0'] }), first)
+  })
 })
 
 

@@ -12,6 +12,8 @@ import {
   patch, diff, agentsMd, format,
 } from '../dist/aontu'
 import { jsonSchema } from '../dist/jsonschema'
+import { sharedEngine } from '../dist/engine'
+import type { AontuOptions } from '../dist/type'
 import { importJsonSchema, upgradeJsonSchema } from '../dist/jsonschema-import'
 import { vetOutput } from '../dist/sourcemap'
 import { reachCheck } from '../dist/reach'
@@ -335,10 +337,19 @@ const TRUST_FILES: Record<string, boolean> = {
   'fmt.tsv': true,
 }
 
-function rowAontu(row: { file?: string }): Aontu {
-  return new Aontu(null != row.file && true === TRUST_FILES[row.file]
+function rowOpts(row: { file?: string }): AontuOptions {
+  return null != row.file && true === TRUST_FILES[row.file]
     ? { trust: { include: { root: FIXTURES_DIR } } }
-    : {})
+    : {}
+}
+
+function rowAontu(row: { file?: string }): Aontu {
+  return sharedEngine(rowOpts(row))
+}
+
+// For the repeatability checks: a fresh engine against the shared one.
+function freshAontu(row: { file?: string }): Aontu {
+  return new Aontu(rowOpts(row))
 }
 
 
@@ -392,7 +403,7 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
   else if ('gens' === row.mode) {
     Assert.strictEqual(genJSON(a0.generate(row.src, undefined, ctx)), row.expect)
 
-    const a1 = rowAontu(row)
+    const a1 = freshAontu(row)
     Assert.strictEqual(
       genJSON(a1.generate(row.src, undefined, makeVarsCtx(a1))),
       row.expect,
@@ -614,7 +625,7 @@ function runRow(row: Omit<Row, 'file'> & { file?: string }): void {
 
     // ... and DETERMINISTIC is a property, not a claim: a fresh engine
     // over the same source answers the same bytes.
-    const a1 = rowAontu(row)
+    const a1 = freshAontu(row)
     Assert.strictEqual(
       exactJSON(graphOf(a1.unify(row.src, undefined, makeVarsCtx(a1)))),
       exactJSON(graph),
