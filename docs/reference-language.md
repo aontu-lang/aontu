@@ -4560,7 +4560,10 @@ generator makes of a moved value (`Val.rideMoves`), so
 hides its source too, whether a reference reads the body or not. The definition reads a rider around the path through, and
 a variable in the path names the member its value spells. A path into a list hides
 nothing in the definition yet, where both engines drop the element from
-the list, as a marked element holds no position there. Rows
+the output, as a marked element holds no position there, though `vet`
+still reads the element's position, so the output fails `vet` against
+its own document, which
+[#668](https://github.com/aontu-lang/aontu/issues/668) tracks. Rows
 mv0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold
 both engines to it. Data that sets the copy of a path under a
 rider splits the engines, which

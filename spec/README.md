@@ -126,7 +126,9 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   `filter` in the path's declaration, a body the checker can't read,
   so that a literal meeting a term under it stays undecided (P9);
 - a `move` of a list's element, which hides nothing yet, where both
-  ports drop the element from the list;
+  ports drop the element from the output and keep its position in
+  `vet`, so the output fails `vet` against its own document, which
+  #668 tracks;
 - a source that declares a name of its own, loaded under a key, which
   both ports refuse and the definition reads as it reads one at the
   root;
