@@ -930,6 +930,24 @@ mv92	verdict	"a": 1, "b": match(move($.a), 1, "x", "y")	{"b": "x"}	{"verdict":"v
 mv93	verdict	"a": [1, 2], "b": filter(move($.a), min(2))	{"b": [2]}	{"verdict":"valid"}
 mv94	verdict	"a": [1, 2], "b": filter(move($.a), min(2))	{"b": [2]}	{"verdict":"valid","opts":{"noFill":true}}
 mv95	verdict	"a": [1, 2], "b": filter(move($.a), min(2))	{"b": [2]}	{"verdict":"valid","opts":{"partial":true}}
+mv96	verdict	"a": [1, 2], "b": move($.a."0")	{}	{"verdict":"valid"}
+mv97	verdict	"a": [1, 2], "b": move($.a."0")	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv98	verdict	"a": [1, 2], "b": move($.a."0")	{}	{"verdict":"valid","opts":{"partial":true}}
+mv99	verdict	"a": [1, 2], "b": move($.a."0")	{"a": [2], "b": 1}	{"verdict":"invalid"}
+mv100	verdict	"a": [1, 2], "b": move($.a."0")	{"a": [2], "b": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+mv101	verdict	"a": [1, 2], "b": move($.a."0")	{"a": [2], "b": 1}	{"verdict":"invalid","opts":{"partial":true}}
+mv102	verdict	"a": [1, 2], "b": move($.a."0")	{"a": [1, 2]}	{"verdict":"valid"}
+mv103	verdict	"a": [1, 2], "b": move($.a."0")	{"a": [1, 2]}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv104	verdict	"a": [1, 2], "b": move($.a."0")	{"a": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+mv105	verdict	"a": [1, 2], "b": move($.a."1")	{"a": [1]}	{"verdict":"valid"}
+mv106	verdict	"a": [1, 2], "b": move($.a."1")	{"a": [1]}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv107	verdict	"a": [1, 2], "b": move($.a."1")	{"a": [1]}	{"verdict":"valid","opts":{"partial":true}}
+mv108	verdict	"a": [{"c": 1, "d": 2}], "b": move($.a."0".c)	{"a": [{"d": 2}], "b": 1}	{"verdict":"valid"}
+mv109	verdict	"a": [{"c": 1, "d": 2}], "b": move($.a."0".c)	{"a": [{"d": 2}], "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
+mv110	verdict	"a": [{"c": 1, "d": 2}], "b": move($.a."0".c)	{"a": [{"d": 2}], "b": 1}	{"verdict":"valid","opts":{"partial":true}}
+mv111	verdict	"a": [{"c": 1, "d": 2}], "b": move($.a."0".c)	{"a": [{"c": 1, "d": 2}]}	{"verdict":"valid"}
+mv112	verdict	"a": [{"c": 1, "d": 2}], "b": move($.a."0".c)	{"a": [{"c": 1, "d": 2}]}	{"verdict":"incomplete","opts":{"noFill":true}}
+mv113	verdict	"a": [{"c": 1, "d": 2}], "b": move($.a."0".c)	{"a": [{"c": 1, "d": 2}]}	{"verdict":"valid","opts":{"partial":true}}
 rn0	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b.camel	{}	{"verdict":"valid"}
 rn1	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b.camel	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 rn2	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b.camel	{}	{"verdict":"valid","opts":{"partial":true}}
