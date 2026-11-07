@@ -238,7 +238,10 @@ than its value.
 - **Canon is deterministic.** `--canon` output is goldened
   byte-for-byte in `check.sh`: one line, reparseable, with defaults,
   ranks and spreads still visible, so the policy can be read as a
-  whole and hashed for drift detection.
+  whole and hashed for drift detection. A disjunction's surviving arms
+  print in the order the document writes them, so prod auth's `logLevel` is
+  `***"info"|"info"`: the workload's `***"info"` arm first, then the
+  `"info"` its `string` arm makes.
 
 ## What check.sh proves
 
