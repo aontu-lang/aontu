@@ -426,6 +426,9 @@ j80	verdict	%T = {"x": 1, "y": .x}\n"z": (%T) & ({"x": 2})	{}	{"verdict":"error"
 j81	verdict	%T = {"x": 1}\n%T = {"y": .x}\n	{}	{"verdict":"valid"}
 j82	verdict	%T = {"x": 1}\n%T = {"y": .x}\n	{}	{"verdict":"valid","opts":{"noFill":true}}
 j83	verdict	%T = {"x": 1}\n%T = {"y": .x}\n	{}	{"verdict":"valid","opts":{"partial":true}}
+j84	verdict	%T = {"x": 1}\n"y": $."%T".x	{"y": 1}	{"verdict":"error"}
+j85	verdict	%T = {"x": 1}\n"y": $."%T".x	{"y": 1}	{"verdict":"error","opts":{"noFill":true}}
+j86	verdict	%T = {"x": 1}\n"y": $."%T".x	{"y": 1}	{"verdict":"error","opts":{"partial":true}}
 jl0	verdict	"a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{}	{"verdict":"error"}
 jl1	verdict	"a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{}	{"verdict":"error","opts":{"noFill":true}}
 jl2	verdict	"a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{}	{"verdict":"error","opts":{"partial":true}}
@@ -1236,6 +1239,12 @@ rf242	verdict	%T = {"m": {"k": 2}, "n": (refer({"k": 1})) & (path(.m))}\n	{}	{"v
 rf243	verdict	%T = {"m": {}, "n": (refer({"k": 1})) & (path(.m))}\n"x": %T	{}	{"verdict":"valid"}
 rf244	verdict	%T = {"m": {}, "n": (refer({"k": 1})) & (path(.m))}\n"x": %T	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 rf245	verdict	%T = {"m": {}, "n": (refer({"k": 1})) & (path(.m))}\n"x": %T	{}	{"verdict":"valid","opts":{"partial":true}}
+rf246	verdict	%T = {"m": {}, "n": (refer({"k": 1})) & (path(.m)), "o": (refer({"k": 2})) & (path(.m))}\n	{}	{"verdict":"error"}
+rf247	verdict	%T = {"m": {}, "n": (refer({"k": 1})) & (path(.m)), "o": (refer({"k": 2})) & (path(.m))}\n	{}	{"verdict":"error","opts":{"noFill":true}}
+rf248	verdict	%T = {"m": {}, "n": (refer({"k": 1})) & (path(.m)), "o": (refer({"k": 2})) & (path(.m))}\n	{}	{"verdict":"error","opts":{"partial":true}}
+rf249	verdict	%T = {"m": {}, "n": (refer({"k": 1})) & (path(.m)), "o": (refer({"j": 2})) & (path(.m))}\n	{}	{"verdict":"valid"}
+rf250	verdict	%T = {"m": {}, "n": (refer({"k": 1})) & (path(.m)), "o": (refer({"j": 2})) & (path(.m))}\n	{}	{"verdict":"valid","opts":{"noFill":true}}
+rf251	verdict	%T = {"m": {}, "n": (refer({"k": 1})) & (path(.m)), "o": (refer({"j": 2})) & (path(.m))}\n	{}	{"verdict":"valid","opts":{"partial":true}}
 rl0	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"valid"}
 rl1	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 rl2	verdict	"p": {"k": 1}, "q": {"h": (rel()) & (path($.p))}	{}	{"verdict":"valid","opts":{"partial":true}}

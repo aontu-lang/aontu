@@ -694,10 +694,11 @@ def Decls.bodyAt (ds : Decls) : List Seg → Option Val
   | _ => none
 
 /-- The term a written path names in the first of the roots it names
-something in, or at a body's own place (`Decls.bodyAt`), which no root
-holds. -/
+something in, or, for a path a body writes, at a body's own place
+(`Decls.bodyAt`), which no root holds and no path the schema writes
+reaches. -/
 def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) : Option Val :=
-  (roots.findSome? fun root => ds.pathAt root p).or (ds.bodyAt p)
+  (roots.findSome? fun root => ds.pathAt root p).or (if p ∈ ds.paths then ds.bodyAt p else none)
 
 /-- The declarations a document's paths make: each path's name, declared
 as the term at the path in the first of the roots it names something
@@ -1096,20 +1097,23 @@ template where its link stands. -/
 def Decls.nfLinks (ds : Decls) (root : Val) (home : List Seg) : List (List Seg × Val × Val) :=
   (root.links []).map fun e => (e.1, resolveD ds none (some ((home ++ e.1).map .seg)) e.2.1, e.2.2)
 
+/-- Whether a path names a member of the body a link written at `pos`
+stands in, at the body's own place: the path's first step the link's
+own, and the body holding a member there (`Decls.bodyAt`). -/
+def Decls.atOwnBody (ds : Decls) (pos p : List Seg) : Bool :=
+  p.head? == pos.head? && (ds.bodyAt p).isSome
+
 /-- One address's part in the schema: `t` met at the path the address
 names from `pos` (`Addr.from`, `Val.putW`) in the first of `roots` it
-names something in; at a body's own place (`Decls.bodyAt`), which the
-schema doesn't hold, nothing, or `miss` where `t` conflicts with what
-the body holds there, as both ports meet a template into a body's own
-place; and `miss` where it names nothing or climbs past the top. -/
+names something in; nothing at a member of the link's own body
+(`Decls.atOwnBody`), which the schema doesn't hold, where
+`Decls.bodyClash` reads what the links send; and `miss` where it names
+nothing or climbs past the top. -/
 def referFlow (ds : Decls) (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val)
     (a : Addr) : Val :=
   match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p t with
   | some u => .meet acc u
-  | none =>
-    match (a.from pos).bind ds.bodyAt with
-    | some w => if ((normaliseD ds (ds.readU (.meet w t))).staged ds).illFormed then .meet acc miss else acc
-    | none => .meet acc miss
+  | none => if (a.from pos).any (ds.atOwnBody pos) then acc else .meet acc miss
 
 /-- One link's part in the schema, the link written at `home`: for each
 address the normal form it stands in holds at its position
@@ -1206,15 +1210,50 @@ def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
   | 0 => S
   | n + 1 => ds.referPass (ds.referPasses S n) (ds.referPasses S n) .any
 
+/-- The flows of one link, written at `home`, into a member of its own
+body: each target no root holds that `Decls.atOwnBody` finds, with the
+template, its marks cleared. -/
+def bodyFlowsOf (ds : Decls) (roots : List Val) (home : List Seg) (e : List Seg × Val × Val) :
+    List (List Seg × Val) :=
+  (linkAddrs e).filterMap fun a =>
+    (a.from (home ++ e.1)).bind fun p =>
+      if (roots.findSome? fun root => root.putW p e.2.1.unmark).isNone && ds.atOwnBody (home ++ e.1) p then
+        some (p, e.2.1.unmark)
+      else none
+
+/-- The flows a tree's links make into a member of their own body, the
+schema's and each body's, read as `Decls.referPass` reads them. -/
+def Decls.bodyFlows (ds : Decls) (L : Val) : List (List Seg × Val) :=
+  let own := ds.rootsS L
+  let dp := (ds.withPathsFrom L own).1
+  let R := own.getLast?.getD .any
+  (ds.nfLinks R []).flatMap (bodyFlowsOf ds own []) ++
+    ds.flatMap fun d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).flatMap
+      (bodyFlowsOf ds own [.key ("%" ++ d.1)])
+
+/-- Whether the templates the flows send to a body's own place conflict
+there, with the body's member or with each other, as both ports meet
+each into the body's own place: the normal form of the name's bodies,
+met, with each template met at its place. -/
+def Decls.bodyClash (ds : Decls) (fs : List (List Seg × Val)) : Bool :=
+  ds.any fun d =>
+    match fs.filter (fun f => f.1.head? == some (.key ("%" ++ d.1))) with
+    | [] => false
+    | gs =>
+      let b := normaliseD ds (ds.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2) .any))
+      ((normaliseD ds (ds.readU (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged
+        ds).illFormed
+
 /-- The schema with each link's template met into its target, so that
 the template flows into the target and a link to nothing is an error:
 read in the tree the passes make, as many as the links make flows and
 as the document writes links, so that links whose templates make each
 other's targets, or carry each other, resolve in any order, a link
-whose target is still missing meeting `nil`. -/
+whose target is still missing meeting `nil`, as does the schema where
+the templates sent to a body's own place conflict there. -/
 def Decls.withRefers (ds : Decls) (S : Val) : Val :=
   let L := ds.referPasses S (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)
-  ds.referPass L L .nil
+  if ds.bodyClash (ds.bodyFlows L) then .meet (ds.referPass L L .nil) .nil else ds.referPass L L .nil
 
 /-! ## A spread read at each member -/
 
@@ -2703,7 +2742,9 @@ theorem Decls.pathIn_checkableA {ds : Decls} {roots : List Val} {w : Val} {p : L
   cases hf : roots.findSome? (fun root => ds.pathAt root p) with
   | none =>
     rw [hf, Option.none_or] at h
-    exact Decls.bodyAt_checkableA hb h
+    split at h
+    · exact Decls.bodyAt_checkableA hb h
+    · exact absurd h (by simp)
   | some u =>
     rw [hf, Option.some_or, Option.some.injEq] at h
     obtain ⟨root, hm, hw⟩ := List.exists_of_findSome?_eq_some hf
@@ -2777,9 +2818,7 @@ theorem referFlow_checkableA {ds : Decls} {roots : List Val} {miss acc t : Val} 
       exact .meet hacc (putW_checkableA ht p hr)
   next =>
     split
-    · split
-      · exact .meet hacc hm
-      · exact hacc
+    · exact hacc
     · exact .meet hacc hm
 
 theorem foldl_referFlow_checkableA {ds : Decls} {roots : List Val} {miss t : Val} {pos : List Seg}
@@ -2919,8 +2958,11 @@ theorem referPasses_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → 
   | n + 1 => referPass_checkableA hb (referPasses_checkableA hb hS n) (referPasses_checkableA hb hS n) .any
 
 theorem withRefers_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) : (ds.withRefers S).CheckableA :=
-  referPass_checkableA hb (referPasses_checkableA hb hS _) (referPasses_checkableA hb hS _) .nil
+    (hS : S.CheckableA) : (ds.withRefers S).CheckableA := by
+  dsimp only [Decls.withRefers]
+  split
+  · exact .meet (referPass_checkableA hb (referPasses_checkableA hb hS _) (referPasses_checkableA hb hS _) .nil) .nil
+  · exact referPass_checkableA hb (referPasses_checkableA hb hS _) (referPasses_checkableA hb hS _) .nil
 
 theorem Decls.prepared_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (root : Val) : (ds.prepared S root).2.CheckableA :=

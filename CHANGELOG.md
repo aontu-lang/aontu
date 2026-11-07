@@ -19,11 +19,16 @@ The definition, and shared rows. Neither engine changes.
   reads the rest of such a path in the normal form of the name's
   bodies, met, and `Decls.pathIn` turns to it where no root names the
   path.
+  Only a path a body writes reads a body's place, so the schema's
+  `$."%T".x` still names nothing, as in both engines.
 - A link at a body's own place that names a member of the body meets
-  nothing the schema holds, and a template that conflicts with that
-  member is an `error`, as in both engines (`referFlow`).
-- 33 `verdict` rows from the definition, j60 to j83 and rf237 to rf245
-  in `test/spec/def-path.tsv`. Both engines answer all 33.
+  nothing the schema holds. The last pass meets every template the
+  links send to a body's place with the body there, so one that
+  conflicts with the body's member, or two that conflict with each
+  other, make the document an `error`, as in both engines
+  (`Decls.bodyClash`).
+- 42 `verdict` rows from the definition, j60 to j86 and rf237 to rf251
+  in `test/spec/def-path.tsv`. Both engines answer all 42.
 - What a body's own place still lacks is #664: a path there through
   another path, and one to a template a link meets there. #663 is a
   recursive name in a `refer` or a `copy` that its own body holds.

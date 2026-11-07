@@ -1363,7 +1363,8 @@ def bodyPlaceCases : List (Decls × Val × Data) :=
     ([("T", .list [int 1, .path [.up 1, .idx 0]] none false)], m [("z", .alias "T")], .map []),
     ([("T", m [("x", .string), ("y", rel 1 ["x"])])], m [("z", .alias "T")], .map []),
     ([("T", xy)], m [("z", .meet (.alias "T") (m [("x", int 2)]))], .map []),
-    ([("T", m [("x", int 1)]), ("T", m [("y", rel 1 ["x"])])], m [], .map [])]
+    ([("T", m [("x", int 1)]), ("T", m [("y", rel 1 ["x"])])], m [], .map []),
+    ([("T", m [("x", int 1)])], m [("y", .path [.key "%T", .key "x"])], .map [("y", .integer 1 (by decide))])]
 
 /-- Relative paths, made absolute where each stands: a sibling, a climb
 of two steps and three, a key in quotes, an index into a sibling list,
@@ -1994,7 +1995,9 @@ def referCases : List (Decls × Val × Data) :=
     ([], m [("s", rf (m [("n", rf (int 1) (ad 0 ["t", "n"]))]) (ad 0 ["t"])), ("t", m [])], .map []),
     ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"]))])], m [], .map []),
     ([("T", m [("m", m [("k", int 2)]), ("n", rf k1 (ad 1 ["m"]))])], m [], .map []),
-    ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"]))])], m [("x", .alias "T")], .map [])]
+    ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"]))])], m [("x", .alias "T")], .map []),
+    ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"])), ("o", rf (m [("k", int 2)]) (ad 1 ["m"]))])], m [], .map []),
+    ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"])), ("o", rf (m [("j", int 2)]) (ad 1 ["m"]))])], m [], .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
