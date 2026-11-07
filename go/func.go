@@ -344,9 +344,6 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		ready := (driven || fillable) && ctx.settle
 
 		if !ready {
-			if unfillable(ctx, f, f.peg) {
-				return makeNilErrFull(ctx, "place_container", f, nil, "make", nil)
-			}
 			return residuate(f, base, peer)
 		}
 	}
