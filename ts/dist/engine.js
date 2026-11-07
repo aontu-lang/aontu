@@ -23,5 +23,5 @@ function sharedEngine(opts) {
         ENGINES.set(key, engine);
     }
     return engine;
-}
+} /* node:coverage ignore next 6 */
 //# sourceMappingURL=engine.js.map

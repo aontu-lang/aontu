@@ -24,7 +24,7 @@ function sharedEngine(opts: Partial<AontuOptions>): Aontu {
     ENGINES.set(key, engine)
   }
   return engine
-}
+} /* node:coverage ignore next 6 */
 
 
 export {
