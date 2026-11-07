@@ -733,3 +733,18 @@ The consolidation study (sketch/CORE.0.md, PR #652) proposes restating three fea
 How should a hole `_` outside a generator work? Today `upper(_) & "hello"` is "HELLO": the meet applies the call. That makes `&` depend on how meets are grouped (#512), and holes hold 8 of the definition's 21 known limits. Of the use cases' 40 holes, 39 are generator placeholders; the one fill by peer is use case 07's failed discriminated-union attempt.
 → (a) Explicit application (Recommended)
 ```
+
+## 2026-11-07 16:38:45 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Ruling 34, step 4.1 (links). A link in a declaration nothing uses, e.g. `%L = refer({k:1}) & path($.t)` beside `t: {}`, sends its template today in both engines and in the definition, so `t` gets `k: 1`. Should a link in an unused declaration's body keep sending?
+→ Keep sending (Recommended)
+
+Ruling 35, step 4.1 (links). A link inside a call's argument, where the call's value holds it, e.g. `x: close({p: refer({k:1}) & path($.a)})`, sends in both engines today (`a` gets `k: 1`), but the definition doesn't read it yet (its limit 19). Which should hold?
+→ It sends (Recommended)
+
+Ruling 36, step 4.1 (links). An address the data supplies, e.g. schema `b: refer({r: 3})` with data `b: path($.a)`, counts in both engines today: the template flows into `$.a`, so data `a: {p: 1, r: 4}` is invalid. The definition doesn't read it yet (its limit 19). Which should hold?
+→ It counts (Recommended)
+```

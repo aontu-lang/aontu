@@ -136,7 +136,7 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - a link inside another link's template or inside a call's argument,
   and an address the data supplies, which P11 doesn't read yet, since
   it reads a document's links from the normal form of the schema's own
-  tree, where both ports read each;
+  tree, where both ports read each (rulings 36 and 37);
 - a relative path inside a body an alias's use or a path reference
   copies, which P9 reads where it's written, where both ports read it
   where the copy stands or where it's written by the order the
