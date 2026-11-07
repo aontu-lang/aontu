@@ -140,6 +140,30 @@ const SCHEMA = 'service: { name: string, port: integer }';
         }
         Assert.notStrictEqual((0, engine_1.sharedEngine)({ textExt: ['e0'] }), first);
     });
+    (0, node_test_1.test)('a-caller-changing-its-options-changes-no-engine', () => {
+        const src = 'a: $.b, b: $.c, c: 1';
+        const opts = { trust: { budget: { passes: 9 } } };
+        Assert.equal((0, vet_1.vet)(src, '{}', opts).verdict, 'valid');
+        opts.trust.budget.passes = 1;
+        Assert.equal((0, vet_1.vet)(src, '{}', { trust: { budget: { passes: 9 } } }).verdict, 'valid');
+    });
+    (0, node_test_1.test)('a-relative-root-reads-the-current-directory', () => {
+        const was = process.cwd();
+        const base = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-engine-'));
+        const opts = { trust: { include: { root: '.' } } };
+        try {
+            for (const n of [1, 2]) {
+                const dir = Path.join(base, 'd' + n);
+                Fs.mkdirSync(dir);
+                Fs.writeFileSync(Path.join(dir, 'x.aontu'), 'n: ' + n);
+                process.chdir(dir);
+                Assert.equal((0, vet_1.vet)('k: @"./x.aontu"', 'k: n: ' + n, opts).verdict, 'valid');
+            }
+        }
+        finally {
+            process.chdir(was);
+        }
+    });
 });
 (0, node_test_1.describe)('vet-verdicts', () => {
     (0, node_test_1.test)('valid-data-is-valid', () => {
