@@ -1788,6 +1788,31 @@ theorem moveRead_verdict_exact : ∀ c ∈ moveReadCases, ∀ (m : Mode) (v : Ve
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_reads (moveReadCases_reads c hc) v
 
+/-- `move` of a list's element and of a member inside one: the element
+stays at its position in what the schema admits, as both ports read it,
+and the member is hidden in the element it stands in. -/
+def moveListCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let mv (ks : List String) : Val := .call .move [.path (ks.map .key)]
+  let two := m [("a", lst [int 1, int 2]), ("b", mv ["a", "0"])]
+  let inner := m [("a", lst [m [("c", int 1), ("d", int 2)]]), ("b", mv ["a", "0", "c"])]
+  [([], two, .map []),
+    ([], two, .map [("a", .list [j 2]), ("b", j 1)]),
+    ([], two, .map [("a", .list [j 1, j 2])]),
+    ([], m [("a", lst [int 1, int 2]), ("b", mv ["a", "1"])], .map [("a", .list [j 1])]),
+    ([], inner, .map [("a", .list [.map [("d", j 2)]]), ("b", j 1)]),
+    ([], inner, .map [("a", .list [.map [("c", j 1), ("d", j 2)]])])]
+
+theorem moveListCases_checkable : ∀ c ∈ moveListCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem moveList_verdict_exact : ∀ c ∈ moveListCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (moveListCases_checkable c hc).1 (moveListCases_checkable c hc).2 v
+
 /-- Paths into what a call over a path makes, which resolve a round after
 the call's path does: a name's spellings, two chained, two lists added
 and a string split, beside data that agrees and data that refuses; a
@@ -6606,7 +6631,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "pf" prefCases
     pathRows "pc" callPathCases
     pathRows "dp" dataPathCases
-    pathRows "mv" (moveCases ++ moveReadCases)
+    pathRows "mv" (moveCases ++ moveReadCases ++ moveListCases)
     pathRows "rn" roundCases
     pathRows "rf" referCases
     pathRows "rl" relCases

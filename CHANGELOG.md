@@ -24,6 +24,18 @@ The definition, and shared rows. Neither engine changes.
   tracks.
 - Rows fk0 to fk20 of `test/spec/def-path.tsv`. No other row changes.
 
+### The definition hides a member inside a moved list element
+
+The definition, and shared rows. Neither engine changes.
+
+- `hideAt` in `spec/Aontu/Paths.lean` reads through a list by index as
+  well as a map by key, so `b: move($.a.0.c)` hides the member `c` of
+  the element at index 0, as both engines hide it, where the
+  definition hid nothing below a list. A `move` of the element itself
+  marks it where it stands, and `vet` still reads its position, in the
+  definition as in both engines, which #668 tracks.
+- Rows mv96 to mv113 of `test/spec/def-path.tsv`.
+
 ### The definition hides only the moves the reading makes
 
 The definition, and shared rows. Neither engine changes.

@@ -8817,16 +8817,26 @@ $ aontu move.aontu
 The call reads as `pref` does, `Val.prefer` of the value the path
 reads, so `title` is `*"Notes"`, which data may override. The hiding
 belongs to the document: before the definition reads it, the schema
-meets an open map that holds the source's key as optional, down to
-`hide(any)`, where the source names something:
+meets an open map that holds the source's key as optional, or an open
+list that holds `any` at each position before the source's index, down
+to `hide(any)`, where the source names something:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def hideAt : List Seg → Val
   | [] => .ride .hide .any []
   | .key k :: p => .map [(k, true, hideAt p)] none false
+  | .idx i :: p => .list (List.replicate i .any ++ [hideAt p]) none false
   | _ :: _ => .any
 ```
+
+So `move($.a.0.c)` hides the member `c` of the element at index 0, as
+both engines hide it. A `move` of the element itself, `move($.a.0)`,
+marks it where it stands, but what a meet admits is what both its
+sides admit (`admits_meet_iff`), so the list the document writes still
+holds the element's position, and `vet` reads the data's list against
+it as both engines do. Rows mv96 to mv113 hold a `move` of an element
+and of a member inside one.
 
 Only a `move` the reading makes hides its source, as in both engines,
 so one in an arm no selection takes, or in a template no member
