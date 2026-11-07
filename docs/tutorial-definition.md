@@ -2897,9 +2897,11 @@ as the call itself, which waits on `$.a`. The second reads `$.a` as
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The term a written path names in the first of the roots it names
-something in. -/
+something in, or, for a path a body writes, at a body's own place
+(`Decls.bodyAt`), which no root holds and no path the schema writes
+reaches. -/
 def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) : Option Val :=
-  roots.findSome? fun root => ds.pathAt root p
+  (roots.findSome? fun root => ds.pathAt root p).or (if p ∈ ds.paths then ds.bodyAt p else none)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -3035,9 +3037,29 @@ def Decls.placed (ds : Decls) (S : Val) : Decls × Val :=
     S.placedT [])
 ```
 
-So `%T = {y: .x}` reads `$.%T.x`, which no document holds, and the path
-is an error, while `..x` in the same body climbs to the document's own
-`x`. The schema's spreads stay as written (`Val.placedT`), since a
+So `%T = {y: .x}` reads `$.%T.x`. No root holds a body's own place, so
+a path there reads in the normal form of the name's bodies, met, as
+both engines read a body there:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.bodyAt (ds : Decls) : List Seg → Option Val
+  | .key k :: p =>
+    match ds.filter (fun d => "%" ++ d.1 == k) with
+    | [] => none
+    | bs => ds.pathAt (normaliseD ds (ds.readU (bs.foldl (fun acc d => .meet acc d.2) .any))) p
+  | _ => none
+```
+
+So `%T = {x: 1, y: .x}` reads the body's own `x`, used or not, while
+`%T = {y: .x}` reads a member the body lacks, and the path is an error,
+and `..x` in the same body climbs to the document's own `x`. The
+definition reads that normal form once, not in rounds, so a path there
+that reads through another path, `.x.k` with `x: $.a`, names nothing
+yet, where both engines read `$.a`'s `k`, which #664 tracks. Only a
+path a body writes reads the body's place, so the schema's
+`$."%T".x` names nothing, as in both engines. The schema's spreads
+stay as written (`Val.placedT`), since a
 spread reads its relative paths at each member it holds, and a spread
 that's itself a relative path also reads where it's written, at the
 place `Val.bares` collects: step 38 comes to both, and to a generator's
@@ -3051,9 +3073,11 @@ the member names nothing. Both engines try a condition on each member
 and keep the members it admits, so a condition that names nothing
 refuses each member rather than making the document an error, and the
 definition forgives every reference in a condition as it forgives the
-one at the top of `maybe`. Rows from fc0 on of
-`test/spec/def-path.tsv` hold these readings in the three modes of
-`vet`, and both engines answer every one as the definition does. Once it
+one at the top of `maybe`. Rows from j60 on of
+`test/spec/def-path.tsv` hold a body's paths to its own members and a
+path the schema writes to one, and rows from fc0 on these readings,
+each in the three modes of `vet`, and both engines answer every one as
+the definition does. Once it
 reads in the sources a document
 loads, which step 39 comes to, the verdict of a document with paths
 prepares it: it
@@ -8986,9 +9010,49 @@ def Decls.referPass (ds : Decls) (S L : Val) (miss : Val) : Val :=
   let dp := (ds.withPathsFrom L own).1
   let R := own.getLast?.getD .any
   ds.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
-      (referStep own miss [.key ("%" ++ d.1)]) acc)
-    ((ds.nfLinks R []).foldl (referStep own miss []) S)
+      (referStep ds own miss [.key ("%" ++ d.1)]) acc)
+    ((ds.nfLinks R []).foldl (referStep ds own miss []) S)
 ```
+
+A link at a body's own place can name a member of the body, as
+`%T = {m: {}, n: refer({k: 1}) & path(.m)}` names `$.%T.m`. The output
+holds no such place, so the template meets nothing the schema holds:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.atOwnBody (ds : Decls) (pos p : List Seg) : Bool :=
+  p.head? == pos.head? && (ds.bodyAt p).isSome
+```
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def referFlow (ds : Decls) (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val)
+    (a : Addr) : Val :=
+  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p t with
+  | some u => .meet acc u
+  | none => if (a.from pos).any (ds.atOwnBody pos) then acc else .meet acc miss
+```
+
+The last pass meets every template the links send to a body's place
+with the body there instead, so one that conflicts with the body's
+member, or two that conflict with each other, make the document an
+`error`, as both engines read them:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.bodyClash (ds : Decls) (fs : List (List Seg × Val)) : Bool :=
+  ds.any fun d =>
+    match fs.filter (fun f => f.1.head? == some (.key ("%" ++ d.1))) with
+    | [] => false
+    | gs =>
+      let b := normaliseD ds (ds.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2) .any))
+      ((normaliseD ds (ds.readU (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged
+        ds).illFormed
+```
+
+A path in the body that reads the template the link meets there,
+`z: .m.k`, names nothing yet, where both engines read `1`, which #664
+tracks.
 
 One link's template can make another link's target:
 `y: refer({ z:{} }) & path($.h)` makes `h.z` for
@@ -9012,13 +9076,14 @@ def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
 A last pass reads each link and its target in the tree those passes
 make, as many as the links make flows and as the document writes links
 (`Val.linkCalls`), and a target that names nothing there is an `error`,
-even where the data supplies it, as a path to nothing is:
+even where the data supplies it, as a path to nothing is, and so is a
+clash at a body's own place (`Decls.bodyFlows`, `Decls.bodyClash`):
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.withRefers (ds : Decls) (S : Val) : Val :=
   let L := ds.referPasses S (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)
-  ds.referPass L L .nil
+  if ds.bodyClash (ds.bodyFlows L) then .meet (ds.referPass L L .nil) .nil else ds.referPass L L .nil
 ```
 
 The template meets the target, so the target refuses the data the
@@ -9053,12 +9118,13 @@ disjunction or a preference, rows from rf171 on a kept arm the rank
 rule passes over and a link to nothing in an arm the output takes,
 rows from rf186 on a path reference to a link's target, and rows from
 rf201 on a link a template carries and a generator whose data another
-link's template makes, and rows from rf228 on a flow that conflicts
-with its own link. Both engines answer every one as the definition
-does. With data,
-both engines read a body's relative link a second time, from each
-place that uses the body, which #488 tracks, and no row holds such a
-link. Both engines flow a link that a path
+link's template makes, rows from rf228 on a flow that conflicts with
+its own link, and rows from rf237 on a body's link to the body's own
+member. Both engines answer every one as the definition does. Both
+engines read a body's relative link at the body's own place or where
+each use stands, by the order the document writes the two, which #504
+tracks, and each row writes the body before its use. Both engines flow
+a link that a path
 reference copies whole once, its template read at one copy's place,
 which the order of the document picks, where the definition reads each
 copy as a link of its own, which #536 tracks.
