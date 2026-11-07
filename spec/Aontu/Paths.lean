@@ -1105,20 +1105,21 @@ def referStep (roots : List Val) (miss : Val) (home : List Seg) (acc : Val)
     (e : List Seg × Val × Val) : Val :=
   (linkAddrs e).foldl (referFlow roots miss (home ++ e.1) e.2.1.unmark) acc
 
-/-- The schema with each link's template met into its target as `roots`
-hold it, and `miss` for each link whose target they don't hold: each
-link that lands at a position of the schema's own tree, read there
+/-- The schema with each link's template met into its target as the
+tree `L` reads hold it, and `miss` for each link whose target they
+don't hold: each link that lands at a position of that tree, read there
 (`Decls.landedLinks`), and each that lands in a body, at a position of
 the body's own tree (`Decls.bodyRoot`), read at the body's own place,
 `%` and the name as a key at the top, as both ports read a body where
-it's declared, used or not. -/
-def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val :=
-  let own := ds.rootsS S
-  let dp := (ds.withPathsFrom S own).1
+it's declared, used or not (ruling 35). Read from the tree an earlier
+pass made, so a link a template carries lands with it and sends too. -/
+def Decls.referPass (ds : Decls) (S L : Val) (miss : Val) : Val :=
+  let own := ds.rootsS L
+  let dp := (ds.withPathsFrom L own).1
   let R := own.getLast?.getD .any
   ds.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
-      (referStep roots miss [.key ("%" ++ d.1)]) acc)
-    ((ds.nfLinks R []).foldl (referStep roots miss []) S)
+      (referStep own miss [.key ("%" ++ d.1)]) acc)
+    ((ds.nfLinks R []).foldl (referStep own miss []) S)
 
 /-- The flows a document's links make, one for each address they hold:
 the schema's and its bodies', each read as `Decls.referPass` reads it. -/
@@ -1130,20 +1131,73 @@ def Decls.referCount (ds : Decls) (S : Val) : ℕ :=
       (linkAddrs e).length).sum)
     ((ds.nfLinks R []).map fun e => (linkAddrs e).length).sum
 
+mutual
+/-- The links a term writes, at any depth: each `refer` and each `rel`,
+in a call's arguments and in another link's template as well. -/
+def Val.linkCalls : Val → ℕ
+  | .call .refer args => lcItems args + 1
+  | .call .rel args => lcItems args + 1
+  | .call _ args => lcItems args
+  | .ride _ v _ => v.linkCalls
+  | .link v t => v.linkCalls + t.linkCalls
+  | .len c => c.linkCalls
+  | .map fs spread _ => lcFields fs + lcSpread spread
+  | .list items spread _ => lcItems items + lcSpread spread
+  | .or arms => lcArms arms
+  | .pref _ x => x.linkCalls
+  | .meet a b => a.linkCalls + b.linkCalls
+  | .nof n cs => n.linkCalls + lcItems cs
+  | .must c _ => c.linkCalls
+  | .when c t e => c.linkCalls + t.linkCalls + lcSpread e
+  | .contains c n => c.linkCalls + n.linkCalls
+  | .rest t cs => t.linkCalls + lcCovers cs
+  | .select s arms d => s.linkCalls + lcPairs arms + lcSpread d
+  | .filter s c => s.linkCalls + c.linkCalls
+  | _ => 0
+
+def lcFields : List (String × Bool × Val) → ℕ
+  | [] => 0
+  | (_, _, v) :: fs => v.linkCalls + lcFields fs
+
+def lcItems : List Val → ℕ
+  | [] => 0
+  | v :: vs => v.linkCalls + lcItems vs
+
+def lcSpread : Option Val → ℕ
+  | none => 0
+  | some s => s.linkCalls
+
+def lcArms : List (ℕ × Val) → ℕ
+  | [] => 0
+  | (_, a) :: arms => a.linkCalls + lcArms arms
+
+def lcPairs : List (Val × Val) → ℕ
+  | [] => 0
+  | (p, r) :: ps => p.linkCalls + r.linkCalls + lcPairs ps
+
+def lcCovers : List Cover → ℕ
+  | [] => 0
+  | (c, k, m) :: cs => lcSpread c + lcSpread k + lcSpread m + lcCovers cs
+end
+
 /-- The schema after `n` passes, each meeting the templates of the links
-whose targets the roots of the last pass's schema hold, so that one
-link's template can make another link's target. -/
+the last pass's tree holds into the targets it holds, so that one link's
+template can make another link's target, or carry another link, and
+meeting them into that tree, so that a flow once found stays, even one
+whose conflict leaves its own link no address to read again. -/
 def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
   | 0 => S
-  | n + 1 => ds.referPass S (ds.rootsS (ds.referPasses S n)) .any
+  | n + 1 => ds.referPass (ds.referPasses S n) (ds.referPasses S n) .any
 
 /-- The schema with each link's template met into its target, so that
 the template flows into the target and a link to nothing is an error:
-read in the roots of the schema after as many passes as the links make
-flows, so that links whose templates make each other's targets resolve
-in any order, a link whose target is still missing meeting `nil`. -/
+read in the tree the passes make, as many as the links make flows and
+as the document writes links, so that links whose templates make each
+other's targets, or carry each other, resolve in any order, a link
+whose target is still missing meeting `nil`. -/
 def Decls.withRefers (ds : Decls) (S : Val) : Val :=
-  ds.referPass S (ds.rootsS (ds.referPasses S (ds.referCount S))) .nil
+  let L := ds.referPasses S (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)
+  ds.referPass L L .nil
 
 /-! ## A spread read at each member -/
 
@@ -2802,18 +2856,23 @@ theorem foldl_bodyLinks_checkableA {ds dp : Decls} {roots : List Val} {miss : Va
 
 /-- A schema the checker can read, under bodies it can read, reads with
 the templates of the links a pass finds targets for met into them,
-whatever roots the pass reads. -/
-theorem referPass_checkableA {ds : Decls} {S miss : Val} {roots : List Val}
-    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) (hm : miss.CheckableA) :
-    (ds.referPass S roots miss).CheckableA := by
-  have hr := Decls.rootsS_checkableA hb hS
-  have hdp := Decls.withPathsFrom_bodies_checkableA (S := S) hb hr
+whatever tree the pass reads, so long as the checker can read it. -/
+theorem referPass_checkableA {ds : Decls} {S L miss : Val}
+    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) (hL : L.CheckableA)
+    (hm : miss.CheckableA) : (ds.referPass S L miss).CheckableA := by
+  have hr := Decls.rootsS_checkableA hb hL
+  have hdp := Decls.withPathsFrom_bodies_checkableA (S := L) hb hr
   exact foldl_bodyLinks_checkableA hb hdp hm ds
     (foldl_referStep_checkableA hm _ hS (Decls.nfLinks_checkableA hb (getLastD_any_checkableA hr) _)) hb
 
+theorem referPasses_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) : ∀ n, (ds.referPasses S n).CheckableA
+  | 0 => hS
+  | n + 1 => referPass_checkableA hb (referPasses_checkableA hb hS n) (referPasses_checkableA hb hS n) .any
+
 theorem withRefers_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (ds.withRefers S).CheckableA :=
-  referPass_checkableA hb hS .nil
+  referPass_checkableA hb (referPasses_checkableA hb hS _) (referPasses_checkableA hb hS _) .nil
 
 theorem Decls.prepared_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (root : Val) : (ds.prepared S root).2.CheckableA :=

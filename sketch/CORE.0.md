@@ -5,7 +5,8 @@
 is decision 34 of
 [DEFINITION.0.md §7](DEFINITION.0.md#7-decisions-ruled-and-open). 4.1
 is built in the definition (links carried in the normal form, the walk
-removed, every row as before) and in both engines (the template in the
+removed, every row as before, and a link another link's template
+carries read from each pass's tree) and in both engines (the template in the
 path value, links collected from the result, rounds from a copy of the
 document, the recording, live write and staging removed); `move`
 waits. Its three rulings are 35 to 37 of §7, ruled 2026-11-07: a link
@@ -201,9 +202,10 @@ Three choices needed a ruling, now rulings 35 to 37 of DEFINITION.0.md
 §7, each ruled the way both engines read. A link in a declaration's
 body sends whether the body is used or not; collecting each body's own
 normal form keeps that. A link in a call's argument, which no landing
-enters, sends in both engines and not in the definition (limit 19).
-An address the data supplies counts in both engines and not in the
-definition (limit 19); collecting from the document the data meets
+enters, sends in both engines, and in the definition wherever the made
+call's value holds it, though not yet from a `filter`'s source (limit
+19). An address the data supplies counts in both engines and not in
+the definition (limit 19); collecting from the document the data meets
 would count it.
 
 ### 4.2 Holes: `_` as a bound variable
