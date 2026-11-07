@@ -436,4 +436,7 @@ func TestSameKidsDeclinesWhatDiffers(t *testing.T) {
 	if sameKids(newList([]Val{one}), newList([]Val{two}), ctx, false) {
 		t.Error("a differing element matched")
 	}
+	if sameKids(one, newDisjunct([]Val{two, newPref(two)}), ctx, true) {
+		t.Error("a disjunction matched where none of its arms does")
+	}
 }
