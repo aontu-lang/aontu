@@ -1716,8 +1716,9 @@ map; of a path to a list; of a value written in place; of a path to
 nothing; in a body, used and not; of a path under a rider; in the arm a
 selection takes and in one it passes by; in a map's template with no
 member and with one, and in a list's with no element and with one; in
-an arm of a disjunction the data passes by; and in a body, in the arm a
-selection takes, in one it passes by and in a template with no member. -/
+an arm of a disjunction the data passes by; in a body, in the arm a
+selection takes, in one it passes by and in a template with no member;
+and of a value a call reads, `add`, `sum` and `+`. -/
 def moveCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1754,7 +1755,10 @@ def moveCases : List (Decls × Val × Data) :=
     ([], m [("a", int 1), ("b", .or [(0, mv (p ["a"])), (0, int 2)])], .map [("b", j 2)]),
     ([("T", m [("y", sel (int 2) "x")])], m [("x", int 1)], .map []),
     ([("T", m [("y", sel (int 1) "x")])], m [("x", int 1)], .map []),
-    ([("T", m [("y", .map [] (some (mv (p ["x"]))) false)])], m [("x", int 1)], .map [])]
+    ([("T", m [("y", .map [] (some (mv (p ["x"]))) false)])], m [("x", int 1)], .map []),
+    ([], m [("a", int 1), ("b", .call .add [mv (p ["a"]), int 2])], .map [("b", j 3)]),
+    ([], m [("a", lst [int 1, int 2]), ("b", .call .sum [mv (p ["a"])])], .map [("b", j 3)]),
+    ([], m [("a", int 1), ("b", .call .plus [mv (p ["a"]), int 2])], .map [("b", j 3)])]
 
 theorem moveCases_checkable : ∀ c ∈ moveCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -1762,6 +1766,27 @@ theorem moveCases_checkable : ∀ c ∈ moveCases,
 theorem move_verdict_exact : ∀ c ∈ moveCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (moveCases_checkable c hc).1 (moveCases_checkable c hc).2 v
+
+/-- `move` of a value a selection reads as its scrutinee, and of one a
+`filter` reads as its source, each beside data the made value admits. -/
+def moveReadCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let mv (k : String) : Val := .call .move [.path [.key k]]
+  [([], m [("a", int 1), ("b", .select (mv "a") [(int 1, str "x")] (some (str "y")))], .map [("b", .str "x")]),
+    ([], m [("a", .list [int 1, int 2] none false), ("b", .filter (mv "a") (.min (.num (.integer (.of 2)))))],
+      .map [("b", .list [j 2])])]
+
+/-- The checker can't read a selection over a call or a `filter` before
+the reading makes it, so each case's readings are read whole
+(`Decls.readsPB`). -/
+theorem moveReadCases_reads : ∀ c ∈ moveReadCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+
+theorem moveRead_verdict_exact : ∀ c ∈ moveReadCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (moveReadCases_reads c hc) v
 
 /-- Paths into what a call over a path makes, which resolve a round after
 the call's path does: a name's spellings, two chained, two lists added
@@ -6549,7 +6574,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "pf" prefCases
     pathRows "pc" callPathCases
     pathRows "dp" dataPathCases
-    pathRows "mv" moveCases
+    pathRows "mv" (moveCases ++ moveReadCases)
     pathRows "rn" roundCases
     pathRows "rf" referCases
     pathRows "rl" relCases

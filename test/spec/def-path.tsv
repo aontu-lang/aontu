@@ -915,6 +915,21 @@ mv77	verdict	%T = {"y": match(1, 1, move($.x), 2)}\n"x": 1	{}	{"verdict":"valid"
 mv78	verdict	%T = {"y": {&: move($.x)}}\n"x": 1	{}	{"verdict":"valid"}
 mv79	verdict	%T = {"y": {&: move($.x)}}\n"x": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 mv80	verdict	%T = {"y": {&: move($.x)}}\n"x": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+mv81	verdict	"a": 1, "b": add(move($.a), 2)	{"b": 3}	{"verdict":"valid"}
+mv82	verdict	"a": 1, "b": add(move($.a), 2)	{"b": 3}	{"verdict":"valid","opts":{"noFill":true}}
+mv83	verdict	"a": 1, "b": add(move($.a), 2)	{"b": 3}	{"verdict":"valid","opts":{"partial":true}}
+mv84	verdict	"a": [1, 2], "b": sum(move($.a))	{"b": 3}	{"verdict":"valid"}
+mv85	verdict	"a": [1, 2], "b": sum(move($.a))	{"b": 3}	{"verdict":"valid","opts":{"noFill":true}}
+mv86	verdict	"a": [1, 2], "b": sum(move($.a))	{"b": 3}	{"verdict":"valid","opts":{"partial":true}}
+mv87	verdict	"a": 1, "b": (move($.a)) + (2)	{"b": 3}	{"verdict":"valid"}
+mv88	verdict	"a": 1, "b": (move($.a)) + (2)	{"b": 3}	{"verdict":"valid","opts":{"noFill":true}}
+mv89	verdict	"a": 1, "b": (move($.a)) + (2)	{"b": 3}	{"verdict":"valid","opts":{"partial":true}}
+mv90	verdict	"a": 1, "b": match(move($.a), 1, "x", "y")	{"b": "x"}	{"verdict":"valid"}
+mv91	verdict	"a": 1, "b": match(move($.a), 1, "x", "y")	{"b": "x"}	{"verdict":"valid","opts":{"noFill":true}}
+mv92	verdict	"a": 1, "b": match(move($.a), 1, "x", "y")	{"b": "x"}	{"verdict":"valid","opts":{"partial":true}}
+mv93	verdict	"a": [1, 2], "b": filter(move($.a), min(2))	{"b": [2]}	{"verdict":"valid"}
+mv94	verdict	"a": [1, 2], "b": filter(move($.a), min(2))	{"b": [2]}	{"verdict":"valid","opts":{"noFill":true}}
+mv95	verdict	"a": [1, 2], "b": filter(move($.a), min(2))	{"b": [2]}	{"verdict":"valid","opts":{"partial":true}}
 rn0	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b.camel	{}	{"verdict":"valid"}
 rn1	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b.camel	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 rn2	verdict	"a": "ab_cd", "b": nom($.a), "c": $.b.camel	{}	{"verdict":"valid","opts":{"partial":true}}

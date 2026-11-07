@@ -881,36 +881,6 @@ def movedArms : List (ℕ × Val) → List (List Seg)
   | (_, a) :: as => a.moved ++ movedArms as
 end
 
-mutual
-/-- The names of the paths the moves a normal form holds read
-(`Rider.move`): under each member's key and element's index, through
-riders, links and meets, and in every arm of a disjunction, as both
-ports make a `move` in each arm. A spread's template is left out, as a
-`move` in it is made only where a member instantiates it, and so is a
-selection no scrutinee has picked an arm of, or a call that waits. -/
-def Val.moves : Val → List String
-  | .map fs _ _ => movesFields fs
-  | .list items _ _ => movesItems items
-  | .ride (.move n) v _ => n :: v.moves
-  | .ride _ v _ => v.moves
-  | .link v _ => v.moves
-  | .meet a b => a.moves ++ b.moves
-  | .or arms => movesArms arms
-  | _ => []
-
-def movesFields : List (String × Bool × Val) → List String
-  | [] => []
-  | (_, _, v) :: fs => v.moves ++ movesFields fs
-
-def movesItems : List Val → List String
-  | [] => []
-  | v :: vs => v.moves ++ movesItems vs
-
-def movesArms : List (ℕ × Val) → List String
-  | [] => []
-  | (_, a) :: as => a.moves ++ movesArms as
-end
-
 /-- What hides the value at a path and asks nothing else: an open map
 holding the path's key as optional, down to `hide(any)`. A step into a
 list, which no position can make optional, hides nothing. -/

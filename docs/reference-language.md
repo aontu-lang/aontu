@@ -4554,8 +4554,10 @@ place. A `move` in an arm no selection takes, or in a template no
 member instantiates, is never made and hides nothing, as in both
 engines: the value a `move` makes carries the name of its path
 (`Rider.move`), and `Decls.movesMade` reads the names the normal form
-holds. A `move` in a declaration's body hides its source too, whether
-a reference reads the body or not. The definition reads a rider around the path through, and
+holds, carried through what a call, a selection, a `filter` or a
+generator makes of a moved value (`Val.rideMoves`), so
+`b: add(move($.a), 2)` hides `a` too. A `move` in a declaration's body
+hides its source too, whether a reference reads the body or not. The definition reads a rider around the path through, and
 a variable in the path names the member its value spells. A path into a list hides
 nothing in the definition yet, where both engines drop the element from
 the list, as a marked element holds no position there. Rows

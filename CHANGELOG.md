@@ -19,10 +19,13 @@ The definition, and shared rows. Neither engine changes.
   its path as a rider (`Rider.move` in `spec/Aontu/Syntax.lean`), kept
   on a moved preference's parent type, and `Decls.withMoves` hides the
   source of each `move` whose name the normal form holds
-  (`Decls.movesMade`, `Val.moves`).
-- Rows mv51 to mv80 of `test/spec/def-path.tsv` hold a `move` in the
+  (`Decls.movesMade`, `Val.moves`). What a call, a selection, a
+  `filter` or a generator makes of a moved value carries the move
+  (`Val.rideMoves`), so `b: add(move($.a), 2)` still hides `a`.
+- Rows mv51 to mv95 of `test/spec/def-path.tsv` hold a `move` in the
   arm a selection takes and in one it passes by, in a template with a
-  member and with none, in an arm the data passes by, and in a body.
+  member and with none, in an arm the data passes by, in a body, and
+  under `add`, `sum`, `+`, a selection's scrutinee and a `filter`.
 
 ### The definition reads an address the data supplies
 

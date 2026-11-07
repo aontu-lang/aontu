@@ -662,6 +662,13 @@ def Fn.computes : Fn → Bool
   | .path | .abnf | .parse | .cmp _ => true
   | _ => false
 
+/-- Whether a call's value holds its argument, so that the moves the
+argument holds ride the value already: `super`, `pref`, `move`, `copy`,
+`refer` and `rel`. -/
+def Fn.holdsArg : Fn → Bool
+  | .super | .pref | .move | .copy | .refer | .rel => true
+  | _ => false
+
 /-- A node of the component tree: the sealed map of its component's
 name, its props and its children. -/
 def cmpNode (c : Cmp) (props : Val) (kids : List Val) : Val :=
@@ -1623,6 +1630,50 @@ def Decls.markClashes (ds : Decls) (s : Option Val) : Val → Bool
   | v => ds.clashes (match s with | some t => .meet v t | none => v)
 
 mutual
+/-- The names of the paths the moves a term holds read (`Rider.move`):
+under each member's key and element's index, through riders, links,
+meets and preferences, and in every arm of a disjunction, as both ports
+make a `move` in each arm. A spread's template is left out, as a `move`
+in it is made only where a member instantiates it, and so is a
+selection no scrutinee has picked an arm of, or a call that waits. -/
+def Val.moves : Val → List String
+  | .map fs _ _ => movesFields fs
+  | .list items _ _ => movesItems items
+  | .ride (.move n) v _ => n :: v.moves
+  | .ride _ v _ => v.moves
+  | .link v _ => v.moves
+  | .meet a b => a.moves ++ b.moves
+  | .pref _ x => x.moves
+  | .or arms => movesArms arms
+  | _ => []
+
+def movesFields : List (String × Bool × Val) → List String
+  | [] => []
+  | (_, _, v) :: fs => v.moves ++ movesFields fs
+
+def movesItems : List Val → List String
+  | [] => []
+  | v :: vs => v.moves ++ movesItems vs
+
+def movesArms : List (ℕ × Val) → List String
+  | [] => []
+  | (_, a) :: as => a.moves ++ movesArms as
+end
+
+/-- A term carrying a rider for each name in `ns` (`Rider.move`). -/
+def rideAll (ns : List String) (v : Val) : Val := ns.foldr (fun n acc => .ride (.move n) acc []) v
+
+/-- What a call, a selection, a `filter` or a generator makes of values
+that hold moves, carrying those moves (`ns`), as both ports make a
+`move` whose value another form then reads. The riders go inside a
+preference and each arm of a disjunction, so that the value reads as
+it would without them. -/
+def Val.rideMoves (ns : List String) : Val → Val
+  | .pref r x => .pref r (rideAll ns x)
+  | .or arms => .or (arms.map fun a => (a.1, rideAll ns a.2))
+  | v => rideAll ns v
+
+mutual
 /-- A term with its selections made, `b` the member a generator's
 template is read for, which each hole in the template stands for, and
 `here` the position the term stands at, where one is placed: each
@@ -1653,7 +1704,11 @@ conflict, alone or met with the list's spread, is `nil` where it stands
 (`Decls.markClashes`). A call or a generator
 handed a reference that names nothing yet (`Val.pending`) waits, as a
 later round of the paths may declare it. Any other call, its
-arguments resolved, is the term `callTerm` makes of it. A spread has no
+arguments resolved, is the term `callTerm` makes of it. What a call, a selection,
+a `filter` and a generator make carries the moves the values they read
+hold (`Val.rideMoves`), so that a `move` another form reads still hides
+its source, as both ports make it, but a call whose value holds its
+argument already (`Fn.holdsArg`). A spread has no
 hole, and a `filter`'s condition and a template are read for their own
 members, so none of them is read for `b`. Each `key(n)` reads `here`, by
 `keyUpAt`: a template stands at the position its instance lands at, the
@@ -1678,17 +1733,19 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let arms' := resolvePairs ds b here arms
     let d' := resolveSpread ds b here d
     match genD ds s' with
-    | some x => if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
+    | some x =>
+      if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
+      else (selectArm ds x arms' d').rideMoves s'.moves
     | none =>
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil else .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
     if here.isNone && c.holdsKey then .filter s' c else
     match genD ds s' with
-    | some (.map fs) => (Data.map (fs.filter fun m =>
-        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).term
-    | some (.list xs) => (Data.list (keptAt (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term
+    | some (.map fs) => ((Data.map (fs.filter fun m =>
+        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).term).rideMoves s'.moves
+    | some (.list xs) => ((Data.list (keptAt (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term).rideMoves s'.moves
     | some _ => .nil
     | none =>
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
@@ -1701,8 +1758,9 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       | some ms =>
         if (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).any
             (fun e => (normaliseD ds e).marked && ds.markClashes none e) then .nil else
-        .list ((ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).filter
-          fun e => !(normaliseD ds e).isAbsent && !(normaliseD ds e).marked) none false
+        (Val.list ((ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).filter
+          fun e => !(normaliseD ds e).isAbsent && !(normaliseD ds e).marked) none false).rideMoves
+          (resolveD ds b here d).moves
       | none =>
         if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
         else if (resolveD ds b here d).pending ds then .call .each [resolveD ds b here d, t]
@@ -1711,8 +1769,8 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       if here.isNone && (resolveD ds b here d).holdsKey then .call .pack [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).keyedMembers ds with
       | some ms =>
-        .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
-          fun m => (m.1, false, m.2)) none false
+        (Val.map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
+          fun m => (m.1, false, m.2)) none false).rideMoves (resolveD ds b here d).moves
       | none =>
         if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
         else if (resolveD ds b here d).pending ds then .call .pack [resolveD ds b here d, t]
@@ -1727,7 +1785,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
       match (normaliseD ds (resolveD ds b here s)).members ds with
       | some ms =>
         let pss := ms.map fun m => emitPieces ds m t (resolveD ds none none t) (resolveD ds (some m) none t)
-        if pss.all Option.isSome then .list (pss.filterMap id).flatten none false
+        if pss.all Option.isSome then (Val.list (pss.filterMap id).flatten none false).rideMoves (resolveD ds b here s).moves
         else .call .emit [resolveD ds b here s, t]
       | none =>
         if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
@@ -1737,7 +1795,8 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
         .call f (resolveItems ds b here args)
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
-      else callTerm ds f (resolveItems ds b here args)
+      else if f.holdsArg then callTerm ds f (resolveItems ds b here args)
+      else (callTerm ds f (resolveItems ds b here args)).rideMoves ((resolveItems ds b here args).flatMap Val.moves)
   | .len c =>
     if (normaliseD ds (resolveD ds b here c)).unsized then .nothing
     else if ds.clashes (resolveD ds b here c) then .nil else .len (resolveD ds b here c)
@@ -4809,6 +4868,25 @@ theorem callTerm_rep_checkableA {ds : Decls} {a b c : Val} :
   | refused => exact .nil
   | waits => exact absurd h repOf_ne_waits
 
+theorem rideAll_checkableA {v : Val} (h : v.CheckableA) : ∀ ns, (rideAll ns v).CheckableA
+  | [] => h
+  | _ :: ns => .ride (rideAll_checkableA h ns)
+
+/-- A term the checker can read reads with the moves it carries. -/
+theorem rideMoves_checkableA {v : Val} {ns : List String} (h : v.CheckableA) : (v.rideMoves ns).CheckableA := by
+  unfold Val.rideMoves
+  split
+  · cases h with
+    | pref hx => exact .pref (rideAll_checkableA hx ns)
+  · cases h with
+    | or ha =>
+      refine .or fun r b hm => ?_
+      obtain ⟨a, hm', he⟩ := List.mem_map.mp hm
+      simp only [Prod.mk.injEq] at he
+      obtain ⟨rfl, rfl⟩ := he
+      exact rideAll_checkableA (ha a.1 a.2 hm') ns
+  · exact rideAll_checkableA h ns
+
 /-- A `split` call read at a position reads to a term the checker can
 read whatever its arguments are, a pattern among them, which the checker
 cannot read, where neither waits on a reference that names nothing yet,
@@ -4822,18 +4900,18 @@ theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {pos : List Step} 
     have hb := hp 0 b (by simp)
     simp only [expandF] at ha hb
     simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
-      ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false]
+      ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
-    · exact callTerm_split_checkableA
+    · exact rideMoves_checkableA callTerm_split_checkableA
   | succ k =>
     have ha := hp k a (by simp)
     have hb := hp k b (by simp)
     simp only [expandF, List.map, resolveD, resolveItems, Option.isNone_some, Bool.false_and,
-      Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false]
+      Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
-    · exact callTerm_split_checkableA
+    · exact rideMoves_checkableA callTerm_split_checkableA
 
 /-- A `rep` call read at a position reads to a term the checker can read
 whatever its arguments are, where none waits on a reference that names
@@ -4848,19 +4926,19 @@ theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a
     have hc := hp 0 c (by simp)
     simp only [expandF] at ha hb hc
     simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
-      ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false]
+      ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
-    · exact callTerm_rep_checkableA
+    · exact rideMoves_checkableA callTerm_rep_checkableA
   | succ k =>
     have ha := hp k a (by simp)
     have hb := hp k b (by simp)
     have hc := hp k c (by simp)
     simp only [expandF, List.map, resolveD, resolveItems, Option.isNone_some, Bool.false_and,
-      Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false]
+      Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
-    · exact callTerm_rep_checkableA
+    · exact rideMoves_checkableA callTerm_rep_checkableA
 
 /-- A call's term is one the checker can read where its arguments are. -/
 theorem mem_preferFields :
@@ -5203,7 +5281,8 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     show (match genD ds .key with
       | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
           then Val.select .key (resolvePairs ds b here arms)
-          (resolveSpread ds b here d) else selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)
+          (resolveSpread ds b here d)
+          else (selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)).rideMoves Val.key.moves
       | none => if (normaliseD ds .key).isAbsent then .absent else if (normaliseD ds .key).dead then .nil
           else .select .key (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds .key = none := rfl
@@ -5226,7 +5305,8 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     show (match genD ds (.lit sc) with
       | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
           then Val.select (.lit sc) (resolvePairs ds b here arms)
-          (resolveSpread ds b here d) else selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)
+          (resolveSpread ds b here d)
+          else (selectArm ds x (resolvePairs ds b here arms) (resolveSpread ds b here d)).rideMoves (Val.lit sc).moves
       | none => if (normaliseD ds (.lit sc)).isAbsent then .absent else if (normaliseD ds (.lit sc)).dead then .nil
           else .select (.lit sc) (resolvePairs ds b here arms) (resolveSpread ds b here d)).CheckableA
     have hg : genD ds (.lit sc) = some sc.data := rfl
@@ -5240,7 +5320,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         exact ihr p₀ r₀ hm₀ hb
       · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
         exact ihd e₀ he₀ hb
-    · refine selectArm_checkableA (fun p r hm => ?_) (fun e he => ?_)
+    · refine rideMoves_checkableA (selectArm_checkableA (fun p r hm => ?_) (fun e he => ?_))
       · obtain ⟨p₀, r₀, hm₀, -, rfl⟩ := mem_resolvePairs hm
         exact ihr p₀ r₀ hm₀ hb
       · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
@@ -5261,7 +5341,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       · rename_i ms hms
         split
         · exact .nil
-        refine .list (fun w hw => ?_) (fun _ hs => by cases hs)
+        refine rideMoves_checkableA (.list (fun w hw => ?_) (fun _ hs => by cases hs))
         obtain ⟨m, hm, rfl⟩ := List.mem_map.mp (List.mem_filter.mp hw).1
         have hn := normaliseD_checkableA hd (ih d (by simp) (here := here) hb)
         have hmc : m.1.CheckableA := Val.members_checkableA hn hms _ (List.fst_mem_of_mem_zipIdx hm)
@@ -5286,7 +5366,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         · rw [h]; exact hargs t (by simp)
       split
       · rename_i ms hms
-        refine .map (fun k o w hw => ?_) (fun _ hs => by cases hs)
+        refine rideMoves_checkableA (.map (fun k o w hw => ?_) (fun _ hs => by cases hs))
         obtain ⟨m, hm, hmw⟩ := List.mem_map.mp hw
         simp only [Prod.mk.injEq] at hmw
         obtain ⟨-, -, rfl⟩ := hmw
@@ -5326,7 +5406,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       · rename_i ms hms
         have hn := normaliseD_checkableA hd (ih s (by simp) (here := here) hb)
         split
-        · refine .list (fun w hw => ?_) (fun _ hs => by cases hs)
+        · refine rideMoves_checkableA (.list (fun w hw => ?_) (fun _ hs => by cases hs))
           obtain ⟨ps, hps, hw⟩ := List.mem_flatten.mp hw
           obtain ⟨o, ho, hop⟩ := List.mem_filterMap.mp hps
           obtain ⟨m, hm, rfl⟩ := List.mem_map.mp ho
@@ -5349,9 +5429,13 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       · refine .call fun a ha => ?_
         obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
         exact ih a₀ ha₀ hb
-      · refine callTerm_checkableA hd fun a ha => ?_
+      have hct : (callTerm ds f (resolveItems ds b here args)).CheckableA := by
+        refine callTerm_checkableA hd fun a ha => ?_
         obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
         exact ih a₀ ha₀ hb
+      split
+      · exact hct
+      · exact rideMoves_checkableA hct
   | hole =>
     intro b here hb
     simp only [resolveD]
@@ -5402,12 +5486,14 @@ theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm d
 
 /-- A `filter` read at a position over a list keeps the elements its
 condition admits, in their order, the condition read for each element
-it tries, at the index the element takes among those kept. -/
+it tries, at the index the element takes among those kept, carrying the
+moves its source holds. -/
 theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
     {xs : List Data} (h : genD ds (resolveD ds b (some pos) s) = some (.list xs)) :
     resolveD ds b (some pos) (.filter s c) =
-      (Data.list (keptAt (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) 0 xs)).term := by
+      ((Data.list (keptAt (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) 0 xs)).term).rideMoves
+        (resolveD ds b (some pos) s).moves := by
   simp [resolveD, h]
 
 /-- A `filter` read at a position over a scalar, which has no members, is
@@ -6505,7 +6591,7 @@ theorem resolveD_filter_checkableA {ds : Decls} {b : Option Val} {pos : List Ste
   rw [resolveD.eq_def]
   simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false]
   rw [hx]
-  cases x <;> first | exact Data.term_checkableA _ | exact .nil
+  cases x <;> first | exact rideMoves_checkableA (Data.term_checkableA _) | exact .nil
 
 /-! ## One verdict, and the computed one -/
 
