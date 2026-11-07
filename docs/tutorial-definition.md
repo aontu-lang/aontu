@@ -9040,13 +9040,16 @@ first. A template can carry a link of its own, too:
 `s: refer({ n:refer({ k:1 }) & path($.t2) }) & path($.t1)` sends
 `{ k:1 }` into `t2` once its template lands in `t1`. So the definition
 reads the links and their targets in passes, each reading the tree the
-last pass made:
+last pass made and meeting its templates into that tree, so that a
+flow once found stays. A flow that conflicts with its own link,
+`s: refer(1) & path($.s)`, leaves the link `nil`, with no address to
+read again, and the conflict stands all the same:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
   | 0 => S
-  | n + 1 => ds.referPass S (ds.referPasses S n) .any
+  | n + 1 => ds.referPass (ds.referPasses S n) (ds.referPasses S n) .any
 ```
 
 A last pass reads each link and its target in the tree those passes
@@ -9057,8 +9060,8 @@ even where the data supplies it, as a path to nothing is:
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.withRefers (ds : Decls) (S : Val) : Val :=
-  ds.referPass S (ds.referPasses S
-    (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)) .nil
+  let L := ds.referPasses S (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)
+  ds.referPass L L .nil
 ```
 
 The template meets the target, so the target refuses the data the
@@ -9093,12 +9096,13 @@ disjunction or a preference, rows from rf171 on a kept arm the rank
 rule passes over and a link to nothing in an arm the output takes,
 rows from rf186 on a path reference to a link's target, and rows from
 rf201 on a link a template carries and a generator whose data another
-link's template makes, and rows from rf228 on a body's link to the
-body's own member. Both engines answer every one as the definition
-does. Both engines read a body's relative link at the body's own place
-or where each use stands, by the order the document writes the two,
-which #504 tracks, and each row writes the body before its use. Both
-engines flow a link that a path
+link's template makes, rows from rf228 on a flow that conflicts with
+its own link, and rows from rf237 on a body's link to the body's own
+member. Both engines answer every one as the definition does. Both
+engines read a body's relative link at the body's own place or where
+each use stands, by the order the document writes the two, which #504
+tracks, and each row writes the body before its use. Both engines flow
+a link that a path
 reference copies whole once, its template read at one copy's place,
 which the order of the document picks, where the definition reads each
 copy as a link of its own, which #536 tracks.

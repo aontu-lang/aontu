@@ -22,7 +22,7 @@ The definition, and shared rows. Neither engine changes.
 - A link at a body's own place that names a member of the body meets
   nothing the schema holds, and a template that conflicts with that
   member is an `error`, as in both engines (`referFlow`).
-- 33 `verdict` rows from the definition, j60 to j83 and rf228 to rf236
+- 33 `verdict` rows from the definition, j60 to j83 and rf237 to rf245
   in `test/spec/def-path.tsv`. Both engines answer all 33.
 - What a body's own place still lacks is #664: a path there through
   another path, and one to a template a link meets there. #663 is a
@@ -46,10 +46,15 @@ The definition, and shared rows. Neither engine changes.
   own template's links into their targets, as both engines do, where
   the definition read that template's links where the schema's own tree
   put them, before any template flowed, and sent nothing.
-- 27 `verdict` rows from the definition, rf201 to rf227 in
+- Each pass meets its templates into the tree the last pass made, so
+  a flow once found stays. A flow that conflicts with its own link,
+  `s: refer(1) & path($.s)`, leaves the link with no address to read
+  again, and the conflict still stands.
+- 36 `verdict` rows from the definition, rf201 to rf236 in
   `test/spec/def-path.tsv`: nested links at depths two and three, the
-  twin templates both ways, a nested link to nothing, and a generator
-  whose data another link's template makes. Both engines answer all 27.
+  twin templates both ways, a nested link to nothing, a generator whose
+  data another link's template makes, and flows that conflict with
+  their own links. Both engines answer all 36.
 - Rulings 35 to 37 are recorded in `sketch/DEFINITION.0.md` §7: a link
   in an unused declaration keeps sending, a link a made call's value
   holds sends, and an address the data supplies counts. The last two

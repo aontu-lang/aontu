@@ -1989,6 +1989,9 @@ def referCases : List (Decls × Val × Data) :=
     ([], m [("a", m []), ("b", rf (m [("l", .list [int 1] none false)]) (ad 0 ["a"])),
         ("x", .call .each [.path [.key "a", .key "l"], rf (m [("v", .hole)]) (ad 0 ["y"])]),
         ("y", m [("v", int 2)])], .map []),
+    ([], m [("s", rf (int 1) (ad 0 ["s"])), ("u", .call .refer [])], .map []),
+    ([], m [("s", rf (int 1) (ad 0 ["s"]))], .map []),
+    ([], m [("s", rf (m [("n", rf (int 1) (ad 0 ["t", "n"]))]) (ad 0 ["t"])), ("t", m [])], .map []),
     ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"]))])], m [], .map []),
     ([("T", m [("m", m [("k", int 2)]), ("n", rf k1 (ad 1 ["m"]))])], m [], .map []),
     ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"]))])], m [("x", .alias "T")], .map [])]
