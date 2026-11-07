@@ -1926,6 +1926,27 @@ fc41	verdict	"a": {"l": [1, 2], "f": filter(.l, $.lim)}	{"lim": 2, "a": {"f": [2
 fc42	verdict	"a": {"l": [1, 2], "f": filter(.l, $.lim)}	{"lim": 2, "a": {"f": [1]}}	{"verdict":"invalid"}
 fc43	verdict	"a": {"l": [1, 2], "f": filter(.l, $.lim)}	{"lim": 2, "a": {"f": [1]}}	{"verdict":"invalid","opts":{"noFill":true}}
 fc44	verdict	"a": {"l": [1, 2], "f": filter(.l, $.lim)}	{"lim": 2, "a": {"f": [1]}}	{"verdict":"invalid","opts":{"partial":true}}
+fk0	verdict	"b": (filter({"x": *(1) | (2)}, any)) & ({"x": 2})	{"b": {"x": 2}}	{"verdict":"valid"}
+fk1	verdict	"b": (filter({"x": *(1) | (2)}, any)) & ({"x": 2})	{"b": {"x": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+fk2	verdict	"b": (filter({"x": *(1) | (2)}, any)) & ({"x": 2})	{"b": {"x": 2}}	{"verdict":"valid","opts":{"partial":true}}
+fk3	verdict	"b": filter({"x": *(1) | (2)}, any)	{"b": {"x": 2}}	{"verdict":"valid"}
+fk4	verdict	"b": filter({"x": *(1) | (2)}, any)	{"b": {"x": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+fk5	verdict	"b": filter({"x": *(1) | (2)}, any)	{"b": {"x": 2}}	{"verdict":"valid","opts":{"partial":true}}
+fk6	verdict	"b": filter({"x": *(1) | (2)}, any)	{"b": {"x": 3}}	{"verdict":"invalid"}
+fk7	verdict	"b": filter({"x": *(1) | (2)}, any)	{"b": {"x": 3}}	{"verdict":"invalid","opts":{"noFill":true}}
+fk8	verdict	"b": filter({"x": *(1) | (2)}, any)	{"b": {"x": 3}}	{"verdict":"invalid","opts":{"partial":true}}
+fk9	verdict	"a": {}, "b": filter({"x": (refer({"k": 1})) & (path($.a))}, any)	{"a": {"k": 1}}	{"verdict":"valid"}
+fk10	verdict	"a": {}, "b": filter({"x": (refer({"k": 1})) & (path($.a))}, any)	{"a": {"k": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+fk11	verdict	"a": {}, "b": filter({"x": (refer({"k": 1})) & (path($.a))}, any)	{"a": {"k": 1}}	{"verdict":"valid","opts":{"partial":true}}
+fk12	verdict	"a": {}, "b": filter({"x": (refer({"k": 1})) & (path($.a))}, any)	{"a": {"k": 2}}	{"verdict":"invalid"}
+fk13	verdict	"a": {}, "b": filter({"x": (refer({"k": 1})) & (path($.a))}, any)	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+fk14	verdict	"a": {}, "b": filter({"x": (refer({"k": 1})) & (path($.a))}, any)	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+fk15	verdict	"a": {}, "b": filter({"x": (refer({"k": 1})) & (path($.a))}, integer)	{"a": {"k": 2}}	{"verdict":"valid"}
+fk16	verdict	"a": {}, "b": filter({"x": (refer({"k": 1})) & (path($.a))}, integer)	{"a": {"k": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+fk17	verdict	"a": {}, "b": filter({"x": (refer({"k": 1})) & (path($.a))}, integer)	{"a": {"k": 2}}	{"verdict":"valid","opts":{"partial":true}}
+fk18	verdict	"a": {}, "b": filter([(refer({"k": 1})) & (path($.a))], any)	{"a": {"k": 2}}	{"verdict":"invalid"}
+fk19	verdict	"a": {}, "b": filter([(refer({"k": 1})) & (path($.a))], any)	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+fk20	verdict	"a": {}, "b": filter([(refer({"k": 1})) & (path($.a))], any)	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
 bd0	verdict	"lo": 2, "t": min($.lo)	{"t": 5}	{"verdict":"valid"}
 bd1	verdict	"lo": 2, "t": min($.lo)	{"t": 5}	{"verdict":"incomplete","opts":{"noFill":true}}
 bd2	verdict	"lo": 2, "t": min($.lo)	{"t": 5}	{"verdict":"valid","opts":{"partial":true}}

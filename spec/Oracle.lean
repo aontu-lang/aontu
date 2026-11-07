@@ -2758,6 +2758,35 @@ theorem filterCond_verdict_exact : ∀ c ∈ filterCondCases, ∀ (m : Mode) (v 
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_reads (filterCondCases_reads c hc) v
 
+/-- What a made `filter` holds: each child its condition admits as the
+child itself, so a preference it keeps admits the arm a later meet or
+the data picks, and a link it keeps sends its template, where a child
+the condition refuses sends none, beside data that agrees and data that
+refuses. -/
+def filterKeepCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let rf (t : Val) : Val := .meet (.call .refer [t]) (.addr ⟨0, ["a"]⟩)
+  let pr : Val := .or [(1, int 1), (0, int 2)]
+  let k1 : Val := m [("k", int 1)]
+  [([], m [("b", .meet (.filter (m [("x", pr)]) .any) (m [("x", int 2)]))], .map [("b", .map [("x", j 2)])]),
+    ([], m [("b", .filter (m [("x", pr)]) .any)], .map [("b", .map [("x", j 2)])]),
+    ([], m [("b", .filter (m [("x", pr)]) .any)], .map [("b", .map [("x", j 3)])]),
+    ([], m [("a", m []), ("b", .filter (m [("x", rf k1)]) .any)], .map [("a", .map [("k", j 1)])]),
+    ([], m [("a", m []), ("b", .filter (m [("x", rf k1)]) .any)], .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("b", .filter (m [("x", rf k1)]) .integer)], .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", m []), ("b", .filter (.list [rf k1] none false) .any)], .map [("a", .map [("k", j 2)])])]
+
+set_option maxRecDepth 16384 in
+/-- The checker can't read a `filter` before the reading makes it, so
+each case's readings are read whole (`Decls.readsPB`). -/
+theorem filterKeepCases_reads : ∀ c ∈ filterKeepCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+
+theorem filterKeep_verdict_exact : ∀ c ∈ filterKeepCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (filterKeepCases_reads c hc) v
+
 /-- Bounds written over terms: `min`, `max`, `above` and `below` over a
 path to a number and to a string, the empty string among them, over a
 relative path and over a call; two bounds over paths met; `neq` over
@@ -4770,13 +4799,16 @@ theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c)
   obtain ⟨⟨j, t, d⟩, hm, rfl⟩ := List.mem_map.mp hc
   have hj := filterSources_generate _ hm
   have hw := Data.term_filled _ (filterSources_wf _ hm)
+  have hn := Val.unride_checkableA (normaliseD_checkableA (ds := []) (fun _ h => nomatch h)
+    (resolveD_checkableA (ds := []) (fun _ h => nomatch h) (Data.term_checkableA j) (b := none)
+      (here := stepped (some []) (.seg (.key "v"))) (fun _ h => nomatch h)))
   refine readR_call_checkableA
     (fun k => by cases k <;> simp only [expandF, Val.filled, expandF_term, hw]) fun k => ?_
   cases k with
-  | zero => exact resolveD_filter_checkableA hj
+  | zero => exact resolveD_filter_checkableA hj hn
   | succ k =>
     simp only [expandF, expandF_term]
-    exact resolveD_filter_checkableA hj
+    exact resolveD_filter_checkableA hj hn
 
 /-- A `filter` in an `each` template binds its own hole, and its source
 reads the template's member. The condition is arithmetic, so the reading
@@ -6585,6 +6617,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "lf" loadCases
     pathRows "gt" genTemplateCases
     pathRows "fc" filterCondCases
+    pathRows "fk" filterKeepCases
     pathRows "bd" boundArgCases
     pathRows "bg" (boundFilterCases ++ boundEachCases)
     pathRows "ls" scopeCases
