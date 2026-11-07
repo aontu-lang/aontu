@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads a link another link's template carries
+
+The definition, and shared rows. Neither engine changes.
+
+- Each pass of the definition's link reading now reads the links of the
+  tree the last pass made, as well as its targets (`Decls.referPass` in
+  `spec/Aontu/Paths.lean`), so a link a template carries sends its own
+  template once the template lands, as both engines do. The passes
+  number as many as the links make flows and as the document writes
+  links (`Val.linkCalls`), so nesting at any depth resolves.
+- The definition answered `valid` for a link nested in a template whose
+  target clashes with it, and for two templates alike but for the
+  templates of the links they hold, where both engines find the
+  conflict. It now answers as they do.
+- A generator whose data another link's template makes now meets its
+  own template's links into their targets, as both engines do, where
+  the definition read that template's links where the schema's own tree
+  put them, before any template flowed, and sent nothing.
+- 27 `verdict` rows from the definition, rf201 to rf227 in
+  `test/spec/def-path.tsv`: nested links at depths two and three, the
+  twin templates both ways, a nested link to nothing, and a generator
+  whose data another link's template makes. Both engines answer all 27.
+- Rulings 35 to 37 are recorded in `sketch/DEFINITION.0.md` §7: a link
+  in an unused declaration keeps sending, a link a made call's value
+  holds sends, and an address the data supplies counts. The last two
+  wait on the definition, which still reads no link from a `filter`'s
+  source and counts no address the data supplies.
+
 ### The engines carry a link's template in its path value
 
 Both implementations, and shared rows.

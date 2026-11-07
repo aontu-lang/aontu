@@ -1951,7 +1951,24 @@ def referCases : List (Decls × Val × Data) :=
     ([], m [("c", .path [.key "a", .key "k"]), ("a", m []), ("b", rf k1 (ad 0 ["a"]))], .map [("c", j 2)]),
     ([], m [("x", .or [(1, m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]), (2, m [("d", rf (m [("z", int 2)]) (ad 0 ["y"]))])]),
       ("y", m [])], .map []),
-    ([], m [("s", rf (m [("k", int 1)]) (.path [.key "later"])), ("later", ad 0 ["a"]), ("a", m [])], .map [])]
+    ([], m [("s", rf (m [("k", int 1)]) (.path [.key "later"])), ("later", ad 0 ["a"]), ("a", m [])], .map []),
+    ([], m [("s", rf (m [("n", rf k1 (ad 0 ["t2"]))]) (ad 0 ["t1"])), ("t1", m []), ("t2", m [("k", int 2)])],
+      .map []),
+    ([], m [("s", rf (m [("n", rf k1 (ad 0 ["t2"]))]) (ad 0 ["t1"])), ("t1", m []), ("t2", m [])], .map []),
+    ([], m [("s", rf (m [("n", rf k1 (ad 0 ["t2"]))]) (ad 0 ["t1"])), ("t1", m []), ("t2", m [])],
+      .map [("t2", .map [("k", j 2)])]),
+    ([], m [("s", rf (m [("n", rf (m [("n", rf k1 (ad 0 ["t3"]))]) (ad 0 ["t2"]))]) (ad 0 ["t1"])),
+        ("t1", m []), ("t2", m []), ("t3", m [("k", int 2)])], .map []),
+    ([], m [("a", m []), ("y", m []), ("x", rf (m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]) (ad 0 ["a"])),
+        ("w", rf (m [("d", rf (m [("z", int 2)]) (ad 0 ["y"]))]) (ad 0 ["a"]))], .map []),
+    ([], m [("a", m []), ("y", m []), ("x", rf (m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]) (ad 0 ["a"])),
+        ("w", rf (m [("d", rf (m [("z", int 1)]) (ad 0 ["y"]))]) (ad 0 ["a"]))], .map []),
+    ([], m [("s", rf (m [("n", rf0 (ad 0 ["gone"]))]) (ad 0 ["t1"])), ("t1", m [])], .map []),
+    ([], m [("a", m []), ("b", rf (m [("l", .list [int 1] none false)]) (ad 0 ["a"])),
+        ("x", .call .each [.path [.key "a", .key "l"], rf (m [("v", .hole)]) (ad 0 ["y"])]), ("y", m [])], .map []),
+    ([], m [("a", m []), ("b", rf (m [("l", .list [int 1] none false)]) (ad 0 ["a"])),
+        ("x", .call .each [.path [.key "a", .key "l"], rf (m [("v", .hole)]) (ad 0 ["y"])]),
+        ("y", m [("v", int 2)])], .map [])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

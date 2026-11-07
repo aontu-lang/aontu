@@ -127,16 +127,16 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   so that a literal meeting a term under it stays undecided (P9);
 - a `move` of a list's element, which hides nothing yet, where both
   ports drop the element from the list;
-- a link in the template of a generator whose data another link's
-  template makes, which P11 reads where the schema's own tree puts it
-  before any template flows (#497);
 - a source that declares a name of its own, loaded under a key, which
   both ports refuse and the definition reads as it reads one at the
   root;
-- a link inside another link's template or inside a call's argument,
-  and an address the data supplies, which P11 doesn't read yet, since
-  it reads a document's links from the normal form of the schema's own
-  tree, where both ports read each (rulings 36 and 37);
+- a link in a `filter`'s source, and an address the data supplies,
+  which P11 doesn't read yet, since it makes a `filter` only when it
+  generates the output and reads a document's links from the schema's
+  own tree, where both ports read each (rulings 36 and 37);
+- a relative address of a link another link's template carries, which
+  P11 reads where the link lands, where both ports read it where it's
+  written, inside the template, and find no node there (#661);
 - a relative path inside a body an alias's use or a path reference
   copies, which P9 reads where it's written, where both ports read it
   where the copy stands or where it's written by the order the
