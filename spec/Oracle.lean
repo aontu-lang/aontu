@@ -1713,7 +1713,11 @@ theorem data_path_verdict_exact : ∀ c ∈ dataPathCases, ∀ (m : Mode) (v : V
 /-- `move` of a path to a scalar, beside data that supplies the source,
 data that refuses it and data that overrides the copy; of a path into a
 map; of a path to a list; of a value written in place; of a path to
-nothing; in a body, used and not; and of a path under a rider. -/
+nothing; in a body, used and not; of a path under a rider; in the arm a
+selection takes and in one it passes by; in a map's template with no
+member and with one, and in a list's with no element and with one; in
+an arm of a disjunction the data passes by; and in a body, in the arm a
+selection takes, in one it passes by and in a template with no member. -/
 def moveCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1721,6 +1725,7 @@ def moveCases : List (Decls × Val × Data) :=
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let p (ks : List String) : Val := .path (ks.map .key)
   let mv (v : Val) : Val := .call .move [v]
+  let sel (s : Val) (k : String) : Val := .select s [(int 1, mv (p [k]))] (some (int 2))
   [([], m [("a", int 1), ("b", mv (p ["a"]))], .map []),
     ([], m [("a", int 1), ("b", mv (p ["a"]))], .map [("a", j 1)]),
     ([], m [("a", int 1), ("b", mv (p ["a"]))], .map [("a", j 2)]),
@@ -1738,7 +1743,18 @@ def moveCases : List (Decls × Val × Data) :=
     ([], m [("x", int 1), ("y", mv (.ride .metadata (p ["x"]) [("q", j 1)]))], .map []),
     ([], m [("x", int 1), ("y", mv (.ride .metadata (p ["x"]) [("q", j 1)]))], .map [("x", j 2)]),
     ([], m [("x", int 1), ("y", mv (.ride .hide (p ["x"]) []))], .map []),
-    ([], m [("x", int 1), ("y", mv (.ride .hide (p ["x"]) []))], .map [("y", j 1)])]
+    ([], m [("x", int 1), ("y", mv (.ride .hide (p ["x"]) []))], .map [("y", j 1)]),
+    ([], m [("a", int 1), ("b", sel (int 2) "a")], .map [("b", j 2)]),
+    ([], m [("a", int 1), ("b", sel (int 1) "a")], .map [("b", j 1)]),
+    ([], m [("a", int 1), ("b", .map [] (some (mv (p ["a"]))) false)], .map [("b", .map [])]),
+    ([], m [("a", int 1), ("b", .map [("x", false, int 1)] (some (mv (p ["a"]))) false)],
+      .map [("b", .map [("x", j 1)])]),
+    ([], m [("a", int 1), ("b", .list [] (some (mv (p ["a"]))) false)], .map [("b", .list [])]),
+    ([], m [("a", int 1), ("b", .list [] (some (mv (p ["a"]))) false)], .map [("b", .list [j 1])]),
+    ([], m [("a", int 1), ("b", .or [(0, mv (p ["a"])), (0, int 2)])], .map [("b", j 2)]),
+    ([("T", m [("y", sel (int 2) "x")])], m [("x", int 1)], .map []),
+    ([("T", m [("y", sel (int 1) "x")])], m [("x", int 1)], .map []),
+    ([("T", m [("y", .map [] (some (mv (p ["x"]))) false)])], m [("x", int 1)], .map [])]
 
 theorem moveCases_checkable : ∀ c ∈ moveCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

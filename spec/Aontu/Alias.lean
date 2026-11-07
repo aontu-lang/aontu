@@ -1315,7 +1315,10 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
     obtain ⟨a, ha, rfl⟩ := mem_superArms.mp hm
     exact ih r a ha
   | pref _ ih => exact ih
-  | ride _ ih => exact ih
+  | @ride k v r _ ih =>
+    cases k with
+    | move n => exact .ride ih
+    | _ => exact ih
   | link _ _ ih _ => exact ih
   | @meet a b ha hb iha ihb =>
     show (if a.isKind then (if b.isKind then (if a.isLeaf then a.super else b.super) else a)
