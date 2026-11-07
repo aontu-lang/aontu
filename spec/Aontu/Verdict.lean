@@ -1614,6 +1614,34 @@ def keptAt (keep : ℕ → Data → Bool) : ℕ → List Data → List Data
   | _, [] => []
   | i, x :: xs => if keep i x then x :: keptAt keep (i + 1) xs else keptAt keep i xs
 
+/-- The elements of a list, each paired with the data it generates,
+that `keep` admits, the data read at the index the element takes among
+those kept. -/
+def keptPairs (keep : ℕ → Data → Bool) : ℕ → List (Val × Data) → List Val
+  | _, [] => []
+  | i, (v, x) :: ps => if keep i x then v :: keptPairs keep (i + 1) ps else keptPairs keep i ps
+
+/-- What a `filter` over a map makes of the members `kept` its condition
+admits: each the member of the source's normal form `nf` under its key,
+as both ports keep a child's own value, and the data it generates where
+`nf` holds no member there or is no map. -/
+def keptFields (nf : Val) (kept : List (String × Data)) : Val :=
+  match nf with
+  | .map fs _ _ =>
+    .map (kept.map fun m => (m.1, false, ((fs.find? (·.1 == m.1)).map (·.2.2)).getD m.2.term)) none false
+  | _ => (Data.map kept).term
+
+/-- What a `filter` over a list makes of the elements `keep` admits: each
+the element of the source's normal form `nf` at its position, as both
+ports keep a child's own value, and the data the elements generate where
+`nf` is no list of as many elements as the data. -/
+def keptElems (nf : Val) (keep : ℕ → Data → Bool) (xs : List Data) : Val :=
+  match nf with
+  | .list items _ _ =>
+    if items.length = xs.length then .list (keptPairs keep 0 (items.zip xs)) none false
+    else (Data.list (keptAt keep 0 xs)).term
+  | _ => (Data.list (keptAt keep 0 xs)).term
+
 /-- Whether an argument both ports read as they build a trial is a
 conflict: dead in normal form, though not written as `nil`, which both
 read there as a value that admits nothing. -/
@@ -1742,10 +1770,10 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let s' := resolveD ds b here s
     if here.isNone && c.holdsKey then .filter s' c else
     match genD ds s' with
-    | some (.map fs) => ((Data.map (fs.filter fun m =>
-        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).term).rideMoves s'.moves
-    | some (.list xs) => ((Data.list (keptAt (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term).rideMoves s'.moves
+    | some (.map fs) => (keptFields (normaliseD ds s').unride (fs.filter fun m =>
+        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).rideMoves s'.moves
+    | some (.list xs) => (keptElems (normaliseD ds s').unride (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) xs).rideMoves s'.moves
     | some _ => .nil
     | none =>
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
@@ -5485,14 +5513,15 @@ none the selection is `nil`: an error, not an empty answer. -/
 theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm ds x [] d = d.getD .nil := rfl
 
 /-- A `filter` read at a position over a list keeps the elements its
-condition admits, in their order, the condition read for each element
-it tries, at the index the element takes among those kept, carrying the
-moves its source holds. -/
+condition admits, in their order, each the element the source's normal
+form holds there, the condition read for each element it tries, at the
+index the element takes among those kept, carrying the moves its source
+holds. -/
 theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
     {xs : List Data} (h : genD ds (resolveD ds b (some pos) s) = some (.list xs)) :
     resolveD ds b (some pos) (.filter s c) =
-      ((Data.list (keptAt (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) 0 xs)).term).rideMoves
+      (keptElems (normaliseD ds (resolveD ds b (some pos) s)).unride (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) xs).rideMoves
         (resolveD ds b (some pos) s).moves := by
   simp [resolveD, h]
 
@@ -6582,16 +6611,65 @@ theorem expandF_termElems {ds : Decls} (k : ℕ) : ∀ xs : List Data,
     simp only [termElems, List.map_cons, expandF_term k x, expandF_termElems k xs]
 end
 
+theorem Val.unride_checkableA {v : Val} (h : v.CheckableA) : v.unride.CheckableA := by
+  induction h with
+  | ride _ ih => exact ih
+  | link _ _ ih _ => exact ih
+  | _ => simp only [Val.unride]; constructor <;> assumption
+
+theorem keptPairs_mem : ∀ {keep : ℕ → Data → Bool} {i : ℕ} {ps : List (Val × Data)} {v : Val},
+    v ∈ keptPairs keep i ps → ∃ x, (v, x) ∈ ps
+  | _, _, [], _, h => nomatch h
+  | keep, i, (w, x) :: ps, v, h => by
+    unfold keptPairs at h
+    split at h
+    · rcases List.mem_cons.mp h with rfl | h'
+      · exact ⟨x, List.mem_cons_self⟩
+      · obtain ⟨y, hy⟩ := keptPairs_mem h'
+        exact ⟨y, List.mem_cons_of_mem _ hy⟩
+    · obtain ⟨y, hy⟩ := keptPairs_mem h
+      exact ⟨y, List.mem_cons_of_mem _ hy⟩
+
+theorem keptFields_checkableA {nf : Val} (hn : nf.CheckableA) (kept : List (String × Data)) :
+    (keptFields nf kept).CheckableA := by
+  cases hn
+  case map fs _ _ hf _ =>
+    refine .map (fun k o v hv => ?_) (fun _ h => nomatch h)
+    obtain ⟨m, _, hm⟩ := List.mem_map.mp hv
+    simp only [Prod.mk.injEq] at hm
+    obtain ⟨_, _, rfl⟩ := hm
+    cases hfind : fs.find? (·.1 == m.1) with
+    | none => exact Data.term_checkableA _
+    | some f => exact hf f.1 f.2.1 f.2.2 (List.mem_of_find?_eq_some hfind)
+  all_goals exact Data.term_checkableA _
+
+theorem keptElems_checkableA {nf : Val} (hn : nf.CheckableA) (keep : ℕ → Data → Bool) (xs : List Data) :
+    (keptElems nf keep xs).CheckableA := by
+  cases hn
+  case list items _ _ hi _ =>
+    simp only [keptElems]
+    split
+    · refine .list (fun v hv => ?_) (fun _ h => nomatch h)
+      obtain ⟨x, hx⟩ := keptPairs_mem hv
+      exact hi v (List.of_mem_zip hx).1
+    · exact Data.term_checkableA _
+  all_goals exact Data.term_checkableA _
+
 /-- A `filter` whose source generates a value reads to a term the
-checker can read, whatever its condition holds: the members it admits,
-or `nil`. -/
+checker can read where the source's normal form is one, whatever its
+condition holds: the members it admits, or `nil`. -/
 theorem resolveD_filter_checkableA {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
-    (h : (genD ds (resolveD ds b (some pos) s)).isSome) : (resolveD ds b (some pos) (.filter s c)).CheckableA := by
+    (h : (genD ds (resolveD ds b (some pos) s)).isSome)
+    (hn : (normaliseD ds (resolveD ds b (some pos) s)).unride.CheckableA) :
+    (resolveD ds b (some pos) (.filter s c)).CheckableA := by
   obtain ⟨x, hx⟩ := Option.isSome_iff_exists.mp h
   rw [resolveD.eq_def]
   simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false]
   rw [hx]
-  cases x <;> first | exact rideMoves_checkableA (Data.term_checkableA _) | exact .nil
+  cases x <;> first
+    | exact rideMoves_checkableA (keptFields_checkableA hn _)
+    | exact rideMoves_checkableA (keptElems_checkableA hn _ _)
+    | exact .nil
 
 /-! ## One verdict, and the computed one -/
 
