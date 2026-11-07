@@ -44,6 +44,7 @@ inductive Rider where
   | ident                                   -- `ident(v, r)`, the identity of an alias's value
   | type                                    -- `type(v)`, a mark: the value is a definition
   | hide                                    -- `hide(v)`, a mark: the value is no part of the output
+  | move (n : String)                       -- the value `move` makes of the path named `n` (`pathName`)
   deriving DecidableEq
 
 /-- A rider's record: the members of a map of data, as both ports take
@@ -99,7 +100,7 @@ inductive Val where
   | rest (t : Val) (cs : List (Option Val × Option Val × Option Val))  -- `rest(t, c₁, …)`: each member no cover evaluates held to `t`
   | select (s : Val) (arms : List (Val × Val)) (d : Option Val)  -- `match(s, p₁, r₁, …, d?)`, the first `rᵢ` whose `pᵢ` admits the value of `s`, else `d`; Lean keeps `match`
   | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
-  | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`, `type(v)`, `hide(v)`: `v` carrying `r`
+  | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`, `type(v)`, `hide(v)`, a `move`'s value: `v` carrying `r`
   | link (v t : Val)                        -- `refer(t)` met with `v`: `v` carrying a link whose target meets `t`
   | key                                  -- `key(0)`, the key of the member a spread is tried on
   | keyUp (n : ℤ)                           -- `key(n)` as written, the key `n` levels above where it stands; `key()` is `key(1)`
@@ -230,7 +231,9 @@ mutual
 for its parent, as `integer & min(3)` is a constraint on integers; a
 meet of two kinds has the lower kind's parent; any other meet lifts
 each side. A reference lifts as itself, a residual the engines keep
-symbolic too. -/
+symbolic too. A rider is left behind, but the one a `move` makes
+(`Rider.move`), so that each arm a moved preference reads as carries
+it. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
   | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
@@ -258,6 +261,7 @@ def Val.super : Val → Val
   | .addr _ => .pathKind
   | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _
   | .call _ _ => .any
+  | .ride (.move n) v r => .ride (.move n) v.super r
   | .ride _ v _ => v.super
   | .link v _ => v.super
   | .key | .keyUp _ => .anyString
@@ -368,7 +372,9 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
     · split
       · exact Val.keyed_of_isKind ‹_›
       · simp only [Val.keyed, Val.keyed_super a, Val.keyed_super b, Bool.or_self]
-  | .ride _ v _ => by simp only [Val.super]; exact Val.keyed_super v
+  | .ride (.move _) v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
+  | .ride .metadata v _ | .ride .deprecate v _ | .ride .ident v _ | .ride .type v _ | .ride .hide v _ => by
+    simp only [Val.super]; exact Val.keyed_super v
   | .link v _ => by simp only [Val.super]; exact Val.keyed_super v
   | .pref _ x => by simp only [Val.super]; exact Val.keyed_super x
   | .lit (.num x) => by simp only [Val.super]; cases x.leaf <;> rfl

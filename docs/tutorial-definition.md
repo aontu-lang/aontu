@@ -3950,7 +3950,9 @@ and a constraint's domain. Its first cases:
 for its parent, as `integer & min(3)` is a constraint on integers; a
 meet of two kinds has the lower kind's parent; any other meet lifts
 each side. A reference lifts as itself, a residual the engines keep
-symbolic too. -/
+symbolic too. A rider is left behind, but the one a `move` makes
+(`Rider.move`), so that each arm a moved preference reads as carries
+it. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
   | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
@@ -5620,7 +5622,11 @@ conflict, alone or met with the list's spread, is `nil` where it stands
 (`Decls.markClashes`). A call or a generator
 handed a reference that names nothing yet (`Val.pending`) waits, as a
 later round of the paths may declare it. Any other call, its
-arguments resolved, is the term `callTerm` makes of it. A spread has no
+arguments resolved, is the term `callTerm` makes of it. What a call, a selection,
+a `filter` and a generator make carries the moves the values they read
+hold (`Val.rideMoves`), so that a `move` another form reads still hides
+its source, as both ports make it, but a call whose value holds its
+argument already (`Fn.holdsArg`). A spread has no
 hole, and a `filter`'s condition and a template are read for their own
 members, so none of them is read for `b`. Each `key(n)` reads `here`, by
 `keyUpAt`: a template stands at the position its instance lands at, the
@@ -5645,17 +5651,19 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let arms' := resolvePairs ds b here arms
     let d' := resolveSpread ds b here d
     match genD ds s' with
-    | some x => if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d' else selectArm ds x arms' d'
+    | some x =>
+      if callPairs arms' || here.isNone && keyPairs arms' then .select s' arms' d'
+      else (selectArm ds x arms' d').rideMoves s'.moves
     | none =>
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil else .select s' arms' d'
   | .filter s c =>
     let s' := resolveD ds b here s
     if here.isNone && c.holdsKey then .filter s' c else
     match genD ds s' with
-    | some (.map fs) => (Data.map (fs.filter fun m =>
-        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).term
-    | some (.list xs) => (Data.list (keptAt (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term
+    | some (.map fs) => ((Data.map (fs.filter fun m =>
+        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).term).rideMoves s'.moves
+    | some (.list xs) => ((Data.list (keptAt (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term).rideMoves s'.moves
     | some _ => .nil
     | none =>
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
@@ -5711,7 +5719,8 @@ there for its flow to read:
         .call f (resolveItems ds b here args)
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
-      else callTerm ds f (resolveItems ds b here args)
+      else if f.holdsArg then callTerm ds f (resolveItems ds b here args)
+      else (callTerm ds f (resolveItems ds b here args)).rideMoves ((resolveItems ds b here args).flatMap Val.moves)
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
@@ -5743,12 +5752,14 @@ theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm d
 ```lean
 /-- A `filter` read at a position over a list keeps the elements its
 condition admits, in their order, the condition read for each element
-it tries, at the index the element takes among those kept. -/
+it tries, at the index the element takes among those kept, carrying the
+moves its source holds. -/
 theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
     {xs : List Data} (h : genD ds (resolveD ds b (some pos) s) = some (.list xs)) :
     resolveD ds b (some pos) (.filter s c) =
-      (Data.list (keptAt (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) 0 xs)).term := by
+      ((Data.list (keptAt (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) 0 xs)).term).rideMoves
+        (resolveD ds b (some pos) s).moves := by
   simp [resolveD, h]
 ```
 
@@ -7409,8 +7420,9 @@ and an `each` reads its template once for each member of its data:
       | some ms =>
         if (ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).any
             (fun e => (normaliseD ds e).marked && ds.markClashes none e) then .nil else
-        .list ((ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).filter
-          fun e => !(normaliseD ds e).isAbsent && !(normaliseD ds e).marked) none false
+        (Val.list ((ms.zipIdx.map fun m => resolveD ds (some m.1) (stepped here (.seg (.idx m.2))) t).filter
+          fun e => !(normaliseD ds e).isAbsent && !(normaliseD ds e).marked) none false).rideMoves
+          (resolveD ds b here d).moves
       | none =>
         if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
         else if (resolveD ds b here d).pending ds then .call .each [resolveD ds b here d, t]
@@ -7961,8 +7973,8 @@ each member, but into an open map:
       if here.isNone && (resolveD ds b here d).holdsKey then .call .pack [resolveD ds b here d, t] else
       match (normaliseD ds (resolveD ds b here d)).keyedMembers ds with
       | some ms =>
-        .map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
-          fun m => (m.1, false, m.2)) none false
+        (Val.map ((mergeKeys [] (ms.map fun m => (m.1, resolveD ds (some m.2) (stepped here (.seg (.key m.1))) t))).map
+          fun m => (m.1, false, m.2)) none false).rideMoves (resolveD ds b here d).moves
       | none =>
         if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
         else if (resolveD ds b here d).pending ds then .call .pack [resolveD ds b here d, t]
@@ -8804,18 +8816,47 @@ def hideAt : List Seg → Val
   | _ :: _ => .any
 ```
 
-The definition reads the steps of the source's path in the first of
-the schema's roots that names it, each by the container it meets and
-each variable bound first, as it reads the term a path names, so
-`move($.q.$name)` hides the member the variable's value spells. A
-`move` in a declaration's body hides its source as one in the schema
-does, whether a reference reads the body or not, since both engines
-read a body where it's declared:
+Only a `move` the reading makes hides its source, as in both engines,
+so one in an arm no selection takes, or in a template no member
+instantiates, hides nothing. Where the definition reads a path as a
+name, a `move` keeps the name as a rider around the reference, and the
+value the call makes carries it into the normal form, as it carries
+any rider:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.withMoves (ds : Decls) (S : Val) : Val :=
-  ((S.moved ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.moved) []).filterMap fun p =>
+def ptaCall : Fn → List Val → List Val
+  | .move, [v] =>
+    match v.unride with
+    | .path p => [.ride (.move (pathName p)) v.pathsToAliases []]
+    | _ => [v.pathsToAliases]
+  | _, [] => []
+  | _, v :: vs => v.pathsToAliases :: ptaItems vs
+```
+
+The parent type of a moved preference keeps the rider too, so data
+that overrides the copy keeps the move. What a call, a selection, a
+`filter` or a generator makes of a moved value carries the move as well
+(`Val.rideMoves`), so `b: add(move($.a), 2)` still hides `a`, as in
+both engines. `Val.moves` collects the names
+the normal form holds, under each member and element, through riders,
+links and meets, and in every arm of a disjunction, since both engines
+make a `move` in each, though not from a spread's template, which
+makes a `move` only in the members it instantiates. `Decls.movesMade`
+reads them in the last root, and in each body that writes a `move`,
+read with the paths the roots declare, whether a reference reads the
+body or not, since both engines read a body where it's declared. The
+definition hides the source of each `move` the document writes whose
+name is among them, and reads the steps of its path in the first of
+the schema's roots that names it, each by the container it meets and
+each variable bound first, as it reads the term a path names, so
+`move($.q.$name)` hides the member the variable's value spells:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.withMoves (ds : Decls) (r : Decls → Val → List Val) (S : Val) : Val :=
+  (((S.moved ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.moved) []).filter fun p =>
+      pathName p ∈ ds.movesMade r S).filterMap fun p =>
       (p.mapM ds.bindSeg).bind fun q => (ds.rootsS S).findSome? fun root => root.stepsW q).foldl
     (fun acc p => .meet acc (hideAt p)) S
 ```
@@ -8851,7 +8892,11 @@ and reads as `pref`, and a path that names nothing is an `error`, as
 any path is. The definition reads a rider around the path through, so
 `move(meta($.x, r))` hides `x` and reads as `*meta(1, r)`. Rows from mv0 on
 of `test/spec/def-path.tsv` hold these readings in the three modes of
-`vet`, and both engines answer every one as the definition does. Data
+`vet`, those from mv51 on a `move` in the arm a selection takes and in
+one it passes by, in a template with a member and with none, in an arm
+the data passes by and in a body, those from mv81 on a moved value that
+`add`, `sum`, `+`, a selection's scrutinee and a `filter` read, and both
+engines answer every one as the definition does. Data
 that sets the copy of a path under a rider splits the engines, and
 no row holds it, which #486 tracks.
 
@@ -9625,7 +9670,7 @@ each member: its `match`es for no node, and its bodies for the node:
       match (normaliseD ds (resolveD ds b here s)).members ds with
       | some ms =>
         let pss := ms.map fun m => emitPieces ds m t (resolveD ds none none t) (resolveD ds (some m) none t)
-        if pss.all Option.isSome then .list (pss.filterMap id).flatten none false
+        if pss.all Option.isSome then (Val.list (pss.filterMap id).flatten none false).rideMoves (resolveD ds b here s).moves
         else .call .emit [resolveD ds b here s, t]
       | none =>
         if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
@@ -9744,10 +9789,6 @@ The language needs only the power to represent a JSON Schema: what
 Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker
 of step 17 reads unmade. Neither has a rule yet.
-
-Nor does it say which of a document's moves the reading makes. A
-`move` in an arm no selection takes, or in a template no member
-instantiates, still hides its source, where both engines keep it.
 
 Nor does it read a link or a spread everywhere one can land. A link in
 a `filter`'s source sends nothing, since the definition makes a

@@ -96,7 +96,10 @@ def pathName (p : List Seg) : String :=
 mutual
 /-- The term with each path replaced by a reference to the path's name,
 but a reference into an `emit`'s node (`Seg.node`), which names no
-place, and which the `emit` reads for each node. -/
+place, and which the `emit` reads for each node. A `move` keeps the
+name of the path it reads, a rider around the reference
+(`Rider.move`), so that the value the call makes carries it into the
+normal form (`Val.moves`). -/
 def Val.pathsToAliases : Val → Val
   | .path p => if p.head? == some .node then .path p else .alias (pathName p)
   | .len c => .len c.pathsToAliases
@@ -112,10 +115,18 @@ def Val.pathsToAliases : Val → Val
   | .rest t cs => .rest t.pathsToAliases (ptaCovers cs)
   | .select s arms d => .select s.pathsToAliases (ptaPairs arms) (ptaSpread d)
   | .filter s c => .filter s.pathsToAliases c.pathsToAliases
-  | .call f args => .call f (ptaItems args)
+  | .call f args => .call f (ptaCall f args)
   | .ride k v r => .ride k v.pathsToAliases r
   | .link v lt => .link v.pathsToAliases lt
   | v => v
+
+def ptaCall : Fn → List Val → List Val
+  | .move, [v] =>
+    match v.unride with
+    | .path p => [.ride (.move (pathName p)) v.pathsToAliases []]
+    | _ => [v.pathsToAliases]
+  | _, [] => []
+  | _, v :: vs => v.pathsToAliases :: ptaItems vs
 
 def ptaPairs : List (Val × Val) → List (Val × Val)
   | [] => []
@@ -891,17 +902,29 @@ def Val.stepsW : Val → List Seg → Option (List Seg)
     | none => none
 termination_by structural _ p => p
 
-/-- The schema with each source a `move` reads hidden, met with
-`hideAt` of the steps its path takes in the first of the schema's roots
-it names something in, each variable bound and each step read by the
-container it meets, so that the document
-generates the value once, at its new place, and the data needn't supply
-the source. A `move` in a body hides its source as one in the schema
-does, used or not, as both ports read a body where it's declared. A
-path to nothing hides nothing, so that it stays the error any path to
-nothing is. -/
-def Decls.withMoves (ds : Decls) (S : Val) : Val :=
-  ((S.moved ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.moved) []).filterMap fun p =>
+/-- The names of the paths the moves a document's reading makes read,
+`r` reading the document to its roots: those the last root holds
+(`Val.moves`), and those each body that writes a `move` holds, read
+with the paths the roots declare, used or not, as both ports read a
+body where it's declared. -/
+def Decls.movesMade (ds : Decls) (r : Decls → Val → List Val) (S : Val) : List String :=
+  ((r ds S).getLast?.getD .any).moves ++
+    (ds.filter fun d => !d.2.moved.isEmpty).flatMap fun d =>
+      (normaliseD (ds.withPathsFrom S (r ds S)).1
+        ((ds.withPathsFrom S (r ds S)).1.readU (((ds.withPathsFrom S (r ds S)).1.env d.1).getD .any))).moves
+
+/-- The schema with the source each `move` the reading makes reads
+hidden (`Decls.movesMade`), `r` reading the document to its roots, met
+with `hideAt` of the steps its path takes in the first of the schema's
+roots it names something in, each variable bound and each step read by
+the container it meets, so that the document generates the value once,
+at its new place, and the data needn't supply the source. A `move` in
+an arm no selection takes, or in a template no member instantiates,
+hides nothing, as both ports never make it. A path to nothing hides
+nothing, so that it stays the error any path to nothing is. -/
+def Decls.withMoves (ds : Decls) (r : Decls → Val → List Val) (S : Val) : Val :=
+  (((S.moved ++ ds.foldl (fun acc (d : String × Val) => acc ++ d.2.moved) []).filter fun p =>
+      pathName p ∈ ds.movesMade r S).filterMap fun p =>
       (p.mapM ds.bindSeg).bind fun q => (ds.rootsS S).findSome? fun root => root.stepsW q).foldl
     (fun acc p => .meet acc (hideAt p)) S
 
@@ -1536,7 +1559,7 @@ sources its moves read hidden (`Decls.withMoves`), and its links'
 templates met into their targets (`Decls.withRefers`). -/
 def Decls.linked (ds : Decls) (S : Val) (r : Decls → Val → List Val := Decls.rootsS) : Decls × Val :=
   ((ds.withRel.placed S).1,
-    (ds.withRel.placed S).1.withRefers r ((ds.withRel.placed S).1.withMoves (ds.withRel.placed S).2))
+    (ds.withRel.placed S).1.withRefers r ((ds.withRel.placed S).1.withMoves r (ds.withRel.placed S).2))
 
 /-- The tree a document's spreads are read at, `r` reading a document to
 its roots: the last root of the document with its links read, each
@@ -1591,8 +1614,8 @@ theorem foldl_hide_checkableA : ∀ (ps : List (List Seg)) {S : Val}, S.Checkabl
   | p :: ps, _, h => foldl_hide_checkableA ps (.meet h (hideAt_checkableA p))
 
 /-- A schema the checker can read reads with its moves' sources hidden. -/
-theorem withMoves_checkableA {ds : Decls} {S : Val} (h : S.CheckableA) :
-    (ds.withMoves S).CheckableA :=
+theorem withMoves_checkableA {ds : Decls} {r : Decls → Val → List Val} {S : Val} (h : S.CheckableA) :
+    (ds.withMoves r S).CheckableA :=
   foldl_hide_checkableA _ h
 
 /-- What meets a template the checker can read into a target is a term
@@ -1869,6 +1892,20 @@ theorem mem_ptaArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
       · exact Or.inr ⟨a, hm, rfl⟩
 
 /-- A term the checker can read, its paths read as names, is one it can read. -/
+theorem ptaCall_checkableA {f : Fn} {args : List Val}
+    (h : ∀ a, a ∈ args → a.pathsToAliases.CheckableA) : ∀ w, w ∈ ptaCall f args → w.CheckableA := by
+  intro w hw
+  unfold ptaCall at hw
+  split at hw
+  · split at hw <;> (simp only [List.mem_singleton] at hw; subst hw)
+    · exact .ride (h _ (List.mem_singleton.mpr rfl))
+    · exact h _ (List.mem_singleton.mpr rfl)
+  · exact nomatch hw
+  · rcases List.mem_cons.mp hw with rfl | hw
+    · exact h _ (List.mem_cons.mpr (.inl rfl))
+    · obtain ⟨a, ha, rfl⟩ := mem_ptaItems.mp hw
+      exact h a (List.mem_cons.mpr (.inr ha))
+
 theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliases.CheckableA := by
   induction h with
   | len _ ih => exact .len ih
@@ -1901,10 +1938,7 @@ theorem pathsToAliases_checkableA {v : Val} (h : v.CheckableA) : v.pathsToAliase
     refine .nof ihn fun w hm => ?_
     obtain ⟨c, hc, rfl⟩ := mem_ptaItems.mp hm
     exact ihcs c hc
-  | @call f args _ ih =>
-    refine .call fun w hm => ?_
-    obtain ⟨a, ha, rfl⟩ := mem_ptaItems.mp hm
-    exact ih a ha
+  | @call f args _ ih => exact .call (ptaCall_checkableA ih)
   | must _ ih => exact .must ih
   | @when c t e _ _ _ ihc iht ihe =>
     refine .when ihc iht fun e' he => ?_

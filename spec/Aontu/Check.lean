@@ -2719,7 +2719,11 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
       obtain ⟨a, hm', rfl⟩ := mem_superArms.mp hm
       exact checkSuperArmsWith_false iha h r a hm'
   | @pref r x _ ihx => intro j hu; exact ihx j hu.pref
-  | @ride k v r _ ihv => intro j hu; exact ihv j hu.ride
+  | @ride k v r _ ihv =>
+    intro j hu
+    cases k with
+    | move n => exact .ride (ihv j hu.ride)
+    | _ => exact ihv j hu.ride
   | @link v t _ _ ihv _ => intro j hu; exact ihv j hu.link
   | @alias k =>
     intro j hu

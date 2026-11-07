@@ -8,8 +8,11 @@ is built in the definition (links carried in the normal form, the walk
 removed, every row as before, and a link another link's template
 carries read from each pass's tree) and in both engines (the template in the
 path value, links collected from the result, rounds from a copy of the
-document, the recording, live write and staging removed); `move`
-waits. Its three rulings are 35 to 37 of §7, ruled 2026-11-07: a link
+document, the recording, live write and staging removed). `move` is
+built in the definition too: the value a `move` makes carries the name
+of its path, so only the moves the reading makes hide their sources,
+as both engines already read them, and neither engine changes. Its
+three rulings are 35 to 37 of §7, ruled 2026-11-07: a link
 in an unused declaration keeps sending, a link a call's value holds
 sends, and an address the data supplies counts, which the definition
 now reads too. The study asks whether the definition's special
