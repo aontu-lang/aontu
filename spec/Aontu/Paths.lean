@@ -882,11 +882,15 @@ def movedArms : List (ℕ × Val) → List (List Seg)
 end
 
 /-- What hides the value at a path and asks nothing else: an open map
-holding the path's key as optional, down to `hide(any)`. A step into a
-list, which no position can make optional, hides nothing. -/
+holding the path's key as optional, or an open list holding `any` at
+each position before the path's index, down to `hide(any)`. A path the
+schema names (`Decls.withMoves`) reaches an element the list holds, so
+the open list adds no position, and the hidden element holds none
+(decision 18). -/
 def hideAt : List Seg → Val
   | [] => .ride .hide .any []
   | .key k :: p => .map [(k, true, hideAt p)] none false
+  | .idx i :: p => .list (List.replicate i .any ++ [hideAt p]) none false
   | _ :: _ => .any
 
 /-- The steps a written path takes in a term, each read by the container
@@ -1606,7 +1610,11 @@ theorem hideAt_checkableA : ∀ p, (hideAt p).CheckableA
   | .key _ :: p => .map (fun _ _ _ hv => by
       simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hv
       rw [hv.2.2]; exact hideAt_checkableA p) (fun _ h => nomatch h)
-  | .idx _ :: _ | .var _ :: _ | .up _ :: _ | .node :: _ => .any
+  | .idx i :: p => .list (fun v hv => by
+      rcases List.mem_append.mp hv with h | h
+      · rw [List.eq_of_mem_replicate h]; exact .any
+      · rw [List.mem_singleton.mp h]; exact hideAt_checkableA p) (fun _ h => nomatch h)
+  | .var _ :: _ | .up _ :: _ | .node :: _ => .any
 
 theorem foldl_hide_checkableA : ∀ (ps : List (List Seg)) {S : Val}, S.CheckableA →
     (ps.foldl (fun acc p => Val.meet acc (hideAt p)) S).CheckableA
