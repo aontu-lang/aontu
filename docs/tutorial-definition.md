@@ -8976,41 +8976,46 @@ The definition reads the links in a body too, from the body's own
 tree, and at the body's own place, `%` and the name
 as a key at the top, whether a reference reads the body or not. So a
 generator in a body no reference reads still flows its links'
-templates:
+templates. A pass reads the links and their targets in one tree, `L`,
+and meets the templates into the schema `S`:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.referPass (ds : Decls) (S : Val) (roots : List Val) (miss : Val) : Val :=
-  let own := ds.rootsS S
-  let dp := (ds.withPathsFrom S own).1
+def Decls.referPass (ds : Decls) (S L : Val) (miss : Val) : Val :=
+  let own := ds.rootsS L
+  let dp := (ds.withPathsFrom L own).1
   let R := own.getLast?.getD .any
   ds.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
-      (referStep roots miss [.key ("%" ++ d.1)]) acc)
-    ((ds.nfLinks R []).foldl (referStep roots miss []) S)
+      (referStep own miss [.key ("%" ++ d.1)]) acc)
+    ((ds.nfLinks R []).foldl (referStep own miss []) S)
 ```
 
 One link's template can make another link's target:
 `y: refer({ z:{} }) & path($.h)` makes `h.z` for
 `x: refer({ p:1 }) & path($.h.z)`, whichever the document writes
-first. So the definition reads the targets in passes, each meeting the
-templates of the links whose targets the last pass's schema holds, as
-many passes as the links hold addresses:
+first. A template can carry a link of its own, too:
+`s: refer({ n:refer({ k:1 }) & path($.t2) }) & path($.t1)` sends
+`{ k:1 }` into `t2` once its template lands in `t1`. So the definition
+reads the links and their targets in passes, each reading the tree the
+last pass made:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
   | 0 => S
-  | n + 1 => ds.referPass S (ds.rootsS (ds.referPasses S n)) .any
+  | n + 1 => ds.referPass S (ds.referPasses S n) .any
 ```
 
-A last pass reads each target in the roots those passes make, and a
-target that names nothing there is an `error`, even where the data
-supplies it, as a path to nothing is:
+A last pass reads each link and its target in the tree those passes
+make, as many as the links make flows and as the document writes links
+(`Val.linkCalls`), and a target that names nothing there is an `error`,
+even where the data supplies it, as a path to nothing is:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.withRefers (ds : Decls) (S : Val) : Val :=
-  ds.referPass S (ds.rootsS (ds.referPasses S (ds.referCount S))) .nil
+  ds.referPass S (ds.referPasses S
+    (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)) .nil
 ```
 
 The template meets the target, so the target refuses the data the
@@ -9042,19 +9047,17 @@ spread or a path reference, rows from lg0 on links in a generator's
 template, rows from lt0 on templates that read the member or the place
 where their link lands, and rows from rf120 on links in an arm of a
 disjunction or a preference, rows from rf171 on a kept arm the rank
-rule passes over and a link to nothing in an arm the output takes, and
-rows from rf186 on a path reference to a link's target. Both engines
-answer every one as the definition does. With data,
+rule passes over and a link to nothing in an arm the output takes,
+rows from rf186 on a path reference to a link's target, and rows from
+rf201 on a link a template carries and a generator whose data another
+link's template makes. Both engines answer every one as the definition
+does. With data,
 both engines read a body's relative link a second time, from each
 place that uses the body, which #488 tracks, and no row holds such a
 link. Both engines flow a link that a path
 reference copies whole once, its template read at one copy's place,
 which the order of the document picks, where the definition reads each
-copy as a link of its own, which #536 tracks. The definition reads the
-links where the schema's own tree puts them before any template flows,
-so it doesn't yet read a link in the template of a generator whose data
-another link's template makes, as both engines do, and no row holds
-one.
+copy as a link of its own, which #536 tracks.
 
 ## 37. Relations
 
@@ -9657,15 +9660,19 @@ Nor does it say which of a document's moves the reading makes. A
 `move` in an arm no selection takes, or in a template no member
 instantiates, still hides its source, where both engines keep it.
 
-Nor does it read a link or a spread everywhere one can land. A link
-inside another link's template, or inside a call's argument, is part of
-that term, and the definition reads no link from either, and an address
-the data supplies flows nowhere, since the definition reads a
-document's links from the normal form of the schema's own tree, where
-both engines read each. A spread whose template reads its member's place,
-inside a disjunction, a selection or an alias's body, keeps its
-template as written, so a relative path in it resolves nowhere, and so
-does a generator's template there.
+Nor does it read a link or a spread everywhere one can land. A link in
+a `filter`'s source sends nothing, since the definition makes a
+`filter` only when it generates the output, and an address the data
+supplies flows nowhere, since the definition reads a document's links
+from the schema's own tree, where both engines read each. A link
+another link's template carries does send: each pass reads the links
+of the tree the last one made. The definition reads such a link's
+relative address where the link lands, though, and both engines read
+it inside the template, where it names nothing, which #661 tracks. A
+spread whose template reads its member's place, inside a disjunction,
+a selection or an alias's body, keeps its template as written, so a
+relative path in it resolves nowhere, and so does a generator's
+template there.
 
 Nor does it say where a copy reads a relative path the copy holds. The
 definition reads one where it's written, so a use of an alias, or a
