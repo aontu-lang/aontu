@@ -1997,7 +1997,18 @@ def referCases : List (Decls × Val × Data) :=
     ([("T", m [("m", m [("k", int 2)]), ("n", rf k1 (ad 1 ["m"]))])], m [], .map []),
     ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"]))])], m [("x", .alias "T")], .map []),
     ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"])), ("o", rf (m [("k", int 2)]) (ad 1 ["m"]))])], m [], .map []),
-    ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"])), ("o", rf (m [("j", int 2)]) (ad 1 ["m"]))])], m [], .map [])]
+    ([("T", m [("m", m []), ("n", rf k1 (ad 1 ["m"])), ("o", rf (m [("j", int 2)]) (ad 1 ["m"]))])], m [], .map []),
+    ([], m [("b", .call .refer [m [("r", int 3)]]), ("a", m [])],
+      .map [("b", .addr ⟨0, ["a"]⟩), ("a", .map [("p", j 1), ("r", j 4)])]),
+    ([], m [("b", .call .refer [m [("r", int 3)]]), ("a", m [])],
+      .map [("b", .addr ⟨0, ["a"]⟩), ("a", .map [("p", j 1), ("r", j 3)])]),
+    ([], m [("b", .call .refer [m [("r", int 3)]]), ("a", m [])],
+      .map [("b", .addr ⟨0, ["a"]⟩), ("a", .map [("p", j 1)])]),
+    ([], m [("b", .call .refer [m [("r", int 3)]]), ("a", m [])], .map [("b", .addr ⟨0, ["nope"]⟩), ("a", .map [])]),
+    ([], m [("b", .or [(0, rf (m [("r", int 3)]) (ad 0 ["a"])), (0, int 2)]), ("a", m [])],
+      .map [("b", j 2), ("a", .map [("r", j 4)])]),
+    ([], m [("b", .or [(0, rf (m [("r", int 3)]) (ad 0 ["a"])), (0, int 2)]), ("a", m [])],
+      .map [("a", .map [("r", j 4)])])]
 
 theorem referCases_checkable : ∀ c ∈ referCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

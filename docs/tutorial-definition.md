@@ -3108,7 +3108,7 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (S' := ds.preparedD S j)
     (Decls.placed_bodies_checkableA (S := S) (Decls.withRel_checkableA hb))
-    (Decls.prepared_checkableA hb hS _) (Decls.prepared_checkableA hb hS _) v
+    (Decls.prepared_checkableA rootsS_readable hb hS) (Decls.prepared_checkableA Decls.linkReader_readable hb hS) v
 ```
 
 A recursive position, `then?: $.schema.Step` inside `Step`, is a name
@@ -9000,13 +9000,13 @@ The definition reads the links in a body too, from the body's own
 tree, and at the body's own place, `%` and the name
 as a key at the top, whether a reference reads the body or not. So a
 generator in a body no reference reads still flows its links'
-templates. A pass reads the links and their targets in one tree, `L`,
-and meets the templates into the schema `S`:
+templates. A pass reads the links and their targets in the roots `r`
+reads of one tree, `L`, and meets the templates into the schema `S`:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.referPass (ds : Decls) (S L : Val) (miss : Val) : Val :=
-  let own := ds.rootsS L
+def Decls.referPass (ds : Decls) (r : Decls → Val → List Val) (S L : Val) (miss : Val) : Val :=
+  let own := r ds L
   let dp := (ds.withPathsFrom L own).1
   let R := own.getLast?.getD .any
   ds.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
@@ -9068,9 +9068,9 @@ read again, and the conflict stands all the same:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
+def Decls.referPasses (ds : Decls) (r : Decls → Val → List Val) (S : Val) : ℕ → Val
   | 0 => S
-  | n + 1 => ds.referPass (ds.referPasses S n) (ds.referPasses S n) .any
+  | n + 1 => ds.referPass r (ds.referPasses r S n) (ds.referPasses r S n) .any
 ```
 
 A last pass reads each link and its target in the tree those passes
@@ -9081,9 +9081,9 @@ clash at a body's own place (`Decls.bodyFlows`, `Decls.bodyClash`):
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.withRefers (ds : Decls) (S : Val) : Val :=
-  let L := ds.referPasses S (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)
-  if ds.bodyClash (ds.bodyFlows L) then .meet (ds.referPass L L .nil) .nil else ds.referPass L L .nil
+def Decls.withRefers (ds : Decls) (r : Decls → Val → List Val) (S : Val) : Val :=
+  let L := ds.referPasses r S (ds.referCount r S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)
+  if ds.bodyClash (ds.bodyFlows r L) then .meet (ds.referPass r L L .nil) .nil else ds.referPass r L L .nil
 ```
 
 The template meets the target, so the target refuses the data the
@@ -9119,8 +9119,10 @@ rule passes over and a link to nothing in an arm the output takes,
 rows from rf186 on a path reference to a link's target, and rows from
 rf201 on a link a template carries and a generator whose data another
 link's template makes, rows from rf228 on a flow that conflicts with
-its own link, and rows from rf237 on a body's link to the body's own
-member. Both engines answer every one as the definition does. Both
+its own link, rows from rf237 on a body's link to the body's own
+member, and rows from rf252 on an address the data supplies and data
+that picks a link's arm. Both engines answer every one as the
+definition does. Both
 engines read a body's relative link at the body's own place or where
 each use stands, by the order the document writes the two, which #504
 tracks, and each row writes the body before its use. Both engines flow
@@ -9280,14 +9282,31 @@ absolute path in a template names, the same at every member:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.prepared (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
-  ((ds.linked S).1, (ds.linked S).2.membersRead root)
+def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) : Decls × Val :=
+  ((ds.linked S rl).1, (ds.linked S rl).2.membersRead (ds.spreadRoot S rl r))
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Val :=
-  (ds.prepared S (ds.spreadRoot S fun d T => d.rootsD T j)).2
+  (ds.prepared S (ds.linkReader S j) fun d T => d.rootsD T j).2
+```
+
+Beside data, the definition reads the links in the tree the data reads
+in as well, so an address the data supplies counts, as in both
+engines. With `b: refer({r: 3})` and `a: {}`, the data `b: path($.a)`
+sends `{r: 3}` into `a`, and data `a: {p: 1, r: 4}` is `invalid`. Data that
+picks an arm without a link drops that arm's link: with
+`b: (refer({r: 3}) & path($.a)) | 2`, the data `b: 2` sends nothing. A
+document whose name refers to itself with nothing between is an
+`error` before any data, and the definition reads its links in the
+schema's own tree:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.linkReader (ds : Decls) (S : Val) (j : Data) : Decls → Val → List Val :=
+  if ((ds.preparedS S).1.withPathsS (ds.preparedS S).2).1.guardedB then fun d T => d.rootsD T j
+  else Decls.rootsS
 ```
 
 So a template whose path names nothing is no error until a member reads
@@ -9732,9 +9751,8 @@ instantiates, still hides its source, where both engines keep it.
 
 Nor does it read a link or a spread everywhere one can land. A link in
 a `filter`'s source sends nothing, since the definition makes a
-`filter` only when it generates the output, and an address the data
-supplies flows nowhere, since the definition reads a document's links
-from the schema's own tree, where both engines read each. A link
+`filter` only when it generates the output, where both engines send
+it. A link
 another link's template carries does send: each pass reads the links
 of the tree the last one made. The definition reads such a link's
 relative address where the link lands, though, and both engines read
