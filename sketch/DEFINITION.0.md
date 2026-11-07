@@ -1809,6 +1809,14 @@ until the phase that encodes it lands.
    the document the data meets, so an address the data supplies is
    checked, and the template meets its target, as in both engines. The
    definition moves; the last part of limit 19 goes once it is built.
+   **Built 2026-11-07**: `Decls.preparedD` reads a document's links in
+   the tree the data reads in (`Decls.linkReader` in
+   `spec/Aontu/Paths.lean`), so a data address is checked and its
+   template meets its target, and data that picks an arm without a link
+   drops that link; rows rf252 to rf269 of `test/spec/def-path.tsv`.
+   A document whose name refers to itself with nothing between, an
+   `error` before any data, keeps its links read in the schema's own
+   tree, since its data reading would unfold the name without end.
 
 ## 8. Risks
 

@@ -1134,8 +1134,8 @@ the body's own tree (`Decls.bodyRoot`), read at the body's own place,
 `%` and the name as a key at the top, as both ports read a body where
 it's declared, used or not (ruling 35). Read from the tree an earlier
 pass made, so a link a template carries lands with it and sends too. -/
-def Decls.referPass (ds : Decls) (S L : Val) (miss : Val) : Val :=
-  let own := ds.rootsS L
+def Decls.referPass (ds : Decls) (r : Decls → Val → List Val) (S L : Val) (miss : Val) : Val :=
+  let own := r ds L
   let dp := (ds.withPathsFrom L own).1
   let R := own.getLast?.getD .any
   ds.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
@@ -1144,8 +1144,8 @@ def Decls.referPass (ds : Decls) (S L : Val) (miss : Val) : Val :=
 
 /-- The flows a document's links make, one for each address they hold:
 the schema's and its bodies', each read as `Decls.referPass` reads it. -/
-def Decls.referCount (ds : Decls) (S : Val) : ℕ :=
-  let own := ds.rootsS S
+def Decls.referCount (ds : Decls) (r : Decls → Val → List Val) (S : Val) : ℕ :=
+  let own := r ds S
   let dp := (ds.withPathsFrom S own).1
   let R := own.getLast?.getD .any
   ds.foldl (fun n d => n + ((ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).map fun e =>
@@ -1206,9 +1206,9 @@ the last pass's tree holds into the targets it holds, so that one link's
 template can make another link's target, or carry another link, and
 meeting them into that tree, so that a flow once found stays, even one
 whose conflict leaves its own link no address to read again. -/
-def Decls.referPasses (ds : Decls) (S : Val) : ℕ → Val
+def Decls.referPasses (ds : Decls) (r : Decls → Val → List Val) (S : Val) : ℕ → Val
   | 0 => S
-  | n + 1 => ds.referPass (ds.referPasses S n) (ds.referPasses S n) .any
+  | n + 1 => ds.referPass r (ds.referPasses r S n) (ds.referPasses r S n) .any
 
 /-- The flows of one link, written at `home`, into a member of its own
 body: each target no root holds that `Decls.atOwnBody` finds, with the
@@ -1223,8 +1223,8 @@ def bodyFlowsOf (ds : Decls) (roots : List Val) (home : List Seg) (e : List Seg 
 
 /-- The flows a tree's links make into a member of their own body, the
 schema's and each body's, read as `Decls.referPass` reads them. -/
-def Decls.bodyFlows (ds : Decls) (L : Val) : List (List Seg × Val) :=
-  let own := ds.rootsS L
+def Decls.bodyFlows (ds : Decls) (r : Decls → Val → List Val) (L : Val) : List (List Seg × Val) :=
+  let own := r ds L
   let dp := (ds.withPathsFrom L own).1
   let R := own.getLast?.getD .any
   (ds.nfLinks R []).flatMap (bodyFlowsOf ds own []) ++
@@ -1251,9 +1251,9 @@ as the document writes links, so that links whose templates make each
 other's targets, or carry each other, resolve in any order, a link
 whose target is still missing meeting `nil`, as does the schema where
 the templates sent to a body's own place conflict there. -/
-def Decls.withRefers (ds : Decls) (S : Val) : Val :=
-  let L := ds.referPasses S (ds.referCount S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)
-  if ds.bodyClash (ds.bodyFlows L) then .meet (ds.referPass L L .nil) .nil else ds.referPass L L .nil
+def Decls.withRefers (ds : Decls) (r : Decls → Val → List Val) (S : Val) : Val :=
+  let L := ds.referPasses r S (ds.referCount r S + S.linkCalls + ds.foldl (fun n d => n + d.2.linkCalls) 0)
+  if ds.bodyClash (ds.bodyFlows r L) then .meet (ds.referPass r L L .nil) .nil else ds.referPass r L L .nil
 
 /-! ## A spread read at each member -/
 
@@ -1529,20 +1529,14 @@ def Val.membersRead (P root : Val) : Val :=
 name, which a `rel` reads as (`relKind`). -/
 def Decls.withRel (ds : Decls) : Decls := ds ++ [(relName, relKind)]
 
-/-- A document with its links read: the relation kind declared
+/-- A document with its links read, `r` reading a document to its roots,
+the links and their targets read there: the relation kind declared
 (`Decls.withRel`), its relative paths placed (`Decls.placed`), the
 sources its moves read hidden (`Decls.withMoves`), and its links'
 templates met into their targets (`Decls.withRefers`). -/
-def Decls.linked (ds : Decls) (S : Val) : Decls × Val :=
+def Decls.linked (ds : Decls) (S : Val) (r : Decls → Val → List Val := Decls.rootsS) : Decls × Val :=
   ((ds.withRel.placed S).1,
-    (ds.withRel.placed S).1.withRefers ((ds.withRel.placed S).1.withMoves (ds.withRel.placed S).2))
-
-/-- A document as the definition reads it, its spreads read at the
-members `root` holds: its links read (`Decls.linked`), and each spread
-whose template reads its member's place read at each member where it
-lands (`Val.membersRead`), a member a link's template makes among them. -/
-def Decls.prepared (ds : Decls) (S : Val) (root : Val) : Decls × Val :=
-  ((ds.linked S).1, (ds.linked S).2.membersRead root)
+    (ds.withRel.placed S).1.withRefers r ((ds.withRel.placed S).1.withMoves (ds.withRel.placed S).2))
 
 /-- The tree a document's spreads are read at, `r` reading a document to
 its roots: the last root of the document with its links read, each
@@ -1550,20 +1544,39 @@ template that reads its member's place blanked (`Val.opened`), so that
 the tree holds the members the templates and the links write and none
 of the places the templates read; `any` where no spread reads its
 member's place. -/
-def Decls.spreadRoot (ds : Decls) (S : Val) (r : Decls → Val → List Val) : Val :=
-  if (ds.linked S).2.perMembers then
-    (r (ds.linked S).1 (ds.linked S).2.opened).getLast?.getD .any
+def Decls.spreadRoot (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) : Val :=
+  if (ds.linked S rl).2.perMembers then
+    (r (ds.linked S rl).1 (ds.linked S rl).2.opened).getLast?.getD .any
   else .any
 
-/-- A document as the definition reads it before any data: its spreads
-read at the members of the schema's own tree (`Decls.rootsS`). -/
-def Decls.preparedS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.prepared S (ds.spreadRoot S Decls.rootsS)
+/-- A document as the definition reads it, `rl` reading a document to the
+roots its links are read in and `r` to those its spreads are read at:
+its links read (`Decls.linked`), and each spread whose template reads
+its member's place read at each member where it lands
+(`Val.membersRead`) in the tree `Decls.spreadRoot` reads, a member a
+link's template makes among them. -/
+def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) : Decls × Val :=
+  ((ds.linked S rl).1, (ds.linked S rl).2.membersRead (ds.spreadRoot S rl r))
 
-/-- The schema as the definition reads it beside data: its spreads read
-at the members of the tree the data reads in (`Decls.rootsD`). -/
+/-- A document as the definition reads it before any data: its links and
+its spreads read in the schema's own tree (`Decls.rootsS`). -/
+def Decls.preparedS (ds : Decls) (S : Val) : Decls × Val :=
+  ds.prepared S Decls.rootsS Decls.rootsS
+
+/-- The roots a document's links are read in beside data: the tree the
+data reads in (`Decls.rootsD`), so that an address the data supplies is
+read, checked and met into its target (ruling 37); or the schema's own
+tree, for a document read before any data with a name that refers to
+itself with nothing between, an `error` whatever the data is. -/
+def Decls.linkReader (ds : Decls) (S : Val) (j : Data) : Decls → Val → List Val :=
+  if ((ds.preparedS S).1.withPathsS (ds.preparedS S).2).1.guardedB then fun d T => d.rootsD T j
+  else Decls.rootsS
+
+/-- The schema as the definition reads it beside data: its links read in
+the roots `Decls.linkReader` picks, and its spreads at the members of
+the tree the data reads in (`Decls.rootsD`). -/
 def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Val :=
-  (ds.prepared S (ds.spreadRoot S fun d T => d.rootsD T j)).2
+  (ds.prepared S (ds.linkReader S j) fun d T => d.rootsD T j).2
 
 theorem hideAt_checkableA : ∀ p, (hideAt p).CheckableA
   | [] => .ride .any
@@ -2941,33 +2954,52 @@ theorem foldl_bodyLinks_checkableA {ds dp : Decls} {roots : List Val} {miss : Va
         (Decls.nfLinks_checkableA hb (Decls.bodyRoot_checkableA hdp (hd d List.mem_cons_self)) _))
       fun d' h' => hd d' (List.mem_cons_of_mem _ h')
 
+/-- A reader of a document's roots whose every root the checker can read,
+where it can read the document and its bodies. -/
+abbrev RootsReadable (r : Decls → Val → List Val) : Prop :=
+  ∀ {d : Decls} {T : Val}, (∀ x, x ∈ d → x.2.CheckableA) → T.CheckableA → ∀ root, root ∈ r d T → root.CheckableA
+
+theorem rootsS_readable : RootsReadable Decls.rootsS := fun hb hT => Decls.rootsS_checkableA hb hT
+
+theorem rootsD_readable (j : Data) : RootsReadable fun d T => d.rootsD T j :=
+  fun hb hT => Decls.rootsD_checkableA hb hT
+
 /-- A schema the checker can read, under bodies it can read, reads with
 the templates of the links a pass finds targets for met into them,
 whatever tree the pass reads, so long as the checker can read it. -/
-theorem referPass_checkableA {ds : Decls} {S L miss : Val}
-    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) (hL : L.CheckableA)
-    (hm : miss.CheckableA) : (ds.referPass S L miss).CheckableA := by
-  have hr := Decls.rootsS_checkableA hb hL
-  have hdp := Decls.withPathsFrom_bodies_checkableA (S := L) hb hr
+theorem Decls.linkReader_readable {ds : Decls} {S : Val} {j : Data} : RootsReadable (ds.linkReader S j) := by
+  unfold Decls.linkReader
+  split
+  · exact rootsD_readable j
+  · exact rootsS_readable
+
+theorem referPass_checkableA {ds : Decls} {r : Decls → Val → List Val} {S L miss : Val}
+    (hr : RootsReadable r) (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) (hL : L.CheckableA)
+    (hm : miss.CheckableA) : (ds.referPass r S L miss).CheckableA := by
+  have hro := hr hb hL
+  have hdp := Decls.withPathsFrom_bodies_checkableA (S := L) hb hro
   exact foldl_bodyLinks_checkableA hb hdp hm ds
-    (foldl_referStep_checkableA hm _ hS (Decls.nfLinks_checkableA hb (getLastD_any_checkableA hr) _)) hb
+    (foldl_referStep_checkableA hm _ hS (Decls.nfLinks_checkableA hb (getLastD_any_checkableA hro) _)) hb
 
-theorem referPasses_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) : ∀ n, (ds.referPasses S n).CheckableA
+theorem referPasses_checkableA {ds : Decls} {r : Decls → Val → List Val} {S : Val} (hr : RootsReadable r)
+    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) : ∀ n, (ds.referPasses r S n).CheckableA
   | 0 => hS
-  | n + 1 => referPass_checkableA hb (referPasses_checkableA hb hS n) (referPasses_checkableA hb hS n) .any
+  | n + 1 =>
+    referPass_checkableA hr hb (referPasses_checkableA hr hb hS n) (referPasses_checkableA hr hb hS n) .any
 
-theorem withRefers_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) : (ds.withRefers S).CheckableA := by
+theorem withRefers_checkableA {ds : Decls} {r : Decls → Val → List Val} {S : Val} (hr : RootsReadable r)
+    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) : (ds.withRefers r S).CheckableA := by
   dsimp only [Decls.withRefers]
   split
-  · exact .meet (referPass_checkableA hb (referPasses_checkableA hb hS _) (referPasses_checkableA hb hS _) .nil) .nil
-  · exact referPass_checkableA hb (referPasses_checkableA hb hS _) (referPasses_checkableA hb hS _) .nil
+  · exact .meet (referPass_checkableA hr hb (referPasses_checkableA hr hb hS _)
+      (referPasses_checkableA hr hb hS _) .nil) .nil
+  · exact referPass_checkableA hr hb (referPasses_checkableA hr hb hS _) (referPasses_checkableA hr hb hS _) .nil
 
-theorem Decls.prepared_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (root : Val) : (ds.prepared S root).2.CheckableA :=
-  membersRead_checkableA (withRefers_checkableA (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb))
-    (withMoves_checkableA (placedT_checkableA hS []))) root
+theorem Decls.prepared_checkableA {ds : Decls} {S : Val} {rl r : Decls → Val → List Val}
+    (hr : RootsReadable rl) (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
+    (ds.prepared S rl r).2.CheckableA :=
+  membersRead_checkableA (withRefers_checkableA hr (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb))
+    (withMoves_checkableA (placedT_checkableA hS []))) _
 
 /-- `vetA` computes `VetA` wherever the checker can read the two
 documents the verdict hands `vet`, the schema's reading and the data's,
@@ -3029,7 +3061,7 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (S' := ds.preparedD S j)
     (Decls.placed_bodies_checkableA (S := S) (Decls.withRel_checkableA hb))
-    (Decls.prepared_checkableA hb hS _) (Decls.prepared_checkableA hb hS _) v
+    (Decls.prepared_checkableA rootsS_readable hb hS) (Decls.prepared_checkableA Decls.linkReader_readable hb hS) v
 
 /-- `vetP` computes `VetP` on every document whose bodies, sources and
 schema read no pattern and no format. -/

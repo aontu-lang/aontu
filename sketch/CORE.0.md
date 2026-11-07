@@ -11,7 +11,8 @@ path value, links collected from the result, rounds from a copy of the
 document, the recording, live write and staging removed); `move`
 waits. Its three rulings are 35 to 37 of §7, ruled 2026-11-07: a link
 in an unused declaration keeps sending, a link a call's value holds
-sends, and an address the data supplies counts. The study asks whether the definition's special
+sends, and an address the data supplies counts, which the definition
+now reads too. The study asks whether the definition's special
 cases can be cut by restating a few features as a small core plus
 translations into it. Rulings stay in §7.
 
@@ -204,9 +205,9 @@ body sends whether the body is used or not; collecting each body's own
 normal form keeps that. A link in a call's argument, which no landing
 enters, sends in both engines, and in the definition wherever the made
 call's value holds it, though not yet from a `filter`'s source (limit
-19). An address the data supplies counts in both engines and not in
-the definition (limit 19); collecting from the document the data meets
-would count it.
+19). An address the data supplies counts in both engines, and in the
+definition since it reads a document's links in the tree the data
+reads in (`Decls.linkReader`).
 
 ### 4.2 Holes: `_` as a bound variable
 

@@ -108,7 +108,7 @@ def Data.src : Data → Option String
   | .null => some "null"
   | .map fs => do pure ("{" ++ ", ".intercalate (← membersSrc fs) ++ "}")
   | .list xs => do pure ("[" ++ ", ".intercalate (← elemsSrc xs) ++ "]")
-  | .addr _ => none
+  | .addr a => a.src
 
 def membersSrc : List (String × Data) → Option (List String)
   | [] => some []

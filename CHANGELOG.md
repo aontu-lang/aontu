@@ -8,6 +8,29 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads an address the data supplies
+
+The definition, and shared rows. Neither engine changes.
+
+- Beside data, the definition reads a document's links in the tree
+  the data reads in (`Decls.linkReader` in `spec/Aontu/Paths.lean`),
+  as both engines do and as ruling 37 asks. An address the data
+  supplies is checked and its template meets its target: with
+  `b: refer({r: 3})` and data `b: path($.a)`, data `a: {p: 1, r: 4}`
+  is `invalid`, and `b: path($.nope)` is too. Data that picks an arm
+  without a link drops that arm's link.
+- The link pass, `referPass`, `referPasses`, `referCount`,
+  `bodyFlows` and `withRefers`, takes the reader of the roots it
+  reads in. `Decls.prepared` takes one for the links and one for the
+  spreads.
+- A document whose name refers to itself with nothing between is an
+  `error` before any data, and keeps its links read in the schema's
+  own tree, which its data reading would unfold without end.
+- The oracle writes a data address as `path(…)`, so a row's data can
+  hold one.
+- 18 `verdict` rows from the definition, rf252 to rf269 in
+  `test/spec/def-path.tsv`. Both engines answer all 18.
+
 ### The definition reads a body's own members at the body's place
 
 The definition, and shared rows. Neither engine changes.
