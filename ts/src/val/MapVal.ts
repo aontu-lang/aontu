@@ -38,7 +38,7 @@ import { NilVal } from './NilVal'
 import { BagVal, keyTable, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { cmpCodePoint } from '../keyorder'
-import { rides } from '../rider'
+import { bare } from '../rider'
 import { aliasBareName, EXPORT_DECL_NAME } from '../aliasname'
 import { markSpread } from '../provenance'
 
@@ -274,9 +274,9 @@ class MapVal extends BagVal {
           oval =
             child.isNil ? child :
                 key_spread_cj.isNil ? key_spread_cj :
-                  key_spread_cj.isTop && !rides(key_spread_cj) && child.done
+                  bare(key_spread_cj) && child.done
                     && undefined === keyctx.prov ? child :
-                    child.isTop && !rides(child) && key_spread_cj.done ? key_spread_cj :
+                    bare(child) && key_spread_cj.done ? key_spread_cj :
                       meetTemplate(te ? keyctx.clone({ explain: ec(te, 'KEY:' + key) }) : keyctx,
                         child, key_spread_cj, 'map-own')
 
@@ -341,7 +341,7 @@ class MapVal extends BagVal {
                 upeer.aliasKeys.includes(peerkey)
                 ? unite(peerctx, peerchild, TOP, 'map-peer-only')
                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
-              child.isTop && !rides(child) && peerchild.done ? peerchild :
+              bare(child) && peerchild.done ? peerchild :
                 child.isNil ? (literalNilRefuses(child, peerchild) ?
                   makeNilErr(peerctx, 'literal_nil', child, peerchild) : child) :
                   peerchild.isNil ? (literalNilRefuses(peerchild, child) ?

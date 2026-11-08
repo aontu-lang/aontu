@@ -319,7 +319,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 109 rows under eleven causes: decisions 3 and 4 of §2, under
+ledger holds 105 rows under ten causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -329,9 +329,7 @@ as an error of the schema, where the ports move (#361); an optional
 key of the general side compared only where the specific side declares
 it, where the ports move (#377); and a
 path inside a rider's value to a member beside it, which decision 14 of
-§7 reads through the rider, where the ports move (#416); a mark a
-key's second declaration carries, which decision 10 of §7 keeps through
-the meet, where the ports move (#420); and a default at a list position
+§7 reads through the rider, where the ports move (#416); a default at a list position
 under the `defaults` profile, which the ports do not compare, where the
 ports move (#424); and a `+` that waits inside a `match` pattern, which the
 definition reads as refusing, a call refusing every value, where both
@@ -340,6 +338,9 @@ The 81 rows of #426, a call no reading makes, with the wrong number of
 arguments or a non-number negated, which the ports read as invalid,
 retired on 2026-11-02 when both ports' `vet` read a failure the schema
 holds, wherever it stands, as the schema's own.
+The 4 rows of #420, a mark a key's second declaration carries, which
+decision 10 of §7 keeps through the meet, retired on 2026-11-08 when
+both ports' meets carried the marks of both sides (ruling 38).
 The nine rows of #384, a spread on the general side compared with a
 sealed specific side's missing spread as `any`, retired on 2026-10-20
 when the ports built ruling 12 of §7.
@@ -1840,6 +1841,12 @@ until the phase that encodes it lands.
    value marks it the same way. The definition stays as it is. Both
    engines move, and #419 settles the same way: TypeScript keeps the
    mark of either side, as Go does where neither side is `any`.
+   **Built 2026-11-08**: both engines' `unite` gives the result the
+   marks of both its sides (`markOn`), and rows hm0 to hm53 of
+   `test/spec/def-path.tsv` hold them to it; #420's ledger rows retire.
+   A `type()` spread template, which both engines unwrap so that it
+   constrains its members without marking them (the `spread-type`
+   rows), is left for a ruling of its own.
 
 ## 8. Risks
 

@@ -37,7 +37,7 @@ import { NilVal } from './NilVal'
 import { BagVal, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { markSpread } from '../provenance'
-import { rides } from '../rider'
+import { bare } from '../rider'
 
 
 // The elements a list holds a position for: none for absence, nor for
@@ -209,9 +209,9 @@ class ListVal extends BagVal {
           oval =
             child.isNil ? child :
                 key_spread_cj.isNil ? key_spread_cj :
-                  key_spread_cj.isTop && !rides(key_spread_cj) && child.done
+                  bare(key_spread_cj) && child.done
                     && undefined === keyctx.prov ? child :
-                    child.isTop && !rides(child) && key_spread_cj.done ? key_spread_cj :
+                    bare(child) && key_spread_cj.done ? key_spread_cj :
                       meetTemplate(te ? keyctx.clone({ explain: ec(te, 'PEG:' + key) }) : keyctx,
                         child, key_spread_cj, 'list-own')
 
@@ -272,7 +272,7 @@ class ListVal extends BagVal {
 
           let oval = out.peg[peerkey] =
             undefined === child ? peerchild :
-              child.isTop && !rides(child) && peerchild.done ? peerchild :
+              bare(child) && peerchild.done ? peerchild :
                 child.isNil ? child :
                   peerchild.isNil ? peerchild :
                     unite(te ? peerctx.clone({ explain: ec(te, 'CHD') }) : peerctx,

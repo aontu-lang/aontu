@@ -64,6 +64,19 @@ function rideOn(ctx, out, a, b) {
     ride(t, a, b);
     return (0, rider_1.riderText)('', t) === (0, rider_1.riderText)('', out) ? out : t;
 }
+// A meet carries the marks of both its sides (ruling 38), `any`'s
+// included, a top taking them on a fresh top as it takes the riders.
+function markOn(ctx, out, a, b) {
+    const hide = (true === a?.mark?.hide || true === b?.mark?.hide) && !out.mark.hide;
+    const type = (true === a?.mark?.type || true === b?.mark?.type) && !out.mark.type;
+    if (!hide && !type) {
+        return out;
+    }
+    const t = out.isTop ? out.clone(ctx) : out;
+    t.mark.hide = t.mark.hide || hide;
+    t.mark.type = t.mark.type || type;
+    return t;
+}
 function drives(v) {
     return v.isConjunct
         || v.isDisjunct
@@ -92,8 +105,8 @@ const unite = (ctx, a, b, whence) => {
         else if (b !== undefined && b !== null && undefined === ctx.prov) {
             if (a.done && b.done) {
                 if (a.id === b.id) {
-                    // The riders survive the fast path (G3, G12).
-                    return rideOn(ctx, a, a, b);
+                    // The riders and the marks survive the fast path (G3, G12).
+                    return rideOn(ctx, markOn(ctx, a, a, b), a, b);
                 }
                 if (a.constructor === b.constructor && a.peg === b.peg
                     && a.emptyOk === b.emptyOk
@@ -109,7 +122,7 @@ const unite = (ctx, a, b, whence) => {
                     && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
                     // The riders survive this fast path too: `deprecate(5) & 5`.
                     ride(a, a, b);
-                    return a;
+                    return markOn(ctx, a, a, b);
                 }
             }
         }
@@ -237,7 +250,7 @@ const unite = (ctx, a, b, whence) => {
         ctx.prov.record(ctx.path, a, b, out);
     }
     if (null != out && true === out.isVal && !out.isNil) {
-        out = rideOn(ctx, out, a, b);
+        out = rideOn(ctx, markOn(ctx, out, a, b), a, b);
     }
     if (undefined !== ctx.reads &&
         null != out && true === out.isVal && !out.isTop && !out.isNil) {

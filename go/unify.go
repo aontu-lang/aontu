@@ -32,7 +32,7 @@ func unite(ctx *Ctx, a, b Val) Val {
 		ctx.prov.record(provPath, a, b, out)
 	}
 	if nil != out && !out.Nil() {
-		out = rideOn(out, a, b)
+		out = rideOn(markOn(out, a, b), a, b)
 	}
 	if nil != ctx.reads && nil != out && !isTop(out) && !out.Nil() {
 		if "" == out.readAddr() {

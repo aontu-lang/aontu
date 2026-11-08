@@ -4479,6 +4479,18 @@ a: copy($.x)
 {"a":{"y":1}}
 ```
 
+A meet carries the marks of both its sides, whichever side's value it
+answers, so a mark met with `any` marks the value it meets:
+
+```aontu
+a: { x:1 y:2 } & { x:hide(any) }
+b: integer & hide(integer)
+```
+
+```json
+{"a":{"y":2}}
+```
+
 **A type is a definition, and its instances are closed.** The
 statements at the type's own path extend it (`T: type({ a:1 })` and
 `T: { b:2 }` is one definition with both keys), but a copy taken by
@@ -4515,7 +4527,8 @@ suppressing its emission.
 In the definition, `type()` and `hide()` are riders, `ride` in
 [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean) with the call and
 no record, so a marked value admits what its value admits, as
-`judge_ride_iff` states, and a mark rides every meet. `Output` in
+`judge_ride_iff` states, and a mark rides every meet, as both engines
+read it. `Output` in
 [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean) generates from a
 term's visible part, `Val.visible`, in which a marked member of a map is
 optional and holds anything: the output leaves the member out, and the

@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### A meet carries the marks of both its sides
+
+Both engines, and shared rows. The definition doesn't change.
+
+- A meet now carries the `hide()` and `type()` marks of both its
+  sides, whichever side's value it answers, `any`'s included (ruling
+  38). So `a: {x: 1, y: 2} & {x: hide(any)}` leaves `x` out of the
+  output in both engines, and `vet --no-fill` no longer asks the data
+  for it (#673). `1 & hide(1)`, which TypeScript answered unmarked
+  (#419), and a key whose second declaration carries the mark, which
+  both engines answered unmarked (#420), keep it the same way, and a
+  spread's `hide(any)` template hides each member it meets.
+- A `type()` spread template still constrains its members without
+  marking them, as the `spread-type` rows hold, pending a ruling of its
+  own.
+- Rows hm0 to hm53 of `test/spec/def-path.tsv`. The four rows of #420
+  leave `spec/ledger.tsv`, whose bound falls to 105, and
+  `hcanon-spread-hide-instance` reads its member as hidden.
+
 ### vet and subsume keep their engine between calls
 
 TypeScript. Go and the shared rows don't change.

@@ -1,6 +1,7 @@
 "use strict";
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.bare = bare;
 exports.unionRecords = unionRecords;
 exports.unionVia = unionVia;
 exports.recordLayers = recordLayers;
@@ -36,6 +37,9 @@ function unionVia(...lists) {
 function rides(v) {
     return null != v?.deprecation || null != v?.meta;
 }
+function bare(v) {
+    return true === v.isTop && !rides(v) && !v.mark.hide && !v.mark.type;
+}
 // The records a rider is written as: the first holds each key's first
 // value, the second each key's second, so a reparse unions them back.
 function recordLayers(rec) {
@@ -68,5 +72,5 @@ function riderText(s, v) {
         s = 'meta(' + [s, ...recordLayers(m).map((l) => layerText(l, (x) => x.canon))].join(',') + ')';
     }
     return s;
-} /* node:coverage ignore next 9 */
+} /* node:coverage ignore next 10 */
 //# sourceMappingURL=rider.js.map

@@ -4361,7 +4361,8 @@ $ aontu marks.aontu
 A mark is a rider, `ride` with the call `type` or `hide` and no record,
 so it judges every datum as its value does, as the riders of step 19
 do, and it rides every meet: `{a: integer} & {a: hide(1)}` leaves `a`
-out too. Evaluation generates what it singles out from the term's
+out too, and so does `{a: 1} & {a: hide(any)}`, a mark met with `any`
+marking the value it meets, as both engines read it. Evaluation generates what it singles out from the term's
 visible part, in which a member left out of the output, `leftOut`, is
 optional and holds anything: a marked member, and an absent member,
 step 33's:
