@@ -207,8 +207,7 @@ Three choices needed a ruling, now rulings 35 to 37 of DEFINITION.0.md
 body sends whether the body is used or not; collecting each body's own
 normal form keeps that. A link in a call's argument, which no landing
 enters, sends in both engines, and in the definition wherever the made
-call's value holds it, though not yet from a `filter`'s source (limit
-19). An address the data supplies counts in both engines, and in the
+call's value holds it, a `filter`'s kept child among them (#674). An address the data supplies counts in both engines, and in the
 definition since it reads a document's links in the tree the data
 reads in (`Decls.linkReader`).
 

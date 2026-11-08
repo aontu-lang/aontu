@@ -5660,15 +5660,26 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     let s' := resolveD ds b here s
     if here.isNone && c.holdsKey then .filter s' c else
     match genD ds s' with
-    | some (.map fs) => ((Data.map (fs.filter fun m =>
-        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).term).rideMoves s'.moves
-    | some (.list xs) => ((Data.list (keptAt (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) 0 xs)).term).rideMoves s'.moves
+    | some (.map fs) => (keptFields (normaliseD ds s').unride (fs.filter fun m =>
+        checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).rideMoves s'.moves
+    | some (.list xs) => (keptElems (normaliseD ds s').unride (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) xs).rideMoves s'.moves
     | some _ => .nil
     | none =>
       if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
       else .filter s' (resolveD ds none none c)
 ```
+
+A made `filter` holds each child its condition admits as the child
+itself: the member the source's normal form holds under its key, or the
+element at its position (`keptFields`, `keptElems`), where its
+generated data only decides whether the condition admits it. So
+`b: filter({x: *1 | 2}, any) & {x: 2}` is `{"b": {"x": 2}}`, and a link
+in a child the condition keeps sends its template, while one in a child
+it refuses sends none, as in both engines. Rows fk0 to fk20 hold both
+engines to it. A child that generates nothing, `filter({x: integer},
+any)`, leaves the `filter` unmade, where both engines keep the child,
+which #674 tracks.
 
 Both engines read some of a trial's arguments as they build the trial,
 and a conflict there makes the trial a conflict where it stands: a
@@ -5751,14 +5762,15 @@ theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm d
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- A `filter` read at a position over a list keeps the elements its
-condition admits, in their order, the condition read for each element
-it tries, at the index the element takes among those kept, carrying the
-moves its source holds. -/
+condition admits, in their order, each the element the source's normal
+form holds there, the condition read for each element it tries, at the
+index the element takes among those kept, carrying the moves its source
+holds. -/
 theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
     {xs : List Data} (h : genD ds (resolveD ds b (some pos) s) = some (.list xs)) :
     resolveD ds b (some pos) (.filter s c) =
-      ((Data.list (keptAt (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) 0 xs)).term).rideMoves
+      (keptElems (normaliseD ds (resolveD ds b (some pos) s)).unride (fun i x =>
+        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) xs).rideMoves
         (resolveD ds b (some pos) s).moves := by
   simp [resolveD, h]
 ```
@@ -9800,10 +9812,7 @@ Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker
 of step 17 reads unmade. Neither has a rule yet.
 
-Nor does it read a link or a spread everywhere one can land. A link in
-a `filter`'s source sends nothing, since the definition makes a
-`filter` only when it generates the output, where both engines send
-it. A link
+Nor does it read a link or a spread everywhere one can land. A link
 another link's template carries does send: each pass reads the links
 of the tree the last one made. The definition reads such a link's
 relative address where the link lands, though, and both engines read

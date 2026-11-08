@@ -27,6 +27,22 @@ TypeScript. Go and the shared rows don't change.
   Every shared row runs in one process in 160 s on a four-core machine,
   where the definition's `def-path.tsv` alone took 33 s before (7 s now).
 
+### The definition's made filter keeps each child itself
+
+The definition, and shared rows. Neither engine changes.
+
+- A `filter` the definition makes held the data its kept children
+  generate, so a preference, a kind or a link in a child was lost
+  there, where both engines keep the child itself. `resolveD` now keeps
+  the member the source's normal form holds under each admitted key,
+  and the element at each admitted position (`keptFields`,
+  `keptElems`). So `b: filter({x: *1 | 2}, any) & {x: 2}` is valid
+  against `{"b": {"x": 2}}`, where the definition read an error, and a
+  link in a kept child sends its template (ruling 36). A child that
+  generates nothing still leaves the `filter` unmade, which #674
+  tracks.
+- Rows fk0 to fk20 of `test/spec/def-path.tsv`. No other row changes.
+
 ### The definition hides a member inside a moved list element
 
 The definition, and shared rows. Neither engine changes.
