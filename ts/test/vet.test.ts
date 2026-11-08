@@ -12,6 +12,7 @@ import { relationCheck } from '../dist/relation'
 import { subsume } from '../dist/subsume'
 import { vet as vetFromPackage } from '../dist/aontu'
 import { RefVal } from '../dist/val/RefVal'
+import { sharedEngine, MAX_ENGINES } from '../dist/engine'
 
 
 const SCHEMA = 'service: { name: string, port: integer }'
@@ -110,6 +111,50 @@ describe('vet-site-span', () => {
     Assert.equal(line.substr(site.col - 1, site.len), site.src)
   })
 
+})
+
+
+describe('vet-shared-engine', () => {
+
+  test('one-engine-per-option-set', () => {
+    Assert.strictEqual(sharedEngine({}), sharedEngine({}))
+    Assert.notStrictEqual(sharedEngine({ textExt: ['txt'] }), sharedEngine({}))
+  })
+
+  test('the-oldest-engine-goes-past-the-bound', () => {
+    const first = sharedEngine({ textExt: ['e0'] })
+    for (let i = 1; i <= MAX_ENGINES; i++) {
+      sharedEngine({ textExt: ['e' + i] })
+    }
+    Assert.notStrictEqual(sharedEngine({ textExt: ['e0'] }), first)
+  })
+
+  test('a-caller-changing-its-options-changes-no-engine', () => {
+    const src = 'a: $.b, b: $.c, c: 1'
+    const opts = { trust: { budget: { passes: 9 } } }
+    Assert.equal(vet(src, '{}', opts).verdict, 'valid')
+    opts.trust.budget.passes = 1
+    Assert.equal(
+      vet(src, '{}', { trust: { budget: { passes: 9 } } }).verdict, 'valid')
+  })
+
+  test('a-relative-root-reads-the-current-directory', () => {
+    const was = process.cwd()
+    const base = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-engine-'))
+    const opts = { trust: { include: { root: '.' } } }
+    try {
+      for (const n of [1, 2]) {
+        const dir = Path.join(base, 'd' + n)
+        Fs.mkdirSync(dir)
+        Fs.writeFileSync(Path.join(dir, 'x.aontu'), 'n: ' + n)
+        process.chdir(dir)
+        Assert.equal(vet('k: @"./x.aontu"', 'k: n: ' + n, opts).verdict, 'valid')
+      }
+    }
+    finally {
+      process.chdir(was)
+    }
+  })
 })
 
 

@@ -3,7 +3,7 @@ import { includeOpts } from './utility'
 
 
 import type { TrustOptions } from './type'
-import { Aontu } from './aontu'
+import { sharedEngine } from './engine'
 import { anchorAt } from './vet'
 import { hcanon } from './hcanon'
 import type { VetFinding, VetSite } from './vet'
@@ -922,7 +922,7 @@ export function subsume(
   }
 
   const load = (src: string, path?: string): any => {
-    const aontu = new Aontu(includeOpts(options))
+    const aontu = sharedEngine(includeOpts(options))
     const ctx = aontu.ctx({ collect: true })
     const v: any = aontu.unify(
       src, null == path ? undefined : { path }, ctx)

@@ -106,8 +106,7 @@ function ownArgs(ctx: AontuContext, v: Val): Val {
       return val
     }
     const out: any = val.clone(ctx, { path: [...val.path] })
-    out.peg = val.peg.map((a: any) =>
-      true === a?.isVal ? a.clone(ctx, { path: [...a.path] }) : a)
+    out.peg = val.peg.map((a: Val) => a.clone(ctx, { path: [...a.path] }))
     return out
   })
 }

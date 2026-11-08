@@ -45,6 +45,7 @@ const relation_1 = require("../dist/relation");
 const subsume_1 = require("../dist/subsume");
 const aontu_1 = require("../dist/aontu");
 const RefVal_1 = require("../dist/val/RefVal");
+const engine_1 = require("../dist/engine");
 const SCHEMA = 'service: { name: string, port: integer }';
 (0, node_test_1.describe)('vet-site-span', () => {
     const DATA = 'port: 0x1F\n';
@@ -125,6 +126,43 @@ const SCHEMA = 'service: { name: string, port: integer }';
         const site = siteOfFirstDataFinding();
         const line = DATA.split('\n')[site.row - 1];
         Assert.equal(line.substr(site.col - 1, site.len), site.src);
+    });
+});
+(0, node_test_1.describe)('vet-shared-engine', () => {
+    (0, node_test_1.test)('one-engine-per-option-set', () => {
+        Assert.strictEqual((0, engine_1.sharedEngine)({}), (0, engine_1.sharedEngine)({}));
+        Assert.notStrictEqual((0, engine_1.sharedEngine)({ textExt: ['txt'] }), (0, engine_1.sharedEngine)({}));
+    });
+    (0, node_test_1.test)('the-oldest-engine-goes-past-the-bound', () => {
+        const first = (0, engine_1.sharedEngine)({ textExt: ['e0'] });
+        for (let i = 1; i <= engine_1.MAX_ENGINES; i++) {
+            (0, engine_1.sharedEngine)({ textExt: ['e' + i] });
+        }
+        Assert.notStrictEqual((0, engine_1.sharedEngine)({ textExt: ['e0'] }), first);
+    });
+    (0, node_test_1.test)('a-caller-changing-its-options-changes-no-engine', () => {
+        const src = 'a: $.b, b: $.c, c: 1';
+        const opts = { trust: { budget: { passes: 9 } } };
+        Assert.equal((0, vet_1.vet)(src, '{}', opts).verdict, 'valid');
+        opts.trust.budget.passes = 1;
+        Assert.equal((0, vet_1.vet)(src, '{}', { trust: { budget: { passes: 9 } } }).verdict, 'valid');
+    });
+    (0, node_test_1.test)('a-relative-root-reads-the-current-directory', () => {
+        const was = process.cwd();
+        const base = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-engine-'));
+        const opts = { trust: { include: { root: '.' } } };
+        try {
+            for (const n of [1, 2]) {
+                const dir = Path.join(base, 'd' + n);
+                Fs.mkdirSync(dir);
+                Fs.writeFileSync(Path.join(dir, 'x.aontu'), 'n: ' + n);
+                process.chdir(dir);
+                Assert.equal((0, vet_1.vet)('k: @"./x.aontu"', 'k: n: ' + n, opts).verdict, 'valid');
+            }
+        }
+        finally {
+            process.chdir(was);
+        }
     });
 });
 (0, node_test_1.describe)('vet-verdicts', () => {

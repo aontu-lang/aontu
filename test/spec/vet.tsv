@@ -504,6 +504,8 @@ vet-no-fill-untyped-count-and-not-object	vet	nof(0, null|boolean|number|empty()|
 vet-no-fill-data-holding-a-reference	vet	a: integer\nb: integer	a: 1\nb: $.a	{"findings":[],"opts":{"noFill":true},"truncated":false,"verdict":"valid"}
 vet-no-fill-data-holding-a-call	vet	[integer, integer]	[1, add(1, 1)]	{"findings":[],"opts":{"noFill":true},"truncated":false,"verdict":"valid"}
 vet-no-fill-data-that-needs-the-schema	vet	b: 1	a: $.b	{"findings":[{"class":"reference","code":"no_path","path":"$.a","pointer":"/a","severity":"error","sites":[{"col":4,"file":"data","len":1,"role":"data","row":1,"src":"$","value":"$.b"}]}],"opts":{"noFill":true},"truncated":false,"verdict":"invalid"}
+vet-no-fill-a-null-arm-stands-for-the-datas-null	vet	v: *null | null	{"v": null}	{"findings":[],"opts":{"noFill":true},"truncated":false,"verdict":"valid"}
+vet-no-fill-a-null-arm-stands-for-a-null-element	vet	v: [*null | null]	{"v": [null]}	{"findings":[],"opts":{"noFill":true},"truncated":false,"verdict":"valid"}
 
 # A finding raised as the meet generates is reported whatever its class:
 # a reference in the data that names nothing is a `reference` finding,

@@ -3,7 +3,7 @@
 
 import type { TrustOptions, Val } from './type'
 
-import { Aontu } from './aontu'
+import { sharedEngine } from './engine'
 import {
   dirname, isAbsolute, join as pathJoin, relative as pathRelative,
   resolve as pathResolve,
@@ -646,7 +646,7 @@ export function vet(
   const dataUrl = options.dataUrl ?? DEFAULT_DATA_URL
   const maxErrors = options.maxErrors ?? VET_MAX_ERRORS
 
-  const aontu = new Aontu(includeOpts(options))
+  const aontu = sharedEngine(includeOpts(options))
   const schemaOpts = null == options.schemaPath ?
     undefined : { path: options.schemaPath }
   const dataOpts = {

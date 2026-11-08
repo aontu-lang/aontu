@@ -10,7 +10,7 @@ exports.throughResidue = throughResidue;
 exports.coverThrough = coverThrough;
 exports.vetCoverage = vetCoverage;
 exports.vet = vet;
-const aontu_1 = require("./aontu");
+const engine_1 = require("./engine");
 const node_path_1 = require("node:path");
 const err_1 = require("./err");
 const hints_1 = require("./hints");
@@ -450,7 +450,7 @@ function vet(schemaSrc, dataSrc, opts) {
     const schemaUrl = options.schemaUrl ?? DEFAULT_SCHEMA_URL;
     const dataUrl = options.dataUrl ?? DEFAULT_DATA_URL;
     const maxErrors = options.maxErrors ?? exports.VET_MAX_ERRORS;
-    const aontu = new aontu_1.Aontu((0, utility_1.includeOpts)(options));
+    const aontu = (0, engine_1.sharedEngine)((0, utility_1.includeOpts)(options));
     const schemaOpts = null == options.schemaPath ?
         undefined : { path: options.schemaPath };
     const dataOpts = {

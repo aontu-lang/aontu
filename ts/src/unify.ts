@@ -380,7 +380,7 @@ function flowsOf(root: Val, links: LinkSite[]): Flow[] {
   const seen = new Map<string, Flow>()
   for (const { link } of links) {
     for (const [key, t] of link.flows ?? []) {
-      const id = flowId(key, t, new Set())
+      const id = flowId(key, t)
       const to = key.split('\x00')
       if (!seen.has(id) && undefined !== findAt(root, to)) {
         seen.set(id, { to, t, id })
@@ -393,16 +393,9 @@ function flowsOf(root: Val, links: LinkSite[]): Flow[] {
 
 // A template is the same as another only with the same templates in the
 // links it holds, which its canon leaves out.
-function flowId(key: string, t: Val, open: Set<Val>): string {
-  // No document builds a template that holds its own link.
-  /* node:coverage ignore next 3 */
-  if (open.has(t)) {
-    return key
-  }
-  open.add(t)
+function flowId(key: string, t: Val): string {
   const inner = linksOf(t).flatMap(({ link }) => (link.flows ?? [])
-    .map(([k, n]: [string, Val]) => flowId(k, n, open))).sort()
-  open.delete(t)
+    .map(([k, n]: [string, Val]) => flowId(k, n))).sort()
   return key + '\x01' + t.canon + (0 === inner.length ? '' : '\x02' + inner.join('\x03'))
 }
 
@@ -613,7 +606,7 @@ class Unify {
 
 const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string): Val =>
   true === (tmpl as any).isPlace && true !== ctx._matchRead ? unite(ctx, tmpl, member, whence)
-    : unite(ctx, member, tmpl, whence) /* node:coverage ignore next 11 */
+    : unite(ctx, member, tmpl, whence) /* node:coverage ignore next 12 */
 
 
 export {

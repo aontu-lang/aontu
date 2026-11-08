@@ -8,6 +8,25 @@ each change affects.
 
 ## Unreleased
 
+### vet and subsume keep their engine between calls
+
+TypeScript. Go and the shared rows don't change.
+
+- Building an engine costs about 11 ms, nearly all of it the parser's
+  grammar, and `vet` and `subsume` built one on every call. They now
+  take one from `ts/src/engine.ts`, which keeps one engine for each set
+  of options they pass, the trust profile and the text extensions, as
+  `format` and the JSON Schema exporter already keep theirs. A call on
+  a small document costs about a quarter of what it did.
+- The engine for a set of options is kept per working directory, since
+  a relative include root resolves against it when the engine is
+  built, and the engine holds its own copy of the options, so a caller
+  who changes theirs after a call changes no later call's engine.
+- The spec runner shares its rows' engine the same way, and its
+  repeatability checks compare a fresh engine against the shared one.
+  Every shared row runs in one process in 160 s on a four-core machine,
+  where the definition's `def-path.tsv` alone took 33 s before (7 s now).
+
 ### The definition's made filter keeps each child itself
 
 The definition, and shared rows. Neither engine changes.

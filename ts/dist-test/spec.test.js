@@ -42,6 +42,7 @@ const Fs = __importStar(require("node:fs"));
 const Path = __importStar(require("node:path"));
 const aontu_1 = require("../dist/aontu");
 const jsonschema_1 = require("../dist/jsonschema");
+const engine_1 = require("../dist/engine");
 const jsonschema_import_1 = require("../dist/jsonschema-import");
 const sourcemap_1 = require("../dist/sourcemap");
 const reach_1 = require("../dist/reach");
@@ -287,10 +288,17 @@ const TRUST_FILES = {
     // resolver that reads the working directory.
     'fmt.tsv': true,
 };
-function rowAontu(row) {
-    return new aontu_1.Aontu(null != row.file && true === TRUST_FILES[row.file]
+function rowOpts(row) {
+    return null != row.file && true === TRUST_FILES[row.file]
         ? { trust: { include: { root: FIXTURES_DIR } } }
-        : {});
+        : {};
+}
+function rowAontu(row) {
+    return (0, engine_1.sharedEngine)(rowOpts(row));
+}
+// For the repeatability checks: a fresh engine against the shared one.
+function freshAontu(row) {
+    return new aontu_1.Aontu(rowOpts(row));
 }
 // The definition's rows (sketch/DEFINITION.0.md): the golden names
 // the verdict, or the verdicts it may be, and nothing else in the
@@ -334,7 +342,7 @@ function runRow(row) {
     }
     else if ('gens' === row.mode) {
         Assert.strictEqual(genJSON(a0.generate(row.src, undefined, ctx)), row.expect);
-        const a1 = rowAontu(row);
+        const a1 = freshAontu(row);
         Assert.strictEqual(genJSON(a1.generate(row.src, undefined, makeVarsCtx(a1))), row.expect, `gens is not repeatable: ${row.name}`);
     }
     else if ('err' === row.mode) {
@@ -490,7 +498,7 @@ function runRow(row) {
         Assert.strictEqual((0, aontu_1.exactJSON)(graph), (0, aontu_1.exactJSON)(JSON.parse(row.expect)), `graph mismatch: ${row.name}`);
         // ... and DETERMINISTIC is a property, not a claim: a fresh engine
         // over the same source answers the same bytes.
-        const a1 = rowAontu(row);
+        const a1 = freshAontu(row);
         Assert.strictEqual((0, aontu_1.exactJSON)((0, aontu_1.graphOf)(a1.unify(row.src, undefined, makeVarsCtx(a1)))), (0, aontu_1.exactJSON)(graph), `graph is not repeatable: ${row.name}`);
     }
     else if ('hcanon' === row.mode) {

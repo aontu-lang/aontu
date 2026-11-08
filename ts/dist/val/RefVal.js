@@ -73,7 +73,7 @@ function ownArgs(ctx, v) {
             return val;
         }
         const out = val.clone(ctx, { path: [...val.path] });
-        out.peg = val.peg.map((a) => true === a?.isVal ? a.clone(ctx, { path: [...a.path] }) : a);
+        out.peg = val.peg.map((a) => a.clone(ctx, { path: [...a.path] }));
         return out;
     });
 }
