@@ -14,6 +14,26 @@ func propagateMarks(from, to Val) {
 }
 
 
+// markOn gives a meet the marks of both its sides (ruling 38), any's
+// included, a top taking them on a fresh top as rideOn gives the riders.
+func markOn(out, a, b Val) Val {
+	mt := (nil != a && a.markedType()) || (nil != b && b.markedType())
+	mh := (nil != a && a.markedHide()) || (nil != b && b.markedHide())
+	if (!mt || out.markedType()) && (!mh || out.markedHide()) {
+		return out
+	}
+	if isTop(out) {
+		out = clonePath(out, out.vpath())
+	}
+	if mt {
+		out.setMarkType(true)
+	}
+	if mh {
+		out.setMarkHide(true)
+	}
+	return out
+}
+
 // walkMark sets or clears the type/hide marks on a Val and all of its
 // descendants (the walk used by type(), hide() and copy()).
 func walkMark(v Val, setType, typeVal, setHide, hideVal bool) {

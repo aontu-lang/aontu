@@ -47,6 +47,11 @@ function rides(v: any): boolean {
 }
 
 
+function bare(v: any): boolean {
+  return true === v.isTop && !rides(v) && !v.mark.hide && !v.mark.type
+}
+
+
 // The records a rider is written as: the first holds each key's first
 // value, the second each key's second, so a reparse unions them back.
 function recordLayers<T>(rec: RiderRecord<T>): Record<string, T>[] {
@@ -85,10 +90,11 @@ function riderText(s: string, v: any): string {
       layerText(l, (x: any) => x.canon))].join(',') + ')'
   }
   return s
-} /* node:coverage ignore next 9 */
+} /* node:coverage ignore next 10 */
 
 
 export {
+  bare,
   unionRecords,
   unionVia,
   recordLayers,

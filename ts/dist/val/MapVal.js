@@ -202,9 +202,9 @@ class MapVal extends BagVal_1.BagVal {
                     oval =
                         child.isNil ? child :
                             key_spread_cj.isNil ? key_spread_cj :
-                                key_spread_cj.isTop && !(0, rider_1.rides)(key_spread_cj) && child.done
+                                (0, rider_1.bare)(key_spread_cj) && child.done
                                     && undefined === keyctx.prov ? child :
-                                    child.isTop && !(0, rider_1.rides)(child) && key_spread_cj.done ? key_spread_cj :
+                                    (0, rider_1.bare)(child) && key_spread_cj.done ? key_spread_cj :
                                         (0, unify_1.meetTemplate)(te ? keyctx.clone({ explain: (0, utility_1.ec)(te, 'KEY:' + key) }) : keyctx, child, key_spread_cj, 'map-own');
                     if (!spread_cj.isTop && !oval.isNil) {
                         ;
@@ -253,7 +253,7 @@ class MapVal extends BagVal_1.BagVal {
                                 upeer.aliasKeys.includes(peerkey)
                                 ? (0, unify_1.unite)(peerctx, peerchild, TOP, 'map-peer-only')
                                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
-                            child.isTop && !(0, rider_1.rides)(child) && peerchild.done ? peerchild :
+                            (0, rider_1.bare)(child) && peerchild.done ? peerchild :
                                 child.isNil ? (literalNilRefuses(child, peerchild) ?
                                     (0, err_1.makeNilErr)(peerctx, 'literal_nil', child, peerchild) : child) :
                                     peerchild.isNil ? (literalNilRefuses(peerchild, child) ?

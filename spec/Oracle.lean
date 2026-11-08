@@ -2812,6 +2812,50 @@ theorem filterKeep_verdict_exact : ∀ c ∈ filterKeepCases, ∀ (m : Mode) (v 
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_reads (filterKeepCases_reads c hc) v
 
+/-- Ruling 38: a meet carries the marks of both its sides, `any`'s
+included, so `hide(any)` or `type(any)` met with a value marks it,
+beside a map's member on either side, a scalar, a kind, a map and a
+path reference, and #419's and #420's meets of a value with a marked
+one, whose answer is the unmarked side; a spread's `hide(any)` template
+marks each member it meets; and a list's element marked through a meet
+holds no position, where a marked element of a list that meets another
+holds none to meet (ruling 18). -/
+def markMeetCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let xy : Val := m [("x", int 1), ("y", int 2)]
+  let da (x : Data) : Data := .map [("a", x)]
+  [([], m [("a", .meet xy (m [("x", hide .any)]))], da (.map [("y", j 2)])),
+    ([], m [("a", .meet xy (m [("x", hide .any)]))], da (.map [("x", j 1), ("y", j 2)])),
+    ([], m [("a", .meet xy (m [("x", hide .any)]))], da (.map [("x", j 2), ("y", j 2)])),
+    ([], m [("a", .meet (m [("x", hide .any)]) xy)], da (.map [("y", j 2)])),
+    ([], m [("a", .meet (int 1) (hide .any))], .map []),
+    ([], m [("a", .meet (int 1) (hide .any))], da (j 2)),
+    ([], m [("a", .meet .any (hide .any))], .map []),
+    ([], m [("v", m [("a", .meet .integer (hide .integer))])], .map [("v", .map [])]),
+    ([], m [("v", .meet (m [("a", int 1)]) (m [("a", hide (int 1))]))], .map [("v", .map [])]),
+    ([], m [("a", .meet (m [("x", int 1)]) (m [("x", type .any)]))], da (.map [])),
+    ([], m [("a", .meet (m [("x", .integer)]) (m [("x", hide .any)]))], da (.map [])),
+    ([], m [("a", .meet (m [("x", m [("n", int 1)])]) (m [("x", hide .any)]))], da (.map [])),
+    ([], m [("a", .meet (m [("x", int 1)]) (m [("x", hide .integer)]))], da (.map [])),
+    ([], m [("a", int 1), ("b", .meet (.path [.key "a"]) (hide .any))], .map [("a", j 1)]),
+    ([], m [("x", .meet (.map [] (some (hide .any)) false) (m [("a", int 1), ("b", int 2)]))],
+      .map [("x", .map [])]),
+    ([], m [("a", l [.meet (int 1) (hide .any)])], da (.list [])),
+    ([], m [("a", .meet (l [int 1, int 2]) (l [hide .any]))], da (.list [j 1, j 2])),
+    ([], m [("a", .meet (l [int 1, int 2]) (l [hide .any]))], da (.list [j 2]))]
+
+set_option maxRecDepth 16384 in
+theorem markMeetCases_reads : ∀ c ∈ markMeetCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+
+theorem markMeet_verdict_exact : ∀ c ∈ markMeetCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (markMeetCases_reads c hc) v
+
 /-- Bounds written over terms: `min`, `max`, `above` and `below` over a
 path to a number and to a string, the empty string among them, over a
 relative path and over a call; two bounds over paths met; `neq` over
@@ -6621,6 +6665,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# place where they land, each read there and only at the instances its own"
     IO.println "# generator makes, follow in rows lt0 on. A call over a hole that a path names,"
     IO.println "# which the data fills, so that the call stands until it does, follows in rows dp0 on."
+    IO.println "# A meet carries the marks of both its sides, any's included, in rows hm0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -6643,6 +6688,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "gt" genTemplateCases
     pathRows "fc" filterCondCases
     pathRows "fk" filterKeepCases
+    pathRows "hm" markMeetCases
     pathRows "bd" boundArgCases
     pathRows "bg" (boundFilterCases ++ boundEachCases)
     pathRows "ls" scopeCases
