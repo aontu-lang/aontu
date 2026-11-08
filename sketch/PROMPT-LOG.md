@@ -748,3 +748,15 @@ Ruling 35, step 4.1 (links). A link inside a call's argument, where the call's v
 Ruling 36, step 4.1 (links). An address the data supplies, e.g. schema `b: refer({r: 3})` with data `b: path($.a)`, counts in both engines today: the template flows into `$.a`, so data `a: {p: 1, r: 4}` is invalid. The definition doesn't read it yet (its limit 19). Which should hold?
 → It counts (Recommended)
 ```
+
+## 2026-11-08 11:00:10 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Ruling 34 made hole application explicit: `_` is bound only by a generator or an application form, and `&` becomes a plain meet. Today `upper(_) & "hello"` is "HELLO". Which syntax should the application form use?
+→ apply(v, f) (Recommended)
+
+Ruling 38 (#673): in `a: {x: 1, y: 2} & {x: hide(any)}`, both engines leave `x` unmarked, so it stays in the output and `vet --no-fill` asks the data for it. The definition hides `x`, because it reads a mark through `&`. When `hide(any)`, or `type(any)`, meets a value, does the value take the mark?
+→ It marks (Recommended)
+```

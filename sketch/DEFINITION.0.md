@@ -1764,6 +1764,11 @@ until the phase that encodes it lands.
    definition and both ports move after the study's first step, links
    as obligations (`sketch/CORE.0.md`, §6).
 
+   **Syntax ruled 2026-11-08: `apply(v, f)`.** The value comes first,
+   as `filter(data, cond)` and `each(src, tmpl)` take their data first:
+   `apply("hello", upper(_))` is `"HELLO"`. It is a built-in call, so
+   neither grammar changes.
+
 35. **A link in a declaration nothing uses.** Raised 2026-11-06 by the
    consolidation study (`sketch/CORE.0.md`, §4.1), and put with 36 and
    37 in one question, which numbered them 34 to 36. A declaration's
@@ -1817,6 +1822,24 @@ until the phase that encodes it lands.
    A document whose name refers to itself with nothing between, an
    `error` before any data, keeps its links read in the schema's own
    tree, since its data reading would unfold the name without end.
+
+38. **`hide(any)` or `type(any)` met with a value.** Raised 2026-11-07
+   by #673. In `a: {x: 1, y: 2} & {x: hide(any)}` both engines leave
+   `x` unmarked, so it stays in the output and `vet --no-fill` asks the
+   data for it, since TypeScript's `propagateMarks` skips a side that is
+   `any` and Go does the same. The definition hides `x`, as
+   `Val.hasMark` reads a mark through `&`, and its `move` hides a source
+   by meeting `hide(any)` at the source's path (`hideAt`). #419 is the
+   neighbouring case, `x & hide(y)` with a `y` that isn't `any`, where
+   TypeScript drops the mark and Go keeps it. Either a meet carries the
+   marks of both sides, whatever their values, or the mark of a side
+   that is `any` is lost.
+
+   **Ruled 2026-11-08: it marks.** A meet carries the marks of both
+   sides, `any` included, so `x` is hidden, and `type(any)` met with a
+   value marks it the same way. The definition stays as it is. Both
+   engines move, and #419 settles the same way: TypeScript keeps the
+   mark of either side, as Go does where neither side is `any`.
 
 ## 8. Risks
 
