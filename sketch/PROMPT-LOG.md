@@ -766,3 +766,9 @@ Ruling 38 (#673): in `a: {x: 1, y: 2} & {x: hide(any)}`, both engines leave `x` 
 ```text
 work locally in ~/Projects/aontu-lang/aontu - update to latest and prepare a release 0.76.2 that makes jostraca a peer dep. prepare the release as a branch from the 0.76.1 release commit
 ```
+
+## 2026-11-09 12:22:11 UTC · Claude Code · session_01FpeS4ru69dMPkAX2ezauL9
+
+```text
+publish aontu 0.76.3
+```
