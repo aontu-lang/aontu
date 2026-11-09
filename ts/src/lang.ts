@@ -138,6 +138,7 @@ import { MaybeFuncVal } from './val/MaybeFuncVal'
 import { NomFuncVal } from './val/NomFuncVal'
 import { TranslateFuncVal } from './val/TranslateFuncVal'
 import { EachFuncVal } from './val/EachFuncVal'
+import { ApplyFuncVal } from './val/ApplyFuncVal'
 import { FilterFuncVal } from './val/FilterFuncVal'
 import { MatchFuncVal } from './val/MatchFuncVal'
 import { EmitFuncVal } from './val/EmitFuncVal'
@@ -879,6 +880,7 @@ help isolate the syntax error.`,
     pack: PackFuncVal,
 
     each: EachFuncVal,
+    apply: ApplyFuncVal,
 
     filter: FilterFuncVal,
     match: MatchFuncVal,

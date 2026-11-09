@@ -40,7 +40,7 @@ func (p *PlaceVal) Unify(peer Val, ctx *Ctx) Val {
 func boundArgStart(v Val) int {
 	if fv, ok := v.(*FuncVal); ok {
 		if "pack" == fv.name || "filter" == fv.name ||
-			"emit" == fv.name || "each" == fv.name {
+			"emit" == fv.name || "each" == fv.name || "apply" == fv.name {
 			return 1
 		}
 	}

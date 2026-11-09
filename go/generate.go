@@ -298,7 +298,7 @@ func matchFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {
 // standing until it is chosen.
 func stagedArgIdx(f *FuncVal) []int {
 	switch f.name {
-	case "pack", "each":
+	case "pack", "each", "apply":
 		return []int{0}
 	case "emit":
 		// The SELECTION only. The table is templates, instantiated at
@@ -935,6 +935,14 @@ func emitSubstitute(text string, pairs []emitPair) string {
 		i += len(pairs[hit].key)
 	}
 	return b.String()
+}
+
+// applyFunc makes the one instance each([v], f) would, standing where
+// the call stands rather than at an index.
+func applyFunc(base []string, args []Val) Val {
+	inst := instanceClone(args[1], base)
+	setPaths(inst, base)
+	return fillPlace(inst, args[0])
 }
 
 func eachFunc(ctx *Ctx, f *FuncVal, base []string, args []Val) Val {

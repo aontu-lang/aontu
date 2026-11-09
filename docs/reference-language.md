@@ -26,6 +26,7 @@ the [Explanation](explanation.md).
 - [Spreads `&:`](#spreads-)
 - [Generating children: `pack` and `each`](#generating-children-pack-and-each)
   - [Making elements: `each`](#each-the-order-preserving-map)
+  - [One instance: `apply`](#apply-one-instance)
   - [The `_ & …` idiom](#the-_---idiom-construction-and-bound)
 - [Selecting: `filter` and `match`](#selecting-filter-and-match)
 - [The placeholder `_`](#the-placeholder-_)
@@ -1138,6 +1139,27 @@ shows. Like `pack`, it waits for the model to settle and fires once; a
 generator's.
 
 The definition reads `each` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): the template read once for each member of the data, in the order `Val.members` reads them, each hole in it standing for that member.
+
+### `apply`, one instance
+
+`apply(v, f)` makes the one instance `each([v], f)` would: `f` with
+each hole that no generator or `apply` inside it binds standing for
+`v`, in its maps and lists as anywhere else. The instance stands where
+the call stands, so a relative path or `key()` in `f` reads there, and
+an `f` with no such hole is `f`.
+
+```aontu
+greeting: apply("hello", upper(_))
+point: apply(3, { x:_ y:_ })
+next: apply($.point.x, _ + 1)
+```
+
+```json
+{"greeting": "HELLO", "next": 4, "point": {"x": 3, "y": 3}}
+```
+
+The definition reads `apply` in `resolveD` as it reads `each`, with
+`f` read once, where the call stands.
 
 ### The `_ & …` idiom: construction and bound
 
@@ -2530,6 +2552,12 @@ Example: `rel() & acyclic()`
 Add two numbers under the [number-tower rules](#arithmetic-add-sub-mul-div-mod-rem).
 
 Example: `add(2, 3)` → `5`
+
+### `apply(v: any, template f: any) : any`
+
+The one instance `each([v], f)` would make, standing where the call stands: `f` with each hole that no generator or `apply` inside it binds standing for `v`. See [form](#apply-one-instance).
+
+Example: `apply("hello", upper(_))` → `"HELLO"`
 
 ### `below(n: number|string) : constraint`
 

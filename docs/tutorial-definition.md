@@ -4776,7 +4776,7 @@ def Val.illFormed : Val → Bool
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args ||
     (!(Val.call .join args).fillable && joinSepHeld args)
   | .call .pref args => args.length != 1 || illItems args
-  | .call .each args | .call .pack args | .call .emit args =>
+  | .call .each args | .call .pack args | .call .emit args | .call .apply args =>
     if fillableHead args && args.length == 2 then illHead args else true
   | .call f args => if (Val.call f args).fillable && f.takes args.length then illItems args else true
   | .select _ arms _ => illPats arms
@@ -7467,6 +7467,24 @@ or a number is an error. A spread has no hole. A `filter` binds its
 own: it reads its condition once for each member it tries, so `loud`
 keeps `"WEB"`, which `upper(_)` doesn't change.
 
+`apply(v, f)` makes the one instance `each([v], f)` would, standing
+where the call stands rather than at an index: `apply("hello",
+upper(_))` is `"HELLO"`, `apply(1, {n: _})` is `{"n": 1}`, and an `f`
+with no hole is `f`. A generator or an `apply` inside `f` binds its
+own hole, as inside a template:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+    | .apply, [v, f] =>
+      if here.isNone && (resolveD ds b here v).holdsKey then .call .apply [resolveD ds b here v, f] else
+      if (normaliseD ds (resolveD ds b here v)).isAbsent then .absent
+      else if (resolveD ds b here v).pending ds then .call .apply [resolveD ds b here v, f]
+      else resolveD ds (some (normaliseD ds (resolveD ds b here v))) here f
+```
+
+Rows ap0 on of `test/spec/def-call.tsv` hold it, and both engines
+answer every one as the definition does.
+
 An instance that carries a mark of its own holds no position in the
 list, as a written list's marked element holds none, so
 `each([1, 2], hide(_))` is `[]`, and a marked instance that clashes
@@ -7573,7 +7591,7 @@ its arguments or a rider:
 ```lean
 def Val.fillable : Val → Bool
   | .hole => true
-  | .call .each args | .call .pack args | .call .emit args => fillableHead args
+  | .call .each args | .call .pack args | .call .emit args | .call .apply args => fillableHead args
   | .call _ args => fillableItems args
   | .ride _ v _ => v.fillable
   | .link v _ => v.fillable

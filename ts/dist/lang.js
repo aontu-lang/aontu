@@ -68,6 +68,7 @@ const MaybeFuncVal_1 = require("./val/MaybeFuncVal");
 const NomFuncVal_1 = require("./val/NomFuncVal");
 const TranslateFuncVal_1 = require("./val/TranslateFuncVal");
 const EachFuncVal_1 = require("./val/EachFuncVal");
+const ApplyFuncVal_1 = require("./val/ApplyFuncVal");
 const FilterFuncVal_1 = require("./val/FilterFuncVal");
 const MatchFuncVal_1 = require("./val/MatchFuncVal");
 const EmitFuncVal_1 = require("./val/EmitFuncVal");
@@ -650,6 +651,7 @@ help isolate the syntax error.`,
         inverse: GraphAtomVal_1.InverseFuncVal,
         pack: PackFuncVal_1.PackFuncVal,
         each: EachFuncVal_1.EachFuncVal,
+        apply: ApplyFuncVal_1.ApplyFuncVal,
         filter: FilterFuncVal_1.FilterFuncVal,
         match: MatchFuncVal_1.MatchFuncVal,
         add: ArithFuncVal_1.AddFuncVal,
