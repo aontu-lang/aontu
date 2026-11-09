@@ -13,6 +13,8 @@ type ConjunctVal struct {
 	peg []Val
 	// waits: a residual's meet before its definition has assembled.
 	waits bool
+	// unmarked: this spread template without its marks (unmarkedTemplate).
+	unmarked Val
 }
 
 func newConjunct(terms []Val) *ConjunctVal {

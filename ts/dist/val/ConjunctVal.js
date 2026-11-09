@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ConjunctVal = void 0;
 exports.norm = norm;
+exports.unmarkedTemplate = unmarkedTemplate;
 const type_1 = require("../type");
 const err_1 = require("../err");
 const unify_1 = require("../unify");
@@ -11,6 +12,7 @@ const err_2 = require("../err");
 const JunctionVal_1 = require("./JunctionVal");
 const PlaceVal_1 = require("./PlaceVal");
 const BagVal_1 = require("./BagVal");
+const Val_1 = require("./Val");
 const utility_1 = require("../utility");
 const top_1 = require("./top");
 class ConjunctVal extends JunctionVal_1.JunctionVal {
@@ -271,4 +273,25 @@ function norm(terms, carried) {
         return undefined === key || seen.size !== seen.add(key).size;
     });
 } /* node:coverage ignore next 7 */
+// A spread's template meets each member without the marks written
+// around it (ruling 39). A conjunction rebuilt without them takes its
+// source's identity, by which a member records the template it took.
+function unmarkedTemplate(cj, ctx) {
+    const t = cj;
+    if ((true === t.isHideFunc || true === t.isTypeFunc) && 0 < t.peg.length) {
+        return unmarkedTemplate(t.peg[0], ctx);
+    }
+    if (true === t.isConjunct) {
+        if (undefined === t._unmarked) {
+            const terms = t.peg.map((p) => unmarkedTemplate(p, ctx));
+            t._unmarked = cj;
+            if (terms.some((p, i) => p !== t.peg[i])) {
+                t._unmarked = new ConjunctVal({ peg: terms }, ctx);
+                t._unmarked._sid = (0, Val_1.spreadId)(cj);
+            }
+        }
+        return t._unmarked;
+    }
+    return cj;
+}
 //# sourceMappingURL=ConjunctVal.js.map

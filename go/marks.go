@@ -13,7 +13,6 @@ func propagateMarks(from, to Val) {
 	}
 }
 
-
 // markOn gives a meet the marks of both its sides (ruling 38), any's
 // included, a top taking them on a fresh top as rideOn gives the riders.
 func markOn(out, a, b Val) Val {
@@ -32,6 +31,32 @@ func markOn(out, a, b Val) Val {
 		out.setMarkHide(true)
 	}
 	return out
+}
+
+// unmarkedTemplate strips the marks around a spread's template (ruling
+// 39), caching a rebuilt conjunction since members record it by identity.
+func unmarkedTemplate(t Val) Val {
+	if fv, ok := t.(*FuncVal); ok && (fv.name == "hide" || fv.name == "type") && len(fv.peg) > 0 {
+		return unmarkedTemplate(fv.peg[0])
+	}
+	cj, ok := t.(*ConjunctVal)
+	if !ok {
+		return t
+	}
+	if cj.unmarked != nil {
+		return cj.unmarked
+	}
+	terms := make([]Val, len(cj.peg))
+	changed := false
+	for i, p := range cj.peg {
+		terms[i] = unmarkedTemplate(p)
+		changed = changed || terms[i] != p
+	}
+	if !changed {
+		return cj
+	}
+	cj.unmarked = newConjunct(terms)
+	return cj.unmarked
 }
 
 // walkMark sets or clears the type/hide marks on a Val and all of its

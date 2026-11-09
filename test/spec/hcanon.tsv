@@ -62,7 +62,7 @@ hcanon-ref-into-nested-map	hcanon	r: {a:{b:1}, c:$.r.a.b}	{"r":{"a":{"b":1},"c":
 hcanon-disjunct-of-closes	hcanon	x2: close({a:1})|close({b:2})|3	{"x2":close({"a":1})|close({"b":2})|3}
 hcanon-disjunct-distributes	hcanon	x3: ({a:1}|{b:2})&{c:3}	{"x3":{"a":1,"c":3}|{"b":2,"c":3}}
 hcanon-hide-outermost-only	hcanon	x4: hide({a:{b:close({c:1})}})	{"x4":hide({"a":{"b":close({"c":1})}})}
-hcanon-spread-hide-instance	hcanon	x5: {&:hide(integer), k:1}	{"x5":{&:hide(integer),"k":hide(1)}}
+hcanon-spread-hide-instance	hcanon	x5: {&:hide(integer), k:1}	{"x5":{&:hide(integer),"k":1}}
 
 canon-close-marks-mixed	canon	a:hide(close({x:1,y:[1,2]})) b:type(integer) c:*1|2 d:{e?:close([3])}	{"a":{"x":1,"y":[1,2]},"b":integer,"c":*1|2,"d":{"e"?:[3]}}
 canon-close-at-depth	canon	z: close({a:close({b:close([1,{c:2}])})})	{"z":{"a":{"b":[1,{"c":2}]}}}

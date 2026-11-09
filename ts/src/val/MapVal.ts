@@ -33,7 +33,7 @@ import {
 import { pendingMarkWrapper, dropPendingMarkWrappers } from './RefVal'
 
 
-import { ConjunctVal } from './ConjunctVal'
+import { ConjunctVal, unmarkedTemplate } from './ConjunctVal'
 import { NilVal } from './NilVal'
 import { BagVal, keyTable, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
@@ -205,7 +205,8 @@ class MapVal extends BagVal {
           null == peer.spread.cj ? out.spread.cj :
             out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
               unite(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
-                out.spread.cj, peer.spread.cj, 'map-self')
+                unmarkedTemplate(out.spread.cj, ctx), unmarkedTemplate(peer.spread.cj, ctx),
+                'map-self')
         )
       }
     }
@@ -217,15 +218,11 @@ class MapVal extends BagVal {
       out.dc = this.dc + 1
 
 
-      let spread_cj = out.spread.cj ?? TOP
+      let spread_cj = unmarkedTemplate(out.spread.cj ?? TOP, ctx)
 
       if (spread_cj.isRef && (spread_cj as any).find) {
         const snap = snapshotRefSpread(spread_cj, ctx)
         if (snap) spread_cj = snap
-      }
-
-      if ((spread_cj as any).isTypeFunc) {
-        spread_cj = (spread_cj as any).peg?.[0] ?? TOP
       }
 
       // Always unify own children first
