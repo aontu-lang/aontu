@@ -3272,10 +3272,21 @@ async function runRender(argv: string[]): Promise<number> {
     const res = await runtime.generate({ folder }, root)
     const skipped = renderSkipped(folder, since)
     if ('json' === format) {
+      // The lists the Go port names, so a list a later jostraca adds
+      // stays out of the report.
       process.stdout.write(exactJSON({
         aontu: { version: version(), verb: 'render' },
         verdict: 'ok',
-        files: { ...res.files, skipped },
+        files: {
+          preserved: res.files.preserved,
+          written: res.files.written,
+          presented: res.files.presented,
+          diffed: res.files.diffed,
+          merged: res.files.merged,
+          conflicted: res.files.conflicted,
+          unchanged: res.files.unchanged,
+          skipped,
+        },
       }, 2) + '\n')
     }
     else {
