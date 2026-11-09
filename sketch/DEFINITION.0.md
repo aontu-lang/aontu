@@ -1780,7 +1780,8 @@ until the phase that encodes it lands.
    **`apply` built 2026-11-09**: `Fn.apply` in the definition, read in
    `resolveD` as the one instance of `each([v], f)` where the call
    stands, and `ApplyFuncVal` and `applyFunc` in the engines; rows ap0
-   to ap53 of `test/spec/def-call.tsv`. The meet as application, the
+   to ap44 of `test/spec/def-call.tsv` and ar0 to ar11 of
+   `test/spec/def-path.tsv`. The meet as application, the
    spread template's hole and the error for a call over a hole that
    nothing binds remain to build.
 

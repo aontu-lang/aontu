@@ -29,7 +29,8 @@ Both engines, the definition, and shared rows.
   `apply("hello", upper(_))` is `"HELLO"`, and an `f` with no such hole
   is `f`. The meet still fills a hole from its peer; ruling 34 removes
   that in a later change.
-- Rows ap0 to ap53 of `test/spec/def-call.tsv`, and `apply` in
+- Rows ap0 to ap44 of `test/spec/def-call.tsv`, rows ar0 to ar11 of
+  `test/spec/def-path.tsv` for a relative path in `f`, and `apply` in
   `spec/forms.tsv`, `test/spec/signature.tsv` and both language
   servers' completions.
 
