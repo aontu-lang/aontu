@@ -772,3 +772,9 @@ work locally in ~/Projects/aontu-lang/aontu - update to latest and prepare a rel
 ```text
 publish aontu 0.76.3
 ```
+
+## 2026-11-09 12:45:26 UTC · Claude Code · session_01FpeS4ru69dMPkAX2ezauL9
+
+```text
+open the pr
+```
