@@ -1877,6 +1877,15 @@ until the phase that encodes it lands.
    definition moves, and so do both engines where ruling 38's build
    gave a member its template's mark, and where a map template's mark
    reached its members before it.
+   **Built 2026-11-09**: the definition's meet meets a template with
+   each member through `Val.dropMarks` (`meetKey`, `foldSpread`,
+   `meetWrap`), its reading drops the marks around a template it fills
+   (`tmplSpread`), and its visible part reads a map's spread whole, as
+   it reads a list's. Both engines unwrap `hide()` and `type()` around a
+   template, through a meet of templates, before it meets a member or
+   another spread (`unmarkedTemplate`). Rows sm0 to sm50 of
+   `test/spec/def-path.tsv` hold them to it, and `hide_spread_not_genLe`
+   now holds of a mark on a field of the template.
 
 ## 8. Risks
 

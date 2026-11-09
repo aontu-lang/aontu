@@ -8,6 +8,31 @@ each change affects.
 
 ## Unreleased
 
+### A spread's template gives its members no marks
+
+Both engines, the definition, and shared rows.
+
+- A spread's template meets each member without the `hide()` and
+  `type()` marks written around it (ruling 39, #678), so
+  `{&: hide(1)} & {a: 1}` is `{"a": 1}` in both engines, where both
+  left `a` out. A `type()` template, which already left a map's members
+  unmarked, now leaves a list's members unmarked too, and so does a
+  marked template met with another spread or written beside one. A
+  mark on a field of the template stays the field's, so
+  `{&: {n: hide(1)}}` still leaves `n` out of each member, and so does
+  a mark on one arm of a disjunction of two or more.
+- The definition drops the marks where a template meets a member
+  (`Val.dropMarks`) and where the reading fills a template, and the
+  visible part no longer reads a map's marked spread as `any`.
+  `hide_spread_not_genLe` now holds of a mark on a field of the
+  template.
+- Rows sm0 to sm50 of `test/spec/def-path.tsv`. Rows hm43, h63 and h64
+  read the members as visible, and under `subsume`'s `gen` profile
+  `{&: integer}` and `{&: hide(integer)}` now subsume each other (w223,
+  w234 and w235 of `test/spec/def-subsume.tsv`).
+  `hcanon-spread-hide-instance` and `hide-spread-scalar` in
+  `test/spec/marks.tsv` read the member unmarked.
+
 ### A meet carries the marks of both its sides
 
 Both engines, and shared rows. The definition doesn't change.
@@ -18,14 +43,9 @@ Both engines, and shared rows. The definition doesn't change.
   output in both engines, and `vet --no-fill` no longer asks the data
   for it (#673). `1 & hide(1)`, which TypeScript answered unmarked
   (#419), and a key whose second declaration carries the mark, which
-  both engines answered unmarked (#420), keep it the same way, and a
-  spread's `hide(any)` template hides each member it meets.
-- A `type()` spread template still constrains its members without
-  marking them, as the `spread-type` rows hold, pending a ruling of its
-  own.
+  both engines answered unmarked (#420), keep it the same way.
 - Rows hm0 to hm53 of `test/spec/def-path.tsv`. The four rows of #420
-  leave `spec/ledger.tsv`, whose bound falls to 105, and
-  `hcanon-spread-hide-instance` reads its member as hidden.
+  leave `spec/ledger.tsv`, whose bound falls to 105.
 
 ### vet and subsume keep their engine between calls
 
