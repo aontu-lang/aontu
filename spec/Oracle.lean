@@ -5997,8 +5997,8 @@ theorem emit_verdict_exact : ∀ c ∈ emitCases, ∀ (m : Mode) (v : Verdict),
 elements, `f` with no hole, which is `f`, a generator and an `apply`
 inside `f`, which bind their own, a marked element, which holds no
 position, `apply` in a generator's template, whose head the generator
-binds, a list and a map as `v`, and `apply` with one argument, an
-error. -/
+binds, a list and a map as `v`, `apply` with one argument, an error,
+and a relative path in `f`, read where the call stands. -/
 def applyCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -6020,7 +6020,10 @@ def applyCases : List (Val × Data) :=
     (.call .each [lst [int 1, int 2], ap .hole (.call .add [.hole, int 1])], jl [j 2, j 3]),
     (ap (lst [int 1, int 2]) (.call .sum [.hole]), j 3),
     (ap (mp [("a", int 1)]) (mp [("b", .hole)]), .map [("b", .map [("a", j 1)])]),
-    (.call .apply [int 1], j 1)]
+    (.call .apply [int 1], j 1),
+    (ap (int 1) (mp [("k", .path [.up 1, .key "z"]), ("z", int 4)]), .map [("k", j 4), ("z", j 4)]),
+    (ap (int 1) (mp [("k", .path [.up 1, .key "z"]), ("z", .hole)]), .map [("k", j 1), ("z", j 1)]),
+    (ap (int 1) (mp [("k", .path [.up 1, .key "z"]), ("z", .hole)]), .map [("k", j 2), ("z", j 1)])]
 
 theorem applyCases_checkable : ∀ c ∈ applyCases, (vetDoc c).1.CheckableA := by decide
 
