@@ -760,3 +760,9 @@ Ruling 34 made hole application explicit: `_` is bound only by a generator or an
 Ruling 38 (#673): in `a: {x: 1, y: 2} & {x: hide(any)}`, both engines leave `x` unmarked, so it stays in the output and `vet --no-fill` asks the data for it. The definition hides `x`, because it reads a mark through `&`. When `hide(any)`, or `type(any)`, meets a value, does the value take the mark?
 → It marks (Recommended)
 ```
+
+## 2026-11-09 10:50:53 UTC · Claude Code · session_01FpeS4ru69dMPkAX2ezauL9
+
+```text
+work locally in ~/Projects/aontu-lang/aontu - update to latest and prepare a release 0.76.2 that makes jostraca a peer dep. prepare the release as a branch from the 0.76.1 release commit
+```
