@@ -2860,10 +2860,10 @@ theorem markMeet_verdict_exact : ∀ c ∈ markMeetCases, ∀ (m : Mode) (v : Ve
 /-- A spread's template copied to each member without the marks written
 around it (ruling 39): `hide()` and `type()` around a scalar, a kind, a
 mark, a map, a disjunction and a hole, under a meet of two spreads and of
-two templates, and on a list's spread; a mark on a field of the template
-and one on an arm of a disjunction belong to that field and that arm,
-and stay. Each member is left out of the data, so that `--no-fill`
-tells a member the data must give from a marked one. -/
+two templates, under another rider, and on a list's spread; a mark on a
+field of the template and one on an arm of a disjunction belong to that
+field and that arm, and stay. Each member is left out of the data, so
+that `--no-fill` tells a member the data must give from a marked one. -/
 def spreadMarkCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -2895,7 +2895,10 @@ def spreadMarkCases : List (Decls × Val × Data) :=
     ([], x (.meet (lsp (type b1)) (l [m []])), dx (.list [.map []])),
     ([], x (.meet (sp (hide .hole)) a1), dx (.map [])),
     ([], x (.meet (sp (hide (.call .add [.hole, int 1]))) a1), dx (.map [])),
-    ([], x (.meet (lsp (hide .hole)) (l [int 1])), dx (.list []))]
+    ([], x (.meet (lsp (hide .hole)) (l [int 1])), dx (.list [])),
+    ([], x (.meet (sp (.ride .metadata (hide (int 1)) [])) a1), dx (.map [])),
+    ([], x (.meet (sp (.ride .deprecate (type b1) [])) ae), dx (.map [("a", .map [])])),
+    ([], x (.meet (sp (.ride .metadata (int 1) [])) a1), dx (.map []))]
 
 set_option maxRecDepth 16384 in
 theorem spreadMarkCases_reads : ∀ c ∈ spreadMarkCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel

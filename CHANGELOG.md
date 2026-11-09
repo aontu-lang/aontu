@@ -13,9 +13,10 @@ each change affects.
 Both engines, the definition, and shared rows.
 
 - A spread's template meets each member without the `hide()` and
-  `type()` marks written around it (ruling 39, #678), so
-  `{&: hide(1)} & {a: 1}` is `{"a": 1}` in both engines, where both
-  left `a` out. A `type()` template, which already left a map's members
+  `type()` marks written around it, through a meet of templates and the
+  riders `meta()`, `deprecate()` and `ident()` (ruling 39, #678), so
+  `{&: hide(1)} & {a: 1}` and `{&: meta(hide(1), {})} & {a: 1}` are
+  `{"a": 1}` in both engines, where both left `a` out. A `type()` template, which already left a map's members
   unmarked, now leaves a list's members unmarked too, and so does a
   marked template met with another spread or written beside one. A
   mark on a field of the template stays the field's, so
@@ -26,7 +27,7 @@ Both engines, the definition, and shared rows.
   visible part no longer reads a map's marked spread as `any`.
   `hide_spread_not_genLe` now holds of a mark on a field of the
   template.
-- Rows sm0 to sm50 of `test/spec/def-path.tsv`. Rows hm43, h63 and h64
+- Rows sm0 to sm59 of `test/spec/def-path.tsv`. Rows hm43, h63 and h64
   read the members as visible, and under `subsume`'s `gen` profile
   `{&: integer}` and `{&: hide(integer)}` now subsume each other (w223,
   w234 and w235 of `test/spec/def-subsume.tsv`).

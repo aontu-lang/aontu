@@ -372,26 +372,29 @@ function norm(terms: Val[], carried: Val[]): Val[] {
 } /* node:coverage ignore next 7 */
 
 
-// A spread's template meets each member without the marks written
-// around it (ruling 39). A conjunction rebuilt without them takes its
-// source's identity, by which a member records the template it took.
+// A spread's template meets each member without the marks written around
+// it (ruling 39), through a meet and the other riders; a term rebuilt
+// without them keeps its source's identity (spreadId), as members record it.
 function unmarkedTemplate(cj: Val, ctx: AontuContext): Val {
   const t: any = cj
   if ((true === t.isHideFunc || true === t.isTypeFunc) && 0 < t.peg.length) {
     return unmarkedTemplate(t.peg[0], ctx)
   }
-  if (true === t.isConjunct) {
-    if (undefined === t._unmarked) {
-      const terms = t.peg.map((p: Val) => unmarkedTemplate(p, ctx))
-      t._unmarked = cj
-      if (terms.some((p: Val, i: number) => p !== t.peg[i])) {
-        t._unmarked = new ConjunctVal({ peg: terms }, ctx)
-        t._unmarked._sid = spreadId(cj)
-      }
-    }
-    return t._unmarked
+  const rider = true === t.isMetaFunc || true === t.isDeprecateFunc || true === t.isIdentFunc
+  if (!rider && true !== t.isConjunct) {
+    return cj
   }
-  return cj
+  if (undefined === t._unmarked) {
+    const peg = rider ? [unmarkedTemplate(t.peg[0], ctx), ...t.peg.slice(1)] :
+      t.peg.map((p: Val) => unmarkedTemplate(p, ctx))
+    t._unmarked = cj
+    if (peg.some((p: Val, i: number) => p !== t.peg[i])) {
+      t._unmarked = cj.clone(ctx)
+      t._unmarked.peg = peg
+      t._unmarked._sid = spreadId(cj)
+    }
+  }
+  return t._unmarked
 }
 
 

@@ -34,10 +34,25 @@ func markOn(out, a, b Val) Val {
 }
 
 // unmarkedTemplate strips the marks around a spread's template (ruling
-// 39), caching a rebuilt conjunction since members record it by identity.
+// 39), through a meet and the other riders, caching what it rebuilds
+// since members record their template by identity.
 func unmarkedTemplate(t Val) Val {
-	if fv, ok := t.(*FuncVal); ok && (fv.name == "hide" || fv.name == "type") && len(fv.peg) > 0 {
+	fv, isFunc := t.(*FuncVal)
+	if isFunc && (fv.name == "hide" || fv.name == "type") && len(fv.peg) > 0 {
 		return unmarkedTemplate(fv.peg[0])
+	}
+	if isFunc && (riderFuncs[fv.name] || fv.name == "ident") && len(fv.peg) > 0 {
+		if fv.unmarked != nil {
+			return fv.unmarked
+		}
+		inner := unmarkedTemplate(fv.peg[0])
+		if inner == fv.peg[0] {
+			return fv
+		}
+		nf := *fv
+		nf.peg = append([]Val{inner}, fv.peg[1:]...)
+		fv.unmarked = &nf
+		return fv.unmarked
 	}
 	cj, ok := t.(*ConjunctVal)
 	if !ok {
