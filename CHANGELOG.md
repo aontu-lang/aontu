@@ -8,6 +8,16 @@ each change affects.
 
 ## Unreleased
 
+### `aontu render` on a fresh install
+
+TypeScript.
+
+- `shape` is pinned to 11.4.1. `jostraca`, the generator runtime, takes
+  `shape` as a peer at any version from 11, and `shape` 12.0.0, out on
+  2026-11-09, no longer exports `One`, so on an install that resolved
+  it `aontu render` stopped with `TypeError: (0 , shape_1.One) is not a
+  function`.
+
 ### `apply(v, f)` hands a value to a template
 
 Both engines, the definition, and shared rows.
