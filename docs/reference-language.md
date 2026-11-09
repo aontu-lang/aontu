@@ -1144,9 +1144,9 @@ The definition reads `each` in `resolveD`, in [`spec/Aontu/Verdict.lean`](../spe
 
 `apply(v, f)` makes the one instance `each([v], f)` would: `f` with
 each hole that no generator or `apply` inside it binds standing for
-`v`, in its maps and lists as anywhere else. The instance stands where
-the call stands, so a relative path or `key()` in `f` reads there, and
-an `f` with no such hole is `f`.
+`v`, wherever it stands in `f`. The instance stands where the call
+stands, so a relative path or `key()` in `f` reads there, and an `f`
+with no such hole is `f`.
 
 ```aontu
 greeting: apply("hello", upper(_))
