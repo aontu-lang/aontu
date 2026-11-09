@@ -1770,6 +1770,14 @@ until the phase that encodes it lands.
    `apply("hello", upper(_))` is `"HELLO"`. It is a built-in call, so
    neither grammar changes.
 
+   **Its reading ruled 2026-11-09.** `apply(v, f)` binds every hole of
+   `f` that no generator or `apply` inside `f` binds, inside maps and
+   lists too, so that it makes the one instance `each([v], f)` would:
+   `apply(1, {n: _})` is `{n: 1}`, and an `f` with no such hole is `f`.
+   A call over a hole that nothing binds, once the meet no longer
+   applies it, is an `error` of the schema whatever the data, as a
+   schema call the engines can't make is (#426).
+
 35. **A link in a declaration nothing uses.** Raised 2026-11-06 by the
    consolidation study (`sketch/CORE.0.md`, §4.1), and put with 36 and
    37 in one question, which numbered them 34 to 36. A declaration's
@@ -1847,6 +1855,38 @@ until the phase that encodes it lands.
    A `type()` spread template, which both engines unwrap so that it
    constrains its members without marking them (the `spread-type`
    rows), is left for a ruling of its own.
+
+39. **A spread's template and its marks.** Raised 2026-11-08 by #678.
+   Since ruling 38's build, `{&: hide(any)}` hides each member it meets
+   in both engines and in the definition. A written `{&: type(T)}`
+   constrains its members in both engines and leaves them in the output,
+   as the `spread-type` rows of `test/spec/spread-type.tsv` record, where
+   the definition marks them typed and leaves them out. Through an
+   alias, `{&: %T}`, all three clear the marks, as a reference does.
+   Either a template gives each member its marks, as any meet does, or
+   it is copied to each member without them.
+
+   **Ruled 2026-11-09: members don't take them.** A mark belongs to the
+   field its wrapper was written at, so a spread's template is copied to
+   each member without the marks written around it: `{&: hide(T)}` and
+   `{&: type(T)}` both constrain their members and leave them in the
+   output. A mark written on a field of the template belongs to that
+   field, so `{&: {n: hide(1)}}` leaves `n` out of each member, as both
+   engines read it before ruling 38's build; a reference, `{&: $.T}`,
+   clears every mark of what it copies already (ruling 10). The
+   definition moves, and so do both engines where ruling 38's build
+   gave a member its template's mark, and where a map template's mark
+   reached its members before it.
+   **Built 2026-11-09**: the definition's meet meets a template with
+   each member through `Val.dropMarks` (`meetKey`, `foldSpread`,
+   `meetWrap`), its reading drops the marks around a template it fills
+   (`tmplSpread`), and its visible part reads a map's spread whole, as
+   it reads a list's. Both engines unwrap `hide()` and `type()` around a
+   template, through a meet of templates and the other riders, as
+   `Val.dropMarks` reads them, before it meets a member or another
+   spread (`unmarkedTemplate`). Rows sm0 to sm59 of
+   `test/spec/def-path.tsv` hold them to it, and `hide_spread_not_genLe`
+   now holds of a mark on a field of the template.
 
 ## 8. Risks
 

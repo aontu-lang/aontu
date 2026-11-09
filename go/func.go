@@ -256,6 +256,7 @@ type FuncVal struct {
 	prepared bool
 	// declared marks ident() as the whole value of an alias declaration.
 	declared bool
+	unmarked Val
 }
 
 func newFunc(name string, args []Val) *FuncVal {

@@ -507,8 +507,8 @@ h59	verdict	v: {&: hide(integer)}	v: {"a": 1}	{"verdict":"valid","opts":{"partia
 h60	verdict	v: {&: hide(integer)}	v: {"a": "x"}	{"verdict":"invalid"}
 h61	verdict	v: {&: hide(integer)}	v: {"a": "x"}	{"verdict":"invalid","opts":{"noFill":true}}
 h62	verdict	v: {&: hide(integer)}	v: {"a": "x"}	{"verdict":"invalid","opts":{"partial":true}}
-h63	verdict	v: {&: hide({"b": integer})}	v: {"a": {}}	{"verdict":"valid"}
-h64	verdict	v: {&: hide({"b": integer})}	v: {"a": {}}	{"verdict":"valid","opts":{"noFill":true}}
+h63	verdict	v: {&: hide({"b": integer})}	v: {"a": {}}	{"verdict":"incomplete"}
+h64	verdict	v: {&: hide({"b": integer})}	v: {"a": {}}	{"verdict":"incomplete","opts":{"noFill":true}}
 h65	verdict	v: {&: hide({"b": integer})}	v: {"a": {}}	{"verdict":"valid","opts":{"partial":true}}
 h66	verdict	v: {"a": meta(hide(integer), {})}	v: {}	{"verdict":"valid"}
 h67	verdict	v: {"a": meta(hide(integer), {})}	v: {}	{"verdict":"valid","opts":{"noFill":true}}

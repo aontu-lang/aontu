@@ -4491,6 +4491,20 @@ b: integer & hide(integer)
 {"a":{"y":2}}
 ```
 
+A spread copies its template to each member without the marks written
+around it, which belong to the template and not to its members. A mark
+on a field of the template belongs to that field, so each member's
+field takes it:
+
+```aontu
+a: { &: hide({ n:1 }) } & { x: {} }
+b: { &: { n:hide(1) m:2 } } & { y: {} }
+```
+
+```json
+{"a":{"x":{"n":1}},"b":{"y":{"m":2}}}
+```
+
 **A type is a definition, and its instances are closed.** The
 statements at the type's own path extend it (`T: type({ a:1 })` and
 `T: { b:2 }` is one definition with both keys), but a copy taken by

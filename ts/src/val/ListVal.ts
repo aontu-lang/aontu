@@ -32,7 +32,7 @@ import {
   top
 } from './top'
 
-import { ConjunctVal } from './ConjunctVal'
+import { ConjunctVal, unmarkedTemplate } from './ConjunctVal'
 import { NilVal } from './NilVal'
 import { BagVal, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
@@ -158,7 +158,8 @@ class ListVal extends BagVal {
           null == peer.spread.cj ? out.spread.cj :
             out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
               unite(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
-                out.spread.cj, peer.spread.cj, 'list-peer')
+                unmarkedTemplate(out.spread.cj, ctx), unmarkedTemplate(peer.spread.cj, ctx),
+                'list-peer')
         )
       }
     }
@@ -167,7 +168,7 @@ class ListVal extends BagVal {
     if (!exit) {
       out.dc = this.dc + 1
 
-      let spread_cj = out.spread.cj || TOP
+      let spread_cj = unmarkedTemplate(out.spread.cj || TOP, ctx)
 
       // Always unify children first
       for (let key in this.peg) {

@@ -3959,7 +3959,7 @@ w219	subsumption	v: {&: integer}	v: hide({"x": integer})	{"verdict":["does_not_s
 w220	subsumption	v: {&: integer}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
 w221	subsumption	v: {&: integer}	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
 w222	subsumption	v: {&: integer}	v: {&: integer}	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
-w223	subsumption	v: {&: integer}	v: {&: hide(integer)}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w223	subsumption	v: {&: integer}	v: {&: hide(integer)}	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
 w224	subsumption	v: {&: hide(integer)}	v: integer	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
 w225	subsumption	v: {&: hide(integer)}	v: hide(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
 w226	subsumption	v: {&: hide(integer)}	v: type(integer)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
@@ -3970,4 +3970,5 @@ w230	subsumption	v: {&: hide(integer)}	v: {"x": {"y": 1}}	{"verdict":["does_not_
 w231	subsumption	v: {&: hide(integer)}	v: hide({"x": integer})	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
 w232	subsumption	v: {&: hide(integer)}	v: *(1) | (number)	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
 w233	subsumption	v: {&: hide(integer)}	v: {"x": hide(*(1) | (number))}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
-w234	subsumption	v: {&: hide(integer)}	v: {&: integer}	{"verdict":["does_not_subsume","undecided"],"opts":{"profile":"gen"}}
+w234	subsumption	v: {&: hide(integer)}	v: {&: integer}	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}
+w235	subsumption	v: {&: hide(integer)}	v: {&: hide(integer)}	{"verdict":["subsumes","undecided"],"opts":{"profile":"gen"}}

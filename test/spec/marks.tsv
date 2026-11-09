@@ -14,7 +14,7 @@ top-conjunct	gen	1 & number	1
 top-plus	gen	1+2	3
 top-func-plus	gen	lower(1.1)+2	3
 top-disjunct	canon	1|2	1|2
-hide-spread-scalar	gen	K:true &:hide(true)	{}
+hide-spread-scalar	gen	K:true &:hide(true)	{"K":true}
 hide-spread-scalar-canon	canon	K:true &:hide(true)	{&:hide(true),"K":true}
 # A REFUSED VALUE STAYS REFUSED INSIDE type() AND hide().
 #

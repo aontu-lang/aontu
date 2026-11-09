@@ -2597,10 +2597,12 @@ def filledSpread : Option Val → Option Val
   | some s => some s.filled
 
 /-- A spread's template filled, but one that waits on a hole at its own
-position kept as written there, for each member to fill (`Val.instAt`). -/
+position kept as written there, for each member to fill (`Val.instAt`),
+and without the marks written around it, which no member takes
+(ruling 39). -/
 def tmplSpread : Option Val → Option Val
   | none => none
-  | some s => some (if s.waitsTop && s.isTopNode then s.tmplNode else s.filled)
+  | some s => some (if s.waitsTop && s.isTopNode then s.tmplNode.dropMarks else s.filled.dropMarks)
 
 /-- Such a template with its meets, its arms and its riders as written,
 and each term beneath them filled. -/
@@ -2699,7 +2701,7 @@ theorem filledSpread_some : ∀ {sp : Option Val} {t : Val}, filledSpread sp = s
   | some s, t, h => by simp only [filledSpread, Option.some.injEq] at h; exact ⟨s, rfl, h.symm⟩
 
 theorem tmplSpread_some : ∀ {sp : Option Val} {t : Val}, tmplSpread sp = some t →
-    ∃ s, sp = some s ∧ (t = s.tmplNode ∨ t = s.filled)
+    ∃ s, sp = some s ∧ (t = s.tmplNode.dropMarks ∨ t = s.filled.dropMarks)
   | none, _, h => nomatch h
   | some s, t, h => by
     simp only [tmplSpread, Option.some.injEq] at h
@@ -3899,9 +3901,9 @@ theorem filled_tmpl_checkableA {v : Val} (h : v.CheckableA) :
     have hsp : ∀ t, tmplSpread spread = some t → t.CheckableA := fun t ht => by
       obtain ⟨s, hs, h | h⟩ := tmplSpread_some ht
       · subst h
-        exact (ihs _ hs).2
+        exact (ihs _ hs).2.dropMarks
       · subst h
-        exact (ihs _ hs).1
+        exact (ihs _ hs).1.dropMarks
     have q := spreadAll_checkableA hj hsp
     exact ⟨.map q.1 q.2, .map hf₀ hs₀⟩
   | @list items spread closed hi₀ hs₀ ihi ihs =>
@@ -3911,9 +3913,9 @@ theorem filled_tmpl_checkableA {v : Val} (h : v.CheckableA) :
     have hsp : ∀ t, tmplSpread spread = some t → t.CheckableA := fun t ht => by
       obtain ⟨s, hs, h | h⟩ := tmplSpread_some ht
       · subst h
-        exact (ihs _ hs).2
+        exact (ihs _ hs).2.dropMarks
       · subst h
-        exact (ihs _ hs).1
+        exact (ihs _ hs).1.dropMarks
     have q := spreadAllItems_checkableA hi hsp
     exact ⟨.list q.1 q.2, .list hi₀ hs₀⟩
   | @or arms _ ih =>

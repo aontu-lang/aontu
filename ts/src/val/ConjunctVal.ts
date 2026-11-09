@@ -24,6 +24,7 @@ import {
 import { JunctionVal } from './JunctionVal'
 import { hasPlace, waitsOnHole } from './PlaceVal'
 import { sizingResidue } from './BagVal'
+import { spreadId } from './Val'
 
 import {
   explainOpen,
@@ -371,7 +372,34 @@ function norm(terms: Val[], carried: Val[]): Val[] {
 } /* node:coverage ignore next 7 */
 
 
+// A spread's template meets each member without the marks written around
+// it (ruling 39), through a meet and the other riders; a term rebuilt
+// without them keeps its source's identity (spreadId), as members record it.
+function unmarkedTemplate(cj: Val, ctx: AontuContext): Val {
+  const t: any = cj
+  if ((true === t.isHideFunc || true === t.isTypeFunc) && 0 < t.peg.length) {
+    return unmarkedTemplate(t.peg[0], ctx)
+  }
+  const rider = true === t.isMetaFunc || true === t.isDeprecateFunc || true === t.isIdentFunc
+  if (!rider && true !== t.isConjunct) {
+    return cj
+  }
+  if (undefined === t._unmarked) {
+    const peg = rider ? [unmarkedTemplate(t.peg[0], ctx), ...t.peg.slice(1)] :
+      t.peg.map((p: Val) => unmarkedTemplate(p, ctx))
+    t._unmarked = cj
+    if (peg.some((p: Val, i: number) => p !== t.peg[i])) {
+      t._unmarked = cj.clone(ctx)
+      t._unmarked.peg = peg
+      t._unmarked._sid = spreadId(cj)
+    }
+  }
+  return t._unmarked
+}
+
+
 export {
   norm,
   ConjunctVal,
+  unmarkedTemplate,
 }

@@ -1114,14 +1114,14 @@ def meetKey (m : Val → Val → Val) (other : List (String × Bool × Val)) (s 
     (c : Bool) (f : String × Bool × Val) : Option (String × Bool × Val) :=
   if declared f.1 other then some (f.1, f.2.1 && optional f.1 other, meetDecls m f.1 f.2.2 other)
   else if c then (if f.2.1 then none else some (f.1, false, .nil))
-  else some (f.1, f.2.1, m f.2.2 ((s.getD .any).atKey f.1).selectNow)
+  else some (f.1, f.2.1, m f.2.2 ((s.getD .any).atKey f.1).selectNow.dropMarks)
 
 /-- Each declared value met with the spread, where the meet has one. -/
 def foldSpread (m : Val → Val → Val) (sp : Option Val) (fs : List (String × Bool × Val)) :
     List (String × Bool × Val) :=
   match sp with
   | none => fs
-  | some t => fs.map fun f => (f.1, f.2.1, m f.2.2 (t.atKey f.1).selectNow)
+  | some t => fs.map fun f => (f.1, f.2.1, m f.2.2 (t.atKey f.1).selectNow.dropMarks)
 
 /-- The meet of two maps, key by key: the keys of one side, each against
 the other, then the keys of the other side alone, and every value met
@@ -1143,7 +1143,7 @@ theorem meetKey_eq_some {m : Val → Val → Val} {other : List (String × Bool 
           v = meetDecls m k f.2.2 other) ∨
        (declared k other = false ∧ c = true ∧ f.2.1 = false ∧ o = false ∧ v = .nil) ∨
        (declared k other = false ∧ c = false ∧ o = f.2.1 ∧
-          v = m f.2.2 ((s.getD .any).atKey k).selectNow)) := by
+          v = m f.2.2 ((s.getD .any).atKey k).selectNow.dropMarks)) := by
   unfold meetKey at h
   split at h
   · rename_i hd
@@ -1178,7 +1178,7 @@ theorem meetKey_sealed {m : Val → Val → Val} {other : List (String × Bool �
 theorem meetKey_open {m : Val → Val → Val} {other : List (String × Bool × Val)}
     {s : Option Val} (f : String × Bool × Val) (h : declared f.1 other = false) :
     meetKey m other s false f =
-      some (f.1, f.2.1, m f.2.2 ((s.getD .any).atKey f.1).selectNow) := by
+      some (f.1, f.2.1, m f.2.2 ((s.getD .any).atKey f.1).selectNow.dropMarks) := by
   simp [meetKey, h]
 
 theorem meetKey_alone {m : Val → Val → Val} {fs₁ : List (String × Bool × Val)} {s₁ : Option Val}
@@ -1222,8 +1222,8 @@ theorem mem_lookup {k : String} {x : Data} : ∀ {jfs : List (String × Data)},
 
 theorem admits_spread_getD {s : Option Val} {jfs : List (String × Data)} {k : String} {x : Data}
     (hs : ∀ t, s = some t → ∀ k x, (k, x) ∈ jfs → Admits env root (t.atKey k) x) (hx : (k, x) ∈ jfs) :
-    Admits env root ((s.getD .any).atKey k).selectNow x := by
-  refine (admits_selectNow _ _).mpr ?_
+    Admits env root ((s.getD .any).atKey k).selectNow.dropMarks x := by
+  refine admits_dropMarks_iff.mpr ((admits_selectNow _ _).mpr ?_)
   cases s with
   | none => exact .any
   | some t => exact hs t rfl k x hx
@@ -1241,9 +1241,9 @@ theorem admits_foldSpread {m : Val → Val → Val}
     constructor
     · rintro ⟨hp, ha, hs, hc⟩
       refine ⟨fun k o v x hm' hl => ?_, fun k o v hm' hl => ?_, hs, fun hcl k x hx => ?_⟩
-      · have h := hp k o (m v (t.atKey k).selectNow) x (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl
+      · have h := hp k o (m v (t.atKey k).selectNow.dropMarks) x (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl
         exact ((hm _ _ _).mp h).1
-      · exact ha k o (m v (t.atKey k).selectNow) (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl
+      · exact ha k o (m v (t.atKey k).selectNow.dropMarks) (List.mem_map.mpr ⟨(k, o, v), hm', rfl⟩) hl
       · obtain ⟨o, v', hmem⟩ := hc hcl k x hx
         obtain ⟨⟨k', o', v⟩, hm', he⟩ := List.mem_map.mp hmem
         simp only [Prod.mk.injEq] at he
@@ -1255,13 +1255,13 @@ theorem admits_foldSpread {m : Val → Val → Val}
         simp only [Prod.mk.injEq] at he
         obtain ⟨rfl, rfl, rfl⟩ := he
         exact (hm _ _ _).mpr
-          ⟨hp _ _ _ x hmem hl, (admits_selectNow _ _).mpr (hs t rfl _ x (lookup_mem hl))⟩
+          ⟨hp _ _ _ x hmem hl, admits_dropMarks_iff.mpr ((admits_selectNow _ _).mpr (hs t rfl _ x (lookup_mem hl)))⟩
       · obtain ⟨⟨k', o', v⟩, hmem, he⟩ := List.mem_map.mp hm'
         simp only [Prod.mk.injEq] at he
         obtain ⟨rfl, rfl, -⟩ := he
         exact ha _ _ _ hmem hl
       · obtain ⟨o, v, hmem⟩ := hc hcl k x hx
-        exact ⟨o, m v (t.atKey k).selectNow, List.mem_map.mpr ⟨(k, o, v), hmem, rfl⟩⟩
+        exact ⟨o, m v (t.atKey k).selectNow.dropMarks, List.mem_map.mpr ⟨(k, o, v), hmem, rfl⟩⟩
 
 theorem admits_meetMap_core {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
@@ -1537,7 +1537,7 @@ def meetPos (m : Val → Val → Val) (f₁ f₂ : Bool) : Option Val → Option
 meet has one. -/
 def meetWrap (m : Val → Val → Val) (sp : Option Val) (i : ℕ) (e : Val) : Val :=
   match sp with
-  | some t => m e (t.atKey (toString i)).selectNow
+  | some t => m e (t.atKey (toString i)).selectNow.dropMarks
   | none => e
 
 /-- The positions of the meet of two lists, as many as the longer side
@@ -1610,7 +1610,7 @@ theorem admits_wrap {m : Val → Val → Val}
     {sp : Option Val} {i : ℕ} {e : Val} {x : Data} :
     Admits env root (meetWrap m sp i e) x ↔
       Admits env root e x ∧ ∀ t, sp = some t → Admits env root (t.atKey (toString i)) x := by
-  cases sp <;> simp [meetWrap, hm, admits_selectNow]
+  cases sp <;> simp [meetWrap, hm, admits_dropMarks_iff, admits_selectNow]
 
 theorem admits_meetPos {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
