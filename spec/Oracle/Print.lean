@@ -216,6 +216,7 @@ def Fn.name : Fn → String
   | .each => "each"
   | .pack => "pack"
   | .emit => "emit"
+  | .apply => "apply"
   | .maybe => "maybe"
   | .bnd .min => "min"
   | .bnd .max => "max"

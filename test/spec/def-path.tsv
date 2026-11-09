@@ -47,7 +47,8 @@
 # which the data fills, so that the call stands until it does, follows in rows dp0 on.
 # A meet carries the marks of both its sides, any's included, in rows hm0 on.
 # A spread's template meets each member without the marks written around it
-# (ruling 39), in rows sm0 on.
+# (ruling 39), in rows sm0 on. A relative path in apply's template reads where
+# the call stands, in rows ar0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -2556,3 +2557,15 @@ lt74	verdict	%L = [1]\n"a": [], "r": (refer(each(%L, _))) & (path($.a))	{"a": [1
 lt75	verdict	%L = [1]\n"a": [], "r": (refer(each(%L, _))) & (path($.a))	{"a": [2]}	{"verdict":"invalid"}
 lt76	verdict	%L = [1]\n"a": [], "r": (refer(each(%L, _))) & (path($.a))	{"a": [2]}	{"verdict":"invalid","opts":{"noFill":true}}
 lt77	verdict	%L = [1]\n"a": [], "r": (refer(each(%L, _))) & (path($.a))	{"a": [2]}	{"verdict":"invalid","opts":{"partial":true}}
+ar0	verdict	"v": apply(1, {"k": .z, "z": 4})	{"v": {"k": 4, "z": 4}}	{"verdict":"valid"}
+ar1	verdict	"v": apply(1, {"k": .z, "z": 4})	{"v": {"k": 4, "z": 4}}	{"verdict":"valid","opts":{"noFill":true}}
+ar2	verdict	"v": apply(1, {"k": .z, "z": 4})	{"v": {"k": 4, "z": 4}}	{"verdict":"valid","opts":{"partial":true}}
+ar3	verdict	"v": apply(1, {"k": .z, "z": _})	{"v": {"k": 1, "z": 1}}	{"verdict":"valid"}
+ar4	verdict	"v": apply(1, {"k": .z, "z": _})	{"v": {"k": 1, "z": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+ar5	verdict	"v": apply(1, {"k": .z, "z": _})	{"v": {"k": 1, "z": 1}}	{"verdict":"valid","opts":{"partial":true}}
+ar6	verdict	"v": apply(1, {"k": .z, "z": _})	{"v": {"k": 2, "z": 1}}	{"verdict":"invalid"}
+ar7	verdict	"v": apply(1, {"k": .z, "z": _})	{"v": {"k": 2, "z": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+ar8	verdict	"v": apply(1, {"k": .z, "z": _})	{"v": {"k": 2, "z": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+ar9	verdict	"n": 2, "v": apply(1, {"k": ..n})	{"v": {"k": 2}}	{"verdict":"valid"}
+ar10	verdict	"n": 2, "v": apply(1, {"k": ..n})	{"v": {"k": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+ar11	verdict	"n": 2, "v": apply(1, {"k": ..n})	{"v": {"k": 2}}	{"verdict":"valid","opts":{"partial":true}}
