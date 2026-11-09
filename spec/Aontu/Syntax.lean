@@ -303,6 +303,19 @@ def Val.hasMark (m : Rider) : Val → Bool
 /-- Whether a term carries a mark, `type()` or `hide()`, at its own position. -/
 def Val.marked (v : Val) : Bool := v.hasMark .type || v.hasMark .hide
 
+/-- A term with the marks written around it dropped, the ones
+`Val.hasMark` reads: through the riders, a link, `&` and a disjunction of
+one arm. A spread's template meets each member so (ruling 39 of the
+design note's §7), as a mark belongs to the field it is written at. -/
+def Val.dropMarks : Val → Val
+  | .ride .type v _ => v.dropMarks
+  | .ride .hide v _ => v.dropMarks
+  | .ride k v r => .ride k v.dropMarks r
+  | .link v t => .link v.dropMarks t
+  | .meet a b => .meet a.dropMarks b.dropMarks
+  | .or [(r, a)] => .or [(r, a.dropMarks)]
+  | v => v
+
 /-- Whether a term is absence, through the riders it carries. -/
 def Val.isAbsent : Val → Bool
   | .absent => true

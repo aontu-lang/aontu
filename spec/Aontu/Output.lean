@@ -135,17 +135,18 @@ the output, and the member still meets what arrives at its key
 (decision 10 of the design note's §7). So does absence, at a required
 key as at an optional one. What evaluation singles out is generated
 from the term's visible part, in which a marked member and a member
-that is absence are optional and hold anything, and so is a map's
-marked spread; neither changes what a term admits. A list holds no
-position for a marked element, which the reading drops (decision 18). -/
+that is absence are optional and hold anything; neither changes what a
+term admits. A spread's template gives its members no mark of its own
+(ruling 39), so a spread is read whole. A list holds no position for a
+marked element, which the reading drops (decision 18). -/
 
 mutual
 /-- Whether a map's member is left out of the output: marked, or absence. -/
 def Val.leftOut (v : Val) : Bool := v.marked || v.isAbsent
 
 /-- The visible part of a term: each member of a map left out of the
-output optional and `any`, a map's marked spread `any`, through the
-containers, `|`, `*`, `&` and the riders. -/
+output optional and `any`, through the containers, `|`, `*`, `&` and
+the riders. -/
 def Val.visible : Val → Val
   | .map fs spread closed => .map (visibleFields fs) (visibleSpread spread) closed
   | .list items spread closed => .list (visibleItems items) (visibleElems spread) closed
@@ -162,7 +163,7 @@ def visibleFields : List (String × Bool × Val) → List (String × Bool × Val
 
 def visibleSpread : Option Val → Option Val
   | none => none
-  | some s => some (if s.marked then .any else s.visible)
+  | some s => some s.visible
 
 def visibleItems : List Val → List Val
   | [] => []
@@ -207,13 +208,8 @@ theorem mem_visibleFields {fs : List (String × Bool × Val)} {k : String} {o : 
       · exact .inr ⟨o'', v, hm', hc⟩
 
 theorem visibleSpread_eq {spread : Option Val} {t : Val} :
-    visibleSpread spread = some t ↔
-      ∃ s, spread = some s ∧ ((s.marked = true ∧ t = .any) ∨ (s.marked = false ∧ t = s.visible)) := by
-  cases spread with
-  | none => simp [visibleSpread]
-  | some s =>
-    simp only [visibleSpread, Option.some.injEq, exists_eq_left']
-    cases hs : s.marked <;> simp [eq_comm]
+    visibleSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.visible := by
+  cases spread <;> simp [visibleSpread, eq_comm]
 
 theorem mem_visibleItems {items : List Val} {w : Val} :
     w ∈ visibleItems items ↔ ∃ v, v ∈ items ∧ w = v.visible := by
@@ -258,9 +254,8 @@ theorem Val.CheckableA.visible {v : Val} (h : v.CheckableA) : v.visible.Checkabl
       · exact .any
       · exact ihf k o' v hv
     · intro t ht
-      obtain ⟨s, hs, ⟨-, rfl⟩ | ⟨-, rfl⟩⟩ := visibleSpread_eq.mp ht
-      · exact .any
-      · exact ihs s hs
+      obtain ⟨s, hs, rfl⟩ := visibleSpread_eq.mp ht
+      exact ihs s hs
   | @list items spread closed _ _ ihi ihs =>
     refine .list ?_ ?_
     · intro w hm
@@ -288,9 +283,8 @@ theorem Val.Checkable.visible {v : Val} (h : v.Checkable) : v.visible.Checkable 
       · exact .any
       · exact ihf k o' v hv
     · intro t ht
-      obtain ⟨s, hs, ⟨-, rfl⟩ | ⟨-, rfl⟩⟩ := visibleSpread_eq.mp ht
-      · exact .any
-      · exact ihs s hs
+      obtain ⟨s, hs, rfl⟩ := visibleSpread_eq.mp ht
+      exact ihs s hs
   | @list items spread closed _ _ ihi ihs =>
     refine .list ?_ ?_
     · intro w hm

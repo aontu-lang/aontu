@@ -1166,4 +1166,60 @@ theorem judge_link_iff {env : Env} {root : Data} {b : Bool} {v t : Val}
     {j : Data} : Judge env root b (.link v t) j ↔ Judge env root b v j :=
   ⟨fun h => by cases h with | link h => exact h, .link⟩
 
+/-- The marks a template carries around it judge nothing, so dropping
+them leaves the term judging every datum as it did. -/
+theorem judge_dropMarks_iff {env : Env} {root : Data} (v : Val) :
+    ∀ {b : Bool} {j : Data}, Judge env root b v.dropMarks j ↔ Judge env root b v j := by
+  induction v using Val.dropMarks.induct with
+  | case1 v r ih => intro b j; simp only [Val.dropMarks]; rw [ih, judge_ride_iff]
+  | case2 v r ih => intro b j; simp only [Val.dropMarks]; rw [ih, judge_ride_iff]
+  | case3 k v r hk1 hk2 ih =>
+    intro b j
+    rw [Val.dropMarks.eq_3 k v r hk1 hk2, judge_ride_iff, judge_ride_iff, ih]
+  | case4 v t ih => intro b j; simp only [Val.dropMarks]; rw [judge_link_iff, judge_link_iff, ih]
+  | case5 a c iha ihc =>
+    intro b j
+    simp only [Val.dropMarks]
+    constructor
+    · intro h
+      cases h with
+      | meet ha hc => exact .meet (iha.mp ha) (ihc.mp hc)
+      | meetLeft ha => exact .meetLeft (iha.mp ha)
+      | meetRight hc => exact .meetRight (ihc.mp hc)
+    · intro h
+      cases h with
+      | meet ha hc => exact .meet (iha.mpr ha) (ihc.mpr hc)
+      | meetLeft ha => exact .meetLeft (iha.mpr ha)
+      | meetRight hc => exact .meetRight (ihc.mpr hc)
+  | case6 r a ih =>
+    intro b j
+    simp only [Val.dropMarks]
+    constructor
+    · intro h
+      cases h with
+      | or hm ha =>
+        simp only [List.mem_singleton, Prod.mk.injEq] at hm
+        obtain ⟨rfl, rfl⟩ := hm
+        exact .or (List.mem_singleton.mpr rfl) (ih.mp ha)
+      | orNone hall =>
+        refine .orNone fun r' a' hm => ?_
+        simp only [List.mem_singleton, Prod.mk.injEq] at hm
+        obtain ⟨rfl, rfl⟩ := hm
+        exact ih.mp (hall _ _ (List.mem_singleton.mpr rfl))
+    · intro h
+      cases h with
+      | or hm ha =>
+        simp only [List.mem_singleton, Prod.mk.injEq] at hm
+        obtain ⟨rfl, rfl⟩ := hm
+        exact .or (List.mem_singleton.mpr rfl) (ih.mpr ha)
+      | orNone hall =>
+        refine .orNone fun r' a' hm => ?_
+        simp only [List.mem_singleton, Prod.mk.injEq] at hm
+        obtain ⟨rfl, rfl⟩ := hm
+        exact ih.mpr (hall _ _ (List.mem_singleton.mpr rfl))
+  | case7 v h1 h2 h3 h4 h5 h6 => intro b j; rw [Val.dropMarks.eq_7 v h1 h2 h3 h4 h5 h6]
+
+theorem admits_dropMarks_iff {env : Env} {root : Data} {v : Val} {j : Data} :
+    Admits env root v.dropMarks j ↔ Admits env root v j := judge_dropMarks_iff v
+
 end Aontu

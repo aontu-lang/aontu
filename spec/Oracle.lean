@@ -2816,8 +2816,9 @@ theorem filterKeep_verdict_exact : ∀ c ∈ filterKeepCases, ∀ (m : Mode) (v 
 included, so `hide(any)` or `type(any)` met with a value marks it,
 beside a map's member on either side, a scalar, a kind, a map and a
 path reference, and #419's and #420's meets of a value with a marked
-one, whose answer is the unmarked side; a spread's `hide(any)` template
-marks each member it meets; and a list's element marked through a meet
+one, whose answer is the unmarked side; a spread's `hide(any)` template,
+which gives no mark to the members it meets (ruling 39); and a list's
+element marked through a meet
 holds no position, where a marked element of a list that meets another
 holds none to meet (ruling 18). -/
 def markMeetCases : List (Decls × Val × Data) :=
@@ -2855,6 +2856,53 @@ theorem markMeetCases_reads : ∀ c ∈ markMeetCases, c.1.readsPB c.2.1 c.2.2 =
 theorem markMeet_verdict_exact : ∀ c ∈ markMeetCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_reads (markMeetCases_reads c hc) v
+
+/-- A spread's template copied to each member without the marks written
+around it (ruling 39): `hide()` and `type()` around a scalar, a kind, a
+mark, a map, a disjunction and a hole, under a meet of two spreads and of
+two templates, and on a list's spread; a mark on a field of the template
+and one on an arm of a disjunction belong to that field and that arm,
+and stay. Each member is left out of the data, so that `--no-fill`
+tells a member the data must give from a marked one. -/
+def spreadMarkCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let sp (t : Val) : Val := .map [] (some t) false
+  let lsp (t : Val) : Val := .list [] (some t) false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let hide (v : Val) : Val := .ride .hide v []
+  let type (v : Val) : Val := .ride .type v []
+  let x (v : Val) : Val := m [("x", v)]
+  let dx (d : Data) : Data := .map [("x", d)]
+  let a1 : Val := m [("a", int 1)]
+  let ae : Val := m [("a", m [])]
+  let b1 : Val := m [("b", int 1)]
+  let dc : Data := dx (.map [("a", .map [("c", j 2)])])
+  [([], x (.meet (sp (hide (int 1))) a1), dx (.map [])),
+    ([], x (.meet (sp (type (int 1))) a1), dx (.map [])),
+    ([], x (.meet (sp (hide .integer)) a1), dx (.map [])),
+    ([], x (.meet (sp (hide (type (int 1)))) a1), dx (.map [])),
+    ([], x (.meet (sp (hide b1)) ae), dx (.map [("a", .map [])])),
+    ([], x (.meet (sp (type b1)) ae), dx (.map [("a", .map [])])),
+    ([], x (.meet (sp (hide (m [("b", hide (int 1)), ("c", int 2)]))) ae), dc),
+    ([], x (.meet (sp (m [("n", hide (int 1))])) ae), dx (.map [("a", .map [])])),
+    ([], x (.meet (.meet (sp (hide b1)) (sp (m [("c", int 2)]))) ae), dc),
+    ([], x (.meet (sp (.meet (hide b1) (m [("c", int 2)]))) ae), dc),
+    ([], x (.meet (sp (hide (.or [(0, int 1), (0, int 2)]))) a1), dx (.map [])),
+    ([], x (.meet (sp (.or [(0, hide (int 1)), (0, int 2)])) a1), dx (.map [])),
+    ([], x (.meet (lsp (hide (int 1))) (l [int 1])), dx (.list [])),
+    ([], x (.meet (lsp (type b1)) (l [m []])), dx (.list [.map []])),
+    ([], x (.meet (sp (hide .hole)) a1), dx (.map [])),
+    ([], x (.meet (sp (hide (.call .add [.hole, int 1]))) a1), dx (.map [])),
+    ([], x (.meet (lsp (hide .hole)) (l [int 1])), dx (.list []))]
+
+set_option maxRecDepth 16384 in
+theorem spreadMarkCases_reads : ∀ c ∈ spreadMarkCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+
+theorem spreadMark_verdict_exact : ∀ c ∈ spreadMarkCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (spreadMarkCases_reads c hc) v
 
 /-- Bounds written over terms: `min`, `max`, `above` and `below` over a
 path to a number and to a string, the empty string among them, over a
@@ -6666,6 +6714,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# generator makes, follow in rows lt0 on. A call over a hole that a path names,"
     IO.println "# which the data fills, so that the call stands until it does, follows in rows dp0 on."
     IO.println "# A meet carries the marks of both its sides, any's included, in rows hm0 on."
+    IO.println "# A spread's template meets each member without the marks written around it"
+    IO.println "# (ruling 39), in rows sm0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -6689,6 +6739,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "fc" filterCondCases
     pathRows "fk" filterKeepCases
     pathRows "hm" markMeetCases
+    pathRows "sm" spreadMarkCases
     pathRows "bd" boundArgCases
     pathRows "bg" (boundFilterCases ++ boundEachCases)
     pathRows "ls" scopeCases
