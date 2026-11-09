@@ -49,7 +49,7 @@ class ApplyFuncVal extends FuncBaseVal {
 
 
   resolve(ctx: AontuContext, args: Val[]) {
-    const inst = args[1].clone(ctx, { dup: true })
+    const inst = args[1].clone(ctx, { dup: true, path: this.path })
     repathInstance(inst, inst.path)
     return fillPlace(inst, args[0], ctx)
   }

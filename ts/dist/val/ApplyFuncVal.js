@@ -26,7 +26,7 @@ class ApplyFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return super.unify(peer, ctx);
     }
     resolve(ctx, args) {
-        const inst = args[1].clone(ctx, { dup: true });
+        const inst = args[1].clone(ctx, { dup: true, path: this.path });
         (0, Val_1.repathInstance)(inst, inst.path);
         return (0, PlaceVal_1.fillPlace)(inst, args[0], ctx);
     }
