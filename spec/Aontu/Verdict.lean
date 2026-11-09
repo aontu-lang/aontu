@@ -640,7 +640,7 @@ path and the names a destructure takes, a component's call as
 `Cmp.takes` reads it, and every other a range. -/
 def Fn.takes : Fn → ℕ → Bool
   | .add, n | .sub, n | .mul, n | .div, n | .mod, n | .rem, n | .plus, n | .pick, n
-  | .split, n | .each, n | .pack, n | .emit, n => n == 2
+  | .split, n | .each, n | .pack, n | .emit, n | .apply, n => n == 2
   | .neg, n | .sum, n | .least, n | .greatest, n | .super, n | .pref, n | .move, n
   | .abnf, n | .maybe, n | .copy, n => n == 1
   | .join, n | .esc, n | .usc, n | .parse, n => 1 ≤ n && n ≤ 2
@@ -1158,7 +1158,7 @@ in an `emit`'s table, read for each node. -/
 def Val.waits (w : String → Bool) : Val → Bool
   | .hole | .keyUp _ => true
   | .alias n => w n
-  | .call .each args | .call .pack args | .call .emit args => waitsHead w args
+  | .call .each args | .call .pack args | .call .emit args | .call .apply args => waitsHead w args
   | .call _ args => waitsItems w args
   | .ride _ v _ => v.waits w
   | .link v _ => v.waits w
@@ -1540,7 +1540,7 @@ a nested `emit`'s table, a generator's template and a `filter`'s
 condition, which read their own nodes and members. -/
 def Val.nodePaths : Val → List (List Seg)
   | .path p => if p.head? == some .node then [p] else []
-  | .call .emit (s :: _) | .call .each (s :: _) | .call .pack (s :: _) => s.nodePaths
+  | .call .emit (s :: _) | .call .each (s :: _) | .call .pack (s :: _) | .call .apply (s :: _) => s.nodePaths
   | .filter s _ => s.nodePaths
   | .call _ args => nodeItems args
   | .len c => c.nodePaths
@@ -1803,6 +1803,11 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
         if (normaliseD ds (resolveD ds b here d)).isAbsent then .absent
         else if (resolveD ds b here d).pending ds then .call .pack [resolveD ds b here d, t]
         else .nil
+    | .apply, [v, f] =>
+      if here.isNone && (resolveD ds b here v).holdsKey then .call .apply [resolveD ds b here v, f] else
+      if (normaliseD ds (resolveD ds b here v)).isAbsent then .absent
+      else if (resolveD ds b here v).pending ds then .call .apply [resolveD ds b here v, f]
+      else resolveD ds (some (normaliseD ds (resolveD ds b here v))) here f
     | .maybe, [v] => maybeOf ds (resolveD ds b here v)
     | .maybe, args => .call .maybe (resolveItems ds b here args)
     | .emit, [s, t] =>
@@ -1920,7 +1925,7 @@ over one through its arguments, a generator's data but not its template,
 and through a rider, but never through a container. -/
 def Val.fillable : Val → Bool
   | .hole => true
-  | .call .each args | .call .pack args | .call .emit args => fillableHead args
+  | .call .each args | .call .pack args | .call .emit args | .call .apply args => fillableHead args
   | .call _ args => fillableItems args
   | .ride _ v _ => v.fillable
   | .link v _ => v.fillable
@@ -1942,6 +1947,7 @@ def Val.bindHole : Val → Val → Val
   | .call .each args, p => .call .each (bindHead args p)
   | .call .pack args, p => .call .pack (bindHead args p)
   | .call .emit args, p => .call .emit (bindHead args p)
+  | .call .apply args, p => .call .apply (bindHead args p)
   | .call f args, p => .call f (bindItems args p)
   | .ride k v r, p => .ride k (v.bindHole p) r
   | .link v lt, p => .link (v.bindHole p) lt
@@ -2576,6 +2582,7 @@ def Val.filled : Val → Val
   | .call .each args => .call .each (filledHead args)
   | .call .pack args => .call .pack (filledHead args)
   | .call .emit args => .call .emit (filledHead args)
+  | .call .apply args => .call .apply (filledHead args)
   | .call .plus args => joinedArgs (filledItems args)
   | .call f args => .call f (filledItems args)
   | v => v
@@ -5416,6 +5423,23 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
           · rw [h]; exact ih d (by simp) hb
           · rw [h]; exact hargs t (by simp)
         · exact .nil
+    · rename_i v t
+      have hcall : (Val.call .apply [resolveD ds b here v, t]).CheckableA := by
+        refine .call fun a ha => ?_
+        simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
+        rcases ha with h | h
+        · rw [h]; exact ih v (by simp) hb
+        · rw [h]; exact hargs t (by simp)
+      split
+      · exact hcall
+      split
+      · exact .absent
+      split
+      · exact hcall
+      · have hn := normaliseD_checkableA hd (ih v (by simp) (here := here) hb)
+        exact ih t (by simp) (b := some _) (here := here) fun m' hm' => by
+          obtain rfl := Option.some.inj hm'
+          exact hn
     · rename_i v
       exact maybeOf_checkableA (ih v (by simp) hb)
     · refine .call fun a ha => ?_
@@ -5834,7 +5858,7 @@ def Val.illFormed : Val → Bool
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args ||
     (!(Val.call .join args).fillable && joinSepHeld args)
   | .call .pref args => args.length != 1 || illItems args
-  | .call .each args | .call .pack args | .call .emit args =>
+  | .call .each args | .call .pack args | .call .emit args | .call .apply args =>
     if fillableHead args && args.length == 2 then illHead args else true
   | .call f args => if (Val.call f args).fillable && f.takes args.length then illItems args else true
   | .select _ arms _ => illPats arms
@@ -6038,7 +6062,7 @@ def Val.unplaced (w : String → Bool) (ill : Val → Bool) : Val → Val
   | .call f args =>
     if !(Val.call f args).waits w then .call f args
     else if !f.takes args.length || (match f with
-      | .each | .pack | .emit => headIll w ill args
+      | .each | .pack | .emit | .apply => headIll w ill args
       | _ => argsIll w ill args) then .nil else .any
   | .len c => if !c.waits w then .len c else if ill (c.unplaced w ill) then .nil else .any
   | .must c m => if !c.waits w then .must c m else if ill (c.unplaced w ill) then .nil else .any

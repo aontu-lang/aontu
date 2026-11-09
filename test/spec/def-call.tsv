@@ -40,7 +40,9 @@
 # The transformer emit follows in rows et0 on, over selections written in place:
 # for each node, the body of the first template whose match the node meets,
 # read for the node, each list in it spliced, and an error where no template
-# matches or the body names what the node doesn't hold. A hole its call's peer
+# matches or the body names what the node doesn't hold. apply(v, f) follows in
+# rows ap0 on: each hole of f that no generator or apply inside f binds, bound
+# to v, the one instance each([v], f) makes. A hole its call's peer
 # fills follows in rows hv0 on: a meet with a hole on one side and none on the
 # other reads as that side with the hole bound to the other, as the document
 # groups its meets. A hole the document leaves unfilled, which the data fills,
@@ -2646,6 +2648,51 @@ et266	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {"a": .missi
 et267	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error"}
 et268	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error","opts":{"noFill":true}}
 et269	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error","opts":{"partial":true}}
+ap0	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid"}
+ap1	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+ap2	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid","opts":{"partial":true}}
+ap3	verdict	v: apply(1, add(_, 1))	v: 3	{"verdict":"invalid"}
+ap4	verdict	v: apply(1, add(_, 1))	v: 3	{"verdict":"invalid","opts":{"noFill":true}}
+ap5	verdict	v: apply(1, add(_, 1))	v: 3	{"verdict":"invalid","opts":{"partial":true}}
+ap6	verdict	v: apply("hello", upper(_))	v: "HELLO"	{"verdict":"valid"}
+ap7	verdict	v: apply("hello", upper(_))	v: "HELLO"	{"verdict":"valid","opts":{"noFill":true}}
+ap8	verdict	v: apply("hello", upper(_))	v: "HELLO"	{"verdict":"valid","opts":{"partial":true}}
+ap9	verdict	v: apply(1, {"n": _})	v: {"n": 1}	{"verdict":"valid"}
+ap10	verdict	v: apply(1, {"n": _})	v: {"n": 1}	{"verdict":"valid","opts":{"noFill":true}}
+ap11	verdict	v: apply(1, {"n": _})	v: {"n": 1}	{"verdict":"valid","opts":{"partial":true}}
+ap12	verdict	v: apply(1, {"n": _})	v: {"n": 2}	{"verdict":"invalid"}
+ap13	verdict	v: apply(1, {"n": _})	v: {"n": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+ap14	verdict	v: apply(1, {"n": _})	v: {"n": 2}	{"verdict":"invalid","opts":{"partial":true}}
+ap15	verdict	v: apply(1, [_, _])	v: [1, 1]	{"verdict":"valid"}
+ap16	verdict	v: apply(1, [_, _])	v: [1, 1]	{"verdict":"valid","opts":{"noFill":true}}
+ap17	verdict	v: apply(1, [_, _])	v: [1, 1]	{"verdict":"valid","opts":{"partial":true}}
+ap18	verdict	v: apply(1, 2)	v: 2	{"verdict":"valid"}
+ap19	verdict	v: apply(1, 2)	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+ap20	verdict	v: apply(1, 2)	v: 2	{"verdict":"valid","opts":{"partial":true}}
+ap21	verdict	v: apply(1, integer)	v: 5	{"verdict":"valid"}
+ap22	verdict	v: apply(1, integer)	v: 5	{"verdict":"valid","opts":{"noFill":true}}
+ap23	verdict	v: apply(1, integer)	v: 5	{"verdict":"valid","opts":{"partial":true}}
+ap24	verdict	v: apply(1, each([3], _))	v: [3]	{"verdict":"valid"}
+ap25	verdict	v: apply(1, each([3], _))	v: [3]	{"verdict":"valid","opts":{"noFill":true}}
+ap26	verdict	v: apply(1, each([3], _))	v: [3]	{"verdict":"valid","opts":{"partial":true}}
+ap27	verdict	v: apply(1, apply(2, _))	v: 2	{"verdict":"valid"}
+ap28	verdict	v: apply(1, apply(2, _))	v: 2	{"verdict":"valid","opts":{"noFill":true}}
+ap29	verdict	v: apply(1, apply(2, _))	v: 2	{"verdict":"valid","opts":{"partial":true}}
+ap30	verdict	v: apply(1, [hide(_), _])	v: [1]	{"verdict":"valid"}
+ap31	verdict	v: apply(1, [hide(_), _])	v: [1]	{"verdict":"valid","opts":{"noFill":true}}
+ap32	verdict	v: apply(1, [hide(_), _])	v: [1]	{"verdict":"valid","opts":{"partial":true}}
+ap33	verdict	v: each([1, 2], apply(_, add(_, 1)))	v: [2, 3]	{"verdict":"valid"}
+ap34	verdict	v: each([1, 2], apply(_, add(_, 1)))	v: [2, 3]	{"verdict":"valid","opts":{"noFill":true}}
+ap35	verdict	v: each([1, 2], apply(_, add(_, 1)))	v: [2, 3]	{"verdict":"valid","opts":{"partial":true}}
+ap36	verdict	v: apply([1, 2], sum(_))	v: 3	{"verdict":"valid"}
+ap37	verdict	v: apply([1, 2], sum(_))	v: 3	{"verdict":"valid","opts":{"noFill":true}}
+ap38	verdict	v: apply([1, 2], sum(_))	v: 3	{"verdict":"valid","opts":{"partial":true}}
+ap39	verdict	v: apply({"a": 1}, {"b": _})	v: {"b": {"a": 1}}	{"verdict":"valid"}
+ap40	verdict	v: apply({"a": 1}, {"b": _})	v: {"b": {"a": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+ap41	verdict	v: apply({"a": 1}, {"b": _})	v: {"b": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
+ap42	verdict	v: apply(1)	v: 1	{"verdict":"error"}
+ap43	verdict	v: apply(1)	v: 1	{"verdict":"error","opts":{"noFill":true}}
+ap44	verdict	v: apply(1)	v: 1	{"verdict":"error","opts":{"partial":true}}
 z0	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid"}
 z1	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"noFill":true}}
 z2	verdict	%A = 3\nv: add(%A, 1)	v: 4	{"verdict":"valid","opts":{"partial":true}}

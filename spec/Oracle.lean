@@ -4035,7 +4035,8 @@ def forms : List (String × String × String) :=
     ("call", "call", "line"), ("call", "call", "fragment"), ("call", "call", "slot"),
     ("call", "call", "inject"), ("call", "call", "copyfiles"), ("call", "call", "listitems"),
     ("call", "call", "each"), ("call", "call", "pack"), ("call", "call", "maybe"),
-    ("call", "call", "emit"), ("absent", "call", "maybe"), ("hole", "syntax", "_")]
+    ("call", "call", "emit"), ("call", "call", "apply"), ("absent", "call", "maybe"),
+    ("hole", "syntax", "_")]
 
 /-- A term of each call form, so that the oracle can hold the list to
 the printer: each prints as its name and a parenthesis. -/
@@ -4069,7 +4070,7 @@ def formSamples : List (String × Val) :=
     ("inject", .call (.cmp .inject) [.string]), ("copyfiles", .call (.cmp .copyfiles) [.string]),
     ("listitems", .call (.cmp .listitems) [.mapKind]), ("each", .call .each [.listKind, .hole]),
     ("pack", .call .pack [.listKind, .hole]), ("maybe", .call .maybe [.string]),
-    ("emit", .call .emit [.listKind, .mapKind])]
+    ("emit", .call .emit [.listKind, .mapKind]), ("apply", .call .apply [.integer, .hole])]
 
 /-- The `forms` file: each form with its kind and spelling, after the
 spellings are held to the printer. -/
@@ -5990,6 +5991,44 @@ theorem emit_verdict_exact : ∀ c ∈ emitCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (emitCases_checkable c hc)) v
 
+/-- `apply(v, f)`, which binds each hole of `f` that no generator or
+`apply` inside `f` binds to `v` and makes the one instance
+`each([v], f)` would: a call over the hole, a map's member and a list's
+elements, `f` with no hole, which is `f`, a generator and an `apply`
+inside `f`, which bind their own, a marked element, which holds no
+position, `apply` in a generator's template, whose head the generator
+binds, a list and a map as `v`, and `apply` with one argument, an
+error. -/
+def applyCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ap (v f : Val) : Val := .call .apply [v, f]
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let jl (xs : List Data) : Data := .list xs
+  [(ap (int 1) (.call .add [.hole, int 1]), j 2),
+    (ap (int 1) (.call .add [.hole, int 1]), j 3),
+    (ap (.lit (.str "hello")) (.call .upper [.hole]), .str "HELLO"),
+    (ap (int 1) (mp [("n", .hole)]), .map [("n", j 1)]),
+    (ap (int 1) (mp [("n", .hole)]), .map [("n", j 2)]),
+    (ap (int 1) (lst [.hole, .hole]), jl [j 1, j 1]),
+    (ap (int 1) (int 2), j 2),
+    (ap (int 1) .integer, j 5),
+    (ap (int 1) (.call .each [lst [int 3], .hole]), jl [j 3]),
+    (ap (int 1) (ap (int 2) .hole), j 2),
+    (ap (int 1) (lst [.ride .hide .hole [], .hole]), jl [j 1]),
+    (.call .each [lst [int 1, int 2], ap .hole (.call .add [.hole, int 1])], jl [j 2, j 3]),
+    (ap (lst [int 1, int 2]) (.call .sum [.hole]), j 3),
+    (ap (mp [("a", int 1)]) (mp [("b", .hole)]), .map [("b", .map [("a", j 1)])]),
+    (.call .apply [int 1], j 1)]
+
+theorem applyCases_checkable : ∀ c ∈ applyCases, (vetDoc c).1.CheckableA := by decide
+
+theorem apply_verdict_exact : ∀ c ∈ applyCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (applyCases_checkable c hc)) v
+
 /-- `key(n)` read where it stands: at a key and at an index, at its
 levels to the top and past it, under a meet, a call, a rider and a
 disjunction, and where the fill writes it; in a template, the member's
@@ -6883,7 +6922,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# The transformer emit follows in rows et0 on, over selections written in place:"
     IO.println "# for each node, the body of the first template whose match the node meets,"
     IO.println "# read for the node, each list in it spliced, and an error where no template"
-    IO.println "# matches or the body names what the node doesn't hold. A hole its call's peer"
+    IO.println "# matches or the body names what the node doesn't hold. apply(v, f) follows in"
+    IO.println "# rows ap0 on: each hole of f that no generator or apply inside f binds, bound"
+    IO.println "# to v, the one instance each([v], f) makes. A hole its call's peer"
     IO.println "# fills follows in rows hv0 on: a meet with a hole on one side and none on the"
     IO.println "# other reads as that side with the hole bound to the other, as the document"
     IO.println "# groups its meets. A hole the document leaves unfilled, which the data fills,"
@@ -6915,6 +6956,7 @@ def main (args : List String) : IO UInt32 := do
       projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
       heldFailCases ++ markedEachCases ++ armCallCases ++ optCallCases)
     verdictRows "et" emitCases
+    verdictRows "ap" applyCases
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
     verdictRows "k" pathCallCases
