@@ -1777,6 +1777,12 @@ until the phase that encodes it lands.
    A call over a hole that nothing binds, once the meet no longer
    applies it, is an `error` of the schema whatever the data, as a
    schema call the engines can't make is (#426).
+   **`apply` built 2026-11-09**: `Fn.apply` in the definition, read in
+   `resolveD` as the one instance of `each([v], f)` where the call
+   stands, and `ApplyFuncVal` and `applyFunc` in the engines; rows ap0
+   to ap44 of `test/spec/def-call.tsv`. The meet as application, the
+   spread template's hole and the error for a call over a hole that
+   nothing binds remain to build.
 
 35. **A link in a declaration nothing uses.** Raised 2026-11-06 by the
    consolidation study (`sketch/CORE.0.md`, §4.1), and put with 36 and
