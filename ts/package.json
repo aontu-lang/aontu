@@ -79,14 +79,16 @@
     "@tabnas/parser": "0.12.2",
     "@tabnas/path": "0.3.8",
     "@tabnas/toml": "0.5.8",
-    "@tabnas/yaml": "0.5.9",
-    "jostraca": "0.39.0"
+    "@tabnas/yaml": "0.5.9"
   },
   "devDependencies": {
     "@tabnas/railroad": "0.3.7",
     "@types/node": "26.2.0",
     "memfs": "4.68.1",
     "typescript": "7.0.2"
+  },
+  "peerDependencies": {
+    "jostraca": ">=0.41.0"
   },
   "aliasify": {
     "aliases": {
