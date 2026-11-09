@@ -6,6 +6,29 @@ package (`ts/`, npm `aontu`) and the Go module (`go/`,
 entries before it carry two numbers, and entries note which implementation
 each change affects.
 
+## 0.76.3 — 2026-11-09
+
+A patch on 0.76.1 that changes one dependency. The work merged into
+`main` since 0.76.0 is not in it.
+
+### jostraca is a peer dependency
+
+TypeScript. `jostraca`, the generator runtime `aontu render` hands its
+component tree to, moves from an exact dependency, `0.39.0`, to a peer
+dependency, `>=0.41.0`. A project that installs aontu beside the voxgig
+toolchain (`sdkgen`, `apidef`, `docgen`), which all ask for `jostraca >=0.41.0`,
+now gets one copy of jostraca where it got two, with aontu's own `0.39.0`
+nested below it. npm 7 and later install a peer dependency that nothing
+else provides, so a project with aontu alone still gets jostraca.
+
+`aontu render --format json` names its file lists, as the Go port does,
+so its report is the same as 0.76.1's. jostraca 0.41 returns a list of
+its own, `unmerged`, which a render, never merging, leaves empty.
+
+The Go module is unchanged: it requires `jostraca/go` v0.39.0 as a
+minimum, and a build that requires a later version already gets that
+one. Its version moves to 0.76.3 to keep the series together.
+
 ## 0.76.1 — 2026-10-21
 
 A patch on 0.76.0 that carries one fix. The work merged into `main`

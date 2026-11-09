@@ -4,7 +4,7 @@ declare const SEVERITY_ERROR = 1;
 declare const SEVERITY_WARNING = 2;
 declare const SEVERITY_INFORMATION = 3;
 declare const SEVERITY_HINT = 4;
-declare const LSP_VERSION = "0.76.1";
+declare const LSP_VERSION = "0.76.3";
 type Position = {
     line: number;
     character: number;
