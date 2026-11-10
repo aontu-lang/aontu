@@ -2133,6 +2133,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 				// and an unsited nil renders `<no-file>:-1:-1` where
 				// TypeScript names the call's row and column.
 				n := newNil("unknown_function")
+				n.refusedCall = newFunc("", writtenArgVals(terms[1:]))
 				if r.ON > 0 {
 					n.site.sp = r.O0.SI
 				}

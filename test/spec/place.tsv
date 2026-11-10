@@ -123,6 +123,19 @@ place-pref-list-hole	errc	a:pref([_]) & [1]\n	hole_unbound
 place-bound-list-hole	errc	a:min([_]) & 1\n	hole_unbound
 place-neq-list-hole	errc	a:neq([_]) & 1\n	hole_unbound
 place-neq-list-hole-beside	errc	a:neq([1,_]) & 2\n	hole_unbound
+# A constraint reads its arguments before it settles: neq reads a
+# list as its members, and a trial refuses a move. The hole the walk
+# finds is in the arguments as written.
+place-neq-list-spread-hole	errc	a:neq([1,&:_])\n	hole_unbound
+place-neq-list-spread-only	errc	a:neq([&:_])\n	hole_unbound
+place-must-move-hole	errc	a:must(move(_),"x")\n	hole_unbound
+place-must-move-hole-arm	errc	a:must(move(_),"x") | 1\n	hole_unbound
+place-nof-move-hole	errc	a:nof(move(_),[1])\n	hole_unbound
+place-contains-move-hole	errc	a:contains(move(_))\n	hole_unbound
+place-when-move-hole	errc	a:when(move(_),1)\n	hole_unbound
+# A call whose name is no function keeps its arguments as written too.
+place-refused-name-hole	errc	a:A=neq(_)\n	hole_unbound
+place-refused-number-name-hole	errc	a:1(_)\n	hole_unbound
 place-super-hole-beside-call	errc	a:super([_,$.b]) b:upper(_)\n	hole_unbound
 place-super-list-call	errc	a:super([upper(_)]) & ["x"]\n	hole_unbound
 place-super-map-call	errc	a:super({k:upper(_)}) & {k:1}\n	hole_unbound
@@ -207,6 +220,8 @@ place-unused-hole	gens	%T = _ & 1\nv: 1\n	{"v":1}
 place-unused-list-arg	gens	%T = sum([_, 1]) & 3\nv: 1\n	{"v":1}
 place-unused-plus	gens	%T = (_ + 1) & 2\nv: 1\n	{"v":1}
 place-unused-conflict	errc	%T = upper(_) & (1 & 2)\nv: 1\n	scalar_value
+place-unused-waiting-conflict	errc	%U = upper(_)\n%T = add(%U, 1) & (1 & 2)\nv: 1\n	scalar_value
+place-unused-name-conflict	errc	%U = upper(_)\n%T = add(%U, 1)\n%V = %T & (1 & 2)\nv: 1\n	scalar_value
 place-unused-seal-refuses	errc	%T = close(meta({x: upper(_)}, {d: 1})) & {x: "q", y: 2}\nv: 1\n	closed
 place-unused-seal-list-refuses	errc	%T = close([upper(_)]) & ["a", "b"]\nv: 1\n	closed
 place-unused-seal-stands	gens	%T = close(meta({x: upper(_)}, {d: 1})) & {x: "q"}\nv: 1\n	{"v":1}
