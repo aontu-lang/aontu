@@ -62,6 +62,7 @@ class PlaceVal extends ValBase {
 
 function boundArgStart(v: any): number {
   return true === v.isPackFunc || true === v.isEachFunc ||
+    true === v.isApplyFunc ||
     true === v.isFilterFunc || true === v.isEmitFunc ||
     true === v.isFormFunc ? 1 : Infinity
 }

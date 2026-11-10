@@ -100,6 +100,7 @@ var funcSet = map[string]bool{
 	"refer":     true,
 	"pack":      true,
 	"each":      true,
+	"apply":     true,
 	"filter":    true,
 	"match":     true,
 	"emit":      true,
@@ -133,7 +134,7 @@ var funcSet = map[string]bool{
 }
 
 var stagedFuncs = map[string]bool{
-	"key": true, "pack": true, "each": true, "filter": true,
+	"key": true, "pack": true, "each": true, "apply": true, "filter": true,
 	"match": true,
 	"emit":  true,
 	"sum":   true, "least": true, "greatest": true, "pick": true,
@@ -165,7 +166,7 @@ func derivePositional() map[string]bool {
 }
 
 var generatorFuncs = map[string]bool{
-	"pack": true, "each": true, "filter": true, "match": true,
+	"pack": true, "each": true, "apply": true, "filter": true, "match": true,
 	// emit's TABLE is templates: driving it would resolve a body's
 	// references at the call site, the one position a body is never
 	// used at.
@@ -256,6 +257,7 @@ type FuncVal struct {
 	prepared bool
 	// declared marks ident() as the whole value of an alias declaration.
 	declared bool
+	unmarked Val
 }
 
 func newFunc(name string, args []Val) *FuncVal {
@@ -642,6 +644,11 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		return packFunc(ctx, f, base, args)
 	case "each":
 		return eachFunc(ctx, f, base, args)
+	case "apply":
+		if len(args) < 2 { //coverage:ignore arity {2,2} is refused at parse
+			return makeNilErr(ctx, "invalid-arg", f, nil)
+		}
+		return applyFunc(base, args)
 	case "filter":
 		return filterFunc(ctx, f, base, args)
 	case "match":

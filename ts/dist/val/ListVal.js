@@ -105,12 +105,12 @@ class ListVal extends BagVal_1.BagVal {
                 out.closed = out.closed || peer.closed;
                 out.spread.cj = null == out.spread.cj ? peer.spread.cj : (null == peer.spread.cj ? out.spread.cj :
                     out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
-                        (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, out.spread.cj, peer.spread.cj, 'list-peer'));
+                        (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, (0, ConjunctVal_1.unmarkedTemplate)(out.spread.cj, ctx), (0, ConjunctVal_1.unmarkedTemplate)(peer.spread.cj, ctx), 'list-peer'));
             }
         }
         if (!exit) {
             out.dc = this.dc + 1;
-            let spread_cj = out.spread.cj || TOP;
+            let spread_cj = (0, ConjunctVal_1.unmarkedTemplate)(out.spread.cj || TOP, ctx);
             // Always unify children first
             for (let key in this.peg) {
                 const keyctx = ctx.descend(key);

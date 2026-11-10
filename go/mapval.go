@@ -555,7 +555,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		if out.spread == nil {
 			out.spread = pm.spread
 		} else if pm.spread != nil && out.spread.Canon() != pm.spread.Canon() {
-			out.spread = unite(ctx, out.spread, pm.spread)
+			out.spread = unite(ctx, unmarkedTemplate(out.spread), unmarkedTemplate(pm.spread))
 		}
 		for _, ak := range pm.aliasKeys {
 			if !out.isAliasKey(ak) {
@@ -576,7 +576,7 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 
 	var spreadCj Val = top()
 	if out.spread != nil {
-		spreadCj = out.spread
+		spreadCj = unmarkedTemplate(out.spread)
 	}
 
 	// Snapshot a path-dependent ref spread to its structural target once
@@ -586,12 +586,6 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		if snap := snapshotRefSpread(rv, ctx); snap != nil {
 			spreadCj = snap
 		}
-	}
-	// A type() used as a spread applies as its inner template: values
-	// are emitted (and constrained) at each destination rather than
-	// marking the destination as a type.
-	if fv, ok := spreadCj.(*FuncVal); ok && fv.name == "type" && len(fv.peg) > 0 {
-		spreadCj = fv.peg[0]
 	}
 
 	for _, k := range m.keys {

@@ -3543,7 +3543,9 @@ def MarksAgree (a b : Val) : Prop :=
 
 So `hide(integer)` and `integer` are below each other in the order and
 not under `gen`, which `hide_not_genLe` proves, and
-`hide_spread_not_genLe` proves the same of two maps' spreads.
+`hide_spread_not_genLe` proves the same of a field of two maps' spread
+templates. A mark around a whole template the reading drops, as step 13
+shows, so `{&: hide(integer)}` and `{&: integer}` read alike under `gen`.
 
 The order has rows of its own, `test/spec/def-subsume.tsv`: every pair
 of fifty-eight values, the general first, with the answers the `values`
@@ -4374,13 +4376,11 @@ def visibleFields : List (String × Bool × Val) → List (String × Bool × Val
   | (k, o, v) :: fs => (if v.leftOut then (k, true, .any) else (k, o, v.visible)) :: visibleFields fs
 ```
 
-A map's marked spread holds anything the same way. A list holds no
-position for an element a mark of its own leaves out: the reading of
-step 16 drops it, so
-`[1, hide(2), 3]` is `[1, 3]` for the meet as for the output, and step
-33 shows the rule at work. A disjunction of one arm, its others dead,
-carries the arm's mark, so `a: hide(1) | 2 & 3` leaves `a` out of the
-output, as both engines do:
+A list holds no position for an element a mark of its own leaves out:
+the reading of step 16 drops it, so `[1, hide(2), 3]` is `[1, 3]` for
+the meet as for the output, and step 33 shows the rule at work. A
+disjunction of one arm, its others dead, carries the arm's mark, so
+`a: hide(1) | 2 & 3` leaves `a` out of the output, as both engines do:
 
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
@@ -4392,11 +4392,28 @@ def Val.hasMark (m : Rider) : Val → Bool
   | _ => false
 ```
 
-Both engines also drop a mark that a key's
-second declaration carries where the first declaration's value is the
-meet's answer, which #420 records, so `{a: integer} & {a: hide(integer)}`
-against `{}` is `incomplete` in both, and the ledger names the engines
-as the side that changes.
+A mark a key's second declaration carries rides the meet the same way,
+so `{a: integer} & {a: hide(integer)}` against `{}` is `valid`: the
+output leaves `a` out, and the data needn't give it.
+
+A spread's template meets each member without the marks written around
+it, which the reading drops before the template meets anything, since
+a mark belongs to the place it's written at: `{&: hide({n: 1})} & {a: {}}`
+is `{"a": {"n": 1}}` in both engines. A mark on a field of the template
+is that field's own, so `{&: {n: hide(1)}} & {a: {}}` leaves `n` out of
+`a`, and so is a mark on an arm of a disjunction of two or more:
+
+<!-- test: quote spec/Aontu/Syntax.lean -->
+```lean
+def Val.dropMarks : Val → Val
+  | .ride .type v _ => v.dropMarks
+  | .ride .hide v _ => v.dropMarks
+  | .ride k v r => .ride k v.dropMarks r
+  | .link v t => .link v.dropMarks t
+  | .meet a b => .meet a.dropMarks b.dropMarks
+  | .or [(r, a)] => .or [(r, a.dropMarks)]
+  | v => v
+```
 
 ## 14. The verdicts
 
@@ -4759,7 +4776,7 @@ def Val.illFormed : Val → Bool
   | .call .join args => (args.length != 1 && args.length != 2) || illItems args ||
     (!(Val.call .join args).fillable && joinSepHeld args)
   | .call .pref args => args.length != 1 || illItems args
-  | .call .each args | .call .pack args | .call .emit args =>
+  | .call .each args | .call .pack args | .call .emit args | .call .apply args =>
     if fillableHead args && args.length == 2 then illHead args else true
   | .call f args => if (Val.call f args).fillable && f.takes args.length then illItems args else true
   | .select _ arms _ => illPats arms
@@ -7450,6 +7467,24 @@ or a number is an error. A spread has no hole. A `filter` binds its
 own: it reads its condition once for each member it tries, so `loud`
 keeps `"WEB"`, which `upper(_)` doesn't change.
 
+`apply(v, f)` makes the one instance `each([v], f)` would, standing
+where the call stands rather than at an index: `apply("hello",
+upper(_))` is `"HELLO"`, `apply(1, {n: _})` is `{"n": 1}`, and an `f`
+with no hole is `f`. A generator or an `apply` inside `f` binds its
+own hole, as inside a template:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+    | .apply, [v, f] =>
+      if here.isNone && (resolveD ds b here v).holdsKey then .call .apply [resolveD ds b here v, f] else
+      if (normaliseD ds (resolveD ds b here v)).isAbsent then .absent
+      else if (resolveD ds b here v).pending ds then .call .apply [resolveD ds b here v, f]
+      else resolveD ds (some (normaliseD ds (resolveD ds b here v))) here f
+```
+
+Rows ap0 on of `test/spec/def-call.tsv` hold it, and both engines
+answer every one as the definition does.
+
 An instance that carries a mark of its own holds no position in the
 list, as a written list's marked element holds none, so
 `each([1, 2], hide(_))` is `[]`, and a marked instance that clashes
@@ -7556,7 +7591,7 @@ its arguments or a rider:
 ```lean
 def Val.fillable : Val → Bool
   | .hole => true
-  | .call .each args | .call .pack args | .call .emit args => fillableHead args
+  | .call .each args | .call .pack args | .call .emit args | .call .apply args => fillableHead args
   | .call _ args => fillableItems args
   | .ride _ v _ => v.fillable
   | .link v _ => v.fillable

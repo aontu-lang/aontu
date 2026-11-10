@@ -699,6 +699,26 @@ theorem mem_unmarkCovers {cs : List Cover} {c : Cover} :
       · exact Or.inl rfl
       · exact Or.inr ⟨c', hm, rfl⟩
 
+/-- Dropping the marks written around a term keeps it checkable. -/
+theorem Val.CheckableA.dropMarks {v : Val} (h : v.CheckableA) : v.dropMarks.CheckableA := by
+  induction v using Val.dropMarks.induct with
+  | case1 v r ih => simp only [Val.dropMarks]; cases h with | ride h => exact ih h
+  | case2 v r ih => simp only [Val.dropMarks]; cases h with | ride h => exact ih h
+  | case3 k v r hk1 hk2 ih =>
+    rw [Val.dropMarks.eq_3 k v r hk1 hk2]; cases h with | ride h => exact .ride (ih h)
+  | case4 v t ih => simp only [Val.dropMarks]; cases h with | link hv ht => exact .link (ih hv) ht
+  | case5 a b iha ihb =>
+    simp only [Val.dropMarks]; cases h with | meet ha hb => exact .meet (iha ha) (ihb hb)
+  | case6 r a ih =>
+    simp only [Val.dropMarks]
+    cases h with
+    | or hall =>
+      refine .or fun r' b hm => ?_
+      simp only [List.mem_singleton, Prod.mk.injEq] at hm
+      obtain ⟨rfl, rfl⟩ := hm
+      exact ih (hall _ _ (List.mem_singleton.mpr rfl))
+  | case7 v h1 h2 h3 h4 h5 h6 => rw [Val.dropMarks.eq_7 v h1 h2 h3 h4 h5 h6]; exact h
+
 /-- Clearing the marks keeps a body checkable. -/
 theorem Val.CheckableA.unmark {v : Val} (h : v.CheckableA) : v.unmark.CheckableA := by
   induction h with
@@ -1363,7 +1383,7 @@ theorem meetKey_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a
       · cases hg
         exact .nil
     · cases hg
-      refine hm _ _ hf (Val.CheckableA.selectNow ?_)
+      refine hm _ _ hf (Val.CheckableA.dropMarks (Val.CheckableA.selectNow ?_))
       cases s with
       | none => exact .any
       | some t => exact (hs t rfl).atKey _
@@ -1380,7 +1400,7 @@ theorem foldSpread_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (
     obtain ⟨⟨k', o', u⟩, hu, he⟩ := List.mem_map.mp hw
     simp only [Prod.mk.injEq] at he
     obtain ⟨rfl, rfl, rfl⟩ := he
-    exact hm _ _ (hfs _ _ _ hu) ((hsp t rfl).atKey _).selectNow
+    exact hm _ _ (hfs _ _ _ hu) ((hsp t rfl).atKey _).selectNow.dropMarks
 
 theorem meetSpread_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
     {s₁ s₂ : Option Val} (h₁ : ∀ t, s₁ = some t → t.CheckableA) (h₂ : ∀ t, s₂ = some t → t.CheckableA) :
@@ -1443,7 +1463,7 @@ theorem meetWrap_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m 
     (meetWrap m sp i e).CheckableA := by
   cases sp with
   | none => exact he
-  | some t => exact hm _ _ he ((hsp t rfl).atKey _).selectNow
+  | some t => exact hm _ _ he ((hsp t rfl).atKey _).selectNow.dropMarks
 
 theorem meetItems_checkableA (hm : ∀ a b, a.CheckableA → b.CheckableA → (m a b).CheckableA)
     {f₁ f₂ : Bool} {sp : Option Val} {is₁ is₂ : List Val} (hsp : ∀ t, sp = some t → t.CheckableA)

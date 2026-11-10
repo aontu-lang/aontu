@@ -314,6 +314,7 @@ documentation page and fails on a difference of one space.
 | `above(n: number\|string) : constraint` | `1` | `value` | `constraint` |
 | `acyclic() : constraint` | `0` | none | `constraint` |
 | `add(a: number, b: number) : number` | `2` | `value` | `number` |
+| `apply(v: any, template f: any) : any` | `2` | `value`, `template` | `any` |
 | `below(n: number\|string) : constraint` | `1` | `value` | `constraint` |
 | `close(m?: any) : any` | `0..1` | `value` | `any` |
 | `contains(trial c: any, n?: number\|constraint) : constraint` | `1..2` | `trial`, `value` | `constraint` |

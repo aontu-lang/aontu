@@ -541,13 +541,15 @@ theorem GenLe.refl (a : Val) : GenLe env a a :=
 
 /-- A mark changes the `gen` order: `hide(integer)` is not below
 `integer` under it, though each is below the other in `Le`, and a mark
-on a spread does the same. -/
+on a field of a spread's template, the field's own, which each member's
+field takes, does the same. -/
 theorem hide_not_genLe : ¬ GenLe env (.ride .hide .integer []) .integer := fun h =>
   absurd (h.2 [] _ _ rfl rfl).2 (by decide)
 
 theorem hide_spread_not_genLe :
-    ¬ GenLe env (.map [] (some (.ride .hide .integer [])) false) (.map [] (some .integer) false) :=
-  fun h => absurd (h.2 [.spread] _ _ rfl rfl).2 (by decide)
+    ¬ GenLe env (.map [] (some (.map [("n", false, .ride .hide .integer [])] none false)) false)
+      (.map [] (some (.map [("n", false, .integer)] none false)) false) :=
+  fun h => absurd (h.2 [.spread, .key "n"] _ _ rfl rfl).2 (by decide)
 
 /-- A literal declares no default, so `defaults` asks of a value above
 it what `values` asks: `integer` over `1` holds under both, as the

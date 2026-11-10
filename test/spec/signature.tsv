@@ -55,6 +55,7 @@ refer(template t?: any) : constraint
 rel(template t?: any) : constraint
 pack(d: map|list, template t: any) : map
 each(d: map|list, template t: any) : list
+apply(v: any, template f: any) : any
 filter(d: map|list, trial c: any) : map|list
 match(s: any, ...pr: (trial any, any), dflt?: any) : any
 add(a: number, b: number) : number

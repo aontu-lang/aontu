@@ -8,6 +8,60 @@ each change affects.
 
 ## Unreleased
 
+### `aontu render` on a fresh install
+
+TypeScript.
+
+- `jostraca`, the generator runtime, moves from an exact dependency,
+  `0.39.0`, to a peer dependency, `>=0.41.0`, as in 0.76.3. A fresh
+  install takes the newest jostraca, and jostraca 0.42.0 reads `shape`
+  12. jostraca 0.39.0 and 0.41.0 take `shape` as a peer at any version
+  from 11, and `shape` 12.0.0, out on 2026-11-09, no longer exports
+  `One`, so an install that resolved it beside either stopped in
+  `aontu render` with `TypeError: (0 , shape_1.One) is not a function`.
+
+### `apply(v, f)` hands a value to a template
+
+Both engines, the definition, and shared rows.
+
+- `apply(v, f)` makes the one instance `each([v], f)` would: `f` with
+  each hole that no generator or `apply` inside it binds standing for
+  `v`, in its maps and lists as anywhere else, where the call stands,
+  so a relative path in `f` reads from there (ruling 34).
+  `apply("hello", upper(_))` is `"HELLO"`, and an `f` with no such hole
+  is `f`. The meet still fills a hole from its peer; ruling 34 removes
+  that in a later change.
+- Rows ap0 to ap44 of `test/spec/def-call.tsv`, rows ar0 to ar11 of
+  `test/spec/def-path.tsv` for a relative path in `f`, and `apply` in
+  `spec/forms.tsv`, `test/spec/signature.tsv` and both language
+  servers' completions.
+
+### A spread's template gives its members no marks
+
+Both engines, the definition, and shared rows.
+
+- A spread's template meets each member without the `hide()` and
+  `type()` marks written around it, through a meet of templates and the
+  riders `meta()`, `deprecate()` and `ident()` (ruling 39, #678), so
+  `{&: hide(1)} & {a: 1}` and `{&: meta(hide(1), {})} & {a: 1}` are
+  `{"a": 1}` in both engines, where both left `a` out. A `type()` template, which already left a map's members
+  unmarked, now leaves a list's members unmarked too, and so does a
+  marked template met with another spread or written beside one. A
+  mark on a field of the template stays the field's, so
+  `{&: {n: hide(1)}}` still leaves `n` out of each member, and so does
+  a mark on one arm of a disjunction of two or more.
+- The definition drops the marks where a template meets a member
+  (`Val.dropMarks`) and where the reading fills a template, and the
+  visible part no longer reads a map's marked spread as `any`.
+  `hide_spread_not_genLe` now holds of a mark on a field of the
+  template.
+- Rows sm0 to sm59 of `test/spec/def-path.tsv`. Rows hm43, h63 and h64
+  read the members as visible, and under `subsume`'s `gen` profile
+  `{&: integer}` and `{&: hide(integer)}` now subsume each other (w223,
+  w234 and w235 of `test/spec/def-subsume.tsv`).
+  `hcanon-spread-hide-instance` and `hide-spread-scalar` in
+  `test/spec/marks.tsv` read the member unmarked.
+
 ### A meet carries the marks of both its sides
 
 Both engines, and shared rows. The definition doesn't change.
@@ -18,14 +72,9 @@ Both engines, and shared rows. The definition doesn't change.
   output in both engines, and `vet --no-fill` no longer asks the data
   for it (#673). `1 & hide(1)`, which TypeScript answered unmarked
   (#419), and a key whose second declaration carries the mark, which
-  both engines answered unmarked (#420), keep it the same way, and a
-  spread's `hide(any)` template hides each member it meets.
-- A `type()` spread template still constrains its members without
-  marking them, as the `spread-type` rows hold, pending a ruling of its
-  own.
+  both engines answered unmarked (#420), keep it the same way.
 - Rows hm0 to hm53 of `test/spec/def-path.tsv`. The four rows of #420
-  leave `spec/ledger.tsv`, whose bound falls to 105, and
-  `hcanon-spread-hide-instance` reads its member as hidden.
+  leave `spec/ledger.tsv`, whose bound falls to 105.
 
 ### vet and subsume keep their engine between calls
 

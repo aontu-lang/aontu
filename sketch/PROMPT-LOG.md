@@ -778,3 +778,30 @@ publish aontu 0.76.3
 ```text
 open the pr
 ```
+
+## 2026-11-09 10:47:48 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Building apply(v, f) for ruling 34: which holes of f does it bind to v? `each` binds every hole in its template, inside maps and lists too (`each([1], {n: _})` is `[{n: 1}]`). Today's meet fills only the holes a call waits on in its own arguments (`{n: _} & 1` fills nothing).
+→ Every free hole (Recommended)
+
+Once `&` stops applying a call to its peer (ruling 34), a call over a hole that nothing binds can never be made. Today `a: upper(_)` is valid against data `a: "x"`, because the data fills the hole (decision 29), and incomplete against `{}`. After the change, what should `vet` answer for such a call?
+→ error (Recommended)
+
+Ruling 39 (#678): does a spread's template give its marks to the members it meets? Since #677 both engines and the definition hide each member under `{&: hide(any)}`. For a written `{&: type(T)}`, though, both engines only constrain the members and leave them in the output, as the `spread-type` rows record, while the definition marks them typed and leaves them out. Through an alias, `{&: %T}`, all three clear the marks.
+→ Members don't take them (Recommended)
+```
+
+## 2026-11-10 10:00:38 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+fix pr 680 and merge
+```
+
+## 2026-11-10 10:01:23 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+review the state of the aontu support for jsonschema - are there any divergences left? can aontu fully represent jsonschema?
+```

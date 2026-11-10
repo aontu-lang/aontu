@@ -148,12 +148,12 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		if out.spread == nil {
 			out.spread = pl.spread
 		} else if pl.spread != nil && out.spread.Canon() != pl.spread.Canon() {
-			out.spread = unite(ctx, out.spread, pl.spread)
+			out.spread = unite(ctx, unmarkedTemplate(out.spread), unmarkedTemplate(pl.spread))
 		}
 	}
 	var spreadCj Val = top()
 	if out.spread != nil {
-		spreadCj = out.spread
+		spreadCj = unmarkedTemplate(out.spread)
 	}
 
 	// Driven base (see the matching comment in MapVal.Unify).

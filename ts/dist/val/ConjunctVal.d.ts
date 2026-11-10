@@ -14,4 +14,5 @@ declare class ConjunctVal extends JunctionVal {
     gen(ctx?: AontuContext): any;
 }
 declare function norm(terms: Val[], carried: Val[]): Val[];
-export { norm, ConjunctVal, };
+declare function unmarkedTemplate(cj: Val, ctx: AontuContext): Val;
+export { norm, ConjunctVal, unmarkedTemplate, };
