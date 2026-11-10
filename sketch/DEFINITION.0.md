@@ -1209,6 +1209,10 @@ until the phase that encodes it lands.
    definition has no use for elsewhere. A selection on the key whose
    arms aren't the filled keys' literals, `match(key(0), string, any,
    upper(_))`, is no spread the fill has made (`Val.filledArm`).
+
+   **Superseded 2026-11-10 by ruling 34**, which reads `&` as a meet
+   everywhere and a hole that nothing binds as an error.
+
 22. **A path into a generator's output.** Raised 2026-10-22 by P9's
    `key(n)` slice. Both ports read a key a path reaches where the path
    lands, so `a: {x: key()}` and `b: $.a` give `b: {x: "b"}`, and a
@@ -1524,6 +1528,10 @@ until the phase that encodes it lands.
    answer every row as the definition does; no other row moved. A
    spread's template that is such a meet is read as a template instead,
    by decision 31.
+
+   **Superseded 2026-11-10 by ruling 34**, which reads `&` as a meet
+   everywhere and a hole that nothing binds as an error.
+
 30. **A lone preference over a call its peer fills.** Raised 2026-10-25
    by decision 29's build (#560). Both ports' `eval` reads
    `v: *upper(_) & "a"` as `"A"`, the peer filling the preferred arm's
@@ -1549,6 +1557,10 @@ until the phase that encodes it lands.
    (`PrefVal.unify`, `PrefVal.Unify`), an empty space kept as a quiet
    nil that the nil collector leaves alone. Rows dv156 on, 13 cases in
    each mode, both ports answering every row as the definition does.
+
+   **Superseded 2026-11-10 by ruling 34**, which reads `&` as a meet
+   everywhere and a hole that nothing binds as an error.
+
 31. **A hole in a spread's template that is a meet.** Raised 2026-10-26
    by #559's build (#561). Both ports bind each hole of a spread's
    template to the member the template is tried on, at the hole's
@@ -1637,6 +1649,10 @@ until the phase that encodes it lands.
    made. A group that holds no hole is still flattened, so a call with
    more than one peer, as in `upper(_) & ("a" & "a")`, reads as the
    conjunction is written, as #512 records.
+
+   **Superseded 2026-11-10 by ruling 34**, which reads `&` as a meet
+   everywhere and a hole that nothing binds as an error.
+
 32. **`--no-fill` and an arm beside the default.** Raised 2026-11-05 by
    #630's rows (#631). Under `--no-fill` both ports reported each member
    a preference's default supplies as `vet_filled`, even where another
@@ -1796,6 +1812,17 @@ until the phase that encodes it lands.
    both engines and the definition already read them. A declaration
    that holds a hole serves as an `emit` table, which `emit` reads
    without reading the hole.
+
+   **Built 2026-11-10.** The definition reads `&` as a meet everywhere
+   and a hole that nothing binds as an `error` of the schema, its own or
+   one a name's body holds (`Val.freeHole`, `Decls.holeNames`), and both
+   engines refuse such a document before evaluation as `hole_unbound`.
+   The fill is gone from the definition: 138 declarations of
+   `spec/Aontu/Verdict.lean` with their proofs, 1,936 of its 6,869
+   lines, the reading of a part that waits on a hole as `any` in the
+   check without the fill (`Val.waitAny`) among them, since no hole that
+   check reads is unbound once such a hole is an error. Every row the
+   oracle writes is unchanged. Rulings 21, 29, 30 and 31 are superseded.
 
 35. **A link in a declaration nothing uses.** Raised 2026-11-06 by the
    consolidation study (`sketch/CORE.0.md`, §4.1), and put with 36 and

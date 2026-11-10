@@ -1904,33 +1904,6 @@ def resolveCovers (ds : Decls) (b : Option Val) (here : Option (List Step)) : Li
   termination_by structural cs => cs
 end
 
-/-! ## A part that waits on a hole
-
-Nothing fills a hole from a meet (ruling 34 of the design note's §7):
-`&` is a meet everywhere, and a hole is bound only where a generator, an
-`apply` or a `filter`'s condition binds it. -/
-
-mutual
-/-- Whether a term waits on a hole: the hole, or a call over one through
-its arguments, a generator's data but not its template, and through a
-rider, but never through a container. -/
-def Val.fillable : Val → Bool
-  | .hole => true
-  | .call .each args | .call .pack args | .call .emit args | .call .apply args => fillableHead args
-  | .call _ args => fillableItems args
-  | .ride _ v _ => v.fillable
-  | .link v _ => v.fillable
-  | _ => false
-
-def fillableHead : List Val → Bool
-  | [] => false
-  | d :: _ => d.fillable
-
-def fillableItems : List Val → Bool
-  | [] => false
-  | v :: vs => v.fillable || fillableItems vs
-end
-
 /-- A key's first declaration met with each later one, in the order
 they're written, and its flag, optional only where each declaration is. -/
 def joinAt (k : String) : Val × Bool → List (String × Bool × Val) → Val × Bool
@@ -4581,108 +4554,6 @@ theorem refusedAt_iff {ds : Decls} {root : Data} (hg : ds.Guarded) (hb : ∀ d, 
     rw [(checkR_iff hg hb hv c).mpr hr]
     rfl
 
-/-! ## Waiting parts read as `any` -/
-
-mutual
-/-- The term with each part that waits on a hole read as `any`, as the
-check without the fill reads it: the data fills the hole, so the part
-admits what it takes. -/
-def Val.waitAny : Val → Val
-  | .map fs sp c => .map (waitFields fs) (waitSpread sp) c
-  | .list xs sp c => .list (waitItems xs) (waitSpread sp) c
-  | .meet a b => .meet a.waitAny b.waitAny
-  | .ride k v r => .ride k v.waitAny r
-  | .link v lt => .link v.waitAny lt
-  | .or arms => .or (waitArms arms)
-  | .select s arms d => .select s arms (waitSpread d)
-  | v => if v.fillable then .any else v
-
-def waitFields : List (String × Bool × Val) → List (String × Bool × Val)
-  | [] => []
-  | (k, o, v) :: fs => (k, o, v.waitAny) :: waitFields fs
-
-def waitItems : List Val → List Val
-  | [] => []
-  | v :: vs => v.waitAny :: waitItems vs
-
-def waitSpread : Option Val → Option Val
-  | none => none
-  | some s => some s.waitAny
-
-def waitArms : List (ℕ × Val) → List (ℕ × Val)
-  | [] => []
-  | (r, a) :: as => (r, a.waitAny) :: waitArms as
-end
-
-theorem mem_waitFields : ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
-    (k, o, w) ∈ waitFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.waitAny
-  | [], _, _, _, h => nomatch h
-  | (k', o', v') :: fs, k, o, w, h => by
-    simp only [waitFields, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl, rfl⟩ | h
-    · exact ⟨v', List.mem_cons_self, rfl⟩
-    · obtain ⟨v, hv, rfl⟩ := mem_waitFields h
-      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
-
-theorem mem_waitItems : ∀ {vs : List Val} {w : Val}, w ∈ waitItems vs → ∃ v, v ∈ vs ∧ w = v.waitAny
-  | [], _, h => nomatch h
-  | v :: vs, w, h => by
-    simp only [waitItems, List.mem_cons] at h
-    rcases h with rfl | h
-    · exact ⟨v, List.mem_cons_self, rfl⟩
-    · obtain ⟨u, hu, rfl⟩ := mem_waitItems h
-      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
-
-theorem waitSpread_some : ∀ {sp : Option Val} {t : Val}, waitSpread sp = some t → ∃ s, sp = some s ∧ t = s.waitAny
-  | none, _, h => nomatch h
-  | some s, _, h => ⟨s, rfl, (Option.some.inj h).symm⟩
-
-theorem mem_waitArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {a : Val},
-    (r, a) ∈ waitArms arms → ∃ b, (r, b) ∈ arms ∧ a = b.waitAny
-  | [], _, _, h => nomatch h
-  | (r', b') :: arms, r, a, h => by
-    simp only [waitArms, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨b', List.mem_cons_self, rfl⟩
-    · obtain ⟨b, hb, rfl⟩ := mem_waitArms h
-      exact ⟨b, List.mem_cons_of_mem _ hb, rfl⟩
-
-/-- Reading the waiting parts as `any` leaves a term the checker can read. -/
-theorem waitAny_checkableA {v : Val} (h : v.CheckableA) : v.waitAny.CheckableA := by
-  induction h with
-  | @map fs sp c _ _ ihf ihs =>
-    refine .map (fun k o w hm => ?_) (fun t ht => ?_)
-    · obtain ⟨v, hv, rfl⟩ := mem_waitFields hm
-      exact ihf k o v hv
-    · obtain ⟨s, hs, rfl⟩ := waitSpread_some ht
-      exact ihs s hs
-  | @list xs sp c _ _ ihx ihs =>
-    refine .list (fun w hm => ?_) (fun t ht => ?_)
-    · obtain ⟨v, hv, rfl⟩ := mem_waitItems hm
-      exact ihx v hv
-    · obtain ⟨s, hs, rfl⟩ := waitSpread_some ht
-      exact ihs s hs
-  | meet _ _ iha ihb => exact .meet iha ihb
-  | ride _ ih => exact .ride ih
-  | link _ ht ih _ => exact .link ih ht
-  | @or arms _ ih =>
-    refine .or fun r a hm => ?_
-    obtain ⟨b, hb, rfl⟩ := mem_waitArms hm
-    exact ih r b hb
-  | @selectKey arms d hp hr _ _ _ ihd =>
-    refine .selectKey hp hr fun e he => ?_
-    obtain ⟨s, hs, rfl⟩ := waitSpread_some he
-    exact ihd s hs
-  | @selectLit sc arms d hp hr _ _ _ ihd =>
-    refine .selectLit hp hr fun e he => ?_
-    obtain ⟨s, hs, rfl⟩ := waitSpread_some he
-    exact ihd s hs
-  | _ =>
-    simp only [Val.waitAny]
-    split
-    · exact .any
-    · constructor <;> assumption
-
 /-! ## The verdict -/
 
 /-- Whether the schema read against the data fails: dead, or holding a
@@ -4708,9 +4579,8 @@ data leaves it unable to make (`Val.fails`), or refuses, read whole, the
 value it gives
 with its trials and sizes unread; `valid` where it singles out a
 value, and without the fill where the data as written is an instance of
-the visible part of the schema's normal form, staged, each part that
-waits on a hole read as `any`, too, or where `--partial` lets the
-unresolved pass; and `incomplete` otherwise. -/
+the visible part of the schema's normal form, staged, too, or where
+`--partial` lets the unresolved pass; and `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
@@ -4723,14 +4593,14 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       (m.lax = true ∨
         ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
-          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j))
+          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
       ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       m.lax = false ∧
       ¬ ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
-        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j)
+        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j)
 
 /-- The verdict, computed. -/
 def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
@@ -4741,7 +4611,7 @@ def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
   else if m.lax then .valid
   else
     match genD ds ((normaliseD ds (ds.readJ S j)).staged ds).visible with
-    | some _ => if m.fill || checkR ds ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j then .valid else .incomplete
+    | some _ => if m.fill || checkR ds ((normaliseD ds (ds.readR S)).staged ds).visible j then .valid else .incomplete
     | none => .incomplete
 
 section
@@ -4966,8 +4836,8 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
     obtain ⟨hdB, hgB⟩ := hok
     have hD := Decls.declaresB_iff.mp hdB
     have hG := Decls.guardedB_iff.mp hgB
-    have hS' : ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny.CheckableA :=
-      waitAny_checkableA (staged_checkableA (ds := ds) (normaliseD_checkableA hb hS)).visible
+    have hS' : ((normaliseD ds (ds.readR S)).staged ds).visible.CheckableA :=
+      (staged_checkableA (ds := ds) (normaliseD_checkableA hb hS)).visible
     have hM' := staged_checkableA (ds := ds) (normaliseD_checkableA hb (readJ_checkableA hb hS j))
     cases hi : ds.illFormedR S with
     | true => exact .inr (.inr hi)
@@ -4992,7 +4862,7 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
             | some j' =>
               have hout : Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' :=
                 (genWith_iff hM'.visible (fun _ j hw _ => checkR_iff hG hb hw j) j').mp ho
-              cases hc : (m.fill || checkR ds ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j) with
+              cases hc : (m.fill || checkR ds ((normaliseD ds (ds.readR S)).staged ds).visible j) with
               | true =>
                 rw [if_pos rfl]
                 refine ⟨hD, hG, hi, hd, hnr, .inr ⟨j', hout, ?_⟩⟩
@@ -5023,11 +4893,10 @@ theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ 
 /-! ## What the verdicts say -/
 
 /-- Without the fill, `valid` is `Instance`: the data as written is an
-instance of the visible part of the schema as read, each part that
-waits on a hole read as `any`, since the data fills it. -/
+instance of the visible part of the schema as read. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j := by
+    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
