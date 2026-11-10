@@ -1725,8 +1725,15 @@ an arm names nothing. Both engines read a path in an arm only once a
 single arm remains, and in a preferred arm never, so data an arm
 refuses through its path leaves the document `incomplete` while two
 arms are live, which #700 tracks. The definition reads each arm so by
-`Decls.armChosen`, and doesn't yet read a path inside `*x` written
-alone, or in an arm of a disjunction met with another at one place.
+`Decls.armChosen`. A path inside a lone preference `*x` reads the
+same, where the preference holds its value, and the parent arm, which
+takes what overrides the default, is the parent type of what the value
+reads as on its own: in `x: *{a: 1, b: .a}` the parent arm is `{a:
+integer, b: integer}`, so `{a: 2, b: 3}` passes and `{a: 2, b: "s"}`
+doesn't. Both engines lift a path inside the value to `any` there,
+which #704 tracks. The definition reads a lone preference so by
+`Decls.nodeChosen`, and doesn't yet read a path in an arm of a
+disjunction met with another at one place.
 
 ### Recursive references (fixpoints)
 

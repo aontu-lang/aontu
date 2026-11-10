@@ -1679,6 +1679,67 @@ def disjunctionPathCases : List (Decls × Val × Data) :=
     ([], m [("hosts", or2 named (.lit .null))],
       .map [("hosts", .map [("a", .map [("name", .str "y"), ("url", .str "y")])])])]
 
+/-- Paths inside a lone preference `*x`, which reads as `x | super(x)`:
+`x` read where it stands, and its parent arm the parent type of what `x`
+reads as on its own (decision 40). A relative path to the preference's
+own member: the data taking the default, overriding it within the
+parent type and outside it, leaving a member out, and leaving the
+preference out; a default over a kind, whose path reads the data, and
+one whose path meets a bound, whose parent the path's kind decides; an
+absolute path to the preference's own member; a chain of paths; a name
+the preference holds; a template whose path reads its member's place;
+and a path to a place outside the preference, whose value the parent arm
+lifts. -/
+def lonePrefPathCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let tmpl (t : Val) : Val := .map [] (some t) false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ab := m [("a", int 1), ("b", rel 1 ["a"])]
+  let abc := m [("a", int 1), ("b", rel 1 ["a"]), ("c", rel 1 ["b"])]
+  let kb := m [("a", .integer), ("b", rel 1 ["a"])]
+  let pb := m [("a", int 1), ("b", p ["x", "a"])]
+  let hs := tmpl (m [("name", str "a"), ("url", rel 1 ["name"])])
+  let xd (fs : List (String × Data)) : Data := .map [("x", .map fs)]
+  let hd (n : String) (u : Data) : Data := .map [("x", .map [("h", .map [("name", .str n), ("url", u)])])]
+  [([], m [("x", .pref 1 ab)], xd [("a", j 1), ("b", j 1)]),
+    ([], m [("x", .pref 1 ab)], xd [("a", j 1), ("b", j 2)]),
+    ([], m [("x", .pref 1 ab)], xd [("a", j 2), ("b", j 2)]),
+    ([], m [("x", .pref 1 ab)], xd [("a", j 2), ("b", j 3)]),
+    ([], m [("x", .pref 1 ab)], xd [("a", j 2), ("b", .str "s")]),
+    ([], m [("x", .pref 1 ab)], xd [("a", j 2)]),
+    ([], m [("x", .pref 1 ab)], .map []),
+    ([], m [("x", .pref 1 kb)], xd [("a", j 5)]),
+    ([], m [("x", .pref 1 kb)], xd [("a", j 5), ("b", j 6)]),
+    ([], m [("x", .pref 1 pb)], xd [("a", j 2), ("b", j 3)]),
+    ([], m [("x", .pref 1 pb)], xd [("a", j 2), ("b", .str "s")]),
+    ([], m [("x", .pref 1 abc)], xd [("a", j 2), ("b", j 3), ("c", j 4)]),
+    ([], m [("x", .pref 1 abc)], xd [("a", j 2), ("b", j 3), ("c", .str "s")]),
+    ([("T", ab)], m [("x", .pref 1 (.alias "T"))], xd [("a", j 2), ("b", j 3)]),
+    ([("T", ab)], m [("x", .pref 1 (.alias "T"))], xd [("a", j 2), ("b", .str "s")]),
+    ([], m [("x", .pref 1 hs)], hd "a" (.str "a")),
+    ([], m [("x", .pref 1 hs)], hd "b" (.str "c")),
+    ([], m [("x", .pref 1 hs)], hd "b" (j 1)),
+    ([], m [("y", int 1), ("x", .pref 1 (m [("b", p ["y"])]))], .map [("y", j 1), ("x", .map [("b", j 3)])]),
+    ([], m [("y", int 1), ("x", .pref 1 (m [("b", p ["y"])]))], .map [("y", j 1), ("x", .map [("b", .str "s")])]),
+    ([], m [("y", int 1), ("x", .pref 1 (p ["y"]))], .map [("y", j 1), ("x", j 3)]),
+    ([], m [("y", int 1), ("x", .pref 1 (m [("a", int 1), ("b", p ["y"])]))],
+      .map [("y", j 1), ("x", .map [("a", j 2), ("b", .str "s")])]),
+    ([], m [("x", .pref 1 (m [("a", .integer), ("b", .meet (rel 1 ["a"]) (.min (.num (.integer (.of 3)))))]))],
+      xd [("a", .num (.float (.dyadic 11 (-1)))), ("b", .num (.float (.dyadic 11 (-1))))]),
+    ([], m [("x", .pref 1 (m [("a", .integer), ("b", .meet (rel 1 ["a"]) (.min (.num (.integer (.of 3)))))]))],
+      xd [("a", .num (.float (.dyadic 11 (-1)))), ("b", j 5)])]
+
+theorem lonePrefPathCases_checkable : ∀ c ∈ lonePrefPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem lone_pref_path_verdict_exact : ∀ c ∈ lonePrefPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (lonePrefPathCases_checkable c hc).1 (lonePrefPathCases_checkable c hc).2 v
+
 theorem disjunctionPathCases_checkable : ∀ c ∈ disjunctionPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
 
@@ -6961,7 +7022,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A template in a selection's result reads its member's place where the"
     IO.println "# selection stands, in rows st0 on and stl0 on."
     IO.println "# A path written in a disjunction's arm reads where the arm holds, in rows dj0"
-    IO.println "# on and djl0 on."
+    IO.println "# on and djl0 on. A path inside a lone preference reads where the preference"
+    IO.println "# holds its value, and its parent arm lifts what the value reads as on its own"
+    IO.println "# (ruling 40), in rows lp0 on and lpl0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -6978,6 +7041,8 @@ def main (args : List String) : IO UInt32 := do
     pathRows "stl" selectTemplateCases (declsLast := true)
     pathRows "dj" disjunctionPathCases
     pathRows "djl" disjunctionPathCases (declsLast := true)
+    pathRows "lp" lonePrefPathCases
+    pathRows "lpl" lonePrefPathCases (declsLast := true)
     pathRows "mb" maybeCases
     pathRows "la" absentListCases
     pathRows "pf" prefCases
