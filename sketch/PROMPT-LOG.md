@@ -761,6 +761,24 @@ Ruling 38 (#673): in `a: {x: 1, y: 2} & {x: hide(any)}`, both engines leave `x` 
 → It marks (Recommended)
 ```
 
+## 2026-11-09 10:50:53 UTC · Claude Code · session_01FpeS4ru69dMPkAX2ezauL9
+
+```text
+work locally in ~/Projects/aontu-lang/aontu - update to latest and prepare a release 0.76.2 that makes jostraca a peer dep. prepare the release as a branch from the 0.76.1 release commit
+```
+
+## 2026-11-09 12:22:11 UTC · Claude Code · session_01FpeS4ru69dMPkAX2ezauL9
+
+```text
+publish aontu 0.76.3
+```
+
+## 2026-11-09 12:45:26 UTC · Claude Code · session_01FpeS4ru69dMPkAX2ezauL9
+
+```text
+open the pr
+```
+
 ## 2026-11-09 10:47:48 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 The answers to the agent's questions, each question followed by the option chosen or the answer typed:
@@ -774,4 +792,22 @@ Once `&` stops applying a call to its peer (ruling 34), a call over a hole that 
 
 Ruling 39 (#678): does a spread's template give its marks to the members it meets? Since #677 both engines and the definition hide each member under `{&: hide(any)}`. For a written `{&: type(T)}`, though, both engines only constrain the members and leave them in the output, as the `spread-type` rows record, while the definition marks them typed and leaves them out. Through an alias, `{&: %T}`, all three clear the marks.
 → Members don't take them (Recommended)
+```
+
+## 2026-11-10 10:00:38 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+fix pr 680 and merge
+```
+
+## 2026-11-10 10:01:23 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+review the state of the aontu support for jsonschema - are there any divergences left? can aontu fully represent jsonschema?
+```
+
+## 2026-11-10 11:21:07 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+review the state of the aontu support for jsonschema - are there any divergences left? can aontu fully represent jsonschema?
 ```
