@@ -19,6 +19,7 @@ var riderFuncs = map[string]bool{"meta": true, "deprecate": true}
 var wrapperFuncs = map[string]bool{"meta": true, "deprecate": true, "ident": true,
 	"type": true, "hide": true, "close": true, "open": true}
 
+// A rider, a mark or a seal around a container holding a hole: no call.
 func wrapsBag(v Val) bool {
 	f, ok := v.(*FuncVal)
 	if !ok || !wrapperFuncs[f.name] || 0 == len(f.peg) {
@@ -26,7 +27,7 @@ func wrapsBag(v Val) bool {
 	}
 	switch f.peg[0].(type) {
 	case *MapVal, *ListVal:
-		return hasPlace(f.peg[0])
+		return holeIn(f.peg[0], true)
 	}
 	return wrapsBag(f.peg[0])
 }
@@ -47,34 +48,6 @@ func openWrap(ctx *Ctx, base []string, v Val) Val {
 		return v
 	}
 	return f.resolve(ctx, base, append([]Val{openWrap(ctx, base, f.peg[0])}, f.peg[1:]...))
-}
-
-// valueFuncs take their argument as the value it is, so read a list or
-// a map that holds a hole as that container once nothing else settles.
-// super reads a call there that waits on a hole too, as any, and pref
-// as that call preferred.
-var valueFuncs = map[string]bool{"super": true, "pref": true, "refer": true, "rel": true}
-var callFuncs = map[string]bool{"super": true, "pref": true}
-
-func asValue(ctx *Ctx, f *FuncVal, args []Val) bool {
-	if !ctx.settle || !valueFuncs[f.name] {
-		return false
-	}
-	waits := false
-	for _, a := range args {
-		if a.Dc() == DONE {
-			continue
-		}
-		switch a.(type) {
-		case *ListVal, *MapVal:
-			if bagHoles(a, false, callFuncs[f.name]) {
-				waits = true
-				continue
-			}
-		}
-		return false
-	}
-	return waits
 }
 
 var funcSet = map[string]bool{
@@ -202,12 +175,26 @@ func deriveArity() map[string][2]int {
 }
 
 func writtenArgCount(terms []any) int {
+	return len(writtenArgs(terms))
+}
+
+// The arguments as written: one comma group is the whole list.
+func writtenArgs(terms []any) []any {
 	if 1 == len(terms) {
 		if raw, ok := terms[0].([]any); ok {
-			return len(raw)
+			return raw
 		}
 	}
-	return len(terms)
+	return terms
+}
+
+func writtenArgVals(terms []any) []Val {
+	args := writtenArgs(terms)
+	out := make([]Val, len(args))
+	for i, a := range args {
+		out[i] = asVal(a)
+	}
+	return out
 }
 
 func arityText(lo, hi int) string {
@@ -342,27 +329,14 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 
 	if stagedFuncs[f.name] {
 		driven := stagedDrive(ctx, f, base)
-		fillable := !isTop(peer) && waitsOnHole(f) && "match" != f.name
-		ready := (driven || fillable) && ctx.settle
+		ready := driven && ctx.settle
 
 		if !ready {
 			return residuate(f, base, peer)
 		}
 	}
 
-	reach := !isTop(peer) && !peer.Nil() && Val(f) != peer
-	fill := reach && waitsOnHole(f)
-
-	// A rider, a mark or a seal around a container reads through to it.
-	through := reach && wrapsBag(f)
-
-	if fill && !through {
-		if waitsOnHole(peer) {
-			return makeNilErr(ctx, "place_pair", f, peer)
-		}
-		ctx.slot = base
-		return unite(ctx, bindHole(f, peer), top())
-	}
+	through := !isTop(peer) && !peer.Nil() && Val(f) != peer && wrapsBag(f)
 
 	if isTop(peer) && (f.mtype || f.mhide) {
 		f.setDc(DONE)
@@ -461,7 +435,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		pegdone = false
 	}
 
-	if pegdone || (through && wrapSettled(newpeg)) || asValue(ctx, f, newpeg) {
+	if pegdone || (through && wrapSettled(newpeg)) {
 		if through {
 			newpeg = append([]Val{openWrap(ctx, base, newpeg[0])}, newpeg[1:]...)
 		}
@@ -511,8 +485,6 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 				out.setSrctext(f.srctext())
 			}
 		}
-	} else if unfillable(ctx, f, newpeg) {
-		out = makeNilErrFull(ctx, "place_container", f, nil, "make", nil)
 	} else if isTop(peer) {
 		f.notdone()
 		nf := newFunc(f.name, newpeg)

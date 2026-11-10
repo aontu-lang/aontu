@@ -319,7 +319,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 105 rows under ten causes: decisions 3 and 4 of §2, under
+ledger holds 135 rows under twelve causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -333,7 +333,13 @@ path inside a rider's value to a member beside it, which decision 14 of
 under the `defaults` profile, which the ports do not compare, where the
 ports move (#424); and a `+` that waits inside a `match` pattern, which the
 definition reads as refusing, a call refusing every value, where both
-ports wait and the definition moves (#432).
+ports wait and the definition moves (#432); a body that is itself a
+relative path, which ruling 26 of §7 reads where each use stands, where
+both ports read it at the body's own place and move (#504); and a path
+reference to a place that writes a relative path, which ruling 26 reads
+where the copy stands, where both ports read the place's paths where it
+writes them when it comes first, or is reached through another path
+reference, and move (#504).
 The 81 rows of #426, a call no reading makes, with the wrong number of
 arguments or a non-number negated, which the ports read as invalid,
 retired on 2026-11-02 when both ports' `vet` read a failure the schema
@@ -1209,6 +1215,10 @@ until the phase that encodes it lands.
    definition has no use for elsewhere. A selection on the key whose
    arms aren't the filled keys' literals, `match(key(0), string, any,
    upper(_))`, is no spread the fill has made (`Val.filledArm`).
+
+   **Superseded 2026-11-10 by ruling 34**, which reads `&` as a meet
+   everywhere and a hole that nothing binds as an error.
+
 22. **A path into a generator's output.** Raised 2026-10-22 by P9's
    `key(n)` slice. Both ports read a key a path reaches where the path
    lands, so `a: {x: key()}` and `b: $.a` give `b: {x: "b"}`, and a
@@ -1403,6 +1413,32 @@ until the phase that encodes it lands.
    relative path again where it stands, as ADR-025 has a reference's
    copy, `%T = .x` at each use among them; the definition and both
    ports move.
+
+   **Built for a name's uses 2026-11-10.** A use of a name whose body
+   writes a relative path reads a copy of the body, placed where the
+   use stands and declared under a name no document writes
+   (`Decls.copies`, `useName`); the body still reads at its own place
+   too, where it must stand. Rows cd0 to cd20 and cdl0 to cdl20 of
+   `test/spec/def-path.tsv` hold it in both orders, as both ports'
+   `vet` reads a use; rows j54 to j59 and jl15 to jl20, a body that is
+   itself a relative path, move to the use and stand in the ledger,
+   since both ports read such a body at its own place (#504).
+
+   **Built for a path reference's copy 2026-11-10.** A path reference
+   to a place whose terms read their own place (`Decls.relTarget`) reads
+   a copy of what the document writes there, through names and other
+   path references (`Decls.written`), placed where the reference stands
+   (`Decls.copies`, `refUse`). What the data writes at the place meets
+   the copy too (`dataLit`), since `vet(S, D)` asks what `eval(S ∪ D)`
+   asks (ADR-007). So data that sets a member of the place that a
+   relative path reads differently at the copy is refused, the output
+   evaluation generates among it. A place holding a template read at
+   each member stays as `Val.membersRead` reads it. Rows rc0 to rc59 of
+   `test/spec/def-path.tsv` hold it. Both ports answer as the definition
+   does where the reference comes first, and 18 rows stand in the ledger,
+   where the ports read the place's paths where it writes them, when it
+   comes first or is reached through another path reference (#504).
+
 27. **A copy's marks and seal.** Raised 2026-10-21 by P8 (#445). The
    reference says `copy(v)` clears the `type` and `hide` marks. Both
    ports clear them, and unseal, only through a reference:
@@ -1524,6 +1560,10 @@ until the phase that encodes it lands.
    answer every row as the definition does; no other row moved. A
    spread's template that is such a meet is read as a template instead,
    by decision 31.
+
+   **Superseded 2026-11-10 by ruling 34**, which reads `&` as a meet
+   everywhere and a hole that nothing binds as an error.
+
 30. **A lone preference over a call its peer fills.** Raised 2026-10-25
    by decision 29's build (#560). Both ports' `eval` reads
    `v: *upper(_) & "a"` as `"A"`, the peer filling the preferred arm's
@@ -1549,6 +1589,10 @@ until the phase that encodes it lands.
    (`PrefVal.unify`, `PrefVal.Unify`), an empty space kept as a quiet
    nil that the nil collector leaves alone. Rows dv156 on, 13 cases in
    each mode, both ports answering every row as the definition does.
+
+   **Superseded 2026-11-10 by ruling 34**, which reads `&` as a meet
+   everywhere and a hole that nothing binds as an error.
+
 31. **A hole in a spread's template that is a meet.** Raised 2026-10-26
    by #559's build (#561). Both ports bind each hole of a spread's
    template to the member the template is tried on, at the hole's
@@ -1637,6 +1681,10 @@ until the phase that encodes it lands.
    made. A group that holds no hole is still flattened, so a call with
    more than one peer, as in `upper(_) & ("a" & "a")`, reads as the
    conjunction is written, as #512 records.
+
+   **Superseded 2026-11-10 by ruling 34**, which reads `&` as a meet
+   everywhere and a hole that nothing binds as an error.
+
 32. **`--no-fill` and an arm beside the default.** Raised 2026-11-05 by
    #630's rows (#631). Under `--no-fill` both ports reported each member
    a preference's default supplies as `vet_filled`, even where another
@@ -1784,6 +1832,29 @@ until the phase that encodes it lands.
    `test/spec/def-path.tsv`. The meet as application, the
    spread template's hole and the error for a call over a hole that
    nothing binds remain to build.
+
+   **A hole nothing binds, ruled 2026-11-10.** A bare `_` that no
+   generator or `apply` binds is an `error` of the schema wherever it
+   stands, as a call over one is, under the same code: `x: _`, `1 & _`,
+   `{a: 1} & {a: _}` and `{&: _}` are errors, and `any` is how the top
+   is written. A hole binds only where it is written: a generator or an
+   `apply` binds the holes of its own template as written, not those of
+   a declaration the template names, so with `%F = upper(_)`,
+   `apply("a", %F)` and `each(["a"], %F)` leave `%F`'s hole unbound, as
+   both engines and the definition already read them. A declaration
+   that holds a hole serves as an `emit` table, which `emit` reads
+   without reading the hole.
+
+   **Built 2026-11-10.** The definition reads `&` as a meet everywhere
+   and a hole that nothing binds as an `error` of the schema, its own or
+   one a name's body holds (`Val.freeHole`, `Decls.holeNames`), and both
+   engines refuse such a document before evaluation as `hole_unbound`.
+   The fill is gone from the definition: 138 declarations of
+   `spec/Aontu/Verdict.lean` with their proofs, 1,936 of its 6,869
+   lines, the reading of a part that waits on a hole as `any` in the
+   check without the fill (`Val.waitAny`) among them, since no hole that
+   check reads is unbound once such a hole is an error. Every row the
+   oracle writes is unchanged. Rulings 21, 29, 30 and 31 are superseded.
 
 35. **A link in a declaration nothing uses.** Raised 2026-11-06 by the
    consolidation study (`sketch/CORE.0.md`, §4.1), and put with 36 and

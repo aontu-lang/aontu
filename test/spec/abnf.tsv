@@ -190,3 +190,8 @@ parse-a-value-building-rule-contributes-no-text	gens	G: hide(abnf(`\ndoc = head 
 parse-array-nests-in-an-object	gens	G: hide(abnf(`\ntop = "@" a b   ; @object a b\na = 1*ALPHA\nb = "[" x *( "," x ) "]"   ; @array\nx = 1*DIGIT\nALPHA = %x61-7A\nDIGIT = %x30-39\n`))\na: parse($.G, "@ab[1,2]")	{"a":{"a":"ab","b":["1","2"]}}
 parse-array-nests-in-an-array	gens	G: hide(abnf(`\ntop = "<" b *( ";" b ) ">"   ; @array\nb = "[" x *( "," x ) "]"   ; @array\nx = 1*DIGIT\nDIGIT = %x30-39\n`))\na: parse($.G, "<[1,2];[3]>")	{"a":[["1","2"],["3"]]}
 parse-array-is-an-objects-only-member	gens	G: hide(abnf(`\ntop = "@" b   ; @object b\nb = "[" x *( "," x ) "]"   ; @array\nx = 1*DIGIT\nDIGIT = %x30-39\n`))\na: parse($.G, "@[1,2]")	{"a":{"b":["1","2"]}}
+# A grammar call over an argument a generator still makes waits for it,
+# and is made once the argument settles: abnf over a joined source, and
+# parse over a grammar that is.
+abnf-waits-for-a-staged-source	canon	g: abnf($.src)\nsrc: join(each(["v = %x30-39", ""], _), "\\n")	{"g":"v = %x30-39\\n","src":"v = %x30-39\\n"}
+parse-waits-for-a-staged-grammar	canon	p: parse($.g, "7")\ng: abnf(join(each(["v = %x30-39", ""], _), "\\n"))	{"g":"v = %x30-39\\n","p":{"kids":[],"rule":"v","src":"7"}}

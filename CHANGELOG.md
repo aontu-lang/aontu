@@ -8,6 +8,35 @@ each change affects.
 
 ## Unreleased
 
+### A hole nothing binds is an error (breaking)
+
+Both engines, the definition, and shared rows.
+
+- `&` is a meet everywhere and never fills a hole (ruling 34). A `_`
+  binds only inside the template of `each`, `pack` or `emit`, an
+  `apply`'s template, or a `filter`'s condition; anywhere else the
+  document is an error before it is evaluated, with the new code
+  `hole_unbound`, class `parse`. So `upper(_) & "a"`, `a: _`,
+  `{&: upper(_)}`, `match(_, …)` and `v: upper(_) | "x"` are errors,
+  and `vet` never fills a schema's hole from the data.
+- Write the value the hole was to take with `apply`:
+  `apply("a", upper(_))` is `"A"`, and `apply(["a"], pack(_, {x: 1}))`
+  packs the list.
+- A name whose body holds a hole is one nothing binds wherever it is
+  used, an `apply`'s template included; a named `emit` table, as in
+  `emit($.l, %t)`, is the one use that binds. A name nothing uses holds
+  its hole harmlessly: its waiting parts read as any value, as the
+  definition reads a declaration's body, so `%T = upper(_) & _` stands
+  where it was `place_pair`, while a seal around a container holding a
+  hole still refuses a key it doesn't name.
+- `place_pair` and `place_container` are reserved: nothing raises them.
+- A call the parser refuses for its arity or its name keeps its
+  arguments as written, so a hole among them is still found.
+- Rows from hv0 on of `test/spec/def-call.tsv` and from dp0 on of
+  `test/spec/def-path.tsv` (1,224 in all) answer `error`; the fill
+  rows of `test/spec/place.tsv` answer `hole_unbound`, and the data
+  rows of `gen-each`, `gen-pack` and `gen-filter` use `apply`.
+
 ### `aontu render` on a fresh install
 
 TypeScript.
@@ -31,8 +60,7 @@ Both engines, the definition, and shared rows.
   `v`, in its maps and lists as anywhere else, where the call stands,
   so a relative path in `f` reads from there (ruling 34).
   `apply("hello", upper(_))` is `"HELLO"`, and an `f` with no such hole
-  is `f`. The meet still fills a hole from its peer; ruling 34 removes
-  that in a later change.
+  is `f`.
 - Rows ap0 to ap44 of `test/spec/def-call.tsv`, rows ar0 to ar11 of
   `test/spec/def-path.tsv` for a relative path in `f`, and `apply` in
   `spec/forms.tsv`, `test/spec/signature.tsv` and both language

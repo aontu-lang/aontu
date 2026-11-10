@@ -374,7 +374,7 @@ class EmitFuncVal extends FuncBaseVal {
   unify(peer: Val, ctx: AontuContext): Val {
     // ONE argument is driven: the selection. The table holds bodies,
     // which are templates (see prepare above).
-    if (!this.stagedReady(peer, ctx, 1)) {
+    if (!this.stagedReady(ctx, 1)) {
       return this.residuate(peer, ctx)
     }
 

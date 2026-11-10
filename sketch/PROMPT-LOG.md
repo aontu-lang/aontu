@@ -794,6 +794,16 @@ Ruling 39 (#678): does a spread's template give its marks to the members it meet
 → Members don't take them (Recommended)
 ```
 
+## 2026-11-10 10:10:06 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Ruling 34, next slice: once `&` stops filling holes, what should a bare `_` be when no generator or `apply` binds it and it stands outside any call? Examples: `x: _`, `1 & _`, `{a: 1} & {a: _}`, `{&: _}`. Today each takes its peer (`1 & _` is `1`). No use case or built-in model writes one; all 40 holes in the use cases belong to a generator.
+→ Error (Recommended)
+
+Should `apply` and the generators bind holes inside a declaration that their template names? With `%F = upper(_)`, today `apply("a", %F)` and `each(["a"], %F)` leave the hole unbound, in both engines and the definition. Only `%F & "a"` works, and only through the meet's fill, which ruling 34 removes. `emit(d, %table)`, the form use cases 15 and 17 use, works either way, since emit reads the named table's own table.
+→ No, as written (Recommended)
 ## 2026-11-10 10:00:38 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
 
 ```text
@@ -822,4 +832,10 @@ PR 680 lives in aontu-lang/aontu, not aless (this session's only repository). It
 
 A separate finding in PR 680: aontu's ADR-040 says both ports take jostraca 'pinned at one version, both ordinary dependencies', and that a jostraca release is reviewed like a @tabnas release. PR 680 (like the released 0.76.3) makes the TypeScript side a peer dependency at >=0.41.0, so CI and fresh installs take each new jostraca unreviewed, and the PR does not amend the ADR. How should the decision record be handled?
 → Follow-up PR for the ADR (Recommended)
+```
+
+## 2026-11-10 15:07:28 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+merge 689 and 683
 ```

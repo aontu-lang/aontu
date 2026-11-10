@@ -2133,6 +2133,7 @@ func evaluate(r *jsonic.Rule, ctx *jsonic.Context, op *expr.Op, terms []interfac
 				// and an unsited nil renders `<no-file>:-1:-1` where
 				// TypeScript names the call's row and column.
 				n := newNil("unknown_function")
+				n.refusedCall = newFunc("", writtenArgVals(terms[1:]))
 				if r.ON > 0 {
 					n.site.sp = r.O0.SI
 				}
@@ -2711,6 +2712,7 @@ func opCharHint(src string) string {
 func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	if !funcSet[name] {
 		n := newNil("unknown_function")
+		n.refusedCall = newFunc(name, writtenArgVals(argterms))
 		if r.ON > 0 {
 			n.site.sp = r.O0.SI
 		}
@@ -2727,6 +2729,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 				"want": arityText(ar[0], ar[1]),
 				"got":  itoa(got),
 			}
+			n.refusedCall = newFunc(name, writtenArgVals(argterms))
 			if r.ON > 0 {
 				n.site.sp = r.O0.SI
 			}
@@ -2761,11 +2764,6 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	if constraintAtoms[name] {
 		cv := newConstraint(name, args, sp)
 		stampSrc(cv, r)
-		if heldBounds[name] {
-			for _, a := range args {
-				holdHoles(a, false)
-			}
-		}
 		return cv
 	}
 
@@ -2773,11 +2771,6 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	if r.ON > 0 {
 		fv.site.sp = r.O0.SI
 		stampSrc(fv, r)
-	}
-	if from, holds := holdingFuncs[name]; holds {
-		for _, a := range args[min(from, len(args)):] {
-			holdHoles(a, false)
-		}
 	}
 	return fv
 }
