@@ -1402,6 +1402,37 @@ theorem rel_path_verdict_exact : ∀ c ∈ relPathCases, ∀ (m : Mode) (v : Ver
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (relPathCases_checkable c hc).1 (relPathCases_checkable c hc).2 v
 
+/-- A use of a name whose body writes a relative path reads the path
+where the use stands (ruling 26): a climb out of the body at a use whose
+place holds its own target, a name used at two places that read two
+values, and a name whose body uses another such name, its copy read at
+the copy of the use. Both ports' `vet` reads these at each use in either
+order, so the rows hold them with each declaration written before the
+schema and again after it. -/
+def copyDestCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let tv : Decls := [("T", m [("v", rel 2 ["x"])])]
+  let one := m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])]
+  let two := m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")]), ("c", m [("x", int 3), ("d", .alias "T")])]
+  let nest : Decls := [("U", m [("w", rel 2 ["y"])]), ("T", m [("u", .alias "U"), ("y", int 3)])]
+  [(tv, one, .map [("a", .map [("b", .map [("v", j 2)])])]),
+    (tv, one, .map [("a", .map [("b", .map [("v", j 1)])])]),
+    (tv, two, .map [("a", .map [("b", .map [("v", j 2)])]), ("c", .map [("d", .map [("v", j 3)])])]),
+    (tv, two, .map [("a", .map [("b", .map [("v", j 2)])]), ("c", .map [("d", .map [("v", j 2)])])]),
+    (tv, m [("x", int 1), ("b", .alias "T")], .map [("b", .map [("v", j 1)])]),
+    (nest, m [("y", int 1), ("a", m [("b", .alias "T")])], .map [("a", .map [("b", .map [("u", .map [("w", j 3)])])])]),
+    (nest, m [("y", int 1), ("a", m [("b", .alias "T")])], .map [("a", .map [("b", .map [("u", .map [("w", j 1)])])])])]
+
+theorem copyDestCases_checkable : ∀ c ∈ copyDestCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem copy_dest_verdict_exact : ∀ c ∈ copyDestCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (copyDestCases_checkable c hc).1 (copyDestCases_checkable c hc).2 v
+
 /-- `maybe` over paths that name something and paths that name nothing:
 absence at a required key and at an optional one, as a list's element,
 an arm and a call's argument, and met with a literal and a kind, beside
@@ -6659,6 +6690,8 @@ def main (args : List String) : IO UInt32 := do
     pathRows "r" keyPathCases
     pathRows "j" relPathCases
     pathRows "jl" aliasPlaceCases (declsLast := true)
+    pathRows "cd" copyDestCases
+    pathRows "cdl" copyDestCases (declsLast := true)
     pathRows "mb" maybeCases
     pathRows "la" absentListCases
     pathRows "pf" prefCases

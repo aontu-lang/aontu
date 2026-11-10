@@ -400,12 +400,12 @@ j50	verdict	%T = {"v": .w}\n"a": {"b": (%T) & ({"w": 3})}	{}	{"verdict":"error",
 j51	verdict	%T = ..x\n"x": 1, "a": {"x": 2, "b": %T}	{}	{"verdict":"error"}
 j52	verdict	%T = ..x\n"x": 1, "a": {"x": 2, "b": %T}	{}	{"verdict":"error","opts":{"noFill":true}}
 j53	verdict	%T = ..x\n"x": 1, "a": {"x": 2, "b": %T}	{}	{"verdict":"error","opts":{"partial":true}}
-j54	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"valid"}
-j55	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
-j56	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"valid","opts":{"partial":true}}
-j57	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"invalid"}
-j58	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
-j59	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+j54	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"invalid"}
+j55	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+j56	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+j57	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"valid"}
+j58	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+j59	verdict	%T = .x\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": 2}}	{"verdict":"valid","opts":{"partial":true}}
 j60	verdict	%T = {"x": 1, "y": .x}\n	{}	{"verdict":"valid"}
 j61	verdict	%T = {"x": 1, "y": .x}\n	{}	{"verdict":"valid","opts":{"noFill":true}}
 j62	verdict	%T = {"x": 1, "y": .x}\n	{}	{"verdict":"valid","opts":{"partial":true}}
@@ -448,12 +448,54 @@ jl11	verdict	"a": {"b": (%T) & ({"w": 3})}\n%T = {"v": .w}	{}	{"verdict":"error"
 jl12	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = ..x	{}	{"verdict":"error"}
 jl13	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = ..x	{}	{"verdict":"error","opts":{"noFill":true}}
 jl14	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = ..x	{}	{"verdict":"error","opts":{"partial":true}}
-jl15	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 1}}	{"verdict":"valid"}
-jl16	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
-jl17	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 1}}	{"verdict":"valid","opts":{"partial":true}}
-jl18	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 2}}	{"verdict":"invalid"}
-jl19	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
-jl20	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+jl15	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 1}}	{"verdict":"invalid"}
+jl16	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+jl17	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+jl18	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 2}}	{"verdict":"valid"}
+jl19	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+jl20	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = .x	{"a": {"b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+cd0	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"v": 2}}}	{"verdict":"valid"}
+cd1	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"v": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+cd2	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"v": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+cd3	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"v": 1}}}	{"verdict":"invalid"}
+cd4	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"v": 1}}}	{"verdict":"invalid","opts":{"noFill":true}}
+cd5	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"v": 1}}}	{"verdict":"invalid","opts":{"partial":true}}
+cd6	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 3}}}	{"verdict":"valid"}
+cd7	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 3}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+cd8	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 3}}}	{"verdict":"valid","opts":{"partial":true}}
+cd9	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 2}}}	{"verdict":"invalid"}
+cd10	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 2}}}	{"verdict":"invalid","opts":{"noFill":true}}
+cd11	verdict	%T = {"v": ..x}\n"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 2}}}	{"verdict":"invalid","opts":{"partial":true}}
+cd12	verdict	%T = {"v": ..x}\n"x": 1, "b": %T	{"b": {"v": 1}}	{"verdict":"valid"}
+cd13	verdict	%T = {"v": ..x}\n"x": 1, "b": %T	{"b": {"v": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+cd14	verdict	%T = {"v": ..x}\n"x": 1, "b": %T	{"b": {"v": 1}}	{"verdict":"valid","opts":{"partial":true}}
+cd15	verdict	%U = {"w": ..y}\n%T = {"u": %U, "y": 3}\n"y": 1, "a": {"b": %T}	{"a": {"b": {"u": {"w": 3}}}}	{"verdict":"valid"}
+cd16	verdict	%U = {"w": ..y}\n%T = {"u": %U, "y": 3}\n"y": 1, "a": {"b": %T}	{"a": {"b": {"u": {"w": 3}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+cd17	verdict	%U = {"w": ..y}\n%T = {"u": %U, "y": 3}\n"y": 1, "a": {"b": %T}	{"a": {"b": {"u": {"w": 3}}}}	{"verdict":"valid","opts":{"partial":true}}
+cd18	verdict	%U = {"w": ..y}\n%T = {"u": %U, "y": 3}\n"y": 1, "a": {"b": %T}	{"a": {"b": {"u": {"w": 1}}}}	{"verdict":"invalid"}
+cd19	verdict	%U = {"w": ..y}\n%T = {"u": %U, "y": 3}\n"y": 1, "a": {"b": %T}	{"a": {"b": {"u": {"w": 1}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+cd20	verdict	%U = {"w": ..y}\n%T = {"u": %U, "y": 3}\n"y": 1, "a": {"b": %T}	{"a": {"b": {"u": {"w": 1}}}}	{"verdict":"invalid","opts":{"partial":true}}
+cdl0	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 2}}}	{"verdict":"valid"}
+cdl1	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+cdl2	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+cdl3	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 1}}}	{"verdict":"invalid"}
+cdl4	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 1}}}	{"verdict":"invalid","opts":{"noFill":true}}
+cdl5	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 1}}}	{"verdict":"invalid","opts":{"partial":true}}
+cdl6	verdict	"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 3}}}	{"verdict":"valid"}
+cdl7	verdict	"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 3}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+cdl8	verdict	"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 3}}}	{"verdict":"valid","opts":{"partial":true}}
+cdl9	verdict	"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 2}}}	{"verdict":"invalid"}
+cdl10	verdict	"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 2}}}	{"verdict":"invalid","opts":{"noFill":true}}
+cdl11	verdict	"x": 1, "a": {"x": 2, "b": %T}, "c": {"x": 3, "d": %T}\n%T = {"v": ..x}	{"a": {"b": {"v": 2}}, "c": {"d": {"v": 2}}}	{"verdict":"invalid","opts":{"partial":true}}
+cdl12	verdict	"x": 1, "b": %T\n%T = {"v": ..x}	{"b": {"v": 1}}	{"verdict":"valid"}
+cdl13	verdict	"x": 1, "b": %T\n%T = {"v": ..x}	{"b": {"v": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+cdl14	verdict	"x": 1, "b": %T\n%T = {"v": ..x}	{"b": {"v": 1}}	{"verdict":"valid","opts":{"partial":true}}
+cdl15	verdict	"y": 1, "a": {"b": %T}\n%U = {"w": ..y}\n%T = {"u": %U, "y": 3}	{"a": {"b": {"u": {"w": 3}}}}	{"verdict":"valid"}
+cdl16	verdict	"y": 1, "a": {"b": %T}\n%U = {"w": ..y}\n%T = {"u": %U, "y": 3}	{"a": {"b": {"u": {"w": 3}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+cdl17	verdict	"y": 1, "a": {"b": %T}\n%U = {"w": ..y}\n%T = {"u": %U, "y": 3}	{"a": {"b": {"u": {"w": 3}}}}	{"verdict":"valid","opts":{"partial":true}}
+cdl18	verdict	"y": 1, "a": {"b": %T}\n%U = {"w": ..y}\n%T = {"u": %U, "y": 3}	{"a": {"b": {"u": {"w": 1}}}}	{"verdict":"invalid"}
+cdl19	verdict	"y": 1, "a": {"b": %T}\n%U = {"w": ..y}\n%T = {"u": %U, "y": 3}	{"a": {"b": {"u": {"w": 1}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+cdl20	verdict	"y": 1, "a": {"b": %T}\n%U = {"w": ..y}\n%T = {"u": %U, "y": 3}	{"a": {"b": {"u": {"w": 1}}}}	{"verdict":"invalid","opts":{"partial":true}}
 mb0	verdict	"b": maybe($.gone)	{}	{"verdict":"valid"}
 mb1	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"noFill":true}}
 mb2	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"partial":true}}
