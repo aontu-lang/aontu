@@ -761,6 +761,24 @@ Ruling 38 (#673): in `a: {x: 1, y: 2} & {x: hide(any)}`, both engines leave `x` 
 → It marks (Recommended)
 ```
 
+## 2026-11-09 10:50:53 UTC · Claude Code · session_01FpeS4ru69dMPkAX2ezauL9
+
+```text
+work locally in ~/Projects/aontu-lang/aontu - update to latest and prepare a release 0.76.2 that makes jostraca a peer dep. prepare the release as a branch from the 0.76.1 release commit
+```
+
+## 2026-11-09 12:22:11 UTC · Claude Code · session_01FpeS4ru69dMPkAX2ezauL9
+
+```text
+publish aontu 0.76.3
+```
+
+## 2026-11-09 12:45:26 UTC · Claude Code · session_01FpeS4ru69dMPkAX2ezauL9
+
+```text
+open the pr
+```
+
 ## 2026-11-09 10:47:48 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 The answers to the agent's questions, each question followed by the option chosen or the answer typed:
@@ -786,4 +804,20 @@ Ruling 34, next slice: once `&` stops filling holes, what should a bare `_` be w
 
 Should `apply` and the generators bind holes inside a declaration that their template names? With `%F = upper(_)`, today `apply("a", %F)` and `each(["a"], %F)` leave the hole unbound, in both engines and the definition. Only `%F & "a"` works, and only through the meet's fill, which ruling 34 removes. `emit(d, %table)`, the form use cases 15 and 17 use, works either way, since emit reads the named table's own table.
 → No, as written (Recommended)
+## 2026-11-10 10:00:38 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+fix pr 680 and merge
+```
+
+## 2026-11-10 10:01:23 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+review the state of the aontu support for jsonschema - are there any divergences left? can aontu fully represent jsonschema?
+```
+
+## 2026-11-10 11:21:07 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+review the state of the aontu support for jsonschema - are there any divergences left? can aontu fully represent jsonschema?
 ```
