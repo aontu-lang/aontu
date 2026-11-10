@@ -3071,7 +3071,7 @@ def Decls.relTarget (ds : Decls) (S : Val) (rs : List String) : ℕ → List Seg
   | k + 1, p =>
     match ds.written S p with
     | [] => false
-    | ws => ds.writes S p && !ws.any Val.perMembers && ws.any fun w => w.holdsRel || w.refs.any rs.contains ||
+    | ws => ds.writes S p && ws.any fun w => w.holdsRel || w.refs.any rs.contains ||
         w.paths.any fun q => !relPath q && ds.relTarget S rs k q
 ```
 
@@ -3118,9 +3118,13 @@ the copy's 3, and `vet` refuses it. The output evaluation generates,
 whose `a.b.v` is 2, fails `vet` against its own document for that
 reason. Both engines read so where the reference comes first, and read
 the target's paths where it writes them where the target comes first,
-which #504 tracks. A place that holds a template read at each member is
-no such place: `Val.membersRead` reads the template at each member
-wherever a reference lands.
+which #504 tracks. A place that holds a spread whose template reads its
+member's place is such a place too, and its copy holds the template as
+written, read at the copy's own members: with
+`a: {x: 2, b: {k: {}, &: {v: ...x}}}` and `c: {x: 3, d: $.a.b}`,
+`c.d.k.v` reads `c.x`, 3. Where the target comes first, both engines
+read it where `a.b` writes it, and Go's `vet` reads it both ways, which
+#696 tracks.
 
 At its own place, `%T = {y: .x}` reads `$.%T.x`. No root holds a body's own place, so
 a path there reads in the normal form of the name's bodies, met, as
@@ -3193,9 +3197,9 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (ds' := (ds.preparedD S j).1)
     (S' := (ds.preparedD S j).2)
-    (Decls.placed_bodies_checkableA (S := S) (oj := none) (Decls.withRel_checkableA hb) hS)
+    (Decls.prepared_bodies_checkableA hb hS)
     (Decls.prepared_checkableA rootsS_readable hb hS)
-    (Decls.placed_bodies_checkableA (S := S) (oj := some j) (Decls.withRel_checkableA hb) hS)
+    (Decls.prepared_bodies_checkableA hb hS)
     (Decls.prepared_checkableA Decls.linkReader_readable hb hS) v
 ```
 
@@ -9061,20 +9065,35 @@ def Val.perMember : Val → Bool
 
 At each position of the tree, each such spread that lands there, as
 step 36 reads a link, whether written there, in a template that holds
-the position or where a path reference copies it from, meets its
-template at each member the tree holds there, placed at the member,
-and the spread itself admits any member:
+the position, in the body of a name used there or where a path
+reference copies it from, meets its template at each member the tree
+holds there, placed at the member, and the spread itself admits any
+member:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Val.spreadInst (root s : Val) (p : List Seg) (t : Seg) : Option Val :=
-  root.putW (p ++ [t]) ((s.atKey t.text).placed (p ++ [t])).neutral
+def Val.spreadInst (root s : Val) (base p : List Seg) (t : Seg) : Option Val :=
+  root.putW (p ++ [t]) ((s.atKey t.text).placed (base ++ p ++ [t])).neutral
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Val.membersRead (P root : Val) : Val :=
-  if P.perMembers then (root.positions.flatMap (P.instancesAt root)).foldl .meet P.neutral else P
+def Decls.membersRead (ds : Decls) (P root : Val) (base : List Seg) : Val :=
+  if P.perMembers || ds.any (·.2.perMembers) then
+    (root.positions.flatMap (ds.instancesAt P root base)).foldl .meet P.neutral
+  else P
+```
+
+The definition reads a name's body at its own place too, `%` and its
+name, at each member the normal form of the name's bodies holds there, so `%H = {k: {}, &: {url: .name}}`
+reads `$.%H.k.name`, which names nothing, and the document is an error
+whether or not anything uses `%H`, as both engines read it, while
+`%H = {&: {url: .name}}` holds no member there and reads nothing:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.ownRead (ds : Decls) (d : String × Val) : Val :=
+  ds.membersRead d.2 (ds.ownRoot d) [.key ("%" ++ d.1)]
 ```
 
 The tree is the schema's own for the error class, and the one the data
@@ -9088,8 +9107,22 @@ absolute path in a template names, the same at every member:
 ```lean
 def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (oj : Option Data := none) :
     Decls × Val :=
-  ((ds.linked S rl oj).1, (ds.linked S rl oj).2.membersRead (ds.spreadRoot S rl r oj))
+  let L := ds.linked S rl oj
+  let isBody (n : String) : Bool := ds.withRel.any (·.1 == n)
+  let reached := L.1.reached L.2 (ds.spreadRoot S rl r oj) ++
+    (L.1.filter (isBody ·.1)).flatMap fun b => L.1.reached b.2 (L.1.ownRoot b)
+  (L.1.map fun d =>
+      (d.1, if isBody d.1 then L.1.ownRead d else if reached.contains d.1 then d.2.neutral else d.2),
+    L.1.membersRead L.2 (ds.spreadRoot S rl r oj) [])
 ```
+
+A declaration's own such templates admit any member wherever the
+reading takes each where it lands: a body at its own place, and a copy
+where its use stands and the reading reaches it (`Decls.reached`). A copy whose use
+stands where the reading doesn't go, in a disjunction's arm, keeps its
+template as written, as a template written there does. So `%H = {&: {url: .name}}` used at `hosts`, beside
+`hosts: {a: {name: "x"}}`, reads `hosts.a.url` as `"x"`, as both
+engines do.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -9185,8 +9218,8 @@ at the member, as a spread's template does:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Val.genInst (root u : Val) (p : List Seg) (t : Seg) : Option Val :=
-  root.putW (p ++ [t]) (u.placed (p ++ [t])).neutral
+def Val.genInst (root u : Val) (base p : List Seg) (t : Seg) : Option Val :=
+  root.putW (p ++ [t]) (u.placed (base ++ p ++ [t])).neutral
 ```
 
 So `.name` reads each instance's own `name`, a path that climbs out of
@@ -9555,22 +9588,15 @@ another link's template carries does send: each pass reads the links
 of the tree the last one made. The definition reads such a link's
 relative address where the link lands, though, and both engines read
 it inside the template, where it names nothing, which #661 tracks. A
-spread whose template reads its member's place, inside a disjunction,
-a selection or an alias's body, keeps its template as written, so a
-relative path in it resolves nowhere, and so does a generator's
-template there.
+spread whose template reads its member's place, inside a disjunction or
+a selection, keeps its template as written, so a relative path in it
+resolves nowhere, and so does a generator's template there, written or
+in a name used there.
 
-Nor does it say where a copy reads a relative path the copy holds. The
-definition reads one where it's written, so a use of an alias, or a
-path reference's copy, holds what the path reads there. Both engines
-read it where the copy stands or where it's written by the order the
-document writes the two: with `x: 1` at the top, `a: {x: 2, b: %T}`
-and `%T = {v: ..x}`, they set `a.b.v` to 1, the top's `x`, where the
-alias comes first, as the definition does, and to 2, `a`'s, where it
-comes after, and `aontu vet` reads 2 in either order. The engines split
-on a path in a call's argument. TypeScript reads it where it's written
-in either order, and Go reads it as it reads any other. #504 tracks
-both.
+Nor does it read a copy of a recursion where the copy stands. A path
+reference inside its own place, `b?: $.a` within `a`, reads as it's
+written, where ruling 26 would read each copy where it stands, at every
+depth the data goes to.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

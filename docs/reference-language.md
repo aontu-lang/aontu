@@ -1014,7 +1014,7 @@ position its instance lands at, and a `filter`'s condition where the
 member it tries lands. At a spread's own position `key(1)` reads the
 container's key. Deeper in a spread's template, `key(n)` reads at each
 member the spread holds, as a relative path there does:
-`Val.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+`Decls.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
 places the template at each member before `resolveD` reads it.
 
 ## Generating children: `pack` and `each`
@@ -1690,10 +1690,11 @@ itself a relative path, `&: ..x`, reads at each member too, so a path
 reference's copy reads it from where the copy stands, and it reads
 where it's written as well, so one that names nothing there is an
 `error` with no member at all. The definition reads a spread so by
-`Val.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
+`Decls.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
 at each member wherever the spread lands, at each place a path
-reference copies it to and at each member a link's template makes among
-them. A generator's template reads its relative paths at each member of
+reference copies it to, at each use of a name whose body holds it and
+at the body's own place, and at each member a link's template makes
+among them. A generator's template reads its relative paths at each member of
 the generator's output in the same way: in `each($.names, {name: _,
 url: "https://" + .name})` each instance's `url` reads that instance's
 own `name`. A `filter`'s condition stands where the member it tries
@@ -1706,7 +1707,7 @@ names nothing, a path, an alias or a variable, refuses each member
 rather than making the document an error. The definition places a
 condition so in `Val.placed`, and `Val.forgive` exempts it from the
 references that must name something. It doesn't yet read a template's
-relative paths inside a disjunction, a selection or an alias's body.
+relative paths inside a disjunction or a selection.
 
 ### Recursive references (fixpoints)
 

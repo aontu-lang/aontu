@@ -52,7 +52,9 @@
 # where it stands (ruling 26): a use of a name in rows cd0 on, written again
 # after the schema in rows cdl0 on, a path reference in rows rc0 on, and a name
 # whose body holds one, or a use inside a body read at the body's own place,
-# in rows bc0 on, written again after the schema in rows bcl0 on.
+# in rows bc0 on, written again after the schema in rows bcl0 on. A name whose
+# body holds a spread whose template reads its member's place reads it at each
+# member where it's used and at its own place, in rows nt0 on and ntl0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -587,6 +589,18 @@ rc83	verdict	"f": {"g": {"w": number, "v": .w}}, "a": {"b": {"e": $.f.g}}, "c": 
 rc84	verdict	"c": {"d": $.a.b}, "a": {"b": {"e": $.f.g}}, "f": {"g": {"w": number, "v": .w}}	{"f": {"g": {"w": 1, "v": 1}}, "c": {"d": {"e": {"w": 2, "v": 2}}}}	{"verdict":"invalid"}
 rc85	verdict	"c": {"d": $.a.b}, "a": {"b": {"e": $.f.g}}, "f": {"g": {"w": number, "v": .w}}	{"f": {"g": {"w": 1, "v": 1}}, "c": {"d": {"e": {"w": 2, "v": 2}}}}	{"verdict":"invalid","opts":{"noFill":true}}
 rc86	verdict	"c": {"d": $.a.b}, "a": {"b": {"e": $.f.g}}, "f": {"g": {"w": number, "v": .w}}	{"f": {"g": {"w": 1, "v": 1}}, "c": {"d": {"e": {"w": 2, "v": 2}}}}	{"verdict":"invalid","opts":{"partial":true}}
+rc87	verdict	"x": 1, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}, "c": {"x": 3, "d": $.a.b}	{"c": {"d": {"k": {"v": 3}}}}	{"verdict":"valid"}
+rc88	verdict	"x": 1, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}, "c": {"x": 3, "d": $.a.b}	{"c": {"d": {"k": {"v": 3}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rc89	verdict	"x": 1, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}, "c": {"x": 3, "d": $.a.b}	{"c": {"d": {"k": {"v": 3}}}}	{"verdict":"valid","opts":{"partial":true}}
+rc90	verdict	"x": 1, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}, "c": {"x": 3, "d": $.a.b}	{}	{"verdict":"valid"}
+rc91	verdict	"x": 1, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}, "c": {"x": 3, "d": $.a.b}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rc92	verdict	"x": 1, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}, "c": {"x": 3, "d": $.a.b}	{}	{"verdict":"valid","opts":{"partial":true}}
+rc93	verdict	"x": 1, "c": {"x": 3, "d": $.a.b}, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}	{"c": {"d": {"k": {"v": 3}}}}	{"verdict":"valid"}
+rc94	verdict	"x": 1, "c": {"x": 3, "d": $.a.b}, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}	{"c": {"d": {"k": {"v": 3}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rc95	verdict	"x": 1, "c": {"x": 3, "d": $.a.b}, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}	{"c": {"d": {"k": {"v": 3}}}}	{"verdict":"valid","opts":{"partial":true}}
+rc96	verdict	"x": 1, "c": {"x": 3, "d": $.a.b}, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}	{"c": {"d": {"k": {"v": 2}}}}	{"verdict":"invalid"}
+rc97	verdict	"x": 1, "c": {"x": 3, "d": $.a.b}, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}	{"c": {"d": {"k": {"v": 2}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+rc98	verdict	"x": 1, "c": {"x": 3, "d": $.a.b}, "a": {"x": 2, "b": {"k": {}, &: {"v": ...x}}}	{"c": {"d": {"k": {"v": 2}}}}	{"verdict":"invalid","opts":{"partial":true}}
 bc0	verdict	%T = $.a.b\n"x": 1, "a": {"x": 2, "b": {"v": ..x}}, "c": {"x": 3, "d": %T}	{"c": {"d": {"v": 3}}}	{"verdict":"valid"}
 bc1	verdict	%T = $.a.b\n"x": 1, "a": {"x": 2, "b": {"v": ..x}}, "c": {"x": 3, "d": %T}	{"c": {"d": {"v": 3}}}	{"verdict":"incomplete","opts":{"noFill":true}}
 bc2	verdict	%T = $.a.b\n"x": 1, "a": {"x": 2, "b": {"v": ..x}}, "c": {"x": 3, "d": %T}	{"c": {"d": {"v": 3}}}	{"verdict":"valid","opts":{"partial":true}}
@@ -623,6 +637,60 @@ bcl14	verdict	"x": 1, "a": {"b": (%T) & ({"x": 5})}\n%T = {"u": %U}\n%U = {"w": 
 bcl15	verdict	"x": 1, "a": {"b": (%T) & ({"x": 5})}\n%U = {"w": ..x}\n%T = {"u": %U, "x": integer}	{"a": {"b": {"u": {"w": 5}}}}	{"verdict":"valid"}
 bcl16	verdict	"x": 1, "a": {"b": (%T) & ({"x": 5})}\n%U = {"w": ..x}\n%T = {"u": %U, "x": integer}	{"a": {"b": {"u": {"w": 5}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
 bcl17	verdict	"x": 1, "a": {"b": (%T) & ({"x": 5})}\n%U = {"w": ..x}\n%T = {"u": %U, "x": integer}	{"a": {"b": {"u": {"w": 5}}}}	{"verdict":"valid","opts":{"partial":true}}
+nt0	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) & ({"a": {"name": "x"}})	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+nt1	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) & ({"a": {"name": "x"}})	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+nt2	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) & ({"a": {"name": "x"}})	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+nt3	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) & ({"a": {"name": "x"}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+nt4	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) & ({"a": {"name": "x"}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+nt5	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) & ({"a": {"name": "x"}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+nt6	verdict	%H = {&: {"url": .name}}\n"x": 1	{}	{"verdict":"valid"}
+nt7	verdict	%H = {&: {"url": .name}}\n"x": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+nt8	verdict	%H = {&: {"url": .name}}\n"x": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+nt9	verdict	%H = {"k": {"name": "n"}, &: {"url": .name}}\n"x": 1	{}	{"verdict":"valid"}
+nt10	verdict	%H = {"k": {"name": "n"}, &: {"url": .name}}\n"x": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+nt11	verdict	%H = {"k": {"name": "n"}, &: {"url": .name}}\n"x": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+nt12	verdict	%H = {"k": {}, &: {"url": .name}}\n"x": 1	{}	{"verdict":"error"}
+nt13	verdict	%H = {"k": {}, &: {"url": .name}}\n"x": 1	{}	{"verdict":"error","opts":{"noFill":true}}
+nt14	verdict	%H = {"k": {}, &: {"url": .name}}\n"x": 1	{}	{"verdict":"error","opts":{"partial":true}}
+nt15	verdict	%T = {"k": {}, &: {"v": ...x}}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"k": {"v": 2}}}}	{"verdict":"valid"}
+nt16	verdict	%T = {"k": {}, &: {"v": ...x}}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"k": {"v": 2}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+nt17	verdict	%T = {"k": {}, &: {"v": ...x}}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"k": {"v": 2}}}}	{"verdict":"valid","opts":{"partial":true}}
+nt18	verdict	%T = {"k": {}, &: {"v": ...x}}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid"}
+nt19	verdict	%T = {"k": {}, &: {"v": ...x}}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+nt20	verdict	%T = {"k": {}, &: {"v": ...x}}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid","opts":{"partial":true}}
+nt21	verdict	%H = {&: {"url": .name}}\n%H = {"k": {}}\n"x": 1	{}	{"verdict":"error"}
+nt22	verdict	%H = {&: {"url": .name}}\n%H = {"k": {}}\n"x": 1	{}	{"verdict":"error","opts":{"noFill":true}}
+nt23	verdict	%H = {&: {"url": .name}}\n%H = {"k": {}}\n"x": 1	{}	{"verdict":"error","opts":{"partial":true}}
+nt24	verdict	%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}\n"x": 1	{}	{"verdict":"valid"}
+nt25	verdict	%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}\n"x": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+nt26	verdict	%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}\n"x": 1	{}	{"verdict":"valid","opts":{"partial":true}}
+ntl0	verdict	"hosts": (%H) & ({"a": {"name": "x"}})\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+ntl1	verdict	"hosts": (%H) & ({"a": {"name": "x"}})\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+ntl2	verdict	"hosts": (%H) & ({"a": {"name": "x"}})\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+ntl3	verdict	"hosts": (%H) & ({"a": {"name": "x"}})\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+ntl4	verdict	"hosts": (%H) & ({"a": {"name": "x"}})\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+ntl5	verdict	"hosts": (%H) & ({"a": {"name": "x"}})\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+ntl6	verdict	"x": 1\n%H = {&: {"url": .name}}	{}	{"verdict":"valid"}
+ntl7	verdict	"x": 1\n%H = {&: {"url": .name}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ntl8	verdict	"x": 1\n%H = {&: {"url": .name}}	{}	{"verdict":"valid","opts":{"partial":true}}
+ntl9	verdict	"x": 1\n%H = {"k": {"name": "n"}, &: {"url": .name}}	{}	{"verdict":"valid"}
+ntl10	verdict	"x": 1\n%H = {"k": {"name": "n"}, &: {"url": .name}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ntl11	verdict	"x": 1\n%H = {"k": {"name": "n"}, &: {"url": .name}}	{}	{"verdict":"valid","opts":{"partial":true}}
+ntl12	verdict	"x": 1\n%H = {"k": {}, &: {"url": .name}}	{}	{"verdict":"error"}
+ntl13	verdict	"x": 1\n%H = {"k": {}, &: {"url": .name}}	{}	{"verdict":"error","opts":{"noFill":true}}
+ntl14	verdict	"x": 1\n%H = {"k": {}, &: {"url": .name}}	{}	{"verdict":"error","opts":{"partial":true}}
+ntl15	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"k": {}, &: {"v": ...x}}	{"a": {"b": {"k": {"v": 2}}}}	{"verdict":"valid"}
+ntl16	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"k": {}, &: {"v": ...x}}	{"a": {"b": {"k": {"v": 2}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+ntl17	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"k": {}, &: {"v": ...x}}	{"a": {"b": {"k": {"v": 2}}}}	{"verdict":"valid","opts":{"partial":true}}
+ntl18	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"k": {}, &: {"v": ...x}}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid"}
+ntl19	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"k": {}, &: {"v": ...x}}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+ntl20	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"k": {}, &: {"v": ...x}}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid","opts":{"partial":true}}
+ntl21	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {}}	{}	{"verdict":"error"}
+ntl22	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {}}	{}	{"verdict":"error","opts":{"noFill":true}}
+ntl23	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {}}	{}	{"verdict":"error","opts":{"partial":true}}
+ntl24	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}	{}	{"verdict":"valid"}
+ntl25	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ntl26	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}	{}	{"verdict":"valid","opts":{"partial":true}}
 mb0	verdict	"b": maybe($.gone)	{}	{"verdict":"valid"}
 mb1	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"noFill":true}}
 mb2	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"partial":true}}
