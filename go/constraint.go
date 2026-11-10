@@ -499,6 +499,9 @@ type ConstraintVal struct {
 	// phase 4), until Unify has a Ctx to resolve them through. Never
 	// present on a residual.
 	pending *constraintPending
+	// asWritten keeps the arguments before atomArgs reads them or a
+	// refusal drops them, for the walk that finds an unbound hole.
+	asWritten []Val
 	// clash records a kind disagreement inside a len() argument. That
 	// meet runs at construction, where there is no Ctx to fail through,
 	// so emptiness carries the news instead.
@@ -618,7 +621,7 @@ func newConstraint(atom string, args []Val, sp int) *ConstraintVal {
 }
 
 func makeConstraint(atom string, args []Val, sp int) *ConstraintVal {
-	c := &ConstraintVal{kind: KindTop}
+	c := &ConstraintVal{kind: KindTop, asWritten: args}
 	c.site.sp = sp
 
 	bad := func(why string) *ConstraintVal {

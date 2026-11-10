@@ -115,9 +115,7 @@ func partsOf(v Val) []Val {
 			return n.refusedCall.peg
 		}
 	case *ConstraintVal:
-		if nil != n.pending {
-			return n.pending.args
-		}
+		return n.asWritten
 	case *ConjunctVal:
 		return n.peg
 	case *DisjunctVal:
