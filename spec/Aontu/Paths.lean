@@ -2410,6 +2410,73 @@ something (`Val.armReads`), where `Val.orNodes` finds them from `pos`. -/
 def Val.armNodes (v : Val) (pos : List Seg) : List (List ℕ × List Seg × Val) :=
   (v.orNodes pos []).filter fun n => n.2.2.nodeArms.any (·.2.armReads)
 
+/-! ### Disjunctions met at one place -/
+
+/-- The disjunctions among a meet's conjuncts, at any depth of the meet,
+each as its arms, and the conjuncts that are no disjunction. -/
+def Val.splitOrs : Val → List (List (ℕ × Val)) × List Val
+  | .meet a b => (a.splitOrs.1 ++ b.splitOrs.1, a.splitOrs.2 ++ b.splitOrs.2)
+  | .or arms => ([arms], [])
+  | v => ([], [v])
+
+/-- Two disjunctions met, as one: the meet of each arm of the first with
+each arm of the second, ranked as the meet ranks them (`meetStep`), an
+arm of the first keeping its rank over the arms it meets, and one of rank
+`0` opening into them (`flattenArm`). -/
+def orMeet (as bs : List (ℕ × Val)) : List (ℕ × Val) :=
+  (as.map fun p => (p.1, Val.or (bs.map fun q => (q.1, Val.meet p.2 q.2)))).flatMap flattenArm
+
+/-- Whether a term is a lone preference, a node beside the disjunctions
+of a meet (`Val.meetOrs`). -/
+def Val.isPrefB : Val → Bool
+  | .pref _ _ => true
+  | _ => false
+
+/-- A meet whose conjuncts hold a disjunction and another disjunction or a
+lone preference, an arm of one of which reads its place
+(`Val.armReads`), read as one disjunction of the meets of the
+disjunctions' arms (`orMeet`), each met with the other conjuncts, as the
+meet meets a term with a disjunction arm by arm (`meetStep`), so that a
+path in an arm, or in a preference's value, reads the arm the meet makes
+there; any other term as written. -/
+def Val.meetOrs (v : Val) : Val :=
+  match v.splitOrs.1 with
+  | as :: more =>
+    if 2 ≤ more.length + 1 + (v.splitOrs.2.filter Val.isPrefB).length &&
+        ((as :: more).any (·.any (·.2.armReads)) ||
+          (v.splitOrs.2.filter Val.isPrefB).any (·.nodeArms.any (·.2.armReads))) then
+      .or ((more.foldl orMeet as).map fun p => (p.1, v.splitOrs.2.foldl .meet p.2))
+    else v
+  | [] => v
+
+mutual
+/-- The term with each meet of disjunctions read as one (`Val.meetOrs`),
+the meets inside it first, through maps by key, lists by index,
+disjunctions' arms, preferred values, meets, riders and links, where
+`Val.orNodes` finds the disjunctions. -/
+def Val.distributed : Val → Val
+  | .meet a b => (Val.meet a.distributed b.distributed).meetOrs
+  | .map fs s c => .map (dsFields fs) s c
+  | .list items s c => .list (dsItems items) s c
+  | .or arms => .or (dsArms arms)
+  | .pref r x => .pref r x.distributed
+  | .ride k v r => .ride k v.distributed r
+  | .link v t => .link v.distributed t
+  | v => v
+
+def dsFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.distributed) :: dsFields fs
+
+def dsItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.distributed :: dsItems vs
+
+def dsArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.distributed) :: dsArms as
+end
+
 /-- The tree a document a reader `r` reads holds at `pos`, its templates
 blanked (`Val.opened`), under the declarations `ds` blanked so too. -/
 def Decls.treeAt (ds : Decls) (r : Decls → Val → List Val) (T : Val) (pos : List Seg) : Val :=
@@ -2461,7 +2528,7 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   let places := L.1.usePlaces L.2
   let orNames := (L.1.filter fun d => !isBody d.1 && !(d.2.armNodes []).isEmpty).map (·.1)
   let T := L.2.unfoldAt orNames.contains fun n => expandF L.1 1 (.alias n)
-  let P := L.1.membersRead (L.1.armsRead root [] [] T) root []
+  let P := (L.1.membersRead (L.1.armsRead root [] [] T) root []).distributed
   let ns := P.armNodes []
   let armRoot (n : List ℕ × List Seg × Val) (a : Val) : Val := L.1.treeAt r (P.chooseAt n.1 a) n.2.1
   let reached := L.1.reached T root ++ L.1.armsReached root [] T ++
@@ -2472,7 +2539,7 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
     ns.flatMap fun n => n.2.2.nodeArms.flatMap fun a =>
       L.1.reached a.2 (armRoot n a.2) ++ L.1.armsReached (armRoot n a.2) [] a.2
   let ds' : Decls := L.1.map fun d =>
-    (d.1, if isBody d.1 then L.1.ownRead d
+    (d.1, if isBody d.1 then (L.1.ownRead d).distributed
       else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2)
   let armUses := (List.range L.1.length).foldl
     (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
@@ -4968,6 +5035,112 @@ theorem ownDoc_checkableA {n : String} {b : Val} (hb : b.CheckableA) : (ownDoc n
     obtain ⟨-, -, rfl⟩ := h
     exact hb) (fun _ h => nomatch h)
 
+theorem splitOrs_checkableA {v : Val} (h : v.CheckableA) :
+    (∀ as, as ∈ v.splitOrs.1 → ∀ p, p ∈ as → p.2.CheckableA) ∧
+      ∀ c, c ∈ v.splitOrs.2 → c.CheckableA := by
+  induction h with
+  | meet _ _ iha ihb =>
+    simp only [Val.splitOrs, List.mem_append]
+    exact ⟨fun as h => h.elim (iha.1 as) (ihb.1 as), fun c h => h.elim (iha.2 c) (ihb.2 c)⟩
+  | @or arms ha _ =>
+    refine ⟨fun as h p hp => ?_, fun c h => ?_⟩
+    · simp only [Val.splitOrs, List.mem_singleton] at h
+      subst h
+      exact ha p.1 p.2 hp
+    · simp only [Val.splitOrs, List.not_mem_nil] at h
+  | _ =>
+    refine ⟨fun as h => ?_, fun c h => ?_⟩
+    · simp only [Val.splitOrs, List.not_mem_nil] at h
+    · simp only [Val.splitOrs, List.mem_singleton] at h
+      subst h
+      constructor <;> assumption
+
+theorem orMeet_checkableA {as bs : List (ℕ × Val)} (ha : ∀ p, p ∈ as → p.2.CheckableA)
+    (hb : ∀ q, q ∈ bs → q.2.CheckableA) : ∀ p, p ∈ orMeet as bs → p.2.CheckableA := by
+  intro p hp
+  simp only [orMeet, List.mem_flatMap, List.mem_map] at hp
+  obtain ⟨_, ⟨p', hp', rfl⟩, hm⟩ := hp
+  refine flattenArm_checkableA (.or fun r a h => ?_) p hm
+  simp only [List.mem_map, Prod.mk.injEq] at h
+  obtain ⟨q, hq, rfl, rfl⟩ := h
+  exact .meet (ha p' hp') (hb q hq)
+
+theorem meetOrs_checkableA {v : Val} (h : v.CheckableA) : v.meetOrs.CheckableA := by
+  have hs := splitOrs_checkableA h
+  have hmeet : ∀ (cs : List Val) (acc : Val), acc.CheckableA → (∀ c, c ∈ cs → c.CheckableA) →
+      (cs.foldl .meet acc).CheckableA := by
+    intro cs
+    induction cs with
+    | nil => intro acc hacc _; exact hacc
+    | cons c cs ih =>
+      intro acc hacc hc
+      exact ih _ (.meet hacc (hc c List.mem_cons_self)) fun c' h' => hc c' (List.mem_cons_of_mem _ h')
+  have hfold : ∀ (more : List (List (ℕ × Val))) (acc : List (ℕ × Val)),
+      (∀ p, p ∈ acc → p.2.CheckableA) → (∀ as', as' ∈ more → ∀ p, p ∈ as' → p.2.CheckableA) →
+      ∀ p, p ∈ more.foldl orMeet acc → p.2.CheckableA := by
+    intro more
+    induction more with
+    | nil => intro acc hacc _; exact hacc
+    | cons c cs ih =>
+      intro acc hacc hr
+      exact ih (orMeet acc c) (orMeet_checkableA hacc (hr c List.mem_cons_self))
+        fun as' h' => hr as' (List.mem_cons_of_mem _ h')
+  unfold Val.meetOrs
+  split
+  · rename_i as more heq
+    split
+    · have hm : ∀ as', as' ∈ as :: more → ∀ p, p ∈ as' → p.2.CheckableA :=
+        fun as' h' => hs.1 as' (heq ▸ h')
+      refine .or fun r a h' => ?_
+      simp only [List.mem_map, Prod.mk.injEq] at h'
+      obtain ⟨p, hp, rfl, rfl⟩ := h'
+      exact hmeet _ _ (hfold more as (hm as List.mem_cons_self)
+        (fun as' h'' => hm as' (List.mem_cons_of_mem _ h'')) p hp) hs.2
+    · exact h
+  · exact h
+
+mutual
+theorem distributed_checkableA : ∀ {v : Val}, v.CheckableA → v.distributed.CheckableA := by
+  intro v h
+  induction h with
+  | @map fs spread closed _ hs ihf _ => exact .map (dsFields_checkableA fs ihf) hs
+  | @list items spread closed _ hs ihi _ => exact .list (dsItems_checkableA items ihi) hs
+  | @or arms _ iha => exact .or (dsArms_checkableA arms iha)
+  | pref _ ih => exact .pref ih
+  | meet _ _ iha ihb => exact meetOrs_checkableA (.meet iha ihb)
+  | ride _ ih => exact .ride ih
+  | link _ ht ih _ => exact .link ih ht
+  | _ => constructor <;> assumption
+
+theorem dsFields_checkableA : ∀ (fs : List (String × Bool × Val)),
+    (∀ k o v, (k, o, v) ∈ fs → v.distributed.CheckableA) →
+    ∀ k o v, (k, o, v) ∈ dsFields fs → v.CheckableA
+  | [], _, _, _, _, h => nomatch h
+  | (k, o, v) :: fs, ih, k', o', v', h => by
+    simp only [dsFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact ih _ _ _ List.mem_cons_self
+    · exact dsFields_checkableA fs (fun k o v h' => ih k o v (List.mem_cons_of_mem _ h')) k' o' v' h
+
+theorem dsItems_checkableA : ∀ (items : List Val), (∀ v, v ∈ items → v.distributed.CheckableA) →
+    ∀ v, v ∈ dsItems items → v.CheckableA
+  | [], _, _, h => nomatch h
+  | v :: vs, ih, v', h => by
+    simp only [dsItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ih _ List.mem_cons_self
+    · exact dsItems_checkableA vs (fun v h' => ih v (List.mem_cons_of_mem _ h')) v' h
+
+theorem dsArms_checkableA : ∀ (arms : List (ℕ × Val)), (∀ r a, (r, a) ∈ arms → a.distributed.CheckableA) →
+    ∀ r a, (r, a) ∈ dsArms arms → a.CheckableA
+  | [], _, _, _, h => nomatch h
+  | (r, a) :: as, ih, r', a', h => by
+    simp only [dsArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ih _ _ List.mem_cons_self
+    · exact dsArms_checkableA as (fun r a h' => ih r a (List.mem_cons_of_mem _ h')) r' a' h
+end
+
 /-- A document's declarations and schema read with each arm read where it
 holds are terms the checker can read. -/
 theorem Decls.readArms_checkableA {L1 ds' : Decls} {r : Decls → Val → List Val} {P : Val}
@@ -5012,15 +5185,17 @@ theorem Decls.prepared_readable {ds : Decls} {S : Val} {rl r : Decls → Val →
     fun _ => unfoldAt_checkableA (fun n _ => expandF_checkableA hL 1 (.alias n) .alias) hL2
   unfold Decls.prepared
   dsimp only
-  refine Decls.readArms_checkableA hr ?_ hL (membersRead_checkableA hL (armsRead_checkableA hL (hT _) _) _ _)
-    fun n hn => orNodes_checkableA (membersRead_checkableA hL (armsRead_checkableA hL (hT _) _) _ _) [] [] n
+  refine Decls.readArms_checkableA hr ?_ hL
+    (distributed_checkableA (membersRead_checkableA hL (armsRead_checkableA hL (hT _) _) _ _))
+    fun n hn => orNodes_checkableA
+      (distributed_checkableA (membersRead_checkableA hL (armsRead_checkableA hL (hT _) _) _ _)) [] [] n
       (List.mem_filter.mp hn).1
   intro d hd
   simp only [List.mem_map] at hd
   obtain ⟨d', hd', rfl⟩ := hd
   dsimp only
   split
-  · exact ownRead_checkableA hL (hL d' hd')
+  · exact distributed_checkableA (ownRead_checkableA hL (hL d' hd'))
   · split
     · refine neutral_checkableA ?_
       unfold Decls.copyArms

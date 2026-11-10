@@ -904,6 +904,39 @@ dj131	verdict	"x": ({"a": 1, "b": *{"c": 1, "d": .c}}) | (null)	{"x": {"a": 1, "
 dj132	verdict	"x": ({"a": 1, "b": ({"c": 1, "d": .c}) | ({"e": 2})}) | (null)	{"x": {"a": 1, "b": {"e": 2}}}	{"verdict":"incomplete"}
 dj133	verdict	"x": ({"a": 1, "b": ({"c": 1, "d": .c}) | ({"e": 2})}) | (null)	{"x": {"a": 1, "b": {"e": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
 dj134	verdict	"x": ({"a": 1, "b": ({"c": 1, "d": .c}) | ({"e": 2})}) | (null)	{"x": {"a": 1, "b": {"e": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+dj135	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 1}}	{"verdict":"valid"}
+dj136	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+dj137	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+dj138	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 2}}	{"verdict":"invalid"}
+dj139	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj140	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+dj141	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2}}	{"verdict":"valid"}
+dj142	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dj143	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dj144	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid"}
+dj145	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj146	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+dj147	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": null}	{"verdict":"invalid"}
+dj148	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": null}	{"verdict":"invalid","opts":{"noFill":true}}
+dj149	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": null}	{"verdict":"invalid","opts":{"partial":true}}
+dj150	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2, "c": 1}}	{"verdict":"valid"}
+dj151	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2, "c": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+dj152	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2, "c": 1}}	{"verdict":"valid","opts":{"partial":true}}
+dj153	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1, "c": 1}}	{"verdict":"invalid"}
+dj154	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1, "c": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj155	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1, "c": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+dj156	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid"}
+dj157	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dj158	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dj159	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 3, "c": 2}}	{"verdict":"invalid"}
+dj160	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 3, "c": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj161	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 3, "c": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+dj162	verdict	%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))\n"x": %T	{"x": {"a": 2, "b": 2}}	{"verdict":"valid"}
+dj163	verdict	%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))\n"x": %T	{"x": {"a": 2, "b": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dj164	verdict	%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))\n"x": %T	{"x": {"a": 2, "b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dj165	verdict	%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))\n"x": %T	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid"}
+dj166	verdict	%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))\n"x": %T	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj167	verdict	%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))\n"x": %T	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
 djl0	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
 djl1	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
 djl2	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
@@ -1039,6 +1072,39 @@ djl131	verdict	"x": ({"a": 1, "b": *{"c": 1, "d": .c}}) | (null)	{"x": {"a": 1, 
 djl132	verdict	"x": ({"a": 1, "b": ({"c": 1, "d": .c}) | ({"e": 2})}) | (null)	{"x": {"a": 1, "b": {"e": 2}}}	{"verdict":"incomplete"}
 djl133	verdict	"x": ({"a": 1, "b": ({"c": 1, "d": .c}) | ({"e": 2})}) | (null)	{"x": {"a": 1, "b": {"e": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
 djl134	verdict	"x": ({"a": 1, "b": ({"c": 1, "d": .c}) | ({"e": 2})}) | (null)	{"x": {"a": 1, "b": {"e": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+djl135	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 1}}	{"verdict":"valid"}
+djl136	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+djl137	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
+djl138	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 2}}	{"verdict":"invalid"}
+djl139	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl140	verdict	"x": (({"a": 1, "b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 1, "b": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+djl141	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2}}	{"verdict":"valid"}
+djl142	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+djl143	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+djl144	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid"}
+djl145	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl146	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+djl147	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": null}	{"verdict":"invalid"}
+djl148	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": null}	{"verdict":"invalid","opts":{"noFill":true}}
+djl149	verdict	"x": (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": null}	{"verdict":"invalid","opts":{"partial":true}}
+djl150	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2, "c": 1}}	{"verdict":"valid"}
+djl151	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2, "c": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+djl152	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2, "c": 1}}	{"verdict":"valid","opts":{"partial":true}}
+djl153	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1, "c": 1}}	{"verdict":"invalid"}
+djl154	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1, "c": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl155	verdict	"x": ((({"b": .a}) | (null)) & ({"c": 1})) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1, "c": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+djl156	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid"}
+djl157	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+djl158	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+djl159	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 3, "c": 2}}	{"verdict":"invalid"}
+djl160	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 3, "c": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl161	verdict	"x": (({"b": .a}) | ({"b": .c})) & (({"a": 1, "c": 2}) | ({"a": 3, "c": 4}))	{"x": {"a": 1, "b": 3, "c": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+djl162	verdict	"x": %T\n%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2}}	{"verdict":"valid"}
+djl163	verdict	"x": %T\n%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+djl164	verdict	"x": %T\n%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 2}}	{"verdict":"valid","opts":{"partial":true}}
+djl165	verdict	"x": %T\n%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid"}
+djl166	verdict	"x": %T\n%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl167	verdict	"x": %T\n%T = (({"b": .a}) | (null)) & (({"a": 1}) | ({"a": 2}))	{"x": {"a": 2, "b": 1}}	{"verdict":"invalid","opts":{"partial":true}}
 lp0	verdict	"x": *{"a": 1, "b": .a}	{"x": {"a": 1, "b": 1}}	{"verdict":"valid"}
 lp1	verdict	"x": *{"a": 1, "b": .a}	{"x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
 lp2	verdict	"x": *{"a": 1, "b": .a}	{"x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
