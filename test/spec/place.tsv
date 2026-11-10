@@ -220,6 +220,8 @@ place-unused-hole	gens	%T = _ & 1\nv: 1\n	{"v":1}
 place-unused-list-arg	gens	%T = sum([_, 1]) & 3\nv: 1\n	{"v":1}
 place-unused-plus	gens	%T = (_ + 1) & 2\nv: 1\n	{"v":1}
 place-unused-conflict	errc	%T = upper(_) & (1 & 2)\nv: 1\n	scalar_value
+place-unused-waiting-conflict	errc	%U = upper(_)\n%T = add(%U, 1) & (1 & 2)\nv: 1\n	scalar_value
+place-unused-name-conflict	errc	%U = upper(_)\n%T = add(%U, 1)\n%V = %T & (1 & 2)\nv: 1\n	scalar_value
 place-unused-seal-refuses	errc	%T = close(meta({x: upper(_)}, {d: 1})) & {x: "q", y: 2}\nv: 1\n	closed
 place-unused-seal-list-refuses	errc	%T = close([upper(_)]) & ["a", "b"]\nv: 1\n	closed
 place-unused-seal-stands	gens	%T = close(meta({x: upper(_)}, {d: 1})) & {x: "q"}\nv: 1\n	{"v":1}
