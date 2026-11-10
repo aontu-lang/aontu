@@ -9117,7 +9117,7 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   let T := L.2.unfoldAt orNames.contains fun n => expandF L.1 1 (.alias n)
   let P := L.1.membersRead (L.1.armsRead root [] [] T) root []
   let ns := P.armNodes []
-  let armRoot (n : List ℕ × List Seg × Val) (a : Val) : Val := L.1.treeAt r (P.replaceAt n.1 a) n.2.1
+  let armRoot (n : List ℕ × List Seg × Val) (a : Val) : Val := L.1.treeAt r (P.chooseAt n.1 a) n.2.1
   let reached := L.1.reached T root ++ L.1.armsReached root [] T ++
     (L.1.filter (isBody ·.1)).flatMap (fun b =>
       L.1.reached b.2 (L.1.ownRoot b) ++ L.1.armsReached (L.1.ownRoot b) [] b.2) ++
@@ -9215,19 +9215,63 @@ over `x: {a: 2, b: "s"}` it's `invalid`:
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.nodeChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : List ℕ → Val → Decls × Val)
-    (tag : String) (n : List ℕ × List Seg × Val) (root : List ℕ × List Seg × Val → Val → Val) : Val × Decls :=
+    (tag : String) (n : List ℕ × List Seg × Val) (root : List ℕ × List Seg × Val → Val → Val) (xS : Val) :
+    Val × Decls :=
   match n.2.2 with
   | .pref rk x =>
     (.or [(rk, (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x false).1),
-        (0, (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x true).1)],
+        (0, (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n xS) xS true).1)],
       (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x false).2 ++
-        (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x true).2)
+        (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n xS) xS true).2)
   | v => ((.or (L1.armsAt r doc tag n root 0 v.nodeArms).1), (L1.armsAt r doc tag n root 0 v.nodeArms).2)
 ```
 
 Both engines lift a path inside the value to `any` in the parent arm,
 so they pass `{a: 2, b: "s"}`, which #704 tracks, and leave the path
 waiting while the default is in play, which #700 tracks.
+
+A disjunction or a lone preference can stand inside an arm, as in
+`x: {a: 1, b: {c: 1, d: .c} | null} | null`. The definition reads the
+inner one first. `Val.orNodes` lists each node an arm holds before the
+node that holds it, and `Decls.armsChosen` reads the nodes in that
+order, each as the term holds it when its turn comes (`nodeIn`), so the
+outer arm holds what the inner disjunction reads as. That reading goes
+into the term with each name it declares read as its term (`expand`),
+so the document the definition reads an outer arm in holds no name it
+doesn't declare. Over `x: {a: 1, b: null}` the outer arm takes the
+data, since its `b` is the inner disjunction, whose `null` arm takes
+`null`. Both engines agree.
+
+A lone preference's parent arm lifts what its value reads as before any
+data, so the definition reads a disjunction inside the value before
+any data too. `Decls.armsChosen` carries a second term, `QS`, with each node
+inside a lone preference read so (`underPref`), and the preference's
+parent arm lifts its value as `QS` holds it (`prefValue`):
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.armsChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : List ℕ → Val → Decls × Val)
+    (tag : ℕ → String) (root : List ℕ × List Seg × Val → Val → Val) :
+    ℕ → List (List ℕ × List Seg × Val) → Val → Val → Val × Decls
+  | _, [], Q, _ => (Q, [])
+  | k, n :: ns, Q, QS =>
+    let c := L1.nodeChosen r doc (tag k) (nodeIn Q n) root (prefValue QS n)
+    let s := if underPref ns n then L1.nodeChosen Decls.rootsS doc (tag k) (nodeIn QS n) root (prefValue QS n)
+      else c
+    ((L1.armsChosen r doc tag root (k + 1) ns (Q.replaceAt n.1 (expand c.2 c.1))
+        (QS.replaceAt n.1 (expand s.2 s.1))).1,
+      c.2 ++ (L1.armsChosen r doc tag root (k + 1) ns (Q.replaceAt n.1 (expand c.2 c.1))
+        (QS.replaceAt n.1 (expand s.2 s.1))).2)
+```
+
+In `x: *({a: 1, b: .a} | null)` the parent arm is `{a: integer, b:
+integer} | null`: the inner arm reads as `{a: 1, b: 1}`, which lifts.
+Where the data narrows a kind a path names, the two readings differ. In
+`x: *({a: number, b: .a} | null)` over `x: {a: 5, b: 2.5}`, the
+default's `b` reads the data's `5` and refuses `2.5`, while the parent
+arm reads `b` as `number` and lifts it to `any`, so the document is
+`valid`, as `x: *{a: number, b: .a}` is. Both engines leave these paths
+waiting, which #700 tracks.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean

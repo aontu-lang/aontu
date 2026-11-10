@@ -1736,7 +1736,15 @@ integer, b: integer}`, so `{a: 2, b: 3}` passes and `{a: 2, b: "s"}`
 doesn't. Both engines lift a path inside the value to `any` there,
 which #704 tracks. The definition reads a lone preference so by
 `Decls.nodeChosen`, and doesn't yet read a path in an arm of a
-disjunction met with another at one place.
+disjunction met with another at one place. It reads a disjunction or
+a lone preference inside an arm first, and the arm that holds it
+holds what it reads as: in `x: {a: 1, b: {c: 1, d: .c} | null} | null`,
+`b`'s first arm reads `d` as its own `c`, so over `x: {a: 1, b: null}`
+the outer arm takes the data, and a path in the outer arm reads into
+the inner disjunction as a path from outside reads any disjunction. The parent arm of a
+lone preference lifts its value as read before any data, a disjunction
+inside it read so too: in `x: *({a: 1, b: .a} | null)`, the parent arm
+is `{a: integer, b: integer} | null`.
 
 ### Recursive references (fixpoints)
 
