@@ -1675,15 +1675,12 @@ theorem call_path_verdict_exact : ∀ c ∈ callPathCases, ∀ (m : Mode) (v : V
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (callPathCases_checkable c hc).1 (callPathCases_checkable c hc).2 v
 
-/-- A call over a hole that a path names, which the data fills, as it
-fills a hole the document leaves unfilled: `sum` over a path to a list
-that holds one, against data that fills it and writes the sum, data
-that fills it alone, no data, and data that writes another sum; over a
-list that holds a path to a hole, against the same; over a path to a
-path to such a list; and a call over such a call. A path to a list that
-holds a `key(n)` is read as written, so the call over it is an error
-still, and so is one over a list that holds a written hole beside a path
-to a hole, against data that fills the path and data that writes nothing. -/
+/-- A call over a hole that a path names, which the data once filled
+(decision 29, which ruling 34 supersedes): `sum` over a path to a list
+that holds one, over a list that holds a path to a hole, and over one
+that holds a written hole beside a path to one, against data that
+writes the hole and data that writes nothing. The hole is one nothing
+binds, so each is an error of the schema whatever the data. -/
 def dataPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -4771,11 +4768,10 @@ theorem readR_call_checkableA {t : Val} (hf : ∀ k, (expandF [] k t).filled = e
     cases n with
     | zero =>
       have h0 : t.filled = t := by simpa [expandF] using hf 0
-      simp only [expandF, Val.filled, filledFields, tmplSpread, h0, joinFields_single, spreadAll_none]
+      simp only [expandF, Val.filled, filledFields, tmplSpread, h0, joinFields_single]
       exact hm t (by simpa [expandF] using h 0)
     | succ k =>
-      simp only [expandF, List.map, Option.map, Val.filled, filledFields, tmplSpread, hf k, joinFields_single,
-        spreadAll_none]
+      simp only [expandF, List.map, Option.map, Val.filled, filledFields, tmplSpread, hf k, joinFields_single]
       exact hm _ (h k)
   exact this _
 
@@ -5120,77 +5116,15 @@ theorem pack_verdict_exact : ∀ c ∈ packCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (packCases_checkable c hc)) v
 
-/-- A hole its call's peer fills, as a document reads it (decision 21 of
-the design note's §7), for the `verdict` rows hv0 on. A call on a string
-and on a number, written before its peer and after it, over a call, and
-with a second peer the document groups after the first, each against
-data that writes its output and data that doesn't; the hole alone; and,
-where the data leaves the member out so that the fill supplies it, the
-same call, a generator over a list written before its peer and after
-it, a fill inside a map and a list, and a second peer that refuses the
-output; a fill in a `match`'s result and in its default; and two lists
-or two maps met member by member, by position and by key, nested, with a
-member one side lacks, and with a member pair that both wait; a map
-met with a meet of maps, on either side and on both, a list's element
-among them; a key declared more than once, alone, in the peer and in
-the map itself, before the hole and after it, nested, and beside
-another key;
-and a list beside a peer that holds a marked element, which holds no
-position, on either side and in an inner meet; and a spread whose
-template waits on a hole, met with a peer's members and its own, each
-once, on either side, through a meet, nested, with a member a later
-meet brings, with one it has filled, and beside a member that waits,
-in a map and in a list; a spread that selects on the key, where an arm
-takes the member before the default that waits; and a spread whose
-template holds its hole inside a container, a map or a list, met with a
-peer's members on either side, with its own, through a meet on either
-side, with a member a later meet brings and with one it has filled,
-nested, under a spread inside the template, with a member the data fills
-and one it leaves out, beside a member that waits, and with a member, a
-peer's or its own, that is a disjunction, met arm by arm. Two spreads that
-both wait are out of them: both ports read them as one where their
-templates are alike, and as `place_pair` otherwise. A list whose one hole no peer element fills is the
-data's to fill, in rows dv0 on (decision 29). Both ports read a
-generator's peer and the data as one conjunction, so a generator meets
-no data here. Last, a hole on the right of a meet, which takes its peer
-as one on the left does: after a literal, a kind and a container's
-member or element, and after a meet whose call its own peer has filled;
-and a kind on the right of a hole. And a container under a rider, a
-mark or a seal, met member by member as it would be bare: under `meta`
-on either side, around a map and a list, under `deprecate`, `hide` and
-`type`, sealed, where a key the peer adds is refused, met with a list,
-which it conflicts with, under two riders, and met with a peer whose
-member waits too; and a hole alone under a rider. And a hole inside a
-list a call takes, which the call doesn't wait on, so its peer doesn't
-fill it: in a `join`'s list, after a member and before one, against
-data that writes the output a fill would make and data that writes the
-peer, and as a map's member; and `sum` over a hole its peer, a list of
-strings, fills, which the sum refuses. And a map spread's container
-template that a later meet reaches again, which fills its member once:
-after it has filled the member, against data that writes that and data
-that writes it filled again, before the member's value arrives, over a
-meet of members, over its own map's member, with a list template, beside
-a key a later meet brings, against data that leaves a hole open, and
-after two later meets. And a meet that fills a hole inside a size, a
-trial or a `match`, which settles as it would written filled: in `len`,
-`must`, a `match`'s pattern, `when`'s branch, `contains`, `rest` and a
-branch of `nof`, against data that passes and data that doesn't. One
-in a `match`'s scrutinee is out of them, as the checker reads no
-scrutinee that waits. And a `+` over a list that holds a hole, which
-joins the lists as written and waits only on a hole among its operands:
-met with a list that fills the hole member by member, against data
-that writes that and data that writes the list bound to the hole; a
-`+` whose own operand is the hole beside a list that holds one,
-against data that fills the list's hole and data that leaves it out;
-the `+` alone, whose hole the data fills; and a `+` over a hole and a
-list. And a `+` whose operand list holds a call over a hole, which the
-meet fills once the lists are joined: on the left of the meet, against
-data that writes the call's output and data that writes the peer, on
-the right, in the right list, and inside a map; and a `+` whose right
-list holds a `key()`, which reads its index where it's written, against
-data that writes that index and data that writes the joined one; and a
-`+` over a list with a spread, which meets its elements before the
-join, one that refuses an element and one that waits on a hole. -/
+/-- The shapes the meet once read as a hole's application (rulings 21
+and 29 to 31, which ruling 34 supersedes), for the `verdict` rows hv0
+on: a call over a hole beside its peer, written before it and after it,
+in two containers met member by member, under a rider, a mark or a seal,
+in a spread's template, in a size, a trial or a `match`, and in a `+`'s
+operands, each against data a fill would have passed and data it
+wouldn't. A hole that nothing binds is an error of the schema whatever
+the data, so each is an error; beside them stand a key declared twice
+and a `+` whose right list holds a `key()`, which hold no hole. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5396,36 +5330,13 @@ def holeFillVetCases : List (Val × Data) :=
     (.call .plus [.list [s "a"] (some (up .hole)) false, lst [s "b"]], .list [.str "A", .str "b"])]
 
 set_option maxRecDepth 8192 in
-/-- A hole the document leaves unfilled, which the data fills, the data
-met last (decision 29 of the design note's §7), for the `verdict` rows
-dv0 on. A call on the data's value, which it takes as its argument
-rather than meets, so that `add(_, 1)` passes `2` and `3` alike, and
-refusing it; one the document's own peer fills first, which the data
-then meets; inside a map, the data leaving it out, which is incomplete
-but under `--partial`; inside a list, one whose peer's one element is
-marked and holds no position, and in a spread; a generator over
-the data; the hole alone, and two holes met, which meet as one; a
-call met with a hole or with a call that both wait, which neither
-fills, an error; a generator whose template no member reaches, read by
-its data alone; and a disjunction whose arm waits, met arm by arm, by
-the data, inside a map and a list, and by the document's own peer on
-either side, an arm whose call the data leaves unmade dropping, as
-`add(_, 1) | "x"` passes `"x"`; and a lone preference over a call that
-waits, the data filling its preferred arm and meeting its parent arm,
-so that `*add(_, 1)` passes `"x"`, at the top, inside a map, which the
-data may leave out, and inside a list, and one the document's own peer
-fills, whose filled arm the data passes as `eval` gives it (decision
-30), so that `*upper(_) & "a"` passes `"A"`, on either side, after a
-later peer that leaves nothing to replace it, and beside the data's own
-value through its parent arm; and a disjunction of containers
-a container meets, met arm by arm on either side, at the top, as a
-member, in a list and beside a meet; and a member that is a hole, which
-an empty map met on either side leaves for the data. Last, a call over
-a container whose argument is the hole, which takes the data as its
-argument as any call does: `sum` over a list and a map, and refusing a
-number and a list of strings, `least` over a list and refusing an empty
-one, `greatest`, `sort`, `pick` and `join` over a list, a hole as
-`join`'s separator, and `sum` as a member. -/
+/-- The shapes in which the data once filled a hole the document left
+unfilled (decision 29, which ruling 34 supersedes), for the `verdict`
+rows dv0 on: a call over a hole against data a fill would have passed
+and data it wouldn't, inside a map and a list, a spread and a
+generator's data, in a disjunction's arm and a lone preference, and a
+call over a container whose argument is the hole. The data never binds
+a hole, so each is an error whatever the data. -/
 def dataFillCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5504,10 +5415,11 @@ set_option maxRecDepth 8192 in
 /-- A disjunction's arm that does not stand, for the `verdict` rows da0
 on: a call the reading can't make, by its domain, its count of
 arguments or a call inside it, one inside a map or a list, and a size
-that holds a choice, each dropping as a
-conflict's arm does, so that the other arm stands; and an error where
-no arm stands, where the call stands alone, or where a preference clash
-is between the arms the disjunction is read with, as both ports answer. -/
+that holds a choice, each dropping as a conflict's arm does, so that
+the other arm stands, but one that holds a hole, which is an error of
+the schema wherever it stands (ruling 34); and an error where no arm
+stands, where the call stands alone, or where a preference clash is
+between the arms the disjunction is read with, as both ports answer. -/
 def illArmCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5533,27 +5445,12 @@ theorem ill_arm_verdict_exact : ∀ c ∈ illArmCases, ∀ (m : Mode) (v : Verdi
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (illArmCases_checkable c hc)) v
 
 set_option maxRecDepth 8192 in
-/-- A meet of two sides that both wait on a hole, one of them more than
-the hole, for the `verdict` rows dg0 on: an error however the document
-groups it and whatever it meets, a literal, a hole, a disjunction or a
-preference's peer, two holes meeting as one first, and where a map's or
-a list's member meets another's, or a spread's template a member that
-waits; such a group after a literal, its call and its hole in either
-order, and two maps' or two lists' members that are such a pair, beside
-a member or an element only one side writes; a group whose call its own
-other side fills, which then meets a literal it conflicts with, and a
-group of a container and a hole; a sum over a hole and a hole; a
-group that waits on one side only, a call over no hole beside a hole
-and two containers whose members pair no such sides, which reads as
-the meet does, among them a member whose meet fills its own hole; a
-call beside two holes, which meet as one; and a disjunction's arm that
-holds one
-dropping as a conflict's arm does, so that another arm stands, or an
-error where none does, as both ports answer. And a call met with a
-group that fills its own hole, which reads as the group's value: on
-the call's right, against data the call's output passes and data it
-refuses, and on its left, each beside a literal too, and a group that
-is a call its own other side fills. -/
+/-- A meet of two sides that both waited on a hole, which the meet once
+read as an error however the document grouped it, for the `verdict` rows
+dg0 on: a call met with a hole and with another call over one, a group
+that filled its own hole, in maps' and lists' members and a spread's
+template, in a disjunction's arm and beside a literal. Each holds a hole
+that nothing binds, so each is an error of the schema (ruling 34). -/
 def groupCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5613,23 +5510,13 @@ theorem group_verdict_exact : ∀ c ∈ groupCases, ∀ (m : Mode) (v : Verdict)
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (groupCases_checkable c hc)) v
 
 set_option maxRecDepth 8192 in
-/-- A spread's template that waits on a hole at its own position, for the
-`verdict` rows dt0 on: each side of a meet and each arm of a disjunction
-met with the member, one that waits with its hole bound to the member,
-so that `upper(_) & _` admits the members already in upper case and
-`upper(_) & "a"` none, in a map and a list, against the data and
-against a member the document writes, and a container inside the
-template, at its own position or beneath a side or an arm that waits,
-filled from its own meet first; a container side or arm met with the
-member member by member, a hole beneath it taking the member's member
-there, whether the spread meets the data, the map's own members, or a
-map or a list on either side of a meet; and a bare hole, alone or under
-a rider, which takes each member as it stands, a member that is a hole
-among them, which the data fills; and a template that is a hole beside a
-container, met with a member that is a disjunction, arm by arm; and a
-container side under a rider or a mark, met with the member member by
-member as it would be bare, against the data and a member the document
-writes; as both ports answer. -/
+/-- A spread's template that holds a hole, which a member once filled
+(ruling 31, which ruling 34 supersedes), for the `verdict` rows dt0 on:
+a hole at the template's own position, beneath a side or an arm, inside
+a container, under a rider or a mark, in a map and a list, against the
+data and a member the document writes. A spread binds no hole and no
+generator binds one in a spread's template, so each is an error of the
+schema whatever its members. -/
 def spreadTmplCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5720,23 +5607,13 @@ theorem spread_tmpl_verdict_exact : ∀ c ∈ spreadTmplCases, ∀ (m : Mode) (v
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (spreadTmplCases_checkable c hc)) v
 
-/-- A call over a container that holds a hole, which the call doesn't
-wait on, so no peer of the call fills it, for the `verdict` rows dh0 on:
-a call made from its arguments' values can't be made, so the schema
-doesn't stand, whatever the data writes. Each function over a list that
-holds a hole, at its first argument and at a later one, a `join` at its
-separator, whether its list holds a hole or not, and over a `join` that
-holds one, and a `join` whose list is its own hole, which the data fills
-with a list it then refuses at the separator; `sum` over a map, over a
-nested list and over a call that waits on its own hole inside the list;
-met with the value a fill would make, with a list, with a hole and with
-itself; as a list's element, under `type()` and `hide()`, as an
-optional member and under `pref`; beside the call's own hole, which the
-peer fills; and as an arm of a disjunction, which drops. And a `join`
-over a list that holds a hole, which stands, as a list's element and
-under a `join`; the list's own meet, which fills its hole, so the call is
-made; and a spread's template, against data that writes a member and
-data that writes none; as both ports answer. -/
+/-- A call over a container that holds a hole, which no peer of the
+call filled (`place_container`), for the `verdict` rows dh0 on: each
+function over a list that holds a hole, a `join`'s list and separator,
+`sum` over a map and a nested list, as a list's element, marked, as an
+optional member, under `pref` and as a disjunction's arm. The hole is
+one nothing binds, so each is an error of the schema whatever the data
+(ruling 34). -/
 def heldHoleCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5784,16 +5661,11 @@ theorem held_hole_verdict_exact : ∀ c ∈ heldHoleCases, ∀ (m : Mode) (v : V
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (heldHoleCases_checkable c hc)) v
 
 /-- A call that takes its argument as the value it is, over a list or a
-map that holds a hole, for the `verdict` rows dr0 on: `super`, `pref`
-and `move` read as the container, which the data fills, `refer` and
-`rel` as the link and the relation they make of it, and a bound as an
-atom over an argument outside its domain, which admits nothing; but
-`neq` reads the list's members as the values it refuses, so a hole
-among them is one nothing fills, and the schema doesn't stand; and
-`super` over a list or a map that holds a call waiting on its own hole,
-whose parent type is any, beside a settled member and a hole, nested,
-for `+`, and for `upper` and `lower` whose string is settled; as both
-ports answer. -/
+map that holds a hole, which the data once filled, for the `verdict`
+rows dr0 on: `super`, `pref`, `move`, `refer`, `rel`, the bounds and
+`neq`, over a hole and over a call that waits on its own. The hole is
+one nothing binds, so each is an error of the schema whatever the data
+(ruling 34). -/
 def readThroughCases : List (Val × Data) :=
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
   let lst (xs : List Val) : Val := .list xs none false
@@ -6777,7 +6649,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# every depth, in rows cp0 on. Links whose templates read the member or the"
     IO.println "# place where they land, each read there and only at the instances its own"
     IO.println "# generator makes, follow in rows lt0 on. A call over a hole that a path names,"
-    IO.println "# which the data fills, so that the call stands until it does, follows in rows dp0 on."
+    IO.println "# which nothing binds, so the schema is an error whatever the data, in rows dp0 on."
     IO.println "# A meet carries the marks of both its sides, any's included, in rows hm0 on."
     IO.println "# A spread's template meets each member without the marks written around it"
     IO.println "# (ruling 39), in rows sm0 on. A relative path in apply's template reads where"
@@ -6949,19 +6821,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# read for the node, each list in it spliced, and an error where no template"
     IO.println "# matches or the body names what the node doesn't hold. apply(v, f) follows in"
     IO.println "# rows ap0 on: each hole of f that no generator or apply inside f binds, bound"
-    IO.println "# to v, the one instance each([v], f) makes. A hole its call's peer"
-    IO.println "# fills follows in rows hv0 on: a meet with a hole on one side and none on the"
-    IO.println "# other reads as that side with the hole bound to the other, as the document"
-    IO.println "# groups its meets. A hole the document leaves unfilled, which the data fills,"
-    IO.println "# follows in rows dv0 on, and a disjunction's arm that does not stand, which"
-    IO.println "# drops as a conflict's arm does, in rows da0 on. A meet of two sides that both"
-    IO.println "# wait on a hole, which is an error however it is grouped, follows in rows dg0 on."
-    IO.println "# A spread's template that waits on a hole at its own position, each of its sides"
-    IO.println "# and arms met with the member and a hole bound to it, follows in rows dt0 on."
-    IO.println "# A call over a container that holds a hole, which no peer of the call fills, so"
-    IO.println "# that a call made from its arguments' values can't be made, follows in rows dh0 on."
-    IO.println "# A call that takes its argument as the value it is, over a container that holds"
-    IO.println "# a hole, which it reads as that container, follows in rows dr0 on."
+    IO.println "# to v, the one instance each([v], f) makes. A hole that nothing binds is"
+    IO.println "# an error of the schema wherever it stands (ruling 34): in the shapes the meet"
+    IO.println "# once read as a hole's application in rows hv0 on, against data that once filled"
+    IO.println "# it in rows dv0 on, in two sides met in rows dg0 on, in a spread's template in"
+    IO.println "# rows dt0 on, in a container a call takes in rows dh0 on, and in one a call takes"
+    IO.println "# as the value it is in rows dr0 on. A disjunction's arm that does not stand,"
+    IO.println "# which drops as a conflict's arm does, follows in rows da0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
