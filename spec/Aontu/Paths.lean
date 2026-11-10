@@ -165,7 +165,7 @@ def bareTo (pos : List Seg) (n : ℕ) (p : List Seg) : List Seg :=
 
 /-- A spread that is a relative path, placed where its members stand
 (`bareTo`). Any other spread stays as written, to be read at each member
-(`Val.membersRead`). -/
+(`Decls.membersRead`). -/
 def plBare (pos : List Seg) : Option Val → Option Val
   | some (.path (.up n :: p)) => some (.path (bareTo pos n p))
   | s => s
@@ -241,7 +241,7 @@ end
 mutual
 /-- The schema's term at `pos`, placed as `Val.placed` places it, but a
 spread that is a relative path on a map or a list reached through maps
-by key, lists by index, meets and riders, where `Val.membersRead` reads
+by key, lists by index, meets and riders, where `Decls.membersRead` reads
 one: it stays as written, to be read at each member wherever its map or
 list lands, a path reference's copy included, as both ports read it. -/
 def Val.placedT (pos : List Seg) : Val → Val
@@ -1199,6 +1199,29 @@ def landing (S : Val) : ℕ → List (Val × List Seg) → List Val
   | _, [] => []
   | n + 1, i :: rest => (landStep S i).1 ++ landing S n ((landStep S i).2 ++ rest)
 
+/-- One step of `landStep`, a name stepped into through each of its
+bodies too, as a copy stands where its use does. -/
+def Decls.landStepD (ds : Decls) (S : Val) (i : Val × List Seg) : List Val × List (Val × List Seg) :=
+  match i.1 with
+  | .alias n => ([], (ds.filter (·.1 == n)).map fun d => (d.2, i.2))
+  | _ => landStep S i
+
+/-- What the schema `S` writes at a path, a name's bodies read where the
+name stands (`Decls.landStepD`), within `n` steps. -/
+def Decls.landingD (ds : Decls) (S : Val) : ℕ → List (Val × List Seg) → List Val
+  | 0, _ => []
+  | _, [] => []
+  | n + 1, i :: rest => (ds.landStepD S i).1 ++ ds.landingD S n ((ds.landStepD S i).2 ++ rest)
+
+/-- The names whose bodies `Decls.landingD` reads within `n` steps. -/
+def Decls.landedNames (ds : Decls) (S : Val) : ℕ → List (Val × List Seg) → List String
+  | 0, _ => []
+  | _, [] => []
+  | n + 1, i :: rest =>
+    (match i.1 with
+      | .alias m => [m]
+      | _ => []) ++ ds.landedNames S n ((ds.landStepD S i).2 ++ rest)
+
 /-- The tree a body's links land in: the body's normal form, read under
 `dp`, which declares the document's paths as names. -/
 def Decls.bodyRoot (dp : Decls) (d : String × Val) : Val := normaliseD dp (dp.readU d.2.pathsToAliases)
@@ -1666,12 +1689,12 @@ def Val.membersAt (root : Val) (p : List Seg) : List Seg :=
   | _ => []
 
 /-- A spread's template at the member `t` below the position `p`: tried
-on the member's key (`Val.atKey`), placed at the member, its own spreads
-that read their member's place left to admit any value, since each
-lands at its own members too, and met at the member's path in `root`
-(`Val.putW`). -/
-def Val.spreadInst (root s : Val) (p : List Seg) (t : Seg) : Option Val :=
-  root.putW (p ++ [t]) ((s.atKey t.text).placed (p ++ [t])).neutral
+on the member's key (`Val.atKey`), placed at the member, below `base`
+where the tree stands there, its own spreads that read their member's
+place left to admit any value, since each lands at its own members too,
+and met at the member's path in `root` (`Val.putW`). -/
+def Val.spreadInst (root s : Val) (base p : List Seg) (t : Seg) : Option Val :=
+  root.putW (p ++ [t]) ((s.atKey t.text).placed (base ++ p ++ [t])).neutral
 
 /-- A generator's template where it reads its member's place through a
 relative path, `each`'s or `pack`'s: the part that does (`Val.relPart`). -/
@@ -1680,33 +1703,56 @@ def Val.genTemplate : Val → Option Val
   | _ => none
 
 /-- A generator's template part at the member `t` of its output at the
-position `p`: placed at the member, its own spreads and generators that
-read their member's place left as `Val.neutral` leaves them, and met at
-the member's path in `root` (`Val.putW`). -/
-def Val.genInst (root u : Val) (p : List Seg) (t : Seg) : Option Val :=
-  root.putW (p ++ [t]) (u.placed (p ++ [t])).neutral
+position `p`: placed at the member, below `base`, its own spreads and
+generators that read their member's place left as `Val.neutral` leaves
+them, and met at the member's path in `root` (`Val.putW`). -/
+def Val.genInst (root u : Val) (base p : List Seg) (t : Seg) : Option Val :=
+  root.putW (p ++ [t]) (u.placed (base ++ p ++ [t])).neutral
 
 /-- What the templates that land at a position of `root` make there: for
-each term the schema `P` writes at the position (`landing`), whether
-written there, in a template that holds the position or where a path
-reference copies it from, the template of a spread on it that reads its
-member's place, and the part of a generator's template that reads its
-member's place through a relative path (`Val.genTemplate`), each at
-each member `root` holds there. -/
-def Val.instancesAt (P root : Val) (p : List Seg) : List Val :=
-  (landing P ((P.size + p.length + 2) * (P.size + 2)) [(P, p)]).flatMap fun w =>
-    (w.memberSpread.toList.flatMap fun s => (root.membersAt p).filterMap (root.spreadInst s p)) ++
-      w.genTemplate.toList.flatMap fun u => (root.membersAt p).filterMap (root.genInst u p)
+each term the schema `P` writes at the position (`Decls.landingD`),
+whether written there, in a template that holds the position, in the
+body of a name used there or where a path reference copies it from, the
+template of a spread on it that reads its member's place, and the part
+of a generator's template that reads its member's place through a
+relative path (`Val.genTemplate`), each at each member `root` holds
+there, placed below `base`, where `root` stands. -/
+def Decls.instancesAt (ds : Decls) (P root : Val) (base p : List Seg) : List Val :=
+  (ds.landingD P ((P.size + ds.bodiesSize + p.length + 2) * (P.size + ds.bodiesSize + 2)) [(P, p)]).flatMap
+    fun w =>
+      (w.memberSpread.toList.flatMap fun s => (root.membersAt p).filterMap (root.spreadInst s base p)) ++
+        w.genTemplate.toList.flatMap fun u => (root.membersAt p).filterMap (root.genInst u base p)
 
-/-- The schema `P` with each template that reads its member's place, a
-spread's or the part of a generator's that does through a relative
-path, read at each member `root` holds wherever it lands
-(`Val.instancesAt`), at every position of `root`; the spread left to
-admit any other member, and the generator's own template its relative
-paths as `any` (`Val.neutral`), as both ports try such a template only
-on the members there are, at the place each stands. -/
-def Val.membersRead (P root : Val) : Val :=
-  if P.perMembers then (root.positions.flatMap (P.instancesAt root)).foldl .meet P.neutral else P
+/-- The term `P`, standing at `base`, with each template that reads its
+member's place, a spread's or the part of a generator's that does
+through a relative path, read at each member `root` holds wherever it
+lands, a name's body among the places (`Decls.instancesAt`), at every
+position of `root`; the spread left to admit any other member, and the
+generator's own template its relative paths as `any` (`Val.neutral`),
+as both ports try such a template only on the members there are, at the
+place each stands. -/
+def Decls.membersRead (ds : Decls) (P root : Val) (base : List Seg) : Val :=
+  if P.perMembers || ds.any (·.2.perMembers) then
+    (root.positions.flatMap (ds.instancesAt P root base)).foldl .meet P.neutral
+  else P
+
+/-- The names whose bodies the templates `P` writes are read through at
+each position of `root` (`Decls.landedNames`): each holds a copy whose
+own templates are read there, at the members where it stands. -/
+def Decls.reached (ds : Decls) (P root : Val) : List String :=
+  root.positions.flatMap fun p =>
+    ds.landedNames P ((P.size + ds.bodiesSize + p.length + 2) * (P.size + ds.bodiesSize + 2)) [(P, p)]
+
+/-- The tree a body's own place holds: its normal form, each template
+that reads its member's place blanked (`Val.opened`). -/
+def Decls.ownRoot (ds : Decls) (d : String × Val) : Val := normaliseD ds (ds.readU d.2.opened)
+
+/-- A body read at its own place, `%` and its name: each template that
+reads its member's place read at each member the body's own normal form
+holds (`Decls.membersRead`), as both ports read a body there whether or
+not anything uses it. -/
+def Decls.ownRead (ds : Decls) (d : String × Val) : Val :=
+  ds.membersRead d.2 (ds.ownRoot d) [.key ("%" ++ d.1)]
 
 /-! ## A path reference's copy reads its relative paths where it stands
 
@@ -1784,16 +1830,14 @@ def Decls.writtenAt (ds : Decls) (S : Val) (p : List Seg) : List (List Seg) :=
 /-- Whether what the document writes at a place reads its own place, so
 that a copy of it reads again where the copy stands: the schema holds
 the place (`Decls.writes`), and one of its terms holds a relative path,
-a use of a name of `rs`, or a path reference to such a place, within
-`k` turns. A place that holds a template read at each member
-(`Val.perMembers`) is read as `Val.membersRead` reads it, wherever a
-path reference lands, and is no such place. -/
+a template's among them, a use of a name of `rs`, or a path reference to
+such a place, within `k` turns. -/
 def Decls.relTarget (ds : Decls) (S : Val) (rs : List String) : ℕ → List Seg → Bool
   | 0, _ => false
   | k + 1, p =>
     match ds.written S p with
     | [] => false
-    | ws => ds.writes S p && !ws.any Val.perMembers && ws.any fun w => w.holdsRel || w.refs.any rs.contains ||
+    | ws => ds.writes S p && ws.any fun w => w.holdsRel || w.refs.any rs.contains ||
         w.paths.any fun q => !relPath q && ds.relTarget S rs k q
 
 /-- Whether the document writes a relative path at all, in the schema or
@@ -1829,16 +1873,17 @@ def Decls.useBodies (ds : Decls) (S : Val) : Use → List Val
 /-- The copies of the bodies the uses `us` read: each body of the name,
 or each term the document writes at the place, its own uses read as
 copies in turn, met with what `dl` reads at a place one names, and its
-relative paths placed where the use stands, declared under the use's
-name (`useName`, `Use.key`), within `k` turns, enough for every chain
-of uses that isn't recursive; a use the turns don't reach reads as
-written (`Use.plain`). -/
+relative paths placed where the use stands as the schema's are
+(`Val.placedT`), a spread that is one kept to be read at each member,
+declared under the use's name (`useName`, `Use.key`), within `k` turns,
+enough for every chain of uses that isn't recursive; a use the turns
+don't reach reads as written (`Use.plain`). -/
 def Decls.copies (ds : Decls) (S : Val) (rs : List String) (rt : List Seg → Bool)
     (dl : List Seg → Option Val) : ℕ → List (Use × List Seg) → Decls
   | 0, us => us.eraseDups.map fun u => (useName u.1.key u.2, u.1.plain)
   | k + 1, us =>
     (us.eraseDups.flatMap fun u =>
-        (ds.useBodies S u.1).map fun b => (useName u.1.key u.2, (b.atUses rs rt dl u.2).placed u.2)) ++
+        (ds.useBodies S u.1).map fun b => (useName u.1.key u.2, (b.atUses rs rt dl u.2).placedT u.2)) ++
       ds.copies S rs rt dl k (us.eraseDups.flatMap fun u => (ds.useBodies S u.1).flatMap fun b => b.usesAt rs rt u.2)
 
 /-- What the data `j` writes at the places `rs` name, met; none where it
@@ -1893,20 +1938,29 @@ of the places the templates read; `any` where no spread reads its
 member's place. -/
 def Decls.spreadRoot (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (oj : Option Data := none) :
     Val :=
-  if (ds.linked S rl oj).2.perMembers then
-    (r (ds.linked S rl oj).1 (ds.linked S rl oj).2.opened).getLast?.getD .any
+  if (ds.linked S rl oj).2.perMembers || (ds.linked S rl oj).1.any (·.2.perMembers) then
+    (r ((ds.linked S rl oj).1.map fun d => (d.1, d.2.opened)) (ds.linked S rl oj).2.opened).getLast?.getD .any
   else .any
 
 /-- A document as the definition reads it, `rl` reading a document to the
 roots its links are read in and `r` to those its spreads are read at:
 its links read (`Decls.linked`), and each spread whose template reads
-its member's place read at each member where it lands
-(`Val.membersRead`) in the tree `Decls.spreadRoot` reads, a member a
-link's template makes among them; the data `oj`, where it's given, met
+its member's place read at each member where it lands, a name's body
+among the places (`Decls.membersRead`), in the tree `Decls.spreadRoot`
+reads, a member a link's template makes among them; each body read at
+its own place too (`Decls.ownRead`), and each copy whose templates that
+reading reaches (`Decls.reached`) left to admit any member, since each
+is read where the copy stands; the data `oj`, where it's given, met
 into each copy of a place it writes at (`Decls.placed`). -/
 def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (oj : Option Data := none) :
     Decls × Val :=
-  ((ds.linked S rl oj).1, (ds.linked S rl oj).2.membersRead (ds.spreadRoot S rl r oj))
+  let L := ds.linked S rl oj
+  let isBody (n : String) : Bool := ds.withRel.any (·.1 == n)
+  let reached := L.1.reached L.2 (ds.spreadRoot S rl r oj) ++
+    (L.1.filter (isBody ·.1)).flatMap fun b => L.1.reached b.2 (L.1.ownRoot b)
+  (L.1.map fun d =>
+      (d.1, if isBody d.1 then L.1.ownRead d else if reached.contains d.1 then d.2.neutral else d.2),
+    L.1.membersRead L.2 (ds.spreadRoot S rl r oj) [])
 
 /-- A document as the definition reads it before any data: its links and
 its spreads read in the schema's own tree (`Decls.rootsS`). -/
@@ -3103,7 +3157,7 @@ theorem copies_checkableA {ds : Decls} {S : Val} {rs : List String} {rt : List S
   | k + 1, us, d, h => by
     simp only [Decls.copies, List.mem_append, List.mem_flatMap, List.mem_map] at h
     rcases h with ⟨u, -, b, hbu, rfl⟩ | h
-    · exact placed_checkableA (atUses_checkableA hdl (useBodies_checkableA hb hS u.1 b hbu) _ _) _
+    · exact placedT_checkableA (atUses_checkableA hdl (useBodies_checkableA hb hS u.1 b hbu) _ _) _
     · exact copies_checkableA hdl hb hS k _ d h
 
 /-- What the data writes at the places a copy names is a term the
@@ -3360,12 +3414,41 @@ theorem genTemplate_checkableA {v u : Val} (h : v.CheckableA) (hg : v.genTemplat
     · exact nomatch hg
   · exact nomatch hg
 
-theorem instancesAt_checkableA {P root : Val} (hP : P.CheckableA) (p : List Seg) :
-    ∀ u, u ∈ P.instancesAt root p → u.CheckableA := by
+/-- A step that reads a name's bodies where it stands leaves terms the
+checker can read, where the schema and the bodies are such terms. -/
+theorem landStepD_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA)
+    {i : Val × List Seg} (hi : i.1.CheckableA) :
+    (∀ u, u ∈ (ds.landStepD S i).1 → u.CheckableA) ∧ (∀ j, j ∈ (ds.landStepD S i).2 → j.1.CheckableA) := by
+  unfold Decls.landStepD
+  split
+  · refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
+    simp only [List.mem_map, List.mem_filter] at hj
+    obtain ⟨d, ⟨hd, -⟩, rfl⟩ := hj
+    exact hb d hd
+  · exact landStep_checkableA hS hi
+
+theorem landingD_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
+    ∀ (n : ℕ) (items : List (Val × List Seg)), (∀ i, i ∈ items → i.1.CheckableA) →
+      ∀ u, u ∈ ds.landingD S n items → u.CheckableA
+  | 0, _, _, _, h => by simp [Decls.landingD] at h
+  | _ + 1, [], _, _, h => by simp [Decls.landingD] at h
+  | n + 1, i :: rest, hi, u, h => by
+    have hs := landStepD_checkableA hb hS (hi i List.mem_cons_self)
+    simp only [Decls.landingD, List.mem_append] at h
+    rcases h with h | h
+    · exact hs.1 u h
+    · refine landingD_checkableA hb hS n _ (fun j hj => ?_) u h
+      rw [List.mem_append] at hj
+      rcases hj with hj | hj
+      · exact hs.2 j hj
+      · exact hi j (List.mem_cons_of_mem _ hj)
+
+theorem instancesAt_checkableA {ds : Decls} {P root : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hP : P.CheckableA) (base p : List Seg) : ∀ u, u ∈ ds.instancesAt P root base p → u.CheckableA := by
   intro u hu
-  simp only [Val.instancesAt, List.mem_flatMap, List.mem_append, List.mem_filterMap] at hu
+  simp only [Decls.instancesAt, List.mem_flatMap, List.mem_append, List.mem_filterMap] at hu
   obtain ⟨w, hw, hu⟩ := hu
-  have hw' := landing_checkableA hP _ [(P, p)] (fun i hi => by
+  have hw' := landingD_checkableA hb hP _ [(P, p)] (fun i hi => by
     simp only [List.mem_cons, List.mem_nil_iff, or_false] at hi
     subst hi
     exact hP) w hw
@@ -3381,13 +3464,19 @@ theorem foldl_meet_checkableA : ∀ (us : List Val) {acc : Val}, acc.CheckableA 
   | u :: us, _, h, hu => foldl_meet_checkableA us (.meet h (hu u List.mem_cons_self))
       fun w hw => hu w (List.mem_cons_of_mem _ hw)
 
-theorem membersRead_checkableA {P : Val} (hP : P.CheckableA) (root : Val) : (P.membersRead root).CheckableA := by
-  unfold Val.membersRead
+theorem membersRead_checkableA {ds : Decls} {P : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hP : P.CheckableA) (root : Val) (base : List Seg) : (ds.membersRead P root base).CheckableA := by
+  unfold Decls.membersRead
   split
   · refine foldl_meet_checkableA _ (neutral_checkableA hP) fun u hu => ?_
     obtain ⟨p, -, hu⟩ := List.mem_flatMap.mp hu
-    exact instancesAt_checkableA hP p u hu
+    exact instancesAt_checkableA hb hP base p u hu
   · exact hP
+
+/-- A body read at its own place is a term the checker can read. -/
+theorem ownRead_checkableA {ds : Decls} {d : String × Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hd : d.2.CheckableA) : (ds.ownRead d).CheckableA :=
+  membersRead_checkableA hb hd _ _
 
 /-- The term at a path in a term the checker can read is one it can read. -/
 theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p = some w → w.CheckableA
@@ -3714,8 +3803,27 @@ theorem withRefers_checkableA {ds : Decls} {r : Decls → Val → List Val} {S :
 theorem Decls.prepared_checkableA {ds : Decls} {S : Val} {rl r : Decls → Val → List Val} {oj : Option Data}
     (hr : RootsReadable rl) (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
     (ds.prepared S rl r oj).2.CheckableA :=
-  membersRead_checkableA (withRefers_checkableA hr (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb) hS)
-    (withMoves_checkableA (Decls.placed_checkableA hS))) _
+  membersRead_checkableA (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb) hS)
+    (withRefers_checkableA hr (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb) hS)
+      (withMoves_checkableA (Decls.placed_checkableA hS))) _ _
+
+/-- A document's declarations as the definition reads them, each body
+read at its own place and each other template left to admit any
+member, are terms the checker can read. -/
+theorem Decls.prepared_bodies_checkableA {ds : Decls} {S : Val} {rl r : Decls → Val → List Val}
+    {oj : Option Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
+    ∀ d, d ∈ (ds.prepared S rl r oj).1 → d.2.CheckableA := by
+  have hL : ∀ d, d ∈ (ds.linked S rl oj).1 → d.2.CheckableA :=
+    Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb) hS
+  intro d hd
+  simp only [Decls.prepared, List.mem_map] at hd
+  obtain ⟨d', hd', rfl⟩ := hd
+  dsimp only
+  split
+  · exact ownRead_checkableA hL (hL d' hd')
+  · split
+    · exact neutral_checkableA (hL d' hd')
+    · exact hL d' hd'
 
 /-- `vetA` computes `VetA` wherever the checker can read the two
 documents the verdict hands `vet`, the schema's reading and the data's,
@@ -3778,9 +3886,9 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (ds' := (ds.preparedD S j).1)
     (S' := (ds.preparedD S j).2)
-    (Decls.placed_bodies_checkableA (S := S) (oj := none) (Decls.withRel_checkableA hb) hS)
+    (Decls.prepared_bodies_checkableA hb hS)
     (Decls.prepared_checkableA rootsS_readable hb hS)
-    (Decls.placed_bodies_checkableA (S := S) (oj := some j) (Decls.withRel_checkableA hb) hS)
+    (Decls.prepared_bodies_checkableA hb hS)
     (Decls.prepared_checkableA Decls.linkReader_readable hb hS) v
 
 /-- `vetP` computes `VetP` on every document whose bodies, sources and
