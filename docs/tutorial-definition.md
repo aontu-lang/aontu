@@ -4506,9 +4506,8 @@ data leaves it unable to make (`Val.fails`), or refuses, read whole, the
 value it gives
 with its trials and sizes unread; `valid` where it singles out a
 value, and without the fill where the data as written is an instance of
-the visible part of the schema's normal form, staged, each part that
-waits on a hole read as `any`, too, or where `--partial` lets the
-unresolved pass; and `incomplete` otherwise. -/
+the visible part of the schema's normal form, staged, too, or where
+`--partial` lets the unresolved pass; and `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
@@ -4521,14 +4520,14 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       (m.lax = true ∨
         ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
-          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j))
+          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
       ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       m.lax = false ∧
       ¬ ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
-        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j)
+        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j)
 ```
 
 Read the four in order. `error` is a document that refers to a name it
@@ -4845,11 +4844,10 @@ Three theorems say what the words mean:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- Without the fill, `valid` is `Instance`: the data as written is an
-instance of the visible part of the schema as read, each part that
-waits on a hole read as `any`, since the data fills it. -/
+instance of the visible part of the schema as read. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j := by
+    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -4885,7 +4883,7 @@ theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Ve
 
 So `vet --no-fill` answers `valid` exactly for an instance of the
 schema's visible part, step 2's question where the schema holds no
-mark and no part that waits;
+mark;
 `vet` answers it for a filled value that is an instance of the visible
 part of the schema read against the data; and `invalid` refuses the
 data as written, the meet's conflicts read, or as filled, where a fill
@@ -4937,7 +4935,7 @@ example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .inco
 no declaration, where a document reads as itself, its visible part the
 normal form of `[*1]`, staged. -/
 example : Instance (Decls.envE [])
-    ((normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).staged []).visible.waitAny
+    ((normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).staged []).visible
     (.list [.integer 2]) :=
   vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
     ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))
