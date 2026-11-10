@@ -54,12 +54,13 @@ emit-absolute-ref	gens	z:Z\ns:[{k:1}]\no:emit($.s,{match:{k:1},body:[$.z]})\n	{"
 # unevaluated is the one position the language never drives: a call's
 # template argument. `emit(_, T)` is that position with the selection
 # left open, and it reads as what it is, an apply-templates waiting
-# for its nodes. Passing them by call and by meet are the same
-# dispatch. This is also XSLT's MODE, with no keyword: a mode is a
-# table used from several sites, and naming a value is something the
-# language already does.
+# for its nodes. A call is the one way to pass them: a meet never fills
+# a hole, and a name's hole is bound only as an emit's table, so
+# `$.l & %t` is a hole nothing binds. This is also XSLT's MODE, with no
+# keyword: a mode is a table used from several sites, and naming a value
+# is something the language already does.
 emit-named-table-two-sites	gens	%t = emit(_,{match:{p:string},body:['P:'+.p]})\nl:[{p:a}]\nc:[{p:b}]\no:emit($.l,%t)\nu:emit($.c,%t)\n	{"c":[{"p":"b"}],"l":[{"p":"a"}],"o":["P:a"],"u":["P:b"]}
-emit-meet-form	gens	%t = emit(_,{match:{p:string},body:['P:'+.p]})\nl:[{p:a}]\no:$.l & %t\n	{"l":[{"p":"a"}],"o":["P:a"]}
+emit-meet-form	errc	%t = emit(_,{match:{p:string},body:['P:'+.p]})\nl:[{p:a}]\no:$.l & %t\n	hole_unbound
 # AND THIS IS WHY THE DISPATCH IS A BUILTIN. A rule set that names
 # itself walks a nested tree into nested output -- the first example
 # in every XSLT tutorial, and not expressible at any length as an

@@ -73,7 +73,7 @@ class PackFuncVal extends FuncBaseVal {
     // ONE argument is driven: the data. The template is not (see
     // prepare above), and driveStagedArgs answers whether the data has
     // settled -- the other half of "ready to fire".
-    if (!this.stagedReady(peer, ctx, 1)) {
+    if (!this.stagedReady(ctx, 1)) {
       return this.residuate(peer, ctx)
     }
 

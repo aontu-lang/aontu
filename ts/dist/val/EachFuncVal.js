@@ -26,7 +26,7 @@ class EachFuncVal extends FuncBaseVal_1.FuncBaseVal {
     unify(peer, ctx) {
         // ONE argument is driven: the data. The template is not (see
         // prepare above).
-        if (!this.stagedReady(peer, ctx, 1)) {
+        if (!this.stagedReady(ctx, 1)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);

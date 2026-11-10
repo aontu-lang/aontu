@@ -31,7 +31,6 @@ import {
 
 import { ConjunctVal } from './ConjunctVal'
 import { FeatureVal } from './FeatureVal'
-import { doneButHoles, waitsOnHole, bindHole } from './PlaceVal'
 
 
 class OpBaseVal extends FeatureVal {
@@ -69,17 +68,6 @@ class OpBaseVal extends FeatureVal {
 
 
   unify(peer: Val, ctx: AontuContext): Val {
-
-    // THE PLACEHOLDER (G8 phase 3, see PlaceVal), on the operator side:
-    // `x: {&: {m: _ + 2}}` meeting `1` is `3`. Same rule as
-    // FuncBaseVal's -- the peer fills the hole and the operation is
-    // what answers.
-    if (!peer.isTop && !peer.isNil && this.id !== peer.id && waitsOnHole(this)) {
-      if (waitsOnHole(peer)) {
-        return makeNilErr(ctx, 'place_pair', this, peer)
-      }
-      return bindHole(this, peer, ctx).unify(top(), ctx)
-    }
     const te = ctx.explain && explainOpen(ctx, ctx.explain, 'Op:' + this.opname(), this, peer)
     let out: Val
 
@@ -102,9 +90,7 @@ class OpBaseVal extends FeatureVal {
 
     // console.log('OPVAL', this.id, this.opname(), pegdone, newpeg.map(p => p.canon))
 
-    // Lists join once only their holes wait, as only a fill settles a hole.
-    if (pegdone || (true === newpeg[0]?.isList && true === newpeg[1]?.isList
-      && newpeg.every(doneButHoles))) {
+    if (pegdone) {
       // `|| this` makes result truthy, so an op that cannot compute yet
       // takes the OpBaseVal arm below rather than a separate null arm.
       let result: Val = this.operate(ctx, newpeg) || this

@@ -1,33 +1,15 @@
 # THE PLACEHOLDER `_` (G8 phase 3,
-# sketch/capability-review/g8-generation.md): a HOLE in a call, filled by
-# whatever the call is unified with — and, inside a generator's
-# template, by the source child the generated one is made FROM.
+# sketch/capability-review/g8-generation.md): a HOLE that a generator,
+# an apply or a filter binds. Inside the template of each, pack or
+# emit, an apply's template or a filter's condition, it is the source
+# child the instance is made from; anywhere else nothing binds it, and
+# the schema is an error, `hole_unbound`, whatever the data.
 # Columns: name<TAB>mode<TAB>src<TAB>expect
 #
 # BREAKING CHANGE, pinned here. A bare `_` used to be the string "_";
 # it is a hole now. `"_"` quoted is still that string, a longer bare
 # word containing it is still ordinary text, and `_` as a KEY is still
 # a key — the four rows that say so are the compatibility contract.
-#
-# The peer goes INTO the call and is not also a constraint on the way
-# out: `upper(_) & hello` is "HELLO", not "HELLO" & "hello". Two holes
-# meeting is an error, because neither has a value to fill the other.
-place-func-peer	gens	a:upper(_) & hello\n	{"a":"HELLO"}
-place-nested-funcs	gens	a:upper(lower(_)) & HeLLo\n	{"a":"HELLO"}
-place-op-in-spread	gens	x:{&:{m:_+2}} x:a:m:1\n	{"x":{"a":{"m":3}}}
-place-op-per-child	gens	x:{&:{m:_+2}} x:a:m:1 x:b:m:5\n	{"x":{"a":{"m":3},"b":{"m":7}}}
-place-op-peer-left	gens	a:_+2 & 1\n	{"a":3}
-place-op-peer-right	gens	a:1 & _+2\n	{"a":3}
-place-func-in-spread	gens	x:{&:{m:upper(_)}} x:a:m:hi\n	{"x":{"a":{"m":"HI"}}}
-place-op-string-concat	gens	x:{&:{m:_+2}} x:a:m:s\n	{"x":{"a":{"m":"s2"}}}
-place-alone-filled	gens	a:_ & 5\n	{"a":5}
-place-alone-in-map	gens	m:{k:_}\nm:{k:7}\n	{"m":{"k":7}}
-place-unfilled-func-canon	canon	a:upper(_)\n	{"a":upper(_)}
-place-alone-canon	canon	a:_\n	{"a":_}
-place-op-canon	canon	a:_+2\n	{"a":_+2}
-place-unfilled-func-errc	errc	a:upper(_)\n	mapval_no_gen
-place-alone-errc	errc	a:_\n	mapval_no_gen
-place-two-holes	errc	a:upper(_)&lower(_)\n	place_pair
 place-quoted-stays-string	canon	a:"_"\n	{"a":"_"}
 place-quoted-gens	gens	a:"_"\n	{"a":"_"}
 place-longer-word-stays-text	canon	a:_b\n	{"a":"_b"}
@@ -48,9 +30,7 @@ place-under-pref	gens	m:{a:1,b:2}\nd:pack($.m,{v:*_|integer})\n	{"d":{"a":{"v":1
 place-under-pref-override	gens	m:{a:1,b:2}\nd:pack($.m,{v:*_|integer})\nd:a:v:9\n	{"d":{"a":{"v":9},"b":{"v":2}},"m":{"a":1,"b":2}}
 place-under-pref-canon	canon	m:{a:1}\nd:pack($.m,{v:*_|integer})\n	{"d":{"a":{"v":*1|integer}},"m":{"a":1}}
 # The fill walk reaches every shape a template can hold: a conjunct, a
-# disjunct, a list, a nested map — and two placeheld OPERATORS meeting
-# is the same refusal two placeheld calls are.
-place-two-op-holes	errc	a:_+2 & _+3\n	place_pair
+# disjunct, a list and a nested map.
 place-under-conjunct	gens	m:{a:1,b:2}\nd:pack($.m,{v:_ & integer})\n	{"d":{"a":{"v":1},"b":{"v":2}},"m":{"a":1,"b":2}}
 # The hole fills with 1, leaving `1|string`: two alternatives still
 # admitted, so incomplete residue rather than a scalar conflict
@@ -80,187 +60,168 @@ place-nested-pack-inner-meet	gens	envs:[dev,prod]\nfleet:{web:{replicas:1}}\ndep
 place-hole-as-inner-data	gens	m:{a:{x:1,y:2},b:{z:3}}\nd:pack($.m,{inner:each(_,_)})\n	{"d":{"a":{"inner":[1,2]},"b":{"inner":[3]}},"m":{"a":{"x":1,"y":2},"b":{"z":3}}}
 place-hole-as-inner-data-tmpl	gens	m:{a:{x:1,y:2}}\nd:pack($.m,{inner:each(_,_ & integer)})\n	{"d":{"a":{"inner":[1,2]}},"m":{"a":{"x":1,"y":2}}}
 
-# A rider, a mark or a seal around a container that holds a hole reads
-# through to it, so the peer meets the container member by member. A
-# seal around a rider seals the container the rider wraps, so it still
-# refuses a key the peer adds, and a rider's record settles first. A
-# rider's record is a container argument, so a hole in it is the
-# record's, which the peer leaves unfilled.
-place-seal-around-rider	gens	a:close(meta({x:upper(_)},{d:1})) & {x:"q"}\n	{"a":{"x":"Q"}}
-place-seal-around-rider-refuses	errc	a:close(meta({x:upper(_)},{d:1})) & {x:"q",y:2}\n	closed
-place-rider-record-hole	errc	a:meta({x:1},{d:_}) & 2\n	mapval_no_gen
-place-rider-record-settles	gens	a:meta({x:_},{d:sum([1,2])}) & {x:1}\n	{"a":{"x":1}}
-place-seal-around-rider-record-settles	gens	a:close(meta({x:upper(_)},{d:sum([1,2])})) & {x:"q"}\n	{"a":{"x":"Q"}}
-
-# A call waits on a hole among its own arguments, and through a call or
-# a rider among them, but not on one a container argument holds: that
-# hole is the container's, which its own meet fills. So the peer leaves
-# it unfilled, and a call that computes from its arguments' values fails
-# once they settle, as it can't be made. A join stands, as the
-# definition reads it. Where the call waits on a hole of its own as
-# well, the peer fills that one alone, and a container met with a
-# waiting call is the call's argument, not a second hole.
-place-hole-in-list-arg	errc	a:sum([_,1]) & 3\n	place_container
-place-hole-in-list-arg-join	errc	a:join(["a",_],"-") & "b"\n	mapval_no_gen
-place-hole-in-list-arg-scalar	errc	a:upper([_]) & "a"\n	place_container
-place-hole-in-map-arg	errc	a:upper({k:_}) & "a"\n	place_container
-place-hole-in-list-arg-member	errc	a:{k:sum([_,1])} & {k:3}\n	place_container
-place-hole-binds-own-only	errc	a:add(_,sum([_,1])) & 2\n	place_container
-place-hole-sep-binds-own-only	errc	a:join([_,"b"],_) & "-"\n	mapval_no_gen
-place-hole-peer-container	errc	a:upper(_) & [_]\n	mapval_no_gen
-
-# A held hole no meet reaches fails the call though another argument
-# still waits, here on a path to a hole. A call that takes its argument
-# as the value it is reads a list or a map that holds a hole as that
-# container, so its peer fills the hole, and a bound reads one as outside
-# its domain; but neq reads the members as the values it refuses, so a
-# hole among them is one nothing fills. super reads a call there that
-# waits on its own hole as any, so a hole beside one is what stays
-# unmade; a bound whose list also holds such a call waits still.
-place-held-beside-path	errc	a:sum([$.h,_]) h:_\n	place_container
-place-super-list-hole	gens	a:super([1,_]) & [1,2]\n	{"a":[1,2]}
-place-super-map-hole	gens	a:super({k:_}) & {k:1}\n	{"a":{"k":1}}
-place-super-nested-hole	gens	a:super([[_]]) & [[1]]\n	{"a":[[1]]}
-# A spread whose template leaves a hole member unfilled keeps its
-# container unsettled, so a call over it is never made.
-place-super-list-spread-hole	errc	a:super([&: any, _])\n	mapval_no_gen
-place-super-map-spread-hole	errc	a:super({&: any, a: _})\n	mapval_no_gen
-place-bound-list-spread-hole	errc	a:min([&: any, _])\n	mapval_no_gen
-place-held-map-spread-hole	errc	a:sum([{&: any, a: _}])\n	mapval_no_gen
-# Only super and pref read a call that waits on its own hole there as
-# settled, so refer and a bound over a map holding one are never made.
-place-refer-map-call	errc	a:refer({k: upper(_)})\n	mapval_no_gen
-place-bound-map-call	errc	a:min({k: upper(_)})\n	mapval_no_gen
-place-pref-list-hole	gens	a:pref([_]) & [1]\n	{"a":[1]}
-place-bound-list-hole	errc	a:min([_]) & 1\n	invalid-arg
-place-neq-list-hole	errc	a:neq([_]) & 1\n	place_container
-place-neq-list-hole-beside	errc	a:neq([1,_]) & 2\n	place_container
-place-super-hole-beside-call	errc	a:super([_,$.b]) b:upper(_)\n	listval_no_gen
-place-super-list-call	gens	a:super([upper(_)]) & ["x"]\n	{"a":["x"]}
-place-super-map-call	gens	a:super({k:upper(_)}) & {k:1}\n	{"a":{"k":1}}
-place-super-list-ranged-call	gens	a:super([upper("a",_)]) & [3]\n	{"a":[3]}
-place-bound-hole-beside-call	errc	a:min([_,$.b]) b:upper(_)\n	mapval_no_gen
-# A held hole under a choice of arms leaves the call over its container
-# unmade: a call, a `+`, a map and a list there, each held as written.
-place-held-call-in-arm	errc	a:sum([upper(_) | 1])\n	place_container
-place-held-plus-in-arm	errc	a:sum([(_ + 1) | 2])\n	place_container
-place-held-map-in-arm	errc	a:sum([{k: _} | 1])\n	place_container
-place-held-list-in-arm	errc	a:sum(([_] | [1]) & [_])\n	place_container
-
-# A call over a container whose argument is the hole takes its peer as
-# that argument, as any call does, and computes from it once the peer
-# settles: on either side, over a map, for each such call, and with the
-# hole as `join`'s separator. A peer the call refuses is refused as the
-# argument.
-place-agg-hole-peer-right	gens	o:[1,2] & sum(_)\n	{"o":3}
-place-agg-hole-peer-left	gens	o:sum(_) & [1,2]\n	{"o":3}
-place-agg-hole-map	gens	o:{a:1,b:2} & sum(_)\n	{"o":3}
-place-agg-hole-least	gens	o:[1,2] & least(_)\n	{"o":1}
-place-agg-hole-greatest	gens	o:[1,2] & greatest(_)\n	{"o":2}
-place-agg-hole-sort	gens	o:["b","a"] & sort(_)\n	{"o":["a","b"]}
-place-agg-hole-pick	gens	o:[{a:1}] & pick(_,"a")\n	{"o":[1]}
-place-agg-hole-join	gens	o:["a","b"] & join(_,"-")\n	{"o":"a-b"}
-place-agg-hole-join-sep	gens	o:join(["a","b"],_) & "-"\n	{"o":"a-b"}
-place-agg-hole-refuses	errc	o:["a","b"] & sum(_)\n	invalid-arg
-
-# A grammar call takes its peer as the hole it waits on, as any call
-# does: abnf's grammar, and either of parse's two arguments. A text the
-# grammar refuses is refused as the argument.
-place-abnf-hole	gens	g:abnf(_) & "v = %x30-39\\n"\n	{"g":"v = %x30-39\\n"}
-place-parse-hole-text	gens	p:parse("v = %x30-39\\n",_) & "7"\n	{"p":{"kids":[],"rule":"v","src":"7"}}
-place-parse-hole-grammar	gens	p:parse(_,"7") & "v = %x30-39\\n"\n	{"p":{"kids":[],"rule":"v","src":"7"}}
-place-parse-hole-refuses	errc	p:parse("v = %x30-39\\n",_) & "a"\n	parse_failed
-
-# A map spread's container template meets each member once, as a list
-# spread's does: a member it has filled meets a later value as it
-# stands, so the template's call is never applied to its own output.
-# The template still constrains what a later value adds to the member.
-place-spread-once-later-meet	gens	v:({&:{n:add(_,1)}} & {a:{n:1}}) & {a:{}}\n	{"v":{"a":{"n":2}}}
-place-spread-once-before	gens	v:({&:{n:add(_,1)}} & {a:{}}) & {a:{n:1}}\n	{"v":{"a":{"n":2}}}
-place-spread-once-own	gens	v:{&:{n:add(_,1)},a:{n:1}} & {a:{n:2}}\n	{"v":{"a":{"n":2}}}
-place-spread-once-list-template	gens	v:({&:[add(_,1)]} & {a:[1]}) & {a:[2]}\n	{"v":{"a":[2]}}
+# A map spread's template still constrains what a later value adds to
+# the member.
 place-spread-once-still-constrains	errc	v:({&:{m:string}} & {a:{n:1}}) & {a:{m:1}}\n	no_scalar_unify
 
-# A value a spread's template leaves unmade is named at the member it
-# stands in, in a map and in a list, where both engines had named the
-# template's own position.
-place-spread-unfilled-path	err	v:{&:{n:upper(_)}} & {a:{}}\n	[aontu/mapval_no_gen]: Cannot resolve value at path $.v.a.n
-place-spread-list-unfilled-path	err	v:[&:{n:upper(_)}] & [{}]\n	[aontu/mapval_no_gen]: Cannot resolve value at path $.v.0.n
-
-# A meet that fills a hole inside a size, a trial or a match settles as
-# it would written filled, so the size or trial it stands in reads its
-# value: in len, must, a match's scrutinee and its pattern, contains and
-# rest.
-place-fill-in-len	errc	v:["a"] & len(add(_,1) & 2)\n	constraint
-place-fill-in-must	gens	v:"A" & must(upper(_) & "a","m")\n	{"v":"A"}
-place-fill-in-match-scrutinee	gens	v:match(upper(_) & "a","A",1,2)\n	{"v":1}
-place-fill-in-match-pattern	gens	v:match("A",upper(_) & "a",1,2)\n	{"v":1}
-place-fill-in-contains	errc	v:[2] & contains(add(_,1) & 0)\n	constraint
-place-fill-in-rest	errc	v:{a:2} & rest(add(_,1) & 0)\n	rest
-
-# `+` joins two lists as they stand, whatever their elements hold, so a
-# hole an operand list holds is the joined list's, which the meet fills
-# member by member: on either side, from a longer list and a shorter
-# one, with a hole in each operand, met again and through a second `+`.
-# Left unmet, the hole stands where the join puts it. The lists join once
-# only their holes wait, so a `key()` an operand list holds reads where
-# it's written, in that list. The `+` waits only on a hole among its
-# operands, which its peer fills alone, so a hole an operand list holds
-# beside it stays open.
-place-plus-join-hole	gens	v:(["a",_] + ["c"]) & ["a","b","c"]\n	{"v":["a","b","c"]}
-place-plus-join-hole-right	gens	v:["a","b","c"] & (["a",_] + ["c"])\n	{"v":["a","b","c"]}
-place-plus-join-hole-longer	gens	v:(["a",_] + ["c"]) & ["a","b","c","d"]\n	{"v":["a","b","c","d"]}
-place-plus-join-hole-shorter	gens	v:(["a",_] + ["c"]) & ["a","b"]\n	{"v":["a","b","c"]}
-place-plus-join-holes	gens	v:(["a",_] + [_]) & ["a","b","c"]\n	{"v":["a","b","c"]}
-place-plus-join-hole-again	gens	v:((["a",_] + ["c"]) & ["a","b","c"]) & ["a","b","c"]\n	{"v":["a","b","c"]}
-place-plus-join-hole-chain	gens	v:(["a",_] + ["c"] + ["d"]) & ["a","b","c","d"]\n	{"v":["a","b","c","d"]}
-place-plus-join-hole-unmet	err	v:["a",_] + ["c"]\n	[aontu/listval_no_gen]: Cannot resolve value at path $.v.1
-
-# A member that waits only on a hole joins too: a choice with a hole
-# among its arms, or a meet with a hole beside a value still being made.
-# A map with a spread joins once it's made, here once its path resolves.
-place-plus-join-hole-arm	gens	v:([_ | "a"] + ["c"]) & ["b","c"]\n	{"v":["b","c"]}
-place-plus-join-hole-pref-arm	gens	v:([*"a" | _] + ["c"]) & ["b","c"]\n	{"v":["b","c"]}
-place-plus-join-hole-meet	gens	v:([_ & $.y] + ["c"]) & ["b","c"]\ny:$.x\nx:"b"\n	{"v":["b","c"],"x":"b","y":"b"}
-place-plus-join-hole-meet-call	gens	v:([_ & sum([1])] + [2]) & [1,2]\n	{"v":[1,2]}
-place-plus-join-hole-map-spread	gens	v:([{&: integer, a: $.y}, _] + ["c"]) & [{a: 1}, "b", "c"]\ny:$.x\nx:1\n	{"v":[{"a":1},"b","c"],"x":1,"y":1}
+# `+` joins two lists as they stand, so a `key()` an operand list holds
+# reads where it's written, in that list, and a list's spread meets its
+# elements before the lists join.
 place-plus-join-key	gens	l:[5] + [{n:key()}]\n	{"l":[5,{"n":"0"}]}
 place-plus-join-key-lists	gens	l:[[key()]] + [[key()]]\n	{"l":[["0"],["0"]]}
-place-plus-join-key-hole	gens	l:(["a",_] + [{n:key()}]) & ["a","b"]\n	{"l":["a","b",{"n":"0"}]}
-place-plus-operand-hole	gens	v:(_ + ["c"]) & ["a"]\n	{"v":["a","c"]}
-place-plus-operand-hole-right	gens	v:["a"] & (_ + ["c"])\n	{"v":["a","c"]}
-place-plus-operand-hole-own-only	err	v:([_] + _) & ["a"]\n	[aontu/listval_no_gen]: Cannot resolve value at path $.v.0
-
-# A call over a hole in an operand list of `+` meets its member once the
-# lists are joined, and the meet fills it: on either side of the meet,
-# in the right list, inside a map, in both lists, and from a shorter
-# peer. Met again, the filled member conflicts with the peer's. A `key()`
-# reads its index where it's written, in either list, and a list's spread
-# meets its elements before the lists join.
-place-plus-join-call	gens	v:([upper(_)] + ["c"]) & ["a","c"]\n	{"v":["A","c"]}
-place-plus-join-call-right	gens	v:["a","c"] & ([upper(_)] + ["c"])\n	{"v":["A","c"]}
-place-plus-join-call-in-right	gens	v:(["a"] + [upper(_)]) & ["a","c"]\n	{"v":["a","C"]}
-place-plus-join-call-member	gens	v:([{k:upper(_)}] + ["c"]) & [{k:"a"},"c"]\n	{"v":[{"k":"A"},"c"]}
-place-plus-join-calls	gens	v:([upper(_)] + [lower(_)]) & ["a","B"]\n	{"v":["A","b"]}
-place-plus-join-call-shorter	gens	v:([upper(_)] + ["c"]) & ["a"]\n	{"v":["A","c"]}
-place-plus-join-call-again	errc	v:(([upper(_)] + ["c"]) & ["a","c"]) & ["a","c"]\n	scalar_value
-place-plus-join-call-key-left	gens	v:([{n:key()}] + [upper(_)]) & [{},"a"]\n	{"v":[{"n":"0"},"A"]}
-place-plus-join-call-key-right	gens	v:([upper(_)] + [{n:key()}]) & ["a"]\n	{"v":["A",{"n":"0"}]}
 place-plus-join-spread	errc	v:([&: string, 1] + [])\n	no_scalar_unify
-place-plus-join-spread-hole	gens	v:([&: upper(_), "a"] + ["b"])\n	{"v":["A","b"]}
 
-# A group that fills its own hole is read first, as it's grouped, so a
-# call it meets takes the group's value: a hole met with a literal, a
-# call its own other side fills, beside a literal, as a map's member and
-# a list's element, and over a number. A literal the call's output
-# conflicts with is refused, and so is a group whose own meet fails, on
-# either side.
-place-group-fills-own	gens	v:upper(_) & (_ & "A")\n	{"v":"A"}
-place-group-fills-own-literal	gens	v:"A" & (upper(_) & (_ & "A"))\n	{"v":"A"}
-place-group-fills-own-call	gens	v:upper(_) & (upper(_) & "a")\n	{"v":"A"}
-place-group-fills-own-member	gens	v:{a:upper(_) & (_ & "A")}\n	{"v":{"a":"A"}}
-place-group-fills-own-element	gens	v:[upper(_) & (_ & "A")]\n	{"v":["A"]}
-place-group-fills-own-number	gens	v:add(_,1) & (_ & 2)\n	{"v":3}
-place-group-fills-own-conflict	errc	v:upper(_) & (_ & "A") & "a"\n	scalar_value
-place-group-own-refused	errc	v:(_ & 1 & 2) & 3\n	scalar_value
-place-group-own-refused-right	errc	v:3 & (_ & 1 & 2)\n	scalar_value
+# A HOLE NOTHING BINDS. Each form below once took its value from a
+# peer, the data or a container's meet; `&` meets and never fills a
+# hole, so each is an error of the schema wherever the hole stands: a
+# call or an operator met with a value, a hole alone or in a member, a
+# pair of holes, a hole in a rider's record or under a seal, in a call's
+# container argument, beside a path, under super, pref, refer or a
+# bound, in a spread's template, in a size, a trial or a match, in an
+# operand of `+`, and in a group.
+place-func-peer	errc	a:upper(_) & hello\n	hole_unbound
+place-nested-funcs	errc	a:upper(lower(_)) & HeLLo\n	hole_unbound
+place-op-in-spread	errc	x:{&:{m:_+2}} x:a:m:1\n	hole_unbound
+place-op-per-child	errc	x:{&:{m:_+2}} x:a:m:1 x:b:m:5\n	hole_unbound
+place-op-peer-left	errc	a:_+2 & 1\n	hole_unbound
+place-op-peer-right	errc	a:1 & _+2\n	hole_unbound
+place-func-in-spread	errc	x:{&:{m:upper(_)}} x:a:m:hi\n	hole_unbound
+place-op-string-concat	errc	x:{&:{m:_+2}} x:a:m:s\n	hole_unbound
+place-alone-filled	errc	a:_ & 5\n	hole_unbound
+place-alone-in-map	errc	m:{k:_}\nm:{k:7}\n	hole_unbound
+place-unfilled-func-canon	errc	a:upper(_)\n	hole_unbound
+place-alone-canon	errc	a:_\n	hole_unbound
+place-op-canon	errc	a:_+2\n	hole_unbound
+place-unfilled-func-errc	errc	a:upper(_)\n	hole_unbound
+place-alone-errc	errc	a:_\n	hole_unbound
+place-two-holes	errc	a:upper(_)&lower(_)\n	hole_unbound
+place-two-op-holes	errc	a:_+2 & _+3\n	hole_unbound
+place-seal-around-rider	errc	a:close(meta({x:upper(_)},{d:1})) & {x:"q"}\n	hole_unbound
+place-seal-around-rider-refuses	errc	a:close(meta({x:upper(_)},{d:1})) & {x:"q",y:2}\n	hole_unbound
+place-rider-record-hole	errc	a:meta({x:1},{d:_}) & 2\n	hole_unbound
+place-rider-record-settles	errc	a:meta({x:_},{d:sum([1,2])}) & {x:1}\n	hole_unbound
+place-seal-around-rider-record-settles	errc	a:close(meta({x:upper(_)},{d:sum([1,2])})) & {x:"q"}\n	hole_unbound
+place-hole-in-list-arg	errc	a:sum([_,1]) & 3\n	hole_unbound
+place-hole-in-list-arg-join	errc	a:join(["a",_],"-") & "b"\n	hole_unbound
+place-hole-in-list-arg-scalar	errc	a:upper([_]) & "a"\n	hole_unbound
+place-hole-in-map-arg	errc	a:upper({k:_}) & "a"\n	hole_unbound
+place-hole-in-list-arg-member	errc	a:{k:sum([_,1])} & {k:3}\n	hole_unbound
+place-hole-binds-own-only	errc	a:add(_,sum([_,1])) & 2\n	hole_unbound
+place-hole-sep-binds-own-only	errc	a:join([_,"b"],_) & "-"\n	hole_unbound
+place-hole-peer-container	errc	a:upper(_) & [_]\n	hole_unbound
+place-held-beside-path	errc	a:sum([$.h,_]) h:_\n	hole_unbound
+place-super-list-hole	errc	a:super([1,_]) & [1,2]\n	hole_unbound
+place-super-map-hole	errc	a:super({k:_}) & {k:1}\n	hole_unbound
+place-super-nested-hole	errc	a:super([[_]]) & [[1]]\n	hole_unbound
+place-super-list-spread-hole	errc	a:super([&: any, _])\n	hole_unbound
+place-super-map-spread-hole	errc	a:super({&: any, a: _})\n	hole_unbound
+place-bound-list-spread-hole	errc	a:min([&: any, _])\n	hole_unbound
+place-held-map-spread-hole	errc	a:sum([{&: any, a: _}])\n	hole_unbound
+place-refer-map-call	errc	a:refer({k: upper(_)})\n	hole_unbound
+place-bound-map-call	errc	a:min({k: upper(_)})\n	hole_unbound
+place-pref-list-hole	errc	a:pref([_]) & [1]\n	hole_unbound
+place-bound-list-hole	errc	a:min([_]) & 1\n	hole_unbound
+place-neq-list-hole	errc	a:neq([_]) & 1\n	hole_unbound
+place-neq-list-hole-beside	errc	a:neq([1,_]) & 2\n	hole_unbound
+# A constraint reads its arguments before it settles: neq reads a
+# list as its members, and a trial refuses a move. The hole the walk
+# finds is in the arguments as written.
+place-neq-list-spread-hole	errc	a:neq([1,&:_])\n	hole_unbound
+place-neq-list-spread-only	errc	a:neq([&:_])\n	hole_unbound
+place-must-move-hole	errc	a:must(move(_),"x")\n	hole_unbound
+place-must-move-hole-arm	errc	a:must(move(_),"x") | 1\n	hole_unbound
+place-nof-move-hole	errc	a:nof(move(_),[1])\n	hole_unbound
+place-contains-move-hole	errc	a:contains(move(_))\n	hole_unbound
+place-when-move-hole	errc	a:when(move(_),1)\n	hole_unbound
+# A call whose name is no function keeps its arguments as written too.
+place-refused-name-hole	errc	a:A=neq(_)\n	hole_unbound
+place-refused-number-name-hole	errc	a:1(_)\n	hole_unbound
+place-super-hole-beside-call	errc	a:super([_,$.b]) b:upper(_)\n	hole_unbound
+place-super-list-call	errc	a:super([upper(_)]) & ["x"]\n	hole_unbound
+place-super-map-call	errc	a:super({k:upper(_)}) & {k:1}\n	hole_unbound
+place-super-list-ranged-call	errc	a:super([upper("a",_)]) & [3]\n	hole_unbound
+place-bound-hole-beside-call	errc	a:min([_,$.b]) b:upper(_)\n	hole_unbound
+place-held-call-in-arm	errc	a:sum([upper(_) | 1])\n	hole_unbound
+place-held-plus-in-arm	errc	a:sum([(_ + 1) | 2])\n	hole_unbound
+place-held-map-in-arm	errc	a:sum([{k: _} | 1])\n	hole_unbound
+place-held-list-in-arm	errc	a:sum(([_] | [1]) & [_])\n	hole_unbound
+place-agg-hole-peer-right	errc	o:[1,2] & sum(_)\n	hole_unbound
+place-agg-hole-peer-left	errc	o:sum(_) & [1,2]\n	hole_unbound
+place-agg-hole-map	errc	o:{a:1,b:2} & sum(_)\n	hole_unbound
+place-agg-hole-least	errc	o:[1,2] & least(_)\n	hole_unbound
+place-agg-hole-greatest	errc	o:[1,2] & greatest(_)\n	hole_unbound
+place-agg-hole-sort	errc	o:["b","a"] & sort(_)\n	hole_unbound
+place-agg-hole-pick	errc	o:[{a:1}] & pick(_,"a")\n	hole_unbound
+place-agg-hole-join	errc	o:["a","b"] & join(_,"-")\n	hole_unbound
+place-agg-hole-join-sep	errc	o:join(["a","b"],_) & "-"\n	hole_unbound
+place-agg-hole-refuses	errc	o:["a","b"] & sum(_)\n	hole_unbound
+place-abnf-hole	errc	g:abnf(_) & "v = %x30-39\\n"\n	hole_unbound
+place-parse-hole-text	errc	p:parse("v = %x30-39\\n",_) & "7"\n	hole_unbound
+place-parse-hole-grammar	errc	p:parse(_,"7") & "v = %x30-39\\n"\n	hole_unbound
+place-parse-hole-refuses	errc	p:parse("v = %x30-39\\n",_) & "a"\n	hole_unbound
+place-spread-once-later-meet	errc	v:({&:{n:add(_,1)}} & {a:{n:1}}) & {a:{}}\n	hole_unbound
+place-spread-once-before	errc	v:({&:{n:add(_,1)}} & {a:{}}) & {a:{n:1}}\n	hole_unbound
+place-spread-once-own	errc	v:{&:{n:add(_,1)},a:{n:1}} & {a:{n:2}}\n	hole_unbound
+place-spread-once-list-template	errc	v:({&:[add(_,1)]} & {a:[1]}) & {a:[2]}\n	hole_unbound
+place-spread-unfilled-path	errc	v:{&:{n:upper(_)}} & {a:{}}\n	hole_unbound
+place-spread-list-unfilled-path	errc	v:[&:{n:upper(_)}] & [{}]\n	hole_unbound
+place-fill-in-len	errc	v:["a"] & len(add(_,1) & 2)\n	hole_unbound
+place-fill-in-must	errc	v:"A" & must(upper(_) & "a","m")\n	hole_unbound
+place-fill-in-match-scrutinee	errc	v:match(upper(_) & "a","A",1,2)\n	hole_unbound
+place-fill-in-match-pattern	errc	v:match("A",upper(_) & "a",1,2)\n	hole_unbound
+place-fill-in-contains	errc	v:[2] & contains(add(_,1) & 0)\n	hole_unbound
+place-fill-in-rest	errc	v:{a:2} & rest(add(_,1) & 0)\n	hole_unbound
+place-plus-join-hole	errc	v:(["a",_] + ["c"]) & ["a","b","c"]\n	hole_unbound
+place-plus-join-hole-right	errc	v:["a","b","c"] & (["a",_] + ["c"])\n	hole_unbound
+place-plus-join-hole-longer	errc	v:(["a",_] + ["c"]) & ["a","b","c","d"]\n	hole_unbound
+place-plus-join-hole-shorter	errc	v:(["a",_] + ["c"]) & ["a","b"]\n	hole_unbound
+place-plus-join-holes	errc	v:(["a",_] + [_]) & ["a","b","c"]\n	hole_unbound
+place-plus-join-hole-again	errc	v:((["a",_] + ["c"]) & ["a","b","c"]) & ["a","b","c"]\n	hole_unbound
+place-plus-join-hole-chain	errc	v:(["a",_] + ["c"] + ["d"]) & ["a","b","c","d"]\n	hole_unbound
+place-plus-join-hole-unmet	errc	v:["a",_] + ["c"]\n	hole_unbound
+place-plus-join-hole-arm	errc	v:([_ | "a"] + ["c"]) & ["b","c"]\n	hole_unbound
+place-plus-join-hole-pref-arm	errc	v:([*"a" | _] + ["c"]) & ["b","c"]\n	hole_unbound
+place-plus-join-hole-meet	errc	v:([_ & $.y] + ["c"]) & ["b","c"]\ny:$.x\nx:"b"\n	hole_unbound
+place-plus-join-hole-meet-call	errc	v:([_ & sum([1])] + [2]) & [1,2]\n	hole_unbound
+place-plus-join-hole-map-spread	errc	v:([{&: integer, a: $.y}, _] + ["c"]) & [{a: 1}, "b", "c"]\ny:$.x\nx:1\n	hole_unbound
+place-plus-join-key-hole	errc	l:(["a",_] + [{n:key()}]) & ["a","b"]\n	hole_unbound
+place-plus-operand-hole	errc	v:(_ + ["c"]) & ["a"]\n	hole_unbound
+place-plus-operand-hole-right	errc	v:["a"] & (_ + ["c"])\n	hole_unbound
+place-plus-operand-hole-own-only	errc	v:([_] + _) & ["a"]\n	hole_unbound
+place-plus-join-call	errc	v:([upper(_)] + ["c"]) & ["a","c"]\n	hole_unbound
+place-plus-join-call-right	errc	v:["a","c"] & ([upper(_)] + ["c"])\n	hole_unbound
+place-plus-join-call-in-right	errc	v:(["a"] + [upper(_)]) & ["a","c"]\n	hole_unbound
+place-plus-join-call-member	errc	v:([{k:upper(_)}] + ["c"]) & [{k:"a"},"c"]\n	hole_unbound
+place-plus-join-calls	errc	v:([upper(_)] + [lower(_)]) & ["a","B"]\n	hole_unbound
+place-plus-join-call-shorter	errc	v:([upper(_)] + ["c"]) & ["a"]\n	hole_unbound
+place-plus-join-call-again	errc	v:(([upper(_)] + ["c"]) & ["a","c"]) & ["a","c"]\n	hole_unbound
+place-plus-join-call-key-left	errc	v:([{n:key()}] + [upper(_)]) & [{},"a"]\n	hole_unbound
+place-plus-join-call-key-right	errc	v:([upper(_)] + [{n:key()}]) & ["a"]\n	hole_unbound
+place-plus-join-spread-hole	errc	v:([&: upper(_), "a"] + ["b"])\n	hole_unbound
+place-group-fills-own	errc	v:upper(_) & (_ & "A")\n	hole_unbound
+place-group-fills-own-literal	errc	v:"A" & (upper(_) & (_ & "A"))\n	hole_unbound
+place-group-fills-own-call	errc	v:upper(_) & (upper(_) & "a")\n	hole_unbound
+place-group-fills-own-member	errc	v:{a:upper(_) & (_ & "A")}\n	hole_unbound
+place-group-fills-own-element	errc	v:[upper(_) & (_ & "A")]\n	hole_unbound
+place-group-fills-own-number	errc	v:add(_,1) & (_ & 2)\n	hole_unbound
+place-group-fills-own-conflict	errc	v:upper(_) & (_ & "A") & "a"\n	hole_unbound
+place-group-own-refused	errc	v:(_ & 1 & 2) & 3\n	hole_unbound
+place-group-own-refused-right	errc	v:3 & (_ & 1 & 2)\n	hole_unbound
+
+# A NAME NOTHING USES holds its hole harmlessly, as the definition reads
+# a declaration's body: what waits on the hole reads as what any value
+# could make of it, so a call over the hole, a pair of holes, a hole met
+# with a value, one in a call's list and one under a `+` stand. What is
+# wrong whatever the hole takes is still wrong, and a seal or a rider
+# around a container that holds one still refuses a key it doesn't name.
+place-unused-call	gens	%T = upper(_) & "a"\nv: 1\n	{"v":1}
+place-unused-pair	gens	%T = upper(_) & _\nv: 1\n	{"v":1}
+place-unused-hole	gens	%T = _ & 1\nv: 1\n	{"v":1}
+place-unused-list-arg	gens	%T = sum([_, 1]) & 3\nv: 1\n	{"v":1}
+place-unused-plus	gens	%T = (_ + 1) & 2\nv: 1\n	{"v":1}
+place-unused-conflict	errc	%T = upper(_) & (1 & 2)\nv: 1\n	scalar_value
+place-unused-waiting-conflict	errc	%U = upper(_)\n%T = add(%U, 1) & (1 & 2)\nv: 1\n	scalar_value
+place-unused-name-conflict	errc	%U = upper(_)\n%T = add(%U, 1)\n%V = %T & (1 & 2)\nv: 1\n	scalar_value
+place-unused-seal-refuses	errc	%T = close(meta({x: upper(_)}, {d: 1})) & {x: "q", y: 2}\nv: 1\n	closed
+place-unused-seal-list-refuses	errc	%T = close([upper(_)]) & ["a", "b"]\nv: 1\n	closed
+place-unused-seal-stands	gens	%T = close(meta({x: upper(_)}, {d: 1})) & {x: "q"}\nv: 1\n	{"v":1}

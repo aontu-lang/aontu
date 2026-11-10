@@ -56,6 +56,7 @@ const sourcemap_1 = require("./sourcemap");
 Object.defineProperty(exports, "readSourceMap", { enumerable: true, get: function () { return sourcemap_1.readSourceMap; } });
 Object.defineProperty(exports, "vetOutput", { enumerable: true, get: function () { return sourcemap_1.vetOutput; } });
 const alias_1 = require("./alias");
+const PlaceVal_1 = require("./val/PlaceVal");
 const view_1 = require("./view");
 Object.defineProperty(exports, "view", { enumerable: true, get: function () { return view_1.view; } });
 Object.defineProperty(exports, "viewSet", { enumerable: true, get: function () { return view_1.viewSet; } });
@@ -173,7 +174,7 @@ class Aontu {
             // than in generate, because an editor unifies on each keystroke
             // and a document too big to evaluate must be turned away there
             // too.
-            const over = (0, alias_1.aliasBudget)(ac, pval);
+            const over = (0, alias_1.aliasBudget)(ac, pval) ?? (0, PlaceVal_1.unboundHole)(ac, pval);
             if (undefined !== over) {
                 out = over;
                 errs = [over];

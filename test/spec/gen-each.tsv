@@ -100,7 +100,7 @@ each-bound-unfired-canon	canon	n:[1+true]\no:each($.n,_)\n	{"n":[1+true],"o":eac
 each-bound-unfired-template-canon	canon	n:{a:1+true}\no:each($.n,_ & integer)\n	{"n":{"a":1+true},"o":each($.n,_&integer)}
 each-bound-astral-key-order	canon	m:{"😀":1,"￰":2} e:each($.m,_ & integer)	{"e":[2,1],"m":{"￰":2,"😀":1}}
 each-bound-over-spread-augmented	gens	ports:{a:{containerPort:1}}\nports:&:{port:.containerPort}\nout:each($.ports,_)\n	{"out":[{"containerPort":1,"port":1}],"ports":{"a":{"containerPort":1,"port":1}}}
-each-bound-place-data	gens	o:['a'] & each(_,_)\n	{"o":["a"]}
+each-bound-place-data	gens	o:apply(['a'], each(_,_))\n	{"o":["a"]}
 each-bound-hole-as-inner-data	gens	m:{a:{x:1,y:2},b:{z:3}}\nd:pack($.m,{inner:each(_,_)})\n	{"d":{"a":{"inner":[1,2]},"b":{"inner":[3]}},"m":{"a":{"x":1,"y":2},"b":{"z":3}}}
 each-bound-skips-a-hidden-member	gens	m: {a: "keep", b: hide("SECRET")}\no: each($.m, _ & _)	{"m":{"a":"keep"},"o":["keep"]}
 each-bound-skips-an-unfilled-optional	gens	m: {x: 1, y?: integer}\no: each($.m, _ & _)	{"m":{"x":1},"o":[1]}

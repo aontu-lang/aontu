@@ -1785,6 +1785,18 @@ until the phase that encodes it lands.
    spread template's hole and the error for a call over a hole that
    nothing binds remain to build.
 
+   **A hole nothing binds, ruled 2026-11-10.** A bare `_` that no
+   generator or `apply` binds is an `error` of the schema wherever it
+   stands, as a call over one is, under the same code: `x: _`, `1 & _`,
+   `{a: 1} & {a: _}` and `{&: _}` are errors, and `any` is how the top
+   is written. A hole binds only where it is written: a generator or an
+   `apply` binds the holes of its own template as written, not those of
+   a declaration the template names, so with `%F = upper(_)`,
+   `apply("a", %F)` and `each(["a"], %F)` leave `%F`'s hole unbound, as
+   both engines and the definition already read them. A declaration
+   that holds a hole serves as an `emit` table, which `emit` reads
+   without reading the hole.
+
 35. **A link in a declaration nothing uses.** Raised 2026-11-06 by the
    consolidation study (`sketch/CORE.0.md`, §4.1), and put with 36 and
    37 in one question, which numbered them 34 to 36. A declaration's

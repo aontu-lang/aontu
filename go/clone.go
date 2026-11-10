@@ -355,7 +355,6 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		// exist.
 		out := newPlace()
 		out.dc = n.dc
-		out.held = n.held
 		out.site.sp = n.site.sp
 		out.path = overlayPath(path, n.path)
 		copyMarks(out, n)

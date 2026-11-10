@@ -1774,7 +1774,8 @@ $ echo $?
 value and admits none, each by its one rule. They're the [top](unification.md) and the
 [bottom](unification.md) of the [lattice](unification.md). Absence,
 which step 33 reads, admits every value too, and so does the hole `_`,
-which step 27 reads, where nothing fills it:
+which step 27 reads, though a hole that nothing binds makes its schema
+an error before anything is judged:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
@@ -2870,8 +2871,8 @@ it with its paths unread. Each round after declares each path as the
 term at it in the first root before that reaches it, and reads the
 document again. A call or a generator waits while a term it's handed
 waits on a reference that names nothing yet: a path not read, a name no
-round has declared, a hole, which the data fills (step 27), or a call
-that waits on one:
+round has declared, a hole a template has yet to bind (step 27), or a
+call that waits on one:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -4497,13 +4498,12 @@ the declarations `ds` and the mode `m`, the schema read as its
 expansion with its selections made: `error` where the document refers to a name it does not
 declare, where its names break the alias-cycle rule, where an
 `ident()` stands out of its place, or where the schema's normal form,
-staged, does not stand; `invalid` where the schema read against the data
-(`Decls.readJ`), the data filling each hole the schema leaves unfilled,
-staged (`Val.staged`) so that a conflict the meet finds is `nil` and an
-arm holding one drops, fails, dead or holding a call the data leaves it
-unable to make (`Val.fails`), a call that waits only through a path
-whose body holds a hole read as waiting for the data (`Decls.dataS`),
-or refuses, read whole, the value it gives
+staged, does not stand, a hole that nothing binds among what doesn't
+(ruling 34); `invalid` where the schema read against the data
+(`Decls.readJ`), staged (`Val.staged`) so that a conflict the meet finds
+is `nil` and an arm holding one drops, fails, dead or holding a call the
+data leaves it unable to make (`Val.fails`), or refuses, read whole, the
+value it gives
 with its trials and sizes unread; `valid` where it singles out a
 value, and without the fill where the data as written is an instance of
 the visible part of the schema's normal form, staged, each part that
@@ -4513,18 +4513,18 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = true ∨
+      (((normaliseD ds (ds.readJ S j)).staged ds).fails = true ∨
         RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = false ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       (m.lax = true ∨
         ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
           (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = false ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       m.lax = false ∧
       ¬ ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
@@ -4533,14 +4533,16 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 
 Read the four in order. `error` is a document that refers to a name it
 doesn't declare, one whose names break the alias-cycle rule, one with
-an `ident()` out of the place step 8 gives it, or a schema or a
-declaration's body whose normal form doesn't stand. The clauses that
-aren't about names are one check:
+an `ident()` out of the place step 8 gives it, one with a hole that
+nothing binds (step 27), or a schema or a declaration's body whose
+normal form doesn't stand. The clauses that aren't about names are one
+check:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || ((normaliseD ds (ds.readR (ds.dataS S))).staged ds).illFormed
+  ds.identMisplaced S || ds.bodyIll || S.freeHole (fun n => ds.holeNames.contains n) ||
+    ((normaliseD ds (ds.readR S)).staged ds).illFormed
 ```
 
 An `ident()`'s place belongs to the text, so the check reads the
@@ -4769,26 +4771,19 @@ def Val.illFormed : Val → Bool
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
-  | .meet a b => (a.fillable && b.fillable && !(a.isHole && b.isHole)) || a.illFormed || b.illFormed
+  | .meet a b => a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
   | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
-  | .call .join args => (args.length != 1 && args.length != 2) || illItems args ||
-    (!(Val.call .join args).fillable && joinSepHeld args)
+  | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
-  | .call .each args | .call .pack args | .call .emit args | .call .apply args =>
-    if fillableHead args && args.length == 2 then illHead args else true
-  | .call f args => if (Val.call f args).fillable && f.takes args.length then illItems args else true
+  | .call _ _ => true
   | .select _ arms _ => illPats arms
   | _ => false
 ```
 
 The schema is read, `Decls.readR`, as its expansion with its
-selections made, which step 16 comes to. A call that waits only
-through a path to a hole waits for the data, which writes the place
-the path names, so the check reads the schema through `Decls.dataS`
-first, as step 27 comes to, and so does the test of whether the data
-leaves a call unmade. `invalid` is a schema that
+selections made, which step 16 comes to. `invalid` is a schema that
 stands met with the data as a term,
 `Data.term`, in a meet that is dead once staged, so that nothing could
 be the data, or in a meet alive that refuses, read whole, the value it
@@ -4842,8 +4837,7 @@ and without the fill only where the data as written is an instance of
 the schema's visible part too, so a marked member asks nothing of the
 data but that it meet the member; `--partial` makes any live meet
 `valid`. `incomplete`
-is what remains: a live meet that singles out nothing, or a fill the
-data lacks. `vet` computes the verdict, and `vet_iff` admits it on
+is what remains: a live meet that singles out nothing. `vet` computes the verdict, and `vet_iff` admits it on
 checkable terms, as `check_iff` and `gen_iff` do for theirs.
 
 Three theorems say what the words mean:
@@ -4884,14 +4878,14 @@ data, the conflicts the meet finds read (`Val.staged`), refuses the data
 as written, or, its trials and sizes unread, the value it would single
 out, or holds a call the data leaves the reading unable to make. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds) j ∨
+    Refuses ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds) j ∨
       RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∨
-      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).illFormed = true := by
+      ((normaliseD ds (ds.readJ S j)).staged ds).illFormed = true := by
 ```
 
 So `vet --no-fill` answers `valid` exactly for an instance of the
 schema's visible part, step 2's question where the schema holds no
-mark and no part that waits on a hole, which the data fills (step 27);
+mark and no part that waits;
 `vet` answers it for a filled value that is an instance of the visible
 part of the schema read against the data; and `invalid` refuses the
 data as written, the meet's conflicts read, or as filled, where a fill
@@ -5603,8 +5597,8 @@ def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
 ```
 
 and a term reads with its selections made, where one whose scrutinee
-generates nothing stays, and generates nothing, as a `match` on an
-unfilled hole does. The reading carries `b`, the member a hole in a
+generates nothing stays, and generates nothing, as a `match` on a
+scrutinee that waits does. The reading carries `b`, the member a hole in a
 template reads as, which step 27 covers, and `here`, the position a
 term stands at, which step 29 covers:
 
@@ -5644,9 +5638,10 @@ arguments resolved, is the term `callTerm` makes of it. What a call, a selection
 a `filter` and a generator make carries the moves the values they read
 hold (`Val.rideMoves`), so that a `move` another form reads still hides
 its source, as both ports make it, but a call whose value holds its
-argument already (`Fn.holdsArg`). A spread has no
-hole, and a `filter`'s condition and a template are read for their own
-members, so none of them is read for `b`. Each `key(n)` reads `here`, by
+argument already (`Fn.holdsArg`). A spread binds no hole and no
+generator binds one in a spread's template, so a hole there is one
+nothing binds (ruling 34), and a `filter`'s condition and a template
+are read for their own members, so none of them is read for `b`. Each `key(n)` reads `here`, by
 `keyUpAt`: a template stands at the position its instance lands at, the
 member's index or key below the call, and a `filter`'s condition where
 the member it tries lands, under its key or at the index it takes among
@@ -7508,471 +7503,92 @@ sum of the list the call reads. Rows from rn69 on of
 template, a fold, a mark around the whole template and a preference,
 and both engines answer every one as the definition does.
 
-Outside a template, a hole no generator fills admits every value, as
-`any` does, and a call's peer fills a hole in the call. Write
-`fill.aontu`:
+Outside a template, nothing binds a hole: `&` is a meet, and a meet
+never fills one. A hole nothing binds is an error of the schema
+wherever it stands, before any data is read. Write `unbound.aontu`:
 
-<!-- test: file fill.aontu -->
+<!-- test: file unbound.aontu -->
 ```aontu
-loud: upper(_) & "a"
-next: 2 & add(_, 1)
-names: ["a" "b"] & each(_, upper(_))
-pair: [upper(_) "z"] & ["a"]
-nest: ({ a:upper(_) } & { b:1 }) & { a:"x" }
-name: upper(_)
-name: "alice"
-caps: { &: upper(_) } & { a:"x" b:"y" }
+v: upper(_) & "a"
 ```
 
-and evaluate it:
+and `unbound-data.aontu`:
 
-<!-- test: run -->
-```sh
-$ aontu fill.aontu
-{
-  "caps": {
-    "a": "X",
-    "b": "Y"
-  },
-  "loud": "A",
-  "name": "ALICE",
-  "names": [
-    "A",
-    "B"
-  ],
-  "nest": {
-    "a": "X",
-    "b": 1
-  },
-  "next": 3,
-  "pair": [
-    "A",
-    "z"
-  ]
-}
-```
-
-That isn't a meet, since `"a"` alone is no `"A"`. The definition reads
-the fill before any meet means anything, so `&` stays a meet.
-`Val.filled` reads the meets beneath a meet first. A map's declarations
-of one key are a meet too, read in the order they're written
-(`joinFields`), as `name` is:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.filled : Val → Val
-  | .meet a b => a.filled.meetFilled b.filled
-  | .map fs spread closed =>
-    .map (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).1
-      (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).2 closed
-```
-
-It then reads a meet with one side waiting on a hole and the other not
-as the waiting side, with the hole bound to the other, and two holes as
-one:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.meetFilled (a b : Val) : Val :=
-  if a.fillable && !b.fillable then a.bindHole b
-  else if b.fillable && !a.fillable then b.bindHole a
-  else if a.isHole && b.isHole then .hole
-  else .meet (fillWith (fun q => a.fillMeet q) a.fillable b).1 (fillWith (fun q => a.fillMeet q) a.fillable b).2
-```
-
-Either side of the meet may be the one that waits, so `1 & _` is `1`,
-as `_ & 1` is, and `{a: 1} & {a: _}` is `{a: 1}`, as both engines
-answer.
-
-A side waits on a hole if it's the hole, or a call over one through
-its arguments or a rider:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.fillable : Val → Bool
-  | .hole => true
-  | .call .each args | .call .pack args | .call .emit args | .call .apply args => fillableHead args
-  | .call _ args => fillableItems args
-  | .ride _ v _ => v.fillable
-  | .link v _ => v.fillable
-  | _ => false
-```
-
-A generator waits on a hole in its data, as `names` does, and never on
-one in its template, which it binds to each member. A container waits
-on no hole of its members, but it meets its peer member by member, by
-position or by key, as `pair` does. It reads through its own meets and
-riders, each side in turn, and finds the peer's member through the
-peer's, as `nest` does. The peer a member's hole takes is spent, so it
-reads as `any`, and each container is kept whole, so a seal and a
-spread stand. Two sides that both wait meet as `nil`, which comes
-later:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.fillMeet (a b : Val) : Val × Val :=
-  if a.fillable && !b.fillable then (a.bindHole b, .any)
-  else if b.fillable && !a.fillable then (.any, b.bindHole a)
-  else if a.fillable && !(a.isHole && b.isHole) then (.nil, .any)
-  else match a with
-    | .map fs sa ca =>
-      fillMapWith sa ca (fillFields fs b)
-        (match sa with
-          | some (.select .key _ (some t)) => fun p => t.instAt p
-          | some t => fun p => t.instAt p
-          | none => id)
-        (match sa with
-          | some (.select .key arms (some t)) =>
-            if t.holdsFill && !t.waitsTop && arms.all Val.filledArm then some (arms, t, fun p => t.fillMeet p)
-            else none
-          | some t => if t.holdsFill && !t.waitsTop then some ([], t, fun p => t.fillMeet p) else none
-          | none => none)
-```
-
-A list is read the same way by position (`fillListWith`), and a meet
-or a rider is read through. The first `match` hands the map its
-spread's template met with a member, and the second a spread's
-template that holds a member waiting on a hole, both of which come
-later.
-
-The peer's member under a key is the meet of its declarations of the
-key, or of the members its sides hold, read through a rider as through
-a meet:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.memberAt : Val → String → Option Val
-  | .map fs _ _, k => declsAt k fs
-  | .meet u v, k =>
-    match u.memberAt k, v.memberAt k with
-    | some p, some q => some (.meet p q)
-    | some p, none => some p
-    | none, q => q
-  | .ride _ v _, k => v.memberAt k
-  | .link v _, k => v.memberAt k
-  | _, _ => none
-```
-
-A list's element is found among the elements that stand, since a
-marked one holds no position, so `[upper(_)] & [hide("a"), "b"]` is
-`["B"]`, as both engines answer.
-
-So `meta({a: upper(_)}, {d: 1}) & {a: "x"}` reads as
-`meta({a: "X"}, {d: 1})`, since a rider is transparent, and
-`close([upper(_)]) & ["a"]` as the sealed `["A"]`, since a seal is part
-of its container, as both engines answer.
-
-A disjunction is met arm by arm, the other side met into each arm
-(`fillArms`, `leafArms`), so `(upper(_) | "x") & "a"` reads as
-`upper("a") | ("x" & "a")`, which is `"A"`, as both engines answer.
-A call whose peer is the disjunction takes it whole, so
-`upper(_) & ("a" | "b")` is an error in the definition and in both
-engines. An arm whose call the data leaves unmade drops, as a
-conflict's arm does, so `v: add(_, 1) | "x"` passes `v: "x"`: the
-data fills the first arm as `add("x", 1)`, which the reading can't
-make, and the second arm stands. A lone preference is met as the two
-arms the meet reads it as, its preferred arm filled and its parent arm
-(`Val.super`) met, so `v: *upper(_)` passes `v: "a"`, and
-`v: *add(_, 1)` passes `v: "x"`, which the parent arm admits. Met with
-a peer, `*upper(_) & "a"` gives `"A"`, its preferred arm filled, so
-`vet` passes `v: "A"` against it, and `v: "a"` through the parent arm,
-as both engines answer. A
-disjunction on the other side is met arm by arm too, as the meet
-distributes it (`fillWith`), so `{a: upper(_)} & ({a: "a"} | {a: "b"})`
-fills each arm's member and passes `{a: "A"}`, as both engines answer.
-A term that waits on a hole takes the disjunction whole instead.
-
-A spread whose template waits on a hole fills each member it meets,
-once, as `caps` does: its own map's or list's members (`spreadFields`),
-a peer's (`spreadOnto`), and, where the peer holds the spread, the
-map's own (`peerFill`). The member reads as the template with the hole
-bound to it, and the spread then reads the key as `any`:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def spreadWith (arms : List (Val × Val)) (t : Val) (k : String) : Val :=
-  .select .key ((.lit (.str k), .any) :: arms) (some t)
-```
-
-So `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, since the second
-`a` meets the filled `add(1, 1)`, and `({&: add(_, 1)} & {a: 1}) & {b: 5}`
-fills `b` with `6`, as both engines answer.
-
-When a template is a meet or a disjunction, it waits where one of its
-sides or arms does (`Val.waitsTop`). The fill then keeps its meets, its
-arms and its riders as written and fills each term beneath them
-(`Val.tmplNode`), so that its own meet doesn't fill a hole at its
-position. The member meets each side and each arm in turn, and one that
-waits takes the member as its argument. Any other side meets the member
-as two terms at one position (`f`), so a hole beneath it is filled too:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.instWith (f : Val → Val × Val) : Val → Val → Val
-  | .meet x y, p => .meet (x.instWith f p) (y.instWith f p)
-  | .or arms, p => .or (instArmsWith f arms p)
-  | .ride k v r, p =>
-    if v.waitsTop then .ride k (v.instWith f p) r else .meet (f (.ride k v r)).1 (f (.ride k v r)).2
-  | x, p => if x.fillable then x.bindHole p else .meet (f x).1 (f x).2
-```
-
-`Val.instAt` is this reading with `Val.fillMeet` as `f`, written out
-side by side inside the fill's own recursion, since each side is a term
-the fill reads beneath the template. A peer's spread meets the map's own
-members through `Val.instWith`, each side met as the member meets it.
-
-Write `loud.aontu`:
-
-<!-- test: file loud.aontu -->
+<!-- test: file unbound-data.aontu -->
 ```aontu
-names: { &: upper(_) & _ } & { a:"WEB" b:"API" }
-```
-
-and evaluate it:
-
-<!-- test: run -->
-```sh
-$ aontu loud.aontu
-{
-  "names": {
-    "a": "WEB",
-    "b": "API"
-  }
-}
-```
-
-Each member meets `upper` of itself, so the template admits the members
-already in upper case, and `b: "api"` would be a conflict.
-`{&: upper(_) & "a"}` admits none, since `upper(p)` is never `"a"`, and
-`{&: add(_, 1) & number}` refuses `{a: 1}`, since `number` meets `1`
-beside `add(1, 1)`, as both engines answer. A container inside the
-template fills from its own meets first, as any other term does, so
-`{&: {n: upper(_) & "a"}}` passes `{a: {n: "A"}}`, and so does
-`{&: upper(_) | {n: upper(_) & "a"}}`, whose second arm is `{n: "A"}`.
-
-A container side and the member meet member by member, so a hole
-beneath the side takes the member's own member there. Write `codes.aontu`:
-
-<!-- test: file codes.aontu -->
-```aontu
-codes: { &: _ & { n:upper(_) } } & { a:n:"WEB" b:n:"API" }
-```
-
-and evaluate it:
-
-<!-- test: run -->
-```sh
-$ aontu codes.aontu
-{
-  "codes": {
-    "a": {
-      "n": "WEB"
-    },
-    "b": {
-      "n": "API"
-    }
-  }
-}
-```
-
-The hole beside the container takes the whole member, and the one
-beneath it the member's `n`, so `a:n:"web"` would be a conflict,
-`"web"` meeting `"WEB"`. The same holds where the spread is the data's,
-the map's own or a peer's on either side of a meet, and in a list, as
-both engines answer. A bare `_` as the template takes each member as
-it stands, so `{&: _} & {a: 1}` is `{a: 1}`. The rows are dt0 on.
-
-A template that holds its hole inside a container fills each member
-the same way, once, but member by member: the template meets the
-member through `Val.fillMeet` itself. Write `held.aontu`:
-
-<!-- test: file held.aontu -->
-```aontu
-users: { &: { name:upper(_) } } & {
-  ann: name: "ann"
-  bob: { name:"bob" role:"admin" }
-}
-```
-
-and evaluate it:
-
-<!-- test: run -->
-```sh
-$ aontu held.aontu
-{
-  "users": {
-    "ann": {
-      "name": "ANN"
-    },
-    "bob": {
-      "name": "BOB",
-      "role": "admin"
-    }
-  }
-}
-```
-
-The `match` above reads the template inside the spread, so the fill's
-recursion stays on a part of the term (`Val.holdsFill`, `heldOnto`).
-It meets a peer's members, the map's own (`heldFields`), and the fields
-a peer's spread meets (`Val.tmplAt`). A member that is a disjunction,
-a peer's or the map's own, is met arm by arm (`fillWith`), so
-`{&: {n: upper(_)}} & {a: ({n: "x"} | {n: "y"})}` passes
-`{a: {n: "X"}}`, as both engines answer. The template meets each
-member once, so a later meet adds to a member it has filled and doesn't
-fill it again: `({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives
-`n: 2`, as both engines answer in the rows from hv384 on.
-
-The fill reads every meet but one where a hole is bound, in a
-generator's template, an `emit`'s table or a `filter`'s condition. So
-it fills a meet in a `match`'s result or default and in a `filter`'s
-source, as both engines do, and one in a `match`'s scrutinee or
-pattern, a size or a trial. Both engines fill those too:
-`len(add(_, 1) & 2)` refuses `["a"]` as `len(3)` does, and
-`contains(add(_, 1) & 0)` refuses `[2]`, in the rows from hv411 on. A
-call waits
-on no hole that a container argument holds (`Val.fillable`), and its
-peer fills only the holes the call waits on (`Val.bindHole`). So
-`sum([_, 1]) & 3` is an error, `join([_, "b"], _) & "-"` binds `"-"` as
-the separator and leaves the list's hole open, and
-`v: join(["a", _], "-") & "b"` refuses `v: "a-b"`, as both engines
-answer in the rows from hv366 on. Nothing makes a call that computes
-from its arguments' values over such a list, so the schema doesn't
-stand (`Val.illFormed`), and `v: sum([_, 1])` is an error against any data,
-as both engines answer in the rows from dh0 on. A disjunction drops
-such an arm, and the list's own meet fills its hole, so
-`v: sum([_, 1]) | 4` passes `v: 4` and `v: sum([_, 1] & [2, 1])` passes
-`v: 3`. A call that takes its argument as a value makes it whatever the
-list holds, so `v: super([_])` passes `v: [1]` and refuses `v: "x"`,
-and a bound reads such a list as outside its domain, which admits
-nothing. But `neq` reads the list's members as the values it refuses,
-so a hole among them is one nothing fills, and `v: neq([1, _])` is an
-error, as both engines answer in the rows from dr0 on
-(`readThroughCases`). `Val.super` reads a call that waits as `any`, so
-`super` makes a list that holds one too: `v: super([upper(_)])` passes
-`v: [3]` and `v: ["x"]` and refuses `v: 3`, in the rows from dr57 on.
-A `join` over such a list stands, as `Val.illFormed` exempts
-it, which is why the preceding `join` refuses rather than fails, but a
-`join` whose separator is a list or a map that holds a hole doesn't
-stand where it waits on no hole of its own (`joinSepHeld`), so
-`v: join(["a", _], [_])` is an error. A hole a path names is the
-data's to fill, as the data writes the place the path names. So the
-verdict reads the schema with each call that waits only through such a
-path read as waiting for the data (`Decls.dataS`, through
-`Val.dataRead` and `Decls.dataNames`), both where it asks whether the
-schema stands and where it asks whether the data leaves a call unmade.
-Then `v: sum($.x)` beside `x: [_, 1]` passes data that writes `x` and is
-`incomplete` against data that doesn't, as both engines answer in the
-rows from dp0 on. The verdict reads a path to a list that holds a
-`key(n)` as written, so a call over one stays an error, and so does a
-call over a list that holds a written hole beside such a path,
-`v: sum([_, $.h])` beside `h: _`, as the written hole is one no data
-reaches. `+` joins two lists as written
-(`plusOf`), whatever their elements hold, so the meet fills a hole that
-an operand list holds member by member, and a `+` waits only on a hole
-among its operands. So `(["a", _] + ["c"]) & ["a", "b", "c"]` is
-`["a", "b", "c"]`, and `([_] + _) & ["a"]` binds `["a"]` as the second
-operand and leaves the first list's hole for the data to fill, as both
-engines answer in the rows from hv450 on. The fill joins a `+` over two
-lists before it meets them (`joinedArgs`), so the meet fills a call's
-hole in an operand list from its member:
-`([upper(_)] + ["c"]) & ["a", "c"]` is `["A", "c"]`, as both engines
-answer in the rows from hv468 on. The fill keeps a `+` whose right list
-holds a `key()` as written, as the definition reads `key()` by position
-after the fill, so its index reads where it's written, and a call over a
-hole beside it stays open, where both engines fill it, which #578
-tracks. It keeps a `+` over a list with a spread as written too, as the
-spread meets the list's elements before the join, so
-`[&: string, 1] + []` is an error, as both engines answer. A call over a container whose
-argument is the hole waits on it like any other, so `sum(_) & [1, 2]`
-is `3`, and so does `join(["a", "b"], _)`, whose separator is the hole.
-The data fills such a hole in `vet` too, so `v: sum(_)` passes
-`v: [1, 2]` and refuses `v: 3`, as both engines answer in the rows from
-dv201 on.
-
-The fill follows the document's grouping: `upper(_) & ("a" & "a")`
-reads as `upper("a")`, which is `"A"`. Both engines read a conjunction
-in the order it's written instead, so they answer that with a
-conflict, and `each(_, upper(_)) & ["a"] & ["A"]` with an error, which
-#512 tracks. A group that fills its own hole is one both engines read
-first, as it's grouped (`Val.fillMeet`), so `upper(_) & (_ & "A")` is
-`"A"`, in the rows from dg126 on. The rows are hv0 on, and both engines
-answer every one as the definition does.
-
-A hole that no peer in the document fills waits (`Val.pending`), and
-`vet` reads the schema against the data, the data met last, so the data
-fills it:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Decls.readJ (ds : Decls) (S : Val) (j : Data) : Val :=
-  resolveD ds none (some []) ((ds.readR S).meetFilled j.term)
-```
-
-The call takes the data as its argument rather than meeting it, so the
-data passes wherever the call can be made over it. Write `wait.aontu`:
-
-<!-- test: file wait.aontu -->
-```aontu
-v: upper(_)
-n: add(_, 1)
-```
-
-and `wait-data.aontu`:
-
-<!-- test: file wait-data.aontu -->
-```aontu
-v: "a"
-n: 2
+v: "A"
 ```
 
 and vet the data against it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet wait.aontu wait-data.aontu
-verdict: valid
+$ aontu vet unbound.aontu unbound-data.aontu
+verdict: error
+
+$.v: hole_unbound [parse]
+  [aontu/hole_unbound]: Cannot parse value at path $.v
+  schema: unbound.aontu:1:10 (_)
+$ echo $?
+4
 ```
 
-So `n: add(_, 1)` passes `n: 3` as well, and refuses `n: "b"`, which
-leaves the call unmade (`Val.fails`), as both engines answer. A hole
-the data leaves out is `incomplete`, and `valid` under `--partial`. The
-rows are dv0 on, an arm that does not stand in rows da0 on, and both
-engines answer every one as the definition does.
+The definition asks whether a term holds such a hole as it's written
+(`Val.freeHole`): the hole, at any depth, but in the template of a
+generator or an `apply` and in a `filter`'s condition, whose holes
+those bind:
 
-A call met with a hole, as in `upper(_) & _`, or with another call that
-waits is an error, since neither fills the other, though `_ & _` meets
-as one hole. The fill reads such a meet as `nil` wherever it meets two
-sides that wait, and a meet of two such sides as `nil` too
-(`Val.fillMeet`), so no grouping and no third side repairs it. Write
-`pair.aontu`:
-
-<!-- test: file pair.aontu -->
-```aontu
-v: (upper(_) & _)|"x"
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.freeHole (h : String → Bool) : Val → Bool
+  | .hole => true
+  | .alias n => h n
+  | .call .each (d :: ts) | .call .pack (d :: ts) | .call .apply (d :: ts) => d.freeHole h || tmplItems h ts
+  | .call .emit [d, .alias _] => d.freeHole h
+  | .call .emit (d :: ts) => d.freeHole h || tmplItems h ts
+  | .call _ args => freeItems h args
+  | .filter s c => s.freeHole h || c.tmplFree h
+  | .map fs spread _ => freeFields h fs || freeOpt h spread
 ```
 
-and evaluate it:
+A template counts only what its binder doesn't bind (`Val.tmplFree`):
+a hole in a spread's template, which binds none, and a name whose body
+holds a hole, since a hole binds only where it's written. A name is
+such a name when its body holds one, read to a fixed point, so a name
+that uses such a name is one too:
 
-<!-- test: run -->
-```sh
-$ aontu pair.aontu
-{
-  "v": "x"
-}
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.holeNames (ds : Decls) : List String :=
+  (List.range ds.length).foldl
+    (fun hs _ => (ds.filter fun d => d.2.freeHole fun n => hs.contains n).map (·.1)) []
 ```
 
-The first arm is `nil`, so it drops as a conflict's arm does, as both
-engines answer. `(upper(_) & _) & "x"` is an error in the definition
-and in both engines, where reading through the group would fill
-`upper(_)` with `"x"`, and since two holes meet as one, so is
-`(_ & _) & upper(_)`. So is `"x" & (upper(_) & _)`, the literal written
-first: both engines refuse such a group before they flatten the meet
-around it. The rows are dg0 on, and both engines answer
-every one as the definition does. The definition reads a spread's
-template of that shape, as in `{&: upper(_) & _}`, as a template
-instead, each member meeting each side, as `Val.instAt` has it earlier
-in this step.
+and the schema doesn't stand where the document holds either:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
+  ds.identMisplaced S || ds.bodyIll || S.freeHole (fun n => ds.holeNames.contains n) ||
+    ((normaliseD ds (ds.readR S)).staged ds).illFormed
+```
+
+So `v: upper(_) | "x"` is an error too, its arm read as written, and so
+is `x: apply("a", %F)` beside `%F = upper(_)`, as a name doesn't carry
+its body's binding. A name nothing uses holds its hole harmlessly, and
+an `emit` reads a table that is a name as its rules (step 40). With
+nothing to fill a hole, a meet is only a meet, and `vet` meets the data
+with the schema as it meets any two values:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.readJ (ds : Decls) (S : Val) (j : Data) : Val :=
+  resolveD ds none (some []) (.meet (ds.readR S) j.term)
+```
+
+The rows are hv0 on of `test/spec/def-call.tsv` and dp0 on of
+`test/spec/def-path.tsv`, and both engines answer every one as the
+definition does, with the code `hole_unbound`.
 
 ## 28. A map from a template
 

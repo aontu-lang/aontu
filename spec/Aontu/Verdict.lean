@@ -1736,9 +1736,10 @@ arguments resolved, is the term `callTerm` makes of it. What a call, a selection
 a `filter` and a generator make carries the moves the values they read
 hold (`Val.rideMoves`), so that a `move` another form reads still hides
 its source, as both ports make it, but a call whose value holds its
-argument already (`Fn.holdsArg`). A spread has no
-hole, and a `filter`'s condition and a template are read for their own
-members, so none of them is read for `b`. Each `key(n)` reads `here`, by
+argument already (`Fn.holdsArg`). A spread binds no hole and no
+generator binds one in a spread's template, so a hole there is one
+nothing binds (ruling 34), and a `filter`'s condition and a template
+are read for their own members, so none of them is read for `b`. Each `key(n)` reads `here`, by
 `keyUpAt`: a template stands at the position its instance lands at, the
 member's index or key below the call, and a `filter`'s condition where
 the member it tries lands, under its key or at the index it takes among
@@ -2461,7 +2462,7 @@ def Val.meetFilled (a b : Val) : Val :=
 they're written, and its flag, optional only where each declaration is. -/
 def joinAt (k : String) : Val × Bool → List (String × Bool × Val) → Val × Bool
   | x, [] => x
-  | x, (k', o', y) :: fs => joinAt k (if k' == k then (x.1.meetFilled y, x.2 && o') else x) fs
+  | x, (k', o', y) :: fs => joinAt k (if k' == k then (.meet x.1 y, x.2 && o') else x) fs
 
 /-- A map's fields with each key declared more than once read as one
 declaration at its first, as the engines merge them: its declarations
@@ -2552,21 +2553,17 @@ def joinedArgs (args : List Val) : Val :=
   | _ => .call .plus args
 
 mutual
-/-- The term with each meet that waits on a hole on one side and on none
-on the other read as that side with the hole bound to the other, the
-meets beneath it first, a map's declarations of a key among them and
-a `+` over two lists joined, through every form but where a hole is
-bound: a generator's template,
-an `emit`'s table, a `filter`'s condition and a spread's template that
-waits on a hole at its own position (`tmplSpread`). -/
+/-- The term with a map's declarations of a key read as one meet, in the
+order they're written, a `+` over two lists joined, and a spread's
+template without the marks written around it, which no member takes
+(ruling 39), through every form but a generator's template, an `emit`'s
+table and a `filter`'s condition, which are read at each member. `&` is
+a meet everywhere: a hole is bound only by a generator or an `apply`
+(ruling 34). -/
 def Val.filled : Val → Val
-  | .meet a b => a.filled.meetFilled b.filled
-  | .map fs spread closed =>
-    .map (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).1
-      (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).2 closed
-  | .list items spread closed =>
-    .list (spreadAllItems (filledItems items) (tmplSpread spread)).1
-      (spreadAllItems (filledItems items) (tmplSpread spread)).2 closed
+  | .meet a b => .meet a.filled b.filled
+  | .map fs spread closed => .map (joinFields [] (filledFields fs)) (tmplSpread spread) closed
+  | .list items spread closed => .list (filledItems items) (tmplSpread spread) closed
   | .or arms => .or (filledArms arms)
   | .pref r x => .pref r x.filled
   | .ride k v r => .ride k v.filled r
@@ -2603,27 +2600,11 @@ def filledSpread : Option Val → Option Val
   | none => none
   | some s => some s.filled
 
-/-- A spread's template filled, but one that waits on a hole at its own
-position kept as written there, for each member to fill (`Val.instAt`),
-and without the marks written around it, which no member takes
-(ruling 39). -/
+/-- A spread's template read so, without the marks written around it,
+which no member takes (ruling 39). -/
 def tmplSpread : Option Val → Option Val
   | none => none
-  | some s => some (if s.waitsTop && s.isTopNode then s.tmplNode.dropMarks else s.filled.dropMarks)
-
-/-- Such a template with its meets, its arms and its riders as written,
-and each term beneath them filled. -/
-def Val.tmplNode : Val → Val
-  | .meet x y =>
-    .meet (if x.isTopNode then x.tmplNode else x.filled) (if y.isTopNode then y.tmplNode else y.filled)
-  | .or arms => .or (tmplArms arms)
-  | .ride k v r => .ride k (if v.isTopNode then v.tmplNode else v.filled) r
-  | .link v lt => .link (if v.isTopNode then v.tmplNode else v.filled) lt
-  | v => v
-
-def tmplArms : List (ℕ × Val) → List (ℕ × Val)
-  | [] => []
-  | (r, x) :: as => (r, if x.isTopNode then x.tmplNode else x.filled) :: tmplArms as
+  | some s => some s.filled.dropMarks
 
 def filledArms : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
@@ -2708,23 +2689,11 @@ theorem filledSpread_some : ∀ {sp : Option Val} {t : Val}, filledSpread sp = s
   | some s, t, h => by simp only [filledSpread, Option.some.injEq] at h; exact ⟨s, rfl, h.symm⟩
 
 theorem tmplSpread_some : ∀ {sp : Option Val} {t : Val}, tmplSpread sp = some t →
-    ∃ s, sp = some s ∧ (t = s.tmplNode.dropMarks ∨ t = s.filled.dropMarks)
+    ∃ s, sp = some s ∧ t = s.filled.dropMarks
   | none, _, h => nomatch h
   | some s, t, h => by
     simp only [tmplSpread, Option.some.injEq] at h
-    split at h
-    · exact ⟨s, rfl, .inl h.symm⟩
-    · exact ⟨s, rfl, .inr h.symm⟩
-
-theorem mem_tmplArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {w : Val},
-    (r, w) ∈ tmplArms arms → ∃ x, (r, x) ∈ arms ∧ w = (if x.isTopNode then x.tmplNode else x.filled)
-  | [], _, _, h => nomatch h
-  | (r', x') :: arms, r, w, h => by
-    simp only [tmplArms, List.mem_cons, Prod.mk.injEq] at h
-    rcases h with ⟨rfl, rfl⟩ | h
-    · exact ⟨x', List.mem_cons_self, rfl⟩
-    · obtain ⟨x, hx, rfl⟩ := mem_tmplArms h
-      exact ⟨x, List.mem_cons_of_mem _ hx, rfl⟩
+    exact ⟨s, rfl, h.symm⟩
 
 theorem mem_filledArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {b : Val},
     (r, b) ∈ filledArms arms → ∃ a, (r, a) ∈ arms ∧ b = a.filled
@@ -3848,7 +3817,7 @@ theorem joinAt_checkableA {k : String} : ∀ {fs : List (String × Bool × Val)}
     have hf' : ∀ k o y, (k, o, y) ∈ fs → y.CheckableA := fun k o y h => hf k o y (List.mem_cons_of_mem _ h)
     simp only [joinAt]
     split
-    · exact joinAt_checkableA (x := (_, _)) (meetFilled_checkableA hx (hf k' o' y List.mem_cons_self)) hf'
+    · exact joinAt_checkableA (x := (_, _)) (.meet hx (hf k' o' y List.mem_cons_self)) hf'
     · exact joinAt_checkableA hx hf'
 
 theorem joinFields_checkableA : ∀ {seen : List String} {fs : List (String × Bool × Val)},
@@ -3885,124 +3854,82 @@ theorem joinedArgs_checkableA {vs : List Val} (h : ∀ a, a ∈ vs → a.Checkab
           · exact hys v hv
   · exact .call h
 
-/-- The fill, and a spread's template kept at its own position, leave a
-term the checker can read. -/
-theorem filled_tmpl_checkableA {v : Val} (h : v.CheckableA) :
-    v.filled.CheckableA ∧ v.tmplNode.CheckableA := by
+/-- Reading a term's meets, its declarations of a key and its spreads'
+templates leaves a term the checker can read. -/
+theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA := by
   induction h with
-  | meet _ _ iha ihb =>
-    refine ⟨by simp only [Val.filled]; exact meetFilled_checkableA iha.1 ihb.1, ?_⟩
-    simp only [Val.tmplNode]
-    refine .meet ?_ ?_
-    · split
-      · exact iha.2
-      · exact iha.1
-    · split
-      · exact ihb.2
-      · exact ihb.1
+  | meet _ _ iha ihb => exact .meet iha ihb
   | @map fs spread closed hf₀ hs₀ ihf ihs =>
     have hj : ∀ k o x, (k, o, x) ∈ joinFields [] (filledFields fs) → x.CheckableA :=
       joinFields_checkableA fun k o x hm => by
         obtain ⟨v, hv, rfl⟩ := mem_filledFields hm
-        exact (ihf k o v hv).1
-    have hsp : ∀ t, tmplSpread spread = some t → t.CheckableA := fun t ht => by
-      obtain ⟨s, hs, h | h⟩ := tmplSpread_some ht
-      · subst h
-        exact (ihs _ hs).2.dropMarks
-      · subst h
-        exact (ihs _ hs).1.dropMarks
-    have q := spreadAll_checkableA hj hsp
-    exact ⟨.map q.1 q.2, .map hf₀ hs₀⟩
+        exact ihf k o v hv
+    exact .map hj fun t ht => by
+      obtain ⟨s, hs, rfl⟩ := tmplSpread_some ht
+      exact (ihs _ hs).dropMarks
   | @list items spread closed hi₀ hs₀ ihi ihs =>
-    have hi : ∀ x, x ∈ filledItems items → x.CheckableA := fun w hm => by
-      obtain ⟨v, hv, rfl⟩ := mem_filledItems hm
-      exact (ihi v hv).1
-    have hsp : ∀ t, tmplSpread spread = some t → t.CheckableA := fun t ht => by
-      obtain ⟨s, hs, h | h⟩ := tmplSpread_some ht
-      · subst h
-        exact (ihs _ hs).2.dropMarks
-      · subst h
-        exact (ihs _ hs).1.dropMarks
-    have q := spreadAllItems_checkableA hi hsp
-    exact ⟨.list q.1 q.2, .list hi₀ hs₀⟩
+    refine .list (fun w hm => ?_) fun t ht => ?_
+    · obtain ⟨v, hv, rfl⟩ := mem_filledItems hm
+      exact ihi v hv
+    · obtain ⟨s, hs, rfl⟩ := tmplSpread_some ht
+      exact (ihs _ hs).dropMarks
   | @or arms _ ih =>
-    refine ⟨.or fun r b hm => ?_, ?_⟩
-    · obtain ⟨a, ha, rfl⟩ := mem_filledArms hm
-      exact (ih r a ha).1
-    · simp only [Val.tmplNode]
-      refine .or fun r b hm => ?_
-      obtain ⟨a, ha, rfl⟩ := mem_tmplArms hm
-      split
-      · exact (ih r a ha).2
-      · exact (ih r a ha).1
-  | pref hx ih => exact ⟨.pref ih.1, .pref hx⟩
-  | ride _ ih =>
-    refine ⟨.ride ih.1, ?_⟩
-    simp only [Val.tmplNode]
-    split
-    · exact .ride ih.2
-    · exact .ride ih.1
-  | link _ ht ih _ =>
-    refine ⟨.link ih.1 ht, ?_⟩
-    simp only [Val.tmplNode]
-    split
-    · exact .link ih.2 ht
-    · exact .link ih.1 ht
-  | len hc ih => exact ⟨.len ih.1, .len hc⟩
-  | must hc ih => exact ⟨.must ih.1, .must hc⟩
-  | contains hc hn ihc ihn => exact ⟨.contains ihc.1 ihn.1, .contains hc hn⟩
-  | @nof n cs hn hcs ihn ihc =>
-    refine ⟨.nof ihn.1 fun c hc => ?_, .nof hn hcs⟩
+    refine .or fun r b hm => ?_
+    obtain ⟨a, ha, rfl⟩ := mem_filledArms hm
+    exact ih r a ha
+  | pref _ ih => exact .pref ih
+  | ride _ ih => exact .ride ih
+  | link _ ht ih _ => exact .link ih ht
+  | len _ ih => exact .len ih
+  | must _ ih => exact .must ih
+  | contains _ _ ihc ihn => exact .contains ihc ihn
+  | @nof n cs _ _ ihn ihc =>
+    refine .nof ihn fun c hc => ?_
     obtain ⟨u, hu, rfl⟩ := mem_filledItems hc
-    exact (ihc u hu).1
-  | @when c t e hc ht he ihc iht ihe =>
-    refine ⟨.when ihc.1 iht.1 fun e' he' => ?_, .when hc ht he⟩
+    exact ihc u hu
+  | @when c t e _ _ _ ihc iht ihe =>
+    refine .when ihc iht fun e' he' => ?_
     obtain ⟨s, hs, rfl⟩ := filledSpread_some he'
-    exact (ihe s hs).1
-  | @rest t cs ht h₁ h₂ h₃ iht ih₁ ih₂ ih₃ =>
-    refine ⟨.rest iht.1 ?_ ?_ ?_, .rest ht h₁ h₂ h₃⟩ <;> intro c hc v hv <;>
+    exact ihe s hs
+  | @rest t cs _ _ _ _ iht ih₁ ih₂ ih₃ =>
+    refine .rest iht ?_ ?_ ?_ <;> intro c hc v hv <;>
       obtain ⟨c₀, hm₀, rfl⟩ := mem_filledCovers hc <;>
       obtain ⟨s, hs, rfl⟩ := filledSpread_some hv
-    · exact (ih₁ c₀ hm₀ s hs).1
-    · exact (ih₂ c₀ hm₀ s hs).1
-    · exact (ih₃ c₀ hm₀ s hs).1
-  | @selectKey arms d hp hr hd ihp ihr ihd =>
-    refine ⟨.selectKey ?_ ?_ ?_, .selectKey hp hr hd⟩
+    · exact ih₁ c₀ hm₀ s hs
+    · exact ih₂ c₀ hm₀ s hs
+    · exact ih₃ c₀ hm₀ s hs
+  | @selectKey arms d _ _ _ ihp ihr ihd =>
+    refine .selectKey ?_ ?_ ?_
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact (ihp p₀ r₀ hm₀).1
+      exact ihp p₀ r₀ hm₀
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact (ihr p₀ r₀ hm₀).1
+      exact ihr p₀ r₀ hm₀
     · intro e he
       obtain ⟨s, hs, rfl⟩ := filledSpread_some he
-      exact (ihd s hs).1
-  | @selectLit sc arms d hp hr hd ihp ihr ihd =>
-    refine ⟨.selectLit ?_ ?_ ?_, .selectLit hp hr hd⟩
+      exact ihd s hs
+  | @selectLit sc arms d _ _ _ ihp ihr ihd =>
+    refine .selectLit ?_ ?_ ?_
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact (ihp p₀ r₀ hm₀).1
+      exact ihp p₀ r₀ hm₀
     · intro p r hm
       obtain ⟨p₀, r₀, hm₀, rfl, rfl⟩ := mem_filledPairs hm
-      exact (ihr p₀ r₀ hm₀).1
+      exact ihr p₀ r₀ hm₀
     · intro e he
       obtain ⟨s, hs, rfl⟩ := filledSpread_some he
-      exact (ihd s hs).1
+      exact ihd s hs
   | @call f args h ih =>
     have hi : ∀ a, a ∈ filledItems args → a.CheckableA := fun a ha => by
       obtain ⟨u, hu, rfl⟩ := mem_filledItems ha
-      exact (ih u hu).1
+      exact ih u hu
     have hh : ∀ a, a ∈ filledHead args → a.CheckableA := fun a ha => by
       rcases mem_filledHead ha with ha | ⟨u, hu, rfl⟩
       · exact h a ha
-      · exact (ih u hu).1
-    refine ⟨?_, .call h⟩
+      · exact ih u hu
     cases f <;> first | exact .call hh | exact .call hi | exact joinedArgs_checkableA hi
-  | _ => exact ⟨by simp only [Val.filled]; constructor <;> assumption, by constructor <;> assumption⟩
-
-/-- The fill leaves a term the checker can read as one it can read. -/
-theorem filled_checkableA {v : Val} (h : v.CheckableA) : v.filled.CheckableA :=
-  (filled_tmpl_checkableA h).1
+  | _ => simp only [Val.filled]; constructor <;> assumption
 
 theorem joinAt_absent {k : String} : ∀ {fs : List (String × Bool × Val)} {x : Val × Bool},
     declared k fs = false → joinAt k x fs = x
@@ -4095,10 +4022,10 @@ theorem Data.term_filled : ∀ j : Data, j.wf = true → j.term.filled = j.term
   | .map fs, h => by
     simp only [Data.wf, Bool.and_eq_true, decide_eq_true_eq] at h
     simp only [Data.term, Val.filled, tmplSpread, termMembers_filled fs h.2,
-      joinFields_distinct (seen := []) (termMembers_distinct h.1) (fun _ hc => by simp at hc), spreadAll_none]
+      joinFields_distinct (seen := []) (termMembers_distinct h.1) (fun _ hc => by simp at hc)]
   | .list xs, h => by
     simp only [Data.wf] at h
-    simp only [Data.term, Val.filled, tmplSpread, termElems_filled xs h, spreadAllItems_none]
+    simp only [Data.term, Val.filled, tmplSpread, termElems_filled xs h]
 
 theorem termMembers_filled : ∀ fs : List (String × Data), Data.wfMembers fs = true →
     filledFields (termMembers fs) = termMembers fs
@@ -4123,11 +4050,10 @@ read, so that a key a path reaches reads where the path lands. -/
 def Decls.readU (ds : Decls) (S : Val) : Val := resolveD ds none none (ds.read S).filled
 
 /-- How a document reads against data: the schema as read, met with the
-data through the fill, the data last, so that the data fills a hole the
-schema leaves unfilled, and read again, so that a call the data fills
-is made. -/
+data, the data last, and read again, so that a call whose arguments the
+data settles is made. -/
 def Decls.readJ (ds : Decls) (S : Val) (j : Data) : Val :=
-  resolveD ds none (some []) ((ds.readR S).meetFilled j.term)
+  resolveD ds none (some []) (.meet (ds.readR S) j.term)
 
 theorem mem_resolveFields {ds : Decls} {b : Option Val} {here : Option (List Step)} :
     ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
@@ -5515,7 +5441,7 @@ theorem readR_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.Ch
 wherever the document alone does. -/
 theorem readJ_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : (ds.readR S).CheckableA) (j : Data) : (ds.readJ S j).CheckableA :=
-  resolveD_checkableA hb (meetFilled_checkableA hS (Data.term_checkableA j)) fun _ h => nomatch h
+  resolveD_checkableA hb (.meet hS (Data.term_checkableA j)) fun _ h => nomatch h
 
 /-- A document whose schema the checker can read reads, with its keys as
 written, as a term it can read too. -/
@@ -5821,29 +5747,122 @@ settles to one arm, `len(1 & (1 | 3))` or `len(1 | (1 & 2))`, is that
 arm's size (decision 16 of the design note's §7). -/
 def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 
-/-- Whether a `join`'s separator is a list or a map that holds a hole,
-which no peer of the call fills, since the call waits on no hole a
-container argument holds, and no value of the list's own hole can make a
-container a separator. -/
-def joinSepHeld : List Val → Bool
-  | [_, .list items spread c] => (Val.list items spread c).waits (fun _ => false) && !(Val.list items spread c).holdsKey
-  | [_, .map fs spread c] => (Val.map fs spread c).waits (fun _ => false) && !(Val.map fs spread c).holdsKey
+mutual
+/-- Whether a term holds a hole that nothing binds where it is written,
+`h` naming the declarations whose bodies hold one (`Decls.holeNames`):
+the hole or such a name, at any depth, but in the template of a
+generator or an `apply` and in a `filter`'s condition, whose holes
+those bind, where only what `Val.tmplFree` finds counts, and in an
+`emit`'s table that is a name, which `emit` reads as its rules
+(ruling 34). -/
+def Val.freeHole (h : String → Bool) : Val → Bool
+  | .hole => true
+  | .alias n => h n
+  | .call .each (d :: ts) | .call .pack (d :: ts) | .call .apply (d :: ts) => d.freeHole h || tmplItems h ts
+  | .call .emit [d, .alias _] => d.freeHole h
+  | .call .emit (d :: ts) => d.freeHole h || tmplItems h ts
+  | .call _ args => freeItems h args
+  | .filter s c => s.freeHole h || c.tmplFree h
+  | .map fs spread _ => freeFields h fs || freeOpt h spread
+  | .list items spread _ => freeItems h items || freeOpt h spread
+  | .meet a b => a.freeHole h || b.freeHole h
+  | .or arms => freeArms h arms
+  | .pref _ x => x.freeHole h
+  | .ride _ v _ => v.freeHole h
+  | .link v t => v.freeHole h || t.freeHole h
+  | .len c => c.freeHole h
+  | .nof n cs => n.freeHole h || freeItems h cs
+  | .must c _ => c.freeHole h
+  | .when c t e => c.freeHole h || t.freeHole h || freeOpt h e
+  | .contains c n => c.freeHole h || n.freeHole h
+  | .rest t cs => t.freeHole h || freeCovers h cs
+  | .select s arms d => s.freeHole h || freePairs h arms || freeOpt h d
   | _ => false
+
+/-- Whether a template holds what its binder does not bind: a name whose
+body holds a hole nothing binds, since a hole binds only where it is
+written, and a hole in a spread's template, which binds none and which
+no generator reaches, at any depth; but not a hole written elsewhere in
+it, nor an `emit`'s table that is a name. -/
+def Val.tmplFree (h : String → Bool) : Val → Bool
+  | .alias n => h n
+  | .call .emit [d, .alias _] => d.tmplFree h
+  | .call _ args => tmplItems h args
+  | .filter s c => s.tmplFree h || c.tmplFree h
+  | .map fs spread _ => tmplFields h fs || freeOpt h spread
+  | .list items spread _ => tmplItems h items || freeOpt h spread
+  | .meet a b => a.tmplFree h || b.tmplFree h
+  | .or arms => tmplArms h arms
+  | .pref _ x => x.tmplFree h
+  | .ride _ v _ => v.tmplFree h
+  | .link v t => v.tmplFree h || t.tmplFree h
+  | .len c => c.tmplFree h
+  | .nof n cs => n.tmplFree h || tmplItems h cs
+  | .must c _ => c.tmplFree h
+  | .when c t e => c.tmplFree h || t.tmplFree h || tmplOpt h e
+  | .contains c n => c.tmplFree h || n.tmplFree h
+  | .rest t cs => t.tmplFree h || tmplCovers h cs
+  | .select s arms d => s.tmplFree h || tmplPairs h arms || tmplOpt h d
+  | _ => false
+
+def freeItems (h : String → Bool) : List Val → Bool
+  | [] => false
+  | v :: vs => v.freeHole h || freeItems h vs
+
+def freeFields (h : String → Bool) : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.freeHole h || freeFields h fs
+
+def freeOpt (h : String → Bool) : Option Val → Bool
+  | none => false
+  | some s => s.freeHole h
+
+def freeArms (h : String → Bool) : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.freeHole h || freeArms h arms
+
+def freePairs (h : String → Bool) : List (Val × Val) → Bool
+  | [] => false
+  | (p, r) :: ps => p.freeHole h || r.freeHole h || freePairs h ps
+
+def freeCovers (h : String → Bool) : List Cover → Bool
+  | [] => false
+  | (c, k, m) :: cs => freeOpt h c || freeOpt h k || freeOpt h m || freeCovers h cs
+
+def tmplItems (h : String → Bool) : List Val → Bool
+  | [] => false
+  | v :: vs => v.tmplFree h || tmplItems h vs
+
+def tmplFields (h : String → Bool) : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.tmplFree h || tmplFields h fs
+
+def tmplOpt (h : String → Bool) : Option Val → Bool
+  | none => false
+  | some s => s.tmplFree h
+
+def tmplArms (h : String → Bool) : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.tmplFree h || tmplArms h arms
+
+def tmplPairs (h : String → Bool) : List (Val × Val) → Bool
+  | [] => false
+  | (p, r) :: ps => p.tmplFree h || r.tmplFree h || tmplPairs h ps
+
+def tmplCovers (h : String → Bool) : List Cover → Bool
+  | [] => false
+  | (c, k, m) :: cs => tmplOpt h c || tmplOpt h k || tmplOpt h m || tmplCovers h cs
+end
 
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
 in a spread, which the engines read only against a member, a
-preference clash, a size that holds a disjunction or a preference, a call the reading
-could not make, or two sides met that both wait on a hole, one of them
-more than the hole, which neither fills, as `upper(_) & _`. A call
-that waits on a hole stands, for the data to fill, where it has as
-many arguments as its function takes (`Fn.takes`), a generator read by
-its data alone, since its template is read at each member, a `+` that waits
-where its operands do, and a `pref` where its argument does. A `join`
-stands where its list holds a hole, but not where it waits on no hole
-of its own and its separator is a list or a map that holds one
-(`joinSepHeld`). The verdict reads it of a term staged (`Val.staged`),
-so that a conflict the meet finds is a `nil`. -/
+preference clash, a size that holds a disjunction or a preference, and
+a call the reading could not make. A `+`, a `join` and a `pref` that
+the reading leaves as written stand where their arguments do and they
+have as many as they take. A hole that nothing binds is read before
+this (`Decls.illFormedR`). The verdict reads it of a term staged
+(`Val.staged`), so that a conflict the meet finds is a `nil`. -/
 def Val.illFormed : Val → Bool
   | .nil => true
   | .len c => c.sizeIll
@@ -5851,16 +5870,13 @@ def Val.illFormed : Val → Bool
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
-  | .meet a b => (a.fillable && b.fillable && !(a.isHole && b.isHole)) || a.illFormed || b.illFormed
+  | .meet a b => a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
   | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
-  | .call .join args => (args.length != 1 && args.length != 2) || illItems args ||
-    (!(Val.call .join args).fillable && joinSepHeld args)
+  | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
-  | .call .each args | .call .pack args | .call .emit args | .call .apply args =>
-    if fillableHead args && args.length == 2 then illHead args else true
-  | .call f args => if (Val.call f args).fillable && f.takes args.length then illItems args else true
+  | .call _ _ => true
   | .select _ arms _ => illPats arms
   | _ => false
 
@@ -5871,10 +5887,6 @@ def illFields : List (String × Bool × Val) → Bool
 def illItems : List Val → Bool
   | [] => false
   | v :: vs => v.illFormed || illItems vs
-
-def illHead : List Val → Bool
-  | [] => false
-  | d :: _ => d.illFormed
 
 def illArms : List (ℕ × Val) → Bool
   | [] => false
@@ -6187,11 +6199,21 @@ is one no data reaches. -/
 def Decls.dataS (ds : Decls) (S : Val) : Val :=
   S.dataRead (fun n => ds.dataNames.contains n) fun t => ((normaliseD ds (ds.readR t)).staged ds).illFormed
 
+/-- The names whose bodies hold a hole that nothing binds where it is
+written, a body that names one of them holding one too, read to a fixed
+point as `Decls.waitNames` reads the names that wait. -/
+def Decls.holeNames (ds : Decls) : List String :=
+  (List.range ds.length).foldl
+    (fun hs _ => (ds.filter fun d => d.2.freeHole fun n => hs.contains n).map (·.1)) []
+
 /-- Whether a document does not stand: an `ident()` out of its place, a
-declaration's body that does not stand, or the schema, read as the data
-would fill it (`Decls.dataS`), with a normal form that does not stand. -/
+declaration's body that does not stand, a hole that nothing binds where
+it is written, in the schema as written or in the body of a name it
+reads, in a trial, an arm or a spread's template alike (ruling 34), or
+the schema with a normal form that does not stand. -/
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || ((normaliseD ds (ds.readR (ds.dataS S))).staged ds).illFormed
+  ds.identMisplaced S || ds.bodyIll || S.freeHole (fun n => ds.holeNames.contains n) ||
+    ((normaliseD ds (ds.readR S)).staged ds).illFormed
 
 /-! ## The value a document gives with its trials unread
 
@@ -6483,13 +6505,12 @@ the declarations `ds` and the mode `m`, the schema read as its
 expansion with its selections made: `error` where the document refers to a name it does not
 declare, where its names break the alias-cycle rule, where an
 `ident()` stands out of its place, or where the schema's normal form,
-staged, does not stand; `invalid` where the schema read against the data
-(`Decls.readJ`), the data filling each hole the schema leaves unfilled,
-staged (`Val.staged`) so that a conflict the meet finds is `nil` and an
-arm holding one drops, fails, dead or holding a call the data leaves it
-unable to make (`Val.fails`), a call that waits only through a path
-whose body holds a hole read as waiting for the data (`Decls.dataS`),
-or refuses, read whole, the value it gives
+staged, does not stand, a hole that nothing binds among what doesn't
+(ruling 34); `invalid` where the schema read against the data
+(`Decls.readJ`), staged (`Val.staged`) so that a conflict the meet finds
+is `nil` and an arm holding one drops, fails, dead or holding a call the
+data leaves it unable to make (`Val.fails`), or refuses, read whole, the
+value it gives
 with its trials and sizes unread; `valid` where it singles out a
 value, and without the fill where the data as written is an instance of
 the visible part of the schema's normal form, staged, each part that
@@ -6499,18 +6520,18 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = true ∨
+      (((normaliseD ds (ds.readJ S j)).staged ds).fails = true ∨
         RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = false ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       (m.lax = true ∨
         ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
           (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = false ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       m.lax = false ∧
       ¬ ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
@@ -6520,7 +6541,7 @@ def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
 def vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
   if !(ds.declaresB S && ds.guardedB) then .error
   else if ds.illFormedR S then .error
-  else if ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails then .invalid
+  else if ((normaliseD ds (ds.readJ S j)).staged ds).fails then .invalid
   else if refusedAt ds ((normaliseD ds (ds.readJ S j)).staged ds) then .invalid
   else if m.lax then .valid
   else
@@ -6757,7 +6778,7 @@ theorem vet_sound {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d �
     | true => exact .inr (.inr hi)
     | false =>
       rw [if_neg Bool.false_ne_true]
-      cases hd : ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails with
+      cases hd : ((normaliseD ds (ds.readJ S j)).staged ds).fails with
       | true => exact ⟨hD, hG, hi, .inl hd⟩
       | false =>
         rw [if_neg Bool.false_ne_true]
@@ -6834,9 +6855,9 @@ data, the conflicts the meet finds read (`Val.staged`), refuses the data
 as written, or, its trials and sizes unread, the value it would single
 out, or holds a call the data leaves the reading unable to make. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds) j ∨
+    Refuses ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds) j ∨
       RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∨
-      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).illFormed = true := by
+      ((normaliseD ds (ds.readJ S j)).staged ds).illFormed = true := by
   obtain ⟨-, -, -, hd | hr⟩ := h
   · rcases Bool.or_eq_true_iff.mp hd with hd | hi
     · exact .inl (dead_refuses _ hd j)

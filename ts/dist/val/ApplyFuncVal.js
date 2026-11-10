@@ -20,7 +20,7 @@ class ApplyFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return null;
     }
     unify(peer, ctx) {
-        if (!this.stagedReady(peer, ctx, 1)) {
+        if (!this.stagedReady(ctx, 1)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);

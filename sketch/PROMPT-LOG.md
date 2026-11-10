@@ -794,6 +794,16 @@ Ruling 39 (#678): does a spread's template give its marks to the members it meet
 → Members don't take them (Recommended)
 ```
 
+## 2026-11-10 10:10:06 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Ruling 34, next slice: once `&` stops filling holes, what should a bare `_` be when no generator or `apply` binds it and it stands outside any call? Examples: `x: _`, `1 & _`, `{a: 1} & {a: _}`, `{&: _}`. Today each takes its peer (`1 & _` is `1`). No use case or built-in model writes one; all 40 holes in the use cases belong to a generator.
+→ Error (Recommended)
+
+Should `apply` and the generators bind holes inside a declaration that their template names? With `%F = upper(_)`, today `apply("a", %F)` and `each(["a"], %F)` leave the hole unbound, in both engines and the definition. Only `%F & "a"` works, and only through the meet's fill, which ruling 34 removes. `emit(d, %table)`, the form use cases 15 and 17 use, works either way, since emit reads the named table's own table.
+→ No, as written (Recommended)
 ## 2026-11-10 10:00:38 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
 
 ```text
