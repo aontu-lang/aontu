@@ -1015,6 +1015,12 @@ lp62	verdict	"y": 1, "x": *($.y)	{"y": 1, "x": 3}	{"verdict":"valid","opts":{"pa
 lp63	verdict	"y": 1, "x": *{"a": 1, "b": $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
 lp64	verdict	"y": 1, "x": *{"a": 1, "b": $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
 lp65	verdict	"y": 1, "x": *{"a": 1, "b": $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+lp66	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5.5}}	{"verdict":"invalid"}
+lp67	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5.5}}	{"verdict":"invalid","opts":{"noFill":true}}
+lp68	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5.5}}	{"verdict":"invalid","opts":{"partial":true}}
+lp69	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5}}	{"verdict":"valid"}
+lp70	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+lp71	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5}}	{"verdict":"valid","opts":{"partial":true}}
 lpl0	verdict	"x": *{"a": 1, "b": .a}	{"x": {"a": 1, "b": 1}}	{"verdict":"valid"}
 lpl1	verdict	"x": *{"a": 1, "b": .a}	{"x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"noFill":true}}
 lpl2	verdict	"x": *{"a": 1, "b": .a}	{"x": {"a": 1, "b": 1}}	{"verdict":"valid","opts":{"partial":true}}
@@ -1081,6 +1087,12 @@ lpl62	verdict	"y": 1, "x": *($.y)	{"y": 1, "x": 3}	{"verdict":"valid","opts":{"p
 lpl63	verdict	"y": 1, "x": *{"a": 1, "b": $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid"}
 lpl64	verdict	"y": 1, "x": *{"a": 1, "b": $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"noFill":true}}
 lpl65	verdict	"y": 1, "x": *{"a": 1, "b": $.y}	{"y": 1, "x": {"a": 2, "b": "s"}}	{"verdict":"invalid","opts":{"partial":true}}
+lpl66	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5.5}}	{"verdict":"invalid"}
+lpl67	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5.5}}	{"verdict":"invalid","opts":{"noFill":true}}
+lpl68	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5.5}}	{"verdict":"invalid","opts":{"partial":true}}
+lpl69	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5}}	{"verdict":"valid"}
+lpl70	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5}}	{"verdict":"valid","opts":{"noFill":true}}
+lpl71	verdict	"x": *{"a": integer, "b": (.a) & (min(3))}	{"x": {"a": 5.5, "b": 5}}	{"verdict":"valid","opts":{"partial":true}}
 mb0	verdict	"b": maybe($.gone)	{}	{"verdict":"valid"}
 mb1	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"noFill":true}}
 mb2	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"partial":true}}

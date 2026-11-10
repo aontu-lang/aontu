@@ -91,6 +91,11 @@ not yet built, or, where neither owns it, on the issue that tracks it:
 - a path in an arm of a disjunction met with another disjunction at
   one place, which names a place inside a disjunction and so reads as
   an `error`, where both ports leave it waiting (P9);
+- the parent arm of a lone preference whose value is a copy of a place
+  that writes relative paths, `x: *$.y` with `y: {a: integer, b: .a}`,
+  which lifts what the data writes at `y`, since the copy meets it where
+  the preference stands (`Decls.placed`), where ruling 40 lifts what the
+  value reads as before any data; both ports lift the data too (P9);
 - a path from outside a disjunction into its place, where the meet
   leaves the disjunction one arm only once the paths are read, as in
   `x: (%T | null) & %T` with `%T = {a: 1, b: .a}`, whose copy beside the

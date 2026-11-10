@@ -9179,7 +9179,7 @@ string}}` beside it takes the data:
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val → Decls × Val) (pre : String)
-    (pos : List Seg) (root a : Val) (lift : Val → Val) : Val × Decls :=
+    (pos : List Seg) (root a : Val) (parent : Bool) : Val × Decls :=
   let a' := L1.membersRead (L1.armsRead root pos [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) root pos
   let roots := r (doc a').1 (doc a').2
   let ps := (List.range ((doc a').1.docPaths (doc a').2).length).foldl
@@ -9188,8 +9188,12 @@ def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val →
     (a'.paths.filter placePath).eraseDups
   if ((a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome) &&
       !(((doc a').1.ofPaths roots ps).any fun d => d.2.dead) then
-    ((lift a'.pathsToAliases).armed pre,
-      ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, (lift d.2).armed pre))
+    if parent then
+      ((expand ((doc a').1.ofPaths roots ps) a'.pathsToAliases).super.armed pre,
+        ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.super.armed pre))
+    else
+      (a'.pathsToAliases.armed pre,
+        ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.armed pre))
   else (.nil, [])
 ```
 
@@ -9201,8 +9205,10 @@ A lone preference `*x` reads as `x | super(x)`, and its parent arm
 takes what overrides the default. Its value `x` reads its paths where
 it stands, as an arm does. The parent arm is the parent type of what
 `x` reads as on its own: the definition reads the paths of `x` in the
-schema's own tree, before any data, and lifts the arm and the term each
-path names there. In `x: *{a: 1, b: .a}` the parent arm is `{a: integer,
+schema's own tree, before any data, puts the term each path names in the
+path's place, and lifts the arm. So a path met with a bound lifts as the
+term it names does: in `*{a: integer, b: .a & min(3)}` the parent of `b`
+is `integer`, since `integer & min(3)` constrains integers. In `x: *{a: 1, b: .a}` the parent arm is `{a: integer,
 b: integer}`, so over `x: {a: 2, b: 3}` the document is `valid`, and
 over `x: {a: 2, b: "s"}` it's `invalid`:
 
@@ -9212,10 +9218,10 @@ def Decls.nodeChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : List �
     (tag : String) (n : List ℕ × List Seg × Val) (root : List ℕ × List Seg × Val → Val → Val) : Val × Decls :=
   match n.2.2 with
   | .pref rk x =>
-    (.or [(rk, (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x id).1),
-        (0, (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x Val.super).1)],
-      (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x id).2 ++
-        (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x Val.super).2)
+    (.or [(rk, (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x false).1),
+        (0, (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x true).1)],
+      (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x false).2 ++
+        (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x true).2)
   | v => ((.or (L1.armsAt r doc tag n root 0 v.nodeArms).1), (L1.armsAt r doc tag n root 0 v.nodeArms).2)
 ```
 

@@ -2247,12 +2247,12 @@ from the roots `r` reads the document with the arm read so in the
 disjunction's place, with each path the declared terms read in turn, so
 that a chain of paths reads within the arm; `nil` where a path that must
 name something names nothing there, or where a path names a dead term,
-since the arm is dead there with the data met in. `lift` makes the arm
-and each term declared what they stand for, the terms themselves in an
-arm and their parent types in a lone preference's parent arm
-(`Decls.nodeChosen`). -/
+since the arm is dead there with the data met in. `parent` reads it as
+a lone preference's parent arm (`Decls.nodeChosen`): the parent type of
+the arm with each path read as the term it names (`expand`), so that
+`Val.super` lifts what the arm reads as. -/
 def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val → Decls × Val) (pre : String)
-    (pos : List Seg) (root a : Val) (lift : Val → Val) : Val × Decls :=
+    (pos : List Seg) (root a : Val) (parent : Bool) : Val × Decls :=
   let a' := L1.membersRead (L1.armsRead root pos [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) root pos
   let roots := r (doc a').1 (doc a').2
   let ps := (List.range ((doc a').1.docPaths (doc a').2).length).foldl
@@ -2261,8 +2261,12 @@ def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val →
     (a'.paths.filter placePath).eraseDups
   if ((a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome) &&
       !(((doc a').1.ofPaths roots ps).any fun d => d.2.dead) then
-    ((lift a'.pathsToAliases).armed pre,
-      ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, (lift d.2).armed pre))
+    if parent then
+      ((expand ((doc a').1.ofPaths roots ps) a'.pathsToAliases).super.armed pre,
+        ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.super.armed pre))
+    else
+      (a'.pathsToAliases.armed pre,
+        ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.armed pre))
   else (.nil, [])
 
 /-- The arms `as` of the disjunction at the node `n`, from the arm `i`
@@ -2276,9 +2280,9 @@ def Decls.armsAt (L1 : Decls) (r : Decls → Val → List Val) (doc : List ℕ �
     ℕ → List (ℕ × Val) → List (ℕ × Val) × Decls
   | _, [] => ([], [])
   | i, (rk, a) :: as =>
-    ((rk, (L1.armChosen r (doc n.1) (armPre tag i) n.2.1 (root n a) a id).1) ::
+    ((rk, (L1.armChosen r (doc n.1) (armPre tag i) n.2.1 (root n a) a false).1) ::
         (L1.armsAt r doc tag n root (i + 1) as).1,
-      (L1.armChosen r (doc n.1) (armPre tag i) n.2.1 (root n a) a id).2 ++
+      (L1.armChosen r (doc n.1) (armPre tag i) n.2.1 (root n a) a false).2 ++
         (L1.armsAt r doc tag n root (i + 1) as).2)
 
 /-- The term the node `n` reads as with each arm read where it holds
@@ -2286,17 +2290,17 @@ def Decls.armsAt (L1 : Decls) (r : Decls → Val → List Val) (doc : List ℕ �
 disjunction's arms each under a name of its own (`Decls.armsAt`), and a
 lone preference `*x` as `x | super(x)`, `x` read so and its parent arm
 the parent type of what `x` reads as on its own, its paths read where `x`
-stands in the schema's own tree (`Decls.rootsS`), before any data, the
-arm and each term they're declared as lifted (`Val.super`, decision
+stands in the schema's own tree (`Decls.rootsS`), before any data, and
+the arm lifted with each path read as the term it names (decision
 40). -/
 def Decls.nodeChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : List ℕ → Val → Decls × Val)
     (tag : String) (n : List ℕ × List Seg × Val) (root : List ℕ × List Seg × Val → Val → Val) : Val × Decls :=
   match n.2.2 with
   | .pref rk x =>
-    (.or [(rk, (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x id).1),
-        (0, (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x Val.super).1)],
-      (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x id).2 ++
-        (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x Val.super).2)
+    (.or [(rk, (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x false).1),
+        (0, (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x true).1)],
+      (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x false).2 ++
+        (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x true).2)
   | v => ((.or (L1.armsAt r doc tag n root 0 v.nodeArms).1), (L1.armsAt r doc tag n root 0 v.nodeArms).2)
 
 /-- The term `Q` with each arm of each disjunction and lone preference at
@@ -4609,33 +4613,44 @@ theorem nodeArms_checkableA {v : Val} (h : v.CheckableA) : ∀ rk a, (rk, a) ∈
 
 /-- An arm read where it holds is a term the checker can read. -/
 theorem Decls.armChosen_checkableA {L1 : Decls} {r : Decls → Val → List Val} {doc : Val → Decls × Val}
-    {pre : String} {pos : List Seg} {root a : Val} {lift : Val → Val}
-    (hlift : ∀ v, v.CheckableA → (lift v).CheckableA) (hL : ∀ d, d ∈ L1 → d.2.CheckableA) (ha : a.CheckableA) :
-    (L1.armChosen r doc pre pos root a lift).1.CheckableA := by
-  unfold Decls.armChosen
-  dsimp only
-  split
-  · exact armed_checkableA (hlift _ (pathsToAliases_checkableA (membersRead_checkableA hL
-      (armsRead_checkableA hL (expandF_checkableA hL _ _ ha) _) _ _)))
-  · exact .nil
-
-/-- The declarations an arm's paths make where it holds are terms the
-checker can read. -/
-theorem Decls.armChosen_decls_checkableA {L1 : Decls} {r : Decls → Val → List Val} {doc : Val → Decls × Val}
-    {pre : String} {pos : List Seg} {root a : Val} {lift : Val → Val} (hr : RootsReadable r)
-    (hlift : ∀ v, v.CheckableA → (lift v).CheckableA) (hL : ∀ d, d ∈ L1 → d.2.CheckableA)
+    {pre : String} {pos : List Seg} {root a : Val} {parent : Bool} (hr : RootsReadable r)
+    (hL : ∀ d, d ∈ L1 → d.2.CheckableA)
     (hdoc : ∀ x, x.CheckableA → (∀ d, d ∈ (doc x).1 → d.2.CheckableA) ∧ (doc x).2.CheckableA)
-    (ha : a.CheckableA) : ∀ d, d ∈ (L1.armChosen r doc pre pos root a lift).2 → d.2.CheckableA := by
+    (ha : a.CheckableA) : (L1.armChosen r doc pre pos root a parent).1.CheckableA := by
   have ha' := membersRead_checkableA (P := L1.armsRead root pos [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) hL
     (armsRead_checkableA hL (expandF_checkableA hL _ _ ha) _) root pos
   have hd := hdoc _ ha'
   unfold Decls.armChosen
   dsimp only
   split
-  · intro d h
-    simp only [List.mem_map] at h
-    obtain ⟨d', hd', rfl⟩ := h
-    exact armed_checkableA (hlift _ (Decls.ofPaths_checkableA hd.1 (hr hd.1 hd.2) _ d' hd'))
+  · split
+    · exact armed_checkableA (expand_checkableA (Decls.ofPaths_checkableA hd.1 (hr hd.1 hd.2) _)
+        (pathsToAliases_checkableA ha')).super
+    · exact armed_checkableA (pathsToAliases_checkableA ha')
+  · exact .nil
+
+/-- The declarations an arm's paths make where it holds are terms the
+checker can read. -/
+theorem Decls.armChosen_decls_checkableA {L1 : Decls} {r : Decls → Val → List Val} {doc : Val → Decls × Val}
+    {pre : String} {pos : List Seg} {root a : Val} {parent : Bool} (hr : RootsReadable r)
+    (hL : ∀ d, d ∈ L1 → d.2.CheckableA)
+    (hdoc : ∀ x, x.CheckableA → (∀ d, d ∈ (doc x).1 → d.2.CheckableA) ∧ (doc x).2.CheckableA)
+    (ha : a.CheckableA) : ∀ d, d ∈ (L1.armChosen r doc pre pos root a parent).2 → d.2.CheckableA := by
+  have ha' := membersRead_checkableA (P := L1.armsRead root pos [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) hL
+    (armsRead_checkableA hL (expandF_checkableA hL _ _ ha) _) root pos
+  have hd := hdoc _ ha'
+  unfold Decls.armChosen
+  dsimp only
+  split
+  · split
+    · intro d h
+      simp only [List.mem_map] at h
+      obtain ⟨d', hd', rfl⟩ := h
+      exact armed_checkableA (Decls.ofPaths_checkableA hd.1 (hr hd.1 hd.2) _ d' hd').super
+    · intro d h
+      simp only [List.mem_map] at h
+      obtain ⟨d', hd', rfl⟩ := h
+      exact armed_checkableA (Decls.ofPaths_checkableA hd.1 (hr hd.1 hd.2) _ d' hd')
   · intro d h
     exact nomatch h
 
@@ -4655,10 +4670,10 @@ theorem Decls.armsAt_checkableA {L1 : Decls} {r : Decls → Val → List Val} {d
     simp only [Decls.armsAt, List.mem_cons, Prod.mk.injEq, List.mem_append]
     refine ⟨fun r' a' h => ?_, fun d h => ?_⟩
     · rcases h with ⟨-, rfl⟩ | h
-      · exact Decls.armChosen_checkableA (fun _ h => h) hL h0
+      · exact Decls.armChosen_checkableA hr hL (hdoc n.1) h0
       · exact rest.1 r' a' h
     · rcases h with h | h
-      · exact Decls.armChosen_decls_checkableA hr (fun _ h => h) hL (hdoc n.1) h0 d h
+      · exact Decls.armChosen_decls_checkableA hr hL (hdoc n.1) h0 d h
       · exact rest.2 d h
 
 /-- A disjunction or a lone preference read with each arm where it holds
@@ -4680,12 +4695,12 @@ theorem Decls.nodeChosen_checkableA {L1 : Decls} {r : Decls → Val → List Val
       refine ⟨.or fun rk' a' hm => ?_, fun d h => ?_⟩
       · simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at hm
         rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩
-        · exact Decls.armChosen_checkableA (fun _ h => h) hL hx'
-        · exact Decls.armChosen_checkableA (fun _ h => h.super) hL hx'
+        · exact Decls.armChosen_checkableA hr hL (hdoc n.1) hx'
+        · exact Decls.armChosen_checkableA rootsS_readable hL (hdoc n.1) hx'
       · simp only [List.mem_append] at h
         rcases h with h | h
-        · exact Decls.armChosen_decls_checkableA hr (fun _ h => h) hL (hdoc n.1) hx' d h
-        · exact Decls.armChosen_decls_checkableA rootsS_readable (fun _ h => h.super) hL (hdoc n.1) hx' d h
+        · exact Decls.armChosen_decls_checkableA hr hL (hdoc n.1) hx' d h
+        · exact Decls.armChosen_decls_checkableA rootsS_readable hL (hdoc n.1) hx' d h
   · have ha := Decls.armsAt_checkableA (tag := tag) (n := n) (root := root) hr hL hdoc 0 _
       (nodeArms_checkableA hn)
     exact ⟨.or ha.1, ha.2⟩

@@ -1684,7 +1684,8 @@ def disjunctionPathCases : List (Decls × Val × Data) :=
 reads as on its own (decision 40). A relative path to the preference's
 own member: the data taking the default, overriding it within the
 parent type and outside it, leaving a member out, and leaving the
-preference out; a default over a kind, whose path reads the data; an
+preference out; a default over a kind, whose path reads the data, and
+one whose path meets a bound, whose parent the path's kind decides; an
 absolute path to the preference's own member; a chain of paths; a name
 the preference holds; a template whose path reads its member's place;
 and a path to a place outside the preference, whose value the parent arm
@@ -1726,7 +1727,11 @@ def lonePrefPathCases : List (Decls × Val × Data) :=
     ([], m [("y", int 1), ("x", .pref 1 (m [("b", p ["y"])]))], .map [("y", j 1), ("x", .map [("b", .str "s")])]),
     ([], m [("y", int 1), ("x", .pref 1 (p ["y"]))], .map [("y", j 1), ("x", j 3)]),
     ([], m [("y", int 1), ("x", .pref 1 (m [("a", int 1), ("b", p ["y"])]))],
-      .map [("y", j 1), ("x", .map [("a", j 2), ("b", .str "s")])])]
+      .map [("y", j 1), ("x", .map [("a", j 2), ("b", .str "s")])]),
+    ([], m [("x", .pref 1 (m [("a", .integer), ("b", .meet (rel 1 ["a"]) (.min (.num (.integer (.of 3)))))]))],
+      xd [("a", .num (.float (.dyadic 11 (-1)))), ("b", .num (.float (.dyadic 11 (-1))))]),
+    ([], m [("x", .pref 1 (m [("a", .integer), ("b", .meet (rel 1 ["a"]) (.min (.num (.integer (.of 3)))))]))],
+      xd [("a", .num (.float (.dyadic 11 (-1)))), ("b", j 5)])]
 
 theorem lonePrefPathCases_checkable : ∀ c ∈ lonePrefPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
