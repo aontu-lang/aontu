@@ -811,3 +811,15 @@ review the state of the aontu support for jsonschema - are there any divergences
 ```text
 review the state of the aontu support for jsonschema - are there any divergences left? can aontu fully represent jsonschema?
 ```
+
+## 2026-11-10 11:21:07 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+PR 680 lives in aontu-lang/aontu, not aless (this session's only repository). Its fix is committed and checked locally: main merged into the PR branch, the ts/package.json conflict resolved by dropping main's shape 11.4.1 pin (jostraca 0.42.0, published 10:13 UTC today, requires shape >=12, so keeping the pin fails npm install), the Unreleased changelog note corrected, and a prompt-log fence the union merge dropped restored. But my attempt to attach aontu-lang/aontu with push access was denied. May I attach it, push the fix to the PR branch `jostraca-peer`, wait for CI, and merge PR 680?
+→ Yes, push and merge (Recommended)
+
+A separate finding in PR 680: aontu's ADR-040 says both ports take jostraca 'pinned at one version, both ordinary dependencies', and that a jostraca release is reviewed like a @tabnas release. PR 680 (like the released 0.76.3) makes the TypeScript side a peer dependency at >=0.41.0, so CI and fresh installs take each new jostraca unreviewed, and the PR does not amend the ADR. How should the decision record be handled?
+→ Follow-up PR for the ADR (Recommended)
+```
