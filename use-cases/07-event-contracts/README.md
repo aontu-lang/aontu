@@ -307,9 +307,11 @@ codes, codes grepped from the reports, goldens diffed under
     `"v": "1.0"`, exit 0.
 24. `probes/match-dispatch.aontu`, a `match()` over the instance's own
     `type`, at `$.Event` with valid data (`data/probe-placed-ok.json`):
-    `verdict: incomplete`, exit 3, `[aontu/conjunct]`. The union is
-    the spelling for a discriminated set of shapes; branch selection
-    is the consumer's dispatch step.
+    `verdict: error`, exit 4, `[aontu/hole_unbound]`. `match` binds no
+    hole, so its `_` scrutinee is one nothing binds, and the schema is
+    refused before the data is read. The union is the spelling for a
+    discriminated set of shapes; branch selection is the consumer's
+    dispatch step.
 25. `breaking --against orders-v1.aontu orders-v1.aontu` is
     `verdict: compatible`, exit 0, with no `sub_unresolved`: a
     contract admits itself, the order-lines list template included.

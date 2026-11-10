@@ -310,11 +310,11 @@ ok "eval: (\"1.0\"|\"1.1\") & *\"1.0\" generates its default"
 
 # --- 7. No in-language discriminator dispatch. ---
 
-run mdgood 3 -- vet --at '$.Event' "$DIR/probes/match-dispatch.aontu" \
+run mdgood 4 -- vet --at '$.Event' "$DIR/probes/match-dispatch.aontu" \
   "$DIR/data/probe-placed-ok.json"
-has mdgood out 'verdict: incomplete'
-has mdgood out '[aontu/conjunct]'
-ok "vet: match(_) dispatcher never settles (pinned gap; union stays the model)"
+has mdgood out 'verdict: error'
+has mdgood out '[aontu/hole_unbound]'
+ok "vet: match(_) dispatcher is a hole nothing binds (pinned gap; union stays the model)"
 
 # --- 8. The versioned breaking gate. ---
 
