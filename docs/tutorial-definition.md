@@ -9117,20 +9117,20 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   let T := L.2.unfoldAt orNames.contains fun n => expandF L.1 1 (.alias n)
   let P := L.1.membersRead (L.1.armsRead root [] [] T) root []
   let ns := P.armNodes []
-  let armRoot (n : List ℕ × List Seg × List (ℕ × Val)) (a : Val) : Val := L.1.treeAt r (P.replaceAt n.1 a) n.2.1
+  let armRoot (n : List ℕ × List Seg × Val) (a : Val) : Val := L.1.treeAt r (P.replaceAt n.1 a) n.2.1
   let reached := L.1.reached T root ++ L.1.armsReached root [] T ++
     (L.1.filter (isBody ·.1)).flatMap (fun b =>
       L.1.reached b.2 (L.1.ownRoot b) ++ L.1.armsReached (L.1.ownRoot b) [] b.2) ++
     (L.1.filter (!isBody ·.1)).flatMap (fun c =>
       ((places.lookup c.1).map fun q => L.1.armsReached root q c.2).getD []) ++
-    ns.flatMap fun n => n.2.2.flatMap fun a =>
+    ns.flatMap fun n => n.2.2.nodeArms.flatMap fun a =>
       L.1.reached a.2 (armRoot n a.2) ++ L.1.armsReached (armRoot n a.2) [] a.2
   let ds' : Decls := L.1.map fun d =>
     (d.1, if isBody d.1 then L.1.ownRead d
       else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2)
   let armUses := (List.range L.1.length).foldl
     (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
-    (ns.flatMap fun n => n.2.2.flatMap (·.2.refs))
+    (ns.flatMap fun n => n.2.2.nodeArms.flatMap (·.2.refs))
   L.1.readArms ds' r P ns armRoot isBody (armUses ++ orNames)
 ```
 
@@ -9179,7 +9179,7 @@ string}}` beside it takes the data:
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val → Decls × Val) (pre : String)
-    (pos : List Seg) (root a : Val) : Val × Decls :=
+    (pos : List Seg) (root a : Val) (lift : Val → Val) : Val × Decls :=
   let a' := L1.membersRead (L1.armsRead root pos [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) root pos
   let roots := r (doc a').1 (doc a').2
   let ps := (List.range ((doc a').1.docPaths (doc a').2).length).foldl
@@ -9188,13 +9188,40 @@ def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val →
     (a'.paths.filter placePath).eraseDups
   if ((a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome) &&
       !(((doc a').1.ofPaths roots ps).any fun d => d.2.dead) then
-    (a'.pathsToAliases.armed pre, ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.armed pre))
+    ((lift a'.pathsToAliases).armed pre,
+      ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, (lift d.2).armed pre))
   else (.nil, [])
 ```
 
 Both engines read a path in an arm only once a single arm remains, so
 over that data they leave the document `incomplete`, which #700
 tracks.
+
+A lone preference `*x` reads as `x | super(x)`, and its parent arm
+takes what overrides the default. Its value `x` reads its paths where
+it stands, as an arm does. The parent arm is the parent type of what
+`x` reads as on its own: the definition reads the paths of `x` in the
+schema's own tree, before any data, and lifts the arm and the term each
+path names there. In `x: *{a: 1, b: .a}` the parent arm is `{a: integer,
+b: integer}`, so over `x: {a: 2, b: 3}` the document is `valid`, and
+over `x: {a: 2, b: "s"}` it's `invalid`:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.nodeChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : List ℕ → Val → Decls × Val)
+    (tag : String) (n : List ℕ × List Seg × Val) (root : List ℕ × List Seg × Val → Val → Val) : Val × Decls :=
+  match n.2.2 with
+  | .pref rk x =>
+    (.or [(rk, (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x id).1),
+        (0, (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x Val.super).1)],
+      (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x id).2 ++
+        (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x Val.super).2)
+  | v => ((.or (L1.armsAt r doc tag n root 0 v.nodeArms).1), (L1.armsAt r doc tag n root 0 v.nodeArms).2)
+```
+
+Both engines lift a path inside the value to `any` in the parent arm,
+so they pass `{a: 2, b: "s"}`, which #704 tracks, and leave the path
+waiting while the default is in play, which #700 tracks.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean

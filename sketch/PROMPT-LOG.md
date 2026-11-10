@@ -873,3 +873,12 @@ fix the prompt log fences as a pr
 ```text
 merge 695
 ```
+
+## 2026-11-10 19:57:02 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 40: a path inside a lone preference, e.g. `x: *{a: 1, b: .a}`. A lone `*x` means `x | super(x)`, where `super(x)` is the parent type: the arm that accepts what overrides the default. Today the definition reads this document as an error. Both engines never resolve the path while the default is still in play (#700), and in the parent arm they treat the path as `any`. What should the parent arm be?
+→ Lift what x reads as (Recommended)
+```
