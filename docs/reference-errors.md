@@ -295,8 +295,8 @@ twenty rows have no such section and carry no link.
 | `operate` | 0.51.0 | The operation could not be performed over the values given. |
 | `parse_failed` | 0.63.0 | The text does not parse under the grammar given, so the field is refused. ([Grammars: `abnf()` and `parse()`](reference-language.md#grammars-abnf-and-parse)) |
 | `pick_key` | 0.53.0 | A child of the bag has no key for `pick` to project. ([Missing fields and invalid arguments](reference-language.md#missing-fields-and-invalid-arguments)) |
-| `place_container` | 0.77.0 | A call made from its arguments' values takes a list or a map that holds a hole, which nothing fills. ([The placeholder `_`](reference-language.md#the-placeholder-_)) |
-| `place_pair` | 0.53.0 | Two placeholders met, and neither has a value to fill the other. ([The placeholder `_`](reference-language.md#the-placeholder-_)) |
+| `place_container` | 0.77.0 | Reserved for a hole a call's list or map held, which no meet filled; a meet fills none now, and a hole nothing binds is `hole_unbound`. ([The placeholder `_`](reference-language.md#the-placeholder-_)) |
+| `place_pair` | 0.53.0 | Reserved for two holes that met when a meet filled a hole; a meet fills none now, and a hole nothing binds is `hole_unbound`. ([The placeholder `_`](reference-language.md#the-placeholder-_)) |
 | `pref_rank_clash` | 0.54.0 | Two defaults of the same rank disagree. ([Preference / default `*`](reference-language.md#preference--default-)) |
 | `relation_cycle` | 0.53.0 | A relation declared `acyclic()`, and its edges form a cycle. ([Declared relations](reference-language.md#declared-relations)) |
 | `relation_inverse_missing` | 0.53.0 | A relation declared `inverse(name)`, and an edge has no mirroring edge. ([Declared relations](reference-language.md#declared-relations)) |

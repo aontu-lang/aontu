@@ -25,7 +25,6 @@ import { top } from './top'
 
 import { FeatureVal } from './FeatureVal'
 import { trialUnify } from './FuncBaseVal'
-import { NilVal } from './NilVal'
 import { superOf } from './SuperFuncVal'
 
 
@@ -163,9 +162,7 @@ class PrefVal extends FeatureVal {
         // standing with nothing left to replace it, not a conflict.
         const space = trialUnify(te ? ctx.clone({ explain: ec(te, 'GATE') }) : ctx,
           this.superpeg.clone(ctx), peer)
-        const gate = undefined !== space ? space
-          : true === this.superpeg.isNil ? this.superpeg
-            : new NilVal({ why: 'empty' }, ctx)
+        const gate = undefined !== space ? space : this.superpeg
 
         // Unchanged on both counts is the SAME preference, returned as
         // itself: minting a new one every pass would keep the fixpoint

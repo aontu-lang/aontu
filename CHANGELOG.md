@@ -25,7 +25,11 @@ Both engines, the definition, and shared rows.
 - A name whose body holds a hole is one nothing binds wherever it is
   used, an `apply`'s template included; a named `emit` table, as in
   `emit($.l, %t)`, is the one use that binds. A name nothing uses holds
-  its hole harmlessly.
+  its hole harmlessly: its waiting parts read as any value, as the
+  definition reads a declaration's body, so `%T = upper(_) & _` stands
+  where it was `place_pair`, while a seal around a container holding a
+  hole still refuses a key it doesn't name.
+- `place_pair` and `place_container` are reserved: nothing raises them.
 - A call the parser refuses for its arity or its name keeps its
   arguments as written, so a hole among them is still found.
 - Rows from hv0 on of `test/spec/def-call.tsv` and from dp0 on of

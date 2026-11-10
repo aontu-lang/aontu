@@ -125,12 +125,8 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 				waits = met.Dc() != DONE
 				// A peer that empties the override space leaves the preference standing.
 				gate := trialUnify(ctx, clonePath(p.superpeg, cp(p.path)), peer)
-				if nil == gate {
-					if p.superpeg.Nil() {
-						gate = p.superpeg
-					} else {
-						gate = newNil("empty")
-					}
+				if nil == gate { //coverage:ignore a parent type admits what its own value admits, but for no parent at all
+					gate = p.superpeg
 				}
 
 				// Unchanged on both counts is the SAME preference,
