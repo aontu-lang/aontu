@@ -9093,7 +9093,7 @@ whether or not anything uses `%H`, as both engines read it, while
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.ownRead (ds : Decls) (d : String × Val) : Val :=
-  ds.membersRead d.2 (ds.ownRoot d) [.key ("%" ++ d.1)]
+  ds.membersRead (ds.armsRead (ds.ownRoot d) [.key ("%" ++ d.1)] [] d.2) (ds.ownRoot d) [.key ("%" ++ d.1)]
 ```
 
 The tree is the schema's own for the error class, and the one the data
@@ -9108,12 +9108,18 @@ absolute path in a template names, the same at every member:
 def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (oj : Option Data := none) :
     Decls × Val :=
   let L := ds.linked S rl oj
+  let root := ds.spreadRoot S rl r oj
   let isBody (n : String) : Bool := ds.withRel.any (·.1 == n)
-  let reached := L.1.reached L.2 (ds.spreadRoot S rl r oj) ++
-    (L.1.filter (isBody ·.1)).flatMap fun b => L.1.reached b.2 (L.1.ownRoot b)
+  let places := L.1.usePlaces L.2
+  let reached := L.1.reached L.2 root ++ L.1.armsReached root [] L.2 ++
+    (L.1.filter (isBody ·.1)).flatMap (fun b =>
+      L.1.reached b.2 (L.1.ownRoot b) ++ L.1.armsReached (L.1.ownRoot b) [] b.2) ++
+    (L.1.filter (!isBody ·.1)).flatMap fun c =>
+      ((places.lookup c.1).map fun q => L.1.armsReached root q c.2).getD []
   (L.1.map fun d =>
-      (d.1, if isBody d.1 then L.1.ownRead d else if reached.contains d.1 then d.2.neutral else d.2),
-    L.1.membersRead L.2 (ds.spreadRoot S rl r oj) [])
+      (d.1, if isBody d.1 then L.1.ownRead d
+        else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2),
+    L.1.membersRead (L.1.armsRead root [] [] L.2) root [])
 ```
 
 A declaration's own such templates admit any member wherever the
@@ -9123,6 +9129,26 @@ stands where the reading doesn't go, in a disjunction's arm, keeps its
 template as written, as a template written there does. So `%H = {&: {url: .name}}` used at `hosts`, beside
 `hosts: {a: {name: "x"}}`, reads `hosts.a.url` as `"x"`, as both
 engines do.
+
+A selection's result stands where the selection does, so a template in
+it reads its member's place at each member the tree holds there, and
+the tree, read with its selections made, holds the members of the
+result the selection takes. With `kind: "web"`, `hosts:
+match($.kind, "web", {&: {url: .name}}, "db", null)` reads each host's
+`url` as its own `name`, as both engines do. The definition reads each
+result at those members, the ones a result the selection doesn't take
+never meets. A body at its own place reads its selections there, and a copy
+reads them where the document uses it, so `%H = match(...)` used at
+`hosts` reads the same:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.arPairs (ds : Decls) (root : Val) (base pos : List Seg) : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps =>
+    (p, ds.membersRead (ds.armsRead root base pos r) ((root.at pos).getD .any) (base ++ pos)) ::
+      ds.arPairs root base pos ps
+```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
