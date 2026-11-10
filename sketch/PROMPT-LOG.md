@@ -781,3 +781,9 @@ Ruling 39 (#678): does a spread's template give its marks to the members it meet
 ```text
 work in aontu-lang/aontu locally - get pull to latest and do the fix
 ```
+
+## 2026-11-10 22:15:22 UTC · Claude Code · session_01FpeS4ru69dMPkAX2ezauL9
+
+```text
+Report status
+```
