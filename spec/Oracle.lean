@@ -1627,7 +1627,11 @@ that arm; and a disjunction or a lone preference inside an arm, read
 before the arm that holds it: a path in the inner arm to its own member
 and to the outer arm's, the inner disjunction's other arm, a path in the
 outer arm into the inner one, a lone preference in an arm, and an inner
-disjunction both of whose arms take the data. -/
+disjunction both of whose arms take the data; and disjunctions met at one
+place, read as one disjunction of the meets of their arms: a path to the
+arm's own member, a path to a member the other disjunction's arm
+supplies, a third conjunct between them, paths in both disjunctions'
+arms, and a name whose body is such a meet. -/
 def disjunctionPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -1714,7 +1718,33 @@ def disjunctionPathCases : List (Decls × Val × Data) :=
       .map [("x", .map [("a", j 1), ("b", .map [("c", j 1), ("d", j 1)])])]),
     ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (m [("e", int 2)]))])
         (.lit .null))],
-      .map [("x", .map [("a", j 1), ("b", .map [("e", j 2)])])])]
+      .map [("x", .map [("a", j 1), ("b", .map [("e", j 2)])])]),
+    ([], m [("x", .meet (or2 (m [("a", int 1), ("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 1), ("b", j 1)])]),
+    ([], m [("x", .meet (or2 (m [("a", int 1), ("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 1), ("b", j 2)])]),
+    ([], m [("x", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 2), ("b", j 2)])]),
+    ([], m [("x", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 2), ("b", j 1)])]),
+    ([], m [("x", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .null)]),
+    ([], m [("x", .meet (.meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (m [("c", int 1)]))
+        (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 2), ("b", j 2), ("c", j 1)])]),
+    ([], m [("x", .meet (.meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (m [("c", int 1)]))
+        (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 2), ("b", j 1), ("c", j 1)])]),
+    ([], m [("x", .meet (or2 (m [("b", rel 1 ["a"])]) (m [("b", rel 1 ["c"])]))
+        (or2 (m [("a", int 1), ("c", int 2)]) (m [("a", int 3), ("c", int 4)])))],
+      .map [("x", .map [("a", j 1), ("b", j 2), ("c", j 2)])]),
+    ([], m [("x", .meet (or2 (m [("b", rel 1 ["a"])]) (m [("b", rel 1 ["c"])]))
+        (or2 (m [("a", int 1), ("c", int 2)]) (m [("a", int 3), ("c", int 4)])))],
+      .map [("x", .map [("a", j 1), ("b", j 3), ("c", j 2)])]),
+    ([("T", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      m [("x", .alias "T")], .map [("x", .map [("a", j 2), ("b", j 2)])]),
+    ([("T", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      m [("x", .alias "T")], .map [("x", .map [("a", j 2), ("b", j 1)])])]
 
 /-- Paths inside a lone preference `*x`, which reads as `x | super(x)`:
 `x` read where it stands, and its parent arm the parent type of what `x`

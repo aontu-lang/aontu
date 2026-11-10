@@ -9115,7 +9115,7 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   let places := L.1.usePlaces L.2
   let orNames := (L.1.filter fun d => !isBody d.1 && !(d.2.armNodes []).isEmpty).map (·.1)
   let T := L.2.unfoldAt orNames.contains fun n => expandF L.1 1 (.alias n)
-  let P := L.1.membersRead (L.1.armsRead root [] [] T) root []
+  let P := (L.1.membersRead (L.1.armsRead root [] [] T) root []).distributed
   let ns := P.armNodes []
   let armRoot (n : List ℕ × List Seg × Val) (a : Val) : Val := L.1.treeAt r (P.chooseAt n.1 a) n.2.1
   let reached := L.1.reached T root ++ L.1.armsReached root [] T ++
@@ -9126,7 +9126,7 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
     ns.flatMap fun n => n.2.2.nodeArms.flatMap fun a =>
       L.1.reached a.2 (armRoot n a.2) ++ L.1.armsReached (armRoot n a.2) [] a.2
   let ds' : Decls := L.1.map fun d =>
-    (d.1, if isBody d.1 then L.1.ownRead d
+    (d.1, if isBody d.1 then (L.1.ownRead d).distributed
       else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2)
   let armUses := (List.range L.1.length).foldl
     (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
@@ -9272,6 +9272,36 @@ default's `b` reads the data's `5` and refuses `2.5`, while the parent
 arm reads `b` as `number` and lifts it to `any`, so the document is
 `valid`, as `x: *{a: number, b: .a}` is. Both engines leave these paths
 waiting, which #700 tracks.
+
+Two disjunctions can meet at one place, as in `x: ({b: .a} | null) &
+({a: 1} | {a: 2})`. Read one arm at a time, the path `.a` in `{b: .a}`
+would name a place where the other disjunction still holds two arms, a
+place inside a disjunction, which names nothing. The meet itself takes
+the two apart: it meets a term with a disjunction arm by arm
+(`meetStep`). So before it reads any arm, the definition reads such a
+meet as the disjunction the meet makes, each arm of the one met with
+each arm of the other, ranked as the meet ranks them (`orMeet`), and
+each met with the meet's other conjuncts. A lone preference beside a
+disjunction goes into each of its arms the same way:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Val.meetOrs (v : Val) : Val :=
+  match v.splitOrs.1 with
+  | as :: more =>
+    if 2 ≤ more.length + 1 + (v.splitOrs.2.filter Val.isPrefB).length &&
+        ((as :: more).any (·.any (·.2.armReads)) ||
+          (v.splitOrs.2.filter Val.isPrefB).any (·.nodeArms.any (·.2.armReads))) then
+      .or ((more.foldl orMeet as).map fun p => (p.1, v.splitOrs.2.foldl .meet p.2))
+    else v
+  | [] => v
+```
+
+Each arm then reads its paths within itself: `{b: .a} & {a: 1}` reads
+`b` as `1`, and `{b: .a} & {a: 2}` as `2`. Over `x: {a: 2, b: 2}` the
+document is `valid`, and over `x: {a: 2, b: 1}` it's `invalid`, as in
+both engines. `Val.distributed` reads every such meet in the schema,
+the inner ones first, and only then does the definition read the arms.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean

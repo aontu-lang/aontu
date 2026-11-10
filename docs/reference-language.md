@@ -1735,8 +1735,11 @@ reads as on its own: in `x: *{a: 1, b: .a}` the parent arm is `{a:
 integer, b: integer}`, so `{a: 2, b: 3}` passes and `{a: 2, b: "s"}`
 doesn't. Both engines lift a path inside the value to `any` there,
 which #704 tracks. The definition reads a lone preference so by
-`Decls.nodeChosen`, and doesn't yet read a path in an arm of a
-disjunction met with another at one place. It reads a disjunction or
+`Decls.nodeChosen`. A disjunction met with another at one place reads as
+one disjunction of the meets of their arms, as the meet makes them: in
+`x: ({b: .a} | null) & ({a: 1} | {a: 2})`, `b` reads `1` in one arm and
+`2` in another, so `{a: 2, b: 2}` passes and `{a: 2, b: 1}` doesn't.
+The definition reads a disjunction or
 a lone preference inside an arm first, and the arm that holds it
 holds what it reads as: in `x: {a: 1, b: {c: 1, d: .c} | null} | null`,
 `b`'s first arm reads `d` as its own `c`, so over `x: {a: 1, b: null}`
