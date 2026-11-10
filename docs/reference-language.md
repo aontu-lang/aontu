@@ -1648,10 +1648,14 @@ copy, reads each relative path the body or the target writes again where
 the copy stands. With `x: 1`, `a: {x: 2, b: %T}` and `%T = {v: ..x}`,
 `a.b.v` is 2, read at `a`, in any order the document writes them, and
 `%T = .x` reads at each use too. With `a: {x: 2, b: {v: ..x}}` and
-`c: {x: 3, d: $.a.b}`, `c.d.v` is 3. What the data writes at the target is
-part of what the document writes there, so it meets the copy too: data
-that sets `a.b.v` to 2 meets the copy's 3, and `aontu vet` refuses it,
-the output `aontu` generates among it. Both engines read a copy's
+`c: {x: 3, d: $.a.b}`, `c.d.v` is 3, and `d: %T` with `%T = $.a.b`
+reads 3 too. A use inside a body reads where it stands at the body's
+own place too: with `%T = {u: %U}` and `%U = {w: ..x}`, the use at
+`$.%T.u` reads `$.%T.x`, so `%T` must hold an `x`. What the data
+writes at the target is part of what the document writes there, so it
+meets the copy too: data that sets `a.b.v` to 2 meets the copy's 3, and
+`aontu vet` refuses it, the output `aontu` generates among it. Both
+engines read a copy's
 relative paths by the order the document writes the two. Where the alias
 or the target comes first they read the paths where they're written, so
 `a.b.v` is 1 and `c.d.v` is 2, and where it comes after they read them
@@ -1661,10 +1665,14 @@ engines split on a path in a call's argument. TypeScript reads it where
 it's written in either order, under `aontu vet` too, and Go reads it as
 it reads any other.
 [#504](https://github.com/aontu-lang/aontu/issues/504) tracks both.
+Where `%T = $.a.b` comes first, both engines read the target's relative
+paths below `$.%T`, where they name nothing, which
+[#692](https://github.com/aontu-lang/aontu/issues/692) tracks.
 
 The definition reads a use of a name, and a path reference's copy, where
-it stands, from a copy of the body or of what the document writes at the
-target, placed there, by `Decls.copies` in
+it stands, in the schema and in a body at its own place alike, from a
+copy of the body or of what the document writes at the target, placed
+there, by `Decls.copies` in
 [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). It reads a body's
 own place in the normal form of the name's bodies, by `Decls.bodyAt`,
 read once, so a path there that reads through another path names nothing

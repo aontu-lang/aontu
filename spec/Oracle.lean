@@ -1443,8 +1443,10 @@ that read two values; a copy where its path names nothing; and a target
 that is a use of a name, and one that is a path reference; a path to a
 member only a spread's template would reach, which names nothing; a
 reference inside its own place, a recursion, beside data that holds it
-and data that refuses it; and a target reached through another path
-reference, whose own data meets the copy, in both orders. -/
+and data that refuses it; a target reached through another path
+reference, whose own data meets the copy, in both orders; and a target
+that holds a path reference of its own, whose copy at the copy meets
+what the data writes at the place it names, in both orders. -/
 def refCopyCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1464,6 +1466,12 @@ def refCopyCases : List (Decls × Val × Data) :=
   let tv : Decls := [("T", m [("v", rel 2 ["x"])])]
   let recur : Val := .map [("x", false, .integer), ("y", false, rel 1 ["x"]), ("b", true, p ["a"])] none false
   let fw := ("f", m [("b", m [("w", .number), ("v", rel 1 ["w"])])])
+  let fg := ("f", m [("g", m [("w", .number), ("v", rel 1 ["w"])])])
+  let ae := ("a", m [("b", m [("e", p ["f", "g"])])])
+  let cd := ("c", m [("d", p ["a", "b"])])
+  let ew (n k : ℤ) (hn : IntegerLeaf n := by decide) (hk : IntegerLeaf k := by decide) : Data :=
+    .map [("f", .map [("g", .map [("w", j n hn), ("v", j n hn)])]),
+      ("c", .map [("d", .map [("e", .map [("w", j k hk), ("v", j k hk)])])])]
   datas.map (fun d => ([], m [a, c], d)) ++ datas.map (fun d => ([], m [c, a], d)) ++
     [([], m [aw, cw], .map []),
       ([], m [aw, cw], .map [("a", .map [("b", vw 1)]), ("c", .map [("d", vw 7)])]),
@@ -1481,7 +1489,46 @@ def refCopyCases : List (Decls × Val × Data) :=
       ([], m [("a", recur)], .map [("a", .map [("x", j 1), ("y", j 2)])]),
       ([], m [fw, ("a", p ["f"]), ("d", p ["a", "b"])], .map [("a", .map [("b", vw 1)]), ("d", vw 2)]),
       ([], m [fw, ("a", p ["f"]), ("d", p ["a", "b"])], .map [("a", .map [("b", vw 2)]), ("d", vw 2)]),
-      ([], m [("d", p ["a", "b"]), fw, ("a", p ["f"])], .map [("a", .map [("b", vw 1)]), ("d", vw 2)])]
+      ([], m [("d", p ["a", "b"]), fw, ("a", p ["f"])], .map [("a", .map [("b", vw 1)]), ("d", vw 2)]),
+      ([], m [fg, ae, cd], ew 1 2),
+      ([], m [fg, ae, cd], ew 1 1),
+      ([], m [cd, ae, fg], ew 1 2)]
+
+/-- A name whose body holds a path reference to a place whose terms read
+their own place, and a use of a name inside another name's body, each
+read where it stands (ruling 26): `%T = $.a.b` beside
+`a: {x: 2, b: {v: ..x}}`, used at `c: {x: 3, d: %T}`, beside data that
+reads 3 at `c.d.v` and data that reads 2, and with no `x` at the top,
+where the body's own copy, at `%T`, names nothing; and `%T = {u: %U}`
+with `%U = {w: ..x}`, whose use at `%T.u` reads `%T.x`, which a body
+written without an `x` doesn't hold, written after `%U` and before it,
+and which one written with an `x` does. -/
+def bodyCopyCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let a := ("a", m [("x", int 2), ("b", m [("v", rel 2 ["x"])])])
+  let c := ("c", m [("x", int 3), ("d", .alias "T")])
+  let tr : Decls := [("T", .path [.key "a", .key "b"])]
+  let atV (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .map [("c", .map [("d", .map [("v", j n h)])])]
+  let u : String × Val := ("U", m [("w", rel 2 ["x"])])
+  let t (tx : List (String × Val)) : String × Val := ("T", m ([("u", .alias "U")] ++ tx))
+  let ab := m [("x", int 1), ("a", m [("b", .meet (.alias "T") (m [("x", int 5)]))])]
+  let w5 : Data := .map [("a", .map [("b", .map [("u", .map [("w", j 5)])])])]
+  [(tr, m [("x", int 1), a, c], atV 3),
+    (tr, m [("x", int 1), a, c], atV 2),
+    (tr, m [a, c], .map []),
+    ([u, t []], ab, w5),
+    ([t [], u], ab, w5),
+    ([u, t [("x", .integer)]], ab, w5)]
+
+theorem bodyCopyCases_checkable : ∀ c ∈ bodyCopyCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem body_copy_verdict_exact : ∀ c ∈ bodyCopyCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (bodyCopyCases_checkable c hc).1 (bodyCopyCases_checkable c hc).2 v
 
 theorem refCopyCases_checkable : ∀ c ∈ refCopyCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -6741,7 +6788,11 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A meet carries the marks of both its sides, any's included, in rows hm0 on."
     IO.println "# A spread's template meets each member without the marks written around it"
     IO.println "# (ruling 39), in rows sm0 on. A relative path in apply's template reads where"
-    IO.println "# the call stands, in rows ar0 on."
+    IO.println "# the call stands, in rows ar0 on. A copy reads the relative paths it copies"
+    IO.println "# where it stands (ruling 26): a use of a name in rows cd0 on, written again"
+    IO.println "# after the schema in rows cdl0 on, a path reference in rows rc0 on, and a name"
+    IO.println "# whose body holds one, or a use inside a body read at the body's own place,"
+    IO.println "# in rows bc0 on, written again after the schema in rows bcl0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -6750,6 +6801,8 @@ def main (args : List String) : IO UInt32 := do
     pathRows "cd" copyDestCases
     pathRows "cdl" copyDestCases (declsLast := true)
     pathRows "rc" refCopyCases
+    pathRows "bc" bodyCopyCases
+    pathRows "bcl" bodyCopyCases (declsLast := true)
     pathRows "mb" maybeCases
     pathRows "la" absentListCases
     pathRows "pf" prefCases

@@ -283,14 +283,6 @@ name whose body writes a relative path reads a copy of the body placed
 where the use stands, declared under a name of its own (`useName`), and
 the body still reads at its own place too, where it must stand. -/
 
-/-- The names whose bodies write a relative path, or use such a name,
-read to a fixed point, a recursive name aside, whose uses read its body
-at its own place. -/
-def Decls.relNames (ds : Decls) : List String :=
-  ((List.range ds.length).foldl
-    (fun rs _ => (ds.filter fun d => d.2.holdsRel || d.2.refs.any rs.contains).map (·.1)) []).filter
-    fun n => !ds.recursiveB n
-
 /-- The name a copy of a body at a position is declared under: the
 name, `@` and the position's name (`pathName`), which no document can
 write, since a name a document writes holds no `@`. -/
@@ -967,30 +959,30 @@ def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
 
 /-! ## The verdict with paths -/
 
-/-- The verdict of a document whose paths are absolute, its schema `S`
-as the schema alone reads it and `S'` as the data does. It is an `error`
-where a path of `S` does not resolve in the schema's own tree, or where
-the document is an error with its paths read from the schema alone: a
-name declared nowhere, a cycle, a `nil` in the schema. Otherwise the
-paths of `S'` read from the data too, and the document is `invalid`
-where that reading is dead or an error, since the data made it so, and
-`valid` or `incomplete` as that reading is. -/
-def VetA (m : Mode) (ds : Decls) (S S' : Val) (j : Data) : Verdict → Prop
+/-- The verdict of a document whose paths are absolute, its declarations
+`ds` and schema `S` as the schema alone reads them and `ds'` and `S'` as
+the data does. It is an `error` where a path of `S` does not resolve in
+the schema's own tree, or where the document is an error with its paths
+read from the schema alone: a name declared nowhere, a cycle, a `nil` in
+the schema. Otherwise the paths of `S'` read from the data too, and the
+document is `invalid` where that reading is dead or an error, since the
+data made it so, and `valid` or `incomplete` as that reading is. -/
+def VetA (m : Mode) (ds : Decls) (S : Val) (ds' : Decls) (S' : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Resolves S ∨ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error
   | .invalid =>
     ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
-      (Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j .invalid ∨
-        Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j .error)
+      (Vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j .invalid ∨
+        Vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j .error)
   | v =>
     ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
-      Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j v
+      Vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j v
 
 /-- The verdict of a document whose paths are absolute, computed. -/
-def vetA (m : Mode) (ds : Decls) (S S' : Val) (j : Data) : Verdict :=
+def vetA (m : Mode) (ds : Decls) (S : Val) (ds' : Decls) (S' : Val) (j : Data) : Verdict :=
   if ds.resolvesB S then
     if vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j = .error then .error
     else
-      match vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j with
+      match vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j with
       | .error => .invalid
       | v => v
   else .error
@@ -1804,12 +1796,29 @@ def Decls.relTarget (ds : Decls) (S : Val) (rs : List String) : ℕ → List Seg
     | ws => ds.writes S p && !ws.any Val.perMembers && ws.any fun w => w.holdsRel || w.refs.any rs.contains ||
         w.paths.any fun q => !relPath q && ds.relTarget S rs k q
 
-/-- The places a path reference to reads as a copy (`Decls.relTarget`),
-where the document writes a relative path at all, in the schema or in a
-body; none where it writes none, since what such a place reads leads to
-one. -/
-def Decls.copyTargets (ds : Decls) (S : Val) : List Seg → Bool :=
-  if S.holdsRel || ds.any (fun d => d.2.holdsRel) then ds.relTarget S ds.relNames (S.size + 1) else fun _ => false
+/-- Whether the document writes a relative path at all, in the schema or
+in a body; a copy reads its own place only through one. -/
+def Decls.writesRel (ds : Decls) (S : Val) : Bool :=
+  S.holdsRel || ds.any (fun d => d.2.holdsRel)
+
+/-- The names whose uses read as copies: those whose bodies write a
+relative path, use such a name, or hold a path reference to a place
+whose terms read their own place (`Decls.relTarget`), read to a fixed
+point, a recursive name aside, whose uses read its body at its own
+place. -/
+def Decls.copyNames (ds : Decls) (S : Val) : List String :=
+  if ds.writesRel S then
+    ((List.range ds.length).foldl
+      (fun rs _ => (ds.filter fun d => d.2.holdsRel || d.2.refs.any rs.contains ||
+          d.2.paths.any fun q => !relPath q && ds.relTarget S rs (S.size + 1) q).map (·.1)) []).filter
+      fun n => !ds.recursiveB n
+  else []
+
+/-- The places a path reference to reads as a copy, those whose terms
+read their own place through a relative path or a use of a name of `rs`
+(`Decls.relTarget`); none where the document writes no relative path. -/
+def Decls.copyTargets (ds : Decls) (S : Val) (rs : List String) : List Seg → Bool :=
+  if ds.writesRel S then ds.relTarget S rs (S.size + 1) else fun _ => false
 
 /-- What a use is a copy of: a name's bodies, and for a path reference,
 what the document writes at its place (`Decls.written`). -/
@@ -1819,17 +1828,18 @@ def Decls.useBodies (ds : Decls) (S : Val) : Use → List Val
 
 /-- The copies of the bodies the uses `us` read: each body of the name,
 or each term the document writes at the place, its own uses read as
-copies in turn and its relative paths placed where the use stands,
-declared under the use's name (`useName`, `Use.key`), within `k` turns,
-enough for every chain of uses that isn't recursive; a use the turns
-don't reach reads as written (`Use.plain`). -/
-def Decls.copies (ds : Decls) (S : Val) (rs : List String) (rt : List Seg → Bool) :
-    ℕ → List (Use × List Seg) → Decls
+copies in turn, met with what `dl` reads at a place one names, and its
+relative paths placed where the use stands, declared under the use's
+name (`useName`, `Use.key`), within `k` turns, enough for every chain
+of uses that isn't recursive; a use the turns don't reach reads as
+written (`Use.plain`). -/
+def Decls.copies (ds : Decls) (S : Val) (rs : List String) (rt : List Seg → Bool)
+    (dl : List Seg → Option Val) : ℕ → List (Use × List Seg) → Decls
   | 0, us => us.eraseDups.map fun u => (useName u.1.key u.2, u.1.plain)
   | k + 1, us =>
     (us.eraseDups.flatMap fun u =>
-        (ds.useBodies S u.1).map fun b => (useName u.1.key u.2, (b.atUses rs rt (fun _ => none) u.2).placed u.2)) ++
-      ds.copies S rs rt k (us.eraseDups.flatMap fun u => (ds.useBodies S u.1).flatMap fun b => b.usesAt rs rt u.2)
+        (ds.useBodies S u.1).map fun b => (useName u.1.key u.2, (b.atUses rs rt dl u.2).placed u.2)) ++
+      ds.copies S rs rt dl k (us.eraseDups.flatMap fun u => (ds.useBodies S u.1).flatMap fun b => b.usesAt rs rt u.2)
 
 /-- What the data `j` writes at the places `rs` name, met; none where it
 writes at none. -/
@@ -1841,20 +1851,25 @@ def dataLit (j : Data) (rs : List (List Seg)) : Option Val :=
 /-- A document with each relative path it writes made absolute where it
 stands: the schema from the top (`Val.placedT`), each body at its
 name's own place, `%` and the name as a key at the top, as both ports
-place a body, each use of a name whose body writes one read as the copy
-of the body placed where the use stands, and each path reference to a
-place whose terms read their own place (`Decls.relTarget`) as the copy
-of what the document writes there, met with what the data `oj` writes
-there where it's given (`Decls.copies`, ruling 26). Each place a spread
+place a body, and in either, each use of a name whose uses read as
+copies (`Decls.copyNames`) read as the copy of the body placed where the
+use stands, and each path reference to a place whose terms read their
+own place (`Decls.copyTargets`) as the copy of what the document writes
+there, each met with what the data `oj` writes at the place it names
+where it's given (`Decls.copies`, ruling 26). Each place a spread
 that is a relative path names where the schema writes it (`Val.bares`)
 is declared too, under a name no term refers to (`bareName`), since
 both ports read such a spread there as well as at each member, so that
 one naming nothing is an `error` with no member to read it at. -/
 def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.placed [.key ("%" ++ d.1)])) ++
-      ds.copies S ds.relNames (ds.copyTargets S) (ds.length + S.size + 1) (S.usesAt ds.relNames (ds.copyTargets S) []) ++
+  let rs := ds.copyNames S
+  let rt := ds.copyTargets S rs
+  let dl : List Seg → Option Val := fun p => oj.bind fun j => dataLit j (ds.writtenAt S p)
+  let own (n : String) : List Seg := [.key ("%" ++ n)]
+  (ds.map (fun d => (d.1, (d.2.atUses rs rt dl (own d.1)).placed (own d.1))) ++
+      ds.copies S rs rt dl (ds.length + S.size + 1) (S.usesAt rs rt [] ++ ds.flatMap fun d => d.2.usesAt rs rt (own d.1)) ++
       (S.bares []).map fun p => (bareName, .path p),
-    (S.atUses ds.relNames (ds.copyTargets S) (fun p => oj.bind fun j => dataLit j (ds.writtenAt S p)) []).placedT [])
+    (S.atUses rs rt dl []).placedT [])
 
 /-- A document's declarations with the relation kind declared under its
 name, which a `rel` reads as (`relKind`). -/
@@ -1907,12 +1922,13 @@ def Decls.linkReader (ds : Decls) (S : Val) (j : Data) : Decls → Val → List 
   if ((ds.preparedS S).1.withPathsS (ds.preparedS S).2).1.guardedB then fun d T => d.rootsD T j
   else Decls.rootsS
 
-/-- The schema as the definition reads it beside data: its links read in
-the roots `Decls.linkReader` picks, its spreads at the members of the
+/-- The document as the definition reads it beside data: its links read
+in the roots `Decls.linkReader` picks, its spreads at the members of the
 tree the data reads in (`Decls.rootsD`), and what the data writes at a
-place met into each copy of the place. -/
-def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Val :=
-  (ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)).2
+place met into each copy of the place, the copies its declarations hold
+among them. -/
+def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
+  ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)
 
 theorem hideAt_checkableA : ∀ p, (hideAt p).CheckableA
   | [] => .ride .any
@@ -2226,12 +2242,12 @@ reads a spread at the members the schema's own tree holds, and the
 others at those of the tree the data reads in, so that a member the
 data alone supplies makes the document `invalid`, never an `error`. -/
 def VetL (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  VetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j) j v
+  VetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j).1 (ds.preparedD S j).2 j v
 
 /-- The verdict of a document with paths whose sources are read in,
 computed. -/
 def vetL (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict :=
-  vetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j) j
+  vetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j).1 (ds.preparedD S j).2 j
 
 /-- The verdict of a document with paths: the document with the sources
 it loads read in where it loads them (`Decls.loaded`), and its verdict
@@ -3077,8 +3093,9 @@ theorem atUses_checkableA {rs : List String} {dl : List Seg → Option Val}
   | _ => intro rt pos; simp only [Val.atUses]; constructor
 
 theorem copies_checkableA {ds : Decls} {S : Val} {rs : List String} {rt : List Seg → Bool}
+    {dl : List Seg → Option Val} (hdl : ∀ p w, dl p = some w → w.CheckableA)
     (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
-    ∀ k us d, d ∈ ds.copies S rs rt k us → d.2.CheckableA
+    ∀ k us d, d ∈ ds.copies S rs rt dl k us → d.2.CheckableA
   | 0, _, d, h => by
     simp only [Decls.copies, List.mem_map] at h
     obtain ⟨u, -, rfl⟩ := h
@@ -3086,9 +3103,17 @@ theorem copies_checkableA {ds : Decls} {S : Val} {rs : List String} {rt : List S
   | k + 1, us, d, h => by
     simp only [Decls.copies, List.mem_append, List.mem_flatMap, List.mem_map] at h
     rcases h with ⟨u, -, b, hbu, rfl⟩ | h
-    · exact placed_checkableA (atUses_checkableA (fun _ _ h => by simp at h)
-        (useBodies_checkableA hb hS u.1 b hbu) _ _) _
-    · exact copies_checkableA hb hS k _ d h
+    · exact placed_checkableA (atUses_checkableA hdl (useBodies_checkableA hb hS u.1 b hbu) _ _) _
+    · exact copies_checkableA hdl hb hS k _ d h
+
+/-- What the data writes at the places a copy names is a term the
+checker can read. -/
+theorem dataAt_checkableA {ds : Decls} {S : Val} {oj : Option Data} :
+    ∀ p w, (oj.bind fun j => dataLit j (ds.writtenAt S p)) = some w → w.CheckableA := by
+  intro _ w h
+  simp only [Option.bind_eq_some_iff] at h
+  obtain ⟨_, -, h⟩ := h
+  exact dataLit_checkableA h
 
 theorem Decls.placed_bodies_checkableA {ds : Decls} {S : Val} {oj : Option Data}
     (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
@@ -3096,18 +3121,15 @@ theorem Decls.placed_bodies_checkableA {ds : Decls} {S : Val} {oj : Option Data}
   intro d hd
   simp only [Decls.placed, List.mem_append, List.mem_map] at hd
   rcases hd with (⟨d', hd', rfl⟩ | hd) | ⟨p, -, rfl⟩
-  · exact placed_checkableA (hb d' hd') _
-  · exact copies_checkableA hb hS _ _ d hd
+  · exact placed_checkableA (atUses_checkableA dataAt_checkableA (hb d' hd') _ _) _
+  · exact copies_checkableA dataAt_checkableA hb hS _ _ d hd
   · exact .path
 
 /-- The schema with its uses read as copies, the data met into each copy
 of a place it writes at, is a term the checker can read. -/
 theorem Decls.placed_checkableA {ds : Decls} {S : Val} {oj : Option Data} (hS : S.CheckableA) :
     (ds.placed S oj).2.CheckableA :=
-  placedT_checkableA (atUses_checkableA (fun _ w h => by
-    simp only [Option.bind_eq_some_iff] at h
-    obtain ⟨_, -, h⟩ := h
-    exact dataLit_checkableA h) hS _ []) []
+  placedT_checkableA (atUses_checkableA dataAt_checkableA hS _ []) []
 
 /-! ## Reading a spread at each member keeps a term checkable -/
 
@@ -3699,14 +3721,14 @@ theorem Decls.prepared_checkableA {ds : Decls} {S : Val} {rl r : Decls → Val �
 documents the verdict hands `vet`, the schema's reading and the data's,
 each with its bodies, as it can a document whose `filter` reads its
 source to the members it keeps. -/
-theorem vetA_iff_of {m : Mode} {ds : Decls} {S S' : Val} {j : Data}
+theorem vetA_iff_of {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data}
     (hbS : ∀ d, d ∈ (ds.withPathsS S).1 → d.2.CheckableA)
     (hRS : ((ds.withPathsS S).1.readR (ds.withPathsS S).2).CheckableA)
-    (hbP : ∀ d, d ∈ (ds.withPaths S' j).1 → d.2.CheckableA)
-    (hRP : ((ds.withPaths S' j).1.readR (ds.withPaths S' j).2).CheckableA) (v : Verdict) :
-    vetA m ds S S' j = v ↔ VetA m ds S S' j v := by
+    (hbP : ∀ d, d ∈ (ds'.withPaths S' j).1 → d.2.CheckableA)
+    (hRP : ((ds'.withPaths S' j).1.readR (ds'.withPaths S' j).2).CheckableA) (v : Verdict) :
+    vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v := by
   have hvS := vet_iff (m := m) (ds := (ds.withPathsS S).1) (S := (ds.withPathsS S).2) (j := j) hbS hRS
-  have hvP := vet_iff (m := m) (ds := (ds.withPaths S' j).1) (S := (ds.withPaths S' j).2) (j := j) hbP hRP
+  have hvP := vet_iff (m := m) (ds := (ds'.withPaths S' j).1) (S := (ds'.withPaths S' j).2) (j := j) hbP hRP
   unfold vetA
   by_cases hr : ds.resolvesB S = true
   · rw [if_pos hr]
@@ -3718,7 +3740,7 @@ theorem vetA_iff_of {m : Mode} {ds : Decls} {S S' : Val} {j : Data}
         reduceCtorEq]
     · rw [if_neg he]
       have hE : ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error := fun h => he ((hvS .error).mpr h)
-      cases hp : vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j <;> cases v <;>
+      cases hp : vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j <;> cases v <;>
         simp only [VetA, hR, hE, ← hvP, hp, not_true_eq_false, not_false_eq_true,
           or_true, or_false, and_false, and_true, reduceCtorEq]
   · rw [if_neg hr]
@@ -3727,23 +3749,24 @@ theorem vetA_iff_of {m : Mode} {ds : Decls} {S S' : Val} {j : Data}
 
 /-- `vetA` computes `VetA` on every document whose bodies and schema
 read no pattern and no format. -/
-theorem vetA_iff {m : Mode} {ds : Decls} {S S' : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) (hS' : S'.CheckableA) (v : Verdict) : vetA m ds S S' j = v ↔ VetA m ds S S' j v :=
+theorem vetA_iff {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) (hb' : ∀ d, d ∈ ds' → d.2.CheckableA) (hS' : S'.CheckableA) (v : Verdict) :
+    vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v :=
   vetA_iff_of (Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsS_checkableA hb hS))
     (readR_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsS_checkableA hb hS))
       (pathsToAliases_checkableA hS))
-    (Decls.withPathsFrom_bodies_checkableA (S := S') hb (Decls.rootsD_checkableA (j := j) hb hS'))
-    (readR_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S') hb (Decls.rootsD_checkableA (j := j) hb hS'))
+    (Decls.withPathsFrom_bodies_checkableA (S := S') hb' (Decls.rootsD_checkableA (j := j) hb' hS'))
+    (readR_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S') hb' (Decls.rootsD_checkableA (j := j) hb' hS'))
       (pathsToAliases_checkableA hS')) v
 
 /-- Whether the checker can read the two documents `vetA` hands `vet`,
 each with its bodies, computed. -/
-def Decls.readsAB (ds : Decls) (S S' : Val) (j : Data) : Bool :=
+def Decls.readsAB (ds : Decls) (S : Val) (ds' : Decls) (S' : Val) (j : Data) : Bool :=
   (ds.withPathsS S).1.all (·.2.checkableAB) && ((ds.withPathsS S).1.readR (ds.withPathsS S).2).checkableAB &&
-    (ds.withPaths S' j).1.all (·.2.checkableAB) && ((ds.withPaths S' j).1.readR (ds.withPaths S' j).2).checkableAB
+    (ds'.withPaths S' j).1.all (·.2.checkableAB) && ((ds'.withPaths S' j).1.readR (ds'.withPaths S' j).2).checkableAB
 
-theorem vetA_iff_reads {m : Mode} {ds : Decls} {S S' : Val} {j : Data} (h : ds.readsAB S S' j = true)
-    (v : Verdict) : vetA m ds S S' j = v ↔ VetA m ds S S' j v := by
+theorem vetA_iff_reads {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (h : ds.readsAB S ds' S' j = true)
+    (v : Verdict) : vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v := by
   simp only [Decls.readsAB, Bool.and_eq_true, List.all_eq_true] at h
   obtain ⟨⟨⟨hbS, hRS⟩, hbP⟩, hRP⟩ := h
   exact vetA_iff_of (fun d hd => (Val.checkableAB_iff _).mp (hbS d hd)) ((Val.checkableAB_iff _).mp hRS)
@@ -3753,9 +3776,12 @@ theorem vetA_iff_reads {m : Mode} {ds : Decls} {S S' : Val} {j : Data} (h : ds.r
 read no pattern and no format. -/
 theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
-  vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (S' := ds.preparedD S j)
+  vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (ds' := (ds.preparedD S j).1)
+    (S' := (ds.preparedD S j).2)
     (Decls.placed_bodies_checkableA (S := S) (oj := none) (Decls.withRel_checkableA hb) hS)
-    (Decls.prepared_checkableA rootsS_readable hb hS) (Decls.prepared_checkableA Decls.linkReader_readable hb hS) v
+    (Decls.prepared_checkableA rootsS_readable hb hS)
+    (Decls.placed_bodies_checkableA (S := S) (oj := some j) (Decls.withRel_checkableA hb) hS)
+    (Decls.prepared_checkableA Decls.linkReader_readable hb hS) v
 
 /-- `vetP` computes `VetP` on every document whose bodies, sources and
 schema read no pattern and no format. -/
@@ -3773,7 +3799,8 @@ the two documents its verdict hands `vet`, computed: what a document
 whose `filter` the checker can't read before the reading needs. -/
 def Decls.readsPB (ds : Decls) (S : Val) (j : Data) : Bool :=
   !ds.loadsLeft S && ((ds.loaded S).1.preparedS (ds.loaded S).2).1.readsAB
-    ((ds.loaded S).1.preparedS (ds.loaded S).2).2 ((ds.loaded S).1.preparedD (ds.loaded S).2 j) j
+    ((ds.loaded S).1.preparedS (ds.loaded S).2).2 ((ds.loaded S).1.preparedD (ds.loaded S).2 j).1
+    ((ds.loaded S).1.preparedD (ds.loaded S).2 j).2 j
 
 /-- `vetP` computes `VetP` on every document `Decls.readsPB` reads. -/
 theorem vetP_iff_reads {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : ds.readsPB S j = true)
