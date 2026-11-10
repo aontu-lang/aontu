@@ -319,7 +319,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 247 rows under eighteen causes: decisions 3 and 4 of §2, under
+ledger holds 253 rows under eighteen causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -2052,11 +2052,16 @@ until the phase that encodes it lands.
    **Built 2026-11-10**: `Val.orNodes` finds a lone preference as it
    finds a disjunction, and `Decls.nodeChosen` reads it as
    `x | super(x)`: `x` read where it stands (`Decls.armChosen`), and the
-   parent arm `x` read in the schema's own tree (`Decls.rootsS`) with
-   the arm and each term its paths are declared as lifted
-   (`Val.super`). Rows lp0 on and lpl0 on of `test/spec/def-path.tsv`,
-   both ports answering 56 of 132 as the definition does, the other
-   76 in the ledger under #700, #702 and #704.
+   parent arm `x` read in the schema's own tree (`Decls.rootsS`), each
+   path put in its place as the term it names (`expand`) and the arm
+   lifted (`Val.super`), so that `*{a: integer, b: .a & min(3)}` has
+   the parent `integer` at `b`. Rows lp0 on and lpl0 on of
+   `test/spec/def-path.tsv`, both ports answering 62 of 144 as the
+   definition does, the other 82 in the ledger under #700, #702 and
+   #704. A value that is a copy of a place writing relative paths
+   still lifts what the data writes there, since `Decls.placed` meets
+   it into the copy where the preference stands; both ports do the
+   same, and the README lists it as a limit.
 
 ## 8. Risks
 
