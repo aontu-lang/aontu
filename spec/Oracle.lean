@@ -1618,9 +1618,9 @@ data another arm takes; an arm the data leaves alone beside one that
 refuses less, and beside one that refuses as much; an absolute path to
 the arm's own member and a path that climbs out of the arm; a spread's
 template that reads its member's place, written in the arm and in the
-body of a name the arm uses; a path that names nothing, which drops its
-arm; a preferred arm; and a path from outside into an arm, which names
-nothing. -/
+body of a name the arm uses; a path in the body of a name the arm uses;
+a path that names nothing, which drops its arm; a preferred arm; and a
+path from outside into an arm, which names nothing. -/
 def disjunctionPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -1648,6 +1648,8 @@ def disjunctionPathCases : List (Decls × Val × Data) :=
     ([], m [("hosts", or2 url (tmpl (m [("url", .string)])))], hd "y"),
     ([("H", url)], m [("hosts", or2 (.alias "H") (.lit .null))], hd "x"),
     ([("H", url)], m [("hosts", or2 (.alias "H") (.lit .null))], hd "y"),
+    ([("H", named)], m [("hosts", or2 (.alias "H") (.lit .null))], hd "x"),
+    ([("H", named)], m [("hosts", or2 (.alias "H") (.lit .null))], hd "y"),
     ([], m [("hosts", or2 (m [("a", m [("url", p ["nowhere"])])]) (.lit .null))], hn),
     ([], m [("hosts", or2 (m [("a", m [("url", p ["nowhere"])])]) (.lit .null))], hd "y"),
     ([], m [("hosts", .or [(1, named), (0, .lit .null)])], hd "x"),

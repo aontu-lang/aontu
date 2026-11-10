@@ -2198,15 +2198,16 @@ def Val.armReads (a : Val) : Bool := !a.paths.isEmpty || a.perMembers || !a.refs
 /-- The arm `a`, the arm `i` of the disjunction `k` of the document `P`,
 at the node `n` (`Val.orNodes`), read where the arm holds, `root` the
 tree the document with the arm in the disjunction's place holds there:
-its selections' results and its templates read at the members `root`
-holds (`Decls.armsRead`, `Decls.membersRead`), under the declarations
-`L1` as written; and its paths read as names of its own (`Val.armed`),
-declared under `ds'` from the roots `r` reads the document with the arm
-read so in the disjunction's place; `nil` where a path that must name
-something names nothing there. -/
+each name it uses read as its bodies (`expandF`), since a copy is read
+where its use stands, its selections' results and its templates read at
+the members `root` holds (`Decls.armsRead`, `Decls.membersRead`), under
+the declarations `L1` as written; and its paths read as names of its
+own (`Val.armed`), declared under `ds'` from the roots `r` reads the
+document with the arm read so in the disjunction's place; `nil` where a
+path that must name something names nothing there. -/
 def Decls.armChosen (ds' L1 : Decls) (r : Decls → Val → List Val) (P : Val) (k : ℕ)
     (n : List ℕ × List Seg × List (ℕ × Val)) (root : Val) (i : ℕ) (a : Val) : Val × Decls :=
-  let a' := L1.membersRead (L1.armsRead root n.2.1 [] a) root n.2.1
+  let a' := L1.membersRead (L1.armsRead root n.2.1 [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) root n.2.1
   let roots := r ds' (P.replaceAt n.1 a')
   if (a'.forgive.paths.filter placePath).all fun p => (ds'.pathIn roots p).isSome then
     (a'.pathsToAliases.armed (armPre k i),
@@ -2270,7 +2271,11 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   let ds' : Decls := L.1.map fun d =>
     (d.1, if isBody d.1 then L.1.ownRead d
       else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2)
-  (ds' ++ (ds'.armsChosen L.1 r P armRoot 0 ns P).2, (ds'.armsChosen L.1 r P armRoot 0 ns P).1)
+  let armUses := (List.range L.1.length).foldl
+    (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
+    (ns.flatMap fun n => n.2.2.flatMap (·.2.refs))
+  (ds'.filter (fun d => isBody d.1 || !armUses.contains d.1) ++ (ds'.armsChosen L.1 r P armRoot 0 ns P).2,
+    (ds'.armsChosen L.1 r P armRoot 0 ns P).1)
 
 /-- A document as the definition reads it before any data: its links and
 its spreads read in the schema's own tree (`Decls.rootsS`). -/
@@ -4417,7 +4422,8 @@ theorem Decls.armChosen_checkableA {ds' L1 : Decls} {r : Decls → Val → List 
   unfold Decls.armChosen
   dsimp only
   split
-  · exact armed_checkableA (pathsToAliases_checkableA (membersRead_checkableA hL (armsRead_checkableA hL ha _) _ _))
+  · exact armed_checkableA (pathsToAliases_checkableA (membersRead_checkableA hL
+      (armsRead_checkableA hL (expandF_checkableA hL _ _ ha) _) _ _))
   · exact .nil
 
 /-- The declarations an arm's paths make where it holds are terms the
@@ -4433,7 +4439,7 @@ theorem Decls.armChosen_decls_checkableA {ds' L1 : Decls} {r : Decls → Val →
     simp only [List.mem_map] at hd
     obtain ⟨d', hd', rfl⟩ := hd
     exact Decls.ofPaths_checkableA hb (hr hb (replaceAt_checkableA _ hP
-      (membersRead_checkableA hL (armsRead_checkableA hL ha _) _ _))) _ d' hd'
+      (membersRead_checkableA hL (armsRead_checkableA hL (expandF_checkableA hL _ _ ha) _) _ _))) _ d' hd'
   · intro d hd
     exact nomatch hd
 
@@ -4476,12 +4482,13 @@ theorem Decls.armsChosen_checkableA {ds' L1 : Decls} {r : Decls → Val → List
 
 theorem Decls.armsChosen_append_checkableA {X L1 : Decls} {r : Decls → Val → List Val} {P : Val}
     {root : List ℕ × List Seg × List (ℕ × Val) → Val → Val} {ns : List (List ℕ × List Seg × List (ℕ × Val))}
+    {keep : String × Val → Bool}
     (hr : RootsReadable r) (hX : ∀ d, d ∈ X → d.2.CheckableA) (hL : ∀ d, d ∈ L1 → d.2.CheckableA)
     (hP : P.CheckableA) (hns : ∀ n, n ∈ ns → ∀ rk a, (rk, a) ∈ n.2.2 → a.CheckableA) :
     (X.armsChosen L1 r P root 0 ns P).1.CheckableA ∧
-      ∀ d, d ∈ X ++ (X.armsChosen L1 r P root 0 ns P).2 → d.2.CheckableA := by
+      ∀ d, d ∈ X.filter keep ++ (X.armsChosen L1 r P root 0 ns P).2 → d.2.CheckableA := by
   have hc := Decls.armsChosen_checkableA (root := root) hr hX hL hP 0 ns P hns hP
-  exact ⟨hc.1, fun d hd => (List.mem_append.mp hd).elim (hX d) (hc.2 d)⟩
+  exact ⟨hc.1, fun d hd => (List.mem_append.mp hd).elim (fun h => hX d (List.mem_filter.mp h).1) (hc.2 d)⟩
 
 /-- A document the definition reads, and its declarations, each body
 read at its own place, each other template left to admit any member and
