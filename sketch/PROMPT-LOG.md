@@ -262,6 +262,8 @@ work in aontu, make sure you have the latest main; update the DEV-PROCESS as fol
 
 ```text
 move the adrs too, leave the scripts alone for the moment
+```
+
 ## 2026-10-21 19:34:11 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 ```text
@@ -438,13 +440,19 @@ What should I build next in the definition?
 ```
 
 ## 2026-10-27 16:46:46 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
-## 2026-10-27 14:55:36 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 The answers to the agent's questions, each question followed by the option chosen or the answer typed:
 
 ```text
 #563 (ruling 31) is waiting on CI after the review fix. What should I build next?
 → Port #560 and #564 (Recommended)
+```
+
+## 2026-10-27 14:55:36 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
 #561: in a spread's template that is a meet, as in `{&: upper(_) & _}` or `{&: upper(_) & "a"}`, what does a hole stand for? Both engines bind each hole to the member the template is tried on. The definition fills it from the template's own meet first.
 → The member (Recommended)
 
@@ -519,6 +527,8 @@ do both 1 and 2; add svg export support to all diagrams
 
 ```text
 open a PR and fix the emoji width bug
+```
+
 ## 2026-10-23 10:43:50 UTC · Claude Code · session_016yMzMBxz57NmgRx74LKLFg
 
 ```text
@@ -553,6 +563,8 @@ The answers to the agent's questions, each question followed by the option chose
 ```text
 aontu#596 (both engines now read a hole in a call's list or map as the definition does, closing #584 and #589) and its web sync are merged. Two new issues need a ruling on which side moves: #594 (rel against a list) and #595 (super over a list holding a waiting call). Which should I take up next?
 → #586, parse case (Recommended)
+```
+
 ## 2026-11-03 17:25:10 UTC · Claude Code · session_01D35vdcJCr6PTGR6aUYHRBn
 
 ```text
@@ -575,6 +587,8 @@ Merge
 
 ```text
 merge it
+```
+
 ## 2026-11-04 10:29:02 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
 
 The answers to the agent's questions, each question followed by the option chosen or the answer typed:
@@ -804,6 +818,8 @@ Ruling 34, next slice: once `&` stops filling holes, what should a bare `_` be w
 
 Should `apply` and the generators bind holes inside a declaration that their template names? With `%F = upper(_)`, today `apply("a", %F)` and `each(["a"], %F)` leave the hole unbound, in both engines and the definition. Only `%F & "a"` works, and only through the meet's fill, which ruling 34 removes. `emit(d, %table)`, the form use cases 15 and 17 use, works either way, since emit reads the named table's own table.
 → No, as written (Recommended)
+```
+
 ## 2026-11-10 10:00:38 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
 
 ```text
@@ -844,4 +860,16 @@ fix the enum bug as a pr to aontu
 
 ```text
 merge 689 and 683
+```
+
+## 2026-11-10 15:43:58 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+fix the prompt log fences as a pr
+```
+
+## 2026-11-10 16:18:37 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+merge 695
 ```
