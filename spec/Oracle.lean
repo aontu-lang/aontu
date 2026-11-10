@@ -1612,6 +1612,55 @@ theorem select_template_verdict_exact : ∀ c ∈ selectTemplateCases, ∀ (m : 
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (selectTemplateCases_checkable c hc).1 (selectTemplateCases_checkable c hc).2 v
 
+/-- Paths written in a disjunction's arm, each read where the arm holds:
+a relative path to a member the arm writes, beside data it refuses and
+data another arm takes; an arm the data leaves alone beside one that
+refuses less, and beside one that refuses as much; an absolute path to
+the arm's own member and a path that climbs out of the arm; a spread's
+template that reads its member's place, written in the arm and in the
+body of a name the arm uses; a path that names nothing, which drops its
+arm; a preferred arm; and a path from outside into an arm, which names
+nothing. -/
+def disjunctionPathCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let tmpl (t : Val) : Val := .map [] (some t) false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let or2 (a b : Val) : Val := .or [(0, a), (0, b)]
+  let named := m [("a", m [("name", str "x"), ("url", rel 1 ["name"])])]
+  let url := tmpl (m [("url", rel 1 ["name"])])
+  let hosts (u : String) : Data := .map [("a", .map [("name", .str "x"), ("url", .str u)])]
+  let hd (u : String) : Data := .map [("hosts", hosts u)]
+  let hn : Data := .map [("hosts", .null)]
+  [([], m [("hosts", or2 named (.lit .null))], hd "x"),
+    ([], m [("hosts", or2 named (.lit .null))], hd "y"),
+    ([], m [("hosts", or2 named (.lit .null))], hn),
+    ([], m [("hosts", or2 named (m [("a", m [("url", .number)])]))], hd "y"),
+    ([], m [("hosts", or2 named (m [("a", m [("url", .string)])]))], hd "y"),
+    ([], m [("hosts", or2 (m [("a", m [("name", str "x"), ("url", p ["hosts", "a", "name"])])]) (.lit .null))], hd "x"),
+    ([], m [("c", m [("name", str "x"), ("hosts", or2 (m [("url", rel 2 ["name"])]) (.lit .null))])],
+      .map [("c", .map [("name", .str "x"), ("hosts", .map [("url", .str "y")])])]),
+    ([], m [("hosts", or2 url (.lit .null))], hd "x"),
+    ([], m [("hosts", or2 url (.lit .null))], hd "y"),
+    ([], m [("hosts", or2 url (tmpl (m [("url", .string)])))], hd "y"),
+    ([("H", url)], m [("hosts", or2 (.alias "H") (.lit .null))], hd "x"),
+    ([("H", url)], m [("hosts", or2 (.alias "H") (.lit .null))], hd "y"),
+    ([], m [("hosts", or2 (m [("a", m [("url", p ["nowhere"])])]) (.lit .null))], hn),
+    ([], m [("hosts", or2 (m [("a", m [("url", p ["nowhere"])])]) (.lit .null))], hd "y"),
+    ([], m [("hosts", .or [(1, named), (0, .lit .null)])], hd "x"),
+    ([], m [("x", or2 (m [("a", int 1)]) (m [("a", int 2)])), ("y", p ["x", "a"])],
+      .map [("x", .map [("a", j 1)]), ("y", j 1)])]
+
+theorem disjunctionPathCases_checkable : ∀ c ∈ disjunctionPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem disjunction_path_verdict_exact : ∀ c ∈ disjunctionPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (disjunctionPathCases_checkable c hc).1 (disjunctionPathCases_checkable c hc).2 v
+
 theorem bodyCopyCases_checkable : ∀ c ∈ bodyCopyCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
 
@@ -6886,6 +6935,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# member where it's used and at its own place, in rows nt0 on and ntl0 on."
     IO.println "# A template in a selection's result reads its member's place where the"
     IO.println "# selection stands, in rows st0 on and stl0 on."
+    IO.println "# A path written in a disjunction's arm reads where the arm holds, in rows dj0"
+    IO.println "# on and djl0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -6900,6 +6951,8 @@ def main (args : List String) : IO UInt32 := do
     pathRows "ntl" nameTemplateCases (declsLast := true)
     pathRows "st" selectTemplateCases
     pathRows "stl" selectTemplateCases (declsLast := true)
+    pathRows "dj" disjunctionPathCases
+    pathRows "djl" disjunctionPathCases (declsLast := true)
     pathRows "mb" maybeCases
     pathRows "la" absentListCases
     pathRows "pf" prefCases
