@@ -821,6 +821,18 @@ dj50	verdict	"hosts": *{"a": {"name": "x", "url": .name}} | (null)	{"hosts": {"a
 dj51	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error"}
 dj52	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error","opts":{"noFill":true}}
 dj53	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error","opts":{"partial":true}}
+dj54	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+dj55	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj56	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj57	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+dj58	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj59	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+dj60	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid"}
+dj61	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid","opts":{"noFill":true}}
+dj62	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid","opts":{"partial":true}}
+dj63	verdict	%H = ({"a": {"url": $.nowhere}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid"}
+dj64	verdict	%H = ({"a": {"url": $.nowhere}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid","opts":{"noFill":true}}
+dj65	verdict	%H = ({"a": {"url": $.nowhere}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid","opts":{"partial":true}}
 djl0	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
 djl1	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
 djl2	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
@@ -875,6 +887,18 @@ djl50	verdict	"hosts": *{"a": {"name": "x", "url": .name}} | (null)	{"hosts": {"
 djl51	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error"}
 djl52	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error","opts":{"noFill":true}}
 djl53	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error","opts":{"partial":true}}
+djl54	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+djl55	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl56	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl57	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+djl58	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl59	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+djl60	verdict	"x": "q"\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"x": "q"}	{"verdict":"valid"}
+djl61	verdict	"x": "q"\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"x": "q"}	{"verdict":"valid","opts":{"noFill":true}}
+djl62	verdict	"x": "q"\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"x": "q"}	{"verdict":"valid","opts":{"partial":true}}
+djl63	verdict	"x": "q"\n%H = ({"a": {"url": $.nowhere}}) | (null)	{"x": "q"}	{"verdict":"valid"}
+djl64	verdict	"x": "q"\n%H = ({"a": {"url": $.nowhere}}) | (null)	{"x": "q"}	{"verdict":"valid","opts":{"noFill":true}}
+djl65	verdict	"x": "q"\n%H = ({"a": {"url": $.nowhere}}) | (null)	{"x": "q"}	{"verdict":"valid","opts":{"partial":true}}
 mb0	verdict	"b": maybe($.gone)	{}	{"verdict":"valid"}
 mb1	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"noFill":true}}
 mb2	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"partial":true}}

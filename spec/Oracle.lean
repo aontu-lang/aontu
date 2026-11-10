@@ -1619,8 +1619,9 @@ refuses less, and beside one that refuses as much; an absolute path to
 the arm's own member and a path that climbs out of the arm; a spread's
 template that reads its member's place, written in the arm and in the
 body of a name the arm uses; a path in the body of a name the arm uses;
-a path that names nothing, which drops its arm; a preferred arm; and a
-path from outside into an arm, which names nothing. -/
+a path that names nothing, which drops its arm; a preferred arm; a path
+from outside into an arm, which names nothing; and a name whose body is
+such a disjunction, used and unused. -/
 def disjunctionPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -1654,7 +1655,11 @@ def disjunctionPathCases : List (Decls × Val × Data) :=
     ([], m [("hosts", or2 (m [("a", m [("url", p ["nowhere"])])]) (.lit .null))], hd "y"),
     ([], m [("hosts", .or [(1, named), (0, .lit .null)])], hd "x"),
     ([], m [("x", or2 (m [("a", int 1)]) (m [("a", int 2)])), ("y", p ["x", "a"])],
-      .map [("x", .map [("a", j 1)]), ("y", j 1)])]
+      .map [("x", .map [("a", j 1)]), ("y", j 1)]),
+    ([("H", or2 named (.lit .null))], m [("hosts", .alias "H")], hd "x"),
+    ([("H", or2 named (.lit .null))], m [("hosts", .alias "H")], hd "y"),
+    ([("H", or2 named (.lit .null))], m [("x", str "q")], .map [("x", .str "q")]),
+    ([("H", or2 (m [("a", m [("url", p ["nowhere"])])]) (.lit .null))], m [("x", str "q")], .map [("x", .str "q")])]
 
 theorem disjunctionPathCases_checkable : ∀ c ∈ disjunctionPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
