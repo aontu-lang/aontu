@@ -1715,16 +1715,16 @@ uses, and in a name whose body is a selection, where the document uses the name.
 The definition reads a result so by `Decls.armsRead`. A path written in
 a disjunction's arm, a template's among them, reads in the document
 where the disjunction holds that arm: in `hosts: {a: {name: "x", url:
-.name}} | null`, `url` reads the arm's own `name`, and a path in the
-body of a name an arm uses reads the same. An arm whose path names
+.name}} | null`, `url` reads the arm's own `name`. A path in the body of a name an arm
+uses reads the same, and so does one in a name whose body is the
+disjunction, where the document uses the name and at its own place. An arm whose path names
 nothing there drops out, as a dead arm does. A path from outside into
 an arm names nothing. Both engines read a path in an arm only once a
 single arm remains, and in a preferred arm never, so data an arm
 refuses through its path leaves the document `incomplete` while two
 arms are live, which #700 tracks. The definition reads each arm so by
-`Decls.armChosen`, and doesn't yet read a path in a name whose body is
-a disjunction, inside `*x` written alone, or in an arm of a disjunction
-met with another at one place.
+`Decls.armChosen`, and doesn't yet read a path inside `*x` written
+alone, or in an arm of a disjunction met with another at one place.
 
 ### Recursive references (fixpoints)
 

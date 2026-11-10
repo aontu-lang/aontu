@@ -9111,11 +9111,12 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   let root := ds.spreadRoot S rl r oj
   let isBody (n : String) : Bool := ds.withRel.any (·.1 == n)
   let places := L.1.usePlaces L.2
-  let P := L.1.membersRead (L.1.armsRead root [] [] L.2) root []
-  let ns := (P.orNodes [] []).filter fun n => n.2.2.any (·.2.armReads)
-  let armRoot (n : List ℕ × List Seg × List (ℕ × Val)) (a : Val) : Val :=
-    (((r (L.1.map fun d => (d.1, d.2.opened)) (P.replaceAt n.1 a).opened).getLast?.getD .any).at n.2.1).getD .any
-  let reached := L.1.reached L.2 root ++ L.1.armsReached root [] L.2 ++
+  let orNames := (L.1.filter fun d => !isBody d.1 && !(d.2.armNodes []).isEmpty).map (·.1)
+  let T := L.2.unfoldAt orNames.contains fun n => expandF L.1 1 (.alias n)
+  let P := L.1.membersRead (L.1.armsRead root [] [] T) root []
+  let ns := P.armNodes []
+  let armRoot (n : List ℕ × List Seg × List (ℕ × Val)) (a : Val) : Val := L.1.treeAt r (P.replaceAt n.1 a) n.2.1
+  let reached := L.1.reached T root ++ L.1.armsReached root [] T ++
     (L.1.filter (isBody ·.1)).flatMap (fun b =>
       L.1.reached b.2 (L.1.ownRoot b) ++ L.1.armsReached (L.1.ownRoot b) [] b.2) ++
     (L.1.filter (!isBody ·.1)).flatMap (fun c =>
@@ -9128,8 +9129,7 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   let armUses := (List.range L.1.length).foldl
     (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
     (ns.flatMap fun n => n.2.2.flatMap (·.2.refs))
-  (ds'.filter (fun d => isBody d.1 || !armUses.contains d.1) ++ (ds'.armsChosen L.1 r P armRoot 0 ns P).2,
-    (ds'.armsChosen L.1 r P armRoot 0 ns P).1)
+  L.1.readArms ds' r P ns armRoot isBody fun n => isBody n || !(armUses.contains n || orNames.contains n)
 ```
 
 A declaration's own such templates admit any member wherever the
@@ -9173,13 +9173,13 @@ there is `nil`, as both engines drop it:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.armChosen (ds' L1 : Decls) (r : Decls → Val → List Val) (P : Val) (k : ℕ)
-    (n : List ℕ × List Seg × List (ℕ × Val)) (root : Val) (i : ℕ) (a : Val) : Val × Decls :=
-  let a' := L1.membersRead (L1.armsRead root n.2.1 [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) root n.2.1
-  let roots := r ds' (P.replaceAt n.1 a')
-  if (a'.forgive.paths.filter placePath).all fun p => (ds'.pathIn roots p).isSome then
-    (a'.pathsToAliases.armed (armPre k i),
-      (ds'.ofPaths roots (a'.paths.filter placePath).eraseDups).map fun d => ("$" ++ armPre k i ++ d.1, d.2))
+def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val → Decls × Val) (pre : String)
+    (pos : List Seg) (root a : Val) : Val × Decls :=
+  let a' := L1.membersRead (L1.armsRead root pos [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) root pos
+  let roots := r (doc a').1 (doc a').2
+  if (a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome then
+    (a'.pathsToAliases.armed pre,
+      ((doc a').1.ofPaths roots (a'.paths.filter placePath).eraseDups).map fun d => ("$" ++ pre ++ d.1, d.2))
   else (.nil, [])
 ```
 
