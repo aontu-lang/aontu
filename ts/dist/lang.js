@@ -709,9 +709,6 @@ help isolate the syntax error.`,
         if (null == funcval) {
             val.refusedCall = { name: fname, args };
         }
-        if (undefined !== PlaceVal_1.HOLDING[fname] || PlaceVal_1.HELD_BOUNDS.has(fname)) {
-            args.slice(PlaceVal_1.HOLDING[fname] ?? 0).forEach((a) => (0, PlaceVal_1.holdHoles)(a, false));
-        }
         return val;
     };
     let opmap = {

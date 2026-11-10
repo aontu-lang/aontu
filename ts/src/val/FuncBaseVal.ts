@@ -30,8 +30,8 @@ import {
 
 import { ConjunctVal } from '../val/ConjunctVal'
 import { FeatureVal } from '../val/FeatureVal'
-import { bagHoles, hasPlace, waitsOnHole, bindHole, unfillable } from '../val/PlaceVal'
 import { bagMembers } from './members'
+import { hasPlace } from '../val/PlaceVal'
 
 
 // Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
@@ -113,6 +113,8 @@ function trialUnify(ctx: AontuContext, a: Val, b: Val): Val | undefined {
 const WRAPPERS = new Set(['meta', 'deprecate', 'ident', 'type', 'hide', 'close', 'open'])
 
 
+// A rider, a mark or a seal around a container that holds a hole, which
+// the definition reads as no call at all.
 function wrapsBag(v: any): boolean {
   const inner = true === v?.isFunc && WRAPPERS.has(v.funcname()) ? v.peg[0] : undefined
   return null != inner &&
@@ -129,21 +131,6 @@ function wrapSettled(args: any[]): boolean {
 // An outer seal reaches the container once the wrappers inside resolve.
 function openWrap(ctx: AontuContext, v: any): Val {
   return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v
-}
-
-
-// The calls that take their argument as a value read a list or a map
-// holding a hole as that container, and CALLS one holding a waiting call.
-const VALUED = new Set(['super', 'pref', 'refer', 'rel'])
-const CALLS = new Set(['super', 'pref'])
-
-
-function asValue(ctx: AontuContext, call: any, args: any[]): boolean {
-  const calls = CALLS.has(call.funcname())
-  return true === ctx.settle && VALUED.has(call.funcname()) &&
-    args.some((a: any) => true !== a.done) &&
-    args.every((a: any) => true === a.done ||
-      ((true === a.isList || true === a.isMap) && bagHoles(a, false, calls)))
 }
 
 
@@ -197,9 +184,9 @@ class FuncBaseVal extends FeatureVal {
   }
 
 
-  stagedReady(peer: Val, ctx: AontuContext, count: number): boolean {
+  stagedReady(ctx: AontuContext, count: number): boolean {
     const ready = this.driveStagedArgs(ctx, count)
-    return (ready || (!peer.isTop && waitsOnHole(this))) && true === ctx.settle
+    return ready && true === ctx.settle
   }
 
 
@@ -216,13 +203,8 @@ class FuncBaseVal extends FeatureVal {
   // loop keeps going; unchanged against TOP, so nothing reads an answer
   // it has not given; and collapsed against an identical twin at the
   // same position, so `key() & key()` does not grow a conjunct per pass.
-  // A wait nothing can end is the call's failure instead.
   residuate(peer: Val, ctx: AontuContext): Val {
     this.notdone()
-
-    if (unfillable(ctx, this, this.peg)) {
-      return makeNilErr(ctx, 'place_container', this, undefined, 'make')
-    }
 
     if (peer.isTop || (peer.id === this.id)) {
       // Cloned rather than returned: a driver that met the same object
@@ -257,18 +239,9 @@ class FuncBaseVal extends FeatureVal {
       return this.residuate(peer, ctx)
     }
 
-    const reach = !peer.isTop && !peer.isNil && this.id !== peer.id
-    const fill = reach && waitsOnHole(this)
-
-    // A rider, a mark or a seal around a container reads through to it.
-    const through = reach && wrapsBag(this)
-
-    if (fill && !through) {
-      if (waitsOnHole(peer)) {
-        return makeNilErr(ctx, 'place_pair', this, peer)
-      }
-      return bindHole(this, peer, ctx).unify(top(), ctx)
-    }
+    // Read through to the container, met with a peer, though a hole it
+    // holds waits.
+    const through = !peer.isTop && !peer.isNil && this.id !== peer.id && wrapsBag(this)
 
     const TOP = top()
     const te = ctx.explain && explainOpen(ctx, ctx.explain, 'Func:' + this.funcname(), this, peer)
@@ -312,7 +285,6 @@ class FuncBaseVal extends FeatureVal {
               newtype = newtype || newarg.mark.type
               newhide = newhide || newarg.mark.hide
             }
-            // pegdone &&= arg.done
             pegdone &&= newarg.done
             newpeg.push(newarg)
           }
@@ -322,7 +294,7 @@ class FuncBaseVal extends FeatureVal {
         const gone = this.forgives ? undefined :
           newpeg.find((a: Val) => true === (a as any).isAbsent)
 
-        if ((pegdone || (through && wrapSettled(newpeg)) || asValue(ctx, this, newpeg)) &&
+        if ((pegdone || (through && wrapSettled(newpeg))) &&
           (undefined !== gone || !this.deferResolve(ctx, newpeg))) {
           // THE SIGNATURE GATE (sketch/SIGNATURES.0.md): the
           // driven arguments against the declared signature, before
@@ -353,10 +325,6 @@ class FuncBaseVal extends FeatureVal {
             peer.path : this.path
 
           why += 'pegdone'
-        }
-        else if (unfillable(ctx, this, newpeg)) {
-          out = makeNilErr(ctx, 'place_container', this, undefined, 'make')
-          why += 'held'
         }
         else if (peer.isTop) {
           this.notdone()

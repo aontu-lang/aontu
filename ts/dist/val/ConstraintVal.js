@@ -26,7 +26,6 @@ const formatgrammar_1 = require("../formatgrammar");
 const regex_1 = require("../regex");
 const hints_1 = require("../hints");
 const FeatureVal_1 = require("./FeatureVal");
-const PlaceVal_1 = require("./PlaceVal");
 const site_1 = require("../site");
 const ScalarKindVal_1 = require("./ScalarKindVal");
 const numcmp_1 = require("./numcmp");
@@ -413,7 +412,7 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             if (TRIAL_ATOMS.includes(spec.atom) && args.some((a) => holdsMove(a))) {
                 this.invalid = 'invalid-arg';
             }
-            else if (true !== spec.whole && args.some((a) => true !== a?.done)) {
+            else if (args.some((a) => true !== a?.done)) {
                 this.pending = { atom: spec.atom, args };
             }
             else {
@@ -662,16 +661,10 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
             moved = moved || next?.canon !== arg?.canon;
             args.push(next);
         }
-        // An unfillable held hole fails neq; other bounds read its container as out of domain.
-        const whole = !settled && true === ctx.settle && PlaceVal_1.HELD_BOUNDS.has(pend.atom) &&
-            args.every((a) => (0, PlaceVal_1.bagHoles)(a, true));
-        if (whole && args.some((a) => true === a?.isPlace)) {
-            return (0, err_1.makeNilErr)(ctx, 'place_container', this, undefined, 'make');
-        }
-        if (settled || whole) {
+        if (settled) {
             // The residual the atom always meant, at this atom's site: a bound's
             // stands against the top, unless an argument it reads is a choice.
-            const built = new ConstraintVal({ peg: args, atom: pend.atom, whole }, ctx);
+            const built = new ConstraintVal({ peg: args, atom: pend.atom }, ctx);
             built.path = this.path;
             built.site.row = this.site.row;
             built.site.col = this.site.col;

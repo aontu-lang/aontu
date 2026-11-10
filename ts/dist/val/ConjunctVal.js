@@ -10,7 +10,6 @@ const unify_1 = require("../unify");
 const rider_1 = require("../rider");
 const err_2 = require("../err");
 const JunctionVal_1 = require("./JunctionVal");
-const PlaceVal_1 = require("./PlaceVal");
 const BagVal_1 = require("./BagVal");
 const Val_1 = require("./Val");
 const utility_1 = require("../utility");
@@ -40,27 +39,6 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
     }
     unify(peer, ctx) {
         peer = peer ?? (0, top_1.top)();
-        // A group of sides that wait on a hole fills nothing whatever stands
-        // beside it, so it is refused before its sides are flattened in.
-        if (peer.isTop) {
-            for (const t of this.peg) {
-                const pair = true === t.isConjunct ? waitPair(t) : undefined;
-                if (undefined !== pair) {
-                    return (0, err_1.makeNilErr)(ctx, 'place_pair', pair[0], pair[1]);
-                }
-            }
-            // A group that fills its own hole settles first, as it's grouped.
-            for (let tI = 0; tI < this.peg.length; tI++) {
-                const t = this.peg[tI];
-                if (true === t.isConjunct && (0, PlaceVal_1.hasPlace)(t) && !waits(t)) {
-                    const settled = (0, unify_1.unite)(ctx, t, (0, top_1.top)(), 'cj-group');
-                    if (settled.isNil) {
-                        return settled;
-                    }
-                    this.peg[tI] = settled;
-                }
-            }
-        }
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Conjunct', this, peer);
         const carried = [];
         this.peg = norm(this.peg, carried);
@@ -93,7 +71,6 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
         // next_term:
         for (let pI = 0; pI < upeer.length; pI++) {
             let t1 = upeer[pI + 1];
-            // console.log('CONJUNCT-TERMS-C', ctx.cc, this.id, pI, t0.id, t0.canon, t1?.id, t1?.canon, 'OV=', outvals.map((v: Val) => v.canon))
             if (null == t1) {
                 outvals.push(t0);
                 newtype = this.mark.type || t0.mark.type;
@@ -132,7 +109,6 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
             }
         }
         let out;
-        // console.log('CONJUCT-prepout', this.id, outvals.map((v: Val) => v.canon))
         if (0 === outvals.length) {
             // Empty conjuncts evaporate.
             out = (0, top_1.top)();
@@ -186,48 +162,6 @@ class ConjunctVal extends JunctionVal_1.JunctionVal {
     }
 }
 exports.ConjunctVal = ConjunctVal;
-// A call over a hole beside a side that holds one, in a group or at a shared key or index.
-function waitPair(cj) {
-    const terms = cj.peg;
-    for (const c of terms) {
-        for (const o of terms) {
-            const pair = c === o ? undefined : pairAt(c, o);
-            if (undefined !== pair) {
-                return pair;
-            }
-        }
-    }
-    return undefined;
-}
-function pairAt(c, o) {
-    if (true === c.isFunc || true === c.isOp) {
-        return (0, PlaceVal_1.waitsOnHole)(c) && waits(o) ? [c, o] : undefined;
-    }
-    if (true === c.isMap && true === o.isMap) {
-        for (const k of Object.keys(c.peg)) {
-            const pair = undefined === o.peg[k] ? undefined : pairAt(c.peg[k], o.peg[k]);
-            if (undefined !== pair) {
-                return pair;
-            }
-        }
-    }
-    else if (true === c.isList && true === o.isList) {
-        for (let i = 0; i < c.peg.length && i < o.peg.length; i++) {
-            const pair = pairAt(c.peg[i], o.peg[i]);
-            if (undefined !== pair) {
-                return pair;
-            }
-        }
-    }
-    return undefined;
-}
-// A meet waits only where every side does, as `_ & _` does and
-// `_ & "a"`, which fills its own hole, doesn't.
-function waits(v) {
-    return true === v.isPlace
-        || ((true === v.isFunc || true === v.isOp) && (0, PlaceVal_1.waitsOnHole)(v))
-        || (true === v.isConjunct && v.peg.every(waits));
-}
 function sameTerms(cj, t0, t1) {
     return 2 === cj.peg.length && cj.peg.includes(t0) && cj.peg.includes(t1);
 }

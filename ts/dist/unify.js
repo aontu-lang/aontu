@@ -527,7 +527,6 @@ class Unify {
     }
 }
 exports.Unify = Unify;
-const meetTemplate = (ctx, member, tmpl, whence) => true === tmpl.isPlace && true !== ctx._matchRead ? unite(ctx, tmpl, member, whence)
-    : unite(ctx, member, tmpl, whence); /* node:coverage ignore next 12 */
+const meetTemplate = (ctx, member, tmpl, whence) => unite(ctx, member, tmpl, whence); /* node:coverage ignore next 12 */
 exports.meetTemplate = meetTemplate;
 //# sourceMappingURL=unify.js.map

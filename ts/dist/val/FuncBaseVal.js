@@ -12,8 +12,8 @@ const siggate_1 = require("../siggate");
 const top_1 = require("./top");
 const ConjunctVal_1 = require("../val/ConjunctVal");
 const FeatureVal_1 = require("../val/FeatureVal");
-const PlaceVal_1 = require("../val/PlaceVal");
 const members_1 = require("./members");
+const PlaceVal_1 = require("../val/PlaceVal");
 // Did the meet ADD a key or narrow a leaf, or only constrain? MEMBERS,
 // not raw keys, so an unfilled optional is not something to add.
 function sameKids(a, b, ctx, admit) {
@@ -80,6 +80,8 @@ function trialUnify(ctx, a, b) {
     return 0 < trialErr.length || out.isNil ? undefined : out;
 }
 const WRAPPERS = new Set(['meta', 'deprecate', 'ident', 'type', 'hide', 'close', 'open']);
+// A rider, a mark or a seal around a container that holds a hole, which
+// the definition reads as no call at all.
 function wrapsBag(v) {
     const inner = true === v?.isFunc && WRAPPERS.has(v.funcname()) ? v.peg[0] : undefined;
     return null != inner &&
@@ -92,17 +94,6 @@ function wrapSettled(args) {
 // An outer seal reaches the container once the wrappers inside resolve.
 function openWrap(ctx, v) {
     return wrapsBag(v) ? v.resolve(ctx, [openWrap(ctx, v.peg[0]), ...v.peg.slice(1)]) : v;
-}
-// The calls that take their argument as a value read a list or a map
-// holding a hole as that container, and CALLS one holding a waiting call.
-const VALUED = new Set(['super', 'pref', 'refer', 'rel']);
-const CALLS = new Set(['super', 'pref']);
-function asValue(ctx, call, args) {
-    const calls = CALLS.has(call.funcname());
-    return true === ctx.settle && VALUED.has(call.funcname()) &&
-        args.some((a) => true !== a.done) &&
-        args.every((a) => true === a.done ||
-            ((true === a.isList || true === a.isMap) && (0, PlaceVal_1.bagHoles)(a, false, calls)));
 }
 class FuncBaseVal extends FeatureVal_1.FeatureVal {
     constructor(spec, ctx) {
@@ -137,9 +128,9 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
         }
         return alldone;
     }
-    stagedReady(peer, ctx, count) {
+    stagedReady(ctx, count) {
         const ready = this.driveStagedArgs(ctx, count);
-        return (ready || (!peer.isTop && (0, PlaceVal_1.waitsOnHole)(this))) && true === ctx.settle;
+        return ready && true === ctx.settle;
     }
     clone(ctx, spec) {
         const out = super.clone(ctx, spec);
@@ -152,12 +143,8 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
     // loop keeps going; unchanged against TOP, so nothing reads an answer
     // it has not given; and collapsed against an identical twin at the
     // same position, so `key() & key()` does not grow a conjunct per pass.
-    // A wait nothing can end is the call's failure instead.
     residuate(peer, ctx) {
         this.notdone();
-        if ((0, PlaceVal_1.unfillable)(ctx, this, this.peg)) {
-            return (0, err_1.makeNilErr)(ctx, 'place_container', this, undefined, 'make');
-        }
         if (peer.isTop || (peer.id === this.id)) {
             // Cloned rather than returned: a driver that met the same object
             // twice in one pass would charge the revisit budget and report
@@ -185,16 +172,9 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
         if (this.staged && !ctx.settle) {
             return this.residuate(peer, ctx);
         }
-        const reach = !peer.isTop && !peer.isNil && this.id !== peer.id;
-        const fill = reach && (0, PlaceVal_1.waitsOnHole)(this);
-        // A rider, a mark or a seal around a container reads through to it.
-        const through = reach && wrapsBag(this);
-        if (fill && !through) {
-            if ((0, PlaceVal_1.waitsOnHole)(peer)) {
-                return (0, err_1.makeNilErr)(ctx, 'place_pair', this, peer);
-            }
-            return (0, PlaceVal_1.bindHole)(this, peer, ctx).unify((0, top_1.top)(), ctx);
-        }
+        // Read through to the container, met with a peer, though a hole it
+        // holds waits.
+        const through = !peer.isTop && !peer.isNil && this.id !== peer.id && wrapsBag(this);
         const TOP = (0, top_1.top)();
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Func:' + this.funcname(), this, peer);
         let why = '';
@@ -225,7 +205,6 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                             newtype = newtype || newarg.mark.type;
                             newhide = newhide || newarg.mark.hide;
                         }
-                        // pegdone &&= arg.done
                         pegdone &&= newarg.done;
                         newpeg.push(newarg);
                     }
@@ -233,7 +212,7 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                 // ABSENCE PROPAGATES (ADR-034), ahead of deferResolve.
                 const gone = this.forgives ? undefined :
                     newpeg.find((a) => true === a.isAbsent);
-                if ((pegdone || (through && wrapSettled(newpeg)) || asValue(ctx, this, newpeg)) &&
+                if ((pegdone || (through && wrapSettled(newpeg))) &&
                     (undefined !== gone || !this.deferResolve(ctx, newpeg))) {
                     // THE SIGNATURE GATE (sketch/SIGNATURES.0.md): the
                     // driven arguments against the declared signature, before
@@ -260,10 +239,6 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
                     out.path = true === peer.isMap && 0 < peer.aliasKeys.length ?
                         peer.path : this.path;
                     why += 'pegdone';
-                }
-                else if ((0, PlaceVal_1.unfillable)(ctx, this, newpeg)) {
-                    out = (0, err_1.makeNilErr)(ctx, 'place_container', this, undefined, 'make');
-                    why += 'held';
                 }
                 else if (peer.isTop) {
                     this.notdone();

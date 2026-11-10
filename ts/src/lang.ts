@@ -152,7 +152,7 @@ import {
   SumFuncVal, LeastFuncVal, GreatestFuncVal, PickFuncVal, SortFuncVal,
   JoinFuncVal,
 } from './val/AggFuncVal'
-import { PlaceVal, HELD_BOUNDS, HOLDING, holdHoles } from './val/PlaceVal'
+import { PlaceVal } from './val/PlaceVal'
 import { MoveFuncVal } from './val/MoveFuncVal'
 import { PathFuncVal } from './val/PathFuncVal'
 import { MapKindVal, ListKindVal } from './val/ContainerKindVal'
@@ -956,10 +956,6 @@ help isolate the syntax error.`,
       new funcval({ peg: args })
     if (null == funcval) {
       val.refusedCall = { name: fname, args }
-    }
-
-    if (undefined !== HOLDING[fname] || HELD_BOUNDS.has(fname)) {
-      args.slice(HOLDING[fname] ?? 0).forEach((a: any) => holdHoles(a, false))
     }
 
     return val

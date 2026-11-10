@@ -9,11 +9,7 @@ import (
 	"strings"
 )
 
-// A bare hole as a spread's template leads its meet: it is the member.
 func meetTemplate(ctx *Ctx, member, tmpl Val) Val {
-	if _, ok := tmpl.(*PlaceVal); ok && !ctx.matchRead {
-		return unite(ctx, tmpl, member)
-	}
 	return unite(ctx, member, tmpl)
 }
 

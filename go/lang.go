@@ -2763,11 +2763,6 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	if constraintAtoms[name] {
 		cv := newConstraint(name, args, sp)
 		stampSrc(cv, r)
-		if heldBounds[name] {
-			for _, a := range args {
-				holdHoles(a, false)
-			}
-		}
 		return cv
 	}
 
@@ -2775,11 +2770,6 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	if r.ON > 0 {
 		fv.site.sp = r.O0.SI
 		stampSrc(fv, r)
-	}
-	if from, holds := holdingFuncs[name]; holds {
-		for _, a := range args[min(from, len(args)):] {
-			holdHoles(a, false)
-		}
 	}
 	return fv
 }

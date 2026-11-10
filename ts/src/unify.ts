@@ -620,8 +620,7 @@ class Unify {
 
 
 const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string): Val =>
-  true === (tmpl as any).isPlace && true !== ctx._matchRead ? unite(ctx, tmpl, member, whence)
-    : unite(ctx, member, tmpl, whence) /* node:coverage ignore next 12 */
+  unite(ctx, member, tmpl, whence) /* node:coverage ignore next 12 */
 
 
 export {
