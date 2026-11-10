@@ -55,6 +55,8 @@
 # in rows bc0 on, written again after the schema in rows bcl0 on. A name whose
 # body holds a spread whose template reads its member's place reads it at each
 # member where it's used and at its own place, in rows nt0 on and ntl0 on.
+# A template in a selection's result reads its member's place where the
+# selection stands, in rows st0 on and stl0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -691,6 +693,78 @@ ntl23	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {}}	{}	{"verdict":"er
 ntl24	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}	{}	{"verdict":"valid"}
 ntl25	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 ntl26	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}	{}	{"verdict":"valid","opts":{"partial":true}}
+st0	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+st1	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+st2	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+st3	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+st4	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+st5	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+st6	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": null}	{"verdict":"valid"}
+st7	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": null}	{"verdict":"valid","opts":{"noFill":true}}
+st8	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": null}	{"verdict":"valid","opts":{"partial":true}}
+st9	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"invalid"}
+st10	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+st11	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"invalid","opts":{"partial":true}}
+st12	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", {&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid"}
+st13	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", {&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"noFill":true}}
+st14	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", {&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"partial":true}}
+st15	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+st16	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+st17	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+st18	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+st19	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+st20	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+st21	verdict	"c": {"hosts": match("m", "m", {&: {"url": .name}}, "n", null)}	{"c": {"hosts": {"a": {"name": "x", "url": "y"}}}}	{"verdict":"invalid"}
+st22	verdict	"c": {"hosts": match("m", "m", {&: {"url": .name}}, "n", null)}	{"c": {"hosts": {"a": {"name": "x", "url": "y"}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+st23	verdict	"c": {"hosts": match("m", "m", {&: {"url": .name}}, "n", null)}	{"c": {"hosts": {"a": {"name": "x", "url": "y"}}}}	{"verdict":"invalid","opts":{"partial":true}}
+st24	verdict	%H = {&: {"url": .name}}\n"hosts": match("m", "m", %H, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+st25	verdict	%H = {&: {"url": .name}}\n"hosts": match("m", "m", %H, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+st26	verdict	%H = {&: {"url": .name}}\n"hosts": match("m", "m", %H, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+st27	verdict	%H = {&: {"url": .name}}\n"hosts": match("m", "m", %H, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+st28	verdict	%H = {&: {"url": .name}}\n"hosts": match("m", "m", %H, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+st29	verdict	%H = {&: {"url": .name}}\n"hosts": match("m", "m", %H, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+st30	verdict	%H = match("m", "m", {&: {"url": .name}}, "n", null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+st31	verdict	%H = match("m", "m", {&: {"url": .name}}, "n", null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+st32	verdict	%H = match("m", "m", {&: {"url": .name}}, "n", null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+st33	verdict	%H = match("m", "m", {&: {"url": .name}}, "n", null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+st34	verdict	%H = match("m", "m", {&: {"url": .name}}, "n", null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+st35	verdict	%H = match("m", "m", {&: {"url": .name}}, "n", null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+stl0	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+stl1	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+stl2	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+stl3	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+stl4	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+stl5	verdict	"hosts": match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+stl6	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": null}	{"verdict":"valid"}
+stl7	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": null}	{"verdict":"valid","opts":{"noFill":true}}
+stl8	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": null}	{"verdict":"valid","opts":{"partial":true}}
+stl9	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"invalid"}
+stl10	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+stl11	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"invalid","opts":{"partial":true}}
+stl12	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", {&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid"}
+stl13	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", {&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"noFill":true}}
+stl14	verdict	"hosts": match("n", "m", {&: {"url": .name}}, "n", {&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"partial":true}}
+stl15	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+stl16	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+stl17	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+stl18	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+stl19	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+stl20	verdict	"hosts": match("z", "m", null, {&: {"url": .name}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+stl21	verdict	"c": {"hosts": match("m", "m", {&: {"url": .name}}, "n", null)}	{"c": {"hosts": {"a": {"name": "x", "url": "y"}}}}	{"verdict":"invalid"}
+stl22	verdict	"c": {"hosts": match("m", "m", {&: {"url": .name}}, "n", null)}	{"c": {"hosts": {"a": {"name": "x", "url": "y"}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+stl23	verdict	"c": {"hosts": match("m", "m", {&: {"url": .name}}, "n", null)}	{"c": {"hosts": {"a": {"name": "x", "url": "y"}}}}	{"verdict":"invalid","opts":{"partial":true}}
+stl24	verdict	"hosts": match("m", "m", %H, "n", null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+stl25	verdict	"hosts": match("m", "m", %H, "n", null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+stl26	verdict	"hosts": match("m", "m", %H, "n", null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+stl27	verdict	"hosts": match("m", "m", %H, "n", null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+stl28	verdict	"hosts": match("m", "m", %H, "n", null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+stl29	verdict	"hosts": match("m", "m", %H, "n", null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+stl30	verdict	"hosts": %H\n%H = match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+stl31	verdict	"hosts": %H\n%H = match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+stl32	verdict	"hosts": %H\n%H = match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+stl33	verdict	"hosts": %H\n%H = match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+stl34	verdict	"hosts": %H\n%H = match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+stl35	verdict	"hosts": %H\n%H = match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
 mb0	verdict	"b": maybe($.gone)	{}	{"verdict":"valid"}
 mb1	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"noFill":true}}
 mb2	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"partial":true}}

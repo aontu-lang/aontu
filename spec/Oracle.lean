@@ -1575,6 +1575,43 @@ theorem name_template_verdict_exact : ∀ c ∈ nameTemplateCases, ∀ (m : Mode
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (nameTemplateCases_checkable c hc).1 (nameTemplateCases_checkable c hc).2 v
 
+/-- Templates that read their member's place in a selection's results,
+each read at each member where the selection stands: a spread's in the
+result the selection takes, beside data it refuses, in a result it
+doesn't take, beside one that refuses less, in its default, deeper in
+the document, in the body of a name a result uses, and in a selection
+that is a name's body, read where the name is used. A generator's
+template there waits on TypeScript, which reads it a step deeper (#698). -/
+def selectTemplateCases : List (Decls × Val × Data) :=
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let tmpl (t : Val) : Val := .map [] (some t) false
+  let url := tmpl (m [("url", rel 1 ["name"])])
+  let sel (s : String) (r₁ r₂ : Val) : Val := .select (str s) [(str "m", r₁), (str "n", r₂)] none
+  let dflt : Val := .select (str "z") [(str "m", .lit .null)] (some url)
+  let hosts (u : String) : Data := .map [("a", .map [("name", .str "x"), ("url", .str u)])]
+  let hd (u : String) : Data := .map [("hosts", hosts u)]
+  [([], m [("hosts", sel "m" url (.lit .null))], hd "x"),
+    ([], m [("hosts", sel "m" url (.lit .null))], hd "y"),
+    ([], m [("hosts", sel "n" url (.lit .null))], .map [("hosts", .null)]),
+    ([], m [("hosts", sel "n" url (.lit .null))], hd "x"),
+    ([], m [("hosts", sel "n" url (tmpl (m [("url", .string)])))], hd "y"),
+    ([], m [("hosts", dflt)], hd "x"),
+    ([], m [("hosts", dflt)], hd "y"),
+    ([], m [("c", m [("hosts", sel "m" url (.lit .null))])], .map [("c", hd "y")]),
+    ([("H", url)], m [("hosts", sel "m" (.alias "H") (.lit .null))], hd "x"),
+    ([("H", url)], m [("hosts", sel "m" (.alias "H") (.lit .null))], hd "y"),
+    ([("H", sel "m" url (.lit .null))], m [("hosts", .alias "H")], hd "x"),
+    ([("H", sel "m" url (.lit .null))], m [("hosts", .alias "H")], hd "y")]
+
+theorem selectTemplateCases_checkable : ∀ c ∈ selectTemplateCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem select_template_verdict_exact : ∀ c ∈ selectTemplateCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (selectTemplateCases_checkable c hc).1 (selectTemplateCases_checkable c hc).2 v
+
 theorem bodyCopyCases_checkable : ∀ c ∈ bodyCopyCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
 
@@ -6847,6 +6884,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# in rows bc0 on, written again after the schema in rows bcl0 on. A name whose"
     IO.println "# body holds a spread whose template reads its member's place reads it at each"
     IO.println "# member where it's used and at its own place, in rows nt0 on and ntl0 on."
+    IO.println "# A template in a selection's result reads its member's place where the"
+    IO.println "# selection stands, in rows st0 on and stl0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -6859,6 +6898,8 @@ def main (args : List String) : IO UInt32 := do
     pathRows "bcl" bodyCopyCases (declsLast := true)
     pathRows "nt" nameTemplateCases
     pathRows "ntl" nameTemplateCases (declsLast := true)
+    pathRows "st" selectTemplateCases
+    pathRows "stl" selectTemplateCases (declsLast := true)
     pathRows "mb" maybeCases
     pathRows "la" absentListCases
     pathRows "pf" prefCases
