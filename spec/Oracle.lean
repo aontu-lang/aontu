@@ -1440,7 +1440,11 @@ written after the target and before it, beside no data, data at the
 copy that reads 3 and that reads 2, data at the target, and both; a
 target whose relative path stays inside it, met at the copy; two copies
 that read two values; a copy where its path names nothing; and a target
-that is a use of a name, and one that is a path reference. -/
+that is a use of a name, and one that is a path reference; a path to a
+member only a spread's template would reach, which names nothing; a
+reference inside its own place, a recursion, beside data that holds it
+and data that refuses it; and a target reached through another path
+reference, whose own data meets the copy, in both orders. -/
 def refCopyCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1458,6 +1462,8 @@ def refCopyCases : List (Decls × Val × Data) :=
   let cw := ("c", m [("d", .meet (p ["a", "b"]) (m [("w", int 7)]))])
   let vw (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .map [("v", j n h), ("w", j n h)]
   let tv : Decls := [("T", m [("v", rel 2 ["x"])])]
+  let recur : Val := .map [("x", false, .integer), ("y", false, rel 1 ["x"]), ("b", true, p ["a"])] none false
+  let fw := ("f", m [("b", m [("w", .number), ("v", rel 1 ["w"])])])
   datas.map (fun d => ([], m [a, c], d)) ++ datas.map (fun d => ([], m [c, a], d)) ++
     [([], m [aw, cw], .map []),
       ([], m [aw, cw], .map [("a", .map [("b", vw 1)]), ("c", .map [("d", vw 7)])]),
@@ -1469,7 +1475,13 @@ def refCopyCases : List (Decls × Val × Data) :=
       ([], m [a, ("c", m [("d", p ["a", "b"])])], .map []),
       (tv, m [c, ("a", m [("x", int 2), ("b", .alias "T")]), ("x", int 1)], .map [atV "c" "d" 3]),
       ([], m [c, ("a", m [("x", int 2), ("b", p ["f"])]), ("f", m [("v", rel 2 ["x"])]), ("x", int 1)],
-        .map [atV "c" "d" 3])]
+        .map [atV "c" "d" 3]),
+      ([], m [("a", .map [] (some (m [("v", rel 1 ["w"]), ("w", int 1)])) false), ("d", p ["a", "missing"])], .map []),
+      ([], m [("a", recur)], .map [("a", .map [("x", j 1), ("y", j 1)])]),
+      ([], m [("a", recur)], .map [("a", .map [("x", j 1), ("y", j 2)])]),
+      ([], m [fw, ("a", p ["f"]), ("d", p ["a", "b"])], .map [("a", .map [("b", vw 1)]), ("d", vw 2)]),
+      ([], m [fw, ("a", p ["f"]), ("d", p ["a", "b"])], .map [("a", .map [("b", vw 2)]), ("d", vw 2)]),
+      ([], m [("d", p ["a", "b"]), fw, ("a", p ["f"])], .map [("a", .map [("b", vw 1)]), ("d", vw 2)])]
 
 theorem refCopyCases_checkable : ∀ c ∈ refCopyCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

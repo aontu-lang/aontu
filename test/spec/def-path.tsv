@@ -556,6 +556,24 @@ rc56	verdict	%T = {"v": ..x}\n"c": {"x": 3, "d": $.a.b}, "a": {"x": 2, "b": %T},
 rc57	verdict	"c": {"x": 3, "d": $.a.b}, "a": {"x": 2, "b": $.f}, "f": {"v": ..x}, "x": 1	{"c": {"d": {"v": 3}}}	{"verdict":"valid"}
 rc58	verdict	"c": {"x": 3, "d": $.a.b}, "a": {"x": 2, "b": $.f}, "f": {"v": ..x}, "x": 1	{"c": {"d": {"v": 3}}}	{"verdict":"incomplete","opts":{"noFill":true}}
 rc59	verdict	"c": {"x": 3, "d": $.a.b}, "a": {"x": 2, "b": $.f}, "f": {"v": ..x}, "x": 1	{"c": {"d": {"v": 3}}}	{"verdict":"valid","opts":{"partial":true}}
+rc60	verdict	"a": {&: {"v": .w, "w": 1}}, "d": $.a.missing	{}	{"verdict":"error"}
+rc61	verdict	"a": {&: {"v": .w, "w": 1}}, "d": $.a.missing	{}	{"verdict":"error","opts":{"noFill":true}}
+rc62	verdict	"a": {&: {"v": .w, "w": 1}}, "d": $.a.missing	{}	{"verdict":"error","opts":{"partial":true}}
+rc63	verdict	"a": {"x": integer, "y": .x, "b"?: $.a}	{"a": {"x": 1, "y": 1}}	{"verdict":"valid"}
+rc64	verdict	"a": {"x": integer, "y": .x, "b"?: $.a}	{"a": {"x": 1, "y": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+rc65	verdict	"a": {"x": integer, "y": .x, "b"?: $.a}	{"a": {"x": 1, "y": 1}}	{"verdict":"valid","opts":{"partial":true}}
+rc66	verdict	"a": {"x": integer, "y": .x, "b"?: $.a}	{"a": {"x": 1, "y": 2}}	{"verdict":"invalid"}
+rc67	verdict	"a": {"x": integer, "y": .x, "b"?: $.a}	{"a": {"x": 1, "y": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+rc68	verdict	"a": {"x": integer, "y": .x, "b"?: $.a}	{"a": {"x": 1, "y": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+rc69	verdict	"f": {"b": {"w": number, "v": .w}}, "a": $.f, "d": $.a.b	{"a": {"b": {"v": 1, "w": 1}}, "d": {"v": 2, "w": 2}}	{"verdict":"invalid"}
+rc70	verdict	"f": {"b": {"w": number, "v": .w}}, "a": $.f, "d": $.a.b	{"a": {"b": {"v": 1, "w": 1}}, "d": {"v": 2, "w": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+rc71	verdict	"f": {"b": {"w": number, "v": .w}}, "a": $.f, "d": $.a.b	{"a": {"b": {"v": 1, "w": 1}}, "d": {"v": 2, "w": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+rc72	verdict	"f": {"b": {"w": number, "v": .w}}, "a": $.f, "d": $.a.b	{"a": {"b": {"v": 2, "w": 2}}, "d": {"v": 2, "w": 2}}	{"verdict":"incomplete"}
+rc73	verdict	"f": {"b": {"w": number, "v": .w}}, "a": $.f, "d": $.a.b	{"a": {"b": {"v": 2, "w": 2}}, "d": {"v": 2, "w": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rc74	verdict	"f": {"b": {"w": number, "v": .w}}, "a": $.f, "d": $.a.b	{"a": {"b": {"v": 2, "w": 2}}, "d": {"v": 2, "w": 2}}	{"verdict":"valid","opts":{"partial":true}}
+rc75	verdict	"d": $.a.b, "f": {"b": {"w": number, "v": .w}}, "a": $.f	{"a": {"b": {"v": 1, "w": 1}}, "d": {"v": 2, "w": 2}}	{"verdict":"invalid"}
+rc76	verdict	"d": $.a.b, "f": {"b": {"w": number, "v": .w}}, "a": $.f	{"a": {"b": {"v": 1, "w": 1}}, "d": {"v": 2, "w": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+rc77	verdict	"d": $.a.b, "f": {"b": {"w": number, "v": .w}}, "a": $.f	{"a": {"b": {"v": 1, "w": 1}}, "d": {"v": 2, "w": 2}}	{"verdict":"invalid","opts":{"partial":true}}
 mb0	verdict	"b": maybe($.gone)	{}	{"verdict":"valid"}
 mb1	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"noFill":true}}
 mb2	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"partial":true}}

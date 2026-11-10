@@ -3056,8 +3056,9 @@ document writes the two, and a body that is itself a relative path,
 A path reference's copy holds what the document writes at its place,
 as `Decls.written` reads it: through meets, maps and lists, a name's
 bodies and each path reference on the way. A place is one a reference
-copies where one of those terms holds a relative path, a use of such a
-name, or a path reference to such a place:
+copies where the schema holds it through its members, not only through
+a template (`Decls.writes`), and one of those terms holds a relative
+path, a use of such a name, or a path reference to such a place:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -3066,9 +3067,16 @@ def Decls.relTarget (ds : Decls) (S : Val) (rs : List String) : ℕ → List Seg
   | k + 1, p =>
     match ds.written S p with
     | [] => false
-    | ws => !ws.any Val.perMembers && ws.any fun w => w.holdsRel || w.refs.any rs.contains ||
+    | ws => ds.writes S p && !ws.any Val.perMembers && ws.any fun w => w.holdsRel || w.refs.any rs.contains ||
         w.paths.any fun q => !relPath q && ds.relTarget S rs k q
 ```
+
+A reference that stands inside its own place, `b?: $.a` within `a`, is
+a recursion, and reads as it's written. A copy meets the data at each
+place the reading is for: the place the reference names, and
+each place a path reference on the way names, with what's left of the
+path, so with `a: $.f` the copy of `$.a.b` meets the data at `a.b` and
+at `f.b`.
 
 So with `a: {x: 2, b: {v: ..x}}` and `c: {x: 3, d: $.a.b}`, `c.d.v`
 reads `c.x`, 3, in either order. What the data writes at `a.b` is part

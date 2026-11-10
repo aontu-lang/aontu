@@ -309,6 +309,11 @@ def Use.key : Use → String
   | .name n => n
   | .place p => "^" ++ pathName p
 
+/-- A use read as written: the name, or the path to the place. -/
+def Use.plain : Use → Val
+  | .name n => .alias n
+  | .place p => .path p
+
 /-- A path reference to `p` standing at `pos`, read as the copy of what
 the document writes at `p` (`useName`), met with `d` where it's given:
 the data at `p` (`dataLit`). -/
@@ -323,12 +328,15 @@ reference to a place `rt` holds, one whose terms read their own place
 (`Decls.relTarget`), as the copy of what the document writes there
 (`refUse`), met with what `dl` reads at the place, at the positions
 `Val.placed` places a relative path: not in a generator's template or a
-spread, which are read at each member, and not the path a `move` reads,
-which names its source. -/
+spread, which are read at each member, not the path a `move` reads,
+which names its source, and not a reference that stands inside its own
+place, a recursion, which reads as it's written. -/
 def Val.atUses (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) :
     Val → Val
   | .alias n => if rs.contains n then .alias (useName n pos) else .alias n
-  | .path q => if rt (absPath pos q) then refUse (absPath pos q) pos (dl (absPath pos q)) else .path q
+  | .path q =>
+    if rt (absPath pos q) && !(absPath pos q).isPrefixOf pos then refUse (absPath pos q) pos (dl (absPath pos q))
+    else .path q
   | .len c => .len (c.atUses rs rt dl pos)
   | .map fs spread closed => .map (auFields rs rt dl pos fs) spread closed
   | .list items spread closed => .list (auElems rs rt dl pos 0 items) spread closed
@@ -386,7 +394,7 @@ reference to a place `rt` holds, with the position it stands at, where
 `Val.atUses` reads one. -/
 def Val.usesAt (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : Val → List (Use × List Seg)
   | .alias n => if rs.contains n then [(.name n, pos)] else []
-  | .path q => if rt (absPath pos q) then [(.place (absPath pos q), pos)] else []
+  | .path q => if rt (absPath pos q) && !(absPath pos q).isPrefixOf pos then [(.place (absPath pos q), pos)] else []
   | .len c => c.usesAt rs rt pos
   | .map fs _ _ => usFields rs rt pos fs
   | .list items _ _ => usElems rs rt pos 0 items
@@ -1716,12 +1724,24 @@ reference stands, as a use of a name is. What the data writes at the
 place is part of what the document writes there, as `vet(S, D)` and
 `eval(S ∪ D)` are one question (ADR-007), so it meets the copy too. -/
 
+/-- What a term leaves for the next step of a path through its members
+alone, a map's member and a list's element at the step: as
+`Val.stepItems` reads one, but no template, a spread's or a
+generator's, which holds every member and names none. -/
+def Val.stepMembers (t : Val) (s : Seg) (p : List Seg) : List (Val × List Seg) :=
+  match s.stepIn t, t with
+  | some (.key k), .map fs _ _ => (fs.filter fun f => f.1 == k).map fun f => (f.2.2, p)
+  | some (.idx i), .list items _ _ => items[i]?.toList.map fun w => (w, p)
+  | _, _ => []
+
 /-- One step of reading what the schema `S` writes at a path, on an
 item, a term, the position it stands at and the path left below it, as
 `landStep` reads one, but a term that the path is spent at taken whole,
 riders and all, a relative path reference read from where it stands
-(`absPath`), and a name stepped into through each of its bodies. -/
-def Decls.landStepAt (ds : Decls) (S : Val) (i : Val × List Seg × List Seg) :
+(`absPath`), and a name stepped into through each of its bodies; through
+templates too where `tm` holds, and through members alone where it
+doesn't (`Val.stepMembers`). -/
+def Decls.landStepAt (ds : Decls) (S : Val) (tm : Bool) (i : Val × List Seg × List Seg) :
     List Val × List (Val × List Seg × List Seg) :=
   match i.1, i.2.2 with
   | .meet a b, _ => ([], [(a, i.2.1, i.2.2), (b, i.2.1, i.2.2)])
@@ -1730,23 +1750,25 @@ def Decls.landStepAt (ds : Decls) (S : Val) (i : Val × List Seg × List Seg) :
   | .ride _ v _, p => ([], [(v, i.2.1, p)])
   | .link v _, p => ([], [(v, i.2.1, p)])
   | .alias n, p => ([], (ds.filter (·.1 == n)).map fun d => (d.2, i.2.1, p))
-  | t, s :: p => ([], (t.stepItems s p).map fun w => (w.1, i.2.1 ++ [(s.stepIn t).getD s], w.2))
+  | t, s :: p =>
+    ([], ((if tm then t.stepItems s p else t.stepMembers s p).map fun w =>
+      (w.1, i.2.1 ++ [(s.stepIn t).getD s], w.2)))
 
 /-- What the schema `S` writes at a path, read from the items within `n`
 steps (`Decls.landStepAt`). -/
-def Decls.landingAt (ds : Decls) (S : Val) : ℕ → List (Val × List Seg × List Seg) → List Val
+def Decls.landingAt (ds : Decls) (S : Val) (tm : Bool) : ℕ → List (Val × List Seg × List Seg) → List Val
   | 0, _ => []
   | _, [] => []
-  | n + 1, i :: rest => (ds.landStepAt S i).1 ++ ds.landingAt S n ((ds.landStepAt S i).2 ++ rest)
+  | n + 1, i :: rest => (ds.landStepAt S tm i).1 ++ ds.landingAt S tm n ((ds.landStepAt S tm i).2 ++ rest)
 
-/-- The positions the reading of `Decls.landingAt` stands at when the
-path is spent: the place itself and each place a path reference on the
-way names, where the data writes too. -/
+/-- The places the reading of `Decls.landingAt` is for, each item's
+position with the path left below it: the place itself, and each place
+a path reference on the way names, with what is left of the path, where
+the data writes too. -/
 def Decls.landPlaces (ds : Decls) (S : Val) : ℕ → List (Val × List Seg × List Seg) → List (List Seg)
   | 0, _ => []
   | _, [] => []
-  | n + 1, i :: rest =>
-    (if i.2.2.isEmpty then [i.2.1] else []) ++ ds.landPlaces S n ((ds.landStepAt S i).2 ++ rest)
+  | n + 1, i :: rest => (i.2.1 ++ i.2.2) :: ds.landPlaces S n ((ds.landStepAt S true i).2 ++ rest)
 
 /-- The budget a reading of what the document writes at `p` takes, which
 the schema and the bodies bound. -/
@@ -1755,24 +1777,31 @@ def Decls.landBudget (ds : Decls) (S : Val) (p : List Seg) : ℕ :=
 
 /-- What the document writes at a place (`Decls.landingAt`). -/
 def Decls.written (ds : Decls) (S : Val) (p : List Seg) : List Val :=
-  ds.landingAt S (ds.landBudget S p) [(S, [], p)]
+  ds.landingAt S true (ds.landBudget S p) [(S, [], p)]
+
+/-- Whether the document writes at a place through its members alone, so
+that the place is one the schema holds, not one a template would
+reach if a member stood there. -/
+def Decls.writes (ds : Decls) (S : Val) (p : List Seg) : Bool :=
+  !(ds.landingAt S false (ds.landBudget S p) [(S, [], p)]).isEmpty
 
 /-- The places the data at a place is read from (`Decls.landPlaces`). -/
 def Decls.writtenAt (ds : Decls) (S : Val) (p : List Seg) : List (List Seg) :=
   ds.landPlaces S (ds.landBudget S p) [(S, [], p)]
 
 /-- Whether what the document writes at a place reads its own place, so
-that a copy of it reads again where the copy stands: one of its terms
-holds a relative path, a use of a name of `rs`, or a path reference to
-such a place, within `k` turns. A place that holds a template read at
-each member (`Val.perMembers`) is read as `Val.membersRead` reads it,
-wherever a path reference lands, and is no such place. -/
+that a copy of it reads again where the copy stands: the schema holds
+the place (`Decls.writes`), and one of its terms holds a relative path,
+a use of a name of `rs`, or a path reference to such a place, within
+`k` turns. A place that holds a template read at each member
+(`Val.perMembers`) is read as `Val.membersRead` reads it, wherever a
+path reference lands, and is no such place. -/
 def Decls.relTarget (ds : Decls) (S : Val) (rs : List String) : ℕ → List Seg → Bool
   | 0, _ => false
   | k + 1, p =>
     match ds.written S p with
     | [] => false
-    | ws => !ws.any Val.perMembers && ws.any fun w => w.holdsRel || w.refs.any rs.contains ||
+    | ws => ds.writes S p && !ws.any Val.perMembers && ws.any fun w => w.holdsRel || w.refs.any rs.contains ||
         w.paths.any fun q => !relPath q && ds.relTarget S rs k q
 
 /-- The places a path reference to reads as a copy (`Decls.relTarget`),
@@ -1792,10 +1821,11 @@ def Decls.useBodies (ds : Decls) (S : Val) : Use → List Val
 or each term the document writes at the place, its own uses read as
 copies in turn and its relative paths placed where the use stands,
 declared under the use's name (`useName`, `Use.key`), within `k` turns,
-enough for every chain of uses that isn't recursive. -/
+enough for every chain of uses that isn't recursive; a use the turns
+don't reach reads as written (`Use.plain`). -/
 def Decls.copies (ds : Decls) (S : Val) (rs : List String) (rt : List Seg → Bool) :
     ℕ → List (Use × List Seg) → Decls
-  | 0, _ => []
+  | 0, us => us.eraseDups.map fun u => (useName u.1.key u.2, u.1.plain)
   | k + 1, us =>
     (us.eraseDups.flatMap fun u =>
         (ds.useBodies S u.1).map fun b => (useName u.1.key u.2, (b.atUses rs rt (fun _ => none) u.2).placed u.2)) ++
@@ -2056,10 +2086,27 @@ theorem landing_checkableA {S : Val} (hS : S.CheckableA) :
 /-- One step of reading what the document writes at a place leaves
 terms the checker can read, where the schema and the bodies are such
 terms. -/
-theorem landStepAt_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+theorem stepMembers_checkableA {t : Val} (ht : t.CheckableA) {s : Seg} {p : List Seg} :
+    ∀ j, j ∈ t.stepMembers s p → j.1.CheckableA := by
+  intro j hj
+  unfold Val.stepMembers at hj
+  split at hj
+  · cases ht with
+    | map hf _ =>
+      simp only [List.mem_map, List.mem_filter] at hj
+      obtain ⟨⟨k', o', v'⟩, ⟨hm, -⟩, rfl⟩ := hj
+      exact hf k' o' v' hm
+  · cases ht with
+    | list hi _ =>
+      simp only [List.mem_map, Option.mem_toList] at hj
+      obtain ⟨w, hw, rfl⟩ := hj
+      exact hi w (List.mem_of_getElem? hw)
+  · simp at hj
+
+theorem landStepAt_checkableA {ds : Decls} {S : Val} {tm : Bool} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) {i : Val × List Seg × List Seg} (hi : i.1.CheckableA) :
-    (∀ u, u ∈ (ds.landStepAt S i).1 → u.CheckableA) ∧
-      (∀ j, j ∈ (ds.landStepAt S i).2 → j.1.CheckableA) := by
+    (∀ u, u ∈ (ds.landStepAt S tm i).1 → u.CheckableA) ∧
+      (∀ j, j ∈ (ds.landStepAt S tm i).2 → j.1.CheckableA) := by
   obtain ⟨t, pos, rest⟩ := i
   simp only at hi
   simp only [Decls.landStepAt]
@@ -2096,18 +2143,20 @@ theorem landStepAt_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d
   · refine ⟨fun _ h => (nomatch h), fun j hj => ?_⟩
     simp only [List.mem_map] at hj
     obtain ⟨w, hw, rfl⟩ := hj
-    exact stepItems_checkableA hi w hw
+    split at hw
+    · exact stepItems_checkableA hi w hw
+    · exact stepMembers_checkableA hi w hw
 
 /-- What the document writes at a place, where the schema and the bodies
 are terms the checker can read, is too. -/
-theorem landingAt_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+theorem landingAt_checkableA {ds : Decls} {S : Val} {tm : Bool} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) :
     ∀ (n : ℕ) (items : List (Val × List Seg × List Seg)), (∀ i, i ∈ items → i.1.CheckableA) →
-      ∀ u, u ∈ ds.landingAt S n items → u.CheckableA
+      ∀ u, u ∈ ds.landingAt S tm n items → u.CheckableA
   | 0, _, _, _, h => by simp [Decls.landingAt] at h
   | _ + 1, [], _, _, h => by simp [Decls.landingAt] at h
   | n + 1, i :: rest, hi, u, h => by
-    have hs := landStepAt_checkableA hb hS (hi i List.mem_cons_self)
+    have hs := landStepAt_checkableA (tm := tm) hb hS (hi i List.mem_cons_self)
     simp only [Decls.landingAt, List.mem_append] at h
     rcases h with h | h
     · exact hs.1 u h
@@ -3030,7 +3079,10 @@ theorem atUses_checkableA {rs : List String} {dl : List Seg → Option Val}
 theorem copies_checkableA {ds : Decls} {S : Val} {rs : List String} {rt : List Seg → Bool}
     (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
     ∀ k us d, d ∈ ds.copies S rs rt k us → d.2.CheckableA
-  | 0, _, _, h => by simp [Decls.copies] at h
+  | 0, _, d, h => by
+    simp only [Decls.copies, List.mem_map] at h
+    obtain ⟨u, -, rfl⟩ := h
+    cases u.1 <;> constructor
   | k + 1, us, d, h => by
     simp only [Decls.copies, List.mem_append, List.mem_flatMap, List.mem_map] at h
     rcases h with ⟨u, -, b, hbu, rfl⟩ | h
