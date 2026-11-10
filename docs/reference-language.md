@@ -1718,7 +1718,9 @@ where the disjunction holds that arm: in `hosts: {a: {name: "x", url:
 .name}} | null`, `url` reads the arm's own `name`. A path in the body of a name an arm
 uses reads the same, and so does one in a name whose body is the
 disjunction, where the document uses the name and at its own place. An arm whose path names
-nothing there drops out, as a dead arm does. A path from outside into
+nothing there drops out, as a dead arm does, and so does one whose path
+names a member the data kills, so that over `name: "y"` an arm `{a:
+{name: string, url: string}}` beside that one takes the data. A path from outside into
 an arm names nothing. Both engines read a path in an arm only once a
 single arm remains, and in a preferred arm never, so data an arm
 refuses through its path leaves the document `incomplete` while two

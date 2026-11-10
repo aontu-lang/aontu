@@ -2237,7 +2237,8 @@ paths read as names of its own, under `pre` (`Val.armed`), declared
 from the roots `r` reads the document with the arm read so in the
 disjunction's place, with each path the declared terms read in turn, so
 that a chain of paths reads within the arm; `nil` where a path that must
-name something names nothing there. -/
+name something names nothing there, or where a path names a dead term,
+since the arm is dead there with the data met in. -/
 def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val → Decls × Val) (pre : String)
     (pos : List Seg) (root a : Val) : Val × Decls :=
   let a' := L1.membersRead (L1.armsRead root pos [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) root pos
@@ -2246,7 +2247,8 @@ def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val →
     (fun acc _ => (acc ++ acc.flatMap fun p =>
       ((doc a').1.pathIn roots p).toList.flatMap fun w => w.paths.filter placePath).eraseDups)
     (a'.paths.filter placePath).eraseDups
-  if (a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome then
+  if ((a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome) &&
+      !(((doc a').1.ofPaths roots ps).any fun d => d.2.dead) then
     (a'.pathsToAliases.armed pre, ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.armed pre))
   else (.nil, [])
 

@@ -9171,7 +9171,10 @@ second arm takes it, so the document is `valid`. The definition reads
 each name the arm uses as its bodies first, so a path in a name's body
 reads the same, and reads the arm's paths as names of the arm's own,
 declared from that document's roots. An arm whose path names nothing
-there is `nil`, as both engines drop it:
+there is `nil`, as both engines drop it, and so is one whose path names
+a dead term, since the data kills the arm there: over `name: "y"`, the
+first arm's `name` is dead, and an arm `{a: {name: string, url:
+string}}` beside it takes the data:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -9183,7 +9186,8 @@ def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val →
     (fun acc _ => (acc ++ acc.flatMap fun p =>
       ((doc a').1.pathIn roots p).toList.flatMap fun w => w.paths.filter placePath).eraseDups)
     (a'.paths.filter placePath).eraseDups
-  if (a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome then
+  if ((a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome) &&
+      !(((doc a').1.ofPaths roots ps).any fun d => d.2.dead) then
     (a'.pathsToAliases.armed pre, ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.armed pre))
   else (.nil, [])
 ```

@@ -1671,7 +1671,13 @@ def disjunctionPathCases : List (Decls × Val × Data) :=
     ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1)])), ("y", p ["x", "a"])],
       .map [("x", .map [("a", j 1)]), ("y", j 1)]),
     ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1)])), ("y", p ["x", "a"])],
-      .map [("x", .map [("a", j 1)]), ("y", j 2)])]
+      .map [("x", .map [("a", j 1)]), ("y", j 2)]),
+    ([], m [("hosts", or2 named (m [("a", m [("name", .string), ("url", .string)])]))],
+      .map [("hosts", .map [("a", .map [("name", .str "y"), ("url", .str "y")])])]),
+    ([], m [("hosts", or2 named (m [("a", m [("name", .string), ("url", .string)])]))],
+      .map [("hosts", .map [("a", .map [("name", .str "y"), ("url", .str "z")])])]),
+    ([], m [("hosts", or2 named (.lit .null))],
+      .map [("hosts", .map [("a", .map [("name", .str "y"), ("url", .str "y")])])])]
 
 theorem disjunctionPathCases_checkable : ∀ c ∈ disjunctionPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
