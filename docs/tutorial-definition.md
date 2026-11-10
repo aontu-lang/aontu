@@ -3031,16 +3031,19 @@ def Val.placed (pos : List Seg) : Val → Val
 The definition places a body at its name's own place, `%` and the name
 as a key at the top, as both engines place it. A copy is a destination
 too (ruling 26): each use of a name whose body writes a relative path
-reads a copy of the body placed where the use stands. Each copy is
-declared under a name of its own (`useName`, `Decls.copies`):
+reads a copy of the body placed where the use stands, and so does each
+path reference to a place whose terms read their own place. Each copy
+is declared under a name of its own (`useName`, `Decls.copies`), and
+a reference's copy meets what the data writes at the place it copies
+(`dataLit`):
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.placed (ds : Decls) (S : Val) : Decls × Val :=
+def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Val :=
   (ds.map (fun d => (d.1, d.2.placed [.key ("%" ++ d.1)])) ++
-      ds.copies ds.relNames (ds.length + 1) (S.usesAt ds.relNames []) ++
+      ds.copies S ds.relNames (ds.copyTargets S) (ds.length + S.size + 1) (S.usesAt ds.relNames (ds.copyTargets S) []) ++
       (S.bares []).map fun p => (bareName, .path p),
-    (S.atUses ds.relNames []).placedT [])
+    (S.atUses ds.relNames (ds.copyTargets S) (fun p => oj.bind fun j => dataLit j (ds.writtenAt S p)) []).placedT [])
 ```
 
 So with `%T = {v: ..x}`, `x: 1` and `a: {x: 2, b: %T}`, `a.b.v` reads
@@ -3049,6 +3052,35 @@ at its own place reads `$.x`, where it must stand too. Both engines'
 `vet` reads a use so; their evaluation reads it by the order the
 document writes the two, and a body that is itself a relative path,
 `%T = .x`, at its own place in every order, which #504 tracks.
+
+A path reference's copy holds what the document writes at its place,
+as `Decls.written` reads it: through meets, maps and lists, a name's
+bodies and each path reference on the way. A place is one a reference
+copies where one of those terms holds a relative path, a use of such a
+name, or a path reference to such a place:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.relTarget (ds : Decls) (S : Val) (rs : List String) : ℕ → List Seg → Bool
+  | 0, _ => false
+  | k + 1, p =>
+    match ds.written S p with
+    | [] => false
+    | ws => !ws.any Val.perMembers && ws.any fun w => w.holdsRel || w.refs.any rs.contains ||
+        w.paths.any fun q => !relPath q && ds.relTarget S rs k q
+```
+
+So with `a: {x: 2, b: {v: ..x}}` and `c: {x: 3, d: $.a.b}`, `c.d.v`
+reads `c.x`, 3, in either order. What the data writes at `a.b` is part
+of what the document writes there, since `vet` against data asks what
+evaluating the two together asks, so data that sets `a.b.v` to 2 meets
+the copy's 3, and `vet` refuses it. The output evaluation generates,
+whose `a.b.v` is 2, fails `vet` against its own document for that
+reason. Both engines read so where the reference comes first, and read
+the target's paths where it writes them where the target comes first,
+which #504 tracks. A place that holds a template read at each member is
+no such place: `Val.membersRead` reads the template at each member
+wherever a reference lands.
 
 At its own place, `%T = {y: .x}` reads `$.%T.x`. No root holds a body's own place, so
 a path there reads in the normal form of the name's bodies, met, as
@@ -3120,7 +3152,7 @@ read no pattern and no format. -/
 theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (S' := ds.preparedD S j)
-    (Decls.placed_bodies_checkableA (S := S) (Decls.withRel_checkableA hb))
+    (Decls.placed_bodies_checkableA (S := S) (oj := none) (Decls.withRel_checkableA hb) hS)
     (Decls.prepared_checkableA rootsS_readable hb hS) (Decls.prepared_checkableA Decls.linkReader_readable hb hS) v
 ```
 
@@ -9011,14 +9043,15 @@ absolute path in a template names, the same at every member:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) : Decls × Val :=
-  ((ds.linked S rl).1, (ds.linked S rl).2.membersRead (ds.spreadRoot S rl r))
+def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (oj : Option Data := none) :
+    Decls × Val :=
+  ((ds.linked S rl oj).1, (ds.linked S rl oj).2.membersRead (ds.spreadRoot S rl r oj))
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Val :=
-  (ds.prepared S (ds.linkReader S j) fun d T => d.rootsD T j).2
+  (ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)).2
 ```
 
 Beside data, the definition reads the links in the tree the data reads

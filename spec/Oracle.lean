@@ -1433,6 +1433,51 @@ theorem copy_dest_verdict_exact : ∀ c ∈ copyDestCases, ∀ (m : Mode) (v : V
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (copyDestCases_checkable c hc).1 (copyDestCases_checkable c hc).2 v
 
+/-- A path reference's copy reads its target's relative paths where it
+stands (ruling 26), with what the data writes at the target met in:
+`c: {x: 3, d: $.a.b}` beside `a: {x: 2, b: {v: ..x}}`, the reference
+written after the target and before it, beside no data, data at the
+copy that reads 3 and that reads 2, data at the target, and both; a
+target whose relative path stays inside it, met at the copy; two copies
+that read two values; a copy where its path names nothing; and a target
+that is a use of a name, and one that is a path reference. -/
+def refCopyCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let a := ("a", m [("x", int 2), ("b", m [("v", rel 2 ["x"])])])
+  let c := ("c", m [("x", int 3), ("d", p ["a", "b"])])
+  let e := ("e", m [("x", int 4), ("f", p ["a", "b"])])
+  let atV (k1 k2 : String) (n : ℤ) (h : IntegerLeaf n := by decide) : String × Data :=
+    (k1, .map [(k2, .map [("v", j n h)])])
+  let datas : List Data := [.map [], .map [atV "c" "d" 3], .map [atV "c" "d" 2], .map [atV "a" "b" 2],
+    .map [atV "a" "b" 2, atV "c" "d" 3]]
+  let aw := ("a", m [("b", m [("v", rel 1 ["w"]), ("w", .number)])])
+  let cw := ("c", m [("d", .meet (p ["a", "b"]) (m [("w", int 7)]))])
+  let vw (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .map [("v", j n h), ("w", j n h)]
+  let tv : Decls := [("T", m [("v", rel 2 ["x"])])]
+  datas.map (fun d => ([], m [a, c], d)) ++ datas.map (fun d => ([], m [c, a], d)) ++
+    [([], m [aw, cw], .map []),
+      ([], m [aw, cw], .map [("a", .map [("b", vw 1)]), ("c", .map [("d", vw 7)])]),
+      ([], m [cw, aw], .map [("a", .map [("b", vw 1)]), ("c", .map [("d", vw 7)])]),
+      ([], m [cw, aw], .map [("c", .map [("d", vw 7)])]),
+      ([], m [c, e, a], .map [atV "c" "d" 3, atV "e" "f" 4]),
+      ([], m [a, c, e], .map [atV "c" "d" 3, atV "e" "f" 4]),
+      ([], m [("c", m [("d", p ["a", "b"])]), a], .map []),
+      ([], m [a, ("c", m [("d", p ["a", "b"])])], .map []),
+      (tv, m [c, ("a", m [("x", int 2), ("b", .alias "T")]), ("x", int 1)], .map [atV "c" "d" 3]),
+      ([], m [c, ("a", m [("x", int 2), ("b", p ["f"])]), ("f", m [("v", rel 2 ["x"])]), ("x", int 1)],
+        .map [atV "c" "d" 3])]
+
+theorem refCopyCases_checkable : ∀ c ∈ refCopyCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem ref_copy_verdict_exact : ∀ c ∈ refCopyCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (refCopyCases_checkable c hc).1 (refCopyCases_checkable c hc).2 v
+
 /-- `maybe` over paths that name something and paths that name nothing:
 absence at a required key and at an optional one, as a list's element,
 an arm and a call's argument, and met with a literal and a kind, beside
@@ -6692,6 +6737,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "jl" aliasPlaceCases (declsLast := true)
     pathRows "cd" copyDestCases
     pathRows "cdl" copyDestCases (declsLast := true)
+    pathRows "rc" refCopyCases
     pathRows "mb" maybeCases
     pathRows "la" absentListCases
     pathRows "pf" prefCases

@@ -319,7 +319,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 117 rows under eleven causes: decisions 3 and 4 of §2, under
+ledger holds 135 rows under twelve causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -333,9 +333,13 @@ path inside a rider's value to a member beside it, which decision 14 of
 under the `defaults` profile, which the ports do not compare, where the
 ports move (#424); and a `+` that waits inside a `match` pattern, which the
 definition reads as refusing, a call refusing every value, where both
-ports wait and the definition moves (#432); and a body that is itself a
+ports wait and the definition moves (#432); a body that is itself a
 relative path, which ruling 26 of §7 reads where each use stands, where
-both ports read it at the body's own place and move (#504).
+both ports read it at the body's own place and move (#504); and a path
+reference to a place that writes a relative path, which ruling 26 reads
+where the copy stands, where both ports read the place's paths where it
+writes them when it comes first, or is reached through another path
+reference, and move (#504).
 The 81 rows of #426, a call no reading makes, with the wrong number of
 arguments or a non-number negated, which the ports read as invalid,
 retired on 2026-11-02 when both ports' `vet` read a failure the schema
@@ -1418,8 +1422,22 @@ until the phase that encodes it lands.
    `test/spec/def-path.tsv` hold it in both orders, as both ports'
    `vet` reads a use; rows j54 to j59 and jl15 to jl20, a body that is
    itself a relative path, move to the use and stand in the ledger,
-   since both ports read such a body at its own place (#504). A path
-   reference's copy remains to build.
+   since both ports read such a body at its own place (#504).
+
+   **Built for a path reference's copy 2026-11-10.** A path reference
+   to a place whose terms read their own place (`Decls.relTarget`) reads
+   a copy of what the document writes there, through names and other
+   path references (`Decls.written`), placed where the reference stands
+   (`Decls.copies`, `refUse`). What the data writes at the place meets
+   the copy too (`dataLit`), since `vet(S, D)` asks what `eval(S ∪ D)`
+   asks (ADR-007). So data that sets a member of the place that a
+   relative path reads differently at the copy is refused, the output
+   evaluation generates among it. A place holding a template read at
+   each member stays as `Val.membersRead` reads it. Rows rc0 to rc59 of
+   `test/spec/def-path.tsv` hold it. Both ports answer as the definition
+   does where the reference comes first, and 18 rows stand in the ledger,
+   where the ports read the place's paths where it writes them, when it
+   comes first or is reached through another path reference (#504).
 
 27. **A copy's marks and seal.** Raised 2026-10-21 by P8 (#445). The
    reference says `copy(v)` clears the `type` and `hide` marks. Both
