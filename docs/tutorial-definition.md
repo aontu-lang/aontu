@@ -2979,23 +2979,23 @@ of step 14 on the document with its paths read as names:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The verdict of a document whose paths are absolute, its schema `S`
-as the schema alone reads it and `S'` as the data does. It is an `error`
-where a path of `S` does not resolve in the schema's own tree, or where
-the document is an error with its paths read from the schema alone: a
-name declared nowhere, a cycle, a `nil` in the schema. Otherwise the
-paths of `S'` read from the data too, and the document is `invalid`
-where that reading is dead or an error, since the data made it so, and
-`valid` or `incomplete` as that reading is. -/
-def VetA (m : Mode) (ds : Decls) (S S' : Val) (j : Data) : Verdict → Prop
+/-- The verdict of a document whose paths are absolute, its declarations
+`ds` and schema `S` as the schema alone reads them and `ds'` and `S'` as
+the data does. It is an `error` where a path of `S` does not resolve in
+the schema's own tree, or where the document is an error with its paths
+read from the schema alone: a name declared nowhere, a cycle, a `nil` in
+the schema. Otherwise the paths of `S'` read from the data too, and the
+document is `invalid` where that reading is dead or an error, since the
+data made it so, and `valid` or `incomplete` as that reading is. -/
+def VetA (m : Mode) (ds : Decls) (S : Val) (ds' : Decls) (S' : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Resolves S ∨ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error
   | .invalid =>
     ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
-      (Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j .invalid ∨
-        Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j .error)
+      (Vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j .invalid ∨
+        Vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j .error)
   | v =>
     ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
-      Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j v
+      Vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j v
 ```
 
 A path that starts with dots is relative. Its first dot names the map
@@ -3032,18 +3032,22 @@ The definition places a body at its name's own place, `%` and the name
 as a key at the top, as both engines place it. A copy is a destination
 too (ruling 26): each use of a name whose body writes a relative path
 reads a copy of the body placed where the use stands, and so does each
-path reference to a place whose terms read their own place. Each copy
-is declared under a name of its own (`useName`, `Decls.copies`), and
-a reference's copy meets what the data writes at the place it copies
-(`dataLit`):
+path reference to a place whose terms read their own place, in the
+schema and in a body at its own place alike. Each copy is declared
+under a name of its own (`useName`, `Decls.copies`), and each meets what
+the data writes at the place it copies (`dataLit`):
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.placed [.key ("%" ++ d.1)])) ++
-      ds.copies S ds.relNames (ds.copyTargets S) (ds.length + S.size + 1) (S.usesAt ds.relNames (ds.copyTargets S) []) ++
+  let rs := ds.copyNames S
+  let rt := ds.copyTargets S rs
+  let dl : List Seg → Option Val := fun p => oj.bind fun j => dataLit j (ds.writtenAt S p)
+  let own (n : String) : List Seg := [.key ("%" ++ n)]
+  (ds.map (fun d => (d.1, (d.2.atUses rs rt dl (own d.1)).placed (own d.1))) ++
+      ds.copies S rs rt dl (ds.length + S.size + 1) (S.usesAt rs rt [] ++ ds.flatMap fun d => d.2.usesAt rs rt (own d.1)) ++
       (S.bares []).map fun p => (bareName, .path p),
-    (S.atUses ds.relNames (ds.copyTargets S) (fun p => oj.bind fun j => dataLit j (ds.writtenAt S p)) []).placedT [])
+    (S.atUses rs rt dl []).placedT [])
 ```
 
 So with `%T = {v: ..x}`, `x: 1` and `a: {x: 2, b: %T}`, `a.b.v` reads
@@ -3071,12 +3075,40 @@ def Decls.relTarget (ds : Decls) (S : Val) (rs : List String) : ℕ → List Seg
         w.paths.any fun q => !relPath q && ds.relTarget S rs k q
 ```
 
+The names whose uses read as copies come with the places, since each
+leads to the other: a name whose body writes a relative path, uses such
+a name, or holds a path reference to such a place:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.copyNames (ds : Decls) (S : Val) : List String :=
+  if ds.writesRel S then
+    ((List.range ds.length).foldl
+      (fun rs _ => (ds.filter fun d => d.2.holdsRel || d.2.refs.any rs.contains ||
+          d.2.paths.any fun q => !relPath q && ds.relTarget S rs (S.size + 1) q).map (·.1)) []).filter
+      fun n => !ds.recursiveB n
+  else []
+```
+
+So `%T = $.a.b` used at `c: {x: 3, d: %T}` reads `c.d.v` as 3 too, and
+the body's own copy, at `$.%T`, reads `..x` as `$.x`, which must name
+something. A use inside a body reads where it stands at the body's own
+place as well. With `%T = {u: %U}` and `%U = {w: ..x}`, the use at
+`$.%T.u` reads `$.%T.x`, which `%T` doesn't hold, so the document is an
+`error`, as both engines' `vet` reads it where `%T` comes first. Where
+`%T = $.a.b` comes first, both engines read the target's paths below
+`$.%T`, which #692 tracks.
+
 A reference that stands inside its own place, `b?: $.a` within `a`, is
 a recursion, and reads as it's written. A copy meets the data at each
 place the reading is for: the place the reference names, and
 each place a path reference on the way names, with what's left of the
 path, so with `a: $.f` the copy of `$.a.b` meets the data at `a.b` and
-at `f.b`.
+at `f.b`. A copy inside a copy meets the data at the place it names
+too: with `a: {b: {e: $.f.g}}` and `c: {d: $.a.b}`, the copy at `c.d.e`
+meets what the data writes at `f.g`. The classes of the verdict other
+than `error` read the declarations with the data met in, the copies
+among them, and the `error` class reads those of the schema alone.
 
 So with `a: {x: 2, b: {v: ..x}}` and `c: {x: 3, d: $.a.b}`, `c.d.v`
 reads `c.x`, 3, in either order. What the data writes at `a.b` is part
@@ -3150,7 +3182,7 @@ reads a spread at the members the schema's own tree holds, and the
 others at those of the tree the data reads in, so that a member the
 data alone supplies makes the document `invalid`, never an `error`. -/
 def VetL (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  VetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j) j v
+  VetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j).1 (ds.preparedD S j).2 j v
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -3159,9 +3191,12 @@ def VetL (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
 read no pattern and no format. -/
 theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
-  vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (S' := ds.preparedD S j)
+  vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (ds' := (ds.preparedD S j).1)
+    (S' := (ds.preparedD S j).2)
     (Decls.placed_bodies_checkableA (S := S) (oj := none) (Decls.withRel_checkableA hb) hS)
-    (Decls.prepared_checkableA rootsS_readable hb hS) (Decls.prepared_checkableA Decls.linkReader_readable hb hS) v
+    (Decls.prepared_checkableA rootsS_readable hb hS)
+    (Decls.placed_bodies_checkableA (S := S) (oj := some j) (Decls.withRel_checkableA hb) hS)
+    (Decls.prepared_checkableA Decls.linkReader_readable hb hS) v
 ```
 
 A recursive position, `then?: $.schema.Step` inside `Step`, is a name
@@ -9058,8 +9093,8 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Val :=
-  (ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)).2
+def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
+  ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)
 ```
 
 Beside data, the definition reads the links in the tree the data reads
