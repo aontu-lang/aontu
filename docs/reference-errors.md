@@ -205,7 +205,7 @@ twenty rows have no such section and carry no link.
 | `form_data` | 0.58.0 | The first argument to the list generator `form` is not a bag; `form` was renamed `each`, which answers `each_data`. |
 | `format_grammar` | 0.77.0 | A grammar given to `format()` is ABNF that cannot be run as written: one character of lookahead does not decide it, a rule reaches itself before reading a character, or a rule holds a prose value. ([Formats: `format`](reference-language.md#formats-format)) |
 | `func_arity` | 0.53.0 | A call whose argument count is not the built-in's arity. ([Errors](reference-language.md#errors)) |
-| `hole_unbound` | 0.77.0 | A hole `_` that nothing binds: outside the template of a generator, an `apply` or a filter's condition, in a spread's template, or in a name used anywhere but as an emit's table. ([The placeholder `_`](reference-language.md#the-placeholder-_)) |
+| `hole_unbound` | 0.77.0 | A hole `_` that nothing binds: outside the template of a generator, an `apply` or a filter's condition, in a spread's template, or in a name used anywhere but as the table of an `emit`. ([The placeholder `_`](reference-language.md#the-placeholder-_)) |
 | `ident_place` | 0.77.0 | `ident()` was written anywhere but as an alias declaration's value. ([Identity: `ident`](reference-language.md#identity-ident)) |
 | `include_denied` | 0.53.0 | An `@"..."` include refused by the active trust profile. ([Clause 1: hermeticity](trust.md#clause-1-hermeticity)) |
 | `include_extension` | 0.54.0 | An `@"..."` include naming a file whose extension the include table does not know. ([Source loading `@"…"`](reference-language.md#source-loading-)) |
