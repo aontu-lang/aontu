@@ -64,12 +64,14 @@ Both engines, the definition, and shared rows.
 TypeScript.
 
 - `jostraca`, the generator runtime, moves from an exact dependency,
-  `0.39.0`, to a peer dependency, `>=0.41.0`, as in 0.76.3. A fresh
-  install takes the newest jostraca, and jostraca 0.42.0 reads `shape`
-  12. jostraca 0.39.0 and 0.41.0 take `shape` as a peer at any version
-  from 11, and `shape` 12.0.0, out on 2026-11-09, no longer exports
-  `One`, so an install that resolved it beside either stopped in
-  `aontu render` with `TypeError: (0 , shape_1.One) is not a function`.
+  `0.39.0`, to a peer dependency, `>=0.41.0`, as in 0.76.3
+  ([ADR-079](ADR.md#adr-079--the-npm-package-takes-jostraca-as-a-peer-at-a-range)).
+  A fresh install takes the newest jostraca, and jostraca 0.42.0 reads
+  `shape` 12. jostraca 0.39.0 and 0.41.0 take `shape` as a peer at any
+  version from 11, and `shape` 12.0.0, out on 2026-11-09, no longer
+  exports `One`, so an install that resolved it beside either stopped
+  in `aontu render` with `TypeError: (0 , shape_1.One) is not a
+  function`.
 
 ### `apply(v, f)` hands a value to a template
 
