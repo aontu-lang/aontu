@@ -102,7 +102,6 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	var carried []Val
 	terms := norm(c.peg, &carried)
 
-	// Unify each term against the peer.
 	upeer := make([]Val, len(terms))
 	for i, t := range terms {
 		if t.Dc() == DONE && isTop(peer) {
@@ -118,7 +117,6 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 
 	upeer = norm(upeer, &carried)
 
-	// Fold the terms together left to right.
 	var outvals []Val
 	open := false
 	if len(upeer) == 0 {

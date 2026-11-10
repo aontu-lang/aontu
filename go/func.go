@@ -19,8 +19,7 @@ var riderFuncs = map[string]bool{"meta": true, "deprecate": true}
 var wrapperFuncs = map[string]bool{"meta": true, "deprecate": true, "ident": true,
 	"type": true, "hide": true, "close": true, "open": true}
 
-// A rider, a mark or a seal around a container that holds a hole, which
-// the definition reads as no call at all.
+// A rider, a mark or a seal around a container holding a hole: no call.
 func wrapsBag(v Val) bool {
 	f, ok := v.(*FuncVal)
 	if !ok || !wrapperFuncs[f.name] || 0 == len(f.peg) {
@@ -337,8 +336,6 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 		}
 	}
 
-	// Read through to the container, met with a peer, though a hole it
-	// holds waits.
 	through := !isTop(peer) && !peer.Nil() && Val(f) != peer && wrapsBag(f)
 
 	if isTop(peer) && (f.mtype || f.mhide) {

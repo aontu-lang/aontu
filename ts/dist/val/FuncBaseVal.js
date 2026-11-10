@@ -80,8 +80,7 @@ function trialUnify(ctx, a, b) {
     return 0 < trialErr.length || out.isNil ? undefined : out;
 }
 const WRAPPERS = new Set(['meta', 'deprecate', 'ident', 'type', 'hide', 'close', 'open']);
-// A rider, a mark or a seal around a container that holds a hole, which
-// the definition reads as no call at all.
+// A rider, a mark or a seal around a container holding a hole: no call.
 function wrapsBag(v) {
     const inner = true === v?.isFunc && WRAPPERS.has(v.funcname()) ? v.peg[0] : undefined;
     return null != inner &&
@@ -172,8 +171,6 @@ class FuncBaseVal extends FeatureVal_1.FeatureVal {
         if (this.staged && !ctx.settle) {
             return this.residuate(peer, ctx);
         }
-        // Read through to the container, met with a peer, though a hole it
-        // holds waits.
         const through = !peer.isTop && !peer.isNil && this.id !== peer.id && wrapsBag(this);
         const TOP = (0, top_1.top)();
         const te = ctx.explain && (0, utility_1.explainOpen)(ctx, ctx.explain, 'Func:' + this.funcname(), this, peer);

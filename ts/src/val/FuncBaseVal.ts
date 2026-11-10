@@ -113,8 +113,7 @@ function trialUnify(ctx: AontuContext, a: Val, b: Val): Val | undefined {
 const WRAPPERS = new Set(['meta', 'deprecate', 'ident', 'type', 'hide', 'close', 'open'])
 
 
-// A rider, a mark or a seal around a container that holds a hole, which
-// the definition reads as no call at all.
+// A rider, a mark or a seal around a container holding a hole: no call.
 function wrapsBag(v: any): boolean {
   const inner = true === v?.isFunc && WRAPPERS.has(v.funcname()) ? v.peg[0] : undefined
   return null != inner &&
@@ -239,8 +238,6 @@ class FuncBaseVal extends FeatureVal {
       return this.residuate(peer, ctx)
     }
 
-    // Read through to the container, met with a peer, though a hole it
-    // holds waits.
     const through = !peer.isTop && !peer.isNil && this.id !== peer.id && wrapsBag(this)
 
     const TOP = top()
