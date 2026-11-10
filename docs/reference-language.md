@@ -1641,25 +1641,32 @@ a key at the top, whether or not anything uses it, where the body's own
 members stand: in `%T = {x: 1, y: .x}` the path `.x` names the body's
 own `x`, in `%T = {y: .x}` it names `$.%T.x`, a member the body
 doesn't hold, so the document is an error, and `..x` there names the
-document's own `x`. The
-language doesn't yet say where a use of the alias, or a path
-reference's copy, reads such a path. Both engines read a copy's
-relative paths where the copy stands or where they're written by the
-order the document writes the two: with `x: 1`, `a: {x: 2, b: %T}`
-and `%T = {v: ..x}`, `a.b.v` is 1 where the alias comes first and 2
-where it comes after, and `aontu vet` reads 2 in either order. The
-engines split on a path in a call's argument. TypeScript reads it where
-it's written in either order, under `aontu vet` too, and Go reads it as
-it reads any other.
-[#504](https://github.com/aontu-lang/aontu/issues/504) tracks both. The
-definition makes each relative path absolute where it stands, by
-`Val.placed` and `Decls.placed` in
-[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so a use or a
-copy holds what the path reads where it's written. It reads a body's
-own place in the normal form of the name's bodies, by `Decls.bodyAt`,
-read once, so a path there that reads through another path names
-nothing yet, which [#664](https://github.com/aontu-lang/aontu/issues/664)
-tracks.
+document's own `x`.
+
+A copy is a destination: a use of the alias, and a path reference's
+copy, reads each relative path the body or the target writes again
+where the copy stands. With `x: 1`, `a: {x: 2, b: %T}` and
+`%T = {v: ..x}`, `a.b.v` is 2, read at `a`, in any order the document
+writes them, and `%T = .x` reads at each use too. With
+`a: {x: 2, b: {v: ..x}}` and `c: {x: 3, d: $.a.b}`, `c.d.v` is 3. Both
+engines read a copy's relative paths by the order the document writes
+the two. Where the alias or the target comes first they read the paths
+where they're written, so `a.b.v` is 1 and `c.d.v` is 2, and where it
+comes after they read them where the copy stands. `aontu vet` reads a
+use of the alias where it stands in either order, but `%T = .x` at the
+alias's own place. The engines split on a path in a call's argument.
+TypeScript reads it where it's written in either order, under
+`aontu vet` too, and Go reads it as it reads any other.
+[#504](https://github.com/aontu-lang/aontu/issues/504) tracks both.
+
+The definition reads a use of a name where it stands, in a copy of the
+body placed there, by `Decls.copies` in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). It reads a path
+reference's copy where the target writes its paths, as the engines do
+where the target comes first. It reads a body's own place in the
+normal form of the name's bodies, by `Decls.bodyAt`, read once, so a
+path there that reads through another path names nothing yet, which
+[#664](https://github.com/aontu-lang/aontu/issues/664) tracks.
 
 A spread's template reads its paths at each member the spread holds,
 the member's own place: in `hosts: {&: {url: .name}}`, each member's `url`
