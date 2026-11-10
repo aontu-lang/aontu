@@ -1319,6 +1319,25 @@ function oneOf(branches) {
     return !texts.includes(undefined) && new Set(flat).size === flat.length ?
         or(branches) : call('nof', raw('1'), ...branches);
 }
+function fillsOutTo(a, b) {
+    if ('call' !== a.k || 'call' !== b.k) {
+        return 'raw' === a.k && 'raw' === b.k && a.text === b.text;
+    }
+    const [x, y] = [a.args[0], b.args[0]];
+    if ('list' === x.k && 'list' === y.k) {
+        const [xs, ys] = [x.items, y.items];
+        return xs.length === ys.length && xs.every((it, i) => fillsOutTo(it, ys[i]));
+    }
+    return 'map' === x.k && 'map' === y.k && x.entries.every((e) => y.entries.some((f) => e.key === f.key && fillsOutTo(e.val, f.val)));
+}
+// enum is `|`, or a count where a member fills out to a larger one: an
+// instance equal to the smaller meets both, and `|` settles on neither.
+function enumOf(members) {
+    const uniq = distinct(members);
+    const boxes = uniq.filter((m) => 'call' === m.k);
+    return boxes.some((a) => boxes.some((b) => fillsOutTo(a, b) && !fillsOutTo(b, a))) ?
+        call('nof', call('min', raw('1')), ...uniq) : or(uniq);
+}
 // A whole number in every leaf that holds it exactly, as `neq` reads a
 // value by its leaf.
 function wholeLeaves(text) {
@@ -1572,7 +1591,7 @@ function convertObject(ctx, node, ptr, only) {
             const members = enm.items
                 .map((it, i) => literal(ctx, at('enum') + '/' + i, 'enum', it))
                 .filter((m) => !isRaw(m, 'nil'));
-            parts.push(mark(ctx, 0 === members.length ? NIL : or(members), at('enum'), node));
+            parts.push(mark(ctx, 0 === members.length ? NIL : enumOf(members), at('enum'), node));
         }
     }
     const all = get('allOf');
