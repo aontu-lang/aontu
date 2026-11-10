@@ -67,14 +67,24 @@ def Seg.stepIn (s : Seg) (v : Val) : Option Seg :=
   | .key k, .list _ _ _ => (indexOf? k).map .idx
   | _, _ => none
 
+/-- A term with the riders around it read through, and a disjunction
+left with one arm read as that arm, as a meet that leaves one arm
+leaves that arm's value. -/
+def Val.oneArm : Val → Val
+  | .or [(_, a)] => a.oneArm
+  | .ride _ v _ => v.oneArm
+  | .link v _ => v.oneArm
+  | v => v
+
 /-- The term at a written path in a term: each step read as text, by
-the container it meets (`Seg.stepIn`). -/
+the container it meets (`Seg.stepIn`), through a disjunction left with
+one arm (`Val.oneArm`). -/
 def Val.atW : Val → List Seg → Option Val
   | v, [] => some v
   | v, s :: p =>
-    match s.stepIn v with
+    match s.stepIn v.oneArm with
     | some t =>
-      match v.at [t] with
+      match v.oneArm.at [t] with
       | some w => w.atW p
       | none => none
     | none => none
@@ -2225,15 +2235,19 @@ read at the members `root` holds (`Decls.armsRead`,
 `Decls.membersRead`), under the declarations `L1` as written; and its
 paths read as names of its own, under `pre` (`Val.armed`), declared
 from the roots `r` reads the document with the arm read so in the
-disjunction's place; `nil` where a path that must name something names
-nothing there. -/
+disjunction's place, with each path the declared terms read in turn, so
+that a chain of paths reads within the arm; `nil` where a path that must
+name something names nothing there. -/
 def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val → Decls × Val) (pre : String)
     (pos : List Seg) (root a : Val) : Val × Decls :=
   let a' := L1.membersRead (L1.armsRead root pos [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) root pos
   let roots := r (doc a').1 (doc a').2
+  let ps := (List.range ((doc a').1.docPaths (doc a').2).length).foldl
+    (fun acc _ => (acc ++ acc.flatMap fun p =>
+      ((doc a').1.pathIn roots p).toList.flatMap fun w => w.paths.filter placePath).eraseDups)
+    (a'.paths.filter placePath).eraseDups
   if (a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome then
-    (a'.pathsToAliases.armed pre,
-      ((doc a').1.ofPaths roots (a'.paths.filter placePath).eraseDups).map fun d => ("$" ++ pre ++ d.1, d.2))
+    (a'.pathsToAliases.armed pre, ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.armed pre))
   else (.nil, [])
 
 /-- The arms `as` of the disjunction at the node `n`, from the arm `i`
@@ -2282,18 +2296,21 @@ each disjunction they hold read where it holds (`Decls.armsChosen`): the
 schema's own, at the nodes `ns`, in the document itself, `root` the tree
 it holds where a disjunction stands with an arm there, and each body's
 at its own place, in the one-member document it reads there
-(`ownDoc`); the declarations `keep` leaves out dropped, since their one
-use is read in an arm. -/
+(`ownDoc`); a declaration `drop` names left out where nothing the
+reading keeps still uses it, since its use is read in an arm. -/
 def Decls.readArms (L1 ds' : Decls) (r : Decls → Val → List Val) (P : Val)
     (ns : List (List ℕ × List Seg × List (ℕ × Val))) (root : List ℕ × List Seg × List (ℕ × Val) → Val → Val)
-    (isBody keep : String → Bool) : Decls × Val :=
+    (isBody : String → Bool) (drop : List String) : Decls × Val :=
   let own (d : String × Val) : Val × Decls :=
     L1.armsChosen r (fun a x => (ds', ownDoc d.1 (d.2.replaceAt a x))) (fun k => d.1 ++ "#" ++ toString k)
       (fun n a => L1.treeAt r (ownDoc d.1 (d.2.replaceAt n.1 a)) n.2.1) 0 (d.2.armNodes [.key ("%" ++ d.1)]) d.2
-  ((ds'.filter fun d => keep d.1).map (fun d => if isBody d.1 then (d.1, (own d).1) else d) ++
-      (ds'.filter (isBody ·.1)).flatMap (fun d => (own d).2) ++
-      (L1.armsChosen r (fun a x => (ds', P.replaceAt a x)) toString root 0 ns P).2,
-    (L1.armsChosen r (fun a x => (ds', P.replaceAt a x)) toString root 0 ns P).1)
+  let top := L1.armsChosen r (fun a x => (ds', P.replaceAt a x)) toString root 0 ns P
+  let owned : Decls := ds'.map fun d => if isBody d.1 then (d.1, (own d).1) else d
+  let armDs : Decls := (ds'.filter (isBody ·.1)).flatMap (fun d => (own d).2) ++ top.2
+  let used := (List.range ds'.length).foldl
+    (fun acc _ => acc ++ (owned.filter fun d => drop.contains d.1 && acc.contains d.1).flatMap (·.2.refs))
+    (top.1.refs ++ armDs.flatMap (·.2.refs) ++ (owned.filter fun d => !drop.contains d.1).flatMap (·.2.refs))
+  (owned.filter (fun d => isBody d.1 || !drop.contains d.1 || used.contains d.1) ++ armDs, top.1)
 
 /-- A document as the definition reads it, `rl` reading a document to the
 roots its links are read in and `r` to those its spreads are read at:
@@ -2332,7 +2349,7 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   let armUses := (List.range L.1.length).foldl
     (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
     (ns.flatMap fun n => n.2.2.flatMap (·.2.refs))
-  L.1.readArms ds' r P ns armRoot isBody fun n => isBody n || !(armUses.contains n || orNames.contains n)
+  L.1.readArms ds' r P ns armRoot isBody (armUses ++ orNames)
 
 /-- A document as the definition reads it before any data: its links and
 its spreads read in the schema's own tree (`Decls.rootsS`). -/
@@ -3973,6 +3990,22 @@ theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p 
 
 /-- The term at a written path in a term the checker can read is one it
 can read. -/
+theorem oneArm_checkableA : ∀ {v : Val}, v.CheckableA → v.oneArm.CheckableA
+  | .or [(_, a)], .or ha => by
+    simp only [Val.oneArm]
+    exact oneArm_checkableA (ha _ a List.mem_cons_self)
+  | .ride _ _ _, .ride h => by simp only [Val.oneArm]; exact oneArm_checkableA h
+  | .link _ _, .link h _ => by simp only [Val.oneArm]; exact oneArm_checkableA h
+  | .or [], h | .or (_ :: _ :: _), h => by simp only [Val.oneArm]; exact h
+  | .integer, h | .float, h | .biginteger, h | .bigdecimal, h | .number, h | .string, h
+  | .anyString, h | .boolean, h | .mapKind, h | .listKind, h | .pathKind, h | .lit _, h
+  | .min _, h | .max _, h | .above _, h | .beneath _, h | .neq _, h | .mulof _, h | .len _, h
+  | .unique _, h | .re _, h | .format _, h | .grammar _, h | .any, h | .nil, h | .absent, h
+  | .nothing, h | .map _ _ _, h | .list _ _ _, h | .pref _ _, h | .meet _ _, h | .alias _, h
+  | .path _, h | .addr _, h | .nof _ _, h | .must _ _, h | .when _ _ _, h | .contains _ _, h
+  | .rest _ _, h | .select _ _ _, h | .filter _ _, h | .call _ _, h | .key, h | .keyUp _, h
+  | .hole, h => by simp only [Val.oneArm]; exact h
+
 theorem atW_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.atW p = some w → w.CheckableA
   | [], _, _, hv, h => by
     simp only [Val.atW, Option.some.injEq] at h
@@ -3983,7 +4016,7 @@ theorem atW_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.atW 
     · rename_i t _
       split at h
       · rename_i u hu
-        exact atW_checkableA p (at_checkableA [t] hv hu) h
+        exact atW_checkableA p (at_checkableA [t] (oneArm_checkableA hv) hu) h
       · exact absurd h (by simp)
     · exact absurd h (by simp)
 
@@ -4550,7 +4583,7 @@ theorem Decls.armChosen_decls_checkableA {L1 : Decls} {r : Decls → Val → Lis
   · intro d h
     simp only [List.mem_map] at h
     obtain ⟨d', hd', rfl⟩ := h
-    exact Decls.ofPaths_checkableA hd.1 (hr hd.1 hd.2) _ d' hd'
+    exact armed_checkableA (Decls.ofPaths_checkableA hd.1 (hr hd.1 hd.2) _ d' hd')
   · intro d h
     exact nomatch h
 
@@ -4605,11 +4638,11 @@ theorem ownDoc_checkableA {n : String} {b : Val} (hb : b.CheckableA) : (ownDoc n
 holds are terms the checker can read. -/
 theorem Decls.readArms_checkableA {L1 ds' : Decls} {r : Decls → Val → List Val} {P : Val}
     {ns : List (List ℕ × List Seg × List (ℕ × Val))} {root : List ℕ × List Seg × List (ℕ × Val) → Val → Val}
-    {isBody keep : String → Bool} (hr : RootsReadable r) (hds : ∀ d, d ∈ ds' → d.2.CheckableA)
+    {isBody : String → Bool} {drop : List String} (hr : RootsReadable r) (hds : ∀ d, d ∈ ds' → d.2.CheckableA)
     (hL : ∀ d, d ∈ L1 → d.2.CheckableA) (hP : P.CheckableA)
     (hns : ∀ n, n ∈ ns → ∀ rk a, (rk, a) ∈ n.2.2 → a.CheckableA) :
-    (L1.readArms ds' r P ns root isBody keep).2.CheckableA ∧
-      ∀ d, d ∈ (L1.readArms ds' r P ns root isBody keep).1 → d.2.CheckableA := by
+    (L1.readArms ds' r P ns root isBody drop).2.CheckableA ∧
+      ∀ d, d ∈ (L1.readArms ds' r P ns root isBody drop).1 → d.2.CheckableA := by
   have top := Decls.armsChosen_checkableA (doc := fun a x => (ds', P.replaceAt a x)) (tag := toString)
     (root := root) hr hL (fun a x hx => ⟨hds, replaceAt_checkableA a hP hx⟩) 0 ns P hns hP
   have own : ∀ d, d ∈ ds' → _ := fun d hd => Decls.armsChosen_checkableA
@@ -4622,7 +4655,7 @@ theorem Decls.readArms_checkableA {L1 ds' : Decls} {r : Decls → Val → List V
   dsimp only
   refine ⟨top.1, fun d hd => ?_⟩
   simp only [List.mem_append, List.mem_map, List.mem_flatMap, List.mem_filter] at hd
-  rcases hd with (⟨d', ⟨hd', -⟩, rfl⟩ | ⟨d', ⟨hd', -⟩, hm⟩) | hd
+  rcases hd with ⟨⟨d', hd', rfl⟩, -⟩ | ⟨d', ⟨hd', -⟩, hm⟩ | hd
   · split
     · exact (own d' hd').1
     · exact hds d' hd'

@@ -1620,8 +1620,10 @@ the arm's own member and a path that climbs out of the arm; a spread's
 template that reads its member's place, written in the arm and in the
 body of a name the arm uses; a path in the body of a name the arm uses;
 a path that names nothing, which drops its arm; a preferred arm; a path
-from outside into an arm, which names nothing; and a name whose body is
-such a disjunction, used and unused. -/
+from outside into an arm, which names nothing; a name whose body is such
+a disjunction, used and unused; a chain of paths within an arm; and a
+path from outside into a disjunction a meet leaves one arm, which reads
+that arm. -/
 def disjunctionPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -1659,7 +1661,17 @@ def disjunctionPathCases : List (Decls × Val × Data) :=
     ([("H", or2 named (.lit .null))], m [("hosts", .alias "H")], hd "x"),
     ([("H", or2 named (.lit .null))], m [("hosts", .alias "H")], hd "y"),
     ([("H", or2 named (.lit .null))], m [("x", str "q")], .map [("x", .str "q")]),
-    ([("H", or2 (m [("a", m [("url", p ["nowhere"])])]) (.lit .null))], m [("x", str "q")], .map [("x", .str "q")])]
+    ([("H", or2 (m [("a", m [("url", p ["nowhere"])])]) (.lit .null))], m [("x", str "q")], .map [("x", .str "q")]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", p ["x", "a"]), ("c", p ["x", "b"])]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", j 1), ("c", j 1)])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", p ["x", "a"]), ("c", p ["x", "b"])]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", j 1), ("c", j 2)])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", p ["x", "a"]), ("c", p ["x", "b"])]) (.lit .null))],
+      .map [("x", .null)]),
+    ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1)])), ("y", p ["x", "a"])],
+      .map [("x", .map [("a", j 1)]), ("y", j 1)]),
+    ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1)])), ("y", p ["x", "a"])],
+      .map [("x", .map [("a", j 1)]), ("y", j 2)])]
 
 theorem disjunctionPathCases_checkable : ∀ c ∈ disjunctionPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

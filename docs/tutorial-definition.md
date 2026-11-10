@@ -2827,16 +2827,18 @@ def Seg.stepIn (s : Seg) (v : Val) : Option Seg :=
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The term at a written path in a term: each step read as text, by
-the container it meets (`Seg.stepIn`). -/
+the container it meets (`Seg.stepIn`), through a disjunction left with
+one arm (`Val.oneArm`). -/
 def Val.atW : Val → List Seg → Option Val
   | v, [] => some v
   | v, s :: p =>
-    match s.stepIn v with
+    match s.stepIn v.oneArm with
     | some t =>
-      match v.at [t] with
+      match v.oneArm.at [t] with
       | some w => w.atW p
       | none => none
     | none => none
+termination_by structural _ p => p
 ```
 
 A path's term is then `Val.atW` of the path in a root, its variables
@@ -9129,7 +9131,7 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   let armUses := (List.range L.1.length).foldl
     (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
     (ns.flatMap fun n => n.2.2.flatMap (·.2.refs))
-  L.1.readArms ds' r P ns armRoot isBody fun n => isBody n || !(armUses.contains n || orNames.contains n)
+  L.1.readArms ds' r P ns armRoot isBody (armUses ++ orNames)
 ```
 
 A declaration's own such templates admit any member wherever the
@@ -9177,9 +9179,12 @@ def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val →
     (pos : List Seg) (root a : Val) : Val × Decls :=
   let a' := L1.membersRead (L1.armsRead root pos [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) root pos
   let roots := r (doc a').1 (doc a').2
+  let ps := (List.range ((doc a').1.docPaths (doc a').2).length).foldl
+    (fun acc _ => (acc ++ acc.flatMap fun p =>
+      ((doc a').1.pathIn roots p).toList.flatMap fun w => w.paths.filter placePath).eraseDups)
+    (a'.paths.filter placePath).eraseDups
   if (a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome then
-    (a'.pathsToAliases.armed pre,
-      ((doc a').1.ofPaths roots (a'.paths.filter placePath).eraseDups).map fun d => ("$" ++ pre ++ d.1, d.2))
+    (a'.pathsToAliases.armed pre, ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.armed pre))
   else (.nil, [])
 ```
 
