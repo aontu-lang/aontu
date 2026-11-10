@@ -319,7 +319,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 105 rows under ten causes: decisions 3 and 4 of §2, under
+ledger holds 117 rows under eleven causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -333,7 +333,9 @@ path inside a rider's value to a member beside it, which decision 14 of
 under the `defaults` profile, which the ports do not compare, where the
 ports move (#424); and a `+` that waits inside a `match` pattern, which the
 definition reads as refusing, a call refusing every value, where both
-ports wait and the definition moves (#432).
+ports wait and the definition moves (#432); and a body that is itself a
+relative path, which ruling 26 of §7 reads where each use stands, where
+both ports read it at the body's own place and move (#504).
 The 81 rows of #426, a call no reading makes, with the wrong number of
 arguments or a non-number negated, which the ports read as invalid,
 retired on 2026-11-02 when both ports' `vet` read a failure the schema
@@ -1407,6 +1409,18 @@ until the phase that encodes it lands.
    relative path again where it stands, as ADR-025 has a reference's
    copy, `%T = .x` at each use among them; the definition and both
    ports move.
+
+   **Built for a name's uses 2026-11-10.** A use of a name whose body
+   writes a relative path reads a copy of the body, placed where the
+   use stands and declared under a name no document writes
+   (`Decls.copies`, `useName`); the body still reads at its own place
+   too, where it must stand. Rows cd0 to cd20 and cdl0 to cdl20 of
+   `test/spec/def-path.tsv` hold it in both orders, as both ports'
+   `vet` reads a use; rows j54 to j59 and jl15 to jl20, a body that is
+   itself a relative path, move to the use and stand in the ledger,
+   since both ports read such a body at its own place (#504). A path
+   reference's copy remains to build.
+
 27. **A copy's marks and seal.** Raised 2026-10-21 by P8 (#445). The
    reference says `copy(v)` clears the `type` and `hide` marks. Both
    ports clear them, and unseal, only through a reference:

@@ -3029,16 +3029,28 @@ def Val.placed (pos : List Seg) : Val → Val
 ```
 
 The definition places a body at its name's own place, `%` and the name
-as a key at the top, as both engines place it:
+as a key at the top, as both engines place it. A copy is a destination
+too (ruling 26): each use of a name whose body writes a relative path
+reads a copy of the body placed where the use stands. Each copy is
+declared under a name of its own (`useName`, `Decls.copies`):
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.placed (ds : Decls) (S : Val) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.placed [.key ("%" ++ d.1)])) ++ (S.bares []).map fun p => (bareName, .path p),
-    S.placedT [])
+  (ds.map (fun d => (d.1, d.2.placed [.key ("%" ++ d.1)])) ++
+      ds.copies ds.relNames (ds.length + 1) (S.usesAt ds.relNames []) ++
+      (S.bares []).map fun p => (bareName, .path p),
+    (S.atUses ds.relNames []).placedT [])
 ```
 
-So `%T = {y: .x}` reads `$.%T.x`. No root holds a body's own place, so
+So with `%T = {v: ..x}`, `x: 1` and `a: {x: 2, b: %T}`, `a.b.v` reads
+`a.x`, 2, whichever order the document writes them in, while the body
+at its own place reads `$.x`, where it must stand too. Both engines'
+`vet` reads a use so; their evaluation reads it by the order the
+document writes the two, and a body that is itself a relative path,
+`%T = .x`, at its own place in every order, which #504 tracks.
+
+At its own place, `%T = {y: .x}` reads `$.%T.x`. No root holds a body's own place, so
 a path there reads in the normal form of the name's bodies, met, as
 both engines read a body there:
 
