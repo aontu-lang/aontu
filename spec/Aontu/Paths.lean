@@ -1538,14 +1538,16 @@ def opSpread : Option Val → Option Val
 
 mutual
 /-- The term with each spread whose template reads its member's place
-blanked (`Val.blank`), where `Val.neutral` reads one: the schema the
-tree a spread is read at comes from. -/
+blanked (`Val.blank`), where `Val.neutral` reads one, and in each result
+a selection can take, since the result it takes stands where the
+selection does: the schema the tree a spread is read at comes from. -/
 def Val.opened : Val → Val
   | .map fs spread closed => .map (opFields fs) (opSpread spread) closed
   | .list items spread closed => .list (opItems items) (opSpread spread) closed
   | .meet a b => .meet a.opened b.opened
   | .ride k v r => .ride k v.opened r
   | .link v lt => .link v.opened lt
+  | .select s arms d => .select s (opPairs arms) (opResult d)
   | v => v
 
 def opFields : List (String × Bool × Val) → List (String × Bool × Val)
@@ -1555,6 +1557,14 @@ def opFields : List (String × Bool × Val) → List (String × Bool × Val)
 def opItems : List Val → List Val
   | [] => []
   | v :: vs => v.opened :: opItems vs
+
+def opPairs : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p, r.opened) :: opPairs ps
+
+def opResult : Option Val → Option Val
+  | none => none
+  | some e => some e.opened
 end
 
 /-- A spread whose template reads its member's place, left to admit any
@@ -1649,7 +1659,8 @@ end
 
 mutual
 /-- Whether a term holds a spread whose template reads its member's
-place, where `Val.neutral` reads one. -/
+place, where `Val.neutral` reads one, or in a result a selection there
+can take (`Decls.armsRead`). -/
 def Val.perMembers : Val → Bool
   | .map fs spread _ => pmFields fs || (spread.map Val.perMember).getD false
   | .list items spread _ => pmItems items || (spread.map Val.perMember).getD false
@@ -1657,6 +1668,7 @@ def Val.perMembers : Val → Bool
   | .ride _ v _ => v.perMembers
   | .link v _ => v.perMembers
   | .call f args => pmArgs f args
+  | .select _ arms d => pmPairs arms || pmResult d
   | _ => false
 
 def pmFields : List (String × Bool × Val) → Bool
@@ -1666,6 +1678,14 @@ def pmFields : List (String × Bool × Val) → Bool
 def pmItems : List Val → Bool
   | [] => false
   | v :: vs => v.perMembers || pmItems vs
+
+def pmPairs : List (Val × Val) → Bool
+  | [] => false
+  | (_, r) :: ps => r.perMembers || pmPairs ps
+
+def pmResult : Option Val → Bool
+  | none => false
+  | some e => e.perMembers
 
 /-- Whether a call is a generator whose template reads its member's
 place: through a relative path, or a spread that does. -/
@@ -1743,6 +1763,124 @@ def Decls.reached (ds : Decls) (P root : Val) : List String :=
   root.positions.flatMap fun p =>
     ds.landedNames P ((P.size + ds.bodiesSize + p.length + 2) * (P.size + ds.bodiesSize + 2)) [(P, p)]
 
+mutual
+/-- The term `v`, standing at `pos` in `root` and below `base` in the
+document, with each result of each selection it holds, through maps by
+key, lists by index, meets, riders and links, read at each member `root`
+holds where the selection stands (`Decls.membersRead`): the result a
+selection takes stands there, and `root`, read with its selections made,
+holds the members that result meets, as both ports read a template in
+the result they take. -/
+def Decls.armsRead (ds : Decls) (root : Val) (base pos : List Seg) : Val → Val
+  | .map fs spread closed => .map (ds.arFields root base pos fs) spread closed
+  | .list items spread closed => .list (ds.arElems root base pos 0 items) spread closed
+  | .meet a b => .meet (ds.armsRead root base pos a) (ds.armsRead root base pos b)
+  | .ride k v r => .ride k (ds.armsRead root base pos v) r
+  | .link v lt => .link (ds.armsRead root base pos v) lt
+  | .select s arms d => .select s (ds.arPairs root base pos arms) (ds.arResult root base pos d)
+  | v => v
+
+def Decls.arFields (ds : Decls) (root : Val) (base pos : List Seg) :
+    List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, ds.armsRead root base (pos ++ [.key k]) v) :: ds.arFields root base pos fs
+
+def Decls.arElems (ds : Decls) (root : Val) (base pos : List Seg) : ℕ → List Val → List Val
+  | _, [] => []
+  | i, v :: vs => ds.armsRead root base (pos ++ [.idx i]) v :: ds.arElems root base pos (i + 1) vs
+
+def Decls.arPairs (ds : Decls) (root : Val) (base pos : List Seg) : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps =>
+    (p, ds.membersRead (ds.armsRead root base pos r) ((root.at pos).getD .any) (base ++ pos)) ::
+      ds.arPairs root base pos ps
+
+def Decls.arResult (ds : Decls) (root : Val) (base pos : List Seg) : Option Val → Option Val
+  | none => none
+  | some e => some (ds.membersRead (ds.armsRead root base pos e) ((root.at pos).getD .any) (base ++ pos))
+end
+
+mutual
+/-- The names whose bodies `Decls.armsRead` reads a selection's results
+through (`Decls.reached`): each holds a copy whose own templates are read
+where the result stands. -/
+def Decls.armsReached (ds : Decls) (root : Val) (pos : List Seg) : Val → List String
+  | .map fs _ _ => ds.arnFields root pos fs
+  | .list items _ _ => ds.arnElems root pos 0 items
+  | .meet a b => ds.armsReached root pos a ++ ds.armsReached root pos b
+  | .ride _ v _ => ds.armsReached root pos v
+  | .link v _ => ds.armsReached root pos v
+  | .select _ arms d => ds.arnPairs root pos arms ++ ds.arnResult root pos d
+  | _ => []
+
+def Decls.arnFields (ds : Decls) (root : Val) (pos : List Seg) : List (String × Bool × Val) → List String
+  | [] => []
+  | (k, _, v) :: fs => ds.armsReached root (pos ++ [.key k]) v ++ ds.arnFields root pos fs
+
+def Decls.arnElems (ds : Decls) (root : Val) (pos : List Seg) : ℕ → List Val → List String
+  | _, [] => []
+  | i, v :: vs => ds.armsReached root (pos ++ [.idx i]) v ++ ds.arnElems root pos (i + 1) vs
+
+def Decls.arnPairs (ds : Decls) (root : Val) (pos : List Seg) : List (Val × Val) → List String
+  | [] => []
+  | (_, r) :: ps =>
+    ds.armsReached root pos r ++ ds.reached r ((root.at pos).getD .any) ++ ds.arnPairs root pos ps
+
+def Decls.arnResult (ds : Decls) (root : Val) (pos : List Seg) : Option Val → List String
+  | none => []
+  | some e => ds.armsReached root pos e ++ ds.reached e ((root.at pos).getD .any)
+end
+
+mutual
+/-- Each name the term `v`, standing at `pos`, uses, with the position
+it's used at: through maps by key, lists by index, meets, riders and
+links, and in a disjunction's arms, a preference and a selection's
+results, which stand where the term does. -/
+def Val.usedAt (pos : List Seg) : Val → List (String × List Seg)
+  | .alias n => [(n, pos)]
+  | .map fs _ _ => usdFields pos fs
+  | .list items _ _ => usdItems pos 0 items
+  | .meet a b => a.usedAt pos ++ b.usedAt pos
+  | .ride _ v _ => v.usedAt pos
+  | .link v _ => v.usedAt pos
+  | .or arms => usdArms pos arms
+  | .pref _ x => x.usedAt pos
+  | .select _ arms d => usdPairs pos arms ++ usdResult pos d
+  | _ => []
+
+def usdFields (pos : List Seg) : List (String × Bool × Val) → List (String × List Seg)
+  | [] => []
+  | (k, _, v) :: fs => v.usedAt (pos ++ [.key k]) ++ usdFields pos fs
+
+def usdItems (pos : List Seg) : ℕ → List Val → List (String × List Seg)
+  | _, [] => []
+  | i, v :: vs => v.usedAt (pos ++ [.idx i]) ++ usdItems pos (i + 1) vs
+
+def usdArms (pos : List Seg) : List (ℕ × Val) → List (String × List Seg)
+  | [] => []
+  | (_, a) :: as => a.usedAt pos ++ usdArms pos as
+
+def usdPairs (pos : List Seg) : List (Val × Val) → List (String × List Seg)
+  | [] => []
+  | (_, r) :: ps => r.usedAt pos ++ usdPairs pos ps
+
+def usdResult (pos : List Seg) : Option Val → List (String × List Seg)
+  | none => []
+  | some e => e.usedAt pos
+end
+
+/-- The position each name is used at, where the schema `S` uses it or
+the body of a name used at a position uses it, as deep as the document
+declares names: the place a copy stands, since each copy has one use. -/
+def Decls.usePlaces (ds : Decls) (S : Val) : List (String × List Seg) :=
+  (List.range ds.length).foldl
+    (fun acc _ => S.usedAt [] ++ ds.flatMap fun d => ((acc.lookup d.1).map fun q => d.2.usedAt q).getD []) []
+
+/-- A copy's body with each selection's results read where the copy
+stands (`Decls.armsRead`), where the document uses it at a position. -/
+def Decls.copyArms (ds : Decls) (root : Val) (places : List (String × List Seg)) (d : String × Val) : Val :=
+  ((places.lookup d.1).map fun q => ds.armsRead root [] q d.2).getD d.2
+
 /-- The tree a body's own place holds: the normal form of the name's
 bodies, met, as `Decls.bodyAt` reads the place, each template that reads
 its member's place blanked (`Val.opened`), so that a template in one body
@@ -1752,10 +1890,11 @@ def Decls.ownRoot (ds : Decls) (d : String × Val) : Val :=
 
 /-- A body read at its own place, `%` and its name: each template that
 reads its member's place read at each member the body's own normal form
-holds (`Decls.membersRead`), as both ports read a body there whether or
-not anything uses it. -/
+holds (`Decls.membersRead`), in a selection's results too
+(`Decls.armsRead`), as both ports read a body there whether or not
+anything uses it. -/
 def Decls.ownRead (ds : Decls) (d : String × Val) : Val :=
-  ds.membersRead d.2 (ds.ownRoot d) [.key ("%" ++ d.1)]
+  ds.membersRead (ds.armsRead (ds.ownRoot d) [.key ("%" ++ d.1)] [] d.2) (ds.ownRoot d) [.key ("%" ++ d.1)]
 
 /-! ## A path reference's copy reads its relative paths where it stands
 
@@ -1950,20 +2089,29 @@ roots its links are read in and `r` to those its spreads are read at:
 its links read (`Decls.linked`), and each spread whose template reads
 its member's place read at each member where it lands, a name's body
 among the places (`Decls.membersRead`), in the tree `Decls.spreadRoot`
-reads, a member a link's template makes among them; each body read at
-its own place too (`Decls.ownRead`), and each copy whose templates that
-reading reaches (`Decls.reached`) left to admit any member, since each
-is read where the copy stands; the data `oj`, where it's given, met
-into each copy of a place it writes at (`Decls.placed`). -/
+reads, a member a link's template makes among them, and in each result a
+selection can take, where the selection stands (`Decls.armsRead`); each
+body read at its own place too (`Decls.ownRead`), and each copy whose
+templates that reading reaches (`Decls.reached`, `Decls.armsReached`)
+left to admit any member, since each is read where the copy stands, its
+selections' results read there (`Decls.copyArms`, `Decls.usePlaces`);
+the data `oj`, where it's given, met into each copy of a place it writes
+at (`Decls.placed`). -/
 def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (oj : Option Data := none) :
     Decls × Val :=
   let L := ds.linked S rl oj
+  let root := ds.spreadRoot S rl r oj
   let isBody (n : String) : Bool := ds.withRel.any (·.1 == n)
-  let reached := L.1.reached L.2 (ds.spreadRoot S rl r oj) ++
-    (L.1.filter (isBody ·.1)).flatMap fun b => L.1.reached b.2 (L.1.ownRoot b)
+  let places := L.1.usePlaces L.2
+  let reached := L.1.reached L.2 root ++ L.1.armsReached root [] L.2 ++
+    (L.1.filter (isBody ·.1)).flatMap (fun b =>
+      L.1.reached b.2 (L.1.ownRoot b) ++ L.1.armsReached (L.1.ownRoot b) [] b.2) ++
+    (L.1.filter (!isBody ·.1)).flatMap fun c =>
+      ((places.lookup c.1).map fun q => L.1.armsReached root q c.2).getD []
   (L.1.map fun d =>
-      (d.1, if isBody d.1 then L.1.ownRead d else if reached.contains d.1 then d.2.neutral else d.2),
-    L.1.membersRead L.2 (ds.spreadRoot S rl r oj) [])
+      (d.1, if isBody d.1 then L.1.ownRead d
+        else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2),
+    L.1.membersRead (L.1.armsRead root [] [] L.2) root [])
 
 /-- A document as the definition reads it before any data: its links and
 its spreads read in the schema's own tree (`Decls.rootsS`). -/
@@ -3476,10 +3624,96 @@ theorem membersRead_checkableA {ds : Decls} {P : Val} (hb : ∀ d, d ∈ ds → 
     exact instancesAt_checkableA hb hP base p u hu
   · exact hP
 
+section
+variable {ds : Decls} {root : Val} {base : List Seg}
+
+theorem arFields_checkableA : ∀ (fs : List (String × Bool × Val)) (pos : List Seg),
+    (∀ k o v, (k, o, v) ∈ fs → ∀ pos, (ds.armsRead root base pos v).CheckableA) →
+    ∀ k o w, (k, o, w) ∈ ds.arFields root base pos fs → w.CheckableA
+  | [], _, _, _, _, _, h => nomatch h
+  | (k', o', v') :: fs, pos, ih, k, o, w, h => by
+    simp only [Decls.arFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨-, -, rfl⟩ | h
+    · exact ih k' o' v' List.mem_cons_self _
+    · exact arFields_checkableA fs pos (fun k o v hv => ih k o v (List.mem_cons_of_mem _ hv)) k o w h
+
+theorem arElems_checkableA : ∀ (items : List Val) (pos : List Seg) (i : ℕ),
+    (∀ v, v ∈ items → ∀ pos, (ds.armsRead root base pos v).CheckableA) →
+    ∀ w, w ∈ ds.arElems root base pos i items → w.CheckableA
+  | [], _, _, _, _, h => nomatch h
+  | v :: vs, pos, i, ih, w, h => by
+    simp only [Decls.arElems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ih v List.mem_cons_self _
+    · exact arElems_checkableA vs pos (i + 1) (fun v hv => ih v (List.mem_cons_of_mem _ hv)) w h
+
+theorem arPairs_checkableA (hb : ∀ d, d ∈ ds → d.2.CheckableA) : ∀ (arms : List (Val × Val)) (pos : List Seg),
+    (∀ p r, (p, r) ∈ arms → p.CheckableA) →
+    (∀ p r, (p, r) ∈ arms → ∀ pos, (ds.armsRead root base pos r).CheckableA) →
+    (∀ p r, (p, r) ∈ ds.arPairs root base pos arms → p.CheckableA) ∧
+      (∀ p r, (p, r) ∈ ds.arPairs root base pos arms → r.CheckableA)
+  | [], _, _, _ => ⟨fun _ _ h => (nomatch h), fun _ _ h => (nomatch h)⟩
+  | (p', r') :: ps, pos, hp, ih => by
+    have rest := arPairs_checkableA hb ps pos (fun p r hm => hp p r (List.mem_cons_of_mem _ hm))
+      (fun p r hm => ih p r (List.mem_cons_of_mem _ hm))
+    simp only [Decls.arPairs, List.mem_cons, Prod.mk.injEq]
+    refine ⟨fun p r h => ?_, fun p r h => ?_⟩
+    · rcases h with ⟨rfl, -⟩ | h
+      · exact hp _ _ List.mem_cons_self
+      · exact rest.1 p r h
+    · rcases h with ⟨-, rfl⟩ | h
+      · exact membersRead_checkableA hb (ih p' r' List.mem_cons_self _) _ _
+      · exact rest.2 p r h
+
+theorem arResult_checkableA (hb : ∀ d, d ∈ ds → d.2.CheckableA) (pos : List Seg) {d : Option Val}
+    (ih : ∀ e, d = some e → ∀ pos, (ds.armsRead root base pos e).CheckableA) :
+    ∀ e, ds.arResult root base pos d = some e → e.CheckableA := by
+  intro e h
+  cases d with
+  | none => exact nomatch h
+  | some e' =>
+    simp only [Decls.arResult, Option.some.injEq] at h
+    subst h
+    exact membersRead_checkableA hb (ih e' rfl _) _ _
+
+/-- A term with each selection's results read where the selection stands
+is one the checker can read. -/
+theorem armsRead_checkableA (hb : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val} (h : v.CheckableA) :
+    ∀ pos, (ds.armsRead root base pos v).CheckableA := by
+  induction h with
+  | @map fs spread closed _ hs ihf _ =>
+    intro pos
+    exact .map (arFields_checkableA fs pos ihf) hs
+  | @list items spread closed _ hs ihi _ =>
+    intro pos
+    exact .list (arElems_checkableA items pos 0 ihi) hs
+  | meet _ _ iha ihb => exact fun pos => .meet (iha pos) (ihb pos)
+  | ride _ ih => exact fun pos => .ride (ih pos)
+  | link _ ht ih _ => exact fun pos => .link (ih pos) ht
+  | len hc _ => exact fun _ => .len hc
+  | or ha _ => exact fun _ => .or ha
+  | pref hx _ => exact fun _ => .pref hx
+  | nof hn hcs _ _ => exact fun _ => .nof hn hcs
+  | call ha _ => exact fun _ => .call ha
+  | must hc _ => exact fun _ => .must hc
+  | when hc ht he _ _ _ => exact fun _ => .when hc ht he
+  | contains hc hn _ _ => exact fun _ => .contains hc hn
+  | rest ht h1 h2 h3 _ _ _ _ => exact fun _ => .rest ht h1 h2 h3
+  | @selectKey arms d hp _ _ _ ihr ihd =>
+    intro pos
+    have hpr := arPairs_checkableA hb arms pos hp ihr
+    exact .selectKey hpr.1 hpr.2 (arResult_checkableA hb pos ihd)
+  | @selectLit s arms d hp _ _ _ ihr ihd =>
+    intro pos
+    have hpr := arPairs_checkableA hb arms pos hp ihr
+    exact .selectLit hpr.1 hpr.2 (arResult_checkableA hb pos ihd)
+  | _ => exact fun _ => by constructor
+end
+
 /-- A body read at its own place is a term the checker can read. -/
 theorem ownRead_checkableA {ds : Decls} {d : String × Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hd : d.2.CheckableA) : (ds.ownRead d).CheckableA :=
-  membersRead_checkableA hb hd _ _
+  membersRead_checkableA hb (armsRead_checkableA hb hd _) _ _
 
 /-- The term at a path in a term the checker can read is one it can read. -/
 theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p = some w → w.CheckableA
@@ -3807,8 +4041,9 @@ theorem Decls.prepared_checkableA {ds : Decls} {S : Val} {rl r : Decls → Val �
     (hr : RootsReadable rl) (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
     (ds.prepared S rl r oj).2.CheckableA :=
   membersRead_checkableA (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb) hS)
-    (withRefers_checkableA hr (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb) hS)
-      (withMoves_checkableA (Decls.placed_checkableA hS))) _ _
+    (armsRead_checkableA (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb) hS)
+      (withRefers_checkableA hr (Decls.placed_bodies_checkableA (Decls.withRel_checkableA hb) hS)
+        (withMoves_checkableA (Decls.placed_checkableA hS))) _) _ _
 
 /-- A document's declarations as the definition reads them, each body
 read at its own place and each other template left to admit any
@@ -3825,7 +4060,11 @@ theorem Decls.prepared_bodies_checkableA {ds : Decls} {S : Val} {rl r : Decls �
   split
   · exact ownRead_checkableA hL (hL d' hd')
   · split
-    · exact neutral_checkableA (hL d' hd')
+    · refine neutral_checkableA ?_
+      unfold Decls.copyArms
+      cases (Decls.usePlaces _ _).lookup d'.1 with
+      | none => exact hL d' hd'
+      | some q => exact armsRead_checkableA hL (hL d' hd') q
     · exact hL d' hd'
 
 /-- `vetA` computes `VetA` wherever the checker can read the two

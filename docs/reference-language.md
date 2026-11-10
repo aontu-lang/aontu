@@ -1706,8 +1706,15 @@ Both engines try the condition on each member, so a condition that
 names nothing, a path, an alias or a variable, refuses each member
 rather than making the document an error. The definition places a
 condition so in `Val.placed`, and `Val.forgive` exempts it from the
-references that must name something. It doesn't yet read a template's
-relative paths inside a disjunction or a selection.
+references that must name something. A template in a selection's result
+reads its member's place where the selection stands, since the result
+the selection takes stands there: in `hosts: match($.kind, "web", {&:
+{url: .name}}, "db", null)` each host's `url` reads its own `name` when
+`kind` is `"web"`. So does a template in the body of a name a result
+uses, and in a name whose body is a selection, where the document uses the name.
+The definition reads a result so by `Decls.armsRead`. It doesn't yet
+read a relative path inside a disjunction's arm, which both engines
+read once a single arm remains.
 
 ### Recursive references (fixpoints)
 
