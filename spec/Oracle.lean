@@ -1677,7 +1677,17 @@ def disjunctionPathCases : List (Decls × Val × Data) :=
     ([], m [("hosts", or2 named (m [("a", m [("name", .string), ("url", .string)])]))],
       .map [("hosts", .map [("a", .map [("name", .str "y"), ("url", .str "z")])])]),
     ([], m [("hosts", or2 named (.lit .null))],
-      .map [("hosts", .map [("a", .map [("name", .str "y"), ("url", .str "y")])])])]
+      .map [("hosts", .map [("a", .map [("name", .str "y"), ("url", .str "y")])])]),
+    ([("T", m [("a", int 1), ("b", rel 1 ["a"])])], m [("x", .meet (or2 (.alias "T") (.lit .null)) (.alias "T"))],
+      .map [("x", .map [("a", j 1), ("b", j 1)])]),
+    ([("T", m [("a", int 1), ("b", rel 1 ["a"])])], m [("x", .meet (or2 (.alias "T") (.lit .null)) (.alias "T"))],
+      .map [("x", .map [("a", j 1), ("b", j 2)])]),
+    ([("T", m [("a", int 1), ("b", rel 1 ["a"])])], m [("x", .meet (or2 (.alias "T") (.lit .null)) (.alias "T"))],
+      .map [("x", .null)]),
+    ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1), ("b", rel 1 ["a"])]))],
+      .map [("x", .map [("a", j 1), ("b", j 1)])]),
+    ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1), ("b", rel 1 ["a"])]))],
+      .map [("x", .map [("a", j 1), ("b", j 2)])])]
 
 /-- Paths inside a lone preference `*x`, which reads as `x | super(x)`:
 `x` read where it stands, and its parent arm the parent type of what `x`

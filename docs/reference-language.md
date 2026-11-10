@@ -1721,7 +1721,10 @@ disjunction, where the document uses the name and at its own place. An arm whose
 nothing there drops out, as a dead arm does, and so does one whose path
 names a member the data kills, so that over `name: "y"` an arm `{a:
 {name: string, url: string}}` beside that one takes the data. A path from outside into
-an arm names nothing. Both engines read a path in an arm only once a
+an arm names nothing, unless the meet leaves the disjunction one arm:
+in `x: (%T | null) & %T` with `%T = {a: 1, b: .a}`, the copy beside the
+disjunction reads `b` as the one arm's `a`, since `null` meets a map in
+nothing. Both engines read a path in an arm only once a
 single arm remains, and in a preferred arm never, so data an arm
 refuses through its path leaves the document `incomplete` while two
 arms are live, which #700 tracks. The definition reads each arm so by
