@@ -821,3 +821,9 @@ review the state of the aontu support for jsonschema - are there any divergences
 ```text
 review the state of the aontu support for jsonschema - are there any divergences left? can aontu fully represent jsonschema?
 ```
+
+## 2026-11-10 13:53:02 UTC · Claude Code · session_0167vhgS4cJZDcswgVQkU5Gu
+
+```text
+fix the enum bug as a pr to aontu
+```
