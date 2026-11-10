@@ -2827,16 +2827,18 @@ def Seg.stepIn (s : Seg) (v : Val) : Option Seg :=
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The term at a written path in a term: each step read as text, by
-the container it meets (`Seg.stepIn`). -/
+the container it meets (`Seg.stepIn`), through a disjunction left with
+one arm (`Val.oneArm`). -/
 def Val.atW : Val → List Seg → Option Val
   | v, [] => some v
   | v, s :: p =>
-    match s.stepIn v with
+    match s.stepIn v.oneArm with
     | some t =>
-      match v.at [t] with
+      match v.oneArm.at [t] with
       | some w => w.atW p
       | none => none
     | none => none
+termination_by structural _ p => p
 ```
 
 A path's term is then `Val.atW` of the path in a root, its variables
@@ -3197,10 +3199,10 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (ds' := (ds.preparedD S j).1)
     (S' := (ds.preparedD S j).2)
-    (Decls.prepared_bodies_checkableA hb hS)
-    (Decls.prepared_checkableA rootsS_readable hb hS)
-    (Decls.prepared_bodies_checkableA hb hS)
-    (Decls.prepared_checkableA Decls.linkReader_readable hb hS) v
+    (Decls.prepared_bodies_checkableA rootsS_readable rootsS_readable hb hS)
+    (Decls.prepared_checkableA rootsS_readable rootsS_readable hb hS)
+    (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS)
+    (Decls.prepared_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS) v
 ```
 
 A recursive position, `then?: $.schema.Step` inside `Step`, is a name
@@ -9111,15 +9113,25 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   let root := ds.spreadRoot S rl r oj
   let isBody (n : String) : Bool := ds.withRel.any (·.1 == n)
   let places := L.1.usePlaces L.2
-  let reached := L.1.reached L.2 root ++ L.1.armsReached root [] L.2 ++
+  let orNames := (L.1.filter fun d => !isBody d.1 && !(d.2.armNodes []).isEmpty).map (·.1)
+  let T := L.2.unfoldAt orNames.contains fun n => expandF L.1 1 (.alias n)
+  let P := L.1.membersRead (L.1.armsRead root [] [] T) root []
+  let ns := P.armNodes []
+  let armRoot (n : List ℕ × List Seg × List (ℕ × Val)) (a : Val) : Val := L.1.treeAt r (P.replaceAt n.1 a) n.2.1
+  let reached := L.1.reached T root ++ L.1.armsReached root [] T ++
     (L.1.filter (isBody ·.1)).flatMap (fun b =>
       L.1.reached b.2 (L.1.ownRoot b) ++ L.1.armsReached (L.1.ownRoot b) [] b.2) ++
-    (L.1.filter (!isBody ·.1)).flatMap fun c =>
-      ((places.lookup c.1).map fun q => L.1.armsReached root q c.2).getD []
-  (L.1.map fun d =>
-      (d.1, if isBody d.1 then L.1.ownRead d
-        else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2),
-    L.1.membersRead (L.1.armsRead root [] [] L.2) root [])
+    (L.1.filter (!isBody ·.1)).flatMap (fun c =>
+      ((places.lookup c.1).map fun q => L.1.armsReached root q c.2).getD []) ++
+    ns.flatMap fun n => n.2.2.flatMap fun a =>
+      L.1.reached a.2 (armRoot n a.2) ++ L.1.armsReached (armRoot n a.2) [] a.2
+  let ds' : Decls := L.1.map fun d =>
+    (d.1, if isBody d.1 then L.1.ownRead d
+      else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2)
+  let armUses := (List.range L.1.length).foldl
+    (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
+    (ns.flatMap fun n => n.2.2.flatMap (·.2.refs))
+  L.1.readArms ds' r P ns armRoot isBody (armUses ++ orNames)
 ```
 
 A declaration's own such templates admit any member wherever the
@@ -9149,6 +9161,40 @@ def Decls.arPairs (ds : Decls) (root : Val) (base pos : List Seg) : List (Val ×
     (p, ds.membersRead (ds.armsRead root base pos r) ((root.at pos).getD .any) (base ++ pos)) ::
       ds.arPairs root base pos ps
 ```
+
+A disjunction's arm holds the disjunction's place only where the data
+takes it, so a path written in an arm reads in the document with that
+arm in the disjunction's place. Over `hosts: {a: {name: "x", url:
+"y"}}`, `hosts: {a: {name: "x", url: .name}} | {a: {url: string}}`
+reads the first arm's `url` as `"x"`, which refuses the data, and the
+second arm takes it, so the document is `valid`. The definition reads
+each name the arm uses as its bodies first, so a path in a name's body
+reads the same, and reads the arm's paths as names of the arm's own,
+declared from that document's roots. An arm whose path names nothing
+there is `nil`, as both engines drop it, and so is one whose path names
+a dead term, since the data kills the arm there: over `name: "y"`, the
+first arm's `name` is dead, and an arm `{a: {name: string, url:
+string}}` beside it takes the data:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val → Decls × Val) (pre : String)
+    (pos : List Seg) (root a : Val) : Val × Decls :=
+  let a' := L1.membersRead (L1.armsRead root pos [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) root pos
+  let roots := r (doc a').1 (doc a').2
+  let ps := (List.range ((doc a').1.docPaths (doc a').2).length).foldl
+    (fun acc _ => (acc ++ acc.flatMap fun p =>
+      ((doc a').1.pathIn roots p).toList.flatMap fun w => w.paths.filter placePath).eraseDups)
+    (a'.paths.filter placePath).eraseDups
+  if ((a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome) &&
+      !(((doc a').1.ofPaths roots ps).any fun d => d.2.dead) then
+    (a'.pathsToAliases.armed pre, ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.armed pre))
+  else (.nil, [])
+```
+
+Both engines read a path in an arm only once a single arm remains, so
+over that data they leave the document `incomplete`, which #700
+tracks.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean

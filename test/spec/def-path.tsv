@@ -57,6 +57,8 @@
 # member where it's used and at its own place, in rows nt0 on and ntl0 on.
 # A template in a selection's result reads its member's place where the
 # selection stands, in rows st0 on and stl0 on.
+# A path written in a disjunction's arm reads where the arm holds, in rows dj0
+# on and djl0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -765,6 +767,186 @@ stl32	verdict	"hosts": %H\n%H = match("m", "m", {&: {"url": .name}}, "n", null)	
 stl33	verdict	"hosts": %H\n%H = match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
 stl34	verdict	"hosts": %H\n%H = match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
 stl35	verdict	"hosts": %H\n%H = match("m", "m", {&: {"url": .name}}, "n", null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+dj0	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+dj1	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj2	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj3	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+dj4	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj5	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+dj6	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": null}	{"verdict":"valid"}
+dj7	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": null}	{"verdict":"valid","opts":{"noFill":true}}
+dj8	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": null}	{"verdict":"valid","opts":{"partial":true}}
+dj9	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": number}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+dj10	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": number}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj11	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": number}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+dj12	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid"}
+dj13	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj14	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj15	verdict	"hosts": ({"a": {"name": "x", "url": $.hosts.a.name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+dj16	verdict	"hosts": ({"a": {"name": "x", "url": $.hosts.a.name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj17	verdict	"hosts": ({"a": {"name": "x", "url": $.hosts.a.name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj18	verdict	"c": {"name": "x", "hosts": ({"url": ..name}) | (null)}	{"c": {"name": "x", "hosts": {"url": "y"}}}	{"verdict":"invalid"}
+dj19	verdict	"c": {"name": "x", "hosts": ({"url": ..name}) | (null)}	{"c": {"name": "x", "hosts": {"url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj20	verdict	"c": {"name": "x", "hosts": ({"url": ..name}) | (null)}	{"c": {"name": "x", "hosts": {"url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+dj21	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+dj22	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj23	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj24	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+dj25	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj26	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+dj27	verdict	"hosts": ({&: {"url": .name}}) | ({&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid"}
+dj28	verdict	"hosts": ({&: {"url": .name}}) | ({&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj29	verdict	"hosts": ({&: {"url": .name}}) | ({&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj30	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+dj31	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj32	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj33	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+dj34	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj35	verdict	%H = {&: {"url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+dj36	verdict	%H = {"a": {"name": "x", "url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+dj37	verdict	%H = {"a": {"name": "x", "url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj38	verdict	%H = {"a": {"name": "x", "url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj39	verdict	%H = {"a": {"name": "x", "url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+dj40	verdict	%H = {"a": {"name": "x", "url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj41	verdict	%H = {"a": {"name": "x", "url": .name}}\n"hosts": (%H) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+dj42	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": null}	{"verdict":"valid"}
+dj43	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": null}	{"verdict":"valid","opts":{"noFill":true}}
+dj44	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": null}	{"verdict":"valid","opts":{"partial":true}}
+dj45	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+dj46	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj47	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+dj48	verdict	"hosts": *{"a": {"name": "x", "url": .name}} | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+dj49	verdict	"hosts": *{"a": {"name": "x", "url": .name}} | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj50	verdict	"hosts": *{"a": {"name": "x", "url": .name}} | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj51	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error"}
+dj52	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error","opts":{"noFill":true}}
+dj53	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error","opts":{"partial":true}}
+dj54	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+dj55	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj56	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj57	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+dj58	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj59	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"hosts": %H	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+dj60	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid"}
+dj61	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid","opts":{"noFill":true}}
+dj62	verdict	%H = ({"a": {"name": "x", "url": .name}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid","opts":{"partial":true}}
+dj63	verdict	%H = ({"a": {"url": $.nowhere}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid"}
+dj64	verdict	%H = ({"a": {"url": $.nowhere}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid","opts":{"noFill":true}}
+dj65	verdict	%H = ({"a": {"url": $.nowhere}}) | (null)\n"x": "q"	{"x": "q"}	{"verdict":"valid","opts":{"partial":true}}
+dj66	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 1}}	{"verdict":"valid"}
+dj67	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+dj68	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 1}}	{"verdict":"valid","opts":{"partial":true}}
+dj69	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 2}}	{"verdict":"invalid"}
+dj70	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj71	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+dj72	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": null}	{"verdict":"valid"}
+dj73	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": null}	{"verdict":"valid","opts":{"noFill":true}}
+dj74	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": null}	{"verdict":"valid","opts":{"partial":true}}
+dj75	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"valid"}
+dj76	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"valid","opts":{"noFill":true}}
+dj77	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"valid","opts":{"partial":true}}
+dj78	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 2}	{"verdict":"invalid"}
+dj79	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+dj80	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+dj81	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"valid"}
+dj82	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj83	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj84	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "z"}}}	{"verdict":"valid"}
+dj85	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "z"}}}	{"verdict":"valid","opts":{"noFill":true}}
+dj86	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "z"}}}	{"verdict":"valid","opts":{"partial":true}}
+dj87	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"invalid"}
+dj88	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dj89	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+djl0	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+djl1	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl2	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl3	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+djl4	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl5	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+djl6	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": null}	{"verdict":"valid"}
+djl7	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": null}	{"verdict":"valid","opts":{"noFill":true}}
+djl8	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": null}	{"verdict":"valid","opts":{"partial":true}}
+djl9	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": number}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+djl10	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": number}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl11	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": number}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+djl12	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid"}
+djl13	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl14	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl15	verdict	"hosts": ({"a": {"name": "x", "url": $.hosts.a.name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+djl16	verdict	"hosts": ({"a": {"name": "x", "url": $.hosts.a.name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl17	verdict	"hosts": ({"a": {"name": "x", "url": $.hosts.a.name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl18	verdict	"c": {"name": "x", "hosts": ({"url": ..name}) | (null)}	{"c": {"name": "x", "hosts": {"url": "y"}}}	{"verdict":"invalid"}
+djl19	verdict	"c": {"name": "x", "hosts": ({"url": ..name}) | (null)}	{"c": {"name": "x", "hosts": {"url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl20	verdict	"c": {"name": "x", "hosts": ({"url": ..name}) | (null)}	{"c": {"name": "x", "hosts": {"url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+djl21	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+djl22	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl23	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl24	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+djl25	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl26	verdict	"hosts": ({&: {"url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+djl27	verdict	"hosts": ({&: {"url": .name}}) | ({&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid"}
+djl28	verdict	"hosts": ({&: {"url": .name}}) | ({&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl29	verdict	"hosts": ({&: {"url": .name}}) | ({&: {"url": string}})	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl30	verdict	"hosts": (%H) | (null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+djl31	verdict	"hosts": (%H) | (null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl32	verdict	"hosts": (%H) | (null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl33	verdict	"hosts": (%H) | (null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+djl34	verdict	"hosts": (%H) | (null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl35	verdict	"hosts": (%H) | (null)\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+djl36	verdict	"hosts": (%H) | (null)\n%H = {"a": {"name": "x", "url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+djl37	verdict	"hosts": (%H) | (null)\n%H = {"a": {"name": "x", "url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl38	verdict	"hosts": (%H) | (null)\n%H = {"a": {"name": "x", "url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl39	verdict	"hosts": (%H) | (null)\n%H = {"a": {"name": "x", "url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+djl40	verdict	"hosts": (%H) | (null)\n%H = {"a": {"name": "x", "url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl41	verdict	"hosts": (%H) | (null)\n%H = {"a": {"name": "x", "url": .name}}	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+djl42	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": null}	{"verdict":"valid"}
+djl43	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": null}	{"verdict":"valid","opts":{"noFill":true}}
+djl44	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": null}	{"verdict":"valid","opts":{"partial":true}}
+djl45	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+djl46	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl47	verdict	"hosts": ({"a": {"url": $.nowhere}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+djl48	verdict	"hosts": *{"a": {"name": "x", "url": .name}} | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+djl49	verdict	"hosts": *{"a": {"name": "x", "url": .name}} | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl50	verdict	"hosts": *{"a": {"name": "x", "url": .name}} | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl51	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error"}
+djl52	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error","opts":{"noFill":true}}
+djl53	verdict	"x": ({"a": 1}) | ({"a": 2}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"error","opts":{"partial":true}}
+djl54	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
+djl55	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl56	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl57	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid"}
+djl58	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl59	verdict	"hosts": %H\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "x", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
+djl60	verdict	"x": "q"\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"x": "q"}	{"verdict":"valid"}
+djl61	verdict	"x": "q"\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"x": "q"}	{"verdict":"valid","opts":{"noFill":true}}
+djl62	verdict	"x": "q"\n%H = ({"a": {"name": "x", "url": .name}}) | (null)	{"x": "q"}	{"verdict":"valid","opts":{"partial":true}}
+djl63	verdict	"x": "q"\n%H = ({"a": {"url": $.nowhere}}) | (null)	{"x": "q"}	{"verdict":"valid"}
+djl64	verdict	"x": "q"\n%H = ({"a": {"url": $.nowhere}}) | (null)	{"x": "q"}	{"verdict":"valid","opts":{"noFill":true}}
+djl65	verdict	"x": "q"\n%H = ({"a": {"url": $.nowhere}}) | (null)	{"x": "q"}	{"verdict":"valid","opts":{"partial":true}}
+djl66	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 1}}	{"verdict":"valid"}
+djl67	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+djl68	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 1}}	{"verdict":"valid","opts":{"partial":true}}
+djl69	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 2}}	{"verdict":"invalid"}
+djl70	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl71	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": {"a": 1, "b": 1, "c": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+djl72	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": null}	{"verdict":"valid"}
+djl73	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": null}	{"verdict":"valid","opts":{"noFill":true}}
+djl74	verdict	"x": ({"a": 1, "b": $.x.a, "c": $.x.b}) | (null)	{"x": null}	{"verdict":"valid","opts":{"partial":true}}
+djl75	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"valid"}
+djl76	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"valid","opts":{"noFill":true}}
+djl77	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 1}	{"verdict":"valid","opts":{"partial":true}}
+djl78	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 2}	{"verdict":"invalid"}
+djl79	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+djl80	verdict	"x": (({"a": 1}) | (null)) & ({"a": 1}), "y": $.x.a	{"x": {"a": 1}, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+djl81	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"valid"}
+djl82	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl83	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl84	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "z"}}}	{"verdict":"valid"}
+djl85	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "z"}}}	{"verdict":"valid","opts":{"noFill":true}}
+djl86	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | ({"a": {"name": string, "url": string}})	{"hosts": {"a": {"name": "y", "url": "z"}}}	{"verdict":"valid","opts":{"partial":true}}
+djl87	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"invalid"}
+djl88	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+djl89	verdict	"hosts": ({"a": {"name": "x", "url": .name}}) | (null)	{"hosts": {"a": {"name": "y", "url": "y"}}}	{"verdict":"invalid","opts":{"partial":true}}
 mb0	verdict	"b": maybe($.gone)	{}	{"verdict":"valid"}
 mb1	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"noFill":true}}
 mb2	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"partial":true}}
