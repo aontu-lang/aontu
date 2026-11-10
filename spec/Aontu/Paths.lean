@@ -2104,12 +2104,21 @@ the document with the arm in the disjunction's place, its templates at
 the members it holds there, and its paths as names of the arm's own,
 declared from that document's roots. -/
 
+/-- Whether a name is one a path is read as (`pathName`): `$` alone, or
+`$` and a step, so that a variable's name, `$` and a letter, and an
+arm's own name (`Val.armed`), `$|`, are no path's. -/
+def pathNamed (n : String) : Bool :=
+  match n.toList with
+  | ['$'] => true
+  | '$' :: c :: _ => c == '.' || c == '#' || c == '$' || c == '^'
+  | _ => false
+
 mutual
 /-- The term with each name a path is read as (`pathName`, which begins
 with `$`) read under a name of the arm's own: `$`, `pre`, and the
 path's name, which no document can write. -/
 def Val.armed (pre : String) : Val → Val
-  | .alias n => if n.toList.head? == some '$' then .alias ("$" ++ pre ++ n) else .alias n
+  | .alias n => if pathNamed n then .alias ("$" ++ pre ++ n) else .alias n
   | .len c => .len (c.armed pre)
   | .map fs spread closed => .map (amFields pre fs) (amSpread pre spread) closed
   | .list items spread closed => .list (amItems pre items) (amSpread pre spread) closed
@@ -2158,10 +2167,12 @@ mutual
 `pos`, holds through maps by key, lists by index, meets, riders and
 links: its address in the term, the steps that reach it
 (`Val.replaceAt`), where it stands, and the disjunction or the
-preference. -/
+preference; and each one an arm or a preferred value holds, before the
+node that holds it, so that an inner node is read before the arm it
+stands in. -/
 def Val.orNodes (pos : List Seg) (addr : List ℕ) : Val → List (List ℕ × List Seg × Val)
-  | .or arms => [(addr, pos, .or arms)]
-  | .pref r x => [(addr, pos, .pref r x)]
+  | .or arms => onArms pos addr 0 arms ++ [(addr, pos, .or arms)]
+  | .pref r x => x.orNodes pos (addr ++ [0]) ++ [(addr, pos, .pref r x)]
   | .map fs _ _ => onFields pos addr 0 fs
   | .list items _ _ => onItems pos addr 0 items
   | .meet a b => a.orNodes pos (addr ++ [0]) ++ b.orNodes pos (addr ++ [1])
@@ -2177,6 +2188,10 @@ def onFields (pos : List Seg) (addr : List ℕ) : ℕ → List (String × Bool �
 def onItems (pos : List Seg) (addr : List ℕ) : ℕ → List Val → List (List ℕ × List Seg × Val)
   | _, [] => []
   | j, v :: vs => v.orNodes (pos ++ [.idx j]) (addr ++ [j]) ++ onItems pos addr (j + 1) vs
+
+def onArms (pos : List Seg) (addr : List ℕ) : ℕ → List (ℕ × Val) → List (List ℕ × List Seg × Val)
+  | _, [] => []
+  | j, (_, a) :: as => a.orNodes pos (addr ++ [j]) ++ onArms pos addr (j + 1) as
 end
 
 /-- The arms a disjunction's paths read in, and a lone preference's
@@ -2188,7 +2203,8 @@ def Val.nodeArms : Val → List (ℕ × Val)
 
 /-- The term with the term at the address `a` (`Val.orNodes`) replaced
 by `x`: a map's member and a list's element by their place, a meet's
-side by `0` or `1`, and a rider's value. -/
+side by `0` or `1`, a rider's value, a disjunction's arm by its place
+and a preference's value. -/
 def Val.replaceAt : List ℕ → Val → Val → Val
   | [], _, x => x
   | j :: a, .map fs s c, x =>
@@ -2203,8 +2219,52 @@ def Val.replaceAt : List ℕ → Val → Val → Val
   | _ :: a, .meet l r, x => .meet l (Val.replaceAt a r x)
   | _ :: a, .ride k v r, x => .ride k (Val.replaceAt a v x) r
   | _ :: a, .link v t, x => .link (Val.replaceAt a v x) t
+  | j :: a, .or arms, x =>
+    match arms[j]? with
+    | some (rk, b) => .or (arms.set j (rk, Val.replaceAt a b x))
+    | none => .or arms
+  | _ :: a, .pref r v, x => .pref r (Val.replaceAt a v x)
   | _ :: _, v, _ => v
 termination_by structural a _ _ => a
+
+/-- The term with `x` at the address `a`, each disjunction on the way
+read as the arm the address passes through and each preference as its
+value: the document where those arms hold. -/
+def Val.chooseAt : List ℕ → Val → Val → Val
+  | [], _, x => x
+  | j :: a, .map fs s c, x =>
+    match fs[j]? with
+    | some (k, o, v) => .map (fs.set j (k, o, Val.chooseAt a v x)) s c
+    | none => .map fs s c
+  | j :: a, .list items s c, x =>
+    match items[j]? with
+    | some v => .list (items.set j (Val.chooseAt a v x)) s c
+    | none => .list items s c
+  | 0 :: a, .meet l r, x => .meet (Val.chooseAt a l x) r
+  | _ :: a, .meet l r, x => .meet l (Val.chooseAt a r x)
+  | _ :: a, .ride k v r, x => .ride k (Val.chooseAt a v x) r
+  | _ :: a, .link v t, x => .link (Val.chooseAt a v x) t
+  | j :: a, .or arms, x =>
+    match arms[j]? with
+    | some (_, b) => Val.chooseAt a b x
+    | none => .or arms
+  | _ :: a, .pref _ v, x => Val.chooseAt a v x
+  | _ :: _, v, _ => v
+termination_by structural a _ _ => a
+
+/-- The term at the address `a` (`Val.orNodes`), if the term holds one. -/
+def Val.termAt : List ℕ → Val → Option Val
+  | [], v => some v
+  | j :: a, .map fs _ _ => (fs[j]?).bind fun f => Val.termAt a f.2.2
+  | j :: a, .list items _ _ => (items[j]?).bind (Val.termAt a)
+  | 0 :: a, .meet l _ => Val.termAt a l
+  | _ :: a, .meet _ r => Val.termAt a r
+  | _ :: a, .ride _ v _ => Val.termAt a v
+  | _ :: a, .link v _ => Val.termAt a v
+  | j :: a, .or arms => (arms[j]?).bind fun p => Val.termAt a p.2
+  | _ :: a, .pref _ v => Val.termAt a v
+  | _ :: _, _ => none
+termination_by structural a _ => a
 
 mutual
 /-- The term with each use of a name `f` picks, through maps by key,
@@ -2289,32 +2349,61 @@ def Decls.armsAt (L1 : Decls) (r : Decls → Val → List Val) (doc : List ℕ �
 (`Decls.armChosen`), and the declarations the arms' paths make: a
 disjunction's arms each under a name of its own (`Decls.armsAt`), and a
 lone preference `*x` as `x | super(x)`, `x` read so and its parent arm
-the parent type of what `x` reads as on its own, its paths read where `x`
-stands in the schema's own tree (`Decls.rootsS`), before any data, and
-the arm lifted with each path read as the term it names (decision
-40). -/
+the parent type of what `x` reads as on its own, `xS`, which is `x` with
+each node inside it read before any data, its paths read where it
+stands in the schema's own tree (`Decls.rootsS`), and the arm lifted
+with each path read as the term it names (decision 40). -/
 def Decls.nodeChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : List ℕ → Val → Decls × Val)
-    (tag : String) (n : List ℕ × List Seg × Val) (root : List ℕ × List Seg × Val → Val → Val) : Val × Decls :=
+    (tag : String) (n : List ℕ × List Seg × Val) (root : List ℕ × List Seg × Val → Val → Val) (xS : Val) :
+    Val × Decls :=
   match n.2.2 with
   | .pref rk x =>
     (.or [(rk, (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x false).1),
-        (0, (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x true).1)],
+        (0, (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n xS) xS true).1)],
       (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x false).2 ++
-        (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n x) x true).2)
+        (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n xS) xS true).2)
   | v => ((.or (L1.armsAt r doc tag n root 0 v.nodeArms).1), (L1.armsAt r doc tag n root 0 v.nodeArms).2)
+
+/-- The node `n` as the term `Q` holds it now, the nodes inside it read
+already. -/
+def nodeIn (Q : Val) (n : List ℕ × List Seg × Val) : List ℕ × List Seg × Val :=
+  (n.1, n.2.1, (Q.termAt n.1).getD n.2.2)
+
+/-- The value a lone preference's parent arm lifts (`Decls.nodeChosen`):
+what the preference prefers, as the term `QS` holds it. -/
+def prefValue (QS : Val) (n : List ℕ × List Seg × Val) : Val :=
+  match (nodeIn QS n).2.2 with
+  | .pref _ v => v
+  | v => v
+
+/-- Whether the node `n` stands inside a lone preference among the nodes
+`ns`, read after it. -/
+def underPref (ns : List (List ℕ × List Seg × Val)) (n : List ℕ × List Seg × Val) : Bool :=
+  ns.any fun m => match m.2.2 with
+    | .pref _ _ => m.1.isPrefixOf n.1
+    | _ => false
 
 /-- The term `Q` with each arm of each disjunction and lone preference at
 the nodes `ns`, from the node `k` on, read where the arm holds
-(`Decls.nodeChosen`), the node `k` named by `tag k`, and the
-declarations the arms' paths make. -/
+(`Decls.nodeChosen`), each node as `Q` holds it when its turn comes
+(`nodeIn`), so that an arm holding a node read before it holds that
+node's reading, with each name the reading declares read as its term
+(`expand`), the node `k` named by `tag k`, and the declarations the
+arms' paths make. `QS` is the term with each node inside a lone
+preference read so before any data (`Decls.rootsS`), which the
+preference's parent arm lifts. -/
 def Decls.armsChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : List ℕ → Val → Decls × Val)
     (tag : ℕ → String) (root : List ℕ × List Seg × Val → Val → Val) :
-    ℕ → List (List ℕ × List Seg × Val) → Val → Val × Decls
-  | _, [], Q => (Q, [])
-  | k, n :: ns, Q =>
-    ((L1.armsChosen r doc tag root (k + 1) ns (Q.replaceAt n.1 (L1.nodeChosen r doc (tag k) n root).1)).1,
-      (L1.nodeChosen r doc (tag k) n root).2 ++
-        (L1.armsChosen r doc tag root (k + 1) ns (Q.replaceAt n.1 (L1.nodeChosen r doc (tag k) n root).1)).2)
+    ℕ → List (List ℕ × List Seg × Val) → Val → Val → Val × Decls
+  | _, [], Q, _ => (Q, [])
+  | k, n :: ns, Q, QS =>
+    let c := L1.nodeChosen r doc (tag k) (nodeIn Q n) root (prefValue QS n)
+    let s := if underPref ns n then L1.nodeChosen Decls.rootsS doc (tag k) (nodeIn QS n) root (prefValue QS n)
+      else c
+    ((L1.armsChosen r doc tag root (k + 1) ns (Q.replaceAt n.1 (expand c.2 c.1))
+        (QS.replaceAt n.1 (expand s.2 s.1))).1,
+      c.2 ++ (L1.armsChosen r doc tag root (k + 1) ns (Q.replaceAt n.1 (expand c.2 c.1))
+        (QS.replaceAt n.1 (expand s.2 s.1))).2)
 
 /-- The disjunctions and lone preferences of a term whose arms read
 something (`Val.armReads`), where `Val.orNodes` finds them from `pos`. -/
@@ -2341,9 +2430,9 @@ def Decls.readArms (L1 ds' : Decls) (r : Decls → Val → List Val) (P : Val)
     (ns : List (List ℕ × List Seg × Val)) (root : List ℕ × List Seg × Val → Val → Val)
     (isBody : String → Bool) (drop : List String) : Decls × Val :=
   let own (d : String × Val) : Val × Decls :=
-    L1.armsChosen r (fun a x => (ds', ownDoc d.1 (d.2.replaceAt a x))) (fun k => d.1 ++ "#" ++ toString k)
-      (fun n a => L1.treeAt r (ownDoc d.1 (d.2.replaceAt n.1 a)) n.2.1) 0 (d.2.armNodes [.key ("%" ++ d.1)]) d.2
-  let top := L1.armsChosen r (fun a x => (ds', P.replaceAt a x)) toString root 0 ns P
+    L1.armsChosen r (fun a x => (ds', ownDoc d.1 (d.2.chooseAt a x))) (fun k => d.1 ++ "#" ++ toString k)
+      (fun n a => L1.treeAt r (ownDoc d.1 (d.2.chooseAt n.1 a)) n.2.1) 0 (d.2.armNodes [.key ("%" ++ d.1)]) d.2 d.2
+  let top := L1.armsChosen r (fun a x => (ds', P.chooseAt a x)) toString root 0 ns P P
   let owned : Decls := ds'.map fun d => if isBody d.1 then (d.1, (own d).1) else d
   let armDs : Decls := (ds'.filter (isBody ·.1)).flatMap (fun d => (own d).2) ++ top.2
   let used := (List.range ds'.length).foldl
@@ -2374,7 +2463,7 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
   let T := L.2.unfoldAt orNames.contains fun n => expandF L.1 1 (.alias n)
   let P := L.1.membersRead (L.1.armsRead root [] [] T) root []
   let ns := P.armNodes []
-  let armRoot (n : List ℕ × List Seg × Val) (a : Val) : Val := L.1.treeAt r (P.replaceAt n.1 a) n.2.1
+  let armRoot (n : List ℕ × List Seg × Val) (a : Val) : Val := L.1.treeAt r (P.chooseAt n.1 a) n.2.1
   let reached := L.1.reached T root ++ L.1.armsReached root [] T ++
     (L.1.filter (isBody ·.1)).flatMap (fun b =>
       L.1.reached b.2 (L.1.ownRoot b) ++ L.1.armsReached (L.1.ownRoot b) [] b.2) ++
@@ -4525,8 +4614,18 @@ theorem replaceAt_checkableA : ∀ (a : List ℕ) {v x : Val}, v.CheckableA → 
     | ride h => cases j <;> exact .ride (replaceAt_checkableA a h hx)
     | link h ht => cases j <;> exact .link (replaceAt_checkableA a h hx) ht
     | len hc => cases j <;> exact .len hc
-    | or ha => cases j <;> exact .or ha
-    | pref hx' => cases j <;> exact .pref hx'
+    | @or arms ha =>
+      simp only [Val.replaceAt]
+      split
+      · rename_i rk b hj
+        refine .or (fun rk' a' hm => ?_)
+        rcases List.mem_or_eq_of_mem_set hm with hm | hm
+        · exact ha rk' a' hm
+        · simp only [Prod.mk.injEq] at hm
+          obtain ⟨-, rfl⟩ := hm
+          exact replaceAt_checkableA a (ha rk b (List.mem_of_getElem? hj)) hx
+      · exact .or ha
+    | pref hx' => cases j <;> exact .pref (replaceAt_checkableA a hx' hx)
     | nof hn hcs => cases j <;> exact .nof hn hcs
     | call ha => cases j <;> exact .call ha
     | must hc => cases j <;> exact .must hc
@@ -4537,19 +4636,113 @@ theorem replaceAt_checkableA : ∀ (a : List ℕ) {v x : Val}, v.CheckableA → 
     | selectLit hp hr hd => cases j <;> exact .selectLit hp hr hd
     | _ => cases j <;> constructor
 
+/-- A term with a term the checker can read at an address, each
+disjunction and preference on the way read as the arm it passes
+through, is one the checker can read. -/
+theorem chooseAt_checkableA : ∀ (a : List ℕ) {v x : Val}, v.CheckableA → x.CheckableA →
+    (v.chooseAt a x).CheckableA
+  | [], _, _, _, hx => by simp only [Val.chooseAt]; exact hx
+  | j :: a, v, x, hv, hx => by
+    cases hv with
+    | @map fs s c hf hs =>
+      simp only [Val.chooseAt]
+      split
+      · rename_i k o w hj
+        refine .map (fun k' o' w' hm => ?_) hs
+        rcases List.mem_or_eq_of_mem_set hm with hm | hm
+        · exact hf k' o' w' hm
+        · simp only [Prod.mk.injEq] at hm
+          obtain ⟨-, -, rfl⟩ := hm
+          exact chooseAt_checkableA a (hf k o w (List.mem_of_getElem? hj)) hx
+      · exact .map hf hs
+    | @list items s c hi hs =>
+      simp only [Val.chooseAt]
+      split
+      · rename_i w hj
+        refine .list (fun w' hm => ?_) hs
+        rcases List.mem_or_eq_of_mem_set hm with hm | rfl
+        · exact hi w' hm
+        · exact chooseAt_checkableA a (hi w (List.mem_of_getElem? hj)) hx
+      · exact .list hi hs
+    | meet hl hr =>
+      cases j with
+      | zero => exact .meet (chooseAt_checkableA a hl hx) hr
+      | succ j => exact .meet hl (chooseAt_checkableA a hr hx)
+    | ride h => cases j <;> exact .ride (chooseAt_checkableA a h hx)
+    | link h ht => cases j <;> exact .link (chooseAt_checkableA a h hx) ht
+    | len hc => cases j <;> exact .len hc
+    | @or arms ha =>
+      simp only [Val.chooseAt]
+      split
+      · rename_i rk b hj
+        exact chooseAt_checkableA a (ha rk b (List.mem_of_getElem? hj)) hx
+      · exact .or ha
+    | pref hx' => cases j <;> exact chooseAt_checkableA a hx' hx
+    | nof hn hcs => cases j <;> exact .nof hn hcs
+    | call ha => cases j <;> exact .call ha
+    | must hc => cases j <;> exact .must hc
+    | when hc ht he => cases j <;> exact .when hc ht he
+    | contains hc hn => cases j <;> exact .contains hc hn
+    | rest ht h1 h2 h3 => cases j <;> exact .rest ht h1 h2 h3
+    | selectKey hp hr hd => cases j <;> exact .selectKey hp hr hd
+    | selectLit hp hr hd => cases j <;> exact .selectLit hp hr hd
+    | _ => cases j <;> constructor
+
+/-- The term a term the checker can read holds at an address is one it
+can read. -/
+theorem termAt_checkableA : ∀ (a : List ℕ) {v w : Val}, v.CheckableA → v.termAt a = some w → w.CheckableA
+  | [], _, _, hv, h => by
+    simp only [Val.termAt, Option.some.injEq] at h
+    exact h ▸ hv
+  | j :: a, v, w, hv, h => by
+    cases hv with
+    | @map fs s c hf hs =>
+      simp only [Val.termAt] at h
+      cases hj : fs[j]? with
+      | none => rw [hj] at h; exact nomatch h
+      | some f =>
+        rw [hj] at h
+        obtain ⟨k, o, u⟩ := f
+        exact termAt_checkableA a (hf k o u (List.mem_of_getElem? hj)) h
+    | @list items s c hi hs =>
+      simp only [Val.termAt] at h
+      cases hj : items[j]? with
+      | none => rw [hj] at h; exact nomatch h
+      | some u =>
+        rw [hj] at h
+        exact termAt_checkableA a (hi u (List.mem_of_getElem? hj)) h
+    | meet hl hr =>
+      cases j with
+      | zero => exact termAt_checkableA a hl (by simpa only [Val.termAt] using h)
+      | succ j => exact termAt_checkableA a hr (by simpa only [Val.termAt] using h)
+    | ride h' => cases j <;> exact termAt_checkableA a h' (by simpa only [Val.termAt] using h)
+    | link h' _ => cases j <;> exact termAt_checkableA a h' (by simpa only [Val.termAt] using h)
+    | @or arms ha =>
+      simp only [Val.termAt] at h
+      cases hj : arms[j]? with
+      | none => rw [hj] at h; exact nomatch h
+      | some p =>
+        rw [hj] at h
+        obtain ⟨rk, u⟩ := p
+        exact termAt_checkableA a (ha rk u (List.mem_of_getElem? hj)) h
+    | pref hx' => cases j <;> exact termAt_checkableA a hx' (by simpa only [Val.termAt] using h)
+    | _ => cases j <;> simp [Val.termAt] at h
+
 mutual
 /-- Each disjunction and lone preference a term the checker can read
 holds where `Val.orNodes` finds it is a term the checker can read. -/
 theorem orNodes_checkableA : ∀ {v : Val}, v.CheckableA → ∀ (pos : List Seg) (addr : List ℕ) n,
     n ∈ v.orNodes pos addr → n.2.2.CheckableA
   | .or _, .or ha, pos, addr, n, hn => by
-    simp only [Val.orNodes, List.mem_singleton] at hn
-    subst hn
-    exact .or ha
+    simp only [Val.orNodes, List.mem_append, List.mem_singleton] at hn
+    rcases hn with hn | rfl
+    · exact onArms_checkableA ha pos addr 0 n hn
+    · exact .or ha
   | .pref _ _, .pref hx, pos, addr, n, hn => by
-    simp only [Val.orNodes, List.mem_singleton] at hn
-    subst hn
-    exact .pref hx
+    simp only [Val.orNodes, List.mem_append, List.mem_singleton] at hn
+    rcases hn with hn | rfl
+    · exact orNodes_checkableA hx pos _ n hn
+    · exact .pref hx
   | .map fs _ _, .map hf _, pos, addr, n, hn => onFields_checkableA hf pos addr 0 n hn
   | .list items _ _, .list hi _, pos, addr, n, hn => onItems_checkableA hi pos addr 0 n hn
   | .meet _ _, .meet hl hr, pos, addr, n, hn => by
@@ -4598,6 +4791,15 @@ theorem onItems_checkableA : ∀ {items : List Val}, (∀ v, v ∈ items → v.C
     rcases hn with hn | hn
     · exact orNodes_checkableA (hi v List.mem_cons_self) _ _ n hn
     · exact onItems_checkableA (fun v hv => hi v (List.mem_cons_of_mem _ hv)) pos addr (j + 1) n hn
+
+theorem onArms_checkableA : ∀ {arms : List (ℕ × Val)}, (∀ r a, (r, a) ∈ arms → a.CheckableA) →
+    ∀ (pos : List Seg) (addr : List ℕ) (j : ℕ) n, n ∈ onArms pos addr j arms → n.2.2.CheckableA
+  | [], _, _, _, _, _, hn => by simp only [onArms, List.not_mem_nil] at hn
+  | (r, a) :: as, ha, pos, addr, j, n, hn => by
+    simp only [onArms, List.mem_append] at hn
+    rcases hn with hn | hn
+    · exact orNodes_checkableA (ha r a List.mem_cons_self) _ _ n hn
+    · exact onArms_checkableA (fun r' a' h => ha r' a' (List.mem_cons_of_mem _ h)) pos addr (j + 1) n hn
 end
 
 /-- The arms of a disjunction or a lone preference the checker can read
@@ -4680,12 +4882,12 @@ theorem Decls.armsAt_checkableA {L1 : Decls} {r : Decls → Val → List Val} {d
 is a term the checker can read, and so is each declaration it makes. -/
 theorem Decls.nodeChosen_checkableA {L1 : Decls} {r : Decls → Val → List Val}
     {doc : List ℕ → Val → Decls × Val} {tag : String} {n : List ℕ × List Seg × Val}
-    {root : List ℕ × List Seg × Val → Val → Val} (hr : RootsReadable r)
+    {root : List ℕ × List Seg × Val → Val → Val} {xS : Val} (hr : RootsReadable r)
     (hL : ∀ d, d ∈ L1 → d.2.CheckableA)
     (hdoc : ∀ a x, x.CheckableA → (∀ d, d ∈ (doc a x).1 → d.2.CheckableA) ∧ (doc a x).2.CheckableA)
-    (hn : n.2.2.CheckableA) :
-    (L1.nodeChosen r doc tag n root).1.CheckableA ∧
-      ∀ d, d ∈ (L1.nodeChosen r doc tag n root).2 → d.2.CheckableA := by
+    (hn : n.2.2.CheckableA) (hxS : xS.CheckableA) :
+    (L1.nodeChosen r doc tag n root xS).1.CheckableA ∧
+      ∀ d, d ∈ (L1.nodeChosen r doc tag n root xS).2 → d.2.CheckableA := by
   unfold Decls.nodeChosen
   split
   · rename_i rk x hx
@@ -4696,31 +4898,67 @@ theorem Decls.nodeChosen_checkableA {L1 : Decls} {r : Decls → Val → List Val
       · simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false] at hm
         rcases hm with ⟨-, rfl⟩ | ⟨-, rfl⟩
         · exact Decls.armChosen_checkableA hr hL (hdoc n.1) hx'
-        · exact Decls.armChosen_checkableA rootsS_readable hL (hdoc n.1) hx'
+        · exact Decls.armChosen_checkableA rootsS_readable hL (hdoc n.1) hxS
       · simp only [List.mem_append] at h
         rcases h with h | h
         · exact Decls.armChosen_decls_checkableA hr hL (hdoc n.1) hx' d h
-        · exact Decls.armChosen_decls_checkableA rootsS_readable hL (hdoc n.1) hx' d h
+        · exact Decls.armChosen_decls_checkableA rootsS_readable hL (hdoc n.1) hxS d h
   · have ha := Decls.armsAt_checkableA (tag := tag) (n := n) (root := root) hr hL hdoc 0 _
       (nodeArms_checkableA hn)
     exact ⟨.or ha.1, ha.2⟩
+
+theorem nodeIn_checkableA {Q : Val} {n : List ℕ × List Seg × Val} (hQ : Q.CheckableA)
+    (hn : n.2.2.CheckableA) : (nodeIn Q n).2.2.CheckableA := by
+  unfold nodeIn
+  dsimp only
+  cases h : Q.termAt n.1 with
+  | none => exact hn
+  | some w => exact termAt_checkableA n.1 hQ h
+
+theorem prefValue_checkableA {QS : Val} {n : List ℕ × List Seg × Val} (hQS : QS.CheckableA)
+    (hn : n.2.2.CheckableA) : (prefValue QS n).CheckableA := by
+  have h := nodeIn_checkableA hQS hn
+  unfold prefValue
+  revert h
+  cases (nodeIn QS n).2.2 <;> intro h <;> first | exact h | (cases h; assumption)
 
 theorem Decls.armsChosen_checkableA {L1 : Decls} {r : Decls → Val → List Val}
     {doc : List ℕ → Val → Decls × Val} {tag : ℕ → String}
     {root : List ℕ × List Seg × Val → Val → Val} (hr : RootsReadable r)
     (hL : ∀ d, d ∈ L1 → d.2.CheckableA)
     (hdoc : ∀ a x, x.CheckableA → (∀ d, d ∈ (doc a x).1 → d.2.CheckableA) ∧ (doc a x).2.CheckableA) :
-    ∀ (k : ℕ) (ns : List (List ℕ × List Seg × Val)) (Q : Val),
-    (∀ n, n ∈ ns → n.2.2.CheckableA) → Q.CheckableA →
-    (L1.armsChosen r doc tag root k ns Q).1.CheckableA ∧
-      ∀ d, d ∈ (L1.armsChosen r doc tag root k ns Q).2 → d.2.CheckableA
-  | _, [], _, _, hQ => ⟨hQ, fun _ h => (nomatch h)⟩
-  | k, n :: ns, Q, hns, hQ => by
-    have ha := Decls.nodeChosen_checkableA (tag := tag k) (n := n) (root := root) hr hL hdoc
-      (hns n List.mem_cons_self)
+    ∀ (k : ℕ) (ns : List (List ℕ × List Seg × Val)) (Q QS : Val),
+    (∀ n, n ∈ ns → n.2.2.CheckableA) → Q.CheckableA → QS.CheckableA →
+    (L1.armsChosen r doc tag root k ns Q QS).1.CheckableA ∧
+      ∀ d, d ∈ (L1.armsChosen r doc tag root k ns Q QS).2 → d.2.CheckableA
+  | _, [], _, _, _, hQ, _ => ⟨hQ, fun _ h => (nomatch h)⟩
+  | k, n :: ns, Q, QS, hns, hQ, hQS => by
+    have hn := hns n List.mem_cons_self
+    have hx := prefValue_checkableA hQS hn
+    have ha := Decls.nodeChosen_checkableA (tag := tag k) (n := nodeIn Q n) (root := root) hr hL hdoc
+      (nodeIn_checkableA hQ hn) hx
+    have hs : (if underPref ns n then
+          L1.nodeChosen Decls.rootsS doc (tag k) (nodeIn QS n) root (prefValue QS n)
+        else L1.nodeChosen r doc (tag k) (nodeIn Q n) root (prefValue QS n)).1.CheckableA ∧
+        ∀ d, d ∈ (if underPref ns n then
+          L1.nodeChosen Decls.rootsS doc (tag k) (nodeIn QS n) root (prefValue QS n)
+        else L1.nodeChosen r doc (tag k) (nodeIn Q n) root (prefValue QS n)).2 → d.2.CheckableA := by
+      split
+      · exact Decls.nodeChosen_checkableA (tag := tag k) (n := nodeIn QS n) (root := root) rootsS_readable hL
+          hdoc (nodeIn_checkableA hQS hn) hx
+      · exact ha
     have rest := Decls.armsChosen_checkableA (tag := tag) (root := root) hr hL hdoc (k + 1) ns
-      (Q.replaceAt n.1 (L1.nodeChosen r doc (tag k) n root).1)
-      (fun n' hn' => hns n' (List.mem_cons_of_mem _ hn')) (replaceAt_checkableA _ hQ ha.1)
+      (Q.replaceAt n.1 (expand (L1.nodeChosen r doc (tag k) (nodeIn Q n) root (prefValue QS n)).2
+        (L1.nodeChosen r doc (tag k) (nodeIn Q n) root (prefValue QS n)).1))
+      (QS.replaceAt n.1 (expand (if underPref ns n then
+          L1.nodeChosen Decls.rootsS doc (tag k) (nodeIn QS n) root (prefValue QS n)
+        else L1.nodeChosen r doc (tag k) (nodeIn Q n) root (prefValue QS n)).2
+        (if underPref ns n then
+          L1.nodeChosen Decls.rootsS doc (tag k) (nodeIn QS n) root (prefValue QS n)
+        else L1.nodeChosen r doc (tag k) (nodeIn Q n) root (prefValue QS n)).1))
+      (fun n' hn' => hns n' (List.mem_cons_of_mem _ hn'))
+      (replaceAt_checkableA _ hQ (expand_checkableA ha.2 ha.1))
+      (replaceAt_checkableA _ hQS (expand_checkableA hs.2 hs.1))
     simp only [Decls.armsChosen, List.mem_append]
     exact ⟨rest.1, fun d h => h.elim (ha.2 d) (rest.2 d)⟩
 
@@ -4739,14 +4977,14 @@ theorem Decls.readArms_checkableA {L1 ds' : Decls} {r : Decls → Val → List V
     (hns : ∀ n, n ∈ ns → n.2.2.CheckableA) :
     (L1.readArms ds' r P ns root isBody drop).2.CheckableA ∧
       ∀ d, d ∈ (L1.readArms ds' r P ns root isBody drop).1 → d.2.CheckableA := by
-  have top := Decls.armsChosen_checkableA (doc := fun a x => (ds', P.replaceAt a x)) (tag := toString)
-    (root := root) hr hL (fun a x hx => ⟨hds, replaceAt_checkableA a hP hx⟩) 0 ns P hns hP
+  have top := Decls.armsChosen_checkableA (doc := fun a x => (ds', P.chooseAt a x)) (tag := toString)
+    (root := root) hr hL (fun a x hx => ⟨hds, chooseAt_checkableA a hP hx⟩) 0 ns P P hns hP hP
   have own : ∀ d, d ∈ ds' → _ := fun d hd => Decls.armsChosen_checkableA
-    (doc := fun a x => (ds', ownDoc d.1 (d.2.replaceAt a x))) (tag := fun k => d.1 ++ "#" ++ toString k)
-    (root := fun n a => L1.treeAt r (ownDoc d.1 (d.2.replaceAt n.1 a)) n.2.1) hr hL
-    (fun a x hx => ⟨hds, ownDoc_checkableA (replaceAt_checkableA a (hds d hd) hx)⟩) 0
-    (d.2.armNodes [.key ("%" ++ d.1)]) d.2
-    (fun n hn => orNodes_checkableA (hds d hd) _ [] n (List.mem_filter.mp hn).1) (hds d hd)
+    (doc := fun a x => (ds', ownDoc d.1 (d.2.chooseAt a x))) (tag := fun k => d.1 ++ "#" ++ toString k)
+    (root := fun n a => L1.treeAt r (ownDoc d.1 (d.2.chooseAt n.1 a)) n.2.1) hr hL
+    (fun a x hx => ⟨hds, ownDoc_checkableA (chooseAt_checkableA a (hds d hd) hx)⟩) 0
+    (d.2.armNodes [.key ("%" ++ d.1)]) d.2 d.2
+    (fun n hn => orNodes_checkableA (hds d hd) _ [] n (List.mem_filter.mp hn).1) (hds d hd) (hds d hd)
   unfold Decls.readArms
   dsimp only
   refine ⟨top.1, fun d hd => ?_⟩

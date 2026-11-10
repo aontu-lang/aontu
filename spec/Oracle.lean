@@ -1621,9 +1621,13 @@ template that reads its member's place, written in the arm and in the
 body of a name the arm uses; a path in the body of a name the arm uses;
 a path that names nothing, which drops its arm; a preferred arm; a path
 from outside into an arm, which names nothing; a name whose body is such
-a disjunction, used and unused; a chain of paths within an arm; and a
+a disjunction, used and unused; a chain of paths within an arm; a
 path from outside into a disjunction a meet leaves one arm, which reads
-that arm. -/
+that arm; and a disjunction or a lone preference inside an arm, read
+before the arm that holds it: a path in the inner arm to its own member
+and to the outer arm's, the inner disjunction's other arm, a path in the
+outer arm into the inner one, a lone preference in an arm, and an inner
+disjunction both of whose arms take the data. -/
 def disjunctionPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -1687,7 +1691,30 @@ def disjunctionPathCases : List (Decls × Val × Data) :=
     ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1), ("b", rel 1 ["a"])]))],
       .map [("x", .map [("a", j 1), ("b", j 1)])]),
     ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1), ("b", rel 1 ["a"])]))],
-      .map [("x", .map [("a", j 1), ("b", j 2)])])]
+      .map [("x", .map [("a", j 1), ("b", j 2)])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (.lit .null))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 1), ("d", j 1)])])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (.lit .null))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 1), ("d", j 2)])])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (.lit .null))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .null)])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", rel 2 ["a"])]) (.lit .null))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 1)])])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", rel 2 ["a"])]) (.lit .null))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 2)])])]),
+    ([], m [("x", or2 (m [("a", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (.lit .null)), ("e", rel 1 ["a", "d"])])
+        (.lit .null))],
+      .map [("x", .map [("a", .map [("c", j 1), ("d", j 1)]), ("e", j 1)])]),
+    ([], m [("x", or2 (m [("a", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (.lit .null)), ("e", rel 1 ["a", "d"])])
+        (.lit .null))],
+      .map [("x", .map [("a", .map [("c", j 1), ("d", j 1)]), ("e", j 2)])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", .pref 1 (m [("c", int 1), ("d", rel 1 ["c"])]))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 2), ("d", j 3)])])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", .pref 1 (m [("c", int 1), ("d", rel 1 ["c"])]))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 1), ("d", j 1)])])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (m [("e", int 2)]))])
+        (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("e", j 2)])])])]
 
 /-- Paths inside a lone preference `*x`, which reads as `x | super(x)`:
 `x` read where it stands, and its parent arm the parent type of what `x`
@@ -1698,8 +1725,11 @@ preference out; a default over a kind, whose path reads the data, and
 one whose path meets a bound, whose parent the path's kind decides; an
 absolute path to the preference's own member; a chain of paths; a name
 the preference holds; a template whose path reads its member's place;
-and a path to a place outside the preference, whose value the parent arm
-lifts. -/
+a path to a place outside the preference, whose value the parent arm
+lifts; and a disjunction or a lone preference inside the preferred
+value, which the parent arm lifts as the value reads before any data, its
+paths read so: a preference over a disjunction, a preference inside a
+preference, and a path that reads a kind the data narrows. -/
 def lonePrefPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -1741,7 +1771,19 @@ def lonePrefPathCases : List (Decls × Val × Data) :=
     ([], m [("x", .pref 1 (m [("a", .integer), ("b", .meet (rel 1 ["a"]) (.min (.num (.integer (.of 3)))))]))],
       xd [("a", .num (.float (.dyadic 11 (-1)))), ("b", .num (.float (.dyadic 11 (-1))))]),
     ([], m [("x", .pref 1 (m [("a", .integer), ("b", .meet (rel 1 ["a"]) (.min (.num (.integer (.of 3)))))]))],
-      xd [("a", .num (.float (.dyadic 11 (-1)))), ("b", j 5)])]
+      xd [("a", .num (.float (.dyadic 11 (-1)))), ("b", j 5)]),
+    ([], m [("x", .pref 1 (.or [(0, ab), (0, .lit .null)]))], xd [("a", j 1), ("b", j 1)]),
+    ([], m [("x", .pref 1 (.or [(0, ab), (0, .lit .null)]))], xd [("a", j 2), ("b", j 3)]),
+    ([], m [("x", .pref 1 (.or [(0, ab), (0, .lit .null)]))], xd [("a", j 2), ("b", .str "s")]),
+    ([], m [("x", .pref 1 (.or [(0, ab), (0, .lit .null)]))], .map [("x", .null)]),
+    ([], m [("x", .pref 1 (m [("a", int 1), ("b", .pref 1 (m [("c", int 1), ("d", rel 1 ["c"])]))]))],
+      xd [("a", j 2), ("b", .map [("c", j 2), ("d", j 3)])]),
+    ([], m [("x", .pref 1 (m [("a", int 1), ("b", .pref 1 (m [("c", int 1), ("d", rel 1 ["c"])]))]))],
+      xd [("a", j 1), ("b", .map [("c", j 1), ("d", j 1)])]),
+    ([], m [("x", .pref 1 (m [("a", .number), ("b", rel 1 ["a"])]))],
+      xd [("a", j 5), ("b", .num (.float (.dyadic 5 (-1))))]),
+    ([], m [("x", .pref 1 (.or [(0, m [("a", .number), ("b", rel 1 ["a"])]), (0, .lit .null)]))],
+      xd [("a", j 5), ("b", .num (.float (.dyadic 5 (-1))))])]
 
 theorem lonePrefPathCases_checkable : ∀ c ∈ lonePrefPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

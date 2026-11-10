@@ -60,7 +60,7 @@ type Row = {
 
 
 const LEDGER = Path.join(SPEC_DIR, '..', '..', 'spec', 'ledger.tsv')
-const LEDGER_BOUND = 253
+const LEDGER_BOUND = 279
 
 
 function loadLedger(): Set<string> {
