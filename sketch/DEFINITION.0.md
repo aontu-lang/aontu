@@ -1470,8 +1470,8 @@ until the phase that encodes it lands.
    template reads its member's place is read at each member wherever it
    lands, a name's body among the places: the reading steps through each
    name used where it stands (`Decls.landingD`), each body is read so at
-   its own place, at the members its own normal form holds
-   (`Decls.ownRead`), and the copies the reading reaches admit any
+   its own place, at the members the normal form of its name's bodies
+   holds there (`Decls.ownRead`, `Decls.ownRoot`), and the copies the reading reaches admit any
    member in their own templates (`Decls.reached`). A copy is placed as
    the schema is, a spread that is a relative path kept to be read at
    each member (`Val.placedT`), and a place holding such a template is
@@ -1480,7 +1480,7 @@ until the phase that encodes it lands.
    `error` before, and a template that climbs out of `a.b` reads, in
    `c.d`'s copy, where `c.d` stands. A copy used where the reading
    doesn't go, in a disjunction's arm, keeps its template as written,
-   as a template written there does. Rows nt0 to nt20 and ntl0 to ntl20
+   as a template written there does. Rows nt0 to nt26 and ntl0 to ntl26
    hold the first, and both ports answer each as the definition does;
    rows rc87 to rc98 the second, 3 of them in the ledger where the
    target comes first (#504, #696).

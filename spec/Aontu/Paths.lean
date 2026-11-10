@@ -1743,9 +1743,12 @@ def Decls.reached (ds : Decls) (P root : Val) : List String :=
   root.positions.flatMap fun p =>
     ds.landedNames P ((P.size + ds.bodiesSize + p.length + 2) * (P.size + ds.bodiesSize + 2)) [(P, p)]
 
-/-- The tree a body's own place holds: its normal form, each template
-that reads its member's place blanked (`Val.opened`). -/
-def Decls.ownRoot (ds : Decls) (d : String × Val) : Val := normaliseD ds (ds.readU d.2.opened)
+/-- The tree a body's own place holds: the normal form of the name's
+bodies, met, as `Decls.bodyAt` reads the place, each template that reads
+its member's place blanked (`Val.opened`), so that a template in one body
+reads at each member another body of the name writes. -/
+def Decls.ownRoot (ds : Decls) (d : String × Val) : Val :=
+  normaliseD ds (ds.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2.opened) .any))
 
 /-- A body read at its own place, `%` and its name: each template that
 reads its member's place read at each member the body's own normal form

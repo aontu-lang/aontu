@@ -1539,9 +1539,11 @@ place, read at each member where the name is used and at the body's own
 place: `%H = {&: {url: .name}}` used at `hosts`, beside data whose `url`
 agrees with its `name` and data whose `url` doesn't; the same body
 unused, with no member, with a member that holds what the template
-reads, and with one that doesn't, which names nothing at `$.%H.k`; and
+reads, and with one that doesn't, which names nothing at `$.%H.k`;
 `%T = {k: {}, &: {v: ...x}}` used at `a.b`, whose template climbs out
-of the body to read `a.x` where the use stands. -/
+of the body to read `a.x` where the use stands; and `%H` declared twice,
+its template in one body and its member in the other, which the
+template reads too. -/
 def nameTemplateCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1562,7 +1564,9 @@ def nameTemplateCases : List (Decls × Val × Data) :=
     (h [("k", m [("name", str "n")])], m [("x", int 1)], .map []),
     (h [("k", m [])], m [("x", int 1)], .map []),
     (t, ab, bv 2),
-    (t, ab, bv 1)]
+    (t, ab, bv 1),
+    (h [] ++ [("H", m [("k", m [])])], m [("x", int 1)], .map []),
+    (h [] ++ [("H", m [("k", m [("name", str "n")])])], m [("x", int 1)], .map [])]
 
 theorem nameTemplateCases_checkable : ∀ c ∈ nameTemplateCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

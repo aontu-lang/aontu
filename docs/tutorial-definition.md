@@ -9085,7 +9085,7 @@ def Decls.membersRead (ds : Decls) (P root : Val) (base : List Seg) : Val :=
 ```
 
 The definition reads a name's body at its own place too, `%` and its
-name, at each member its own normal form holds there, so `%H = {k: {}, &: {url: .name}}`
+name, at each member the normal form of the name's bodies holds there, so `%H = {k: {}, &: {url: .name}}`
 reads `$.%H.k.name`, which names nothing, and the document is an error
 whether or not anything uses `%H`, as both engines read it, while
 `%H = {&: {url: .name}}` holds no member there and reads nothing:

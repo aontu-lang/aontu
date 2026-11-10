@@ -658,6 +658,12 @@ nt17	verdict	%T = {"k": {}, &: {"v": ...x}}\n"x": 1, "a": {"x": 2, "b": %T}	{"a"
 nt18	verdict	%T = {"k": {}, &: {"v": ...x}}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid"}
 nt19	verdict	%T = {"k": {}, &: {"v": ...x}}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid","opts":{"noFill":true}}
 nt20	verdict	%T = {"k": {}, &: {"v": ...x}}\n"x": 1, "a": {"x": 2, "b": %T}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid","opts":{"partial":true}}
+nt21	verdict	%H = {&: {"url": .name}}\n%H = {"k": {}}\n"x": 1	{}	{"verdict":"error"}
+nt22	verdict	%H = {&: {"url": .name}}\n%H = {"k": {}}\n"x": 1	{}	{"verdict":"error","opts":{"noFill":true}}
+nt23	verdict	%H = {&: {"url": .name}}\n%H = {"k": {}}\n"x": 1	{}	{"verdict":"error","opts":{"partial":true}}
+nt24	verdict	%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}\n"x": 1	{}	{"verdict":"valid"}
+nt25	verdict	%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}\n"x": 1	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+nt26	verdict	%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}\n"x": 1	{}	{"verdict":"valid","opts":{"partial":true}}
 ntl0	verdict	"hosts": (%H) & ({"a": {"name": "x"}})\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid"}
 ntl1	verdict	"hosts": (%H) & ({"a": {"name": "x"}})\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"noFill":true}}
 ntl2	verdict	"hosts": (%H) & ({"a": {"name": "x"}})\n%H = {&: {"url": .name}}	{"hosts": {"a": {"name": "x", "url": "x"}}}	{"verdict":"valid","opts":{"partial":true}}
@@ -679,6 +685,12 @@ ntl17	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"k": {}, &: {"v": ...x}}	{"a
 ntl18	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"k": {}, &: {"v": ...x}}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid"}
 ntl19	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"k": {}, &: {"v": ...x}}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid","opts":{"noFill":true}}
 ntl20	verdict	"x": 1, "a": {"x": 2, "b": %T}\n%T = {"k": {}, &: {"v": ...x}}	{"a": {"b": {"k": {"v": 1}}}}	{"verdict":"invalid","opts":{"partial":true}}
+ntl21	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {}}	{}	{"verdict":"error"}
+ntl22	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {}}	{}	{"verdict":"error","opts":{"noFill":true}}
+ntl23	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {}}	{}	{"verdict":"error","opts":{"partial":true}}
+ntl24	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}	{}	{"verdict":"valid"}
+ntl25	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ntl26	verdict	"x": 1\n%H = {&: {"url": .name}}\n%H = {"k": {"name": "n"}}	{}	{"verdict":"valid","opts":{"partial":true}}
 mb0	verdict	"b": maybe($.gone)	{}	{"verdict":"valid"}
 mb1	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"noFill":true}}
 mb2	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"partial":true}}
