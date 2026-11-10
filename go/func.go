@@ -202,12 +202,26 @@ func deriveArity() map[string][2]int {
 }
 
 func writtenArgCount(terms []any) int {
+	return len(writtenArgs(terms))
+}
+
+// The arguments as written: one comma group is the whole list.
+func writtenArgs(terms []any) []any {
 	if 1 == len(terms) {
 		if raw, ok := terms[0].([]any); ok {
-			return len(raw)
+			return raw
 		}
 	}
-	return len(terms)
+	return terms
+}
+
+func writtenArgVals(terms []any) []Val {
+	args := writtenArgs(terms)
+	out := make([]Val, len(args))
+	for i, a := range args {
+		out[i] = asVal(a)
+	}
+	return out
 }
 
 func arityText(lo, hi int) string {

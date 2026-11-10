@@ -940,6 +940,7 @@ help isolate the syntax error.`,
           want: arityText(arity[0], arity[1]),
           got: '' + got,
         }
+        nil.refusedCall = { name: fname, args: writtenArgs(argterms).map(rawToVal) }
         return addsite(nil, r, ctx)
       }
     }
@@ -953,6 +954,9 @@ help isolate the syntax error.`,
     const val: any = null == funcval ?
       new NilVal({ why: 'unknown_function' }) :
       new funcval({ peg: args })
+    if (null == funcval) {
+      val.refusedCall = { name: fname, args }
+    }
 
     if (undefined !== HOLDING[fname] || HELD_BOUNDS.has(fname)) {
       args.slice(HOLDING[fname] ?? 0).forEach((a: any) => holdHoles(a, false))
@@ -2362,16 +2366,14 @@ for (const name in funcSig) {
 
 
 function writtenArgCount(terms: any[]): number {
-  if (1 === terms.length) {
-    // `terms[0]` is re-read rather than reusing a narrowed local:
-    // Array.isArray narrows an `any` to `any[]`, which then has no
-    // `isVal` to test.
-    const t: any = terms[0]
-    if (Array.isArray(t) && true !== (terms[0] as any).isVal) {
-      return t.length
-    }
-  }
-  return terms.length
+  return writtenArgs(terms).length
+}
+
+
+// The arguments as written: one comma group is the whole list.
+function writtenArgs(terms: any[]): any[] {
+  const t: any = terms[0]
+  return 1 === terms.length && true !== t?.isVal && Array.isArray(t) ? t : terms
 }
 
 

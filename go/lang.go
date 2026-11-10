@@ -2711,6 +2711,7 @@ func opCharHint(src string) string {
 func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 	if !funcSet[name] {
 		n := newNil("unknown_function")
+		n.refusedCall = newFunc(name, writtenArgVals(argterms))
 		if r.ON > 0 {
 			n.site.sp = r.O0.SI
 		}
@@ -2727,6 +2728,7 @@ func buildCall(r *jsonic.Rule, name string, argterms []any) Val {
 				"want": arityText(ar[0], ar[1]),
 				"got":  itoa(got),
 			}
+			n.refusedCall = newFunc(name, writtenArgVals(argterms))
 			if r.ON > 0 {
 				n.site.sp = r.O0.SI
 			}

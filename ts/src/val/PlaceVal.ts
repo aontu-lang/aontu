@@ -11,6 +11,7 @@ import {
 } from '../ctx'
 
 import { Val as ValBase } from './Val'
+import { makeNilErr } from '../err'
 
 
 class PlaceVal extends ValBase {
@@ -60,11 +61,125 @@ class PlaceVal extends ValBase {
 }
 
 
+// The calls whose arguments from the second on are templates.
+const BINDING = new Set(['pack', 'each', 'apply', 'filter', 'emit'])
+
+
 function boundArgStart(v: any): number {
-  return true === v.isPackFunc || true === v.isEachFunc ||
-    true === v.isApplyFunc ||
-    true === v.isFilterFunc || true === v.isEmitFunc ||
-    true === v.isFormFunc ? 1 : Infinity
+  return true === v?.isFunc ? boundFrom(v.funcname()) : Infinity
+}
+
+
+function boundFrom(name: string): number {
+  return BINDING.has(name) ? 1 : Infinity
+}
+
+
+// A hole nothing binds where it is written (ruling 34): one outside the
+// template of a generator, an apply or a filter's condition, one in a
+// spread's template, and a name whose body holds one, though not as an
+// emit's table. It is reported at the member it is written in.
+function unboundHole(ctx: AontuContext, root: Val): Val | undefined {
+  const decls = new Map<string, Val>()
+  declsIn(root, decls, new Set())
+  const holed = new Set<string>()
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const [key, body] of decls) {
+      if (!holed.has(key) && undefined !== looseIn(body, holed, false, [])) {
+        holed.add(key)
+        grew = true
+      }
+    }
+  }
+  const found = looseIn(root, holed, false, [])
+  if (undefined === found) {
+    return undefined
+  }
+  const nil: any = makeNilErr(ctx, 'hole_unbound', found[0], undefined, 'parse')
+  nil.path = found[1]
+  return nil
+}
+
+
+function declsIn(v: any, decls: Map<string, Val>, seen: Set<Val>): void {
+  if (true !== v?.isVal || seen.has(v)) {
+    return
+  }
+  seen.add(v)
+  for (const key of v.aliasKeys ?? []) {
+    decls.set(key, v.peg[key])
+  }
+  partsOf(v).forEach((c: any) => declsIn(c, decls, seen))
+}
+
+
+// The path steps through members only: a list or a map inside a call's
+// arguments is no member, and the engines shape those differently.
+function looseIn(v: any, holed: Set<string>, tmpl: boolean,
+  path: string[], calls = false): [Val, string[]] | undefined {
+  if (true === v?.isPlace) {
+    return tmpl ? undefined : [v, path]
+  }
+  if (true === v?.isRef) {
+    return holed.has(v.aliasKey) ? [v, path] : undefined
+  }
+  if (true !== v?.isVal) {
+    return undefined
+  }
+  const call = callOf(v)
+  if (undefined !== call) {
+    const from = boundFrom(call.name)
+    for (let i = 0; i < call.args.length; i++) {
+      const arg: any = call.args[i]
+      if ('emit' === call.name && 1 === i && undefined !== arg?.aliasKey) {
+        continue
+      }
+      const found = looseIn(arg, holed, tmpl || from <= i, path, true)
+      if (undefined !== found) {
+        return found
+      }
+    }
+    return undefined
+  }
+  const peg: any = v.peg
+  if (Array.isArray(peg) || true === peg?.isVal) {
+    const items = [peg].flat()
+    for (let i = 0; i < items.length; i++) {
+      const found = looseIn(items[i], holed, tmpl,
+        true === v.isList && !calls ? [...path, '' + i] : path,
+        calls || true === v.isOp || true === v.isConstraint)
+      if (undefined !== found) {
+        return found
+      }
+    }
+  }
+  else if (null != peg && 'object' === typeof peg) {
+    for (const k of Object.keys(peg)) {
+      if (!(v.aliasKeys ?? []).includes(k)) {
+        const found = looseIn(peg[k], holed, tmpl, calls ? path : [...path, k], calls)
+        if (undefined !== found) {
+          return found
+        }
+      }
+    }
+  }
+  return looseIn(v.spread?.cj, holed, false, path, calls)
+}
+
+
+// A call's name and arguments: a refused one's are as written.
+function callOf(v: any): { name: string, args: Val[] } | undefined {
+  return true === v.isFunc ? { name: v.funcname(), args: v.peg } : v.refusedCall
+}
+
+
+function partsOf(v: any): any[] {
+  const peg: any = callOf(v)?.args ?? v.peg
+  const parts = Array.isArray(peg) ? [...peg] : true === peg?.isVal ? [peg] :
+    null != peg && 'object' === typeof peg ? Object.values(peg) : []
+  return null == v.spread?.cj ? parts : [...parts, v.spread.cj]
 }
 
 
@@ -313,6 +428,7 @@ export {
   boundArgStart,
   rebuild,
   hasPlace,
+  unboundHole,
   HELD_BOUNDS,
   HOLDING,
   holdHoles,

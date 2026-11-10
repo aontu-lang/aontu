@@ -693,6 +693,7 @@ help isolate the syntax error.`,
                     want: arityText(arity[0], arity[1]),
                     got: '' + got,
                 };
+                nil.refusedCall = { name: fname, args: writtenArgs(argterms).map(rawToVal) };
                 return addsite(nil, r, ctx);
             }
         }
@@ -705,6 +706,9 @@ help isolate the syntax error.`,
         const val = null == funcval ?
             new NilVal_1.NilVal({ why: 'unknown_function' }) :
             new funcval({ peg: args });
+        if (null == funcval) {
+            val.refusedCall = { name: fname, args };
+        }
         if (undefined !== PlaceVal_1.HOLDING[fname] || PlaceVal_1.HELD_BOUNDS.has(fname)) {
             args.slice(PlaceVal_1.HOLDING[fname] ?? 0).forEach((a) => (0, PlaceVal_1.holdHoles)(a, false));
         }
@@ -1912,16 +1916,12 @@ for (const name in sig_1.funcSig) {
     funcArity[name] = sigArity(sig_1.funcSig[name]);
 }
 function writtenArgCount(terms) {
-    if (1 === terms.length) {
-        // `terms[0]` is re-read rather than reusing a narrowed local:
-        // Array.isArray narrows an `any` to `any[]`, which then has no
-        // `isVal` to test.
-        const t = terms[0];
-        if (Array.isArray(t) && true !== terms[0].isVal) {
-            return t.length;
-        }
-    }
-    return terms.length;
+    return writtenArgs(terms).length;
+}
+// The arguments as written: one comma group is the whole list.
+function writtenArgs(terms) {
+    const t = terms[0];
+    return 1 === terms.length && true !== t?.isVal && Array.isArray(t) ? t : terms;
 }
 // arityText renders a built-in's permitted count for the error message.
 // The fixed-arity case says "one" outright rather than counting: every

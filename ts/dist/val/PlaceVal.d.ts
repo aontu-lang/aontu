@@ -11,6 +11,7 @@ declare class PlaceVal extends ValBase {
     superior(): Val;
 }
 declare function boundArgStart(v: any): number;
+declare function unboundHole(ctx: AontuContext, root: Val): Val | undefined;
 declare function hasPlace(v: Val): boolean;
 declare function doneButHoles(v: any): boolean;
 declare function waitsOnHole(v: Val): boolean;
@@ -22,4 +23,4 @@ declare const HELD_BOUNDS: Set<string>;
 declare function fillPlace(v: Val, fill: Val, ctx: AontuContext): Val;
 declare function bindHole(v: Val, fill: Val, ctx: AontuContext): Val;
 declare function rebuild(v: Val, peg: any, ctx: AontuContext): Val;
-export { bagHoles, boundArgStart, rebuild, hasPlace, HELD_BOUNDS, HOLDING, holdHoles, unfillable, doneButHoles, waitsOnHole, fillPlace, bindHole, PlaceVal, };
+export { bagHoles, boundArgStart, rebuild, hasPlace, unboundHole, HELD_BOUNDS, HOLDING, holdHoles, unfillable, doneButHoles, waitsOnHole, fillPlace, bindHole, PlaceVal, };

@@ -2,6 +2,7 @@
 
 package aontu
 
+import "slices"
 
 // PlaceVal is the hole.
 type PlaceVal struct {
@@ -39,12 +40,168 @@ func (p *PlaceVal) Unify(peer Val, ctx *Ctx) Val {
 
 func boundArgStart(v Val) int {
 	if fv, ok := v.(*FuncVal); ok {
-		if "pack" == fv.name || "filter" == fv.name ||
-			"emit" == fv.name || "each" == fv.name || "apply" == fv.name {
-			return 1
-		}
+		return boundFrom(fv.name)
 	}
 	return int(^uint(0) >> 1) // max int
+}
+
+// The calls whose arguments from the second on are templates.
+func boundFrom(name string) int {
+	if "pack" == name || "filter" == name || "emit" == name ||
+		"each" == name || "apply" == name {
+		return 1
+	}
+	return int(^uint(0) >> 1) // max int
+}
+
+// unboundHole finds a hole nothing binds where it is written (ruling
+// 34): one outside the template of a generator, an apply or a filter's
+// condition, one in a spread's template, and a name whose body holds
+// one, though not as an emit's table. It is reported at the member it
+// is written in.
+func unboundHole(ctx *Ctx, root Val) *NilVal {
+	decls := map[string]Val{}
+	declsIn(root, decls, map[Val]bool{})
+	holed := map[string]bool{}
+	for grew := true; grew; {
+		grew = false
+		for key, body := range decls {
+			if holed[key] {
+				continue
+			}
+			if hole, _ := looseIn(body, holed, false, nil, false); nil != hole {
+				holed[key] = true
+				grew = true
+			}
+		}
+	}
+	hole, path := looseIn(root, holed, false, nil, false)
+	if nil == hole {
+		return nil
+	}
+	n := makeNilErrFull(ctx, "hole_unbound", hole, nil, "parse", nil)
+	n.path = path
+	return n
+}
+
+func declsIn(v Val, decls map[string]Val, seen map[Val]bool) {
+	if nil == v || seen[v] {
+		return
+	}
+	seen[v] = true
+	if m, ok := v.(*MapVal); ok {
+		for _, k := range m.aliasKeys {
+			decls[k] = m.peg[k]
+		}
+	}
+	for _, c := range partsOf(v) {
+		declsIn(c, decls, seen)
+	}
+}
+
+func partsOf(v Val) []Val {
+	switch n := v.(type) {
+	case *MapVal:
+		parts := make([]Val, 0, len(n.keys)+1)
+		for _, k := range n.keys {
+			parts = append(parts, n.peg[k])
+		}
+		return append(parts, n.spread)
+	case *ListVal:
+		return append(append([]Val{}, n.peg...), n.spread)
+	case *FuncVal:
+		return n.peg
+	case *NilVal:
+		if nil != n.refusedCall {
+			return n.refusedCall.peg
+		}
+	case *ConstraintVal:
+		if nil != n.pending {
+			return n.pending.args
+		}
+	case *ConjunctVal:
+		return n.peg
+	case *DisjunctVal:
+		return n.peg
+	case *PlusOpVal:
+		return n.peg
+	case *PrefVal:
+		return []Val{n.peg}
+	}
+	return nil
+}
+
+// The path steps through members only: a list or a map inside a call's
+// arguments is no member, and the engines shape those differently.
+func looseIn(v Val, holed map[string]bool, tmpl bool, path []string, calls bool) (Val, []string) {
+	step := func(k string) []string {
+		if calls {
+			return path
+		}
+		return append(path[:len(path):len(path)], k)
+	}
+	switch n := v.(type) {
+	case *PlaceVal:
+		if tmpl {
+			return nil, nil
+		}
+		return n, path
+	case *RefVal:
+		if key, named := n.aliasKey(); named && holed[key] {
+			return n, path
+		}
+		return nil, nil
+	case *FuncVal:
+		from := boundFrom(n.name)
+		for i, a := range n.peg {
+			if "emit" == n.name && 1 == i && namedRef(a) {
+				continue
+			}
+			if hole, at := looseIn(a, holed, tmpl || from <= i, path, true); nil != hole {
+				return hole, at
+			}
+		}
+		return nil, nil
+	case *NilVal:
+		if nil != n.refusedCall {
+			return looseIn(n.refusedCall, holed, tmpl, path, calls)
+		}
+		return nil, nil
+	case *MapVal:
+		for _, k := range n.keys {
+			if slices.Contains(n.aliasKeys, k) {
+				continue
+			}
+			if hole, at := looseIn(n.peg[k], holed, tmpl, step(k), calls); nil != hole {
+				return hole, at
+			}
+		}
+		return looseIn(n.spread, holed, false, path, calls)
+	case *ListVal:
+		for i, e := range n.peg {
+			if hole, at := looseIn(e, holed, tmpl, step(itoa(i)), calls); nil != hole {
+				return hole, at
+			}
+		}
+		return looseIn(n.spread, holed, false, path, calls)
+	case *ConstraintVal, *PlusOpVal:
+		calls = true
+	}
+	for _, c := range partsOf(v) {
+		if hole, at := looseIn(c, holed, tmpl, path, calls); nil != hole {
+			return hole, at
+		}
+	}
+	return nil, nil
+}
+
+func namedRef(v Val) bool {
+	rv, ok := v.(*RefVal)
+	if !ok {
+		return false
+	}
+	_, named := rv.aliasKey()
+	return named
 }
 
 func hasPlace(v Val) bool { return holeIn(v, true) }

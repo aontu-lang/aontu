@@ -388,6 +388,12 @@ place_pair	errcode	conflict	0.53.0
 # the container's, so no peer of the call fills it, and once the
 # arguments are settled the call can't be made.
 place_container	errcode	conflict	0.77.0
+# `hole_unbound` is a hole that nothing binds where it is written
+# (ruling 34): outside the template of a generator, an apply or a
+# filter's condition, in a spread's template, or in the body of a name
+# used outside an emit's table. Class `parse`: the source as written is
+# at fault, as with func_arity, whatever the data.
+hole_unbound	errcode	parse	0.77.0
 # MODULES (G6 phase 2). Three codes are class `parse`: a module import
 # is resolved while the source is READ. `module_path` is a module path
 # that is domain-shaped and carries a major -- so it ROUTES here -- but

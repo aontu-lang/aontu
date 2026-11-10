@@ -395,21 +395,15 @@ vet-pack-hole-fill-from-deeper-source	vet	deep:{a:{b:{c:{t:{u:string}}}}}\ng:pac
 # three apart -- one finding at each end, at its OWN index.
 vet-list-spread-ref-owns-its-args	vet	E:hide(re("^g$"))\nent:{U:close({e:$.E})}\nent:hide({})\nl:[&:$.ent.U]\n	l:[{e:b1},{e:g},{e:b2}]\n	{"findings":[{"actual":"\\"b1\\"","class":"conflict","code":"constraint","expected":"re(\\"^g$\\")","path":"$.l.0.e","pointer":"/l/0/e","severity":"error","sites":[{"col":7,"file":"data","len":2,"role":"data","row":1,"src":"b1","value":"\\"b1\\""},{"col":3,"file":"schema","len":4,"role":"schema","row":1,"src":"hide","value":"re(\\"^g$\\")"}]},{"actual":"\\"b2\\"","class":"conflict","code":"constraint","expected":"re(\\"^g$\\")","path":"$.l.2.e","pointer":"/l/2/e","severity":"error","sites":[{"col":20,"file":"data","len":2,"role":"data","row":1,"src":"b2","value":"\\"b2\\""},{"col":3,"file":"schema","len":4,"role":"schema","row":1,"src":"hide","value":"re(\\"^g$\\")"}]}],"truncated":false,"verdict":"invalid"}
 #
-# A MATCH DOES NOT FIRE ON AN UNFILLED HOLE. The hole-fill rule puts
-# the peer INTO the call and does not keep it as a constraint on the
-# way out, which is right for a transformation (`upper(_) & "hello"`
-# is "HELLO") and wrong for a match written as a discriminated-union
-# schema: filling would answer the selected arm having CONSUMED the
-# document, so vet reported `valid` over data the arm itself refuses.
-# The call residuates instead, and the run says so. A hole inside a
-# GENERATOR template is untouched -- the generator fills it at each
-# destination, and the scrutinee is a value by the time match runs
-# (gen-match.tsv match-inside-pack, use-cases/06-k8s-golden-path).
-#
-# The finding sits at the ANCHOR's own path, not at the lifted root:
-# a meet raised on the anchor itself is still a finding about
-# `$.E`, which is the address a reader and a repair agent have.
-vet-match-hole-scrutinee-does-not-settle	vet	P:{t:x}\nE:match(_,{t:x},$.P)\n	t:x\n	{"findings":[{"class":"incomplete","code":"conjunct","path":"$.E","pointer":"/E","severity":"error","sites":[{"col":-1,"file":"","len":-1,"role":"schema","row":-1,"src":"","value":"match(_,{\\"t\\":\\"x\\"},$.P)&{\\"t\\":\\"x\\"}"}]}],"opts":{"at":"$.E"},"truncated":false,"verdict":"incomplete"}
+# A MATCH NEVER FIRES ON A HOLE ITS DATA WOULD FILL. match binds no
+# hole, so one as its scrutinee is a hole nothing binds and the schema
+# is refused before the data is read; the data never fills it, which
+# would answer the selected arm having CONSUMED the document. A hole
+# inside a GENERATOR template is the generator's, and the scrutinee is
+# a value by the time match runs (gen-match.tsv match-inside-pack,
+# use-cases/06-k8s-golden-path). The finding names `$.E`, the member
+# the hole is written in.
+vet-match-hole-scrutinee-does-not-settle	vet	P:{t:x}\nE:match(_,{t:x},$.P)\n	t:x\n	{"findings":[{"class":"parse","code":"hole_unbound","path":"$.E","pointer":"/E","severity":"error","sites":[{"col":9,"file":"schema","len":1,"role":"schema","row":2,"src":"_","value":"_"}]}],"truncated":false,"verdict":"error"}
 
 # G11 phase 5: THE COVERAGE ACCOUNTING
 # (sketch/capability-review/g11-agent-onramp.md). What the check actually
@@ -515,6 +509,6 @@ vet-no-fill-a-null-arm-stands-for-a-null-element	vet	v: [*null | null]	{"v": [nu
 vet-data-reference-that-names-nothing	vet	any	[0.1.2]	{"findings":[{"class":"reference","code":"ref","path":"$.0","pointer":"/0","severity":"error","sites":[{"col":2,"file":"data","len":3,"role":"data","row":1,"src":"0.1","value":".0.1.2"}]}],"truncated":false,"verdict":"invalid"}
 # An absent optional key does not reach a guarded spread's nil arm.
 vet-an-absent-optional-key-skips-a-match-nil-arm	vet	{ foo?:any &: match(key(0),"foo",any,nil) } & { bar?:any }	{"foo":1}	{"findings":[],"truncated":false,"verdict":"valid"}
-# A spread's template that leaves a member's hole open is named at the
-# member it stands in, not at the template.
-vet-spread-unfilled-member-path	vet	v:{&:{n:upper(_)}}	v:{a:{}}	{"findings":[{"class":"incomplete","code":"mapval_no_gen","path":"$.v.a.n","pointer":"/v/a/n","severity":"error","sites":[{"col":9,"file":"schema","len":5,"role":"schema","row":1,"src":"upper","value":"upper(_)"}]}],"truncated":false,"verdict":"incomplete"}
+# A hole in a spread's template is one nothing binds, named at the
+# template's own member.
+vet-spread-unfilled-member-path	vet	v:{&:{n:upper(_)}}	v:{a:{}}	{"findings":[{"class":"parse","code":"hole_unbound","path":"$.v.n","pointer":"/v/n","severity":"error","sites":[{"col":15,"file":"schema","len":1,"role":"schema","row":1,"src":"_","value":"_"}]}],"truncated":false,"verdict":"error"}

@@ -366,6 +366,9 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	if over := aliasBudget(ctx, root); nil != over {
 		return over
 	}
+	if loose := unboundHole(ctx, root); nil != loose {
+		return loose
+	}
 	if nil == ctx.snapmap {
 		ctx.snapmap = map[string]Val{}
 	}
