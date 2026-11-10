@@ -13,7 +13,7 @@ const G = (s) => A.generate(s);
 (0, node_test_1.describe)('examples', function () {
     (0, node_test_1.test)('pref-examples', () => {
         (0, expect_1.expect)(G('*1 & **2')).equal(1);
-        (0, expect_1.expect)(G('*1 & **a')).equal(1);
+        (0, expect_1.expect)(() => G('*1 & **a')).throws(/aontu\/empty/);
         (0, expect_1.expect)(() => G('*1 & *a')).throws(/aontu/);
         (0, expect_1.expect)(() => G('*1 & x')).throws(/aontu/);
         (0, expect_1.expect)(() => G('*1&x')).throws(/aontu/);

@@ -775,3 +775,9 @@ Once `&` stops applying a call to its peer (ruling 34), a call over a hole that 
 Ruling 39 (#678): does a spread's template give its marks to the members it meets? Since #677 both engines and the definition hide each member under `{&: hide(any)}`. For a written `{&: type(T)}`, though, both engines only constrain the members and leave them in the output, as the `spread-type` rows record, while the definition marks them typed and leaves them out. Through an alias, `{&: %T}`, all three clear the marks.
 → Members don't take them (Recommended)
 ```
+
+## 2026-11-10 11:22:05 UTC · Claude Code · session_01FpeS4ru69dMPkAX2ezauL9
+
+```text
+work in aontu-lang/aontu locally - get pull to latest and do the fix
+```

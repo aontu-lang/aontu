@@ -1,0 +1,133 @@
+# DEFAULTS IN EVERY ORDER. The meet is commutative and associative, so every
+# order of the same statements answers alike, and a concrete value beats a
+# default of either rank whichever side it arrives on. Each family is one set
+# of statements written in every order, its rows named by that order, one
+# letter per statement as the family's comment spells them. defaults.tsv
+# states the rules, R5 among them; these rows hold that no order escapes them.
+#
+# Columns: name<TAB>mode<TAB>src<TAB>expect
+
+# toggle: p the spread `e: &: { active: **true | boolean }`, v the value
+# `e: x: active: true`, s the stronger default `e: x: active: *false |
+# boolean`: a project switching on what its template defaults off.
+defaults-order-toggle-pvs	gens	e: &: { active: **true | boolean }\ne: x: active: true\ne: x: active: *false | boolean	{"e":{"x":{"active":true}}}
+defaults-order-toggle-psv	gens	e: &: { active: **true | boolean }\ne: x: active: *false | boolean\ne: x: active: true	{"e":{"x":{"active":true}}}
+defaults-order-toggle-vps	gens	e: x: active: true\ne: &: { active: **true | boolean }\ne: x: active: *false | boolean	{"e":{"x":{"active":true}}}
+defaults-order-toggle-vsp	gens	e: x: active: true\ne: x: active: *false | boolean\ne: &: { active: **true | boolean }	{"e":{"x":{"active":true}}}
+defaults-order-toggle-spv	gens	e: x: active: *false | boolean\ne: &: { active: **true | boolean }\ne: x: active: true	{"e":{"x":{"active":true}}}
+defaults-order-toggle-svp	gens	e: x: active: *false | boolean\ne: x: active: true\ne: &: { active: **true | boolean }	{"e":{"x":{"active":true}}}
+
+# bare: w `**true`, v `true`, s `*false`, with no alternative written.
+defaults-order-bare-wvs	gens	a: x: **true\na: x: true\na: x: *false	{"a":{"x":true}}
+defaults-order-bare-wsv	gens	a: x: **true\na: x: *false\na: x: true	{"a":{"x":true}}
+defaults-order-bare-vws	gens	a: x: true\na: x: **true\na: x: *false	{"a":{"x":true}}
+defaults-order-bare-vsw	gens	a: x: true\na: x: *false\na: x: **true	{"a":{"x":true}}
+defaults-order-bare-swv	gens	a: x: *false\na: x: **true\na: x: true	{"a":{"x":true}}
+defaults-order-bare-svw	gens	a: x: *false\na: x: true\na: x: **true	{"a":{"x":true}}
+
+# ladder: o `***1`, t `**2`, e `*3`, v `2`, the value the middle rung's.
+defaults-order-ladder-otev	gens	a: x: ***1\na: x: **2\na: x: *3\na: x: 2	{"a":{"x":2}}
+defaults-order-ladder-otve	gens	a: x: ***1\na: x: **2\na: x: 2\na: x: *3	{"a":{"x":2}}
+defaults-order-ladder-oetv	gens	a: x: ***1\na: x: *3\na: x: **2\na: x: 2	{"a":{"x":2}}
+defaults-order-ladder-oevt	gens	a: x: ***1\na: x: *3\na: x: 2\na: x: **2	{"a":{"x":2}}
+defaults-order-ladder-ovte	gens	a: x: ***1\na: x: 2\na: x: **2\na: x: *3	{"a":{"x":2}}
+defaults-order-ladder-ovet	gens	a: x: ***1\na: x: 2\na: x: *3\na: x: **2	{"a":{"x":2}}
+defaults-order-ladder-toev	gens	a: x: **2\na: x: ***1\na: x: *3\na: x: 2	{"a":{"x":2}}
+defaults-order-ladder-tove	gens	a: x: **2\na: x: ***1\na: x: 2\na: x: *3	{"a":{"x":2}}
+defaults-order-ladder-teov	gens	a: x: **2\na: x: *3\na: x: ***1\na: x: 2	{"a":{"x":2}}
+defaults-order-ladder-tevo	gens	a: x: **2\na: x: *3\na: x: 2\na: x: ***1	{"a":{"x":2}}
+defaults-order-ladder-tvoe	gens	a: x: **2\na: x: 2\na: x: ***1\na: x: *3	{"a":{"x":2}}
+defaults-order-ladder-tveo	gens	a: x: **2\na: x: 2\na: x: *3\na: x: ***1	{"a":{"x":2}}
+defaults-order-ladder-eotv	gens	a: x: *3\na: x: ***1\na: x: **2\na: x: 2	{"a":{"x":2}}
+defaults-order-ladder-eovt	gens	a: x: *3\na: x: ***1\na: x: 2\na: x: **2	{"a":{"x":2}}
+defaults-order-ladder-etov	gens	a: x: *3\na: x: **2\na: x: ***1\na: x: 2	{"a":{"x":2}}
+defaults-order-ladder-etvo	gens	a: x: *3\na: x: **2\na: x: 2\na: x: ***1	{"a":{"x":2}}
+defaults-order-ladder-evot	gens	a: x: *3\na: x: 2\na: x: ***1\na: x: **2	{"a":{"x":2}}
+defaults-order-ladder-evto	gens	a: x: *3\na: x: 2\na: x: **2\na: x: ***1	{"a":{"x":2}}
+defaults-order-ladder-vote	gens	a: x: 2\na: x: ***1\na: x: **2\na: x: *3	{"a":{"x":2}}
+defaults-order-ladder-voet	gens	a: x: 2\na: x: ***1\na: x: *3\na: x: **2	{"a":{"x":2}}
+defaults-order-ladder-vtoe	gens	a: x: 2\na: x: **2\na: x: ***1\na: x: *3	{"a":{"x":2}}
+defaults-order-ladder-vteo	gens	a: x: 2\na: x: **2\na: x: *3\na: x: ***1	{"a":{"x":2}}
+defaults-order-ladder-veot	gens	a: x: 2\na: x: *3\na: x: ***1\na: x: **2	{"a":{"x":2}}
+defaults-order-ladder-veto	gens	a: x: 2\na: x: *3\na: x: **2\na: x: ***1	{"a":{"x":2}}
+
+# levels: o `***info | string`, t `**debug | string`, e `*warn | string`,
+# v `info`, the value the weakest rung's.
+defaults-order-levels-otev	gens	a: level: ***info | string\na: level: **debug | string\na: level: *warn | string\na: level: info	{"a":{"level":"info"}}
+defaults-order-levels-otve	gens	a: level: ***info | string\na: level: **debug | string\na: level: info\na: level: *warn | string	{"a":{"level":"info"}}
+defaults-order-levels-oetv	gens	a: level: ***info | string\na: level: *warn | string\na: level: **debug | string\na: level: info	{"a":{"level":"info"}}
+defaults-order-levels-oevt	gens	a: level: ***info | string\na: level: *warn | string\na: level: info\na: level: **debug | string	{"a":{"level":"info"}}
+defaults-order-levels-ovte	gens	a: level: ***info | string\na: level: info\na: level: **debug | string\na: level: *warn | string	{"a":{"level":"info"}}
+defaults-order-levels-ovet	gens	a: level: ***info | string\na: level: info\na: level: *warn | string\na: level: **debug | string	{"a":{"level":"info"}}
+defaults-order-levels-toev	gens	a: level: **debug | string\na: level: ***info | string\na: level: *warn | string\na: level: info	{"a":{"level":"info"}}
+defaults-order-levels-tove	gens	a: level: **debug | string\na: level: ***info | string\na: level: info\na: level: *warn | string	{"a":{"level":"info"}}
+defaults-order-levels-teov	gens	a: level: **debug | string\na: level: *warn | string\na: level: ***info | string\na: level: info	{"a":{"level":"info"}}
+defaults-order-levels-tevo	gens	a: level: **debug | string\na: level: *warn | string\na: level: info\na: level: ***info | string	{"a":{"level":"info"}}
+defaults-order-levels-tvoe	gens	a: level: **debug | string\na: level: info\na: level: ***info | string\na: level: *warn | string	{"a":{"level":"info"}}
+defaults-order-levels-tveo	gens	a: level: **debug | string\na: level: info\na: level: *warn | string\na: level: ***info | string	{"a":{"level":"info"}}
+defaults-order-levels-eotv	gens	a: level: *warn | string\na: level: ***info | string\na: level: **debug | string\na: level: info	{"a":{"level":"info"}}
+defaults-order-levels-eovt	gens	a: level: *warn | string\na: level: ***info | string\na: level: info\na: level: **debug | string	{"a":{"level":"info"}}
+defaults-order-levels-etov	gens	a: level: *warn | string\na: level: **debug | string\na: level: ***info | string\na: level: info	{"a":{"level":"info"}}
+defaults-order-levels-etvo	gens	a: level: *warn | string\na: level: **debug | string\na: level: info\na: level: ***info | string	{"a":{"level":"info"}}
+defaults-order-levels-evot	gens	a: level: *warn | string\na: level: info\na: level: ***info | string\na: level: **debug | string	{"a":{"level":"info"}}
+defaults-order-levels-evto	gens	a: level: *warn | string\na: level: info\na: level: **debug | string\na: level: ***info | string	{"a":{"level":"info"}}
+defaults-order-levels-vote	gens	a: level: info\na: level: ***info | string\na: level: **debug | string\na: level: *warn | string	{"a":{"level":"info"}}
+defaults-order-levels-voet	gens	a: level: info\na: level: ***info | string\na: level: *warn | string\na: level: **debug | string	{"a":{"level":"info"}}
+defaults-order-levels-vtoe	gens	a: level: info\na: level: **debug | string\na: level: ***info | string\na: level: *warn | string	{"a":{"level":"info"}}
+defaults-order-levels-vteo	gens	a: level: info\na: level: **debug | string\na: level: *warn | string\na: level: ***info | string	{"a":{"level":"info"}}
+defaults-order-levels-veot	gens	a: level: info\na: level: *warn | string\na: level: ***info | string\na: level: **debug | string	{"a":{"level":"info"}}
+defaults-order-levels-veto	gens	a: level: info\na: level: *warn | string\na: level: **debug | string\na: level: ***info | string	{"a":{"level":"info"}}
+
+# spread: p `&: { n: **1 | integer }`, v `n: 1`, s `n: *2 | integer`.
+defaults-order-spread-pvs	gens	e: &: { n: **1 | integer }\ne: x: n: 1\ne: x: n: *2 | integer	{"e":{"x":{"n":1}}}
+defaults-order-spread-psv	gens	e: &: { n: **1 | integer }\ne: x: n: *2 | integer\ne: x: n: 1	{"e":{"x":{"n":1}}}
+defaults-order-spread-vps	gens	e: x: n: 1\ne: &: { n: **1 | integer }\ne: x: n: *2 | integer	{"e":{"x":{"n":1}}}
+defaults-order-spread-vsp	gens	e: x: n: 1\ne: x: n: *2 | integer\ne: &: { n: **1 | integer }	{"e":{"x":{"n":1}}}
+defaults-order-spread-spv	gens	e: x: n: *2 | integer\ne: &: { n: **1 | integer }\ne: x: n: 1	{"e":{"x":{"n":1}}}
+defaults-order-spread-svp	gens	e: x: n: *2 | integer\ne: x: n: 1\ne: &: { n: **1 | integer }	{"e":{"x":{"n":1}}}
+
+# bounded: w `**1`, c `min(1)`, s `*2`, v `0`. Every order refuses, as
+# `empty` or as `constraint` by where the value meets the bound, and none
+# generates the `0` the bound rules out.
+defaults-order-bounded-wcsv	err	a: x: **1\na: x: min(1)\na: x: *2\na: x: 0	Cannot unify values at path $.a.x
+defaults-order-bounded-wcvs	err	a: x: **1\na: x: min(1)\na: x: 0\na: x: *2	Cannot unify values at path $.a.x
+defaults-order-bounded-wscv	err	a: x: **1\na: x: *2\na: x: min(1)\na: x: 0	Cannot unify values at path $.a.x
+defaults-order-bounded-wsvc	err	a: x: **1\na: x: *2\na: x: 0\na: x: min(1)	Cannot unify values at path $.a.x
+defaults-order-bounded-wvcs	err	a: x: **1\na: x: 0\na: x: min(1)\na: x: *2	Cannot unify values at path $.a.x
+defaults-order-bounded-wvsc	err	a: x: **1\na: x: 0\na: x: *2\na: x: min(1)	Cannot unify values at path $.a.x
+defaults-order-bounded-cwsv	err	a: x: min(1)\na: x: **1\na: x: *2\na: x: 0	Cannot unify values at path $.a.x
+defaults-order-bounded-cwvs	err	a: x: min(1)\na: x: **1\na: x: 0\na: x: *2	Cannot unify values at path $.a.x
+defaults-order-bounded-cswv	err	a: x: min(1)\na: x: *2\na: x: **1\na: x: 0	Cannot unify values at path $.a.x
+defaults-order-bounded-csvw	err	a: x: min(1)\na: x: *2\na: x: 0\na: x: **1	Cannot unify values at path $.a.x
+defaults-order-bounded-cvws	err	a: x: min(1)\na: x: 0\na: x: **1\na: x: *2	Cannot unify values at path $.a.x
+defaults-order-bounded-cvsw	err	a: x: min(1)\na: x: 0\na: x: *2\na: x: **1	Cannot unify values at path $.a.x
+defaults-order-bounded-swcv	err	a: x: *2\na: x: **1\na: x: min(1)\na: x: 0	Cannot unify values at path $.a.x
+defaults-order-bounded-swvc	err	a: x: *2\na: x: **1\na: x: 0\na: x: min(1)	Cannot unify values at path $.a.x
+defaults-order-bounded-scwv	err	a: x: *2\na: x: min(1)\na: x: **1\na: x: 0	Cannot unify values at path $.a.x
+defaults-order-bounded-scvw	err	a: x: *2\na: x: min(1)\na: x: 0\na: x: **1	Cannot unify values at path $.a.x
+defaults-order-bounded-svwc	err	a: x: *2\na: x: 0\na: x: **1\na: x: min(1)	Cannot unify values at path $.a.x
+defaults-order-bounded-svcw	err	a: x: *2\na: x: 0\na: x: min(1)\na: x: **1	Cannot unify values at path $.a.x
+defaults-order-bounded-vwcs	err	a: x: 0\na: x: **1\na: x: min(1)\na: x: *2	Cannot unify values at path $.a.x
+defaults-order-bounded-vwsc	err	a: x: 0\na: x: **1\na: x: *2\na: x: min(1)	Cannot unify values at path $.a.x
+defaults-order-bounded-vcws	err	a: x: 0\na: x: min(1)\na: x: **1\na: x: *2	Cannot unify values at path $.a.x
+defaults-order-bounded-vcsw	err	a: x: 0\na: x: min(1)\na: x: *2\na: x: **1	Cannot unify values at path $.a.x
+defaults-order-bounded-vswc	err	a: x: 0\na: x: *2\na: x: **1\na: x: min(1)	Cannot unify values at path $.a.x
+defaults-order-bounded-vscw	err	a: x: 0\na: x: *2\na: x: min(1)\na: x: **1	Cannot unify values at path $.a.x
+
+# cross-kind: w `**"a"`, s `*1`, v `2`. A string default and an integer
+# admit nothing in common, at any rank.
+defaults-order-cross-kind-wsv	errc	a: x: **"a"\na: x: *1\na: x: 2	empty
+defaults-order-cross-kind-wvs	errc	a: x: **"a"\na: x: 2\na: x: *1	empty
+defaults-order-cross-kind-swv	errc	a: x: *1\na: x: **"a"\na: x: 2	empty
+defaults-order-cross-kind-svw	errc	a: x: *1\na: x: 2\na: x: **"a"	empty
+defaults-order-cross-kind-vws	errc	a: x: 2\na: x: **"a"\na: x: *1	empty
+defaults-order-cross-kind-vsw	errc	a: x: 2\na: x: *1\na: x: **"a"	empty
+
+# equal-rank: a `*true`, b `*false`, v `true`, in the orders where the value
+# arrives before the two defaults meet. Met first, they clash as R2 says;
+# the definition reads that clash on the final term, where the value has
+# already decided, so those orders are not pinned here.
+defaults-order-equal-rank-avb	gens	a: x: *true\na: x: true\na: x: *false	{"a":{"x":true}}
+defaults-order-equal-rank-bva	gens	a: x: *false\na: x: true\na: x: *true	{"a":{"x":true}}
+defaults-order-equal-rank-vab	gens	a: x: true\na: x: *true\na: x: *false	{"a":{"x":true}}
+defaults-order-equal-rank-vba	gens	a: x: true\na: x: *false\na: x: *true	{"a":{"x":true}}

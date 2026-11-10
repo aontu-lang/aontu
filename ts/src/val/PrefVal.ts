@@ -104,6 +104,56 @@ class PrefVal extends FeatureVal {
   }
 
 
+  // Unchanged on both counts is the SAME preference, returned as
+  // itself: minting a new one every pass would keep the fixpoint
+  // moving for ever.
+  private stand(met: Val, gate: Val, ctx: AontuContext): Val {
+    if (met.same(prefInnerPeg(this)) && gate.same(this.superpeg)) {
+      return this
+    }
+    const stood = this.restand(met, ctx) as PrefVal
+    stood.narrowed = gate
+    stood.superpeg = gate
+    return stood
+  }
+
+
+  // Scalar defaults meet as the disjunctions they stand for: each
+  // stands only where the other's override space admits it, so a value
+  // either one has already met survives the other's rank.
+  private meetPref(peer: PrefVal, ctx: AontuContext): Val {
+    const strong = peer.rank < this.rank ? peer : this
+    const weak = strong === this ? peer : this
+
+    const strongMet = trialUnify(ctx, prefInnerPeg(strong).clone(ctx),
+      weak.superpeg.clone(ctx))
+    const weakMet = trialUnify(ctx, strong.superpeg.clone(ctx),
+      prefInnerPeg(weak).clone(ctx))
+    const space = trialUnify(ctx, strong.superpeg.clone(ctx),
+      weak.superpeg.clone(ctx))
+
+    if (undefined === strongMet && undefined === weakMet) {
+      return space ?? makeNilErr(ctx, 'empty', this, peer, 'unify')
+    }
+
+    // An emptied override space stays a quiet nil, as a peer's does.
+    const gate = space ?? new NilVal({ why: 'empty' }, ctx)
+
+    if (strong.rank === weak.rank &&
+      undefined !== strongMet && undefined !== weakMet) {
+      const peg = trialUnify(ctx, prefInnerPeg(this).clone(ctx),
+        prefInnerPeg(peer))
+
+      return undefined === peg
+        ? makeNilErr(ctx, 'pref_rank_clash', this, peer, 'unify')
+        : this.stand(peg, gate, ctx)
+    }
+
+    return undefined !== strongMet ? strong.stand(strongMet, gate, ctx)
+      : weak.stand(weakMet as Val, gate, ctx)
+  }
+
+
   // PrefVal unify always returns a PrefVal
   // PrefVals can only be removed by becoming Nil in a Disjunct
   unify(peer: Val, ctx: AontuContext): Val {
@@ -132,6 +182,12 @@ class PrefVal extends FeatureVal {
       else if (this.peg.id === peer.peg.id) {
         out = this.overMet(peer, this, ctx)
         why += 'same-peg'
+      }
+
+      else if (true === (prefInnerPeg(this) as any).isScalar &&
+        true === (prefInnerPeg(peer) as any).isScalar) {
+        out = this.meetPref(peer, ctx)
+        why += 'gated'
       }
 
       else if (this.rank < peer.rank) {
@@ -167,18 +223,7 @@ class PrefVal extends FeatureVal {
           : true === this.superpeg.isNil ? this.superpeg
             : new NilVal({ why: 'empty' }, ctx)
 
-        // Unchanged on both counts is the SAME preference, returned as
-        // itself: minting a new one every pass would keep the fixpoint
-        // moving for ever.
-        if (met.same(prefInnerPeg(this)) && gate.same(this.superpeg)) {
-          out = this
-        }
-        else {
-          const stood = this.restand(met, ctx) as PrefVal
-          stood.narrowed = gate
-          stood.superpeg = gate
-          out = stood
-        }
+        out = this.stand(met, gate, ctx)
 
         why += 'stands'
         explainClose(te, out)
