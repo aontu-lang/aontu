@@ -8,6 +8,28 @@ each change affects.
 
 ## Unreleased
 
+### An `enum` whose members overlap imports as a count
+
+Both engines, and shared rows.
+
+- `aontu jsonschema import` wrote every `enum` as a disjunction of its
+  members. Where one member is another with keys left out, at any
+  depth, as in `{"enum": [{"a": 1}, {"a": 1, "b": 2}]}`, an instance
+  equal to the smaller met both branches, the larger by being filled
+  out, so `vet --no-fill` answered `incomplete` (`disjunct_no_gen`)
+  for an instance JSON Schema admits, and the import reported no loss.
+  Such an `enum` is now `nof(min(1), …)` over its members, as the
+  `anyOf` of the same members as `const`s already was, and both
+  members are `valid`.
+- Only an `enum` met in place was affected, at the root or under
+  `properties` or `items`. One a count tries, under `not`, `anyOf`,
+  `oneOf` or `if`, already answered as JSON Schema does.
+- Any other `enum` imports as before, one whose members differ only in
+  the order of their keys among them.
+- Rows from `import-enum-a-member-another-fills-out-is-a-count` on,
+  and the four `output-` rows on an `enum`, of
+  `test/spec/jsonschema-import.tsv`.
+
 ### A hole nothing binds is an error (breaking)
 
 Both engines, the definition, and shared rows.
