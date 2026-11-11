@@ -897,3 +897,9 @@ Decision 41: when two lone preferences of different ranks meet, does the weaker 
 ```text
 with respect to the prompt-log, this should be updated and conflicts resolved without discussing this with the user, only inform the user of prompt-log edits if explicitly requested
 ```
+
+## 2026-11-11 13:30:05 UTC · Claude Code · session_01D35vdaJrzKd5f8ukay7G9U
+
+```text
+merge both
+```
