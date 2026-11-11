@@ -255,7 +255,8 @@ empty map or list and so is absent (decision 19 of the design note's
 §7), lists with spreads, and meets of these, the fill of a schema with
 data among them; and defaults of one rank folded into their meet (ruling
 41), in a disjunction and in a meet of two preferences, and the default
-of the lower rank where two of different ranks meet. No value here splits the ports
+of the lower rank where two of different ranks meet, whichever side
+either is written on. No value here splits the ports
 (#348) or writes a `nil` under an optional key, where the engines
 answer `error` and the definition drops the key. -/
 def genVals : List Val :=
@@ -330,8 +331,10 @@ def genVals : List Val :=
     .meet (.pref 1 (int 1)) (.pref 1 .integer), .or [(1, int 1), (1, .integer)],
     .or [(1, key "a" false (int 1)), (1, key "b" false (int 2))],
     .meet (.pref 1 (key "a" false (int 1))) (.pref 1 (key "b" false (int 2))),
-    .meet (.pref 1 (int 1)) (.pref 2 (int 7)), .meet (.pref 1 (int 1)) (.pref 2 .integer)]
+    .meet (.pref 1 (int 1)) (.pref 2 (int 7)), .meet (.pref 1 (int 1)) (.pref 2 .integer),
+    .meet (.pref 2 (int 7)) (.pref 1 (int 1))]
 
+set_option maxRecDepth 4096 in
 /-- Every value of the `gen` fragment normalises to a checkable one, so
 `output` is `Output` on it, by `output_iff`. -/
 theorem genVals_checkable : ∀ v ∈ genVals, (normalise v).Checkable := by decide
@@ -756,9 +759,11 @@ values meet fold into that meet, a scalar beside a kind, in a
 disjunction and in a meet, and two maps; two of one rank whose values
 admit nothing in common clash; of two ranks the lower one's default
 wins and the higher one's still constrains, so that `*1 & **"s"` admits
-nothing; a higher-rank scalar beside a lower-rank kind, whose default
-is the kind; two kinds; and a disjunction's default met with a
-preference whose default it refuses. -/
+nothing; a higher-rank scalar beside a lower-rank kind, which fills in
+under the kind's default on either side (ruling 42); two kinds; a
+disjunction's default met with a preference whose default it refuses;
+and a higher-rank map whose member the data must write, as its
+constraint holds. -/
 def rankFoldCases : List (Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -776,7 +781,9 @@ def rankFoldCases : List (Val × Data) :=
     (x (.meet (.pref 2 (int 1)) (.pref 1 .integer)), none),
     (x (.meet (.pref 1 .integer) (.pref 1 (.min (.num (.integer (.of 0)))))), none),
     (x (.meet (.or [(1, int 1), (0, int 2)]) (.pref 1 .integer)), none),
-    (x (.meet (.pref 1 (int 1)) (.pref 2 .integer)), .map [("x", j 5)])]
+    (x (.meet (.pref 1 (int 1)) (.pref 2 .integer)), .map [("x", j 5)]),
+    (x (.meet (.pref 1 .integer) (.pref 2 (int 1))), none),
+    (x (.meet (.pref 1 (mp "a" (int 1))) (.pref 2 (mp "b" (int 2)))), .map [("x", .map [("a", j 1)])])]
 
 theorem rankFoldCases_checkable : ∀ c ∈ rankFoldCases, (vetDoc c).1.CheckableA := by decide
 
@@ -7051,7 +7058,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# enough, in rows na0 on. A preference as an arm is its value alone, with no"
     IO.println "# parent type, which a lone preference keeps, in rows pa0 on. Defaults of one"
     IO.println "# rank fold into their meet, and of two ranks the lower one's wins while the"
-    IO.println "# higher one's still constrains (ruling 41), in rows rk0 on."
+    IO.println "# higher one's still constrains (ruling 41) and its default fills in under"
+    IO.println "# the lower one's (ruling 42), in rows rk0 on."
     verdictRows "e"
     verdictRows "l" lenCases
     verdictRows "h" markCases

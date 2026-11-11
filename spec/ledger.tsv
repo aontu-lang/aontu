@@ -2,7 +2,7 @@
 # generated row (test/spec/def-fragment.tsv and the fragments beside it) the
 # ports do not answer as the definition does, the answer each side gives,
 # which side moves, and the cause. Both ports answer every listed case alike.
-# A listed case that comes to agree fails the run. Bounded at 298.
+# A listed case that comes to agree fails the run. Bounded at 301.
 # name	src	instance	definition	ports	moves	cause
 c2005	(string) & (string & empty())	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
 c2373	(string & empty()) & (string)	""	refuse	admit	ports	decision 3 (section 2): the meet is a greatest lower bound, so string met with string & empty() is string; the ports keep the empty() waiver
@@ -302,3 +302,6 @@ rk23	v: {"x": (*(1)) & (**("s"))}	v: {"x": 2}	error	valid	ports	ruling 41 (secti
 rk30	v: {"x": (*(1) | (2)) & (*(integer))}	v: {}	error	invalid	ports	a clash a meet makes, two defaults of one rank that disagree, is an error as the written clash is; both ports' eval answers pref_rank_clash and their vet answers invalid (#482)
 rk31	v: {"x": (*(1) | (2)) & (*(integer))}	v: {}	error	invalid	ports	a clash a meet makes, two defaults of one rank that disagree, is an error as the written clash is; both ports' eval answers pref_rank_clash and their vet answers invalid (#482)
 rk32	v: {"x": (*(1) | (2)) & (*(integer))}	v: {}	error	invalid	ports	a clash a meet makes, two defaults of one rank that disagree, is an error as the written clash is; both ports' eval answers pref_rank_clash and their vet answers invalid (#482)
+rk24	v: {"x": (**(1)) & (*(integer))}	v: {}	valid	incomplete	ports	ruling 42 (section 7): where two preferences of different ranks meet, the higher rank's default fills in under the lower rank's where they agree, whichever side either is written on, so **1 & *integer defaults to 1; both ports drop the higher-rank preference, default and all (#714)
+rk36	v: {"x": (*(integer)) & (**(1))}	v: {}	valid	incomplete	ports	ruling 42 (section 7): where two preferences of different ranks meet, the higher rank's default fills in under the lower rank's where they agree, whichever side either is written on, so **1 & *integer defaults to 1; both ports drop the higher-rank preference, default and all (#714)
+rk40	v: {"x": (*{"a": 1}) & (**{"b": 2})}	v: {"x": {"a": 1}}	incomplete	valid	ports	ruling 41 (section 7): of two preferences of different ranks that meet, the lower rank's default wins and the higher rank's override space still constrains, so *1 & **"s" admits nothing; both ports drop the higher-rank preference, constraint and all (#714)

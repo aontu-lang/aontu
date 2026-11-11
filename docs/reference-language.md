@@ -733,6 +733,10 @@ still holds, since `&` is a meet: `*1 & **7` is `1`, but `*1 & **"s"`
 admits nothing, as nothing is both an integer and a string. Both
 engines drop the higher-rank preference there, constraint and all,
 which [#714](https://github.com/aontu-lang/aontu/issues/714) tracks.
+The higher rank's default fills in under the lower rank's where the two
+agree, in either order: `*integer & **1` is `1`, and
+`*{a: 1} & **{b: 2}` is `{"a": 1, "b": 2}`. Both engines drop it there
+too.
 A ranked preference meets its peers exactly as rank 1
 does: the **rank-uniform meet**: `a:**1.5 & float` is `1.5` just as
 `a:*1.5 & float` is, and `**2|integer` met by a bare `integer` keeps its

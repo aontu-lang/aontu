@@ -25,7 +25,8 @@
 # enough, in rows na0 on. A preference as an arm is its value alone, with no
 # parent type, which a lone preference keeps, in rows pa0 on. Defaults of one
 # rank fold into their meet, and of two ranks the lower one's wins while the
-# higher one's still constrains (ruling 41), in rows rk0 on.
+# higher one's still constrains (ruling 41) and its default fills in under
+# the lower one's (ruling 42), in rows rk0 on.
 e0	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error"}
 e1	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"noFill":true}}
 e2	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"partial":true}}
@@ -803,7 +804,7 @@ rk20	verdict	v: {"x": (*(1)) & (**("s"))}	v: {}	{"verdict":"error","opts":{"part
 rk21	verdict	v: {"x": (*(1)) & (**("s"))}	v: {"x": 2}	{"verdict":"error"}
 rk22	verdict	v: {"x": (*(1)) & (**("s"))}	v: {"x": 2}	{"verdict":"error","opts":{"noFill":true}}
 rk23	verdict	v: {"x": (*(1)) & (**("s"))}	v: {"x": 2}	{"verdict":"error","opts":{"partial":true}}
-rk24	verdict	v: {"x": (**(1)) & (*(integer))}	v: {}	{"verdict":"incomplete"}
+rk24	verdict	v: {"x": (**(1)) & (*(integer))}	v: {}	{"verdict":"valid"}
 rk25	verdict	v: {"x": (**(1)) & (*(integer))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
 rk26	verdict	v: {"x": (**(1)) & (*(integer))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
 rk27	verdict	v: {"x": (*(integer)) & (*(min(0)))}	v: {}	{"verdict":"incomplete"}
@@ -815,3 +816,9 @@ rk32	verdict	v: {"x": (*(1) | (2)) & (*(integer))}	v: {}	{"verdict":"error","opt
 rk33	verdict	v: {"x": (*(1)) & (**(integer))}	v: {"x": 5}	{"verdict":"valid"}
 rk34	verdict	v: {"x": (*(1)) & (**(integer))}	v: {"x": 5}	{"verdict":"valid","opts":{"noFill":true}}
 rk35	verdict	v: {"x": (*(1)) & (**(integer))}	v: {"x": 5}	{"verdict":"valid","opts":{"partial":true}}
+rk36	verdict	v: {"x": (*(integer)) & (**(1))}	v: {}	{"verdict":"valid"}
+rk37	verdict	v: {"x": (*(integer)) & (**(1))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+rk38	verdict	v: {"x": (*(integer)) & (**(1))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+rk39	verdict	v: {"x": (*{"a": 1}) & (**{"b": 2})}	v: {"x": {"a": 1}}	{"verdict":"valid"}
+rk40	verdict	v: {"x": (*{"a": 1}) & (**{"b": 2})}	v: {"x": {"a": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rk41	verdict	v: {"x": (*{"a": 1}) & (**{"b": 2})}	v: {"x": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}

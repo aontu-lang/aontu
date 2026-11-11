@@ -319,7 +319,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 298 rows under twenty causes: decisions 3 and 4 of §2, under
+ledger holds 301 rows under twenty-one causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -360,7 +360,9 @@ path from a lone preference to a place outside it, whose value the
 parent arm lifts as both ports' `eval` does, where both ports' `vet`
 disagrees with their own `eval`, and move (#702); two preferences of
 different ranks that meet, whose higher rank's constraint ruling 41 of
-§7 keeps, where both ports drop it, and move (#714); and a clash a meet
+§7 keeps, where both ports drop it, and move (#714); the higher rank's
+default, which ruling 42 fills in under the lower rank's where they
+agree, where both ports drop it too, and move (#714); and a clash a meet
 makes, two defaults of one rank that disagree, which the definition
 reads as an `error` as both ports' `eval` does, where both ports' `vet`
 answers `invalid`, and move (#482).
@@ -2100,6 +2102,33 @@ until the phase that encodes it lands.
    `test/spec/def-verdict.tsv`, both ports answering 33 of 42 as the
    definition does, the other 9 in the ledger under #714 and #482,
    whose `vet` reads a clash a meet makes as `invalid`.
+
+42. **A weaker default under a stronger one.** Raised 2026-11-11 while
+   building ruling 41. The meet nested the right side's ranks inside the
+   left side's arms, so its default depended on the order written:
+   `*integer & **1` generated `1`, the weaker `1` filling in under the
+   stronger `integer`, but `**1 & *integer` generated nothing, and
+   `*{a: 1} & **{b: 2}` generated `{"a": 1, "b": 2}` one way round and
+   nothing the other. Both ports drop the weaker preference, generating
+   nothing for the first and `{"a": 1}` for the second, either way
+   round; ruling 41 already makes them keep its constraint.
+
+   **Ruled 2026-11-11: the weaker default fills in.** Ranks are layers:
+   the default is the stronger layer's, met with each weaker layer's
+   where they agree, whichever side either is written on.
+   `*integer & **1` is `1`, `*{a: 1} & **{b: 2}` is
+   `{"a": 1, "b": 2}`, and `*1 & **7` stays `1`, since `1` and `7`
+   disagree. Both ports move (#714).
+   **Built 2026-11-11**: `meetNodes` meets a disjunction or a lone
+   preference with its peer with the side that leads with the stronger
+   rank outermost (`Val.leadRank`, `leadsOver`, `nodeLeft`,
+   `nodeRight`), the left one where neither leads, so that the weaker
+   side's ranks nest inside the stronger side's arms. Rows g99 of
+   `test/spec/def-gen.tsv` and rk36 on of `test/spec/def-verdict.tsv`,
+   and rk24 moved to `valid`; rk24, rk36 and rk40, which both ports
+   answer otherwise, are in the ledger under #714. A meet whose two sides both lead
+   with one rank still nests the right one inside the left one, where
+   the fold of ruling 41 meets their defaults.
 
 ## 8. Risks
 

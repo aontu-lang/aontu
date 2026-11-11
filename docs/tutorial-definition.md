@@ -3408,10 +3408,10 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .ride k v r => .ride k (rec a v) r
   | .link v t, b => .link (rec v b) t
   | a, .link v t => .link (rec a v) t
-  | .or arms, b => mkOrF rec (arms.map fun p => (p.1, rec p.2 b))
-  | a, .or arms => mkOrF rec (arms.map fun p => (p.1, rec a p.2))
-  | .pref r x, b => mkOrF rec [(r, rec x b), (0, rec x.super b)]
-  | a, .pref r y => mkOrF rec [(r, rec a y), (0, rec a y.super)]
+  | .or arms, b => meetNodes rec (.or arms) b
+  | a, .or arms => meetNodes rec a (.or arms)
+  | .pref r x, b => meetNodes rec (.pref r x) b
+  | a, .pref r y => meetNodes rec a (.pref r y)
   | .map fs₁ s₁ c₁, .map fs₂ s₂ c₂ => meetMap rec fs₁ s₁ c₁ fs₂ s₂ c₂
   | .any, .map fs s c => meetMap rec [] none false fs s c
   | .map fs s c, .any => meetMap rec fs s c [] none false
@@ -3433,7 +3433,10 @@ nothing to say to each other, such as `min(1)` and `max(9)`, `a` meets
 which the two rows would otherwise do without end. A rider of step 19
 carries the meet of its value, so its record rides the result. A
 disjunction meets a peer arm by arm,
-and `mkOr` keeps the arms that are live: an arm that admits nothing on
+the side whose preference ranks stronger outermost (`meetNodes`), so
+that `*integer & **1` and `**1 & *integer` both default to `1`, the
+weaker default filling in under the stronger one, and `mkOr` keeps the
+arms that are live: an arm that admits nothing on
 its face, such as `min(5) & max(3)` once computed to `nil`, drops, and
 a disjunction with no live arm is `nil`. `mkOrF` then folds the
 defaults: where the rank rule picks two or more arms of one rank, it

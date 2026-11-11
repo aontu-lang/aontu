@@ -903,3 +903,12 @@ with respect to the prompt-log, this should be updated and conflicts resolved wi
 ```text
 merge both
 ```
+
+## 2026-11-11 14:03:36 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 42: when a stronger default wins, does a weaker default still fill in where the stronger one leaves the value open? Examples: `a: *integer & **1` and `a: *{x: 1} & **{y: 2}`. Today the definition's answer depends on which side is written first (it outputs `1` one way round and nothing the other), which has to be fixed either way. The engines drop the weaker preference and output nothing for the first and `{"x": 1}` for the second; ruling 41 already makes them keep its constraint, so the second can't stay `{"x": 1}` (`y` must be an integer).
+→ Weaker fills in (Recommended)
+```
