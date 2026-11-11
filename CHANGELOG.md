@@ -31,6 +31,10 @@ Both engines and shared rows.
   statements in every order, 100 rows, and `test/spec/defaults.tsv`
   gains 16 rows, both from 0.76.1. Before this change `main` failed 24
   of them, alike in each engine.
+- Seven rows of `test/spec/pref.tsv` pin defaults whose value is a
+  type, which still meet by rank: a spread's bound holds of
+  `*integer`, and two such defaults of one rank keep both their
+  bounds.
 
 ### An `enum` whose members overlap imports as a count
 

@@ -216,3 +216,15 @@ pref-spread-bound-kept-map	errc	r:{&:integer & min(1)} r:{a:*3} r:a:0	empty
 pref-spread-bound-kept-list	errc	r:[&:integer & min(1)] r:[*3] r:[0]	empty
 pref-spread-bound-kept-pass	gen	r:{&:integer & min(1)} r:{a:*3} r:a:5	{"r":{"a":5}}
 pref-spread-bound-kept-default	gen	r:{&:integer & min(1)} r:{a:*3}	{"r":{"a":3}}
+# A default whose value is a type keeps the bound the same way. Its two
+# narrowed copies are not scalars, so they meet by rank, and the meet of
+# their override spaces is what holds it.
+pref-spread-bound-kept-type-map	errc	r:{&:integer & min(1)} r:{a:*integer} r:a:0	empty
+pref-spread-bound-kept-type-list	errc	r:[&:integer & min(1)] r:[*integer] r:[0]	empty
+pref-spread-bound-kept-type-pass	gen	r:{&:integer & min(1)} r:{a:*integer} r:a:5	{"r":{"a":5}}
+pref-spread-bound-kept-type-list-pass	gen	r:[&:integer & min(1)] r:[*integer] r:[5]	{"r":[5]}
+# Two type defaults of one rank, each narrowed by its own bound, meet
+# holding both bounds.
+pref-type-rank-both-bounds-pass	gen	a: *integer & min(1)\na: *integer & max(5)\na: 3	{"a":3}
+pref-type-rank-both-bounds-refuse	errc	a: *integer & min(1)\na: *integer & max(5)\na: 7	empty
+pref-type-rank-both-bounds-list	errc	a: *[integer] & [min(1)]\na: *[integer] & [max(5)]\na: [7]	empty
