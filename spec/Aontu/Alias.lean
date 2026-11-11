@@ -1526,41 +1526,97 @@ theorem nothingOr_checkableA (v : Val) : (nothingOr v).CheckableA := by
   · exact .nothing
   · exact .nil
 
+theorem unrankF_checkableA : ∀ (n : ℕ) {v : Val}, v.CheckableA → (unrankF n v).CheckableA
+  | 0, _, h => h
+  | n + 1, v, h => by
+    cases v with
+    | or arms =>
+      cases h with
+      | or ha =>
+        simp only [unrankF]
+        refine .or fun r a hm => ?_
+        obtain ⟨⟨r', a'⟩, hm', he⟩ := List.mem_map.mp hm
+        simp only [Prod.mk.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        exact unrankF_checkableA n (ha r' a' hm')
+    | _ => exact h
+
 section
 variable {rec : Val → Val → Val} (hr : ∀ a b, a.CheckableA → b.CheckableA → (rec a b).CheckableA)
 include hr
 
+theorem foldArms_checkableA {live : List (ℕ × Val)} (h : ∀ p, p ∈ live → p.2.CheckableA) :
+    ∀ p, p ∈ foldArms rec live → p.2.CheckableA := by
+  have hfold : ∀ (more : List (ℕ × Val)) (acc : Val), acc.CheckableA → (∀ a, a ∈ more → a.2.CheckableA) →
+      (more.foldl (fun acc a => rec acc a.2) acc).CheckableA := by
+    intro more
+    induction more with
+    | nil => intro acc hacc _; exact hacc
+    | cons a more ih =>
+      intro acc hacc hm
+      exact ih _ (hr _ _ hacc (hm a List.mem_cons_self)) fun a' h' => hm a' (List.mem_cons_of_mem _ h')
+  unfold foldArms
+  split
+  · exact h
+  · split
+    · rename_i p q more hpq
+      have hsub : ∀ a, a ∈ p :: q :: more → a.2.CheckableA := fun a ha =>
+        h a (List.mem_filter.mp (hpq ▸ ha)).1
+      split
+      · exact h
+      · intro a ha
+        rcases List.mem_cons.mp ha with rfl | ha
+        · exact hfold more _ (hr _ _ (hsub p List.mem_cons_self)
+            (hsub q (List.mem_cons_of_mem _ List.mem_cons_self)))
+            fun a' h' => hsub a' (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ h'))
+        · obtain ⟨b, hb, rfl⟩ := List.mem_map.mp ha
+          split
+          · exact unrankF_checkableA _ (h b hb)
+          · exact h b hb
+    · exact h
+
+theorem mkOrF_checkableA {arms : List (ℕ × Val)} (h : ∀ p, p ∈ arms → p.2.CheckableA) :
+    (mkOrF rec arms).CheckableA := by
+  have hm := mkOr_checkableA h
+  unfold mkOrF
+  split
+  · rename_i live heq
+    rw [heq] at hm
+    cases hm with
+    | or ha => exact .or fun r a hp => foldArms_checkableA hr (fun p hp' => ha p.1 p.2 hp') (r, a) hp
+  · exact hm
+
 theorem mkOr_or_left {arms : List (ℕ × Val)} {b : Val} (ha : (Val.or arms).CheckableA) (hb : b.CheckableA) :
-    (mkOr (arms.map fun p => (p.1, rec p.2 b))).CheckableA := by
+    (mkOrF rec (arms.map fun p => (p.1, rec p.2 b))).CheckableA := by
   cases ha with
   | or h =>
-    refine mkOr_checkableA fun p hp => ?_
+    refine mkOrF_checkableA hr fun p hp => ?_
     obtain ⟨q, hq, rfl⟩ := List.mem_map.mp hp
     exact hr _ _ (h q.1 q.2 hq) hb
 
 theorem mkOr_or_right {a : Val} {arms : List (ℕ × Val)} (ha : a.CheckableA) (hb : (Val.or arms).CheckableA) :
-    (mkOr (arms.map fun p => (p.1, rec a p.2))).CheckableA := by
+    (mkOrF rec (arms.map fun p => (p.1, rec a p.2))).CheckableA := by
   cases hb with
   | or h =>
-    refine mkOr_checkableA fun p hp => ?_
+    refine mkOrF_checkableA hr fun p hp => ?_
     obtain ⟨q, hq, rfl⟩ := List.mem_map.mp hp
     exact hr _ _ ha (h q.1 q.2 hq)
 
 theorem mkOr_pref_left {r : ℕ} {x b : Val} (hx : (Val.pref r x).CheckableA) (hb : b.CheckableA) :
-    (mkOr [(r, rec x b), (0, rec x.super b)]).CheckableA := by
+    (mkOrF rec [(r, rec x b), (0, rec x.super b)]).CheckableA := by
   cases hx with
   | pref hx =>
-    refine mkOr_checkableA fun p hp => ?_
+    refine mkOrF_checkableA hr fun p hp => ?_
     simp only [List.mem_cons, List.mem_nil_iff, or_false] at hp
     rcases hp with rfl | rfl
     · exact hr _ _ hx hb
     · exact hr _ _ hx.super hb
 
 theorem mkOr_pref_right {a : Val} {r : ℕ} {y : Val} (ha : a.CheckableA) (hy : (Val.pref r y).CheckableA) :
-    (mkOr [(r, rec a y), (0, rec a y.super)]).CheckableA := by
+    (mkOrF rec [(r, rec a y), (0, rec a y.super)]).CheckableA := by
   cases hy with
   | pref hy =>
-    refine mkOr_checkableA fun p hp => ?_
+    refine mkOrF_checkableA hr fun p hp => ?_
     simp only [List.mem_cons, List.mem_nil_iff, or_false] at hp
     rcases hp with rfl | rfl
     · exact hr _ _ ha hy

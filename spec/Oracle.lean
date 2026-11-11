@@ -253,7 +253,9 @@ disjunctions with their ranks, maps with required, optional and
 defaulted keys and spreads, an optional key whose value generates an
 empty map or list and so is absent (decision 19 of the design note's
 §7), lists with spreads, and meets of these, the fill of a schema with
-data among them. No value here splits the ports
+data among them; and defaults of one rank folded into their meet (ruling
+41), in a disjunction and in a meet of two preferences, and the default
+of the lower rank where two of different ranks meet. No value here splits the ports
 (#348) or writes a `nil` under an optional key, where the engines
 answer `error` and the definition drops the key. -/
 def genVals : List Val :=
@@ -324,7 +326,11 @@ def genVals : List Val :=
     key "a" true (.meet (.map [] none false) (key "b" true (int 1))),
     .map [("a", true, .map [] none false), ("b", false, int 1)] none false,
     .meet (key "a" true (.map [] none false)) (key "a" false (.map [] none false)),
-    .list [key "a" true (.map [] none false)] none false]
+    .list [key "a" true (.map [] none false)] none false,
+    .meet (.pref 1 (int 1)) (.pref 1 .integer), .or [(1, int 1), (1, .integer)],
+    .or [(1, key "a" false (int 1)), (1, key "b" false (int 2))],
+    .meet (.pref 1 (key "a" false (int 1))) (.pref 1 (key "b" false (int 2))),
+    .meet (.pref 1 (int 1)) (.pref 2 (int 7)), .meet (.pref 1 (int 1)) (.pref 2 .integer)]
 
 /-- Every value of the `gen` fragment normalises to a checkable one, so
 `output` is `Output` on it, by `output_iff`. -/
@@ -743,6 +749,41 @@ theorem pref_arm_verdict_exact : ∀ c ∈ prefArmCases, ∀ (m : Mode) (v : Ver
     vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (prefArmCases_checkable c hc)) v
+
+/-- Preferences that meet, each under a key the data leaves out, so that
+the default mode reads the default (ruling 41): two of one rank whose
+values meet fold into that meet, a scalar beside a kind, in a
+disjunction and in a meet, and two maps; two of one rank whose values
+admit nothing in common clash; of two ranks the lower one's default
+wins and the higher one's still constrains, so that `*1 & **"s"` admits
+nothing; a higher-rank scalar beside a lower-rank kind, whose default
+is the kind; two kinds; and a disjunction's default met with a
+preference whose default it refuses. -/
+def rankFoldCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let x (v : Val) : Val := .map [("x", false, v)] none false
+  let mp (k : String) (v : Val) : Val := .map [(k, false, v)] none false
+  let none : Data := .map []
+  [(x (.meet (.pref 1 (int 1)) (.pref 1 .integer)), none),
+    (x (.or [(1, int 1), (1, .integer)]), none),
+    (x (.or [(1, mp "a" (int 1)), (1, mp "b" (int 2))]), none),
+    (x (.meet (.pref 1 (mp "a" (int 1))) (.pref 1 (mp "b" (int 2)))), none),
+    (x (.meet (.pref 1 (int 1)) (.pref 1 (int 7))), none),
+    (x (.meet (.pref 1 (int 1)) (.pref 2 (int 7))), none),
+    (x (.meet (.pref 1 (int 1)) (.pref 2 (.lit (.str "s")))), none),
+    (x (.meet (.pref 1 (int 1)) (.pref 2 (.lit (.str "s")))), .map [("x", j 2)]),
+    (x (.meet (.pref 2 (int 1)) (.pref 1 .integer)), none),
+    (x (.meet (.pref 1 .integer) (.pref 1 (.min (.num (.integer (.of 0)))))), none),
+    (x (.meet (.or [(1, int 1), (0, int 2)]) (.pref 1 .integer)), none),
+    (x (.meet (.pref 1 (int 1)) (.pref 2 .integer)), .map [("x", j 5)])]
+
+theorem rankFoldCases_checkable : ∀ c ∈ rankFoldCases, (vetDoc c).1.CheckableA := by decide
+
+theorem rank_fold_verdict_exact : ∀ c ∈ rankFoldCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (rankFoldCases_checkable c hc)) v
 
 /-- The `verdict` rows: each case in the default mode, without the fill
 and under `--partial`, with the one class `vet` gives. -/
@@ -7008,7 +7049,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# Without the fill, a disjunction admits what any arm admits, whatever its"
     IO.println "# rank, so an arm beside the default that admits the data as written is"
     IO.println "# enough, in rows na0 on. A preference as an arm is its value alone, with no"
-    IO.println "# parent type, which a lone preference keeps, in rows pa0 on."
+    IO.println "# parent type, which a lone preference keeps, in rows pa0 on. Defaults of one"
+    IO.println "# rank fold into their meet, and of two ranks the lower one's wins while the"
+    IO.println "# higher one's still constrains (ruling 41), in rows rk0 on."
     verdictRows "e"
     verdictRows "l" lenCases
     verdictRows "h" markCases
@@ -7017,6 +7060,7 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "ks" spellVetCases
     verdictRows "na" armCases
     verdictRows "pa" prefArmCases
+    verdictRows "rk" rankFoldCases
     return 0
   | ["alias"] =>
     IO.println "# Generated by `lake exe oracle alias` (spec/Oracle.lean) from the definition"
