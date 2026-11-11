@@ -4834,6 +4834,17 @@ while the type's own statements still extend it. See [Marks: `type` and
 
 A seal is the `closed` flag of a map or list term in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean): `admits_map_iff` and `admits_list_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean) refuse a member no key or position declares, `meetKey` drops an optional key a seal does not declare and holds a required one to `nil`, and `map_le` and `list_le` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carry the seal into the order.
 
+The definition holds `open(v)` as the rider `Rider.opened` beside it:
+`expandF` in [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean) reads
+`v`, expanded, with every seal in it lifted (`Rider.reads`,
+`Val.unseal`), and the seal on a `type()` value's copy stops at a term
+held open (`restrictF`), at the copy's top and below it. A spread's
+template keeps a seal written in it, as both engines keep it on a member
+the data adds, and both engines lift it on a member the sealed map
+declares, which the definition doesn't. The definition doesn't yet hold
+a bare `open()` or `close()`, which act on their place, folded first
+and last.
+
 ## Source loading `@"…"`
 
 `@"path"` loads and parses another source file, then unifies the result

@@ -30,16 +30,25 @@ design note's §7). The copy is the expansion met with a restriction: a
 sealed map that declares the keys the conjuncts' maps declare, each
 optional and restricted in turn by its declarations, a sealed list the
 same by position, and `any` where no conjunct is a container, so the
-seal stops at a disjunction, a preference, a kind and a name. The seal
+seal stops at a disjunction, a preference, a kind and a name, and at a
+term held open (`open(v)`, decision 44), whose seals are lifted. The seal
 follows a selection: the restriction of one is a selection on the same
 scrutinee and patterns, of the restrictions of its results. -/
 
-/-- The terms a meet joins, through the riders, as the seal reads them. -/
+/-- The terms a meet joins, through the riders, as the seal reads them:
+a term held open (`open(v)`) whole, since the seal stops at it. -/
 def Val.sealConjuncts : Val → List Val
   | .meet a b => a.sealConjuncts ++ b.sealConjuncts
+  | .ride .opened v r => [.ride .opened v r]
   | .ride _ v _ => v.sealConjuncts
   | .link v _ => v.sealConjuncts
   | v => [v]
+
+/-- Whether a term is held open, written `open(v)` (decision 44 of the
+design note's §7). -/
+def Val.heldOpen : Val → Bool
+  | .ride .opened _ _ => true
+  | _ => false
 
 /-- The keys the maps among some terms declare, each once. -/
 def declaredKeys (vs : List Val) : List String :=
@@ -94,7 +103,8 @@ def restrictF : ℕ → List Val → Val
       .select s (arms.map fun a => (a.1, restrictF f (a.2 :: others)))
         (d.map fun x => restrictF f (x :: others))
     | _ =>
-      if cs.any isMapLit then
+      if cs.any Val.heldOpen then .any
+      else if cs.any isMapLit then
         .map ((declaredKeys cs).map fun k => (k, true, restrictF f (valuesAt k cs))) none true
       else if cs.any isListLit then
         .list ((List.range (listsLength cs)).map fun i => restrictF f (itemsAt i cs))
@@ -115,21 +125,25 @@ theorem Val.sealConjuncts_checkableA {v : Val} (h : v.CheckableA) :
       rcases hc with hc | hc
       · exact iha ha c hc
       · exact ihb hb c hc
-  | case2 k v r ih =>
+  | case2 v r =>
+    intro c hc
+    simp only [Val.sealConjuncts, List.mem_singleton] at hc
+    exact hc ▸ h
+  | case3 k v r hk ih =>
     cases h with
     | ride hv =>
       intro c hc
-      simp only [Val.sealConjuncts] at hc
+      rw [Val.sealConjuncts.eq_3 k v r hk] at hc
       exact ih hv c hc
-  | case3 v t ih =>
+  | case4 v t ih =>
     cases h with
     | link hv _ =>
       intro c hc
       simp only [Val.sealConjuncts] at hc
       exact ih hv c hc
-  | case4 v h1 h2 h3 =>
+  | case5 v h1 h2 h3 h4 =>
     intro c hc
-    rw [Val.sealConjuncts.eq_4 v h1 h2 h3, List.mem_singleton] at hc
+    rw [Val.sealConjuncts.eq_5 v h1 h2 h3 h4, List.mem_singleton] at hc
     exact hc ▸ h
 
 theorem Val.sealConjuncts_unguardedRefs {v c : Val} (hc : c ∈ v.sealConjuncts) {n : String}
@@ -141,16 +155,19 @@ theorem Val.sealConjuncts_unguardedRefs {v c : Val} (hc : c ∈ v.sealConjuncts)
     rcases hc with hc | hc
     · exact .inl (iha hc)
     · exact .inr (ihb hc)
-  | case2 k v r ih =>
-    simp only [Val.sealConjuncts] at hc
+  | case2 v r =>
+    simp only [Val.sealConjuncts, List.mem_singleton] at hc
+    exact hc ▸ hn
+  | case3 k v r hk ih =>
+    rw [Val.sealConjuncts.eq_3 k v r hk] at hc
     simp only [Val.unguardedRefs]
     exact ih hc
-  | case3 v t ih =>
+  | case4 v t ih =>
     simp only [Val.sealConjuncts] at hc
     simp only [Val.unguardedRefs, List.mem_append]
     exact .inl (ih hc)
-  | case4 v h1 h2 h3 =>
-    rw [Val.sealConjuncts.eq_4 v h1 h2 h3, List.mem_singleton] at hc
+  | case5 v h1 h2 h3 h4 =>
+    rw [Val.sealConjuncts.eq_5 v h1 h2 h3 h4, List.mem_singleton] at hc
     exact hc ▸ hn
 
 theorem valuesAt_checkableA {k : String} {cs : List Val} (h : ∀ c ∈ cs, c.CheckableA) :
@@ -225,7 +242,9 @@ theorem restrictF_unguardedRefs : ∀ (f : ℕ) (vs : List Val) {n : String},
           · exact hcs w (mem_restrictOthers hsel hw) n hn
     · split at h
       · simp [Val.unguardedRefs] at h
-      · split at h <;> simp [Val.unguardedRefs] at h
+      · split at h
+        · simp [Val.unguardedRefs] at h
+        · split at h <;> simp [Val.unguardedRefs] at h
 
 theorem restrictF_checkableA : ∀ (f : ℕ) (vs : List Val), (∀ v ∈ vs, v.CheckableA) →
     (restrictF f vs).CheckableA
@@ -269,24 +288,28 @@ theorem restrictF_checkableA : ∀ (f : ℕ) (vs : List Val), (∀ v ∈ vs, v.C
         · obtain ⟨x, hx, rfl⟩ := Option.map_eq_some_iff.mp he
           exact restrictF_checkableA f _ (hres x (hd x hx))
     · split
-      · refine .map (fun k o w hm => ?_) (fun _ h => nomatch h)
-        obtain ⟨k', hk, he⟩ := List.mem_map.mp hm
-        simp only [Prod.mk.injEq] at he
-        obtain ⟨-, -, rfl⟩ := he
-        exact restrictF_checkableA f _ (valuesAt_checkableA hcs)
+      · exact .any
       · split
-        · refine .list (fun w hm => ?_) (fun s hs => ?_)
-          · obtain ⟨i, -, rfl⟩ := List.mem_map.mp hm
-            exact restrictF_checkableA f _ (itemsAt_checkableA hcs)
-          · split at hs
-            · cases hs; exact .any
-            · exact nomatch hs
-        · exact .any
+        · refine .map (fun k o w hm => ?_) (fun _ h => nomatch h)
+          obtain ⟨k', hk, he⟩ := List.mem_map.mp hm
+          simp only [Prod.mk.injEq] at he
+          obtain ⟨-, -, rfl⟩ := he
+          exact restrictF_checkableA f _ (valuesAt_checkableA hcs)
+        · split
+          · refine .list (fun w hm => ?_) (fun s hs => ?_)
+            · obtain ⟨i, -, rfl⟩ := List.mem_map.mp hm
+              exact restrictF_checkableA f _ (itemsAt_checkableA hcs)
+            · split at hs
+              · cases hs; exact .any
+              · exact nomatch hs
+          · exact .any
 
 /-- The expansion of a term, within `k` turns: a reference to a name
 that is not recursive is replaced by the meet of its bodies, expanded in
 turn and sealed where the name is a definition; a reference to a
-recursive name, or to no name, stays. -/
+recursive name, or to no name, stays. A rider's body reads as the rider
+has it read (`Rider.reads`), so `open(v)` reads `v`, expanded, with
+every seal lifted, the seal of a definition's instance among them. -/
 def expandF (ds : Decls) : ℕ → Val → Val
   | 0, v => v
   | k + 1, v =>
@@ -318,7 +341,7 @@ def expandF (ds : Decls) : ℕ → Val → Val
       .select (expandF ds k s) (arms.map fun a => (expandF ds k a.1, expandF ds k a.2)) (d.map (expandF ds k))
     | .filter s c => .filter (expandF ds k s) (expandF ds k c)
     | .call f args => .call f (args.map (expandF ds k))
-    | .ride t v r => .ride t (expandF ds k v) r
+    | .ride t v r => .ride t (t.reads (expandF ds k v)) r
     | .link v t => .link (expandF ds k v) (expandF ds k t)
     | v => v
 
@@ -486,7 +509,7 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
       simp only [expandF, Val.unguardedRefs] at h ⊢
       exact unguardedRefs_expandF f x h
     | ride t v r =>
-      simp only [expandF, Val.unguardedRefs] at h ⊢
+      simp only [expandF, Val.unguardedRefs, Rider.unguardedRefs_reads] at h ⊢
       exact unguardedRefs_expandF f v h
     | link v t =>
       simp only [expandF, Val.unguardedRefs, List.mem_append] at h ⊢
@@ -786,6 +809,75 @@ theorem Val.CheckableA.unmark {v : Val} (h : v.CheckableA) : v.unmark.CheckableA
       exact ihd s hs
   | _ => simp only [Val.unmark]; constructor <;> assumption
 
+theorem mem_unsealFields :
+    ∀ {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val},
+      (k, o, w) ∈ unsealFields fs → ∃ v, (k, o, v) ∈ fs ∧ w = v.unseal
+  | [], _, _, _, h => nomatch h
+  | (k', o', v') :: fs, k, o, w, h => by
+    simp only [unsealFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact ⟨v', List.mem_cons_self, rfl⟩
+    · obtain ⟨v, hv, rfl⟩ := mem_unsealFields h
+      exact ⟨v, List.mem_cons_of_mem _ hv, rfl⟩
+
+theorem mem_unsealItems : ∀ {vs : List Val} {w : Val}, w ∈ unsealItems vs → ∃ v, v ∈ vs ∧ w = v.unseal
+  | [], _, h => nomatch h
+  | v :: vs, w, h => by
+    simp only [unsealItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact ⟨v, List.mem_cons_self, rfl⟩
+    · obtain ⟨u, hu, rfl⟩ := mem_unsealItems h
+      exact ⟨u, List.mem_cons_of_mem _ hu, rfl⟩
+
+theorem mem_unsealArms : ∀ {arms : List (ℕ × Val)} {r : ℕ} {x : Val},
+    (r, x) ∈ unsealArms arms → ∃ a, (r, a) ∈ arms ∧ x = a.unseal
+  | [], _, _, h => nomatch h
+  | (r', a) :: arms, r, x, h => by
+    simp only [unsealArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact ⟨a, List.mem_cons_self, rfl⟩
+    · obtain ⟨b, hb, rfl⟩ := mem_unsealArms h
+      exact ⟨b, List.mem_cons_of_mem _ hb, rfl⟩
+
+/-- Unsealing a term the checker can read gives a term it can read. -/
+theorem Val.CheckableA.unseal {v : Val} (h : v.CheckableA) : v.unseal.CheckableA := by
+  induction h with
+  | @map fs spread closed _ hs ihf _ =>
+    simp only [Val.unseal]
+    refine .map (fun k o w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_unsealFields hw
+    exact ihf k o v hv
+  | @list items spread closed _ hs ihi _ =>
+    simp only [Val.unseal]
+    refine .list (fun w hw => ?_) hs
+    obtain ⟨v, hv, rfl⟩ := mem_unsealItems hw
+    exact ihi v hv
+  | @or arms _ iha =>
+    simp only [Val.unseal]
+    refine .or fun r w hw => ?_
+    obtain ⟨a, hm, rfl⟩ := mem_unsealArms hw
+    exact iha r a hm
+  | pref _ ih => simp only [Val.unseal]; exact .pref ih
+  | meet _ _ iha ihb => simp only [Val.unseal]; exact .meet iha ihb
+  | ride _ ih => simp only [Val.unseal]; exact .ride ih
+  | link _ ht ih _ => simp only [Val.unseal]; exact .link ih ht
+  | call hargs _ => simp only [Val.unseal]; exact .call hargs
+  | len h _ => simp only [Val.unseal]; exact .len h
+  | nof hn hcs _ _ => simp only [Val.unseal]; exact .nof hn hcs
+  | must h _ => simp only [Val.unseal]; exact .must h
+  | when hc ht he _ _ _ => simp only [Val.unseal]; exact .when hc ht he
+  | contains hc hn _ _ => simp only [Val.unseal]; exact .contains hc hn
+  | rest ht h1 h2 h3 _ _ _ _ => simp only [Val.unseal]; exact .rest ht h1 h2 h3
+  | selectKey hp hr hd _ _ _ => simp only [Val.unseal]; exact .selectKey hp hr hd
+  | selectLit hp hr hd _ _ _ => simp only [Val.unseal]; exact .selectLit hp hr hd
+  | _ => simp only [Val.unseal]; constructor
+
+theorem Val.CheckableA.reads {k : Rider} {v : Val} (h : v.CheckableA) : (k.reads v).CheckableA := by
+  unfold Rider.reads
+  split
+  · exact h.unseal
+  · exact h
+
 theorem Decls.env_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {k : String} {b : Val}
     (h : ds.env k = some b) : b.CheckableA := by
   simp only [Decls.env] at h
@@ -854,7 +946,7 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
       obtain ⟨rfl, rfl⟩ := he
       exact expandF_checkableA hb f a (ha r' a ha')
     | pref hx => exact .pref (expandF_checkableA hb f _ hx)
-    | ride hv => exact .ride (expandF_checkableA hb f _ hv)
+    | ride hv => exact .ride (expandF_checkableA hb f _ hv).reads
     | link hv ht => exact .link (expandF_checkableA hb f _ hv) (expandF_checkableA hb f _ ht)
     | meet ha hb' => exact .meet (expandF_checkableA hb f _ ha) (expandF_checkableA hb f _ hb')
     | nof hn hcs =>
@@ -1362,6 +1454,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
   | @ride k v r _ ih =>
     cases k with
     | move n => exact .ride ih
+    | opened => exact .ride ih
     | _ => exact ih
   | link _ _ ih _ => exact ih
   | @meet a b ha hb iha ihb =>

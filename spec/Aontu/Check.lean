@@ -2723,6 +2723,7 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
     intro j hu
     cases k with
     | move n => exact .ride (ihv j hu.ride)
+    | opened => exact .ride (ihv j hu.ride)
     | _ => exact ihv j hu.ride
   | @link v t _ _ ihv _ => intro j hu; exact ihv j hu.link
   | @alias k =>

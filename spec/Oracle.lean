@@ -1162,6 +1162,48 @@ theorem seal_verdict_exact : ∀ c ∈ sealCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (sealCases_checkable c hc).1
     (readR_checkableA (sealCases_checkable c hc).1 (sealCases_checkable c hc).2) v
 
+/-- The cases of decision 44 of the design note's §7, `open(v)`: every
+seal in `v` lifted, at every depth, on maps and lists, a spread's
+template kept as written, as both ports keep it on a member the data
+adds; a member written `open(v)` under a sealed map, which
+the seal stops at; `open(v)` beside a sealed term, which lifts nothing
+there; the seal a reference puts on a `type()` value's copy, lifted by
+`open()` written around the reference, at every depth, and stopped by
+`open()` written in the definition, at its top and at a member. -/
+def openCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let op (v : Val) : Val := .ride .opened v []
+  let type (v : Val) : Val := .ride .type v []
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let cl (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none true
+  let T : Val := .alias "T"
+  let dxy : Data := .map [("x", j 1), ("y", j 2)]
+  let dyz : Data := .map [("x", .map [("y", j 1), ("z", j 2)])]
+  [([], .meet (op (cl [("x", cl [("y", int 1)])])) (mp [("x", mp [("z", int 2)])]), dyz),
+    ([], .meet (cl [("x", op (mp [("y", int 1)]))]) (mp [("x", mp [("z", int 2)])]), dyz),
+    ([], .meet (op (mp [("x", int 1)])) (.meet (cl [("x", int 1)]) (mp [("y", int 2)])), dxy),
+    ([], op (cl [("x", int 1)]), dxy),
+    ([], cl [("x", int 1)], dxy),
+    ([], .meet (op (.list [int 1, int 2] none true)) (.list [int 1, int 2, int 3] none false),
+      .list [j 1, j 2, j 3]),
+    ([], op (.map [] (some (cl [("x", int 1)])) true), .map [("k", dxy)]),
+    ([("T", type (mp [("x", int 1)]))], op T, dxy),
+    ([("T", type (mp [("x", int 1)]))], T, dxy),
+    ([("T", type (mp [("x", mp [("y", int 1)])]))], op T, dyz),
+    ([("T", type (op (mp [("x", int 1)])))], T, dxy),
+    ([("T", type (mp [("x", op (mp [("y", int 1)]))]))], T, dyz),
+    ([("T", type (mp [("x", op (mp [("y", int 1)]))]))], T,
+      .map [("x", .map [("y", j 1)]), ("w", j 1)])]
+
+theorem openCases_checkable : ∀ c ∈ openCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
+
+theorem open_verdict_exact : ∀ c ∈ openCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 (aliasDoc c).1 (aliasDoc c).2 = v ↔ Vet m c.1 (aliasDoc c).1 (aliasDoc c).2 v :=
+  fun c hc _ v => vet_iff (openCases_checkable c hc).1
+    (readR_checkableA (openCases_checkable c hc).1 (openCases_checkable c hc).2) v
+
 theorem markAliasCases_checkable : ∀ c ∈ markAliasCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
 
@@ -4549,7 +4591,8 @@ def forms : List (String × String × String) :=
     ("must", "call", "must"), ("when", "call", "when"), ("contains", "call", "contains"),
     ("rest", "call", "rest"), ("select", "call", "match"), ("filter", "call", "filter"),
     ("ride", "call", "meta"), ("ride", "call", "deprecate"), ("ride", "call", "ident"),
-    ("ride", "call", "type"), ("ride", "call", "hide"), ("key", "call", "key"), ("keyUp", "call", "key"),
+    ("ride", "call", "type"), ("ride", "call", "hide"), ("ride", "call", "open"), ("key", "call", "key"),
+    ("keyUp", "call", "key"),
     ("call", "call", "add"), ("call", "call", "sub"), ("call", "call", "mul"),
     ("call", "call", "div"), ("call", "call", "mod"), ("call", "call", "rem"),
     ("call", "syntax", "-"), ("call", "call", "sum"), ("call", "call", "least"),
@@ -4580,7 +4623,7 @@ def formSamples : List (String × Val) :=
     ("match", .select .integer [] none), ("filter", .filter .integer .integer),
     ("meta", .ride .metadata .integer []), ("deprecate", .ride .deprecate .integer []),
     ("ident", .ride .ident .integer []), ("type", .ride .type .integer []),
-    ("hide", .ride .hide .integer []), ("key", .key), ("key", .keyUp 1), ("path", .addr ⟨0, ["a"]⟩),
+    ("hide", .ride .hide .integer []), ("open", .ride .opened .integer []), ("key", .key), ("key", .keyUp 1), ("path", .addr ⟨0, ["a"]⟩),
     ("add", .call .add [.integer, .integer]), ("sub", .call .sub [.integer, .integer]),
     ("mul", .call .mul [.integer, .integer]), ("div", .call .div [.integer, .integer]),
     ("mod", .call .mod [.integer, .integer]), ("rem", .call .rem [.integer, .integer]),
@@ -5336,6 +5379,31 @@ def Aontu.Val.inertB : Val → Bool
   | .ride _ v _ => v.inertB
   | _ => false
 
+/-- Lifting the seals leaves an inert term as it is. -/
+theorem unseal_inert : ∀ {x : Val}, x.inertB = true → x.unseal = x
+  | .lit _, _ => rfl
+  | .re _, _ => rfl
+  | .integer, _ => rfl
+  | .ride _ v _, h => by simp only [Val.unseal]; rw [unseal_inert (x := v) h]
+
+theorem reads_inert {k : Rider} {x : Val} (h : x.inertB = true) : k.reads x = x := by
+  unfold Rider.reads
+  split
+  · exact unseal_inert h
+  · rfl
+
+theorem inert_expandF {ds : Decls} : ∀ {x : Val}, x.inertB = true → ∀ j, (expandF ds j x).inertB = true
+  | .lit _, _, j => by cases j <;> rfl
+  | .re _, _, j => by cases j <;> rfl
+  | .integer, _, j => by cases j <;> rfl
+  | .ride _ v _, h, j => by
+    cases j with
+    | zero => exact h
+    | succ j =>
+      simp only [expandF, Val.inertB]
+      rw [reads_inert (inert_expandF (x := v) h j)]
+      exact inert_expandF (x := v) h j
+
 /-- A term that holds no reference waits on none, whatever reads it. -/
 theorem inert_pending {ds : Decls} {bd : Option Val} {here : Option (List Step)} :
     ∀ {x : Val}, x.inertB = true → ∀ j, (resolveD ds bd here (expandF ds j x)).pending ds = false
@@ -5349,6 +5417,7 @@ theorem inert_pending {ds : Decls} {bd : Option Val} {here : Option (List Step)}
       exact inert_pending (x := v) h 0
     | succ j =>
       simp only [expandF, resolveD, Val.pending]
+      rw [reads_inert (inert_expandF (ds := ds) (x := v) h j)]
       exact inert_pending (x := v) h j
 
 theorem patternSplits_inert : ∀ t ∈ patternSplits, t.1.inertB = true := by decide
@@ -5360,15 +5429,6 @@ theorem inert_filled : ∀ {x : Val}, x.inertB = true → x.filled = x
   | .re _, _ => rfl
   | .integer, _ => rfl
   | .ride _ v _, h => by simp only [Val.filled]; rw [inert_filled (x := v) h]
-
-theorem inert_expandF : ∀ {x : Val}, x.inertB = true → ∀ j, (expandF [] j x).inertB = true
-  | .lit _, _, j => by cases j <;> rfl
-  | .re _, _, j => by cases j <;> rfl
-  | .integer, _, j => by cases j <;> rfl
-  | .ride _ v _, h, j => by
-    cases j with
-    | zero => exact h
-    | succ j => simp only [expandF, Val.inertB]; exact inert_expandF (x := v) h j
 
 theorem filledItems_inert : ∀ {xs : List Val}, (∀ x ∈ xs, x.inertB = true) → filledItems xs = xs
   | [], _ => rfl
@@ -7134,10 +7194,16 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# The seal a reference puts on a type() value follows in rows o0 on: the copy"
     IO.println "# admits nothing the definition does not declare, at any depth, and a"
     IO.println "# recursive name takes none."
+    IO.println "# open() follows in rows op0 on: every seal in its value lifted, at every"
+    IO.println "# depth, a spread's template kept as written, a member written open() under"
+    IO.println "# a sealed map held open, open() beside a sealed term lifting nothing there,"
+    IO.println "# and the seal on a type() value's copy lifted by open() around the"
+    IO.println "# reference and stopped by open() inside it."
     aliasRows "a"
     aliasRows "r" riderCases
     aliasRows "n" markAliasCases
     aliasRows "o" sealCases
+    aliasRows "op" openCases
     return 0
   | ["paths"] =>
     IO.println "# Generated by `lake exe oracle paths` (spec/Oracle.lean) from the definition"

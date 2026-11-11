@@ -921,3 +921,12 @@ The answers to the agent's questions, each question followed by the option chose
 Decision 43: when a preference meets a disjunction at the same rank, or a disjunction with no default, the definition's answer depends on which side is written first. Example: `(*1 | 2) & *integer` is an error one way round and `1` the other; both engines give `pref_rank_clash` (error) in either order. Which reading should hold in both orders?
 → Arms stay non-default (Recommended)
 ```
+
+## 2026-11-11 22:02:35 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+How should the Lean definition hold open() (decision 44)? Both engines agree on all 23 cases I probed: open(v) lifts every seal in v at every depth and holds v open against a seal from above (close around it, or a type()'s instance seal), so type(open({...})) instances and open($.T) accept extra keys. close(open(m)) still seals m's own top level. A bare open() lifts the seals of every term at its place, at any depth and in any order, even from separate statements at the same key. A bare close() seals the place after that, so close() beats open(). open(v) placed beside a sealed term lifts nothing there. A bare open() or close() isn't a value, so the definition's meet (a lattice, which its theorems rely on) can't hold it directly.
+→ All of it (Recommended)
+```

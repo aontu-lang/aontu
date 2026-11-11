@@ -95,6 +95,37 @@ def unmarkCovers : List (Option Val × Option Val × Option Val) → List (Optio
   | (a, b, c) :: cs => (unmarkSpread a, unmarkSpread b, unmarkSpread c) :: unmarkCovers cs
 end
 
+mutual
+/-- A term with each map and list in it unsealed, at every depth
+through members, elements, arms, preferences, meets and riders: what
+`copy` makes of its argument, its marks cleared too, as a copy is open
+whatever it copies, a literal as a reference (decision 27 of the design
+note's §7), and what `open(v)` reads `v` as (decision 44). A spread's
+template stays as written, since both ports keep a seal written in a
+template on each member it reaches. -/
+def Val.unseal : Val → Val
+  | .map fs spread _ => .map (unsealFields fs) spread false
+  | .list items spread _ => .list (unsealItems items) spread false
+  | .or arms => .or (unsealArms arms)
+  | .pref r x => .pref r x.unseal
+  | .meet a b => .meet a.unseal b.unseal
+  | .ride k v r => .ride k v.unseal r
+  | .link v lt => .link v.unseal lt
+  | v => v
+
+def unsealFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.unseal) :: unsealFields fs
+
+def unsealItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.unseal :: unsealItems vs
+
+def unsealArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: arms => (r, a.unseal) :: unsealArms arms
+end
+
 namespace Decls
 
 /-- The bodies declared for a name, in the order written. -/
@@ -584,6 +615,28 @@ theorem Val.unguardedRefs_unmark (v : Val) : v.unmark.unguardedRefs = v.unguarde
     | trivial
     | simp_all only [Val.unmark, unmarkItems, unmarkArms, unmarkPairs, unmarkCovers,
         Val.unguardedRefs, unguardedItems, unguardedPairs, unguardedCovers, unguardedArms]
+
+/-- Lifting the seals keeps the names a term reaches. -/
+theorem Val.unguardedRefs_unseal (v : Val) : v.unseal.unguardedRefs = v.unguardedRefs := by
+  induction v using Val.unseal.induct
+    (motive_2 := fun arms => unguardedArms (unsealArms arms) = unguardedArms arms)
+    (motive_3 := fun _ => True) (motive_4 := fun _ => True)
+  case case8 =>
+    rename_i v h1 h2 h3 h4 h5 h6 h7
+    rw [Val.unseal.eq_8 v h1 h2 h3 h4 h5 h6 h7]
+  all_goals first
+    | trivial
+    | simp_all only [Val.unseal, unsealArms, Val.unguardedRefs, unguardedArms]
+
+/-- The term a rider's body reads as: under `open()`, with every seal
+lifted (`Val.unseal`); under any other rider, as written. -/
+def Rider.reads (k : Rider) (v : Val) : Val := if k == .opened then v.unseal else v
+
+theorem Rider.unguardedRefs_reads (k : Rider) (v : Val) : (k.reads v).unguardedRefs = v.unguardedRefs := by
+  unfold Rider.reads
+  split
+  · exact Val.unguardedRefs_unseal v
+  · rfl
 
 /-- Leaving an identity behind keeps the names a body reaches. -/
 theorem Val.unguardedRefs_unident (v : Val) : v.unident.unguardedRefs = v.unguardedRefs := by
