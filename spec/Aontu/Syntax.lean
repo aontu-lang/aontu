@@ -44,6 +44,7 @@ inductive Rider where
   | ident                                   -- `ident(v, r)`, the identity of an alias's value
   | type                                    -- `type(v)`, a mark: the value is a definition
   | hide                                    -- `hide(v)`, a mark: the value is no part of the output
+  | opened                                  -- `open(v)`, every seal in `v` lifted and held open; Lean keeps `open`
   | move (n : String)                       -- the value `move` makes of the path named `n` (`pathName`)
   deriving DecidableEq
 
@@ -233,7 +234,7 @@ meet of two kinds has the lower kind's parent; any other meet lifts
 each side. A reference lifts as itself, a residual the engines keep
 symbolic too. A rider is left behind, but the one a `move` makes
 (`Rider.move`), so that each arm a moved preference reads as carries
-it. -/
+it, and `open(v)`'s, so that the parent stays open where `v` is. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
   | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
@@ -262,6 +263,7 @@ def Val.super : Val → Val
   | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _
   | .call _ _ => .any
   | .ride (.move n) v r => .ride (.move n) v.super r
+  | .ride .opened v r => .ride .opened v.super r
   | .ride _ v _ => v.super
   | .link v _ => v.super
   | .key | .keyUp _ => .anyString
@@ -386,6 +388,7 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
       · exact Val.keyed_of_isKind ‹_›
       · simp only [Val.keyed, Val.keyed_super a, Val.keyed_super b, Bool.or_self]
   | .ride (.move _) v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
+  | .ride .opened v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
   | .ride .metadata v _ | .ride .deprecate v _ | .ride .ident v _ | .ride .type v _ | .ride .hide v _ => by
     simp only [Val.super]; exact Val.keyed_super v
   | .link v _ => by simp only [Val.super]; exact Val.keyed_super v

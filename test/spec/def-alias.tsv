@@ -17,6 +17,11 @@
 # The seal a reference puts on a type() value follows in rows o0 on: the copy
 # admits nothing the definition does not declare, at any depth, and a
 # recursive name takes none.
+# open() follows in rows op0 on: every seal in its value lifted, at every
+# depth, a spread's template kept as written, a member written open() under
+# a sealed map held open, open() beside a sealed term lifting nothing there,
+# and the seal on a type() value's copy lifted by open() around the
+# reference and stopped by open() inside it.
 a0	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid"}
 a1	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"noFill":true}}
 a2	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"partial":true}}
@@ -644,3 +649,42 @@ o137	verdict	%T = type({"x": integer})\nv: match(1, 1, %T)	v: {"x": 1, "y": 2}	{
 o138	verdict	%T = type({"a": *{"b": integer}})\nv: %T	v: {"a": {"b": 1, "c": 2}}	{"verdict":"valid"}
 o139	verdict	%T = type({"a": *{"b": integer}})\nv: %T	v: {"a": {"b": 1, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
 o140	verdict	%T = type({"a": *{"b": integer}})\nv: %T	v: {"a": {"b": 1, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+op0	verdict	v: (open(close({"x": close({"y": 1})}))) & ({"x": {"z": 2}})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+op1	verdict	v: (open(close({"x": close({"y": 1})}))) & ({"x": {"z": 2}})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+op2	verdict	v: (open(close({"x": close({"y": 1})}))) & ({"x": {"z": 2}})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+op3	verdict	v: (close({"x": open({"y": 1})})) & ({"x": {"z": 2}})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+op4	verdict	v: (close({"x": open({"y": 1})})) & ({"x": {"z": 2}})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+op5	verdict	v: (close({"x": open({"y": 1})})) & ({"x": {"z": 2}})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+op6	verdict	v: (open({"x": 1})) & ((close({"x": 1})) & ({"y": 2}))	v: {"x": 1, "y": 2}	{"verdict":"error"}
+op7	verdict	v: (open({"x": 1})) & ((close({"x": 1})) & ({"y": 2}))	v: {"x": 1, "y": 2}	{"verdict":"error","opts":{"noFill":true}}
+op8	verdict	v: (open({"x": 1})) & ((close({"x": 1})) & ({"y": 2}))	v: {"x": 1, "y": 2}	{"verdict":"error","opts":{"partial":true}}
+op9	verdict	v: open(close({"x": 1}))	v: {"x": 1, "y": 2}	{"verdict":"valid"}
+op10	verdict	v: open(close({"x": 1}))	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"noFill":true}}
+op11	verdict	v: open(close({"x": 1}))	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"partial":true}}
+op12	verdict	v: close({"x": 1})	v: {"x": 1, "y": 2}	{"verdict":"invalid"}
+op13	verdict	v: close({"x": 1})	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+op14	verdict	v: close({"x": 1})	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+op15	verdict	v: (open(close([1, 2]))) & ([1, 2, 3])	v: [1, 2, 3]	{"verdict":"valid"}
+op16	verdict	v: (open(close([1, 2]))) & ([1, 2, 3])	v: [1, 2, 3]	{"verdict":"valid","opts":{"noFill":true}}
+op17	verdict	v: (open(close([1, 2]))) & ([1, 2, 3])	v: [1, 2, 3]	{"verdict":"valid","opts":{"partial":true}}
+op18	verdict	v: open(close({&: close({"x": 1})}))	v: {"k": {"x": 1, "y": 2}}	{"verdict":"invalid"}
+op19	verdict	v: open(close({&: close({"x": 1})}))	v: {"k": {"x": 1, "y": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+op20	verdict	v: open(close({&: close({"x": 1})}))	v: {"k": {"x": 1, "y": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+op21	verdict	%T = type({"x": 1})\nv: open(%T)	v: {"x": 1, "y": 2}	{"verdict":"valid"}
+op22	verdict	%T = type({"x": 1})\nv: open(%T)	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"noFill":true}}
+op23	verdict	%T = type({"x": 1})\nv: open(%T)	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"partial":true}}
+op24	verdict	%T = type({"x": 1})\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid"}
+op25	verdict	%T = type({"x": 1})\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+op26	verdict	%T = type({"x": 1})\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+op27	verdict	%T = type({"x": {"y": 1}})\nv: open(%T)	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+op28	verdict	%T = type({"x": {"y": 1}})\nv: open(%T)	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+op29	verdict	%T = type({"x": {"y": 1}})\nv: open(%T)	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+op30	verdict	%T = type(open({"x": 1}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid"}
+op31	verdict	%T = type(open({"x": 1}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"noFill":true}}
+op32	verdict	%T = type(open({"x": 1}))\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"partial":true}}
+op33	verdict	%T = type({"x": open({"y": 1})})\nv: %T	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+op34	verdict	%T = type({"x": open({"y": 1})})\nv: %T	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+op35	verdict	%T = type({"x": open({"y": 1})})\nv: %T	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+op36	verdict	%T = type({"x": open({"y": 1})})\nv: %T	v: {"x": {"y": 1}, "w": 1}	{"verdict":"invalid"}
+op37	verdict	%T = type({"x": open({"y": 1})})\nv: %T	v: {"x": {"y": 1}, "w": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+op38	verdict	%T = type({"x": open({"y": 1})})\nv: %T	v: {"x": {"y": 1}, "w": 1}	{"verdict":"invalid","opts":{"partial":true}}

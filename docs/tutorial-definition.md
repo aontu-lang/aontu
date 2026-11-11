@@ -2451,6 +2451,21 @@ def Val.unident : Val → Val
   | v => v
 ```
 
+`open(v)` is a rider of its own: the expansion reads `v`,
+expanded, with every seal in it lifted by `Val.unseal`, and the seal on
+an instance stops at a term held open, at the instance's top and below
+it. So the instances of `type(open({x: 1}))` take a key `x` doesn't
+name, and so does `open(%T)` where `T` is a definition, at any depth.
+The rider stays on the value it reads, and a meet carries it, so a seal
+an enclosing value puts on it stops there, but `open(v)` beside a sealed
+term lifts nothing of that term's. A spread's template stays as written, since both
+engines keep a seal written in a template on each member it reaches:
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+def Rider.reads (k : Rider) (v : Val) : Val := if k == .opened then v.unseal else v
+```
+
 The declarations make a graph, where a name refers to every name in
 its bodies, and a recursive name is one that refers to itself through
 any number of declarations:
@@ -2700,7 +2715,9 @@ residual.
 /-- The expansion of a term, within `k` turns: a reference to a name
 that is not recursive is replaced by the meet of its bodies, expanded in
 turn and sealed where the name is a definition; a reference to a
-recursive name, or to no name, stays. -/
+recursive name, or to no name, stays. A rider's body reads as the rider
+has it read (`Rider.reads`), so `open(v)` reads `v`, expanded, with
+every seal lifted, the seal of a definition's instance among them. -/
 def expandF (ds : Decls) : ℕ → Val → Val
 ```
 
@@ -4089,7 +4106,7 @@ meet of two kinds has the lower kind's parent; any other meet lifts
 each side. A reference lifts as itself, a residual the engines keep
 symbolic too. A rider is left behind, but the one a `move` makes
 (`Rider.move`), so that each arm a moved preference reads as carries
-it. -/
+it, and `open(v)`'s, so that the parent stays open where `v` is. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
   | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
@@ -7510,9 +7527,9 @@ child too.
 
 The node's seal makes data with another key beside `cmp`, `props` and
 `children` invalid, and its props and children are open. Both engines
-also hold them open against an enclosing `close()`, which needs
-`open()`, and the definition doesn't hold `open()` yet, so no row
-closes a node. The rows are x1677 on, and both engines answer every one
+also hold them open against an enclosing `close()`, as `open()` holds a
+value, which step 8 comes to, and the definition's nodes don't carry
+that mark yet, so no row closes a node. The rows are x1677 on, and both engines answer every one
 as the definition does, three calls with the wrong number of arguments
 among them.
 

@@ -2204,6 +2204,18 @@ until the phase that encodes it lands.
    then `close()` seals the place's terms as met, as the seal on an
    instance does, its own level whatever holds it open. The meet stays
    a lattice.
+   **Built 2026-11-11, `open(v)`**: the rider `Rider.opened`, which
+   `expandF` reads with every seal of its body lifted, the body expanded
+   first, so the seal on an instance is lifted with it (`Rider.reads`,
+   `Val.unseal`, moved beside `Val.unmark` from the verdict, where
+   `copy` used it), and which `Val.sealConjuncts` keeps whole, so that
+   `restrictF` answers `any` at a level where a conjunct is held open.
+   Its parent type keeps it, as a `move`'s does. A spread's template
+   keeps a seal written in it, as `copy`'s argument always has, since
+   both ports keep it on a member the data adds; both ports lift it on a
+   member the sealed map declares, which the definition doesn't. Rows
+   op0 on of `test/spec/def-alias.tsv`, 39 in all, and both ports answer
+   every one as the definition does. The bare forms stay to build.
 
 ## 8. Risks
 
