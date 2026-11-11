@@ -1699,8 +1699,15 @@ there, by `Decls.copies` in
 [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). It reads a body's
 own place in the normal form of the name's bodies, round by round as it
 reads the schema's own tree, by `Decls.bodyRoots`, so a path there that
-reads through another path reads what both engines read. Only a path a
-body writes reads that place. Where the schema writes a body's very
+reads through another path reads what both engines read. The place holds
+the templates its own links meet there (`Decls.ownLinked`), so `z: .m.k`
+beside `n: refer({k: 1}) & path(.m)` reads `1`, as in both engines.
+At a use of the name, both engines leave such a path naming nothing,
+which [#723](https://github.com/aontu-lang/aontu/issues/723) tracks. A
+link whose target another link's template makes there is an `error` in
+the definition, which
+[#664](https://github.com/aontu-lang/aontu/issues/664) tracks. Only a
+path a body writes reads that place. Where the schema writes a body's very
 path, `$."%T".x` beside a body's `.x`, the definition reads the two as
 one, which [#721](https://github.com/aontu-lang/aontu/issues/721)
 tracks.
