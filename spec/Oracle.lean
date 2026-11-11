@@ -1407,12 +1407,19 @@ def aliasPlaceCases : List (Decls × Val × Data) :=
 the body's own place, `%` and its name as a key at the top, where both
 ports hold the body: used and not, met with a conflict there and at a
 use, through a list, a member that isn't concrete, and a name declared
-twice. -/
+twice; and a chain of paths there, a path through a member that is itself
+a path, of one step and two, used, naming nothing and met with a
+conflict (#664), with a path the schema writes to a body member the
+body's own paths don't name, which names nothing, as no body's place is
+the schema's. -/
 def bodyPlaceCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
   let xy : Val := m [("x", int 1), ("y", rel 1 ["x"])]
+  let chain (y : Val) : Val := m [("x", .path [.key "a"]), ("y", y)]
+  let ak : Val := m [("a", m [("k", int 1)])]
   [([("T", xy)], m [], .map []),
     ([("T", xy)], m [("z", .alias "T")], .map []),
     ([("T", m [("x", int 1), ("y", .meet (rel 1 ["x"]) (int 2))])], m [], .map []),
@@ -1422,7 +1429,15 @@ def bodyPlaceCases : List (Decls × Val × Data) :=
     ([("T", m [("x", .string), ("y", rel 1 ["x"])])], m [("z", .alias "T")], .map []),
     ([("T", xy)], m [("z", .meet (.alias "T") (m [("x", int 2)]))], .map []),
     ([("T", m [("x", int 1)]), ("T", m [("y", rel 1 ["x"])])], m [], .map []),
-    ([("T", m [("x", int 1)])], m [("y", .path [.key "%T", .key "x"])], .map [("y", .integer 1 (by decide))])]
+    ([("T", m [("x", int 1)])], m [("y", .path [.key "%T", .key "x"])], .map [("y", .integer 1 (by decide))]),
+    ([("T", chain (rel 1 ["x", "k"]))], ak, .map []),
+    ([("T", m [("x", .path [.key "a"]), ("y", rel 1 ["x", "b"]), ("z", rel 1 ["y", "k"])])],
+      m [("a", m [("b", m [("k", int 1)])])], .map []),
+    ([("T", chain (rel 1 ["x", "k"]))], m [("a", m [("k", int 1)]), ("b", .alias "T")],
+      .map [("b", .map [("x", .map [("k", j 1)]), ("y", j 1)])]),
+    ([("T", chain (rel 1 ["x", "k"]))], m [("a", m [("j", int 1)])], .map []),
+    ([("T", chain (.meet (rel 1 ["x", "k"]) (int 2)))], ak, .map []),
+    ([("T", xy)], m [("z", .path [.key "%T", .key "y"])], .map [("z", j 1)])]
 
 /-- Relative paths, made absolute where each stands: a sibling, a climb
 of two steps and three, a key in quotes, an index into a sibling list,

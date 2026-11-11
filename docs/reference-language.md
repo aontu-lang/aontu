@@ -1697,9 +1697,12 @@ it stands, in the schema and in a body at its own place alike, from a
 copy of the body or of what the document writes at the target, placed
 there, by `Decls.copies` in
 [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). It reads a body's
-own place in the normal form of the name's bodies, by `Decls.bodyAt`,
-read once, so a path there that reads through another path names nothing
-yet, which [#664](https://github.com/aontu-lang/aontu/issues/664)
+own place in the normal form of the name's bodies, round by round as it
+reads the schema's own tree, by `Decls.bodyRoots`, so a path there that
+reads through another path reads what both engines read. Only a path a
+body writes reads that place. Where the schema writes a body's very
+path, `$."%T".x` beside a body's `.x`, the definition reads the two as
+one, which [#721](https://github.com/aontu-lang/aontu/issues/721)
 tracks.
 
 A spread's template reads its paths at each member the spread holds,
