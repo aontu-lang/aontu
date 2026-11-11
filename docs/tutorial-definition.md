@@ -2863,7 +2863,7 @@ forgives it, as step 33 shows:
 /-- Every path of the document that must name something resolves in
 the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.strictPaths S → (ds.pathIn (ds.rootsS S) p).isSome = true
+  ∀ p, p ∈ ds.strictPaths S → (ds.pathIn (ds.roundsS S).1 p (ds.roundsS S).2).isSome = true
 ```
 
 The term a path reads is then taken from the document's roots, data
@@ -2900,41 +2900,63 @@ as the call itself, which waits on `$.a`. The second reads `$.a` as
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The term a written path names in the first of the roots it names
-something in, or, for a path a body writes, at a body's own place
-(`Decls.bodyAt`), which no root holds and no path the schema writes
-reaches. -/
-def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) : Option Val :=
-  (roots.findSome? fun root => ds.pathAt root p).or (if p ∈ ds.paths then ds.bodyAt p else none)
+something in, or, for a path a body writes, at a body's own place, which
+no root holds and no path the schema writes reaches: in the first of the
+places `bs` it names something in (`Decls.bodyRoots`), and else in the
+normal form of the name's bodies (`Decls.bodyAt`). -/
+def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) (bs : List Val := []) : Option Val :=
+  (roots.findSome? fun root => ds.pathAt root p).or
+    (if p ∈ ds.paths then (bs.findSome? fun root => ds.pathAt root p).or (ds.bodyAt p) else none)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The declarations a document's paths make: each path's name, declared
 as the term at the path in the first of the roots it names something
-in, with that term's own paths read as names too. A path to nothing
-declares nothing. -/
-def Decls.ofPaths (ds : Decls) (roots : List Val) (ps : List (List Seg)) : Decls :=
-  ps.filterMap fun p => (ds.pathIn roots p).map fun w => (pathName p, w.pathsToAliases)
+in, or of the places `bs` for a path a body writes, with that term's
+own paths read as names too. A path to nothing declares nothing. -/
+def Decls.ofPaths (ds : Decls) (roots : List Val) (ps : List (List Seg)) (bs : List Val := []) : Decls :=
+  ps.filterMap fun p => (ds.pathIn roots p bs).map fun w => (pathName p, w.pathsToAliases)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The document with its paths read as names from roots: each path is
-declared as the term at it in the first root it names something in, and
-the bodies and the schema refer to the names. -/
-def Decls.withPathsFrom (ds : Decls) (S : Val) (roots : List Val) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths roots (ds.docPaths S), S.pathsToAliases)
+declared as the term at it in the first root it names something in, or
+of the places `bs` for a path a body writes, and the bodies and the
+schema refer to the names. -/
+def Decls.withPathsFrom (ds : Decls) (S : Val) (roots : List Val) (bs : List Val := []) : Decls × Val :=
+  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths roots (ds.docPaths S) bs, S.pathsToAliases)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → List Val
-  | 0 => [r ds S]
+def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → List Val × List Val
+  | 0 => ([r ds S], ds.bodyRoots ds.placedNames)
   | n + 1 =>
     let rs := ds.rounds S r n
-    let d := ds.withPathsFrom S rs
-    rs ++ [r d.1 d.2]
+    let d := ds.withPathsFrom S rs.1 rs.2
+    (rs.1 ++ [r d.1 d.2], rs.2 ++ d.1.bodyRoots ds.placedNames)
 ```
+
+Beside each round's root, a round reads the place where the definition
+puts a name's bodies, `%` and the name, which this section comes back
+to below, for each name a body's path starts at: the name's bodies met
+there, read as the schema's tree reads, under that round's
+declarations:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.bodyRoots (ds : Decls) (ns : List String) : List Val :=
+  ns.map fun n => normaliseD ds (ds.readU
+    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false))
+```
+
+Only a path a body writes reads these places, so a chain of paths at a
+body's own place reads round by round as one in the schema does. In
+`%T = {x: $.a, y: .x.k}` beside `a: {k: 1}`, the first round's place
+holds `x` as the path `$.a`, the second's holds it as `{k: 1}`, and the
+third reads `.x.k` as `1`, as both engines do.
 
 A path keeps the term the first round that reaches it holds there,
 since a later round has read that term's own paths: a path whose term
@@ -2949,13 +2971,13 @@ reads it, is the data's fault, invalid, and not an ill-formed schema:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.rootsS (ds : Decls) (S : Val) : List Val :=
+def Decls.roundsS (ds : Decls) (S : Val) : List Val × List Val :=
   ds.rounds S (fun d T => normaliseD d (d.readU T)) (ds.docPaths S).length
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.rootsD (ds : Decls) (S : Val) (j : Data) : List Val :=
+def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
   ds.rounds S (fun d T => normaliseD d (meetD d (d.readU T) j.term)) (ds.docPaths S).length
 ```
 
@@ -2964,7 +2986,8 @@ def Decls.rootsD (ds : Decls) (S : Val) (j : Data) : List Val :=
 /-- The document with its paths read as names from the schema alone,
 from its own tree, which is what the error class is judged on. -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.withPathsFrom S (ds.rootsS S)
+  let rs := ds.roundsS S
+  ds.withPathsFrom S rs.1 rs.2
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -2973,7 +2996,8 @@ def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
 the tree the data reads in, which is what the other classes are judged
 on. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.withPathsFrom S (ds.rootsD S j)
+  let rs := ds.roundsD S j
+  ds.withPathsFrom S rs.1 rs.2
 ```
 
 The verdict of a document whose paths are absolute is then the verdict
@@ -3144,12 +3168,15 @@ def Decls.bodyAt (ds : Decls) : List Seg → Option Val
 
 So `%T = {x: 1, y: .x}` reads the body's own `x`, used or not, while
 `%T = {y: .x}` reads a member the body lacks, and the path is an error,
-and `..x` in the same body climbs to the document's own `x`. The
-definition reads that normal form once, not in rounds, so a path there
-that reads through another path, `.x.k` with `x: $.a`, names nothing
-yet, where both engines read `$.a`'s `k`, which #664 tracks. Only a
-path a body writes reads the body's place, so the schema's
-`$."%T".x` names nothing, as in both engines. The schema's spreads
+and `..x` in the same body climbs to the document's own `x`. A path
+there that reads through another path, `.x.k` with `x: $.a`, reads the
+place a later round holds (`Decls.bodyRoots`), so it reads `$.a`'s `k`
+as both engines do. Only a path a body writes reads the body's place,
+so the schema's `$."%T".y` names nothing, as in both engines. Where a
+body writes the schema's very path, `.x` beside the schema's
+`$."%T".x`, the two are one path in the definition, and the schema's
+reads the body's `x`, where both engines name nothing, which #721
+tracks. The schema's spreads
 stay as written (`Val.placedT`), since a
 spread reads its relative paths at each member it holds, and a spread
 that's itself a relative path also reads where it's written, at the

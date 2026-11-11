@@ -880,18 +880,20 @@ def Decls.bodyAt (ds : Decls) : List Seg → Option Val
   | _ => none
 
 /-- The term a written path names in the first of the roots it names
-something in, or, for a path a body writes, at a body's own place
-(`Decls.bodyAt`), which no root holds and no path the schema writes
-reaches. -/
-def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) : Option Val :=
-  (roots.findSome? fun root => ds.pathAt root p).or (if p ∈ ds.paths then ds.bodyAt p else none)
+something in, or, for a path a body writes, at a body's own place, which
+no root holds and no path the schema writes reaches: in the first of the
+places `bs` it names something in (`Decls.bodyRoots`), and else in the
+normal form of the name's bodies (`Decls.bodyAt`). -/
+def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) (bs : List Val := []) : Option Val :=
+  (roots.findSome? fun root => ds.pathAt root p).or
+    (if p ∈ ds.paths then (bs.findSome? fun root => ds.pathAt root p).or (ds.bodyAt p) else none)
 
 /-- The declarations a document's paths make: each path's name, declared
 as the term at the path in the first of the roots it names something
-in, with that term's own paths read as names too. A path to nothing
-declares nothing. -/
-def Decls.ofPaths (ds : Decls) (roots : List Val) (ps : List (List Seg)) : Decls :=
-  ps.filterMap fun p => (ds.pathIn roots p).map fun w => (pathName p, w.pathsToAliases)
+in, or of the places `bs` for a path a body writes, with that term's
+own paths read as names too. A path to nothing declares nothing. -/
+def Decls.ofPaths (ds : Decls) (roots : List Val) (ps : List (List Seg)) (bs : List Val := []) : Decls :=
+  ps.filterMap fun p => (ds.pathIn roots p bs).map fun w => (pathName p, w.pathsToAliases)
 
 /-- Whether a path names a place, as every path does but a reference
 into an `emit`'s node (`Seg.node`). -/
@@ -910,48 +912,73 @@ def Decls.strictPaths (ds : Decls) (S : Val) : List (List Seg) :=
     placePath).eraseDups
 
 /-- The document with its paths read as names from roots: each path is
-declared as the term at it in the first root it names something in, and
-the bodies and the schema refer to the names. -/
-def Decls.withPathsFrom (ds : Decls) (S : Val) (roots : List Val) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths roots (ds.docPaths S), S.pathsToAliases)
+declared as the term at it in the first root it names something in, or
+of the places `bs` for a path a body writes, and the bodies and the
+schema refer to the names. -/
+def Decls.withPathsFrom (ds : Decls) (S : Val) (roots : List Val) (bs : List Val := []) : Decls × Val :=
+  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths roots (ds.docPaths S) bs, S.pathsToAliases)
+
+/-- The declared names whose own place a path the bodies write starts
+at, `%` and the name its first step. -/
+def Decls.placedNames (ds : Decls) : List String :=
+  (ds.paths.filterMap fun p => match p with
+    | .key k :: _ => if k.startsWith "%" && ds.any (fun d => "%" ++ d.1 == k) then some (k.drop 1) else none
+    | _ => none).eraseDups
+
+/-- The tree at each of the places `ns` names, a body's own place, as the
+schema's own tree reads it: the name's bodies met, at `%` and the name,
+in normal form, its calls made, as `Decls.bodyAt` reads the place. -/
+def Decls.bodyRoots (ds : Decls) (ns : List String) : List Val :=
+  ns.map fun n => normaliseD ds (ds.readU
+    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false))
 
 /-- The roots a document's paths read, round by round, `r` reading a
-document to its root: the first with its paths unread, and each after
-with its paths read as names from the roots before it. A call over a
-path makes its value the round after the path names something, and a
-path into that value names something the round after that, so each
-round reaches one more step of a chain of paths. A path keeps the term
-the first round that reaches it holds there. -/
-def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → List Val
-  | 0 => [r ds S]
+document to its root, beside the places of the bodies their own paths
+start at (`Decls.bodyRoots`): the first round with its paths unread, and
+each after with its paths read as names from the roots and the places
+before it. A call over a path makes its value the round after the path
+names something, and a path into that value names something the round
+after that, so each round reaches one more step of a chain of paths, at
+a body's own place as in the schema's tree. A path keeps the term the
+first round that reaches it holds there. -/
+def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → List Val × List Val
+  | 0 => ([r ds S], ds.bodyRoots ds.placedNames)
   | n + 1 =>
     let rs := ds.rounds S r n
-    let d := ds.withPathsFrom S rs
-    rs ++ [r d.1 d.2]
+    let d := ds.withPathsFrom S rs.1 rs.2
+    (rs.1 ++ [r d.1 d.2], rs.2 ++ d.1.bodyRoots ds.placedNames)
 
-/-- The schema's own tree: the normal form of the schema as read, before
-any data, its calls made (`Decls.readU`), in as many rounds as the
-document writes paths, since a round that reaches no new path changes
-nothing after it. The roots keep their keys as written, so that a key a
-path reaches reads where the path lands. -/
-def Decls.rootsS (ds : Decls) (S : Val) : List Val :=
+/-- The schema's own tree, with the bodies' own places: the normal form
+of the schema as read, before any data, its calls made (`Decls.readU`),
+in as many rounds as the document writes paths, since a round that
+reaches no new path changes nothing after it. The roots keep their keys
+as written, so that a key a path reaches reads where the path lands. -/
+def Decls.roundsS (ds : Decls) (S : Val) : List Val × List Val :=
   ds.rounds S (fun d T => normaliseD d (d.readU T)) (ds.docPaths S).length
 
-/-- The tree the data reads in: the normal form of the schema met with
-the data, in as many rounds. -/
-def Decls.rootsD (ds : Decls) (S : Val) (j : Data) : List Val :=
+/-- The schema's own tree, round by round (`Decls.roundsS`). -/
+def Decls.rootsS (ds : Decls) (S : Val) : List Val := (ds.roundsS S).1
+
+/-- The tree the data reads in, with the bodies' own places, which no
+data reaches: the normal form of the schema met with the data, in as
+many rounds. -/
+def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
   ds.rounds S (fun d T => normaliseD d (meetD d (d.readU T) j.term)) (ds.docPaths S).length
 
+/-- The tree the data reads in, round by round (`Decls.roundsD`). -/
+def Decls.rootsD (ds : Decls) (S : Val) (j : Data) : List Val := (ds.roundsD S j).1
+
 /-- Whether every path of the document that must name something
-resolves in the schema's own tree (`Decls.rootsS`), so that a path into
+resolves in the schema's own tree (`Decls.roundsS`), so that a path into
 a call's output resolves, the call's arguments paths or not. -/
 def Decls.resolvesB (ds : Decls) (S : Val) : Bool :=
-  (ds.strictPaths S).all fun p => (ds.pathIn (ds.rootsS S) p).isSome
+  let rs := ds.roundsS S
+  (ds.strictPaths S).all fun p => (ds.pathIn rs.1 p rs.2).isSome
 
 /-- Every path of the document that must name something resolves in
 the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.strictPaths S → (ds.pathIn (ds.rootsS S) p).isSome = true
+  ∀ p, p ∈ ds.strictPaths S → (ds.pathIn (ds.roundsS S).1 p (ds.roundsS S).2).isSome = true
 
 theorem Decls.resolvesB_iff {ds : Decls} {S : Val} : ds.resolvesB S = true ↔ ds.Resolves S := by
   simp only [Decls.resolvesB, Decls.Resolves, List.all_eq_true]
@@ -959,13 +986,15 @@ theorem Decls.resolvesB_iff {ds : Decls} {S : Val} : ds.resolvesB S = true ↔ d
 /-- The document with its paths read as names from the schema alone,
 from its own tree, which is what the error class is judged on. -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.withPathsFrom S (ds.rootsS S)
+  let rs := ds.roundsS S
+  ds.withPathsFrom S rs.1 rs.2
 
 /-- The document with its paths read as names from the data too, from
 the tree the data reads in, which is what the other classes are judged
 on. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.withPathsFrom S (ds.rootsD S j)
+  let rs := ds.roundsD S j
+  ds.withPathsFrom S rs.1 rs.2
 
 /-! ## The verdict with paths -/
 
@@ -4297,71 +4326,110 @@ theorem Decls.bodyAt_checkableA {ds : Decls} {w : Val} {p : List Seg}
         (foldl_meetBodies_checkableA _ .any fun d hd => hb d (List.mem_filter.mp hd).1))) h
   · exact absurd h (by simp)
 
-theorem Decls.pathIn_checkableA {ds : Decls} {roots : List Val} {w : Val} {p : List Seg}
+theorem Decls.pathIn_checkableA {ds : Decls} {roots bs : List Val} {w : Val} {p : List Seg}
     (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hr : ∀ root, root ∈ roots → root.CheckableA) (h : ds.pathIn roots p = some w) : w.CheckableA := by
+    (hr : ∀ root, root ∈ roots → root.CheckableA) (hbs : ∀ root, root ∈ bs → root.CheckableA)
+    (h : ds.pathIn roots p bs = some w) : w.CheckableA := by
   unfold Decls.pathIn at h
   cases hf : roots.findSome? (fun root => ds.pathAt root p) with
   | none =>
     rw [hf, Option.none_or] at h
     split at h
-    · exact Decls.bodyAt_checkableA hb h
+    · cases hg : bs.findSome? (fun root => ds.pathAt root p) with
+      | none =>
+        rw [hg, Option.none_or] at h
+        exact Decls.bodyAt_checkableA hb h
+      | some u =>
+        rw [hg, Option.some_or, Option.some.injEq] at h
+        obtain ⟨root, hm, hw⟩ := List.exists_of_findSome?_eq_some hg
+        exact h ▸ Decls.pathAt_checkableA (hbs root hm) hw
     · exact absurd h (by simp)
   | some u =>
     rw [hf, Option.some_or, Option.some.injEq] at h
     obtain ⟨root, hm, hw⟩ := List.exists_of_findSome?_eq_some hf
     exact h ▸ Decls.pathAt_checkableA (hr root hm) hw
 
-theorem Decls.ofPaths_checkableA {ds : Decls} {roots : List Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hr : ∀ root, root ∈ roots → root.CheckableA)
-    (ps : List (List Seg)) : ∀ d, d ∈ ds.ofPaths roots ps → d.2.CheckableA := by
+theorem Decls.ofPaths_checkableA {ds : Decls} {roots bs : List Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hr : ∀ root, root ∈ roots → root.CheckableA) (hbs : ∀ root, root ∈ bs → root.CheckableA)
+    (ps : List (List Seg)) : ∀ d, d ∈ ds.ofPaths roots ps bs → d.2.CheckableA := by
   intro d hd
   simp only [Decls.ofPaths, List.mem_filterMap] at hd
   obtain ⟨p, -, hp⟩ := hd
-  cases hw : ds.pathIn roots p with
+  cases hw : ds.pathIn roots p bs with
   | none => rw [hw] at hp; exact absurd hp (by simp)
   | some w =>
     rw [hw] at hp
     simp only [Option.map_some, Option.some.injEq] at hp
     rw [← hp]
-    exact pathsToAliases_checkableA (Decls.pathIn_checkableA hb hr hw)
+    exact pathsToAliases_checkableA (Decls.pathIn_checkableA hb hr hbs hw)
 
-theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {roots : List Val}
-    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hr : ∀ root, root ∈ roots → root.CheckableA) :
-    ∀ d, d ∈ (ds.withPathsFrom S roots).1 → d.2.CheckableA := by
+theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {roots bs : List Val}
+    (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hr : ∀ root, root ∈ roots → root.CheckableA)
+    (hbs : ∀ root, root ∈ bs → root.CheckableA) :
+    ∀ d, d ∈ (ds.withPathsFrom S roots bs).1 → d.2.CheckableA := by
   intro d hd
   simp only [Decls.withPathsFrom, List.mem_append, List.mem_map] at hd
   rcases hd with ⟨d', hd', rfl⟩ | hd
   · exact pathsToAliases_checkableA (hb d' hd')
-  · exact Decls.ofPaths_checkableA hb hr _ d hd
+  · exact Decls.ofPaths_checkableA hb hr hbs _ d hd
 
-/-- Every round's root is one the checker can read, where `r` reads a
-document the checker can read to one. -/
+theorem Decls.bodyRoots_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (ns : List String) :
+    ∀ root, root ∈ ds.bodyRoots ns → root.CheckableA := by
+  intro root h
+  simp only [Decls.bodyRoots, List.mem_map] at h
+  obtain ⟨n, -, rfl⟩ := h
+  refine normaliseD_checkableA hb (readU_checkableA hb (.map (fun _ _ _ hv => ?_) (fun _ h => nomatch h)))
+  simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hv
+  rw [hv.2.2]
+  exact foldl_meetBodies_checkableA _ .any fun d hd => hb d (List.mem_filter.mp hd).1
+
+/-- Every round's root, and every place a round reads, is one the
+checker can read, where `r` reads a document the checker can read to
+one. -/
 theorem Decls.rounds_checkableA {r : Decls → Val → Val}
     (hr : ∀ {d : Decls} {T : Val}, (∀ x, x ∈ d → x.2.CheckableA) → T.CheckableA → (r d T).CheckableA)
     {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
-    ∀ n, ∀ root, root ∈ ds.rounds S r n → root.CheckableA
-  | 0, root, h => by
-    simp only [Decls.rounds, List.mem_singleton] at h
-    rw [h]
-    exact hr hb hS
-  | n + 1, root, h => by
-    simp only [Decls.rounds, List.mem_append, List.mem_singleton] at h
-    rcases h with h | h
-    · exact Decls.rounds_checkableA hr hb hS n root h
-    · rw [h]
-      exact hr (Decls.withPathsFrom_bodies_checkableA hb (Decls.rounds_checkableA hr hb hS n))
-        (pathsToAliases_checkableA hS)
+    ∀ n, (∀ root, root ∈ (ds.rounds S r n).1 → root.CheckableA) ∧
+      ∀ root, root ∈ (ds.rounds S r n).2 → root.CheckableA
+  | 0 => ⟨fun root h => by
+      simp only [Decls.rounds, List.mem_singleton] at h
+      rw [h]
+      exact hr hb hS,
+    Decls.bodyRoots_checkableA hb _⟩
+  | n + 1 =>
+    have ih := Decls.rounds_checkableA hr hb hS n
+    have hd := Decls.withPathsFrom_bodies_checkableA (S := S) hb ih.1 ih.2
+    ⟨fun root h => by
+      simp only [Decls.rounds, List.mem_append, List.mem_singleton] at h
+      rcases h with h | h
+      · exact ih.1 root h
+      · rw [h]
+        exact hr hd (pathsToAliases_checkableA hS),
+    fun root h => by
+      simp only [Decls.rounds, List.mem_append] at h
+      rcases h with h | h
+      · exact ih.2 root h
+      · exact Decls.bodyRoots_checkableA hd _ root h⟩
 
-theorem Decls.rootsS_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) : ∀ root, root ∈ ds.rootsS S → root.CheckableA :=
+theorem Decls.roundsS_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) : (∀ root, root ∈ (ds.roundsS S).1 → root.CheckableA) ∧
+      ∀ root, root ∈ (ds.roundsS S).2 → root.CheckableA :=
   Decls.rounds_checkableA (fun hd hT => normaliseD_checkableA hd (readU_checkableA hd hT)) hb hS _
 
-theorem Decls.rootsD_checkableA {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
-    (hS : S.CheckableA) : ∀ root, root ∈ ds.rootsD S j → root.CheckableA :=
+theorem Decls.roundsD_checkableA {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) : (∀ root, root ∈ (ds.roundsD S j).1 → root.CheckableA) ∧
+      ∀ root, root ∈ (ds.roundsD S j).2 → root.CheckableA :=
   Decls.rounds_checkableA
     (fun hd hT => normaliseD_checkableA hd (meetD_checkableA hd (readU_checkableA hd hT) (Data.term_checkableA j)))
     hb hS _
+
+theorem Decls.rootsS_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) : ∀ root, root ∈ ds.rootsS S → root.CheckableA :=
+  (Decls.roundsS_checkableA hb hS).1
+
+theorem Decls.rootsD_checkableA {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
+    (hS : S.CheckableA) : ∀ root, root ∈ ds.rootsD S j → root.CheckableA :=
+  (Decls.roundsD_checkableA hb hS).1
 
 /-! ## Reading the links keeps a term checkable -/
 
@@ -4526,7 +4594,7 @@ theorem referPass_checkableA {ds : Decls} {r : Decls → Val → List Val} {S L 
     (hr : RootsReadable r) (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) (hL : L.CheckableA)
     (hm : miss.CheckableA) : (ds.referPass r S L miss).CheckableA := by
   have hro := hr hb hL
-  have hdp := Decls.withPathsFrom_bodies_checkableA (S := L) hb hro
+  have hdp := Decls.withPathsFrom_bodies_checkableA (S := L) (bs := []) hb hro (fun _ h => nomatch h)
   exact foldl_bodyLinks_checkableA hb hdp hm ds
     (foldl_referStep_checkableA hm _ hS (Decls.nfLinks_checkableA hb (getLastD_any_checkableA hro) _)) hb
 
@@ -4951,7 +5019,7 @@ theorem Decls.armChosen_checkableA {L1 : Decls} {r : Decls → Val → List Val}
   dsimp only
   split
   · split
-    · exact armed_checkableA (expand_checkableA (Decls.ofPaths_checkableA hd.1 (hr hd.1 hd.2) _)
+    · exact armed_checkableA (expand_checkableA (Decls.ofPaths_checkableA (bs := []) hd.1 (hr hd.1 hd.2) (fun _ h => nomatch h) _)
         (pathsToAliases_checkableA ha')).super
     · exact armed_checkableA (pathsToAliases_checkableA ha')
   · exact .nil
@@ -4973,11 +5041,11 @@ theorem Decls.armChosen_decls_checkableA {L1 : Decls} {r : Decls → Val → Lis
     · intro d h
       simp only [List.mem_map] at h
       obtain ⟨d', hd', rfl⟩ := h
-      exact armed_checkableA (Decls.ofPaths_checkableA hd.1 (hr hd.1 hd.2) _ d' hd').super
+      exact armed_checkableA (Decls.ofPaths_checkableA (bs := []) hd.1 (hr hd.1 hd.2) (fun _ h => nomatch h) _ d' hd').super
     · intro d h
       simp only [List.mem_map] at h
       obtain ⟨d', hd', rfl⟩ := h
-      exact armed_checkableA (Decls.ofPaths_checkableA hd.1 (hr hd.1 hd.2) _ d' hd')
+      exact armed_checkableA (Decls.ofPaths_checkableA (bs := []) hd.1 (hr hd.1 hd.2) (fun _ h => nomatch h) _ d' hd')
   · intro d h
     exact nomatch h
 
@@ -5388,11 +5456,15 @@ read no pattern and no format. -/
 theorem vetA_iff {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (hb' : ∀ d, d ∈ ds' → d.2.CheckableA) (hS' : S'.CheckableA) (v : Verdict) :
     vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v :=
-  vetA_iff_of (Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsS_checkableA hb hS))
-    (readR_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.rootsS_checkableA hb hS))
+  vetA_iff_of (Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.roundsS_checkableA hb hS).1
+      (Decls.roundsS_checkableA hb hS).2)
+    (readR_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.roundsS_checkableA hb hS).1
+        (Decls.roundsS_checkableA hb hS).2)
       (pathsToAliases_checkableA hS))
-    (Decls.withPathsFrom_bodies_checkableA (S := S') hb' (Decls.rootsD_checkableA (j := j) hb' hS'))
-    (readR_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S') hb' (Decls.rootsD_checkableA (j := j) hb' hS'))
+    (Decls.withPathsFrom_bodies_checkableA (S := S') hb' (Decls.roundsD_checkableA (j := j) hb' hS').1
+      (Decls.roundsD_checkableA (j := j) hb' hS').2)
+    (readR_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S') hb'
+        (Decls.roundsD_checkableA (j := j) hb' hS').1 (Decls.roundsD_checkableA (j := j) hb' hS').2)
       (pathsToAliases_checkableA hS')) v
 
 /-- Whether the checker can read the two documents `vetA` hands `vet`,
