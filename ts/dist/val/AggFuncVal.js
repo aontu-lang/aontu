@@ -29,7 +29,7 @@ class AggFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return null;
     }
     unify(peer, ctx) {
-        if (!this.stagedReady(peer, ctx, 1)) {
+        if (!this.stagedReady(ctx, 1)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);
@@ -103,7 +103,7 @@ class PickFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return null;
     }
     unify(peer, ctx) {
-        if (!this.stagedReady(peer, ctx, 2)) {
+        if (!this.stagedReady(ctx, 2)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);
@@ -195,7 +195,7 @@ class SortFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return null;
     }
     unify(peer, ctx) {
-        if (!this.stagedReady(peer, ctx, 3)) {
+        if (!this.stagedReady(ctx, 3)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);
@@ -283,7 +283,7 @@ class JoinFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return null;
     }
     unify(peer, ctx) {
-        if (!this.stagedReady(peer, ctx, 2)) {
+        if (!this.stagedReady(ctx, 2)) {
             return this.residuate(peer, ctx);
         }
         return super.unify(peer, ctx);

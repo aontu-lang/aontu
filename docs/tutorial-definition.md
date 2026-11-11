@@ -1774,7 +1774,8 @@ $ echo $?
 value and admits none, each by its one rule. They're the [top](unification.md) and the
 [bottom](unification.md) of the [lattice](unification.md). Absence,
 which step 33 reads, admits every value too, and so does the hole `_`,
-which step 27 reads, where nothing fills it:
+which step 27 reads, though a hole that nothing binds makes its schema
+an error before anything is judged:
 
 <!-- test: quote spec/Aontu/Admits.lean -->
 ```lean
@@ -2826,16 +2827,18 @@ def Seg.stepIn (s : Seg) (v : Val) : Option Seg :=
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The term at a written path in a term: each step read as text, by
-the container it meets (`Seg.stepIn`). -/
+the container it meets (`Seg.stepIn`), through a disjunction left with
+one arm (`Val.oneArm`). -/
 def Val.atW : Val → List Seg → Option Val
   | v, [] => some v
   | v, s :: p =>
-    match s.stepIn v with
+    match s.stepIn v.oneArm with
     | some t =>
-      match v.at [t] with
+      match v.oneArm.at [t] with
       | some w => w.atW p
       | none => none
     | none => none
+termination_by structural _ p => p
 ```
 
 A path's term is then `Val.atW` of the path in a root, its variables
@@ -2870,8 +2873,8 @@ it with its paths unread. Each round after declares each path as the
 term at it in the first root before that reaches it, and reads the
 document again. A call or a generator waits while a term it's handed
 waits on a reference that names nothing yet: a path not read, a name no
-round has declared, a hole, which the data fills (step 27), or a call
-that waits on one:
+round has declared, a hole a template has yet to bind (step 27), or a
+call that waits on one:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -2978,23 +2981,23 @@ of step 14 on the document with its paths read as names:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-/-- The verdict of a document whose paths are absolute, its schema `S`
-as the schema alone reads it and `S'` as the data does. It is an `error`
-where a path of `S` does not resolve in the schema's own tree, or where
-the document is an error with its paths read from the schema alone: a
-name declared nowhere, a cycle, a `nil` in the schema. Otherwise the
-paths of `S'` read from the data too, and the document is `invalid`
-where that reading is dead or an error, since the data made it so, and
-`valid` or `incomplete` as that reading is. -/
-def VetA (m : Mode) (ds : Decls) (S S' : Val) (j : Data) : Verdict → Prop
+/-- The verdict of a document whose paths are absolute, its declarations
+`ds` and schema `S` as the schema alone reads them and `ds'` and `S'` as
+the data does. It is an `error` where a path of `S` does not resolve in
+the schema's own tree, or where the document is an error with its paths
+read from the schema alone: a name declared nowhere, a cycle, a `nil` in
+the schema. Otherwise the paths of `S'` read from the data too, and the
+document is `invalid` where that reading is dead or an error, since the
+data made it so, and `valid` or `incomplete` as that reading is. -/
+def VetA (m : Mode) (ds : Decls) (S : Val) (ds' : Decls) (S' : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Resolves S ∨ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error
   | .invalid =>
     ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
-      (Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j .invalid ∨
-        Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j .error)
+      (Vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j .invalid ∨
+        Vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j .error)
   | v =>
     ds.Resolves S ∧ ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error ∧
-      Vet m (ds.withPaths S' j).1 (ds.withPaths S' j).2 j v
+      Vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j v
 ```
 
 A path that starts with dots is relative. Its first dot names the map
@@ -3028,16 +3031,104 @@ def Val.placed (pos : List Seg) : Val → Val
 ```
 
 The definition places a body at its name's own place, `%` and the name
-as a key at the top, as both engines place it:
+as a key at the top, as both engines place it. A copy is a destination
+too (ruling 26): each use of a name whose body writes a relative path
+reads a copy of the body placed where the use stands, and so does each
+path reference to a place whose terms read their own place, in the
+schema and in a body at its own place alike. Each copy is declared
+under a name of its own (`useName`, `Decls.copies`), and each meets what
+the data writes at the place it copies (`dataLit`):
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.placed (ds : Decls) (S : Val) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.placed [.key ("%" ++ d.1)])) ++ (S.bares []).map fun p => (bareName, .path p),
-    S.placedT [])
+def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Val :=
+  let rs := ds.copyNames S
+  let rt := ds.copyTargets S rs
+  let dl : List Seg → Option Val := fun p => oj.bind fun j => dataLit j (ds.writtenAt S p)
+  let own (n : String) : List Seg := [.key ("%" ++ n)]
+  (ds.map (fun d => (d.1, (d.2.atUses rs rt dl (own d.1)).placed (own d.1))) ++
+      ds.copies S rs rt dl (ds.length + S.size + 1) (S.usesAt rs rt [] ++ ds.flatMap fun d => d.2.usesAt rs rt (own d.1)) ++
+      (S.bares []).map fun p => (bareName, .path p),
+    (S.atUses rs rt dl []).placedT [])
 ```
 
-So `%T = {y: .x}` reads `$.%T.x`. No root holds a body's own place, so
+So with `%T = {v: ..x}`, `x: 1` and `a: {x: 2, b: %T}`, `a.b.v` reads
+`a.x`, 2, whichever order the document writes them in, while the body
+at its own place reads `$.x`, where it must stand too. Both engines'
+`vet` reads a use so; their evaluation reads it by the order the
+document writes the two, and a body that is itself a relative path,
+`%T = .x`, at its own place in every order, which #504 tracks.
+
+A path reference's copy holds what the document writes at its place,
+as `Decls.written` reads it: through meets, maps and lists, a name's
+bodies and each path reference on the way. A place is one a reference
+copies where the schema holds it through its members, not only through
+a template (`Decls.writes`), and one of those terms holds a relative
+path, a use of such a name, or a path reference to such a place:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.relTarget (ds : Decls) (S : Val) (rs : List String) : ℕ → List Seg → Bool
+  | 0, _ => false
+  | k + 1, p =>
+    match ds.written S p with
+    | [] => false
+    | ws => ds.writes S p && ws.any fun w => w.holdsRel || w.refs.any rs.contains ||
+        w.paths.any fun q => !relPath q && ds.relTarget S rs k q
+```
+
+The names whose uses read as copies come with the places, since each
+leads to the other: a name whose body writes a relative path, uses such
+a name, or holds a path reference to such a place:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.copyNames (ds : Decls) (S : Val) : List String :=
+  if ds.writesRel S then
+    ((List.range ds.length).foldl
+      (fun rs _ => (ds.filter fun d => d.2.holdsRel || d.2.refs.any rs.contains ||
+          d.2.paths.any fun q => !relPath q && ds.relTarget S rs (S.size + 1) q).map (·.1)) []).filter
+      fun n => !ds.recursiveB n
+  else []
+```
+
+So `%T = $.a.b` used at `c: {x: 3, d: %T}` reads `c.d.v` as 3 too, and
+the body's own copy, at `$.%T`, reads `..x` as `$.x`, which must name
+something. A use inside a body reads where it stands at the body's own
+place as well. With `%T = {u: %U}` and `%U = {w: ..x}`, the use at
+`$.%T.u` reads `$.%T.x`, which `%T` doesn't hold, so the document is an
+`error`, as both engines' `vet` reads it where `%T` comes first. Where
+`%T = $.a.b` comes first, both engines read the target's paths below
+`$.%T`, which #692 tracks.
+
+A reference that stands inside its own place, `b?: $.a` within `a`, is
+a recursion, and reads as it's written. A copy meets the data at each
+place the reading is for: the place the reference names, and
+each place a path reference on the way names, with what's left of the
+path, so with `a: $.f` the copy of `$.a.b` meets the data at `a.b` and
+at `f.b`. A copy inside a copy meets the data at the place it names
+too: with `a: {b: {e: $.f.g}}` and `c: {d: $.a.b}`, the copy at `c.d.e`
+meets what the data writes at `f.g`. The classes of the verdict other
+than `error` read the declarations with the data met in, the copies
+among them, and the `error` class reads those of the schema alone.
+
+So with `a: {x: 2, b: {v: ..x}}` and `c: {x: 3, d: $.a.b}`, `c.d.v`
+reads `c.x`, 3, in either order. What the data writes at `a.b` is part
+of what the document writes there, since `vet` against data asks what
+evaluating the two together asks, so data that sets `a.b.v` to 2 meets
+the copy's 3, and `vet` refuses it. The output evaluation generates,
+whose `a.b.v` is 2, fails `vet` against its own document for that
+reason. Both engines read so where the reference comes first, and read
+the target's paths where it writes them where the target comes first,
+which #504 tracks. A place that holds a spread whose template reads its
+member's place is such a place too, and its copy holds the template as
+written, read at the copy's own members: with
+`a: {x: 2, b: {k: {}, &: {v: ...x}}}` and `c: {x: 3, d: $.a.b}`,
+`c.d.k.v` reads `c.x`, 3. Where the target comes first, both engines
+read it where `a.b` writes it, and Go's `vet` reads it both ways, which
+#696 tracks.
+
+At its own place, `%T = {y: .x}` reads `$.%T.x`. No root holds a body's own place, so
 a path there reads in the normal form of the name's bodies, met, as
 both engines read a body there:
 
@@ -3097,7 +3188,7 @@ reads a spread at the members the schema's own tree holds, and the
 others at those of the tree the data reads in, so that a member the
 data alone supplies makes the document `invalid`, never an `error`. -/
 def VetL (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
-  VetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j) j v
+  VetA m (ds.preparedS S).1 (ds.preparedS S).2 (ds.preparedD S j).1 (ds.preparedD S j).2 j v
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -3106,9 +3197,12 @@ def VetL (m : Mode) (ds : Decls) (S : Val) (j : Data) (v : Verdict) : Prop :=
 read no pattern and no format. -/
 theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
-  vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (S' := ds.preparedD S j)
-    (Decls.placed_bodies_checkableA (S := S) (Decls.withRel_checkableA hb))
-    (Decls.prepared_checkableA rootsS_readable hb hS) (Decls.prepared_checkableA Decls.linkReader_readable hb hS) v
+  vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (ds' := (ds.preparedD S j).1)
+    (S' := (ds.preparedD S j).2)
+    (Decls.prepared_bodies_checkableA rootsS_readable rootsS_readable hb hS)
+    (Decls.prepared_checkableA rootsS_readable rootsS_readable hb hS)
+    (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS)
+    (Decls.prepared_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS) v
 ```
 
 A recursive position, `then?: $.schema.Step` inside `Step`, is a name
@@ -4497,50 +4591,50 @@ the declarations `ds` and the mode `m`, the schema read as its
 expansion with its selections made: `error` where the document refers to a name it does not
 declare, where its names break the alias-cycle rule, where an
 `ident()` stands out of its place, or where the schema's normal form,
-staged, does not stand; `invalid` where the schema read against the data
-(`Decls.readJ`), the data filling each hole the schema leaves unfilled,
-staged (`Val.staged`) so that a conflict the meet finds is `nil` and an
-arm holding one drops, fails, dead or holding a call the data leaves it
-unable to make (`Val.fails`), a call that waits only through a path
-whose body holds a hole read as waiting for the data (`Decls.dataS`),
-or refuses, read whole, the value it gives
+staged, does not stand, a hole that nothing binds among what doesn't
+(ruling 34); `invalid` where the schema read against the data
+(`Decls.readJ`), staged (`Val.staged`) so that a conflict the meet finds
+is `nil` and an arm holding one drops, fails, dead or holding a call the
+data leaves it unable to make (`Val.fails`), or refuses, read whole, the
+value it gives
 with its trials and sizes unread; `valid` where it singles out a
 value, and without the fill where the data as written is an instance of
-the visible part of the schema's normal form, staged, each part that
-waits on a hole read as `any`, too, or where `--partial` lets the
-unresolved pass; and `incomplete` otherwise. -/
+the visible part of the schema's normal form, staged, too, or where
+`--partial` lets the unresolved pass; and `incomplete` otherwise. -/
 def Vet (m : Mode) (ds : Decls) (S : Val) (j : Data) : Verdict → Prop
   | .error => ¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true
   | .invalid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      (((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = true ∨
+      (((normaliseD ds (ds.readJ S j)).staged ds).fails = true ∨
         RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds))
   | .valid =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = false ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       (m.lax = true ∨
         ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
-          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j))
+          (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j))
   | .incomplete =>
     ds.Declares S ∧ ds.Guarded ∧ ds.illFormedR S = false ∧
-      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).fails = false ∧
+      ((normaliseD ds (ds.readJ S j)).staged ds).fails = false ∧
       ¬ RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∧
       m.lax = false ∧
       ¬ ∃ j', Gen ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds).visible j' ∧
-        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j)
+        (m.fill = true ∨ Admits ds.envE j ((normaliseD ds (ds.readR S)).staged ds).visible j)
 ```
 
 Read the four in order. `error` is a document that refers to a name it
 doesn't declare, one whose names break the alias-cycle rule, one with
-an `ident()` out of the place step 8 gives it, or a schema or a
-declaration's body whose normal form doesn't stand. The clauses that
-aren't about names are one check:
+an `ident()` out of the place step 8 gives it, one with a hole that
+nothing binds (step 27), or a schema or a declaration's body whose
+normal form doesn't stand. The clauses that aren't about names are one
+check:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
-  ds.identMisplaced S || ds.bodyIll || ((normaliseD ds (ds.readR (ds.dataS S))).staged ds).illFormed
+  ds.identMisplaced S || ds.bodyIll || S.freeHole (fun n => ds.holeNames.contains n) ||
+    ((normaliseD ds (ds.readR S)).staged ds).illFormed
 ```
 
 An `ident()`'s place belongs to the text, so the check reads the
@@ -4769,26 +4863,19 @@ def Val.illFormed : Val → Bool
   | .list items _ _ => illItems items
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
-  | .meet a b => (a.fillable && b.fillable && !(a.isHole && b.isHole)) || a.illFormed || b.illFormed
+  | .meet a b => a.illFormed || b.illFormed
   | .ride _ v _ => v.illFormed
   | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
-  | .call .join args => (args.length != 1 && args.length != 2) || illItems args ||
-    (!(Val.call .join args).fillable && joinSepHeld args)
+  | .call .join args => (args.length != 1 && args.length != 2) || illItems args
   | .call .pref args => args.length != 1 || illItems args
-  | .call .each args | .call .pack args | .call .emit args | .call .apply args =>
-    if fillableHead args && args.length == 2 then illHead args else true
-  | .call f args => if (Val.call f args).fillable && f.takes args.length then illItems args else true
+  | .call _ _ => true
   | .select _ arms _ => illPats arms
   | _ => false
 ```
 
 The schema is read, `Decls.readR`, as its expansion with its
-selections made, which step 16 comes to. A call that waits only
-through a path to a hole waits for the data, which writes the place
-the path names, so the check reads the schema through `Decls.dataS`
-first, as step 27 comes to, and so does the test of whether the data
-leaves a call unmade. `invalid` is a schema that
+selections made, which step 16 comes to. `invalid` is a schema that
 stands met with the data as a term,
 `Data.term`, in a meet that is dead once staged, so that nothing could
 be the data, or in a meet alive that refuses, read whole, the value it
@@ -4842,8 +4929,7 @@ and without the fill only where the data as written is an instance of
 the schema's visible part too, so a marked member asks nothing of the
 data but that it meet the member; `--partial` makes any live meet
 `valid`. `incomplete`
-is what remains: a live meet that singles out nothing, or a fill the
-data lacks. `vet` computes the verdict, and `vet_iff` admits it on
+is what remains: a live meet that singles out nothing. `vet` computes the verdict, and `vet_iff` admits it on
 checkable terms, as `check_iff` and `gen_iff` do for theirs.
 
 Three theorems say what the words mean:
@@ -4851,11 +4937,10 @@ Three theorems say what the words mean:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- Without the fill, `valid` is `Instance`: the data as written is an
-instance of the visible part of the schema as read, each part that
-waits on a hole read as `any`, since the data fills it. -/
+instance of the visible part of the schema as read. -/
 theorem vet_strict_valid_instance {m : Mode} {ds : Decls} {S : Val} {j : Data} (hf : m.fill = false)
     (hp : m.lax = false) (hj : j.WellFormed) (h : Vet m ds S j .valid) :
-    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible.waitAny j := by
+    Instance ds.envE ((normaliseD ds (ds.readR S)).staged ds).visible j := by
   obtain ⟨-, -, -, -, -, hp' | ⟨_, -, hf' | hA⟩⟩ := h
   · rw [hp] at hp'
     exact nomatch hp'
@@ -4884,14 +4969,14 @@ data, the conflicts the meet finds read (`Val.staged`), refuses the data
 as written, or, its trials and sizes unread, the value it would single
 out, or holds a call the data leaves the reading unable to make. -/
 theorem vet_invalid_refuses {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : Vet m ds S j .invalid) :
-    Refuses ds.envE j ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds) j ∨
+    Refuses ds.envE j ((normaliseD ds (ds.readJ S j)).staged ds) j ∨
       RefusedAt ds j ((normaliseD ds (ds.readJ S j)).staged ds) ∨
-      ((normaliseD ds (ds.readJ (ds.dataS S) j)).staged ds).illFormed = true := by
+      ((normaliseD ds (ds.readJ S j)).staged ds).illFormed = true := by
 ```
 
 So `vet --no-fill` answers `valid` exactly for an instance of the
 schema's visible part, step 2's question where the schema holds no
-mark and no part that waits on a hole, which the data fills (step 27);
+mark;
 `vet` answers it for a filled value that is an instance of the visible
 part of the schema read against the data; and `invalid` refuses the
 data as written, the meet's conflicts read, or as filled, where a fill
@@ -4943,7 +5028,7 @@ example : vet {} [] (.map [("x", false, .integer)] none false) (.map []) = .inco
 no declaration, where a document reads as itself, its visible part the
 normal form of `[*1]`, staged. -/
 example : Instance (Decls.envE [])
-    ((normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).staged []).visible.waitAny
+    ((normaliseD [] (Decls.readR [] (.list [.pref 1 (.lit (.num (.integer (.of 1))))] none false))).staged []).visible
     (.list [.integer 2]) :=
   vet_strict_valid_instance (m := { fill := false }) (ds := []) rfl rfl (by decide)
     ((vet_iff (m := { fill := false }) (ds := []) (by decide) (by decide) .valid).mp (by decide))
@@ -5603,8 +5688,8 @@ def selectArm (ds : Decls) (x : Data) : List (Val × Val) → Option Val → Val
 ```
 
 and a term reads with its selections made, where one whose scrutinee
-generates nothing stays, and generates nothing, as a `match` on an
-unfilled hole does. The reading carries `b`, the member a hole in a
+generates nothing stays, and generates nothing, as a `match` on a
+scrutinee that waits does. The reading carries `b`, the member a hole in a
 template reads as, which step 27 covers, and `here`, the position a
 term stands at, which step 29 covers:
 
@@ -5644,9 +5729,10 @@ arguments resolved, is the term `callTerm` makes of it. What a call, a selection
 a `filter` and a generator make carries the moves the values they read
 hold (`Val.rideMoves`), so that a `move` another form reads still hides
 its source, as both ports make it, but a call whose value holds its
-argument already (`Fn.holdsArg`). A spread has no
-hole, and a `filter`'s condition and a template are read for their own
-members, so none of them is read for `b`. Each `key(n)` reads `here`, by
+argument already (`Fn.holdsArg`). A spread binds no hole and no
+generator binds one in a spread's template, so a hole there is one
+nothing binds (ruling 34), and a `filter`'s condition and a template
+are read for their own members, so none of them is read for `b`. Each `key(n)` reads `here`, by
 `keyUpAt`: a template stands at the position its instance lands at, the
 member's index or key below the call, and a `filter`'s condition where
 the member it tries lands, under its key or at the index it takes among
@@ -7508,471 +7594,92 @@ sum of the list the call reads. Rows from rn69 on of
 template, a fold, a mark around the whole template and a preference,
 and both engines answer every one as the definition does.
 
-Outside a template, a hole no generator fills admits every value, as
-`any` does, and a call's peer fills a hole in the call. Write
-`fill.aontu`:
+Outside a template, nothing binds a hole: `&` is a meet, and a meet
+never fills one. A hole nothing binds is an error of the schema
+wherever it stands, before any data is read. Write `unbound.aontu`:
 
-<!-- test: file fill.aontu -->
+<!-- test: file unbound.aontu -->
 ```aontu
-loud: upper(_) & "a"
-next: 2 & add(_, 1)
-names: ["a" "b"] & each(_, upper(_))
-pair: [upper(_) "z"] & ["a"]
-nest: ({ a:upper(_) } & { b:1 }) & { a:"x" }
-name: upper(_)
-name: "alice"
-caps: { &: upper(_) } & { a:"x" b:"y" }
+v: upper(_) & "a"
 ```
 
-and evaluate it:
+and `unbound-data.aontu`:
 
-<!-- test: run -->
-```sh
-$ aontu fill.aontu
-{
-  "caps": {
-    "a": "X",
-    "b": "Y"
-  },
-  "loud": "A",
-  "name": "ALICE",
-  "names": [
-    "A",
-    "B"
-  ],
-  "nest": {
-    "a": "X",
-    "b": 1
-  },
-  "next": 3,
-  "pair": [
-    "A",
-    "z"
-  ]
-}
-```
-
-That isn't a meet, since `"a"` alone is no `"A"`. The definition reads
-the fill before any meet means anything, so `&` stays a meet.
-`Val.filled` reads the meets beneath a meet first. A map's declarations
-of one key are a meet too, read in the order they're written
-(`joinFields`), as `name` is:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.filled : Val → Val
-  | .meet a b => a.filled.meetFilled b.filled
-  | .map fs spread closed =>
-    .map (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).1
-      (spreadAll (joinFields [] (filledFields fs)) (tmplSpread spread)).2 closed
-```
-
-It then reads a meet with one side waiting on a hole and the other not
-as the waiting side, with the hole bound to the other, and two holes as
-one:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.meetFilled (a b : Val) : Val :=
-  if a.fillable && !b.fillable then a.bindHole b
-  else if b.fillable && !a.fillable then b.bindHole a
-  else if a.isHole && b.isHole then .hole
-  else .meet (fillWith (fun q => a.fillMeet q) a.fillable b).1 (fillWith (fun q => a.fillMeet q) a.fillable b).2
-```
-
-Either side of the meet may be the one that waits, so `1 & _` is `1`,
-as `_ & 1` is, and `{a: 1} & {a: _}` is `{a: 1}`, as both engines
-answer.
-
-A side waits on a hole if it's the hole, or a call over one through
-its arguments or a rider:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.fillable : Val → Bool
-  | .hole => true
-  | .call .each args | .call .pack args | .call .emit args | .call .apply args => fillableHead args
-  | .call _ args => fillableItems args
-  | .ride _ v _ => v.fillable
-  | .link v _ => v.fillable
-  | _ => false
-```
-
-A generator waits on a hole in its data, as `names` does, and never on
-one in its template, which it binds to each member. A container waits
-on no hole of its members, but it meets its peer member by member, by
-position or by key, as `pair` does. It reads through its own meets and
-riders, each side in turn, and finds the peer's member through the
-peer's, as `nest` does. The peer a member's hole takes is spent, so it
-reads as `any`, and each container is kept whole, so a seal and a
-spread stand. Two sides that both wait meet as `nil`, which comes
-later:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.fillMeet (a b : Val) : Val × Val :=
-  if a.fillable && !b.fillable then (a.bindHole b, .any)
-  else if b.fillable && !a.fillable then (.any, b.bindHole a)
-  else if a.fillable && !(a.isHole && b.isHole) then (.nil, .any)
-  else match a with
-    | .map fs sa ca =>
-      fillMapWith sa ca (fillFields fs b)
-        (match sa with
-          | some (.select .key _ (some t)) => fun p => t.instAt p
-          | some t => fun p => t.instAt p
-          | none => id)
-        (match sa with
-          | some (.select .key arms (some t)) =>
-            if t.holdsFill && !t.waitsTop && arms.all Val.filledArm then some (arms, t, fun p => t.fillMeet p)
-            else none
-          | some t => if t.holdsFill && !t.waitsTop then some ([], t, fun p => t.fillMeet p) else none
-          | none => none)
-```
-
-A list is read the same way by position (`fillListWith`), and a meet
-or a rider is read through. The first `match` hands the map its
-spread's template met with a member, and the second a spread's
-template that holds a member waiting on a hole, both of which come
-later.
-
-The peer's member under a key is the meet of its declarations of the
-key, or of the members its sides hold, read through a rider as through
-a meet:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.memberAt : Val → String → Option Val
-  | .map fs _ _, k => declsAt k fs
-  | .meet u v, k =>
-    match u.memberAt k, v.memberAt k with
-    | some p, some q => some (.meet p q)
-    | some p, none => some p
-    | none, q => q
-  | .ride _ v _, k => v.memberAt k
-  | .link v _, k => v.memberAt k
-  | _, _ => none
-```
-
-A list's element is found among the elements that stand, since a
-marked one holds no position, so `[upper(_)] & [hide("a"), "b"]` is
-`["B"]`, as both engines answer.
-
-So `meta({a: upper(_)}, {d: 1}) & {a: "x"}` reads as
-`meta({a: "X"}, {d: 1})`, since a rider is transparent, and
-`close([upper(_)]) & ["a"]` as the sealed `["A"]`, since a seal is part
-of its container, as both engines answer.
-
-A disjunction is met arm by arm, the other side met into each arm
-(`fillArms`, `leafArms`), so `(upper(_) | "x") & "a"` reads as
-`upper("a") | ("x" & "a")`, which is `"A"`, as both engines answer.
-A call whose peer is the disjunction takes it whole, so
-`upper(_) & ("a" | "b")` is an error in the definition and in both
-engines. An arm whose call the data leaves unmade drops, as a
-conflict's arm does, so `v: add(_, 1) | "x"` passes `v: "x"`: the
-data fills the first arm as `add("x", 1)`, which the reading can't
-make, and the second arm stands. A lone preference is met as the two
-arms the meet reads it as, its preferred arm filled and its parent arm
-(`Val.super`) met, so `v: *upper(_)` passes `v: "a"`, and
-`v: *add(_, 1)` passes `v: "x"`, which the parent arm admits. Met with
-a peer, `*upper(_) & "a"` gives `"A"`, its preferred arm filled, so
-`vet` passes `v: "A"` against it, and `v: "a"` through the parent arm,
-as both engines answer. A
-disjunction on the other side is met arm by arm too, as the meet
-distributes it (`fillWith`), so `{a: upper(_)} & ({a: "a"} | {a: "b"})`
-fills each arm's member and passes `{a: "A"}`, as both engines answer.
-A term that waits on a hole takes the disjunction whole instead.
-
-A spread whose template waits on a hole fills each member it meets,
-once, as `caps` does: its own map's or list's members (`spreadFields`),
-a peer's (`spreadOnto`), and, where the peer holds the spread, the
-map's own (`peerFill`). The member reads as the template with the hole
-bound to it, and the spread then reads the key as `any`:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def spreadWith (arms : List (Val × Val)) (t : Val) (k : String) : Val :=
-  .select .key ((.lit (.str k), .any) :: arms) (some t)
-```
-
-So `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, since the second
-`a` meets the filled `add(1, 1)`, and `({&: add(_, 1)} & {a: 1}) & {b: 5}`
-fills `b` with `6`, as both engines answer.
-
-When a template is a meet or a disjunction, it waits where one of its
-sides or arms does (`Val.waitsTop`). The fill then keeps its meets, its
-arms and its riders as written and fills each term beneath them
-(`Val.tmplNode`), so that its own meet doesn't fill a hole at its
-position. The member meets each side and each arm in turn, and one that
-waits takes the member as its argument. Any other side meets the member
-as two terms at one position (`f`), so a hole beneath it is filled too:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Val.instWith (f : Val → Val × Val) : Val → Val → Val
-  | .meet x y, p => .meet (x.instWith f p) (y.instWith f p)
-  | .or arms, p => .or (instArmsWith f arms p)
-  | .ride k v r, p =>
-    if v.waitsTop then .ride k (v.instWith f p) r else .meet (f (.ride k v r)).1 (f (.ride k v r)).2
-  | x, p => if x.fillable then x.bindHole p else .meet (f x).1 (f x).2
-```
-
-`Val.instAt` is this reading with `Val.fillMeet` as `f`, written out
-side by side inside the fill's own recursion, since each side is a term
-the fill reads beneath the template. A peer's spread meets the map's own
-members through `Val.instWith`, each side met as the member meets it.
-
-Write `loud.aontu`:
-
-<!-- test: file loud.aontu -->
+<!-- test: file unbound-data.aontu -->
 ```aontu
-names: { &: upper(_) & _ } & { a:"WEB" b:"API" }
-```
-
-and evaluate it:
-
-<!-- test: run -->
-```sh
-$ aontu loud.aontu
-{
-  "names": {
-    "a": "WEB",
-    "b": "API"
-  }
-}
-```
-
-Each member meets `upper` of itself, so the template admits the members
-already in upper case, and `b: "api"` would be a conflict.
-`{&: upper(_) & "a"}` admits none, since `upper(p)` is never `"a"`, and
-`{&: add(_, 1) & number}` refuses `{a: 1}`, since `number` meets `1`
-beside `add(1, 1)`, as both engines answer. A container inside the
-template fills from its own meets first, as any other term does, so
-`{&: {n: upper(_) & "a"}}` passes `{a: {n: "A"}}`, and so does
-`{&: upper(_) | {n: upper(_) & "a"}}`, whose second arm is `{n: "A"}`.
-
-A container side and the member meet member by member, so a hole
-beneath the side takes the member's own member there. Write `codes.aontu`:
-
-<!-- test: file codes.aontu -->
-```aontu
-codes: { &: _ & { n:upper(_) } } & { a:n:"WEB" b:n:"API" }
-```
-
-and evaluate it:
-
-<!-- test: run -->
-```sh
-$ aontu codes.aontu
-{
-  "codes": {
-    "a": {
-      "n": "WEB"
-    },
-    "b": {
-      "n": "API"
-    }
-  }
-}
-```
-
-The hole beside the container takes the whole member, and the one
-beneath it the member's `n`, so `a:n:"web"` would be a conflict,
-`"web"` meeting `"WEB"`. The same holds where the spread is the data's,
-the map's own or a peer's on either side of a meet, and in a list, as
-both engines answer. A bare `_` as the template takes each member as
-it stands, so `{&: _} & {a: 1}` is `{a: 1}`. The rows are dt0 on.
-
-A template that holds its hole inside a container fills each member
-the same way, once, but member by member: the template meets the
-member through `Val.fillMeet` itself. Write `held.aontu`:
-
-<!-- test: file held.aontu -->
-```aontu
-users: { &: { name:upper(_) } } & {
-  ann: name: "ann"
-  bob: { name:"bob" role:"admin" }
-}
-```
-
-and evaluate it:
-
-<!-- test: run -->
-```sh
-$ aontu held.aontu
-{
-  "users": {
-    "ann": {
-      "name": "ANN"
-    },
-    "bob": {
-      "name": "BOB",
-      "role": "admin"
-    }
-  }
-}
-```
-
-The `match` above reads the template inside the spread, so the fill's
-recursion stays on a part of the term (`Val.holdsFill`, `heldOnto`).
-It meets a peer's members, the map's own (`heldFields`), and the fields
-a peer's spread meets (`Val.tmplAt`). A member that is a disjunction,
-a peer's or the map's own, is met arm by arm (`fillWith`), so
-`{&: {n: upper(_)}} & {a: ({n: "x"} | {n: "y"})}` passes
-`{a: {n: "X"}}`, as both engines answer. The template meets each
-member once, so a later meet adds to a member it has filled and doesn't
-fill it again: `({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives
-`n: 2`, as both engines answer in the rows from hv384 on.
-
-The fill reads every meet but one where a hole is bound, in a
-generator's template, an `emit`'s table or a `filter`'s condition. So
-it fills a meet in a `match`'s result or default and in a `filter`'s
-source, as both engines do, and one in a `match`'s scrutinee or
-pattern, a size or a trial. Both engines fill those too:
-`len(add(_, 1) & 2)` refuses `["a"]` as `len(3)` does, and
-`contains(add(_, 1) & 0)` refuses `[2]`, in the rows from hv411 on. A
-call waits
-on no hole that a container argument holds (`Val.fillable`), and its
-peer fills only the holes the call waits on (`Val.bindHole`). So
-`sum([_, 1]) & 3` is an error, `join([_, "b"], _) & "-"` binds `"-"` as
-the separator and leaves the list's hole open, and
-`v: join(["a", _], "-") & "b"` refuses `v: "a-b"`, as both engines
-answer in the rows from hv366 on. Nothing makes a call that computes
-from its arguments' values over such a list, so the schema doesn't
-stand (`Val.illFormed`), and `v: sum([_, 1])` is an error against any data,
-as both engines answer in the rows from dh0 on. A disjunction drops
-such an arm, and the list's own meet fills its hole, so
-`v: sum([_, 1]) | 4` passes `v: 4` and `v: sum([_, 1] & [2, 1])` passes
-`v: 3`. A call that takes its argument as a value makes it whatever the
-list holds, so `v: super([_])` passes `v: [1]` and refuses `v: "x"`,
-and a bound reads such a list as outside its domain, which admits
-nothing. But `neq` reads the list's members as the values it refuses,
-so a hole among them is one nothing fills, and `v: neq([1, _])` is an
-error, as both engines answer in the rows from dr0 on
-(`readThroughCases`). `Val.super` reads a call that waits as `any`, so
-`super` makes a list that holds one too: `v: super([upper(_)])` passes
-`v: [3]` and `v: ["x"]` and refuses `v: 3`, in the rows from dr57 on.
-A `join` over such a list stands, as `Val.illFormed` exempts
-it, which is why the preceding `join` refuses rather than fails, but a
-`join` whose separator is a list or a map that holds a hole doesn't
-stand where it waits on no hole of its own (`joinSepHeld`), so
-`v: join(["a", _], [_])` is an error. A hole a path names is the
-data's to fill, as the data writes the place the path names. So the
-verdict reads the schema with each call that waits only through such a
-path read as waiting for the data (`Decls.dataS`, through
-`Val.dataRead` and `Decls.dataNames`), both where it asks whether the
-schema stands and where it asks whether the data leaves a call unmade.
-Then `v: sum($.x)` beside `x: [_, 1]` passes data that writes `x` and is
-`incomplete` against data that doesn't, as both engines answer in the
-rows from dp0 on. The verdict reads a path to a list that holds a
-`key(n)` as written, so a call over one stays an error, and so does a
-call over a list that holds a written hole beside such a path,
-`v: sum([_, $.h])` beside `h: _`, as the written hole is one no data
-reaches. `+` joins two lists as written
-(`plusOf`), whatever their elements hold, so the meet fills a hole that
-an operand list holds member by member, and a `+` waits only on a hole
-among its operands. So `(["a", _] + ["c"]) & ["a", "b", "c"]` is
-`["a", "b", "c"]`, and `([_] + _) & ["a"]` binds `["a"]` as the second
-operand and leaves the first list's hole for the data to fill, as both
-engines answer in the rows from hv450 on. The fill joins a `+` over two
-lists before it meets them (`joinedArgs`), so the meet fills a call's
-hole in an operand list from its member:
-`([upper(_)] + ["c"]) & ["a", "c"]` is `["A", "c"]`, as both engines
-answer in the rows from hv468 on. The fill keeps a `+` whose right list
-holds a `key()` as written, as the definition reads `key()` by position
-after the fill, so its index reads where it's written, and a call over a
-hole beside it stays open, where both engines fill it, which #578
-tracks. It keeps a `+` over a list with a spread as written too, as the
-spread meets the list's elements before the join, so
-`[&: string, 1] + []` is an error, as both engines answer. A call over a container whose
-argument is the hole waits on it like any other, so `sum(_) & [1, 2]`
-is `3`, and so does `join(["a", "b"], _)`, whose separator is the hole.
-The data fills such a hole in `vet` too, so `v: sum(_)` passes
-`v: [1, 2]` and refuses `v: 3`, as both engines answer in the rows from
-dv201 on.
-
-The fill follows the document's grouping: `upper(_) & ("a" & "a")`
-reads as `upper("a")`, which is `"A"`. Both engines read a conjunction
-in the order it's written instead, so they answer that with a
-conflict, and `each(_, upper(_)) & ["a"] & ["A"]` with an error, which
-#512 tracks. A group that fills its own hole is one both engines read
-first, as it's grouped (`Val.fillMeet`), so `upper(_) & (_ & "A")` is
-`"A"`, in the rows from dg126 on. The rows are hv0 on, and both engines
-answer every one as the definition does.
-
-A hole that no peer in the document fills waits (`Val.pending`), and
-`vet` reads the schema against the data, the data met last, so the data
-fills it:
-
-<!-- test: quote spec/Aontu/Verdict.lean -->
-```lean
-def Decls.readJ (ds : Decls) (S : Val) (j : Data) : Val :=
-  resolveD ds none (some []) ((ds.readR S).meetFilled j.term)
-```
-
-The call takes the data as its argument rather than meeting it, so the
-data passes wherever the call can be made over it. Write `wait.aontu`:
-
-<!-- test: file wait.aontu -->
-```aontu
-v: upper(_)
-n: add(_, 1)
-```
-
-and `wait-data.aontu`:
-
-<!-- test: file wait-data.aontu -->
-```aontu
-v: "a"
-n: 2
+v: "A"
 ```
 
 and vet the data against it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet wait.aontu wait-data.aontu
-verdict: valid
+$ aontu vet unbound.aontu unbound-data.aontu
+verdict: error
+
+$.v: hole_unbound [parse]
+  [aontu/hole_unbound]: Cannot parse value at path $.v
+  schema: unbound.aontu:1:10 (_)
+$ echo $?
+4
 ```
 
-So `n: add(_, 1)` passes `n: 3` as well, and refuses `n: "b"`, which
-leaves the call unmade (`Val.fails`), as both engines answer. A hole
-the data leaves out is `incomplete`, and `valid` under `--partial`. The
-rows are dv0 on, an arm that does not stand in rows da0 on, and both
-engines answer every one as the definition does.
+The definition asks whether a term holds such a hole as it's written
+(`Val.freeHole`): the hole, at any depth, but in the template of a
+generator or an `apply` and in a `filter`'s condition, whose holes
+those bind:
 
-A call met with a hole, as in `upper(_) & _`, or with another call that
-waits is an error, since neither fills the other, though `_ & _` meets
-as one hole. The fill reads such a meet as `nil` wherever it meets two
-sides that wait, and a meet of two such sides as `nil` too
-(`Val.fillMeet`), so no grouping and no third side repairs it. Write
-`pair.aontu`:
-
-<!-- test: file pair.aontu -->
-```aontu
-v: (upper(_) & _)|"x"
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Val.freeHole (h : String → Bool) : Val → Bool
+  | .hole => true
+  | .alias n => h n
+  | .call .each (d :: ts) | .call .pack (d :: ts) | .call .apply (d :: ts) => d.freeHole h || tmplItems h ts
+  | .call .emit [d, .alias _] => d.freeHole h
+  | .call .emit (d :: ts) => d.freeHole h || tmplItems h ts
+  | .call _ args => freeItems h args
+  | .filter s c => s.freeHole h || c.tmplFree h
+  | .map fs spread _ => freeFields h fs || freeOpt h spread
 ```
 
-and evaluate it:
+A template counts only what its binder doesn't bind (`Val.tmplFree`):
+a hole in a spread's template, which binds none, and a name whose body
+holds a hole, since a hole binds only where it's written. A name is
+such a name when its body holds one, read to a fixed point, so a name
+that uses such a name is one too:
 
-<!-- test: run -->
-```sh
-$ aontu pair.aontu
-{
-  "v": "x"
-}
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.holeNames (ds : Decls) : List String :=
+  (List.range ds.length).foldl
+    (fun hs _ => (ds.filter fun d => d.2.freeHole fun n => hs.contains n).map (·.1)) []
 ```
 
-The first arm is `nil`, so it drops as a conflict's arm does, as both
-engines answer. `(upper(_) & _) & "x"` is an error in the definition
-and in both engines, where reading through the group would fill
-`upper(_)` with `"x"`, and since two holes meet as one, so is
-`(_ & _) & upper(_)`. So is `"x" & (upper(_) & _)`, the literal written
-first: both engines refuse such a group before they flatten the meet
-around it. The rows are dg0 on, and both engines answer
-every one as the definition does. The definition reads a spread's
-template of that shape, as in `{&: upper(_) & _}`, as a template
-instead, each member meeting each side, as `Val.instAt` has it earlier
-in this step.
+and the schema doesn't stand where the document holds either:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.illFormedR (ds : Decls) (S : Val) : Bool :=
+  ds.identMisplaced S || ds.bodyIll || S.freeHole (fun n => ds.holeNames.contains n) ||
+    ((normaliseD ds (ds.readR S)).staged ds).illFormed
+```
+
+So `v: upper(_) | "x"` is an error too, its arm read as written, and so
+is `x: apply("a", %F)` beside `%F = upper(_)`, as a name doesn't carry
+its body's binding. A name nothing uses holds its hole harmlessly, and
+an `emit` reads a table that is a name as its rules (step 40). With
+nothing to fill a hole, a meet is only a meet, and `vet` meets the data
+with the schema as it meets any two values:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def Decls.readJ (ds : Decls) (S : Val) (j : Data) : Val :=
+  resolveD ds none (some []) (.meet (ds.readR S) j.term)
+```
+
+The rows are hv0 on of `test/spec/def-call.tsv` and dp0 on of
+`test/spec/def-path.tsv`, and both engines answer every one as the
+definition does, with the code `hole_unbound`.
 
 ## 28. A map from a template
 
@@ -9360,20 +9067,35 @@ def Val.perMember : Val → Bool
 
 At each position of the tree, each such spread that lands there, as
 step 36 reads a link, whether written there, in a template that holds
-the position or where a path reference copies it from, meets its
-template at each member the tree holds there, placed at the member,
-and the spread itself admits any member:
+the position, in the body of a name used there or where a path
+reference copies it from, meets its template at each member the tree
+holds there, placed at the member, and the spread itself admits any
+member:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Val.spreadInst (root s : Val) (p : List Seg) (t : Seg) : Option Val :=
-  root.putW (p ++ [t]) ((s.atKey t.text).placed (p ++ [t])).neutral
+def Val.spreadInst (root s : Val) (base p : List Seg) (t : Seg) : Option Val :=
+  root.putW (p ++ [t]) ((s.atKey t.text).placed (base ++ p ++ [t])).neutral
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Val.membersRead (P root : Val) : Val :=
-  if P.perMembers then (root.positions.flatMap (P.instancesAt root)).foldl .meet P.neutral else P
+def Decls.membersRead (ds : Decls) (P root : Val) (base : List Seg) : Val :=
+  if P.perMembers || ds.any (·.2.perMembers) then
+    (root.positions.flatMap (ds.instancesAt P root base)).foldl .meet P.neutral
+  else P
+```
+
+The definition reads a name's body at its own place too, `%` and its
+name, at each member the normal form of the name's bodies holds there, so `%H = {k: {}, &: {url: .name}}`
+reads `$.%H.k.name`, which names nothing, and the document is an error
+whether or not anything uses `%H`, as both engines read it, while
+`%H = {&: {url: .name}}` holds no member there and reads nothing:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.ownRead (ds : Decls) (d : String × Val) : Val :=
+  ds.membersRead (ds.armsRead (ds.ownRoot d) [.key ("%" ++ d.1)] [] d.2) (ds.ownRoot d) [.key ("%" ++ d.1)]
 ```
 
 The tree is the schema's own for the error class, and the one the data
@@ -9385,14 +9107,206 @@ absolute path in a template names, the same at every member:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) : Decls × Val :=
-  ((ds.linked S rl).1, (ds.linked S rl).2.membersRead (ds.spreadRoot S rl r))
+def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (oj : Option Data := none) :
+    Decls × Val :=
+  let L := ds.linked S rl oj
+  let root := ds.spreadRoot S rl r oj
+  let isBody (n : String) : Bool := ds.withRel.any (·.1 == n)
+  let places := L.1.usePlaces L.2
+  let orNames := (L.1.filter fun d => !isBody d.1 && !(d.2.armNodes []).isEmpty).map (·.1)
+  let T := L.2.unfoldAt orNames.contains fun n => expandF L.1 1 (.alias n)
+  let P := (L.1.membersRead (L.1.armsRead root [] [] T) root []).distributed
+  let ns := P.armNodes []
+  let armRoot (n : List ℕ × List Seg × Val) (a : Val) : Val := L.1.treeAt r (P.chooseAt n.1 a) n.2.1
+  let reached := L.1.reached T root ++ L.1.armsReached root [] T ++
+    (L.1.filter (isBody ·.1)).flatMap (fun b =>
+      L.1.reached b.2 (L.1.ownRoot b) ++ L.1.armsReached (L.1.ownRoot b) [] b.2) ++
+    (L.1.filter (!isBody ·.1)).flatMap (fun c =>
+      ((places.lookup c.1).map fun q => L.1.armsReached root q c.2).getD []) ++
+    ns.flatMap fun n => n.2.2.nodeArms.flatMap fun a =>
+      L.1.reached a.2 (armRoot n a.2) ++ L.1.armsReached (armRoot n a.2) [] a.2
+  let ds' : Decls := L.1.map fun d =>
+    (d.1, if isBody d.1 then (L.1.ownRead d).distributed
+      else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2)
+  let armUses := (List.range L.1.length).foldl
+    (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
+    (ns.flatMap fun n => n.2.2.nodeArms.flatMap (·.2.refs))
+  L.1.readArms ds' r P ns armRoot isBody (armUses ++ orNames)
 ```
+
+A declaration's own such templates admit any member wherever the
+reading takes each where it lands: a body at its own place, and a copy
+where its use stands and the reading reaches it (`Decls.reached`). A copy whose use
+stands where the reading doesn't go, in a disjunction's arm, keeps its
+template as written, as a template written there does. So `%H = {&: {url: .name}}` used at `hosts`, beside
+`hosts: {a: {name: "x"}}`, reads `hosts.a.url` as `"x"`, as both
+engines do.
+
+A selection's result stands where the selection does, so a template in
+it reads its member's place at each member the tree holds there, and
+the tree, read with its selections made, holds the members of the
+result the selection takes. With `kind: "web"`, `hosts:
+match($.kind, "web", {&: {url: .name}}, "db", null)` reads each host's
+`url` as its own `name`, as both engines do. The definition reads each
+result at those members, the ones a result the selection doesn't take
+never meets. A body at its own place reads its selections there, and a copy
+reads them where the document uses it, so `%H = match(...)` used at
+`hosts` reads the same:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Val :=
-  (ds.prepared S (ds.linkReader S j) fun d T => d.rootsD T j).2
+def Decls.arPairs (ds : Decls) (root : Val) (base pos : List Seg) : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps =>
+    (p, ds.membersRead (ds.armsRead root base pos r) ((root.at pos).getD .any) (base ++ pos)) ::
+      ds.arPairs root base pos ps
+```
+
+A disjunction's arm holds the disjunction's place only where the data
+takes it, so a path written in an arm reads in the document with that
+arm in the disjunction's place. Over `hosts: {a: {name: "x", url:
+"y"}}`, `hosts: {a: {name: "x", url: .name}} | {a: {url: string}}`
+reads the first arm's `url` as `"x"`, which refuses the data, and the
+second arm takes it, so the document is `valid`. The definition reads
+each name the arm uses as its bodies first, so a path in a name's body
+reads the same, and reads the arm's paths as names of the arm's own,
+declared from that document's roots. An arm whose path names nothing
+there is `nil`, as both engines drop it, and so is one whose path names
+a dead term, since the data kills the arm there: over `name: "y"`, the
+first arm's `name` is dead, and an arm `{a: {name: string, url:
+string}}` beside it takes the data:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.armChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : Val → Decls × Val) (pre : String)
+    (pos : List Seg) (root a : Val) (parent : Bool) : Val × Decls :=
+  let a' := L1.membersRead (L1.armsRead root pos [] (expandF L1 (a.size + L1.bodiesSize + 1) a)) root pos
+  let roots := r (doc a').1 (doc a').2
+  let ps := (List.range ((doc a').1.docPaths (doc a').2).length).foldl
+    (fun acc _ => (acc ++ acc.flatMap fun p =>
+      ((doc a').1.pathIn roots p).toList.flatMap fun w => w.paths.filter placePath).eraseDups)
+    (a'.paths.filter placePath).eraseDups
+  if ((a'.forgive.paths.filter placePath).all fun p => ((doc a').1.pathIn roots p).isSome) &&
+      !(((doc a').1.ofPaths roots ps).any fun d => d.2.dead) then
+    if parent then
+      ((expand ((doc a').1.ofPaths roots ps) a'.pathsToAliases).super.armed pre,
+        ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.super.armed pre))
+    else
+      (a'.pathsToAliases.armed pre,
+        ((doc a').1.ofPaths roots ps).map fun d => ("$" ++ pre ++ d.1, d.2.armed pre))
+  else (.nil, [])
+```
+
+Both engines read a path in an arm only once a single arm remains, so
+over that data they leave the document `incomplete`, which #700
+tracks.
+
+A lone preference `*x` reads as `x | super(x)`, and its parent arm
+takes what overrides the default. Its value `x` reads its paths where
+it stands, as an arm does. The parent arm is the parent type of what
+`x` reads as on its own: the definition reads the paths of `x` in the
+schema's own tree, before any data, puts the term each path names in the
+path's place, and lifts the arm. So a path met with a bound lifts as the
+term it names does: in `*{a: integer, b: .a & min(3)}` the parent of `b`
+is `integer`, since `integer & min(3)` constrains integers. In `x: *{a: 1, b: .a}` the parent arm is `{a: integer,
+b: integer}`, so over `x: {a: 2, b: 3}` the document is `valid`, and
+over `x: {a: 2, b: "s"}` it's `invalid`:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.nodeChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : List ℕ → Val → Decls × Val)
+    (tag : String) (n : List ℕ × List Seg × Val) (root : List ℕ × List Seg × Val → Val → Val) (xS : Val) :
+    Val × Decls :=
+  match n.2.2 with
+  | .pref rk x =>
+    (.or [(rk, (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x false).1),
+        (0, (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n xS) xS true).1)],
+      (L1.armChosen r (doc n.1) (armPre tag 0) n.2.1 (root n x) x false).2 ++
+        (L1.armChosen Decls.rootsS (doc n.1) (armPre tag 1) n.2.1 (root n xS) xS true).2)
+  | v => ((.or (L1.armsAt r doc tag n root 0 v.nodeArms).1), (L1.armsAt r doc tag n root 0 v.nodeArms).2)
+```
+
+Both engines lift a path inside the value to `any` in the parent arm,
+so they pass `{a: 2, b: "s"}`, which #704 tracks, and leave the path
+waiting while the default is in play, which #700 tracks.
+
+A disjunction or a lone preference can stand inside an arm, as in
+`x: {a: 1, b: {c: 1, d: .c} | null} | null`. The definition reads the
+inner one first. `Val.orNodes` lists each node an arm holds before the
+node that holds it, and `Decls.armsChosen` reads the nodes in that
+order, each as the term holds it when its turn comes (`nodeIn`), so the
+outer arm holds what the inner disjunction reads as. That reading goes
+into the term with each name it declares read as its term (`expand`),
+so the document the definition reads an outer arm in holds no name it
+doesn't declare. Over `x: {a: 1, b: null}` the outer arm takes the
+data, since its `b` is the inner disjunction, whose `null` arm takes
+`null`. Both engines agree.
+
+A lone preference's parent arm lifts what its value reads as before any
+data, so the definition reads a disjunction inside the value before
+any data too. `Decls.armsChosen` carries a second term, `QS`, with each node
+inside a lone preference read so (`underPref`), and the preference's
+parent arm lifts its value as `QS` holds it (`prefValue`):
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.armsChosen (L1 : Decls) (r : Decls → Val → List Val) (doc : List ℕ → Val → Decls × Val)
+    (tag : ℕ → String) (root : List ℕ × List Seg × Val → Val → Val) :
+    ℕ → List (List ℕ × List Seg × Val) → Val → Val → Val × Decls
+  | _, [], Q, _ => (Q, [])
+  | k, n :: ns, Q, QS =>
+    let c := L1.nodeChosen r doc (tag k) (nodeIn Q n) root (prefValue QS n)
+    let s := if underPref ns n then L1.nodeChosen Decls.rootsS doc (tag k) (nodeIn QS n) root (prefValue QS n)
+      else c
+    ((L1.armsChosen r doc tag root (k + 1) ns (Q.replaceAt n.1 (expand c.2 c.1))
+        (QS.replaceAt n.1 (expand s.2 s.1))).1,
+      c.2 ++ (L1.armsChosen r doc tag root (k + 1) ns (Q.replaceAt n.1 (expand c.2 c.1))
+        (QS.replaceAt n.1 (expand s.2 s.1))).2)
+```
+
+In `x: *({a: 1, b: .a} | null)` the parent arm is `{a: integer, b:
+integer} | null`: the inner arm reads as `{a: 1, b: 1}`, which lifts.
+Where the data narrows a kind a path names, the two readings differ. In
+`x: *({a: number, b: .a} | null)` over `x: {a: 5, b: 2.5}`, the
+default's `b` reads the data's `5` and refuses `2.5`, while the parent
+arm reads `b` as `number` and lifts it to `any`, so the document is
+`valid`, as `x: *{a: number, b: .a}` is. Both engines leave these paths
+waiting, which #700 tracks.
+
+Two disjunctions can meet at one place, as in `x: ({b: .a} | null) &
+({a: 1} | {a: 2})`. Read one arm at a time, the path `.a` in `{b: .a}`
+would name a place where the other disjunction still holds two arms, a
+place inside a disjunction, which names nothing. The meet itself takes
+the two apart: it meets a term with a disjunction arm by arm
+(`meetStep`). So before it reads any arm, the definition reads such a
+meet as the disjunction the meet makes, each arm of the one met with
+each arm of the other, ranked as the meet ranks them (`orMeet`), and
+each met with the meet's other conjuncts. A lone preference beside a
+disjunction goes into each of its arms the same way:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Val.meetOrs (v : Val) : Val :=
+  match v.splitOrs.1 with
+  | as :: more =>
+    if 2 ≤ more.length + 1 + (v.splitOrs.2.filter Val.isPrefB).length &&
+        ((as :: more).any (·.any (·.2.armReads)) ||
+          (v.splitOrs.2.filter Val.isPrefB).any (·.nodeArms.any (·.2.armReads))) then
+      .or ((more.foldl orMeet as).map fun p => (p.1, v.splitOrs.2.foldl .meet p.2))
+    else v
+  | [] => v
+```
+
+Each arm then reads its paths within itself: `{b: .a} & {a: 1}` reads
+`b` as `1`, and `{b: .a} & {a: 2}` as `2`. Over `x: {a: 2, b: 2}` the
+document is `valid`, and over `x: {a: 2, b: 1}` it's `invalid`, as in
+both engines. `Val.distributed` reads every such meet in the schema,
+the inner ones first, and only then does the definition read the arms.
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
+  ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)
 ```
 
 Beside data, the definition reads the links in the tree the data reads
@@ -9483,8 +9397,8 @@ at the member, as a spread's template does:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Val.genInst (root u : Val) (p : List Seg) (t : Seg) : Option Val :=
-  root.putW (p ++ [t]) (u.placed (p ++ [t])).neutral
+def Val.genInst (root u : Val) (base p : List Seg) (t : Seg) : Option Val :=
+  root.putW (p ++ [t]) (u.placed (base ++ p ++ [t])).neutral
 ```
 
 So `.name` reads each instance's own `name`, a path that climbs out of
@@ -9853,22 +9767,15 @@ another link's template carries does send: each pass reads the links
 of the tree the last one made. The definition reads such a link's
 relative address where the link lands, though, and both engines read
 it inside the template, where it names nothing, which #661 tracks. A
-spread whose template reads its member's place, inside a disjunction,
-a selection or an alias's body, keeps its template as written, so a
-relative path in it resolves nowhere, and so does a generator's
-template there.
+spread whose template reads its member's place, inside a disjunction or
+a selection, keeps its template as written, so a relative path in it
+resolves nowhere, and so does a generator's template there, written or
+in a name used there.
 
-Nor does it say where a copy reads a relative path the copy holds. The
-definition reads one where it's written, so a use of an alias, or a
-path reference's copy, holds what the path reads there. Both engines
-read it where the copy stands or where it's written by the order the
-document writes the two: with `x: 1` at the top, `a: {x: 2, b: %T}`
-and `%T = {v: ..x}`, they set `a.b.v` to 1, the top's `x`, where the
-alias comes first, as the definition does, and to 2, `a`'s, where it
-comes after, and `aontu vet` reads 2 in either order. The engines split
-on a path in a call's argument. TypeScript reads it where it's written
-in either order, and Go reads it as it reads any other. #504 tracks
-both.
+Nor does it read a copy of a recursion where the copy stands. A path
+reference inside its own place, `b?: $.a` within `a`, reads as it's
+written, where ruling 26 would read each copy where it stands, at every
+depth the data goes to.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

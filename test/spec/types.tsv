@@ -197,7 +197,7 @@ path-constraint-refuses-empty-constraint-by-reference	errc	p: path & re("x")\ns:
 constraint-refuses-an-empty-meet-by-reference	errc	c: min(1)\nd: max(0)\nx: constraint & $.c & $.d	constraint
 constraint-refuses-a-refer-resolved-by-reference	errc	b: {}\nr: refer()\nx: constraint & $.r & path($.b)	constraint_kind
 any-at-the-root-does-not-generate	errc	any	no_gen
-hole-at-the-root-does-not-generate	errc	_	no_gen
+hole-at-the-root-does-not-generate	errc	_	hole_unbound
 any-at-a-field-does-not-generate	errc	a: any	mapval_no_gen
 any-at-a-nested-field-does-not-generate	errc	a: b: any	mapval_no_gen
 any-in-a-list-does-not-generate	errc	a: [any]	listval_no_gen

@@ -10,7 +10,6 @@ const utility_1 = require("../utility");
 const top_1 = require("./top");
 const FeatureVal_1 = require("./FeatureVal");
 const FuncBaseVal_1 = require("./FuncBaseVal");
-const NilVal_1 = require("./NilVal");
 const SuperFuncVal_1 = require("./SuperFuncVal");
 function prefInnerPeg(v) {
     let out = v;
@@ -79,14 +78,12 @@ class PrefVal extends FeatureVal_1.FeatureVal {
     meetPref(peer, ctx) {
         const strong = peer.rank < this.rank ? peer : this;
         const weak = strong === this ? peer : this;
+        const gate = (0, FuncBaseVal_1.trialUnify)(ctx, strong.superpeg.clone(ctx), weak.superpeg.clone(ctx));
+        if (undefined === gate) {
+            return (0, err_1.makeNilErr)(ctx, 'empty', this, peer, 'unify');
+        }
         const strongMet = (0, FuncBaseVal_1.trialUnify)(ctx, prefInnerPeg(strong).clone(ctx), weak.superpeg.clone(ctx));
         const weakMet = (0, FuncBaseVal_1.trialUnify)(ctx, strong.superpeg.clone(ctx), prefInnerPeg(weak).clone(ctx));
-        const space = (0, FuncBaseVal_1.trialUnify)(ctx, strong.superpeg.clone(ctx), weak.superpeg.clone(ctx));
-        if (undefined === strongMet && undefined === weakMet) {
-            return space ?? (0, err_1.makeNilErr)(ctx, 'empty', this, peer, 'unify');
-        }
-        // An emptied override space stays a quiet nil, as a peer's does.
-        const gate = space ?? new NilVal_1.NilVal({ why: 'empty' }, ctx);
         if (strong.rank === weak.rank &&
             undefined !== strongMet && undefined !== weakMet) {
             const peg = (0, FuncBaseVal_1.trialUnify)(ctx, prefInnerPeg(this).clone(ctx), prefInnerPeg(peer));
@@ -95,7 +92,8 @@ class PrefVal extends FeatureVal_1.FeatureVal {
                 : this.stand(peg, gate, ctx);
         }
         return undefined !== strongMet ? strong.stand(strongMet, gate, ctx)
-            : weak.stand(weakMet, gate, ctx);
+            : undefined !== weakMet ? weak.stand(weakMet, gate, ctx)
+                : gate;
     }
     // PrefVal unify always returns a PrefVal
     // PrefVals can only be removed by becoming Nil in a Disjunct
@@ -148,9 +146,7 @@ class PrefVal extends FeatureVal_1.FeatureVal {
                 // An override space the peer empties leaves the preference
                 // standing with nothing left to replace it, not a conflict.
                 const space = (0, FuncBaseVal_1.trialUnify)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'GATE') }) : ctx, this.superpeg.clone(ctx), peer);
-                const gate = undefined !== space ? space
-                    : true === this.superpeg.isNil ? this.superpeg
-                        : new NilVal_1.NilVal({ why: 'empty' }, ctx);
+                const gate = undefined !== space ? space : this.superpeg;
                 out = this.stand(met, gate, ctx);
                 why += 'stands';
                 (0, utility_1.explainClose)(te, out);

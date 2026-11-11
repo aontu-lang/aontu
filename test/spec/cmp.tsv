@@ -130,3 +130,5 @@ cmp-props-src-not-on-listitems	errc	x: listitems({item: ["a"] src: "x"})	invalid
 # The prop NAMED is the first one written, not whichever the host's map
 # order reached: Go ranges a map in no order, so it walks `keys`.
 cmp-props-names-first-written	err	x: line({src: "a" zzz: 1 aaa: 2})	Cannot zzz
+# A translation over a string a generator still makes waits for it.
+translate-waits-for-a-staged-string	canon	t: translate($.s, "a", "b")\ns: join(each(["a", "c"], _), "")	{"s":"ac","t":"bc"}

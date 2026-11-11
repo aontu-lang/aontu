@@ -315,6 +315,8 @@ type NilVal struct {
 	details   map[string]string
 	primary   Val
 	secondary Val
+	// A call the parser refused, kept as written for the hole walk.
+	refusedCall *FuncVal
 }
 
 func newNil(why string) *NilVal {

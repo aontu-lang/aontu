@@ -1011,22 +1011,44 @@ theorem Decls.bodiesCheckableB_iff {ds : Decls} :
     ds.bodiesCheckableB = true ↔ ∀ d, d ∈ ds → d.2.CheckableA := by
   simp only [Decls.bodiesCheckableB, List.all_eq_true, Val.checkableAB_iff]
 
-/-- A literal met with a term under the declarations: the literal where
-the term admits its value and `nil` where it refuses it, decided by the
-checker that reads the names wherever the names keep the alias-cycle
-rule and the bodies and the term read no pattern and no format; and the
-pair where that cannot be computed, where the term writes a path,
-which is read by declaration later and until then is left as written,
-or where the term is a call the reading has not made. -/
+/-- Whether a term is a map or a list, which admits no scalar whatever
+its members hold. -/
+def Val.container : Val → Bool
+  | .map _ _ _ | .list _ _ _ => true
+  | _ => false
+
+/-- A literal met with a term under the declarations: `nil` where the
+term is a map or a list, whatever its members hold, paths among them;
+the literal where the term admits its value and `nil` where it refuses
+it, decided by the checker that reads the names wherever the names keep
+the alias-cycle rule and the bodies and the term read no pattern and no
+format; and the pair where that cannot be computed, where the term
+writes a path, which is read by declaration later and until then is
+left as written, or where the term is a call the reading has not made. -/
 def litMeetD (ds : Decls) (s : Scalar) (b : Val) : Val :=
-  if ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty && !b.callAt then
+  if b.container then .nil
+  else if ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty && !b.callAt then
     (if checkR ds b s.data then .lit s else .nil)
   else .meet (.lit s) b
+
+/-- A map or a list admits no scalar. -/
+theorem not_admits_container {env : Env} {root : Data} {b : Val} (hb : b.container = true) (s : Scalar) :
+    ¬ Admits env root b s.data := by
+  intro h
+  cases b <;> simp only [Val.container, Bool.false_eq_true] at hb <;> cases s <;> cases h
 
 theorem admits_litMeetD {ds : Decls} {root : Data} (s : Scalar) (b : Val) (j : Data) :
     Admits ds.envE root (litMeetD ds s b) j ↔
       Admits ds.envE root (.lit s) j ∧ Admits ds.envE root b j := by
   unfold litMeetD
+  by_cases hk : b.container = true
+  · rw [if_pos hk]
+    constructor
+    · exact fun h => nomatch h
+    · rintro ⟨h₁, h₂⟩
+      obtain rfl := admits_lit_iff.mp h₁
+      exact (not_admits_container hk s h₂).elim
+  rw [if_neg hk]
   by_cases hc : (ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty &&
       !b.callAt) = true
   · rw [if_pos hc]
@@ -1055,10 +1077,12 @@ theorem litMeetD_checkableA {ds : Decls} (s : Scalar) (b : Val) (hb : b.Checkabl
     (litMeetD ds s b).CheckableA := by
   unfold litMeetD
   split
+  · constructor
   · split
-    · constructor
-    · constructor
-  · exact .meet (by constructor) hb
+    · split
+      · constructor
+      · constructor
+    · exact .meet (by constructor) hb
 
 /-- A step of the meet with the declarations: a residual against
 concrete structure expands by one level, and every other pair takes a

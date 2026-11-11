@@ -83,7 +83,7 @@ rule now lives and where its record is in the history.
 | [ADR-037](#adr-037--two-lists-concatenate-under--and-a-sum-of-an-absence-is-absent) | Two lists concatenate under `+`, and a sum of an absence is absent | Moved to the definition in part |
 | [ADR-038](#adr-038--the-component-tree-is-the-only-output-road-and-aontu-knows-no-languages) | The component tree is the only output road, and aontu knows no languages | Amended by [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports) |
 | [ADR-039](#adr-039--the-package-system-has-one-vocabulary-one-set-of-files-and-three-pins) | The package system has one vocabulary, one set of files, and three pins | Accepted |
-| [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports) | `aontu render` writes the component tree through jostraca, in both ports | Accepted |
+| [ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports) | `aontu render` writes the component tree through jostraca, in both ports | Amended by [ADR-079](#adr-079--the-npm-package-takes-jostraca-as-a-peer-at-a-range) |
 | [ADR-041](#adr-041--the-npm-package-and-the-go-module-share-one-version-series) | The npm package and the Go module share one version series | Accepted |
 | [ADR-042](#adr-042--aontu-is-the-only-extension-an-aontu-source-file-carries) | `.aontu` is the only extension an aontu source file carries | Accepted |
 | [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
@@ -122,6 +122,7 @@ rule now lives and where its record is in the history.
 | [ADR-076](#adr-076--every-prompt-is-logged) | Every prompt is logged | Moved to [DEV-PROCESS.md](DEV-PROCESS.md#the-prompt-log) |
 | [ADR-077](#adr-077--the-definition-is-pinned-to-lean-4241) | The definition is pinned to Lean 4.24.1 | Accepted |
 | [ADR-078](#adr-078--every-figure-draws-svg-from-a-layout-aontu-owns) | Every figure draws SVG, from a layout aontu owns | Accepted |
+| [ADR-079](#adr-079--the-npm-package-takes-jostraca-as-a-peer-at-a-range) | The npm package takes jostraca as a peer, at a range | Accepted |
 
 ---
 
@@ -4031,8 +4032,8 @@ record what landed under this entry in the commit that lands it.
 ## ADR-040 — `aontu render` writes the component tree through jostraca, in both ports
 
 **Date:** 2026-09-16
-**Status:** Accepted *(Amended 2026-09-17: `--check` skips what `render`
-skips.)*
+**Status:** Amended by [ADR-079](#adr-079--the-npm-package-takes-jostraca-as-a-peer-at-a-range)
+*(Amended 2026-09-17: `--check` skips what `render` skips.)*
 
 ### Context
 
@@ -6921,3 +6922,70 @@ drawn by their own renderer is not what `aontu view --check` holds.
   rows of `test/spec/view.tsv` and by
   `views-the-node-link-kinds-draw-svg` of `test/spec/views.tsv`, each
   obtained from both engines agreeing.
+
+## ADR-079 — The npm package takes jostraca as a peer, at a range
+
+**Date:** 2026-11-10
+**Status:** Accepted
+
+### Context
+
+[ADR-040](#adr-040--aontu-render-writes-the-component-tree-through-jostraca-in-both-ports)
+made jostraca an ordinary dependency of both ports, pinned at one
+version: lately `0.39.0`, exactly, in `ts/package.json`, and
+`github.com/jostraca/jostraca/go v0.39.0` in `go/go.mod`.
+
+The voxgig toolchain runs on the same runtime. `@voxgig/sdkgen`,
+`@voxgig/apidef` and `@voxgig/docgen` each take `jostraca >=0.41.0` as
+a peer, so a project that installed aontu beside them held two copies
+of jostraca: the one its own tree resolved, and aontu's `0.39.0`
+nested below it.
+
+0.76.3 moved the npm package to a peer dependency on 2026-11-09, as a
+patch cut beside `main`, and #680 brought the change to `main` the
+next day.
+
+The same two days showed what a pin costs beside a peer. jostraca
+takes `shape` as a peer of its own, and jostraca 0.39.0 and 0.41.0
+take it at any version from 11. `shape` 12.0.0 no longer exports
+`One`, which both call, so an install that resolved it stopped in
+`aontu render`. `main` pinned `shape` to 11.4.1 (#682). jostraca 0.42.0
+then moved to `shape >=12`, and beside the peer range the pin stopped
+a fresh `npm install` with `ERESOLVE`, so #680 took it out.
+
+### Decision
+
+1. **The npm package takes jostraca as a peer dependency, at
+   `>=0.41.0`**, the range the voxgig toolchain asks for. npm 7 and
+   later install a peer that nothing else provides, so a project with
+   aontu alone still gets the runtime.
+2. **The Go module is unchanged.** `go/go.mod` requires
+   `github.com/jostraca/jostraca/go v0.39.0`, which builds aontu's own
+   commands at that version and is a minimum for a module that
+   requires aontu.
+3. **aontu pins nothing on the runtime's behalf.** What jostraca needs,
+   `shape` among it, jostraca states as its own peers.
+4. **`render --format json` names its lists**, the eight the Go port
+   names, so a list a later jostraca adds stays out of the report.
+
+### Consequences
+
+- **ADR-040 is amended in two clauses.** "Pinned at one version, both
+  ordinary dependencies" holds of the Go module alone, and so does "a
+  jostraca release is a change to review here": `package-lock.json` is
+  not committed, so every CI run and every fresh install resolves the
+  newest jostraca the range admits, and it arrives with no change
+  here.
+- **A jostraca release that breaks `render` shows as a red run.** The
+  render tests are in some of the groups of `ts/test/groups.tsv`, and
+  the standard run samples one group, so it meets them only when it
+  draws one of theirs. The daily run meets them every night
+  ([ADR-070](#adr-070--the-standard-ci-run-samples-the-daily-run-decides-and-releases-come-from-release)).
+- **The two ports can run different versions of the runtime.** The
+  render matrix, `test/render/cases.json`, holds both to one answer,
+  whatever version each resolved.
+- **The range has no upper bound**, so a published aontu accepts a
+  jostraca released after it.
+- Nothing gates the range itself. `ts/test/render-matrix.test.ts` and
+  `go/cmd/aontu/render_matrix_test.go` hold the report and the bytes
+  the two ports write.

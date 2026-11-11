@@ -10,6 +10,9 @@
 # actual:   verdict: valid, exit 0 (Go)
 # FIXED 2026-09-07 -- the call residuates instead, and the run says
 # verdict: incomplete with [aontu/conjunct] at $.Event.
+# SINCE 2026-11-10 -- `&` never fills a hole and match binds none, so
+# the schema is refused before the data is read: verdict: error with
+# [aontu/hole_unbound] at $.Event.
 Placed: close({ type: "order.placed" total_cents: integer & min(0) })
 
 Event: match(_, { type: "order.placed" }, $.Placed)

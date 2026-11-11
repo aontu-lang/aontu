@@ -9,11 +9,7 @@ import (
 	"strings"
 )
 
-// A bare hole as a spread's template leads its meet: it is the member.
 func meetTemplate(ctx *Ctx, member, tmpl Val) Val {
-	if _, ok := tmpl.(*PlaceVal); ok && !ctx.matchRead {
-		return unite(ctx, tmpl, member)
-	}
 	return unite(ctx, member, tmpl)
 }
 
@@ -365,6 +361,9 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	ctx.trialsOf()
 	if over := aliasBudget(ctx, root); nil != over {
 		return over
+	}
+	if loose := unboundHole(ctx, root); nil != loose {
+		return loose
 	}
 	if nil == ctx.snapmap {
 		ctx.snapmap = map[string]Val{}

@@ -1024,7 +1024,7 @@ position its instance lands at, and a `filter`'s condition where the
 member it tries lands. At a spread's own position `key(1)` reads the
 container's key. Deeper in a spread's template, `key(n)` reads at each
 member the spread holds, as a relative path there does:
-`Val.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
+`Decls.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
 places the template at each member before `resolveD` reads it.
 
 ## Generating children: `pack` and `each`
@@ -1232,9 +1232,9 @@ on. Two rules govern it:
   `pack($.m, {inner: each(_, _)})` the first `_` is the *pack's*
   source child, because a generator's data argument is not a binding
   position, and the second is the `each`'s own.
-- **A spread has no hole.** `&: {n: _}` leaves `_` unfilled; inside a
-  spread, name the child's fields with a relative reference (`.k`) and
-  its key with `key()`.
+- **A spread has no hole.** `&: {n: _}` is a hole nothing binds, an
+  error; inside a spread, name the child's fields with a relative
+  reference (`.k`) and its key with `key()`.
 
 A meet cannot select, so `_` does not reach into the child: asking for
 one of its fields with `each($.lines, _ & _.amount)` asks for
@@ -1313,12 +1313,11 @@ Both wait for the model to settle before they answer, for the reason
 wrong bag to take a subset of, and a scrutinee that is still being
 narrowed can match an earlier arm than the one it will end up matching.
 
-**A `match` does not fire on an unfilled hole.** `match(_, …)` outside
-a generator's template never answers: the peer that would fill the hole
-is not also checked against the arm the fill selects (see
-[The placeholder `_`](#the-placeholder-_)), so a `match` written as a
-schema would accept every document it was asked about. The call stands
-unresolved instead, and a `vet` run says so. Inside a generator's
+**A `match` binds no hole.** `match(_, …)` outside a generator's
+template is a hole nothing binds (see
+[The placeholder `_`](#the-placeholder-_)), so the document is an error
+before the match is read, and a `match` written as a schema never
+accepts a document the arm it selects refuses. Inside a generator's
 template the hole is the source child, the scrutinee is a value by the
 time the match runs, and the form works as documented above.
 
@@ -1326,175 +1325,46 @@ The definition makes the selections once a document is read: `selectArm` and `re
 
 ## The placeholder `_`
 
-A bare `_` is a **hole**: a call holding one waits, and whatever the
-call is unified with fills it.
+A bare `_` is a **hole**: the value a generator, an `apply` or a
+`filter` hands the template it binds. Inside the template of `each`,
+`pack` or `emit`, an `apply`'s template, or a `filter`'s condition, `_`
+is the value that instance is made from. Anywhere else nothing binds
+it, and the document is an error, `hole_unbound`, before anything is
+evaluated: `&` is a meet, and a meet never fills a hole.
 
-<!-- fmt: keep a template and a key written as separate statements -->
 ```aontu
-greeting: upper(_) & hello
-x: {&: {m: _ + 2}}
-x: a: m: 1
+greeting: apply(hello, upper(_))
+sizes: each([1 2], _ + 2)
 ```
 
 ```json
-{"greeting":"HELLO","x":{"a":{"m":3}}}
+{"greeting":"HELLO","sizes":[3,4]}
 ```
 
-The peer goes **into** the call and is not also a constraint on the
-way out: `upper(_) & hello` is `"HELLO"`, not `"HELLO" & "hello"`.
-Two holes meeting is an error: neither has a value to fill the other.
-`match` is the one call a peer does not fill, because the arm it would
-select is not then checked against that peer: see
-[Selecting](#selecting-filter-and-match).
+`apply(v, f)` binds each hole of `f` that no generator inside it binds,
+and a template's own holes stay its generator's, so
+`apply(["a"], each(_, upper(_)))` is `["A"]`: the first hole is the
+list, the second each member. Every other hole is one nothing binds:
+`upper(_) & "a"`, a field that is only `_`, a hole in a spread's
+template as in `{&: upper(_)}`, and one in a size, a trial or a
+`match`, as in `len(add(_, 1) & 2)` and `match(_, "A", 1, 2)`. The
+check reads the document as it's written, before any meet, so a
+disjunction doesn't drop an arm that holds one: `v: upper(_) | "x"` is
+an error too, and so it is against any data `vet` is given.
 
-The definition reads the fill before any meet, so `&` stays a meet:
-`Val.filled` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)
-reads the meets beneath a meet first, and then reads a meet with one
-side waiting on a hole and the other not as the waiting side with the
-hole bound to the other. A side waits on a hole if it's the hole, or a
-call over one through its arguments or a rider, a generator through
-its data alone, and a container waits on no hole of its members, but
-two containers meet member by member, by position or by key, so
-`[upper(_)] & ["a"]` is `["A"]` (`Val.fillMeet`). Each finds the
-other's member through its meets and riders (`Val.memberAt`,
-`Val.elemAt`), so `({a: upper(_)} & {b: 1}) & {a: "x"}` fills `a` too.
-A key's declarations in one map are one meet, read in the order they're
-written, so `v: upper(_)` and `v: "a"`, two declarations of `v`, read
-as `"A"`, and a list's elements are paired among those that stand, so
-`[upper(_)] & [hide("a"), "b"]` is `["B"]`. The peer a member's hole
-takes is spent, and each container is kept whole, so a seal and a
-spread stand. The fill reads through a rider, a mark or a seal around
-a container, so `meta({a: upper(_)}, {d: 1}) & {a: "x"}` is
-`meta({a: "X"}, {d: 1})`, `close([upper(_)]) & ["a"]` is the sealed
-`["A"]`, and `close({a: upper(_)}) & {a: "x", b: "y"}` is an error,
-since the seal refuses `b`, as both engines answer. The fill
-reads every meet but one in a generator's template, an `emit`'s table
-or a `filter`'s condition, whose holes those bind. Rows from hv0
-on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold both
-engines to it where a call meets one peer, a `match`'s result and its
-default among them. A meet in a size, a trial or a `match`'s scrutinee
-or pattern settles as it would written filled, so
-`len(add(_, 1) & 2)` refuses `["a"]` as `len(3)` does, and
-`match(upper(_) & "a", "A", 1, 2)` is `1`, as both engines answer. A call
-waits on no hole that a container argument holds, so its peer leaves
-that hole open and nothing makes the call: `sum([_, 1]) & 3` and
-`upper([_]) & "a"` are errors, `place_container`, once the arguments
-settle. `vet` reads such a call as a schema that doesn't stand, so
-`v: sum([_, 1])` is an `error` against any data, as the definition
-reads it (`Val.illFormed`), and rows from dh0 on hold both engines to
-it. A disjunction drops such an arm, so `v: sum([_, 1]) | 4` passes
-`v: 4`, and the list's own meet fills its hole, so
-`v: sum([_, 1] & [2, 1])` passes `v: 3`. A `join` over a list that
-holds a hole stands, as the definition reads it, so
-`v: join(["a", _], "-") & "b"` is `incomplete`, though a separator that
-holds a hole is one nothing fills, so `v: join(["a", _], [_])` is an
-error. A hole that a path names is the data's to fill, as the data
-fills a hole the document leaves unfilled, so `v: sum($.x)` beside
-`x: [_, 1]` passes data that writes `x: [2, 1]`, and so does
-`v: sum([$.h, 1])` beside `h: _` against data that writes `h`, while
-against data that writes neither each is `incomplete`. Rows from dp0
-on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
-engines to the definition's reading (`Decls.dataS`). A hole written in
-the call's own list is one nothing fills, even beside such a path, so
-`v: sum([_, $.h])` beside `h: _` is an `error` whatever the data
-writes, in the rows from dp33 on. A call that takes its argument as a
-value reads a list or a map that holds a hole as that container, which
-the data fills: `v: super([_])`, `v: pref([_])` and
-`v: move([_])` pass `v: [1]` and refuse `v: "x"`, and `refer([_])` and
-`rel([_])` make their link and their relation of the list. `super`
-reads a call there that waits on its own hole as `any`, so
-`v: super([upper(_)])` passes `v: [3]` and `v: ["x"]` and refuses
-`v: 3`, in the rows from dr57 on, and `pref` reads it as that call
-preferred, so `v: pref([upper(_)])` passes `v: [3]` and refuses `v: 3`
-and `v: [[3]]`, its other arguments as written, so
-`v: pref([upper(_, 0, 1)])` passes `v: ["abc"]`, in the rows from pf96 on
-of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv). A bound
-reads such a container as outside its domain, so `v: min([_])` admits
-nothing, but `neq` reads a list's members as the values it refuses, so
-`v: neq([1, _])` is an error, as both engines answer in the rows from
-dr0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv). A call that also waits on a hole of its
-own binds its peer there alone, so `join([_, "b"], _) & "-"` leaves the
-list's hole open, and a rider's record is a container argument too, so
-`meta({x: 1}, {d: _}) & 2` is an error, as both engines answer, and
-rows from hv366 on hold them to it. `+` joins two lists as they stand,
-whatever their elements hold, so a hole that an operand list holds is
-the joined list's, which the meet fills member by member:
-`(["a", _] + ["c"]) & ["a", "b", "c"]` is `["a", "b", "c"]`. A `+`
-waits only on a hole among its operands and binds its peer there alone,
-so `([_] + _) & ["a"]` is `[_, "a"]`, whose hole stays open, as both
-engines answer in the rows from hv450 on. A
-call over a container whose argument is the hole takes its peer as any
-call does, so `sum(_) & [1, 2]` is `3`, `["a", "b"] & join(_, "-")` is
-`"a-b"`, `join(["a", "b"], _) & "-"` is `"a-b"` too, and
-`["a", "b"] & sum(_)` is an error, as both engines answer. A
-spread whose template waits on a hole fills each member it meets, once,
-its own and a peer's, and then reads that key as `any`
-(`spreadFields`, `spreadWith`): `{&: upper(_)} & {a: "x"}` is
-`{a: "X"}`, and `({&: add(_, 1)} & {a: 1}) & {a: 2}` is `{a: 2}`, as
-both engines answer. When a template is a meet or a disjunction, it
-waits where one of its sides or arms does (`Val.waitsTop`), and its own meet
-doesn't fill it: the member meets each side and each arm, and one that
-waits takes the member as its argument (`Val.instAt`). So
-`{&: upper(_) & _}` admits the members already in upper case,
-`{&: upper(_) & "a"}` refuses every member, and
-`{&: add(_, 1) & number}` refuses `{a: 1}`, since `number` meets `1`
-beside `add(1, 1)`, as both engines answer. Any other side and the
-member meet member by member, so a hole beneath the side takes the
-member's own member there: `{&: _ & {n: upper(_)}}` passes `{a: {n: "X"}}` and
-refuses `{a: {n: "x"}}`, whether the spread meets the data, its own
-map's members or a peer's, as both engines answer. A template that holds its hole inside a container
-fills each member the same way, member by member (`heldOnto`):
-`{&: {n: upper(_)}} & {a: {n: "x"}}` is `{a: {n: "X"}}`, and a member
-that is a disjunction is met arm by arm, so
-`{&: {n: upper(_)}} & {a: ({n: "x"} | {n: "y"})}` passes
-`{a: {n: "X"}}`. The template
-meets each member once, so a later meet adds to the member it has
-filled and doesn't fill it again:
-`({&: {n: add(_, 1)}} & {a: {n: 1}}) & {a: {}}` gives `n: 2`, as both
-engines answer. With
-more than one peer the fill
-follows the document's grouping, so `upper(_) & ("a" & "a")` reads as
-`upper("a")`, which is `"A"`. Both engines read a conjunction in the
-order it's written instead and answer a conflict, which
-[#512](https://github.com/aontu-lang/aontu/issues/512) tracks. A group
-that fills its own hole is one both engines read first, as it's
-grouped, so `upper(_) & (_ & "A")` is `"A"`, and rows from dg126 on
-hold them to it. `vet`
-meets the data last, so the data fills a hole that no peer in the
-document fills (`Decls.readJ`): the call takes the data as its argument
-rather than meeting it, so `v: upper(_)` passes against `v: "a"`, and
-`v: add(_, 1)` passes `v: 2` and refuses `v: "a"`. A hole the data
-leaves out is `incomplete`. A call met with a hole, as in
-`upper(_) & _`, or with another call that waits is an error, as both
-engines answer, though `_ & _` meets as one hole. It stays an error
-however the document groups the meet and whatever else it meets, so
-`(upper(_) & _) & "x"`, `"x" & (upper(_) & _)` and `(_ & _) & upper(_)`
-are errors too, as is such a pair of two maps' members,
-`{a: "x"} & ({a: upper(_)} & {a: _})`, and a
-disjunction drops an arm that holds one, so `v: (upper(_) & _) | "x"`
-passes `v: "x"` (`Val.fillMeet`). A spread's template of that shape,
-as in `{&: upper(_) & _}`, reads as a template instead, each hole
-taking the member, so it passes `{a: "X"}`, and a bare `_` as a
-template takes each member as it stands, so `{&: _} & {a: 1}` is
-`{a: 1}`. A hole takes its peer on either side of a meet, so `1 & _`
-is `1`, `{a: 1} & {a: _}` is `{a: 1}` and `number & _` is `number`, as
-both engines answer. A disjunction is
-filled arm by arm, so `v: upper(_) | "fallback"` passes `v: "a"`, and
-an arm whose call the data leaves unmade drops, so `v: add(_, 1) | "x"`
-passes `v: "x"`. A lone preference fills its preferred arm and meets
-the data with its parent arm, so `v: *upper(_)` passes `v: "a"`, and
-`v: *add(_, 1)` passes `v: "x"`. Met with a peer, `*upper(_) & "a"`
-gives `"A"`, and `vet` passes the value `eval` gives: `v: "A"` against
-`v: *upper(_) & "a"` through the preferred arm, and `v: "a"` through
-the parent arm. A disjunction a container meets is
-met arm by arm, so `v: {a: upper(_)} & ({a: "a"} | {a: "b"})` passes
-`v: {a: "A"}`. A
-generator waits on its data alone and reads its template only at each
-member it makes, so `v: each(_, upper({}))` passes `v: []`. Rows from
-dv0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) hold
-both engines to it, rows from dg0 on to a meet of two sides that wait,
-and rows from dt0 on to a spread's template that waits at its own
-position.
+A name doesn't carry its body's binding: a name whose body holds a
+hole is one nothing binds wherever it's used, even as an `apply`'s
+template, so `%F = upper(_)` with `x: apply("a", %F)` is an error,
+and the template is written where it's applied. The one use that
+binds is a named `emit` table, as in `emit($.l, %t)` with
+`%t = emit(_, …)` (see [A named table](#a-named-table)). A name
+nothing uses holds its hole harmlessly.
+
+The definition reads the same rule (`Val.freeHole` and
+`Decls.holeNames` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean)),
+and rows from hv0 on of [`test/spec/def-call.tsv`](../test/spec/def-call.tsv)
+and from dp0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv)
+hold both engines to it.
 
 Inside a generator's template, `_` is the **source child** the
 generated one is being made from:
@@ -1515,11 +1385,11 @@ generator's fill pass never reaches into a nested generator's template
 (or a `filter`'s condition), so in `pack($.envs, {services:
 pack($.fleet, {v: _})})` the inner `_` is the fleet entry, not the env.
 A hole in a generator's *data* argument is not a binding position, so it
-is still the outer generator's to fill: `pack($.m, {inner: each(_, _)})`
+is still the outer generator's: `pack($.m, {inner: each(_, _)})`
 iterates the outer source child. A generator whose data is a hole is
-filled by its **peer**, exactly as any other call is (`["a"] &
-pack(_, {x:1})` packs the list) which is what lets a rule table be named
-(see [Transforming](#transforming-emit)). And wrapping a generator in a call
+bound by an `apply`, so `apply(["a"], pack(_, {x: 1}))` packs the
+list, and by nothing else: `["a"] & pack(_, {x: 1})` is
+`hole_unbound`. And wrapping a generator in a call
 (`close(pack(d, _ & t))`) does not expose the template's hole to the
 wrapper's peers: an overlay statement merges with the generated
 children, never with the template.
@@ -1529,11 +1399,9 @@ thing: the name is the key. Over a map they differ: `key()` is the key,
 `_` is the value. In a `filter` condition, `_` is the child being
 tested.
 
-A hole is not a function parameter: it cannot be named, passed, or
-partially applied, and there is no way to write one that is not
-already inside a call. Unfilled at generation it is an error, exactly
-as `any` is: `mapval_no_gen` at a field, and `no_gen` for a document
-that is only `_` or `any`.
+A hole is not a function parameter: it cannot be named or passed, and
+nothing but the constructs above binds it. A document that is only `_`
+is `hole_unbound` too, where one that is only `any` is `no_gen`.
 
 A bare `_` is a hole, pinned by `test/spec/place.tsv`. Quoted `"_"`
 is that string, any longer bare word containing it (`_b`) is ordinary
@@ -1634,7 +1502,7 @@ listen: [pin:"srv:a"]
 client: [pin:"srv:b"]
 
 a: emit($.listen, %wire)
-b: $.client & %wire
+b: emit($.client, %wire)
 ```
 
 ```json
@@ -1642,7 +1510,8 @@ b: $.client & %wire
  "a": ["client(srv:a)"], "b": ["client(srv:b)"]}
 ```
 
-Passing the nodes by call and by meet are the same dispatch. A named
+The nodes are passed by call, the one use that binds a name's hole: a
+meet never fills one, so `$.client & %wire` is `hole_unbound`. A named
 table is also how one rule set serves two outputs: naming a value is
 something the language already does, so no keyword is needed for it.
 
@@ -1782,24 +1651,42 @@ a key at the top, whether or not anything uses it, where the body's own
 members stand: in `%T = {x: 1, y: .x}` the path `.x` names the body's
 own `x`, in `%T = {y: .x}` it names `$.%T.x`, a member the body
 doesn't hold, so the document is an error, and `..x` there names the
-document's own `x`. The
-language doesn't yet say where a use of the alias, or a path
-reference's copy, reads such a path. Both engines read a copy's
-relative paths where the copy stands or where they're written by the
-order the document writes the two: with `x: 1`, `a: {x: 2, b: %T}`
-and `%T = {v: ..x}`, `a.b.v` is 1 where the alias comes first and 2
-where it comes after, and `aontu vet` reads 2 in either order. The
+document's own `x`.
+
+A copy is a destination: a use of the alias, and a path reference's
+copy, reads each relative path the body or the target writes again where
+the copy stands. With `x: 1`, `a: {x: 2, b: %T}` and `%T = {v: ..x}`,
+`a.b.v` is 2, read at `a`, in any order the document writes them, and
+`%T = .x` reads at each use too. With `a: {x: 2, b: {v: ..x}}` and
+`c: {x: 3, d: $.a.b}`, `c.d.v` is 3, and `d: %T` with `%T = $.a.b`
+reads 3 too. A use inside a body reads where it stands at the body's
+own place too: with `%T = {u: %U}` and `%U = {w: ..x}`, the use at
+`$.%T.u` reads `$.%T.x`, so `%T` must hold an `x`. What the data
+writes at the target is part of what the document writes there, so it
+meets the copy too: data that sets `a.b.v` to 2 meets the copy's 3, and
+`aontu vet` refuses it, the output `aontu` generates among it. Both
+engines read a copy's
+relative paths by the order the document writes the two. Where the alias
+or the target comes first they read the paths where they're written, so
+`a.b.v` is 1 and `c.d.v` is 2, and where it comes after they read them
+where the copy stands. `aontu vet` reads a use of the alias where it
+stands in either order, but `%T = .x` at the alias's own place. The
 engines split on a path in a call's argument. TypeScript reads it where
 it's written in either order, under `aontu vet` too, and Go reads it as
 it reads any other.
-[#504](https://github.com/aontu-lang/aontu/issues/504) tracks both. The
-definition makes each relative path absolute where it stands, by
-`Val.placed` and `Decls.placed` in
-[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean), so a use or a
-copy holds what the path reads where it's written. It reads a body's
+[#504](https://github.com/aontu-lang/aontu/issues/504) tracks both.
+Where `%T = $.a.b` comes first, both engines read the target's relative
+paths below `$.%T`, where they name nothing, which
+[#692](https://github.com/aontu-lang/aontu/issues/692) tracks.
+
+The definition reads a use of a name, and a path reference's copy, where
+it stands, in the schema and in a body at its own place alike, from a
+copy of the body or of what the document writes at the target, placed
+there, by `Decls.copies` in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). It reads a body's
 own place in the normal form of the name's bodies, by `Decls.bodyAt`,
-read once, so a path there that reads through another path names
-nothing yet, which [#664](https://github.com/aontu-lang/aontu/issues/664)
+read once, so a path there that reads through another path names nothing
+yet, which [#664](https://github.com/aontu-lang/aontu/issues/664)
 tracks.
 
 A spread's template reads its paths at each member the spread holds,
@@ -1813,10 +1700,11 @@ itself a relative path, `&: ..x`, reads at each member too, so a path
 reference's copy reads it from where the copy stands, and it reads
 where it's written as well, so one that names nothing there is an
 `error` with no member at all. The definition reads a spread so by
-`Val.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
+`Decls.membersRead` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean),
 at each member wherever the spread lands, at each place a path
-reference copies it to and at each member a link's template makes among
-them. A generator's template reads its relative paths at each member of
+reference copies it to, at each use of a name whose body holds it and
+at the body's own place, and at each member a link's template makes
+among them. A generator's template reads its relative paths at each member of
 the generator's output in the same way: in `each($.names, {name: _,
 url: "https://" + .name})` each instance's `url` reads that instance's
 own `name`. A `filter`'s condition stands where the member it tries
@@ -1828,8 +1716,48 @@ Both engines try the condition on each member, so a condition that
 names nothing, a path, an alias or a variable, refuses each member
 rather than making the document an error. The definition places a
 condition so in `Val.placed`, and `Val.forgive` exempts it from the
-references that must name something. It doesn't yet read a template's
-relative paths inside a disjunction, a selection or an alias's body.
+references that must name something. A template in a selection's result
+reads its member's place where the selection stands, since the result
+the selection takes stands there: in `hosts: match($.kind, "web", {&:
+{url: .name}}, "db", null)` each host's `url` reads its own `name` when
+`kind` is `"web"`. So does a template in the body of a name a result
+uses, and in a name whose body is a selection, where the document uses the name.
+The definition reads a result so by `Decls.armsRead`. A path written in
+a disjunction's arm, a template's among them, reads in the document
+where the disjunction holds that arm: in `hosts: {a: {name: "x", url:
+.name}} | null`, `url` reads the arm's own `name`. A path in the body of a name an arm
+uses reads the same, and so does one in a name whose body is the
+disjunction, where the document uses the name and at its own place. An arm whose path names
+nothing there drops out, as a dead arm does, and so does one whose path
+names a member the data kills, so that over `name: "y"` an arm `{a:
+{name: string, url: string}}` beside that one takes the data. A path from outside into
+an arm names nothing, unless the meet leaves the disjunction one arm:
+in `x: (%T | null) & %T` with `%T = {a: 1, b: .a}`, the copy beside the
+disjunction reads `b` as the one arm's `a`, since `null` meets a map in
+nothing. Both engines read a path in an arm only once a
+single arm remains, and in a preferred arm never, so data an arm
+refuses through its path leaves the document `incomplete` while two
+arms are live, which #700 tracks. The definition reads each arm so by
+`Decls.armChosen`. A path inside a lone preference `*x` reads the
+same, where the preference holds its value, and the parent arm, which
+takes what overrides the default, is the parent type of what the value
+reads as on its own: in `x: *{a: 1, b: .a}` the parent arm is `{a:
+integer, b: integer}`, so `{a: 2, b: 3}` passes and `{a: 2, b: "s"}`
+doesn't. Both engines lift a path inside the value to `any` there,
+which #704 tracks. The definition reads a lone preference so by
+`Decls.nodeChosen`. A disjunction met with another at one place reads as
+one disjunction of the meets of their arms, as the meet makes them: in
+`x: ({b: .a} | null) & ({a: 1} | {a: 2})`, `b` reads `1` in one arm and
+`2` in another, so `{a: 2, b: 2}` passes and `{a: 2, b: 1}` doesn't.
+The definition reads a disjunction or
+a lone preference inside an arm first, and the arm that holds it
+holds what it reads as: in `x: {a: 1, b: {c: 1, d: .c} | null} | null`,
+`b`'s first arm reads `d` as its own `c`, so over `x: {a: 1, b: null}`
+the outer arm takes the data, and a path in the outer arm reads into
+the inner disjunction as a path from outside reads any disjunction. The parent arm of a
+lone preference lifts its value as read before any data, a disjunction
+inside it read so too: in `x: *({a: 1, b: .a} | null)`, the parent arm
+is `{a: integer, b: integer} | null`.
 
 ### Recursive references (fixpoints)
 

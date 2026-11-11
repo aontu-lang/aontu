@@ -32,14 +32,69 @@ Both engines and shared rows.
   gains 16 rows, both from 0.76.1. Before this change `main` failed 24
   of them, alike in each engine.
 
+### An `enum` whose members overlap imports as a count
+
+Both engines, and shared rows.
+
+- `aontu jsonschema import` wrote every `enum` as a disjunction of its
+  members. Where one member is another with keys left out, at any
+  depth, as in `{"enum": [{"a": 1}, {"a": 1, "b": 2}]}`, an instance
+  equal to the smaller met both branches, the larger by being filled
+  out, so `vet --no-fill` answered `incomplete` (`disjunct_no_gen`)
+  for an instance JSON Schema admits, and the import reported no loss.
+  Such an `enum` is now `nof(min(1), …)` over its members, as the
+  `anyOf` of the same members as `const`s already was, and both
+  members are `valid`.
+- Only an `enum` met in place was affected, at the root or under
+  `properties` or `items`. One a count tries, under `not`, `anyOf`,
+  `oneOf` or `if`, already answered as JSON Schema does.
+- Any other `enum` imports as before, one whose members differ only in
+  the order of their keys among them.
+- Rows from `import-enum-a-member-another-fills-out-is-a-count` on,
+  and the four `output-` rows on an `enum`, of
+  `test/spec/jsonschema-import.tsv`.
+
+### A hole nothing binds is an error (breaking)
+
+Both engines, the definition, and shared rows.
+
+- `&` is a meet everywhere and never fills a hole (ruling 34). A `_`
+  binds only inside the template of `each`, `pack` or `emit`, an
+  `apply`'s template, or a `filter`'s condition; anywhere else the
+  document is an error before it is evaluated, with the new code
+  `hole_unbound`, class `parse`. So `upper(_) & "a"`, `a: _`,
+  `{&: upper(_)}`, `match(_, …)` and `v: upper(_) | "x"` are errors,
+  and `vet` never fills a schema's hole from the data.
+- Write the value the hole was to take with `apply`:
+  `apply("a", upper(_))` is `"A"`, and `apply(["a"], pack(_, {x: 1}))`
+  packs the list.
+- A name whose body holds a hole is one nothing binds wherever it is
+  used, an `apply`'s template included; a named `emit` table, as in
+  `emit($.l, %t)`, is the one use that binds. A name nothing uses holds
+  its hole harmlessly: its waiting parts read as any value, as the
+  definition reads a declaration's body, so `%T = upper(_) & _` stands
+  where it was `place_pair`, while a seal around a container holding a
+  hole still refuses a key it doesn't name.
+- `place_pair` and `place_container` are reserved: nothing raises them.
+- A call the parser refuses for its arity or its name keeps its
+  arguments as written, so a hole among them is still found.
+- Rows from hv0 on of `test/spec/def-call.tsv` and from dp0 on of
+  `test/spec/def-path.tsv` (1,224 in all) answer `error`; the fill
+  rows of `test/spec/place.tsv` answer `hole_unbound`, and the data
+  rows of `gen-each`, `gen-pack` and `gen-filter` use `apply`.
+
 ### `aontu render` on a fresh install
 
 TypeScript.
 
-- `shape` is pinned to 11.4.1. `jostraca`, the generator runtime, takes
-  `shape` as a peer at any version from 11, and `shape` 12.0.0, out on
-  2026-11-09, no longer exports `One`, so on an install that resolved
-  it `aontu render` stopped with `TypeError: (0 , shape_1.One) is not a
+- `jostraca`, the generator runtime, moves from an exact dependency,
+  `0.39.0`, to a peer dependency, `>=0.41.0`, as in 0.76.3
+  ([ADR-079](ADR.md#adr-079--the-npm-package-takes-jostraca-as-a-peer-at-a-range)).
+  A fresh install takes the newest jostraca, and jostraca 0.42.0 reads
+  `shape` 12. jostraca 0.39.0 and 0.41.0 take `shape` as a peer at any
+  version from 11, and `shape` 12.0.0, out on 2026-11-09, no longer
+  exports `One`, so an install that resolved it beside either stopped
+  in `aontu render` with `TypeError: (0 , shape_1.One) is not a
   function`.
 
 ### `apply(v, f)` hands a value to a template
@@ -51,8 +106,7 @@ Both engines, the definition, and shared rows.
   `v`, in its maps and lists as anywhere else, where the call stands,
   so a relative path in `f` reads from there (ruling 34).
   `apply("hello", upper(_))` is `"HELLO"`, and an `f` with no such hole
-  is `f`. The meet still fills a hole from its peer; ruling 34 removes
-  that in a later change.
+  is `f`.
 - Rows ap0 to ap44 of `test/spec/def-call.tsv`, rows ar0 to ar11 of
   `test/spec/def-path.tsv` for a relative path in `f`, and `apply` in
   `spec/forms.tsv`, `test/spec/signature.tsv` and both language
@@ -5828,6 +5882,78 @@ Both ports. `close() & {x:1} & {y:2}` closes the whole meet
 {y:2}` lifts the seal first. On a list, closing fixes the length: the
 elements can still be narrowed, none can be added. A seal that meets
 no map or list leaves the value as it is; unmet, it does not generate.
+
+## 0.76.3 — 2026-11-09
+
+A patch on 0.76.1 that changes one dependency. The work merged into
+`main` since 0.76.0 is not in it.
+
+### jostraca is a peer dependency
+
+TypeScript. `jostraca`, the generator runtime `aontu render` hands its
+component tree to, moves from an exact dependency, `0.39.0`, to a peer
+dependency, `>=0.41.0`. A project that installs aontu beside the voxgig
+toolchain (`sdkgen`, `apidef`, `docgen`), which all ask for `jostraca >=0.41.0`,
+now gets one copy of jostraca where it got two, with aontu's own `0.39.0`
+nested below it. npm 7 and later install a peer dependency that nothing
+else provides, so a project with aontu alone still gets jostraca.
+
+`aontu render --format json` names its file lists, as the Go port does,
+so its report is the same as 0.76.1's. jostraca 0.41 returns a list of
+its own, `unmerged`, which a render, never merging, leaves empty.
+
+The Go module is unchanged: it requires `jostraca/go` v0.39.0 as a
+minimum, and a build that requires a later version already gets that
+one. Its version moves to 0.76.3 to keep the series together.
+
+## 0.76.1 — 2026-10-21
+
+A patch on 0.76.0 that carries one fix. The work merged into `main`
+since 0.76.0 is not in it.
+
+### A value a default has met outlives a stronger default
+
+Both ports (#431). Two scalar defaults now meet as the two
+disjunctions they stand for (ADR-011, `*x` is `x | super(x)`): each
+stands only where the other's override space admits it, and whichever
+stands keeps both gates. A value or a bound one default had already
+met was dropped when a default of a lower rank arrived, so the answer
+hung on the order the statements were written in, and a concrete value
+could lose to a default.
+
+- `**true | boolean` from a spread, then `true`, then `*false |
+  boolean` generated `false`. It generates `true`, as the other orders
+  already did, and so do numbers, strings, a reference, and defaults
+  written with no alternative.
+- A bound the losing default had met was dropped too: `a: x: *1`,
+  `a: x: min(1)`, `a: x: *1`, `a: x: 0` generated `0`, and refuses as
+  `empty` now. Where a bound rules the stronger default out, the
+  weaker stands in its place: `a: x: **1`, `a: x: min(1)`, `a: x: *0`
+  generates `1`.
+- A bound a spread puts on a default stays in its gate, so a value
+  outside the bound refuses as `empty`, as the default met with the
+  bound directly always did, where it reported `constraint`. Use case
+  18's `dev-zero` check expects `[aontu/empty]` accordingly.
+- Two defaults of one rank no longer clash where a value already met
+  rules one of them out: `*true`, `true`, `*false` generates `true`.
+- Two defaults whose types share nothing refuse as `empty` at any
+  rank, as a default and a value of another kind already did
+  (ADR-011): `**1` beside `*"a"` answered `"a"`, which `**1` does not
+  admit. Two such defaults of one rank report `empty` where they
+  reported `pref_rank_clash`; the class, `conflict`, is unchanged.
+- Map and list defaults meet as before.
+- `test/spec/defaults.tsv` gains sixteen rows, for the rule and for
+  map and list defaults keeping their arbitration, and the new
+  `test/spec/defaults-order.tsv` writes eight families of statements
+  in every order, 100 rows, of which the unfixed engines failed 32.
+  The `include-in-place` rows of `test/spec/file.tsv` read the include
+  order from the canon, since what generates no longer depends on it.
+- Still open, on #431: a bound met only after two defaults of
+  different ranks have met cannot promote the weaker one, which the
+  stronger has already displaced, so `a: **1`, `a: *0`, `a: min(1)` is
+  incomplete where the meet of the two disjunctions generates `1`; and
+  two defaults of one rank that meet before the value clash, where
+  the value would have decided between them.
 
 ## 0.76.0 — 2026-09-24
 

@@ -82,25 +82,16 @@ func (p *PrefVal) meetPref(pp *PrefVal, ctx *Ctx) Val {
 	}
 	path := cp(p.path)
 
+	gate := trialUnify(ctx, clonePath(strong.superpeg, path),
+		clonePath(weak.superpeg, path))
+	if nil == gate {
+		return makeNilErr(ctx, "empty", p, pp)
+	}
+
 	strongMet := trialUnify(ctx, clonePath(prefInnerPeg(strong), path),
 		clonePath(weak.superpeg, path))
 	weakMet := trialUnify(ctx, clonePath(strong.superpeg, path),
 		clonePath(prefInnerPeg(weak), path))
-	space := trialUnify(ctx, clonePath(strong.superpeg, path),
-		clonePath(weak.superpeg, path))
-
-	if nil == strongMet && nil == weakMet {
-		if nil == space {
-			return makeNilErr(ctx, "empty", p, pp)
-		}
-		return space
-	}
-
-	// An emptied override space stays a quiet nil, as a peer's does.
-	var gate Val = space
-	if nil == space {
-		gate = newNil("empty")
-	}
 
 	if strong.rank == weak.rank && nil != strongMet && nil != weakMet {
 		peg := trialUnify(ctx, clonePath(prefInnerPeg(p), path), prefInnerPeg(pp))
@@ -110,10 +101,13 @@ func (p *PrefVal) meetPref(pp *PrefVal, ctx *Ctx) Val {
 		return p.stand(peg, gate)
 	}
 
-	if nil != strongMet {
+	switch {
+	case nil != strongMet:
 		return strong.stand(strongMet, gate)
+	case nil != weakMet:
+		return weak.stand(weakMet, gate)
 	}
-	return weak.stand(weakMet, gate)
+	return gate
 }
 
 func prefInnerPeg(v Val) Val {
@@ -187,12 +181,8 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 				waits = met.Dc() != DONE
 				// A peer that empties the override space leaves the preference standing.
 				gate := trialUnify(ctx, clonePath(p.superpeg, cp(p.path)), peer)
-				if nil == gate {
-					if p.superpeg.Nil() {
-						gate = p.superpeg
-					} else {
-						gate = newNil("empty")
-					}
+				if nil == gate { //coverage:ignore a parent type admits what its own value admits, but for no parent at all
+					gate = p.superpeg
 				}
 
 				out = p.stand(met, gate)

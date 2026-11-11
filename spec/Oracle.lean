@@ -1402,6 +1402,447 @@ theorem rel_path_verdict_exact : ∀ c ∈ relPathCases, ∀ (m : Mode) (v : Ver
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (relPathCases_checkable c hc).1 (relPathCases_checkable c hc).2 v
 
+/-- A use of a name whose body writes a relative path reads the path
+where the use stands (ruling 26): a climb out of the body at a use whose
+place holds its own target, a name used at two places that read two
+values, and a name whose body uses another such name, its copy read at
+the copy of the use. Both ports' `vet` reads these at each use in either
+order, so the rows hold them with each declaration written before the
+schema and again after it. -/
+def copyDestCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let tv : Decls := [("T", m [("v", rel 2 ["x"])])]
+  let one := m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])]
+  let two := m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")]), ("c", m [("x", int 3), ("d", .alias "T")])]
+  let nest : Decls := [("U", m [("w", rel 2 ["y"])]), ("T", m [("u", .alias "U"), ("y", int 3)])]
+  [(tv, one, .map [("a", .map [("b", .map [("v", j 2)])])]),
+    (tv, one, .map [("a", .map [("b", .map [("v", j 1)])])]),
+    (tv, two, .map [("a", .map [("b", .map [("v", j 2)])]), ("c", .map [("d", .map [("v", j 3)])])]),
+    (tv, two, .map [("a", .map [("b", .map [("v", j 2)])]), ("c", .map [("d", .map [("v", j 2)])])]),
+    (tv, m [("x", int 1), ("b", .alias "T")], .map [("b", .map [("v", j 1)])]),
+    (nest, m [("y", int 1), ("a", m [("b", .alias "T")])], .map [("a", .map [("b", .map [("u", .map [("w", j 3)])])])]),
+    (nest, m [("y", int 1), ("a", m [("b", .alias "T")])], .map [("a", .map [("b", .map [("u", .map [("w", j 1)])])])])]
+
+theorem copyDestCases_checkable : ∀ c ∈ copyDestCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem copy_dest_verdict_exact : ∀ c ∈ copyDestCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (copyDestCases_checkable c hc).1 (copyDestCases_checkable c hc).2 v
+
+/-- A path reference's copy reads its target's relative paths where it
+stands (ruling 26), with what the data writes at the target met in:
+`c: {x: 3, d: $.a.b}` beside `a: {x: 2, b: {v: ..x}}`, the reference
+written after the target and before it, beside no data, data at the
+copy that reads 3 and that reads 2, data at the target, and both; a
+target whose relative path stays inside it, met at the copy; two copies
+that read two values; a copy where its path names nothing; and a target
+that is a use of a name, and one that is a path reference; a path to a
+member only a spread's template would reach, which names nothing; a
+reference inside its own place, a recursion, beside data that holds it
+and data that refuses it; a target reached through another path
+reference, whose own data meets the copy, in both orders; a target
+that holds a path reference of its own, whose copy at the copy meets
+what the data writes at the place it names, in both orders; and a
+target that holds a spread whose template climbs out of it, read at the
+copy's own members, in both orders, but for data that reads the target's
+own value with the target first, on which the ports split (#696). -/
+def refCopyCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let a := ("a", m [("x", int 2), ("b", m [("v", rel 2 ["x"])])])
+  let c := ("c", m [("x", int 3), ("d", p ["a", "b"])])
+  let e := ("e", m [("x", int 4), ("f", p ["a", "b"])])
+  let atV (k1 k2 : String) (n : ℤ) (h : IntegerLeaf n := by decide) : String × Data :=
+    (k1, .map [(k2, .map [("v", j n h)])])
+  let datas : List Data := [.map [], .map [atV "c" "d" 3], .map [atV "c" "d" 2], .map [atV "a" "b" 2],
+    .map [atV "a" "b" 2, atV "c" "d" 3]]
+  let aw := ("a", m [("b", m [("v", rel 1 ["w"]), ("w", .number)])])
+  let cw := ("c", m [("d", .meet (p ["a", "b"]) (m [("w", int 7)]))])
+  let vw (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .map [("v", j n h), ("w", j n h)]
+  let tv : Decls := [("T", m [("v", rel 2 ["x"])])]
+  let recur : Val := .map [("x", false, .integer), ("y", false, rel 1 ["x"]), ("b", true, p ["a"])] none false
+  let fw := ("f", m [("b", m [("w", .number), ("v", rel 1 ["w"])])])
+  let fg := ("f", m [("g", m [("w", .number), ("v", rel 1 ["w"])])])
+  let ae := ("a", m [("b", m [("e", p ["f", "g"])])])
+  let cd := ("c", m [("d", p ["a", "b"])])
+  let ew (n k : ℤ) (hn : IntegerLeaf n := by decide) (hk : IntegerLeaf k := by decide) : Data :=
+    .map [("f", .map [("g", .map [("w", j n hn), ("v", j n hn)])]),
+      ("c", .map [("d", .map [("e", .map [("w", j k hk), ("v", j k hk)])])])]
+  let atb := ("a", m [("x", int 2), ("b", .map [("k", false, m [])] (some (m [("v", rel 3 ["x"])])) false)])
+  let ct := ("c", m [("x", int 3), ("d", p ["a", "b"])])
+  let kv (n : ℤ) (h : IntegerLeaf n := by decide) : Data :=
+    .map [("c", .map [("d", .map [("k", .map [("v", j n h)])])])]
+  datas.map (fun d => ([], m [a, c], d)) ++ datas.map (fun d => ([], m [c, a], d)) ++
+    [([], m [aw, cw], .map []),
+      ([], m [aw, cw], .map [("a", .map [("b", vw 1)]), ("c", .map [("d", vw 7)])]),
+      ([], m [cw, aw], .map [("a", .map [("b", vw 1)]), ("c", .map [("d", vw 7)])]),
+      ([], m [cw, aw], .map [("c", .map [("d", vw 7)])]),
+      ([], m [c, e, a], .map [atV "c" "d" 3, atV "e" "f" 4]),
+      ([], m [a, c, e], .map [atV "c" "d" 3, atV "e" "f" 4]),
+      ([], m [("c", m [("d", p ["a", "b"])]), a], .map []),
+      ([], m [a, ("c", m [("d", p ["a", "b"])])], .map []),
+      (tv, m [c, ("a", m [("x", int 2), ("b", .alias "T")]), ("x", int 1)], .map [atV "c" "d" 3]),
+      ([], m [c, ("a", m [("x", int 2), ("b", p ["f"])]), ("f", m [("v", rel 2 ["x"])]), ("x", int 1)],
+        .map [atV "c" "d" 3]),
+      ([], m [("a", .map [] (some (m [("v", rel 1 ["w"]), ("w", int 1)])) false), ("d", p ["a", "missing"])], .map []),
+      ([], m [("a", recur)], .map [("a", .map [("x", j 1), ("y", j 1)])]),
+      ([], m [("a", recur)], .map [("a", .map [("x", j 1), ("y", j 2)])]),
+      ([], m [fw, ("a", p ["f"]), ("d", p ["a", "b"])], .map [("a", .map [("b", vw 1)]), ("d", vw 2)]),
+      ([], m [fw, ("a", p ["f"]), ("d", p ["a", "b"])], .map [("a", .map [("b", vw 2)]), ("d", vw 2)]),
+      ([], m [("d", p ["a", "b"]), fw, ("a", p ["f"])], .map [("a", .map [("b", vw 1)]), ("d", vw 2)]),
+      ([], m [fg, ae, cd], ew 1 2),
+      ([], m [fg, ae, cd], ew 1 1),
+      ([], m [cd, ae, fg], ew 1 2),
+      ([], m [("x", int 1), atb, ct], kv 3),
+      ([], m [("x", int 1), atb, ct], .map []),
+      ([], m [("x", int 1), ct, atb], kv 3),
+      ([], m [("x", int 1), ct, atb], kv 2)]
+
+/-- A name whose body holds a path reference to a place whose terms read
+their own place, and a use of a name inside another name's body, each
+read where it stands (ruling 26): `%T = $.a.b` beside
+`a: {x: 2, b: {v: ..x}}`, used at `c: {x: 3, d: %T}`, beside data that
+reads 3 at `c.d.v` and data that reads 2, and with no `x` at the top,
+where the body's own copy, at `%T`, names nothing; and `%T = {u: %U}`
+with `%U = {w: ..x}`, whose use at `%T.u` reads `%T.x`, which a body
+written without an `x` doesn't hold, written after `%U` and before it,
+and which one written with an `x` does. -/
+def bodyCopyCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let a := ("a", m [("x", int 2), ("b", m [("v", rel 2 ["x"])])])
+  let c := ("c", m [("x", int 3), ("d", .alias "T")])
+  let tr : Decls := [("T", .path [.key "a", .key "b"])]
+  let atV (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .map [("c", .map [("d", .map [("v", j n h)])])]
+  let u : String × Val := ("U", m [("w", rel 2 ["x"])])
+  let t (tx : List (String × Val)) : String × Val := ("T", m ([("u", .alias "U")] ++ tx))
+  let ab := m [("x", int 1), ("a", m [("b", .meet (.alias "T") (m [("x", int 5)]))])]
+  let w5 : Data := .map [("a", .map [("b", .map [("u", .map [("w", j 5)])])])]
+  [(tr, m [("x", int 1), a, c], atV 3),
+    (tr, m [("x", int 1), a, c], atV 2),
+    (tr, m [a, c], .map []),
+    ([u, t []], ab, w5),
+    ([t [], u], ab, w5),
+    ([u, t [("x", .integer)]], ab, w5)]
+
+/-- A name whose body holds a spread whose template reads its member's
+place, read at each member where the name is used and at the body's own
+place: `%H = {&: {url: .name}}` used at `hosts`, beside data whose `url`
+agrees with its `name` and data whose `url` doesn't; the same body
+unused, with no member, with a member that holds what the template
+reads, and with one that doesn't, which names nothing at `$.%H.k`;
+`%T = {k: {}, &: {v: ...x}}` used at `a.b`, whose template climbs out
+of the body to read `a.x` where the use stands; and `%H` declared twice,
+its template in one body and its member in the other, which the
+template reads too. -/
+def nameTemplateCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let str (s : String) : Val := .lit (.str s)
+  let tmpl (fs : List (String × Val)) (t : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some t) false
+  let url := m [("url", rel 1 ["name"])]
+  let h (fs : List (String × Val)) : Decls := [("H", tmpl fs url)]
+  let hosts := m [("hosts", .meet (.alias "H") (m [("a", m [("name", str "x")])]))]
+  let hd (u : String) : Data := .map [("hosts", .map [("a", .map [("name", .str "x"), ("url", .str u)])])]
+  let t : Decls := [("T", tmpl [("k", m [])] (m [("v", rel 3 ["x"])]))]
+  let ab := m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])]
+  let bv (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .map [("a", .map [("b", .map [("k", .map [("v", j n h)])])])]
+  [(h [], hosts, hd "x"),
+    (h [], hosts, hd "y"),
+    (h [], m [("x", int 1)], .map []),
+    (h [("k", m [("name", str "n")])], m [("x", int 1)], .map []),
+    (h [("k", m [])], m [("x", int 1)], .map []),
+    (t, ab, bv 2),
+    (t, ab, bv 1),
+    (h [] ++ [("H", m [("k", m [])])], m [("x", int 1)], .map []),
+    (h [] ++ [("H", m [("k", m [("name", str "n")])])], m [("x", int 1)], .map [])]
+
+theorem nameTemplateCases_checkable : ∀ c ∈ nameTemplateCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem name_template_verdict_exact : ∀ c ∈ nameTemplateCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (nameTemplateCases_checkable c hc).1 (nameTemplateCases_checkable c hc).2 v
+
+/-- Templates that read their member's place in a selection's results,
+each read at each member where the selection stands: a spread's in the
+result the selection takes, beside data it refuses, in a result it
+doesn't take, beside one that refuses less, in its default, deeper in
+the document, in the body of a name a result uses, and in a selection
+that is a name's body, read where the name is used. A generator's
+template there waits on TypeScript, which reads it a step deeper (#698). -/
+def selectTemplateCases : List (Decls × Val × Data) :=
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let tmpl (t : Val) : Val := .map [] (some t) false
+  let url := tmpl (m [("url", rel 1 ["name"])])
+  let sel (s : String) (r₁ r₂ : Val) : Val := .select (str s) [(str "m", r₁), (str "n", r₂)] none
+  let dflt : Val := .select (str "z") [(str "m", .lit .null)] (some url)
+  let hosts (u : String) : Data := .map [("a", .map [("name", .str "x"), ("url", .str u)])]
+  let hd (u : String) : Data := .map [("hosts", hosts u)]
+  [([], m [("hosts", sel "m" url (.lit .null))], hd "x"),
+    ([], m [("hosts", sel "m" url (.lit .null))], hd "y"),
+    ([], m [("hosts", sel "n" url (.lit .null))], .map [("hosts", .null)]),
+    ([], m [("hosts", sel "n" url (.lit .null))], hd "x"),
+    ([], m [("hosts", sel "n" url (tmpl (m [("url", .string)])))], hd "y"),
+    ([], m [("hosts", dflt)], hd "x"),
+    ([], m [("hosts", dflt)], hd "y"),
+    ([], m [("c", m [("hosts", sel "m" url (.lit .null))])], .map [("c", hd "y")]),
+    ([("H", url)], m [("hosts", sel "m" (.alias "H") (.lit .null))], hd "x"),
+    ([("H", url)], m [("hosts", sel "m" (.alias "H") (.lit .null))], hd "y"),
+    ([("H", sel "m" url (.lit .null))], m [("hosts", .alias "H")], hd "x"),
+    ([("H", sel "m" url (.lit .null))], m [("hosts", .alias "H")], hd "y")]
+
+theorem selectTemplateCases_checkable : ∀ c ∈ selectTemplateCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem select_template_verdict_exact : ∀ c ∈ selectTemplateCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (selectTemplateCases_checkable c hc).1 (selectTemplateCases_checkable c hc).2 v
+
+/-- Paths written in a disjunction's arm, each read where the arm holds:
+a relative path to a member the arm writes, beside data it refuses and
+data another arm takes; an arm the data leaves alone beside one that
+refuses less, and beside one that refuses as much; an absolute path to
+the arm's own member and a path that climbs out of the arm; a spread's
+template that reads its member's place, written in the arm and in the
+body of a name the arm uses; a path in the body of a name the arm uses;
+a path that names nothing, which drops its arm; a preferred arm; a path
+from outside into an arm, which names nothing; a name whose body is such
+a disjunction, used and unused; a chain of paths within an arm; a
+path from outside into a disjunction a meet leaves one arm, which reads
+that arm; and a disjunction or a lone preference inside an arm, read
+before the arm that holds it: a path in the inner arm to its own member
+and to the outer arm's, the inner disjunction's other arm, a path in the
+outer arm into the inner one, a lone preference in an arm, and an inner
+disjunction both of whose arms take the data; and disjunctions met at one
+place, read as one disjunction of the meets of their arms: a path to the
+arm's own member, a path to a member the other disjunction's arm
+supplies, a third conjunct between them, paths in both disjunctions'
+arms, and a name whose body is such a meet. -/
+def disjunctionPathCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let tmpl (t : Val) : Val := .map [] (some t) false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let or2 (a b : Val) : Val := .or [(0, a), (0, b)]
+  let named := m [("a", m [("name", str "x"), ("url", rel 1 ["name"])])]
+  let url := tmpl (m [("url", rel 1 ["name"])])
+  let hosts (u : String) : Data := .map [("a", .map [("name", .str "x"), ("url", .str u)])]
+  let hd (u : String) : Data := .map [("hosts", hosts u)]
+  let hn : Data := .map [("hosts", .null)]
+  [([], m [("hosts", or2 named (.lit .null))], hd "x"),
+    ([], m [("hosts", or2 named (.lit .null))], hd "y"),
+    ([], m [("hosts", or2 named (.lit .null))], hn),
+    ([], m [("hosts", or2 named (m [("a", m [("url", .number)])]))], hd "y"),
+    ([], m [("hosts", or2 named (m [("a", m [("url", .string)])]))], hd "y"),
+    ([], m [("hosts", or2 (m [("a", m [("name", str "x"), ("url", p ["hosts", "a", "name"])])]) (.lit .null))], hd "x"),
+    ([], m [("c", m [("name", str "x"), ("hosts", or2 (m [("url", rel 2 ["name"])]) (.lit .null))])],
+      .map [("c", .map [("name", .str "x"), ("hosts", .map [("url", .str "y")])])]),
+    ([], m [("hosts", or2 url (.lit .null))], hd "x"),
+    ([], m [("hosts", or2 url (.lit .null))], hd "y"),
+    ([], m [("hosts", or2 url (tmpl (m [("url", .string)])))], hd "y"),
+    ([("H", url)], m [("hosts", or2 (.alias "H") (.lit .null))], hd "x"),
+    ([("H", url)], m [("hosts", or2 (.alias "H") (.lit .null))], hd "y"),
+    ([("H", named)], m [("hosts", or2 (.alias "H") (.lit .null))], hd "x"),
+    ([("H", named)], m [("hosts", or2 (.alias "H") (.lit .null))], hd "y"),
+    ([], m [("hosts", or2 (m [("a", m [("url", p ["nowhere"])])]) (.lit .null))], hn),
+    ([], m [("hosts", or2 (m [("a", m [("url", p ["nowhere"])])]) (.lit .null))], hd "y"),
+    ([], m [("hosts", .or [(1, named), (0, .lit .null)])], hd "x"),
+    ([], m [("x", or2 (m [("a", int 1)]) (m [("a", int 2)])), ("y", p ["x", "a"])],
+      .map [("x", .map [("a", j 1)]), ("y", j 1)]),
+    ([("H", or2 named (.lit .null))], m [("hosts", .alias "H")], hd "x"),
+    ([("H", or2 named (.lit .null))], m [("hosts", .alias "H")], hd "y"),
+    ([("H", or2 named (.lit .null))], m [("x", str "q")], .map [("x", .str "q")]),
+    ([("H", or2 (m [("a", m [("url", p ["nowhere"])])]) (.lit .null))], m [("x", str "q")], .map [("x", .str "q")]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", p ["x", "a"]), ("c", p ["x", "b"])]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", j 1), ("c", j 1)])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", p ["x", "a"]), ("c", p ["x", "b"])]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", j 1), ("c", j 2)])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", p ["x", "a"]), ("c", p ["x", "b"])]) (.lit .null))],
+      .map [("x", .null)]),
+    ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1)])), ("y", p ["x", "a"])],
+      .map [("x", .map [("a", j 1)]), ("y", j 1)]),
+    ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1)])), ("y", p ["x", "a"])],
+      .map [("x", .map [("a", j 1)]), ("y", j 2)]),
+    ([], m [("hosts", or2 named (m [("a", m [("name", .string), ("url", .string)])]))],
+      .map [("hosts", .map [("a", .map [("name", .str "y"), ("url", .str "y")])])]),
+    ([], m [("hosts", or2 named (m [("a", m [("name", .string), ("url", .string)])]))],
+      .map [("hosts", .map [("a", .map [("name", .str "y"), ("url", .str "z")])])]),
+    ([], m [("hosts", or2 named (.lit .null))],
+      .map [("hosts", .map [("a", .map [("name", .str "y"), ("url", .str "y")])])]),
+    ([("T", m [("a", int 1), ("b", rel 1 ["a"])])], m [("x", .meet (or2 (.alias "T") (.lit .null)) (.alias "T"))],
+      .map [("x", .map [("a", j 1), ("b", j 1)])]),
+    ([("T", m [("a", int 1), ("b", rel 1 ["a"])])], m [("x", .meet (or2 (.alias "T") (.lit .null)) (.alias "T"))],
+      .map [("x", .map [("a", j 1), ("b", j 2)])]),
+    ([("T", m [("a", int 1), ("b", rel 1 ["a"])])], m [("x", .meet (or2 (.alias "T") (.lit .null)) (.alias "T"))],
+      .map [("x", .null)]),
+    ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1), ("b", rel 1 ["a"])]))],
+      .map [("x", .map [("a", j 1), ("b", j 1)])]),
+    ([], m [("x", .meet (or2 (m [("a", int 1)]) (.lit .null)) (m [("a", int 1), ("b", rel 1 ["a"])]))],
+      .map [("x", .map [("a", j 1), ("b", j 2)])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (.lit .null))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 1), ("d", j 1)])])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (.lit .null))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 1), ("d", j 2)])])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (.lit .null))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .null)])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", rel 2 ["a"])]) (.lit .null))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 1)])])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", rel 2 ["a"])]) (.lit .null))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 2)])])]),
+    ([], m [("x", or2 (m [("a", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (.lit .null)), ("e", rel 1 ["a", "d"])])
+        (.lit .null))],
+      .map [("x", .map [("a", .map [("c", j 1), ("d", j 1)]), ("e", j 1)])]),
+    ([], m [("x", or2 (m [("a", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (.lit .null)), ("e", rel 1 ["a", "d"])])
+        (.lit .null))],
+      .map [("x", .map [("a", .map [("c", j 1), ("d", j 1)]), ("e", j 2)])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", .pref 1 (m [("c", int 1), ("d", rel 1 ["c"])]))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 2), ("d", j 3)])])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", .pref 1 (m [("c", int 1), ("d", rel 1 ["c"])]))]) (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("c", j 1), ("d", j 1)])])]),
+    ([], m [("x", or2 (m [("a", int 1), ("b", or2 (m [("c", int 1), ("d", rel 1 ["c"])]) (m [("e", int 2)]))])
+        (.lit .null))],
+      .map [("x", .map [("a", j 1), ("b", .map [("e", j 2)])])]),
+    ([], m [("x", .meet (or2 (m [("a", int 1), ("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 1), ("b", j 1)])]),
+    ([], m [("x", .meet (or2 (m [("a", int 1), ("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 1), ("b", j 2)])]),
+    ([], m [("x", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 2), ("b", j 2)])]),
+    ([], m [("x", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 2), ("b", j 1)])]),
+    ([], m [("x", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .null)]),
+    ([], m [("x", .meet (.meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (m [("c", int 1)]))
+        (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 2), ("b", j 2), ("c", j 1)])]),
+    ([], m [("x", .meet (.meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (m [("c", int 1)]))
+        (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      .map [("x", .map [("a", j 2), ("b", j 1), ("c", j 1)])]),
+    ([], m [("x", .meet (or2 (m [("b", rel 1 ["a"])]) (m [("b", rel 1 ["c"])]))
+        (or2 (m [("a", int 1), ("c", int 2)]) (m [("a", int 3), ("c", int 4)])))],
+      .map [("x", .map [("a", j 1), ("b", j 2), ("c", j 2)])]),
+    ([], m [("x", .meet (or2 (m [("b", rel 1 ["a"])]) (m [("b", rel 1 ["c"])]))
+        (or2 (m [("a", int 1), ("c", int 2)]) (m [("a", int 3), ("c", int 4)])))],
+      .map [("x", .map [("a", j 1), ("b", j 3), ("c", j 2)])]),
+    ([("T", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      m [("x", .alias "T")], .map [("x", .map [("a", j 2), ("b", j 2)])]),
+    ([("T", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
+      m [("x", .alias "T")], .map [("x", .map [("a", j 2), ("b", j 1)])])]
+
+/-- Paths inside a lone preference `*x`, which reads as `x | super(x)`:
+`x` read where it stands, and its parent arm the parent type of what `x`
+reads as on its own (decision 40). A relative path to the preference's
+own member: the data taking the default, overriding it within the
+parent type and outside it, leaving a member out, and leaving the
+preference out; a default over a kind, whose path reads the data, and
+one whose path meets a bound, whose parent the path's kind decides; an
+absolute path to the preference's own member; a chain of paths; a name
+the preference holds; a template whose path reads its member's place;
+a path to a place outside the preference, whose value the parent arm
+lifts; and a disjunction or a lone preference inside the preferred
+value, which the parent arm lifts as the value reads before any data, its
+paths read so: a preference over a disjunction, a preference inside a
+preference, and a path that reads a kind the data narrows. -/
+def lonePrefPathCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let tmpl (t : Val) : Val := .map [] (some t) false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ab := m [("a", int 1), ("b", rel 1 ["a"])]
+  let abc := m [("a", int 1), ("b", rel 1 ["a"]), ("c", rel 1 ["b"])]
+  let kb := m [("a", .integer), ("b", rel 1 ["a"])]
+  let pb := m [("a", int 1), ("b", p ["x", "a"])]
+  let hs := tmpl (m [("name", str "a"), ("url", rel 1 ["name"])])
+  let xd (fs : List (String × Data)) : Data := .map [("x", .map fs)]
+  let hd (n : String) (u : Data) : Data := .map [("x", .map [("h", .map [("name", .str n), ("url", u)])])]
+  [([], m [("x", .pref 1 ab)], xd [("a", j 1), ("b", j 1)]),
+    ([], m [("x", .pref 1 ab)], xd [("a", j 1), ("b", j 2)]),
+    ([], m [("x", .pref 1 ab)], xd [("a", j 2), ("b", j 2)]),
+    ([], m [("x", .pref 1 ab)], xd [("a", j 2), ("b", j 3)]),
+    ([], m [("x", .pref 1 ab)], xd [("a", j 2), ("b", .str "s")]),
+    ([], m [("x", .pref 1 ab)], xd [("a", j 2)]),
+    ([], m [("x", .pref 1 ab)], .map []),
+    ([], m [("x", .pref 1 kb)], xd [("a", j 5)]),
+    ([], m [("x", .pref 1 kb)], xd [("a", j 5), ("b", j 6)]),
+    ([], m [("x", .pref 1 pb)], xd [("a", j 2), ("b", j 3)]),
+    ([], m [("x", .pref 1 pb)], xd [("a", j 2), ("b", .str "s")]),
+    ([], m [("x", .pref 1 abc)], xd [("a", j 2), ("b", j 3), ("c", j 4)]),
+    ([], m [("x", .pref 1 abc)], xd [("a", j 2), ("b", j 3), ("c", .str "s")]),
+    ([("T", ab)], m [("x", .pref 1 (.alias "T"))], xd [("a", j 2), ("b", j 3)]),
+    ([("T", ab)], m [("x", .pref 1 (.alias "T"))], xd [("a", j 2), ("b", .str "s")]),
+    ([], m [("x", .pref 1 hs)], hd "a" (.str "a")),
+    ([], m [("x", .pref 1 hs)], hd "b" (.str "c")),
+    ([], m [("x", .pref 1 hs)], hd "b" (j 1)),
+    ([], m [("y", int 1), ("x", .pref 1 (m [("b", p ["y"])]))], .map [("y", j 1), ("x", .map [("b", j 3)])]),
+    ([], m [("y", int 1), ("x", .pref 1 (m [("b", p ["y"])]))], .map [("y", j 1), ("x", .map [("b", .str "s")])]),
+    ([], m [("y", int 1), ("x", .pref 1 (p ["y"]))], .map [("y", j 1), ("x", j 3)]),
+    ([], m [("y", int 1), ("x", .pref 1 (m [("a", int 1), ("b", p ["y"])]))],
+      .map [("y", j 1), ("x", .map [("a", j 2), ("b", .str "s")])]),
+    ([], m [("x", .pref 1 (m [("a", .integer), ("b", .meet (rel 1 ["a"]) (.min (.num (.integer (.of 3)))))]))],
+      xd [("a", .num (.float (.dyadic 11 (-1)))), ("b", .num (.float (.dyadic 11 (-1))))]),
+    ([], m [("x", .pref 1 (m [("a", .integer), ("b", .meet (rel 1 ["a"]) (.min (.num (.integer (.of 3)))))]))],
+      xd [("a", .num (.float (.dyadic 11 (-1)))), ("b", j 5)]),
+    ([], m [("x", .pref 1 (.or [(0, ab), (0, .lit .null)]))], xd [("a", j 1), ("b", j 1)]),
+    ([], m [("x", .pref 1 (.or [(0, ab), (0, .lit .null)]))], xd [("a", j 2), ("b", j 3)]),
+    ([], m [("x", .pref 1 (.or [(0, ab), (0, .lit .null)]))], xd [("a", j 2), ("b", .str "s")]),
+    ([], m [("x", .pref 1 (.or [(0, ab), (0, .lit .null)]))], .map [("x", .null)]),
+    ([], m [("x", .pref 1 (m [("a", int 1), ("b", .pref 1 (m [("c", int 1), ("d", rel 1 ["c"])]))]))],
+      xd [("a", j 2), ("b", .map [("c", j 2), ("d", j 3)])]),
+    ([], m [("x", .pref 1 (m [("a", int 1), ("b", .pref 1 (m [("c", int 1), ("d", rel 1 ["c"])]))]))],
+      xd [("a", j 1), ("b", .map [("c", j 1), ("d", j 1)])]),
+    ([], m [("x", .pref 1 (m [("a", .number), ("b", rel 1 ["a"])]))],
+      xd [("a", j 5), ("b", .num (.float (.dyadic 5 (-1))))]),
+    ([], m [("x", .pref 1 (.or [(0, m [("a", .number), ("b", rel 1 ["a"])]), (0, .lit .null)]))],
+      xd [("a", j 5), ("b", .num (.float (.dyadic 5 (-1))))])]
+
+theorem lonePrefPathCases_checkable : ∀ c ∈ lonePrefPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem lone_pref_path_verdict_exact : ∀ c ∈ lonePrefPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (lonePrefPathCases_checkable c hc).1 (lonePrefPathCases_checkable c hc).2 v
+
+theorem disjunctionPathCases_checkable : ∀ c ∈ disjunctionPathCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem disjunction_path_verdict_exact : ∀ c ∈ disjunctionPathCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (disjunctionPathCases_checkable c hc).1 (disjunctionPathCases_checkable c hc).2 v
+
+theorem bodyCopyCases_checkable : ∀ c ∈ bodyCopyCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem body_copy_verdict_exact : ∀ c ∈ bodyCopyCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (bodyCopyCases_checkable c hc).1 (bodyCopyCases_checkable c hc).2 v
+
+theorem refCopyCases_checkable : ∀ c ∈ refCopyCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem ref_copy_verdict_exact : ∀ c ∈ refCopyCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (refCopyCases_checkable c hc).1 (refCopyCases_checkable c hc).2 v
+
 /-- `maybe` over paths that name something and paths that name nothing:
 absence at a required key and at an optional one, as a list's element,
 an arm and a call's argument, and met with a literal and a kind, beside
@@ -1675,15 +2116,12 @@ theorem call_path_verdict_exact : ∀ c ∈ callPathCases, ∀ (m : Mode) (v : V
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (callPathCases_checkable c hc).1 (callPathCases_checkable c hc).2 v
 
-/-- A call over a hole that a path names, which the data fills, as it
-fills a hole the document leaves unfilled: `sum` over a path to a list
-that holds one, against data that fills it and writes the sum, data
-that fills it alone, no data, and data that writes another sum; over a
-list that holds a path to a hole, against the same; over a path to a
-path to such a list; and a call over such a call. A path to a list that
-holds a `key(n)` is read as written, so the call over it is an error
-still, and so is one over a list that holds a written hole beside a path
-to a hole, against data that fills the path and data that writes nothing. -/
+/-- A call over a hole that a path names, which the data once filled
+(decision 29, which ruling 34 supersedes): `sum` over a path to a list
+that holds one, over a list that holds a path to a hole, and over one
+that holds a written hole beside a path to one, against data that
+writes the hole and data that writes nothing. The hole is one nothing
+binds, so each is an error of the schema whatever the data. -/
 def dataPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -4771,11 +5209,10 @@ theorem readR_call_checkableA {t : Val} (hf : ∀ k, (expandF [] k t).filled = e
     cases n with
     | zero =>
       have h0 : t.filled = t := by simpa [expandF] using hf 0
-      simp only [expandF, Val.filled, filledFields, tmplSpread, h0, joinFields_single, spreadAll_none]
+      simp only [expandF, Val.filled, filledFields, tmplSpread, h0, joinFields_single]
       exact hm t (by simpa [expandF] using h 0)
     | succ k =>
-      simp only [expandF, List.map, Option.map, Val.filled, filledFields, tmplSpread, hf k, joinFields_single,
-        spreadAll_none]
+      simp only [expandF, List.map, Option.map, Val.filled, filledFields, tmplSpread, hf k, joinFields_single]
       exact hm _ (h k)
   exact this _
 
@@ -5120,77 +5557,15 @@ theorem pack_verdict_exact : ∀ c ∈ packCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (packCases_checkable c hc)) v
 
-/-- A hole its call's peer fills, as a document reads it (decision 21 of
-the design note's §7), for the `verdict` rows hv0 on. A call on a string
-and on a number, written before its peer and after it, over a call, and
-with a second peer the document groups after the first, each against
-data that writes its output and data that doesn't; the hole alone; and,
-where the data leaves the member out so that the fill supplies it, the
-same call, a generator over a list written before its peer and after
-it, a fill inside a map and a list, and a second peer that refuses the
-output; a fill in a `match`'s result and in its default; and two lists
-or two maps met member by member, by position and by key, nested, with a
-member one side lacks, and with a member pair that both wait; a map
-met with a meet of maps, on either side and on both, a list's element
-among them; a key declared more than once, alone, in the peer and in
-the map itself, before the hole and after it, nested, and beside
-another key;
-and a list beside a peer that holds a marked element, which holds no
-position, on either side and in an inner meet; and a spread whose
-template waits on a hole, met with a peer's members and its own, each
-once, on either side, through a meet, nested, with a member a later
-meet brings, with one it has filled, and beside a member that waits,
-in a map and in a list; a spread that selects on the key, where an arm
-takes the member before the default that waits; and a spread whose
-template holds its hole inside a container, a map or a list, met with a
-peer's members on either side, with its own, through a meet on either
-side, with a member a later meet brings and with one it has filled,
-nested, under a spread inside the template, with a member the data fills
-and one it leaves out, beside a member that waits, and with a member, a
-peer's or its own, that is a disjunction, met arm by arm. Two spreads that
-both wait are out of them: both ports read them as one where their
-templates are alike, and as `place_pair` otherwise. A list whose one hole no peer element fills is the
-data's to fill, in rows dv0 on (decision 29). Both ports read a
-generator's peer and the data as one conjunction, so a generator meets
-no data here. Last, a hole on the right of a meet, which takes its peer
-as one on the left does: after a literal, a kind and a container's
-member or element, and after a meet whose call its own peer has filled;
-and a kind on the right of a hole. And a container under a rider, a
-mark or a seal, met member by member as it would be bare: under `meta`
-on either side, around a map and a list, under `deprecate`, `hide` and
-`type`, sealed, where a key the peer adds is refused, met with a list,
-which it conflicts with, under two riders, and met with a peer whose
-member waits too; and a hole alone under a rider. And a hole inside a
-list a call takes, which the call doesn't wait on, so its peer doesn't
-fill it: in a `join`'s list, after a member and before one, against
-data that writes the output a fill would make and data that writes the
-peer, and as a map's member; and `sum` over a hole its peer, a list of
-strings, fills, which the sum refuses. And a map spread's container
-template that a later meet reaches again, which fills its member once:
-after it has filled the member, against data that writes that and data
-that writes it filled again, before the member's value arrives, over a
-meet of members, over its own map's member, with a list template, beside
-a key a later meet brings, against data that leaves a hole open, and
-after two later meets. And a meet that fills a hole inside a size, a
-trial or a `match`, which settles as it would written filled: in `len`,
-`must`, a `match`'s pattern, `when`'s branch, `contains`, `rest` and a
-branch of `nof`, against data that passes and data that doesn't. One
-in a `match`'s scrutinee is out of them, as the checker reads no
-scrutinee that waits. And a `+` over a list that holds a hole, which
-joins the lists as written and waits only on a hole among its operands:
-met with a list that fills the hole member by member, against data
-that writes that and data that writes the list bound to the hole; a
-`+` whose own operand is the hole beside a list that holds one,
-against data that fills the list's hole and data that leaves it out;
-the `+` alone, whose hole the data fills; and a `+` over a hole and a
-list. And a `+` whose operand list holds a call over a hole, which the
-meet fills once the lists are joined: on the left of the meet, against
-data that writes the call's output and data that writes the peer, on
-the right, in the right list, and inside a map; and a `+` whose right
-list holds a `key()`, which reads its index where it's written, against
-data that writes that index and data that writes the joined one; and a
-`+` over a list with a spread, which meets its elements before the
-join, one that refuses an element and one that waits on a hole. -/
+/-- The shapes the meet once read as a hole's application (rulings 21
+and 29 to 31, which ruling 34 supersedes), for the `verdict` rows hv0
+on: a call over a hole beside its peer, written before it and after it,
+in two containers met member by member, under a rider, a mark or a seal,
+in a spread's template, in a size, a trial or a `match`, and in a `+`'s
+operands, each against data a fill would have passed and data it
+wouldn't. A hole that nothing binds is an error of the schema whatever
+the data, so each is an error; beside them stand a key declared twice
+and a `+` whose right list holds a `key()`, which hold no hole. -/
 def holeFillVetCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5396,36 +5771,13 @@ def holeFillVetCases : List (Val × Data) :=
     (.call .plus [.list [s "a"] (some (up .hole)) false, lst [s "b"]], .list [.str "A", .str "b"])]
 
 set_option maxRecDepth 8192 in
-/-- A hole the document leaves unfilled, which the data fills, the data
-met last (decision 29 of the design note's §7), for the `verdict` rows
-dv0 on. A call on the data's value, which it takes as its argument
-rather than meets, so that `add(_, 1)` passes `2` and `3` alike, and
-refusing it; one the document's own peer fills first, which the data
-then meets; inside a map, the data leaving it out, which is incomplete
-but under `--partial`; inside a list, one whose peer's one element is
-marked and holds no position, and in a spread; a generator over
-the data; the hole alone, and two holes met, which meet as one; a
-call met with a hole or with a call that both wait, which neither
-fills, an error; a generator whose template no member reaches, read by
-its data alone; and a disjunction whose arm waits, met arm by arm, by
-the data, inside a map and a list, and by the document's own peer on
-either side, an arm whose call the data leaves unmade dropping, as
-`add(_, 1) | "x"` passes `"x"`; and a lone preference over a call that
-waits, the data filling its preferred arm and meeting its parent arm,
-so that `*add(_, 1)` passes `"x"`, at the top, inside a map, which the
-data may leave out, and inside a list, and one the document's own peer
-fills, whose filled arm the data passes as `eval` gives it (decision
-30), so that `*upper(_) & "a"` passes `"A"`, on either side, after a
-later peer that leaves nothing to replace it, and beside the data's own
-value through its parent arm; and a disjunction of containers
-a container meets, met arm by arm on either side, at the top, as a
-member, in a list and beside a meet; and a member that is a hole, which
-an empty map met on either side leaves for the data. Last, a call over
-a container whose argument is the hole, which takes the data as its
-argument as any call does: `sum` over a list and a map, and refusing a
-number and a list of strings, `least` over a list and refusing an empty
-one, `greatest`, `sort`, `pick` and `join` over a list, a hole as
-`join`'s separator, and `sum` as a member. -/
+/-- The shapes in which the data once filled a hole the document left
+unfilled (decision 29, which ruling 34 supersedes), for the `verdict`
+rows dv0 on: a call over a hole against data a fill would have passed
+and data it wouldn't, inside a map and a list, a spread and a
+generator's data, in a disjunction's arm and a lone preference, and a
+call over a container whose argument is the hole. The data never binds
+a hole, so each is an error whatever the data. -/
 def dataFillCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5504,10 +5856,11 @@ set_option maxRecDepth 8192 in
 /-- A disjunction's arm that does not stand, for the `verdict` rows da0
 on: a call the reading can't make, by its domain, its count of
 arguments or a call inside it, one inside a map or a list, and a size
-that holds a choice, each dropping as a
-conflict's arm does, so that the other arm stands; and an error where
-no arm stands, where the call stands alone, or where a preference clash
-is between the arms the disjunction is read with, as both ports answer. -/
+that holds a choice, each dropping as a conflict's arm does, so that
+the other arm stands, but one that holds a hole, which is an error of
+the schema wherever it stands (ruling 34); and an error where no arm
+stands, where the call stands alone, or where a preference clash is
+between the arms the disjunction is read with, as both ports answer. -/
 def illArmCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5533,27 +5886,12 @@ theorem ill_arm_verdict_exact : ∀ c ∈ illArmCases, ∀ (m : Mode) (v : Verdi
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (illArmCases_checkable c hc)) v
 
 set_option maxRecDepth 8192 in
-/-- A meet of two sides that both wait on a hole, one of them more than
-the hole, for the `verdict` rows dg0 on: an error however the document
-groups it and whatever it meets, a literal, a hole, a disjunction or a
-preference's peer, two holes meeting as one first, and where a map's or
-a list's member meets another's, or a spread's template a member that
-waits; such a group after a literal, its call and its hole in either
-order, and two maps' or two lists' members that are such a pair, beside
-a member or an element only one side writes; a group whose call its own
-other side fills, which then meets a literal it conflicts with, and a
-group of a container and a hole; a sum over a hole and a hole; a
-group that waits on one side only, a call over no hole beside a hole
-and two containers whose members pair no such sides, which reads as
-the meet does, among them a member whose meet fills its own hole; a
-call beside two holes, which meet as one; and a disjunction's arm that
-holds one
-dropping as a conflict's arm does, so that another arm stands, or an
-error where none does, as both ports answer. And a call met with a
-group that fills its own hole, which reads as the group's value: on
-the call's right, against data the call's output passes and data it
-refuses, and on its left, each beside a literal too, and a group that
-is a call its own other side fills. -/
+/-- A meet of two sides that both waited on a hole, which the meet once
+read as an error however the document grouped it, for the `verdict` rows
+dg0 on: a call met with a hole and with another call over one, a group
+that filled its own hole, in maps' and lists' members and a spread's
+template, in a disjunction's arm and beside a literal. Each holds a hole
+that nothing binds, so each is an error of the schema (ruling 34). -/
 def groupCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5613,23 +5951,13 @@ theorem group_verdict_exact : ∀ c ∈ groupCases, ∀ (m : Mode) (v : Verdict)
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (groupCases_checkable c hc)) v
 
 set_option maxRecDepth 8192 in
-/-- A spread's template that waits on a hole at its own position, for the
-`verdict` rows dt0 on: each side of a meet and each arm of a disjunction
-met with the member, one that waits with its hole bound to the member,
-so that `upper(_) & _` admits the members already in upper case and
-`upper(_) & "a"` none, in a map and a list, against the data and
-against a member the document writes, and a container inside the
-template, at its own position or beneath a side or an arm that waits,
-filled from its own meet first; a container side or arm met with the
-member member by member, a hole beneath it taking the member's member
-there, whether the spread meets the data, the map's own members, or a
-map or a list on either side of a meet; and a bare hole, alone or under
-a rider, which takes each member as it stands, a member that is a hole
-among them, which the data fills; and a template that is a hole beside a
-container, met with a member that is a disjunction, arm by arm; and a
-container side under a rider or a mark, met with the member member by
-member as it would be bare, against the data and a member the document
-writes; as both ports answer. -/
+/-- A spread's template that holds a hole, which a member once filled
+(ruling 31, which ruling 34 supersedes), for the `verdict` rows dt0 on:
+a hole at the template's own position, beneath a side or an arm, inside
+a container, under a rider or a mark, in a map and a list, against the
+data and a member the document writes. A spread binds no hole and no
+generator binds one in a spread's template, so each is an error of the
+schema whatever its members. -/
 def spreadTmplCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5720,23 +6048,13 @@ theorem spread_tmpl_verdict_exact : ∀ c ∈ spreadTmplCases, ∀ (m : Mode) (v
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (spreadTmplCases_checkable c hc)) v
 
-/-- A call over a container that holds a hole, which the call doesn't
-wait on, so no peer of the call fills it, for the `verdict` rows dh0 on:
-a call made from its arguments' values can't be made, so the schema
-doesn't stand, whatever the data writes. Each function over a list that
-holds a hole, at its first argument and at a later one, a `join` at its
-separator, whether its list holds a hole or not, and over a `join` that
-holds one, and a `join` whose list is its own hole, which the data fills
-with a list it then refuses at the separator; `sum` over a map, over a
-nested list and over a call that waits on its own hole inside the list;
-met with the value a fill would make, with a list, with a hole and with
-itself; as a list's element, under `type()` and `hide()`, as an
-optional member and under `pref`; beside the call's own hole, which the
-peer fills; and as an arm of a disjunction, which drops. And a `join`
-over a list that holds a hole, which stands, as a list's element and
-under a `join`; the list's own meet, which fills its hole, so the call is
-made; and a spread's template, against data that writes a member and
-data that writes none; as both ports answer. -/
+/-- A call over a container that holds a hole, which no peer of the
+call filled (`place_container`), for the `verdict` rows dh0 on: each
+function over a list that holds a hole, a `join`'s list and separator,
+`sum` over a map and a nested list, as a list's element, marked, as an
+optional member, under `pref` and as a disjunction's arm. The hole is
+one nothing binds, so each is an error of the schema whatever the data
+(ruling 34). -/
 def heldHoleCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
@@ -5784,16 +6102,11 @@ theorem held_hole_verdict_exact : ∀ c ∈ heldHoleCases, ∀ (m : Mode) (v : V
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (heldHoleCases_checkable c hc)) v
 
 /-- A call that takes its argument as the value it is, over a list or a
-map that holds a hole, for the `verdict` rows dr0 on: `super`, `pref`
-and `move` read as the container, which the data fills, `refer` and
-`rel` as the link and the relation they make of it, and a bound as an
-atom over an argument outside its domain, which admits nothing; but
-`neq` reads the list's members as the values it refuses, so a hole
-among them is one nothing fills, and the schema doesn't stand; and
-`super` over a list or a map that holds a call waiting on its own hole,
-whose parent type is any, beside a settled member and a hole, nested,
-for `+`, and for `upper` and `lower` whose string is settled; as both
-ports answer. -/
+map that holds a hole, which the data once filled, for the `verdict`
+rows dr0 on: `super`, `pref`, `move`, `refer`, `rel`, the bounds and
+`neq`, over a hole and over a call that waits on its own. The hole is
+one nothing binds, so each is an error of the schema whatever the data
+(ruling 34). -/
 def readThroughCases : List (Val × Data) :=
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
   let lst (xs : List Val) : Val := .list xs none false
@@ -6777,16 +7090,41 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# every depth, in rows cp0 on. Links whose templates read the member or the"
     IO.println "# place where they land, each read there and only at the instances its own"
     IO.println "# generator makes, follow in rows lt0 on. A call over a hole that a path names,"
-    IO.println "# which the data fills, so that the call stands until it does, follows in rows dp0 on."
+    IO.println "# which nothing binds, so the schema is an error whatever the data, in rows dp0 on."
     IO.println "# A meet carries the marks of both its sides, any's included, in rows hm0 on."
     IO.println "# A spread's template meets each member without the marks written around it"
     IO.println "# (ruling 39), in rows sm0 on. A relative path in apply's template reads where"
-    IO.println "# the call stands, in rows ar0 on."
+    IO.println "# the call stands, in rows ar0 on. A copy reads the relative paths it copies"
+    IO.println "# where it stands (ruling 26): a use of a name in rows cd0 on, written again"
+    IO.println "# after the schema in rows cdl0 on, a path reference in rows rc0 on, and a name"
+    IO.println "# whose body holds one, or a use inside a body read at the body's own place,"
+    IO.println "# in rows bc0 on, written again after the schema in rows bcl0 on. A name whose"
+    IO.println "# body holds a spread whose template reads its member's place reads it at each"
+    IO.println "# member where it's used and at its own place, in rows nt0 on and ntl0 on."
+    IO.println "# A template in a selection's result reads its member's place where the"
+    IO.println "# selection stands, in rows st0 on and stl0 on."
+    IO.println "# A path written in a disjunction's arm reads where the arm holds, in rows dj0"
+    IO.println "# on and djl0 on. A path inside a lone preference reads where the preference"
+    IO.println "# holds its value, and its parent arm lifts what the value reads as on its own"
+    IO.println "# (ruling 40), in rows lp0 on and lpl0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
     pathRows "j" relPathCases
     pathRows "jl" aliasPlaceCases (declsLast := true)
+    pathRows "cd" copyDestCases
+    pathRows "cdl" copyDestCases (declsLast := true)
+    pathRows "rc" refCopyCases
+    pathRows "bc" bodyCopyCases
+    pathRows "bcl" bodyCopyCases (declsLast := true)
+    pathRows "nt" nameTemplateCases
+    pathRows "ntl" nameTemplateCases (declsLast := true)
+    pathRows "st" selectTemplateCases
+    pathRows "stl" selectTemplateCases (declsLast := true)
+    pathRows "dj" disjunctionPathCases
+    pathRows "djl" disjunctionPathCases (declsLast := true)
+    pathRows "lp" lonePrefPathCases
+    pathRows "lpl" lonePrefPathCases (declsLast := true)
     pathRows "mb" maybeCases
     pathRows "la" absentListCases
     pathRows "pf" prefCases
@@ -6949,19 +7287,13 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# read for the node, each list in it spliced, and an error where no template"
     IO.println "# matches or the body names what the node doesn't hold. apply(v, f) follows in"
     IO.println "# rows ap0 on: each hole of f that no generator or apply inside f binds, bound"
-    IO.println "# to v, the one instance each([v], f) makes. A hole its call's peer"
-    IO.println "# fills follows in rows hv0 on: a meet with a hole on one side and none on the"
-    IO.println "# other reads as that side with the hole bound to the other, as the document"
-    IO.println "# groups its meets. A hole the document leaves unfilled, which the data fills,"
-    IO.println "# follows in rows dv0 on, and a disjunction's arm that does not stand, which"
-    IO.println "# drops as a conflict's arm does, in rows da0 on. A meet of two sides that both"
-    IO.println "# wait on a hole, which is an error however it is grouped, follows in rows dg0 on."
-    IO.println "# A spread's template that waits on a hole at its own position, each of its sides"
-    IO.println "# and arms met with the member and a hole bound to it, follows in rows dt0 on."
-    IO.println "# A call over a container that holds a hole, which no peer of the call fills, so"
-    IO.println "# that a call made from its arguments' values can't be made, follows in rows dh0 on."
-    IO.println "# A call that takes its argument as the value it is, over a container that holds"
-    IO.println "# a hole, which it reads as that container, follows in rows dr0 on."
+    IO.println "# to v, the one instance each([v], f) makes. A hole that nothing binds is"
+    IO.println "# an error of the schema wherever it stands (ruling 34): in the shapes the meet"
+    IO.println "# once read as a hole's application in rows hv0 on, against data that once filled"
+    IO.println "# it in rows dv0 on, in two sides met in rows dg0 on, in a spread's template in"
+    IO.println "# rows dt0 on, in a container a call takes in rows dh0 on, and in one a call takes"
+    IO.println "# as the value it is in rows dr0 on. A disjunction's arm that does not stand,"
+    IO.println "# which drops as a conflict's arm does, follows in rows da0 on."
     IO.println "# Regenerate with `make spec`; never edit by hand."
     for (v, j) in callCases ++ filterCases ++ filterEachCases ++ optionalCases ++ repSubCases ++
         projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++

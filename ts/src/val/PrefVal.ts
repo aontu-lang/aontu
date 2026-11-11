@@ -25,7 +25,6 @@ import { top } from './top'
 
 import { FeatureVal } from './FeatureVal'
 import { trialUnify } from './FuncBaseVal'
-import { NilVal } from './NilVal'
 import { superOf } from './SuperFuncVal'
 
 
@@ -125,19 +124,17 @@ class PrefVal extends FeatureVal {
     const strong = peer.rank < this.rank ? peer : this
     const weak = strong === this ? peer : this
 
+    const gate = trialUnify(ctx, strong.superpeg.clone(ctx),
+      weak.superpeg.clone(ctx))
+
+    if (undefined === gate) {
+      return makeNilErr(ctx, 'empty', this, peer, 'unify')
+    }
+
     const strongMet = trialUnify(ctx, prefInnerPeg(strong).clone(ctx),
       weak.superpeg.clone(ctx))
     const weakMet = trialUnify(ctx, strong.superpeg.clone(ctx),
       prefInnerPeg(weak).clone(ctx))
-    const space = trialUnify(ctx, strong.superpeg.clone(ctx),
-      weak.superpeg.clone(ctx))
-
-    if (undefined === strongMet && undefined === weakMet) {
-      return space ?? makeNilErr(ctx, 'empty', this, peer, 'unify')
-    }
-
-    // An emptied override space stays a quiet nil, as a peer's does.
-    const gate = space ?? new NilVal({ why: 'empty' }, ctx)
 
     if (strong.rank === weak.rank &&
       undefined !== strongMet && undefined !== weakMet) {
@@ -150,7 +147,8 @@ class PrefVal extends FeatureVal {
     }
 
     return undefined !== strongMet ? strong.stand(strongMet, gate, ctx)
-      : weak.stand(weakMet as Val, gate, ctx)
+      : undefined !== weakMet ? weak.stand(weakMet, gate, ctx)
+        : gate
   }
 
 
@@ -219,9 +217,7 @@ class PrefVal extends FeatureVal {
         // standing with nothing left to replace it, not a conflict.
         const space = trialUnify(te ? ctx.clone({ explain: ec(te, 'GATE') }) : ctx,
           this.superpeg.clone(ctx), peer)
-        const gate = undefined !== space ? space
-          : true === this.superpeg.isNil ? this.superpeg
-            : new NilVal({ why: 'empty' }, ctx)
+        const gate = undefined !== space ? space : this.superpeg
 
         out = this.stand(met, gate, ctx)
 

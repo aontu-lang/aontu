@@ -2111,6 +2111,58 @@ func importOneOf(branches []*ixpr) *ixpr {
 	return icall("nof", append([]*ixpr{iraw("1")}, branches...)...)
 }
 
+func importFillsOutTo(a, b *ixpr) bool {
+	if "call" != a.k || "call" != b.k {
+		return "raw" == a.k && "raw" == b.k && a.text == b.text
+	}
+	x, y := a.items[0], b.items[0]
+	if "list" == x.k && "list" == y.k {
+		if len(x.items) != len(y.items) {
+			return false
+		}
+		for i, it := range x.items {
+			if !importFillsOutTo(it, y.items[i]) {
+				return false
+			}
+		}
+		return true
+	}
+	if "map" != x.k || "map" != y.k {
+		return false
+	}
+	for _, e := range x.entries {
+		held := false
+		for _, f := range y.entries {
+			held = held || (e.key == f.key && importFillsOutTo(e.val, f.val))
+		}
+		if !held {
+			return false
+		}
+	}
+	return true
+}
+
+// importEnum is `|`, or a count where a member fills out to a larger
+// one: an instance equal to the smaller meets both, and `|` settles on
+// neither.
+func importEnum(members []*ixpr) *ixpr {
+	uniq := distinct(members)
+	boxes := []*ixpr{}
+	for _, m := range uniq {
+		if "call" == m.k {
+			boxes = append(boxes, m)
+		}
+	}
+	for _, a := range boxes {
+		for _, b := range boxes {
+			if importFillsOutTo(a, b) && !importFillsOutTo(b, a) {
+				return icall("nof", append([]*ixpr{icall("min", iraw("1"))}, uniq...)...)
+			}
+		}
+	}
+	return ior(uniq)
+}
+
 // wholeLeaves writes a whole number in every leaf that holds it exactly,
 // as `neq` reads a value by its leaf.
 func wholeLeaves(text string) []string {
@@ -2464,7 +2516,7 @@ func (ctx *importCtx) convertObject(node *jnode, ptr string, only []string) *ixp
 			if 0 == len(members) {
 				parts = append(parts, ctx.mark(iNil, at("enum"), node, imark{}))
 			} else {
-				parts = append(parts, ctx.mark(ior(members), at("enum"), node, imark{}))
+				parts = append(parts, ctx.mark(importEnum(members), at("enum"), node, imark{}))
 			}
 		}
 	}

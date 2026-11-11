@@ -49,7 +49,7 @@ class FilterFuncVal extends FuncBaseVal {
 
 
   unify(peer: Val, ctx: AontuContext): Val {
-    if (!this.stagedReady(peer, ctx, 1)) {
+    if (!this.stagedReady(ctx, 1)) {
       return this.residuate(peer, ctx)
     }
 
