@@ -2942,14 +2942,15 @@ def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → Li
 Beside each round's root, a round reads the place where the definition
 puts a name's bodies, `%` and the name, which this section comes back
 to below, for each name a body's path starts at: the name's bodies met
-there, read as the schema's tree reads, under that round's
+there, with the templates their own links meet there, which step 36
+comes to, read as the schema's tree reads, under that round's
 declarations:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.bodyRoots (ds : Decls) (ns : List String) : List Val :=
-  ns.map fun n => normaliseD ds (ds.readU
-    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false))
+  ns.map fun n => normaliseD ds (ds.readU (ds.ownLinked
+    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false)))
 ```
 
 Only a path a body writes reads these places, so a chain of paths at a
@@ -8900,9 +8901,26 @@ def Decls.bodyClash (ds : Decls) (fs : List (List Seg × Val)) : Bool :=
         ds).illFormed
 ```
 
-A path in the body that reads the template the link meets there,
-`z: .m.k`, names nothing yet, where both engines read `1`, which #664
-tracks.
+A path in the body reads the template the link meets there: `z: .m.k`
+reads `1`, as in both engines, since each place a round reads holds the
+templates its own links meet in it:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.ownLinked (ds : Decls) (B : Val) : Val :=
+  let R := normaliseD ds (ds.readU B)
+  (ds.nfLinks R []).foldl (referStep ds [R] .any []) B
+```
+
+A target the place doesn't hold meets `any` there, since the link passes
+judge it. So a second link whose target the first link's template makes,
+`o: refer({k: 1}) & path(.m.q)` beside `n: refer({q: {}}) & path(.m)`,
+finds no target in the link passes, which read the body's place as its
+bodies write it, and the document is an `error`, where both engines read
+it as `valid`, which #664 tracks. At a use of the name, `a: %T`, the
+use's own link sends the template into `a.m`, where `a.z` reads it, as
+in the same document written in place, where both engines leave `a.z`
+naming nothing, which #723 tracks.
 
 One link's template can make another link's target:
 `y: refer({ z:{} }) & path($.h)` makes `h.z` for
