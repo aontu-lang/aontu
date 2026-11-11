@@ -1622,6 +1622,27 @@ theorem mkOr_pref_right {a : Val} {r : ℕ} {y : Val} (ha : a.CheckableA) (hy : 
     · exact hr _ _ ha hy
     · exact hr _ _ ha hy.super
 
+theorem nodeRight_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
+    (nodeRight rec a b).CheckableA := by
+  cases b <;> (unfold nodeRight; dsimp only) <;> first
+    | exact mkOr_or_right hr ha hb
+    | exact mkOr_pref_right hr ha hb
+    | exact .meet ha hb
+
+theorem nodeLeft_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
+    (nodeLeft rec a b).CheckableA := by
+  cases a <;> (unfold nodeLeft; dsimp only) <;> first
+    | exact mkOr_or_left hr ha hb
+    | exact mkOr_pref_left hr ha hb
+    | exact nodeRight_checkableA hr ha hb
+
+theorem meetNodes_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
+    (meetNodes rec a b).CheckableA := by
+  unfold meetNodes
+  split
+  · exact nodeRight_checkableA hr ha hb
+  · exact nodeLeft_checkableA hr ha hb
+
 theorem meetRight_checkableA {a b₁ b₂ : Val} (ha : a.CheckableA) (hb : (Val.meet b₁ b₂).CheckableA) :
     (meetRight rec a b₁ b₂).CheckableA := by
   cases hb with
@@ -1669,10 +1690,7 @@ theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
     | exact (match hb with | .ride h => .ride (hr _ _ ha h))
     | exact (match ha with | .link h ht => .link (hr _ _ h hb) ht)
     | exact (match hb with | .link h ht => .link (hr _ _ ha h) ht)
-    | exact mkOr_or_left hr ha hb
-    | exact mkOr_or_right hr ha hb
-    | exact mkOr_pref_left hr ha hb
-    | exact mkOr_pref_right hr ha hb
+    | exact meetNodes_checkableA hr ha hb
     | exact meetMap_of_checkableA hr ha hb
     | exact meetMap_of_checkableA hr hany hb
     | exact meetMap_of_checkableA hr ha hany

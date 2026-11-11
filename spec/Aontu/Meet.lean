@@ -2055,6 +2055,71 @@ theorem admits_pref_right {m : Val → Val → Val}
     · exact ⟨r, m a y, .inl ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨ha, hy⟩⟩
     · exact ⟨0, m a y.super, .inr ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨ha, hy⟩⟩
 
+/-- The rank a term leads with: a lone preference's, or the one the rank
+rule picks among a disjunction's arms; none for any other term. -/
+def Val.leadRank : Val → Option ℕ
+  | .pref r _ => some r
+  | .or arms => pickRank arms
+  | _ => none
+
+/-- Whether `b` leads `a`: its lead rank is the stronger, the lower. -/
+def leadsOver (a b : Val) : Bool :=
+  match a.leadRank, b.leadRank with
+  | some ra, some rb => decide (rb < ra)
+  | _, _ => false
+
+/-- A term met with a disjunction or a lone preference `b`, `b`
+outermost: each of its arms met with `a`, keeping its rank, `b` alone as
+`y | super(y)`; any other pair as written. -/
+def nodeRight (rec : Val → Val → Val) (a b : Val) : Val :=
+  match b with
+  | .or arms => mkOrF rec (arms.map fun p => (p.1, rec a p.2))
+  | .pref r y => mkOrF rec [(r, rec a y), (0, rec a y.super)]
+  | b => .meet a b
+
+/-- A disjunction or a lone preference `a` met with a term, `a`
+outermost, as `nodeRight` meets them the other way about, or `b`
+outermost where `a` is neither. -/
+def nodeLeft (rec : Val → Val → Val) (a b : Val) : Val :=
+  match a with
+  | .or arms => mkOrF rec (arms.map fun p => (p.1, rec p.2 b))
+  | .pref r x => mkOrF rec [(r, rec x b), (0, rec x.super b)]
+  | a => nodeRight rec a b
+
+/-- Two terms one of which is a disjunction or a lone preference, met
+with the one that leads with the stronger rank outermost (decision 42),
+the left one where neither leads the other, so that a weaker default
+fills in under a stronger one whichever side either is written on. -/
+def meetNodes (rec : Val → Val → Val) (a b : Val) : Val :=
+  if leadsOver a b then nodeRight rec a b else nodeLeft rec a b
+
+theorem admits_nodeRight {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a b : Val) (j : Data) :
+    Admits env root (nodeRight m a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+  cases b <;> (unfold nodeRight; dsimp only) <;> first
+    | exact admits_or_right hm ..
+    | exact admits_pref_right hm ..
+    | exact admits_meet_iff
+
+theorem admits_nodeLeft {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a b : Val) (j : Data) :
+    Admits env root (nodeLeft m a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+  cases a <;> (unfold nodeLeft; dsimp only) <;> first
+    | exact admits_or_left hm ..
+    | exact admits_pref_left hm ..
+    | exact admits_nodeRight hm ..
+
+theorem admits_meetNodes {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a b : Val) (j : Data) :
+    Admits env root (meetNodes m a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+  unfold meetNodes
+  split
+  · exact admits_nodeRight hm a b j
+  · exact admits_nodeLeft hm a b j
+
 /-- A rider met with a value carries the meet of its own: the record
 rides the result. -/
 theorem admits_ride_left {m : Val → Val → Val}
@@ -2269,10 +2334,10 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .ride k v r => .ride k (rec a v) r
   | .link v t, b => .link (rec v b) t
   | a, .link v t => .link (rec a v) t
-  | .or arms, b => mkOrF rec (arms.map fun p => (p.1, rec p.2 b))
-  | a, .or arms => mkOrF rec (arms.map fun p => (p.1, rec a p.2))
-  | .pref r x, b => mkOrF rec [(r, rec x b), (0, rec x.super b)]
-  | a, .pref r y => mkOrF rec [(r, rec a y), (0, rec a y.super)]
+  | .or arms, b => meetNodes rec (.or arms) b
+  | a, .or arms => meetNodes rec a (.or arms)
+  | .pref r x, b => meetNodes rec (.pref r x) b
+  | a, .pref r y => meetNodes rec a (.pref r y)
   | .map fs₁ s₁ c₁, .map fs₂ s₂ c₂ => meetMap rec fs₁ s₁ c₁ fs₂ s₂ c₂
   | .any, .map fs s c => meetMap rec [] none false fs s c
   | .map fs s c, .any => meetMap rec fs s c [] none false
@@ -2328,10 +2393,7 @@ theorem admits_meetStep {lm : Scalar → Val → Val} {rec : Val → Val → Val
     | exact admits_map_any hr ..
     | exact admits_any_list hr ..
     | exact admits_list_any hr ..
-    | exact admits_or_left hr ..
-    | exact admits_or_right hr ..
-    | exact admits_pref_left hr ..
-    | exact admits_pref_right hr ..
+    | exact admits_meetNodes hr ..
     | exact admits_meetRight hr ..
     | exact admits_ride_left hr ..
     | exact admits_ride_right hr ..
