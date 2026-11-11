@@ -26,7 +26,8 @@
 # parent type, which a lone preference keeps, in rows pa0 on. Defaults of one
 # rank fold into their meet, and of two ranks the lower one's wins while the
 # higher one's still constrains (ruling 41) and its default fills in under
-# the lower one's (ruling 42), in rows rk0 on.
+# the lower one's (ruling 42). An arm that was not a default stays one,
+# whichever side of the meet holds it (decision 43), in rows rk0 on.
 e0	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error"}
 e1	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"noFill":true}}
 e2	verdict	v: (min(5)) & (max(3))	v: 1	{"verdict":"error","opts":{"partial":true}}
@@ -810,9 +811,9 @@ rk26	verdict	v: {"x": (**(1)) & (*(integer))}	v: {}	{"verdict":"valid","opts":{"
 rk27	verdict	v: {"x": (*(integer)) & (*(min(0)))}	v: {}	{"verdict":"incomplete"}
 rk28	verdict	v: {"x": (*(integer)) & (*(min(0)))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
 rk29	verdict	v: {"x": (*(integer)) & (*(min(0)))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
-rk30	verdict	v: {"x": (*(1) | (2)) & (*(integer))}	v: {}	{"verdict":"error"}
-rk31	verdict	v: {"x": (*(1) | (2)) & (*(integer))}	v: {}	{"verdict":"error","opts":{"noFill":true}}
-rk32	verdict	v: {"x": (*(1) | (2)) & (*(integer))}	v: {}	{"verdict":"error","opts":{"partial":true}}
+rk30	verdict	v: {"x": (*(1) | (2)) & (*(integer))}	v: {}	{"verdict":"valid"}
+rk31	verdict	v: {"x": (*(1) | (2)) & (*(integer))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+rk32	verdict	v: {"x": (*(1) | (2)) & (*(integer))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
 rk33	verdict	v: {"x": (*(1)) & (**(integer))}	v: {"x": 5}	{"verdict":"valid"}
 rk34	verdict	v: {"x": (*(1)) & (**(integer))}	v: {"x": 5}	{"verdict":"valid","opts":{"noFill":true}}
 rk35	verdict	v: {"x": (*(1)) & (**(integer))}	v: {"x": 5}	{"verdict":"valid","opts":{"partial":true}}
@@ -822,3 +823,30 @@ rk38	verdict	v: {"x": (*(integer)) & (**(1))}	v: {}	{"verdict":"valid","opts":{"
 rk39	verdict	v: {"x": (*{"a": 1}) & (**{"b": 2})}	v: {"x": {"a": 1}}	{"verdict":"valid"}
 rk40	verdict	v: {"x": (*{"a": 1}) & (**{"b": 2})}	v: {"x": {"a": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
 rk41	verdict	v: {"x": (*{"a": 1}) & (**{"b": 2})}	v: {"x": {"a": 1}}	{"verdict":"valid","opts":{"partial":true}}
+rk42	verdict	v: {"x": (*(integer)) & (*(1) | (2))}	v: {}	{"verdict":"valid"}
+rk43	verdict	v: {"x": (*(integer)) & (*(1) | (2))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+rk44	verdict	v: {"x": (*(integer)) & (*(1) | (2))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+rk45	verdict	v: {"x": ((1) | (2)) & (*(integer))}	v: {}	{"verdict":"incomplete"}
+rk46	verdict	v: {"x": ((1) | (2)) & (*(integer))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+rk47	verdict	v: {"x": ((1) | (2)) & (*(integer))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+rk48	verdict	v: {"x": (*(integer)) & ((1) | (2))}	v: {}	{"verdict":"incomplete"}
+rk49	verdict	v: {"x": (*(integer)) & ((1) | (2))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+rk50	verdict	v: {"x": (*(integer)) & ((1) | (2))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+rk51	verdict	v: {"x": (*{"a": 1} | ({"c": 3})) & (*{"b": 2})}	v: {}	{"verdict":"valid"}
+rk52	verdict	v: {"x": (*{"a": 1} | ({"c": 3})) & (*{"b": 2})}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+rk53	verdict	v: {"x": (*{"a": 1} | ({"c": 3})) & (*{"b": 2})}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+rk54	verdict	v: {"x": (*{"b": 2}) & (*{"a": 1} | ({"c": 3}))}	v: {}	{"verdict":"valid"}
+rk55	verdict	v: {"x": (*{"b": 2}) & (*{"a": 1} | ({"c": 3}))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+rk56	verdict	v: {"x": (*{"b": 2}) & (*{"a": 1} | ({"c": 3}))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+rk57	verdict	v: {"x": (*{"a": 1} | ({"c": 3})) & (*{"b": 2} | ({"d": 4}))}	v: {}	{"verdict":"valid"}
+rk58	verdict	v: {"x": (*{"a": 1} | ({"c": 3})) & (*{"b": 2} | ({"d": 4}))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+rk59	verdict	v: {"x": (*{"a": 1} | ({"c": 3})) & (*{"b": 2} | ({"d": 4}))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+rk60	verdict	v: {"x": (*(1) | (7)) & (*(7) | (1))}	v: {}	{"verdict":"error"}
+rk61	verdict	v: {"x": (*(1) | (7)) & (*(7) | (1))}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+rk62	verdict	v: {"x": (*(1) | (7)) & (*(7) | (1))}	v: {}	{"verdict":"error","opts":{"partial":true}}
+rk63	verdict	v: {"x": (*(1) | (2)) & (*(7) | (1))}	v: {}	{"verdict":"valid"}
+rk64	verdict	v: {"x": (*(1) | (2)) & (*(7) | (1))}	v: {}	{"verdict":"incomplete","opts":{"noFill":true}}
+rk65	verdict	v: {"x": (*(1) | (2)) & (*(7) | (1))}	v: {}	{"verdict":"valid","opts":{"partial":true}}
+rk66	verdict	v: {"x": (*(7)) & (*(1))}	v: {}	{"verdict":"error"}
+rk67	verdict	v: {"x": (*(7)) & (*(1))}	v: {}	{"verdict":"error","opts":{"noFill":true}}
+rk68	verdict	v: {"x": (*(7)) & (*(1))}	v: {}	{"verdict":"error","opts":{"partial":true}}

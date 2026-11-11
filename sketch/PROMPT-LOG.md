@@ -912,3 +912,12 @@ The answers to the agent's questions, each question followed by the option chose
 Decision 42: when a stronger default wins, does a weaker default still fill in where the stronger one leaves the value open? Examples: `a: *integer & **1` and `a: *{x: 1} & **{y: 2}`. Today the definition's answer depends on which side is written first (it outputs `1` one way round and nothing the other), which has to be fixed either way. The engines drop the weaker preference and output nothing for the first and `{"x": 1}` for the second; ruling 41 already makes them keep its constraint, so the second can't stay `{"x": 1}` (`y` must be an integer).
 → Weaker fills in (Recommended)
 ```
+
+## 2026-11-11 15:47:07 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 43: when a preference meets a disjunction at the same rank, or a disjunction with no default, the definition's answer depends on which side is written first. Example: `(*1 | 2) & *integer` is an error one way round and `1` the other; both engines give `pref_rank_clash` (error) in either order. Which reading should hold in both orders?
+→ Arms stay non-default (Recommended)
+```
