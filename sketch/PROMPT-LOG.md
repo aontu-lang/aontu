@@ -882,3 +882,12 @@ The answers to the agent's questions, each question followed by the option chose
 Decision 40: a path inside a lone preference, e.g. `x: *{a: 1, b: .a}`. A lone `*x` means `x | super(x)`, where `super(x)` is the parent type: the arm that accepts what overrides the default. Today the definition reads this document as an error. Both engines never resolve the path while the default is still in play (#700), and in the parent arm they treat the path as `any`. What should the parent arm be?
 → Lift what x reads as (Recommended)
 ```
+
+## 2026-11-11 11:17:06 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 41: when two lone preferences of different ranks meet, does the weaker one's constraint still hold? Example: `a: *1 & **"s"`. Both engines today drop `**"s"` outright: they output `1` and pass `a: 2`, though `**"s"` admits only strings. The definition keeps `&` a meet: the stronger default `1` wins, but every value must satisfy both sides, so this document is an error (nothing is both an integer and a string). For `*1 & **7` both readings agree: the default is `1`, and `7` or any integer passes.
+→ Keep both constraints (Recommended)
+```

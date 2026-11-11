@@ -23,23 +23,10 @@ it, admitted by `gen_iff`.
 
 namespace Aontu
 
-/-! ## The rank rule -/
+/-! ## The rank rule
 
-/-- The rank the rule picks: the lowest positive rank among the live
-arms, where any has one. -/
-def pickRank (arms : List (ℕ × Val)) : Option ℕ :=
-  arms.foldl (fun acc p =>
-    if p.2.dead || p.1 = 0 then acc
-    else match acc with
-      | none => some p.1
-      | some m => some (min m p.1)) none
-
-/-- Whether the rule picks an arm: a live one, of the picked rank where
-there is one. -/
-def picked (arms : List (ℕ × Val)) (p : ℕ × Val) : Bool :=
-  !p.2.dead && (match pickRank arms with
-    | none => true
-    | some m => decide (p.1 = m))
+The rank the rule picks (`pickRank`) and the arms it picks (`picked`)
+are the meet's too, which folds the arms it picks (`foldArms`). -/
 
 /-- Whether a map term declares each key once. -/
 def keysDistinct : List (String × Bool × Val) → Bool

@@ -728,7 +728,12 @@ Defaults propagate through nesting and spreads. `pref(x)` is the
 function form of `*x` (canon `*x`) on a scalar, and reads a container
 member by member. Preferences can be ranked: `**`
 has a higher rank number than `*`, and the lowest rank wins when two
-preferred values meet (`*1|**2` is `1`). A ranked preference meets its peers exactly as rank 1
+preferred values meet (`*1|**2` is `1`). The higher rank's constraint
+still holds, since `&` is a meet: `*1 & **7` is `1`, but `*1 & **"s"`
+admits nothing, as nothing is both an integer and a string. Both
+engines drop the higher-rank preference there, constraint and all,
+which [#714](https://github.com/aontu-lang/aontu/issues/714) tracks.
+A ranked preference meets its peers exactly as rank 1
 does: the **rank-uniform meet**: `a:**1.5 & float` is `1.5` just as
 `a:*1.5 & float` is, and `**2|integer` met by a bare `integer` keeps its
 default.
@@ -755,7 +760,11 @@ default: `super(integer)` is `number`, so `a:*integer & 7` narrows and
 **Two defaults of the same rank must agree.** `a:*1` beside `a:*7` is
 `pref_rank_clash`, in that spelling and in `a:*1|*7`: the disagreement
 is between the DEFAULTS, and the fix is to rank one of them (`**`).
-Compatible defaults fold: `a:*1` beside `a:*integer` is `*1`.
+Compatible defaults fold into their meet: `a:*1` beside `a:*integer` is
+`*1`, and so is `a: *1 | *integer`, while `*{a: 1} | *{b: 2}` is
+`{"a": 1, "b": 2}`. The definition folds them where the meet makes a
+disjunction (`foldArms` in
+[`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean)).
 
 **A preference conjoined with a disjunction names an alternative**:
 `(A|B) & *A` is `*A|B`, the same value the direct spelling denotes, so

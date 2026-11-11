@@ -319,7 +319,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 289 rows under eighteen causes: decisions 3 and 4 of §2, under
+ledger holds 298 rows under twenty causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -358,7 +358,12 @@ ruling 40 lifts from what the value reads as on its own, where both
 ports lift a path inside the value to `any`, and move (#704); and a
 path from a lone preference to a place outside it, whose value the
 parent arm lifts as both ports' `eval` does, where both ports' `vet`
-disagrees with their own `eval`, and move (#702).
+disagrees with their own `eval`, and move (#702); two preferences of
+different ranks that meet, whose higher rank's constraint ruling 41 of
+§7 keeps, where both ports drop it, and move (#714); and a clash a meet
+makes, two defaults of one rank that disagree, which the definition
+reads as an `error` as both ports' `eval` does, where both ports' `vet`
+answers `invalid`, and move (#482).
 The 81 rows of #426, a call no reading makes, with the wrong number of
 arguments or a non-number negated, which the ports read as invalid,
 retired on 2026-11-02 when both ports' `vet` read a failure the schema
@@ -2062,6 +2067,39 @@ until the phase that encodes it lands.
    still lifts what the data writes there, since `Decls.placed` meets
    it into the copy where the preference stands; both ports do the
    same, and the README lists it as a limit.
+
+41. **Preferences of different ranks that meet.** Raised 2026-11-11
+   while building the reference's rule that compatible defaults fold.
+   `a: *1 & *integer` is `*1` in the reference and in both ports, but
+   the definition read it as `incomplete`: its meet made two arms of
+   rank one, `1` and `integer`, and generation asks every picked arm to
+   generate one value. The same held in one disjunction,
+   `*1 | *integer` and `*{a: 1} | *{b: 2}`, which both ports read as
+   `1` and `{"a": 1, "b": 2}`. Two defaults of one rank that admit
+   nothing in common, `*1 & *7`, are a clash, `pref_rank_clash`, in all
+   three. Of two ranks the lower one's default wins, `*1 & **7` is `1`,
+   but both ports drop the higher-rank preference outright, constraint
+   and all, so `a: *1 & **"s"` is `1` there and passes `a: 2`, where
+   the definition's meet keeps both constraints and admits nothing.
+
+   **Ruled 2026-11-11: keep both constraints.** The lower rank's
+   default wins, and the higher rank's override space still
+   constrains, so `&` stays a greatest lower bound and `admits_meet`
+   holds unchanged: `*1 & **"s"` is an `error`, and `*1 & **integer`
+   is `1`. The definition already met preferences so; both ports move
+   (#714). Defaults of one rank fold into their meet, as the reference
+   says.
+   **Built 2026-11-11**: `mkOrF`, the disjunction the meet makes
+   (`meetStep`), folds the arms the rank rule picks, two or more at a
+   positive rank whose meet is live, into that meet as one arm of the
+   rank, the arms it stands for kept at rank 0 preferring nothing
+   (`foldArms`, `Val.unranked`), so the disjunction admits what it did
+   (`admits_mkOrF`); where the meet is dead the arms stay, a clash.
+   `pickRank` and `picked` move from `Output.lean` to `Meet.lean`.
+   Rows g93 on of `test/spec/def-gen.tsv` and rk0 on of
+   `test/spec/def-verdict.tsv`, both ports answering 33 of 42 as the
+   definition does, the other 9 in the ledger under #714 and #482,
+   whose `vet` reads a clash a meet makes as `invalid`.
 
 ## 8. Risks
 
