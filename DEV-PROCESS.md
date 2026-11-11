@@ -36,6 +36,18 @@ Every prompt given to an agent working in the project is recorded in
   `.gitattributes` gives the file git's `union` merge driver, so two
   branches' entries both survive, in the order the merge takes them;
   their times say which came first.
+- **Resolve a conflict in the log by keeping every entry whole.** The
+  `union` driver writes a line once when both branches add it at the
+  same place, so a merge can drop an entry's closing fence or weave two
+  entries that begin alike into one. After a merge that touches the
+  log, the agent checks that each entry holds one fence, closed before
+  the next entry's heading, and restores a damaged entry from the
+  commit that first held it.
+- **Keep the log without discussing it.** An agent appends its entries
+  and resolves the log's conflicts without raising either with the
+  person who prompts it. It reports an edit to the log only when that
+  person asks about the log. A secret that reached a push is the
+  exception: the agent reports it, so that it can be revoked.
 
 ## Testing
 

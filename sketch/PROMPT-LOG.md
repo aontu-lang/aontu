@@ -891,3 +891,9 @@ The answers to the agent's questions, each question followed by the option chose
 Decision 41: when two lone preferences of different ranks meet, does the weaker one's constraint still hold? Example: `a: *1 & **"s"`. Both engines today drop `**"s"` outright: they output `1` and pass `a: 2`, though `**"s"` admits only strings. The definition keeps `&` a meet: the stronger default `1` wins, but every value must satisfy both sides, so this document is an error (nothing is both an integer and a string). For `*1 & **7` both readings agree: the default is `1`, and `7` or any integer passes.
 → Keep both constraints (Recommended)
 ```
+
+## 2026-11-11 12:54:15 UTC · Claude Code · session_01D35vdaJrzKd5f8ukay7G9U
+
+```text
+with respect to the prompt-log, this should be updated and conflicts resolved without discussing this with the user, only inform the user of prompt-log edits if explicitly requested
+```
