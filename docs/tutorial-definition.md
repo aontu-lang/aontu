@@ -3435,7 +3435,11 @@ carries the meet of its value, so its record rides the result. A
 disjunction meets a peer arm by arm,
 the side whose preference ranks stronger outermost (`meetNodes`), so
 that `*integer & **1` and `**1 & *integer` both default to `1`, the
-weaker default filling in under the stronger one, and `mkOr` keeps the
+weaker default filling in under the stronger one. Where the two sides
+lead with one rank, `nodeTie` meets each side's defaults with the
+other's, ahead of the arms that keep one side's default alone, so an arm
+that wasn't a default stays one: `(*1 | 2) & *integer` defaults to `1`
+either way round. `mkOr` keeps the
 arms that are live: an arm that admits nothing on
 its face, such as `min(5) & max(3)` once computed to `nil`, drops, and
 a disjunction with no live arm is `nil`. `mkOrF` then folds the
@@ -9291,7 +9295,9 @@ the two apart: it meets a term with a disjunction arm by arm
 meet as the disjunction the meet makes, each arm of the one met with
 each arm of the other, ranked as the meet ranks them (`orMeet`), and
 each met with the meet's other conjuncts. A lone preference beside a
-disjunction goes into each of its arms the same way:
+disjunction takes part as a node too. Its value stands at its rank. Its
+parent arm stays the preference, one rank weaker, so that the reading
+still lifts what the value reads as (`Val.prefArms`):
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -9301,10 +9307,17 @@ def Val.meetOrs (v : Val) : Val :=
     if 2 ≤ more.length + 1 + (v.splitOrs.2.filter Val.isPrefB).length &&
         ((as :: more).any (·.any (·.2.armReads)) ||
           (v.splitOrs.2.filter Val.isPrefB).any (·.nodeArms.any (·.2.armReads))) then
-      .or ((more.foldl orMeet as).map fun p => (p.1, v.splitOrs.2.foldl .meet p.2))
+      .or (((more ++ (v.splitOrs.2.filter Val.isPrefB).map Val.prefArms).foldl orMeet as).map
+        fun p => (p.1, (v.splitOrs.2.filter fun c => !c.isPrefB).foldl .meet p.2))
     else v
   | [] => v
 ```
+
+`orMeet` ranks the arms it makes as the meet ranks them, the stronger
+side outermost and two sides of one rank as `nodeTie` meets them, so a
+path in an arm doesn't change the default: `(**{a: 1, c: .a} | {}) &
+(*{b: 2} | {})` defaults to `{"a": 1, "b": 2, "c": 1}`, as it does with
+`c: 1` written in place of the path.
 
 Each arm then reads its paths within itself: `{b: .a} & {a: 1}` reads
 `b` as `1`, and `{b: .a} & {a: 2}` as `2`. Over `x: {a: 2, b: 2}` the

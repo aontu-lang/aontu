@@ -770,6 +770,16 @@ Compatible defaults fold into their meet: `a:*1` beside `a:*integer` is
 disjunction (`foldArms` in
 [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean)).
 
+**An arm that wasn't a default stays one**, whichever side of the meet
+holds it. In `(*1 | 2) & *integer` the defaults `1` and `integer` fold
+into `1`, and `2` stays an alternative, so the default is `1`. In
+`(1 | 2) & *integer` neither arm was a default, so `integer` meets both
+and the value has no single default. And `(*{a: 1} | {c: 3}) & *{b: 2}`
+is `{"a": 1, "b": 2}`. Both engines make every arm a preference meets a
+default of its rank: the first two are `pref_rank_clash` there, and the
+third is `{"a": 1, "b": 2, "c": 3}`
+([#714](https://github.com/aontu-lang/aontu/issues/714)).
+
 **A preference conjoined with a disjunction names an alternative**:
 `(A|B) & *A` is `*A|B`, the same value the direct spelling denotes, so
 the two ways of writing an enum-with-default agree.

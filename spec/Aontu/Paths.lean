@@ -2419,12 +2419,59 @@ def Val.splitOrs : Val → List (List (ℕ × Val)) × List Val
   | .or arms => ([arms], [])
   | v => ([], [v])
 
-/-- Two disjunctions met, as one: the meet of each arm of the first with
-each arm of the second, ranked as the meet ranks them (`meetStep`), an
-arm of the first keeping its rank over the arms it meets, and one of rank
-`0` opening into them (`flattenArm`). -/
-def orMeet (as bs : List (ℕ × Val)) : List (ℕ × Val) :=
+/-- Two nodes' arms met as written, the left one's outermost: each arm of
+`as` keeping its rank over the arms of `bs` it meets, each pair met in
+the order written, and an arm of rank `0` opening into them
+(`flattenArm`). -/
+def outerMeet (as bs : List (ℕ × Val)) : List (ℕ × Val) :=
   (as.map fun p => (p.1, Val.or (bs.map fun q => (q.1, Val.meet p.2 q.2)))).flatMap flattenArm
+
+/-- `outerMeet` with the right one's arms outermost. -/
+def outerMeetR (as bs : List (ℕ × Val)) : List (ℕ × Val) :=
+  (bs.map fun q => (q.1, Val.or (as.map fun p => (p.1, Val.meet p.2 q.2)))).flatMap flattenArm
+
+/-- The arms `tieArms` makes of two nodes' arms that lead with the rank
+`r`, each pair met as written: the defaults' meets at rank `r`, and the
+arms that keep one side's default alone at rank `k`. -/
+def tieMeetArms (r k : ℕ) (as bs : List (ℕ × Val)) : List (ℕ × Val) :=
+  (as.filter fun p => p.1 == r).flatMap
+      (fun p => (bs.filter fun p => p.1 == r).map fun q => (r, Val.meet p.2 q.2)) ++
+    (as.filter fun p => p.1 == r).map
+      (fun p => (k, Val.or ((bs.filter fun p => p.1 != r).map fun q => (q.1, Val.meet p.2 q.2)))) ++
+    (bs.filter fun p => p.1 == r).map
+      (fun q => (k, Val.or ((as.filter fun p => p.1 != r).map fun p => (p.1, Val.meet p.2 q.2))))
+
+/-- Two nodes' arms that lead with the rank `r` met as `nodeTie` meets
+them (decision 43), each pair met as written and `rest` the other arms
+of the two met: where a default of each meets one of the other's
+(`meet`), the arms `tieMeetArms` makes, one rank weaker for one side's
+default alone, as one arm of rank `r`; where none does, those arms at
+rank `r` themselves. -/
+def tieMeet (r : ℕ) (rest as bs : List (ℕ × Val)) : List (ℕ × Val) :=
+  if (as.filter fun p => p.1 == r).any
+      (fun p => (bs.filter fun p => p.1 == r).any fun q => !(meet p.2 q.2).dead) then
+    (r, Val.or (tieMeetArms r (r + 1) as bs)) :: rest
+  else tieMeetArms r r as bs ++ rest
+
+/-- Two nodes' arms met, within `n` levels, each pair met as written and
+ranked as the meet ranks them (`meetNodesN`): the one that leads with
+the stronger rank outermost, one with no default inside one with a
+default, and two that lead with one rank as `tieMeet` meets them. -/
+def orMeetF : ℕ → List (ℕ × Val) → List (ℕ × Val) → List (ℕ × Val)
+  | 0, as, bs => outerMeet as bs
+  | n + 1, as, bs =>
+    match pickRank as, pickRank bs with
+    | some ra, some rb =>
+      if ra < rb then outerMeet as bs
+      else if rb < ra then outerMeetR as bs
+      else tieMeet ra (orMeetF n (as.filter fun p => p.1 != ra) (bs.filter fun p => p.1 != ra)) as bs
+    | some _, none => outerMeet as bs
+    | none, some _ => outerMeetR as bs
+    | none, none => outerMeet as bs
+
+/-- Two nodes met, as one: the meet of each arm of the first with each
+arm of the second, ranked as the meet ranks them (`orMeetF`). -/
+def orMeet (as bs : List (ℕ × Val)) : List (ℕ × Val) := orMeetF (as.length + bs.length) as bs
 
 /-- Whether a term is a lone preference, a node beside the disjunctions
 of a meet (`Val.meetOrs`). -/
@@ -2432,20 +2479,31 @@ def Val.isPrefB : Val → Bool
   | .pref _ _ => true
   | _ => false
 
+/-- A lone preference as the arms of a node met beside disjunctions
+(`Val.meetOrs`): its value at its rank, and its parent arm kept as the
+preference one rank weaker, so that the reading lifts what the value
+reads as (decision 40), which the meet reads as `x | super(x)`. The
+default that parent arm holds again only repeats an arm the value's own
+arm makes, so it is dead wherever the rank rule could pick it. -/
+def Val.prefArms : Val → List (ℕ × Val)
+  | .pref r x => [(r, x), (0, .pref (r + 1) x)]
+  | v => [(0, v)]
+
 /-- A meet whose conjuncts hold a disjunction and another disjunction or a
 lone preference, an arm of one of which reads its place
-(`Val.armReads`), read as one disjunction of the meets of the
-disjunctions' arms (`orMeet`), each met with the other conjuncts, as the
-meet meets a term with a disjunction arm by arm (`meetStep`), so that a
-path in an arm, or in a preference's value, reads the arm the meet makes
-there; any other term as written. -/
+(`Val.armReads`), read as one disjunction of the meets of the nodes'
+arms (`orMeet`), a lone preference's as `Val.prefArms` gives them,
+ranked as the meet ranks them (`meetNodes`), each met with the other
+conjuncts, so that a path in an arm, or in a preference's value, reads
+the arm the meet makes there; any other term as written. -/
 def Val.meetOrs (v : Val) : Val :=
   match v.splitOrs.1 with
   | as :: more =>
     if 2 ≤ more.length + 1 + (v.splitOrs.2.filter Val.isPrefB).length &&
         ((as :: more).any (·.any (·.2.armReads)) ||
           (v.splitOrs.2.filter Val.isPrefB).any (·.nodeArms.any (·.2.armReads))) then
-      .or ((more.foldl orMeet as).map fun p => (p.1, v.splitOrs.2.foldl .meet p.2))
+      .or (((more ++ (v.splitOrs.2.filter Val.isPrefB).map Val.prefArms).foldl orMeet as).map
+        fun p => (p.1, (v.splitOrs.2.filter fun c => !c.isPrefB).foldl .meet p.2))
     else v
   | [] => v
 
@@ -5055,15 +5113,90 @@ theorem splitOrs_checkableA {v : Val} (h : v.CheckableA) :
       subst h
       constructor <;> assumption
 
-theorem orMeet_checkableA {as bs : List (ℕ × Val)} (ha : ∀ p, p ∈ as → p.2.CheckableA)
-    (hb : ∀ q, q ∈ bs → q.2.CheckableA) : ∀ p, p ∈ orMeet as bs → p.2.CheckableA := by
+theorem outerMeet_checkableA {as bs : List (ℕ × Val)} (ha : ∀ p, p ∈ as → p.2.CheckableA)
+    (hb : ∀ q, q ∈ bs → q.2.CheckableA) : ∀ p, p ∈ outerMeet as bs → p.2.CheckableA := by
   intro p hp
-  simp only [orMeet, List.mem_flatMap, List.mem_map] at hp
+  simp only [outerMeet, List.mem_flatMap, List.mem_map] at hp
   obtain ⟨_, ⟨p', hp', rfl⟩, hm⟩ := hp
   refine flattenArm_checkableA (.or fun r a h => ?_) p hm
   simp only [List.mem_map, Prod.mk.injEq] at h
   obtain ⟨q, hq, rfl, rfl⟩ := h
   exact .meet (ha p' hp') (hb q hq)
+
+theorem outerMeetR_checkableA {as bs : List (ℕ × Val)} (ha : ∀ p, p ∈ as → p.2.CheckableA)
+    (hb : ∀ q, q ∈ bs → q.2.CheckableA) : ∀ p, p ∈ outerMeetR as bs → p.2.CheckableA := by
+  intro p hp
+  simp only [outerMeetR, List.mem_flatMap, List.mem_map] at hp
+  obtain ⟨_, ⟨q', hq', rfl⟩, hm⟩ := hp
+  refine flattenArm_checkableA (.or fun r a h => ?_) p hm
+  simp only [List.mem_map, Prod.mk.injEq] at h
+  obtain ⟨p'', hp'', rfl, rfl⟩ := h
+  exact .meet (ha p'' hp'') (hb q' hq')
+
+theorem tieMeetArms_checkableA {r k : ℕ} {as bs : List (ℕ × Val)} (ha : ∀ p, p ∈ as → p.2.CheckableA)
+    (hb : ∀ q, q ∈ bs → q.2.CheckableA) : ∀ p, p ∈ tieMeetArms r k as bs → p.2.CheckableA := by
+  intro p hp
+  unfold tieMeetArms at hp
+  rcases List.mem_append.mp hp with hp | hp
+  · rcases List.mem_append.mp hp with hp | hp
+    · obtain ⟨x, hx, hm⟩ := List.mem_flatMap.mp hp
+      obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hm
+      exact .meet (ha x (List.mem_filter.mp hx).1) (hb y (List.mem_filter.mp hy).1)
+    · obtain ⟨x, hx, rfl⟩ := List.mem_map.mp hp
+      refine .or fun r' a h => ?_
+      obtain ⟨y, hy, he⟩ := List.mem_map.mp h
+      simp only [Prod.mk.injEq] at he
+      obtain ⟨rfl, rfl⟩ := he
+      exact .meet (ha x (List.mem_filter.mp hx).1) (hb y (List.mem_filter.mp hy).1)
+  · obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hp
+    refine .or fun r' a h => ?_
+    obtain ⟨x, hx, he⟩ := List.mem_map.mp h
+    simp only [Prod.mk.injEq] at he
+    obtain ⟨rfl, rfl⟩ := he
+    exact .meet (ha x (List.mem_filter.mp hx).1) (hb y (List.mem_filter.mp hy).1)
+
+theorem orMeetF_checkableA : ∀ (n : ℕ) {as bs : List (ℕ × Val)}, (∀ p, p ∈ as → p.2.CheckableA) →
+    (∀ q, q ∈ bs → q.2.CheckableA) → ∀ p, p ∈ orMeetF n as bs → p.2.CheckableA
+  | 0, _, _, ha, hb => outerMeet_checkableA ha hb
+  | n + 1, as, bs, ha, hb => by
+    have hfa : ∀ (f : ℕ × Val → Bool), ∀ p, p ∈ as.filter f → p.2.CheckableA :=
+      fun _ p h => ha p (List.mem_filter.mp h).1
+    have hfb : ∀ (f : ℕ × Val → Bool), ∀ q, q ∈ bs.filter f → q.2.CheckableA :=
+      fun _ q h => hb q (List.mem_filter.mp h).1
+    unfold orMeetF
+    split
+    · split
+      · exact outerMeet_checkableA ha hb
+      · split
+        · exact outerMeetR_checkableA ha hb
+        · intro p hp
+          unfold tieMeet at hp
+          split at hp
+          · rcases List.mem_cons.mp hp with rfl | hp
+            · exact .or fun r' a h => tieMeetArms_checkableA ha hb (r', a) h
+            · exact orMeetF_checkableA n (hfa _) (hfb _) p hp
+          · rcases List.mem_append.mp hp with hp | hp
+            · exact tieMeetArms_checkableA ha hb p hp
+            · exact orMeetF_checkableA n (hfa _) (hfb _) p hp
+    · exact outerMeet_checkableA ha hb
+    · exact outerMeetR_checkableA ha hb
+    · exact outerMeet_checkableA ha hb
+
+theorem orMeet_checkableA {as bs : List (ℕ × Val)} (ha : ∀ p, p ∈ as → p.2.CheckableA)
+    (hb : ∀ q, q ∈ bs → q.2.CheckableA) : ∀ p, p ∈ orMeet as bs → p.2.CheckableA :=
+  orMeetF_checkableA _ ha hb
+
+theorem prefArms_checkableA {c : Val} (h : c.CheckableA) : ∀ p, p ∈ c.prefArms → p.2.CheckableA := by
+  cases c with
+  | pref r x =>
+    cases h with
+    | pref hx =>
+      intro p hp
+      simp only [Val.prefArms, List.mem_cons, List.not_mem_nil, or_false] at hp
+      rcases hp with rfl | rfl
+      · exact hx
+      · exact .pref hx
+  | _ => intro p hp; rw [List.mem_singleton.mp hp]; exact h
 
 theorem meetOrs_checkableA {v : Val} (h : v.CheckableA) : v.meetOrs.CheckableA := by
   have hs := splitOrs_checkableA h
@@ -5094,8 +5227,12 @@ theorem meetOrs_checkableA {v : Val} (h : v.CheckableA) : v.meetOrs.CheckableA :
       refine .or fun r a h' => ?_
       simp only [List.mem_map, Prod.mk.injEq] at h'
       obtain ⟨p, hp, rfl, rfl⟩ := h'
-      exact hmeet _ _ (hfold more as (hm as List.mem_cons_self)
-        (fun as' h'' => hm as' (List.mem_cons_of_mem _ h'')) p hp) hs.2
+      refine hmeet _ _ (hfold _ as (hm as List.mem_cons_self) (fun as' h'' => ?_) p hp)
+        fun c hc => hs.2 c (List.mem_filter.mp hc).1
+      rcases List.mem_append.mp h'' with h'' | h''
+      · exact hm as' (List.mem_cons_of_mem _ h'')
+      · obtain ⟨c, hc, rfl⟩ := List.mem_map.mp h''
+        exact prefArms_checkableA (hs.2 c (List.mem_filter.mp hc).1)
     · exact h
   · exact h
 

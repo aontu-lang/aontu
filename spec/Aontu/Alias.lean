@@ -1636,12 +1636,93 @@ theorem nodeLeft_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) 
     | exact mkOr_pref_left hr ha hb
     | exact nodeRight_checkableA hr ha hb
 
-theorem meetNodes_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
-    (meetNodes rec a b).CheckableA := by
-  unfold meetNodes
+omit hr in
+theorem armsOf_checkableA {v : Val} (h : v.CheckableA) : ∀ p, p ∈ v.armsOf → p.2.CheckableA := by
+  cases v with
+  | or arms => cases h with | or ha => exact fun p hp => ha p.1 p.2 hp
+  | pref r x =>
+    cases h with
+    | pref hx =>
+      intro p hp
+      simp only [Val.armsOf, List.mem_cons, List.not_mem_nil, or_false] at hp
+      rcases hp with rfl | rfl
+      · exact hx
+      · exact hx.super
+  | _ => intro p hp; rw [List.mem_singleton.mp hp]; exact h
+
+theorem nodeNorm_checkableA {v : Val} (h : v.CheckableA) : (nodeNorm rec v).CheckableA := by
+  cases v with
+  | or arms =>
+    simp only [nodeNorm]
+    split
+    · exact mkOr_or_left hr h .any
+    · exact h
+  | _ => exact h
+
+theorem tieArms_checkableA {r k : ℕ} {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
+    ∀ p, p ∈ tieArms rec r k a b → p.2.CheckableA := by
+  have hpa : ∀ p, p ∈ armsAtRank r a → p.2.CheckableA := fun p hp =>
+    armsOf_checkableA ha p (List.mem_filter.mp hp).1
+  have hqa : ∀ p, p ∈ armsOffRank r a → p.2.CheckableA := fun p hp =>
+    armsOf_checkableA ha p (List.mem_filter.mp hp).1
+  have hpb : ∀ p, p ∈ armsAtRank r b → p.2.CheckableA := fun p hp =>
+    armsOf_checkableA hb p (List.mem_filter.mp hp).1
+  have hqb : ∀ p, p ∈ armsOffRank r b → p.2.CheckableA := fun p hp =>
+    armsOf_checkableA hb p (List.mem_filter.mp hp).1
+  intro p hp
+  unfold tieArms at hp
+  rcases List.mem_append.mp hp with hp | hp
+  · rcases List.mem_append.mp hp with hp | hp
+    · obtain ⟨x, hx, hm⟩ := List.mem_flatMap.mp hp
+      obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hm
+      exact hr _ _ (hpa x hx) (hpb y hy)
+    · obtain ⟨x, hx, rfl⟩ := List.mem_map.mp hp
+      refine mkOrF_checkableA hr fun q hq => ?_
+      obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hq
+      exact hr _ _ (hpa x hx) (hqb y hy)
+  · obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hp
+    refine mkOrF_checkableA hr fun q hq => ?_
+    obtain ⟨x, hx, rfl⟩ := List.mem_map.mp hq
+    exact hr _ _ (hqa x hx) (hpb y hy)
+
+theorem nodeTie_checkableA {r : ℕ} {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
+    (nodeTie rec r a b).CheckableA := by
+  have hqa : ∀ p, p ∈ armsOffRank r a → p.2.CheckableA := fun p hp =>
+    armsOf_checkableA ha p (List.mem_filter.mp hp).1
+  have hqb : ∀ p, p ∈ armsOffRank r b → p.2.CheckableA := fun p hp =>
+    armsOf_checkableA hb p (List.mem_filter.mp hp).1
+  have hrest : (rec (.or (armsOffRank r a)) (.or (armsOffRank r b))).CheckableA :=
+    hr _ _ (.or fun r' a' h => hqa (r', a') h) (.or fun r' a' h => hqb (r', a') h)
+  unfold nodeTie
   split
-  · exact nodeRight_checkableA hr ha hb
+  · refine mkOrF_checkableA hr fun p hp => ?_
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hp
+    rcases hp with rfl | rfl
+    · exact mkOrF_checkableA hr (tieArms_checkableA hr ha hb)
+    · exact hrest
+  · refine mkOrF_checkableA hr fun p hp => ?_
+    rcases List.mem_append.mp hp with hp | hp
+    · exact tieArms_checkableA hr ha hb p hp
+    · rw [List.mem_singleton.mp hp]; exact hrest
+
+theorem meetNodesN_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
+    (meetNodesN rec a b).CheckableA := by
+  unfold meetNodesN
+  split
+  · split
+    · exact nodeLeft_checkableA hr ha hb
+    · split
+      · exact nodeRight_checkableA hr ha hb
+      · exact nodeTie_checkableA hr ha hb
   · exact nodeLeft_checkableA hr ha hb
+  · exact nodeRight_checkableA hr ha hb
+  · split
+    · exact nodeLeft_checkableA hr ha hb
+    · exact hr _ _ ha hb
+
+theorem meetNodes_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
+    (meetNodes rec a b).CheckableA :=
+  meetNodesN_checkableA hr (nodeNorm_checkableA hr ha) (nodeNorm_checkableA hr hb)
 
 theorem meetRight_checkableA {a b₁ b₂ : Val} (ha : a.CheckableA) (hb : (Val.meet b₁ b₂).CheckableA) :
     (meetRight rec a b₁ b₂).CheckableA := by

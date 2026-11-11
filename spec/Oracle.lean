@@ -783,7 +783,17 @@ def rankFoldCases : List (Val × Data) :=
     (x (.meet (.or [(1, int 1), (0, int 2)]) (.pref 1 .integer)), none),
     (x (.meet (.pref 1 (int 1)) (.pref 2 .integer)), .map [("x", j 5)]),
     (x (.meet (.pref 1 .integer) (.pref 2 (int 1))), none),
-    (x (.meet (.pref 1 (mp "a" (int 1))) (.pref 2 (mp "b" (int 2)))), .map [("x", .map [("a", j 1)])])]
+    (x (.meet (.pref 1 (mp "a" (int 1))) (.pref 2 (mp "b" (int 2)))), .map [("x", .map [("a", j 1)])]),
+    (x (.meet (.pref 1 .integer) (.or [(1, int 1), (0, int 2)])), none),
+    (x (.meet (.or [(0, int 1), (0, int 2)]) (.pref 1 .integer)), none),
+    (x (.meet (.pref 1 .integer) (.or [(0, int 1), (0, int 2)])), none),
+    (x (.meet (.or [(1, mp "a" (int 1)), (0, mp "c" (int 3))]) (.pref 1 (mp "b" (int 2)))), none),
+    (x (.meet (.pref 1 (mp "b" (int 2))) (.or [(1, mp "a" (int 1)), (0, mp "c" (int 3))])), none),
+    (x (.meet (.or [(1, mp "a" (int 1)), (0, mp "c" (int 3))]) (.or [(1, mp "b" (int 2)), (0, mp "d" (int 4))])),
+      none),
+    (x (.meet (.or [(1, int 1), (0, int 7)]) (.or [(1, int 7), (0, int 1)])), none),
+    (x (.meet (.or [(1, int 1), (0, int 2)]) (.or [(1, int 7), (0, int 1)])), none),
+    (x (.meet (.pref 1 (int 7)) (.pref 1 (int 1))), none)]
 
 theorem rankFoldCases_checkable : ∀ c ∈ rankFoldCases, (vetDoc c).1.CheckableA := by decide
 
@@ -1792,7 +1802,17 @@ def disjunctionPathCases : List (Decls × Val × Data) :=
     ([("T", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
       m [("x", .alias "T")], .map [("x", .map [("a", j 2), ("b", j 2)])]),
     ([("T", .meet (or2 (m [("b", rel 1 ["a"])]) (.lit .null)) (or2 (m [("a", int 1)]) (m [("a", int 2)])))],
-      m [("x", .alias "T")], .map [("x", .map [("a", j 2), ("b", j 1)])])]
+      m [("x", .alias "T")], .map [("x", .map [("a", j 2), ("b", j 1)])]),
+    ([], m [("x", .meet (.or [(2, m [("a", int 1), ("c", rel 1 ["a"])]), (0, m [])])
+        (.or [(1, m [("b", int 2)]), (0, m [])]))], .map []),
+    ([], m [("x", .meet (.or [(1, m [("b", int 2)]), (0, m [])])
+        (.or [(2, m [("a", int 1), ("c", rel 1 ["a"])]), (0, m [])]))], .map []),
+    ([], m [("x", .meet (.or [(2, m [("a", int 1), ("c", rel 1 ["a"])]), (0, m [])])
+        (.or [(1, m [("b", int 2)]), (0, m [])]))], .map [("x", .map [("a", j 1), ("b", j 2), ("c", j 2)])]),
+    ([], m [("x", .meet (.or [(1, m [("a", int 1), ("c", rel 1 ["a"])]), (0, m [("d", int 4)])])
+        (.pref 1 (m [("b", int 2)])))], .map []),
+    ([], m [("x", .meet (.pref 1 (m [("b", int 2)]))
+        (.or [(1, m [("a", int 1), ("c", rel 1 ["a"])]), (0, m [("d", int 4)])]))], .map [])]
 
 /-- Paths inside a lone preference `*x`, which reads as `x | super(x)`:
 `x` read where it stands, and its parent arm the parent type of what `x`
@@ -7059,7 +7079,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# parent type, which a lone preference keeps, in rows pa0 on. Defaults of one"
     IO.println "# rank fold into their meet, and of two ranks the lower one's wins while the"
     IO.println "# higher one's still constrains (ruling 41) and its default fills in under"
-    IO.println "# the lower one's (ruling 42), in rows rk0 on."
+    IO.println "# the lower one's (ruling 42). An arm that was not a default stays one,"
+    IO.println "# whichever side of the meet holds it (decision 43), in rows rk0 on."
     verdictRows "e"
     verdictRows "l" lenCases
     verdictRows "h" markCases

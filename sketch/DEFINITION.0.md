@@ -319,7 +319,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 301 rows under twenty-one causes: decisions 3 and 4 of §2, under
+ledger holds 325 rows under twenty-two causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -362,10 +362,13 @@ disagrees with their own `eval`, and move (#702); two preferences of
 different ranks that meet, whose higher rank's constraint ruling 41 of
 §7 keeps, where both ports drop it, and move (#714); the higher rank's
 default, which ruling 42 fills in under the lower rank's where they
-agree, where both ports drop it too, and move (#714); and a clash a meet
-makes, two defaults of one rank that disagree, which the definition
-reads as an `error` as both ports' `eval` does, where both ports' `vet`
-answers `invalid`, and move (#482).
+agree, where both ports drop it too, and move (#714); an arm that was
+not a default, which decision 43 keeps one where a preference meets a
+disjunction at its rank or one with no default, where both ports make
+it a default and so clash, and move (#714); and a clash a meet makes,
+two defaults of one rank that disagree, which the definition reads as
+an `error` as both ports' `eval` does, where both ports' `vet` answers
+`invalid`, and move (#482).
 The 81 rows of #426, a call no reading makes, with the wrong number of
 arguments or a non-number negated, which the ports read as invalid,
 retired on 2026-11-02 when both ports' `vet` read a failure the schema
@@ -2121,14 +2124,60 @@ until the phase that encodes it lands.
    disagree. Both ports move (#714).
    **Built 2026-11-11**: `meetNodes` meets a disjunction or a lone
    preference with its peer with the side that leads with the stronger
-   rank outermost (`Val.leadRank`, `leadsOver`, `nodeLeft`,
-   `nodeRight`), the left one where neither leads, so that the weaker
+   rank outermost (`Val.leadRank`, `nodeLeft`, `nodeRight`), the left
+   one where neither leads, so that the weaker
    side's ranks nest inside the stronger side's arms. Rows g99 of
    `test/spec/def-gen.tsv` and rk36 on of `test/spec/def-verdict.tsv`,
    and rk24 moved to `valid`; rk24, rk36 and rk40, which both ports
    answer otherwise, are in the ledger under #714. A meet whose two sides both lead
    with one rank still nests the right one inside the left one, where
-   the fold of ruling 41 meets their defaults.
+   the fold of ruling 41 meets their defaults; decision 43 replaces
+   that.
+
+43. **An arm that was not a default, under a meet.** Raised 2026-11-11
+   while building decision 42. Where the two sides of a meet lead with
+   one rank, or one of them prefers nothing, the meet nested the right
+   side inside the left one, so the default depended on the order
+   written. `(*1 | 2) & *integer` was a clash, since the arm `2` met
+   `*integer` and became a default of its rank, and
+   `*integer & (*1 | 2)` was `1`. `(1 | 2) & *integer` was a clash one
+   way round and had no single default the other. And
+   `(*{a: 1} | {c: 3}) & *{b: 2}` was `{"a": 1, "b": 2, "c": 3}` one way
+   round and `{"a": 1, "b": 2}` the other. Both ports make every arm a
+   preference meets a default of its rank, in either order.
+
+   **Ruled 2026-11-11: an arm that was not a default stays one.** Ranks
+   are layers, as decision 42 has it: the defaults of one layer fold
+   into their meet, and an arm that was not a default stays one,
+   whichever side of the meet holds it. `(*1 | 2) & *integer` is `1`,
+   `(1 | 2) & *integer` has no single default, and
+   `(*{a: 1} | {c: 3}) & *{b: 2}` is `{"a": 1, "b": 2}`, in either
+   order. Both ports move (#714).
+   **Built 2026-11-11**: `meetNodes` first meets each arm of a
+   disjunction with `any` where one is a meet, a disjunction or a
+   preference (`nodeNorm`, `Val.armPending`), so that the rank a side
+   leads with is the one its arms make. `meetNodesN` then puts a side
+   with a default outside one with none, and meets two sides that lead
+   with one rank by `nodeTie`: each side's defaults met with the
+   other's at that rank, ahead of the arms that keep one side's default
+   alone (`tieArms`), which stand one rank weaker and so fold or clash
+   with each other. Where no two defaults meet, those arms stand at the
+   rank itself, so that a clash between them is the disjunction's.
+   `Val.meetOrs` ranks the arms it reads as one in the same way
+   (`orMeetF`, `tieMeet`), a lone preference beside the disjunctions
+   taking part as a node whose parent arm stays the preference
+   (`Val.prefArms`), where it had nested them in the order written, so
+   that a path in an arm no longer changes the default. Rows rk42 on of
+   `test/spec/def-verdict.tsv`, both orders of each meet, and dj168 on
+   and djl168 on of `test/spec/def-path.tsv`, and rk30 to rk32 moved
+   to `valid`, `incomplete` and `valid`. Both ports answer 33 of the 57
+   new rows as the definition does. The ledger takes rk30 to rk32,
+   rk42 to rk50, dj177 to dj182 and djl177 to djl182 under #714, where
+   both ports clash, and rk60 to rk62 under #482. A clash that a later
+   meet makes, by emptying the meet of two defaults of one rank while
+   each still meets an arm of the other side, stands inside the arm the
+   two defaults' meet held, as that arm's own, so the verdict drops the
+   arm where ruling 41 makes the clash the disjunction's.
 
 ## 8. Risks
 
