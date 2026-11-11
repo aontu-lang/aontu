@@ -2179,6 +2179,32 @@ until the phase that encodes it lands.
    two defaults' meet held, as that arm's own, so the verdict drops the
    arm where ruling 41 makes the clash the disjunction's.
 
+44. **`open()`, and the seals it lifts.** Raised 2026-11-11 while
+   working through the definition's limits. `open()` reverses a seal,
+   which the definition holds as a flag on each map and list, with no
+   form that lifts one. Both ports agree on every case probed. `open(v)`
+   lifts every seal in `v`, at every depth, and holds `v` open against
+   a seal from above: the deep seal of a `close()` around it, or the
+   seal a `type()` puts on its instances, so the instances of
+   `type(open({...}))`, and `open($.T)`, take keys the definition does
+   not declare. `close(open(m))` seals `m` itself and nothing beneath
+   it, and `open(v)` beside a sealed term lifts nothing there. Written
+   bare, `open()` lifts the seals of every term at its place, at every
+   depth and in any order, across separate statements too, and a bare
+   `close()` seals the place once its terms have met, and the levels
+   beneath it but those held open, so that `close()` wins over
+   `open()` at its own place. Neither bare form is a value: the meet is
+   a lattice, and its theorems rest on that.
+
+   **Ruled 2026-11-11: all of it.** `open(v)` is a mark, a rider the
+   meet carries, read with every seal of `v` lifted, and every seal
+   from above stops at it. A bare `open()` and a bare `close()` are
+   directives on their place, applied as the document is read and
+   before any meet: `open()` holds every term at its place open, and
+   then `close()` seals the place's terms as met, as the seal on an
+   instance does, its own level whatever holds it open. The meet stays
+   a lattice.
+
 ## 8. Risks
 
 | Risk | Mitigation |
