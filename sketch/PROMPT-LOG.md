@@ -936,3 +936,9 @@ How should the Lean definition hold open() (decision 44)? Both engines agree on 
 ```text
 How much of aontu is now specified in lean?
 ```
+
+## 2026-11-12 11:43:21 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+To what extent can aontu formally express domain driven design, and how would that work in practice
+```
