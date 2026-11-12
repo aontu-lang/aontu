@@ -984,3 +984,9 @@ create a github issue for this proposal, include the comparison table; the idiom
 ```text
 under the current meaning of refer() is this actually a good name - since refer(template) is not really a reference to a template, is it?
 ```
+
+## 2026-11-12 17:18:49 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+by doesn't refer impose the template on the current value, forcing a meet?
+```
