@@ -954,3 +954,9 @@ post the discovered trip defects as github issues to investigate - include repro
 ```text
 this does not look like valid syntax: $.%T.gross
 ```
+
+## 2026-11-12 13:05:18 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+[aontu/func_arg]: Cannot unify values at path $.%T.gross - this is bad error message that uses syntax that does not exist - what is the reason for it? are you trying to show the path location of the alias definition? aliases may be declared at a point in the tree, but they don't have paths
+```
