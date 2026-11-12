@@ -1717,10 +1717,8 @@ which [#723](https://github.com/aontu-lang/aontu/issues/723) tracks. A
 link whose target another link's template makes there is an `error` in
 the definition, which
 [#664](https://github.com/aontu-lang/aontu/issues/664) tracks. Only a
-path a body writes reads that place. Where the schema writes a body's very
-path, `$."%T".x` beside a body's `.x`, the definition reads the two as
-one, which [#721](https://github.com/aontu-lang/aontu/issues/721)
-tracks.
+path a body writes reads that place, so the schema's `$."%T".x` names
+nothing, beside a body's own `.x` or not, as in both engines.
 
 A spread's template reads its paths at each member the spread holds,
 the member's own place: in `hosts: {&: {url: .name}}`, each member's `url`

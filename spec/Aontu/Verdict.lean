@@ -2485,6 +2485,7 @@ theorem Val.fieldAt_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA �
   | .var _ :: _, _, _, _, h => by simp [Val.fieldAt] at h
   | .up _ :: _, _, _, _, h => by simp [Val.fieldAt] at h
   | .node :: _, _, _, _, h => by simp [Val.fieldAt] at h
+  | .own _ :: _, _, _, _, h => by simp [Val.fieldAt] at h
 
 /-- A path read for a node the checker can read is a term it can read. -/
 theorem nodeRef_checkableA {b : Option Val} (hb : ∀ m, b = some m → m.CheckableA) :
@@ -2502,6 +2503,7 @@ theorem nodeRef_checkableA {b : Option Val} (hb : ∀ m, b = some m → m.Checka
   | .idx _ :: _ => by exact .path
   | .var _ :: _ => by exact .path
   | .up _ :: _ => by exact .path
+  | .own _ :: _ => by exact .path
 
 /-- The meet of fields the checker can read is a term it can read. -/
 theorem fieldsMeet_checkableA {fs : List (String × Bool × Val)} {k : String} {v : Val}

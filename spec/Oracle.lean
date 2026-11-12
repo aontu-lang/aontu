@@ -1570,8 +1570,7 @@ theorem key_path_verdict_exact : ∀ c ∈ keyPathCases, ∀ (m : Mode) (v : Ver
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (keyPathCases_checkable c hc).1 (keyPathCases_checkable c hc).2 v
 
-/-- A body read at the alias's own place, `%` and its name as a key at
-the top, used or not: an error where a path names nothing there or meets
+/-- A body read at the alias's own place (`Seg.own`), used or not: an error where a path names nothing there or meets
 a conflict there, whatever its uses read, and a body that is itself a
 relative path read there at each use too. Both ports read these alike in
 either order, so the rows hold them with each declaration written before
@@ -1591,16 +1590,17 @@ def aliasPlaceCases : List (Decls × Val × Data) :=
     ([("T", rel 1 ["x"])], m [("x", int 1), ("a", m [("x", int 2), ("b", .alias "T")])], .map [("a", .map [("b", j 2)])])]
 
 /-- Relative paths in a body that name the body's own members, read at
-the body's own place, `%` and its name as a key at the top, where both
-ports hold the body: used and not, met with a conflict there and at a
+the body's own place (`Seg.own`), where both ports hold the body: used and not, met with a conflict there and at a
 use, through a list, a member that isn't concrete, and a name declared
 twice; and a chain of paths there, a path through a member that is itself
 a path, of one step and two, used, naming nothing and met with a
 conflict (#664), with a path the schema writes to a body member the
 body's own paths don't name, which names nothing, as no body's place is
-the schema's; and a link's template met into a member of its own body
+the schema's; a link's template met into a member of its own body
 there, read by a path at the place, one deeper, met with a conflict, and
-read at a use of the name (#664). -/
+read at a use of the name (#664); and a path the schema writes to a
+body member a body's own path names too, which names nothing as well,
+since no path the schema writes starts at a body's own place (#721). -/
 def bodyPlaceCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1632,13 +1632,14 @@ def bodyPlaceCases : List (Decls × Val × Data) :=
     ([("T", lb (m []) (m [("k", int 1)]) ["k"])], m [], .map []),
     ([("T", lb (m []) (m [("k", m [("j", int 1)])]) ["k", "j"])], m [], .map []),
     ([("T", lb (m [("k", int 2)]) (m [("k", int 1)]) ["k"])], m [], .map []),
-    ([("T", lb (m []) (m [("k", int 1)]) ["k"])], m [("a", .alias "T")], .map [])]
+    ([("T", lb (m []) (m [("k", int 1)]) ["k"])], m [("a", .alias "T")], .map []),
+    ([("T", xy)], m [("z", .path [.key "%T", .key "x"])], .map [("z", j 1)])]
 
 /-- Relative paths, made absolute where each stands: a sibling, a climb
 of two steps and three, a key in quotes, an index into a sibling list,
 a list's element reading its sibling, a chain of relative paths, a
-relative path in a call, and a body's, read at the body's own place,
-`%` and its name as a key at the top, as both ports place it, with
+relative path in a call, and a body's, read at the body's own place
+(`Seg.own`), as both ports place it, with
 `aliasPlaceCases`. -/
 def relPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
