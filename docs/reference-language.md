@@ -4860,7 +4860,11 @@ beneath it, reads as one disjunction: each combination of the choices'
 arms, met with every other term at the place, is a place of its own.
 So a directive reaches every combination, and `close()` seals each
 with the keys that combination declares, while the seal on an instance
-still stops at a choice.
+still stops at a choice. A directive inside the argument of `copy`,
+`super` or `pref` acts where the call's value lands: the call's place
+reads the argument's shape, its maps and lists with their keys, so
+`copy(close() & {x: 1})` stays sealed although `copy` lifts every seal
+its argument writes.
 
 ## Source loading `@"…"`
 

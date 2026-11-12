@@ -2298,6 +2298,22 @@ until the phase that encodes it lands.
    **Ruled 2026-11-12 (the project's owner): where the value lands.** A
    directive inside a call's argument acts at the place the call's
    value stands, so `copy(close() & {x: 1})` stays sealed.
+   **Built 2026-11-12**: a call whose value holds its argument, `copy`,
+   `super` or `pref` (`Fn.landsArg`), over an argument that writes a
+   directive, is met with the argument's shape before the directives
+   are read (`Val.landed`, `landCall`): its maps and lists unsealed,
+   with their keys, each member in its shape and every other term
+   `any`, the directives and a term held open kept (`Val.shape`). The
+   directive then stands at the call's place, beside the call, and a
+   seal it makes lies outside the argument that `copy` unseals. Rows
+   dirp18 on of `test/spec/def-path.tsv`, 30 in all; both ports answer
+   27 of them as the definition does, and the other 3 alike, listed in
+   the ledger under #726: the copy beside a map the place also writes,
+   which both ports read as a conflict once they fold `close()` into
+   the argument. A directive inside a trial, a selection's result or a
+   link's template, or the argument of any other call, still reads as
+   `any`, and so does a `close()` beside a call, whose seal stops at
+   the call: both stay listed in the README's limits.
 
 47. **Modules.** Raised 2026-11-12 while planning P10: the module
    imports `@"corp.example/schemas/service"` and `@"alias:legacy"`, and

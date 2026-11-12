@@ -2103,8 +2103,12 @@ theorem ref_copy_verdict_exact : ∀ c ∈ refCopyCases, ∀ (m : Mode) (v : Ver
 /-- A bare `close()` and a bare `open()` beside path references (decision
 44 of the design note's §7): a sealed place's copy sealed; a `close()`
 beside a reference sealing the target's terms read there; an `open()`
-beside a reference lifting the target's seal; and a `close()` at the
-document's root. -/
+beside a reference lifting the target's seal; a `close()` at the
+document's root; and a directive inside the argument of `copy`, `pref`
+or `super`, which acts where the call's value lands (decision 46): at
+the call's own level and beneath it, after the copy's seals are lifted,
+an `open()` there too, beside a term the place holds, through a copy of
+a copy, and beside a disjunction in the argument. -/
 def directivePathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -2116,12 +2120,26 @@ def directivePathCases : List (Decls × Val × Data) :=
   let pb : Val := .path [.key "b"]
   let dx : Data := .map [("x", j 1)]
   let dxy : Data := .map [("x", j 1), ("y", j 2)]
+  let cp (v : Val) : Val := .call .copy [v]
+  let x1 : Val := m [("x", int 1)]
   [([], m [("b", .meet bclose (m [("x", int 1)])), ("a", pb)], .map [("a", dxy), ("b", dx)]),
     ([], m [("a", .meet bclose (m [("x", int 1)])), ("b", pa)], .map [("a", dx), ("b", dxy)]),
     ([], m [("b", m [("x", int 1)]), ("a", .meet bclose pb)], .map [("a", dxy), ("b", dx)]),
     ([], m [("b", cl [("x", int 1)]), ("a", .meet bopen pb)], .map [("a", dxy), ("b", dx)]),
     ([], .meet bclose (m [("x", int 1)]), dxy),
-    ([], .meet bclose (m [("x", int 1)]), dx)]
+    ([], .meet bclose (m [("x", int 1)]), dx),
+    ([], m [("v", cp (.meet bclose x1))], .map [("v", dxy)]),
+    ([], m [("v", cp (.meet bclose x1))], .map [("v", dx)]),
+    ([], m [("v", cp (m [("x", .meet bclose (m [("y", int 1)]))]))],
+      .map [("v", .map [("x", .map [("y", j 1), ("z", j 2)])])]),
+    ([], m [("v", cp (.meet bopen (cl [("x", int 1)])))], .map [("v", dxy)]),
+    ([], m [("v", .meet (cp (.meet bclose x1)) (m [("y", int 2)]))], .map [("v", dxy)]),
+    ([], m [("v", .call .pref [.meet bclose x1])], .map [("v", dxy)]),
+    ([], m [("v", .call .super [.meet bclose x1])], .map [("v", dxy)]),
+    ([], m [("v", cp (cp (.meet bclose x1)))], .map [("v", dxy)]),
+    ([], m [("v", cp (.meet bclose (.or [(0, x1), (0, m [("y", int 2)])])))],
+      .map [("v", .map [("x", j 1), ("z", j 2)])]),
+    ([], m [("v", cp (.meet bclose x1)), ("w", cp x1)], .map [("v", dx), ("w", dxy)])]
 
 theorem directivePathCases_checkable : ∀ c ∈ directivePathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -5482,15 +5500,19 @@ def hostReads (v : Val) : Bool :=
 
 /-- A vet document whose one field is a call that reads to a term the
 checker can read reads to one itself. -/
-theorem readR_call_checkableA {t : Val} (ht : (∃ f args, t = .call f args) ∨ ∃ s c, t = .filter s c)
+theorem readR_call_checkableA {t : Val}
+    (ht : (∃ f args, t = .call f args ∧ f.landsArg = false) ∨ ∃ s c, t = .filter s c)
     (hf : ∀ k, (expandF [] k t).filled = expandF [] k t)
     (h : ∀ k, (resolveD [] none (stepped (some []) (.seg (.key "v"))) (expandF [] k t)).CheckableA) :
     (Decls.readR [] (.map [("v", false, t)] none false)).CheckableA := by
   have hx : ∀ k, (∀ rd cs, (expandF [] k t).dirIn rd cs = expandF [] k t) ∧
       (expandF [] k t).placeTerms = [expandF [] k t] ∧ (expandF [] k t).directs .lifts = false ∧
-      (expandF [] k t).directs .seals = false ∧ (expandF [] k t).placeChoices = [] := by
+      (expandF [] k t).directs .seals = false ∧ (expandF [] k t).placeChoices = [] ∧
+      (expandF [] k t).landed = expandF [] k t := by
     intro k
-    rcases ht with ⟨f, args, rfl⟩ | ⟨s, c, rfl⟩ <;> cases k <;> exact ⟨fun _ _ => rfl, rfl, rfl, rfl, rfl⟩
+    rcases ht with ⟨f, args, rfl, hla⟩ | ⟨s, c, rfl⟩
+    · cases k <;> exact ⟨fun _ _ => rfl, rfl, rfl, rfl, rfl, by simp [expandF, Val.landed, hla]⟩
+    · cases k <;> exact ⟨fun _ _ => rfl, rfl, rfl, rfl, rfl, rfl⟩
   have hd : ∀ n, (expandF [] n (.map [("v", false, t)] none false)).directed =
       expandF [] n (.map [("v", false, t)] none false) := by
     intro n
@@ -5498,11 +5520,11 @@ theorem readR_call_checkableA {t : Val} (ht : (∃ f args, t = .call f args) ∨
     | zero =>
       have e := (hx 0)
       simp only [expandF] at e ⊢
-      exact Val.directed_map_of e.1 e.2.1 e.2.2.1 e.2.2.2.1 e.2.2.2.2
+      exact Val.directed_map_of e.1 e.2.1 e.2.2.1 e.2.2.2.1 e.2.2.2.2.1 e.2.2.2.2.2
     | succ k =>
       have e := (hx k)
       simp only [expandF, List.map, Option.map]
-      exact Val.directed_map_of e.1 e.2.1 e.2.2.1 e.2.2.2.1 e.2.2.2.2
+      exact Val.directed_map_of e.1 e.2.1 e.2.2.1 e.2.2.2.1 e.2.2.2.2.1 e.2.2.2.2.2
   have hm : ∀ u, (resolveD [] none (stepped (some []) (.seg (.key "v"))) u).CheckableA →
       (resolveD [] none (some []) (.map [("v", false, u)] none false)).CheckableA := by
     intro u hu
@@ -5625,7 +5647,7 @@ theorem patternCases_readable : ∀ c ∈ patternCases, (Decls.readR [] (vetDoc 
   intro c hc
   rcases List.mem_append.mp hc with h | h
   · obtain ⟨⟨s, p, d⟩, hm, rfl⟩ := List.mem_map.mp h
-    refine readR_call_checkableA (.inl ⟨_, _, rfl⟩) (filled_expandF_call (.inl rfl) fun x hx => ?_)
+    refine readR_call_checkableA (.inl ⟨_, _, rfl, rfl⟩) (filled_expandF_call (.inl rfl) fun x hx => ?_)
       fun k => resolveD_expandF_split k fun j x hx => ?_
     · simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
       rcases hx with rfl | rfl
@@ -5636,7 +5658,7 @@ theorem patternCases_readable : ∀ c ∈ patternCases, (Decls.readR [] (vetDoc 
     · exact inert_pending (patternSplits_inert _ hm) j
     · exact inert_pending (x := .re p) rfl j
   · rcases List.mem_singleton.mp h with rfl
-    refine readR_call_checkableA (.inl ⟨_, _, rfl⟩) (filled_expandF_call (.inr rfl) fun x hx => ?_)
+    refine readR_call_checkableA (.inl ⟨_, _, rfl, rfl⟩) (filled_expandF_call (.inr rfl) fun x hx => ?_)
       fun k => resolveD_expandF_rep k fun j x hx => ?_
     · simp only [List.mem_cons, List.mem_nil_iff, or_false] at hx
       rcases hx with rfl | rfl | rfl <;> rfl
