@@ -2608,10 +2608,19 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
     (ns.flatMap fun n => n.2.2.nodeArms.flatMap (·.2.refs))
   L.1.readArms ds' r P ns armRoot isBody (armUses ++ orNames)
 
+/-- A document's declarations with each recursive name's body read where
+no place is yet (`Decls.readU`), its calls made, so that each unfolding
+of the name, at a meet or by the checker, holds them made, as both
+ports make a call wherever the body stands. A call that waits on a
+reference or a hole stays as written. -/
+def Decls.callsMade (ds : Decls) : Decls :=
+  ds.map fun d => if ds.recursiveB d.1 then (d.1, ds.readU d.2) else d
+
 /-- A document as the definition reads it before any data: its links and
-its spreads read in the schema's own tree (`Decls.rootsS`). -/
+its spreads read in the schema's own tree (`Decls.rootsS`), and each
+recursive name's body with its calls made (`Decls.callsMade`). -/
 def Decls.preparedS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.prepared S Decls.rootsS Decls.rootsS
+  ((ds.prepared S Decls.rootsS Decls.rootsS).1.callsMade, (ds.prepared S Decls.rootsS Decls.rootsS).2)
 
 /-- The roots a document's links are read in beside data: the tree the
 data reads in (`Decls.rootsD`), so that an address the data supplies is
@@ -2624,11 +2633,13 @@ def Decls.linkReader (ds : Decls) (S : Val) (j : Data) : Decls → Val → List 
 
 /-- The document as the definition reads it beside data: its links read
 in the roots `Decls.linkReader` picks, its spreads at the members of the
-tree the data reads in (`Decls.rootsD`), and what the data writes at a
+tree the data reads in (`Decls.rootsD`), what the data writes at a
 place met into each copy of the place, the copies its declarations hold
-among them. -/
+among them, and each recursive name's body with its calls made
+(`Decls.callsMade`). -/
 def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)
+  ((ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)).1.callsMade,
+    (ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)).2)
 
 theorem hideAt_checkableA : ∀ p, (hideAt p).CheckableA
   | [] => .ride .any
@@ -5396,15 +5407,27 @@ theorem vetA_iff_reads {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (h : 
   exact vetA_iff_of (fun d hd => (Val.checkableAB_iff _).mp (hbS d hd)) ((Val.checkableAB_iff _).mp hRS)
     (fun d hd => (Val.checkableAB_iff _).mp (hbP d hd)) ((Val.checkableAB_iff _).mp hRP) v
 
+/-- A document's declarations with each recursive name's calls made are
+terms the checker can read. -/
+theorem Decls.callsMade_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
+    ∀ d, d ∈ ds.callsMade → d.2.CheckableA := by
+  intro d hd
+  simp only [Decls.callsMade, List.mem_map] at hd
+  obtain ⟨d', hd', rfl⟩ := hd
+  split
+  · exact readU_checkableA hb (hb d' hd')
+  · exact hb d' hd'
+
 /-- `vetL` computes `VetL` on every document whose bodies and schema
 read no pattern and no format. -/
 theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (ds' := (ds.preparedD S j).1)
     (S' := (ds.preparedD S j).2)
-    (Decls.prepared_bodies_checkableA rootsS_readable rootsS_readable hb hS)
+    (Decls.callsMade_checkableA (Decls.prepared_bodies_checkableA rootsS_readable rootsS_readable hb hS))
     (Decls.prepared_checkableA rootsS_readable rootsS_readable hb hS)
-    (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS)
+    (Decls.callsMade_checkableA
+      (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS))
     (Decls.prepared_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS) v
 
 /-- `vetP` computes `VetP` on every document whose bodies, sources and
