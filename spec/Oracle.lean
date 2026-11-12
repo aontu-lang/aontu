@@ -1092,9 +1092,9 @@ depth, once its declarations are met: through members, optional ones,
 lists and a nested name, with a spread, beside a rider and another
 mark, met with a name, declared twice, met at the reference and
 through a selection, its default and one met with a map. The seal stops
-at a kind, `any`, a disjunction, a preference and a list's spread, a
-mark inside a body seals nothing, and a recursive name, which both
-ports read unsealed, takes none. -/
+at a kind, `any`, a disjunction, a preference and a list's spread, and
+at a disjunction met with a map, a mark inside a body seals nothing,
+and a recursive name, which both ports read unsealed, takes none. -/
 def sealCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -1152,7 +1152,11 @@ def sealCases : List (Decls × Val × Data) :=
     ([("T", mp [("a", type y)])], T, .map [("a", .map [("y", j 1), ("z", j 2)])]),
     ([("T", type x)], .select (int 1) [(int 1, T)] none, dxy),
     ([("T", type (mp [("a", .pref 1 (mp [("b", .integer)]))]))], T,
-      .map [("a", .map [("b", j 1), ("c", j 2)])])]
+      .map [("a", .map [("b", j 1), ("c", j 2)])]),
+    ([("T", type (.meet (.or [(0, mp [("x", int 1)]), (0, mp [("y", int 2)])]) (mp [("z", int 3)])))], T,
+      .map [("x", j 1), ("z", j 3)]),
+    ([("T", type (.meet (.or [(0, mp [("x", int 1)]), (0, mp [("y", int 2)])]) (mp [("z", int 3)])))], T,
+      .map [("x", j 1), ("z", j 3), ("w", j 4)])]
 
 theorem sealCases_checkable : ∀ c ∈ sealCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
@@ -1214,7 +1218,9 @@ it and an `open()` lifts the seal a `close()` beneath it makes, as
 `open(v)` does; a name's body read where it's used; a disjunction's arm,
 and a spread's template, each a place of its own; the terms at a member
 gathered from every map at its parent, and a member held open by a term
-that's `open(v)` beside one that isn't. -/
+that's `open(v)` beside one that isn't; and a directive beside one
+disjunction or lone preference, which reaches each of its arms, read
+with the terms beside it. -/
 def directiveCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -1269,7 +1275,24 @@ def directiveCases : List (Decls × Val × Data) :=
     ([], .meet (mp [("x", bclose)]) (.meet (mp [("x", mp [("y", int 1)])]) (mp [("x", mp [("z", int 2)])])),
       .map [("x", .map [("y", j 1), ("z", j 2), ("w", j 3)])]),
     ([], .meet bclose (.meet (mp [("x", op (mp [("y", int 1)]))]) (mp [("x", mp [("y", int 1)])])), dyz),
-    ([], .meet bclose (.meet (mp [("x", mp [("y", int 1)])]) (mp [("x", op (mp [("y", int 1)]))])), dyz)]
+    ([], .meet bclose (.meet (mp [("x", mp [("y", int 1)])]) (mp [("x", op (mp [("y", int 1)]))])), dyz),
+    ([], .meet bclose (.or [(0, mp [("x", int 1)]), (0, mp [("y", int 2)])]), .map [("x", j 1), ("z", j 3)]),
+    ([], .meet bclose (.or [(0, mp [("x", int 1)]), (0, mp [("y", int 2)])]), dx),
+    ([], .meet bclose (.meet (.or [(0, mp [("x", int 1)]), (0, mp [("y", int 2)])]) (mp [("z", int 3)])),
+      .map [("x", j 1), ("z", j 3)]),
+    ([], .meet bclose (.meet (.or [(0, mp [("x", int 1)]), (0, mp [("y", int 2)])]) (mp [("z", int 3)])),
+      .map [("x", j 1), ("z", j 3), ("w", j 4)]),
+    ([], .meet (mp [("x", bclose)]) (.or [(0, mp [("x", mp [("y", int 1)])]), (0, mp [("x", mp [("z", int 2)])])]),
+      .map [("x", .map [("y", j 1)])]),
+    ([], .meet bclose (.meet (.pref 1 (mp [("x", int 1)])) (mp [("y", int 2)])), dxy),
+    ([], .meet bclose (.meet (.pref 1 (mp [("x", int 1)])) (mp [("y", int 2)])),
+      .map [("x", j 1), ("y", j 2), ("z", j 3)]),
+    ([], .meet bclose (.pref 1 (mp [("x", int 1)])), .map [("x", j 1), ("z", j 3)]),
+    ([], .meet bopen (.pref 1 (cl [("x", int 1)])), .map [("x", j 1), ("z", j 3)]),
+    ([], .meet bclose (.or [(0, mp [("x", int 1)]), (1, mp [("y", int 2)])]), .map [("y", j 2), ("z", j 3)]),
+    ([], .meet bopen (.or [(0, cl [("x", int 1)]), (0, mp [("y", int 2)])]), .map [("x", j 1), ("z", j 3)]),
+    ([], .meet bclose (.or [(0, ls [int 1]), (0, ls [int 2, int 3])]), .list [j 2, j 3, j 4]),
+    ([], .meet bclose (.or [(0, ls [int 1]), (0, ls [int 2, int 3])]), .list [j 2, j 3])]
 
 theorem directiveCases_checkable : ∀ c ∈ directiveCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
@@ -7330,7 +7353,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# level beneath it but those held open; open() lifts every seal at its"
     IO.println "# place, at every depth; close() wins at its own level; the places beneath"
     IO.println "# are read first; a disjunction's arm and a spread's template are places of"
-    IO.println "# their own."
+    IO.println "# their own, and a directive beside one disjunction or lone preference"
+    IO.println "# reaches each of its arms, read with the terms beside it."
     aliasRows "a"
     aliasRows "r" riderCases
     aliasRows "n" markAliasCases

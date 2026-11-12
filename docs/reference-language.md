@@ -4853,9 +4853,10 @@ seal in it lifted, and then `close()` meets the place with the seal an
 instance takes (`closeSeal`), read through every term held open at its
 own level, so `close()` wins there and stops at a term held open beneath
 it. The places beneath a place come first, so an `open()` lifts the seal
-a `close()` beneath it makes, as `open(v)` does. A disjunction's arm, a
-preference's value and a spread's template are each a place of their
-own, which a directive outside doesn't reach.
+a `close()` beneath it makes, as `open(v)` does. A spread's template is a
+place of its own. A directive beside one disjunction or lone preference
+reaches each of its arms, each read with the terms beside it, while the
+seal on an instance stops at a choice.
 
 ## Source loading `@"…"`
 

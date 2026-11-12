@@ -2239,12 +2239,18 @@ until the phase that encodes it lands.
    held open by one term, which both ports keep open in one order of
    the terms only; a directive at a spread's template's own level, which
    both ports drop; a directive beside a path reference; and `close()`
-   at the document's root. The definition leaves three cases to later
-   work, listed in the README's limits: a directive beside a
-   disjunction whose arms write at its place, a declared member's own
-   terms beside a directive in a spread's template, and a directive
-   inside a call's argument, a trial, a selection's result or a link's
-   template.
+   at the document's root. A directive beside one disjunction or lone
+   preference reaches each of its arms the same day, each arm read with
+   the terms beside the choice (`Val.choiceOthers`), as both ports meet
+   it in, and the seal on an instance stops at a choice, where it had
+   sealed only the maps beside a disjunction and so killed the arms'
+   own keys (`Val.choosesArm`); rows dir114 on and o-rows for the type,
+   both ports answering every one as the definition does. The
+   definition leaves three cases to later work, listed in the README's
+   limits: a directive beside two or more choices at one place, a
+   declared member's own terms beside a directive in a spread's
+   template, and a directive inside a call's argument, a trial, a
+   selection's result or a link's template.
 
 ## 8. Risks
 
