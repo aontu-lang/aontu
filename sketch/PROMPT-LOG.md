@@ -972,3 +972,9 @@ a declaration has no place, so anything in its body that needs one waits for a u
 ```text
 you are proposing that in the forms &: X and %a = X, that the structure X is treated with exactly the same semantics, and that this is partially true today?
 ```
+
+## 2026-11-12 15:30:30 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+create a github issue for this proposal, include the comparison table; the idiom refer() & path(.some.path) seems overly verbose - why not use refer(.some.path) - is this a missing convenience?
+```
