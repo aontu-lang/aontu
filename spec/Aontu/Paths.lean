@@ -2168,7 +2168,7 @@ arm's own name (`Val.armed`), `$|`, are no path's. -/
 def pathNamed (n : String) : Bool :=
   match n.toList with
   | ['$'] => true
-  | '$' :: c :: _ => c == '.' || c == '#' || c == '$' || c == '^'
+  | '$' :: c :: _ => c == '.' || c == '#' || c == '$' || c == '^' || c == '%'
   | _ => false
 
 mutual
