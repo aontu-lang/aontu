@@ -37,7 +37,10 @@ inductive Bound where
 /-- The riders: the calls that put a record on a value and change
 nothing it admits or generates. The record is a map of data the
 definition carries and reads nothing of (decision 14 of the design
-note's §7). -/
+note's §7). A bare `open()` and a bare `close()` are written as riders
+over `any` too, the directives the reading applies on their place
+(`Val.directed`, decision 44), each reading as `any` wherever nothing
+applies it. -/
 inductive Rider where
   | metadata                                -- `meta(v, r)`, an annotation; Lean keeps `meta`
   | deprecate                               -- `deprecate(v, r)`, the record `{}` where none is written
@@ -45,6 +48,8 @@ inductive Rider where
   | type                                    -- `type(v)`, a mark: the value is a definition
   | hide                                    -- `hide(v)`, a mark: the value is no part of the output
   | opened                                  -- `open(v)`, every seal in `v` lifted and held open; Lean keeps `open`
+  | lifts                                   -- a bare `open()`, every term at its place held open
+  | seals                                   -- a bare `close()`, its place sealed once its terms have met
   | move (n : String)                       -- the value `move` makes of the path named `n` (`pathName`)
   deriving DecidableEq
 
@@ -389,7 +394,8 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
       · simp only [Val.keyed, Val.keyed_super a, Val.keyed_super b, Bool.or_self]
   | .ride (.move _) v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
   | .ride .opened v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
-  | .ride .metadata v _ | .ride .deprecate v _ | .ride .ident v _ | .ride .type v _ | .ride .hide v _ => by
+  | .ride .metadata v _ | .ride .deprecate v _ | .ride .ident v _ | .ride .type v _ | .ride .hide v _
+  | .ride .lifts v _ | .ride .seals v _ => by
     simp only [Val.super]; exact Val.keyed_super v
   | .link v _ => by simp only [Val.super]; exact Val.keyed_super v
   | .pref _ x => by simp only [Val.super]; exact Val.keyed_super x

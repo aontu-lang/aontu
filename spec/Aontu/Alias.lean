@@ -36,18 +36,21 @@ follows a selection: the restriction of one is a selection on the same
 scrutinee and patterns, of the restrictions of its results. -/
 
 /-- The terms a meet joins, through the riders, as the seal reads them:
-a term held open (`open(v)`) whole, since the seal stops at it. -/
+a term held open (`open(v)`) whole, and a bare `open()`, since the seal
+stops at either. -/
 def Val.sealConjuncts : Val → List Val
   | .meet a b => a.sealConjuncts ++ b.sealConjuncts
   | .ride .opened v r => [.ride .opened v r]
+  | .ride .lifts v r => [.ride .lifts v r]
   | .ride _ v _ => v.sealConjuncts
   | .link v _ => v.sealConjuncts
   | v => [v]
 
-/-- Whether a term is held open, written `open(v)` (decision 44 of the
+/-- Whether a term is held open, written `open(v)`, or is a bare
+`open()`, which holds every term at its place open (decision 44 of the
 design note's §7). -/
 def Val.heldOpen : Val → Bool
-  | .ride .opened _ _ => true
+  | .ride .opened _ _ | .ride .lifts _ _ => true
   | _ => false
 
 /-- The keys the maps among some terms declare, each once. -/
@@ -129,21 +132,25 @@ theorem Val.sealConjuncts_checkableA {v : Val} (h : v.CheckableA) :
     intro c hc
     simp only [Val.sealConjuncts, List.mem_singleton] at hc
     exact hc ▸ h
-  | case3 k v r hk ih =>
+  | case3 v r =>
+    intro c hc
+    simp only [Val.sealConjuncts, List.mem_singleton] at hc
+    exact hc ▸ h
+  | case4 k v r hk hk' ih =>
     cases h with
     | ride hv =>
       intro c hc
-      rw [Val.sealConjuncts.eq_3 k v r hk] at hc
+      rw [Val.sealConjuncts.eq_4 k v r hk hk'] at hc
       exact ih hv c hc
-  | case4 v t ih =>
+  | case5 v t ih =>
     cases h with
     | link hv _ =>
       intro c hc
       simp only [Val.sealConjuncts] at hc
       exact ih hv c hc
-  | case5 v h1 h2 h3 h4 =>
+  | case6 v h1 h2 h3 h4 h5 =>
     intro c hc
-    rw [Val.sealConjuncts.eq_5 v h1 h2 h3 h4, List.mem_singleton] at hc
+    rw [Val.sealConjuncts.eq_6 v h1 h2 h3 h4 h5, List.mem_singleton] at hc
     exact hc ▸ h
 
 theorem Val.sealConjuncts_unguardedRefs {v c : Val} (hc : c ∈ v.sealConjuncts) {n : String}
@@ -158,16 +165,19 @@ theorem Val.sealConjuncts_unguardedRefs {v c : Val} (hc : c ∈ v.sealConjuncts)
   | case2 v r =>
     simp only [Val.sealConjuncts, List.mem_singleton] at hc
     exact hc ▸ hn
-  | case3 k v r hk ih =>
-    rw [Val.sealConjuncts.eq_3 k v r hk] at hc
+  | case3 v r =>
+    simp only [Val.sealConjuncts, List.mem_singleton] at hc
+    exact hc ▸ hn
+  | case4 k v r hk hk' ih =>
+    rw [Val.sealConjuncts.eq_4 k v r hk hk'] at hc
     simp only [Val.unguardedRefs]
     exact ih hc
-  | case4 v t ih =>
+  | case5 v t ih =>
     simp only [Val.sealConjuncts] at hc
     simp only [Val.unguardedRefs, List.mem_append]
     exact .inl (ih hc)
-  | case5 v h1 h2 h3 h4 =>
-    rw [Val.sealConjuncts.eq_5 v h1 h2 h3 h4, List.mem_singleton] at hc
+  | case6 v h1 h2 h3 h4 h5 =>
+    rw [Val.sealConjuncts.eq_6 v h1 h2 h3 h4 h5, List.mem_singleton] at hc
     exact hc ▸ hn
 
 theorem valuesAt_checkableA {k : String} {cs : List Val} (h : ∀ c ∈ cs, c.CheckableA) :
@@ -345,11 +355,124 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .link v t => .link (expandF ds k v) (expandF ds k t)
     | v => v
 
+/-! ## Directives on a place
+
+A bare `open()` and a bare `close()` are directives on their place
+(decision 44 of the design note's §7), read once a term's names are
+expanded and before any meet. A place is the document's root, a map's
+member and a list's element, and a spread's template, a disjunction's
+arm and a preference's value, each a place of its own: the terms at a
+member are what each map among the terms at its parent declares for its
+key, across statements and meets, and an element's the same by index.
+`open()` holds every term at its place open, every seal in it lifted, as
+`open(v)` does; then `close()` seals the place's terms as met, as the
+seal on an instance does (`restrictF`), its own level whatever holds it
+open, and every level beneath it but those held open. The places beneath
+a place are read first, so an `open()` lifts the seal a `close()`
+beneath it makes, and a `close()` stops at an `open()` beneath it. -/
+
+/-- Whether a term standing at a place writes the directive `k` there:
+through meets, riders and links. -/
+def Val.directs (k : Rider) : Val → Bool
+  | .meet a b => a.directs k || b.directs k
+  | .ride k' v _ => k' == k || v.directs k
+  | .link v _ => v.directs k
+  | _ => false
+
+/-- The terms a term written at a place holds there, whose members stand
+at the places beneath it: through meets, riders and links. -/
+def Val.placeTerms : Val → List Val
+  | .meet a b => a.placeTerms ++ b.placeTerms
+  | .ride _ v _ => v.placeTerms
+  | .link v _ => v.placeTerms
+  | v => [v]
+
+/-- A container's members each held open, as a term held open holds
+them. -/
+def Val.membersOpen : Val → Val
+  | .map fs s c => .map (fs.map fun f => (f.1, f.2.1, .ride .opened f.2.2 [])) s c
+  | .list items s c => .list (items.map fun x => .ride .opened x []) s c
+  | v => v
+
+/-- The terms a bare `close()` seals at its own level: each conjunct, a
+term held open read through and its members held open in turn, so that
+the seal holds its own level whatever holds it open, and stops beneath
+it where a term is held open. -/
+def Val.closeConjuncts : Val → List Val
+  | .meet a b => a.closeConjuncts ++ b.closeConjuncts
+  | .ride .opened v _ => v.closeConjuncts.map Val.membersOpen
+  | .ride _ v _ => v.closeConjuncts
+  | .link v _ => v.closeConjuncts
+  | v => [v]
+
+/-- The seal a bare `close()` meets into its place, whose terms are
+`vs`: the restriction of the terms, as an instance's seal is, read at
+its own level through every term held open. -/
+def closeSeal (vs : List Val) : Val :=
+  restrictF (vs.foldl (fun n v => n + v.size) 0 + 1) (vs.flatMap Val.closeConjuncts)
+
+/-- A term standing at a place whose terms are `all`, the places beneath
+it read already (`w`): held open, every seal in it lifted, where a bare
+`open()` stands among the terms, and met with the place's seal
+(`closeSeal`) where a bare `close()` does, read from the terms as held
+open there. -/
+def Val.atPlace (all : List Val) (w : Val) : Val :=
+  let lift := all.any (Val.directs .lifts)
+  let w' := if lift then Val.ride .opened w.unseal [] else w
+  if all.any (Val.directs .seals) then
+    .meet w' (closeSeal (if lift then all.map fun t => .ride .opened t [] else all))
+  else w'
+
+mutual
+/-- A term written at a place whose terms hold the conjuncts `cs`, read
+with the directives on the places beneath it (`Val.atPlace`): a member
+at the place its key names, whose terms are what each map among `cs`
+declares for the key, an element at its index the same, and a spread's
+template, a disjunction's arm and a preference's value each at a place of
+its own. A directive reads as `any`, and a term held open, `open(v)`,
+has the seals its places' directives make lifted too. -/
+def Val.dirIn (cs : List Val) : Val → Val
+  | .meet a b => .meet (a.dirIn cs) (b.dirIn cs)
+  | .ride .lifts _ _ => .any
+  | .ride .seals _ _ => .any
+  | .ride .opened v r => .ride .opened (v.dirIn cs).unseal r
+  | .ride k v r => .ride k (v.dirIn cs) r
+  | .link v t => .link (v.dirIn cs) t
+  | .map fs s c => .map (dirFields cs fs) (dirSpread s) c
+  | .list items s c => .list (dirItems cs 0 items) (dirSpread s) c
+  | .or arms => .or (dirArms arms)
+  | .pref r x => .pref r (Val.atPlace [x] (x.dirIn x.placeTerms))
+  | v => v
+
+def dirFields (cs : List Val) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs =>
+    (k, o, Val.atPlace (valuesAt k cs) (v.dirIn ((valuesAt k cs).flatMap Val.placeTerms))) ::
+      dirFields cs fs
+
+def dirItems (cs : List Val) (i : ℕ) : List Val → List Val
+  | [] => []
+  | v :: vs =>
+    Val.atPlace (itemsAt i cs) (v.dirIn ((itemsAt i cs).flatMap Val.placeTerms)) :: dirItems cs (i + 1) vs
+
+def dirSpread : Option Val → Option Val
+  | none => none
+  | some t => some (Val.atPlace [t] (t.dirIn t.placeTerms))
+
+def dirArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, Val.atPlace [a] (a.dirIn a.placeTerms)) :: dirArms as
+end
+
+/-- A term read with the directives on its places, the term itself the
+root's one term. -/
+def Val.directed (v : Val) : Val := Val.atPlace [v] (v.dirIn v.placeTerms)
+
 /-- The expansion of a term: enough turns for every chain of names that
 are not recursive, which repeats no name, and for the structure each
-body adds. -/
+body adds, and the directives on its places read (`Val.directed`). -/
 def expand (ds : Decls) (v : Val) : Val :=
-  expandF ds ((ds.length + 1) * (ds.bodiesSize + v.size + 1)) v
+  (expandF ds ((ds.length + 1) * (ds.bodiesSize + v.size + 1)) v).directed
 
 /-- How a document reads: its term expanded. -/
 abbrev Decls.read (ds : Decls) (S : Val) : Val := expand ds S
@@ -617,6 +740,149 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
       · exact .inr ⟨m, mem_unguardedItems.mpr ⟨a, ha, hm'⟩, hmn⟩
     | _ => exact .inl (by simpa [expandF] using h)
 
+/-! ### The directives reach no name the term does not -/
+
+theorem Val.membersOpen_unguardedRefs {v : Val} {n : String} (h : n ∈ v.membersOpen.unguardedRefs) :
+    n ∈ v.unguardedRefs := by
+  cases v with
+  | map => simp [Val.membersOpen, Val.unguardedRefs] at h
+  | list => simp [Val.membersOpen, Val.unguardedRefs] at h
+  | _ => exact h
+
+theorem Val.closeConjuncts_unguardedRefs : ∀ {v c : Val}, c ∈ v.closeConjuncts → ∀ {n : String},
+    n ∈ c.unguardedRefs → n ∈ v.unguardedRefs
+  | .meet a b, c, hc, n, hn => by
+    simp only [Val.closeConjuncts, List.mem_append] at hc
+    simp only [Val.unguardedRefs, List.mem_append]
+    rcases hc with hc | hc
+    · exact .inl (Val.closeConjuncts_unguardedRefs hc hn)
+    · exact .inr (Val.closeConjuncts_unguardedRefs hc hn)
+  | .ride k v r, c, hc, n, hn => by
+    simp only [Val.unguardedRefs]
+    cases k with
+    | opened =>
+      simp only [Val.closeConjuncts, List.mem_map] at hc
+      obtain ⟨c', hc', rfl⟩ := hc
+      exact Val.closeConjuncts_unguardedRefs hc' (Val.membersOpen_unguardedRefs hn)
+    | _ =>
+      simp only [Val.closeConjuncts] at hc
+      exact Val.closeConjuncts_unguardedRefs hc hn
+  | .link v t, c, hc, n, hn => by
+    simp only [Val.closeConjuncts] at hc
+    simp only [Val.unguardedRefs, List.mem_append]
+    exact .inl (Val.closeConjuncts_unguardedRefs hc hn)
+  | .integer, c, hc, n, hn | .float, c, hc, n, hn | .biginteger, c, hc, n, hn | .bigdecimal, c, hc, n, hn
+  | .number, c, hc, n, hn | .string, c, hc, n, hn | .anyString, c, hc, n, hn | .boolean, c, hc, n, hn
+  | .mapKind, c, hc, n, hn | .listKind, c, hc, n, hn | .pathKind, c, hc, n, hn | .lit _, c, hc, n, hn
+  | .addr _, c, hc, n, hn | .min _, c, hc, n, hn | .max _, c, hc, n, hn | .above _, c, hc, n, hn
+  | .beneath _, c, hc, n, hn | .neq _, c, hc, n, hn | .mulof _, c, hc, n, hn | .len _, c, hc, n, hn
+  | .unique _, c, hc, n, hn | .grammar _, c, hc, n, hn | .any, c, hc, n, hn | .absent, c, hc, n, hn
+  | .hole, c, hc, n, hn | .nil, c, hc, n, hn | .nothing, c, hc, n, hn | .alias _, c, hc, n, hn
+  | .path _, c, hc, n, hn | .nof _ _, c, hc, n, hn | .call _ _, c, hc, n, hn | .must _ _, c, hc, n, hn
+  | .when _ _ _, c, hc, n, hn | .contains _ _, c, hc, n, hn | .rest _ _, c, hc, n, hn | .key, c, hc, n, hn
+  | .keyUp _, c, hc, n, hn | .select _ _ _, c, hc, n, hn | .re _, c, hc, n, hn | .format _, c, hc, n, hn
+  | .filter _ _, c, hc, n, hn | .map _ _ _, c, hc, n, hn | .list _ _ _, c, hc, n, hn | .or _, c, hc, n, hn
+  | .pref _ _, c, hc, n, hn => by
+    simp only [Val.closeConjuncts, List.mem_singleton] at hc
+    exact hc ▸ hn
+
+theorem closeSeal_unguardedRefs {vs : List Val} {n : String} (h : n ∈ (closeSeal vs).unguardedRefs) :
+    ∃ v ∈ vs, n ∈ v.unguardedRefs := by
+  obtain ⟨c, hc, hn⟩ := restrictF_unguardedRefs _ _ h
+  obtain ⟨v, hv, hc⟩ := List.mem_flatMap.mp hc
+  exact ⟨v, hv, Val.closeConjuncts_unguardedRefs hc hn⟩
+
+theorem Val.atPlace_unguardedRefs {all : List Val} {w : Val} {n : String}
+    (h : n ∈ (Val.atPlace all w).unguardedRefs) :
+    n ∈ w.unguardedRefs ∨ ∃ t ∈ all, n ∈ t.unguardedRefs := by
+  have hw : n ∈ (if all.any (Val.directs .lifts) then Val.ride .opened w.unseal [] else w).unguardedRefs →
+      n ∈ w.unguardedRefs := by
+    split
+    · intro h'
+      simpa only [Val.unguardedRefs, Val.unguardedRefs_unseal] using h'
+    · exact id
+  have hc : n ∈ (closeSeal (if all.any (Val.directs .lifts) then all.map (fun t => Val.ride .opened t [])
+      else all)).unguardedRefs → ∃ t ∈ all, n ∈ t.unguardedRefs := by
+    intro h'
+    obtain ⟨t, ht, hn⟩ := closeSeal_unguardedRefs h'
+    split at ht
+    · obtain ⟨t', ht', rfl⟩ := List.mem_map.mp ht
+      exact ⟨t', ht', by simpa only [Val.unguardedRefs] using hn⟩
+    · exact ⟨t, ht, hn⟩
+  unfold Val.atPlace at h
+  dsimp only at h
+  by_cases hs : all.any (Val.directs .seals) = true
+  · rw [if_pos hs] at h
+    rcases List.mem_append.mp h with h | h
+    · exact .inl (hw h)
+    · exact .inr (hc h)
+  · rw [if_neg hs] at h
+    exact .inl (hw h)
+
+mutual
+theorem Val.dirIn_unguardedRefs : ∀ (v : Val) (cs : List Val) {n : String},
+    n ∈ (v.dirIn cs).unguardedRefs → n ∈ v.unguardedRefs
+  | .meet a b, cs, n, h => by
+    simp only [Val.dirIn, Val.unguardedRefs, List.mem_append] at h ⊢
+    rcases h with h | h
+    · exact .inl (Val.dirIn_unguardedRefs a cs h)
+    · exact .inr (Val.dirIn_unguardedRefs b cs h)
+  | .ride k v r, cs, n, h => by
+    cases k with
+    | lifts => simp [Val.dirIn, Val.unguardedRefs] at h
+    | seals => simp [Val.dirIn, Val.unguardedRefs] at h
+    | opened =>
+      simp only [Val.dirIn, Val.unguardedRefs, Val.unguardedRefs_unseal] at h ⊢
+      exact Val.dirIn_unguardedRefs v cs h
+    | _ =>
+      simp only [Val.dirIn, Val.unguardedRefs] at h ⊢
+      exact Val.dirIn_unguardedRefs v cs h
+  | .link v t, cs, n, h => by
+    simp only [Val.dirIn, Val.unguardedRefs, List.mem_append] at h ⊢
+    rcases h with h | h
+    · exact .inl (Val.dirIn_unguardedRefs v cs h)
+    · exact .inr h
+  | .or arms, cs, n, h => by
+    simp only [Val.dirIn, Val.unguardedRefs] at h ⊢
+    exact dirArms_unguardedRefs arms h
+  | .pref r x, cs, n, h => by
+    simp only [Val.dirIn, Val.unguardedRefs] at h ⊢
+    rcases Val.atPlace_unguardedRefs h with h | ⟨t, ht, hn⟩
+    · exact Val.dirIn_unguardedRefs x _ h
+    · rw [List.mem_singleton.mp ht] at hn
+      exact hn
+  | .map _ _ _, _, _, h => by simp [Val.dirIn, Val.unguardedRefs] at h
+  | .list _ _ _, _, _, h => by simp [Val.dirIn, Val.unguardedRefs] at h
+  | .integer, _, _, h | .float, _, _, h | .biginteger, _, _, h | .bigdecimal, _, _, h | .number, _, _, h
+  | .string, _, _, h | .anyString, _, _, h | .boolean, _, _, h | .mapKind, _, _, h | .listKind, _, _, h
+  | .pathKind, _, _, h | .lit _, _, _, h | .addr _, _, _, h | .min _, _, _, h | .max _, _, _, h
+  | .above _, _, _, h | .beneath _, _, _, h | .neq _, _, _, h | .mulof _, _, _, h | .len _, _, _, h
+  | .unique _, _, _, h | .grammar _, _, _, h | .any, _, _, h | .absent, _, _, h | .hole, _, _, h
+  | .nil, _, _, h | .nothing, _, _, h | .alias _, _, _, h | .path _, _, _, h | .nof _ _, _, _, h
+  | .call _ _, _, _, h | .must _ _, _, _, h | .when _ _ _, _, _, h | .contains _ _, _, _, h
+  | .rest _ _, _, _, h | .key, _, _, h | .keyUp _, _, _, h | .select _ _ _, _, _, h | .re _, _, _, h
+  | .format _, _, _, h | .filter _ _, _, _, h => h
+
+theorem dirArms_unguardedRefs : ∀ (arms : List (ℕ × Val)) {n : String},
+    n ∈ unguardedArms (dirArms arms) → n ∈ unguardedArms arms
+  | [], n, h => by simp [dirArms, unguardedArms] at h
+  | (r, a) :: as, n, h => by
+    simp only [dirArms, unguardedArms, List.mem_append] at h ⊢
+    rcases h with h | h
+    · rcases Val.atPlace_unguardedRefs h with h | ⟨t, ht, hn⟩
+      · exact .inl (Val.dirIn_unguardedRefs a _ h)
+      · rw [List.mem_singleton.mp ht] at hn
+        exact .inl hn
+    · exact .inr (dirArms_unguardedRefs as h)
+end
+
+theorem Val.unguardedRefs_directed {v : Val} {n : String} (h : n ∈ v.directed.unguardedRefs) :
+    n ∈ v.unguardedRefs := by
+  rcases Val.atPlace_unguardedRefs h with h | ⟨t, ht, hn⟩
+  · exact Val.dirIn_unguardedRefs v _ h
+  · rw [List.mem_singleton.mp ht] at hn
+    exact hn
+
 theorem Decls.Stacked.push {ds : Decls} {stack : List String} {v : Val} {k : String} {b : Val}
     (hs : ds.Stacked stack v) (hk : k ∈ v.unguardedRefs) (hnot : k ∉ stack) (he : ds.env k = some b) :
     ds.Stacked (k :: stack) (expand ds b) := by
@@ -627,7 +893,7 @@ theorem Decls.Stacked.push {ds : Decls} {stack : List String} {v : Val} {k : Str
     · exact hs.2.1 k' hk'
   · intro k'' hk'' k₀ hk₀
     have hkk'' : Relation.TransGen ds.RefersUnguarded k k'' := by
-      rcases unguardedRefs_expandF _ b hk'' with h' | ⟨m, hm, hmn⟩
+      rcases unguardedRefs_expandF _ b (Val.unguardedRefs_directed hk'') with h' | ⟨m, hm, hmn⟩
       · exact .single (Decls.refersUnguarded_of_env he h')
       · exact .trans (.single (Decls.refersUnguarded_of_env he hm)) hmn
     rcases List.mem_cons.mp hk₀ with rfl | hk₀
@@ -1009,9 +1275,211 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
         exact expandF_checkableA hb f e' (hd e' he')
     | _ => (try simp only [expandF]); constructor
 
+/-! ### The directives keep a term checkable -/
+
+theorem Val.placeTerms_checkableA : ∀ {v : Val}, v.CheckableA → ∀ c ∈ v.placeTerms, c.CheckableA
+  | .meet a b, .meet ha hb, c, hc => by
+    simp only [Val.placeTerms, List.mem_append] at hc
+    rcases hc with hc | hc
+    · exact Val.placeTerms_checkableA ha c hc
+    · exact Val.placeTerms_checkableA hb c hc
+  | .ride _ v _, .ride hv, c, hc => by
+    simp only [Val.placeTerms] at hc
+    exact Val.placeTerms_checkableA hv c hc
+  | .link v _, .link hv _, c, hc => by
+    simp only [Val.placeTerms] at hc
+    exact Val.placeTerms_checkableA hv c hc
+  | .integer, h, c, hc | .float, h, c, hc | .biginteger, h, c, hc | .bigdecimal, h, c, hc
+  | .number, h, c, hc | .string, h, c, hc | .anyString, h, c, hc | .boolean, h, c, hc
+  | .mapKind, h, c, hc | .listKind, h, c, hc | .pathKind, h, c, hc | .lit _, h, c, hc
+  | .addr _, h, c, hc | .min _, h, c, hc | .max _, h, c, hc | .above _, h, c, hc
+  | .beneath _, h, c, hc | .neq _, h, c, hc | .mulof _, h, c, hc | .len _, h, c, hc
+  | .unique _, h, c, hc | .grammar _, h, c, hc | .any, h, c, hc | .absent, h, c, hc
+  | .hole, h, c, hc | .nil, h, c, hc | .nothing, h, c, hc | .map _ _ _, h, c, hc
+  | .list _ _ _, h, c, hc | .or _, h, c, hc | .pref _ _, h, c, hc | .alias _, h, c, hc
+  | .path _, h, c, hc | .nof _ _, h, c, hc | .call _ _, h, c, hc | .must _ _, h, c, hc
+  | .when _ _ _, h, c, hc | .contains _ _, h, c, hc | .rest _ _, h, c, hc | .key, h, c, hc
+  | .keyUp _, h, c, hc | .select _ _ _, h, c, hc | .re _, h, c, hc | .format _, h, c, hc
+  | .filter _ _, h, c, hc => by
+    simp only [Val.placeTerms, List.mem_singleton] at hc
+    exact hc ▸ h
+
+theorem Val.membersOpen_checkableA {v : Val} (h : v.CheckableA) : v.membersOpen.CheckableA := by
+  cases h with
+  | map hf hs =>
+    refine .map (fun k o w hw => ?_) hs
+    obtain ⟨f, hf', he⟩ := List.mem_map.mp hw
+    simp only [Prod.mk.injEq] at he
+    obtain ⟨-, -, rfl⟩ := he
+    exact .ride (hf f.1 f.2.1 f.2.2 hf')
+  | list hi hs =>
+    refine .list (fun w hw => ?_) hs
+    obtain ⟨x, hx, rfl⟩ := List.mem_map.mp hw
+    exact .ride (hi x hx)
+  | _ => (try simp only [Val.membersOpen]); constructor <;> assumption
+
+theorem Val.closeConjuncts_checkableA : ∀ {v : Val}, v.CheckableA → ∀ c ∈ v.closeConjuncts, c.CheckableA
+  | .meet a b, .meet ha hb, c, hc => by
+    simp only [Val.closeConjuncts, List.mem_append] at hc
+    rcases hc with hc | hc
+    · exact Val.closeConjuncts_checkableA ha c hc
+    · exact Val.closeConjuncts_checkableA hb c hc
+  | .ride k v _, .ride hv, c, hc => by
+    cases k with
+    | opened =>
+      simp only [Val.closeConjuncts, List.mem_map] at hc
+      obtain ⟨c', hc', rfl⟩ := hc
+      exact Val.membersOpen_checkableA (Val.closeConjuncts_checkableA hv c' hc')
+    | _ =>
+      simp only [Val.closeConjuncts] at hc
+      exact Val.closeConjuncts_checkableA hv c hc
+  | .link v _, .link hv _, c, hc => by
+    simp only [Val.closeConjuncts] at hc
+    exact Val.closeConjuncts_checkableA hv c hc
+  | .integer, h, c, hc | .float, h, c, hc | .biginteger, h, c, hc | .bigdecimal, h, c, hc
+  | .number, h, c, hc | .string, h, c, hc | .anyString, h, c, hc | .boolean, h, c, hc
+  | .mapKind, h, c, hc | .listKind, h, c, hc | .pathKind, h, c, hc | .lit _, h, c, hc
+  | .addr _, h, c, hc | .min _, h, c, hc | .max _, h, c, hc | .above _, h, c, hc
+  | .beneath _, h, c, hc | .neq _, h, c, hc | .mulof _, h, c, hc | .len _, h, c, hc
+  | .unique _, h, c, hc | .grammar _, h, c, hc | .any, h, c, hc | .absent, h, c, hc
+  | .hole, h, c, hc | .nil, h, c, hc | .nothing, h, c, hc | .map _ _ _, h, c, hc
+  | .list _ _ _, h, c, hc | .or _, h, c, hc | .pref _ _, h, c, hc | .alias _, h, c, hc
+  | .path _, h, c, hc | .nof _ _, h, c, hc | .call _ _, h, c, hc | .must _ _, h, c, hc
+  | .when _ _ _, h, c, hc | .contains _ _, h, c, hc | .rest _ _, h, c, hc | .key, h, c, hc
+  | .keyUp _, h, c, hc | .select _ _ _, h, c, hc | .re _, h, c, hc | .format _, h, c, hc
+  | .filter _ _, h, c, hc => by
+    simp only [Val.closeConjuncts, List.mem_singleton] at hc
+    exact hc ▸ h
+
+theorem closeSeal_checkableA {vs : List Val} (h : ∀ v ∈ vs, v.CheckableA) : (closeSeal vs).CheckableA :=
+  restrictF_checkableA _ _ fun c hc => by
+    obtain ⟨v, hv, hc⟩ := List.mem_flatMap.mp hc
+    exact Val.closeConjuncts_checkableA (h v hv) c hc
+
+theorem Val.atPlace_checkableA {all : List Val} {w : Val} (hall : ∀ t ∈ all, t.CheckableA)
+    (hw : w.CheckableA) : (Val.atPlace all w).CheckableA := by
+  have hw' : (if all.any (Val.directs .lifts) then Val.ride .opened w.unseal [] else w).CheckableA := by
+    split
+    · exact .ride hw.unseal
+    · exact hw
+  have hseal : (closeSeal (if all.any (Val.directs .lifts) then all.map (fun t => Val.ride .opened t [])
+      else all)).CheckableA := by
+    refine closeSeal_checkableA fun t ht => ?_
+    split at ht
+    · obtain ⟨t', ht', rfl⟩ := List.mem_map.mp ht
+      exact .ride (hall t' ht')
+    · exact hall t ht
+  unfold Val.atPlace
+  dsimp only
+  by_cases hs : all.any (Val.directs .seals) = true
+  · rw [if_pos hs]; exact .meet hw' hseal
+  · rw [if_neg hs]; exact hw'
+
+theorem dirFields_checkableA (cs : List Val) (hcs : ∀ c ∈ cs, c.CheckableA) :
+    ∀ (fs : List (String × Bool × Val)), (∀ k o v, (k, o, v) ∈ fs → v.CheckableA) →
+    (∀ k o v, (k, o, v) ∈ fs → ∀ cs, (∀ c ∈ cs, c.CheckableA) → (v.dirIn cs).CheckableA) →
+    ∀ k o v, (k, o, v) ∈ dirFields cs fs → v.CheckableA
+  | [], _, _, _, _, _, h => nomatch h
+  | (k, o, v) :: fs, hf, ih, k', o', v', h => by
+    simp only [dirFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · have hvs := valuesAt_checkableA (k := k') hcs
+      exact Val.atPlace_checkableA hvs (ih _ _ _ List.mem_cons_self _ fun c hc => by
+        obtain ⟨t, ht, hc⟩ := List.mem_flatMap.mp hc
+        exact Val.placeTerms_checkableA (hvs t ht) c hc)
+    · exact dirFields_checkableA cs hcs fs (fun k o v h' => hf k o v (List.mem_cons_of_mem _ h'))
+        (fun k o v h' => ih k o v (List.mem_cons_of_mem _ h')) k' o' v' h
+
+theorem dirItems_checkableA (cs : List Val) (hcs : ∀ c ∈ cs, c.CheckableA) :
+    ∀ (i : ℕ) (items : List Val), (∀ v, v ∈ items → v.CheckableA) →
+    (∀ v, v ∈ items → ∀ cs, (∀ c ∈ cs, c.CheckableA) → (v.dirIn cs).CheckableA) →
+    ∀ v, v ∈ dirItems cs i items → v.CheckableA
+  | _, [], _, _, _, h => nomatch h
+  | i, v :: vs, hi, ih, v', h => by
+    simp only [dirItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · have hvs := itemsAt_checkableA (i := i) hcs
+      exact Val.atPlace_checkableA hvs (ih _ List.mem_cons_self _ fun c hc => by
+        obtain ⟨t, ht, hc⟩ := List.mem_flatMap.mp hc
+        exact Val.placeTerms_checkableA (hvs t ht) c hc)
+    · exact dirItems_checkableA cs hcs (i + 1) vs (fun v h' => hi v (List.mem_cons_of_mem _ h'))
+        (fun v h' => ih v (List.mem_cons_of_mem _ h')) v' h
+
+theorem dirSpread_checkableA : ∀ (s : Option Val), (∀ t, s = some t → t.CheckableA) →
+    (∀ t, s = some t → ∀ cs, (∀ c ∈ cs, c.CheckableA) → (t.dirIn cs).CheckableA) →
+    ∀ t, dirSpread s = some t → t.CheckableA
+  | none, _, _, _, h => nomatch h
+  | some t, hs, ih, t', h => by
+    simp only [dirSpread, Option.some.injEq] at h
+    subst h
+    exact Val.atPlace_checkableA (fun x hx => by rw [List.mem_singleton.mp hx]; exact hs t rfl)
+      (ih t rfl _ (Val.placeTerms_checkableA (hs t rfl)))
+
+theorem dirArms_checkableA : ∀ (arms : List (ℕ × Val)), (∀ r a, (r, a) ∈ arms → a.CheckableA) →
+    (∀ r a, (r, a) ∈ arms → ∀ cs, (∀ c ∈ cs, c.CheckableA) → (a.dirIn cs).CheckableA) →
+    ∀ r a, (r, a) ∈ dirArms arms → a.CheckableA
+  | [], _, _, _, _, h => nomatch h
+  | (r, a) :: as, ha, ih, r', a', h => by
+    simp only [dirArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact Val.atPlace_checkableA (fun x hx => by rw [List.mem_singleton.mp hx]; exact ha _ _ List.mem_cons_self)
+        (ih _ _ List.mem_cons_self _ (Val.placeTerms_checkableA (ha _ _ List.mem_cons_self)))
+    · exact dirArms_checkableA as (fun r a h' => ha r a (List.mem_cons_of_mem _ h'))
+        (fun r a h' => ih r a (List.mem_cons_of_mem _ h')) r' a' h
+
+theorem Val.dirIn_checkableA : ∀ {v : Val}, v.CheckableA → ∀ (cs : List Val),
+    (∀ c ∈ cs, c.CheckableA) → (v.dirIn cs).CheckableA := by
+  intro v h
+  induction h with
+  | @map fs spread closed hf hs ihf ihs =>
+    intro cs hcs
+    simp only [Val.dirIn]
+    exact .map (dirFields_checkableA cs hcs fs hf ihf) (dirSpread_checkableA spread hs ihs)
+  | @list items spread closed hi hs ihi ihs =>
+    intro cs hcs
+    simp only [Val.dirIn]
+    exact .list (dirItems_checkableA cs hcs 0 items hi ihi) (dirSpread_checkableA spread hs ihs)
+  | @or arms ha iha =>
+    intro cs _
+    simp only [Val.dirIn]
+    exact .or (dirArms_checkableA arms ha iha)
+  | @pref r x hx ih =>
+    intro cs _
+    simp only [Val.dirIn]
+    exact .pref (Val.atPlace_checkableA (fun t ht => by rw [List.mem_singleton.mp ht]; exact hx)
+      (ih _ (Val.placeTerms_checkableA hx)))
+  | meet _ _ iha ihb =>
+    intro cs hcs
+    simp only [Val.dirIn]
+    exact .meet (iha cs hcs) (ihb cs hcs)
+  | @ride k v r hv ih =>
+    intro cs hcs
+    cases k with
+    | lifts => simp only [Val.dirIn]; exact .any
+    | seals => simp only [Val.dirIn]; exact .any
+    | opened => simp only [Val.dirIn]; exact .ride (ih cs hcs).unseal
+    | _ => simp only [Val.dirIn]; exact .ride (ih cs hcs)
+  | link _ ht ih _ =>
+    intro cs hcs
+    simp only [Val.dirIn]
+    exact .link (ih cs hcs) ht
+  | _ => intro _ _; (try simp only [Val.dirIn]); constructor <;> assumption
+
+theorem Val.directed_checkableA {v : Val} (h : v.CheckableA) : v.directed.CheckableA :=
+  Val.atPlace_checkableA (fun t ht => by rw [List.mem_singleton.mp ht]; exact h)
+    (Val.dirIn_checkableA h _ (Val.placeTerms_checkableA h))
+
+/-- A map whose one member writes no directive and has no place beneath
+it reads as itself. -/
+theorem Val.directed_map_of {k : String} {w : Val} (hd : ∀ cs, w.dirIn cs = w) (hp : w.placeTerms = [w])
+    (hl : w.directs .lifts = false) (hs : w.directs .seals = false) :
+    (Val.map [(k, false, w)] none false).directed = .map [(k, false, w)] none false := by
+  simp [Val.directed, Val.atPlace, Val.dirIn, dirFields, dirSpread, valuesAt, Val.placeTerms, Val.directs,
+    hd, hp, hl, hs]
+
 theorem expand_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
     (hv : v.CheckableA) : (expand ds v).CheckableA :=
-  expandF_checkableA hb _ v hv
+  Val.directed_checkableA (expandF_checkableA hb _ v hv)
 
 /-! ### The budget -/
 

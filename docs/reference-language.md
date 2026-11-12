@@ -4841,9 +4841,21 @@ The definition holds `open(v)` as the rider `Rider.opened` beside it:
 held open (`restrictF`), at the copy's top and below it. A spread's
 template keeps a seal written in it, as both engines keep it on a member
 the data adds, and both engines lift it on a member the sealed map
-declares, which the definition doesn't. The definition doesn't yet hold
-a bare `open()` or `close()`, which act on their place, folded first
-and last.
+declares, which the definition doesn't.
+
+The definition holds a bare `open()` and a bare `close()` as directives
+on their place, the riders `Rider.lifts` and `Rider.seals` over `any`,
+which `Val.directed` in [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean)
+reads once the expansion has read a term's names, before any meet. The
+terms at a member are what each map at its parent declares for its key,
+wherever the document writes it. `open()` holds each of them open, every
+seal in it lifted, and then `close()` meets the place with the seal an
+instance takes (`closeSeal`), read through every term held open at its
+own level, so `close()` wins there and stops at a term held open beneath
+it. The places beneath a place come first, so an `open()` lifts the seal
+a `close()` beneath it makes, as `open(v)` does. A disjunction's arm, a
+preference's value and a spread's template are each a place of their
+own, which a directive outside doesn't reach.
 
 ## Source loading `@"…"`
 

@@ -2215,7 +2215,36 @@ until the phase that encodes it lands.
    both ports keep it on a member the data adds; both ports lift it on a
    member the sealed map declares, which the definition doesn't. Rows
    op0 on of `test/spec/def-alias.tsv`, 39 in all, and both ports answer
-   every one as the definition does. The bare forms stay to build.
+   every one as the definition does.
+   **Built 2026-11-12, the bare forms**: the riders `Rider.lifts` and
+   `Rider.seals` over `any`, which `Val.directed` reads at the end of
+   `expand`, once a term's names have expanded: the terms at a member
+   are what each map at its parent declares for its key, wherever the
+   document writes it, an element's the same by index, and a
+   disjunction's arm, a preference's value and a spread's template each
+   a place of its own (`Val.dirIn`, `Val.placeTerms`). `open()` holds
+   each term at its place open with every seal in it lifted, and
+   `close()` meets the place with `closeSeal`, the restriction of its
+   terms read through every term held open at its own level, so that
+   `close()` wins there and stops beneath it at a term held open, a bare
+   `open()` among them (`Val.atPlace`, `Val.closeConjuncts`,
+   `Val.heldOpen`); the places beneath a place come first, so an
+   `open()` lifts the seal a `close()` beneath it makes, as `open(v)`
+   does, as both ports read it. Rows dir0 on of
+   `test/spec/def-alias.tsv`, 114 in all, and dirp0 on of
+   `test/spec/def-path.tsv`, 18 in all; both ports answer 105 of them as
+   the definition does, and the other 27 alike, listed in the ledger
+   under #726: a member's terms from more than one map, which both
+   ports fold `close()` into one of and read as a conflict; a member
+   held open by one term, which both ports keep open in one order of
+   the terms only; a directive at a spread's template's own level, which
+   both ports drop; a directive beside a path reference; and `close()`
+   at the document's root. The definition leaves three cases to later
+   work, listed in the README's limits: a directive beside a
+   disjunction whose arms write at its place, a declared member's own
+   terms beside a directive in a spread's template, and a directive
+   inside a call's argument, a trial, a selection's result or a link's
+   template.
 
 ## 8. Risks
 

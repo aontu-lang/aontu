@@ -127,6 +127,8 @@ def Rider.name : Rider → String
   | .type => "type"
   | .hide => "hide"
   | .opened => "open"
+  | .lifts => "open"
+  | .seals => "close"
   | .move _ => "move"
 
 /-! `close()` seals every level, so a sealed container prints as
@@ -310,7 +312,10 @@ def Val.src : Val → Option String
   | .ride .type v [] => do pure s!"type({← v.src})"
   | .ride .hide v [] => do pure s!"hide({← v.src})"
   | .ride .opened v [] => do pure s!"open({← v.src})"
-  | .ride .type _ _ | .ride .hide _ _ | .ride .opened _ _ | .ride (.move _) _ _ => none
+  | .ride .lifts .any [] => some "open()"
+  | .ride .seals .any [] => some "close()"
+  | .ride .type _ _ | .ride .hide _ _ | .ride .opened _ _ | .ride .lifts _ _ | .ride .seals _ _
+  | .ride (.move _) _ _ => none
   | .ride k v r => do pure s!"{k.name}({← v.src}, {← (Data.map r).src})"
   | .link v t => do pure s!"(refer({← t.src})) & ({← v.src})"
 

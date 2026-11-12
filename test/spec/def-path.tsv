@@ -3472,3 +3472,25 @@ ar8	verdict	"v": apply(1, {"k": .z, "z": _})	{"v": {"k": 2, "z": 1}}	{"verdict":
 ar9	verdict	"n": 2, "v": apply(1, {"k": ..n})	{"v": {"k": 2}}	{"verdict":"valid"}
 ar10	verdict	"n": 2, "v": apply(1, {"k": ..n})	{"v": {"k": 2}}	{"verdict":"incomplete","opts":{"noFill":true}}
 ar11	verdict	"n": 2, "v": apply(1, {"k": ..n})	{"v": {"k": 2}}	{"verdict":"valid","opts":{"partial":true}}
+# A bare close() and a bare open() beside path references follow in rows
+# dirp0 on: a sealed place's copy sealed, close() beside a reference sealing
+# the terms read there, open() beside one lifting the target's seal, and
+# close() at the document's root.
+dirp0	verdict	"b": (close()) & ({"x": 1}), "a": $.b	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	{"verdict":"invalid"}
+dirp1	verdict	"b": (close()) & ({"x": 1}), "a": $.b	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+dirp2	verdict	"b": (close()) & ({"x": 1}), "a": $.b	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+dirp3	verdict	"a": (close()) & ({"x": 1}), "b": $.a	{"a": {"x": 1}, "b": {"x": 1, "y": 2}}	{"verdict":"invalid"}
+dirp4	verdict	"a": (close()) & ({"x": 1}), "b": $.a	{"a": {"x": 1}, "b": {"x": 1, "y": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+dirp5	verdict	"a": (close()) & ({"x": 1}), "b": $.a	{"a": {"x": 1}, "b": {"x": 1, "y": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+dirp6	verdict	"b": {"x": 1}, "a": (close()) & ($.b)	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	{"verdict":"invalid"}
+dirp7	verdict	"b": {"x": 1}, "a": (close()) & ($.b)	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+dirp8	verdict	"b": {"x": 1}, "a": (close()) & ($.b)	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+dirp9	verdict	"b": close({"x": 1}), "a": (open()) & ($.b)	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	{"verdict":"valid"}
+dirp10	verdict	"b": close({"x": 1}), "a": (open()) & ($.b)	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+dirp11	verdict	"b": close({"x": 1}), "a": (open()) & ($.b)	{"a": {"x": 1, "y": 2}, "b": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}
+dirp12	verdict	(close()) & ({"x": 1})	{"x": 1, "y": 2}	{"verdict":"invalid"}
+dirp13	verdict	(close()) & ({"x": 1})	{"x": 1, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+dirp14	verdict	(close()) & ({"x": 1})	{"x": 1, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+dirp15	verdict	(close()) & ({"x": 1})	{"x": 1}	{"verdict":"valid"}
+dirp16	verdict	(close()) & ({"x": 1})	{"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+dirp17	verdict	(close()) & ({"x": 1})	{"x": 1}	{"verdict":"valid","opts":{"partial":true}}

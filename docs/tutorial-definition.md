@@ -2466,6 +2466,35 @@ engines keep a seal written in a template on each member it reaches:
 def Rider.reads (k : Rider) (v : Val) : Val := if k == .opened then v.unseal else v
 ```
 
+A bare `open()` or `close()` is no value at all. Each is a directive on
+the place it stands at, which the reading applies once the expansion
+has read a term's names, before any meet. The terms at a member are
+what each map at its parent declares for its key, wherever the document
+writes it, and a disjunction's arm, a preference's value and a spread's
+template are each a place of their own. `open()` holds each term at its place
+open, as `open(v)` does. Then `close()` meets the place with the seal
+an instance takes, read through every term held open at its own level,
+so `close()` wins there, and stops at a term held open beneath it:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- A term standing at a place whose terms are `all`, the places beneath
+it read already (`w`): held open, every seal in it lifted, where a bare
+`open()` stands among the terms, and met with the place's seal
+(`closeSeal`) where a bare `close()` does, read from the terms as held
+open there. -/
+def Val.atPlace (all : List Val) (w : Val) : Val :=
+  let lift := all.any (Val.directs .lifts)
+  let w' := if lift then Val.ride .opened w.unseal [] else w
+  if all.any (Val.directs .seals) then
+    .meet w' (closeSeal (if lift then all.map fun t => .ride .opened t [] else all))
+  else w'
+```
+
+The places beneath a place come first, so `open() & {x: close() & {y:
+1}}` admits a member under `x` that `y` doesn't name: the `close()` at
+`x` seals it, and the outer `open()` lifts that seal again.
+
 The declarations make a graph, where a name refers to every name in
 its bodies, and a recursive name is one that refers to itself through
 any number of declarations:
