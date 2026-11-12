@@ -4854,9 +4854,13 @@ instance takes (`closeSeal`), read through every term held open at its
 own level, so `close()` wins there and stops at a term held open beneath
 it. The places beneath a place come first, so an `open()` lifts the seal
 a `close()` beneath it makes, as `open(v)` does. A spread's template is a
-place of its own. A directive beside one disjunction or lone preference
-reaches each of its arms, each read with the terms beside it, while the
-seal on an instance stops at a choice.
+place of its own, and so is a disjunction's arm. A place whose terms
+hold a disjunction or a lone preference and a directive, at the place or
+beneath it, reads as one disjunction: each combination of the choices'
+arms, met with every other term at the place, is a place of its own.
+So a directive reaches every combination, and `close()` seals each
+with the keys that combination declares, while the seal on an instance
+still stops at a choice.
 
 ## Source loading `@"…"`
 
