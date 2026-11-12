@@ -497,17 +497,16 @@ def Val.atPlace (all : List Val) (w : Val) : Val :=
 
 mutual
 /-- Whether a term writes a directive at its place or at a place beneath
-it: through meets, riders and links, members, elements, arms and a
-preference's value, though not a spread's template, whose place a choice
-beside the term leaves as it is. -/
+it: through meets, riders and links, members, elements, spreads' templates,
+arms and a preference's value. -/
 def Val.holdsDir : Val → Bool
   | .meet a b => a.holdsDir || b.holdsDir
   | .ride .lifts _ _ => true
   | .ride .seals _ _ => true
   | .ride _ v _ => v.holdsDir
   | .link v _ => v.holdsDir
-  | .map fs _ _ => holdsDirFields fs
-  | .list items _ _ => holdsDirItems items
+  | .map fs s _ => holdsDirFields fs || holdsDirSpread s
+  | .list items s _ => holdsDirItems items || holdsDirSpread s
   | .or arms => holdsDirArms arms
   | .pref _ x => x.holdsDir
   | _ => false
@@ -527,6 +526,11 @@ def holdsDirArms : List (ℕ × Val) → Bool
   | [] => false
   | (_, a) :: as => a.holdsDir || holdsDirArms as
 termination_by structural as => as
+
+def holdsDirSpread : Option Val → Bool
+  | none => false
+  | some t => t.holdsDir
+termination_by structural s => s
 end
 
 /-- The choices a term written at a place holds there, each as its arms:
@@ -569,12 +573,13 @@ beneath it (`Val.holdsDir`). -/
 def Val.folds (all : List Val) : Bool :=
   !(all.flatMap Val.placeChoices).isEmpty && all.any Val.holdsDir
 
-/-- Whether `t` is the first term written at a place to hold a choice
-there, which stands for the disjunction a place that folds reads as. -/
+/-- Whether `t` is the first term written at a place, which carries the
+disjunction a place that folds reads as, since that disjunction holds
+every term written there. -/
 def Val.leads (all : List Val) (t : Val) : Bool :=
-  match all.find? (fun u => !u.placeChoices.isEmpty) with
-  | some u => u.beq t
-  | none => false
+  match all with
+  | u :: _ => u.beq t
+  | [] => false
 
 /-- The disjunction a place that folds reads as, its written terms `all`:
 each combination of its choices' arms (`choicesMet`), met with every
@@ -594,13 +599,62 @@ def Val.directedAt (rd : Val → Val) (all : List Val) (t w : Val) : Val :=
   if Val.folds all then (if Val.leads all t then foldPlace rd all else .any)
   else Val.atPlace all w
 
+/-- The templates of the spreads of the maps among some terms, each of
+which reaches every member, a declared one too. -/
+def mapSpreads (vs : List Val) : List Val :=
+  vs.flatMap fun v => match v with
+    | .map _ (some t) _ => [t]
+    | _ => []
+
+/-- The templates of the spreads of the lists among some terms, each of
+which reaches every element. -/
+def listSpreads (vs : List Val) : List Val :=
+  vs.flatMap fun v => match v with
+    | .list _ (some t) _ => [t]
+    | _ => []
+
+/-- The terms at a member, under the terms `cs` at its parent: what each
+map among them declares for its key, and each map's spread's template
+read at that key, since the template reaches the member too. -/
+def memberTerms (k : String) (cs : List Val) : List Val :=
+  valuesAt k cs ++ (mapSpreads cs).map (Val.atKey k)
+
+/-- The terms at an element: what each list among `cs` holds at its
+position, and each list's spread's template read at that position. -/
+def elementTerms (i : ℕ) (cs : List Val) : List Val :=
+  itemsAt i cs ++ (listSpreads cs).map (Val.atKey (toString i))
+
+/-- A term `x` a spread's template reads as for the members of no key in
+`ks`: `any` for a member a key there names, chosen by the member's own
+key (`key()`), so that the template's own place speaks for the members
+no term declares, a declared member's place reading the template among
+its own terms (`memberTerms`). -/
+def exceptKeys (ks : List String) (x : Val) : Val :=
+  if ks.isEmpty then x else .select .key (ks.map fun k => (.lit (.str k), .any)) (some x)
+
+/-- A spread's template `t` written at the place the templates `all`
+share, its places beneath read already (`w`): as `Val.directedAt` reads
+a term, the seal, or the disjunction a place that folds reads as, for
+the members of no key in `ks` alone (`exceptKeys`). -/
+def Val.directedSpread (rd : Val → Val) (ks : List String) (all : List Val) (t w : Val) : Val :=
+  if Val.folds all then (if Val.leads all t then exceptKeys ks (foldPlace rd all) else .any)
+  else
+    let lift := all.any (Val.directs .lifts)
+    let w' := if lift then Val.ride .opened w.unseal [] else w
+    if all.any (Val.directs .seals) then
+      .meet w' (exceptKeys ks (closeSeal (if lift then all.map fun t => .ride .opened t [] else all)))
+    else w'
+
 mutual
 /-- A term written at a place whose terms hold the conjuncts `cs`, read
 with the directives on the places beneath it (`Val.directedAt`): a
 member at the place its key names, whose terms are what each map among
-`cs` declares for the key, an element at its index the same, and a
-spread's template, a disjunction's arm and a preference's value each at
-a place of its own. A directive reads as `any`, a term held open,
+`cs` declares for the key and each map's spread's template, which
+reaches it (`memberTerms`), an element at its index the same, a spread's
+template at the place the templates share, for the members no term
+declares (`Val.directedSpread`), and a disjunction's arm and a
+preference's value each at a place of its own. A directive reads as
+`any`, a term held open,
 `open(v)`, has the seals its places' directives make lifted too, and
 `rd` reads the arms of a place that folds. -/
 def Val.dirIn (rd : Val → Val) (cs : List Val) : Val → Val
@@ -610,8 +664,10 @@ def Val.dirIn (rd : Val → Val) (cs : List Val) : Val → Val
   | .ride .opened v r => .ride .opened (v.dirIn rd cs).unseal r
   | .ride k v r => .ride k (v.dirIn rd cs) r
   | .link v t => .link (v.dirIn rd cs) t
-  | .map fs s c => .map (dirFields rd cs fs) (dirSpread rd s) c
-  | .list items s c => .list (dirItems rd cs 0 items) (dirSpread rd s) c
+  | .map fs s c => .map (dirFields rd cs fs) (dirSpread rd (mapSpreads cs) (declaredKeys cs) s) c
+  | .list items s c =>
+    .list (dirItems rd cs 0 items)
+      (dirSpread rd (listSpreads cs) ((List.range (listsLength cs)).map toString) s) c
   | .or arms => .or (dirArms rd arms)
   | .pref r x => .pref r (Val.directedAt rd [x] x (x.dirIn rd x.placeTerms))
   | v => v
@@ -620,20 +676,20 @@ termination_by structural v => v
 def dirFields (rd : Val → Val) (cs : List Val) : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
   | (k, o, v) :: fs =>
-    (k, o, Val.directedAt rd (valuesAt k cs) v (v.dirIn rd ((valuesAt k cs).flatMap Val.placeTerms))) ::
+    (k, o, Val.directedAt rd (memberTerms k cs) v (v.dirIn rd ((memberTerms k cs).flatMap Val.placeTerms))) ::
       dirFields rd cs fs
 termination_by structural fs => fs
 
 def dirItems (rd : Val → Val) (cs : List Val) (i : ℕ) : List Val → List Val
   | [] => []
   | v :: vs =>
-    Val.directedAt rd (itemsAt i cs) v (v.dirIn rd ((itemsAt i cs).flatMap Val.placeTerms)) ::
+    Val.directedAt rd (elementTerms i cs) v (v.dirIn rd ((elementTerms i cs).flatMap Val.placeTerms)) ::
       dirItems rd cs (i + 1) vs
 termination_by structural vs => vs
 
-def dirSpread (rd : Val → Val) : Option Val → Option Val
+def dirSpread (rd : Val → Val) (ts : List Val) (ks : List String) : Option Val → Option Val
   | none => none
-  | some t => some (Val.directedAt rd [t] t (t.dirIn rd t.placeTerms))
+  | some t => some (Val.directedSpread rd ks ts t (t.dirIn rd (ts.flatMap Val.placeTerms)))
 termination_by structural s => s
 
 def dirArms (rd : Val → Val) : List (ℕ × Val) → List (ℕ × Val)
@@ -748,8 +804,10 @@ end
 root's one term, each call whose value holds its argument met first with
 the shape where its value lands (`Val.landed`): a turn for each place
 that folds within another, each one place deeper, so a turn for each
-constructor the term holds is enough. -/
-def Val.directed (v : Val) : Val := dirF (v.landed.size + 1) v.landed
+constructor the term holds is enough. A term that writes no directive
+reads as itself, as the turns would read it. -/
+def Val.directed (v : Val) : Val :=
+  if v.landed.holdsDir then dirF (v.landed.size + 1) v.landed else v.landed
 
 /-- The expansion of a term: enough turns for every chain of names that
 are not recursive, which repeats no name, and for the structure each
@@ -1648,8 +1706,11 @@ theorem landedItems_unguardedRefs : ∀ (items : List Val) {n : String},
 end
 
 theorem Val.unguardedRefs_directed {v : Val} {n : String} (h : n ∈ v.directed.unguardedRefs) :
-    n ∈ v.unguardedRefs :=
-  Val.landed_unguardedRefs v (dirF_unguardedRefs _ _ h)
+    n ∈ v.unguardedRefs := by
+  unfold Val.directed at h
+  split at h
+  · exact Val.landed_unguardedRefs v (dirF_unguardedRefs _ _ h)
+  · exact Val.landed_unguardedRefs v h
 
 theorem Decls.Stacked.push {ds : Decls} {stack : List String} {v : Val} {k : String} {b : Val}
     (hs : ds.Stacked stack v) (hk : k ∈ v.unguardedRefs) (hnot : k ∉ stack) (he : ds.env k = some b) :
@@ -2429,6 +2490,85 @@ theorem Val.directedAt_checkableA {rd : Val → Val} (hrd : ∀ x, x.CheckableA 
     · exact .any
   · exact Val.atPlace_checkableA hall hw
 
+theorem mapSpreads_checkableA {cs : List Val} (h : ∀ c ∈ cs, c.CheckableA) :
+    ∀ t ∈ mapSpreads cs, t.CheckableA := by
+  intro t ht
+  obtain ⟨c, hc, ht⟩ := List.mem_flatMap.mp ht
+  have hc' := h c hc
+  split at ht
+  · rw [List.mem_singleton] at ht
+    subst ht
+    cases hc' with
+    | map _ hs => exact hs _ rfl
+  · exact nomatch ht
+
+theorem listSpreads_checkableA {cs : List Val} (h : ∀ c ∈ cs, c.CheckableA) :
+    ∀ t ∈ listSpreads cs, t.CheckableA := by
+  intro t ht
+  obtain ⟨c, hc, ht⟩ := List.mem_flatMap.mp ht
+  have hc' := h c hc
+  split at ht
+  · rw [List.mem_singleton] at ht
+    subst ht
+    cases hc' with
+    | list _ hs => exact hs _ rfl
+  · exact nomatch ht
+
+theorem memberTerms_checkableA {k : String} {cs : List Val} (h : ∀ c ∈ cs, c.CheckableA) :
+    ∀ t ∈ memberTerms k cs, t.CheckableA := by
+  intro t ht
+  rcases List.mem_append.mp ht with ht | ht
+  · exact valuesAt_checkableA h t ht
+  · obtain ⟨u, hu, rfl⟩ := List.mem_map.mp ht
+    exact (mapSpreads_checkableA h u hu).atKey k
+
+theorem elementTerms_checkableA {i : ℕ} {cs : List Val} (h : ∀ c ∈ cs, c.CheckableA) :
+    ∀ t ∈ elementTerms i cs, t.CheckableA := by
+  intro t ht
+  rcases List.mem_append.mp ht with ht | ht
+  · exact itemsAt_checkableA h t ht
+  · obtain ⟨u, hu, rfl⟩ := List.mem_map.mp ht
+    exact (listSpreads_checkableA h u hu).atKey _
+
+theorem exceptKeys_checkableA {ks : List String} {x : Val} (h : x.CheckableA) :
+    (exceptKeys ks x).CheckableA := by
+  unfold exceptKeys
+  split
+  · exact h
+  · refine .selectKey (fun p r hm => ?_) (fun p r hm => ?_) (fun e he => ?_)
+    · obtain ⟨k, -, he⟩ := List.mem_map.mp hm
+      simp only [Prod.mk.injEq] at he
+      rw [← he.1]; exact .lit
+    · obtain ⟨k, -, he⟩ := List.mem_map.mp hm
+      simp only [Prod.mk.injEq] at he
+      rw [← he.2]; exact .any
+    · simp only [Option.some.injEq] at he
+      rw [← he]; exact h
+
+theorem Val.directedSpread_checkableA {rd : Val → Val} (hrd : ∀ x, x.CheckableA → (rd x).CheckableA)
+    {ks : List String} {all : List Val} {t w : Val} (hall : ∀ u ∈ all, u.CheckableA) (hw : w.CheckableA) :
+    (Val.directedSpread rd ks all t w).CheckableA := by
+  have hw' : (if all.any (Val.directs .lifts) then Val.ride .opened w.unseal [] else w).CheckableA := by
+    split
+    · exact .ride hw.unseal
+    · exact hw
+  have hseal : (closeSeal (if all.any (Val.directs .lifts) then all.map (fun t => Val.ride .opened t [])
+      else all)).CheckableA := by
+    refine closeSeal_checkableA fun u hu => ?_
+    split at hu
+    · obtain ⟨u', hu', rfl⟩ := List.mem_map.mp hu
+      exact .ride (hall u' hu')
+    · exact hall u hu
+  unfold Val.directedSpread
+  split
+  · split
+    · exact exceptKeys_checkableA (foldPlace_checkableA hrd hall)
+    · exact .any
+  · dsimp only
+    by_cases hs : all.any (Val.directs .seals) = true
+    · rw [if_pos hs]; exact .meet hw' (exceptKeys_checkableA hseal)
+    · rw [if_neg hs]; exact hw'
+
 section
 variable {rd : Val → Val} (hrd : ∀ x, x.CheckableA → (rd x).CheckableA)
 include hrd
@@ -2441,7 +2581,7 @@ theorem dirFields_checkableA (cs : List Val) (hcs : ∀ c ∈ cs, c.CheckableA) 
   | (k, o, v) :: fs, hf, ih, k', o', v', h => by
     simp only [dirFields, List.mem_cons, Prod.mk.injEq] at h
     rcases h with ⟨rfl, rfl, rfl⟩ | h
-    · have hvs := valuesAt_checkableA (k := k') hcs
+    · have hvs := memberTerms_checkableA (k := k') hcs
       exact Val.directedAt_checkableA hrd hvs (ih _ _ _ List.mem_cons_self _ fun c hc => by
         obtain ⟨t, ht, hc⟩ := List.mem_flatMap.mp hc
         exact Val.placeTerms_checkableA (hvs t ht) c hc)
@@ -2456,7 +2596,7 @@ theorem dirItems_checkableA (cs : List Val) (hcs : ∀ c ∈ cs, c.CheckableA) :
   | i, v :: vs, hi, ih, v', h => by
     simp only [dirItems, List.mem_cons] at h
     rcases h with rfl | h
-    · have hvs := itemsAt_checkableA (i := i) hcs
+    · have hvs := elementTerms_checkableA (i := i) hcs
       exact Val.directedAt_checkableA hrd hvs (ih _ List.mem_cons_self _ fun c hc => by
         obtain ⟨t, ht, hc⟩ := List.mem_flatMap.mp hc
         exact Val.placeTerms_checkableA (hvs t ht) c hc)
@@ -2469,14 +2609,17 @@ theorem dirOwn_checkableA {t : Val} (ht : t.CheckableA)
   Val.directedAt_checkableA hrd (fun x hx => by rw [List.mem_singleton.mp hx]; exact ht)
     (ih _ (Val.placeTerms_checkableA ht))
 
-theorem dirSpread_checkableA : ∀ (s : Option Val), (∀ t, s = some t → t.CheckableA) →
+theorem dirSpread_checkableA {ts : List Val} (hts : ∀ t ∈ ts, t.CheckableA) {ks : List String} :
+    ∀ (s : Option Val), (∀ t, s = some t → t.CheckableA) →
     (∀ t, s = some t → ∀ cs, (∀ c ∈ cs, c.CheckableA) → (t.dirIn rd cs).CheckableA) →
-    ∀ t, dirSpread rd s = some t → t.CheckableA
+    ∀ t, dirSpread rd ts ks s = some t → t.CheckableA
   | none, _, _, _, h => nomatch h
   | some t, hs, ih, t', h => by
     simp only [dirSpread, Option.some.injEq] at h
     subst h
-    exact dirOwn_checkableA hrd (hs t rfl) (ih t rfl)
+    exact Val.directedSpread_checkableA hrd hts (ih t rfl _ fun c hc => by
+      obtain ⟨u, hu, hc⟩ := List.mem_flatMap.mp hc
+      exact Val.placeTerms_checkableA (hts u hu) c hc)
 
 theorem dirArms_checkableA : ∀ (arms : List (ℕ × Val)), (∀ r a, (r, a) ∈ arms → a.CheckableA) →
     (∀ r a, (r, a) ∈ arms → ∀ cs, (∀ c ∈ cs, c.CheckableA) → (a.dirIn rd cs).CheckableA) →
@@ -2497,11 +2640,13 @@ theorem Val.dirIn_checkableA : ∀ {v : Val}, v.CheckableA → ∀ (cs : List Va
   | @map fs spread closed hf hs ihf ihs =>
     intro cs hcs
     simp only [Val.dirIn]
-    exact .map (dirFields_checkableA hrd cs hcs fs hf ihf) (dirSpread_checkableA hrd spread hs ihs)
+    exact .map (dirFields_checkableA hrd cs hcs fs hf ihf)
+      (dirSpread_checkableA hrd (mapSpreads_checkableA hcs) spread hs ihs)
   | @list items spread closed hi hs ihi ihs =>
     intro cs hcs
     simp only [Val.dirIn]
-    exact .list (dirItems_checkableA hrd cs hcs 0 items hi ihi) (dirSpread_checkableA hrd spread hs ihs)
+    exact .list (dirItems_checkableA hrd cs hcs 0 items hi ihi)
+      (dirSpread_checkableA hrd (listSpreads_checkableA hcs) spread hs ihs)
   | @or arms ha iha =>
     intro cs hcs
     simp only [Val.dirIn]
@@ -2705,20 +2850,19 @@ theorem Val.CheckableA.landed : ∀ {v : Val}, v.CheckableA → v.landed.Checkab
     · exact .call ha
   | _ => (try simp only [Val.landed]); constructor <;> assumption
 
-theorem Val.directed_checkableA {v : Val} (h : v.CheckableA) : v.directed.CheckableA :=
-  dirF_checkableA _ h.landed
+theorem Val.directed_checkableA {v : Val} (h : v.CheckableA) : v.directed.CheckableA := by
+  unfold Val.directed
+  split
+  · exact dirF_checkableA _ h.landed
+  · exact h.landed
 
 /-- A map whose one member writes no directive and has no place beneath
 it reads as itself. -/
-theorem Val.directed_map_of {k : String} {w : Val} (hd : ∀ rd cs, w.dirIn rd cs = w)
-    (hp : w.placeTerms = [w]) (hl : w.directs .lifts = false) (hs : w.directs .seals = false)
-    (hc : w.placeChoices = []) (hw : w.landed = w) :
+theorem Val.directed_map_of {k : String} {w : Val} (hw : w.landed = w) (hh : w.holdsDir = false) :
     (Val.map [(k, false, w)] none false).directed = .map [(k, false, w)] none false := by
   have hm : (Val.map [(k, false, w)] none false).landed = .map [(k, false, w)] none false := by
     simp [Val.landed, landedFields, landedSpread, hw]
-  simp only [Val.directed, hm]
-  simp [dirF, Val.directedAt, Val.folds, Val.atPlace, Val.dirIn, dirFields, dirSpread,
-    valuesAt, Val.placeTerms, Val.placeChoices, Val.directs, hd, hp, hl, hs, hc]
+  simp [Val.directed, hm, Val.holdsDir, holdsDirFields, holdsDirSpread, hh]
 
 theorem expand_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
     (hv : v.CheckableA) : (expand ds v).CheckableA :=

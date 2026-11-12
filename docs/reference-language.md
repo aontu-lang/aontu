@@ -4853,8 +4853,11 @@ seal in it lifted, and then `close()` meets the place with the seal an
 instance takes (`closeSeal`), read through every term held open at its
 own level, so `close()` wins there and stops at a term held open beneath
 it. The places beneath a place come first, so an `open()` lifts the seal
-a `close()` beneath it makes, as `open(v)` does. A spread's template is a
-place of its own, and so is a disjunction's arm. A place whose terms
+a `close()` beneath it makes, as `open(v)` does. A spread's template
+reaches every member, so a member's place holds the template beside the
+member's own terms, and the templates at a place stand together for the
+members no term declares. A disjunction's arm is a place of its own. A
+place whose terms
 hold a disjunction or a lone preference and a directive, at the place or
 beneath it, reads as one disjunction: each combination of the choices'
 arms, met with every other term at the place, is a place of its own.

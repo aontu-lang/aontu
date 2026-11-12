@@ -2251,6 +2251,22 @@ until the phase that encodes it lands.
    declared member's own terms beside a directive in a spread's
    template, and a directive inside a call's argument, a trial, a
    selection's result or a link's template.
+   **Built 2026-11-12, the templates**: a spread's template reaches
+   every member, so a member's place holds each map's template beside
+   what the maps declare for the member's key, the template read at that
+   key (`memberTerms`, an element's the same, `elementTerms`), and the
+   templates at a place stand together for the members no term declares
+   (`Val.directedSpread`), their seal, or the disjunction a place that
+   folds reads as, chosen by the member's key so that it stands aside
+   for a declared key (`exceptKeys`, a `match` on `key()`). A directive
+   in a template beneath a choice makes the place fold (`Val.holdsDir`
+   reads templates now), so that the template's declared keys include
+   the other terms'. The reading skips a term that writes no directive,
+   which it would read as itself (`Val.directed`). Rows dir189 on of
+   `test/spec/def-alias.tsv`, 27 in all; both ports answer 6 of them as
+   the definition does, and the other 21 alike, listed in the ledger
+   under #726: both ports fold `close()` into the template's term or the
+   member's and read the other's keys as a conflict.
 
 45. **A directive beside two or more choices.** Raised 2026-11-12 by
    decision 44's third slice, which left it a limit: a bare `close()`

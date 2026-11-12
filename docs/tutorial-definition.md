@@ -2470,8 +2470,10 @@ A bare `open()` or `close()` is no value at all. Each is a directive on
 the place it stands at, which the reading applies once the expansion
 has read a term's names, before any meet. The terms at a member are
 what each map at its parent declares for its key, wherever the document
-writes it. A spread's template is a place of its own, and so is each arm
-of a disjunction and a lone preference's value. `open()` holds each term at its place
+writes it. A spread's template reaches every member, so a member's place
+holds the template too, read at the member's key, and the templates at a
+place stand together for the members no term declares. Each arm of a
+disjunction and a lone preference's value is a place of its own. `open()` holds each term at its place
 open, as `open(v)` does. Then `close()` meets the place with the seal
 an instance takes, read through every term held open at its own level,
 so `close()` wins there, and stops at a term held open beneath it:
@@ -2531,6 +2533,23 @@ argument that writes a directive (`Val.shape`), where its value lands. -/
 def landCall (f : Fn) : List Val → Val
   | [x] => if x.holdsDir then .meet (.call f [x]) x.shape else .call f [x]
   | args => .call f args
+```
+
+A template's seal can't speak for a member a term declares, whose place
+holds terms the template lacks: `{m: {y: 1}, &: close() & {x: 1}}` seals
+`m` with both keys, from its own place, and a member the data adds with
+`x` alone. So the template's own seal stands aside for each declared
+key, chosen by the member's key, as `key()` reads it:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- A term `x` a spread's template reads as for the members of no key in
+`ks`: `any` for a member a key there names, chosen by the member's own
+key (`key()`), so that the template's own place speaks for the members
+no term declares, a declared member's place reading the template among
+its own terms (`memberTerms`). -/
+def exceptKeys (ks : List String) (x : Val) : Val :=
+  if ks.isEmpty then x else .select .key (ks.map fun k => (.lit (.str k), .any)) (some x)
 ```
 
 The declarations make a graph, where a name refers to every name in
