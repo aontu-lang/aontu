@@ -649,11 +649,107 @@ def dirF : ℕ → Val → Val
   | 0, v => v
   | n + 1, v => Val.directedAt (dirF n) [v] v (v.dirIn (dirF n) v.placeTerms)
 
+/-- Whether a call's value holds its argument where the call stands, so
+that a directive in the argument acts there, where the value lands
+(decision 46): `copy`, `super` and `pref`. -/
+def Fn.landsArg : Fn → Bool
+  | .copy | .super | .pref => true
+  | _ => false
+
+mutual
+/-- The shape of a call's argument where the call's value lands: its
+maps and lists unsealed, each member in its shape and a spread as `any`,
+a disjunction's arms, a lone preference's value, a meet's sides, the
+directives, and a term held open, every other term `any`, so that a
+directive at the call's place reads the keys the value declares. -/
+def Val.shape : Val → Val
+  | .map fs s _ => .map (shapeFields fs) (s.map fun _ => .any) false
+  | .list items s _ => .list (shapeItems items) (s.map fun _ => .any) false
+  | .or arms => .or (shapeArms arms)
+  | .pref _ x => x.shape
+  | .meet a b => .meet a.shape b.shape
+  | .ride .lifts v r => .ride .lifts v r
+  | .ride .seals v r => .ride .seals v r
+  | .ride .opened v r => .ride .opened v.shape r
+  | .ride _ v _ => v.shape
+  | .link v _ => v.shape
+  | .call f args => if f.landsArg then shapeArgs args else .any
+  | _ => .any
+termination_by structural v => v
+
+def shapeFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.shape) :: shapeFields fs
+termination_by structural fs => fs
+
+def shapeItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.shape :: shapeItems vs
+termination_by structural vs => vs
+
+def shapeArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.shape) :: shapeArms as
+termination_by structural as => as
+
+def shapeArgs : List Val → Val
+  | [x] => x.shape
+  | _ => .any
+termination_by structural xs => xs
+end
+
+/-- A call whose value holds its argument, met with the shape of an
+argument that writes a directive (`Val.shape`), where its value lands. -/
+def landCall (f : Fn) : List Val → Val
+  | [x] => if x.holdsDir then .meet (.call f [x]) x.shape else .call f [x]
+  | args => .call f args
+
+mutual
+/-- A term with each call whose value holds its argument, an argument
+that writes a directive, met with that argument's shape (`landCall`),
+so that the directive acts where the call's value lands (decision 46),
+not on the argument a `copy` unseals: through meets, riders and links,
+members, elements, spreads, arms, a preference's value, and those
+calls' arguments. -/
+def Val.landed : Val → Val
+  | .meet a b => .meet a.landed b.landed
+  | .ride k v r => .ride k v.landed r
+  | .link v t => .link v.landed t
+  | .map fs s c => .map (landedFields fs) (landedSpread s) c
+  | .list items s c => .list (landedItems items) (landedSpread s) c
+  | .or arms => .or (landedArms arms)
+  | .pref r x => .pref r x.landed
+  | .call f args => if f.landsArg then landCall f (landedItems args) else .call f args
+  | v => v
+termination_by structural v => v
+
+def landedFields : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.landed) :: landedFields fs
+termination_by structural fs => fs
+
+def landedItems : List Val → List Val
+  | [] => []
+  | v :: vs => v.landed :: landedItems vs
+termination_by structural vs => vs
+
+def landedSpread : Option Val → Option Val
+  | none => none
+  | some t => some t.landed
+termination_by structural s => s
+
+def landedArms : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.landed) :: landedArms as
+termination_by structural as => as
+end
+
 /-- A term read with the directives on its places, the term itself the
-root's one term: a turn for each place that folds within another, each
-one place deeper, so a turn for each constructor the term holds is
-enough. -/
-def Val.directed (v : Val) : Val := dirF (v.size + 1) v
+root's one term, each call whose value holds its argument met first with
+the shape where its value lands (`Val.landed`): a turn for each place
+that folds within another, each one place deeper, so a turn for each
+constructor the term holds is enough. -/
+def Val.directed (v : Val) : Val := dirF (v.landed.size + 1) v.landed
 
 /-- The expansion of a term: enough turns for every chain of names that
 are not recursive, which repeats no name, and for the structure each
@@ -1425,9 +1521,135 @@ theorem dirF_unguardedRefs : ∀ (m : ℕ) (v : Val) {n : String}, n ∈ (dirF m
     · exact Val.dirIn_unguardedRefs (fun x _ hx => dirF_unguardedRefs m x hx) v _ h
     · rw [List.mem_singleton.mp hu] at hn; exact hn
 
+mutual
+theorem Val.shape_unguardedRefs : ∀ (v : Val) {n : String}, n ∈ v.shape.unguardedRefs → n ∈ v.unguardedRefs
+  | .or arms, n, h => by
+    simp only [Val.shape, Val.unguardedRefs] at h ⊢
+    exact shapeArms_unguardedRefs arms h
+  | .pref _ x, n, h => by
+    simp only [Val.shape, Val.unguardedRefs] at h ⊢
+    exact Val.shape_unguardedRefs x h
+  | .meet a b, n, h => by
+    simp only [Val.shape, Val.unguardedRefs, List.mem_append] at h ⊢
+    rcases h with h | h
+    · exact .inl (Val.shape_unguardedRefs a h)
+    · exact .inr (Val.shape_unguardedRefs b h)
+  | .ride k v r, n, h => by
+    cases k <;> simp only [Val.shape, Val.unguardedRefs] at h ⊢ <;>
+      first | exact h | exact Val.shape_unguardedRefs v h
+  | .link v t, n, h => by
+    simp only [Val.shape, Val.unguardedRefs, List.mem_append] at h ⊢
+    exact .inl (Val.shape_unguardedRefs v h)
+  | .call f args, n, h => by
+    simp only [Val.shape] at h
+    simp only [Val.unguardedRefs]
+    split at h
+    · exact shapeArgs_unguardedRefs args h
+    · simp [Val.unguardedRefs] at h
+  | .map _ _ _, _, h | .list _ _ _, _, h => by simp [Val.shape, Val.unguardedRefs] at h
+  | .integer, _, h | .float, _, h | .biginteger, _, h | .bigdecimal, _, h | .number, _, h
+  | .string, _, h | .anyString, _, h | .boolean, _, h | .mapKind, _, h | .listKind, _, h
+  | .pathKind, _, h | .lit _, _, h | .addr _, _, h | .min _, _, h | .max _, _, h
+  | .above _, _, h | .beneath _, _, h | .neq _, _, h | .mulof _, _, h | .len _, _, h
+  | .unique _, _, h | .grammar _, _, h | .any, _, h | .absent, _, h | .hole, _, h
+  | .nil, _, h | .nothing, _, h | .alias _, _, h | .path _, _, h | .nof _ _, _, h
+  | .must _ _, _, h | .when _ _ _, _, h | .contains _ _, _, h
+  | .rest _ _, _, h | .key, _, h | .keyUp _, _, h | .select _ _ _, _, h | .re _, _, h
+  | .format _, _, h | .filter _ _, _, h => by simp [Val.shape, Val.unguardedRefs] at h
+
+theorem shapeArms_unguardedRefs : ∀ (arms : List (ℕ × Val)) {n : String},
+    n ∈ unguardedArms (shapeArms arms) → n ∈ unguardedArms arms
+  | [], n, h => by simp [shapeArms, unguardedArms] at h
+  | (r, a) :: as, n, h => by
+    simp only [shapeArms, unguardedArms, List.mem_append] at h ⊢
+    rcases h with h | h
+    · exact .inl (Val.shape_unguardedRefs a h)
+    · exact .inr (shapeArms_unguardedRefs as h)
+
+theorem shapeArgs_unguardedRefs : ∀ (args : List Val) {n : String},
+    n ∈ (shapeArgs args).unguardedRefs → n ∈ unguardedItems args
+  | [x], n, h => by
+    simp only [shapeArgs] at h
+    simp only [unguardedItems, List.mem_append]
+    exact .inl (Val.shape_unguardedRefs x h)
+  | [], n, h => by simp [shapeArgs, Val.unguardedRefs] at h
+  | _ :: _ :: _, n, h => by simp [shapeArgs, Val.unguardedRefs] at h
+end
+
+theorem landCall_unguardedRefs {f : Fn} {args : List Val} {n : String}
+    (h : n ∈ (landCall f args).unguardedRefs) : n ∈ unguardedItems args := by
+  unfold landCall at h
+  split at h
+  · rename_i x
+    split at h
+    · simp only [Val.unguardedRefs, List.mem_append] at h
+      rcases h with h | h
+      · exact h
+      · simp only [unguardedItems, List.mem_append]
+        exact .inl (Val.shape_unguardedRefs x h)
+    · simpa only [Val.unguardedRefs] using h
+  · simpa only [Val.unguardedRefs] using h
+
+mutual
+theorem Val.landed_unguardedRefs : ∀ (v : Val) {n : String}, n ∈ v.landed.unguardedRefs → n ∈ v.unguardedRefs
+  | .meet a b, n, h => by
+    simp only [Val.landed, Val.unguardedRefs, List.mem_append] at h ⊢
+    rcases h with h | h
+    · exact .inl (Val.landed_unguardedRefs a h)
+    · exact .inr (Val.landed_unguardedRefs b h)
+  | .ride k v r, n, h => by
+    simp only [Val.landed, Val.unguardedRefs] at h ⊢
+    exact Val.landed_unguardedRefs v h
+  | .link v t, n, h => by
+    simp only [Val.landed, Val.unguardedRefs, List.mem_append] at h ⊢
+    rcases h with h | h
+    · exact .inl (Val.landed_unguardedRefs v h)
+    · exact .inr h
+  | .or arms, n, h => by
+    simp only [Val.landed, Val.unguardedRefs] at h ⊢
+    exact landedArms_unguardedRefs arms h
+  | .pref r x, n, h => by
+    simp only [Val.landed, Val.unguardedRefs] at h ⊢
+    exact Val.landed_unguardedRefs x h
+  | .call f args, n, h => by
+    simp only [Val.landed] at h
+    simp only [Val.unguardedRefs]
+    split at h
+    · exact landedItems_unguardedRefs args (landCall_unguardedRefs h)
+    · simpa only [Val.unguardedRefs] using h
+  | .map _ _ _, _, h | .list _ _ _, _, h => by simp [Val.landed, Val.unguardedRefs] at h
+  | .integer, _, h | .float, _, h | .biginteger, _, h | .bigdecimal, _, h | .number, _, h
+  | .string, _, h | .anyString, _, h | .boolean, _, h | .mapKind, _, h | .listKind, _, h
+  | .pathKind, _, h | .lit _, _, h | .addr _, _, h | .min _, _, h | .max _, _, h
+  | .above _, _, h | .beneath _, _, h | .neq _, _, h | .mulof _, _, h | .len _, _, h
+  | .unique _, _, h | .grammar _, _, h | .any, _, h | .absent, _, h | .hole, _, h
+  | .nil, _, h | .nothing, _, h | .alias _, _, h | .path _, _, h | .nof _ _, _, h
+  | .must _ _, _, h | .when _ _ _, _, h | .contains _ _, _, h
+  | .rest _ _, _, h | .key, _, h | .keyUp _, _, h | .select _ _ _, _, h | .re _, _, h
+  | .format _, _, h | .filter _ _, _, h => by simpa only [Val.landed] using h
+
+theorem landedArms_unguardedRefs : ∀ (arms : List (ℕ × Val)) {n : String},
+    n ∈ unguardedArms (landedArms arms) → n ∈ unguardedArms arms
+  | [], n, h => by simp [landedArms, unguardedArms] at h
+  | (r, a) :: as, n, h => by
+    simp only [landedArms, unguardedArms, List.mem_append] at h ⊢
+    rcases h with h | h
+    · exact .inl (Val.landed_unguardedRefs a h)
+    · exact .inr (landedArms_unguardedRefs as h)
+
+theorem landedItems_unguardedRefs : ∀ (items : List Val) {n : String},
+    n ∈ unguardedItems (landedItems items) → n ∈ unguardedItems items
+  | [], n, h => by simp [landedItems, unguardedItems] at h
+  | v :: vs, n, h => by
+    simp only [landedItems, unguardedItems, List.mem_append] at h ⊢
+    rcases h with h | h
+    · exact .inl (Val.landed_unguardedRefs v h)
+    · exact .inr (landedItems_unguardedRefs vs h)
+end
+
 theorem Val.unguardedRefs_directed {v : Val} {n : String} (h : n ∈ v.directed.unguardedRefs) :
     n ∈ v.unguardedRefs :=
-  dirF_unguardedRefs _ v h
+  Val.landed_unguardedRefs v (dirF_unguardedRefs _ _ h)
 
 theorem Decls.Stacked.push {ds : Decls} {stack : List String} {v : Val} {k : String} {b : Val}
     (hs : ds.Stacked stack v) (hk : k ∈ v.unguardedRefs) (hnot : k ∉ stack) (he : ds.env k = some b) :
@@ -2314,16 +2536,188 @@ theorem dirF_checkableA : ∀ (m : ℕ) {v : Val}, v.CheckableA → (dirF m v).C
       (fun x hx => by rw [List.mem_singleton.mp hx]; exact h)
       (Val.dirIn_checkableA (fun x hx => dirF_checkableA m hx) h _ (Val.placeTerms_checkableA h))
 
+theorem Val.CheckableA.shape : ∀ {v : Val}, v.CheckableA → v.shape.CheckableA := by
+  intro v h
+  induction h with
+  | @map fs spread closed hf hs ihf ihs =>
+    simp only [Val.shape]
+    refine .map (fun k o w hw => ?_) (fun t ht => ?_)
+    · have : ∀ (fs : List (String × Bool × Val)), (∀ k o v, (k, o, v) ∈ fs → v.shape.CheckableA) →
+          ∀ k o w, (k, o, w) ∈ shapeFields fs → w.CheckableA := by
+        intro fs
+        induction fs with
+        | nil => intro _ k o w h; exact nomatch h
+        | cons f fs ih =>
+          obtain ⟨k₀, o₀, v₀⟩ := f
+          intro hall k o w h
+          simp only [shapeFields, List.mem_cons, Prod.mk.injEq] at h
+          rcases h with ⟨-, -, rfl⟩ | h
+          · exact hall _ _ _ List.mem_cons_self
+          · exact ih (fun k o v h' => hall k o v (List.mem_cons_of_mem _ h')) k o w h
+      exact this fs ihf k o w hw
+    · cases spread with
+      | none => exact nomatch ht
+      | some s =>
+        simp only [Option.map_some, Option.some.injEq] at ht
+        subst ht; exact .any
+  | @list items spread closed hi hs ihi ihs =>
+    simp only [Val.shape]
+    refine .list (fun w hw => ?_) (fun t ht => ?_)
+    · have : ∀ (items : List Val), (∀ v, v ∈ items → v.shape.CheckableA) →
+          ∀ w, w ∈ shapeItems items → w.CheckableA := by
+        intro items
+        induction items with
+        | nil => intro _ w h; exact nomatch h
+        | cons x xs ih =>
+          intro hall w h
+          simp only [shapeItems, List.mem_cons] at h
+          rcases h with rfl | h
+          · exact hall _ List.mem_cons_self
+          · exact ih (fun v h' => hall v (List.mem_cons_of_mem _ h')) w h
+      exact this items ihi w hw
+    · cases spread with
+      | none => exact nomatch ht
+      | some s =>
+        simp only [Option.map_some, Option.some.injEq] at ht
+        subst ht; exact .any
+  | @or arms ha iha =>
+    simp only [Val.shape]
+    refine .or fun r a h => ?_
+    have : ∀ (arms : List (ℕ × Val)), (∀ r a, (r, a) ∈ arms → a.shape.CheckableA) →
+        ∀ r a, (r, a) ∈ shapeArms arms → a.CheckableA := by
+      intro arms
+      induction arms with
+      | nil => intro _ r a h; exact nomatch h
+      | cons p ps ih =>
+        obtain ⟨r₀, a₀⟩ := p
+        intro hall r a h
+        simp only [shapeArms, List.mem_cons, Prod.mk.injEq] at h
+        rcases h with ⟨-, rfl⟩ | h
+        · exact hall _ _ List.mem_cons_self
+        · exact ih (fun r a h' => hall r a (List.mem_cons_of_mem _ h')) r a h
+    exact this arms iha r a h
+  | pref _ ih => simpa only [Val.shape] using ih
+  | meet _ _ iha ihb => simp only [Val.shape]; exact .meet iha ihb
+  | @ride k v r hv ih =>
+    cases k <;> simp only [Val.shape] <;> first | exact .ride hv | exact .ride ih | exact ih
+  | link _ _ ih _ => simpa only [Val.shape] using ih
+  | @call f args ha iha =>
+    simp only [Val.shape]
+    split
+    · match args, iha with
+      | [x], iha => simpa only [shapeArgs] using iha x List.mem_cons_self
+      | [], _ => simp only [shapeArgs]; exact .any
+      | _ :: _ :: _, _ => simp only [shapeArgs]; exact .any
+    · exact .any
+  | _ => simp only [Val.shape]; exact .any
+
+theorem landCall_checkableA {f : Fn} {args : List Val} (h : ∀ a, a ∈ args → a.CheckableA) :
+    (landCall f args).CheckableA := by
+  unfold landCall
+  split
+  · rename_i x
+    have hx := h x List.mem_cons_self
+    split
+    · exact .meet (.call h) hx.shape
+    · exact .call h
+  · exact .call h
+
+theorem Val.CheckableA.landed : ∀ {v : Val}, v.CheckableA → v.landed.CheckableA := by
+  intro v h
+  induction h with
+  | @map fs spread closed hf hs ihf ihs =>
+    simp only [Val.landed]
+    refine .map (fun k o w hw => ?_) (fun t ht => ?_)
+    · have : ∀ (fs : List (String × Bool × Val)), (∀ k o v, (k, o, v) ∈ fs → v.landed.CheckableA) →
+          ∀ k o w, (k, o, w) ∈ landedFields fs → w.CheckableA := by
+        intro fs
+        induction fs with
+        | nil => intro _ k o w h; exact nomatch h
+        | cons f fs ih =>
+          obtain ⟨k₀, o₀, v₀⟩ := f
+          intro hall k o w h
+          simp only [landedFields, List.mem_cons, Prod.mk.injEq] at h
+          rcases h with ⟨-, -, rfl⟩ | h
+          · exact hall _ _ _ List.mem_cons_self
+          · exact ih (fun k o v h' => hall k o v (List.mem_cons_of_mem _ h')) k o w h
+      exact this fs ihf k o w hw
+    · cases spread with
+      | none => exact nomatch ht
+      | some s =>
+        simp only [landedSpread, Option.some.injEq] at ht
+        subst ht; exact ihs s rfl
+  | @list items spread closed hi hs ihi ihs =>
+    simp only [Val.landed]
+    refine .list (fun w hw => ?_) (fun t ht => ?_)
+    · have : ∀ (items : List Val), (∀ v, v ∈ items → v.landed.CheckableA) →
+          ∀ w, w ∈ landedItems items → w.CheckableA := by
+        intro items
+        induction items with
+        | nil => intro _ w h; exact nomatch h
+        | cons x xs ih =>
+          intro hall w h
+          simp only [landedItems, List.mem_cons] at h
+          rcases h with rfl | h
+          · exact hall _ List.mem_cons_self
+          · exact ih (fun v h' => hall v (List.mem_cons_of_mem _ h')) w h
+      exact this items ihi w hw
+    · cases spread with
+      | none => exact nomatch ht
+      | some s =>
+        simp only [landedSpread, Option.some.injEq] at ht
+        subst ht; exact ihs s rfl
+  | @or arms ha iha =>
+    simp only [Val.landed]
+    refine .or fun r a h => ?_
+    have : ∀ (arms : List (ℕ × Val)), (∀ r a, (r, a) ∈ arms → a.landed.CheckableA) →
+        ∀ r a, (r, a) ∈ landedArms arms → a.CheckableA := by
+      intro arms
+      induction arms with
+      | nil => intro _ r a h; exact nomatch h
+      | cons p ps ih =>
+        obtain ⟨r₀, a₀⟩ := p
+        intro hall r a h
+        simp only [landedArms, List.mem_cons, Prod.mk.injEq] at h
+        rcases h with ⟨-, rfl⟩ | h
+        · exact hall _ _ List.mem_cons_self
+        · exact ih (fun r a h' => hall r a (List.mem_cons_of_mem _ h')) r a h
+    exact this arms iha r a h
+  | pref _ ih => simp only [Val.landed]; exact .pref ih
+  | meet _ _ iha ihb => simp only [Val.landed]; exact .meet iha ihb
+  | ride _ ih => simp only [Val.landed]; exact .ride ih
+  | link _ ht ih _ => simp only [Val.landed]; exact .link ih ht
+  | @call f args ha iha =>
+    simp only [Val.landed]
+    split
+    · refine landCall_checkableA fun a h => ?_
+      have : ∀ (items : List Val), (∀ v, v ∈ items → v.landed.CheckableA) →
+          ∀ w, w ∈ landedItems items → w.CheckableA := by
+        intro items
+        induction items with
+        | nil => intro _ w h; exact nomatch h
+        | cons x xs ih =>
+          intro hall w h
+          simp only [landedItems, List.mem_cons] at h
+          rcases h with rfl | h
+          · exact hall _ List.mem_cons_self
+          · exact ih (fun v h' => hall v (List.mem_cons_of_mem _ h')) w h
+      exact this args iha a h
+    · exact .call ha
+  | _ => (try simp only [Val.landed]); constructor <;> assumption
+
 theorem Val.directed_checkableA {v : Val} (h : v.CheckableA) : v.directed.CheckableA :=
-  dirF_checkableA _ h
+  dirF_checkableA _ h.landed
 
 /-- A map whose one member writes no directive and has no place beneath
 it reads as itself. -/
 theorem Val.directed_map_of {k : String} {w : Val} (hd : ∀ rd cs, w.dirIn rd cs = w)
     (hp : w.placeTerms = [w]) (hl : w.directs .lifts = false) (hs : w.directs .seals = false)
-    (hc : w.placeChoices = []) :
+    (hc : w.placeChoices = []) (hw : w.landed = w) :
     (Val.map [(k, false, w)] none false).directed = .map [(k, false, w)] none false := by
-  simp [Val.directed, dirF, Val.directedAt, Val.folds, Val.atPlace, Val.dirIn, dirFields, dirSpread,
+  have hm : (Val.map [(k, false, w)] none false).landed = .map [(k, false, w)] none false := by
+    simp [Val.landed, landedFields, landedSpread, hw]
+  simp only [Val.directed, hm]
+  simp [dirF, Val.directedAt, Val.folds, Val.atPlace, Val.dirIn, dirFields, dirSpread,
     valuesAt, Val.placeTerms, Val.placeChoices, Val.directs, hd, hp, hl, hs, hc]
 
 theorem expand_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}

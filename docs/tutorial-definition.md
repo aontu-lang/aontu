@@ -2516,6 +2516,23 @@ def foldPlace (rd : Val → Val) (all : List Val) : Val :=
     fun p => (p.1, rd (.meet p.2 ((all.map Val.unchosen).foldl Val.meet .any))))
 ```
 
+A call's argument is no place of its own, but `copy`, `super` and
+`pref` hold their argument in the value they make, so a directive in the
+argument acts where that value lands. The reading meets such a call with
+its argument's shape first: its maps and lists with their keys, its
+members' shapes beneath, and every other term `any`. The directive then
+stands at the call's place, beside the call, and `copy(close() & {x:
+1})` stays sealed, though `copy` lifts every seal its argument writes:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- A call whose value holds its argument, met with the shape of an
+argument that writes a directive (`Val.shape`), where its value lands. -/
+def landCall (f : Fn) : List Val → Val
+  | [x] => if x.holdsDir then .meet (.call f [x]) x.shape else .call f [x]
+  | args => .call f args
+```
+
 The declarations make a graph, where a name refers to every name in
 its bodies, and a recursive name is one that refers to itself through
 any number of declarations:
