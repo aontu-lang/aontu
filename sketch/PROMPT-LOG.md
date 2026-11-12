@@ -996,3 +996,9 @@ by doesn't refer impose the template on the current value, forcing a meet?
 ```text
 but that means refer and rel are NOT the same surely?
 ```
+
+## 2026-11-12 18:43:05 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+why can rel() impose a template on it's target? that makes no sense. a relation is an ordered tuple, not a unification
+```
