@@ -319,7 +319,7 @@ case naming the cause and which side moves, read by both runners by
 name as `test/vectors/jsonschema/skips.tsv` is: a listed case that
 passes fails the run, the ledger is bounded, and the bound tightens as
 causes are fixed and rises only for a case the definition finds. The
-ledger holds 289 rows under eighteen causes: decisions 3 and 4 of §2, under
+ledger holds 325 rows under twenty-two causes: decisions 3 and 4 of §2, under
 the first of which the ports move and under the second the definition;
 #346, the sealed list met with a spread, where the ports move; the
 alias-cycle rule, decisions 1 and 2 of §7, where the ports move (#354,
@@ -358,7 +358,17 @@ ruling 40 lifts from what the value reads as on its own, where both
 ports lift a path inside the value to `any`, and move (#704); and a
 path from a lone preference to a place outside it, whose value the
 parent arm lifts as both ports' `eval` does, where both ports' `vet`
-disagrees with their own `eval`, and move (#702).
+disagrees with their own `eval`, and move (#702); two preferences of
+different ranks that meet, whose higher rank's constraint ruling 41 of
+§7 keeps, where both ports drop it, and move (#714); the higher rank's
+default, which ruling 42 fills in under the lower rank's where they
+agree, where both ports drop it too, and move (#714); an arm that was
+not a default, which decision 43 keeps one where a preference meets a
+disjunction at its rank or one with no default, where both ports make
+it a default and so clash, and move (#714); and a clash a meet makes,
+two defaults of one rank that disagree, which the definition reads as
+an `error` as both ports' `eval` does, where both ports' `vet` answers
+`invalid`, and move (#482).
 The 81 rows of #426, a call no reading makes, with the wrong number of
 arguments or a non-number negated, which the ports read as invalid,
 retired on 2026-11-02 when both ports' `vet` read a failure the schema
@@ -2062,6 +2072,281 @@ until the phase that encodes it lands.
    still lifts what the data writes there, since `Decls.placed` meets
    it into the copy where the preference stands; both ports do the
    same, and the README lists it as a limit.
+
+41. **Preferences of different ranks that meet.** Raised 2026-11-11
+   while building the reference's rule that compatible defaults fold.
+   `a: *1 & *integer` is `*1` in the reference and in both ports, but
+   the definition read it as `incomplete`: its meet made two arms of
+   rank one, `1` and `integer`, and generation asks every picked arm to
+   generate one value. The same held in one disjunction,
+   `*1 | *integer` and `*{a: 1} | *{b: 2}`, which both ports read as
+   `1` and `{"a": 1, "b": 2}`. Two defaults of one rank that admit
+   nothing in common, `*1 & *7`, are a clash, `pref_rank_clash`, in all
+   three. Of two ranks the lower one's default wins, `*1 & **7` is `1`,
+   but both ports drop the higher-rank preference outright, constraint
+   and all, so `a: *1 & **"s"` is `1` there and passes `a: 2`, where
+   the definition's meet keeps both constraints and admits nothing.
+
+   **Ruled 2026-11-11: keep both constraints.** The lower rank's
+   default wins, and the higher rank's override space still
+   constrains, so `&` stays a greatest lower bound and `admits_meet`
+   holds unchanged: `*1 & **"s"` is an `error`, and `*1 & **integer`
+   is `1`. The definition already met preferences so; both ports move
+   (#714). Defaults of one rank fold into their meet, as the reference
+   says.
+   **Built 2026-11-11**: `mkOrF`, the disjunction the meet makes
+   (`meetStep`), folds the arms the rank rule picks, two or more at a
+   positive rank whose meet is live, into that meet as one arm of the
+   rank, the arms it stands for kept at rank 0 preferring nothing
+   (`foldArms`, `Val.unranked`), so the disjunction admits what it did
+   (`admits_mkOrF`); where the meet is dead the arms stay, a clash.
+   `pickRank` and `picked` move from `Output.lean` to `Meet.lean`.
+   Rows g93 on of `test/spec/def-gen.tsv` and rk0 on of
+   `test/spec/def-verdict.tsv`, both ports answering 33 of 42 as the
+   definition does, the other 9 in the ledger under #714 and #482,
+   whose `vet` reads a clash a meet makes as `invalid`.
+
+42. **A weaker default under a stronger one.** Raised 2026-11-11 while
+   building ruling 41. The meet nested the right side's ranks inside the
+   left side's arms, so its default depended on the order written:
+   `*integer & **1` generated `1`, the weaker `1` filling in under the
+   stronger `integer`, but `**1 & *integer` generated nothing, and
+   `*{a: 1} & **{b: 2}` generated `{"a": 1, "b": 2}` one way round and
+   nothing the other. Both ports drop the weaker preference, generating
+   nothing for the first and `{"a": 1}` for the second, either way
+   round; ruling 41 already makes them keep its constraint.
+
+   **Ruled 2026-11-11: the weaker default fills in.** Ranks are layers:
+   the default is the stronger layer's, met with each weaker layer's
+   where they agree, whichever side either is written on.
+   `*integer & **1` is `1`, `*{a: 1} & **{b: 2}` is
+   `{"a": 1, "b": 2}`, and `*1 & **7` stays `1`, since `1` and `7`
+   disagree. Both ports move (#714).
+   **Built 2026-11-11**: `meetNodes` meets a disjunction or a lone
+   preference with its peer with the side that leads with the stronger
+   rank outermost (`Val.leadRank`, `nodeLeft`, `nodeRight`), the left
+   one where neither leads, so that the weaker
+   side's ranks nest inside the stronger side's arms. Rows g99 of
+   `test/spec/def-gen.tsv` and rk36 on of `test/spec/def-verdict.tsv`,
+   and rk24 moved to `valid`; rk24, rk36 and rk40, which both ports
+   answer otherwise, are in the ledger under #714. A meet whose two sides both lead
+   with one rank still nests the right one inside the left one, where
+   the fold of ruling 41 meets their defaults; decision 43 replaces
+   that.
+
+43. **An arm that was not a default, under a meet.** Raised 2026-11-11
+   while building decision 42. Where the two sides of a meet lead with
+   one rank, or one of them prefers nothing, the meet nested the right
+   side inside the left one, so the default depended on the order
+   written. `(*1 | 2) & *integer` was a clash, since the arm `2` met
+   `*integer` and became a default of its rank, and
+   `*integer & (*1 | 2)` was `1`. `(1 | 2) & *integer` was a clash one
+   way round and had no single default the other. And
+   `(*{a: 1} | {c: 3}) & *{b: 2}` was `{"a": 1, "b": 2, "c": 3}` one way
+   round and `{"a": 1, "b": 2}` the other. Both ports make every arm a
+   preference meets a default of its rank, in either order.
+
+   **Ruled 2026-11-11: an arm that was not a default stays one.** Ranks
+   are layers, as decision 42 has it: the defaults of one layer fold
+   into their meet, and an arm that was not a default stays one,
+   whichever side of the meet holds it. `(*1 | 2) & *integer` is `1`,
+   `(1 | 2) & *integer` has no single default, and
+   `(*{a: 1} | {c: 3}) & *{b: 2}` is `{"a": 1, "b": 2}`, in either
+   order. Both ports move (#714).
+   **Built 2026-11-11**: `meetNodes` first meets each arm of a
+   disjunction with `any` where one is a meet, a disjunction or a
+   preference (`nodeNorm`, `Val.armPending`), so that the rank a side
+   leads with is the one its arms make. `meetNodesN` then puts a side
+   with a default outside one with none, and meets two sides that lead
+   with one rank by `nodeTie`: each side's defaults met with the
+   other's at that rank, ahead of the arms that keep one side's default
+   alone (`tieArms`), which stand one rank weaker and so fold or clash
+   with each other. Where no two defaults meet, those arms stand at the
+   rank itself, so that a clash between them is the disjunction's.
+   `Val.meetOrs` ranks the arms it reads as one in the same way
+   (`orMeetF`, `tieMeet`), a lone preference beside the disjunctions
+   taking part as a node whose parent arm stays the preference
+   (`Val.prefArms`), where it had nested them in the order written, so
+   that a path in an arm no longer changes the default. Rows rk42 on of
+   `test/spec/def-verdict.tsv`, both orders of each meet, and dj168 on
+   and djl168 on of `test/spec/def-path.tsv`, and rk30 to rk32 moved
+   to `valid`, `incomplete` and `valid`. Both ports answer 33 of the 57
+   new rows as the definition does. The ledger takes rk30 to rk32,
+   rk42 to rk50, dj177 to dj182 and djl177 to djl182 under #714, where
+   both ports clash, and rk60 to rk62 under #482. A clash that a later
+   meet makes, by emptying the meet of two defaults of one rank while
+   each still meets an arm of the other side, stands inside the arm the
+   two defaults' meet held, as that arm's own, so the verdict drops the
+   arm where ruling 41 makes the clash the disjunction's.
+
+44. **`open()`, and the seals it lifts.** Raised 2026-11-11 while
+   working through the definition's limits. `open()` reverses a seal,
+   which the definition holds as a flag on each map and list, with no
+   form that lifts one. Both ports agree on every case probed. `open(v)`
+   lifts every seal in `v`, at every depth, and holds `v` open against
+   a seal from above: the deep seal of a `close()` around it, or the
+   seal a `type()` puts on its instances, so the instances of
+   `type(open({...}))`, and `open($.T)`, take keys the definition does
+   not declare. `close(open(m))` seals `m` itself and nothing beneath
+   it, and `open(v)` beside a sealed term lifts nothing there. Written
+   bare, `open()` lifts the seals of every term at its place, at every
+   depth and in any order, across separate statements too, and a bare
+   `close()` seals the place once its terms have met, and the levels
+   beneath it but those held open, so that `close()` wins over
+   `open()` at its own place. Neither bare form is a value: the meet is
+   a lattice, and its theorems rest on that.
+
+   **Ruled 2026-11-11: all of it.** `open(v)` is a mark, a rider the
+   meet carries, read with every seal of `v` lifted, and every seal
+   from above stops at it. A bare `open()` and a bare `close()` are
+   directives on their place, applied as the document is read and
+   before any meet: `open()` holds every term at its place open, and
+   then `close()` seals the place's terms as met, as the seal on an
+   instance does, its own level whatever holds it open. The meet stays
+   a lattice.
+   **Built 2026-11-11, `open(v)`**: the rider `Rider.opened`, which
+   `expandF` reads with every seal of its body lifted, the body expanded
+   first, so the seal on an instance is lifted with it (`Rider.reads`,
+   `Val.unseal`, moved beside `Val.unmark` from the verdict, where
+   `copy` used it), and which `Val.sealConjuncts` keeps whole, so that
+   `restrictF` answers `any` at a level where a conjunct is held open.
+   Its parent type keeps it, as a `move`'s does. A spread's template
+   keeps a seal written in it, as `copy`'s argument always has, since
+   both ports keep it on a member the data adds; both ports lift it on a
+   member the sealed map declares, which the definition doesn't. Rows
+   op0 on of `test/spec/def-alias.tsv`, 39 in all, and both ports answer
+   every one as the definition does.
+   **Built 2026-11-12, the bare forms**: the riders `Rider.lifts` and
+   `Rider.seals` over `any`, which `Val.directed` reads at the end of
+   `expand`, once a term's names have expanded: the terms at a member
+   are what each map at its parent declares for its key, wherever the
+   document writes it, an element's the same by index, and a
+   disjunction's arm, a preference's value and a spread's template each
+   a place of its own (`Val.dirIn`, `Val.placeTerms`). `open()` holds
+   each term at its place open with every seal in it lifted, and
+   `close()` meets the place with `closeSeal`, the restriction of its
+   terms read through every term held open at its own level, so that
+   `close()` wins there and stops beneath it at a term held open, a bare
+   `open()` among them (`Val.atPlace`, `Val.closeConjuncts`,
+   `Val.heldOpen`); the places beneath a place come first, so an
+   `open()` lifts the seal a `close()` beneath it makes, as `open(v)`
+   does, as both ports read it. Rows dir0 on of
+   `test/spec/def-alias.tsv`, 114 in all, and dirp0 on of
+   `test/spec/def-path.tsv`, 18 in all; both ports answer 105 of them as
+   the definition does, and the other 27 alike, listed in the ledger
+   under #726: a member's terms from more than one map, which both
+   ports fold `close()` into one of and read as a conflict; a member
+   held open by one term, which both ports keep open in one order of
+   the terms only; a directive at a spread's template's own level, which
+   both ports drop; a directive beside a path reference; and `close()`
+   at the document's root. A directive beside one disjunction or lone
+   preference reaches each of its arms the same day, each arm read with
+   the terms beside the choice (`Val.choiceOthers`), as both ports meet
+   it in, and the seal on an instance stops at a choice, where it had
+   sealed only the maps beside a disjunction and so killed the arms'
+   own keys (`Val.choosesArm`); rows dir114 on and o-rows for the type,
+   both ports answering every one as the definition does. The
+   definition leaves three cases to later work, listed in the README's
+   limits: a directive beside two or more choices at one place, a
+   declared member's own terms beside a directive in a spread's
+   template, and a directive inside a call's argument, a trial, a
+   selection's result or a link's template.
+   **Built 2026-11-12, the templates**: a spread's template reaches
+   every member, so a member's place holds each map's template beside
+   what the maps declare for the member's key, the template read at that
+   key (`memberTerms`, an element's the same, `elementTerms`), and the
+   templates at a place stand together for the members no term declares
+   (`Val.directedSpread`), their seal, or the disjunction a place that
+   folds reads as, chosen by the member's key so that it stands aside
+   for a declared key (`exceptKeys`, a `match` on `key()`). A directive
+   in a template beneath a choice makes the place fold (`Val.holdsDir`
+   reads templates now), so that the template's declared keys include
+   the other terms'. The reading skips a term that writes no directive,
+   which it would read as itself (`Val.directed`). Rows dir189 on of
+   `test/spec/def-alias.tsv`, 27 in all; both ports answer 6 of them as
+   the definition does, and the other 21 alike, listed in the ledger
+   under #726: both ports fold `close()` into the template's term or the
+   member's and read the other's keys as a conflict.
+
+45. **A directive beside two or more choices.** Raised 2026-11-12 by
+   decision 44's third slice, which left it a limit: a bare `close()`
+   or `open()` at a place that holds two or more disjunctions or lone
+   preferences, as in `close() & ({x: 1} | {y: 2}) & ({x: 1} | {w:
+   2})`. Each arm of a disjunction is a place of its own, which a
+   directive outside it doesn't reach, and the meet of the disjunctions
+   is the disjunction of every combination of their arms.
+   **Ruled 2026-11-12 (the project's owner): every combination.** The
+   directive reaches each combination of the choices' arms, and
+   `close()` seals each with the keys that combination declares,
+   whatever order the terms come in. Inside a member both ports answer
+   so in every order; at the document's root, and where `close()` is
+   written beside another term in one meet, both ports fold it into the
+   term it meets first, the order-dependence #726 tracks.
+   **Built 2026-11-12**: a place whose written terms hold a choice and
+   a directive, at the place or beneath it (`Val.folds`,
+   `Val.holdsDir`), reads as one disjunction, which the first term to
+   hold a choice carries (`Val.leads`), the others reading as `any`:
+   each combination of the choices' arms (`choicesMet`), met as
+   written and ranked as the meet ranks them (`orMeet`, moved from the
+   path reading into `Alias.lean`), each arm under the riders its
+   choice stands under and a lone preference as `x | super(x)`
+   (`Val.placeChoices`), met with every term at the place, its choices
+   read as `any` (`Val.unchosen`), and read as a place of its own
+   (`foldPlace`, `Val.directedAt`). The arms of a place that folds are
+   read a turn later (`dirF`), a turn for each constructor the term
+   holds. This replaces decision 44's reading of one choice with the
+   terms beside it (`Val.choiceOthers`), which read those terms twice,
+   in each arm and beside the choice, so that a directive in a term
+   beside a choice, at a place beneath, sealed that place without the
+   keys an arm adds there; every row decision 44 wrote keeps its
+   answer. Rows dir153 on of `test/spec/def-alias.tsv`, 36 in all;
+   both ports answer 29 of them as the definition does, and the other 7
+   alike, listed in the ledger: 6 under #726, where `close()` stands
+   beside a term in one meet and both ports fold it into that term,
+   and 1 under #714, a preference met with a disjunction under
+   `--no-fill`, which both ports read so with or without the
+   directive.
+
+46. **A directive inside a call's argument.** Raised 2026-11-12: a bare
+   `close()` or `open()` inside a call's argument, as in
+   `copy(close() & {x: 1})`. `copy` unseals its argument (ruling 27),
+   yet both ports answer this copy as sealed and refuse `{x: 1, y: 2}`.
+   **Ruled 2026-11-12 (the project's owner): where the value lands.** A
+   directive inside a call's argument acts at the place the call's
+   value stands, so `copy(close() & {x: 1})` stays sealed.
+   **Built 2026-11-12**: a call whose value holds its argument, `copy`,
+   `super` or `pref` (`Fn.landsArg`), over an argument that writes a
+   directive, is met with the argument's shape before the directives
+   are read (`Val.landed`, `landCall`): its maps and lists unsealed,
+   with their keys, each member in its shape and every other term
+   `any`, the directives and a term held open kept (`Val.shape`). The
+   directive then stands at the call's place, beside the call, and a
+   seal it makes lies outside the argument that `copy` unseals. Rows
+   dirp18 on of `test/spec/def-path.tsv`, 30 in all; both ports answer
+   27 of them as the definition does, and the other 3 alike, listed in
+   the ledger under #726: the copy beside a map the place also writes,
+   which both ports read as a conflict once they fold `close()` into
+   the argument. A directive inside a trial, a selection's result or a
+   link's template, or the argument of any other call, still reads as
+   `any`, and so does a `close()` beside a call, whose seal stops at
+   the call: both stay listed in the README's limits.
+
+47. **Modules.** Raised 2026-11-12 while planning P10: the module
+   imports `@"corp.example/schemas/service"` and `@"alias:legacy"`, and
+   a `#hash` pin on one. The registry and the network lie outside the
+   definition by design.
+   **Ruled 2026-11-12 (the project's owner): sources the host
+   resolves.** A module import reads as a source load whose text the
+   calling program supplies, as it supplies a variable's value; routing,
+   validity, aliases and hash pins stay with the tools.
+
+48. **How far completion goes.** Raised 2026-11-12 with the plan for
+   completion: whether finishing the definition includes moving both
+   ports to it, the 355 rows of `spec/ledger.tsv` among them.
+   **Ruled 2026-11-12 (the project's owner): the ledger to zero.** Both
+   ports move until the ledger is empty. The divergences between the
+   ports in an error's site or wording, about 25, stay outside this
+   effort.
 
 ## 8. Risks
 

@@ -37,13 +37,19 @@ inductive Bound where
 /-- The riders: the calls that put a record on a value and change
 nothing it admits or generates. The record is a map of data the
 definition carries and reads nothing of (decision 14 of the design
-note's §7). -/
+note's §7). A bare `open()` and a bare `close()` are written as riders
+over `any` too, the directives the reading applies on their place
+(`Val.directed`, decision 44), each reading as `any` wherever nothing
+applies it. -/
 inductive Rider where
   | metadata                                -- `meta(v, r)`, an annotation; Lean keeps `meta`
   | deprecate                               -- `deprecate(v, r)`, the record `{}` where none is written
   | ident                                   -- `ident(v, r)`, the identity of an alias's value
   | type                                    -- `type(v)`, a mark: the value is a definition
   | hide                                    -- `hide(v)`, a mark: the value is no part of the output
+  | opened                                  -- `open(v)`, every seal in `v` lifted and held open; Lean keeps `open`
+  | lifts                                   -- a bare `open()`, every term at its place held open
+  | seals                                   -- a bare `close()`, its place sealed once its terms have met
   | move (n : String)                       -- the value `move` makes of the path named `n` (`pathName`)
   deriving DecidableEq
 
@@ -233,7 +239,7 @@ meet of two kinds has the lower kind's parent; any other meet lifts
 each side. A reference lifts as itself, a residual the engines keep
 symbolic too. A rider is left behind, but the one a `move` makes
 (`Rider.move`), so that each arm a moved preference reads as carries
-it. -/
+it, and `open(v)`'s, so that the parent stays open where `v` is. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
   | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
@@ -262,6 +268,7 @@ def Val.super : Val → Val
   | .nof _ _ | .must _ _ | .when _ _ _ | .contains _ _ | .rest _ _ | .select _ _ _ | .filter _ _
   | .call _ _ => .any
   | .ride (.move n) v r => .ride (.move n) v.super r
+  | .ride .opened v r => .ride .opened v.super r
   | .ride _ v _ => v.super
   | .link v _ => v.super
   | .key | .keyUp _ => .anyString
@@ -386,7 +393,9 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
       · exact Val.keyed_of_isKind ‹_›
       · simp only [Val.keyed, Val.keyed_super a, Val.keyed_super b, Bool.or_self]
   | .ride (.move _) v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
-  | .ride .metadata v _ | .ride .deprecate v _ | .ride .ident v _ | .ride .type v _ | .ride .hide v _ => by
+  | .ride .opened v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
+  | .ride .metadata v _ | .ride .deprecate v _ | .ride .ident v _ | .ride .type v _ | .ride .hide v _
+  | .ride .lifts v _ | .ride .seals v _ => by
     simp only [Val.super]; exact Val.keyed_super v
   | .link v _ => by simp only [Val.super]; exact Val.keyed_super v
   | .pref _ x => by simp only [Val.super]; exact Val.keyed_super x

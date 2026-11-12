@@ -898,3 +898,87 @@ The answers to the agent's questions, each question followed by the option chose
 Decision 40: a path inside a lone preference, e.g. `x: *{a: 1, b: .a}`. A lone `*x` means `x | super(x)`, where `super(x)` is the parent type: the arm that accepts what overrides the default. Today the definition reads this document as an error. Both engines never resolve the path while the default is still in play (#700), and in the parent arm they treat the path as `any`. What should the parent arm be?
 → Lift what x reads as (Recommended)
 ```
+
+## 2026-11-11 11:17:06 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 41: when two lone preferences of different ranks meet, does the weaker one's constraint still hold? Example: `a: *1 & **"s"`. Both engines today drop `**"s"` outright: they output `1` and pass `a: 2`, though `**"s"` admits only strings. The definition keeps `&` a meet: the stronger default `1` wins, but every value must satisfy both sides, so this document is an error (nothing is both an integer and a string). For `*1 & **7` both readings agree: the default is `1`, and `7` or any integer passes.
+→ Keep both constraints (Recommended)
+```
+
+## 2026-11-11 12:54:15 UTC · Claude Code · session_01D35vdaJrzKd5f8ukay7G9U
+
+```text
+with respect to the prompt-log, this should be updated and conflicts resolved without discussing this with the user, only inform the user of prompt-log edits if explicitly requested
+```
+
+## 2026-11-11 13:30:05 UTC · Claude Code · session_01D35vdaJrzKd5f8ukay7G9U
+
+```text
+merge both
+```
+
+## 2026-11-11 14:03:36 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 42: when a stronger default wins, does a weaker default still fill in where the stronger one leaves the value open? Examples: `a: *integer & **1` and `a: *{x: 1} & **{y: 2}`. Today the definition's answer depends on which side is written first (it outputs `1` one way round and nothing the other), which has to be fixed either way. The engines drop the weaker preference and output nothing for the first and `{"x": 1}` for the second; ruling 41 already makes them keep its constraint, so the second can't stay `{"x": 1}` (`y` must be an integer).
+→ Weaker fills in (Recommended)
+```
+
+## 2026-11-11 15:47:07 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 43: when a preference meets a disjunction at the same rank, or a disjunction with no default, the definition's answer depends on which side is written first. Example: `(*1 | 2) & *integer` is an error one way round and `1` the other; both engines give `pref_rank_clash` (error) in either order. Which reading should hold in both orders?
+→ Arms stay non-default (Recommended)
+```
+
+## 2026-11-11 22:02:35 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+How should the Lean definition hold open() (decision 44)? Both engines agree on all 23 cases I probed: open(v) lifts every seal in v at every depth and holds v open against a seal from above (close around it, or a type()'s instance seal), so type(open({...})) instances and open($.T) accept extra keys. close(open(m)) still seals m's own top level. A bare open() lifts the seals of every term at its place, at any depth and in any order, even from separate statements at the same key. A bare close() seals the place after that, so close() beats open(). open(v) placed beside a sealed term lifts nothing there. A bare open() or close() isn't a value, so the definition's meet (a lattice, which its theorems rely on) can't hold it directly.
+→ All of it (Recommended)
+```
+
+## 2026-11-12 09:08:25 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+How much of aontu is now specified in lean?
+```
+
+## 2026-11-12 13:32:16 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+what is the plan for completion?
+```
+
+## 2026-11-12 13:36:59 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+ask me for rulings, then proceed
+```
+
+## 2026-11-12 13:42:16 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 45: a bare close() or open() written beside two or more disjunctions at one place, e.g. `close() & ({x:1} | {y:2}) & ({x:1} | {w:2})`. Both engines meet the directive into every combination of arms, each combination sealed with its own keys. The definition currently seals nothing there (a listed limit). Which should the definition hold?
+→ Every combination (Recommended)
+
+Decision 46: a bare close() or open() inside a call's argument, e.g. `copy(close() & {x: 1})`. copy() unseals its argument (ruling 27), yet both engines answer this copy as sealed, refusing `{x: 1, y: 2}`. Where does a directive inside a call's argument act?
+→ Where the value lands (Recommended)
+
+Scope of completion: does finishing the Lean work include moving both engines (TypeScript and Go) to the definition, emptying the ledger's 355 rows (#700, #504, #704/#702, #714, #726, #361 and smaller), about 10 engine PRs?
+→ Ledger to zero (Recommended)
+
+Modules (P10): module imports like `@"corp.example/schemas/service"`, `@"alias:legacy"` and `#hash` pins. The registry and network are already outside the definition by design. How should the definition hold module imports?
+→ Sources the host resolves (Recommended)
+```

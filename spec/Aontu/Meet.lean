@@ -1001,6 +1001,140 @@ theorem admits_mkOr (arms : List (ℕ × Val)) (j : Data) :
         | true => exact absurd ha' (dead_sound a' hd j)
       exact ⟨r', a', List.mem_filter.mpr ⟨hm', by simp [hd]⟩, ha'⟩
 
+/-! ## Folding defaults
+
+Two defaults of one rank fold into their meet (ruling 41): the arms the
+rank rule picks, two or more at a positive rank, are met into one arm of
+that rank, which the rule then picks alone, and the arms it stands for
+are kept at rank `0`, preferring nothing, so that the disjunction admits
+what it admitted. Where the meet admits nothing the arms stay as they
+are, a preference clash (`clash`). -/
+
+/-- The rank the rule picks: the lowest positive rank among the live
+arms, where any has one. -/
+def pickRank (arms : List (ℕ × Val)) : Option ℕ :=
+  arms.foldl (fun acc p =>
+    if p.2.dead || p.1 = 0 then acc
+    else match acc with
+      | none => some p.1
+      | some m => some (min m p.1)) none
+
+/-- Whether the rule picks an arm: a live one, of the picked rank where
+there is one. -/
+def picked (arms : List (ℕ × Val)) (p : ℕ × Val) : Bool :=
+  !p.2.dead && (match pickRank arms with
+    | none => true
+    | some m => decide (p.1 = m))
+
+/-- The term with each arm of a disjunction at its top, and of each
+disjunction such an arm is, of rank `0`, within `n` levels. -/
+def unrankF : ℕ → Val → Val
+  | 0, v => v
+  | n + 1, .or arms => .or (arms.map fun p => (0, unrankF n p.2))
+  | _ + 1, v => v
+
+/-- The term preferring nothing at its top: each disjunction there of
+rank `0` throughout (`unrankF`), as deep as the term goes. -/
+def Val.unranked (v : Val) : Val := unrankF v.size v
+
+theorem admits_unrankF : ∀ (n : ℕ) (v : Val) (j : Data),
+    Admits env root (unrankF n v) j ↔ Admits env root v j
+  | 0, _, _ => Iff.rfl
+  | n + 1, v, j => by
+    cases v with
+    | or arms =>
+      simp only [unrankF]
+      rw [admits_or_iff, admits_or_iff]
+      constructor
+      · rintro ⟨r, a, hm, ha⟩
+        obtain ⟨⟨r', a'⟩, hm', he⟩ := List.mem_map.mp hm
+        simp only [Prod.mk.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        exact ⟨r', a', hm', (admits_unrankF n a' j).mp ha⟩
+      · rintro ⟨r, a, hm, ha⟩
+        exact ⟨0, unrankF n a, List.mem_map.mpr ⟨(r, a), hm, rfl⟩, (admits_unrankF n a j).mpr ha⟩
+    | _ => exact Iff.rfl
+
+theorem admits_unranked (v : Val) (j : Data) : Admits env root v.unranked j ↔ Admits env root v j :=
+  admits_unrankF _ v j
+
+/-- The live arms `live` with the arms the rank rule picks, two or more
+at a positive rank, folded: their meet, `rec` meeting two terms, an arm
+of that rank ahead of them, and each of them at rank `0`, preferring
+nothing (`Val.unranked`); as they are where their meet is dead, which
+is a preference clash. -/
+def foldArms (rec : Val → Val → Val) (live : List (ℕ × Val)) : List (ℕ × Val) :=
+  match pickRank live with
+  | none => live
+  | some r =>
+    match live.filter (picked live) with
+    | p :: q :: more =>
+      if (more.foldl (fun acc a => rec acc a.2) (rec p.2 q.2)).dead then live
+      else (r, more.foldl (fun acc a => rec acc a.2) (rec p.2 q.2)) ::
+        live.map fun a => if picked live a then (0, a.2.unranked) else a
+    | _ => live
+
+/-- A disjunction of the live arms (`mkOr`) with the arms the rank rule
+picks folded (`foldArms`). -/
+def mkOrF (rec : Val → Val → Val) (arms : List (ℕ × Val)) : Val :=
+  match mkOr arms with
+  | .or live => .or (foldArms rec live)
+  | v => v
+
+section
+variable {rec : Val → Val → Val}
+  (hr : ∀ a b j, Admits env root (rec a b) j ↔ Admits env root a j ∧ Admits env root b j)
+include hr
+
+theorem admits_foldl_meet : ∀ (more : List (ℕ × Val)) (acc : Val) (j : Data),
+    Admits env root (more.foldl (fun acc a => rec acc a.2) acc) j → Admits env root acc j
+  | [], _, _, h => h
+  | a :: more, acc, j, h => ((hr acc a.2 j).mp (admits_foldl_meet more _ j h)).1
+
+theorem admits_foldArms (live : List (ℕ × Val)) (j : Data) :
+    Admits env root (.or (foldArms rec live)) j ↔ Admits env root (.or live) j := by
+  unfold foldArms
+  split
+  · exact Iff.rfl
+  · split
+    · rename_i p q more hpq
+      split
+      · exact Iff.rfl
+      · rw [admits_or_iff, admits_or_iff]
+        constructor
+        · rintro ⟨r', a, hm, ha⟩
+          rcases List.mem_cons.mp hm with he | hm
+          · simp only [Prod.mk.injEq] at he
+            obtain ⟨rfl, rfl⟩ := he
+            have hp : p ∈ live.filter (picked live) := hpq ▸ List.mem_cons_self
+            exact ⟨p.1, p.2, (List.mem_filter.mp hp).1,
+              ((hr p.2 q.2 j).mp (admits_foldl_meet hr more _ j ha)).1⟩
+          · obtain ⟨b, hb, he⟩ := List.mem_map.mp hm
+            by_cases hk : picked live b = true
+            · simp only [hk, if_true, Prod.mk.injEq] at he
+              obtain ⟨rfl, rfl⟩ := he
+              exact ⟨b.1, b.2, hb, (admits_unranked b.2 j).mp ha⟩
+            · simp only [hk, if_false, Bool.false_eq_true] at he
+              subst he
+              exact ⟨r', a, hb, ha⟩
+        · rintro ⟨r', a, hm, ha⟩
+          by_cases hk : picked live (r', a) = true
+          · exact ⟨0, a.unranked, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨(r', a), hm, by simp [hk]⟩),
+              (admits_unranked a j).mpr ha⟩
+          · exact ⟨r', a, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨(r', a), hm, by simp [hk]⟩), ha⟩
+    · exact Iff.rfl
+
+theorem admits_mkOrF (arms : List (ℕ × Val)) (j : Data) :
+    Admits env root (mkOrF rec arms) j ↔ ∃ r a, (r, a) ∈ arms ∧ Admits env root a j := by
+  rw [← admits_mkOr arms j]
+  unfold mkOrF
+  split
+  · rename_i live h
+    rw [h]
+    exact admits_foldArms hr live j
+  · exact Iff.rfl
+end
+
 /-! ## Two maps -/
 
 /-- Whether a map term declares a key. -/
@@ -1860,9 +1994,9 @@ theorem admits_list_any {m : Val → Val → Val}
 theorem admits_or_left {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
     (arms : List (ℕ × Val)) (b : Val) (j : Data) :
-    Admits env root (mkOr (arms.map fun p => (p.1, m p.2 b))) j ↔
+    Admits env root (mkOrF m (arms.map fun p => (p.1, m p.2 b))) j ↔
       Admits env root (.or arms) j ∧ Admits env root b j := by
-  rw [admits_mkOr, admits_or_iff]
+  rw [admits_mkOrF hm, admits_or_iff]
   constructor
   · rintro ⟨r, a, hmem, ha⟩
     obtain ⟨⟨r', a'⟩, hmem', he⟩ := List.mem_map.mp hmem
@@ -1876,9 +2010,9 @@ theorem admits_or_left {m : Val → Val → Val}
 theorem admits_or_right {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
     (a : Val) (arms : List (ℕ × Val)) (j : Data) :
-    Admits env root (mkOr (arms.map fun p => (p.1, m a p.2))) j ↔
+    Admits env root (mkOrF m (arms.map fun p => (p.1, m a p.2))) j ↔
       Admits env root a j ∧ Admits env root (.or arms) j := by
-  rw [admits_mkOr, admits_or_iff]
+  rw [admits_mkOrF hm, admits_or_iff]
   constructor
   · rintro ⟨r, b, hmem, hb⟩
     obtain ⟨⟨r', b'⟩, hmem', he⟩ := List.mem_map.mp hmem
@@ -1892,9 +2026,9 @@ theorem admits_or_right {m : Val → Val → Val}
 theorem admits_pref_left {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
     (r : ℕ) (x b : Val) (j : Data) :
-    Admits env root (mkOr [(r, m x b), (0, m x.super b)]) j ↔
+    Admits env root (mkOrF m [(r, m x b), (0, m x.super b)]) j ↔
       Admits env root (.pref r x) j ∧ Admits env root b j := by
-  rw [admits_mkOr, admits_pref_iff]
+  rw [admits_mkOrF hm, admits_pref_iff]
   simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
   constructor
   · rintro ⟨r', a, h, ha⟩
@@ -1908,9 +2042,9 @@ theorem admits_pref_left {m : Val → Val → Val}
 theorem admits_pref_right {m : Val → Val → Val}
     (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
     (a : Val) (r : ℕ) (y : Val) (j : Data) :
-    Admits env root (mkOr [(r, m a y), (0, m a y.super)]) j ↔
+    Admits env root (mkOrF m [(r, m a y), (0, m a y.super)]) j ↔
       Admits env root a j ∧ Admits env root (.pref r y) j := by
-  rw [admits_mkOr, admits_pref_iff]
+  rw [admits_mkOrF hm, admits_pref_iff]
   simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
   constructor
   · rintro ⟨r', b, h, hb⟩
@@ -1920,6 +2054,356 @@ theorem admits_pref_right {m : Val → Val → Val}
   · rintro ⟨ha, hy | hy⟩
     · exact ⟨r, m a y, .inl ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨ha, hy⟩⟩
     · exact ⟨0, m a y.super, .inr ⟨rfl, rfl⟩, (hm _ _ _).mpr ⟨ha, hy⟩⟩
+
+/-- The rank a term leads with: a lone preference's, or the one the rank
+rule picks among a disjunction's arms; none for any other term. -/
+def Val.leadRank : Val → Option ℕ
+  | .pref r _ => some r
+  | .or arms => pickRank arms
+  | _ => none
+
+/-- Whether a term is a disjunction or a lone preference. -/
+def Val.isNode : Val → Bool
+  | .or _ => true
+  | .pref _ _ => true
+  | _ => false
+
+/-- The arms a term stands for: a disjunction's own, a lone preference
+`*x` as `x | super(x)`, and any other term as its one arm, of rank
+`0`. -/
+def Val.armsOf : Val → List (ℕ × Val)
+  | .or arms => arms
+  | .pref r x => [(r, x), (0, x.super)]
+  | v => [(0, v)]
+
+/-- The arms of `v` at the rank `r` (`Val.armsOf`). -/
+def armsAtRank (r : ℕ) (v : Val) : List (ℕ × Val) := v.armsOf.filter fun p => p.1 == r
+
+/-- The arms of `v` at any rank but `r` (`Val.armsOf`). -/
+def armsOffRank (r : ℕ) (v : Val) : List (ℕ × Val) := v.armsOf.filter fun p => p.1 != r
+
+/-- Whether an arm is a meet, a disjunction or a lone preference, whose
+ranks, or whose death, only the meet makes plain. -/
+def Val.armPending : Val → Bool
+  | .meet _ _ => true
+  | .or _ => true
+  | .pref _ _ => true
+  | _ => false
+
+/-- A disjunction one of whose arms is pending (`Val.armPending`) with
+each arm met with `any`, so that a default an arm holds unmade, such as
+a preference in a meet, stands among its arms, where the rank rule
+reads it, and a dead arm is gone; any other term as it is. -/
+def nodeNorm (rec : Val → Val → Val) : Val → Val
+  | .or arms =>
+    if arms.any (·.2.armPending) then mkOrF rec (arms.map fun p => (p.1, rec p.2 .any)) else .or arms
+  | v => v
+
+/-- A term met with a disjunction or a lone preference `b`, `b`
+outermost: each of its arms met with `a`, keeping its rank, `b` alone as
+`y | super(y)`; any other pair as written. -/
+def nodeRight (rec : Val → Val → Val) (a b : Val) : Val :=
+  match b with
+  | .or arms => mkOrF rec (arms.map fun p => (p.1, rec a p.2))
+  | .pref r y => mkOrF rec [(r, rec a y), (0, rec a y.super)]
+  | b => .meet a b
+
+/-- A disjunction or a lone preference `a` met with a term, `a`
+outermost, as `nodeRight` meets them the other way about, or `b`
+outermost where `a` is neither. -/
+def nodeLeft (rec : Val → Val → Val) (a b : Val) : Val :=
+  match a with
+  | .or arms => mkOrF rec (arms.map fun p => (p.1, rec p.2 b))
+  | .pref r x => mkOrF rec [(r, rec x b), (0, rec x.super b)]
+  | a => nodeRight rec a b
+
+/-- The arms the meet of two terms that lead with the rank `r` makes
+(decision 43): each default of rank `r` of one met with each of the
+other's, at rank `r`, and each one's met with the other side's other
+arms, which keep their ranks there, as one arm of rank `k`. -/
+def tieArms (rec : Val → Val → Val) (r k : ℕ) (a b : Val) : List (ℕ × Val) :=
+  (armsAtRank r a).flatMap (fun p => (armsAtRank r b).map fun q => (r, rec p.2 q.2)) ++
+    (armsAtRank r a).map (fun p => (k, mkOrF rec ((armsOffRank r b).map fun q => (q.1, rec p.2 q.2)))) ++
+    (armsAtRank r b).map (fun q => (k, mkOrF rec ((armsOffRank r a).map fun p => (p.1, rec p.2 q.2))))
+
+/-- Whether a default of rank `r` of one term meets one of the other's
+in anything. -/
+def tieLive (rec : Val → Val → Val) (r : ℕ) (a b : Val) : Bool :=
+  (armsAtRank r a).any fun p => (armsAtRank r b).any fun q => !(rec p.2 q.2).dead
+
+/-- Two terms that lead with one rank `r`, met (decision 43). Where a
+default of each meets one of the other's, the arms `tieArms` makes, the
+defaults' meets ahead of the arms that keep one side's default alone,
+which stand one rank weaker, all as one arm of rank `r`; where none
+does, those arms at rank `r` themselves, two defaults of one rank that
+fold or clash (ruling 41). Below either, the other arms of the two met
+with each other, at the ranks that meet gives them. An arm that was not
+a default stays one, whichever side it is written on. -/
+def nodeTie (rec : Val → Val → Val) (r : ℕ) (a b : Val) : Val :=
+  if tieLive rec r a b then
+    mkOrF rec [(r, mkOrF rec (tieArms rec r (r + 1) a b)),
+      (0, rec (.or (armsOffRank r a)) (.or (armsOffRank r b)))]
+  else
+    mkOrF rec (tieArms rec r r a b ++ [(0, rec (.or (armsOffRank r a)) (.or (armsOffRank r b)))])
+
+/-- Two terms met as `meetNodes` meets them once each disjunction's arms
+are read (`nodeNorm`): the one that leads with the stronger rank
+outermost (decision 42), a term with no default inside one with a
+default, two that lead with one rank as `nodeTie` meets them (decision
+43), and two with no default the left one outermost, or met as terms
+where neither is a disjunction or a preference any longer. -/
+def meetNodesN (rec : Val → Val → Val) (a b : Val) : Val :=
+  match a.leadRank, b.leadRank with
+  | some ra, some rb =>
+    if ra < rb then nodeLeft rec a b
+    else if rb < ra then nodeRight rec a b
+    else nodeTie rec ra a b
+  | some _, none => nodeLeft rec a b
+  | none, some _ => nodeRight rec a b
+  | none, none => if a.isNode || b.isNode then nodeLeft rec a b else rec a b
+
+/-- Two terms one of which is a disjunction or a lone preference, met
+with each disjunction's arms read first (`nodeNorm`), so that the rank
+each leads with is the one its arms make, and then as `meetNodesN` meets
+them: a weaker default fills in under a stronger one (decision 42), and
+an arm that was not a default stays one (decision 43), whichever side
+either is written on. -/
+def meetNodes (rec : Val → Val → Val) (a b : Val) : Val :=
+  meetNodesN rec (nodeNorm rec a) (nodeNorm rec b)
+
+theorem admits_nodeRight {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a b : Val) (j : Data) :
+    Admits env root (nodeRight m a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+  cases b <;> (unfold nodeRight; dsimp only) <;> first
+    | exact admits_or_right hm ..
+    | exact admits_pref_right hm ..
+    | exact admits_meet_iff
+
+theorem admits_nodeLeft {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a b : Val) (j : Data) :
+    Admits env root (nodeLeft m a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+  cases a <;> (unfold nodeLeft; dsimp only) <;> first
+    | exact admits_or_left hm ..
+    | exact admits_pref_left hm ..
+    | exact admits_nodeRight hm ..
+
+theorem admits_armsOf (v : Val) (j : Data) :
+    Admits env root v j ↔ ∃ r a, (r, a) ∈ v.armsOf ∧ Admits env root a j := by
+  have hsing : ∀ q : ℕ × Val, (∃ r a, (r, a) ∈ [q] ∧ Admits env root a j) ↔ Admits env root q.2 j := by
+    rintro ⟨r', a'⟩
+    constructor
+    · rintro ⟨r, a, hm, ha⟩
+      rw [List.mem_singleton, Prod.mk.injEq] at hm
+      obtain ⟨rfl, rfl⟩ := hm
+      exact ha
+    · intro h
+      exact ⟨r', a', List.mem_singleton.mpr rfl, h⟩
+  cases v with
+  | or arms => exact admits_or_iff
+  | pref r x =>
+    rw [admits_pref_iff]
+    simp only [Val.armsOf, List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
+    constructor
+    · rintro (h | h)
+      · exact ⟨r, x, .inl ⟨rfl, rfl⟩, h⟩
+      · exact ⟨0, x.super, .inr ⟨rfl, rfl⟩, h⟩
+    · rintro ⟨r', a, h, ha⟩
+      rcases h with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+      · exact .inl ha
+      · exact .inr ha
+  | _ => exact (hsing (0, _)).symm
+
+theorem admits_armsSplit (v : Val) (r : ℕ) (j : Data) :
+    Admits env root v j ↔
+      (∃ r' a, (r', a) ∈ armsAtRank r v ∧ Admits env root a j) ∨
+        (∃ r' a, (r', a) ∈ armsOffRank r v ∧ Admits env root a j) := by
+  rw [admits_armsOf v j]
+  constructor
+  · rintro ⟨r', a, hm, ha⟩
+    cases hb : (r' == r) with
+    | true => exact .inl ⟨r', a, List.mem_filter.mpr ⟨hm, hb⟩, ha⟩
+    | false =>
+      exact .inr ⟨r', a, List.mem_filter.mpr ⟨hm, by show (!(r' == r)) = true; rw [hb]; rfl⟩, ha⟩
+  · rintro (⟨r', a, hm, ha⟩ | ⟨r', a, hm, ha⟩)
+    · exact ⟨r', a, (List.mem_filter.mp hm).1, ha⟩
+    · exact ⟨r', a, (List.mem_filter.mp hm).1, ha⟩
+
+theorem admits_exists_append (l₁ l₂ : List (ℕ × Val)) (j : Data) :
+    (∃ r a, (r, a) ∈ l₁ ++ l₂ ∧ Admits env root a j) ↔
+      (∃ r a, (r, a) ∈ l₁ ∧ Admits env root a j) ∨ (∃ r a, (r, a) ∈ l₂ ∧ Admits env root a j) := by
+  constructor
+  · rintro ⟨r, a, hm, ha⟩
+    rcases List.mem_append.mp hm with h | h
+    · exact .inl ⟨r, a, h, ha⟩
+    · exact .inr ⟨r, a, h, ha⟩
+  · rintro (⟨r, a, h, ha⟩ | ⟨r, a, h, ha⟩)
+    · exact ⟨r, a, List.mem_append.mpr (.inl h), ha⟩
+    · exact ⟨r, a, List.mem_append.mpr (.inr h), ha⟩
+
+theorem admits_exists_two (r₁ r₂ : ℕ) (x y : Val) (j : Data) :
+    (∃ r a, (r, a) ∈ [(r₁, x), (r₂, y)] ∧ Admits env root a j) ↔
+      Admits env root x j ∨ Admits env root y j := by
+  simp only [List.mem_cons, Prod.mk.injEq, List.not_mem_nil, or_false]
+  constructor
+  · rintro ⟨r, a, h, ha⟩
+    rcases h with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+    · exact .inl ha
+    · exact .inr ha
+  · rintro (h | h)
+    · exact ⟨r₁, x, .inl ⟨rfl, rfl⟩, h⟩
+    · exact ⟨r₂, y, .inr ⟨rfl, rfl⟩, h⟩
+
+theorem admits_pairs {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (k : ℕ) (pa pb : List (ℕ × Val)) (j : Data) :
+    (∃ r v, (r, v) ∈ pa.flatMap (fun p => pb.map fun q => (k, m p.2 q.2)) ∧ Admits env root v j) ↔
+      (∃ r a, (r, a) ∈ pa ∧ Admits env root a j) ∧ (∃ r b, (r, b) ∈ pb ∧ Admits env root b j) := by
+  constructor
+  · rintro ⟨r, v, hmem, hv⟩
+    obtain ⟨⟨r₁, a₁⟩, hp, hm'⟩ := List.mem_flatMap.mp hmem
+    obtain ⟨⟨s₁, b₁⟩, hq, he⟩ := List.mem_map.mp hm'
+    simp only [Prod.mk.injEq] at he
+    obtain ⟨rfl, rfl⟩ := he
+    rw [hm] at hv
+    exact ⟨⟨r₁, a₁, hp, hv.1⟩, ⟨s₁, b₁, hq, hv.2⟩⟩
+  · rintro ⟨⟨r, a, ha, hja⟩, ⟨s, b, hb, hjb⟩⟩
+    exact ⟨k, m a b, List.mem_flatMap.mpr ⟨(r, a), ha, List.mem_map.mpr ⟨(s, b), hb, rfl⟩⟩,
+      (hm _ _ _).mpr ⟨hja, hjb⟩⟩
+
+theorem admits_groupsL {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (k : ℕ) (pa qb : List (ℕ × Val)) (j : Data) :
+    (∃ r v, (r, v) ∈ pa.map (fun p => (k, mkOrF m (qb.map fun q => (q.1, m p.2 q.2)))) ∧
+        Admits env root v j) ↔
+      (∃ r a, (r, a) ∈ pa ∧ Admits env root a j) ∧ (∃ r b, (r, b) ∈ qb ∧ Admits env root b j) := by
+  constructor
+  · rintro ⟨r, v, hmem, hv⟩
+    obtain ⟨⟨r₁, a₁⟩, hp, he⟩ := List.mem_map.mp hmem
+    simp only [Prod.mk.injEq] at he
+    obtain ⟨rfl, rfl⟩ := he
+    rw [admits_mkOrF hm] at hv
+    obtain ⟨s, w, hw, hjw⟩ := hv
+    obtain ⟨⟨s₁, b₁⟩, hq, he'⟩ := List.mem_map.mp hw
+    simp only [Prod.mk.injEq] at he'
+    obtain ⟨rfl, rfl⟩ := he'
+    rw [hm] at hjw
+    exact ⟨⟨r₁, a₁, hp, hjw.1⟩, ⟨s₁, b₁, hq, hjw.2⟩⟩
+  · rintro ⟨⟨r, a, ha, hja⟩, ⟨s, b, hb, hjb⟩⟩
+    refine ⟨k, _, List.mem_map.mpr ⟨(r, a), ha, rfl⟩, ?_⟩
+    rw [admits_mkOrF hm]
+    exact ⟨s, m a b, List.mem_map.mpr ⟨(s, b), hb, rfl⟩, (hm _ _ _).mpr ⟨hja, hjb⟩⟩
+
+theorem admits_groupsR {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (k : ℕ) (qa pb : List (ℕ × Val)) (j : Data) :
+    (∃ r v, (r, v) ∈ pb.map (fun q => (k, mkOrF m (qa.map fun p => (p.1, m p.2 q.2)))) ∧
+        Admits env root v j) ↔
+      (∃ r a, (r, a) ∈ qa ∧ Admits env root a j) ∧ (∃ r b, (r, b) ∈ pb ∧ Admits env root b j) := by
+  constructor
+  · rintro ⟨r, v, hmem, hv⟩
+    obtain ⟨⟨s₁, b₁⟩, hq, he⟩ := List.mem_map.mp hmem
+    simp only [Prod.mk.injEq] at he
+    obtain ⟨rfl, rfl⟩ := he
+    rw [admits_mkOrF hm] at hv
+    obtain ⟨s, w, hw, hjw⟩ := hv
+    obtain ⟨⟨r₁, a₁⟩, hp, he'⟩ := List.mem_map.mp hw
+    simp only [Prod.mk.injEq] at he'
+    obtain ⟨rfl, rfl⟩ := he'
+    rw [hm] at hjw
+    exact ⟨⟨r₁, a₁, hp, hjw.1⟩, ⟨s₁, b₁, hq, hjw.2⟩⟩
+  · rintro ⟨⟨r, a, ha, hja⟩, ⟨s, b, hb, hjb⟩⟩
+    refine ⟨k, _, List.mem_map.mpr ⟨(s, b), hb, rfl⟩, ?_⟩
+    rw [admits_mkOrF hm]
+    exact ⟨r, m a b, List.mem_map.mpr ⟨(r, a), ha, rfl⟩, (hm _ _ _).mpr ⟨hja, hjb⟩⟩
+
+theorem or_and_split {p q s t : Prop} :
+    ((((p ∧ s) ∨ (p ∧ t)) ∨ (q ∧ s)) ∨ (q ∧ t)) ↔ (p ∨ q) ∧ (s ∨ t) := by
+  constructor
+  · rintro (((⟨hp, hs⟩ | ⟨hp, ht⟩) | ⟨hq, hs⟩) | ⟨hq, ht⟩)
+    · exact ⟨.inl hp, .inl hs⟩
+    · exact ⟨.inl hp, .inr ht⟩
+    · exact ⟨.inr hq, .inl hs⟩
+    · exact ⟨.inr hq, .inr ht⟩
+  · rintro ⟨hp | hq, hs | ht⟩
+    · exact .inl (.inl (.inl ⟨hp, hs⟩))
+    · exact .inl (.inl (.inr ⟨hp, ht⟩))
+    · exact .inl (.inr ⟨hq, hs⟩)
+    · exact .inr ⟨hq, ht⟩
+
+theorem admits_exists_one (r₁ : ℕ) (x : Val) (j : Data) :
+    (∃ r a, (r, a) ∈ [(r₁, x)] ∧ Admits env root a j) ↔ Admits env root x j := by
+  constructor
+  · rintro ⟨r, a, h, ha⟩
+    rw [List.mem_singleton, Prod.mk.injEq] at h
+    obtain ⟨rfl, rfl⟩ := h
+    exact ha
+  · intro h
+    exact ⟨r₁, x, List.mem_singleton.mpr rfl, h⟩
+
+theorem admits_tieArms {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (r k : ℕ) (a b : Val) (j : Data) :
+    (∃ r' v, (r', v) ∈ tieArms m r k a b ∧ Admits env root v j) ↔
+      ((((∃ r' x, (r', x) ∈ armsAtRank r a ∧ Admits env root x j) ∧
+          (∃ r' y, (r', y) ∈ armsAtRank r b ∧ Admits env root y j)) ∨
+        ((∃ r' x, (r', x) ∈ armsAtRank r a ∧ Admits env root x j) ∧
+          (∃ r' y, (r', y) ∈ armsOffRank r b ∧ Admits env root y j))) ∨
+        ((∃ r' x, (r', x) ∈ armsOffRank r a ∧ Admits env root x j) ∧
+          (∃ r' y, (r', y) ∈ armsAtRank r b ∧ Admits env root y j))) := by
+  unfold tieArms
+  rw [admits_exists_append, admits_exists_append, admits_pairs hm, admits_groupsL hm, admits_groupsR hm]
+
+theorem admits_nodeTie {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (r : ℕ) (a b : Val) (j : Data) :
+    Admits env root (nodeTie m r a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+  rw [admits_armsSplit a r j, admits_armsSplit b r j]
+  unfold nodeTie
+  split
+  · rw [admits_mkOrF hm, admits_exists_two, admits_mkOrF hm, admits_tieArms hm, hm, admits_or_iff,
+      admits_or_iff]
+    exact or_and_split
+  · rw [admits_mkOrF hm, admits_exists_append, admits_tieArms hm, admits_exists_one, hm, admits_or_iff,
+      admits_or_iff]
+    exact or_and_split
+
+theorem admits_nodeNorm {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (v : Val) (j : Data) :
+    Admits env root (nodeNorm m v) j ↔ Admits env root v j := by
+  cases v with
+  | or arms =>
+    simp only [nodeNorm]
+    split
+    · rw [admits_or_left hm arms .any j, admits_any_iff, and_true]
+    · exact Iff.rfl
+  | _ => exact Iff.rfl
+
+theorem admits_meetNodesN {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a b : Val) (j : Data) :
+    Admits env root (meetNodesN m a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+  unfold meetNodesN
+  split
+  · split
+    · exact admits_nodeLeft hm a b j
+    · split
+      · exact admits_nodeRight hm a b j
+      · exact admits_nodeTie hm _ a b j
+  · exact admits_nodeLeft hm a b j
+  · exact admits_nodeRight hm a b j
+  · split
+    · exact admits_nodeLeft hm a b j
+    · exact hm a b j
+
+theorem admits_meetNodes {m : Val → Val → Val}
+    (hm : ∀ a b j, Admits env root (m a b) j ↔ Admits env root a j ∧ Admits env root b j)
+    (a b : Val) (j : Data) :
+    Admits env root (meetNodes m a b) j ↔ Admits env root a j ∧ Admits env root b j := by
+  unfold meetNodes
+  rw [admits_meetNodesN hm, admits_nodeNorm hm, admits_nodeNorm hm]
 
 /-- A rider met with a value carries the meet of its own: the record
 rides the result. -/
@@ -2135,10 +2619,10 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .ride k v r => .ride k (rec a v) r
   | .link v t, b => .link (rec v b) t
   | a, .link v t => .link (rec a v) t
-  | .or arms, b => mkOr (arms.map fun p => (p.1, rec p.2 b))
-  | a, .or arms => mkOr (arms.map fun p => (p.1, rec a p.2))
-  | .pref r x, b => mkOr [(r, rec x b), (0, rec x.super b)]
-  | a, .pref r y => mkOr [(r, rec a y), (0, rec a y.super)]
+  | .or arms, b => meetNodes rec (.or arms) b
+  | a, .or arms => meetNodes rec a (.or arms)
+  | .pref r x, b => meetNodes rec (.pref r x) b
+  | a, .pref r y => meetNodes rec a (.pref r y)
   | .map fs₁ s₁ c₁, .map fs₂ s₂ c₂ => meetMap rec fs₁ s₁ c₁ fs₂ s₂ c₂
   | .any, .map fs s c => meetMap rec [] none false fs s c
   | .map fs s c, .any => meetMap rec fs s c [] none false
@@ -2194,10 +2678,7 @@ theorem admits_meetStep {lm : Scalar → Val → Val} {rec : Val → Val → Val
     | exact admits_map_any hr ..
     | exact admits_any_list hr ..
     | exact admits_list_any hr ..
-    | exact admits_or_left hr ..
-    | exact admits_or_right hr ..
-    | exact admits_pref_left hr ..
-    | exact admits_pref_right hr ..
+    | exact admits_meetNodes hr ..
     | exact admits_meetRight hr ..
     | exact admits_ride_left hr ..
     | exact admits_ride_right hr ..

@@ -54,6 +54,7 @@ ride	call	deprecate
 ride	call	ident
 ride	call	type
 ride	call	hide
+ride	call	open
 key	call	key
 keyUp	call	key
 call	call	add

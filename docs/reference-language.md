@@ -728,7 +728,16 @@ Defaults propagate through nesting and spreads. `pref(x)` is the
 function form of `*x` (canon `*x`) on a scalar, and reads a container
 member by member. Preferences can be ranked: `**`
 has a higher rank number than `*`, and the lowest rank wins when two
-preferred values meet (`*1|**2` is `1`). A ranked preference meets its peers exactly as rank 1
+preferred values meet (`*1|**2` is `1`). The higher rank's constraint
+still holds, since `&` is a meet: `*1 & **7` is `1`, but `*1 & **"s"`
+admits nothing, as nothing is both an integer and a string. Both
+engines drop the higher-rank preference there, constraint and all,
+which [#714](https://github.com/aontu-lang/aontu/issues/714) tracks.
+The higher rank's default fills in under the lower rank's where the two
+agree, in either order: `*integer & **1` is `1`, and
+`*{a: 1} & **{b: 2}` is `{"a": 1, "b": 2}`. Both engines drop it there
+too.
+A ranked preference meets its peers exactly as rank 1
 does: the **rank-uniform meet**: `a:**1.5 & float` is `1.5` just as
 `a:*1.5 & float` is, and `**2|integer` met by a bare `integer` keeps its
 default.
@@ -755,7 +764,21 @@ default: `super(integer)` is `number`, so `a:*integer & 7` narrows and
 **Two defaults of the same rank must agree.** `a:*1` beside `a:*7` is
 `pref_rank_clash`, in that spelling and in `a:*1|*7`: the disagreement
 is between the DEFAULTS, and the fix is to rank one of them (`**`).
-Compatible defaults fold: `a:*1` beside `a:*integer` is `*1`.
+Compatible defaults fold into their meet: `a:*1` beside `a:*integer` is
+`*1`, and so is `a: *1 | *integer`, while `*{a: 1} | *{b: 2}` is
+`{"a": 1, "b": 2}`. The definition folds them where the meet makes a
+disjunction (`foldArms` in
+[`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean)).
+
+**An arm that wasn't a default stays one**, whichever side of the meet
+holds it. In `(*1 | 2) & *integer` the defaults `1` and `integer` fold
+into `1`, and `2` stays an alternative, so the default is `1`. In
+`(1 | 2) & *integer` neither arm was a default, so `integer` meets both
+and the value has no single default. And `(*{a: 1} | {c: 3}) & *{b: 2}`
+is `{"a": 1, "b": 2}`. Both engines make every arm a preference meets a
+default of its rank: the first two are `pref_rank_clash` there, and the
+third is `{"a": 1, "b": 2, "c": 3}`
+([#714](https://github.com/aontu-lang/aontu/issues/714)).
 
 **Two defaults of different ranks meet as their disjunctions.** Each
 stands only where the other's type admits it, and whichever stands
@@ -1684,9 +1707,19 @@ it stands, in the schema and in a body at its own place alike, from a
 copy of the body or of what the document writes at the target, placed
 there, by `Decls.copies` in
 [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). It reads a body's
-own place in the normal form of the name's bodies, by `Decls.bodyAt`,
-read once, so a path there that reads through another path names nothing
-yet, which [#664](https://github.com/aontu-lang/aontu/issues/664)
+own place in the normal form of the name's bodies, round by round as it
+reads the schema's own tree, by `Decls.bodyRoots`, so a path there that
+reads through another path reads what both engines read. The place holds
+the templates its own links meet there (`Decls.ownLinked`), so `z: .m.k`
+beside `n: refer({k: 1}) & path(.m)` reads `1`, as in both engines.
+At a use of the name, both engines leave such a path naming nothing,
+which [#723](https://github.com/aontu-lang/aontu/issues/723) tracks. A
+link whose target another link's template makes there is an `error` in
+the definition, which
+[#664](https://github.com/aontu-lang/aontu/issues/664) tracks. Only a
+path a body writes reads that place. Where the schema writes a body's very
+path, `$."%T".x` beside a body's `.x`, the definition reads the two as
+one, which [#721](https://github.com/aontu-lang/aontu/issues/721)
 tracks.
 
 A spread's template reads its paths at each member the spread holds,
@@ -4810,6 +4843,41 @@ while the type's own statements still extend it. See [Marks: `type` and
 `hide`](#marks-type-and-hide).
 
 A seal is the `closed` flag of a map or list term in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean): `admits_map_iff` and `admits_list_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean) refuse a member no key or position declares, `meetKey` drops an optional key a seal does not declare and holds a required one to `nil`, and `map_le` and `list_le` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean) carry the seal into the order.
+
+The definition holds `open(v)` as the rider `Rider.opened` beside it:
+`expandF` in [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean) reads
+`v`, expanded, with every seal in it lifted (`Rider.reads`,
+`Val.unseal`), and the seal on a `type()` value's copy stops at a term
+held open (`restrictF`), at the copy's top and below it. A spread's
+template keeps a seal written in it, as both engines keep it on a member
+the data adds, and both engines lift it on a member the sealed map
+declares, which the definition doesn't.
+
+The definition holds a bare `open()` and a bare `close()` as directives
+on their place, the riders `Rider.lifts` and `Rider.seals` over `any`,
+which `Val.directed` in [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean)
+reads once the expansion has read a term's names, before any meet. The
+terms at a member are what each map at its parent declares for its key,
+wherever the document writes it. `open()` holds each of them open, every
+seal in it lifted, and then `close()` meets the place with the seal an
+instance takes (`closeSeal`), read through every term held open at its
+own level, so `close()` wins there and stops at a term held open beneath
+it. The places beneath a place come first, so an `open()` lifts the seal
+a `close()` beneath it makes, as `open(v)` does. A spread's template
+reaches every member, so a member's place holds the template beside the
+member's own terms, and the templates at a place stand together for the
+members no term declares. A disjunction's arm is a place of its own. A
+place whose terms
+hold a disjunction or a lone preference and a directive, at the place or
+beneath it, reads as one disjunction: each combination of the choices'
+arms, met with every other term at the place, is a place of its own.
+So a directive reaches every combination, and `close()` seals each
+with the keys that combination declares, while the seal on an instance
+still stops at a choice. A directive inside the argument of `copy`,
+`super` or `pref` acts where the call's value lands: the call's place
+reads the argument's shape, its maps and lists with their keys, so
+`copy(close() & {x: 1})` stays sealed although `copy` lifts every seal
+its argument writes.
 
 ## Source loading `@"…"`
 

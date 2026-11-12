@@ -2451,6 +2451,107 @@ def Val.unident : Val → Val
   | v => v
 ```
 
+`open(v)` is a rider of its own: the expansion reads `v`,
+expanded, with every seal in it lifted by `Val.unseal`, and the seal on
+an instance stops at a term held open, at the instance's top and below
+it. So the instances of `type(open({x: 1}))` take a key `x` doesn't
+name, and so does `open(%T)` where `T` is a definition, at any depth.
+The rider stays on the value it reads, and a meet carries it, so a seal
+an enclosing value puts on it stops there, but `open(v)` beside a sealed
+term lifts nothing of that term's. A spread's template stays as written, since both
+engines keep a seal written in a template on each member it reaches:
+
+<!-- test: quote spec/Aontu/Names.lean -->
+```lean
+def Rider.reads (k : Rider) (v : Val) : Val := if k == .opened then v.unseal else v
+```
+
+A bare `open()` or `close()` is no value at all. Each is a directive on
+the place it stands at, which the reading applies once the expansion
+has read a term's names, before any meet. The terms at a member are
+what each map at its parent declares for its key, wherever the document
+writes it. A spread's template reaches every member, so a member's place
+holds the template too, read at the member's key, and the templates at a
+place stand together for the members no term declares. Each arm of a
+disjunction and a lone preference's value is a place of its own. `open()` holds each term at its place
+open, as `open(v)` does. Then `close()` meets the place with the seal
+an instance takes, read through every term held open at its own level,
+so `close()` wins there, and stops at a term held open beneath it:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- A term standing at a place whose terms are `all`, the places beneath
+it read already (`w`): held open, every seal in it lifted, where a bare
+`open()` stands among the terms, and met with the place's seal
+(`closeSeal`) where a bare `close()` does, read from the terms as held
+open there. -/
+def Val.atPlace (all : List Val) (w : Val) : Val :=
+  let lift := all.any (Val.directs .lifts)
+  let w' := if lift then Val.ride .opened w.unseal [] else w
+  if all.any (Val.directs .seals) then
+    .meet w' (closeSeal (if lift then all.map fun t => .ride .opened t [] else all))
+  else w'
+```
+
+The places beneath a place come first, so `open() & {x: close() & {y:
+1}}` admits a member under `x` that `y` doesn't name: the `close()` at
+`x` seals it, and the outer `open()` lifts that seal again.
+
+An arm of a disjunction is a place of its own, which a directive outside
+it would never reach, so a place that holds a choice and a directive, at
+the place or beneath it, reads as one disjunction. Each combination of
+the choices' arms, ranked as the meet ranks them, meets every other term
+at the place and reads as a place of its own. So `close() & ({x: 1} |
+{y: 2}) & ({x: 1} | {w: 2})` admits `{x: 1, w: 2}`, which the
+combination `{x: 1} & {w: 2}` declares, and refuses `{x: 1, q: 0}`, which
+no combination declares, whatever order the terms come in:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- The disjunction a place that folds reads as, its written terms `all`:
+each combination of its choices' arms (`choicesMet`), met with every
+term written there, its choices read as `any` (`Val.unchosen`), and read
+by `rd` as a place of its own, so that a directive among the terms
+reaches each combination and seals it with the keys it declares. -/
+def foldPlace (rd : Val → Val) (all : List Val) : Val :=
+  .or ((choicesMet (all.flatMap Val.placeChoices)).map
+    fun p => (p.1, rd (.meet p.2 ((all.map Val.unchosen).foldl Val.meet .any))))
+```
+
+A call's argument is no place of its own, but `copy`, `super` and
+`pref` hold their argument in the value they make, so a directive in the
+argument acts where that value lands. The reading meets such a call with
+its argument's shape first: its maps and lists with their keys, its
+members' shapes beneath, and every other term `any`. The directive then
+stands at the call's place, beside the call, and `copy(close() & {x:
+1})` stays sealed, though `copy` lifts every seal its argument writes:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- A call whose value holds its argument, met with the shape of an
+argument that writes a directive (`Val.shape`), where its value lands. -/
+def landCall (f : Fn) : List Val → Val
+  | [x] => if x.holdsDir then .meet (.call f [x]) x.shape else .call f [x]
+  | args => .call f args
+```
+
+A template's seal can't speak for a member a term declares, whose place
+holds terms the template lacks: `{m: {y: 1}, &: close() & {x: 1}}` seals
+`m` with both keys, from its own place, and a member the data adds with
+`x` alone. So the template's own seal stands aside for each declared
+key, chosen by the member's key, as `key()` reads it:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- A term `x` a spread's template reads as for the members of no key in
+`ks`: `any` for a member a key there names, chosen by the member's own
+key (`key()`), so that the template's own place speaks for the members
+no term declares, a declared member's place reading the template among
+its own terms (`memberTerms`). -/
+def exceptKeys (ks : List String) (x : Val) : Val :=
+  if ks.isEmpty then x else .select .key (ks.map fun k => (.lit (.str k), .any)) (some x)
+```
+
 The declarations make a graph, where a name refers to every name in
 its bodies, and a recursive name is one that refers to itself through
 any number of declarations:
@@ -2700,7 +2801,9 @@ residual.
 /-- The expansion of a term, within `k` turns: a reference to a name
 that is not recursive is replaced by the meet of its bodies, expanded in
 turn and sealed where the name is a definition; a reference to a
-recursive name, or to no name, stays. -/
+recursive name, or to no name, stays. A rider's body reads as the rider
+has it read (`Rider.reads`), so `open(v)` reads `v`, expanded, with
+every seal lifted, the seal of a definition's instance among them. -/
 def expandF (ds : Decls) : ℕ → Val → Val
 ```
 
@@ -2863,7 +2966,7 @@ forgives it, as step 33 shows:
 /-- Every path of the document that must name something resolves in
 the schema's own tree. -/
 def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
-  ∀ p, p ∈ ds.strictPaths S → (ds.pathIn (ds.rootsS S) p).isSome = true
+  ∀ p, p ∈ ds.strictPaths S → (ds.pathIn (ds.roundsS S).1 p (ds.roundsS S).2).isSome = true
 ```
 
 The term a path reads is then taken from the document's roots, data
@@ -2900,41 +3003,64 @@ as the call itself, which waits on `$.a`. The second reads `$.a` as
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The term a written path names in the first of the roots it names
-something in, or, for a path a body writes, at a body's own place
-(`Decls.bodyAt`), which no root holds and no path the schema writes
-reaches. -/
-def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) : Option Val :=
-  (roots.findSome? fun root => ds.pathAt root p).or (if p ∈ ds.paths then ds.bodyAt p else none)
+something in, or, for a path a body writes, at a body's own place, which
+no root holds and no path the schema writes reaches: in the first of the
+places `bs` it names something in (`Decls.bodyRoots`), and else in the
+normal form of the name's bodies (`Decls.bodyAt`). -/
+def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) (bs : List Val := []) : Option Val :=
+  (roots.findSome? fun root => ds.pathAt root p).or
+    (if p ∈ ds.paths then (bs.findSome? fun root => ds.pathAt root p).or (ds.bodyAt p) else none)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The declarations a document's paths make: each path's name, declared
 as the term at the path in the first of the roots it names something
-in, with that term's own paths read as names too. A path to nothing
-declares nothing. -/
-def Decls.ofPaths (ds : Decls) (roots : List Val) (ps : List (List Seg)) : Decls :=
-  ps.filterMap fun p => (ds.pathIn roots p).map fun w => (pathName p, w.pathsToAliases)
+in, or of the places `bs` for a path a body writes, with that term's
+own paths read as names too. A path to nothing declares nothing. -/
+def Decls.ofPaths (ds : Decls) (roots : List Val) (ps : List (List Seg)) (bs : List Val := []) : Decls :=
+  ps.filterMap fun p => (ds.pathIn roots p bs).map fun w => (pathName p, w.pathsToAliases)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The document with its paths read as names from roots: each path is
-declared as the term at it in the first root it names something in, and
-the bodies and the schema refer to the names. -/
-def Decls.withPathsFrom (ds : Decls) (S : Val) (roots : List Val) : Decls × Val :=
-  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths roots (ds.docPaths S), S.pathsToAliases)
+declared as the term at it in the first root it names something in, or
+of the places `bs` for a path a body writes, and the bodies and the
+schema refer to the names. -/
+def Decls.withPathsFrom (ds : Decls) (S : Val) (roots : List Val) (bs : List Val := []) : Decls × Val :=
+  (ds.map (fun d => (d.1, d.2.pathsToAliases)) ++ ds.ofPaths roots (ds.docPaths S) bs, S.pathsToAliases)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → List Val
-  | 0 => [r ds S]
+def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → List Val × List Val
+  | 0 => ([r ds S], ds.bodyRoots ds.placedNames)
   | n + 1 =>
     let rs := ds.rounds S r n
-    let d := ds.withPathsFrom S rs
-    rs ++ [r d.1 d.2]
+    let d := ds.withPathsFrom S rs.1 rs.2
+    (rs.1 ++ [r d.1 d.2], rs.2 ++ d.1.bodyRoots ds.placedNames)
 ```
+
+Beside each round's root, a round reads the place where the definition
+puts a name's bodies, `%` and the name, which this section comes back
+to below, for each name a body's path starts at: the name's bodies met
+there, with the templates their own links meet there, which step 36
+comes to, read as the schema's tree reads, under that round's
+declarations:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.bodyRoots (ds : Decls) (ns : List String) : List Val :=
+  ns.map fun n => normaliseD ds (ds.readU (ds.ownLinked
+    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false)))
+```
+
+Only a path a body writes reads these places, so a chain of paths at a
+body's own place reads round by round as one in the schema does. In
+`%T = {x: $.a, y: .x.k}` beside `a: {k: 1}`, the first round's place
+holds `x` as the path `$.a`, the second's holds it as `{k: 1}`, and the
+third reads `.x.k` as `1`, as both engines do.
 
 A path keeps the term the first round that reaches it holds there,
 since a later round has read that term's own paths: a path whose term
@@ -2949,13 +3075,13 @@ reads it, is the data's fault, invalid, and not an ill-formed schema:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.rootsS (ds : Decls) (S : Val) : List Val :=
+def Decls.roundsS (ds : Decls) (S : Val) : List Val × List Val :=
   ds.rounds S (fun d T => normaliseD d (d.readU T)) (ds.docPaths S).length
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.rootsD (ds : Decls) (S : Val) (j : Data) : List Val :=
+def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
   ds.rounds S (fun d T => normaliseD d (meetD d (d.readU T) j.term)) (ds.docPaths S).length
 ```
 
@@ -2964,7 +3090,8 @@ def Decls.rootsD (ds : Decls) (S : Val) (j : Data) : List Val :=
 /-- The document with its paths read as names from the schema alone,
 from its own tree, which is what the error class is judged on. -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
-  ds.withPathsFrom S (ds.rootsS S)
+  let rs := ds.roundsS S
+  ds.withPathsFrom S rs.1 rs.2
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -2973,7 +3100,8 @@ def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
 the tree the data reads in, which is what the other classes are judged
 on. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.withPathsFrom S (ds.rootsD S j)
+  let rs := ds.roundsD S j
+  ds.withPathsFrom S rs.1 rs.2
 ```
 
 The verdict of a document whose paths are absolute is then the verdict
@@ -3144,12 +3272,15 @@ def Decls.bodyAt (ds : Decls) : List Seg → Option Val
 
 So `%T = {x: 1, y: .x}` reads the body's own `x`, used or not, while
 `%T = {y: .x}` reads a member the body lacks, and the path is an error,
-and `..x` in the same body climbs to the document's own `x`. The
-definition reads that normal form once, not in rounds, so a path there
-that reads through another path, `.x.k` with `x: $.a`, names nothing
-yet, where both engines read `$.a`'s `k`, which #664 tracks. Only a
-path a body writes reads the body's place, so the schema's
-`$."%T".x` names nothing, as in both engines. The schema's spreads
+and `..x` in the same body climbs to the document's own `x`. A path
+there that reads through another path, `.x.k` with `x: $.a`, reads the
+place a later round holds (`Decls.bodyRoots`), so it reads `$.a`'s `k`
+as both engines do. Only a path a body writes reads the body's place,
+so the schema's `$."%T".y` names nothing, as in both engines. Where a
+body writes the schema's very path, `.x` beside the schema's
+`$."%T".x`, the two are one path in the definition, and the schema's
+reads the body's `x`, where both engines name nothing, which #721
+tracks. The schema's spreads
 stay as written (`Val.placedT`), since a
 spread reads its relative paths at each member it holds, and a spread
 that's itself a relative path also reads where it's written, at the
@@ -3408,10 +3539,10 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
   | a, .ride k v r => .ride k (rec a v) r
   | .link v t, b => .link (rec v b) t
   | a, .link v t => .link (rec a v) t
-  | .or arms, b => mkOr (arms.map fun p => (p.1, rec p.2 b))
-  | a, .or arms => mkOr (arms.map fun p => (p.1, rec a p.2))
-  | .pref r x, b => mkOr [(r, rec x b), (0, rec x.super b)]
-  | a, .pref r y => mkOr [(r, rec a y), (0, rec a y.super)]
+  | .or arms, b => meetNodes rec (.or arms) b
+  | a, .or arms => meetNodes rec a (.or arms)
+  | .pref r x, b => meetNodes rec (.pref r x) b
+  | a, .pref r y => meetNodes rec a (.pref r y)
   | .map fs₁ s₁ c₁, .map fs₂ s₂ c₂ => meetMap rec fs₁ s₁ c₁ fs₂ s₂ c₂
   | .any, .map fs s c => meetMap rec [] none false fs s c
   | .map fs s c, .any => meetMap rec fs s c [] none false
@@ -3433,9 +3564,22 @@ nothing to say to each other, such as `min(1)` and `max(9)`, `a` meets
 which the two rows would otherwise do without end. A rider of step 19
 carries the meet of its value, so its record rides the result. A
 disjunction meets a peer arm by arm,
-and `mkOr` keeps the arms that are live: an arm that admits nothing on
+the side whose preference ranks stronger outermost (`meetNodes`), so
+that `*integer & **1` and `**1 & *integer` both default to `1`, the
+weaker default filling in under the stronger one. Where the two sides
+lead with one rank, `nodeTie` meets each side's defaults with the
+other's, ahead of the arms that keep one side's default alone, so an arm
+that wasn't a default stays one: `(*1 | 2) & *integer` defaults to `1`
+either way round. `mkOr` keeps the
+arms that are live: an arm that admits nothing on
 its face, such as `min(5) & max(3)` once computed to `nil`, drops, and
-a disjunction with no live arm is `nil`. A preference alone is
+a disjunction with no live arm is `nil`. `mkOrF` then folds the
+defaults: where the rank rule picks two or more arms of one rank, it
+meets them into one arm of that rank, so `*1 & *integer` has the one
+default `1`, and keeps the arms it stands for at rank 0, so that the
+disjunction admits what it did. Where the meet admits nothing, as for
+`*1 & *7`, the arms stay, and two defaults of one rank that disagree
+are a clash, an error. A preference alone is
 `x | super(x)`, as step 12 reads it, so `*8080 & min(1024)` is
 `*8080 | (integer & min(1024))`. Two maps merge key by key in
 `meetMap`: a key both declare holds the meet of the two values and is
@@ -4048,7 +4192,7 @@ meet of two kinds has the lower kind's parent; any other meet lifts
 each side. A reference lifts as itself, a residual the engines keep
 symbolic too. A rider is left behind, but the one a `move` makes
 (`Rider.move`), so that each arm a moved preference reads as carries
-it. -/
+it, and `open(v)`'s, so that the parent stays open where `v` is. -/
 def Val.super : Val → Val
   | .integer | .float | .biginteger | .bigdecimal => .number
   | .number | .string | .anyString | .boolean | .mapKind | .listKind | .pathKind | .any | .absent
@@ -7469,9 +7613,9 @@ child too.
 
 The node's seal makes data with another key beside `cmp`, `props` and
 `children` invalid, and its props and children are open. Both engines
-also hold them open against an enclosing `close()`, which needs
-`open()`, and the definition doesn't hold `open()` yet, so no row
-closes a node. The rows are x1677 on, and both engines answer every one
+also hold them open against an enclosing `close()`, as `open()` holds a
+value, which step 8 comes to, and the definition's nodes don't carry
+that mark yet, so no row closes a node. The rows are x1677 on, and both engines answer every one
 as the definition does, three calls with the wrong number of arguments
 among them.
 
@@ -8860,9 +9004,26 @@ def Decls.bodyClash (ds : Decls) (fs : List (List Seg × Val)) : Bool :=
         ds).illFormed
 ```
 
-A path in the body that reads the template the link meets there,
-`z: .m.k`, names nothing yet, where both engines read `1`, which #664
-tracks.
+A path in the body reads the template the link meets there: `z: .m.k`
+reads `1`, as in both engines, since each place a round reads holds the
+templates its own links meet in it:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.ownLinked (ds : Decls) (B : Val) : Val :=
+  let R := normaliseD ds (ds.readU B)
+  (ds.nfLinks R []).foldl (referStep ds [R] .any []) B
+```
+
+A target the place doesn't hold meets `any` there, since the link passes
+judge it. So a second link whose target the first link's template makes,
+`o: refer({k: 1}) & path(.m.q)` beside `n: refer({q: {}}) & path(.m)`,
+finds no target in the link passes, which read the body's place as its
+bodies write it, and the document is an `error`, where both engines read
+it as `valid`, which #664 tracks. At a use of the name, `a: %T`, the
+use's own link sends the template into `a.m`, where `a.z` reads it, as
+in the same document written in place, where both engines leave `a.z`
+naming nothing, which #723 tracks.
 
 One link's template can make another link's target:
 `y: refer({ z:{} }) & path($.h)` makes `h.z` for
@@ -9282,7 +9443,9 @@ the two apart: it meets a term with a disjunction arm by arm
 meet as the disjunction the meet makes, each arm of the one met with
 each arm of the other, ranked as the meet ranks them (`orMeet`), and
 each met with the meet's other conjuncts. A lone preference beside a
-disjunction goes into each of its arms the same way:
+disjunction takes part as a node too. Its value stands at its rank. Its
+parent arm stays the preference, one rank weaker, so that the reading
+still lifts what the value reads as (`Val.prefArms`):
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -9292,10 +9455,17 @@ def Val.meetOrs (v : Val) : Val :=
     if 2 ≤ more.length + 1 + (v.splitOrs.2.filter Val.isPrefB).length &&
         ((as :: more).any (·.any (·.2.armReads)) ||
           (v.splitOrs.2.filter Val.isPrefB).any (·.nodeArms.any (·.2.armReads))) then
-      .or ((more.foldl orMeet as).map fun p => (p.1, v.splitOrs.2.foldl .meet p.2))
+      .or (((more ++ (v.splitOrs.2.filter Val.isPrefB).map Val.prefArms).foldl orMeet as).map
+        fun p => (p.1, (v.splitOrs.2.filter fun c => !c.isPrefB).foldl .meet p.2))
     else v
   | [] => v
 ```
+
+`orMeet` ranks the arms it makes as the meet ranks them, the stronger
+side outermost and two sides of one rank as `nodeTie` meets them, so a
+path in an arm doesn't change the default: `(**{a: 1, c: .a} | {}) &
+(*{b: 2} | {})` defaults to `{"a": 1, "b": 2, "c": 1}`, as it does with
+`c: 1` written in place of the path.
 
 Each arm then reads its paths within itself: `{b: .a} & {a: 1}` reads
 `b` as `1`, and `{b: .a} & {a: 2}` as `2`. Over `x: {a: 2, b: 2}` the

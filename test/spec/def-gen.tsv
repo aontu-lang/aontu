@@ -88,6 +88,13 @@ g89	gens	v: {"a"?: ({}) & ({"b"?: 1})}	{"v":{"a":{"b":1}}}
 g90	gens	v: {"a"?: {}, "b": 1}	{"v":{"b":1}}
 g91	gens	v: ({"a"?: {}}) & ({"a": {}})	{"v":{"a":{}}}
 g92	gens	v: [{"a"?: {}}]	{"v":[{}]}
+g93	gens	v: (*(1)) & (*(integer))	{"v":1}
+g94	gens	v: *(1) | *(integer)	{"v":1}
+g95	gens	v: *{"a": 1} | *{"b": 2}	{"v":{"a":1,"b":2}}
+g96	gens	v: (*{"a": 1}) & (*{"b": 2})	{"v":{"a":1,"b":2}}
+g97	gens	v: (*(1)) & (**(7))	{"v":1}
+g98	gens	v: (*(1)) & (**(integer))	{"v":1}
+g99	gens	v: (**(7)) & (*(1))	{"v":1}
 i0	gens	v: $foo	{"v":11}
 i1	gens	v: $bar	{"v":"hello"}
 i2	gens	v: $flag	{"v":true}
