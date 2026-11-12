@@ -2470,8 +2470,9 @@ A bare `open()` or `close()` is no value at all. Each is a directive on
 the place it stands at, which the reading applies once the expansion
 has read a term's names, before any meet. The terms at a member are
 what each map at its parent declares for its key, wherever the document
-writes it, and a disjunction's arm, a preference's value and a spread's
-template are each a place of their own. `open()` holds each term at its place
+writes it. A spread's template is a place of its own, and each arm of a
+disjunction or a lone preference beside a directive takes the terms
+beside the choice as its own. `open()` holds each term at its place
 open, as `open(v)` does. Then `close()` meets the place with the seal
 an instance takes, read through every term held open at its own level,
 so `close()` wins there, and stops at a term held open beneath it:
