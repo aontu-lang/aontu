@@ -511,6 +511,12 @@ j149	verdict	%T = {"m": {}, "n": refer({"k": 1}), "o"?: %T}\n"x": ({}) & (%T)	{}
 j150	verdict	%T = {"m": {}, "n": super(1), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"incomplete"}
 j151	verdict	%T = {"m": {}, "n": super(1), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 j152	verdict	%T = {"m": {}, "n": super(1), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid","opts":{"partial":true}}
+j153	verdict	%T = {"m": {}, "n": match("a", "a", 1, "b", 2), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid"}
+j154	verdict	%T = {"m": {}, "n": match("a", "a", 1, "b", 2), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+j155	verdict	%T = {"m": {}, "n": match("a", "a", 1, "b", 2), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid","opts":{"partial":true}}
+j156	verdict	%T = {"s": "x", "u": upper(.s), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid"}
+j157	verdict	%T = {"s": "x", "u": upper(.s), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+j158	verdict	%T = {"s": "x", "u": upper(.s), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid","opts":{"partial":true}}
 jl0	verdict	"a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{}	{"verdict":"error"}
 jl1	verdict	"a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{}	{"verdict":"error","opts":{"noFill":true}}
 jl2	verdict	"a": {"x": 2, "b": %T}\n%T = {"v": ..x}	{}	{"verdict":"error","opts":{"partial":true}}
@@ -2908,6 +2914,15 @@ fk17	verdict	"a": {}, "b": filter({"x": (refer({"k": 1})) & (path($.a))}, intege
 fk18	verdict	"a": {}, "b": filter([(refer({"k": 1})) & (path($.a))], any)	{"a": {"k": 2}}	{"verdict":"invalid"}
 fk19	verdict	"a": {}, "b": filter([(refer({"k": 1})) & (path($.a))], any)	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
 fk20	verdict	"a": {}, "b": filter([(refer({"k": 1})) & (path($.a))], any)	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+rs0	verdict	%T = {"kind": "b", "v": match(.kind, "a", 1, "b", 2), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid"}
+rs1	verdict	%T = {"kind": "b", "v": match(.kind, "a", 1, "b", 2), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rs2	verdict	%T = {"kind": "b", "v": match(.kind, "a", 1, "b", 2), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid","opts":{"partial":true}}
+rs3	verdict	%T = {"k": filter({"a": 1, "b": "x"}, integer), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid"}
+rs4	verdict	%T = {"k": filter({"a": 1, "b": "x"}, integer), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rs5	verdict	%T = {"k": filter({"a": 1, "b": "x"}, integer), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid","opts":{"partial":true}}
+rs6	verdict	%T = {"c": {"a": 1, "b": "x"}, "k": filter(.c, integer), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid"}
+rs7	verdict	%T = {"c": {"a": 1, "b": "x"}, "k": filter(.c, integer), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rs8	verdict	%T = {"c": {"a": 1, "b": "x"}, "k": filter(.c, integer), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid","opts":{"partial":true}}
 hm0	verdict	"a": ({"x": 1, "y": 2}) & ({"x": hide(any)})	{"a": {"y": 2}}	{"verdict":"valid"}
 hm1	verdict	"a": ({"x": 1, "y": 2}) & ({"x": hide(any)})	{"a": {"y": 2}}	{"verdict":"valid","opts":{"noFill":true}}
 hm2	verdict	"a": ({"x": 1, "y": 2}) & ({"x": hide(any)})	{"a": {"y": 2}}	{"verdict":"valid","opts":{"partial":true}}

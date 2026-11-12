@@ -2846,9 +2846,9 @@ call in a recursive name's body wherever the body stands, so
 recursion, as `pref(%T)` does. The meet unfolds a name after the reading
 has made the schema's calls, so the definition makes the calls and the
 selections in each recursive name's body first. Step 9 reads each body
-so once its paths are names, so a `match` or a call over a path to the
-body's own member, `v: match(.kind, ...)` beside `kind: "b"`, is made
-too:
+so once its paths are names, so the definition makes a `match` or a call
+over a path to the body's own member too, `v: match(.kind, ...)` beside
+`kind: "b"`:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean

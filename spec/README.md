@@ -92,10 +92,15 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   it reaches, where both ports lift it on a member the map declares and
   keep it on one the data adds;
 - a selection inside a recursive name's body whose scrutinee or source
-  reads what the data writes where the body unfolds, `v: match(.kind,
-  ...)` beside `kind: string`, which the definition reads where no place
-  is yet and so leaves unmade, where both ports make it at each
-  unfolding (#403);
+  the body leaves open, `v: match(.kind, ...)` beside `kind: string`,
+  which the definition leaves unmade where the body unfolds, so even
+  data the selection would take reads as `incomplete`, where it reads
+  such a selection in the schema with the data (#403);
+- a `match` whose scrutinee, or a `filter` whose source, the schema
+  leaves open, `x: {kind: string, v: match(.kind, "a", 1, "b", 2)}`,
+  which the definition reads with the data, where both ports refuse it
+  as `match_none` before any data, in a body read at its own place too,
+  a question for a ruling, which #743 tracks;
 - two recursions of one shape under different names, which the order
   leaves undecided (P5);
 - a clash between two defaults of one rank that a later meet makes, by
