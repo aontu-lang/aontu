@@ -22,6 +22,12 @@
 # a sealed map held open, open() beside a sealed term lifting nothing there,
 # and the seal on a type() value's copy lifted by open() around the
 # reference and stopped by open() inside it.
+# A bare open() and a bare close() follow in rows dir0 on, directives on
+# their place: close() seals the place once its terms have met, and every
+# level beneath it but those held open; open() lifts every seal at its
+# place, at every depth; close() wins at its own level; the places beneath
+# are read first; a disjunction's arm and a spread's template are places of
+# their own.
 a0	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid"}
 a1	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"noFill":true}}
 a2	verdict	%p = (integer) & (min(1))\nv: %p	v: 5	{"verdict":"valid","opts":{"partial":true}}
@@ -688,3 +694,117 @@ op35	verdict	%T = type({"x": open({"y": 1})})\nv: %T	v: {"x": {"y": 1, "z": 2}}	
 op36	verdict	%T = type({"x": open({"y": 1})})\nv: %T	v: {"x": {"y": 1}, "w": 1}	{"verdict":"invalid"}
 op37	verdict	%T = type({"x": open({"y": 1})})\nv: %T	v: {"x": {"y": 1}, "w": 1}	{"verdict":"invalid","opts":{"noFill":true}}
 op38	verdict	%T = type({"x": open({"y": 1})})\nv: %T	v: {"x": {"y": 1}, "w": 1}	{"verdict":"invalid","opts":{"partial":true}}
+dir0	verdict	v: (close()) & ({"x": 1})	v: {"x": 1, "y": 2}	{"verdict":"invalid"}
+dir1	verdict	v: (close()) & ({"x": 1})	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+dir2	verdict	v: (close()) & ({"x": 1})	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+dir3	verdict	v: (close()) & ({"x": 1})	v: {"x": 1}	{"verdict":"valid"}
+dir4	verdict	v: (close()) & ({"x": 1})	v: {"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+dir5	verdict	v: (close()) & ({"x": 1})	v: {"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+dir6	verdict	v: ((close()) & ({"x": 1})) & ({"y": 2})	v: {"x": 1, "y": 2}	{"verdict":"valid"}
+dir7	verdict	v: ((close()) & ({"x": 1})) & ({"y": 2})	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"noFill":true}}
+dir8	verdict	v: ((close()) & ({"x": 1})) & ({"y": 2})	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"partial":true}}
+dir9	verdict	v: (close()) & ({"x": {"y": 1}})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"invalid"}
+dir10	verdict	v: (close()) & ({"x": {"y": 1}})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+dir11	verdict	v: (close()) & ({"x": {"y": 1}})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+dir12	verdict	v: (close()) & ([1, 2])	v: [1, 2, 3]	{"verdict":"invalid"}
+dir13	verdict	v: (close()) & ([1, 2])	v: [1, 2, 3]	{"verdict":"invalid","opts":{"noFill":true}}
+dir14	verdict	v: (close()) & ([1, 2])	v: [1, 2, 3]	{"verdict":"invalid","opts":{"partial":true}}
+dir15	verdict	v: (close()) & ([[1]])	v: [[1, 2]]	{"verdict":"invalid"}
+dir16	verdict	v: (close()) & ([[1]])	v: [[1, 2]]	{"verdict":"invalid","opts":{"noFill":true}}
+dir17	verdict	v: (close()) & ([[1]])	v: [[1, 2]]	{"verdict":"invalid","opts":{"partial":true}}
+dir18	verdict	v: (close()) & ({"x": [1]})	v: {"x": [1, 2]}	{"verdict":"invalid"}
+dir19	verdict	v: (close()) & ({"x": [1]})	v: {"x": [1, 2]}	{"verdict":"invalid","opts":{"noFill":true}}
+dir20	verdict	v: (close()) & ({"x": [1]})	v: {"x": [1, 2]}	{"verdict":"invalid","opts":{"partial":true}}
+dir21	verdict	v: (close()) & (1)	v: 1	{"verdict":"valid"}
+dir22	verdict	v: (close()) & (1)	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+dir23	verdict	v: (close()) & (1)	v: 1	{"verdict":"valid","opts":{"partial":true}}
+dir24	verdict	v: close()	v: {"x": 1}	{"verdict":"valid"}
+dir25	verdict	v: close()	v: {"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+dir26	verdict	v: close()	v: {"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+dir27	verdict	v: close()	v: 1	{"verdict":"valid"}
+dir28	verdict	v: close()	v: 1	{"verdict":"valid","opts":{"noFill":true}}
+dir29	verdict	v: close()	v: 1	{"verdict":"valid","opts":{"partial":true}}
+dir30	verdict	v: (open()) & (close({"x": 1}))	v: {"x": 1, "y": 2}	{"verdict":"valid"}
+dir31	verdict	v: (open()) & (close({"x": 1}))	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"noFill":true}}
+dir32	verdict	v: (open()) & (close({"x": 1}))	v: {"x": 1, "y": 2}	{"verdict":"valid","opts":{"partial":true}}
+dir33	verdict	v: (open()) & (close([1]))	v: [1, 2]	{"verdict":"valid"}
+dir34	verdict	v: (open()) & (close([1]))	v: [1, 2]	{"verdict":"valid","opts":{"noFill":true}}
+dir35	verdict	v: (open()) & (close([1]))	v: [1, 2]	{"verdict":"valid","opts":{"partial":true}}
+dir36	verdict	v: (open()) & ({"x": close({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+dir37	verdict	v: (open()) & ({"x": close({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir38	verdict	v: (open()) & ({"x": close({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dir39	verdict	v: ({"x": open()}) & ({"x": close({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+dir40	verdict	v: ({"x": open()}) & ({"x": close({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir41	verdict	v: ({"x": open()}) & ({"x": close({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dir42	verdict	v: (open()) & ((close()) & ({"x": 1}))	v: {"x": 1, "y": 2}	{"verdict":"invalid"}
+dir43	verdict	v: (open()) & ((close()) & ({"x": 1}))	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+dir44	verdict	v: (open()) & ((close()) & ({"x": 1}))	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+dir45	verdict	v: (open()) & ((close()) & ({"x": {"y": 1}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+dir46	verdict	v: (open()) & ((close()) & ({"x": {"y": 1}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir47	verdict	v: (open()) & ((close()) & ({"x": {"y": 1}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dir48	verdict	v: (close()) & ({"x": open()})	v: {"x": {"y": 1}}	{"verdict":"valid"}
+dir49	verdict	v: (close()) & ({"x": open()})	v: {"x": {"y": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+dir50	verdict	v: (close()) & ({"x": open()})	v: {"x": {"y": 1}}	{"verdict":"valid","opts":{"partial":true}}
+dir51	verdict	v: (close()) & ({"x": open()})	v: {"x": {"y": 1}, "z": 2}	{"verdict":"invalid"}
+dir52	verdict	v: (close()) & ({"x": open()})	v: {"x": {"y": 1}, "z": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+dir53	verdict	v: (close()) & ({"x": open()})	v: {"x": {"y": 1}, "z": 2}	{"verdict":"invalid","opts":{"partial":true}}
+dir54	verdict	v: (close()) & ({"x": (open()) & ({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+dir55	verdict	v: (close()) & ({"x": (open()) & ({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir56	verdict	v: (close()) & ({"x": (open()) & ({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dir57	verdict	v: (open()) & ({"x": (close()) & ({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+dir58	verdict	v: (open()) & ({"x": (close()) & ({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir59	verdict	v: (open()) & ({"x": (close()) & ({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dir60	verdict	v: (open()) & ({"x": (close()) & ({"y": {"z": 1}})})	v: {"x": {"y": {"z": 1, "w": 2}}}	{"verdict":"valid"}
+dir61	verdict	v: (open()) & ({"x": (close()) & ({"y": {"z": 1}})})	v: {"x": {"y": {"z": 1, "w": 2}}}	{"verdict":"valid","opts":{"noFill":true}}
+dir62	verdict	v: (open()) & ({"x": (close()) & ({"y": {"z": 1}})})	v: {"x": {"y": {"z": 1, "w": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+dir63	verdict	v: {"x": (close()) & ({"y": 1})}	v: {"x": {"y": 1, "z": 2}}	{"verdict":"invalid"}
+dir64	verdict	v: {"x": (close()) & ({"y": 1})}	v: {"x": {"y": 1, "z": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+dir65	verdict	v: {"x": (close()) & ({"y": 1})}	v: {"x": {"y": 1, "z": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+dir66	verdict	v: open({"x": (close()) & ({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+dir67	verdict	v: open({"x": (close()) & ({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir68	verdict	v: open({"x": (close()) & ({"y": 1})})	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dir69	verdict	v: (close()) & (open({"x": {"y": 1}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+dir70	verdict	v: (close()) & (open({"x": {"y": 1}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir71	verdict	v: (close()) & (open({"x": {"y": 1}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dir72	verdict	v: (close()) & (open({"x": {"y": 1}}))	v: {"x": {"y": 1}, "w": 1}	{"verdict":"invalid"}
+dir73	verdict	v: (close()) & (open({"x": {"y": 1}}))	v: {"x": {"y": 1}, "w": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+dir74	verdict	v: (close()) & (open({"x": {"y": 1}}))	v: {"x": {"y": 1}, "w": 1}	{"verdict":"invalid","opts":{"partial":true}}
+dir75	verdict	%T = {"x": 1}\nv: (close()) & (%T)	v: {"x": 1, "y": 2}	{"verdict":"invalid"}
+dir76	verdict	%T = {"x": 1}\nv: (close()) & (%T)	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+dir77	verdict	%T = {"x": 1}\nv: (close()) & (%T)	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+dir78	verdict	%T = (close()) & ({"x": 1})\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid"}
+dir79	verdict	%T = (close()) & ({"x": 1})\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"noFill":true}}
+dir80	verdict	%T = (close()) & ({"x": 1})\nv: %T	v: {"x": 1, "y": 2}	{"verdict":"invalid","opts":{"partial":true}}
+dir81	verdict	%T = {"x": {"y": 1}}\nv: (close()) & (%T)	v: {"x": {"y": 1, "z": 2}}	{"verdict":"invalid"}
+dir82	verdict	%T = {"x": {"y": 1}}\nv: (close()) & (%T)	v: {"x": {"y": 1, "z": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+dir83	verdict	%T = {"x": {"y": 1}}\nv: (close()) & (%T)	v: {"x": {"y": 1, "z": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+dir84	verdict	%T = type({"x": (open()) & ({"y": 1})})\nv: %T	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+dir85	verdict	%T = type({"x": (open()) & ({"y": 1})})\nv: %T	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir86	verdict	%T = type({"x": (open()) & ({"y": 1})})\nv: %T	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dir87	verdict	v: ((close()) & ({"x": 1})) | ({"y": 2})	v: {"x": 1, "z": 3, "y": 5}	{"verdict":"invalid"}
+dir88	verdict	v: ((close()) & ({"x": 1})) | ({"y": 2})	v: {"x": 1, "z": 3, "y": 5}	{"verdict":"invalid","opts":{"noFill":true}}
+dir89	verdict	v: ((close()) & ({"x": 1})) | ({"y": 2})	v: {"x": 1, "z": 3, "y": 5}	{"verdict":"invalid","opts":{"partial":true}}
+dir90	verdict	v: {&: {"x": (close()) & ({"y": 1})}}	v: {"m": {"x": {"y": 1, "z": 2}}}	{"verdict":"invalid"}
+dir91	verdict	v: {&: {"x": (close()) & ({"y": 1})}}	v: {"m": {"x": {"y": 1, "z": 2}}}	{"verdict":"invalid","opts":{"noFill":true}}
+dir92	verdict	v: {&: {"x": (close()) & ({"y": 1})}}	v: {"m": {"x": {"y": 1, "z": 2}}}	{"verdict":"invalid","opts":{"partial":true}}
+dir93	verdict	v: {&: (close()) & ({"x": 1})}	v: {"m": {"x": 1, "y": 2}}	{"verdict":"invalid"}
+dir94	verdict	v: {&: (close()) & ({"x": 1})}	v: {"m": {"x": 1, "y": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+dir95	verdict	v: {&: (close()) & ({"x": 1})}	v: {"m": {"x": 1, "y": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+dir96	verdict	v: {&: (open()) & (close({"x": 1}))}	v: {"m": {"x": 1, "y": 2}}	{"verdict":"valid"}
+dir97	verdict	v: {&: (open()) & (close({"x": 1}))}	v: {"m": {"x": 1, "y": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir98	verdict	v: {&: (open()) & (close({"x": 1}))}	v: {"m": {"x": 1, "y": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dir99	verdict	v: [&: (close()) & ({"x": 1})]	v: [{"x": 1, "y": 2}]	{"verdict":"invalid"}
+dir100	verdict	v: [&: (close()) & ({"x": 1})]	v: [{"x": 1, "y": 2}]	{"verdict":"invalid","opts":{"noFill":true}}
+dir101	verdict	v: [&: (close()) & ({"x": 1})]	v: [{"x": 1, "y": 2}]	{"verdict":"invalid","opts":{"partial":true}}
+dir102	verdict	v: ({"x": close()}) & (({"x": {"y": 1}}) & ({"x": {"z": 2}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+dir103	verdict	v: ({"x": close()}) & (({"x": {"y": 1}}) & ({"x": {"z": 2}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir104	verdict	v: ({"x": close()}) & (({"x": {"y": 1}}) & ({"x": {"z": 2}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dir105	verdict	v: ({"x": close()}) & (({"x": {"y": 1}}) & ({"x": {"z": 2}}))	v: {"x": {"y": 1, "z": 2, "w": 3}}	{"verdict":"invalid"}
+dir106	verdict	v: ({"x": close()}) & (({"x": {"y": 1}}) & ({"x": {"z": 2}}))	v: {"x": {"y": 1, "z": 2, "w": 3}}	{"verdict":"invalid","opts":{"noFill":true}}
+dir107	verdict	v: ({"x": close()}) & (({"x": {"y": 1}}) & ({"x": {"z": 2}}))	v: {"x": {"y": 1, "z": 2, "w": 3}}	{"verdict":"invalid","opts":{"partial":true}}
+dir108	verdict	v: (close()) & (({"x": open({"y": 1})}) & ({"x": {"y": 1}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+dir109	verdict	v: (close()) & (({"x": open({"y": 1})}) & ({"x": {"y": 1}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir110	verdict	v: (close()) & (({"x": open({"y": 1})}) & ({"x": {"y": 1}}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}
+dir111	verdict	v: (close()) & (({"x": {"y": 1}}) & ({"x": open({"y": 1})}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid"}
+dir112	verdict	v: (close()) & (({"x": {"y": 1}}) & ({"x": open({"y": 1})}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+dir113	verdict	v: (close()) & (({"x": {"y": 1}}) & ({"x": open({"y": 1})}))	v: {"x": {"y": 1, "z": 2}}	{"verdict":"valid","opts":{"partial":true}}

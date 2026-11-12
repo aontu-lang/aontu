@@ -667,6 +667,7 @@ example : vetP {} [] (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 
 /-- Under `{"x": 1, "y": 2}` it is `2`, which `x: 1` refuses. -/
 example : vetP {} [] (refDoc .integer) (.map [("x", .integer 1), ("y", .integer 2)]) = .invalid := by decide
 
+set_option maxHeartbeats 800000 in
 /-- `{x: $.y, y: any}` admits `{"x": {"a": 1, "b": 2}, "y": {"b": 2, "a": 1}}`:
 the two maps have the same members. -/
 example : vetP {} [] (refDoc .any)
