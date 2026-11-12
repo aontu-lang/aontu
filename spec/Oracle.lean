@@ -1221,7 +1221,11 @@ gathered from every map at its parent, and a member held open by a term
 that's `open(v)` beside one that isn't; and a directive beside one
 disjunction or lone preference, or beside two or more, across statements
 too, which reaches every combination of their arms, each met with the
-terms beside them. -/
+terms beside them; and a directive in a spread's template, at a member
+the map declares, read there with the member's own terms, and at a
+member the data adds, a list's element the same, two templates at one
+place read together, and a member's directive reading the template
+beside it. -/
 def directiveCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -1239,6 +1243,8 @@ def directiveCases : List (Decls × Val × Data) :=
   let xy : Val := .or [(0, mp [("x", int 1)]), (0, mp [("y", int 2)])]
   let xw : Val := .or [(0, mp [("x", int 1)]), (0, mp [("w", int 2)])]
   let zw : Val := .or [(0, mp [("z", int 1)]), (0, mp [("w", int 2)])]
+  let sp (fs : List (String × Val)) (t : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some t) false
+  let sl (xs : List Val) (t : Val) : Val := .list xs (some t) false
   [([], .meet bclose (mp [("x", int 1)]), dxy),
     ([], .meet bclose (mp [("x", int 1)]), dx),
     ([], .meet (.meet bclose (mp [("x", int 1)])) (mp [("y", int 2)]), dxy),
@@ -1318,7 +1324,22 @@ def directiveCases : List (Decls × Val × Data) :=
     ([], .meet (.meet bopen (.or [(0, cl [("x", int 1)]), (0, mp [("y", int 2)])])) zw,
       .map [("x", j 1), ("w", j 2)]),
     ([], .meet (.or [(0, mp [("k", cl [("x", int 1)])]), (0, mp [("j", int 1)])]) (mp [("k", bopen)]),
-      .map [("k", .map [("x", j 1), ("z", j 3)])])]
+      .map [("k", .map [("x", j 1), ("z", j 3)])]),
+    ([], sp [("m", mp [("y", int 1)])] (.meet bclose (mp [("x", int 1)])),
+      .map [("m", .map [("x", j 1), ("y", j 1)])]),
+    ([], sp [("m", mp [("y", int 1)])] (.meet bclose (mp [("x", int 1)])),
+      .map [("m", .map [("x", j 1), ("y", j 1), ("z", j 1)])]),
+    ([], sp [("m", mp [("y", int 1)])] (.meet bclose (mp [("x", int 1)])),
+      .map [("m", .map [("x", j 1), ("y", j 1)]), ("n", .map [("x", j 1), ("y", j 1)])]),
+    ([], sp [("m", .meet bclose (mp [("y", int 1)]))] (mp [("x", int 1)]),
+      .map [("m", .map [("x", j 1), ("y", j 1)])]),
+    ([], .meet (mp [("m", .meet bclose (mp [("y", int 1)]))]) (sp [] (mp [("x", int 1)])),
+      .map [("m", .map [("x", j 1), ("y", j 1)])]),
+    ([], .meet (sp [] bclose) (sp [] (mp [("x", int 1)])), .map [("n", .map [("x", j 1), ("y", j 1)])]),
+    ([], sp [("m", cl [("y", int 1)])] bopen, .map [("m", .map [("y", j 1), ("z", j 1)])]),
+    ([], sl [mp [("y", int 1)]] (.meet bclose (mp [("x", int 1)])), .list [.map [("x", j 1), ("y", j 1)]]),
+    ([], sl [mp [("y", int 1)]] (.meet bclose (mp [("x", int 1)])),
+      .list [.map [("x", j 1), ("y", j 1)], .map [("x", j 1), ("y", j 1)]])]
 
 theorem directiveCases_checkable : ∀ c ∈ directiveCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
@@ -5505,14 +5526,11 @@ theorem readR_call_checkableA {t : Val}
     (hf : ∀ k, (expandF [] k t).filled = expandF [] k t)
     (h : ∀ k, (resolveD [] none (stepped (some []) (.seg (.key "v"))) (expandF [] k t)).CheckableA) :
     (Decls.readR [] (.map [("v", false, t)] none false)).CheckableA := by
-  have hx : ∀ k, (∀ rd cs, (expandF [] k t).dirIn rd cs = expandF [] k t) ∧
-      (expandF [] k t).placeTerms = [expandF [] k t] ∧ (expandF [] k t).directs .lifts = false ∧
-      (expandF [] k t).directs .seals = false ∧ (expandF [] k t).placeChoices = [] ∧
-      (expandF [] k t).landed = expandF [] k t := by
+  have hx : ∀ k, (expandF [] k t).landed = expandF [] k t ∧ (expandF [] k t).holdsDir = false := by
     intro k
     rcases ht with ⟨f, args, rfl, hla⟩ | ⟨s, c, rfl⟩
-    · cases k <;> exact ⟨fun _ _ => rfl, rfl, rfl, rfl, rfl, by simp [expandF, Val.landed, hla]⟩
-    · cases k <;> exact ⟨fun _ _ => rfl, rfl, rfl, rfl, rfl, rfl⟩
+    · cases k <;> exact ⟨by simp [expandF, Val.landed, hla], rfl⟩
+    · cases k <;> exact ⟨rfl, rfl⟩
   have hd : ∀ n, (expandF [] n (.map [("v", false, t)] none false)).directed =
       expandF [] n (.map [("v", false, t)] none false) := by
     intro n
@@ -5520,11 +5538,11 @@ theorem readR_call_checkableA {t : Val}
     | zero =>
       have e := (hx 0)
       simp only [expandF] at e ⊢
-      exact Val.directed_map_of e.1 e.2.1 e.2.2.1 e.2.2.2.1 e.2.2.2.2.1 e.2.2.2.2.2
+      exact Val.directed_map_of e.1 e.2
     | succ k =>
       have e := (hx k)
       simp only [expandF, List.map, Option.map]
-      exact Val.directed_map_of e.1 e.2.1 e.2.2.1 e.2.2.2.1 e.2.2.2.2.1 e.2.2.2.2.2
+      exact Val.directed_map_of e.1 e.2
   have hm : ∀ u, (resolveD [] none (stepped (some []) (.seg (.key "v"))) u).CheckableA →
       (resolveD [] none (some []) (.map [("v", false, u)] none false)).CheckableA := by
     intro u hu
