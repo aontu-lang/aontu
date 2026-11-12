@@ -2839,6 +2839,21 @@ theorem admits_meetD {ds : Decls} {root : Data} (a b : Val) (j : Data) :
   admits_meetA _ a b j
 ```
 
+The body a residual unfolds to holds its calls made. Both engines make a
+call in a recursive name's body wherever the body stands, so
+`%T = {m: {}, n: upper("x"), o?: %T}` gives `x: {} & %T` the member
+`n: "X"`, and `copy(%T)` and `refer(%T)` in `%T`'s own body wait on the
+recursion, as `pref(%T)` does. The meet unfolds a name after the reading
+has made the schema's calls, so the definition makes the calls in each
+recursive name's body first, and step 38's prepared documents end with
+each body so read:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.callsMade (ds : Decls) : Decls :=
+  ds.map fun d => if ds.recursiveB d.1 then (d.1, ds.readU d.2) else d
+```
+
 Step 14's `vet` reads a document this way, and the sixth generated
 fragment, [`test/spec/def-alias.tsv`](../test/spec/def-alias.tsv),
 runs documents with declarations in the three modes, recursive names
@@ -3351,9 +3366,10 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (ds' := (ds.preparedD S j).1)
     (S' := (ds.preparedD S j).2)
-    (Decls.prepared_bodies_checkableA rootsS_readable rootsS_readable hb hS)
+    (Decls.callsMade_checkableA (Decls.prepared_bodies_checkableA rootsS_readable rootsS_readable hb hS))
     (Decls.prepared_checkableA rootsS_readable rootsS_readable hb hS)
-    (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS)
+    (Decls.callsMade_checkableA
+      (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS))
     (Decls.prepared_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS) v
 ```
 
@@ -9497,7 +9513,8 @@ the inner ones first, and only then does the definition read the arms.
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)
+  ((ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)).1.callsMade,
+    (ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)).2)
 ```
 
 Beside data, the definition reads the links in the tree the data reads

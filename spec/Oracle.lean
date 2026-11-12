@@ -1635,12 +1635,38 @@ def bodyPlaceCases : List (Decls × Val × Data) :=
     ([("T", lb (m []) (m [("k", int 1)]) ["k"])], m [("a", .alias "T")], .map []),
     ([("T", xy)], m [("z", .path [.key "%T", .key "x"])], .map [("z", j 1)])]
 
+/-- A call in a recursive name's body, made where the body unfolds, as
+both ports make it wherever the body stands (#663): a `pref`, a `copy`
+and a `refer` over the name itself, which wait on the recursion, the
+`copy` with data that supplies its member and data that refuses it;
+and an `upper`, a `copy`, a `refer` and a `super` beside the name, the
+`upper` with data that matches what it makes and data that doesn't. -/
+def recursiveCallCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let tB (n : Val) : Val := m [("m", m []), ("n", n)]
+  let tO (n : Val) : Val := .map [("m", false, m []), ("n", false, n), ("o", true, .alias "T")] none false
+  let xT : Val := m [("x", .meet (m []) (.alias "T"))]
+  let xd (n : Data) : Data := .map [("x", .map [("m", .map []), ("n", n)])]
+  [([("T", tB (.call .pref [.alias "T"]))], xT, .map []),
+    ([("T", tB (.call .copy [.alias "T"]))], xT, .map []),
+    ([("T", tB (.call .refer [.alias "T"]))], xT, .map []),
+    ([("T", tB (.call .copy [.alias "T"]))], xT, xd (.map [("m", .map [])])),
+    ([("T", tB (.call .copy [.alias "T"]))], xT, xd (.integer 1 (by decide))),
+    ([("T", tO (.call .upper [.lit (.str "x")]))], xT, .map []),
+    ([("T", tO (.call .upper [.lit (.str "x")]))], xT, xd (.str "X")),
+    ([("T", tO (.call .upper [.lit (.str "x")]))], xT, xd (.str "x")),
+    ([("T", tO (.call .copy [m [("k", int 1)]]))], xT, .map []),
+    ([("T", tO (.call .refer [m [("k", int 1)]]))], xT, .map []),
+    ([("T", tO (.call .super [int 1]))], xT, .map [])]
+
 /-- Relative paths, made absolute where each stands: a sibling, a climb
 of two steps and three, a key in quotes, an index into a sibling list,
 a list's element reading its sibling, a chain of relative paths, a
 relative path in a call, and a body's, read at the body's own place
 (`Seg.own`), as both ports place it, with
-`aliasPlaceCases`. -/
+`aliasPlaceCases`; and a call in a recursive name's body
+(`recursiveCallCases`). -/
 def relPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1662,7 +1688,7 @@ def relPathCases : List (Decls × Val × Data) :=
     ([], m [("a", m [("x", int 1), ("y", .call .plus [rel 1 ["x"], int 1])])], .map [("a", .map [("y", j 2)])]),
     ([("T", m [("y", rel 2 ["x"])])], m [("x", int 1), ("a", .alias "T")], .map [("a", .map [("y", j 1)])]),
     ([("T", m [("y", rel 1 ["x"])])], m [("a", .meet (m [("x", int 1)]) (.alias "T"))], .map [("a", .map [("y", j 1)])])] ++
-  aliasPlaceCases ++ bodyPlaceCases
+  aliasPlaceCases ++ bodyPlaceCases ++ recursiveCallCases
 
 theorem relPathCases_checkable : ∀ c ∈ relPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
