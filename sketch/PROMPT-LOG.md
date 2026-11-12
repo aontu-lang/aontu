@@ -990,3 +990,9 @@ under the current meaning of refer() is this actually a good name - since refer(
 ```text
 by doesn't refer impose the template on the current value, forcing a meet?
 ```
+
+## 2026-11-12 18:38:50 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+but that means refer and rel are NOT the same surely?
+```
