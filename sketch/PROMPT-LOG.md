@@ -1014,3 +1014,9 @@ Write aontu code to model a file system, use rel() for folder parentage
 ```text
 create github issues for these quirks, include reproductions; why does rel() have no argument here?
 ```
+
+## 2026-11-12 23:40:57 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+create github issues for those unfiled findings too, include reproductions; what do you mean by "address" -  do you mean a path?
+```
