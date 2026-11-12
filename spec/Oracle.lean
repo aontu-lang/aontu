@@ -1639,13 +1639,18 @@ def bodyPlaceCases : List (Decls × Val × Data) :=
 both ports make it wherever the body stands (#663): a `pref`, a `copy`
 and a `refer` over the name itself, which wait on the recursion, the
 `copy` with data that supplies its member and data that refuses it;
-and an `upper`, a `copy`, a `refer` and a `super` beside the name, the
-`upper` with data that matches what it makes and data that doesn't. -/
+an `upper`, a `copy`, a `refer` and a `super` beside the name, the
+`upper` with data that matches what it makes and data that doesn't;
+a `match` over a literal, and an `upper` over a path to the body's own
+member (#403). -/
 def recursiveCallCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
   let tB (n : Val) : Val := m [("m", m []), ("n", n)]
   let tO (n : Val) : Val := .map [("m", false, m []), ("n", false, n), ("o", true, .alias "T")] none false
+  let tP (fs : List (String × Val)) : Val :=
+    .map ((fs.map fun f => (f.1, false, f.2)) ++ [("o", true, .alias "T")]) none false
+  let rel (k : String) : Val := .path [.up 1, .key k]
   let xT : Val := m [("x", .meet (m []) (.alias "T"))]
   let xd (n : Data) : Data := .map [("x", .map [("m", .map []), ("n", n)])]
   [([("T", tB (.call .pref [.alias "T"]))], xT, .map []),
@@ -1658,7 +1663,9 @@ def recursiveCallCases : List (Decls × Val × Data) :=
     ([("T", tO (.call .upper [.lit (.str "x")]))], xT, xd (.str "x")),
     ([("T", tO (.call .copy [m [("k", int 1)]]))], xT, .map []),
     ([("T", tO (.call .refer [m [("k", int 1)]]))], xT, .map []),
-    ([("T", tO (.call .super [int 1]))], xT, .map [])]
+    ([("T", tO (.call .super [int 1]))], xT, .map []),
+    ([("T", tO (.select (.lit (.str "a")) [(.lit (.str "a"), int 1), (.lit (.str "b"), int 2)] none))], xT, .map []),
+    ([("T", tP [("s", .lit (.str "x")), ("u", .call .upper [rel "s"])])], xT, .map [])]
 
 /-- Relative paths, made absolute where each stands: a sibling, a climb
 of two steps and three, a key in quotes, an index into a sibling list,
@@ -1696,6 +1703,32 @@ theorem relPathCases_checkable : ∀ c ∈ relPathCases,
 theorem rel_path_verdict_exact : ∀ c ∈ relPathCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (relPathCases_checkable c hc).1 (relPathCases_checkable c hc).2 v
+
+/-- A selection in a recursive name's body, made where the body unfolds,
+as both ports make it wherever the body stands (#403): a `match` over a
+path to the body's own member, and a `filter` over a literal and over
+such a path. -/
+def recursiveSelectCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let tP (fs : List (String × Val)) : Val :=
+    .map ((fs.map fun f => (f.1, false, f.2)) ++ [("o", true, .alias "T")]) none false
+  let rel (k : String) : Val := .path [.up 1, .key k]
+  let xT : Val := m [("x", .meet (m []) (.alias "T"))]
+  [([("T", tP [("kind", .lit (.str "b")),
+      ("v", .select (rel "kind") [(.lit (.str "a"), int 1), (.lit (.str "b"), int 2)] none)])], xT, .map []),
+    ([("T", tP [("k", .filter (m [("a", int 1), ("b", .lit (.str "x"))]) .integer)])], xT, .map []),
+    ([("T", tP [("c", m [("a", int 1), ("b", .lit (.str "x"))]), ("k", .filter (rel "c") .integer)])], xT, .map [])]
+
+set_option maxRecDepth 16384 in
+/-- The checker can't read a selection before the reading makes it, so
+each case's readings are read whole (`Decls.readsPB`). -/
+theorem recursiveSelectCases_reads : ∀ c ∈ recursiveSelectCases, c.1.readsPB c.2.1 c.2.2 = true := by
+  decide +kernel
+
+theorem recursiveSelect_verdict_exact : ∀ c ∈ recursiveSelectCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (recursiveSelectCases_reads c hc) v
 
 /-- A use of a name whose body writes a relative path reads the path
 where the use stands (ruling 26): a climb out of the body at a use whose
@@ -7554,6 +7587,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "gt" genTemplateCases
     pathRows "fc" filterCondCases
     pathRows "fk" filterKeepCases
+    pathRows "rs" recursiveSelectCases
     pathRows "hm" markMeetCases
     pathRows "sm" spreadMarkCases
     pathRows "bd" boundArgCases
