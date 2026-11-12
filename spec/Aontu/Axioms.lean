@@ -359,7 +359,7 @@ line each comment states.
 #guard_msgs in
 #print axioms Aontu.leD_of_le
 
-/-- info: 'Aontu.alias_le_unroll' depends on axioms: [propext] -/
+/-- info: 'Aontu.alias_le_unroll' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.alias_le_unroll
 

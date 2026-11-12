@@ -2470,9 +2470,8 @@ A bare `open()` or `close()` is no value at all. Each is a directive on
 the place it stands at, which the reading applies once the expansion
 has read a term's names, before any meet. The terms at a member are
 what each map at its parent declares for its key, wherever the document
-writes it. A spread's template is a place of its own, and each arm of a
-disjunction or a lone preference beside a directive takes the terms
-beside the choice as its own. `open()` holds each term at its place
+writes it. A spread's template is a place of its own, and so is each arm
+of a disjunction and a lone preference's value. `open()` holds each term at its place
 open, as `open(v)` does. Then `close()` meets the place with the seal
 an instance takes, read through every term held open at its own level,
 so `close()` wins there, and stops at a term held open beneath it:
@@ -2495,6 +2494,27 @@ def Val.atPlace (all : List Val) (w : Val) : Val :=
 The places beneath a place come first, so `open() & {x: close() & {y:
 1}}` admits a member under `x` that `y` doesn't name: the `close()` at
 `x` seals it, and the outer `open()` lifts that seal again.
+
+An arm of a disjunction is a place of its own, which a directive outside
+it would never reach, so a place that holds a choice and a directive, at
+the place or beneath it, reads as one disjunction. Each combination of
+the choices' arms, ranked as the meet ranks them, meets every other term
+at the place and reads as a place of its own. So `close() & ({x: 1} |
+{y: 2}) & ({x: 1} | {w: 2})` admits `{x: 1, w: 2}`, which the
+combination `{x: 1} & {w: 2}` declares, and refuses `{x: 1, q: 0}`, which
+no combination declares, whatever order the terms come in:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+/-- The disjunction a place that folds reads as, its written terms `all`:
+each combination of its choices' arms (`choicesMet`), met with every
+term written there, its choices read as `any` (`Val.unchosen`), and read
+by `rd` as a place of its own, so that a directive among the terms
+reaches each combination and seals it with the keys it declares. -/
+def foldPlace (rd : Val → Val) (all : List Val) : Val :=
+  .or ((choicesMet (all.flatMap Val.placeChoices)).map
+    fun p => (p.1, rd (.meet p.2 ((all.map Val.unchosen).foldl Val.meet .any))))
+```
 
 The declarations make a graph, where a name refers to every name in
 its bodies, and a recursive name is one that refers to itself through

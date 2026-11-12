@@ -1219,8 +1219,9 @@ it and an `open()` lifts the seal a `close()` beneath it makes, as
 and a spread's template, each a place of its own; the terms at a member
 gathered from every map at its parent, and a member held open by a term
 that's `open(v)` beside one that isn't; and a directive beside one
-disjunction or lone preference, which reaches each of its arms, read
-with the terms beside it. -/
+disjunction or lone preference, or beside two or more, across statements
+too, which reaches every combination of their arms, each met with the
+terms beside them. -/
 def directiveCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
@@ -1235,6 +1236,9 @@ def directiveCases : List (Decls × Val × Data) :=
   let dx : Data := .map [("x", j 1)]
   let dxy : Data := .map [("x", j 1), ("y", j 2)]
   let dyz : Data := .map [("x", .map [("y", j 1), ("z", j 2)])]
+  let xy : Val := .or [(0, mp [("x", int 1)]), (0, mp [("y", int 2)])]
+  let xw : Val := .or [(0, mp [("x", int 1)]), (0, mp [("w", int 2)])]
+  let zw : Val := .or [(0, mp [("z", int 1)]), (0, mp [("w", int 2)])]
   [([], .meet bclose (mp [("x", int 1)]), dxy),
     ([], .meet bclose (mp [("x", int 1)]), dx),
     ([], .meet (.meet bclose (mp [("x", int 1)])) (mp [("y", int 2)]), dxy),
@@ -1292,7 +1296,29 @@ def directiveCases : List (Decls × Val × Data) :=
     ([], .meet bclose (.or [(0, mp [("x", int 1)]), (1, mp [("y", int 2)])]), .map [("y", j 2), ("z", j 3)]),
     ([], .meet bopen (.or [(0, cl [("x", int 1)]), (0, mp [("y", int 2)])]), .map [("x", j 1), ("z", j 3)]),
     ([], .meet bclose (.or [(0, ls [int 1]), (0, ls [int 2, int 3])]), .list [j 2, j 3, j 4]),
-    ([], .meet bclose (.or [(0, ls [int 1]), (0, ls [int 2, int 3])]), .list [j 2, j 3])]
+    ([], .meet bclose (.or [(0, ls [int 1]), (0, ls [int 2, int 3])]), .list [j 2, j 3]),
+    ([], .meet (.meet bclose xy) xw, .map [("x", j 1), ("w", j 2)]),
+    ([], .meet (.meet bclose xy) xw, .map [("x", j 1), ("w", j 2), ("q", j 0)]),
+    ([], .meet (.meet bclose xy) xw, dx),
+    ([], .meet (.meet xy zw) bclose, .map [("y", j 2), ("z", j 1)]),
+    ([], .meet (.meet (mp [("a", xy)]) (mp [("a", zw)])) (mp [("a", bclose)]),
+      .map [("a", .map [("x", j 1), ("w", j 2)])]),
+    ([], .meet (.meet (mp [("a", xy)]) (mp [("a", zw)])) (mp [("a", bclose)]),
+      .map [("a", .map [("x", j 1), ("w", j 2), ("q", j 0)])]),
+    ([], .meet (.meet bclose (.pref 1 (mp [("x", int 1)]))) (.or [(0, mp [("y", int 2)]), (0, mp [("w", int 3)])]),
+      dxy),
+    ([], .meet (.meet bclose (.pref 1 (mp [("x", int 1)]))) (.or [(0, mp [("y", int 2)]), (0, mp [("w", int 3)])]),
+      .map [("x", j 1), ("y", j 2), ("q", j 0)]),
+    ([], .meet (.or [(0, mp [("k", mp [("y", int 1)])]), (0, mp [("j", int 1)])])
+        (mp [("k", .meet bclose (mp [("x", int 1)]))]),
+      .map [("k", .map [("x", j 1), ("y", j 1)])]),
+    ([], .meet (.or [(0, mp [("a", .meet bclose (mp [("x", int 1)])), ("b", int 1)]), (0, mp [("b", int 2)])])
+        (.or [(0, mp [("a", mp [("y", int 1)]), ("c", int 1)]), (0, mp [("c", int 2)])]),
+      .map [("a", .map [("x", j 1), ("y", j 1)]), ("b", j 1), ("c", j 1)]),
+    ([], .meet (.meet bopen (.or [(0, cl [("x", int 1)]), (0, mp [("y", int 2)])])) zw,
+      .map [("x", j 1), ("w", j 2)]),
+    ([], .meet (.or [(0, mp [("k", cl [("x", int 1)])]), (0, mp [("j", int 1)])]) (mp [("k", bopen)]),
+      .map [("k", .map [("x", j 1), ("z", j 3)])])]
 
 theorem directiveCases_checkable : ∀ c ∈ directiveCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
@@ -5460,11 +5486,11 @@ theorem readR_call_checkableA {t : Val} (ht : (∃ f args, t = .call f args) ∨
     (hf : ∀ k, (expandF [] k t).filled = expandF [] k t)
     (h : ∀ k, (resolveD [] none (stepped (some []) (.seg (.key "v"))) (expandF [] k t)).CheckableA) :
     (Decls.readR [] (.map [("v", false, t)] none false)).CheckableA := by
-  have hx : ∀ k, (∀ cs, (expandF [] k t).dirIn cs = expandF [] k t) ∧
+  have hx : ∀ k, (∀ rd cs, (expandF [] k t).dirIn rd cs = expandF [] k t) ∧
       (expandF [] k t).placeTerms = [expandF [] k t] ∧ (expandF [] k t).directs .lifts = false ∧
-      (expandF [] k t).directs .seals = false := by
+      (expandF [] k t).directs .seals = false ∧ (expandF [] k t).placeChoices = [] := by
     intro k
-    rcases ht with ⟨f, args, rfl⟩ | ⟨s, c, rfl⟩ <;> cases k <;> exact ⟨fun _ => rfl, rfl, rfl, rfl⟩
+    rcases ht with ⟨f, args, rfl⟩ | ⟨s, c, rfl⟩ <;> cases k <;> exact ⟨fun _ _ => rfl, rfl, rfl, rfl, rfl⟩
   have hd : ∀ n, (expandF [] n (.map [("v", false, t)] none false)).directed =
       expandF [] n (.map [("v", false, t)] none false) := by
     intro n
@@ -5472,11 +5498,11 @@ theorem readR_call_checkableA {t : Val} (ht : (∃ f args, t = .call f args) ∨
     | zero =>
       have e := (hx 0)
       simp only [expandF] at e ⊢
-      exact Val.directed_map_of e.1 e.2.1 e.2.2.1 e.2.2.2
+      exact Val.directed_map_of e.1 e.2.1 e.2.2.1 e.2.2.2.1 e.2.2.2.2
     | succ k =>
       have e := (hx k)
       simp only [expandF, List.map, Option.map]
-      exact Val.directed_map_of e.1 e.2.1 e.2.2.1 e.2.2.2
+      exact Val.directed_map_of e.1 e.2.1 e.2.2.1 e.2.2.2.1 e.2.2.2.2
   have hm : ∀ u, (resolveD [] none (stepped (some []) (.seg (.key "v"))) u).CheckableA →
       (resolveD [] none (some []) (.map [("v", false, u)] none false)).CheckableA := by
     intro u hu

@@ -942,3 +942,27 @@ How much of aontu is now specified in lean?
 ```text
 what is the plan for completion?
 ```
+
+## 2026-11-12 13:36:59 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+ask me for rulings, then proceed
+```
+
+## 2026-11-12 13:42:16 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Decision 45: a bare close() or open() written beside two or more disjunctions at one place, e.g. `close() & ({x:1} | {y:2}) & ({x:1} | {w:2})`. Both engines meet the directive into every combination of arms, each combination sealed with its own keys. The definition currently seals nothing there (a listed limit). Which should the definition hold?
+→ Every combination (Recommended)
+
+Decision 46: a bare close() or open() inside a call's argument, e.g. `copy(close() & {x: 1})`. copy() unseals its argument (ruling 27), yet both engines answer this copy as sealed, refusing `{x: 1, y: 2}`. Where does a directive inside a call's argument act?
+→ Where the value lands (Recommended)
+
+Scope of completion: does finishing the Lean work include moving both engines (TypeScript and Go) to the definition, emptying the ledger's 355 rows (#700, #504, #704/#702, #714, #726, #361 and smaller), about 10 engine PRs?
+→ Ledger to zero (Recommended)
+
+Modules (P10): module imports like `@"corp.example/schemas/service"`, `@"alias:legacy"` and `#hash` pins. The registry and network are already outside the definition by design. How should the definition hold module imports?
+→ Sources the host resolves (Recommended)
+```

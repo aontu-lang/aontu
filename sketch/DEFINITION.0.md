@@ -2252,6 +2252,70 @@ until the phase that encodes it lands.
    template, and a directive inside a call's argument, a trial, a
    selection's result or a link's template.
 
+45. **A directive beside two or more choices.** Raised 2026-11-12 by
+   decision 44's third slice, which left it a limit: a bare `close()`
+   or `open()` at a place that holds two or more disjunctions or lone
+   preferences, as in `close() & ({x: 1} | {y: 2}) & ({x: 1} | {w:
+   2})`. Each arm of a disjunction is a place of its own, which a
+   directive outside it doesn't reach, and the meet of the disjunctions
+   is the disjunction of every combination of their arms.
+   **Ruled 2026-11-12 (the project's owner): every combination.** The
+   directive reaches each combination of the choices' arms, and
+   `close()` seals each with the keys that combination declares,
+   whatever order the terms come in. Inside a member both ports answer
+   so in every order; at the document's root, and where `close()` is
+   written beside another term in one meet, both ports fold it into the
+   term it meets first, the order-dependence #726 tracks.
+   **Built 2026-11-12**: a place whose written terms hold a choice and
+   a directive, at the place or beneath it (`Val.folds`,
+   `Val.holdsDir`), reads as one disjunction, which the first term to
+   hold a choice carries (`Val.leads`), the others reading as `any`:
+   each combination of the choices' arms (`choicesMet`), met as
+   written and ranked as the meet ranks them (`orMeet`, moved from the
+   path reading into `Alias.lean`), each arm under the riders its
+   choice stands under and a lone preference as `x | super(x)`
+   (`Val.placeChoices`), met with every term at the place, its choices
+   read as `any` (`Val.unchosen`), and read as a place of its own
+   (`foldPlace`, `Val.directedAt`). The arms of a place that folds are
+   read a turn later (`dirF`), a turn for each constructor the term
+   holds. This replaces decision 44's reading of one choice with the
+   terms beside it (`Val.choiceOthers`), which read those terms twice,
+   in each arm and beside the choice, so that a directive in a term
+   beside a choice, at a place beneath, sealed that place without the
+   keys an arm adds there; every row decision 44 wrote keeps its
+   answer. Rows dir153 on of `test/spec/def-alias.tsv`, 36 in all;
+   both ports answer 29 of them as the definition does, and the other 7
+   alike, listed in the ledger: 6 under #726, where `close()` stands
+   beside a term in one meet and both ports fold it into that term,
+   and 1 under #714, a preference met with a disjunction under
+   `--no-fill`, which both ports read so with or without the
+   directive.
+
+46. **A directive inside a call's argument.** Raised 2026-11-12: a bare
+   `close()` or `open()` inside a call's argument, as in
+   `copy(close() & {x: 1})`. `copy` unseals its argument (ruling 27),
+   yet both ports answer this copy as sealed and refuse `{x: 1, y: 2}`.
+   **Ruled 2026-11-12 (the project's owner): where the value lands.** A
+   directive inside a call's argument acts at the place the call's
+   value stands, so `copy(close() & {x: 1})` stays sealed.
+
+47. **Modules.** Raised 2026-11-12 while planning P10: the module
+   imports `@"corp.example/schemas/service"` and `@"alias:legacy"`, and
+   a `#hash` pin on one. The registry and the network lie outside the
+   definition by design.
+   **Ruled 2026-11-12 (the project's owner): sources the host
+   resolves.** A module import reads as a source load whose text the
+   calling program supplies, as it supplies a variable's value; routing,
+   validity, aliases and hash pins stay with the tools.
+
+48. **How far completion goes.** Raised 2026-11-12 with the plan for
+   completion: whether finishing the definition includes moving both
+   ports to it, the 355 rows of `spec/ledger.tsv` among them.
+   **Ruled 2026-11-12 (the project's owner): the ledger to zero.** Both
+   ports move until the ledger is empty. The divergences between the
+   ports in an error's site or wording, about 25, stay outside this
+   effort.
+
 ## 8. Risks
 
 | Risk | Mitigation |
