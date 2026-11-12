@@ -978,3 +978,9 @@ you are proposing that in the forms &: X and %a = X, that the structure X is tre
 ```text
 create a github issue for this proposal, include the comparison table; the idiom refer() & path(.some.path) seems overly verbose - why not use refer(.some.path) - is this a missing convenience?
 ```
+
+## 2026-11-12 16:43:16 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+under the current meaning of refer() is this actually a good name - since refer(template) is not really a reference to a template, is it?
+```
