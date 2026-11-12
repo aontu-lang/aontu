@@ -780,6 +780,16 @@ default of its rank: the first two are `pref_rank_clash` there, and the
 third is `{"a": 1, "b": 2, "c": 3}`
 ([#714](https://github.com/aontu-lang/aontu/issues/714)).
 
+**Two defaults of different ranks meet as their disjunctions.** Each
+stands only where the other's type admits it, and whichever stands
+keeps both types, narrowed by whatever either has already met. So a
+value the weaker default has met outlives the stronger one:
+`a:**true`, `a:true` and `a:*false` give `true` in every order, and
+`a:**1`, `a:min(1)` and `a:*0` give `1`, never the `0` the bound rules
+out. Defaults whose types share nothing refuse as `empty` at any rank:
+`a:**1` beside `a:*"a"`. Map and list defaults keep the plain rank
+order.
+
 **A preference conjoined with a disjunction names an alternative**:
 `(A|B) & *A` is `*A|B`, the same value the direct spelling denotes, so
 the two ways of writing an enum-with-default agree.
