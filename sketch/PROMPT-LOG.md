@@ -1002,3 +1002,9 @@ but that means refer and rel are NOT the same surely?
 ```text
 why can rel() impose a template on it's target? that makes no sense. a relation is an ordered tuple, not a unification
 ```
+
+## 2026-11-12 23:19:35 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Write aontu code to model a file system, use rel() for folder parentage
+```
