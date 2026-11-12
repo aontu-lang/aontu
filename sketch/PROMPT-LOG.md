@@ -948,3 +948,9 @@ To what extent can aontu formally express domain driven design, and how would th
 ```text
 post the discovered trip defects as github issues to investigate - include reproductions; Derived members only work in a collection’s &: template - this feels like a builtin function is needed to allow aliases to express the same deferral mechanism - thoughts?
 ```
+
+## 2026-11-12 13:02:34 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+this does not look like valid syntax: $.%T.gross
+```
