@@ -2844,9 +2844,11 @@ call in a recursive name's body wherever the body stands, so
 `%T = {m: {}, n: upper("x"), o?: %T}` gives `x: {} & %T` the member
 `n: "X"`, and `copy(%T)` and `refer(%T)` in `%T`'s own body wait on the
 recursion, as `pref(%T)` does. The meet unfolds a name after the reading
-has made the schema's calls, so the definition makes the calls in each
-recursive name's body first, and step 38's prepared documents end with
-each body so read:
+has made the schema's calls, so the definition makes the calls and the
+selections in each recursive name's body first. Step 9 reads each body
+so once its paths are names, so the definition makes a `match` or a call
+over a path to the body's own member too, `v: match(.kind, ...)` beside
+`kind: "b"`:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -3115,20 +3117,21 @@ def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The document with its paths read as names from the schema alone,
-from its own tree, which is what the error class is judged on. -/
+from its own tree, which is what the error class is judged on, each
+recursive name's body with its calls made (`Decls.callsMade`). -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
   let rs := ds.roundsS S
-  ds.withPathsFrom S rs.1 rs.2
+  ((ds.withPathsFrom S rs.1 rs.2).1.callsMade, (ds.withPathsFrom S rs.1 rs.2).2)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 /-- The document with its paths read as names from the data too, from
 the tree the data reads in, which is what the other classes are judged
-on. -/
+on, each recursive name's body with its calls made. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
   let rs := ds.roundsD S j
-  ds.withPathsFrom S rs.1 rs.2
+  ((ds.withPathsFrom S rs.1 rs.2).1.callsMade, (ds.withPathsFrom S rs.1 rs.2).2)
 ```
 
 The verdict of a document whose paths are absolute is then the verdict
@@ -3366,10 +3369,9 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (ds' := (ds.preparedD S j).1)
     (S' := (ds.preparedD S j).2)
-    (Decls.callsMade_checkableA (Decls.prepared_bodies_checkableA rootsS_readable rootsS_readable hb hS))
+    (Decls.prepared_bodies_checkableA rootsS_readable rootsS_readable hb hS)
     (Decls.prepared_checkableA rootsS_readable rootsS_readable hb hS)
-    (Decls.callsMade_checkableA
-      (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS))
+    (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS)
     (Decls.prepared_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS) v
 ```
 
@@ -9513,8 +9515,7 @@ the inner ones first, and only then does the definition read the arms.
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
-  ((ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)).1.callsMade,
-    (ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)).2)
+  ds.prepared S (ds.linkReader S j) (fun d T => d.rootsD T j) (some j)
 ```
 
 Beside data, the definition reads the links in the tree the data reads
