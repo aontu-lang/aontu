@@ -966,3 +966,9 @@ this does not look like valid syntax: $.%T.gross
 ```text
 a declaration has no place, so anything in its body that needs one waits for a use - how does it wait? is it marked?
 ```
+
+## 2026-11-12 13:36:28 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+you are proposing that in the forms &: X and %a = X, that the structure X is treated with exactly the same semantics, and that this is partially true today?
+```
