@@ -2829,6 +2829,13 @@ step of the meet. -/
 def meetStepA (ds : Decls) (rec : Val → Val → Val) (a b : Val) : Val :=
 ```
 
+A literal meets a term the meet can't take apart, a kind or a bound,
+by checking the literal against it (`litMeetD`): by the checker of the
+fragment where the term reads no name, whatever the bodies hold, and
+else by the checker that reads the names, where it can read every body.
+So a body it can't read, a recursive body whose `match` waits for the
+data, leaves no other literal meet undecided.
+
 The meet so built admits what both of its sides admit, under the
 environment of expanded bodies, which is what admits it:
 
@@ -3422,6 +3429,21 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (Decls.prepared_checkableA rootsS_readable rootsS_readable hb hS)
     (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS)
     (Decls.prepared_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS) v
+```
+
+Ruling 49 has a selection whose scrutinee the schema leaves open wait
+for the data. In `x: {kind: string, v: match(.kind, "a", 1, "b", 2)}`
+the data's `kind` picks the arm, `"c"` is `invalid`, and with no
+`kind` the document is `incomplete`. The schema's own reading keeps the
+selection waiting, a term the checker can't read. The `error` class
+reads only the names, the alias-cycle rule and the schema's form,
+though, so the verdict needs only the reading with the data to be one
+the checker reads (`vetA_iff_data`, `vetP_iff_readsD`):
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+theorem vet_error_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} :
+    vet m ds S j = .error ↔ Vet m ds S j .error := by
 ```
 
 A recursive position, `then?: $.schema.Step` inside `Step`, is a name

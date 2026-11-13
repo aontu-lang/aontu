@@ -5695,6 +5695,35 @@ theorem vetA_iff_of {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data}
     have hR : ¬ ds.Resolves S := fun h => hr (Decls.resolvesB_iff.mpr h)
     cases v <;> simp only [VetA, hR, not_false_eq_true, true_or, false_and, reduceCtorEq]
 
+/-- `vetA` computes `VetA` wherever the checker can read the document
+it hands `vet` with the data's paths read as names, whatever the
+schema's own reading holds, since the `error` class reads only the
+names, the alias-cycle rule and the schema's form (`vet_error_iff`): a
+selection the schema leaves open, which waits for the data, among
+them. -/
+theorem vetA_iff_data {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data}
+    (hbP : ∀ d, d ∈ (ds'.withPaths S' j).1 → d.2.CheckableA)
+    (hRP : ((ds'.withPaths S' j).1.readR (ds'.withPaths S' j).2).CheckableA) (v : Verdict) :
+    vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v := by
+  have hvP := vet_iff (m := m) (ds := (ds'.withPaths S' j).1) (S := (ds'.withPaths S' j).2) (j := j) hbP hRP
+  unfold vetA
+  by_cases hr : ds.resolvesB S = true
+  · rw [if_pos hr]
+    have hR := Decls.resolvesB_iff.mp hr
+    by_cases he : vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j = .error
+    · rw [if_pos he]
+      have hE := vet_error_iff.mp he
+      cases v <;> simp only [VetA, hR, hE, not_true_eq_false, false_and, and_false, or_true,
+        reduceCtorEq]
+    · rw [if_neg he]
+      have hE : ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error := fun h => he (vet_error_iff.mpr h)
+      cases hp : vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j <;> cases v <;>
+        simp only [VetA, hR, hE, ← hvP, hp, not_true_eq_false, not_false_eq_true,
+          or_true, or_false, and_false, and_true, reduceCtorEq]
+  · rw [if_neg hr]
+    have hR : ¬ ds.Resolves S := fun h => hr (Decls.resolvesB_iff.mpr h)
+    cases v <;> simp only [VetA, hR, not_false_eq_true, true_or, false_and, reduceCtorEq]
+
 /-- `vetA` computes `VetA` on every document whose bodies and schema
 read no pattern and no format. -/
 theorem vetA_iff {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
@@ -5719,6 +5748,16 @@ theorem vetA_iff_reads {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (h : 
   obtain ⟨⟨⟨hbS, hRS⟩, hbP⟩, hRP⟩ := h
   exact vetA_iff_of (fun d hd => (Val.checkableAB_iff _).mp (hbS d hd)) ((Val.checkableAB_iff _).mp hRS)
     (fun d hd => (Val.checkableAB_iff _).mp (hbP d hd)) ((Val.checkableAB_iff _).mp hRP) v
+
+/-- Whether the checker can read the document `vetA` hands `vet` with
+the data's paths read as names, with its bodies, computed. -/
+def Decls.readsDB (ds' : Decls) (S' : Val) (j : Data) : Bool :=
+  (ds'.withPaths S' j).1.all (·.2.checkableAB) && ((ds'.withPaths S' j).1.readR (ds'.withPaths S' j).2).checkableAB
+
+theorem vetA_iff_readsD {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (h : ds'.readsDB S' j = true)
+    (v : Verdict) : vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v := by
+  simp only [Decls.readsDB, Bool.and_eq_true, List.all_eq_true] at h
+  exact vetA_iff_data (fun d hd => (Val.checkableAB_iff _).mp (h.1 d hd)) ((Val.checkableAB_iff _).mp h.2) v
 
 /-- `vetL` computes `VetL` on every document whose bodies and schema
 read no pattern and no format. -/
@@ -5757,6 +5796,22 @@ theorem vetP_iff_reads {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : ds.read
   unfold vetP VetP
   rw [if_neg (by simp [h.1]), if_neg (by simp [h.1])]
   exact vetA_iff_reads h.2 v
+
+/-- Whether a document leaves no load unmade and the checker can read
+the document its verdict hands `vet` with the data's paths read as
+names, computed: what a document whose selection the schema leaves open
+for the data needs. -/
+def Decls.readsPD (ds : Decls) (S : Val) (j : Data) : Bool :=
+  !ds.loadsLeft S &&
+    ((ds.loaded S).1.preparedD (ds.loaded S).2 j).1.readsDB ((ds.loaded S).1.preparedD (ds.loaded S).2 j).2 j
+
+/-- `vetP` computes `VetP` on every document `Decls.readsPD` reads. -/
+theorem vetP_iff_readsD {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : ds.readsPD S j = true)
+    (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v := by
+  simp only [Decls.readsPD, Bool.and_eq_true, Bool.not_eq_true'] at h
+  unfold vetP VetP
+  rw [if_neg (by simp [h.1]), if_neg (by simp [h.1])]
+  exact vetA_iff_readsD h.2 v
 
 /-! ## The output with paths -/
 
