@@ -1713,14 +1713,27 @@ def bodyCallPathCases : List (Decls × Val × Data) :=
     (cp, xT (m [("o", m [])]) ["x", "o", "n", "k"], .map []),
     (cp, xT (m [("o", m [])]) ["x", "o", "n", "k"], .map [("y", j 2)])]
 
+/-- A recursive name used alone whose body links to its own member
+(#762): the definition keeps the use residual where no data reaches
+it, as it keeps one with no link, so the schema generates nothing
+there, where both ports expand it for the link; and the use with data
+at it, which both read alike. -/
+def loneLinkCases : List (Decls × Val × Data) :=
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let tR : Val := m [("m", m []), ("n", .meet (.call .refer [.alias "T"]) (.addr ⟨1, ["m"]⟩))]
+  [([("T", tR)], m [("x", .alias "T")], .map []),
+    ([("T", tR)], m [("x", .alias "T")], .map [("x", .map [])]),
+    ([("T", tR)], m [("x", .alias "T")], .map [("x", .map [("m", .map [])])])]
+
 /-- Relative paths, made absolute where each stands: a sibling, a climb
 of two steps and three, a key in quotes, an index into a sibling list,
 a list's element reading its sibling, a chain of relative paths, a
 relative path in a call, and a body's, read at the body's own place
 (`Seg.own`), as both ports place it, with
 `aliasPlaceCases`; a call in a recursive name's body
-(`recursiveCallCases`); and a path into what such a call makes
-(`bodyCallPathCases`). -/
+(`recursiveCallCases`); a path into what such a call makes
+(`bodyCallPathCases`); and a recursive name used alone whose body links
+to its own member (`loneLinkCases`). -/
 def relPathCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1742,7 +1755,8 @@ def relPathCases : List (Decls × Val × Data) :=
     ([], m [("a", m [("x", int 1), ("y", .call .plus [rel 1 ["x"], int 1])])], .map [("a", .map [("y", j 2)])]),
     ([("T", m [("y", rel 2 ["x"])])], m [("x", int 1), ("a", .alias "T")], .map [("a", .map [("y", j 1)])]),
     ([("T", m [("y", rel 1 ["x"])])], m [("a", .meet (m [("x", int 1)]) (.alias "T"))], .map [("a", .map [("y", j 1)])])] ++
-  aliasPlaceCases ++ bodyPlaceCases ++ recursiveCallCases ++ bodyChainCases ++ bodyCallPathCases
+  aliasPlaceCases ++ bodyPlaceCases ++ recursiveCallCases ++ bodyChainCases ++ bodyCallPathCases ++
+    loneLinkCases
 
 theorem relPathCases_checkable : ∀ c ∈ relPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

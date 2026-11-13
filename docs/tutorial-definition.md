@@ -2846,7 +2846,10 @@ call in a recursive name's body wherever the body stands, so
 recursion, as `pref(%T)` does. A link there whose template is the name,
 `refer(%T) & path(.m)`, sends it into the body's own member, and the
 link passes read that place with the body's calls made too
-(`Decls.bodyClash`). The meet unfolds a name after the reading
+(`Decls.bodyClash`). Used alone, `x: %T` stays residual where no data
+reaches it, as a name with no link does, so the schema generates
+nothing at `x`. Both engines expand it for the link, which #762
+tracks. The meet unfolds a name after the reading
 has made the schema's calls, so the definition makes the calls and the
 selections in each recursive name's body first. Step 9 reads each body
 so once its paths are names, so the definition makes a `match` or a call

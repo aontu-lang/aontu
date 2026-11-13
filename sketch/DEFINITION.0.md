@@ -347,7 +347,10 @@ the two, and move (#504), and read a name's reference written first
 below the body's own place (#692); and a copy of a place holding a
 spread whose template climbs out of it, which ruling 26 reads at the
 copy's own members, where both ports read it where the target writes
-it when the target comes first, and move (#504, #696); and a path
+it when the target comes first, and move (#504, #696); and a recursive
+name used alone whose body links to its own member, which the
+definition keeps residual where no data reaches it, as one with no
+link, where both ports expand it for the link, and move (#762); and a path
 in a disjunction's arm, which the definition reads where the disjunction
 holds the arm, where both ports leave it waiting while two arms are
 live, and in a preferred arm for good, and move (#700); a path inside a
