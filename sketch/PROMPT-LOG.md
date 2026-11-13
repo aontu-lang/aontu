@@ -1047,3 +1047,9 @@ again, refer and rel seem redundant - what is the difference
 * `refer(t)` marks one value as a link.
 * `rel(t)` marks a field as a relation. Every path under the field, at any depth, is a link, and the field’s key names the relation. """ - the words link and relation are nearly synonyms - explain this more clearly
 ```
+
+## 2026-11-13 16:43:12 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+post an issue for the defect; introduce an ADR: canons of builtin functions must show the function name as seen in the code, and not replace it with equivalent expressions of other functions, as this is highly confusing to the reader; remove refer and rename rel to relate
+```
