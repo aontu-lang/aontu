@@ -2348,6 +2348,51 @@ until the phase that encodes it lands.
    ports in an error's site or wording, about 25, stay outside this
    effort.
 
+49. **A selection over a scrutinee the schema leaves open.** Raised
+   2026-11-12 by #403's last case (#743): `x: {kind: string, v:
+   match(.kind, "a", 1, "b", 2)}`. With no default arm both ports
+   refuse the `match` as `match_none` before any data, in the schema
+   and in a body nothing uses, even where the data writes `kind: "a"`;
+   with a default arm, or over a scrutinee the schema writes as a
+   disjunction, both wait for the data. The definition reads every
+   such selection with the data.
+   **Ruled 2026-11-13 (the project's owner): with the data.** A `match`
+   whose scrutinee, or a `filter` whose source, the schema leaves open
+   waits for the data: the data's scrutinee picks the arm, one that no
+   arm and no default takes is `invalid`, and where the data writes
+   nothing the document is `incomplete`. The definition reads it so
+   already; both ports move for a `match` with no default (#743).
+
+50. **The relative paths in a link's template.** Raised 2026-11-07 by
+   P11 (#661): both ports read a relative path in a `refer`'s template
+   where the link is written, inside the template, so that
+   `x: {m: {k: 2}, n: refer({v: .k}) & path(.m)}` names nothing at
+   `x.n.k` and stays `incomplete`, and a link inside the template, its
+   address relative, can never resolve. The definition read a relative
+   path value there so too, and a nested link's address where that link
+   lands.
+   **Ruled 2026-11-13 (the project's owner): where the template
+   lands.** A link's template reads its relative paths at the link's
+   target, as a spread's template reads its own at each member, a
+   generator's at each instance and a copy's where the copy stands
+   (ruling 26): the template above sends `v: 2` into `x.m`. Both ports
+   move, and the definition moves for a relative path value in the
+   template (#661).
+
+51. **A `filter`'s child that generates nothing.** Raised 2026-11-07 by
+   #674: `filter({x: integer}, any)`. Both ports keep a child that
+   already satisfies the condition, as the reference words it, so this
+   filter keeps `x: integer` and data `{"x": 3}` meets it, while
+   `filter({x: integer}, 1)` drops `x`. The definition tried each
+   child's generated data, so a child that generates nothing left the
+   filter unmade, and the data read as `invalid`.
+   **Ruled 2026-11-13 (the project's owner): as the term it is.** A
+   `filter` keeps a child each value of which its condition admits, a
+   disjunction read arm by arm, and keeps the child's own term. The
+   ports read it so already; the definition moves, deciding the
+   question by the order of P5 and leaving the filter unmade only where
+   that order leaves it undecided (#674).
+
 ## 8. Risks
 
 | Risk | Mitigation |

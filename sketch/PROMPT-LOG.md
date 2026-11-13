@@ -982,3 +982,18 @@ Scope of completion: does finishing the Lean work include moving both engines (T
 Modules (P10): module imports like `@"corp.example/schemas/service"`, `@"alias:legacy"` and `#hash` pins. The registry and network are already outside the definition by design. How should the definition hold module imports?
 → Sources the host resolves (Recommended)
 ```
+
+## 2026-11-13 16:09:14 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#743, a match over a scrutinee the schema leaves open, e.g. x: {kind: string, v: match(.kind, "a", 1, "b", 2)}. With no default arm, both engines refuse it as match_none before any data, even when the data supplies kind "a". Yet they wait for the data when the match has a default arm or the scrutinee is a disjunction ("a"|"b"). The definition always reads it with the data. Which reading should the language take?
+→ With the data (Recommended)
+
+#661, where a link's template reads its relative paths. In x: {m: {k: 2}, n: refer({v: .k}) & path(.m)}, both engines read .k where the link is written. At x.n it names nothing, so the document stays incomplete. A link nested inside a template, refer({n: refer({k: 1}) & path(.m)}) & path(.m), can then never resolve, which is an error. Spread and generator templates, and copies (ruling 26), read their relative paths where they land. Which should a link's template do?
+→ Where it lands (Recommended)
+
+#674, how filter tries a child that generates nothing. In b: filter({x: integer}, any) with data {"b": {"x": 3}}, both engines keep x: integer because it already satisfies any, and answer valid. filter({x: integer}, 1) drops x. The definition only tries a child's generated data, so it leaves this filter unmade and answers invalid. Which reading should filter take?
+→ As the term it is (Recommended)
+```
