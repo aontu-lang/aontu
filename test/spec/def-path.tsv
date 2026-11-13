@@ -3620,3 +3620,26 @@ dirp44	verdict	"v": copy((close()) & (({"x": 1}) | ({"y": 2})))	{"v": {"x": 1, "
 dirp45	verdict	"v": copy((close()) & ({"x": 1})), "w": copy({"x": 1})	{"v": {"x": 1}, "w": {"x": 1, "y": 2}}	{"verdict":"valid"}
 dirp46	verdict	"v": copy((close()) & ({"x": 1})), "w": copy({"x": 1})	{"v": {"x": 1}, "w": {"x": 1, "y": 2}}	{"verdict":"valid","opts":{"noFill":true}}
 dirp47	verdict	"v": copy((close()) & ({"x": 1})), "w": copy({"x": 1})	{"v": {"x": 1}, "w": {"x": 1, "y": 2}}	{"verdict":"valid","opts":{"partial":true}}
+# A link's template read where it lands, at the link's target (ruling 50),
+# follows in rows ll0 on.
+ll0	verdict	"x": {"m": {"k": 2}, "n": (refer({"v": .k})) & (path(.m))}	{}	{"verdict":"valid"}
+ll1	verdict	"x": {"m": {"k": 2}, "n": (refer({"v": .k})) & (path(.m))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ll2	verdict	"x": {"m": {"k": 2}, "n": (refer({"v": .k})) & (path(.m))}	{}	{"verdict":"valid","opts":{"partial":true}}
+ll3	verdict	"x": {"k": 3, "m": {"k": 2}, "n": (refer({"v": ..k})) & (path(.m))}	{}	{"verdict":"valid"}
+ll4	verdict	"x": {"k": 3, "m": {"k": 2}, "n": (refer({"v": ..k})) & (path(.m))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ll5	verdict	"x": {"k": 3, "m": {"k": 2}, "n": (refer({"v": ..k})) & (path(.m))}	{}	{"verdict":"valid","opts":{"partial":true}}
+ll6	verdict	"x": {"m": {"m": {}}, "n": (refer({"n": (refer({"k": 1})) & (path(.m))})) & (path(.m))}	{}	{"verdict":"valid"}
+ll7	verdict	"x": {"m": {"m": {}}, "n": (refer({"n": (refer({"k": 1})) & (path(.m))})) & (path(.m))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ll8	verdict	"x": {"m": {"m": {}}, "n": (refer({"n": (refer({"k": 1})) & (path(.m))})) & (path(.m))}	{}	{"verdict":"valid","opts":{"partial":true}}
+ll9	verdict	"x": {"m": {"m": {}, "k": 5}, "n": (refer({"n": (refer({"v": ..k})) & (path(.m))})) & (path(.m))}	{}	{"verdict":"valid"}
+ll10	verdict	"x": {"m": {"m": {}, "k": 5}, "n": (refer({"n": (refer({"v": ..k})) & (path(.m))})) & (path(.m))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ll11	verdict	"x": {"m": {"m": {}, "k": 5}, "n": (refer({"n": (refer({"v": ..k})) & (path(.m))})) & (path(.m))}	{}	{"verdict":"valid","opts":{"partial":true}}
+ll12	verdict	"m": {}, "n": (refer({"v": ...k})) & (path($.m))	{}	{"verdict":"error"}
+ll13	verdict	"m": {}, "n": (refer({"v": ...k})) & (path($.m))	{}	{"verdict":"error","opts":{"noFill":true}}
+ll14	verdict	"m": {}, "n": (refer({"v": ...k})) & (path($.m))	{}	{"verdict":"error","opts":{"partial":true}}
+ll15	verdict	"x": {"m": {}, "n": (refer({"a": 1, "b": .a})) & (path(.m))}	{}	{"verdict":"valid"}
+ll16	verdict	"x": {"m": {}, "n": (refer({"a": 1, "b": .a})) & (path(.m))}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ll17	verdict	"x": {"m": {}, "n": (refer({"a": 1, "b": .a})) & (path(.m))}	{}	{"verdict":"valid","opts":{"partial":true}}
+ll18	verdict	"x": {"m": {"k": 2}, "n": (refer({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 3}}}	{"verdict":"invalid"}
+ll19	verdict	"x": {"m": {"k": 2}, "n": (refer({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 3}}}	{"verdict":"invalid","opts":{"noFill":true}}
+ll20	verdict	"x": {"m": {"k": 2}, "n": (refer({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 3}}}	{"verdict":"invalid","opts":{"partial":true}}

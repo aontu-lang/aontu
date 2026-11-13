@@ -455,6 +455,7 @@ def Seg.text : Seg → String
   | .up n => String.mk (List.replicate n '.')
   | .node => ""
   | .own n => "%" ++ n
+  | .lands n => "^" ++ toString n
 
 /-- `key(n)` read at the position `pos`, outermost step first: the text of
 the step `n` levels up, `""` where there is none, and, where that step is

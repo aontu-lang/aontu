@@ -4028,10 +4028,21 @@ target: `refer() & string & re("auth$") & path($.services.auth)` checks the
 address itself. They are held until the address arrives, and then meet
 it.
 
+The template reads its relative paths where it lands, at the target,
+as a spread's template reads its own at each member and a copy reads
+its own where the copy stands. So
+`x: {m: {k: 2}, n: refer({v: .k}) & path(.m)}` gives `x.m` the member
+`v: 2`, and a link the template carries reads its relative address
+from where that template lands. Both engines still read such a path
+where the document writes the link, inside the template, where it names
+nothing, so they leave the template waiting there, which
+[#661](https://github.com/aontu-lang/aontu/issues/661) tracks.
+
 In the definition, `refer(t)` reads as the path kind carrying its
 template, and `Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
 meets each link's template, its marks cleared, at the target its
-address names from where the link stands. It reads the targets in
+address names from where the link stands, each relative path in the
+template read from that target (`Val.atTarget`). It reads the targets in
 passes, so one link's template can make another link's target,
 whichever the document writes first. Since the template rides the value
 the link meets, the definition reads each link where it lands: where

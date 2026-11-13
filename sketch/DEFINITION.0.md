@@ -2378,6 +2378,23 @@ until the phase that encodes it lands.
    (ruling 26): the template above sends `v: 2` into `x.m`. Both ports
    move, and the definition moves for a relative path value in the
    template (#661).
+   **Built 2026-11-13**: placing a document stands the template of a
+   `refer` or a `rel` at its link's target, wherever the link stands,
+   a step no written path takes (`Seg.lands`, `plArgs`): each relative
+   path in it names the place it climbs to from the target, as many
+   steps above the target as it climbs past the template (`climb`, and
+   `bareTo` for a spread that is one). The reading keeps such a path as
+   written (`landsPath`, in `Val.pathsToAliases` and `placePath`), and
+   the link's flow reads each from the target it reaches
+   (`Val.atTarget`, in `referFlow` and `bodyFlowsOf`), a climb past the
+   top `nil`, a link the template carries keeping its own template for
+   its own target. Rows ll0 on of `test/spec/def-path.tsv`, 21 in all,
+   7 cases in each mode; both ports answer 12 of them as the definition
+   does, and the other 9 alike, listed in the ledger under #661: they
+   read the template's relative paths where the link is written, so a
+   path to the target's member names nothing there and waits, and a
+   link the template carries, its address relative, can't resolve. No
+   other row moved.
 
 51. **A `filter`'s child that generates nothing.** Raised 2026-11-07 by
    #674: `filter({x: integer}, any)`. Both ports keep a child that
