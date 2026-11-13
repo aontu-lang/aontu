@@ -1616,15 +1616,18 @@ def Decls.bodyFlows (ds : Decls) (r : Decls → Val → List Val) (L : Val) : Li
 /-- Whether the templates the flows send to a body's own place conflict
 there, with the body's member or with each other, as both ports meet
 each into the body's own place: the normal form of the name's bodies,
-met, with each template met at its place. -/
+met, with each template met at its place, each recursive name read with
+its calls made (`Decls.callsMade`), so that a template that is the name
+unfolds as both ports make it. -/
 def Decls.bodyClash (ds : Decls) (fs : List (List Seg × Val)) : Bool :=
   ds.any fun d =>
     match fs.filter (fun f => f.1.head? == some (.own d.1)) with
     | [] => false
     | gs =>
-      let b := normaliseD ds (ds.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2) .any))
-      ((normaliseD ds (ds.readU (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged
-        ds).illFormed
+      let b := normaliseD ds.callsMade
+        (ds.callsMade.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2) .any))
+      ((normaliseD ds.callsMade (ds.callsMade.readU
+        (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged ds.callsMade).illFormed
 
 /-- The schema with each link's template met into its target, so that
 the template flows into the target and a link to nothing is an error:
