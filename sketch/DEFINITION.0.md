@@ -2392,6 +2392,24 @@ until the phase that encodes it lands.
    ports read it so already; the definition moves, deciding the
    question by the order of P5 and leaving the filter unmade only where
    that order leaves it undecided (#674).
+   **Built 2026-11-13**: `resolveD` tries each child of a source whose
+   normal form is a map or a list as the term it is (`filterTakes`):
+   the child met with the condition, read for it where it lands,
+   doesn't die and is alike the child (`Val.admitAlike`), so that the
+   meet narrows nothing, which is the order, `a` below `b` exactly
+   where `a & b` is `a`; a condition's optional member the child leaves
+   out reads as none, and a disjunction the meet leaves, where the
+   child is none, is read arm by arm, as both ports admit a child. A
+   disjunction with no preference among its arms is kept where the meet
+   doesn't die, as both ports keep one. The kept children are the
+   normal form's own members (`filterFields`, `filterItems`,
+   `keptTerms`). A source that generates nothing and holds a call, a
+   selection or a `filter` no reading has made yet leaves the `filter`
+   waiting (`Decls.filterWaits`, `Val.unmade`), and a source whose
+   normal form is no map or list, a preference between two maps among
+   them, is tried by the data it generates, as before. Rows ft0 on of
+   `test/spec/def-path.tsv`, 45 in all, both ports answering every row
+   as the definition does; no other row moved.
 
 ## 8. Risks
 
