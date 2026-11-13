@@ -2923,6 +2923,51 @@ rs5	verdict	%T = {"k": filter({"a": 1, "b": "x"}, integer), "o"?: %T}\n"x": ({})
 rs6	verdict	%T = {"c": {"a": 1, "b": "x"}, "k": filter(.c, integer), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid"}
 rs7	verdict	%T = {"c": {"a": 1, "b": "x"}, "k": filter(.c, integer), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 rs8	verdict	%T = {"c": {"a": 1, "b": "x"}, "k": filter(.c, integer), "o"?: %T}\n"x": ({}) & (%T)	{}	{"verdict":"valid","opts":{"partial":true}}
+ft0	verdict	"b": filter({"x": integer}, any)	{"b": {"x": 3}}	{"verdict":"valid"}
+ft1	verdict	"b": filter({"x": integer}, any)	{"b": {"x": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+ft2	verdict	"b": filter({"x": integer}, any)	{"b": {"x": 3}}	{"verdict":"valid","opts":{"partial":true}}
+ft3	verdict	"b": filter({"x": integer}, any)	{}	{"verdict":"incomplete"}
+ft4	verdict	"b": filter({"x": integer}, any)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ft5	verdict	"b": filter({"x": integer}, any)	{}	{"verdict":"valid","opts":{"partial":true}}
+ft6	verdict	"b": filter({"x": integer}, 1)	{"b": {"x": 1}}	{"verdict":"valid"}
+ft7	verdict	"b": filter({"x": integer}, 1)	{"b": {"x": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+ft8	verdict	"b": filter({"x": integer}, 1)	{"b": {"x": 1}}	{"verdict":"valid","opts":{"partial":true}}
+ft9	verdict	"b": filter({"x": integer}, 1)	{"b": {}}	{"verdict":"valid"}
+ft10	verdict	"b": filter({"x": integer}, 1)	{"b": {}}	{"verdict":"valid","opts":{"noFill":true}}
+ft11	verdict	"b": filter({"x": integer}, 1)	{"b": {}}	{"verdict":"valid","opts":{"partial":true}}
+ft12	verdict	"b": filter({"x": (1) | (2)}, 1)	{"b": {"x": 2}}	{"verdict":"valid"}
+ft13	verdict	"b": filter({"x": (1) | (2)}, 1)	{"b": {"x": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+ft14	verdict	"b": filter({"x": (1) | (2)}, 1)	{"b": {"x": 2}}	{"verdict":"valid","opts":{"partial":true}}
+ft15	verdict	"b": filter({"x": integer, "y": 1}, integer)	{"b": {"x": 3, "y": 1}}	{"verdict":"valid"}
+ft16	verdict	"b": filter({"x": integer, "y": 1}, integer)	{"b": {"x": 3, "y": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+ft17	verdict	"b": filter({"x": integer, "y": 1}, integer)	{"b": {"x": 3, "y": 1}}	{"verdict":"valid","opts":{"partial":true}}
+ft18	verdict	"b": filter({"x": integer, "y": "s"}, integer)	{"b": {"x": 3}}	{"verdict":"valid"}
+ft19	verdict	"b": filter({"x": integer, "y": "s"}, integer)	{"b": {"x": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+ft20	verdict	"b": filter({"x": integer, "y": "s"}, integer)	{"b": {"x": 3}}	{"verdict":"valid","opts":{"partial":true}}
+ft21	verdict	"b": filter([integer, 1], integer)	{"b": [5, 1]}	{"verdict":"valid"}
+ft22	verdict	"b": filter([integer, 1], integer)	{"b": [5, 1]}	{"verdict":"valid","opts":{"noFill":true}}
+ft23	verdict	"b": filter([integer, 1], integer)	{"b": [5, 1]}	{"verdict":"valid","opts":{"partial":true}}
+ft24	verdict	"b": filter({"x": *(1) | (2)}, 1)	{"b": {"x": 2}}	{"verdict":"valid"}
+ft25	verdict	"b": filter({"x": *(1) | (2)}, 1)	{"b": {"x": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+ft26	verdict	"b": filter({"x": *(1) | (2)}, 1)	{"b": {"x": 2}}	{"verdict":"valid","opts":{"partial":true}}
+ft27	verdict	"b": filter({"x": (min(1)) & (integer)}, integer)	{"b": {"x": 0}}	{"verdict":"invalid"}
+ft28	verdict	"b": filter({"x": (min(1)) & (integer)}, integer)	{"b": {"x": 0}}	{"verdict":"invalid","opts":{"noFill":true}}
+ft29	verdict	"b": filter({"x": (min(1)) & (integer)}, integer)	{"b": {"x": 0}}	{"verdict":"invalid","opts":{"partial":true}}
+ft30	verdict	"b": filter({"x": {"k": integer}}, {"k": integer})	{"b": {"x": {"k": "s"}}}	{"verdict":"invalid"}
+ft31	verdict	"b": filter({"x": {"k": integer}}, {"k": integer})	{"b": {"x": {"k": "s"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+ft32	verdict	"b": filter({"x": {"k": integer}}, {"k": integer})	{"b": {"x": {"k": "s"}}}	{"verdict":"invalid","opts":{"partial":true}}
+ft33	verdict	"b": filter({"x": (integer) | (string)}, 1)	{"b": {"x": "s"}}	{"verdict":"valid"}
+ft34	verdict	"b": filter({"x": (integer) | (string)}, 1)	{"b": {"x": "s"}}	{"verdict":"valid","opts":{"noFill":true}}
+ft35	verdict	"b": filter({"x": (integer) | (string)}, 1)	{"b": {"x": "s"}}	{"verdict":"valid","opts":{"partial":true}}
+ft36	verdict	"b": filter({"x": {"k": integer}}, {"k": integer, "n"?: string})	{"b": {"x": {"k": 1}}}	{"verdict":"valid"}
+ft37	verdict	"b": filter({"x": {"k": integer}}, {"k": integer, "n"?: string})	{"b": {"x": {"k": 1}}}	{"verdict":"valid","opts":{"noFill":true}}
+ft38	verdict	"b": filter({"x": {"k": integer}}, {"k": integer, "n"?: string})	{"b": {"x": {"k": 1}}}	{"verdict":"valid","opts":{"partial":true}}
+ft39	verdict	"b": filter([integer, string], string)	{"b": [1]}	{"verdict":"invalid"}
+ft40	verdict	"b": filter([integer, string], string)	{"b": [1]}	{"verdict":"invalid","opts":{"noFill":true}}
+ft41	verdict	"b": filter([integer, string], string)	{"b": [1]}	{"verdict":"invalid","opts":{"partial":true}}
+ft42	verdict	"b": filter([integer, string], string)	{"b": ["s"]}	{"verdict":"valid"}
+ft43	verdict	"b": filter([integer, string], string)	{"b": ["s"]}	{"verdict":"valid","opts":{"noFill":true}}
+ft44	verdict	"b": filter([integer, string], string)	{"b": ["s"]}	{"verdict":"valid","opts":{"partial":true}}
 hm0	verdict	"a": ({"x": 1, "y": 2}) & ({"x": hide(any)})	{"a": {"y": 2}}	{"verdict":"valid"}
 hm1	verdict	"a": ({"x": 1, "y": 2}) & ({"x": hide(any)})	{"a": {"y": 2}}	{"verdict":"valid","opts":{"noFill":true}}
 hm2	verdict	"a": ({"x": 1, "y": 2}) & ({"x": hide(any)})	{"a": {"y": 2}}	{"verdict":"valid","opts":{"partial":true}}

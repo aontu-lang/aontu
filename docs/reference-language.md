@@ -1294,6 +1294,15 @@ changes nothing, whatever the arm's rank, so
 changes neither. A child that leaves out the condition's optional member
 gains nothing from it, so `filter([{}], {c?: 3})` keeps `{}`.
 
+`filter` tries each child as written, so it tries one that generates
+no value too, and keeps it as written for the data to meet:
+`filter({x: integer}, any)` keeps `x: integer`, and
+`filter({x: integer}, 1)` drops it, since the meet narrows `integer`
+to `1`. A disjunction with no default stands for any one of its arms,
+so it's kept where the meet leaves one: `filter({x: 1 | 2}, 1)` keeps
+`x: 1 | 2`. A preference is one value with a default, so
+`filter({x: *1 | 2}, 1)` drops `x`, whose arm `2` the meet removes.
+
 `match(v, p1, r1, …, d?)` is a **bounded conditional**. The first
 pattern in argument order that `v` **already satisfies** selects its
 result, which is the answer; a trailing argument (the one that makes the

@@ -3636,6 +3636,50 @@ theorem filterKeep_verdict_exact : ∀ c ∈ filterKeepCases, ∀ (m : Mode) (v 
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_reads (filterKeepCases_reads c hc) v
 
+/-- Ruling 51: a `filter` tries each child as the term it is, so a child
+that generates nothing, a kind, a bound or a disjunction, is kept where
+the condition takes it: where every value it admits is one the
+condition admits, and, for a disjunction with no preference among its
+arms, where the condition takes an arm; the data then meets the kept
+child's own term. A preference is kept where every arm is taken, a
+nested map where its members are, and a condition's optional member the
+child leaves out asks for nothing. -/
+def filterTermCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let str (s : String) : Val := .lit (.str s)
+  let b (f : Val) : Val := m [("b", f)]
+  let xi : Val := m [("x", .integer)]
+  let ki : Val := m [("k", .integer)]
+  [([], b (.filter xi .any), .map [("b", .map [("x", j 3)])]),
+    ([], b (.filter xi .any), .map []),
+    ([], b (.filter xi (int 1)), .map [("b", .map [("x", j 1)])]),
+    ([], b (.filter xi (int 1)), .map [("b", .map [])]),
+    ([], b (.filter (m [("x", .or [(0, int 1), (0, int 2)])]) (int 1)), .map [("b", .map [("x", j 2)])]),
+    ([], b (.filter (m [("x", .integer), ("y", int 1)]) .integer), .map [("b", .map [("x", j 3), ("y", j 1)])]),
+    ([], b (.filter (m [("x", .integer), ("y", str "s")]) .integer), .map [("b", .map [("x", j 3)])]),
+    ([], b (.filter (l [.integer, int 1]) .integer), .map [("b", .list [j 5, j 1])]),
+    ([], b (.filter (m [("x", .or [(1, int 1), (0, int 2)])]) (int 1)), .map [("b", .map [("x", j 2)])]),
+    ([], b (.filter (m [("x", .meet (.min (.num (.integer ⟨1, by decide⟩))) .integer)]) .integer),
+      .map [("b", .map [("x", j 0)])]),
+    ([], b (.filter (m [("x", ki)]) ki), .map [("b", .map [("x", .map [("k", .str "s")])])]),
+    ([], b (.filter (m [("x", .or [(0, .integer), (0, .string)])]) (int 1)), .map [("b", .map [("x", .str "s")])]),
+    ([], b (.filter (m [("x", ki)]) (.map [("k", false, .integer), ("n", true, .string)] none false)),
+      .map [("b", .map [("x", .map [("k", j 1)])])]),
+    ([], b (.filter (l [.integer, .string]) .string), .map [("b", .list [j 1])]),
+    ([], b (.filter (l [.integer, .string]) .string), .map [("b", .list [.str "s"])])]
+
+set_option maxRecDepth 16384 in
+/-- The checker can't read a `filter` before the reading makes it, so
+each case's readings are read whole (`Decls.readsPB`). -/
+theorem filterTermCases_reads : ∀ c ∈ filterTermCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+
+theorem filterTerm_verdict_exact : ∀ c ∈ filterTermCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (filterTermCases_reads c hc) v
+
 /-- Ruling 38: a meet carries the marks of both its sides, `any`'s
 included, so `hide(any)` or `type(any)` met with a value marks it,
 beside a map's member on either side, a scalar, a kind, a map and a
@@ -7588,6 +7632,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "fc" filterCondCases
     pathRows "fk" filterKeepCases
     pathRows "rs" recursiveSelectCases
+    pathRows "ft" filterTermCases
     pathRows "hm" markMeetCases
     pathRows "sm" spreadMarkCases
     pathRows "bd" boundArgCases

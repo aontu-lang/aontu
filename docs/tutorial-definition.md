@@ -5842,9 +5842,9 @@ least zero.
 Two forms select by a value rather than try one. `match(s, p₁, r₁, …,
 d?)` is the first result whose pattern admits the value the scrutinee
 `s` generates, the default `d` where none does, and an error where
-there is no default; `filter(s, c)` is the members of the container `s`
-generates that `c` admits. Each is a form of the syntax, `match` under
-the name `select`, since Lean keeps `match`:
+there is no default; `filter(s, c)` is the members of `s` that `c`
+takes, each tried as written. Each is a form of the syntax,
+`match` under the name `select`, since Lean keeps `match`:
 
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
@@ -5882,10 +5882,15 @@ term stands at, which step 29 covers:
 template is read for, which each hole in the template stands for, and
 `here` the position the term stands at, where one is placed: each
 `match` whose scrutinee generates a value is the result its arms select
-for it, and each `filter` whose source generates a container is the
-members its condition admits, as a term, or `nil` where the source
-generates a scalar, which has no members. One whose scrutinee or source
-generates nothing stays, and generates nothing. An `each` is the list of
+for it. A `filter` whose source's normal form is a map or a list is the
+members its condition takes as the terms they are (`filterTakes`, ruling
+51), tried in the order `Val.members` reads them; one whose source is
+otherwise a value that generates a container is the members whose data
+its condition admits, as a term; and one whose source generates a
+scalar, which has no members, is `nil`. A selection whose scrutinee
+generates nothing stays, and generates nothing, and so does a `filter`
+whose source generates nothing and is no map or list, or holds a form
+no reading has made yet (`Val.unmade`). An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
 reads them, less each reading that is absence or carries a mark of its
 own, as a list holds no position for either, and `nil` where the data
@@ -5946,27 +5951,59 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
   | .filter s c =>
     let s' := resolveD ds b here s
     if here.isNone && c.holdsKey then .filter s' c else
+    if ds.filterWaits s' then
+      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
+      else .filter s' (resolveD ds none none c)
+    else
+    match (normaliseD ds s').unride with
+    | .map fs _ _ => (Val.map ((filterFields ds fs).filterMap fun m =>
+        if filterTakes ds (resolveD ds (some m.2) (stepped here (.seg (.key m.1))) c) m.2
+        then some (m.1, false, m.2) else none) none false).rideMoves s'.moves
+    | .list items _ _ => (Val.list (keptTerms (fun i v =>
+        filterTakes ds (resolveD ds (some v) (stepped here (.seg (.idx i))) c) v) 0 (filterItems items))
+        none false).rideMoves s'.moves
+    | _ =>
     match genD ds s' with
     | some (.map fs) => (keptFields (normaliseD ds s').unride (fs.filter fun m =>
         checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).rideMoves s'.moves
     | some (.list xs) => (keptElems (normaliseD ds s').unride (fun i x =>
         checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) xs).rideMoves s'.moves
     | some _ => .nil
-    | none =>
-      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
-      else .filter s' (resolveD ds none none c)
+    | none => .filter s' (resolveD ds none none c)
 ```
 
-A made `filter` holds each child its condition admits as the child
-itself: the member the source's normal form holds under its key, or the
-element at its position (`keptFields`, `keptElems`), where its
-generated data only decides whether the condition admits it. So
-`b: filter({x: *1 | 2}, any) & {x: 2}` is `{"b": {"x": 2}}`, and a link
-in a child the condition keeps sends its template, while one in a child
-it refuses sends none, as in both engines. Rows fk0 to fk20 hold both
-engines to it. A child that generates nothing, `filter({x: integer},
-any)`, leaves the `filter` unmade, where both engines keep the child,
-which #674 tracks.
+A made `filter` tries each child as written, as ruling 51 asks, and
+holds each child its condition takes as the child itself: the member
+the source's normal form holds under its key, or the element at its
+position. The condition takes a child where their meet narrows
+nothing, so that every value the child admits is one the condition
+admits, and a disjunction with no preference among its arms where the
+meet leaves an arm, as both engines try a child:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def filterTakes (ds : Decls) (c v : Val) : Bool :=
+  let met := normaliseD ds (meetD ds c v)
+  !met.dead && ((normaliseD ds v).freeChoice ||
+    match (normaliseD ds v).unride.kindless, met.unride.one.kindless with
+    | .or _, w => (normaliseD ds v).unride.kindless.admitAlike ds w
+    | _, .or arms => arms.any fun a => (normaliseD ds v).unride.kindless.admitAlike ds a.2.unride.one.kindless
+    | _, w => (normaliseD ds v).unride.kindless.admitAlike ds w)
+```
+
+So `filter({x: integer}, any)` keeps `x: integer` for the data to
+meet, and `filter({x: integer}, 1)` drops it, since `integer` admits
+values `1` doesn't. `b: filter({x: *1 | 2}, any) & {x: 2}` is
+`{"b": {"x": 2}}`, while `filter({x: *1 | 2}, 1)` drops `x`, whose
+preference admits `2`. A link in a child the condition keeps sends its
+template, while one in a child it drops sends none, as in both engines.
+A child that holds a call or a selection no reading has made yet, and
+so generates nothing, leaves the `filter` waiting (`Decls.filterWaits`),
+as both engines wait for their source to settle. Where a source's
+normal form is no map or list, as a preference between two maps is,
+the data the source generates decides what the `filter` keeps
+(`keptFields`, `keptElems`). Rows fk0 to fk20
+and ft0 to ft44 hold both engines to it.
 
 Both engines read some of a trial's arguments as they build the trial,
 and a conflict there makes the trial a conflict where it stands: a
@@ -6049,17 +6086,20 @@ theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm d
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- A `filter` read at a position over a list keeps the elements its
-condition admits, in their order, each the element the source's normal
-form holds there, the condition read for each element it tries, at the
-index the element takes among those kept, carrying the moves its source
+condition takes as the terms they are, in their order, but a marked one
+and absence, the condition read for each element it tries, at the index
+the element takes among those kept, carrying the moves its source
 holds. -/
 theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
-    {xs : List Data} (h : genD ds (resolveD ds b (some pos) s) = some (.list xs)) :
+    {items : List Val} {sp : Option Val} {cl : Bool}
+    (hw : ds.filterWaits (resolveD ds b (some pos) s) = false)
+    (hl : (normaliseD ds (resolveD ds b (some pos) s)).unride = .list items sp cl) :
     resolveD ds b (some pos) (.filter s c) =
-      (keptElems (normaliseD ds (resolveD ds b (some pos) s)).unride (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) xs).rideMoves
-        (resolveD ds b (some pos) s).moves := by
-  simp [resolveD, h]
+      (Val.list (keptTerms (fun i v =>
+        filterTakes ds (resolveD ds (some v) (stepped (some pos) (.seg (.idx i))) c) v) 0 (filterItems items))
+        none false).rideMoves (resolveD ds b (some pos) s).moves := by
+  rw [resolveD.eq_def]
+  simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hw, hl]
 ```
 
 So `vet` decides a document that selects:

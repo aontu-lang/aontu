@@ -101,9 +101,9 @@ end
 
 A `match` holds a value to the result of the first arm whose pattern
 admits the value its scrutinee generates, and a `filter` to the members
-of the container its source generates that its condition admits. Each
-selects by a value the document has settled, so each is made once the
-document is read, before the meet, and a document reads as its
+of its source that its condition takes, each tried as the term it is.
+Each selects by a value the document has settled, so each is made once
+the document is read, before the meet, and a document reads as its
 expansion with its selections made. -/
 
 /-- The result the arms select for the value `x`: the first whose
@@ -1069,6 +1069,47 @@ def callCovers : List Cover → Bool
 end
 
 mutual
+/-- Whether a term holds a form no reading has made yet, at any depth:
+a call, a selection or a `filter`. -/
+def Val.unmade : Val → Bool
+  | .call _ _ | .select _ _ _ | .filter _ _ => true
+  | .ride _ v _ => v.unmade
+  | .link v _ => v.unmade
+  | .len c => c.unmade
+  | .map fs spread _ => unmadeFields fs || unmadeSpread spread
+  | .list items spread _ => unmadeItems items || unmadeSpread spread
+  | .or arms => unmadeArms arms
+  | .pref _ x => x.unmade
+  | .meet a b => a.unmade || b.unmade
+  | .nof n cs => n.unmade || unmadeItems cs
+  | .must c _ => c.unmade
+  | .when c t e => c.unmade || t.unmade || unmadeSpread e
+  | .contains c n => c.unmade || n.unmade
+  | .rest t cs => t.unmade || unmadeCovers cs
+  | _ => false
+
+def unmadeFields : List (String × Bool × Val) → Bool
+  | [] => false
+  | (_, _, v) :: fs => v.unmade || unmadeFields fs
+
+def unmadeItems : List Val → Bool
+  | [] => false
+  | v :: vs => v.unmade || unmadeItems vs
+
+def unmadeSpread : Option Val → Bool
+  | none => false
+  | some s => s.unmade
+
+def unmadeArms : List (ℕ × Val) → Bool
+  | [] => false
+  | (_, a) :: arms => a.unmade || unmadeArms arms
+
+def unmadeCovers : List Cover → Bool
+  | [] => false
+  | (c, k, m) :: cs => unmadeSpread c || unmadeSpread k || unmadeSpread m || unmadeCovers cs
+end
+
+mutual
 /-- Whether a term holds a `key(n)` no reading has placed, at any depth,
 a call's arguments among them: a term whose value waits on the position
 it lands at. -/
@@ -1502,6 +1543,59 @@ def emitTakes (ds : Decls) (pat m : Val) : Bool :=
     (normaliseD ds m).unride.kindless.alike ds met.unride.one.kindless)
 
 mutual
+/-- Whether a child and its meet with a `filter`'s condition are alike,
+as both ports admit a child: as `Val.alike` reads them, but with an
+optional member the meet holds and the child lacks read as none, and a
+member of the meet that is a disjunction, where the child's member is
+none, alike where one of its arms is. -/
+def Val.admitAlike (ds : Decls) : Val → Val → Bool
+  | .ride _ v _, b => v.admitAlike ds b
+  | .link v _, b => v.admitAlike ds b
+  | .map fs _ _, .map gs _ _ =>
+    (fs.filter (memberField ds)).length ==
+      (gs.filter fun g => memberField ds g && (!g.2.1 || fs.any (·.1 == g.1))).length && admitIn ds fs gs
+  | .list xs _ _, .list ys _ _ => admitItems ds xs ys
+  | a, b => conjAlike a b
+
+def admitIn (ds : Decls) : List (String × Bool × Val) → List (String × Bool × Val) → Bool
+  | [], _ => true
+  | (k, o, v) :: fs, gs =>
+    (!memberField ds (k, o, v) ||
+      match gs.find? (·.1 == k) with
+      | some g =>
+        match v.unride, g.2.2.unride.one.kindless with
+        | .or _, w => v.admitAlike ds w
+        | _, .or arms => arms.any fun x => v.admitAlike ds x.2.unride.one.kindless
+        | _, w => v.admitAlike ds w
+      | none => false) && admitIn ds fs gs
+
+def admitItems (ds : Decls) : List Val → List Val → Bool
+  | [], [] => true
+  | x :: xs, y :: ys =>
+    (match x.unride, y.unride.one.kindless with
+      | .or _, w => x.admitAlike ds w
+      | _, .or arms => arms.any fun a => x.admitAlike ds a.2.unride.one.kindless
+      | _, w => x.admitAlike ds w) && admitItems ds xs ys
+  | _, _ => false
+end
+
+/-- Whether a `filter`'s condition `c`, read for the child, takes the
+child `v` as the term it is (ruling 51), as both ports try it: the child
+met with the condition doesn't die and is alike the child
+(`Val.admitAlike`), so that the meet narrows nothing and every value the
+child admits is one the condition admits, a meet that is a disjunction,
+where the child is none, alike where one of its arms is; or, where the
+child is a disjunction with no preference among its arms, the meet
+doesn't die, so that an arm the condition takes keeps it. -/
+def filterTakes (ds : Decls) (c v : Val) : Bool :=
+  let met := normaliseD ds (meetD ds c v)
+  !met.dead && ((normaliseD ds v).freeChoice ||
+    match (normaliseD ds v).unride.kindless, met.unride.one.kindless with
+    | .or _, w => (normaliseD ds v).unride.kindless.admitAlike ds w
+    | _, .or arms => arms.any fun a => (normaliseD ds v).unride.kindless.admitAlike ds a.2.unride.one.kindless
+    | _, w => (normaliseD ds v).unride.kindless.admitAlike ds w)
+
+mutual
 /-- The references into the node a term holds as written, but those in
 a map's or a list's spread, which both ports leave unbound, and those in
 a nested `emit`'s table, a generator's template and a `filter`'s
@@ -1581,6 +1675,30 @@ among those kept before it, as a list's `filter` places its trial. -/
 def keptAt (keep : ℕ → Data → Bool) : ℕ → List Data → List Data
   | _, [] => []
   | i, x :: xs => if keep i x then x :: keptAt keep (i + 1) xs else keptAt keep i xs
+
+/-- The elements of a list `keep` takes as the terms they are, in order,
+each tried at the index it takes among those kept before it. -/
+def keptTerms (keep : ℕ → Val → Bool) : ℕ → List Val → List Val
+  | _, [] => []
+  | i, v :: vs => if keep i v then v :: keptTerms keep (i + 1) vs else keptTerms keep i vs
+
+/-- The members of a map's normal form a `filter` tries, under their
+keys, in the order the normal form holds them, as `Val.members` skips
+them: none that is marked or absence, nor an optional one whose value
+generates nothing or an empty map or list. -/
+def filterFields (ds : Decls) (fs : List (String × Bool × Val)) : List (String × Val) :=
+  (fs.filter (memberField ds)).map fun f => (f.1, f.2.2)
+
+/-- The elements of a list a `filter` tries: none that is marked or
+absence. -/
+def filterItems (items : List Val) : List Val :=
+  items.filter fun v => !v.marked && !v.isAbsent
+
+/-- Whether a `filter` over the source `s` stays as written: where the
+source generates nothing and its normal form is absence, a conflict, or
+holds a form no reading has made yet, which a later reading may make. -/
+def Decls.filterWaits (ds : Decls) (s : Val) : Bool :=
+  (genD ds s).isNone && ((normaliseD ds s).isAbsent || (normaliseD ds s).dead || (normaliseD ds s).unmade)
 
 /-- The elements of a list, each paired with the data it generates,
 that `keep` admits, the data read at the index the element takes among
@@ -1674,10 +1792,15 @@ mutual
 template is read for, which each hole in the template stands for, and
 `here` the position the term stands at, where one is placed: each
 `match` whose scrutinee generates a value is the result its arms select
-for it, and each `filter` whose source generates a container is the
-members its condition admits, as a term, or `nil` where the source
-generates a scalar, which has no members. One whose scrutinee or source
-generates nothing stays, and generates nothing. An `each` is the list of
+for it. A `filter` whose source's normal form is a map or a list is the
+members its condition takes as the terms they are (`filterTakes`, ruling
+51), tried in the order `Val.members` reads them; one whose source is
+otherwise a value that generates a container is the members whose data
+its condition admits, as a term; and one whose source generates a
+scalar, which has no members, is `nil`. A selection whose scrutinee
+generates nothing stays, and generates nothing, and so does a `filter`
+whose source generates nothing and is no map or list, or holds a form
+no reading has made yet (`Val.unmade`). An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
 reads them, less each reading that is absence or carries a mark of its
 own, as a list holds no position for either, and `nil` where the data
@@ -1738,15 +1861,25 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
   | .filter s c =>
     let s' := resolveD ds b here s
     if here.isNone && c.holdsKey then .filter s' c else
+    if ds.filterWaits s' then
+      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
+      else .filter s' (resolveD ds none none c)
+    else
+    match (normaliseD ds s').unride with
+    | .map fs _ _ => (Val.map ((filterFields ds fs).filterMap fun m =>
+        if filterTakes ds (resolveD ds (some m.2) (stepped here (.seg (.key m.1))) c) m.2
+        then some (m.1, false, m.2) else none) none false).rideMoves s'.moves
+    | .list items _ _ => (Val.list (keptTerms (fun i v =>
+        filterTakes ds (resolveD ds (some v) (stepped here (.seg (.idx i))) c) v) 0 (filterItems items))
+        none false).rideMoves s'.moves
+    | _ =>
     match genD ds s' with
     | some (.map fs) => (keptFields (normaliseD ds s').unride (fs.filter fun m =>
         checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).rideMoves s'.moves
     | some (.list xs) => (keptElems (normaliseD ds s').unride (fun i x =>
         checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) xs).rideMoves s'.moves
     | some _ => .nil
-    | none =>
-      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
-      else .filter s' (resolveD ds none none c)
+    | none => .filter s' (resolveD ds none none c)
   | .call f args =>
     match f, args with
     | .each, [d, t] =>
@@ -3599,24 +3732,32 @@ none the selection is `nil`: an error, not an empty answer. -/
 theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm ds x [] d = d.getD .nil := rfl
 
 /-- A `filter` read at a position over a list keeps the elements its
-condition admits, in their order, each the element the source's normal
-form holds there, the condition read for each element it tries, at the
-index the element takes among those kept, carrying the moves its source
+condition takes as the terms they are, in their order, but a marked one
+and absence, the condition read for each element it tries, at the index
+the element takes among those kept, carrying the moves its source
 holds. -/
 theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
-    {xs : List Data} (h : genD ds (resolveD ds b (some pos) s) = some (.list xs)) :
+    {items : List Val} {sp : Option Val} {cl : Bool}
+    (hw : ds.filterWaits (resolveD ds b (some pos) s) = false)
+    (hl : (normaliseD ds (resolveD ds b (some pos) s)).unride = .list items sp cl) :
     resolveD ds b (some pos) (.filter s c) =
-      (keptElems (normaliseD ds (resolveD ds b (some pos) s)).unride (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) xs).rideMoves
-        (resolveD ds b (some pos) s).moves := by
-  simp [resolveD, h]
+      (Val.list (keptTerms (fun i v =>
+        filterTakes ds (resolveD ds (some v) (stepped (some pos) (.seg (.idx i))) c) v) 0 (filterItems items))
+        none false).rideMoves (resolveD ds b (some pos) s).moves := by
+  rw [resolveD.eq_def]
+  simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hw, hl]
 
 /-- A `filter` read at a position over a scalar, which has no members, is
 `nil`: an error. -/
 theorem resolveD_filter_scalar {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
-    {x : Scalar} (h : genD ds (resolveD ds b (some pos) s) = some x.data) :
+    {x : Scalar} (h : genD ds (resolveD ds b (some pos) s) = some x.data)
+    (hn : (normaliseD ds (resolveD ds b (some pos) s)).unride = .lit x) :
     resolveD ds b (some pos) (.filter s c) = .nil := by
-  cases x <;> simp [resolveD, h, Scalar.data]
+  have hw : ds.filterWaits (resolveD ds b (some pos) s) = false := by
+    simp [Decls.filterWaits, h]
+  rw [resolveD.eq_def]
+  simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hw, hn, h]
+  cases x <;> rfl
 
 /-! ## The folds
 
@@ -4674,21 +4815,61 @@ theorem keptElems_checkableA {nf : Val} (hn : nf.CheckableA) (keep : ℕ → Dat
     · exact Data.term_checkableA _
   all_goals exact Data.term_checkableA _
 
+theorem keptTerms_mem : ∀ {keep : ℕ → Val → Bool} {i : ℕ} {vs : List Val} {v : Val},
+    v ∈ keptTerms keep i vs → v ∈ vs
+  | _, _, [], _, h => nomatch h
+  | keep, i, w :: vs, v, h => by
+    unfold keptTerms at h
+    split at h
+    · rcases List.mem_cons.mp h with rfl | h'
+      · exact List.mem_cons_self
+      · exact List.mem_cons_of_mem _ (keptTerms_mem h')
+    · exact List.mem_cons_of_mem _ (keptTerms_mem h)
+
+theorem filterFields_mem {ds : Decls} {fs : List (String × Bool × Val)} {k : String} {v : Val}
+    (h : (k, v) ∈ filterFields ds fs) : ∃ o, (k, o, v) ∈ fs := by
+  simp only [filterFields, List.mem_map, List.mem_filter] at h
+  obtain ⟨f, ⟨hf, _⟩, hfk⟩ := h
+  simp only [Prod.mk.injEq] at hfk
+  obtain ⟨rfl, rfl⟩ := hfk
+  exact ⟨f.2.1, hf⟩
+
 /-- A `filter` whose source generates a value reads to a term the
 checker can read where the source's normal form is one, whatever its
-condition holds: the members it admits, or `nil`. -/
+condition holds: the members it takes, or `nil`. -/
 theorem resolveD_filter_checkableA {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
     (h : (genD ds (resolveD ds b (some pos) s)).isSome)
     (hn : (normaliseD ds (resolveD ds b (some pos) s)).unride.CheckableA) :
     (resolveD ds b (some pos) (.filter s c)).CheckableA := by
   obtain ⟨x, hx⟩ := Option.isSome_iff_exists.mp h
+  have hw : ds.filterWaits (resolveD ds b (some pos) s) = false := by
+    simp [Decls.filterWaits, hx]
   rw [resolveD.eq_def]
-  simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false]
-  rw [hx]
-  cases x <;> first
-    | exact rideMoves_checkableA (keptFields_checkableA hn _)
-    | exact rideMoves_checkableA (keptElems_checkableA hn _ _)
-    | exact .nil
+  simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hw]
+  split
+  · next fs sp cl heq =>
+    rw [heq] at hn
+    cases hn
+    case map hf _ =>
+      refine rideMoves_checkableA (.map (fun k o v hv => ?_) (fun _ h => nomatch h))
+      obtain ⟨m, hm, hmv⟩ := List.mem_filterMap.mp hv
+      split at hmv
+      · simp only [Option.some.injEq, Prod.mk.injEq] at hmv
+        obtain ⟨rfl, _, rfl⟩ := hmv
+        obtain ⟨o', ho⟩ := filterFields_mem (k := m.1) (v := m.2) hm
+        exact hf _ _ _ ho
+      · exact nomatch hmv
+  · next items sp cl heq =>
+    rw [heq] at hn
+    cases hn
+    case list hi _ =>
+      refine rideMoves_checkableA (.list (fun v hv => ?_) (fun _ h => nomatch h))
+      exact hi v (List.mem_filter.mp (keptTerms_mem hv)).1
+  · rw [hx]
+    cases x <;> first
+      | exact rideMoves_checkableA (keptFields_checkableA hn _)
+      | exact rideMoves_checkableA (keptElems_checkableA hn _ _)
+      | exact .nil
 
 /-! ## One verdict, and the computed one -/
 
