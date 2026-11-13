@@ -1032,3 +1032,9 @@ What does a rel become when generated to json - use the folders example to show 
 ```text
 the way %Parent is defined it does not specifc the type of the target
 ```
+
+## 2026-11-13 16:18:58 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+again, refer and rel seem redundant - what is the difference
+```
