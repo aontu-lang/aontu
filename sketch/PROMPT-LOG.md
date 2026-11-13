@@ -1038,3 +1038,12 @@ the way %Parent is defined it does not specifc the type of the target
 ```text
 again, refer and rel seem redundant - what is the difference
 ```
+
+## 2026-11-13 16:22:10 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+""" By design there is one difference, scope:
+
+* `refer(t)` marks one value as a link.
+* `rel(t)` marks a field as a relation. Every path under the field, at any depth, is a link, and the field’s key names the relation. """ - the words link and relation are nearly synonyms - explain this more clearly
+```
