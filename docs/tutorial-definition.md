@@ -3107,18 +3107,23 @@ reaches one more step of a chain of paths, so as many rounds as the
 document writes paths reach the end of every chain. Two sets of roots serve: the schema alone, for
 the error class, and the schema met with the data, for the rest. A
 contradiction the data brings, `a: 1` met with `"a": 2` where `b: $.a`
-reads it, is the data's fault, invalid, and not an ill-formed schema:
+reads it, is the data's fault, invalid, and not an ill-formed schema.
+Each round reads a recursive name's body with its calls made
+(`Decls.callsMade`), so a path into what a call in the body makes reads
+it wherever the name unfolds: with `%T = {n: copy({k: 1}), o?: %T}`,
+`y: $.x.n.k` beside `x: {} & %T` reads `1`, as both engines do:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.roundsS (ds : Decls) (S : Val) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d (d.readU T)) (ds.docPaths S).length
+  ds.rounds S (fun d T => normaliseD d.callsMade (d.callsMade.readU T)) (ds.docPaths S).length
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d (meetD d (d.readU T) j.term)) (ds.docPaths S).length
+  ds.rounds S (fun d T => normaliseD d.callsMade (meetD d.callsMade (d.callsMade.readU T) j.term))
+    (ds.docPaths S).length
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->

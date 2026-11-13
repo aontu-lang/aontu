@@ -1296,22 +1296,34 @@ def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → Li
     let d := ds.withPathsFrom S rs.1 rs.2
     (rs.1 ++ [r d.1 d.2], rs.2 ++ d.1.bodyRoots ds.placedNames)
 
+/-- A document's declarations with each recursive name's body read where
+no place is yet (`Decls.readU`), its calls and its selections made, so
+that each unfolding of the name, at a meet or by the checker, holds
+them made, as both ports make them wherever the body stands. One that
+waits on a reference, a hole or what the data writes stays as written. -/
+def Decls.callsMade (ds : Decls) : Decls :=
+  ds.map fun d => if ds.recursiveB d.1 then (d.1, ds.readU d.2) else d
+
 /-- The schema's own tree, with the bodies' own places: the normal form
 of the schema as read, before any data, its calls made (`Decls.readU`),
-in as many rounds as the document writes paths, since a round that
-reaches no new path changes nothing after it. The roots keep their keys
-as written, so that a key a path reaches reads where the path lands. -/
+each recursive name's body with its calls made too (`Decls.callsMade`),
+so that a path into a call a body holds reads what the call makes
+wherever the name unfolds, in as many rounds as the document writes
+paths, since a round that reaches no new path changes nothing after it.
+The roots keep their keys as written, so that a key a path reaches reads
+where the path lands. -/
 def Decls.roundsS (ds : Decls) (S : Val) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d (d.readU T)) (ds.docPaths S).length
+  ds.rounds S (fun d T => normaliseD d.callsMade (d.callsMade.readU T)) (ds.docPaths S).length
 
 /-- The schema's own tree, round by round (`Decls.roundsS`). -/
 def Decls.rootsS (ds : Decls) (S : Val) : List Val := (ds.roundsS S).1
 
 /-- The tree the data reads in, with the bodies' own places, which no
-data reaches: the normal form of the schema met with the data, in as
-many rounds. -/
+data reaches: the normal form of the schema met with the data, each
+recursive name's body with its calls made, in as many rounds. -/
 def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d (meetD d (d.readU T) j.term)) (ds.docPaths S).length
+  ds.rounds S (fun d T => normaliseD d.callsMade (meetD d.callsMade (d.callsMade.readU T) j.term))
+    (ds.docPaths S).length
 
 /-- The tree the data reads in, round by round (`Decls.roundsD`). -/
 def Decls.rootsD (ds : Decls) (S : Val) (j : Data) : List Val := (ds.roundsD S j).1
@@ -1330,14 +1342,6 @@ def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
 
 theorem Decls.resolvesB_iff {ds : Decls} {S : Val} : ds.resolvesB S = true ↔ ds.Resolves S := by
   simp only [Decls.resolvesB, Decls.Resolves, List.all_eq_true]
-
-/-- A document's declarations with each recursive name's body read where
-no place is yet (`Decls.readU`), its calls and its selections made, so
-that each unfolding of the name, at a meet or by the checker, holds
-them made, as both ports make them wherever the body stands. One that
-waits on a reference, a hole or what the data writes stays as written. -/
-def Decls.callsMade (ds : Decls) : Decls :=
-  ds.map fun d => if ds.recursiveB d.1 then (d.1, ds.readU d.2) else d
 
 /-- The document with its paths read as names from the schema alone,
 from its own tree, which is what the error class is judged on, each
@@ -4772,6 +4776,17 @@ theorem Decls.bodyRoots_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Ch
   obtain ⟨n, -, rfl⟩ := h
   exact Decls.ownPlace_checkableA hb n
 
+/-- A document's declarations with each recursive name's calls made are
+terms the checker can read. -/
+theorem Decls.callsMade_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
+    ∀ d, d ∈ ds.callsMade → d.2.CheckableA := by
+  intro d hd
+  simp only [Decls.callsMade, List.mem_map] at hd
+  obtain ⟨d', hd', rfl⟩ := hd
+  split
+  · exact readU_checkableA hb (hb d' hd')
+  · exact hb d' hd'
+
 /-- Every round's root, and every place a round reads, is one the
 checker can read, where `r` reads a document the checker can read to
 one. -/
@@ -4803,13 +4818,16 @@ theorem Decls.rounds_checkableA {r : Decls → Val → Val}
 theorem Decls.roundsS_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (∀ root, root ∈ (ds.roundsS S).1 → root.CheckableA) ∧
       ∀ root, root ∈ (ds.roundsS S).2 → root.CheckableA :=
-  Decls.rounds_checkableA (fun hd hT => normaliseD_checkableA hd (readU_checkableA hd hT)) hb hS _
+  Decls.rounds_checkableA (fun hd hT => normaliseD_checkableA (Decls.callsMade_checkableA hd)
+    (readU_checkableA (Decls.callsMade_checkableA hd) hT)) hb hS _
 
 theorem Decls.roundsD_checkableA {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (∀ root, root ∈ (ds.roundsD S j).1 → root.CheckableA) ∧
       ∀ root, root ∈ (ds.roundsD S j).2 → root.CheckableA :=
   Decls.rounds_checkableA
-    (fun hd hT => normaliseD_checkableA hd (meetD_checkableA hd (readU_checkableA hd hT) (Data.term_checkableA j)))
+    (fun hd hT => normaliseD_checkableA (Decls.callsMade_checkableA hd)
+      (meetD_checkableA (Decls.callsMade_checkableA hd) (readU_checkableA (Decls.callsMade_checkableA hd) hT)
+        (Data.term_checkableA j)))
     hb hS _
 
 theorem Decls.rootsS_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
@@ -5619,17 +5637,6 @@ theorem Decls.prepared_bodies_checkableA {ds : Decls} {S : Val} {rl r : Decls �
     {oj : Option Data} (hrl : RootsReadable rl) (hr : RootsReadable r) (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : ∀ d, d ∈ (ds.prepared S rl r oj).1 → d.2.CheckableA :=
   (Decls.prepared_readable hrl hr hb hS).2
-
-/-- A document's declarations with each recursive name's calls made are
-terms the checker can read. -/
-theorem Decls.callsMade_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
-    ∀ d, d ∈ ds.callsMade → d.2.CheckableA := by
-  intro d hd
-  simp only [Decls.callsMade, List.mem_map] at hd
-  obtain ⟨d', hd', rfl⟩ := hd
-  split
-  · exact readU_checkableA hb (hb d' hd')
-  · exact hb d' hd'
 
 /-- `vetA` computes `VetA` wherever the checker can read the two
 documents the verdict hands `vet`, the schema's reading and the data's,
