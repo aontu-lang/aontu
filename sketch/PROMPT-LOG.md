@@ -1020,3 +1020,9 @@ create github issues for these quirks, include reproductions; why does rel() hav
 ```text
 create github issues for those unfiled findings too, include reproductions; what do you mean by "address" -  do you mean a path?
 ```
+
+## 2026-11-13 11:27:28 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+What does a rel become when generated to json - use the folders example to show me
+```
