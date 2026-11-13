@@ -1445,6 +1445,27 @@ theorem defaults_walk_sound : ∀ (p : List Seg) {a b wa wb : Val},
   | .var _ :: _, _, _, _, _, _, _, ha, _ => by simp [Val.at] at ha
   | .up _ :: _, _, _, _, _, _, _, ha, _ => by simp [Val.at] at ha
   | .node :: _, _, _, _, _, _, _, ha, _ => by simp [Val.at] at ha
+  | .own n :: p, a, b, wa, wb, _, h2, ha, hb => by
+    rw [defaultsBelow_unride] at h2
+    simp only [Val.at] at ha hb
+    split at ha
+    · rename_i fs _ _ hau
+      split at ha
+      · rename_i f hf
+        split at hb
+        · rename_i gs _ _ hbu
+          split at hb
+          · rename_i g hg
+            rw [hau] at h2
+            simp only [defaultsBelow, hbu] at h2
+            have hfk : f.1 = "%" ++ n := by simpa using List.find?_some hf
+            obtain ⟨h1', h2'⟩ := defaultsFields_mem h2 (List.mem_of_find?_eq_some hf)
+              (by rw [hfk]; exact hg)
+            exact defaults_walk_sound p h1' h2' ha hb
+          · exact absurd hb (by simp)
+        · exact absurd hb (by simp)
+      · exact absurd ha (by simp)
+    · exact absurd ha (by simp)
 
 /-- The `defaults` profile's order where the order holds and the walk
 fails nowhere. -/

@@ -780,6 +780,16 @@ default of its rank: the first two are `pref_rank_clash` there, and the
 third is `{"a": 1, "b": 2, "c": 3}`
 ([#714](https://github.com/aontu-lang/aontu/issues/714)).
 
+**Two defaults of different ranks meet as their disjunctions.** Each
+stands only where the other's type admits it, and whichever stands
+keeps both types, narrowed by whatever either has already met. So a
+value the weaker default has met outlives the stronger one:
+`a:**true`, `a:true` and `a:*false` give `true` in every order, and
+`a:**1`, `a:min(1)` and `a:*0` give `1`, never the `0` the bound rules
+out. Defaults whose types share nothing refuse as `empty` at any rank:
+`a:**1` beside `a:*"a"`. Map and list defaults keep the plain rank
+order.
+
 **A preference conjoined with a disjunction names an alternative**:
 `(A|B) & *A` is `*A|B`, the same value the direct spelling denotes, so
 the two ways of writing an enum-with-default agree.
@@ -1707,10 +1717,8 @@ which [#723](https://github.com/aontu-lang/aontu/issues/723) tracks. A
 link whose target another link's template makes there is an `error` in
 the definition, which
 [#664](https://github.com/aontu-lang/aontu/issues/664) tracks. Only a
-path a body writes reads that place. Where the schema writes a body's very
-path, `$."%T".x` beside a body's `.x`, the definition reads the two as
-one, which [#721](https://github.com/aontu-lang/aontu/issues/721)
-tracks.
+path a body writes reads that place, so the schema's `$."%T".x` names
+nothing, beside a body's own `.x` or not, as in both engines.
 
 A spread's template reads its paths at each member the spread holds,
 the member's own place: in `hosts: {&: {url: .name}}`, each member's `url`
@@ -4853,10 +4861,21 @@ seal in it lifted, and then `close()` meets the place with the seal an
 instance takes (`closeSeal`), read through every term held open at its
 own level, so `close()` wins there and stops at a term held open beneath
 it. The places beneath a place come first, so an `open()` lifts the seal
-a `close()` beneath it makes, as `open(v)` does. A spread's template is a
-place of its own. A directive beside one disjunction or lone preference
-reaches each of its arms, each read with the terms beside it, while the
-seal on an instance stops at a choice.
+a `close()` beneath it makes, as `open(v)` does. A spread's template
+reaches every member, so a member's place holds the template beside the
+member's own terms, and the templates at a place stand together for the
+members no term declares. A disjunction's arm is a place of its own. A
+place whose terms
+hold a disjunction or a lone preference and a directive, at the place or
+beneath it, reads as one disjunction: each combination of the choices'
+arms, met with every other term at the place, is a place of its own.
+So a directive reaches every combination, and `close()` seals each
+with the keys that combination declares, while the seal on an instance
+still stops at a choice. A directive inside the argument of `copy`,
+`super` or `pref` acts where the call's value lands: the call's place
+reads the argument's shape, its maps and lists with their keys, so
+`copy(close() & {x: 1})` stays sealed although `copy` lifts every seal
+its argument writes.
 
 ## Source loading `@"…"`
 

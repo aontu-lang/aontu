@@ -106,3 +106,30 @@ defaults-two-ranks-one-value-reversed	canon	a:**1 | *1	{"a":*1}
 # back out and the pin was overridden.
 defaults-pin-holds-at-rank-three	errc	x:***false\nx:false\nx:true	empty
 defaults-pin-holds-through-a-reference	errc	T:{e:***false & false}\nf:$.T & {e:true}	empty
+
+# --- R5 across statements: a meet of two defaults keeps what either has
+# met. Each stands only where the other's override space admits it, so a
+# value or a constraint the weaker default met rules the stronger one
+# out, and the weaker stands in its place, gated by both. A constraint
+# stays in the gate of whichever default stands; neither standing leaves
+# the gates' meet; and defaults whose override spaces share nothing
+# refuse, as a default and a value of another kind do (R1). Every order
+# of such statements is in defaults-order.tsv.
+defaults-met-value-survives-a-stronger-default	gens	e: &: { active: **true | boolean }\ne: x: active: true\ne: x: active: *false | boolean	{"e":{"x":{"active":true}}}
+defaults-met-value-survives-an-equal-rank-spread	gens	e: &: { active: *true | boolean }\ne: x: active: true\ne: x: active: *false | boolean	{"e":{"x":{"active":true}}}
+defaults-met-value-through-a-reference	gens	b: (**true | boolean) & true\na: $.b & (*false | boolean)	{"a":true,"b":true}
+defaults-met-constraint-promotes-the-weaker-default	gens	a: x: **1\na: x: min(1)\na: x: *0	{"a":{"x":1}}
+defaults-met-constraint-gates-the-stronger-default	errc	a: x: **1\na: x: min(1)\na: x: *2\na: x: 0	empty
+defaults-met-constraint-survives-an-equal-rank-fold	errc	a: x: *1\na: x: min(1)\na: x: *1\na: x: 0	empty
+defaults-promoted-default-takes-both-gates	gens	a: x: *0 & max(5)\na: x: **1 & min(1)	{"a":{"x":1}}
+defaults-promoted-default-takes-both-gates-reversed	gens	a: x: **1 & min(1)\na: x: *0 & max(5)	{"a":{"x":1}}
+defaults-promoted-default-holds-both-gates	errc	a: x: *0 & max(5)\na: x: **1 & min(1)\na: x: 7	empty
+defaults-neither-default-stands	canon	a: x: *2 & max(7)\na: x: **10 & min(5)	{"a":{"x":integer&min(5)&max(7)}}
+defaults-neither-default-stands-reversed	canon	a: x: **10 & min(5)\na: x: *2 & max(7)	{"a":{"x":integer&min(5)&max(7)}}
+defaults-ranks-of-another-kind-refuse	errc	a:**1\na:*"a"	empty
+defaults-equal-ranks-of-another-kind-refuse	errc	a:*1\na:*"a"	empty
+# Map and list defaults keep the rank arbitration they had: the lower
+# rank stands, from either side, and one rank's disagreeing pair clashes.
+defaults-container-ranks-stronger-first	gens	a: x: *{p:1}\na: x: **{p:1}	{"a":{"x":{"p":1}}}
+defaults-container-ranks-stronger-second	gens	a: x: **{p:1}\na: x: *{p:1}	{"a":{"x":{"p":1}}}
+defaults-container-same-rank-clash	errc	a: x: *{p:1}\na: x: *{p:2}	pref_rank_clash

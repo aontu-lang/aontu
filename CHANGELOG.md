@@ -8,6 +8,34 @@ each change affects.
 
 ## Unreleased
 
+### A value a default has met outlives a stronger default (#431)
+
+Both engines and shared rows.
+
+- Two scalar defaults of different ranks met by rank alone: the
+  stronger stood as it was, and a value or a bound the weaker had
+  already met was dropped with it, so the answer hung on the order the
+  statements were written in. `a: **true`, `a: true`, `a: *false` gave
+  `false`, and `a: **1`, `a: min(1)`, `a: *0` gave `0`, a value the
+  bound rules out. The two now meet as the disjunctions they stand
+  for, as the definition's meet does: each stands only where the
+  other's type admits it, whichever stands keeps both types, and a
+  stronger default the weaker one's type rules out gives way to it.
+  This is the fix 0.76.1 and 0.76.3 carry, ported to `main`, whose
+  defaults had changed since.
+- Defaults whose types share nothing refuse as `empty` at any rank.
+  `a: **1` beside `a: *"a"` used to answer `"a"`, a value `**1` does
+  not admit.
+- Map and list defaults keep the rank order they had.
+- `test/spec/defaults-order.tsv` writes eight families of default
+  statements in every order, 100 rows, and `test/spec/defaults.tsv`
+  gains 16 rows, both from 0.76.1. Before this change `main` failed 24
+  of them, alike in each engine.
+- Seven rows of `test/spec/pref.tsv` pin defaults whose value is a
+  type, which still meet by rank: a spread's bound holds of
+  `*integer`, and two such defaults of one rank keep both their
+  bounds.
+
 ### An `enum` whose members overlap imports as a count
 
 Both engines, and shared rows.

@@ -20,14 +20,22 @@ namespace Aontu
 /-! ## Positions -/
 
 /-- The term at a path in a term: through maps by key and lists by
-index, the riders around either read through, and through nothing
-else. -/
+index, the riders around either read through, a name's own place as the
+member `%` and the name of the one-member document a body is read in
+(`ownDoc`), and through nothing else. -/
 def Val.at : Val → List Seg → Option Val
   | v, [] => some v
   | v, .key k :: p =>
     match v.unride with
     | .map fs _ _ =>
       match fs.find? (fun f => f.1 == k) with
+      | some f => f.2.2.at p
+      | none => none
+    | _ => none
+  | v, .own n :: p =>
+    match v.unride with
+    | .map fs _ _ =>
+      match fs.find? (fun f => f.1 == "%" ++ n) with
       | some f => f.2.2.at p
       | none => none
     | _ => none
@@ -101,7 +109,8 @@ def pathName (p : List Seg) : String :=
     | .idx i => "#" ++ toString i
     | .var n => "$" ++ toString n.length ++ ":" ++ n
     | .up n => "^" ++ toString n
-    | .node => "_")
+    | .node => "_"
+    | .own n => "%" ++ toString n.length ++ ":" ++ n)
 
 mutual
 /-- The term with each path replaced by a reference to the path's name,
@@ -868,25 +877,32 @@ variable bound (`Decls.bindSeg`), read by `Val.atW`. -/
 def Decls.pathAt (ds : Decls) (root : Val) (p : List Seg) : Option Val :=
   (p.mapM ds.bindSeg).bind root.atW
 
-/-- The term a written path names at a body's own place, `%` and a
-declared name its first step, as both ports read a body there: the rest
-of the path read in the normal form of that name's bodies met, the
-body's own members among them. -/
+/-- The term a written path names at a body's own place, a declared
+name's own place (`Seg.own`) its first step, as both ports read a body
+there: the rest of the path read in the normal form of that name's
+bodies met, the body's own members among them. -/
 def Decls.bodyAt (ds : Decls) : List Seg → Option Val
-  | .key k :: p =>
-    match ds.filter (fun d => "%" ++ d.1 == k) with
+  | .own n :: p =>
+    match ds.filter (fun d => d.1 == n) with
     | [] => none
     | bs => ds.pathAt (normaliseD ds (ds.readU (bs.foldl (fun acc d => .meet acc d.2) .any))) p
   | _ => none
 
+/-- Whether a path starts at a declared name's own place (`Seg.own`), as
+only a relative path a body writes does once it's placed. -/
+def ownPath : List Seg → Bool
+  | .own _ :: _ => true
+  | _ => false
+
 /-- The term a written path names in the first of the roots it names
-something in, or, for a path a body writes, at a body's own place, which
-no root holds and no path the schema writes reaches: in the first of the
-places `bs` it names something in (`Decls.bodyRoots`), and else in the
-normal form of the name's bodies (`Decls.bodyAt`). -/
+something in, or, for a path from a name's own place (`ownPath`), at a
+body's own place, which no root holds and no path the schema writes
+reaches: in the first of the places `bs` it names something in
+(`Decls.bodyRoots`), and else in the normal form of the name's bodies
+(`Decls.bodyAt`). -/
 def Decls.pathIn (ds : Decls) (roots : List Val) (p : List Seg) (bs : List Val := []) : Option Val :=
   (roots.findSome? fun root => ds.pathAt root p).or
-    (if p ∈ ds.paths then (bs.findSome? fun root => ds.pathAt root p).or (ds.bodyAt p) else none)
+    (if ownPath p then (bs.findSome? fun root => ds.pathAt root p).or (ds.bodyAt p) else none)
 
 /-- The declarations a document's paths make: each path's name, declared
 as the term at the path in the first of the roots it names something
@@ -1070,11 +1086,11 @@ def referStep (ds : Decls) (roots : List Val) (miss : Val) (home : List Seg) (ac
 
 /-! ## Roots read in rounds -/
 
-/-- The declared names whose own place a path the bodies write starts
-at, `%` and the name its first step. -/
+/-- The declared names whose own place (`Seg.own`) a path the bodies
+write starts at. -/
 def Decls.placedNames (ds : Decls) : List String :=
   (ds.paths.filterMap fun p => match p with
-    | .key k :: _ => if k.startsWith "%" && ds.any (fun d => "%" ++ d.1 == k) then some (k.drop 1) else none
+    | .own n :: _ => if ds.any (fun d => d.1 == n) then some n else none
     | _ => none).eraseDups
 
 /-- A body's own place, `B`, with the template of each link it holds met
@@ -1145,18 +1161,27 @@ def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
 theorem Decls.resolvesB_iff {ds : Decls} {S : Val} : ds.resolvesB S = true ↔ ds.Resolves S := by
   simp only [Decls.resolvesB, Decls.Resolves, List.all_eq_true]
 
+/-- A document's declarations with each recursive name's body read where
+no place is yet (`Decls.readU`), its calls and its selections made, so
+that each unfolding of the name, at a meet or by the checker, holds
+them made, as both ports make them wherever the body stands. One that
+waits on a reference, a hole or what the data writes stays as written. -/
+def Decls.callsMade (ds : Decls) : Decls :=
+  ds.map fun d => if ds.recursiveB d.1 then (d.1, ds.readU d.2) else d
+
 /-- The document with its paths read as names from the schema alone,
-from its own tree, which is what the error class is judged on. -/
+from its own tree, which is what the error class is judged on, each
+recursive name's body with its calls made (`Decls.callsMade`). -/
 def Decls.withPathsS (ds : Decls) (S : Val) : Decls × Val :=
   let rs := ds.roundsS S
-  ds.withPathsFrom S rs.1 rs.2
+  ((ds.withPathsFrom S rs.1 rs.2).1.callsMade, (ds.withPathsFrom S rs.1 rs.2).2)
 
 /-- The document with its paths read as names from the data too, from
 the tree the data reads in, which is what the other classes are judged
-on. -/
+on, each recursive name's body with its calls made. -/
 def Decls.withPaths (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
   let rs := ds.roundsD S j
-  ds.withPathsFrom S rs.1 rs.2
+  ((ds.withPathsFrom S rs.1 rs.2).1.callsMade, (ds.withPathsFrom S rs.1 rs.2).2)
 
 /-! ## The verdict with paths -/
 
@@ -1398,16 +1423,16 @@ def Decls.bodyRoot (dp : Decls) (d : String × Val) : Val := normaliseD dp (dp.r
 tree `L` reads hold it, and `miss` for each link whose target they
 don't hold: each link that lands at a position of that tree, read there
 (`Decls.landedLinks`), and each that lands in a body, at a position of
-the body's own tree (`Decls.bodyRoot`), read at the body's own place,
-`%` and the name as a key at the top, as both ports read a body where
+the body's own tree (`Decls.bodyRoot`), read at the body's own place
+(`Seg.own`), as both ports read a body where
 it's declared, used or not (ruling 35). Read from the tree an earlier
 pass made, so a link a template carries lands with it and sends too. -/
 def Decls.referPass (ds : Decls) (r : Decls → Val → List Val) (S L : Val) (miss : Val) : Val :=
   let own := r ds L
   let dp := (ds.withPathsFrom L own).1
   let R := own.getLast?.getD .any
-  ds.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
-      (referStep ds own miss [.key ("%" ++ d.1)]) acc)
+  ds.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.own d.1]).foldl
+      (referStep ds own miss [.own d.1]) acc)
     ((ds.nfLinks R []).foldl (referStep ds own miss []) S)
 
 /-- The flows a document's links make, one for each address they hold:
@@ -1416,7 +1441,7 @@ def Decls.referCount (ds : Decls) (r : Decls → Val → List Val) (S : Val) : �
   let own := r ds S
   let dp := (ds.withPathsFrom S own).1
   let R := own.getLast?.getD .any
-  ds.foldl (fun n d => n + ((ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).map fun e =>
+  ds.foldl (fun n d => n + ((ds.nfLinks (dp.bodyRoot d) [.own d.1]).map fun e =>
       (linkAddrs e).length).sum)
     ((ds.nfLinks R []).map fun e => (linkAddrs e).length).sum
 
@@ -1496,8 +1521,8 @@ def Decls.bodyFlows (ds : Decls) (r : Decls → Val → List Val) (L : Val) : Li
   let dp := (ds.withPathsFrom L own).1
   let R := own.getLast?.getD .any
   (ds.nfLinks R []).flatMap (bodyFlowsOf ds own []) ++
-    ds.flatMap fun d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).flatMap
-      (bodyFlowsOf ds own [.key ("%" ++ d.1)])
+    ds.flatMap fun d => (ds.nfLinks (dp.bodyRoot d) [.own d.1]).flatMap
+      (bodyFlowsOf ds own [.own d.1])
 
 /-- Whether the templates the flows send to a body's own place conflict
 there, with the body's member or with each other, as both ports meet
@@ -1505,7 +1530,7 @@ each into the body's own place: the normal form of the name's bodies,
 met, with each template met at its place. -/
 def Decls.bodyClash (ds : Decls) (fs : List (List Seg × Val)) : Bool :=
   ds.any fun d =>
-    match fs.filter (fun f => f.1.head? == some (.key ("%" ++ d.1))) with
+    match fs.filter (fun f => f.1.head? == some (.own d.1)) with
     | [] => false
     | gs =>
       let b := normaliseD ds (ds.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2) .any))
@@ -1941,13 +1966,13 @@ reads at each member another body of the name writes. -/
 def Decls.ownRoot (ds : Decls) (d : String × Val) : Val :=
   normaliseD ds (ds.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2.opened) .any))
 
-/-- A body read at its own place, `%` and its name: each template that
+/-- A body read at its own place (`Seg.own`): each template that
 reads its member's place read at each member the body's own normal form
 holds (`Decls.membersRead`), in a selection's results too
 (`Decls.armsRead`), as both ports read a body there whether or not
 anything uses it. -/
 def Decls.ownRead (ds : Decls) (d : String × Val) : Val :=
-  ds.membersRead (ds.armsRead (ds.ownRoot d) [.key ("%" ++ d.1)] [] d.2) (ds.ownRoot d) [.key ("%" ++ d.1)]
+  ds.membersRead (ds.armsRead (ds.ownRoot d) [.own d.1] [] d.2) (ds.ownRoot d) [.own d.1]
 
 /-! ## A path reference's copy reads its relative paths where it stands
 
@@ -2090,8 +2115,7 @@ def dataLit (j : Data) (rs : List (List Seg)) : Option Val :=
 
 /-- A document with each relative path it writes made absolute where it
 stands: the schema from the top (`Val.placedT`), each body at its
-name's own place, `%` and the name as a key at the top, as both ports
-place a body, and in either, each use of a name whose uses read as
+name's own place (`Seg.own`), as both ports place a body, and in either, each use of a name whose uses read as
 copies (`Decls.copyNames`) read as the copy of the body placed where the
 use stands, and each path reference to a place whose terms read their
 own place (`Decls.copyTargets`) as the copy of what the document writes
@@ -2105,7 +2129,7 @@ def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Va
   let rs := ds.copyNames S
   let rt := ds.copyTargets S rs
   let dl : List Seg → Option Val := fun p => oj.bind fun j => dataLit j (ds.writtenAt S p)
-  let own (n : String) : List Seg := [.key ("%" ++ n)]
+  let own (n : String) : List Seg := [.own n]
   (ds.map (fun d => (d.1, (d.2.atUses rs rt dl (own d.1)).placed (own d.1))) ++
       ds.copies S rs rt dl (ds.length + S.size + 1) (S.usesAt rs rt [] ++ ds.flatMap fun d => d.2.usesAt rs rt (own d.1)) ++
       (S.bares []).map fun p => (bareName, .path p),
@@ -2153,7 +2177,7 @@ arm's own name (`Val.armed`), `$|`, are no path's. -/
 def pathNamed (n : String) : Bool :=
   match n.toList with
   | ['$'] => true
-  | '$' :: c :: _ => c == '.' || c == '#' || c == '$' || c == '^'
+  | '$' :: c :: _ => c == '.' || c == '#' || c == '$' || c == '^' || c == '%'
   | _ => false
 
 mutual
@@ -2462,60 +2486,6 @@ def Val.splitOrs : Val → List (List (ℕ × Val)) × List Val
   | .or arms => ([arms], [])
   | v => ([], [v])
 
-/-- Two nodes' arms met as written, the left one's outermost: each arm of
-`as` keeping its rank over the arms of `bs` it meets, each pair met in
-the order written, and an arm of rank `0` opening into them
-(`flattenArm`). -/
-def outerMeet (as bs : List (ℕ × Val)) : List (ℕ × Val) :=
-  (as.map fun p => (p.1, Val.or (bs.map fun q => (q.1, Val.meet p.2 q.2)))).flatMap flattenArm
-
-/-- `outerMeet` with the right one's arms outermost. -/
-def outerMeetR (as bs : List (ℕ × Val)) : List (ℕ × Val) :=
-  (bs.map fun q => (q.1, Val.or (as.map fun p => (p.1, Val.meet p.2 q.2)))).flatMap flattenArm
-
-/-- The arms `tieArms` makes of two nodes' arms that lead with the rank
-`r`, each pair met as written: the defaults' meets at rank `r`, and the
-arms that keep one side's default alone at rank `k`. -/
-def tieMeetArms (r k : ℕ) (as bs : List (ℕ × Val)) : List (ℕ × Val) :=
-  (as.filter fun p => p.1 == r).flatMap
-      (fun p => (bs.filter fun p => p.1 == r).map fun q => (r, Val.meet p.2 q.2)) ++
-    (as.filter fun p => p.1 == r).map
-      (fun p => (k, Val.or ((bs.filter fun p => p.1 != r).map fun q => (q.1, Val.meet p.2 q.2)))) ++
-    (bs.filter fun p => p.1 == r).map
-      (fun q => (k, Val.or ((as.filter fun p => p.1 != r).map fun p => (p.1, Val.meet p.2 q.2))))
-
-/-- Two nodes' arms that lead with the rank `r` met as `nodeTie` meets
-them (decision 43), each pair met as written and `rest` the other arms
-of the two met: where a default of each meets one of the other's
-(`meet`), the arms `tieMeetArms` makes, one rank weaker for one side's
-default alone, as one arm of rank `r`; where none does, those arms at
-rank `r` themselves. -/
-def tieMeet (r : ℕ) (rest as bs : List (ℕ × Val)) : List (ℕ × Val) :=
-  if (as.filter fun p => p.1 == r).any
-      (fun p => (bs.filter fun p => p.1 == r).any fun q => !(meet p.2 q.2).dead) then
-    (r, Val.or (tieMeetArms r (r + 1) as bs)) :: rest
-  else tieMeetArms r r as bs ++ rest
-
-/-- Two nodes' arms met, within `n` levels, each pair met as written and
-ranked as the meet ranks them (`meetNodesN`): the one that leads with
-the stronger rank outermost, one with no default inside one with a
-default, and two that lead with one rank as `tieMeet` meets them. -/
-def orMeetF : ℕ → List (ℕ × Val) → List (ℕ × Val) → List (ℕ × Val)
-  | 0, as, bs => outerMeet as bs
-  | n + 1, as, bs =>
-    match pickRank as, pickRank bs with
-    | some ra, some rb =>
-      if ra < rb then outerMeet as bs
-      else if rb < ra then outerMeetR as bs
-      else tieMeet ra (orMeetF n (as.filter fun p => p.1 != ra) (bs.filter fun p => p.1 != ra)) as bs
-    | some _, none => outerMeet as bs
-    | none, some _ => outerMeetR as bs
-    | none, none => outerMeet as bs
-
-/-- Two nodes met, as one: the meet of each arm of the first with each
-arm of the second, ranked as the meet ranks them (`orMeetF`). -/
-def orMeet (as bs : List (ℕ × Val)) : List (ℕ × Val) := orMeetF (as.length + bs.length) as bs
-
 /-- Whether a term is a lone preference, a node beside the disjunctions
 of a meet (`Val.meetOrs`). -/
 def Val.isPrefB : Val → Bool
@@ -2599,7 +2569,7 @@ def Decls.readArms (L1 ds' : Decls) (r : Decls → Val → List Val) (P : Val)
     (isBody : String → Bool) (drop : List String) : Decls × Val :=
   let own (d : String × Val) : Val × Decls :=
     L1.armsChosen r (fun a x => (ds', ownDoc d.1 (d.2.chooseAt a x))) (fun k => d.1 ++ "#" ++ toString k)
-      (fun n a => L1.treeAt r (ownDoc d.1 (d.2.chooseAt n.1 a)) n.2.1) 0 (d.2.armNodes [.key ("%" ++ d.1)]) d.2 d.2
+      (fun n a => L1.treeAt r (ownDoc d.1 (d.2.chooseAt n.1 a)) n.2.1) 0 (d.2.armNodes [.own d.1]) d.2 d.2
   let top := L1.armsChosen r (fun a x => (ds', P.chooseAt a x)) toString root 0 ns P P
   let owned : Decls := ds'.map fun d => if isBody d.1 then (d.1, (own d).1) else d
   let armDs : Decls := (ds'.filter (isBody ·.1)).flatMap (fun d => (own d).2) ++ top.2
@@ -2678,7 +2648,7 @@ theorem hideAt_checkableA : ∀ p, (hideAt p).CheckableA
       rcases List.mem_append.mp hv with h | h
       · rw [List.eq_of_mem_replicate h]; exact .any
       · rw [List.mem_singleton.mp h]; exact hideAt_checkableA p) (fun _ h => nomatch h)
-  | .var _ :: _ | .up _ :: _ | .node :: _ => .any
+  | .var _ :: _ | .up _ :: _ | .node :: _ | .own _ :: _ => .any
 
 theorem foldl_hide_checkableA : ∀ (ps : List (List Seg)) {S : Val}, S.CheckableA →
     (ps.foldl (fun acc p => Val.meet acc (hideAt p)) S).CheckableA
@@ -3324,6 +3294,7 @@ theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos)
     | .idx _ :: _ => exact .path
     | .var _ :: _ => exact .path
     | .node :: _ => exact .path
+    | .own _ :: _ => exact .path
   | @nof n cs _ _ ihn ihcs =>
     intro pos
     refine .nof (ihn pos) fun w hm => ?_
@@ -4143,12 +4114,6 @@ theorem instancesAt_checkableA {ds : Decls} {P root : Val} (hb : ∀ d, d ∈ ds
   · exact putW_checkableA (neutral_checkableA (placed_checkableA
       (genTemplate_checkableA hw' (Option.mem_toList.mp hg)) _)) _ ht
 
-theorem foldl_meet_checkableA : ∀ (us : List Val) {acc : Val}, acc.CheckableA → (∀ u, u ∈ us → u.CheckableA) →
-    (us.foldl .meet acc).CheckableA
-  | [], _, h, _ => h
-  | u :: us, _, h, hu => foldl_meet_checkableA us (.meet h (hu u List.mem_cons_self))
-      fun w hw => hu w (List.mem_cons_of_mem _ hw)
-
 theorem membersRead_checkableA {ds : Decls} {P : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hP : P.CheckableA) (root : Val) (base : List Seg) : (ds.membersRead P root base).CheckableA := by
   unfold Decls.membersRead
@@ -4283,6 +4248,19 @@ theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p 
   | .var _ :: _, _, _, _, h => by simp [Val.at] at h
   | .up _ :: _, _, _, _, h => by simp [Val.at] at h
   | .node :: _, _, _, _, h => by simp [Val.at] at h
+  | .own _ :: p, v, w, hv, h => by
+    have hu := Val.checkableA_unride hv
+    simp only [Val.at] at h
+    split at h
+    · rename_i fs _ _ hm
+      rw [hm] at hu
+      cases hu with
+      | map hf _ =>
+        split at h
+        · rename_i f hfind
+          exact at_checkableA p (hf f.1 f.2.1 f.2.2 (List.mem_of_find?_eq_some hfind)) h
+        · exact absurd h (by simp)
+    · exact absurd h (by simp)
 
 /-- The term at a written path in a term the checker can read is one it
 can read. -/
@@ -4582,8 +4560,8 @@ theorem foldl_bodyLinks_checkableA {ds dp : Decls} {roots : List Val} {miss : Va
     (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hdp : ∀ x, x ∈ dp → x.2.CheckableA)
     (hm : miss.CheckableA) :
     ∀ (bs : Decls) {acc : Val}, acc.CheckableA → (∀ d, d ∈ bs → d.2.CheckableA) →
-      (bs.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.key ("%" ++ d.1)]).foldl
-        (referStep ds roots miss [.key ("%" ++ d.1)]) acc) acc).CheckableA
+      (bs.foldl (fun acc d => (ds.nfLinks (dp.bodyRoot d) [.own d.1]).foldl
+        (referStep ds roots miss [.own d.1]) acc) acc).CheckableA
   | [], _, h, _ => h
   | d :: bs, _, h, hd =>
     foldl_bodyLinks_checkableA hb hdp hm bs
@@ -5201,79 +5179,6 @@ theorem splitOrs_checkableA {v : Val} (h : v.CheckableA) :
       subst h
       constructor <;> assumption
 
-theorem outerMeet_checkableA {as bs : List (ℕ × Val)} (ha : ∀ p, p ∈ as → p.2.CheckableA)
-    (hb : ∀ q, q ∈ bs → q.2.CheckableA) : ∀ p, p ∈ outerMeet as bs → p.2.CheckableA := by
-  intro p hp
-  simp only [outerMeet, List.mem_flatMap, List.mem_map] at hp
-  obtain ⟨_, ⟨p', hp', rfl⟩, hm⟩ := hp
-  refine flattenArm_checkableA (.or fun r a h => ?_) p hm
-  simp only [List.mem_map, Prod.mk.injEq] at h
-  obtain ⟨q, hq, rfl, rfl⟩ := h
-  exact .meet (ha p' hp') (hb q hq)
-
-theorem outerMeetR_checkableA {as bs : List (ℕ × Val)} (ha : ∀ p, p ∈ as → p.2.CheckableA)
-    (hb : ∀ q, q ∈ bs → q.2.CheckableA) : ∀ p, p ∈ outerMeetR as bs → p.2.CheckableA := by
-  intro p hp
-  simp only [outerMeetR, List.mem_flatMap, List.mem_map] at hp
-  obtain ⟨_, ⟨q', hq', rfl⟩, hm⟩ := hp
-  refine flattenArm_checkableA (.or fun r a h => ?_) p hm
-  simp only [List.mem_map, Prod.mk.injEq] at h
-  obtain ⟨p'', hp'', rfl, rfl⟩ := h
-  exact .meet (ha p'' hp'') (hb q' hq')
-
-theorem tieMeetArms_checkableA {r k : ℕ} {as bs : List (ℕ × Val)} (ha : ∀ p, p ∈ as → p.2.CheckableA)
-    (hb : ∀ q, q ∈ bs → q.2.CheckableA) : ∀ p, p ∈ tieMeetArms r k as bs → p.2.CheckableA := by
-  intro p hp
-  unfold tieMeetArms at hp
-  rcases List.mem_append.mp hp with hp | hp
-  · rcases List.mem_append.mp hp with hp | hp
-    · obtain ⟨x, hx, hm⟩ := List.mem_flatMap.mp hp
-      obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hm
-      exact .meet (ha x (List.mem_filter.mp hx).1) (hb y (List.mem_filter.mp hy).1)
-    · obtain ⟨x, hx, rfl⟩ := List.mem_map.mp hp
-      refine .or fun r' a h => ?_
-      obtain ⟨y, hy, he⟩ := List.mem_map.mp h
-      simp only [Prod.mk.injEq] at he
-      obtain ⟨rfl, rfl⟩ := he
-      exact .meet (ha x (List.mem_filter.mp hx).1) (hb y (List.mem_filter.mp hy).1)
-  · obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hp
-    refine .or fun r' a h => ?_
-    obtain ⟨x, hx, he⟩ := List.mem_map.mp h
-    simp only [Prod.mk.injEq] at he
-    obtain ⟨rfl, rfl⟩ := he
-    exact .meet (ha x (List.mem_filter.mp hx).1) (hb y (List.mem_filter.mp hy).1)
-
-theorem orMeetF_checkableA : ∀ (n : ℕ) {as bs : List (ℕ × Val)}, (∀ p, p ∈ as → p.2.CheckableA) →
-    (∀ q, q ∈ bs → q.2.CheckableA) → ∀ p, p ∈ orMeetF n as bs → p.2.CheckableA
-  | 0, _, _, ha, hb => outerMeet_checkableA ha hb
-  | n + 1, as, bs, ha, hb => by
-    have hfa : ∀ (f : ℕ × Val → Bool), ∀ p, p ∈ as.filter f → p.2.CheckableA :=
-      fun _ p h => ha p (List.mem_filter.mp h).1
-    have hfb : ∀ (f : ℕ × Val → Bool), ∀ q, q ∈ bs.filter f → q.2.CheckableA :=
-      fun _ q h => hb q (List.mem_filter.mp h).1
-    unfold orMeetF
-    split
-    · split
-      · exact outerMeet_checkableA ha hb
-      · split
-        · exact outerMeetR_checkableA ha hb
-        · intro p hp
-          unfold tieMeet at hp
-          split at hp
-          · rcases List.mem_cons.mp hp with rfl | hp
-            · exact .or fun r' a h => tieMeetArms_checkableA ha hb (r', a) h
-            · exact orMeetF_checkableA n (hfa _) (hfb _) p hp
-          · rcases List.mem_append.mp hp with hp | hp
-            · exact tieMeetArms_checkableA ha hb p hp
-            · exact orMeetF_checkableA n (hfa _) (hfb _) p hp
-    · exact outerMeet_checkableA ha hb
-    · exact outerMeetR_checkableA ha hb
-    · exact outerMeet_checkableA ha hb
-
-theorem orMeet_checkableA {as bs : List (ℕ × Val)} (ha : ∀ p, p ∈ as → p.2.CheckableA)
-    (hb : ∀ q, q ∈ bs → q.2.CheckableA) : ∀ p, p ∈ orMeet as bs → p.2.CheckableA :=
-  orMeetF_checkableA _ ha hb
-
 theorem prefArms_checkableA {c : Val} (h : c.CheckableA) : ∀ p, p ∈ c.prefArms → p.2.CheckableA := by
   cases c with
   | pref r x =>
@@ -5381,7 +5286,7 @@ theorem Decls.readArms_checkableA {L1 ds' : Decls} {r : Decls → Val → List V
     (doc := fun a x => (ds', ownDoc d.1 (d.2.chooseAt a x))) (tag := fun k => d.1 ++ "#" ++ toString k)
     (root := fun n a => L1.treeAt r (ownDoc d.1 (d.2.chooseAt n.1 a)) n.2.1) hr hL
     (fun a x hx => ⟨hds, ownDoc_checkableA (chooseAt_checkableA a (hds d hd) hx)⟩) 0
-    (d.2.armNodes [.key ("%" ++ d.1)]) d.2 d.2
+    (d.2.armNodes [.own d.1]) d.2 d.2
     (fun n hn => orNodes_checkableA (hds d hd) _ [] n (List.mem_filter.mp hn).1) (hds d hd) (hds d hd)
   unfold Decls.readArms
   dsimp only
@@ -5441,6 +5346,17 @@ theorem Decls.prepared_bodies_checkableA {ds : Decls} {S : Val} {rl r : Decls �
     (hS : S.CheckableA) : ∀ d, d ∈ (ds.prepared S rl r oj).1 → d.2.CheckableA :=
   (Decls.prepared_readable hrl hr hb hS).2
 
+/-- A document's declarations with each recursive name's calls made are
+terms the checker can read. -/
+theorem Decls.callsMade_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
+    ∀ d, d ∈ ds.callsMade → d.2.CheckableA := by
+  intro d hd
+  simp only [Decls.callsMade, List.mem_map] at hd
+  obtain ⟨d', hd', rfl⟩ := hd
+  split
+  · exact readU_checkableA hb (hb d' hd')
+  · exact hb d' hd'
+
 /-- `vetA` computes `VetA` wherever the checker can read the two
 documents the verdict hands `vet`, the schema's reading and the data's,
 each with its bodies, as it can a document whose `filter` reads its
@@ -5476,16 +5392,12 @@ read no pattern and no format. -/
 theorem vetA_iff {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) (hb' : ∀ d, d ∈ ds' → d.2.CheckableA) (hS' : S'.CheckableA) (v : Verdict) :
     vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v :=
-  vetA_iff_of (Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.roundsS_checkableA hb hS).1
-      (Decls.roundsS_checkableA hb hS).2)
-    (readR_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S) hb (Decls.roundsS_checkableA hb hS).1
-        (Decls.roundsS_checkableA hb hS).2)
-      (pathsToAliases_checkableA hS))
-    (Decls.withPathsFrom_bodies_checkableA (S := S') hb' (Decls.roundsD_checkableA (j := j) hb' hS').1
-      (Decls.roundsD_checkableA (j := j) hb' hS').2)
-    (readR_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S') hb'
-        (Decls.roundsD_checkableA (j := j) hb' hS').1 (Decls.roundsD_checkableA (j := j) hb' hS').2)
-      (pathsToAliases_checkableA hS')) v
+  have hbS := Decls.callsMade_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S) hb
+    (Decls.roundsS_checkableA hb hS).1 (Decls.roundsS_checkableA hb hS).2)
+  have hbP := Decls.callsMade_checkableA (Decls.withPathsFrom_bodies_checkableA (S := S') hb'
+    (Decls.roundsD_checkableA (j := j) hb' hS').1 (Decls.roundsD_checkableA (j := j) hb' hS').2)
+  vetA_iff_of hbS (readR_checkableA hbS (pathsToAliases_checkableA hS)) hbP
+    (readR_checkableA hbP (pathsToAliases_checkableA hS')) v
 
 /-- Whether the checker can read the two documents `vetA` hands `vet`,
 each with its bodies, computed. -/

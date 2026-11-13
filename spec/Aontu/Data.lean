@@ -465,13 +465,16 @@ the calling program binds, whose value names the step, the climb a
 relative path starts with, a step up for each of its dots, or the step
 into the node a body of `emit` is read for, which a relative reference
 in a body starts with, since it names a field of the node rather than a
-place. -/
+place, or a declared name's own place, which a relative path a body
+writes starts with once it's placed there (`Decls.placed`), so that no
+path the schema writes, `$."%T".x` among them, is a path a body writes. -/
 inductive Seg where
   | key (k : String)
   | idx (i : ℕ)
   | var (n : String)
   | up (n : ℕ)
   | node
+  | own (n : String)
   deriving DecidableEq
 
 /-- The part of a value a path names. -/
@@ -486,6 +489,7 @@ def Data.at (j : Data) : List Seg → Option Data
   | .var _ :: _ => none
   | .up _ :: _ => none
   | .node :: _ => none
+  | .own _ :: _ => none
 
 /-! ## Values, told apart -/
 

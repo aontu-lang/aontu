@@ -447,13 +447,14 @@ inductive Step where
 
 /-- A step's text, as `key()` answers it: a key, or an index in decimal,
 and a variable, a climb or the step into a node as written, which no
-position holds. -/
+position holds, and a name's own place as `%` and the name. -/
 def Seg.text : Seg → String
   | .key k => k
   | .idx i => toString i
   | .var n => "$" ++ n
   | .up n => String.mk (List.replicate n '.')
   | .node => ""
+  | .own n => "%" ++ n
 
 /-- `key(n)` read at the position `pos`, outermost step first: the text of
 the step `n` levels up, `""` where there is none, and, where that step is

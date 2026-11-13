@@ -99,6 +99,7 @@ def segSrc : Seg → Option String
   | .var n => some (".$" ++ n)
   | .up n => some (String.mk (List.replicate (n - 1) '.'))
   | .node => some ""
+  | .own _ => none
 
 mutual
 def Data.src : Data → Option String

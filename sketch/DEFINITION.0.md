@@ -2251,6 +2251,102 @@ until the phase that encodes it lands.
    declared member's own terms beside a directive in a spread's
    template, and a directive inside a call's argument, a trial, a
    selection's result or a link's template.
+   **Built 2026-11-12, the templates**: a spread's template reaches
+   every member, so a member's place holds each map's template beside
+   what the maps declare for the member's key, the template read at that
+   key (`memberTerms`, an element's the same, `elementTerms`), and the
+   templates at a place stand together for the members no term declares
+   (`Val.directedSpread`), their seal, or the disjunction a place that
+   folds reads as, chosen by the member's key so that it stands aside
+   for a declared key (`exceptKeys`, a `match` on `key()`). A directive
+   in a template beneath a choice makes the place fold (`Val.holdsDir`
+   reads templates now), so that the template's declared keys include
+   the other terms'. The reading skips a term that writes no directive,
+   which it would read as itself (`Val.directed`). Rows dir189 on of
+   `test/spec/def-alias.tsv`, 27 in all; both ports answer 6 of them as
+   the definition does, and the other 21 alike, listed in the ledger
+   under #726: both ports fold `close()` into the template's term or the
+   member's and read the other's keys as a conflict.
+
+45. **A directive beside two or more choices.** Raised 2026-11-12 by
+   decision 44's third slice, which left it a limit: a bare `close()`
+   or `open()` at a place that holds two or more disjunctions or lone
+   preferences, as in `close() & ({x: 1} | {y: 2}) & ({x: 1} | {w:
+   2})`. Each arm of a disjunction is a place of its own, which a
+   directive outside it doesn't reach, and the meet of the disjunctions
+   is the disjunction of every combination of their arms.
+   **Ruled 2026-11-12 (the project's owner): every combination.** The
+   directive reaches each combination of the choices' arms, and
+   `close()` seals each with the keys that combination declares,
+   whatever order the terms come in. Inside a member both ports answer
+   so in every order; at the document's root, and where `close()` is
+   written beside another term in one meet, both ports fold it into the
+   term it meets first, the order-dependence #726 tracks.
+   **Built 2026-11-12**: a place whose written terms hold a choice and
+   a directive, at the place or beneath it (`Val.folds`,
+   `Val.holdsDir`), reads as one disjunction, which the first term to
+   hold a choice carries (`Val.leads`), the others reading as `any`:
+   each combination of the choices' arms (`choicesMet`), met as
+   written and ranked as the meet ranks them (`orMeet`, moved from the
+   path reading into `Alias.lean`), each arm under the riders its
+   choice stands under and a lone preference as `x | super(x)`
+   (`Val.placeChoices`), met with every term at the place, its choices
+   read as `any` (`Val.unchosen`), and read as a place of its own
+   (`foldPlace`, `Val.directedAt`). The arms of a place that folds are
+   read a turn later (`dirF`), a turn for each constructor the term
+   holds. This replaces decision 44's reading of one choice with the
+   terms beside it (`Val.choiceOthers`), which read those terms twice,
+   in each arm and beside the choice, so that a directive in a term
+   beside a choice, at a place beneath, sealed that place without the
+   keys an arm adds there; every row decision 44 wrote keeps its
+   answer. Rows dir153 on of `test/spec/def-alias.tsv`, 36 in all;
+   both ports answer 29 of them as the definition does, and the other 7
+   alike, listed in the ledger: 6 under #726, where `close()` stands
+   beside a term in one meet and both ports fold it into that term,
+   and 1 under #714, a preference met with a disjunction under
+   `--no-fill`, which both ports read so with or without the
+   directive.
+
+46. **A directive inside a call's argument.** Raised 2026-11-12: a bare
+   `close()` or `open()` inside a call's argument, as in
+   `copy(close() & {x: 1})`. `copy` unseals its argument (ruling 27),
+   yet both ports answer this copy as sealed and refuse `{x: 1, y: 2}`.
+   **Ruled 2026-11-12 (the project's owner): where the value lands.** A
+   directive inside a call's argument acts at the place the call's
+   value stands, so `copy(close() & {x: 1})` stays sealed.
+   **Built 2026-11-12**: a call whose value holds its argument, `copy`,
+   `super` or `pref` (`Fn.landsArg`), over an argument that writes a
+   directive, is met with the argument's shape before the directives
+   are read (`Val.landed`, `landCall`): its maps and lists unsealed,
+   with their keys, each member in its shape and every other term
+   `any`, the directives and a term held open kept (`Val.shape`). The
+   directive then stands at the call's place, beside the call, and a
+   seal it makes lies outside the argument that `copy` unseals. Rows
+   dirp18 on of `test/spec/def-path.tsv`, 30 in all; both ports answer
+   27 of them as the definition does, and the other 3 alike, listed in
+   the ledger under #726: the copy beside a map the place also writes,
+   which both ports read as a conflict once they fold `close()` into
+   the argument. A directive inside a trial, a selection's result or a
+   link's template, or the argument of any other call, still reads as
+   `any`, and so does a `close()` beside a call, whose seal stops at
+   the call: both stay listed in the README's limits.
+
+47. **Modules.** Raised 2026-11-12 while planning P10: the module
+   imports `@"corp.example/schemas/service"` and `@"alias:legacy"`, and
+   a `#hash` pin on one. The registry and the network lie outside the
+   definition by design.
+   **Ruled 2026-11-12 (the project's owner): sources the host
+   resolves.** A module import reads as a source load whose text the
+   calling program supplies, as it supplies a variable's value; routing,
+   validity, aliases and hash pins stay with the tools.
+
+48. **How far completion goes.** Raised 2026-11-12 with the plan for
+   completion: whether finishing the definition includes moving both
+   ports to it, the 355 rows of `spec/ledger.tsv` among them.
+   **Ruled 2026-11-12 (the project's owner): the ledger to zero.** Both
+   ports move until the ledger is empty. The divergences between the
+   ports in an error's site or wording, about 25, stay outside this
+   effort.
 
 ## 8. Risks
 
