@@ -1445,6 +1445,7 @@ theorem defaults_walk_sound : ∀ (p : List Seg) {a b wa wb : Val},
   | .var _ :: _, _, _, _, _, _, _, ha, _ => by simp [Val.at] at ha
   | .up _ :: _, _, _, _, _, _, _, ha, _ => by simp [Val.at] at ha
   | .node :: _, _, _, _, _, _, _, ha, _ => by simp [Val.at] at ha
+  | .lands _ :: _, _, _, _, _, _, _, ha, _ => by simp [Val.at] at ha
   | .own n :: p, a, b, wa, wb, _, h2, ha, hb => by
     rw [defaultsBelow_unride] at h2
     simp only [Val.at] at ha hb

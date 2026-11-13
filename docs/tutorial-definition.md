@@ -2877,7 +2877,10 @@ into the node a body of `emit` is read for, which a relative reference
 in a body starts with, since it names a field of the node rather than a
 place, or a declared name's own place, which a relative path a body
 writes starts with once it's placed there (`Decls.placed`), so that no
-path the schema writes, `$."%T".x` among them, is a path a body writes. -/
+path the schema writes, `$."%T".x` among them, is a path a body writes,
+or the place `n` steps above the target of the link whose template holds
+the path, which a relative path in a link's template starts with once
+it's placed there, read where the template lands (ruling 50). -/
 inductive Seg where
   | key (k : String)
   | idx (i : ℕ)
@@ -3178,11 +3181,15 @@ its members do (`plBare`). A `filter`'s condition stands where the
 member it tries lands, one step below the filter, a step no written
 path names (`.up 0`): a path that climbs out of the member names the
 same place for every member, and one that stays inside it keeps the
-step and names nothing, as both ports read it. Any other spread and a
-template keep theirs as written, since each stands at a position the
-written document doesn't name. -/
+step and names nothing, as both ports read it. A link's template
+stands where it lands, at the link's target (`Seg.lands`, ruling 50).
+Any other spread and a template keep theirs as written, since each
+stands at a position the written document doesn't name. -/
 def Val.placed (pos : List Seg) : Val → Val
-  | .path (.up n :: p) => if n ≤ pos.length then .path (pos.take (pos.length - n) ++ p) else .path (.up n :: p)
+  | .path (.up n :: p) =>
+    match climb pos n p with
+    | some q => .path q
+    | none => .path (.up n :: p)
   | .len c => .len (c.placed pos)
   | .map fs spread closed => .map (plFields pos fs) (plBare pos spread) closed
   | .list items spread closed => .list (plElems pos 0 items) (plBare pos spread) closed
@@ -8939,6 +8946,33 @@ written at `b` climbs past the top, an `error`. The template meets the
 target with its marks cleared, as a reference copies a value, so
 `refer(type({ k:1 }))` makes the target `{ k:1 }`, not a type.
 
+The template reads its relative paths where it lands as well, at the
+target, as a spread's template reads its own at each member and a
+copy's where the copy stands, by ruling 50. Placing the document stands
+a link's template at its link's target, wherever the link is, through
+the step `Seg.lands`, which the written document never takes, so that
+each relative path in the template names the place it climbs to from
+there:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def climb (pos : List Seg) (n : ℕ) (p : List Seg) : Option (List Seg) :=
+  match pos with
+  | .lands c :: rest =>
+    if n ≤ rest.length then some (.lands c :: rest.take (rest.length - n) ++ p)
+    else some (.lands (c + (n - rest.length)) :: p)
+  | _ => if n ≤ pos.length then some (pos.take (pos.length - n) ++ p) else none
+```
+
+The link's flow then reads each such path from the target it reaches,
+by `Val.atTarget`. So `x: {m: {k: 2}, n: refer({v: .k}) & path(.m)}`
+sends `v: 2` into `x.m`, and a link the template carries reads its own
+address and template where that template lands. Both engines read the
+template's relative paths where the document writes the link, inside
+the template, where they name nothing. Rows ll0 to ll20 hold the
+definition to the ruling, and the ledger lists the nine on which both
+engines answer otherwise, which #661 tracks.
+
 A link reads where it lands, not where it's written: a `type()` that
 holds a link reaches each place that uses it through a path reference,
 a spread's template reaches each member, and a generator's template
@@ -9061,7 +9095,7 @@ def Decls.atOwnBody (ds : Decls) (pos p : List Seg) : Bool :=
 ```lean
 def referFlow (ds : Decls) (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val)
     (a : Addr) : Val :=
-  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p t with
+  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p (t.atTarget p) with
   | some u => .meet acc u
   | none => if (a.from pos).any (ds.atOwnBody pos) then acc else .meet acc miss
 ```
@@ -10011,15 +10045,11 @@ Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker
 of step 17 reads unmade. Neither has a rule yet.
 
-Nor does it read a link or a spread everywhere one can land. A link
-another link's template carries does send: each pass reads the links
-of the tree the last one made. The definition reads such a link's
-relative address where the link lands, though, and both engines read
-it inside the template, where it names nothing, which #661 tracks. A
-spread whose template reads its member's place, inside a disjunction or
-a selection, keeps its template as written, so a relative path in it
-resolves nowhere, and so does a generator's template there, written or
-in a name used there.
+Nor does it read a spread everywhere one can land. Inside a
+disjunction or a selection, a spread whose template reads its member's
+place keeps its template as written, so a relative path in it resolves
+nowhere, and so does a generator's template there, whether the
+document writes it there or in a name it uses there.
 
 Nor does it read a copy of a recursion where the copy stands. A path
 reference inside its own place, `b?: $.a` within `a`, reads as it's
