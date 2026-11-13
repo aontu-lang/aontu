@@ -1642,7 +1642,10 @@ and a `refer` over the name itself, which wait on the recursion, the
 an `upper`, a `copy`, a `refer` and a `super` beside the name, the
 `upper` with data that matches what it makes and data that doesn't;
 a `match` over a literal, and an `upper` over a path to the body's own
-member (#403). -/
+member (#403); and a link in the body whose template is the name and
+whose target is the body's own member, read where the name is used and
+where it's only declared, beside data that agrees and data that
+refuses (#663). -/
 def recursiveCallCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
@@ -1653,6 +1656,7 @@ def recursiveCallCases : List (Decls × Val × Data) :=
   let rel (k : String) : Val := .path [.up 1, .key k]
   let xT : Val := m [("x", .meet (m []) (.alias "T"))]
   let xd (n : Data) : Data := .map [("x", .map [("m", .map []), ("n", n)])]
+  let tR : Val := tB (.meet (.call .refer [.alias "T"]) (.addr ⟨1, ["m"]⟩))
   [([("T", tB (.call .pref [.alias "T"]))], xT, .map []),
     ([("T", tB (.call .copy [.alias "T"]))], xT, .map []),
     ([("T", tB (.call .refer [.alias "T"]))], xT, .map []),
@@ -1665,7 +1669,12 @@ def recursiveCallCases : List (Decls × Val × Data) :=
     ([("T", tO (.call .refer [m [("k", int 1)]]))], xT, .map []),
     ([("T", tO (.call .super [int 1]))], xT, .map []),
     ([("T", tO (.select (.lit (.str "a")) [(.lit (.str "a"), int 1), (.lit (.str "b"), int 2)] none))], xT, .map []),
-    ([("T", tP [("s", .lit (.str "x")), ("u", .call .upper [rel "s"])])], xT, .map [])]
+    ([("T", tP [("s", .lit (.str "x")), ("u", .call .upper [rel "s"])])], xT, .map []),
+    ([("T", tR)], xT, .map []),
+    ([("T", tR)], m [], .map []),
+    ([("T", tR)], xT, .map [("x", .map [("m", .map [])])]),
+    ([("T", tR)], xT, .map [("x", .map [("m", .map [("m", .map [])])])]),
+    ([("T", tR)], xT, .map [("x", .map [("m", .integer 1 (by decide))])])]
 
 /-- Relative paths, made absolute where each stands: a sibling, a climb
 of two steps and three, a key in quotes, an index into a sibling list,

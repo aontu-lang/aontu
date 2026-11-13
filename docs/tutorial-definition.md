@@ -2843,7 +2843,10 @@ The body a residual unfolds to holds its calls made. Both engines make a
 call in a recursive name's body wherever the body stands, so
 `%T = {m: {}, n: upper("x"), o?: %T}` gives `x: {} & %T` the member
 `n: "X"`, and `copy(%T)` and `refer(%T)` in `%T`'s own body wait on the
-recursion, as `pref(%T)` does. The meet unfolds a name after the reading
+recursion, as `pref(%T)` does. A link there whose template is the name,
+`refer(%T) & path(.m)`, sends it into the body's own member, and the
+link passes read that place with the body's calls made too
+(`Decls.bodyClash`). The meet unfolds a name after the reading
 has made the schema's calls, so the definition makes the calls and the
 selections in each recursive name's body first. Step 9 reads each body
 so once its paths are names, so the definition makes a `match` or a call
@@ -9112,9 +9115,10 @@ def Decls.bodyClash (ds : Decls) (fs : List (List Seg × Val)) : Bool :=
     match fs.filter (fun f => f.1.head? == some (.own d.1)) with
     | [] => false
     | gs =>
-      let b := normaliseD ds (ds.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2) .any))
-      ((normaliseD ds (ds.readU (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged
-        ds).illFormed
+      let b := normaliseD ds.callsMade
+        (ds.callsMade.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2) .any))
+      ((normaliseD ds.callsMade (ds.callsMade.readU
+        (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged ds.callsMade).illFormed
 ```
 
 A path in the body reads the template the link meets there: `z: .m.k`
