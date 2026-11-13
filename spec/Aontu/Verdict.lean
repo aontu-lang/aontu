@@ -4980,6 +4980,19 @@ theorem vet_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ 
     (hS : (ds.readR S).CheckableA) (v : Verdict) : vet m ds S j = v ↔ Vet m ds S j v :=
   ⟨fun h => h ▸ vet_sound hb hS, fun h => vet_unique (vet_sound hb hS) h⟩
 
+/-- `vet` answers `error` exactly where `Vet` does, whatever the checker
+can read: the class reads only the names, the alias-cycle rule and the
+schema's form. -/
+theorem vet_error_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} :
+    vet m ds S j = .error ↔ Vet m ds S j .error := by
+  show _ ↔ (¬ ds.Declares S ∨ ¬ ds.Guarded ∨ ds.illFormedR S = true)
+  rw [← Decls.declaresB_iff, ← Decls.guardedB_iff]
+  unfold vet
+  cases ds.declaresB S <;> cases ds.guardedB <;> cases ds.illFormedR S <;>
+    simp only [Bool.and_true, Bool.and_false, Bool.not_true, Bool.not_false, Bool.false_eq_true,
+      ↓reduceIte, not_true_eq_false, not_false_eq_true, or_true, or_false, iff_false] <;>
+    (repeat' split) <;> simp
+
 /-! ## What the verdicts say -/
 
 /-- Without the fill, `valid` is `Instance`: the data as written is an

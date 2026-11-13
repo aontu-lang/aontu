@@ -2967,13 +2967,17 @@ def Val.container : Val → Bool
 /-- A literal met with a term under the declarations: `nil` where the
 term is a map or a list, whatever its members hold, paths among them;
 the literal where the term admits its value and `nil` where it refuses
-it, decided by the checker that reads the names wherever the names keep
-the alias-cycle rule and the bodies and the term read no pattern and no
-format; and the pair where that cannot be computed, where the term
-writes a path, which is read by declaration later and until then is
-left as written, or where the term is a call the reading has not made. -/
+it, decided by the checker of the fragment where the term reads no name
+(`check`), whatever the bodies hold, and else by the checker that reads
+the names wherever the names keep the alias-cycle rule and the bodies
+and the term read no pattern and no format, either way only where the
+term writes no path and holds no call the reading has not made; and the
+pair where that cannot be computed, where the term writes a path, which is read by
+declaration later and until then is left as written, or where the term
+is a call the reading has not made. -/
 def litMeetD (ds : Decls) (s : Scalar) (b : Val) : Val :=
   if b.container then .nil
+  else if b.checkableB && b.paths.isEmpty && !b.callAt then (if check b s.data then .lit s else .nil)
   else if ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty && !b.callAt then
     (if checkR ds b s.data then .lit s else .nil)
   else .meet (.lit s) b
@@ -2996,6 +3000,24 @@ theorem admits_litMeetD {ds : Decls} {root : Data} (s : Scalar) (b : Val) (j : D
       obtain rfl := admits_lit_iff.mp h₁
       exact (not_admits_container hk s h₂).elim
   rw [if_neg hk]
+  by_cases hf : (b.checkableB && b.paths.isEmpty && !b.callAt) = true
+  · rw [if_pos hf]
+    simp only [Bool.and_eq_true] at hf
+    have hf' := (Val.checkableB_iff b).mp hf.1.1
+    by_cases hj : check b s.data = true
+    · rw [if_pos hj]
+      constructor
+      · intro h
+        obtain rfl := admits_lit_iff.mp h
+        exact ⟨h, (check_iff hf' _).mp hj⟩
+      · exact fun h => h.1
+    · rw [if_neg hj]
+      constructor
+      · exact fun h => nomatch h
+      · intro ⟨h₁, h₂⟩
+        obtain rfl := admits_lit_iff.mp h₁
+        exact (hj ((check_iff hf' _).mpr h₂)).elim
+  rw [if_neg hf]
   by_cases hc : (ds.guardedB && ds.bodiesCheckableB && b.checkableAB && b.paths.isEmpty &&
       !b.callAt) = true
   · rw [if_pos hc]
@@ -3029,7 +3051,11 @@ theorem litMeetD_checkableA {ds : Decls} (s : Scalar) (b : Val) (hb : b.Checkabl
     · split
       · constructor
       · constructor
-    · exact .meet (by constructor) hb
+    · split
+      · split
+        · constructor
+        · constructor
+      · exact .meet (by constructor) hb
 
 /-- A step of the meet with the declarations: a residual against
 concrete structure expands by one level, and every other pair takes a

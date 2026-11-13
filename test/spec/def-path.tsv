@@ -3745,3 +3745,29 @@ rr35	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w"
 rr36	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"z": 7}}	{"verdict":"invalid"}
 rr37	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"z": 7}}	{"verdict":"invalid","opts":{"noFill":true}}
 rr38	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"z": 7}}	{"verdict":"invalid","opts":{"partial":true}}
+# A match whose scrutinee the schema leaves open waits for the data (ruling 49),
+# in rows os0 on.
+os0	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "a"}}	{"verdict":"valid"}
+os1	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "a"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+os2	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "a"}}	{"verdict":"valid","opts":{"partial":true}}
+os3	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "a", "v": 1}}	{"verdict":"valid"}
+os4	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "a", "v": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+os5	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "a", "v": 1}}	{"verdict":"valid","opts":{"partial":true}}
+os6	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "a", "v": 2}}	{"verdict":"invalid"}
+os7	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "a", "v": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+os8	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "a", "v": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+os9	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "c"}}	{"verdict":"invalid"}
+os10	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "c"}}	{"verdict":"invalid","opts":{"noFill":true}}
+os11	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2)}	{"x": {"kind": "c"}}	{"verdict":"invalid","opts":{"partial":true}}
+os12	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "a"}}	{"verdict":"valid"}
+os13	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "a"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+os14	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "a"}}	{"verdict":"valid","opts":{"partial":true}}
+os15	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "a", "v": 2}}	{"verdict":"invalid"}
+os16	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "a", "v": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
+os17	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "a", "v": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+os18	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "c"}}	{"verdict":"valid"}
+os19	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "c"}}	{"verdict":"incomplete","opts":{"noFill":true}}
+os20	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "c"}}	{"verdict":"valid","opts":{"partial":true}}
+os21	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "c", "v": 3}}	{"verdict":"valid"}
+os22	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "c", "v": 3}}	{"verdict":"valid","opts":{"noFill":true}}
+os23	verdict	"x": {"kind": string, "v": match(.kind, "a", 1, "b", 2, 3)}	{"x": {"kind": "c", "v": 3}}	{"verdict":"valid","opts":{"partial":true}}

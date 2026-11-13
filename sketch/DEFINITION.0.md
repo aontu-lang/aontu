@@ -2378,6 +2378,20 @@ until the phase that encodes it lands.
    nothing the document is `incomplete`. The definition reads it so
    already; both ports move for a `match` with no default (#743).
 
+   **Built 2026-11-13.** `vetA_iff_data` ties the verdict to `VetA`
+   wherever the checker can read the document with the data, since the
+   `error` class reads only the names, the alias-cycle rule and the
+   schema's form (`vet_error_iff`), so the schema's own reading may keep
+   the selection waiting. Rows os0 to os23 of `test/spec/def-path.tsv`
+   hold it: a `match` with no default and one with a default, beside
+   data that leaves the result to the fill, agrees, conflicts and takes
+   no arm. Both ports agree where the `match` has a default. With none
+   they refuse it as `match_none` before any data, and its twelve rows
+   stand in the ledger. A literal now meets a term of the fragment that
+   reads no name whatever the bodies hold (`litMeetD`), so a recursive
+   body whose own place keeps such a selection waiting leaves no other
+   literal meet undecided.
+
 50. **The relative paths in a link's template.** Raised 2026-11-07 by
    P11 (#661): both ports read a relative path in a `refer`'s template
    where the link is written, inside the template, so that
