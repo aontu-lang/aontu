@@ -3694,3 +3694,45 @@ ll17	verdict	"x": {"m": {}, "n": (refer({"a": 1, "b": .a})) & (path(.m))}	{}	{"v
 ll18	verdict	"x": {"m": {"k": 2}, "n": (refer({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 3}}}	{"verdict":"invalid"}
 ll19	verdict	"x": {"m": {"k": 2}, "n": (refer({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 3}}}	{"verdict":"invalid","opts":{"noFill":true}}
 ll20	verdict	"x": {"m": {"k": 2}, "n": (refer({"v": .k})) & (path(.m))}	{"x": {"m": {"k": 2, "v": 3}}}	{"verdict":"invalid","opts":{"partial":true}}
+# A use of a recursive name whose body reads its own place reads as a copy
+# of the body placed where it stands, at each level the data or the schema
+# reaches (ruling 26), in rows rr0 on.
+rr0	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{}	{"verdict":"incomplete"}
+rr1	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rr2	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{}	{"verdict":"valid","opts":{"partial":true}}
+rr3	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 2}}}	{"verdict":"valid"}
+rr4	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 2}}}	{"verdict":"valid","opts":{"noFill":true}}
+rr5	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+rr6	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 1}}}	{"verdict":"invalid"}
+rr7	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 1}}}	{"verdict":"invalid","opts":{"noFill":true}}
+rr8	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 1}}}	{"verdict":"invalid","opts":{"partial":true}}
+rr9	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2}}}	{"verdict":"valid"}
+rr10	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rr11	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+rr12	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 2, "b": {"x": 3}}}}	{"verdict":"valid"}
+rr13	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 2, "b": {"x": 3}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rr14	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 2, "b": {"x": 3}}}}	{"verdict":"valid","opts":{"partial":true}}
+rr15	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 2, "b": {"x": 3, "y": 2}}}}	{"verdict":"invalid"}
+rr16	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 2, "b": {"x": 3, "y": 2}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+rr17	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": %T	{"a": {"x": 1, "y": 1, "b": {"x": 2, "y": 2, "b": {"x": 3, "y": 2}}}}	{"verdict":"invalid","opts":{"partial":true}}
+rr18	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": ({"x": 1, "b": {"x": 2}}) & (%T)	{}	{"verdict":"valid"}
+rr19	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": ({"x": 1, "b": {"x": 2}}) & (%T)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+rr20	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": ({"x": 1, "b": {"x": 2}}) & (%T)	{}	{"verdict":"valid","opts":{"partial":true}}
+rr21	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": ({"x": 1, "b": {"x": 2}}) & (%T)	{"a": {"b": {"y": 2}}}	{"verdict":"valid"}
+rr22	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": ({"x": 1, "b": {"x": 2}}) & (%T)	{"a": {"b": {"y": 2}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rr23	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": ({"x": 1, "b": {"x": 2}}) & (%T)	{"a": {"b": {"y": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+rr24	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": ({"x": 1, "b": {"x": 2}}) & (%T)	{"a": {"b": {"y": 1}}}	{"verdict":"invalid"}
+rr25	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": ({"x": 1, "b": {"x": 2}}) & (%T)	{"a": {"b": {"y": 1}}}	{"verdict":"invalid","opts":{"noFill":true}}
+rr26	verdict	%T = {"x": integer, "y": .x, "b"?: %T}\n"a": ({"x": 1, "b": {"x": 2}}) & (%T)	{"a": {"b": {"y": 1}}}	{"verdict":"invalid","opts":{"partial":true}}
+rr27	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"b": {"z": 7}}}	{"verdict":"valid"}
+rr28	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"b": {"z": 7}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rr29	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"b": {"z": 7}}}	{"verdict":"valid","opts":{"partial":true}}
+rr30	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"b": {"z": 5}}}	{"verdict":"invalid"}
+rr31	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"b": {"z": 5}}}	{"verdict":"invalid","opts":{"noFill":true}}
+rr32	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"b": {"z": 5}}}	{"verdict":"invalid","opts":{"partial":true}}
+rr33	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"z": 5}}	{"verdict":"valid"}
+rr34	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"z": 5}}	{"verdict":"incomplete","opts":{"noFill":true}}
+rr35	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"z": 5}}	{"verdict":"valid","opts":{"partial":true}}
+rr36	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"z": 7}}	{"verdict":"invalid"}
+rr37	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"z": 7}}	{"verdict":"invalid","opts":{"noFill":true}}
+rr38	verdict	%T = {"x": integer, "z": ..w, "b"?: %T}\n"w": 5, "a": ({"x": 1, "w": 7, "b": {"x": 2}}) & (%T)	{"a": {"z": 7}}	{"verdict":"invalid","opts":{"partial":true}}

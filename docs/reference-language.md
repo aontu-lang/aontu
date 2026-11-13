@@ -1868,6 +1868,14 @@ x: %json & { a: [1 "two" b:true] }
 {"x": {"a": [1, "two", {"b": true}]}}
 ```
 
+A relative path in a recursive name's body reads where each level
+stands, as any copy's does. With `%T = {x: integer, y: .x, b?: %T}` and
+`a: %T`, `vet` reads `a.b.y` as `a.b.x`, so data that writes
+`"b": {"x": 2, "y": 2}` under `a` passes and `"b": {"x": 2, "y": 1}`
+doesn't. Below the last level the data or the schema writes, the body
+reads at its own place. Both engines' evaluation still reads every
+level below the first at the body's own place, which #765 tracks.
+
 [Subsumption](#recursive-positions) reads a recursive position as the
 definition it names, so two recursive schemas compare with no data on
 either side. The degenerate
@@ -1882,7 +1890,7 @@ For the recipe form see
 live version, with its checks, is
 [use-cases/13-recursive-schema](../use-cases/13-recursive-schema/).
 
-The definition reads a recursive name as the least fixpoint, a residual that expands against the data as far as the data goes: `expand` and `meetD` in [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean), under the alias-cycle rule `Guarded` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean), which refuses a name that reaches itself with no key and no element between.
+The definition reads a recursive name as the least fixpoint, a residual that expands against the data as far as the data goes: `expand` and `meetD` in [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean), under the alias-cycle rule `Guarded` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean), which refuses a name that reaches itself with no key and no element between. A use of a recursive name whose body reads its own place is a copy placed where it stands, at each level the data or the document reaches, as `Decls.reachesAt` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean) reads it.
 
 ## Variables `$name`
 

@@ -342,6 +342,10 @@ name, `@` and the position's name (`pathName`), which no document can
 write, since a name a document writes holds no `@`. -/
 def useName (n : String) (pos : List Seg) : String := n ++ "@" ++ pathName pos
 
+/-- Whether `m` names a copy of a body of `n` (`useName`), its name `n`
+and `@` before the place's. -/
+def isCopyOf (n m : String) : Bool := (n ++ "@").toList.isPrefixOf m.toList
+
 /-- What a use stands for: a name, or the place a path reference names. -/
 inductive Use where
   | name (n : String)
@@ -368,8 +372,9 @@ def refUse (p pos : List Seg) : Option Val → Val
   | none => .alias (useName (Use.place p).key pos)
 
 mutual
-/-- The term standing at `pos` with each use of a name of `rs` read as
-the copy of the name's body at the use (`useName`), and each path
+/-- The term standing at `pos` with each use of a name that `rs` reads
+as a copy where the use stands read as the copy of the name's body at
+the use (`useName`), and each path
 reference to a place `rt` holds, one whose terms read their own place
 (`Decls.relTarget`), as the copy of what the document writes there
 (`refUse`), met with what `dl` reads at the place, at the positions
@@ -377,9 +382,9 @@ reference to a place `rt` holds, one whose terms read their own place
 spread, which are read at each member, not the path a `move` reads,
 which names its source, and not a reference that stands inside its own
 place, a recursion, which reads as it's written. -/
-def Val.atUses (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) :
+def Val.atUses (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) :
     Val → Val
-  | .alias n => if rs.contains n then .alias (useName n pos) else .alias n
+  | .alias n => if rs pos n then .alias (useName n pos) else .alias n
   | .path q =>
     if rt (absPath pos q) && !(absPath pos q).isPrefixOf pos then refUse (absPath pos q) pos (dl (absPath pos q))
     else .path q
@@ -401,45 +406,45 @@ def Val.atUses (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Op
   | .link v lt => .link (v.atUses rs rt dl pos) lt
   | v => v
 
-def auPairs (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (Val × Val) → List (Val × Val)
+def auPairs (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (Val × Val) → List (Val × Val)
   | [] => []
   | (p, r) :: ps => (p.atUses rs rt dl pos, r.atUses rs rt dl pos) :: auPairs rs rt dl pos ps
 
-def auCovers (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List Cover → List Cover
+def auCovers (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List Cover → List Cover
   | [] => []
   | (c, k, m) :: cs => (auSpread rs rt dl pos c, auSpread rs rt dl pos k, auSpread rs rt dl pos m) :: auCovers rs rt dl pos cs
 
-def auFields (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (String × Bool × Val) → List (String × Bool × Val)
+def auFields (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
   | (k, o, v) :: fs => (k, o, v.atUses rs rt dl (pos ++ [.key k])) :: auFields rs rt dl pos fs
 
-def auElems (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : ℕ → List Val → List Val
+def auElems (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : ℕ → List Val → List Val
   | _, [] => []
   | i, v :: vs => v.atUses rs rt dl (pos ++ [.idx i]) :: auElems rs rt dl pos (i + 1) vs
 
-def auItems (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List Val → List Val
+def auItems (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List Val → List Val
   | [] => []
   | v :: vs => v.atUses rs rt dl pos :: auItems rs rt dl pos vs
 
-def auArgs (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) (f : Fn) : List Val → List Val
+def auArgs (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) (f : Fn) : List Val → List Val
   | [] => []
   | v :: vs => v.atUses rs rt dl pos :: (if f = .each ∨ f = .pack then vs else auArgs rs rt dl pos f vs)
 
-def auSpread (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : Option Val → Option Val
+def auSpread (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : Option Val → Option Val
   | none => none
   | some s => some (s.atUses rs rt dl pos)
 
-def auArms (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (ℕ × Val) → List (ℕ × Val)
+def auArms (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
   | (r, a) :: as => (r, a.atUses rs rt dl pos) :: auArms rs rt dl pos as
 end
 
 mutual
-/-- Each use a term standing at `pos` holds, a name of `rs` or a path
-reference to a place `rt` holds, with the position it stands at, where
-`Val.atUses` reads one. -/
-def Val.usesAt (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : Val → List (Use × List Seg)
-  | .alias n => if rs.contains n then [(.name n, pos)] else []
+/-- Each use a term standing at `pos` holds, a name that `rs` reads as a
+copy where the use stands or a path reference to a place `rt` holds,
+with the position it stands at, where `Val.atUses` reads one. -/
+def Val.usesAt (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : Val → List (Use × List Seg)
+  | .alias n => if rs pos n then [(.name n, pos)] else []
   | .path q => if rt (absPath pos q) && !(absPath pos q).isPrefixOf pos then [(.place (absPath pos q), pos)] else []
   | .len c => c.usesAt rs rt pos
   | .map fs _ _ => usFields rs rt pos fs
@@ -459,35 +464,35 @@ def Val.usesAt (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : Va
   | .link v _ => v.usesAt rs rt pos
   | _ => []
 
-def usPairs (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : List (Val × Val) → List (Use × List Seg)
+def usPairs (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : List (Val × Val) → List (Use × List Seg)
   | [] => []
   | (p, r) :: ps => p.usesAt rs rt pos ++ r.usesAt rs rt pos ++ usPairs rs rt pos ps
 
-def usCovers (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : List Cover → List (Use × List Seg)
+def usCovers (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : List Cover → List (Use × List Seg)
   | [] => []
   | (c, k, m) :: cs => usSpread rs rt pos c ++ usSpread rs rt pos k ++ usSpread rs rt pos m ++ usCovers rs rt pos cs
 
-def usFields (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : List (String × Bool × Val) → List (Use × List Seg)
+def usFields (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : List (String × Bool × Val) → List (Use × List Seg)
   | [] => []
   | (k, _, v) :: fs => v.usesAt rs rt (pos ++ [.key k]) ++ usFields rs rt pos fs
 
-def usElems (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : ℕ → List Val → List (Use × List Seg)
+def usElems (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : ℕ → List Val → List (Use × List Seg)
   | _, [] => []
   | i, v :: vs => v.usesAt rs rt (pos ++ [.idx i]) ++ usElems rs rt pos (i + 1) vs
 
-def usItems (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : List Val → List (Use × List Seg)
+def usItems (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : List Val → List (Use × List Seg)
   | [] => []
   | v :: vs => v.usesAt rs rt pos ++ usItems rs rt pos vs
 
-def usArgs (rs : List String) (rt : List Seg → Bool) (pos : List Seg) (f : Fn) : List Val → List (Use × List Seg)
+def usArgs (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) (f : Fn) : List Val → List (Use × List Seg)
   | [] => []
   | v :: vs => v.usesAt rs rt pos ++ (if f = .each ∨ f = .pack then [] else usArgs rs rt pos f vs)
 
-def usSpread (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : Option Val → List (Use × List Seg)
+def usSpread (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : Option Val → List (Use × List Seg)
   | none => []
   | some s => s.usesAt rs rt pos
 
-def usArms (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : List (ℕ × Val) → List (Use × List Seg)
+def usArms (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : List (ℕ × Val) → List (Use × List Seg)
   | [] => []
   | (_, a) :: as => a.usesAt rs rt pos ++ usArms rs rt pos as
 end
@@ -1296,13 +1301,16 @@ def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → Li
     let d := ds.withPathsFrom S rs.1 rs.2
     (rs.1 ++ [r d.1 d.2], rs.2 ++ d.1.bodyRoots ds.placedNames)
 
-/-- A document's declarations with each recursive name's body read where
-no place is yet (`Decls.readU`), its calls and its selections made, so
-that each unfolding of the name, at a meet or by the checker, holds
-them made, as both ports make them wherever the body stands. One that
-waits on a reference, a hole or what the data writes stays as written. -/
+/-- A document's declarations with each recursive name's body, and each
+copy of one placed where a use stands (`isCopyOf`), read where no place
+is yet (`Decls.readU`), its calls and its selections made, so that each
+unfolding of the name, at a meet or by the checker, holds them made, as
+both ports make them wherever the body stands. One that waits on a
+reference, a hole or what the data writes stays as written. -/
 def Decls.callsMade (ds : Decls) : Decls :=
-  ds.map fun d => if ds.recursiveB d.1 then (d.1, ds.readU d.2) else d
+  ds.map fun d =>
+    if ds.recursiveB d.1 || ds.any (fun e => isCopyOf e.1 d.1 && ds.recursiveB e.1) then (d.1, ds.readU d.2)
+    else d
 
 /-- The schema's own tree, with the bodies' own places: the normal form
 of the schema as read, before any data, its calls made (`Decls.readU`),
@@ -2192,18 +2200,34 @@ in a body; a copy reads its own place only through one. -/
 def Decls.writesRel (ds : Decls) (S : Val) : Bool :=
   S.holdsRel || ds.any (fun d => d.2.holdsRel)
 
-/-- The names whose uses read as copies: those whose bodies write a
-relative path, use such a name, or hold a path reference to a place
-whose terms read their own place (`Decls.relTarget`), read to a fixed
-point, a recursive name aside, whose uses read its body at its own
-place. -/
-def Decls.copyNames (ds : Decls) (S : Val) : List String :=
+/-- The names whose bodies read their own place: those whose bodies
+write a relative path, use such a name, or hold a path reference to a
+place whose terms read their own place (`Decls.relTarget`), read to a
+fixed point. -/
+def Decls.relNames (ds : Decls) (S : Val) : List String :=
   if ds.writesRel S then
-    ((List.range ds.length).foldl
+    (List.range ds.length).foldl
       (fun rs _ => (ds.filter fun d => d.2.holdsRel || d.2.refs.any rs.contains ||
-          d.2.paths.any fun q => !relPath q && ds.relTarget S rs (S.size + 1) q).map (·.1)) []).filter
-      fun n => !ds.recursiveB n
+          d.2.paths.any fun q => !relPath q && ds.relTarget S rs (S.size + 1) q).map (·.1)) []
   else []
+
+/-- The names whose uses read as copies wherever they stand: those whose
+bodies read their own place (`Decls.relNames`), a recursive name aside,
+whose uses `Decls.reachesAt` picks. -/
+def Decls.copyNames (ds : Decls) (S : Val) : List String :=
+  (ds.relNames S).filter fun n => !ds.recursiveB n
+
+/-- Whether a use of a recursive name standing at `p` reads as the copy
+of its body placed there (ruling 26): where the data `oj` writes at
+`p`, or the document writes something there besides a use of a
+recursive name, through its members and the names that aren't
+recursive. So the copies stop where the recursion meets nothing to
+unfold against, and a use beyond them reads its body at its own place,
+as no data or term reaches there. -/
+def Decls.reachesAt (ds : Decls) (S : Val) (oj : Option Data) (p : List Seg) : Bool :=
+  (oj.bind fun j => j.at p).isSome ||
+    (Decls.landingAt (ds.filter fun (d : String × Val) => !ds.recursiveB d.1) S false (ds.landBudget S p)
+      [(S, [], p)]).any fun t => !(t.unride.alias?.any ds.recursiveB)
 
 /-- The places a path reference to reads as a copy, those whose terms
 read their own place through a relative path or a use of a name of `rs`
@@ -2225,7 +2249,7 @@ relative paths placed where the use stands as the schema's are
 declared under the use's name (`useName`, `Use.key`), within `k` turns,
 enough for every chain of uses that isn't recursive; a use the turns
 don't reach reads as written (`Use.plain`). -/
-def Decls.copies (ds : Decls) (S : Val) (rs : List String) (rt : List Seg → Bool)
+def Decls.copies (ds : Decls) (S : Val) (rs : List Seg → String → Bool) (rt : List Seg → Bool)
     (dl : List Seg → Option Val) : ℕ → List (Use × List Seg) → Decls
   | 0, us => us.eraseDups.map fun u => (useName u.1.key u.2, u.1.plain)
   | k + 1, us =>
@@ -2244,7 +2268,8 @@ def dataLit (j : Data) (rs : List (List Seg)) : Option Val :=
 stands: the schema from the top (`Val.placedT`), each body at its
 name's own place (`Seg.own`), as both ports place a body, and in either, each use of a name whose uses read as
 copies (`Decls.copyNames`) read as the copy of the body placed where the
-use stands, and each path reference to a place whose terms read their
+use stands, a recursive name's where the data or the document reaches
+the use (`Decls.reachesAt`), and each path reference to a place whose terms read their
 own place (`Decls.copyTargets`) as the copy of what the document writes
 there, each met with what the data `oj` writes at the place it names
 where it's given (`Decls.copies`, ruling 26). Each place a spread
@@ -2253,14 +2278,16 @@ is declared too, under a name no term refers to (`bareName`), since
 both ports read such a spread there as well as at each member, so that
 one naming nothing is an `error` with no member to read it at. -/
 def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Val :=
-  let rs := ds.copyNames S
-  let rt := ds.copyTargets S rs
+  let rn := ds.relNames S
+  let rt := ds.copyTargets S (ds.copyNames S)
+  let cp : List Seg → String → Bool := fun p n => rn.contains n && (!ds.recursiveB n || ds.reachesAt S oj p)
   let dl : List Seg → Option Val := fun p => oj.bind fun j => dataLit j (ds.writtenAt S p)
   let own (n : String) : List Seg := [.own n]
-  (ds.map (fun d => (d.1, (d.2.atUses rs rt dl (own d.1)).placed (own d.1))) ++
-      ds.copies S rs rt dl (ds.length + S.size + 1) (S.usesAt rs rt [] ++ ds.flatMap fun d => d.2.usesAt rs rt (own d.1)) ++
+  (ds.map (fun d => (d.1, (d.2.atUses cp rt dl (own d.1)).placed (own d.1))) ++
+      ds.copies S cp rt dl (ds.length + S.size + ds.bodiesSize + (oj.map fun j => j.term.size).getD 0 + 1)
+        (S.usesAt cp rt [] ++ ds.flatMap fun d => d.2.usesAt cp rt (own d.1)) ++
       (S.bares []).map fun p => (bareName, .path p),
-    (S.atUses rs rt dl []).placedT [])
+    (S.atUses cp rt dl []).placedT [])
 
 /-- A document's declarations with the relation kind declared under its
 name, which a `rel` reads as (`relKind`). -/
@@ -3734,7 +3761,7 @@ theorem placedT_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placedT po
   | selectLit hp hr hd _ _ _ => intro pos; exact placed_checkableA (.selectLit hp hr hd) pos
   | _ => intro pos; exact placed_checkableA (by constructor) pos
 
-theorem mem_auFields {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+theorem mem_auFields {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
     (k, o, w) ∈ auFields rs rt dl pos fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.atUses rs rt dl (pos ++ [.key k]) := by
   induction fs with
   | nil => simp [auFields]
@@ -3749,7 +3776,7 @@ theorem mem_auFields {rs : List String} {rt : List Seg → Bool} {dl : List Seg 
       · exact Or.inl ⟨rfl, rfl, rfl⟩
       · exact Or.inr ⟨v, hm, rfl⟩
 
-theorem mem_auElems {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} : ∀ {i : ℕ} {items : List Val} {w : Val},
+theorem mem_auElems {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} : ∀ {i : ℕ} {items : List Val} {w : Val},
     w ∈ auElems rs rt dl pos i items → ∃ v, v ∈ items ∧ ∃ j, w = v.atUses rs rt dl (pos ++ [.idx j])
   | _, [], _, h => by simp [auElems] at h
   | i, v :: vs, w, h => by
@@ -3759,7 +3786,7 @@ theorem mem_auElems {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
     · obtain ⟨u, hu, j, rfl⟩ := mem_auElems h
       exact ⟨u, List.mem_cons_of_mem _ hu, j, rfl⟩
 
-theorem mem_auItems {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {items : List Val} {w : Val} :
+theorem mem_auItems {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {items : List Val} {w : Val} :
     w ∈ auItems rs rt dl pos items ↔ ∃ v, v ∈ items ∧ w = v.atUses rs rt dl pos := by
   induction items with
   | nil => simp [auItems]
@@ -3773,7 +3800,7 @@ theorem mem_auItems {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
       · exact .inl rfl
       · exact .inr ⟨u, hu, rfl⟩
 
-theorem mem_auArgs {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
+theorem mem_auArgs {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
     w ∈ auArgs rs rt dl pos f args → ∃ v, v ∈ args ∧ (w = v.atUses rs rt dl pos ∨ w = v)
   | [], _, h => by simp [auArgs] at h
   | v :: vs, w, h => by
@@ -3785,7 +3812,7 @@ theorem mem_auArgs {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
       · obtain ⟨u, hu, hw⟩ := mem_auArgs h
         exact ⟨u, List.mem_cons_of_mem _ hu, hw⟩
 
-theorem mem_auPairs {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {ps : List (Val × Val)} {p r : Val} :
+theorem mem_auPairs {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {ps : List (Val × Val)} {p r : Val} :
     (p, r) ∈ auPairs rs rt dl pos ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.atUses rs rt dl pos ∧ r = r₀.atUses rs rt dl pos := by
   induction ps with
   | nil => simp [auPairs]
@@ -3800,7 +3827,7 @@ theorem mem_auPairs {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
       · exact Or.inl ⟨rfl, rfl⟩
       · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
 
-theorem auSpread_eq {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {spread : Option Val} {t : Val} :
+theorem auSpread_eq {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {spread : Option Val} {t : Val} :
     auSpread rs rt dl pos spread = some t ↔ ∃ s, spread = some s ∧ t = s.atUses rs rt dl pos := by
   cases spread with
   | none => simp [auSpread]
@@ -3808,7 +3835,7 @@ theorem auSpread_eq {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
     simp only [auSpread, Option.some.injEq]
     exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
 
-theorem mem_auCovers {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {cs : List Cover} {c' : Cover} :
+theorem mem_auCovers {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {cs : List Cover} {c' : Cover} :
     c' ∈ auCovers rs rt dl pos cs ↔ ∃ c, c ∈ cs ∧ c' = (auSpread rs rt dl pos c.1, auSpread rs rt dl pos c.2.1, auSpread rs rt dl pos c.2.2) := by
   induction cs with
   | nil => simp [auCovers]
@@ -3823,7 +3850,7 @@ theorem mem_auCovers {rs : List String} {rt : List Seg → Bool} {dl : List Seg 
       · exact .inl rfl
       · exact .inr ⟨d, hd, rfl⟩
 
-theorem mem_auArms {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
+theorem mem_auArms {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
     (r, b) ∈ auArms rs rt dl pos arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.atUses rs rt dl pos := by
   induction arms with
   | nil => simp [auArms]
@@ -3838,7 +3865,7 @@ theorem mem_auArms {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
       · exact Or.inl ⟨rfl, rfl⟩
       · exact Or.inr ⟨a, hm, rfl⟩
 
-theorem atUses_checkableA {rs : List String} {dl : List Seg → Option Val}
+theorem atUses_checkableA {rs : List Seg → String → Bool} {dl : List Seg → Option Val}
     (hdl : ∀ p w, dl p = some w → w.CheckableA) {v : Val} (h : v.CheckableA) :
     ∀ rt pos, (v.atUses rs rt dl pos).CheckableA := by
   induction h with
@@ -3930,7 +3957,7 @@ theorem atUses_checkableA {rs : List String} {dl : List Seg → Option Val}
       exact ihd e₀ he₀ rt pos
   | _ => intro rt pos; simp only [Val.atUses]; constructor
 
-theorem copies_checkableA {ds : Decls} {S : Val} {rs : List String} {rt : List Seg → Bool}
+theorem copies_checkableA {ds : Decls} {S : Val} {rs : List Seg → String → Bool} {rt : List Seg → Bool}
     {dl : List Seg → Option Val} (hdl : ∀ p w, dl p = some w → w.CheckableA)
     (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
     ∀ k us d, d ∈ ds.copies S rs rt dl k us → d.2.CheckableA
