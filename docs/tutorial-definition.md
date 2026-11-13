@@ -3081,14 +3081,15 @@ Beside each round's root, a round reads the place where the definition
 puts a name's bodies, the name's own place, which this section comes
 back to below, for each name a body's path starts at: the name's bodies met
 there, with the templates their own links meet there, which step 36
-comes to, read as the schema's tree reads, under that round's
-declarations:
+comes to, in a pass for each link the bodies write and one more, read
+as the schema's tree reads, under that round's declarations:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.bodyRoots (ds : Decls) (ns : List String) : List Val :=
-  ns.map fun n => normaliseD ds (ds.readU (ds.ownLinked
-    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false)))
+def Decls.ownPlace (ds : Decls) (n : String) : Val :=
+  normaliseD ds (ds.readU (ds.ownLinkedN
+    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false)
+    ((ds.filter (·.1 == n)).foldl (fun k d => k + d.2.linkCalls) 1)))
 ```
 
 Only a path a body writes reads these places, so a chain of paths at a
@@ -9091,7 +9092,9 @@ holds no such place, so the template meets nothing the schema holds:
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.atOwnBody (ds : Decls) (pos p : List Seg) : Bool :=
-  p.head? == pos.head? && (ds.bodyAt p).isSome
+  p.head? == pos.head? && (match p with
+    | .own n :: _ => (ds.pathAt (ds.ownPlace n) p).isSome
+    | _ => false)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -9115,8 +9118,7 @@ def Decls.bodyClash (ds : Decls) (fs : List (List Seg × Val)) : Bool :=
     match fs.filter (fun f => f.1.head? == some (.own d.1)) with
     | [] => false
     | gs =>
-      let b := normaliseD ds.callsMade
-        (ds.callsMade.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2) .any))
+      let b := ((ds.callsMade.ownPlace d.1).at [.own d.1]).getD .any
       ((normaliseD ds.callsMade (ds.callsMade.readU
         (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged ds.callsMade).illFormed
 ```
@@ -9129,15 +9131,19 @@ templates its own links meet in it:
 ```lean
 def Decls.ownLinked (ds : Decls) (B : Val) : Val :=
   let R := normaliseD ds (ds.readU B)
-  (ds.nfLinks R []).foldl (referStep ds [R] .any []) B
+  (ds.nfLinks R []).foldl (ownStep R) B
 ```
 
-A target the place doesn't hold meets `any` there, since the link passes
-judge it. So a second link whose target the first link's template makes,
+A target the place doesn't hold meets nothing there, since the link
+passes judge it, and the place reads its links' templates in passes,
+each reading the place the last one made (`Decls.ownLinkedN`). So a
+second link whose target the first link's template makes,
 `o: refer({k: 1}) & path(.m.q)` beside `n: refer({q: {}}) & path(.m)`,
-finds no target in the link passes, which read the body's place as its
-bodies write it, and the document is an `error`, where both engines read
-it as `valid`, which #664 tracks. At a use of the name, `a: %T`, the
+finds its target in the second pass. The link passes ask the same
+place whether a link's own body holds its target (`Decls.atOwnBody`),
+so they read the document as `valid`, as both engines do, and two
+templates that conflict once the chain lands make it an `error`. At a
+use of the name, `a: %T`, the
 use's own link sends the template into `a.m`, where `a.z` reads it, as
 in the same document written in place, where both engines leave `a.z`
 naming nothing, which #723 tracks.

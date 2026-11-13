@@ -1092,12 +1092,6 @@ template where its link stands. -/
 def Decls.nfLinks (ds : Decls) (root : Val) (home : List Seg) : List (List Seg × Val × Val) :=
   (root.links []).map fun e => (e.1, resolveD ds none (some ((home ++ e.1).map .seg)) e.2.1, e.2.2)
 
-/-- Whether a path names a member of the body a link written at `pos`
-stands in, at the body's own place: the path's first step the link's
-own, and the body holding a member there (`Decls.bodyAt`). -/
-def Decls.atOwnBody (ds : Decls) (pos p : List Seg) : Bool :=
-  p.head? == pos.head? && (ds.bodyAt p).isSome
-
 mutual
 /-- A link's template as it lands at its target `T` (ruling 50): each
 path that starts at the link's target (`Seg.lands`) read from `T`, as
@@ -1149,6 +1143,105 @@ def atCovers (T : List Seg) : List Cover → List Cover
   | (c, k, m) :: cs => (atSpread T c, atSpread T k, atSpread T m) :: atCovers T cs
 end
 
+mutual
+/-- The links a term writes, at any depth: each `refer` and each `rel`,
+in a call's arguments and in another link's template as well. -/
+def Val.linkCalls : Val → ℕ
+  | .call .refer args => lcItems args + 1
+  | .call .rel args => lcItems args + 1
+  | .call _ args => lcItems args
+  | .ride _ v _ => v.linkCalls
+  | .link v t => v.linkCalls + t.linkCalls
+  | .len c => c.linkCalls
+  | .map fs spread _ => lcFields fs + lcSpread spread
+  | .list items spread _ => lcItems items + lcSpread spread
+  | .or arms => lcArms arms
+  | .pref _ x => x.linkCalls
+  | .meet a b => a.linkCalls + b.linkCalls
+  | .nof n cs => n.linkCalls + lcItems cs
+  | .must c _ => c.linkCalls
+  | .when c t e => c.linkCalls + t.linkCalls + lcSpread e
+  | .contains c n => c.linkCalls + n.linkCalls
+  | .rest t cs => t.linkCalls + lcCovers cs
+  | .select s arms d => s.linkCalls + lcPairs arms + lcSpread d
+  | .filter s c => s.linkCalls + c.linkCalls
+  | _ => 0
+
+def lcFields : List (String × Bool × Val) → ℕ
+  | [] => 0
+  | (_, _, v) :: fs => v.linkCalls + lcFields fs
+
+def lcItems : List Val → ℕ
+  | [] => 0
+  | v :: vs => v.linkCalls + lcItems vs
+
+def lcSpread : Option Val → ℕ
+  | none => 0
+  | some s => s.linkCalls
+
+def lcArms : List (ℕ × Val) → ℕ
+  | [] => 0
+  | (_, a) :: arms => a.linkCalls + lcArms arms
+
+def lcPairs : List (Val × Val) → ℕ
+  | [] => 0
+  | (p, r) :: ps => p.linkCalls + r.linkCalls + lcPairs ps
+
+def lcCovers : List Cover → ℕ
+  | [] => 0
+  | (c, k, m) :: cs => lcSpread c + lcSpread k + lcSpread m + lcCovers cs
+end
+
+/-- One address's part in a body's own place, read in normal form as
+`R`: `t` met at the path the address names from `pos`, read where it
+lands (`Val.atTarget`), where `R` holds the target, and nothing where it
+doesn't. -/
+def ownFlow (R : Val) (pos : List Seg) (t : Val) (acc : Val) (a : Addr) : Val :=
+  match (a.from pos).bind fun p => R.putW p (t.atTarget p) with
+  | some u => .meet acc u
+  | none => acc
+
+/-- One link's part in a body's own place, read in normal form as `R`:
+its template, its marks cleared, met at each target its addresses name
+from where it stands (`ownFlow`). -/
+def ownStep (R : Val) (acc : Val) (e : List Seg × Val × Val) : Val :=
+  (linkAddrs e).foldl (ownFlow R e.1 e.2.1.unmark) acc
+
+/-- A body's own place, `B`, with the template of each link it holds met
+at the link's target where the place holds the target (`ownStep`), as
+both ports meet a link's template into a member of its own body. A
+target the place doesn't hold meets nothing here, since the link passes
+judge it (`Decls.withRefers`). -/
+def Decls.ownLinked (ds : Decls) (B : Val) : Val :=
+  let R := normaliseD ds (ds.readU B)
+  (ds.nfLinks R []).foldl (ownStep R) B
+
+/-- A body's own place with its links' templates met in `n` times over
+(`Decls.ownLinked`), each pass reading the place the last one made, so
+that one link's template can make another link's target there. -/
+def Decls.ownLinkedN (ds : Decls) (B : Val) : ℕ → Val
+  | 0 => B
+  | n + 1 => ds.ownLinked (ds.ownLinkedN B n)
+
+/-- The tree at a declared name's own place, as the schema's own tree
+reads it: the name's bodies met, at `%` and the name, with its links'
+templates met in, a pass for each link the bodies write and one more
+(`Decls.ownLinkedN`), in normal form, its calls made. -/
+def Decls.ownPlace (ds : Decls) (n : String) : Val :=
+  normaliseD ds (ds.readU (ds.ownLinkedN
+    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false)
+    ((ds.filter (·.1 == n)).foldl (fun k d => k + d.2.linkCalls) 1)))
+
+/-- Whether a path names a member of the body a link written at `pos`
+stands in, at the body's own place: the path's first step the link's
+own, and the place holding a member there with its links' templates met
+in (`Decls.ownPlace`), so that one link's template there can make
+another link's target. -/
+def Decls.atOwnBody (ds : Decls) (pos p : List Seg) : Bool :=
+  p.head? == pos.head? && (match p with
+    | .own n :: _ => (ds.pathAt (ds.ownPlace n) p).isSome
+    | _ => false)
+
 /-- One address's part in the schema: `t` met at the path the address
 names from `pos` (`Addr.from`, `Val.putW`), read where it lands there
 (`Val.atTarget`), in the first of `roots` it names something in;
@@ -1182,22 +1275,10 @@ def Decls.placedNames (ds : Decls) : List String :=
     | .own n :: _ => if ds.any (fun d => d.1 == n) then some n else none
     | _ => none).eraseDups
 
-/-- A body's own place, `B`, with the template of each link it holds met
-at the link's target where the place holds the target (`referStep`), as
-both ports meet a link's template into a member of its own body. A
-target the place doesn't hold meets `any` here, since the link passes
-judge it (`Decls.withRefers`). -/
-def Decls.ownLinked (ds : Decls) (B : Val) : Val :=
-  let R := normaliseD ds (ds.readU B)
-  (ds.nfLinks R []).foldl (referStep ds [R] .any []) B
-
 /-- The tree at each of the places `ns` names, a body's own place, as the
-schema's own tree reads it: the name's bodies met, at `%` and the name,
-with its links' templates met in (`Decls.ownLinked`), in normal form,
-its calls made, as `Decls.bodyAt` reads the place. -/
+schema's own tree reads it (`Decls.ownPlace`). -/
 def Decls.bodyRoots (ds : Decls) (ns : List String) : List Val :=
-  ns.map fun n => normaliseD ds (ds.readU (ds.ownLinked
-    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false)))
+  ns.map ds.ownPlace
 
 /-- The roots a document's paths read, round by round, `r` reading a
 document to its root, beside the places of the bodies their own paths
@@ -1534,55 +1615,6 @@ def Decls.referCount (ds : Decls) (r : Decls → Val → List Val) (S : Val) : �
       (linkAddrs e).length).sum)
     ((ds.nfLinks R []).map fun e => (linkAddrs e).length).sum
 
-mutual
-/-- The links a term writes, at any depth: each `refer` and each `rel`,
-in a call's arguments and in another link's template as well. -/
-def Val.linkCalls : Val → ℕ
-  | .call .refer args => lcItems args + 1
-  | .call .rel args => lcItems args + 1
-  | .call _ args => lcItems args
-  | .ride _ v _ => v.linkCalls
-  | .link v t => v.linkCalls + t.linkCalls
-  | .len c => c.linkCalls
-  | .map fs spread _ => lcFields fs + lcSpread spread
-  | .list items spread _ => lcItems items + lcSpread spread
-  | .or arms => lcArms arms
-  | .pref _ x => x.linkCalls
-  | .meet a b => a.linkCalls + b.linkCalls
-  | .nof n cs => n.linkCalls + lcItems cs
-  | .must c _ => c.linkCalls
-  | .when c t e => c.linkCalls + t.linkCalls + lcSpread e
-  | .contains c n => c.linkCalls + n.linkCalls
-  | .rest t cs => t.linkCalls + lcCovers cs
-  | .select s arms d => s.linkCalls + lcPairs arms + lcSpread d
-  | .filter s c => s.linkCalls + c.linkCalls
-  | _ => 0
-
-def lcFields : List (String × Bool × Val) → ℕ
-  | [] => 0
-  | (_, _, v) :: fs => v.linkCalls + lcFields fs
-
-def lcItems : List Val → ℕ
-  | [] => 0
-  | v :: vs => v.linkCalls + lcItems vs
-
-def lcSpread : Option Val → ℕ
-  | none => 0
-  | some s => s.linkCalls
-
-def lcArms : List (ℕ × Val) → ℕ
-  | [] => 0
-  | (_, a) :: arms => a.linkCalls + lcArms arms
-
-def lcPairs : List (Val × Val) → ℕ
-  | [] => 0
-  | (p, r) :: ps => p.linkCalls + r.linkCalls + lcPairs ps
-
-def lcCovers : List Cover → ℕ
-  | [] => 0
-  | (c, k, m) :: cs => lcSpread c + lcSpread k + lcSpread m + lcCovers cs
-end
-
 /-- The schema after `n` passes, each meeting the templates of the links
 the last pass's tree holds into the targets it holds, so that one link's
 template can make another link's target, or carry another link, and
@@ -1615,17 +1647,16 @@ def Decls.bodyFlows (ds : Decls) (r : Decls → Val → List Val) (L : Val) : Li
 
 /-- Whether the templates the flows send to a body's own place conflict
 there, with the body's member or with each other, as both ports meet
-each into the body's own place: the normal form of the name's bodies,
-met, with each template met at its place, each recursive name read with
-its calls made (`Decls.callsMade`), so that a template that is the name
-unfolds as both ports make it. -/
+each into the body's own place: the tree at the place, its links'
+templates met in (`Decls.ownPlace`), with each template met at its
+place, each recursive name read with its calls made (`Decls.callsMade`),
+so that a template that is the name unfolds as both ports make it. -/
 def Decls.bodyClash (ds : Decls) (fs : List (List Seg × Val)) : Bool :=
   ds.any fun d =>
     match fs.filter (fun f => f.1.head? == some (.own d.1)) with
     | [] => false
     | gs =>
-      let b := normaliseD ds.callsMade
-        (ds.callsMade.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2) .any))
+      let b := ((ds.callsMade.ownPlace d.1).at [.own d.1]).getD .any
       ((normaliseD ds.callsMade (ds.callsMade.readU
         (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged ds.callsMade).illFormed
 
@@ -4688,21 +4719,58 @@ theorem Decls.nfLinks_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Chec
   obtain ⟨e', he', rfl⟩ := he
   exact resolveD_checkableA hb (Val.links_checkableA hr [] e' he') fun _ h => nomatch h
 
+theorem ownFlow_checkableA {R acc t : Val} {pos : List Seg} {a : Addr}
+    (hacc : acc.CheckableA) (ht : t.CheckableA) : (ownFlow R pos t acc a).CheckableA := by
+  unfold ownFlow
+  split
+  next u hu =>
+    cases hq : a.from pos with
+    | none => rw [hq] at hu; exact absurd hu (by simp)
+    | some p =>
+      rw [hq] at hu
+      simp only [Option.bind_some] at hu
+      exact .meet hacc (putW_checkableA (Val.atTarget_checkableA p ht) p hu)
+  next => exact hacc
+
+theorem foldl_ownFlow_checkableA {R t : Val} {pos : List Seg} (ht : t.CheckableA) :
+    ∀ (as : List Addr) {acc : Val}, acc.CheckableA → (as.foldl (ownFlow R pos t) acc).CheckableA
+  | [], _, h => h
+  | _ :: as, _, h => foldl_ownFlow_checkableA ht as (ownFlow_checkableA h ht)
+
+theorem foldl_ownStep_checkableA {R : Val} :
+    ∀ (es : List (List Seg × Val × Val)) {acc : Val}, acc.CheckableA → (∀ e, e ∈ es → e.2.1.CheckableA) →
+      (es.foldl (ownStep R) acc).CheckableA
+  | [], _, h, _ => h
+  | e :: es, _, h, he =>
+    foldl_ownStep_checkableA es (foldl_ownFlow_checkableA (he e List.mem_cons_self).unmark _ h)
+      fun e' h' => he e' (List.mem_cons_of_mem _ h')
+
 theorem Decls.ownLinked_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {B : Val}
     (hB : B.CheckableA) : (ds.ownLinked B).CheckableA :=
-  foldl_referStep_checkableA .any _ hB
+  foldl_ownStep_checkableA _ hB
     (Decls.nfLinks_checkableA hb (normaliseD_checkableA hb (readU_checkableA hb hB)) [])
+
+theorem Decls.ownLinkedN_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {B : Val}
+    (hB : B.CheckableA) : ∀ n, (ds.ownLinkedN B n).CheckableA
+  | 0 => hB
+  | n + 1 => Decls.ownLinked_checkableA hb (Decls.ownLinkedN_checkableA hb hB n)
+
+theorem Decls.ownPlace_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (n : String) :
+    (ds.ownPlace n).CheckableA := by
+  have hB : (Val.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)]
+      none false).CheckableA := by
+    refine .map (fun _ _ _ hv => ?_) (fun _ h => nomatch h)
+    simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hv
+    rw [hv.2.2]
+    exact foldl_meetBodies_checkableA _ .any fun d hd => hb d (List.mem_filter.mp hd).1
+  exact normaliseD_checkableA hb (readU_checkableA hb (Decls.ownLinkedN_checkableA hb hB _))
 
 theorem Decls.bodyRoots_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (ns : List String) :
     ∀ root, root ∈ ds.bodyRoots ns → root.CheckableA := by
   intro root h
   simp only [Decls.bodyRoots, List.mem_map] at h
   obtain ⟨n, -, rfl⟩ := h
-  refine normaliseD_checkableA hb (readU_checkableA hb (Decls.ownLinked_checkableA hb
-    (.map (fun _ _ _ hv => ?_) (fun _ h => nomatch h))))
-  simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hv
-  rw [hv.2.2]
-  exact foldl_meetBodies_checkableA _ .any fun d hd => hb d (List.mem_filter.mp hd).1
+  exact Decls.ownPlace_checkableA hb n
 
 /-- Every round's root, and every place a round reads, is one the
 checker can read, where `r` reads a document the checker can read to

@@ -1676,6 +1676,19 @@ def recursiveCallCases : List (Decls × Val × Data) :=
     ([("T", tR)], xT, .map [("x", .map [("m", .map [("m", .map [])])])]),
     ([("T", tR)], xT, .map [("x", .map [("m", .integer 1 (by decide))])])]
 
+/-- A link at a body's own place whose target another link's template
+makes there (#664): the body read where it's only declared, each pass
+over its place reading the place the last one made, and two templates
+that conflict once the chain lands. -/
+def bodyChainCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let rf (t : Val) (ks : List String) : Val := .meet (.call .refer [t]) (.addr ⟨1, ks⟩)
+  [([("T", m [("m", m []), ("n", rf (m [("q", m [])]) ["m"]), ("o", rf (m [("k", int 1)]) ["m", "q"]),
+      ("z", .path [.up 1, .key "m", .key "q", .key "k"])])], m [], .map []),
+    ([("T", m [("m", m []), ("n", rf (m [("q", m [("k", int 1)])]) ["m"]), ("o", rf (m [("k", int 2)]) ["m", "q"])])],
+      m [], .map [])]
+
 /-- Relative paths, made absolute where each stands: a sibling, a climb
 of two steps and three, a key in quotes, an index into a sibling list,
 a list's element reading its sibling, a chain of relative paths, a
@@ -1704,7 +1717,7 @@ def relPathCases : List (Decls × Val × Data) :=
     ([], m [("a", m [("x", int 1), ("y", .call .plus [rel 1 ["x"], int 1])])], .map [("a", .map [("y", j 2)])]),
     ([("T", m [("y", rel 2 ["x"])])], m [("x", int 1), ("a", .alias "T")], .map [("a", .map [("y", j 1)])]),
     ([("T", m [("y", rel 1 ["x"])])], m [("a", .meet (m [("x", int 1)]) (.alias "T"))], .map [("a", .map [("y", j 1)])])] ++
-  aliasPlaceCases ++ bodyPlaceCases ++ recursiveCallCases
+  aliasPlaceCases ++ bodyPlaceCases ++ recursiveCallCases ++ bodyChainCases
 
 theorem relPathCases_checkable : ∀ c ∈ relPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
