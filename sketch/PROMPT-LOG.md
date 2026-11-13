@@ -1103,3 +1103,9 @@ Modules (P10): module imports like `@"corp.example/schemas/service"`, `@"alias:l
 ```text
 Does aontu provide a way in general to control the json generation of values?
 ```
+
+## 2026-11-13 19:55:56 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+What type does path() return
+```
