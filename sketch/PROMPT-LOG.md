@@ -1097,3 +1097,9 @@ Scope of completion: does finishing the Lean work include moving both engines (T
 Modules (P10): module imports like `@"corp.example/schemas/service"`, `@"alias:legacy"` and `#hash` pins. The registry and network are already outside the definition by design. How should the definition hold module imports?
 → Sources the host resolves (Recommended)
 ```
+
+## 2026-11-13 18:48:48 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Does aontu provide a way in general to control the json generation of values?
+```
