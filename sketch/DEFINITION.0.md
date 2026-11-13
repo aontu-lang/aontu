@@ -1453,6 +1453,18 @@ until the phase that encodes it lands.
    itself a relative path, move to the use and stand in the ledger,
    since both ports read such a body at its own place (#504).
 
+   **Built for a recursion 2026-11-13.** A use of a recursive name
+   whose body reads its own place reads as a copy of the body placed
+   where it stands, at each level the data writes at or the document
+   writes something besides the use (`Decls.reachesAt`), and as the
+   body at its own place below that, where no member stands. So with
+   `%T = {x: integer, y: .x, b?: %T}` and `a: %T`, `a.b.y` reads
+   `a.b.x`, and `..w` in the body reads `a.w` at `a.b`. Both ports'
+   `vet` reads every level so; their evaluation reads the levels below
+   the first at the body's own place, which breaks ADR-007 (#765).
+   Rows rr0 to rr38 of `test/spec/def-path.tsv` hold it. A path
+   reference inside its own place stays as written, as below.
+
    **Built for a path reference's copy 2026-11-10.** A path reference
    to a place whose terms read their own place (`Decls.relTarget`) reads
    a copy of what the document writes there, through names and other

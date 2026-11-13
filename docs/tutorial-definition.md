@@ -2851,12 +2851,15 @@ has made the schema's calls, so the definition makes the calls and the
 selections in each recursive name's body first. Step 9 reads each body
 so once its paths are names, so the definition makes a `match` or a call
 over a path to the body's own member too, `v: match(.kind, ...)` beside
-`kind: "b"`:
+`kind: "b"`, and reads each copy of such a body that step 9 places where
+a use stands the same way:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.callsMade (ds : Decls) : Decls :=
-  ds.map fun d => if ds.recursiveB d.1 then (d.1, ds.readU d.2) else d
+  ds.map fun d =>
+    if ds.recursiveB d.1 || ds.any (fun e => isCopyOf e.1 d.1 && ds.recursiveB e.1) then (d.1, ds.readU d.2)
+    else d
 ```
 
 Step 14's `vet` reads a document this way, and the sixth generated
@@ -3212,19 +3215,23 @@ reads a copy of the body placed where the use stands, and so does each
 path reference to a place whose terms read their own place, in the
 schema and in a body at its own place alike. Each copy is declared
 under a name of its own (`useName`, `Decls.copies`), and each meets what
-the data writes at the place it copies (`dataLit`):
+the data writes at the place it copies (`dataLit`). A use of a
+recursive name reads as a copy only where something reaches it
+(`Decls.reachesAt`), as the next paragraphs show:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Val :=
-  let rs := ds.copyNames S
-  let rt := ds.copyTargets S rs
+  let rn := ds.relNames S
+  let rt := ds.copyTargets S (ds.copyNames S)
+  let cp : List Seg → String → Bool := fun p n => rn.contains n && (!ds.recursiveB n || ds.reachesAt S oj p)
   let dl : List Seg → Option Val := fun p => oj.bind fun j => dataLit j (ds.writtenAt S p)
   let own (n : String) : List Seg := [.own n]
-  (ds.map (fun d => (d.1, (d.2.atUses rs rt dl (own d.1)).placed (own d.1))) ++
-      ds.copies S rs rt dl (ds.length + S.size + 1) (S.usesAt rs rt [] ++ ds.flatMap fun d => d.2.usesAt rs rt (own d.1)) ++
+  (ds.map (fun d => (d.1, (d.2.atUses cp rt dl (own d.1)).placed (own d.1))) ++
+      ds.copies S cp rt dl (ds.length + S.size + ds.bodiesSize + (oj.map fun j => j.term.size).getD 0 + 1)
+        (S.usesAt cp rt [] ++ ds.flatMap fun d => d.2.usesAt cp rt (own d.1)) ++
       (S.bares []).map fun p => (bareName, .path p),
-    (S.atUses rs rt dl []).placedT [])
+    (S.atUses cp rt dl []).placedT [])
 ```
 
 So with `%T = {v: ..x}`, `x: 1` and `a: {x: 2, b: %T}`, `a.b.v` reads
@@ -3252,18 +3259,17 @@ def Decls.relTarget (ds : Decls) (S : Val) (rs : List String) : ℕ → List Seg
         w.paths.any fun q => !relPath q && ds.relTarget S rs k q
 ```
 
-The names whose uses read as copies come with the places, since each
-leads to the other: a name whose body writes a relative path, uses such
-a name, or holds a path reference to such a place:
+The names whose bodies read their own place come with the places, since
+each leads to the other: a name whose body writes a relative path, uses
+such a name, or holds a path reference to such a place:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.copyNames (ds : Decls) (S : Val) : List String :=
+def Decls.relNames (ds : Decls) (S : Val) : List String :=
   if ds.writesRel S then
-    ((List.range ds.length).foldl
+    (List.range ds.length).foldl
       (fun rs _ => (ds.filter fun d => d.2.holdsRel || d.2.refs.any rs.contains ||
-          d.2.paths.any fun q => !relPath q && ds.relTarget S rs (S.size + 1) q).map (·.1)) []).filter
-      fun n => !ds.recursiveB n
+          d.2.paths.any fun q => !relPath q && ds.relTarget S rs (S.size + 1) q).map (·.1)) []
   else []
 ```
 
@@ -3275,6 +3281,30 @@ place as well. With `%T = {u: %U}` and `%U = {w: ..x}`, the use at
 `error`, as both engines' `vet` reads it where `%T` comes first. Where
 `%T = $.a.b` comes first, both engines read the target's paths below
 `$.%T`, which #692 tracks.
+
+A use of such a name that isn't recursive reads as a copy wherever it
+stands (`Decls.copyNames`). A recursive name's copies would never end,
+so a use of one reads as a copy only where the data writes at its
+place, or the document writes something there besides the use itself,
+through its members and the names that aren't recursive:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.reachesAt (ds : Decls) (S : Val) (oj : Option Data) (p : List Seg) : Bool :=
+  (oj.bind fun j => j.at p).isSome ||
+    (Decls.landingAt (ds.filter fun (d : String × Val) => !ds.recursiveB d.1) S false (ds.landBudget S p)
+      [(S, [], p)]).any fun t => !(t.unride.alias?.any ds.recursiveB)
+```
+
+With `%T = {x: integer, y: .x, b?: %T}` and `a: %T`, data that writes
+`a.b` makes the use there a copy, so `a.b.y` reads `a.b.x`: `"b": {"x":
+2, "y": 2}` under `a` is valid and `"b": {"x": 2, "y": 1}` is invalid,
+as both engines' `vet` reads them. Below the last level the data or the
+schema writes, the use reads the body at its own place, where no member
+stands. The schema reaches a level too, so
+`a: {x: 1, b: {x: 2}} & %T` generates `a.b.y` as 2. Both engines'
+evaluation reads every level below the first at the body's own place,
+which #765 tracks.
 
 A reference that stands inside its own place, `b?: $.a` within `a`, is
 a recursion, and reads as it's written. A copy meets the data at each
@@ -10066,10 +10096,11 @@ place keeps its template as written, so a relative path in it resolves
 nowhere, and so does a generator's template there, whether the
 document writes it there or in a name it uses there.
 
-Nor does it read a copy of a recursion where the copy stands. A path
-reference inside its own place, `b?: $.a` within `a`, reads as it's
-written, where ruling 26 would read each copy where it stands, at every
-depth the data goes to.
+Nor does it read a path reference's copy of a recursion where the copy
+stands. A path reference inside its own place, `b?: $.a` within `a`,
+reads as it's written, where ruling 26 would read each copy where it
+stands, at every depth the data goes to, as it reads a use of a
+recursive name.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.
