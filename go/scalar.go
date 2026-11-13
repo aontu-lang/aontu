@@ -185,7 +185,7 @@ func (s *ScalarVal) Canon() string {
 	case KindPath:
 		// The call form is the literal syntax for this kind, so canon
 		// renders it back and reparses to the same VALUE.
-		return "path(" + s.peg.(string) + ")"
+		return relateText(s) + "path(" + s.peg.(string) + ")"
 	}
 	return ""
 }
@@ -216,6 +216,10 @@ func (s *ScalarVal) Unify(peer Val, ctx *Ctx) Val {
 		// The constraint algebra owns membership (constraint.go admit).
 		return pc.Unify(s, ctx)
 	}
+	// A relate() peer drives, as it does beside a map or a list.
+	if pr, ok := peer.(*RelateVal); ok && KindPath == s.kind {
+		return pr.Unify(s, ctx)
+	}
 	if ps, ok := peer.(*ScalarVal); ok {
 		if KindPath == s.kind && KindPath == ps.kind {
 			merged, mok := prefixMeet(s.peg.(string), ps.peg.(string))
@@ -228,9 +232,23 @@ func (s *ScalarVal) Unify(peer Val, ctx *Ctx) Val {
 				"" == s.link && "" != ps.link) {
 				out, other = ps, s
 			}
-			if flows := joinFlows(out.lk.flows, other.lk.flows); len(flows) != len(out.lk.flows) {
+			// A link refined by a longer path is a link to what that path names,
+			// which climbs no further than the link did.
+			if "" == out.link && "" != other.link {
+				moved, _ := linkAt(merged, other.path, nil, other.lk.relates, other.lk.root)
+				moved.mtype, moved.mhide = other.mtype || out.mtype, other.mhide || out.mhide
+				moved.site = out.site
+				return moved
+			}
+			flows := joinFlows(out.lk.flows, other.lk.flows)
+			relates := joinRelates(out.lk.relates, other.lk.relates)
+			root := out.lk.root || other.lk.root
+			if len(flows) != len(out.lk.flows) || len(relates) != len(out.lk.relates) ||
+				root != out.lk.root {
 				c := *out
 				c.lk.flows = flows
+				c.lk.relates = relates
+				c.lk.root = root
 				out = &c
 			}
 			if other.mtype {
@@ -310,6 +328,9 @@ func (k *ScalarKindVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	if pc, ok := peer.(*ConstraintVal); ok {
 		return pc.Unify(k, ctx)
+	}
+	if pr, ok := peer.(*RelateVal); ok {
+		return pr.Unify(k, ctx)
 	}
 	if ps, ok := peer.(*ScalarVal); ok {
 		// A kind admits a concrete value of that kind, and a supertype

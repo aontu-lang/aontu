@@ -153,11 +153,13 @@ abstract class Val {
   identity?: Record<string, any[]>
 
   link?: string
-  // A link's target path, its own missing-target code where it isn't
-  // refer()'s, and its templates, each with the target it meets.
+  // A link's target path, and each template with the target it meets.
   linkto?: string[]
-  linkcode?: string
   flows?: [string, Val][]
+  // The templates of the `relate()` calls met here, and whether one was
+  // written at this value itself, where canon writes it back.
+  relates?: Val[]
+  relroot?: boolean
 
   origin?: string
 
@@ -271,11 +273,14 @@ abstract class Val {
     if (null != this.linkto) {
       out.linkto = this.linkto
     }
-    if (null != this.linkcode) {
-      out.linkcode = this.linkcode
-    }
     if (null != this.flows) {
       out.flows = this.flows
+    }
+    if (null != this.relates) {
+      out.relates = this.relates
+    }
+    if (null != this.relroot) {
+      out.relroot = this.relroot
     }
     if (null != this.deprecation) {
       out.deprecation = this.deprecation

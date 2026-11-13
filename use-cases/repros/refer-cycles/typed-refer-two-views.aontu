@@ -1,14 +1,14 @@
-# Use-case 01 gap 8 (claim C1, refer($.aontu.System.Service) half): the language
-# reference's own example for refer(t) — `[&: refer($.aontu.System.Service), ...]`
+# Use-case 01 gap 8 (claim C1, relate($.aontu.System.Service) half): the language
+# reference's own example for relate(t) — `[&: relate($.aontu.System.Service), ...]`
 # (reference-language.md, function table) — dies of unify_cycle when the
 # REFERRING entity is id-merged across two views whose shared schema
 # carries a referenced ports template.  The target (svc_ledger) carries
 # no ports at all; the failure names an integer meeting ITSELF.
-# Controls that pass on this exact document: refer() bare, and
-# refer({kind: service}) with the type written out literally — so the
+# Controls that pass on this exact document: relate() bare, and
+# relate({kind: service}) with the type written out literally — so the
 # cycle comes from the type argument being a REFERENCE, not from the
 # constraint it denotes.
-# expected: exit 0 (same result refer({kind: service}) produces)
+# expected: exit 0 (same result relate({kind: service}) produces)
 # actual:   [aontu/unify_cycle]: Cannot unify values at path
 #           $.deploy.workloads.pay.dependsOn.0.ports.number
 #           (Cannot unify value: integer with value: integer) exit 1
@@ -17,7 +17,7 @@ spec: hide({
   PortSpec: $.aontu.System.Port & {number: integer}
   Entry: $.aontu.System.Service & {
     ports?: {&: $.spec.PortSpec}
-    dependsOn?: [&: refer($.aontu.System.Service)]
+    dependsOn?: [&: relate($.aontu.System.Service)]
   }
 })
 catalog: services: {

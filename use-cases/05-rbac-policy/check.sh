@@ -43,7 +43,7 @@ diff -u "$DIR/expected/example.json" "$WORK/eval.out" \
 ok "example.aontu evaluates to the expected policy document"
 
 # 2. Canonical form keeps the policy's meaning: the ADDRESSES, the
-# preserved default, and the refer() foreign-key constraints.
+# preserved default, and the relate() foreign-key constraints.
 #
 # Since ADR-014 there are no entity identities to keep: a node's name IS
 # its path, so what canon has to preserve is the address a grant was
@@ -53,8 +53,8 @@ ok "example.aontu evaluates to the expected policy document"
 run canon 0 -- --canon "$DIR/example.aontu"
 has canon out 'path($.permissions.admin_all)'
 has canon out '*"member"|"member"|"admin"|"owner"'
-has canon out 'refer()'
-ok "canon keeps the grant addresses, the * default and refer()"
+has canon out 'relate()'
+ok "canon keeps the grant addresses, the * default and relate()"
 
 # ------------------------------------------------- vetting candidates
 # 3. A well-formed candidate is valid, with no warnings.
@@ -73,8 +73,8 @@ ok "vet: free plan + sso refused by the closed-map disjunction"
 
 # 5. Foreign key: a member holding an undeclared role.
 run role 1 -- vet "$DIR/tenant.aontu" "$DIR/data/tenant-unknown-role.aontu"
-has role out '[aontu/refer_unresolved]'
-ok "vet: unknown role name is a refer_unresolved error"
+has role out '[aontu/rel_unresolved]'
+ok "vet: unknown role name is a rel_unresolved error"
 
 # 6. Constraint atoms: a reserved slug dies on neq()/re().
 run slug 1 -- vet "$DIR/tenant.aontu" "$DIR/data/tenant-bad-slug.aontu"
@@ -118,7 +118,7 @@ ok "vet: tenant without a plan is incomplete (disjunct_no_gen, exit 3)"
 
 # 10. Machine-readable findings carry the same codes.
 run json 1 -- vet --format json "$DIR/tenant.aontu" "$DIR/data/tenant-unknown-role.aontu"
-has json out '"code": "refer_unresolved"'
+has json out '"code": "rel_unresolved"'
 has json out '"verdict": "invalid"'
 ok "vet --format json carries the registered error codes"
 
@@ -131,14 +131,14 @@ ok "proposal: new role refused by close() (exhaustive role set)"
 
 # 12. A hallucinated permission is refused (exit 1), AND THE REFUSAL
 # NOW NAMES THE GRANT. This assertion got sharper with ADR-014, so it
-# is worth saying what it used to be: the located refer_unresolved was
+# is worth saying what it used to be: the located rel_unresolved was
 # unsurfaced inside the still-open Role disjunction, and what reached
 # the surface was a spurious `unify_cycle` the README had to apologise
 # for. Addresses being paths took the identity merge out of the picture
 # and the real finding now arrives at its own position --
 # `$.roles.member.grants.3`, the element the agent invented.
 run halluc 1 -- --include-root "$DIR" "$DIR/proposals/extend-member-grants.aontu"
-has halluc err '[aontu/refer_unresolved]'
+has halluc err '[aontu/rel_unresolved]'
 has halluc err '$.roles.member.grants.3'
 ok "proposal: unknown permission still refused (diagnostic: see note)"
 

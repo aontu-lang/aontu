@@ -2,6 +2,7 @@
 /* Copyright (c) 2021-2025 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BagVal = void 0;
+exports.templateKey = templateKey;
 exports.keyTable = keyTable;
 exports.putKey = putKey;
 exports.sizingResidue = sizingResidue;
@@ -63,7 +64,7 @@ class BagVal extends FeatureVal_1.FeatureVal {
         const scj = this.spread?.cj;
         const pcj = peer.spread?.cj;
         if ((null == scj) !== (null == pcj) ||
-            (null != scj && null != pcj && scj.canon !== pcj.canon)) {
+            (null != scj && null != pcj && templateKey(scj) !== templateKey(pcj))) {
             return false;
         }
         const keys = Object.keys(this.peg);
@@ -188,6 +189,12 @@ function raiseParse(gctx, child, ctx) {
     return true;
 }
 // A key is data, never a property lookup: a key table has no prototype.
+// A template's identity: its canon, and the pending links canon leaves out.
+function templateKey(cj) {
+    const links = true === cj.isPendingLink ? [cj]
+        : true === cj.isConjunct ? cj.peg.filter((t) => true === t.isPendingLink) : [];
+    return cj.canon + links.map((l) => '\x00' + l.tval.canon).join('');
+}
 function keyTable() {
     return Object.create(null);
 }

@@ -170,7 +170,7 @@ func TestFormatKeepsTheSpellingTheEngineRefuses(t *testing.T) {
 	if !formatSameByMeet("nil\n", "nil\n") || !strings.HasSuffix(formatMeetOf("nil\n"), "\nliteral_nil") {
 		t.Fatalf("nil root: %q", formatMeetOf("nil\n"))
 	}
-	rel := "a: { dependsOn: rel() & inverse(usedBy) & [path($.b)] }\nb: {}\n"
+	rel := "a: { dependsOn: relate() & inverse(usedBy) & [path($.b)] }\nb: {}\n"
 	if !strings.HasSuffix(formatMeetOf(rel), "\nrelation_inverse_missing") {
 		t.Fatalf("relation verdict: %q", formatMeetOf(rel))
 	}

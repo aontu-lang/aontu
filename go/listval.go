@@ -27,14 +27,9 @@ func (l *ListVal) superior() Val { return top() } //coverage:ignore no caller: s
 
 func (l *ListVal) Canon() string {
 	var b strings.Builder
+	b.WriteString(relateText(l))
 	b.WriteByte('[')
-	if l.spread != nil {
-		b.WriteString("&:")
-		b.WriteString(CanonRiders(l.spread))
-		if len(l.peg) > 0 {
-			b.WriteByte(',')
-		}
-	}
+	b.WriteString(spreadText(l.spread, 0 < len(l.peg), CanonRiders))
 	for i, e := range l.peg {
 		if i > 0 {
 			b.WriteByte(',')
@@ -117,9 +112,9 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 			return makeNilErrFull(ctx, "list_length", l, peer, "", nil)
 		}
 	}
-	// A rel() peer drives for the same reason: the relation constraint
+	// A relate() peer drives for the same reason: the relation constraint
 	// rewrites this list leaf by leaf (RELATIONS.0.md §3.2).
-	if pr, ok := peer.(*RelVal); ok {
+	if pr, ok := peer.(*RelateVal); ok {
 		return pr.Unify(l, ctx)
 	}
 	if pl, ok := peer.(*ListVal); ok && !l.closed && pl.closed {
@@ -141,13 +136,16 @@ func (l *ListVal) Unify(peer Val, ctx *Ctx) Val {
 		out.site.url = l.site.url
 		out.site.src = l.site.src
 		out.spread = l.spread
+		out.lk.relates, out.lk.root = l.lk.relates, l.lk.root
 	}
 	done := true
 
 	if pl, ok := peer.(*ListVal); ok {
+		out.lk.relates = joinRelates(out.lk.relates, pl.lk.relates)
+		out.lk.root = out.lk.root || pl.lk.root
 		if out.spread == nil {
 			out.spread = pl.spread
-		} else if pl.spread != nil && out.spread.Canon() != pl.spread.Canon() {
+		} else if pl.spread != nil && templateKey(out.spread) != templateKey(pl.spread) {
 			out.spread = unite(ctx, unmarkedTemplate(out.spread), unmarkedTemplate(pl.spread))
 		}
 	}

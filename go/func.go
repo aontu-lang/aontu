@@ -67,10 +67,9 @@ var funcSet = map[string]bool{
 	"deprecate": true,
 	"meta":      true,
 	"ident":     true,
-	"rel":       true,
+	"relate":    true,
 	"acyclic":   true,
 	"inverse":   true,
-	"refer":     true,
 	"pack":      true,
 	"each":      true,
 	"apply":     true,
@@ -840,26 +839,15 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		out.site.sp, out.site.spu, out.site.url = f.site.sp, f.site.spu, f.site.url
 		out.path = cp(base)
 		return out
-	case "rel":
+	case "relate":
 		// RELATIONS.0.md §3.2: the relation constraint, sited on the
-		// field. Mirrors RelFuncVal.resolve in
-		// ts/src/val/ReferFuncVal.ts.
+		// field. Mirrors RelateFuncVal.resolve in
+		// ts/src/val/RelateFuncVal.ts.
 		var rt Val
 		if 0 < len(args) {
 			rt = args[0]
 		}
-		out := newRel(rt)
-		out.site.sp, out.site.spu, out.site.url = f.site.sp, f.site.spu, f.site.url
-		out.path = cp(base)
-		return out
-	case "refer":
-		// G4 phase 2: the function resolves to the RESIDUAL, which does
-		// the address work when it meets a string. Mirrors
-		// ReferFuncVal.resolve in ts/src/val/ReferFuncVal.ts.
-		out := newRefer(nil)
-		if 0 < len(args) {
-			out.tval = args[0]
-		}
+		out := newRelate(rt)
 		out.site.sp, out.site.spu, out.site.url = f.site.sp, f.site.spu, f.site.url
 		out.path = cp(base)
 		return out

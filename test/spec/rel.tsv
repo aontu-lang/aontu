@@ -1,12 +1,12 @@
-# RELATIONS P1 (sketch/RELATIONS.0.md §3.2): `rel(t?)` -- the
+# RELATIONS P1 (sketch/RELATIONS.0.md §3.2): `relate(t?)` -- the
 # relation constraint, sited on the FIELD the way the sizing atoms sit
 # on containers. Its value may be one address, a LIST of addresses, or a
 # MAP whose string leaves are addresses; the container shapes are
-# rewritten leaf by leaf through the refer machinery, so pending
+# rewritten leaf by leaf through the link machinery, so pending
 # resolution, type flow and link stamping are the one battle-tested
 # path, and the data side stays plain strings.
 #
-# The PREDICATE of every edge produced is the key the rel() sits on --
+# The PREDICATE of every edge produced is the key the relate() sits on --
 # declared once, in the schema, never inferred from the path.
 #
 # An address is a TREE PATH (ADR-014): `$.a.b` from the root, `.b` from
@@ -16,65 +16,90 @@
 # Every expectation was obtained by the parity probe (AGENTS.md).
 #
 # Columns: name<TAB>mode<TAB>src<TAB>expect
-rel-scalar	gens	p: {k:1}\nq: {hostedOn: rel() & path($.p)}	{"p":{"k":1},"q":{"hostedOn":"$.p"}}
-rel-list	gens	a: {}\nb: {}\ns: {dependsOn: rel() & [path($.a), path($.b)]}	{"a":{},"b":{},"s":{"dependsOn":["$.a","$.b"]}}
-rel-map-labelled	gens	a: {}\ns: {uses: rel() & {primary: path($.a)}}	{"a":{},"s":{"uses":{"primary":"$.a"}}}
-rel-two-statements	gens	s: {dependsOn: rel()}\ns: {dependsOn: [path($.x)]}\nx: {}	{"s":{"dependsOn":["$.x"]},"x":{}}
-rel-two-statements-reversed	gens	s: {dependsOn: [path($.x)]}\ns: {dependsOn: rel()}\nx: {}	{"s":{"dependsOn":["$.x"]},"x":{}}
-rel-schema-optional	gens	S: type({dependsOn?: rel()})\na: {}\ns: $.S & {dependsOn: [path($.a)]}	{"a":{},"s":{"dependsOn":["$.a"]}}
-rel-schema-optional-absent	gens	S: type({dependsOn?: rel() k: integer})\ns: $.S & {k: 1}	{"s":{"k":1}}
-rel-unmet-canon	canon	S: type({dependsOn?: rel()})\nz: 1	{"S":{"dependsOn"?:rel()},"z":1}
-rel-flow-admits	gens	a: {kind: svc}\ns: {dependsOn: rel({kind: svc}) & [path($.a)]}	{"a":{"kind":"svc"},"s":{"dependsOn":["$.a"]}}
-rel-flow-refuses	errc	a: {kind: db}\ns: {dependsOn: rel({kind: svc}) & [path($.a)]}	scalar_value
+rel-scalar	gens	p: {k:1}\nq: {hostedOn: relate() & path($.p)}	{"p":{"k":1},"q":{"hostedOn":"$.p"}}
+rel-list	gens	a: {}\nb: {}\ns: {dependsOn: relate() & [path($.a), path($.b)]}	{"a":{},"b":{},"s":{"dependsOn":["$.a","$.b"]}}
+rel-map-labelled	gens	a: {}\ns: {uses: relate() & {primary: path($.a)}}	{"a":{},"s":{"uses":{"primary":"$.a"}}}
+rel-two-statements	gens	s: {dependsOn: relate()}\ns: {dependsOn: [path($.x)]}\nx: {}	{"s":{"dependsOn":["$.x"]},"x":{}}
+rel-two-statements-reversed	gens	s: {dependsOn: [path($.x)]}\ns: {dependsOn: relate()}\nx: {}	{"s":{"dependsOn":["$.x"]},"x":{}}
+rel-schema-optional	gens	S: type({dependsOn?: relate()})\na: {}\ns: $.S & {dependsOn: [path($.a)]}	{"a":{},"s":{"dependsOn":["$.a"]}}
+rel-schema-optional-absent	gens	S: type({dependsOn?: relate() k: integer})\ns: $.S & {k: 1}	{"s":{"k":1}}
+rel-unmet-canon	canon	S: type({dependsOn?: relate()})\nz: 1	{"S":{"dependsOn"?:relate()},"z":1}
+rel-flow-admits	gens	a: {kind: svc}\ns: {dependsOn: relate({kind: svc}) & [path($.a)]}	{"a":{"kind":"svc"},"s":{"dependsOn":["$.a"]}}
+rel-flow-refuses	errc	a: {kind: db}\ns: {dependsOn: relate({kind: svc}) & [path($.a)]}	scalar_value
 # A graph atom beside the relation carries its value, links and templates
 # with it.
-rel-flow-beside-a-graph-atom	gens	a: {dependsOn: rel({k:1}) & acyclic() & [path($.b)]}\nb: {}	{"a":{"dependsOn":["$.b"]},"b":{"k":1}}
-rel-dangling-beside-a-graph-atom	errc	a: {dependsOn: rel() & acyclic() & [path($.gone)]}	rel_unresolved
-rel-dangling-beside-a-graph-atom-msg	err	a: {dependsOn: rel() & acyclic() & [path($.gone)]}	Cannot refer value at path $.a.dependsOn.0
-rel-over-a-late-reference	gens	later: path($.a)\na: {}\ns: rel({k:1}) & [$.later]	{"a":{"k":1},"later":"$.a","s":["$.a"]}
-rel-address-not-a-string	errc	s: {dependsOn: rel() & [7]}	rel_address
-rel-address-scalar-direct	errc	s: {hostedOn: rel() & 7}	rel_address
-rel-address-unanchored	errc	a: {}\ns: {dependsOn: rel() & [a]}	rel_address
-rel-unresolved	errc	s: {dependsOn: rel() & [path($.nosuch)]}	rel_unresolved
-rel-nested-map	gens	a: {}\ns: {uses: rel() & {tier1: {primary: path($.a)}}}	{"a":{},"s":{"uses":{"tier1":{"primary":"$.a"}}}}
-rel-unmet-required	errc	d: rel()\nz: 1	mapval_no_gen
-rel-meets-rel	gens	x: {kind: a}\ns: {d: rel({kind: a})}\ns: {d: rel()}\ns: {d: [path($.x)]}	{"s":{"d":["$.x"]},"x":{"kind":"a"}}
-rel-holds-a-kind	gens	x: {}\nd: rel() & path & path($.x)	{"d":"$.x","x":{}}
-rel-map-drives	gens	s: {uses: {primary: path($.a)}}\ns: {uses: rel()}\na: {}	{"a":{},"s":{"uses":{"primary":"$.a"}}}
-rel-in-spread-template	gens	T: {&: {d: rel() & [path($.q)]}, s1: {}}\nq: {}	{"T":{"s1":{"d":["$.q"]}},"q":{}}
-rel-meets-nil	errc	q: {}\nd: {x: rel() & path($.q)}\nd: {x: 1 & two}	scalar_kind
-rel-conjunct-non-string	errc	d: rel() & (1 & "x")	rel_address
-rel-two-at-one-field	gens	x: {k:1}\ns: {d: rel() & rel()}\ns: {d: path($.x)}	{"s":{"d":"$.x"},"x":{"k":1}}
-rel-two-merged-canon	canon	s: {d: rel({kind:q}) & rel()}	{"s":{"d":rel({"kind":"q"})}}
-rel-two-typed-canon	canon	s: {d: rel({kind:q})}\ns: {d: rel({kind:q})}	{"s":{"d":rel({"kind":"q"})}}
-rel-two-held-canon	canon	s: {d: rel() & string}\ns: {d: rel()}	{"s":{"d":rel()&string}}
-rel-two-held-order-canon	canon	s: {d: rel()}\ns: {d: rel() & string}	{"s":{"d":rel()&string}}
-rel-two-held-both-canon	canon	s: {d: rel() & string}\ns: {d: rel() & string}	{"s":{"d":rel()&string}}
-rel-two-held-resolves	gens	x: {k:1}\ns: {d: rel() & path}\ns: {d: rel()}\ns: {d: path($.x)}	{"s":{"d":"$.x"},"x":{"k":1}}
-rel-in-list-element	gens	q: {}\na: [rel() & path($.q)]	{"a":["$.q"],"q":{}}
-rel-in-list-element-canon	canon	q: {}\na: [rel() & path($.q)]	{"a":[path($.q)],"q":{}}
-rel-two-held-fold-canon	canon	s: {d: rel() & re("a$") & re("^..a")}	{"s":{"d":rel()&re("^..a")&re("a$")}}
-rel-two-held-fold-admits	gens	a: {}\ns: {d: rel() & re("a$") & re("^..a")}\ns: {d: path($.a)}	{"a":{},"s":{"d":"$.a"}}
-rel-held-on-container	errc	a: {}\ns: {d: rel() & min(1)}\ns: {d: [path($.a)]}	constraint
-rel-at-root-unresolved	errc	rel() & path($.nosuch)	rel_unresolved
-rel-at-root-container	errc	rel() & {primary: path($.nosuch)}	rel_unresolved
-rel-restated-after-container	gens	a: {}\ns: {d: rel()}\ns: {d: [path($.a)]}\ns: {d: rel()}	{"a":{},"s":{"d":["$.a"]}}
-rel-over-linked-copy	gens	a: {}\ns: {d: rel() & [path($.a)]}\nt: $.s.d & rel()	{"a":{},"s":{"d":["$.a"]},"t":["$.a"]}
-# A constraint met with rel() meets the relation's value as any meet does,
+rel-flow-beside-a-graph-atom	gens	a: {dependsOn: relate({k:1}) & acyclic() & [path($.b)]}\nb: {}	{"a":{"dependsOn":["$.b"]},"b":{"k":1}}
+rel-dangling-beside-a-graph-atom	errc	a: {dependsOn: relate() & acyclic() & [path($.gone)]}	rel_unresolved
+rel-dangling-beside-a-graph-atom-msg	err	a: {dependsOn: relate() & acyclic() & [path($.gone)]}	Cannot relate value at path $.a.dependsOn.0
+rel-over-a-late-reference	gens	later: path($.a)\na: {}\ns: relate({k:1}) & [$.later]	{"a":{"k":1},"later":"$.a","s":["$.a"]}
+rel-address-not-a-string	errc	s: {dependsOn: relate() & [7]}	rel_address
+rel-address-scalar-direct	errc	s: {hostedOn: relate() & 7}	rel_address
+rel-address-unanchored	errc	a: {}\ns: {dependsOn: relate() & [a]}	rel_address
+rel-unresolved	errc	s: {dependsOn: relate() & [path($.nosuch)]}	rel_unresolved
+rel-nested-map	gens	a: {}\ns: {uses: relate() & {tier1: {primary: path($.a)}}}	{"a":{},"s":{"uses":{"tier1":{"primary":"$.a"}}}}
+rel-unmet-required	errc	d: relate()\nz: 1	mapval_no_gen
+rel-meets-rel	gens	x: {kind: a}\ns: {d: relate({kind: a})}\ns: {d: relate()}\ns: {d: [path($.x)]}	{"s":{"d":["$.x"]},"x":{"kind":"a"}}
+rel-holds-a-kind	gens	x: {}\nd: relate() & path & path($.x)	{"d":"$.x","x":{}}
+rel-map-drives	gens	s: {uses: {primary: path($.a)}}\ns: {uses: relate()}\na: {}	{"a":{},"s":{"uses":{"primary":"$.a"}}}
+rel-in-spread-template	gens	T: {&: {d: relate() & [path($.q)]}, s1: {}}\nq: {}	{"T":{"s1":{"d":["$.q"]}},"q":{}}
+rel-meets-nil	errc	q: {}\nd: {x: relate() & path($.q)}\nd: {x: 1 & two}	scalar_kind
+rel-conjunct-non-string	errc	d: relate() & (1 & "x")	rel_address
+rel-two-at-one-field	gens	x: {k:1}\ns: {d: relate() & relate()}\ns: {d: path($.x)}	{"s":{"d":"$.x"},"x":{"k":1}}
+rel-two-merged-canon	canon	s: {d: relate({kind:q}) & relate()}	{"s":{"d":relate({"kind":"q"})}}
+rel-two-typed-canon	canon	s: {d: relate({kind:q})}\ns: {d: relate({kind:q})}	{"s":{"d":relate({"kind":"q"})}}
+rel-two-held-canon	canon	s: {d: relate() & string}\ns: {d: relate()}	{"s":{"d":relate()&string}}
+rel-two-held-order-canon	canon	s: {d: relate()}\ns: {d: relate() & string}	{"s":{"d":relate()&string}}
+rel-two-held-both-canon	canon	s: {d: relate() & string}\ns: {d: relate() & string}	{"s":{"d":relate()&string}}
+rel-two-held-resolves	gens	x: {k:1}\ns: {d: relate() & path}\ns: {d: relate()}\ns: {d: path($.x)}	{"s":{"d":"$.x"},"x":{"k":1}}
+rel-in-list-element	gens	q: {}\na: [relate() & path($.q)]	{"a":["$.q"],"q":{}}
+rel-in-list-element-canon	canon	q: {}\na: [relate() & path($.q)]	{"a":[relate()&path($.q)],"q":{}}
+rel-two-held-fold-canon	canon	s: {d: relate() & re("a$") & re("^..a")}	{"s":{"d":relate()&re("^..a")&re("a$")}}
+rel-two-held-fold-admits	gens	a: {}\ns: {d: relate() & re("a$") & re("^..a")}\ns: {d: path($.a)}	{"a":{},"s":{"d":"$.a"}}
+rel-held-on-container	errc	a: {}\ns: {d: relate() & min(1)}\ns: {d: [path($.a)]}	constraint
+rel-at-root-unresolved	errc	relate() & path($.nosuch)	rel_unresolved
+rel-at-root-container	errc	relate() & {primary: path($.nosuch)}	rel_unresolved
+rel-restated-after-container	gens	a: {}\ns: {d: relate()}\ns: {d: [path($.a)]}\ns: {d: relate()}	{"a":{},"s":{"d":["$.a"]}}
+rel-over-linked-copy	gens	a: {}\ns: {d: relate() & [path($.a)]}\nt: $.s.d & relate()	{"a":{},"s":{"d":["$.a"]},"t":["$.a"]}
+# A constraint met with relate() meets the relation's value as any meet does,
 # so a string constraint refuses a list; one on each address is the
 # value's spread, which also holds a leaf a later list brings, as a link.
 # A spread that can hold a container keeps its elements as they come.
-rel-held-meets-the-list	errc	sa: {}\ns: {d: rel() & re("sa$") & [path($.sa)]}	constraint
-rel-spread-holds-each-leaf	gens	sa: {}\ns: {d: rel() & [&: re("sa$"), path($.sa)]}	{"s":{"d":["$.sa"]},"sa":{}}
-rel-spread-refuses-a-leaf	errc	qa: {}\ns: {d: rel() & [&: re("sa$"), path($.qa)]}	constraint
-rel-spread-flows-a-later-leaf	gens	sa: {}\ns: {d: rel({k:1}) & [&: re("sa$")]}\ns: {d: [path($.sa)]}	{"s":{"d":["$.sa"]},"sa":{"k":1}}
-rel-spread-flows-a-later-member	gens	sa: {}\ns: {d: rel({k:1}) & {&: re("sa$")}}\ns: {d: {x: path($.sa)}}	{"s":{"d":{"x":"$.sa"}},"sa":{"k":1}}
-rel-spread-links-a-later-leaf	errc	sa: {}\ns: {d: [path($.nosa)]}\ns: {d: rel({k:1}) & [&: re("sa$")]}	rel_unresolved
-rel-spread-of-maps-by-reference	gens	q: {}\nE: type({k: path})\ns: {d: rel() & [&: $.E]}\ns: {d: [{k: path($.q)}]}	{"q":{},"s":{"d":[{"k":"$.q"}]}}
-rel-spread-of-maps-by-alias	gens	q: {}\n%E = {k: path}\ns: {d: rel() & [&: %E]}\ns: {d: [{k: path($.q)}]}	{"q":{},"s":{"d":[{"k":"$.q"}]}}
-rel-spread-of-maps-met	gens	q: {}\ns: {d: rel() & [&: {k: path} & {k: path}]}\ns: {d: [{k: path($.q)}]}	{"q":{},"s":{"d":[{"k":"$.q"}]}}
-rel-spread-of-lists-by-size	gens	a: {}\nb: {}\ns: {d: rel() & [&: len(2)]}\ns: {d: [[path($.a), path($.b)]]}	{"a":{},"b":{},"s":{"d":[["$.a","$.b"]]}}
-# A RELATIVE address in a rel() is resolved at the LEAF's own position,
+rel-held-meets-the-list	errc	sa: {}\ns: {d: relate() & re("sa$") & [path($.sa)]}	constraint
+rel-spread-holds-each-leaf	gens	sa: {}\ns: {d: relate() & [&: re("sa$"), path($.sa)]}	{"s":{"d":["$.sa"]},"sa":{}}
+rel-spread-refuses-a-leaf	errc	qa: {}\ns: {d: relate() & [&: re("sa$"), path($.qa)]}	constraint
+rel-spread-flows-a-later-leaf	gens	sa: {}\ns: {d: relate({k:1}) & [&: re("sa$")]}\ns: {d: [path($.sa)]}	{"s":{"d":["$.sa"]},"sa":{"k":1}}
+rel-spread-flows-a-later-member	gens	sa: {}\ns: {d: relate({k:1}) & {&: re("sa$")}}\ns: {d: {x: path($.sa)}}	{"s":{"d":{"x":"$.sa"}},"sa":{"k":1}}
+rel-spread-links-a-later-leaf	errc	sa: {}\ns: {d: [path($.nosa)]}\ns: {d: relate({k:1}) & [&: re("sa$")]}	rel_unresolved
+rel-spread-of-maps-by-reference	gens	q: {}\nE: type({k: path})\ns: {d: relate() & [&: $.E]}\ns: {d: [{k: path($.q)}]}	{"q":{},"s":{"d":[{"k":"$.q"}]}}
+rel-spread-of-maps-by-alias	gens	q: {}\n%E = {k: path}\ns: {d: relate() & [&: %E]}\ns: {d: [{k: path($.q)}]}	{"q":{},"s":{"d":[{"k":"$.q"}]}}
+rel-spread-of-maps-met	gens	q: {}\ns: {d: relate() & [&: {k: path} & {k: path}]}\ns: {d: [{k: path($.q)}]}	{"q":{},"s":{"d":[{"k":"$.q"}]}}
+rel-spread-of-lists-by-size	gens	a: {}\nb: {}\ns: {d: relate() & [&: len(2)]}\ns: {d: [[path($.a), path($.b)]]}	{"a":{},"b":{},"s":{"d":[["$.a","$.b"]]}}
+# A RELATIVE address in a relate() is resolved at the LEAF's own position,
 # so a schema applied by a spread gives each destination its own edge.
-rel-relative-per-destination	gens	spec: hide({Job: {kind: job, feeds?: rel($.spec.JobShape)}, JobShape: {kind: job}})\np: jobs: {&: $.spec.Job, a: {feeds: [path(..b)]}, b: {}}	{"p":{"jobs":{"a":{"feeds":["..b"],"kind":"job"},"b":{"kind":"job"}}}}
-rel-sibling-shape	gens	spec: hide({Job: {kind: job, feeds?: rel($.spec.JobShape)}, JobShape: {kind: job}})\np: jobs: {&: $.spec.Job, a: {feeds: [path($.p.jobs.b)]}, b: {}}	{"p":{"jobs":{"a":{"feeds":["$.p.jobs.b"],"kind":"job"},"b":{"kind":"job"}}}}
+rel-relative-per-destination	gens	spec: hide({Job: {kind: job, feeds?: relate($.spec.JobShape)}, JobShape: {kind: job}})\np: jobs: {&: $.spec.Job, a: {feeds: [path(..b)]}, b: {}}	{"p":{"jobs":{"a":{"feeds":["..b"],"kind":"job"},"b":{"kind":"job"}}}}
+rel-sibling-shape	gens	spec: hide({Job: {kind: job, feeds?: relate($.spec.JobShape)}, JobShape: {kind: job}})\np: jobs: {&: $.spec.Job, a: {feeds: [path($.p.jobs.b)]}, b: {}}	{"p":{"jobs":{"a":{"feeds":["$.p.jobs.b"],"kind":"job"},"b":{"kind":"job"}}}}
+# A relation with one far end, written in a spread's template, links
+# each member's one address, as it does a member's list or map.
+rel-one-address-in-a-map-spread	gens	a: {}\nc: { &: { p: relate() } }\nc: m: p: path($.a)	{"a":{},"c":{"m":{"p":"$.a"}}}
+rel-one-address-in-a-map-spread-flows	gens	a: {}\nc: { &: { p: relate({ k: 1 }) } }\nc: m: p: path($.a)	{"a":{"k":1},"c":{"m":{"p":"$.a"}}}
+rel-one-address-in-a-map-spread-optional	gens	a: {}\nc: { &: { p?: relate() } }\nc: m: p: path($.a)	{"a":{},"c":{"m":{"p":"$.a"}}}
+rel-one-address-in-a-list-spread	gens	a: {}\nc: [&: { p: relate() }]\nc: [{ p: path($.a) }]	{"a":{},"c":[{"p":"$.a"}]}
+rel-one-address-in-a-map-spread-edge	graph	a: {}\nc: { &: { p: relate() } }\nc: m: p: path($.a)	{"edges":[{"from":"$.c.m","key":"p","to":"$.a","at":"$.c.m.p"}]}
+# A kind another template wrote first meets the relation as it does
+# written after it.
+rel-after-a-kind-in-another-template	gens	a: {}\nc: { &: { p: path } }\nc: { &: { p: relate() } }\nc: m: p: path($.a)	{"a":{},"c":{"m":{"p":"$.a"}}}
+# An address a longer path refines is the link's address, and the
+# template lands there, whichever path is written first.
+rel-refined-after-the-shorter-path	gens	a: { x: {} }\nb: relate({ r: 3 }) & path($.a) & path($.a.x)	{"a":{"x":{"r":3}},"b":"$.a.x"}
+rel-refined-by-a-second-statement	gens	a: { x: {} }\nb: relate({ r: 3 }) & path($.a)\nb: path($.a.x)	{"a":{"x":{"r":3}},"b":"$.a.x"}
+rel-refined-flow-refuses	errc	a: { x: { r: 4 } }\nb: relate({ r: 3 }) & path($.a) & path($.a.x)	scalar_value
+rel-refined-edge	graph	a: { x: {} }\nb: relate({ r: 3 }) & path($.a)\nb: path($.a.x)	{"edges":[{"from":"$","key":"b","to":"$.a.x","at":"$.b"}]}
+# Two relations met at one field are one relation with both templates,
+# and each template lands.
+rel-two-relations-meet	gens	b: {}\nx: relate({k:1}) & [path($.b)]\ny: relate({j:2}) & [path($.b)]\nz: $.x & $.y	{"b":{"j":2,"k":1},"x":["$.b"],"y":["$.b"],"z":["$.b"]}
+rel-two-relations-meet-canon	canon	b: {}\nx: relate({k:1}) & [path($.b)]\ny: relate({j:2}) & [path($.b)]\nz: $.x & $.y	{"b":{"j":2,"k":1},"x":relate({"k":1})&[path($.b)],"y":relate({"j":2})&[path($.b)],"z":relate({"j":2})&relate({"k":1})&[path($.b)]}
+rel-a-bare-relation-meets-a-typed-one	canon	b: {}\nx: relate() & [path($.b)]\ny: relate({j:2}) & [path($.b)]\nz: $.x & $.y	{"b":{"j":2},"x":relate()&[path($.b)],"y":relate({"j":2})&[path($.b)],"z":relate({"j":2})&[path($.b)]}
+# A member that is a kind waits for its address, and canon writes the
+# member as the kind it is.
+rel-member-kind-then-address	gens	a: uses: relate() & [path]\na: uses: [path($.b)]\nb: {}	{"a":{"uses":["$.b"]},"b":{}}
+rel-member-constraint-kind-canon	canon	x: relate() & [constraint]	{"x":relate()&[constraint]}

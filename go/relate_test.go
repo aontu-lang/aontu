@@ -61,30 +61,30 @@ func TestAddressPathResolution(t *testing.T) {
 	}
 }
 
-func TestRelValShape(t *testing.T) {
-	r := newRel(nil)
+func TestRelateValShape(t *testing.T) {
+	r := newRelate(nil)
 	if 45000 != r.cjo() {
 		t.Errorf("cjo = %d", r.cjo())
 	}
 	if !isTop(r.superior()) {
-		t.Error("a rel has no meaningful superior")
+		t.Error("a relate has no meaningful superior")
 	}
 	v, err := r.Gen(&Ctx{})
 	if nil != v || nil != err {
 		t.Errorf("Gen = %v,%v; want nil,nil", v, err)
 	}
-	if "rel()" != r.Canon() {
+	if "relate()" != r.Canon() {
 		t.Errorf("Canon = %q", r.Canon())
 	}
 }
 
-func TestReferValShape(t *testing.T) {
-	r := newRefer(nil)
+func TestPendingLinkValShape(t *testing.T) {
+	r := newPendingLink(nil)
 	if 120000 != r.cjo() {
 		t.Errorf("cjo = %d", r.cjo())
 	}
 	if !isTop(r.superior()) {
-		t.Error("a refer has no meaningful superior")
+		t.Error("a pending link has no meaningful superior")
 	}
 	// Silent generation: the enclosing bag reports a value that never
 	// became concrete, exactly as it does for a bare constraint.
@@ -92,7 +92,7 @@ func TestReferValShape(t *testing.T) {
 	if nil != v || nil != err {
 		t.Errorf("Gen = %v,%v; want nil,nil", v, err)
 	}
-	if "refer()" != r.Canon() {
+	if "" != r.Canon() {
 		t.Errorf("Canon = %q", r.Canon())
 	}
 	// A NIL peer is the self-drive the dispatcher never makes (it
@@ -102,9 +102,9 @@ func TestReferValShape(t *testing.T) {
 	}
 }
 
-func TestReferValLateDeliveryArms(t *testing.T) {
+func TestPendingLinkValLateDeliveryArms(t *testing.T) {
 	ctx := &Ctx{root: newMap(), collect: true}
-	r := newRefer(nil)
+	r := newPendingLink(nil)
 	addr, _ := parseAddress("$.q")
 	r.addr, r.addrsrc = &addr, "$.q"
 	refined, ok := r.Unify(newPath("$.q.r"), ctx).(*ScalarVal)
@@ -120,12 +120,12 @@ func TestReferValLateDeliveryArms(t *testing.T) {
 		t.Fatalf("incomparable = %s", out.Canon())
 	}
 	// held meets a second late constraint rather than replacing it.
-	h := newRefer(nil)
-	h1, ok := h.Unify(newScalarKind(KindString), ctx).(*ReferVal)
+	h := newPendingLink(nil)
+	h1, ok := h.Unify(newScalarKind(KindString), ctx).(*PendingLinkVal)
 	if !ok || nil == h1.held {
 		t.Fatalf("first held = %v", h1)
 	}
-	h2, ok := h1.Unify(newScalarKind(KindString), ctx).(*ReferVal)
+	h2, ok := h1.Unify(newScalarKind(KindString), ctx).(*PendingLinkVal)
 	if !ok || nil == h2.held || h2.held.Nil() {
 		t.Fatalf("second held = %v", h2)
 	}
@@ -137,37 +137,37 @@ func TestReferMergeNilCombinations(t *testing.T) {
 	typed := newMap()
 	typed.set("k", newInteger(1))
 
-	bare := newRefer(nil)
-	withT := newRefer(typed)
-	if out := bare.Unify(withT, ctx).(*ReferVal); Val(typed) != out.tval {
+	bare := newPendingLink(nil)
+	withT := newPendingLink(typed)
+	if out := bare.Unify(withT, ctx).(*PendingLinkVal); Val(typed) != out.tval {
 		t.Error("an untyped refer should take the peer's type")
 	}
-	if out := withT.Unify(newRefer(nil), ctx).(*ReferVal); Val(typed) != out.tval {
+	if out := withT.Unify(newPendingLink(nil), ctx).(*PendingLinkVal); Val(typed) != out.tval {
 		t.Error("a typed refer should keep its type against an untyped peer")
 	}
 	typed2 := newMap()
 	typed2.set("k2", newInteger(2))
-	if out := withT.Unify(newRefer(typed2), ctx).(*ReferVal); nil == out.tval || out.tval.Nil() {
+	if out := withT.Unify(newPendingLink(typed2), ctx).(*PendingLinkVal); nil == out.tval || out.tval.Nil() {
 		t.Error("two typed refers should meet their types")
 	}
 
-	withH := newRefer(nil)
+	withH := newPendingLink(nil)
 	withH.held = held
-	if out := bare.Unify(withH, ctx).(*ReferVal); Val(held) != out.held {
+	if out := bare.Unify(withH, ctx).(*PendingLinkVal); Val(held) != out.held {
 		t.Error("an unheld refer should take the peer's held constraint")
 	}
-	if out := withH.Unify(newRefer(nil), ctx).(*ReferVal); Val(held) != out.held {
+	if out := withH.Unify(newPendingLink(nil), ctx).(*PendingLinkVal); Val(held) != out.held {
 		t.Error("a held refer should keep it against an unheld peer")
 	}
-	withH2 := newRefer(nil)
+	withH2 := newPendingLink(nil)
 	withH2.held = newScalarKind(KindString)
-	if out := withH.Unify(withH2, ctx).(*ReferVal); nil == out.held || out.held.Nil() {
+	if out := withH.Unify(withH2, ctx).(*PendingLinkVal); nil == out.held || out.held.Nil() {
 		t.Error("two held refers should meet their held constraints")
 	}
 
 	// And a peer that already has the address, when this one does not.
 	addr, _ := parseAddress("$.svc_x")
-	sited := newRefer(nil)
+	sited := newPendingLink(nil)
 	sited.addr, sited.addrsrc = &addr, "$.svc_x"
 	if out := bare.Unify(sited, ctx).(*ScalarVal); "$.svc_x" != out.peg {
 		t.Errorf("the address should carry across the merge, got %v", out.peg)
@@ -178,7 +178,7 @@ func TestReferNilPeerIsTheNil(t *testing.T) {
 	// A nil peer is absorbing, as everywhere else: the refer answers the
 	// existing failure rather than minting a second one.
 	n := newNil("test-nil")
-	if out := newRefer(nil).Unify(n, &Ctx{}); Val(n) != out {
+	if out := newPendingLink(nil).Unify(n, &Ctx{}); Val(n) != out {
 		t.Error("a nil peer should be returned unchanged")
 	}
 }
@@ -220,7 +220,7 @@ func TestAddressPathClimbsOffTheTop(t *testing.T) {
 
 	ctx := &Ctx{}
 	ctx.root = newMap()
-	r := newRefer(nil)
+	r := newPendingLink(nil)
 	r.addr, r.addrsrc = &addr, "...z"
 	r.path = []string{"a", "dep"}
 	if out := r.settle(ctx, r); !out.Nil() {
@@ -234,7 +234,7 @@ func TestReferSettlesToALinkCarryingItsTemplate(t *testing.T) {
 	// holds it yet.
 	ctx := &Ctx{root: newMap()}
 	addr, _ := parseAddress("$.x")
-	r := newRefer(newInteger(1))
+	r := newPendingLink(newInteger(1))
 	r.addr, r.addrsrc = &addr, "$.x"
 	out, ok := r.settle(ctx, r).(*ScalarVal)
 	if !ok || "x" != strings.Join(out.lk.to, ".") || 1 != len(out.lk.flows) ||
@@ -245,10 +245,10 @@ func TestReferSettlesToALinkCarryingItsTemplate(t *testing.T) {
 
 func TestHoldsLinkAlreadySettled(t *testing.T) {
 	// A tree a caller evaluated before, as vet's anchor under --at is,
-	// holds a refer() or rel() value, or a link, where a parse holds the
+	// holds a relate() or relate() value, or a link, where a parse holds the
 	// call.
-	if !holdsLink(newRefer(nil), map[Val]bool{}) || !holdsLink(newRel(nil), map[Val]bool{}) {
-		t.Fatal("a refer() or rel() value holds a link")
+	if !holdsLink(newPendingLink(nil), map[Val]bool{}) || !holdsLink(newRelate(nil), map[Val]bool{}) {
+		t.Fatal("a relate() or relate() value holds a link")
 	}
 	link := newPath("$.a")
 	link.lk.to = []string{"a"}
@@ -280,6 +280,32 @@ func TestLinksOfPutsThroughAMeetAndAGraphAtom(t *testing.T) {
 	if !cj.peg[0].Nil() || !ga.held.Nil() {
 		t.Fatal("each link's place should hold what was put there")
 	}
+}
+
+func TestRootLinksMarksALinkUnderNoRelate(t *testing.T) {
+	link := func() *ScalarVal {
+		l := newPath("$.a")
+		l.lk.to = []string{"a"}
+		return l
+	}
+	cj := newConjunct([]Val{link(), newScalarKind(KindString)})
+	ga := newGraphAtom("acyclic", "", link())
+	below := newMap()
+	below.set("k", link())
+	below.lk.root = true
+	root := newMap()
+	root.set("cj", cj)
+	root.set("ga", ga)
+	root.set("below", below)
+	rootLinks(root)
+	if !cj.peg[0].linkInfo().root || !ga.held.linkInfo().root {
+		t.Fatal("a link under no relate() should be rooted where it stands")
+	}
+	if below.peg["k"].linkInfo().root {
+		t.Fatal("a link under a relate() is left as it is")
+	}
+	// The document itself is held by nothing, so nothing is put.
+	rootLinks(link())
 }
 
 func TestRecurseBudgetBackstop(t *testing.T) {

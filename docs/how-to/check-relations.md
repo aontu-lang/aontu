@@ -1,5 +1,5 @@
 ---
-description: Declare a relation once at the field with rel(), acyclic() and inverse(), and have the whole model's edge set checked.
+description: Declare a relation once at the field with relate(), acyclic() and inverse(), and have the whole model's edge set checked.
 group: validate-evolve
 order: 30
 ---
@@ -23,14 +23,14 @@ pipeline where jobs feed jobs. Write it as `spec.aontu`:
 spec: hide({
   Job: {
     kind: job
-    feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
-    fedBy?: rel($.spec.JobShape)
+    feeds?: relate($.spec.JobShape) & acyclic() & inverse(fedBy)
+    fedBy?: relate($.spec.JobShape)
   }
   JobShape: kind: job
 })
 ```
 
-One conjunction on `feeds` declares the whole contract. `rel(t)`
+One conjunction on `feeds` declares the whole contract. `relate(t)`
 makes the field's strings checked entity addresses and flows the
 endpoint type `t` into every target; `acyclic()` and `inverse(fedBy)`
 are the graph atoms: declarations that unification carries along
@@ -48,8 +48,8 @@ jobs: load: fedBy: [path($.jobs.transform)]
 ```
 
 Every list is plain: each entry is a
-[tree address](../reference-language.md#checked-links-refert), which
-is what `rel()` checks. Both directions are written out by hand,
+[tree address](../reference-language.md#checked-links-relatet), which
+is what `relate()` checks. Both directions are written out by hand,
 because `inverse()` only checks that the mirror exists; it never
 writes the mirror for you. Run the checks:
 
@@ -61,7 +61,7 @@ verdict: pass
 
 Generating the document (`aontu pipeline.aontu`) is unaffected by any
 of this, and the lists come out as the same plain strings the author
-wrote: `rel()` checks addresses, it never rewrites them.
+wrote: `relate()` checks addresses, it never rewrites them.
 
 ## A cycle is a located refusal
 
@@ -136,7 +136,7 @@ edge.
 Acyclicity and inverse consistency are deliberately *not* lattice
 constraints: both are global and non-monotone (one more edge can
 make an acyclic graph cyclic), so unification could never hold them
-open at all. The endpoint *type* is different: `rel(t)` flows `t`
+open at all. The endpoint *type* is different: `relate(t)` flows `t`
 into each far end at the site, so an edge landing on a wrong-shaped
 entity is an ordinary located evaluation error, and the verb answers
 `verdict: error` (exit 4) for a document that does not stand up at

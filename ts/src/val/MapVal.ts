@@ -35,12 +35,13 @@ import { pendingMarkWrapper, dropPendingMarkWrappers } from './RefVal'
 
 import { ConjunctVal, unmarkedTemplate } from './ConjunctVal'
 import { NilVal } from './NilVal'
-import { BagVal, keyTable, undecided } from './BagVal'
+import { BagVal, keyTable, templateKey, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { cmpCodePoint } from '../keyorder'
 import { bare } from '../rider'
 import { aliasBareName, EXPORT_DECL_NAME } from '../aliasname'
 import { markSpread } from '../provenance'
+import { joinRelates, relateText } from './PathVal'
 
 
 function spreadSnapKey(cj: any): string {
@@ -171,9 +172,11 @@ class MapVal extends BagVal {
     out.optionalKeys = [...this.optionalKeys]
     out.aliasKeys = [...this.aliasKeys]
     out.spread.cj = this.spread.cj
+    out.relates = this.relates
+    out.relroot = this.relroot
     out.site = this.site
 
-    if (true === (peer as any)?.isRel) {
+    if (true === (peer as any)?.isRelate) {
       return peer.unify(this, te ? ctx.clone({ explain: ec(te, 'REL') }) : ctx)
     }
 
@@ -201,9 +204,11 @@ class MapVal extends BagVal {
       }
 
       if (!exit) {
+        out.relates = joinRelates(out.relates, peer.relates)
+        out.relroot = out.relroot || peer.relroot
         out.spread.cj = null == out.spread.cj ? peer.spread.cj : (
           null == peer.spread.cj ? out.spread.cj :
-            out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
+            templateKey(out.spread.cj) === templateKey(peer.spread.cj) ? out.spread.cj :
               unite(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
                 unmarkedTemplate(out.spread.cj, ctx), unmarkedTemplate(peer.spread.cj, ctx),
                 'map-self')
@@ -506,17 +511,17 @@ class MapVal extends BagVal {
   }
 
 
-  get canon() {
+  get canon(): string {
     let keys = Object.keys(this.peg)
       .filter(k => !this.aliasKeys.includes(k))
       .sort(cmpCodePoint)
-    return '' +
+    const spread = this.spread.cj ? canonRiders(this.spread.cj) : ''
+    return relateText(this) +
       // this.errcanon() +
       // (this.mark.type ? '<type>' : '') +
       // (this.id + '=') +
       '{' +
-      (this.spread.cj ? '&:' + canonRiders(this.spread.cj) +
-        (0 < keys.length ? ',' : '') : '') +
+      ('' === spread ? '' : '&:' + spread + (0 < keys.length ? ',' : '')) +
       keys
         .map(k => [
           JSON.stringify(k) +

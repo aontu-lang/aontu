@@ -4,7 +4,7 @@
 # loop -- the only thing wrong is the direction through the layers.
 #
 # It refuses at generation with an ordinary [aontu/empty]: the CoreDep
-# shape flowed into catalog by rel() says layer is core or util,
+# shape flowed into catalog by relate() says layer is core or util,
 # catalog says feature, and a disjunction with no branch left standing
 # is empty.
 # The architecture rule needs no separate checker because it is not a

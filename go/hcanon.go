@@ -31,14 +31,6 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 	switch b := v.(type) {
 	case *MapVal:
 		var out strings.Builder
-		out.WriteByte('{')
-		if b.spread != nil {
-			out.WriteString("&:")
-			out.WriteString(hcanonRender(b.spread, inner))
-			if len(b.keys) > 0 {
-				out.WriteByte(',')
-			}
-		}
 		keys := make([]string, 0, len(b.keys))
 		for _, k := range b.keys {
 			if !b.isAliasKey(k) {
@@ -46,6 +38,9 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 			}
 		}
 		sort.Strings(keys)
+		text := func(t Val) string { return hcanonRender(t, inner) }
+		out.WriteByte('{')
+		out.WriteString(spreadText(b.spread, 0 < len(keys), text))
 		first := true
 		for _, k := range keys {
 			if !first {
@@ -64,16 +59,12 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 		if b.closed {
 			s = "close(" + s + ")"
 		}
+		s = relateText(b) + s
 	case *ListVal:
 		var out strings.Builder
+		text := func(t Val) string { return hcanonRender(t, inner) }
 		out.WriteByte('[')
-		if b.spread != nil {
-			out.WriteString("&:")
-			out.WriteString(hcanonRender(b.spread, inner))
-			if len(b.peg) > 0 {
-				out.WriteByte(',')
-			}
-		}
+		out.WriteString(spreadText(b.spread, 0 < len(b.peg), text))
 		for i, e := range b.peg {
 			if i > 0 {
 				out.WriteByte(',')
@@ -85,6 +76,7 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 		if b.closed {
 			s = "close(" + s + ")"
 		}
+		s = relateText(b) + s
 	case *PrefVal:
 		s = "*" + hcanonRender(b.peg, inner)
 	case *ConjunctVal:
@@ -118,8 +110,7 @@ func hcanonRender(v Val, inh hcanonMarks) string {
 // with more than one term keeps its parens so the text reparses with
 // the same structure.
 func hcanonJunction(members []Val, sym string, inner hcanonMarks) string {
-	parts := make([]string, len(members))
-	for i, m := range members {
+	terms, parts := spelled(members, func(m Val) string {
 		wrap := false
 		switch t := m.(type) {
 		case *ConjunctVal:
@@ -128,14 +119,13 @@ func hcanonJunction(members []Val, sym string, inner hcanonMarks) string {
 			wrap = len(t.peg) > 1
 		}
 		if wrap {
-			parts[i] = "(" + hcanonRender(m, inner) + ")"
-		} else {
-			parts[i] = hcanonRender(m, inner)
+			return "(" + hcanonRender(m, inner) + ")"
 		}
-	}
+		return hcanonRender(m, inner)
+	})
 	// As canon writes a meet: terms of one rank in code-point order.
 	if "&" == sym {
-		parts = meetOrder(members, parts)
+		parts = meetOrder(terms, parts)
 	}
 	return strings.Join(parts, sym)
 }

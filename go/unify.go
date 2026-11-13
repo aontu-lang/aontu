@@ -124,7 +124,7 @@ func uniteRaw(ctx *Ctx, a, b Val) Val {
 
 func drives(v Val) bool {
 	return isConjunct(v) || isDisjunct(v) || isPref(v) || isRef(v) || isVar(v) || isFunc(v) ||
-		isExpect(v) || isRefer(v) || isGraphAtom(v) || isRecurse(v) || isDrivingOp(v)
+		isExpect(v) || isPendingLink(v) || isGraphAtom(v) || isRecurse(v) || isDrivingOp(v)
 }
 
 const maxUniteDepth = 1000
@@ -190,6 +190,50 @@ func linksOf(root Val) []linkSite {
 	}
 	visit(root, func(Val) {}, nil)
 	return out
+}
+
+// rootLinks: a link with no `relate()` at or above it has one where it
+// stands, as a copy of one link out of a bag of them does, so canon
+// writes the call.
+func rootLinks(root Val) {
+	var visit func(n Val, put func(Val), under bool)
+	visit = func(n Val, put func(Val), under bool) {
+		switch v := n.(type) {
+		case *ScalarVal:
+			if nil != v.lk.to && !under && !v.lk.root {
+				c := *v
+				c.lk.root = true
+				put(&c)
+			}
+		case *MapVal:
+			for _, k := range v.keys {
+				k := k
+				visit(v.peg[k], func(x Val) { v.peg[k] = x }, under || v.lk.root)
+			}
+		case *ListVal:
+			for i := range v.peg {
+				i := i
+				visit(v.peg[i], func(x Val) { v.peg[i] = x }, under || v.lk.root)
+			}
+		case *ConjunctVal:
+			for i := range v.peg {
+				i := i
+				visit(v.peg[i], func(x Val) { v.peg[i] = x }, under)
+			}
+		case *DisjunctVal:
+			for i := range v.peg {
+				i := i
+				visit(v.peg[i], func(x Val) { v.peg[i] = x }, under)
+			}
+		case *PrefVal:
+			visit(v.peg, func(x Val) { v.peg = x }, under)
+		case *GraphAtomVal:
+			if nil != v.held {
+				visit(v.held, func(x Val) { v.held = x }, under)
+			}
+		}
+	}
+	visit(root, func(Val) {}, false)
 }
 
 // flowID: a template is the same as another only with the same
@@ -321,12 +365,12 @@ func holdsLink(v Val, seen map[Val]bool) bool {
 	seen[v] = true
 	var kids []Val
 	switch n := v.(type) {
-	case *ReferVal, *RelVal:
+	case *PendingLinkVal, *RelateVal:
 		return true
 	case *ScalarVal:
 		return nil != n.lk.to
 	case *FuncVal:
-		if "refer" == n.name || "rel" == n.name {
+		if "relate" == n.name {
 			return true
 		}
 		kids = n.peg
@@ -466,16 +510,14 @@ func unifyRoot(root Val, ctx *Ctx) Val {
 	// A link the output takes names something the document holds.
 	for _, l := range links {
 		if _, ok := findAt(res, l.link.lk.to); !ok {
-			code := l.link.lk.code
-			if "" == code {
-				code = "refer_unresolved"
-			}
-			n := makeNilErrFull(ctx, code, l.link, nil, "refer",
+			n := makeNilErrFull(ctx, "rel_unresolved", l.link, nil, "relate",
 				map[string]string{"addr": l.link.peg.(string)})
 			n.path = l.at
 			l.put(n)
 		}
 	}
+
+	rootLinks(res)
 
 	// The settled tree's alias references canon as the values they name
 	// (go/alias.go): attached once, after the last pass, from the

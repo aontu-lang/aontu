@@ -62,7 +62,7 @@ func predicateName(v Val) (string, bool) {
 func newGraphAtom(akind, invname string, held Val) *GraphAtomVal {
 	g := &GraphAtomVal{akind: akind, invname: invname, held: held}
 	g.site.sp = unsited
-	// A settled residual, like an unmet rel(): the bare atom is its
+	// A settled residual, like an unmet relate(): the bare atom is its
 	// own value, and a type() body carrying one must settle. Holding
 	// an unsettled value, it is exactly as done as the value.
 	g.dc = DONE
@@ -155,7 +155,7 @@ func (g *GraphAtomVal) Unify(peer Val, ctx *Ctx) Val {
 		return g.carry(held)
 	}
 
-	// Anything else -- the rel, the container, a different atom -- is
+	// Anything else -- the relate, the container, a different atom -- is
 	// ABSORBED: the atom carries the value and the fold's pairwise
 	// walk merges across it.
 	var held Val
@@ -184,7 +184,7 @@ func (g *GraphAtomVal) Canon() string {
 func (g *GraphAtomVal) Gen(ctx *Ctx) (any, error) {
 	// The atom is transparent at generation -- its verdict is global
 	// (relationFindings), never a value at this field -- and a BARE
-	// atom is silent, exactly as an unmet rel() is.
+	// atom is silent, exactly as an unmet relate() is.
 	if nil == g.held {
 		return nil, nil
 	}

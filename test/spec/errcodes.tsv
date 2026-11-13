@@ -275,29 +275,33 @@ inverse_name	errcode	parse	0.53.0
 list_length	errcode	conflict	0.53.0
 recursion_unexpanded	errcode	incomplete	0.53.0
 recursion_budget	errcode	budget	0.53.0
-# THE CHECKED LINK (G4 phase 2, `refer(t?)`). Two codes. `refer_address`
-# is the value met being no address at all -- anything that is not a
-# path value, bare strings included (ADR-016) -- class `parse`, because
-# what is wrong is the text and no later pass can repair it. `refer_unresolved` is a well-formed
-# address that names nothing in this evaluation -- class `reference`,
-# the same class as `no_path`, because it is the same kind of miss.
-# Integrity is a UNIFICATION-time property: within one evaluation the
-# document-set is fixed, so the last pass decides, and the refusal is a
-# located nil rather than a vet-time deferral. A `t` that cannot be
-# unified into the target is NOT in this list: that is the ordinary
-# conflict of whatever disagreed, which is what constraint flow means.
-refer_address	errcode	parse	0.53.0
-refer_unresolved	errcode	reference	0.53.0
-# rel(t?) (RELATIONS.0.md P1): the relation constraint's own codes,
-# carried by the same refer machinery underneath.
+# THE CHECKED LINK (`relate(t?)`). Two codes. `rel_address` is the value
+# met being no address at all -- anything that is not a path value, bare
+# strings included (ADR-016) -- class `parse`, because what is wrong is
+# the text and no later pass can repair it. `rel_unresolved` is a
+# well-formed address that names nothing in this evaluation -- class
+# `reference`, the same class as `no_path`, because it is the same kind
+# of miss. Integrity is a UNIFICATION-time property: within one
+# evaluation the document-set is fixed, so the last pass decides, and
+# the refusal is a located nil rather than a vet-time deferral. A `t`
+# that cannot be unified into the target is NOT in this list: that is
+# the ordinary conflict of whatever disagreed, which is what constraint
+# flow means.
 rel_address	errcode	parse	0.53.0
 rel_unresolved	errcode	reference	0.53.0
+# `refer_address` is RETIRED and UNRAISABLE. The function `refer` raised
+# it, and `relate` took that function's place and answers `rel_address`.
+# The row stays because this registry is append-only. `refer_unresolved`
+# was `refer`'s too, and stays raised: `aontu reaches` and a tree view
+# answer with it for a name that is no node of the document.
+refer_address	errcode	parse	0.53.0
+refer_unresolved	errcode	reference	0.53.0
 # FIRST-CLASS PATHS (sketch/PATHS.0.md). One code: text that is
 # not a tree address, met by `path(p)`'s capture -- literal or computed
-# argument alike (ADR-016). Class `parse` for refer_address's reason --
+# argument alike (ADR-016). Class `parse` for rel_address's reason --
 # what is wrong is the text, and no later pass can repair it. An
 # address that names nothing is NOT a path error: a path value is
-# data, and existence stays refer()'s contract.
+# data, and existence stays relate()'s contract.
 path_address	errcode	parse	0.54.0
 # RELATION GRAPH CHECKS (G4 phase 5). Two report-layer codes, class
 # `conflict`: the model contradicts a property it declared for itself.

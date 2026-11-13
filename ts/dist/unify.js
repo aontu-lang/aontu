@@ -4,12 +4,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.withDepth = exports.meetTemplate = exports.unite = exports.Unify = void 0;
 exports.holdsLink = holdsLink;
 exports.linksOf = linksOf;
+exports.rootLinks = rootLinks;
 exports.ride = ride;
 exports.rideOn = rideOn;
 const ctx_1 = require("./ctx");
 const type_1 = require("./type");
 const err_1 = require("./err");
-const ReferFuncVal_1 = require("./val/ReferFuncVal");
+const RelateFuncVal_1 = require("./val/RelateFuncVal");
 const ConjunctVal_1 = require("./val/ConjunctVal");
 const ListVal_1 = require("./val/ListVal");
 const MapVal_1 = require("./val/MapVal");
@@ -85,11 +86,11 @@ function drives(v) {
         || v.isVar
         || v.isFunc
         || v.isExpect
-        || v.isRefer
+        || v.isPendingLink
         // An op DRIVES while an operand has not decided (ADR-037).
         || (v.isOp && ((0, PlaceVal_1.waitsOnHole)(v) || v.holdsStaged))
         // A graph atom DRIVES (RELATIONS P2): its peer is the value it rides
-        // beside -- a container, a rel, a scalar -- and none of them know
+        // beside -- a container, a relate, a scalar -- and none of them know
         // the atom; the atom knows to residuate.
         || v.isGraphAtom
         // The recursive residual DRIVES for the same reason: its peer is the
@@ -113,13 +114,15 @@ const unite = (ctx, a, b, whence) => {
                     && a.needsNonEmpty === b.needsNonEmpty
                     && a.link === b.link
                     && a.flows === b.flows
+                    && a.relates === b.relates
+                    && a.relroot === b.relroot
                     && !a.isNil && !b.isNil
                     && !a.isMap && !a.isList
                     && !a.isConjunct && !a.isDisjunct
                     && !a.isRef && !a.isPref && !a.isFunc && !a.isExpect
                     && !a.isTop && !b.isTop
-                    && !a.isRefer
-                    && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
+                    && !a.isPendingLink
+                    && !a.isRelate && !a.isGraphAtom && !a.isRecurse) {
                     // The riders survive this fast path too: `deprecate(5) & 5`.
                     ride(a, a, b);
                     return markOn(ctx, a, a, b);
@@ -206,7 +209,9 @@ const unite = (ctx, a, b, whence) => {
                 && a.needsNonEmpty === b.needsNonEmpty
                 && a.link === b.link
                 && a.flows === b.flows
-                && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
+                && a.relates === b.relates
+                && a.relroot === b.relroot
+                && !a.isRelate && !a.isGraphAtom && !a.isRecurse) {
                 out = update(a, b);
                 why = 'up';
             }
@@ -334,6 +339,37 @@ function linksOf(root) {
     visit(root, () => undefined, []);
     return out;
 }
+// A link with no `relate()` at or above it has one where it stands, as
+// a copy of one link out of a bag of them does, so canon writes the call.
+function rootLinks(root) {
+    const visit = (node, put, under) => {
+        if (true === node.isPath) {
+            if (undefined !== node.linkto && !under && true !== node.relroot) {
+                const rooted = Object.assign(Object.create(Object.getPrototypeOf(node)), node);
+                rooted.relroot = true;
+                put(rooted);
+            }
+        }
+        else if (true === node.isMap || true === node.isList) {
+            const peg = node.peg;
+            const below = under || true === node.relroot;
+            for (const k of Object.keys(peg)) {
+                visit(peg[k], (v) => { peg[k] = v; }, below);
+            }
+        }
+        else if (true === node.isDisjunct || true === node.isConjunct) {
+            const arms = node.peg;
+            arms.forEach((a, i) => visit(a, (v) => { arms[i] = v; }, under));
+        }
+        else if (true === node.isPref) {
+            visit(node.peg, (v) => { node.peg = v; }, under);
+        }
+        else if (true === node.isGraphAtom && undefined !== node.held) {
+            visit(node.held, (v) => { node.held = v; }, under);
+        }
+    };
+    visit(root, () => undefined, false);
+}
 // The templates of the links the output takes whose targets the result
 // holds, each once, in a fixed order.
 function flowsOf(root, links) {
@@ -342,7 +378,7 @@ function flowsOf(root, links) {
         for (const [key, t] of link.flows ?? []) {
             const id = flowId(key, t);
             const to = key.split('\x00');
-            if (!seen.has(id) && undefined !== (0, ReferFuncVal_1.findAt)(root, to)) {
+            if (!seen.has(id) && undefined !== (0, RelateFuncVal_1.findAt)(root, to)) {
                 seen.set(id, { to, t, id });
             }
         }
@@ -395,8 +431,8 @@ function holdsLink(v, seen = new Set()) {
         return false;
     }
     seen.add(v);
-    if (true === v.isReferFunc || true === v.isRelFunc || true === v.isRefer
-        || true === v.isRel || undefined !== v.linkto) {
+    if (true === v.isRelateFunc || true === v.isPendingLink
+        || true === v.isRelate || undefined !== v.linkto) {
         return true;
     }
     const peg = v.peg;
@@ -511,12 +547,13 @@ class Unify {
             }
             // A link the output takes names something the document holds.
             for (const { link, at, put } of links) {
-                if (undefined === (0, ReferFuncVal_1.findAt)(res, link.linkto)) {
-                    const nil = (0, err_1.makeNilErr)(uctx, link.linkcode ?? 'refer_unresolved', link, undefined, 'refer', { addr: link.peg });
+                if (undefined === (0, RelateFuncVal_1.findAt)(res, link.linkto)) {
+                    const nil = (0, err_1.makeNilErr)(uctx, 'rel_unresolved', link, undefined, 'relate', { addr: link.peg });
                     nil.path = at;
                     put(nil);
                 }
             }
+            rootLinks(res);
             // The settled tree's alias references canon as the values they
             // name (ts/src/alias.ts): attached here, once, after the last
             // pass, from the snapshot store this run kept.
@@ -527,6 +564,6 @@ class Unify {
     }
 }
 exports.Unify = Unify;
-const meetTemplate = (ctx, member, tmpl, whence) => unite(ctx, member, tmpl, whence); /* node:coverage ignore next 12 */
+const meetTemplate = (ctx, member, tmpl, whence) => unite(ctx, member, tmpl, whence); /* node:coverage ignore next 13 */
 exports.meetTemplate = meetTemplate;
 //# sourceMappingURL=unify.js.map

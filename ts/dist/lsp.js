@@ -463,7 +463,7 @@ const BUILTIN_FUNCS = [
     'match', 'max', 'maybe', 'meta', 'min', 'mod', 'move', 'mul', 'mulof', 'must', 'neq',
     'nof', 'nom', 'open',
     'pack', 'parse', 'path', 'pick',
-    'pref', 'project', 're', 'refer', 'rel', 'rem', 'rep', 'rest', 'slot', 'sort',
+    'pref', 'project', 're', 'relate', 'rem', 'rep', 'rest', 'slot', 'sort',
     'split', 'sub', 'sum',
     'super', 'translate', 'type', 'unique', 'upper', 'usc', 'when',
 ];

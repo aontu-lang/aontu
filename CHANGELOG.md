@@ -8,6 +8,57 @@ each change affects.
 
 ## Unreleased
 
+### `relate` is the one link function: `refer` is removed and `rel` renamed
+
+Both engines, the definition, and shared rows. A breaking change to the
+language.
+
+- **`refer(t?)` is removed and `rel(t?)` is `relate(t?)`.** `relate` is
+  written on a field whose value is one path, a list of paths, or a map
+  of paths nested to any depth. Each path is a checked link, and `t`
+  flows into every target. A document that calls `refer` or `rel` is
+  refused as `unknown_function`. To migrate, write `relate` wherever
+  either was written: on one path the two made the same link.
+- **Canon and the hash form write `relate()` where the document wrote
+  it** (ADR-080): `relate()&path($.b)`, `relate({"k":1})&[path($.b)]`.
+  They had written a `rel()` over a list as a list whose template was
+  `&:refer()`, and a link over one path as the bare `path(...)`. So the
+  hash now tells a link from a path value that is only data, and the
+  hash form reads back to the same edges and the same `aontu relations`
+  verdict (#758). The hash of every document that holds a link moves.
+- **An edge's relation is the key of the field `relate()` is written
+  on**, read from the marks canon writes. A link a reference copies to
+  another field is a link there, named by that field's key. The engines
+  had answered differently for a copy of a `rel()` link. A link copied
+  out of a list or a map of links is a link where it lands.
+- **`relate()` works in a spread's template**, as `refer()` did and
+  `rel()` did not (#745): `{ &: { parent: relate() } }` links each
+  member's one address. It also meets a kind another template wrote
+  before it.
+- **A link refined by a longer path keeps its edge and its template**
+  (#753): `relate({ r: 3 }) & path($.a)` beside `path($.a.x)` is a link
+  to `$.a.x`, and `r: 3` lands there, whichever path is written first.
+- **A link's refusals are `rel_address` and `rel_unresolved`**, worded
+  `Cannot relate value`. `refer_address` is retired and stays
+  registered. `refer_unresolved` stays the code `aontu reaches` and a
+  tree view answer for a name that is no node of the document.
+- In the definition `Fn.refer` is gone and `Fn.rel` is `Fn.relate`,
+  read as the relation kind (`relKind`). `callTerm_checkableA` lost the
+  two cases of the removed function, no theorem was given up, and the
+  oracle writes the rows it wrote, with the call renamed.
+- Rows that wrote either call write `relate`. Thirty-five expectations
+  moved: the two codes, the wording, canon, and one column.
+  Two rows of `test/spec/refer.tsv` are renamed for what they now pin:
+  `address-not-a-map` is `address-not-a-map-member`, since a map is a
+  bag of addresses, and `hcanon-link-is-a-path` is
+  `hcanon-link-writes-its-call`. New: twelve rows from
+  `hcanon-relate-one-path` on in `test/spec/hcanon.tsv`, five from
+  `edge-of-a-canon-link` on in `test/spec/graph.tsv`, and fifteen from
+  `rel-one-address-in-a-map-spread` on in `test/spec/rel.tsv`.
+- `canon-calls-are-declared-builtins` in `ts/test/sig.test.ts`, and its
+  Go twin, hold every call the shared rows' canon writes to
+  `test/spec/signature.tsv`.
+
 ### A value a default has met outlives a stronger default (#431)
 
 Both engines and shared rows.

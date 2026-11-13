@@ -46,7 +46,7 @@ the [Explanation](explanation.md).
 - [Text: `esc` `usc` `rep` `split`](#text-esc-usc-rep-split)
 - [Linking: the tree is the namespace](#linking-the-tree-is-the-namespace)
 - [First-class paths: `path(p?)`](#first-class-paths-pathp)
-- [Checked links: `refer(t?)`](#checked-links-refert)
+- [Checked links: `relate(t?)`](#checked-links-relatet)
   - [Declared relations](#declared-relations)
 - [Marks: `type` and `hide`](#marks-type-and-hide)
 - [Annotations: `meta`](#annotations-meta)
@@ -261,7 +261,7 @@ The definition reads `string & empty()` as a term of its own, `anyString` in [`s
 ### The type of constraints: `constraint`
 
 `constraint` is the type of constraints (`min`, `max`, `above`,
-`below`, `neq`, `re`, `len`, `unique`, `must`, `empty`, `refer`, `rel`).
+`below`, `neq`, `re`, `len`, `unique`, `must`, `empty`, `relate`).
 It holds the constraints it meets and refuses a concrete value,
 whichever order the terms meet in:
 
@@ -885,7 +885,7 @@ spelling when you mean "a map whose `x` defaults to 1", and it is what
 `pref({x:1})` produces. Pinned by the `pref-struct-*` rows in
 [`test/spec/pref.tsv`](../test/spec/pref.tsv).
 
-In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, with no parent type: `*{b: 1}` alone admits `{b: 2}`, and `*{b: 1} | "z"` refuses it, since neither arm does. A link in the value `x` sends its template only where `x` stands, so in `*{k: 1, d?: refer({z: 1})} & {k: 2, d: path($.y)}` the preference stands as its parent type and `y` gains nothing, and with `k: 1` on both sides it stands as `x` and `y` gains `z: 1`. A link in an arm of a disjunction sends where the output takes the arm, which [Checked links](#checked-links-refert) describes. The rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
+In the definition `*x` alone is `x | super(x)`: `Val.pref` and `Val.super` in [`spec/Aontu/Syntax.lean`](../spec/Aontu/Syntax.lean), `admits_pref_iff` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean), and `pref_le_or` and `or_le_pref` in [`spec/Aontu/Subsume.lean`](../spec/Aontu/Subsume.lean). An arm `*x` of a disjunction is the arm `x` of rank one, read by position, with no parent type: `*{b: 1}` alone admits `{b: 2}`, and `*{b: 1} | "z"` refuses it, since neither arm does. A link in the value `x` sends its template only where `x` stands, so in `*{k: 1, d?: relate({z: 1})} & {k: 2, d: path($.y)}` the preference stands as its parent type and `y` gains nothing, and with `k: 1` on both sides it stands as `x` and `y` gains `z: 1`. A link in an arm of a disjunction sends where the output takes the arm, which [Checked links](#checked-links-relatet) describes. The rank picks what `Gen` generates in [`spec/Aontu/Output.lean`](../spec/Aontu/Output.lean). The third generated fragment, [`test/spec/def-choice.tsv`](../test/spec/def-choice.tsv), holds both engines to it.
 
 `pref(v)` is `Val.prefer` in [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), read on the argument before its normal form, so a preference stays one. Each scalar literal becomes a preference of rank one, and each preference a rank weaker, so `pref(*1 | 2)` is `**1 | *2`, which generates `2`. A kind and a bound stay as written. Rows from pf0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines to it. They answer `pref(1 | 2)` `invalid` where `*1 | *2` is an `error`, which [#482](https://github.com/aontu-lang/aontu/issues/482) tracks.
 
@@ -1711,7 +1711,7 @@ own place in the normal form of the name's bodies, round by round as it
 reads the schema's own tree, by `Decls.bodyRoots`, so a path there that
 reads through another path reads what both engines read. The place holds
 the templates its own links meet there (`Decls.ownLinked`), so `z: .m.k`
-beside `n: refer({k: 1}) & path(.m)` reads `1`, as in both engines.
+beside `n: relate({k: 1}) & path(.m)` reads `1`, as in both engines.
 At a use of the name, both engines leave such a path naming nothing,
 which [#723](https://github.com/aontu-lang/aontu/issues/723) tracks. A
 link whose target another link's template makes there is an `error` in
@@ -2514,7 +2514,7 @@ Example: `integer & above(0)`
 
 Require the edges of a declared relation to contain no cycle. See [declared relations](#declared-relations).
 
-Example: `rel() & acyclic()`
+Example: `relate() & acyclic()`
 
 ### `add(a: number, b: number) : number`
 
@@ -2681,7 +2681,7 @@ Example: `inject("routes", [line("app.use(r)")])`
 
 Require every edge of a declared relation to have a corresponding edge under the named inverse. See [declared relations](#declared-relations).
 
-Example: `rel() & inverse(usedBy)`
+Example: `relate() & inverse(usedBy)`
 
 ### `join(d: map|list, sep?: string) : string`
 
@@ -2869,17 +2869,11 @@ Constrain a string to match a pattern, written in ECMA-262's syntax under the `u
 
 Example: `string & re("^[a-z]+$")`
 
-### `refer(template t?: any) : constraint`
+### `relate(template t?: any) : constraint`
 
-Constrain a field to a **path value whose address resolves**; `t`, if given, is unified into the target. The field keeps the address. See [Checked links](#checked-links-refert).
+Declare a field as a relation: its value is a path, or a list or a map of paths, and each is a **link whose address resolves**. `t`, if given, is unified into every target. The field keeps its addresses. See [Checked links](#checked-links-relatet) and [declared relations](#declared-relations).
 
-Example: `dependsOn: [&: refer($.aontu.System.Service), path($.services.auth)]`
-
-### `rel(template t?: any) : constraint`
-
-Declare a field as a relation and optionally constrain its targets. See [declared relations](#declared-relations).
-
-Example: `dependsOn: rel() & [path($.auth)]`
+Example: `dependsOn: relate($.aontu.System.Service) & [path($.services.auth)]`
 
 ### `rem(a: number, b: number) : number`
 
@@ -3760,7 +3754,7 @@ Write the model as `model.aontu`:
 <!-- test: file model.aontu -->
 ```aontu
 auth: { port:80 region: *"eu"|string }
-billing: dep: refer() & path(..auth)
+billing: dep: relate() & path(..auth)
 ```
 
 and mount it twice from `main.aontu`:
@@ -3811,7 +3805,7 @@ cap: path($.a.b)  # a capture: the path itself
 
 This is the one non-strict argument position in the language: every
 other call reads its argument's value, `path(p)` reads its spelling. The
-captured spelling is the address grammar `refer` reads (`$.a.b` from the
+captured spelling is the address grammar `relate` reads (`$.a.b` from the
 document root, `.b` from the sibling scope, one more leading dot per
 parent step) and a bare dotted argument is relative (`path(q.r)` captures
 `.q.r`).
@@ -3826,7 +3820,7 @@ which is what makes an address buildable:
 
 ```aontu
 names: { web: {} db: {} }
-accounts: pack($.names, { for:refer() & path("$.names." + key()) })
+accounts: pack($.names, { for:relate() & path("$.names." + key()) })
 ```
 
 ```json
@@ -3861,16 +3855,16 @@ precise by three rules:
    number tower's leaves refuse each other. Subsumption follows the
    meet: a prefix subsumes its extensions.
 2. **A path value is data.** `path($.nope)` generates `"$.nope"`:
-   existence is `refer`'s contract, not the value's, so a document may
-   address things outside this evaluation. `path(p) & refer()` is the
-   checked link: see [Checked links](#checked-links-refert).
+   existence is `relate`'s contract, not the value's, so a document may
+   address things outside this evaluation. `path(p) & relate()` is the
+   checked link: see [Checked links](#checked-links-relatet).
 3. **Generation and canon.** A path value generates as its address
    string; its canonical form is the call (`path($.a.b)`), which
    reparses to the same value: the call form is the literal syntax
    for this kind.
 
-The kind settles inside `type()` bodies, which a `refer` cannot
-(see [Checked links](#checked-links-refert)), so a vocabulary can
+The kind settles inside `type()` bodies, which a `relate` cannot
+(see [Checked links](#checked-links-relatet)), so a vocabulary can
 declare a path-valued field for the data to meet:
 
 ```aontu
@@ -3911,17 +3905,17 @@ tracks; a trial that refuses it they read as `invalid`.
 
 Pinned by [`test/spec/path.tsv`](../test/spec/path.tsv).
 
-## Checked links: `refer(t?)`
+## Checked links: `relate(t?)`
 
 A reference (`$.a.b`) resolves by *cloning* its target into place, so
 `dependsOn: [$.services.auth]` generates a full copy of the auth node
 where the author meant a name. A bare string generates the name and
-checks nothing. `refer` is the third option: the field keeps the
-address string, and the language checks it.
+checks nothing. `relate` is the third option: the field keeps its
+addresses, and the language checks them.
 
 ```aontu
 services: auth: { kind:service port:8080 }
-services: billing: dependsOn: [&: refer({ kind:service }) path($.services.auth)]
+services: billing: dependsOn: relate({ kind:service }) & [path($.services.auth)]
 ```
 
 ```json
@@ -3930,14 +3924,41 @@ services: billing: dependsOn: [&: refer({ kind:service }) path($.services.auth)]
    "billing": {"dependsOn": ["$.services.auth"]}}}
 ```
 
-The list spread applies `refer` to every element, so `dependsOn`
-generates a list of **addresses**, checked.
+`relate` is written on a field, and the field's value is one path
+value, a list of them, or a map of them nested to any depth. Each path
+is a **link**, so `dependsOn` generates a list of **addresses**,
+checked.
 
-`refer(t)` says three things about the string it constrains:
+`relate(t)` says three things about each path it covers:
 
 1. It must be a **tree address**.
 2. The address must **resolve** in this evaluation.
 3. If `t` is given, `t` is unified **into** the target.
+
+The field's key names the relation its links belong to. A link in a
+list, or under any key of a map, is an edge from the node holding the
+field, labelled with the field's key, which is what
+[declared relations](#declared-relations) check and what
+[`aontu reaches`](reference-api.md#aontu-reaches) and
+[`aontu view`](reference-api.md#aontu-view) read:
+
+```aontu
+a: {}
+c: {}
+b: uses: relate() & { primary:path($.a) backup:eu:path($.c) }
+```
+
+Both links are edges from `b` under `uses`. Written on a member in
+place of the field, `relate()` makes that member's own key the
+relation.
+
+Canon writes the call where the document wrote it,
+`relate()&path($.a)` for one address and `relate()&[path($.a)]` for a
+list, so a canonical text read back has the same links, and
+[`aontu hash`](reference-api.md#aontu-hash) tells a link from a path
+value that is only data. A link a reference copies to another field is
+a link there, written `relate()` in that field's canon and named by
+that field's key.
 
 ### Addresses
 
@@ -3960,9 +3981,9 @@ at, so the same file instantiated twice gives two self-contained
 instances.
 
 Only a [path value](#first-class-paths-pathp) can be an address: a bare
-string never is (`refer() & "$.a"` refuses (`refer_address`)) and
+string never is (`relate() & "$.a"` refuses (`rel_address`)) and
 `path("...")` is the one conversion. A second path peer refines the
-address by the prefix rule (`refer() & path($.a) & path($.a.b)` links to
+address by the prefix rule (`relate() & path($.a) & path($.a.b)` links to
 `$.a.b`), and a relative address that climbs off the top of the tree is
 refused outright: no later pass can grow a tree upwards.
 
@@ -3973,22 +3994,22 @@ bring a target, so the engine checks an address once it has evaluated
 the document, with every template in place. Within one evaluation the
 document-set is fixed, so existence *is* decidable: an address that
 names nothing in the evaluated document is a located error
-(`refer_unresolved`), not something to check later.
+(`rel_unresolved`), not something to check later.
 
 The links checked are the ones the output takes, so a link to nothing
 in an arm the output takes is an error, not a refusal of the arm.
-`x: (refer() & path($.gone)) | 1` is an `error`, since neither arm
+`x: (relate() & path($.gone)) | 1` is an `error`, since neither arm
 outranks the other and the output takes both, and
-`x: (refer() & path($.gone)) | *1` is `{"x": 1}`.
+`x: (relate() & path($.gone)) | *1` is `{"x": 1}`.
 
 ### Constraints flow through links
 
-`refer(t)` does not merely *test* the target against `t`; it unifies
+`relate(t)` does not merely *test* the target against `t`; it unifies
 `t` into it, at the position the address names:
 
 ```aontu
 a: p: 1
-b: refer({ r:3 }) & path($.a)
+b: relate({ r:3 }) & path($.a)
 ```
 
 ```json
@@ -4007,19 +4028,19 @@ with it, whichever the document writes first:
 ```aontu
 c: $.a
 a: {}
-b: refer({ k:1 }) & path($.a)
+b: relate({ k:1 }) & path($.a)
 ```
 
 ```json
 {"a": {"k": 1}, "b": "$.a", "c": {"k": 1}}
 ```
 
-Constraints written *alongside* a refer constrain the **link**, not the
-target: `refer() & string & re("auth$") & path($.services.auth)` checks the
+Constraints written *alongside* a `relate` constrain the **link**, not the
+target: `relate() & string & re("auth$") & path($.services.auth)` checks the
 address itself. They are held until the address arrives, and then meet
 it.
 
-In the definition, `refer(t)` reads as the path kind carrying its
+In the definition, `relate(t)` reads as the relation kind carrying its
 template, and `Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
 meets each link's template, its marks cleared, at the target its
 address names from where the link stands. It reads the targets in
@@ -4042,8 +4063,8 @@ A link written in an arm of a disjunction, or in a preference's value,
 sends its template only where the output takes that arm. Among the
 arms the meet keeps, the rank rule takes the default where there is
 one, and every kept arm where there isn't. So
-`x: *{d: refer({z: 1}) & path($.y)} | {e: 1}` gives `y` the member
-`z: 1`, and `x: ({d: refer({z: 1}) & path($.y), k: 1} | {k: 2}) & {k: 2}`
+`x: *{d: relate({z: 1}) & path($.y)} | {e: 1}` gives `y` the member
+`z: 1`, and `x: ({d: relate({z: 1}) & path($.y), k: 1} | {k: 2}) & {k: 2}`
 gives it nothing, since `k: 2` refuses the arm. In the definition a
 link's template rides the value the link meets (`Val.link`), so it
 stands in an arm exactly where that value does, and the definition
@@ -4056,17 +4077,17 @@ link from each place that uses the body, which
 
 ### The argument is a template, not an address
 
-`refer(t)` takes the value the **target** must satisfy. The address
+`relate(t)` takes the value the **target** must satisfy. The address
 comes from the `path` beside it, never from the argument, so
-`refer(key())` does not mean "link to the node this key names". It means
+`relate(key())` does not mean "link to the node this key names". It means
 "the target must unify with whatever `key()` answers here", and `key()`
 answers with a *string*, so the link is constrained to a target that is
 that string. At the root of a document `key()` is `""`, which leaves
-`refer("")`: a link with no address, which cannot generate.
+`relate("")`: a link with no address, which cannot generate.
 
 ```
-link: refer(key())     → [aontu/mapval_no_gen] at $.link
-                         value was: refer("")
+link: relate(key())     → [aontu/mapval_no_gen] at $.link
+                         value was: relate("")
 ```
 
 **A key does not survive a reference.** `key()` is path-dependent (it
@@ -4084,7 +4105,7 @@ the same time:
 ```aontu
 services: { auth:port:8080 billing:port:9090 }
 names: [auth billing]
-links: pack($.names, { to:refer() & path("$.services." + key()) name:key() })
+links: pack($.names, { to:relate() & path("$.services." + key()) name:key() })
 ```
 
 ```json
@@ -4239,10 +4260,10 @@ one set of them ships with the engine. Write this as `system.aontu`:
 services: {
   auth: $.aontu.System.Service & {
     ports: http: protocol: http
-    dependedOnBy: rel() & [path($.services.billing)]
+    dependedOnBy: relate() & [path($.services.billing)]
   }
   billing: $.aontu.System.Service & {
-    dependsOn: rel($.aontu.System.Service) & inverse(dependedOnBy) & acyclic() & [
+    dependsOn: relate($.aontu.System.Service) & inverse(dependedOnBy) & acyclic() & [
       path($.services.auth)
     ]
   }
@@ -4372,13 +4393,13 @@ language knows these names.
 
 ### Declared relations
 
-A relation is declared AT ITS FIELD: `rel(t)` says the field's strings
+A relation is declared AT ITS FIELD: `relate(t)` says the field's values
 are tree addresses and flows `t` into every target, and the two
 GRAPH ATOMS declare the properties that hold over the whole edge set:
 
 ```aontu
-a: dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]
-b: usedBy: rel() & [path($.a)]
+a: dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]
+b: usedBy: relate() & [path($.a)]
 ```
 
 ```json
@@ -4392,16 +4413,16 @@ b: usedBy: rel() & [path($.a)]
   `a` under `<name>`, as an edge of that relation. The error names the
   exact missing entry. Writing the inverse **for** you is generation,
   not validation, and is not done here.
-- The `target` half of the old declaration is `rel(t)` itself: the
+- The `target` half of the old declaration is `relate(t)` itself: the
   type flows into each far end at the site, so a conflict or a hole is
   an ordinary located evaluation error.
 
-A constraint met with `rel()` meets the relation's value as any meet
-does, whichever is written first. So `rel() & path & [path($.a)]` is
+A constraint met with `relate()` meets the relation's value as any meet
+does, whichever is written first. So `relate() & path & [path($.a)]` is
 an `error`, as `path & [path($.a)]` is, and
-`rel() & len(min(2)) & [path($.a)]` refuses its one address. A
+`relate() & len(min(2)) & [path($.a)]` refuses its one address. A
 constraint on each address goes in the value's spread,
-`rel() & [&: re("sa$")]`, which holds each element, one another list
+`relate() & [&: re("sa$")]`, which holds each element, one another list
 brings as well as one it writes, and each such element is a link, so
 `t` flows into its target and `acyclic()` and `inverse()` read it as an
 edge. An alias in the spread stands for the value it names, so
@@ -4423,18 +4444,18 @@ reports the same findings without generating, and the library exposes
 `relationCheck(src)`. The closure question (does `a` reach `b` at any
 remove?) is a separate verb, [`aontu reaches`](reference-api.md#aontu-reaches).
 
-In the definition, `rel(t)` reads as the relation kind, `relKind` in
+In the definition, `relate(t)` reads as the relation kind, `relKind` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean): an address, or
 a list or a map of addresses nested to any depth, so a string, a number
 or `true` where an address must be is an `error`. Each leaf of the
 value is a link, which `Decls.withRefers` in
-[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean) reads as it reads a
-`refer`, the leaf's address read from the relation's own position. The
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean) reads, the leaf's
+address read from the relation's own position. The
 definition has no rule yet for `acyclic()` and `inverse(k)`, which
 `vet` doesn't check either
 ([#491](https://github.com/aontu-lang/aontu/issues/491)). Rows from rl0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
-to it, and rows from rh0 on to a constraint met with `rel()` and to a
+to it, and rows from rh0 on to a constraint met with `relate()` and to a
 spread over the value's addresses. Data writes no address, so whatever
 the template, a relation refuses data that writes a list of anything,
 the spelling `"$.a"` among them, and passes an empty list, in the rows
@@ -5423,7 +5444,7 @@ and `}` alone, which is the ordinary spelling of a constrained map:
 CatalogEntry: $.aontu.System.Service & {
   owner: %Owner
   tier: 1|2|3
-  dependsOn?: rel($.aontu.System.Service) & %CatalogAddr & acyclic() & inverse(dependedOnBy)
+  dependsOn?: relate($.aontu.System.Service) & %CatalogAddr & acyclic() & inverse(dependedOnBy)
 }
 ```
 

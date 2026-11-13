@@ -1,4 +1,4 @@
-# bad/dangling.aontu --- a dependency on a module nobody wrote. rel()
+# bad/dangling.aontu --- a dependency on a module nobody wrote. relate()
 # decides existence inside one evaluation: the address resolves or the
 # document refuses (rel_unresolved), and a dependency on a module that
 # does not exist is never a thing to discover later.

@@ -1,25 +1,23 @@
 import type { Val, ValSpec } from '../type';
 import { AontuContext } from '../ctx';
 import { FuncBaseVal } from './FuncBaseVal';
-import { Address } from './PathVal';
+import { Address, addressPath } from './PathVal';
 import { FeatureVal } from './FeatureVal';
-export declare function addressPath(addr: Address, at: (string | number)[]): string[] | undefined;
 export declare function findAt(root: Val | undefined, path: string[]): {
     parent?: any;
     key?: string;
     val: Val;
 } | undefined;
-declare class ReferVal extends FeatureVal {
-    isRefer: boolean;
+declare class PendingLinkVal extends FeatureVal {
+    isPendingLink: boolean;
     isGenable: boolean;
     cjo: number;
     tval: Val;
     addr?: Address;
     addrsrc?: string;
     held?: Val;
-    relkey?: string;
-    addrcode: string;
-    unresolvedcode: string;
+    root: boolean;
+    from?: Val;
     constructor(spec: ValSpec, ctx?: AontuContext);
     clone(ctx: AontuContext, spec?: ValSpec): Val;
     unify(peer: Val, ctx: AontuContext): Val;
@@ -27,33 +25,25 @@ declare class ReferVal extends FeatureVal {
     settle(ctx: AontuContext, site: Val): Val;
     get canon(): string;
 }
-declare class RelVal extends FeatureVal {
-    isRel: boolean;
+declare class RelateVal extends FeatureVal {
+    isRelate: boolean;
     isGenable: boolean;
     cjo: number;
     tval: Val;
     held?: Val;
     constructor(spec: ValSpec, ctx?: AontuContext);
     clone(ctx: AontuContext, spec?: ValSpec): Val;
-    fieldkey(ctx: AontuContext): string | undefined;
-    leafRefer(ctx: AontuContext, relkey: string | undefined): ReferVal;
+    leafLink(ctx: AontuContext, root: boolean): PendingLinkVal;
     rewrite(ctx: AontuContext, container: any): Val;
-    rewriteUnder(ctx: AontuContext, container: any, relkey: string | undefined): Val;
+    rewriteUnder(ctx: AontuContext, container: any): Val;
     unify(peer: Val, ctx: AontuContext): Val;
     get canon(): string;
 }
-declare class RelFuncVal extends FuncBaseVal {
-    isRelFunc: boolean;
+declare class RelateFuncVal extends FuncBaseVal {
+    isRelateFunc: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);
     make(_ctx: AontuContext, spec: ValSpec): Val;
     funcname(): string;
-    resolve(ctx: AontuContext, args: Val[]): RelVal;
+    resolve(ctx: AontuContext, args: Val[]): RelateVal;
 }
-declare class ReferFuncVal extends FuncBaseVal {
-    isReferFunc: boolean;
-    constructor(spec: ValSpec, ctx?: AontuContext);
-    make(_ctx: AontuContext, spec: ValSpec): Val;
-    funcname(): string;
-    resolve(ctx: AontuContext, args: Val[]): ReferVal;
-}
-export { ReferFuncVal, ReferVal, RelFuncVal, RelVal, };
+export { addressPath, PendingLinkVal, RelateFuncVal, RelateVal, };

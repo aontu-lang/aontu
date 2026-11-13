@@ -93,14 +93,6 @@ func (m *MapVal) superior() Val { return top() } //coverage:ignore no caller: su
 
 func (m *MapVal) Canon() string {
 	var b strings.Builder
-	b.WriteByte('{')
-	if m.spread != nil {
-		b.WriteString("&:")
-		b.WriteString(CanonRiders(m.spread))
-		if len(m.keys) > 0 {
-			b.WriteByte(',')
-		}
-	}
 	keys := make([]string, 0, len(m.keys))
 	for _, k := range m.keys {
 		if !m.isAliasKey(k) {
@@ -108,6 +100,9 @@ func (m *MapVal) Canon() string {
 		}
 	}
 	sort.Strings(keys)
+	b.WriteString(relateText(m))
+	b.WriteByte('{')
+	b.WriteString(spreadText(m.spread, 0 < len(keys), CanonRiders))
 	first := true
 	for _, k := range keys {
 		if !first {
@@ -497,9 +492,9 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 	if pc, ok := peer.(*ConstraintVal); ok {
 		return pc.Unify(m, ctx)
 	}
-	// A rel() peer drives for the same reason: the relation constraint
+	// A relate() peer drives for the same reason: the relation constraint
 	// rewrites this container leaf by leaf (RELATIONS.0.md §3.2).
-	if pr, ok := peer.(*RelVal); ok {
+	if pr, ok := peer.(*RelateVal); ok {
 		return pr.Unify(m, ctx)
 	}
 	// Let the closed side drive, so its key restriction is enforced
@@ -546,15 +541,18 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 		out.spread = m.spread
 		out.optional = append([]string{}, m.optional...)
 		out.aliasKeys = append([]string{}, m.aliasKeys...)
+		out.lk.relates, out.lk.root = m.lk.relates, m.lk.root
 	}
 	done := true
 
 	// Combine spreads. REQUIRED WINS (ADR-045): a key is optional only
 	// where every side that declares it says so.
 	if pm, ok := peer.(*MapVal); ok {
+		out.lk.relates = joinRelates(out.lk.relates, pm.lk.relates)
+		out.lk.root = out.lk.root || pm.lk.root
 		if out.spread == nil {
 			out.spread = pm.spread
-		} else if pm.spread != nil && out.spread.Canon() != pm.spread.Canon() {
+		} else if pm.spread != nil && templateKey(out.spread) != templateKey(pm.spread) {
 			out.spread = unite(ctx, unmarkedTemplate(out.spread), unmarkedTemplate(pm.spread))
 		}
 		for _, ak := range pm.aliasKeys {

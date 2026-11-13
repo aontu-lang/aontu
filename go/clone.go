@@ -194,7 +194,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		c := *n
 		c.path = cp(path)
 		return &c
-	case *ReferVal:
+	case *PendingLinkVal:
 		c := *n
 		c.path = cp(path)
 		return &c
@@ -212,7 +212,7 @@ func clonePathKind(v Val, path []string, deep bool) Val {
 		c := *n
 		c.path = cp(path)
 		return &c
-	case *RelVal:
+	case *RelateVal:
 		c := *n
 		c.path = cp(path)
 		return &c

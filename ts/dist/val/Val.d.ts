@@ -82,8 +82,9 @@ declare abstract class Val {
     identity?: Record<string, any[]>;
     link?: string;
     linkto?: string[];
-    linkcode?: string;
     flows?: [string, Val][];
+    relates?: Val[];
+    relroot?: boolean;
     origin?: string;
     emitted?: EmitOrigin;
     graph?: any;

@@ -76,7 +76,7 @@ place-plus-join-spread	errc	v:([&: string, 1] + [])\n	no_scalar_unify
 # hole, so each is an error of the schema wherever the hole stands: a
 # call or an operator met with a value, a hole alone or in a member, a
 # pair of holes, a hole in a rider's record or under a seal, in a call's
-# container argument, beside a path, under super, pref, refer or a
+# container argument, beside a path, under super, pref, relate or a
 # bound, in a spread's template, in a size, a trial or a match, in an
 # operand of `+`, and in a group.
 place-func-peer	errc	a:upper(_) & hello\n	hole_unbound
@@ -117,7 +117,7 @@ place-super-list-spread-hole	errc	a:super([&: any, _])\n	hole_unbound
 place-super-map-spread-hole	errc	a:super({&: any, a: _})\n	hole_unbound
 place-bound-list-spread-hole	errc	a:min([&: any, _])\n	hole_unbound
 place-held-map-spread-hole	errc	a:sum([{&: any, a: _}])\n	hole_unbound
-place-refer-map-call	errc	a:refer({k: upper(_)})\n	hole_unbound
+place-refer-map-call	errc	a:relate({k: upper(_)})\n	hole_unbound
 place-bound-map-call	errc	a:min({k: upper(_)})\n	hole_unbound
 place-pref-list-hole	errc	a:pref([_]) & [1]\n	hole_unbound
 place-bound-list-hole	errc	a:min([_]) & 1\n	hole_unbound

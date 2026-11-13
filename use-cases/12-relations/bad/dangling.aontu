@@ -1,4 +1,4 @@
-# bad/dangling.aontu --- a feeds edge names a node nobody wrote. rel()
+# bad/dangling.aontu --- a feeds edge names a node nobody wrote. relate()
 # decides existence inside one evaluation: the address resolves or the
 # document refuses (rel_unresolved), there is no "maybe later".
 @"../model.aontu"

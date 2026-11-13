@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -152,63 +153,61 @@ func findAt(root Val, path []string) (nodeSite, bool) {
 	return site, true
 }
 
-type ReferVal struct {
+// PendingLinkVal is one link waiting for its address, at a position
+// `relate()` covers.
+type PendingLinkVal struct {
 	base
-	// tval is the type to flow into the target; nil when `refer()` was
+	// tval is the type to flow into the target; nil when `relate()` was
 	// written with no argument.
 	tval Val
-	// addr is the address, once a string has been met; addrsrc is that
-	// string as written, for canon and for the error message.
+	// addr is the address, once a path has been met; addrsrc as written.
 	addr    *Address
 	addrsrc string
 	// held carries constraints met while the address was still pending
-	// — a kind, a regex, a preference. They meet the LINK once there is
-	// one.
+	// — a kind, a regex, a preference — which meet the LINK once made.
 	held Val
-	// relpred is the PREDICATE for a rel()-minted residual: the rel
-	// field's key, stamped onto the produced link. Empty for refer().
-	relpred string
-	// The codes this residual refuses with: refer() keeps its own, a
-	// rel()-minted residual carries rel_address/rel_unresolved.
-	addrCode, unresolvedCode string
+	// root says the `relate()` was written at this position, not above it.
+	root bool
+	// from is the `relate()` this link is part of, which an error names.
+	from Val
 }
 
-func newRefer(tval Val) *ReferVal {
-	r := &ReferVal{tval: tval,
-		addrCode: "refer_address", unresolvedCode: "refer_unresolved"}
+func newPendingLink(tval Val) *PendingLinkVal {
+	r := &PendingLinkVal{tval: tval}
 	r.site.sp = unsited
 	return r
 }
 
-func (r *ReferVal) cjo() int { return 120000 }
+func (r *PendingLinkVal) cjo() int { return 120000 }
 
-func (r *ReferVal) superior() Val { return top() }
+func (r *PendingLinkVal) superior() Val { return top() }
 
-func (r *ReferVal) Canon() string {
-	t := ""
-	if nil != r.tval && !isTop(r.tval) {
-		t = r.tval.Canon()
+// Canon writes the `relate()` this link is part of where it was written.
+func (r *PendingLinkVal) Canon() string {
+	if nil == r.held {
+		return ""
 	}
-	call := "refer(" + t + ")"
-	if nil != r.held {
-		call += "&" + r.held.Canon()
-	}
-	if "" == r.addrsrc {
-		return call
-	}
-	return call + "&path(" + r.addrsrc + ")"
+	return r.held.Canon()
 }
 
-func (r *ReferVal) Gen(ctx *Ctx) (any, error) {
+func (r *PendingLinkVal) Gen(ctx *Ctx) (any, error) {
 	return nil, nil
 }
 
-func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
+// shown is the value an error names: the `relate()` the link is part of.
+func (r *PendingLinkVal) shown() Val {
+	if nil != r.from {
+		return r.from
+	}
+	return r
+}
+
+func (r *PendingLinkVal) Unify(peer Val, ctx *Ctx) Val {
 	if ck, ok := peer.(*ConstraintKindVal); ok {
 		return ck.Unify(r, ctx)
 	}
-	// Another `refer` at the same position: one constraint, both types.
-	if pr, ok := peer.(*ReferVal); ok {
+	// Another link at the same position: one constraint, both types.
+	if pr, ok := peer.(*PendingLinkVal); ok {
 		out := r.reshape()
 		switch {
 		case nil == r.tval:
@@ -262,7 +261,7 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 	if nil != r.addr && isscalar && KindPath == sv.kind {
 		merged, mok := prefixMeet(r.addrsrc, sv.peg.(string))
 		if !mok {
-			return makeNilErr(ctx, "scalar_value", r, peer)
+			return makeNilErr(ctx, "scalar_value", r.shown(), peer)
 		}
 		addr, _ := parseAddress(merged)
 		out := r.reshape()
@@ -274,7 +273,7 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 	_, islist := peer.(*ListVal)
 	if (isscalar && KindPath != sv.kind) ||
 		ismap || islist {
-		return makeNilErrFull(ctx, r.addrCode, r, peer, "refer", nil)
+		return makeNilErrFull(ctx, "rel_address", r.shown(), peer, "relate", nil)
 	}
 
 	out := r.reshape()
@@ -286,22 +285,23 @@ func (r *ReferVal) Unify(peer Val, ctx *Ctx) Val {
 	return out.settle(ctx, r)
 }
 
-// reshape is the residual copied for one more constraint: every arm
-// above answers a NEW ReferVal rather than mutating this one, because a
-// spread template's residual is shared by every child it is applied to.
-func (r *ReferVal) reshape() *ReferVal {
+// reshape is the residual copied for one more constraint, never mutated:
+// a spread template's residual is shared by every child it is applied to.
+func (r *PendingLinkVal) reshape() *PendingLinkVal {
 	out := *r
 	out.path = cp(r.path)
 	out.notdone()
 	return &out
 }
 
-// linkInfo is a link's record on its path value: the node it names, its
-// own missing-target code, and its templates with the targets they meet.
+// linkInfo is a link's record: the node it names and each template with
+// its target. relates is the templates of the `relate()` calls met, and
+// root says one was written at the value itself, where canon writes it.
 type linkInfo struct {
-	to    []string
-	code  string
-	flows []*linkFlow
+	to      []string
+	flows   []*linkFlow
+	relates []Val
+	root    bool
 }
 
 type linkFlow struct {
@@ -324,10 +324,67 @@ func joinFlows(a, b []*linkFlow) []*linkFlow {
 	return out
 }
 
+// joinRelates is the templates of the `relate()` calls met, each once.
+func joinRelates(a, b []Val) []Val {
+	out := a
+	for _, t := range b {
+		seen := false
+		for _, g := range a {
+			seen = seen || t.Canon() == g.Canon()
+		}
+		if !seen {
+			out = append(append([]Val{}, out...), t)
+		}
+	}
+	return out
+}
+
+// relateText is the `relate()` written at a value, as canon writes it.
+func relateText(v Val) string {
+	li := v.linkInfo()
+	if !li.root {
+		return ""
+	}
+	if 0 == len(li.relates) {
+		return "relate()&"
+	}
+	calls := make([]string, len(li.relates))
+	for i, t := range li.relates {
+		calls[i] = "relate(" + t.Canon() + ")&"
+	}
+	sort.Strings(calls)
+	return strings.Join(calls, "")
+}
+
+// linkAt is the link a path written at `at` is, carrying each template to
+// the node it names; not ok where a relative path climbs off the tree.
+func linkAt(addrsrc string, at []string, flows []*linkFlow, relates []Val, root bool) (*ScalarVal, bool) {
+	addr, _ := parseAddress(addrsrc)
+	target, ok := addressPath(addr, at)
+	if !ok {
+		return nil, false
+	}
+	li := linkInfo{to: target, flows: flows, relates: relates, root: root}
+	key := strings.Join(target, "\x00")
+	for _, t := range relates {
+		flow := t
+		if hasMark(flow) {
+			flow = clonePath(flow, cp(flow.vpath()))
+			walkMark(flow, true, false, true, false)
+		}
+		li.flows = joinFlows(li.flows, []*linkFlow{{key: key, t: flow}})
+	}
+	out := newPath(addrsrc)
+	out.setLinkAddr("$." + strings.Join(target, "."))
+	out.lk = li
+	out.path = cp(at)
+	return out, true
+}
+
 // settle answers the address as a path value carrying the link and its
 // template, which meet their target once the document is evaluated
-// (unifyRoot). site is the value whose position the string takes.
-func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
+// (unifyRoot). site is the value whose position the path takes.
+func (r *PendingLinkVal) settle(ctx *Ctx, site Val) Val {
 	if nil == r.addr {
 		r.dc = DONE
 		if nil != r.held && DONE != r.held.Dc() {
@@ -336,102 +393,93 @@ func (r *ReferVal) settle(ctx *Ctx, site Val) Val {
 		return r
 	}
 
+	var there linkInfo
+	if sv, ok := site.(*ScalarVal); ok && KindPath == sv.kind {
+		there = sv.lk
+	}
+	var mine []Val
+	if nil != r.tval && !isTop(r.tval) {
+		mine = []Val{r.tval}
+	}
+	out, ok := linkAt(r.addrsrc, r.path, there.flows, mine, r.root || there.root)
 	// A relative address climbing off the top of the tree refuses at once.
-	target, tok := addressPath(*r.addr, r.path)
-	if !tok {
-		return makeNilErrFull(ctx, r.unresolvedCode, r, nil, "refer",
+	if !ok {
+		return makeNilErrFull(ctx, "rel_unresolved", r.shown(), nil, "relate",
 			map[string]string{"addr": r.addrsrc})
 	}
-
-	li := linkInfo{to: target}
-	if "refer_unresolved" != r.unresolvedCode {
-		li.code = r.unresolvedCode
-	}
-	if sv, ok := site.(*ScalarVal); ok && KindPath == sv.kind {
-		li.flows = sv.lk.flows
-	}
-	if nil != r.tval && !isTop(r.tval) {
-		flow := r.tval
-		if hasMark(flow) {
-			flow = clonePath(flow, cp(flow.vpath()))
-			walkMark(flow, true, false, true, false)
-		}
-		li.flows = joinFlows(li.flows, []*linkFlow{{key: strings.Join(target, "\x00"), t: flow}})
-	}
-
-	out := newPath(r.addrsrc)
+	out.lk.relates = joinRelates(there.relates, mine)
+	li := out.lk
+	link := out.link
 	copyMarks(out, r)
-	out.setLinkAddr("$." + strings.Join(target, "."))
+	out.setLinkAddr(link)
 	out.lk = li
-	out.relkey = r.relpred
 	out.site.sp, out.site.spu, out.site.url = site.pos(), site.posu(), site.srcurl()
-	out.path = cp(r.path)
 	if nil == r.held {
 		return out
 	}
 	return unite(ctx, out, r.held)
 }
 
-type RelVal struct {
+type RelateVal struct {
 	base
 	tval Val
 	held Val
 }
 
-func newRel(tval Val) *RelVal {
-	r := &RelVal{tval: tval}
+func newRelate(tval Val) *RelateVal {
+	r := &RelateVal{tval: tval}
 	r.site.sp = unsited
 	r.dc = DONE
 	return r
 }
 
-func (r *RelVal) cjo() int      { return 45000 }
-func (r *RelVal) superior() Val { return top() }
+func (r *RelateVal) cjo() int      { return 45000 }
+func (r *RelateVal) superior() Val { return top() }
 
-func (r *RelVal) Canon() string {
+func (r *RelateVal) Canon() string {
 	t := ""
 	if nil != r.tval && !isTop(r.tval) {
 		t = r.tval.Canon()
 	}
-	out := "rel(" + t + ")"
+	out := "relate(" + t + ")"
 	if nil != r.held {
 		out += "&" + r.held.Canon()
 	}
 	return out
 }
 
-func (r *RelVal) Gen(ctx *Ctx) (any, error) {
-	// Silent, as every residual is: an unmet rel under an optional key
+func (r *RelateVal) Gen(ctx *Ctx) (any, error) {
+	// Silent, as every residual is: an unmet relate under an optional key
 	// drops with it, and a required one is an ordinary unresolved
 	// constraint.
 	return nil, nil
 }
 
-func (r *RelVal) fieldkey() string {
-	if 0 == len(r.path) {
-		return ""
-	}
-	seg := r.path[len(r.path)-1]
-	if !predicateNameOK(seg) {
-		return ""
-	}
-	return seg
+func (r *RelateVal) leafLink(at []string, root bool) *PendingLinkVal {
+	lv := newPendingLink(r.tval)
+	lv.root = root
+	lv.from = r
+	lv.site.sp, lv.site.spu, lv.site.url = r.site.sp, r.site.spu, r.site.url
+	lv.path = cp(at)
+	return lv
 }
 
-func (r *RelVal) leafRefer(at []string) *ReferVal {
-	rv := newRefer(r.tval)
-	rv.addrCode = "rel_address"
-	rv.unresolvedCode = "rel_unresolved"
-	rv.relpred = r.fieldkey()
-	rv.site.sp, rv.site.spu, rv.site.url = r.site.sp, r.site.spu, r.site.url
-	rv.path = cp(at)
-	return rv
+// rewrite is rewriteUnder at the container the `relate()` was written at.
+func (r *RelateVal) rewrite(ctx *Ctx, container Val) Val {
+	out := r.rewriteUnder(ctx, container)
+	li := out.linkInfo()
+	li.root = true
+	if nil != r.tval && !isTop(r.tval) {
+		li.relates = joinRelates(li.relates, []Val{r.tval})
+	}
+	out.setLinkInfo(li)
+	return out
 }
 
-// rewrite is the container with every string leaf wrapped as a link.
-// Nested containers descend; a leaf already STAMPED as a link is left
-// alone, which is what makes a second application a no-op.
-func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
+// rewriteUnder is a container with every leaf wrapped as a link. Nested
+// containers descend; a leaf already STAMPED as a link is left alone,
+// which is what makes a second application a no-op.
+func (r *RelateVal) rewriteUnder(ctx *Ctx, container Val) Val {
 	out := clonePath(container, cp(container.vpath()))
 	base := ctx.slot
 	if nil == base {
@@ -479,15 +527,15 @@ func (r *RelVal) rewrite(ctx *Ctx, container Val) Val {
 	return out
 }
 
-func (r *RelVal) leafSpread(ctx *Ctx, base []string, sp Val) Val {
+func (r *RelateVal) leafSpread(ctx *Ctx, base []string, sp Val) Val {
 	if nil == sp {
-		return r.leafRefer(base)
+		return r.leafLink(base, false)
 	}
 	if !leafOnly(ctx.root, sp, map[string]bool{}) {
 		return sp
 	}
 	// A later leaf meets the value's own spread, so the link joins it.
-	return newConjunct([]Val{r.leafRefer(base), sp})
+	return newConjunct([]Val{r.leafLink(base, false), sp})
 }
 
 // A spread that holds addresses alone, which a leaf's link can join, an
@@ -522,24 +570,23 @@ func leafOnly(root Val, v Val, seen map[string]bool) bool {
 	return false
 }
 
-func (r *RelVal) rewriteChild(ctx *Ctx, child Val, at []string) Val {
+func (r *RelateVal) rewriteChild(ctx *Ctx, child Val, at []string) Val {
 	// Children here are always Vals: the parse builds Vals, elision
-	// builds a NilVal, and clonePath preserved whatever the container
-	// held.
+	// builds a NilVal, and clonePath kept whatever the container held.
 	switch child.(type) {
 	case *MapVal, *ListVal:
-		return r.rewrite(ctx, child)
+		return r.rewriteUnder(ctx, child)
 	}
-	return unite(ctx, r.leafRefer(at), child)
+	return unite(ctx, r.leafLink(at, false), child)
 }
 
-func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
+func (r *RelateVal) Unify(peer Val, ctx *Ctx) Val {
 	if ck, ok := peer.(*ConstraintKindVal); ok {
 		return ck.Unify(r, ctx)
 	}
-	// Two rel() at one field: one relation, both types.
-	if pr, ok := peer.(*RelVal); ok {
-		out := newRel(nil)
+	// Two relate() at one field: one relation, both types.
+	if pr, ok := peer.(*RelateVal); ok {
+		out := newRelate(nil)
 		switch {
 		case nil == r.tval:
 			out.tval = pr.tval
@@ -569,14 +616,14 @@ func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
 			if nil == at {
 				at = r.path
 			}
-			out := unite(ctx, Val(r.leafRefer(at)), peer)
+			out := unite(ctx, Val(r.leafLink(at, true)), peer)
 			if nil == r.held {
 				return out
 			}
 			return unite(ctx, out, r.held)
 		}
 		// A scalar that can never be an address.
-		return makeNilErrFull(ctx, "rel_address", r, peer, "refer", nil)
+		return makeNilErrFull(ctx, "rel_address", r, peer, "relate", nil)
 	}
 
 	// A SET OF LINKS: list or map, rewritten leaf by leaf; the held
@@ -591,9 +638,8 @@ func (r *RelVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 
 	// Everything else -- a reference still resolving, a kind, a
-	// container constraint -- waits for the value, as refer's held
-	// does.
-	out := newRel(r.tval)
+	// container constraint -- waits for the value.
+	out := newRelate(r.tval)
 	if nil == r.held {
 		out.held = peer
 	} else {

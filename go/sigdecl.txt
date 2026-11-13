@@ -51,8 +51,7 @@ meta(v: any, ...r: map) : any
 ident(v: any, r: map) : any
 acyclic() : constraint
 inverse(projector k: string) : constraint
-refer(template t?: any) : constraint
-rel(template t?: any) : constraint
+relate(template t?: any) : constraint
 pack(d: map|list, template t: any) : map
 each(d: map|list, template t: any) : list
 apply(v: any, template f: any) : any

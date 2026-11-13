@@ -116,8 +116,7 @@ first. Every such place in the file, and what a swap would do:
 | `exact` | `number` | `0d5` begins with a digit, so `number` would match `0` and leave `d5` unread |
 | `copyfiles` | `copy` | a call to `copyfiles` would be read as `copy` |
 | `mulof` | `mul` | a call to `mulof` would be read as `mul` |
-| `refer` | `re` | a call to `refer` would be read as `re` |
-| `rel` | `re` | a call to `rel` would be read as `re` |
+| `relate` | `re` | a call to `relate` would be read as `re` |
 | `rem` | `re` | a call to `rem` would be read as `re` |
 | `rep` | `re` | a call to `rep` would be read as `re` |
 | `rest` | `re` | a call to `rest` would be read as `re` |

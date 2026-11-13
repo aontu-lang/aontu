@@ -5,6 +5,7 @@ package aontu
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -47,6 +48,39 @@ func TestSigDeclaredNamesAreTheBuiltinNames(t *testing.T) {
 		if _, ok := funcSig[name]; !ok {
 			t.Fatalf("builtin but not declared: %s", name)
 		}
+	}
+}
+
+func TestCanonCallsAreDeclaredBuiltins(t *testing.T) {
+	files, err := filepath.Glob(filepath.Join("..", "test", "spec", "*.tsv"))
+	if nil != err {
+		t.Fatal(err)
+	}
+	str := regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
+	call := regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\(`)
+	rows := 0
+	for _, file := range files {
+		raw, err := os.ReadFile(file)
+		if nil != err {
+			t.Fatal(err)
+		}
+		for _, line := range strings.Split(string(raw), "\n") {
+			cols := strings.Split(line, "\t")
+			if strings.HasPrefix(line, "#") || 4 > len(cols) ||
+				("canon" != cols[1] && "hcanon" != cols[1]) {
+				continue
+			}
+			rows++
+			for _, m := range call.FindAllStringSubmatch(str.ReplaceAllString(cols[3], `""`), -1) {
+				if _, ok := funcSig[m[1]]; !ok {
+					t.Errorf("%s:%s writes %s(, which is no builtin",
+						filepath.Base(file), cols[0], m[1])
+				}
+			}
+		}
+	}
+	if 0 == rows {
+		t.Fatal("no canon rows read")
 	}
 }
 

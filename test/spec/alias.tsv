@@ -37,7 +37,7 @@ alias-constraint-refuses-path	err	%u8 = integer & min(0) & max(255)\na: %u8\na: 
 # error under the first use names that use.
 alias-of-empty-names-its-first-use	err	%a = empty()\np: %a\nq: %a	at path $.p
 alias-of-close-names-its-first-use	err	%a = close()\np: %a\nq: %a	at path $.p
-alias-of-rel-names-its-first-use	err	%a = rel()\np: %a\nq: %a	at path $.p
+alias-of-rel-names-its-first-use	err	%a = relate()\np: %a\nq: %a	at path $.p
 # ALIAS OF ALIAS, which is the useful case and the one that makes
 # cycles possible at all.
 alias-of-alias	gens	%a = %b\n%b = 2\nx: %a	{"x":2}

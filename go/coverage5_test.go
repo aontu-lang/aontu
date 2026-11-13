@@ -63,9 +63,9 @@ func TestKeywordValsApiOnlyArms(t *testing.T) {
 		t.Fatalf("close() generates nothing")
 	}
 
-	rel := newRel(newString("x"))
-	if out := rel.Unify(newConstraintKind(nil), ctx); "constraint&rel(\"x\")" != out.Canon() {
-		t.Fatalf("rel() against constraint: got %s", out.Canon())
+	rel := newRelate(newString("x"))
+	if out := rel.Unify(newConstraintKind(nil), ctx); "constraint&relate(\"x\")" != out.Canon() {
+		t.Fatalf("relate() against constraint: got %s", out.Canon())
 	}
 }
 

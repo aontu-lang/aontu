@@ -980,8 +980,8 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rel-'))
     const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file,
-      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
-      'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}\n')
+      'a: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+      'b: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.a)]}\n')
     const r = vetCapture(() => Assert.equal(runRelations([file]), 1))
     Assert.match(r.out, /verdict: fail/)
     Assert.match(r.out, /cycle \$\.a -> \$\.b -> \$\.a/)
@@ -990,8 +990,8 @@ describe('cli-subsume', () => {
 
     // Acyclic AND mirrored: nothing to report.
     Fs.writeFileSync(file,
-      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
-      'b: {usedBy: rel() & [path($.a)]}\n')
+      'a: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+      'b: {usedBy: relate() & [path($.a)]}\n')
     Assert.equal(vetCapture(() =>
       Assert.equal(runRelations([file]), 0)
     ).out.trim(), 'verdict: pass')
@@ -1006,8 +1006,8 @@ describe('cli-subsume', () => {
     Assert.equal(rbj.errors[0].code, 'scalar_value')
 
     Fs.writeFileSync(file,
-      'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
-      'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}\n')
+      'a: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+      'b: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.a)]}\n')
     const j = vetCapture(() => Assert.equal(
       runRelations(['--format', 'json', file]), 1))
     const report = JSON.parse(j.out)
@@ -1274,8 +1274,8 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rc-'))
     const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file,
-      'a: {dependsOn: [&: refer(), path($.b)]}\n' +
-      'b: {dependsOn: [&: refer(), path($.c)], usedBy: [&: refer(), path($.d)]}\n' +
+      'a: {dependsOn: [&: relate(), path($.b)]}\n' +
+      'b: {dependsOn: [&: relate(), path($.c)], usedBy: [&: relate(), path($.d)]}\n' +
       'c: {}\nd: {}\n')
 
     // THE PATH IS THE ANSWER: "yes" is worth little to an operator
@@ -1339,9 +1339,9 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vw-'))
     const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file,
-      'cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\n' +
-      'web: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n' +
-      'db: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)]}\n' +
+      'cli: {dependsOn: [&: relate(), path($.web), path($.db)]}\n' +
+      'web: {dependsOn: [&: relate(), path($.db)], usedBy: [&: relate(), path($.cli)]}\n' +
+      'db: {dependsOn: [&: relate(), path($.disk)], usedBy: [&: relate(), path($.cli), path($.web)]}\n' +
       'disk: {}\n')
     const tree = 'cli\n├── db\n│   └── disk\n└── web\n    └── db (*)\n'
 
@@ -1413,9 +1413,9 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vk-'))
     const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file,
-      'cli: {layer: "app", dependsOn: [&: refer(), path($.web), path($.db)]}\n' +
-      'web: {layer: "svc", dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n' +
-      'db: {layer: "data", dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)]}\n' +
+      'cli: {layer: "app", dependsOn: [&: relate(), path($.web), path($.db)]}\n' +
+      'web: {layer: "svc", dependsOn: [&: relate(), path($.db)], usedBy: [&: relate(), path($.cli)]}\n' +
+      'db: {layer: "data", dependsOn: [&: relate(), path($.disk)], usedBy: [&: relate(), path($.cli), path($.web)]}\n' +
       'disk: {layer: "data", dependsOn: []}\n')
 
     // A figure written to a file, then --check agrees with it; a
@@ -1440,8 +1440,8 @@ describe('cli-subsume', () => {
     // The loss report on stderr, and --strict refusing it.
     const hid = Path.join(dir, 'hid.aontu')
     Fs.writeFileSync(hid,
-      'a: hide({dependsOn: [&: refer(), path($.b)]})\n' +
-      'b: {dependsOn: [&: refer(), path($.c)]}\nc: {}\n')
+      'a: hide({dependsOn: [&: relate(), path($.b)]})\n' +
+      'b: {dependsOn: [&: relate(), path($.c)]}\nc: {}\n')
     const lossy = vetCapture(() => Assert.equal(runView(['tree', hid]), 0))
     Assert.equal(lossy.out, 'b\n└── c\n')
     Assert.equal(lossy.err, 'hidden_contribution  1  $.a.dependsOn.0\n')
@@ -1488,7 +1488,7 @@ describe('cli-subsume', () => {
   test('view-document-draws-every-figure-it-declares', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vd-'))
     Fs.writeFileSync(Path.join(dir, 'model.aontu'),
-      'app: {layer: "app", dependsOn: [&: refer(), path($.core)]}\n' +
+      'app: {layer: "app", dependsOn: [&: relate(), path($.core)]}\n' +
       'core: {layer: "core"}\n')
     const file = Path.join(dir, 'views.aontu')
     Fs.writeFileSync(file, '@"./model.aontu"\nviews: {\n' +
@@ -1544,7 +1544,7 @@ describe('cli-subsume', () => {
     // not draw, and --strict is the gate on that.
     const lossy = Path.join(dir, 'lossy.aontu')
     Fs.writeFileSync(lossy,
-      'a: hide({dependsOn: [&: refer(), path($.b)]})\nb: {}\n' +
+      'a: hide({dependsOn: [&: relate(), path($.b)]})\nb: {}\n' +
       'views: {t: {kind: tree, out: "out/lossy.txt"}}\n')
     const loose = vetCapture(() => Assert.equal(
       runView(['--views', '$.views', lossy]), 0))
@@ -1589,7 +1589,7 @@ describe('cli-subsume', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vs-'))
     const file = Path.join(dir, 'doc.aontu')
     Fs.writeFileSync(file,
-      'a: {team: x, dependsOn: [&: refer(), path($.b)]}\n' +
+      'a: {team: x, dependsOn: [&: relate(), path($.b)]}\n' +
       'b: {team: y}\n' +
       'views: {g: {kind: graph, splitBy: team, out: "g-{part}.mmd"}}\n')
     const out = Path.join(dir, 'p-{part}.mmd')
@@ -1690,7 +1690,7 @@ describe('cli-subsume', () => {
   test('view-usage-errors', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vu-'))
     const file = Path.join(dir, 'doc.aontu')
-    Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n')
+    Fs.writeFileSync(file, 'a: {dependsOn: [&: relate(), path($.b)]}\nb: {}\n')
     for (const [args, want] of [
       [[], /view needs a kind and a file/],
       [['tree'], /view needs a kind and a file/],
@@ -1977,7 +1977,7 @@ describe('cli-subsume', () => {
     // AND THE NEGATIVE: a document that DOES declare says nothing.
     const graph = Path.join(dir, 'graph.aontu')
     Fs.writeFileSync(graph,
-      'a: {dependsOn: rel() & acyclic() & [path($.b)]}\n' +
+      'a: {dependsOn: relate() & acyclic() & [path($.b)]}\n' +
       'b: {}\n')
     const declared = vetCapture(() => runRelations([graph]))
     Assert.doesNotMatch(declared.err, /declares no relations/)

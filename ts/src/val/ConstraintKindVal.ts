@@ -24,8 +24,8 @@ import { FeatureVal } from './FeatureVal'
 // A constraint, or a kind that can become one's domain (`integer` in
 // `constraint & integer & min(0)`).
 function constrains(v: any): boolean {
-  return true === v?.isConstraint || true === v?.isRefer
-    || true === v?.isRel || true === v?.isScalarKind
+  return true === v?.isConstraint || true === v?.isPendingLink
+    || true === v?.isRelate || true === v?.isScalarKind
     || true === v?.isEmptyConstraint || true === v?.isGraphAtom
 }
 
@@ -85,7 +85,8 @@ class ConstraintKindVal extends FeatureVal {
   }
 
   get canon() {
-    return null == this.held ? 'constraint' : 'constraint&' + this.held.canon
+    const held = null == this.held ? '' : this.held.canon
+    return '' === held ? 'constraint' : 'constraint&' + held
   }
 
   same(peer: any): boolean {

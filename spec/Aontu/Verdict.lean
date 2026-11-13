@@ -647,7 +647,7 @@ def Fn.takes : Fn → ℕ → Bool
   | .sort, n | .upper, n | .lower, n | .nom, n => 1 ≤ n && n ≤ 3
   | .translate, n => 2 ≤ n && n ≤ 3
   | .rep, n => n == 3
-  | .refer, n | .rel, n | .path, n => n ≤ 1
+  | .relate, n | .path, n => n ≤ 1
   | .cmp c, n => c.takes n
   | .load, n | .bnd .neq, n => 1 ≤ n
   | .bnd _, n => n == 1
@@ -663,10 +663,10 @@ def Fn.computes : Fn → Bool
   | _ => false
 
 /-- Whether a call's value holds its argument, so that the moves the
-argument holds ride the value already: `super`, `pref`, `move`, `copy`,
-`refer` and `rel`. -/
+argument holds ride the value already: `super`, `pref`, `move`, `copy`
+and `relate`. -/
 def Fn.holdsArg : Fn → Bool
-  | .super | .pref | .move | .copy | .refer | .rel => true
+  | .super | .pref | .move | .copy | .relate => true
   | _ => false
 
 /-- A node of the component tree: the sealed map of its component's
@@ -935,7 +935,7 @@ end
 
 /-- The name the relation kind is declared under, which no document
 can write, since a name a document writes holds no parenthesis. -/
-def relName : String := "rel()"
+def relName : String := "relate()"
 
 /-- The relation kind: an address, or a list or a map whose every
 element or member is one in turn, so that a relation's value is an
@@ -966,7 +966,7 @@ form, as `super` reads it, so that a preference stays one, and a `move`
 the same, its source hidden where the document is read (`Decls.withMoves`);
 a `copy` its argument's normal form with its marks cleared and every
 map and list in it unsealed (`Val.unmark`, `Val.unseal`);
-a `refer` the path kind and a `rel` the relation kind, `relName`, each
+a `relate` the relation kind, `relName`,
 carrying its template (`Val.link`), so that the template rides the
 value the link meets, in every arm and copy the value is in, and is
 met into each target the normal form names where the document is read
@@ -999,10 +999,8 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
   | .pref, [x] => x.prefer
   | .move, [x] => x.prefer
   | .copy, [x] => (normaliseD ds x).unmark.unseal
-  | .refer, [] => .link .pathKind .any
-  | .refer, [t] => .link .pathKind t
-  | .rel, [] => .link (.alias relName) .any
-  | .rel, [t] => .link (.alias relName) t
+  | .relate, [] => .link (.alias relName) .any
+  | .relate, [t] => .link (.alias relName) t
   | .split, [s, sep] => (splitOf ds s sep).term ds f args
   | .rep, [s, p, r] => (repOf ds s p r).term ds f args
   | .nom, [n] => (nomOf ds n none none).term ds f args
@@ -1714,8 +1712,8 @@ the member it tries lands, under its key or at the index it takes among
 those kept. A term read with no position keeps its keys as written, and
 a selection whose arms hold a key, a call or a generator whose arguments
 hold one, and a `filter` whose condition does stay as written too, so
-that a path copies them to be read where it lands, but a `refer` or a
-`rel`, whose value no argument decides. A size over a term
+that a path copies them to be read where it lands, but a `relate`,
+whose value no argument decides. A size over a term
 outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
 as a bound over one is (`bndOf`), so that both refuse at the meet. A
 trial both ports build as they read it is `nil` where an argument they
@@ -1793,7 +1791,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
         if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
         else .call .emit [resolveD ds b here s, t]
     | f, args =>
-      if here.isNone && keyItems (resolveItems ds b here args) && f != .refer && f != .rel then
+      if here.isNone && keyItems (resolveItems ds b here args) && f != .relate then
         .call f (resolveItems ds b here args)
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
@@ -3229,8 +3227,6 @@ theorem callTerm_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
   · exact prefer_checkableA (h _ (by simp))
   · exact prefer_checkableA (h _ (by simp))
   · exact (normaliseD_checkableA (ds := ds) hd (h _ (by simp))).unmark.unseal
-  · exact .link .pathKind .any
-  · exact .link .pathKind (h _ (by simp))
   · exact .link .alias .any
   · exact .link .alias (h _ (by simp))
   · exact Made.term_checkableA hd h fun v hv => splitOf_checkableA hv

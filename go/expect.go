@@ -58,7 +58,7 @@ func expectGenable(v Val) bool {
 	switch v.(type) {
 	case *ScalarVal, *MapVal, *ListVal, *ConjunctVal, *DisjunctVal,
 		*FuncVal, *NilVal, *PrefVal, *RefVal,
-		*ReferVal, *RelVal, *GraphAtomVal, *RecurseVal:
+		*PendingLinkVal, *RelateVal, *GraphAtomVal, *RecurseVal:
 		return true
 	}
 	return false

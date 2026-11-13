@@ -7,6 +7,7 @@ import type { Val } from './val/Val'
 
 import { cmpCodePoint } from './keyorder'
 import { riderText } from './rider'
+import { relateText } from './val/PathVal'
 
 
 type HMarks = {
@@ -32,9 +33,7 @@ function render(v: any, inh: HMarks): string {
     const keys = Object.keys(v.peg)
       .filter((k) => !v.aliasKeys.includes(k))
       .sort(cmpCodePoint)
-    s = '{' +
-      (v.spread.cj ? '&:' + render(v.spread.cj, inner) +
-        (0 < keys.length ? ',' : '') : '') +
+    s = '{' + spreadText(v, 0 < keys.length, inner) +
       keys.map((k) =>
         JSON.stringify(k) +
         (v.optionalKeys.includes(k) ? '?' : '') +
@@ -44,17 +43,17 @@ function render(v: any, inh: HMarks): string {
     if (true === v.closed) {
       s = 'close(' + s + ')'
     }
+    s = relateText(v) + s
   }
   else if (true === v.isList) {
     const keys = Object.keys(v.peg)
-    s = '[' +
-      (v.spread.cj ? '&:' + render(v.spread.cj, inner) +
-        (0 < keys.length ? ',' : '') : '') +
+    s = '[' + spreadText(v, 0 < keys.length, inner) +
       keys.map((k) => render(v.peg[k], inner)).join(',') +
       ']'
     if (true === v.closed) {
       s = 'close(' + s + ')'
     }
+    s = relateText(v) + s
   }
   else if (true === v.isPref) {
     s = '*' + render(v.peg, inner)
@@ -82,11 +81,18 @@ function render(v: any, inh: HMarks): string {
 }
 
 
+// A bag's template, where it has one with a text of its own.
+function spreadText(v: any, members: boolean, inner: HMarks): string {
+  const s = v.spread.cj ? render(v.spread.cj, inner) : ''
+  return '' === s ? '' : '&:' + s + (members ? ',' : '')
+}
+
+
 function junctionText(v: any, sym: string, inner: HMarks): string {
-  const parts: [number, string][] = v.peg.map((m: any) => [m.cjo,
+  const parts = (v.peg as any[]).map((m: any): [number, string] => [m.cjo,
     true === m?.isJunction && 1 < m.peg.length
       ? '(' + render(m, inner) + ')'
-      : render(m, inner)])
+      : render(m, inner)]).filter((p) => '' !== p[1])
   // As canon writes a meet: terms of one rank in code-point order.
   if ('&' === sym) {
     parts.sort((a, b) => a[0] - b[0] || cmpCodePoint(a[1], b[1]))

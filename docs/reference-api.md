@@ -856,8 +856,8 @@ Write the vocabulary as `spec.aontu`:
 spec: hide({
   Service: {
     kind: service
-    dependsOn?: rel($.spec.ServiceShape) & acyclic() & inverse(usedBy)
-    usedBy?: rel($.spec.ServiceShape)
+    dependsOn?: relate($.spec.ServiceShape) & acyclic() & inverse(usedBy)
+    usedBy?: relate($.spec.ServiceShape)
   }
   ServiceShape: kind: service
 })
@@ -909,7 +909,7 @@ $ echo $?
 ```
 
 - Relations are declared **at the field**, by
-  [`rel(t)` and the graph atoms](reference-language.md#declared-relations):
+  [`relate(t)` and the graph atoms](reference-language.md#declared-relations):
   `acyclic()` and `inverse(name)` register the declaration during
   unification, and the verb reports the verdict over the finished
   model's edge set. There is no reserved `relations:` key: a document
@@ -928,7 +928,7 @@ $ echo $?
   `detail`: for a cycle, the node paths it runs through in order; for
   a missing inverse, `[from, to, inverseName]`. Findings are **sorted by
   `at`**, so the report diffs cleanly.
-- **The endpoint type is `rel(t)`'s flow**: declared once on the field,
+- **The endpoint type is `relate(t)`'s flow**: declared once on the field,
   it flows into each far end at the site, so a conflict or a hole is an
   ordinary located evaluation error rather than a report row, and a
   document with a wrong-typed far end answers `verdict: error` here,
@@ -1206,11 +1206,11 @@ checkout written as a list of steps:
 
 <!-- test: file order.aontu -->
 ```aontu
-order: draft: { lane:customer submit:refer() & path($.order.review) }
+order: draft: { lane:customer submit:relate() & path($.order.review) }
 order: review: {
   lane: shop
-  approve: refer() & path($.order.shipped)
-  reject: refer() & path($.order.draft)
+  approve: relate() & path($.order.shipped)
+  reject: relate() & path($.order.draft)
 }
 order: shipped: lane: courier
 
@@ -2205,7 +2205,7 @@ $.services.auth.replicas = 3
   is an engine detail.
 - **Provenance travels with a clone.** A value that reached this path
   by being copied from somewhere else (a spread template applied per
-  key, a `pack()` generator's child, a `$ref`, a `refer(t)` flow) is
+  key, a `pack()` generator's child, a `$ref`, a `relate(t)` flow) is
   reported as the value the author wrote, at the line
   they wrote it on. That is the whole audit question: *which file set
   this?* A clone of a written value is that written value somewhere
@@ -3876,15 +3876,14 @@ edge set:
 
 There is no entity index, because there is no second namespace to index:
 a node's address is its path. One entry per checked
-[link](reference-language.md#checked-links-refert):
+[link](reference-language.md#checked-links-relatet):
 
-- **`from`** is the node the link starts at: the link's own position
-  with the relation key and any list indices stripped, so a link inside
-  a list is an edge from the node that holds the list. `$` when the
-  link sits at the top of the document.
-- **`key`** is the relation. A `rel()`-minted link carries its
-  predicate declared; a bare `refer()` has it inferred as the first
-  real key above the link.
+- **`from`** is the node the link starts at: the map holding the field
+  `relate()` is written on. A link in a list, or in a map nested to any
+  depth under that field, is an edge from the same node. `$` when the
+  field sits at the top of the document.
+- **`key`** is the relation: the key of that field. Where the call is
+  written on an element of a list, it is the first key above the list.
 -  **`to`** is the **resolved** address, always absolute. A relative
   address means a different node from each position it is written at, so
   an edge set whose far ends were spellings could not be traversed: the

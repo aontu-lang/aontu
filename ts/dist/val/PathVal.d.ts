@@ -8,9 +8,13 @@ export type Address = {
     parts: string[];
 };
 export declare function parseAddress(s: string): Address | undefined;
+export declare function addressPath(addr: Address, at: (string | number)[]): string[] | undefined;
 export declare function textAddress(s: string): string;
 export declare function joinFlows(a: [string, Val][] | undefined, b: [string, Val][] | undefined): [string, Val][] | undefined;
+export declare function joinRelates(a: Val[] | undefined, b: Val[] | undefined): Val[] | undefined;
+export declare function relateText(v: Val): string;
 export declare function prefixMeet(a: string, b: string): string | undefined;
+export declare function linkAt(ctx: AontuContext, addrsrc: string, at: string[], flows: [string, Val][] | undefined, relates: Val[], relroot: boolean): PathVal | undefined;
 declare class PathVal extends ScalarVal {
     isPath: boolean;
     constructor(spec: ValSpec, ctx?: AontuContext);

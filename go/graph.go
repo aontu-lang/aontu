@@ -30,25 +30,14 @@ func graphPath(path []string) string {
 	return "$." + strings.Join(path, ".")
 }
 
-func cutEdge(at []string, relkey string) (string, string) {
-	if "" != relkey {
-		for i := len(at) - 1; 0 <= i; i-- {
-			if at[i] == relkey {
-				return graphPath(at[:i]), relkey
-			}
-		}
-	}
+func cutEdge(at []string) (string, string) {
 	i := len(at) - 1
 	for ; 0 <= i && allDigits(at[i]); i-- {
 	}
 	if 0 > i {
-		return graphPath(nil), relkey
+		return graphPath(nil), ""
 	}
-	key := relkey
-	if "" == key {
-		key = at[i]
-	}
-	return graphPath(at[:i]), key
+	return graphPath(at[:i]), at[i]
 }
 
 func GraphOf(root Val) Graph {
@@ -59,8 +48,8 @@ func GraphOf(root Val) Graph {
 	// ONE WALK, with `undecided` saying which side of ADR-007 it is on:
 	// below an unresolved disjunction every link is a position the
 	// document has not decided, and nothing there is an edge.
-	var visit func(node Val, path []string, hidden, undecided bool)
-	visit = func(node Val, path []string, hidden, undecided bool) {
+	var visit func(node Val, path []string, hidden, undecided bool, under []string)
+	visit = func(node Val, path []string, hidden, undecided bool, under []string) {
 		if nil == node || ancestors[node] {
 			return
 		}
@@ -70,11 +59,10 @@ func GraphOf(root Val) Graph {
 		if link := node.linkAddr(); "" != link && undecided {
 			disjunct = append(disjunct, graphPath(path))
 		} else if "" != link {
-			relkey := ""
-			if bb, ok := node.(interface{ relKey() string }); ok {
-				relkey = bb.relKey()
+			from, key := cutEdge(path)
+			if !node.linkInfo().root && nil != under {
+				from, key = graphPath(under[:len(under)-1]), under[len(under)-1]
 			}
-			from, key := cutEdge(path, relkey)
 			edges = append(edges, Edge{
 				From:   from,
 				Key:    key,
@@ -88,7 +76,19 @@ func GraphOf(root Val) Graph {
 		// the field's value at the field's own position, and the graph
 		// is about the value.
 		if ga, ok := node.(*GraphAtomVal); ok && nil != ga.held {
-			visit(ga.held, path, hidden, undecided)
+			visit(ga.held, path, hidden, undecided, under)
+		}
+
+		// The field a `relate()` was written at names the relation of the
+		// links below it, which is what canon writes, so the two agree.
+		switch node.(type) {
+		case *MapVal, *ListVal:
+			if node.linkInfo().root {
+				under = nil
+				if 0 < len(path) && predicateNameOK(path[len(path)-1]) {
+					under = path
+				}
+			}
 		}
 
 		switch n := node.(type) {
@@ -98,31 +98,31 @@ func GraphOf(root Val) Graph {
 		case *ConjunctVal:
 			ancestors[node] = true
 			for _, t := range n.peg {
-				visit(t, path, hidden, undecided)
+				visit(t, path, hidden, undecided, under)
 			}
 			delete(ancestors, node)
 		case *DisjunctVal:
 			ancestors[node] = true
 			for _, arm := range n.peg {
-				visit(arm, path, hidden, true)
+				visit(arm, path, hidden, true, under)
 			}
 			delete(ancestors, node)
 		case *MapVal:
 			ancestors[node] = true
 			for _, k := range n.keys {
-				visit(n.peg[k], append(cp(path), k), hidden, undecided)
+				visit(n.peg[k], append(cp(path), k), hidden, undecided, under)
 			}
 			delete(ancestors, node)
 		case *ListVal:
 			ancestors[node] = true
 			for i, e := range n.peg {
-				visit(e, append(cp(path), itoa(i)), hidden, undecided)
+				visit(e, append(cp(path), itoa(i)), hidden, undecided, under)
 			}
 			delete(ancestors, node)
 		}
 	}
 
-	visit(root, nil, false, false)
+	visit(root, nil, false, false, nil)
 
 	sort.Slice(edges, func(i, j int) bool { return edges[i].At < edges[j].At })
 

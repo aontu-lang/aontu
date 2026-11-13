@@ -58,7 +58,7 @@ address lists.
 
 ```
 $
-├── %JobEdge rel({"kind":"job"})
+├── %JobEdge relate({"kind":"job"})
 ├── pipeline
 │   └── jobs
 │       ├── audit (4)
@@ -68,8 +68,8 @@ $
 └── spec
     ├── Job
     │   ├── cmd string
-    │   ├── fedBy rel({"kind":"job"})
-    │   ├── feeds rel({"kind":"job"})&acyclic()...
+    │   ├── fedBy relate({"kind":"job"})
+    │   ├── feeds relate({"kind":"job"})&acyclic()...
     │   └── kind "job"
     └── JobShape
         └── kind "job"
@@ -86,10 +86,10 @@ than its value.
 `model.aontu` is the root: one evaluation that includes the vocabulary
 (`spec.aontu`) and the topology (`pipeline.aontu`). The whole relation is
 one line of schema in `spec.aontu`, with the inverse field declared
-`rel` beside it:
+`relate` beside it:
 
 ```aontu
-%JobEdge = rel($.spec.JobShape)
+%JobEdge = relate($.spec.JobShape)
 
 feeds?: %JobEdge & acyclic() & inverse(fedBy)
 fedBy?: %JobEdge
@@ -98,14 +98,14 @@ fedBy?: %JobEdge
 `%JobEdge` is an **alias**: `%name = value` at the top level declares one and
 `%name` in value position uses it. It does not generate and does not
 appear in canon, so `spec.aontu` with the name and `spec.aontu` with
-`rel($.spec.JobShape)` written out at both ends are the same document
+`relate($.spec.JobShape)` written out at both ends are the same document
 with the same `aon1-` hash. What it buys is that a relation and its
 inverse can no longer be declared over different endpoint types, which
 is a mistake nothing else here would catch: `inverse()` checks that
 every edge is mirrored, not that the two ends agree about what they
 point at.
 
-- `rel(t)`: the field's strings are checked entity addresses, and
+- `relate(t)`: the field's strings are checked entity addresses, and
   `t` flows into every target. Here `t` is `JobShape`, a thin sibling
   shape (`kind: job`) naming what the far end of every edge must be.
 - `acyclic()`, `inverse(fedBy)`: the graph atoms: lattice-inert
@@ -143,7 +143,7 @@ The constructs are specified in the language reference under
    `[aontu/relation_inverse_missing]`, and the verb names the exact
    entry:
    `$.pipeline.jobs.metrics does not list $.pipeline.jobs.transform under fedBy`.
-6. `bad/wrong-kind.aontu` (an edge landing on a dataset) is `rel(t)`'s
+6. `bad/wrong-kind.aontu` (an edge landing on a dataset) is `relate(t)`'s
    flow refusing at evaluation: an ordinary located
    `[aontu/scalar_value]` conflict at the target's `kind`, and
    `aontu relations` answers `verdict: error` with exit code 4.

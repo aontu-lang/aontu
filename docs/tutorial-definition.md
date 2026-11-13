@@ -2842,7 +2842,7 @@ theorem admits_meetD {ds : Decls} {root : Data} (a b : Val) (j : Data) :
 The body a residual unfolds to holds its calls made. Both engines make a
 call in a recursive name's body wherever the body stands, so
 `%T = {m: {}, n: upper("x"), o?: %T}` gives `x: {} & %T` the member
-`n: "X"`, and `copy(%T)` and `refer(%T)` in `%T`'s own body wait on the
+`n: "X"`, and `copy(%T)` and `relate(%T)` in `%T`'s own body wait on the
 recursion, as `pref(%T)` does. The meet unfolds a name after the reading
 has made the schema's calls, so the definition makes the calls and the
 selections in each recursive name's body first. Step 9 reads each body
@@ -5922,8 +5922,8 @@ the member it tries lands, under its key or at the index it takes among
 those kept. A term read with no position keeps its keys as written, and
 a selection whose arms hold a key, a call or a generator whose arguments
 hold one, and a `filter` whose condition does stay as written too, so
-that a path copies them to be read where it lands, but a `refer` or a
-`rel`, whose value no argument decides. A size over a term
+that a path copies them to be read where it lands, but a `relate`,
+whose value no argument decides. A size over a term
 outside `len`'s domain (`Val.unsized`) is the atom that admits nothing,
 as a bound over one is (`bndOf`), so that both refuse at the meet. A
 trial both ports build as they read it is `nil` where an argument they
@@ -6006,14 +6006,14 @@ def Decls.clashes (ds : Decls) : Val → Bool
 
 Read with no position, as the schema's own tree is, a call whose
 arguments hold a `key(n)` stays as written, so that a path copies it to
-be read where it lands. A `refer` and a `rel` are made all the same,
+be read where it lands. A `relate` is made all the same,
 since no argument decides a link's value, so that the link's address is
 there for its flow to read:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
     | f, args =>
-      if here.isNone && keyItems (resolveItems ds b here args) && f != .refer && f != .rel then
+      if here.isNone && keyItems (resolveItems ds b here args) && f != .relate then
         .call f (resolveItems ds b here args)
       else if (resolveItems ds b here args).any (fun a => (normaliseD ds a).isAbsent) then .absent
       else if (resolveItems ds b here args).any (·.pending ds) then .call f (resolveItems ds b here args)
@@ -8850,22 +8850,22 @@ no row holds it, which #486 tracks.
 
 ## 36. Checked links
 
-`refer(t)` constrains a link: a path value that keeps its address in the
+`relate(t)` constrains a link: a path value that keeps its address in the
 output, whose target must exist, and into whose target `t` flows. Write
-`refer.aontu`:
+`link.aontu`:
 
-<!-- test: scenario refer -->
-<!-- test: file refer.aontu -->
+<!-- test: scenario link -->
+<!-- test: file link.aontu -->
 ```aontu
 services: auth: port: 8080
-billing: dep: refer({ kind:"service" }) & path($.services.auth)
+billing: dep: relate({ kind:"service" }) & path($.services.auth)
 ```
 
 and evaluate it:
 
 <!-- test: run -->
 ```sh
-$ aontu refer.aontu
+$ aontu link.aontu
 {
   "billing": {
     "dep": "$.services.auth"
@@ -8881,7 +8881,7 @@ $ aontu refer.aontu
 
 The call reads as the path kind, `path`, so the link's own value is the
 address `path($.services.auth)` gives it. A string where an address
-must be, `refer() & "$.a"`, is an `error`, as `path & "$.a"` is. The
+must be, `relate() & "$.a"`, is an `error`, as `path & "$.a"` is. The
 rest belongs to the document, as a `move`'s hiding does: before the
 definition reads it, the schema meets each link's template at the
 link's target, from where the link stands, as a relative path climbs:
@@ -8897,18 +8897,18 @@ def Addr.from (a : Addr) (pos : List Seg) : Option (List Seg) :=
 So `..auth` written at `s.billing.dep` names `s.auth`, and `...a`
 written at `b` climbs past the top, an `error`. The template meets the
 target with its marks cleared, as a reference copies a value, so
-`refer(type({ k:1 }))` makes the target `{ k:1 }`, not a type.
+`relate(type({ k:1 }))` makes the target `{ k:1 }`, not a type.
 
 A link reads where it lands, not where it's written: a `type()` that
 holds a link reaches each place that uses it through a path reference,
 a spread's template reaches each member, and a generator's template
 each member of its output. The definition gets this from the meet.
-Making `refer(t)` gives the path kind carrying `t`, a value form of its
+Making `relate(t)` gives the path kind carrying `t`, a value form of its
 own:
 
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
-  | link (v t : Val)                        -- `refer(t)` met with `v`: `v` carrying a link whose target meets `t`
+  | link (v t : Val)                        -- `relate(t)` met with `v`: `v` carrying a link whose target meets `t`
 ```
 
 The meet carries a link as it carries a rider, onto the meet of its
@@ -8935,11 +8935,11 @@ def Val.links (pos : List Seg) : Val → List (List Seg × Val × Val)
 ```
 
 A default that holds a link sends its template while it stands. Write
-`refer-arm.aontu`:
+`link-arm.aontu`:
 
-<!-- test: file refer-arm.aontu -->
+<!-- test: file link-arm.aontu -->
 ```aontu
-x: *{ d:refer({ z:1 }) & path($.y) }|{ e:1 }
+x: *{ d:relate({ z:1 }) & path($.y) }|{ e:1 }
 y: z: integer
 ```
 
@@ -8947,7 +8947,7 @@ and evaluate it:
 
 <!-- test: run -->
 ```sh
-$ aontu refer-arm.aontu
+$ aontu link-arm.aontu
 {
   "x": {
     "d": "$.y"
@@ -8959,26 +8959,26 @@ $ aontu refer-arm.aontu
 ```
 
 An arm the meet refuses sends nothing, as the first arm of
-`({ d:refer({ z:1 }) & path($.y), k:1 } | { k:2 }) & { k:2 }` doesn't,
+`({ d:relate({ z:1 }) & path($.y), k:1 } | { k:2 }) & { k:2 }` doesn't,
 and neither does an arm the rule passes over, such as
-`{ d:refer({ w:2 }) & path($.y) }` written beside the default in
-`refer-arm.aontu`.
+`{ d:relate({ w:2 }) & path($.y) }` written beside the default in
+`link-arm.aontu`.
 
 A generator's template sends only from the instances the generator
 makes, since only those stand in the normal form: `each`'s at an index
 among those that aren't absence, and `pack`'s under a key. So
-`each([], refer({ k:1 })) & [path($.a)]` flows nothing into `a`,
+`each([], relate({ k:1 })) & [path($.a)]` flows nothing into `a`,
 though the list the generator meets has an element.
 
 Each link reads its relative address from its own position, so that
 each place a spread or a reference puts it reads its own. Its template
 is read at that position too, as both engines read a template where
 its link stands. A hole in a generator's template stands for the
-member, so `each($.l, refer(_) & path($.a))` flows each member of `l`
+member, so `each($.l, relate(_) & path($.a))` flows each member of `l`
 into `a`, and `key()` reads the link's own place, so
-`x: r: refer({ n:key() }) & path($.a)` makes `a.n` the string `"r"`.
+`x: r: relate({ n:key() }) & path($.a)` makes `a.n` the string `"r"`.
 The template's names are expanded first, so a generator over a name
-reads the name's body: with `%L = [1]`, `refer(each(%L, _)) & path($.a)`
+reads the name's body: with `%L = [1]`, `relate(each(%L, _)) & path($.a)`
 flows `[1]` into `a`. Each link comes with each value it stands in that
 the rank rule picks (`Val.pickedLeaves`), and reads its address there,
 so a link in an arm reads its own arm's address:
@@ -9008,7 +9008,7 @@ def Decls.referPass (ds : Decls) (r : Decls → Val → List Val) (S L : Val) (m
 ```
 
 A link at a body's own place can name a member of the body, as
-`%T = {m: {}, n: refer({k: 1}) & path(.m)}` names `$.%T.m`. The output
+`%T = {m: {}, n: relate({k: 1}) & path(.m)}` names `$.%T.m`. The output
 holds no such place, so the template meets nothing the schema holds:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -9056,7 +9056,7 @@ def Decls.ownLinked (ds : Decls) (B : Val) : Val :=
 
 A target the place doesn't hold meets `any` there, since the link passes
 judge it. So a second link whose target the first link's template makes,
-`o: refer({k: 1}) & path(.m.q)` beside `n: refer({q: {}}) & path(.m)`,
+`o: relate({k: 1}) & path(.m.q)` beside `n: relate({q: {}}) & path(.m)`,
 finds no target in the link passes, which read the body's place as its
 bodies write it, and the document is an `error`, where both engines read
 it as `valid`, which #664 tracks. At a use of the name, `a: %T`, the
@@ -9065,15 +9065,15 @@ in the same document written in place, where both engines leave `a.z`
 naming nothing, which #723 tracks.
 
 One link's template can make another link's target:
-`y: refer({ z:{} }) & path($.h)` makes `h.z` for
-`x: refer({ p:1 }) & path($.h.z)`, whichever the document writes
+`y: relate({ z:{} }) & path($.h)` makes `h.z` for
+`x: relate({ p:1 }) & path($.h.z)`, whichever the document writes
 first. A template can carry a link of its own, too:
-`s: refer({ n:refer({ k:1 }) & path($.t2) }) & path($.t1)` sends
+`s: relate({ n:relate({ k:1 }) & path($.t2) }) & path($.t1)` sends
 `{ k:1 }` into `t2` once its template lands in `t1`. So the definition
 reads the links and their targets in passes, each reading the tree the
 last pass made and meeting its templates into that tree, so that a
 flow once found stays. A flow that conflicts with its own link,
-`s: refer(1) & path($.s)`, leaves the link `nil`, with no address to
+`s: relate(1) & path($.s)`, leaves the link `nil`, with no address to
 read again, and the conflict stands all the same:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -9097,9 +9097,9 @@ def Decls.withRefers (ds : Decls) (r : Decls → Val → List Val) (S : Val) : V
 ```
 
 The template meets the target, so the target refuses the data the
-template refuses. Write `refer-data.aontu`:
+template refuses. Write `link-data.aontu`:
 
-<!-- test: file refer-data.aontu -->
+<!-- test: file link-data.aontu -->
 ```aontu
 services: auth: kind: "client"
 ```
@@ -9108,13 +9108,13 @@ and vet it:
 
 <!-- test: run -->
 ```sh
-$ aontu vet refer.aontu refer-data.aontu
+$ aontu vet link.aontu link-data.aontu
 verdict: invalid
 
 $.services.auth.kind: scalar_value [conflict]
   [aontu/scalar_value]: Cannot unify values at path $.services.auth.kind
-  data: refer-data.aontu:1:23 ("client")
-  schema: refer.aontu:2:28 ("service")
+  data: link-data.aontu:1:23 ("client")
+  schema: link.aontu:2:29 ("service")
 $ echo $?
 1
 ```
@@ -9143,16 +9143,16 @@ copy as a link of its own, which #536 tracks.
 
 ## 37. Relations
 
-`rel(t)` declares a relation at its field: the field's value is an
+`relate(t)` declares a relation at its field: the field's value is an
 address, or a list or a map of addresses nested as deep as it goes,
-and `t` flows into the target of each. Write `rel.aontu`:
+and `t` flows into the target of each. Write `relation.aontu`:
 
-<!-- test: scenario rel -->
-<!-- test: file rel.aontu -->
+<!-- test: scenario relation -->
+<!-- test: file relation.aontu -->
 ```aontu
 services: { auth: {} billing: {} }
 
-gateway: routes: rel({ kind:"service" }) & [
+gateway: routes: relate({ kind:"service" }) & [
   path($.services.auth)
   path($.services.billing)
 ]
@@ -9162,7 +9162,7 @@ and evaluate it:
 
 <!-- test: run -->
 ```sh
-$ aontu rel.aontu
+$ aontu relation.aontu
 {
   "gateway": {
     "routes": [
@@ -9193,10 +9193,10 @@ def relKind : Val :=
 ```
 
 So a string, a number or `true` where an address must be is an
-`error`, as `rel() & "x"` is, and data that writes the addresses as
+`error`, as `relate() & "x"` is, and data that writes the addresses as
 strings is `invalid`, as data that writes a path value as a string
-is. Each leaf of the relation's value is a link, as a `refer` is, read
-from the relation's own position, at the leaves of the value the link
+is. Each leaf of the relation's value is a link, as the one path of
+step 36 is, read from the relation's own position, at the leaves of the value the link
 stands in:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -9209,7 +9209,7 @@ in the passes step 36 walked through. Rows from rl0 on of
 `test/spec/def-path.tsv` hold these readings in the three modes of
 `vet`, and both engines answer every one as the definition does.
 Against data that writes a list, the template makes no difference:
-`rel()`, `rel([])`, `rel([1])` and `rel([_])` each refuse `v: [1]` and
+`relate()`, `relate([])`, `relate([1])` and `relate([_])` each refuse `v: [1]` and
 `v: ["a"]` and pass `v: []`, in the rows from rl84 on. The
 engines read a relative address at a leaf from different places: the
 two disagree once one container nests in another, which #492 tracks,
@@ -9217,11 +9217,11 @@ and `eval` and `vet` disagree even with one, which #493 tracks, so no
 row holds a relative leaf.
 
 The links are read from the relation's value, the meet of all its
-terms, so a constraint met with `rel()` meets that value as any meet
-does, wherever it's written: `rel() & path & [path($.a)]` is an
+terms, so a constraint met with `relate()` meets that value as any meet
+does, wherever it's written: `relate() & path & [path($.a)]` is an
 `error`, as `path & [path($.a)]` is. A constraint on each address is
 the value's spread, which holds every element the value comes to hold,
-and each of those is a link, so `rel({ k:1 }) & [&: path]` met with
+and each of those is a link, so `relate({ k:1 }) & [&: path]` met with
 `[path($.a)]` flows `k` into `a`. Rows from rh0 on hold both, and both
 engines answer every one as the definition does.
 
@@ -9520,10 +9520,10 @@ def Decls.preparedD (ds : Decls) (S : Val) (j : Data) : Decls × Val :=
 
 Beside data, the definition reads the links in the tree the data reads
 in as well, so an address the data supplies counts, as in both
-engines. With `b: refer({r: 3})` and `a: {}`, the data `b: path($.a)`
+engines. With `b: relate({r: 3})` and `a: {}`, the data `b: path($.a)`
 sends `{r: 3}` into `a`, and data `a: {p: 1, r: 4}` is `invalid`. Data that
 picks an arm without a link drops that arm's link: with
-`b: (refer({r: 3}) & path($.a)) | 2`, the data `b: 2` sends nothing. A
+`b: (relate({r: 3}) & path($.a)) | 2`, the data `b: 2` sends nothing. A
 document whose name refers to itself with nothing between is an
 `error` before any data, and the definition reads its links in the
 schema's own tree:

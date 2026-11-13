@@ -12,6 +12,7 @@ const ConjunctVal_1 = require("./ConjunctVal");
 const BagVal_1 = require("./BagVal");
 const Val_1 = require("./Val");
 const provenance_1 = require("../provenance");
+const PathVal_1 = require("./PathVal");
 const rider_1 = require("../rider");
 // The elements a list holds a position for: none for absence, nor for
 // one its own mark leaves out, a mark the list doesn't carry. Undefined
@@ -68,9 +69,9 @@ class ListVal extends BagVal_1.BagVal {
     // NOTE: order of keys is not preserved!
     // not possible in any case - consider {a,b} unify {b,a}
     unify(peer, ctx) {
-        // A rel() peer drives: the relation constraint rewrites this list
+        // A relate() peer drives: the relation constraint rewrites this list
         // leaf by leaf (RELATIONS.0.md §3.2); see the twin arm in MapVal.
-        if (true === peer?.isRel) {
+        if (true === peer?.isRelate) {
             return peer.unify(this, ctx);
         }
         const TOP = (0, top_1.top)();
@@ -95,6 +96,8 @@ class ListVal extends BagVal_1.BagVal {
         out.opened = this.opened;
         out.optionalKeys = [...this.optionalKeys];
         out.spread.cj = this.spread.cj;
+        out.relates = this.relates;
+        out.relroot = this.relroot;
         out.site = this.site;
         if (peer instanceof ListVal) {
             if (!this.closed && peer.closed) {
@@ -103,8 +106,10 @@ class ListVal extends BagVal_1.BagVal {
             }
             else {
                 out.closed = out.closed || peer.closed;
+                out.relates = (0, PathVal_1.joinRelates)(out.relates, peer.relates);
+                out.relroot = out.relroot || peer.relroot;
                 out.spread.cj = null == out.spread.cj ? peer.spread.cj : (null == peer.spread.cj ? out.spread.cj :
-                    out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
+                    (0, BagVal_1.templateKey)(out.spread.cj) === (0, BagVal_1.templateKey)(peer.spread.cj) ? out.spread.cj :
                         (0, unify_1.unite)(te ? ctx.clone({ explain: (0, utility_1.ec)(te, 'SPR') }) : ctx, (0, ConjunctVal_1.unmarkedTemplate)(out.spread.cj, ctx), (0, ConjunctVal_1.unmarkedTemplate)(peer.spread.cj, ctx), 'list-peer'));
             }
         }
@@ -310,10 +315,10 @@ class ListVal extends BagVal_1.BagVal {
     }
     get canon() {
         let keys = Object.keys(this.peg);
-        return '' +
+        const spread = this.spread.cj ? (0, utility_1.canonRiders)(this.spread.cj) : '';
+        return (0, PathVal_1.relateText)(this) +
             '[' +
-            (this.spread.cj ? '&:' + (0, utility_1.canonRiders)(this.spread.cj) +
-                (0 < keys.length ? ',' : '') : '') +
+            ('' === spread ? '' : '&:' + spread + (0 < keys.length ? ',' : '')) +
             keys.map(k => (0, utility_1.canonRiders)(this.peg[k])).join(',') +
             ']';
     }

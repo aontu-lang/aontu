@@ -130,7 +130,7 @@ import { AbnfFuncVal, ParseFuncVal } from './val/AbnfFuncVal'
 import { DeprecateFuncVal } from './val/DeprecateFuncVal'
 import { MetaFuncVal } from './val/MetaFuncVal'
 import { IdentFuncVal } from './val/IdentFuncVal'
-import { ReferFuncVal, RelFuncVal } from './val/ReferFuncVal'
+import { RelateFuncVal } from './val/RelateFuncVal'
 import { AcyclicFuncVal, InverseFuncVal } from './val/GraphAtomVal'
 import { PackFuncVal } from './val/PackFuncVal'
 import { CMP_FUNCS } from './val/CmpFuncVal'
@@ -868,8 +868,7 @@ help isolate the syntax error.`,
     meta: MetaFuncVal,
     ident: IdentFuncVal,
 
-    refer: ReferFuncVal,
-    rel: RelFuncVal,
+    relate: RelateFuncVal,
 
     // RELATIONS P2 (sketch/RELATIONS.0.md §3.3): the graph
     // atoms, conjoined at the field whose key is the predicate they

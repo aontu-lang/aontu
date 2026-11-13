@@ -65,9 +65,9 @@ ok "known diagnostics bug reproduced: spurious pref_not_instance on *\"open\" de
 
 # 4. Referential integrity: an order naming an undeclared customer.
 run dangle 1 -- vet "$DIR/seed.aontu" "$DIR/bad/order-dangling.aontu"
-has dangle '[aontu/refer_unresolved]'
+has dangle '[aontu/rel_unresolved]'
 has dangle 'cust-9999'
-ok "dangling customerId refused (refer_unresolved)"
+ok "dangling customerId refused (rel_unresolved)"
 
 # 5. close(): a key the Customer schema does not declare.
 run extra 1 -- vet "$DIR/seed.aontu" "$DIR/bad/customer-extra-key.json"

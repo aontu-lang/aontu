@@ -302,19 +302,19 @@ entity and the second one's overrides were contradictions. The tree is
 the namespace, and a tree lets you have two of something.
 
 Relations follow the same instinct: an edge is data on a **field**, and
-the field declares what its data means. `rel(t)` on a field says the
+the field declares what its data means. `relate(t)` on a field says the
 field's strings are entity addresses; each must resolve in this
 evaluation, and `t`, when given, is unified *into* every target.
 (Check-only semantics would be non-monotone (true, then false as the
 target grows) so referring to something as a `Service` makes it one,
 and a target that cannot be one fails with an ordinary located error.)
-The predicate, the relation's name, is the key the `rel()` sits on:
+The predicate, the relation's name, is the key the `relate()` sits on:
 declared once, in the schema, never inferred. The first landed design
 inferred it ("the nearest non-numeric key above the link") and the
 heuristic answered wrongly for map-valued relations, which meant two of
 an edge's three parts were guesses and only the object was written.
 Declaration also buys the property `vet` needs: with the schema side
-carrying the `rel()`, a data document is plain JSON-shaped, links and
+carrying the `relate()`, a data document is plain JSON-shaped, links and
 all, with no aontu spelling in it.
 
 The graph properties are where the lattice draws a line worth arguing.
@@ -331,8 +331,8 @@ where the edge set is complete: the same settle point the sizing atoms
 use:
 
 ```
-a: { feeds: rel() & acyclic() & [path($.b)] }
-b: { feeds: rel() & [path($.a)] }
+a: { feeds: relate() & acyclic() & [path($.b)] }
+b: { feeds: relate() & [path($.a)] }
     → refused: [aontu/relation_cycle] at $.a.feeds
 ```
 
@@ -347,7 +347,7 @@ key at the document root, a plain key that one verb's pass knew by
 convention and nothing else in the engine knew at all. Retiring it
 follows one rule: **the tree is user space.** A plain, spellable key never carries
 engine-assigned meaning at any depth; reserved meaning rides only on
-syntax an author visibly opts into, which `rel()` and the atoms are. The
+syntax an author visibly opts into, which `relate()` and the atoms are. The
 retirement bought two concrete things. A document that writes
 `relations:` today has written ordinary data. And because the
 declarations now live in the lattice, they reach canon and the `aon1-`

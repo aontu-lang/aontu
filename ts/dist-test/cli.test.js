@@ -740,15 +740,15 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('relations-reports-cycles-and-missing-inverses', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rel-'));
         const file = Path.join(dir, 'doc.aontu');
-        Fs.writeFileSync(file, 'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
-            'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}\n');
+        Fs.writeFileSync(file, 'a: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+            'b: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.a)]}\n');
         const r = vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 1));
         Assert.match(r.out, /verdict: fail/);
         Assert.match(r.out, /cycle \$\.a -> \$\.b -> \$\.a/);
         Assert.match(r.out, /\$\.b does not list \$\.a under usedBy/);
         // Acyclic AND mirrored: nothing to report.
-        Fs.writeFileSync(file, 'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
-            'b: {usedBy: rel() & [path($.a)]}\n');
+        Fs.writeFileSync(file, 'a: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+            'b: {usedBy: relate() & [path($.a)]}\n');
         Assert.equal(vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 0)).out.trim(), 'verdict: pass');
         Fs.writeFileSync(file, 'a: 1 & 2');
         const rbroken = vetCapture(() => Assert.equal((0, cli_1.runRelations)([file]), 4));
@@ -757,8 +757,8 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         const rbj = JSON.parse(vetCapture(() => Assert.equal((0, cli_1.runRelations)(['--format', 'json', file]), 4)).out);
         Assert.deepEqual(rbj.findings, []);
         Assert.equal(rbj.errors[0].code, 'scalar_value');
-        Fs.writeFileSync(file, 'a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
-            'b: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}\n');
+        Fs.writeFileSync(file, 'a: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]}\n' +
+            'b: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.a)]}\n');
         const j = vetCapture(() => Assert.equal((0, cli_1.runRelations)(['--format', 'json', file]), 1));
         const report = JSON.parse(j.out);
         Assert.equal(report.aontu.verb, 'relations');
@@ -964,8 +964,8 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('reaches-answers-with-the-path-and-its-exit-code', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-rc-'));
         const file = Path.join(dir, 'doc.aontu');
-        Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\n' +
-            'b: {dependsOn: [&: refer(), path($.c)], usedBy: [&: refer(), path($.d)]}\n' +
+        Fs.writeFileSync(file, 'a: {dependsOn: [&: relate(), path($.b)]}\n' +
+            'b: {dependsOn: [&: relate(), path($.c)], usedBy: [&: relate(), path($.d)]}\n' +
             'c: {}\nd: {}\n');
         // THE PATH IS THE ANSWER: "yes" is worth little to an operator
         // asking what a failure would take out.
@@ -1010,9 +1010,9 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('view-draws-the-tree-and-its-exit-code', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vw-'));
         const file = Path.join(dir, 'doc.aontu');
-        Fs.writeFileSync(file, 'cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\n' +
-            'web: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n' +
-            'db: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)]}\n' +
+        Fs.writeFileSync(file, 'cli: {dependsOn: [&: relate(), path($.web), path($.db)]}\n' +
+            'web: {dependsOn: [&: relate(), path($.db)], usedBy: [&: relate(), path($.cli)]}\n' +
+            'db: {dependsOn: [&: relate(), path($.disk)], usedBy: [&: relate(), path($.cli), path($.web)]}\n' +
             'disk: {}\n');
         const tree = 'cli\n├── db\n│   └── disk\n└── web\n    └── db (*)\n';
         // THE FIGURE AND NOTHING ELSE on stdout: a redirect is a golden.
@@ -1060,9 +1060,9 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('view-kinds-and-the-flags-around-the-figure', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vk-'));
         const file = Path.join(dir, 'doc.aontu');
-        Fs.writeFileSync(file, 'cli: {layer: "app", dependsOn: [&: refer(), path($.web), path($.db)]}\n' +
-            'web: {layer: "svc", dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n' +
-            'db: {layer: "data", dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)]}\n' +
+        Fs.writeFileSync(file, 'cli: {layer: "app", dependsOn: [&: relate(), path($.web), path($.db)]}\n' +
+            'web: {layer: "svc", dependsOn: [&: relate(), path($.db)], usedBy: [&: relate(), path($.cli)]}\n' +
+            'db: {layer: "data", dependsOn: [&: relate(), path($.disk)], usedBy: [&: relate(), path($.cli), path($.web)]}\n' +
             'disk: {layer: "data", dependsOn: []}\n');
         // A figure written to a file, then --check agrees with it; a
         // different figure does not, and nothing is written.
@@ -1080,8 +1080,8 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
             Path.join(dir, 'none.txt'), '--check', file]), 1));
         // The loss report on stderr, and --strict refusing it.
         const hid = Path.join(dir, 'hid.aontu');
-        Fs.writeFileSync(hid, 'a: hide({dependsOn: [&: refer(), path($.b)]})\n' +
-            'b: {dependsOn: [&: refer(), path($.c)]}\nc: {}\n');
+        Fs.writeFileSync(hid, 'a: hide({dependsOn: [&: relate(), path($.b)]})\n' +
+            'b: {dependsOn: [&: relate(), path($.c)]}\nc: {}\n');
         const lossy = vetCapture(() => Assert.equal((0, cli_1.runView)(['tree', hid]), 0));
         Assert.equal(lossy.out, 'b\n└── c\n');
         Assert.equal(lossy.err, 'hidden_contribution  1  $.a.dependsOn.0\n');
@@ -1115,7 +1115,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     });
     (0, node_test_1.test)('view-document-draws-every-figure-it-declares', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vd-'));
-        Fs.writeFileSync(Path.join(dir, 'model.aontu'), 'app: {layer: "app", dependsOn: [&: refer(), path($.core)]}\n' +
+        Fs.writeFileSync(Path.join(dir, 'model.aontu'), 'app: {layer: "app", dependsOn: [&: relate(), path($.core)]}\n' +
             'core: {layer: "core"}\n');
         const file = Path.join(dir, 'views.aontu');
         Fs.writeFileSync(file, '@"./model.aontu"\nviews: {\n' +
@@ -1155,7 +1155,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         // A LOSSY set still writes -- the loss report says what it could
         // not draw, and --strict is the gate on that.
         const lossy = Path.join(dir, 'lossy.aontu');
-        Fs.writeFileSync(lossy, 'a: hide({dependsOn: [&: refer(), path($.b)]})\nb: {}\n' +
+        Fs.writeFileSync(lossy, 'a: hide({dependsOn: [&: relate(), path($.b)]})\nb: {}\n' +
             'views: {t: {kind: tree, out: "out/lossy.txt"}}\n');
         const loose = vetCapture(() => Assert.equal((0, cli_1.runView)(['--views', '$.views', lossy]), 0));
         Assert.match(loose.err, /t {2}hidden_contribution {2}1/);
@@ -1186,7 +1186,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('view-split-writes-one-file-per-part', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vs-'));
         const file = Path.join(dir, 'doc.aontu');
-        Fs.writeFileSync(file, 'a: {team: x, dependsOn: [&: refer(), path($.b)]}\n' +
+        Fs.writeFileSync(file, 'a: {team: x, dependsOn: [&: relate(), path($.b)]}\n' +
             'b: {team: y}\n' +
             'views: {g: {kind: graph, splitBy: team, out: "g-{part}.mmd"}}\n');
         const out = Path.join(dir, 'p-{part}.mmd');
@@ -1263,7 +1263,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
     (0, node_test_1.test)('view-usage-errors', () => {
         const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-vu-'));
         const file = Path.join(dir, 'doc.aontu');
-        Fs.writeFileSync(file, 'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n');
+        Fs.writeFileSync(file, 'a: {dependsOn: [&: relate(), path($.b)]}\nb: {}\n');
         for (const [args, want] of [
             [[], /view needs a kind and a file/],
             [['tree'], /view needs a kind and a file/],
@@ -1492,7 +1492,7 @@ const VET_SCHEMA = 'service: { name: string, port: integer }';
         Assert.match(view.err, /nothing to draw/);
         // AND THE NEGATIVE: a document that DOES declare says nothing.
         const graph = Path.join(dir, 'graph.aontu');
-        Fs.writeFileSync(graph, 'a: {dependsOn: rel() & acyclic() & [path($.b)]}\n' +
+        Fs.writeFileSync(graph, 'a: {dependsOn: relate() & acyclic() & [path($.b)]}\n' +
             'b: {}\n');
         const declared = vetCapture(() => (0, cli_1.runRelations)([graph]));
         Assert.doesNotMatch(declared.err, /declares no relations/);

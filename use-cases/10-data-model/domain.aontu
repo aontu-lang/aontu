@@ -65,10 +65,10 @@ schema: {
 
   Order: type(close({
     id: string & re("^ord-[0-9]{4}$")
-    # INTENDED: `customerId: refer() & path & re(...)`, making
-    # referential integrity part of the named type. A refer() inside
+    # INTENDED: `customerId: relate() & path & re(...)`, making
+    # referential integrity part of the named type. A relate() inside
     # a type definition cannot settle at its own definition site and
-    # kills (or hangs) the evaluation (README, gap 7), so the refer()
+    # kills (or hangs) the evaluation (README, gap 7), so the relate()
     # is attached at the bag spread below instead.
     #
     # The pattern checks the ADDRESS since ADR-014: a link is a tree
@@ -87,7 +87,7 @@ schema: {
 
   Invoice: type(close({
     id: string & re("^inv-[0-9]{4}$")
-    # The address shape, as above: refer() is applied at the bag spread.
+    # The address shape, as above: relate() is applied at the bag spread.
     orderId: path & re("^\\$\\.orders\\.ord-")
     currency: string & re("^[A-Z]{3}$") & neq("XXX", "XTS")
     netCents: integer & min(0) & max(100000000000)
@@ -102,7 +102,7 @@ schema: {
 
 # The record bags. Every member -- seeded here or merged in from a
 # data file at vet time -- gets its schema applied, its `id` field
-# forced to equal its key, and its outbound links checked by refer().
+# forced to equal its key, and its outbound links checked by relate().
 #
 # GAP 6 IS CLOSED, AND NOT BY FIXING IT. This block used to want
 # `&: id(key(0)) & ...` to auto-declare every record an entity named
@@ -112,5 +112,5 @@ schema: {
 # left to declare, and the per-record id() calls seed.aontu used to
 # carry are gone with it.
 customers: { &: $.schema.Customer & { id:key() } }
-orders: { &: $.schema.Order & { id:key() customerId:refer() } }
-invoices: { &: $.schema.Invoice & { id:key() orderId:refer() } }
+orders: { &: $.schema.Order & { id:key() customerId:relate() } }
+invoices: { &: $.schema.Invoice & { id:key() orderId:relate() } }

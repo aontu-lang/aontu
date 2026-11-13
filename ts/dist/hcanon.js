@@ -6,6 +6,7 @@ exports.canonHash = canonHash;
 const node_crypto_1 = require("node:crypto");
 const keyorder_1 = require("./keyorder");
 const rider_1 = require("./rider");
+const PathVal_1 = require("./val/PathVal");
 function render(v, inh) {
     if (true !== v?.isVal) {
         return String(v);
@@ -21,9 +22,7 @@ function render(v, inh) {
         const keys = Object.keys(v.peg)
             .filter((k) => !v.aliasKeys.includes(k))
             .sort(keyorder_1.cmpCodePoint);
-        s = '{' +
-            (v.spread.cj ? '&:' + render(v.spread.cj, inner) +
-                (0 < keys.length ? ',' : '') : '') +
+        s = '{' + spreadText(v, 0 < keys.length, inner) +
             keys.map((k) => JSON.stringify(k) +
                 (v.optionalKeys.includes(k) ? '?' : '') +
                 ':' +
@@ -32,17 +31,17 @@ function render(v, inh) {
         if (true === v.closed) {
             s = 'close(' + s + ')';
         }
+        s = (0, PathVal_1.relateText)(v) + s;
     }
     else if (true === v.isList) {
         const keys = Object.keys(v.peg);
-        s = '[' +
-            (v.spread.cj ? '&:' + render(v.spread.cj, inner) +
-                (0 < keys.length ? ',' : '') : '') +
+        s = '[' + spreadText(v, 0 < keys.length, inner) +
             keys.map((k) => render(v.peg[k], inner)).join(',') +
             ']';
         if (true === v.closed) {
             s = 'close(' + s + ')';
         }
+        s = (0, PathVal_1.relateText)(v) + s;
     }
     else if (true === v.isPref) {
         s = '*' + render(v.peg, inner);
@@ -66,11 +65,16 @@ function render(v, inh) {
     // are reparseable calls, so the order only has to be fixed.
     return (0, rider_1.riderText)(s, v);
 }
+// A bag's template, where it has one with a text of its own.
+function spreadText(v, members, inner) {
+    const s = v.spread.cj ? render(v.spread.cj, inner) : '';
+    return '' === s ? '' : '&:' + s + (members ? ',' : '');
+}
 function junctionText(v, sym, inner) {
     const parts = v.peg.map((m) => [m.cjo,
         true === m?.isJunction && 1 < m.peg.length
             ? '(' + render(m, inner) + ')'
-            : render(m, inner)]);
+            : render(m, inner)]).filter((p) => '' !== p[1]);
     // As canon writes a meet: terms of one rank in code-point order.
     if ('&' === sym) {
         parts.sort((a, b) => a[0] - b[0] || (0, keyorder_1.cmpCodePoint)(a[1], b[1]));

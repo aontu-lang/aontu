@@ -37,7 +37,7 @@ inductive Bnd where
 /-- The functions on numbers, the folds on a bag of them, `+`, the calls
 on bags and text, `join`, `pick`, `sort`, `upper`, `lower`,
 `translate`, `esc`, `usc`, `split`, `rep` and `nom`, `super`, `pref`, `copy` and
-`move` written as calls, `refer` and `rel`, links, `path`, `abnf` and `parse`,
+`move` written as calls, `relate`, a link, `path`, `abnf` and `parse`,
 `load`, the source `@"p"` loads, the components, the generators `each`
 and `pack`, `maybe`, where absence is made, and a bound written over
 terms. -/
@@ -45,7 +45,7 @@ inductive Fn where
   | add | sub | mul | div | mod | rem | neg
   | sum | least | greatest
   | plus | join | pick | sort | upper | lower | translate | esc | usc | split | rep | nom
-  | super | pref | move | copy | refer | rel | path | abnf | parse | load
+  | super | pref | move | copy | relate | path | abnf | parse | load
   | cmp (c : Cmp)
   | each | pack | emit | apply
   | maybe

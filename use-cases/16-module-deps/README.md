@@ -5,7 +5,7 @@ A codebase's own module graph: twelve modules across four layers
 architecture rule, that a module never depends on a module above it.
 Each module is an entity addressed by its tree path; `dependsOn` is a
 declared relation with its written-out inverse `usedBy`; and the
-layering rule is a shape that `rel(t)` flows into the far end of every
+layering rule is a shape that `relate(t)` flows into the far end of every
 edge, so an illegal edge is an ordinary failed unification. Two views
 are drawn from the same edges: a dependency tree and a
 dependency-structure matrix.
@@ -197,10 +197,10 @@ and one line per layer joining a module to the shape its dependencies
 must have:
 
 ```aontu
-Core: $.spec.Mod & { layer:"core" dependsOn?:rel($.spec.CoreDep) }
+Core: $.spec.Mod & { layer:"core" dependsOn?:relate($.spec.CoreDep) }
 ```
 
-`rel(t)` flows `t` into every target, so a `dependsOn` edge from a
+`relate(t)` flows `t` into every target, so a `dependsOn` edge from a
 core module carries `layer: "core" | "util"` to the far end. A module
 that says `layer: "feature"` cannot meet it. There is no linter here
 and no second pass: the illegal edge is a failed unification, refused
@@ -245,10 +245,10 @@ about the name.
 codebase; `model.aontu` joins them. The relation is declared once, at
 its field:
 
-    dependsOn?: rel($.spec.ModShape) & acyclic() & inverse(usedBy)
-    usedBy?: rel($.spec.ModShape)
+    dependsOn?: relate($.spec.ModShape) & acyclic() & inverse(usedBy)
+    usedBy?: relate($.spec.ModShape)
 
-- `rel(t)`: the field's entries are checked tree addresses, and `t`
+- `relate(t)`: the field's entries are checked tree addresses, and `t`
   flows into every target. Addresses are written `path($.mods.store)`:
   a bare string is never an address.
 - `acyclic()`, `inverse(usedBy)`: the graph atoms: lattice-inert

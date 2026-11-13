@@ -506,7 +506,7 @@ func TestVacuitySignals(t *testing.T) {
 	// AND THE NEGATIVE: a document that DOES declare says nothing.
 	graph := filepath.Join(dir, "graph.aontu")
 	if err := os.WriteFile(graph,
-		[]byte("a: {dependsOn: rel() & acyclic() & [path($.b)]}\nb: {}\n"),
+		[]byte("a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {}\n"),
 		0o644); nil != err {
 		t.Fatal(err)
 	}

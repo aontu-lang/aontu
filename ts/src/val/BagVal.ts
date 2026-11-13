@@ -85,7 +85,7 @@ abstract class BagVal extends FeatureVal {
     const scj: any = (this as any).spread?.cj
     const pcj: any = peer.spread?.cj
     if ((null == scj) !== (null == pcj) ||
-      (null != scj && null != pcj && scj.canon !== pcj.canon)) {
+      (null != scj && null != pcj && templateKey(scj) !== templateKey(pcj))) {
       return false
     }
 
@@ -249,6 +249,14 @@ function raiseParse(gctx: AontuContext, child: Val, ctx: AontuContext): boolean 
 
 
 // A key is data, never a property lookup: a key table has no prototype.
+// A template's identity: its canon, and the pending links canon leaves out.
+export function templateKey(cj: any): string {
+  const links: any[] = true === cj.isPendingLink ? [cj]
+    : true === cj.isConjunct ? cj.peg.filter((t: any) => true === t.isPendingLink) : []
+  return cj.canon + links.map((l) => '\x00' + l.tval.canon).join('')
+}
+
+
 export function keyTable<T = any>(): Record<string, T> {
   return Object.create(null)
 }

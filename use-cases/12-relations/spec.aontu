@@ -1,5 +1,5 @@
 # spec.aontu --- the pipeline vocabulary. THE RELATION IS DECLARED ONCE,
-# AT ITS FIELD (RELATIONS.0.md): rel(t) makes the field's strings
+# AT ITS FIELD (RELATIONS.0.md): relate(t) makes the field's strings
 # checked TREE ADDRESSES and flows t into every target; acyclic() and
 # inverse()
 # are the graph atoms -- lattice-inert declarations whose verdict
@@ -7,7 +7,7 @@
 # stay plain JSON-shaped lists.
 # The edge type, named once. `%JobEdge` is an ALIAS -- a name for a
 # value and nothing else: it does not generate and does not appear in
-# canon, so this file and the one with `rel($.spec.JobShape)` written
+# canon, so this file and the one with `relate($.spec.JobShape)` written
 # out at both ends are the same document with the same `aon1-` hash.
 # What it buys is that a relation and its inverse can no longer be
 # declared over different endpoint types by a typo.
@@ -15,7 +15,7 @@
 # The declaration lands at the ROOT of the document, which is why
 # model.aontu splices this file (`@"./spec.aontu"` at the any level)
 # rather than binding it to a key.
-%JobEdge = rel($.spec.JobShape)
+%JobEdge = relate($.spec.JobShape)
 
 spec: hide({
   Job: {
@@ -31,7 +31,7 @@ spec: hide({
   }
 
   # What the far end of a feeds/fedBy edge must be. A thin shape
-  # rather than $.spec.Job itself: a self-typed rel($.spec.Job) inside
+  # rather than $.spec.Job itself: a self-typed relate($.spec.Job) inside
   # Job is the guarded self-reference whose rel-side wiring waits on
   # the recursion note's next phase.
   JobShape: kind: job

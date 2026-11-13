@@ -965,8 +965,8 @@ def addrsFields : List (String × Bool × Val) → List Addr
 end
 
 /-- The addresses a link holds at its position, at the leaves of the
-value it stands in there: a `refer`'s one, and one at each leaf of a
-relation's value. -/
+value it stands in there: one where that value is a path, and one at
+each leaf of a bag. -/
 def linkAddrs (e : List Seg × Val × Val) : List Addr := e.2.2.addrs
 
 /-- The written path an address names from the position its link stands
@@ -1446,11 +1446,10 @@ def Decls.referCount (ds : Decls) (r : Decls → Val → List Val) (S : Val) : �
     ((ds.nfLinks R []).map fun e => (linkAddrs e).length).sum
 
 mutual
-/-- The links a term writes, at any depth: each `refer` and each `rel`,
+/-- The links a term writes, at any depth: each `relate`,
 in a call's arguments and in another link's template as well. -/
 def Val.linkCalls : Val → ℕ
-  | .call .refer args => lcItems args + 1
-  | .call .rel args => lcItems args + 1
+  | .call .relate args => lcItems args + 1
   | .call _ args => lcItems args
   | .ride _ v _ => v.linkCalls
   | .link v t => v.linkCalls + t.linkCalls
@@ -2136,7 +2135,7 @@ def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Va
     (S.atUses rs rt dl []).placedT [])
 
 /-- A document's declarations with the relation kind declared under its
-name, which a `rel` reads as (`relKind`). -/
+name, which a `relate` reads as (`relKind`). -/
 def Decls.withRel (ds : Decls) : Decls := ds ++ [(relName, relKind)]
 
 /-- A document with its links read, `r` reading a document to its roots,

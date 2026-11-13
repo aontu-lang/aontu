@@ -374,9 +374,9 @@ describe('mcp', () => {
 
 
   test('view-tool-draws-the-tree', () => {
-    const doc = 'cli: {dependsOn: [&: refer(), path($.web), path($.db)]}\n' +
-      'web: {dependsOn: [&: refer(), path($.db)], usedBy: [&: refer(), path($.cli)]}\n' +
-      'db: {dependsOn: [&: refer(), path($.disk)], usedBy: [&: refer(), path($.cli), path($.web)]}\n' +
+    const doc = 'cli: {dependsOn: [&: relate(), path($.web), path($.db)]}\n' +
+      'web: {dependsOn: [&: relate(), path($.db)], usedBy: [&: relate(), path($.cli)]}\n' +
+      'db: {dependsOn: [&: relate(), path($.disk)], usedBy: [&: relate(), path($.cli), path($.web)]}\n' +
       'disk: {}\n'
     const tree = 'cli\n├── db\n│   └── disk\n└── web\n    └── db (*)'
 
@@ -410,7 +410,7 @@ describe('mcp', () => {
     Assert.equal((dot.errors ?? dot.findings)[0].code, 'view_profile_unknown')
 
     Assert.match(payload(callTool('view', {
-      source: 'a: {layer: "x", dependsOn: [&: refer(), path($.b)]}\n' +
+      source: 'a: {layer: "x", dependsOn: [&: relate(), path($.b)]}\n' +
         'b: {layer: "y"}\n',
       kind: 'layer', groupBy: 'layer', edges: 'all',
     })).text, /# dependsOn: 1 downward/)
@@ -438,12 +438,12 @@ describe('mcp', () => {
     Assert.match(matrix.text, /# above-diagonal direct cells: 0$/)
     Assert.deepEqual(matrix.loss, [])
     const graph = payload(callTool('view', {
-      source: 'a: {t: "x", dependsOn: [&: refer(), path($.b)]}\nb: {t: "y"}\n',
+      source: 'a: {t: "x", dependsOn: [&: relate(), path($.b)]}\nb: {t: "y"}\n',
       kind: 'graph', as: 'dot', groupBy: 't', label: 't', relation: 'dependsOn',
     }))
     Assert.match(graph.text, /^digraph G \{\n/)
     const layer = payload(callTool('view', {
-      source: 'a: {t: "x", dependsOn: [&: refer(), path($.b)]}\nb: {t: "y"}\n',
+      source: 'a: {t: "x", dependsOn: [&: relate(), path($.b)]}\nb: {t: "y"}\n',
       kind: 'layer', groupBy: 't', layers: ['x', 'y'],
     }))
     Assert.match(layer.text, /^\+-+\+\n\| x  a \|/)
@@ -481,8 +481,8 @@ describe('mcp', () => {
 
 
   test('view-tool-takes-the-further-options', () => {
-    const doc = 'g: {all: [&: refer(), path($.a), path($.b)]}\n' +
-      'a: {team: x, cols: {id: integer}, next: refer() & path($.b)}\n' +
+    const doc = 'g: {all: [&: relate(), path($.a), path($.b)]}\n' +
+      'a: {team: x, cols: {id: integer}, next: relate() & path($.b)}\n' +
       'b: {team: y, cols: {id: integer}, size: 3}\n' +
       'flow: [{from: "a", to: "b", m: "go"}]\n'
     const split = payload(callTool('view', {
@@ -507,8 +507,8 @@ describe('mcp', () => {
 
 
   test('reaches-tool-answers-the-closure-question', () => {
-    const doc = 'a: {dependsOn: [&: refer(), path($.b)]}\n' +
-      'b: {dependsOn: [&: refer(), path($.c)], usedBy: [&: refer(), path($.d)]}\n' +
+    const doc = 'a: {dependsOn: [&: relate(), path($.b)]}\n' +
+      'b: {dependsOn: [&: relate(), path($.c)], usedBy: [&: relate(), path($.d)]}\n' +
       'c: {}\nd: {}\n'
 
     const hit = payload(callTool('reaches',
@@ -675,8 +675,8 @@ describe('mcp', () => {
     Assert.deepEqual(payload(callTool('relations', { source: 'a: 1' })),
       { verdict: 'pass', findings: [] })
     const cyc = payload(callTool('relations', {
-      source: 'a: {dependsOn: rel() & acyclic() & [path($.b)]}\n' +
-        'b: {dependsOn: rel() & acyclic() & [path($.a)]}',
+      source: 'a: {dependsOn: relate() & acyclic() & [path($.b)]}\n' +
+        'b: {dependsOn: relate() & acyclic() & [path($.a)]}',
     }))
     Assert.equal(cyc.verdict, 'fail')
     Assert.equal(cyc.findings[0].code, 'relation_cycle')

@@ -60,7 +60,7 @@ const AbnfFuncVal_1 = require("./val/AbnfFuncVal");
 const DeprecateFuncVal_1 = require("./val/DeprecateFuncVal");
 const MetaFuncVal_1 = require("./val/MetaFuncVal");
 const IdentFuncVal_1 = require("./val/IdentFuncVal");
-const ReferFuncVal_1 = require("./val/ReferFuncVal");
+const RelateFuncVal_1 = require("./val/RelateFuncVal");
 const GraphAtomVal_1 = require("./val/GraphAtomVal");
 const PackFuncVal_1 = require("./val/PackFuncVal");
 const CmpFuncVal_1 = require("./val/CmpFuncVal");
@@ -642,8 +642,7 @@ help isolate the syntax error.`,
         deprecate: DeprecateFuncVal_1.DeprecateFuncVal,
         meta: MetaFuncVal_1.MetaFuncVal,
         ident: IdentFuncVal_1.IdentFuncVal,
-        refer: ReferFuncVal_1.ReferFuncVal,
-        rel: ReferFuncVal_1.RelFuncVal,
+        relate: RelateFuncVal_1.RelateFuncVal,
         // RELATIONS P2 (sketch/RELATIONS.0.md §3.3): the graph
         // atoms, conjoined at the field whose key is the predicate they
         // govern. Lattice-inert; the verdict lands at generation.

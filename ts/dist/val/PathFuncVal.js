@@ -8,7 +8,7 @@ const PathVal_1 = require("./PathVal");
 // The address a reference SPELLS, or undefined when its segments
 // cannot spell one (a variable segment, a parent step after the first
 // named segment). Leading `.` entries in a relative ref's peg are
-// parent steps; the spelling is the same grammar refer reads, so one
+// parent steps; the spelling is the same grammar a link reads, so one
 // address parser stays the single gate.
 function captureSpelling(rv) {
     const parts = [];

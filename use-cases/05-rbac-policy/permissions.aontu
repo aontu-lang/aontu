@@ -1,7 +1,7 @@
 # Permission catalog: the ground truth of what CAN be granted.
 #
-# A grant anywhere in the model is a checked foreign key via refer():
-# an address naming no node is a located [aontu/refer_unresolved]
+# A grant anywhere in the model is a checked foreign key via relate():
+# an address naming no node is a located [aontu/rel_unresolved]
 # error, not a silently dead grant.
 #
 # Since ADR-014 an address is a TREE PATH -- `$.permissions.audit_read`

@@ -19,7 +19,7 @@ Here is a `system.aontu` with three services and a dependency relation:
 spec: hide({
   Service: {
     tier: "edge"|"core"
-    dependsOn?: rel($.spec.Service) & acyclic() & [&: refer($.spec.Service)]
+    dependsOn?: relate($.spec.Service) & acyclic() & [&: relate($.spec.Service)]
   }
 })
 

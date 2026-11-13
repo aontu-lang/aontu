@@ -8,7 +8,7 @@ import { AontuContext } from './ctx'
 import { DONE } from './type'
 
 import { makeNilErr } from './err'
-import { findAt } from './val/ReferFuncVal'
+import { findAt } from './val/RelateFuncVal'
 
 import { NilVal } from './val/NilVal'
 import { ConjunctVal } from './val/ConjunctVal'
@@ -109,11 +109,11 @@ function drives(v: any): boolean {
     || v.isVar
     || v.isFunc
     || v.isExpect
-    || v.isRefer
+    || v.isPendingLink
     // An op DRIVES while an operand has not decided (ADR-037).
     || (v.isOp && (waitsOnHole(v) || v.holdsStaged))
     // A graph atom DRIVES (RELATIONS P2): its peer is the value it rides
-    // beside -- a container, a rel, a scalar -- and none of them know
+    // beside -- a container, a relate, a scalar -- and none of them know
     // the atom; the atom knows to residuate.
     || v.isGraphAtom
     // The recursive residual DRIVES for the same reason: its peer is the
@@ -138,13 +138,15 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
             && (a as any).needsNonEmpty === (b as any).needsNonEmpty
             && (a as any).link === (b as any).link
             && (a as any).flows === (b as any).flows
+            && (a as any).relates === (b as any).relates
+            && (a as any).relroot === (b as any).relroot
             && !a.isNil && !b.isNil
             && !a.isMap && !a.isList
             && !a.isConjunct && !a.isDisjunct
             && !a.isRef && !a.isPref && !a.isFunc && !a.isExpect
             && !a.isTop && !b.isTop
-            && !a.isRefer
-            && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
+            && !a.isPendingLink
+            && !a.isRelate && !a.isGraphAtom && !a.isRecurse) {
           // The riders survive this fast path too: `deprecate(5) & 5`.
           ride(a, a, b)
           return markOn(ctx, a, a, b)
@@ -238,7 +240,9 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
         && (a as any).needsNonEmpty === (b as any).needsNonEmpty
         && (a as any).link === (b as any).link
         && (a as any).flows === (b as any).flows
-        && !a.isRel && !a.isGraphAtom && !a.isRecurse) {
+        && (a as any).relates === (b as any).relates
+        && (a as any).relroot === (b as any).relroot
+        && !a.isRelate && !a.isGraphAtom && !a.isRecurse) {
         out = update(a, b)
         why = 'up'
       }
@@ -386,6 +390,39 @@ function linksOf(root: Val): LinkSite[] {
 }
 
 
+// A link with no `relate()` at or above it has one where it stands, as
+// a copy of one link out of a bag of them does, so canon writes the call.
+function rootLinks(root: Val): void {
+  const visit = (node: any, put: (v: Val) => void, under: boolean): void => {
+    if (true === node.isPath) {
+      if (undefined !== node.linkto && !under && true !== node.relroot) {
+        const rooted = Object.assign(Object.create(Object.getPrototypeOf(node)), node)
+        rooted.relroot = true
+        put(rooted)
+      }
+    }
+    else if (true === node.isMap || true === node.isList) {
+      const peg = node.peg
+      const below = under || true === node.relroot
+      for (const k of Object.keys(peg)) {
+        visit(peg[k], (v: Val) => { peg[k] = v }, below)
+      }
+    }
+    else if (true === node.isDisjunct || true === node.isConjunct) {
+      const arms: any[] = node.peg
+      arms.forEach((a: any, i: number) => visit(a, (v: Val) => { arms[i] = v }, under))
+    }
+    else if (true === node.isPref) {
+      visit(node.peg, (v: Val) => { node.peg = v }, under)
+    }
+    else if (true === node.isGraphAtom && undefined !== node.held) {
+      visit(node.held, (v: Val) => { node.held = v }, under)
+    }
+  }
+  visit(root, () => undefined, false)
+}
+
+
 type Flow = { to: string[], t: Val, id: string }
 
 
@@ -457,8 +494,8 @@ function holdsLink(v: any, seen: Set<any> = new Set()): boolean {
     return false
   }
   seen.add(v)
-  if (true === v.isReferFunc || true === v.isRelFunc || true === v.isRefer
-    || true === v.isRel || undefined !== v.linkto) {
+  if (true === v.isRelateFunc || true === v.isPendingLink
+    || true === v.isRelate || undefined !== v.linkto) {
     return true
   }
   const peg = v.peg
@@ -599,12 +636,14 @@ class Unify {
       // A link the output takes names something the document holds.
       for (const { link, at, put } of links) {
         if (undefined === findAt(res, link.linkto)) {
-          const nil = makeNilErr(uctx, link.linkcode ?? 'refer_unresolved', link, undefined,
-            'refer', { addr: link.peg })
+          const nil = makeNilErr(uctx, 'rel_unresolved', link, undefined,
+            'relate', { addr: link.peg })
           nil.path = at
           put(nil)
         }
       }
+
+      rootLinks(res)
 
       // The settled tree's alias references canon as the values they
       // name (ts/src/alias.ts): attached here, once, after the last
@@ -620,13 +659,14 @@ class Unify {
 
 
 const meetTemplate = (ctx: AontuContext, member: Val, tmpl: Val, whence: string): Val =>
-  unite(ctx, member, tmpl, whence) /* node:coverage ignore next 12 */
+  unite(ctx, member, tmpl, whence) /* node:coverage ignore next 13 */
 
 
 export {
   Unify,
   holdsLink,
   linksOf,
+  rootLinks,
   unite,
   meetTemplate,
   withDepth,

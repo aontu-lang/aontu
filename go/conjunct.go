@@ -27,11 +27,54 @@ func (c *ConjunctVal) cjo() int      { return 40000 }
 func (c *ConjunctVal) superior() Val { return top() }
 
 func (c *ConjunctVal) Canon() string {
-	parts := make([]string, len(c.peg))
-	for i, t := range c.peg {
-		parts[i] = junctChildCanon(t)
+	terms, parts := spelled(c.peg, junctChildCanon)
+	return strings.Join(meetOrder(terms, parts), "&")
+}
+
+// spelled is a meet's terms with their texts, where they have one.
+func spelled(peg []Val, text func(Val) string) ([]Val, []string) {
+	terms := make([]Val, 0, len(peg))
+	parts := make([]string, 0, len(peg))
+	for _, t := range peg {
+		if s := text(t); "" != s {
+			terms = append(terms, t)
+			parts = append(parts, s)
+		}
 	}
-	return strings.Join(meetOrder(c.peg, parts), "&")
+	return terms, parts
+}
+
+// templateKey is a template's canon and the pending links canon leaves out.
+func templateKey(cj Val) string {
+	key := cj.Canon()
+	links := []Val{cj}
+	if c, ok := cj.(*ConjunctVal); ok {
+		links = c.peg
+	}
+	for _, t := range links {
+		if l, ok := t.(*PendingLinkVal); ok {
+			key += "\x00"
+			if nil != l.tval {
+				key += l.tval.Canon()
+			}
+		}
+	}
+	return key
+}
+
+// spreadText is a bag's template as canon writes it, where it has a text.
+func spreadText(sp Val, members bool, text func(Val) string) string {
+	if nil == sp {
+		return ""
+	}
+	s := text(sp)
+	if "" == s {
+		return ""
+	}
+	if members {
+		return "&:" + s + ","
+	}
+	return "&:" + s
 }
 
 // meetOrder: a meet is one value whatever order its terms were met in, so

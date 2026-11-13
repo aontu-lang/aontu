@@ -64,8 +64,8 @@ element ::= spread | value
 # allowed any name would over-approximate.
 #
 # ORDER MATTERS where one name is a prefix of another: this is an
-# ordered choice, so `refer` is listed before `re` or `re` would match
-# the prefix and the `(` check would then fail on `refer(...)`. The
+# ordered choice, so `relate` is listed before `re` or `re` would match
+# the prefix and the `(` check would then fail on `relate(...)`. The
 # arithmetic family added a second such pair: `rem` must also precede
 # `re`.
 func ::= name "(" ws ( value ( ws "," ws value )* ws )? ")"
@@ -78,7 +78,7 @@ name ::=
   | "len" | "listitems" | "lower" | "match" | "maybe" | "max" | "meta" | "min" | "mod" | "move"
   | "mulof" | "mul" | "must"
   | "neq" | "nof"
-  | "open" | "pack" | "parse" | "path" | "pick" | "pref" | "refer" | "rel" | "rem" | "rep" | "rest" | "re"
+  | "open" | "pack" | "parse" | "path" | "pick" | "pref" | "relate" | "rem" | "rep" | "rest" | "re"
   | "sort" | "split" | "super"
   | "sub" | "sum"
   | "type"

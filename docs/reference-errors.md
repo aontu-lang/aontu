@@ -229,8 +229,8 @@ twenty rows have no such section and carry no link.
 | `patch_assignment` | 0.53.0 | A `set` argument that is not `<path>=<value>`. ([`aontu model set`](reference-api.md#aontu-model-set)) |
 | `path_address` | 0.54.0 | `path` was given text that is not a tree address. ([First-class paths: `path(p?)`](reference-language.md#first-class-paths-pathp)) |
 | `pref_implicit_bag` | 0.53.0 | A preference mark written on a bare key rather than on a value. ([Preference / default `*`](reference-language.md#preference--default-)) |
-| `refer_address` | 0.53.0 | `refer()` was given something that is not a path value. ([Addresses](reference-language.md#addresses)) |
-| `rel_address` | 0.53.0 | A `rel()` field holds something other than path values. ([Declared relations](reference-language.md#declared-relations)) |
+| `refer_address` | 0.53.0 | The function `refer` was given something that is not a path value; `relate` took its place, and answers `rel_address`. |
+| `rel_address` | 0.53.0 | A `relate()` field holds something other than path values. ([Addresses](reference-language.md#addresses)) |
 | `render_path` | 0.58.0 | A unit path that is not relative, below the output directory, and distinct from every other unit's. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
 | `render_profile` | 0.58.0 | A declaration needing a lowering, under a profile whose language has none. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
 | `rep_pattern` | 0.57.0 | The pattern given to `rep()` or `split()` is outside the portable subset the host engines run. ([`rep(s, pattern, sub)`](reference-language.md#reps-pattern-sub)) |
@@ -348,8 +348,8 @@ twenty rows have no such section and carry no link.
 | `path_cycle` | 0.51.0 | A path reference closes a cycle. ([Recursive references (fixpoints)](reference-language.md#recursive-references-fixpoints)) |
 | `ref` | 0.51.0 | A reference could not be resolved to a value. ([References and paths](reference-language.md#references-and-paths)) |
 | `ref[` | 0.51.0 | Dynamic-prefix family: a reference failure carrying the address (`ref[$.x]`). ([References and paths](reference-language.md#references-and-paths)) |
-| `refer_unresolved` | 0.53.0 | A `refer()` address names no node in this evaluation. ([Existence is decided, not deferred](reference-language.md#existence-is-decided-not-deferred)) |
-| `rel_unresolved` | 0.53.0 | A `rel()` address names no node in this evaluation. ([Declared relations](reference-language.md#declared-relations)) |
+| `refer_unresolved` | 0.53.0 | A name that has to be a node of the document names none: an endpoint given to [`aontu reaches`](reference-api.md#aontu-reaches), or the root given to a tree view. |
+| `rel_unresolved` | 0.53.0 | A `relate()` address names no node in this evaluation. ([Existence is decided, not deferred](reference-language.md#existence-is-decided-not-deferred)) |
 | `render_unit` | 0.58.0 | The unit asked for is not in the instance. ([What `aontu render` writes](reference-generation.md#what-aontu-render-writes)) |
 | `unknown_function` | 0.51.0 | A function name that resolves to no built-in. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
 | `unknown_var` | 0.51.0 | A variable that has not been defined. ([Variables `$name`](reference-language.md#variables-name)) |

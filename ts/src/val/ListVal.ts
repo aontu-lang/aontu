@@ -34,9 +34,10 @@ import {
 
 import { ConjunctVal, unmarkedTemplate } from './ConjunctVal'
 import { NilVal } from './NilVal'
-import { BagVal, undecided } from './BagVal'
+import { BagVal, templateKey, undecided } from './BagVal'
 import { repathInstance, spreadId } from './Val'
 import { markSpread } from '../provenance'
+import { joinRelates, relateText } from './PathVal'
 import { bare } from '../rider'
 
 
@@ -112,9 +113,9 @@ class ListVal extends BagVal {
   // NOTE: order of keys is not preserved!
   // not possible in any case - consider {a,b} unify {b,a}
   unify(peer: Val, ctx: AontuContext): Val {
-    // A rel() peer drives: the relation constraint rewrites this list
+    // A relate() peer drives: the relation constraint rewrites this list
     // leaf by leaf (RELATIONS.0.md §3.2); see the twin arm in MapVal.
-    if (true === (peer as any)?.isRel) {
+    if (true === (peer as any)?.isRelate) {
       return (peer as any).unify(this, ctx)
     }
 
@@ -145,6 +146,8 @@ class ListVal extends BagVal {
     out.opened = this.opened
     out.optionalKeys = [...this.optionalKeys]
     out.spread.cj = this.spread.cj
+    out.relates = this.relates
+    out.relroot = this.relroot
     out.site = this.site
 
     if (peer instanceof ListVal) {
@@ -154,9 +157,11 @@ class ListVal extends BagVal {
       }
       else {
         out.closed = out.closed || peer.closed
+        out.relates = joinRelates(out.relates, peer.relates)
+        out.relroot = out.relroot || peer.relroot
         out.spread.cj = null == out.spread.cj ? peer.spread.cj : (
           null == peer.spread.cj ? out.spread.cj :
-            out.spread.cj.canon === peer.spread.cj.canon ? out.spread.cj :
+            templateKey(out.spread.cj) === templateKey(peer.spread.cj) ? out.spread.cj :
               unite(te ? ctx.clone({ explain: ec(te, 'SPR') }) : ctx,
                 unmarkedTemplate(out.spread.cj, ctx), unmarkedTemplate(peer.spread.cj, ctx),
                 'list-peer')
@@ -410,12 +415,12 @@ class ListVal extends BagVal {
   }
 
 
-  get canon() {
+  get canon(): string {
     let keys = Object.keys(this.peg)
-    return '' +
+    const spread = this.spread.cj ? canonRiders(this.spread.cj) : ''
+    return relateText(this) +
       '[' +
-      (this.spread.cj ? '&:' + canonRiders(this.spread.cj) +
-        (0 < keys.length ? ',' : '') : '') +
+      ('' === spread ? '' : '&:' + spread + (0 < keys.length ? ',' : '')) +
       keys.map(k => canonRiders(this.peg[k])).join(',') +
       ']'
   }

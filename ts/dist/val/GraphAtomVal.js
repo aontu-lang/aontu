@@ -17,7 +17,7 @@ class GraphAtomVal extends FeatureVal_1.FeatureVal {
         super(spec, ctx);
         this.isGraphAtom = true;
         this.isGenable = true;
-        // AFTER rel() (45000): the atoms say nothing about the value.
+        // AFTER relate() (45000): the atoms say nothing about the value.
         this.cjo = 46000;
         this.akind = spec.akind ?? 'acyclic';
         this.invname = spec.invname;
@@ -97,7 +97,7 @@ class GraphAtomVal extends FeatureVal_1.FeatureVal {
             }
             return undefined === held ? this : this.carry(ctx, held);
         }
-        // Anything else -- the rel, the container, a different atom -- is
+        // Anything else -- the relate, the container, a different atom -- is
         // ABSORBED: the atom carries the value and the fold's pairwise
         // walk merges across it.
         const held = undefined === this.held ? peer
@@ -113,7 +113,7 @@ class GraphAtomVal extends FeatureVal_1.FeatureVal {
     gen(ctx) {
         // The atom is transparent at generation -- its verdict is global
         // (relationVerdict), never a value at this field -- and a BARE
-        // atom is silent, exactly as an unmet rel() is.
+        // atom is silent, exactly as an unmet relate() is.
         return undefined === this.held ? undefined : this.held.gen(ctx);
     }
 }

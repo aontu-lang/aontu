@@ -7,12 +7,17 @@ import type {
 } from '../type'
 
 import {
+  DONE,
+} from '../type'
+
+import {
   AontuContext,
 } from '../ctx'
 
 import { makeNilErr } from '../err'
 
-import { propagateMarks } from '../utility'
+import { propagateMarks, walk } from '../utility'
+import { cmpCodePoint } from '../keyorder'
 
 import { ScalarVal } from './ScalarVal'
 import { ScalarKindVal, Path } from './ScalarKindVal'
@@ -71,6 +76,44 @@ export function parseAddress(s: string): Address | undefined {
 }
 
 
+export function addressPath(
+  addr: Address, at: (string | number)[]
+): string[] | undefined {
+  if (addr.absolute) {
+    return addr.parts
+  }
+  // The SIBLING scope: drop the link's own key, then take the parent
+  // steps. A link at `$.a.b.dep` spelling `.other` means `$.a.b.other`.
+  const cut = at.length - 1 - addr.up
+  if (cut < 0) {
+    return undefined
+  }
+  return at.slice(0, cut).map(String).concat(addr.parts)
+}
+
+
+function concreteFlow(ctx: AontuContext, t: Val): Val {
+  let marked = false
+  walk(t, (_key: string | number | undefined, v: Val) => {
+    marked = marked || v.mark.type || v.mark.hide
+    return v
+  })
+  // An unmarked flow type is passed THROUGH: cloning one anyway would
+  // move the site an error names, and a conflict has to point at what
+  // the author wrote.
+  if (!marked) {
+    return t
+  }
+  const out = t.clone(ctx)
+  walk(out, (_key: string | number | undefined, v: Val) => {
+    v.mark.type = false
+    v.mark.hide = false
+    return v
+  })
+  return out
+}
+
+
 export function textAddress(s: string): string {
   return ('$' === s[0] || '.' === s[0]) ? s : '.' + s
 }
@@ -91,6 +134,35 @@ export function joinFlows(
 }
 
 
+// The templates of the `relate()` calls written at one value, each once.
+export function joinRelates(
+  a: Val[] | undefined, b: Val[] | undefined
+): Val[] | undefined {
+  if (undefined === b || a === b) {
+    return a
+  }
+  if (undefined === a) {
+    return b
+  }
+  const have = a.map((t) => t.canon)
+  const more = b.filter((t) => !have.includes(t.canon))
+  return 0 === more.length ? a : a.concat(more)
+}
+
+
+// The `relate()` written at a value, as canon writes it before the value.
+export function relateText(v: Val): string {
+  if (true !== v.relroot) {
+    return ''
+  }
+  const relates = v.relates as Val[]
+  if (0 === relates.length) {
+    return 'relate()&'
+  }
+  return relates.map((t) => 'relate(' + t.canon + ')&').sort(cmpCodePoint).join('')
+}
+
+
 export function prefixMeet(a: string, b: string): string | undefined {
   const pa = parseAddress(a) as Address
   const pb = parseAddress(b) as Address
@@ -108,6 +180,30 @@ export function prefixMeet(a: string, b: string): string | undefined {
 }
 
 
+// The link a path written at `at` is, carrying each template to the node
+// it names; undefined where a relative path climbs off the top of the tree.
+export function linkAt(
+  ctx: AontuContext, addrsrc: string, at: string[], flows: [string, Val][] | undefined,
+  relates: Val[], relroot: boolean
+): PathVal | undefined {
+  const target = addressPath(parseAddress(addrsrc) as Address, at)
+  if (undefined === target) {
+    return undefined
+  }
+  const out: any = new PathVal({ peg: addrsrc }, ctx)
+  const key = target.join('\x00')
+  out.dc = DONE
+  out.link = '$.' + target.join('.')
+  out.linkto = target
+  out.flows = joinFlows(flows, 0 === relates.length ? undefined
+    : relates.map((t): [string, Val] => [key, concreteFlow(ctx, t)]))
+  out.relates = relates
+  out.relroot = relroot
+  out.path = at
+  return out
+}
+
+
 class PathVal extends ScalarVal {
   isPath = true
 
@@ -120,6 +216,10 @@ class PathVal extends ScalarVal {
 
   unify(peer: Val, ctx: AontuContext): Val {
     const p: any = peer
+    // A relate() peer drives, as it does beside a map or a list.
+    if (true === p.isRelate) {
+      return peer.unify(this, ctx)
+    }
     if (true === p.isPath) {
       const merged = prefixMeet(this.peg, p.peg)
       if (undefined === merged) {
@@ -129,10 +229,24 @@ class PathVal extends ScalarVal {
       let out = merged !== this.peg || (merged === p.peg
         && undefined === this.link && undefined !== p.link) ? p : this
       const other = out === this ? p : this
+      // A link refined by a longer path is a link to what that path names,
+      // which climbs no further than the link did.
+      if (undefined === out.link && undefined !== other.link) {
+        const moved = linkAt(ctx, merged, other.path, undefined,
+          other.relates, true === other.relroot) as PathVal
+        propagateMarks(other, moved)
+        propagateMarks(out, moved)
+        moved.site = out.site
+        return moved
+      }
       const flows = joinFlows(out.flows, other.flows)
-      if (flows !== out.flows) {
+      const relates = joinRelates(out.relates, other.relates)
+      const relroot = true === out.relroot || true === other.relroot
+      if (flows !== out.flows || relates !== out.relates || relroot !== (true === out.relroot)) {
         out = out.clone(ctx)
         out.flows = flows
+        out.relates = relates
+        out.relroot = relroot
       }
       propagateMarks(other, out)
       return out
@@ -143,8 +257,8 @@ class PathVal extends ScalarVal {
   // Reparses to the same VALUE: the call form is the literal syntax
   // for this kind, so canon renders it back. The peg is already the
   // address grammar, which the argument grammar also accepts.
-  get canon() {
-    return 'path(' + this.peg + ')'
+  get canon(): string {
+    return relateText(this) + 'path(' + this.peg + ')'
   }
 
   superior() {
@@ -164,7 +278,7 @@ class PathKindVal extends ScalarKindVal {
     super({ ...spec, peg: Path }, ctx)
   }
 
-  get canon() {
+  get canon(): string {
     return 'path'
   }
 

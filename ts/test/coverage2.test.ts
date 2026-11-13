@@ -123,7 +123,7 @@ describe('coverage2-cli', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-style-'))
     const file = Path.join(dir, 'm.aontu')
     Fs.writeFileSync(file,
-      'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n')
+      'a: {dependsOn: [&: relate(), path($.b)]}\nb: {}\n')
     const desc = Object.getOwnPropertyDescriptor(process, 'stdout')!
     let out = ''
     const fake: any = new PassThrough()
@@ -155,7 +155,7 @@ describe('coverage2-cli', () => {
     const dir = Fs.mkdtempSync(Path.join(Os.tmpdir(), 'aontu-style3-'))
     const file = Path.join(dir, 'm.aontu')
     Fs.writeFileSync(file,
-      'a: {dependsOn: [&: refer(), path($.b)]}\nb: {}\n')
+      'a: {dependsOn: [&: relate(), path($.b)]}\nb: {}\n')
     const desc = Object.getOwnPropertyDescriptor(process, 'stdout')!
     let out = ''
     const fake: any = new PassThrough()

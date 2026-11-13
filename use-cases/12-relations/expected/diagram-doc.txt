@@ -8,8 +8,8 @@ $
 └── spec
     ├── Job
     │   ├── cmd string
-    │   ├── fedBy rel({"kind":"job"})
-    │   ├── feeds rel({"kind":"job"})&acyclic()...
+    │   ├── fedBy relate({"kind":"job"})
+    │   ├── feeds relate({"kind":"job"})&acycli...
     │   └── kind "job"
     └── JobShape
         └── kind "job"

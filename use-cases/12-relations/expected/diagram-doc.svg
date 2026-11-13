@@ -20,9 +20,9 @@
 <path d="M56 180V190H74" class="av-line"/>
 <text x="76" y="194"><tspan class="av-t">cmd</tspan><tspan class="av-m"> string</tspan></text>
 <path d="M56 180V210H74" class="av-line"/>
-<text x="76" y="214"><tspan class="av-t">fedBy</tspan><tspan class="av-m"> rel({&quot;kind&quot;:&quot;job&quot;})</tspan></text>
+<text x="76" y="214"><tspan class="av-t">fedBy</tspan><tspan class="av-m"> relate({&quot;kind&quot;:&quot;job&quot;})</tspan></text>
 <path d="M56 180V230H74" class="av-line"/>
-<text x="76" y="234"><tspan class="av-t">feeds</tspan><tspan class="av-m"> rel({&quot;kind&quot;:&quot;job&quot;})&amp;acyclic()...</tspan></text>
+<text x="76" y="234"><tspan class="av-t">feeds</tspan><tspan class="av-m"> relate({&quot;kind&quot;:&quot;job&quot;})&amp;acycli...</tspan></text>
 <path d="M56 180V250H74" class="av-line"/>
 <text x="76" y="254"><tspan class="av-t">kind</tspan><tspan class="av-m"> &quot;job&quot;</tspan></text>
 <path d="M32 160V270H50" class="av-line"/>

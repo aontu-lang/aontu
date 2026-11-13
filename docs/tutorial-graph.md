@@ -10,7 +10,7 @@ completely, and each service alone. Nothing in it can say "these
 two files describe the same service", or "this feeds that, never in
 a loop", or "a chain of these, as long as it needs to be". This
 tutorial adds that layer: bringing two views into contact,
-declared relations (`rel` and the graph atoms), and recursive
+declared relations (`relate` and the graph atoms), and recursive
 schemas. Each is a
 statement the engine checks: "payments depends on ledger" becomes
 something that can refuse.
@@ -86,19 +86,19 @@ present for unification, absent from output):
 <!-- test: file spec.aontu -->
 ```aontu
 spec: hide({
-  Job: { kind:job feeds?:rel($.spec.JobShape) }
+  Job: { kind:job feeds?:relate($.spec.JobShape) }
 
   JobShape: kind: job
 })
 ```
 
-`rel(t)` turns the field's strings into **tree addresses**: each
+`relate(t)` makes each path in the field a **checked link**: each
 must name a node in this evaluation, and the type `t` flows into
 every target, so an edge landing on something that is not a job
 refuses at the edge. The `?` makes the key
 [optional](reference-language.md#optional-keys-): a job with
 nothing downstream writes nothing. (`JobShape` is a thin stand-in:
-a self-typed `rel($.spec.Job)` inside `Job` is still in design.)
+a self-typed `relate($.spec.Job)` inside `Job` is still in design.)
 
 The topology sits in `pipeline.aontu`: plain lists of addresses, one
 of which carries a typo:
@@ -123,13 +123,13 @@ A two-line root, `model.aontu`, joins them:
 <!-- test: run -->
 ```sh
 $ aontu model.aontu
-[aontu/rel_unresolved]: Cannot refer value at path $.pipeline.jobs.extract.feeds.0
+[aontu/rel_unresolved]: Cannot relate value at path $.pipeline.jobs.extract.feeds.0
 ...
 $ echo $?
 1
 ```
 
-Without `rel()`, that address is a perfectly good string and this
+Without `relate()`, that address is a perfectly good path value and this
 pipeline silently loses everything downstream of extract. With it,
 the typo is a located refusal, and existence is decided inside the
 evaluation: an address resolves, or the document refuses. Correct
@@ -166,7 +166,7 @@ it into the declaration, in `spec.aontu`:
 spec: hide({
   Job: {
     kind: job
-    feeds?: rel($.spec.JobShape) & [&: re("^\\$\\.pipeline\\.jobs\\.")]
+    feeds?: relate($.spec.JobShape) & [&: re("^\\$\\.pipeline\\.jobs\\.")]
   }
 
   JobShape: kind: job
@@ -174,7 +174,7 @@ spec: hide({
 ```
 
 A constraint in the list's spread constrains each **address string**,
-every element of the list. Beside `rel()` it would meet the list
+every element of the list. Beside `relate()` it would meet the list
 itself, as any meet does, and a string constraint refuses a list
 ([the rule](reference-language.md#declared-relations)). To watch it
 work, write a change request: a file that includes the model and
@@ -222,8 +222,8 @@ checked treatment, in `spec.aontu`:
 spec: hide({
   Job: {
     kind: job
-    feeds?: rel($.spec.JobShape) & acyclic() & inverse(fedBy)
-    fedBy?: rel($.spec.JobShape)
+    feeds?: relate($.spec.JobShape) & acyclic() & inverse(fedBy)
+    fedBy?: relate($.spec.JobShape)
   }
 
   JobShape: kind: job
@@ -562,7 +562,7 @@ of questions to have asked about payments and ledger before 04:11.
   [define a recursive schema](how-to/define-a-recursive-schema.md).
 - The rules in full:
   [linking](reference-language.md#linking-the-tree-is-the-namespace),
-  [checked links](reference-language.md#checked-links-refert),
+  [checked links](reference-language.md#checked-links-relatet),
   [declared relations](reference-language.md#declared-relations),
   [recursive references](reference-language.md#recursive-references-fixpoints).
 - Why a checked link refuses where `owl:sameAs` silently merged, and why

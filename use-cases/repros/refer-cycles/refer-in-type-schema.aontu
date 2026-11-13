@@ -4,7 +4,7 @@
 schema: {
   Order: type(close({
     id: string
-    customerId: refer() & path & re("^cust-")
+    customerId: relate() & path & re("^cust-")
   }))
 }
 customers: {}

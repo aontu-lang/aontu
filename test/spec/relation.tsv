@@ -18,13 +18,13 @@
 # The old declaration channel -- a `relations:` key at the document
 # root -- is GONE, discharging ADR-010's grandfather clause; the row
 # `relations-key-is-user-space` pins the discharge. The `target:` half
-# of the old declaration is `rel(t)`'s flow at the site, pinned at the
+# of the old declaration is `relate(t)`'s flow at the site, pinned at the
 # end of this file. Mode `relation`: `expect` is the whole verb report
 # as JSON.
 #
 # Every expectation was obtained by the parity probe (AGENTS.md).
-no-relations-declared	relation	a: {dependsOn: rel() & [path($.b)]}\nb: {}	{"verdict":"pass","findings":[]}
-relation-declared-nothing-asked	relation	a: {dependsOn: rel() & [path($.b)]}\nb: {}\nc: {}	{"verdict":"pass","findings":[]}
+no-relations-declared	relation	a: {dependsOn: relate() & [path($.b)]}\nb: {}	{"verdict":"pass","findings":[]}
+relation-declared-nothing-asked	relation	a: {dependsOn: relate() & [path($.b)]}\nb: {}\nc: {}	{"verdict":"pass","findings":[]}
 
 # --- Acyclicity -------------------------------------------------------
 #
@@ -35,36 +35,36 @@ relation-declared-nothing-asked	relation	a: {dependsOn: rel() & [path($.b)]}\nb:
 # edge into a node INSIDE an entity is an edge to that entity: a
 # relation holds between entities, and the path inside one says which
 # part of it the link reaches.
-acyclic-holds	relation	a: {dependsOn: rel() & acyclic() & [path($.b)]}\nb: {}	{"verdict":"pass","findings":[]}
-acyclic-two-cycle	relation	a: {dependsOn: rel() & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
-acyclic-three-cycle	relation	a: {dependsOn: rel() & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.c)]}\nc: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.c","$.a"]}]}
-acyclic-self-cycle	relation	a: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.a"]}]}
-acyclic-diamond-is-not-a-cycle	relation	a: {dependsOn: rel() & acyclic() & [path($.b), path($.c)]}\nb: {dependsOn: rel() & acyclic() & [path($.d)]}\nc: {dependsOn: rel() & acyclic() & [path($.d)]}\nd: {}	{"verdict":"pass","findings":[]}
-acyclic-not-asked-for	relation	a: {dependsOn: rel() & [path($.b)]}\nb: {dependsOn: rel() & [path($.a)]}	{"verdict":"pass","findings":[]}
-acyclic-only-its-own-relation	relation	a: {dependsOn: rel() & acyclic() & [path($.b)], seeAlso: rel() & [path($.b)]}\nb: {seeAlso: rel() & [path($.a)]}	{"verdict":"pass","findings":[]}
-acyclic-into-a-node-inside-a-node	relation	a: {ports: {p: {}}, dependsOn: rel() & acyclic() & [path($.b.ports.p)]}\nb: {ports: {p: {}}, dependsOn: rel() & acyclic() & [path($.a.ports.p)]}	{"verdict":"pass","findings":[]}
+acyclic-holds	relation	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {}	{"verdict":"pass","findings":[]}
+acyclic-two-cycle	relation	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-three-cycle	relation	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & acyclic() & [path($.c)]}\nc: {dependsOn: relate() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.c","$.a"]}]}
+acyclic-self-cycle	relation	a: {dependsOn: relate() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.a"]}]}
+acyclic-diamond-is-not-a-cycle	relation	a: {dependsOn: relate() & acyclic() & [path($.b), path($.c)]}\nb: {dependsOn: relate() & acyclic() & [path($.d)]}\nc: {dependsOn: relate() & acyclic() & [path($.d)]}\nd: {}	{"verdict":"pass","findings":[]}
+acyclic-not-asked-for	relation	a: {dependsOn: relate() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{"verdict":"pass","findings":[]}
+acyclic-only-its-own-relation	relation	a: {dependsOn: relate() & acyclic() & [path($.b)], seeAlso: relate() & [path($.b)]}\nb: {seeAlso: relate() & [path($.a)]}	{"verdict":"pass","findings":[]}
+acyclic-into-a-node-inside-a-node	relation	a: {ports: {p: {}}, dependsOn: relate() & acyclic() & [path($.b.ports.p)]}\nb: {ports: {p: {}}, dependsOn: relate() & acyclic() & [path($.a.ports.p)]}	{"verdict":"pass","findings":[]}
 # One statement of the atom declares for the PREDICATE, everywhere: the
 # declaration set is evaluation-global and additive, so a cycle formed
 # by an edge whose own field never spelled acyclic() is still a cycle
 # of the declared relation.
-acyclic-declaration-is-global	relation	a: {dependsOn: rel() & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-declaration-is-global	relation	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
 
 # --- Inverse consistency ----------------------------------------------
 #
 # For each `a --dependsOn--> b`, `b` must carry `a` under the declared
 # inverse -- as an EDGE, so the mirror field is itself a relation
-# (spelled with rel(), usually once, in the schema). The report names
+# (spelled with relate(), usually once, in the schema). The report names
 # the exact missing entry -- the two ends and the relation that should
 # have mirrored it -- one per edge, because each missing entry is its
 # own repair. DERIVING the inverse (writing `usedBy` for the author)
 # is field generation, and waits for the generation combinators; this
 # validates only.
-inverse-holds	relation	a: {dependsOn: rel() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: rel() & [path($.a)]}	{"verdict":"pass","findings":[]}
-inverse-missing	relation	a: {dependsOn: rel() & inverse(usedBy) & [path($.b)]}\nb: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","usedBy"]}]}
-inverse-missing-names-the-entry	relation	a: {dependsOn: rel() & inverse(usedBy) & [path($.b), path($.c)]}\nb: {usedBy: rel() & [path($.a)]}\nc: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.1","detail":["$.a","$.c","usedBy"]}]}
-inverse-wrong-way-round	relation	a: {dependsOn: rel() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: rel() & [path($.b)]}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","usedBy"]}]}
-inverse-and-acyclic-together	relation	a: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & inverse(usedBy) & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]},{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","usedBy"]},{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.b.dependsOn.0","detail":["$.b","$.a","usedBy"]}]}
-two-relations-declared	relation	a: {dependsOn: rel() & acyclic() & [path($.b)], seeAlso: rel() & inverse(seeAlso) & [path($.b)]}\nb: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"seeAlso","at":"$.a.seeAlso.0","detail":["$.a","$.b","seeAlso"]}]}
+inverse-holds	relation	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & [path($.a)]}	{"verdict":"pass","findings":[]}
+inverse-missing	relation	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","usedBy"]}]}
+inverse-missing-names-the-entry	relation	a: {dependsOn: relate() & inverse(usedBy) & [path($.b), path($.c)]}\nb: {usedBy: relate() & [path($.a)]}\nc: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.1","detail":["$.a","$.c","usedBy"]}]}
+inverse-wrong-way-round	relation	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & [path($.b)]}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","usedBy"]}]}
+inverse-and-acyclic-together	relation	a: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & inverse(usedBy) & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]},{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","usedBy"]},{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.b.dependsOn.0","detail":["$.b","$.a","usedBy"]}]}
+two-relations-declared	relation	a: {dependsOn: relate() & acyclic() & [path($.b)], seeAlso: relate() & inverse(seeAlso) & [path($.b)]}\nb: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"seeAlso","at":"$.a.seeAlso.0","detail":["$.a","$.b","seeAlso"]}]}
 
 # --- What the verdict does not do -------------------------------------
 #
@@ -73,8 +73,8 @@ two-relations-declared	relation	a: {dependsOn: rel() & acyclic() & [path($.b)], 
 # the errors it already has are the answer. And `relations` as a KEY
 # is ordinary user data -- the magic key is retired (ADR-010's
 # grandfather clause discharged).
-edge-at-the-top-starts-at-the-root	relation	dependsOn: rel() & inverse(usedBy) & [path($.b)]\nb: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.dependsOn.0","detail":["$","$.b","usedBy"]}]}
-broken-document-is-not-blamed-on-relations	relation	d: rel() & acyclic()\na: 1 & 2	{"verdict":"error","findings":[],"errors":[{"code":"scalar_value","class":"conflict","severity":"error","path":"$.a","sites":[{"file":"","row":2,"col":8,"len":1,"role":"data","src":"2","value":"2"},{"file":"","row":2,"col":4,"len":1,"role":"data","src":"1","value":"1"}]}]}
+edge-at-the-top-starts-at-the-root	relation	dependsOn: relate() & inverse(usedBy) & [path($.b)]\nb: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.dependsOn.0","detail":["$","$.b","usedBy"]}]}
+broken-document-is-not-blamed-on-relations	relation	d: relate() & acyclic()\na: 1 & 2	{"verdict":"error","findings":[],"errors":[{"code":"scalar_value","class":"conflict","severity":"error","path":"$.a","sites":[{"file":"","row":2,"col":8,"len":1,"role":"data","src":"2","value":"2"},{"file":"","row":2,"col":4,"len":1,"role":"data","src":"1","value":"1"}]}]}
 # ... AND NEITHER IS ONE THAT CANNOT BE GENERATED. Unification can
 # succeed over a tree that still holds an unsettled disjunction, which
 # `disjunct_no_gen` refuses at generation, and the graph walk cannot
@@ -82,17 +82,17 @@ broken-document-is-not-blamed-on-relations	relation	d: rel() & acyclic()\na: 1 &
 # mirror the document writes can be missing from the edge set. The
 # verdict is therefore asked of generation first, and what generation
 # says is the answer -- the same order the engine itself refuses in.
-ungenerable-document-is-not-blamed-on-relations	relation	a: {dependsOn: rel() & inverse(usedBy) & [path($.b)]}\nb: {}\nx: 1 | 2	{"verdict":"error","findings":[],"errors":[{"code":"disjunct_no_gen","class":"incomplete","severity":"error","path":"$.x","sites":[{"file":"","row":3,"col":4,"len":1,"role":"data","src":"1","value":"1|2"}]}]}
+ungenerable-document-is-not-blamed-on-relations	relation	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {}\nx: 1 | 2	{"verdict":"error","findings":[],"errors":[{"code":"disjunct_no_gen","class":"incomplete","severity":"error","path":"$.x","sites":[{"file":"","row":3,"col":4,"len":1,"role":"data","src":"1","value":"1|2"}]}]}
 # A MIRROR WRITTEN BY A SECOND STATEMENT OF THE SAME ENTITY. The
 # field's constraint is driven at the entity when the statements
 # merge, and a conjunct member that took the entity's own path stamped
-# a rel()-minted link with the ENTITY's key as its predicate: the
+# a relate()-minted link with the ENTITY's key as its predicate: the
 # mirror was then looked for under a relation nobody declared, and a
 # written one was reported missing.
-inverse-mirror-written-by-a-second-statement	relation	spec: hide({M: {kind: m, dependsOn?: rel($.spec.S) & inverse(usedBy), usedBy?: rel($.spec.S)}, S: {kind: m}})\nr: m: {a: $.spec.M & {dependsOn: [path($.r.m.b)]}, b: $.spec.M & {usedBy: [path($.r.m.a)]}}\nr: m: {b: {dependsOn: [path($.r.m.c)]}, c: $.spec.M & {usedBy: [path($.r.m.b)]}}	{"verdict":"pass","findings":[]}
-relations-key-is-user-space	relation	relations: {dependsOn: 1}\na: {dependsOn: rel() & [path($.a)]}	{"verdict":"pass","findings":[]}
+inverse-mirror-written-by-a-second-statement	relation	spec: hide({M: {kind: m, dependsOn?: relate($.spec.S) & inverse(usedBy), usedBy?: relate($.spec.S)}, S: {kind: m}})\nr: m: {a: $.spec.M & {dependsOn: [path($.r.m.b)]}, b: $.spec.M & {usedBy: [path($.r.m.a)]}}\nr: m: {b: {dependsOn: [path($.r.m.c)]}, c: $.spec.M & {usedBy: [path($.r.m.b)]}}	{"verdict":"pass","findings":[]}
+relations-key-is-user-space	relation	relations: {dependsOn: 1}\na: {dependsOn: relate() & [path($.a)]}	{"verdict":"pass","findings":[]}
 relations-key-generates-as-data	gens	relations: {dependsOn: 1}	{"relations":{"dependsOn":1}}
-the-worked-example	relation	@"aontu:system"\n\nservices: {\n  auth: $.aontu.System.Service & {}\n  billing: $.aontu.System.Service & {dependsOn: rel($.aontu.System.Service) & inverse(dependedOnBy) & acyclic() & [path($.services.auth)]}\n}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.services.billing.dependsOn.0","detail":["$.services.billing","$.services.auth","dependedOnBy"]}]}
+the-worked-example	relation	@"aontu:system"\n\nservices: {\n  auth: $.aontu.System.Service & {}\n  billing: $.aontu.System.Service & {dependsOn: relate($.aontu.System.Service) & inverse(dependedOnBy) & acyclic() & [path($.services.auth)]}\n}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.services.billing.dependsOn.0","detail":["$.services.billing","$.services.auth","dependedOnBy"]}]}
 non-map-root	relation	[1,2]	{"verdict":"pass","findings":[]}
 
 # --- The verdict at generation ----------------------------------------
@@ -101,42 +101,42 @@ non-map-root	relation	[1,2]	{"verdict":"pass","findings":[]}
 # located evaluation errors at the offending edge, exactly as an unmet
 # sizing atom refuses at generation -- and a document whose atoms hold
 # generates the plain value, the atoms transparent.
-generation-refuses-a-cycle	errc	a: {dependsOn: rel() & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	relation_cycle
-generation-refuses-a-missing-inverse	errc	a: {dependsOn: rel() & inverse(usedBy) & [path($.b)]}\nb: {}	relation_inverse_missing
-generation-passes-a-held-declaration	gens	a: {dependsOn: rel() & acyclic() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: rel() & [path($.a)]}	{"a":{"dependsOn":["$.b"]},"b":{"usedBy":["$.a"]}}
-atoms-are-transparent-at-generation	gens	a: {dependsOn: rel() & acyclic() & [path($.b)]}\nb: {}	{"a":{"dependsOn":["$.b"]},"b":{}}
+generation-refuses-a-cycle	errc	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & acyclic() & [path($.a)]}	relation_cycle
+generation-refuses-a-missing-inverse	errc	a: {dependsOn: relate() & inverse(usedBy) & [path($.b)]}\nb: {}	relation_inverse_missing
+generation-passes-a-held-declaration	gens	a: {dependsOn: relate() & acyclic() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & [path($.a)]}	{"a":{"dependsOn":["$.b"]},"b":{"usedBy":["$.a"]}}
+atoms-are-transparent-at-generation	gens	a: {dependsOn: relate() & acyclic() & [path($.b)]}\nb: {}	{"a":{"dependsOn":["$.b"]},"b":{}}
 bare-atom-is-silent	gens	s: {d?: acyclic()}	{"s":{}}
 # The declarations survive canon and reach the hash: reparsing a canon
 # re-registers what the document declared.
-atom-canon	canon	a: {dependsOn: rel() & acyclic() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: rel() & [path($.a)]}	{"a":{"dependsOn":[&:refer(),path($.b)]&acyclic()&inverse("usedBy")},"b":{"usedBy":[&:refer(),path($.a)]}}
-inverse-name-refused	errc	d: rel() & inverse(1)	inverse_name
-inverse-name-not-a-name	errc	d: rel() & inverse("a b")	inverse_name
+atom-canon	canon	a: {dependsOn: relate() & acyclic() & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & [path($.a)]}	{"a":{"dependsOn":relate()&[path($.b)]&acyclic()&inverse("usedBy")},"b":{"usedBy":relate()&[path($.a)]}}
+inverse-name-refused	errc	d: relate() & inverse(1)	inverse_name
+inverse-name-not-a-name	errc	d: relate() & inverse("a b")	inverse_name
 
-# --- rel(t): the target half of the old declaration -------------------
+# --- relate(t): the target half of the old declaration -------------------
 #
 # `target:` in the retired Relation schema said what the far end must
-# satisfy, and said it to a report layer. `rel(t)` says it to the
+# satisfy, and said it to a report layer. `relate(t)` says it to the
 # ENGINE: t flows into each addressed target, a conflict is an
 # ordinary located error, and a hole the flow leaves is an ordinary
 # generation refusal -- the site never repeats the declaration, the
 # schema states it once.
-target-holds	gens	a: {dependsOn: rel({kind: service}) & [path($.b)]}\nb: {kind: service}	{"a":{"dependsOn":["$.b"]},"b":{"kind":"service"}}
-target-refused	errc	a: {dependsOn: rel({kind: service}) & [path($.b)]}\nb: {kind: database}	scalar_value
-target-unsatisfied-key-is-not-satisfaction	errc	a: {dependsOn: rel({kind: service, port: integer}) & [path($.b)]}\nb: {kind: service}	mapval_spread_required
-target-top-asks-nothing	gens	a: {dependsOn: rel(any) & [path($.b)]}\nb: {kind: database}	{"a":{"dependsOn":["$.b"]},"b":{"kind":"database"}}
-target-is-per-edge-not-per-node	errc	a: {dependsOn: rel({kind: service}) & [path($.b)], usedBy: rel({kind: database}) & [path($.b)]}\nb: {kind: service}	scalar_value
-target-checks-the-node-the-link-arrives-at	gens	a: {dependsOn: rel({n: 1}) & [path($.b.parts.one)]}\nb: {parts: {one: {n: 1}}}	{"a":{"dependsOn":["$.b.parts.one"]},"b":{"parts":{"one":{"n":1}}}}
-target-refuses-the-node-the-link-arrives-at	errc	a: {dependsOn: rel({n: 1}) & [path($.b.parts.one)]}\nb: {parts: {one: {n: 2}}}	scalar_value
-target-that-is-a-scalar-refuses-a-record	errc	a: {dependsOn: rel("x") & [path($.b)]}\nb: {k: 1}	map
-target-reaches-into-a-list-element	gens	a: {dependsOn: rel({n: 1}) & [path($.b.items.0)]}\nb: {items: [{n: 1}]}	{"a":{"dependsOn":["$.b.items.0"]},"b":{"items":[{"n":1}]}}
-target-refuses-a-list-element	errc	a: {dependsOn: rel({n: 1}) & [path($.b.items.0)]}\nb: {items: [{n: 2}]}	scalar_value
+target-holds	gens	a: {dependsOn: relate({kind: service}) & [path($.b)]}\nb: {kind: service}	{"a":{"dependsOn":["$.b"]},"b":{"kind":"service"}}
+target-refused	errc	a: {dependsOn: relate({kind: service}) & [path($.b)]}\nb: {kind: database}	scalar_value
+target-unsatisfied-key-is-not-satisfaction	errc	a: {dependsOn: relate({kind: service, port: integer}) & [path($.b)]}\nb: {kind: service}	mapval_spread_required
+target-top-asks-nothing	gens	a: {dependsOn: relate(any) & [path($.b)]}\nb: {kind: database}	{"a":{"dependsOn":["$.b"]},"b":{"kind":"database"}}
+target-is-per-edge-not-per-node	errc	a: {dependsOn: relate({kind: service}) & [path($.b)], usedBy: relate({kind: database}) & [path($.b)]}\nb: {kind: service}	scalar_value
+target-checks-the-node-the-link-arrives-at	gens	a: {dependsOn: relate({n: 1}) & [path($.b.parts.one)]}\nb: {parts: {one: {n: 1}}}	{"a":{"dependsOn":["$.b.parts.one"]},"b":{"parts":{"one":{"n":1}}}}
+target-refuses-the-node-the-link-arrives-at	errc	a: {dependsOn: relate({n: 1}) & [path($.b.parts.one)]}\nb: {parts: {one: {n: 2}}}	scalar_value
+target-that-is-a-scalar-refuses-a-record	errc	a: {dependsOn: relate("x") & [path($.b)]}\nb: {k: 1}	map
+target-reaches-into-a-list-element	gens	a: {dependsOn: relate({n: 1}) & [path($.b.items.0)]}\nb: {items: [{n: 1}]}	{"a":{"dependsOn":["$.b.items.0"]},"b":{"items":[{"n":1}]}}
+target-refuses-a-list-element	errc	a: {dependsOn: relate({n: 1}) & [path($.b.items.0)]}\nb: {items: [{n: 2}]}	scalar_value
 # The atom does not HIDE the value it carries from the bag's
-# generability rules: an unmet required rel() refuses generation with
+# generability rules: an unmet required relate() refuses generation with
 # or without the atom on it.
-atom-does-not-hide-an-unmet-rel	errc	d: rel({kind: q}) & acyclic()	mapval_no_gen
+atom-does-not-hide-an-unmet-rel	errc	d: relate({kind: q}) & acyclic()	mapval_no_gen
 # The located error steps through NESTED atoms (one carrying another)
 # on its way to the offending edge.
-generation-locates-through-nested-atoms	errc	a: {dependsOn: rel() & acyclic() & inverse(usedBy) & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & inverse(usedBy) & [path($.a)]}\na: {dependsOn: rel()}\nb: {usedBy: rel() & [path($.a)]}\na: {usedBy: rel() & [path($.b)]}	relation_cycle
+generation-locates-through-nested-atoms	errc	a: {dependsOn: relate() & acyclic() & inverse(usedBy) & [path($.b)]}\nb: {dependsOn: relate() & acyclic() & inverse(usedBy) & [path($.a)]}\na: {dependsOn: relate()}\nb: {usedBy: relate() & [path($.a)]}\na: {usedBy: relate() & [path($.b)]}	relation_cycle
 
 # The SAME declaration twice is one declaration -- restating an atom
 # (a shared schema fragment meeting a local one) merges helds and
@@ -144,11 +144,11 @@ generation-locates-through-nested-atoms	errc	a: {dependsOn: rel() & acyclic() & 
 atom-dedup-acyclic	canon	p: acyclic() & acyclic() & ["x"]	{"p":["x"]&acyclic()}
 atom-dedup-inverse	canon	p: inverse(q) & inverse(q) & ["x"]	{"p":["x"]&inverse("q")}
 
-# A held constraint WITHOUT rel() applies to the value the atom rides
-# on -- the container itself. Only rel()'s rewrite gives a constraint
+# A held constraint WITHOUT relate() applies to the value the atom rides
+# on -- the container itself. Only relate()'s rewrite gives a constraint
 # per-leaf address flow; a bare re() meeting a list is an ordinary
 # refusal, in either fold order (the constraint hands the drive to the
-# atom exactly as it hands it to a rel).
+# atom exactly as it hands it to a relate).
 atom-held-constraint-without-rel	errc	p: re("^j") & acyclic() & ["job_a"]	constraint
 
 # An atom at a LIST position: the last path segment is an index, not a
@@ -160,18 +160,18 @@ atom-in-list-position	canon	x: [acyclic() & ["a"]]	{"x":[["a"]&acyclic()]}
 # TWO inverse declarations on one predicate: both are registered, both
 # are checked, and one unmirrored edge is flagged once per name --
 # sorted by detail, the report's third tie-breaker.
-two-inverses-one-predicate	relation	ent_a: {links: [path($.ent_b)] & rel() & inverse(back) & inverse(also), back: [], also: []}\nent_b: {back: [], also: []}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","also"]},{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","back"]}]}
+two-inverses-one-predicate	relation	ent_a: {links: [path($.ent_b)] & relate() & inverse(back) & inverse(also), back: [], also: []}\nent_b: {back: [], also: []}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","also"]},{"code":"relation_inverse_missing","relation":"links","at":"$.ent_a.links.0","detail":["$.ent_a","$.ent_b","back"]}]}
 # THE PREDICATE NAME is a D-1 name (sketch/RELATIONS.0.md §3.2) --
 # a relation is a vocabulary term, not an address, so it keeps the
 # name grammar that entity names had before ADR-014 retired them: a
 # letter or `_`, then letters, digits, `_` or `-`. The accepting rows
-# reach generation (an unmet rel is not concrete) rather than a name
+# reach generation (an unmet relate is not concrete) rather than a name
 # refusal, which is exactly the distinction being pinned.
-inverse-name-empty	errc	d: rel() & inverse("")	inverse_name
-inverse-name-digit-lead	errc	d: rel() & inverse("9x")	inverse_name
-inverse-name-hyphen-lead	errc	d: rel() & inverse("-x")	inverse_name
-inverse-name-upper	errc	d: rel() & inverse(Abc)	mapval_no_gen
-inverse-name-digits-and-hyphen-inside	errc	d: rel() & inverse("a_b-c1")	mapval_no_gen
+inverse-name-empty	errc	d: relate() & inverse("")	inverse_name
+inverse-name-digit-lead	errc	d: relate() & inverse("9x")	inverse_name
+inverse-name-hyphen-lead	errc	d: relate() & inverse("-x")	inverse_name
+inverse-name-upper	errc	d: relate() & inverse(Abc)	mapval_no_gen
+inverse-name-digits-and-hyphen-inside	errc	d: relate() & inverse("a_b-c1")	mapval_no_gen
 
 # A GRAPH ATOM REFINES ITS HELD VALUE IN PLACE across passes. A chain
 # of references takes several passes to settle, so the atom self-drives
@@ -183,19 +183,19 @@ atom-holds-a-chained-reference	canon	d: acyclic() & $.a\na: $.b\nb: $.c\nc: ["$.
 # A constraint on each address goes in the relation's spread (ruling 25),
 # and an element met with that spread is still a link the graph atoms
 # read, in either order of the spread and the atom.
-acyclic-beside-spread	relation	a: {dependsOn: rel() & [&: re("^[$]")] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & [&: re("^[$]")] & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
-acyclic-beside-path-spread	relation	a: {dependsOn: rel() & [&: path] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
-acyclic-spread-after-atom	relation	a: {dependsOn: rel() & acyclic() & [&: path] & [path($.b)]}\nb: {dependsOn: rel() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
-inverse-missing-beside-spread	relation	a: {dependsOn: rel() & [&: path] & inverse(usedBy) & [path($.b)]}\nb: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","usedBy"]}]}
-inverse-met-beside-spread	relation	a: {dependsOn: rel() & [&: path] & inverse(usedBy) & [path($.b)]}\nb: {usedBy: rel() & [&: path] & [path($.a)]}	{"verdict":"pass","findings":[]}
+acyclic-beside-spread	relation	a: {dependsOn: relate() & [&: re("^[$]")] & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & [&: re("^[$]")] & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-beside-path-spread	relation	a: {dependsOn: relate() & [&: path] & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-spread-after-atom	relation	a: {dependsOn: relate() & acyclic() & [&: path] & [path($.b)]}\nb: {dependsOn: relate() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+inverse-missing-beside-spread	relation	a: {dependsOn: relate() & [&: path] & inverse(usedBy) & [path($.b)]}\nb: {}	{"verdict":"fail","findings":[{"code":"relation_inverse_missing","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","usedBy"]}]}
+inverse-met-beside-spread	relation	a: {dependsOn: relate() & [&: path] & inverse(usedBy) & [path($.b)]}\nb: {usedBy: relate() & [&: path] & [path($.a)]}	{"verdict":"pass","findings":[]}
 
 # An alias in the spread is read as the value it names, through a
 # chain of aliases; one that names nothing, names itself or names a map
 # is not an address constraint, and fails as it did.
-acyclic-beside-alias-spread	relation	%A = re("^[$]")\na: {dependsOn: rel() & [&: %A] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
-acyclic-beside-alias-chain-spread	relation	%A = %B\n%B = path\na: {dependsOn: rel() & [&: %A] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
-acyclic-beside-alias-meet-spread	relation	%A = re("^[$]")\n%B = re("[ab]$")\na: {dependsOn: rel() & [&: %A & %B] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
-acyclic-beside-alias-path-spread	relation	%P = path($.b)\na: {dependsOn: rel() & [&: %P] & acyclic() & [path($.b)]}\nb: {dependsOn: rel() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
-rel-spread-alias-undeclared	errc	a: {dependsOn: rel() & [&: %Nope] & [path($.b)]}\nb: {}	no_path
-rel-spread-alias-self	errc	%A = %A\na: {dependsOn: rel() & [&: %A] & [path($.b)]}\nb: {}	unify_cycle
-rel-spread-alias-map	errc	%M = {k: 1}\na: {dependsOn: rel() & [&: %M] & [path($.b)]}\nb: {}	map
+acyclic-beside-alias-spread	relation	%A = re("^[$]")\na: {dependsOn: relate() & [&: %A] & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-beside-alias-chain-spread	relation	%A = %B\n%B = path\na: {dependsOn: relate() & [&: %A] & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-beside-alias-meet-spread	relation	%A = re("^[$]")\n%B = re("[ab]$")\na: {dependsOn: relate() & [&: %A & %B] & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+acyclic-beside-alias-path-spread	relation	%P = path($.b)\na: {dependsOn: relate() & [&: %P] & acyclic() & [path($.b)]}\nb: {dependsOn: relate() & acyclic() & [path($.a)]}	{"verdict":"fail","findings":[{"code":"relation_cycle","relation":"dependsOn","at":"$.a.dependsOn.0","detail":["$.a","$.b","$.a"]}]}
+rel-spread-alias-undeclared	errc	a: {dependsOn: relate() & [&: %Nope] & [path($.b)]}\nb: {}	no_path
+rel-spread-alias-self	errc	%A = %A\na: {dependsOn: relate() & [&: %A] & [path($.b)]}\nb: {}	unify_cycle
+rel-spread-alias-map	errc	%M = {k: 1}\na: {dependsOn: relate() & [&: %M] & [path($.b)]}\nb: {}	map

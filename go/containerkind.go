@@ -77,7 +77,7 @@ func (k *ListKindVal) Unify(peer Val, ctx *Ctx) Val {
 // become one's domain (`integer` in `constraint & integer & min(0)`).
 func constrains(v Val) bool {
 	switch v.(type) {
-	case *ConstraintVal, *ReferVal, *RelVal, *ScalarKindVal, *EmptyVal, *GraphAtomVal:
+	case *ConstraintVal, *PendingLinkVal, *RelateVal, *ScalarKindVal, *EmptyVal, *GraphAtomVal:
 		return true
 	}
 	return false
@@ -105,10 +105,14 @@ func newConstraintKind(held Val) *ConstraintKindVal {
 func (k *ConstraintKindVal) superior() Val { return top() }
 
 func (k *ConstraintKindVal) Canon() string {
-	if nil == k.held {
+	held := ""
+	if nil != k.held {
+		held = k.held.Canon()
+	}
+	if "" == held {
 		return "constraint"
 	}
-	return "constraint&" + k.held.Canon()
+	return "constraint&" + held
 }
 
 func (k *ConstraintKindVal) Gen(ctx *Ctx) (any, error) {

@@ -81,18 +81,34 @@ hash-key-code-point-order	hash	k1: {"é":1, "z":2, "A":3, "𝄞":4}	aon1-pbCUPrT
 hash-disjunct-of-closes	hash	x2: close({a:1})|close({b:2})|3	aon1-hfQQvOevqdorffmuuVBhE10DCtRnOsJAi4xckhr4z0U
 hash-deprecate-record-multi	hash	d2: deprecate(close({k:1}),{msg:"gone",since:"1.2.3",use:"$.e"})	aon1-GHXZeHa_UKDFpMt0iONUR-oQdmlvq3UD31nI7zR7iPQ
 
-# A refer residual keeps every conjunct it met (BUGS.md 95). Two
-# settled refers at one position merge; they are NOT interchangeable
-# because a refer's state is tval/addr/held and its peg is absent.
-hcanon-refer-keeps-its-conjunct	hcanon	a: [&: refer() & path]  a: [&: refer() & path]  z: {e:1}  a: [path($.z.e)]	{"a":[&:path&refer(),path($.z.e)],"z":{"e":1}}
-hash-refer-keeps-its-conjunct	hash	a: [&: refer() & path]  a: [&: refer() & path]  z: {e:1}  a: [path($.z.e)]	aon1-c8-sT2lbVjF8ojNdn_IB2n5DS6SvqUi2Ka5UpFMrg8s
+# A relate residual keeps every conjunct it met (BUGS.md 95). Two
+# settled relates at one position merge; they are NOT interchangeable
+# because a relate's state is tval/addr/held and its peg is absent.
+hcanon-refer-keeps-its-conjunct	hcanon	a: [&: relate() & path]  a: [&: relate() & path]  z: {e:1}  a: [path($.z.e)]	{"a":[&:path&relate(),relate()&path($.z.e)],"z":{"e":1}}
+hash-refer-keeps-its-conjunct	hash	a: [&: relate() & path]  a: [&: relate() & path]  z: {e:1}  a: [path($.z.e)]	aon1-0jsqQpW8v_hMiBnNZAqhyQ7_-OAtg6ih1KvpliMn-TY
 
 # The same, through a spread template applied behind another atom:
 # the instantiated element type must equal the declared one, and a
-# residual must not hold an unresolved call (a doubled refer()).
-hcanon-refer-conjunct-behind-a-spread	hcanon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":type({"O":close({"s":[&:$.T.S]&unique("n")}),"S":close({"n":integer,"r"?:[&:path&refer()]&unique()})}),"e":{"c":1},"o":close({"s":[&:$.T.S,close({"n":1,"r":[&:path&refer(),path($.e.c)]&unique()})]&unique("n")})}
-canon-refer-conjunct-behind-a-spread	canon	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":{"O":{"s":[&:$.T.S]&unique("n")},"S":{"n":integer,"r"?:[&:path&refer()]&unique()}},"e":{"c":1},"o":{"s":[&:$.T.S,{"n":1,"r":[&:path&refer(),path($.e.c)]&unique()}]&unique("n")}}
-hash-refer-conjunct-behind-a-spread	hash	T: type({S: close({n: integer  r?: unique() & [&: refer() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	aon1-g0LH1qU8rV-rrPMKc_EkvAC0NDSp8ppiQpt_uITVFqQ
+# residual must not hold an unresolved call (a doubled relate()).
+hcanon-refer-conjunct-behind-a-spread	hcanon	T: type({S: close({n: integer  r?: unique() & [&: relate() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":type({"O":close({"s":[&:$.T.S]&unique("n")}),"S":close({"n":integer,"r"?:[&:path&relate()]&unique()})}),"e":{"c":1},"o":close({"s":[&:$.T.S,close({"n":1,"r":[&:path&relate(),relate()&path($.e.c)]&unique()})]&unique("n")})}
+canon-refer-conjunct-behind-a-spread	canon	T: type({S: close({n: integer  r?: unique() & [&: relate() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	{"T":{"O":{"s":[&:$.T.S]&unique("n")},"S":{"n":integer,"r"?:[&:path&relate()]&unique()}},"e":{"c":1},"o":{"s":[&:$.T.S,{"n":1,"r":[&:path&relate(),relate()&path($.e.c)]&unique()}]&unique("n")}}
+hash-refer-conjunct-behind-a-spread	hash	T: type({S: close({n: integer  r?: unique() & [&: relate() & path]})  O: close({s: unique(n) & [&: $.T.S]})})  e: {c:1}  o: $.T.O & {s: [{n:1  r: [path($.e.c)]}]}	aon1-KmW8_DBlgVUkMSUzEpe1LHPEWNtJaRnFqhNefib9O2w
+#
+# A link is written as the call the document wrote, at the field that
+# wrote it (ADR-080). So the hash tells a link from a path value that is
+# only data, and the form reads back to the same links.
+hcanon-relate-one-path	hcanon	a: next: relate() & path($.b)  b: {}	{"a":{"next":relate()&path($.b)},"b":{}}
+hash-relate-one-path	hash	a: next: relate() & path($.b)  b: {}	aon1-SxkQSGVzbu75zTHNXSjMY2gUNB0uQCe2qncMBhLLodY
+hash-path-is-not-a-link	hash	a: next: path($.b)  b: {}	aon1-w8FbEnQjQsAwhHk1e-zbmPjyYQvyiVihC3X_VSgVzYM
+hcanon-relate-template	hcanon	a: next: relate({k:1}) & path($.b)  b: {}	{"a":{"next":relate({"k":1})&path($.b)},"b":{"k":1}}
+hcanon-relate-list	hcanon	a: next: relate() & [path($.b)]  b: {}	{"a":{"next":relate()&[path($.b)]},"b":{}}
+hcanon-relate-map	hcanon	a: {}  c: {}  b: uses: relate() & {primary: path($.a)  backup: {eu: path($.c)}}	{"a":{},"b":{"uses":relate()&{"backup":{"eu":path($.c)},"primary":path($.a)}},"c":{}}
+hcanon-relate-rule	hcanon	a: next: relate() & acyclic() & path($.b)  b: next: relate() & path($.a)	{"a":{"next":relate()&path($.b)&acyclic()},"b":{"next":relate()&path($.a)}}
+hcanon-relate-in-a-template	hcanon	a: next: [&: relate(), path($.b)]  b: {}	{"a":{"next":[&:relate(),relate()&path($.b)]},"b":{}}
+hcanon-relate-copied-link	hcanon	z: {u: relate() & path($.z)}  s: $.z.u	{"s":relate()&path($.z),"z":{"u":relate()&path($.z)}}
+hcanon-relate-copied-member	hcanon	a: {}  b: uses: relate() & {primary: path($.a)}  one: $.b.uses.primary	{"a":{},"b":{"uses":relate()&{"primary":path($.a)}},"one":relate()&path($.a)}
+hcanon-relate-copied-member-anywhere	hcanon	a: {}  b: uses: relate() & {primary: path($.a)}  one: [$.b.uses.primary]  two: $.b.uses.primary | 1  three: *$.b.uses.primary | path  four: acyclic() & $.b.uses.primary	{"a":{},"b":{"uses":relate()&{"primary":path($.a)}},"four":relate()&path($.a)&acyclic(),"one":[relate()&path($.a)],"three":*relate()&path($.a)|path,"two":relate()&path($.a)|1}
+hcanon-relate-closed-list	hcanon	a: next: relate() & close([path($.b)])  b: {}	{"a":{"next":relate()&close([path($.b)])},"b":{}}
 #
 # G12 phase 8: meta() records render outermost, after type() and
 # deprecate(), at the root, on disjunction members and in trial

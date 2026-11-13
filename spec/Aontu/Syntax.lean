@@ -107,7 +107,7 @@ inductive Val where
   | select (s : Val) (arms : List (Val × Val)) (d : Option Val)  -- `match(s, p₁, r₁, …, d?)`, the first `rᵢ` whose `pᵢ` admits the value of `s`, else `d`; Lean keeps `match`
   | filter (s c : Val)                      -- `filter(s, c)`, the members of the value of `s` that `c` admits
   | ride (k : Rider) (v : Val) (r : Record) -- `meta(v, r)`, `deprecate(v, r)`, `ident(v, r)`, `type(v)`, `hide(v)`, a `move`'s value: `v` carrying `r`
-  | link (v t : Val)                        -- `refer(t)` met with `v`: `v` carrying a link whose target meets `t`
+  | link (v t : Val)                        -- `relate(t)` met with `v`: `v` carrying a link whose target meets `t`
   | key                                  -- `key(0)`, the key of the member a spread is tried on
   | keyUp (n : ℤ)                           -- `key(n)` as written, the key `n` levels above where it stands; `key()` is `key(1)`
   | hole                                    -- `_`, the placeholder a generator's template binds to its member

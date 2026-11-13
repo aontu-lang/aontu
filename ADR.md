@@ -123,6 +123,7 @@ rule now lives and where its record is in the history.
 | [ADR-077](#adr-077--the-definition-is-pinned-to-lean-4241) | The definition is pinned to Lean 4.24.1 | Accepted |
 | [ADR-078](#adr-078--every-figure-draws-svg-from-a-layout-aontu-owns) | Every figure draws SVG, from a layout aontu owns | Accepted |
 | [ADR-079](#adr-079--the-npm-package-takes-jostraca-as-a-peer-at-a-range) | The npm package takes jostraca as a peer, at a range | Accepted |
+| [ADR-080](#adr-080--canon-writes-a-builtin-under-its-own-name) | Canon writes a builtin under its own name | Accepted |
 
 ---
 
@@ -6989,3 +6990,88 @@ a fresh `npm install` with `ERESOLVE`, so #680 took it out.
 - Nothing gates the range itself. `ts/test/render-matrix.test.ts` and
   `go/cmd/aontu/render_matrix_test.go` hold the report and the bytes
   the two ports write.
+
+## ADR-080 — Canon writes a builtin under its own name
+
+**Date:** 2026-11-13
+**Status:** Accepted
+
+### Context
+
+Canon is what a reader is shown when they ask what a document means:
+`aontu -c`, the text under `aontu hash`, a value in an error, a leaf of
+`view doc`. For most builtins it wrote the call the source wrote. For
+the two link functions it did not. `rel()` over a list was written as a
+list whose template was `&:refer()`, a function the document never
+used, and over a map only the innermost map carried that template.
+Over one path, `rel()` and `refer()` alike were written as the bare
+`path(...)`, with no call at all.
+
+The reader's cost was the first one named: a canon showing `refer()`
+for a document that says `rel()` describes another document. The second
+cost was found the same day and is #758. The hash form is canon with
+three wrappers, so it lost the call too. A link and a path value that
+is only data had one hash, and the hash form of a document that fails
+`aontu relations` read back as one that passes, under the same hash.
+The pin's guarantee, that a false "unchanged" is impossible, rests on
+the hash form being semantically complete, and it was not.
+
+The owner ruled on 2026-11-13 that canon shows the function as the
+code has it and never an equivalent written with other functions. The
+same day `refer` was removed and `rel` renamed `relate`, a change to
+the language, which the definition under `spec/` and the CHANGELOG
+record
+([ADR-069](#adr-069--the-language-is-defined-in-lean-and-the-ports-implement-it)).
+This entry records the rule about canon, which every builtin's
+rendering follows from here on.
+
+### Decision
+
+1. **A builtin that is still a call once the document is evaluated is
+   written under its own name, with its arguments**, in canon and in
+   the hash form: a constraint, a mark, a rule, or a call waiting on a
+   value.
+2. **Canon never writes one builtin as another**, as a composition of
+   other builtins, or as a template or other syntax that would evaluate
+   to the same result. `relate()` over a list is `relate()&[...]`, not
+   a list whose template makes each element a link.
+3. **What the engine builds to carry out a call has no text of its
+   own.** A residual it leaves at each member, or a mark it leaves on
+   each value, is part of the call and is written as that call.
+4. **The call is written where the document wrote it**, at the field
+   and not at each value below it, so a canonical text read back is the
+   same value with the same links.
+5. **A call that evaluates to a value is written as the value.**
+   `upper("a")` is `"A"`. The star stays the one spelling of a
+   preference
+   ([ADR-011](#adr-011--the-star-is-sugar-the-disjunction-is-the-structure)),
+   whichever of `*v` and `pref(v)` the source wrote: the two are one
+   form, and canon has one text for one value.
+
+### Consequences
+
+- Canon and the hash form write `relate()` at the field it was written
+  on, with its template: `relate()&path($.b)`, `relate({"k":1})&[...]`.
+  The hash of every document that holds a link moves once.
+- The hash tells a link from a path value, and the hash form of a
+  document reads back to the same edges and the same `aontu relations`
+  verdict, which closes #758.
+- The graph is read from the marks canon writes: an edge's relation is
+  the key of the field canon writes `relate()` at. A copy of a link is
+  therefore a link named by where it lands, in both ports, which had
+  answered differently for a copy of a `rel()` link.
+- An audit of the builtins the same day found the link functions the
+  only ones written under another name. It also found `len(2)` written
+  `len(integer&min(2)&max(2))`: the name is `len`'s own, and the
+  argument is the range the call reads it as, which this entry does not
+  rule on.
+- Pinned by the `canon`, `hcanon` and `hash` rows of
+  `test/spec/hcanon.tsv` from `hcanon-relate-one-path` on, by
+  `canon-resolved` and `hcanon-link-writes-its-call` of
+  `test/spec/refer.tsv`,
+  `rel-in-list-element-canon` of `test/spec/rel.tsv` and `atom-canon`
+  of `test/spec/relation.tsv`, each obtained from both engines
+  agreeing, and by `canon-calls-are-declared-builtins` in
+  `ts/test/sig.test.ts` and `TestCanonCallsAreDeclaredBuiltins` in
+  `go/sig_test.go`, which hold every call the shared rows' canon writes
+  to the declared surface of `test/spec/signature.tsv`.

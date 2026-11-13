@@ -144,7 +144,6 @@ type base struct {
 	emitted *emitOrigin
 	link    string
 	lk      linkInfo
-	relkey  string
 	spr     Val
 	pdep    int8
 }
@@ -236,7 +235,6 @@ func (b *base) emitOrig() *emitOrigin     { return b.emitted }
 func (b *base) setEmitOrig(o *emitOrigin) { b.emitted = o }
 
 func (b *base) linkAddr() string        { return b.link }
-func (b *base) relKey() string          { return b.relkey }
 func (b *base) setLinkAddr(addr string) { b.link = addr }
 func (b *base) linkInfo() linkInfo        { return b.lk }
 func (b *base) setLinkInfo(li linkInfo)   { b.lk = li }
@@ -266,10 +264,9 @@ func isPref(v Val) bool     { _, ok := v.(*PrefVal); return ok }
 func isRef(v Val) bool      { _, ok := v.(*RefVal); return ok }
 func isVar(v Val) bool      { _, ok := v.(*VarVal); return ok }
 func isFunc(v Val) bool     { _, ok := v.(*FuncVal); return ok }
-func isRefer(v Val) bool    { _, ok := v.(*ReferVal); return ok }
+func isPendingLink(v Val) bool { _, ok := v.(*PendingLinkVal); return ok }
 
-// TopVal is the unit of the lattice: unifying with TOP yields the
-// other operand. There is conceptually only one TOP.
+// TopVal is the unit of the lattice: unifying with it yields the other operand.
 type TopVal struct{ base }
 
 func newTop() *TopVal {

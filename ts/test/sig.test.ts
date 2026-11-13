@@ -45,6 +45,31 @@ describe('sig', () => {
   })
 
 
+  test('canon-calls-are-declared-builtins', () => {
+    const declared = parseSigText(SIGDECL)
+    const dir = Path.dirname(SHARED)
+    const undeclared: string[] = []
+    let rows = 0
+    for (const file of Fs.readdirSync(dir).filter((f) => f.endsWith('.tsv')).sort()) {
+      for (const line of Fs.readFileSync(Path.join(dir, file), 'utf8').split('\n')) {
+        const cols = line.split('\t')
+        if (line.startsWith('#') || ('canon' !== cols[1] && 'hcanon' !== cols[1])) {
+          continue
+        }
+        rows++
+        const text = cols[3].replace(/"(?:[^"\\]|\\.)*"/g, '""')
+        for (const m of text.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\(/g)) {
+          if (!(m[1] in declared)) {
+            undeclared.push(file + ':' + cols[0] + ' writes ' + m[1] + '(')
+          }
+        }
+      }
+    }
+    expect(0 < rows).equal(true)
+    expect(undeclared).equal([])
+  })
+
+
   test('malformed-declarations-are-errors', () => {
     const bad = [
       '',
