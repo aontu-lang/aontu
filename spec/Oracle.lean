@@ -6940,6 +6940,66 @@ theorem emit_verdict_exact : ∀ c ∈ emitCases, ∀ (m : Mode) (v : Verdict),
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (emitCases_checkable c hc)) v
 
+/-- `key(n)` in an `emit` body read where its piece lands (ruling 52): at
+the index the piece takes in the output, counted across the nodes and
+after the pieces each element before it splices; inside a list the
+body writes at its index there; in a nested `emit` at its position in
+that `emit`'s own output; `key()` the key of the member that holds the
+`emit`, and a level past the top `""`; inside a map piece under the
+member's key, and one level up at the piece's index; in a table of two
+templates; in a generator inside a body and in a call; beside a
+reference into the node; an `emit` in a generator's template, read
+where its instance lands; and a marked piece, which takes no position,
+as a list holds none for it. -/
+def emitKeyCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let jm (fs : List (String × Data)) : Data := .map fs
+  let k (n : ℤ) : Val := .keyUp n
+  let rule (b : List Val) : Val := mp [("match", .any), ("body", lst b)]
+  let nested : Val := c .emit [lst [int 1], rule [str "a", c .emit [lst [int 5, int 6], rule [k 0]]]]
+  let two : Val := c .emit [lst [int 1, int 2], rule [str "a", k 0]]
+  let inner : Val := c .emit [lst [int 1, int 2], rule [lst [str "p", k 0], k 0]]
+  let up : Val := mp [("x", c .emit [lst [int 1, int 2], rule [k 1]])]
+  let past : Val := c .emit [lst [int 1, int 2], rule [k 2]]
+  let joined : Val := mp [("x", c .emit [lst [int 1], rule [c .plus [c .plus [k 1, str "-"], k 0]]])]
+  let own : Val := c .emit [lst [int 1, int 2], rule [mp [("k", k 0)]]]
+  let idx : Val := c .emit [lst [int 1, int 2], rule [mp [("k", k 1)]]]
+  let table : Val := c .emit [lst [int 1, str "s"],
+    lst [mp [("match", .number), ("body", lst [k 0])], mp [("match", .string), ("body", lst [str "t", k 0])]]]
+  let gen : Val := c .emit [lst [int 1], rule [c .each [lst [str "p", str "q"], k 0]]]
+  let node : Val := c .emit [lst [mp [("n", str "a")]], rule [.path [.node, .key "n"], k 0]]
+  let deep : Val := c .emit [lst [int 1], rule [lst [lst [str "q", k 0]]]]
+  let inEach : Val := c .each [lst [int 1], c .emit [lst [int 5], rule [k 0, k 1]]]
+  let call : Val := c .emit [lst [int 1, int 2], rule [c .upper [k 0]]]
+  let hidden : Val := c .emit [lst [int 1, int 2], rule [.ride .hide (str "h") [], k 0]]
+  [(nested, jl [js "a", js "0", js "1"]), (nested, jl [js "a", js "0", js "0"]),
+    (two, jl [js "a", js "1", js "a", js "3"]), (two, jl [js "a", js "1", js "a", js "1"]),
+    (inner, jl [js "p", js "1", js "2", js "p", js "1", js "5"]),
+    (inner, jl [js "p", js "1", js "1", js "p", js "1", js "1"]),
+    (up, jm [("x", jl [js "x", js "x"])]), (up, jm [("x", jl [js "0", js "1"])]),
+    (past, jl [js "", js ""]), (past, jl [js "v", js "v"]),
+    (joined, jm [("x", jl [js "x-0"])]), (joined, jm [("x", jl [js "0-0"])]),
+    (own, jl [jm [("k", js "k")], jm [("k", js "k")]]),
+    (idx, jl [jm [("k", js "0")], jm [("k", js "1")]]), (idx, jl [jm [("k", js "k")], jm [("k", js "k")]]),
+    (table, jl [js "0", js "t", js "2"]), (table, jl [js "0", js "t", js "1"]),
+    (gen, jl [js "0", js "1"]), (node, jl [js "a", js "1"]), (deep, jl [js "q", js "1"]),
+    (inEach, jl [jl [js "0", js "0"]]), (inEach, jl [jl [js "0", js "1"]]),
+    (call, jl [js "0", js "1"]), (call, jl [js "0", js "0"]),
+    (hidden, jl [js "0", js "1"]), (hidden, jl [js "1", js "3"])]
+
+theorem emitKeyCases_checkable : ∀ c ∈ emitKeyCases, (vetDoc c).1.CheckableA := by decide
+
+theorem emit_key_verdict_exact : ∀ c ∈ emitKeyCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (emitKeyCases_checkable c hc)) v
+
 /-- `apply(v, f)`, which binds each hole of `f` that no generator or
 `apply` inside `f` binds to `v` and makes the one instance
 `each([v], f)` would: a call over the hole, a map's member and a list's
@@ -7957,7 +8017,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# The transformer emit follows in rows et0 on, over selections written in place:"
     IO.println "# for each node, the body of the first template whose match the node meets,"
     IO.println "# read for the node, each list in it spliced, and an error where no template"
-    IO.println "# matches or the body names what the node doesn't hold. apply(v, f) follows in"
+    IO.println "# matches or the body names what the node doesn't hold, and a key(n) in a body,"
+    IO.println "# read where its piece lands in the output, in rows ek0 on. apply(v, f) follows in"
     IO.println "# rows ap0 on: each hole of f that no generator or apply inside f binds, bound"
     IO.println "# to v, the one instance each([v], f) makes. A hole that nothing binds is"
     IO.println "# an error of the schema wherever it stands (ruling 34): in the shapes the meet"
@@ -7985,6 +8046,7 @@ def main (args : List String) : IO UInt32 := do
       projectorCases ++ indexCases ++ surrogateCases ++ packCases ++ keyUpCases ++ keyUpFilterCases ++
       heldFailCases ++ markedEachCases ++ armCallCases ++ optCallCases)
     verdictRows "et" emitCases
+    verdictRows "ek" emitKeyCases
     verdictRows "ap" applyCases
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases
