@@ -1145,3 +1145,9 @@ parent: relate({ kind:"folder" }) is not great because it just uses one field ra
 ```text
 Post the findings as github issues. Is there an adr covering order dependence, which must never occur?
 ```
+
+## 2026-11-14 15:01:10 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Add an adr to cover order independence, and ensure the lean spec defines this as an invariant
+```
