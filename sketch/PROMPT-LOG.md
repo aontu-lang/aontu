@@ -997,3 +997,12 @@ The answers to the agent's questions, each question followed by the option chose
 #674, how filter tries a child that generates nothing. In b: filter({x: integer}, any) with data {"b": {"x": 3}}, both engines keep x: integer because it already satisfies any, and answer valid. filter({x: integer}, 1) drops x. The definition only tries a child's generated data, so it leaves this filter unmade and answers invalid. Which reading should filter take?
 → As the term it is (Recommended)
 ```
+
+## 2026-11-14 15:13:30 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#524: which position should `key(0)` and `key()` read inside an `emit` body? The two engines disagree. With `x: emit([1, 2], {match: any, body: ["a", key(0)]})`, TypeScript gives ["a","1","a","3"], each piece's position in the output, and Go gives ["a","1","a","1"], its position within its node's body. `key()` gives "x" in TypeScript, the field holding the emit, and the node's index in Go.
+→ Where it lands (Recommended)
+```

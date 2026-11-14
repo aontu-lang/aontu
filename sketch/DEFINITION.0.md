@@ -2457,6 +2457,22 @@ until the phase that encodes it lands.
    `test/spec/def-path.tsv`, 45 in all, both ports answering every row
    as the definition does; no other row moved.
 
+52. **A `key(n)` in an `emit` body.** Raised 2026-10-23 by Codex on
+   #521 (#524): the two ports read a different position. TypeScript
+   reads `key(0)` as the piece's position in the whole output and
+   `key()` as the key of the field the `emit` stands in. Go reads
+   `key(0)` as the piece's position within its own body, restarting at
+   each node, and `key()` as the node's index in the selection. So
+   `x: emit([1, 2], {match: any, body: ["a", key(0)]})` gives
+   `["a", "1", "a", "3"]` in TypeScript and `["a", "1", "a", "1"]` in
+   Go. The definition leaves a body that holds a `key(n)` unread.
+   **Ruled 2026-11-14 (the project's owner): where it lands.** A
+   `key(n)` in a body reads the place its piece lands: `key(0)` the
+   piece's position in the output list, and `key()` the key of the
+   field holding the `emit`, as `each`'s and `pack`'s templates read
+   theirs and as decision 46 reads a value. TypeScript reads it so
+   already; Go moves (#524).
+
 ## 8. Risks
 
 | Risk | Mitigation |
