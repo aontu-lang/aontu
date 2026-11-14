@@ -2803,7 +2803,9 @@ that is not recursive is replaced by the meet of its bodies, expanded in
 turn and sealed where the name is a definition; a reference to a
 recursive name, or to no name, stays. A rider's body reads as the rider
 has it read (`Rider.reads`), so `open(v)` reads `v`, expanded, with
-every seal lifted, the seal of a definition's instance among them. -/
+every seal lifted, the seal of a definition's instance among them. An
+`emit`'s table that is an `emit` call, written in place or named, reads
+as the table it holds (`Fn.tableArgs`). -/
 def expandF (ds : Decls) : ℕ → Val → Val
 ```
 
@@ -10154,9 +10156,31 @@ rows are et0 on, over selections written in place, and em0 on, where a
 path names the selection. Both engines answer every one as the
 definition does.
 
-The definition doesn't yet read a table named apart from its call,
-`emit(_, t)`, which is how a rule set recurses, `replace` and `esc` in
-a body, or a reference into the node inside an `each`, a `pack` or a
+A document may write a table as an `emit` call itself. `emit(_, t)` is
+a rule set waiting for its nodes, and an `emit` that takes it as its
+table reads the table it holds, at any depth, as `Fn.tableArgs` has the
+expansion read it. So a declaration `%w = emit(_, t)` names a rule set
+that serves each `emit` that takes it:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+def innerTable : Val → Val
+  | .call .emit [_, t] => innerTable t
+  | t => t
+```
+
+Only a table's place binds that hole: `%w` used anywhere else holds a
+hole nothing binds, an error, as both engines answer `hole_unbound`.
+Rows ew0 on hold tables written in place and en0 on named ones. Both
+engines answer every one as the definition does but six, a name for a
+template, `%r = {match: number, body: [key(0)]}`, whose `key(0)` both
+read at the declaration's own place, as #528 records. The ledger takes
+those six. TypeScript also reads a bare `key(n)` in a named table's
+body at the body's own index, where the `emit` stands at the top of
+the document, which #783 tracks and no row holds.
+
+The definition doesn't yet read a named table that names itself, which
+is how a rule set recurses, `replace` and `esc` in a body, or a reference into the node inside an `each`, a `pack` or a
 `filter`'s condition in a body. It leaves a body whose spread holds a
 reference into the node unmade too. Both engines leave such a spread
 unbound, so the reference reads nowhere and refuses a member the spread

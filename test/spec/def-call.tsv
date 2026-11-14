@@ -41,7 +41,9 @@
 # for each node, the body of the first template whose match the node meets,
 # read for the node, each list in it spliced, and an error where no template
 # matches or the body names what the node doesn't hold, and a key(n) in a body,
-# read where its piece lands in the output, in rows ek0 on. apply(v, f) follows in
+# read where its piece lands in the output, in rows ek0 on. A table written as an
+# emit call reads as the table it holds, in place in rows ew0 on and named, a rule
+# set %w = emit(_, t), in rows en0 on. apply(v, f) follows in
 # rows ap0 on: each hole of f that no generator or apply inside f binds, bound
 # to v, the one instance each([v], f) makes. A hole that nothing binds is
 # an error of the schema wherever it stands (ruling 34): in the shapes the meet
@@ -2721,6 +2723,57 @@ ek74	verdict	v: emit([1, 2], {"match": any, "body": [hide("h"), key(0)]})	v: ["0
 ek75	verdict	v: emit([1, 2], {"match": any, "body": [hide("h"), key(0)]})	v: ["1", "3"]	{"verdict":"invalid"}
 ek76	verdict	v: emit([1, 2], {"match": any, "body": [hide("h"), key(0)]})	v: ["1", "3"]	{"verdict":"invalid","opts":{"noFill":true}}
 ek77	verdict	v: emit([1, 2], {"match": any, "body": [hide("h"), key(0)]})	v: ["1", "3"]	{"verdict":"invalid","opts":{"partial":true}}
+ew0	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid"}
+ew1	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid","opts":{"noFill":true}}
+ew2	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid","opts":{"partial":true}}
+ew3	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n"]	{"verdict":"valid"}
+ew4	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n"]	{"verdict":"incomplete","opts":{"noFill":true}}
+ew5	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n"]	{"verdict":"valid","opts":{"partial":true}}
+ew6	verdict	v: emit([1, 2], emit([3], {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid"}
+ew7	verdict	v: emit([1, 2], emit([3], {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid","opts":{"noFill":true}}
+ew8	verdict	v: emit([1, 2], emit([3], {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid","opts":{"partial":true}}
+ew9	verdict	v: emit([1, "s"], emit(_, [{"match": number, "body": ["n"]}, {"match": string, "body": ["s"]}]))	v: ["n", "s"]	{"verdict":"valid"}
+ew10	verdict	v: emit([1, "s"], emit(_, [{"match": number, "body": ["n"]}, {"match": string, "body": ["s"]}]))	v: ["n", "s"]	{"verdict":"valid","opts":{"noFill":true}}
+ew11	verdict	v: emit([1, "s"], emit(_, [{"match": number, "body": ["n"]}, {"match": string, "body": ["s"]}]))	v: ["n", "s"]	{"verdict":"valid","opts":{"partial":true}}
+ew12	verdict	v: emit([1, 2], emit(_, emit(_, {"match": number, "body": ["n"]})))	v: ["n", "n"]	{"verdict":"valid"}
+ew13	verdict	v: emit([1, 2], emit(_, emit(_, {"match": number, "body": ["n"]})))	v: ["n", "n"]	{"verdict":"valid","opts":{"noFill":true}}
+ew14	verdict	v: emit([1, 2], emit(_, emit(_, {"match": number, "body": ["n"]})))	v: ["n", "n"]	{"verdict":"valid","opts":{"partial":true}}
+ew15	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "1"]	{"verdict":"valid"}
+ew16	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "1"]	{"verdict":"valid","opts":{"noFill":true}}
+ew17	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "1"]	{"verdict":"valid","opts":{"partial":true}}
+ew18	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "0"]	{"verdict":"invalid"}
+ew19	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "0"]	{"verdict":"invalid","opts":{"noFill":true}}
+ew20	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "0"]	{"verdict":"invalid","opts":{"partial":true}}
+ew21	verdict	v: emit([1], emit(_, {"match": string, "body": ["x"]}))	v: []	{"verdict":"error"}
+ew22	verdict	v: emit([1], emit(_, {"match": string, "body": ["x"]}))	v: []	{"verdict":"error","opts":{"noFill":true}}
+ew23	verdict	v: emit([1], emit(_, {"match": string, "body": ["x"]}))	v: []	{"verdict":"error","opts":{"partial":true}}
+ew24	verdict	v: emit(_, {"match": number, "body": ["n"]})	v: []	{"verdict":"error"}
+ew25	verdict	v: emit(_, {"match": number, "body": ["n"]})	v: []	{"verdict":"error","opts":{"noFill":true}}
+ew26	verdict	v: emit(_, {"match": number, "body": ["n"]})	v: []	{"verdict":"error","opts":{"partial":true}}
+ew27	verdict	v: emit([1], emit(_, {"match": number}))	v: []	{"verdict":"error"}
+ew28	verdict	v: emit([1], emit(_, {"match": number}))	v: []	{"verdict":"error","opts":{"noFill":true}}
+ew29	verdict	v: emit([1], emit(_, {"match": number}))	v: []	{"verdict":"error","opts":{"partial":true}}
+en0	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["n", "n"]	{"verdict":"valid"}
+en1	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["n", "n"]	{"verdict":"valid","opts":{"noFill":true}}
+en2	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["n", "n"]	{"verdict":"valid","opts":{"partial":true}}
+en3	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["x"]	{"verdict":"invalid"}
+en4	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["x"]	{"verdict":"invalid","opts":{"noFill":true}}
+en5	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["x"]	{"verdict":"invalid","opts":{"partial":true}}
+en6	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: {"a": emit([1], %W), "b": emit([2, 3], %W)}	v: {"a": ["n"], "b": ["n", "n"]}	{"verdict":"valid"}
+en7	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: {"a": emit([1], %W), "b": emit([2, 3], %W)}	v: {"a": ["n"], "b": ["n", "n"]}	{"verdict":"valid","opts":{"noFill":true}}
+en8	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: {"a": emit([1], %W), "b": emit([2, 3], %W)}	v: {"a": ["n"], "b": ["n", "n"]}	{"verdict":"valid","opts":{"partial":true}}
+en9	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: (emit([1], %W)) & (["n"])	v: ["n"]	{"verdict":"valid"}
+en10	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: (emit([1], %W)) & (["n"])	v: ["n"]	{"verdict":"valid","opts":{"noFill":true}}
+en11	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: (emit([1], %W)) & (["n"])	v: ["n"]	{"verdict":"valid","opts":{"partial":true}}
+en12	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: %W	v: []	{"verdict":"error"}
+en13	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: %W	v: []	{"verdict":"error","opts":{"noFill":true}}
+en14	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: %W	v: []	{"verdict":"error","opts":{"partial":true}}
+en15	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "1"]	{"verdict":"valid"}
+en16	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "1"]	{"verdict":"valid","opts":{"noFill":true}}
+en17	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "1"]	{"verdict":"valid","opts":{"partial":true}}
+en18	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "0"]	{"verdict":"invalid"}
+en19	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "0"]	{"verdict":"invalid","opts":{"noFill":true}}
+en20	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "0"]	{"verdict":"invalid","opts":{"partial":true}}
 ap0	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid"}
 ap1	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid","opts":{"noFill":true}}
 ap2	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid","opts":{"partial":true}}

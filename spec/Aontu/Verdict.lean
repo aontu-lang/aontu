@@ -3375,7 +3375,7 @@ theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {pos : List Step} 
     have ha := hp 0 a (by simp)
     have hb := hp 0 b (by simp)
     simp only [expandF] at ha hb
-    simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
+    simp only [expandF, Fn.tableArgs_of_ne _ (show Fn.split ≠ Fn.emit by decide), resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
       ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
@@ -3383,7 +3383,7 @@ theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {pos : List Step} 
   | succ k =>
     have ha := hp k a (by simp)
     have hb := hp k b (by simp)
-    simp only [expandF, List.map, resolveD, resolveItems, Option.isNone_some, Bool.false_and,
+    simp only [expandF, List.map, Fn.tableArgs_of_ne _ (show Fn.split ≠ Fn.emit by decide), resolveD, resolveItems, Option.isNone_some, Bool.false_and,
       Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
@@ -3401,7 +3401,7 @@ theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a
     have hb := hp 0 b (by simp)
     have hc := hp 0 c (by simp)
     simp only [expandF] at ha hb hc
-    simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
+    simp only [expandF, Fn.tableArgs_of_ne _ (show Fn.rep ≠ Fn.emit by decide), resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
       ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
@@ -3410,7 +3410,7 @@ theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a
     have ha := hp k a (by simp)
     have hb := hp k b (by simp)
     have hc := hp k c (by simp)
-    simp only [expandF, List.map, resolveD, resolveItems, Option.isNone_some, Bool.false_and,
+    simp only [expandF, List.map, Fn.tableArgs_of_ne _ (show Fn.rep ≠ Fn.emit by decide), resolveD, resolveItems, Option.isNone_some, Bool.false_and,
       Bool.false_eq_true, ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
