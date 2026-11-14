@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### A document reads alike in whatever order it is written
+
+The definition, shared rows and the register. No engine changes.
+
+- **Order independence is a recorded rule** (ADR-081). The members of a
+  map, the statements at one path, the sides of `&`, the arms of `|` and
+  a document's declarations may be written in any order, and an order
+  dependence in a port is a defect.
+- **The definition states it**, in `spec/Aontu/Reorder.lean`.
+  `Val.Reordered.judge` proves that two terms which are one value in two
+  orders admit and refuse the same data, `judge_env_of_perm` proves the
+  same of declarations, and `OrderIndependent` is the contract a verdict
+  is held to. The proof for the verdict itself is owed.
+- **Twenty-seven rows hold the ports to it**, `od0` to `od26` of
+  `test/spec/def-path.tsv`: one document in three orders, which the
+  definition reads alike. Both ports answer three ways (#778), so
+  fifteen of the rows are in `spec/ledger.tsv`, whose bound is now 389.
+
 ### `relate` is the one link function: `refer` is removed and `rel` renamed
 
 Both engines, the definition, and shared rows. A breaking change to the

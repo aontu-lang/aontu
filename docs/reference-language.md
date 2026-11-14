@@ -183,6 +183,16 @@ each node carries a count of the values that landed there.
 This ordering is why unification is order-independent and idempotent:
 `a & b` equals `b & a`, and `a & a` equals `a`.
 
+Order independence is a rule of the whole document, and not of `&`
+alone. The members of a map, the statements at one path and the
+declarations of a document read alike in whatever order they are
+written. The definition states it in
+[`spec/Aontu/Reorder.lean`](../spec/Aontu/Reorder.lean): `Val.Reordered`
+relates two terms that are one value in two orders,
+`Val.Reordered.judge` proves that they admit and refuse the same data,
+and `OrderIndependent` is the contract every other reading of a document
+is held to.
+
 The definition states the order as `⊑` and the meet as its greatest lower bound in [`spec/Aontu/Order.lean`](../spec/Aontu/Order.lean), and `admits_meet` in [`spec/Aontu/Meet.lean`](../spec/Aontu/Meet.lean) is the guarantee on the computed meet: the term it computes admits a value exactly when both sides do.
 
 ## Scalars

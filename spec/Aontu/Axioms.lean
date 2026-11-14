@@ -8,6 +8,7 @@ import Aontu.Alias
 import Aontu.Verdict
 import Aontu.Paths
 import Aontu.Subsume
+import Aontu.Reorder
 
 /-!
 # The axioms
@@ -410,3 +411,19 @@ line each comment states.
 /-- info: 'Aontu.not_genLe_of_refutes' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.not_genLe_of_refutes
+
+/-- info: 'Aontu.Val.Reordered.judge' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Val.Reordered.judge
+
+/-- info: 'Aontu.Val.Reordered.atKey' does not depend on any axioms -/
+#guard_msgs in
+#print axioms Aontu.Val.Reordered.atKey
+
+/-- info: 'Aontu.judge_env_of_perm' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.judge_env_of_perm
+
+/-- info: 'Aontu.instance_orderIndependent' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.instance_orderIndependent

@@ -3575,3 +3575,35 @@ dirp44	verdict	"v": copy((close()) & (({"x": 1}) | ({"y": 2})))	{"v": {"x": 1, "
 dirp45	verdict	"v": copy((close()) & ({"x": 1})), "w": copy({"x": 1})	{"v": {"x": 1}, "w": {"x": 1, "y": 2}}	{"verdict":"valid"}
 dirp46	verdict	"v": copy((close()) & ({"x": 1})), "w": copy({"x": 1})	{"v": {"x": 1}, "w": {"x": 1, "y": 2}}	{"verdict":"valid","opts":{"noFill":true}}
 dirp47	verdict	"v": copy((close()) & ({"x": 1})), "w": copy({"x": 1})	{"v": {"x": 1}, "w": {"x": 1, "y": 2}}	{"verdict":"valid","opts":{"partial":true}}
+# One document in three orders follows in rows od0 on (ADR-081): a type and a
+# subtype of it that name each other by path, the subtype written first, the
+# type written first, and the use written above both, each against no data,
+# data that keeps the type and data that breaks it. The definition reads the
+# three orders alike (`order_verdicts_agree`).
+od0	verdict	"s": hide({"D": ($.s.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: $.s.D}}), "doc": ($.s.N) & ({"k": "d"})	{}	{"verdict":"valid"}
+od1	verdict	"s": hide({"D": ($.s.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: $.s.D}}), "doc": ($.s.N) & ({"k": "d"})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+od2	verdict	"s": hide({"D": ($.s.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: $.s.D}}), "doc": ($.s.N) & ({"k": "d"})	{}	{"verdict":"valid","opts":{"partial":true}}
+od3	verdict	"s": hide({"D": ($.s.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: $.s.D}}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "d"}}}	{"verdict":"valid"}
+od4	verdict	"s": hide({"D": ($.s.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: $.s.D}}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "d"}}}	{"verdict":"valid","opts":{"noFill":true}}
+od5	verdict	"s": hide({"D": ($.s.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: $.s.D}}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "d"}}}	{"verdict":"valid","opts":{"partial":true}}
+od6	verdict	"s": hide({"D": ($.s.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: $.s.D}}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid"}
+od7	verdict	"s": hide({"D": ($.s.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: $.s.D}}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+od8	verdict	"s": hide({"D": ($.s.N) & ({"k": "d"}), "N": {"k": ("d") | ("f"), "up"?: $.s.D}}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid","opts":{"partial":true}}
+od9	verdict	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{}	{"verdict":"valid"}
+od10	verdict	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+od11	verdict	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{}	{"verdict":"valid","opts":{"partial":true}}
+od12	verdict	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "d"}}}	{"verdict":"valid"}
+od13	verdict	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "d"}}}	{"verdict":"valid","opts":{"noFill":true}}
+od14	verdict	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "d"}}}	{"verdict":"valid","opts":{"partial":true}}
+od15	verdict	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid"}
+od16	verdict	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+od17	verdict	"s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})}), "doc": ($.s.N) & ({"k": "d"})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid","opts":{"partial":true}}
+od18	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{}	{"verdict":"valid"}
+od19	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+od20	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{}	{"verdict":"valid","opts":{"partial":true}}
+od21	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "d"}}}	{"verdict":"valid"}
+od22	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "d"}}}	{"verdict":"valid","opts":{"noFill":true}}
+od23	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "d"}}}	{"verdict":"valid","opts":{"partial":true}}
+od24	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid"}
+od25	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid","opts":{"noFill":true}}
+od26	verdict	"doc": ($.s.N) & ({"k": "d"}), "s": hide({"N": {"k": ("d") | ("f"), "up"?: $.s.D}, "D": ($.s.N) & ({"k": "d"})})	{"doc": {"k": "d", "up": {"k": "f"}}}	{"verdict":"invalid","opts":{"partial":true}}

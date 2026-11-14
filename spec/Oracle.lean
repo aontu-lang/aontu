@@ -4,6 +4,7 @@ import Aontu.Verdict
 import Aontu.Paths
 import Oracle.Print
 import Aontu.Subsume
+import Aontu.Reorder
 
 /-!
 # The oracle
@@ -1760,6 +1761,99 @@ theorem copyDestCases_checkable : ∀ c ∈ copyDestCases,
 theorem copy_dest_verdict_exact : ∀ c ∈ copyDestCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (copyDestCases_checkable c hc).1 (copyDestCases_checkable c hc).2 v
+
+/-- One document in three orders (ADR-081): a type and a subtype of it
+that name each other by path, with the subtype written first, with the
+type written first, and with the use written above both. -/
+def orderSchemas : List Val :=
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let s (x : String) : Val := .lit (.str x)
+  let p (ks : List String) : Val := .path (ks.map .key)
+  let n : Val := mo [("k", false, .or [(0, s "d"), (0, s "f")]), ("up", true, p ["s", "D"])]
+  let d : Val := .meet (p ["s", "N"]) (m [("k", s "d")])
+  let use : Val := .meet (p ["s", "N"]) (m [("k", s "d")])
+  [m [("s", .ride .hide (m [("D", d), ("N", n)]) []), ("doc", use)],
+    m [("s", .ride .hide (m [("N", n), ("D", d)]) []), ("doc", use)],
+    m [("doc", use), ("s", .ride .hide (m [("N", n), ("D", d)]) [])]]
+
+/-- The data the three orders are read against: none, data that keeps
+the type two levels down, and data that breaks it there. -/
+def orderData : List Data :=
+  let k (x : String) (up : List (String × Data)) : Data := .map (("k", .str x) :: up)
+  [.map [], .map [("doc", k "d" [("up", k "d" [])])], .map [("doc", k "d" [("up", k "f" [])])]]
+
+def orderCases : List (Decls × Val × Data) :=
+  orderSchemas.flatMap fun S => orderData.map fun j => ([], S, j)
+
+theorem orderCases_checkable : ∀ c ∈ orderCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem order_verdict_exact : ∀ c ∈ orderCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (orderCases_checkable c hc).1 (orderCases_checkable c hc).2 v
+
+/-- The three schemas are one value in three orders, as `Val.Reordered`
+says it: the members of the hidden block swapped, and the members of
+the document. -/
+theorem orderSchemas_reordered : ∀ S ∈ orderSchemas, ∀ S' ∈ orderSchemas, S.Reordered S' := by
+  have first : ∀ S ∈ orderSchemas, (orderSchemas.headD .any).Reordered S := by
+    intro S hS
+    simp only [orderSchemas, List.mem_cons, List.not_mem_nil, or_false] at hS
+    rcases hS with rfl | rfl | rfl
+    · exact .refl _
+    · exact .member [] _ "s" false none false (.ride .hide [] (.members none false (.swap _ _ _)))
+    · exact .trans
+        (.member [] _ "s" false none false (.ride .hide [] (.members none false (.swap _ _ _))))
+        (.members none false (.swap _ _ _))
+  exact fun S hS S' hS' => .trans (.symm (first S hS)) (first S' hS')
+
+/-- The verdict of the order `i` against the datum `k`, in the default
+mode. -/
+def orderVerdict (i k : ℕ) : Verdict :=
+  vetP {} [] (orderSchemas.getD i .any) (orderData.getD k (.map []))
+
+/-! Each order against each datum, one evaluation to a theorem: the nine
+together are more than one check holds in memory. -/
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_0_0 : orderVerdict 0 0 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_0_1 : orderVerdict 0 1 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_0_2 : orderVerdict 0 2 = .invalid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_1_0 : orderVerdict 1 0 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_1_1 : orderVerdict 1 1 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_1_2 : orderVerdict 1 2 = .invalid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_2_0 : orderVerdict 2 0 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_2_1 : orderVerdict 2 1 = .valid := by decide
+
+set_option maxHeartbeats 1000000 in
+theorem orderVerdict_2_2 : orderVerdict 2 2 = .invalid := by decide
+
+/-- The definition reads the three orders alike in the default mode:
+each is `valid` where the data supplies nothing, `valid` on the data
+that keeps the type and `invalid` on the data that breaks it. -/
+theorem order_verdicts_agree : ∀ i, i < 3 → ∀ k, k < 3 → orderVerdict i k = orderVerdict 0 k
+  | 0, _, _, _ => rfl
+  | 1, _, 0, _ => orderVerdict_1_0.trans orderVerdict_0_0.symm
+  | 1, _, 1, _ => orderVerdict_1_1.trans orderVerdict_0_1.symm
+  | 1, _, 2, _ => orderVerdict_1_2.trans orderVerdict_0_2.symm
+  | 2, _, 0, _ => orderVerdict_2_0.trans orderVerdict_0_0.symm
+  | 2, _, 1, _ => orderVerdict_2_1.trans orderVerdict_0_1.symm
+  | 2, _, 2, _ => orderVerdict_2_2.trans orderVerdict_0_2.symm
 
 /-- A path reference's copy reads its target's relative paths where it
 stands (ruling 26), with what the data writes at the target met in:
@@ -7603,6 +7697,12 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# the terms read there, open() beside one lifting the target's seal, and"
     IO.println "# close() at the document's root."
     pathRows "dirp" directivePathCases
+    IO.println "# One document in three orders follows in rows od0 on (ADR-081): a type and a"
+    IO.println "# subtype of it that name each other by path, the subtype written first, the"
+    IO.println "# type written first, and the use written above both, each against no data,"
+    IO.println "# data that keeps the type and data that breaks it. The definition reads the"
+    IO.println "# three orders alike (`order_verdicts_agree`)."
+    pathRows "od" orderCases
     return 0
   | ["forms"] =>
     IO.println "# Generated by `lake exe oracle forms` (spec/Oracle.lean): every form of the"
