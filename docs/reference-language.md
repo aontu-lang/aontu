@@ -1537,8 +1537,9 @@ narrows nothing of the node (`emitTakes`), as both engines dispatch, so
 `{k: 1}` takes `{"k": 1}` and `{k: 1, j?: 2}` doesn't. A table written
 as an `emit` call reads as the table it holds (`Fn.tableArgs`), so a
 named table serves each `emit` that takes it. Rows from ew0 on and from
-en0 on hold both engines to it. The definition doesn't yet read a named
-table that names itself, or `replace` in a body.
+en0 on hold both engines to it. A named table that names itself unfolds
+a level for each turn the expansion has left (`Decls.tableUnfold`), rows
+from er0 on. The definition doesn't yet read `replace` in a body.
 
 ### A named table
 
