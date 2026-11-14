@@ -1151,3 +1151,9 @@ Post the findings as github issues. Is there an adr covering order dependence, w
 ```text
 Add an adr to cover order independence, and ensure the lean spec defines this as an invariant
 ```
+
+## 2026-11-14 16:35:22 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Add the files and folders code as a doc example; introduce a new builtin: gen(spec:map) that can be unified with a value to determine how the value generated json. Gen returns the type "annotation" which behaves similarly to constraint. All gens in a value must unify their map arguments. The map argument is a set of options to control output of the aontu types. As a first case, float & gen({significant:2}) would print only 2 significant digits. Each type has a standard set of options, each with defaults, and the user argument must also unify with the standard set. Prepare a design doc for gen first before implementing
+```
