@@ -1507,17 +1507,35 @@ tried, rather than an empty answer or a copy of the node. A template
 whose `match` is `any`, written last, is how a document says the rest
 of the selection was meant to be allowed.
 
-The definition reads `emit` by `resolveD` and `emitPieces` in
+**A `key(n)` in a body reads where its piece lands.** Each element of a
+body stands at the index its piece takes in the answer, counted across
+every node and after the pieces the elements before it splice, so
+`key(0)` is that index and `key()` is the key of the member that holds
+the `emit`. A list in a body reads its own elements' indexes inside it,
+before it splices, and a nested `emit` reads the positions in its own
+answer. A piece that carries a mark of its own, `hide()` or `type()`,
+takes no position, as a list holds none for it, though both engines
+still give it one, which
+[#539](https://github.com/aontu-lang/aontu/issues/539) tracks:
+
+```aontu
+lines: emit([1 2], { match:number body: ["n" key(0)] })
+```
+
+```json
+{"lines": ["n", "1", "n", "3"]}
+```
+
+The definition reads `emit` by `resolveD` and `emitPlan` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), each body
-read for its node, and rows from et0 on of
+read for its node and each element where its piece lands
+(`emitElemsD`), and rows from et0 on and ek0 on of
 [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) and from em0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to it. A template's `match` takes a node where the meet of the two
 narrows nothing of the node (`emitTakes`), as both engines dispatch, so
 `{k: 1}` takes `{"k": 1}` and `{k: 1, j?: 2}` doesn't. It doesn't yet
-read a named table, `replace` in a body, or a `key(n)` in a body, which
-the two engines read at different positions
-([#524](https://github.com/aontu-lang/aontu/issues/524)).
+read a named table or `replace` in a body.
 
 ### A named table
 

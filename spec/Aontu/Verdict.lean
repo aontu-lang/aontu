@@ -1411,11 +1411,12 @@ def emitSpliceF (ds : Decls) : ℕ → Val → List Val
     | .ride _ (.list xs _ _) _ => xs.flatMap (emitSpliceF ds n)
     | _ => [e]
 
-/-- The pieces a body makes: its elements, each list among them spliced
-in its place at any depth (`emitSpliceF`). None for a body that is no
-list, for one that still holds a reference into the node, one the node
-doesn't answer, and for one that holds a `key(n)`, which the ports read
-at different positions (#524). -/
+/-- The pieces a body read at no position makes: its elements, each list
+among them spliced in its place at any depth (`emitSpliceF`). None for a
+body that is no list, for one that still holds a reference into the
+node, one the node doesn't answer, and for one that holds a `key(n)`,
+which only a position places: the body of a template a reference or a
+call makes, which the table doesn't write. -/
 def emitBody (ds : Decls) : Val → Option (List Val)
   | .list items _ _ =>
     if items.any (fun e => e.paths.any fun p => p.head? == some .node) then none
@@ -1654,20 +1655,40 @@ def emitBound (m t : Val) : Bool :=
   | some r => r.2.nodePaths.all fun q => (m.fieldAt (q.drop 1)).isSome
   | none => true
 
-/-- The pieces an `emit`'s table makes of the node `m`, its `match`es
-read from `tB`, the table read for no node, and its bodies from `tM`,
-the table read for `m`: what the body of the first template whose
-`match` takes the node (`emitTakes`) makes (`emitBody`). None where no
-template takes the node, where the body as written in `tW` holds a
-reference the node doesn't answer (`emitBound`), or where the body makes
-no pieces, each of which both ports refuse. -/
-def emitPieces (ds : Decls) (m tW tB tM : Val) : Option (List Val) :=
-  match ((if (emitTable tW).length == (emitTable tB).length then emitTable tW else emitTable tB).zip
-      ((emitTable tB).zip (emitTable tM))).find? (fun p =>
+/-- The templates of an `emit`'s table side by side: as written, `tW`,
+where the table read for no node, `tB`, holds as many, and otherwise as
+`tB` holds them; as `tB` holds them; and as the table read for the node,
+`tM`, holds them. -/
+def emitTriples (tW tB tM : Val) : List (Val × Val × Val) :=
+  (if (emitTable tW).length == (emitTable tB).length then emitTable tW else emitTable tB).zip
+    ((emitTable tB).zip (emitTable tM))
+
+/-- How an `emit`'s table reads the node `m`, its `match`es read from
+`tB`, the table read for no node: by the first template whose `match`
+takes the node (`emitTakes`). Its index, `.inl`, where the table writes
+that template as a map, so that its body is read as written, each
+element where its piece lands; and where a reference or a call made it,
+the pieces its body read for the node in `tM` makes (`emitBody`),
+`.inr`. None where no template takes the node, where the body as
+written holds a reference the node doesn't answer (`emitBound`), or
+where the body read for the node makes no pieces, each of which both
+ports refuse. -/
+def emitPlan (ds : Decls) (m tW tB tM : Val) : Option (ℕ ⊕ List Val) :=
+  match (emitTriples tW tB tM).findIdx? (fun p =>
       match emitRule p.2.1 with
       | some r => emitTakes ds r.1 m
       | none => false) with
-  | some p => if emitBound m p.1 then (emitRule p.2.2).bind fun r => emitBody ds r.2 else none
+  | some k =>
+    match (emitTriples tW tB tM)[k]? with
+    | some p =>
+      if !emitBound m p.1 then none
+      else
+        match p.1 with
+        | .map _ _ _ =>
+          if (emitTable tW).length == (emitTable tB).length then some (.inl k)
+          else ((emitRule p.2.2).bind fun r => emitBody ds r.2).map .inr
+        | _ => ((emitRule p.2.2).bind fun r => emitBody ds r.2).map .inr
+    | none => none
   | none => none
 
 /-- The members `keep` keeps, in order, each tried at the index it takes
@@ -1811,9 +1832,12 @@ data is no bag or a list holds anything but a string. An `emit` is the
 list of the pieces its table makes of each member of its selection, in
 the order `Val.members` reads them, its `match`es read for no member and
 its bodies for the member, each hole and each reference into the node
-bound to it (`nodeRef`), and stays as written, a call no reading makes,
-where a template lacks its `match` or a list for its `body`, the selection is no
-bag, or a member makes no pieces (`emitPieces`). A `maybe` is
+bound to it (`nodeRef`), each element of a body the table writes read
+where its piece lands in the list (`emitTableD`, `emitElemsD`), and
+stays as written, a call no reading makes, where a template lacks its
+`match` or a list for its `body`, the selection is no bag, or a member
+makes no pieces (`emitPlan`), and where no position places a `key(n)`
+the table holds. A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
 no position for an element that is absence, nor for one a mark of its
@@ -1913,15 +1937,20 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     | .maybe, [v] => maybeOf ds (resolveD ds b here v)
     | .maybe, args => .call .maybe (resolveItems ds b here args)
     | .emit, [s, t] =>
-      if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
+      if here.isNone && ((resolveD ds b here s).holdsKey || t.holdsKey) then
+        .call .emit [resolveD ds b here s, t] else
       if (emitTable t).any (fun r => !emitRawOk r) ||
         (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
         .call .emit [resolveD ds b here s, t] else
       match (normaliseD ds (resolveD ds b here s)).members ds with
       | some ms =>
-        let pss := ms.map fun m => emitPieces ds m t (resolveD ds none none t) (resolveD ds (some m) none t)
-        if pss.all Option.isSome then (Val.list (pss.filterMap id).flatten none false).rideMoves (resolveD ds b here s).moves
-        else .call .emit [resolveD ds b here s, t]
+        match ms.foldl (fun (acc : Option (List Val)) m => acc.bind fun ps =>
+            match emitPlan ds m t (resolveD ds none none t) (resolveD ds (some m) none t) with
+            | some (.inl k) => (emitTableD ds m here ps.length k t).map (ps ++ ·)
+            | some (.inr qs) => some (ps ++ qs)
+            | none => none) (some []) with
+        | some ps => (Val.list ps none false).rideMoves (resolveD ds b here s).moves
+        | none => .call .emit [resolveD ds b here s, t]
       | none =>
         if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
         else .call .emit [resolveD ds b here s, t]
@@ -2003,6 +2032,64 @@ def resolveCovers (ds : Decls) (b : Option Val) (here : Option (List Step)) : Li
   | (c, k, m) :: cs =>
     (resolveSpread ds b here c, resolveSpread ds b here k, resolveSpread ds b here m) :: resolveCovers ds b here cs
   termination_by structural cs => cs
+
+/-- The pieces the `k`th template of an `emit`'s table as written makes
+of the node `m`, the first landing at the index `c` of the output: a
+table of one template being the template. -/
+def emitTableD (ds : Decls) (m : Val) (here : Option (List Step)) (c k : ℕ) : Val → Option (List Val)
+  | .list rs _ _ => emitPickD ds m here c k rs
+  | .map fs _ _ => emitFieldsD ds m here c fs
+  | _ => none
+  termination_by structural t => t
+
+def emitPickD (ds : Decls) (m : Val) (here : Option (List Step)) (c : ℕ) : ℕ → List Val → Option (List Val)
+  | _, [] => none
+  | 0, r :: _ => emitTmplD ds m here c r
+  | k + 1, _ :: rs => emitPickD ds m here c k rs
+  termination_by structural _ rs => rs
+
+/-- The pieces a template written as a map makes. -/
+def emitTmplD (ds : Decls) (m : Val) (here : Option (List Step)) (c : ℕ) : Val → Option (List Val)
+  | .map fs _ _ => emitFieldsD ds m here c fs
+  | _ => none
+  termination_by structural r => r
+
+/-- The pieces the member named `body` makes. -/
+def emitFieldsD (ds : Decls) (m : Val) (here : Option (List Step)) (c : ℕ) :
+    List (String × Bool × Val) → Option (List Val)
+  | [] => none
+  | (k, _, v) :: fs => if k == "body" then emitBodyD ds m here c v else emitFieldsD ds m here c fs
+  termination_by structural fs => fs
+
+/-- The pieces a body written as a list makes. -/
+def emitBodyD (ds : Decls) (m : Val) (here : Option (List Step)) (c : ℕ) : Val → Option (List Val)
+  | .list items _ _ => emitElemsD ds m here c items
+  | _ => none
+  termination_by structural v => v
+
+/-- The pieces a body's elements make for the node `m`, each element
+read where its piece lands, at the index `c` the pieces before it leave
+in the output, cumulative across the nodes, so that a `key(n)` in it
+reads that position, an element inside a list in it its index there, and
+a nested `emit` the positions in its own output (ruling 52). Each list
+it makes splices in its place at any depth (`emitSpliceF`); one that
+reads as absence or is marked makes no piece and takes no position, as
+a list holds none for it. None where one still holds a reference into
+the node. -/
+def emitElemsD (ds : Decls) (m : Val) (here : Option (List Step)) : ℕ → List Val → Option (List Val)
+  | _, [] => some []
+  | c, e :: es =>
+    if (normaliseD ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e)).isAbsent ||
+        (normaliseD ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e)).marked then
+      emitElemsD ds m here c es
+    else if (resolveD ds (some m) (stepped here (.seg (.idx c))) e).paths.any
+        (fun p => p.head? == some .node) then none
+    else
+      (emitElemsD ds m here (c + (emitSpliceF ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e).size
+          (resolveD ds (some m) (stepped here (.seg (.idx c))) e)).length) es).map
+        (emitSpliceF ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e).size
+          (resolveD ds (some m) (stepped here (.seg (.idx c))) e) ++ ·)
+  termination_by structural _ es => es
 end
 
 /-- A key's first declaration met with each later one, in the order
@@ -2737,24 +2824,118 @@ theorem emitBody_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       exact emitSpliceF_checkableA hd _ e (hi e he) w hwe
   | _ => simp [emitBody] at h
 
-/-- The pieces a table the checker can read, its bodies read for a node,
-makes of the node are terms it can read. -/
-theorem emitPieces_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {m tW tB tM : Val}
-    {ps : List Val} (hT : tM.CheckableA) (h : emitPieces ds m tW tB tM = some ps) :
-    ∀ w, w ∈ ps → w.CheckableA := by
-  unfold emitPieces at h
+/-- The pieces a template the checker can read makes of a node, its body
+read at no position, are terms it can read. -/
+theorem emitRuleBody_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {t : Val}
+    {qs : List Val} (ht : t.CheckableA)
+    (h : ((emitRule t).bind fun r => emitBody ds r.2).map Sum.inr = some (Sum.inr qs : ℕ ⊕ List Val)) :
+    ∀ w, w ∈ qs → w.CheckableA := by
+  cases hr : emitRule t with
+  | none => rw [hr] at h; exact absurd h (by simp)
+  | some r =>
+    rw [hr] at h
+    obtain ⟨x, hx, hxq⟩ := Option.map_eq_some_iff.mp h
+    obtain rfl := Sum.inr.inj hxq
+    exact emitBody_checkableA hd (emitRule_checkableA ht hr) hx
+
+/-- The pieces a table the checker can read, its bodies read for a node
+at no position, makes of the node where a reference or a call made the
+template are terms it can read. -/
+theorem emitPlan_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {m tW tB tM : Val}
+    {qs : List Val} (hT : tM.CheckableA) (h : emitPlan ds m tW tB tM = some (.inr qs)) :
+    ∀ w, w ∈ qs → w.CheckableA := by
+  unfold emitPlan at h
   split at h
-  · rename_i p hp
-    split at h
-    · cases hr : emitRule p.2.2 with
-      | none => rw [hr] at h; exact absurd h (by simp)
-      | some r =>
-        rw [hr] at h
-        simp only [Option.bind] at h
-        have hmem := List.of_mem_zip (List.of_mem_zip (List.mem_of_find?_eq_some hp)).2
-        exact emitBody_checkableA hd (emitRule_checkableA (emitTable_checkableA hT p.2.2 hmem.2) hr) h
+  · split at h
+    · rename_i p hp
+      have hmem := List.of_mem_zip (List.of_mem_zip (List.mem_of_getElem? hp)).2
+      have hM := emitTable_checkableA hT p.2.2 hmem.2
+      split at h
+      · exact absurd h (by simp)
+      · split at h
+        · split at h
+          · exact absurd h (by simp)
+          · exact emitRuleBody_checkableA hd hM h
+        · exact emitRuleBody_checkableA hd hM h
     · exact absurd h (by simp)
   · exact absurd h (by simp)
+
+/-- That a term reads, for whatever node and wherever it stands, as a
+term the checker can read. -/
+abbrev ResolvesA (ds : Decls) (v : Val) : Prop :=
+  ∀ {b : Option Val} {here : Option (List Step)}, (∀ m, b = some m → m.CheckableA) →
+    (resolveD ds b here v).CheckableA
+
+/-- That the pieces a term makes, read in an `emit` as a table or as a
+body, for a node the checker can read, are terms it can read. -/
+abbrev EmitsA (ds : Decls) (v : Val) : Prop :=
+  ∀ (m : Val) (here : Option (List Step)) (c k : ℕ) (qs : List Val), m.CheckableA →
+    (emitTableD ds m here c k v = some qs ∨ emitBodyD ds m here c v = some qs) →
+      ∀ w, w ∈ qs → w.CheckableA
+
+/-- The pieces a body's elements make, each read where it lands, are
+terms the checker can read where each element reads as one. -/
+theorem emitElemsD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {m : Val}
+    (hm : m.CheckableA) {here : Option (List Step)} :
+    ∀ {items : List Val} {c : ℕ} {qs : List Val}, (∀ e, e ∈ items → ResolvesA ds e) →
+      emitElemsD ds m here c items = some qs → ∀ w, w ∈ qs → w.CheckableA
+  | [], _, qs, _, h => by
+    rw [emitElemsD.eq_1, Option.some.injEq] at h
+    subst h
+    intro w hw
+    exact absurd hw List.not_mem_nil
+  | e :: es, c, qs, hr, h => by
+    have he : (resolveD ds (some m) (stepped here (.seg (.idx c))) e).CheckableA :=
+      hr e List.mem_cons_self fun m' hm' => by
+        obtain rfl := Option.some.inj hm'
+        exact hm
+    have hes : ∀ e', e' ∈ es → ResolvesA ds e' := fun e' h' => hr e' (List.mem_cons_of_mem _ h')
+    rw [emitElemsD.eq_2] at h
+    split at h
+    · exact emitElemsD_checkableA hd hm hes h
+    split at h
+    · exact absurd h (by simp)
+    · obtain ⟨x, hx, rfl⟩ := Option.map_eq_some_iff.mp h
+      intro w hw
+      rcases List.mem_append.mp hw with hw | hw
+      · exact emitSpliceF_checkableA hd _ _ he w hw
+      · exact emitElemsD_checkableA hd hm hes hx w hw
+
+/-- The pieces a template's `body` makes are terms the checker can read
+where each member's value reads its pieces as such. -/
+theorem emitFieldsD_checkableA {ds : Decls} {m : Val} (hm : m.CheckableA) {here : Option (List Step)}
+    {c : ℕ} :
+    ∀ {fs : List (String × Bool × Val)} {qs : List Val}, (∀ k o v, (k, o, v) ∈ fs → EmitsA ds v) →
+      emitFieldsD ds m here c fs = some qs → ∀ w, w ∈ qs → w.CheckableA
+  | [], qs, _, h => by
+    rw [emitFieldsD.eq_1] at h
+    exact absurd h (by simp)
+  | (k, o, v) :: fs, qs, hf, h => by
+    have hfs : ∀ k' o' v', (k', o', v') ∈ fs → EmitsA ds v' :=
+      fun k' o' v' h' => hf k' o' v' (List.mem_cons_of_mem _ h')
+    rw [emitFieldsD.eq_2] at h
+    split at h
+    · exact hf k o v List.mem_cons_self m here c 0 qs hm (.inr h)
+    · exact emitFieldsD_checkableA hm hfs h
+
+/-- The pieces the `k`th template of a table makes are terms the checker
+can read where each template reads its pieces as such. -/
+theorem emitPickD_checkableA {ds : Decls} {m : Val} (hm : m.CheckableA) {here : Option (List Step)}
+    {c : ℕ} :
+    ∀ {k : ℕ} {rs : List Val} {qs : List Val}, (∀ r, r ∈ rs → EmitsA ds r) →
+      emitPickD ds m here c k rs = some qs → ∀ w, w ∈ qs → w.CheckableA
+  | _, [], qs, _, h => by
+    rw [emitPickD.eq_1] at h
+    exact absurd h (by simp)
+  | 0, r :: rs, qs, hr, h => by
+    rw [emitPickD.eq_2, emitTmplD.eq_def] at h
+    split at h
+    · rename_i fs sp cl
+      exact hr (.map fs sp cl) List.mem_cons_self m here c 0 qs hm (.inl (by rw [emitTableD.eq_2]; exact h))
+    · exact absurd h (by simp)
+  | k + 1, r :: rs, qs, hr, h => by
+    rw [emitPickD.eq_3] at h
+    exact emitPickD_checkableA hm (fun r' h' => hr r' (List.mem_cons_of_mem _ h')) h
 
 /-- The members `pack` reads in a bag the checker can read are ones it
 can read. -/
@@ -3431,46 +3612,98 @@ theorem maybeOf_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (maybeOf 
       · exact fillTop_checkableA .nil h
     · exact h
 
-theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
-    (h : v.CheckableA) : ∀ {b : Option Val} {here : Option (List Step)}, (∀ m, b = some m → m.CheckableA) →
-      (resolveD ds b here v).CheckableA := by
+/-- A fold that extends a value step by step keeps a property each step
+keeps. -/
+theorem foldl_keeps {α β : Type} {Q : β → Prop} {f : β → α → β} :
+    ∀ {ms : List α} {init : β}, Q init → (∀ a, a ∈ ms → ∀ o, Q o → Q (f o a)) → Q (ms.foldl f init)
+  | [], _, h, _ => h
+  | a :: ms, init, h, hf =>
+    foldl_keeps (ms := ms) (init := f init a) (hf a List.mem_cons_self init h)
+      fun a' ha' o ho => hf a' (List.mem_cons_of_mem _ ha') o ho
+
+/-- A term that is neither a map nor a list makes no pieces read in an
+`emit`, as a table or as a body. -/
+theorem emitsA_of_none {ds : Decls} {v : Val}
+    (ht : ∀ m here c k, emitTableD ds m here c k v = none) (hb : ∀ m here c, emitBodyD ds m here c v = none) :
+    EmitsA ds v := by
+  intro m here c k qs _ h
+  rcases h with h | h
+  · rw [ht] at h
+    exact absurd h (by simp)
+  · rw [hb] at h
+    exact absurd h (by simp)
+
+/-- A term the checker can read reads, for whatever node and wherever it
+stands, as a term it can read, and the pieces it makes read in an
+`emit` are terms it can read too. -/
+theorem resolveD_emits_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
+    (h : v.CheckableA) : ResolvesA ds v ∧ EmitsA ds v := by
   induction h with
   | len _ ih =>
-    intro b here hb; simp only [resolveD]; split
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace ih := @And.left _ _ ih
+    simp only [resolveD]; split
     · exact .nothing
     split
     · exact .nil
     · exact .len (ih hb)
   | @map fs spread closed _ _ ihf ihs =>
-    intro b here hb
-    simp only [resolveD]
-    refine .map (fun k o w hw => ?_) (fun s hs' => ?_)
-    · obtain ⟨v, hv, rfl⟩ := mem_resolveFields hw
-      exact ihf k o v hv hb
-    · obtain ⟨s, hs, rfl⟩ := resolveSpread_some hs'
-      exact ihs s hs fun _ h => nomatch h
+    refine ⟨fun {b here} hb => ?_, ?_⟩
+    · simp only [resolveD]
+      refine .map (fun k o w hw => ?_) (fun s hs' => ?_)
+      · obtain ⟨v, hv, rfl⟩ := mem_resolveFields hw
+        exact (ihf k o v hv).1 hb
+      · obtain ⟨s, hs, rfl⟩ := resolveSpread_some hs'
+        exact (ihs s hs).1 fun _ h => nomatch h
+    · intro m here c k qs hm h
+      rcases h with h | h
+      · rw [emitTableD.eq_2] at h
+        exact emitFieldsD_checkableA hm (fun k' o v hv => (ihf k' o v hv).2) h
+      · exact absurd h (by simp [emitBodyD])
   | @list items spread closed _ _ ihi ihs =>
-    intro b here hb
-    simp only [resolveD]
-    split
-    · exact .nil
-    refine .list (fun w hw => ?_) (fun s hs' => ?_)
-    · obtain ⟨v, hv, i, rfl⟩ := mem_resolveElems (List.mem_filter.mp hw).1
-      exact ihi v hv hb
-    · obtain ⟨s, hs, rfl⟩ := resolveSpread_some hs'
-      exact ihs s hs fun _ h => nomatch h
+    refine ⟨fun {b here} hb => ?_, ?_⟩
+    · simp only [resolveD]
+      split
+      · exact .nil
+      refine .list (fun w hw => ?_) (fun s hs' => ?_)
+      · obtain ⟨v, hv, i, rfl⟩ := mem_resolveElems (List.mem_filter.mp hw).1
+        exact (ihi v hv).1 hb
+      · obtain ⟨s, hs, rfl⟩ := resolveSpread_some hs'
+        exact (ihs s hs).1 fun _ h => nomatch h
+    · intro m here c k qs hm h
+      rcases h with h | h
+      · rw [emitTableD.eq_1] at h
+        exact emitPickD_checkableA hm (fun r hr => (ihi r hr).2) h
+      · rw [emitBodyD.eq_1] at h
+        exact emitElemsD_checkableA hd hm (fun e he => (ihi e he).1) h
   | or _ ih =>
-    intro b here hb
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace ih := fun r a ha => @And.left _ _ (ih r a ha)
     simp only [resolveD]
     refine .or fun r w hw => ?_
     obtain ⟨a, ha, rfl⟩ := mem_resolveArms hw
     exact ih r a ha hb
-  | pref _ ih => intro b here hb; simp only [resolveD]; exact .pref (ih hb)
-  | ride _ ih => intro b here hb; simp only [resolveD]; exact .ride (ih hb)
-  | link _ ht ih _ => intro b here hb; simp only [resolveD]; exact .link (ih hb) ht
-  | meet _ _ iha ihb => intro b here hb; simp only [resolveD]; exact .meet (iha hb) (ihb hb)
+  | pref _ ih =>
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace ih := @And.left _ _ ih
+    simp only [resolveD]; exact .pref (ih hb)
+  | ride _ ih =>
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace ih := @And.left _ _ ih
+    simp only [resolveD]; exact .ride (ih hb)
+  | link _ ht ih _ =>
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace ih := @And.left _ _ ih
+    simp only [resolveD]; exact .link (ih hb) ht
+  | meet _ _ iha ihb =>
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace iha := @And.left _ _ iha
+    replace ihb := @And.left _ _ ihb
+    simp only [resolveD]; exact .meet (iha hb) (ihb hb)
   | nof _ _ ihn ihcs =>
-    intro b here hb
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace ihn := @And.left _ _ ihn
+    replace ihcs := fun c hc => @And.left _ _ (ihcs c hc)
     simp only [resolveD]
     split
     · exact .nil
@@ -3478,21 +3711,33 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     obtain ⟨c₀, hc₀, rfl⟩ := mem_resolveItems hc
     exact ihcs c₀ hc₀ hb
   | must _ ih =>
-    intro b here hb; simp only [resolveD]; split
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace ih := @And.left _ _ ih
+    simp only [resolveD]; split
     · exact .nil
     · exact .must (ih hb)
   | when _ _ _ ihc iht ihe =>
-    intro b here hb
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace ihc := @And.left _ _ ihc
+    replace iht := @And.left _ _ iht
+    replace ihe := fun e' he => @And.left _ _ (ihe e' he)
     simp only [resolveD]
     refine .when (ihc hb) (iht hb) fun e he => ?_
     obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
     exact ihe e₀ he₀ hb
   | contains _ _ ihc ihn =>
-    intro b here hb; simp only [resolveD]; split
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace ihc := @And.left _ _ ihc
+    replace ihn := @And.left _ _ ihn
+    simp only [resolveD]; split
     · exact .nil
     · exact .contains (ihc hb) (ihn hb)
   | rest _ _ _ _ iht ih1 ih2 ih3 =>
-    intro b here hb
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace iht := @And.left _ _ iht
+    replace ih1 := fun c hc w hw => @And.left _ _ (ih1 c hc w hw)
+    replace ih2 := fun c hc w hw => @And.left _ _ (ih2 c hc w hw)
+    replace ih3 := fun c hc w hw => @And.left _ _ (ih3 c hc w hw)
     simp only [resolveD]
     refine .rest (iht hb) (fun c hc v hv => ?_) (fun c hc v hv => ?_) (fun c hc v hv => ?_)
     · obtain ⟨c₀, hc₀, h1, -, -⟩ := mem_resolveCovers hc
@@ -3508,7 +3753,10 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       obtain ⟨w, hw, rfl⟩ := resolveSpread_some hv
       exact ih3 c₀ hc₀ w hw hb
   | @selectKey arms d _ _ _ ihp ihr ihd =>
-    intro b here hb
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace ihp := fun p r hm => @And.left _ _ (ihp p r hm)
+    replace ihr := fun p r hm => @And.left _ _ (ihr p r hm)
+    replace ihd := fun e he => @And.left _ _ (ihd e he)
     simp only [resolveD]
     show (match genD ds .key with
       | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
@@ -3532,7 +3780,10 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
       exact ihd e₀ he₀ hb
   | @selectLit sc arms d _ _ _ ihp ihr ihd =>
-    intro b here hb
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    replace ihp := fun p r hm => @And.left _ _ (ihp p r hm)
+    replace ihr := fun p r hm => @And.left _ _ (ihr p r hm)
+    replace ihd := fun e he => @And.left _ _ (ihd e he)
     simp only [resolveD]
     show (match genD ds (.lit sc) with
       | some x => if callPairs (resolvePairs ds b here arms) || here.isNone && keyPairs (resolvePairs ds b here arms)
@@ -3558,7 +3809,8 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       · obtain ⟨e₀, he₀, rfl⟩ := resolveSpread_some he
         exact ihd e₀ he₀ hb
   | @call f args hargs ih =>
-    intro b here hb
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    have ih1 : ∀ a, a ∈ args → ResolvesA ds a := fun a ha => @And.left _ _ (ih a ha)
     rw [resolveD.eq_def]
     dsimp only
     split
@@ -3567,7 +3819,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       · refine .call fun a ha => ?_
         simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
         rcases ha with h | h
-        · rw [h]; exact ih d (by simp) hb
+        · rw [h]; exact ih1 d (by simp) hb
         · rw [h]; exact hargs t (by simp)
       split
       · rename_i ms hms
@@ -3575,9 +3827,9 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         · exact .nil
         refine rideMoves_checkableA (.list (fun w hw => ?_) (fun _ hs => by cases hs))
         obtain ⟨m, hm, rfl⟩ := List.mem_map.mp (List.mem_filter.mp hw).1
-        have hn := normaliseD_checkableA hd (ih d (by simp) (here := here) hb)
+        have hn := normaliseD_checkableA hd (ih1 d (by simp) (here := here) hb)
         have hmc : m.1.CheckableA := Val.members_checkableA hn hms _ (List.fst_mem_of_mem_zipIdx hm)
-        exact ih t (by simp) (b := some m.1) fun m' hm' => by
+        exact ih1 t (by simp) (b := some m.1) fun m' hm' => by
           obtain rfl := Option.some.inj hm'
           exact hmc
       · split
@@ -3586,7 +3838,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         · refine .call fun a ha => ?_
           simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
           rcases ha with h | h
-          · rw [h]; exact ih d (by simp) hb
+          · rw [h]; exact ih1 d (by simp) hb
           · rw [h]; exact hargs t (by simp)
         · exact .nil
     · rename_i d t
@@ -3594,7 +3846,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       · refine .call fun a ha => ?_
         simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
         rcases ha with h | h
-        · rw [h]; exact ih d (by simp) hb
+        · rw [h]; exact ih1 d (by simp) hb
         · rw [h]; exact hargs t (by simp)
       split
       · rename_i ms hms
@@ -3602,11 +3854,11 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         obtain ⟨m, hm, hmw⟩ := List.mem_map.mp hw
         simp only [Prod.mk.injEq] at hmw
         obtain ⟨-, -, rfl⟩ := hmw
-        have hn := normaliseD_checkableA hd (ih d (by simp) (here := here) hb)
+        have hn := normaliseD_checkableA hd (ih1 d (by simp) (here := here) hb)
         refine mergeKeys_checkableA (fun _ h => absurd h List.not_mem_nil) (fun p hp => ?_) m hm
         obtain ⟨m', hm', rfl⟩ := List.mem_map.mp hp
         have hmc : m'.2.CheckableA := Val.keyedMembers_checkableA hn hms m' hm'
-        exact ih t (by simp) (b := some m'.2) fun m'' hm'' => by
+        exact ih1 t (by simp) (b := some m'.2) fun m'' hm'' => by
           obtain rfl := Option.some.inj hm''
           exact hmc
       · split
@@ -3615,7 +3867,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         · refine .call fun a ha => ?_
           simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
           rcases ha with h | h
-          · rw [h]; exact ih d (by simp) hb
+          · rw [h]; exact ih1 d (by simp) hb
           · rw [h]; exact hargs t (by simp)
         · exact .nil
     · rename_i v t
@@ -3623,7 +3875,7 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
         refine .call fun a ha => ?_
         simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
         rcases ha with h | h
-        · rw [h]; exact ih v (by simp) hb
+        · rw [h]; exact ih1 v (by simp) hb
         · rw [h]; exact hargs t (by simp)
       split
       · exact hcall
@@ -3631,21 +3883,21 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       · exact .absent
       split
       · exact hcall
-      · have hn := normaliseD_checkableA hd (ih v (by simp) (here := here) hb)
-        exact ih t (by simp) (b := some _) (here := here) fun m' hm' => by
+      · have hn := normaliseD_checkableA hd (ih1 v (by simp) (here := here) hb)
+        exact ih1 t (by simp) (b := some _) (here := here) fun m' hm' => by
           obtain rfl := Option.some.inj hm'
           exact hn
     · rename_i v
-      exact maybeOf_checkableA (ih v (by simp) hb)
+      exact maybeOf_checkableA (ih1 v (by simp) hb)
     · refine .call fun a ha => ?_
       obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
-      exact ih a₀ ha₀ hb
+      exact ih1 a₀ ha₀ hb
     · rename_i s t
       have hcall : (Val.call .emit [resolveD ds b here s, t]).CheckableA := by
         refine .call fun a ha => ?_
         simp only [List.mem_cons, List.mem_nil_iff, or_false] at ha
         rcases ha with h | h
-        · rw [h]; exact ih s (by simp) hb
+        · rw [h]; exact ih1 s (by simp) hb
         · rw [h]; exact hargs t (by simp)
       split
       · exact hcall
@@ -3653,17 +3905,41 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
       · exact hcall
       split
       · rename_i ms hms
-        have hn := normaliseD_checkableA hd (ih s (by simp) (here := here) hb)
-        split
-        · refine rideMoves_checkableA (.list (fun w hw => ?_) (fun _ hs => by cases hs))
-          obtain ⟨ps, hps, hw⟩ := List.mem_flatten.mp hw
-          obtain ⟨o, ho, hop⟩ := List.mem_filterMap.mp hps
-          obtain ⟨m, hm, rfl⟩ := List.mem_map.mp ho
-          have hmc : m.CheckableA := Val.members_checkableA hn hms m hm
-          have hT := ih t (by simp) (b := some m) (here := none) fun m' hm' => by
+        have hn := normaliseD_checkableA hd (ih1 s (by simp) (here := here) hb)
+        have hE := (ih t (by simp)).2
+        have hTM : ∀ m, m.CheckableA → (resolveD ds (some m) none t).CheckableA := fun m hmc =>
+          ih1 t (by simp) (b := some m) (here := none) fun m' hm' => by
             obtain rfl := Option.some.inj hm'
             exact hmc
-          exact emitPieces_checkableA hd hT hop w hw
+        split
+        · rename_i ps hps
+          refine rideMoves_checkableA (.list (fun w hw => ?_) (fun _ hs => by cases hs))
+          refine foldl_keeps (Q := fun o : Option (List Val) => ∀ ps, o = some ps → ∀ w, w ∈ ps → w.CheckableA)
+            ?_ ?_ ps hps w hw
+          · intro ps' h' w' hw'
+            obtain rfl := Option.some.inj h'
+            exact absurd hw' List.not_mem_nil
+          · intro m hm o ho ps' hps'
+            have hmc : m.CheckableA := Val.members_checkableA hn hms m hm
+            cases o with
+            | none => exact absurd hps' (by simp)
+            | some pre =>
+              have hpre := ho pre rfl
+              dsimp only [Option.bind] at hps'
+              split at hps'
+              · rename_i k hk
+                obtain ⟨x, hx, rfl⟩ := Option.map_eq_some_iff.mp hps'
+                intro w' hw'
+                rcases List.mem_append.mp hw' with hw' | hw'
+                · exact hpre w' hw'
+                · exact hE m here pre.length k x hmc (.inl hx) w' hw'
+              · rename_i qs hq
+                obtain rfl := Option.some.inj hps'
+                intro w' hw'
+                rcases List.mem_append.mp hw' with hw' | hw'
+                · exact hpre w' hw'
+                · exact emitPlan_checkableA hd (hTM m hmc) hq w' hw'
+              · exact absurd hps' (by simp)
         · exact hcall
       · split
         · exact .absent
@@ -3671,34 +3947,43 @@ theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.Checkable
     · split
       · refine .call fun a ha => ?_
         obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
-        exact ih a₀ ha₀ hb
+        exact ih1 a₀ ha₀ hb
       split
       · exact .absent
       split
       · refine .call fun a ha => ?_
         obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
-        exact ih a₀ ha₀ hb
+        exact ih1 a₀ ha₀ hb
       have hct : (callTerm ds f (resolveItems ds b here args)).CheckableA := by
         refine callTerm_checkableA hd fun a ha => ?_
         obtain ⟨a₀, ha₀, rfl⟩ := mem_resolveItems ha
-        exact ih a₀ ha₀ hb
+        exact ih1 a₀ ha₀ hb
       split
       · exact hct
       · exact rideMoves_checkableA hct
   | hole =>
-    intro b here hb
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     simp only [resolveD]
     cases b with
     | none => exact .hole
     | some m => exact hb m rfl
   | keyUp =>
-    intro b here hb
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
     simp only [resolveD]
     cases here with
     | none => exact .keyUp
     | some pos => exact keyUpAt_checkableA pos _
-  | @path p => intro b here hb; simp only [resolveD]; exact nodeRef_checkableA hb p
-  | _ => intro b here hb; simp only [resolveD]; constructor
+  | @path p =>
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    simp only [resolveD]; exact nodeRef_checkableA hb p
+  | _ =>
+    refine ⟨fun {b here} hb => ?_, emitsA_of_none (fun _ _ _ _ => by simp [emitTableD]) (fun _ _ _ => by simp [emitBodyD])⟩
+    simp only [resolveD]; constructor
+
+theorem resolveD_checkableA {ds : Decls} (hd : ∀ d, d ∈ ds → d.2.CheckableA) {v : Val}
+    (h : v.CheckableA) : ∀ {b : Option Val} {here : Option (List Step)}, (∀ m, b = some m → m.CheckableA) →
+      (resolveD ds b here v).CheckableA :=
+  (resolveD_emits_checkableA hd h).1
 
 /-- A document whose schema the checker can read reads as its expansion. -/
 theorem readR_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :

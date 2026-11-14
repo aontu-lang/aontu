@@ -5972,9 +5972,12 @@ data is no bag or a list holds anything but a string. An `emit` is the
 list of the pieces its table makes of each member of its selection, in
 the order `Val.members` reads them, its `match`es read for no member and
 its bodies for the member, each hole and each reference into the node
-bound to it (`nodeRef`), and stays as written, a call no reading makes,
-where a template lacks its `match` or a list for its `body`, the selection is no
-bag, or a member makes no pieces (`emitPieces`). A `maybe` is
+bound to it (`nodeRef`), each element of a body the table writes read
+where its piece lands in the list (`emitTableD`, `emitElemsD`), and
+stays as written, a call no reading makes, where a template lacks its
+`match` or a list for its `body`, the selection is no bag, or a member
+makes no pieces (`emitPlan`), and where no position places a `key(n)`
+the table holds. A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
 no position for an element that is absence, nor for one a mark of its
@@ -9982,27 +9985,33 @@ $ aontu emit.aontu
 and a list for its `body` (`emitRuleOk`), the body written as a list
 rather than a path or a call that makes one (`emitRawOk`), so that a bad
 table is an error even over an empty selection. It then reads the table once for
-each node of the selection, as it reads an `each`'s template once for
-each member: its `match`es for no node, and its bodies for the node:
+each node of the selection, in order, as it reads an `each`'s template
+once for each member: its `match`es for no node, and its bodies for the
+node, each node's pieces after the pieces of the nodes before it:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
     | .emit, [s, t] =>
-      if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
+      if here.isNone && ((resolveD ds b here s).holdsKey || t.holdsKey) then
+        .call .emit [resolveD ds b here s, t] else
       if (emitTable t).any (fun r => !emitRawOk r) ||
         (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
         .call .emit [resolveD ds b here s, t] else
       match (normaliseD ds (resolveD ds b here s)).members ds with
       | some ms =>
-        let pss := ms.map fun m => emitPieces ds m t (resolveD ds none none t) (resolveD ds (some m) none t)
-        if pss.all Option.isSome then (Val.list (pss.filterMap id).flatten none false).rideMoves (resolveD ds b here s).moves
-        else .call .emit [resolveD ds b here s, t]
+        match ms.foldl (fun (acc : Option (List Val)) m => acc.bind fun ps =>
+            match emitPlan ds m t (resolveD ds none none t) (resolveD ds (some m) none t) with
+            | some (.inl k) => (emitTableD ds m here ps.length k t).map (ps ++ ·)
+            | some (.inr qs) => some (ps ++ qs)
+            | none => none) (some []) with
+        | some ps => (Val.list ps none false).rideMoves (resolveD ds b here s).moves
+        | none => .call .emit [resolveD ds b here s, t]
       | none =>
         if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
         else .call .emit [resolveD ds b here s, t]
 ```
 
-`emitPieces` takes the first template whose `match` takes the node, and
+`emitPlan` takes the first template whose `match` takes the node, and
 a `match` takes a node the way both engines dispatch. The node, met with
 the `match`, must not die, and must be alike the node: the meet narrows
 nothing. So `{k: 1}` takes the node `{"k": 1}`, and so do `{}`, `map`
@@ -10059,6 +10068,77 @@ def nodeRef (b : Option Val) : List Seg → Val
   | p => .path p
 ```
 
+Where the table writes the template as a map, as a table nearly always
+does, `emitTableD` reads its body as written, each element where its
+piece lands in the answer: at the index the pieces before it leave,
+every earlier node's pieces counted and each earlier element's spliced
+in. So a `key(n)` in a body reads that position. `key(0)` is the
+index, `key()` is the key of the member that holds the `emit`, and a
+level past the top is `""`. A list in the body reads its own elements'
+indexes, before it splices, and a nested `emit` reads the positions in
+its own answer. An element that reads as absence, or carries a mark of
+its own, makes no piece and takes no position, as a list holds none for
+it:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def emitElemsD (ds : Decls) (m : Val) (here : Option (List Step)) : ℕ → List Val → Option (List Val)
+  | _, [] => some []
+  | c, e :: es =>
+    if (normaliseD ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e)).isAbsent ||
+        (normaliseD ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e)).marked then
+      emitElemsD ds m here c es
+    else if (resolveD ds (some m) (stepped here (.seg (.idx c))) e).paths.any
+        (fun p => p.head? == some .node) then none
+    else
+      (emitElemsD ds m here (c + (emitSpliceF ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e).size
+          (resolveD ds (some m) (stepped here (.seg (.idx c))) e)).length) es).map
+        (emitSpliceF ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e).size
+          (resolveD ds (some m) (stepped here (.seg (.idx c))) e) ++ ·)
+```
+
+Write `emit-keys.aontu`:
+
+<!-- test: scenario emitkeys -->
+<!-- test: file emit-keys.aontu -->
+```aontu
+lines: emit([1 2], { match:number body: ["n" key(0)] })
+pairs: emit([1 2], { match:number body: [["p" key(0)] key(0)] })
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu emit-keys.aontu
+{
+  "lines": [
+    "n",
+    "1",
+    "n",
+    "3"
+  ],
+  "pairs": [
+    "p",
+    "1",
+    "2",
+    "p",
+    "1",
+    "5"
+  ]
+}
+```
+
+Each node makes two pieces in `lines`, so the second node's `key(0)`
+reads 3. In `pairs` the list `["p", key(0)]` reads its own index, 1,
+before it splices, and the `key(0)` after it reads 2, the index the
+pieces of the list leave. `emitBody` reads a template a call makes,
+rather than one the table writes, for its node at no position, so a
+body there that holds a `key(n)` stays unmade. The rows are ek0 on.
+Both engines answer every one as the definition does, but for a marked
+piece, which they still give a position, as #539 records. The ledger
+takes those six rows, ek72 to ek77.
+
 A nested `emit` reads its selection, `.logs`, for the outer node, and
 its own table for each of its own nodes. An empty selection emits
 nothing, but both engines check its table all the same. Both refuse a
@@ -10077,12 +10157,11 @@ definition does.
 The definition doesn't yet read a table named apart from its call,
 `emit(_, t)`, which is how a rule set recurses, `replace` and `esc` in
 a body, or a reference into the node inside an `each`, a `pack` or a
-`filter`'s condition in a body. It leaves a body that holds a `key(n)`
-unmade too, since the engines read it at different positions, as #524
-records, and one whose spread holds a reference into the node. Both
-engines leave such a spread unbound, so the reference reads nowhere and
-refuses a member the spread meets, but they pass a spread that meets
-no member, which the definition doesn't yet.
+`filter`'s condition in a body. It leaves a body whose spread holds a
+reference into the node unmade too. Both engines leave such a spread
+unbound, so the reference reads nowhere and refuses a member the spread
+meets, but they pass a spread that meets no member, which the definition
+doesn't yet.
 
 ## 41. What the definition doesn't say yet
 

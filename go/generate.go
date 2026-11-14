@@ -827,10 +827,15 @@ func emitInstantiate(ctx *Ctx, base []string, node Val, tmpl emitTemplate,
 	for i, el := range tmpl.body.peg {
 		islot := append(cp(base), itoa(len(out)))
 		inst := instanceClone(el, islot)
+		setPaths(inst, islot)
 		if nil != pairs {
 			inst = emitSubstituted(inst, i, tmpl.lits, pairs, islot)
 		}
 		piece := fillPlace(bindNode(inst, node, fail), node)
+		// A refused emit reads no piece, which would report its own miss first.
+		if "" != *fail {
+			return out, nil
+		}
 
 		if piece.Dc() != DONE {
 			ctx.slot = islot
