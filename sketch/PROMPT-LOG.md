@@ -1127,3 +1127,9 @@ Rewrite the files and folders example so that there are types Node, Folder and F
 ```text
 Post GitHub issues for the findings. Rewrite without aliases, placing types under $.type: type({})
 ```
+
+## 2026-11-14 13:16:51 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Can name: $.type.Name not be expressed as name: .Name ?
+```
