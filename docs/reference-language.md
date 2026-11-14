@@ -1264,6 +1264,11 @@ one of its fields with `each($.lines, _ & _.amount)` asks for
 something that is both the whole record and one of its fields. Use
 [`pick`](#projecting-fields-pick) to project a field.
 
+The definition reads the idiom as it reads any template, each hole the
+member (`resolveD`), so `_ & t` is the member met with `t`, and rows
+from ib0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv)
+hold both engines to it.
+
 ## Selecting: `filter` and `match`
 
 `filter(data, cond)` keeps the children of `data` that **already

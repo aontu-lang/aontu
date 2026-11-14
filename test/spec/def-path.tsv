@@ -32,7 +32,9 @@
 # sources loaded in place, each a file of test/spec/files the definition
 # declares as a term, in rows lf0 on.
 # Generators whose templates read their member's place through a relative
-# path, each read at each member of the output, follow in rows gt0 on, a
+# path, each read at each member of the output, follow in rows gt0 on, and
+# templates that meet their own hole, each member kept and met with the rest,
+# the `_ & …` idiom, in rows ib0 on, a
 # filter's condition, read where the member it tries lands, in rows fc0 on,
 # bounds written over terms, each the bound its terms name, in rows bd0 on, and
 # bounds over a relative path in a generator's template or a filter's
@@ -2908,6 +2910,84 @@ gt41	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": 
 gt42	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": .m})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid"}
 gt43	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": .m})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid","opts":{"noFill":true}}
 gt44	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": .m})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid","opts":{"partial":true}}
+ib0	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid"}
+ib1	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"noFill":true}}
+ib2	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"partial":true}}
+ib3	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "UDP"}]}	{"verdict":"invalid"}
+ib4	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "UDP"}]}	{"verdict":"invalid","opts":{"noFill":true}}
+ib5	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "UDP"}]}	{"verdict":"invalid","opts":{"partial":true}}
+ib6	verdict	"v": each([8080, 443], (_) & (integer))	{"v": [8080, 443]}	{"verdict":"valid"}
+ib7	verdict	"v": each([8080, 443], (_) & (integer))	{"v": [8080, 443]}	{"verdict":"valid","opts":{"noFill":true}}
+ib8	verdict	"v": each([8080, 443], (_) & (integer))	{"v": [8080, 443]}	{"verdict":"valid","opts":{"partial":true}}
+ib9	verdict	"v": each([8080, 443], (_) & (integer))	{"v": [8080, 444]}	{"verdict":"invalid"}
+ib10	verdict	"v": each([8080, 443], (_) & (integer))	{"v": [8080, 444]}	{"verdict":"invalid","opts":{"noFill":true}}
+ib11	verdict	"v": each([8080, 443], (_) & (integer))	{"v": [8080, 444]}	{"verdict":"invalid","opts":{"partial":true}}
+ib12	verdict	"v": each([1, "a"], (_) & (integer))	{"v": [1]}	{"verdict":"error"}
+ib13	verdict	"v": each([1, "a"], (_) & (integer))	{"v": [1]}	{"verdict":"error","opts":{"noFill":true}}
+ib14	verdict	"v": each([1, "a"], (_) & (integer))	{"v": [1]}	{"verdict":"error","opts":{"partial":true}}
+ib15	verdict	"v": each([{"a": 1}, {}], (_) & ({"a": *(0)}))	{"v": [{"a": 1}, {"a": 0}]}	{"verdict":"valid"}
+ib16	verdict	"v": each([{"a": 1}, {}], (_) & ({"a": *(0)}))	{"v": [{"a": 1}, {"a": 0}]}	{"verdict":"valid","opts":{"noFill":true}}
+ib17	verdict	"v": each([{"a": 1}, {}], (_) & ({"a": *(0)}))	{"v": [{"a": 1}, {"a": 0}]}	{"verdict":"valid","opts":{"partial":true}}
+ib18	verdict	"v": each([{"a": 1}, {}], (_) & ({"a": *(0)}))	{"v": [{"a": 2}, {"a": 0}]}	{"verdict":"invalid"}
+ib19	verdict	"v": each([{"a": 1}, {}], (_) & ({"a": *(0)}))	{"v": [{"a": 2}, {"a": 0}]}	{"verdict":"invalid","opts":{"noFill":true}}
+ib20	verdict	"v": each([{"a": 1}, {}], (_) & ({"a": *(0)}))	{"v": [{"a": 2}, {"a": 0}]}	{"verdict":"invalid","opts":{"partial":true}}
+ib21	verdict	"v": each({"y": 2, "x": 1}, (_) & (number))	{"v": [1, 2]}	{"verdict":"valid"}
+ib22	verdict	"v": each({"y": 2, "x": 1}, (_) & (number))	{"v": [1, 2]}	{"verdict":"valid","opts":{"noFill":true}}
+ib23	verdict	"v": each({"y": 2, "x": 1}, (_) & (number))	{"v": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+ib24	verdict	"v": each({"y": 2, "x": 1}, (_) & (number))	{"v": [2, 1]}	{"verdict":"invalid"}
+ib25	verdict	"v": each({"y": 2, "x": 1}, (_) & (number))	{"v": [2, 1]}	{"verdict":"invalid","opts":{"noFill":true}}
+ib26	verdict	"v": each({"y": 2, "x": 1}, (_) & (number))	{"v": [2, 1]}	{"verdict":"invalid","opts":{"partial":true}}
+ib27	verdict	"v": pack({"x": {"n": 1}}, (_) & ({"m": 2}))	{"v": {"x": {"n": 1, "m": 2}}}	{"verdict":"valid"}
+ib28	verdict	"v": pack({"x": {"n": 1}}, (_) & ({"m": 2}))	{"v": {"x": {"n": 1, "m": 2}}}	{"verdict":"valid","opts":{"noFill":true}}
+ib29	verdict	"v": pack({"x": {"n": 1}}, (_) & ({"m": 2}))	{"v": {"x": {"n": 1, "m": 2}}}	{"verdict":"valid","opts":{"partial":true}}
+ib30	verdict	"v": pack({"x": {"n": 1}}, (_) & ({"m": 2}))	{"v": {"x": {"n": 1, "m": 3}}}	{"verdict":"invalid"}
+ib31	verdict	"v": pack({"x": {"n": 1}}, (_) & ({"m": 2}))	{"v": {"x": {"n": 1, "m": 3}}}	{"verdict":"invalid","opts":{"noFill":true}}
+ib32	verdict	"v": pack({"x": {"n": 1}}, (_) & ({"m": 2}))	{"v": {"x": {"n": 1, "m": 3}}}	{"verdict":"invalid","opts":{"partial":true}}
+ib33	verdict	"v": each([{"a": 1}], (_) & ({"a": 2}))	{"v": []}	{"verdict":"error"}
+ib34	verdict	"v": each([{"a": 1}], (_) & ({"a": 2}))	{"v": []}	{"verdict":"error","opts":{"noFill":true}}
+ib35	verdict	"v": each([{"a": 1}], (_) & ({"a": 2}))	{"v": []}	{"verdict":"error","opts":{"partial":true}}
+ib36	verdict	"v": each([1, 3], (_) & (min(2)))	{"v": []}	{"verdict":"error"}
+ib37	verdict	"v": each([1, 3], (_) & (min(2)))	{"v": []}	{"verdict":"error","opts":{"noFill":true}}
+ib38	verdict	"v": each([1, 3], (_) & (min(2)))	{"v": []}	{"verdict":"error","opts":{"partial":true}}
+ib39	verdict	"v": each([{"a": 1}], (_) & ({"b": .a}))	{"v": [{"a": 1, "b": 1}]}	{"verdict":"valid"}
+ib40	verdict	"v": each([{"a": 1}], (_) & ({"b": .a}))	{"v": [{"a": 1, "b": 1}]}	{"verdict":"valid","opts":{"noFill":true}}
+ib41	verdict	"v": each([{"a": 1}], (_) & ({"b": .a}))	{"v": [{"a": 1, "b": 1}]}	{"verdict":"valid","opts":{"partial":true}}
+ib42	verdict	"v": each([{"a": 1}], (_) & ({"b": .a}))	{"v": [{"a": 1, "b": 2}]}	{"verdict":"invalid"}
+ib43	verdict	"v": each([{"a": 1}], (_) & ({"b": .a}))	{"v": [{"a": 1, "b": 2}]}	{"verdict":"invalid","opts":{"noFill":true}}
+ib44	verdict	"v": each([{"a": 1}], (_) & ({"b": .a}))	{"v": [{"a": 1, "b": 2}]}	{"verdict":"invalid","opts":{"partial":true}}
+ib45	verdict	"v": each([1, 2], (_) & (*(5)))	{"v": [1, 2]}	{"verdict":"valid"}
+ib46	verdict	"v": each([1, 2], (_) & (*(5)))	{"v": [1, 2]}	{"verdict":"valid","opts":{"noFill":true}}
+ib47	verdict	"v": each([1, 2], (_) & (*(5)))	{"v": [1, 2]}	{"verdict":"valid","opts":{"partial":true}}
+ib48	verdict	"v": each([1, 2], (_) & (*(5)))	{"v": [1, 5]}	{"verdict":"invalid"}
+ib49	verdict	"v": each([1, 2], (_) & (*(5)))	{"v": [1, 5]}	{"verdict":"invalid","opts":{"noFill":true}}
+ib50	verdict	"v": each([1, 2], (_) & (*(5)))	{"v": [1, 5]}	{"verdict":"invalid","opts":{"partial":true}}
+ib51	verdict	"v": each([], (_) & (integer))	{"v": []}	{"verdict":"valid"}
+ib52	verdict	"v": each([], (_) & (integer))	{"v": []}	{"verdict":"valid","opts":{"noFill":true}}
+ib53	verdict	"v": each([], (_) & (integer))	{"v": []}	{"verdict":"valid","opts":{"partial":true}}
+ib54	verdict	"v": each([[1], [2]], (_) & ([integer]))	{"v": [[1], [2]]}	{"verdict":"valid"}
+ib55	verdict	"v": each([[1], [2]], (_) & ([integer]))	{"v": [[1], [2]]}	{"verdict":"valid","opts":{"noFill":true}}
+ib56	verdict	"v": each([[1], [2]], (_) & ([integer]))	{"v": [[1], [2]]}	{"verdict":"valid","opts":{"partial":true}}
+ib57	verdict	"v": each([[1], [2]], (_) & ([integer]))	{"v": [[1], [3]]}	{"verdict":"invalid"}
+ib58	verdict	"v": each([[1], [2]], (_) & ([integer]))	{"v": [[1], [3]]}	{"verdict":"invalid","opts":{"noFill":true}}
+ib59	verdict	"v": each([[1], [2]], (_) & ([integer]))	{"v": [[1], [3]]}	{"verdict":"invalid","opts":{"partial":true}}
+ib60	verdict	"v": each([[1, 2]], each(_, (_) & (integer)))	{"v": [[1, 2]]}	{"verdict":"valid"}
+ib61	verdict	"v": each([[1, 2]], each(_, (_) & (integer)))	{"v": [[1, 2]]}	{"verdict":"valid","opts":{"noFill":true}}
+ib62	verdict	"v": each([[1, 2]], each(_, (_) & (integer)))	{"v": [[1, 2]]}	{"verdict":"valid","opts":{"partial":true}}
+ib63	verdict	"v": each([[1, 2]], each(_, (_) & (integer)))	{"v": [[1, 3]]}	{"verdict":"invalid"}
+ib64	verdict	"v": each([[1, 2]], each(_, (_) & (integer)))	{"v": [[1, 3]]}	{"verdict":"invalid","opts":{"noFill":true}}
+ib65	verdict	"v": each([[1, 2]], each(_, (_) & (integer)))	{"v": [[1, 3]]}	{"verdict":"invalid","opts":{"partial":true}}
+ib66	verdict	"v": each([{"a": 1}], ({"b": 2}) & (_))	{"v": [{"a": 1, "b": 2}]}	{"verdict":"valid"}
+ib67	verdict	"v": each([{"a": 1}], ({"b": 2}) & (_))	{"v": [{"a": 1, "b": 2}]}	{"verdict":"valid","opts":{"noFill":true}}
+ib68	verdict	"v": each([{"a": 1}], ({"b": 2}) & (_))	{"v": [{"a": 1, "b": 2}]}	{"verdict":"valid","opts":{"partial":true}}
+ib69	verdict	"v": each([{"a": 1}], ({"b": 2}) & (_))	{"v": [{"a": 1, "b": 3}]}	{"verdict":"invalid"}
+ib70	verdict	"v": each([{"a": 1}], ({"b": 2}) & (_))	{"v": [{"a": 1, "b": 3}]}	{"verdict":"invalid","opts":{"noFill":true}}
+ib71	verdict	"v": each([{"a": 1}], ({"b": 2}) & (_))	{"v": [{"a": 1, "b": 3}]}	{"verdict":"invalid","opts":{"partial":true}}
+ib72	verdict	"v": each(["a", "b"], (upper(_)) & (string))	{"v": ["A", "B"]}	{"verdict":"valid"}
+ib73	verdict	"v": each(["a", "b"], (upper(_)) & (string))	{"v": ["A", "B"]}	{"verdict":"valid","opts":{"noFill":true}}
+ib74	verdict	"v": each(["a", "b"], (upper(_)) & (string))	{"v": ["A", "B"]}	{"verdict":"valid","opts":{"partial":true}}
+ib75	verdict	"v": each(["a", "b"], (upper(_)) & (string))	{"v": ["a", "b"]}	{"verdict":"invalid"}
+ib76	verdict	"v": each(["a", "b"], (upper(_)) & (string))	{"v": ["a", "b"]}	{"verdict":"invalid","opts":{"noFill":true}}
+ib77	verdict	"v": each(["a", "b"], (upper(_)) & (string))	{"v": ["a", "b"]}	{"verdict":"invalid","opts":{"partial":true}}
 fc0	verdict	"a": {"lim": 2, "l": [1, 2, 3], "f": filter(.l, ..lim)}	{"a": {"f": [2]}}	{"verdict":"valid"}
 fc1	verdict	"a": {"lim": 2, "l": [1, 2, 3], "f": filter(.l, ..lim)}	{"a": {"f": [2]}}	{"verdict":"incomplete","opts":{"noFill":true}}
 fc2	verdict	"a": {"lim": 2, "l": [1, 2, 3], "f": filter(.l, ..lim)}	{"a": {"f": [2]}}	{"verdict":"valid","opts":{"partial":true}}

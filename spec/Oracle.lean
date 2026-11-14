@@ -3724,6 +3724,66 @@ theorem genTemplate_verdict_exact : ∀ c ∈ genTemplateCases, ∀ (m : Mode) (
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (genTemplateCases_checkable c hc).1 (genTemplateCases_checkable c hc).2 v
 
+/-- The `_ & …` idiom: a generator's template that meets its own hole,
+so that each member is kept and met with the rest of the template, a
+bound rather than a construction: a map, a kind, a preference that the
+member overrides, a list and a call, on either side of the meet, in
+`each` over a list and a map and in `pack`, nested, with a relative
+path in the template, over an empty source, and a member the bound
+refuses, an error. -/
+def holeMeetCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ds (s : String) : Data := .str s
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let dl (xs : List Data) : Data := .list xs
+  let each (d t : Val) : Val := .call .each [d, t]
+  let pack (d t : Val) : Val := .call .pack [d, t]
+  let bnd (t : Val) : Val := .meet .hole t
+  let v (x : Val) : Val := m [("v", x)]
+  let dv (x : Data) : Data := dm [("v", x)]
+  let ports := each (l [m [("p", int 80)], m [("p", int 443)]]) (bnd (m [("protocol", str "TCP")]))
+  let kinded := each (l [int 8080, int 443]) (bnd .integer)
+  let dflt := each (l [m [("a", int 1)], m []]) (bnd (m [("a", .pref 1 (int 0))]))
+  let vals := each (m [("y", int 2), ("x", int 1)]) (bnd .number)
+  let packed := pack (m [("x", m [("n", int 1)])]) (bnd (m [("m", int 2)]))
+  let relp := each (l [m [("a", int 1)]]) (bnd (m [("b", rel 1 ["a"])]))
+  let lone := each (l [int 1, int 2]) (bnd (.pref 1 (int 5)))
+  let none' := each (l []) (bnd .integer)
+  let lists := each (l [l [int 1], l [int 2]]) (bnd (l [.integer]))
+  let nested := each (l [l [int 1, int 2]]) (each .hole (bnd .integer))
+  let right := each (l [m [("a", int 1)]]) (.meet (m [("b", int 2)]) .hole)
+  let called := each (l [str "a", str "b"]) (.meet (.call .upper [.hole]) .string)
+  [([], v ports, dv (dl [dm [("p", j 80), ("protocol", ds "TCP")], dm [("p", j 443), ("protocol", ds "TCP")]])),
+    ([], v ports, dv (dl [dm [("p", j 80), ("protocol", ds "TCP")], dm [("p", j 443), ("protocol", ds "UDP")]])),
+    ([], v kinded, dv (dl [j 8080, j 443])), ([], v kinded, dv (dl [j 8080, j 444])),
+    ([], v (each (l [int 1, str "a"]) (bnd .integer)), dv (dl [j 1])),
+    ([], v dflt, dv (dl [dm [("a", j 1)], dm [("a", j 0)]])),
+    ([], v dflt, dv (dl [dm [("a", j 2)], dm [("a", j 0)]])),
+    ([], v vals, dv (dl [j 1, j 2])), ([], v vals, dv (dl [j 2, j 1])),
+    ([], v packed, dv (dm [("x", dm [("n", j 1), ("m", j 2)])])),
+    ([], v packed, dv (dm [("x", dm [("n", j 1), ("m", j 3)])])),
+    ([], v (each (l [m [("a", int 1)]]) (bnd (m [("a", int 2)]))), dv (dl [])),
+    ([], v (each (l [int 1, int 3]) (bnd (.min (.num (.integer ⟨2, by decide⟩))))), dv (dl [])),
+    ([], v relp, dv (dl [dm [("a", j 1), ("b", j 1)]])), ([], v relp, dv (dl [dm [("a", j 1), ("b", j 2)]])),
+    ([], v lone, dv (dl [j 1, j 2])), ([], v lone, dv (dl [j 1, j 5])),
+    ([], v none', dv (dl [])),
+    ([], v lists, dv (dl [dl [j 1], dl [j 2]])), ([], v lists, dv (dl [dl [j 1], dl [j 3]])),
+    ([], v nested, dv (dl [dl [j 1, j 2]])), ([], v nested, dv (dl [dl [j 1, j 3]])),
+    ([], v right, dv (dl [dm [("a", j 1), ("b", j 2)]])), ([], v right, dv (dl [dm [("a", j 1), ("b", j 3)]])),
+    ([], v called, dv (dl [ds "A", ds "B"])), ([], v called, dv (dl [ds "a", ds "b"]))]
+
+theorem holeMeetCases_checkable : ∀ c ∈ holeMeetCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem holeMeet_verdict_exact : ∀ c ∈ holeMeetCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (holeMeetCases_checkable c hc).1 (holeMeetCases_checkable c hc).2 v
+
 /-- A `filter`'s condition, standing where the member it tries lands: a
 relative path that climbs out of the member, to the filter's map, past
 it to the top and into a sibling list, over a list and a map, inside a
@@ -7866,6 +7926,7 @@ theorem grammar_verdict_exact : ∀ c ∈ grammarCases, ∀ (m : Mode) (v : Verd
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (grammarCases_checkable c hc)) v
 
+set_option maxRecDepth 2048 in
 def main (args : List String) : IO UInt32 := do
   match args with
   | [] =>
@@ -8046,7 +8107,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# sources loaded in place, each a file of test/spec/files the definition"
     IO.println "# declares as a term, in rows lf0 on."
     IO.println "# Generators whose templates read their member's place through a relative"
-    IO.println "# path, each read at each member of the output, follow in rows gt0 on, a"
+    IO.println "# path, each read at each member of the output, follow in rows gt0 on, and"
+    IO.println "# templates that meet their own hole, each member kept and met with the rest,"
+    IO.println "# the `_ & …` idiom, in rows ib0 on, a"
     IO.println "# filter's condition, read where the member it tries lands, in rows fc0 on,"
     IO.println "# bounds written over terms, each the bound its terms name, in rows bd0 on, and"
     IO.println "# bounds over a relative path in a generator's template or a filter's"
@@ -8108,6 +8171,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "sp" spreadCases
     pathRows "lf" loadCases
     pathRows "gt" genTemplateCases
+    pathRows "ib" holeMeetCases
     pathRows "fc" filterCondCases
     pathRows "fk" filterKeepCases
     pathRows "rs" recursiveSelectCases
