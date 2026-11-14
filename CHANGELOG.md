@@ -8,6 +8,17 @@ each change affects.
 
 ## Unreleased
 
+### A how-to guide models a file system
+
+Documentation only.
+
+- **[Model a file system](docs/how-to/model-a-file-system.md)** is a new
+  guide: a base type `Node`, two subtypes `Folder` and `File`, and a
+  `parent` relation whose target must be a `Folder`, written
+  `relate($.type.Folder) & acyclic()`. Every transcript on the page is
+  executed. The model reads only with the subtypes written above the
+  base type, which the page reports with its issue (#778).
+
 ### A document reads alike in whatever order it is written
 
 The definition, shared rows and the register. No engine changes.
