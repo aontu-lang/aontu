@@ -1139,3 +1139,9 @@ Can name: $.type.Name not be expressed as name: .Name ?
 ```text
 parent: relate({ kind:"folder" }) is not great because it just uses one field rather than making the intent clear - parent: relate($.type.Folder) would be better
 ```
+
+## 2026-11-14 14:36:33 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Post the findings as github issues. Is there an adr covering order dependence, which must never occur?
+```
