@@ -39,7 +39,7 @@ fs: nodes: {
 }
 ```
 
-`Node` holds what a folder and a file share: `name`, `kind` and
+`Node` holds what a folder and a file share: `name`, `kind`, and
 `parent`. `Folder` and `File` are each `Node`
 [met](../unification.md) with what that kind adds. Each is a subtype
 of `Node`, because a meet admits only what both of its sides admit.
@@ -195,7 +195,7 @@ $ aontu model get $.usage usage.aontu
 
 ## What to watch for
 
-The two subtypes are written above `Node`, and both engines read the
+The two subtypes are written before `Node`, and both engines read the
 model only in that order. With `Node` written first, the same tree is
 refused as `[aontu/disjunct_no_gen]`. The language gives the order of
 a map's members no meaning, so this is a defect, which

@@ -2664,7 +2664,7 @@ Example: `fragment("head.ts", [slot("body")])`
 
 ### `gen(spec: map) : annotation`
 
-Say how the value this meets is written where the document is generated. The record `spec` rides the value, and no other reading of the value sees it. See [Output options](#output-options-gen).
+Say how the value this meets is written where the document is generated. The record `spec` rides the value, and only generation reads it. See [Output options](#output-options-gen).
 
 Example: `price: 3.14159 & gen({ significant:2 })` generates `3.1`
 
@@ -4827,7 +4827,7 @@ text: "about " + $.price
 ```
 
 Only generation reads the options. A reference, a call, `+`, a
-constraint, `vet` and `subsume` all read the value.
+constraint, `vet`, and `subsume` all read the value.
 
 ### Two annotations unify their records
 
@@ -4871,7 +4871,7 @@ aontu: Gen: type({
 Every option has a default, and the default leaves the output as it is
 without the option. A set is closed. A record must unify with the set
 of its value's type, and one that does not refuses the meet with
-`gen_option`, naming the type, its options, the record and the option
+`gen_option`, naming the type, its options, the record, and the option
 refused:
 
 <!-- test: run -->
