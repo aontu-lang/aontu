@@ -240,7 +240,7 @@ func (c *ConjunctVal) Unify(peer Val, ctx *Ctx) Val {
 	}
 	// A meet flattened in leaves its riders on the whole (ADR-052).
 	for _, cv := range carried {
-		out = rideOn(out, cv, nil)
+		out = rideOn(ctx, out, cv, nil)
 	}
 	return out
 }

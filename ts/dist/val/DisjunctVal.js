@@ -6,6 +6,7 @@ const type_1 = require("../type");
 const err_1 = require("../err");
 const exactjson_1 = require("../exactjson");
 const unify_1 = require("../unify");
+const rider_1 = require("../rider");
 const utility_1 = require("../utility");
 const top_1 = require("./top");
 const NilVal_1 = require("../val/NilVal");
@@ -135,7 +136,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             // (No need for a fresh NilVal — any isNil value gets filtered.)
             for (let vI = 0; vI < oval.length; vI++) {
                 for (let kI = vI + 1; kI < oval.length; kI++) {
-                    if (oval[kI].same(oval[vI])) {
+                    if (oval[kI].same(oval[vI]) && (0, rider_1.sameRec)(oval[kI], oval[vI])) {
                         oval[vI] = keepRiders(ctx, oval[vI], oval[kI]);
                         oval[kI] = NilVal_1.TRIAL_NIL;
                         continue;
@@ -143,7 +144,7 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     const a = oval[vI];
                     const b = oval[kI];
                     if (true === a.isPref && true === b.isPref
-                        && (0, PrefVal_1.prefInnerPeg)(a).same((0, PrefVal_1.prefInnerPeg)(b))) {
+                        && (0, PrefVal_1.prefInnerPeg)(a).same((0, PrefVal_1.prefInnerPeg)(b)) && (0, rider_1.sameRec)(a, b)) {
                         if (a.rank <= b.rank) {
                             oval[vI] = keepRiders(ctx, a, b);
                             oval[kI] = NilVal_1.TRIAL_NIL;
@@ -206,7 +207,9 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
                     atRank[pref.rank] = vI;
                 }
                 else {
-                    const folded = pref.unify(this.peg[at], ctx);
+                    // Twins that differ in their output records do not fold into one.
+                    const folded = (0, rider_1.sameRec)(pref, this.peg[at]) ? pref.unify(this.peg[at], ctx) :
+                        (0, err_1.makeNilErr)(ctx, 'pref_rank_clash', pref, this.peg[at], 'unify');
                     if (folded.isNil) {
                         return folded;
                     }

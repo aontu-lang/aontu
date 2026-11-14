@@ -218,6 +218,9 @@ func schemaLoseLeafKind(sc *schemaCtx, path []string, k Kind) {
 	}
 }
 
+const schemaGenLost = "JSON Schema says what a value is and not how it is written, " +
+	"so the schema leaves the annotation out"
+
 func schemaLoseExactKind(sc *schemaCtx, path []string, leaf, t string) {
 	sc.lose(path, leaf,
 		"JSON Schema has no type for one leaf of a number: the schema says \""+t+
@@ -1551,6 +1554,10 @@ func schemaFromValInner(sc *schemaCtx, path []string, v Val) any {
 		// holds Vals; the guard is here so a degenerate parse cannot
 		// panic a verb whose whole job is to describe a document.
 		return map[string]any{}
+	}
+
+	if nil != v.genRec() {
+		sc.lose(path, "gen", schemaGenLost)
 	}
 
 	switch t := v.(type) {

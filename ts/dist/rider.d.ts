@@ -4,5 +4,6 @@ declare function unionVia(...lists: (string[] | undefined)[]): string[];
 declare function rides(v: any): boolean;
 declare function bare(v: any): boolean;
 declare function recordLayers<T>(rec: RiderRecord<T>): Record<string, T>[];
+declare function sameRec(a: any, b: any): boolean;
 declare function riderText(s: string, v: any): string;
-export { bare, unionRecords, unionVia, recordLayers, riderText, rides, };
+export { bare, unionRecords, unionVia, recordLayers, riderText, rides, sameRec, };

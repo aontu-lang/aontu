@@ -87,10 +87,23 @@ func layerText[T any](layer map[string]T, text func(T) string) string {
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
-// riderText wraps a value's rendering in its riders: the deprecation
-// record, then the annotation record, each as the reparseable call that
-// carries it.
+func sameRec(a, b Val) bool {
+	ra, rb := a.genRec(), b.genRec()
+	return ra == rb || (nil != ra && nil != rb && ra.Canon() == rb.Canon())
+}
+
+// riderText wraps a value's rendering in its riders: its output record
+// after it, then the deprecation and annotation records, each as the
+// call that carries it.
 func riderText(s string, v Val) string {
+	if g := v.genRec(); nil != g {
+		call := "gen(" + g.Canon() + ")"
+		if isTop(v) {
+			s = call
+		} else {
+			s += "&" + call
+		}
+	}
 	if d := v.deprecRec(); nil != d {
 		layers := riderLayers(d)
 		if 0 == len(layers) {
@@ -166,16 +179,20 @@ func unionVia(lists ...[]string) []string {
 
 // rideOn gives the meet's riders to its result. A top takes them on a
 // fresh top, and only where they add to its own, because an operand
-// top may be a value written elsewhere.
-func rideOn(out, a, b Val) Val {
+// top may be a value written elsewhere. An output record is unified,
+// not joined, so it can refuse the meet.
+func rideOn(ctx *Ctx, out, a, b Val) Val {
 	if !isTop(out) {
 		ride(out, a, b)
-		return out
+		return genOn(ctx, out, a, b)
 	}
 	if !rides(a) && !rides(b) {
 		return out
 	}
-	t := clonePath(out, out.vpath())
+	t := genOn(ctx, clonePath(out, out.vpath()), a, b)
+	if t.Nil() {
+		return t
+	}
 	ride(t, a, b)
 	if riderText("", t) == riderText("", out) {
 		return out
@@ -184,7 +201,7 @@ func rideOn(out, a, b Val) Val {
 }
 
 func rides(v Val) bool {
-	return nil != v && (nil != v.deprecRec() || nil != v.metaRec())
+	return nil != v && (nil != v.deprecRec() || nil != v.metaRec() || nil != v.genRec())
 }
 
 // deprecationMessage is the one-line prose for a deprecation record;

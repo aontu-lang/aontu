@@ -515,3 +515,5 @@ trial_budget	errcode	budget	0.77.0
 ident_place	errcode	parse	0.77.0
 jsonschema_dialect	errcode	reference	0.77.0
 jsonschema_vocabulary	errcode	reference	0.77.0
+gen_option	errcode	conflict	0.77.0
+gen_conflict	errcode	conflict	0.77.0

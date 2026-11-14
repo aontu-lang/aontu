@@ -44,13 +44,13 @@ and carries no counts.
 
 ## Classes
 
-There are seven classes, and the registry holds **198** codes across
+There are seven classes, and the registry holds **200** codes across
 them.
 
 | class | codes | what went wrong |
 |---|---|---|
 | `parse` | 58 | the text is not a document |
-| `conflict` | 63 | two values cannot both hold |
+| `conflict` | 65 | two values cannot both hold |
 | `incomplete` | 12 | nothing contradicts, but the value is not concrete |
 | `reference` | 36 | a name or path resolves to nothing |
 | `compat` | 14 | a change breaks an earlier version |
@@ -107,7 +107,7 @@ engine raised takes the class from the same row, never one of its own.
 pins codes and classes rather than prose, so match on `code`, not on
 `message`.
 
-**Hint text.** All 198 codes have hint text. `aontu explain --list`
+**Hint text.** All 200 codes have hint text. `aontu explain --list`
 prints them one per line, with each code's class beside it; a code
 carrying no text would be marked `(no text)`, and none is. A finding
 carries that text under `hint` when it repeats a code the engine
@@ -271,6 +271,8 @@ twenty rows have no such section and carry no link.
 | `func` | 0.51.0 | A function operation failed; the named function carries the detail. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
 | `func:` | 0.51.0 | Dynamic-prefix family: a named function's own failure, the name appended (`func:upper`). |
 | `func_arg` | 0.55.0 | An argument does not fit the function's signature. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
+| `gen_conflict` | 0.77.0 | Two `gen()` annotations on one value whose records do not unify. ([Output options: `gen`](reference-language.md#output-options-gen)) |
+| `gen_option` | 0.77.0 | A `gen()` record that the standard options of its value's type refuse. ([Output options: `gen`](reference-language.md#output-options-gen)) |
 | `inexact_divide` | 0.53.0 | An exact decimal operand given to `div`, `mod`, or `rem`; exact decimal division is not closed, so it is refused rather than rounded, while a `0d` biginteger divides. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
 | `inexact_integer_sum` | 0.51.0 | An `integer` result outside the integral, int64, exactly representable range. ([Arithmetic: `add` `sub` `mul` `div` `mod` `rem`](reference-language.md#arithmetic-add-sub-mul-div-mod-rem)) |
 | `invalid-arg` | 0.51.0 | An argument does not match the expected type or format. |

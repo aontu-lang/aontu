@@ -2662,6 +2662,12 @@ slots beneath it.
 
 Example: `fragment("head.ts", [slot("body")])`
 
+### `gen(spec: map) : annotation`
+
+Say how the value this meets is written where the document is generated. The record `spec` rides the value, and no other reading of the value sees it. See [Output options](#output-options-gen).
+
+Example: `price: 3.14159 & gen({ significant:2 })` generates `3.1`
+
 ### `greatest(d: map|list) : number`
 
 Return the greatest numeric member, preserving its kind. An empty collection is refused. See [aggregates](#aggregating-sum-least-greatest).
@@ -4130,7 +4136,7 @@ same key as an ordinary string.
 
 ### The bundled vocabularies
 
-**Five vocabularies ship with the engine**, served from it rather than
+**Six vocabularies ship with the engine**, served from it rather than
 from disk, and **every one of them is named under `aontu:`**. That is
 the whole rule: a language-supplied schema has one spelling, and the
 scheme is what stops a file on disk from standing in front of it.
@@ -4142,8 +4148,9 @@ scheme is what stops a file on disk from standing in front of it.
 | `aontu:profile` | a language declared as data, which `template` and `fmt` read through `--profile` |
 | `aontu:lang/text` | the text profile |
 | `aontu:lang/markdown` | the markdown profile |
+| `aontu:gen` | the standard options of each type of value, which a [`gen()`](#output-options-gen) record is held to |
 
-The last three are described [after the system vocabulary](#the-aontu-models).
+The three profile models are described [after the system vocabulary](#the-aontu-models).
 
 ### The `aontu:` models
 
@@ -4220,7 +4227,7 @@ the set. Write this as `nope.aontu`:
 <!-- test: run -->
 ```sh
 $ aontu nope.aontu
-[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
+[aontu/multisource_not_found]: source not found: aontu:nope (the language-supplied models are aontu:gen, aontu:lang/markdown, aontu:lang/text, aontu:profile, aontu:system, aontu:view)
 ...
 $ echo $?
 1
@@ -4779,6 +4786,200 @@ place, and `Decls.identMisplaced` in
 `error`, as both engines answer. It reads the text, so it holds a
 declaration that no reference reads to that place too.
 
+## Output options: `gen`
+
+`gen(spec)` says how the value it meets is written where the document
+is generated. It is written as a term of a meet, beside the value or
+beside its type:
+
+```aontu
+price: float & gen({ significant:2 })
+price: 3.14159
+```
+
+```json
+{"price":3.1}
+```
+
+`spec` is one map of concrete data, the record. A record that is not a
+map, or that holds anything but concrete data, refuses the call with
+`func_arg`. The call answers an `annotation`: `any` carrying the
+record. So the meet leaves the value as it is, and the record goes to
+the result of every meet, as a `meta()` record does. `gen(spec)` alone
+generates nothing, as a constraint alone generates nothing.
+
+### The record rides the value
+
+A reference copies the record, a spread applies it to each member, and
+a preference keeps it for the value that overrides it. A value computed
+from an annotated one is a new value and carries none:
+
+```aontu
+style: type({ money:gen({ significant:2 }) })
+price: $.style.money & 3.14159
+same: $.price
+more: add($.price, 1)
+text: "about " + $.price
+```
+
+```json
+{"more":4.14159,"price":3.1,"same":3.1,"text":"about 3.14159"}
+```
+
+Only generation reads the options. A reference, a call, `+`, a
+constraint, `vet` and `subsume` all read the value.
+
+### Two annotations unify their records
+
+Two annotations on one value unify their records as maps, so the
+result is the same in whatever order they are written. Records that
+disagree refuse the meet with `gen_conflict`:
+
+<!-- test: scenario gen-records -->
+<!-- test: run -->
+```sh
+$ echo 'x: 1.5 & gen({ significant:2 }) & gen({ significant:3 })' | aontu
+[aontu/gen_conflict]: Cannot unify values at path $.x
+...
+$ echo $?
+1
+```
+
+This is where an output record differs from a `meta()` record, which
+meets as a union and never refuses. A record that says nothing is no
+record, so `gen({})` is `any`. A default written out is a statement:
+`gen({ significant:"all" })` and `gen({ significant:2 })` disagree.
+
+### The standard options
+
+Each type of value has a standard set of options. The sets are the
+bundled model [`aontu:gen`](#the-bundled-vocabularies):
+
+<!-- test: quote aontu/gen/gen.aontu -->
+```aontu
+aontu: Gen: type({
+  Number: close({ significant: *"all"|integer & min(1) })
+  String: close({})
+  Boolean: close({})
+  Null: close({})
+  Path: close({})
+  Map: close({})
+  List: close({})
+})
+```
+
+Every option has a default, and the default leaves the output as it is
+without the option. A set is closed. A record must unify with the set
+of its value's type, and one that does not refuses the meet with
+`gen_option`, naming the type, its options, the record and the option
+refused:
+
+<!-- test: run -->
+```sh
+$ echo 'name: "ada" & gen({ significant:2 })' | aontu
+[aontu/gen_option]: Cannot unify values at path $.name
+...
+  type:     string
+  options:  {}
+  record:   {"significant":2}
+  refused:  significant
+...
+$ echo $?
+1
+```
+
+The type is known for a scalar, a scalar kind, a map, a list, and the
+kinds `map` and `list`. An annotation on anything else waits. The four
+numeric leaves share `Number`. An annotation meets each arm of a
+disjunction, and an arm of a type that refuses the record drops, as it
+does under a constraint:
+
+```aontu
+x: (1.5|"a") & gen({ significant:1 })
+```
+
+```json
+{"x":2}
+```
+
+So an annotation admits the values of the types that take its options
+and no others. `vet` reads it so: against `x: gen({ significant:2 })`,
+the data `x: "ada"` is `invalid`.
+
+### `significant`
+
+`significant: n` writes a number at no more than `n` significant
+digits. The default, `"all"`, writes every digit.
+
+The number rounded is the decimal the number shows: an integer's own
+digits, a bigdecimal's coefficient and scale, and for a float the
+shortest decimal that reads back as it, which is what generation
+prints. A tie goes to the even digit. The result stays in the number's
+own leaf: a float is the double nearest the rounded decimal, the exact
+leaves round exactly, and an integer is written digit for digit. Write
+the numbers as `round.aontu`:
+
+<!-- test: scenario gen-significant -->
+<!-- test: file round.aontu -->
+```aontu
+a: 3.14159 & gen({ significant:2 })
+b: 1234.5 & gen({ significant:2 })
+c: 0.25 & gen({ significant:1 })
+d: 0.35 & gen({ significant:1 })
+e: 0d1234.5 & gen({ significant:2 })
+f: 999999999999999104 & gen({ significant:15 })
+```
+
+<!-- test: run -->
+```sh
+$ aontu round.aontu
+{
+  "a": 3.1,
+  "b": 1200,
+  "c": 0.2,
+  "d": 0.4,
+  "e": 1200.0,
+  "f": 999999999999999000
+}
+```
+
+`c` and `d` are ties: `0.25` goes down to the even `2` and `0.35` up to
+the even `4`. `e` keeps the one place a bigdecimal always renders. `f`
+rounds to a number no double holds, and its digits are written as they
+are.
+
+A float whose rounded decimal is beyond the largest double is refused
+where it is generated, with `float_overflow`.
+
+### Canon, defaults and export
+
+Canon writes the record after the value it rides, as the last term of
+its meet whatever order the terms were written in:
+
+```
+3.14159&gen({"significant":2})
+float&min(0)&gen({"significant":2})
+gen({"significant":2})                               (on any)
+meta(3.14159&gen({"significant":2}),{"title":"t"})    (inside the other riders)
+*1.5&gen({"significant":1})|float&gen({"significant":1})
+```
+
+A disjunction holds no record of its own, so canon writes the record
+on each arm, as the last line shows. The hash form includes the
+record, so two documents that generate differently never hash alike.
+
+Two defaults of one rank that differ in their records are two
+defaults, and clash as `pref_rank_clash` whichever is written first.
+
+`aontu jsonschema` has no keyword for an output option and reports the
+annotation as a loss. `subsume` and `breaking` read an annotation as
+the value it rides. That is exact between two values of one type, and
+it overstates an annotation alone: `subsume` answers `subsumes` for
+`gen({ significant:2 })` over a string, which the meet refuses.
+
+[`test/spec/annotation-gen.tsv`](../test/spec/annotation-gen.tsv) holds
+both engines to every rule in this section.
+
 ## Closed values: `close` / `open`
 
 A **closed** map or list refuses any key/element not already present,
@@ -5327,6 +5528,10 @@ constraints, defaults, and open disjunctions. Rules:
   `canon` leaves out its own records, which its holder renders;
   `canonRiders(v)` (TS) / `CanonRiders(v)` (Go) renders them, as
   `aontu --canon` does for the document's root.
+- A `gen()` record renders after the value it rides, as the last term
+  of its meet, and inside the other riders:
+  `meta(1.5&gen({"significant":1}),{"title":"t"})`. See
+  [Output options](#output-options-gen).
 
 ## The formatted form
 

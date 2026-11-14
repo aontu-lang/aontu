@@ -2065,7 +2065,7 @@ func trialArg(ctx *Ctx, arg Val) Val {
 		if next.Nil() {
 			return next
 		}
-		return rideOn(next, arg, nil)
+		return rideOn(ctx, next, arg, nil)
 	}
 	return newNil("nof")
 }

@@ -15,6 +15,7 @@ import { AontuContext } from '../ctx'
 import { AontuError, descErr, makeNilErr } from '../err'
 import { exactJSON } from '../exactjson'
 import { ride, unite } from '../unify'
+import { sameRec } from '../rider'
 
 import {
   explainOpen,
@@ -188,7 +189,7 @@ class DisjunctVal extends JunctionVal {
       // (No need for a fresh NilVal — any isNil value gets filtered.)
       for (let vI = 0; vI < oval.length; vI++) {
         for (let kI = vI + 1; kI < oval.length; kI++) {
-          if (oval[kI].same(oval[vI])) {
+          if (oval[kI].same(oval[vI]) && sameRec(oval[kI], oval[vI])) {
             oval[vI] = keepRiders(ctx, oval[vI], oval[kI])
             oval[kI] = TRIAL_NIL
             continue
@@ -197,7 +198,7 @@ class DisjunctVal extends JunctionVal {
           const a: any = oval[vI]
           const b: any = oval[kI]
           if (true === a.isPref && true === b.isPref
-            && prefInnerPeg(a).same(prefInnerPeg(b))) {
+            && prefInnerPeg(a).same(prefInnerPeg(b)) && sameRec(a, b)) {
             if ((a as PrefVal).rank <= (b as PrefVal).rank) {
               oval[vI] = keepRiders(ctx, a, b)
               oval[kI] = TRIAL_NIL
@@ -271,7 +272,9 @@ class DisjunctVal extends JunctionVal {
           atRank[pref.rank] = vI
         }
         else {
-          const folded = pref.unify(this.peg[at], ctx)
+          // Twins that differ in their output records do not fold into one.
+          const folded = sameRec(pref, this.peg[at]) ? pref.unify(this.peg[at], ctx) :
+            makeNilErr(ctx, 'pref_rank_clash', pref, this.peg[at], 'unify')
           if (folded.isNil) {
             return folded
           }

@@ -1,6 +1,6 @@
 # Functions reference
 
-aontu has 70 built-in functions and no user-defined ones. The name set
+aontu has 71 built-in functions and no user-defined ones. The name set
 is closed: `test/spec/signature.tsv` declares one line per built-in, both
 implementations carry a copy of that file inlined at build time, and a
 name the engine does not hold is refused while the document is parsed.
@@ -217,8 +217,8 @@ the declaration line is the header of `test/spec/signature.tsv`.
 An unmarked slot is driven: it is unified against
 [top](unification.md) before the call resolves, and the call resolves
 only once every value slot has settled. At least one value slot appears
-in 59 of the 70 names, and 49 of those carry no other mode. Two names
-have no slots at all (`acyclic` and `empty`), so 51 of the 70 use no
+in 60 of the 71 names, and 50 of those carry no other mode. Two names
+have no slots at all (`acyclic` and `empty`), so 52 of the 71 use no
 mode but `value`, and 19 carry at least one slot in another mode.
 
 The five other modes, the slots that carry them, what the evaluator does
@@ -332,6 +332,7 @@ documentation page and fails on a difference of one space.
 | `folder(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `format(text g: string) : constraint` | `1` | `text` | `constraint` |
 | `fragment(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
+| `gen(spec: map) : annotation` | `1` | `value` | `annotation` |
 | `greatest(d: map\|list) : number` | `1` | `value` | `number` |
 | `hide(v: any) : any` | `1` | `value` | `any` |
 | `ident(v: any, r: map) : any` | `2` | `value` | `any` |
@@ -390,14 +391,15 @@ given, plus `pick`, which answers a projection out of every child, and
 
 ## Slices
 
-The same 70 names, cut by result word, by rest slot, and by optional
+The same 71 names, cut by result word, by rest slot, and by optional
 slot. Every count below is over the whole surface. The mode slice is
 [Argument modes](#argument-modes).
 
-The ten result words, and the names under each:
+The eleven result words, and the names under each:
 
 | result | count | names |
 |---|---|---|
+| `annotation` | 1 | `gen` |
 | `any` | 14 | `close`, `copy`, `deprecate`, `hide`, `ident`, `match`, `maybe`, `meta`, `move`, `open`, `pick`, `pref`, `super`, `type` |
 | `constraint` | 19 | `above`, `acyclic`, `below`, `contains`, `empty`, `format`, `inverse`, `len`, `max`, `min`, `mulof`, `must`, `neq`, `nof`, `re`, `relate`, `rest`, `unique`, `when` |
 | `list` | 4 | `each`, `emit`, `sort`, `split` |
@@ -408,6 +410,13 @@ The ten result words, and the names under each:
 | `path` | 1 | `path` |
 | `string` | 9 | `abnf`, `esc`, `join`, `key`, `lower`, `rep`, `translate`, `upper`, `usc` |
 | `string\|map` | 1 | `nom` |
+
+The one name that answers `annotation` is `gen`, whose record rides
+the value it meets and is read where that value is generated:
+[Output options: `gen`](reference-language.md#output-options-gen). Its
+slot is declared `map`, which the signature gate skips, so `gen` reads
+the slot itself and answers `func_arg` for an argument that is not a
+map of concrete data.
 
 The algebra of the nineteen that answer `constraint`, including which
 pairs have a meet and what each one is refused for, is

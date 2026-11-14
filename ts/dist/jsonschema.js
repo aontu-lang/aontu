@@ -63,6 +63,8 @@ function loseLeafKind(ctx, path, name, t) {
             'which this kind refuses');
     }
 }
+const GEN_LOST = 'JSON Schema says what a value is and not how it is written, ' +
+    'so the schema leaves the annotation out';
 function loseExactKind(ctx, path, leaf, t) {
     lose(ctx, path, leaf, 'JSON Schema has no type for one leaf of a number: the schema says "' + t +
         '", which admits the other leaves too, where this kind refuses them');
@@ -765,6 +767,9 @@ function kindResidue(v) {
         { kind, con } : undefined;
 }
 function fromValInner(ctx, path, v) {
+    if (null != v.genrec) {
+        lose(ctx, path, 'gen', GEN_LOST);
+    }
     if (true === v.isPref) {
         // A bare `*x` admits every value of x's kind and prefers x (ADR-004),
         // so `const: x` would refuse what the model admits.

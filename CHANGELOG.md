@@ -8,6 +8,42 @@ each change affects.
 
 ## Unreleased
 
+### `gen(spec)` says how a value is written
+
+Both engines, a bundled model and shared rows. An addition to the
+language.
+
+- **`gen(spec: map) : annotation` is a new builtin.** It is written as a
+  term of a meet, `float & gen({ significant:2 })`, and its record rides
+  the value it meets, through meets, reference copies and spreads. The
+  options are read where the value is generated and by nothing else: a
+  reference, a call, `+`, a constraint and `vet` all read the value.
+- **`significant: n` rounds a number to `n` significant digits** where
+  it is generated: the decimal the number shows, a tie to the even
+  digit, in the number's own leaf. `3.14159 & gen({ significant:2 })`
+  generates `3.1`, and `0.25` at one digit generates `0.2`. Each engine
+  rounds the digits itself, since JavaScript and Go break a tie
+  differently.
+- **Two annotations on one value unify their records.** Records that
+  disagree refuse the meet with the new code `gen_conflict`, where two
+  `meta()` records are kept side by side.
+- **Each type of value has a standard set of options**, each with a
+  default, published as the new bundled model `aontu:gen`. A record
+  must unify with the set of its value's type, and one that does not
+  refuses the meet with the new code `gen_option`. So an annotation
+  admits the values of the types that take its options, and an arm of a
+  disjunction that does not take them drops. The first cut gives
+  `Number` the one option `significant`, and the other types none.
+- **Canon and the hash form write the annotation** after the value it
+  rides, as the last term of its meet:
+  `3.14159&gen({"significant":2})`. A document's hash moves when an
+  annotation does.
+- **`annotation` is a new result word** of the call surface, in
+  `test/spec/signature.tsv`. It is not a kind a document can write.
+- `aontu jsonschema` reports an annotation as a loss, `gen`.
+- Pinned by `test/spec/annotation-gen.tsv`, 199 rows that both engines
+  answer alike. The design note is `sketch/GEN.0.md`.
+
 ### A how-to guide models a file system
 
 Documentation only.

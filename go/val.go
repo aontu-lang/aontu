@@ -86,6 +86,9 @@ type Val interface {
 	setDeprecRec(rec map[string][]string)
 	metaRec() map[string][]Val
 	setMetaRec(rec map[string][]Val)
+	genRec() Val
+	genOpts() map[string]any
+	setGenRec(rec Val, opts map[string]any)
 	viaRec() []string
 	setViaRec(via []string)
 	identRec() map[string][]Val
@@ -136,6 +139,8 @@ type base struct {
 	finner  Val
 	deprec  map[string][]string
 	meta    map[string][]Val
+	genrec  Val
+	genopts map[string]any
 	// vias: the aliases this value is a copy of, written back as $ref.
 	vias []string
 	// ident: a declaration's record (ADR-056, ADR-073), which no copy carries.
@@ -224,6 +229,11 @@ func (b *base) deprecRec() map[string][]string       { return b.deprec }
 func (b *base) setDeprecRec(rec map[string][]string) { b.deprec = rec }
 func (b *base) metaRec() map[string][]Val            { return b.meta }
 func (b *base) setMetaRec(rec map[string][]Val)      { b.meta = rec }
+func (b *base) genRec() Val                          { return b.genrec }
+func (b *base) genOpts() map[string]any              { return b.genopts }
+func (b *base) setGenRec(rec Val, opts map[string]any) {
+	b.genrec, b.genopts = rec, opts
+}
 func (b *base) viaRec() []string                     { return b.vias }
 func (b *base) setViaRec(via []string)               { b.vias = via }
 func (b *base) identRec() map[string][]Val           { return b.ident }

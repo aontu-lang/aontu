@@ -21,6 +21,7 @@ const rider_1 = require("./rider");
 const lang_1 = require("./lang");
 const utility_1 = require("./utility");
 const top_1 = require("./val/top");
+const genrec_1 = require("./genrec");
 const withDepth = (ctx, a, b, run) => {
     if (ctx.budget.depth <= ctx._depth.n) {
         return (0, err_1.makeNilErr)(ctx, 'unify_cycle', a, b);
@@ -53,15 +54,19 @@ function ride(out, a, b) {
 }
 // The meet's riders go to its result, a top's on a fresh top where they
 // add to its own, since an operand top may be a value written elsewhere.
+// An output record is unified, not joined, so it can refuse the meet.
 function rideOn(ctx, out, a, b) {
     if (!out.isTop) {
         ride(out, a, b);
-        return out;
+        return (0, genrec_1.genOn)(ctx, out, a, b);
     }
     if (!(0, rider_1.rides)(a) && !(0, rider_1.rides)(b)) {
         return out;
     }
-    const t = out.clone(ctx);
+    const t = (0, genrec_1.genOn)(ctx, out.clone(ctx), a, b);
+    if (t.isNil) {
+        return t;
+    }
     ride(t, a, b);
     return (0, rider_1.riderText)('', t) === (0, rider_1.riderText)('', out) ? out : t;
 }
@@ -125,7 +130,7 @@ const unite = (ctx, a, b, whence) => {
                     && !a.isRelate && !a.isGraphAtom && !a.isRecurse) {
                     // The riders survive this fast path too: `deprecate(5) & 5`.
                     ride(a, a, b);
-                    return markOn(ctx, a, a, b);
+                    return (0, genrec_1.genOn)(ctx, markOn(ctx, a, a, b), a, b);
                 }
             }
         }

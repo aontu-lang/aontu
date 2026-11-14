@@ -33,6 +33,8 @@ import {
   top
 } from './val/top'
 
+import { genOn } from './genrec'
+
 
 const withDepth = (
   ctx: AontuContext, a: any, b: any, run: () => any
@@ -72,15 +74,19 @@ function ride(out: any, a: any, b: any): void {
 
 // The meet's riders go to its result, a top's on a fresh top where they
 // add to its own, since an operand top may be a value written elsewhere.
+// An output record is unified, not joined, so it can refuse the meet.
 function rideOn(ctx: AontuContext, out: any, a: any, b: any): any {
   if (!out.isTop) {
     ride(out, a, b)
-    return out
+    return genOn(ctx, out, a, b)
   }
   if (!rides(a) && !rides(b)) {
     return out
   }
-  const t = out.clone(ctx)
+  const t = genOn(ctx, out.clone(ctx), a, b)
+  if (t.isNil) {
+    return t
+  }
   ride(t, a, b)
   return riderText('', t) === riderText('', out) ? out : t
 }
@@ -149,7 +155,7 @@ const unite = (ctx: AontuContext, a: any, b: any, whence: string) => {
             && !a.isRelate && !a.isGraphAtom && !a.isRecurse) {
           // The riders survive this fast path too: `deprecate(5) & 5`.
           ride(a, a, b)
-          return markOn(ctx, a, a, b)
+          return genOn(ctx, markOn(ctx, a, a, b), a, b)
         }
       }
     }

@@ -9,6 +9,7 @@ exports.AONTU_MODELS = exports.AONTU_SOURCES = exports.AONTU_SCHEME = void 0;
 const AONTU_SCHEME = 'aontu:';
 exports.AONTU_SCHEME = AONTU_SCHEME;
 const AONTU_SOURCES = {
+    "aontu:gen": "# aontu:gen --- THE OUTPUT OPTIONS. What `gen(spec)` may say about a\n# value of each type. Every option has a default, and the default\n# leaves the output as it is without the option.\n\naontu: Gen: type({\n  Number: close({ significant: *\"all\"|integer & min(1) })\n  String: close({})\n  Boolean: close({})\n  Null: close({})\n  Path: close({})\n  Map: close({})\n  List: close({})\n})\n",
     "aontu:lang/markdown": "# aontu:lang/markdown --- THE MARKDOWN PROFILE. The text profile plus\n# markdown's own two: the HTML comment form, and the template marker\n# its files carry.\n\n@\"aontu:profile\"\n\naontu: Lang: lang: \"markdown\"\naontu: Lang: indent: { unit:\" \" width:2 }\naontu: Lang: comment: block: { open:\"<!--\" close:\"-->\" }\naontu: Lang: template: { marker:\"<!---\" ext: [\"md\" \"markdown\"] }\n",
     "aontu:lang/text": "# aontu:lang/text --- THE TEXT PROFILE. Indentation and nothing else.\n# Every language without one of its own is read under it.\n\n@\"aontu:profile\"\n\naontu: Lang: { lang:\"text\" indent: { unit:\" \" width:2 } }\n",
     "aontu:profile": "# aontu:profile --- THE PROFILE VOCABULARY. A language declared as\n# data: its name, its indentation, its comment forms and the marker its\n# generators carry. `aontu template` and `aontu fmt` read one through\n# --profile. EXPERIMENTAL, versioned by canon-hash later.\n\n%comment = close({ open?:string prefix?:string close?:string })\n\n%profile = close({\n  lang: string & len(min(1))\n  indent: close({\n    unit: *\" \"|string & len(min(1))\n    width: *2|integer & min(0) & max(16)\n  })\n  comment?: close({ line?:%comment block?:%comment doc?:%comment })\n  template?: close({\n    marker: string & len(min(1))\n    close?: string & len(min(1))\n    ext?: [&: string & re(\"^[A-Za-z0-9_+-]+$\")]\n  })\n})\n\n# Published: a name crosses only to a document that asks for it.\nexport({ %profile, %comment })\n\n# Profile names the schema; Lang is where one lands. type() so naming\n# the schema neither generates it nor asks a document to fill it.\naontu: { Profile:type(%profile) Lang:%profile }\n",
@@ -17,6 +18,7 @@ const AONTU_SOURCES = {
 };
 exports.AONTU_SOURCES = AONTU_SOURCES;
 const AONTU_MODELS = [
+    "aontu:gen",
     "aontu:lang/markdown",
     "aontu:lang/text",
     "aontu:profile",

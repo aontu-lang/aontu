@@ -3915,7 +3915,7 @@ The unified value. Useful members:
 | Member | Description |
 |--------|-------------|
 | `canon: string` | Reparseable canonical form (see [language reference](reference-language.md#canonical-form)). |
-| `gen(ctx): any` | Emit the native value (used by `generate`). |
+| `gen` | A method: `val.gen(ctx)` emits the native value (used by `generate`). |
 | `err: any[]`    | Errors attached to this value (`NilVal`s). |
 | `isVal: boolean` and `isMap`/`isList`/`isScalar`/`isNil`/… | Type discriminators. |
 | `path: string[]` | Path from the root. |

@@ -130,6 +130,7 @@ func copyMarks(to, from Val) {
 	to.setMarkHide(from.markedHide())
 	to.setDeprecRec(from.deprecRec())
 	to.setMetaRec(from.metaRec())
+	to.setGenRec(from.genRec(), from.genOpts())
 	to.setViaRec(from.viaRec())
 	to.setIdentRec(from.identRec())
 	to.setLinkAddr(from.linkAddr())

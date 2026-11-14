@@ -7,6 +7,7 @@ exports.unionVia = unionVia;
 exports.recordLayers = recordLayers;
 exports.riderText = riderText;
 exports.rides = rides;
+exports.sameRec = sameRec;
 const keyorder_1 = require("./keyorder");
 function unionRecords(records, key) {
     const sets = Object.create(null);
@@ -35,7 +36,7 @@ function unionVia(...lists) {
     return [...new Set(lists.flatMap((l) => l ?? []))].sort(keyorder_1.cmpCodePoint);
 }
 function rides(v) {
-    return null != v?.deprecation || null != v?.meta;
+    return null != v?.deprecation || null != v?.meta || null != v?.genrec;
 }
 function bare(v) {
     return true === v.isTop && !rides(v) && !v.mark.hide && !v.mark.type;
@@ -59,9 +60,17 @@ function layerText(layer, text) {
     return '{' + Object.keys(layer)
         .map((k) => JSON.stringify(k) + ':' + text(layer[k])).join(',') + '}';
 }
-// A value's riders around its rendering: the deprecation record, then
-// the annotation record, each as the reparseable call that carries it.
+function sameRec(a, b) {
+    return a.genrec === b.genrec ||
+        (null != a.genrec && null != b.genrec && a.genrec.canon === b.genrec.canon);
+}
+// A value's riders around its rendering: its output record after it, then
+// the deprecation and annotation records, each as the call that carries it.
 function riderText(s, v) {
+    if (null != v.genrec) {
+        const call = 'gen(' + v.genrec.canon + ')';
+        s = true === v.isTop ? call : s + '&' + call;
+    }
     const d = v.deprecation;
     if (null != d) {
         const layers = recordLayers(d);
@@ -72,5 +81,5 @@ function riderText(s, v) {
         s = 'meta(' + [s, ...recordLayers(m).map((l) => layerText(l, (x) => x.canon))].join(',') + ')';
     }
     return s;
-} /* node:coverage ignore next 10 */
+} /* node:coverage ignore next 11 */
 //# sourceMappingURL=rider.js.map

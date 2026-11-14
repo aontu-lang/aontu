@@ -130,6 +130,7 @@ import { AbnfFuncVal, ParseFuncVal } from './val/AbnfFuncVal'
 import { DeprecateFuncVal } from './val/DeprecateFuncVal'
 import { MetaFuncVal } from './val/MetaFuncVal'
 import { IdentFuncVal } from './val/IdentFuncVal'
+import { GenFuncVal } from './val/GenFuncVal'
 import { RelateFuncVal } from './val/RelateFuncVal'
 import { AcyclicFuncVal, InverseFuncVal } from './val/GraphAtomVal'
 import { PackFuncVal } from './val/PackFuncVal'
@@ -867,6 +868,7 @@ help isolate the syntax error.`,
     deprecate: DeprecateFuncVal,
     meta: MetaFuncVal,
     ident: IdentFuncVal,
+    gen: GenFuncVal,
 
     relate: RelateFuncVal,
 

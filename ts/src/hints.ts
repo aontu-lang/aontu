@@ -544,6 +544,35 @@ const hints: Record<string, string> = {
     '  div(10.0, 4.0)     -> 2.5    # ... or binary64, approximate;\n' +
     '  mul(0d10.0, 0d4.0) -> 0d40.0 # Multiplication IS exact and stays.',
 
+  gen_option:
+    'This output option is not one the value\'s type takes. A gen()\n' +
+    'annotation rides the value it meets, and its record has to unify\n' +
+    'with the standard options of that value\'s type. The bundled model\n' +
+    'aontu:gen holds them: every option of every type, each with the\n' +
+    'default that leaves the output as it is.\n' +
+    ' \n' +
+    '  type:     {type}\n' +
+    '  options:  {set}\n' +
+    '  record:   {got}\n' +
+    '  refused:  {option}\n' +
+    ' \nExamples:\n' +
+    '  1.234 & gen({significant:2})  -> 1.234  # Generates 1.2;\n' +
+    '  "a" & gen({significant:2})    -> nil    # A string has no such option;\n' +
+    '  1.234 & gen({significant:0})  -> nil    # ... a number takes 1 or more;\n' +
+    '  1.234 & gen({digits:2})       -> nil    # ... and under that name only.',
+
+  gen_conflict:
+    'Two gen() annotations ride this value and their records do not\n' +
+    'unify. An output option is an instruction, and two that disagree\n' +
+    'cannot both be followed, so the meet is refused, where two meta()\n' +
+    'records would be kept side by side.\n' +
+    ' \n' +
+    '  one:    {a}\n' +
+    '  other:  {b}\n' +
+    ' \nExamples:\n' +
+    '  1.5 & gen({significant:2}) & gen({significant:2})  -> 1.5  # One instruction;\n' +
+    '  1.5 & gen({significant:2}) & gen({significant:3})  -> nil  # ... two that disagree.',
+
   float_overflow:
     'This result is not a finite binary64 number, so it is not a value\n' +
     'aontu can carry. There is no notation for an infinity or a NaN in\n' +
@@ -1146,6 +1175,8 @@ const codeClasses: Record<string, string> = {
   divide_by_zero: 'conflict',
   inexact_divide: 'conflict',
   float_overflow: 'conflict',
+  gen_option: 'conflict',
+  gen_conflict: 'conflict',
   decimal_budget: 'conflict',
   lossy_integer_literal: 'conflict',
   arg: 'conflict',

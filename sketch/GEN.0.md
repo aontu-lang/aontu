@@ -1,6 +1,14 @@
 # Output options: `gen(spec)` — design note
 
-Status: PROPOSAL (nothing here is built)
+Status: FIRST CUT IMPLEMENTED (2026-11-14), in both ports. The model
+is `aontu/gen/gen.aontu` and the line is in `test/spec/signature.tsv`.
+The record's meet, its check and the preference rule are
+`ts/src/genrec.ts` and `go/genrec.go`; the rounding is
+`ts/src/val/genwrite.ts` and `go/genwrite.go`; the builtin is
+`ts/src/val/GenFuncVal.ts` and the `gen` arm of `go/func.go`. The
+shared rows are `test/spec/annotation-gen.tsv`. What the first cut
+leaves out is D-11. Deltas measured while implementing are recorded
+beside the text they correct, each marked **Delta**.
 Date: 2026-11-14
 
 A value has one JSON form today and nothing in the language can change
@@ -156,6 +164,13 @@ leaves nothing in canon.
 A default written out is a statement. `gen({ significant:"all" })`
 conflicts with `gen({ significant:2 })`, where `gen({})` doesn't.
 
+**Delta.** Two arms of a disjunction that differ only in their
+records are two arms, and two defaults of one rank that differ only in
+their records clash, as `pref_rank_clash`. The first implementation
+folded such twins into whichever was written first, which made the
+output depend on the order of the arms (ADR-081). Rows
+`gen-twin-defaults-differ` and its swapped twin hold it.
+
 ### D-4. Each type has a standard set, published as `aontu:gen`
 
 The standard sets are one bundled model, a file under `aontu/` as
@@ -283,9 +298,16 @@ The rule, in the definition's terms:
 4. The result stays in the number's own leaf, as `upper` and `lower`
    keep theirs:
    - a float is the double nearest the rounded decimal;
-   - an integer is the rounded whole number, where a double holds it
-     exactly and it lies in the integer window;
+   - an integer is the rounded whole number, written digit for digit;
    - a biginteger and a bigdecimal are exact.
+
+**Delta.** The proposal refused an integer whose rounded value no
+double holds, with a code `gen_inexact`. It is written instead. What
+is generated is data and not a value of the document, and TypeScript
+already generates a `bigint` for an integer above 2^53
+(`IntegerVal.gen`), so the exact digits add no native type there. Go
+answers an `int64`, or a `*big.Int` past the int64 window. The code
+was never registered.
 
 Zero is unchanged, the sign is kept, and a rounded number is never
 zero, so negative zero cannot appear. The number is then written as
@@ -306,18 +328,13 @@ its leaf is always written, so a bigdecimal keeps its one place.
 | `0d1234.5 & gen({ significant:2 })` | `1200.0` |
 | `0d123456789012345678901 & gen({ significant:3 })` | `123000000000000000000` |
 
-Two results are not numbers their leaf holds, and both are refused
-where the value is generated, with the value's site:
+One result is not a number its leaf holds. A float whose rounded
+decimal is beyond the largest double is refused where the value is
+generated, with `float_overflow`, the code arithmetic already gives.
+It needs a value close to the largest double, 1.8e308, rounded up.
 
-- A float whose rounded decimal is beyond the largest double is
-  refused with `float_overflow`, the code arithmetic already gives.
-  It needs a value close to the largest double, 1.8e308, rounded up.
-- An integer whose rounded value is not exactly a double is refused
-  with `gen_inexact`. It needs an integer above 2^53 and enough digits
-  kept that the zeros added do not make it one: `999999999999999104 &
-  gen({ significant:15 })` would be `999999999999999000`, which is not
-  a double. The repair is the one `lossy_integer_literal` names: write
-  the number with `0d`, and it rounds exactly.
+`999999999999999104 & gen({ significant:15 })` generates
+`999999999999999000`, which no double holds.
 
 Why a tie goes to the even digit: it is the rule the definition
 already rounds by, IEEE 754's default, and unbiased over many values.
@@ -344,9 +361,20 @@ record as a map with its keys in code-point order, then `)`:
 3.14159&gen({"significant":2})
 float&min(0)&gen({"significant":2})
 gen({"significant":2})                 (on any)
-(1.5|2.5)&gen({"significant":2})       (a disjunction is grouped)
+1.5&gen({"significant":2})|2.5&gen({"significant":2})
 meta(3.14159&gen({"significant":2}),{"title":"t"})
 ```
+
+**Delta.** The proposal grouped a disjunction and wrote one record
+after it. A disjunction holds no record: D-5 has the annotation meet
+each arm, so each arm carries it and canon writes it on each. A
+preference carries it whole, `*1.5&gen({...})`, so that a value that
+overrides the default takes the record with it, and the record lands
+on the preferred value where it is generated.
+
+**Delta.** In an unresolved meet the call is ranked after every other
+term, the late atoms included (`cjo` 160000), so that canon writes
+`number&gen({...})` for a spread's template as it does for a value.
 
 - The builtin is written under its own name (ADR-080).
 - The annotation is the last term of its meet, whatever order the
@@ -460,8 +488,8 @@ consistent when they arrive.
 | `func_arg` (exists) | conflict | the argument is not a map of concrete data |
 | `gen_conflict` | conflict | two annotations on one value disagree |
 | `gen_option` | conflict | the standard set of the value's type refuses the record |
-| `gen_inexact` | conflict | an integer rounds to a number no double holds exactly |
 | `float_overflow` (exists) | conflict | a float rounds beyond the largest double |
+| `pref_rank_clash` (exists) | conflict | two defaults of one rank differ in their records |
 
 Each new code lands with its `test/spec/errcodes.tsv` row and its hint
 in the same change. A `gen_option` report names the option, the type
@@ -487,6 +515,12 @@ Each is a shared row or a law test in both ports:
   the oracle writes, the bytes the definition gives.
 
 ## 8. Plan
+
+Steps 1 to 4 and 6 are built. A record's reading against its standard
+set is an evaluation of its own, `new Unify(...)` in TypeScript and
+`New().unifyCtx(...)` in Go, kept for the 256 readings a process made
+last. One further thing was built that the plan did not name: the
+JSON Schema exporter's loss, `gen`, in both ports.
 
 1. **The model and the signature.** `aontu/gen/gen.aontu`; the line in
    `test/spec/signature.tsv`; `make aontu`, `make sig`. The pins that
@@ -517,10 +551,10 @@ expensive to change before a release.
 2. **The spelling of "no limit".** Recommended: `"all"`. The
    alternatives are `null`, or an optional key with no default, which
    the request's "each with defaults" rules out.
-3. **An integer no double holds once rounded.** Recommended: refuse
-   with `gen_inexact`. The alternative is to write the exact digits
-   anyway, which makes the generated value a `bigint` in TypeScript
-   and a `*big.Int` in Go for some integers and not others.
+3. **An integer no double holds once rounded.** Built: the exact
+   digits are written (the Delta under D-7). The alternative is to
+   refuse it and name `0d` as the repair, as `lossy_integer_literal`
+   does for a literal.
 4. **The kind `annotation`.** Recommended: a change of its own, after
    this one (D-9).
 5. **A type that refuses an option.** Recommended: refuse the meet

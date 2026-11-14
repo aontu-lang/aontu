@@ -7,6 +7,7 @@ const utility_1 = require("../utility");
 const err_1 = require("../err");
 const Val_1 = require("./Val");
 const ScalarKindVal_1 = require("./ScalarKindVal");
+const genwrite_1 = require("./genwrite");
 class ScalarVal extends Val_1.Val {
     constructor(spec, ctx) {
         super(spec, ctx);
@@ -54,10 +55,11 @@ class ScalarVal extends Val_1.Val {
     samePeg(peg) {
         return peg === this.peg;
     }
-    gen(_ctx) {
+    gen(ctx) {
         // Normalize negative zero to 0 for deterministic output (JSON has
         // no -0, and the Go port produces 0).
-        return Object.is(this.peg, -0) ? 0 : this.peg;
+        const out = Object.is(this.peg, -0) ? 0 : this.peg;
+        return null == this.genopts ? out : (0, genwrite_1.genWrite)(ctx, this, out);
     }
     superior() {
         return this.place(new ScalarKindVal_1.ScalarKindVal({

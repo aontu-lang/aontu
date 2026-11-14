@@ -120,6 +120,10 @@ class Val {
         if (null != this.meta) {
             out.meta = this.meta;
         }
+        if (null != this.genrec) {
+            out.genrec = this.genrec;
+            out.genopts = this.genopts;
+        }
         if (null != this.via) {
             out.via = this.via;
         }

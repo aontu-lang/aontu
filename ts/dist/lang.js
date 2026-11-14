@@ -60,6 +60,7 @@ const AbnfFuncVal_1 = require("./val/AbnfFuncVal");
 const DeprecateFuncVal_1 = require("./val/DeprecateFuncVal");
 const MetaFuncVal_1 = require("./val/MetaFuncVal");
 const IdentFuncVal_1 = require("./val/IdentFuncVal");
+const GenFuncVal_1 = require("./val/GenFuncVal");
 const RelateFuncVal_1 = require("./val/RelateFuncVal");
 const GraphAtomVal_1 = require("./val/GraphAtomVal");
 const PackFuncVal_1 = require("./val/PackFuncVal");
@@ -642,6 +643,7 @@ help isolate the syntax error.`,
         deprecate: DeprecateFuncVal_1.DeprecateFuncVal,
         meta: MetaFuncVal_1.MetaFuncVal,
         ident: IdentFuncVal_1.IdentFuncVal,
+        gen: GenFuncVal_1.GenFuncVal,
         relate: RelateFuncVal_1.RelateFuncVal,
         // RELATIONS P2 (sketch/RELATIONS.0.md §3.3): the graph
         // atoms, conjoined at the field whose key is the predicate they

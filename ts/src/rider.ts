@@ -43,7 +43,7 @@ function unionVia(...lists: (string[] | undefined)[]): string[] {
 
 
 function rides(v: any): boolean {
-  return null != v?.deprecation || null != v?.meta
+  return null != v?.deprecation || null != v?.meta || null != v?.genrec
 }
 
 
@@ -75,9 +75,19 @@ function layerText<T>(layer: Record<string, T>, text: (v: T) => string): string 
 }
 
 
-// A value's riders around its rendering: the deprecation record, then
-// the annotation record, each as the reparseable call that carries it.
+function sameRec(a: any, b: any): boolean {
+  return a.genrec === b.genrec ||
+    (null != a.genrec && null != b.genrec && a.genrec.canon === b.genrec.canon)
+}
+
+
+// A value's riders around its rendering: its output record after it, then
+// the deprecation and annotation records, each as the call that carries it.
 function riderText(s: string, v: any): string {
+  if (null != v.genrec) {
+    const call = 'gen(' + v.genrec.canon + ')'
+    s = true === v.isTop ? call : s + '&' + call
+  }
   const d: RiderRecord<string> | undefined = v.deprecation
   if (null != d) {
     const layers = recordLayers(d)
@@ -90,7 +100,7 @@ function riderText(s: string, v: any): string {
       layerText(l, (x: any) => x.canon))].join(',') + ')'
   }
   return s
-} /* node:coverage ignore next 10 */
+} /* node:coverage ignore next 11 */
 
 
 export {
@@ -100,4 +110,5 @@ export {
   recordLayers,
   riderText,
   rides,
+  sameRec,
 }

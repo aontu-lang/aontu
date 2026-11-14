@@ -78,6 +78,8 @@ declare abstract class Val {
     mark: ValMark;
     deprecation?: Record<string, string[]>;
     meta?: Record<string, Val[]>;
+    genrec?: Val;
+    genopts?: Record<string, any>;
     via?: string[];
     identity?: Record<string, any[]>;
     link?: string;

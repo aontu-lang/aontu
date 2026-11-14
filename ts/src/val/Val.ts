@@ -146,6 +146,9 @@ abstract class Val {
 
   meta?: Record<string, Val[]>
 
+  genrec?: Val
+  genopts?: Record<string, any>
+
   // The aliases this value is a copy of, which the exporter writes as $ref.
   via?: string[]
 
@@ -287,6 +290,10 @@ abstract class Val {
     }
     if (null != this.meta) {
       out.meta = this.meta
+    }
+    if (null != this.genrec) {
+      out.genrec = this.genrec
+      out.genopts = this.genopts
     }
     if (null != this.via) {
       out.via = this.via

@@ -1,0 +1,13 @@
+# aontu:gen --- THE OUTPUT OPTIONS. What `gen(spec)` may say about a
+# value of each type. Every option has a default, and the default
+# leaves the output as it is without the option.
+
+aontu: Gen: type({
+  Number: close({ significant: *"all"|integer & min(1) })
+  String: close({})
+  Boolean: close({})
+  Null: close({})
+  Path: close({})
+  Map: close({})
+  List: close({})
+})

@@ -16,6 +16,11 @@ import (
 // record beside it.
 var riderFuncs = map[string]bool{"meta": true, "deprecate": true}
 
+// ridesCall: a call whose record rides a value written elsewhere.
+func ridesCall(name string) bool {
+	return riderFuncs[name] || "gen" == name
+}
+
 var wrapperFuncs = map[string]bool{"meta": true, "deprecate": true, "ident": true,
 	"type": true, "hide": true, "close": true, "open": true}
 
@@ -67,6 +72,7 @@ var funcSet = map[string]bool{
 	"deprecate": true,
 	"meta":      true,
 	"ident":     true,
+	"gen":       true,
 	"relate":    true,
 	"acyclic":   true,
 	"inverse":   true,
@@ -295,10 +301,14 @@ func captureSpelling(rv *RefVal) (string, bool) {
 }
 
 // cjo places a bare `close()` last in a conjunct and a bare `open()`
-// first (SealVal).
+// first (SealVal), and `gen()` after every other term, the late atoms
+// included: canon writes it last, as it writes one that rides a value.
 func (f *FuncVal) cjo() int {
 	if 0 == len(f.peg) && ("close" == f.name || "open" == f.name) {
 		return sealCjo("close" == f.name)
+	}
+	if "gen" == f.name {
+		return 160000
 	}
 	return 99999
 }
@@ -477,7 +487,7 @@ func (f *FuncVal) Unify(peer Val, ctx *Ctx) Val {
 			}
 			out.setvpath(cp(home))
 			// A rider's value is its argument, written where it is (ADR-066).
-			if !riderFuncs[f.name] || out.pos() < 0 {
+			if !ridesCall(f.name) || out.pos() < 0 {
 				out.setPos(f.site.sp)
 				out.setPosu(f.site.spu)
 				out.setSrcurl(f.site.url)
@@ -799,6 +809,27 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		}
 		out := clonePath(args[0], cp(base))
 		out.setIdentRec(unionRiders(valCanon, out.identRec(), rec))
+		return out
+	case "gen":
+		// `any` carrying the record, which every meet takes to its
+		// result. A record that says nothing is no record.
+		if args[0].Nil() {
+			return args[0]
+		}
+		rec, isMap := args[0].(*MapVal)
+		if !isMap || !isData(rec) {
+			return makeNilErrFull(ctx, "func_arg", f, args[0], "", map[string]string{
+				"func": "gen",
+				"sig":  renderSig(funcSig["gen"]),
+				"arg":  "spec",
+				"argn": "1",
+				"got":  args[0].Canon(),
+			})
+		}
+		out := top()
+		if 0 < len(rec.keys) {
+			out.setGenRec(rec, nil)
+		}
 		return out
 	case "meta":
 		if args[0].Nil() {
