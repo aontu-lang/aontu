@@ -1121,3 +1121,9 @@ What type does relate() return?
 ```text
 Rewrite the files and folders example so that there are types Node, Folder and File such that File and Folder are subtypes of Node (which contains the shared fields: name, kind, parent), and parent is a relation that must be Node to Folder
 ```
+
+## 2026-11-14 12:06:37 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Post GitHub issues for the findings. Rewrite without aliases, placing types under $.type: type({})
+```
