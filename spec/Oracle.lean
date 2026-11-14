@@ -5929,7 +5929,8 @@ theorem filled_expandF_call {f : Fn} (hf : f = .split ∨ f = .rep) {args : List
       obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hx
       exact inert_expandF (h y hy) k
   rcases hf with rfl | rfl <;> intro k <;> cases k <;>
-    simp only [expandF, Val.filled, filledItems_inert h, hm]
+    simp only [expandF, Fn.tableArgs_of_ne _ (show Fn.split ≠ Fn.emit by decide),
+      Fn.tableArgs_of_ne _ (show Fn.rep ≠ Fn.emit by decide), Val.filled, filledItems_inert h, hm]
 
 theorem patternCases_readable : ∀ c ∈ patternCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
   intro c hc
@@ -7000,6 +7001,76 @@ theorem emit_key_verdict_exact : ∀ c ∈ emitKeyCases, ∀ (m : Mode) (v : Ver
   fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
     (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (emitKeyCases_checkable c hc)) v
 
+/-- An `emit`'s table written as an `emit` call, which reads as the
+table it holds: a rule set waiting for its nodes, `emit(_, t)`, a call
+whose selection is a bag, which the table position never makes, one
+that holds a table of two templates, one wrapped twice, one whose body
+holds a `key(n)`, read where its piece lands, and one that takes no
+node, which is an error; and `emit(_, t)` alone, whose hole nothing
+binds, and one whose template lacks its body, both errors. -/
+def emitTableCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let rule (m : Val) (b : List Val) : Val := mp [("match", m), ("body", lst b)]
+  let held (t : Val) : Val := c .emit [.hole, t]
+  let two : Val := lst [int 1, int 2]
+  [(c .emit [two, held (rule .number [str "n"])], jl [js "n", js "n"]),
+    (c .emit [two, held (rule .number [str "n"])], jl [js "n"]),
+    (c .emit [two, c .emit [lst [int 3], rule .number [str "n"]]], jl [js "n", js "n"]),
+    (c .emit [lst [int 1, str "s"], held (lst [rule .number [str "n"], rule .string [str "s"]])],
+      jl [js "n", js "s"]),
+    (c .emit [two, held (held (rule .number [str "n"]))], jl [js "n", js "n"]),
+    (c .emit [two, held (rule .number [.keyUp 0])], jl [js "0", js "1"]),
+    (c .emit [two, held (rule .number [.keyUp 0])], jl [js "0", js "0"]),
+    (c .emit [lst [int 1], held (rule .string [str "x"])], jl []),
+    (held (rule .number [str "n"]), jl []),
+    (c .emit [lst [int 1], held (mp [("match", .number)])], jl [])]
+
+theorem emitTableCases_checkable : ∀ c ∈ emitTableCases, (vetDoc c).1.CheckableA := by decide
+
+theorem emit_table_verdict_exact : ∀ c ∈ emitTableCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (emitTableCases_checkable c hc)) v
+
+/-- A named table, `%w = emit(_, t)`, the rule set an `emit` takes as its
+table where it names it: once and in two places, met with the pieces it
+makes, against data it refuses, and named alone, where nothing binds its
+hole, an error; and a name for a template, whose body's `key(n)` reads
+where its piece lands. -/
+def emitNameCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let jm (fs : List (String × Data)) : Data := .map fs
+  let rule (m : Val) (b : List Val) : Val := mp [("match", m), ("body", lst b)]
+  let w : Decls := [("W", c .emit [.hole, rule .number [str "n"]])]
+  [(w, c .emit [lst [int 1, int 2], .alias "W"], jl [js "n", js "n"]),
+    (w, c .emit [lst [int 1, int 2], .alias "W"], jl [js "x"]),
+    (w, mp [("a", c .emit [lst [int 1], .alias "W"]), ("b", c .emit [lst [int 2, int 3], .alias "W"])],
+      jm [("a", jl [js "n"]), ("b", jl [js "n", js "n"])]),
+    (w, .meet (c .emit [lst [int 1], .alias "W"]) (lst [str "n"]), jl [js "n"]),
+    (w, .alias "W", jl []),
+    ([("R", rule .number [.keyUp 0])], c .emit [lst [int 1, int 2], .alias "R"], jl [js "0", js "1"]),
+    ([("R", rule .number [.keyUp 0])], c .emit [lst [int 1, int 2], .alias "R"], jl [js "0", js "0"])]
+
+theorem emitNameCases_checkable : ∀ c ∈ emitNameCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
+
+theorem emit_name_verdict_exact : ∀ c ∈ emitNameCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 (aliasDoc c).1 (aliasDoc c).2 = v ↔ Vet m c.1 (aliasDoc c).1 (aliasDoc c).2 v :=
+  fun c hc _ v => vet_iff (emitNameCases_checkable c hc).1
+    (readR_checkableA (emitNameCases_checkable c hc).1 (emitNameCases_checkable c hc).2) v
+
 /-- `apply(v, f)`, which binds each hole of `f` that no generator or
 `apply` inside `f` binds to `v` and makes the one instance
 `each([v], f)` would: a call over the hole, a map's member and a list's
@@ -8018,7 +8089,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# for each node, the body of the first template whose match the node meets,"
     IO.println "# read for the node, each list in it spliced, and an error where no template"
     IO.println "# matches or the body names what the node doesn't hold, and a key(n) in a body,"
-    IO.println "# read where its piece lands in the output, in rows ek0 on. apply(v, f) follows in"
+    IO.println "# read where its piece lands in the output, in rows ek0 on. A table written as an"
+    IO.println "# emit call reads as the table it holds, in place in rows ew0 on and named, a rule"
+    IO.println "# set %w = emit(_, t), in rows en0 on. apply(v, f) follows in"
     IO.println "# rows ap0 on: each hole of f that no generator or apply inside f binds, bound"
     IO.println "# to v, the one instance each([v], f) makes. A hole that nothing binds is"
     IO.println "# an error of the schema wherever it stands (ruling 34): in the shapes the meet"
@@ -8047,6 +8120,8 @@ def main (args : List String) : IO UInt32 := do
       heldFailCases ++ markedEachCases ++ armCallCases ++ optCallCases)
     verdictRows "et" emitCases
     verdictRows "ek" emitKeyCases
+    verdictRows "ew" emitTableCases
+    aliasRows "en" emitNameCases
     verdictRows "ap" applyCases
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases

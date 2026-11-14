@@ -1534,8 +1534,11 @@ read for its node and each element where its piece lands
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to it. A template's `match` takes a node where the meet of the two
 narrows nothing of the node (`emitTakes`), as both engines dispatch, so
-`{k: 1}` takes `{"k": 1}` and `{k: 1, j?: 2}` doesn't. It doesn't yet
-read a named table or `replace` in a body.
+`{k: 1}` takes `{"k": 1}` and `{k: 1, j?: 2}` doesn't. A table written
+as an `emit` call reads as the table it holds (`Fn.tableArgs`), so a
+named table serves each `emit` that takes it. Rows from ew0 on and from
+en0 on hold both engines to it. The definition doesn't yet read a named
+table that names itself, or `replace` in a body.
 
 ### A named table
 
