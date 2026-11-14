@@ -1360,13 +1360,6 @@ def nodeRef (b : Option Val) : List Seg → Val
     | none => .path (.node :: p)
   | p => .path p
 
-/-- The meet of the values a map's fields named `k` hold, as a map that
-writes a key twice meets them; none where no field is so named. -/
-def fieldsMeet (fs : List (String × Bool × Val)) (k : String) : Option Val :=
-  match fs.filter (·.1 == k) with
-  | [] => none
-  | f :: rest => some (rest.foldl (fun acc g => .meet acc g.2.2) f.2.2)
-
 /-- An `emit` template's `match` and `body`, each the meet of the
 template's members so named (`fieldsMeet`), so that two `match` fields
 meet and two `body` fields make no list; none for a template that lacks
@@ -2727,28 +2720,6 @@ theorem nodeRef_checkableA {b : Option Val} (hb : ∀ m, b = some m → m.Checka
   | .own _ :: _ => by exact .path
   | .lands _ :: _ => by exact .path
 
-/-- The meet of fields the checker can read is a term it can read. -/
-theorem fieldsMeet_checkableA {fs : List (String × Bool × Val)} {k : String} {v : Val}
-    (hf : ∀ k o v, (k, o, v) ∈ fs → v.CheckableA) (h : fieldsMeet fs k = some v) : v.CheckableA := by
-  unfold fieldsMeet at h
-  split at h
-  · exact absurd h (by simp)
-  · rename_i f rest hfr
-    simp only [Option.some.injEq] at h
-    subst h
-    have hmem : ∀ g, g ∈ f :: rest → g.2.2.CheckableA := fun g hg => by
-      rw [← hfr] at hg
-      exact hf g.1 g.2.1 g.2.2 (List.mem_filter.mp hg).1
-    have hfold : ∀ (l : List (String × Bool × Val)) (acc : Val), acc.CheckableA →
-        (∀ g, g ∈ l → g.2.2.CheckableA) → (l.foldl (fun acc g => .meet acc g.2.2) acc).CheckableA := by
-      intro l
-      induction l with
-      | nil => intro acc ha _; exact ha
-      | cons g l ih =>
-        intro acc ha hl
-        exact ih _ (.meet ha (hl g List.mem_cons_self)) fun g' hg' => hl g' (List.mem_cons_of_mem _ hg')
-    exact hfold rest f.2.2 (hmem f List.mem_cons_self) fun g hg => hmem g (List.mem_cons_of_mem _ hg)
-
 /-- A template the checker can read has a body it can read. -/
 theorem emitRule_checkableA {t : Val} {r : Val × Val} (ht : t.CheckableA) (h : emitRule t = some r) :
     r.2.CheckableA := by
@@ -3375,7 +3346,7 @@ theorem resolveD_expandF_split {ds : Decls} {bd : Option Val} {pos : List Step} 
     have ha := hp 0 a (by simp)
     have hb := hp 0 b (by simp)
     simp only [expandF] at ha hb
-    simp only [expandF, Decls.tableUnfold_of_ne _ (show Fn.split ≠ Fn.emit by decide), Fn.tableArgs_of_ne _ (show Fn.split ≠ Fn.emit by decide), resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
+    simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
       ite_false, List.any_cons, List.any_nil, ha, hb, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent
@@ -3401,7 +3372,7 @@ theorem resolveD_expandF_rep {ds : Decls} {bd : Option Val} {pos : List Step} {a
     have hb := hp 0 b (by simp)
     have hc := hp 0 c (by simp)
     simp only [expandF] at ha hb hc
-    simp only [expandF, Decls.tableUnfold_of_ne _ (show Fn.rep ≠ Fn.emit by decide), Fn.tableArgs_of_ne _ (show Fn.rep ≠ Fn.emit by decide), resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
+    simp only [expandF, resolveD, resolveItems, Option.isNone_some, Bool.false_and, Bool.false_eq_true,
       ite_false, List.any_cons, List.any_nil, ha, hb, hc, Bool.or_false, Fn.holdsArg]
     split
     · exact .absent

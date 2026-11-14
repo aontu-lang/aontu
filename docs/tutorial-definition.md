@@ -2805,7 +2805,8 @@ recursive name, or to no name, stays. A rider's body reads as the rider
 has it read (`Rider.reads`), so `open(v)` reads `v`, expanded, with
 every seal lifted, the seal of a definition's instance among them. An
 `emit`'s table that is an `emit` call, written in place or named, reads
-as the table it holds (`Fn.tableArgs`), and one that names a recursive
+as the table it holds, each template's replacements written into its
+body (`Fn.tableArgs`), and one that names a recursive
 name as that name's bodies, a level for each turn left
 (`Decls.tableUnfold`), so the turns bound how deep a rule set that names
 itself walks. -/
@@ -10206,8 +10207,48 @@ hold a tree of one child and one of two, with and without a `key(n)` in
 the body. They hold two tables that name each other too, and a walk
 over an empty selection beside one that never descends.
 
-The definition doesn't yet read `replace` and `esc` in a body, or a reference into the node inside an `each`, a `pack` or a
-`filter`'s condition in a body. It leaves a body whose spread holds a
+A template may write a `replace` map and an `esc` convention, and the
+expansion writes them into its body before any reading
+(`Val.replaced`), so the reading needs no rule of its own for them.
+Each key in each literal line of the body becomes the key's value, read
+for the node as its text, `"" + v`, the way `+` spells a number or a
+boolean. The template's `esc` member names the convention that escapes
+that text. Where the template has none, `esc`'s own default applies,
+and `none` leaves the text unchanged:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+def escWrite (fs : List (String × Bool × Val)) : Option (Val → Val) :=
+  match fieldsMeet fs "esc" with
+  | none => some fun v => .call .esc [.call .plus [.lit (.str ""), v]]
+  | some (.lit (.str n)) =>
+    if n == "none" then some fun v => .call .translate [.call .plus [.lit (.str ""), v], .lit (.str "")]
+    else if (Escape.ofName? n).isSome then
+      some fun v => .call .esc [.call .plus [.lit (.str ""), v], .lit (.str n)]
+    else none
+  | some _ => none
+```
+
+A literal line is a string the body writes as an element, or one that
+an element written as a map holds in its `n` list or its `text`. Each
+line becomes a `+` of its own text and the values, cut once from the
+left at the longest key (`scanKeys`), so the scan never reads a value
+again, and a piece a nested `emit` splices keeps its own table's
+replacements. A value with no text, a map, a list, `null` or a kind,
+leaves `+` waiting, and `esc` and `translate` refuse anything but a
+string, so the reading refuses the line and the document is an error,
+as both engines answer. The reading refuses the template itself before
+it reads any node, an error too, where a key lies inside another, is
+empty or stands in no literal line, where `replace` is no map, and
+where `esc` names no convention. Rows
+ep0 on hold templates written in place, and eq0 on named ones, a walk
+among them, and both engines answer every one as the definition does.
+A `key(n)` in a replacement's value reads where its line stands, where
+both engines read `key(0)` as the replacement's own key and read
+`key(1)` apart, which #786 tracks, and no row holds one.
+
+The definition doesn't yet read a reference into the node inside an
+`each`, a `pack` or a `filter`'s condition in a body. It leaves a body whose spread holds a
 reference into the node unmade too. Both engines leave such a spread
 unbound, so the reference reads nowhere and refuses a member the spread
 meets, but they pass a spread that meets no member, which the definition
