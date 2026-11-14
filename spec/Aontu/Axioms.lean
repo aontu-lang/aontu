@@ -9,6 +9,7 @@ import Aontu.Verdict
 import Aontu.Paths
 import Aontu.Subsume
 import Aontu.Reorder
+import Aontu.Written
 
 /-!
 # The axioms
@@ -427,3 +428,15 @@ line each comment states.
 /-- info: 'Aontu.instance_orderIndependent' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.instance_orderIndependent
+
+/-- info: 'Aontu.Number.significant_of_le' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.significant_of_le
+
+/-- info: 'Aontu.Number.inLeafOf_isSome' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.inLeafOf_isSome
+
+/-- info: 'Aontu.Number.significant_isSome' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.significant_isSome

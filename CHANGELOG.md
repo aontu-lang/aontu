@@ -41,6 +41,12 @@ language.
 - **`annotation` is a new result word** of the call surface, in
   `test/spec/signature.tsv`. It is not a kind a document can write.
 - `aontu jsonschema` reports an annotation as a loss, `gen`.
+- **The definition holds the rounding**, `Number.significant` in the
+  new module `spec/Aontu/Written.lean`, with `Number.significant_isSome`,
+  that only a float has a rounding its leaf does not hold. The oracle
+  writes 59 rows from it, `gs0` on of `test/spec/def-gen.tsv`, and both
+  engines answer each as the definition does. The annotation itself is
+  not yet a term of the definition.
 - Pinned by `test/spec/annotation-gen.tsv`, 199 rows that both engines
   answer alike. The design note is `sketch/GEN.0.md`.
 

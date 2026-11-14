@@ -14,6 +14,9 @@
 # constraint reads an address by its spelling, in rows ks0 on.
 # Lists that hold a marked element follow in rows gl0 on, read as a document
 # reads them: the list holds no position for the element.
+# Numbers at so many significant digits follow in rows gs0 on:
+# `Number.significant` (spec/Aontu/Written.lean), written as the gen() call
+# both engines read, whose annotation is not yet a term of the definition.
 g0	gens	v: 1	{"v":1}
 g1	gens	v: *(1)	{"v":1}
 g5	gens	v: *(null)	{"v":null}
@@ -172,3 +175,62 @@ gl6	gens	v: ([hide(1)]) & ([2])	{"v":[2]}
 gl7	gens	v: ([hide(1), 2]) & ([hide(3), 2])	{"v":[2]}
 gl8	gens	v: [*(hide(1)) | (hide(2)), 3]	{"v":[1,3]}
 gl9	gens	v: [(hide(1)) | ((2) & (3)), 3]	{"v":[3]}
+gs0	gens	v: 3.14159 & gen({"significant": 2})	{"v":3.1}
+gs1	gens	v: 1234.5 & gen({"significant": 2})	{"v":1200}
+gs2	gens	v: 0.000012345 & gen({"significant": 2})	{"v":0.000012}
+gs3	gens	v: -3.14159 & gen({"significant": 3})	{"v":-3.14}
+gs4	gens	v: 99.96 & gen({"significant": 3})	{"v":100}
+gs5	gens	v: 1.5 & gen({"significant": 5})	{"v":1.5}
+gs6	gens	v: 1.25 & gen({"significant": 3})	{"v":1.25}
+gs7	gens	v: 0.25 & gen({"significant": 1})	{"v":0.2}
+gs8	gens	v: 0.35 & gen({"significant": 1})	{"v":0.4}
+gs9	gens	v: 0.15 & gen({"significant": 1})	{"v":0.2}
+gs10	gens	v: 0.125 & gen({"significant": 2})	{"v":0.12}
+gs11	gens	v: 2.5 & gen({"significant": 1})	{"v":2}
+gs12	gens	v: 3.5 & gen({"significant": 1})	{"v":4}
+gs13	gens	v: -2.5 & gen({"significant": 1})	{"v":-2}
+gs14	gens	v: 1.005 & gen({"significant": 3})	{"v":1}
+gs15	gens	v: 9.995 & gen({"significant": 3})	{"v":10}
+gs16	gens	v: 0.251 & gen({"significant": 1})	{"v":0.3}
+gs17	gens	v: 0.349 & gen({"significant": 1})	{"v":0.3}
+gs18	gens	v: 1500000000000000000000.0 & gen({"significant": 1})	{"v":2e+21}
+gs19	gens	v: 1000000000000000000000.0 & gen({"significant": 2})	{"v":1e+21}
+gs20	gens	v: 0.000000125 & gen({"significant": 2})	{"v":1.2e-7}
+gs21	gens	v: 0.30000000000000004 & gen({"significant": 16})	{"v":0.3}
+gs22	gens	v: 123456.789 & gen({"significant": 4})	{"v":123500}
+gs23	gens	v: 0.1 & gen({"significant": 1})	{"v":0.1}
+gs24	gens	v: 0.2 & gen({"significant": 5})	{"v":0.2}
+gs25	gens	v: 10000000000000000000000.0 & gen({"significant": 1})	{"v":1e+22}
+gs26	gens	v: 8.5 & gen({"significant": 1})	{"v":8}
+gs27	gens	v: 9.5 & gen({"significant": 1})	{"v":10}
+gs28	gens	v: 10.5 & gen({"significant": 2})	{"v":10}
+gs29	gens	v: 999.5 & gen({"significant": 3})	{"v":1000}
+gs30	gens	v: 4.35 & gen({"significant": 2})	{"v":4.4}
+gs31	gens	v: 4.45 & gen({"significant": 2})	{"v":4.4}
+gs32	gens	v: 0.0 & gen({"significant": 2})	{"v":0}
+gs33	gens	v: 179769313486231570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0 & gen({"significant": 17})	{"v":1.7976931348623157e+308}
+gs35	gens	v: 1234 & gen({"significant": 2})	{"v":1200}
+gs36	gens	v: 25 & gen({"significant": 1})	{"v":20}
+gs37	gens	v: 15 & gen({"significant": 1})	{"v":20}
+gs38	gens	v: 149 & gen({"significant": 2})	{"v":150}
+gs39	gens	v: 150 & gen({"significant": 1})	{"v":200}
+gs40	gens	v: -15 & gen({"significant": 1})	{"v":-20}
+gs41	gens	v: 0 & gen({"significant": 1})	{"v":0}
+gs42	gens	v: 1200 & gen({"significant": 3})	{"v":1200}
+gs43	gens	v: 999 & gen({"significant": 2})	{"v":1000}
+gs44	gens	v: 1234567890123456768 & gen({"significant": 3})	{"v":1230000000000000000}
+gs45	gens	v: 999999999999999104 & gen({"significant": 15})	{"v":999999999999999000}
+gs46	gens	v: 9223372036854774784 & gen({"significant": 5})	{"v":9223400000000000000}
+gs47	gens	v: 9007199254740992 & gen({"significant": 1})	{"v":9000000000000000}
+gs48	gens	v: 0d123456789012345678901 & gen({"significant": 3})	{"v":123000000000000000000}
+gs49	gens	v: 0d25 & gen({"significant": 1})	{"v":20}
+gs50	gens	v: -0d123456789012345678905 & gen({"significant": 20})	{"v":-123456789012345678900}
+gs51	gens	v: 0d9007199254740993 & gen({"significant": 16})	{"v":9007199254740993}
+gs52	gens	v: 0d1234.5 & gen({"significant": 2})	{"v":1200.0}
+gs53	gens	v: 0d0.125 & gen({"significant": 2})	{"v":0.12}
+gs54	gens	v: 0d0.135 & gen({"significant": 2})	{"v":0.14}
+gs55	gens	v: 0d1000.0 & gen({"significant": 2})	{"v":1000.0}
+gs56	gens	v: 0d99.95 & gen({"significant": 3})	{"v":100.0}
+gs57	gens	v: -0d2.5 & gen({"significant": 1})	{"v":-2.0}
+gs58	gens	v: 0d0.000012345 & gen({"significant": 2})	{"v":0.000012}
+gs59	gens	v: 0d123456789.123456789123456789 & gen({"significant": 20})	{"v":123456789.12345678912}

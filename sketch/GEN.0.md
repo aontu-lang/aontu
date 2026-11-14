@@ -448,6 +448,16 @@ yet hold. Until they land, shared rows that both engines agree on hold
 the meet, the check and canon, as they hold every construct the
 definition has not reached.
 
+**Delta.** The function is in a module of its own,
+`spec/Aontu/Written.lean`, where the output step will join it, and not
+in `Arith.lean`, whose every importer would have been rebuilt.
+`Number.significant_of_le`, `Number.inLeafOf_isSome` and
+`Number.significant_isSome` are in the axiom gate. The oracle writes
+59 rows, `gs0` on of `test/spec/def-gen.tsv`, and both engines answer
+every one as the definition does, so none is ledgered. The largest
+double at one digit has no row, since the definition gives it no
+number, and the engines refuse it in `annotation-gen.tsv`.
+
 ### D-11. What the first cut leaves out
 
 - Every option but `significant`, and every type's options but
@@ -516,7 +526,7 @@ Each is a shared row or a law test in both ports:
 
 ## 8. Plan
 
-Steps 1 to 4 and 6 are built. A record's reading against its standard
+Steps 1 to 6 are built, the fifth as the Delta under D-10 says. A record's reading against its standard
 set is an evaluation of its own, `new Unify(...)` in TypeScript and
 `New().unifyCtx(...)` in Go, kept for the 256 readings a process made
 last. One further thing was built that the plan did not name: the

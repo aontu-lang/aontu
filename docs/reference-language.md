@@ -4977,8 +4977,16 @@ the value it rides. That is exact between two values of one type, and
 it overstates an annotation alone: `subsume` answers `subsumes` for
 `gen({ significant:2 })` over a string, which the meet refuses.
 
+The definition holds the rounding as `Number.significant` in
+[`spec/Aontu/Written.lean`](../spec/Aontu/Written.lean): the decimal a
+number shows, `Number.digits`, rounded by `roundHalfEven` in
+[`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean), in the number's
+own leaf, with `Number.significant_isSome`, that only a float has a
+rounding its leaf does not hold. Rows gs0 on of
+[`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both engines to
+it. The annotation itself is not yet a term of the definition, and
 [`test/spec/annotation-gen.tsv`](../test/spec/annotation-gen.tsv) holds
-both engines to every rule in this section.
+both engines to each other on every other rule in this section.
 
 ## Closed values: `close` / `open`
 
