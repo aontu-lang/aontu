@@ -43,6 +43,7 @@ highlighting; this is their human twin.
 | `type(x)` | a definition, not a value: it generates nothing, and an instance adds nothing |
 | `deprecate(x, {msg:"…"})` | still works, and says so |
 | `meta(x, {title:"…"})` | the same value, annotated |
+| `x & gen({significant:2})` | the same value, WRITTEN at two significant digits |
 | `relate(t) & path($.a.b)` | a checked LINK: the tree address must resolve, and `t` flows into it |
 
 ## Constraints
