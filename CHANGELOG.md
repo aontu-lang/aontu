@@ -26,6 +26,10 @@ language.
   hash now tells a link from a path value that is only data, and the
   hash form reads back to the same edges and the same `aontu relations`
   verdict (#758). The hash of every document that holds a link moves.
+- **`aontu model get` writes a relation as canon does.** Its canon view
+  is `aontu --canon` at the root again, and its types view gives a
+  relation's shape, `[path]`, where it had printed `[&:refer(),path]`.
+  Six rows from `query-relation-canon` on in `test/spec/query.tsv`.
 - **An edge's relation is the key of the field `relate()` is written
   on**, read from the marks canon writes. A link a reference copies to
   another field is a link there, named by that field's key. The engines

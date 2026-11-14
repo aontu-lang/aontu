@@ -127,3 +127,13 @@ query-meta-member-types	query	a: meta(1, {title: "t"}) | meta(2, {title: "u"})	$
 query-meta-root-canon	query	meta({a: 1}, {title: "r"})	$	{"opts": {"view": "canon"}, "out": "meta({\\"a\\":1},{\\"title\\":\\"r\\"})"}
 query-meta-root-canon-d1	query	meta({a: meta({b: 1}, {title: "t"})}, {title: "r"})	$	{"opts": {"depth": 1, "view": "canon"}, "out": "meta({\\"a\\":any},{\\"title\\":\\"r\\"})"}
 query-meta-root-canon-d2	query	meta({a: meta({b: 1}, {title: "t"})}, {title: "r"})	$	{"opts": {"depth": 2, "view": "canon"}, "out": "meta({\\"a\\":meta({\\"b\\":any},{\\"title\\":\\"t\\"})},{\\"title\\":\\"r\\"})"}
+
+# A relation, in each view: the canon view writes the call where the
+# document wrote it, as canon does (ADR-080), and the types view is the
+# shape alone.
+query-relation-canon	query	x: {}\nbare?: relate()\none: relate() & path($.x)\nmany: relate() & [path($.x)]\nkeyed: relate({j:1}) & { k: path($.x) }\ng: { y: {}, to: relate() & path(.y) }	$	{"opts": {"view": "canon"}, "out": "{\\"bare\\"?:relate(),\\"g\\":{\\"to\\":relate()&path(.y),\\"y\\":{}},\\"keyed\\":relate({\\"j\\":1})&{\\"k\\":path($.x)},\\"many\\":relate()&[path($.x)],\\"one\\":relate()&path($.x),\\"x\\":{\\"j\\":1}}"}
+query-relation-types	query	x: {}\nbare?: relate()\none: relate() & path($.x)\nmany: relate() & [path($.x)]\nkeyed: relate({j:1}) & { k: path($.x) }\ng: { y: {}, to: relate() & path(.y) }	$	{"opts": {"view": "types"}, "out": "{\\"bare\\"?:relate(),\\"g\\":{\\"to\\":path,\\"y\\":{}},\\"keyed\\":{\\"k\\":path},\\"many\\":[path],\\"one\\":path,\\"x\\":{\\"j\\":integer}}"}
+query-relation-member-canon	query	x: {}\nbare?: relate()\none: relate() & path($.x)\nmany: relate() & [path($.x)]\nkeyed: relate({j:1}) & { k: path($.x) }\ng: { y: {}, to: relate() & path(.y) }	$.g	{"opts": {"view": "canon"}, "out": "{\\"to\\":relate()&path(.y),\\"y\\":{}}"}
+query-relation-member-types	query	x: {}\nbare?: relate()\none: relate() & path($.x)\nmany: relate() & [path($.x)]\nkeyed: relate({j:1}) & { k: path($.x) }\ng: { y: {}, to: relate() & path(.y) }	$.g	{"opts": {"view": "types"}, "out": "{\\"to\\":path,\\"y\\":{}}"}
+query-relation-json	query	x: {}\nbare?: relate()\none: relate() & path($.x)\nmany: relate() & [path($.x)]\nkeyed: relate({j:1}) & { k: path($.x) }\ng: { y: {}, to: relate() & path(.y) }	$.keyed	{"out": "{\\n  \\"k\\": \\"$.x\\"\\n}"}
+query-relation-template-canon	query	x: {}\nmany: relate() & [&: re("^[$]"), path($.x)]	$	{"opts": {"view": "canon"}, "out": "{\\"many\\":relate()&[&:re(\\"^[$]\\"),path($.x)],\\"x\\":{}}"}

@@ -7069,9 +7069,9 @@ rendering follows from here on.
   `test/spec/hcanon.tsv` from `hcanon-relate-one-path` on, by
   `canon-resolved` and `hcanon-link-writes-its-call` of
   `test/spec/refer.tsv`,
-  `rel-in-list-element-canon` of `test/spec/rel.tsv` and `atom-canon`
-  of `test/spec/relation.tsv`, each obtained from both engines
-  agreeing, and by `canon-calls-are-declared-builtins` in
+  `rel-in-list-element-canon` of `test/spec/rel.tsv`, `atom-canon` of
+  `test/spec/relation.tsv` and the rows from `query-relation-canon` on
+  in `test/spec/query.tsv`, each obtained from both engines agreeing, and by `canon-calls-are-declared-builtins` in
   `ts/test/sig.test.ts` and `TestCanonCallsAreDeclaredBuiltins` in
   `go/sig_test.go`, which hold every call the shared rows' canon writes
   to the declared surface of `test/spec/signature.tsv`.
