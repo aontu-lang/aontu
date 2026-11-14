@@ -1,5 +1,6 @@
 import Aontu.Names
 import Aontu.Output
+import Aontu.Text
 
 /-!
 # Declarations in the meet
@@ -322,6 +323,380 @@ theorem restrictF_checkableA : ∀ (f : ℕ) (vs : List Val), (∀ v ∈ vs, v.C
               · exact nomatch hs
           · exact .any
 
+/-- The meet of the values a map's fields named `k` hold, as a map that
+writes a key twice meets them; none where no field is so named. -/
+def fieldsMeet (fs : List (String × Bool × Val)) (k : String) : Option Val :=
+  match fs.filter (·.1 == k) with
+  | [] => none
+  | f :: rest => some (rest.foldl (fun acc g => .meet acc g.2.2) f.2.2)
+
+/-! ## A template's replacements
+
+An `emit` template's `replace` map and its `esc` convention, written
+into its body before any reading: each key in each literal line of the
+body becomes its value's text, so that the line is a `+` of its own text
+and the values, and a value is never scanned again. -/
+
+/-- Whether the text `a` stands somewhere in the text `b`. -/
+def infixOf (a : List Char) : List Char → Bool
+  | [] => a.isEmpty
+  | c :: cs => a.isPrefixOf (c :: cs) || infixOf a cs
+
+/-- The strings a list's elements are written as. -/
+def litStrings : List Val → List String
+  | [] => []
+  | .lit (.str s) :: vs => s :: litStrings vs
+  | _ :: vs => litStrings vs
+
+/-- The literal lines a template's body holds, as both ports read them
+for its replacements: each element written as a string, and in an
+element written as a map, each string its `n` list holds and its
+`text`, a member declared more than once read as the meet of its
+declarations (`fieldsMeet`), which is no list and no string. -/
+def bodySpots : List Val → List String
+  | [] => []
+  | .lit (.str s) :: es => s :: bodySpots es
+  | .map fs _ _ :: es =>
+    ((match fieldsMeet fs "n" with
+      | some (.list xs _ _) => litStrings xs
+      | _ => []) ++
+     (match fieldsMeet fs "text" with
+      | some (.lit (.str s)) => [s]
+      | _ => [])) ++ bodySpots es
+  | _ :: es => bodySpots es
+
+/-- Whether the keys `ks` of a template's `replace` map are ones both
+ports take on its literal lines `ls`: none inside another, and each one
+not empty and held by a line. -/
+def replaceKeysOk (ks ls : List String) : Bool :=
+  ks.all (fun a => ks.all fun b => a == b || !infixOf a.toList b.toList) &&
+    ks.all fun k => k != "" && ls.any fun l => infixOf k.toList l.toList
+
+/-- The longest of the keys `ks` the text `cs` starts with; none where
+none does, an empty key starting none. -/
+def keyAt (ks : List String) (cs : List Char) : Option String :=
+  ks.foldl (fun best k =>
+    if k != "" && k.toList.isPrefixOf cs && best.all (·.length < k.length) then some k else best) none
+
+/-- A literal line cut at the keys `ks` it holds, read once from the
+left, the longest key at each position: each run of its own text,
+`.inl`, and each key, `.inr`, whose text is never read again; `n` turns
+left, one for each character. -/
+def scanKeys (ks : List String) : ℕ → List Char → List (String ⊕ String)
+  | 0, cs => if cs.isEmpty then [] else [.inl (String.mk cs)]
+  | _ + 1, [] => []
+  | n + 1, c :: cs =>
+    match keyAt ks (c :: cs) with
+    | some k => .inr k :: scanKeys ks n ((c :: cs).drop k.length)
+    | none =>
+      match scanKeys ks n cs with
+      | .inl t :: rest => .inl (String.mk (c :: t.toList)) :: rest
+      | rest => .inl (String.mk [c]) :: rest
+
+/-- A literal line with each key it holds replaced by that key's term in
+`ps`: its runs of text and the terms joined by `+` in order, and the
+line as written where it holds no key. -/
+def replacedLine (ps : List (String × Val)) (s : String) : Val :=
+  match (scanKeys (ps.map (·.1)) s.length s.toList).map (fun p => match p with
+      | .inl t => Val.lit (.str t)
+      | .inr k => (ps.lookup k).getD .nil) with
+  | [] => .lit (.str s)
+  | v :: vs => vs.foldl (fun acc w => .call .plus [acc, w]) v
+
+/-- A literal line rewritten (`replacedLine`), and any other term as it
+is. -/
+def Val.replacedLit (ps : List (String × Val)) : Val → Val
+  | .lit (.str s) => replacedLine ps s
+  | v => v
+
+/-- A body's element with its literal lines rewritten (`bodySpots`): an
+element written as a string, and in one written as a map, the strings
+its `n` list holds and its `text`, each declared once. -/
+def Val.replacedElem (ps : List (String × Val)) : Val → Val
+  | .lit (.str s) => replacedLine ps s
+  | .map fs sp cl =>
+    .map (fs.map fun f =>
+      if f.1 == "n" && (fs.filter (·.1 == "n")).length == 1 then
+        (f.1, f.2.1, match f.2.2 with
+          | .list xs xsp xcl => .list (xs.map (Val.replacedLit ps)) xsp xcl
+          | v => v)
+      else if f.1 == "text" && (fs.filter (·.1 == "text")).length == 1 then
+        (f.1, f.2.1, f.2.2.replacedLit ps)
+      else f) sp cl
+  | v => v
+
+/-- The term a template's `esc` member writes a replacement's value `v`
+as: `v`'s text, `"" + v`, as `+` spells a number or a boolean, escaped by
+`esc` in the convention the member names, C and JSON where there is no
+member, or, where it names `none`, `translate("" + v, "")`, which
+translates no character; each refuses a value with no text, where `+`
+alone would wait. None where the member is no string or names no
+convention. -/
+def escWrite (fs : List (String × Bool × Val)) : Option (Val → Val) :=
+  match fieldsMeet fs "esc" with
+  | none => some fun v => .call .esc [.call .plus [.lit (.str ""), v]]
+  | some (.lit (.str n)) =>
+    if n == "none" then some fun v => .call .translate [.call .plus [.lit (.str ""), v], .lit (.str "")]
+    else if (Escape.ofName? n).isSome then
+      some fun v => .call .esc [.call .plus [.lit (.str ""), v], .lit (.str n)]
+    else none
+  | some _ => none
+
+/-- A template with its replacements written into its body: each key of
+its `replace` map, in each literal line of the body (`bodySpots`),
+replaced by the key's value as its `esc` member writes it (`escWrite`),
+a key declared more than once read as the meet of its declarations, and
+the two members left out; the template as it is where it holds neither.
+`.nil`, a template no reading takes, where `replace` is no map, `esc` is
+no string or names no convention, the body is no list, or a key lies
+inside another, is empty or stands in no literal line, each of which
+both ports refuse before they read a node. -/
+def Val.replaced : Val → Val
+  | .map fs sp cl =>
+    if fs.any (fun f => f.1 == "replace" || f.1 == "esc") then
+      match fieldsMeet fs "replace", escWrite fs, fieldsMeet fs "body" with
+      | none, some _, _ => .map (fs.filter (·.1 != "esc")) sp cl
+      | some (.map rfs _ _), some w, some (.list items bsp bcl) =>
+        if replaceKeysOk (rfs.map (·.1)) (bodySpots items) then
+          .map ((fs.filter fun f => f.1 != "replace" && f.1 != "esc").map fun f =>
+            if f.1 == "body" then
+              (f.1, f.2.1, .list (items.map (Val.replacedElem
+                ((rfs.map (·.1)).eraseDups.map fun k => (k, w ((fieldsMeet rfs k).getD .nil))))) bsp bcl)
+            else f) sp cl
+        else .nil
+      | _, _, _ => .nil
+    else .map fs sp cl
+  | v => v
+
+/-- An `emit`'s table with each template's replacements written into its
+body (`Val.replaced`): each element of a list, or the table itself. -/
+def Val.replacedTable : Val → Val
+  | .list rs sp cl => .list (rs.map Val.replaced) sp cl
+  | t => t.replaced
+
+/-- A fold that meets each member's value into a term the checker can
+read is one it can read where each value is. -/
+theorem foldl_meetFields_checkableA : ∀ (l : List (String × Bool × Val)) (acc : Val), acc.CheckableA →
+    (∀ g, g ∈ l → g.2.2.CheckableA) → (l.foldl (fun acc g => .meet acc g.2.2) acc).CheckableA
+  | [], _, ha, _ => ha
+  | x :: xs, _, ha, hx => foldl_meetFields_checkableA xs _ (.meet ha (hx x List.mem_cons_self))
+      (fun y hy => hx y (List.mem_cons_of_mem _ hy))
+
+/-- The meet of a map's fields named `k` is a term the checker can read
+where each field's value is. -/
+theorem fieldsMeet_checkableA {fs : List (String × Bool × Val)} {k : String} {v : Val}
+    (hf : ∀ k o w, (k, o, w) ∈ fs → w.CheckableA) (h : fieldsMeet fs k = some v) : v.CheckableA := by
+  have hmem : ∀ g, g ∈ fs.filter (·.1 == k) → g.2.2.CheckableA := fun g hg =>
+    hf g.1 g.2.1 g.2.2 (List.mem_filter.mp hg).1
+  unfold fieldsMeet at h
+  generalize fs.filter (·.1 == k) = l at hmem h
+  cases l with
+  | nil => exact absurd h (by simp)
+  | cons f rest =>
+    simp only [Option.some.injEq] at h
+    subst h
+    exact foldl_meetFields_checkableA rest f.2.2 (hmem f List.mem_cons_self)
+      (fun g hg => hmem g (List.mem_cons_of_mem _ hg))
+
+/-- A fold that joins each term to a term the checker can read by `+`
+is one it can read where each term is. -/
+theorem foldl_plus_checkableA : ∀ (l : List Val) (acc : Val), acc.CheckableA →
+    (∀ w, w ∈ l → w.CheckableA) → (l.foldl (fun acc w => .call .plus [acc, w]) acc).CheckableA
+  | [], _, ha, _ => ha
+  | x :: xs, _, ha, hx => foldl_plus_checkableA xs _
+      (.call fun a h => by
+        simp only [List.mem_cons, List.not_mem_nil, or_false] at h
+        rcases h with h | h
+        · rw [h]; exact ha
+        · rw [h]; exact hx x List.mem_cons_self)
+      (fun y hy => hx y (List.mem_cons_of_mem _ hy))
+
+/-- What a list of pairs looks up under a key is a pair's second. -/
+theorem lookup_some_mem : ∀ {ps : List (String × Val)} {k : String} {w : Val}, ps.lookup k = some w →
+    ∃ k', (k', w) ∈ ps
+  | [], _, _, h => by simp [List.lookup] at h
+  | (a, b) :: ps, k, w, h => by
+    simp only [List.lookup] at h
+    split at h
+    · obtain rfl := Option.some.inj h
+      exact ⟨a, List.mem_cons_self⟩
+    · obtain ⟨k', hk'⟩ := lookup_some_mem h
+      exact ⟨k', List.mem_cons_of_mem _ hk'⟩
+
+/-- A literal line rewritten is a term the checker can read where each
+key's term is. -/
+theorem replacedLine_checkableA {ps : List (String × Val)} (hp : ∀ p, p ∈ ps → p.2.CheckableA)
+    (s : String) : (replacedLine ps s).CheckableA := by
+  unfold replacedLine
+  split
+  · exact .lit
+  · rename_i v vs hm
+    have hall : ∀ w, w ∈ v :: vs → w.CheckableA := by
+      rw [← hm]
+      intro w hw
+      obtain ⟨p, -, rfl⟩ := List.mem_map.mp hw
+      cases p with
+      | inl t => exact .lit
+      | inr k =>
+        dsimp only
+        cases hl : ps.lookup k with
+        | none => exact .nil
+        | some w =>
+          obtain ⟨k', hk'⟩ := lookup_some_mem hl
+          exact hp (k', w) hk'
+    exact foldl_plus_checkableA vs v (hall v List.mem_cons_self)
+      (fun w hw => hall w (List.mem_cons_of_mem _ hw))
+
+/-- A term with its literal line rewritten is one the checker can read. -/
+theorem Val.replacedLit_checkableA {ps : List (String × Val)} (hp : ∀ p, p ∈ ps → p.2.CheckableA)
+    {v : Val} (h : v.CheckableA) : (v.replacedLit ps).CheckableA := by
+  unfold Val.replacedLit
+  split
+  · exact replacedLine_checkableA hp _
+  · exact h
+
+/-- A body's element with its literal lines rewritten is one the checker
+can read. -/
+theorem Val.replacedElem_checkableA {ps : List (String × Val)} (hp : ∀ p, p ∈ ps → p.2.CheckableA)
+    {v : Val} (h : v.CheckableA) : (v.replacedElem ps).CheckableA := by
+  unfold Val.replacedElem
+  split
+  · exact replacedLine_checkableA hp _
+  · rename_i fs sp cl
+    cases h with
+    | map hf hs =>
+      refine .map (fun k o w hm => ?_) hs
+      obtain ⟨f, hf', he⟩ := List.mem_map.mp hm
+      have hfw : f.2.2.CheckableA := hf f.1 f.2.1 f.2.2 hf'
+      split at he
+      · simp only [Prod.mk.injEq] at he
+        obtain ⟨-, -, rfl⟩ := he
+        split
+        · rename_i xs xsp xcl hx
+          rw [hx] at hfw
+          cases hfw with
+          | list hi hsp =>
+            refine .list (fun x hx' => ?_) hsp
+            obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hx'
+            exact Val.replacedLit_checkableA hp (hi y hy)
+        · exact hfw
+      · split at he
+        · simp only [Prod.mk.injEq] at he
+          obtain ⟨-, -, rfl⟩ := he
+          exact Val.replacedLit_checkableA hp hfw
+        · subst he
+          exact hfw
+  · exact h
+
+/-- The term a template's `esc` member writes a value as is one the
+checker can read where the value is. -/
+theorem escWrite_checkableA {fs : List (String × Bool × Val)} {w : Val → Val}
+    (h : escWrite fs = some w) : ∀ v, v.CheckableA → (w v).CheckableA := by
+  have hplus : ∀ v : Val, v.CheckableA → (Val.call .plus [.lit (.str ""), v]).CheckableA := fun v hv =>
+    .call fun a ha => by
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at ha
+      rcases ha with rfl | rfl
+      · exact .lit
+      · exact hv
+  unfold escWrite at h
+  split at h
+  · obtain rfl := Option.some.inj h
+    intro v hv
+    exact .call fun a ha => by
+      simp only [List.mem_cons, List.not_mem_nil, or_false] at ha
+      subst ha
+      exact hplus v hv
+  · split at h
+    · obtain rfl := Option.some.inj h
+      intro v hv
+      exact .call fun a ha => by
+        simp only [List.mem_cons, List.not_mem_nil, or_false] at ha
+        rcases ha with rfl | rfl
+        · exact hplus v hv
+        · exact .lit
+    · split at h
+      · obtain rfl := Option.some.inj h
+        intro v hv
+        exact .call fun a ha => by
+          simp only [List.mem_cons, List.not_mem_nil, or_false] at ha
+          rcases ha with rfl | rfl
+          · exact hplus v hv
+          · exact .lit
+      · exact absurd h (by simp)
+  · exact absurd h (by simp)
+
+/-- A template with its replacements written into its body is one the
+checker can read where the template is. -/
+theorem Val.replaced_checkableA {v : Val} (h : v.CheckableA) : v.replaced.CheckableA := by
+  unfold Val.replaced
+  split
+  · rename_i fs sp cl
+    cases h with
+    | map hf hs =>
+      split
+      · split
+        · exact .map (fun k o w hm => hf k o w (List.mem_filter.mp hm).1) hs
+        · rename_i hr hw hb
+          split
+          · refine .map (fun k o x hm => ?_) hs
+            obtain ⟨f, hf', he⟩ := List.mem_map.mp hm
+            have hfs := (List.mem_filter.mp hf').1
+            split at he
+            · simp only [Prod.mk.injEq] at he
+              obtain ⟨-, -, rfl⟩ := he
+              have hbody := fieldsMeet_checkableA hf hb
+              have hrep := fieldsMeet_checkableA hf hr
+              cases hbody with
+              | list hi hsp =>
+                refine .list (fun y hy => ?_) hsp
+                obtain ⟨z, hz, rfl⟩ := List.mem_map.mp hy
+                refine Val.replacedElem_checkableA (fun p hp => ?_) (hi z hz)
+                obtain ⟨k', -, rfl⟩ := List.mem_map.mp hp
+                cases hrep with
+                | map hrf _ =>
+                  refine escWrite_checkableA hw _ ?_
+                  cases hm' : fieldsMeet _ k' with
+                  | none => exact .nil
+                  | some u => exact fieldsMeet_checkableA hrf hm'
+            · subst he
+              exact hf _ _ _ hfs
+          · exact .nil
+        · exact .nil
+      · exact .map hf hs
+  · exact h
+
+/-- A table with its templates' replacements written into their bodies
+is one the checker can read where the table is. -/
+theorem Val.replacedTable_checkableA {v : Val} (h : v.CheckableA) : v.replacedTable.CheckableA := by
+  unfold Val.replacedTable
+  split
+  · cases h with
+    | list hi hs =>
+      refine .list (fun x hx => ?_) hs
+      obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hx
+      exact Val.replaced_checkableA (hi y hy)
+  · exact Val.replaced_checkableA h
+
+/-- A table with its templates' replacements written into their bodies
+reaches no name with nothing between: it is a map, a list or `.nil`, or
+the table as it is. -/
+theorem unguardedRefs_replacedTable {v : Val} {n : String} (h : n ∈ v.replacedTable.unguardedRefs) :
+    n ∈ v.unguardedRefs := by
+  unfold Val.replacedTable at h
+  split at h
+  · simp [Val.unguardedRefs] at h
+  · unfold Val.replaced at h
+    split at h
+    · split at h
+      · split at h
+        · simp [Val.unguardedRefs] at h
+        · split at h
+          · simp [Val.unguardedRefs] at h
+          · simp [Val.unguardedRefs] at h
+        · simp [Val.unguardedRefs] at h
+      · simp [Val.unguardedRefs] at h
+    · exact h
+
 /-- The table an `emit` call written as an `emit`'s table holds: its own
 table, at any depth, so that `emit(_, t)`, a rule set waiting for its
 nodes, is the table `t` where an `emit` takes it as its rules. -/
@@ -330,11 +705,12 @@ def innerTable : Val → Val
   | t => t
 
 /-- A call's arguments as the call reads them: an `emit`'s table read as
-the table it holds (`innerTable`), and any other call's as written. -/
+the table it holds (`innerTable`), each template's replacements written
+into its body (`Val.replacedTable`), and any other call's as written. -/
 def Fn.tableArgs (f : Fn) (args : List Val) : List Val :=
   if f = .emit then
     match args with
-    | [s, t] => [s, innerTable t]
+    | [s, t] => [s, (innerTable t).replacedTable]
     | as => as
   else args
 
@@ -354,7 +730,8 @@ recursive name, or to no name, stays. A rider's body reads as the rider
 has it read (`Rider.reads`), so `open(v)` reads `v`, expanded, with
 every seal lifted, the seal of a definition's instance among them. An
 `emit`'s table that is an `emit` call, written in place or named, reads
-as the table it holds (`Fn.tableArgs`), and one that names a recursive
+as the table it holds, each template's replacements written into its
+body (`Fn.tableArgs`), and one that names a recursive
 name as that name's bodies, a level for each turn left
 (`Decls.tableUnfold`), so the turns bound how deep a rule set that names
 itself walks. -/
@@ -400,7 +777,7 @@ theorem Fn.tableArgs_of_ne {f : Fn} (args : List Val) (h : f ≠ .emit) : f.tabl
 /-- An argument a call reads is an argument as written or the table one
 holds. -/
 theorem mem_tableArgs {f : Fn} {args : List Val} {x : Val} (h : x ∈ f.tableArgs args) :
-    ∃ y, y ∈ args ∧ (x = y ∨ x = innerTable y) := by
+    ∃ y, y ∈ args ∧ (x = y ∨ x = (innerTable y).replacedTable) := by
   unfold Fn.tableArgs at h
   split at h
   · split at h
@@ -433,8 +810,8 @@ theorem mem_tableUnfold {ds : Decls} {e : Val → Val} {f : Fn} {as : List Val} 
     · exact .inl (by simp)
     · split
       · cases he : ds.env n with
-        | none => exact .inl (by simp [he])
-        | some b => exact .inr ⟨n, b, by simp, he, by simp [he]⟩
+        | none => exact .inl (by simp)
+        | some b => exact .inr ⟨n, b, by simp, he, by simp⟩
       · exact .inl (by simp)
   · exact .inl h
 
@@ -1167,7 +1544,7 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
       have hny : n ∈ y.unguardedRefs := by
         rcases hx with rfl | rfl
         · exact hn
-        · exact unguardedRefs_innerTable _ hn
+        · exact unguardedRefs_innerTable _ (unguardedRefs_replacedTable hn)
       rcases mem_tableUnfold hy with hy | ⟨k, b, hk, he, rfl⟩
       · obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hy
         rcases unguardedRefs_expandF f a hny with h' | ⟨m, hm', hmn⟩
@@ -2173,7 +2550,7 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
         · exact expandF_checkableA hb f b (Decls.env_checkableA hb he)
       rcases hx with rfl | rfl
       · exact hyc
-      · exact innerTable_checkableA _ hyc
+      · exact Val.replacedTable_checkableA (innerTable_checkableA _ hyc)
     | must hc => exact .must (expandF_checkableA hb f _ hc)
     | when hc ht he =>
       refine .when (expandF_checkableA hb f _ hc) (expandF_checkableA hb f _ ht) ?_

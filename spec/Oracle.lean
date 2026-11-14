@@ -7113,6 +7113,146 @@ theorem emit_rec_verdict_exact : ∀ c ∈ emitRecCases, ∀ (m : Mode) (v : Ver
   fun c hc _ v => vet_iff (emitRecCases_checkable c hc).1
     (readR_checkableA (emitRecCases_checkable c hc).1 (emitRecCases_checkable c hc).2) v
 
+/-- A template's `replace` map and its `esc` convention, written into its
+body before any reading: a key in a literal line replaced by its value
+read for each node, two keys, a number and a boolean spelled as `+`
+spells them, a value a call makes, the node itself, a preference, each
+convention and none, a value never scanned again, the pieces a nested
+`emit` splices left as its own table makes them, the strings a piece
+map's `n` list and `text` hold, an expression, a number, a list and a
+map piece left as written, a table of two templates; and the template
+refused, an error, before any node: a key inside another, an empty key,
+one in no literal line or only in an expression, a `replace` that is no
+map, an `esc` that names no convention or is no string, a `n` written
+twice, and a value with no text, a map, a list, `null`, a kind, or a
+field the node lacks. -/
+def emitReplaceCases : List (Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let jm (fs : List (String × Data)) : Data := .map fs
+  let nd (k : String) : Val := .path [.node, .key k]
+  let em (s t : Val) : Val := c .emit [s, t]
+  let rp (m : Val) (r : List (String × Val)) (b : List Val) : Val :=
+    mp [("match", m), ("replace", mp r), ("body", lst b)]
+  let rpe (m e : Val) (r : List (String × Val)) (b : List Val) : Val :=
+    mp [("match", m), ("esc", e), ("replace", mp r), ("body", lst b)]
+  let one (fs : List (String × Val)) : Val := lst [mp fs]
+  let pz : Val := one [("p", str "z")]
+  let px : Val := one [("p", str "x")]
+  let pin : Val := em (one [("pin", str "a:1")]) (rp (mp [("pin", .string)]) [("PIN", nd "pin")] [str "listen('PIN')"])
+  let two : Val := em (lst [mp [("p", str "x")], mp [("p", str "y")]]) (rp (mp [("p", .string)]) [("P", nd "p")] [str "<P>"])
+  let keys : Val := em (one [("a", int 1), ("b", int 2)]) (rp (mp []) [("A", nd "a"), ("B", nd "b")] [str "A+B=A B"])
+  let spell : Val := em (one [("port", int 8080), ("on", .lit (.bool true))])
+    (rp (mp []) [("PORT", nd "port"), ("ON", nd "on")] [str "listen(PORT, ON)"])
+  let called : Val := em px (rp (mp []) [("P", c .upper [nd "p"])] [str "<P>"])
+  let ofNode : Val := em (lst [str "a", str "b"]) (rp .string [("N", .hole)] [str "<N>"])
+  let dq : Val := em (one [("pin", str "it\"s")]) (rp (mp [("pin", .string)]) [("PIN", nd "pin")] [str "x(\"PIN\")"])
+  let sq : Val := em (one [("pin", str "it's")]) (rpe (mp [("pin", .string)]) (str "sq") [("PIN", nd "pin")] [str "x('PIN')"])
+  let asIs : Val := em (one [("pin", str "it's")]) (rpe (mp [("pin", .string)]) (str "none") [("PIN", nd "pin")] [str "x(PIN)"])
+  let xml : Val := em (one [("t", str "a<b")]) (rpe (mp []) (str "xml") [("T", nd "t")] [str "<p>T</p>"])
+  let rescan : Val := em (one []) (rp (mp []) [("A", str "B"), ("B", str "c")] [str "A B"])
+  let self : Val := em (one [("p", str "P")]) (rp (mp []) [("P", nd "p")] [str "P P"])
+  let shared : Val := em px (rp (mp []) [("P", nd "p"), ("Q", nd "p")] [str "PQ", str "Q"])
+  let spliced : Val := em (one [("x", int 1), ("c", lst [mp [("y", int 2)]])])
+    (rp (mp []) [("X", nd "x")] [str "X", em (nd "c") (mp [("match", mp []), ("body", lst [str "X Y"])]), str "X"])
+  let own : Val := em (one [("x", int 1), ("c", lst [mp [("y", int 2)]])])
+    (rp (mp []) [("X", nd "x")] [str "X", em (nd "c") (rp (mp []) [("Y", nd "y")] [str "X Y"])])
+  let pieces : Val := em pz (rp (mp []) [("P", nd "p")]
+    [mp [("k", str "line"), ("at", int 1), ("n", lst [str "x P", nd "p"])], mp [("k", str "raw"), ("text", str "P raw")]])
+  let expr : Val := em pz (rp (mp []) [("P", nd "p")] [str "P", c .plus [str "P", str "P"]])
+  let num : Val := em pz (rp (mp []) [("P", nd "p")] [int 1, str "P"])
+  let blank : Val := em pz (rp (mp []) [("P", nd "p")] [mp [("k", str "blank")], str "P"])
+  let inner : Val := em px (rp (mp []) [("P", nd "p")] [str "P", lst [str "P"]])
+  let pref : Val := em (one []) (rp (mp []) [("P", .pref 1 (str "x"))] [str "<P>"])
+  let table : Val := em (lst [int 1, str "s"])
+    (lst [mp [("match", .number), ("replace", mp [("N", .hole)]), ("body", lst [str "n=N"])],
+      mp [("match", .string), ("body", lst [str "s"])]])
+  let escOnly : Val := em (one []) (mp [("match", mp []), ("esc", str "sq"), ("body", lst [str "it's"])])
+  [(pin, jl [js "listen('a:1')"]), (pin, jl [js "listen('PIN')"]),
+    (two, jl [js "<x>", js "<y>"]), (two, jl [js "<x>", js "<x>"]),
+    (keys, jl [js "1+2=1 2"]), (keys, jl [js "A+B=A B"]),
+    (spell, jl [js "listen(8080, true)"]), (spell, jl [js "listen(8080, 1)"]),
+    (called, jl [js "<X>"]), (called, jl [js "<x>"]),
+    (ofNode, jl [js "<a>", js "<b>"]), (ofNode, jl [js "<a>", js "<a>"]),
+    (dq, jl [js "x(\"it\\\"s\")"]), (dq, jl [js "x(\"it\"s\")"]),
+    (sq, jl [js "x('it\\'s')"]), (sq, jl [js "x('it's')"]),
+    (asIs, jl [js "x(it's)"]), (asIs, jl [js "x(it\\'s)"]),
+    (xml, jl [js "<p>a&lt;b</p>"]), (xml, jl [js "<p>a<b</p>"]),
+    (rescan, jl [js "B c"]), (rescan, jl [js "c c"]),
+    (self, jl [js "P P"]), (shared, jl [js "xx", js "x"]),
+    (spliced, jl [js "1", js "X Y", js "1"]), (spliced, jl [js "1", js "1 Y", js "1"]),
+    (own, jl [js "1", js "X 2"]), (own, jl [js "1", js "1 2"]),
+    (pieces, jl [jm [("k", js "line"), ("at", j 1), ("n", jl [js "x z", js "z"])], jm [("k", js "raw"), ("text", js "z raw")]]),
+    (pieces, jl [jm [("k", js "line"), ("at", j 1), ("n", jl [js "x P", js "z"])], jm [("k", js "raw"), ("text", js "z raw")]]),
+    (expr, jl [js "z", js "PP"]), (expr, jl [js "z", js "zz"]),
+    (num, jl [j 1, js "z"]), (blank, jl [jm [("k", js "blank")], js "z"]),
+    (inner, jl [js "x", js "P"]), (inner, jl [js "x", js "x"]),
+    (pref, jl [js "<x>"]), (table, jl [js "n=1", js "s"]), (table, jl [js "n=N", js "s"]),
+    (escOnly, jl [js "it's"]),
+    (em px (rpe (mp []) (str "pascal") [("P", nd "p")] [str "P"]), jl [js "x"]),
+    (em px (rpe (mp []) (int 1) [("P", nd "p")] [str "P"]), jl [js "x"]),
+    (em (one []) (mp [("match", mp []), ("esc", str "pascal"), ("body", lst [str "x"])]), jl [js "x"]),
+    (em (one [("p", int 1), ("pin", int 2)]) (rp (mp []) [("P", nd "p"), ("PIN", nd "pin")] [str "PIN"]), jl [js "2"]),
+    (em (one [("pin", int 2)]) (rp (mp []) [("NOPE", nd "pin")] [str "PIN"]), jl [js "PIN"]),
+    (em px (rp (mp []) [("P", nd "p")] [c .plus [str "a", str "P"]]), jl [js "aP"]),
+    (em px (rp (mp []) [("", nd "p")] [str "P"]), jl [js "P"]),
+    (em (lst []) (rp (mp []) [("NOPE", int 1)] [str "P"]), jl []),
+    (em (lst [int 1]) (lst [mp [("match", .number), ("body", lst [str "n"])],
+      mp [("match", .string), ("replace", mp [("Q", int 1)]), ("body", lst [str "s"])]]), jl [js "n"]),
+    (em px (mp [("match", mp []), ("replace", int 1), ("body", lst [str "P"])]), jl [js "P"]),
+    (em px (rp (mp []) [("P", nd "p")] [mp [("n", lst [str "P"]), ("n", lst [str "Q"])]]), jl []),
+    (em (one [("pin", int 2)]) (rp (mp []) [("ALL", .hole)] [str "ALL"]), jl [js "ALL"]),
+    (em (one []) (rp (mp []) [("N", .lit .null)] [str "N"]), jl [js "null"]),
+    (em (one [("l", lst [int 1])]) (rp (mp []) [("L", nd "l")] [str "L"]), jl [js "L"]),
+    (em (one []) (rp (mp []) [("P", .string)] [str "P"]), jl [js "P"]),
+    (em (one []) (rpe (mp []) (str "none") [("P", .string)] [str "P"]), jl [js "P"]),
+    (em (one [("p", .string)]) (rp (mp []) [("P", nd "p")] [str "P"]), jl [js "P"]),
+    (em px (rp (mp []) [("P", nd "nope")] [str "P"]), jl [js "P"])]
+
+theorem emitReplaceCases_checkable : ∀ c ∈ emitReplaceCases, (vetDoc c).1.CheckableA := by decide
+
+theorem emit_replace_verdict_exact : ∀ c ∈ emitReplaceCases, ∀ (m : Mode) (v : Verdict),
+    vet m [] (vetDoc c).1 (vetDoc c).2 = v ↔ Vet m [] (vetDoc c).1 (vetDoc c).2 v :=
+  fun c hc _ v => vet_iff (fun _ h => absurd h (List.not_mem_nil))
+    (readR_checkableA (fun _ h => absurd h (List.not_mem_nil)) (emitReplaceCases_checkable c hc)) v
+
+/-- A named table whose template writes replacements, `%w = emit(_, t)`,
+and one that names itself, walking a tree with a replacement at each
+level. -/
+def emitReplaceNameCases : List (Decls × Val × Data) :=
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let nd (k : String) : Val := .path [.node, .key k]
+  let held (t : Val) : Val := c .emit [.hole, t]
+  let rp (m : Val) (r : List (String × Val)) (b : List Val) : Val :=
+    mp [("match", m), ("replace", mp r), ("body", lst b)]
+  let node (n : String) (kids : List Val) : Val := mp [("name", str n), ("kids", lst kids)]
+  let w : Decls := [("W", held (rp (mp [("p", .string)]) [("P", nd "p")] [str "<P>"]))]
+  let walk : Decls := [("W", held (rp (mp [("name", .string)]) [("N", nd "name")]
+    [str "<N>", c .emit [nd "kids", .alias "W"], str "</N>"]))]
+  [(w, c .emit [lst [mp [("p", str "x")]], .alias "W"], jl [js "<x>"]),
+    (w, c .emit [lst [mp [("p", str "x")]], .alias "W"], jl [js "<P>"]),
+    (walk, c .emit [lst [node "a" [node "b" []]], .alias "W"], jl [js "<a>", js "<b>", js "</b>", js "</a>"]),
+    (walk, c .emit [lst [node "a" [node "b" []]], .alias "W"], jl [js "<a>", js "<a>", js "</a>", js "</a>"])]
+
+theorem emitReplaceNameCases_checkable : ∀ c ∈ emitReplaceNameCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
+
+theorem emit_replace_name_verdict_exact : ∀ c ∈ emitReplaceNameCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 (aliasDoc c).1 (aliasDoc c).2 = v ↔ Vet m c.1 (aliasDoc c).1 (aliasDoc c).2 v :=
+  fun c hc _ v => vet_iff (emitReplaceNameCases_checkable c hc).1
+    (readR_checkableA (emitReplaceNameCases_checkable c hc).1 (emitReplaceNameCases_checkable c hc).2) v
+
 /-- `apply(v, f)`, which binds each hole of `f` that no generator or
 `apply` inside `f` binds to `v` and makes the one instance
 `each([v], f)` would: a call over the hole, a map's member and a list's
@@ -8134,7 +8274,10 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# read where its piece lands in the output, in rows ek0 on. A table written as an"
     IO.println "# emit call reads as the table it holds, in place in rows ew0 on and named, a rule"
     IO.println "# set %w = emit(_, t), in rows en0 on, and one that names itself, unfolded a level"
-    IO.println "# for each turn the expansion has left, in rows er0 on. apply(v, f) follows in"
+    IO.println "# for each turn the expansion has left, in rows er0 on. A template's replace"
+    IO.println "# map and its esc convention, each key in the body's literal lines replaced by"
+    IO.println "# its value's text, escaped, follow in rows ep0 on, and in a named table in rows"
+    IO.println "# eq0 on. apply(v, f) follows in"
     IO.println "# rows ap0 on: each hole of f that no generator or apply inside f binds, bound"
     IO.println "# to v, the one instance each([v], f) makes. A hole that nothing binds is"
     IO.println "# an error of the schema wherever it stands (ruling 34): in the shapes the meet"
@@ -8166,6 +8309,8 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "ew" emitTableCases
     aliasRows "en" emitNameCases
     aliasRows "er" emitRecCases
+    verdictRows "ep" emitReplaceCases
+    aliasRows "eq" emitReplaceNameCases
     verdictRows "ap" applyCases
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases

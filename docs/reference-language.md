@@ -1539,7 +1539,10 @@ as an `emit` call reads as the table it holds (`Fn.tableArgs`), so a
 named table serves each `emit` that takes it. Rows from ew0 on and from
 en0 on hold both engines to it. A named table that names itself unfolds
 a level for each turn the expansion has left (`Decls.tableUnfold`), rows
-from er0 on. The definition doesn't yet read `replace` in a body.
+from er0 on. The expansion writes a template's `replace` map and `esc`
+convention into its body before any reading (`Val.replaced`), each key
+in a literal line read as its value's text, escaped, and rows from ep0
+on and from eq0 on hold both engines to it.
 
 ### A named table
 
