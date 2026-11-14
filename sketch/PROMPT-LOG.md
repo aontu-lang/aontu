@@ -1133,3 +1133,9 @@ Post GitHub issues for the findings. Rewrite without aliases, placing types unde
 ```text
 Can name: $.type.Name not be expressed as name: .Name ?
 ```
+
+## 2026-11-14 13:55:32 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+parent: relate({ kind:"folder" }) is not great because it just uses one field rather than making the intent clear - parent: relate($.type.Folder) would be better
+```
