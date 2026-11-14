@@ -338,6 +338,15 @@ def Fn.tableArgs (f : Fn) (args : List Val) : List Val :=
     | as => as
   else args
 
+/-- A call's arguments as the expansion reads them, `e` the expansion of
+a term: an `emit`'s table that names a recursive name read as that
+name's bodies, expanded, so that a rule set that names itself unfolds
+one level for each turn the expansion has left, and every other
+argument as `e` left it. -/
+def Decls.tableUnfold (ds : Decls) (e : Val → Val) : Fn → List Val → List Val
+  | .emit, [s, .alias n] => [s, if ds.recursiveB n then ((ds.env n).map e).getD (.alias n) else .alias n]
+  | _, as => as
+
 /-- The expansion of a term, within `k` turns: a reference to a name
 that is not recursive is replaced by the meet of its bodies, expanded in
 turn and sealed where the name is a definition; a reference to a
@@ -345,7 +354,10 @@ recursive name, or to no name, stays. A rider's body reads as the rider
 has it read (`Rider.reads`), so `open(v)` reads `v`, expanded, with
 every seal lifted, the seal of a definition's instance among them. An
 `emit`'s table that is an `emit` call, written in place or named, reads
-as the table it holds (`Fn.tableArgs`). -/
+as the table it holds (`Fn.tableArgs`), and one that names a recursive
+name as that name's bodies, a level for each turn left
+(`Decls.tableUnfold`), so the turns bound how deep a rule set that names
+itself walks. -/
 def expandF (ds : Decls) : ℕ → Val → Val
   | 0, v => v
   | k + 1, v =>
@@ -376,7 +388,7 @@ def expandF (ds : Decls) : ℕ → Val → Val
     | .select s arms d =>
       .select (expandF ds k s) (arms.map fun a => (expandF ds k a.1, expandF ds k a.2)) (d.map (expandF ds k))
     | .filter s c => .filter (expandF ds k s) (expandF ds k c)
-    | .call f args => .call f (f.tableArgs (args.map (expandF ds k)))
+    | .call f args => .call f (f.tableArgs (ds.tableUnfold (expandF ds k) f (args.map (expandF ds k))))
     | .ride t v r => .ride t (t.reads (expandF ds k v)) r
     | .link v t => .link (expandF ds k v) (expandF ds k t)
     | v => v
@@ -399,6 +411,32 @@ theorem mem_tableArgs {f : Fn} {args : List Val} {x : Val} (h : x ∈ f.tableArg
       · exact ⟨t, by simp, .inr rfl⟩
     · exact ⟨x, h, .inl rfl⟩
   · exact ⟨x, h, .inl rfl⟩
+
+/-- A call other than `emit` has its arguments unfolded as written. -/
+theorem Decls.tableUnfold_of_ne {ds : Decls} {e : Val → Val} {f : Fn} (as : List Val) (h : f ≠ .emit) :
+    ds.tableUnfold e f as = as := by
+  unfold Decls.tableUnfold
+  split
+  · exact absurd rfl h
+  · rfl
+
+/-- An argument the unfolding hands on is one it was handed, or the
+expansion of a body of a name an `emit`'s table names. -/
+theorem mem_tableUnfold {ds : Decls} {e : Val → Val} {f : Fn} {as : List Val} {x : Val}
+    (h : x ∈ ds.tableUnfold e f as) :
+    x ∈ as ∨ ∃ n b, Val.alias n ∈ as ∧ ds.env n = some b ∧ x = e b := by
+  unfold Decls.tableUnfold at h
+  split at h
+  · rename_i s n
+    simp only [List.mem_cons, List.mem_nil_iff, or_false] at h
+    rcases h with rfl | rfl
+    · exact .inl (by simp)
+    · split
+      · cases he : ds.env n with
+        | none => exact .inl (by simp [he])
+        | some b => exact .inr ⟨n, b, by simp, he, by simp [he]⟩
+      · exact .inl (by simp)
+  · exact .inl h
 
 /-! ## Disjunctions met at one place -/
 
@@ -1126,14 +1164,24 @@ theorem unguardedRefs_expandF {ds : Decls} : ∀ (f : ℕ) (b : Val) {n : String
       simp only [expandF, Val.unguardedRefs] at h ⊢
       obtain ⟨a', hm, hn⟩ := mem_unguardedItems.mp h
       obtain ⟨y, hy, hx⟩ := mem_tableArgs hm
-      obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hy
-      have hn' : n ∈ (expandF ds f a).unguardedRefs := by
+      have hny : n ∈ y.unguardedRefs := by
         rcases hx with rfl | rfl
         · exact hn
         · exact unguardedRefs_innerTable _ hn
-      rcases unguardedRefs_expandF f a hn' with h' | ⟨m, hm', hmn⟩
-      · exact .inl (mem_unguardedItems.mpr ⟨a, ha, h'⟩)
-      · exact .inr ⟨m, mem_unguardedItems.mpr ⟨a, ha, hm'⟩, hmn⟩
+      rcases mem_tableUnfold hy with hy | ⟨k, b, hk, he, rfl⟩
+      · obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hy
+        rcases unguardedRefs_expandF f a hny with h' | ⟨m, hm', hmn⟩
+        · exact .inl (mem_unguardedItems.mpr ⟨a, ha, h'⟩)
+        · exact .inr ⟨m, mem_unguardedItems.mpr ⟨a, ha, hm'⟩, hmn⟩
+      · obtain ⟨a, ha, hak⟩ := List.mem_map.mp hk
+        have hka : k ∈ (expandF ds f a).unguardedRefs := by rw [hak]; simp [Val.unguardedRefs]
+        have hkn : Relation.TransGen ds.RefersUnguarded k n := by
+          rcases unguardedRefs_expandF f b hny with h' | ⟨m, hm', hmn⟩
+          · exact .single (Decls.refersUnguarded_of_env he h')
+          · exact .trans (.single (Decls.refersUnguarded_of_env he hm')) hmn
+        rcases unguardedRefs_expandF f a hka with h' | ⟨m, hm', hmk⟩
+        · exact .inr ⟨k, mem_unguardedItems.mpr ⟨a, ha, h'⟩, hkn⟩
+        · exact .inr ⟨m, mem_unguardedItems.mpr ⟨a, ha, hm'⟩, .trans hmk hkn⟩
     | _ => exact .inl (by simpa [expandF] using h)
 
 /-! ### The directives reach no name the term does not -/
@@ -2118,10 +2166,14 @@ theorem expandF_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA
     | call hargs =>
       refine .call fun a' hm => ?_
       obtain ⟨y, hy, hx⟩ := mem_tableArgs hm
-      obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hy
+      have hyc : y.CheckableA := by
+        rcases mem_tableUnfold hy with hy | ⟨n, b, -, he, rfl⟩
+        · obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hy
+          exact expandF_checkableA hb f a (hargs a ha)
+        · exact expandF_checkableA hb f b (Decls.env_checkableA hb he)
       rcases hx with rfl | rfl
-      · exact expandF_checkableA hb f a (hargs a ha)
-      · exact innerTable_checkableA _ (expandF_checkableA hb f a (hargs a ha))
+      · exact hyc
+      · exact innerTable_checkableA _ hyc
     | must hc => exact .must (expandF_checkableA hb f _ hc)
     | when hc ht he =>
       refine .when (expandF_checkableA hb f _ hc) (expandF_checkableA hb f _ ht) ?_

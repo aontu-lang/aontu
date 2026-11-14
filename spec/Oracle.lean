@@ -5929,8 +5929,8 @@ theorem filled_expandF_call {f : Fn} (hf : f = .split ∨ f = .rep) {args : List
       obtain ⟨y, hy, rfl⟩ := List.mem_map.mp hx
       exact inert_expandF (h y hy) k
   rcases hf with rfl | rfl <;> intro k <;> cases k <;>
-    simp only [expandF, Fn.tableArgs_of_ne _ (show Fn.split ≠ Fn.emit by decide),
-      Fn.tableArgs_of_ne _ (show Fn.rep ≠ Fn.emit by decide), Val.filled, filledItems_inert h, hm]
+    simp only [expandF, Decls.tableUnfold_of_ne _ (show Fn.split ≠ Fn.emit by decide), Fn.tableArgs_of_ne _ (show Fn.split ≠ Fn.emit by decide),
+      Decls.tableUnfold_of_ne _ (show Fn.rep ≠ Fn.emit by decide), Fn.tableArgs_of_ne _ (show Fn.rep ≠ Fn.emit by decide), Val.filled, filledItems_inert h, hm]
 
 theorem patternCases_readable : ∀ c ∈ patternCases, (Decls.readR [] (vetDoc c).1).CheckableA := by
   intro c hc
@@ -7071,6 +7071,48 @@ theorem emit_name_verdict_exact : ∀ c ∈ emitNameCases, ∀ (m : Mode) (v : V
   fun c hc _ v => vet_iff (emitNameCases_checkable c hc).1
     (readR_checkableA (emitNameCases_checkable c hc).1 (emitNameCases_checkable c hc).2) v
 
+/-- A named table that names itself, a rule set that walks a nested
+selection into nested output, unfolded a level for each turn the
+expansion has left: down a tree of one child and of two, with a
+`key(n)` in its body, two tables that name each other, over an empty
+selection, and one that walks into itself without descending, which
+spends the turns and is an error. -/
+def emitRecCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let nd (k : String) : Val := .path [.node, .key k]
+  let pl (a b : Val) : Val := c .plus [a, b]
+  let rule (m : Val) (b : List Val) : Val := mp [("match", m), ("body", lst b)]
+  let held (t : Val) : Val := c .emit [.hole, t]
+  let node (n : String) (kids : List Val) : Val := mp [("name", str n), ("kids", lst kids)]
+  let walk : Decls := [("W", held (rule (mp [("name", .string)])
+    [pl (pl (str "<") (nd "name")) (str ">"), c .emit [nd "kids", .alias "W"], pl (pl (str "</") (nd "name")) (str ">")]))]
+  let keyed : Decls := [("K", held (rule (mp [("name", .string)]) [.keyUp 0, c .emit [nd "kids", .alias "K"]]))]
+  let two : Decls := [("A", held (rule (mp [("name", .string)]) [nd "name", c .emit [nd "kids", .alias "B"]])),
+    ("B", held (rule (mp [("name", .string)]) [pl (pl (str "(") (nd "name")) (str ")"), c .emit [nd "kids", .alias "A"]]))]
+  let loop : Decls := [("L", held (rule .any [c .emit [lst [int 1], .alias "L"]]))]
+  [(walk, c .emit [lst [node "a" [node "b" []]], .alias "W"], jl [js "<a>", js "<b>", js "</b>", js "</a>"]),
+    (walk, c .emit [lst [node "a" [node "b" []]], .alias "W"], jl [js "<a>", js "</a>"]),
+    (walk, c .emit [lst [node "a" [node "b" [], node "c" []]], .alias "W"],
+      jl [js "<a>", js "<b>", js "</b>", js "<c>", js "</c>", js "</a>"]),
+    (walk, c .emit [lst [], .alias "W"], jl []),
+    (keyed, c .emit [lst [node "a" [node "b" []]], .alias "K"], jl [js "0", js "0"]),
+    (two, c .emit [lst [node "x" [node "y" [node "z" []]]], .alias "A"], jl [js "x", js "(y)", js "z"]),
+    (loop, c .emit [lst [int 1], .alias "L"], jl [])]
+
+theorem emitRecCases_checkable : ∀ c ∈ emitRecCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (aliasDoc c).1.CheckableA := by decide
+
+theorem emit_rec_verdict_exact : ∀ c ∈ emitRecCases, ∀ (m : Mode) (v : Verdict),
+    vet m c.1 (aliasDoc c).1 (aliasDoc c).2 = v ↔ Vet m c.1 (aliasDoc c).1 (aliasDoc c).2 v :=
+  fun c hc _ v => vet_iff (emitRecCases_checkable c hc).1
+    (readR_checkableA (emitRecCases_checkable c hc).1 (emitRecCases_checkable c hc).2) v
+
 /-- `apply(v, f)`, which binds each hole of `f` that no generator or
 `apply` inside `f` binds to `v` and makes the one instance
 `each([v], f)` would: a call over the hole, a map's member and a list's
@@ -8091,7 +8133,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# matches or the body names what the node doesn't hold, and a key(n) in a body,"
     IO.println "# read where its piece lands in the output, in rows ek0 on. A table written as an"
     IO.println "# emit call reads as the table it holds, in place in rows ew0 on and named, a rule"
-    IO.println "# set %w = emit(_, t), in rows en0 on. apply(v, f) follows in"
+    IO.println "# set %w = emit(_, t), in rows en0 on, and one that names itself, unfolded a level"
+    IO.println "# for each turn the expansion has left, in rows er0 on. apply(v, f) follows in"
     IO.println "# rows ap0 on: each hole of f that no generator or apply inside f binds, bound"
     IO.println "# to v, the one instance each([v], f) makes. A hole that nothing binds is"
     IO.println "# an error of the schema wherever it stands (ruling 34): in the shapes the meet"
@@ -8122,6 +8165,7 @@ def main (args : List String) : IO UInt32 := do
     verdictRows "ek" emitKeyCases
     verdictRows "ew" emitTableCases
     aliasRows "en" emitNameCases
+    aliasRows "er" emitRecCases
     verdictRows "ap" applyCases
     aliasRows "z" callAliasCases
     verdictRows "v" patternCases

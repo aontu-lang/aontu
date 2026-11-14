@@ -43,7 +43,8 @@
 # matches or the body names what the node doesn't hold, and a key(n) in a body,
 # read where its piece lands in the output, in rows ek0 on. A table written as an
 # emit call reads as the table it holds, in place in rows ew0 on and named, a rule
-# set %w = emit(_, t), in rows en0 on. apply(v, f) follows in
+# set %w = emit(_, t), in rows en0 on, and one that names itself, unfolded a level
+# for each turn the expansion has left, in rows er0 on. apply(v, f) follows in
 # rows ap0 on: each hole of f that no generator or apply inside f binds, bound
 # to v, the one instance each([v], f) makes. A hole that nothing binds is
 # an error of the schema wherever it stands (ruling 34): in the shapes the meet
@@ -2774,6 +2775,27 @@ en17	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["
 en18	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "0"]	{"verdict":"invalid"}
 en19	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "0"]	{"verdict":"invalid","opts":{"noFill":true}}
 en20	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "0"]	{"verdict":"invalid","opts":{"partial":true}}
+er0	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "</a>"]	{"verdict":"valid"}
+er1	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "</a>"]	{"verdict":"valid","opts":{"noFill":true}}
+er2	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "</a>"]	{"verdict":"valid","opts":{"partial":true}}
+er3	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "</a>"]	{"verdict":"invalid"}
+er4	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "</a>"]	{"verdict":"invalid","opts":{"noFill":true}}
+er5	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "</a>"]	{"verdict":"invalid","opts":{"partial":true}}
+er6	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}, {"name": "c", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "<c>", "</c>", "</a>"]	{"verdict":"valid"}
+er7	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}, {"name": "c", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "<c>", "</c>", "</a>"]	{"verdict":"valid","opts":{"noFill":true}}
+er8	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}, {"name": "c", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "<c>", "</c>", "</a>"]	{"verdict":"valid","opts":{"partial":true}}
+er9	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([], %W)	v: []	{"verdict":"valid"}
+er10	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([], %W)	v: []	{"verdict":"valid","opts":{"noFill":true}}
+er11	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([], %W)	v: []	{"verdict":"valid","opts":{"partial":true}}
+er12	verdict	%K = emit(_, {"match": {"name": string}, "body": [key(0), emit(.kids, %K)]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %K)	v: ["0", "0"]	{"verdict":"valid"}
+er13	verdict	%K = emit(_, {"match": {"name": string}, "body": [key(0), emit(.kids, %K)]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %K)	v: ["0", "0"]	{"verdict":"valid","opts":{"noFill":true}}
+er14	verdict	%K = emit(_, {"match": {"name": string}, "body": [key(0), emit(.kids, %K)]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %K)	v: ["0", "0"]	{"verdict":"valid","opts":{"partial":true}}
+er15	verdict	%A = emit(_, {"match": {"name": string}, "body": [.name, emit(.kids, %B)]})\n%B = emit(_, {"match": {"name": string}, "body": [(("(") + (.name)) + (")"), emit(.kids, %A)]})\nv: emit([{"name": "x", "kids": [{"name": "y", "kids": [{"name": "z", "kids": []}]}]}], %A)	v: ["x", "(y)", "z"]	{"verdict":"valid"}
+er16	verdict	%A = emit(_, {"match": {"name": string}, "body": [.name, emit(.kids, %B)]})\n%B = emit(_, {"match": {"name": string}, "body": [(("(") + (.name)) + (")"), emit(.kids, %A)]})\nv: emit([{"name": "x", "kids": [{"name": "y", "kids": [{"name": "z", "kids": []}]}]}], %A)	v: ["x", "(y)", "z"]	{"verdict":"valid","opts":{"noFill":true}}
+er17	verdict	%A = emit(_, {"match": {"name": string}, "body": [.name, emit(.kids, %B)]})\n%B = emit(_, {"match": {"name": string}, "body": [(("(") + (.name)) + (")"), emit(.kids, %A)]})\nv: emit([{"name": "x", "kids": [{"name": "y", "kids": [{"name": "z", "kids": []}]}]}], %A)	v: ["x", "(y)", "z"]	{"verdict":"valid","opts":{"partial":true}}
+er18	verdict	%L = emit(_, {"match": any, "body": [emit([1], %L)]})\nv: emit([1], %L)	v: []	{"verdict":"error"}
+er19	verdict	%L = emit(_, {"match": any, "body": [emit([1], %L)]})\nv: emit([1], %L)	v: []	{"verdict":"error","opts":{"noFill":true}}
+er20	verdict	%L = emit(_, {"match": any, "body": [emit([1], %L)]})\nv: emit([1], %L)	v: []	{"verdict":"error","opts":{"partial":true}}
 ap0	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid"}
 ap1	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid","opts":{"noFill":true}}
 ap2	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid","opts":{"partial":true}}

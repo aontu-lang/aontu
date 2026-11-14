@@ -2805,7 +2805,10 @@ recursive name, or to no name, stays. A rider's body reads as the rider
 has it read (`Rider.reads`), so `open(v)` reads `v`, expanded, with
 every seal lifted, the seal of a definition's instance among them. An
 `emit`'s table that is an `emit` call, written in place or named, reads
-as the table it holds (`Fn.tableArgs`). -/
+as the table it holds (`Fn.tableArgs`), and one that names a recursive
+name as that name's bodies, a level for each turn left
+(`Decls.tableUnfold`), so the turns bound how deep a rule set that names
+itself walks. -/
 def expandF (ds : Decls) : ℕ → Val → Val
 ```
 
@@ -10179,8 +10182,31 @@ those six. TypeScript also reads a bare `key(n)` in a named table's
 body at the body's own index, where the `emit` stands at the top of
 the document, which #783 tracks and no row holds.
 
-The definition doesn't yet read a named table that names itself, which
-is how a rule set recurses, `replace` and `esc` in a body, or a reference into the node inside an `each`, a `pack` or a
+A named table may name itself, which is how a rule set walks a nested
+selection into nested output. The name is recursive, so the expansion
+leaves it a residual everywhere but at a table's place, where it reads
+the name's bodies, a level for each turn it has left
+(`Decls.tableUnfold`):
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+def Decls.tableUnfold (ds : Decls) (e : Val → Val) : Fn → List Val → List Val
+  | .emit, [s, .alias n] => [s, if ds.recursiveB n then ((ds.env n).map e).getD (.alias n) else .alias n]
+  | _, as => as
+```
+
+The selection bounds the walk: each level descends into a finite bag
+the document holds, and the turns, which grow with the document, reach
+deeper than any bag it writes. A rule set that walks into itself
+without descending spends them, and the `emit` the last level leaves
+unmade is an error, as both engines answer. A selection the data alone
+supplies through a path may run deeper than the document's own turns
+reach, which the definition doesn't yet bound by the data. Rows er0 on
+hold a tree of one child and one of two, with and without a `key(n)` in
+the body. They hold two tables that name each other too, and a walk
+over an empty selection beside one that never descends.
+
+The definition doesn't yet read `replace` and `esc` in a body, or a reference into the node inside an `each`, a `pack` or a
 `filter`'s condition in a body. It leaves a body whose spread holds a
 reference into the node unmade too. Both engines leave such a spread
 unbound, so the reference reads nowhere and refuses a member the spread
