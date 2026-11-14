@@ -1109,3 +1109,9 @@ Does aontu provide a way in general to control the json generation of values?
 ```text
 What type does path() return
 ```
+
+## 2026-11-14 10:37:52 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+What type does relate() return?
+```
