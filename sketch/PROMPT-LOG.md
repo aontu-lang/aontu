@@ -1176,3 +1176,9 @@ I only used float gen options as an example, you need to define gen options for 
 I only used float gen options as an example, you need to define gen options for all the other types, such as integer, map, path, etc
 What are the gen options for path()
 ```
+
+## 2026-11-15 13:49:50 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Show me the gen options for paths
+```
