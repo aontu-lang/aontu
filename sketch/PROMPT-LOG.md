@@ -1194,3 +1194,9 @@ Replace as-written with verbatim, globally. Introduce the convention: if gen is 
 ```text
 Can form accept a string expression for custom output?
 ```
+
+## 2026-11-15 18:38:30 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Placeholder templates are explicitly rejected. Introduce the gen spec attribute "custom" that has a custom expression to define the output.
+```
