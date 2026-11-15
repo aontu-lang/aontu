@@ -171,8 +171,9 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   holds a number's options, `significant`, `places` and `as`, and the
   rows `gs0` and `gw0` on of `test/spec/def-gen.tsv` hold both ports to
   them. The options of the other types (`case`, `empty`, `form`, `keys`,
-  and a boolean's `as`) wait for the annotation, and with the rest are
-  held by `test/spec/annotation-gen.tsv`, which both ports answer alike.
+  and a boolean's `as`) wait for the annotation, as does `custom`, whose
+  hole a `gen` call binds, and with the rest are held by
+  `test/spec/annotation-gen.tsv`, which both ports answer alike.
 
 The rest of the language waits on phases P9 to P12 of the plan: the
 rest of generation with `emit`, a named table, `replace` and `esc` in

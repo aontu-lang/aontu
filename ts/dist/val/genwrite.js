@@ -1,6 +1,8 @@
 "use strict";
 /* Copyright (c) 2026 Richard Rodger, MIT License */
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.genHooks = void 0;
+exports.genFinish = genFinish;
 exports.genPlain = genPlain;
 exports.genRefuse = genRefuse;
 exports.genWrite = genWrite;
@@ -11,6 +13,10 @@ const keyorder_1 = require("../keyorder");
 const casing_1 = require("../casing");
 const Decimal_1 = require("./Decimal");
 const caserange_1 = require("./caserange");
+const numkind_1 = require("./numkind");
+// Set by genrec.ts, which no value class can import.
+const genHooks = {};
+exports.genHooks = genHooks;
 function genWrites(ctx, v) {
     return null != v.genopts && true !== ctx?.plain;
 }
@@ -96,19 +102,50 @@ function writeNumber(ctx, v, native) {
     }
     return 'number' === typeof o.places ? fixed(c, e, o.places) : String(out);
 }
+// What is written, as the data a document reads: a whole number is an
+// integer where that leaf holds it, and a decimal stays exact.
+function lit(w) {
+    if ('string' === typeof w) {
+        return JSON.stringify(w);
+    }
+    if ('bigint' === typeof w) {
+        return (0, numkind_1.isIntegerStorable)(w) ? w.toString() : w < 0n ? '-0d' + -w : '0d' + w;
+    }
+    if (w instanceof Decimal_1.Decimal) {
+        return w.canon();
+    }
+    if (Array.isArray(w)) {
+        return '[' + w.map(lit).join(',') + ']';
+    }
+    if (null != w && 'object' === typeof w) {
+        return '{' + Object.keys(w).sort(keyorder_1.cmpCodePoint).map((k) => JSON.stringify(k) + ':' + lit(w[k])).join(',') + '}';
+    }
+    return String(w);
+}
+function emptyOut(out) {
+    return '' === out || null === out || (Array.isArray(out) ? 0 === out.length :
+        'object' === typeof out && !(out instanceof Decimal_1.Decimal) && 0 === Object.keys(out).length);
+}
+// The custom expression is the last step of writing, and `empty` is
+// judged on the output.
+function genFinish(ctx, v, w) {
+    const o = v.genopts;
+    const out = undefined === w || undefined === o.custom ? w :
+        genHooks.custom(ctx, v, o.custom, lit(w));
+    return 'omit' === o.empty && emptyOut(out) ? undefined : out;
+}
 function genWrite(ctx, v, native) {
     const o = v.genopts;
     if (true === v.isString) {
-        return 'omit' === o.empty && '' === native ? undefined :
-            'verbatim' === o.case ? native : (0, caserange_1.caseRange)(native, 0, -1, 'upper' === o.case);
+        return genFinish(ctx, v, 'verbatim' === o.case ? native : (0, caserange_1.caseRange)(native, 0, -1, 'upper' === o.case));
     }
     if (true === v.isBoolean) {
-        return 'number' === o.as ? (native ? 1 : 0) : 'string' === o.as ? String(native) : native;
+        return genFinish(ctx, v, 'number' === o.as ? (native ? 1 : 0) : 'string' === o.as ? String(native) : native);
     }
     if (true === v.isNull) {
-        return 'omit' === o.empty ? undefined : native;
+        return genFinish(ctx, v, native);
     }
-    return writeNumber(ctx, v, native);
+    return genFinish(ctx, v, writeNumber(ctx, v, native));
 }
 // The members are written in the order of the keys that are written, and
 // a clash names its keys in that order, so both are sorted here.
@@ -130,7 +167,6 @@ function genWriteBag(ctx, bag, out) {
             });
         }
     }
-    const none = true === bag.isMap ? 0 === Object.keys(res).length : 0 === res.length;
-    return 'omit' === o.empty && none ? undefined : res;
-} /* node:coverage ignore next 9 */
+    return genFinish(ctx, bag, res);
+} /* node:coverage ignore next 11 */
 //# sourceMappingURL=genwrite.js.map

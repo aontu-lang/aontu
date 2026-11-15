@@ -378,7 +378,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 		}
 		// A JSON null child survives even when optional (`b?:null` keeps
 		// b: null); other nils and optional empties contribute nothing.
-		if cv == nil && gensNullAt(ctx, child, k) {
+		if cv == nil && (wroteNull(gctx) || gensNullAt(ctx, child, k)) {
 			out[k] = nil
 			continue
 		}
@@ -466,7 +466,8 @@ func sizingResidue(v Val) (*ConstraintVal, Val, bool) {
 func gensNull(ctx *Ctx, v Val) bool {
 	switch n := v.(type) {
 	case *ScalarVal:
-		return n.kind == KindNull && !(genWrites(ctx, n.genopts) && "omit" == n.genopts["empty"])
+		return n.kind == KindNull && !(genWrites(ctx, n.genopts) &&
+			("omit" == n.genopts["empty"] || nil != n.genopts["custom"]))
 	case *PrefVal:
 		if nil != n.genrec {
 			return gensNull(ctx, heldVal(ctx, n))

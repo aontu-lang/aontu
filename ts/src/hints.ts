@@ -603,6 +603,21 @@ const hints: Record<string, string> = {
     '  a: {x: path(..b) & gen({form:"absolute"})}  -> {..}  # Generates "$.b";\n' +
     '  x: path(..b) & gen({form:"absolute"})       -> nil   # ... past the root.',
 
+  gen_custom:
+    'The custom expression of a gen() record gave no output for this\n' +
+    'value. The expression is the last step of writing: it is evaluated\n' +
+    'on its own, as apply() evaluates one, with the hole _ standing for\n' +
+    'what the value writes without it. So it reads nothing else of the\n' +
+    'document, and what it is given is data: a string, a number, a map.\n' +
+    ' \n' +
+    '  custom:      {custom}\n' +
+    '  given:       {given}\n' +
+    '  stopped by:  {cause}\n' +
+    ' \nExamples:\n' +
+    '  "a" & gen({custom: upper(_)})        -> "a"  # Generates "A";\n' +
+    '  "a" & gen({custom: $.prefix + _})    -> nil  # It reads no reference;\n' +
+    '  {a:1} & gen({custom: upper(_)})      -> nil  # ... and upper() takes no map.',
+
   float_overflow:
     'This result is not a finite binary64 number, so it is not a value\n' +
     'aontu can carry. There is no notation for an infinity or a NaN in\n' +
@@ -1209,6 +1224,7 @@ const codeClasses: Record<string, string> = {
   gen_conflict: 'conflict',
   gen_key_clash: 'conflict',
   gen_address: 'reference',
+  gen_custom: 'conflict',
   decimal_budget: 'conflict',
   lossy_integer_literal: 'conflict',
   arg: 'conflict',

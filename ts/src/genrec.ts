@@ -7,8 +7,10 @@ import { AontuContext } from './ctx'
 import { makeNilErr } from './err'
 import { Unify } from './unify'
 
+import { cmpCodePoint } from './keyorder'
 import { top } from './val/top'
 import { trialUnify } from './val/FuncBaseVal'
+import { genHooks, genRefuse } from './val/genwrite'
 import { Null, Path } from './val/ScalarKindVal'
 
 
@@ -39,11 +41,20 @@ const reads = new Map<string, GenRead>()
 
 // A record is read against its type's standard set by the engine, in an
 // evaluation of its own: an option is refused as any other value is.
+// The record less its custom expression, which the set says nothing of.
+function optionsOf(rec: any): string {
+  return null == rec.peg.custom ? rec.canon : '{' + Object.keys(rec.peg)
+    .filter((k) => 'custom' !== k).sort(cmpCodePoint)
+    .map((k) => JSON.stringify(k) + ':' + rec.peg[k].canon).join(',') + '}'
+}
+
+
 function genRead(family: string, rec: Val): GenRead {
-  const key = family + ' ' + rec.canon
+  const options = optionsOf(rec)
+  const key = family + ' ' + options
   let read = reads.get(key)
   if (undefined === read) {
-    const uni = new Unify(GEN_MODEL + '\nout: $.aontu.Gen.' + family + ' & ' + rec.canon)
+    const uni = new Unify(GEN_MODEL + '\nout: $.aontu.Gen.' + family + ' & ' + options)
     const gctx = new AontuContext({ collect: true, err: uni.err })
     const out = 0 === uni.err.length ? uni.res.gen(gctx) : undefined
     read = 0 === uni.err.length ? { opts: out.out } : { option: String(uni.err[0].path[1]) }
@@ -135,7 +146,8 @@ function genLand(ctx: AontuContext, out: any, rec: Val): Val {
         option: read.option,
       })
     }
-    opts = read.opts
+    const custom: any = (full as any).peg.custom
+    opts = null == custom ? read.opts : { ...read.opts, custom: custom.peg }
   }
 
   out.genrec = rec
@@ -155,6 +167,39 @@ function genArms(ctx: AontuContext, out: any, rec: Val): Val {
   carrier.genrec = rec
   return out.unify(carrier, ctx)
 }
+
+
+type Custom = {
+  out?: any
+  cause?: string
+}
+
+const customs = new Map<string, Custom>()
+
+
+// The expression is evaluated on its own, as `apply` is anywhere, over
+// what the value writes without it. An output that places could share
+// is made again for each.
+function genCustom(ctx: AontuContext | undefined, v: any, custom: string, given: string): any {
+  const key = given + '\n' + custom
+  let made = customs.get(key)
+  if (undefined === made) {
+    const uni = new Unify('out: apply(' + given + ', ' + custom + ')')
+    const gctx = new AontuContext({ collect: true, err: uni.err })
+    const out = 0 === uni.err.length ? uni.res.gen(gctx) : undefined
+    made = 0 === uni.err.length ? { out: out.out } : { cause: String(uni.err[0].why) }
+    if (null == made.out || 'object' !== typeof made.out) {
+      if (READ_CACHE_MAX <= customs.size) {
+        customs.clear()
+      }
+      customs.set(key, made)
+    }
+  }
+  return undefined === made.cause ? made.out :
+    genRefuse(ctx, 'gen_custom', v, { custom, given, cause: made.cause })
+}
+
+genHooks.custom = genCustom
 
 
 // The record lands on the preferred value only where it is generated:

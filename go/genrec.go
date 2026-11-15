@@ -3,6 +3,7 @@
 package aontu
 
 import (
+	"sort"
 	"strings"
 	"sync"
 )
@@ -54,8 +55,30 @@ var (
 
 // readGen reads a record against its type's standard set by the engine,
 // in an evaluation of its own: an option is refused as any other value is.
+// optionsOf is the record less its custom expression, which the set
+// says nothing of.
+func optionsOf(rec Val) string {
+	m := rec.(*MapVal)
+	if _, has := m.peg["custom"]; !has {
+		return rec.Canon()
+	}
+	keys := make([]string, 0, len(m.keys))
+	for _, k := range m.keys {
+		if "custom" != k {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, jsonString(k)+":"+m.peg[k].Canon())
+	}
+	return "{" + strings.Join(parts, ",") + "}"
+}
+
 func readGen(family string, rec Val) *genRead {
-	key := family + " " + rec.Canon()
+	options := optionsOf(rec)
+	key := family + " " + options
 	genMu.Lock()
 	read, hit := genReads[key]
 	genMu.Unlock()
@@ -63,7 +86,7 @@ func readGen(family string, rec Val) *genRead {
 		return read
 	}
 	a := New()
-	src := genModel + "\nout: $.aontu.Gen." + family + " & " + rec.Canon()
+	src := genModel + "\nout: $.aontu.Gen." + family + " & " + options
 	v, _ := a.parseEntry(src)
 	res, ctx, err := a.unifyCtx(v, nil, src)
 	if nil != err {
@@ -175,11 +198,72 @@ func genLand(ctx *Ctx, out, rec Val) Val {
 		}
 		if held == out {
 			opts = read.opts
+			if custom, has := full.(*MapVal).peg["custom"]; has {
+				opts = make(map[string]any, len(read.opts)+1)
+				for k, v := range read.opts {
+					opts[k] = v
+				}
+				opts["custom"] = custom.(*ScalarVal).peg
+			}
 		}
 	}
 
 	out.setGenRec(rec, opts)
 	return out
+}
+
+// customMade is what a custom expression gave: an output, which is a
+// written null where it is nil and present, or the code that stopped it.
+type customMade struct {
+	out     any
+	present bool
+	cause   string
+}
+
+var customs = map[string]customMade{}
+
+// genCustom evaluates the expression on its own, as `apply` is anywhere,
+// over what the value writes without it. An output that places could
+// share is made again for each.
+func genCustom(ctx *Ctx, v Val, custom, given string) (any, bool, error) {
+	key := given + "\n" + custom
+	genMu.Lock()
+	made, hit := customs[key]
+	genMu.Unlock()
+	if !hit {
+		made = makeCustom("out: apply(" + given + ", " + custom + ")")
+		switch made.out.(type) {
+		case map[string]any, []any:
+		default:
+			genMu.Lock()
+			if genReadCacheMax <= len(customs) {
+				customs = map[string]customMade{}
+			}
+			customs[key] = made
+			genMu.Unlock()
+		}
+	}
+	if "" != made.cause {
+		return nil, false, genRefuse(ctx, v, "gen_custom",
+			map[string]string{"custom": custom, "given": given, "cause": made.cause})
+	}
+	return made.out, made.present, nil
+}
+
+func makeCustom(src string) customMade {
+	a := New()
+	v, _ := a.parseEntry(src)
+	res, ctx, err := a.unifyCtx(v, nil, src)
+	if nil != err {
+		return customMade{cause: ctx.err[0].why}
+	}
+	gctx := &Ctx{root: res, src: src, collect: true}
+	out, _ := res.Gen(gctx)
+	if 0 < len(gctx.err) {
+		return customMade{cause: gctx.err[0].why}
+	}
+	made, present := out.(map[string]any)["out"]
+	return customMade{out: made, present: present}
 }
 
 // An arm of a type that refuses the record drops, as under a constraint.

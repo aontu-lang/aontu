@@ -211,19 +211,19 @@ class PathVal extends ScalarVal_1.ScalarVal {
     // A relative address is resolved from where the value is generated,
     // and a link's is the one `relate()` resolved.
     gen(ctx) {
-        const form = this.genopts?.form;
-        if (!(0, genwrite_1.genWrites)(ctx, this) || 'verbatim' === form) {
+        if (!(0, genwrite_1.genWrites)(ctx, this)) {
             return this.peg;
         }
+        const form = this.genopts.form;
         const addr = parseAddress(this.peg);
-        if ('key' === form) {
-            return addr.parts[addr.parts.length - 1];
+        if ('verbatim' === form || 'key' === form) {
+            return (0, genwrite_1.genFinish)(ctx, this, 'key' === form ? addr.parts[addr.parts.length - 1] : this.peg);
         }
         const target = this.linkto ?? addressPath(addr, ctx?.genat ?? this.path);
         if (undefined === target) {
             return (0, genwrite_1.genRefuse)(ctx, 'gen_address', this, { addr: this.peg });
         }
-        return 'pointer' === form ? '/' + target.join('/') : '$.' + target.join('.');
+        return (0, genwrite_1.genFinish)(ctx, this, 'pointer' === form ? '/' + target.join('/') : '$.' + target.join('.'));
     }
     superior() {
         return this.place(new PathKindVal({}));

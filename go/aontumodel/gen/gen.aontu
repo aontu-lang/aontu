@@ -1,20 +1,28 @@
 # aontu:gen --- THE OUTPUT OPTIONS. What `gen(spec)` may say about a
 # value of each type. Every option has a default, and the default
-# leaves the output as it is without the option.
+# leaves the output as it is without the option. `custom` is an
+# expression that writes the output, in which `_` stands for what the
+# value writes without it. Leaving it out is its default.
 
 aontu: Gen: type({
   Number: close({
     significant: *"all"|integer & min(1)
     places: *"all"|integer & min(0) & max(4096)
     as: *"number"|"string"
+    custom?: any
   })
-  String: close({ case: *"verbatim"|"upper"|"lower" empty: *"keep"|"omit" })
-  Boolean: close({ as: *"boolean"|"number"|"string" })
-  Null: close({ empty: *"keep"|"omit" })
-  Path: close({ form: *"verbatim"|"absolute"|"pointer"|"key" })
+  String: close({
+    case: *"verbatim"|"upper"|"lower"
+    empty: *"keep"|"omit"
+    custom?: any
+  })
+  Boolean: close({ as: *"boolean"|"number"|"string" custom?:any })
+  Null: close({ empty: *"keep"|"omit" custom?:any })
+  Path: close({ form: *"verbatim"|"absolute"|"pointer"|"key" custom?:any })
   Map: close({
     keys: *"verbatim"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
     empty: *"keep"|"omit"
+    custom?: any
   })
-  List: close({ empty: *"keep"|"omit" })
+  List: close({ empty: *"keep"|"omit" custom?:any })
 })

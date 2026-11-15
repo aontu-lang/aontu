@@ -519,3 +519,4 @@ gen_option	errcode	conflict	0.77.0
 gen_conflict	errcode	conflict	0.77.0
 gen_key_clash	errcode	conflict	0.77.0
 gen_address	errcode	reference	0.77.0
+gen_custom	errcode	conflict	0.77.0

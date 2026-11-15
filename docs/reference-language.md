@@ -1361,9 +1361,11 @@ The definition makes the selections once a document is read: `selectArm` and `re
 A bare `_` is a **hole**: the value a generator, an `apply` or a
 `filter` hands the template it binds. Inside the template of `each`,
 `pack` or `emit`, an `apply`'s template, or a `filter`'s condition, `_`
-is the value that instance is made from. Anywhere else nothing binds
-it, and the document is an error, `hole_unbound`, before anything is
-evaluated: `&` is a meet, and a meet never fills a hole.
+is the value that instance is made from. In the `custom` of a
+[`gen`](#a-custom-expression) record it is what the value writes.
+Anywhere else nothing binds it, and the document is an error,
+`hole_unbound`, before anything is evaluated: `&` is a meet, and a
+meet never fills a hole.
 
 ```aontu
 greeting: apply(hello, upper(_))
@@ -2664,9 +2666,9 @@ Example: `fragment("head.ts", [slot("body")])`
 
 ### `gen(spec: string|map) : annotation`
 
-Say how the value this meets is written where the document is generated. The record `spec` rides the value, and only generation reads it. A string is the record's `form`. See [Output options](#output-options-gen).
+Say how the value this meets is written where the document is generated. The record `spec` rides the value, and only generation reads it. A string is the record's `form`, and `custom` is an expression that writes the output. See [Output options](#output-options-gen).
 
-Example: `price: 3.14159 & gen({ significant:2 })` generates `3.1`; `link: path($.a.b) & gen("key")` generates `"b"`
+Example: `price: 3.14159 & gen({ significant:2 })` generates `3.1`; `link: path($.a.b) & gen("key")` generates `"b"`; `name: "ada" & gen({ custom:upper(_) })` generates `"ADA"`
 
 ### `greatest(d: map|list) : number`
 
@@ -4863,16 +4865,22 @@ aontu: Gen: type({
     significant: *"all"|integer & min(1)
     places: *"all"|integer & min(0) & max(4096)
     as: *"number"|"string"
+    custom?: any
   })
-  String: close({ case: *"verbatim"|"upper"|"lower" empty: *"keep"|"omit" })
-  Boolean: close({ as: *"boolean"|"number"|"string" })
-  Null: close({ empty: *"keep"|"omit" })
-  Path: close({ form: *"verbatim"|"absolute"|"pointer"|"key" })
+  String: close({
+    case: *"verbatim"|"upper"|"lower"
+    empty: *"keep"|"omit"
+    custom?: any
+  })
+  Boolean: close({ as: *"boolean"|"number"|"string" custom?:any })
+  Null: close({ empty: *"keep"|"omit" custom?:any })
+  Path: close({ form: *"verbatim"|"absolute"|"pointer"|"key" custom?:any })
   Map: close({
     keys: *"verbatim"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
     empty: *"keep"|"omit"
+    custom?: any
   })
-  List: close({ empty: *"keep"|"omit" })
+  List: close({ empty: *"keep"|"omit" custom?:any })
 })
 ```
 
@@ -4886,8 +4894,12 @@ aontu: Gen: type({
 | `map` | `Map` | [`keys`](#map-keys), [`empty`](#empty-values) |
 | `list` | `List` | [`empty`](#empty-values) |
 
-Every option has a default, and the default leaves the output as it is
-without the option. A set is closed. A record must unify with the set
+Every set also has [`custom`](#a-custom-expression), an expression
+that writes the output.
+
+Every other option has a default, and the default leaves the output as
+it is without the option. Leaving `custom` out is its default. A set is
+closed. A record must unify with the set
 of its value's type, and one that does not refuses the meet with
 `gen_option`, naming the type, its options, the record, and the option
 refused:
@@ -4898,7 +4910,7 @@ $ echo 'name: "ada" & gen({ significant:2 })' | aontu
 [aontu/gen_option]: Cannot unify values at path $.name
 ...
   type:     string
-  options:  {"case":*"verbatim"|"upper"|"lower","empty":*"keep"|"omit"}
+  options:  {"case":*"verbatim"|"upper"|"lower","custom"?:any,"empty":*"keep"|"omit"}
   record:   {"significant":2}
   refused:  significant
 ...
@@ -5214,6 +5226,87 @@ $ echo $?
 1
 ```
 
+### A custom expression
+
+`custom` holds an expression that writes the output. The hole
+[`_`](#the-placeholder-_) in it stands for what the value writes
+without it, and the output is what
+[`apply`](#applyv-any-template-f-any--any) makes of that. Write the
+values as `custom.aontu`:
+
+<!-- test: scenario gen-custom -->
+<!-- test: file custom.aontu -->
+```aontu
+fs: etc: {}
+fs: hosts: up: path(..etc) & gen({ form:"key" custom:"urn:node:" + _ })
+
+price: 24 & gen({ places:2 as:"string" custom:"EUR " + _ })
+tags: ["a" "b"] & gen({ custom:join(_, ",") })
+note: null & gen({ custom:"none" })
+link: path($.fs.etc) & gen({ form:"pointer" custom: { href:"#" + _ rel:"up" } })
+```
+
+<!-- test: run -->
+```sh
+$ aontu custom.aontu
+{
+  "fs": {
+    "etc": {},
+    "hosts": {
+      "up": "urn:node:etc"
+    }
+  },
+  "link": {
+    "href": "#/fs/etc",
+    "rel": "up"
+  },
+  "note": "none",
+  "price": "EUR 24.00",
+  "tags": "a,b"
+}
+```
+
+The record's other options are applied first, so the expression has
+what they write: `up` is given the address as its key, and `price` the
+number as its fixed string. A map or a list is given as what it
+writes, its members by their own records and its keys in their style,
+which is how `tags` joins its members. What the expression gives is
+generated, and that is the output: a string, a number, a map, or
+anything else a document generates. An expression that generates
+nothing writes nothing, and `empty` is judged last, on the output.
+
+What the expression is given is data, read as a document reads JSON.
+So a number arrives by the rule a literal is read by: a whole number
+is an integer where the integer leaf holds it and a biginteger where
+it does not, a bigdecimal stays exact, and any other number is a
+float. A float that writes no fraction, such as `2.0`, is the integer
+`2` to the expression.
+
+The expression stands alone. It reads the hole and nothing else of the
+document, so a reference in it names nothing, and `key()` is not the
+member's key. It is written in the `gen` call's own map: a hole in a
+map elsewhere is one nothing binds, so a record reached by reference
+can give only a `custom` with no hole. An expression that gives no
+output is refused where the value is written, and the report names the
+expression, what it was given, and what stopped it:
+
+<!-- test: run -->
+```sh
+$ echo 'x: "ada" & gen({ custom:$.prefix + _ })' | aontu
+[aontu/gen_custom]: Cannot resolve value at path $.x
+...
+  custom:      $.prefix+_
+  given:       "ada"
+  stopped by:  no_path
+...
+$ echo $?
+1
+```
+
+The expression is part of the record as it is written. Two records
+whose expressions differ are refused with `gen_conflict`, and canon
+writes it: `"ada"&gen({"custom":upper(_)})`.
+
 ### What reads an option
 
 An option is read where the document is written, and nowhere else.
@@ -5237,8 +5330,8 @@ differ are two values, though an option would write them alike, so
 `(1.26|1.27) & gen({ significant:2 })` is an unresolved disjunction.
 
 `vet` reads the value too. So it does not report what only writing
-refuses: a key clash, an address with no absolute form, or a rounding
-that overflows.
+refuses: a key clash, an address with no absolute form, a rounding
+that overflows, or a custom expression that gives no output.
 
 ### Canon, defaults and export
 

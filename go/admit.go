@@ -180,6 +180,7 @@ func towardMember(tw *towardData, key any) *towardData {
 func genAt(child Val, ctx *Ctx, key any, at []string) (any, error) {
 	if nil != ctx {
 		ctx.at = at
+		ctx.wroteNull = false
 	}
 	if nil == ctx || nil == ctx.toward {
 		return child.Gen(ctx)

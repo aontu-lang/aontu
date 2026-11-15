@@ -7,9 +7,9 @@ Building it found two defects of the first cut, which the Deltas under
 D-6 and D-17 record. The owner then ruled two spellings (2026-11-15),
 which D-19 records: the default that leaves a text as it is is
 `"verbatim"`, and a string given to `gen` is the `form`. A third
-ruling the same day, D-20: a record may give `custom`, an expression
-that writes the output, and placeholder templates are rejected. The
-model
+ruling the same day, D-20, also built: a record may give `custom`, an
+expression that writes the output, and placeholder templates are
+rejected. The model
 is `aontu/gen/gen.aontu` and the line is in `test/spec/signature.tsv`.
 The record's meet, its check and the preference rule are
 `ts/src/genrec.ts` and `go/genrec.go`; the rounding is
@@ -910,6 +910,28 @@ Why it stands alone: where a value is written is after the document
 has been evaluated, and an expression that could read the document
 there would make the output depend on an evaluation the document's
 own readings never saw. §9 puts both choices to the owner.
+
+**Delta.** Built as proposed, in both ports, the same day.
+
+- The expression is taken where the call is built, the `GenFuncVal`
+  constructor and `newFunc` in `go/func.go`, and not where it
+  resolves. So no hole is left under the call for the check that
+  finds unbound holes, or for a generator around the call to fill:
+  in `each(l, _ & gen({ custom: "<" + _ + ">" }))` the second hole is
+  the call's. It is kept as a scalar of a kind of its own, whose
+  canon is its text, so the record still meets, compares and renders
+  as a map.
+- The output is made by an evaluation of its own, of
+  `out: apply(w, f)`, as a record's reading against its set is. `w`
+  is written by `lit` in `ts/src/val/genwrite.ts` and `genLit` in
+  `go/genwrite.go`. An output that is a scalar is kept for the next
+  value given the same input, for 256 pairs; a map or a list is made
+  again for each place, so two places never share one.
+- In Go a nil answer is both a written null and nothing. The
+  generation tells its container which it was (`Ctx.wroteNull`), since
+  an expression can write a null for a value that is not one.
+- The set does not hold the expression: `optionsOf` reads a record
+  against its set without it.
 
 ## 5. Options considered and left out
 

@@ -1,4 +1,4 @@
-# GEN -- `gen(spec: map|string) : annotation`: an annotation that says how the value
+# GEN -- `gen(spec: string|map) : annotation`: an annotation that says how the value
 # it meets is written where the document is generated. It is `any` carrying
 # a record, so the meet leaves the value as it is and the record rides the
 # result, through meets, reference copies and spreads. Two records unify as
@@ -7,7 +7,8 @@
 # aontu:gen holds, and one that does not refuses with gen_option. The
 # options are read at generation only: every other reading of the value is
 # of the value. A string given to gen() is the form, so gen("key") is
-# gen({form: "key"}). Every expectation is both engines' agreed answer.
+# gen({form: "key"}), and `custom` is an expression that writes the output.
+# Every expectation is both engines' agreed answer.
 # 
 # `significant: n` rounds a number to n significant digits where it is
 # generated: the decimal the number shows, a tie to the even digit, in the
@@ -514,6 +515,93 @@ gen-keys-clash-with-a-key-of-one-word	errc	o: {a: 1, _a: 2} & gen({keys: "camel"
 gen-keys-clash-in-a-spread	errc	m: {&: map & gen({keys: "snake"})}, m: k: {a_b: 1, aB: 2}	gen_key_clash
 gen-keys-clash-names-the-map	err	m: {&: map & gen({keys: "snake"})}, m: k: {a_b: 1, aB: 2}	at path $.m.k
 gen-keys-unknown-style	errc	o: {a: 1} & gen({keys: "train"})	gen_option
+# 
+# `custom` is an expression that writes the output. It is given what the
+# value writes without it, read as data, with the hole `_` standing for it,
+# and what apply() makes of that is generated.
+gen-custom-string	gens	x: "ada" & gen({custom: upper(_)})	{"x":"ADA"}
+gen-custom-identity	gens	x: "ada" & gen({custom: _})	{"x":"ada"}
+gen-custom-constant	gens	x: null & gen({custom: "none"})	{"x":"none"}
+gen-custom-map-of-the-value	gens	x: "ada" & gen({custom: {id: _, kind: "ref"}})	{"x":{"id":"ada","kind":"ref"}}
+gen-custom-list-of-the-value	gens	x: "ada" & gen({custom: [_, upper(_)]})	{"x":["ada","ADA"]}
+gen-custom-after-form	gens	p: path($.fs.nodes.etc) & gen({form: "key", custom: "urn:node:" + _})	{"p":"urn:node:etc"}
+gen-custom-after-form-pointer	gens	a: {r: relate() & path(.b) & gen({form: "pointer", custom: {"$ref": "#" + _}}), b: {}}	{"a":{"b":{},"r":{"$ref":"#/a/b"}}}
+gen-custom-path-verbatim-is-its-text	gens	a: {x: path(..b) & gen({custom: "<" + _ + ">"})}	{"a":{"x":"<..b>"}}
+gen-custom-after-places	gens	price: 24 & gen({places: 2, as: "string", custom: "EUR " + _})	{"price":"EUR 24.00"}
+gen-custom-after-significant	gens	x: 3.14159 & gen({significant: 2, custom: {v: _}})	{"x":{"v":3.1}}
+gen-custom-after-case	gens	x: "a" & gen({case: "upper", custom: "x" + _})	{"x":"xA"}
+gen-custom-after-as-number	gens	x: true & gen({as: "number", custom: _ + 1})	{"x":2}
+gen-custom-reads-a-whole-float-as-an-integer	gens	x: 2.0 & gen({custom: "" + _})	{"x":"2"}
+gen-custom-float-arithmetic	gens	x: 2.0 & gen({custom: _ + 0.5})	{"x":2.5}
+gen-custom-keeps-a-decimal-exact	gens	x: 0d24.5 & gen({custom: _ + 0d0.5})	{"x":25.0}
+gen-custom-integer-past-safe	gens	x: 1234567890123456768 & gen({custom: _})	{"x":1234567890123456768}
+gen-custom-biginteger	gens	x: 0d123456789012345678901 & gen({custom: {n: _}})	{"x":{"n":123456789012345678901}}
+gen-custom-integer-no-double-holds	gens	x: 999999999999999104 & gen({significant: 15, custom: _})	{"x":999999999999999000}
+gen-custom-exponent-form	gens	x: 1e21 & gen({custom: "" + _})	{"x":"1e+21"}
+# A map or a list is given as what it writes: its members by their own
+# records, and its keys in their style.
+gen-custom-list-joined	gens	tags: ["a", "b"] & gen({custom: join(_, ",")})	{"tags":"a,b"}
+gen-custom-map-to-list	gens	m: {a: 1, b: 2} & gen({custom: each(_, _)})	{"m":[1,2]}
+gen-custom-map-summed	gens	m: {a: 1, b: 2} & gen({custom: sum(_)})	{"m":3}
+gen-custom-map-as-data	gens	m: {b: 2.0, a: [1, "x", null, true, 0d1.5]} & gen({custom: _})	{"m":{"a":[1,"x",null,true,1.5],"b":2}}
+gen-custom-after-keys	gens	m: {orderId: 1} & gen({keys: "snake", custom: _})	{"m":{"order_id":1}}
+gen-custom-members-written-first	gens	m: {a: 1.26 & gen({significant: 2}), b: "" & gen({empty: "omit"})} & gen({custom: _})	{"m":{"a":1.3}}
+gen-custom-member-custom-first	gens	l: ["a" & gen({custom: upper(_)}), "b"] & gen({custom: join(_, "-")})	{"l":"A-b"}
+gen-custom-inner-hole-is-the-generators	gens	x: "a" & gen({custom: each([_, _], upper(_))})	{"x":["A","A"]}
+# `empty` is judged on the output. A null that is written is a null, and an
+# expression that generates nothing writes nothing.
+gen-custom-empty-after	gens	u: {nick: "" & gen({empty: "omit", custom: upper(_)}), n: null & gen({empty: "omit", custom: "none"})}	{"u":{"n":"none"}}
+gen-custom-empty-output-omitted	gens	u: {a: null & gen({empty: "omit", custom: _}), b: "" & gen({empty: "omit", custom: null}), c: 1}	{"u":{"c":1}}
+gen-custom-zero-and-false-are-not-empty	gens	u: {a: "" & gen({empty: "omit", custom: 0}), b: "" & gen({empty: "omit", custom: false}), c: "" & gen({empty: "omit", custom: 0d0.0})}	{"u":{"a":0,"b":false,"c":0.0}}
+gen-custom-writes-null	gens	u: {a: "x" & gen({custom: null}), b: null & gen({custom: _}), c: null & gen({custom: hide(_)}), d: 1}	{"u":{"a":null,"b":null,"d":1}}
+gen-custom-writes-null-in-a-list	gens	u: ["x" & gen({custom: null}), null & gen({custom: hide(_)}), 2]	{"u":[null,2]}
+gen-custom-container-writes-null	gens	u: {m: {a: 1} & gen({custom: null}), l: [1] & gen({custom: hide(_)}), k: 1}	{"u":{"k":1,"m":null}}
+gen-custom-optional-key	gens	u: {a?: "x" & gen({custom: null}), b?: "x" & gen({custom: {}}), c: 1}	{"u":{"a":null,"c":1}}
+gen-custom-writes-nothing	gens	x: "ada" & gen({custom: hide(_)}), y: 1	{"y":1}
+# The record rides as any other does: by a kind, a spread, a default, an arm
+# and a reference, where the record it reaches holds no hole.
+gen-custom-kind-first	gens	x: string & gen({custom: "<" + _ + ">"}), x: "a"	{"x":"<a>"}
+gen-custom-spread	gens	l: [&: string & gen({custom: "<" + _ + ">"})], l: ["a", "b"]	{"l":["<a>","<b>"]}
+gen-custom-in-a-generator	gens	l: each(["a", "b"], _ & gen({custom: "<" + _ + ">"}))	{"l":["<a>","<b>"]}
+gen-custom-default	gens	x: *null & gen({custom: "none"}) | string	{"x":"none"}
+gen-custom-arm	gens	x: (null | string) & gen({custom: "<" + _ + ">"}), x: "a"	{"x":"<a>"}
+gen-custom-constant-by-reference	gens	s: hide({custom: "none"}), x: null & gen($.s)	{"x":"none"}
+gen-custom-reference-copies	gens	x: "a" & gen({custom: upper(_)}), y: $.x	{"x":"A","y":"A"}
+gen-custom-nested	gens	x: "a" & gen({custom: upper(_) & gen({custom: _ + "!"})})	{"x":"A!"}
+# Canon and the hash form write the expression as it is written, and two
+# records meet by it.
+gen-custom-canon	canon	p: path($.a.b) & gen({form: "key", custom: "urn:" + _})	{"p":path($.a.b)&gen({"custom":"urn:"+_,"form":"key"})}
+gen-custom-canon-map	canon	x: "a" & gen({custom: {id: _, kind: "ref"}})	{"x":"a"&gen({"custom":{"id":_,"kind":"ref"}})}
+gen-custom-canon-call	canon	x: "a" & gen({custom: each([_, _], upper(_))})	{"x":"a"&gen({"custom":each([_,_],upper(_))})}
+gen-custom-canon-alone	canon	x: gen({custom: upper(_)})	{"x":gen({"custom":upper(_)})}
+gen-custom-canon-by-reference-is-the-same	canon	s: hide({custom: "none"}), x: null & gen($.s), y: null & gen({custom: "none"})	{"s":{"custom":"none"},"x":null&gen({"custom":"none"}),"y":null&gen({"custom":"none"})}
+gen-custom-hcanon	hcanon	x: "a" & gen({custom: upper(_)})	{"x":"a"&gen({"custom":upper(_)})}
+gen-custom-hash	hash	x: "a" & gen({custom: upper(_)})	aon1-rerMn-JZfhjMu8cZBIRUqJRz__0MOtLCHaecPBP1lHo
+gen-custom-hash-of-another-expression	hash	x: "a" & gen({custom: lower(_)})	aon1-IQubqrXd8wuDEvCvZtojHPp7DnsnP4STubEBQ9oDuto
+gen-custom-same-twice	gens	x: "a" & gen({custom: "x" + _}) & gen({custom: "x" + _})	{"x":"xa"}
+gen-custom-same-in-another-spacing	gens	x: "a" & gen({custom: "x"+_}) & gen({custom:   "x"  +  _ })	{"x":"xa"}
+gen-custom-meets-an-option	gens	x: "a" & gen({custom: "x" + _}) & gen({case: "upper"})	{"x":"xA"}
+gen-custom-conflict	errc	x: "a" & gen({custom: "x" + _}) & gen({custom: "y" + _})	gen_conflict
+gen-custom-conflict-with-a-constant	errc	x: "a" & gen({custom: "x"}) & gen({custom: upper(_)})	gen_conflict
+# The expression stands alone, and a failure is found where the value is
+# written.
+gen-custom-reads-no-reference	errc	p: "urn:", x: "ada" & gen({custom: $.p + _})	gen_custom
+gen-custom-refuses-what-it-is-given	errc	x: {a: 1} & gen({custom: upper(_)})	gen_custom
+gen-custom-gives-no-value	errc	x: "a" & gen({custom: string})	gen_custom
+gen-custom-refusal-names-the-place	err	m: {&: string & gen({custom: upper(_) + $.x})}, m: k: "a"	at path $.m.k
+gen-custom-key-is-not-the-members	gens	m: {k: "ada" & gen({custom: key()})}	{"m":{"k":""}}
+gen-custom-hole-outside-the-call	errc	s: hide({custom: upper(_)}), x: "a" & gen($.s)	hole_unbound
+gen-custom-hole-in-another-option	errc	x: path($.a) & gen({form: _})	hole_unbound
+gen-custom-misspelt	errc	x: "a" & gen({costum: upper(_)})	hole_unbound
+gen-custom-misspelt-without-a-hole	errc	x: "a" & gen({costum: "x"})	gen_option
+gen-custom-optional-key-in-the-record	errc	x: "a" & gen({custom?: "x"})	func_arg
+# Only writing evaluates it: a size, a containment, a reference and vet
+# read the value.
+gen-custom-a-size-reads-the-value	gens	l: ["a" & gen({custom: hide(_)}), "b"] & len(2)	{"l":["b"]}
+gen-custom-contains-reads-the-value	gens	l: ["a" & gen({custom: upper(_)})] & contains("a")	{"l":["A"]}
+gen-custom-a-reference-reads-the-value	gens	x: "a" & gen({custom: upper(_)}), y: $.x + "!"	{"x":"A","y":"a!"}
+gen-custom-vet-does-not-evaluate-it	verdict	x: string & gen({custom: upper(_) + $.nope})	{"x": "a"}	{"verdict":"valid"}
+gen-custom-vet-refuses-by-the-value	verdict	x: string & gen({custom: upper(_)})	{"x": 1}	{"verdict":"invalid"}
 # 
 # An option is read where the document is written and nowhere else. A
 # size, a fold, a containment, an admission trial and the test that every

@@ -13,6 +13,7 @@ import {
 import { makeNilErr } from '../err'
 import { funcSig, renderSig } from '../sig'
 
+import { CustomVal } from './CustomVal'
 import { FuncBaseVal } from './FuncBaseVal'
 import { MapVal } from './MapVal'
 import { isData } from './MetaFuncVal'
@@ -26,11 +27,16 @@ class GenFuncVal extends FuncBaseVal {
   // writes the annotation last, as it writes one that rides a value.
   cjo = 160000
 
+  // The custom expression is taken where the call is built: its hole is the call's.
   constructor(
     spec: ValSpec,
     ctx?: AontuContext
   ) {
     super(spec, ctx)
+    const record: any = this.peg?.[0]
+    if (true === record?.isMap) {
+      kept(record, record, ctx)
+    }
   }
 
   make(_ctx: AontuContext, spec: ValSpec): Val {
@@ -66,11 +72,24 @@ class GenFuncVal extends FuncBaseVal {
     }
     const out: any = top()
     if (0 < Object.keys(rec.peg).length) {
-      out.genrec = rec
+      out.genrec = kept(rec, undefined, ctx)
     }
     return out
   }
-} /* node:coverage ignore next 6 */
+} /* node:coverage ignore next 20 */
+
+
+// The expression is held as its text, so a record is one by reference or
+// written here. A record the call does not own is copied.
+function kept(record: any, own: any, ctx?: AontuContext): any {
+  const custom: any = record.peg.custom
+  if (null == custom || true === custom.isCustom) {
+    return record
+  }
+  const out: any = own ?? record.clone(ctx as AontuContext)
+  out.peg.custom = custom.place(new CustomVal({ peg: custom.canon }, ctx))
+  return out
+}
 
 
 export {

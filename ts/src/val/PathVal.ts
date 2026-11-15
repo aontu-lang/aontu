@@ -20,7 +20,7 @@ import { propagateMarks, walk } from '../utility'
 import { cmpCodePoint } from '../keyorder'
 
 import { ScalarVal } from './ScalarVal'
-import { genRefuse, genWrites } from './genwrite'
+import { genFinish, genRefuse, genWrites } from './genwrite'
 import { ScalarKindVal, Path } from './ScalarKindVal'
 
 
@@ -265,19 +265,21 @@ class PathVal extends ScalarVal {
   // A relative address is resolved from where the value is generated,
   // and a link's is the one `relate()` resolved.
   gen(ctx?: AontuContext) {
-    const form = this.genopts?.form
-    if (!genWrites(ctx, this) || 'verbatim' === form) {
+    if (!genWrites(ctx, this)) {
       return this.peg
     }
+    const form = (this.genopts as any).form
     const addr = parseAddress(this.peg) as Address
-    if ('key' === form) {
-      return addr.parts[addr.parts.length - 1]
+    if ('verbatim' === form || 'key' === form) {
+      return genFinish(ctx, this,
+        'key' === form ? addr.parts[addr.parts.length - 1] : this.peg)
     }
     const target = (this as any).linkto ?? addressPath(addr, ctx?.genat ?? this.path)
     if (undefined === target) {
       return genRefuse(ctx, 'gen_address', this, { addr: this.peg })
     }
-    return 'pointer' === form ? '/' + target.join('/') : '$.' + target.join('.')
+    return genFinish(ctx, this,
+      'pointer' === form ? '/' + target.join('/') : '$.' + target.join('.'))
   }
 
   superior() {

@@ -92,6 +92,52 @@ describe('annotation', () => {
   })
 
 
+  test('gen-custom-generates-without-a-context', () => {
+    const root: any = new Aontu().unify('v: "a" & gen({custom: upper(_)})')
+    Assert.strictEqual(root.peg.v.gen(), 'A')
+  })
+
+
+  test('gen-custom-refusal-is-collected', () => {
+    const aontu = new Aontu()
+    const ctx = aontu.ctx({ collect: true })
+    const out = aontu.generate('v: "a" & gen({custom: $.nope + _})', undefined, ctx)
+    Assert.strictEqual(out, undefined)
+    Assert.strictEqual(ctx.err[0].why, 'gen_custom')
+    const { custom, given, cause } = ctx.err[0].details
+    Assert.deepStrictEqual([custom, given, cause], ['$.nope+_', '"a"', 'no_path'])
+  })
+
+
+  test('gen-custom-is-not-read-by-a-plain-generation', () => {
+    const aontu = new Aontu()
+    const ctx: any = aontu.ctx({})
+    ctx.plain = true
+    Assert.deepStrictEqual(
+      aontu.generate('v: "a" & gen({custom: $.nope + _})', undefined, ctx), { v: 'a' })
+  })
+
+
+  // An output a second place could share is made again for that place.
+  test('gen-custom-outputs-are-not-shared', () => {
+    const out = new Aontu().generate(
+      'l: [&: string & gen({custom: {id: _}})], l: ["a", "a"]')
+    Assert.deepStrictEqual(out.l, [{ id: 'a' }, { id: 'a' }])
+    Assert.notStrictEqual(out.l[0], out.l[1])
+  })
+
+
+  // More distinct inputs than one process keeps the output of.
+  test('gen-custom-outputs-are-bounded', () => {
+    const src = Array.from({ length: 300 }, (_, i) =>
+      `k${i}: "v${i}" & gen({custom: upper(_)})`).join('\n')
+    const out = new Aontu().generate(src)
+    Assert.strictEqual(out.k0, 'V0')
+    Assert.strictEqual(out.k299, 'V299')
+    Assert.strictEqual(new Aontu().generate(src).k1, 'V1')
+  })
+
+
   // More distinct records than one process keeps the reading of.
   test('gen-option-readings-are-bounded', () => {
     const src = Array.from({ length: 300 }, (_, i) =>

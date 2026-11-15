@@ -8,6 +8,13 @@ import { styleName } from '../casing'
 
 import { Decimal } from './Decimal'
 import { caseRange } from './caserange'
+import { isIntegerStorable } from './numkind'
+
+
+// Set by genrec.ts, which no value class can import.
+const genHooks: {
+  custom?: (ctx: AontuContext | undefined, v: any, custom: string, given: string) => any
+} = {}
 
 
 function genWrites(ctx: AontuContext | undefined, v: any): boolean {
@@ -117,19 +124,59 @@ function writeNumber(ctx: AontuContext | undefined, v: any, native: any): any {
 }
 
 
+// What is written, as the data a document reads: a whole number is an
+// integer where that leaf holds it, and a decimal stays exact.
+function lit(w: any): string {
+  if ('string' === typeof w) {
+    return JSON.stringify(w)
+  }
+  if ('bigint' === typeof w) {
+    return isIntegerStorable(w) ? w.toString() : w < 0n ? '-0d' + -w : '0d' + w
+  }
+  if (w instanceof Decimal) {
+    return w.canon()
+  }
+  if (Array.isArray(w)) {
+    return '[' + w.map(lit).join(',') + ']'
+  }
+  if (null != w && 'object' === typeof w) {
+    return '{' + Object.keys(w).sort(cmpCodePoint).map((k) =>
+      JSON.stringify(k) + ':' + lit(w[k])).join(',') + '}'
+  }
+  return String(w)
+}
+
+
+function emptyOut(out: any): boolean {
+  return '' === out || null === out || (Array.isArray(out) ? 0 === out.length :
+    'object' === typeof out && !(out instanceof Decimal) && 0 === Object.keys(out).length)
+}
+
+
+// The custom expression is the last step of writing, and `empty` is
+// judged on the output.
+function genFinish(ctx: AontuContext | undefined, v: any, w: any): any {
+  const o = v.genopts
+  const out = undefined === w || undefined === o.custom ? w :
+    (genHooks.custom as any)(ctx, v, o.custom, lit(w))
+  return 'omit' === o.empty && emptyOut(out) ? undefined : out
+}
+
+
 function genWrite(ctx: AontuContext | undefined, v: any, native: any): any {
   const o = v.genopts
   if (true === v.isString) {
-    return 'omit' === o.empty && '' === native ? undefined :
-      'verbatim' === o.case ? native : caseRange(native, 0, -1, 'upper' === o.case)
+    return genFinish(ctx, v,
+      'verbatim' === o.case ? native : caseRange(native, 0, -1, 'upper' === o.case))
   }
   if (true === v.isBoolean) {
-    return 'number' === o.as ? (native ? 1 : 0) : 'string' === o.as ? String(native) : native
+    return genFinish(ctx, v,
+      'number' === o.as ? (native ? 1 : 0) : 'string' === o.as ? String(native) : native)
   }
   if (true === v.isNull) {
-    return 'omit' === o.empty ? undefined : native
+    return genFinish(ctx, v, native)
   }
-  return writeNumber(ctx, v, native)
+  return genFinish(ctx, v, writeNumber(ctx, v, native))
 }
 
 
@@ -153,12 +200,13 @@ function genWriteBag(ctx: AontuContext, bag: any, out: any): any {
       })
     }
   }
-  const none = true === bag.isMap ? 0 === Object.keys(res).length : 0 === res.length
-  return 'omit' === o.empty && none ? undefined : res
-} /* node:coverage ignore next 9 */
+  return genFinish(ctx, bag, res)
+} /* node:coverage ignore next 11 */
 
 
 export {
+  genFinish,
+  genHooks,
   genPlain,
   genRefuse,
   genWrite,

@@ -6,8 +6,10 @@ exports.genOn = genOn;
 const ctx_1 = require("./ctx");
 const err_1 = require("./err");
 const unify_1 = require("./unify");
+const keyorder_1 = require("./keyorder");
 const top_1 = require("./val/top");
 const FuncBaseVal_1 = require("./val/FuncBaseVal");
+const genwrite_1 = require("./val/genwrite");
 const ScalarKindVal_1 = require("./val/ScalarKindVal");
 const GEN_MODEL = '@"aontu:gen"';
 const READ_CACHE_MAX = 256;
@@ -23,11 +25,18 @@ function genFamily(v) {
 const reads = new Map();
 // A record is read against its type's standard set by the engine, in an
 // evaluation of its own: an option is refused as any other value is.
+// The record less its custom expression, which the set says nothing of.
+function optionsOf(rec) {
+    return null == rec.peg.custom ? rec.canon : '{' + Object.keys(rec.peg)
+        .filter((k) => 'custom' !== k).sort(keyorder_1.cmpCodePoint)
+        .map((k) => JSON.stringify(k) + ':' + rec.peg[k].canon).join(',') + '}';
+}
 function genRead(family, rec) {
-    const key = family + ' ' + rec.canon;
+    const options = optionsOf(rec);
+    const key = family + ' ' + options;
     let read = reads.get(key);
     if (undefined === read) {
-        const uni = new unify_1.Unify(GEN_MODEL + '\nout: $.aontu.Gen.' + family + ' & ' + rec.canon);
+        const uni = new unify_1.Unify(GEN_MODEL + '\nout: $.aontu.Gen.' + family + ' & ' + options);
         const gctx = new ctx_1.AontuContext({ collect: true, err: uni.err });
         const out = 0 === uni.err.length ? uni.res.gen(gctx) : undefined;
         read = 0 === uni.err.length ? { opts: out.out } : { option: String(uni.err[0].path[1]) };
@@ -104,7 +113,8 @@ function genLand(ctx, out, rec) {
                 option: read.option,
             });
         }
-        opts = read.opts;
+        const custom = full.peg.custom;
+        opts = null == custom ? read.opts : { ...read.opts, custom: custom.peg };
     }
     out.genrec = rec;
     out.genopts = held === out ? opts : undefined;
@@ -120,6 +130,29 @@ function genArms(ctx, out, rec) {
     carrier.genrec = rec;
     return out.unify(carrier, ctx);
 }
+const customs = new Map();
+// The expression is evaluated on its own, as `apply` is anywhere, over
+// what the value writes without it. An output that places could share
+// is made again for each.
+function genCustom(ctx, v, custom, given) {
+    const key = given + '\n' + custom;
+    let made = customs.get(key);
+    if (undefined === made) {
+        const uni = new unify_1.Unify('out: apply(' + given + ', ' + custom + ')');
+        const gctx = new ctx_1.AontuContext({ collect: true, err: uni.err });
+        const out = 0 === uni.err.length ? uni.res.gen(gctx) : undefined;
+        made = 0 === uni.err.length ? { out: out.out } : { cause: String(uni.err[0].why) };
+        if (null == made.out || 'object' !== typeof made.out) {
+            if (READ_CACHE_MAX <= customs.size) {
+                customs.clear();
+            }
+            customs.set(key, made);
+        }
+    }
+    return undefined === made.cause ? made.out :
+        (0, genwrite_1.genRefuse)(ctx, 'gen_custom', v, { custom, given, cause: made.cause });
+}
+genwrite_1.genHooks.custom = genCustom;
 // The record lands on the preferred value only where it is generated:
 // an override takes it from the preference.
 function genHeld(ctx, pref) {

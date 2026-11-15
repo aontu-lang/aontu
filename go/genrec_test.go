@@ -96,6 +96,75 @@ func TestGenOmittedRootGeneratesNothing(t *testing.T) {
 	}
 }
 
+func TestGenCustomGeneratesWithoutAContext(t *testing.T) {
+	root, err := New().Unify(`v: "a" & gen({custom: upper(_)})`)
+	if nil != err {
+		t.Fatal(err)
+	}
+	out, gerr := root.(*MapVal).peg["v"].Gen(nil)
+	if nil != gerr || "A" != out {
+		t.Fatalf("want A, got %v (%v)", out, gerr)
+	}
+}
+
+func TestGenCustomRefusalIsCollected(t *testing.T) {
+	root, err := New().Unify(`v: "a" & gen({custom: $.nope + _})`)
+	if nil != err {
+		t.Fatal(err)
+	}
+	ctx := &Ctx{collect: true}
+	out, gerr := root.Gen(ctx)
+	if nil != gerr || 1 != len(ctx.err) || "gen_custom" != ctx.err[0].why {
+		t.Fatalf("want one collected gen_custom, got %v %v %v", out, gerr, ctx.err)
+	}
+	d := ctx.err[0].details
+	if "$.nope+_" != d["custom"] || `"a"` != d["given"] || "no_path" != d["cause"] {
+		t.Fatalf("details: %v", d)
+	}
+}
+
+func TestGenCustomIsNotReadByAPlainGeneration(t *testing.T) {
+	root, err := New().Unify(`v: "a" & gen({custom: $.nope + _}), n: null & gen({custom: hide(_)})`)
+	if nil != err {
+		t.Fatal(err)
+	}
+	out, gerr := root.Gen(&Ctx{plain: true})
+	if nil != gerr || `map[n:<nil> v:a]` != fmt.Sprint(out) {
+		t.Fatalf("plain: %v (%v)", out, gerr)
+	}
+}
+
+// An output a second place could share is made again for that place.
+func TestGenCustomOutputsAreNotShared(t *testing.T) {
+	out, err := New().Generate(`l: [&: string & gen({custom: {id: _}})], l: ["a", "a"]`)
+	if nil != err {
+		t.Fatal(err)
+	}
+	l := out.(map[string]any)["l"].([]any)
+	l[0].(map[string]any)["id"] = "changed"
+	if "a" != l[1].(map[string]any)["id"] {
+		t.Fatalf("the second output moved with the first: %v", l)
+	}
+}
+
+// More distinct inputs than one process keeps the output of.
+func TestGenCustomOutputsAreBounded(t *testing.T) {
+	var src strings.Builder
+	for i := 0; i < 300; i++ {
+		fmt.Fprintf(&src, "k%d: \"v%d\" & gen({custom: upper(_)})\n", i, i)
+	}
+	for pass := 0; pass < 2; pass++ {
+		out, err := New().Generate(src.String())
+		if nil != err {
+			t.Fatal(err)
+		}
+		m := out.(map[string]any)
+		if "V0" != m["k0"] || "V299" != m["k299"] {
+			t.Fatalf("pass %d: got %v %v", pass, m["k0"], m["k299"])
+		}
+	}
+}
+
 // More distinct records than one process keeps the reading of.
 func TestGenOptionReadingsAreBounded(t *testing.T) {
 	var src strings.Builder

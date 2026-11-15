@@ -91,7 +91,7 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 			}
 			return nil, err
 		}
-		if ev == nil && !gensNullAt(ctx, e, len(out)) {
+		if ev == nil && !wroteNull(ctx) && !gensNullAt(ctx, e, len(out)) {
 			continue
 		}
 		out = append(out, ev)
@@ -99,8 +99,8 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 	if nil != ctx {
 		ctx.at = outer
 	}
-	if genWrites(ctx, l.genopts) && "omit" == l.genopts["empty"] && 0 == len(out) {
-		return nil, nil
+	if genWrites(ctx, l.genopts) {
+		return genFinish(ctx, l, l.genopts, out)
 	}
 	return out, nil
 }

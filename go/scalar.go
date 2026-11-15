@@ -26,6 +26,9 @@ const (
 	KindBoolean
 	KindNull
 	KindPath
+	// KindCustom is an expression kept as it is written, for a `gen`
+	// record: nothing evaluates it until the value it rides is written.
+	KindCustom
 )
 
 func (k Kind) String() string {
@@ -186,6 +189,8 @@ func (s *ScalarVal) Canon() string {
 		// The call form is the literal syntax for this kind, so canon
 		// renders it back and reparses to the same VALUE.
 		return relateText(s) + "path(" + s.peg.(string) + ")"
+	case KindCustom:
+		return s.peg.(string)
 	}
 	return ""
 }

@@ -64,6 +64,15 @@ language.
   answers it: `{ orderId:7 } & gen({ keys:"snake" })` generates
   `{"order_id":7}`. Two keys that would be written as one key are
   refused with the new code `gen_key_clash`.
+- **`custom` is an expression that writes the output**, in every
+  type's set. The hole `_` in it stands for what the value writes
+  without it, so the record's other options are applied first, and the
+  output is what `apply()` makes of that:
+  `path($.fs.etc) & gen({ form:"key" custom:"urn:node:" + _ })`
+  generates `"urn:node:etc"`, and
+  `["a" "b"] & gen({ custom:join(_, ",") })` generates `"a,b"`. The
+  expression stands alone and reads nothing else of the document. One
+  that gives no output is refused with the new code `gen_custom`.
 - **An option is read where the document is written and nowhere
   else.** A reference, a call, `+`, a constraint, a size, a fold, a
   containment, the test that every arm of a disjunction generates
@@ -91,7 +100,7 @@ language.
   string from the value, and [Model a file
   system](docs/how-to/model-a-file-system.md) writes each parent as a
   key.
-- Pinned by `test/spec/annotation-gen.tsv`, 488 rows that both engines
+- Pinned by `test/spec/annotation-gen.tsv`, 559 rows that both engines
   answer alike. The design note is `sketch/GEN.0.md`.
 
 ### A how-to guide models a file system

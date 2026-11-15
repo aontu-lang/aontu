@@ -252,10 +252,25 @@ type FuncVal struct {
 	unmarked Val
 }
 
+// A gen call's custom expression is taken where the call is built: its hole is the call's.
 func newFunc(name string, args []Val) *FuncVal {
+	if "gen" == name && 0 < len(args) {
+		if record, ok := args[0].(*MapVal); ok {
+			keptCustom(record)
+		}
+	}
 	f := &FuncVal{name: name, peg: args}
 	f.site.sp = unsited
 	return f
+}
+
+// keptCustom holds the expression as its text: one record, by reference or written here.
+func keptCustom(record *MapVal) {
+	custom, has := record.peg["custom"]
+	if sv, ok := custom.(*ScalarVal); !has || (ok && KindCustom == sv.kind) {
+		return
+	}
+	record.peg["custom"] = liftAt(custom.vpath(), custom, newScalar(KindCustom, custom.Canon()))
 }
 
 func (f *FuncVal) superior() Val { return top() }
@@ -812,8 +827,7 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		return out
 	case "gen":
 		// `any` carrying the record, which every meet takes to its
-		// result. A record that says nothing is no record, and a string
-		// is the form.
+		// result. No option is no record, and a string is the form.
 		if args[0].Nil() {
 			return args[0]
 		}
@@ -835,6 +849,11 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		}
 		out := top()
 		if 0 < len(rec.keys) {
+			// A record the call does not own is copied: a reference shares it.
+			if sv, ok := rec.peg["custom"].(*ScalarVal); ok && KindCustom != sv.kind {
+				rec = clonePath(rec, rec.vpath()).(*MapVal)
+				keptCustom(rec)
+			}
 			out.setGenRec(rec, nil)
 		}
 		return out

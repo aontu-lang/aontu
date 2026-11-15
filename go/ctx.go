@@ -31,9 +31,10 @@ type Ctx struct {
 
 	toward *towardData
 
-	// Generation: where its container has reached, and whether it only reads.
-	at    []string
-	plain bool
+	// Generation: its container's place, whether it only reads, whether a null was written.
+	at        []string
+	plain     bool
+	wroteNull bool
 
 	argsnap bool
 

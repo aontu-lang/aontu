@@ -126,6 +126,92 @@ func fixed(c *big.Int, e int, places int) string {
 	return out
 }
 
+// genLit is what is written, as the data a document reads: a whole
+// number is an integer where that leaf holds it, and a decimal stays exact.
+func genLit(w any) string {
+	switch n := w.(type) {
+	case nil:
+		return "null"
+	case bool:
+		return strconv.FormatBool(n)
+	case string:
+		return jsonString(n)
+	case int64:
+		return wholeLit(big.NewInt(n))
+	case *big.Int:
+		return wholeLit(n)
+	case float64:
+		return formatNumber(n)
+	case *Decimal:
+		return n.Canon()
+	case []any:
+		parts := make([]string, 0, len(n))
+		for _, e := range n {
+			parts = append(parts, genLit(e))
+		}
+		return "[" + strings.Join(parts, ",") + "]"
+	}
+	m := w.(map[string]any)
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, jsonString(k)+":"+genLit(m[k]))
+	}
+	return "{" + strings.Join(parts, ",") + "}"
+}
+
+func wholeLit(n *big.Int) string {
+	if isIntegerStorable(n) {
+		return n.String()
+	}
+	return markExact(n.String())
+}
+
+// wroteNull is whether the value the context just generated is a null
+// that a custom expression wrote, which a nil answer alone cannot say.
+func wroteNull(ctx *Ctx) bool {
+	return nil != ctx && ctx.wroteNull
+}
+
+func emptyOut(out any) bool {
+	switch n := out.(type) {
+	case nil:
+		return true
+	case string:
+		return "" == n
+	case []any:
+		return 0 == len(n)
+	case map[string]any:
+		return 0 == len(n)
+	}
+	return false
+}
+
+// genFinish is the last step of writing: the custom expression, and then
+// `empty`, which is judged on the output. A nil answer is nothing, but
+// where the context is told that a null was written.
+func genFinish(ctx *Ctx, v Val, opts map[string]any, w any) (any, error) {
+	out, present := w, true
+	if custom, has := opts["custom"].(string); has {
+		var err error
+		if out, present, err = genCustom(ctx, v, custom, genLit(w)); nil != err {
+			return nil, err
+		}
+	}
+	present = present && !("omit" == opts["empty"] && emptyOut(out))
+	if nil != ctx {
+		ctx.wroteNull = present && nil == out
+	}
+	if !present {
+		return nil, nil
+	}
+	return out, nil
+}
+
 func numberText(v any) string {
 	switch n := v.(type) {
 	case int64:
@@ -146,12 +232,12 @@ func writeNumber(ctx *Ctx, s *ScalarVal) (any, error) {
 		return nil, genRefuse(ctx, s, "float_overflow", nil)
 	}
 	if "string" != s.genopts["as"] {
-		return out, nil
+		return genFinish(ctx, s, s.genopts, out)
 	}
 	if n, ok := s.genopts["places"].(int64); ok {
-		return fixed(c, e, int(n)), nil
+		return genFinish(ctx, s, s.genopts, fixed(c, e, int(n)))
 	}
-	return numberText(out), nil
+	return genFinish(ctx, s, s.genopts, numberText(out))
 }
 
 // writePath resolves a relative address from where the value is
@@ -160,11 +246,11 @@ func writePath(ctx *Ctx, s *ScalarVal) (any, error) {
 	text := s.peg.(string)
 	form := s.genopts["form"]
 	if "verbatim" == form {
-		return text, nil
+		return genFinish(ctx, s, s.genopts, text)
 	}
 	addr, _ := parseAddress(text)
 	if "key" == form {
-		return addr.Parts[len(addr.Parts)-1], nil
+		return genFinish(ctx, s, s.genopts, addr.Parts[len(addr.Parts)-1])
 	}
 	target, ok := addressPath(addr, genPlaceOf(ctx, s))
 	if "" != s.link {
@@ -174,40 +260,37 @@ func writePath(ctx *Ctx, s *ScalarVal) (any, error) {
 		return nil, genRefuse(ctx, s, "gen_address", map[string]string{"addr": text})
 	}
 	if "pointer" == form {
-		return "/" + strings.Join(target, "/"), nil
+		return genFinish(ctx, s, s.genopts, "/"+strings.Join(target, "/"))
 	}
-	return "$." + strings.Join(target, "."), nil
+	return genFinish(ctx, s, s.genopts, "$."+strings.Join(target, "."))
 }
 
-// A null the record leaves out is told from JSON null by gensNull.
 func genWrite(ctx *Ctx, s *ScalarVal) (any, error) {
 	o := s.genopts
 	switch s.kind {
 	case KindString:
 		text := s.peg.(string)
-		switch {
-		case "omit" == o["empty"] && "" == text:
-			return nil, nil
-		case "upper" == o["case"]:
-			return caseUpper(text), nil
-		case "lower" == o["case"]:
-			return caseLower(text), nil
+		switch o["case"] {
+		case "upper":
+			text = caseUpper(text)
+		case "lower":
+			text = caseLower(text)
 		}
-		return text, nil
+		return genFinish(ctx, s, o, text)
 	case KindBoolean:
 		b := s.peg.(bool)
 		switch o["as"] {
 		case "number":
 			if b {
-				return int64(1), nil
+				return genFinish(ctx, s, o, int64(1))
 			}
-			return int64(0), nil
+			return genFinish(ctx, s, o, int64(0))
 		case "string":
-			return strconv.FormatBool(b), nil
+			return genFinish(ctx, s, o, strconv.FormatBool(b))
 		}
-		return b, nil
+		return genFinish(ctx, s, o, b)
 	case KindNull:
-		return nil, nil
+		return genFinish(ctx, s, o, nil)
 	case KindPath:
 		return writePath(ctx, s)
 	}
@@ -242,8 +325,5 @@ func genWriteMap(ctx *Ctx, m *MapVal, out map[string]any) (any, error) {
 		}
 		out = res
 	}
-	if "omit" == m.genopts["empty"] && 0 == len(out) {
-		return nil, nil
-	}
-	return out, nil
+	return genFinish(ctx, m, m.genopts, out)
 }

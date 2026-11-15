@@ -95,6 +95,39 @@ const aontu_1 = require("../dist/aontu");
         Assert.strictEqual(new aontu_1.Aontu().generate('[] & gen({empty: "omit"})'), undefined);
         Assert.deepStrictEqual(new aontu_1.Aontu().generate('{a: 1} & gen({empty: "omit"})'), { a: 1 });
     });
+    (0, node_test_1.test)('gen-custom-generates-without-a-context', () => {
+        const root = new aontu_1.Aontu().unify('v: "a" & gen({custom: upper(_)})');
+        Assert.strictEqual(root.peg.v.gen(), 'A');
+    });
+    (0, node_test_1.test)('gen-custom-refusal-is-collected', () => {
+        const aontu = new aontu_1.Aontu();
+        const ctx = aontu.ctx({ collect: true });
+        const out = aontu.generate('v: "a" & gen({custom: $.nope + _})', undefined, ctx);
+        Assert.strictEqual(out, undefined);
+        Assert.strictEqual(ctx.err[0].why, 'gen_custom');
+        const { custom, given, cause } = ctx.err[0].details;
+        Assert.deepStrictEqual([custom, given, cause], ['$.nope+_', '"a"', 'no_path']);
+    });
+    (0, node_test_1.test)('gen-custom-is-not-read-by-a-plain-generation', () => {
+        const aontu = new aontu_1.Aontu();
+        const ctx = aontu.ctx({});
+        ctx.plain = true;
+        Assert.deepStrictEqual(aontu.generate('v: "a" & gen({custom: $.nope + _})', undefined, ctx), { v: 'a' });
+    });
+    // An output a second place could share is made again for that place.
+    (0, node_test_1.test)('gen-custom-outputs-are-not-shared', () => {
+        const out = new aontu_1.Aontu().generate('l: [&: string & gen({custom: {id: _}})], l: ["a", "a"]');
+        Assert.deepStrictEqual(out.l, [{ id: 'a' }, { id: 'a' }]);
+        Assert.notStrictEqual(out.l[0], out.l[1]);
+    });
+    // More distinct inputs than one process keeps the output of.
+    (0, node_test_1.test)('gen-custom-outputs-are-bounded', () => {
+        const src = Array.from({ length: 300 }, (_, i) => `k${i}: "v${i}" & gen({custom: upper(_)})`).join('\n');
+        const out = new aontu_1.Aontu().generate(src);
+        Assert.strictEqual(out.k0, 'V0');
+        Assert.strictEqual(out.k299, 'V299');
+        Assert.strictEqual(new aontu_1.Aontu().generate(src).k1, 'V1');
+    });
     // More distinct records than one process keeps the reading of.
     (0, node_test_1.test)('gen-option-readings-are-bounded', () => {
         const src = Array.from({ length: 300 }, (_, i) => `k${i}: 1.2345678 & gen({significant: ${i + 1}})`).join('\n');
