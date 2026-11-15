@@ -266,7 +266,7 @@ class PathVal extends ScalarVal {
   // and a link's is the one `relate()` resolved.
   gen(ctx?: AontuContext) {
     const form = this.genopts?.form
-    if (!genWrites(ctx, this) || 'as-written' === form) {
+    if (!genWrites(ctx, this) || 'verbatim' === form) {
       return this.peg
     }
     const addr = parseAddress(this.peg) as Address

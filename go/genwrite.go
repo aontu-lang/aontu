@@ -159,7 +159,7 @@ func writeNumber(ctx *Ctx, s *ScalarVal) (any, error) {
 func writePath(ctx *Ctx, s *ScalarVal) (any, error) {
 	text := s.peg.(string)
 	form := s.genopts["form"]
-	if "as-written" == form {
+	if "verbatim" == form {
 		return text, nil
 	}
 	addr, _ := parseAddress(text)
@@ -217,7 +217,7 @@ func genWrite(ctx *Ctx, s *ScalarVal) (any, error) {
 // genWriteMap sorts by the key that is written, then by the key it came
 // from, so the members and a clash's keys are in one order in both ports.
 func genWriteMap(ctx *Ctx, m *MapVal, out map[string]any) (any, error) {
-	if style, _ := m.genopts["keys"].(string); "as-written" != style {
+	if style, _ := m.genopts["keys"].(string); "verbatim" != style {
 		named := make([][2]string, 0, len(out))
 		for k := range out {
 			key, ok := nomStyleName(k, style, nil)

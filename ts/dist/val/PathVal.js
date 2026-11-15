@@ -212,7 +212,7 @@ class PathVal extends ScalarVal_1.ScalarVal {
     // and a link's is the one `relate()` resolved.
     gen(ctx) {
         const form = this.genopts?.form;
-        if (!(0, genwrite_1.genWrites)(ctx, this) || 'as-written' === form) {
+        if (!(0, genwrite_1.genWrites)(ctx, this) || 'verbatim' === form) {
             return this.peg;
         }
         const addr = parseAddress(this.peg);

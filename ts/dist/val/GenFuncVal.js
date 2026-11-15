@@ -5,7 +5,9 @@ exports.GenFuncVal = void 0;
 const err_1 = require("../err");
 const sig_1 = require("../sig");
 const FuncBaseVal_1 = require("./FuncBaseVal");
+const MapVal_1 = require("./MapVal");
 const MetaFuncVal_1 = require("./MetaFuncVal");
+const StringVal_1 = require("./StringVal");
 const top_1 = require("./top");
 class GenFuncVal extends FuncBaseVal_1.FuncBaseVal {
     constructor(spec, ctx) {
@@ -25,19 +27,22 @@ class GenFuncVal extends FuncBaseVal_1.FuncBaseVal {
         return true;
     }
     // `any` carrying the record, which every meet takes to its result. A
-    // record that says nothing is no record.
+    // record that says nothing is no record, and a string is the form.
     resolve(ctx, args) {
-        const rec = args[0];
-        if (rec.isNil) {
-            return rec;
+        const spec = args[0];
+        if (spec.isNil) {
+            return spec;
         }
+        const rec = true === spec.isString ? spec.place(new MapVal_1.MapVal({
+            peg: { form: new StringVal_1.StringVal({ peg: spec.peg }, ctx) },
+        }, ctx)) : spec;
         if (true !== rec.isMap || !(0, MetaFuncVal_1.isData)(rec)) {
-            return (0, err_1.makeNilErr)(ctx, 'func_arg', this, rec, undefined, {
+            return (0, err_1.makeNilErr)(ctx, 'func_arg', this, spec, undefined, {
                 func: 'gen',
                 sig: (0, sig_1.renderSig)(sig_1.funcSig.gen),
                 arg: 'spec',
                 argn: '1',
-                got: rec.canon,
+                got: spec.canon,
             });
         }
         const out = (0, top_1.top)();

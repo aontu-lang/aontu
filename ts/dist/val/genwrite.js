@@ -100,7 +100,7 @@ function genWrite(ctx, v, native) {
     const o = v.genopts;
     if (true === v.isString) {
         return 'omit' === o.empty && '' === native ? undefined :
-            'as-written' === o.case ? native : (0, caserange_1.caseRange)(native, 0, -1, 'upper' === o.case);
+            'verbatim' === o.case ? native : (0, caserange_1.caseRange)(native, 0, -1, 'upper' === o.case);
     }
     if (true === v.isBoolean) {
         return 'number' === o.as ? (native ? 1 : 0) : 'string' === o.as ? String(native) : native;
@@ -115,7 +115,7 @@ function genWrite(ctx, v, native) {
 function genWriteBag(ctx, bag, out) {
     const o = bag.genopts;
     let res = out;
-    if (true === bag.isMap && 'as-written' !== o.keys) {
+    if (true === bag.isMap && 'verbatim' !== o.keys) {
         const named = Object.keys(out)
             .map((k) => [(0, casing_1.styleName)(k, o.keys, []) ?? k, k])
             .sort((a, b) => (0, keyorder_1.cmpCodePoint)(a[0], b[0]) || (0, keyorder_1.cmpCodePoint)(a[1], b[1]));

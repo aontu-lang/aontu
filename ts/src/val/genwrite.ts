@@ -121,7 +121,7 @@ function genWrite(ctx: AontuContext | undefined, v: any, native: any): any {
   const o = v.genopts
   if (true === v.isString) {
     return 'omit' === o.empty && '' === native ? undefined :
-      'as-written' === o.case ? native : caseRange(native, 0, -1, 'upper' === o.case)
+      'verbatim' === o.case ? native : caseRange(native, 0, -1, 'upper' === o.case)
   }
   if (true === v.isBoolean) {
     return 'number' === o.as ? (native ? 1 : 0) : 'string' === o.as ? String(native) : native
@@ -138,7 +138,7 @@ function genWrite(ctx: AontuContext | undefined, v: any, native: any): any {
 function genWriteBag(ctx: AontuContext, bag: any, out: any): any {
   const o = bag.genopts
   let res = out
-  if (true === bag.isMap && 'as-written' !== o.keys) {
+  if (true === bag.isMap && 'verbatim' !== o.keys) {
     const named = Object.keys(out)
       .map((k): [string, string] => [styleName(k, o.keys, []) ?? k, k])
       .sort((a, b) => cmpCodePoint(a[0], b[0]) || cmpCodePoint(a[1], b[1]))

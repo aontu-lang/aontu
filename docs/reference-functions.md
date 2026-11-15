@@ -332,7 +332,7 @@ documentation page and fails on a difference of one space.
 | `folder(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
 | `format(text g: string) : constraint` | `1` | `text` | `constraint` |
 | `fragment(spec: string\|map, children?: list) : map` | `1..2` | `value` | `map` |
-| `gen(spec: map) : annotation` | `1` | `value` | `annotation` |
+| `gen(spec: string\|map) : annotation` | `1` | `value` | `annotation` |
 | `greatest(d: map\|list) : number` | `1` | `value` | `number` |
 | `hide(v: any) : any` | `1` | `value` | `any` |
 | `ident(v: any, r: map) : any` | `2` | `value` | `any` |

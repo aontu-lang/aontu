@@ -812,11 +812,18 @@ func (f *FuncVal) resolve(ctx *Ctx, base []string, args []Val) Val {
 		return out
 	case "gen":
 		// `any` carrying the record, which every meet takes to its
-		// result. A record that says nothing is no record.
+		// result. A record that says nothing is no record, and a string
+		// is the form.
 		if args[0].Nil() {
 			return args[0]
 		}
-		rec, isMap := args[0].(*MapVal)
+		spec := args[0]
+		if sv, ok := spec.(*ScalarVal); ok && KindString == sv.kind {
+			form := newMap()
+			form.set("form", newString(sv.peg.(string)))
+			spec = liftAt(sv.vpath(), sv, form)
+		}
+		rec, isMap := spec.(*MapVal)
 		if !isMap || !isData(rec) {
 			return makeNilErrFull(ctx, "func_arg", f, args[0], "", map[string]string{
 				"func": "gen",

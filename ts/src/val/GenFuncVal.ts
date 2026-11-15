@@ -14,7 +14,9 @@ import { makeNilErr } from '../err'
 import { funcSig, renderSig } from '../sig'
 
 import { FuncBaseVal } from './FuncBaseVal'
+import { MapVal } from './MapVal'
 import { isData } from './MetaFuncVal'
+import { StringVal } from './StringVal'
 import { top } from './top'
 
 
@@ -44,19 +46,22 @@ class GenFuncVal extends FuncBaseVal {
   }
 
   // `any` carrying the record, which every meet takes to its result. A
-  // record that says nothing is no record.
+  // record that says nothing is no record, and a string is the form.
   resolve(ctx: AontuContext, args: Val[]) {
-    const rec: any = args[0]
-    if (rec.isNil) {
-      return rec
+    const spec: any = args[0]
+    if (spec.isNil) {
+      return spec
     }
+    const rec: any = true === spec.isString ? spec.place(new MapVal({
+      peg: { form: new StringVal({ peg: spec.peg }, ctx) },
+    }, ctx)) : spec
     if (true !== rec.isMap || !isData(rec)) {
-      return makeNilErr(ctx, 'func_arg', this, rec, undefined, {
+      return makeNilErr(ctx, 'func_arg', this, spec, undefined, {
         func: 'gen',
         sig: renderSig(funcSig.gen),
         arg: 'spec',
         argn: '1',
-        got: rec.canon,
+        got: spec.canon,
       })
     }
     const out: any = top()

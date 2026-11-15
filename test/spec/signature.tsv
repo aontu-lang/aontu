@@ -51,7 +51,7 @@ rest(trial t: any, ...c?: (trial map)) : constraint
 deprecate(v: any, r?: map) : any
 meta(v: any, ...r: map) : any
 ident(v: any, r: map) : any
-gen(spec: map) : annotation
+gen(spec: string|map) : annotation
 acyclic() : constraint
 inverse(projector k: string) : constraint
 relate(template t?: any) : constraint

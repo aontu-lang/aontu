@@ -2662,11 +2662,11 @@ slots beneath it.
 
 Example: `fragment("head.ts", [slot("body")])`
 
-### `gen(spec: map) : annotation`
+### `gen(spec: string|map) : annotation`
 
-Say how the value this meets is written where the document is generated. The record `spec` rides the value, and only generation reads it. See [Output options](#output-options-gen).
+Say how the value this meets is written where the document is generated. The record `spec` rides the value, and only generation reads it. A string is the record's `form`. See [Output options](#output-options-gen).
 
-Example: `price: 3.14159 & gen({ significant:2 })` generates `3.1`
+Example: `price: 3.14159 & gen({ significant:2 })` generates `3.1`; `link: path($.a.b) & gen("key")` generates `"b"`
 
 ### `greatest(d: map|list) : number`
 
@@ -4801,12 +4801,13 @@ price: 3.14159
 {"price":3.1}
 ```
 
-`spec` is one map of concrete data, the record. A record that is not a
-map, or that holds anything but concrete data, refuses the call with
-`func_arg`. The call answers an `annotation`: `any` carrying the
-record. So the meet leaves the value as it is, and the record goes to
-the result of every meet, as a `meta()` record does. `gen(spec)` alone
-generates nothing, as a constraint alone generates nothing.
+`spec` is one map of concrete data, the record. A string is the
+record's `form`, so `gen("key")` is `gen({ form:"key" })`. A record
+that is neither, or that holds anything but concrete data, refuses the
+call with `func_arg`. The call answers an `annotation`: `any` carrying
+the record. So the meet leaves the value as it is, and the record goes
+to the result of every meet, as a `meta()` record does. `gen(spec)`
+alone generates nothing, as a constraint alone generates nothing.
 
 ### The record rides the value
 
@@ -4863,12 +4864,12 @@ aontu: Gen: type({
     places: *"all"|integer & min(0) & max(4096)
     as: *"number"|"string"
   })
-  String: close({ case: *"as-written"|"upper"|"lower" empty: *"keep"|"omit" })
+  String: close({ case: *"verbatim"|"upper"|"lower" empty: *"keep"|"omit" })
   Boolean: close({ as: *"boolean"|"number"|"string" })
   Null: close({ empty: *"keep"|"omit" })
-  Path: close({ form: *"as-written"|"absolute"|"pointer"|"key" })
+  Path: close({ form: *"verbatim"|"absolute"|"pointer"|"key" })
   Map: close({
-    keys: *"as-written"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
+    keys: *"verbatim"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
     empty: *"keep"|"omit"
   })
   List: close({ empty: *"keep"|"omit" })
@@ -4897,7 +4898,7 @@ $ echo 'name: "ada" & gen({ significant:2 })' | aontu
 [aontu/gen_option]: Cannot unify values at path $.name
 ...
   type:     string
-  options:  {"case":*"as-written"|"upper"|"lower","empty":*"keep"|"omit"}
+  options:  {"case":*"verbatim"|"upper"|"lower","empty":*"keep"|"omit"}
   record:   {"significant":2}
   refused:  significant
 ...
@@ -4923,6 +4924,11 @@ x: (1.5|"a") & gen({ significant:1 })
 So an annotation admits the values of the types that take its options
 and no others. `vet` reads it so: against `x: gen({ significant:2 })`,
 the data `x: "ada"` is `invalid`.
+
+Only a path has an option named `form`, so the string given to `gen`
+writes a path. On a value of another type it is refused as any option
+the type does not have: `"ada" & gen("upper")` is the record
+`{ form:"upper" }` on a string, and a string's case is `case`.
 
 ### Numbers: `significant` and `places`
 
@@ -5101,7 +5107,8 @@ generates nothing, as a hidden root does, and the command prints
 ### Addresses: `form`
 
 A [`path`](#first-class-paths-pathp) is written as its text. `form` chooses the
-notation. Write the addresses as `links.aontu`:
+notation. A string given to `gen` is the form, so `gen("key")` is short
+for `gen({ form:"key" })`. Write the addresses as `links.aontu`:
 
 <!-- test: scenario gen-form -->
 <!-- test: file links.aontu -->
@@ -5109,9 +5116,10 @@ notation. Write the addresses as `links.aontu`:
 fs: etc: {}
 fs: hosts: {
   a: path(..etc)
-  b: path(..etc) & gen({ form:"absolute" })
-  c: path(..etc) & gen({ form:"pointer" })
-  d: path(..etc) & gen({ form:"key" })
+  b: path(..etc) & gen("absolute")
+  c: path(..etc) & gen("pointer")
+  d: path(..etc) & gen("key")
+  e: path(..etc) & gen({ form:"key" })
 }
 ```
 
@@ -5125,7 +5133,8 @@ $ aontu links.aontu
       "a": "..etc",
       "b": "$.fs.etc",
       "c": "/fs/etc",
-      "d": "etc"
+      "d": "etc",
+      "e": "etc"
     }
   }
 }
@@ -5133,7 +5142,8 @@ $ aontu links.aontu
 
 `"absolute"` writes the address from the root, `"pointer"` writes that
 address as a JSON Pointer (RFC 6901), and `"key"` writes its last
-segment, the form a foreign key takes. A relative address is resolved
+segment, the form a foreign key takes. The default, `"verbatim"`,
+writes the text the document wrote. A relative address is resolved
 from the place its value is generated at, by the rule
 [`relate()`](#checked-links-relatet) resolves one by, and a link's
 address is the one `relate()` resolved. So a reference that copies a
@@ -5144,7 +5154,7 @@ A relative address that climbs past the root has no absolute form.
 
 <!-- test: run -->
 ```sh
-$ echo 'x: path(..b) & gen({ form:"absolute" })' | aontu
+$ echo 'x: path(..b) & gen("absolute")' | aontu
 [aontu/gen_address]: Cannot resolve value at path $.x
 ...
   address:  ..b
@@ -5242,10 +5252,12 @@ gen({"significant":2})                               (on any)
 meta(3.14159&gen({"significant":2}),{"title":"t"})    (inside the other riders)
 *1.5&gen({"significant":1})|float&gen({"significant":1})
 {"a":1}&gen({"empty":"omit","keys":"snake"})
+path(.b)&gen({"form":"key"})                          (written gen("key"))
 ```
 
 A disjunction holds no record of its own, so canon writes the record
-on each arm, as the fifth line shows. The hash form includes the
+on each arm, as the fifth line shows. A string given to `gen` renders
+as its record, so the two spellings of one annotation have one canon. The hash form includes the
 record, so two documents that generate differently never hash alike.
 
 Two defaults of one rank that differ in their records are two

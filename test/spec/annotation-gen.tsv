@@ -1,4 +1,4 @@
-# GEN -- `gen(spec: map) : annotation`: an annotation that says how the value
+# GEN -- `gen(spec: map|string) : annotation`: an annotation that says how the value
 # it meets is written where the document is generated. It is `any` carrying
 # a record, so the meet leaves the value as it is and the record rides the
 # result, through meets, reference copies and spreads. Two records unify as
@@ -6,7 +6,8 @@
 # with the standard options of its value's type, which the bundled model
 # aontu:gen holds, and one that does not refuses with gen_option. The
 # options are read at generation only: every other reading of the value is
-# of the value. Every expectation is both engines' agreed answer.
+# of the value. A string given to gen() is the form, so gen("key") is
+# gen({form: "key"}). Every expectation is both engines' agreed answer.
 # 
 # `significant: n` rounds a number to n significant digits where it is
 # generated: the decimal the number shows, a tie to the even digit, in the
@@ -325,12 +326,12 @@ gen-option-waits-on-any	canon	v: gen({digits: 2})	{"v":gen({"digits":2})}
 # Every type has its options. A record that writes out every default of its
 # type generates what no record does.
 gen-defaults-number	gens	v: 3.14159 & gen({significant: "all", places: "all", as: "number"})	{"v":3.14159}
-gen-defaults-string	gens	v: "Ada" & gen({case: "as-written", empty: "keep"})	{"v":"Ada"}
-gen-defaults-empty-string	gens	v: "" & gen({case: "as-written", empty: "keep"})	{"v":""}
+gen-defaults-string	gens	v: "Ada" & gen({case: "verbatim", empty: "keep"})	{"v":"Ada"}
+gen-defaults-empty-string	gens	v: "" & gen({case: "verbatim", empty: "keep"})	{"v":""}
 gen-defaults-boolean	gens	v: true & gen({as: "boolean"})	{"v":true}
 gen-defaults-null	gens	v: null & gen({empty: "keep"})	{"v":null}
-gen-defaults-path	gens	v: path(.b) & gen({form: "as-written"})	{"v":".b"}
-gen-defaults-map	gens	v: {aB: 1, c: {}} & gen({keys: "as-written", empty: "keep"})	{"v":{"aB":1,"c":{}}}
+gen-defaults-path	gens	v: path(.b) & gen({form: "verbatim"})	{"v":".b"}
+gen-defaults-map	gens	v: {aB: 1, c: {}} & gen({keys: "verbatim", empty: "keep"})	{"v":{"aB":1,"c":{}}}
 gen-defaults-list	gens	v: [] & gen({empty: "keep"})	{"v":[]}
 gen-option-string-takes-no-as	errc	v: "7" & gen({as: "number"})	gen_option
 gen-option-null-takes-no-case	errc	v: null & gen({case: "upper"})	gen_option
@@ -411,7 +412,7 @@ gen-empty-unknown	errc	v: "" & gen({empty: "drop"})	gen_option
 # the root, as a JSON Pointer, or as its last segment. A relative address is
 # resolved from the place the value is generated at, and a link's is the
 # one relate() resolved.
-gen-form-as-written	gens	a: {x: path(..b.c) & gen({form: "as-written"})}	{"a":{"x":"..b.c"}}
+gen-form-verbatim	gens	a: {x: path(..b.c) & gen({form: "verbatim"})}	{"a":{"x":"..b.c"}}
 gen-form-absolute	gens	a: {x: path(..b.c) & gen({form: "absolute"})}	{"a":{"x":"$.b.c"}}
 gen-form-pointer	gens	a: {x: path(..b.c) & gen({form: "pointer"})}	{"a":{"x":"/b/c"}}
 gen-form-key	gens	a: {x: path(..b.c) & gen({form: "key"})}	{"a":{"x":"c"}}
@@ -446,6 +447,42 @@ gen-form-unknown	errc	x: path($.a) & gen({form: "uri"})	gen_option
 gen-form-on-a-string	errc	x: "$.a" & gen({form: "key"})	gen_option
 gen-form-canon	canon	a: {r: relate() & path(.b) & gen({form: "key"}), b: {}}	{"a":{"b":{},"r":relate()&path(.b)&gen({"form":"key"})}}
 # 
+# A string given to gen() is the form: gen("key") is gen({form: "key"}).
+# The string becomes the record where the call resolves, so the two
+# spellings are one annotation with one canon, and the record is held to
+# the standard set as any other is.
+gen-string-key	gens	a: {x: path(..b.c) & gen("key")}	{"a":{"x":"c"}}
+gen-string-absolute	gens	a: {x: path(..b.c) & gen("absolute")}	{"a":{"x":"$.b.c"}}
+gen-string-pointer	gens	a: {x: path(..b.c) & gen("pointer")}	{"a":{"x":"/b/c"}}
+gen-string-verbatim	gens	a: {x: path(..b.c) & gen("verbatim")}	{"a":{"x":"..b.c"}}
+gen-string-canon-is-the-record	canon	x: path(.b) & gen("key")	{"x":path(.b)&gen({"form":"key"})}
+gen-string-canon-alone	canon	x: gen("key")	{"x":gen({"form":"key"})}
+gen-string-hcanon-is-the-record	hcanon	x: path(.b) & gen("key")	{"x":path(.b)&gen({"form":"key"})}
+gen-string-is-the-record	gens	x: path(.b) & gen("key") & gen({form: "key"})	{"x":"b"}
+gen-string-and-record-are-one-annotation	canon	x: path(.b) & gen("key") & gen({form: "key"})	{"x":path(.b)&gen({"form":"key"})}
+gen-string-kind-first	gens	t: type({p: path & gen("pointer")}), a: {x: $.t.p & path(..b.c)}	{"a":{"x":"/b/c"}}
+gen-string-before-the-value	gens	v: gen("key"), v: path($.a.b)	{"v":"b"}
+gen-string-by-reference	gens	s: hide("key"), x: path($.a.b) & gen($.s)	{"x":"b"}
+gen-string-from-a-call	gens	x: path($.a.b) & gen("k" + "ey")	{"x":"b"}
+gen-string-on-a-link	gens	a: {r: relate() & path(.b) & gen("key"), b: {}}	{"a":{"b":{},"r":"b"}}
+gen-string-spread	gens	m: {&: path & gen("key")}, m: {a: path($.x.y), b: path(.z)}	{"m":{"a":"y","b":"z"}}
+gen-string-arm-of-another-type-drops	gens	x: (path(.b) | "s") & gen("pointer")	{"x":"/b"}
+gen-string-meets-another-option	gens	x: 1.5 & gen({places: 0}) & gen({as: "string"}), y: path(.b) & gen("key") & gen({})	{"x":"2","y":"b"}
+gen-string-conflict	errc	x: path(.b) & gen("key") & gen("pointer")	gen_conflict
+gen-string-conflict-with-a-record	errc	x: path(.b) & gen("key") & gen({form: "pointer"})	gen_conflict
+gen-string-conflict-with-the-default	errc	x: path(.b) & gen("verbatim") & gen("key")	gen_conflict
+gen-string-unknown-form	errc	x: path($.a) & gen("uri")	gen_option
+gen-string-empty	errc	x: path($.a) & gen("")	gen_option
+gen-string-on-a-string	errc	x: "ada" & gen("upper")	gen_option
+gen-string-on-a-number	errc	x: 7 & gen("string")	gen_option
+gen-string-on-a-boolean	errc	x: true & gen("number")	gen_option
+gen-string-on-null	errc	x: null & gen("omit")	gen_option
+gen-string-on-a-map	errc	x: {a: 1} & gen("snake")	gen_option
+gen-string-on-a-list	errc	x: [1] & gen("omit")	gen_option
+gen-string-climbs-past-the-root	errc	x: path(..b) & gen("absolute")	gen_address
+gen-string-alone-generates-nothing	errc	v: gen("key")	mapval_no_gen
+gen-string-vet-refuses-a-number	verdict	v: gen("key")	{"v": 3}	{"verdict":"invalid"}
+# 
 # `keys` writes each key of a map as nom() answers it in that style. It
 # applies to the map's own keys, a key that holds no word is written as it
 # is, and two keys that would be written as one key are refused.
@@ -467,9 +504,9 @@ gen-keys-kind-first	gens	o: map & gen({keys: "snake"}), o: {orderId: 7}	{"o":{"o
 gen-keys-spread-of-maps	gens	m: {&: map & gen({keys: "snake"})}, m: {a: {orderId: 1}, bB: {shipTo: 2}}	{"m":{"a":{"order_id":1},"bB":{"ship_to":2}}}
 gen-keys-list-of-maps	gens	l: [&: map & gen({keys: "snake"})], l: [{orderId: 1}]	{"l":[{"order_id":1}]}
 gen-keys-a-hidden-key-is-not-written	gens	o: {orderId: 7, a_b: hide(1), aB: 2} & gen({keys: "snake"})	{"o":{"a_b":2,"order_id":7}}
-gen-keys-reads-the-key-as-written	gens	o: {orderId: 7} & gen({keys: "snake"}), w: $.o.orderId	{"o":{"order_id":7},"w":7}
+gen-keys-reads-the-key-verbatim	gens	o: {orderId: 7} & gen({keys: "snake"}), w: $.o.orderId	{"o":{"order_id":7},"w":7}
 gen-keys-with-empty	gens	u: {o: {a: hide(1)} & gen({keys: "snake", empty: "omit"})}	{"u":{}}
-gen-keys-as-written-has-no-clash	gens	o: {a_b: 1, aB: 2} & gen({keys: "as-written"})	{"o":{"aB":2,"a_b":1}}
+gen-keys-verbatim-has-no-clash	gens	o: {a_b: 1, aB: 2} & gen({keys: "verbatim"})	{"o":{"aB":2,"a_b":1}}
 gen-keys-reserved-name	gens	o: {"__proto__": 2, a: 1} & gen({keys: "snake"})	{"o":{"a":1,"proto":2}}
 gen-keys-reserved-name-clash	errc	o: {proto: 1, "__proto__": 2} & gen({keys: "upper"})	gen_key_clash
 gen-keys-clash	errc	o: {a_b: 1, aB: 2} & gen({keys: "snake"})	gen_key_clash
@@ -494,16 +531,20 @@ gen-read-contains-the-value	gens	l: [1.26 & gen({significant: 2}), 2.0] & contai
 gen-read-contains-not-what-is-written	errc	l: [1.26 & gen({significant: 2}), 2.0] & contains(1.3)	constraint
 gen-read-contains-the-number	gens	l: [{k: 7 & gen({as: "string"})}] & contains({k: 7})	{"l":[{"k":"7"}]}
 gen-read-contains-not-the-string	errc	l: [{k: 7 & gen({as: "string"})}] & contains({k: "7"})	constraint
-gen-read-contains-the-key-as-written	gens	l: [{orderId: 7} & gen({keys: "snake"})] & contains({orderId: integer})	{"l":[{"order_id":7}]}
+gen-read-contains-the-key-verbatim	gens	l: [{orderId: 7} & gen({keys: "snake"})] & contains({orderId: integer})	{"l":[{"order_id":7}]}
 gen-read-contains-not-the-styled-key	errc	l: [{orderId: 7} & gen({keys: "snake"})] & contains({order_id: integer})	constraint
 gen-read-trial-admits-the-number	gens	x: nof(2, integer, max(9)) & (7 & gen({as: "string"}))	{"x":"7"}
 gen-read-unique-by-the-values	gens	l: [1.26 & gen({significant: 2}), 1.27 & gen({significant: 2})] & unique()	{"l":[1.3,1.3]}
 gen-read-unique-refuses-by-the-values	errc	l: [1.26 & gen({significant: 2}), 1.26 & gen({significant: 2})] & unique()	constraint
 gen-read-optional-member-of-omitted-is-dropped	gens	m: {a?: [null & gen({empty: "omit"})]} & len(1)	{"m":{}}
 # 
-# The argument is one map of concrete data.
+# The argument is one map of concrete data, or one string.
 gen-arg-number	errc	v: 1.5 & gen(2)	func_arg
-gen-arg-string	errc	v: 1.5 & gen("significant")	func_arg
+gen-arg-string-is-a-form	errc	v: 1.5 & gen("significant")	gen_option
+gen-arg-string-kind	errc	v: path(.b) & gen(string)	func_arg
+gen-arg-boolean	errc	v: 1.5 & gen(true)	func_arg
+gen-arg-path	errc	v: path(.b) & gen(path(.c))	func_arg
+gen-arg-list-of-a-string	errc	v: path(.b) & gen(["key"])	func_arg
 gen-arg-list	errc	v: 1.5 & gen([2])	func_arg
 gen-arg-kind-inside	errc	v: 1.5 & gen({significant: integer})	func_arg
 gen-arg-optional-key	errc	v: 1.5 & gen({significant?: 2})	func_arg
@@ -524,7 +565,7 @@ gen-vet-omit-admits	verdict	v: string & empty() & gen({empty: "omit"})	{"v": ""}
 gen-vet-omit-still-requires	verdict	v: string & gen({empty: "omit"})	{}	{"verdict":"incomplete"}
 gen-vet-as-string-admits-the-number	verdict	v: number & gen({as: "string"})	{"v": 7}	{"verdict":"valid"}
 gen-vet-as-string-refuses-a-string	verdict	v: number & gen({as: "string"})	{"v": "7"}	{"verdict":"invalid"}
-gen-vet-keys-admits-the-key-as-written	verdict	o: close({orderId: integer}) & gen({keys: "snake"})	{"o": {"orderId": 7}}	{"verdict":"valid"}
+gen-vet-keys-admits-the-key-verbatim	verdict	o: close({orderId: integer}) & gen({keys: "snake"})	{"o": {"orderId": 7}}	{"verdict":"valid"}
 gen-vet-keys-refuses-the-styled-key	verdict	o: close({orderId: integer}) & gen({keys: "snake"})	{"o": {"order_id": 7}}	{"verdict":"invalid"}
 gen-vet-omit-in-a-choice	verdict	v: {a: string & empty() & gen({empty: "omit"}), b?: integer} | {a: integer}	{"v": {"a": ""}}	{"verdict":"valid"}
 gen-vet-places-in-a-choice	verdict	v: {a: float & gen({places: 1}), b?: integer} | {a: string}	{"v": {"a": 3.14159}}	{"verdict":"valid"}

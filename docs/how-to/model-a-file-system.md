@@ -205,7 +205,7 @@ written and changes nothing the document reads. Write the overlay as
 ```aontu
 @"./tree.aontu"
 
-fs: nodes: { &: { parent?:gen({ form:"key" }) } }
+fs: nodes: { &: { parent?:gen("key") } }
 ```
 
 <!-- test: run -->
@@ -221,9 +221,10 @@ $ aontu relations keys.aontu
 verdict: pass
 ```
 
-`form: "key"` writes the last segment of each address. The relation
-still reads the address itself, so the check passes as it did, and a
-filter on `parent` matches the address and not the key.
+`gen("key")` is short for `gen({ form:"key" })`, which writes the last
+segment of each address. The relation still reads the address itself,
+so the check passes as it did, and a filter on `parent` matches the
+address and not the key.
 
 ## What to watch for
 

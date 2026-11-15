@@ -417,7 +417,8 @@ const hints = {
         'annotation rides the value it meets, and its record has to unify\n' +
         'with the standard options of that value\'s type. The bundled model\n' +
         'aontu:gen holds them: every option of every type, each with the\n' +
-        'default that leaves the output as it is.\n' +
+        'default that leaves the output as it is. A string given to gen() is\n' +
+        'the form, so gen("key") is the record {form:"key"}.\n' +
         ' \n' +
         '  type:     {type}\n' +
         '  options:  {set}\n' +
@@ -427,7 +428,8 @@ const hints = {
         '  1.234 & gen({significant:2})  -> 1.234  # Generates 1.2;\n' +
         '  "a" & gen({significant:2})    -> nil    # A string has no such option;\n' +
         '  1.234 & gen({significant:0})  -> nil    # ... a number takes 1 or more;\n' +
-        '  1.234 & gen({digits:2})       -> nil    # ... and under that name only.',
+        '  1.234 & gen({digits:2})       -> nil    # ... and under that name only;\n' +
+        '  "a" & gen("key")              -> nil    # ... nor has it a form.',
     gen_conflict: 'Two gen() annotations ride this value and their records do not\n' +
         'unify. An output option is an instruction, and two that disagree\n' +
         'cannot both be followed, so the meet is refused, where two meta()\n' +
@@ -455,7 +457,7 @@ const hints = {
         'an address from the root of the document, and a relative address is\n' +
         'resolved from the place its value is generated at. One that climbs\n' +
         'past the root names nothing to write. Write the address from the\n' +
-        'root, or ask for the form "as-written" or "key", which need no\n' +
+        'root, or ask for the form "verbatim" or "key", which need no\n' +
         'position.\n' +
         ' \n' +
         '  address:  {addr}\n' +

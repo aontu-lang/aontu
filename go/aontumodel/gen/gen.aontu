@@ -8,12 +8,12 @@ aontu: Gen: type({
     places: *"all"|integer & min(0) & max(4096)
     as: *"number"|"string"
   })
-  String: close({ case: *"as-written"|"upper"|"lower" empty: *"keep"|"omit" })
+  String: close({ case: *"verbatim"|"upper"|"lower" empty: *"keep"|"omit" })
   Boolean: close({ as: *"boolean"|"number"|"string" })
   Null: close({ empty: *"keep"|"omit" })
-  Path: close({ form: *"as-written"|"absolute"|"pointer"|"key" })
+  Path: close({ form: *"verbatim"|"absolute"|"pointer"|"key" })
   Map: close({
-    keys: *"as-written"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
+    keys: *"verbatim"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
     empty: *"keep"|"omit"
   })
   List: close({ empty: *"keep"|"omit" })

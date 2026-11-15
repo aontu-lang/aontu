@@ -79,7 +79,7 @@ other type. The owner's correction of 2026-11-15:
 
 ## 3. The design in brief
 
-- `gen(spec: map|string) : annotation` is written as a term of a meet, like a
+- `gen(spec: string|map) : annotation` is written as a term of a meet, like a
   constraint: `float & gen({ significant:2 })`.
 - An annotation is `any` carrying a record. Met with a value it leaves
   the value as it is and rides it, through meets, reference copies and
@@ -99,10 +99,10 @@ other type. The owner's correction of 2026-11-15:
 
 ## 4. Decisions
 
-### D-1. The surface is `gen(spec: map|string) : annotation`, a term of a meet
+### D-1. The surface is `gen(spec: string|map) : annotation`, a term of a meet
 
 ```
-gen(spec: map|string) : annotation
+gen(spec: string|map) : annotation
 ```
 
 **Delta.** The first two cuts took a map alone. D-19 adds the string,
@@ -812,8 +812,11 @@ parent?: relate($.type.Folder) & acyclic() & gen("key")
 - The string is held to the standard set like any record. A form the
   type does not have is refused with `gen_option`, and so is the
   shorthand on a type that has no `form` at all.
-- The signature gate reads `map|string`, so a number, a list or a
+- The signature gate reads `string|map`, so a number, a list or a
   boolean is still refused with `func_arg`, as is the kind `string`.
+- It is the convention the layout builtins already have: `file`,
+  `folder` and `content` take `spec: string|map`, and a bare string
+  fills the one field a call most often gives.
 
 Only `Path` has an option named `form`, so the shorthand writes a path
 and nothing else today. §9 asks whether the other types should have a

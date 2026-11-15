@@ -13,9 +13,11 @@ each change affects.
 Both engines, a bundled model and shared rows. An addition to the
 language.
 
-- **`gen(spec: map) : annotation` is a new builtin.** It is written as a
-  term of a meet, `float & gen({ significant:2 })`, and its record rides
-  the value it meets, through meets, reference copies and spreads.
+- **`gen(spec: string|map) : annotation` is a new builtin.** It is
+  written as a term of a meet, `float & gen({ significant:2 })`, and its
+  record rides the value it meets, through meets, reference copies and
+  spreads. A string is the record's `form`, so `gen("key")` is
+  `gen({ form:"key" })`, and canon writes the record.
 - **Each type of value has a standard set of options**, each with a
   default that leaves the output as it is, published as the new bundled
   model `aontu:gen`. A record must unify with the set of its value's
@@ -52,7 +54,9 @@ language.
   writes no element. An optional key already did this for an empty map
   or list.
 - **`form` chooses how an address is written**: `"absolute"` from the
-  root, `"pointer"` as a JSON Pointer, and `"key"` as its last segment.
+  root, `"pointer"` as a JSON Pointer, and `"key"` as its last segment,
+  so `path($.a.b) & gen("key")` generates `"b"`. The default of `form`,
+  and of `case` and `keys`, is `"verbatim"`.
   A relative address is resolved from the place its value is generated
   at. One that climbs above the root is refused with the new code
   `gen_address`.
@@ -87,7 +91,7 @@ language.
   string from the value, and [Model a file
   system](docs/how-to/model-a-file-system.md) writes each parent as a
   key.
-- Pinned by `test/spec/annotation-gen.tsv`, 453 rows that both engines
+- Pinned by `test/spec/annotation-gen.tsv`, 488 rows that both engines
   answer alike. The design note is `sketch/GEN.0.md`.
 
 ### A how-to guide models a file system
