@@ -440,3 +440,23 @@ line each comment states.
 /-- info: 'Aontu.Number.significant_isSome' depends on axioms: [propext, Quot.sound] -/
 #guard_msgs in
 #print axioms Aontu.Number.significant_isSome
+
+/-- info: 'Aontu.Number.rounded_none' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.rounded_none
+
+/-- info: 'Aontu.Number.rounded_places_of_whole' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.rounded_places_of_whole
+
+/-- info: 'Aontu.Number.dropOf_significant' depends on axioms: [propext] -/
+#guard_msgs in
+#print axioms Aontu.Number.dropOf_significant
+
+/-- info: 'Aontu.Number.rounded_significant' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.rounded_significant
+
+/-- info: 'Aontu.Number.rounded_isSome' depends on axioms: [propext, Quot.sound] -/
+#guard_msgs in
+#print axioms Aontu.Number.rounded_isSome

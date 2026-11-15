@@ -436,6 +436,68 @@ def significantRows (tag : String) (cases : List (Number × ℕ)) : IO Unit := d
         toString n ++ "})\t{\"v\":" ++ y.text ++ "}")
     i := i + 1
 
+/-- The numbers `Number.rounded` and `Number.written` are run on, each
+with a count of significant digits, a count of digits after the point,
+either of which a case may leave out, and whether it is written as a
+string: every leaf, ties that go down and up to the even digit, a carry,
+a number that rounds to zero from either side, a case where the two
+counts round at different places, and the plain form of a number the
+engines write with an exponent. -/
+def writtenCases : List (Number × Option ℕ × Option ℕ × Bool) :=
+  let flt (a : ℤ) (d : ℕ) : Option Number := (Float.nearest a d).map .float
+  let int (n : ℤ) : Option Number := Number.ofIntegerLeaf n
+  let big (n : ℤ) : Option Number := some (.biginteger ⟨n⟩)
+  let dec (c s : ℤ) : Option Number := some (.bigdecimal (BigDecimal.normal c s))
+  let places (x : Option Number) (p : ℕ) := (x, (none : Option ℕ), some p, false)
+  let both (x : Option Number) (n p : ℕ) := (x, some n, some p, false)
+  let text (x : Option Number) (n : Option ℕ) := (x, n, (none : Option ℕ), true)
+  let fixed (x : Option Number) (n : Option ℕ) (p : ℕ) := (x, n, some p, true)
+  [places (flt 314159 100000) 2, places (flt 2675 1000) 2, places (flt 125 1000) 2,
+    places (flt 135 1000) 2, places (flt 5 10) 0, places (flt 15 10) 0, places (flt 25 10) 0,
+    places (flt (-314159) 100000) 3, places (flt (-25) 10) 0, places (flt 245 10) 2,
+    places (flt 2425 100) 2, places (flt 9999 1000) 2, places (flt 4 1000) 2,
+    places (flt (-4) 1000) 2, places (flt 6 1000) 2, places (flt 5 (10 ^ 324)) 2,
+    places (flt 1000000000000000000000 1) 2, places (flt ((2 ^ 53 - 1) * 2 ^ 971) 1) 0,
+    places (flt 0 1) 2, places (int 24) 2, places (int 24) 0,
+    places (big 123456789012345678901) 2, places (dec 24456 3) 2, places (dec 24456 3) 0,
+    places (dec 125 3) 2, places (dec (-4) 3) 2,
+    places (dec 123456789123456789123456789 27) 20,
+    both (flt 12345678 10000) 6 1, both (flt 12345678 10000) 3 2, both (flt 12451 10000) 4 2,
+    both (flt 125 100) 5 3, both (dec 12345678 4) 6 1,
+    text (flt 314159 100000) none, text (flt 314159 100000) (some 2),
+    text (flt 1000000000000000000000 1) none, text (flt 15 100000000) none,
+    text (flt 2 1) none, text (flt 0 1) none, text (int 42) none,
+    text (int 1234567890123456768) none, text (big 123456789012345678901) none,
+    text (dec 245 1) none, text (dec 1 (-3)) none,
+    fixed (int 24) none 2, fixed (flt 245 10) none 2, fixed (flt 24567 1000) none 2,
+    fixed (flt 30000000000000004 100000000000000000) none 2, fixed (flt 24567 1000) none 0,
+    fixed (flt 0 1) none 2, fixed (flt 4 1000) none 2, fixed (flt (-4) 1000) none 2,
+    fixed (flt (-24456) 1000) none 1, fixed (flt 5 100) none 3, fixed (flt (-5) 100) none 3,
+    fixed (flt 15 100000000) none 8, fixed (flt 1000000000000000000000 1) none 2,
+    fixed (int 1234567890123456768) none 1, fixed (int 24) none 0,
+    fixed (big 123456789012345678901) none 2, fixed (dec 24456 3) none 2,
+    fixed (dec 24456 3) none 0, fixed (dec 245 1) none 4, fixed (dec 1 (-3)) none 2,
+    fixed (flt 12345678 10000) (some 3) 2].filterMap
+    fun (x, n, p, s) => x.map (·, n, p, s)
+
+/-- The `gens` rows of `Number.rounded` and `Number.written`: each
+number met with the annotation whose record gives the options, with the
+JSON of what it writes. A number it writes nothing for has no row. -/
+def writtenRows (tag : String) (cases : List (Number × Option ℕ × Option ℕ × Bool)) :
+    IO Unit := do
+  let mut i := 0
+  for (x, n, p, s) in cases do
+    let some src := x.src | throw (IO.userError "a number has no text")
+    let opts := (n.elim [] fun k => ["\"significant\": " ++ toString k]) ++
+      (p.elim [] fun k => ["\"places\": " ++ toString k]) ++
+      (if s then ["\"as\": \"string\""] else [])
+    let json := if s then (x.written n p).map fun t => "\"" ++ t ++ "\""
+      else (x.rounded n p).map Number.text
+    if let some j := json then
+      IO.println (tag ++ toString i ++ "\tgens\tv: " ++ src ++ " & gen({" ++
+        ", ".intercalate opts ++ "})\t{\"v\":" ++ j ++ "}")
+    i := i + 1
+
 /-! ## The verdicts -/
 
 /-- The cases of the `verdict` fragment, each a schema and a document of
@@ -7540,12 +7602,15 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# Numbers at so many significant digits follow in rows gs0 on:"
     IO.println "# `Number.significant` (spec/Aontu/Written.lean), written as the gen() call"
     IO.println "# both engines read, whose annotation is not yet a term of the definition."
+    IO.println "# Numbers at so many places, at both counts, and as strings follow in rows gw0"
+    IO.println "# on: `Number.rounded` and `Number.written`, in the same module."
     genRows "g" genVals
     varRows "i"
     genRows "k" addrVals
     genRows "ks" spellVals
     readGenRows "gl" listGenVals
     significantRows "gs" significantCases
+    writtenRows "gw" writtenCases
     return 0
   | ["verdict"] =>
     IO.println "# Generated by `lake exe oracle verdict` (spec/Oracle.lean) from the definition"

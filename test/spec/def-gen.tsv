@@ -17,6 +17,8 @@
 # Numbers at so many significant digits follow in rows gs0 on:
 # `Number.significant` (spec/Aontu/Written.lean), written as the gen() call
 # both engines read, whose annotation is not yet a term of the definition.
+# Numbers at so many places, at both counts, and as strings follow in rows gw0
+# on: `Number.rounded` and `Number.written`, in the same module.
 g0	gens	v: 1	{"v":1}
 g1	gens	v: *(1)	{"v":1}
 g5	gens	v: *(null)	{"v":null}
@@ -234,3 +236,67 @@ gs56	gens	v: 0d99.95 & gen({"significant": 3})	{"v":100.0}
 gs57	gens	v: -0d2.5 & gen({"significant": 1})	{"v":-2.0}
 gs58	gens	v: 0d0.000012345 & gen({"significant": 2})	{"v":0.000012}
 gs59	gens	v: 0d123456789.123456789123456789 & gen({"significant": 20})	{"v":123456789.12345678912}
+gw0	gens	v: 3.14159 & gen({"places": 2})	{"v":3.14}
+gw1	gens	v: 2.675 & gen({"places": 2})	{"v":2.68}
+gw2	gens	v: 0.125 & gen({"places": 2})	{"v":0.12}
+gw3	gens	v: 0.135 & gen({"places": 2})	{"v":0.14}
+gw4	gens	v: 0.5 & gen({"places": 0})	{"v":0}
+gw5	gens	v: 1.5 & gen({"places": 0})	{"v":2}
+gw6	gens	v: 2.5 & gen({"places": 0})	{"v":2}
+gw7	gens	v: -3.14159 & gen({"places": 3})	{"v":-3.142}
+gw8	gens	v: -2.5 & gen({"places": 0})	{"v":-2}
+gw9	gens	v: 24.5 & gen({"places": 2})	{"v":24.5}
+gw10	gens	v: 24.25 & gen({"places": 2})	{"v":24.25}
+gw11	gens	v: 9.999 & gen({"places": 2})	{"v":10}
+gw12	gens	v: 0.004 & gen({"places": 2})	{"v":0}
+gw13	gens	v: -0.004 & gen({"places": 2})	{"v":0}
+gw14	gens	v: 0.006 & gen({"places": 2})	{"v":0.01}
+gw15	gens	v: 0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005 & gen({"places": 2})	{"v":0}
+gw16	gens	v: 1000000000000000000000.0 & gen({"places": 2})	{"v":1e+21}
+gw17	gens	v: 179769313486231570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0 & gen({"places": 0})	{"v":1.7976931348623157e+308}
+gw18	gens	v: 0.0 & gen({"places": 2})	{"v":0}
+gw19	gens	v: 24 & gen({"places": 2})	{"v":24}
+gw20	gens	v: 24 & gen({"places": 0})	{"v":24}
+gw21	gens	v: 0d123456789012345678901 & gen({"places": 2})	{"v":123456789012345678901}
+gw22	gens	v: 0d24.456 & gen({"places": 2})	{"v":24.46}
+gw23	gens	v: 0d24.456 & gen({"places": 0})	{"v":24.0}
+gw24	gens	v: 0d0.125 & gen({"places": 2})	{"v":0.12}
+gw25	gens	v: -0d0.004 & gen({"places": 2})	{"v":0.0}
+gw26	gens	v: 0d0.123456789123456789123456789 & gen({"places": 20})	{"v":0.12345678912345678912}
+gw27	gens	v: 1234.5678 & gen({"significant": 6, "places": 1})	{"v":1234.6}
+gw28	gens	v: 1234.5678 & gen({"significant": 3, "places": 2})	{"v":1230}
+gw29	gens	v: 1.2451 & gen({"significant": 4, "places": 2})	{"v":1.25}
+gw30	gens	v: 1.25 & gen({"significant": 5, "places": 3})	{"v":1.25}
+gw31	gens	v: 0d1234.5678 & gen({"significant": 6, "places": 1})	{"v":1234.6}
+gw32	gens	v: 3.14159 & gen({"as": "string"})	{"v":"3.14159"}
+gw33	gens	v: 3.14159 & gen({"significant": 2, "as": "string"})	{"v":"3.1"}
+gw34	gens	v: 1000000000000000000000.0 & gen({"as": "string"})	{"v":"1e+21"}
+gw35	gens	v: 0.00000015 & gen({"as": "string"})	{"v":"1.5e-7"}
+gw36	gens	v: 2.0 & gen({"as": "string"})	{"v":"2"}
+gw37	gens	v: 0.0 & gen({"as": "string"})	{"v":"0"}
+gw38	gens	v: 42 & gen({"as": "string"})	{"v":"42"}
+gw39	gens	v: 1234567890123456768 & gen({"as": "string"})	{"v":"1234567890123456768"}
+gw40	gens	v: 0d123456789012345678901 & gen({"as": "string"})	{"v":"123456789012345678901"}
+gw41	gens	v: 0d24.5 & gen({"as": "string"})	{"v":"24.5"}
+gw42	gens	v: 0d1000.0 & gen({"as": "string"})	{"v":"1000.0"}
+gw43	gens	v: 24 & gen({"places": 2, "as": "string"})	{"v":"24.00"}
+gw44	gens	v: 24.5 & gen({"places": 2, "as": "string"})	{"v":"24.50"}
+gw45	gens	v: 24.567 & gen({"places": 2, "as": "string"})	{"v":"24.57"}
+gw46	gens	v: 0.30000000000000004 & gen({"places": 2, "as": "string"})	{"v":"0.30"}
+gw47	gens	v: 24.567 & gen({"places": 0, "as": "string"})	{"v":"25"}
+gw48	gens	v: 0.0 & gen({"places": 2, "as": "string"})	{"v":"0.00"}
+gw49	gens	v: 0.004 & gen({"places": 2, "as": "string"})	{"v":"0.00"}
+gw50	gens	v: -0.004 & gen({"places": 2, "as": "string"})	{"v":"0.00"}
+gw51	gens	v: -24.456 & gen({"places": 1, "as": "string"})	{"v":"-24.5"}
+gw52	gens	v: 0.05 & gen({"places": 3, "as": "string"})	{"v":"0.050"}
+gw53	gens	v: -0.05 & gen({"places": 3, "as": "string"})	{"v":"-0.050"}
+gw54	gens	v: 0.00000015 & gen({"places": 8, "as": "string"})	{"v":"0.00000015"}
+gw55	gens	v: 1000000000000000000000.0 & gen({"places": 2, "as": "string"})	{"v":"1000000000000000000000.00"}
+gw56	gens	v: 1234567890123456768 & gen({"places": 1, "as": "string"})	{"v":"1234567890123456768.0"}
+gw57	gens	v: 24 & gen({"places": 0, "as": "string"})	{"v":"24"}
+gw58	gens	v: 0d123456789012345678901 & gen({"places": 2, "as": "string"})	{"v":"123456789012345678901.00"}
+gw59	gens	v: 0d24.456 & gen({"places": 2, "as": "string"})	{"v":"24.46"}
+gw60	gens	v: 0d24.456 & gen({"places": 0, "as": "string"})	{"v":"24"}
+gw61	gens	v: 0d24.5 & gen({"places": 4, "as": "string"})	{"v":"24.5000"}
+gw62	gens	v: 0d1000.0 & gen({"places": 2, "as": "string"})	{"v":"1000.00"}
+gw63	gens	v: 1234.5678 & gen({"significant": 3, "places": 2, "as": "string"})	{"v":"1230.00"}
