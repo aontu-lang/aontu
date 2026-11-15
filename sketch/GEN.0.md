@@ -4,7 +4,9 @@ Status: SECOND CUT IMPLEMENTED (2026-11-15), in both ports: a standard
 set of options for every type, D-12 to D-18, where the first cut
 (2026-11-14) gave one option to numbers and none to anything else.
 Building it found two defects of the first cut, which the Deltas under
-D-6 and D-17 record. The model
+D-6 and D-17 record. The owner then ruled two spellings (2026-11-15),
+which D-19 records: the default that leaves a text as it is is
+`"verbatim"`, and a string given to `gen` is the `form`. The model
 is `aontu/gen/gen.aontu` and the line is in `test/spec/signature.tsv`.
 The record's meet, its check and the preference rule are
 `ts/src/genrec.ts` and `go/genrec.go`; the rounding is
@@ -77,7 +79,7 @@ other type. The owner's correction of 2026-11-15:
 
 ## 3. The design in brief
 
-- `gen(spec: map) : annotation` is written as a term of a meet, like a
+- `gen(spec: map|string) : annotation` is written as a term of a meet, like a
   constraint: `float & gen({ significant:2 })`.
 - An annotation is `any` carrying a record. Met with a value it leaves
   the value as it is and rides it, through meets, reference copies and
@@ -97,11 +99,14 @@ other type. The owner's correction of 2026-11-15:
 
 ## 4. Decisions
 
-### D-1. The surface is `gen(spec: map) : annotation`, a term of a meet
+### D-1. The surface is `gen(spec: map|string) : annotation`, a term of a meet
 
 ```
-gen(spec: map) : annotation
+gen(spec: map|string) : annotation
 ```
+
+**Delta.** The first two cuts took a map alone. D-19 adds the string,
+which is read as the record `{form: spec}`.
 
 `spec` is a map of concrete data: scalars, and maps and lists of them,
 with no spread and no optional key, which is the rule a `meta()` record
@@ -198,12 +203,12 @@ aontu: Gen: type({
     places: *"all"|integer & min(0) & max(4096)
     as: *"number"|"string"
   })
-  String: close({ case: *"as-written"|"upper"|"lower" empty: *"keep"|"omit" })
+  String: close({ case: *"verbatim"|"upper"|"lower" empty: *"keep"|"omit" })
   Boolean: close({ as: *"boolean"|"number"|"string" })
   Null: close({ empty: *"keep"|"omit" })
-  Path: close({ form: *"as-written"|"absolute"|"pointer"|"key" })
+  Path: close({ form: *"verbatim"|"absolute"|"pointer"|"key" })
   Map: close({
-    keys: *"as-written"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
+    keys: *"verbatim"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
     empty: *"keep"|"omit"
   })
   List: close({ empty: *"keep"|"omit" })
@@ -528,12 +533,12 @@ five numeric kinds share one set.
 | `number`, `integer`, `float`, `biginteger`, `bigdecimal` | `Number` | `significant` | `"all"`, or an integer from 1 | D-7 |
 | | | `places` | `"all"`, or an integer from 0 to 4096 | D-13 |
 | | | `as` | `"number"`, `"string"` | D-14 |
-| `string` | `String` | `case` | `"as-written"`, `"upper"`, `"lower"` | D-15 |
+| `string` | `String` | `case` | `"verbatim"`, `"upper"`, `"lower"` | D-15 |
 | | | `empty` | `"keep"`, `"omit"` | D-16 |
 | `boolean` | `Boolean` | `as` | `"boolean"`, `"number"`, `"string"` | D-14 |
 | `null` | `Null` | `empty` | `"keep"`, `"omit"` | D-16 |
-| `path` | `Path` | `form` | `"as-written"`, `"absolute"`, `"pointer"`, `"key"` | D-17 |
-| `map` | `Map` | `keys` | `"as-written"`, or a style of `nom` | D-18 |
+| `path` | `Path` | `form` | `"verbatim"`, `"absolute"`, `"pointer"`, `"key"` | D-17 |
+| `map` | `Map` | `keys` | `"verbatim"`, or a style of `nom` | D-18 |
 | | | `empty` | `"keep"`, `"omit"` | D-16 |
 | `list` | `List` | `empty` | `"keep"`, `"omit"` | D-16 |
 
@@ -659,7 +664,7 @@ out, for a spelling that every JSON reader discards on the way in.
 ### D-15. `case`: the case of a string
 
 `case: "upper"` writes the string as `upper(s)` answers it, and
-`case: "lower"` as `lower(s)` does. The default, `"as-written"`,
+`case: "lower"` as `lower(s)` does. The default, `"verbatim"`,
 changes nothing.
 
 The document keeps the string as it was written, for every reference,
@@ -712,7 +717,7 @@ A `path` is written as its text today: `"$.a.b"`, `".a"`, `"..a"`.
 
 | `form` | Writes | `path(..b.c)` at `$.a.x` |
 |---|---|---|
-| `"as-written"` | the text the document wrote | `"..b.c"` |
+| `"verbatim"` | the text the document wrote | `"..b.c"` |
 | `"absolute"` | the address from the root | `"$.b.c"` |
 | `"pointer"` | the absolute address as a JSON Pointer (RFC 6901) | `"/b/c"` |
 | `"key"` | the last segment | `"c"` |
@@ -728,7 +733,7 @@ A `path` is written as its text today: `"$.a.b"`, `".a"`, `"..a"`.
   `"parent": "$.fs.nodes.etc"` today.
 - A relative address that climbs past the root has no absolute form.
   `"absolute"` and `"pointer"` refuse it where it is generated, with
-  `gen_address`. `"key"` and `"as-written"` need no position and
+  `gen_address`. `"key"` and `"verbatim"` need no position and
   write it.
 
 `relate()` still checks the address and never rewrites it. `form`
@@ -750,7 +755,7 @@ Rows `gen-form-spread-template`, `gen-form-default-in-a-spread`,
 
 `keys: s` writes each key of the map as `nom(key, s)` answers it. The
 styles are `nom`'s: `camel`, `dot`, `kebab`, `pascal`, `path`,
-`snake`, `text`, `title` and `upper`. The default, `"as-written"`,
+`snake`, `text`, `title` and `upper`. The default, `"verbatim"`,
 changes nothing.
 
 ```aontu
@@ -779,6 +784,40 @@ order: { orderId: 7 shipTo: "Cork" } & gen({ keys:"snake" })
 **Delta.** The report's details are `written`, `a` and `b`, the two
 keys in code-point order. A detail named `key` is one the error frame
 already reads, as the key of the member it points at.
+
+### D-19. `verbatim`, and a string is the form
+
+Two spellings the owner ruled on 2026-11-15, after the second cut.
+
+**The default that leaves a text as it is is `"verbatim"`**, in the
+three options that have such a default: `case`, `form` and `keys`. The
+second cut spelled it another way, and nothing of that spelling is
+kept, since no release carried it.
+
+**A string given to `gen` is the form.** `gen("key")` is
+`gen({ form:"key" })`:
+
+```aontu
+parent?: relate($.type.Folder) & acyclic() & gen("key")
+```
+
+- The string becomes the record `{form: X}` where the call resolves,
+  so everything after that is the record's: two annotations meet as
+  maps, `gen("key") & gen({ form:"key" })` is one annotation, and
+  `gen("key") & gen("pointer")` is refused with `gen_conflict`.
+- Canon writes the record, `path(.b)&gen({"form":"key"})`, so the two
+  spellings of one annotation have one canon and one hash.
+- The argument is a value, so a reference to a string is read before
+  the call resolves, as a reference to a map is.
+- The string is held to the standard set like any record. A form the
+  type does not have is refused with `gen_option`, and so is the
+  shorthand on a type that has no `form` at all.
+- The signature gate reads `map|string`, so a number, a list or a
+  boolean is still refused with `func_arg`, as is the kind `string`.
+
+Only `Path` has an option named `form`, so the shorthand writes a path
+and nothing else today. §9 asks whether the other types should have a
+`form`.
 
 ## 5. Options considered and left out
 
@@ -910,6 +949,10 @@ built:
    written (the Delta under D-7).
 4. **The kind `annotation`.** Later, as a change of its own (D-9).
 
+The owner ruled two more on 2026-11-15, which D-19 records: the default
+that leaves a text as it is is spelled `"verbatim"`, and a string
+given to `gen` is the `form`.
+
 One was settled by the request itself:
 
 5. **A type that refuses an option.** The meet is refused (D-5). The
@@ -943,7 +986,13 @@ expensive to change before a release.
 12. **`case` and the host.** `upper()` and `lower()` ask the host for
     the conversion, and `case` inherits that (D-15). It is the one
     option that does.
-13. **`vet` and a refusal of writing.** Built: `vet` reads the value
+13. **Which types have a `form`.** Built: `path` alone, so `gen("x")`
+    is a path's shorthand. Each other type has one option that chooses
+    a notation: `case` for a string, `keys` for a map, `as` for a
+    number and a boolean. Naming those `form` would let the shorthand
+    reach every type, `"ada" & gen("upper")` and `7 & gen("string")`,
+    and would give one name four meanings.
+14. **`vet` and a refusal of writing.** Built: `vet` reads the value
     and does not report a key clash, an address with no absolute form,
     or a rounding that overflows (the Delta under D-6). The alternative
     is that `vet` also runs the generation that writes, and reports
