@@ -6,7 +6,10 @@ set of options for every type, D-12 to D-18, where the first cut
 Building it found two defects of the first cut, which the Deltas under
 D-6 and D-17 record. The owner then ruled two spellings (2026-11-15),
 which D-19 records: the default that leaves a text as it is is
-`"verbatim"`, and a string given to `gen` is the `form`. The model
+`"verbatim"`, and a string given to `gen` is the `form`. A third
+ruling the same day, D-20: a record may give `custom`, an expression
+that writes the output, and placeholder templates are rejected. The
+model
 is `aontu/gen/gen.aontu` and the line is in `test/spec/signature.tsv`.
 The record's meet, its check and the preference rule are
 `ts/src/genrec.ts` and `go/genrec.go`; the rounding is
@@ -822,6 +825,92 @@ Only `Path` has an option named `form`, so the shorthand writes a path
 and nothing else today. §9 asks whether the other types should have a
 `form`.
 
+### D-20. `custom`: an expression that writes the output
+
+The owner's instruction of 2026-11-15: "Placeholder templates are
+explicitly rejected. Introduce the gen spec attribute "custom" that
+has a custom expression to define the output."
+
+**Rejected: placeholder templates.** A string with named parts, such
+as `gen("urn:node:{key}")`, was proposed for a path and is ruled out.
+It would be a second, smaller language inside a string, for what the
+language's own expressions already say.
+
+**The surface.** A record of any type may give `custom`, an expression
+in which the hole `_` stands for the value being written:
+
+```aontu
+parent: path($.fs.nodes.etc) & gen({ form:"key" custom:"urn:node:" + _ })
+price: 24 & gen({ places:2 as:"string" custom:"EUR " + _ })
+tags: ["a", "b"] & gen({ custom:join(_, ",") })
+```
+
+```json
+{"parent": "urn:node:etc", "price": "EUR 24.00", "tags": "a,b"}
+```
+
+**The rule.** Where the value is written, `custom: f` writes what
+`apply(w, f)` generates, where `w` is what the value writes without
+it:
+
+1. The record's other options are applied first, and for a map or a
+   list its members are written by their own records. So the
+   expression has the address in the form asked for, the number's
+   rounded digits, the keys in their style.
+2. `w` is read as data, the way a document reads a JSON value, and
+   `apply` binds the hole to it, as `apply` does anywhere.
+3. What the expression gives is generated, and that is the output. An
+   expression that generates nothing writes nothing.
+4. `empty` is judged last, on the output.
+
+The hole is the language's own (`_`, the reference's "The placeholder
+`_`"), and `gen` joins the constructs that bind one: a hole in the
+`custom` of a `gen` call's map is bound, and a hole anywhere else in
+the call is one nothing binds, as before.
+
+**Read as data.** `w` is JSON, and a JSON number has no leaf, so the
+rule a document reads a literal by decides it. A whole number is an
+integer where the integer leaf holds it and a biginteger where it does
+not, a bigdecimal stays exact, and any other number is a float. A
+float that writes no fraction, `2.0`, is therefore the integer `2` to
+the expression, in both engines alike.
+
+**The expression stands alone.** It is evaluated on its own, with the
+hole and nothing else of the document:
+
+- A reference in it names nothing, and refuses where the value is
+  written. `key()` is not the member's key.
+- It is written in the `gen` call's own map. A map elsewhere that
+  holds a hole is `hole_unbound`, as any is, so a record reached by
+  reference can give only a `custom` that has no hole, a constant.
+- It is kept as it is written, in canon form, and is part of the
+  record: canon writes it, `gen({"custom":"urn:node:"+_,"form":"key"})`,
+  the hash covers it, and two records whose expressions differ are
+  refused with `gen_conflict`.
+
+**It is an option of every type's set**, written `custom?: any` in the
+model: optional, with no default, since leaving it out is the default.
+The engines do not hold the expression to the set, which has nothing
+to say of an expression, and hold every other option as before.
+
+**Only writing evaluates it** (D-6). `vet`, a size, a fold and every
+other reading read the value, so an expression that fails is found
+where the document is generated, with the new code `gen_custom`. The
+report names the expression, what it was given, and the code of what
+stopped it.
+
+Why the hole is what the value writes, and not the value: the
+expression is the last step of writing, and it is the other options
+that make the text worth composing. `"EUR " + _` over the value reads
+the number's own text, `24`, by D-6; over what is written it has
+`24.00`. An expression that wants the value's own text asks for no
+other option.
+
+Why it stands alone: where a value is written is after the document
+has been evaluated, and an expression that could read the document
+there would make the output depend on an evaluation the document's
+own readings never saw. §9 puts both choices to the owner.
+
 ## 5. Options considered and left out
 
 Each fails one of the tests of D-12, or has no use yet that pays for
@@ -841,6 +930,7 @@ its rows in two engines.
 | `Map` | `order: "written"` | both engines write keys sorted, and Go's output type is unordered |
 | `List` | `sort`, `unique` | order and membership are the value |
 | every type | `deep: true` | the record reaching the members (§9) |
+| `Path` | a template, `"urn:node:{key}"` | ruled out (D-20): `custom` says it in the language's own expressions |
 
 ## 6. Errors
 
@@ -853,6 +943,7 @@ its rows in two engines.
 | `pref_rank_clash` (exists) | conflict | two defaults of one rank differ in their records |
 | `gen_key_clash` | conflict | two keys of a map are written as one key (D-18) |
 | `gen_address` | reference | a relative address that climbs past the root is asked for its absolute form (D-17) |
+| `gen_custom` | conflict | a `custom` expression gives no output for the value it is given (D-20) |
 
 Each new code lands with its `test/spec/errcodes.tsv` row and its hint
 in the same change. A `gen_option` report names the option, the type
@@ -954,7 +1045,9 @@ built:
 
 The owner ruled two more on 2026-11-15, which D-19 records: the default
 that leaves a text as it is is spelled `"verbatim"`, and a string
-given to `gen` is the `form`.
+given to `gen` is the `form`. And a third, which D-20 records:
+placeholder templates are rejected, and a record gives a custom
+output as an expression, `custom`.
 
 One was settled by the request itself:
 
@@ -995,7 +1088,15 @@ expensive to change before a release.
     number and a boolean. Naming those `form` would let the shorthand
     reach every type, `"ada" & gen("upper")` and `7 & gen("string")`,
     and would give one name four meanings.
-14. **`vet` and a refusal of writing.** Built: `vet` reads the value
+14. **What `custom` is given.** Built: what the value writes without
+    it, read as data (D-20). The alternative is the value itself, with
+    its leaf and its members' records, which makes the other options
+    of the record idle beside `custom`.
+15. **Whether `custom` may read the document.** Built: no, it stands
+    alone (D-20). The alternative resolves its references where the
+    annotation is written, so `custom: $.prefix + _` works, and has to
+    say what a reference that settles late does.
+16. **`vet` and a refusal of writing.** Built: `vet` reads the value
     and does not report a key clash, an address with no absolute form,
     or a rounding that overflows (the Delta under D-6). The alternative
     is that `vet` also runs the generation that writes, and reports
