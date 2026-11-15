@@ -6,10 +6,11 @@ exports.admits = admits;
 const ConjunctVal_1 = require("./val/ConjunctVal");
 const admission_1 = require("./val/admission");
 Object.defineProperty(exports, "fillDiff", { enumerable: true, get: function () { return admission_1.fillDiff; } });
+const genwrite_1 = require("./val/genwrite");
 function generated(aontu, v, own) {
     const ctx = aontu.ctx({ collect: true });
     ctx.root = v;
-    const out = undefined === own ? v.gen(ctx) : (0, admission_1.genToward)(v, ctx, own);
+    const out = undefined === own ? (0, genwrite_1.genPlain)(v, ctx) : (0, admission_1.genToward)(v, ctx, own);
     return 0 === ctx.err.length ? out : undefined;
 }
 // Whether `trial` admits `value`. Both are cloned: a Val tree is single-use.

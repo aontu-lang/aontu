@@ -6,6 +6,7 @@ exports.memberVals = memberVals;
 const keyorder_1 = require("../keyorder");
 const Val_1 = require("./Val");
 const BagVal_1 = require("./BagVal");
+const genwrite_1 = require("./genwrite");
 function bagMembers(data, ctx) {
     if (true !== data?.isMap && true !== data?.isList) {
         return undefined;
@@ -35,7 +36,7 @@ function filled(val, ctx) {
     if (!(0, BagVal_1.bagGenable)(val)) {
         return false;
     }
-    const cval = val.gen(ctx.clone({ err: [], collect: true }));
+    const cval = (0, genwrite_1.genPlain)(val, ctx.clone({ err: [], collect: true }));
     return undefined !== cval && !(0, Val_1.empty)(cval);
 }
 // The member values alone, for the verbs that do not need the keys.

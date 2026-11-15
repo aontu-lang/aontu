@@ -21,7 +21,7 @@ import { makeNilErr } from '../err'
 
 import { Val } from './Val'
 import { ScalarKindVal } from './ScalarKindVal'
-import { genWrite } from './genwrite'
+import { genWrite, genWrites } from './genwrite'
 
 
 class ScalarVal extends Val {
@@ -101,7 +101,7 @@ class ScalarVal extends Val {
     // Normalize negative zero to 0 for deterministic output (JSON has
     // no -0, and the Go port produces 0).
     const out = Object.is(this.peg, -0) ? 0 : this.peg
-    return null == this.genopts ? out : genWrite(ctx, this, out)
+    return genWrites(ctx, this) ? genWrite(ctx, this, out) : out
   }
 
 

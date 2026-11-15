@@ -20,6 +20,7 @@ declare class PathVal extends ScalarVal {
     constructor(spec: ValSpec, ctx?: AontuContext);
     unify(peer: Val, ctx: AontuContext): Val;
     get canon(): string;
+    gen(ctx?: AontuContext): any;
     superior(): Val;
 }
 declare class PathKindVal extends ScalarKindVal {

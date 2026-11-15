@@ -62,7 +62,7 @@ func allowReadEntries(
 		if s, ok := el.(*ScalarVal); ok && KindString == s.kind {
 			text = s.peg.(string)
 		} else {
-			out, gerr := genCollect(ctx, el)
+			out, gerr := genCollectPlain(ctx, el)
 			if nil != gerr {
 				f := engineFinding(gerr, at)
 				return entries, &f

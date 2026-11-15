@@ -246,23 +246,10 @@ class DisjunctVal extends JunctionVal_1.JunctionVal {
             }
             const prefs = this.peg.filter((v) => v instanceof PrefVal_1.PrefVal);
             if (0 === prefs.length && 1 < this.peg.length) {
-                const gctx = ctx.clone({ err: [], collect: true });
-                let firstOut;
-                let allSame = true;
-                for (let gI = 0; gI < this.peg.length && allSame; gI++) {
-                    const gout = this.peg[gI].gen(gctx);
-                    if (0 < gctx.err.length || undefined === gout) {
-                        allSame = false;
-                    }
-                    else if (0 === gI) {
-                        firstOut = gout;
-                    }
-                    else {
-                        allSame = genShape(this.peg[gI], gout) === genShape(this.peg[0], firstOut);
-                    }
-                }
-                if (allSame) {
-                    return firstOut;
+                const read = armsAlike(this.peg, ctx, true);
+                const alike = undefined === read || true === ctx.plain ? read : armsAlike(this.peg, ctx, false);
+                if (undefined !== alike) {
+                    return alike.out;
                 }
             }
             if (0 === prefs.length && 1 < this.peg.length) {
@@ -322,6 +309,25 @@ function ridden(v) {
     return null != v.deprecation || null != v.meta || null != v.flows ||
         (true === v.isBag && Object.values(v.peg).some(ridden)) ||
         (true === v.isPref && ridden(v.peg));
+}
+// Read plain first: values that differ stay apart though an option writes them alike.
+function armsAlike(arms, ctx, plain) {
+    const gctx = ctx.clone({ err: [], collect: true });
+    gctx.plain = plain;
+    let first;
+    for (let gI = 0; gI < arms.length; gI++) {
+        const gout = arms[gI].gen(gctx);
+        if (0 < gctx.err.length || undefined === gout) {
+            return undefined;
+        }
+        if (0 === gI) {
+            first = gout;
+        }
+        else if (genShape(arms[gI], gout) !== genShape(arms[0], first)) {
+            return undefined;
+        }
+    }
+    return { out: first };
 }
 function genShape(v, out) {
     if ('number' === typeof out && true === v?.isScalar) {

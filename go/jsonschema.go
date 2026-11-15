@@ -1739,7 +1739,7 @@ func schemaResidueName(v Val) string {
 // does not generate. Used for default and for enum members: both are
 // VALUES in the schema, so a member that is itself a shape has none.
 func schemaGenerated(v Val) (any, bool) {
-	ctx := &Ctx{root: v, collect: true}
+	ctx := &Ctx{root: v, collect: true, plain: true}
 	out, err := v.Gen(ctx)
 	if nil != err || 0 < len(ctx.err) {
 		return nil, false

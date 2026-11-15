@@ -47,8 +47,10 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 		return nil, nil
 	}
 	out := make([]any, 0, len(l.peg))
+	outer := genPlace(ctx)
 	for i, e := range l.peg {
-		e = placeShared(e, append(cp(l.path), itoa(i)))
+		at := append(cp(l.path), itoa(i))
+		e = placeShared(e, at)
 		if (e.markedType() || e.markedHide()) && !probing(ctx) {
 			continue
 		}
@@ -81,7 +83,7 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 			makeNilErrFull(ctx, code, va, vb, "", details)
 			break
 		}
-		ev, err := genAt(e, ctx, len(out))
+		ev, err := genAt(e, ctx, len(out), at)
 		if err != nil {
 			if ctx != nil && ctx.collect {
 				ctx.dropped = true
@@ -93,6 +95,12 @@ func (l *ListVal) Gen(ctx *Ctx) (any, error) {
 			continue
 		}
 		out = append(out, ev)
+	}
+	if nil != ctx {
+		ctx.at = outer
+	}
+	if genWrites(ctx, l.genopts) && "omit" == l.genopts["empty"] && 0 == len(out) {
+		return nil, nil
 	}
 	return out, nil
 }

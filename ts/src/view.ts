@@ -10,6 +10,7 @@ import type { TrustOptions } from './type'
 import { graphOf } from './graph'
 import type { Graph } from './graph'
 import { cmpCodePoint } from './keyorder'
+import { genPlain } from './val/genwrite'
 import { Provenance } from './provenance'
 import type { WhyConjunct } from './provenance'
 import { why, pathParts } from './query'
@@ -4387,7 +4388,7 @@ function drawLoaded(
         }
       }
       const before = ctx.err.length
-      const listed = steps.gen(ctx)
+      const listed = genPlain(steps, ctx)
       if (before < ctx.err.length) {
         return { errors: [engineFinding(ctx.err[before], ctx, '$')] }
       }
@@ -4401,7 +4402,7 @@ function drawLoaded(
     // generated values, so a document that is not concrete is an
     // error here, exactly as `aontu file.aontu` on it is.
     const before = ctx.err.length
-    const value = root.gen(ctx)
+    const value = genPlain(root, ctx)
     if (before < ctx.err.length) {
       return {
         errors: [engineFinding(ctx.err[before], ctx, '$')],
@@ -4726,7 +4727,7 @@ export function viewSet(
   let declared: any = undefined
   if (null != node) {
     const before = ctx.err.length
-    declared = node.gen(ctx)
+    declared = genPlain(node, ctx)
     if (before < ctx.err.length) {
       return {
         verdict: 'error', views: [],

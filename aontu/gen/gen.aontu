@@ -3,11 +3,18 @@
 # leaves the output as it is without the option.
 
 aontu: Gen: type({
-  Number: close({ significant: *"all"|integer & min(1) })
-  String: close({})
-  Boolean: close({})
-  Null: close({})
-  Path: close({})
-  Map: close({})
-  List: close({})
+  Number: close({
+    significant: *"all"|integer & min(1)
+    places: *"all"|integer & min(0) & max(4096)
+    as: *"number"|"string"
+  })
+  String: close({ case: *"as-written"|"upper"|"lower" empty: *"keep"|"omit" })
+  Boolean: close({ as: *"boolean"|"number"|"string" })
+  Null: close({ empty: *"keep"|"omit" })
+  Path: close({ form: *"as-written"|"absolute"|"pointer"|"key" })
+  Map: close({
+    keys: *"as-written"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
+    empty: *"keep"|"omit"
+  })
+  List: close({ empty: *"keep"|"omit" })
 })

@@ -13,6 +13,7 @@ const aontu_1 = require("./aontu");
 const vet_1 = require("./vet");
 const graph_1 = require("./graph");
 const keyorder_1 = require("./keyorder");
+const genwrite_1 = require("./val/genwrite");
 const provenance_1 = require("./provenance");
 const query_1 = require("./query");
 const subsume_1 = require("./subsume");
@@ -3349,7 +3350,7 @@ function drawLoaded(root, ctx, prov, kind, as, given, max, loss) {
                 };
             }
             const before = ctx.err.length;
-            const listed = steps.gen(ctx);
+            const listed = (0, genwrite_1.genPlain)(steps, ctx);
             if (before < ctx.err.length) {
                 return { errors: [(0, vet_1.engineFinding)(ctx.err[before], ctx, '$')] };
             }
@@ -3363,7 +3364,7 @@ function drawLoaded(root, ctx, prov, kind, as, given, max, loss) {
         // generated values, so a document that is not concrete is an
         // error here, exactly as `aontu file.aontu` on it is.
         const before = ctx.err.length;
-        const value = root.gen(ctx);
+        const value = (0, genwrite_1.genPlain)(root, ctx);
         if (before < ctx.err.length) {
             return {
                 errors: [(0, vet_1.engineFinding)(ctx.err[before], ctx, '$')],
@@ -3640,7 +3641,7 @@ function viewSet(src, opts, hooks) {
     let declared = undefined;
     if (null != node) {
         const before = ctx.err.length;
-        declared = node.gen(ctx);
+        declared = (0, genwrite_1.genPlain)(node, ctx);
         if (before < ctx.err.length) {
             return {
                 verdict: 'error', views: [],

@@ -7,6 +7,7 @@ const aontu_1 = require("./aontu");
 const err_1 = require("./err");
 const BagVal_1 = require("./val/BagVal");
 const Decimal_1 = require("./val/Decimal");
+const genwrite_1 = require("./val/genwrite");
 const numkind_1 = require("./val/numkind");
 const numcmp_1 = require("./val/numcmp");
 const ConstraintVal_1 = require("./val/ConstraintVal");
@@ -898,7 +899,7 @@ function residueName(v) {
 function generated(v) {
     const a0 = scratch();
     const ctx = a0.ctx({ collect: true });
-    const out = v.gen(ctx);
+    const out = (0, genwrite_1.genPlain)(v, ctx);
     return 0 === ctx.err.length ? exactJson(out) : undefined;
 }
 // The keywords each JSON type's instances answer to; any other instance

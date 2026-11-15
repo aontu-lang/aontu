@@ -382,7 +382,7 @@ func filledFindings(generated any, unified Val, dataSrc string,
 		}
 		return out
 	}
-	gctx := &Ctx{root: own, src: dataSrc, collect: true}
+	gctx := &Ctx{root: own, src: dataSrc, collect: true, plain: true}
 	ownGen, _ := own.Gen(gctx)
 	out := []VetFinding{}
 	prefix := anchorSegs(options.At)
@@ -740,7 +740,7 @@ func Vet(schemaSrc, dataSrc string, opts *VetOptions) VetReport {
 	}
 
 	genCtx := &Ctx{root: unified, src: dataSrc, collect: true,
-		probe: "" != options.At}
+		probe: "" != options.At, plain: true}
 	generated, _ := unified.Gen(genCtx)
 	for _, e := range genCtx.err {
 		findings = append(findings, pointed(findingOf(e, prov, sources), e.pathSegments()))

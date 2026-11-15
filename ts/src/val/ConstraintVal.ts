@@ -46,6 +46,7 @@ import type { Inst } from '../regex'
 import { codeClass } from '../hints'
 
 import { FeatureVal } from './FeatureVal'
+import { genPlain } from './genwrite'
 import { Site } from '../site'
 
 import {
@@ -2256,7 +2257,7 @@ function emittedEntries(bag: any, ctx: AontuContext): [string, any][] | undefine
     }
 
     const gctx = ctx.clone({ err: [], collect: true })
-    const cval = child.gen(gctx)
+    const cval = genPlain(child, gctx)
 
     // A required member that fails is a member: its own failure is the
     // finding, so the count does not decide on the members that remain.

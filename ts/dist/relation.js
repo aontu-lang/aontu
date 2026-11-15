@@ -10,6 +10,7 @@ const vet_1 = require("./vet");
 const graph_1 = require("./graph");
 const keyorder_1 = require("./keyorder");
 const err_1 = require("./err");
+const genwrite_1 = require("./val/genwrite");
 function findCycle(start, succ, done) {
     const stack = [];
     const onStack = new Set();
@@ -161,7 +162,7 @@ function relationCheck(src, opts) {
         return { verdict: 'pass', findings: [], ...counted };
     }
     const gctx = ctx.clone({ err: [], collect: true });
-    root.gen(gctx);
+    (0, genwrite_1.genPlain)(root, gctx);
     if (0 < gctx.err.length) {
         return {
             verdict: 'error',

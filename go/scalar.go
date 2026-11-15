@@ -194,12 +194,8 @@ func (s *ScalarVal) Gen(ctx *Ctx) (any, error) {
 	if s.refused() {
 		return nil, residueErr(ctx, s, "string_empty")
 	}
-	if n, ok := s.genopts["significant"].(int64); ok {
-		out, held := significant(s, n)
-		if !held {
-			return nil, residueErr(ctx, s, "float_overflow")
-		}
-		return out, nil
+	if genWrites(ctx, s.genopts) {
+		return genWrite(ctx, s)
 	}
 	if s.kind == KindFloat {
 		if f, ok := s.peg.(float64); ok && f == 0 {

@@ -196,7 +196,7 @@ func (d *DisjunctVal) Gen(ctx *Ctx) (any, error) {
 		return ctx.toward.v, nil
 	}
 	if unresolved {
-		if out, same := d.genSame(ctx); same {
+		if out, same := d.genAlike(ctx); same {
 			return out, nil
 		}
 		return nil, residueErr(ctx, d, "disjunct_no_gen")
@@ -318,10 +318,20 @@ func (d *DisjunctVal) rankPrefs(ctx *Ctx) Val {
 	return nil
 }
 
+// genAlike reads the members plain first: values that differ stay apart,
+// though an output option could write them alike.
+func (d *DisjunctVal) genAlike(ctx *Ctx) (any, bool) {
+	out, same := d.genSame(ctx, true)
+	if !same || (nil != ctx && ctx.plain) {
+		return out, same
+	}
+	return d.genSame(ctx, false)
+}
+
 // genSame generates every member in isolation and answers the one
 // value they all produce, or same=false when any refuses, generates
 // nothing, or differs.
-func (d *DisjunctVal) genSame(ctx *Ctx) (any, bool) {
+func (d *DisjunctVal) genSame(ctx *Ctx, plain bool) (any, bool) {
 	var first any
 	for i, m := range d.peg {
 		gctx := &Ctx{}
@@ -332,6 +342,7 @@ func (d *DisjunctVal) genSame(ctx *Ctx) (any, bool) {
 		}
 		gctx.err = nil
 		gctx.collect = true
+		gctx.plain = plain
 		out, gerr := m.Gen(gctx)
 		if nil != gerr || 0 < len(gctx.err) || nil == out {
 			return nil, false

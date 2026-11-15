@@ -4858,15 +4858,32 @@ bundled model [`aontu:gen`](#the-bundled-vocabularies):
 <!-- test: quote aontu/gen/gen.aontu -->
 ```aontu
 aontu: Gen: type({
-  Number: close({ significant: *"all"|integer & min(1) })
-  String: close({})
-  Boolean: close({})
-  Null: close({})
-  Path: close({})
-  Map: close({})
-  List: close({})
+  Number: close({
+    significant: *"all"|integer & min(1)
+    places: *"all"|integer & min(0) & max(4096)
+    as: *"number"|"string"
+  })
+  String: close({ case: *"as-written"|"upper"|"lower" empty: *"keep"|"omit" })
+  Boolean: close({ as: *"boolean"|"number"|"string" })
+  Null: close({ empty: *"keep"|"omit" })
+  Path: close({ form: *"as-written"|"absolute"|"pointer"|"key" })
+  Map: close({
+    keys: *"as-written"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
+    empty: *"keep"|"omit"
+  })
+  List: close({ empty: *"keep"|"omit" })
 })
 ```
+
+| Type | Set | Options |
+|------|-----|---------|
+| `number`, `integer`, `float`, `biginteger`, `bigdecimal` | `Number` | [`significant`](#numbers-significant-and-places), [`places`](#numbers-significant-and-places), [`as`](#a-number-as-a-string) |
+| `string` | `String` | [`case`](#strings-case), [`empty`](#empty-values) |
+| `boolean` | `Boolean` | [`as`](#booleans-as) |
+| `null` | `Null` | [`empty`](#empty-values) |
+| `path` | `Path` | [`form`](#addresses-form) |
+| `map` | `Map` | [`keys`](#map-keys), [`empty`](#empty-values) |
+| `list` | `List` | [`empty`](#empty-values) |
 
 Every option has a default, and the default leaves the output as it is
 without the option. A set is closed. A record must unify with the set
@@ -4880,7 +4897,7 @@ $ echo 'name: "ada" & gen({ significant:2 })' | aontu
 [aontu/gen_option]: Cannot unify values at path $.name
 ...
   type:     string
-  options:  {}
+  options:  {"case":*"as-written"|"upper"|"lower","empty":*"keep"|"omit"}
   record:   {"significant":2}
   refused:  significant
 ...
@@ -4889,8 +4906,9 @@ $ echo $?
 ```
 
 The type is known for a scalar, a scalar kind, a map, a list, and the
-kinds `map` and `list`. An annotation on anything else waits. The four
-numeric leaves share `Number`. An annotation meets each arm of a
+kinds `map` and `list`. An annotation on anything else waits. The
+numeric kinds share `Number`, so a field typed `number` writes an
+integer and a float by one record. An annotation meets each arm of a
 disjunction, and an arm of a type that refuses the record drops, as it
 does under a constraint:
 
@@ -4906,10 +4924,12 @@ So an annotation admits the values of the types that take its options
 and no others. `vet` reads it so: against `x: gen({ significant:2 })`,
 the data `x: "ada"` is `invalid`.
 
-### `significant`
+### Numbers: `significant` and `places`
 
 `significant: n` writes a number at no more than `n` significant
-digits. The default, `"all"`, writes every digit.
+digits, and `places: n` at no more than `n` digits after the point.
+The default of each, `"all"`, writes every digit. `places` takes a
+count from 0 to 4096, the most places a number in the language shows.
 
 The number rounded is the decimal the number shows: an integer's own
 digits, a bigdecimal's coefficient and scale, and for a float the
@@ -4949,7 +4969,266 @@ rounds to a number no double holds, and its digits are written as they
 are.
 
 A float whose rounded decimal is beyond the largest double is refused
-where it is generated, with `float_overflow`.
+where it is generated, with `float_overflow`. Rounding to places
+cannot overflow.
+
+`places` rounds by the same rule. Write the numbers as `places.aontu`:
+
+<!-- test: file places.aontu -->
+```aontu
+a: 3.14159 & gen({ places:2 })
+b: 2.675 & gen({ places:2 })
+c: 24 & gen({ places:2 })
+d: -0.004 & gen({ places:2 })
+e: 0d24.456 & gen({ places:0 })
+f: 1.2451 & gen({ significant:4 places:2 })
+```
+
+<!-- test: run -->
+```sh
+$ aontu places.aontu
+{
+  "a": 3.14,
+  "b": 2.68,
+  "c": 24,
+  "d": 0,
+  "e": 24.0,
+  "f": 1.25
+}
+```
+
+`b` shows the digits `2.675`, a tie, and goes up to the even `8`. `c`
+is an integer, which shows no digit after the point and is unchanged.
+`d` rounds to zero, which is written with no sign. `e` keeps a
+bigdecimal's one place.
+
+`f` gives both options. A record that gives both rounds once, at
+whichever of the two positions keeps fewer digits. Rounding twice
+would write `1.24`: `1.2451` to four digits is `1.245`, a tie that the
+number itself never met.
+
+### A number as a string
+
+`as: "string"` writes a number as a JSON string that holds the
+characters the number would have been written with. With `places: n`
+the string is the rounded number in plain decimal notation with
+exactly `n` digits after the point, zeros added to make them. Write
+the numbers as `wire.aontu`:
+
+<!-- test: scenario gen-as-string -->
+<!-- test: file wire.aontu -->
+```aontu
+price: number & gen({ places:2 as:"string" })
+price: 24
+tax: 0.30000000000000004 & gen({ places:2 as:"string" })
+id: 0d123456789012345678901 & gen({ as:"string" })
+far: 1e21 & gen({ as:"string" })
+plain: 1e21 & gen({ places:0 as:"string" })
+```
+
+<!-- test: run -->
+```sh
+$ aontu wire.aontu
+{
+  "far": "1e+21",
+  "id": "123456789012345678901",
+  "plain": "1000000000000000000000",
+  "price": "24.00",
+  "tax": "0.30"
+}
+```
+
+`price` and `tax` are the fixed form that [money is carried
+in](how-to/carry-exact-money-over-json.md): no exponent, one spelling
+for each amount, and never `-0.00`. The digits are those of the rounded
+decimal, so `tax` shows no binary remainder. `id` reaches a reader that
+parses every JSON number as a double with all its digits.
+
+Only the string keeps a trailing zero. A number that either engine
+writes has none: `price` without `as` is written `24`.
+
+### Booleans: `as`
+
+`as: "number"` writes `true` as `1` and `false` as `0`, and
+`as: "string"` writes `"true"` and `"false"`.
+
+### Strings: `case`
+
+`case: "upper"` writes a string as [`upper`](#uppers-stringnumber-start-integerbiginteger-len-integerbiginteger--string)
+answers it, and `case: "lower"` as `lower` does. The document keeps the
+string as it was written, for every reference, pattern, and comparison.
+
+### Empty values
+
+`empty: "omit"` leaves an empty value out of the map or list that holds
+it. The empty values are `""`, `null`, a map that writes no member, and
+a list that writes no element. Write the record as `user.aontu`:
+
+<!-- test: scenario gen-empty -->
+<!-- test: file user.aontu -->
+```aontu
+user: name: "ada" & gen({ case:"upper" })
+user: active: true & gen({ as:"number" })
+user: nick: "" & gen({ empty:"omit" })
+user: tags: [] & gen({ empty:"omit" })
+user: note: null & gen({ empty:"omit" })
+user: prefs: { theme:null & gen({ empty:"omit" }) } & gen({ empty:"omit" })
+```
+
+<!-- test: run -->
+```sh
+$ aontu user.aontu
+{
+  "user": {
+    "active": 1,
+    "name": "ADA"
+  }
+}
+```
+
+Emptiness is judged on what is written. `prefs` holds one member, which
+is left out, so `prefs` writes no member and is left out too. A value
+that is not empty is written whatever the option says, and a list
+closes up over an element that is left out.
+
+An [optional key](#optional-keys-) already leaves out a value that
+generates an empty map or list. `empty: "omit"` says the same of a
+required key, and of `""` and `null`, which an optional key keeps.
+Nothing holds the root of a document, so a root that is left out
+generates nothing, as a hidden root does, and the command prints
+`null`.
+
+### Addresses: `form`
+
+A [`path`](#first-class-paths-pathp) is written as its text. `form` chooses the
+notation. Write the addresses as `links.aontu`:
+
+<!-- test: scenario gen-form -->
+<!-- test: file links.aontu -->
+```aontu
+fs: etc: {}
+fs: hosts: {
+  a: path(..etc)
+  b: path(..etc) & gen({ form:"absolute" })
+  c: path(..etc) & gen({ form:"pointer" })
+  d: path(..etc) & gen({ form:"key" })
+}
+```
+
+<!-- test: run -->
+```sh
+$ aontu links.aontu
+{
+  "fs": {
+    "etc": {},
+    "hosts": {
+      "a": "..etc",
+      "b": "$.fs.etc",
+      "c": "/fs/etc",
+      "d": "etc"
+    }
+  }
+}
+```
+
+`"absolute"` writes the address from the root, `"pointer"` writes that
+address as a JSON Pointer (RFC 6901), and `"key"` writes its last
+segment, the form a foreign key takes. A relative address is resolved
+from the place its value is generated at, by the rule
+[`relate()`](#checked-links-relatet) resolves one by, and a link's
+address is the one `relate()` resolved. So a reference that copies a
+relative address writes the absolute form of the copy's own place.
+
+A relative address that climbs past the root has no absolute form.
+`"absolute"` and `"pointer"` refuse it where it is generated:
+
+<!-- test: run -->
+```sh
+$ echo 'x: path(..b) & gen({ form:"absolute" })' | aontu
+[aontu/gen_address]: Cannot resolve value at path $.x
+...
+  address:  ..b
+...
+$ echo $?
+1
+```
+
+### Map keys
+
+`keys: s` writes each key of a map as
+[`nom(key, s)`](#nomname-string-style-stringlist-acronyms-list--stringmap)
+answers it. The styles are `nom`'s: `camel`, `dot`, `kebab`, `pascal`,
+`path`, `snake`, `text`, `title`, and `upper`. Write the order as
+`order.aontu`:
+
+<!-- test: scenario gen-keys -->
+<!-- test: file order.aontu -->
+```aontu
+order: { orderId:7 shipTo:"Cork" lines: [unitPrice:2] } & gen({ keys:"snake" })
+```
+
+<!-- test: run -->
+```sh
+$ aontu order.aontu
+{
+  "order": {
+    "lines": [
+      {
+        "unitPrice": 2
+      }
+    ],
+    "order_id": 7,
+    "ship_to": "Cork"
+  }
+}
+```
+
+The style applies to the map's own keys. A map inside it, as in
+`lines`, is written by a record of its own. A key that holds no word,
+such as `_`, is written as it is. The members are written in the order
+of the keys that are written.
+
+Two keys that would be written as one key are refused where the map is
+generated:
+
+<!-- test: run -->
+```sh
+$ echo 'o: { a_b:1 aB:2 } & gen({ keys:"snake" })' | aontu
+[aontu/gen_key_clash]: Cannot resolve value at path $.o
+...
+  written as:  a_b
+  one:         aB
+  other:       a_b
+...
+$ echo $?
+1
+```
+
+### What reads an option
+
+An option is read where the document is written, and nowhere else.
+Every reading that is not the output reads the value: a reference, a
+call, `+`, a constraint, a size, a fold, a containment, the test that
+every arm of a disjunction generates alike, `vet`, `subsume`, a view,
+and the JSON Schema export.
+
+```aontu
+m: { a:"" & gen({ empty:"omit" }) b:1 } & len(2)
+l: [1.26 & gen({ significant:2 }) 2.5] & contains(1.26)
+```
+
+```json
+{"l":[1.3,2.5],"m":{"b":1}}
+```
+
+`m` has two members for `len`, though one is left out of the output,
+and `l` contains `1.26`, though it is written `1.3`. Two values that
+differ are two values, though an option would write them alike, so
+`(1.26|1.27) & gen({ significant:2 })` is an unresolved disjunction.
+
+`vet` reads the value too. So it does not report what only writing
+refuses: a key clash, an address with no absolute form, or a rounding
+that overflows.
 
 ### Canon, defaults and export
 
@@ -4962,10 +5241,11 @@ float&min(0)&gen({"significant":2})
 gen({"significant":2})                               (on any)
 meta(3.14159&gen({"significant":2}),{"title":"t"})    (inside the other riders)
 *1.5&gen({"significant":1})|float&gen({"significant":1})
+{"a":1}&gen({"empty":"omit","keys":"snake"})
 ```
 
 A disjunction holds no record of its own, so canon writes the record
-on each arm, as the last line shows. The hash form includes the
+on each arm, as the fifth line shows. The hash form includes the
 record, so two documents that generate differently never hash alike.
 
 Two defaults of one rank that differ in their records are two
@@ -4977,14 +5257,19 @@ the value it rides. That is exact between two values of one type, and
 it overstates an annotation alone: `subsume` answers `subsumes` for
 `gen({ significant:2 })` over a string, which the meet refuses.
 
-The definition holds the rounding as `Number.significant` in
-[`spec/Aontu/Written.lean`](../spec/Aontu/Written.lean): the decimal a
-number shows, `Number.digits`, rounded by `roundHalfEven` in
-[`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean), in the number's
-own leaf, with `Number.significant_isSome`, that only a float has a
-rounding its leaf does not hold. Rows gs0 on of
+The definition holds a number's options in
+[`spec/Aontu/Written.lean`](../spec/Aontu/Written.lean). `Number.rounded`
+is the rounding: the decimal a number shows, `Number.digits`, rounded
+once by `roundHalfEven` in
+[`spec/Aontu/Arith.lean`](../spec/Aontu/Arith.lean) at the position
+`Number.dropOf` gives, in the number's own leaf. `Number.rounded_isSome`
+holds that only a float has a rounding its leaf does not hold, and
+`Number.rounded_places_of_whole` that `places` leaves a whole number as
+it is. `Number.written` is the string, and `fixedText` its plain form.
+Rows gs0 and gw0 on of
 [`test/spec/def-gen.tsv`](../test/spec/def-gen.tsv) hold both engines to
-it. The annotation itself is not yet a term of the definition, and
+them. The annotation itself is not yet a term of the definition, nor
+are the options of the other types, and
 [`test/spec/annotation-gen.tsv`](../test/spec/annotation-gen.tsv) holds
 both engines to each other on every other rule in this section.
 

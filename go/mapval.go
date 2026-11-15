@@ -297,8 +297,10 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 	out := map[string]any{}
 	keys := append([]string(nil), m.keys...)
 	sort.Strings(keys)
+	outer := genPlace(ctx)
 	for _, k := range keys {
-		child := placeShared(m.peg[k], append(cp(m.path), k))
+		at := append(cp(m.path), k)
+		child := placeShared(m.peg[k], at)
 		// Type and hidden values are excluded from generation (a key
 		// whose source was moved away carries the hide mark set by
 		// RefVal.find's hide-found handling).
@@ -350,7 +352,7 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			gctx = &c2
 		}
 
-		cv, err := genAt(child, gctx, k)
+		cv, err := genAt(child, gctx, k, at)
 		// An optional key drops what does not resolve, never a refusal
 		// the parser made: the one vet reports there is raised instead.
 		if gctx != ctx && (nil != err || 0 < len(gctx.err) || gctx.dropped) {
@@ -389,6 +391,12 @@ func (m *MapVal) Gen(ctx *Ctx) (any, error) {
 			continue
 		}
 		out[k] = cv
+	}
+	if nil != ctx {
+		ctx.at = outer
+	}
+	if genWrites(ctx, m.genopts) {
+		return genWriteMap(ctx, m, out)
 	}
 	return out, nil
 }
@@ -458,8 +466,11 @@ func sizingResidue(v Val) (*ConstraintVal, Val, bool) {
 func gensNull(ctx *Ctx, v Val) bool {
 	switch n := v.(type) {
 	case *ScalarVal:
-		return n.kind == KindNull
+		return n.kind == KindNull && !(genWrites(ctx, n.genopts) && "omit" == n.genopts["empty"])
 	case *PrefVal:
+		if nil != n.genrec {
+			return gensNull(ctx, heldVal(ctx, n))
+		}
 		return gensNull(ctx, n.peg)
 	case *DisjunctVal:
 		member, unresolved := n.forGen(ctx)

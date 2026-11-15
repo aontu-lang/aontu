@@ -63,6 +63,9 @@ class AontuContext {
 
   probe: boolean = false
 
+  genat?: string[]
+  plain?: boolean
+
   // The provenance recorder (G7 phase 3), or undefined for an
   // uninstrumented run. Inherited by every descended and cloned
   // context through the prototype chain, so one run has one record.

@@ -207,9 +207,13 @@ func genArms(ctx *Ctx, out *DisjunctVal, rec Val) Val {
 // The record lands on the preferred value only where it is generated:
 // an override takes it from the preference.
 func genHeld(ctx *Ctx, p *PrefVal) (any, error) {
+	return heldVal(ctx, p).Gen(ctx)
+}
+
+func heldVal(ctx *Ctx, p *PrefVal) Val {
 	lctx := ctx
 	if nil == lctx {
 		lctx = &Ctx{}
 	}
-	return genOn(lctx, clonePath(p.peg, p.peg.vpath()), p, nil).Gen(ctx)
+	return genOn(lctx, clonePath(p.peg, p.peg.vpath()), p, nil)
 }

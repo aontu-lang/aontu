@@ -23,6 +23,7 @@ import { NilVal } from './NilVal'
 import { FeatureVal } from './FeatureVal'
 import { ExpectVal } from './ExpectVal'
 import { cmpCodePoint } from '../keyorder'
+import { genWriteBag, genWrites } from './genwrite'
 
 
 abstract class BagVal extends FeatureVal {
@@ -117,6 +118,8 @@ abstract class BagVal extends FeatureVal {
       return undefined
     }
 
+    const outer = ctx?.genat
+
     let entries = items(this.peg)
     if (this.isMap) {
       entries = entries
@@ -163,7 +166,7 @@ abstract class BagVal extends FeatureVal {
       if (child.isDisjunct && optional) {
         const dctx = ctx.clone({ err: [], collect: true })
 
-        let cval = child.gen(towardAt(this, dctx, p, out))
+        let cval = child.gen(towardAt(this, dctx, p, out, at))
 
         if (raiseParse(dctx, child, ctx) || undefined === cval || empty(cval)) {
           continue
@@ -175,7 +178,7 @@ abstract class BagVal extends FeatureVal {
       else if (bagGenable(child)) {
         const cctx = optional ? ctx.clone({ err: [], collect: true }) : ctx
 
-        let cval = child.gen(towardAt(this, cctx, p, out))
+        let cval = child.gen(towardAt(this, cctx, p, out, at))
 
         if (optional &&
           (raiseParse(cctx, child, ctx) || undefined === cval || empty(cval))) {
@@ -220,7 +223,11 @@ abstract class BagVal extends FeatureVal {
 
     }
 
-    return out
+    if (null != ctx) {
+      ctx.genat = outer
+    }
+
+    return genWrites(ctx, this) ? genWriteBag(ctx, this, out) : out
   }
 
 } /* node:coverage ignore next 6 */
@@ -231,9 +238,15 @@ export {
 }
 
 
-function towardAt(bag: BagVal, ctx: AontuContext, p: any, out: any): AontuContext {
-  return undefined === ctx?._toward ? ctx :
+function towardAt(
+  bag: BagVal, ctx: AontuContext, p: any, out: any, at: string[]
+): AontuContext {
+  const tctx = undefined === ctx?._toward ? ctx :
     towardMember(ctx, bag.isMap ? String(p) : out.length)
+  if (null != tctx) {
+    tctx.genat = at
+  }
+  return tctx
 }
 
 

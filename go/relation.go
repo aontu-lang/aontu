@@ -249,6 +249,7 @@ func (a *Aontu) RelationCheckOpts(
 	gctx := &gcopy
 	gctx.err = nil
 	gctx.collect = true
+	gctx.plain = true
 	root.Gen(gctx)
 	if 0 < len(gctx.err) {
 		return RelationReport{Verdict: "error", Findings: []RelationFinding{},

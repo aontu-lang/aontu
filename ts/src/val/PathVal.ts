@@ -20,6 +20,7 @@ import { propagateMarks, walk } from '../utility'
 import { cmpCodePoint } from '../keyorder'
 
 import { ScalarVal } from './ScalarVal'
+import { genRefuse, genWrites } from './genwrite'
 import { ScalarKindVal, Path } from './ScalarKindVal'
 
 
@@ -259,6 +260,24 @@ class PathVal extends ScalarVal {
   // address grammar, which the argument grammar also accepts.
   get canon(): string {
     return relateText(this) + 'path(' + this.peg + ')'
+  }
+
+  // A relative address is resolved from where the value is generated,
+  // and a link's is the one `relate()` resolved.
+  gen(ctx?: AontuContext) {
+    const form = this.genopts?.form
+    if (!genWrites(ctx, this) || 'as-written' === form) {
+      return this.peg
+    }
+    const addr = parseAddress(this.peg) as Address
+    if ('key' === form) {
+      return addr.parts[addr.parts.length - 1]
+    }
+    const target = (this as any).linkto ?? addressPath(addr, ctx?.genat ?? this.path)
+    if (undefined === target) {
+      return genRefuse(ctx, 'gen_address', this, { addr: this.peg })
+    }
+    return 'pointer' === form ? '/' + target.join('/') : '$.' + target.join('.')
   }
 
   superior() {

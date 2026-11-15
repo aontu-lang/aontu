@@ -59,7 +59,7 @@ class ScalarVal extends Val_1.Val {
         // Normalize negative zero to 0 for deterministic output (JSON has
         // no -0, and the Go port produces 0).
         const out = Object.is(this.peg, -0) ? 0 : this.peg;
-        return null == this.genopts ? out : (0, genwrite_1.genWrite)(ctx, this, out);
+        return (0, genwrite_1.genWrites)(ctx, this) ? (0, genwrite_1.genWrite)(ctx, this, out) : out;
     }
     superior() {
         return this.place(new ScalarKindVal_1.ScalarKindVal({

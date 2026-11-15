@@ -193,6 +193,38 @@ $ aontu model get $.usage usage.aontu
 `filter` keeps the files whose parent is `etc`, `pick` takes the
 `size` of each, and `sum` adds 220 and 96.
 
+## Write each parent as a key
+
+A reader that keys its nodes by name wants `"parent": "etc"`, where
+the document holds an address.
+[`gen()`](../reference-language.md#addresses-form) says how a value is
+written and changes nothing the document reads. Write the overlay as
+`keys.aontu`:
+
+<!-- test: file keys.aontu -->
+```aontu
+@"./tree.aontu"
+
+fs: nodes: { &: { parent?:gen({ form:"key" }) } }
+```
+
+<!-- test: run -->
+```sh
+$ aontu model get $.fs.nodes.hosts keys.aontu
+{
+  "kind": "file",
+  "name": "hosts",
+  "parent": "etc",
+  "size": 220
+}
+$ aontu relations keys.aontu
+verdict: pass
+```
+
+`form: "key"` writes the last segment of each address. The relation
+still reads the address itself, so the check passes as it did, and a
+filter on `parent` matches the address and not the key.
+
 ## What to watch for
 
 The two subtypes are written before `Node`, and both engines read the

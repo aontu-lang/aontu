@@ -2564,6 +2564,7 @@ func emittedEntries(bag Val, optional []string, ctx *Ctx) ([]string, []Val) {
 			gctx = &c2
 		}
 		gctx.collect = true
+		gctx.plain = true
 
 		cv, err := child.Gen(gctx)
 		// A required member that fails is a member: its own failure is
@@ -2575,7 +2576,7 @@ func emittedEntries(bag Val, optional []string, ctx *Ctx) ([]string, []Val) {
 		if nil != err || nil == cv {
 			// A child that generates nothing contributes nothing --
 			// except a JSON null, which is a member like any other.
-			if nil == err && nil == cv && gensNull(ctx, child) {
+			if nil == err && nil == cv && gensNull(gctx, child) {
 				out = append(out, child)
 				outKeys = append(outKeys, keys[i])
 			}

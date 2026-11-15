@@ -1,9 +1,10 @@
 # Output options: `gen(spec)` — design note
 
-Status: SECOND CUT PROPOSED (2026-11-15): a standard set of options
-for every type, D-12 to D-18, where the first cut gave one option to
-numbers and none to anything else. The first cut is implemented
-(2026-11-14), in both ports. The model
+Status: SECOND CUT IMPLEMENTED (2026-11-15), in both ports: a standard
+set of options for every type, D-12 to D-18, where the first cut
+(2026-11-14) gave one option to numbers and none to anything else.
+Building it found two defects of the first cut, which the Deltas under
+D-6 and D-17 record. The model
 is `aontu/gen/gen.aontu` and the line is in `test/spec/signature.tsv`.
 The record's meet, its check and the preference rule are
 `ts/src/genrec.ts` and `go/genrec.go`; the rounding is
@@ -298,6 +299,26 @@ rounded output of data that satisfied it. That is what asking for
 fewer digits means, and it is why the options are read at generation
 only. A document that vets its own output states its bounds on what it
 prints.
+
+**Delta.** The first cut read the options in every generation, and the
+engines generate a value in order to read it in more places than the
+table above lists: a size (`len`), the members a fold takes, a
+containment and an admission trial, the test that every arm of an
+unresolved disjunction generates alike, `vet`, the relation check, a
+view, `allow` and the JSON Schema export. So an option leaked into
+each. `(1.26|1.27) & gen({ significant:2 })` generated `1.3`, where
+the document without the annotation is an unresolved disjunction, and
+`empty: "omit"` would have changed what `len` counts. The second cut
+splits the two: a generation that reads is plain (`ctx.plain` in both
+ports, set by `genPlain` in `ts/src/val/genwrite.ts` and at each reader
+in Go), and only the one that writes the document applies an option.
+The all-arms-alike test reads plain first, and then requires the arms
+to be written alike too, so that two arms whose records differ stay two
+arms. Rows `gen-read-*` hold each reader.
+
+One consequence is new. `vet` reads the value, so it does not report
+what only writing refuses: `gen_key_clash`, `gen_address`, and a
+`float_overflow` from rounding. §9 puts that to the owner.
 
 ### D-7. `significant`: at most this many significant digits
 
@@ -705,13 +726,25 @@ A `path` is written as its text today: `"$.a.b"`, `".a"`, `"..a"`.
 - `"key"` is the form a foreign key takes: with it the file-system
   model writes `"parent": "etc"` where it writes
   `"parent": "$.fs.nodes.etc"` today.
-- A relative address that climbs above the root has no absolute form.
+- A relative address that climbs past the root has no absolute form.
   `"absolute"` and `"pointer"` refuse it where it is generated, with
   `gen_address`. `"key"` and `"as-written"` need no position and
   write it.
 
 `relate()` still checks the address and never rewrites it. `form`
 changes the text that is written and nothing a relation reads.
+
+**Delta.** "The place the value is generated at" was not something a
+value knew. Both engines give a map or a list its place where it is
+generated, and leave a scalar, a preference and an arm with the place
+they were written at. A value that arrives through a spread's
+template, a preference or a copy of a type therefore held the
+template's place: the first cut reported a `float_overflow` under a
+spread at the template's path, in both ports alike. The container now
+tells the generation where it has reached (`ctx.genat` in TypeScript,
+`Ctx.at` in Go), and `form` and every refusal of writing read that.
+Rows `gen-form-spread-template`, `gen-form-default-in-a-spread`,
+`gen-form-type-copy` and the three `*-names-the-place` rows hold it.
 
 ### D-18. `keys`: the naming style of a map's keys
 
@@ -743,6 +776,10 @@ order: { orderId: 7 shipTo: "Cork" } & gen({ keys:"snake" })
 - The output's members are in the order of the keys that are written,
   as every map's are.
 
+**Delta.** The report's details are `written`, `a` and `b`, the two
+keys in code-point order. A detail named `key` is one the error frame
+already reads, as the key of the member it points at.
+
 ## 5. Options considered and left out
 
 Each fails one of the tests of D-12, or has no use yet that pays for
@@ -773,7 +810,7 @@ its rows in two engines.
 | `float_overflow` (exists) | conflict | a float rounds beyond the largest double |
 | `pref_rank_clash` (exists) | conflict | two defaults of one rank differ in their records |
 | `gen_key_clash` | conflict | two keys of a map are written as one key (D-18) |
-| `gen_address` | reference | a relative address that climbs above the root is asked for its absolute form (D-17) |
+| `gen_address` | reference | a relative address that climbs past the root is asked for its absolute form (D-17) |
 
 Each new code lands with its `test/spec/errcodes.tsv` row and its hint
 in the same change. A `gen_option` report names the option, the type
@@ -906,3 +943,8 @@ expensive to change before a release.
 12. **`case` and the host.** `upper()` and `lower()` ask the host for
     the conversion, and `case` inherits that (D-15). It is the one
     option that does.
+13. **`vet` and a refusal of writing.** Built: `vet` reads the value
+    and does not report a key clash, an address with no absolute form,
+    or a rounding that overflows (the Delta under D-6). The alternative
+    is that `vet` also runs the generation that writes, and reports
+    what it refuses as findings.

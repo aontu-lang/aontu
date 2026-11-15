@@ -2196,7 +2196,7 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
 				return "", []VetFinding{viewFinding("no_path", "reference", options.Steps,
 					"The path "+options.Steps+" names nothing in this document.", "")}
 			}
-			listed, gerr := genCollect(ctx, steps)
+			listed, gerr := genCollectPlain(ctx, steps)
 			if nil != gerr {
 				return "", queryFailed(gerr, "$").Findings
 			}
@@ -2206,7 +2206,7 @@ func (a *Aontu) drawLoaded(root Val, ctx *Ctx, prov *Provenance,
 		// GENERATION CAN FAIL WHERE UNIFICATION DID NOT: the panel reads
 		// generated values, so a document that is not concrete is an
 		// error here, exactly as `aontu file.aontu` on it is.
-		value, gerr := genCollect(ctx, root)
+		value, gerr := genCollectPlain(ctx, root)
 		if nil != gerr {
 			return "", queryFailed(gerr, "$").Findings
 		}

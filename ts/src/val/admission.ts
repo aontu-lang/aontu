@@ -10,6 +10,7 @@ import { DONE } from '../type'
 import { AontuContext } from '../ctx'
 import { unite } from '../unify'
 import { putKey } from './BagVal'
+import { genPlain } from './genwrite'
 import { top } from './top'
 
 
@@ -109,7 +110,7 @@ export function admitsJson(met: any, out: any, own: any): boolean {
 export function genToward(value: Val, ctx: AontuContext, own: any): any {
   const tctx = ctx.clone({})
   tctx._toward = { v: own }
-  return value.gen(tctx)
+  return genPlain(value, tctx)
 }
 
 
@@ -127,14 +128,14 @@ export function towardMember(ctx: AontuContext, key: string | number): AontuCont
 
 export function armAdmits(arm: Val, ctx: AontuContext, own: any): boolean {
   const actx = ctx.clone({ err: [], collect: true })
-  const out = arm.gen(actx)
+  const out = genPlain(arm, actx)
   return 0 === actx.err.length && undefined !== out && admitsJson(arm, out, own)
 }
 
 
 export function ownJson(value: Val, ctx: AontuContext): any {
   const gctx = ctx.clone({ err: [], collect: true })
-  const own = value.clone(gctx).gen(gctx)
+  const own = genPlain(value.clone(gctx), gctx)
   return 0 < gctx.err.length ? undefined : own
 }
 

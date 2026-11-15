@@ -12,12 +12,7 @@ import {
 
 import { makeNilErr } from '../err'
 
-import {
-  splitWords,
-  caseName,
-  lowerASCII,
-  capitalise,
-} from '../casing'
+import { styleName } from '../casing'
 
 import { MapVal } from './MapVal'
 import { StringVal } from './StringVal'
@@ -35,55 +30,6 @@ const NOM_STYLES = [
   'title',
   'upper',   // USER_ID
 ]
-
-// nom's style name -> the case style `caseName` serves. `upper` and
-// `text` are nom's spellings.
-const CASENAME_STYLES: Record<string, string> = {
-  camel: 'camel',
-  kebab: 'kebab',
-  pascal: 'pascal',
-  snake: 'snake',
-  upper: 'screaming',
-}
-
-
-// One name in one style, or undefined when the style is not one, or
-// when the name holds no words at all.
-function styleName(name: string, style: string, acronyms: string[]):
-  string | undefined {
-  const src = name.replace(/[./]/g, '_')
-
-  const words = splitWords(src)
-  if (0 === words.length) {
-    return undefined
-  }
-
-  const cased = CASENAME_STYLES[style]
-  if (undefined !== cased) {
-    return caseName(src, cased, acronyms)
-  }
-
-  if ('dot' === style) {
-    return words.map(lowerASCII).join('.')
-  }
-  if ('path' === style) {
-    return words.map(lowerASCII).join('/')
-  }
-  if ('title' === style) {
-    return words.map((w) => capitalise(w, acronyms)).join(' ')
-  }
-  if ('text' === style) {
-    const isAcronym = (w: string) =>
-      acronyms.some((a) => lowerASCII(a) === lowerASCII(w))
-    return [capitalise(words[0], acronyms)]
-      .concat(words.slice(1).map((w) =>
-        isAcronym(w) ? capitalise(w, acronyms) : lowerASCII(w)))
-      .join(' ')
-  }
-
-  return undefined
-}
-
 
 // The text a value carries, when it is a concrete string. A path is a
 // string too (ScalarKindVal's Path sits under String), so a spelled

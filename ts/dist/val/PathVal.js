@@ -15,6 +15,7 @@ const err_1 = require("../err");
 const utility_1 = require("../utility");
 const keyorder_1 = require("../keyorder");
 const ScalarVal_1 = require("./ScalarVal");
+const genwrite_1 = require("./genwrite");
 const ScalarKindVal_1 = require("./ScalarKindVal");
 const ADDR_SEGMENT = /^[A-Za-z0-9_-]+$/;
 function parseAddress(s) {
@@ -206,6 +207,23 @@ class PathVal extends ScalarVal_1.ScalarVal {
     // address grammar, which the argument grammar also accepts.
     get canon() {
         return relateText(this) + 'path(' + this.peg + ')';
+    }
+    // A relative address is resolved from where the value is generated,
+    // and a link's is the one `relate()` resolved.
+    gen(ctx) {
+        const form = this.genopts?.form;
+        if (!(0, genwrite_1.genWrites)(ctx, this) || 'as-written' === form) {
+            return this.peg;
+        }
+        const addr = parseAddress(this.peg);
+        if ('key' === form) {
+            return addr.parts[addr.parts.length - 1];
+        }
+        const target = this.linkto ?? addressPath(addr, ctx?.genat ?? this.path);
+        if (undefined === target) {
+            return (0, genwrite_1.genRefuse)(ctx, 'gen_address', this, { addr: this.peg });
+        }
+        return 'pointer' === form ? '/' + target.join('/') : '$.' + target.join('.');
     }
     superior() {
         return this.place(new PathKindVal({}));

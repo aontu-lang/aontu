@@ -6,6 +6,7 @@ import { Aontu } from './aontu'
 import { makeNilErr } from './err'
 import { sizingResidue } from './val/BagVal'
 import { Decimal } from './val/Decimal'
+import { genPlain } from './val/genwrite'
 import { exactNumberText, readExactNumber } from './val/numkind'
 import type { ExactNumber } from './val/numkind'
 import { cmpScaled, scaledOfShown } from './val/numcmp'
@@ -1126,7 +1127,7 @@ function residueName(v: any): string {
 function generated(v: any): any {
   const a0 = scratch()
   const ctx = a0.ctx({ collect: true })
-  const out = v.gen(ctx)
+  const out = genPlain(v, ctx)
   return 0 === ctx.err.length ? exactJson(out) : undefined
 }
 

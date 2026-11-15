@@ -711,8 +711,13 @@ func probing(ctx *Ctx) bool {
 }
 
 func residueErr(ctx *Ctx, v Val, code string) error {
+	return residueErrAt(ctx, v, code, nil, v.vpath())
+}
+
+func residueErrAt(ctx *Ctx, v Val, code string, details map[string]string, path []string) error {
 	n := makeNilErr(ctx, code, v, nil)
-	n.path = cp(v.vpath())
+	n.details = details
+	n.path = cp(path)
 	if ctx != nil && ctx.collect {
 		return nil
 	}

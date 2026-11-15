@@ -3,6 +3,7 @@
 
 import { Aontu } from './aontu'
 import { ConjunctVal } from './val/ConjunctVal'
+import { genPlain } from './val/genwrite'
 import { anchorAt, engineFinding } from './vet'
 import type { VetFinding } from './vet'
 import { evalFailure, nearestKey, pathParts } from './query'
@@ -98,7 +99,7 @@ function readEntries(
   for (let i = 0; i < list.peg.length; i++) {
     const el: any = list.peg[i]
     const before = ctx.err.length
-    const text: string = true === el.isString ? el.peg : el.gen(ctx)
+    const text: string = true === el.isString ? el.peg : genPlain(el, ctx)
     if (before < ctx.err.length) {
       const err: any = ctx.err[before]
       return { entries, finding: engineFinding(err, ctx, `${by}.${i}`) }

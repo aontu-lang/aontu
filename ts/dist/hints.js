@@ -438,6 +438,30 @@ const hints = {
         ' \nExamples:\n' +
         '  1.5 & gen({significant:2}) & gen({significant:2})  -> 1.5  # One instruction;\n' +
         '  1.5 & gen({significant:2}) & gen({significant:3})  -> nil  # ... two that disagree.',
+    gen_key_clash: 'Two keys of this map would be written as one key. The keys option\n' +
+        'of gen() writes each key in a naming style, and two keys that\n' +
+        'differ only in how their words are joined have one spelling in\n' +
+        'that style, so the output would hold one member where the document\n' +
+        'holds two. Rename one of the keys, or leave the map\'s keys as they\n' +
+        'are written.\n' +
+        ' \n' +
+        '  written as:  {written}\n' +
+        '  one:         {a}\n' +
+        '  other:       {b}\n' +
+        ' \nExamples:\n' +
+        '  {orderId:1} & gen({keys:"snake"})    -> {..}  # Generates {"order_id":1};\n' +
+        '  {a_b:1, aB:2} & gen({keys:"snake"})  -> nil   # ... both are a_b.',
+    gen_address: 'This address has no absolute form. The form option of gen() writes\n' +
+        'an address from the root of the document, and a relative address is\n' +
+        'resolved from the place its value is generated at. One that climbs\n' +
+        'past the root names nothing to write. Write the address from the\n' +
+        'root, or ask for the form "as-written" or "key", which need no\n' +
+        'position.\n' +
+        ' \n' +
+        '  address:  {addr}\n' +
+        ' \nExamples:\n' +
+        '  a: {x: path(..b) & gen({form:"absolute"})}  -> {..}  # Generates "$.b";\n' +
+        '  x: path(..b) & gen({form:"absolute"})       -> nil   # ... past the root.',
     float_overflow: 'This result is not a finite binary64 number, so it is not a value\n' +
         'aontu can carry. There is no notation for an infinity or a NaN in\n' +
         'a JSON superset, and no JSON a generator could emit for one, so\n' +
@@ -930,6 +954,8 @@ const codeClasses = {
     float_overflow: 'conflict',
     gen_option: 'conflict',
     gen_conflict: 'conflict',
+    gen_key_clash: 'conflict',
+    gen_address: 'reference',
     decimal_budget: 'conflict',
     lossy_integer_literal: 'conflict',
     arg: 'conflict',

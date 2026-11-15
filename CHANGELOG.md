@@ -15,25 +15,59 @@ language.
 
 - **`gen(spec: map) : annotation` is a new builtin.** It is written as a
   term of a meet, `float & gen({ significant:2 })`, and its record rides
-  the value it meets, through meets, reference copies and spreads. The
-  options are read where the value is generated and by nothing else: a
-  reference, a call, `+`, a constraint and `vet` all read the value.
-- **`significant: n` rounds a number to `n` significant digits** where
-  it is generated: the decimal the number shows, a tie to the even
-  digit, in the number's own leaf. `3.14159 & gen({ significant:2 })`
-  generates `3.1`, and `0.25` at one digit generates `0.2`. Each engine
-  rounds the digits itself, since JavaScript and Go break a tie
-  differently.
+  the value it meets, through meets, reference copies and spreads.
+- **Each type of value has a standard set of options**, each with a
+  default that leaves the output as it is, published as the new bundled
+  model `aontu:gen`. A record must unify with the set of its value's
+  type, and one that does not refuses the meet with the new code
+  `gen_option`. So an annotation admits the values of the types that
+  take its options, and an arm of a disjunction that does not take
+  them drops.
+
+  | Type | Options |
+  |------|---------|
+  | `number`, `integer`, `float`, `biginteger`, `bigdecimal` | `significant`, `places`, `as` |
+  | `string` | `case`, `empty` |
+  | `boolean` | `as` |
+  | `null` | `empty` |
+  | `path` | `form` |
+  | `map` | `keys`, `empty` |
+  | `list` | `empty` |
+
+- **`significant: n` and `places: n` round a number** to `n`
+  significant digits, or to `n` digits after the point: the decimal the
+  number shows, a tie to the even digit, in the number's own leaf.
+  `3.14159 & gen({ significant:2 })` generates `3.1`, and `2.675` at
+  two places generates `2.68`. A record that gives both rounds once.
+  Each engine rounds the digits itself, since JavaScript and Go break a
+  tie differently.
+- **`as: "string"` writes a number as a JSON string**, and with
+  `places: n` as plain decimal notation with exactly `n` digits after
+  the point: `24 & gen({ places:2 as:"string" })` generates `"24.00"`,
+  the fixed-scale form money crosses JSON in. A boolean takes
+  `as: "number"`, which writes `1` and `0`, and `as: "string"`.
+- **`case` writes a string** as `upper()` or `lower()` answers it.
+- **`empty: "omit"` leaves an empty value out** of the map or list that
+  holds it: `""`, `null`, a map that writes no member, and a list that
+  writes no element. An optional key already did this for an empty map
+  or list.
+- **`form` chooses how an address is written**: `"absolute"` from the
+  root, `"pointer"` as a JSON Pointer, and `"key"` as its last segment.
+  A relative address is resolved from the place its value is generated
+  at. One that climbs above the root is refused with the new code
+  `gen_address`.
+- **`keys` writes a map's keys in a naming style**, each as `nom()`
+  answers it: `{ orderId:7 } & gen({ keys:"snake" })` generates
+  `{"order_id":7}`. Two keys that would be written as one key are
+  refused with the new code `gen_key_clash`.
+- **An option is read where the document is written and nowhere
+  else.** A reference, a call, `+`, a constraint, a size, a fold, a
+  containment, the test that every arm of a disjunction generates
+  alike, `vet`, a view and the JSON Schema export all read the value.
+  So `vet` does not report what only writing refuses.
 - **Two annotations on one value unify their records.** Records that
   disagree refuse the meet with the new code `gen_conflict`, where two
   `meta()` records are kept side by side.
-- **Each type of value has a standard set of options**, each with a
-  default, published as the new bundled model `aontu:gen`. A record
-  must unify with the set of its value's type, and one that does not
-  refuses the meet with the new code `gen_option`. So an annotation
-  admits the values of the types that take its options, and an arm of a
-  disjunction that does not take them drops. The first cut gives
-  `Number` the one option `significant`, and the other types none.
 - **Canon and the hash form write the annotation** after the value it
   rides, as the last term of its meet:
   `3.14159&gen({"significant":2})`. A document's hash moves when an
@@ -41,13 +75,19 @@ language.
 - **`annotation` is a new result word** of the call surface, in
   `test/spec/signature.tsv`. It is not a kind a document can write.
 - `aontu jsonschema` reports an annotation as a loss, `gen`.
-- **The definition holds the rounding**, `Number.significant` in the
-  new module `spec/Aontu/Written.lean`, with `Number.significant_isSome`,
-  that only a float has a rounding its leaf does not hold. The oracle
-  writes 59 rows from it, `gs0` on of `test/spec/def-gen.tsv`, and both
-  engines answer each as the definition does. The annotation itself is
-  not yet a term of the definition.
-- Pinned by `test/spec/annotation-gen.tsv`, 199 rows that both engines
+- **The definition holds a number's options**, `Number.rounded` and
+  `Number.written` in the new module `spec/Aontu/Written.lean`, with
+  `Number.rounded_isSome`, that only a float has a rounding its leaf
+  does not hold. The oracle writes 123 rows from it, `gs0` and `gw0`
+  on of `test/spec/def-gen.tsv`, and both engines answer each as the
+  definition does. The annotation itself, and the options of the other
+  types, are not yet terms of the definition.
+- Two guides use the options: [Carry exact money over
+  JSON](docs/how-to/carry-exact-money-over-json.md) writes the wire
+  string from the value, and [Model a file
+  system](docs/how-to/model-a-file-system.md) writes each parent as a
+  key.
+- Pinned by `test/spec/annotation-gen.tsv`, 453 rows that both engines
   answer alike. The design note is `sketch/GEN.0.md`.
 
 ### A how-to guide models a file system

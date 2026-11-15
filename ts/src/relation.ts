@@ -11,6 +11,7 @@ import type { Edge, Graph } from './graph'
 import { cmpCodePoint } from './keyorder'
 import { makeNilErr } from './err'
 import type { RelDecl } from './val/GraphAtomVal'
+import { genPlain } from './val/genwrite'
 
 
 export type RelationVerdict = 'pass' | 'fail' | 'error'
@@ -224,7 +225,7 @@ export function relationCheck(
   }
 
   const gctx = ctx.clone({ err: [], collect: true })
-  root.gen(gctx)
+  genPlain(root, gctx)
   if (0 < gctx.err.length) {
     return {
       verdict: 'error',

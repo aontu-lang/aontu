@@ -34,6 +34,8 @@ declare class AontuContext {
     seen: Record<string, number>;
     collect: boolean;
     probe: boolean;
+    genat?: string[];
+    plain?: boolean;
     prov?: any;
     reads?: Set<string>;
     err: any[];

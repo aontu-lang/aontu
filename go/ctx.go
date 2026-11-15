@@ -31,6 +31,10 @@ type Ctx struct {
 
 	toward *towardData
 
+	// Generation: where its container has reached, and whether it only reads.
+	at    []string
+	plain bool
+
 	argsnap bool
 
 	budgetPasses int
@@ -81,6 +85,13 @@ func genErr(ctx *Ctx, gerr error) error {
 			Details: ctx.err[0].details}
 	}
 	return nil
+}
+
+func genCollectPlain(ctx *Ctx, v Val) (any, error) {
+	was := ctx.plain
+	ctx.plain = true
+	defer func() { ctx.plain = was }()
+	return genCollect(ctx, v)
 }
 
 func genCollect(ctx *Ctx, v Val) (any, error) {

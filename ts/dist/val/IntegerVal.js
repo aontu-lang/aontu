@@ -15,7 +15,7 @@ class IntegerVal extends ScalarVal_1.ScalarVal {
     gen(ctx) {
         const peg = this.peg;
         const out = Number.isSafeInteger(peg) ? peg : BigInt(peg);
-        return null == this.genopts ? out : (0, genwrite_1.genWrite)(ctx, this, out);
+        return (0, genwrite_1.genWrites)(ctx, this) ? (0, genwrite_1.genWrite)(ctx, this, out) : out;
     }
     constructor(spec, ctx) {
         // An IntegerVal must hold a value of *integer kind*: integral AND
