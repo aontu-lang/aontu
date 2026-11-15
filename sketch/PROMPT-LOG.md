@@ -1188,3 +1188,9 @@ Show me the gen options for paths
 ```text
 Replace as-written with verbatim, globally. Introduce the convention: if gen is given a string X, this becomes {form:X}; what other types use "form"?
 ```
+
+## 2026-11-15 18:15:56 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Can form accept a string expression for custom output?
+```
