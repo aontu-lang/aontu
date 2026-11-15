@@ -1182,3 +1182,9 @@ What are the gen options for path()
 ```text
 Show me the gen options for paths
 ```
+
+## 2026-11-15 16:51:37 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Replace as-written with verbatim, globally. Introduce the convention: if gen is given a string X, this becomes {form:X}; what other types use "form"?
+```
