@@ -1,6 +1,9 @@
 # Output options: `gen(spec)` — design note
 
-Status: FIRST CUT IMPLEMENTED (2026-11-14), in both ports. The model
+Status: SECOND CUT PROPOSED (2026-11-15): a standard set of options
+for every type, D-12 to D-18, where the first cut gave one option to
+numbers and none to anything else. The first cut is implemented
+(2026-11-14), in both ports. The model
 is `aontu/gen/gen.aontu` and the line is in `test/spec/signature.tsv`.
 The record's meet, its check and the preference rule are
 `ts/src/genrec.ts` and `go/genrec.go`; the rounding is
@@ -63,6 +66,13 @@ The request, with the decision that answers each clause:
 | "As a first case, float & gen({significant:2}) would print only 2 significant digits" | D-7 |
 | "Each type has a standard set of options, each with defaults" | D-4 |
 | "the user argument must also unify with the standard set" | D-5 |
+
+The first cut gave `significant` to numbers and an empty set to every
+other type. The owner's correction of 2026-11-15:
+
+| The request says | Decision |
+|---|---|
+| "I only used float gen options as an example, you need to define gen options for all the other types, such as integer, map, path, etc" | D-12 to D-18 |
 
 ## 3. The design in brief
 
@@ -182,28 +192,39 @@ every language-supplied schema is (ADR-028, ADR-036):
 # leaves the output as it is without the option.
 
 aontu: Gen: type({
-  Number: close({ significant: *"all"|integer & min(1) })
-  String: close({})
-  Boolean: close({})
-  Null: close({})
-  Path: close({})
-  Map: close({})
-  List: close({})
+  Number: close({
+    significant: *"all"|integer & min(1)
+    places: *"all"|integer & min(0) & max(4096)
+    as: *"number"|"string"
+  })
+  String: close({ case: *"as-written"|"upper"|"lower" empty: *"keep"|"omit" })
+  Boolean: close({ as: *"boolean"|"number"|"string" })
+  Null: close({ empty: *"keep"|"omit" })
+  Path: close({ form: *"as-written"|"absolute"|"pointer"|"key" })
+  Map: close({
+    keys: *"as-written"|"camel"|"dot"|"kebab"|"pascal"|"path"|"snake"|"text"|"title"|"upper"
+    empty: *"keep"|"omit"
+  })
+  List: close({ empty: *"keep"|"omit" })
 })
 ```
+
+That is the second cut's model. The first cut's held `significant`
+alone, and an empty set for every type but `Number`.
 
 - A set is closed, so an option the type does not have is refused.
 - An option is a disjunction whose preferred arm is its default, the
   form `aontu:profile` already uses for `indent`.
 - The default leaves the output unchanged. So `gen({})` on a value of
   any type is the same as no annotation.
-- The four numeric leaves share `Number`. An option that only one leaf
-  can honour is refused where it is applied, not by a set of its own.
+- The four numeric leaves and the kind `number` share `Number`. D-12
+  says why.
 - A document can load the model (`@"aontu:gen"`) to read the sets, and
   the functions reference prints them.
 
-The sets grow by adding options to this one file. §5 lists the
-candidates; none is built in the first cut.
+The sets grow by adding options to this one file. D-12 to D-18 are
+the options of the second cut, and §5 lists what was considered and
+left out.
 
 Rejected: a set per function argument position, checked by the
 signature gate. The gate checks kinds, and an option's own type
@@ -458,10 +479,8 @@ every one as the definition does, so none is ledgered. The largest
 double at one digit has no row, since the definition gives it no
 number, and the engines refuse it in `annotation-gen.tsv`.
 
-### D-11. What the first cut leaves out
+### D-11. What is left out
 
-- Every option but `significant`, and every type's options but
-  `Number`'s.
 - The kind `annotation` (D-9).
 - The rider and the output step in the definition (D-10).
 - JSON Schema. `aontu jsonschema` has no keyword for an output option.
@@ -473,23 +492,276 @@ number, and the engines refuse it in `annotation-gen.tsv`.
   `subsume` reads it as `any`.
 - Inheritance. An annotation on a map says how the map is written, not
   its members. To round every member, annotate the spread:
-  `{ &: number & gen({ significant:2 }) }`.
+  `{ &: number & gen({ significant:2 }) }`. §9 puts this to the owner,
+  because `keys` makes it matter more.
+- The options of §5.
 
-## 5. Options that could follow
+### D-12. Every type has a standard set
 
-None of these is proposed for the first cut. They are here to show
-that the standard sets have somewhere to go, and to keep the names
-consistent when they arrive.
+The first cut gave one option to numbers. The second gives each type
+the options below. A type is a kind a document can write, and the
+five numeric kinds share one set.
 
-| Type | Option | Would say |
+| Type | Set | Option | Values, the default first | Decision |
+|---|---|---|---|---|
+| `number`, `integer`, `float`, `biginteger`, `bigdecimal` | `Number` | `significant` | `"all"`, or an integer from 1 | D-7 |
+| | | `places` | `"all"`, or an integer from 0 to 4096 | D-13 |
+| | | `as` | `"number"`, `"string"` | D-14 |
+| `string` | `String` | `case` | `"as-written"`, `"upper"`, `"lower"` | D-15 |
+| | | `empty` | `"keep"`, `"omit"` | D-16 |
+| `boolean` | `Boolean` | `as` | `"boolean"`, `"number"`, `"string"` | D-14 |
+| `null` | `Null` | `empty` | `"keep"`, `"omit"` | D-16 |
+| `path` | `Path` | `form` | `"as-written"`, `"absolute"`, `"pointer"`, `"key"` | D-17 |
+| `map` | `Map` | `keys` | `"as-written"`, or a style of `nom` | D-18 |
+| | | `empty` | `"keep"`, `"omit"` | D-16 |
+| `list` | `List` | `empty` | `"keep"`, `"omit"` | D-16 |
+
+What makes something an option, and what kept the others out (§5):
+
+1. It changes how the value is written and never which value the
+   document holds (D-6). Sorting a list or trimming a string is a
+   computation, and the language has functions for those.
+2. Its default is the output the type has today, so a record of
+   defaults is no record.
+3. One name means one thing in every set that has it. `as` is the JSON
+   type that is written. `empty` is what becomes of an empty value.
+4. The options of one set compose: every combination has one output,
+   and no option's meaning depends on the order they were written in.
+5. Neither engine hands an option to its host (ADR-003). The one
+   exception is `case`, which is the conversion `upper()` and
+   `lower()` already make.
+
+**The numeric kinds share `Number`.** A field typed `number` takes an
+integer and a float alike, so `price: number & gen({ places:2 })` has
+to take `24` as it takes `24.5`. Every leaf therefore accepts what
+`number` accepts. An option only one leaf could honour would get a set
+of its own; none of the three is one. `places` on an integer is not
+idle: with `as: "string"` it writes `"24.00"`.
+
+**`any` has no set.** An annotation on `any`, on a constraint with no
+kind beside it, or on a reference not yet resolved waits for the type,
+as D-5 has it.
+
+### D-13. `places`: this many digits after the point
+
+`places: n` rounds a number to `n` digits after the decimal point when
+it is generated. The default, `"all"`, writes every digit.
+
+The rule reads the number as D-7 does, as the decimal it shows,
+`c × 10^e`:
+
+1. If the number shows `n` digits or fewer after the point, it is
+   unchanged. An integer and a biginteger show none, so they always
+   are.
+2. Otherwise it is rounded to the nearest multiple of `10^-n`, a tie
+   to the even one.
+3. The result stays in the number's own leaf: a float is the double
+   nearest the rounded decimal, and a bigdecimal is exact.
+4. A number that rounds to zero is written as zero, with no sign.
+
+| Source | Generates |
+|---|---|
+| `3.14159 & gen({ places:2 })` | `3.14` |
+| `2.675 & gen({ places:2 })` | `2.68` |
+| `0.125 & gen({ places:2 })` | `0.12` |
+| `24.5 & gen({ places:2 })` | `24.5` |
+| `24 & gen({ places:2 })` | `24` |
+| `0.004 & gen({ places:2 })` | `0` |
+| `-0.004 & gen({ places:2 })` | `0` |
+| `1e21 & gen({ places:2 })` | `1e+21` |
+| `0d24.456 & gen({ places:2 })` | `24.46` |
+| `0d24.456 & gen({ places:0 })` | `24.0` |
+
+`2.675` shows the digits `2.675`, a tie, and goes to the even `2.68`.
+JavaScript's `toFixed(2)` answers `2.67`, because the double is a
+little below the tie. The reason for reading the digits is D-7's.
+
+**With `significant`.** A record that gives both rounds once, at
+whichever position keeps fewer digits. Two roundings in a row can
+differ from one: `1.2451` to four digits is `1.245`, and that to two
+places is the tie `1.24`, where the number itself is nearer `1.25`.
+
+**The bound.** No number in the language shows more than 4096 places:
+it is the scale budget of a bigdecimal, and a float shows at most 324.
+The bound keeps the string form of D-14 a size the engines agree
+they can write, where an unbounded count would be the host's to
+refuse.
+
+Rounding to places cannot overflow. A float large enough to be near
+the largest double shows no digits after the point.
+
+### D-14. `as`: the JSON type that is written
+
+**A number as a string.** `as: "string"` writes a JSON string that
+holds the characters the number would have been written with:
+
+| Source | Generates |
+|---|---|
+| `3.14159 & gen({ significant:2 as:"string" })` | `"3.1"` |
+| `1e21 & gen({ as:"string" })` | `"1e+21"` |
+| `0d1e3 & gen({ as:"string" })` | `"1000.0"` |
+| `0d123456789012345678901 & gen({ as:"string" })` | `"123456789012345678901"` |
+
+A reader that parses every JSON number as a double keeps an integer
+past 2^53, or a bigdecimal, only if it arrives as a string.
+
+**With `places`, the string has exactly that many.** Where the record
+gives `places: n`, the string is the rounded number in plain decimal
+notation with `n` digits after the point, zeros added to make them,
+and no point where `n` is 0:
+
+| Source | Generates |
+|---|---|
+| `24 & gen({ places:2 as:"string" })` | `"24.00"` |
+| `24.5 & gen({ places:2 as:"string" })` | `"24.50"` |
+| `0.30000000000000004 & gen({ places:2 as:"string" })` | `"0.30"` |
+| `-0.004 & gen({ places:2 as:"string" })` | `"0.00"` |
+| `1e21 & gen({ places:2 as:"string" })` | `"1000000000000000000000.00"` |
+| `0d24.456 & gen({ places:0 as:"string" })` | `"24"` |
+
+This is the fixed-scale form that
+`docs/how-to/carry-exact-money-over-json.md` carries money in: no
+exponent, one spelling for each amount, and no `-0.00`. The digits
+come from the rounded decimal and not from the double, so no binary
+remainder shows.
+
+Why the zeros are kept in a string and not in a number: a number that
+either engine writes has no trailing zero to keep. A float is handed
+out as the host's double, and a bigdecimal drops its trailing zeros
+where it is built, so `0d24.50` is written `24.5` today. Writing
+`24.00` as a number would need a new type in what `generate()` hands
+out, for a spelling that every JSON reader discards on the way in.
+
+**A boolean.** `as: "number"` writes `1` for `true` and `0` for
+`false`, and `as: "string"` writes `"true"` and `"false"`.
+
+### D-15. `case`: the case of a string
+
+`case: "upper"` writes the string as `upper(s)` answers it, and
+`case: "lower"` as `lower(s)` does. The default, `"as-written"`,
+changes nothing.
+
+The document keeps the string as it was written, for every reference,
+pattern and comparison, and the wire gets the convention it expects.
+A constant that is `"active"` in the model and `"ACTIVE"` in the
+output is the use.
+
+### D-16. `empty`: whether an empty value is written
+
+The empty values are `""`, `null`, a map that writes no member, and a
+list that writes no element. `empty: "omit"` leaves an empty value out
+of the map or list that holds it. The default, `"keep"`, writes it.
+
+```aontu
+user: {
+  name: "ada"
+  nick: "" & gen({ empty:"omit" })
+  tags: [] & gen({ empty:"omit" })
+  note: null & gen({ empty:"omit" })
+}
+```
+
+```json
+{"user": {"name": "ada"}}
+```
+
+- Emptiness is judged on what is written. A map whose members are all
+  hidden, or all omitted, writes no member and is empty.
+- A value that is not empty is written, whatever the option says.
+- A list closes up: the elements after an omitted one move down, as
+  they do after a hidden one.
+- Nothing holds the document's root. An omitted root generates
+  nothing, as a hidden root does, and the CLI prints `null` for both.
+- Zero and `false` are data and not absence, so numbers and booleans
+  have no `empty`.
+
+The language already drops one empty value: an optional key whose
+value generates an empty map or list leaves no member (the reference,
+"An empty container supplies nothing"). `empty: "omit"` says the same
+of a required key, and of `""` and `null`, which an optional key
+keeps.
+
+Only generation reads it (D-6). The member is there for `len`, for a
+closed map's count of its keys, for a reference and for `vet`.
+
+### D-17. `form`: how an address is written
+
+A `path` is written as its text today: `"$.a.b"`, `".a"`, `"..a"`.
+`form` chooses the notation:
+
+| `form` | Writes | `path(..b.c)` at `$.a.x` |
 |---|---|---|
-| `Number` | `round: *"half-even"\|"half-up"\|"down"\|"up"` | how `significant` breaks a tie or truncates |
-| `Number` | `places: *"all"\|integer & min(0)` | at most this many digits after the point |
-| `Number` | `as: *"number"\|"string"` | write the digits as a JSON string, for a reader that parses numbers as doubles |
-| `Path` | `as: *"address"\|"pointer"\|"key"` | `$.a.b` as a JSON Pointer `/a/b`, or as its last segment `b` |
-| `String` | `case: *"as-written"\|"upper"\|"lower"` | the case of the text |
-| `Boolean` | `as: *"boolean"\|"number"` | `1` and `0` |
-| `Map` | `empty: *"keep"\|"omit"` | whether an empty map is written |
+| `"as-written"` | the text the document wrote | `"..b.c"` |
+| `"absolute"` | the address from the root | `"$.b.c"` |
+| `"pointer"` | the absolute address as a JSON Pointer (RFC 6901) | `"/b/c"` |
+| `"key"` | the last segment | `"c"` |
+
+- A relative address is resolved from the place the value is
+  generated at, by the rule `relate()` resolves one by: the leading
+  dot is the scope that holds the value, and each further dot is one
+  step up. A link's address is the one `relate()` already resolved.
+- A segment of an address is letters, digits, `_` and `-`, so no
+  segment needs the pointer's `~0` and `~1` escapes.
+- `"key"` is the form a foreign key takes: with it the file-system
+  model writes `"parent": "etc"` where it writes
+  `"parent": "$.fs.nodes.etc"` today.
+- A relative address that climbs above the root has no absolute form.
+  `"absolute"` and `"pointer"` refuse it where it is generated, with
+  `gen_address`. `"key"` and `"as-written"` need no position and
+  write it.
+
+`relate()` still checks the address and never rewrites it. `form`
+changes the text that is written and nothing a relation reads.
+
+### D-18. `keys`: the naming style of a map's keys
+
+`keys: s` writes each key of the map as `nom(key, s)` answers it. The
+styles are `nom`'s: `camel`, `dot`, `kebab`, `pascal`, `path`,
+`snake`, `text`, `title` and `upper`. The default, `"as-written"`,
+changes nothing.
+
+```aontu
+order: { orderId: 7 shipTo: "Cork" } & gen({ keys:"snake" })
+```
+
+```json
+{"order": {"order_id": 7, "ship_to": "Cork"}}
+```
+
+- The style is one definition, the one `nom` has, so a key and a name
+  computed with `nom` agree.
+- It applies to the map's own keys. A map inside it is written by its
+  own record (D-11).
+- A key that holds no word, such as `_`, has no other spelling, and is
+  written as it is. `nom` refuses such a name; a key is data the
+  author did not choose to pass to a function.
+- No acronym list. `nom` takes one as an argument, and §5 keeps it for
+  later.
+- Two keys that would be written as one key are refused where the map
+  is generated, with `gen_key_clash`: `{ a_b:1 aB:2 }` in `snake`. The
+  output would hold one member where the document holds two.
+- The output's members are in the order of the keys that are written,
+  as every map's are.
+
+## 5. Options considered and left out
+
+Each fails one of the tests of D-12, or has no use yet that pays for
+its rows in two engines.
+
+| Type | Option | Why it is out |
+|---|---|---|
+| `Number` | `round: "half-up"`, `"down"`, `"up"` | ruled out: a tie goes to the even digit (§9) |
+| `Number` | `radix: 2`, `8`, `16` | a string form only, and no use has asked for it |
+| `Number` | `notation: "plain"`, `"exponent"` | `places` already gives the plain form; the exponent form has no use yet |
+| `Number` | `as: "boolean"` | which numbers are true is a rule, and a rule is a computation |
+| `String` | `trim`, `max` | these compute a different string; `case` is kept because the letters stay |
+| `String` | `as: "number"` | parsing can fail, so it is a function |
+| `Path` | `as: "list"` | the segments as a JSON list; no use has asked for it |
+| `Map` | `acronyms: [...]` | the list `nom` takes, so `userId` can be written `UserID` |
+| `Map` | `as: "list"` | the members as a list of values; it loses the keys |
+| `Map` | `order: "written"` | both engines write keys sorted, and Go's output type is unordered |
+| `List` | `sort`, `unique` | order and membership are the value |
+| every type | `deep: true` | the record reaching the members (§9) |
 
 ## 6. Errors
 
@@ -500,11 +772,18 @@ consistent when they arrive.
 | `gen_option` | conflict | the standard set of the value's type refuses the record |
 | `float_overflow` (exists) | conflict | a float rounds beyond the largest double |
 | `pref_rank_clash` (exists) | conflict | two defaults of one rank differ in their records |
+| `gen_key_clash` | conflict | two keys of a map are written as one key (D-18) |
+| `gen_address` | reference | a relative address that climbs above the root is asked for its absolute form (D-17) |
 
 Each new code lands with its `test/spec/errcodes.tsv` row and its hint
 in the same change. A `gen_option` report names the option, the type
 and the set, and a `gen_conflict` report names both annotations'
-sites.
+sites. A `gen_key_clash` report names both keys and the key they would
+share, and a `gen_address` report names the address.
+
+The second cut's two codes are raised where the value is generated,
+as `float_overflow` is, and not at the meet: a key clash depends on
+which members are written, and an address on where it is written.
 
 ## 7. What must hold
 
@@ -523,6 +802,18 @@ Each is a shared row or a law test in both ports:
   two documents that differ only in an annotation.
 - The two engines write the same bytes for every row, and for the rows
   the oracle writes, the bytes the definition gives.
+
+The second cut adds:
+
+- A record that writes out every default of its type's set generates
+  the bytes that no record does.
+- Every option is written on a value, on its kind, through a
+  reference, a spread, a preference and a disjunction, and generates
+  alike on each road.
+- `empty: "omit"` changes no verdict of `vet` and no answer of `len`.
+- The rounding of `places`, alone and with `significant`, and the text
+  of `as: "string"` are checked against a third implementation, as
+  D-10 has the first cut's rounding checked.
 
 ## 8. Plan
 
@@ -549,25 +840,69 @@ JSON Schema exporter's loss, `gen`, in both ports.
    language reference, the functions reference, the error reference,
    the changelog.
 
+The second cut, the options of D-12 to D-18:
+
+7. **The model.** The sets of D-4 in `aontu/gen/gen.aontu`;
+   `make aontu`.
+8. **TypeScript.** `places` and `as` beside `significant` in
+   `ts/src/val/genwrite.ts`; `case`, `empty` and the boolean's `as`
+   in the scalar classes; `form` in `PathVal`; `keys` and `empty` in
+   `BagVal.gen`; the two codes and their hints.
+9. **Go.** The same: `go/genwrite.go`, `go/scalar.go`, `go/mapval.go`,
+   `go/listval.go`.
+10. **Shared rows.** A family for each option in
+    `test/spec/annotation-gen.tsv`, and the two `errcodes.tsv` rows.
+11. **The definition.** `Number.places` and the fixed text beside
+    `Number.significant` in `spec/Aontu/Written.lean`, with oracle
+    rows.
+12. **Documentation.** The section of the language reference grows a
+    table of every type's options and a passage for each; the error
+    reference; the changelog.
+
 ## 9. Decisions for the owner
 
-Each has a recommendation, and the first cut follows it. None is
+### Ruled
+
+The owner ruled on these on 2026-11-14, each as the first cut was
+built:
+
+1. **The tie rule.** To the even digit, for the reasons in D-7. No
+   `round` option.
+2. **The spelling of "no limit".** `"all"`.
+3. **An integer no double holds once rounded.** The exact digits are
+   written (the Delta under D-7).
+4. **The kind `annotation`.** Later, as a change of its own (D-9).
+
+One was settled by the request itself:
+
+5. **A type that refuses an option.** The meet is refused (D-5). The
+   request's "must also unify with the standard set" rules out
+   ignoring an option the type does not have.
+
+### Open
+
+Each has a recommendation, and the second cut follows it. None is
 expensive to change before a release.
 
-1. **The tie rule.** Recommended: to the even digit, for the reasons
-   in D-7. The alternative is half-up, which is what school teaches
-   and what `0.125` to `0.13` expects. A `round` option (§5) would let
-   a document choose, with this as its default.
-2. **The spelling of "no limit".** Recommended: `"all"`. The
-   alternatives are `null`, or an optional key with no default, which
-   the request's "each with defaults" rules out.
-3. **An integer no double holds once rounded.** Built: the exact
-   digits are written (the Delta under D-7). The alternative is to
-   refuse it and name `0d` as the repair, as `lossy_integer_literal`
-   does for a literal.
-4. **The kind `annotation`.** Recommended: a change of its own, after
-   this one (D-9).
-5. **A type that refuses an option.** Recommended: refuse the meet
-   (D-5). The alternative is to ignore an option the type does not
-   have, which the request's "must also unify with the standard set"
-   rules out.
+6. **Does a container's record reach its members?** Recommended: no
+   (D-11). `keys` is where it costs: a document that wants every map
+   in `snake` has to annotate every map. The alternative is a `deep`
+   option on `Map` and `List` that hands the record down.
+7. **The set for the numeric kinds.** Recommended: one, `Number`
+   (D-12). The alternative is a set for each leaf, which lets an
+   option belong to `integer` alone and refuses it on a field typed
+   `number`.
+8. **Exact places as a number.** Recommended: only the string form
+   keeps trailing zeros (D-14). The alternative is a raw number in
+   what `generate()` hands out, so that `24.00` can be a JSON number.
+9. **An omitted root.** Recommended: it generates nothing, as a
+   hidden root does (D-16). The alternative is that the option has no
+   effect at the root.
+10. **Which styles `keys` takes.** Recommended: all nine of `nom`
+    (D-18). The alternative is the five that are common in JSON:
+    `camel`, `kebab`, `pascal`, `snake`, `upper`.
+11. **A key with no word.** Recommended: written as it is (D-18). The
+    alternative is to refuse it, as `nom` refuses the name.
+12. **`case` and the host.** `upper()` and `lower()` ask the host for
+    the conversion, and `case` inherits that (D-15). It is the one
+    option that does.
