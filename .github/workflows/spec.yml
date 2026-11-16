@@ -22,7 +22,7 @@ on:
 jobs:
   spec:
     name: The definition (spec/)
-    timeout-minutes: 15
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -38,10 +38,16 @@ jobs:
       # Lake decides what to rebuild by the hash of each file's text,
       # not its date, so a cache from another commit is safe to restore:
       # what is unchanged is reused, what changed is rebuilt.
-      - uses: actions/cache@v6
+      - id: lake
+        uses: actions/cache/restore@v6
         with:
           path: spec/.lake
           key: lake-${{ hashFiles('spec/lean-toolchain', 'spec/lakefile.toml', 'spec/**/*.lean') }}
           restore-keys: |
             lake-
       - run: make spec
+      - if: always() && steps.lake.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: spec/.lake
+          key: ${{ steps.lake.outputs.cache-primary-key }}
