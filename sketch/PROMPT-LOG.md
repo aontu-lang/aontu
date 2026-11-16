@@ -1200,3 +1200,9 @@ Can form accept a string expression for custom output?
 ```text
 Placeholder templates are explicitly rejected. Introduce the gen spec attribute "custom" that has a custom expression to define the output.
 ```
+
+## 2026-11-16 08:08:51 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Create a new example - a microservices architecture with service dependencies encoded using relate
+```
