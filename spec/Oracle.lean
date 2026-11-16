@@ -3667,6 +3667,40 @@ theorem take_verdict_exact : ∀ c ∈ takeCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (takeCases_checkable c hc).1 (takeCases_checkable c hc).2 v
 
+/-- A destructure a declaration's body writes, `%B = {inner: { %a } =
+@"p"}`, which binds its names for the document as one at the top does,
+whether or not anything uses the body: used, with the data it admits
+and refuses, and none; unused; a name taken under another; and a name
+the source doesn't publish, an error whether or not the body is used,
+as every declaration is read. -/
+def bodyTakeCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let fx (s : String) : String := "__FIXTURES__/" ++ s
+  let take (s : String) (names : List String) : Val := .call .load (.lit (.str (fx s)) :: names.map str)
+  let files : Decls :=
+    Decls.ofSource (fx "alias_exports.aontu") [("uint8", int 255), ("secret", str "shh")]
+      (m [("defaults", m [("retries", int 3)])]) ["uint8"]
+  let body (names : List String) : Decls := ("B", m [("inner", take "alias_exports.aontu" names)]) :: files
+  [(body ["uint8", "uint8"], m [("v", .alias "B"), ("y", .alias "uint8")], dm [("y", j 255)]),
+    (body ["uint8", "uint8"], m [("v", .alias "B"), ("y", .alias "uint8")], dm [("y", j 1)]),
+    (body ["uint8", "uint8"], m [("v", .alias "B"), ("y", .alias "uint8")], dm []),
+    (body ["uint8", "uint8"], m [("y", .alias "uint8")], dm [("y", j 255)]),
+    (body ["p", "uint8"], m [("v", .alias "B"), ("y", .alias "p")], dm [("y", j 255)]),
+    (body ["p", "uint8"], m [("v", .alias "B"), ("y", .alias "p")], dm [("y", j 1)]),
+    (body ["secret", "secret"], m [("v", .alias "B")], dm []),
+    (body ["secret", "secret"], m [("z", int 1)], dm [])]
+
+theorem bodyTakeCases_checkable : ∀ c ∈ bodyTakeCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem body_take_verdict_exact : ∀ c ∈ bodyTakeCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (bodyTakeCases_checkable c hc).1 (bodyTakeCases_checkable c hc).2 v
+
 /-- The transformer `emit` in a document with paths: a selection a path
 names, and a body that reads the node and the root, beside data that
 agrees and data that refuses. -/
@@ -8479,7 +8513,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# condition, each read where its instance lands, in rows bg0 on. Sources that"
     IO.println "# declare names of their own, each read in its own scope, follow in rows ls0 on,"
     IO.println "# and the names a source publishes, with the destructures that take them, in"
-    IO.println "# rows lx0 on. The transformer emit over a selection a path names follows in"
+    IO.println "# rows lx0 on, and in a declaration's body in rows lb0 on. The transformer emit"
+    IO.println "# over a selection a path names follows in"
     IO.println "# rows em0 on, and copy, its argument with the marks and the seal cleared at"
     IO.println "# every depth, in rows cp0 on. Links whose templates read the member or the"
     IO.println "# place where they land, each read there and only at the instances its own"
@@ -8553,6 +8588,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "bg" (boundFilterCases ++ boundEachCases)
     pathRows "ls" scopeCases
     pathRows "lx" takeCases
+    pathRows "lb" bodyTakeCases
     pathRows "em" (emitPathCases ++ emitFilterCases)
     pathRows "cp" copyCases
     pathRows "lt" linkTemplateCases
