@@ -5276,8 +5276,28 @@ def formRows : IO Unit := do
   for (ctor, kind, text) in forms do
     IO.println (ctor ++ "\t" ++ kind ++ "\t" ++ text)
 
+/-- Whether a value of the fragment writes `nil`: itself, under its key,
+or on either side of its meet. -/
+def writesNil : Val → Bool
+  | .nil => true
+  | .map [(_, _, v)] _ _ => writesNil v
+  | .meet a b => writesNil a || writesNil b
+  | _ => false
+
+/-- A row's document, the value under `v`, and its data. -/
+def rowDoc (v : Val) (j : Data) : Val × Data := (.map [("v", false, v)] none false, .map [("v", j)])
+
+/-- The `error` class of a row's verdict is `Vet`'s, whatever the checker
+can read. -/
+theorem rowDoc_error_exact (m : Mode) (v : Val) (j : Data) :
+    vet m [] (rowDoc v j).1 (rowDoc v j).2 = .error ↔ Vet m [] (rowDoc v j).1 (rowDoc v j).2 .error :=
+  vet_error_iff
+
 /-- The rows of one fragment: each value against each instance of each
-block, numbered from zero under `tag`. -/
+block, numbered from zero under `tag`. A value `check` admits that `vet`
+reads as ill-formed is an `error` (`rowDoc_error_exact`), but one that
+writes `nil`, which the verdict reads as ill-formed wherever it stands
+and the reference reads as forbidding an optional key. -/
 def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit := do
   let head := "{\"verdict\":"
   let mut i := 0
@@ -5286,7 +5306,9 @@ def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit 
       let some src := v.cell | throw (IO.userError "a value of the fragment has no text")
       for j in block do
         let some jsrc := j.cell | throw (IO.userError "an instance has no text")
-        let want := if check v j then "\"valid\"" else "[\"invalid\",\"incomplete\",\"error\"]"
+        let ill := !writesNil v && vet {} [] (rowDoc v j).1 (rowDoc v j).2 == Verdict.error
+        let want := if check v j then (if ill then "\"error\"" else "\"valid\"")
+          else "[\"invalid\",\"incomplete\",\"error\"]"
         IO.println (tag ++ toString i ++ "\tverdict\tv: " ++ src ++ "\tv: " ++ jsrc
           ++ "\t" ++ head ++ want ++ "}")
         i := i + 1
@@ -8031,8 +8053,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# spec/Aontu: every value of the fragment up to one meet (600) against 24"
     IO.println "# instances, the first 16 in rows c0 to c9599 and the other 8 after them,"
     IO.println "# as `verdict` rows whose expectation is the verdict `check` gives, which"
-    IO.println "# `check_iff` makes the definition's own. Until P5 the definition gives"
-    IO.println "# admission only, so a refusal is written as the three classes it may be."
+    IO.println "# `check_iff` makes the definition's own: a value it admits is `valid`, or an"
+    IO.println "# `error` where `vet` reads the value as ill-formed (`rowDoc_error_exact`) and"
+    IO.println "# it writes no `nil`, and a refusal is written as the three classes it may be."
     IO.println "# Each row runs plain `vet`, its data written in aontu, exact numbers marked `0d`."
     IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
