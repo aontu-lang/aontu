@@ -1039,3 +1039,21 @@ The answers to the agent's questions, each question followed by the option chose
 Ruling needed: two lone preferences met at one place, with no disjunction beside them, e.g. `x: *{a: 1, b: .c} & *{c: 2}`. The path `.c` in the first names a member only the second supplies. With data `{x: {a: 1, b: 2, c: 2}}`, both engines leave the path waiting (`incomplete`, or `valid` under `--partial`). The definition answers `error`, since the path names a place inside a preference. When a disjunction stands beside a lone preference, the definition already reads the two as one disjunction, each arm met with each arm. Which reading should two lone preferences take?
 → Read as one (Recommended)
 ```
+
+## 2026-11-16 16:32:52 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+Ruling needed (#289): how should a written `nil` read? Both engines read `x?: nil` as 'x must be absent' (valid without x, invalid with it), and a required `x: nil` as unsatisfiable (`invalid`). But they contradict themselves where nil meets a value: `x?: nil & 1` forbids x (valid), while `y: {x?: nil} & {x?: 1}` is an `error` (literal_nil). Today the definition reads every written nil as an ill-formed schema, so even `x?: nil` is an `error` there. Which reading should the definition take?
+→ Nil forbids (Recommended)
+
+PR #791 is open from another session: `relate` replaces `refer` and `rel`, plus `gen(spec)` and order independence as a rule (333 files). Its CI is green, but its Codex findings are unresolved, and it now conflicts with main since #794 merged. Your standing instruction says to merge open PRs. What should I do with #791?
+→ Leave it to its session (Recommended)
+```
+
+## 2026-11-16 16:33:16 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+continue
+```

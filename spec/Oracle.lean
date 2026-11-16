@@ -3765,6 +3765,59 @@ theorem genTemplate_verdict_exact : ∀ c ∈ genTemplateCases, ∀ (m : Mode) (
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (genTemplateCases_checkable c hc).1 (genTemplateCases_checkable c hc).2 v
 
+/-- A spread whose template reads its member's place, inside a
+generator's template, read at each member of each instance: a member's
+own sibling, `key(1)`, a path that climbs out of the member to the
+instance, a list's spread met with a list, and `pack` with `key(3)`,
+each over no data, over data the template takes, over data whose
+written member it refuses, and over a member the data adds, which the
+spread reads as it reads a written one. -/
+def spreadGenCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let ms (fs : List (String × Val)) (sp : Val) : Val := .map (fs.map fun f => (f.1, false, f.2)) (some sp) false
+  let l (xs : List Val) : Val := .list xs none false
+  let rel (n : ℕ) (k : String) : Val := .path [.up n, .key k]
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let dl (xs : List Data) : Data := .list xs
+  let ds (s : String) : Data := .str s
+  let doc (g : Val) : Val := m [("d", l [int 1, int 2]), ("x", g)]
+  let each (t : Val) : Val := .call .each [.path [.key "d"], t]
+  let named := each (m [("h", ms [("p", m [("name", str "x")])] (m [("name", .string), ("url", rel 1 "name")]))])
+  let keyed := each (m [("v", .hole), ("h", ms [("p", m []), ("q", m [])] (m [("k", .keyUp 1)]))])
+  let climb := each (m [("v", .hole), ("h", ms [("p", m [])] (m [("w", rel 3 "v")]))])
+  let listed := each (m [("v", .hole),
+    ("h", .meet (l [m [("n", str "x")], m []]) (.list [] (some (m [("m", rel 3 "v")])) false))])
+  let packed := m [("d", m [("a", int 1), ("b", int 2)]),
+    ("x", .call .pack [.path [.key "d"], m [("v", .hole), ("h", ms [("p", m [])] (m [("w", rel 3 "v"), ("k", .keyUp 3)]))]])]
+  let hp (u : String) : Data := dm [("p", dm [("name", ds "x"), ("url", ds u)])]
+  let hr (u : String) : Data := dm [("p", dm [("name", ds "x"), ("url", ds "x")]), ("r", dm [("name", ds "z"), ("url", ds u)])]
+  let cv (w : Data) : Data := dm [("x", dl [dm [("v", j 1), ("h", dm [("p", dm [("w", w)])])], dm [("v", j 2), ("h", dm [("p", dm [("w", j 2)])])]])]
+  [([], doc named, dm []),
+    ([], doc named, dm [("x", dl [dm [("h", hp "x")], dm [("h", hp "x")]])]),
+    ([], doc named, dm [("x", dl [dm [("h", hp "x")], dm [("h", hp "y")]])]),
+    ([], doc named, dm [("x", dl [dm [("h", hr "w")], dm [("h", hp "x")]])]),
+    ([], doc named, dm [("x", dl [dm [("h", hr "z")], dm [("h", hp "x")]])]),
+    ([], doc keyed, dm []),
+    ([], doc keyed, dm [("x", dl [dm [("v", j 1), ("h", dm [("p", dm [("k", ds "q")])])]])]),
+    ([], doc climb, dm []),
+    ([], doc climb, cv (j 1)),
+    ([], doc climb, cv (j 2)),
+    ([], doc climb, dm [("x", dl [dm [("v", j 1), ("h", dm [("p", dm [("w", j 1)]), ("r", dm [("w", j 2)])])]])]),
+    ([], doc listed, dm []),
+    ([], doc listed, dm [("x", dl [dm [("v", j 1), ("h", dl [dm [("n", ds "x"), ("m", j 2)], dm [("m", j 1)]])]])]),
+    ([], packed, dm []),
+    ([], packed, dm [("x", dm [("a", dm [("v", j 1), ("h", dm [("p", dm [("w", j 1), ("k", ds "b")])])])])])]
+
+theorem spreadGenCases_checkable : ∀ c ∈ spreadGenCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem spread_gen_verdict_exact : ∀ c ∈ spreadGenCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (spreadGenCases_checkable c hc).1 (spreadGenCases_checkable c hc).2 v
+
 /-- The `_ & …` idiom: a generator's template that meets its own hole,
 so that each member is kept and met with the rest of the template, a
 bound rather than a construction: a map, a kind, a preference that the
@@ -8268,7 +8321,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# sources loaded in place, each a file of test/spec/files the definition"
     IO.println "# declares as a term, in rows lf0 on."
     IO.println "# Generators whose templates read their member's place through a relative"
-    IO.println "# path, each read at each member of the output, follow in rows gt0 on, and"
+    IO.println "# path, each read at each member of the output, follow in rows gt0 on, a spread"
+    IO.println "# such a template holds, read at each member, a member the data adds among them,"
+    IO.println "# in rows sg0 on, and"
     IO.println "# templates that meet their own hole, each member kept and met with the rest,"
     IO.println "# the `_ & …` idiom, in rows ib0 on, generators an emit's body holds, their"
     IO.println "# templates read where each instance lands in the output, in rows eg0 on,"
@@ -8336,6 +8391,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "sp" spreadCases
     pathRows "lf" loadCases
     pathRows "gt" genTemplateCases
+    pathRows "sg" spreadGenCases
     pathRows "ib" holeMeetCases
     pathRows "eg" emitGenCases
     pathRows "eh" emitGenFilterCases
