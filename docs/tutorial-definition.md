@@ -6109,7 +6109,12 @@ A conflict is an argument that's dead in normal form but not written as
 `nil`. Both engines read a size, a condition of `must` or a count
 written as `nil` as a value that admits nothing, so `must(nil, "m")`
 and `len(nil)` refuse `1`. So does `must(nil & 1, "m")`: a written
-`nil` met with a value is still one, by ruling 54. A
+`nil` met with a value is still one, by ruling 54. A bound or a size
+around it in the argument changes nothing, so
+`contains(any, min(nil & 1))` refuses `[1]`. A choice beside a written
+`nil` is still no argument for a bound, so `neq(nil, 1 | 2)` is an
+error, as `neq(1, 1 | 2)` is. Both engines answer these as the
+definition does, in rows `nl111` on of `test/spec/def-path.tsv`. A
 `filter` over `nil` and a `match` on it are errors, as any dead source
 or scrutinee is:
 

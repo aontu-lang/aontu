@@ -3110,6 +3110,27 @@ nl107	verdict	"x": *(nil) | (1)	{"x": 1}	{"verdict":"valid","opts":{"partial":tr
 nl108	verdict	"x": *(nil) | (1)	{}	{"verdict":"valid"}
 nl109	verdict	"x": *(nil) | (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 nl110	verdict	"x": *(nil) | (1)	{}	{"verdict":"valid","opts":{"partial":true}}
+nl111	verdict	"v": neq(nil, (1) | (2))	{"v": 1}	{"verdict":"error"}
+nl112	verdict	"v": neq(nil, (1) | (2))	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+nl113	verdict	"v": neq(nil, (1) | (2))	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+nl114	verdict	"v": neq([(nil) & (1), (1) | (2)])	{"v": 1}	{"verdict":"error"}
+nl115	verdict	"v": neq([(nil) & (1), (1) | (2)])	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+nl116	verdict	"v": neq([(nil) & (1), (1) | (2)])	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+nl117	verdict	"v": contains((1) | (2), (nil) & (1))	{"v": [1]}	{"verdict":"invalid"}
+nl118	verdict	"v": contains((1) | (2), (nil) & (1))	{"v": [1]}	{"verdict":"invalid","opts":{"noFill":true}}
+nl119	verdict	"v": contains((1) | (2), (nil) & (1))	{"v": [1]}	{"verdict":"invalid","opts":{"partial":true}}
+nl120	verdict	"v": contains(any, min((nil) & (1)))	{"v": [1]}	{"verdict":"invalid"}
+nl121	verdict	"v": contains(any, min((nil) & (1)))	{"v": [1]}	{"verdict":"invalid","opts":{"noFill":true}}
+nl122	verdict	"v": contains(any, min((nil) & (1)))	{"v": [1]}	{"verdict":"invalid","opts":{"partial":true}}
+nl123	verdict	"v": contains(any, len((nil) & (1)))	{"v": [1]}	{"verdict":"invalid"}
+nl124	verdict	"v": contains(any, len((nil) & (1)))	{"v": [1]}	{"verdict":"invalid","opts":{"noFill":true}}
+nl125	verdict	"v": contains(any, len((nil) & (1)))	{"v": [1]}	{"verdict":"invalid","opts":{"partial":true}}
+nl126	verdict	"v": must(min((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid"}
+nl127	verdict	"v": must(min((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl128	verdict	"v": must(min((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl129	verdict	"v": must(len((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid"}
+nl130	verdict	"v": must(len((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl131	verdict	"v": must(len((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
 ib0	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid"}
 ib1	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"noFill":true}}
 ib2	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"partial":true}}
