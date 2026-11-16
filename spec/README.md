@@ -134,6 +134,12 @@ not yet built, or, where neither owns it, on the issue that tracks it:
   a template in any table, which the definition leaves where it's
   written, so that the `emit` generates nothing, where both ports read
   it where each instance lands;
+- a `nil` written in a value, which the verdict reads as ill-formed, an
+  `error`, wherever it stands, where the reference reads one under an
+  optional key as forbidding the key, so that `{x?: nil}` admits a map
+  without `x`, as does `{x?: nil} & {x?: integer}`, a value supplied
+  beside it makes an error, and `{x: nil}` refuses a map without `x`, as
+  both ports answer (P5);
 - a `key(n)` in the value of a template's `replace` map, which the
   definition reads where the literal line it replaces stands, where both
   ports read `key(0)` as the replacement's own key and read `key(1)`
