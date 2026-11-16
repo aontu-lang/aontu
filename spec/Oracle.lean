@@ -3824,8 +3824,11 @@ can't be met; the same met with a value in one member and through two
 maps met, with a kind, a list's element, a spread's template, an arm of
 a disjunction, a container met with it, a conflict it takes in, a
 reference to a member holding it, an atom over an argument outside its
-domain it takes in, and the same under `type()`; and a conflict alone,
-still an error. -/
+domain it takes in, and the same under `type()`; a conflict alone,
+still an error; and a preference over it, `*nil`, which reads as
+`nil | super(nil)` and holds no value, as `nil | nil` holds none, both
+required and optional, met with a value, and the preferred arm of a
+disjunction, which drops. -/
 def writtenNilCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
@@ -3862,7 +3865,14 @@ def writtenNilCases : List (Decls × Val × Data) :=
     ([], mo [("x", false, .meet nl (.len .any))], dm []),
     ([], mo [("x", true, .meet (.ride .type nl []) (.len .any))], dm []),
     ([], mo [("x", true, .meet (.ride .type nl []) (.meet (int 1) (int 2)))], dm []),
-    ([], mo [("x", true, .ride .type nl [])], dm [("x", j 1)])]
+    ([], mo [("x", true, .ride .type nl [])], dm [("x", j 1)]),
+    ([], m [("x", .pref 1 nl)], dm []),
+    ([], mo [("x", true, .pref 1 nl)], dm []),
+    ([], m [("x", .or [(0, nl), (0, nl)])], dm []),
+    ([], mo [("x", true, .or [(0, nl), (0, nl)])], dm []),
+    ([], m [("x", .meet (.pref 1 nl) (int 1))], dm [("x", j 1)]),
+    ([], m [("x", .or [(1, nl), (0, int 1)])], dm [("x", j 1)]),
+    ([], m [("x", .or [(1, nl), (0, int 1)])], dm [])]
 
 theorem writtenNilCases_checkable : ∀ c ∈ writtenNilCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

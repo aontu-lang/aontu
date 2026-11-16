@@ -3088,6 +3088,27 @@ nl86	verdict	"x"?: (type(nil)) & ((1) & (2))	{}	{"verdict":"valid","opts":{"part
 nl87	verdict	"x"?: type(nil)	{"x": 1}	{"verdict":"invalid"}
 nl88	verdict	"x"?: type(nil)	{"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
 nl89	verdict	"x"?: type(nil)	{"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl90	verdict	"x": *(nil)	{}	{"verdict":"error"}
+nl91	verdict	"x": *(nil)	{}	{"verdict":"error","opts":{"noFill":true}}
+nl92	verdict	"x": *(nil)	{}	{"verdict":"error","opts":{"partial":true}}
+nl93	verdict	"x"?: *(nil)	{}	{"verdict":"error"}
+nl94	verdict	"x"?: *(nil)	{}	{"verdict":"error","opts":{"noFill":true}}
+nl95	verdict	"x"?: *(nil)	{}	{"verdict":"error","opts":{"partial":true}}
+nl96	verdict	"x": (nil) | (nil)	{}	{"verdict":"error"}
+nl97	verdict	"x": (nil) | (nil)	{}	{"verdict":"error","opts":{"noFill":true}}
+nl98	verdict	"x": (nil) | (nil)	{}	{"verdict":"error","opts":{"partial":true}}
+nl99	verdict	"x"?: (nil) | (nil)	{}	{"verdict":"error"}
+nl100	verdict	"x"?: (nil) | (nil)	{}	{"verdict":"error","opts":{"noFill":true}}
+nl101	verdict	"x"?: (nil) | (nil)	{}	{"verdict":"error","opts":{"partial":true}}
+nl102	verdict	"x": (*(nil)) & (1)	{"x": 1}	{"verdict":"error"}
+nl103	verdict	"x": (*(nil)) & (1)	{"x": 1}	{"verdict":"error","opts":{"noFill":true}}
+nl104	verdict	"x": (*(nil)) & (1)	{"x": 1}	{"verdict":"error","opts":{"partial":true}}
+nl105	verdict	"x": *(nil) | (1)	{"x": 1}	{"verdict":"valid"}
+nl106	verdict	"x": *(nil) | (1)	{"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+nl107	verdict	"x": *(nil) | (1)	{"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl108	verdict	"x": *(nil) | (1)	{}	{"verdict":"valid"}
+nl109	verdict	"x": *(nil) | (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+nl110	verdict	"x": *(nil) | (1)	{}	{"verdict":"valid","opts":{"partial":true}}
 ib0	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid"}
 ib1	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"noFill":true}}
 ib2	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"partial":true}}
