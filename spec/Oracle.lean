@@ -4070,6 +4070,54 @@ theorem namedGen_verdict_exact : ∀ c ∈ namedGenCases, ∀ (m : Mode) (v : Ve
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (namedGenCases_checkable c hc).1 (namedGenCases_checkable c hc).2 v
 
+/-- A relative path in the template of a generator an `emit`'s body
+holds, beside a `key(n)` in the same template: the `emit` made where no
+place is yet, its keys as written, so that each instance reads the path
+where it lands, as one with no key does: `key(0)` and `key(1)`, `each`
+and `pack`, a table written in place and a named one, two nodes, a path
+from outside into the output, the data each refuses, and none. -/
+def keyRelCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let rel (n : ℕ) (k : String) : Val := .path [.up n, .key k]
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let jm (fs : List (String × Data)) : Data := .map fs
+  let rule (b : List Val) : Val := mp [("match", .number), ("body", lst b)]
+  let genk := c .each [lst [int 1, int 2], mp [("k", .keyUp 0), ("a", int 1), ("b", rel 1 "a")]]
+  let gk1 := c .each [lst [int 1, int 2], mp [("k", .keyUp 1), ("b", rel 1 "k")]]
+  let pk1 := c .pack [mp [("p", int 1), ("q", int 2)], mp [("n", .keyUp 1), ("b", rel 1 "n")]]
+  let ok := jm [("a", j 1), ("b", j 1), ("k", js "k")]
+  let bad := jm [("a", j 1), ("b", j 2), ("k", js "k")]
+  let k1 (b0 : String) := jl [jm [("b", js b0), ("k", js "0")], jm [("b", js "1"), ("k", js "1")]]
+  let p1 (bq : String) := jl [jm [("p", jm [("b", js "p"), ("n", js "p")]), ("q", jm [("b", js bq), ("n", js "q")])]]
+  let w (g : Val) (s : List Val) : Val := c .emit [lst s, rule [g]]
+  let named : Decls := [("W", c .emit [.hole, rule [genk]])]
+  let y : Val := .path [.key "v", .idx 1, .key "a"]
+  [([], mp [("v", w genk [int 5])], jm [("v", jl [ok, ok])]),
+    ([], mp [("v", w genk [int 5])], jm [("v", jl [bad, ok])]),
+    ([], mp [("v", w genk [int 5])], jm []),
+    (named, mp [("v", c .emit [lst [int 5], .alias "W"])], jm [("v", jl [ok, ok])]),
+    (named, mp [("v", c .emit [lst [int 5], .alias "W"])], jm [("v", jl [ok, bad])]),
+    ([], mp [("v", w genk [int 5, int 6])], jm [("v", jl [ok, ok, ok, ok])]),
+    ([], mp [("v", w genk [int 5, int 6])], jm [("v", jl [ok, ok, ok, bad])]),
+    ([], mp [("v", w gk1 [int 5])], jm [("v", k1 "0")]),
+    ([], mp [("v", w gk1 [int 5])], jm [("v", k1 "1")]),
+    ([], mp [("v", w pk1 [int 5])], jm [("v", p1 "q")]),
+    ([], mp [("v", w pk1 [int 5])], jm [("v", p1 "p")]),
+    ([], mp [("v", w genk [int 5]), ("y", y)], jm [("v", jl [ok, ok]), ("y", j 1)]),
+    ([], mp [("v", w genk [int 5]), ("y", y)], jm [("v", jl [ok, ok]), ("y", j 2)])]
+
+theorem keyRelCases_checkable : ∀ c ∈ keyRelCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem keyRel_verdict_exact : ∀ c ∈ keyRelCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (keyRelCases_checkable c hc).1 (keyRelCases_checkable c hc).2 v
+
 /-- A `filter`'s condition, standing where the member it tries lands: a
 relative path that climbs out of the member, to the filter's map, past
 it to the top and into a sibling list, over a list and a map, inside a
@@ -8414,7 +8462,7 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# the `_ & …` idiom, in rows ib0 on, generators an emit's body holds, their"
     IO.println "# templates read where each instance lands in the output, in rows eg0 on,"
     IO.println "# with a filter there in rows eh0 on, the same through a named table in rows"
-    IO.println "# ng0 on, a"
+    IO.println "# ng0 on, and beside a key(n) in rows kr0 on, a"
     IO.println "# filter's condition, read where the member it tries lands, in rows fc0 on,"
     IO.println "# bounds written over terms, each the bound its terms name, in rows bd0 on, and"
     IO.println "# bounds over a relative path in a generator's template or a filter's"
@@ -8484,6 +8532,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "eg" emitGenCases
     pathRows "eh" emitGenFilterCases
     pathRows "ng" namedGenCases
+    pathRows "kr" keyRelCases
     pathRows "fc" filterCondCases
     pathRows "fk" filterKeepCases
     pathRows "rs" recursiveSelectCases
