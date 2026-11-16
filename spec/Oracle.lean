@@ -19,7 +19,7 @@ here is one, `instances_wellFormed` proves every instance a value, and
 namespace Aontu
 
 def bases : List Val :=
-  [.any, .nil, .integer, .meet .number (.mulof (.integer (.of 1))), .string, .anyString,
+  [.any, Val.void, .integer, .meet .number (.mulof (.integer (.of 1))), .string, .anyString,
     .min (.num (.integer (.of 0))), .min (.num (.integer (.of 3)))]
 
 /-- `{"x": v}`, or `{"x"?: v}`. -/
@@ -178,7 +178,7 @@ def choiceBases : List Val :=
     .or [(1, .lit (.num one)), (0, .integer)],
     .or [(0, .or [(0, .lit (.num one)), (0, .lit (.num two))]), (0, .lit (.num three))],
     .or [(0, .lit (.num one)), (0, .lit (.num (.float (.dyadic 1 0))))],
-    .or [(0, .nil), (0, .lit (.num one))],
+    .or [(0, Val.void), (0, .lit (.num one))],
     .or [(0, .any), (0, .lit (.num one))],
     .or [(0, .min (.num (.integer (.of 0)))), (0, .string)],
     .or [(0, .anyString), (0, .integer)],
@@ -314,7 +314,7 @@ def genVals : List Val :=
       (0, .map [("b", false, int 2), ("a", false, int 1)] none false)],
     .or [(0, key "x" false (.meet (int 1) (int 2))), (0, int 1)],
     .or [(0, .list [.meet (int 1) (int 2)] none false), (0, int 1)],
-    .or [(0, .nil), (0, int 1)],
+    .or [(0, Val.void), (0, int 1)],
     key "a" true (.map [] none false), key "a" true (.list [] none false),
     key "a" false (.map [] none false), key "a" false (.list [] none false),
     key "a" true (key "b" true .integer), key "a" true (key "b" true (.map [] none false)),
@@ -439,7 +439,7 @@ def vetCases : List (Val × Data) :=
     (.map [] (some (.meet (int 1) (int 2))) false, .map []),
     (key "x" false (.or [(1, int 1), (1, int 1)]), .map []),
     (.meet (key "x" true (.pref 1 (int 1))) (key "x" true (.pref 1 (int 2))), .map []),
-    (.or [(0, .nil), (0, int 1)], j 1), (.or [(0, .nil), (0, int 1)], j 2),
+    (.or [(0, Val.void), (0, int 1)], j 1), (.or [(0, Val.void), (0, int 1)], j 2),
     (.map [("a", false, .pref 1 (int 1)), ("b", false, .integer)] none false, .map []),
     (.map [("a", false, .pref 1 (int 1)), ("b", false, .integer)] none false, .map [("b", j 2)]),
     (.list [.pref 1 (int 1)] none false, .list []), (.list [.pref 1 (int 1)] none false, .list [j 2]),
@@ -3818,6 +3818,59 @@ theorem spread_gen_verdict_exact : ∀ c ∈ spreadGenCases, ∀ (m : Mode) (v :
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (spreadGenCases_checkable c hc).1 (spreadGenCases_checkable c hc).2 v
 
+/-- `nil` as a document writes it (`Val.void`, ruling 54): an optional
+member holding it, which must be absent, and a required one, which
+can't be met; the same met with a value in one member and through two
+maps met, with a kind, a list's element, a spread's template, an arm of
+a disjunction, a container met with it, a conflict it takes in, a
+reference to a member holding it, an atom over an argument outside its
+domain it takes in, and the same under `type()`; and a conflict alone,
+still an error. -/
+def writtenNilCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let nl := Val.void
+  [([], mo [("x", true, nl)], dm []),
+    ([], mo [("x", true, nl)], dm [("x", j 1)]),
+    ([], mo [("x", true, nl)], dm [("x", .null)]),
+    ([], mo [("x", false, nl)], dm []),
+    ([], mo [("x", false, nl)], dm [("x", j 1)]),
+    ([], mo [("x", true, .meet nl (int 1))], dm []),
+    ([], m [("y", .meet (mo [("x", true, nl)]) (mo [("x", true, int 1)]))], dm [("y", dm [])]),
+    ([], m [("y", .meet (mo [("x", true, nl)]) (mo [("x", true, int 1)]))], dm [("y", dm [("x", j 1)])]),
+    ([], m [("y", .meet (mo [("x", true, nl)]) (mo [("x", false, int 1)]))], dm [("y", dm [])]),
+    ([], m [("y", .meet (mo [("x", true, nl)]) (mo [("x", true, .number)]))], dm [("y", dm [])]),
+    ([], m [("x", .list [nl] none false)], dm []),
+    ([], m [("x", .list [int 1, nl] none false)], dm []),
+    ([], m [("x", .map [] (some nl) false)], dm []),
+    ([], m [("x", .map [] (some nl) false)], dm [("x", dm [("a", j 1)])]),
+    ([], m [("x", .or [(0, nl), (0, int 1)])], dm []),
+    ([], mo [("x", true, .or [(0, nl), (0, int 1)])], dm [("x", j 1)]),
+    ([], m [("x", .meet (m [("a", int 1)]) nl)], dm []),
+    ([], mo [("x", true, .meet (m [("a", int 1)]) nl)], dm []),
+    ([], mo [("x", true, .meet nl .number)], dm [("x", j 1)]),
+    ([], mo [("x", true, .meet nl (.meet (int 1) (int 2)))], dm []),
+    ([], mo [("x", true, .meet (int 1) (int 2))], dm []),
+    ([], m [("y", mo [("x", true, nl)]), ("z", .path [.key "y"])], dm []),
+    ([], m [("y", mo [("x", true, nl)]), ("z", .path [.key "y"])], dm [("z", dm [("x", j 1)])]),
+    ([], mo [("x", true, .meet nl (.len .any))], dm []),
+    ([], mo [("x", true, .meet nl (.len .any))], dm [("x", j 1)]),
+    ([], mo [("x", true, .meet (.len .any) nl)], dm []),
+    ([], mo [("x", false, .meet nl (.len .any))], dm []),
+    ([], mo [("x", true, .meet (.ride .type nl []) (.len .any))], dm []),
+    ([], mo [("x", true, .meet (.ride .type nl []) (.meet (int 1) (int 2)))], dm []),
+    ([], mo [("x", true, .ride .type nl [])], dm [("x", j 1)])]
+
+theorem writtenNilCases_checkable : ∀ c ∈ writtenNilCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem written_nil_verdict_exact : ∀ c ∈ writtenNilCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (writtenNilCases_checkable c hc).1 (writtenNilCases_checkable c hc).2 v
+
 /-- The `_ & …` idiom: a generator's template that meets its own hole,
 so that each member is kept and met with the rest of the template, a
 bound rather than a construction: a map, a kind, a preference that the
@@ -4437,8 +4490,8 @@ def trialCases : List (Decls × Val × Data) :=
     ([], a (nof (max 0) [.string]), da (.str "x")),
     ([], a (nof (.meet (min 1) (max 1)) [.string, .number]), da (.str "x")),
     ([], a (nof (int 1) [.any]), da (.str "x")),
-    ([], a (nof (int 1) [.nil, .string]), da (.str "x")),
-    ([], a (nof (int 0) [.nil]), da (.str "x")),
+    ([], a (nof (int 1) [Val.void, .string]), da (.str "x")),
+    ([], a (nof (int 0) [Val.void]), da (.str "x")),
     ([], a (nof (int 1) [.meet (int 1) (int 2), .string]), da (.str "x")),
     ([], a (nof (int 1) [.meet (int 1) (int 2)]), da (j 1)),
     ([], a (nof (int (-1)) [.string]), da (.str "x")),
@@ -4487,7 +4540,7 @@ def trialCases : List (Decls × Val × Data) :=
     ([], a (must (m [("x", int 1)])), da (.map [])),
     ([], a (.meet (must (mo [("x", true, .number)])) (m [])), .map []),
     ([], a (must (.meet (int 1) (int 2))), da (j 1)),
-    ([], a (must .nil), da (j 1)),
+    ([], a (must Val.void), da (j 1)),
     ([], a (must (.meet (min 3) (max 1))), da (j 2)),
     ([], a (nof (int 1) [must .string, .number]), da (.str "x")),
     ([], a (whn .string (str "a")), da (.str "a")),
@@ -4495,10 +4548,10 @@ def trialCases : List (Decls × Val × Data) :=
     ([], a (whn .string (str "a")), da (j 5)),
     ([], a (whn .string (str "a") (some (min 0))), da (j 5)),
     ([], a (whn .string (str "a") (some (min 0))), da (j (-1))),
-    ([], a (whn .nil .string (some .number)), da (j 5)),
+    ([], a (whn Val.void .string (some .number)), da (j 5)),
     ([], a (whn .any .number), da (.str "s")),
-    ([], a (whn .string .nil), da (.str "s")),
-    ([], a (whn .string .nil), da (j 1)),
+    ([], a (whn .string Val.void), da (.str "s")),
+    ([], a (whn .string Val.void), da (j 1)),
     ([], a (whn (m [("k", .any)]) (m [("n", .any)])), da (.map [("k", j 1), ("n", j 2)])),
     ([], a (whn (m [("k", .any)]) (m [("n", .any)])), da (.map [("k", j 1)])),
     ([], a (whn (m [("k", .any)]) (m [("n", .any)])), da (.map [])),
@@ -4524,7 +4577,7 @@ def trialCases : List (Decls × Val × Data) :=
     ([("T", whn T (int 1))], m [("t", T)], .map [("t", j 1)]),
     ([("T", whn .string T)], m [("t", T)], .map [("t", j 1)]),
     ([("T", whn .string (int 1) (some T))], m [("t", T)], .map [("t", j 1)]),
-    ([], a (whn .string (str "a") (some .nil)), da (j 5)),
+    ([], a (whn .string (str "a") (some Val.void)), da (j 5)),
     ([], a (whn (.meet (int 1) (int 2)) .string (some .number)), da (j 5)),
     ([], a (whn .string (.meet (int 1) (int 2))), da (.str "s")),
     ([], a (whn (nof (int 0) [.string]) (int 1)), da (j 1)),
@@ -4558,8 +4611,8 @@ def trialCases : List (Decls × Val × Data) :=
     ([], a (cnt .number (int 0)), da (.list [j 1])),
     ([], a (cnt .number (max 1)), da (.list [.str "x"])),
     ([], a (cnt .number (max 1)), da (.list [j 1, j 2])),
-    ([], a (cnt .nil), da (.list [j 1])),
-    ([], a (cnt .nil (int 0)), da (.list [j 1])),
+    ([], a (cnt Val.void), da (.list [j 1])),
+    ([], a (cnt Val.void (int 0)), da (.list [j 1])),
     ([], a (cnt (.meet (int 1) (int 2))), da (.list [j 1])),
     ([], a (cnt (.meet (int 1) (int 2)) (int 0)), da (.list [j 1])),
     ([], a (cnt (.list [int 1] none false)), da (.list [.list [j 1], j 2])),
@@ -4596,68 +4649,68 @@ def trialCases : List (Decls × Val × Data) :=
     ([], a (cnt .number (max 0)), da (.list [.str "x"])),
     ([], a (.meet (cnt .string) (m [("x", str "a"), ("y", int 1)])), .map []),
     ([], a (.meet (cnt .number) (m [("x", str "a")])), .map []),
-    ([], a (rst .nil), da (.map [])),
-    ([], a (rst .nil), da (.map [("b", j 2)])),
-    ([], a (rst .nil), da (j 5)),
-    ([], a (rst .nil), da (.list [])),
-    ([], a (rst .nil), da (.list [j 1])),
+    ([], a (rst Val.void), da (.map [])),
+    ([], a (rst Val.void), da (.map [("b", j 2)])),
+    ([], a (rst Val.void), da (j 5)),
+    ([], a (rst Val.void), da (.list [])),
+    ([], a (rst Val.void), da (.list [j 1])),
     ([], a (rst .number), da (.map [("b", j 2)])),
     ([], a (rst .number), da (.map [("b", .str "x")])),
-    ([], a (rst .nil [ks (str "a")]), da (.map [("a", j 1)])),
-    ([], a (rst .nil [ks (str "a")]), da (.map [("a", j 1), ("b", j 2)])),
+    ([], a (rst Val.void [ks (str "a")]), da (.map [("a", j 1)])),
+    ([], a (rst Val.void [ks (str "a")]), da (.map [("a", j 1), ("b", j 2)])),
     ([], a (rst .number [ks (str "a")]), da (.map [("a", .str "x"), ("b", j 2)])),
     ([], a (rst .string [ks (str "a")]), da (.map [("a", .str "x"), ("b", j 2)])),
-    ([], a (rst .nil [(none, none, some .number)]), da (.map [("p", j 1), ("q", j 2)])),
-    ([], a (rst .nil [(none, none, some .number)]), da (.map [("p", j 1), ("q", .str "x")])),
-    ([], a (rst .nil [(some (.meet (int 1) (int 2)), some .any, none)]), da (.map [("b", j 1)])),
-    ([], a (.meet (rst .nil [ks (str "a")]) (rst .nil [ks (str "b")])), da (.map [("a", j 1)])),
-    ([], a (rst .nil [(some (m [("a", int 1)]), some .any, none)]), da (.map [("a", j 1), ("z", .bool true)])),
-    ([], a (rst .nil [(some (m [("a", int 1)]), some .any, none)]), da (.map [("a", j 2)])),
+    ([], a (rst Val.void [(none, none, some .number)]), da (.map [("p", j 1), ("q", j 2)])),
+    ([], a (rst Val.void [(none, none, some .number)]), da (.map [("p", j 1), ("q", .str "x")])),
+    ([], a (rst Val.void [(some (.meet (int 1) (int 2)), some .any, none)]), da (.map [("b", j 1)])),
+    ([], a (.meet (rst Val.void [ks (str "a")]) (rst Val.void [ks (str "b")])), da (.map [("a", j 1)])),
+    ([], a (rst Val.void [(some (m [("a", int 1)]), some .any, none)]), da (.map [("a", j 1), ("z", .bool true)])),
+    ([], a (rst Val.void [(some (m [("a", int 1)]), some .any, none)]), da (.map [("a", j 2)])),
     ([], a (rst .number [(some (m [("a", int 1)]), some .any, none)]), da (.map [("a", j 2)])),
-    ([], a (rst .nil [ks (str "a"), (some (m [("b", int 1)]), some (str "b"), none)]),
+    ([], a (rst Val.void [ks (str "a"), (some (m [("b", int 1)]), some (str "b"), none)]),
       da (.map [("a", j 1), ("b", j 1)])),
-    ([], a (rst .nil [ks (str "a"), (some (m [("b", int 1)]), some (str "b"), none)]),
+    ([], a (rst Val.void [ks (str "a"), (some (m [("b", int 1)]), some (str "b"), none)]),
       da (.map [("a", j 1), ("b", j 2)])),
-    ([], a (rst .nil [ks (.or [(0, str "0"), (0, str "1")])]), da (.list [.str "p", .str "q"])),
-    ([], a (rst .nil [ks (str "0")]), da (.list [.str "p", .str "q"])),
-    ([], a (rst .nil [(none, none, some .number)]), da (.list [j 1, j 2])),
-    ([], a (rst .nil [(none, none, some .number)]), da (.list [j 1, .str "x"])),
+    ([], a (rst Val.void [ks (.or [(0, str "0"), (0, str "1")])]), da (.list [.str "p", .str "q"])),
+    ([], a (rst Val.void [ks (str "0")]), da (.list [.str "p", .str "q"])),
+    ([], a (rst Val.void [(none, none, some .number)]), da (.list [j 1, j 2])),
+    ([], a (rst Val.void [(none, none, some .number)]), da (.list [j 1, .str "x"])),
     ([], a (rst .string [ks (str "0")]), da (.list [j 1, .str "x"])),
-    ([], a (.meet (rst .nil [ks (str "a")]) (mo [("a", false, int 1), ("b", true, .number)])), da (.map [("a", j 1)])),
-    ([], a (.meet (rst .nil [ks (str "a")]) (mo [("a", false, int 1), ("b", true, .number)])),
+    ([], a (.meet (rst Val.void [ks (str "a")]) (mo [("a", false, int 1), ("b", true, .number)])), da (.map [("a", j 1)])),
+    ([], a (.meet (rst Val.void [ks (str "a")]) (mo [("a", false, int 1), ("b", true, .number)])),
       da (.map [("a", j 1), ("b", j 2)])),
-    ([], a (.map [] (some (rst .nil [ks (str "n")])) false), da (.map [("x", .map [("n", j 1)]), ("y", .map [("n", j 2)])])),
-    ([], a (.map [] (some (rst .nil [ks (str "n")])) false), da (.map [("x", .map [("n", j 1)]), ("y", .map [("m", j 2)])])),
-    ([], a (.meet (rst .nil [ks (str "a")]) (m [("a", int 1)])), .map []),
-    ([], a (.meet (rst .nil [ks (str "a")]) (m [("a", int 1), ("b", int 2)])), .map []),
-    ([], a (.meet (rst .nil) (m [("b", int 2)])), .map []),
-    ([], a (.meet (rst .nil) (int 5)), .map []),
-    ([], a (.meet (rst .nil) (m [("b", .pref 1 (int 2))])), .map []),
-    ([], a (.meet (rst .nil [ks (str "b")]) (m [("b", .pref 1 (int 2))])), .map []),
-    ([], a (.or [(0, rst .nil [ks (str "a")]), (0, .number)]), da (.map [("b", j 1)])),
-    ([], a (.or [(0, rst .nil [ks (str "a")]), (0, .number)]), da (j 1)),
-    ([], a (rst .nil), .map []),
-    ([], a (rst .nil [(some (m [("k", str "x")]), some .any, none)]), da (.map [("k", .str "x"), ("z", j 1)])),
-    ([], a (rst .nil [(some (m [("k", str "x")]), some .any, none)]), da (.map [("k", .str "y"), ("z", j 1)])),
-    ([], a (rst .nil [(none, some (str "a"), some .number)]), da (.map [("a", .str "x"), ("b", j 1)])),
-    ([], a (rst .nil [(none, some (str "a"), some .number)]), da (.map [("a", .str "x"), ("b", .str "y")])),
-    ([], a (rst .nil [(some (m [("a", .any)]), some (str "a"), some .number)]), da (.map [("a", .str "x"), ("b", j 1)])),
-    ([], a (rst .nil [(some (m [("a", .any)]), some (str "a"), some .number)]), da (.map [("b", j 1)])),
-    ([], a (rst .nil [(some .any, none, none)]), da (.map [("b", j 1)])),
-    ([], a (rst .nil [ks .nil]), da (.map [("b", j 1)])),
-    ([], a (rst .nil [(none, none, some .nil)]), da (.map [("b", j 1)])),
+    ([], a (.map [] (some (rst Val.void [ks (str "n")])) false), da (.map [("x", .map [("n", j 1)]), ("y", .map [("n", j 2)])])),
+    ([], a (.map [] (some (rst Val.void [ks (str "n")])) false), da (.map [("x", .map [("n", j 1)]), ("y", .map [("m", j 2)])])),
+    ([], a (.meet (rst Val.void [ks (str "a")]) (m [("a", int 1)])), .map []),
+    ([], a (.meet (rst Val.void [ks (str "a")]) (m [("a", int 1), ("b", int 2)])), .map []),
+    ([], a (.meet (rst Val.void) (m [("b", int 2)])), .map []),
+    ([], a (.meet (rst Val.void) (int 5)), .map []),
+    ([], a (.meet (rst Val.void) (m [("b", .pref 1 (int 2))])), .map []),
+    ([], a (.meet (rst Val.void [ks (str "b")]) (m [("b", .pref 1 (int 2))])), .map []),
+    ([], a (.or [(0, rst Val.void [ks (str "a")]), (0, .number)]), da (.map [("b", j 1)])),
+    ([], a (.or [(0, rst Val.void [ks (str "a")]), (0, .number)]), da (j 1)),
+    ([], a (rst Val.void), .map []),
+    ([], a (rst Val.void [(some (m [("k", str "x")]), some .any, none)]), da (.map [("k", .str "x"), ("z", j 1)])),
+    ([], a (rst Val.void [(some (m [("k", str "x")]), some .any, none)]), da (.map [("k", .str "y"), ("z", j 1)])),
+    ([], a (rst Val.void [(none, some (str "a"), some .number)]), da (.map [("a", .str "x"), ("b", j 1)])),
+    ([], a (rst Val.void [(none, some (str "a"), some .number)]), da (.map [("a", .str "x"), ("b", .str "y")])),
+    ([], a (rst Val.void [(some (m [("a", .any)]), some (str "a"), some .number)]), da (.map [("a", .str "x"), ("b", j 1)])),
+    ([], a (rst Val.void [(some (m [("a", .any)]), some (str "a"), some .number)]), da (.map [("b", j 1)])),
+    ([], a (rst Val.void [(some .any, none, none)]), da (.map [("b", j 1)])),
+    ([], a (rst Val.void [ks Val.void]), da (.map [("b", j 1)])),
+    ([], a (rst Val.void [(none, none, some Val.void)]), da (.map [("b", j 1)])),
     ([], a (rst (nof (int 0) [.string]) [ks (str "a")]), da (.map [("a", .str "x"), ("b", j 1)])),
     ([], a (rst (nof (int 0) [.string]) [ks (str "a")]), da (.map [("a", .str "x"), ("b", .str "y")])),
-    ([], a (.meet (rst .nil [ks (str "a")]) (rst .number)), da (.map [("a", .str "x")])),
-    ([], a (.meet (rst .nil [ks (str "a")]) (rst .number)), da (.map [("a", j 1)])),
-    ([("T", mo [("a", true, rst .nil [ks (str "b")])])], m [("t", T)], .map [("t", .map [("a", .map [("b", j 1)])])]),
-    ([("T", rst .nil [(none, none, some T)])], m [("t", T)], .map [("t", .map [("b", j 5)])]),
+    ([], a (.meet (rst Val.void [ks (str "a")]) (rst .number)), da (.map [("a", .str "x")])),
+    ([], a (.meet (rst Val.void [ks (str "a")]) (rst .number)), da (.map [("a", j 1)])),
+    ([("T", mo [("a", true, rst Val.void [ks (str "b")])])], m [("t", T)], .map [("t", .map [("a", .map [("b", j 1)])])]),
+    ([("T", rst Val.void [(none, none, some T)])], m [("t", T)], .map [("t", .map [("b", j 5)])]),
     ([("T", rst T)], m [("t", T)], .map [("t", .map [("b", j 5)])]),
     ([("T", rst T)], m [("t", T)], .map [("t", .map [("b", .map [])])]),
-    ([("T", rst .nil [ks T])], m [("t", T)], .map [("t", .map [("b", j 5)])]),
-    ([], a (.meet (rst .nil [ks (str "a")]) (m [("a", m [("b", int 1)])])), da (.map [("a", .map [("b", j 1)])])),
-    ([], a (rst .nil [(none, none, some (m [("x", int 1)]))]), da (.map [("p", .map [("x", j 1)]), ("q", .map [("x", j 2)])])),
-    ([], a (rst .nil [(none, none, some (mo [("x", true, .or [(1, int 1), (0, .number)])]))]), da (.map [("p", .map [])]))]
+    ([("T", rst Val.void [ks T])], m [("t", T)], .map [("t", .map [("b", j 5)])]),
+    ([], a (.meet (rst Val.void [ks (str "a")]) (m [("a", m [("b", int 1)])])), da (.map [("a", .map [("b", j 1)])])),
+    ([], a (rst Val.void [(none, none, some (m [("x", int 1)]))]), da (.map [("p", .map [("x", j 1)]), ("q", .map [("x", j 2)])])),
+    ([], a (rst Val.void [(none, none, some (mo [("x", true, .or [(1, int 1), (0, .number)])]))]), da (.map [("p", .map [])]))]
 
 set_option maxRecDepth 8192 in
 /-- Every case's bodies and schema hold no path, no pattern and no
@@ -4754,12 +4807,12 @@ def keyCases : List (Decls × Val × Data) :=
   let spl (xs : List Val) (s : Val) : Val := .list xs (some s) false
   let z (v : Val) : Val := .map [("z", false, v)] none false
   let dz (x : Data) : Data := .map [("z", x)]
-  let a : Val := on [(str "a", .integer)] (some .nil)
+  let a : Val := on [(str "a", .integer)] (some Val.void)
   let ab : Val := on [(str "a", .integer), (str "b", .string)] none
-  let short : Val := on [(.len (.max (nb 2)), .any)] (some .nil)
+  let short : Val := on [(.len (.max (nb 2)), .any)] (some Val.void)
   let both : Val := .meet (spm [] (on [(str "a", .integer)] (some .any)))
     (spm [] (on [(str "a", min 1)] (some .any)))
-  let pick : Val := on [(str "a", .or [(1, int 1), (0, .integer)])] (some .nil)
+  let pick : Val := on [(str "a", .or [(1, int 1), (0, .integer)])] (some Val.void)
   let pos : Val := on [(str "0", .integer), (str "1", .string)] (some .any)
   let second : Val := on [(str "1", .string)] (some .any)
   [([], z (spm [] a), dz (.map [("a", j 1)])), ([], z (spm [] a), dz (.map [("a", .str "x")])),
@@ -4771,7 +4824,7 @@ def keyCases : List (Decls × Val × Data) :=
     ([], z (spm [] (.ride .metadata a [])), dz (.map [("a", .str "x")])),
     ([], z (spm [("a", false, int 1)] a), dz (.map [("a", j 1)])),
     ([], z (spm [("a", false, str "x")] a), dz (.map [("a", .str "x")])),
-    ([], z (spm [("a", false, .integer)] (on [(str "a", min 3)] (some .nil))), dz (.map [("a", j 1)])),
+    ([], z (spm [("a", false, .integer)] (on [(str "a", min 3)] (some Val.void))), dz (.map [("a", j 1)])),
     ([], z (spm [("a", false, .string)] a), dz (.map [("a", .str "x")])),
     ([], z (spm [("a", false, .any)] pick), dz (.map [])),
     ([], z (spm [("a", false, .any)] pick), dz (.map [("a", j 2)])),
@@ -4830,12 +4883,12 @@ def eagerCases : List (Decls × Val × Data) :=
     ([], m [("v", .call .each [.list [] none false, mu])], .map [("v", .list [])]),
     ([("T", mu)], m [("v", int 1)], dv),
     ([("T", .len c12)], m [("v", int 1)], dv),
-    ([], m [("v", .nof .nil [.string])], dv),
-    ([], m [("v", .len .nil)], dv),
-    ([], m [("v", .contains .any .nil)], dv),
-    ([], m [("v", .must (.meet .nil (int 1)) "m")], dv),
-    ([], m [("v", .select .nil [(int 1, int 3)] none)], dv),
-    ([], m [("v", .filter .nil (int 1))], dv)]
+    ([], m [("v", .nof Val.void [.string])], dv),
+    ([], m [("v", .len Val.void)], dv),
+    ([], m [("v", .contains .any Val.void)], dv),
+    ([], m [("v", .must (.meet Val.void (int 1)) "m")], dv),
+    ([], m [("v", .select Val.void [(int 1, int 3)] none)], dv),
+    ([], m [("v", .filter Val.void (int 1))], dv)]
 
 theorem eagerCases_checkable : ∀ c ∈ eagerCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ (c.1.readR c.2.1).CheckableA := by decide
@@ -5153,7 +5206,7 @@ def kindSubVals : List Val :=
   kindBases ++ [.map [] none false, .list [] none false, field false .integer,
     field true .integer, .map [("x", false, .integer)] none true, .list [.integer] none false,
     .list [.integer] none true, .list [] none true, .map [] (some .integer) false,
-    .list [] (some .integer) false, .any, .nil, .string, .integer]
+    .list [] (some .integer) false, .any, Val.void, .string, .integer]
 
 def isWord : Val → Bool
   | .mapKind | .listKind => true
@@ -5370,14 +5423,6 @@ def formRows : IO Unit := do
   for (ctor, kind, text) in forms do
     IO.println (ctor ++ "\t" ++ kind ++ "\t" ++ text)
 
-/-- Whether a value of the fragment writes `nil`: itself, under its key,
-or on either side of its meet. -/
-def writesNil : Val → Bool
-  | .nil => true
-  | .map [(_, _, v)] _ _ => writesNil v
-  | .meet a b => writesNil a || writesNil b
-  | _ => false
-
 /-- A row's document, the value under `v`, and its data. -/
 def rowDoc (v : Val) (j : Data) : Val × Data := (.map [("v", false, v)] none false, .map [("v", j)])
 
@@ -5389,9 +5434,7 @@ theorem rowDoc_error_exact (m : Mode) (v : Val) (j : Data) :
 
 /-- The rows of one fragment: each value against each instance of each
 block, numbered from zero under `tag`. A value `check` admits that `vet`
-reads as ill-formed is an `error` (`rowDoc_error_exact`), but one that
-writes `nil`, which the verdict reads as ill-formed wherever it stands
-and the reference reads as forbidding an optional key. -/
+reads as ill-formed is an `error` (`rowDoc_error_exact`). -/
 def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit := do
   let head := "{\"verdict\":"
   let mut i := 0
@@ -5400,7 +5443,7 @@ def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit 
       let some src := v.cell | throw (IO.userError "a value of the fragment has no text")
       for j in block do
         let some jsrc := j.cell | throw (IO.userError "an instance has no text")
-        let ill := !writesNil v && vet {} [] (rowDoc v j).1 (rowDoc v j).2 == Verdict.error
+        let ill := vet {} [] (rowDoc v j).1 (rowDoc v j).2 == Verdict.error
         let want := if check v j then (if ill then "\"error\"" else "\"valid\"")
           else "[\"invalid\",\"incomplete\",\"error\"]"
         IO.println (tag ++ toString i ++ "\tverdict\tv: " ++ src ++ "\tv: " ++ jsrc
@@ -8323,7 +8366,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# Generators whose templates read their member's place through a relative"
     IO.println "# path, each read at each member of the output, follow in rows gt0 on, a spread"
     IO.println "# such a template holds, read at each member, a member the data adds among them,"
-    IO.println "# in rows sg0 on, and"
+    IO.println "# in rows sg0 on, a written nil, which forbids an optional member and leaves a"
+    IO.println "# required one unmet (ruling 54), in rows nl0 on, and"
     IO.println "# templates that meet their own hole, each member kept and met with the rest,"
     IO.println "# the `_ & …` idiom, in rows ib0 on, generators an emit's body holds, their"
     IO.println "# templates read where each instance lands in the output, in rows eg0 on,"
@@ -8392,6 +8436,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "lf" loadCases
     pathRows "gt" genTemplateCases
     pathRows "sg" spreadGenCases
+    pathRows "nl" writtenNilCases
     pathRows "ib" holeMeetCases
     pathRows "eg" emitGenCases
     pathRows "eh" emitGenFilterCases

@@ -3644,7 +3644,8 @@ with a term:
 ```lean
 def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Val) : Val :=
   match a, b with
-  | .nil, _ | _, .nil => .nil
+  | .nil, b => if b.isVoid then b else .nil
+  | a, .nil => if a.isVoid then a else .nil
   | .absent, b => absentOr (rec .any b)
   | a, .absent => absentOr (rec a .any)
   | .nothing, b => nothingOr b
@@ -3669,7 +3670,10 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
 ```
 
 Read each row as *these two shapes meet in this one*. `nil` is the
-zero: it admits nothing, so nor does any meet with it. Absence, step
+zero: it admits nothing, so nor does any meet with it. A `nil` the
+document writes is `Val.void`, `nil` inside the rider `void`, and the
+`nil` a conflict makes yields to it, so a written `nil` takes in even a
+conflict, as ruling 54 reads it. Absence, step
 33's, is the unit, but met with `any` it stays absence. `nothing`,
 step 20's atom over an argument outside its domain, stays itself met
 with `any` and is `nil` met with anything else. A meet on either
@@ -4306,7 +4310,8 @@ and a constraint's domain. Its first cases:
 for its parent, as `integer & min(3)` is a constraint on integers; a
 meet of two kinds has the lower kind's parent; any other meet lifts
 each side. A reference lifts as itself, a residual the engines keep
-symbolic too. A rider is left behind, but the one a `move` makes
+symbolic too. A rider is left behind, but the one around a written
+`nil` (`Val.void`), whose parent is no value either, the one a `move` makes
 (`Rider.move`), so that each arm a moved preference reads as carries
 it, and `open(v)`'s, so that the parent stays open where `v` is. -/
 def Val.super : Val → Val
@@ -5112,7 +5117,9 @@ def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 ```
 
 `illFormed` reads each size, and each of a meet's conjuncts as it reads
-a term:
+a term. A `nil` the document writes stands, where the `nil` a conflict
+makes doesn't, so the verdict reads a required member that holds one as
+`invalid`, and an optional one as forbidden, as ruling 54 reads it:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -5124,6 +5131,7 @@ def Val.illFormed : Val → Bool
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
+  | .ride .void _ _ => false
   | .ride _ v _ => v.illFormed
   | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
@@ -6100,7 +6108,9 @@ refuses `1` (#525).
 A conflict is an argument that's dead in normal form but not written as
 `nil`. Both engines read a size, a condition of `must` or a count
 written as `nil` as a value that admits nothing, so `must(nil, "m")`
-and `len(nil)` refuse `1`, while `must(nil & 1, "m")` is an `error`. A
+and `len(nil)` refuse `1`. Both read `must(nil & 1, "m")` as an
+`error`, but a written `nil` met with a value is still one, by ruling
+54, so it refuses `1` too. A
 `filter` over `nil` and a `match` on it are errors, as any dead source
 or scrutinee is:
 
@@ -6108,7 +6118,7 @@ or scrutinee is:
 ```lean
 def Decls.clashes (ds : Decls) : Val → Bool
   | .nil => false
-  | v => (normaliseD ds v).dead
+  | v => !(normaliseD ds v).isVoid && (normaliseD ds v).dead
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
@@ -6347,7 +6357,7 @@ to try each against:
 <!-- test: quote spec/Oracle.lean -->
 ```lean
 def bases : List Val :=
-  [.any, .nil, .integer, .meet .number (.mulof (.integer (.of 1))), .string, .anyString,
+  [.any, Val.void, .integer, .meet .number (.mulof (.integer (.of 1))), .string, .anyString,
     .min (.num (.integer (.of 0))), .min (.num (.integer (.of 3)))]
 
 /-- `{"x": v}`, or `{"x"?: v}`. -/
@@ -7044,12 +7054,17 @@ document is an error whatever the bound meets, as a size that holds
 one is. The atom that admits nothing is `Val.nothing`. It
 stands, so a schema that holds one is no error, but it refuses every
 value and generates nothing, and the meet makes it `nil` against
-anything but `any`:
+anything but `any` and a `nil` the document writes, which takes it in
+as it takes in any term, by ruling 54:
 
 <!-- test: quote spec/Aontu/Meet.lean -->
 ```lean
-def nothingOr (v : Val) : Val := if v.isAny then .nothing else .nil
+def nothingOr (v : Val) : Val := if v.isAny then .nothing else if v.isVoid then v else .nil
 ```
+
+So `x?: nil & min(true)` forbids `x`, as `x?: nil` does, where
+`x?: integer & min(true)` makes the document an error, and both
+engines answer so.
 
 So `lo: true, t: min($.lo)` refuses whatever data meets it, an
 `invalid`, though `min($.lo) & integer` there is an error, as

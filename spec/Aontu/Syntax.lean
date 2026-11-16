@@ -51,6 +51,7 @@ inductive Rider where
   | lifts                                   -- a bare `open()`, every term at its place held open
   | seals                                   -- a bare `close()`, its place sealed once its terms have met
   | move (n : String)                       -- the value `move` makes of the path named `n` (`pathName`)
+  | void                                    -- around `nil`, the `nil` a document writes, which forbids (`Val.void`)
   deriving DecidableEq
 
 /-- A rider's record: the members of a map of data, as both ports take
@@ -119,6 +120,21 @@ the value of a `*` alone, which is a disjunction too, reads every list
 literal beneath it as its own length, a sealed list, and `*x` as an arm
 reads as the arm `x` of rank one. So `*1 | 2` is
 `or [(1, lit 1), (0, lit 2)]`, and `*[1]` is `pref 1 (list [lit 1] none true)`. -/
+
+/-- `nil` as a document writes it: the `nil` a meet makes of a conflict,
+inside the rider `void`, so that it admits nothing and meets every term
+as itself, as `nil` does, but stands, where a conflict makes the
+document an error (ruling 54). An optional member that holds it is
+absent, and a required one can't be met. -/
+abbrev Val.void : Val := .ride .void .nil []
+
+/-- Whether a term is `nil` as a document writes it (`Val.void`), with
+any riders and links around it, as `type(nil)` is. -/
+def Val.isVoid : Val → Bool
+  | .ride .void .nil _ => true
+  | .ride _ v _ => v.isVoid
+  | .link v _ => v.isVoid
+  | _ => false
 
 /-- A cover of `rest`: its `if`, tried on the whole value, its `keys`,
 tried on a member's key, and its `members`, tried on a member, each
@@ -237,7 +253,8 @@ mutual
 for its parent, as `integer & min(3)` is a constraint on integers; a
 meet of two kinds has the lower kind's parent; any other meet lifts
 each side. A reference lifts as itself, a residual the engines keep
-symbolic too. A rider is left behind, but the one a `move` makes
+symbolic too. A rider is left behind, but the one around a written
+`nil` (`Val.void`), whose parent is no value either, the one a `move` makes
 (`Rider.move`), so that each arm a moved preference reads as carries
 it, and `open(v)`'s, so that the parent stays open where `v` is. -/
 def Val.super : Val → Val
@@ -269,6 +286,7 @@ def Val.super : Val → Val
   | .call _ _ => .any
   | .ride (.move n) v r => .ride (.move n) v.super r
   | .ride .opened v r => .ride .opened v.super r
+  | .ride .void v r => .ride .void v.super r
   | .ride _ v _ => v.super
   | .link v _ => v.super
   | .key | .keyUp _ => .anyString
@@ -394,6 +412,7 @@ theorem Val.keyed_super : ∀ v : Val, v.super.keyed = false
       · simp only [Val.keyed, Val.keyed_super a, Val.keyed_super b, Bool.or_self]
   | .ride (.move _) v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
   | .ride .opened v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
+  | .ride .void v _ => by simp only [Val.super, Val.keyed]; exact Val.keyed_super v
   | .ride .metadata v _ | .ride .deprecate v _ | .ride .ident v _ | .ride .type v _ | .ride .hide v _
   | .ride .lifts v _ | .ride .seals v _ => by
     simp only [Val.super]; exact Val.keyed_super v

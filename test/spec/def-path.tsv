@@ -34,7 +34,8 @@
 # Generators whose templates read their member's place through a relative
 # path, each read at each member of the output, follow in rows gt0 on, a spread
 # such a template holds, read at each member, a member the data adds among them,
-# in rows sg0 on, and
+# in rows sg0 on, a written nil, which forbids an optional member and leaves a
+# required one unmet (ruling 54), in rows nl0 on, and
 # templates that meet their own hole, each member kept and met with the rest,
 # the `_ & …` idiom, in rows ib0 on, generators an emit's body holds, their
 # templates read where each instance lands in the output, in rows eg0 on,
@@ -2996,6 +2997,96 @@ sg41	verdict	"d": {"a": 1, "b": 2}, "x": pack($.d, {"v": _, "h": {"p": {}, &: {"
 sg42	verdict	"d": {"a": 1, "b": 2}, "x": pack($.d, {"v": _, "h": {"p": {}, &: {"w": ...v, "k": key(3)}}})	{"x": {"a": {"v": 1, "h": {"p": {"w": 1, "k": "b"}}}}}	{"verdict":"invalid"}
 sg43	verdict	"d": {"a": 1, "b": 2}, "x": pack($.d, {"v": _, "h": {"p": {}, &: {"w": ...v, "k": key(3)}}})	{"x": {"a": {"v": 1, "h": {"p": {"w": 1, "k": "b"}}}}}	{"verdict":"invalid","opts":{"noFill":true}}
 sg44	verdict	"d": {"a": 1, "b": 2}, "x": pack($.d, {"v": _, "h": {"p": {}, &: {"w": ...v, "k": key(3)}}})	{"x": {"a": {"v": 1, "h": {"p": {"w": 1, "k": "b"}}}}}	{"verdict":"invalid","opts":{"partial":true}}
+nl0	verdict	"x"?: nil	{}	{"verdict":"valid"}
+nl1	verdict	"x"?: nil	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl2	verdict	"x"?: nil	{}	{"verdict":"valid","opts":{"partial":true}}
+nl3	verdict	"x"?: nil	{"x": 1}	{"verdict":"invalid"}
+nl4	verdict	"x"?: nil	{"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl5	verdict	"x"?: nil	{"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl6	verdict	"x"?: nil	{"x": null}	{"verdict":"invalid"}
+nl7	verdict	"x"?: nil	{"x": null}	{"verdict":"invalid","opts":{"noFill":true}}
+nl8	verdict	"x"?: nil	{"x": null}	{"verdict":"invalid","opts":{"partial":true}}
+nl9	verdict	"x": nil	{}	{"verdict":"invalid"}
+nl10	verdict	"x": nil	{}	{"verdict":"invalid","opts":{"noFill":true}}
+nl11	verdict	"x": nil	{}	{"verdict":"invalid","opts":{"partial":true}}
+nl12	verdict	"x": nil	{"x": 1}	{"verdict":"invalid"}
+nl13	verdict	"x": nil	{"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl14	verdict	"x": nil	{"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl15	verdict	"x"?: (nil) & (1)	{}	{"verdict":"valid"}
+nl16	verdict	"x"?: (nil) & (1)	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl17	verdict	"x"?: (nil) & (1)	{}	{"verdict":"valid","opts":{"partial":true}}
+nl18	verdict	"y": ({"x"?: nil}) & ({"x"?: 1})	{"y": {}}	{"verdict":"valid"}
+nl19	verdict	"y": ({"x"?: nil}) & ({"x"?: 1})	{"y": {}}	{"verdict":"valid","opts":{"noFill":true}}
+nl20	verdict	"y": ({"x"?: nil}) & ({"x"?: 1})	{"y": {}}	{"verdict":"valid","opts":{"partial":true}}
+nl21	verdict	"y": ({"x"?: nil}) & ({"x"?: 1})	{"y": {"x": 1}}	{"verdict":"invalid"}
+nl22	verdict	"y": ({"x"?: nil}) & ({"x"?: 1})	{"y": {"x": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+nl23	verdict	"y": ({"x"?: nil}) & ({"x"?: 1})	{"y": {"x": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+nl24	verdict	"y": ({"x"?: nil}) & ({"x": 1})	{"y": {}}	{"verdict":"invalid"}
+nl25	verdict	"y": ({"x"?: nil}) & ({"x": 1})	{"y": {}}	{"verdict":"invalid","opts":{"noFill":true}}
+nl26	verdict	"y": ({"x"?: nil}) & ({"x": 1})	{"y": {}}	{"verdict":"invalid","opts":{"partial":true}}
+nl27	verdict	"y": ({"x"?: nil}) & ({"x"?: number})	{"y": {}}	{"verdict":"valid"}
+nl28	verdict	"y": ({"x"?: nil}) & ({"x"?: number})	{"y": {}}	{"verdict":"valid","opts":{"noFill":true}}
+nl29	verdict	"y": ({"x"?: nil}) & ({"x"?: number})	{"y": {}}	{"verdict":"valid","opts":{"partial":true}}
+nl30	verdict	"x": [nil]	{}	{"verdict":"invalid"}
+nl31	verdict	"x": [nil]	{}	{"verdict":"invalid","opts":{"noFill":true}}
+nl32	verdict	"x": [nil]	{}	{"verdict":"invalid","opts":{"partial":true}}
+nl33	verdict	"x": [1, nil]	{}	{"verdict":"invalid"}
+nl34	verdict	"x": [1, nil]	{}	{"verdict":"invalid","opts":{"noFill":true}}
+nl35	verdict	"x": [1, nil]	{}	{"verdict":"invalid","opts":{"partial":true}}
+nl36	verdict	"x": {&: nil}	{}	{"verdict":"valid"}
+nl37	verdict	"x": {&: nil}	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+nl38	verdict	"x": {&: nil}	{}	{"verdict":"valid","opts":{"partial":true}}
+nl39	verdict	"x": {&: nil}	{"x": {"a": 1}}	{"verdict":"invalid"}
+nl40	verdict	"x": {&: nil}	{"x": {"a": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+nl41	verdict	"x": {&: nil}	{"x": {"a": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+nl42	verdict	"x": (nil) | (1)	{}	{"verdict":"valid"}
+nl43	verdict	"x": (nil) | (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+nl44	verdict	"x": (nil) | (1)	{}	{"verdict":"valid","opts":{"partial":true}}
+nl45	verdict	"x"?: (nil) | (1)	{"x": 1}	{"verdict":"valid"}
+nl46	verdict	"x"?: (nil) | (1)	{"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+nl47	verdict	"x"?: (nil) | (1)	{"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl48	verdict	"x": ({"a": 1}) & (nil)	{}	{"verdict":"invalid"}
+nl49	verdict	"x": ({"a": 1}) & (nil)	{}	{"verdict":"invalid","opts":{"noFill":true}}
+nl50	verdict	"x": ({"a": 1}) & (nil)	{}	{"verdict":"invalid","opts":{"partial":true}}
+nl51	verdict	"x"?: ({"a": 1}) & (nil)	{}	{"verdict":"valid"}
+nl52	verdict	"x"?: ({"a": 1}) & (nil)	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl53	verdict	"x"?: ({"a": 1}) & (nil)	{}	{"verdict":"valid","opts":{"partial":true}}
+nl54	verdict	"x"?: (nil) & (number)	{"x": 1}	{"verdict":"invalid"}
+nl55	verdict	"x"?: (nil) & (number)	{"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl56	verdict	"x"?: (nil) & (number)	{"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl57	verdict	"x"?: (nil) & ((1) & (2))	{}	{"verdict":"valid"}
+nl58	verdict	"x"?: (nil) & ((1) & (2))	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl59	verdict	"x"?: (nil) & ((1) & (2))	{}	{"verdict":"valid","opts":{"partial":true}}
+nl60	verdict	"x"?: (1) & (2)	{}	{"verdict":"error"}
+nl61	verdict	"x"?: (1) & (2)	{}	{"verdict":"error","opts":{"noFill":true}}
+nl62	verdict	"x"?: (1) & (2)	{}	{"verdict":"error","opts":{"partial":true}}
+nl63	verdict	"y": {"x"?: nil}, "z": $.y	{}	{"verdict":"valid"}
+nl64	verdict	"y": {"x"?: nil}, "z": $.y	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+nl65	verdict	"y": {"x"?: nil}, "z": $.y	{}	{"verdict":"valid","opts":{"partial":true}}
+nl66	verdict	"y": {"x"?: nil}, "z": $.y	{"z": {"x": 1}}	{"verdict":"invalid"}
+nl67	verdict	"y": {"x"?: nil}, "z": $.y	{"z": {"x": 1}}	{"verdict":"invalid","opts":{"noFill":true}}
+nl68	verdict	"y": {"x"?: nil}, "z": $.y	{"z": {"x": 1}}	{"verdict":"invalid","opts":{"partial":true}}
+nl69	verdict	"x"?: (nil) & (len(any))	{}	{"verdict":"valid"}
+nl70	verdict	"x"?: (nil) & (len(any))	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl71	verdict	"x"?: (nil) & (len(any))	{}	{"verdict":"valid","opts":{"partial":true}}
+nl72	verdict	"x"?: (nil) & (len(any))	{"x": 1}	{"verdict":"invalid"}
+nl73	verdict	"x"?: (nil) & (len(any))	{"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl74	verdict	"x"?: (nil) & (len(any))	{"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl75	verdict	"x"?: (len(any)) & (nil)	{}	{"verdict":"valid"}
+nl76	verdict	"x"?: (len(any)) & (nil)	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl77	verdict	"x"?: (len(any)) & (nil)	{}	{"verdict":"valid","opts":{"partial":true}}
+nl78	verdict	"x": (nil) & (len(any))	{}	{"verdict":"invalid"}
+nl79	verdict	"x": (nil) & (len(any))	{}	{"verdict":"invalid","opts":{"noFill":true}}
+nl80	verdict	"x": (nil) & (len(any))	{}	{"verdict":"invalid","opts":{"partial":true}}
+nl81	verdict	"x"?: (type(nil)) & (len(any))	{}	{"verdict":"valid"}
+nl82	verdict	"x"?: (type(nil)) & (len(any))	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl83	verdict	"x"?: (type(nil)) & (len(any))	{}	{"verdict":"valid","opts":{"partial":true}}
+nl84	verdict	"x"?: (type(nil)) & ((1) & (2))	{}	{"verdict":"valid"}
+nl85	verdict	"x"?: (type(nil)) & ((1) & (2))	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl86	verdict	"x"?: (type(nil)) & ((1) & (2))	{}	{"verdict":"valid","opts":{"partial":true}}
+nl87	verdict	"x"?: type(nil)	{"x": 1}	{"verdict":"invalid"}
+nl88	verdict	"x"?: type(nil)	{"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl89	verdict	"x"?: type(nil)	{"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
 ib0	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid"}
 ib1	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"noFill":true}}
 ib2	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"partial":true}}

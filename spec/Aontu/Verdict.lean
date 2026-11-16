@@ -1743,11 +1743,12 @@ def keptElems (nf : Val) (keep : ℕ → Data → Bool) (xs : List Data) : Val :
   | _ => (Data.list (keptAt keep 0 xs)).term
 
 /-- Whether an argument both ports read as they build a trial is a
-conflict: dead in normal form, though not written as `nil`, which both
-read there as a value that admits nothing. -/
+conflict: dead in normal form, though not a written `nil`, which both
+read there as a value that admits nothing, met with whatever it meets
+(`Val.void`, ruling 54). -/
 def Decls.clashes (ds : Decls) : Val → Bool
   | .nil => false
-  | v => (normaliseD ds v).dead
+  | v => !(normaliseD ds v).isVoid && (normaliseD ds v).dead
 
 /-- Whether a list's marked element is a conflict, under the riders it
 carries, met with the list's spread `s`: both ports read the element
@@ -4389,7 +4390,8 @@ end
 
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
-in a spread, which the engines read only against a member, a
+in a spread, which the engines read only against a member, and the one
+a document writes, which stands (`Val.void`, ruling 54), a
 preference clash, a size that holds a disjunction or a preference, and
 a call the reading could not make. A `+`, a `join` and a `pref` that
 the reading leaves as written stand where their arguments do and they
@@ -4404,6 +4406,7 @@ def Val.illFormed : Val → Bool
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
+  | .ride .void _ _ => false
   | .ride _ v _ => v.illFormed
   | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args

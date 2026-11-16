@@ -1126,6 +1126,7 @@ def leDecF (env : Env) : ℕ → (a b : Val) → Option (PLift (a ⊑[env] b))
     match a, b with
     | _, .any => some ⟨le_any env _⟩
     | .nil, _ => some ⟨nil_le env _⟩
+    | .ride k .nil r, _ => some ⟨ride_nil_le env k r _⟩
     | a, .meet b₁ b₂ =>
       match leDecF env n a b₁, leDecF env n a b₂ with
       | some ⟨h₁⟩, some ⟨h₂⟩ => some ⟨le_meet h₁ h₂⟩
