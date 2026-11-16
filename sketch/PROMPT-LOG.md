@@ -1223,4 +1223,32 @@ show me the markdown doc here
 
 ```text
 prepare a pr; recap our refinements to relations in this session
+## 2026-11-13 16:09:14 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#743, a match over a scrutinee the schema leaves open, e.g. x: {kind: string, v: match(.kind, "a", 1, "b", 2)}. With no default arm, both engines refuse it as match_none before any data, even when the data supplies kind "a". Yet they wait for the data when the match has a default arm or the scrutinee is a disjunction ("a"|"b"). The definition always reads it with the data. Which reading should the language take?
+→ With the data (Recommended)
+
+#661, where a link's template reads its relative paths. In x: {m: {k: 2}, n: refer({v: .k}) & path(.m)}, both engines read .k where the link is written. At x.n it names nothing, so the document stays incomplete. A link nested inside a template, refer({n: refer({k: 1}) & path(.m)}) & path(.m), can then never resolve, which is an error. Spread and generator templates, and copies (ruling 26), read their relative paths where they land. Which should a link's template do?
+→ Where it lands (Recommended)
+
+#674, how filter tries a child that generates nothing. In b: filter({x: integer}, any) with data {"b": {"x": 3}}, both engines keep x: integer because it already satisfies any, and answer valid. filter({x: integer}, 1) drops x. The definition only tries a child's generated data, so it leaves this filter unmade and answers invalid. Which reading should filter take?
+→ As the term it is (Recommended)
+```
+
+## 2026-11-14 15:13:30 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+The answers to the agent's questions, each question followed by the option chosen or the answer typed:
+
+```text
+#524: which position should `key(0)` and `key()` read inside an `emit` body? The two engines disagree. With `x: emit([1, 2], {match: any, body: ["a", key(0)]})`, TypeScript gives ["a","1","a","3"], each piece's position in the output, and Go gives ["a","1","a","1"], its position within its node's body. `key()` gives "x" in TypeScript, the field holding the emit, and the node's index in Go.
+→ Where it lands (Recommended)
+```
+
+## 2026-11-16 11:04:11 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+report on current status and progress - how much is left?
 ```

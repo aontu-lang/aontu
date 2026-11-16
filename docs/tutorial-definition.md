@@ -2803,7 +2803,13 @@ that is not recursive is replaced by the meet of its bodies, expanded in
 turn and sealed where the name is a definition; a reference to a
 recursive name, or to no name, stays. A rider's body reads as the rider
 has it read (`Rider.reads`), so `open(v)` reads `v`, expanded, with
-every seal lifted, the seal of a definition's instance among them. -/
+every seal lifted, the seal of a definition's instance among them. An
+`emit`'s table that is an `emit` call, written in place or named, reads
+as the table it holds, each template's replacements written into its
+body (`Fn.tableArgs`), and one that names a recursive
+name as that name's bodies, a level for each turn left
+(`Decls.tableUnfold`), so the turns bound how deep a rule set that names
+itself walks. -/
 def expandF (ds : Decls) : ℕ → Val → Val
 ```
 
@@ -2829,6 +2835,13 @@ step of the meet. -/
 def meetStepA (ds : Decls) (rec : Val → Val → Val) (a b : Val) : Val :=
 ```
 
+A literal meets a term the meet can't take apart, a kind or a bound,
+by checking the literal against it (`litMeetD`): by the checker of the
+fragment where the term reads no name, whatever the bodies hold, and
+else by the checker that reads the names, where it can read every body.
+So a body it can't read, a recursive body whose `match` waits for the
+data, leaves no other literal meet undecided.
+
 The meet so built admits what both of its sides admit, under the
 environment of expanded bodies, which is what admits it:
 
@@ -2843,17 +2856,26 @@ The body a residual unfolds to holds its calls made. Both engines make a
 call in a recursive name's body wherever the body stands, so
 `%T = {m: {}, n: upper("x"), o?: %T}` gives `x: {} & %T` the member
 `n: "X"`, and `copy(%T)` and `relate(%T)` in `%T`'s own body wait on the
-recursion, as `pref(%T)` does. The meet unfolds a name after the reading
+recursion, as `pref(%T)` does. A link there whose template is the name,
+`relate(%T) & path(.m)`, sends it into the body's own member, and the
+link passes read that place with the body's calls made too
+(`Decls.bodyClash`). Used alone, `x: %T` stays residual where no data
+reaches it, as a name with no link does, so the schema generates
+nothing at `x`. Both engines expand it for the link, which #762
+tracks. The meet unfolds a name after the reading
 has made the schema's calls, so the definition makes the calls and the
 selections in each recursive name's body first. Step 9 reads each body
 so once its paths are names, so the definition makes a `match` or a call
 over a path to the body's own member too, `v: match(.kind, ...)` beside
-`kind: "b"`:
+`kind: "b"`, and reads each copy of such a body that step 9 places where
+a use stands the same way:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.callsMade (ds : Decls) : Decls :=
-  ds.map fun d => if ds.recursiveB d.1 then (d.1, ds.readU d.2) else d
+  ds.map fun d =>
+    if ds.recursiveB d.1 || ds.any (fun e => isCopyOf e.1 d.1 && ds.recursiveB e.1) then (d.1, ds.readU d.2)
+    else d
 ```
 
 Step 14's `vet` reads a document this way, and the sixth generated
@@ -2877,7 +2899,10 @@ into the node a body of `emit` is read for, which a relative reference
 in a body starts with, since it names a field of the node rather than a
 place, or a declared name's own place, which a relative path a body
 writes starts with once it's placed there (`Decls.placed`), so that no
-path the schema writes, `$."%T".x` among them, is a path a body writes. -/
+path the schema writes, `$."%T".x` among them, is a path a body writes,
+or the place `n` steps above the target of the link whose template holds
+the path, which a relative path in a link's template starts with once
+it's placed there, read where the template lands (ruling 50). -/
 inductive Seg where
   | key (k : String)
   | idx (i : ℕ)
@@ -3075,14 +3100,15 @@ Beside each round's root, a round reads the place where the definition
 puts a name's bodies, the name's own place, which this section comes
 back to below, for each name a body's path starts at: the name's bodies met
 there, with the templates their own links meet there, which step 36
-comes to, read as the schema's tree reads, under that round's
-declarations:
+comes to, in a pass for each link the bodies write and one more, read
+as the schema's tree reads, under that round's declarations:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.bodyRoots (ds : Decls) (ns : List String) : List Val :=
-  ns.map fun n => normaliseD ds (ds.readU (ds.ownLinked
-    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false)))
+def Decls.ownPlace (ds : Decls) (n : String) : Val :=
+  normaliseD ds (ds.readU (ds.ownLinkedN
+    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false)
+    ((ds.filter (·.1 == n)).foldl (fun k d => k + d.2.linkCalls) 1)))
 ```
 
 Only a path a body writes reads these places, so a chain of paths at a
@@ -3100,18 +3126,23 @@ reaches one more step of a chain of paths, so as many rounds as the
 document writes paths reach the end of every chain. Two sets of roots serve: the schema alone, for
 the error class, and the schema met with the data, for the rest. A
 contradiction the data brings, `a: 1` met with `"a": 2` where `b: $.a`
-reads it, is the data's fault, invalid, and not an ill-formed schema:
+reads it, is the data's fault, invalid, and not an ill-formed schema.
+Each round reads a recursive name's body with its calls made
+(`Decls.callsMade`), so a path into what a call in the body makes reads
+it wherever the name unfolds: with `%T = {n: copy({k: 1}), o?: %T}`,
+`y: $.x.n.k` beside `x: {} & %T` reads `1`, as both engines do:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.roundsS (ds : Decls) (S : Val) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d (d.readU T)) (ds.docPaths S).length
+  ds.rounds S (fun d T => normaliseD d.callsMade (d.callsMade.readU T)) (ds.docPaths S).length
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d (meetD d (d.readU T) j.term)) (ds.docPaths S).length
+  ds.rounds S (fun d T => normaliseD d.callsMade (meetD d.callsMade (d.callsMade.readU T) j.term))
+    (ds.docPaths S).length
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
@@ -3178,11 +3209,15 @@ its members do (`plBare`). A `filter`'s condition stands where the
 member it tries lands, one step below the filter, a step no written
 path names (`.up 0`): a path that climbs out of the member names the
 same place for every member, and one that stays inside it keeps the
-step and names nothing, as both ports read it. Any other spread and a
-template keep theirs as written, since each stands at a position the
-written document doesn't name. -/
+step and names nothing, as both ports read it. A link's template
+stands where it lands, at the link's target (`Seg.lands`, ruling 50).
+Any other spread and a template keep theirs as written, since each
+stands at a position the written document doesn't name. -/
 def Val.placed (pos : List Seg) : Val → Val
-  | .path (.up n :: p) => if n ≤ pos.length then .path (pos.take (pos.length - n) ++ p) else .path (.up n :: p)
+  | .path (.up n :: p) =>
+    match climb pos n p with
+    | some q => .path q
+    | none => .path (.up n :: p)
   | .len c => .len (c.placed pos)
   | .map fs spread closed => .map (plFields pos fs) (plBare pos spread) closed
   | .list items spread closed => .list (plElems pos 0 items) (plBare pos spread) closed
@@ -3196,19 +3231,23 @@ reads a copy of the body placed where the use stands, and so does each
 path reference to a place whose terms read their own place, in the
 schema and in a body at its own place alike. Each copy is declared
 under a name of its own (`useName`, `Decls.copies`), and each meets what
-the data writes at the place it copies (`dataLit`):
+the data writes at the place it copies (`dataLit`). A use of a
+recursive name reads as a copy only where something reaches it
+(`Decls.reachesAt`), as the next paragraphs show:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Val :=
-  let rs := ds.copyNames S
-  let rt := ds.copyTargets S rs
+  let rn := ds.relNames S
+  let rt := ds.copyTargets S (ds.copyNames S)
+  let cp : List Seg → String → Bool := fun p n => rn.contains n && (!ds.recursiveB n || ds.reachesAt S oj p)
   let dl : List Seg → Option Val := fun p => oj.bind fun j => dataLit j (ds.writtenAt S p)
   let own (n : String) : List Seg := [.own n]
-  (ds.map (fun d => (d.1, (d.2.atUses rs rt dl (own d.1)).placed (own d.1))) ++
-      ds.copies S rs rt dl (ds.length + S.size + 1) (S.usesAt rs rt [] ++ ds.flatMap fun d => d.2.usesAt rs rt (own d.1)) ++
+  (ds.map (fun d => (d.1, (d.2.atUses cp rt dl (own d.1)).placed (own d.1))) ++
+      ds.copies S cp rt dl (ds.length + S.size + ds.bodiesSize + (oj.map fun j => j.term.size).getD 0 + 1)
+        (S.usesAt cp rt [] ++ ds.flatMap fun d => d.2.usesAt cp rt (own d.1)) ++
       (S.bares []).map fun p => (bareName, .path p),
-    (S.atUses rs rt dl []).placedT [])
+    (S.atUses cp rt dl []).placedT [])
 ```
 
 So with `%T = {v: ..x}`, `x: 1` and `a: {x: 2, b: %T}`, `a.b.v` reads
@@ -3236,18 +3275,17 @@ def Decls.relTarget (ds : Decls) (S : Val) (rs : List String) : ℕ → List Seg
         w.paths.any fun q => !relPath q && ds.relTarget S rs k q
 ```
 
-The names whose uses read as copies come with the places, since each
-leads to the other: a name whose body writes a relative path, uses such
-a name, or holds a path reference to such a place:
+The names whose bodies read their own place come with the places, since
+each leads to the other: a name whose body writes a relative path, uses
+such a name, or holds a path reference to such a place:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.copyNames (ds : Decls) (S : Val) : List String :=
+def Decls.relNames (ds : Decls) (S : Val) : List String :=
   if ds.writesRel S then
-    ((List.range ds.length).foldl
+    (List.range ds.length).foldl
       (fun rs _ => (ds.filter fun d => d.2.holdsRel || d.2.refs.any rs.contains ||
-          d.2.paths.any fun q => !relPath q && ds.relTarget S rs (S.size + 1) q).map (·.1)) []).filter
-      fun n => !ds.recursiveB n
+          d.2.paths.any fun q => !relPath q && ds.relTarget S rs (S.size + 1) q).map (·.1)) []
   else []
 ```
 
@@ -3259,6 +3297,30 @@ place as well. With `%T = {u: %U}` and `%U = {w: ..x}`, the use at
 `error`, as both engines' `vet` reads it where `%T` comes first. Where
 `%T = $.a.b` comes first, both engines read the target's paths below
 `$.%T`, which #692 tracks.
+
+A use of such a name that isn't recursive reads as a copy wherever it
+stands (`Decls.copyNames`). A recursive name's copies would never end,
+so a use of one reads as a copy only where the data writes at its
+place, or the document writes something there besides the use itself,
+through its members and the names that aren't recursive:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.reachesAt (ds : Decls) (S : Val) (oj : Option Data) (p : List Seg) : Bool :=
+  (oj.bind fun j => j.at p).isSome ||
+    (Decls.landingAt (ds.filter fun (d : String × Val) => !ds.recursiveB d.1) S false (ds.landBudget S p)
+      [(S, [], p)]).any fun t => !(t.unride.alias?.any ds.recursiveB)
+```
+
+With `%T = {x: integer, y: .x, b?: %T}` and `a: %T`, data that writes
+`a.b` makes the use there a copy, so `a.b.y` reads `a.b.x`: `"b": {"x":
+2, "y": 2}` under `a` is valid and `"b": {"x": 2, "y": 1}` is invalid,
+as both engines' `vet` reads them. Below the last level the data or the
+schema writes, the use reads the body at its own place, where no member
+stands. The schema reaches a level too, so
+`a: {x: 1, b: {x: 2}} & %T` generates `a.b.y` as 2. Both engines'
+evaluation reads every level below the first at the body's own place,
+which #765 tracks.
 
 A reference that stands inside its own place, `b?: $.a` within `a`, is
 a recursion, and reads as it's written. A copy meets the data at each
@@ -3373,6 +3435,21 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (Decls.prepared_checkableA rootsS_readable rootsS_readable hb hS)
     (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS)
     (Decls.prepared_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS) v
+```
+
+Ruling 49 has a selection whose scrutinee the schema leaves open wait
+for the data. In `x: {kind: string, v: match(.kind, "a", 1, "b", 2)}`
+the data's `kind` picks the arm, `"c"` is `invalid`, and with no
+`kind` the document is `incomplete`. The schema's own reading keeps the
+selection waiting, a term the checker can't read. The `error` class
+reads only the names, the alias-cycle rule and the schema's form,
+though, so the verdict needs only the reading with the data to be one
+the checker reads (`vetA_iff_data`, `vetP_iff_readsD`):
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+theorem vet_error_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} :
+    vet m ds S j = .error ↔ Vet m ds S j .error := by
 ```
 
 A recursive position, `then?: $.schema.Step` inside `Step`, is a name
@@ -5842,9 +5919,9 @@ least zero.
 Two forms select by a value rather than try one. `match(s, p₁, r₁, …,
 d?)` is the first result whose pattern admits the value the scrutinee
 `s` generates, the default `d` where none does, and an error where
-there is no default; `filter(s, c)` is the members of the container `s`
-generates that `c` admits. Each is a form of the syntax, `match` under
-the name `select`, since Lean keeps `match`:
+there is no default; `filter(s, c)` is the members of `s` that `c`
+takes, each tried as written. Each is a form of the syntax,
+`match` under the name `select`, since Lean keeps `match`:
 
 <!-- test: quote spec/Aontu/Syntax.lean -->
 ```lean
@@ -5882,10 +5959,15 @@ term stands at, which step 29 covers:
 template is read for, which each hole in the template stands for, and
 `here` the position the term stands at, where one is placed: each
 `match` whose scrutinee generates a value is the result its arms select
-for it, and each `filter` whose source generates a container is the
-members its condition admits, as a term, or `nil` where the source
-generates a scalar, which has no members. One whose scrutinee or source
-generates nothing stays, and generates nothing. An `each` is the list of
+for it. A `filter` whose source's normal form is a map or a list is the
+members its condition takes as the terms they are (`filterTakes`, ruling
+51), tried in the order `Val.members` reads them; one whose source is
+otherwise a value that generates a container is the members whose data
+its condition admits, as a term; and one whose source generates a
+scalar, which has no members, is `nil`. A selection whose scrutinee
+generates nothing stays, and generates nothing, and so does a `filter`
+whose source generates nothing and is no map or list, or holds a form
+no reading has made yet (`Val.unmade`). An `each` is the list of
 its template read for each member of its data, in the order `Val.members`
 reads them, less each reading that is absence or carries a mark of its
 own, as a list holds no position for either, and `nil` where the data
@@ -5896,9 +5978,12 @@ data is no bag or a list holds anything but a string. An `emit` is the
 list of the pieces its table makes of each member of its selection, in
 the order `Val.members` reads them, its `match`es read for no member and
 its bodies for the member, each hole and each reference into the node
-bound to it (`nodeRef`), and stays as written, a call no reading makes,
-where a template lacks its `match` or a list for its `body`, the selection is no
-bag, or a member makes no pieces (`emitPieces`). A `maybe` is
+bound to it (`nodeRef`), each element of a body the table writes read
+where its piece lands in the list (`emitTableD`, `emitElemsD`), and
+stays as written, a call no reading makes, where a template lacks its
+`match` or a list for its `body`, the selection is no bag, or a member
+makes no pieces (`emitPlan`), and where no position places a `key(n)`
+the table holds. A `maybe` is
 what `maybeOf` makes of its argument, and a call, a generator, a
 selection or a `filter` that takes absence is absence, as a list holds
 no position for an element that is absence, nor for one a mark of its
@@ -5946,27 +6031,59 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
   | .filter s c =>
     let s' := resolveD ds b here s
     if here.isNone && c.holdsKey then .filter s' c else
+    if ds.filterWaits s' then
+      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
+      else .filter s' (resolveD ds none none c)
+    else
+    match (normaliseD ds s').unride with
+    | .map fs _ _ => (Val.map ((filterFields ds fs).filterMap fun m =>
+        if filterTakes ds (resolveD ds (some m.2) (stepped here (.seg (.key m.1))) c) m.2
+        then some (m.1, false, m.2) else none) none false).rideMoves s'.moves
+    | .list items _ _ => (Val.list (keptTerms (fun i v =>
+        filterTakes ds (resolveD ds (some v) (stepped here (.seg (.idx i))) c) v) 0 (filterItems items))
+        none false).rideMoves s'.moves
+    | _ =>
     match genD ds s' with
     | some (.map fs) => (keptFields (normaliseD ds s').unride (fs.filter fun m =>
         checkR ds (resolveD ds (some m.2.term) (stepped here (.seg (.key m.1))) c) m.2)).rideMoves s'.moves
     | some (.list xs) => (keptElems (normaliseD ds s').unride (fun i x =>
         checkR ds (resolveD ds (some x.term) (stepped here (.seg (.idx i))) c) x) xs).rideMoves s'.moves
     | some _ => .nil
-    | none =>
-      if (normaliseD ds s').isAbsent then .absent else if (normaliseD ds s').dead then .nil
-      else .filter s' (resolveD ds none none c)
+    | none => .filter s' (resolveD ds none none c)
 ```
 
-A made `filter` holds each child its condition admits as the child
-itself: the member the source's normal form holds under its key, or the
-element at its position (`keptFields`, `keptElems`), where its
-generated data only decides whether the condition admits it. So
-`b: filter({x: *1 | 2}, any) & {x: 2}` is `{"b": {"x": 2}}`, and a link
-in a child the condition keeps sends its template, while one in a child
-it refuses sends none, as in both engines. Rows fk0 to fk20 hold both
-engines to it. A child that generates nothing, `filter({x: integer},
-any)`, leaves the `filter` unmade, where both engines keep the child,
-which #674 tracks.
+A made `filter` tries each child as written, as ruling 51 asks, and
+holds each child its condition takes as the child itself: the member
+the source's normal form holds under its key, or the element at its
+position. The condition takes a child where their meet narrows
+nothing, so that every value the child admits is one the condition
+admits, and a disjunction with no preference among its arms where the
+meet leaves an arm, as both engines try a child:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def filterTakes (ds : Decls) (c v : Val) : Bool :=
+  let met := normaliseD ds (meetD ds c v)
+  !met.dead && ((normaliseD ds v).freeChoice ||
+    match (normaliseD ds v).unride.kindless, met.unride.one.kindless with
+    | .or _, w => (normaliseD ds v).unride.kindless.admitAlike ds w
+    | _, .or arms => arms.any fun a => (normaliseD ds v).unride.kindless.admitAlike ds a.2.unride.one.kindless
+    | _, w => (normaliseD ds v).unride.kindless.admitAlike ds w)
+```
+
+So `filter({x: integer}, any)` keeps `x: integer` for the data to
+meet, and `filter({x: integer}, 1)` drops it, since `integer` admits
+values `1` doesn't. `b: filter({x: *1 | 2}, any) & {x: 2}` is
+`{"b": {"x": 2}}`, while `filter({x: *1 | 2}, 1)` drops `x`, whose
+preference admits `2`. A link in a child the condition keeps sends its
+template, while one in a child it drops sends none, as in both engines.
+A child that holds a call or a selection no reading has made yet, and
+so generates nothing, leaves the `filter` waiting (`Decls.filterWaits`),
+as both engines wait for their source to settle. Where a source's
+normal form is no map or list, as a preference between two maps is,
+the data the source generates decides what the `filter` keeps
+(`keptFields`, `keptElems`). Rows fk0 to fk20
+and ft0 to ft44 hold both engines to it.
 
 Both engines read some of a trial's arguments as they build the trial,
 and a conflict there makes the trial a conflict where it stands: a
@@ -6049,17 +6166,20 @@ theorem selectArm_default {ds : Decls} {x : Data} {d : Option Val} : selectArm d
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
 /-- A `filter` read at a position over a list keeps the elements its
-condition admits, in their order, each the element the source's normal
-form holds there, the condition read for each element it tries, at the
-index the element takes among those kept, carrying the moves its source
+condition takes as the terms they are, in their order, but a marked one
+and absence, the condition read for each element it tries, at the index
+the element takes among those kept, carrying the moves its source
 holds. -/
 theorem resolveD_filter_list {ds : Decls} {b : Option Val} {pos : List Step} {s c : Val}
-    {xs : List Data} (h : genD ds (resolveD ds b (some pos) s) = some (.list xs)) :
+    {items : List Val} {sp : Option Val} {cl : Bool}
+    (hw : ds.filterWaits (resolveD ds b (some pos) s) = false)
+    (hl : (normaliseD ds (resolveD ds b (some pos) s)).unride = .list items sp cl) :
     resolveD ds b (some pos) (.filter s c) =
-      (keptElems (normaliseD ds (resolveD ds b (some pos) s)).unride (fun i x =>
-        checkR ds (resolveD ds (some x.term) (stepped (some pos) (.seg (.idx i))) c) x) xs).rideMoves
-        (resolveD ds b (some pos) s).moves := by
-  simp [resolveD, h]
+      (Val.list (keptTerms (fun i v =>
+        filterTakes ds (resolveD ds (some v) (stepped (some pos) (.seg (.idx i))) c) v) 0 (filterItems items))
+        none false).rideMoves (resolveD ds b (some pos) s).moves := by
+  rw [resolveD.eq_def]
+  simp only [Option.isNone_some, Bool.false_and, Bool.false_eq_true, ite_false, hw, hl]
 ```
 
 So `vet` decides a document that selects:
@@ -8899,6 +9019,33 @@ written at `b` climbs past the top, an `error`. The template meets the
 target with its marks cleared, as a reference copies a value, so
 `relate(type({ k:1 }))` makes the target `{ k:1 }`, not a type.
 
+The template reads its relative paths where it lands as well, at the
+target, as a spread's template reads its own at each member and a
+copy's where the copy stands, by ruling 50. Placing the document stands
+a link's template at its link's target, wherever the link is, through
+the step `Seg.lands`, which the written document never takes, so that
+each relative path in the template names the place it climbs to from
+there:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def climb (pos : List Seg) (n : ℕ) (p : List Seg) : Option (List Seg) :=
+  match pos with
+  | .lands c :: rest =>
+    if n ≤ rest.length then some (.lands c :: rest.take (rest.length - n) ++ p)
+    else some (.lands (c + (n - rest.length)) :: p)
+  | _ => if n ≤ pos.length then some (pos.take (pos.length - n) ++ p) else none
+```
+
+The link's flow then reads each such path from the target it reaches,
+by `Val.atTarget`. So `x: {m: {k: 2}, n: relate({v: .k}) & path(.m)}`
+sends `v: 2` into `x.m`, and a link the template carries reads its own
+address and template where that template lands. Both engines read the
+template's relative paths where the document writes the link, inside
+the template, where they name nothing. Rows ll0 to ll20 hold the
+definition to the ruling, and the ledger lists the nine on which both
+engines answer otherwise, which #661 tracks.
+
 A link reads where it lands, not where it's written: a `type()` that
 holds a link reaches each place that uses it through a path reference,
 a spread's template reaches each member, and a generator's template
@@ -9014,14 +9161,16 @@ holds no such place, so the template meets nothing the schema holds:
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Decls.atOwnBody (ds : Decls) (pos p : List Seg) : Bool :=
-  p.head? == pos.head? && (ds.bodyAt p).isSome
+  p.head? == pos.head? && (match p with
+    | .own n :: _ => (ds.pathAt (ds.ownPlace n) p).isSome
+    | _ => false)
 ```
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def referFlow (ds : Decls) (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val)
     (a : Addr) : Val :=
-  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p t with
+  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p (t.atTarget p) with
   | some u => .meet acc u
   | none => if (a.from pos).any (ds.atOwnBody pos) then acc else .meet acc miss
 ```
@@ -9038,9 +9187,9 @@ def Decls.bodyClash (ds : Decls) (fs : List (List Seg × Val)) : Bool :=
     match fs.filter (fun f => f.1.head? == some (.own d.1)) with
     | [] => false
     | gs =>
-      let b := normaliseD ds (ds.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2) .any))
-      ((normaliseD ds (ds.readU (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged
-        ds).illFormed
+      let b := ((ds.callsMade.ownPlace d.1).at [.own d.1]).getD .any
+      ((normaliseD ds.callsMade (ds.callsMade.readU
+        (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged ds.callsMade).illFormed
 ```
 
 A path in the body reads the template the link meets there: `z: .m.k`
@@ -9051,15 +9200,19 @@ templates its own links meet in it:
 ```lean
 def Decls.ownLinked (ds : Decls) (B : Val) : Val :=
   let R := normaliseD ds (ds.readU B)
-  (ds.nfLinks R []).foldl (referStep ds [R] .any []) B
+  (ds.nfLinks R []).foldl (ownStep R) B
 ```
 
-A target the place doesn't hold meets `any` there, since the link passes
-judge it. So a second link whose target the first link's template makes,
+A target the place doesn't hold meets nothing there, since the link
+passes judge it, and the place reads its links' templates in passes,
+each reading the place the last one made (`Decls.ownLinkedN`). So a
+second link whose target the first link's template makes,
 `o: relate({k: 1}) & path(.m.q)` beside `n: relate({q: {}}) & path(.m)`,
-finds no target in the link passes, which read the body's place as its
-bodies write it, and the document is an `error`, where both engines read
-it as `valid`, which #664 tracks. At a use of the name, `a: %T`, the
+finds its target in the second pass. The link passes ask the same
+place whether a link's own body holds its target (`Decls.atOwnBody`),
+so they read the document as `valid`, as both engines do, and two
+templates that conflict once the chain lands make it an `error`. At a
+use of the name, `a: %T`, the
 use's own link sends the template into `a.m`, where `a.z` reads it, as
 in the same document written in place, where both engines leave `a.z`
 naming nothing, which #723 tracks.
@@ -9838,27 +9991,33 @@ $ aontu emit.aontu
 and a list for its `body` (`emitRuleOk`), the body written as a list
 rather than a path or a call that makes one (`emitRawOk`), so that a bad
 table is an error even over an empty selection. It then reads the table once for
-each node of the selection, as it reads an `each`'s template once for
-each member: its `match`es for no node, and its bodies for the node:
+each node of the selection, in order, as it reads an `each`'s template
+once for each member: its `match`es for no node, and its bodies for the
+node, each node's pieces after the pieces of the nodes before it:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
     | .emit, [s, t] =>
-      if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
+      if here.isNone && ((resolveD ds b here s).holdsKey || t.holdsKey) then
+        .call .emit [resolveD ds b here s, t] else
       if (emitTable t).any (fun r => !emitRawOk r) ||
         (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
         .call .emit [resolveD ds b here s, t] else
       match (normaliseD ds (resolveD ds b here s)).members ds with
       | some ms =>
-        let pss := ms.map fun m => emitPieces ds m t (resolveD ds none none t) (resolveD ds (some m) none t)
-        if pss.all Option.isSome then (Val.list (pss.filterMap id).flatten none false).rideMoves (resolveD ds b here s).moves
-        else .call .emit [resolveD ds b here s, t]
+        match ms.foldl (fun (acc : Option (List Val)) m => acc.bind fun ps =>
+            match emitPlan ds m t (resolveD ds none none t) (resolveD ds (some m) none t) with
+            | some (.inl k) => (emitTableD ds m here ps.length k t).map (ps ++ ·)
+            | some (.inr qs) => some (ps ++ qs)
+            | none => none) (some []) with
+        | some ps => (Val.list ps none false).rideMoves (resolveD ds b here s).moves
+        | none => .call .emit [resolveD ds b here s, t]
       | none =>
         if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
         else .call .emit [resolveD ds b here s, t]
 ```
 
-`emitPieces` takes the first template whose `match` takes the node, and
+`emitPlan` takes the first template whose `match` takes the node, and
 a `match` takes a node the way both engines dispatch. The node, met with
 the `match`, must not die, and must be alike the node: the meet narrows
 nothing. So `{k: 1}` takes the node `{"k": 1}`, and so do `{}`, `map`
@@ -9915,6 +10074,77 @@ def nodeRef (b : Option Val) : List Seg → Val
   | p => .path p
 ```
 
+Where the table writes the template as a map, as a table nearly always
+does, `emitTableD` reads its body as written, each element where its
+piece lands in the answer: at the index the pieces before it leave,
+every earlier node's pieces counted and each earlier element's spliced
+in. So a `key(n)` in a body reads that position. `key(0)` is the
+index, `key()` is the key of the member that holds the `emit`, and a
+level past the top is `""`. A list in the body reads its own elements'
+indexes, before it splices, and a nested `emit` reads the positions in
+its own answer. An element that reads as absence, or carries a mark of
+its own, makes no piece and takes no position, as a list holds none for
+it:
+
+<!-- test: quote spec/Aontu/Verdict.lean -->
+```lean
+def emitElemsD (ds : Decls) (m : Val) (here : Option (List Step)) : ℕ → List Val → Option (List Val)
+  | _, [] => some []
+  | c, e :: es =>
+    if (normaliseD ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e)).isAbsent ||
+        (normaliseD ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e)).marked then
+      emitElemsD ds m here c es
+    else if (resolveD ds (some m) (stepped here (.seg (.idx c))) e).paths.any
+        (fun p => p.head? == some .node) then none
+    else
+      (emitElemsD ds m here (c + (emitSpliceF ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e).size
+          (resolveD ds (some m) (stepped here (.seg (.idx c))) e)).length) es).map
+        (emitSpliceF ds (resolveD ds (some m) (stepped here (.seg (.idx c))) e).size
+          (resolveD ds (some m) (stepped here (.seg (.idx c))) e) ++ ·)
+```
+
+Write `emit-keys.aontu`:
+
+<!-- test: scenario emitkeys -->
+<!-- test: file emit-keys.aontu -->
+```aontu
+lines: emit([1 2], { match:number body: ["n" key(0)] })
+pairs: emit([1 2], { match:number body: [["p" key(0)] key(0)] })
+```
+
+and evaluate it:
+
+<!-- test: run -->
+```sh
+$ aontu emit-keys.aontu
+{
+  "lines": [
+    "n",
+    "1",
+    "n",
+    "3"
+  ],
+  "pairs": [
+    "p",
+    "1",
+    "2",
+    "p",
+    "1",
+    "5"
+  ]
+}
+```
+
+Each node makes two pieces in `lines`, so the second node's `key(0)`
+reads 3. In `pairs` the list `["p", key(0)]` reads its own index, 1,
+before it splices, and the `key(0)` after it reads 2, the index the
+pieces of the list leave. `emitBody` reads a template a call makes,
+rather than one the table writes, for its node at no position, so a
+body there that holds a `key(n)` stays unmade. The rows are ek0 on.
+Both engines answer every one as the definition does, but for a marked
+piece, which they still give a position, as #539 records. The ledger
+takes those six rows, ek72 to ek77.
+
 A nested `emit` reads its selection, `.logs`, for the outer node, and
 its own table for each of its own nodes. An empty selection emits
 nothing, but both engines check its table all the same. Both refuse a
@@ -9930,15 +10160,99 @@ rows are et0 on, over selections written in place, and em0 on, where a
 path names the selection. Both engines answer every one as the
 definition does.
 
-The definition doesn't yet read a table named apart from its call,
-`emit(_, t)`, which is how a rule set recurses, `replace` and `esc` in
-a body, or a reference into the node inside an `each`, a `pack` or a
-`filter`'s condition in a body. It leaves a body that holds a `key(n)`
-unmade too, since the engines read it at different positions, as #524
-records, and one whose spread holds a reference into the node. Both
-engines leave such a spread unbound, so the reference reads nowhere and
-refuses a member the spread meets, but they pass a spread that meets
-no member, which the definition doesn't yet.
+A document may write a table as an `emit` call itself. `emit(_, t)` is
+a rule set waiting for its nodes, and an `emit` that takes it as its
+table reads the table it holds, at any depth, as `Fn.tableArgs` has the
+expansion read it. So a declaration `%w = emit(_, t)` names a rule set
+that serves each `emit` that takes it:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+def innerTable : Val → Val
+  | .call .emit [_, t] => innerTable t
+  | t => t
+```
+
+Only a table's place binds that hole: `%w` used anywhere else holds a
+hole nothing binds, an error, as both engines answer `hole_unbound`.
+Rows ew0 on hold tables written in place and en0 on named ones. Both
+engines answer every one as the definition does but six, a name for a
+template, `%r = {match: number, body: [key(0)]}`, whose `key(0)` both
+read at the declaration's own place, as #528 records. The ledger takes
+those six. TypeScript also reads a bare `key(n)` in a named table's
+body at the body's own index, where the `emit` stands at the top of
+the document, which #783 tracks and no row holds.
+
+A named table may name itself, which is how a rule set walks a nested
+selection into nested output. The name is recursive, so the expansion
+leaves it a residual everywhere but at a table's place, where it reads
+the name's bodies, a level for each turn it has left
+(`Decls.tableUnfold`):
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+def Decls.tableUnfold (ds : Decls) (e : Val → Val) : Fn → List Val → List Val
+  | .emit, [s, .alias n] => [s, if ds.recursiveB n then ((ds.env n).map e).getD (.alias n) else .alias n]
+  | _, as => as
+```
+
+The selection bounds the walk: each level descends into a finite bag
+the document holds, and the turns, which grow with the document, reach
+deeper than any bag it writes. A rule set that walks into itself
+without descending spends them, and the `emit` the last level leaves
+unmade is an error, as both engines answer. A selection the data alone
+supplies through a path may run deeper than the document's own turns
+reach, which the definition doesn't yet bound by the data. Rows er0 on
+hold a tree of one child and one of two, with and without a `key(n)` in
+the body. They hold two tables that name each other too, and a walk
+over an empty selection beside one that never descends.
+
+A template may write a `replace` map and an `esc` convention, and the
+expansion writes them into its body before any reading
+(`Val.replaced`), so the reading needs no rule of its own for them.
+Each key in each literal line of the body becomes the key's value, read
+for the node as its text, `"" + v`, the way `+` spells a number or a
+boolean. The template's `esc` member names the convention that escapes
+that text. Where the template has none, `esc`'s own default applies,
+and `none` leaves the text unchanged:
+
+<!-- test: quote spec/Aontu/Alias.lean -->
+```lean
+def escWrite (fs : List (String × Bool × Val)) : Option (Val → Val) :=
+  match fieldsMeet fs "esc" with
+  | none => some fun v => .call .esc [.call .plus [.lit (.str ""), v]]
+  | some (.lit (.str n)) =>
+    if n == "none" then some fun v => .call .translate [.call .plus [.lit (.str ""), v], .lit (.str "")]
+    else if (Escape.ofName? n).isSome then
+      some fun v => .call .esc [.call .plus [.lit (.str ""), v], .lit (.str n)]
+    else none
+  | some _ => none
+```
+
+A literal line is a string the body writes as an element, or one that
+an element written as a map holds in its `n` list or its `text`. Each
+line becomes a `+` of its own text and the values, cut once from the
+left at the longest key (`scanKeys`), so the scan never reads a value
+again, and a piece a nested `emit` splices keeps its own table's
+replacements. A value with no text, a map, a list, `null` or a kind,
+leaves `+` waiting, and `esc` and `translate` refuse anything but a
+string, so the reading refuses the line and the document is an error,
+as both engines answer. The reading refuses the template itself before
+it reads any node, an error too, where a key lies inside another, is
+empty or stands in no literal line, where `replace` is no map, and
+where `esc` names no convention. Rows
+ep0 on hold templates written in place, and eq0 on named ones, a walk
+among them, and both engines answer every one as the definition does.
+A `key(n)` in a replacement's value reads where its line stands, where
+both engines read `key(0)` as the replacement's own key and read
+`key(1)` apart, which #786 tracks, and no row holds one.
+
+The definition doesn't yet read a reference into the node inside an
+`each`, a `pack` or a `filter`'s condition in a body. It leaves a body whose spread holds a
+reference into the node unmade too. Both engines leave such a spread
+unbound, so the reference reads nowhere and refuses a member the spread
+meets, but they pass a spread that meets no member, which the definition
+doesn't yet.
 
 ## 41. What the definition doesn't say yet
 
@@ -9971,20 +10285,17 @@ Nor does it order two recursions of one shape under different names,
 or read a selection inside a recursive name's body, which the checker
 of step 17 reads unmade. Neither has a rule yet.
 
-Nor does it read a link or a spread everywhere one can land. A link
-another link's template carries does send: each pass reads the links
-of the tree the last one made. The definition reads such a link's
-relative address where the link lands, though, and both engines read
-it inside the template, where it names nothing, which #661 tracks. A
-spread whose template reads its member's place, inside a disjunction or
-a selection, keeps its template as written, so a relative path in it
-resolves nowhere, and so does a generator's template there, written or
-in a name used there.
+Nor does it read a spread everywhere one can land. Inside a
+disjunction or a selection, a spread whose template reads its member's
+place keeps its template as written, so a relative path in it resolves
+nowhere, and so does a generator's template there, whether the
+document writes it there or in a name it uses there.
 
-Nor does it read a copy of a recursion where the copy stands. A path
-reference inside its own place, `b?: $.a` within `a`, reads as it's
-written, where ruling 26 would read each copy where it stands, at every
-depth the data goes to.
+Nor does it read a path reference's copy of a recursion where the copy
+stands. A path reference inside its own place, `b?: $.a` within `a`,
+reads as it's written, where ruling 26 would read each copy where it
+stands, at every depth the data goes to, as it reads a use of a
+recursive name.
 
 Next, read [unification](unification.md), which explains in prose the
 operation these rules define.

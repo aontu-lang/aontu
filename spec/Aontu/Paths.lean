@@ -49,6 +49,7 @@ def Val.at : Val → List Seg → Option Val
   | _, .var _ :: _ => none
   | _, .up _ :: _ => none
   | _, .node :: _ => none
+  | _, .lands _ :: _ => none
 termination_by structural _ p => p
 
 /-- The index digits spell in canonical decimal: `0`, or digits that
@@ -110,17 +111,27 @@ def pathName (p : List Seg) : String :=
     | .var n => "$" ++ toString n.length ++ ":" ++ n
     | .up n => "^" ++ toString n
     | .node => "_"
-    | .own n => "%" ++ toString n.length ++ ":" ++ n)
+    | .own n => "%" ++ toString n.length ++ ":" ++ n
+    | .lands n => "<" ++ toString n)
+
+/-- Whether a path starts at a link's target (`Seg.lands`): a relative
+path in a link's template, placed where the template lands (ruling 50),
+which names a place only once its link's target is read. -/
+def landsPath : List Seg → Bool
+  | .lands _ :: _ => true
+  | _ => false
 
 mutual
 /-- The term with each path replaced by a reference to the path's name,
 but a reference into an `emit`'s node (`Seg.node`), which names no
-place, and which the `emit` reads for each node. A `move` keeps the
+place, and which the `emit` reads for each node, and a path in a link's
+template that starts at the link's target (`landsPath`), which the
+template reads once it lands there (`Val.atTarget`). A `move` keeps the
 name of the path it reads, a rider around the reference
 (`Rider.move`), so that the value the call makes carries it into the
 normal form (`Val.moves`). -/
 def Val.pathsToAliases : Val → Val
-  | .path p => if p.head? == some .node then .path p else .alias (pathName p)
+  | .path p => if p.head? == some .node || landsPath p then .path p else .alias (pathName p)
   | .len c => .len c.pathsToAliases
   | .map fs spread closed => .map (ptaFields fs) (ptaSpread spread) closed
   | .list items spread closed => .list (ptaItems items) (ptaSpread spread) closed
@@ -180,7 +191,25 @@ the same place for every member, since the path's first dot leaves the
 member's own step behind. A path that climbs past the top stays as
 written, and resolves nowhere. -/
 def bareTo (pos : List Seg) (n : ℕ) (p : List Seg) : List Seg :=
-  if 0 < n ∧ n ≤ pos.length + 1 then pos.take (pos.length + 1 - n) ++ p else .up n :: p
+  match pos with
+  | .lands c :: rest =>
+    if 0 < n then
+      if n ≤ rest.length + 1 then .lands c :: rest.take (rest.length + 1 - n) ++ p
+      else .lands (c + (n - (rest.length + 1))) :: p
+    else .up n :: p
+  | _ => if 0 < n ∧ n ≤ pos.length + 1 then pos.take (pos.length + 1 - n) ++ p else .up n :: p
+
+/-- The written path `n` dots and `p` name from a term at `pos`: `n`
+steps up from `pos`, then `p`, none where that climbs past the top; and
+from a place in a link's template, which stands at the link's target
+(`Seg.lands`), the place it names from there, as many steps above the
+target as it climbs past the template. -/
+def climb (pos : List Seg) (n : ℕ) (p : List Seg) : Option (List Seg) :=
+  match pos with
+  | .lands c :: rest =>
+    if n ≤ rest.length then some (.lands c :: rest.take (rest.length - n) ++ p)
+    else some (.lands (c + (n - rest.length)) :: p)
+  | _ => if n ≤ pos.length then some (pos.take (pos.length - n) ++ p) else none
 
 /-- A spread that is a relative path, placed where its members stand
 (`bareTo`). Any other spread stays as written, to be read at each member
@@ -199,11 +228,15 @@ its members do (`plBare`). A `filter`'s condition stands where the
 member it tries lands, one step below the filter, a step no written
 path names (`.up 0`): a path that climbs out of the member names the
 same place for every member, and one that stays inside it keeps the
-step and names nothing, as both ports read it. Any other spread and a
-template keep theirs as written, since each stands at a position the
-written document doesn't name. -/
+step and names nothing, as both ports read it. A link's template
+stands where it lands, at the link's target (`Seg.lands`, ruling 50).
+Any other spread and a template keep theirs as written, since each
+stands at a position the written document doesn't name. -/
 def Val.placed (pos : List Seg) : Val → Val
-  | .path (.up n :: p) => if n ≤ pos.length then .path (pos.take (pos.length - n) ++ p) else .path (.up n :: p)
+  | .path (.up n :: p) =>
+    match climb pos n p with
+    | some q => .path q
+    | none => .path (.up n :: p)
   | .len c => .len (c.placed pos)
   | .map fs spread closed => .map (plFields pos fs) (plBare pos spread) closed
   | .list items spread closed => .list (plElems pos 0 items) (plBare pos spread) closed
@@ -243,10 +276,12 @@ def plItems (pos : List Seg) : List Val → List Val
   | v :: vs => v.placed pos :: plItems pos vs
 
 /-- A call's arguments placed, but a generator's template, which stays
-as written. -/
+as written, and a link's template, placed where it lands, at its link's
+target (`Seg.lands`), wherever the link stands (ruling 50). -/
 def plArgs (pos : List Seg) (f : Fn) : List Val → List Val
   | [] => []
-  | v :: vs => v.placed pos :: (if f = .each ∨ f = .pack then vs else plArgs pos f vs)
+  | v :: vs => v.placed (if f = .relate then [.lands 0] else pos) ::
+      (if f = .each ∨ f = .pack then vs else plArgs pos f vs)
 
 def plSpread (pos : List Seg) : Option Val → Option Val
   | none => none
@@ -307,6 +342,10 @@ name, `@` and the position's name (`pathName`), which no document can
 write, since a name a document writes holds no `@`. -/
 def useName (n : String) (pos : List Seg) : String := n ++ "@" ++ pathName pos
 
+/-- Whether `m` names a copy of a body of `n` (`useName`), its name `n`
+and `@` before the place's. -/
+def isCopyOf (n m : String) : Bool := (n ++ "@").toList.isPrefixOf m.toList
+
 /-- What a use stands for: a name, or the place a path reference names. -/
 inductive Use where
   | name (n : String)
@@ -333,8 +372,9 @@ def refUse (p pos : List Seg) : Option Val → Val
   | none => .alias (useName (Use.place p).key pos)
 
 mutual
-/-- The term standing at `pos` with each use of a name of `rs` read as
-the copy of the name's body at the use (`useName`), and each path
+/-- The term standing at `pos` with each use of a name that `rs` reads
+as a copy where the use stands read as the copy of the name's body at
+the use (`useName`), and each path
 reference to a place `rt` holds, one whose terms read their own place
 (`Decls.relTarget`), as the copy of what the document writes there
 (`refUse`), met with what `dl` reads at the place, at the positions
@@ -342,9 +382,9 @@ reference to a place `rt` holds, one whose terms read their own place
 spread, which are read at each member, not the path a `move` reads,
 which names its source, and not a reference that stands inside its own
 place, a recursion, which reads as it's written. -/
-def Val.atUses (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) :
+def Val.atUses (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) :
     Val → Val
-  | .alias n => if rs.contains n then .alias (useName n pos) else .alias n
+  | .alias n => if rs pos n then .alias (useName n pos) else .alias n
   | .path q =>
     if rt (absPath pos q) && !(absPath pos q).isPrefixOf pos then refUse (absPath pos q) pos (dl (absPath pos q))
     else .path q
@@ -366,45 +406,45 @@ def Val.atUses (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Op
   | .link v lt => .link (v.atUses rs rt dl pos) lt
   | v => v
 
-def auPairs (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (Val × Val) → List (Val × Val)
+def auPairs (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (Val × Val) → List (Val × Val)
   | [] => []
   | (p, r) :: ps => (p.atUses rs rt dl pos, r.atUses rs rt dl pos) :: auPairs rs rt dl pos ps
 
-def auCovers (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List Cover → List Cover
+def auCovers (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List Cover → List Cover
   | [] => []
   | (c, k, m) :: cs => (auSpread rs rt dl pos c, auSpread rs rt dl pos k, auSpread rs rt dl pos m) :: auCovers rs rt dl pos cs
 
-def auFields (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (String × Bool × Val) → List (String × Bool × Val)
+def auFields (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (String × Bool × Val) → List (String × Bool × Val)
   | [] => []
   | (k, o, v) :: fs => (k, o, v.atUses rs rt dl (pos ++ [.key k])) :: auFields rs rt dl pos fs
 
-def auElems (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : ℕ → List Val → List Val
+def auElems (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : ℕ → List Val → List Val
   | _, [] => []
   | i, v :: vs => v.atUses rs rt dl (pos ++ [.idx i]) :: auElems rs rt dl pos (i + 1) vs
 
-def auItems (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List Val → List Val
+def auItems (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List Val → List Val
   | [] => []
   | v :: vs => v.atUses rs rt dl pos :: auItems rs rt dl pos vs
 
-def auArgs (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) (f : Fn) : List Val → List Val
+def auArgs (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) (f : Fn) : List Val → List Val
   | [] => []
   | v :: vs => v.atUses rs rt dl pos :: (if f = .each ∨ f = .pack then vs else auArgs rs rt dl pos f vs)
 
-def auSpread (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : Option Val → Option Val
+def auSpread (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : Option Val → Option Val
   | none => none
   | some s => some (s.atUses rs rt dl pos)
 
-def auArms (rs : List String) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (ℕ × Val) → List (ℕ × Val)
+def auArms (rs : List Seg → String → Bool) (rt : List Seg → Bool) (dl : List Seg → Option Val) (pos : List Seg) : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
   | (r, a) :: as => (r, a.atUses rs rt dl pos) :: auArms rs rt dl pos as
 end
 
 mutual
-/-- Each use a term standing at `pos` holds, a name of `rs` or a path
-reference to a place `rt` holds, with the position it stands at, where
-`Val.atUses` reads one. -/
-def Val.usesAt (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : Val → List (Use × List Seg)
-  | .alias n => if rs.contains n then [(.name n, pos)] else []
+/-- Each use a term standing at `pos` holds, a name that `rs` reads as a
+copy where the use stands or a path reference to a place `rt` holds,
+with the position it stands at, where `Val.atUses` reads one. -/
+def Val.usesAt (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : Val → List (Use × List Seg)
+  | .alias n => if rs pos n then [(.name n, pos)] else []
   | .path q => if rt (absPath pos q) && !(absPath pos q).isPrefixOf pos then [(.place (absPath pos q), pos)] else []
   | .len c => c.usesAt rs rt pos
   | .map fs _ _ => usFields rs rt pos fs
@@ -424,35 +464,35 @@ def Val.usesAt (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : Va
   | .link v _ => v.usesAt rs rt pos
   | _ => []
 
-def usPairs (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : List (Val × Val) → List (Use × List Seg)
+def usPairs (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : List (Val × Val) → List (Use × List Seg)
   | [] => []
   | (p, r) :: ps => p.usesAt rs rt pos ++ r.usesAt rs rt pos ++ usPairs rs rt pos ps
 
-def usCovers (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : List Cover → List (Use × List Seg)
+def usCovers (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : List Cover → List (Use × List Seg)
   | [] => []
   | (c, k, m) :: cs => usSpread rs rt pos c ++ usSpread rs rt pos k ++ usSpread rs rt pos m ++ usCovers rs rt pos cs
 
-def usFields (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : List (String × Bool × Val) → List (Use × List Seg)
+def usFields (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : List (String × Bool × Val) → List (Use × List Seg)
   | [] => []
   | (k, _, v) :: fs => v.usesAt rs rt (pos ++ [.key k]) ++ usFields rs rt pos fs
 
-def usElems (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : ℕ → List Val → List (Use × List Seg)
+def usElems (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : ℕ → List Val → List (Use × List Seg)
   | _, [] => []
   | i, v :: vs => v.usesAt rs rt (pos ++ [.idx i]) ++ usElems rs rt pos (i + 1) vs
 
-def usItems (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : List Val → List (Use × List Seg)
+def usItems (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : List Val → List (Use × List Seg)
   | [] => []
   | v :: vs => v.usesAt rs rt pos ++ usItems rs rt pos vs
 
-def usArgs (rs : List String) (rt : List Seg → Bool) (pos : List Seg) (f : Fn) : List Val → List (Use × List Seg)
+def usArgs (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) (f : Fn) : List Val → List (Use × List Seg)
   | [] => []
   | v :: vs => v.usesAt rs rt pos ++ (if f = .each ∨ f = .pack then [] else usArgs rs rt pos f vs)
 
-def usSpread (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : Option Val → List (Use × List Seg)
+def usSpread (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : Option Val → List (Use × List Seg)
   | none => []
   | some s => s.usesAt rs rt pos
 
-def usArms (rs : List String) (rt : List Seg → Bool) (pos : List Seg) : List (ℕ × Val) → List (Use × List Seg)
+def usArms (rs : List Seg → String → Bool) (rt : List Seg → Bool) (pos : List Seg) : List (ℕ × Val) → List (Use × List Seg)
   | [] => []
   | (_, a) :: as => a.usesAt rs rt pos ++ usArms rs rt pos as
 end
@@ -912,8 +952,10 @@ def Decls.ofPaths (ds : Decls) (roots : List Val) (ps : List (List Seg)) (bs : L
   ps.filterMap fun p => (ds.pathIn roots p bs).map fun w => (pathName p, w.pathsToAliases)
 
 /-- Whether a path names a place, as every path does but a reference
-into an `emit`'s node (`Seg.node`). -/
-def placePath (p : List Seg) : Bool := p.head? != some .node
+into an `emit`'s node (`Seg.node`) and a path in a link's template that
+starts at the link's target (`landsPath`), which names one only once
+the template lands there. -/
+def placePath (p : List Seg) : Bool := p.head? != some .node && !landsPath p
 
 /-- The paths a document writes: in the schema as read and in every body,
 each that names a place (`placePath`). -/
@@ -1055,21 +1097,165 @@ template where its link stands. -/
 def Decls.nfLinks (ds : Decls) (root : Val) (home : List Seg) : List (List Seg × Val × Val) :=
   (root.links []).map fun e => (e.1, resolveD ds none (some ((home ++ e.1).map .seg)) e.2.1, e.2.2)
 
+mutual
+/-- A link's template as it lands at its target `T` (ruling 50): each
+path that starts at the link's target (`Seg.lands`) read from `T`, as
+many steps above it as the path climbs past the template, and `nil`
+where that climbs past the top; a link's template inside it kept as it
+is, since it lands at its own link's target. -/
+def Val.atTarget (T : List Seg) : Val → Val
+  | .path (.lands c :: p) => if c ≤ T.length then .path (T.take (T.length - c) ++ p) else .nil
+  | .len c => .len (c.atTarget T)
+  | .map fs spread closed => .map (atFields T fs) (atSpread T spread) closed
+  | .list items spread closed => .list (atItems T items) (atSpread T spread) closed
+  | .or arms => .or (atArms T arms)
+  | .pref r x => .pref r (x.atTarget T)
+  | .meet a b => .meet (a.atTarget T) (b.atTarget T)
+  | .nof n cs => .nof (n.atTarget T) (atItems T cs)
+  | .must c m => .must (c.atTarget T) m
+  | .when c t e => .when (c.atTarget T) (t.atTarget T) (atSpread T e)
+  | .contains c n => .contains (c.atTarget T) (n.atTarget T)
+  | .rest t cs => .rest (t.atTarget T) (atCovers T cs)
+  | .select s arms d => .select (s.atTarget T) (atPairs T arms) (atSpread T d)
+  | .filter s c => .filter (s.atTarget T) (c.atTarget T)
+  | .call f args => if f = .relate then .call f args else .call f (atItems T args)
+  | .ride k v r => .ride k (v.atTarget T) r
+  | .link v t => .link (v.atTarget T) t
+  | v => v
+
+def atFields (T : List Seg) : List (String × Bool × Val) → List (String × Bool × Val)
+  | [] => []
+  | (k, o, v) :: fs => (k, o, v.atTarget T) :: atFields T fs
+
+def atItems (T : List Seg) : List Val → List Val
+  | [] => []
+  | v :: vs => v.atTarget T :: atItems T vs
+
+def atSpread (T : List Seg) : Option Val → Option Val
+  | none => none
+  | some s => some (s.atTarget T)
+
+def atArms (T : List Seg) : List (ℕ × Val) → List (ℕ × Val)
+  | [] => []
+  | (r, a) :: as => (r, a.atTarget T) :: atArms T as
+
+def atPairs (T : List Seg) : List (Val × Val) → List (Val × Val)
+  | [] => []
+  | (p, r) :: ps => (p.atTarget T, r.atTarget T) :: atPairs T ps
+
+def atCovers (T : List Seg) : List Cover → List Cover
+  | [] => []
+  | (c, k, m) :: cs => (atSpread T c, atSpread T k, atSpread T m) :: atCovers T cs
+end
+
+mutual
+/-- The links a term writes, at any depth: each `relate`,
+in a call's arguments and in another link's template as well. -/
+def Val.linkCalls : Val → ℕ
+  | .call .relate args => lcItems args + 1
+  | .call _ args => lcItems args
+  | .ride _ v _ => v.linkCalls
+  | .link v t => v.linkCalls + t.linkCalls
+  | .len c => c.linkCalls
+  | .map fs spread _ => lcFields fs + lcSpread spread
+  | .list items spread _ => lcItems items + lcSpread spread
+  | .or arms => lcArms arms
+  | .pref _ x => x.linkCalls
+  | .meet a b => a.linkCalls + b.linkCalls
+  | .nof n cs => n.linkCalls + lcItems cs
+  | .must c _ => c.linkCalls
+  | .when c t e => c.linkCalls + t.linkCalls + lcSpread e
+  | .contains c n => c.linkCalls + n.linkCalls
+  | .rest t cs => t.linkCalls + lcCovers cs
+  | .select s arms d => s.linkCalls + lcPairs arms + lcSpread d
+  | .filter s c => s.linkCalls + c.linkCalls
+  | _ => 0
+
+def lcFields : List (String × Bool × Val) → ℕ
+  | [] => 0
+  | (_, _, v) :: fs => v.linkCalls + lcFields fs
+
+def lcItems : List Val → ℕ
+  | [] => 0
+  | v :: vs => v.linkCalls + lcItems vs
+
+def lcSpread : Option Val → ℕ
+  | none => 0
+  | some s => s.linkCalls
+
+def lcArms : List (ℕ × Val) → ℕ
+  | [] => 0
+  | (_, a) :: arms => a.linkCalls + lcArms arms
+
+def lcPairs : List (Val × Val) → ℕ
+  | [] => 0
+  | (p, r) :: ps => p.linkCalls + r.linkCalls + lcPairs ps
+
+def lcCovers : List Cover → ℕ
+  | [] => 0
+  | (c, k, m) :: cs => lcSpread c + lcSpread k + lcSpread m + lcCovers cs
+end
+
+/-- One address's part in a body's own place, read in normal form as
+`R`: `t` met at the path the address names from `pos`, read where it
+lands (`Val.atTarget`), where `R` holds the target, and nothing where it
+doesn't. -/
+def ownFlow (R : Val) (pos : List Seg) (t : Val) (acc : Val) (a : Addr) : Val :=
+  match (a.from pos).bind fun p => R.putW p (t.atTarget p) with
+  | some u => .meet acc u
+  | none => acc
+
+/-- One link's part in a body's own place, read in normal form as `R`:
+its template, its marks cleared, met at each target its addresses name
+from where it stands (`ownFlow`). -/
+def ownStep (R : Val) (acc : Val) (e : List Seg × Val × Val) : Val :=
+  (linkAddrs e).foldl (ownFlow R e.1 e.2.1.unmark) acc
+
+/-- A body's own place, `B`, with the template of each link it holds met
+at the link's target where the place holds the target (`ownStep`), as
+both ports meet a link's template into a member of its own body. A
+target the place doesn't hold meets nothing here, since the link passes
+judge it (`Decls.withRefers`). -/
+def Decls.ownLinked (ds : Decls) (B : Val) : Val :=
+  let R := normaliseD ds (ds.readU B)
+  (ds.nfLinks R []).foldl (ownStep R) B
+
+/-- A body's own place with its links' templates met in `n` times over
+(`Decls.ownLinked`), each pass reading the place the last one made, so
+that one link's template can make another link's target there. -/
+def Decls.ownLinkedN (ds : Decls) (B : Val) : ℕ → Val
+  | 0 => B
+  | n + 1 => ds.ownLinked (ds.ownLinkedN B n)
+
+/-- The tree at a declared name's own place, as the schema's own tree
+reads it: the name's bodies met, at `%` and the name, with its links'
+templates met in, a pass for each link the bodies write and one more
+(`Decls.ownLinkedN`), in normal form, its calls made. -/
+def Decls.ownPlace (ds : Decls) (n : String) : Val :=
+  normaliseD ds (ds.readU (ds.ownLinkedN
+    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false)
+    ((ds.filter (·.1 == n)).foldl (fun k d => k + d.2.linkCalls) 1)))
+
 /-- Whether a path names a member of the body a link written at `pos`
 stands in, at the body's own place: the path's first step the link's
-own, and the body holding a member there (`Decls.bodyAt`). -/
+own, and the place holding a member there with its links' templates met
+in (`Decls.ownPlace`), so that one link's template there can make
+another link's target. -/
 def Decls.atOwnBody (ds : Decls) (pos p : List Seg) : Bool :=
-  p.head? == pos.head? && (ds.bodyAt p).isSome
+  p.head? == pos.head? && (match p with
+    | .own n :: _ => (ds.pathAt (ds.ownPlace n) p).isSome
+    | _ => false)
 
 /-- One address's part in the schema: `t` met at the path the address
-names from `pos` (`Addr.from`, `Val.putW`) in the first of `roots` it
-names something in; nothing at a member of the link's own body
+names from `pos` (`Addr.from`, `Val.putW`), read where it lands there
+(`Val.atTarget`), in the first of `roots` it names something in;
+nothing at a member of the link's own body
 (`Decls.atOwnBody`), which the schema doesn't hold, where
 `Decls.bodyClash` reads what the links send; and `miss` where it names
 nothing or climbs past the top. -/
 def referFlow (ds : Decls) (roots : List Val) (miss : Val) (pos : List Seg) (t : Val) (acc : Val)
     (a : Addr) : Val :=
-  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p t with
+  match (a.from pos).bind fun p => roots.findSome? fun root => root.putW p (t.atTarget p) with
   | some u => .meet acc u
   | none => if (a.from pos).any (ds.atOwnBody pos) then acc else .meet acc miss
 
@@ -1093,22 +1279,10 @@ def Decls.placedNames (ds : Decls) : List String :=
     | .own n :: _ => if ds.any (fun d => d.1 == n) then some n else none
     | _ => none).eraseDups
 
-/-- A body's own place, `B`, with the template of each link it holds met
-at the link's target where the place holds the target (`referStep`), as
-both ports meet a link's template into a member of its own body. A
-target the place doesn't hold meets `any` here, since the link passes
-judge it (`Decls.withRefers`). -/
-def Decls.ownLinked (ds : Decls) (B : Val) : Val :=
-  let R := normaliseD ds (ds.readU B)
-  (ds.nfLinks R []).foldl (referStep ds [R] .any []) B
-
 /-- The tree at each of the places `ns` names, a body's own place, as the
-schema's own tree reads it: the name's bodies met, at `%` and the name,
-with its links' templates met in (`Decls.ownLinked`), in normal form,
-its calls made, as `Decls.bodyAt` reads the place. -/
+schema's own tree reads it (`Decls.ownPlace`). -/
 def Decls.bodyRoots (ds : Decls) (ns : List String) : List Val :=
-  ns.map fun n => normaliseD ds (ds.readU (ds.ownLinked
-    (.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)] none false)))
+  ns.map ds.ownPlace
 
 /-- The roots a document's paths read, round by round, `r` reading a
 document to its root, beside the places of the bodies their own paths
@@ -1126,22 +1300,37 @@ def Decls.rounds (ds : Decls) (S : Val) (r : Decls → Val → Val) : ℕ → Li
     let d := ds.withPathsFrom S rs.1 rs.2
     (rs.1 ++ [r d.1 d.2], rs.2 ++ d.1.bodyRoots ds.placedNames)
 
+/-- A document's declarations with each recursive name's body, and each
+copy of one placed where a use stands (`isCopyOf`), read where no place
+is yet (`Decls.readU`), its calls and its selections made, so that each
+unfolding of the name, at a meet or by the checker, holds them made, as
+both ports make them wherever the body stands. One that waits on a
+reference, a hole or what the data writes stays as written. -/
+def Decls.callsMade (ds : Decls) : Decls :=
+  ds.map fun d =>
+    if ds.recursiveB d.1 || ds.any (fun e => isCopyOf e.1 d.1 && ds.recursiveB e.1) then (d.1, ds.readU d.2)
+    else d
+
 /-- The schema's own tree, with the bodies' own places: the normal form
 of the schema as read, before any data, its calls made (`Decls.readU`),
-in as many rounds as the document writes paths, since a round that
-reaches no new path changes nothing after it. The roots keep their keys
-as written, so that a key a path reaches reads where the path lands. -/
+each recursive name's body with its calls made too (`Decls.callsMade`),
+so that a path into a call a body holds reads what the call makes
+wherever the name unfolds, in as many rounds as the document writes
+paths, since a round that reaches no new path changes nothing after it.
+The roots keep their keys as written, so that a key a path reaches reads
+where the path lands. -/
 def Decls.roundsS (ds : Decls) (S : Val) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d (d.readU T)) (ds.docPaths S).length
+  ds.rounds S (fun d T => normaliseD d.callsMade (d.callsMade.readU T)) (ds.docPaths S).length
 
 /-- The schema's own tree, round by round (`Decls.roundsS`). -/
 def Decls.rootsS (ds : Decls) (S : Val) : List Val := (ds.roundsS S).1
 
 /-- The tree the data reads in, with the bodies' own places, which no
-data reaches: the normal form of the schema met with the data, in as
-many rounds. -/
+data reaches: the normal form of the schema met with the data, each
+recursive name's body with its calls made, in as many rounds. -/
 def Decls.roundsD (ds : Decls) (S : Val) (j : Data) : List Val × List Val :=
-  ds.rounds S (fun d T => normaliseD d (meetD d (d.readU T) j.term)) (ds.docPaths S).length
+  ds.rounds S (fun d T => normaliseD d.callsMade (meetD d.callsMade (d.callsMade.readU T) j.term))
+    (ds.docPaths S).length
 
 /-- The tree the data reads in, round by round (`Decls.roundsD`). -/
 def Decls.rootsD (ds : Decls) (S : Val) (j : Data) : List Val := (ds.roundsD S j).1
@@ -1160,14 +1349,6 @@ def Decls.Resolves (ds : Decls) (S : Val) : Prop :=
 
 theorem Decls.resolvesB_iff {ds : Decls} {S : Val} : ds.resolvesB S = true ↔ ds.Resolves S := by
   simp only [Decls.resolvesB, Decls.Resolves, List.all_eq_true]
-
-/-- A document's declarations with each recursive name's body read where
-no place is yet (`Decls.readU`), its calls and its selections made, so
-that each unfolding of the name, at a meet or by the checker, holds
-them made, as both ports make them wherever the body stands. One that
-waits on a reference, a hole or what the data writes stays as written. -/
-def Decls.callsMade (ds : Decls) : Decls :=
-  ds.map fun d => if ds.recursiveB d.1 then (d.1, ds.readU d.2) else d
 
 /-- The document with its paths read as names from the schema alone,
 from its own tree, which is what the error class is judged on, each
@@ -1445,54 +1626,6 @@ def Decls.referCount (ds : Decls) (r : Decls → Val → List Val) (S : Val) : �
       (linkAddrs e).length).sum)
     ((ds.nfLinks R []).map fun e => (linkAddrs e).length).sum
 
-mutual
-/-- The links a term writes, at any depth: each `relate`,
-in a call's arguments and in another link's template as well. -/
-def Val.linkCalls : Val → ℕ
-  | .call .relate args => lcItems args + 1
-  | .call _ args => lcItems args
-  | .ride _ v _ => v.linkCalls
-  | .link v t => v.linkCalls + t.linkCalls
-  | .len c => c.linkCalls
-  | .map fs spread _ => lcFields fs + lcSpread spread
-  | .list items spread _ => lcItems items + lcSpread spread
-  | .or arms => lcArms arms
-  | .pref _ x => x.linkCalls
-  | .meet a b => a.linkCalls + b.linkCalls
-  | .nof n cs => n.linkCalls + lcItems cs
-  | .must c _ => c.linkCalls
-  | .when c t e => c.linkCalls + t.linkCalls + lcSpread e
-  | .contains c n => c.linkCalls + n.linkCalls
-  | .rest t cs => t.linkCalls + lcCovers cs
-  | .select s arms d => s.linkCalls + lcPairs arms + lcSpread d
-  | .filter s c => s.linkCalls + c.linkCalls
-  | _ => 0
-
-def lcFields : List (String × Bool × Val) → ℕ
-  | [] => 0
-  | (_, _, v) :: fs => v.linkCalls + lcFields fs
-
-def lcItems : List Val → ℕ
-  | [] => 0
-  | v :: vs => v.linkCalls + lcItems vs
-
-def lcSpread : Option Val → ℕ
-  | none => 0
-  | some s => s.linkCalls
-
-def lcArms : List (ℕ × Val) → ℕ
-  | [] => 0
-  | (_, a) :: arms => a.linkCalls + lcArms arms
-
-def lcPairs : List (Val × Val) → ℕ
-  | [] => 0
-  | (p, r) :: ps => p.linkCalls + r.linkCalls + lcPairs ps
-
-def lcCovers : List Cover → ℕ
-  | [] => 0
-  | (c, k, m) :: cs => lcSpread c + lcSpread k + lcSpread m + lcCovers cs
-end
-
 /-- The schema after `n` passes, each meeting the templates of the links
 the last pass's tree holds into the targets it holds, so that one link's
 template can make another link's target, or carry another link, and
@@ -1504,13 +1637,13 @@ def Decls.referPasses (ds : Decls) (r : Decls → Val → List Val) (S : Val) : 
 
 /-- The flows of one link, written at `home`, into a member of its own
 body: each target no root holds that `Decls.atOwnBody` finds, with the
-template, its marks cleared. -/
+template, its marks cleared, read where it lands (`Val.atTarget`). -/
 def bodyFlowsOf (ds : Decls) (roots : List Val) (home : List Seg) (e : List Seg × Val × Val) :
     List (List Seg × Val) :=
   (linkAddrs e).filterMap fun a =>
     (a.from (home ++ e.1)).bind fun p =>
-      if (roots.findSome? fun root => root.putW p e.2.1.unmark).isNone && ds.atOwnBody (home ++ e.1) p then
-        some (p, e.2.1.unmark)
+      if (roots.findSome? fun root => root.putW p (e.2.1.unmark.atTarget p)).isNone && ds.atOwnBody (home ++ e.1) p then
+        some (p, e.2.1.unmark.atTarget p)
       else none
 
 /-- The flows a tree's links make into a member of their own body, the
@@ -1525,16 +1658,18 @@ def Decls.bodyFlows (ds : Decls) (r : Decls → Val → List Val) (L : Val) : Li
 
 /-- Whether the templates the flows send to a body's own place conflict
 there, with the body's member or with each other, as both ports meet
-each into the body's own place: the normal form of the name's bodies,
-met, with each template met at its place. -/
+each into the body's own place: the tree at the place, its links'
+templates met in (`Decls.ownPlace`), with each template met at its
+place, each recursive name read with its calls made (`Decls.callsMade`),
+so that a template that is the name unfolds as both ports make it. -/
 def Decls.bodyClash (ds : Decls) (fs : List (List Seg × Val)) : Bool :=
   ds.any fun d =>
     match fs.filter (fun f => f.1.head? == some (.own d.1)) with
     | [] => false
     | gs =>
-      let b := normaliseD ds (ds.readU ((ds.filter (·.1 == d.1)).foldl (fun acc e => .meet acc e.2) .any))
-      ((normaliseD ds (ds.readU (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged
-        ds).illFormed
+      let b := ((ds.callsMade.ownPlace d.1).at [.own d.1]).getD .any
+      ((normaliseD ds.callsMade (ds.callsMade.readU
+        (gs.foldl (fun acc f => ((b.putW f.1.tail f.2).map acc.meet).getD acc) b))).staged ds.callsMade).illFormed
 
 /-- The schema with each link's template met into its target, so that
 the template flows into the target and a link to nothing is an error:
@@ -2064,18 +2199,34 @@ in a body; a copy reads its own place only through one. -/
 def Decls.writesRel (ds : Decls) (S : Val) : Bool :=
   S.holdsRel || ds.any (fun d => d.2.holdsRel)
 
-/-- The names whose uses read as copies: those whose bodies write a
-relative path, use such a name, or hold a path reference to a place
-whose terms read their own place (`Decls.relTarget`), read to a fixed
-point, a recursive name aside, whose uses read its body at its own
-place. -/
-def Decls.copyNames (ds : Decls) (S : Val) : List String :=
+/-- The names whose bodies read their own place: those whose bodies
+write a relative path, use such a name, or hold a path reference to a
+place whose terms read their own place (`Decls.relTarget`), read to a
+fixed point. -/
+def Decls.relNames (ds : Decls) (S : Val) : List String :=
   if ds.writesRel S then
-    ((List.range ds.length).foldl
+    (List.range ds.length).foldl
       (fun rs _ => (ds.filter fun d => d.2.holdsRel || d.2.refs.any rs.contains ||
-          d.2.paths.any fun q => !relPath q && ds.relTarget S rs (S.size + 1) q).map (·.1)) []).filter
-      fun n => !ds.recursiveB n
+          d.2.paths.any fun q => !relPath q && ds.relTarget S rs (S.size + 1) q).map (·.1)) []
   else []
+
+/-- The names whose uses read as copies wherever they stand: those whose
+bodies read their own place (`Decls.relNames`), a recursive name aside,
+whose uses `Decls.reachesAt` picks. -/
+def Decls.copyNames (ds : Decls) (S : Val) : List String :=
+  (ds.relNames S).filter fun n => !ds.recursiveB n
+
+/-- Whether a use of a recursive name standing at `p` reads as the copy
+of its body placed there (ruling 26): where the data `oj` writes at
+`p`, or the document writes something there besides a use of a
+recursive name, through its members and the names that aren't
+recursive. So the copies stop where the recursion meets nothing to
+unfold against, and a use beyond them reads its body at its own place,
+as no data or term reaches there. -/
+def Decls.reachesAt (ds : Decls) (S : Val) (oj : Option Data) (p : List Seg) : Bool :=
+  (oj.bind fun j => j.at p).isSome ||
+    (Decls.landingAt (ds.filter fun (d : String × Val) => !ds.recursiveB d.1) S false (ds.landBudget S p)
+      [(S, [], p)]).any fun t => !(t.unride.alias?.any ds.recursiveB)
 
 /-- The places a path reference to reads as a copy, those whose terms
 read their own place through a relative path or a use of a name of `rs`
@@ -2097,7 +2248,7 @@ relative paths placed where the use stands as the schema's are
 declared under the use's name (`useName`, `Use.key`), within `k` turns,
 enough for every chain of uses that isn't recursive; a use the turns
 don't reach reads as written (`Use.plain`). -/
-def Decls.copies (ds : Decls) (S : Val) (rs : List String) (rt : List Seg → Bool)
+def Decls.copies (ds : Decls) (S : Val) (rs : List Seg → String → Bool) (rt : List Seg → Bool)
     (dl : List Seg → Option Val) : ℕ → List (Use × List Seg) → Decls
   | 0, us => us.eraseDups.map fun u => (useName u.1.key u.2, u.1.plain)
   | k + 1, us =>
@@ -2116,7 +2267,8 @@ def dataLit (j : Data) (rs : List (List Seg)) : Option Val :=
 stands: the schema from the top (`Val.placedT`), each body at its
 name's own place (`Seg.own`), as both ports place a body, and in either, each use of a name whose uses read as
 copies (`Decls.copyNames`) read as the copy of the body placed where the
-use stands, and each path reference to a place whose terms read their
+use stands, a recursive name's where the data or the document reaches
+the use (`Decls.reachesAt`), and each path reference to a place whose terms read their
 own place (`Decls.copyTargets`) as the copy of what the document writes
 there, each met with what the data `oj` writes at the place it names
 where it's given (`Decls.copies`, ruling 26). Each place a spread
@@ -2125,14 +2277,16 @@ is declared too, under a name no term refers to (`bareName`), since
 both ports read such a spread there as well as at each member, so that
 one naming nothing is an `error` with no member to read it at. -/
 def Decls.placed (ds : Decls) (S : Val) (oj : Option Data := none) : Decls × Val :=
-  let rs := ds.copyNames S
-  let rt := ds.copyTargets S rs
+  let rn := ds.relNames S
+  let rt := ds.copyTargets S (ds.copyNames S)
+  let cp : List Seg → String → Bool := fun p n => rn.contains n && (!ds.recursiveB n || ds.reachesAt S oj p)
   let dl : List Seg → Option Val := fun p => oj.bind fun j => dataLit j (ds.writtenAt S p)
   let own (n : String) : List Seg := [.own n]
-  (ds.map (fun d => (d.1, (d.2.atUses rs rt dl (own d.1)).placed (own d.1))) ++
-      ds.copies S rs rt dl (ds.length + S.size + 1) (S.usesAt rs rt [] ++ ds.flatMap fun d => d.2.usesAt rs rt (own d.1)) ++
+  (ds.map (fun d => (d.1, (d.2.atUses cp rt dl (own d.1)).placed (own d.1))) ++
+      ds.copies S cp rt dl (ds.length + S.size + ds.bodiesSize + (oj.map fun j => j.term.size).getD 0 + 1)
+        (S.usesAt cp rt [] ++ ds.flatMap fun d => d.2.usesAt cp rt (own d.1)) ++
       (S.bares []).map fun p => (bareName, .path p),
-    (S.atUses rs rt dl []).placedT [])
+    (S.atUses cp rt dl []).placedT [])
 
 /-- A document's declarations with the relation kind declared under its
 name, which a `relate` reads as (`relKind`). -/
@@ -2647,7 +2801,7 @@ theorem hideAt_checkableA : ∀ p, (hideAt p).CheckableA
       rcases List.mem_append.mp hv with h | h
       · rw [List.eq_of_mem_replicate h]; exact .any
       · rw [List.mem_singleton.mp h]; exact hideAt_checkableA p) (fun _ h => nomatch h)
-  | .var _ :: _ | .up _ :: _ | .node :: _ | .own _ :: _ => .any
+  | .var _ :: _ | .up _ :: _ | .node :: _ | .own _ :: _ | .lands _ :: _ => .any
 
 theorem foldl_hide_checkableA : ∀ (ps : List (List Seg)) {S : Val}, S.CheckableA →
     (ps.foldl (fun acc p => Val.meet acc (hideAt p)) S).CheckableA
@@ -3182,12 +3336,12 @@ theorem mem_plItems {pos : List Seg} {items : List Val} {w : Val} :
       · exact .inr ⟨u, hu, rfl⟩
 
 theorem mem_plArgs {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
-    w ∈ plArgs pos f args → ∃ v, v ∈ args ∧ (w = v.placed pos ∨ w = v)
+    w ∈ plArgs pos f args → ∃ v, v ∈ args ∧ ((∃ q, w = v.placed q) ∨ w = v)
   | [], _, h => by simp [plArgs] at h
   | v :: vs, w, h => by
     simp only [plArgs, List.mem_cons] at h
     rcases h with rfl | h
-    · exact ⟨v, List.mem_cons_self, .inl rfl⟩
+    · exact ⟨v, List.mem_cons_self, .inl ⟨_, rfl⟩⟩
     · split at h
       · exact ⟨w, List.mem_cons_of_mem _ h, .inr rfl⟩
       · obtain ⟨u, hu, hw⟩ := mem_plArgs h
@@ -3294,6 +3448,7 @@ theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos)
     | .var _ :: _ => exact .path
     | .node :: _ => exact .path
     | .own _ :: _ => exact .path
+    | .lands _ :: _ => exact .path
   | @nof n cs _ _ ihn ihcs =>
     intro pos
     refine .nof (ihn pos) fun w hm => ?_
@@ -3302,8 +3457,8 @@ theorem placed_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placed pos)
   | @call f args hargs ih =>
     intro pos
     refine .call fun w hm => ?_
-    obtain ⟨a, ha, hw | hw⟩ := mem_plArgs hm
-    · rw [hw]; exact ih a ha pos
+    obtain ⟨a, ha, ⟨q, hw⟩ | hw⟩ := mem_plArgs hm
+    · rw [hw]; exact ih a ha q
     · rw [hw]; exact hargs a ha
   | must _ ih => intro pos; exact .must (ih pos)
   | @when c t e _ _ _ ihc iht ihe =>
@@ -3605,7 +3760,7 @@ theorem placedT_checkableA {v : Val} (h : v.CheckableA) : ∀ pos, (v.placedT po
   | selectLit hp hr hd _ _ _ => intro pos; exact placed_checkableA (.selectLit hp hr hd) pos
   | _ => intro pos; exact placed_checkableA (by constructor) pos
 
-theorem mem_auFields {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
+theorem mem_auFields {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
     (k, o, w) ∈ auFields rs rt dl pos fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.atUses rs rt dl (pos ++ [.key k]) := by
   induction fs with
   | nil => simp [auFields]
@@ -3620,7 +3775,7 @@ theorem mem_auFields {rs : List String} {rt : List Seg → Bool} {dl : List Seg 
       · exact Or.inl ⟨rfl, rfl, rfl⟩
       · exact Or.inr ⟨v, hm, rfl⟩
 
-theorem mem_auElems {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} : ∀ {i : ℕ} {items : List Val} {w : Val},
+theorem mem_auElems {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} : ∀ {i : ℕ} {items : List Val} {w : Val},
     w ∈ auElems rs rt dl pos i items → ∃ v, v ∈ items ∧ ∃ j, w = v.atUses rs rt dl (pos ++ [.idx j])
   | _, [], _, h => by simp [auElems] at h
   | i, v :: vs, w, h => by
@@ -3630,7 +3785,7 @@ theorem mem_auElems {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
     · obtain ⟨u, hu, j, rfl⟩ := mem_auElems h
       exact ⟨u, List.mem_cons_of_mem _ hu, j, rfl⟩
 
-theorem mem_auItems {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {items : List Val} {w : Val} :
+theorem mem_auItems {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {items : List Val} {w : Val} :
     w ∈ auItems rs rt dl pos items ↔ ∃ v, v ∈ items ∧ w = v.atUses rs rt dl pos := by
   induction items with
   | nil => simp [auItems]
@@ -3644,7 +3799,7 @@ theorem mem_auItems {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
       · exact .inl rfl
       · exact .inr ⟨u, hu, rfl⟩
 
-theorem mem_auArgs {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
+theorem mem_auArgs {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {f : Fn} : ∀ {args : List Val} {w : Val},
     w ∈ auArgs rs rt dl pos f args → ∃ v, v ∈ args ∧ (w = v.atUses rs rt dl pos ∨ w = v)
   | [], _, h => by simp [auArgs] at h
   | v :: vs, w, h => by
@@ -3656,7 +3811,7 @@ theorem mem_auArgs {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
       · obtain ⟨u, hu, hw⟩ := mem_auArgs h
         exact ⟨u, List.mem_cons_of_mem _ hu, hw⟩
 
-theorem mem_auPairs {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {ps : List (Val × Val)} {p r : Val} :
+theorem mem_auPairs {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {ps : List (Val × Val)} {p r : Val} :
     (p, r) ∈ auPairs rs rt dl pos ps ↔ ∃ p₀ r₀, (p₀, r₀) ∈ ps ∧ p = p₀.atUses rs rt dl pos ∧ r = r₀.atUses rs rt dl pos := by
   induction ps with
   | nil => simp [auPairs]
@@ -3671,7 +3826,7 @@ theorem mem_auPairs {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
       · exact Or.inl ⟨rfl, rfl⟩
       · exact Or.inr ⟨p₀, r₀, hm, rfl, rfl⟩
 
-theorem auSpread_eq {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {spread : Option Val} {t : Val} :
+theorem auSpread_eq {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {spread : Option Val} {t : Val} :
     auSpread rs rt dl pos spread = some t ↔ ∃ s, spread = some s ∧ t = s.atUses rs rt dl pos := by
   cases spread with
   | none => simp [auSpread]
@@ -3679,7 +3834,7 @@ theorem auSpread_eq {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
     simp only [auSpread, Option.some.injEq]
     exact ⟨fun h => ⟨s, rfl, h.symm⟩, fun ⟨s', hs, ht⟩ => by cases hs; exact ht.symm⟩
 
-theorem mem_auCovers {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {cs : List Cover} {c' : Cover} :
+theorem mem_auCovers {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {cs : List Cover} {c' : Cover} :
     c' ∈ auCovers rs rt dl pos cs ↔ ∃ c, c ∈ cs ∧ c' = (auSpread rs rt dl pos c.1, auSpread rs rt dl pos c.2.1, auSpread rs rt dl pos c.2.2) := by
   induction cs with
   | nil => simp [auCovers]
@@ -3694,7 +3849,7 @@ theorem mem_auCovers {rs : List String} {rt : List Seg → Bool} {dl : List Seg 
       · exact .inl rfl
       · exact .inr ⟨d, hd, rfl⟩
 
-theorem mem_auArms {rs : List String} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
+theorem mem_auArms {rs : List Seg → String → Bool} {rt : List Seg → Bool} {dl : List Seg → Option Val} {pos : List Seg} {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
     (r, b) ∈ auArms rs rt dl pos arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.atUses rs rt dl pos := by
   induction arms with
   | nil => simp [auArms]
@@ -3709,7 +3864,7 @@ theorem mem_auArms {rs : List String} {rt : List Seg → Bool} {dl : List Seg �
       · exact Or.inl ⟨rfl, rfl⟩
       · exact Or.inr ⟨a, hm, rfl⟩
 
-theorem atUses_checkableA {rs : List String} {dl : List Seg → Option Val}
+theorem atUses_checkableA {rs : List Seg → String → Bool} {dl : List Seg → Option Val}
     (hdl : ∀ p w, dl p = some w → w.CheckableA) {v : Val} (h : v.CheckableA) :
     ∀ rt pos, (v.atUses rs rt dl pos).CheckableA := by
   induction h with
@@ -3801,7 +3956,7 @@ theorem atUses_checkableA {rs : List String} {dl : List Seg → Option Val}
       exact ihd e₀ he₀ rt pos
   | _ => intro rt pos; simp only [Val.atUses]; constructor
 
-theorem copies_checkableA {ds : Decls} {S : Val} {rs : List String} {rt : List Seg → Bool}
+theorem copies_checkableA {ds : Decls} {S : Val} {rs : List Seg → String → Bool} {rt : List Seg → Bool}
     {dl : List Seg → Option Val} (hdl : ∀ p w, dl p = some w → w.CheckableA)
     (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :
     ∀ k us d, d ∈ ds.copies S rs rt dl k us → d.2.CheckableA
@@ -4247,6 +4402,7 @@ theorem at_checkableA : ∀ (p : List Seg) {v w : Val}, v.CheckableA → v.at p 
   | .var _ :: _, _, _, _, h => by simp [Val.at] at h
   | .up _ :: _, _, _, _, h => by simp [Val.at] at h
   | .node :: _, _, _, _, h => by simp [Val.at] at h
+  | .lands _ :: _, _, _, _, h => by simp [Val.at] at h
   | .own _ :: p, v, w, hv, h => by
     have hu := Val.checkableA_unride hv
     simp only [Val.at] at h
@@ -4366,6 +4522,118 @@ theorem Decls.withPathsFrom_bodies_checkableA {ds : Decls} {S : Val} {roots bs :
 
 /-! ## Reading the links keeps a term checkable -/
 
+mutual
+theorem Val.atTarget_checkableA (T : List Seg) : ∀ {v : Val}, v.CheckableA → (v.atTarget T).CheckableA
+  | .path p, _ => by
+    match p with
+    | .lands c :: q =>
+      simp only [Val.atTarget]
+      split
+      · exact .path
+      · exact .nil
+    | [] | .key _ :: _ | .idx _ :: _ | .var _ :: _ | .up _ :: _ | .node :: _ | .own _ :: _ =>
+      simp only [Val.atTarget]; exact .path
+  | .len _, .len h => .len (Val.atTarget_checkableA T h)
+  | .map _ _ _, .map hf hs => .map (atFields_checkableA T hf) (atSpread_checkableA T hs)
+  | .list _ _ _, .list hi hs => .list (atItems_checkableA T hi) (atSpread_checkableA T hs)
+  | .or _, .or ha => .or (atArms_checkableA T ha)
+  | .pref _ _, .pref h => .pref (Val.atTarget_checkableA T h)
+  | .meet _ _, .meet ha hb => .meet (Val.atTarget_checkableA T ha) (Val.atTarget_checkableA T hb)
+  | .nof _ _, .nof hn hc => .nof (Val.atTarget_checkableA T hn) (atItems_checkableA T hc)
+  | .must _ _, .must h => .must (Val.atTarget_checkableA T h)
+  | .when _ _ _, .when hc ht he =>
+    .when (Val.atTarget_checkableA T hc) (Val.atTarget_checkableA T ht) (atSpread_checkableA T he)
+  | .contains _ _, .contains hc hn => .contains (Val.atTarget_checkableA T hc) (Val.atTarget_checkableA T hn)
+  | .rest _ _, .rest ht h1 h2 h3 => .rest (Val.atTarget_checkableA T ht) (atCovers_checkableA T h1 h2 h3).1
+      (atCovers_checkableA T h1 h2 h3).2.1 (atCovers_checkableA T h1 h2 h3).2.2
+  | .select _ _ _, .selectKey hp hr hd => by
+    simp only [Val.atTarget]
+    exact .selectKey (atPairs_checkableA T hp hr).1 (atPairs_checkableA T hp hr).2 (atSpread_checkableA T hd)
+  | .select _ _ _, .selectLit hp hr hd => by
+    simp only [Val.atTarget]
+    exact .selectLit (atPairs_checkableA T hp hr).1 (atPairs_checkableA T hp hr).2 (atSpread_checkableA T hd)
+  | .call f _, .call ha => by
+    simp only [Val.atTarget]
+    split
+    · exact .call ha
+    · exact .call (atItems_checkableA T ha)
+  | .ride _ _ _, .ride h => .ride (Val.atTarget_checkableA T h)
+  | .link _ _, .link hv ht => .link (Val.atTarget_checkableA T hv) ht
+  | .integer, h | .float, h | .biginteger, h | .bigdecimal, h | .number, h | .string, h
+  | .anyString, h | .boolean, h | .mapKind, h | .listKind, h | .pathKind, h | .lit _, h
+  | .addr _, h | .min _, h | .max _, h | .above _, h | .beneath _, h | .neq _, h
+  | .mulof _, h | .unique _, h | .grammar _, h | .any, h | .absent, h | .hole, h
+  | .nil, h | .nothing, h | .alias _, h | .key, h | .keyUp _, h => h
+
+theorem atFields_checkableA (T : List Seg) : ∀ {fs : List (String × Bool × Val)},
+    (∀ k o v, (k, o, v) ∈ fs → v.CheckableA) → ∀ k o v, (k, o, v) ∈ atFields T fs → v.CheckableA
+  | [], _, _, _, _, h => nomatch h
+  | (k', o', v') :: fs, hf, k, o, v, h => by
+    simp only [atFields, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl, rfl⟩ | h
+    · exact Val.atTarget_checkableA T (hf _ _ _ List.mem_cons_self)
+    · exact atFields_checkableA T (fun k o v hm => hf k o v (List.mem_cons_of_mem _ hm)) k o v h
+
+theorem atItems_checkableA (T : List Seg) : ∀ {vs : List Val},
+    (∀ v, v ∈ vs → v.CheckableA) → ∀ v, v ∈ atItems T vs → v.CheckableA
+  | [], _, _, h => nomatch h
+  | v' :: vs, hv, v, h => by
+    simp only [atItems, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact Val.atTarget_checkableA T (hv v' List.mem_cons_self)
+    · exact atItems_checkableA T (fun v hm => hv v (List.mem_cons_of_mem _ hm)) v h
+
+theorem atSpread_checkableA (T : List Seg) : ∀ {s : Option Val},
+    (∀ s', s = some s' → s'.CheckableA) → ∀ s', atSpread T s = some s' → s'.CheckableA
+  | none, _, _, h => nomatch h
+  | some s, hs, s', h => by
+    simp only [atSpread, Option.some.injEq] at h
+    rw [← h]; exact Val.atTarget_checkableA T (hs s rfl)
+
+theorem atArms_checkableA (T : List Seg) : ∀ {arms : List (ℕ × Val)},
+    (∀ r a, (r, a) ∈ arms → a.CheckableA) → ∀ r a, (r, a) ∈ atArms T arms → a.CheckableA
+  | [], _, _, _, h => nomatch h
+  | (r', a') :: arms, ha, r, a, h => by
+    simp only [atArms, List.mem_cons, Prod.mk.injEq] at h
+    rcases h with ⟨rfl, rfl⟩ | h
+    · exact Val.atTarget_checkableA T (ha _ _ List.mem_cons_self)
+    · exact atArms_checkableA T (fun r a hm => ha r a (List.mem_cons_of_mem _ hm)) r a h
+
+theorem atPairs_checkableA (T : List Seg) : ∀ {ps : List (Val × Val)},
+    (∀ p r, (p, r) ∈ ps → p.CheckableA) → (∀ p r, (p, r) ∈ ps → r.CheckableA) →
+    (∀ p r, (p, r) ∈ atPairs T ps → p.CheckableA) ∧ (∀ p r, (p, r) ∈ atPairs T ps → r.CheckableA)
+  | [], _, _ => ⟨fun _ _ h => (nomatch h), fun _ _ h => (nomatch h)⟩
+  | (p', r') :: ps, hp, hr => by
+    have ih := atPairs_checkableA T (ps := ps) (fun p r hm => hp p r (List.mem_cons_of_mem _ hm))
+      (fun p r hm => hr p r (List.mem_cons_of_mem _ hm))
+    refine ⟨fun p r h => ?_, fun p r h => ?_⟩ <;>
+      simp only [atPairs, List.mem_cons, Prod.mk.injEq] at h <;> rcases h with ⟨rfl, rfl⟩ | h
+    · exact Val.atTarget_checkableA T (hp _ _ List.mem_cons_self)
+    · exact ih.1 p r h
+    · exact Val.atTarget_checkableA T (hr _ _ List.mem_cons_self)
+    · exact ih.2 p r h
+
+theorem atCovers_checkableA (T : List Seg) : ∀ {cs : List Cover},
+    (∀ c, c ∈ cs → ∀ v, c.1 = some v → v.CheckableA) →
+    (∀ c, c ∈ cs → ∀ v, c.2.1 = some v → v.CheckableA) →
+    (∀ c, c ∈ cs → ∀ v, c.2.2 = some v → v.CheckableA) →
+    (∀ c, c ∈ atCovers T cs → ∀ v, c.1 = some v → v.CheckableA) ∧
+    (∀ c, c ∈ atCovers T cs → ∀ v, c.2.1 = some v → v.CheckableA) ∧
+    (∀ c, c ∈ atCovers T cs → ∀ v, c.2.2 = some v → v.CheckableA)
+  | [], _, _, _ => ⟨fun _ h => (nomatch h), fun _ h => (nomatch h), fun _ h => (nomatch h)⟩
+  | (c1, c2, c3) :: cs, h1, h2, h3 => by
+    have ih := atCovers_checkableA T (cs := cs) (fun c hm => h1 c (List.mem_cons_of_mem _ hm))
+      (fun c hm => h2 c (List.mem_cons_of_mem _ hm)) (fun c hm => h3 c (List.mem_cons_of_mem _ hm))
+    refine ⟨fun c h => ?_, fun c h => ?_, fun c h => ?_⟩ <;>
+      simp only [atCovers, List.mem_cons] at h <;> rcases h with rfl | h
+    · exact atSpread_checkableA T (h1 _ List.mem_cons_self)
+    · exact ih.1 c h
+    · exact atSpread_checkableA T (h2 _ List.mem_cons_self)
+    · exact ih.2.1 c h
+    · exact atSpread_checkableA T (h3 _ List.mem_cons_self)
+    · exact ih.2.2 c h
+end
+
 theorem referFlow_checkableA {ds : Decls} {roots : List Val} {miss acc t : Val} {pos : List Seg}
     {a : Addr} (hm : miss.CheckableA) (hacc : acc.CheckableA) (ht : t.CheckableA) :
     (referFlow ds roots miss pos t acc a).CheckableA := by
@@ -4378,7 +4646,7 @@ theorem referFlow_checkableA {ds : Decls} {roots : List Val} {miss acc t : Val} 
       rw [hq] at hu
       simp only [Option.bind_some] at hu
       obtain ⟨root, -, hr⟩ := List.exists_of_findSome?_eq_some hu
-      exact .meet hacc (putW_checkableA ht p hr)
+      exact .meet hacc (putW_checkableA (Val.atTarget_checkableA p ht) p hr)
   next =>
     split
     · exact hacc
@@ -4481,21 +4749,69 @@ theorem Decls.nfLinks_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Chec
   obtain ⟨e', he', rfl⟩ := he
   exact resolveD_checkableA hb (Val.links_checkableA hr [] e' he') fun _ h => nomatch h
 
+theorem ownFlow_checkableA {R acc t : Val} {pos : List Seg} {a : Addr}
+    (hacc : acc.CheckableA) (ht : t.CheckableA) : (ownFlow R pos t acc a).CheckableA := by
+  unfold ownFlow
+  split
+  next u hu =>
+    cases hq : a.from pos with
+    | none => rw [hq] at hu; exact absurd hu (by simp)
+    | some p =>
+      rw [hq] at hu
+      simp only [Option.bind_some] at hu
+      exact .meet hacc (putW_checkableA (Val.atTarget_checkableA p ht) p hu)
+  next => exact hacc
+
+theorem foldl_ownFlow_checkableA {R t : Val} {pos : List Seg} (ht : t.CheckableA) :
+    ∀ (as : List Addr) {acc : Val}, acc.CheckableA → (as.foldl (ownFlow R pos t) acc).CheckableA
+  | [], _, h => h
+  | _ :: as, _, h => foldl_ownFlow_checkableA ht as (ownFlow_checkableA h ht)
+
+theorem foldl_ownStep_checkableA {R : Val} :
+    ∀ (es : List (List Seg × Val × Val)) {acc : Val}, acc.CheckableA → (∀ e, e ∈ es → e.2.1.CheckableA) →
+      (es.foldl (ownStep R) acc).CheckableA
+  | [], _, h, _ => h
+  | e :: es, _, h, he =>
+    foldl_ownStep_checkableA es (foldl_ownFlow_checkableA (he e List.mem_cons_self).unmark _ h)
+      fun e' h' => he e' (List.mem_cons_of_mem _ h')
+
 theorem Decls.ownLinked_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {B : Val}
     (hB : B.CheckableA) : (ds.ownLinked B).CheckableA :=
-  foldl_referStep_checkableA .any _ hB
+  foldl_ownStep_checkableA _ hB
     (Decls.nfLinks_checkableA hb (normaliseD_checkableA hb (readU_checkableA hb hB)) [])
+
+theorem Decls.ownLinkedN_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) {B : Val}
+    (hB : B.CheckableA) : ∀ n, (ds.ownLinkedN B n).CheckableA
+  | 0 => hB
+  | n + 1 => Decls.ownLinked_checkableA hb (Decls.ownLinkedN_checkableA hb hB n)
+
+theorem Decls.ownPlace_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (n : String) :
+    (ds.ownPlace n).CheckableA := by
+  have hB : (Val.map [("%" ++ n, false, (ds.filter (·.1 == n)).foldl (fun acc d => .meet acc d.2) .any)]
+      none false).CheckableA := by
+    refine .map (fun _ _ _ hv => ?_) (fun _ h => nomatch h)
+    simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hv
+    rw [hv.2.2]
+    exact foldl_meetBodies_checkableA _ .any fun d hd => hb d (List.mem_filter.mp hd).1
+  exact normaliseD_checkableA hb (readU_checkableA hb (Decls.ownLinkedN_checkableA hb hB _))
 
 theorem Decls.bodyRoots_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) (ns : List String) :
     ∀ root, root ∈ ds.bodyRoots ns → root.CheckableA := by
   intro root h
   simp only [Decls.bodyRoots, List.mem_map] at h
   obtain ⟨n, -, rfl⟩ := h
-  refine normaliseD_checkableA hb (readU_checkableA hb (Decls.ownLinked_checkableA hb
-    (.map (fun _ _ _ hv => ?_) (fun _ h => nomatch h))))
-  simp only [List.mem_cons, List.mem_nil_iff, or_false, Prod.mk.injEq] at hv
-  rw [hv.2.2]
-  exact foldl_meetBodies_checkableA _ .any fun d hd => hb d (List.mem_filter.mp hd).1
+  exact Decls.ownPlace_checkableA hb n
+
+/-- A document's declarations with each recursive name's calls made are
+terms the checker can read. -/
+theorem Decls.callsMade_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
+    ∀ d, d ∈ ds.callsMade → d.2.CheckableA := by
+  intro d hd
+  simp only [Decls.callsMade, List.mem_map] at hd
+  obtain ⟨d', hd', rfl⟩ := hd
+  split
+  · exact readU_checkableA hb (hb d' hd')
+  · exact hb d' hd'
 
 /-- Every round's root, and every place a round reads, is one the
 checker can read, where `r` reads a document the checker can read to
@@ -4528,13 +4844,16 @@ theorem Decls.rounds_checkableA {r : Decls → Val → Val}
 theorem Decls.roundsS_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (∀ root, root ∈ (ds.roundsS S).1 → root.CheckableA) ∧
       ∀ root, root ∈ (ds.roundsS S).2 → root.CheckableA :=
-  Decls.rounds_checkableA (fun hd hT => normaliseD_checkableA hd (readU_checkableA hd hT)) hb hS _
+  Decls.rounds_checkableA (fun hd hT => normaliseD_checkableA (Decls.callsMade_checkableA hd)
+    (readU_checkableA (Decls.callsMade_checkableA hd) hT)) hb hS _
 
 theorem Decls.roundsD_checkableA {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hS : S.CheckableA) : (∀ root, root ∈ (ds.roundsD S j).1 → root.CheckableA) ∧
       ∀ root, root ∈ (ds.roundsD S j).2 → root.CheckableA :=
   Decls.rounds_checkableA
-    (fun hd hT => normaliseD_checkableA hd (meetD_checkableA hd (readU_checkableA hd hT) (Data.term_checkableA j)))
+    (fun hd hT => normaliseD_checkableA (Decls.callsMade_checkableA hd)
+      (meetD_checkableA (Decls.callsMade_checkableA hd) (readU_checkableA (Decls.callsMade_checkableA hd) hT)
+        (Data.term_checkableA j)))
     hb hS _
 
 theorem Decls.rootsS_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
@@ -5345,17 +5664,6 @@ theorem Decls.prepared_bodies_checkableA {ds : Decls} {S : Val} {rl r : Decls �
     (hS : S.CheckableA) : ∀ d, d ∈ (ds.prepared S rl r oj).1 → d.2.CheckableA :=
   (Decls.prepared_readable hrl hr hb hS).2
 
-/-- A document's declarations with each recursive name's calls made are
-terms the checker can read. -/
-theorem Decls.callsMade_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
-    ∀ d, d ∈ ds.callsMade → d.2.CheckableA := by
-  intro d hd
-  simp only [Decls.callsMade, List.mem_map] at hd
-  obtain ⟨d', hd', rfl⟩ := hd
-  split
-  · exact readU_checkableA hb (hb d' hd')
-  · exact hb d' hd'
-
 /-- `vetA` computes `VetA` wherever the checker can read the two
 documents the verdict hands `vet`, the schema's reading and the data's,
 each with its bodies, as it can a document whose `filter` reads its
@@ -5379,6 +5687,35 @@ theorem vetA_iff_of {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data}
         reduceCtorEq]
     · rw [if_neg he]
       have hE : ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error := fun h => he ((hvS .error).mpr h)
+      cases hp : vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j <;> cases v <;>
+        simp only [VetA, hR, hE, ← hvP, hp, not_true_eq_false, not_false_eq_true,
+          or_true, or_false, and_false, and_true, reduceCtorEq]
+  · rw [if_neg hr]
+    have hR : ¬ ds.Resolves S := fun h => hr (Decls.resolvesB_iff.mpr h)
+    cases v <;> simp only [VetA, hR, not_false_eq_true, true_or, false_and, reduceCtorEq]
+
+/-- `vetA` computes `VetA` wherever the checker can read the document
+it hands `vet` with the data's paths read as names, whatever the
+schema's own reading holds, since the `error` class reads only the
+names, the alias-cycle rule and the schema's form (`vet_error_iff`): a
+selection the schema leaves open, which waits for the data, among
+them. -/
+theorem vetA_iff_data {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data}
+    (hbP : ∀ d, d ∈ (ds'.withPaths S' j).1 → d.2.CheckableA)
+    (hRP : ((ds'.withPaths S' j).1.readR (ds'.withPaths S' j).2).CheckableA) (v : Verdict) :
+    vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v := by
+  have hvP := vet_iff (m := m) (ds := (ds'.withPaths S' j).1) (S := (ds'.withPaths S' j).2) (j := j) hbP hRP
+  unfold vetA
+  by_cases hr : ds.resolvesB S = true
+  · rw [if_pos hr]
+    have hR := Decls.resolvesB_iff.mp hr
+    by_cases he : vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j = .error
+    · rw [if_pos he]
+      have hE := vet_error_iff.mp he
+      cases v <;> simp only [VetA, hR, hE, not_true_eq_false, false_and, and_false, or_true,
+        reduceCtorEq]
+    · rw [if_neg he]
+      have hE : ¬ Vet m (ds.withPathsS S).1 (ds.withPathsS S).2 j .error := fun h => he (vet_error_iff.mpr h)
       cases hp : vet m (ds'.withPaths S' j).1 (ds'.withPaths S' j).2 j <;> cases v <;>
         simp only [VetA, hR, hE, ← hvP, hp, not_true_eq_false, not_false_eq_true,
           or_true, or_false, and_false, and_true, reduceCtorEq]
@@ -5410,6 +5747,16 @@ theorem vetA_iff_reads {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (h : 
   obtain ⟨⟨⟨hbS, hRS⟩, hbP⟩, hRP⟩ := h
   exact vetA_iff_of (fun d hd => (Val.checkableAB_iff _).mp (hbS d hd)) ((Val.checkableAB_iff _).mp hRS)
     (fun d hd => (Val.checkableAB_iff _).mp (hbP d hd)) ((Val.checkableAB_iff _).mp hRP) v
+
+/-- Whether the checker can read the document `vetA` hands `vet` with
+the data's paths read as names, with its bodies, computed. -/
+def Decls.readsDB (ds' : Decls) (S' : Val) (j : Data) : Bool :=
+  (ds'.withPaths S' j).1.all (·.2.checkableAB) && ((ds'.withPaths S' j).1.readR (ds'.withPaths S' j).2).checkableAB
+
+theorem vetA_iff_readsD {m : Mode} {ds ds' : Decls} {S S' : Val} {j : Data} (h : ds'.readsDB S' j = true)
+    (v : Verdict) : vetA m ds S ds' S' j = v ↔ VetA m ds S ds' S' j v := by
+  simp only [Decls.readsDB, Bool.and_eq_true, List.all_eq_true] at h
+  exact vetA_iff_data (fun d hd => (Val.checkableAB_iff _).mp (h.1 d hd)) ((Val.checkableAB_iff _).mp h.2) v
 
 /-- `vetL` computes `VetL` on every document whose bodies and schema
 read no pattern and no format. -/
@@ -5448,6 +5795,22 @@ theorem vetP_iff_reads {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : ds.read
   unfold vetP VetP
   rw [if_neg (by simp [h.1]), if_neg (by simp [h.1])]
   exact vetA_iff_reads h.2 v
+
+/-- Whether a document leaves no load unmade and the checker can read
+the document its verdict hands `vet` with the data's paths read as
+names, computed: what a document whose selection the schema leaves open
+for the data needs. -/
+def Decls.readsPD (ds : Decls) (S : Val) (j : Data) : Bool :=
+  !ds.loadsLeft S &&
+    ((ds.loaded S).1.preparedD (ds.loaded S).2 j).1.readsDB ((ds.loaded S).1.preparedD (ds.loaded S).2 j).2 j
+
+/-- `vetP` computes `VetP` on every document `Decls.readsPD` reads. -/
+theorem vetP_iff_readsD {m : Mode} {ds : Decls} {S : Val} {j : Data} (h : ds.readsPD S j = true)
+    (v : Verdict) : vetP m ds S j = v ↔ VetP m ds S j v := by
+  simp only [Decls.readsPD, Bool.and_eq_true, Bool.not_eq_true'] at h
+  unfold vetP VetP
+  rw [if_neg (by simp [h.1]), if_neg (by simp [h.1])]
+  exact vetA_iff_readsD h.2 v
 
 /-! ## The output with paths -/
 

@@ -40,7 +40,14 @@
 # The transformer emit follows in rows et0 on, over selections written in place:
 # for each node, the body of the first template whose match the node meets,
 # read for the node, each list in it spliced, and an error where no template
-# matches or the body names what the node doesn't hold. apply(v, f) follows in
+# matches or the body names what the node doesn't hold, and a key(n) in a body,
+# read where its piece lands in the output, in rows ek0 on. A table written as an
+# emit call reads as the table it holds, in place in rows ew0 on and named, a rule
+# set %w = emit(_, t), in rows en0 on, and one that names itself, unfolded a level
+# for each turn the expansion has left, in rows er0 on. A template's replace
+# map and its esc convention, each key in the body's literal lines replaced by
+# its value's text, escaped, follow in rows ep0 on, and in a named table in rows
+# eq0 on. apply(v, f) follows in
 # rows ap0 on: each hole of f that no generator or apply inside f binds, bound
 # to v, the one instance each([v], f) makes. A hole that nothing binds is
 # an error of the schema wherever it stands (ruling 34): in the shapes the meet
@@ -2642,6 +2649,342 @@ et266	verdict	v: emit([1], {"match": any, "body": [match(1, 1, "x", {"a": .missi
 et267	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error"}
 et268	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error","opts":{"noFill":true}}
 et269	verdict	v: emit([{"a": 1}], {"match": any, "body": [{"x": 1, &: .a}]})	v: [{"x": 1}]	{"verdict":"error","opts":{"partial":true}}
+ek0	verdict	v: emit([1], {"match": any, "body": ["a", emit([5, 6], {"match": any, "body": [key(0)]})]})	v: ["a", "0", "1"]	{"verdict":"valid"}
+ek1	verdict	v: emit([1], {"match": any, "body": ["a", emit([5, 6], {"match": any, "body": [key(0)]})]})	v: ["a", "0", "1"]	{"verdict":"valid","opts":{"noFill":true}}
+ek2	verdict	v: emit([1], {"match": any, "body": ["a", emit([5, 6], {"match": any, "body": [key(0)]})]})	v: ["a", "0", "1"]	{"verdict":"valid","opts":{"partial":true}}
+ek3	verdict	v: emit([1], {"match": any, "body": ["a", emit([5, 6], {"match": any, "body": [key(0)]})]})	v: ["a", "0", "0"]	{"verdict":"invalid"}
+ek4	verdict	v: emit([1], {"match": any, "body": ["a", emit([5, 6], {"match": any, "body": [key(0)]})]})	v: ["a", "0", "0"]	{"verdict":"invalid","opts":{"noFill":true}}
+ek5	verdict	v: emit([1], {"match": any, "body": ["a", emit([5, 6], {"match": any, "body": [key(0)]})]})	v: ["a", "0", "0"]	{"verdict":"invalid","opts":{"partial":true}}
+ek6	verdict	v: emit([1, 2], {"match": any, "body": ["a", key(0)]})	v: ["a", "1", "a", "3"]	{"verdict":"valid"}
+ek7	verdict	v: emit([1, 2], {"match": any, "body": ["a", key(0)]})	v: ["a", "1", "a", "3"]	{"verdict":"valid","opts":{"noFill":true}}
+ek8	verdict	v: emit([1, 2], {"match": any, "body": ["a", key(0)]})	v: ["a", "1", "a", "3"]	{"verdict":"valid","opts":{"partial":true}}
+ek9	verdict	v: emit([1, 2], {"match": any, "body": ["a", key(0)]})	v: ["a", "1", "a", "1"]	{"verdict":"invalid"}
+ek10	verdict	v: emit([1, 2], {"match": any, "body": ["a", key(0)]})	v: ["a", "1", "a", "1"]	{"verdict":"invalid","opts":{"noFill":true}}
+ek11	verdict	v: emit([1, 2], {"match": any, "body": ["a", key(0)]})	v: ["a", "1", "a", "1"]	{"verdict":"invalid","opts":{"partial":true}}
+ek12	verdict	v: emit([1, 2], {"match": any, "body": [["p", key(0)], key(0)]})	v: ["p", "1", "2", "p", "1", "5"]	{"verdict":"valid"}
+ek13	verdict	v: emit([1, 2], {"match": any, "body": [["p", key(0)], key(0)]})	v: ["p", "1", "2", "p", "1", "5"]	{"verdict":"valid","opts":{"noFill":true}}
+ek14	verdict	v: emit([1, 2], {"match": any, "body": [["p", key(0)], key(0)]})	v: ["p", "1", "2", "p", "1", "5"]	{"verdict":"valid","opts":{"partial":true}}
+ek15	verdict	v: emit([1, 2], {"match": any, "body": [["p", key(0)], key(0)]})	v: ["p", "1", "1", "p", "1", "1"]	{"verdict":"invalid"}
+ek16	verdict	v: emit([1, 2], {"match": any, "body": [["p", key(0)], key(0)]})	v: ["p", "1", "1", "p", "1", "1"]	{"verdict":"invalid","opts":{"noFill":true}}
+ek17	verdict	v: emit([1, 2], {"match": any, "body": [["p", key(0)], key(0)]})	v: ["p", "1", "1", "p", "1", "1"]	{"verdict":"invalid","opts":{"partial":true}}
+ek18	verdict	v: {"x": emit([1, 2], {"match": any, "body": [key(1)]})}	v: {"x": ["x", "x"]}	{"verdict":"valid"}
+ek19	verdict	v: {"x": emit([1, 2], {"match": any, "body": [key(1)]})}	v: {"x": ["x", "x"]}	{"verdict":"valid","opts":{"noFill":true}}
+ek20	verdict	v: {"x": emit([1, 2], {"match": any, "body": [key(1)]})}	v: {"x": ["x", "x"]}	{"verdict":"valid","opts":{"partial":true}}
+ek21	verdict	v: {"x": emit([1, 2], {"match": any, "body": [key(1)]})}	v: {"x": ["0", "1"]}	{"verdict":"invalid"}
+ek22	verdict	v: {"x": emit([1, 2], {"match": any, "body": [key(1)]})}	v: {"x": ["0", "1"]}	{"verdict":"invalid","opts":{"noFill":true}}
+ek23	verdict	v: {"x": emit([1, 2], {"match": any, "body": [key(1)]})}	v: {"x": ["0", "1"]}	{"verdict":"invalid","opts":{"partial":true}}
+ek24	verdict	v: emit([1, 2], {"match": any, "body": [key(2)]})	v: ["", ""]	{"verdict":"valid"}
+ek25	verdict	v: emit([1, 2], {"match": any, "body": [key(2)]})	v: ["", ""]	{"verdict":"valid","opts":{"noFill":true}}
+ek26	verdict	v: emit([1, 2], {"match": any, "body": [key(2)]})	v: ["", ""]	{"verdict":"valid","opts":{"partial":true}}
+ek27	verdict	v: emit([1, 2], {"match": any, "body": [key(2)]})	v: ["v", "v"]	{"verdict":"invalid"}
+ek28	verdict	v: emit([1, 2], {"match": any, "body": [key(2)]})	v: ["v", "v"]	{"verdict":"invalid","opts":{"noFill":true}}
+ek29	verdict	v: emit([1, 2], {"match": any, "body": [key(2)]})	v: ["v", "v"]	{"verdict":"invalid","opts":{"partial":true}}
+ek30	verdict	v: {"x": emit([1], {"match": any, "body": [((key(1)) + ("-")) + (key(0))]})}	v: {"x": ["x-0"]}	{"verdict":"valid"}
+ek31	verdict	v: {"x": emit([1], {"match": any, "body": [((key(1)) + ("-")) + (key(0))]})}	v: {"x": ["x-0"]}	{"verdict":"valid","opts":{"noFill":true}}
+ek32	verdict	v: {"x": emit([1], {"match": any, "body": [((key(1)) + ("-")) + (key(0))]})}	v: {"x": ["x-0"]}	{"verdict":"valid","opts":{"partial":true}}
+ek33	verdict	v: {"x": emit([1], {"match": any, "body": [((key(1)) + ("-")) + (key(0))]})}	v: {"x": ["0-0"]}	{"verdict":"invalid"}
+ek34	verdict	v: {"x": emit([1], {"match": any, "body": [((key(1)) + ("-")) + (key(0))]})}	v: {"x": ["0-0"]}	{"verdict":"invalid","opts":{"noFill":true}}
+ek35	verdict	v: {"x": emit([1], {"match": any, "body": [((key(1)) + ("-")) + (key(0))]})}	v: {"x": ["0-0"]}	{"verdict":"invalid","opts":{"partial":true}}
+ek36	verdict	v: emit([1, 2], {"match": any, "body": [{"k": key(0)}]})	v: [{"k": "k"}, {"k": "k"}]	{"verdict":"valid"}
+ek37	verdict	v: emit([1, 2], {"match": any, "body": [{"k": key(0)}]})	v: [{"k": "k"}, {"k": "k"}]	{"verdict":"valid","opts":{"noFill":true}}
+ek38	verdict	v: emit([1, 2], {"match": any, "body": [{"k": key(0)}]})	v: [{"k": "k"}, {"k": "k"}]	{"verdict":"valid","opts":{"partial":true}}
+ek39	verdict	v: emit([1, 2], {"match": any, "body": [{"k": key(1)}]})	v: [{"k": "0"}, {"k": "1"}]	{"verdict":"valid"}
+ek40	verdict	v: emit([1, 2], {"match": any, "body": [{"k": key(1)}]})	v: [{"k": "0"}, {"k": "1"}]	{"verdict":"valid","opts":{"noFill":true}}
+ek41	verdict	v: emit([1, 2], {"match": any, "body": [{"k": key(1)}]})	v: [{"k": "0"}, {"k": "1"}]	{"verdict":"valid","opts":{"partial":true}}
+ek42	verdict	v: emit([1, 2], {"match": any, "body": [{"k": key(1)}]})	v: [{"k": "k"}, {"k": "k"}]	{"verdict":"invalid"}
+ek43	verdict	v: emit([1, 2], {"match": any, "body": [{"k": key(1)}]})	v: [{"k": "k"}, {"k": "k"}]	{"verdict":"invalid","opts":{"noFill":true}}
+ek44	verdict	v: emit([1, 2], {"match": any, "body": [{"k": key(1)}]})	v: [{"k": "k"}, {"k": "k"}]	{"verdict":"invalid","opts":{"partial":true}}
+ek45	verdict	v: emit([1, "s"], [{"match": number, "body": [key(0)]}, {"match": string, "body": ["t", key(0)]}])	v: ["0", "t", "2"]	{"verdict":"valid"}
+ek46	verdict	v: emit([1, "s"], [{"match": number, "body": [key(0)]}, {"match": string, "body": ["t", key(0)]}])	v: ["0", "t", "2"]	{"verdict":"valid","opts":{"noFill":true}}
+ek47	verdict	v: emit([1, "s"], [{"match": number, "body": [key(0)]}, {"match": string, "body": ["t", key(0)]}])	v: ["0", "t", "2"]	{"verdict":"valid","opts":{"partial":true}}
+ek48	verdict	v: emit([1, "s"], [{"match": number, "body": [key(0)]}, {"match": string, "body": ["t", key(0)]}])	v: ["0", "t", "1"]	{"verdict":"invalid"}
+ek49	verdict	v: emit([1, "s"], [{"match": number, "body": [key(0)]}, {"match": string, "body": ["t", key(0)]}])	v: ["0", "t", "1"]	{"verdict":"invalid","opts":{"noFill":true}}
+ek50	verdict	v: emit([1, "s"], [{"match": number, "body": [key(0)]}, {"match": string, "body": ["t", key(0)]}])	v: ["0", "t", "1"]	{"verdict":"invalid","opts":{"partial":true}}
+ek51	verdict	v: emit([1], {"match": any, "body": [each(["p", "q"], key(0))]})	v: ["0", "1"]	{"verdict":"valid"}
+ek52	verdict	v: emit([1], {"match": any, "body": [each(["p", "q"], key(0))]})	v: ["0", "1"]	{"verdict":"valid","opts":{"noFill":true}}
+ek53	verdict	v: emit([1], {"match": any, "body": [each(["p", "q"], key(0))]})	v: ["0", "1"]	{"verdict":"valid","opts":{"partial":true}}
+ek54	verdict	v: emit([{"n": "a"}], {"match": any, "body": [.n, key(0)]})	v: ["a", "1"]	{"verdict":"valid"}
+ek55	verdict	v: emit([{"n": "a"}], {"match": any, "body": [.n, key(0)]})	v: ["a", "1"]	{"verdict":"valid","opts":{"noFill":true}}
+ek56	verdict	v: emit([{"n": "a"}], {"match": any, "body": [.n, key(0)]})	v: ["a", "1"]	{"verdict":"valid","opts":{"partial":true}}
+ek57	verdict	v: emit([1], {"match": any, "body": [[["q", key(0)]]]})	v: ["q", "1"]	{"verdict":"valid"}
+ek58	verdict	v: emit([1], {"match": any, "body": [[["q", key(0)]]]})	v: ["q", "1"]	{"verdict":"valid","opts":{"noFill":true}}
+ek59	verdict	v: emit([1], {"match": any, "body": [[["q", key(0)]]]})	v: ["q", "1"]	{"verdict":"valid","opts":{"partial":true}}
+ek60	verdict	v: each([1], emit([5], {"match": any, "body": [key(0), key(1)]}))	v: [["0", "0"]]	{"verdict":"valid"}
+ek61	verdict	v: each([1], emit([5], {"match": any, "body": [key(0), key(1)]}))	v: [["0", "0"]]	{"verdict":"valid","opts":{"noFill":true}}
+ek62	verdict	v: each([1], emit([5], {"match": any, "body": [key(0), key(1)]}))	v: [["0", "0"]]	{"verdict":"valid","opts":{"partial":true}}
+ek63	verdict	v: each([1], emit([5], {"match": any, "body": [key(0), key(1)]}))	v: [["0", "1"]]	{"verdict":"invalid"}
+ek64	verdict	v: each([1], emit([5], {"match": any, "body": [key(0), key(1)]}))	v: [["0", "1"]]	{"verdict":"invalid","opts":{"noFill":true}}
+ek65	verdict	v: each([1], emit([5], {"match": any, "body": [key(0), key(1)]}))	v: [["0", "1"]]	{"verdict":"invalid","opts":{"partial":true}}
+ek66	verdict	v: emit([1, 2], {"match": any, "body": [upper(key(0))]})	v: ["0", "1"]	{"verdict":"valid"}
+ek67	verdict	v: emit([1, 2], {"match": any, "body": [upper(key(0))]})	v: ["0", "1"]	{"verdict":"valid","opts":{"noFill":true}}
+ek68	verdict	v: emit([1, 2], {"match": any, "body": [upper(key(0))]})	v: ["0", "1"]	{"verdict":"valid","opts":{"partial":true}}
+ek69	verdict	v: emit([1, 2], {"match": any, "body": [upper(key(0))]})	v: ["0", "0"]	{"verdict":"invalid"}
+ek70	verdict	v: emit([1, 2], {"match": any, "body": [upper(key(0))]})	v: ["0", "0"]	{"verdict":"invalid","opts":{"noFill":true}}
+ek71	verdict	v: emit([1, 2], {"match": any, "body": [upper(key(0))]})	v: ["0", "0"]	{"verdict":"invalid","opts":{"partial":true}}
+ek72	verdict	v: emit([1, 2], {"match": any, "body": [hide("h"), key(0)]})	v: ["0", "1"]	{"verdict":"valid"}
+ek73	verdict	v: emit([1, 2], {"match": any, "body": [hide("h"), key(0)]})	v: ["0", "1"]	{"verdict":"valid","opts":{"noFill":true}}
+ek74	verdict	v: emit([1, 2], {"match": any, "body": [hide("h"), key(0)]})	v: ["0", "1"]	{"verdict":"valid","opts":{"partial":true}}
+ek75	verdict	v: emit([1, 2], {"match": any, "body": [hide("h"), key(0)]})	v: ["1", "3"]	{"verdict":"invalid"}
+ek76	verdict	v: emit([1, 2], {"match": any, "body": [hide("h"), key(0)]})	v: ["1", "3"]	{"verdict":"invalid","opts":{"noFill":true}}
+ek77	verdict	v: emit([1, 2], {"match": any, "body": [hide("h"), key(0)]})	v: ["1", "3"]	{"verdict":"invalid","opts":{"partial":true}}
+ew0	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid"}
+ew1	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid","opts":{"noFill":true}}
+ew2	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid","opts":{"partial":true}}
+ew3	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n"]	{"verdict":"valid"}
+ew4	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n"]	{"verdict":"incomplete","opts":{"noFill":true}}
+ew5	verdict	v: emit([1, 2], emit(_, {"match": number, "body": ["n"]}))	v: ["n"]	{"verdict":"valid","opts":{"partial":true}}
+ew6	verdict	v: emit([1, 2], emit([3], {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid"}
+ew7	verdict	v: emit([1, 2], emit([3], {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid","opts":{"noFill":true}}
+ew8	verdict	v: emit([1, 2], emit([3], {"match": number, "body": ["n"]}))	v: ["n", "n"]	{"verdict":"valid","opts":{"partial":true}}
+ew9	verdict	v: emit([1, "s"], emit(_, [{"match": number, "body": ["n"]}, {"match": string, "body": ["s"]}]))	v: ["n", "s"]	{"verdict":"valid"}
+ew10	verdict	v: emit([1, "s"], emit(_, [{"match": number, "body": ["n"]}, {"match": string, "body": ["s"]}]))	v: ["n", "s"]	{"verdict":"valid","opts":{"noFill":true}}
+ew11	verdict	v: emit([1, "s"], emit(_, [{"match": number, "body": ["n"]}, {"match": string, "body": ["s"]}]))	v: ["n", "s"]	{"verdict":"valid","opts":{"partial":true}}
+ew12	verdict	v: emit([1, 2], emit(_, emit(_, {"match": number, "body": ["n"]})))	v: ["n", "n"]	{"verdict":"valid"}
+ew13	verdict	v: emit([1, 2], emit(_, emit(_, {"match": number, "body": ["n"]})))	v: ["n", "n"]	{"verdict":"valid","opts":{"noFill":true}}
+ew14	verdict	v: emit([1, 2], emit(_, emit(_, {"match": number, "body": ["n"]})))	v: ["n", "n"]	{"verdict":"valid","opts":{"partial":true}}
+ew15	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "1"]	{"verdict":"valid"}
+ew16	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "1"]	{"verdict":"valid","opts":{"noFill":true}}
+ew17	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "1"]	{"verdict":"valid","opts":{"partial":true}}
+ew18	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "0"]	{"verdict":"invalid"}
+ew19	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "0"]	{"verdict":"invalid","opts":{"noFill":true}}
+ew20	verdict	v: emit([1, 2], emit(_, {"match": number, "body": [key(0)]}))	v: ["0", "0"]	{"verdict":"invalid","opts":{"partial":true}}
+ew21	verdict	v: emit([1], emit(_, {"match": string, "body": ["x"]}))	v: []	{"verdict":"error"}
+ew22	verdict	v: emit([1], emit(_, {"match": string, "body": ["x"]}))	v: []	{"verdict":"error","opts":{"noFill":true}}
+ew23	verdict	v: emit([1], emit(_, {"match": string, "body": ["x"]}))	v: []	{"verdict":"error","opts":{"partial":true}}
+ew24	verdict	v: emit(_, {"match": number, "body": ["n"]})	v: []	{"verdict":"error"}
+ew25	verdict	v: emit(_, {"match": number, "body": ["n"]})	v: []	{"verdict":"error","opts":{"noFill":true}}
+ew26	verdict	v: emit(_, {"match": number, "body": ["n"]})	v: []	{"verdict":"error","opts":{"partial":true}}
+ew27	verdict	v: emit([1], emit(_, {"match": number}))	v: []	{"verdict":"error"}
+ew28	verdict	v: emit([1], emit(_, {"match": number}))	v: []	{"verdict":"error","opts":{"noFill":true}}
+ew29	verdict	v: emit([1], emit(_, {"match": number}))	v: []	{"verdict":"error","opts":{"partial":true}}
+en0	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["n", "n"]	{"verdict":"valid"}
+en1	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["n", "n"]	{"verdict":"valid","opts":{"noFill":true}}
+en2	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["n", "n"]	{"verdict":"valid","opts":{"partial":true}}
+en3	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["x"]	{"verdict":"invalid"}
+en4	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["x"]	{"verdict":"invalid","opts":{"noFill":true}}
+en5	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: emit([1, 2], %W)	v: ["x"]	{"verdict":"invalid","opts":{"partial":true}}
+en6	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: {"a": emit([1], %W), "b": emit([2, 3], %W)}	v: {"a": ["n"], "b": ["n", "n"]}	{"verdict":"valid"}
+en7	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: {"a": emit([1], %W), "b": emit([2, 3], %W)}	v: {"a": ["n"], "b": ["n", "n"]}	{"verdict":"valid","opts":{"noFill":true}}
+en8	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: {"a": emit([1], %W), "b": emit([2, 3], %W)}	v: {"a": ["n"], "b": ["n", "n"]}	{"verdict":"valid","opts":{"partial":true}}
+en9	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: (emit([1], %W)) & (["n"])	v: ["n"]	{"verdict":"valid"}
+en10	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: (emit([1], %W)) & (["n"])	v: ["n"]	{"verdict":"valid","opts":{"noFill":true}}
+en11	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: (emit([1], %W)) & (["n"])	v: ["n"]	{"verdict":"valid","opts":{"partial":true}}
+en12	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: %W	v: []	{"verdict":"error"}
+en13	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: %W	v: []	{"verdict":"error","opts":{"noFill":true}}
+en14	verdict	%W = emit(_, {"match": number, "body": ["n"]})\nv: %W	v: []	{"verdict":"error","opts":{"partial":true}}
+en15	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "1"]	{"verdict":"valid"}
+en16	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "1"]	{"verdict":"valid","opts":{"noFill":true}}
+en17	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "1"]	{"verdict":"valid","opts":{"partial":true}}
+en18	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "0"]	{"verdict":"invalid"}
+en19	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "0"]	{"verdict":"invalid","opts":{"noFill":true}}
+en20	verdict	%R = {"match": number, "body": [key(0)]}\nv: emit([1, 2], %R)	v: ["0", "0"]	{"verdict":"invalid","opts":{"partial":true}}
+er0	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "</a>"]	{"verdict":"valid"}
+er1	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "</a>"]	{"verdict":"valid","opts":{"noFill":true}}
+er2	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "</a>"]	{"verdict":"valid","opts":{"partial":true}}
+er3	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "</a>"]	{"verdict":"invalid"}
+er4	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "</a>"]	{"verdict":"invalid","opts":{"noFill":true}}
+er5	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "</a>"]	{"verdict":"invalid","opts":{"partial":true}}
+er6	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}, {"name": "c", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "<c>", "</c>", "</a>"]	{"verdict":"valid"}
+er7	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}, {"name": "c", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "<c>", "</c>", "</a>"]	{"verdict":"valid","opts":{"noFill":true}}
+er8	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}, {"name": "c", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "<c>", "</c>", "</a>"]	{"verdict":"valid","opts":{"partial":true}}
+er9	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([], %W)	v: []	{"verdict":"valid"}
+er10	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([], %W)	v: []	{"verdict":"valid","opts":{"noFill":true}}
+er11	verdict	%W = emit(_, {"match": {"name": string}, "body": [(("<") + (.name)) + (">"), emit(.kids, %W), (("</") + (.name)) + (">")]})\nv: emit([], %W)	v: []	{"verdict":"valid","opts":{"partial":true}}
+er12	verdict	%K = emit(_, {"match": {"name": string}, "body": [key(0), emit(.kids, %K)]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %K)	v: ["0", "0"]	{"verdict":"valid"}
+er13	verdict	%K = emit(_, {"match": {"name": string}, "body": [key(0), emit(.kids, %K)]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %K)	v: ["0", "0"]	{"verdict":"valid","opts":{"noFill":true}}
+er14	verdict	%K = emit(_, {"match": {"name": string}, "body": [key(0), emit(.kids, %K)]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %K)	v: ["0", "0"]	{"verdict":"valid","opts":{"partial":true}}
+er15	verdict	%A = emit(_, {"match": {"name": string}, "body": [.name, emit(.kids, %B)]})\n%B = emit(_, {"match": {"name": string}, "body": [(("(") + (.name)) + (")"), emit(.kids, %A)]})\nv: emit([{"name": "x", "kids": [{"name": "y", "kids": [{"name": "z", "kids": []}]}]}], %A)	v: ["x", "(y)", "z"]	{"verdict":"valid"}
+er16	verdict	%A = emit(_, {"match": {"name": string}, "body": [.name, emit(.kids, %B)]})\n%B = emit(_, {"match": {"name": string}, "body": [(("(") + (.name)) + (")"), emit(.kids, %A)]})\nv: emit([{"name": "x", "kids": [{"name": "y", "kids": [{"name": "z", "kids": []}]}]}], %A)	v: ["x", "(y)", "z"]	{"verdict":"valid","opts":{"noFill":true}}
+er17	verdict	%A = emit(_, {"match": {"name": string}, "body": [.name, emit(.kids, %B)]})\n%B = emit(_, {"match": {"name": string}, "body": [(("(") + (.name)) + (")"), emit(.kids, %A)]})\nv: emit([{"name": "x", "kids": [{"name": "y", "kids": [{"name": "z", "kids": []}]}]}], %A)	v: ["x", "(y)", "z"]	{"verdict":"valid","opts":{"partial":true}}
+er18	verdict	%L = emit(_, {"match": any, "body": [emit([1], %L)]})\nv: emit([1], %L)	v: []	{"verdict":"error"}
+er19	verdict	%L = emit(_, {"match": any, "body": [emit([1], %L)]})\nv: emit([1], %L)	v: []	{"verdict":"error","opts":{"noFill":true}}
+er20	verdict	%L = emit(_, {"match": any, "body": [emit([1], %L)]})\nv: emit([1], %L)	v: []	{"verdict":"error","opts":{"partial":true}}
+ep0	verdict	v: emit([{"pin": "a:1"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["listen('PIN')"]})	v: ["listen('a:1')"]	{"verdict":"valid"}
+ep1	verdict	v: emit([{"pin": "a:1"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["listen('PIN')"]})	v: ["listen('a:1')"]	{"verdict":"valid","opts":{"noFill":true}}
+ep2	verdict	v: emit([{"pin": "a:1"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["listen('PIN')"]})	v: ["listen('a:1')"]	{"verdict":"valid","opts":{"partial":true}}
+ep3	verdict	v: emit([{"pin": "a:1"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["listen('PIN')"]})	v: ["listen('PIN')"]	{"verdict":"invalid"}
+ep4	verdict	v: emit([{"pin": "a:1"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["listen('PIN')"]})	v: ["listen('PIN')"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep5	verdict	v: emit([{"pin": "a:1"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["listen('PIN')"]})	v: ["listen('PIN')"]	{"verdict":"invalid","opts":{"partial":true}}
+ep6	verdict	v: emit([{"p": "x"}, {"p": "y"}], {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})	v: ["<x>", "<y>"]	{"verdict":"valid"}
+ep7	verdict	v: emit([{"p": "x"}, {"p": "y"}], {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})	v: ["<x>", "<y>"]	{"verdict":"valid","opts":{"noFill":true}}
+ep8	verdict	v: emit([{"p": "x"}, {"p": "y"}], {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})	v: ["<x>", "<y>"]	{"verdict":"valid","opts":{"partial":true}}
+ep9	verdict	v: emit([{"p": "x"}, {"p": "y"}], {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})	v: ["<x>", "<x>"]	{"verdict":"invalid"}
+ep10	verdict	v: emit([{"p": "x"}, {"p": "y"}], {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})	v: ["<x>", "<x>"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep11	verdict	v: emit([{"p": "x"}, {"p": "y"}], {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})	v: ["<x>", "<x>"]	{"verdict":"invalid","opts":{"partial":true}}
+ep12	verdict	v: emit([{"a": 1, "b": 2}], {"match": {}, "replace": {"A": .a, "B": .b}, "body": ["A+B=A B"]})	v: ["1+2=1 2"]	{"verdict":"valid"}
+ep13	verdict	v: emit([{"a": 1, "b": 2}], {"match": {}, "replace": {"A": .a, "B": .b}, "body": ["A+B=A B"]})	v: ["1+2=1 2"]	{"verdict":"valid","opts":{"noFill":true}}
+ep14	verdict	v: emit([{"a": 1, "b": 2}], {"match": {}, "replace": {"A": .a, "B": .b}, "body": ["A+B=A B"]})	v: ["1+2=1 2"]	{"verdict":"valid","opts":{"partial":true}}
+ep15	verdict	v: emit([{"a": 1, "b": 2}], {"match": {}, "replace": {"A": .a, "B": .b}, "body": ["A+B=A B"]})	v: ["A+B=A B"]	{"verdict":"invalid"}
+ep16	verdict	v: emit([{"a": 1, "b": 2}], {"match": {}, "replace": {"A": .a, "B": .b}, "body": ["A+B=A B"]})	v: ["A+B=A B"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep17	verdict	v: emit([{"a": 1, "b": 2}], {"match": {}, "replace": {"A": .a, "B": .b}, "body": ["A+B=A B"]})	v: ["A+B=A B"]	{"verdict":"invalid","opts":{"partial":true}}
+ep18	verdict	v: emit([{"port": 8080, "on": true}], {"match": {}, "replace": {"PORT": .port, "ON": .on}, "body": ["listen(PORT, ON)"]})	v: ["listen(8080, true)"]	{"verdict":"valid"}
+ep19	verdict	v: emit([{"port": 8080, "on": true}], {"match": {}, "replace": {"PORT": .port, "ON": .on}, "body": ["listen(PORT, ON)"]})	v: ["listen(8080, true)"]	{"verdict":"valid","opts":{"noFill":true}}
+ep20	verdict	v: emit([{"port": 8080, "on": true}], {"match": {}, "replace": {"PORT": .port, "ON": .on}, "body": ["listen(PORT, ON)"]})	v: ["listen(8080, true)"]	{"verdict":"valid","opts":{"partial":true}}
+ep21	verdict	v: emit([{"port": 8080, "on": true}], {"match": {}, "replace": {"PORT": .port, "ON": .on}, "body": ["listen(PORT, ON)"]})	v: ["listen(8080, 1)"]	{"verdict":"invalid"}
+ep22	verdict	v: emit([{"port": 8080, "on": true}], {"match": {}, "replace": {"PORT": .port, "ON": .on}, "body": ["listen(PORT, ON)"]})	v: ["listen(8080, 1)"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep23	verdict	v: emit([{"port": 8080, "on": true}], {"match": {}, "replace": {"PORT": .port, "ON": .on}, "body": ["listen(PORT, ON)"]})	v: ["listen(8080, 1)"]	{"verdict":"invalid","opts":{"partial":true}}
+ep24	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": upper(.p)}, "body": ["<P>"]})	v: ["<X>"]	{"verdict":"valid"}
+ep25	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": upper(.p)}, "body": ["<P>"]})	v: ["<X>"]	{"verdict":"valid","opts":{"noFill":true}}
+ep26	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": upper(.p)}, "body": ["<P>"]})	v: ["<X>"]	{"verdict":"valid","opts":{"partial":true}}
+ep27	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": upper(.p)}, "body": ["<P>"]})	v: ["<x>"]	{"verdict":"invalid"}
+ep28	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": upper(.p)}, "body": ["<P>"]})	v: ["<x>"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep29	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": upper(.p)}, "body": ["<P>"]})	v: ["<x>"]	{"verdict":"invalid","opts":{"partial":true}}
+ep30	verdict	v: emit(["a", "b"], {"match": string, "replace": {"N": _}, "body": ["<N>"]})	v: ["<a>", "<b>"]	{"verdict":"valid"}
+ep31	verdict	v: emit(["a", "b"], {"match": string, "replace": {"N": _}, "body": ["<N>"]})	v: ["<a>", "<b>"]	{"verdict":"valid","opts":{"noFill":true}}
+ep32	verdict	v: emit(["a", "b"], {"match": string, "replace": {"N": _}, "body": ["<N>"]})	v: ["<a>", "<b>"]	{"verdict":"valid","opts":{"partial":true}}
+ep33	verdict	v: emit(["a", "b"], {"match": string, "replace": {"N": _}, "body": ["<N>"]})	v: ["<a>", "<a>"]	{"verdict":"invalid"}
+ep34	verdict	v: emit(["a", "b"], {"match": string, "replace": {"N": _}, "body": ["<N>"]})	v: ["<a>", "<a>"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep35	verdict	v: emit(["a", "b"], {"match": string, "replace": {"N": _}, "body": ["<N>"]})	v: ["<a>", "<a>"]	{"verdict":"invalid","opts":{"partial":true}}
+ep36	verdict	v: emit([{"pin": "it\\"s"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["x(\\"PIN\\")"]})	v: ["x(\\"it\\\\\\"s\\")"]	{"verdict":"valid"}
+ep37	verdict	v: emit([{"pin": "it\\"s"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["x(\\"PIN\\")"]})	v: ["x(\\"it\\\\\\"s\\")"]	{"verdict":"valid","opts":{"noFill":true}}
+ep38	verdict	v: emit([{"pin": "it\\"s"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["x(\\"PIN\\")"]})	v: ["x(\\"it\\\\\\"s\\")"]	{"verdict":"valid","opts":{"partial":true}}
+ep39	verdict	v: emit([{"pin": "it\\"s"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["x(\\"PIN\\")"]})	v: ["x(\\"it\\"s\\")"]	{"verdict":"invalid"}
+ep40	verdict	v: emit([{"pin": "it\\"s"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["x(\\"PIN\\")"]})	v: ["x(\\"it\\"s\\")"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep41	verdict	v: emit([{"pin": "it\\"s"}], {"match": {"pin": string}, "replace": {"PIN": .pin}, "body": ["x(\\"PIN\\")"]})	v: ["x(\\"it\\"s\\")"]	{"verdict":"invalid","opts":{"partial":true}}
+ep42	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "sq", "replace": {"PIN": .pin}, "body": ["x('PIN')"]})	v: ["x('it\\\\'s')"]	{"verdict":"valid"}
+ep43	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "sq", "replace": {"PIN": .pin}, "body": ["x('PIN')"]})	v: ["x('it\\\\'s')"]	{"verdict":"valid","opts":{"noFill":true}}
+ep44	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "sq", "replace": {"PIN": .pin}, "body": ["x('PIN')"]})	v: ["x('it\\\\'s')"]	{"verdict":"valid","opts":{"partial":true}}
+ep45	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "sq", "replace": {"PIN": .pin}, "body": ["x('PIN')"]})	v: ["x('it's')"]	{"verdict":"invalid"}
+ep46	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "sq", "replace": {"PIN": .pin}, "body": ["x('PIN')"]})	v: ["x('it's')"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep47	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "sq", "replace": {"PIN": .pin}, "body": ["x('PIN')"]})	v: ["x('it's')"]	{"verdict":"invalid","opts":{"partial":true}}
+ep48	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "none", "replace": {"PIN": .pin}, "body": ["x(PIN)"]})	v: ["x(it's)"]	{"verdict":"valid"}
+ep49	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "none", "replace": {"PIN": .pin}, "body": ["x(PIN)"]})	v: ["x(it's)"]	{"verdict":"valid","opts":{"noFill":true}}
+ep50	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "none", "replace": {"PIN": .pin}, "body": ["x(PIN)"]})	v: ["x(it's)"]	{"verdict":"valid","opts":{"partial":true}}
+ep51	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "none", "replace": {"PIN": .pin}, "body": ["x(PIN)"]})	v: ["x(it\\\\'s)"]	{"verdict":"invalid"}
+ep52	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "none", "replace": {"PIN": .pin}, "body": ["x(PIN)"]})	v: ["x(it\\\\'s)"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep53	verdict	v: emit([{"pin": "it's"}], {"match": {"pin": string}, "esc": "none", "replace": {"PIN": .pin}, "body": ["x(PIN)"]})	v: ["x(it\\\\'s)"]	{"verdict":"invalid","opts":{"partial":true}}
+ep54	verdict	v: emit([{"t": "a<b"}], {"match": {}, "esc": "xml", "replace": {"T": .t}, "body": ["<p>T</p>"]})	v: ["<p>a&lt;b</p>"]	{"verdict":"valid"}
+ep55	verdict	v: emit([{"t": "a<b"}], {"match": {}, "esc": "xml", "replace": {"T": .t}, "body": ["<p>T</p>"]})	v: ["<p>a&lt;b</p>"]	{"verdict":"valid","opts":{"noFill":true}}
+ep56	verdict	v: emit([{"t": "a<b"}], {"match": {}, "esc": "xml", "replace": {"T": .t}, "body": ["<p>T</p>"]})	v: ["<p>a&lt;b</p>"]	{"verdict":"valid","opts":{"partial":true}}
+ep57	verdict	v: emit([{"t": "a<b"}], {"match": {}, "esc": "xml", "replace": {"T": .t}, "body": ["<p>T</p>"]})	v: ["<p>a<b</p>"]	{"verdict":"invalid"}
+ep58	verdict	v: emit([{"t": "a<b"}], {"match": {}, "esc": "xml", "replace": {"T": .t}, "body": ["<p>T</p>"]})	v: ["<p>a<b</p>"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep59	verdict	v: emit([{"t": "a<b"}], {"match": {}, "esc": "xml", "replace": {"T": .t}, "body": ["<p>T</p>"]})	v: ["<p>a<b</p>"]	{"verdict":"invalid","opts":{"partial":true}}
+ep60	verdict	v: emit([{}], {"match": {}, "replace": {"A": "B", "B": "c"}, "body": ["A B"]})	v: ["B c"]	{"verdict":"valid"}
+ep61	verdict	v: emit([{}], {"match": {}, "replace": {"A": "B", "B": "c"}, "body": ["A B"]})	v: ["B c"]	{"verdict":"valid","opts":{"noFill":true}}
+ep62	verdict	v: emit([{}], {"match": {}, "replace": {"A": "B", "B": "c"}, "body": ["A B"]})	v: ["B c"]	{"verdict":"valid","opts":{"partial":true}}
+ep63	verdict	v: emit([{}], {"match": {}, "replace": {"A": "B", "B": "c"}, "body": ["A B"]})	v: ["c c"]	{"verdict":"invalid"}
+ep64	verdict	v: emit([{}], {"match": {}, "replace": {"A": "B", "B": "c"}, "body": ["A B"]})	v: ["c c"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep65	verdict	v: emit([{}], {"match": {}, "replace": {"A": "B", "B": "c"}, "body": ["A B"]})	v: ["c c"]	{"verdict":"invalid","opts":{"partial":true}}
+ep66	verdict	v: emit([{"p": "P"}], {"match": {}, "replace": {"P": .p}, "body": ["P P"]})	v: ["P P"]	{"verdict":"valid"}
+ep67	verdict	v: emit([{"p": "P"}], {"match": {}, "replace": {"P": .p}, "body": ["P P"]})	v: ["P P"]	{"verdict":"valid","opts":{"noFill":true}}
+ep68	verdict	v: emit([{"p": "P"}], {"match": {}, "replace": {"P": .p}, "body": ["P P"]})	v: ["P P"]	{"verdict":"valid","opts":{"partial":true}}
+ep69	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p, "Q": .p}, "body": ["PQ", "Q"]})	v: ["xx", "x"]	{"verdict":"valid"}
+ep70	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p, "Q": .p}, "body": ["PQ", "Q"]})	v: ["xx", "x"]	{"verdict":"valid","opts":{"noFill":true}}
+ep71	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p, "Q": .p}, "body": ["PQ", "Q"]})	v: ["xx", "x"]	{"verdict":"valid","opts":{"partial":true}}
+ep72	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "body": ["X Y"]}), "X"]})	v: ["1", "X Y", "1"]	{"verdict":"valid"}
+ep73	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "body": ["X Y"]}), "X"]})	v: ["1", "X Y", "1"]	{"verdict":"valid","opts":{"noFill":true}}
+ep74	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "body": ["X Y"]}), "X"]})	v: ["1", "X Y", "1"]	{"verdict":"valid","opts":{"partial":true}}
+ep75	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "body": ["X Y"]}), "X"]})	v: ["1", "1 Y", "1"]	{"verdict":"invalid"}
+ep76	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "body": ["X Y"]}), "X"]})	v: ["1", "1 Y", "1"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep77	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "body": ["X Y"]}), "X"]})	v: ["1", "1 Y", "1"]	{"verdict":"invalid","opts":{"partial":true}}
+ep78	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "replace": {"Y": .y}, "body": ["X Y"]})]})	v: ["1", "X 2"]	{"verdict":"valid"}
+ep79	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "replace": {"Y": .y}, "body": ["X Y"]})]})	v: ["1", "X 2"]	{"verdict":"valid","opts":{"noFill":true}}
+ep80	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "replace": {"Y": .y}, "body": ["X Y"]})]})	v: ["1", "X 2"]	{"verdict":"valid","opts":{"partial":true}}
+ep81	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "replace": {"Y": .y}, "body": ["X Y"]})]})	v: ["1", "1 2"]	{"verdict":"invalid"}
+ep82	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "replace": {"Y": .y}, "body": ["X Y"]})]})	v: ["1", "1 2"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep83	verdict	v: emit([{"x": 1, "c": [{"y": 2}]}], {"match": {}, "replace": {"X": .x}, "body": ["X", emit(.c, {"match": {}, "replace": {"Y": .y}, "body": ["X Y"]})]})	v: ["1", "1 2"]	{"verdict":"invalid","opts":{"partial":true}}
+ep84	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [{"k": "line", "at": 1, "n": ["x P", .p]}, {"k": "raw", "text": "P raw"}]})	v: [{"k": "line", "at": 1, "n": ["x z", "z"]}, {"k": "raw", "text": "z raw"}]	{"verdict":"valid"}
+ep85	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [{"k": "line", "at": 1, "n": ["x P", .p]}, {"k": "raw", "text": "P raw"}]})	v: [{"k": "line", "at": 1, "n": ["x z", "z"]}, {"k": "raw", "text": "z raw"}]	{"verdict":"valid","opts":{"noFill":true}}
+ep86	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [{"k": "line", "at": 1, "n": ["x P", .p]}, {"k": "raw", "text": "P raw"}]})	v: [{"k": "line", "at": 1, "n": ["x z", "z"]}, {"k": "raw", "text": "z raw"}]	{"verdict":"valid","opts":{"partial":true}}
+ep87	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [{"k": "line", "at": 1, "n": ["x P", .p]}, {"k": "raw", "text": "P raw"}]})	v: [{"k": "line", "at": 1, "n": ["x P", "z"]}, {"k": "raw", "text": "z raw"}]	{"verdict":"invalid"}
+ep88	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [{"k": "line", "at": 1, "n": ["x P", .p]}, {"k": "raw", "text": "P raw"}]})	v: [{"k": "line", "at": 1, "n": ["x P", "z"]}, {"k": "raw", "text": "z raw"}]	{"verdict":"invalid","opts":{"noFill":true}}
+ep89	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [{"k": "line", "at": 1, "n": ["x P", .p]}, {"k": "raw", "text": "P raw"}]})	v: [{"k": "line", "at": 1, "n": ["x P", "z"]}, {"k": "raw", "text": "z raw"}]	{"verdict":"invalid","opts":{"partial":true}}
+ep90	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ("P") + ("P")]})	v: ["z", "PP"]	{"verdict":"valid"}
+ep91	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ("P") + ("P")]})	v: ["z", "PP"]	{"verdict":"valid","opts":{"noFill":true}}
+ep92	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ("P") + ("P")]})	v: ["z", "PP"]	{"verdict":"valid","opts":{"partial":true}}
+ep93	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ("P") + ("P")]})	v: ["z", "zz"]	{"verdict":"invalid"}
+ep94	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ("P") + ("P")]})	v: ["z", "zz"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep95	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ("P") + ("P")]})	v: ["z", "zz"]	{"verdict":"invalid","opts":{"partial":true}}
+ep96	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [1, "P"]})	v: [1, "z"]	{"verdict":"valid"}
+ep97	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [1, "P"]})	v: [1, "z"]	{"verdict":"valid","opts":{"noFill":true}}
+ep98	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [1, "P"]})	v: [1, "z"]	{"verdict":"valid","opts":{"partial":true}}
+ep99	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [{"k": "blank"}, "P"]})	v: [{"k": "blank"}, "z"]	{"verdict":"valid"}
+ep100	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [{"k": "blank"}, "P"]})	v: [{"k": "blank"}, "z"]	{"verdict":"valid","opts":{"noFill":true}}
+ep101	verdict	v: emit([{"p": "z"}], {"match": {}, "replace": {"P": .p}, "body": [{"k": "blank"}, "P"]})	v: [{"k": "blank"}, "z"]	{"verdict":"valid","opts":{"partial":true}}
+ep102	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ["P"]]})	v: ["x", "P"]	{"verdict":"valid"}
+ep103	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ["P"]]})	v: ["x", "P"]	{"verdict":"valid","opts":{"noFill":true}}
+ep104	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ["P"]]})	v: ["x", "P"]	{"verdict":"valid","opts":{"partial":true}}
+ep105	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ["P"]]})	v: ["x", "x"]	{"verdict":"invalid"}
+ep106	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ["P"]]})	v: ["x", "x"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep107	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": ["P", ["P"]]})	v: ["x", "x"]	{"verdict":"invalid","opts":{"partial":true}}
+ep108	verdict	v: emit([{}], {"match": {}, "replace": {"P": *("x")}, "body": ["<P>"]})	v: ["<x>"]	{"verdict":"valid"}
+ep109	verdict	v: emit([{}], {"match": {}, "replace": {"P": *("x")}, "body": ["<P>"]})	v: ["<x>"]	{"verdict":"valid","opts":{"noFill":true}}
+ep110	verdict	v: emit([{}], {"match": {}, "replace": {"P": *("x")}, "body": ["<P>"]})	v: ["<x>"]	{"verdict":"valid","opts":{"partial":true}}
+ep111	verdict	v: emit([1, "s"], [{"match": number, "replace": {"N": _}, "body": ["n=N"]}, {"match": string, "body": ["s"]}])	v: ["n=1", "s"]	{"verdict":"valid"}
+ep112	verdict	v: emit([1, "s"], [{"match": number, "replace": {"N": _}, "body": ["n=N"]}, {"match": string, "body": ["s"]}])	v: ["n=1", "s"]	{"verdict":"valid","opts":{"noFill":true}}
+ep113	verdict	v: emit([1, "s"], [{"match": number, "replace": {"N": _}, "body": ["n=N"]}, {"match": string, "body": ["s"]}])	v: ["n=1", "s"]	{"verdict":"valid","opts":{"partial":true}}
+ep114	verdict	v: emit([1, "s"], [{"match": number, "replace": {"N": _}, "body": ["n=N"]}, {"match": string, "body": ["s"]}])	v: ["n=N", "s"]	{"verdict":"invalid"}
+ep115	verdict	v: emit([1, "s"], [{"match": number, "replace": {"N": _}, "body": ["n=N"]}, {"match": string, "body": ["s"]}])	v: ["n=N", "s"]	{"verdict":"invalid","opts":{"noFill":true}}
+ep116	verdict	v: emit([1, "s"], [{"match": number, "replace": {"N": _}, "body": ["n=N"]}, {"match": string, "body": ["s"]}])	v: ["n=N", "s"]	{"verdict":"invalid","opts":{"partial":true}}
+ep117	verdict	v: emit([{}], {"match": {}, "esc": "sq", "body": ["it's"]})	v: ["it's"]	{"verdict":"valid"}
+ep118	verdict	v: emit([{}], {"match": {}, "esc": "sq", "body": ["it's"]})	v: ["it's"]	{"verdict":"valid","opts":{"noFill":true}}
+ep119	verdict	v: emit([{}], {"match": {}, "esc": "sq", "body": ["it's"]})	v: ["it's"]	{"verdict":"valid","opts":{"partial":true}}
+ep120	verdict	v: emit([{"p": "x"}], {"match": {}, "esc": "pascal", "replace": {"P": .p}, "body": ["P"]})	v: ["x"]	{"verdict":"error"}
+ep121	verdict	v: emit([{"p": "x"}], {"match": {}, "esc": "pascal", "replace": {"P": .p}, "body": ["P"]})	v: ["x"]	{"verdict":"error","opts":{"noFill":true}}
+ep122	verdict	v: emit([{"p": "x"}], {"match": {}, "esc": "pascal", "replace": {"P": .p}, "body": ["P"]})	v: ["x"]	{"verdict":"error","opts":{"partial":true}}
+ep123	verdict	v: emit([{"p": "x"}], {"match": {}, "esc": 1, "replace": {"P": .p}, "body": ["P"]})	v: ["x"]	{"verdict":"error"}
+ep124	verdict	v: emit([{"p": "x"}], {"match": {}, "esc": 1, "replace": {"P": .p}, "body": ["P"]})	v: ["x"]	{"verdict":"error","opts":{"noFill":true}}
+ep125	verdict	v: emit([{"p": "x"}], {"match": {}, "esc": 1, "replace": {"P": .p}, "body": ["P"]})	v: ["x"]	{"verdict":"error","opts":{"partial":true}}
+ep126	verdict	v: emit([{}], {"match": {}, "esc": "pascal", "body": ["x"]})	v: ["x"]	{"verdict":"error"}
+ep127	verdict	v: emit([{}], {"match": {}, "esc": "pascal", "body": ["x"]})	v: ["x"]	{"verdict":"error","opts":{"noFill":true}}
+ep128	verdict	v: emit([{}], {"match": {}, "esc": "pascal", "body": ["x"]})	v: ["x"]	{"verdict":"error","opts":{"partial":true}}
+ep129	verdict	v: emit([{"p": 1, "pin": 2}], {"match": {}, "replace": {"P": .p, "PIN": .pin}, "body": ["PIN"]})	v: ["2"]	{"verdict":"error"}
+ep130	verdict	v: emit([{"p": 1, "pin": 2}], {"match": {}, "replace": {"P": .p, "PIN": .pin}, "body": ["PIN"]})	v: ["2"]	{"verdict":"error","opts":{"noFill":true}}
+ep131	verdict	v: emit([{"p": 1, "pin": 2}], {"match": {}, "replace": {"P": .p, "PIN": .pin}, "body": ["PIN"]})	v: ["2"]	{"verdict":"error","opts":{"partial":true}}
+ep132	verdict	v: emit([{"pin": 2}], {"match": {}, "replace": {"NOPE": .pin}, "body": ["PIN"]})	v: ["PIN"]	{"verdict":"error"}
+ep133	verdict	v: emit([{"pin": 2}], {"match": {}, "replace": {"NOPE": .pin}, "body": ["PIN"]})	v: ["PIN"]	{"verdict":"error","opts":{"noFill":true}}
+ep134	verdict	v: emit([{"pin": 2}], {"match": {}, "replace": {"NOPE": .pin}, "body": ["PIN"]})	v: ["PIN"]	{"verdict":"error","opts":{"partial":true}}
+ep135	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": [("a") + ("P")]})	v: ["aP"]	{"verdict":"error"}
+ep136	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": [("a") + ("P")]})	v: ["aP"]	{"verdict":"error","opts":{"noFill":true}}
+ep137	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": [("a") + ("P")]})	v: ["aP"]	{"verdict":"error","opts":{"partial":true}}
+ep138	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"": .p}, "body": ["P"]})	v: ["P"]	{"verdict":"error"}
+ep139	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"": .p}, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"noFill":true}}
+ep140	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"": .p}, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"partial":true}}
+ep141	verdict	v: emit([], {"match": {}, "replace": {"NOPE": 1}, "body": ["P"]})	v: []	{"verdict":"error"}
+ep142	verdict	v: emit([], {"match": {}, "replace": {"NOPE": 1}, "body": ["P"]})	v: []	{"verdict":"error","opts":{"noFill":true}}
+ep143	verdict	v: emit([], {"match": {}, "replace": {"NOPE": 1}, "body": ["P"]})	v: []	{"verdict":"error","opts":{"partial":true}}
+ep144	verdict	v: emit([1], [{"match": number, "body": ["n"]}, {"match": string, "replace": {"Q": 1}, "body": ["s"]}])	v: ["n"]	{"verdict":"error"}
+ep145	verdict	v: emit([1], [{"match": number, "body": ["n"]}, {"match": string, "replace": {"Q": 1}, "body": ["s"]}])	v: ["n"]	{"verdict":"error","opts":{"noFill":true}}
+ep146	verdict	v: emit([1], [{"match": number, "body": ["n"]}, {"match": string, "replace": {"Q": 1}, "body": ["s"]}])	v: ["n"]	{"verdict":"error","opts":{"partial":true}}
+ep147	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": 1, "body": ["P"]})	v: ["P"]	{"verdict":"error"}
+ep148	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": 1, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"noFill":true}}
+ep149	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": 1, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"partial":true}}
+ep150	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": [{"n": ["P"], "n": ["Q"]}]})	v: []	{"verdict":"error"}
+ep151	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": [{"n": ["P"], "n": ["Q"]}]})	v: []	{"verdict":"error","opts":{"noFill":true}}
+ep152	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .p}, "body": [{"n": ["P"], "n": ["Q"]}]})	v: []	{"verdict":"error","opts":{"partial":true}}
+ep153	verdict	v: emit([{"pin": 2}], {"match": {}, "replace": {"ALL": _}, "body": ["ALL"]})	v: ["ALL"]	{"verdict":"error"}
+ep154	verdict	v: emit([{"pin": 2}], {"match": {}, "replace": {"ALL": _}, "body": ["ALL"]})	v: ["ALL"]	{"verdict":"error","opts":{"noFill":true}}
+ep155	verdict	v: emit([{"pin": 2}], {"match": {}, "replace": {"ALL": _}, "body": ["ALL"]})	v: ["ALL"]	{"verdict":"error","opts":{"partial":true}}
+ep156	verdict	v: emit([{}], {"match": {}, "replace": {"N": null}, "body": ["N"]})	v: ["null"]	{"verdict":"error"}
+ep157	verdict	v: emit([{}], {"match": {}, "replace": {"N": null}, "body": ["N"]})	v: ["null"]	{"verdict":"error","opts":{"noFill":true}}
+ep158	verdict	v: emit([{}], {"match": {}, "replace": {"N": null}, "body": ["N"]})	v: ["null"]	{"verdict":"error","opts":{"partial":true}}
+ep159	verdict	v: emit([{"l": [1]}], {"match": {}, "replace": {"L": .l}, "body": ["L"]})	v: ["L"]	{"verdict":"error"}
+ep160	verdict	v: emit([{"l": [1]}], {"match": {}, "replace": {"L": .l}, "body": ["L"]})	v: ["L"]	{"verdict":"error","opts":{"noFill":true}}
+ep161	verdict	v: emit([{"l": [1]}], {"match": {}, "replace": {"L": .l}, "body": ["L"]})	v: ["L"]	{"verdict":"error","opts":{"partial":true}}
+ep162	verdict	v: emit([{}], {"match": {}, "replace": {"P": string}, "body": ["P"]})	v: ["P"]	{"verdict":"error"}
+ep163	verdict	v: emit([{}], {"match": {}, "replace": {"P": string}, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"noFill":true}}
+ep164	verdict	v: emit([{}], {"match": {}, "replace": {"P": string}, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"partial":true}}
+ep165	verdict	v: emit([{}], {"match": {}, "esc": "none", "replace": {"P": string}, "body": ["P"]})	v: ["P"]	{"verdict":"error"}
+ep166	verdict	v: emit([{}], {"match": {}, "esc": "none", "replace": {"P": string}, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"noFill":true}}
+ep167	verdict	v: emit([{}], {"match": {}, "esc": "none", "replace": {"P": string}, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"partial":true}}
+ep168	verdict	v: emit([{"p": string}], {"match": {}, "replace": {"P": .p}, "body": ["P"]})	v: ["P"]	{"verdict":"error"}
+ep169	verdict	v: emit([{"p": string}], {"match": {}, "replace": {"P": .p}, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"noFill":true}}
+ep170	verdict	v: emit([{"p": string}], {"match": {}, "replace": {"P": .p}, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"partial":true}}
+ep171	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .nope}, "body": ["P"]})	v: ["P"]	{"verdict":"error"}
+ep172	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .nope}, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"noFill":true}}
+ep173	verdict	v: emit([{"p": "x"}], {"match": {}, "replace": {"P": .nope}, "body": ["P"]})	v: ["P"]	{"verdict":"error","opts":{"partial":true}}
+eq0	verdict	%W = emit(_, {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})\nv: emit([{"p": "x"}], %W)	v: ["<x>"]	{"verdict":"valid"}
+eq1	verdict	%W = emit(_, {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})\nv: emit([{"p": "x"}], %W)	v: ["<x>"]	{"verdict":"valid","opts":{"noFill":true}}
+eq2	verdict	%W = emit(_, {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})\nv: emit([{"p": "x"}], %W)	v: ["<x>"]	{"verdict":"valid","opts":{"partial":true}}
+eq3	verdict	%W = emit(_, {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})\nv: emit([{"p": "x"}], %W)	v: ["<P>"]	{"verdict":"invalid"}
+eq4	verdict	%W = emit(_, {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})\nv: emit([{"p": "x"}], %W)	v: ["<P>"]	{"verdict":"invalid","opts":{"noFill":true}}
+eq5	verdict	%W = emit(_, {"match": {"p": string}, "replace": {"P": .p}, "body": ["<P>"]})\nv: emit([{"p": "x"}], %W)	v: ["<P>"]	{"verdict":"invalid","opts":{"partial":true}}
+eq6	verdict	%W = emit(_, {"match": {"name": string}, "replace": {"N": .name}, "body": ["<N>", emit(.kids, %W), "</N>"]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "</a>"]	{"verdict":"valid"}
+eq7	verdict	%W = emit(_, {"match": {"name": string}, "replace": {"N": .name}, "body": ["<N>", emit(.kids, %W), "</N>"]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "</a>"]	{"verdict":"valid","opts":{"noFill":true}}
+eq8	verdict	%W = emit(_, {"match": {"name": string}, "replace": {"N": .name}, "body": ["<N>", emit(.kids, %W), "</N>"]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<b>", "</b>", "</a>"]	{"verdict":"valid","opts":{"partial":true}}
+eq9	verdict	%W = emit(_, {"match": {"name": string}, "replace": {"N": .name}, "body": ["<N>", emit(.kids, %W), "</N>"]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<a>", "</a>", "</a>"]	{"verdict":"invalid"}
+eq10	verdict	%W = emit(_, {"match": {"name": string}, "replace": {"N": .name}, "body": ["<N>", emit(.kids, %W), "</N>"]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<a>", "</a>", "</a>"]	{"verdict":"invalid","opts":{"noFill":true}}
+eq11	verdict	%W = emit(_, {"match": {"name": string}, "replace": {"N": .name}, "body": ["<N>", emit(.kids, %W), "</N>"]})\nv: emit([{"name": "a", "kids": [{"name": "b", "kids": []}]}], %W)	v: ["<a>", "<a>", "</a>", "</a>"]	{"verdict":"invalid","opts":{"partial":true}}
 ap0	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid"}
 ap1	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid","opts":{"noFill":true}}
 ap2	verdict	v: apply(1, add(_, 1))	v: 2	{"verdict":"valid","opts":{"partial":true}}

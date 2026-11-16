@@ -467,7 +467,10 @@ into the node a body of `emit` is read for, which a relative reference
 in a body starts with, since it names a field of the node rather than a
 place, or a declared name's own place, which a relative path a body
 writes starts with once it's placed there (`Decls.placed`), so that no
-path the schema writes, `$."%T".x` among them, is a path a body writes. -/
+path the schema writes, `$."%T".x` among them, is a path a body writes,
+or the place `n` steps above the target of the link whose template holds
+the path, which a relative path in a link's template starts with once
+it's placed there, read where the template lands (ruling 50). -/
 inductive Seg where
   | key (k : String)
   | idx (i : ℕ)
@@ -475,6 +478,7 @@ inductive Seg where
   | up (n : ℕ)
   | node
   | own (n : String)
+  | lands (n : ℕ)
   deriving DecidableEq
 
 /-- The part of a value a path names. -/
@@ -490,6 +494,7 @@ def Data.at (j : Data) : List Seg → Option Data
   | .up _ :: _ => none
   | .node :: _ => none
   | .own _ :: _ => none
+  | .lands _ :: _ => none
 
 /-! ## Values, told apart -/
 

@@ -1274,6 +1274,11 @@ one of its fields with `each($.lines, _ & _.amount)` asks for
 something that is both the whole record and one of its fields. Use
 [`pick`](#projecting-fields-pick) to project a field.
 
+The definition reads the idiom as it reads any template, each hole the
+member (`resolveD`), so `_ & t` is the member met with `t`, and rows
+from ib0 on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv)
+hold both engines to it.
+
 ## Selecting: `filter` and `match`
 
 `filter(data, cond)` keeps the children of `data` that **already
@@ -1303,6 +1308,15 @@ changes nothing, whatever the arm's rank, so
 `filter([{}, {b: 1}], *{b: 1} | {})` keeps both children: the arm `{}`
 changes neither. A child that leaves out the condition's optional member
 gains nothing from it, so `filter([{}], {c?: 3})` keeps `{}`.
+
+`filter` tries each child as written, so it tries one that generates
+no value too, and keeps it as written for the data to meet:
+`filter({x: integer}, any)` keeps `x: integer`, and
+`filter({x: integer}, 1)` drops it, since the meet narrows `integer`
+to `1`. A disjunction with no default stands for any one of its arms,
+so it's kept where the meet leaves one: `filter({x: 1 | 2}, 1)` keeps
+`x: 1 | 2`. A preference is one value with a default, so
+`filter({x: *1 | 2}, 1)` drops `x`, whose arm `2` the meet removes.
 
 `match(v, p1, r1, …, d?)` is a **bounded conditional**. The first
 pattern in argument order that `v` **already satisfies** selects its
@@ -1510,17 +1524,42 @@ tried, rather than an empty answer or a copy of the node. A template
 whose `match` is `any`, written last, is how a document says the rest
 of the selection was meant to be allowed.
 
-The definition reads `emit` by `resolveD` and `emitPieces` in
+**A `key(n)` in a body reads where its piece lands.** Each element of a
+body stands at the index its piece takes in the answer, counted across
+every node and after the pieces the elements before it splice, so
+`key(0)` is that index and `key()` is the key of the member that holds
+the `emit`. A list in a body reads its own elements' indexes inside it,
+before it splices, and a nested `emit` reads the positions in its own
+answer. A piece that carries a mark of its own, `hide()` or `type()`,
+takes no position, as a list holds none for it, though both engines
+still give it one, which
+[#539](https://github.com/aontu-lang/aontu/issues/539) tracks:
+
+```aontu
+lines: emit([1 2], { match:number body: ["n" key(0)] })
+```
+
+```json
+{"lines": ["n", "1", "n", "3"]}
+```
+
+The definition reads `emit` by `resolveD` and `emitPlan` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), each body
-read for its node, and rows from et0 on of
+read for its node and each element where its piece lands
+(`emitElemsD`), and rows from et0 on and ek0 on of
 [`test/spec/def-call.tsv`](../test/spec/def-call.tsv) and from em0 on of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to it. A template's `match` takes a node where the meet of the two
 narrows nothing of the node (`emitTakes`), as both engines dispatch, so
-`{k: 1}` takes `{"k": 1}` and `{k: 1, j?: 2}` doesn't. It doesn't yet
-read a named table, `replace` in a body, or a `key(n)` in a body, which
-the two engines read at different positions
-([#524](https://github.com/aontu-lang/aontu/issues/524)).
+`{k: 1}` takes `{"k": 1}` and `{k: 1, j?: 2}` doesn't. A table written
+as an `emit` call reads as the table it holds (`Fn.tableArgs`), so a
+named table serves each `emit` that takes it. Rows from ew0 on and from
+en0 on hold both engines to it. A named table that names itself unfolds
+a level for each turn the expansion has left (`Decls.tableUnfold`), rows
+from er0 on. The expansion writes a template's `replace` map and `esc`
+convention into its body before any reading (`Val.replaced`), each key
+in a literal line read as its value's text, escaped, and rows from ep0
+on and from eq0 on hold both engines to it.
 
 ### A named table
 
@@ -1871,6 +1910,14 @@ x: %json & { a: [1 "two" b:true] }
 {"x": {"a": [1, "two", {"b": true}]}}
 ```
 
+A relative path in a recursive name's body reads where each level
+stands, as any copy's does. With `%T = {x: integer, y: .x, b?: %T}` and
+`a: %T`, `vet` reads `a.b.y` as `a.b.x`, so data that writes
+`"b": {"x": 2, "y": 2}` under `a` passes and `"b": {"x": 2, "y": 1}`
+doesn't. Below the last level the data or the schema writes, the body
+reads at its own place. Both engines' evaluation still reads every
+level below the first at the body's own place, which #765 tracks.
+
 [Subsumption](#recursive-positions) reads a recursive position as the
 definition it names, so two recursive schemas compare with no data on
 either side. The degenerate
@@ -1885,7 +1932,7 @@ For the recipe form see
 live version, with its checks, is
 [use-cases/13-recursive-schema](../use-cases/13-recursive-schema/).
 
-The definition reads a recursive name as the least fixpoint, a residual that expands against the data as far as the data goes: `expand` and `meetD` in [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean), under the alias-cycle rule `Guarded` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean), which refuses a name that reaches itself with no key and no element between.
+The definition reads a recursive name as the least fixpoint, a residual that expands against the data as far as the data goes: `expand` and `meetD` in [`spec/Aontu/Alias.lean`](../spec/Aontu/Alias.lean), under the alias-cycle rule `Guarded` in [`spec/Aontu/Names.lean`](../spec/Aontu/Names.lean), which refuses a name that reaches itself with no key and no element between. A use of a recursive name whose body reads its own place is a copy placed where it stands, at each level the data or the document reaches, as `Decls.reachesAt` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean) reads it.
 
 ## Variables `$name`
 
@@ -4058,10 +4105,21 @@ target: `relate() & string & re("auth$") & path($.services.auth)` checks the
 address itself. They are held until the address arrives, and then meet
 it.
 
+The template reads its relative paths where it lands, at the target,
+as a spread's template reads its own at each member and a copy reads
+its own where the copy stands. So
+`x: {m: {k: 2}, n: relate({v: .k}) & path(.m)}` gives `x.m` the member
+`v: 2`, and a link the template carries reads its relative address
+from where that template lands. Both engines still read such a path
+where the document writes the link, inside the template, where it names
+nothing, so they leave the template waiting there, which
+[#661](https://github.com/aontu-lang/aontu/issues/661) tracks.
+
 In the definition, `relate(t)` reads as the relation kind carrying its
 template, and `Decls.withRefers` in [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)
 meets each link's template, its marks cleared, at the target its
-address names from where the link stands. It reads the targets in
+address names from where the link stands, each relative path in the
+template read from that target (`Val.atTarget`). It reads the targets in
 passes, so one link's template can make another link's target,
 whichever the document writes first. Since the template rides the value
 the link meets, the definition reads each link where it lands: where
