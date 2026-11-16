@@ -9494,7 +9494,8 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
       L.1.reached a.2 (armRoot n a.2) ++ L.1.armsReached (armRoot n a.2) [] a.2
   let ds' : Decls := L.1.map fun d =>
     (d.1, if isBody d.1 then (L.1.ownRead d).distributed
-      else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2)
+      else if reached.contains d.1 then (L.1.copyArms root places d).neutral
+      else if d.2.relTable then d.2.neutral else d.2)
   let armUses := (List.range L.1.length).foldl
     (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
     (ns.flatMap fun n => n.2.2.nodeArms.flatMap (·.2.refs))
@@ -9830,9 +9831,26 @@ def Val.landedRels (root : Val) (base p : List Seg) : List Val :=
 The tree keeps such a path as written until then, since reading paths
 as names leaves a relative one alone (`Val.pathsToAliases`).
 
-Rows from sp0 on, from gt0 on, from sg0 on, from eg0 on and from eh0 on of
-`test/spec/def-path.tsv` hold these readings in the three modes of
-`vet`, and both engines answer every one as the definition does.
+A named table, `%T = emit(_, t)`, keeps its generators in the body its
+name declares, so the definition reads that body through the name
+before it looks for such a path:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.emitsRel (ds : Decls) : Val → Bool
+  | .call .emit [_, .alias n] => (ds.bodies n).any Val.holdsRel
+  | .call .emit [_, t] => t.holdsRel
+  | _ => false
+```
+
+The declaration itself reads each such path as `any` (`Val.relTable`),
+since only an `emit` takes the table, and the path reads where each
+instance lands.
+
+Rows from sp0 on, from gt0 on, from sg0 on, from eg0 on, from eh0 on and
+from ng0 on of `test/spec/def-path.tsv` hold these readings in the three
+modes of `vet`, and both engines answer every one as the definition
+does.
 
 ## 39. Loading a source
 

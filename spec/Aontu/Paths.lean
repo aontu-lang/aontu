@@ -1953,9 +1953,18 @@ def Val.genInst (root u : Val) (base p : List Seg) (t : Seg) : Option Val :=
 
 /-- Whether a term is an `emit` whose table holds a relative path, which
 only the template of a generator its bodies hold keeps as written
-(`plArgs`). -/
-def Val.emitsRel : Val → Bool
+(`plArgs`), a named table's in the body its name declares. -/
+def Decls.emitsRel (ds : Decls) : Val → Bool
+  | .call .emit [_, .alias n] => (ds.bodies n).any Val.holdsRel
   | .call .emit [_, t] => t.holdsRel
+  | _ => false
+
+/-- Whether a term is a named table, `emit(_, t)`, whose table holds a
+relative path: only an `emit` takes it, as its table, so each generator
+its bodies hold reads its relative paths where each instance lands
+(`Val.landedRels`), its own template reading them as `any`. -/
+def Val.relTable : Val → Bool
+  | .call .emit [.hole, t] => t.holdsRel
   | _ => false
 
 /-- Whether a term is one a tree's positions stop at, its riders read
@@ -1995,7 +2004,7 @@ def Decls.instancesAt (ds : Decls) (P root : Val) (base p : List Seg) : List Val
     fun w =>
       (w.memberSpread.toList.flatMap fun s => (root.membersAt p).filterMap (root.spreadInst s base p)) ++
         (w.genTemplate.toList.flatMap fun u => (root.membersAt p).filterMap (root.genInst u base p)) ++
-        if w.emitsRel then root.landedRels base p else []
+        if ds.emitsRel w then root.landedRels base p else []
 
 /-- The term `P`, standing at `base`, with each template that reads its
 member's place, a spread's or the part of a generator's that does
@@ -2829,7 +2838,8 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
       L.1.reached a.2 (armRoot n a.2) ++ L.1.armsReached (armRoot n a.2) [] a.2
   let ds' : Decls := L.1.map fun d =>
     (d.1, if isBody d.1 then (L.1.ownRead d).distributed
-      else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2)
+      else if reached.contains d.1 then (L.1.copyArms root places d).neutral
+      else if d.2.relTable then d.2.neutral else d.2)
   let armUses := (List.range L.1.length).foldl
     (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
     (ns.flatMap fun n => n.2.2.nodeArms.flatMap (·.2.refs))
@@ -5749,7 +5759,9 @@ theorem Decls.prepared_readable {ds : Decls} {S : Val} {rl r : Decls → Val →
       cases (Decls.usePlaces _ _).lookup d'.1 with
       | none => exact hL d' hd'
       | some q => exact armsRead_checkableA hL (hL d' hd') q
-    · exact hL d' hd'
+    · split
+      · exact neutral_checkableA (hL d' hd')
+      · exact hL d' hd'
 
 theorem Decls.prepared_checkableA {ds : Decls} {S : Val} {rl r : Decls → Val → List Val} {oj : Option Data}
     (hrl : RootsReadable rl) (hr : RootsReadable r) (hb : ∀ d, d ∈ ds → d.2.CheckableA) (hS : S.CheckableA) :

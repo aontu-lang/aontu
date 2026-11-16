@@ -4028,6 +4028,48 @@ theorem emitGenFilter_verdict_exact : ∀ c ∈ emitGenFilterCases, ∀ (m : Mod
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff_reads (emitGenFilterCases_reads c hc) v
 
+/-- A named table, `%W = emit(_, t)`, whose body holds a generator whose
+template reads its member's place through a relative path: the path read
+where each instance lands, as an unnamed table's is, over one node and
+two, in two places, through `pack`, after a piece of the body's own, and
+the data each refuses, and none. -/
+def namedGenCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let c (f : Fn) (args : List Val) : Val := .call f args
+  let mp (fs : List (String × Val)) : Val := .map (fs.map fun m => (m.1, false, m.2)) none false
+  let lst (xs : List Val) : Val := .list xs none false
+  let str (s : String) : Val := .lit (.str s)
+  let rel (n : ℕ) (k : String) : Val := .path [.up n, .key k]
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let js (s : String) : Data := .str s
+  let jl (xs : List Data) : Data := .list xs
+  let jm (fs : List (String × Data)) : Data := .map fs
+  let rule (b : List Val) : Val := mp [("match", .number), ("body", lst b)]
+  let named (b : List Val) : Decls := [("W", c .emit [.hole, rule b])]
+  let use (s : List Val) : Val := c .emit [lst s, .alias "W"]
+  let gen := c .each [lst [int 1, int 2], mp [("a", int 1), ("b", rel 1 "a")]]
+  let pk := c .pack [mp [("p", int 1), ("q", int 2)], mp [("a", int 3), ("b", rel 1 "a")]]
+  let ab (b : ℤ) (h : IntegerLeaf b := by decide) : Data := jm [("a", j 1), ("b", j b h)]
+  let pq (b : ℤ) (h : IntegerLeaf b := by decide) : Data :=
+    jl [jm [("p", jm [("a", j 3), ("b", j 3)]), ("q", jm [("a", j 3), ("b", j b h)])]]
+  [(named [gen], mp [("v", use [int 5])], jm [("v", jl [ab 1, ab 1])]),
+    (named [gen], mp [("v", use [int 5])], jm [("v", jl [ab 2, ab 1])]),
+    (named [gen], mp [("v", use [int 5])], jm []),
+    (named [gen], mp [("v", use [int 5, int 6])], jm [("v", jl [ab 1, ab 1, ab 1, ab 1])]),
+    (named [gen], mp [("x", use [int 5]), ("y", use [int 6])], jm [("x", jl [ab 1, ab 1]), ("y", jl [ab 1, ab 1])]),
+    (named [gen], mp [("x", use [int 5]), ("y", use [int 6])], jm [("x", jl [ab 1, ab 1]), ("y", jl [ab 1, ab 2])]),
+    (named [pk], mp [("v", use [int 5])], jm [("v", pq 3)]),
+    (named [pk], mp [("v", use [int 5])], jm [("v", pq 4)]),
+    (named [str "s", gen], mp [("v", use [int 5])], jm [("v", jl [js "s", ab 1, ab 1])]),
+    (named [str "s", gen], mp [("v", use [int 5])], jm [("v", jl [js "s", ab 1, ab 2])])]
+
+theorem namedGenCases_checkable : ∀ c ∈ namedGenCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem namedGen_verdict_exact : ∀ c ∈ namedGenCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (namedGenCases_checkable c hc).1 (namedGenCases_checkable c hc).2 v
+
 /-- A `filter`'s condition, standing where the member it tries lands: a
 relative path that climbs out of the member, to the filter's map, past
 it to the top and into a sibling list, over a list and a map, inside a
@@ -8371,7 +8413,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# templates that meet their own hole, each member kept and met with the rest,"
     IO.println "# the `_ & …` idiom, in rows ib0 on, generators an emit's body holds, their"
     IO.println "# templates read where each instance lands in the output, in rows eg0 on,"
-    IO.println "# with a filter there in rows eh0 on, a"
+    IO.println "# with a filter there in rows eh0 on, the same through a named table in rows"
+    IO.println "# ng0 on, a"
     IO.println "# filter's condition, read where the member it tries lands, in rows fc0 on,"
     IO.println "# bounds written over terms, each the bound its terms name, in rows bd0 on, and"
     IO.println "# bounds over a relative path in a generator's template or a filter's"
@@ -8440,6 +8483,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "ib" holeMeetCases
     pathRows "eg" emitGenCases
     pathRows "eh" emitGenFilterCases
+    pathRows "ng" namedGenCases
     pathRows "fc" filterCondCases
     pathRows "fk" filterKeepCases
     pathRows "rs" recursiveSelectCases
