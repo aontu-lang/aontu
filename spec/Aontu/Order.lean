@@ -27,6 +27,11 @@ theorem le_any (env : Env) (a : Val) : a ⊑[env] .any := fun _ h => ⟨h.1, .an
 
 theorem nil_le (env : Env) (a : Val) : .nil ⊑[env] a := fun _ h => nomatch h.2
 
+/-- A rider around `nil` admits nothing either, the `nil` a document
+writes among them (`Val.void`). -/
+theorem ride_nil_le (env : Env) (k : Rider) (r : Record) (a : Val) : .ride k .nil r ⊑[env] a :=
+  fun _ h => nomatch judge_ride_iff.mp h.2
+
 /-! ## The strict bounds -/
 
 /-- Two strings are never below each other both: the order on strings,

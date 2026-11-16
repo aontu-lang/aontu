@@ -947,13 +947,15 @@ a: { k?:nil z:1 }
 {"a":{"z":1}}
 ```
 
-With `a: { k: 1 }` beside it the document is refused with
-`[aontu/literal_nil]`, naming both sites.
-
-A kind, another `nil`, or a disjunction with no preferred member
-supplies no value, so `{k?: nil} & {k?: "x" | "y"}` forbids `k` as
-`{k?: nil}` does. A preferred member is a value supplied: the written
-`nil` refuses `{k?: *"x" | "y"}` as it refuses `{k?: 1}`.
+A written `nil` holds no value, and meets anything as itself: a value,
+a kind, another `nil`, a disjunction, a preference, and a conflict alike.
+So `{k?: nil} & {k?: 1}` forbids `k` as `{k?: nil}` does, and so does
+`{k?: nil} & {k?: *"x" | "y"}`. No value meets a required key that
+holds one: with `a: { k: 1 }` beside it the meet requires `k`, and `vet`
+reads the document as `invalid`. A conflict is no written `nil`: `{k?: 1 & 2}`
+still makes the document an error. Both engines refuse a written `nil`
+that meets a value in another map with `[aontu/literal_nil]`, which
+#796 tracks. The definition reads a written `nil` as `Val.void`.
 
 **An optional key never drops a refusal the parser made.** It drops a
 value that fails to resolve, and raises a parse refusal from anywhere

@@ -2869,6 +2869,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
     cases k with
     | move n => exact .ride ih
     | opened => exact .ride ih
+    | void => exact .ride ih
     | _ => exact ih
   | link _ _ ih _ => exact ih
   | @meet a b ha hb iha ihb =>
@@ -4137,6 +4138,7 @@ theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
     .list (fun _ h => absurd h (List.not_mem_nil)) (fun _ h => nomatch h)
   cases a <;> cases b <;> (unfold meetStep; dsimp only) <;> first
     | exact .nil
+    | (split <;> first | exact .nil | exact hb | exact ha)
     | exact absentOr_checkableA (hr _ _ .any hb)
     | exact absentOr_checkableA (hr _ _ ha .any)
     | exact nothingOr_checkableA _

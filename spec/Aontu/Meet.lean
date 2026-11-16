@@ -2491,13 +2491,26 @@ theorem admits_nothing_right (a : Val) (j : Data) :
   unfold nothingOr
   split <;> exact ⟨(fun h => nomatch h), (fun h => nomatch h.2)⟩
 
+/-- A written `nil` admits nothing. -/
+theorem not_admits_of_isVoid {v : Val} (h : v.isVoid = true) (j : Data) : ¬ Admits env root v j := by
+  unfold Val.isVoid at h
+  split at h
+  · exact fun h' => nomatch judge_ride_iff.mp h'
+  · exact absurd h Bool.false_ne_true
+
 theorem admits_nil_left (b : Val) (j : Data) :
-    Admits env root .nil j ↔ Admits env root .nil j ∧ Admits env root b j :=
-  ⟨(fun h => nomatch h), (fun h => h.1)⟩
+    Admits env root (if b.isVoid then b else .nil) j ↔ Admits env root .nil j ∧ Admits env root b j := by
+  refine ⟨fun h => ?_, fun h => nomatch h.1⟩
+  split at h
+  · exact absurd h (not_admits_of_isVoid ‹_› j)
+  · exact nomatch h
 
 theorem admits_nil_right (a : Val) (j : Data) :
-    Admits env root .nil j ↔ Admits env root a j ∧ Admits env root .nil j :=
-  ⟨(fun h => nomatch h), (fun h => h.2)⟩
+    Admits env root (if a.isVoid then a else .nil) j ↔ Admits env root a j ∧ Admits env root .nil j := by
+  refine ⟨fun h => ?_, fun h => nomatch h.2⟩
+  split at h
+  · exact absurd h (not_admits_of_isVoid ‹_› j)
+  · exact nomatch h
 
 end
 
@@ -2600,7 +2613,9 @@ def meetRight (rec : Val → Val → Val) (a b₁ b₂ : Val) : Val :=
   else rec x b₂
 
 /-- One step of the meet, given the meet `lm` of a literal with a term
-and the meet `rec` of smaller terms: `nil` is the zero, absence is the
+and the meet `rec` of smaller terms: `nil` is the zero, but met with a
+`nil` the document writes it is that one (`Val.void`), which takes in
+whatever it meets, a conflict too (ruling 54), absence is the
 unit, but met with `any` it stays absence, an atom over an argument
 outside its domain is `nil` against all but `any`, a meet on either side is met
 one side at a time, a disjunction distributes over its arms, a
@@ -2608,7 +2623,8 @@ preference alone is `x | super(x)`, two maps and two lists merge, `any`
 is the unit of each container, and what remains is `meetBase`. -/
 def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Val) : Val :=
   match a, b with
-  | .nil, _ | _, .nil => .nil
+  | .nil, b => if b.isVoid then b else .nil
+  | a, .nil => if a.isVoid then a else .nil
   | .absent, b => absentOr (rec .any b)
   | a, .absent => absentOr (rec a .any)
   | .nothing, b => nothingOr b
