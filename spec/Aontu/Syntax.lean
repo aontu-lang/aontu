@@ -128,9 +128,12 @@ document an error (ruling 54). An optional member that holds it is
 absent, and a required one can't be met. -/
 abbrev Val.void : Val := .ride .void .nil []
 
-/-- Whether a term is `nil` as a document writes it (`Val.void`). -/
+/-- Whether a term is `nil` as a document writes it (`Val.void`), with
+any riders and links around it, as `type(nil)` is. -/
 def Val.isVoid : Val → Bool
   | .ride .void .nil _ => true
+  | .ride _ v _ => v.isVoid
+  | .link v _ => v.isVoid
   | _ => false
 
 /-- A cover of `rest`: its `if`, tried on the whole value, its `keys`,

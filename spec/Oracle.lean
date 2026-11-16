@@ -3823,7 +3823,9 @@ member holding it, which must be absent, and a required one, which
 can't be met; the same met with a value in one member and through two
 maps met, with a kind, a list's element, a spread's template, an arm of
 a disjunction, a container met with it, a conflict it takes in, a
-reference to a member holding it; and a conflict alone, still an error. -/
+reference to a member holding it, an atom over an argument outside its
+domain it takes in, and the same under `type()`; and a conflict alone,
+still an error. -/
 def writtenNilCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
@@ -3853,7 +3855,14 @@ def writtenNilCases : List (Decls × Val × Data) :=
     ([], mo [("x", true, .meet nl (.meet (int 1) (int 2)))], dm []),
     ([], mo [("x", true, .meet (int 1) (int 2))], dm []),
     ([], m [("y", mo [("x", true, nl)]), ("z", .path [.key "y"])], dm []),
-    ([], m [("y", mo [("x", true, nl)]), ("z", .path [.key "y"])], dm [("z", dm [("x", j 1)])])]
+    ([], m [("y", mo [("x", true, nl)]), ("z", .path [.key "y"])], dm [("z", dm [("x", j 1)])]),
+    ([], mo [("x", true, .meet nl (.len .any))], dm []),
+    ([], mo [("x", true, .meet nl (.len .any))], dm [("x", j 1)]),
+    ([], mo [("x", true, .meet (.len .any) nl)], dm []),
+    ([], mo [("x", false, .meet nl (.len .any))], dm []),
+    ([], mo [("x", true, .meet (.ride .type nl []) (.len .any))], dm []),
+    ([], mo [("x", true, .meet (.ride .type nl []) (.meet (int 1) (int 2)))], dm []),
+    ([], mo [("x", true, .ride .type nl [])], dm [("x", j 1)])]
 
 theorem writtenNilCases_checkable : ∀ c ∈ writtenNilCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -5413,9 +5422,6 @@ def formRows : IO Unit := do
     throw (IO.userError "string & empty() prints otherwise")
   for (ctor, kind, text) in forms do
     IO.println (ctor ++ "\t" ++ kind ++ "\t" ++ text)
-
-/-- Whether a value of the fragment writes `nil`: itself, under its key,
-or on either side of its meet. -/
 
 /-- A row's document, the value under `v`, and its data. -/
 def rowDoc (v : Val) (j : Data) : Val × Data := (.map [("v", false, v)] none false, .map [("v", j)])

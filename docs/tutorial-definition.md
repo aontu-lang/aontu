@@ -7054,12 +7054,17 @@ document is an error whatever the bound meets, as a size that holds
 one is. The atom that admits nothing is `Val.nothing`. It
 stands, so a schema that holds one is no error, but it refuses every
 value and generates nothing, and the meet makes it `nil` against
-anything but `any`:
+anything but `any` and a `nil` the document writes, which takes it in
+as it takes in any term, by ruling 54:
 
 <!-- test: quote spec/Aontu/Meet.lean -->
 ```lean
-def nothingOr (v : Val) : Val := if v.isAny then .nothing else .nil
+def nothingOr (v : Val) : Val := if v.isAny then .nothing else if v.isVoid then v else .nil
 ```
+
+So `x?: nil & min(true)` forbids `x`, as `x?: nil` does, where
+`x?: integer & min(true)` makes the document an error, and both
+engines answer so.
 
 So `lo: true, t: min($.lo)` refuses whatever data meets it, an
 `invalid`, though `min($.lo) & integer` there is an error, as
