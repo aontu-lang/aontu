@@ -1326,3 +1326,9 @@ What is the status of our work
 ```text
 File the issues
 ```
+
+## 2026-11-16 23:25:17 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Can aontu support domain driven design? What can it express and what can it not express?
+```
