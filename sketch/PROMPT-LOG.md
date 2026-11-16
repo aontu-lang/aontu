@@ -1268,3 +1268,9 @@ i'll fix the lean daily workflow manually - what should I edit?
 ```text
 continue with the lean spec
 ```
+
+## 2026-11-16 15:14:36 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+ask me for a ruling, then fix all 4
+```
