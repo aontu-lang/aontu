@@ -2374,6 +2374,11 @@ $ aontu -c mount.aontu
 {"level":200,"svc":{"defaults":{"retries":3}}}
 ```
 
+**A body may hold one too.** A destructure in a declaration's body,
+`%B = { inner: { %uint8 } = @"./types.aontu" }`, binds its names for
+the document whether or not anything uses `%B`, and lands the file's
+values wherever the body lands.
+
 The other file's own declarations come up to the document root with its
 values. Without that a file that uses the name it publishes could not be
 mounted at all, since an alias resolves from the root and its
@@ -2393,7 +2398,9 @@ The definition reads each name a file publishes, by `Decls.ofSource`,
 and each name a destructure takes, by `Decls.takeBinds`, both in
 [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). A name that a
 destructure asks for and its file doesn't publish makes the document an
-error there too (`Decls.takesLeft`), and rows from lx0 on of
+error there too (`Decls.takesLeft`), as does one that a body asks for,
+even where nothing uses the body. Rows from lx0 on, and from lb0 on for
+a destructure in a body, of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to these readings.
 

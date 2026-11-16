@@ -770,22 +770,22 @@ def takesArms : List (ℕ × Val) → List (String × List Val)
   | (_, a) :: as => a.takes ++ takesArms as
 end
 
-/-- The names a document's destructures bind: each name a destructure
-takes, under the document's name, naming what the source publishes
-(`exportName`), so that it meets any declaration the document makes of
-the same name. -/
-def Decls.takeBinds (ds : Decls) (S : Val) : Decls :=
-  S.takes.flatMap fun t => match loadPath "" t.1 with
+/-- The names the destructures a term written in the source named `src`
+binds, `""` the document itself: each name a destructure takes, under
+the name the source gives it (`scopedName`), or its own in the
+document, naming what the source it loads publishes (`exportName`), so
+that it meets any declaration of the same name. -/
+def Decls.takeBindsIn (ds : Decls) (src : String) (v : Val) : Decls :=
+  v.takes.flatMap fun t => match loadPath src t.1 with
     | none => []
-    | some q => ((ds.takeNames q t.2).getD []).map fun n => (n.1, .alias (exportName q n.2))
+    | some q => ((ds.takeNames q t.2).getD []).map fun n =>
+        (if src.isEmpty then n.1 else scopedName src n.1, .alias (exportName q n.2))
 
-/-- Whether a document's destructure asks for a name its source doesn't
-publish, or publishes without declaring it (`nil`), which makes the
-document an error whether or not anything reads the name, as both ports
-refuse it: a wildcard, `{ % }`, asks for every name the source
-publishes. -/
-def Decls.takesLeft (ds : Decls) (S : Val) : Bool :=
-  S.takes.any fun t => match loadPath "" t.1 with
+/-- Whether a destructure a term written in the source named `src` holds
+asks for a name its source doesn't publish, or publishes without
+declaring it (`nil`). -/
+def Decls.takesLeftIn (ds : Decls) (src : String) (v : Val) : Bool :=
+  v.takes.any fun t => match loadPath src t.1 with
     | none => true
     | some q => match ds.takeNames q t.2 with
       | none => true
@@ -793,6 +793,7 @@ def Decls.takesLeft (ds : Decls) (S : Val) : Bool :=
         | some (_, .nil) => true
         | some _ => false
         | none => true
+
 
 /-- A term written in the source named `src` with the sources it loads
 read in, `n` deep, `seen` the sources it's being read into: each `@"p"`
@@ -875,6 +876,36 @@ def Decls.sourcesRead (ds : Decls) : ℕ → List String → String → Val → 
       | some t => q :: (t :: (ds.filter fun d => scopeOf d.1 == some q).map (·.2)).flatMap
           (ds.sourcesRead n (q :: seen) q)
 
+/-- The terms a document writes destructures in, each beside the source
+it's written in: its schema, each body, a body a source declares in
+that source, and the term of each source the document reads (`read`),
+so that a destructure binds its names wherever it's written, a body
+used or not, as both ports bind them. -/
+def Decls.takeSites (ds : Decls) (S : Val) (read : List String) : List (String × Val) :=
+  ("", S) :: ((ds.filter fun d => !sourceName d.1 && (scopeOf d.1).all read.contains).map fun d =>
+      ((scopeOf d.1).getD "", d.2)) ++
+    read.eraseDups.filterMap fun q => (ds.source? q).map fun t => (q, t)
+
+/-- The sources a document reads: those its schema and its own bodies
+load, and those each of them loads in turn (`Decls.sourcesRead`). -/
+def Decls.readSources (ds : Decls) (S : Val) : List String :=
+  (S :: (ds.filter fun d => !sourceName d.1 && !scopedDecl d.1).map (·.2)).flatMap
+    (ds.sourcesRead (ds.sourceCount + 1) [] "")
+
+/-- The names a document's destructures bind, wherever they're written
+(`Decls.takeSites`, `Decls.takeBindsIn`). -/
+def Decls.takeBinds (ds : Decls) (S : Val) : Decls :=
+  (ds.takeSites S (ds.readSources S)).flatMap fun s => ds.takeBindsIn s.1 s.2
+
+/-- Whether a document's destructure, wherever it's written
+(`Decls.takeSites`), asks for a name its source doesn't publish, or
+publishes without declaring it (`nil`), which makes the document an
+error whether or not anything reads the name, and a body's whether or
+not anything uses the body, as every declaration is read: a wildcard,
+`{ % }`, asks for every name the source publishes. -/
+def Decls.takesLeft (ds : Decls) (S : Val) : Bool :=
+  (ds.takeSites S (ds.readSources S)).any fun s => ds.takesLeftIn s.1 s.2
+
 /-- A document with the sources it loads read in where it loads them, as
 both ports read a source in place: as deep as it declares sources, so
 that a chain of loads reads to its end and a cycle never does. Its
@@ -884,8 +915,7 @@ and the sources no longer declared, so that a source nothing loads is
 no part of the document, nor are the names it declares
 (`Decls.sourcesRead`). -/
 def Decls.loaded (ds : Decls) (S : Val) : Decls × Val :=
-  let read := (S :: (ds.filter fun d => !sourceName d.1 && !scopedDecl d.1).map (·.2)).flatMap
-    (ds.sourcesRead (ds.sourceCount + 1) [] "")
+  let read := ds.readSources S
   ((ds.filter fun d => !sourceName d.1 && (scopeOf d.1).all read.contains).map (fun d =>
       (d.1, ds.loadIn (ds.sourceCount + 1) (scopeOf d.1).toList ((scopeOf d.1).getD "") d.2))
       ++ ds.takeBinds S,
@@ -3759,15 +3789,21 @@ theorem Decls.loadIn_checkableA {ds : Decls} (hb : ∀ d, d ∈ ds → d.2.Check
     · obtain ⟨t, ht, rfl⟩ := Option.map_eq_some_iff.mp hq
       exact Decls.loadIn_checkableA hb n (q :: seen) q (Decls.source?_checkableA hb ht)
 
-theorem Decls.takeBinds_alias {ds : Decls} {S : Val} {d : String × Val} (h : d ∈ ds.takeBinds S) :
-    ∃ n, d.2 = .alias n := by
-  simp only [Decls.takeBinds, List.mem_flatMap] at h
+theorem Decls.takeBindsIn_alias {ds : Decls} {src : String} {v : Val} {d : String × Val}
+    (h : d ∈ ds.takeBindsIn src v) : ∃ n, d.2 = .alias n := by
+  simp only [Decls.takeBindsIn, List.mem_flatMap] at h
   obtain ⟨t, -, ht⟩ := h
   split at ht
   · simp at ht
   · simp only [List.mem_map] at ht
     obtain ⟨n, -, rfl⟩ := ht
     exact ⟨_, rfl⟩
+
+theorem Decls.takeBinds_alias {ds : Decls} {S : Val} {d : String × Val} (h : d ∈ ds.takeBinds S) :
+    ∃ n, d.2 = .alias n := by
+  simp only [Decls.takeBinds, List.mem_flatMap] at h
+  obtain ⟨s, -, hs⟩ := h
+  exact Decls.takeBindsIn_alias hs
 
 theorem Decls.loaded_bodies_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA) :
     ∀ d, d ∈ (ds.loaded S).1 → d.2.CheckableA := by
