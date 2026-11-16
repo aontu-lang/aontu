@@ -10000,15 +10000,23 @@ declare, such as one that arrived through a load, it publishes as
 `nil`, which no destructure can take. A
 document takes a published name with a destructure,
 `{ %a } = @"./f.aontu"`, which loads the source as `@"./f.aontu"` does
-and binds each name it takes in the document's scope:
+and binds each name it takes in the scope of the source that writes it,
+the document's own where the document writes it:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
-def Decls.takeBinds (ds : Decls) (S : Val) : Decls :=
-  S.takes.flatMap fun t => match loadPath "" t.1 with
+def Decls.takeBindsIn (ds : Decls) (src : String) (v : Val) : Decls :=
+  v.takes.flatMap fun t => match loadPath src t.1 with
     | none => []
-    | some q => ((ds.takeNames q t.2).getD []).map fun n => (n.1, .alias (exportName q n.2))
+    | some q => ((ds.takeNames q t.2).getD []).map fun n =>
+        (if src.isEmpty then n.1 else scopedName src n.1, .alias (exportName q n.2))
 ```
+
+The definition reads a destructure wherever it's written
+(`Decls.takeSites`): in the schema, in each body, and in the term of
+each source the document reads, so that a destructure in a body binds
+its names whether or not anything uses the body, as both engines bind
+them.
 
 `{ %b: %a }` takes `a` as `b`, and `{ % }` takes every name the source
 publishes. A name taken this way meets a declaration the document makes
@@ -10016,18 +10024,21 @@ of the same name, and a destructure under a key, a rider or a
 preference, or in a spread, lands the source's values there while the
 names stay the document's. A destructure that asks for a name its
 source doesn't publish, or publishes as `nil`, makes the document an
-error, whether or not anything reads the name (`Decls.takesLeft`), and
-`{ % }` asks for every name the source publishes. Rows from lx0 on hold
-these readings, and both engines answer every one as the definition
-does. A destructure in a list's element binds no name in the
+error, whether or not anything reads the name (`Decls.takesLeft`), one
+in a body whether or not anything uses the body, as the definition reads
+every declaration, and `{ % }` asks for every name the source publishes. Rows from
+lx0 on hold these readings, rows from lb0 on the ones a body writes,
+and both engines' `vet` answers every one as the definition does. A destructure in a list's element binds no name in the
 definition, since the engines read it differently, which #518 tracks.
 Under a key, both engines class a take of a name the source doesn't
 publish as an `error`, as they class a call the schema can't build,
 and the rows take such a name only at the top.
 
-The definition doesn't yet read a destructure that a source or a body
-writes, one over a term that isn't a load, a module, or an extension the
-calling program adds to those read as text, as `--text-ext` does.
+No row yet holds a source that writes a destructure, since Go fails to
+include one, which #804 tracks. The definition doesn't yet read a module, or an
+extension the calling program adds to those read as text, as
+`--text-ext` does, and no term of the definition spells a destructure
+over a term that isn't a load, which both engines refuse.
 
 ## 40. Rules over nodes
 

@@ -144,6 +144,11 @@ func (p *PrefVal) Unify(peer Val, ctx *Ctx) Val {
 		p.regate(ctx)
 	}
 
+	// `*nil` is `nil | super(nil)`: no arm holds a value, as in `nil | nil`.
+	if n, ok := prefInnerPeg(p).(*NilVal); ok && "literal_nil" == n.why {
+		return makeNilErr(ctx, "empty", p, peer)
+	}
+
 	var out Val
 	waits := false
 	switch pp := peer.(type) {

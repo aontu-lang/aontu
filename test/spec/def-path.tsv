@@ -48,7 +48,8 @@
 # condition, each read where its instance lands, in rows bg0 on. Sources that
 # declare names of their own, each read in its own scope, follow in rows ls0 on,
 # and the names a source publishes, with the destructures that take them, in
-# rows lx0 on. The transformer emit over a selection a path names follows in
+# rows lx0 on, and in a declaration's body in rows lb0 on. The transformer emit
+# over a selection a path names follows in
 # rows em0 on, and copy, its argument with the marks and the seal cleared at
 # every depth, in rows cp0 on. Links whose templates read the member or the
 # place where they land, each read there and only at the instances its own
@@ -3113,6 +3114,27 @@ nl86	verdict	"x"?: (type(nil)) & ((1) & (2))	{}	{"verdict":"valid","opts":{"part
 nl87	verdict	"x"?: type(nil)	{"x": 1}	{"verdict":"invalid"}
 nl88	verdict	"x"?: type(nil)	{"x": 1}	{"verdict":"invalid","opts":{"noFill":true}}
 nl89	verdict	"x"?: type(nil)	{"x": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl90	verdict	"x": *(nil)	{}	{"verdict":"error"}
+nl91	verdict	"x": *(nil)	{}	{"verdict":"error","opts":{"noFill":true}}
+nl92	verdict	"x": *(nil)	{}	{"verdict":"error","opts":{"partial":true}}
+nl93	verdict	"x"?: *(nil)	{}	{"verdict":"error"}
+nl94	verdict	"x"?: *(nil)	{}	{"verdict":"error","opts":{"noFill":true}}
+nl95	verdict	"x"?: *(nil)	{}	{"verdict":"error","opts":{"partial":true}}
+nl96	verdict	"x": (nil) | (nil)	{}	{"verdict":"error"}
+nl97	verdict	"x": (nil) | (nil)	{}	{"verdict":"error","opts":{"noFill":true}}
+nl98	verdict	"x": (nil) | (nil)	{}	{"verdict":"error","opts":{"partial":true}}
+nl99	verdict	"x"?: (nil) | (nil)	{}	{"verdict":"error"}
+nl100	verdict	"x"?: (nil) | (nil)	{}	{"verdict":"error","opts":{"noFill":true}}
+nl101	verdict	"x"?: (nil) | (nil)	{}	{"verdict":"error","opts":{"partial":true}}
+nl102	verdict	"x": (*(nil)) & (1)	{"x": 1}	{"verdict":"error"}
+nl103	verdict	"x": (*(nil)) & (1)	{"x": 1}	{"verdict":"error","opts":{"noFill":true}}
+nl104	verdict	"x": (*(nil)) & (1)	{"x": 1}	{"verdict":"error","opts":{"partial":true}}
+nl105	verdict	"x": *(nil) | (1)	{"x": 1}	{"verdict":"valid"}
+nl106	verdict	"x": *(nil) | (1)	{"x": 1}	{"verdict":"valid","opts":{"noFill":true}}
+nl107	verdict	"x": *(nil) | (1)	{"x": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl108	verdict	"x": *(nil) | (1)	{}	{"verdict":"valid"}
+nl109	verdict	"x": *(nil) | (1)	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+nl110	verdict	"x": *(nil) | (1)	{}	{"verdict":"valid","opts":{"partial":true}}
 ib0	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid"}
 ib1	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"noFill":true}}
 ib2	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"partial":true}}
@@ -3884,6 +3906,30 @@ lx53	verdict	{ % } = @"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"error",
 lx54	verdict	@"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"valid"}
 lx55	verdict	@"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 lx56	verdict	@"__FIXTURES__/alias_reexport.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lb0	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %uint8	{"y": 255}	{"verdict":"valid"}
+lb1	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %uint8	{"y": 255}	{"verdict":"incomplete","opts":{"noFill":true}}
+lb2	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %uint8	{"y": 255}	{"verdict":"valid","opts":{"partial":true}}
+lb3	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %uint8	{"y": 1}	{"verdict":"invalid"}
+lb4	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %uint8	{"y": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+lb5	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %uint8	{"y": 1}	{"verdict":"invalid","opts":{"partial":true}}
+lb6	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %uint8	{}	{"verdict":"valid"}
+lb7	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %uint8	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lb8	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %uint8	{}	{"verdict":"valid","opts":{"partial":true}}
+lb9	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"y": %uint8	{"y": 255}	{"verdict":"valid"}
+lb10	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"y": %uint8	{"y": 255}	{"verdict":"valid","opts":{"noFill":true}}
+lb11	verdict	%B = {"inner": { %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"y": %uint8	{"y": 255}	{"verdict":"valid","opts":{"partial":true}}
+lb12	verdict	%B = {"inner": { %p: %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %p	{"y": 255}	{"verdict":"valid"}
+lb13	verdict	%B = {"inner": { %p: %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %p	{"y": 255}	{"verdict":"incomplete","opts":{"noFill":true}}
+lb14	verdict	%B = {"inner": { %p: %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %p	{"y": 255}	{"verdict":"valid","opts":{"partial":true}}
+lb15	verdict	%B = {"inner": { %p: %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %p	{"y": 1}	{"verdict":"invalid"}
+lb16	verdict	%B = {"inner": { %p: %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %p	{"y": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+lb17	verdict	%B = {"inner": { %p: %uint8 } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B, "y": %p	{"y": 1}	{"verdict":"invalid","opts":{"partial":true}}
+lb18	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B	{}	{"verdict":"error"}
+lb19	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B	{}	{"verdict":"error","opts":{"noFill":true}}
+lb20	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"v": %B	{}	{"verdict":"error","opts":{"partial":true}}
+lb21	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error"}
+lb22	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error","opts":{"noFill":true}}
+lb23	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error","opts":{"partial":true}}
 em0	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"valid"}
 em1	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 em2	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"valid","opts":{"partial":true}}

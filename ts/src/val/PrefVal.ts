@@ -169,6 +169,14 @@ class PrefVal extends FeatureVal {
       this.resuper(ctx)
     }
 
+    // `*nil` is `nil | super(nil)`: no arm holds a value, as in `nil | nil`.
+    const inner: any = prefInnerPeg(this)
+    if (true === inner.isNil && 'literal_nil' === inner.why) {
+      const err = makeNilErr(ctx, 'empty', this, peer, 'unify')
+      explainClose(te, err)
+      return err
+    }
+
 
     if (peer instanceof PrefVal) {
       why += 'pref-'

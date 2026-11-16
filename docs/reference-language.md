@@ -964,8 +964,10 @@ So `{k?: nil} & {k?: 1}` forbids `k` as `{k?: nil}` does, and so does
 holds one: with `a: { k: 1 }` beside it the meet requires `k`,
 evaluation refuses the document with `[aontu/literal_nil]`, and `vet`
 reads it as `invalid`. A conflict is no written `nil`: `{k?: 1 & 2}`
-still makes the document an error. The definition reads a written `nil`
-as `Val.void`.
+still makes the document an error. A preference over a written `nil`,
+`*nil`, reads as `nil | super(nil)`: neither arm holds a value, so, like
+`nil | nil`, it makes the document an error, and an optional key doesn't
+spare it. The definition reads a written `nil` as `Val.void`.
 
 **An optional key never drops a refusal the parser made.** It drops a
 value that fails to resolve, and raises a parse refusal from anywhere
@@ -2383,6 +2385,11 @@ $ aontu -c mount.aontu
 {"level":200,"svc":{"defaults":{"retries":3}}}
 ```
 
+**A body may hold one too.** A destructure in a declaration's body,
+`%B = { inner: { %uint8 } = @"./types.aontu" }`, binds its names for
+the document whether or not anything uses `%B`, and lands the file's
+values wherever the body lands.
+
 The other file's own declarations come up to the document root with its
 values. Without that a file that uses the name it publishes could not be
 mounted at all, since an alias resolves from the root and its
@@ -2402,7 +2409,9 @@ The definition reads each name a file publishes, by `Decls.ofSource`,
 and each name a destructure takes, by `Decls.takeBinds`, both in
 [`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean). A name that a
 destructure asks for and its file doesn't publish makes the document an
-error there too (`Decls.takesLeft`), and rows from lx0 on of
+error there too (`Decls.takesLeft`), as does one that a body asks for,
+even where nothing uses the body. Rows from lx0 on, and from lb0 on for
+a destructure in a body, of
 [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
 to these readings.
 
