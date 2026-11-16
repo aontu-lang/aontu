@@ -1741,11 +1741,12 @@ def keptElems (nf : Val) (keep : ℕ → Data → Bool) (xs : List Data) : Val :
   | _ => (Data.list (keptAt keep 0 xs)).term
 
 /-- Whether an argument both ports read as they build a trial is a
-conflict: dead in normal form, though not written as `nil`, which both
-read there as a value that admits nothing. -/
+conflict: dead in normal form, though not a written `nil`, which both
+read there as a value that admits nothing, met with whatever it meets
+(`Val.void`, ruling 54). -/
 def Decls.clashes (ds : Decls) : Val → Bool
   | .nil => false
-  | v => (normaliseD ds v).dead
+  | v => !(normaliseD ds v).isVoid && (normaliseD ds v).dead
 
 /-- Whether a list's marked element is a conflict, under the riders it
 carries, met with the list's spread `s`: both ports read the element
@@ -1928,8 +1929,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     | .maybe, [v] => maybeOf ds (resolveD ds b here v)
     | .maybe, args => .call .maybe (resolveItems ds b here args)
     | .emit, [s, t] =>
-      if here.isNone && ((resolveD ds b here s).holdsKey || t.holdsKey) then
-        .call .emit [resolveD ds b here s, t] else
+      if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
       if (emitTable t).any (fun r => !emitRawOk r) ||
         (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
         .call .emit [resolveD ds b here s, t] else
@@ -4385,7 +4385,8 @@ end
 
 mutual
 /-- Whether a term in normal form does not stand: a `nil` anywhere but
-in a spread, which the engines read only against a member, a
+in a spread, which the engines read only against a member, and the one
+a document writes, which stands (`Val.void`, ruling 54), a
 preference clash, a size that holds a disjunction or a preference, and
 a call the reading could not make. A `+`, a `join` and a `pref` that
 the reading leaves as written stand where their arguments do and they
@@ -4400,6 +4401,7 @@ def Val.illFormed : Val → Bool
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
+  | .ride .void _ _ => false
   | .ride _ v _ => v.illFormed
   | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args

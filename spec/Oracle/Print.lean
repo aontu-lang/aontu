@@ -132,6 +132,7 @@ def Rider.name : Rider → String
   | .lifts => "open"
   | .seals => "close"
   | .move _ => "move"
+  | .void => "nil"
 
 /-! `close()` seals every level, so a sealed container prints as
 `close(…)` only where no open container sits beneath it, and a reference
@@ -315,8 +316,9 @@ def Val.src : Val → Option String
   | .ride .opened v [] => do pure s!"open({← v.src})"
   | .ride .lifts .any [] => some "open()"
   | .ride .seals .any [] => some "close()"
+  | .ride .void .nil [] => some "nil"
   | .ride .type _ _ | .ride .hide _ _ | .ride .opened _ _ | .ride .lifts _ _ | .ride .seals _ _
-  | .ride (.move _) _ _ => none
+  | .ride (.move _) _ _ | .ride .void _ _ => none
   | .ride k v r => do pure s!"{k.name}({← v.src}, {← (Data.map r).src})"
   | .link v t => do pure s!"(relate({← t.src})) & ({← v.src})"
 

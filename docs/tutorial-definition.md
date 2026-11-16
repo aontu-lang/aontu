@@ -3644,7 +3644,8 @@ with a term:
 ```lean
 def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Val) : Val :=
   match a, b with
-  | .nil, _ | _, .nil => .nil
+  | .nil, b => if b.isVoid then b else .nil
+  | a, .nil => if a.isVoid then a else .nil
   | .absent, b => absentOr (rec .any b)
   | a, .absent => absentOr (rec a .any)
   | .nothing, b => nothingOr b
@@ -3669,7 +3670,10 @@ def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Va
 ```
 
 Read each row as *these two shapes meet in this one*. `nil` is the
-zero: it admits nothing, so nor does any meet with it. Absence, step
+zero: it admits nothing, so nor does any meet with it. A `nil` the
+document writes is `Val.void`, `nil` inside the rider `void`, and the
+`nil` a conflict makes yields to it, so a written `nil` takes in even a
+conflict, as ruling 54 reads it. Absence, step
 33's, is the unit, but met with `any` it stays absence. `nothing`,
 step 20's atom over an argument outside its domain, stays itself met
 with `any` and is `nil` met with anything else. A meet on either
@@ -4306,7 +4310,8 @@ and a constraint's domain. Its first cases:
 for its parent, as `integer & min(3)` is a constraint on integers; a
 meet of two kinds has the lower kind's parent; any other meet lifts
 each side. A reference lifts as itself, a residual the engines keep
-symbolic too. A rider is left behind, but the one a `move` makes
+symbolic too. A rider is left behind, but the one around a written
+`nil` (`Val.void`), whose parent is no value either, the one a `move` makes
 (`Rider.move`), so that each arm a moved preference reads as carries
 it, and `open(v)`'s, so that the parent stays open where `v` is. -/
 def Val.super : Val → Val
@@ -5112,7 +5117,9 @@ def Val.sizeIll (c : Val) : Bool := (normalise c).choiceLeft
 ```
 
 `illFormed` reads each size, and each of a meet's conjuncts as it reads
-a term:
+a term. A `nil` the document writes stands, where the `nil` a conflict
+makes doesn't, so the verdict reads a required member that holds one as
+`invalid`, and an optional one as forbidden, as ruling 54 reads it:
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
@@ -5124,6 +5131,7 @@ def Val.illFormed : Val → Bool
   | .or arms => clash arms || illArms arms
   | .pref _ x => x.illFormed
   | .meet a b => a.illFormed || b.illFormed
+  | .ride .void _ _ => false
   | .ride _ v _ => v.illFormed
   | .link v _ => v.illFormed
   | .call .plus args => args.length != 2 || illItems args
@@ -6100,7 +6108,8 @@ refuses `1` (#525).
 A conflict is an argument that's dead in normal form but not written as
 `nil`. Both engines read a size, a condition of `must` or a count
 written as `nil` as a value that admits nothing, so `must(nil, "m")`
-and `len(nil)` refuse `1`, while `must(nil & 1, "m")` is an `error`. A
+and `len(nil)` refuse `1`. So does `must(nil & 1, "m")`: a written
+`nil` met with a value is still one, by ruling 54. A
 `filter` over `nil` and a `match` on it are errors, as any dead source
 or scrutinee is:
 
@@ -6108,7 +6117,7 @@ or scrutinee is:
 ```lean
 def Decls.clashes (ds : Decls) : Val → Bool
   | .nil => false
-  | v => (normaliseD ds v).dead
+  | v => !(normaliseD ds v).isVoid && (normaliseD ds v).dead
 ```
 
 <!-- test: quote spec/Aontu/Verdict.lean -->
@@ -6347,7 +6356,7 @@ to try each against:
 <!-- test: quote spec/Oracle.lean -->
 ```lean
 def bases : List Val :=
-  [.any, .nil, .integer, .meet .number (.mulof (.integer (.of 1))), .string, .anyString,
+  [.any, Val.void, .integer, .meet .number (.mulof (.integer (.of 1))), .string, .anyString,
     .min (.num (.integer (.of 0))), .min (.num (.integer (.of 3)))]
 
 /-- `{"x": v}`, or `{"x"?: v}`. -/
@@ -7044,12 +7053,17 @@ document is an error whatever the bound meets, as a size that holds
 one is. The atom that admits nothing is `Val.nothing`. It
 stands, so a schema that holds one is no error, but it refuses every
 value and generates nothing, and the meet makes it `nil` against
-anything but `any`:
+anything but `any` and a `nil` the document writes, which takes it in
+as it takes in any term, by ruling 54:
 
 <!-- test: quote spec/Aontu/Meet.lean -->
 ```lean
-def nothingOr (v : Val) : Val := if v.isAny then .nothing else .nil
+def nothingOr (v : Val) : Val := if v.isAny then .nothing else if v.isVoid then v else .nil
 ```
+
+So `x?: nil & min(true)` forbids `x`, as `x?: nil` does, where
+`x?: integer & min(true)` makes the document an error, and both
+engines answer so.
 
 So `lo: true, t: min($.lo)` refuses whatever data meets it, an
 `invalid`, though `min($.lo) & integer` there is an error, as
@@ -9479,7 +9493,8 @@ def Decls.prepared (ds : Decls) (S : Val) (rl r : Decls → Val → List Val) (o
       L.1.reached a.2 (armRoot n a.2) ++ L.1.armsReached (armRoot n a.2) [] a.2
   let ds' : Decls := L.1.map fun d =>
     (d.1, if isBody d.1 then (L.1.ownRead d).distributed
-      else if reached.contains d.1 then (L.1.copyArms root places d).neutral else d.2)
+      else if reached.contains d.1 then (L.1.copyArms root places d).neutral
+      else if d.2.relTable then d.2.neutral else d.2)
   let armUses := (List.range L.1.length).foldl
     (fun acc _ => acc ++ (L.1.filter fun d => acc.contains d.1).flatMap (·.2.refs))
     (ns.flatMap fun n => n.2.2.nodeArms.flatMap (·.2.refs))
@@ -9633,20 +9648,21 @@ the two apart: it meets a term with a disjunction arm by arm
 (`meetStep`). So before it reads any arm, the definition reads such a
 meet as the disjunction the meet makes, each arm of the one met with
 each arm of the other, ranked as the meet ranks them (`orMeet`), and
-each met with the meet's other conjuncts. A lone preference beside a
-disjunction takes part as a node too. Its value stands at its rank. Its
-parent arm stays the preference, one rank weaker, so that the reading
-still lifts what the value reads as (`Val.prefArms`):
+each met with the meet's other conjuncts. A lone preference takes part
+as a node too, beside a disjunction or beside another lone preference.
+Its value stands at its rank. Its parent arm stays the preference, one
+rank weaker, so that the reading still lifts what the value reads as
+(`Val.prefArms`):
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Val.meetOrs (v : Val) : Val :=
-  match v.splitOrs.1 with
+  match v.splitOrs.1 ++ (v.splitOrs.2.filter Val.isPrefB).map Val.prefArms with
   | as :: more =>
-    if 2 ≤ more.length + 1 + (v.splitOrs.2.filter Val.isPrefB).length &&
-        ((as :: more).any (·.any (·.2.armReads)) ||
+    if 2 ≤ more.length + 1 &&
+        (v.splitOrs.1.any (·.any (·.2.armReads)) ||
           (v.splitOrs.2.filter Val.isPrefB).any (·.nodeArms.any (·.2.armReads))) then
-      .or (((more ++ (v.splitOrs.2.filter Val.isPrefB).map Val.prefArms).foldl orMeet as).map
+      .or ((more.foldl orMeet as).map
         fun p => (p.1, (v.splitOrs.2.filter fun c => !c.isPrefB).foldl .meet p.2))
     else v
   | [] => v
@@ -9663,6 +9679,31 @@ Each arm then reads its paths within itself: `{b: .a} & {a: 1}` reads
 document is `valid`, and over `x: {a: 2, b: 1}` it's `invalid`, as in
 both engines. `Val.distributed` reads every such meet in the schema,
 the inner ones first, and only then does the definition read the arms.
+
+Two lone preferences with no disjunction beside them read the same way,
+as ruling 53 settled. In `x: *{a: 1, b: .c} & *{c: 2}` the path `.c`
+names a member only the second preference supplies. Read alone, the
+path would name a place inside a preference, which names nothing. Read
+as one disjunction, the meet has four arms. In the default both values
+hold, and `b` reads `2`. In two more, each value meets the other's
+parent arm, and in the fourth both parent arms meet. There the first
+preference's parent arm reads its paths in the document an arm reads
+in, where a lone preference met beside it at its own place stands as
+its value (`Val.chooseAt`):
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Val.prefsOpened : Val → Val
+  | .pref _ v => v
+  | .meet a b => .meet a.prefsOpened b.prefsOpened
+  | v => v
+```
+
+So `b` reads `2` there and lifts to `integer`. Over `x: {a: 5, b: 7,
+c: 7}` the document is `valid`, and over `x: {a: 5, b: "s", c: 7}` it's
+`invalid`. Both engines leave the path waiting while a default is in
+play, which #700 tracks, and lift it to `any` in a parent arm, which
+#704 tracks. Rows from lq0 on hold these cases.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
@@ -9764,7 +9805,8 @@ def Val.genInst (root u : Val) (base p : List Seg) (t : Seg) : Option Val :=
 
 So `.name` reads each instance's own `name`, a path that climbs out of
 the instance reads from where the instance stands, and a spread or a
-generator inside the template reads at its own members in turn.
+generator inside the template reads at its own members in turn, a member
+the data adds among them.
 
 A generator in an `emit`'s body is different: its instances land where
 the body's pieces do, after the lists of the body splice, which nothing
@@ -9788,9 +9830,26 @@ def Val.landedRels (root : Val) (base p : List Seg) : List Val :=
 The tree keeps such a path as written until then, since reading paths
 as names leaves a relative one alone (`Val.pathsToAliases`).
 
-Rows from sp0 on, from gt0 on, from eg0 on and from eh0 on of
-`test/spec/def-path.tsv` hold these readings in the three modes of
-`vet`, and both engines answer every one as the definition does.
+A named table, `%T = emit(_, t)`, keeps its generators in the body its
+name declares, so the definition reads that body through the name
+before it looks for such a path:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Decls.emitsRel (ds : Decls) : Val → Bool
+  | .call .emit [_, .alias n] => (ds.bodies n).any Val.holdsRel
+  | .call .emit [_, t] => t.holdsRel
+  | _ => false
+```
+
+The declaration itself reads each such path as `any` (`Val.relTable`),
+since only an `emit` takes the table, and the path reads where each
+instance lands.
+
+Rows from sp0 on, from gt0 on, from sg0 on, from eg0 on, from eh0 on,
+from ng0 on and from kr0 on of `test/spec/def-path.tsv` hold these
+readings in the three modes of `vet`, and both engines answer every one
+as the definition does.
 
 ## 39. Loading a source
 
@@ -10019,8 +10078,7 @@ node, each node's pieces after the pieces of the nodes before it:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
     | .emit, [s, t] =>
-      if here.isNone && ((resolveD ds b here s).holdsKey || t.holdsKey) then
-        .call .emit [resolveD ds b here s, t] else
+      if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
       if (emitTable t).any (fun r => !emitRawOk r) ||
         (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
         .call .emit [resolveD ds b here s, t] else
@@ -10037,6 +10095,13 @@ node, each node's pieces after the pieces of the nodes before it:
         if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
         else .call .emit [resolveD ds b here s, t]
 ```
+
+Where no place is yet, as in the roots the paths read (`Decls.readU`),
+the call stays as written only while its selection holds a `key(n)`,
+since its nodes wait on the place. A `key(n)` in the table stays as
+written in each piece, and reads where the piece lands, or where a path
+to it lands. So a path into the output names what the call makes, and a
+relative path beside such a key reads where each instance lands.
 
 `emitPlan` takes the first template whose `match` takes the node, and
 a `match` takes a node the way both engines dispatch. The node, met with

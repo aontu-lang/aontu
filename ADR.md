@@ -89,7 +89,7 @@ rule now lives and where its record is in the history.
 | [ADR-043](#adr-043--a-container-template-waits-for-a-member-that-has-not-decided) | A container template waits for a member that has not decided | Accepted |
 | [ADR-044](#adr-044--the-site-renders-the-documentation-it-does-not-author-it) | The site renders the documentation; it does not author it | Accepted |
 | [ADR-045](#adr-045--required-wins-in-the-meet) | Required wins in the meet | Moved to the definition |
-| [ADR-046](#adr-046--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Moved to the definition; amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) |
+| [ADR-046](#adr-046--a-written-nil-under-an-optional-key-forbids-the-key) | A written `nil` under an optional key forbids the key | Moved to the definition; amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export) and on 2026-11-16 (#796) |
 | [ADR-047](#adr-047--the-json-schema-importer-owns-the-meaning) | The JSON Schema importer owns the meaning | Accepted |
 | [ADR-048](#adr-048--divisibility-reads-the-number-a-value-shows) | Divisibility reads the number a value shows | Moved to the definition |
 | [ADR-049](#adr-049--logic-counts-the-trial-schemas-that-admit-a-value) | Logic counts the trial schemas that admit a value | Moved to the definition; superseded in part by [ADR-054](#adr-054--the-admission-trial-is-asked-once-counted-and-stopped-when-its-count-is-decided) and [ADR-055](#adr-055--must-asks-the-admission-trial) |
@@ -4526,7 +4526,7 @@ it.
 ## ADR-046 — A written `nil` under an optional key forbids the key
 
 **Date:** 2026-10-01
-**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Meet.lean`](spec/Aontu/Meet.lean) `admits_map_iff` with `admits_nil_iff`: `{k?: nil}` admits a map without `k` and refuses one that holds it. Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export).
+**Status:** Moved to the definition (2026-10-19): [`spec/Aontu/Meet.lean`](spec/Aontu/Meet.lean) `admits_map_iff` with `admits_nil_iff`: `{k?: nil}` admits a map without `k` and refuses one that holds it. Amended by [ADR-068](#adr-068--an-import-comes-back-from-its-own-export), and on 2026-11-16 (#796): a value the nil meets in the schema is no longer refused at the meet.
 
 ### Context
 
@@ -4560,6 +4560,25 @@ carries another code, is a refusal already recorded and is unchanged.
   `{k?: nil}`.
 - Pinned by the `optional-nil-*` rows of `test/spec/optional.tsv` and
   `test/spec/vet.tsv`, in both ports.
+
+### Amendment (2026-11-16)
+
+The definition reads a written `nil` as no value, which meets anything
+as itself: `Val.void` in [`spec/Aontu/Syntax.lean`](spec/Aontu/Syntax.lean),
+kept by `meetStep` in [`spec/Aontu/Meet.lean`](spec/Aontu/Meet.lean).
+Both ports now meet a written `nil` with a value in another map as that
+`nil`, and no longer refuse it at the meet (#796):
+
+- `{k?: 1} & {k?: nil}` and `{k?: *"x" | "y"} & {k?: nil}` forbid `k`,
+  where they were refused with `literal_nil`.
+- A key another declaration requires, `{k?: nil}` beside `{k: 1}`, can't
+  be met. Evaluation refuses it with `literal_nil`, and `vet` reads data
+  that supplies the key as `invalid`, with the finding naming both
+  sites, as before.
+- A trial's argument that settles to a written `nil`, as
+  `must(nil & 1, "m")` does, refuses what the trial meets, as one
+  written there does. A conflict among its arguments is still the
+  document's error.
 
 ---
 

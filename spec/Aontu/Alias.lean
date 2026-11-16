@@ -2869,6 +2869,7 @@ theorem Val.CheckableA.super {v : Val} (h : v.CheckableA) : v.super.CheckableA :
     cases k with
     | move n => exact .ride ih
     | opened => exact .ride ih
+    | void => exact .ride ih
     | _ => exact ih
   | link _ _ ih _ => exact ih
   | @meet a b ha hb iha ihb =>
@@ -3896,11 +3897,13 @@ theorem absentOr_checkableA {v : Val} (h : v.CheckableA) : (absentOr v).Checkabl
 
 /-- A meet with an atom that admits nothing is a term the checker can
 read. -/
-theorem nothingOr_checkableA (v : Val) : (nothingOr v).CheckableA := by
+theorem nothingOr_checkableA {v : Val} (h : v.CheckableA) : (nothingOr v).CheckableA := by
   unfold nothingOr
   split
   · exact .nothing
-  · exact .nil
+  · split
+    · exact h
+    · exact .nil
 
 theorem unrankF_checkableA : ∀ (n : ℕ) {v : Val}, v.CheckableA → (unrankF n v).CheckableA
   | 0, _, h => h
@@ -4137,9 +4140,11 @@ theorem meetStep_checkableA {lm : Scalar → Val → Val} (hl : ∀ s b, b.Check
     .list (fun _ h => absurd h (List.not_mem_nil)) (fun _ h => nomatch h)
   cases a <;> cases b <;> (unfold meetStep; dsimp only) <;> first
     | exact .nil
+    | (split <;> first | exact .nil | exact hb | exact ha)
     | exact absentOr_checkableA (hr _ _ .any hb)
     | exact absentOr_checkableA (hr _ _ ha .any)
-    | exact nothingOr_checkableA _
+    | exact nothingOr_checkableA hb
+    | exact nothingOr_checkableA ha
     | exact meetBase_checkableA hl ha hb
     | exact (match ha with | .meet h₁ h₂ => hr _ _ h₁ (hr _ _ h₂ hb))
     | exact meetRight_checkableA hr ha hb

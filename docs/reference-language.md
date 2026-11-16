@@ -957,13 +957,15 @@ a: { k?:nil z:1 }
 {"a":{"z":1}}
 ```
 
-With `a: { k: 1 }` beside it the document is refused with
-`[aontu/literal_nil]`, naming both sites.
-
-A kind, another `nil`, or a disjunction with no preferred member
-supplies no value, so `{k?: nil} & {k?: "x" | "y"}` forbids `k` as
-`{k?: nil}` does. A preferred member is a value supplied: the written
-`nil` refuses `{k?: *"x" | "y"}` as it refuses `{k?: 1}`.
+A written `nil` holds no value, and meets anything as itself: a value,
+a kind, another `nil`, a disjunction, a preference, and a conflict alike.
+So `{k?: nil} & {k?: 1}` forbids `k` as `{k?: nil}` does, and so does
+`{k?: nil} & {k?: *"x" | "y"}`. No value meets a required key that
+holds one: with `a: { k: 1 }` beside it the meet requires `k`,
+evaluation refuses the document with `[aontu/literal_nil]`, and `vet`
+reads it as `invalid`. A conflict is no written `nil`: `{k?: 1 & 2}`
+still makes the document an error. The definition reads a written `nil`
+as `Val.void`.
 
 **An optional key never drops a refusal the parser made.** It drops a
 value that fails to resolve, and raises a parse refusal from anywhere
@@ -1864,7 +1866,14 @@ the outer arm takes the data, and a path in the outer arm reads into
 the inner disjunction as a path from outside reads any disjunction. The parent arm of a
 lone preference lifts its value as read before any data, a disjunction
 inside it read so too: in `x: *({a: 1, b: .a} | null)`, the parent arm
-is `{a: integer, b: integer} | null`.
+is `{a: integer, b: integer} | null`. Lone preferences met at one place
+read as one disjunction as well, each as its value or its parent arm, so
+a path in one's value reads what another prefers, or its parent type
+where the other's parent arm holds: in `x: *{a: 1, b: .c} & *{c: 2}`,
+`{a: 1, b: 2, c: 2}` and `{a: 5, b: 7, c: 7}` pass and `{a: 5, b: "s",
+c: 7}` doesn't. Both engines leave such a path waiting while a default
+is in play and lift it to `any` in a parent arm, which #700 and #704
+track. The definition reads the meet so by `Val.meetOrs`.
 
 ### Recursive references (fixpoints)
 

@@ -699,10 +699,11 @@ absence where that is `any`, which absence is below. -/
 def absentOr (v : Val) : Val := if v.isAny then .absent else v
 
 /-- A meet with an atom over an argument outside its domain: the atom
-where the other side is `any`, and `nil` where it is anything else,
-since the atom admits nothing and both ports refuse it against any
-peer but the top. -/
-def nothingOr (v : Val) : Val := if v.isAny then .nothing else .nil
+where the other side is `any`, the other side where it is a `nil` the
+document writes, which takes the atom in as it takes any term in
+(ruling 54), and `nil` where it is anything else, since the atom admits
+nothing and both ports refuse it against any peer but the top. -/
+def nothingOr (v : Val) : Val := if v.isAny then .nothing else if v.isVoid then v else .nil
 
 /-- The meet of two terms neither of which is `nil`, a meet, a
 disjunction, or a preference, and that are not two containers or a
@@ -2481,23 +2482,54 @@ theorem admits_absent_right {m : Val → Val → Val}
   · rw [hm]
     exact ⟨fun h => ⟨h.1, .absent⟩, fun h => ⟨h.1, .any⟩⟩
 
+/-- A written `nil`, with any riders and links around it, is dead on
+its face. -/
+theorem isVoid_dead : ∀ {v : Val}, v.isVoid = true → v.dead = true := by
+  intro v h
+  unfold Val.isVoid at h
+  split at h
+  · rfl
+  · have hd := isVoid_dead h; exact hd
+  · have hd := isVoid_dead h; exact hd
+  · exact absurd h Bool.false_ne_true
+
+/-- A written `nil` admits nothing. -/
+theorem not_admits_of_isVoid {v : Val} (h : v.isVoid = true) (j : Data) : ¬ Admits env root v j :=
+  dead_sound v (isVoid_dead h) j
+
 theorem admits_nothing_left (b : Val) (j : Data) :
     Admits env root (nothingOr b) j ↔ Admits env root .nothing j ∧ Admits env root b j := by
   unfold nothingOr
-  split <;> exact ⟨(fun h => nomatch h), (fun h => nomatch h.1)⟩
+  split
+  · exact ⟨(fun h => nomatch h), (fun h => nomatch h.1)⟩
+  · split
+    · rename_i hv
+      exact ⟨fun h => (not_admits_of_isVoid hv j h).elim, fun h => nomatch h.1⟩
+    · exact ⟨(fun h => nomatch h), (fun h => nomatch h.1)⟩
 
 theorem admits_nothing_right (a : Val) (j : Data) :
     Admits env root (nothingOr a) j ↔ Admits env root a j ∧ Admits env root .nothing j := by
   unfold nothingOr
-  split <;> exact ⟨(fun h => nomatch h), (fun h => nomatch h.2)⟩
+  split
+  · exact ⟨(fun h => nomatch h), (fun h => nomatch h.2)⟩
+  · split
+    · rename_i hv
+      exact ⟨fun h => (not_admits_of_isVoid hv j h).elim, fun h => nomatch h.2⟩
+    · exact ⟨(fun h => nomatch h), (fun h => nomatch h.2)⟩
 
 theorem admits_nil_left (b : Val) (j : Data) :
-    Admits env root .nil j ↔ Admits env root .nil j ∧ Admits env root b j :=
-  ⟨(fun h => nomatch h), (fun h => h.1)⟩
+    Admits env root (if b.isVoid then b else .nil) j ↔ Admits env root .nil j ∧ Admits env root b j := by
+  refine ⟨fun h => ?_, fun h => nomatch h.1⟩
+  split at h
+  · exact absurd h (not_admits_of_isVoid ‹_› j)
+  · exact nomatch h
 
 theorem admits_nil_right (a : Val) (j : Data) :
-    Admits env root .nil j ↔ Admits env root a j ∧ Admits env root .nil j :=
-  ⟨(fun h => nomatch h), (fun h => h.2)⟩
+    Admits env root (if a.isVoid then a else .nil) j ↔ Admits env root a j ∧ Admits env root .nil j := by
+  refine ⟨fun h => ?_, fun h => nomatch h.2⟩
+  split at h
+  · exact absurd h (not_admits_of_isVoid ‹_› j)
+  · exact nomatch h
 
 end
 
@@ -2600,15 +2632,19 @@ def meetRight (rec : Val → Val → Val) (a b₁ b₂ : Val) : Val :=
   else rec x b₂
 
 /-- One step of the meet, given the meet `lm` of a literal with a term
-and the meet `rec` of smaller terms: `nil` is the zero, absence is the
-unit, but met with `any` it stays absence, an atom over an argument
-outside its domain is `nil` against all but `any`, a meet on either side is met
-one side at a time, a disjunction distributes over its arms, a
-preference alone is `x | super(x)`, two maps and two lists merge, `any`
-is the unit of each container, and what remains is `meetBase`. -/
+and the meet `rec` of smaller terms: `nil` is the zero, but met with a
+`nil` the document writes it is that one (`Val.void`), which takes in
+whatever it meets, a conflict too (ruling 54), absence is the unit, but
+met with `any` it stays absence, an atom over an argument outside its
+domain is `nil` against all but `any` and a written `nil`, a meet on
+either side is met one side at a time, a disjunction distributes over
+its arms, a preference alone is `x | super(x)`, two maps and two lists
+merge, `any` is the unit of each container, and what remains is
+`meetBase`. -/
 def meetStep (lm : Scalar → Val → Val) (rec : Val → Val → Val) (a b : Val) : Val :=
   match a, b with
-  | .nil, _ | _, .nil => .nil
+  | .nil, b => if b.isVoid then b else .nil
+  | a, .nil => if a.isVoid then a else .nil
   | .absent, b => absentOr (rec .any b)
   | a, .absent => absentOr (rec a .any)
   | .nothing, b => nothingOr b

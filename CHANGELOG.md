@@ -151,7 +151,7 @@ The definition, shared rows and the register. No engine changes.
 - **Twenty-seven rows hold the ports to it**, `od0` to `od26` of
   `test/spec/def-path.tsv`: one document in three orders, which the
   definition reads alike. Both ports answer three ways (#778), so
-  fifteen of the rows are in `spec/ledger.tsv`, whose bound is now 385.
+  fifteen of the rows are in `spec/ledger.tsv`, whose bound is now 408.
 
 ### `relate` is the one link function: `refer` is removed and `rel` renamed
 
@@ -221,6 +221,27 @@ language.
 - `canon-calls-are-declared-builtins` in `ts/test/sig.test.ts`, and its
   Go twin, hold every call the shared rows' canon writes to
   `test/spec/signature.tsv`.
+
+### A written `nil` met with a value forbids its key (#796)
+
+Both engines and shared rows.
+
+- A written `nil` holds no value, and meets a value in another map as
+  itself, where both engines refused the pair with `literal_nil`.
+  `a: {k?: 1}` beside `a: {k?: nil}` now evaluates to `{"a": {}}`, as
+  `a: {k?: nil & 1}` already did. A key another declaration requires
+  still can't be met, and evaluation still refuses it with
+  `literal_nil`.
+- A trial whose argument settles to a written `nil`, as
+  `must(nil & 1, "m")` does, refuses what it meets, as
+  `must(nil, "m")` does, where both engines made the document an
+  error. A conflict among its arguments, as in `must(1 & 2, "m")`, is
+  still an error.
+- The `literal_nil` hint reads "A written nil holds no value, so a key
+  that holds one takes none."
+- Two rows of `test/spec/optional.tsv` move from `literal_nil` to
+  `{"a":{}}`. Twelve rows leave the definition's ledger, and its bound
+  is back at 399.
 
 ### A value a default has met outlives a stronger default (#431)
 

@@ -674,7 +674,7 @@ func makeConstraint(atom string, args []Val, sp int) *ConstraintVal {
 			// stringLeaf test is strict).
 			return bad("invalid-arg")
 		}
-		if holdsNil(args[0]) {
+		if holdsNil(args[0], nil) {
 			return bad("invalid-arg")
 		}
 		// (An effectful argument is refused at construction, above: by
@@ -948,8 +948,11 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 
 	if settled {
 		// A bound's residual stands against the top, but a choice in the
-		// arguments it reads is no argument; any other peer meets it.
-		if (nil == peer || isTop(peer)) && boundAtom(c.pending.atom) && !holdsChoice(atomArgs(c.pending.atom, args)) {
+		// arguments it reads is no argument; any other peer meets it. So
+		// does an atom whose arguments hold only written nils, which
+		// refuses what it meets as one written there does (ADR-046).
+		if (nil == peer || isTop(peer)) &&
+			((boundAtom(c.pending.atom) && !holdsChoice(atomArgs(c.pending.atom, args))) || writtenNilsOnly(args)) {
 			return built
 		}
 		return built.Unify(peer, ctx)
@@ -2070,31 +2073,37 @@ func trialArg(ctx *Ctx, arg Val) Val {
 	return newNil("nof")
 }
 
-func holdsNil(v Val) bool {
+func holdsNil(v Val, only func(Val) bool) bool {
 	if v.Nil() {
-		return true
+		return nil == only || only(v)
 	}
 	switch t := v.(type) {
 	case *MapVal:
 		for _, child := range t.peg {
-			if holdsNil(child) {
+			if holdsNil(child, only) {
 				return true
 			}
 		}
 	case *ListVal:
 		for _, child := range t.peg {
-			if holdsNil(child) {
+			if holdsNil(child, only) {
 				return true
 			}
 		}
 	case *DisjunctVal:
 		for _, child := range t.peg {
-			if holdsNil(child) {
+			if holdsNil(child, only) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+func writtenNilsOnly(args []Val) bool {
+	conflict := func(v Val) bool { n, ok := v.(*NilVal); return !ok || "literal_nil" != n.why }
+	return slices.ContainsFunc(args, func(a Val) bool { return holdsNil(a, nil) }) &&
+		!slices.ContainsFunc(args, func(a Val) bool { return holdsNil(a, conflict) })
 }
 
 func holdsMove(v Val) bool {

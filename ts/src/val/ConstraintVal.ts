@@ -882,15 +882,18 @@ class ConstraintVal extends FeatureVal {
 
     if (settled) {
       // The residual the atom always meant, at this atom's site: a bound's
-      // stands against the top, unless an argument it reads is a choice.
+      // stands against the top, unless an argument it reads is a choice, as
+      // does one over written nils alone, refusing as one written does (ADR-046).
       const built = new ConstraintVal({ peg: args, atom: pend.atom }, ctx)
       built.path = this.path
       built.site.row = this.site.row
       built.site.col = this.site.col
       built.site.url = this.site.url
       propagateMarks(this, built)
-      if ((null == peer || (peer as any).isTop) && BOUND_ATOMS.includes(pend.atom) &&
-        !atomArgs(pend.atom, args).some((a: any) => true === a?.isDisjunct || true === a?.isPref)) {
+      const choice = atomArgs(pend.atom, args)
+        .some((a: any) => true === a?.isDisjunct || true === a?.isPref)
+      if ((null == peer || (peer as any).isTop) &&
+        ((BOUND_ATOMS.includes(pend.atom) && !choice) || writtenNilsOnly(args))) {
         return built
       }
       return built.unify(peer, ctx)
@@ -1721,8 +1724,15 @@ function heldVals(v: any): any[] {
 }
 
 
-function holdsNil(v: any): boolean {
-  return true === v.isNil || heldVals(v).some((c: any) => holdsNil(c))
+function holdsNil(v: any, only?: (n: any) => boolean): boolean {
+  return (true === v.isNil && (undefined === only || only(v))) ||
+    heldVals(v).some((c: any) => holdsNil(c, only))
+}
+
+
+function writtenNilsOnly(args: any[]): boolean {
+  return args.some((a: any) => holdsNil(a)) &&
+    !args.some((a: any) => holdsNil(a, (n: any) => 'literal_nil' !== n.why))
 }
 
 

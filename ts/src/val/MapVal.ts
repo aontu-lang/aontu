@@ -88,9 +88,9 @@ function snapshotRefSpread(cj: any, ctx: AontuContext): Val | undefined {
 }
 
 
-// A written `nil` refuses a supplied value (ADR-046), which a nil or a
-// disjunction with no preference is not; a minted nil is already recorded.
-function literalNilRefuses(n: any, v: any): boolean {
+// A written `nil` meets a supplied value as itself (ADR-046), keeping the
+// value's site for the finding a key it then leaves unmet makes.
+function literalNilMeets(n: any, v: any): boolean {
   return 'literal_nil' === n.why && true === v.isGenable && !v.isTop && !v.isNil &&
     !(true === v.isDisjunct && !v.peg.some((m: any) => true === m.isPref))
 }
@@ -344,10 +344,10 @@ class MapVal extends BagVal {
                 ? unite(peerctx, peerchild, TOP, 'map-peer-only')
                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
               bare(child) && peerchild.done ? peerchild :
-                child.isNil ? (literalNilRefuses(child, peerchild) ?
-                  makeNilErr(peerctx, 'literal_nil', child, peerchild) : child) :
-                  peerchild.isNil ? (literalNilRefuses(peerchild, child) ?
-                    makeNilErr(peerctx, 'literal_nil', peerchild, child) : peerchild) :
+                child.isNil ? (literalNilMeets(child, peerchild) ?
+                  makeNilErr(undefined, 'literal_nil', child, peerchild) : child) :
+                  peerchild.isNil ? (literalNilMeets(peerchild, child) ?
+                    makeNilErr(undefined, 'literal_nil', peerchild, child) : peerchild) :
                     unite(te ? peerctx.clone({ explain: ec(te, 'CHD') }) : peerctx,
                       child, peerchild, 'map-peer')
 
