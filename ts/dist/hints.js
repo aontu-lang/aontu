@@ -33,7 +33,7 @@ const hints = {
         'because it is not a literal value.',
     listval_spread_required: 'The value for key {key} is required (defined in spread).',
     unknown_function: 'This function name is not recognized.',
-    literal_nil: 'A literal nil cannot unify with any other value.',
+    literal_nil: 'A written nil holds no value, so a key that holds one takes none.',
     unify_cycle: 'Circular reference detected during unification.',
     pref_implicit_bag: 'A preference marks a VALUE, and a bare key is not one. Without\n' +
         'braces the `*` took the whole implicit map as its operand, so the\n' +

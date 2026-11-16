@@ -6108,9 +6108,8 @@ refuses `1` (#525).
 A conflict is an argument that's dead in normal form but not written as
 `nil`. Both engines read a size, a condition of `must` or a count
 written as `nil` as a value that admits nothing, so `must(nil, "m")`
-and `len(nil)` refuse `1`. Both read `must(nil & 1, "m")` as an
-`error`, but a written `nil` met with a value is still one, by ruling
-54, so it refuses `1` too. A
+and `len(nil)` refuse `1`. So does `must(nil & 1, "m")`: a written
+`nil` met with a value is still one, by ruling 54. A
 `filter` over `nil` and a `match` on it are errors, as any dead source
 or scrutinee is:
 

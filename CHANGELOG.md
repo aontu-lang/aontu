@@ -8,6 +8,27 @@ each change affects.
 
 ## Unreleased
 
+### A written `nil` met with a value forbids its key (#796)
+
+Both engines and shared rows.
+
+- A written `nil` holds no value, and meets a value in another map as
+  itself, where both engines refused the pair with `literal_nil`.
+  `a: {k?: 1}` beside `a: {k?: nil}` now evaluates to `{"a": {}}`, as
+  `a: {k?: nil & 1}` already did. A key another declaration requires
+  still can't be met, and evaluation still refuses it with
+  `literal_nil`.
+- A trial whose argument settles to a written `nil`, as
+  `must(nil & 1, "m")` does, refuses what it meets, as
+  `must(nil, "m")` does, where both engines made the document an
+  error. A conflict among its arguments, as in `must(1 & 2, "m")`, is
+  still an error.
+- The `literal_nil` hint reads "A written nil holds no value, so a key
+  that holds one takes none."
+- Two rows of `test/spec/optional.tsv` move from `literal_nil` to
+  `{"a":{}}`. Twelve rows leave the definition's ledger, and its bound
+  is back at 399.
+
 ### A value a default has met outlives a stronger default (#431)
 
 Both engines and shared rows.

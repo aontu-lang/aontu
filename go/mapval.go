@@ -407,9 +407,9 @@ func withoutKey(keys []string, k string) []string {
 	return keys
 }
 
-// A written nil refuses a supplied value (ADR-046), which a nil or a
-// disjunction with no preference is not; a minted nil is already recorded.
-func literalNilRefuses(n *NilVal, v Val) bool {
+// A written nil meets a supplied value as itself (ADR-046), keeping the
+// value's site for the finding a key it then leaves unmet makes.
+func literalNilMeets(n *NilVal, v Val) bool {
 	if d, ok := v.(*DisjunctVal); ok && !slices.ContainsFunc(d.peg, isPref) {
 		return false
 	}
@@ -671,10 +671,10 @@ func (m *MapVal) Unify(peer Val, ctx *Ctx) Val {
 				if m.closed {
 					ex = sealChild(ex)
 				}
-				if nv, isNil := ex.(*NilVal); isNil && literalNilRefuses(nv, pc) {
-					uv = makeNilErr(ctx, "literal_nil", ex, pc)
-				} else if nv, isNil := pc.(*NilVal); isNil && literalNilRefuses(nv, ex) {
-					uv = makeNilErr(ctx, "literal_nil", pc, ex)
+				if nv, isNil := ex.(*NilVal); isNil && literalNilMeets(nv, pc) {
+					uv = makeNilErr(nil, "literal_nil", ex, pc)
+				} else if nv, isNil := pc.(*NilVal); isNil && literalNilMeets(nv, ex) {
+					uv = makeNilErr(nil, "literal_nil", pc, ex)
 				} else {
 					uv = unite(ctx, ex, pc)
 				}
