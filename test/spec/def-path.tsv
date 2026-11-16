@@ -32,7 +32,9 @@
 # sources loaded in place, each a file of test/spec/files the definition
 # declares as a term, in rows lf0 on.
 # Generators whose templates read their member's place through a relative
-# path, each read at each member of the output, follow in rows gt0 on, and
+# path, each read at each member of the output, follow in rows gt0 on, a spread
+# such a template holds, read at each member, a member the data adds among them,
+# in rows sg0 on, and
 # templates that meet their own hole, each member kept and met with the rest,
 # the `_ & …` idiom, in rows ib0 on, generators an emit's body holds, their
 # templates read where each instance lands in the output, in rows eg0 on,
@@ -2949,6 +2951,51 @@ gt41	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": 
 gt42	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": .m})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid"}
 gt43	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": .m})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid","opts":{"noFill":true}}
 gt44	verdict	"l": ["a"], "e": each($.l, {"n": _, "f": each(["p"], {"m": _, "u": .m})})	{"e": [{"f": [{"u": "z"}]}]}	{"verdict":"invalid","opts":{"partial":true}}
+sg0	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{}	{"verdict":"valid"}
+sg1	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sg2	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{}	{"verdict":"valid","opts":{"partial":true}}
+sg3	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}}}, {"h": {"p": {"name": "x", "url": "x"}}}]}	{"verdict":"valid"}
+sg4	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}}}, {"h": {"p": {"name": "x", "url": "x"}}}]}	{"verdict":"incomplete","opts":{"noFill":true}}
+sg5	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}}}, {"h": {"p": {"name": "x", "url": "x"}}}]}	{"verdict":"valid","opts":{"partial":true}}
+sg6	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}}}, {"h": {"p": {"name": "x", "url": "y"}}}]}	{"verdict":"invalid"}
+sg7	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}}}, {"h": {"p": {"name": "x", "url": "y"}}}]}	{"verdict":"invalid","opts":{"noFill":true}}
+sg8	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}}}, {"h": {"p": {"name": "x", "url": "y"}}}]}	{"verdict":"invalid","opts":{"partial":true}}
+sg9	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}, "r": {"name": "z", "url": "w"}}}, {"h": {"p": {"name": "x", "url": "x"}}}]}	{"verdict":"invalid"}
+sg10	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}, "r": {"name": "z", "url": "w"}}}, {"h": {"p": {"name": "x", "url": "x"}}}]}	{"verdict":"invalid","opts":{"noFill":true}}
+sg11	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}, "r": {"name": "z", "url": "w"}}}, {"h": {"p": {"name": "x", "url": "x"}}}]}	{"verdict":"invalid","opts":{"partial":true}}
+sg12	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}, "r": {"name": "z", "url": "z"}}}, {"h": {"p": {"name": "x", "url": "x"}}}]}	{"verdict":"valid"}
+sg13	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}, "r": {"name": "z", "url": "z"}}}, {"h": {"p": {"name": "x", "url": "x"}}}]}	{"verdict":"incomplete","opts":{"noFill":true}}
+sg14	verdict	"d": [1, 2], "x": each($.d, {"h": {"p": {"name": "x"}, &: {"name": string, "url": .name}}})	{"x": [{"h": {"p": {"name": "x", "url": "x"}, "r": {"name": "z", "url": "z"}}}, {"h": {"p": {"name": "x", "url": "x"}}}]}	{"verdict":"valid","opts":{"partial":true}}
+sg15	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, "q": {}, &: {"k": key(1)}}})	{}	{"verdict":"valid"}
+sg16	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, "q": {}, &: {"k": key(1)}}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sg17	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, "q": {}, &: {"k": key(1)}}})	{}	{"verdict":"valid","opts":{"partial":true}}
+sg18	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, "q": {}, &: {"k": key(1)}}})	{"x": [{"v": 1, "h": {"p": {"k": "q"}}}]}	{"verdict":"invalid"}
+sg19	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, "q": {}, &: {"k": key(1)}}})	{"x": [{"v": 1, "h": {"p": {"k": "q"}}}]}	{"verdict":"invalid","opts":{"noFill":true}}
+sg20	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, "q": {}, &: {"k": key(1)}}})	{"x": [{"v": 1, "h": {"p": {"k": "q"}}}]}	{"verdict":"invalid","opts":{"partial":true}}
+sg21	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{}	{"verdict":"valid"}
+sg22	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sg23	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{}	{"verdict":"valid","opts":{"partial":true}}
+sg24	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{"x": [{"v": 1, "h": {"p": {"w": 1}}}, {"v": 2, "h": {"p": {"w": 2}}}]}	{"verdict":"valid"}
+sg25	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{"x": [{"v": 1, "h": {"p": {"w": 1}}}, {"v": 2, "h": {"p": {"w": 2}}}]}	{"verdict":"incomplete","opts":{"noFill":true}}
+sg26	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{"x": [{"v": 1, "h": {"p": {"w": 1}}}, {"v": 2, "h": {"p": {"w": 2}}}]}	{"verdict":"valid","opts":{"partial":true}}
+sg27	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{"x": [{"v": 1, "h": {"p": {"w": 2}}}, {"v": 2, "h": {"p": {"w": 2}}}]}	{"verdict":"invalid"}
+sg28	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{"x": [{"v": 1, "h": {"p": {"w": 2}}}, {"v": 2, "h": {"p": {"w": 2}}}]}	{"verdict":"invalid","opts":{"noFill":true}}
+sg29	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{"x": [{"v": 1, "h": {"p": {"w": 2}}}, {"v": 2, "h": {"p": {"w": 2}}}]}	{"verdict":"invalid","opts":{"partial":true}}
+sg30	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{"x": [{"v": 1, "h": {"p": {"w": 1}, "r": {"w": 2}}}]}	{"verdict":"invalid"}
+sg31	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{"x": [{"v": 1, "h": {"p": {"w": 1}, "r": {"w": 2}}}]}	{"verdict":"invalid","opts":{"noFill":true}}
+sg32	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": {"p": {}, &: {"w": ...v}}})	{"x": [{"v": 1, "h": {"p": {"w": 1}, "r": {"w": 2}}}]}	{"verdict":"invalid","opts":{"partial":true}}
+sg33	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": ([{"n": "x"}, {}]) & ([&: {"m": ...v}])})	{}	{"verdict":"valid"}
+sg34	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": ([{"n": "x"}, {}]) & ([&: {"m": ...v}])})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sg35	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": ([{"n": "x"}, {}]) & ([&: {"m": ...v}])})	{}	{"verdict":"valid","opts":{"partial":true}}
+sg36	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": ([{"n": "x"}, {}]) & ([&: {"m": ...v}])})	{"x": [{"v": 1, "h": [{"n": "x", "m": 2}, {"m": 1}]}]}	{"verdict":"invalid"}
+sg37	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": ([{"n": "x"}, {}]) & ([&: {"m": ...v}])})	{"x": [{"v": 1, "h": [{"n": "x", "m": 2}, {"m": 1}]}]}	{"verdict":"invalid","opts":{"noFill":true}}
+sg38	verdict	"d": [1, 2], "x": each($.d, {"v": _, "h": ([{"n": "x"}, {}]) & ([&: {"m": ...v}])})	{"x": [{"v": 1, "h": [{"n": "x", "m": 2}, {"m": 1}]}]}	{"verdict":"invalid","opts":{"partial":true}}
+sg39	verdict	"d": {"a": 1, "b": 2}, "x": pack($.d, {"v": _, "h": {"p": {}, &: {"w": ...v, "k": key(3)}}})	{}	{"verdict":"valid"}
+sg40	verdict	"d": {"a": 1, "b": 2}, "x": pack($.d, {"v": _, "h": {"p": {}, &: {"w": ...v, "k": key(3)}}})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+sg41	verdict	"d": {"a": 1, "b": 2}, "x": pack($.d, {"v": _, "h": {"p": {}, &: {"w": ...v, "k": key(3)}}})	{}	{"verdict":"valid","opts":{"partial":true}}
+sg42	verdict	"d": {"a": 1, "b": 2}, "x": pack($.d, {"v": _, "h": {"p": {}, &: {"w": ...v, "k": key(3)}}})	{"x": {"a": {"v": 1, "h": {"p": {"w": 1, "k": "b"}}}}}	{"verdict":"invalid"}
+sg43	verdict	"d": {"a": 1, "b": 2}, "x": pack($.d, {"v": _, "h": {"p": {}, &: {"w": ...v, "k": key(3)}}})	{"x": {"a": {"v": 1, "h": {"p": {"w": 1, "k": "b"}}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+sg44	verdict	"d": {"a": 1, "b": 2}, "x": pack($.d, {"v": _, "h": {"p": {}, &: {"w": ...v, "k": key(3)}}})	{"x": {"a": {"v": 1, "h": {"p": {"w": 1, "k": "b"}}}}}	{"verdict":"invalid","opts":{"partial":true}}
 ib0	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid"}
 ib1	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"noFill":true}}
 ib2	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"partial":true}}

@@ -9791,7 +9791,8 @@ def Val.genInst (root u : Val) (base p : List Seg) (t : Seg) : Option Val :=
 
 So `.name` reads each instance's own `name`, a path that climbs out of
 the instance reads from where the instance stands, and a spread or a
-generator inside the template reads at its own members in turn.
+generator inside the template reads at its own members in turn, a member
+the data adds among them.
 
 A generator in an `emit`'s body is different: its instances land where
 the body's pieces do, after the lists of the body splice, which nothing
@@ -9815,7 +9816,7 @@ def Val.landedRels (root : Val) (base p : List Seg) : List Val :=
 The tree keeps such a path as written until then, since reading paths
 as names leaves a relative one alone (`Val.pathsToAliases`).
 
-Rows from sp0 on, from gt0 on, from eg0 on and from eh0 on of
+Rows from sp0 on, from gt0 on, from sg0 on, from eg0 on and from eh0 on of
 `test/spec/def-path.tsv` hold these readings in the three modes of
 `vet`, and both engines answer every one as the definition does.
 
