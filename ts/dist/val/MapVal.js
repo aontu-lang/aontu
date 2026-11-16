@@ -60,9 +60,9 @@ function snapshotRefSpread(cj, ctx) {
     }
     return snap;
 }
-// A written `nil` refuses a supplied value (ADR-046), which a nil or a
-// disjunction with no preference is not; a minted nil is already recorded.
-function literalNilRefuses(n, v) {
+// A written `nil` meets a supplied value as itself (ADR-046), keeping the
+// value's site for the finding a key it then leaves unmet makes.
+function literalNilMeets(n, v) {
     return 'literal_nil' === n.why && true === v.isGenable && !v.isTop && !v.isNil &&
         !(true === v.isDisjunct && !v.peg.some((m) => true === m.isPref));
 }
@@ -251,10 +251,10 @@ class MapVal extends BagVal_1.BagVal {
                                 ? (0, unify_1.unite)(peerctx, peerchild, TOP, 'map-peer-only')
                                 : this.handleExpectedVal(peerkey, peerchild, this, ctx)) :
                             (0, rider_1.bare)(child) && peerchild.done ? peerchild :
-                                child.isNil ? (literalNilRefuses(child, peerchild) ?
-                                    (0, err_1.makeNilErr)(peerctx, 'literal_nil', child, peerchild) : child) :
-                                    peerchild.isNil ? (literalNilRefuses(peerchild, child) ?
-                                        (0, err_1.makeNilErr)(peerctx, 'literal_nil', peerchild, child) : peerchild) :
+                                child.isNil ? (literalNilMeets(child, peerchild) ?
+                                    (0, err_1.makeNilErr)(undefined, 'literal_nil', child, peerchild) : child) :
+                                    peerchild.isNil ? (literalNilMeets(peerchild, child) ?
+                                        (0, err_1.makeNilErr)(undefined, 'literal_nil', peerchild, child) : peerchild) :
                                         (0, unify_1.unite)(te ? peerctx.clone({ explain: (0, utility_1.ec)(te, 'CHD') }) : peerctx, child, peerchild, 'map-peer');
                     // A member the spread has met keeps its mark, as a list's element does.
                     if (undefined !== child && !spread_cj.isTop && !oval.isNil &&

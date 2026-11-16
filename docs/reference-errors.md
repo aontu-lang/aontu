@@ -278,7 +278,7 @@ twenty rows have no such section and carry no link.
 | `key_level` | 0.51.0 | The argument to `key()` is not a level. ([How a call is checked](reference-functions.md#how-a-call-is-checked)) |
 | `list` | 0.51.0 | A list was expected and the value is of another kind. ([Container kinds: `map` and `list`](reference-language.md#container-kinds-map-and-list)) |
 | `list_length` | 0.53.0 | A literal list alternative admits only a list of its own length; a spread makes it take any length. ([Lists](reference-language.md#lists)) |
-| `literal_nil` | 0.51.0 | A literal nil met another value. ([The value lattice](reference-language.md#the-value-lattice)) |
+| `literal_nil` | 0.51.0 | A written nil holds no value, but its key must take one: another declaration requires the key, or the data gives it one. ([The value lattice](reference-language.md#the-value-lattice)) |
 | `lossy_integer_literal` | 0.51.0 | An integer literal not exactly representable in binary64; the hint names the `0d` spelling. ([Exact or refused: lossy literals](reference-language.md#exact-or-refused-lossy-literals)) |
 | `make` | 0.51.0 | A value could not be constructed. |
 | `map` | 0.51.0 | A map was expected and the value is of another kind. ([Container kinds: `map` and `list`](reference-language.md#container-kinds-map-and-list)) |

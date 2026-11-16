@@ -663,15 +663,18 @@ class ConstraintVal extends FeatureVal_1.FeatureVal {
         }
         if (settled) {
             // The residual the atom always meant, at this atom's site: a bound's
-            // stands against the top, unless an argument it reads is a choice.
+            // stands against the top, unless an argument it reads is a choice, as
+            // does one over written nils alone, refusing as one written does (ADR-046).
             const built = new ConstraintVal({ peg: args, atom: pend.atom }, ctx);
             built.path = this.path;
             built.site.row = this.site.row;
             built.site.col = this.site.col;
             built.site.url = this.site.url;
             (0, utility_1.propagateMarks)(this, built);
-            if ((null == peer || peer.isTop) && BOUND_ATOMS.includes(pend.atom) &&
-                !atomArgs(pend.atom, args).some((a) => true === a?.isDisjunct || true === a?.isPref)) {
+            const choice = atomArgs(pend.atom, args)
+                .some((a) => true === a?.isDisjunct || true === a?.isPref);
+            if ((null == peer || peer.isTop) &&
+                ((BOUND_ATOMS.includes(pend.atom) && !choice) || writtenNilsOnly(args))) {
                 return built;
             }
             return built.unify(peer, ctx);
@@ -1388,8 +1391,13 @@ function heldVals(v) {
         null != peg && 'object' === typeof peg && true !== peg.isVal ?
             Object.values(peg) : [];
 }
-function holdsNil(v) {
-    return true === v.isNil || heldVals(v).some((c) => holdsNil(c));
+function holdsNil(v, only) {
+    return (true === v.isNil && (undefined === only || only(v))) ||
+        heldVals(v).some((c) => holdsNil(c, only));
+}
+function writtenNilsOnly(args) {
+    return args.some((a) => holdsNil(a)) &&
+        !args.some((a) => holdsNil(a, (n) => 'literal_nil' !== n.why));
 }
 function holdsMove(v) {
     return (true === v.isFunc && 'move' === v.funcname?.()) ||

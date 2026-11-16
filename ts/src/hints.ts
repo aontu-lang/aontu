@@ -56,7 +56,7 @@ const hints: Record<string, string> = {
     'This function name is not recognized.',
 
   literal_nil:
-    'A literal nil cannot unify with any other value.',
+    'A written nil holds no value, so a key that holds one takes none.',
 
   unify_cycle: 'Circular reference detected during unification.',
 
