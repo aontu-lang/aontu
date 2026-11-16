@@ -1853,7 +1853,14 @@ the outer arm takes the data, and a path in the outer arm reads into
 the inner disjunction as a path from outside reads any disjunction. The parent arm of a
 lone preference lifts its value as read before any data, a disjunction
 inside it read so too: in `x: *({a: 1, b: .a} | null)`, the parent arm
-is `{a: integer, b: integer} | null`.
+is `{a: integer, b: integer} | null`. Lone preferences met at one place
+read as one disjunction as well, each as its value or its parent arm, so
+a path in one's value reads what another prefers, or its parent type
+where the other's parent arm holds: in `x: *{a: 1, b: .c} & *{c: 2}`,
+`{a: 1, b: 2, c: 2}` and `{a: 5, b: 7, c: 7}` pass and `{a: 5, b: "s",
+c: 7}` doesn't. Both engines leave such a path waiting while a default
+is in play and lift it to `any` in a parent arm, which #700 and #704
+track. The definition reads the meet so by `Val.meetOrs`.
 
 ### Recursive references (fixpoints)
 

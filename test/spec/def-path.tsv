@@ -64,7 +64,8 @@
 # A path written in a disjunction's arm reads where the arm holds, in rows dj0
 # on and djl0 on. A path inside a lone preference reads where the preference
 # holds its value, and its parent arm lifts what the value reads as on its own
-# (ruling 40), in rows lp0 on and lpl0 on.
+# (ruling 40), in rows lp0 on and lpl0 on. Lone preferences met at one place
+# read as one disjunction, each arm met with each arm (ruling 53), in rows lq0 on.
 p0	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid"}
 p1	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"noFill":true}}
 p2	verdict	"a": 1, "b": $.a	{"a": 1, "b": 1}	{"verdict":"valid","opts":{"partial":true}}
@@ -1463,6 +1464,42 @@ lpl92	verdict	"x": *{"a": number, "b": .a}	{"x": {"a": 5, "b": 2.5}}	{"verdict":
 lpl93	verdict	"x": *(({"a": number, "b": .a}) | (null))	{"x": {"a": 5, "b": 2.5}}	{"verdict":"valid"}
 lpl94	verdict	"x": *(({"a": number, "b": .a}) | (null))	{"x": {"a": 5, "b": 2.5}}	{"verdict":"valid","opts":{"noFill":true}}
 lpl95	verdict	"x": *(({"a": number, "b": .a}) | (null))	{"x": {"a": 5, "b": 2.5}}	{"verdict":"valid","opts":{"partial":true}}
+lq0	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid"}
+lq1	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+lq2	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 1, "b": 2, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+lq3	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{}	{"verdict":"valid"}
+lq4	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lq5	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{}	{"verdict":"valid","opts":{"partial":true}}
+lq6	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 1, "b": 3, "c": 2}}	{"verdict":"valid"}
+lq7	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 1, "b": 3, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+lq8	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 1, "b": 3, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+lq9	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 5, "b": 7, "c": 7}}	{"verdict":"valid"}
+lq10	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 5, "b": 7, "c": 7}}	{"verdict":"valid","opts":{"noFill":true}}
+lq11	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 5, "b": 7, "c": 7}}	{"verdict":"valid","opts":{"partial":true}}
+lq12	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 5, "b": "s", "c": 7}}	{"verdict":"invalid"}
+lq13	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 5, "b": "s", "c": 7}}	{"verdict":"invalid","opts":{"noFill":true}}
+lq14	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": 2})	{"x": {"a": 5, "b": "s", "c": 7}}	{"verdict":"invalid","opts":{"partial":true}}
+lq15	verdict	"x": ((*{"a": .c}) & (*{"b": 1})) & (*{"c": 2})	{"x": {"a": 2, "b": 1, "c": 2}}	{"verdict":"valid"}
+lq16	verdict	"x": ((*{"a": .c}) & (*{"b": 1})) & (*{"c": 2})	{"x": {"a": 2, "b": 1, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+lq17	verdict	"x": ((*{"a": .c}) & (*{"b": 1})) & (*{"c": 2})	{"x": {"a": 2, "b": 1, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+lq18	verdict	"x": ((*{"a": .c}) & (*{"b": 1})) & (*{"c": 2})	{}	{"verdict":"valid"}
+lq19	verdict	"x": ((*{"a": .c}) & (*{"b": 1})) & (*{"c": 2})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lq20	verdict	"x": ((*{"a": .c}) & (*{"b": 1})) & (*{"c": 2})	{}	{"verdict":"valid","opts":{"partial":true}}
+lq21	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": .a})	{"x": {"a": 1, "b": 1, "c": 1}}	{"verdict":"valid"}
+lq22	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": .a})	{"x": {"a": 1, "b": 1, "c": 1}}	{"verdict":"valid","opts":{"noFill":true}}
+lq23	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": .a})	{"x": {"a": 1, "b": 1, "c": 1}}	{"verdict":"valid","opts":{"partial":true}}
+lq24	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": .a})	{}	{"verdict":"valid"}
+lq25	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": .a})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lq26	verdict	"x": (*{"a": 1, "b": .c}) & (*{"c": .a})	{}	{"verdict":"valid","opts":{"partial":true}}
+lq27	verdict	"x": (*{"a": 1, "b": .d}) & (*{"c": 2})	{}	{"verdict":"error"}
+lq28	verdict	"x": (*{"a": 1, "b": .d}) & (*{"c": 2})	{}	{"verdict":"error","opts":{"noFill":true}}
+lq29	verdict	"x": (*{"a": 1, "b": .d}) & (*{"c": 2})	{}	{"verdict":"error","opts":{"partial":true}}
+lq30	verdict	"x": (*{"a": 1}) & (*{"c": 2})	{"x": {"a": 1, "c": 2}}	{"verdict":"valid"}
+lq31	verdict	"x": (*{"a": 1}) & (*{"c": 2})	{"x": {"a": 1, "c": 2}}	{"verdict":"valid","opts":{"noFill":true}}
+lq32	verdict	"x": (*{"a": 1}) & (*{"c": 2})	{"x": {"a": 1, "c": 2}}	{"verdict":"valid","opts":{"partial":true}}
+lq33	verdict	"x": (*{"a": 1}) & (*{"c": 2})	{}	{"verdict":"valid"}
+lq34	verdict	"x": (*{"a": 1}) & (*{"c": 2})	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lq35	verdict	"x": (*{"a": 1}) & (*{"c": 2})	{}	{"verdict":"valid","opts":{"partial":true}}
 mb0	verdict	"b": maybe($.gone)	{}	{"verdict":"valid"}
 mb1	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"noFill":true}}
 mb2	verdict	"b": maybe($.gone)	{}	{"verdict":"valid","opts":{"partial":true}}
