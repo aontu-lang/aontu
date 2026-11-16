@@ -9847,10 +9847,10 @@ The declaration itself reads each such path as `any` (`Val.relTable`),
 since only an `emit` takes the table, and the path reads where each
 instance lands.
 
-Rows from sp0 on, from gt0 on, from sg0 on, from eg0 on, from eh0 on and
-from ng0 on of `test/spec/def-path.tsv` hold these readings in the three
-modes of `vet`, and both engines answer every one as the definition
-does.
+Rows from sp0 on, from gt0 on, from sg0 on, from eg0 on, from eh0 on,
+from ng0 on and from kr0 on of `test/spec/def-path.tsv` hold these
+readings in the three modes of `vet`, and both engines answer every one
+as the definition does.
 
 ## 39. Loading a source
 
@@ -10079,8 +10079,7 @@ node, each node's pieces after the pieces of the nodes before it:
 <!-- test: quote spec/Aontu/Verdict.lean -->
 ```lean
     | .emit, [s, t] =>
-      if here.isNone && ((resolveD ds b here s).holdsKey || t.holdsKey) then
-        .call .emit [resolveD ds b here s, t] else
+      if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
       if (emitTable t).any (fun r => !emitRawOk r) ||
         (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
         .call .emit [resolveD ds b here s, t] else
@@ -10097,6 +10096,13 @@ node, each node's pieces after the pieces of the nodes before it:
         if (normaliseD ds (resolveD ds b here s)).isAbsent then .absent
         else .call .emit [resolveD ds b here s, t]
 ```
+
+Where no place is yet, as in the roots the paths read (`Decls.readU`),
+the call stays as written only while its selection holds a `key(n)`,
+since its nodes wait on the place. A `key(n)` in the table stays as
+written in each piece, and reads where the piece lands, or where a path
+to it lands. So a path into the output names what the call makes, and a
+relative path beside such a key reads where each instance lands.
 
 `emitPlan` takes the first template whose `match` takes the node, and
 a `match` takes a node the way both engines dispatch. The node, met with

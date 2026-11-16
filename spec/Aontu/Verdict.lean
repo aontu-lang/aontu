@@ -1931,8 +1931,7 @@ def resolveD (ds : Decls) (b : Option Val) (here : Option (List Step)) : Val →
     | .maybe, [v] => maybeOf ds (resolveD ds b here v)
     | .maybe, args => .call .maybe (resolveItems ds b here args)
     | .emit, [s, t] =>
-      if here.isNone && ((resolveD ds b here s).holdsKey || t.holdsKey) then
-        .call .emit [resolveD ds b here s, t] else
+      if here.isNone && (resolveD ds b here s).holdsKey then .call .emit [resolveD ds b here s, t] else
       if (emitTable t).any (fun r => !emitRawOk r) ||
         (emitTable (resolveD ds none none t)).any (fun r => !emitRuleOk r) then
         .call .emit [resolveD ds b here s, t] else
