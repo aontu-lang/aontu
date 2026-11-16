@@ -2489,9 +2489,28 @@ def Val.replaceAt : List ℕ → Val → Val → Val
   | _ :: _, v, _ => v
 termination_by structural a _ _ => a
 
+/-- Whether the address `a` reaches its term in `v` through meets alone,
+so that the term stands at the place the meet does. -/
+def Val.meetsOnly : List ℕ → Val → Bool
+  | [], _ => true
+  | 0 :: a, .meet l _ => Val.meetsOnly a l
+  | _ :: a, .meet _ r => Val.meetsOnly a r
+  | _ :: _, _ => false
+termination_by structural a _ => a
+
+/-- A conjunct met beside a term at the term's own place, each lone
+preference in it read as its value (`Val.chooseAt`). -/
+def Val.prefsOpened : Val → Val
+  | .pref _ v => v
+  | .meet a b => .meet a.prefsOpened b.prefsOpened
+  | v => v
+
 /-- The term with `x` at the address `a`, each disjunction on the way
 read as the arm the address passes through and each preference as its
-value: the document where those arms hold. -/
+value: the document where those arms hold. A lone preference met beside
+the term at the term's own place reads as its value too, so that a path
+in one preference's arm reads what another preference met there
+prefers, the two read as one disjunction (ruling 53). -/
 def Val.chooseAt : List ℕ → Val → Val → Val
   | [], _, x => x
   | j :: a, .map fs s c, x =>
@@ -2502,8 +2521,10 @@ def Val.chooseAt : List ℕ → Val → Val → Val
     match items[j]? with
     | some v => .list (items.set j (Val.chooseAt a v x)) s c
     | none => .list items s c
-  | 0 :: a, .meet l r, x => .meet (Val.chooseAt a l x) r
-  | _ :: a, .meet l r, x => .meet l (Val.chooseAt a r x)
+  | 0 :: a, .meet l r, x =>
+    .meet (Val.chooseAt a l x) (if Val.meetsOnly a l then r.prefsOpened else r)
+  | _ :: a, .meet l r, x =>
+    .meet (if Val.meetsOnly a r then l.prefsOpened else l) (Val.chooseAt a r x)
   | _ :: a, .ride k v r, x => .ride k (Val.chooseAt a v x) r
   | _ :: a, .link v t, x => .link (Val.chooseAt a v x) t
   | j :: a, .or arms, x =>
@@ -2681,8 +2702,8 @@ def Val.splitOrs : Val → List (List (ℕ × Val)) × List Val
   | .or arms => ([arms], [])
   | v => ([], [v])
 
-/-- Whether a term is a lone preference, a node beside the disjunctions
-of a meet (`Val.meetOrs`). -/
+/-- Whether a term is a lone preference, a node of a meet beside its
+disjunctions or another lone preference (`Val.meetOrs`). -/
 def Val.isPrefB : Val → Bool
   | .pref _ _ => true
   | _ => false
@@ -2697,20 +2718,22 @@ def Val.prefArms : Val → List (ℕ × Val)
   | .pref r x => [(r, x), (0, .pref (r + 1) x)]
   | v => [(0, v)]
 
-/-- A meet whose conjuncts hold a disjunction and another disjunction or a
+/-- A meet whose conjuncts hold two nodes or more, each a disjunction or a
 lone preference, an arm of one of which reads its place
 (`Val.armReads`), read as one disjunction of the meets of the nodes'
-arms (`orMeet`), a lone preference's as `Val.prefArms` gives them,
-ranked as the meet ranks them (`meetNodes`), each met with the other
-conjuncts, so that a path in an arm, or in a preference's value, reads
-the arm the meet makes there; any other term as written. -/
+arms (`orMeet`), the disjunctions' first, a lone preference's as
+`Val.prefArms` gives them, ranked as the meet ranks them (`meetNodes`),
+each met with the other conjuncts, so that a path in an arm, or in a
+preference's value, reads the arm the meet makes there, two lone
+preferences with no disjunction beside them among them (ruling 53); any
+other term as written. -/
 def Val.meetOrs (v : Val) : Val :=
-  match v.splitOrs.1 with
+  match v.splitOrs.1 ++ (v.splitOrs.2.filter Val.isPrefB).map Val.prefArms with
   | as :: more =>
-    if 2 ≤ more.length + 1 + (v.splitOrs.2.filter Val.isPrefB).length &&
-        ((as :: more).any (·.any (·.2.armReads)) ||
+    if 2 ≤ more.length + 1 &&
+        (v.splitOrs.1.any (·.any (·.2.armReads)) ||
           (v.splitOrs.2.filter Val.isPrefB).any (·.nodeArms.any (·.2.armReads))) then
-      .or (((more ++ (v.splitOrs.2.filter Val.isPrefB).map Val.prefArms).foldl orMeet as).map
+      .or ((more.foldl orMeet as).map
         fun p => (p.1, (v.splitOrs.2.filter fun c => !c.isPrefB).foldl .meet p.2))
     else v
   | [] => v
@@ -5207,6 +5230,14 @@ theorem replaceAt_checkableA : ∀ (a : List ℕ) {v x : Val}, v.CheckableA → 
     | selectLit hp hr hd => cases j <;> exact .selectLit hp hr hd
     | _ => cases j <;> constructor
 
+/-- A term the checker can read with each lone preference among its
+conjuncts read as its value is one the checker can read. -/
+theorem prefsOpened_checkableA {v : Val} (h : v.CheckableA) : v.prefsOpened.CheckableA := by
+  induction h with
+  | pref hx _ => exact hx
+  | meet _ _ iha ihb => exact .meet iha ihb
+  | _ => constructor <;> assumption
+
 /-- A term with a term the checker can read at an address, each
 disjunction and preference on the way read as the arm it passes
 through, is one the checker can read. -/
@@ -5237,8 +5268,12 @@ theorem chooseAt_checkableA : ∀ (a : List ℕ) {v x : Val}, v.CheckableA → x
       · exact .list hi hs
     | meet hl hr =>
       cases j with
-      | zero => exact .meet (chooseAt_checkableA a hl hx) hr
-      | succ j => exact .meet hl (chooseAt_checkableA a hr hx)
+      | zero =>
+        simp only [Val.chooseAt]
+        exact .meet (chooseAt_checkableA a hl hx) (by split <;> first | exact prefsOpened_checkableA hr | exact hr)
+      | succ j =>
+        simp only [Val.chooseAt]
+        exact .meet (by split <;> first | exact prefsOpened_checkableA hl | exact hl) (chooseAt_checkableA a hr hx)
     | ride h => cases j <;> exact .ride (chooseAt_checkableA a h hx)
     | link h ht => cases j <;> exact .link (chooseAt_checkableA a h hx) ht
     | len hc => cases j <;> exact .len hc
@@ -5595,17 +5630,19 @@ theorem meetOrs_checkableA {v : Val} (h : v.CheckableA) : v.meetOrs.CheckableA :
   split
   · rename_i as more heq
     split
-    · have hm : ∀ as', as' ∈ as :: more → ∀ p, p ∈ as' → p.2.CheckableA :=
-        fun as' h' => hs.1 as' (heq ▸ h')
+    · have hm : ∀ as', as' ∈ as :: more → ∀ p, p ∈ as' → p.2.CheckableA := by
+        intro as' h'
+        rw [← heq] at h'
+        rcases List.mem_append.mp h' with h' | h'
+        · exact hs.1 as' h'
+        · obtain ⟨c, hc, rfl⟩ := List.mem_map.mp h'
+          exact prefArms_checkableA (hs.2 c (List.mem_filter.mp hc).1)
       refine .or fun r a h' => ?_
       simp only [List.mem_map, Prod.mk.injEq] at h'
       obtain ⟨p, hp, rfl, rfl⟩ := h'
-      refine hmeet _ _ (hfold _ as (hm as List.mem_cons_self) (fun as' h'' => ?_) p hp)
+      exact hmeet _ _ (hfold more as (hm as List.mem_cons_self)
+        (fun as' h'' => hm as' (List.mem_cons_of_mem _ h'')) p hp)
         fun c hc => hs.2 c (List.mem_filter.mp hc).1
-      rcases List.mem_append.mp h'' with h'' | h''
-      · exact hm as' (List.mem_cons_of_mem _ h'')
-      · obtain ⟨c, hc, rfl⟩ := List.mem_map.mp h''
-        exact prefArms_checkableA (hs.2 c (List.mem_filter.mp hc).1)
     · exact h
   · exact h
 

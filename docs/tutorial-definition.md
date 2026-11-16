@@ -9634,20 +9634,21 @@ the two apart: it meets a term with a disjunction arm by arm
 (`meetStep`). So before it reads any arm, the definition reads such a
 meet as the disjunction the meet makes, each arm of the one met with
 each arm of the other, ranked as the meet ranks them (`orMeet`), and
-each met with the meet's other conjuncts. A lone preference beside a
-disjunction takes part as a node too. Its value stands at its rank. Its
-parent arm stays the preference, one rank weaker, so that the reading
-still lifts what the value reads as (`Val.prefArms`):
+each met with the meet's other conjuncts. A lone preference takes part
+as a node too, beside a disjunction or beside another lone preference.
+Its value stands at its rank. Its parent arm stays the preference, one
+rank weaker, so that the reading still lifts what the value reads as
+(`Val.prefArms`):
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def Val.meetOrs (v : Val) : Val :=
-  match v.splitOrs.1 with
+  match v.splitOrs.1 ++ (v.splitOrs.2.filter Val.isPrefB).map Val.prefArms with
   | as :: more =>
-    if 2 ≤ more.length + 1 + (v.splitOrs.2.filter Val.isPrefB).length &&
-        ((as :: more).any (·.any (·.2.armReads)) ||
+    if 2 ≤ more.length + 1 &&
+        (v.splitOrs.1.any (·.any (·.2.armReads)) ||
           (v.splitOrs.2.filter Val.isPrefB).any (·.nodeArms.any (·.2.armReads))) then
-      .or (((more ++ (v.splitOrs.2.filter Val.isPrefB).map Val.prefArms).foldl orMeet as).map
+      .or ((more.foldl orMeet as).map
         fun p => (p.1, (v.splitOrs.2.filter fun c => !c.isPrefB).foldl .meet p.2))
     else v
   | [] => v
@@ -9664,6 +9665,31 @@ Each arm then reads its paths within itself: `{b: .a} & {a: 1}` reads
 document is `valid`, and over `x: {a: 2, b: 1}` it's `invalid`, as in
 both engines. `Val.distributed` reads every such meet in the schema,
 the inner ones first, and only then does the definition read the arms.
+
+Two lone preferences with no disjunction beside them read the same way,
+as ruling 53 settled. In `x: *{a: 1, b: .c} & *{c: 2}` the path `.c`
+names a member only the second preference supplies. Read alone, the
+path would name a place inside a preference, which names nothing. Read
+as one disjunction, the meet has four arms. In the default both values
+hold, and `b` reads `2`. In two more, each value meets the other's
+parent arm, and in the fourth both parent arms meet. There the first
+preference's parent arm reads its paths in the document an arm reads
+in, where a lone preference met beside it at its own place stands as
+its value (`Val.chooseAt`):
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Val.prefsOpened : Val → Val
+  | .pref _ v => v
+  | .meet a b => .meet a.prefsOpened b.prefsOpened
+  | v => v
+```
+
+So `b` reads `2` there and lifts to `integer`. Over `x: {a: 5, b: 7,
+c: 7}` the document is `valid`, and over `x: {a: 5, b: "s", c: 7}` it's
+`invalid`. Both engines leave the path waiting while a default is in
+play, which #700 tracks, and lift it to `any` in a parent arm, which
+#704 tracks. Rows from lq0 on hold these cases.
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean

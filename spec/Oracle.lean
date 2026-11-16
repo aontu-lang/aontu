@@ -2222,6 +2222,47 @@ theorem lone_pref_path_verdict_exact : ∀ c ∈ lonePrefPathCases, ∀ (m : Mod
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (lonePrefPathCases_checkable c hc).1 (lonePrefPathCases_checkable c hc).2 v
 
+/-- Lone preferences met at one place with no disjunction beside them, a
+path in one's value to a member another supplies (ruling 53): two and
+three of them, a path in each, the data supplying what the preferences
+prefer or overriding it, data only their parent arms take together and
+a value the parent arm refuses where its path reads the parent type of
+what the other prefers, a path to nothing, and two with no path, which
+read as written. -/
+def lonePrefCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let rel (ks : List String) : Val := .path (.up 1 :: ks.map .key)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let p (v : Val) : Val := .pref 1 v
+  let x (v : Val) : Val := m [("x", v)]
+  let dx (d : Data) : Data := dm [("x", d)]
+  let two := .meet (p (m [("a", int 1), ("b", rel ["c"])])) (p (m [("c", int 2)]))
+  let three := .meet (.meet (p (m [("a", rel ["c"])])) (p (m [("b", int 1)]))) (p (m [("c", int 2)]))
+  let each := .meet (p (m [("a", int 1), ("b", rel ["c"])])) (p (m [("c", rel ["a"])]))
+  let lost := .meet (p (m [("a", int 1), ("b", rel ["d"])])) (p (m [("c", int 2)]))
+  let plain := .meet (p (m [("a", int 1)])) (p (m [("c", int 2)]))
+  [([], x two, dx (dm [("a", j 1), ("b", j 2), ("c", j 2)])),
+    ([], x two, dm []),
+    ([], x two, dx (dm [("a", j 1), ("b", j 3), ("c", j 2)])),
+    ([], x two, dx (dm [("a", j 5), ("b", j 7), ("c", j 7)])),
+    ([], x two, dx (dm [("a", j 5), ("b", .str "s"), ("c", j 7)])),
+    ([], x three, dx (dm [("a", j 2), ("b", j 1), ("c", j 2)])),
+    ([], x three, dm []),
+    ([], x each, dx (dm [("a", j 1), ("b", j 1), ("c", j 1)])),
+    ([], x each, dm []),
+    ([], x lost, dm []),
+    ([], x plain, dx (dm [("a", j 1), ("c", j 2)])),
+    ([], x plain, dm [])]
+
+theorem lonePrefCases_checkable : ∀ c ∈ lonePrefCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem lone_pref_verdict_exact : ∀ c ∈ lonePrefCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (lonePrefCases_checkable c hc).1 (lonePrefCases_checkable c hc).2 v
+
 theorem disjunctionPathCases_checkable : ∀ c ∈ disjunctionPathCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
 
@@ -8259,7 +8300,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# A path written in a disjunction's arm reads where the arm holds, in rows dj0"
     IO.println "# on and djl0 on. A path inside a lone preference reads where the preference"
     IO.println "# holds its value, and its parent arm lifts what the value reads as on its own"
-    IO.println "# (ruling 40), in rows lp0 on and lpl0 on."
+    IO.println "# (ruling 40), in rows lp0 on and lpl0 on. Lone preferences met at one place"
+    IO.println "# read as one disjunction, each arm met with each arm (ruling 53), in rows lq0 on."
     pathRows "p"
     pathRows "q" riderPathCases
     pathRows "r" keyPathCases
@@ -8278,6 +8320,7 @@ def main (args : List String) : IO UInt32 := do
     pathRows "djl" disjunctionPathCases (declsLast := true)
     pathRows "lp" lonePrefPathCases
     pathRows "lpl" lonePrefPathCases (declsLast := true)
+    pathRows "lq" lonePrefCases
     pathRows "mb" maybeCases
     pathRows "la" absentListCases
     pathRows "pf" prefCases
