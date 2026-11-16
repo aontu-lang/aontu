@@ -6,11 +6,13 @@ import type { Val } from './type'
 import { AontuContext } from './ctx'
 import { makeNilErr } from './err'
 import { Unify } from './unify'
+import { aliasErrors } from './alias'
+import { relationErrors } from './relation'
 
 import { cmpCodePoint } from './keyorder'
 import { top } from './val/top'
 import { trialUnify } from './val/FuncBaseVal'
-import { genHooks, genRefuse } from './val/genwrite'
+import { genHooks, genPlain, genRefuse } from './val/genwrite'
 import { Null, Path } from './val/ScalarKindVal'
 
 
@@ -40,7 +42,8 @@ const reads = new Map<string, GenRead>()
 
 
 // A record is read against its type's standard set by the engine, in an
-// evaluation of its own: an option is refused as any other value is.
+// evaluation of its own: an option is refused as any other value is,
+// and read as the value it is, whatever its own record has it written as.
 // The record less its custom expression, which the set says nothing of.
 function optionsOf(rec: any): string {
   return null == rec.peg.custom ? rec.canon : '{' + Object.keys(rec.peg)
@@ -56,7 +59,7 @@ function genRead(family: string, rec: Val): GenRead {
   if (undefined === read) {
     const uni = new Unify(GEN_MODEL + '\nout: $.aontu.Gen.' + family + ' & ' + options)
     const gctx = new AontuContext({ collect: true, err: uni.err })
-    const out = 0 === uni.err.length ? uni.res.gen(gctx) : undefined
+    const out = 0 === uni.err.length ? genPlain(uni.res, gctx) : undefined
     read = 0 === uni.err.length ? { opts: out.out } : { option: String(uni.err[0].path[1]) }
     if (READ_CACHE_MAX <= reads.size) {
       reads.clear()
@@ -185,15 +188,20 @@ const customs = new Map<string, Custom>()
 
 
 // The expression is evaluated on its own, as `apply` is anywhere, over
-// what the value writes without it. An output that places could share
-// is made again for each.
+// what the value writes without it, and held to what a document's own
+// generation checks. An output that places could share is made again
+// for each.
 function genCustom(ctx: AontuContext | undefined, v: any, custom: string, given: string): any {
   const key = given + '\n' + custom
   let made = customs.get(key)
   if (undefined === made) {
-    const uni = new Unify('out: apply(' + given + ', ' + custom + ')')
-    const gctx = new AontuContext({ collect: true, err: uni.err })
+    const gctx = new AontuContext({ collect: true, err: [] })
+    const uni = new Unify('out: apply(' + given + ', ' + custom + ')', undefined, gctx)
     const out = 0 === uni.err.length ? uni.res.gen(gctx) : undefined
+    if (0 === uni.err.length) {
+      aliasErrors(gctx, uni.res)
+      relationErrors(gctx, uni.res)
+    }
     made = 0 === uni.err.length ? { out: out.out } : { cause: String(uni.err[0].why) }
     if (null == made.out || 'object' !== typeof made.out) {
       if (READ_CACHE_MAX <= customs.size) {

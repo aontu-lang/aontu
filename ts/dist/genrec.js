@@ -6,6 +6,8 @@ exports.genOn = genOn;
 const ctx_1 = require("./ctx");
 const err_1 = require("./err");
 const unify_1 = require("./unify");
+const alias_1 = require("./alias");
+const relation_1 = require("./relation");
 const keyorder_1 = require("./keyorder");
 const top_1 = require("./val/top");
 const FuncBaseVal_1 = require("./val/FuncBaseVal");
@@ -24,7 +26,8 @@ function genFamily(v) {
 }
 const reads = new Map();
 // A record is read against its type's standard set by the engine, in an
-// evaluation of its own: an option is refused as any other value is.
+// evaluation of its own: an option is refused as any other value is,
+// and read as the value it is, whatever its own record has it written as.
 // The record less its custom expression, which the set says nothing of.
 function optionsOf(rec) {
     return null == rec.peg.custom ? rec.canon : '{' + Object.keys(rec.peg)
@@ -38,7 +41,7 @@ function genRead(family, rec) {
     if (undefined === read) {
         const uni = new unify_1.Unify(GEN_MODEL + '\nout: $.aontu.Gen.' + family + ' & ' + options);
         const gctx = new ctx_1.AontuContext({ collect: true, err: uni.err });
-        const out = 0 === uni.err.length ? uni.res.gen(gctx) : undefined;
+        const out = 0 === uni.err.length ? (0, genwrite_1.genPlain)(uni.res, gctx) : undefined;
         read = 0 === uni.err.length ? { opts: out.out } : { option: String(uni.err[0].path[1]) };
         if (READ_CACHE_MAX <= reads.size) {
             reads.clear();
@@ -137,15 +140,20 @@ function genArms(ctx, out, rec) {
 }
 const customs = new Map();
 // The expression is evaluated on its own, as `apply` is anywhere, over
-// what the value writes without it. An output that places could share
-// is made again for each.
+// what the value writes without it, and held to what a document's own
+// generation checks. An output that places could share is made again
+// for each.
 function genCustom(ctx, v, custom, given) {
     const key = given + '\n' + custom;
     let made = customs.get(key);
     if (undefined === made) {
-        const uni = new unify_1.Unify('out: apply(' + given + ', ' + custom + ')');
-        const gctx = new ctx_1.AontuContext({ collect: true, err: uni.err });
+        const gctx = new ctx_1.AontuContext({ collect: true, err: [] });
+        const uni = new unify_1.Unify('out: apply(' + given + ', ' + custom + ')', undefined, gctx);
         const out = 0 === uni.err.length ? uni.res.gen(gctx) : undefined;
+        if (0 === uni.err.length) {
+            (0, alias_1.aliasErrors)(gctx, uni.res);
+            (0, relation_1.relationErrors)(gctx, uni.res);
+        }
         made = 0 === uni.err.length ? { out: out.out } : { cause: String(uni.err[0].why) };
         if (null == made.out || 'object' !== typeof made.out) {
             if (READ_CACHE_MAX <= customs.size) {

@@ -1788,9 +1788,8 @@ own place in the normal form of the name's bodies, round by round as it
 reads the schema's own tree, by `Decls.bodyRoots`, so a path there that
 reads through another path reads what both engines read. The place holds
 the templates its own links meet there (`Decls.ownLinked`), so `z: .m.k`
-beside `n: relate({k: 1}) & path(.m)` reads `1`, as in both engines.
-At a use of the name, both engines leave such a path naming nothing,
-which [#723](https://github.com/aontu-lang/aontu/issues/723) tracks. A
+beside `n: relate({k: 1}) & path(.m)` reads `1`, as in both engines,
+at the name's own place and at a use of it. A
 link whose target another link's template makes there is an `error` in
 the definition, which
 [#664](https://github.com/aontu-lang/aontu/issues/664) tracks. Only a
@@ -4049,7 +4048,8 @@ list, so a canonical text read back has the same links, and
 [`aontu hash`](reference-api.md#aontu-hash) tells a link from a path
 value that is only data. A link a reference copies to another field is
 a link there, written `relate()` in that field's canon and named by
-that field's key.
+that field's key. A relative address in it names a node from that
+field, so canon read back links what the copy linked.
 
 ### Addresses
 
@@ -4136,8 +4136,9 @@ as a spread's template reads its own at each member and a copy reads
 its own where the copy stands. So
 `x: {m: {k: 2}, n: relate({v: .k}) & path(.m)}` gives `x.m` the member
 `v: 2`, and a link the template carries reads its relative address
-from where that template lands. Both engines still read such a path
-where the document writes the link, inside the template, where it names
+from where that template lands, as it does in both engines. A relative
+path the template holds, as `.k` is here, both engines still read where
+the document writes the link, inside the template, where it names
 nothing, so they leave the template waiting there, which
 [#661](https://github.com/aontu-lang/aontu/issues/661) tracks.
 
@@ -4151,7 +4152,8 @@ whichever the document writes first. Since the template rides the value
 the link meets, the definition reads each link where it lands: where
 the document writes it, at each member a spread's template holds, at
 each member a generator makes, and wherever a path reference copies
-it, each place reading the relative address from where it stands. A
+it, each place reading the relative address from where it stands, as
+both engines do. A
 link whose own template holds `_` or a `key()` reads the member a
 generator makes it for, and a link in a generator inside a
 declaration's body sends too, as both engines read each. Where a target names nothing in
@@ -5238,7 +5240,8 @@ $ aontu links.aontu
 
 `"absolute"` writes the address from the root, `"pointer"` writes that
 address as a JSON Pointer (RFC 6901), and `"key"` writes its last
-segment, the form a foreign key takes. The default, `"verbatim"`,
+segment, the form a foreign key takes. A pointer writes a key that
+holds `~` or `/` as `~0` or `~1`, as the standard does. The default, `"verbatim"`,
 writes the text the document wrote. A relative address is resolved
 from the place its value is generated at, by the rule
 [`relate()`](#checked-links-relatet) resolves one by, and a link's
@@ -5387,6 +5390,10 @@ $ echo $?
 1
 ```
 
+A document's own generation checks the output as it checks the
+document, so a relation the expression declares `acyclic()` that loops
+gives no output, stopped by `relation_cycle`.
+
 The expression is part of the record as it is written. Two records
 whose expressions differ are refused with `gen_conflict`, and canon
 writes it: `"ada"&gen({"custom":upper(_)})`.
@@ -5412,6 +5419,10 @@ l: [1.26 & gen({ significant:2 }) 2.5] & contains(1.26)
 and `l` contains `1.26`, though it is written `1.3`. Two values that
 differ are two values, though an option would write them alike, so
 `(1.26|1.27) & gen({ significant:2 })` is an unresolved disjunction.
+
+An option reads as its value too. A record that gives
+`significant:$.precision` reads the number `precision` holds, whatever
+record that number carries.
 
 `vet` reads the value too. So it does not report what only writing
 refuses: a key clash, an address with no absolute form, a rounding

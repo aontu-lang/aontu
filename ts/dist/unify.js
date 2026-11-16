@@ -11,6 +11,7 @@ const ctx_1 = require("./ctx");
 const type_1 = require("./type");
 const err_1 = require("./err");
 const RelateFuncVal_1 = require("./val/RelateFuncVal");
+const PathVal_1 = require("./val/PathVal");
 const ConjunctVal_1 = require("./val/ConjunctVal");
 const ListVal_1 = require("./val/ListVal");
 const MapVal_1 = require("./val/MapVal");
@@ -311,16 +312,17 @@ function residuePaths(v, max) {
 // no position, so its links are its members'.
 function linksOf(root) {
     const out = [];
-    const visit = (node, put, at) => {
+    const visit = (node, put, at, under) => {
         if (true === node.isPath) {
             if (undefined !== node.linkto) {
-                out.push({ link: node, at, put });
+                out.push({ link: node, at, from: true === node.relroot ? at : under ?? at, put });
             }
         }
         else if (true === node.isMap || true === node.isList) {
             const peg = node.peg;
+            const below = true === node.relroot ? at : under;
             for (const k of Object.keys(peg)) {
-                visit(peg[k], (v) => { peg[k] = v; }, [...at, k]);
+                visit(peg[k], (v) => { peg[k] = v; }, [...at, k], below);
             }
         }
         else if (true === node.isDisjunct || true === node.isConjunct) {
@@ -330,19 +332,48 @@ function linksOf(root) {
             const rank = 0 === ranks.length ? undefined : Math.min(...ranks);
             arms.forEach((a, i) => {
                 if (undefined === rank || (true === a.isPref && rank === a.rank)) {
-                    visit(a, (v) => { arms[i] = v; }, at);
+                    visit(a, (v) => { arms[i] = v; }, at, under);
                 }
             });
         }
         else if (true === node.isPref) {
-            visit(node.peg, (v) => { node.peg = v; }, at);
+            visit(node.peg, (v) => { node.peg = v; }, at, under);
         }
         else if (true === node.isGraphAtom && undefined !== node.held) {
-            visit(node.held, (v) => { node.held = v; }, at);
+            visit(node.held, (v) => { node.held = v; }, at, under);
         }
     };
-    visit(root, () => undefined, []);
+    visit(root, () => undefined, [], undefined);
     return out;
+}
+// A link reads its address where it stands, so one a path reference
+// copied is made again from its own place, and names nothing where its
+// address climbs past the root. A template that is the recursive name
+// the link stands in waits for data, and is not sent on from the copy.
+function seatLinks(ctx, links) {
+    return links.filter((site) => {
+        const link = site.link;
+        const addr = (0, PathVal_1.parseAddress)(link.peg);
+        const to = (0, PathVal_1.addressPath)(addr, site.from);
+        if (undefined !== to && to.join('\x00') === link.linkto.join('\x00')) {
+            return true;
+        }
+        const made = (0, PathVal_1.linkAt)(ctx, link.peg, site.from, undefined, link.relates.filter((t) => true !== t.isRecurse), true === link.relroot);
+        if (undefined === made) {
+            const nil = (0, err_1.makeNilErr)(ctx, 'rel_unresolved', link, undefined, 'relate', { addr: link.peg });
+            nil.path = site.at;
+            site.put(nil);
+            return false;
+        }
+        const seated = Object.assign(Object.create(Object.getPrototypeOf(link)), link);
+        seated.link = made.link;
+        seated.linkto = made.linkto;
+        seated.flows = made.flows;
+        seated.path = site.from;
+        site.put(seated);
+        site.link = seated;
+        return true;
+    });
 }
 // A link with no `relate()` at or above it has one where it stands, as
 // a copy of one link out of a bag of them does, so canon writes the call.
@@ -525,7 +556,7 @@ class Unify {
                         paths: residuePaths(res, 4).join(' ') || '$',
                     });
                 }
-                links = linksOf(res);
+                links = seatLinks(uctx, linksOf(res));
                 const flows = undefined === pristine ? [] : flowsOf(res, links);
                 const ids = flows.map((f) => f.id).join('\n');
                 if (ids === applied) {

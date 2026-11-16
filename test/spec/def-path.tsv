@@ -26,7 +26,8 @@
 # each leaf follows in rows rl0 on, a constraint met with relate() before its
 # value, which meets the value as any meet does, in rows rh0 on, and links
 # read where they land, in a spread's template or copied by a path
-# reference, in rows ld0 on, and in a generator's template, at each member
+# reference, a relative address read where the copy stands, in rows ld0
+# on, and in a generator's template, at each member
 # of its output, in rows lg0 on. Spreads whose templates read their member's
 # place, each read at each member there is, follow in rows sp0 on, and
 # sources loaded in place, each a file of test/spec/files the definition
@@ -2591,6 +2592,30 @@ ld44	verdict	"jobs": {"a": {}, "b": {}, &: {"feeds": (relate({"kind": "job"})) &
 ld45	verdict	"a": {}, "l": [&: (relate({"k": 1})) & (path($.a))], "m": ($.l) & ([path($.a)])	{"a": {"k": 2}}	{"verdict":"invalid"}
 ld46	verdict	"a": {}, "l": [&: (relate({"k": 1})) & (path($.a))], "m": ($.l) & ([path($.a)])	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
 ld47	verdict	"a": {}, "l": [&: (relate({"k": 1})) & (path($.a))], "m": ($.l) & ([path($.a)])	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}
+ld48	verdict	"a": {"target": {}, "link": (relate({"k": 1})) & (path(.target))}, "copied": $.a.link	{}	{"verdict":"error"}
+ld49	verdict	"a": {"target": {}, "link": (relate({"k": 1})) & (path(.target))}, "copied": $.a.link	{}	{"verdict":"error","opts":{"noFill":true}}
+ld50	verdict	"a": {"target": {}, "link": (relate({"k": 1})) & (path(.target))}, "copied": $.a.link	{}	{"verdict":"error","opts":{"partial":true}}
+ld51	verdict	"target": {}, "a": {"target": {}, "link": (relate({"k": 1})) & (path(.target))}, "copied": $.a.link	{}	{"verdict":"valid"}
+ld52	verdict	"target": {}, "a": {"target": {}, "link": (relate({"k": 1})) & (path(.target))}, "copied": $.a.link	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+ld53	verdict	"target": {}, "a": {"target": {}, "link": (relate({"k": 1})) & (path(.target))}, "copied": $.a.link	{}	{"verdict":"valid","opts":{"partial":true}}
+ld54	verdict	"target": {"k": 2}, "a": {"target": {}, "link": (relate({"k": 1})) & (path(.target))}, "copied": $.a.link	{}	{"verdict":"error"}
+ld55	verdict	"target": {"k": 2}, "a": {"target": {}, "link": (relate({"k": 1})) & (path(.target))}, "copied": $.a.link	{}	{"verdict":"error","opts":{"noFill":true}}
+ld56	verdict	"target": {"k": 2}, "a": {"target": {}, "link": (relate({"k": 1})) & (path(.target))}, "copied": $.a.link	{}	{"verdict":"error","opts":{"partial":true}}
+ld57	verdict	"d": hide({"next": (relate({"k": 1})) & (path(..peer))}), "peer": {}, "n": {"peer": {"k": 2}, "x": $.d}	{}	{"verdict":"error"}
+ld58	verdict	"d": hide({"next": (relate({"k": 1})) & (path(..peer))}), "peer": {}, "n": {"peer": {"k": 2}, "x": $.d}	{}	{"verdict":"error","opts":{"noFill":true}}
+ld59	verdict	"d": hide({"next": (relate({"k": 1})) & (path(..peer))}), "peer": {}, "n": {"peer": {"k": 2}, "x": $.d}	{}	{"verdict":"error","opts":{"partial":true}}
+ld60	verdict	"t": type({"N": {"other": {}, "next": (relate({"k": 1})) & (path(.other))}}), "n": {"x": $.t.N}	{"n": {"x": {"other": {"k": 2}}}}	{"verdict":"invalid"}
+ld61	verdict	"t": type({"N": {"other": {}, "next": (relate({"k": 1})) & (path(.other))}}), "n": {"x": $.t.N}	{"n": {"x": {"other": {"k": 2}}}}	{"verdict":"invalid","opts":{"noFill":true}}
+ld62	verdict	"t": type({"N": {"other": {}, "next": (relate({"k": 1})) & (path(.other))}}), "n": {"x": $.t.N}	{"n": {"x": {"other": {"k": 2}}}}	{"verdict":"invalid","opts":{"partial":true}}
+ld63	verdict	"t": type({"N": {"other": {}, "next": (relate({"k": 1})) & (path(.other))}}), "n": {"x": $.t.N}	{"n": {"x": {"other": {"k": 1}}}}	{"verdict":"valid"}
+ld64	verdict	"t": type({"N": {"other": {}, "next": (relate({"k": 1})) & (path(.other))}}), "n": {"x": $.t.N}	{"n": {"x": {"other": {"k": 1}}}}	{"verdict":"incomplete","opts":{"noFill":true}}
+ld65	verdict	"t": type({"N": {"other": {}, "next": (relate({"k": 1})) & (path(.other))}}), "n": {"x": $.t.N}	{"n": {"x": {"other": {"k": 1}}}}	{"verdict":"valid","opts":{"partial":true}}
+ld66	verdict	"a": {"b": {"link": (relate()) & (path(..x))}, "x": {}}, "c": $.a.b.link	{}	{"verdict":"error"}
+ld67	verdict	"a": {"b": {"link": (relate()) & (path(..x))}, "x": {}}, "c": $.a.b.link	{}	{"verdict":"error","opts":{"noFill":true}}
+ld68	verdict	"a": {"b": {"link": (relate()) & (path(..x))}, "x": {}}, "c": $.a.b.link	{}	{"verdict":"error","opts":{"partial":true}}
+ld69	verdict	%T = {"m": {}, "n"?: (relate((%T) | ({}))) & (path(.m))}\n"x": ({}) & (%T)	{}	{"verdict":"error"}
+ld70	verdict	%T = {"m": {}, "n"?: (relate((%T) | ({}))) & (path(.m))}\n"x": ({}) & (%T)	{}	{"verdict":"error","opts":{"noFill":true}}
+ld71	verdict	%T = {"m": {}, "n"?: (relate((%T) | ({}))) & (path(.m))}\n"x": ({}) & (%T)	{}	{"verdict":"error","opts":{"partial":true}}
 lg0	verdict	"a": {}, "l": [1, 2], "e": each($.l, {"r": (relate({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid"}
 lg1	verdict	"a": {}, "l": [1, 2], "e": each($.l, {"r": (relate({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"noFill":true}}
 lg2	verdict	"a": {}, "l": [1, 2], "e": each($.l, {"r": (relate({"k": 1})) & (path($.a))})	{"a": {"k": 2}}	{"verdict":"invalid","opts":{"partial":true}}

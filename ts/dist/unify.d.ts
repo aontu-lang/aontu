@@ -8,6 +8,7 @@ declare const unite: (ctx: AontuContext, a: any, b: any, whence: string) => any;
 type LinkSite = {
     link: any;
     at: string[];
+    from: string[];
     put: (v: Val) => void;
 };
 declare function linksOf(root: Val): LinkSite[];

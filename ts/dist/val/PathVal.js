@@ -91,6 +91,10 @@ function concreteFlow(ctx, t) {
 function textAddress(s) {
     return ('$' === s[0] || '.' === s[0]) ? s : '.' + s;
 }
+// A key as a JSON Pointer writes it, its `~` and `/` escaped.
+function pointerToken(seg) {
+    return seg.replace(/~/g, '~0').replace(/\//g, '~1');
+}
 // The templates of the links met at one position, each once.
 function joinFlows(a, b) {
     if (undefined === b || a === b) {
@@ -223,7 +227,8 @@ class PathVal extends ScalarVal_1.ScalarVal {
         if (undefined === target) {
             return (0, genwrite_1.genRefuse)(ctx, 'gen_address', this, { addr: this.peg });
         }
-        return (0, genwrite_1.genFinish)(ctx, this, 'pointer' === form ? '/' + target.join('/') : '$.' + target.join('.'));
+        return (0, genwrite_1.genFinish)(ctx, this, 'pointer' === form
+            ? target.map((seg) => '/' + pointerToken(seg)).join('') : '$.' + target.join('.'));
     }
     superior() {
         return this.place(new PathKindVal({}));

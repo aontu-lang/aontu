@@ -59,7 +59,8 @@ language.
   and of `case` and `keys`, is `"verbatim"`.
   A relative address is resolved from the place its value is generated
   at. One that climbs above the root is refused with the new code
-  `gen_address`.
+  `gen_address`. A pointer writes a key that holds `~` or `/` as `~0`
+  or `~1`, as RFC 6901 does.
 - **`keys` writes a map's keys in a naming style**, each as `nom()`
   answers it: `{ orderId:7 } & gen({ keys:"snake" })` generates
   `{"order_id":7}`. Two keys that would be written as one key are
@@ -72,12 +73,16 @@ language.
   generates `"urn:node:etc"`, and
   `["a" "b"] & gen({ custom:join(_, ",") })` generates `"a,b"`. The
   expression stands alone and reads nothing else of the document. One
-  that gives no output is refused with the new code `gen_custom`.
+  that gives no output is refused with the new code `gen_custom`, and
+  its output is held to the checks a document's own generation runs,
+  so a relation it declares `acyclic()` that loops gives none.
 - **An option is read where the document is written and nowhere
   else.** A reference, a call, `+`, a constraint, a size, a fold, a
   containment, the test that every arm of a disjunction generates
   alike, `vet`, a view and the JSON Schema export all read the value.
-  So `vet` does not report what only writing refuses.
+  So `vet` does not report what only writing refuses. An option is read
+  as a value too: `significant:$.precision` reads the number
+  `precision` holds, whatever record that number is written with.
 - **Two annotations on one value unify their records.** Records that
   disagree refuse the meet with the new code `gen_conflict`, where two
   `meta()` records are kept side by side.
@@ -100,7 +105,7 @@ language.
   string from the value, and [Model a file
   system](docs/how-to/model-a-file-system.md) writes each parent as a
   key.
-- Pinned by `test/spec/annotation-gen.tsv`, 585 rows that both engines
+- Pinned by `test/spec/annotation-gen.tsv`, 595 rows that both engines
   answer alike. The design note is `sketch/GEN.0.md`.
 
 ### A how-to guide models a microservices architecture
@@ -146,7 +151,7 @@ The definition, shared rows and the register. No engine changes.
 - **Twenty-seven rows hold the ports to it**, `od0` to `od26` of
   `test/spec/def-path.tsv`: one document in three orders, which the
   definition reads alike. Both ports answer three ways (#778), so
-  fifteen of the rows are in `spec/ledger.tsv`, whose bound is now 391.
+  fifteen of the rows are in `spec/ledger.tsv`, whose bound is now 385.
 
 ### `relate` is the one link function: `refer` is removed and `rel` renamed
 
@@ -175,6 +180,20 @@ language.
   another field is a link there, named by that field's key. The engines
   had answered differently for a copy of a `rel()` link. A link copied
   out of a list or a map of links is a link where it lands.
+- **A link a reference copies reads a relative address where the copy
+  stands**, as the definition reads it, where both engines had kept the
+  original's target. So each use of a type links within itself, a copy
+  whose address names nothing where it stands is refused with
+  `rel_unresolved`, and canon read back links what the copy linked. A
+  link a template carries reads its address where the template lands.
+  Six rows of `spec/ledger.tsv` came to agree with the definition and
+  left it: `j114` to `j116` (#723) and `ll6` to `ll8`. New: 24 rows
+  from `ld48` on in `test/spec/def-path.tsv`, which the oracle writes,
+  five from `rel-copy-relative-names-nothing-beside-the-copy` on in
+  `test/spec/rel.tsv`, and four in `test/spec/graph.tsv`, from
+  `edge-relative-copy-of-a-type` and `edge-of-a-canon-relative-copy`
+  on. `edge-relative-per-instance` moved: the copy's edge ends in the
+  copy.
 - **`relate()` works in a spread's template**, as `refer()` did and
   `rel()` did not (#745): `{ &: { parent: relate() } }` links each
   member's one address. It also meets a kind another template wrote

@@ -46,18 +46,21 @@ edge-link-with-a-held-constraint	graph	z: {}\ns: {uses: relate() & path & path($
 #
 # The edge's far end is the PATH the address resolved to, not the text
 # the author wrote: a relative address means a different node from each
-# position it is written at, and an edge set whose far ends were
-# spellings could not be traversed. The link's own VALUE is still what
+# position it is written at, a copy's position among them, and an edge
+# set whose far ends were spellings could not be traversed. The link's own VALUE is still what
 # was written -- `gens` in refer.tsv pins that.
 edge-relative-resolves	graph	x: {auth: {}, dep: relate() & path(.auth)}	{"edges":[{"from":"$.x","key":"dep","to":"$.x.auth","at":"$.x.dep"}]}
 edge-relative-one-up	graph	x: {auth: {}, billing: {dep: relate() & path(..auth)}}	{"edges":[{"from":"$.x.billing","key":"dep","to":"$.x.auth","at":"$.x.billing.dep"}]}
-edge-relative-per-instance	graph	M: {auth: {}, billing: {dep: relate() & path(..auth)}}\nT: $.M	{"edges":[{"from":"$.M.billing","key":"dep","to":"$.M.auth","at":"$.M.billing.dep"},{"from":"$.T.billing","key":"dep","to":"$.M.auth","at":"$.T.billing.dep"}]}
+edge-relative-per-instance	graph	M: {auth: {}, billing: {dep: relate() & path(..auth)}}\nT: $.M	{"edges":[{"from":"$.M.billing","key":"dep","to":"$.M.auth","at":"$.M.billing.dep"},{"from":"$.T.billing","key":"dep","to":"$.T.auth","at":"$.T.billing.dep"}]}
+edge-relative-copy-of-a-type	graph	t: type({N: {other: {}, next: relate() & path(.other)}})\nn: {x: $.t.N, y: $.t.N}	{"edges":[{"from":"$.n.x","key":"next","to":"$.n.x.other","at":"$.n.x.next"},{"from":"$.n.y","key":"next","to":"$.n.y.other","at":"$.n.y.next"},{"from":"$.t.N","key":"next","to":"$.t.N.other","at":"$.t.N.next"}]}
+edge-relative-copy-of-a-hidden-body	graph	d: hide({next: relate() & path(..peer)})\npeer: {}\nn: {peer: {}, x: $.d}	{"edges":[{"from":"$.d","key":"next","to":"$.peer","at":"$.d.next","hidden":true},{"from":"$.n.x","key":"next","to":"$.n.peer","at":"$.n.x.next"}]}
+edge-relative-copy-of-a-leaf	graph	target: {}\na: {target: {}, uses: relate() & {primary: path(.target)}}\none: $.a.uses.primary	{"edges":[{"from":"$.a","key":"uses","to":"$.a.target","at":"$.a.uses.primary"},{"from":"$","key":"one","to":"$.target","at":"$.one"}]}
 
 # --- Copies and references carry their links -------------------------
 #
-# A link says what a value POINTS AT, and a copy of a link points at the
-# same thing, so both a reference clone and a copy() produce a second
-# edge at the second position.
+# A link says what a value POINTS AT, and a copy of a link whose address
+# starts at the root points at the same thing, so both a reference clone
+# and a copy() produce a second edge at the second position.
 edge-through-a-ref-clone	graph	z: {u: relate() & path($.z)}\ns: $.z	{"edges":[{"from":"$.s","key":"u","to":"$.z","at":"$.s.u"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
 edge-through-a-copy	graph	z: {u: relate() & path($.z)}\ns: copy($.z)	{"edges":[{"from":"$.s","key":"u","to":"$.z","at":"$.s.u"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
 edge-ref-to-a-link	graph	z: {u: relate() & path($.z)}\ns: $.z.u	{"edges":[{"from":"$","key":"s","to":"$.z","at":"$.s"},{"from":"$.z","key":"u","to":"$.z","at":"$.z.u"}]}
@@ -69,9 +72,11 @@ edge-ref-to-a-link-in-a-map	graph	z: {u: relate() & path($.z)}\ns: {v: $.z.u}	{"
 # The relation is the key of the field canon writes `relate()` at
 # (ADR-080), so a canonical text has the edges of the document it was
 # taken from. A link copied out of a bag of them is a link where it
-# lands.
+# lands, and one whose address is relative reads it there, as canon's
+# copy of it does.
 edge-of-a-canon-link	graph	{"a":{"next":relate()&path($.b)},"b":{}}	{"edges":[{"from":"$.a","key":"next","to":"$.b","at":"$.a.next"}]}
 edge-of-a-canon-map	graph	{"a":{},"b":{"uses":relate()&{"backup":{"eu":path($.c)},"primary":path($.a)}},"c":{}}	{"edges":[{"from":"$.b","key":"uses","to":"$.c","at":"$.b.uses.backup.eu"},{"from":"$.b","key":"uses","to":"$.a","at":"$.b.uses.primary"}]}
+edge-of-a-canon-relative-copy	graph	{"n":{"x":{"next":relate()&path(.other),"other":{}},"y":{"next":relate()&path(.other),"other":{}}},"t":{"N":{"next":relate()&path(.other),"other":{}}}}	{"edges":[{"from":"$.n.x","key":"next","to":"$.n.x.other","at":"$.n.x.next"},{"from":"$.n.y","key":"next","to":"$.n.y.other","at":"$.n.y.next"},{"from":"$.t.N","key":"next","to":"$.t.N.other","at":"$.t.N.next"}]}
 edge-copied-out-of-a-relation	graph	a: {}\nb: {uses: relate() & {primary: path($.a)}}\none: $.b.uses.primary	{"edges":[{"from":"$.b","key":"uses","to":"$.a","at":"$.b.uses.primary"},{"from":"$","key":"one","to":"$.a","at":"$.one"}]}
 edge-copy-of-a-relation	graph	a: {}\nb: {uses: relate() & {primary: path($.a)}}\nother: $.b.uses	{"edges":[{"from":"$.b","key":"uses","to":"$.a","at":"$.b.uses.primary"},{"from":"$","key":"other","to":"$.a","at":"$.other.primary"}]}
 edge-link-with-its-own-call-under-a-relation	graph	a: {}\nb: {uses: relate() & {primary: relate() & path($.a)}}	{"edges":[{"from":"$.b.uses","key":"primary","to":"$.a","at":"$.b.uses.primary"}]}

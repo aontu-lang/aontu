@@ -302,6 +302,11 @@ gen-option-map	errc	v: {a: 1} & gen({significant: 2})	gen_option
 gen-option-map-kind	errc	v: map & gen({significant: 2})	gen_option
 gen-option-list	errc	v: [1] & gen({significant: 2})	gen_option
 gen-option-list-kind	errc	v: list & gen({significant: 2})	gen_option
+# An option is read as the value it is: a record of its own says how that
+# value is written, and nothing of how it is read.
+gen-option-read-as-its-value	gens	precision: 2 & gen({as: "string"}), v: 3.14159 & gen({significant: $.precision})	{"precision":"2","v":3.1}
+gen-option-read-before-its-custom	gens	n: 2 & gen({custom: _ + 1}), v: 3.14159 & gen({places: $.n})	{"n":3,"v":3.14}
+gen-option-read-before-its-case	gens	k: "upper" & gen({case: "upper"}), v: "ada" & gen({case: $.k})	{"k":"UPPER","v":"ADA"}
 gen-option-unknown-name	errc	v: 1.5 & gen({digits: 2})	gen_option
 gen-option-zero	errc	v: 1.5 & gen({significant: 0})	gen_option
 gen-option-negative	errc	v: 1.5 & gen({significant: -1})	gen_option
@@ -424,6 +429,14 @@ gen-form-sibling	gens	a: {x: path(.b) & gen({form: "absolute"})}	{"a":{"x":"$.a.
 gen-form-sibling-at-the-root	gens	x: path(.b) & gen({form: "pointer"})	{"x":"/b"}
 gen-form-in-a-list	gens	l: [path(.b) & gen({form: "absolute"}), {q: path(.b) & gen({form: "absolute"})}]	{"l":["$.l.b",{"q":"$.l.1.b"}]}
 gen-form-segment-characters	gens	x: path(.b.c-d._e) & gen({form: "pointer"})	{"x":"/b/c-d/_e"}
+# A JSON Pointer writes each key as RFC 6901 does, `~` as `~0` and `/` as
+# `~1`: a key above a relative address is any text, where a written
+# segment holds neither.
+gen-form-pointer-escapes-a-slash	gens	"a/b": {x: 1, p: path(.x) & gen({form: "pointer"})}	{"a/b":{"p":"/a~1b/x","x":1}}
+gen-form-pointer-escapes-a-tilde	gens	"c~d": {x: 1, p: path(.x) & gen({form: "pointer"})}	{"c~d":{"p":"/c~0d/x","x":1}}
+gen-form-pointer-escapes-a-tilde-first	gens	"~/": {x: 1, p: path(.x) & gen({form: "pointer"})}	{"~/":{"p":"/~0~1/x","x":1}}
+gen-form-pointer-escapes-a-link	gens	"c/d": {x: {}, p: relate() & path(.x) & gen({form: "pointer"})}	{"c/d":{"p":"/c~1d/x","x":{}}}
+gen-form-pointer-link-key-with-a-dot	gens	"a.b": {x: {}, p: relate() & path(.x) & gen({form: "pointer"})}	{"a.b":{"p":"/a.b/x","x":{}}}
 gen-form-kind-first	gens	t: type({p: path & gen({form: "pointer"})}), a: {x: $.t.p & path(..b.c)}	{"a":{"x":"/b/c"}}
 gen-form-link-absolute	gens	a: {r: relate() & path(.b) & gen({form: "absolute"}), b: {}}	{"a":{"b":{},"r":"$.a.b"}}
 gen-form-link-pointer	gens	a: {r: relate() & path(.b) & gen({form: "pointer"}), b: {}}	{"a":{"b":{},"r":"/a/b"}}
@@ -619,6 +632,10 @@ gen-custom-conflict-with-a-constant	errc	x: "a" & gen({custom: "x"}) & gen({cust
 gen-custom-reads-no-reference	errc	p: "urn:", x: "ada" & gen({custom: $.p + _})	gen_custom
 gen-custom-refuses-what-it-is-given	errc	x: {a: 1} & gen({custom: upper(_)})	gen_custom
 gen-custom-gives-no-value	errc	x: "a" & gen({custom: string})	gen_custom
+# The output is held to what a document's own generation checks: a relation
+# the expression declares acyclic() that loops gives no output.
+gen-custom-relation-checked	errc	v: 1 & gen({custom: {a: {dep: relate() & acyclic() & path(..b)}, b: {dep: relate() & path(..a)}}})	gen_custom
+gen-custom-relation-passes	gens	v: 1 & gen({custom: {a: {dep: relate() & acyclic() & path(..b)}, b: {}}})	{"v":{"a":{"dep":"..b"},"b":{}}}
 gen-custom-refusal-names-the-place	err	m: {&: string & gen({custom: upper(_) + $.x})}, m: k: "a"	at path $.m.k
 gen-custom-key-is-not-the-members	gens	m: {k: "ada" & gen({custom: key()})}	{"m":{"k":""}}
 gen-custom-hole-outside-the-call	errc	s: hide({custom: upper(_)}), x: "a" & gen($.s)	hole_unbound

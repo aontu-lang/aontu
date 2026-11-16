@@ -9040,11 +9040,11 @@ def climb (pos : List Seg) (n : ℕ) (p : List Seg) : Option (List Seg) :=
 The link's flow then reads each such path from the target it reaches,
 by `Val.atTarget`. So `x: {m: {k: 2}, n: relate({v: .k}) & path(.m)}`
 sends `v: 2` into `x.m`, and a link the template carries reads its own
-address and template where that template lands. Both engines read the
-template's relative paths where the document writes the link, inside
-the template, where they name nothing. Rows ll0 to ll20 hold the
-definition to the ruling, and the ledger lists the nine on which both
-engines answer otherwise, which #661 tracks.
+address and template where that template lands, as it does in both
+engines. Both engines read the template's relative paths where the
+document writes the link, inside the template, where they name nothing.
+Rows ll0 to ll20 hold the definition to the ruling, and the ledger lists
+the six on which both engines answer otherwise, which #661 tracks.
 
 A link reads where it lands, not where it's written: a `type()` that
 holds a link reaches each place that uses it through a path reference,
@@ -9214,8 +9214,7 @@ so they read the document as `valid`, as both engines do, and two
 templates that conflict once the chain lands make it an `error`. At a
 use of the name, `a: %T`, the
 use's own link sends the template into `a.m`, where `a.z` reads it, as
-in the same document written in place, where both engines leave `a.z`
-naming nothing, which #723 tracks.
+in the same document written in place, and as both engines read it.
 
 One link's template can make another link's target:
 `y: relate({ z:{} }) & path($.h)` makes `h.z` for

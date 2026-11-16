@@ -94,6 +94,14 @@ rel-refined-after-the-shorter-path	gens	a: { x: {} }\nb: relate({ r: 3 }) & path
 rel-refined-by-a-second-statement	gens	a: { x: {} }\nb: relate({ r: 3 }) & path($.a)\nb: path($.a.x)	{"a":{"x":{"r":3}},"b":"$.a.x"}
 rel-refined-flow-refuses	errc	a: { x: { r: 4 } }\nb: relate({ r: 3 }) & path($.a) & path($.a.x)	scalar_value
 rel-refined-edge	graph	a: { x: {} }\nb: relate({ r: 3 }) & path($.a)\nb: path($.a.x)	{"edges":[{"from":"$","key":"b","to":"$.a.x","at":"$.b"}]}
+# A link a path reference copies reads its relative address where the
+# copy stands, as the original reads it where the original stands, so it
+# names what is beside the copy, or nothing.
+rel-copy-relative-names-nothing-beside-the-copy	errc	a: {target: {}, link: relate({k: 1}) & path(.target)}\ncopied: $.a.link	rel_unresolved
+rel-copy-relative-names-what-is-beside-the-copy	gens	target: {}\na: {target: {}, link: relate({k: 1}) & path(.target)}\ncopied: $.a.link	{"a":{"link":".target","target":{"k":1}},"copied":".target","target":{"k":1}}
+rel-copy-relative-flow-lands-beside-the-copy	errc	target: {k: 2}\na: {target: {}, link: relate({k: 1}) & path(.target)}\ncopied: $.a.link	scalar_value
+rel-copy-relative-climbs-past-the-root	errc	a: {b: {link: relate() & path(..x)}, x: {}}\nc: $.a.b.link	rel_unresolved
+rel-copy-relative-leaf-of-a-relation	errc	a: {target: {}, uses: relate() & {primary: path(.target)}}\none: $.a.uses.primary	rel_unresolved
 # Two relations met at one field are one relation with both templates,
 # and each template lands.
 rel-two-relations-meet	gens	b: {}\nx: relate({k:1}) & [path($.b)]\ny: relate({j:2}) & [path($.b)]\nz: $.x & $.y	{"b":{"j":2,"k":1},"x":["$.b"],"y":["$.b"],"z":["$.b"]}

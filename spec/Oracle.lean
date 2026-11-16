@@ -3295,8 +3295,13 @@ reference copies, at a target, one that names nothing and beside data
 that refuses its template; a path reference to a link and to a map
 holding one, and one to a map holding a link to nothing; a relative
 link in a spread's template, read from each member it lands at, beside
-data the flow refuses; and a list's spread holding a link that a path
-reference copies. -/
+data the flow refuses; a list's spread holding a link that a path
+reference copies; and a relative link a path reference copies, read from
+where the copy stands: at the root with no target there, with one, and
+with one its template refuses, a hidden body used beside a peer its
+template refuses, a type whose copy meets data at its own target, an
+address that climbs past the root where the copy stands, and a recursive
+name whose link's template is a disjunction with the name. -/
 def landCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -3314,6 +3319,8 @@ def landCases : List (Decls × Val × Data) :=
   let sp := ms [("s1", m []), ("s2", m [])] (m [("d", rf k1 (ad 0 ["a"]))])
   let Srel (t : List Val) := type (.map [("dependsOn", true, .call .relate t)] none false)
   let jobs := ms [("a", m []), ("b", m [])] (m [("feeds", rf (m [("kind", str "job")]) (ad 2 ["b"]))])
+  let lnk := m [("target", m []), ("link", rf k1 (ad 1 ["target"]))]
+  let N := type (m [("N", m [("other", m []), ("next", rf k1 (ad 1 ["other"]))])])
   [([], m [("K", K), ("T", T), ("svc", k1), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))], .map []),
     ([], m [("K", K), ("T", T), ("svc", m [("k", str "no")]), ("x", .meet (p ["T"]) (m [("p", ad 0 ["svc"])]))], .map []),
     ([], m [("K", K), ("T", T), ("x", .meet (p ["T"]) (m [("p", ad 0 ["nosuch"])]))], .map []),
@@ -3332,7 +3339,20 @@ def landCases : List (Decls × Val × Data) :=
     ([], m [("jobs", jobs)], .map []),
     ([], m [("jobs", jobs)], .map [("jobs", .map [("b", .map [("kind", .str "svc")])])]),
     ([], m [("a", m []), ("l", .list [] (some (rf k1 (ad 0 ["a"]))) false), ("m", .meet (p ["l"]) (lst [ad 0 ["a"]]))],
-      .map [("a", .map [("k", j 2)])])]
+      .map [("a", .map [("k", j 2)])]),
+    ([], m [("a", lnk), ("copied", p ["a", "link"])], .map []),
+    ([], m [("target", m []), ("a", lnk), ("copied", p ["a", "link"])], .map []),
+    ([], m [("target", m [("k", int 2)]), ("a", lnk), ("copied", p ["a", "link"])], .map []),
+    ([], m [("d", .ride .hide (m [("next", rf k1 (ad 2 ["peer"]))]) []), ("peer", m []),
+      ("n", m [("peer", m [("k", int 2)]), ("x", p ["d"])])], .map []),
+    ([], m [("t", N), ("n", m [("x", p ["t", "N"])])],
+      .map [("n", .map [("x", .map [("other", .map [("k", j 2)])])])]),
+    ([], m [("t", N), ("n", m [("x", p ["t", "N"])])],
+      .map [("n", .map [("x", .map [("other", .map [("k", j 1)])])])]),
+    ([], m [("a", m [("b", m [("link", .meet (.call .relate []) (ad 2 ["x"]))]), ("x", m [])]),
+      ("c", p ["a", "b", "link"])], .map []),
+    ([("T", .map [("m", false, m []), ("n", true, rf (.or [(0, .alias "T"), (0, m [])]) (ad 1 ["m"]))] none false)],
+      m [("x", .meet (m []) (.alias "T"))], .map [])]
 
 theorem landCases_checkable : ∀ c ∈ landCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -8425,7 +8445,8 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# each leaf follows in rows rl0 on, a constraint met with relate() before its"
     IO.println "# value, which meets the value as any meet does, in rows rh0 on, and links"
     IO.println "# read where they land, in a spread's template or copied by a path"
-    IO.println "# reference, in rows ld0 on, and in a generator's template, at each member"
+    IO.println "# reference, a relative address read where the copy stands, in rows ld0"
+    IO.println "# on, and in a generator's template, at each member"
     IO.println "# of its output, in rows lg0 on. Spreads whose templates read their member's"
     IO.println "# place, each read at each member there is, follow in rows sp0 on, and"
     IO.println "# sources loaded in place, each a file of test/spec/files the definition"

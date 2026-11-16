@@ -92,6 +92,8 @@ func readGen(family string, rec Val) *genRead {
 	if nil != err {
 		read = &genRead{refused: true, option: ctx.err[0].pathSegments()[1]}
 	} else {
+		// An option is the value it is, whatever its own record has it written as.
+		ctx.plain = true
 		out, _ := res.Gen(ctx)
 		read = &genRead{opts: out.(map[string]any)["out"].(map[string]any)}
 	}
@@ -269,6 +271,12 @@ func makeCustom(src string) customMade {
 	out, _ := res.Gen(gctx)
 	if 0 < len(gctx.err) {
 		return customMade{cause: gctx.err[0].why}
+	}
+	// What a document's own generation checks, with what unifying it declared.
+	aliasErrors(ctx, res)
+	relationErrors(ctx, res)
+	if 0 < len(ctx.err) {
+		return customMade{cause: ctx.err[0].why}
 	}
 	made, present := out.(map[string]any)["out"]
 	return customMade{out: made, present: present}

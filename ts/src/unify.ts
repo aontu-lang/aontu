@@ -9,6 +9,8 @@ import { DONE } from './type'
 
 import { makeNilErr } from './err'
 import { findAt } from './val/RelateFuncVal'
+import { addressPath, linkAt, parseAddress } from './val/PathVal'
+import type { Address } from './val/PathVal'
 
 import { NilVal } from './val/NilVal'
 import { ConjunctVal } from './val/ConjunctVal'
@@ -349,9 +351,9 @@ function residuePaths(v: Val, max: number): string[] {
 }
 
 
-// A link the output takes, where it stands, and how to put a value in
-// its place.
-type LinkSite = { link: any, at: string[], put: (v: Val) => void }
+// A link the output takes, where it stands, where its address is read
+// from, a relation's for its leaf, and how to put a value in its place.
+type LinkSite = { link: any, at: string[], from: string[], put: (v: Val) => void }
 
 
 // The links a result holds where the output reads them: through maps,
@@ -361,16 +363,19 @@ type LinkSite = { link: any, at: string[], put: (v: Val) => void }
 // no position, so its links are its members'.
 function linksOf(root: Val): LinkSite[] {
   const out: LinkSite[] = []
-  const visit = (node: any, put: (v: Val) => void, at: string[]): void => {
+  const visit = (
+    node: any, put: (v: Val) => void, at: string[], under: string[] | undefined
+  ): void => {
     if (true === node.isPath) {
       if (undefined !== node.linkto) {
-        out.push({ link: node, at, put })
+        out.push({ link: node, at, from: true === node.relroot ? at : under ?? at, put })
       }
     }
     else if (true === node.isMap || true === node.isList) {
       const peg = node.peg
+      const below = true === node.relroot ? at : under
       for (const k of Object.keys(peg)) {
-        visit(peg[k], (v: Val) => { peg[k] = v }, [...at, k])
+        visit(peg[k], (v: Val) => { peg[k] = v }, [...at, k], below)
       }
     }
     else if (true === node.isDisjunct || true === node.isConjunct) {
@@ -380,19 +385,52 @@ function linksOf(root: Val): LinkSite[] {
       const rank = 0 === ranks.length ? undefined : Math.min(...ranks)
       arms.forEach((a: any, i: number) => {
         if (undefined === rank || (true === a.isPref && rank === a.rank)) {
-          visit(a, (v: Val) => { arms[i] = v }, at)
+          visit(a, (v: Val) => { arms[i] = v }, at, under)
         }
       })
     }
     else if (true === node.isPref) {
-      visit(node.peg, (v: Val) => { node.peg = v }, at)
+      visit(node.peg, (v: Val) => { node.peg = v }, at, under)
     }
     else if (true === node.isGraphAtom && undefined !== node.held) {
-      visit(node.held, (v: Val) => { node.held = v }, at)
+      visit(node.held, (v: Val) => { node.held = v }, at, under)
     }
   }
-  visit(root, () => undefined, [])
+  visit(root, () => undefined, [], undefined)
   return out
+}
+
+
+// A link reads its address where it stands, so one a path reference
+// copied is made again from its own place, and names nothing where its
+// address climbs past the root. A template that is the recursive name
+// the link stands in waits for data, and is not sent on from the copy.
+function seatLinks(ctx: AontuContext, links: LinkSite[]): LinkSite[] {
+  return links.filter((site) => {
+    const link = site.link
+    const addr = parseAddress(link.peg) as Address
+    const to = addressPath(addr, site.from)
+    if (undefined !== to && to.join('\x00') === link.linkto.join('\x00')) {
+      return true
+    }
+    const made: any = linkAt(ctx, link.peg, site.from, undefined,
+      link.relates.filter((t: any) => true !== t.isRecurse), true === link.relroot)
+    if (undefined === made) {
+      const nil = makeNilErr(ctx, 'rel_unresolved', link, undefined,
+        'relate', { addr: link.peg })
+      nil.path = site.at
+      site.put(nil)
+      return false
+    }
+    const seated = Object.assign(Object.create(Object.getPrototypeOf(link)), link)
+    seated.link = made.link
+    seated.linkto = made.linkto
+    seated.flows = made.flows
+    seated.path = site.from
+    site.put(seated)
+    site.link = seated
+    return true
+  })
 }
 
 
@@ -613,7 +651,7 @@ class Unify {
           })
         }
 
-        links = linksOf(res)
+        links = seatLinks(uctx, linksOf(res))
         const flows = undefined === pristine ? [] : flowsOf(res, links)
         const ids = flows.map((f) => f.id).join('\n')
         if (ids === applied) {

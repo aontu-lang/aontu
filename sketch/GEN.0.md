@@ -342,6 +342,13 @@ One consequence is new. `vet` reads the value, so it does not report
 what only writing refuses: `gen_key_clash`, `gen_address`, and a
 `float_overflow` from rounding. §9 puts that to the owner.
 
+**Delta.** A record is itself read, against its type's set, and that
+reading wrote its options: `significant:$.precision` beside
+`precision: 2 & gen({as: "string"})` read the string `"2"`, which the
+rounding then ignored. The record is read plain now, as every other
+reader is. Found by review on 2026-11-16; rows `gen-option-read-*`
+hold it.
+
 ### D-7. `significant`: at most this many significant digits
 
 `significant: n` rounds a number to `n` significant digits when it is
@@ -768,6 +775,14 @@ tells the generation where it has reached (`ctx.genat` in TypeScript,
 Rows `gen-form-spread-template`, `gen-form-default-in-a-spread`,
 `gen-form-type-copy` and the three `*-names-the-place` rows hold it.
 
+**Delta.** A pointer joined the keys as they were, so a key above a
+relative address that held `/` or `~` named another place: under
+`"a/b"`, `.x` was written `/a/b/x`. A written segment holds neither, a
+key can, and the pointer now writes each as RFC 6901 does, `~0` and
+`~1`. Go read a link's keys back out of its dotted address, which split
+a key holding `.`; it reads the link's own keys now. Found by review
+on 2026-11-16; rows `gen-form-pointer-escapes-a-slash` on hold it.
+
 ### D-18. `keys`: the naming style of a map's keys
 
 `keys: s` writes each key of the map as `nom(key, s)` answers it. The
@@ -946,6 +961,15 @@ own readings never saw. §9 puts both choices to the owner.
   an expression can write a null for a value that is not one.
 - The set does not hold the expression: `optionsOf` reads a record
   against its set without it.
+
+**Delta.** The expression's document was generated and nothing more,
+so the checks a document's own generation runs after it, the relation
+verdict and the declared names, never ran on it: an expression that
+built a relation it declared `acyclic()` around a loop was written out.
+Its output is now held to them, with what unifying it declared, and a
+refusal is `gen_custom` with the check's code as its cause. Found by
+review on 2026-11-16; rows `gen-custom-relation-checked` and
+`gen-custom-relation-passes` hold it.
 
 ## 5. Options considered and left out
 

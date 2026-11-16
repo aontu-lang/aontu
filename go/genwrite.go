@@ -242,6 +242,9 @@ func writeNumber(ctx *Ctx, s *ScalarVal) (any, error) {
 
 // writePath resolves a relative address from where the value is
 // generated; a link's is the one `relate()` resolved.
+// A key as a JSON Pointer writes it, its `~` and `/` escaped.
+var pointerToken = strings.NewReplacer("~", "~0", "/", "~1")
+
 func writePath(ctx *Ctx, s *ScalarVal) (any, error) {
 	text := s.peg.(string)
 	form := s.genopts["form"]
@@ -253,14 +256,18 @@ func writePath(ctx *Ctx, s *ScalarVal) (any, error) {
 		return genFinish(ctx, s, s.genopts, addr.Parts[len(addr.Parts)-1])
 	}
 	target, ok := addressPath(addr, genPlaceOf(ctx, s))
-	if "" != s.link {
-		target, ok = strings.Split(s.link[2:], "."), true
+	if nil != s.lk.to {
+		target, ok = s.lk.to, true
 	}
 	if !ok {
 		return nil, genRefuse(ctx, s, "gen_address", map[string]string{"addr": text})
 	}
 	if "pointer" == form {
-		return genFinish(ctx, s, s.genopts, "/"+strings.Join(target, "/"))
+		var b strings.Builder
+		for _, seg := range target {
+			b.WriteString("/" + pointerToken.Replace(seg))
+		}
+		return genFinish(ctx, s, s.genopts, b.String())
 	}
 	return genFinish(ctx, s, s.genopts, "$."+strings.Join(target, "."))
 }

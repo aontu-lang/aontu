@@ -120,6 +120,12 @@ export function textAddress(s: string): string {
 }
 
 
+// A key as a JSON Pointer writes it, its `~` and `/` escaped.
+function pointerToken(seg: string): string {
+  return seg.replace(/~/g, '~0').replace(/\//g, '~1')
+}
+
+
 // The templates of the links met at one position, each once.
 export function joinFlows(
   a: [string, Val][] | undefined, b: [string, Val][] | undefined
@@ -278,8 +284,8 @@ class PathVal extends ScalarVal {
     if (undefined === target) {
       return genRefuse(ctx, 'gen_address', this, { addr: this.peg })
     }
-    return genFinish(ctx, this,
-      'pointer' === form ? '/' + target.join('/') : '$.' + target.join('.'))
+    return genFinish(ctx, this, 'pointer' === form
+      ? target.map((seg: string) => '/' + pointerToken(seg)).join('') : '$.' + target.join('.'))
   }
 
   superior() {
