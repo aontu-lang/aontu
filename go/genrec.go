@@ -162,20 +162,28 @@ func genOn(ctx *Ctx, out, a, b Val) Val {
 	return genLand(ctx, out, rec)
 }
 
-// A disjunction holds no record of its own, and a preference is held to
-// its record by the value it prefers, whose own record it meets.
+// What a value stands for where it holds another: a preference its
+// preferred value, a graph atom the value it rides beside.
+func genUnder(v Val) Val {
+	switch h := v.(type) {
+	case *PrefVal:
+		return h.peg
+	case *GraphAtomVal:
+		return h.held
+	}
+	return nil
+}
+
+// A disjunction holds no record of its own, and a holder is held to its
+// record by the value it holds, whose own record it meets.
 func genLand(ctx *Ctx, out, rec Val) Val {
 	if d, ok := out.(*DisjunctVal); ok {
 		return genArms(ctx, d, rec)
 	}
 
 	held, full := out, rec
-	for {
-		p, isPref := held.(*PrefVal)
-		if !isPref {
-			break
-		}
-		held = p.peg
+	for next := genUnder(held); nil != next; next = genUnder(held) {
+		held = next
 		if own := held.genRec(); nil != own {
 			met := meetRec(ctx, full, own)
 			if nil == met {
@@ -288,16 +296,18 @@ func genArms(ctx *Ctx, out *DisjunctVal, rec Val) Val {
 	return out.Unify(carrier, ctx)
 }
 
-// The record lands on the preferred value only where it is generated:
-// an override takes it from the preference.
-func genHeld(ctx *Ctx, p *PrefVal) (any, error) {
-	return heldVal(ctx, p).Gen(ctx)
+// The record lands on the held value only where it is generated: an
+// override takes it from a preference, and a graph atom shares what it
+// holds with its copies.
+func genHeld(ctx *Ctx, holder Val) (any, error) {
+	return heldVal(ctx, holder).Gen(ctx)
 }
 
-func heldVal(ctx *Ctx, p *PrefVal) Val {
+func heldVal(ctx *Ctx, holder Val) Val {
 	lctx := ctx
 	if nil == lctx {
 		lctx = &Ctx{}
 	}
-	return genOn(lctx, clonePath(p.peg, p.peg.vpath()), p, nil)
+	held := genUnder(holder)
+	return genOn(lctx, clonePath(held, held.vpath()), holder, nil)
 }

@@ -83,16 +83,21 @@ function genOn(ctx, out, a, b) {
     }
     return genLand(ctx, out, rec);
 }
-// A disjunction holds no record of its own, and a preference is held to
-// its record by the value it prefers, whose own record it meets.
+// What a value stands for where it holds another: a preference its
+// preferred value, a graph atom the value it rides beside.
+function under(v) {
+    return true === v.isPref ? v.peg : true === v.isGraphAtom ? v.held : undefined;
+}
+// A disjunction holds no record of its own, and a holder is held to its
+// record by the value it holds, whose own record it meets.
 function genLand(ctx, out, rec) {
     if (true === out.isDisjunct) {
         return genArms(ctx, out, rec);
     }
     let held = out;
     let full = rec;
-    while (true === held.isPref) {
-        held = held.peg;
+    for (let next = under(held); null != next; next = under(held)) {
+        held = next;
         if (null != held.genrec) {
             const met = meetRec(ctx, full, held.genrec);
             if (undefined === met) {
@@ -153,10 +158,11 @@ function genCustom(ctx, v, custom, given) {
         (0, genwrite_1.genRefuse)(ctx, 'gen_custom', v, { custom, given, cause: made.cause });
 }
 genwrite_1.genHooks.custom = genCustom;
-// The record lands on the preferred value only where it is generated:
-// an override takes it from the preference.
-function genHeld(ctx, pref) {
+// The record lands on the held value only where it is generated: an
+// override takes it from a preference, and a graph atom shares what it
+// holds with its copies.
+function genHeld(ctx, holder) {
     const lctx = ctx ?? new ctx_1.AontuContext({});
-    return genOn(lctx, pref.peg.clone(lctx), pref, undefined).gen(ctx);
+    return genOn(lctx, under(holder).clone(lctx), holder, undefined).gen(ctx);
 } /* node:coverage ignore next 6 */
 //# sourceMappingURL=genrec.js.map

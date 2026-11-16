@@ -19,6 +19,7 @@ import { makeNilErr } from '../err'
 import { FuncBaseVal } from './FuncBaseVal'
 import { FeatureVal } from './FeatureVal'
 import { unite } from '../unify'
+import { genHeld } from '../genrec'
 import { propagateMarks } from '../utility'
 
 
@@ -149,7 +150,8 @@ class GraphAtomVal extends FeatureVal {
     // The atom is transparent at generation -- its verdict is global
     // (relationVerdict), never a value at this field -- and a BARE
     // atom is silent, exactly as an unmet relate() is.
-    return undefined === this.held ? undefined : this.held.gen(ctx)
+    return undefined === this.held ? undefined
+      : null == this.genrec ? this.held.gen(ctx) : genHeld(ctx, this)
   }
 }
 

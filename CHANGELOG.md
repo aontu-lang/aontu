@@ -100,7 +100,7 @@ language.
   string from the value, and [Model a file
   system](docs/how-to/model-a-file-system.md) writes each parent as a
   key.
-- Pinned by `test/spec/annotation-gen.tsv`, 559 rows that both engines
+- Pinned by `test/spec/annotation-gen.tsv`, 585 rows that both engines
   answer alike. The design note is `sketch/GEN.0.md`.
 
 ### A how-to guide models a microservices architecture

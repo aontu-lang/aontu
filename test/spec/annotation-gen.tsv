@@ -430,6 +430,37 @@ gen-form-link-pointer	gens	a: {r: relate() & path(.b) & gen({form: "pointer"}), 
 gen-form-link-key	gens	a: {r: relate() & path(.b) & gen({form: "key"}), b: {}}	{"a":{"b":{},"r":"b"}}
 gen-form-link-annotation-first	gens	a: {r: relate() & gen({form: "key"}), b: {}}, a: r: path($.a.b)	{"a":{"b":{},"r":"b"}}
 gen-form-link-typed	gens	t: type({F: {kind: "f"}}), n: {&: {kind: "f", up?: relate($.t.F) & gen({form: "key"})}}, n: {a: {}, b: {up: path($.n.a)}}	{"n":{"a":{"kind":"f"},"b":{"kind":"f","up":"a"}}}
+# 
+# A graph atom, acyclic() or inverse(), says nothing of the value it rides
+# beside, so a record met with one is the record of that value: it is
+# held to the value's options and read where the value is generated,
+# whichever of the atom, the address and the annotation is written first.
+gen-atom-annotation-last	gens	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen("key")}}	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-annotation-first	gens	n: {a: {}, b: {next: gen("key") & relate() & acyclic() & path($.n.a)}}	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-atom-first	gens	n: {a: {}, b: {next: acyclic() & relate() & path($.n.a) & gen("key")}}	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-address-later	gens	n: {a: {}, b: {next: relate() & acyclic() & gen("key")}}, n: b: next: path($.n.a)	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-annotation-later	gens	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a)}}, n: b: next: gen("key")	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-relative-absolute	gens	n: {a: {}, b: {next: relate() & acyclic() & path(..a) & gen("absolute")}}	{"n":{"a":{},"b":{"next":"$.n.a"}}}
+gen-atom-pointer	gens	n: {a: {}, b: {next: relate() & acyclic() & path(..a) & gen("pointer")}}	{"n":{"a":{},"b":{"next":"/n/a"}}}
+gen-atom-inverse	gens	n: {a: {back: relate() & path($.n.b)}, b: {next: relate() & inverse(back) & path($.n.a) & gen("key")}}	{"n":{"a":{"back":"$.n.b"},"b":{"next":"a"}}}
+gen-atom-two-atoms	gens	n: {a: {back: relate() & path($.n.b)}, b: {next: relate() & acyclic() & inverse(back) & path($.n.a) & gen("pointer")}}	{"n":{"a":{"back":"$.n.b"},"b":{"next":"/n/a"}}}
+gen-atom-spread-template	gens	n: {&: {next?: relate() & acyclic() & gen("key")}}, n: {a: {}, b: {next: path($.n.a)}, c: {next: path($.n.b)}}	{"n":{"a":{},"b":{"next":"a"},"c":{"next":"b"}}}
+gen-atom-typed	gens	t: type({N: {next?: relate() & acyclic() & gen("key")}}), n: {a: $.t.N, b: $.t.N & {next: path($.n.a)}}	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-custom	gens	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen({form: "key", custom: "node:" + _})}}	{"n":{"a":{},"b":{"next":"node:a"}}}
+gen-atom-list-of-addresses	gens	n: {a: {}, c: {}, b: {next: relate() & acyclic() & [path($.n.a), path($.n.c)] & gen({custom: join(_, ",")})}}	{"n":{"a":{},"b":{"next":"$.n.a,$.n.c"},"c":{}}}
+gen-atom-list-elements	gens	n: {a: {}, c: {}, b: {next: relate() & acyclic() & [path($.n.a), path($.n.c)] & [&: gen("key")]}}	{"n":{"a":{},"b":{"next":["a","c"]},"c":{}}}
+gen-atom-empty-list-omitted	gens	n: {a: {}, b: {k: 1, next: relate() & acyclic() & [] & gen({empty: "omit"})}}	{"n":{"a":{},"b":{"k":1}}}
+gen-atom-map-keys	gens	n: {a: {}, b: {next: relate() & acyclic() & {firstHop: path($.n.a)} & gen({keys: "snake"})}}	{"n":{"a":{},"b":{"next":{"first_hop":"$.n.a"}}}}
+gen-atom-two-records-agree	gens	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen("key")}}, n: b: next: gen({form: "key"})	{"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-copy	gens	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen("key")}}, c: $.n.b	{"c":{"next":"a"},"n":{"a":{},"b":{"next":"a"}}}
+gen-atom-option-refused	errc	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen({significant: 2})}}	gen_option
+gen-atom-option-refused-annotation-first	errc	n: {a: {}, b: {next: gen({significant: 2}) & relate() & acyclic() & path($.n.a)}}	gen_option
+gen-atom-option-refused-address-later	errc	n: {a: {}, b: {next: relate() & acyclic() & gen({significant: 2})}}, n: b: next: path($.n.a)	gen_option
+gen-atom-option-refused-under-inverse	errc	n: {a: {back: relate() & path($.n.b)}, b: {next: relate() & inverse(back) & path($.n.a) & gen({case: "upper"})}}	gen_option
+gen-atom-records-conflict	errc	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen("key")}}, n: b: next: gen("pointer")	gen_conflict
+gen-atom-cycle-still-refused	errc	n: {a: {next: relate() & acyclic() & path($.n.b) & gen("key")}, b: {next: relate() & path($.n.a)}}	relation_cycle
+gen-atom-canon	canon	n: {a: {}, b: {next: relate() & acyclic() & path($.n.a) & gen("key")}}	{"n":{"a":{},"b":{"next":relate()&path($.n.a)&acyclic()&gen({"form":"key"})}}}
+gen-atom-canon-annotation-first	canon	n: {a: {}, b: {next: gen("key") & relate() & acyclic() & path($.n.a)}}	{"n":{"a":{},"b":{"next":relate()&path($.n.a)&acyclic()&gen({"form":"key"})}}}
 gen-form-resolves-at-the-copy	gens	a: {x: path(.b) & gen({form: "absolute"})}, c: {d: {e: $.a.x}}	{"a":{"x":"$.a.b"},"c":{"d":{"e":"$.c.d.b"}}}
 gen-form-spread-template	gens	y: {&: {p: path(.b) & gen({form: "absolute"})}}, y: {k: {}, j: {}}	{"y":{"j":{"p":"$.y.j.b"},"k":{"p":"$.y.k.b"}}}
 gen-form-default	gens	x: *path(.b) & gen({form: "absolute"}) | path	{"x":"$.b"}

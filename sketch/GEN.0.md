@@ -156,6 +156,20 @@ spread applies it to each member, and a call that computes a new value
 from an annotated one does not carry it: `add($.price, 1)` is a new
 number with no annotation.
 
+**Delta.** A graph atom, `acyclic()` or `inverse()`, holds the value it
+rides beside, and a record met with one went to the atom and stopped
+there. With the annotation written after the address,
+`relate() & acyclic() & path($.a) & gen("key")`, the address was
+written verbatim and a record its type refuses was not refused, where
+the same terms with the annotation written first did both: an order
+dependence, which section 7 rules out, found on 2026-11-16 while the
+pull request was prepared. A holder is now held to its record by the
+value it holds, a preference and an atom alike (`under` in
+`ts/src/genrec.ts`, `genUnder` in `go/genrec.go`), and an atom lands
+the record on a copy of what it holds where it generates, since an
+atom shares that value with its copies. Rows `gen-atom-annotation-last`
+on of `test/spec/annotation-gen.tsv` hold both ports to it.
+
 ### D-3. Records meet by unification
 
 `gen(a) & gen(b)` is `gen(a & b)`, the two records unified as maps.

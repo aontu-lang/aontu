@@ -188,6 +188,9 @@ func (g *GraphAtomVal) Gen(ctx *Ctx) (any, error) {
 	if nil == g.held {
 		return nil, nil
 	}
+	if nil != g.genRec() {
+		return genHeld(ctx, g)
+	}
 	return g.held.Gen(ctx)
 }
 

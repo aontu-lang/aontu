@@ -8,6 +8,7 @@ const err_1 = require("../err");
 const FuncBaseVal_1 = require("./FuncBaseVal");
 const FeatureVal_1 = require("./FeatureVal");
 const unify_1 = require("../unify");
+const genrec_1 = require("../genrec");
 const utility_1 = require("../utility");
 function relDecls(ctx) {
     return ctx._reldecls;
@@ -114,7 +115,8 @@ class GraphAtomVal extends FeatureVal_1.FeatureVal {
         // The atom is transparent at generation -- its verdict is global
         // (relationVerdict), never a value at this field -- and a BARE
         // atom is silent, exactly as an unmet relate() is.
-        return undefined === this.held ? undefined : this.held.gen(ctx);
+        return undefined === this.held ? undefined
+            : null == this.genrec ? this.held.gen(ctx) : (0, genrec_1.genHeld)(ctx, this);
     }
 }
 exports.GraphAtomVal = GraphAtomVal;
