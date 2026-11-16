@@ -146,7 +146,7 @@ The definition, shared rows and the register. No engine changes.
 - **Twenty-seven rows hold the ports to it**, `od0` to `od26` of
   `test/spec/def-path.tsv`: one document in three orders, which the
   definition reads alike. Both ports answer three ways (#778), so
-  fifteen of the rows are in `spec/ledger.tsv`, whose bound is now 389.
+  fifteen of the rows are in `spec/ledger.tsv`, whose bound is now 391.
 
 ### `relate` is the one link function: `refer` is removed and `rel` renamed
 

@@ -121,17 +121,25 @@ def landsPath : List Seg → Bool
   | .lands _ :: _ => true
   | _ => false
 
+/-- Whether a path is relative: its first step climbs from where it's
+written. -/
+def relPath : List Seg → Bool
+  | .up _ :: _ => true
+  | _ => false
+
 mutual
 /-- The term with each path replaced by a reference to the path's name,
 but a reference into an `emit`'s node (`Seg.node`), which names no
-place, and which the `emit` reads for each node, and a path in a link's
+place, and which the `emit` reads for each node, a path in a link's
 template that starts at the link's target (`landsPath`), which the
-template reads once it lands there (`Val.atTarget`). A `move` keeps the
+template reads once it lands there (`Val.atTarget`), and a relative
+path, which only a generator's template keeps (`plArgs`), and which
+reads where each instance of the template lands. A `move` keeps the
 name of the path it reads, a rider around the reference
 (`Rider.move`), so that the value the call makes carries it into the
 normal form (`Val.moves`). -/
 def Val.pathsToAliases : Val → Val
-  | .path p => if p.head? == some .node || landsPath p then .path p else .alias (pathName p)
+  | .path p => if p.head? == some .node || landsPath p || relPath p then .path p else .alias (pathName p)
   | .len c => .len c.pathsToAliases
   | .map fs spread closed => .map (ptaFields fs) (ptaSpread spread) closed
   | .list items spread closed => .list (ptaItems items) (ptaSpread spread) closed
@@ -314,12 +322,6 @@ def ptdElems (pos : List Seg) : ℕ → List Val → List Val
   | _, [] => []
   | i, v :: vs => v.placedT (pos ++ [.idx i]) :: ptdElems pos (i + 1) vs
 end
-
-/-- Whether a path is relative: its first step climbs from where it's
-written. -/
-def relPath : List Seg → Bool
-  | .up _ :: _ => true
-  | _ => false
 
 /-- Whether a term holds a relative path, at any depth. -/
 def Val.holdsRel (v : Val) : Bool := v.paths.any relPath
@@ -1863,9 +1865,14 @@ def ntItems : List Val → List Val
   | v :: vs => v.neutral :: ntItems vs
 
 /-- A call's arguments, a generator's template neutral and with its
-relative paths read as `any` (`Val.relBlank`). -/
+relative paths read as `any` (`Val.relBlank`), and an `emit`'s table
+neutral, so that each generator its bodies hold reads its template so
+too, the relative paths read where each instance lands in the output
+instead (`Val.landedRels`). -/
 def ntArgs (f : Fn) : List Val → List Val
-  | [d, t] => if f == .each || f == .pack then [d, t.neutral.relBlank] else [d, t]
+  | [d, t] =>
+    if f == .each || f == .pack then [d, t.neutral.relBlank]
+    else if f == .emit then [d, t.neutral] else [d, t]
   | args => args
 end
 
@@ -1900,9 +1907,11 @@ def pmResult : Option Val → Bool
   | some e => e.perMembers
 
 /-- Whether a call is a generator whose template reads its member's
-place: through a relative path, or a spread that does. -/
+place: through a relative path, or a spread that does; or an `emit`
+whose table holds a relative path, which only the template of a
+generator its bodies hold keeps as written (`plArgs`). -/
 def pmArgs (f : Fn) : List Val → Bool
-  | [_, t] => (f == .each || f == .pack) && (t.holdsRel || t.perMembers)
+  | [_, t] => (f == .each || f == .pack) && (t.holdsRel || t.perMembers) || f == .emit && t.holdsRel
   | _ => false
 end
 
@@ -1941,6 +1950,35 @@ them, and met at the member's path in `root` (`Val.putW`). -/
 def Val.genInst (root u : Val) (base p : List Seg) (t : Seg) : Option Val :=
   root.putW (p ++ [t]) (u.placed (base ++ p ++ [t])).neutral
 
+/-- Whether a term is an `emit` whose table holds a relative path, which
+only the template of a generator its bodies hold keeps as written
+(`plArgs`). -/
+def Val.emitsRel : Val → Bool
+  | .call .emit [_, t] => t.holdsRel
+  | _ => false
+
+/-- Whether a term is one a tree's positions stop at, its riders read
+through, no map and no list, and holds a relative path. -/
+def Val.relLeaf (u : Val) : Bool :=
+  u.holdsRel && match u.unride with
+    | .map _ _ _ | .list _ _ _ => false
+    | _ => true
+
+/-- What an `emit` standing at the position `p` of `root` leaves where the
+template of a generator its bodies hold left a relative path: at each
+position of its output whose term holds one (`Val.relLeaf`), the term,
+placed where it landed, below `base`, and met at its path in `root`
+(`Val.putW`), as both ports read such a path where its instance lands,
+after any list the body splices. -/
+def Val.landedRels (root : Val) (base p : List Seg) : List Val :=
+  ((root.at p).getD .any).positions.filterMap fun q =>
+    match root.at (p ++ q) with
+    | some u =>
+      if u.relLeaf && ((u.placed (base ++ p ++ q)).neutral).checkableAB then
+        root.putW (p ++ q) (u.placed (base ++ p ++ q)).neutral
+      else none
+    | none => none
+
 /-- What the templates that land at a position of `root` make there: for
 each term the schema `P` writes at the position (`Decls.landingD`),
 whether written there, in a template that holds the position, in the
@@ -1948,12 +1986,15 @@ body of a name used there or where a path reference copies it from, the
 template of a spread on it that reads its member's place, and the part
 of a generator's template that reads its member's place through a
 relative path (`Val.genTemplate`), each at each member `root` holds
-there, placed below `base`, where `root` stands. -/
+there, placed below `base`, where `root` stands; and for an `emit` whose
+bodies hold such a generator, each term its output holds that a relative
+path reads from, where it landed (`Val.landedRels`). -/
 def Decls.instancesAt (ds : Decls) (P root : Val) (base p : List Seg) : List Val :=
   (ds.landingD P ((P.size + ds.bodiesSize + p.length + 2) * (P.size + ds.bodiesSize + 2)) [(P, p)]).flatMap
     fun w =>
       (w.memberSpread.toList.flatMap fun s => (root.membersAt p).filterMap (root.spreadInst s base p)) ++
-        w.genTemplate.toList.flatMap fun u => (root.membersAt p).filterMap (root.genInst u base p)
+        (w.genTemplate.toList.flatMap fun u => (root.membersAt p).filterMap (root.genInst u base p)) ++
+        if w.emitsRel then root.landedRels base p else []
 
 /-- The term `P`, standing at `base`, with each template that reads its
 member's place, a spread's or the part of a generator's that does
@@ -4161,7 +4202,12 @@ theorem ntArgs_checkableA {f : Fn} {args : List Val} (ha : ∀ a, a ∈ args →
       rcases hm with rfl | rfl
       · exact ha _ (by simp)
       · exact relBlank_checkableA (iha t (by simp))
-    · exact ha a hm
+    · split at hm
+      · simp only [List.mem_cons, List.mem_nil_iff, or_false] at hm
+        rcases hm with rfl | rfl
+        · exact ha _ (by simp)
+        · exact iha t (by simp)
+      · exact ha a hm
   · exact ha a hm
 
 theorem neutral_checkableA {v : Val} (h : v.CheckableA) : v.neutral.CheckableA := by
@@ -4253,6 +4299,18 @@ theorem landingD_checkableA {ds : Decls} {S : Val} (hb : ∀ d, d ∈ ds → d.2
       · exact hs.2 j hj
       · exact hi j (List.mem_cons_of_mem _ hj)
 
+theorem landedRels_checkableA {root : Val} {base p : List Seg} :
+    ∀ u, u ∈ root.landedRels base p → u.CheckableA := by
+  intro u hu
+  simp only [Val.landedRels, List.mem_filterMap] at hu
+  obtain ⟨q, -, hq⟩ := hu
+  split at hq
+  · split at hq
+    · rename_i h
+      exact putW_checkableA ((Val.checkableAB_iff _).mp ((Bool.and_eq_true _ _).mp h).2) _ hq
+    · exact absurd hq (by simp)
+  · exact absurd hq (by simp)
+
 theorem instancesAt_checkableA {ds : Decls} {P root : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hP : P.CheckableA) (base p : List Seg) : ∀ u, u ∈ ds.instancesAt P root base p → u.CheckableA := by
   intro u hu
@@ -4262,11 +4320,14 @@ theorem instancesAt_checkableA {ds : Decls} {P root : Val} (hb : ∀ d, d ∈ ds
     simp only [List.mem_cons, List.mem_nil_iff, or_false] at hi
     subst hi
     exact hP) w hw
-  rcases hu with ⟨s, hs, t, -, ht⟩ | ⟨g, hg, t, -, ht⟩
+  rcases hu with (⟨s, hs, t, -, ht⟩ | ⟨g, hg, t, -, ht⟩) | hl
   · exact putW_checkableA (neutral_checkableA (placed_checkableA
       ((memberSpread_checkableA hw' (Option.mem_toList.mp hs)).atKey _) _)) _ ht
   · exact putW_checkableA (neutral_checkableA (placed_checkableA
       (genTemplate_checkableA hw' (Option.mem_toList.mp hg)) _)) _ ht
+  · split at hl
+    · exact landedRels_checkableA u hl
+    · exact absurd hl (by simp)
 
 theorem membersRead_checkableA {ds : Decls} {P : Val} (hb : ∀ d, d ∈ ds → d.2.CheckableA)
     (hP : P.CheckableA) (root : Val) (base : List Seg) : (ds.membersRead P root base).CheckableA := by

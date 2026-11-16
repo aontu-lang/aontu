@@ -3981,6 +3981,103 @@ theorem holeMeet_verdict_exact : ∀ c ∈ holeMeetCases, ∀ (m : Mode) (v : Ve
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
   fun c hc _ v => vetP_iff (holeMeetCases_checkable c hc).1 (holeMeetCases_checkable c hc).2 v
 
+/-- Generators an `emit`'s body holds: `each`, `pack` and `apply` over a
+node's field (`Seg.node`), the instances spliced in the output with the
+pieces around them and across two nodes, and a template whose relative
+paths read where each instance lands: a member of the instance, the
+piece before it in the output, the top, from inside a map and a member
+deeper, inside a call, a member the data writes, and a member the
+instance lacks, an error. -/
+def emitGenCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let str (s : String) : Val := .lit (.str s)
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let ds (s : String) : Data := .str s
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let dl (xs : List Data) : Data := .list xs
+  let each (d t : Val) : Val := .call .each [d, t]
+  let em (s : Val) (b : List Val) : Val := .call .emit [s, m [("match", .any), ("body", l b)]]
+  let x (v : Val) : Val := m [("x", v)]
+  let dx (d : Data) : Data := dm [("x", d)]
+  let n12 := l [m [("a", l [int 1, int 2])]]
+  let held := em n12 [each (nd ["a"]) .hole]
+  let lead := em n12 [str "s", each (nd ["a"]) .hole]
+  let two := em (l [m [("a", l [int 1, int 2])], m [("a", l [int 3])]]) [str "s", each (nd ["a"]) .hole]
+  let keyed := em (l [m [("a", m [("k", int 1), ("j", int 2)])]]) [each (nd ["a"]) .hole]
+  let packed := em (l [m [("a", l [str "k1", str "k2"])]]) [.call .pack [nd ["a"], int 1]]
+  let applied := em (l [m [("a", int 5)]]) [.call .apply [nd ["a"], .call .plus [.hole, int 1]]]
+  let sib := em n12 [each (nd ["a"]) (m [("v", .hole), ("w", rel 1 ["v"])])]
+  let spliced := em (l [m [("a", l [str "p", str "q"])]])
+    [str "s", each (nd ["a"]) (m [("v", .hole), ("w", rel 2 ["0"])])]
+  let top := em (l [m [("a", l [str "p"])]]) [str "s", each (nd ["a"]) (m [("v", .hole), ("w", rel 3 ["y"])])]
+  let inMap := em (l [m [("a", l [int 1])]]) [m [("f", each (nd ["a"]) (m [("v", .hole), ("w", rel 1 ["v"])]))]]
+  let deep := em (l [m [("a", l [int 1])]]) [each (nd ["a"]) (m [("v", .hole), ("w", m [("z", rel 2 ["v"])])])]
+  let url := em (l [m [("a", l [str "a"])]])
+    [each (nd ["a"]) (m [("n", .hole), ("u", .call .plus [str "https://", rel 1 ["n"]])])]
+  let fed := em (l [m [("a", l [int 1])]]) [each (nd ["a"]) (m [("v", .string), ("w", rel 1 ["v"])])]
+  let lost := em n12 [each (nd ["a"]) (m [("v", .hole), ("q", rel 1 ["p"])])]
+  [([], x held, dx (dl [j 1, j 2])), ([], x held, dx (dl [j 1, j 3])),
+    ([], x lead, dx (dl [ds "s", j 1, j 2])), ([], x lead, dx (dl [j 1, j 2])),
+    ([], x two, dx (dl [ds "s", j 1, j 2, ds "s", j 3])),
+    ([], x keyed, dx (dl [j 2, j 1])), ([], x keyed, dx (dl [j 1, j 2])),
+    ([], x packed, dx (dl [dm [("k1", j 1), ("k2", j 1)]])), ([], x packed, dx (dl [dm [("k1", j 2)]])),
+    ([], x applied, dx (dl [j 6])), ([], x applied, dx (dl [j 5])),
+    ([], x sib, dx (dl [dm [("v", j 1), ("w", j 1)], dm [("v", j 2), ("w", j 2)]])),
+    ([], x sib, dx (dl [dm [("v", j 1), ("w", j 2)]])), ([], x sib, dm []),
+    ([], x spliced, dx (dl [ds "s", dm [("v", ds "p"), ("w", ds "s")], dm [("v", ds "q"), ("w", ds "s")]])),
+    ([], x spliced, dx (dl [ds "s", dm [("v", ds "p"), ("w", ds "p")]])),
+    ([], m [("y", int 3), ("x", top)], dm [("x", dl [ds "s", dm [("v", ds "p"), ("w", j 3)]])]),
+    ([], m [("y", int 3), ("x", top)], dm [("x", dl [ds "s", dm [("v", ds "p"), ("w", j 4)]])]),
+    ([], x inMap, dx (dl [dm [("f", dl [dm [("v", j 1), ("w", j 1)]])]])),
+    ([], x deep, dx (dl [dm [("v", j 1), ("w", dm [("z", j 1)])]])),
+    ([], x deep, dx (dl [dm [("v", j 1), ("w", dm [("z", j 2)])]])),
+    ([], x url, dx (dl [dm [("n", ds "a"), ("u", ds "https://a")]])),
+    ([], x url, dx (dl [dm [("n", ds "a"), ("u", ds "http://a")]])),
+    ([], x fed, dx (dl [dm [("v", ds "q"), ("w", ds "q")]])),
+    ([], x fed, dx (dl [dm [("v", ds "q"), ("w", ds "r")]])), ([], x fed, dm []),
+    ([], x lost, dm [])]
+
+/-- A `filter` an `emit`'s body holds, over a node's field: a condition
+that keeps some members, and one whose relative path stays inside the
+member it tries and names nothing, refusing each. -/
+def emitGenFilterCases : List (Decls × Val × Data) :=
+  let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
+  let m (fs : List (String × Val)) : Val := .map (fs.map fun f => (f.1, false, f.2)) none false
+  let l (xs : List Val) : Val := .list xs none false
+  let nd (ks : List String) : Val := .path (.node :: ks.map .key)
+  let rel (n : ℕ) (ks : List String) : Val := .path (.up n :: ks.map .key)
+  let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
+  let dm (fs : List (String × Data)) : Data := .map fs
+  let dl (xs : List Data) : Data := .list xs
+  let em (s : Val) (b : List Val) : Val := .call .emit [s, m [("match", .any), ("body", l b)]]
+  let x (v : Val) : Val := m [("x", v)]
+  let dx (d : Data) : Data := dm [("x", d)]
+  let kept := em (l [m [("a", l [int 1, int 2, int 3])]]) [.filter (nd ["a"]) (.above (.num (.integer ⟨1, by decide⟩)))]
+  let none' := em (l [m [("a", l [m [("n", int 1), ("m", int 1)], m [("n", int 2), ("m", int 3)]])]])
+    [.filter (nd ["a"]) (m [("n", .integer), ("m", rel 1 ["n"])])]
+  [([], x kept, dx (dl [j 2, j 3])), ([], x kept, dx (dl [j 1, j 2, j 3])),
+    ([], x none', dx (dl [])), ([], x none', dx (dl [dm [("n", j 1), ("m", j 1)]]))]
+
+theorem emitGenCases_checkable : ∀ c ∈ emitGenCases,
+    (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
+
+theorem emitGen_verdict_exact : ∀ c ∈ emitGenCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff (emitGenCases_checkable c hc).1 (emitGenCases_checkable c hc).2 v
+
+/-- The checker can't read a `filter` before the reading makes it, so
+each case's readings are read whole (`Decls.readsPB`). -/
+theorem emitGenFilterCases_reads : ∀ c ∈ emitGenFilterCases, c.1.readsPB c.2.1 c.2.2 = true := by
+  decide +kernel
+
+theorem emitGenFilter_verdict_exact : ∀ c ∈ emitGenFilterCases, ∀ (m : Mode) (v : Verdict),
+    vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
+  fun c hc _ v => vetP_iff_reads (emitGenFilterCases_reads c hc) v
+
 /-- A `filter`'s condition, standing where the member it tries lands: a
 relative path that climbs out of the member, to the filter's map, past
 it to the top and into a sibling list, over a list and a map, inside a
@@ -5376,8 +5473,28 @@ def formRows : IO Unit := do
   for (ctor, kind, text) in forms do
     IO.println (ctor ++ "\t" ++ kind ++ "\t" ++ text)
 
+/-- Whether a value of the fragment writes `nil`: itself, under its key,
+or on either side of its meet. -/
+def writesNil : Val → Bool
+  | .nil => true
+  | .map [(_, _, v)] _ _ => writesNil v
+  | .meet a b => writesNil a || writesNil b
+  | _ => false
+
+/-- A row's document, the value under `v`, and its data. -/
+def rowDoc (v : Val) (j : Data) : Val × Data := (.map [("v", false, v)] none false, .map [("v", j)])
+
+/-- The `error` class of a row's verdict is `Vet`'s, whatever the checker
+can read. -/
+theorem rowDoc_error_exact (m : Mode) (v : Val) (j : Data) :
+    vet m [] (rowDoc v j).1 (rowDoc v j).2 = .error ↔ Vet m [] (rowDoc v j).1 (rowDoc v j).2 .error :=
+  vet_error_iff
+
 /-- The rows of one fragment: each value against each instance of each
-block, numbered from zero under `tag`. -/
+block, numbered from zero under `tag`. A value `check` admits that `vet`
+reads as ill-formed is an `error` (`rowDoc_error_exact`), but one that
+writes `nil`, which the verdict reads as ill-formed wherever it stands
+and the reference reads as forbidding an optional key. -/
 def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit := do
   let head := "{\"verdict\":"
   let mut i := 0
@@ -5386,7 +5503,9 @@ def rows (tag : String) (vals : List Val) (blocks : List (List Data)) : IO Unit 
       let some src := v.cell | throw (IO.userError "a value of the fragment has no text")
       for j in block do
         let some jsrc := j.cell | throw (IO.userError "an instance has no text")
-        let want := if check v j then "\"valid\"" else "[\"invalid\",\"incomplete\",\"error\"]"
+        let ill := !writesNil v && vet {} [] (rowDoc v j).1 (rowDoc v j).2 == Verdict.error
+        let want := if check v j then (if ill then "\"error\"" else "\"valid\"")
+          else "[\"invalid\",\"incomplete\",\"error\"]"
         IO.println (tag ++ toString i ++ "\tverdict\tv: " ++ src ++ "\tv: " ++ jsrc
           ++ "\t" ++ head ++ want ++ "}")
         i := i + 1
@@ -8131,8 +8250,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# spec/Aontu: every value of the fragment up to one meet (600) against 24"
     IO.println "# instances, the first 16 in rows c0 to c9599 and the other 8 after them,"
     IO.println "# as `verdict` rows whose expectation is the verdict `check` gives, which"
-    IO.println "# `check_iff` makes the definition's own. Until P5 the definition gives"
-    IO.println "# admission only, so a refusal is written as the three classes it may be."
+    IO.println "# `check_iff` makes the definition's own: a value it admits is `valid`, or an"
+    IO.println "# `error` where `vet` reads the value as ill-formed (`rowDoc_error_exact`) and"
+    IO.println "# it writes no `nil`, and a refusal is written as the three classes it may be."
     IO.println "# Each row runs plain `vet`, its data written in aontu, exact numbers marked `0d`."
     IO.println "# Regenerate with `make spec`; never edit by hand. The cases the ports do"
     IO.println "# not yet answer this way are listed in spec/ledger.tsv."
@@ -8313,7 +8433,9 @@ def main (args : List String) : IO UInt32 := do
     IO.println "# Generators whose templates read their member's place through a relative"
     IO.println "# path, each read at each member of the output, follow in rows gt0 on, and"
     IO.println "# templates that meet their own hole, each member kept and met with the rest,"
-    IO.println "# the `_ & …` idiom, in rows ib0 on, a"
+    IO.println "# the `_ & …` idiom, in rows ib0 on, generators an emit's body holds, their"
+    IO.println "# templates read where each instance lands in the output, in rows eg0 on,"
+    IO.println "# with a filter there in rows eh0 on, a"
     IO.println "# filter's condition, read where the member it tries lands, in rows fc0 on,"
     IO.println "# bounds written over terms, each the bound its terms name, in rows bd0 on, and"
     IO.println "# bounds over a relative path in a generator's template or a filter's"
@@ -8376,6 +8498,8 @@ def main (args : List String) : IO UInt32 := do
     pathRows "lf" loadCases
     pathRows "gt" genTemplateCases
     pathRows "ib" holeMeetCases
+    pathRows "eg" emitGenCases
+    pathRows "eh" emitGenFilterCases
     pathRows "fc" filterCondCases
     pathRows "fk" filterKeepCases
     pathRows "rs" recursiveSelectCases

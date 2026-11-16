@@ -2,8 +2,9 @@
 # spec/Aontu: every value of the fragment up to one meet (600) against 24
 # instances, the first 16 in rows c0 to c9599 and the other 8 after them,
 # as `verdict` rows whose expectation is the verdict `check` gives, which
-# `check_iff` makes the definition's own. Until P5 the definition gives
-# admission only, so a refusal is written as the three classes it may be.
+# `check_iff` makes the definition's own: a value it admits is `valid`, or an
+# `error` where `vet` reads the value as ill-formed (`rowDoc_error_exact`) and
+# it writes no `nil`, and a refusal is written as the three classes it may be.
 # Each row runs plain `vet`, its data written in aontu, exact numbers marked `0d`.
 # Regenerate with `make spec`; never edit by hand. The cases the ports do
 # not yet answer this way are listed in spec/ledger.tsv.
@@ -5264,7 +5265,7 @@ c5251	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: 3	{"verdict":["invalid"
 c5252	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c5253	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c5254	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c5255	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: {}	{"verdict":"valid"}
+c5255	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: {}	{"verdict":"error"}
 c5256	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c5257	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c5258	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -5272,7 +5273,7 @@ c5259	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: {"x": 3}	{"verdict":["i
 c5260	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c5261	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c5262	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c5263	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: {"y": 1}	{"verdict":"valid"}
+c5263	verdict	v: ({"x"?: integer}) & ({"x"?: string})	v: {"y": 1}	{"verdict":"error"}
 c5264	verdict	v: ({"x"?: integer}) & ({"x": string})	v: null	{"verdict":["invalid","incomplete","error"]}
 c5265	verdict	v: ({"x"?: integer}) & ({"x": string})	v: true	{"verdict":["invalid","incomplete","error"]}
 c5266	verdict	v: ({"x"?: integer}) & ({"x": string})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -5296,7 +5297,7 @@ c5283	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: 3	{"verdict":
 c5284	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c5285	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c5286	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c5287	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: {}	{"verdict":"valid"}
+c5287	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: {}	{"verdict":"error"}
 c5288	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c5289	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c5290	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -5304,7 +5305,7 @@ c5291	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: {"x": 3}	{"ve
 c5292	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c5293	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c5294	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c5295	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: {"y": 1}	{"verdict":"valid"}
+c5295	verdict	v: ({"x"?: integer}) & ({"x"?: string & empty()})	v: {"y": 1}	{"verdict":"error"}
 c5296	verdict	v: ({"x"?: integer}) & ({"x": string & empty()})	v: null	{"verdict":["invalid","incomplete","error"]}
 c5297	verdict	v: ({"x"?: integer}) & ({"x": string & empty()})	v: true	{"verdict":["invalid","incomplete","error"]}
 c5298	verdict	v: ({"x"?: integer}) & ({"x": string & empty()})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -6032,7 +6033,7 @@ c6019	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: 3	{"verdi
 c6020	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c6021	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c6022	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c6023	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: {}	{"verdict":"valid"}
+c6023	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: {}	{"verdict":"error"}
 c6024	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c6025	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c6026	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -6040,7 +6041,7 @@ c6027	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: {"x": 3}	
 c6028	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c6029	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c6030	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c6031	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: {"y": 1}	{"verdict":"valid"}
+c6031	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string})	v: {"y": 1}	{"verdict":"error"}
 c6032	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x": string})	v: null	{"verdict":["invalid","incomplete","error"]}
 c6033	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x": string})	v: true	{"verdict":["invalid","incomplete","error"]}
 c6034	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x": string})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -6064,7 +6065,7 @@ c6051	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v:
 c6052	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c6053	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c6054	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c6055	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: {}	{"verdict":"valid"}
+c6055	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: {}	{"verdict":"error"}
 c6056	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c6057	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c6058	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -6072,7 +6073,7 @@ c6059	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v:
 c6060	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c6061	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c6062	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c6063	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: {"y": 1}	{"verdict":"valid"}
+c6063	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x"?: string & empty()})	v: {"y": 1}	{"verdict":"error"}
 c6064	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x": string & empty()})	v: null	{"verdict":["invalid","incomplete","error"]}
 c6065	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x": string & empty()})	v: true	{"verdict":["invalid","incomplete","error"]}
 c6066	verdict	v: ({"x"?: (number) & (mulof(1))}) & ({"x": string & empty()})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -6736,7 +6737,7 @@ c6723	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: 3	{"verdict":["invalid"
 c6724	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c6725	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c6726	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c6727	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: {}	{"verdict":"valid"}
+c6727	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: {}	{"verdict":"error"}
 c6728	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c6729	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c6730	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -6744,7 +6745,7 @@ c6731	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: {"x": 3}	{"verdict":["i
 c6732	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c6733	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c6734	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c6735	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: {"y": 1}	{"verdict":"valid"}
+c6735	verdict	v: ({"x"?: string}) & ({"x"?: integer})	v: {"y": 1}	{"verdict":"error"}
 c6736	verdict	v: ({"x"?: string}) & ({"x": integer})	v: null	{"verdict":["invalid","incomplete","error"]}
 c6737	verdict	v: ({"x"?: string}) & ({"x": integer})	v: true	{"verdict":["invalid","incomplete","error"]}
 c6738	verdict	v: ({"x"?: string}) & ({"x": integer})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -6768,7 +6769,7 @@ c6755	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: 3	{"verdi
 c6756	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c6757	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c6758	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c6759	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: {}	{"verdict":"valid"}
+c6759	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: {}	{"verdict":"error"}
 c6760	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c6761	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c6762	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -6776,7 +6777,7 @@ c6763	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: {"x": 3}	
 c6764	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c6765	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c6766	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c6767	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: {"y": 1}	{"verdict":"valid"}
+c6767	verdict	v: ({"x"?: string}) & ({"x"?: (number) & (mulof(1))})	v: {"y": 1}	{"verdict":"error"}
 c6768	verdict	v: ({"x"?: string}) & ({"x": (number) & (mulof(1))})	v: null	{"verdict":["invalid","incomplete","error"]}
 c6769	verdict	v: ({"x"?: string}) & ({"x": (number) & (mulof(1))})	v: true	{"verdict":["invalid","incomplete","error"]}
 c6770	verdict	v: ({"x"?: string}) & ({"x": (number) & (mulof(1))})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -6864,7 +6865,7 @@ c6851	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: 3	{"verdict":["invalid",
 c6852	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c6853	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c6854	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c6855	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: {}	{"verdict":"valid"}
+c6855	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: {}	{"verdict":"error"}
 c6856	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c6857	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c6858	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -6872,7 +6873,7 @@ c6859	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: {"x": 3}	{"verdict":["in
 c6860	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c6861	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c6862	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c6863	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: {"y": 1}	{"verdict":"valid"}
+c6863	verdict	v: ({"x"?: string}) & ({"x"?: min(0)})	v: {"y": 1}	{"verdict":"error"}
 c6864	verdict	v: ({"x"?: string}) & ({"x": min(0)})	v: null	{"verdict":["invalid","incomplete","error"]}
 c6865	verdict	v: ({"x"?: string}) & ({"x": min(0)})	v: true	{"verdict":["invalid","incomplete","error"]}
 c6866	verdict	v: ({"x"?: string}) & ({"x": min(0)})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -6896,7 +6897,7 @@ c6883	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: 3	{"verdict":["invalid",
 c6884	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c6885	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c6886	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c6887	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: {}	{"verdict":"valid"}
+c6887	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: {}	{"verdict":"error"}
 c6888	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c6889	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c6890	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -6904,7 +6905,7 @@ c6891	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: {"x": 3}	{"verdict":["in
 c6892	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c6893	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c6894	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c6895	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: {"y": 1}	{"verdict":"valid"}
+c6895	verdict	v: ({"x"?: string}) & ({"x"?: min(3)})	v: {"y": 1}	{"verdict":"error"}
 c6896	verdict	v: ({"x"?: string}) & ({"x": min(3)})	v: null	{"verdict":["invalid","incomplete","error"]}
 c6897	verdict	v: ({"x"?: string}) & ({"x": min(3)})	v: true	{"verdict":["invalid","incomplete","error"]}
 c6898	verdict	v: ({"x"?: string}) & ({"x": min(3)})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -7504,7 +7505,7 @@ c7491	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: 3	{"verdict":
 c7492	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c7493	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c7494	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c7495	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: {}	{"verdict":"valid"}
+c7495	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: {}	{"verdict":"error"}
 c7496	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c7497	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c7498	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -7512,7 +7513,7 @@ c7499	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: {"x": 3}	{"ve
 c7500	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c7501	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c7502	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c7503	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: {"y": 1}	{"verdict":"valid"}
+c7503	verdict	v: ({"x"?: string & empty()}) & ({"x"?: integer})	v: {"y": 1}	{"verdict":"error"}
 c7504	verdict	v: ({"x"?: string & empty()}) & ({"x": integer})	v: null	{"verdict":["invalid","incomplete","error"]}
 c7505	verdict	v: ({"x"?: string & empty()}) & ({"x": integer})	v: true	{"verdict":["invalid","incomplete","error"]}
 c7506	verdict	v: ({"x"?: string & empty()}) & ({"x": integer})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -7536,7 +7537,7 @@ c7523	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v:
 c7524	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c7525	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c7526	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c7527	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: {}	{"verdict":"valid"}
+c7527	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: {}	{"verdict":"error"}
 c7528	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c7529	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c7530	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -7544,7 +7545,7 @@ c7531	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v:
 c7532	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c7533	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c7534	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c7535	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: {"y": 1}	{"verdict":"valid"}
+c7535	verdict	v: ({"x"?: string & empty()}) & ({"x"?: (number) & (mulof(1))})	v: {"y": 1}	{"verdict":"error"}
 c7536	verdict	v: ({"x"?: string & empty()}) & ({"x": (number) & (mulof(1))})	v: null	{"verdict":["invalid","incomplete","error"]}
 c7537	verdict	v: ({"x"?: string & empty()}) & ({"x": (number) & (mulof(1))})	v: true	{"verdict":["invalid","incomplete","error"]}
 c7538	verdict	v: ({"x"?: string & empty()}) & ({"x": (number) & (mulof(1))})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -7632,7 +7633,7 @@ c7619	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: 3	{"verdict":[
 c7620	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c7621	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c7622	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c7623	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: {}	{"verdict":"valid"}
+c7623	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: {}	{"verdict":"error"}
 c7624	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c7625	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c7626	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -7640,7 +7641,7 @@ c7627	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: {"x": 3}	{"ver
 c7628	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c7629	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c7630	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c7631	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: {"y": 1}	{"verdict":"valid"}
+c7631	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(0)})	v: {"y": 1}	{"verdict":"error"}
 c7632	verdict	v: ({"x"?: string & empty()}) & ({"x": min(0)})	v: null	{"verdict":["invalid","incomplete","error"]}
 c7633	verdict	v: ({"x"?: string & empty()}) & ({"x": min(0)})	v: true	{"verdict":["invalid","incomplete","error"]}
 c7634	verdict	v: ({"x"?: string & empty()}) & ({"x": min(0)})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -7664,7 +7665,7 @@ c7651	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: 3	{"verdict":[
 c7652	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c7653	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c7654	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c7655	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: {}	{"verdict":"valid"}
+c7655	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: {}	{"verdict":"error"}
 c7656	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c7657	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c7658	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -7672,7 +7673,7 @@ c7659	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: {"x": 3}	{"ver
 c7660	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c7661	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c7662	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c7663	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: {"y": 1}	{"verdict":"valid"}
+c7663	verdict	v: ({"x"?: string & empty()}) & ({"x"?: min(3)})	v: {"y": 1}	{"verdict":"error"}
 c7664	verdict	v: ({"x"?: string & empty()}) & ({"x": min(3)})	v: null	{"verdict":["invalid","incomplete","error"]}
 c7665	verdict	v: ({"x"?: string & empty()}) & ({"x": min(3)})	v: true	{"verdict":["invalid","incomplete","error"]}
 c7666	verdict	v: ({"x"?: string & empty()}) & ({"x": min(3)})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -8336,7 +8337,7 @@ c8323	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: 3	{"verdict":["invalid",
 c8324	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c8325	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c8326	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c8327	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: {}	{"verdict":"valid"}
+c8327	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: {}	{"verdict":"error"}
 c8328	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c8329	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c8330	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -8344,7 +8345,7 @@ c8331	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: {"x": 3}	{"verdict":["in
 c8332	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c8333	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c8334	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c8335	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: {"y": 1}	{"verdict":"valid"}
+c8335	verdict	v: ({"x"?: min(0)}) & ({"x"?: string})	v: {"y": 1}	{"verdict":"error"}
 c8336	verdict	v: ({"x"?: min(0)}) & ({"x": string})	v: null	{"verdict":["invalid","incomplete","error"]}
 c8337	verdict	v: ({"x"?: min(0)}) & ({"x": string})	v: true	{"verdict":["invalid","incomplete","error"]}
 c8338	verdict	v: ({"x"?: min(0)}) & ({"x": string})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -8368,7 +8369,7 @@ c8355	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: 3	{"verdict":[
 c8356	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c8357	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c8358	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c8359	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: {}	{"verdict":"valid"}
+c8359	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: {}	{"verdict":"error"}
 c8360	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c8361	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c8362	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -8376,7 +8377,7 @@ c8363	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: {"x": 3}	{"ver
 c8364	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c8365	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c8366	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c8367	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: {"y": 1}	{"verdict":"valid"}
+c8367	verdict	v: ({"x"?: min(0)}) & ({"x"?: string & empty()})	v: {"y": 1}	{"verdict":"error"}
 c8368	verdict	v: ({"x"?: min(0)}) & ({"x": string & empty()})	v: null	{"verdict":["invalid","incomplete","error"]}
 c8369	verdict	v: ({"x"?: min(0)}) & ({"x": string & empty()})	v: true	{"verdict":["invalid","incomplete","error"]}
 c8370	verdict	v: ({"x"?: min(0)}) & ({"x": string & empty()})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -9104,7 +9105,7 @@ c9091	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: 3	{"verdict":["invalid",
 c9092	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c9093	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c9094	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c9095	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: {}	{"verdict":"valid"}
+c9095	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: {}	{"verdict":"error"}
 c9096	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c9097	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c9098	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -9112,7 +9113,7 @@ c9099	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: {"x": 3}	{"verdict":["in
 c9100	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c9101	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c9102	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c9103	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: {"y": 1}	{"verdict":"valid"}
+c9103	verdict	v: ({"x"?: min(3)}) & ({"x"?: string})	v: {"y": 1}	{"verdict":"error"}
 c9104	verdict	v: ({"x"?: min(3)}) & ({"x": string})	v: null	{"verdict":["invalid","incomplete","error"]}
 c9105	verdict	v: ({"x"?: min(3)}) & ({"x": string})	v: true	{"verdict":["invalid","incomplete","error"]}
 c9106	verdict	v: ({"x"?: min(3)}) & ({"x": string})	v: 0	{"verdict":["invalid","incomplete","error"]}
@@ -9136,7 +9137,7 @@ c9123	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: 3	{"verdict":[
 c9124	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: -1	{"verdict":["invalid","incomplete","error"]}
 c9125	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: ""	{"verdict":["invalid","incomplete","error"]}
 c9126	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: "a"	{"verdict":["invalid","incomplete","error"]}
-c9127	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: {}	{"verdict":"valid"}
+c9127	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: {}	{"verdict":"error"}
 c9128	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: {"x": null}	{"verdict":["invalid","incomplete","error"]}
 c9129	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: {"x": true}	{"verdict":["invalid","incomplete","error"]}
 c9130	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: {"x": 0}	{"verdict":["invalid","incomplete","error"]}
@@ -9144,7 +9145,7 @@ c9131	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: {"x": 3}	{"ver
 c9132	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: {"x": -1}	{"verdict":["invalid","incomplete","error"]}
 c9133	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: {"x": ""}	{"verdict":["invalid","incomplete","error"]}
 c9134	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: {"x": "a"}	{"verdict":["invalid","incomplete","error"]}
-c9135	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: {"y": 1}	{"verdict":"valid"}
+c9135	verdict	v: ({"x"?: min(3)}) & ({"x"?: string & empty()})	v: {"y": 1}	{"verdict":"error"}
 c9136	verdict	v: ({"x"?: min(3)}) & ({"x": string & empty()})	v: null	{"verdict":["invalid","incomplete","error"]}
 c9137	verdict	v: ({"x"?: min(3)}) & ({"x": string & empty()})	v: true	{"verdict":["invalid","incomplete","error"]}
 c9138	verdict	v: ({"x"?: min(3)}) & ({"x": string & empty()})	v: 0	{"verdict":["invalid","incomplete","error"]}

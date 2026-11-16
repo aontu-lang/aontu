@@ -1543,6 +1543,28 @@ lines: emit([1 2], { match:number body: ["n" key(0)] })
 {"lines": ["n", "1", "n", "3"]}
 ```
 
+**A generator in a body reads its template where each instance
+lands.** An `each`, a `pack`, an `apply` or a `filter` in a body takes a
+field of the node as its data, `.items`, as any element of the body
+does. The generator reads its template for each member it's given, so
+a relative reference in the template is the instance's own, not a field
+of the node: `.v` below is the instance's `v`. Each instance reads where it
+lands in the answer, after the lists of the body splice, so a reference
+that climbs out of the instance reads the answer around it, and one that
+climbs further reads the document. A `filter` reads its condition where
+the member it tries lands, so a reference that stays inside the member
+names nothing and refuses each member:
+
+```aontu
+nodes: [items: [1 2]]
+
+pairs: emit($.nodes, { match:any body: [each(.items, { v:_ w:.v })] })
+```
+
+```json
+{"nodes": [{"items": [1, 2]}], "pairs": [{"v": 1, "w": 1}, {"v": 2, "w": 2}]}
+```
+
 The definition reads `emit` by `resolveD` and `emitPlan` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean), each body
 read for its node and each element where its piece lands
@@ -1559,7 +1581,11 @@ a level for each turn the expansion has left (`Decls.tableUnfold`), rows
 from er0 on. The expansion writes a template's `replace` map and `esc`
 convention into its body before any reading (`Val.replaced`), each key
 in a literal line read as its value's text, escaped, and rows from ep0
-on and from eq0 on hold both engines to it.
+on and from eq0 on hold both engines to it. A generator in a body reads the
+relative paths its template keeps where each instance lands in the
+answer (`Val.landedRels` in
+[`spec/Aontu/Paths.lean`](../spec/Aontu/Paths.lean)), and rows from eg0
+on and from eh0 on of `def-path.tsv` hold both engines to it.
 
 ### A named table
 
