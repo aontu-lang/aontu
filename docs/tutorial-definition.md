@@ -9767,9 +9767,31 @@ So `.name` reads each instance's own `name`, a path that climbs out of
 the instance reads from where the instance stands, and a spread or a
 generator inside the template reads at its own members in turn.
 
-Rows from sp0 on and from gt0 on of `test/spec/def-path.tsv` hold these
-readings in the three modes of `vet`, and both engines answer every one
-as the definition does.
+A generator in an `emit`'s body is different: its instances land where
+the body's pieces do, after the lists of the body splice, which nothing
+in the template says. So the definition reads the tree the document
+makes, and at each position of the `emit`'s output whose term still
+holds a relative path, it places that term where it landed and meets it
+there:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def Val.landedRels (root : Val) (base p : List Seg) : List Val :=
+  ((root.at p).getD .any).positions.filterMap fun q =>
+    match root.at (p ++ q) with
+    | some u =>
+      if u.relLeaf && ((u.placed (base ++ p ++ q)).neutral).checkableAB then
+        root.putW (p ++ q) (u.placed (base ++ p ++ q)).neutral
+      else none
+    | none => none
+```
+
+The tree keeps such a path as written until then, since reading paths
+as names leaves a relative one alone (`Val.pathsToAliases`).
+
+Rows from sp0 on, from gt0 on, from eg0 on and from eh0 on of
+`test/spec/def-path.tsv` hold these readings in the three modes of
+`vet`, and both engines answer every one as the definition does.
 
 ## 39. Loading a source
 
