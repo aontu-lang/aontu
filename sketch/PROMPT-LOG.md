@@ -1006,3 +1006,9 @@ The answers to the agent's questions, each question followed by the option chose
 #524: which position should `key(0)` and `key()` read inside an `emit` body? The two engines disagree. With `x: emit([1, 2], {match: any, body: ["a", key(0)]})`, TypeScript gives ["a","1","a","3"], each piece's position in the output, and Go gives ["a","1","a","1"], its position within its node's body. `key()` gives "x" in TypeScript, the field holding the emit, and the node's index in Go.
 → Where it lands (Recommended)
 ```
+
+## 2026-11-16 11:04:11 UTC · Claude Code · session_01XG9G5jizDciS8aeZfUZPs2
+
+```text
+report on current status and progress - how much is left?
+```
