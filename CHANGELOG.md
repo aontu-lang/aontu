@@ -8,6 +8,21 @@ each change affects.
 
 ## Unreleased
 
+### `*nil` is an error in both engines (#799)
+
+Both engines and shared rows.
+
+- A preference over a written `nil`, `*nil`, reads as `nil | super(nil)`,
+  and neither arm holds a value, so it's the conflict `nil | nil` is:
+  `[aontu/empty]`, and `vet` reads the document as an `error` in every
+  mode, under a required key or an optional one. TypeScript read
+  `x: *nil` as `invalid` and Go as `valid`, and both read `x?: *nil` as
+  `valid`.
+- `*nil | 1` still reads as `1`: the preferred arm holds no value and
+  drops.
+- Twenty-one rows join the written-nil cases in
+  `test/spec/def-path.tsv`, from `nl90` on.
+
 ### A written `nil` met with a value forbids its key (#796)
 
 Both engines and shared rows.
