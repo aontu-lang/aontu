@@ -44,6 +44,7 @@ Saying what data must look like, from optional keys to recursive shapes.
 - [Name a reusable constraint](name-a-reusable-constraint.md). Build a `uint8`/`port` vocabulary as a `type()`-marked block of ordinary fields.
 - [Define a recursive schema](define-a-recursive-schema.md). Reference a definition inside itself to get a schema that applies at every depth of the data.
 - [Model a file system](model-a-file-system.md). Model folders and files as one table of nodes, with a base type, two subtypes of it, and a parent relation whose target must be a folder.
+- [Model a microservices architecture](model-a-microservices-architecture.md). Model services and the stores they own as two tables, with a dependency relation that must name a service that can be called and may not loop, and one owner for each store.
 - [Carry exact money over JSON](carry-exact-money-over-json.md). Keep money exact inside aontu and cross JSON as a fixed-scale decimal string with a conversion mark.
 - [Export JSON Schema](export-json-schema.md). Export a model as JSON Schema 2020-12 with `aontu jsonschema`, and read the loss report it owes you.
 - [Import JSON Schema](import-json-schema.md). Import a JSON Schema 2020-12 document as aontu with `aontu jsonschema import`, and check data against it the way JSON Schema does.

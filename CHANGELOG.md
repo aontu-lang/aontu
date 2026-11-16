@@ -103,6 +103,22 @@ language.
 - Pinned by `test/spec/annotation-gen.tsv`, 559 rows that both engines
   answer alike. The design note is `sketch/GEN.0.md`.
 
+### A how-to guide models a microservices architecture
+
+Documentation only.
+
+- **[Model a microservices
+  architecture](docs/how-to/model-a-microservices-architecture.md)** is
+  a new guide: services and the stores they own as two tables, with the
+  dependencies encoded as relations. `needs` is
+  `relate($.type.Callable) & acyclic()`, so a dependency names a
+  declared service on the core tier and calls never loop, and `owns`
+  and `owner` are each other's `inverse()`, so a store has one owner.
+  The guide asks what a service can reach with `aontu reaches`, draws
+  the tree and the layers with `aontu view`, and writes the
+  dependencies as names with `gen("key")`. Every transcript on the page
+  is executed.
+
 ### A how-to guide models a file system
 
 Documentation only.
