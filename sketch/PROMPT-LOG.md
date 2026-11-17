@@ -1386,3 +1386,9 @@ Status?
 ```text
 ask me for rulings
 ```
+
+## 2026-11-17 15:54:14 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+in the context of the state machine design, and with respect to the current realisation of relations, should we replace acyclic, inverse, and other attributional builtins with a single builtin that modifies a relation? or should be extend the arguments to a relation? does an argument however remain for having acyclic etc as separate builtins?
+```
