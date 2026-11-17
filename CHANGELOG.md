@@ -8,6 +8,23 @@ each change affects.
 
 ## Unreleased
 
+### The definition reads module imports
+
+The definition only; neither engine changes.
+
+- A load whose name is bare and whose first step holds a dot, or
+  `alias:` and a name, imports a module, which the definition reads as
+  the source the calling program supplies for the import as written, a
+  pin with it. That source is named by the import and a `/`, so the
+  module's own loads read from the module's path. Which source it is,
+  and whether a pin or a lock agrees with it, the tools decide; a
+  module they can't resolve is one the program supplies no source for,
+  an error.
+- Rows lm0 on of `test/spec/def-path.tsv` load the projects of
+  `test/spec/files` that import a module, `moddefs` new among them, a
+  module that declares names, publishes one and loads a file of its
+  own; both engines answer every row as the definition does.
+
 ### `subsume` reads an open map's missing key against an optional key (#377)
 
 Both engines and shared rows.

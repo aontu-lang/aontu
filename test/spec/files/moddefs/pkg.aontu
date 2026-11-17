@@ -1,0 +1,4 @@
+# A project whose one dependency declares names of its own, publishes
+# one, and loads a file beside its entry.
+pkg: { path: "corp.example/app" main: "main.aontu" }
+dep: { "corp.example/defs": { v: "1.0.0" } }

@@ -47,7 +47,9 @@
 # condition, each read where its instance lands, in rows bg0 on. Sources that
 # declare names of their own, each read in its own scope, follow in rows ls0 on,
 # and the names a source publishes, with the destructures that take them, in
-# rows lx0 on, and in a declaration's body in rows lb0 on. The transformer emit
+# rows lx0 on, and in a declaration's body in rows lb0 on. Module imports, each
+# the source the calling program supplies for the import as written, follow in
+# rows lm0 on, over the projects of test/spec/files. The transformer emit
 # over a selection a path names follows in
 # rows em0 on, and copy, its argument with the marks and the seal cleared at
 # every depth, in rows cp0 on. Links whose templates read the member or the
@@ -4010,6 +4012,72 @@ lb20	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n
 lb21	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error"}
 lb22	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error","opts":{"noFill":true}}
 lb23	verdict	%B = {"inner": { %secret } = @"__FIXTURES__/alias_exports.aontu"}\n"z": 1	{}	{"verdict":"error","opts":{"partial":true}}
+lm0	verdict	@"__FIXTURES__/modproj/main.aontu"	{}	{"verdict":"valid"}
+lm1	verdict	@"__FIXTURES__/modproj/main.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm2	verdict	@"__FIXTURES__/modproj/main.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lm3	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": 9090}}	{"verdict":"valid"}
+lm4	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": 9090}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm5	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": 9090}}	{"verdict":"valid","opts":{"partial":true}}
+lm6	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": "x"}}	{"verdict":"invalid"}
+lm7	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+lm8	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"port": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+lm9	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"name": "other"}}	{"verdict":"invalid"}
+lm10	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"name": "other"}}	{"verdict":"invalid","opts":{"noFill":true}}
+lm11	verdict	@"__FIXTURES__/modproj/main.aontu"	{"svc": {"name": "other"}}	{"verdict":"invalid","opts":{"partial":true}}
+lm12	verdict	@"__FIXTURES__/modlock/main.aontu"	{}	{"verdict":"valid"}
+lm13	verdict	@"__FIXTURES__/modlock/main.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm14	verdict	@"__FIXTURES__/modlock/main.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lm15	verdict	@"__FIXTURES__/modnomain/main.aontu"	{"svc": {"port": 1}}	{"verdict":"valid"}
+lm16	verdict	@"__FIXTURES__/modnomain/main.aontu"	{"svc": {"port": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm17	verdict	@"__FIXTURES__/modnomain/main.aontu"	{"svc": {"port": 1}}	{"verdict":"valid","opts":{"partial":true}}
+lm18	verdict	@"__FIXTURES__/modfree/main.aontu"	{"svc": {"port": 1}}	{"verdict":"valid"}
+lm19	verdict	@"__FIXTURES__/modfree/main.aontu"	{"svc": {"port": 1}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm20	verdict	@"__FIXTURES__/modfree/main.aontu"	{"svc": {"port": 1}}	{"verdict":"valid","opts":{"partial":true}}
+lm21	verdict	@"__FIXTURES__/modalias/main.aontu"	{}	{"verdict":"valid"}
+lm22	verdict	@"__FIXTURES__/modalias/main.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm23	verdict	@"__FIXTURES__/modalias/main.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lm24	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": 9090}}	{"verdict":"valid"}
+lm25	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": 9090}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm26	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": 9090}}	{"verdict":"valid","opts":{"partial":true}}
+lm27	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": "x"}}	{"verdict":"invalid"}
+lm28	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+lm29	verdict	@"__FIXTURES__/modalias/main.aontu"	{"legacy": {"port": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+lm30	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 3}}	{"verdict":"valid"}
+lm31	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 3}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm32	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 3}}	{"verdict":"valid","opts":{"partial":true}}
+lm33	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 4}}	{"verdict":"invalid"}
+lm34	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 4}}	{"verdict":"invalid","opts":{"noFill":true}}
+lm35	verdict	@"__FIXTURES__/modcase/main.aontu"	{"w": {"count": 4}}	{"verdict":"invalid","opts":{"partial":true}}
+lm36	verdict	@"__FIXTURES__/moddefs/main.aontu"	{}	{"verdict":"valid"}
+lm37	verdict	@"__FIXTURES__/moddefs/main.aontu"	{}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm38	verdict	@"__FIXTURES__/moddefs/main.aontu"	{}	{"verdict":"valid","opts":{"partial":true}}
+lm39	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"listen": 0}	{"verdict":"invalid"}
+lm40	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"listen": 0}	{"verdict":"invalid","opts":{"noFill":true}}
+lm41	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"listen": 0}	{"verdict":"invalid","opts":{"partial":true}}
+lm42	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": 5}}	{"verdict":"valid"}
+lm43	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": 5}}	{"verdict":"incomplete","opts":{"noFill":true}}
+lm44	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": 5}}	{"verdict":"valid","opts":{"partial":true}}
+lm45	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": "x"}}	{"verdict":"invalid"}
+lm46	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": "x"}}	{"verdict":"invalid","opts":{"noFill":true}}
+lm47	verdict	@"__FIXTURES__/moddefs/main.aontu"	{"part": {"retries": "x"}}	{"verdict":"invalid","opts":{"partial":true}}
+lm48	verdict	@"__FIXTURES__/moddefs/scope.aontu"	{}	{"verdict":"error"}
+lm49	verdict	@"__FIXTURES__/moddefs/scope.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm50	verdict	@"__FIXTURES__/moddefs/scope.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lm51	verdict	@"__FIXTURES__/modmiss/main.aontu"	{}	{"verdict":"error"}
+lm52	verdict	@"__FIXTURES__/modmiss/main.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm53	verdict	@"__FIXTURES__/modmiss/main.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lm54	verdict	@"__FIXTURES__/modpin/main.aontu"	{}	{"verdict":"error"}
+lm55	verdict	@"__FIXTURES__/modpin/main.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm56	verdict	@"__FIXTURES__/modpin/main.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lm57	verdict	@"__FIXTURES__/modbad/main.aontu"	{}	{"verdict":"error"}
+lm58	verdict	@"__FIXTURES__/modbad/main.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm59	verdict	@"__FIXTURES__/modbad/main.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lm60	verdict	@"__FIXTURES__/modmoved/main.aontu"	{}	{"verdict":"error"}
+lm61	verdict	@"__FIXTURES__/modmoved/main.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm62	verdict	@"__FIXTURES__/modmoved/main.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
+lm63	verdict	@"__FIXTURES__/modself/main.aontu"	{}	{"verdict":"error"}
+lm64	verdict	@"__FIXTURES__/modself/main.aontu"	{}	{"verdict":"error","opts":{"noFill":true}}
+lm65	verdict	@"__FIXTURES__/modself/main.aontu"	{}	{"verdict":"error","opts":{"partial":true}}
 em0	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"valid"}
 em1	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"incomplete","opts":{"noFill":true}}
 em2	verdict	"s": [{"k": "sqs", "p": "x"}, {"k": "http", "u": "/y"}], "o": emit($.s, [{"match": {"k": "sqs"}, "body": [("L:") + (.p)]}, {"match": {"k": "http"}, "body": [("S:") + (.u)]}])	{}	{"verdict":"valid","opts":{"partial":true}}
