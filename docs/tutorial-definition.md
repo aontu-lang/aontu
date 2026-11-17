@@ -9907,17 +9907,16 @@ load as a term, under `@` and the source's name, which no document can
 write, since a name a document writes begins with a letter. A load
 names its source from the source it's written in: read from that
 source's directory, each `.` dropped and each `..` taking back a step,
-and `.aontu` supplied where the name has no extension. A bare name whose
-first step holds a dot names a module, which the definition doesn't
-read yet, so it names no source. Both engines refuse one whose last
-step names an extension, as a file written without `./`:
+and `.aontu` supplied where the name has no extension. A module names
+the source the calling program supplies for it, as
+[Modules](#modules) reads it:
 
 <!-- test: quote spec/Aontu/Paths.lean -->
 ```lean
 def loadPath (src p : String) : Option String :=
+  if moduleRef p then some (p ++ "/") else
   let q := "/".intercalate
     (normSteps [] ((if p.startsWith "/" then [] else (src.splitOn "/").dropLast) ++ p.splitOn "/"))
-  if moduleRef p then none else
   match ((q.splitOn "/").getLast?.getD "").splitOn "." with
   | [_] => some (q ++ ".aontu")
   | parts => if parts.getLast?.getD "" ∈ loadExts then some q else none
@@ -10053,10 +10052,88 @@ publish as an `error`, as they class a call the schema can't build,
 and the rows take such a name only at the top.
 
 No row yet holds a source that writes a destructure, since Go fails to
-include one, which #804 tracks. The definition doesn't yet read a module, or an
+include one, which #804 tracks. The definition doesn't yet read an
 extension the calling program adds to those read as text, as
 `--text-ext` does, and no term of the definition spells a destructure
 over a term that isn't a load, which both engines refuse.
+
+### Modules
+
+A load whose name is bare, with no `./`, `../` or `/` before it, and
+whose first step holds a dot, a domain, imports a module, and so does
+`alias:` and a name, an alias the project declares:
+
+<!-- test: quote spec/Aontu/Paths.lean -->
+```lean
+def moduleRef (p : String) : Bool :=
+  p.startsWith "alias:" ||
+    (!(p.startsWith "./" || p.startsWith "../" || p.startsWith "/") && ((p.splitOn "/").headD "").contains '.')
+```
+
+Which source a module is, whether a pin written after `#` or the
+project's lock agrees with what that source means, and what an alias
+stands for, the tools decide: the definition reads an import as the
+source the calling program supplies for the import as written, as the
+program supplies a variable's value, which ruling 47 settled.
+`loadPath` names that source by the import, a pin with it, and a `/`,
+the directory the module stands for, so that the module's own loads
+read from there, as a file's read from the file's directory.
+
+A project vendors its modules beside its own package file. Write one,
+`pkg.aontu`, that depends on a module:
+
+<!-- test: scenario module -->
+<!-- test: file pkg.aontu -->
+```aontu
+pkg: { path:"corp.example/app" main:"main.aontu" }
+dep: "corp.example/rates": v: "1.0.0"
+```
+
+the module's own package file,
+`aontu_meta/vendor/corp.example/rates/pkg.aontu`:
+
+<!-- test: file aontu_meta/vendor/corp.example/rates/pkg.aontu -->
+```aontu
+pkg: path: "corp.example/rates"
+```
+
+its entry, `aontu_meta/vendor/corp.example/rates/main.aontu`:
+
+<!-- test: file aontu_meta/vendor/corp.example/rates/main.aontu -->
+```aontu
+currency: string & re("^[A-Z]{3}$")
+```
+
+and `main.aontu`, which imports it:
+
+<!-- test: file main.aontu -->
+```aontu
+price: @"corp.example/rates"
+price: currency: "EUR"
+```
+
+<!-- test: run -->
+```sh
+$ aontu main.aontu
+{
+  "price": {
+    "currency": "EUR"
+  }
+}
+```
+
+The tools found the module in the vendored copy, and the rest is a
+load. A module the tools can't resolve is one the program supplies no
+source for: one never fetched, one whose package moved, and one whose
+pin disagrees with what its source means, as a lock can. Each leaves
+the load unmade, so the document is an `error`, and so is one whose
+module imports itself. Rows from lm0 on of `test/spec/def-path.tsv` load the
+projects of `test/spec/files` whose `main.aontu` imports a module, each
+case supplying the source the tools resolve for it. A module's own
+names are its own, as any source's are, so a project that imports one
+reads none of them. Both engines refuse a module that declares names
+when a project loads it under a key, as they refuse such a source, and
+the rows load one only at the root.
 
 ## 40. Rules over nodes
 

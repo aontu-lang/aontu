@@ -1,0 +1,7 @@
+%port = integer & min(1)
+%hidden = 7
+
+export({ %port })
+
+listen: %port
+part: @"./part.aontu"

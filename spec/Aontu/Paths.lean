@@ -550,23 +550,26 @@ def normSteps : List String → List String → List String
       | [] => normSteps [s] ss
     else normSteps (s :: acc) ss
 
-/-- Whether a load names a module: it's written bare, with no `./`,
-`../` or `/` before it, and its first step holds a dot, a domain. -/
+/-- Whether a load names a module: an alias the project declares,
+`alias:` and its name, or a name written bare, with no `./`, `../` or
+`/` before it, whose first step holds a dot, a domain. -/
 def moduleRef (p : String) : Bool :=
-  !(p.startsWith "./" || p.startsWith "../" || p.startsWith "/") && ((p.splitOn "/").headD "").contains '.'
+  p.startsWith "alias:" ||
+    (!(p.startsWith "./" || p.startsWith "../" || p.startsWith "/") && ((p.splitOn "/").headD "").contains '.')
 
 /-- The name a source written `p` in the source named `src` loads: read
 from `src`'s own directory, or from the top where `p` begins with `/`,
 as both ports read it, its steps read as `normSteps` reads them, and
 `.aontu` supplied where the last step names no extension. None where
-the last step names one no source may be loaded with, and none for a
-module (`moduleRef`), which the definition doesn't read yet: both ports
-refuse one whose last step names an extension, as a file written
-without `./`. The document itself is the source named `""`. -/
+the last step names one no source may be loaded with. A module
+(`moduleRef`) names the source the calling program supplies for it, as
+it supplies a variable's value: the import as written, a pin with it,
+and a `/`, the directory the module stands for, so that its own loads
+read from there. The document itself is the source named `""`. -/
 def loadPath (src p : String) : Option String :=
+  if moduleRef p then some (p ++ "/") else
   let q := "/".intercalate
     (normSteps [] ((if p.startsWith "/" then [] else (src.splitOn "/").dropLast) ++ p.splitOn "/"))
-  if moduleRef p then none else
   match ((q.splitOn "/").getLast?.getD "").splitOn "." with
   | [_] => some (q ++ ".aontu")
   | parts => if parts.getLast?.getD "" ∈ loadExts then some q else none

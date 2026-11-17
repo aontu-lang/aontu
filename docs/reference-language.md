@@ -5206,14 +5206,18 @@ file.
 reads each load in place before anything else reads the document. It
 reads the name with `loadPath`, from the directory of the source that
 writes the load, and reads the source's own loads in from there. A
-source the document declares no term for, an extension the table
-refuses, a module, and a source the chain of loads already holds, a
-cycle, each leave the load unmade, which makes the document an `error` wherever
-the load stands, even in an arm a selection leaves out. Rows from lf0
-on of [`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both
-engines to it. The definition doesn't yet read a source's own
-declarations, the destructure `{ %a } = @"…"`, a module, or an
-extension `--text-ext` adds to those read as text.
+module import names the source the calling program supplies for the
+import as written, a pin with it, and a `/`, so that the module's own
+loads read from the module's path; which source the import names, and
+whether a pin or a lock agrees with it, the tools decide, as the next
+section describes. A source the document declares no term for, a module the
+tools can't resolve among them, an extension the table refuses, and a
+source the chain of loads already holds, a cycle, each leave the load
+unmade, which makes the document an `error` wherever the load stands,
+even in an arm a selection leaves out. Rows from lf0 on of
+[`test/spec/def-path.tsv`](../test/spec/def-path.tsv) hold both engines
+to it, and rows from lm0 on to module imports. The definition doesn't
+yet read an extension `--text-ext` adds to those read as text.
 
 ### Modules
 
