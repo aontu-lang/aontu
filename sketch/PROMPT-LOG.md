@@ -1362,3 +1362,9 @@ File issues for findings; prepare a plan to support state machines more effectiv
 ```text
 The problem with this proposal is that is it is too specific. What language primitives, new or extended, could enable state machine representations and validation
 ```
+
+## 2026-11-17 01:09:51 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+Rewrite the note; then wrap up this session and prepare a pr
+```
