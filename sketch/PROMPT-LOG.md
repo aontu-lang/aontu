@@ -1356,3 +1356,9 @@ Are there well established ways to formally validate state machines? Can aontu d
 ```text
 File issues for findings; prepare a plan to support state machines more effectively
 ```
+
+## 2026-11-17 00:49:35 UTC · Claude Code · session_0167vhgTmaBJYdHaXdqBi77t
+
+```text
+The problem with this proposal is that is it is too specific. What language primitives, new or extended, could enable state machine representations and validation
+```
