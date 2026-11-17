@@ -7035,8 +7035,8 @@ def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
   let ws := match b, args.map fun a => (normaliseD ds a).unride with
     | .neq, [.list (x :: xs) _ _] => (x :: xs).map (normaliseD ds)
     | _, _ => args.map (normaliseD ds)
-  let ns := ws.map Val.unride
-  if ns.any Val.isChoice then .refused else
+  let ns := ws.map fun w => w.unride.soleArm
+  if ws.any Val.choiceLeft then .refused else
   if ws.any Val.isVoid || ns.any Val.noEnd then .made .nothing else
   match ns.mapM Val.boundEnd?, b with
   | none, _ => .waits
@@ -7061,7 +7061,11 @@ a bound over `1 & 2` waits, and is an error. A choice
 still to make, a disjunction or a
 preference, is no argument at all: the bound is refused, and the
 document is an error whatever the bound meets, as a size that holds
-one is. The atom that admits nothing is `Val.nothing`. It
+one is. `bndOf` asks `Val.choiceLeft`, as a size does, so a choice the
+meet or a dead arm settles to one arm is that arm (`Val.soleArm`):
+`min(1 | (1 & 2))` is `min(1)`, and so is `min(nil | 1)`, since a
+written `nil` holds no value, as ruling 55 reads it. Rows `nl159` and
+`bd174` on hold both. The atom that admits nothing is `Val.nothing`. It
 stands, so a schema that holds one is no error, but it refuses every
 value and generates nothing, and the meet makes it `nil` against
 anything but `any` and a `nil` the document writes, which takes it in

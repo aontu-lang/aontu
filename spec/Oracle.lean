@@ -3868,7 +3868,11 @@ a trial over it refuses what it meets, beside a choice, and under a
 bound or a size in its argument. A bound over it alone admits nothing,
 as one over an argument outside its domain does: each bound, `neq`
 beside a number and over a list, met with a value, and met with a kind,
-where the meet is dead; and a bound over a conflict, still an error. -/
+where the meet is dead; and a bound over a conflict, still an error. A
+disjunction a written `nil` leaves with one arm is that arm under a
+bound, as a size reads it (ruling 55): either way round, met with a
+value, in `neq` and in its list, through a path, at an optional key and
+preferred; and `nil | nil`, which leaves none, is still an error. -/
 def writtenNilCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
@@ -3930,7 +3934,16 @@ def writtenNilCases : List (Decls × Val × Data) :=
     ([], m [("v", bnd .above [nl])], dm [("v", j 1)]),
     ([], m [("v", bnd .mulof [nl])], dm [("v", j 1)]),
     ([], m [("v", .meet .integer (bnd .below [nl]))], dm [("v", j 1)]),
-    ([], m [("v", bnd .min [.meet (int 1) (int 2)])], dm [("v", j 1)])]
+    ([], m [("v", bnd .min [.meet (int 1) (int 2)])], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.or [(0, nl), (0, int 1)]])], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.or [(0, int 1), (0, nl)]])], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.or [(0, .meet nl (int 1)), (0, int 1)]])], dm [("v", j 1)]),
+    ([], m [("v", bnd .neq [.or [(0, nl), (0, int 1)]])], dm [("v", j 2)]),
+    ([], m [("v", bnd .neq [.list [.or [(0, nl), (0, int 1)], int 2] none false])], dm [("v", j 3)]),
+    ([], m [("a", .or [(0, nl), (0, int 1)]), ("v", bnd .min [.path [.key "a"]])], dm [("v", j 1)]),
+    ([], mo [("v", true, bnd .min [.or [(0, nl), (0, int 1)]])], dm []),
+    ([], m [("v", bnd .min [.or [(1, nl), (0, int 1)]])], dm [("v", j 1)]),
+    ([], m [("v", bnd .min [.or [(0, nl), (0, nl)]])], dm [("v", j 1)])]
 
 theorem writtenNilCases_checkable : ∀ c ∈ writtenNilCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide
@@ -4420,7 +4433,9 @@ as the literal is; `neq` over a sole list, written and through a path,
 which reads its elements, so that a choice among them is an error, a
 list among them admits nothing and so does an empty list; and `len`
 over `any`, written and through a path, and over a trial, which admit
-no size, a rider and a meet with `any` read through. -/
+no size, a rider and a meet with `any` read through. Last, a choice a
+dead arm settles to one arm, which is that arm, as a size's is (ruling
+55): either way round, through a path, and in `neq`'s list. -/
 def boundArgCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let str (s : String) : Val := .lit (.str s)
@@ -4490,7 +4505,11 @@ def boundArgCases : List (Decls × Val × Data) :=
     ([], m [("n", .any), ("t", .len (p ["n"]))], t (.list [j 1])),
     ([], m [("t", .len (.must .integer "m"))], t (.list [j 1])),
     ([], m [("t", .len (.ride .metadata (int 1) []))], t (.list [j 1])),
-    ([], m [("t", .len (.meet .any (int 1)))], t (.list [j 1]))]
+    ([], m [("t", .len (.meet .any (int 1)))], t (.list [j 1])),
+    ([], m [("t", bnd .min [.or [(0, .meet (int 1) (int 2)), (0, int 1)]])], t (j 1)),
+    ([], m [("t", bnd .min [.or [(0, int 2), (0, .meet (int 1) (int 2))]])], t (j 1)),
+    ([], lo (.or [(0, .meet (int 1) (int 2)), (0, int 2)]), dm [("lo", j 2), ("t", j 3)]),
+    ([], m [("t", bnd .neq [l [.or [(0, int 1), (0, .meet (int 1) (int 2))]]])], t (j 1))]
 
 theorem boundArgCases_checkable : ∀ c ∈ boundArgCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

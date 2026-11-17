@@ -3158,6 +3158,33 @@ nl155	verdict	"v": (integer) & (below(nil))	{"v": 1}	{"verdict":"error","opts":{
 nl156	verdict	"v": min((1) & (2))	{"v": 1}	{"verdict":"error"}
 nl157	verdict	"v": min((1) & (2))	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
 nl158	verdict	"v": min((1) & (2))	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+nl159	verdict	"v": min((nil) | (1))	{"v": 1}	{"verdict":"valid"}
+nl160	verdict	"v": min((nil) | (1))	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+nl161	verdict	"v": min((nil) | (1))	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl162	verdict	"v": min((1) | (nil))	{"v": 1}	{"verdict":"valid"}
+nl163	verdict	"v": min((1) | (nil))	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+nl164	verdict	"v": min((1) | (nil))	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl165	verdict	"v": min(((nil) & (1)) | (1))	{"v": 1}	{"verdict":"valid"}
+nl166	verdict	"v": min(((nil) & (1)) | (1))	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+nl167	verdict	"v": min(((nil) & (1)) | (1))	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl168	verdict	"v": neq((nil) | (1))	{"v": 2}	{"verdict":"valid"}
+nl169	verdict	"v": neq((nil) | (1))	{"v": 2}	{"verdict":"valid","opts":{"noFill":true}}
+nl170	verdict	"v": neq((nil) | (1))	{"v": 2}	{"verdict":"valid","opts":{"partial":true}}
+nl171	verdict	"v": neq([(nil) | (1), 2])	{"v": 3}	{"verdict":"valid"}
+nl172	verdict	"v": neq([(nil) | (1), 2])	{"v": 3}	{"verdict":"valid","opts":{"noFill":true}}
+nl173	verdict	"v": neq([(nil) | (1), 2])	{"v": 3}	{"verdict":"valid","opts":{"partial":true}}
+nl174	verdict	"a": (nil) | (1), "v": min($.a)	{"v": 1}	{"verdict":"valid"}
+nl175	verdict	"a": (nil) | (1), "v": min($.a)	{"v": 1}	{"verdict":"incomplete","opts":{"noFill":true}}
+nl176	verdict	"a": (nil) | (1), "v": min($.a)	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl177	verdict	"v"?: min((nil) | (1))	{}	{"verdict":"valid"}
+nl178	verdict	"v"?: min((nil) | (1))	{}	{"verdict":"valid","opts":{"noFill":true}}
+nl179	verdict	"v"?: min((nil) | (1))	{}	{"verdict":"valid","opts":{"partial":true}}
+nl180	verdict	"v": min(*(nil) | (1))	{"v": 1}	{"verdict":"valid"}
+nl181	verdict	"v": min(*(nil) | (1))	{"v": 1}	{"verdict":"valid","opts":{"noFill":true}}
+nl182	verdict	"v": min(*(nil) | (1))	{"v": 1}	{"verdict":"valid","opts":{"partial":true}}
+nl183	verdict	"v": min((nil) | (nil))	{"v": 1}	{"verdict":"error"}
+nl184	verdict	"v": min((nil) | (nil))	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+nl185	verdict	"v": min((nil) | (nil))	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
 ib0	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid"}
 ib1	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"noFill":true}}
 ib2	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"partial":true}}
@@ -3806,6 +3833,18 @@ bd170	verdict	"t": len(meta(1, {}))	{"t": [1]}	{"verdict":"valid","opts":{"parti
 bd171	verdict	"t": len((any) & (1))	{"t": [1]}	{"verdict":"valid"}
 bd172	verdict	"t": len((any) & (1))	{"t": [1]}	{"verdict":"valid","opts":{"noFill":true}}
 bd173	verdict	"t": len((any) & (1))	{"t": [1]}	{"verdict":"valid","opts":{"partial":true}}
+bd174	verdict	"t": min(((1) & (2)) | (1))	{"t": 1}	{"verdict":"valid"}
+bd175	verdict	"t": min(((1) & (2)) | (1))	{"t": 1}	{"verdict":"valid","opts":{"noFill":true}}
+bd176	verdict	"t": min(((1) & (2)) | (1))	{"t": 1}	{"verdict":"valid","opts":{"partial":true}}
+bd177	verdict	"t": min((2) | ((1) & (2)))	{"t": 1}	{"verdict":"invalid"}
+bd178	verdict	"t": min((2) | ((1) & (2)))	{"t": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+bd179	verdict	"t": min((2) | ((1) & (2)))	{"t": 1}	{"verdict":"invalid","opts":{"partial":true}}
+bd180	verdict	"lo": ((1) & (2)) | (2), "t": min($.lo)	{"lo": 2, "t": 3}	{"verdict":"valid"}
+bd181	verdict	"lo": ((1) & (2)) | (2), "t": min($.lo)	{"lo": 2, "t": 3}	{"verdict":"valid","opts":{"noFill":true}}
+bd182	verdict	"lo": ((1) & (2)) | (2), "t": min($.lo)	{"lo": 2, "t": 3}	{"verdict":"valid","opts":{"partial":true}}
+bd183	verdict	"t": neq([(1) | ((1) & (2))])	{"t": 1}	{"verdict":"invalid"}
+bd184	verdict	"t": neq([(1) | ((1) & (2))])	{"t": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+bd185	verdict	"t": neq([(1) | ((1) & (2))])	{"t": 1}	{"verdict":"invalid","opts":{"partial":true}}
 bg0	verdict	"a": {"lim": 2, "l": [1, 2, 3], "f": filter(.l, min(..lim))}	{"a": {"f": [2, 3]}}	{"verdict":"valid"}
 bg1	verdict	"a": {"lim": 2, "l": [1, 2, 3], "f": filter(.l, min(..lim))}	{"a": {"f": [2, 3]}}	{"verdict":"incomplete","opts":{"noFill":true}}
 bg2	verdict	"a": {"lim": 2, "l": [1, 2, 3], "f": filter(.l, min(..lim))}	{"a": {"f": [2, 3]}}	{"verdict":"valid","opts":{"partial":true}}

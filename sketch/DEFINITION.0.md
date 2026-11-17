@@ -2528,16 +2528,22 @@ until the phase that encodes it lands.
    argument outside its domain does (decision 28): `bndOf` read it as
    the conflict its rider wraps, and waited, where both ports answer
    `invalid` (#807); rows nl132 on.
-55. **A written `nil` arm in a bound's argument.** Raised 2026-11-16
-   with #807: in `min(nil | 1)` the definition keeps `nil | 1` as a
-   disjunction, a choice, and a choice is no bound's argument, so the
-   bound is refused and the document is an error; both ports drop the
-   arm that holds no value and read `min(1)`, so `{"v": 1}` is `valid`.
-   **Ruled 2026-11-17 (the project's owner): it stays a choice.** A
-   disjunction with a written `nil` among its arms is a choice wherever
-   it stands, as at a key it's absence or a value, so a bound over one
-   is an error whatever it meets, as the definition reads it; both
-   ports move.
+55. **A choice a bound's argument settles to one arm.** Raised
+   2026-11-16 with #807: `min(nil | 1)`. The definition's normal form
+   drops a written-`nil` arm as it drops a dead arm, leaving a
+   disjunction of one arm, and `bndOf` refused every disjunction, that
+   leftover too (`Val.isChoice`), so `min(nil | 1)` and
+   `min(1 | (1 & 2))` read as errors, where a size reads the leftover
+   as its arm (decision 16) and both ports read `min(1)`. The question
+   first put described the definition as keeping `nil | 1` as a choice,
+   and its answer, "it stays a choice", rested on that; put again with
+   the reading as it is, **ruled 2026-11-17 (the project's owner): the
+   leftover arm is the argument.** A bound reads a choice the meet or a
+   dead arm settles to one arm as that arm, as a size does:
+   `min(nil | 1)` and `min(1 | (1 & 2))` are `min(1)`, and `min(1 | 2)`
+   is still an error. `bndOf` asks `Val.choiceLeft`, as `Val.sizeIll`
+   does, and reads the leftover through `Val.soleArm`; both ports read
+   so already. Rows nl159 to nl185 and bd174 to bd185.
 
 ## 8. Risks
 
