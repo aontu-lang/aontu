@@ -949,10 +949,11 @@ func (c *ConstraintVal) settle(peer Val, ctx *Ctx) Val {
 	if settled {
 		// A bound's residual stands against the top, but a choice in the
 		// arguments it reads is no argument; any other peer meets it. So
-		// does an atom whose arguments hold only written nils, which
+		// does another atom's whose arguments hold only written nils, which
 		// refuses what it meets as one written there does (ADR-046).
+		bound := boundAtom(c.pending.atom)
 		if (nil == peer || isTop(peer)) &&
-			((boundAtom(c.pending.atom) && !holdsChoice(atomArgs(c.pending.atom, args))) || writtenNilsOnly(args)) {
+			((bound && !holdsChoice(atomArgs(c.pending.atom, args))) || (!bound && writtenNilsOnly(args))) {
 			return built
 		}
 		return built.Unify(peer, ctx)
@@ -2092,6 +2093,12 @@ func holdsNil(v Val, only func(Val) bool) bool {
 		}
 	case *DisjunctVal:
 		for _, child := range t.peg {
+			if holdsNil(child, only) {
+				return true
+			}
+		}
+	case *ConstraintVal:
+		for _, child := range t.asWritten {
 			if holdsNil(child, only) {
 				return true
 			}

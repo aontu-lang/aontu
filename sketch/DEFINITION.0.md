@@ -2520,7 +2520,10 @@ until the phase that encodes it lands.
    (#796): the map meet keeps a written `nil` against a value, and a
    trial's argument that settles to one waits for the data as one
    written there does; the twelve rows left the ledger, its bound back
-   at 399.
+   at 399. Two late findings on that change followed: a bound over a
+   written `nil` and a choice is still an error, and both ports look
+   for a written `nil` in a constraint among an atom's arguments. Rows
+   nl111 to nl131 hold both, beside `*nil`'s nl90 to nl110 (#799).
 
 55. **A link with a relative address that a path reference copies.**
    Raised 2026-11-16 by review of #791: both ports kept a copied link's

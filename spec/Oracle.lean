@@ -4079,7 +4079,10 @@ domain it takes in, and the same under `type()`; a conflict alone,
 still an error; and a preference over it, `*nil`, which reads as
 `nil | super(nil)` and holds no value, as `nil | nil` holds none, both
 required and optional, met with a value, and the preferred arm of a
-disjunction, which drops. -/
+disjunction, which drops. A bound over it beside a choice is still an
+error, as a choice is no bound's argument, written alone or in a list;
+a trial over it refuses what it meets, beside a choice, and under a
+bound or a size in its argument. -/
 def writtenNilCases : List (Decls × Val × Data) :=
   let int (n : ℤ) (h : IntegerLeaf n := by decide) : Val := .lit (.num (.integer ⟨n, h⟩))
   let mo (fs : List (String × Bool × Val)) : Val := .map fs none false
@@ -4087,6 +4090,8 @@ def writtenNilCases : List (Decls × Val × Data) :=
   let j (n : ℤ) (h : IntegerLeaf n := by decide) : Data := .integer n h
   let dm (fs : List (String × Data)) : Data := .map fs
   let nl := Val.void
+  let bnd (b : Bnd) (args : List Val) : Val := .call (.bnd b) args
+  let ch := Val.or [(0, int 1), (0, int 2)]
   [([], mo [("x", true, nl)], dm []),
     ([], mo [("x", true, nl)], dm [("x", j 1)]),
     ([], mo [("x", true, nl)], dm [("x", .null)]),
@@ -4123,7 +4128,14 @@ def writtenNilCases : List (Decls × Val × Data) :=
     ([], mo [("x", true, .or [(0, nl), (0, nl)])], dm []),
     ([], m [("x", .meet (.pref 1 nl) (int 1))], dm [("x", j 1)]),
     ([], m [("x", .or [(1, nl), (0, int 1)])], dm [("x", j 1)]),
-    ([], m [("x", .or [(1, nl), (0, int 1)])], dm [])]
+    ([], m [("x", .or [(1, nl), (0, int 1)])], dm []),
+    ([], m [("v", bnd .neq [nl, ch])], dm [("v", j 1)]),
+    ([], m [("v", bnd .neq [.list [.meet nl (int 1), ch] none false])], dm [("v", j 1)]),
+    ([], m [("v", .contains ch (.meet nl (int 1)))], dm [("v", .list [j 1])]),
+    ([], m [("v", .contains .any (bnd .min [.meet nl (int 1)]))], dm [("v", .list [j 1])]),
+    ([], m [("v", .contains .any (.len (.meet nl (int 1))))], dm [("v", .list [j 1])]),
+    ([], m [("v", .must (bnd .min [.meet nl (int 1)]) "m")], dm [("v", j 1)]),
+    ([], m [("v", .must (.len (.meet nl (int 1))) "m")], dm [("v", j 1)])]
 
 theorem writtenNilCases_checkable : ∀ c ∈ writtenNilCases,
     (∀ d, d ∈ c.1 → d.2.CheckableA) ∧ c.2.1.CheckableA := by decide

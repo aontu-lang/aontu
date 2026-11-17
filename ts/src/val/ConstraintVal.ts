@@ -882,8 +882,8 @@ class ConstraintVal extends FeatureVal {
 
     if (settled) {
       // The residual the atom always meant, at this atom's site: a bound's
-      // stands against the top, unless an argument it reads is a choice, as
-      // does one over written nils alone, refusing as one written does (ADR-046).
+      // stands against the top unless it reads a choice, and another atom's
+      // over written nils alone, refusing as one written does (ADR-046).
       const built = new ConstraintVal({ peg: args, atom: pend.atom }, ctx)
       built.path = this.path
       built.site.row = this.site.row
@@ -893,7 +893,7 @@ class ConstraintVal extends FeatureVal {
       const choice = atomArgs(pend.atom, args)
         .some((a: any) => true === a?.isDisjunct || true === a?.isPref)
       if ((null == peer || (peer as any).isTop) &&
-        ((BOUND_ATOMS.includes(pend.atom) && !choice) || writtenNilsOnly(args))) {
+        (BOUND_ATOMS.includes(pend.atom) ? !choice : writtenNilsOnly(args))) {
         return built
       }
       return built.unify(peer, ctx)
@@ -1726,7 +1726,8 @@ function heldVals(v: any): any[] {
 
 function holdsNil(v: any, only?: (n: any) => boolean): boolean {
   return (true === v.isNil && (undefined === only || only(v))) ||
-    heldVals(v).some((c: any) => holdsNil(c, only))
+    ((true === v.isMap || true === v.isList || true === v.isDisjunct ||
+      true === v.isConstraint) && heldVals(v).some((c: any) => holdsNil(c, only)))
 }
 
 

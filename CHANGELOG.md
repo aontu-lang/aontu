@@ -222,6 +222,24 @@ language.
   Go twin, hold every call the shared rows' canon writes to
   `test/spec/signature.tsv`.
 
+### A bound over a choice stays an error beside a written `nil` (#798)
+
+Both engines and shared rows.
+
+- A bound whose arguments hold a choice beside a written `nil`, as
+  `neq(nil, 1 | 2)` does, is an error, as any bound over a choice is.
+  Both engines had read it as `invalid` since a trial over a written
+  `nil` began to refuse what it meets, as the change let bounds through
+  too.
+- Both engines look for a written `nil` in the same places among an
+  atom's arguments: in maps, lists and disjunctions, and in the
+  arguments of a constraint among them. `contains(any, min(nil & 1))`
+  and `unique(len(nil & 1))` refuse what they meet in both, where Go
+  read them as an error.
+- Twenty-one rows join the written-nil cases in
+  `test/spec/def-path.tsv`, from `nl111` on, and one joins
+  `test/spec/vet.tsv`.
+
 ### `*nil` is an error in both engines (#799)
 
 Both engines and shared rows.
