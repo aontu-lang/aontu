@@ -8,6 +8,24 @@ each change affects.
 
 ## Unreleased
 
+### `subsume` reads an open map's missing key against an optional key (#377)
+
+Both engines and shared rows.
+
+- Where the general side declares an optional key and the specific
+  side doesn't, an open specific side admits a value there, its spread
+  template's or any value, and the general key must admit it.
+  `a: {x?: integer}` no longer subsumes `a: {}` or `a: {y: 1}`, which
+  admit `{"x": "a"}`, so `breaking` reports an optional key added to
+  an open map as breaking. A closed specific side, and a spread the
+  key admits, as in `a: {&: integer}`, still subsume.
+- The `gen` profile's message for marks that differ reads
+  `{"type":false,"hide":false}` for a side with no marks in
+  TypeScript, as in Go, where it read `undefined`.
+- Four shared rows move to `does_not_subsume`: `optional-added` in
+  `test/spec/subsume.tsv` and three in `test/spec/recursion.tsv`.
+  Fourteen rows leave the definition's ledger, and its bound is 385.
+
 ### A written `nil` among a constraint's arguments is no finding (#809)
 
 TypeScript only, and shared rows.
