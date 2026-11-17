@@ -9,7 +9,8 @@ is no part of the definition, which says nothing about text: that an
 engine reads this text as this value is a claim about its reader, which
 the rows test and no theorem makes. It prints the forms the oracle
 writes, data as well as terms in aontu's own syntax, and answers `none`
-for a sealed map and a path.
+for a term the spelling cannot carry, such as absence or a sealed
+container with an open one beneath it.
 -/
 
 namespace Aontu

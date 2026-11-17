@@ -771,79 +771,6 @@ def allDead : List (ℕ × Val) → Bool
 end
 
 mutual
-theorem dead_sound : ∀ v : Val, v.dead = true → ∀ j, ¬ Admits env root v j
-  | .nil, _, _, h => nomatch h
-  | .map fs _ _, hd, _, h => by
-    cases h with
-    | map hp ha _ _ => exact deadField_sound fs hd _ hp ha
-  | .list items _ _, hd, _, h => by
-    cases h with
-    | list hlen _ hpos _ => exact deadItem_sound items hd _ hlen hpos
-  | .or arms, hd, j, h => by
-    cases h with
-    | or hm ha => exact allDead_sound arms hd _ _ hm j ha
-  | .meet a b, hd, j, h => by
-    cases h with
-    | meet ha hb =>
-      rcases Bool.or_eq_true_iff.mp hd with hda | hdb
-      · exact dead_sound a hda j ha
-      · exact dead_sound b hdb j hb
-  | .ride _ v _, hd, j, h => by
-    cases h with
-    | ride h => exact dead_sound v hd j h
-  | .link v _, hd, j, h => by
-    cases h with
-    | link h => exact dead_sound v hd j h
-  | .integer, hd, _, _ | .float, hd, _, _ | .biginteger, hd, _, _ | .bigdecimal, hd, _, _
-  | .number, hd, _, _ | .string, hd, _, _ | .anyString, hd, _, _ | .boolean, hd, _, _
-  | .lit _, hd, _, _ | .min _, hd, _, _ | .max _, hd, _, _ | .above _, hd, _, _
-  | .beneath _, hd, _, _ | .neq _, hd, _, _ | .mulof _, hd, _, _ | .len _, hd, _, _
-  | .unique _, hd, _, _ | .re _, hd, _, _ | .format _, hd, _, _ | .any, hd, _, _
-  | .pref _ _, hd, _, _ | .alias _, hd, _, _ | .path _, hd, _, _ => nomatch hd
-
-theorem deadField_sound : ∀ fs : List (String × Bool × Val), deadField fs = true →
-    ∀ jfs : List (String × Data),
-      (∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x → Admits env root v x) →
-      (∀ k o v, (k, o, v) ∈ fs → lookup k jfs = none → o = true) → False
-  | [], h, _, _, _ => nomatch h
-  | (k, o, v) :: fs, h, jfs, hp, ha => by
-    rcases Bool.or_eq_true_iff.mp h with h₁ | h₂
-    · obtain ⟨ho, hv⟩ := Bool.and_eq_true_iff.mp h₁
-      cases o with
-      | true => exact nomatch ho
-      | false =>
-        cases hl : lookup k jfs with
-        | none => exact Bool.false_ne_true (ha k false v (List.mem_cons_self) hl)
-        | some x => exact dead_sound v hv x (hp k false v x (List.mem_cons_self) hl)
-    · exact deadField_sound fs h₂ jfs (fun k o v x hm => hp k o v x (List.mem_cons_of_mem _ hm))
-        (fun k o v hm => ha k o v (List.mem_cons_of_mem _ hm))
-
-theorem deadItem_sound : ∀ items : List Val, deadItem items = true →
-    ∀ xs : List Data, items.length ≤ xs.length →
-      (∀ (i : ℕ) (v : Val) (x : Data), items[i]? = some v → xs[i]? = some x →
-        Admits env root v x) →
-      False
-  | [], h, _, _, _ => nomatch h
-  | v :: vs, h, xs, hlen, hpos => by
-    cases xs with
-    | nil => exact absurd hlen (Nat.not_succ_le_zero _)
-    | cons x xs =>
-      rcases Bool.or_eq_true_iff.mp h with h₁ | h₂
-      · exact dead_sound v h₁ x (hpos 0 v x (by simp) (by simp))
-      · exact deadItem_sound vs h₂ xs (Nat.le_of_succ_le_succ hlen)
-          (fun i v' x' hi hx => hpos (i + 1) v' x' (by simpa using hi) (by simpa using hx))
-
-theorem allDead_sound : ∀ arms : List (ℕ × Val), allDead arms = true →
-    ∀ r a, (r, a) ∈ arms → ∀ j, ¬ Admits env root a j
-  | [], _, _, _, h => nomatch h
-  | (_, a') :: arms, h, r, a, hm => by
-    obtain ⟨h₁, h₂⟩ := Bool.and_eq_true_iff.mp h
-    rcases List.mem_cons.mp hm with he | hm'
-    · cases he; exact dead_sound _ h₁
-    · exact allDead_sound arms h₂ r a hm'
-end
-
-mutual
 /-- A dead term refuses every value. -/
 theorem dead_refuses : ∀ v : Val, v.dead = true → ∀ j, Refuses env root v j
   | .nil, _, _ => .nil
@@ -927,6 +854,11 @@ theorem allDead_refuses : ∀ arms : List (ℕ × Val), allDead arms = true →
       exact dead_refuses _ h₁ j
     · exact allDead_refuses arms h₂ r a hm' j
 end
+
+/-- A dead term admits no value: it refuses every one, and no value is
+both admitted and refused. -/
+theorem dead_sound (v : Val) (hd : v.dead = true) (j : Data) : ¬ Admits env root v j :=
+  fun h => nomatch judge_unique h (dead_refuses v hd j)
 
 /-- An arm, as the arms it stands for: an arm of rank `0` that is itself
 a disjunction brings its own arms, so `(*1 | 2) | 3` has the arms of
@@ -1331,18 +1263,6 @@ theorem admits_map_iff {fs : List (String × Bool × Val)} {spread : Option Val}
       (closed = true → ∀ k x, (k, x) ∈ jfs → ∃ o v, (k, o, v) ∈ fs) :=
   ⟨fun h => by cases h with | map hp ha hs hc => exact ⟨hp, ha, hs, hc⟩,
    fun ⟨hp, ha, hs, hc⟩ => .map hp ha hs hc⟩
-
-theorem lookup_mem {k : String} {x : Data} : ∀ {jfs : List (String × Data)},
-    lookup k jfs = some x → (k, x) ∈ jfs
-  | [], h => nomatch h
-  | (k', y) :: jfs, h => by
-    by_cases hk : k = k'
-    · subst hk
-      simp [lookup] at h
-      subst h
-      exact List.mem_cons_self
-    · simp [lookup, hk] at h
-      exact List.mem_cons_of_mem _ (lookup_mem h)
 
 theorem mem_lookup {k : String} {x : Data} : ∀ {jfs : List (String × Data)},
     (k, x) ∈ jfs → ∃ y, lookup k jfs = some y

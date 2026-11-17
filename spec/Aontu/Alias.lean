@@ -94,17 +94,12 @@ def isSelect : Val → Bool
   | .select _ _ _ => true
   | _ => false
 
-/-- Whether a term is a choice, a disjunction or a lone preference: the
-seal stops at one, and a directive beside one reaches each of its arms
-(`Val.folds`). -/
-def Val.choosesArm : Val → Bool
-  | .or _ | .pref _ _ => true
-  | _ => false
-
 /-- What the seal adds to some conjuncts, within `f` levels: for a
 selection among them, the selection of the restrictions of its results,
 each met with the other conjuncts; and nothing at a level where a
-conjunct is held open or is a choice. -/
+conjunct is held open or is a choice, a disjunction or a lone preference
+(`Val.isNode`): the seal stops at one, and a directive beside one reaches
+each of its arms (`Val.folds`). -/
 def restrictF : ℕ → List Val → Val
   | 0, _ => .any
   | f + 1, vs =>
@@ -115,7 +110,7 @@ def restrictF : ℕ → List Val → Val
       .select s (arms.map fun a => (a.1, restrictF f (a.2 :: others)))
         (d.map fun x => restrictF f (x :: others))
     | _ =>
-      if cs.any Val.heldOpen || cs.any Val.choosesArm then .any
+      if cs.any Val.heldOpen || cs.any Val.isNode then .any
       else if cs.any isMapLit then
         .map ((declaredKeys cs).map fun k => (k, true, restrictF f (valuesAt k cs))) none true
       else if cs.any isListLit then
@@ -1952,17 +1947,6 @@ theorem Val.unchosen_unguardedRefs : ∀ {v : Val} {n : String}, n ∈ v.unchose
   | .format _, _, h | .filter _ _, _, h | .map _ _ _, _, h | .list _ _ _, _, h => by
     simpa only [Val.unchosen] using h
 
-theorem foldl_meet_unguardedRefs : ∀ (vs : List Val) (acc : Val) {n : String},
-    n ∈ (vs.foldl Val.meet acc).unguardedRefs → n ∈ acc.unguardedRefs ∨ ∃ v ∈ vs, n ∈ v.unguardedRefs
-  | [], acc, n, h => .inl h
-  | v :: vs, acc, n, h => by
-    rcases foldl_meet_unguardedRefs vs (.meet acc v) h with h | ⟨w, hw, h⟩
-    · simp only [Val.unguardedRefs, List.mem_append] at h
-      rcases h with h | h
-      · exact .inl h
-      · exact .inr ⟨v, List.mem_cons_self, h⟩
-    · exact .inr ⟨w, List.mem_cons_of_mem _ hw, h⟩
-
 theorem foldPlace_unguardedRefs {rd : Val → Val}
     (hrd : ∀ x {n : String}, n ∈ (rd x).unguardedRefs → n ∈ x.unguardedRefs) {all : List Val}
     {n : String} (h : n ∈ (foldPlace rd all).unguardedRefs) : ∃ u ∈ all, n ∈ u.unguardedRefs := by
@@ -1977,7 +1961,7 @@ theorem foldPlace_unguardedRefs {rd : Val → Val}
   · obtain ⟨c, hc, hr⟩ := choicesMet_reach hp hn
     obtain ⟨u, hu, hc⟩ := List.mem_flatMap.mp hc
     exact ⟨u, hu, Val.placeChoices_reach hc hr⟩
-  · rcases foldl_meet_unguardedRefs _ _ hn with hn | ⟨w, hw, hn⟩
+  · rcases Decls.unguardedRefs_foldl_meet _ _ hn with hn | ⟨w, hw, hn⟩
     · simp [Val.unguardedRefs] at hn
     · obtain ⟨u, hu, rfl⟩ := List.mem_map.mp hw
       exact ⟨u, hu, Val.unchosen_unguardedRefs hn⟩
@@ -3686,21 +3670,10 @@ The meet builds its answer from the pieces of its sides and the bodies
 it unfolds, so the normal form of a term the checker can read is one it
 can read: what `vet` has to decide can be decided. -/
 
-theorem Kind.val_checkableA (k : Kind) : k.val.CheckableA := by
-  cases k <;> constructor
-
 theorem Kind.meet_checkableA (ka kb : Kind) : (ka.meet kb).CheckableA := by
   cases ka <;> cases kb <;> first
     | exact .nil | exact .integer | exact .float | exact .biginteger | exact .bigdecimal
     | exact .number | exact .string | exact .anyString | exact .boolean | exact .pathKind
-
-theorem litMeet_checkableA (s : Scalar) {b : Val} (hb : b.CheckableA) : (litMeet s b).CheckableA := by
-  unfold litMeet
-  split
-  · split
-    · exact .lit
-    · exact .nil
-  · exact .meet .lit hb
 
 theorem aliasMeet_checkableA {a b : Val} (ha : a.CheckableA) (hb : b.CheckableA) :
     (aliasMeet a b).CheckableA := by

@@ -1600,14 +1600,6 @@ def landStep (S : Val) (i : Val × List Seg) : List Val × List (Val × List Seg
   | .path q => ([], [(S, q ++ i.2)])
   | _ => landLeaf i.1 i.2
 
-/-- What the schema `S` writes at a path, read from the items within `n`
-steps (`landStep`), so that a cycle of references reads to the end of
-the budget and no further. -/
-def landing (S : Val) : ℕ → List (Val × List Seg) → List Val
-  | 0, _ => []
-  | _, [] => []
-  | n + 1, i :: rest => (landStep S i).1 ++ landing S n ((landStep S i).2 ++ rest)
-
 /-- One step of `landStep`, a name stepped into through each of its
 bodies too, as a copy stands where its use does. -/
 def Decls.landStepD (ds : Decls) (S : Val) (i : Val × List Seg) : List Val × List (Val × List Seg) :=
@@ -1616,7 +1608,8 @@ def Decls.landStepD (ds : Decls) (S : Val) (i : Val × List Seg) : List Val × L
   | _ => landStep S i
 
 /-- What the schema `S` writes at a path, a name's bodies read where the
-name stands (`Decls.landStepD`), within `n` steps. -/
+name stands (`Decls.landStepD`), within `n` steps, so that a cycle of
+references reads to the end of the budget and no further. -/
 def Decls.landingD (ds : Decls) (S : Val) : ℕ → List (Val × List Seg) → List Val
   | 0, _ => []
   | _, [] => []
@@ -1878,7 +1871,7 @@ mutual
 /-- The term with each spread whose template reads its member's place
 left to admit any value (`ntSpread`), through maps by key, lists by
 index, meets, riders and a generator's template, whose relative paths
-it reads as `any` (`Val.relBlank`), where `landing` reads one: the
+it reads as `any` (`Val.relBlank`), where `Decls.landingD` reads one: the
 schema each member's instance is met into. -/
 def Val.neutral : Val → Val
   | .map fs spread closed => .map (ntFields fs) (ntSpread spread) closed
@@ -3049,24 +3042,6 @@ theorem landStep_checkableA {S : Val} (hS : S.CheckableA) {i : Val × List Seg}
     simp only [List.mem_singleton] at hj
     rw [hj]; exact hS
   next => exact landLeaf_checkableA hi i.2
-
-/-- What the schema writes at a path, where the schema is a term the
-checker can read, is too. -/
-theorem landing_checkableA {S : Val} (hS : S.CheckableA) :
-    ∀ (n : ℕ) (items : List (Val × List Seg)), (∀ i, i ∈ items → i.1.CheckableA) →
-      ∀ u, u ∈ landing S n items → u.CheckableA
-  | 0, _, _, _, h => by simp [landing] at h
-  | _ + 1, [], _, _, h => by simp [landing] at h
-  | n + 1, i :: rest, hi, u, h => by
-    have hs := landStep_checkableA hS (hi i List.mem_cons_self)
-    simp only [landing, List.mem_append] at h
-    rcases h with h | h
-    · exact hs.1 u h
-    · refine landing_checkableA hS n _ (fun j hj => ?_) u h
-      rw [List.mem_append] at hj
-      rcases hj with hj | hj
-      · exact hs.2 j hj
-      · exact hi j (List.mem_cons_of_mem _ hj)
 
 /-- One step of reading what the document writes at a place leaves
 terms the checker can read, where the schema and the bodies are such

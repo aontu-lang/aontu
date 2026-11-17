@@ -1030,11 +1030,10 @@ theorem judge_unique {env : Env} {root : Data} {b : Bool} {v : Val} {j : Data}
   | selectKey => intro b' h'; cases h' with
     | selectKey => rfl
 
-/-- No rule reads `root`: a judgement under one root is a judgement under
-any, so `root` rides the relation and decides nothing. -/
-theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
-    (h : Judge env r b v j) : Judge env r' b v j := by
-  induction h <;> first
+/-- One step of rebuilding a judgement from its premises: the first rule
+of `Judge` whose premises the context holds, for an induction over
+`Judge` that changes what no rule reads. -/
+macro "judge_rebuild" : tactic => `(tactic| first
     | (apply Judge.integer <;> assumption)
     | (apply Judge.integerNot <;> assumption)
     | (apply Judge.float <;> assumption)
@@ -1148,7 +1147,13 @@ theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
     | (apply Judge.key <;> assumption)
     | (apply Judge.keyUp <;> assumption)
     | (apply Judge.selectKey <;> assumption)
-    | exact Judge.call
+    | exact Judge.call)
+
+/-- No rule reads `root`: a judgement under one root is a judgement under
+any, so `root` rides the relation and decides nothing. -/
+theorem judge_root {env : Env} {r r' : Data} {b : Bool} {v : Val} {j : Data}
+    (h : Judge env r b v j) : Judge env r' b v j := by
+  induction h <;> judge_rebuild
 
 /-- The judgement a term's trial comes out: the computed answer `c` is the
 judgement `b` exactly when the two agree. -/

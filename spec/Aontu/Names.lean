@@ -442,18 +442,6 @@ theorem length_addNew_gt {seen xs : List String} {x : String} (hx : x ∈ xs) (h
       simp only [List.length_cons] at h
       exact h
 
-theorem addNew_eq_of_sub : ∀ {seen xs : List String}, (∀ y, y ∈ xs → y ∈ seen) →
-    addNew seen xs = seen := by
-  intro seen xs h
-  induction xs generalizing seen with
-  | nil => rfl
-  | cons y ys ih =>
-    simp only [addNew]
-    have hy : seen.contains y = true := List.contains_iff_mem.mpr (h y (List.mem_cons_self))
-    rw [hy]
-    simp only [↓reduceIte]
-    exact ih fun z hz => h z (List.mem_cons_of_mem y hz)
-
 /-- A round that changes the list adds a name it lacked. -/
 theorem exists_new_of_ne : ∀ {seen xs : List String}, addNew seen xs ≠ seen →
     ∃ y, y ∈ xs ∧ y ∉ seen := by
@@ -839,11 +827,8 @@ theorem guardedB_iff {ds : Decls} : ds.guardedB = true ↔ ds.Guarded := by
     | false => rfl
     | true => exact absurd (unguardedB_iff.mp hb) (h n)
 
-theorem isEmpty_false_iff {l : List Val} : l.isEmpty = false ↔ l ≠ [] := by
-  cases l <;> simp [List.isEmpty]
-
 theorem declaresB_iff {ds : Decls} {v : Val} : ds.declaresB v = true ↔ ds.Declares v := by
-  simp only [declaresB, Bool.and_eq_true, List.all_eq_true, Bool.not_eq_true', isEmpty_false_iff,
+  simp only [declaresB, Bool.and_eq_true, List.all_eq_true, Bool.not_eq_true', List.isEmpty_eq_false_iff,
     Declares]
 
 end Decls

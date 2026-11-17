@@ -6785,7 +6785,7 @@ theorem filterCases_readable : ∀ c ∈ filterCases, (Decls.readR [] (vetDoc c)
   obtain ⟨⟨j, t, d⟩, hm, rfl⟩ := List.mem_map.mp hc
   have hj := filterSources_generate _ hm
   have hw := Data.term_filled _ (filterSources_wf _ hm)
-  have hn := Val.unride_checkableA (normaliseD_checkableA (ds := []) (fun _ h => nomatch h)
+  have hn := Val.checkableA_unride (normaliseD_checkableA (ds := []) (fun _ h => nomatch h)
     (resolveD_checkableA (ds := []) (fun _ h => nomatch h) (Data.term_checkableA j) (b := none)
       (here := stepped (some []) (.seg (.key "v"))) (fun _ h => nomatch h)))
   refine readR_call_checkableA (.inr ⟨_, _, rfl⟩)
@@ -7292,7 +7292,6 @@ between the arms the disjunction is read with, as both ports answer. -/
 def illArmCases : List (Val × Data) :=
   let s (t : String) : Val := .lit (.str t)
   let n (k : ℤ) (h : IntegerLeaf k := by decide) : Val := .lit (.num (.integer ⟨k, h⟩))
-  let up (v : Val) : Val := .call .upper [v]
   let add1 (v : Val) : Val := .call .add [v, n 1]
   let lst (xs : List Val) : Val := .list xs none false
   let mp (fs : List (String × Val)) : Val := .map (fs.map fun (k, v) => (k, false, v)) none false

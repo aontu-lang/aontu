@@ -652,16 +652,6 @@ def Fn.takes : Fn → ℕ → Bool
   | .load, n | .bnd .neq, n => 1 ≤ n
   | .bnd _, n => n == 1
 
-/-- Whether a function computes its value from its arguments' values, so
-that a call over a hole the data fills is made once the data fills it:
-the arithmetic, the folds, the calls on bags and text but `join`, `path`,
-`abnf`, `parse` and the components, as both ports read them. -/
-def Fn.computes : Fn → Bool
-  | .add | .sub | .mul | .div | .mod | .rem | .neg | .sum | .least | .greatest
-  | .pick | .sort | .upper | .lower | .translate | .esc | .usc | .split | .rep | .nom
-  | .path | .abnf | .parse | .cmp _ => true
-  | _ => false
-
 /-- Whether a call's value holds its argument, so that the moves the
 argument holds ride the value already: `super`, `pref`, `move`, `copy`
 and `relate`. -/
@@ -1504,17 +1494,18 @@ map or list. -/
 def memberField (ds : Decls) (f : String × Bool × Val) : Bool :=
   !(f.2.2.marked || f.2.2.isAbsent || (f.2.1 && (genD ds f.2.2).all Data.emptyBag))
 
-/-- A term's conjuncts: a meet's sides, at any depth, and any other
-term itself. -/
-def Val.conj : Val → List Val
-  | .meet a b => a.conj ++ b.conj
+/-- The terms a meet is written of, in order and at any depth; any other
+term is its own. -/
+def Val.conjuncts : Val → List Val
+  | .meet a b => a.conjuncts ++ b.conjuncts
   | v => [v]
 
 /-- Whether two terms meet the same conjuncts, each conjunct of either
 written alike one of the other's (`Val.beq`), so that a meet that
 repeats a conjunct, `min(1) & min(1)`, is alike the conjunct. -/
 def conjAlike (a b : Val) : Bool :=
-  a.conj.all (fun x => b.conj.any x.beq) && b.conj.all (fun y => a.conj.any y.beq)
+  a.conjuncts.all (fun x => b.conjuncts.any x.beq) &&
+    b.conjuncts.all (fun y => a.conjuncts.any y.beq)
 
 mutual
 /-- Whether a node and its meet with a `match` are alike, as both ports
@@ -1712,15 +1703,10 @@ def emitPlan (ds : Decls) (m tW tB tM : Val) : Option (ℕ ⊕ List Val) :=
     | none => none
   | none => none
 
-/-- The members `keep` keeps, in order, each tried at the index it takes
-among those kept before it, as a list's `filter` places its trial. -/
-def keptAt (keep : ℕ → Data → Bool) : ℕ → List Data → List Data
-  | _, [] => []
-  | i, x :: xs => if keep i x then x :: keptAt keep (i + 1) xs else keptAt keep i xs
-
-/-- The elements of a list `keep` takes as the terms they are, in order,
-each tried at the index it takes among those kept before it. -/
-def keptTerms (keep : ℕ → Val → Bool) : ℕ → List Val → List Val
+/-- The elements `keep` keeps, data or terms, in order, each tried at the
+index it takes among those kept before it, as a list's `filter` places
+its trial. -/
+def keptTerms {α} (keep : ℕ → α → Bool) : ℕ → List α → List α
   | _, [] => []
   | i, v :: vs => if keep i v then v :: keptTerms keep (i + 1) vs else keptTerms keep i vs
 
@@ -1767,8 +1753,8 @@ def keptElems (nf : Val) (keep : ℕ → Data → Bool) (xs : List Data) : Val :
   match nf with
   | .list items _ _ =>
     if items.length = xs.length then .list (keptPairs keep 0 (items.zip xs)) none false
-    else (Data.list (keptAt keep 0 xs)).term
-  | _ => (Data.list (keptAt keep 0 xs)).term
+    else (Data.list (keptTerms keep 0 xs)).term
+  | _ => (Data.list (keptTerms keep 0 xs)).term
 
 /-- Whether an argument both ports read as they build a trial is a
 conflict: dead in normal form, though not a written `nil`, which both
@@ -4182,11 +4168,6 @@ def clash (arms : List (ℕ × Val)) : Bool :=
     | [] => false
     | x :: rest => rest.any fun y => decide (y ≠ x)
 
-/-- The terms a meet is written of, in order. -/
-def Val.conjuncts : Val → List Val
-  | .meet a b => a.conjuncts ++ b.conjuncts
-  | v => [v]
-
 /-- The members a container literal generates: each position of a list,
 each required key of a map, and each optional key whose value generates
 something but an empty map or list, as the reference's `len` counts what
@@ -5032,12 +5013,6 @@ theorem expandF_termElems {ds : Decls} (k : ℕ) : ∀ xs : List Data,
   | x :: xs => by
     simp only [termElems, List.map_cons, expandF_term k x, expandF_termElems k xs]
 end
-
-theorem Val.unride_checkableA {v : Val} (h : v.CheckableA) : v.unride.CheckableA := by
-  induction h with
-  | ride _ ih => exact ih
-  | link _ _ ih _ => exact ih
-  | _ => simp only [Val.unride]; constructor <;> assumption
 
 theorem keptPairs_mem : ∀ {keep : ℕ → Data → Bool} {i : ℕ} {ps : List (Val × Data)} {v : Val},
     v ∈ keptPairs keep i ps → ∃ x, (v, x) ∈ ps

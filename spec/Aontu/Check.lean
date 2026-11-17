@@ -640,7 +640,7 @@ theorem Data.weight_lt_of_mem_members {fs : List (String × Data)} {m : String �
     m.2.weight < (Data.map fs).weight :=
   Nat.lt_succ_of_le (weightMembers_ge h)
 
-theorem mem_of_lookup {k : String} {x : Data} : ∀ {fs : List (String × Data)},
+theorem lookup_mem {k : String} {x : Data} : ∀ {fs : List (String × Data)},
     lookup k fs = some x → (k, x) ∈ fs
   | [], h => nomatch h
   | (k', y) :: fs, h => by
@@ -649,11 +649,11 @@ theorem mem_of_lookup {k : String} {x : Data} : ∀ {fs : List (String × Data)}
     · rename_i hk
       cases h
       exact hk ▸ List.mem_cons_self
-    · exact List.mem_cons_of_mem _ (mem_of_lookup h)
+    · exact List.mem_cons_of_mem _ (lookup_mem h)
 
 theorem Data.weight_lt_of_lookup {fs : List (String × Data)} {k : String} {x : Data}
     (h : lookup k fs = some x) : x.weight < (Data.map fs).weight :=
-  Data.weight_lt_of_mem_members (m := (k, x)) (mem_of_lookup h)
+  Data.weight_lt_of_mem_members (m := (k, x)) (lookup_mem h)
 
 theorem Data.weight_lt_of_mem_elems {xs : List Data} {x : Data} (h : x ∈ xs) :
     x.weight < (Data.list xs).weight :=
@@ -1332,16 +1332,6 @@ theorem Val.CheckableA.atKey {v : Val} (h : v.CheckableA) (k : String) : (v.atKe
   | selectLit hp hr hd => exact .selectLit hp hr hd
   | _ => rw [Val.atKey_of_keyed k rfl]; first | (constructor <;> assumption) | constructor
 
-theorem Val.Checkable.atKey {v : Val} (h : v.Checkable) (k : String) : (v.atKey k).Checkable := by
-  induction h with
-  | key => exact .lit
-  | meet _ _ iha ihb => exact .meet iha ihb
-  | ride _ ih => exact .ride ih
-  | link _ ht ih _ => exact .link ih ht
-  | selectKey hp hr hd => exact .selectLit hp hr hd
-  | selectLit hp hr hd => exact .selectLit hp hr hd
-  | _ => rw [Val.atKey_of_keyed k rfl]; first | (constructor <;> assumption) | constructor
-
 /-- A spread reads the names it reads under any key. -/
 theorem Val.refs_atKey (k : String) (v : Val) : (v.atKey k).refs = v.refs := by
   induction v using Val.atKey.induct with
@@ -1843,13 +1833,6 @@ end
 section
 variable {u : String → Data → Bool} {env : Env} {root : Data}
 
-theorem checkSpreadWith_iff {spread : Option Val} {x : Data}
-    (ih : ∀ s, spread = some s → (checkWith u none s x = true ↔ Admits env root s x)) :
-    checkSpreadWith u spread x = true ↔ ∀ s, spread = some s → Admits env root s x := by
-  cases spread with
-  | none => simp [checkSpreadWith]
-  | some s => simp [checkSpreadWith, ih s rfl]
-
 theorem checkFieldsWith_iff {fs : List (String × Bool × Val)} {jfs : List (String × Data)}
     (ih : ∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x →
       (checkWith u none v x = true ↔ Admits env root v x)) :
@@ -1952,20 +1935,6 @@ theorem checkArmsWith_iff {arms : List (ℕ × Val)} {j : Data}
 
 /-! ## The parent type, computed -/
 
-theorem checkDomain_iff (b : Bound) (j : Data) :
-    checkDomain b j = true ↔ Admits env root b.domain j := by
-  cases b with
-  | num n =>
-    cases j with
-    | num x => exact ⟨fun _ => .number, fun _ => rfl⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-  | str b =>
-    cases j with
-    | str t =>
-      simp only [checkDomain, Bound.domain, decide_eq_true_eq]
-      exact ⟨fun h => .string h, fun h => by cases h; assumption⟩
-    | _ => exact ⟨(fun h => nomatch h), (fun h => nomatch h)⟩
-
 /-- The kind of a number's leaf admits the number. -/
 theorem admits_leaf_kind (y : Number) : Admits env root y.leaf.kind (.num y) := by
   cases y with
@@ -1973,15 +1942,6 @@ theorem admits_leaf_kind (y : Number) : Admits env root y.leaf.kind (.num y) := 
   | float _ => exact .float
   | biginteger _ => exact .biginteger
   | bigdecimal _ => exact .bigdecimal
-
-/-- A leaf's kind admits a number of that leaf alone. -/
-theorem leaf_kind_eq (l : Leaf) (y : Number) (h : Admits env root l.kind (.num y)) :
-    l = y.leaf := by
-  cases l <;> cases y <;> simp only [Leaf.kind] at h <;> first | rfl | nomatch h
-
-/-- A leaf's kind admits numbers alone. -/
-theorem leaf_kind_num (l : Leaf) (j : Data) (h : Admits env root l.kind j) : ∃ y, j = .num y := by
-  cases l <;> simp only [Leaf.kind] at h <;> cases h <;> exact ⟨_, rfl⟩
 
 theorem mem_superFields {fs : List (String × Bool × Val)} {k : String} {o : Bool} {w : Val} :
     (k, o, w) ∈ superFields fs ↔ ∃ v, (k, o, v) ∈ fs ∧ w = v.super := by
@@ -2033,13 +1993,6 @@ theorem superSpread_none {spread : Option Val} : superSpread spread = none ↔ s
 theorem superSpread_eq {spread : Option Val} {t : Val} :
     superSpread spread = some t ↔ ∃ s, spread = some s ∧ t = s.super := by
   cases spread <;> simp [superSpread, eq_comm]
-
-theorem checkSuperSpreadWith_iff {spread : Option Val} {x : Data}
-    (ih : ∀ s, spread = some s → (checkSuperWith u s x = true ↔ Admits env root s.super x)) :
-    checkSuperSpreadWith u spread x = true ↔ ∀ s, spread = some s → Admits env root s.super x := by
-  cases spread with
-  | none => simp [checkSuperSpreadWith]
-  | some s => simp [checkSuperSpreadWith, ih s rfl]
 
 theorem checkSuperFieldsWith_iff {fs : List (String × Bool × Val)} {jfs : List (String × Data)}
     (ih : ∀ k o v x, (k, o, v) ∈ fs → lookup k jfs = some x →
@@ -2145,13 +2098,6 @@ theorem all_false_mem {α : Type} {p : α → Bool} : ∀ {l : List α}, l.all p
     · exact ⟨x, List.mem_cons_self, h⟩
     · obtain ⟨y, hy, hp⟩ := all_false_mem h
       exact ⟨y, List.mem_cons_of_mem _ hy, hp⟩
-
-theorem checkSpreadWith_false {spread : Option Val} {x : Data}
-    (ih : ∀ s, spread = some s → Judge env root (checkWith u none s x) s x) :
-    checkSpreadWith u spread x = false → ∃ s, spread = some s ∧ Judge env root false s x := by
-  cases spread with
-  | none => intro h; exact nomatch h
-  | some s => intro h; exact ⟨s, rfl, (ih s rfl).of_eq h⟩
 
 theorem checkKeySpreadWith_false {spread : Option Val} {k : String} {x : Data}
     (ih : ∀ s, spread = some s → Judge env root (checkWith u (some k) s x) (s.atKey k) x) :
@@ -2760,12 +2706,6 @@ theorem checkSuperWith_judge {v : Val} (h : v.CheckableA) :
       · simp only [Bool.false_eq_true, if_false]; exact ihb j hu.meetRight
       · simp only [if_true]; exact iha j hu.meetLeft
 
-/-- The checker by the parent type decides admission, and refusal, by
-it. -/
-theorem checkSuperWith_iff {v : Val} (h : v.CheckableA) (j : Data) (hu : HookOk u env root v j)
-    {b : Bool} : checkSuperWith u v j = b ↔ Judge env root b v.super j :=
-  (checkSuperWith_judge h j hu).toIff
-
 /-- A term with no `key` at its own position is checked alike under any key. -/
 theorem checkWith_keyless {v : Val} (hv : v.keyed = false) (ky : Option String) (j : Data) :
     checkWith u ky v j = checkWith u none v j := by
@@ -3277,8 +3217,6 @@ end
 values that read no name. -/
 abbrev check : Val → Data → Bool := checkWith (fun _ _ => false) none
 
-abbrev checkSpread : Option Val → Data → Bool := checkSpreadWith fun _ _ => false
-
 abbrev checkSuper : Val → Data → Bool := checkSuperWith fun _ _ => false
 
 section
@@ -3302,11 +3240,6 @@ theorem checkSuper_judge {v : Val} (h : v.Checkable) (j : Data) :
 theorem checkSuper_iff {v : Val} (h : v.Checkable) (j : Data) {b : Bool} :
     checkSuper v j = b ↔ Judge env root b v.super j :=
   (checkSuper_judge h j).toIff
-
-theorem checkSpread_iff {spread : Option Val}
-    (ih : ∀ s, spread = some s → ∀ j, check s j = true ↔ Admits env root s j) (x : Data) :
-    checkSpread spread x = true ↔ ∀ s, spread = some s → Admits env root s x :=
-  checkSpreadWith_iff fun s hs => ih s hs x
 
 end
 

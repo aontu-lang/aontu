@@ -136,7 +136,7 @@ output optional and `any`, through the containers, `|`, `*`, `&` and
 the riders. -/
 def Val.visible : Val → Val
   | .map fs spread closed => .map (visibleFields fs) (visibleSpread spread) closed
-  | .list items spread closed => .list (visibleItems items) (visibleElems spread) closed
+  | .list items spread closed => .list (visibleItems items) (visibleSpread spread) closed
   | .or arms => .or (visibleArms arms)
   | .pref r x => .pref r x.visible
   | .meet a b => .meet a.visible b.visible
@@ -155,10 +155,6 @@ def visibleSpread : Option Val → Option Val
 def visibleItems : List Val → List Val
   | [] => []
   | v :: vs => v.visible :: visibleItems vs
-
-def visibleElems : Option Val → Option Val
-  | none => none
-  | some s => some s.visible
 
 def visibleArms : List (ℕ × Val) → List (ℕ × Val)
   | [] => []
@@ -212,10 +208,6 @@ theorem mem_visibleItems {items : List Val} {w : Val} :
       · exact Or.inl rfl
       · exact Or.inr ⟨v', hm, rfl⟩
 
-theorem visibleElems_eq {spread : Option Val} {t : Val} :
-    visibleElems spread = some t ↔ ∃ s, spread = some s ∧ t = s.visible := by
-  cases spread <;> simp [visibleElems, eq_comm]
-
 theorem mem_visibleArms {arms : List (ℕ × Val)} {r : ℕ} {b : Val} :
     (r, b) ∈ visibleArms arms ↔ ∃ a, (r, a) ∈ arms ∧ b = a.visible := by
   induction arms with
@@ -249,7 +241,7 @@ theorem Val.CheckableA.visible {v : Val} (h : v.CheckableA) : v.visible.Checkabl
       obtain ⟨v, hv, rfl⟩ := mem_visibleItems.mp hm
       exact ihi v hv
     · intro t ht
-      obtain ⟨s, hs, rfl⟩ := visibleElems_eq.mp ht
+      obtain ⟨s, hs, rfl⟩ := visibleSpread_eq.mp ht
       exact ihs s hs
   | @or arms _ ih =>
     refine .or fun r b hm => ?_
@@ -278,7 +270,7 @@ theorem Val.Checkable.visible {v : Val} (h : v.Checkable) : v.visible.Checkable 
       obtain ⟨v, hv, rfl⟩ := mem_visibleItems.mp hm
       exact ihi v hv
     · intro t ht
-      obtain ⟨s, hs, rfl⟩ := visibleElems_eq.mp ht
+      obtain ⟨s, hs, rfl⟩ := visibleSpread_eq.mp ht
       exact ihs s hs
   | @or arms _ ih =>
     refine .or fun r b hm => ?_
