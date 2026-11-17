@@ -6856,10 +6856,10 @@ contract](trust.md), clause 2).
 The definition reads a bound over a term as the bound itself once each
 argument reads as a number or a string, by `bndOf` in
 [`spec/Aontu/Verdict.lean`](../spec/Aontu/Verdict.lean). An argument
-outside the bound's domain, a boolean, `null`, a container, a kind, a
-bound, a pattern or a meet, or a number and a string together under
-`neq`, makes a bound that admits nothing, however the argument is
-written, so data that meets it is `invalid`, and in a `filter`'s
+outside the bound's domain, a written `nil`, a boolean, `null`, a
+container, a kind, a bound, a pattern or a meet, or a number and a
+string together under `neq`, makes a bound that admits nothing, whatever
+form the argument takes, so data that meets it is `invalid`, and in a `filter`'s
 condition it refuses each member the condition tries. A kind the data
 fills reads as the value the data gives it, so
 `lo: number, t: min($.lo)` admits `{"lo": 2, "t": 3}`. A choice still

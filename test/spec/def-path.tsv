@@ -3131,6 +3131,33 @@ nl128	verdict	"v": must(min((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid","op
 nl129	verdict	"v": must(len((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid"}
 nl130	verdict	"v": must(len((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
 nl131	verdict	"v": must(len((nil) & (1)), "m")	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl132	verdict	"v": min(nil)	{"v": 1}	{"verdict":"invalid"}
+nl133	verdict	"v": min(nil)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl134	verdict	"v": min(nil)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl135	verdict	"v": neq(nil)	{"v": 1}	{"verdict":"invalid"}
+nl136	verdict	"v": neq(nil)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl137	verdict	"v": neq(nil)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl138	verdict	"v": neq(nil, 2)	{"v": 1}	{"verdict":"invalid"}
+nl139	verdict	"v": neq(nil, 2)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl140	verdict	"v": neq(nil, 2)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl141	verdict	"v": neq([nil, 2])	{"v": 1}	{"verdict":"invalid"}
+nl142	verdict	"v": neq([nil, 2])	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl143	verdict	"v": neq([nil, 2])	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl144	verdict	"v": min((nil) & (1))	{"v": 1}	{"verdict":"invalid"}
+nl145	verdict	"v": min((nil) & (1))	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl146	verdict	"v": min((nil) & (1))	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl147	verdict	"v": above(nil)	{"v": 1}	{"verdict":"invalid"}
+nl148	verdict	"v": above(nil)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl149	verdict	"v": above(nil)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl150	verdict	"v": mulof(nil)	{"v": 1}	{"verdict":"invalid"}
+nl151	verdict	"v": mulof(nil)	{"v": 1}	{"verdict":"invalid","opts":{"noFill":true}}
+nl152	verdict	"v": mulof(nil)	{"v": 1}	{"verdict":"invalid","opts":{"partial":true}}
+nl153	verdict	"v": (integer) & (below(nil))	{"v": 1}	{"verdict":"error"}
+nl154	verdict	"v": (integer) & (below(nil))	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+nl155	verdict	"v": (integer) & (below(nil))	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
+nl156	verdict	"v": min((1) & (2))	{"v": 1}	{"verdict":"error"}
+nl157	verdict	"v": min((1) & (2))	{"v": 1}	{"verdict":"error","opts":{"noFill":true}}
+nl158	verdict	"v": min((1) & (2))	{"v": 1}	{"verdict":"error","opts":{"partial":true}}
 ib0	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid"}
 ib1	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"noFill":true}}
 ib2	verdict	"v": each([{"p": 80}, {"p": 443}], (_) & ({"protocol": "TCP"}))	{"v": [{"p": 80, "protocol": "TCP"}, {"p": 443, "protocol": "TCP"}]}	{"verdict":"valid","opts":{"partial":true}}

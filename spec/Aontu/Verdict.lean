@@ -842,21 +842,24 @@ def Val.isChoice : Val → Bool
 `min($.lo)` being `min(2)` where `lo` is `2`, once each argument's normal
 form, its riders read through, is a number or a string, as both ports
 settle such a bound; the atom that admits nothing where an argument is
-outside the bound's domain, a boolean, `null`, a container, a kind, a
-bound, a pattern or a meet, where `neq` takes both numbers and strings
-and where `mulof` takes a string, however the argument is written
-(decision 28 of the design note's §7); refused where an argument is a
+outside the bound's domain, a written `nil`, read before its rider comes
+off, a boolean, `null`, a container, a kind, a bound, a pattern or a
+meet, where `neq` takes both numbers and strings and where `mulof`
+takes a string, however the argument is written (decision 28 of the
+design note's §7, and ruling 54); refused where an argument is a
 choice still to make, which both ports refuse as an argument whatever
 the bound meets (#413), and where a bound takes another count of
-arguments than its own; waiting for anything else. A `neq` over a sole
-list that isn't empty reads its elements as its arguments, as both
-ports read `neq([1, 3])` as `neq(1, 3)`, a choice among them refused. -/
+arguments than its own; waiting for anything else, a conflict among
+them. A `neq` over a sole list that isn't empty reads its elements as
+its arguments, as both ports read `neq([1, 3])` as `neq(1, 3)`, a
+choice among them refused. -/
 def bndOf (ds : Decls) (b : Bnd) (args : List Val) : Made :=
-  let ns := match b, args.map fun a => (normaliseD ds a).unride with
-    | .neq, [.list (x :: xs) _ _] => (x :: xs).map fun e => (normaliseD ds e).unride
-    | _, ns => ns
+  let ws := match b, args.map fun a => (normaliseD ds a).unride with
+    | .neq, [.list (x :: xs) _ _] => (x :: xs).map (normaliseD ds)
+    | _, _ => args.map (normaliseD ds)
+  let ns := ws.map Val.unride
   if ns.any Val.isChoice then .refused else
-  if ns.any Val.noEnd then .made .nothing else
+  if ws.any Val.isVoid || ns.any Val.noEnd then .made .nothing else
   match ns.mapM Val.boundEnd?, b with
   | none, _ => .waits
   | some [e], .min => .made (.min e)

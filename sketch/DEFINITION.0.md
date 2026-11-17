@@ -2524,6 +2524,20 @@ until the phase that encodes it lands.
    written `nil` and a choice is still an error, and both ports look
    for a written `nil` in a constraint among an atom's arguments. Rows
    nl111 to nl131 hold both, beside `*nil`'s nl90 to nl110 (#799).
+   A bound over a written `nil` alone admits nothing, as one over an
+   argument outside its domain does (decision 28): `bndOf` read it as
+   the conflict its rider wraps, and waited, where both ports answer
+   `invalid` (#807); rows nl132 on.
+55. **A written `nil` arm in a bound's argument.** Raised 2026-11-16
+   with #807: in `min(nil | 1)` the definition keeps `nil | 1` as a
+   disjunction, a choice, and a choice is no bound's argument, so the
+   bound is refused and the document is an error; both ports drop the
+   arm that holds no value and read `min(1)`, so `{"v": 1}` is `valid`.
+   **Ruled 2026-11-17 (the project's owner): it stays a choice.** A
+   disjunction with a written `nil` among its arms is a choice wherever
+   it stands, as at a key it's absence or a value, so a bound over one
+   is an error whatever it meets, as the definition reads it; both
+   ports move.
 
 ## 8. Risks
 
