@@ -2527,7 +2527,10 @@ until the phase that encodes it lands.
    A bound over a written `nil` alone admits nothing, as one over an
    argument outside its domain does (decision 28): `bndOf` read it as
    the conflict its rider wraps, and waited, where both ports answer
-   `invalid` (#807); rows nl132 on.
+   `invalid` (#807); rows nl132 on. TypeScript reported a written
+   `nil` among a built constraint's arguments as `literal_nil` where no
+   data met the constraint, and walks them no longer, as Go doesn't
+   (#809); rows nl186 on.
 55. **A choice a bound's argument settles to one arm.** Raised
    2026-11-16 with #807: `min(nil | 1)`. The definition's normal form
    drops a written-`nil` arm as it drops a dead arm, leaving a

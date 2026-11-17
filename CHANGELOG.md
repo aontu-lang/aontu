@@ -8,6 +8,20 @@ each change affects.
 
 ## Unreleased
 
+### A written `nil` among a constraint's arguments is no finding (#809)
+
+TypeScript only, and shared rows.
+
+- A constraint over a written `nil` that no data meets reads as Go and
+  the definition read it: `v?: max(nil)` against `{}` is `valid`, an
+  optional key left absent, and `v: len(nil)` is `incomplete`.
+  TypeScript's walk for findings went into a built constraint's
+  arguments and reported the written `nil` there as `literal_nil`, so
+  `vet` read each as `invalid`. It now walks only what the constraint's
+  `must` checks, as Go's does.
+- Eighteen rows join the written-nil cases in
+  `test/spec/def-path.tsv`, from `nl186` on.
+
 ### A bound over a choice stays an error beside a written `nil` (#798)
 
 Both engines and shared rows.
