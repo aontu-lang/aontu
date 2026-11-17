@@ -1888,13 +1888,13 @@ def recursiveSelectCases : List (Decls × Val × Data) :=
 set_option maxRecDepth 16384 in
 set_option maxHeartbeats 2000000 in
 /-- The checker can't read a selection before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem recursiveSelectCases_reads : ∀ c ∈ recursiveSelectCases, c.1.readsPB c.2.1 c.2.2 = true := by
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem recursiveSelectCases_reads : ∀ c ∈ recursiveSelectCases, c.1.readsPD c.2.1 c.2.2 = true := by
   decide +kernel
 
 theorem recursiveSelect_verdict_exact : ∀ c ∈ recursiveSelectCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (recursiveSelectCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (recursiveSelectCases_reads c hc) v
 
 /-- A use of a name whose body writes a relative path reads the path
 where the use stands (ruling 26): a climb out of the body at a use whose
@@ -2904,13 +2904,13 @@ def moveReadCases : List (Decls × Val × Data) :=
       .map [("b", .list [j 2])])]
 
 /-- The checker can't read a selection over a call or a `filter` before
-the reading makes it, so each case's readings are read whole
-(`Decls.readsPB`). -/
-theorem moveReadCases_reads : ∀ c ∈ moveReadCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+the reading makes it, so each case's reading with the data is read
+whole (`Decls.readsPD`). -/
+theorem moveReadCases_reads : ∀ c ∈ moveReadCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem moveRead_verdict_exact : ∀ c ∈ moveReadCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (moveReadCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (moveReadCases_reads c hc) v
 
 /-- `move` of a list's element and of a member inside one: the element
 stays at its position in what the schema admits, as both ports read it,
@@ -4034,12 +4034,12 @@ def emitFilterCases : List (Decls × Val × Data) :=
     ([], m [("s", sel), ("o", o)], dm [("o", .list [.str "y"])])]
 
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem emitFilterCases_reads : ∀ c ∈ emitFilterCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem emitFilterCases_reads : ∀ c ∈ emitFilterCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem emitFilter_verdict_exact : ∀ c ∈ emitFilterCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (emitFilterCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (emitFilterCases_reads c hc) v
 
 /-- Generators whose templates read their member's place through a
 relative path, each read at each member of the generator's output:
@@ -4399,13 +4399,13 @@ theorem emitGen_verdict_exact : ∀ c ∈ emitGenCases, ∀ (m : Mode) (v : Verd
   fun c hc _ v => vetP_iff (emitGenCases_checkable c hc).1 (emitGenCases_checkable c hc).2 v
 
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem emitGenFilterCases_reads : ∀ c ∈ emitGenFilterCases, c.1.readsPB c.2.1 c.2.2 = true := by
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem emitGenFilterCases_reads : ∀ c ∈ emitGenFilterCases, c.1.readsPD c.2.1 c.2.2 = true := by
   decide +kernel
 
 theorem emitGenFilter_verdict_exact : ∀ c ∈ emitGenFilterCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (emitGenFilterCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (emitGenFilterCases_reads c hc) v
 
 /-- A named table, `%W = emit(_, t)`, whose body holds a generator whose
 template reads its member's place through a relative path: the path read
@@ -4539,12 +4539,12 @@ def filterCondCases : List (Decls × Val × Data) :=
 
 set_option maxRecDepth 16384 in
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem filterCondCases_reads : ∀ c ∈ filterCondCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem filterCondCases_reads : ∀ c ∈ filterCondCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem filterCond_verdict_exact : ∀ c ∈ filterCondCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (filterCondCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (filterCondCases_reads c hc) v
 
 /-- What a made `filter` holds: each child its condition admits as the
 child itself, so a preference it keeps admits the arm a later meet or
@@ -4568,12 +4568,12 @@ def filterKeepCases : List (Decls × Val × Data) :=
 
 set_option maxRecDepth 16384 in
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem filterKeepCases_reads : ∀ c ∈ filterKeepCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem filterKeepCases_reads : ∀ c ∈ filterKeepCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem filterKeep_verdict_exact : ∀ c ∈ filterKeepCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (filterKeepCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (filterKeepCases_reads c hc) v
 
 /-- Ruling 51: a `filter` tries each child as the term it is, so a child
 that generates nothing, a kind, a bound or a disjunction, is kept where
@@ -4612,12 +4612,12 @@ def filterTermCases : List (Decls × Val × Data) :=
 
 set_option maxRecDepth 16384 in
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem filterTermCases_reads : ∀ c ∈ filterTermCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem filterTermCases_reads : ∀ c ∈ filterTermCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem filterTerm_verdict_exact : ∀ c ∈ filterTermCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (filterTermCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (filterTermCases_reads c hc) v
 
 /-- Ruling 38: a meet carries the marks of both its sides, `any`'s
 included, so `hide(any)` or `type(any)` met with a value marks it,
@@ -4658,11 +4658,11 @@ def markMeetCases : List (Decls × Val × Data) :=
     ([], m [("a", .meet (l [int 1, int 2]) (l [hide .any]))], da (.list [j 2]))]
 
 set_option maxRecDepth 16384 in
-theorem markMeetCases_reads : ∀ c ∈ markMeetCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+theorem markMeetCases_reads : ∀ c ∈ markMeetCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem markMeet_verdict_exact : ∀ c ∈ markMeetCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (markMeetCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (markMeetCases_reads c hc) v
 
 /-- A spread's template copied to each member without the marks written
 around it (ruling 39): `hide()` and `type()` around a scalar, a kind, a
@@ -4708,11 +4708,11 @@ def spreadMarkCases : List (Decls × Val × Data) :=
     ([], x (.meet (sp (.ride .metadata (int 1) [])) a1), dx (.map []))]
 
 set_option maxRecDepth 16384 in
-theorem spreadMarkCases_reads : ∀ c ∈ spreadMarkCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+theorem spreadMarkCases_reads : ∀ c ∈ spreadMarkCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem spreadMark_verdict_exact : ∀ c ∈ spreadMarkCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (spreadMarkCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (spreadMarkCases_reads c hc) v
 
 /-- Bounds written over terms: `min`, `max`, `above` and `below` over a
 path to a number and to a string, the empty string among them, over a
@@ -4844,12 +4844,12 @@ def boundFilterCases : List (Decls × Val × Data) :=
 
 set_option maxRecDepth 16384 in
 /-- The checker can't read a `filter` before the reading makes it, so
-each case's readings are read whole (`Decls.readsPB`). -/
-theorem boundFilterCases_reads : ∀ c ∈ boundFilterCases, c.1.readsPB c.2.1 c.2.2 = true := by decide +kernel
+each case's reading with the data is read whole (`Decls.readsPD`). -/
+theorem boundFilterCases_reads : ∀ c ∈ boundFilterCases, c.1.readsPD c.2.1 c.2.2 = true := by decide +kernel
 
 theorem boundFilter_verdict_exact : ∀ c ∈ boundFilterCases, ∀ (m : Mode) (v : Verdict),
     vetP m c.1 c.2.1 c.2.2 = v ↔ VetP m c.1 c.2.1 c.2.2 v :=
-  fun c hc _ v => vetP_iff_reads (boundFilterCases_reads c hc) v
+  fun c hc _ v => vetP_iff_readsD (boundFilterCases_reads c hc) v
 
 /-- Bounds over a relative path in a generator's template, each read
 where its instance lands: `min` over a path into the member, in an

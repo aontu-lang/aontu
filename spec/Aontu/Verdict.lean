@@ -1040,141 +1040,73 @@ def callTerm (ds : Decls) (f : Fn) (args : List Val) : Val :=
     | none => .call f args
 
 mutual
-/-- Whether a term holds a call, at any depth: a `+` or a `join` that
-waits, or a call no reading made. -/
-def Val.holdsCall : Val → Bool
-  | .call _ _ => true
-  | .ride _ v _ => v.holdsCall
-  | .link v _ => v.holdsCall
-  | .len c => c.holdsCall
-  | .map fs spread _ => callFields fs || callSpread spread
-  | .list items spread _ => callItems items || callSpread spread
-  | .or arms => callArms arms
-  | .pref _ x => x.holdsCall
-  | .meet a b => a.holdsCall || b.holdsCall
-  | .nof n cs => n.holdsCall || callItems cs
-  | .must c _ => c.holdsCall
-  | .when c t e => c.holdsCall || t.holdsCall || callSpread e
-  | .contains c n => c.holdsCall || n.holdsCall
-  | .rest t cs => t.holdsCall || callCovers cs
-  | .select s arms d => s.holdsCall || callPairs arms || callSpread d
-  | .filter s c => s.holdsCall || c.holdsCall
+/-- Whether a term holds a node `p` picks out, at any depth: `p` tried at
+the term, then through its members and spreads, arms, sides, riders, a
+link's value, the operands of a check or a trial, and a call's
+arguments. -/
+def Val.holds (p : Val → Bool) (v : Val) : Bool :=
+  p v || match v with
+  | .ride _ w _ | .link w _ | .len w | .pref _ w | .must w _ => w.holds p
+  | .map fs s _ => holdsFields p fs || holdsSpread p s
+  | .list items s _ => holdsItems p items || holdsSpread p s
+  | .or arms => holdsArms p arms
+  | .meet a b | .contains a b | .filter a b => a.holds p || b.holds p
+  | .nof n cs => n.holds p || holdsItems p cs
+  | .when c t e => c.holds p || t.holds p || holdsSpread p e
+  | .rest t cs => t.holds p || holdsCovers p cs
+  | .select s arms d => s.holds p || holdsPairs p arms || holdsSpread p d
+  | .call _ args => holdsItems p args
   | _ => false
+termination_by structural v
 
-def callFields : List (String × Bool × Val) → Bool
+def holdsFields (p : Val → Bool) : List (String × Bool × Val) → Bool
   | [] => false
-  | (_, _, v) :: fs => v.holdsCall || callFields fs
+  | (_, _, v) :: fs => v.holds p || holdsFields p fs
 
-def callItems : List Val → Bool
+def holdsItems (p : Val → Bool) : List Val → Bool
   | [] => false
-  | v :: vs => v.holdsCall || callItems vs
+  | v :: vs => v.holds p || holdsItems p vs
 
-def callSpread : Option Val → Bool
+def holdsSpread (p : Val → Bool) : Option Val → Bool
   | none => false
-  | some s => s.holdsCall
+  | some s => s.holds p
 
-def callArms : List (ℕ × Val) → Bool
+def holdsArms (p : Val → Bool) : List (ℕ × Val) → Bool
   | [] => false
-  | (_, a) :: arms => a.holdsCall || callArms arms
+  | (_, a) :: arms => a.holds p || holdsArms p arms
 
-def callPairs : List (Val × Val) → Bool
+def holdsPairs (p : Val → Bool) : List (Val × Val) → Bool
   | [] => false
-  | (p, r) :: ps => p.holdsCall || r.holdsCall || callPairs ps
+  | (q, r) :: ps => q.holds p || r.holds p || holdsPairs p ps
 
-def callCovers : List Cover → Bool
+def holdsCovers (p : Val → Bool) : List Cover → Bool
   | [] => false
-  | (c, k, m) :: cs => callSpread c || callSpread k || callSpread m || callCovers cs
+  | (c, k, m) :: cs => holdsSpread p c || holdsSpread p k || holdsSpread p m || holdsCovers p cs
 end
 
-mutual
+/-- Whether a selection's patterns or results hold a call, at any depth:
+a `+` or a `join` that waits, or a call no reading made. -/
+def callPairs : List (Val × Val) → Bool := holdsPairs fun | .call _ _ => true | _ => false
+
 /-- Whether a term holds a form no reading has made yet, at any depth:
 a call, a selection or a `filter`. -/
-def Val.unmade : Val → Bool
-  | .call _ _ | .select _ _ _ | .filter _ _ => true
-  | .ride _ v _ => v.unmade
-  | .link v _ => v.unmade
-  | .len c => c.unmade
-  | .map fs spread _ => unmadeFields fs || unmadeSpread spread
-  | .list items spread _ => unmadeItems items || unmadeSpread spread
-  | .or arms => unmadeArms arms
-  | .pref _ x => x.unmade
-  | .meet a b => a.unmade || b.unmade
-  | .nof n cs => n.unmade || unmadeItems cs
-  | .must c _ => c.unmade
-  | .when c t e => c.unmade || t.unmade || unmadeSpread e
-  | .contains c n => c.unmade || n.unmade
-  | .rest t cs => t.unmade || unmadeCovers cs
+def Val.unmade : Val → Bool :=
+  Val.holds fun | .call _ _ | .select _ _ _ | .filter _ _ => true | _ => false
+
+/-- Whether a term is a `key(n)`. -/
+def Val.isKeyUp : Val → Bool
+  | .keyUp _ => true
   | _ => false
 
-def unmadeFields : List (String × Bool × Val) → Bool
-  | [] => false
-  | (_, _, v) :: fs => v.unmade || unmadeFields fs
-
-def unmadeItems : List Val → Bool
-  | [] => false
-  | v :: vs => v.unmade || unmadeItems vs
-
-def unmadeSpread : Option Val → Bool
-  | none => false
-  | some s => s.unmade
-
-def unmadeArms : List (ℕ × Val) → Bool
-  | [] => false
-  | (_, a) :: arms => a.unmade || unmadeArms arms
-
-def unmadeCovers : List Cover → Bool
-  | [] => false
-  | (c, k, m) :: cs => unmadeSpread c || unmadeSpread k || unmadeSpread m || unmadeCovers cs
-end
-
-mutual
 /-- Whether a term holds a `key(n)` no reading has placed, at any depth,
 a call's arguments among them: a term whose value waits on the position
-it lands at. -/
-def Val.holdsKey : Val → Bool
-  | .keyUp _ => true
-  | .call _ args => keyItems args
-  | .ride _ v _ => v.holdsKey
-  | .link v _ => v.holdsKey
-  | .len c => c.holdsKey
-  | .map fs spread _ => keyFields fs || keySpread spread
-  | .list items spread _ => keyItems items || keySpread spread
-  | .or arms => keyArms arms
-  | .pref _ x => x.holdsKey
-  | .meet a b => a.holdsKey || b.holdsKey
-  | .nof n cs => n.holdsKey || keyItems cs
-  | .must c _ => c.holdsKey
-  | .when c t e => c.holdsKey || t.holdsKey || keySpread e
-  | .contains c n => c.holdsKey || n.holdsKey
-  | .rest t cs => t.holdsKey || keyCovers cs
-  | .select s arms d => s.holdsKey || keyPairs arms || keySpread d
-  | .filter s c => s.holdsKey || c.holdsKey
-  | _ => false
+it lands at. `keyItems` and `keyPairs` ask it of a list's elements and of
+a selection's patterns and results. -/
+def Val.holdsKey : Val → Bool := Val.holds Val.isKeyUp
 
-def keyFields : List (String × Bool × Val) → Bool
-  | [] => false
-  | (_, _, v) :: fs => v.holdsKey || keyFields fs
+def keyItems : List Val → Bool := holdsItems Val.isKeyUp
 
-def keyItems : List Val → Bool
-  | [] => false
-  | v :: vs => v.holdsKey || keyItems vs
-
-def keySpread : Option Val → Bool
-  | none => false
-  | some s => s.holdsKey
-
-def keyArms : List (ℕ × Val) → Bool
-  | [] => false
-  | (_, a) :: arms => a.holdsKey || keyArms arms
-
-def keyPairs : List (Val × Val) → Bool
-  | [] => false
-  | (p, r) :: ps => p.holdsKey || r.holdsKey || keyPairs ps
-
-def keyCovers : List Cover → Bool
-  | [] => false
-  | (c, k, m) :: cs => keySpread c || keySpread k || keySpread m || keyCovers cs
-end
+def keyPairs : List (Val × Val) → Bool := holdsPairs Val.isKeyUp
 
 mutual
 /-- Whether a term waits for the place a use gives it: whether it holds
@@ -4512,52 +4444,8 @@ theorem staged_checkableA {ds : Decls} {v : Val} (h : v.CheckableA) : (v.staged 
   | link _ ht ih _ => simp only [Val.staged]; exact .link ih ht
   | _ => simp only [Val.staged]; constructor <;> assumption
 
-mutual
 /-- Whether a term holds an `ident()`, at any depth. -/
-def Val.idents : Val → Bool
-  | .ride .ident _ _ => true
-  | .ride _ v _ => v.idents
-  | .link v _ => v.idents
-  | .len c => c.idents
-  | .map fs spread _ => identsFields fs || identsSpread spread
-  | .list items spread _ => identsItems items || identsSpread spread
-  | .or arms => identsArms arms
-  | .pref _ x => x.idents
-  | .meet a b => a.idents || b.idents
-  | .nof n cs => n.idents || identsItems cs
-  | .must c _ => c.idents
-  | .when c t e => c.idents || t.idents || identsSpread e
-  | .contains c n => c.idents || n.idents
-  | .rest t cs => t.idents || identsCovers cs
-  | .select s arms d => s.idents || identsPairs arms || identsSpread d
-  | .filter s c => s.idents || c.idents
-  | .call _ args => identsItems args
-  | _ => false
-
-def identsPairs : List (Val × Val) → Bool
-  | [] => false
-  | (p, r) :: ps => p.idents || r.idents || identsPairs ps
-
-def identsCovers : List Cover → Bool
-  | [] => false
-  | (c, k, m) :: cs => identsSpread c || identsSpread k || identsSpread m || identsCovers cs
-
-def identsFields : List (String × Bool × Val) → Bool
-  | [] => false
-  | (_, _, v) :: fs => v.idents || identsFields fs
-
-def identsItems : List Val → Bool
-  | [] => false
-  | v :: vs => v.idents || identsItems vs
-
-def identsSpread : Option Val → Bool
-  | none => false
-  | some s => s.idents
-
-def identsArms : List (ℕ × Val) → Bool
-  | [] => false
-  | (_, a) :: arms => a.idents || identsArms arms
-end
+def Val.idents : Val → Bool := Val.holds fun | .ride .ident _ _ => true | _ => false
 
 /-- Whether an `ident()` stands where none may: anywhere in the
 document's term, or in a declaration's body but at its top or on a term

@@ -3431,8 +3431,6 @@ theorem vetL_iff {m : Mode} {ds : Decls} {S : Val} {j : Data} (hb : ∀ d, d ∈
     (hS : S.CheckableA) (v : Verdict) : vetL m ds S j = v ↔ VetL m ds S j v :=
   vetA_iff (ds := (ds.preparedS S).1) (S := (ds.preparedS S).2) (ds' := (ds.preparedD S j).1)
     (S' := (ds.preparedD S j).2)
-    (Decls.prepared_bodies_checkableA rootsS_readable rootsS_readable hb hS)
-    (Decls.prepared_checkableA rootsS_readable rootsS_readable hb hS)
     (Decls.prepared_bodies_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS)
     (Decls.prepared_checkableA Decls.linkReader_readable (rootsD_readable j) hb hS) v
 ```

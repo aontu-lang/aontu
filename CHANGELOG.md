@@ -25,6 +25,20 @@ every row the oracle prints is byte for byte what it printed before.
 - **`dead_sound` is derived** from `dead_refuses` and `judge_unique`, a
   term refused everywhere admitting nothing, where it was a second
   induction over the same cases.
+- **`Val.checkableB` is `Val.checkableAB` and no name read**,
+  `v.checkableAB && v.refs.isEmpty`, where it was a second traversal
+  of every term written out beside the first; `Val.Checkable.toA` is
+  one line.
+- **One traversal, `Val.holds`, asks whether a term holds a node of a
+  kind.** `Val.unmade`, `Val.holdsKey`, `Val.idents` and `callPairs`
+  each name the node they look for, where each was a traversal of its
+  own.
+- **The schema's own reading needs nothing of the checker.** It decides
+  only the `error` class, which `vet` computes on any document
+  (`vet_error_iff`), so `vetA_iff` asks only of the reading with the
+  data, and `vetA_iff_of`, `vetA_iff_reads`, `vetP_iff_reads`,
+  `Decls.readsAB` and `Decls.readsPB` are gone. The oracle's cases ask
+  `Decls.readsPD`.
 - **One tactic, `judge_rebuild`, rebuilds a judgement rule by rule.**
   `judge_root` and `judge_of_follows` each wrote out the same 114
   alternatives.
